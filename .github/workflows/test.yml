@@ -45,5 +45,5 @@ jobs:
 
       - name: Upload coverage reports
         if: ${{ matrix.python-version == env.MAIN_SUPPORT_VERSION }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         continue-on-error: true
