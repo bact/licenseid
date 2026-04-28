@@ -42,7 +42,7 @@ jobs:
     name: Publish to PyPI
     needs: build
     runs-on: ubuntu-latest
-    environment: PyPI
+    environment: pypi
     permissions:
       id-token: write # required for trusted publishing (OIDC)
 

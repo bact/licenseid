@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "licenseid"
 version = "0.1.0"
-description = "SPDX License ID matcher with SQLite and Hybrid Search"
+description = "Get the SPDX License ID from license text"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
@@ -25,6 +25,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "beautifulsoup4>=4.10.0",
