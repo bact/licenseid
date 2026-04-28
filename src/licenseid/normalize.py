@@ -2,6 +2,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
+"""
+Text normalization utilities for SPDX license matching.
+"""
+
 import re
 from bs4 import BeautifulSoup
 
@@ -32,7 +36,8 @@ def normalize_text(text: str) -> str:
     text = re.sub(r"[^\w\s]", " ", text)
 
     # 5. Whitespace and Pagination
-    # Replace any sequence of whitespace characters (including line breaks) with a single space
+    # Replace any sequence of whitespace characters (including line breaks)
+    # with a single space
     text = re.sub(r"\s+", " ", text).strip()
 
     return text

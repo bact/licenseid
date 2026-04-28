@@ -2,6 +2,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
+"""
+Command-line interface for the licenseid tool.
+"""
+
 import json
 import os
 import sys
@@ -11,8 +15,8 @@ from typing import Optional
 
 import click
 
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.database import LicenseDatabase
+from licenseid.matcher import AggregatedLicenseMatcher
 
 
 def get_default_db_path() -> str:
@@ -41,29 +45,51 @@ def check_db_staleness(database: LicenseDatabase) -> None:
             pass
 
 
-@click.group()
-def cli() -> None:
+@click.group(invoke_without_command=True)
+@click.option("--db", help="Path to the license database.")
+@click.option("--clear-cache", is_flag=True, help="Clear local cache and exit.")
+@click.pass_context
+def cli(ctx: click.Context, db: Optional[str], clear_cache: bool) -> None:
     """SPDX License ID matcher tool."""
-    pass
+    db_path = db or get_default_db_path()
+    ctx.ensure_object(dict)
+    ctx.obj["db_path"] = db_path
+
+    if clear_cache:
+        database = LicenseDatabase(db_path)
+        database.clear_cache()
+        ctx.exit()
+
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
 
 
 @cli.command()
-@click.option("--db", help="Path to the license database.")
+@click.option("--version", default=None, help="SPDX License List version to download.")
+@click.option("--force", is_flag=True, help="Force update even if version matches.")
 @click.option(
-    "--version", default="3.28.0", help="SPDX License List version to download."
+    "--cache/--no-cache",
+    "use_cache",
+    default=True,
+    help="Use local cache for downloads (default: true).",
 )
-def update(db: Optional[str], version: str) -> None:
+@click.pass_context
+def update(
+    ctx: click.Context,
+    version: Optional[str],
+    force: bool,
+    use_cache: bool,
+) -> None:
     """Update the license database from remote sources."""
-    db_path = db or get_default_db_path()
+    db_path = ctx.obj["db_path"]
     database = LicenseDatabase(db_path)
-    database.update_from_remote(version=version)
+    database.update_from_remote(version=version, force=force, use_cache=use_cache)
     click.echo(f"Database updated at {db_path}")
 
 
 @cli.command()
 @click.argument("input_file", type=click.Path(exists=True), required=False)
 @click.option("--text", help="License text to match.")
-@click.option("--db", help="Path to the license database.")
 @click.option(
     "--json", "json_output", is_flag=True, help="Output results in JSON format."
 )
@@ -81,10 +107,11 @@ def update(db: Optional[str], version: str) -> None:
     default=False,
     help="Enable/disable popularity score weighting.",
 )
+@click.pass_context
 def match(
+    ctx: click.Context,
     input_file: Optional[str],
     text: Optional[str],
-    db: Optional[str],
     json_output: bool,
     threshold: float,
     top: int,
@@ -92,11 +119,12 @@ def match(
     enable_popularity: bool,
 ) -> None:
     """Identify license text and return the closest matched SPDX License ID."""
-    db_path = db or get_default_db_path()
+    db_path = ctx.obj["db_path"]
 
     if not os.path.exists(db_path):
         click.echo(
-            f"Error: Database not found at {db_path}. Please run 'licenseid update' first.",
+            f"Error: Database not found at {db_path}. "
+            "Please run 'licenseid update' first.",
             err=True,
         )
         sys.exit(1)
@@ -116,7 +144,8 @@ def match(
             license_text = sys.stdin.read()
         else:
             click.echo(
-                "Error: No input text provided. Provide a file, --text, or pipe to stdin.",
+                "Error: No input text provided. "
+                "Provide a file, --text, or pipe to stdin.",
                 err=True,
             )
             sys.exit(1)
@@ -142,7 +171,8 @@ def match(
 
 
 def main() -> None:
-    cli()
+    """Main entry point for the CLI."""
+    cli()  # pylint: disable=no-value-for-parameter
 
 
 if __name__ == "__main__":
