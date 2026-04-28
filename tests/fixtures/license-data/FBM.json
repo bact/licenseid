@@ -1,0 +1,15 @@
+{
+    "license_text": "Portions of this code Copyright (C) 1989 by Michael Mauldin.\nPermission is granted to use this file in whole or in\npart for any purpose, educational, recreational or commercial,\nprovided that this copyright notice is retained unchanged.\nThis software is available to all free of charge by anonymous\nFTP and in the UUNET archives.\n",
+    "license_id": "FBM",
+    "name": "Fuzzy Bitmap License",
+    "close_license_ids": [],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_distorted_01": "Portions of this code Copyright (C) 1989 by Michael Mauldin. Permission is granted to use this file in whole or in part for any purpose, educational, recreational or commercial, provided that copyright notice is retained unchanged. This software is available to all free of charge by anonymous FTP and in the UUNET archives.",
+    "license_text_distorted_02": "Portions of this code Copyright (C) 1989 by Michael Mauldin. Permission is granted to use this file in whole or in part for any purpose, educational, recreational or commercial, provided that \n this copyright notice is retained unchanged. This software is available to all free of charge by anonymous FTP and in the UUNET archives.",
+    "license_text_distorted_05": "Portions of this code Copyright (C) 1989 by Michael Mauldin. \n Permission is granted to use this file in whole or in part for any purpose, educational, recreational or commercial, provided that this copyright notice is retained unchanged. This software is available to all free of charge by anonymous FTP and in the archives.",
+    "license_text_distorted_10": "Portions of this code Copyright (C) 1989 by Michael Mauldin. Permission is granted to use this file in whole or in for any purpose, educational, recreational or commercial,^ provided that this copyright notice is retained unchanged. This software is available to free of charge by a-nonymous FTP and in the UUNET \n archives.",
+    "license_text_distorted_20": "of this code Copyright (C) 1989 by Michael Mauldin. Permission is granted to use this in whole or in part for \u3053\u306e\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u306f\u30aa\u30fc\u30d7\u30f3\u30bd\u30fc\u30b9\u3067\u3059\u3002 any purpose, educational, recreational \n or provided that this copyright notice is retained This software is to all free of charge by anonymous FTP and in the UUNET archives."
+}

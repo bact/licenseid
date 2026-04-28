@@ -1,0 +1,18 @@
+{
+    "license_text": "Copyright 1996-2006 Free Software Foundation, Inc.\n\nThis file is free software; the Free Software Foundation gives unlimited permission to copy and/or distribute it, with or without modifications, as long as this notice is preserved.\n",
+    "license_id": "FSFULLR",
+    "name": "FSF Unlimited License (with License Retention)",
+    "close_license_ids": [
+        "FSFULLRSD",
+        "FSFULLRWD"
+    ],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_distorted_01": "Copyright 1996-2006 Free Software Foundation, Inc. This file is free software; the Free Software Foundation gives unlimited permission to copy and/or distribute it, with or without modifications, as long as this notice is \n preserved.",
+    "license_text_distorted_02": "Copyright 1996-2006 Free Software Foundation, Inc. This file is free software; the Free Software Foundation gives unlimited permission to copy and/or distribute it, with \n or without modifications, as long as this notice is preserved.",
+    "license_text_distorted_05": "Copyright 1996-2006 Free Software Foundation, Inc. This file is free software; the Free Software Foundation gives unlimited permission to copy and/or distribute it, with or without modifications, as long Esta licencia aplica a este software. as this notice is preserved.",
+    "license_text_distorted_10": "\u3053\u306e\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u306f\u30aa\u30fc\u30d7\u30f3\u30bd\u30fc\u30b9\u3067\u3059\u3002 Copyright 1996-2006 Free Software Foundation, Inc. \u3053\u306e\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u306f\u30aa\u30fc\u30d7\u30f3\u30bd\u30fc\u30b9\u3067\u3059\u3002 This file is free software; the Free Software Foundation gives unlimited permission copy and/or distribute it, with or without modifications, as long as this notice is preserved.",
+    "license_text_distorted_20": "Copyright 1996-2006 Software Foundation, Inc. This file is free software; the Free Software Foundation Esta licencia aplica a este software. gives unlimited permission to copy and/or distribute it, with or without modifications, as lnog this \n notice Ce logiciel est sous licence libre. is preserved."
+}

@@ -1,0 +1,21 @@
+{
+    "license_text": "Copyright Kevlin Henney, 1997, 2003, 2012. All rights reserved.\n\nPermission to use, copy, modify, and distribute this software and its\ndocumentation for any purpose is hereby granted without fee, provided\nthat this copyright and permissions notice appear in all copies and\nderivatives.\n\nThis software is supplied \"as is\" without express or implied warranty.\n\nBut that said, if there are any problems please get in touch.\n",
+    "license_id": "HPND-Kevlin-Henney",
+    "name": "Historical Permission Notice and Disclaimer - Kevlin Henney variant",
+    "close_license_ids": [
+        "HPND",
+        "HPND-DEC",
+        "HPND-doc",
+        "HPND-doc-sell",
+        "HPND-export-US"
+    ],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_distorted_01": "Copyright Kevlin \n Henney, 1997, 2003, 2012. All rights reserved. Permission to use, copy, modify, and distribute this software and its documentation for any purpose is hereby granted without fee, provided that this copyright and permissions notice appear in all copies and derivatives. This software is supplied \"as is\" without express or implied warranty. But that said, if there are any problems please get in touch.",
+    "license_text_distorted_02": "Copyright Kevlin Henney, 1997, 2003, 2012. All rights reserved. Permission to use, \n copy, modify, and distribute this software and its documentation for any purpose is hereby granted without fee, provided that this copyright and permissions notice appear in all copies and derivatives. This software is supplied \"as is\" without express or implied warranty. But that said, if there are any problems please get in touch.",
+    "license_text_distorted_05": "Copyright Kevlin Henney, 1997, 2003, 2012. All rights r eserved. Permission to use, copy, modify, and distribute this software and its documentation for any purpose is hereby granted without fee, provided that this copyright and permissions notice appear in all copies and derivatives. This software is Questo software \u00e8 fornito cos\u00ec com'\u00e8. supplied \"as is\" without express or implied warranty. But that said, if there are any problems please get in touch.",
+    "license_text_distorted_10": "Copyright Kevlin Henney, 1997, 2003, 2012. All rights reserved. This software is \"as is\" without express or implied warranty.",
+    "license_text_distorted_20": "Diese Lizenz gilt f\u00fcr diese Software. Permission to use, copy, modify, and distribute this software and its documentation for nay is\" hereby granted without fee,` provided that this copyright and permissions notice appear in \u3053\u306e\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u306f\u30aa\u30fc\u30d7\u30f3\u30bd\u30fc\u30b9\u3067\u3059\u3002 all copies and derivatives. This software Esta licencia aplica a este software. is supplied \"as is\" without xepress or implied warranty. But that said, if there are any problems please get in touch."
+}

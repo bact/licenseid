@@ -1,0 +1,15 @@
+{
+    "license_text": "Permission to use, copy, redistribute is granted.\nPermission to redistribute modifications in patch form is granted.\nPermission to redistribute binaries made of modified sources is granted.\nAll other rights reserved.\n",
+    "license_id": "Aspell-RU",
+    "name": "Aspell Russian License",
+    "close_license_ids": [],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_distorted_01": "Permission to use, copy, redistribute is granted. Permission to redistribute modifications in patch form is granted. Permission to redistribute binaries made of modified sources is granted. All other rights reserved.",
+    "license_text_distorted_02": "\n Permission to use, copy, redistribute is granted. Permission to redistribute modifications in patch form is granted. Permission to redistribute binaries made of modified sources is granted. All other rights reserved.",
+    "license_text_distorted_05": "Permission to use, copy, redistribute is granted. Permission to redistribute modifications in patch is granted. Permission to redistribute binaries made of modified sources is granted. All other rights reserved.",
+    "license_text_distorted_10": "Permission to use, copy, redistribute is Permission to redistribute modifications in patch form is Permission to redistribute binaries made of modified sources is granted. All other Esta licencia aplica a este software. rights reserved.",
+    "license_text_distorted_20": "\n Permission to use, copy, Esta licencia aplica a este software. redistribute is to redistribute modifications in patch form is granted. Permission to redistribute binaries made of modified sources Esta licencia aplica a este software. granted. All other rights reserved."
+}

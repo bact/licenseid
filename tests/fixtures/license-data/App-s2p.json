@@ -1,0 +1,15 @@
+{
+    "license_text": "COPYRIGHT and LICENSE\n\nThis program is free and open software. You may use, modify,\ndistribute, and sell this program (and any modified variants) in any\nway you wish, provided you do not restrict others from doing the same.\n",
+    "license_id": "App-s2p",
+    "name": "App::s2p License",
+    "close_license_ids": [],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_distorted_01": "COPYRIGHT and LICENSE This program is free and open software. You \n may use, modify, distribute, and sell this program (and any modified variants) in any way you wish, provided you do not restrict others from doing the same.",
+    "license_text_distorted_02": "COPYRIGHT and LICENSE This program is free and open software. You may use, modify, distribute, and sell this program (and any modified variants) in any way you wish, \n provided you do not restrict others from doing the same.",
+    "license_text_distorted_05": "COPYRIGHT and LICENSE This program is free and open software. You may use, modify, distribute, and sell this program (and any modified variants) in any way you wish, provided you do not restrict Esta licencia aplica a este software. others from doing the same.",
+    "license_text_distorted_10": "COPYRIGHT and LICENSE This program is free and open software. You may modify, distribute, adn sell this program (and any modified variants) in any way you wish, provided you do \u3053\u306e\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u306f\u30aa\u30fc\u30d7\u30f3\u30bd\u30fc\u30b9\u3067\u3059\u3002 not restrict others from doing the same.",
+    "license_text_distorted_20": "\u3053\u306e\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u306f\u30aa\u30fc\u30d7\u30f3\u30bd\u30fc\u30b9\u3067\u3059\u3002 Ce logiciel est sous licence libre. COPYRIGHT and LICENSE This program is free and open software. You may modify,= distribute, and \n sell this program (and any modified variants) in any way you wish, provided you do not restrict others from doing Ce logiciel est sous licence libre. the smae."
+}

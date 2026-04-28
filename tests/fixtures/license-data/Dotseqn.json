@@ -1,0 +1,15 @@
+{
+    "license_text": "Copyright (C) 1995 by Donald Arseneau\n\nThis file may be freely transmitted and reproduced, but it may not be changed unless the name is changed also (except that you may freely change the paper-size option for \\documentclass).\n\nThis notice must be left intact.\n",
+    "license_id": "Dotseqn",
+    "name": "Dotseqn License",
+    "close_license_ids": [],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_distorted_01": "Copyright (C) 1995 by Donald Arseneau This file may be freely transmitted and reproduced, but it may not be changed unless the name is changed also (except that may freely change the paper-size option for \\documentclass). This notice must be left intact.",
+    "license_text_distorted_02": "Copyright (C) 1995 by Donald Arseneau file may be freely transmitted and reproduced, but it may not be changed unless the name is changed also (except that you may freely change the paper-size option for \\documentclass). This notice must be left intact.",
+    "license_text_distorted_05": "Copyright (C) 1995 by Donald Arseneau This file may be freely transmitted and reproduced, but it may not be changed unless the name is changed also (except that you may freely change the paper-size option for \\documentclass). This notice must be \n left intact.",
+    "license_text_distorted_10": "This file may be freely transmitted and reproduced, but it may not be changed unless the name is changed also (except that you may freely change the paper-size option for \\documentclass). This notice must be left intact.",
+    "license_text_distorted_20": "Copyright (C) 1995 by Donald Arseneau This file may be freely transmitted and reproduced, but it may not \n be changed unless the name Esta licencia aplica a este software. is \n changed also (except that Ce logiciel est sous licence libre. you may freely= change paper-size option for \\documentclass)."
+}

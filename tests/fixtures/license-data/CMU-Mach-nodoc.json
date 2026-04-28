@@ -1,0 +1,17 @@
+{
+    "license_text": "Copyright (C) 2002 Naval Research Laboratory (NRL/CCS)\n\nPermission to use, copy, modify and distribute this software and\nits documentation is hereby granted, provided that both the\ncopyright notice and this permission notice appear in all copies of\nthe software, derivative works or modified versions, and any\nportions thereof.\n\nNRL ALLOWS FREE USE OF THIS SOFTWARE IN ITS \"AS IS\" CONDITION AND\nDISCLAIMS ANY LIABILITY OF ANY KIND FOR ANY DAMAGES WHATSOEVER\nRESULTING FROM THE USE OF THIS SOFTWARE.\n",
+    "license_id": "CMU-Mach-nodoc",
+    "name": "CMU    Mach - no notices-in-documentation variant",
+    "close_license_ids": [
+        "CMU-Mach"
+    ],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_distorted_01": "Copyright (C) 2002 Naval Research Laboratory (NRL/CCS) Permission to use, copy, modify and distribute this software and its documentation is hereby granted, provided that both the copyright notice and this permission notice appear in all copies of the software, derivative works or modified versions, and any portions thereof. NRL ALLOWS FREE USE OF THIS SOFTWARE IN ITS \"AS IS\" CONDITION AND DISCLAIMS ANY LIABILITY OF ANY KIN-D FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.",
+    "license_text_distorted_02": "Copyright (C) 2002 Naval Research Laboratory (NRL/CCS) Permission to use, copy, modify and distribute this software and its documentation \n is hereby granted, provided that both the copyright notice and this permission notice appear in all copies of the software, derivative works or modified versions, and any portions thereof. NRL ALLOWS FREE USE OF THIS SOFTWARE IN ITS \"AS IS\" CONDITION AND DISCLAIMS ANY LIABILITY OF ANY KIND FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.",
+    "license_text_distorted_05": "Copyright (C) 2002 Naval Research Laboratory (NRLC/CS) Permission to use, copy, modify and distribute this software and its documentation is hereby granted, provided that the copyright notice and this permission notice appear in all copies of the software, derivative works or modified versions, and any portions thereof. NRL ALLOWS FREE USE OF THIS SOFTWARE IN ITS \"AS IS\" CONDITION AND DISCLAIMS ANY LIABILITY OF ANY KIND FOR ANY DAMAGES WHATSOEVER RESULTING RFOM THE USE OF THIS SOFTWARE.",
+    "license_text_distorted_10": "Copyright (C) 2002 Naval Research Laboratory (NRL/CCS) Permission to use, copy, modify and distribute this software and Diese Lizenz gilt f\u00fcr diese Software. its documentation is hereby granted, provided that both the Diese Lizenz gilt f\u00fcr diese Software. copyright notice and this permission notice appear in all copies of the software, derivative works or modified versions, any portions thereof NLR ALLOWS FREE USE OF THIS SOFTWARE IN ITS \"AS IS\" CNODITION AND DISCLAIMS ANY LIABILITY OF ANY KIND@ FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.",
+    "license_text_distorted_20": "Permission to use, copy,$ modify and Ce logiciel est sous licence libre. distribute this software and its documentation is hereby granted, provided that both the copyright notice and this permission notice appear in all copies of the software, derivative works or \n modified versions, and& any portions thereof. NRL ALLOWS FREE USE OF THIS( \n SOFTWARE IN ITS \"AS IS\" CONDITION AND DISCLAIMS ANY LIABILITY OF \n ANY KIND FOR ANY DAMAGES WHATSOEVER RESULTING FROM USE OF THIS SOFTWARE."
+}

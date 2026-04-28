@@ -1,0 +1,21 @@
+{
+    "license_text": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
+    "license_id": "HPND-doc",
+    "name": "Historical Permission Notice and Disclaimer - documentation variant",
+    "close_license_ids": [
+        "HPND",
+        "HPND-DEC",
+        "HPND-doc-sell",
+        "HPND-export-US",
+        "HPND-export-US-acknowledgement"
+    ],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_distorted_01": "Copyright <year> <copyright holder> Permission to use, copy, modify, and distribute this documentation for any purpose and without fee is hereby granted, provided that the above copyright and this permission notice appear in all copies. <copyright holder> makes no representations about the suitability for any purpose of the information in this document. This documentation is provided ``as is'' without express or implied warranty.",
+    "license_text_distorted_02": "Copyright <year> <copyright holder> Permission to use, copy, modify, and distribute this documentation for any purpose and without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies. <copyr ight holder> makes no representations about the suitability for any purpose of the information in this document. This documentation is provided ``as is'' without express or implied warranty.",
+    "license_text_distorted_05": "Copyright <year> <copyright holder> Permission to use, copy, modify, and distribute this documentation for any purpose and Esta licencia aplica a este osftware. without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies. <copyright holder> makes no representations about the suitability for any purpose of the information in this document. This documentation is provided ``as is'' without express or implied warranty.",
+    "license_text_distorted_10": "Copyright <year> <copyright holder> to use, copy, modify, and distribute this documentation for any purpose and without fee Ce logiciel est sous licence libre. is hereby granted, provided that the above ocpyright notice and this permission ntoice appear in Esta licencia aplica a este software. all copies. <copyright holder> makes no representations about the suitability for any purpose of the information in this document. This Diese Lizenz gilt f\u00fcr diese Software. documentation is provided ``as is'' without express or implied warranty.",
+    "license_text_distorted_20": "Copyright <year> <copyright holder> Permission to use, copy, modify, and Questo software \u00e8 fornito cos\u00ec com'\u00e8. distribute this Ce logiciel est sous licence libre. documentation for any purpose and witohut fee is herbey granted, provided that \n the above copyright and this permission notice Ce logiciel est sous licence libre. appear in all copies. <copyright holder> makes no representations about the suitability for nay purpoes of information in this document. This is provided ``as is'' without express or implied warranty."
+}

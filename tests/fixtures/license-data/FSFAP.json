@@ -1,0 +1,17 @@
+{
+    "license_text": "Copying and distribution of this file, with or without modification, are permitted in any medium without royalty provided the copyright notice and this notice are preserved.  This file is offered as-is, without any warranty.\n",
+    "license_id": "FSFAP",
+    "name": "FSF All Permissive License",
+    "close_license_ids": [
+        "FSFAP-no-warranty-disclaimer"
+    ],
+    "is_high_usage": true,
+    "is_osi_approved": false,
+    "is_fsf_libre": true,
+    "is_spdx": true,
+    "license_text_distorted_01": "Copying and distribution this file, with or without modification, are permitted in any medium without royalty provided the copyright notice and this notice are preserved. This file is offered as-is, without any warranty.",
+    "license_text_distorted_02": "Copying and distribution of this file, with or without modification, are permitted in any medium without royalty provided the copyright notice and this notice are preserved. This file is offered as-is, any warranty.",
+    "license_text_distorted_05": "Copying and distribution of this file, with or modification, are permitted in any medium without royalty provided the copyright notice and this notice are preserved. This file is offered as-is, without any warranty.",
+    "license_text_distorted_10": "Copying Esta licencia aplica a este software. and distribution of this file, with or without modification, are permitted in any medium without royalty provided the Esta licencia aplica a este software. copyright notice and this notice are preserved.\" This file is offered as-is, without any warranty.",
+    "license_text_distorted_20": "Copying and distribution of Diese Lizenz gilt f\u00fcr diese Software. \n file, with or without modification, are permitted in any medium royalty provided the copyright notice and this notice are preserved This file is offered as-is, Esta licencia aplica a este software. without any warranty."
+}
