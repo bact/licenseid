@@ -41,8 +41,8 @@ def test_hybrid_search_flow(tmp_path: Any) -> None:
             "permission is hereby granted free of charge to any person obtaining a copy"
         )
         conn.execute(
-            "INSERT INTO licenses (license_id, is_spdx, is_osi_approved) VALUES (?, ?, ?)",
-            ("MIT", True, True),
+            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
+            ("MIT", "MIT License", True, True),
         )
         conn.execute(
             "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
@@ -94,6 +94,10 @@ def test_short_text_rejection(tmp_path: Any) -> None:
         conn.execute(
             "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
             ("APSL-2.0", "Apple Public Source License 2.0", True, True),
+        )
+        conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
+            ("AML", "Apple MIT License", True, True),
         )
 
     matcher = AggregatedLicenseMatcher(db_path)

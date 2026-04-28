@@ -282,8 +282,10 @@ class AggregatedLicenseMatcher:
             )
             if best_raw >= threshold:
                 score = best_raw / 100.0
-                # Boost exact matches for names and IDs
+                # Boost exact matches for names and IDs more than flex matches
                 if score_name_exact == 100 or score_id == 100:
+                    score += 0.02
+                elif score_name_flex == 100:
                     score += 0.01
 
                 ranked.append(
