@@ -126,6 +126,37 @@ WORD DIFF:
 +se
 ```
 
+## Python API
+
+You can use `licenseid` directly in your Python projects:
+
+```python
+import json
+from licenseid.matcher import AggregatedLicenseMatcher
+
+# Initialize the matcher (uses default database path if not provided)
+matcher = AggregatedLicenseMatcher()
+
+# Match license text
+results = matcher.match("MIT License")
+
+# Results are returned as a list of dictionaries (JSON-serializable)
+print(json.dumps(results, indent=2))
+```
+
+Example JSON output:
+
+```json
+[
+  {
+    "license_id": "MIT",
+    "score": 1.01,
+    "similarity": 1.0,
+    "coverage": 0.0
+  }
+]
+```
+
 ## Development
 
 ### Running Tests

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "licenseid"
-version = "0.2.0"
+version = "0.2.1"
 description = "Get the SPDX License ID from license text"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -19,7 +19,8 @@ keywords = [
     "licenseid",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Legal Industry",
     "Operating System :: OS Independent",
