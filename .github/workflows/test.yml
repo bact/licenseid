@@ -45,5 +45,9 @@ jobs:
 
       - name: Upload coverage reports
         if: ${{ matrix.python-version == env.MAIN_SUPPORT_VERSION }}
-        uses: codecov/codecov-action@v6
         continue-on-error: true
+        env:
+          COVERALLS_SERVICE_NAME: github
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONIOENCODING: utf-8
+        run: coveralls

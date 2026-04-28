@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "licenseid"
-version = "0.1.0"
+version = "0.1.1"
 description = "Get the SPDX License ID from license text"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -40,11 +40,24 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["flake8", "mypy", "pylint", "pytest", "pytest-cov", "ruff"]
+dev = ["coverage", "coveralls", "flake8", "mypy", "pylint", "pytest", "ruff"]
 java = ["jpype1>=1.7.0"]
 
 [project.scripts]
 licenseid = "licenseid.cli:main"
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "def __repr__",
+    "raise NotImplementedError",
+]
 
 [tool.hatch.build.targets.sdist]
 exclude = ["AGENTS.md", "GEMINI.md", "tests/fixtures/**", "scripts/**"]
@@ -52,11 +65,9 @@ exclude = ["AGENTS.md", "GEMINI.md", "tests/fixtures/**", "scripts/**"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/licenseid"]
 
-
 [tool.mypy]
 strict = true
 python_version = "3.10"
-
 
 [tool.pylint.main]
 ignore = ["CVS"]
