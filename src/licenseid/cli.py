@@ -2,6 +2,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
+"""
+Command-line interface for the licenseid tool.
+"""
+
 import json
 import os
 import sys
@@ -11,8 +15,8 @@ from typing import Optional
 
 import click
 
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.database import LicenseDatabase
+from licenseid.matcher import AggregatedLicenseMatcher
 
 
 def get_default_db_path() -> str:
@@ -44,7 +48,6 @@ def check_db_staleness(database: LicenseDatabase) -> None:
 @click.group()
 def cli() -> None:
     """SPDX License ID matcher tool."""
-    pass
 
 
 @cli.command()
@@ -53,6 +56,7 @@ def cli() -> None:
 @click.option("--force", is_flag=True, help="Force update even if version matches.")
 @click.option(
     "--cache/--no-cache",
+    "use_cache",
     default=True,
     help="Use local cache for downloads (default: true).",
 )
@@ -61,14 +65,14 @@ def update(
     db: Optional[str],
     version: Optional[str],
     force: bool,
-    cache: bool,
+    use_cache: bool,
     clear_cache: bool,
 ) -> None:
     """Update the license database from remote sources."""
     db_path = db or get_default_db_path()
     database = LicenseDatabase(db_path)
     database.update_from_remote(
-        version=version, force=force, use_cache=cache, clear_cache=clear_cache
+        version=version, force=force, use_cache=use_cache, clear_cache=clear_cache
     )
     click.echo(f"Database updated at {db_path}")
 
@@ -109,7 +113,8 @@ def match(
 
     if not os.path.exists(db_path):
         click.echo(
-            f"Error: Database not found at {db_path}. Please run 'licenseid update' first.",
+            f"Error: Database not found at {db_path}. "
+            "Please run 'licenseid update' first.",
             err=True,
         )
         sys.exit(1)
@@ -129,7 +134,8 @@ def match(
             license_text = sys.stdin.read()
         else:
             click.echo(
-                "Error: No input text provided. Provide a file, --text, or pipe to stdin.",
+                "Error: No input text provided. "
+                "Provide a file, --text, or pipe to stdin.",
                 err=True,
             )
             sys.exit(1)
@@ -155,6 +161,7 @@ def match(
 
 
 def main() -> None:
+    """Main entry point for the CLI."""
     cli()
 
 

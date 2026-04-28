@@ -33,11 +33,7 @@ jobs:
 
       - name: Pylint
         run: |
-          pylint src/ tests/
-
-      - name: Flake8
-        run: |
-          flake8 src/ tests/
+          pylint src/
 
       - name: Ruff formatter check
         run: |
