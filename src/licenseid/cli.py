@@ -49,14 +49,27 @@ def cli() -> None:
 
 @cli.command()
 @click.option("--db", help="Path to the license database.")
+@click.option("--version", default=None, help="SPDX License List version to download.")
+@click.option("--force", is_flag=True, help="Force update even if version matches.")
 @click.option(
-    "--version", default="3.28.0", help="SPDX License List version to download."
+    "--cache/--no-cache",
+    default=True,
+    help="Use local cache for downloads (default: true).",
 )
-def update(db: Optional[str], version: str) -> None:
+@click.option("--clear-cache", is_flag=True, help="Clear local cache before updating.")
+def update(
+    db: Optional[str],
+    version: Optional[str],
+    force: bool,
+    cache: bool,
+    clear_cache: bool,
+) -> None:
     """Update the license database from remote sources."""
     db_path = db or get_default_db_path()
     database = LicenseDatabase(db_path)
-    database.update_from_remote(version=version)
+    database.update_from_remote(
+        version=version, force=force, use_cache=cache, clear_cache=clear_cache
+    )
     click.echo(f"Database updated at {db_path}")
 
 

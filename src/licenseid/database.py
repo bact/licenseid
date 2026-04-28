@@ -2,23 +2,52 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
+import csv
+import io
+import json
 import sqlite3
 import tarfile
 import tempfile
-import json
-from datetime import datetime
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 import requests
-import xml.etree.ElementTree as ET
 
 from licenseid.normalize import normalize_text
+
+# Cache expiration settings
+LICENSES_JSON_URL = "https://spdx.org/licenses/licenses.json"
+POPULARITY_DATA_URL = (
+    "https://raw.githubusercontent.com/github/innovationgraph/main/data/licenses.csv"
+)
+DEFAULT_FALLBACK_VERSION = "3.28.0"
+
+CACHE_LICENSES_JSON = "licenses.json"
+CACHE_POPULARITY_CSV = "popularity.csv"
+CACHE_SPDX_TARBALL_TEMPLATE = "spdx-data-v{version}.tar.gz"
+
+# Expiration in days
+EXPIRY_LICENSES_JSON = 45
+EXPIRY_POPULARITY_CSV = 75
 
 
 class LicenseDatabase:
     def __init__(self, db_path: str):
-        self.db_path = db_path
+        self.db_path = Path(db_path)
         self._init_db()
+
+    def _get_cache_path(self, filename: str) -> Path:
+        """Get the absolute path for a cache file."""
+        return self.db_path.parent / filename
+
+    def _is_cache_valid(self, path: Path, days: int) -> bool:
+        """Check if the cache file exists and is not older than 'days'."""
+        if not path.exists():
+            return False
+        mtime = datetime.fromtimestamp(path.stat().st_mtime)
+        return datetime.now() - mtime < timedelta(days=days)
 
     def _init_db(self) -> None:
         """Initialise the SQLite database with FTS5."""
@@ -54,29 +83,117 @@ class LicenseDatabase:
                 )
             """)
 
-    def update_from_remote(self, version: str = "3.28.0") -> None:
+    def update_from_remote(
+        self,
+        version: Optional[str] = None,
+        force: bool = False,
+        use_cache: bool = True,
+        clear_cache: bool = False,
+    ) -> None:
         """
         Fetch license data from SPDX release package and update the local database.
         """
-        print(f"Updating license database to SPDX v{version}...")
+        if clear_cache:
+            print("Clearing cache...")
+            for filename in [CACHE_LICENSES_JSON, CACHE_POPULARITY_CSV]:
+                path = self._get_cache_path(filename)
+                if path.exists():
+                    path.unlink()
+            # Clear any tarballs
+            for p in self.db_path.parent.glob("spdx-data-v*.tar.gz"):
+                p.unlink()
 
-        # 1. Fetch Popularity Data from GitHub Innovation Graph
-        popularity_map = self._fetch_popularity_data()
+        # 1. Fetch licenses.json to find latest version
+        licenses_json_path = self._get_cache_path(CACHE_LICENSES_JSON)
+        latest_version = None
+        release_date = None
+        data_source_licenses = "remote"
 
-        tar_url = f"https://github.com/spdx/license-list-data/archive/refs/tags/v{version}.tar.gz"
-        print(f"Downloading release: {tar_url}")
+        if use_cache and self._is_cache_valid(licenses_json_path, EXPIRY_LICENSES_JSON):
+            try:
+                with open(licenses_json_path, "r") as f:
+                    data = json.load(f)
+                    latest_version = data.get("licenseListVersion")
+                    release_date = data.get("releaseDate")
+                    data_source_licenses = "cache"
+            except Exception:
+                pass
 
-        try:
-            resp = requests.get(tar_url, stream=True)
-            resp.raise_for_status()
+        if not latest_version:
+            try:
+                print(f"Fetching latest license list info from {LICENSES_JSON_URL}...")
+                resp = requests.get(LICENSES_JSON_URL, timeout=30)
+                resp.raise_for_status()
+                data = resp.json()
+                latest_version = data.get("licenseListVersion")
+                release_date = data.get("releaseDate")
+                with open(licenses_json_path, "w") as f:
+                    json.dump(data, f)
+                data_source_licenses = "remote"
+            except Exception as e:
+                print(f"Warning: Failed to fetch {LICENSES_JSON_URL}: {e}")
+                if not version:
+                    print(f"Falling back to default version {DEFAULT_FALLBACK_VERSION}")
+                    latest_version = DEFAULT_FALLBACK_VERSION
+                else:
+                    latest_version = version
 
-            with tempfile.TemporaryDirectory() as tmp_dir:
-                tar_path = Path(tmp_dir) / "data.tar.gz"
-                with open(tar_path, "wb") as f:
+        target_version = version or latest_version
+        print(f"Target SPDX License List version: {target_version}")
+
+        # Check current version in DB
+        metadata = self.get_metadata()
+        current_version = metadata.get("license_list_version")
+
+        if current_version == target_version and not force:
+            print(f"Database is already at version {target_version}. Skipping update.")
+            return
+
+        print(f"Updating license database to version {target_version}...")
+
+        # 2. Fetch Popularity Data
+        pop_cache_path = self._get_cache_path(CACHE_POPULARITY_CSV)
+        popularity_map: Dict[str, int] = {}
+        data_source_pop = "remote"
+
+        if use_cache and self._is_cache_valid(pop_cache_path, EXPIRY_POPULARITY_CSV):
+            popularity_map = self._fetch_popularity_data(pop_cache_path)
+            data_source_pop = "cache"
+        else:
+            popularity_map = self._fetch_popularity_data()
+            if popularity_map:
+                data_source_pop = "remote"
+
+        # 3. Fetch SPDX tarball
+        tar_filename = CACHE_SPDX_TARBALL_TEMPLATE.format(version=target_version)
+        tar_cache_path = self._get_cache_path(tar_filename)
+        data_source_tar = "remote"
+
+        if not (use_cache and tar_cache_path.exists()):
+            tar_url = f"https://github.com/spdx/license-list-data/archive/refs/tags/v{target_version}.tar.gz"
+            print(f"Downloading release: {tar_url}")
+            try:
+                resp = requests.get(tar_url, stream=True, timeout=60)
+                resp.raise_for_status()
+                with open(tar_cache_path, "wb") as f:
                     for chunk in resp.iter_content(chunk_size=8192):
                         f.write(chunk)
+                data_source_tar = "remote"
+            except Exception as e:
+                print(f"Error downloading {tar_url}: {e}")
+                return
+        else:
+            data_source_tar = "cache"
 
-                with tarfile.open(tar_path, "r:gz") as tar:
+        # Report sources
+        print("Data sources:")
+        print(f"  - License list info: {data_source_licenses}")
+        print(f"  - Popularity data: {data_source_pop}")
+        print(f"  - SPDX license data: {data_source_tar}")
+
+        try:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                with tarfile.open(tar_cache_path, "r:gz") as tar:
                     tar.extractall(path=tmp_dir)
 
                 # Find the extracted root directory
@@ -88,7 +205,7 @@ class LicenseDatabase:
 
                 licenses_data = data.get("licenses", [])
                 list_version = data.get("licenseListVersion")
-                release_date = data.get("releaseDate")
+                release_date = data.get("releaseDate") or release_date
 
                 print(
                     f"Processing {len(licenses_data)} licenses (Version: {list_version}, Released: {release_date})"
@@ -101,14 +218,15 @@ class LicenseDatabase:
 
                     # Update metadata
                     now = datetime.now().isoformat()
-                    metadata = [
+                    metadata_items = [
                         ("license_list_version", list_version),
                         ("release_date", release_date),
                         ("last_check_datetime", now),
                         ("last_update_datetime", now),
                     ]
                     conn.executemany(
-                        "INSERT INTO db_metadata (key, value) VALUES (?, ?)", metadata
+                        "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
+                        metadata_items,
                     )
 
                     for i, lic in enumerate(licenses_data):
@@ -182,20 +300,36 @@ class LicenseDatabase:
         except Exception as e:
             print(f"\nFailed to update database: {e}")
 
-    def _fetch_popularity_data(self) -> Dict[str, int]:
+    def _fetch_popularity_data(
+        self, local_path: Optional[Path] = None
+    ) -> Dict[str, int]:
         """Fetch and aggregate popularity data from GitHub Innovation Graph."""
-        url = "https://raw.githubusercontent.com/github/innovationgraph/main/data/licenses.csv"
-        print(f"Downloading popularity data: {url}")
-
         popularity_map: Dict[str, int] = {}
+        csv_content = ""
+
+        if local_path:
+            try:
+                with open(local_path, "r") as f:
+                    csv_content = f.read()
+            except Exception as e:
+                print(f"Warning: Failed to read local popularity data: {e}")
+
+        if not csv_content:
+            print(f"Downloading popularity data: {POPULARITY_DATA_URL}")
+            try:
+                resp = requests.get(POPULARITY_DATA_URL, timeout=30)
+                resp.raise_for_status()
+                csv_content = resp.text
+                # Save to cache
+                pop_cache_path = self._get_cache_path(CACHE_POPULARITY_CSV)
+                with open(pop_cache_path, "w") as f:
+                    f.write(csv_content)
+            except Exception as e:
+                print(f"Warning: Failed to fetch popularity data: {e}")
+                return {}
+
         try:
-            resp = requests.get(url)
-            resp.raise_for_status()
-
-            import csv
-            import io
-
-            content = io.StringIO(resp.text)
+            content = io.StringIO(csv_content)
             reader = csv.DictReader(content)
 
             for row in reader:
@@ -212,7 +346,7 @@ class LicenseDatabase:
 
             print(f"Aggregated popularity data for {len(popularity_map)} licenses.")
         except Exception as e:
-            print(f"Warning: Failed to fetch popularity data: {e}")
+            print(f"Warning: Failed to parse popularity data: {e}")
 
         return popularity_map
 
