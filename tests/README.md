@@ -1,6 +1,9 @@
-# License matching test dataset
+# Test fixtures
 
-This directory contains 200 JSON fixtures used to benchmark and evaluate the accuracy of the `licenseid` matcher.
+## License matching test dataset
+
+`tests/fixtures/license-data` directory contains 200 JSON fixtures used to
+benchmark and evaluate the accuracy of the `licenseid` matcher.
 
 ## Dataset composition
 

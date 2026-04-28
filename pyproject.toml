@@ -42,6 +42,9 @@ java = ["jpype1>=1.7.0"]
 [project.scripts]
 licenseid = "licenseid.cli:main"
 
+[tool.hatch.build.targets.sdist]
+exclude = ["AGENTS.md", "GEMINI.md", "tests/fixtures/**", "scripts/**"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/licenseid"]
 
