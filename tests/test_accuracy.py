@@ -160,9 +160,9 @@ def test_full_accuracy(matcher):
     rates = ["00", "01", "02", "05", "10", "20"]
     results = run_accuracy_test(matcher, rates)
 
-    print("\n" + "=" * 65)
-    print(f"{'Distortion Rate':<20} | {'Top 1':<10} | {'Top 3':<10} | {'Top 5':<10}")
-    print("=" * 65)
+    print("\n" + "=" * 55)
+    print(f"{'Distortion Rate':<20} |  {'Top 1':<7} |  {'Top 3':<7} |  {'Top 5':<7}")
+    print("=" * 55)
 
     for rate in rates:
         stats = results[rate]
@@ -174,5 +174,5 @@ def test_full_accuracy(matcher):
         acc5 = (stats["top5"] / stats["total"]) * 100
 
         label = "Verbatim" if rate == "00" else f"{rate}%"
-        print(f"{label:<20} | {acc1:6.2f}%   | {acc3:6.2f}%   | {acc5:6.2f}%")
-    print("=" * 65 + "\n")
+        print(f"{label:<20} | {acc1:6.2f}%  | {acc3:6.2f}%  | {acc5:6.2f}%")
+    print("=" * 55 + "\n")
