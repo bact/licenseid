@@ -110,6 +110,7 @@ class AggregatedLicenseMatcher:
                     filtered.append(details)
         return filtered
 
+    # pylint: disable=too-many-branches
     def _rank_candidates(
         self, candidates: List[Dict[str, Any]], norm_input: str, data: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
@@ -184,9 +185,10 @@ class AggregatedLicenseMatcher:
             # Coverage is a strong tie-breaker for similar texts.
             for r in ranked:
                 similarity = r["base_score"]
-                # Penalty for poor coverage: a license that is much larger than the input
-                # is less likely to be the "exact" match than one of similar size.
-                # However, we only apply this if similarity is high (likely a match).
+                # Penalty for poor coverage: a license that is much larger than
+                # the input is less likely to be the "exact" match than one of
+                # similar size. However, we only apply this if similarity is
+                # high (likely a match).
                 coverage_penalty = 0.0
                 if r["coverage"] < 0.8:
                     # Penalize based on how much of the candidate is "missing"
