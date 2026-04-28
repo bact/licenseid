@@ -100,6 +100,21 @@ JSON:
 licenseid match LICENSE.txt --json
 ```
 
+Example output:
+
+```json
+[
+  {
+    "license_id": "Apache-2.0",
+    "score": 0.985,
+    "similarity": 0.985,
+    "coverage": 1.0,
+    "is_spdx": true,
+    "is_osi_approved": true
+  }
+]
+```
+
 Diff (visual comparison):
 
 ```bash
