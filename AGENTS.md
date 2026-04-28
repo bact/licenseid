@@ -11,6 +11,14 @@
 - Test fixtures: `tests/fixtures/README.md`
 - Private alpha, one developer. No backward compat needed yet.
 
+## SPDX guidelines
+
+- When doing normalization and matching, consult the
+  SPDX License List matching guidelines and templates (Normative)
+  https://spdx.github.io/spdx-spec/v3.0/annexes/license-matching-guidelines-and-templates/
+- Be careful about the order of text transformation. The order is sensitive as text will be changed in each step.
+- Document the text transformation steps in the code, explain the rationale, give references.
+
 ## CLI output
 
 Unix philosophy. Consistent, predictable, parseable.
@@ -42,6 +50,7 @@ Unix philosophy. Consistent, predictable, parseable.
 - `requires-python` must match actual min version.
 - Make packages zip-safe when possible.
 - Packaging metadata follows Core metadata spec: <https://packaging.python.org/en/latest/specifications/core-metadata/>
+- Be careful of regex flags, lookahead, lookbehind, greediness, multi-line matching.
 
 ### Import order
 
