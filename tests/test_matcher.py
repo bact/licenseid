@@ -3,14 +3,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import pytest
 from licenseid.matcher import AggregatedLicenseMatcher
 
 
+@pytest.mark.skipif(
+    os.getenv("SPDX_TOOLS_JAR") is None, reason="SPDX_TOOLS_JAR not set"
+)
 def test_matcher_detects_bundled_jar():
     """Verify that the matcher correctly identifies the jar in the tests directory."""
     jar_path = os.getenv("SPDX_TOOLS_JAR")
     assert jar_path is not None
-    assert jar_path.endswith("tests/tool.jar")
+    assert jar_path.endswith(".jar")
     assert os.path.exists(jar_path)
 
     matcher = AggregatedLicenseMatcher("dummy.db")

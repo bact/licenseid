@@ -1,8 +1,10 @@
 # LicenseID
 
-A portable SPDX License ID matcher.
+[![PyPI - Version](https://img.shields.io/pypi/v/licenseid)](https://pypi.org/project/licenseid/)
 
-`licenseid` takes license text as input and identifies the closest matched SPDX License ID using a hybrid search strategy (SQLite FTS5 trigram + RapidFuzz ranking + optional Java validation).
+A portable license ID matcher. Get the SPDX License ID from license text.
+
+`licenseid` takes license text as input and identifies the closest matched SPDX License ID using a hybrid search strategy (trigram + token ratio ranking).
 
 ## Features
 
@@ -36,30 +38,50 @@ Before matching, you need to build the local license index:
 licenseid update
 ```
 
+Advanced update options:
+
+- `--version <version>`: Download a specific SPDX License List version (e.g., `3.26.0`).
+- `--force`: Force update even if the local database is already at the target version.
+- `--no-cache`: Bypass the local cache for downloads.
+
 ### 2. Match a license
 
-Match text from a file:
+Identify license text from a file:
 
 ```bash
 licenseid match LICENSE.txt
 ```
 
-Match with Java validation enabled:
+Or match from a string:
 
 ```bash
-licenseid match LICENSE.txt --java
+licenseid match --text "MIT License"
 ```
 
-Match with popularity tie-breaker enabled:
+Common options:
+
+- `--java`: Enable Tier 3 Java validation (requires `SPDX_TOOLS_JAR` and `jpype1`).
+- `--pop`: Enable popularity weighting as a tie-breaker.
+- `--json`: Output results in JSON format.
+- `--db <path>`: Use a custom database path (global option).
+
+The popularity tie-breaker is triggered when candidate similarity scores differ by less than 0.2%.
+
+### 3. Cache management
+
+`licenseid` maintains a local cache of remote data to save bandwidth.
+
+- `licenses.json`: Cached for 45 days.
+- `popularity.csv`: Cached for 75 days.
+- SPDX data tarballs are versioned and never expire.
+
+To clear the cache manually:
 
 ```bash
-licenseid match LICENSE.txt --pop
+licenseid --clear-cache
 ```
 
-The tie-breaker is triggered only when candidate similarity scores
-differ by less than 0.02%.
-
-### 3. Output formats
+### 4. Output formats
 
 Default (Unix-friendly):
 

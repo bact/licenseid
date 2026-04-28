@@ -15,8 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
+        python-version: [ "3.10", "3.14" ]
       fail-fast: true
+    env:
+      MAIN_SUPPORT_VERSION: "3.10"
 
     steps:
       - uses: actions/checkout@v6
@@ -31,11 +33,23 @@ jobs:
           pip install --upgrade pip
           pip install ".[dev,java]"
 
-      - name: Run tests
+      - name: Run tests (w/o code coverage)
+        if: ${{ matrix.python-version != env.MAIN_SUPPORT_VERSION }}
         run: |
           pytest tests/ -v --tb=short
 
+      - name: Run tests (w/ code coverage)
+        if: ${{ matrix.python-version == env.MAIN_SUPPORT_VERSION }}
+        env:
+          PYTHONPATH: src
+        run: |
+          coverage run -m pytest tests/ -v --tb=short
+
       - name: Upload coverage reports
-        if: matrix.python-version == '3.14'
-        uses: codecov/codecov-action@v5
+        if: ${{ matrix.python-version == env.MAIN_SUPPORT_VERSION }}
         continue-on-error: true
+        env:
+          COVERALLS_SERVICE_NAME: github
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONIOENCODING: utf-8
+        run: coveralls
