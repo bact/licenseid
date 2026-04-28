@@ -40,6 +40,8 @@ jobs:
 
       - name: Run tests (w/ code coverage)
         if: ${{ matrix.python-version == env.MAIN_SUPPORT_VERSION }}
+        env:
+          PYTHONPATH: src
         run: |
           coverage run -m pytest tests/ -v --tb=short
 
