@@ -109,8 +109,15 @@ def update(
     """Update the license database from remote sources."""
     db_path = ctx.obj["db_path"]
     database = LicenseDatabase(db_path)
-    database.update_from_remote(version=version, force=force, use_cache=use_cache)
-    click.echo(f"Database updated at {db_path}")
+    updated = database.update_from_remote(
+        version=version, force=force, use_cache=use_cache
+    )
+    if updated:
+        click.echo(f"Database updated at {db_path}")
+    else:
+        metadata = database.get_metadata()
+        current_version = metadata.get("license_list_version", "unknown")
+        click.echo(f"Database remains at version {current_version} at {db_path}")
 
 
 def unescape_text(text: str) -> str:
@@ -142,6 +149,7 @@ def unescape_text(text: str) -> str:
     help="Enable/disable popularity score weighting.",
 )
 @click.option("--diff", is_flag=True, help="Show word diff for the top match.")
+@click.option("--bold", is_flag=True, help="Print only the top license ID.")
 @click.pass_context
 def match(
     ctx: click.Context,
@@ -153,6 +161,7 @@ def match(
     enable_java: bool,
     enable_popularity: bool,
     diff: bool,
+    bold: bool,
 ) -> None:
     """Identify license text and return the closest matched SPDX License ID."""
     db_path = ctx.obj["db_path"]
@@ -193,6 +202,14 @@ def match(
 
     # Filter by threshold and limit to top N
     results = [r for r in results if r["score"] >= threshold][:top]
+
+    if bold:
+        if results:
+            click.echo(results[0]["license_id"])
+        else:
+            click.echo("ERROR: No matching license found.", err=True)
+            sys.exit(1)
+        return
 
     if json_output:
         click.echo(json.dumps(results, indent=2))
