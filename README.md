@@ -64,11 +64,10 @@ The `--text` argument supports standard escape sequences (e.g., `\n`, `\t`, `\"`
 
 Common options:
 
-- `--diff`: Show a word-by-word diff between the input and the best-matching candidate.
-- `--java`: Enable Tier 3 Java validation (requires `SPDX_TOOLS_JAR` and `jpype1`).
-- `--pop`: Enable popularity weighting as a tie-breaker.
-- `--json`: Output results in JSON format.
 - `--db <path>`: Use a custom database path (global option). Supports SQLite URIs for in-memory databases (e.g., `file:test?mode=memory&cache=shared`).
+- `--bold`: Print only the top license ID (no other info).
+- `--diff`: Show a word-by-word diff between the input and the best-matching candidate.
+- `--json`: Output results in JSON format.
 
 The system uses a **composite score** (Similarity + Coverage + Popularity) to ensure the "tightest" match is preferred (e.g., distinguishing between a license and its supersets).
 
@@ -92,6 +91,18 @@ Default (Unix-friendly):
 
 ```text
 LICENSE_ID=Apache-2.0 SIMILARITY=0.9850 COVERAGE=1.0000
+```
+
+ID only:
+
+```bash
+licenseid match LICENSE.txt --bold
+```
+
+Example output:
+
+```text
+Apache-2.0
 ```
 
 JSON:

@@ -197,9 +197,10 @@ class LicenseDatabase:
         version: Optional[str] = None,
         force: bool = False,
         use_cache: bool = True,
-    ) -> None:
+    ) -> bool:
         """
         Fetch license data from SPDX release package and update the local database.
+        Returns True if the database was updated, False if it was already up-to-date.
         """
 
         # 1. Version check
@@ -211,7 +212,7 @@ class LicenseDatabase:
         metadata = self.get_metadata()
         if metadata.get("license_list_version") == target_version and not force:
             print(f"Database is already at version {target_version}. Skipping update.")
-            return
+            return False
 
         print(f"Updating license database to version {target_version}...")
 
@@ -236,6 +237,7 @@ class LicenseDatabase:
         print(f"  - SPDX license data: {ds_tar}")
 
         self._process_and_store(tar_cache_path, popularity_map, release_date)
+        return True
 
     def _process_and_store(
         self,
