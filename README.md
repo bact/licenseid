@@ -1,5 +1,7 @@
 # LicenseID
 
+[![PyPI - Version](https://img.shields.io/pypi/v/licenseid)](https://pypi.org/project/licenseid/)
+
 A portable SPDX License ID matcher.
 
 `licenseid` takes license text as input and identifies the closest matched SPDX License ID using a hybrid search strategy (SQLite FTS5 trigram + RapidFuzz ranking + optional Java validation).
