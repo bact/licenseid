@@ -43,9 +43,12 @@ class AggregatedLicenseMatcher:
         norm_input = normalize_text(text)
         words = norm_input.split()
 
-        # Tier 0: Short-Text Fallback
-        if len(words) < 12:
-            return self._match_short_text(norm_input)
+        # Tier 0: Short-Text Shortcut (Names/IDs)
+        if len(words) < 20:
+            short_matches = self._match_short_text(norm_input)
+            # Only return early if we found a definite exact name or ID match
+            if short_matches and short_matches[0]["score"] > 1.0:
+                return short_matches
 
         # Tier 1: Broad Recall
         candidates = self._get_candidates(data, text)
@@ -73,24 +76,29 @@ class AggregatedLicenseMatcher:
         exclude_list = data.get("exclude", [])
         hint_list = data.get("hint", [])
 
-        candidates = self.db.search_candidates(text, limit=30)
+        # Tier 1: Retrieval
+        # Truncate very long queries for FTS5 to avoid performance/limit issues
+        # 100 words is more than enough for trigram retrieval.
+        words = text.split()
+        search_query = text
+        if len(words) > 100:
+            search_query = " ".join(words[:100])
+
+        # Fetch Top 50 for better recall
+        candidates = self.db.search_candidates(search_query, limit=50)
         filtered = []
         for cand in candidates:
             license_id = cand["license_id"]
             if license_id in exclude_list:
                 continue
 
-            details = self.db.get_license_details(license_id)
-            if not details:
+            # Filtering logic using pre-fetched metadata
+            if only_spdx and not cand.get("is_spdx"):
                 continue
-
-            if only_spdx and not details.get("is_spdx"):
-                continue
-            if only_common and not details.get("is_high_usage"):
-                if not (details.get("is_osi_approved") or details.get("is_fsf_libre")):
+            if only_common and not cand.get("is_high_usage"):
+                if not (cand.get("is_osi_approved") or cand.get("is_fsf_libre")):
                     continue
 
-            cand["popularity_score"] = details.get("popularity_score", 1)
             filtered.append(cand)
 
         # Force-include hints
@@ -99,41 +107,102 @@ class AggregatedLicenseMatcher:
             if h_id not in candidate_ids:
                 details = self.db.get_license_details(h_id)
                 if details:
-                    filtered.append(
-                        {
-                            "license_id": h_id,
-                            "search_text": "",
-                            "popularity_score": details.get("popularity_score", 1),
-                        }
-                    )
+                    filtered.append(details)
         return filtered
 
+    # pylint: disable=too-many-branches
     def _rank_candidates(
         self, candidates: List[Dict[str, Any]], norm_input: str, data: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
-        """Rank candidates using fuzzy matching and popularity boost."""
+        """Rank candidates using dynamic sliding window and popularity boost."""
         enable_popularity = data.get("enable_popularity", self.enable_popularity)
+        query_words = norm_input.split()
+        q_len = len(query_words)
         ranked: List[Dict[str, Any]] = []
+
         for cand in candidates:
+            license_id = cand["license_id"]
             search_text = cand.get("search_text") or ""
-            base_score = fuzz.token_set_ratio(norm_input, search_text) / 100.0
+            c_len = cand.get("word_count") or 0
+            if c_len == 0:
+                c_len = len(search_text.split())
+
+            similarity = 0.0
+            best_window = search_text
+
+            if norm_input == search_text:
+                similarity = 1.0
+            elif q_len >= c_len * 0.8:
+                # Rule 1: Full Text Comparison
+                similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
+            else:
+                # Rule 2: Surgical Window Alignment (for snippets)
+                if q_len < 500:
+                    fast_score = fuzz.partial_ratio(norm_input, search_text) / 100.0
+                    if fast_score >= 0.6:
+                        alignment = fuzz.partial_ratio_alignment(
+                            norm_input, search_text
+                        )
+                        if alignment:
+                            best_window = search_text[
+                                alignment.dest_start : alignment.dest_end
+                            ]
+                            similarity = (
+                                fuzz.token_sort_ratio(norm_input, best_window) / 100.0
+                            )
+                        else:
+                            similarity = fast_score
+                    else:
+                        similarity = fast_score
+                else:
+                    # Large-to-large comparison fallback
+                    similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
+
+            coverage = (q_len / c_len) if c_len > 0 else 0.0
+
+            # Step C: Semantic Safeguards
+            critical_tokens = {"not", "except", "unless", "irrevocable"}
+            if 0.90 < similarity < 1.0:
+                q_tokens = set(query_words)
+                c_tokens = set(search_text.split())
+                for token in critical_tokens:
+                    if (token in q_tokens) != (token in c_tokens):
+                        similarity *= 0.95
+
             ranked.append(
                 {
-                    "license_id": cand["license_id"],
-                    "base_score": base_score,
+                    "license_id": license_id,
+                    "base_score": similarity,
+                    "similarity": similarity,
+                    "coverage": coverage,
                     "pop_score": cand.get("popularity_score", 1),
+                    "best_window": best_window,
                 }
             )
 
         if ranked:
-            top_base = max(r["base_score"] for r in ranked)
-            tie_threshold = 0.002
+            # Composite scoring: Similarity is primary.
+            # Coverage is a strong tie-breaker for similar texts.
             for r in ranked:
-                if enable_popularity and (top_base - r["base_score"]) <= tie_threshold:
-                    boost = math.log10(max(1, r["pop_score"])) * 0.005
-                    r["score"] = r["base_score"] + boost
-                else:
-                    r["score"] = r["base_score"]
+                similarity = r["base_score"]
+                # Penalty for poor coverage: a license that is much larger than
+                # the input is less likely to be the "exact" match than one of
+                # similar size. However, we only apply this if similarity is
+                # high (likely a match).
+                coverage_penalty = 0.0
+                if r["coverage"] < 0.8:
+                    # Penalize based on how much of the candidate is "missing"
+                    coverage_penalty = (1.0 - r["coverage"]) * 0.02
+
+                # Bonus for near-perfect coverage
+                coverage_bonus = 0.005 if 0.95 <= r["coverage"] <= 1.05 else 0.0
+
+                score = similarity - coverage_penalty + coverage_bonus
+
+                if enable_popularity:
+                    score += math.log10(max(1, r["pop_score"])) * 0.0001
+
+                r["score"] = score
 
         ranked.sort(key=lambda x: float(x["score"]), reverse=True)
         return ranked
@@ -162,6 +231,7 @@ class AggregatedLicenseMatcher:
         except ImportError:
             return ranked
 
+        print("  DEBUG: Consulting Java...")
         self._ensure_jvm()
         j_thread = jpype.JClass("java.lang.Thread")
         j_thread.attachAsDaemon()
@@ -204,11 +274,28 @@ class AggregatedLicenseMatcher:
             )
 
             name_norm = normalize_text(name)
-            score_name = fuzz.token_set_ratio(norm_input, name_norm)
+            score_name_exact = fuzz.ratio(norm_input, name_norm)
+            score_name_flex = fuzz.token_set_ratio(norm_input, name_norm)
 
-            best_score = max(score_id, score_name, score_id_partial)
-            if best_score >= threshold:
-                ranked.append({"license_id": lid, "score": best_score / 100.0})
+            best_raw = max(
+                score_id, score_name_exact, score_name_flex, score_id_partial
+            )
+            if best_raw >= threshold:
+                score = best_raw / 100.0
+                # Boost exact matches for names and IDs more than flex matches
+                if score_name_exact == 100 or score_id == 100:
+                    score += 0.02
+                elif score_name_flex == 100:
+                    score += 0.01
+
+                ranked.append(
+                    {
+                        "license_id": lid,
+                        "score": score,
+                        "similarity": best_raw / 100.0,
+                        "coverage": 0.0,  # Not applicable for name matches
+                    }
+                )
 
         ranked.sort(key=lambda x: float(x["score"]), reverse=True)
         return ranked

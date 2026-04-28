@@ -44,7 +44,21 @@ class LicenseDatabase:
 
     def __init__(self, db_path: str):
         self.db_path = Path(db_path)
+        # Check if it's an in-memory URI
+        db_path_str = str(self.db_path)
+        self.use_uri = "mode=memory" in db_path_str or db_path_str.startswith("file:")
+        self._keep_alive: Optional[sqlite3.Connection] = None
+
+        if self.use_uri or db_path_str == ":memory:":
+            # For in-memory databases, we must keep at least one connection
+            # open to prevent the database from being deleted.
+            self._keep_alive = self._connect()
+
         self._init_db()
+
+    def _connect(self) -> sqlite3.Connection:
+        """Create a new connection to the database."""
+        return sqlite3.connect(str(self.db_path), uri=self.use_uri)
 
     def _get_cache_path(self, filename: str) -> Path:
         """Get the absolute path for a cache file."""
@@ -59,7 +73,7 @@ class LicenseDatabase:
 
     def _init_db(self) -> None:
         """Initialise the SQLite database with FTS5."""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._connect() as conn:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS licenses (
@@ -72,7 +86,8 @@ class LicenseDatabase:
                     is_osi_approved BOOLEAN,
                     is_fsf_libre BOOLEAN,
                     is_high_usage BOOLEAN,
-                    popularity_score INTEGER DEFAULT 1
+                    popularity_score INTEGER DEFAULT 1,
+                    word_count INTEGER
                 )
             """
             )
@@ -107,6 +122,10 @@ class LicenseDatabase:
         # Clear any tarballs
         for p in self.db_path.parent.glob("spdx-data-v*.tar.gz"):
             p.unlink()
+        # Delete the database file itself to force a schema rebuild
+        if self.db_path.exists():
+            print(f"Deleting database at {self.db_path}...")
+            self.db_path.unlink()
 
     def _get_version_info(
         self, version: Optional[str], use_cache: bool
@@ -261,41 +280,70 @@ class LicenseDatabase:
         release_date: Optional[str],
     ) -> None:
         """Execute database delete and insert operations."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("DELETE FROM license_index")
-            conn.execute("DELETE FROM licenses")
-            conn.execute("DELETE FROM db_metadata")
+        license_records = []
+        index_records = []
 
-            now = datetime.now().isoformat()
-            metadata_items = [
-                ("license_list_version", list_version),
-                ("release_date", release_date),
-                ("last_check_datetime", now),
-                ("last_update_datetime", now),
-            ]
-            conn.executemany(
-                "INSERT INTO db_metadata (key, value) VALUES (?, ?)", metadata_items
-            )
+        print("Preparing license data...", end="", flush=True)
+        for i, lic in enumerate(licenses_data):
+            res = self._prepare_license_record(lic, root_dir, popularity_map)
+            if res:
+                license_records.append(res[0])
+                index_records.append(res[1])
 
-            for i, lic in enumerate(licenses_data):
-                self._insert_license_record(conn, lic, root_dir, popularity_map)
-                if (i + 1) % 50 == 0 or (i + 1) == len(licenses_data):
-                    print(".", end="", flush=True)
-                if (i + 1) % 500 == 0:
-                    print(f" {i + 1}")
+            if (i + 1) % 100 == 0 or (i + 1) == len(licenses_data):
+                print(".", end="", flush=True)
 
-    def _insert_license_record(
+        print(f"\nInserting {len(license_records)} records into database...")
+        with self._connect() as conn:
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
+            conn.execute("BEGIN TRANSACTION")
+            try:
+                conn.execute("DELETE FROM license_index")
+                conn.execute("DELETE FROM licenses")
+                conn.execute("DELETE FROM db_metadata")
+
+                now = datetime.now().isoformat()
+                metadata_items = [
+                    ("license_list_version", list_version),
+                    ("release_date", release_date),
+                    ("last_check_datetime", now),
+                    ("last_update_datetime", now),
+                ]
+                conn.executemany(
+                    "INSERT INTO db_metadata (key, value) VALUES (?, ?)", metadata_items
+                )
+
+                conn.executemany(
+                    """
+                    INSERT INTO licenses (
+                        license_id, name, xml_template, is_spdx,
+                        is_osi_approved, is_fsf_libre, is_high_usage,
+                        popularity_score, word_count
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    license_records,
+                )
+                conn.executemany(
+                    "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+                    index_records,
+                )
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+
+    def _prepare_license_record(
         self,
-        conn: sqlite3.Connection,
         lic: Dict[str, Any],
         root_dir: Path,
         popularity_map: Dict[str, int],
-    ) -> None:
-        """Insert a single license record into the database."""
+    ) -> Optional[tuple[tuple[Any, ...], tuple[str, str]]]:
+        """Prepare license data for insertion."""
         license_id = lic["licenseId"]
         text_path = root_dir / "text" / f"{license_id}.txt"
         if not text_path.exists():
-            return
+            return None
 
         with open(text_path, "r", encoding="utf-8") as f:
             raw_text = f.read()
@@ -307,31 +355,30 @@ class LicenseDatabase:
                 xml_content = f.read()
 
         fingerprint = self._create_fingerprint(raw_text, xml_content)
-        baseline = 100 if (lic.get("isOsiApproved") or lic.get("isFsfLibre")) else 1
+        word_count = len(fingerprint.split())
+        is_osi = lic.get("isOsiApproved", False)
+        is_fsf = lic.get("isFsfLibre", False)
+
+        baseline = 100 if (is_osi or is_fsf) else 1
         pop_count = popularity_map.get(license_id, 0)
         popularity_score = max(baseline, pop_count)
 
-        conn.execute(
-            """
-            INSERT INTO licenses (
-                license_id, name, xml_template, is_spdx,
-                is_osi_approved, is_fsf_libre, popularity_score
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                license_id,
-                lic.get("name", ""),
-                xml_content,
-                True,
-                lic.get("isOsiApproved", False),
-                lic.get("isFsfLibre", False),
-                popularity_score,
-            ),
+        # High usage: OSI, FSF, or significant popularity
+        is_high_usage = is_osi or is_fsf or popularity_score > 500
+
+        license_record = (
+            license_id,
+            lic.get("name", ""),
+            xml_content,
+            True,  # is_spdx
+            is_osi,
+            is_fsf,
+            is_high_usage,
+            popularity_score,
+            word_count,
         )
-        conn.execute(
-            "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
-            (license_id, fingerprint),
-        )
+        index_record = (license_id, fingerprint)
+        return license_record, index_record
 
     def _fetch_popularity_data(
         self, local_path: Optional[Path] = None
@@ -408,13 +455,22 @@ class LicenseDatabase:
             return []
         search_terms = " OR ".join(words)
 
-        with sqlite3.connect(self.db_path) as conn:
+        with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             query = """
-                SELECT license_id, search_text
-                FROM license_index
-                WHERE search_text MATCH ?
-                ORDER BY rank
+                SELECT 
+                    li.license_id, 
+                    li.search_text, 
+                    l.word_count,
+                    l.is_spdx,
+                    l.is_high_usage,
+                    l.is_osi_approved,
+                    l.is_fsf_libre,
+                    l.popularity_score
+                FROM license_index li
+                JOIN licenses l ON li.license_id = l.license_id
+                WHERE li.search_text MATCH ?
+                ORDER BY li.rank
                 LIMIT ?
             """
             try:
@@ -428,7 +484,7 @@ class LicenseDatabase:
 
     def get_license_details(self, license_id: str) -> Optional[Dict[str, Any]]:
         """Get full metadata for a license."""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT * FROM licenses WHERE license_id = ?", (license_id,)
@@ -437,7 +493,7 @@ class LicenseDatabase:
 
     def get_all_names_and_ids(self) -> List[Dict[str, str]]:
         """Retrieve all license IDs and names for short-text matching."""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("SELECT license_id, name FROM licenses")
             return [
@@ -447,6 +503,6 @@ class LicenseDatabase:
 
     def get_metadata(self) -> Dict[str, str]:
         """Get database metadata."""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._connect() as conn:
             cursor = conn.execute("SELECT key, value FROM db_metadata")
             return {row[0]: row[1] for row in cursor.fetchall()}
