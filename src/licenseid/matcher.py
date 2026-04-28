@@ -48,7 +48,7 @@ class AggregatedLicenseMatcher:
             return self._match_short_text(norm_input)
 
         # Tier 1: Broad Recall (SQLite Trigram)
-        candidates = self.db.search_candidates(text)
+        candidates = self.db.search_candidates(text, limit=50)
 
         # Filter candidates based on metadata
         filtered_candidates = []
