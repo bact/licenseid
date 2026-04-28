@@ -9,8 +9,9 @@ A portable license ID matcher. Get the SPDX License ID from license text.
 ## Features
 
 - **Hybrid strategy**:
+  - **Tier 0 (Shortcut)**: Immediate identification for exact license names and IDs.
   - **Tier 1 (Recall)**: Rapid candidate retrieval using SQLite FTS5 (trigram) with query truncation for performance.
-  - **Tier 2 (Precision)**: Adaptive ranking using RapidFuzz. Performs surgical alignment for snippets and fast global comparison for large documents.
+  - **Tier 2 (Precision)**: Adaptive ranking using RapidFuzz with boosting for canonical matches.
   - **Tier 3 (Validation)**: Optional final validation via `tools-java` if available.
 - **Unix philosophy**: Parseable, line-delimited CLI output.
 - **Performance**: Sub-second matching for most licenses; optimized for large file handling.
@@ -59,13 +60,15 @@ Or match from a string:
 licenseid match --text "Apache License\nVersion 2.0"
 ```
 
+The `--text` argument supports standard escape sequences (e.g., `\n`, `\t`, `\"`) which are automatically unescaped before matching.
+
 Common options:
 
 - `--diff`: Show a word-by-word diff between the input and the best-matching candidate.
 - `--java`: Enable Tier 3 Java validation (requires `SPDX_TOOLS_JAR` and `jpype1`).
 - `--pop`: Enable popularity weighting as a tie-breaker.
 - `--json`: Output results in JSON format.
-- `--db <path>`: Use a custom database path (global option).
+- `--db <path>`: Use a custom database path (global option). Supports SQLite URIs for in-memory databases (e.g., `file:test?mode=memory&cache=shared`).
 
 The system uses a **composite score** (Similarity + Coverage + Popularity) to ensure the "tightest" match is preferred (e.g., distinguishing between a license and its supersets).
 
@@ -95,6 +98,48 @@ JSON:
 
 ```bash
 licenseid match LICENSE.txt --json
+```
+
+Diff (visual comparison):
+
+```bash
+licenseid match LICENSE.txt --diff
+```
+
+Example output:
+
+```diff
+LICENSE_ID=Apache-2.0 SIMILARITY=0.9980 COVERAGE=0.9975
+
+WORD DIFF:
+--- DATABASE
++++ INPUT
+@@ -1601,8 +1601,4 @@
+ language
+ governing
+ permissions
+-and
+-limitations
+-under
+-the
+-license
++se
+```
+
+## Development
+
+### Running Tests
+
+Regular test suite:
+
+```bash
+pytest
+```
+
+Run benchmarks and accuracy tests (expensive):
+
+```bash
+pytest --run-benchmark
 ```
 
 ## Configuration
