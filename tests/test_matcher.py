@@ -3,14 +3,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from typing import Any
+
 import pytest
+
 from licenseid.matcher import AggregatedLicenseMatcher
 
 
 @pytest.mark.skipif(
     os.getenv("SPDX_TOOLS_JAR") is None, reason="SPDX_TOOLS_JAR not set"
 )
-def test_matcher_detects_bundled_jar():
+def test_matcher_detects_bundled_jar() -> None:
     """Verify that the matcher correctly identifies the jar in the tests directory."""
     jar_path = os.getenv("SPDX_TOOLS_JAR")
     assert jar_path is not None
@@ -22,7 +25,7 @@ def test_matcher_detects_bundled_jar():
     assert matcher.has_java is True
 
 
-def test_hybrid_search_flow(tmp_path):
+def test_hybrid_search_flow(tmp_path: Any) -> None:
     """Verify the 3-tier hybrid search flow."""
     db_path = str(tmp_path / "test.db")
     from licenseid.database import LicenseDatabase
@@ -75,8 +78,8 @@ def test_hybrid_search_flow(tmp_path):
         assert results_with_java[0]["score"] == 1.0
 
 
-def test_short_text_rejection(tmp_path):
-    """Verify that inputs with fewer than 12 normalized words use fallback logic."""
+def test_short_text_rejection(tmp_path: Any) -> None:
+    """Verify that inputs with fewer than 20 normalized words use fallback logic."""
     db_path = str(tmp_path / "test.db")
     from licenseid.database import LicenseDatabase
     import sqlite3
@@ -95,17 +98,21 @@ def test_short_text_rejection(tmp_path):
 
     matcher = AggregatedLicenseMatcher(db_path)
 
-    # Empty string
-    assert matcher.match("") == []
+    # Empty strings
+    assert not matcher.match("")
+    assert not matcher.match("   ")
+    assert not matcher.match("\n\n")
 
     # Generic short string (should fail name matching because threshold is 90/85)
-    assert matcher.match("This") == []
-    assert matcher.match("Copyright 2024.") == []
-    assert matcher.match("One two three four") == []
+    assert not matcher.match("This")
+    assert not matcher.match("Copyright 2024.")
+    assert not matcher.match("One two three four")
 
     # Exact name matches (< 12 words)
     res_mit = matcher.match("MIT")
-    assert len(res_mit) > 0 and res_mit[0]["license_id"] == "MIT"
+    assert res_mit and res_mit[0]["license_id"] == "MIT"
+    res_aml = matcher.match("Apple MIT License")
+    assert res_aml and res_aml[0]["license_id"] == "AML"
 
     # Partial name matches (< 12 words)
     res_apple = matcher.match("APPLE PUBLIC SOURCE LICENSE")

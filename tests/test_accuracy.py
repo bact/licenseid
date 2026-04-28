@@ -1,20 +1,35 @@
+# SPDX-License-Identifier: Apache-2.0
+
+"""
+Accuracy and performance benchmark tests for license identification.
+"""
+
 import json
-import pytest
 from pathlib import Path
+from typing import Dict, List, Optional
+import sqlite3
+
+import pytest
 
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.database import LicenseDatabase
+from licenseid.normalize import normalize_text
+
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "license-data"
 
 
+# pylint: disable=redefined-outer-name
+
+
 @pytest.fixture(scope="module")
-def matcher(tmp_path_factory):
-    # Use an isolated test database
-    db_path = str(tmp_path_factory.mktemp("data") / "test_benchmark.db")
+def matcher() -> AggregatedLicenseMatcher:
+    """Fixture to provide a module-scoped, prepopulated in-memory matcher."""
+    # Use a shared in-memory database for performance and isolation
+    db_path = "file:test_benchmark?mode=memory&cache=shared"
 
-    from licenseid.database import LicenseDatabase
-
-    LicenseDatabase(db_path)  # Initialize schema
+    # Keep a reference to the manager to ensure the in-memory DB is kept alive
+    db_manager = LicenseDatabase(db_path)  # pylint: disable=unused-variable # noqa: F841
 
     # Populate the database with our fixtures
     fixtures = list(FIXTURES_DIR.glob("*.json"))
@@ -24,8 +39,6 @@ def matcher(tmp_path_factory):
         )
 
     print(f"\nPopulating test database with {len(fixtures)} fixtures...")
-    import sqlite3
-    from licenseid.normalize import normalize_text
 
     # Pre-calculate data to avoid overhead inside transaction
     to_insert_licenses = []
@@ -53,16 +66,25 @@ def matcher(tmp_path_factory):
         to_insert_index.append((data["license_id"], normalized))
 
     print(f"  Inserting {len(fixtures)} records into database...")
-    with sqlite3.connect(db_path) as conn:
-        conn.executemany(
-            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved, is_fsf_libre, is_high_usage, word_count) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            to_insert_licenses,
-        )
-        conn.executemany(
-            "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
-            to_insert_index,
-        )
+    with sqlite3.connect(db_path, uri=True) as conn:
+        conn.execute("PRAGMA journal_mode = OFF")
+        conn.execute("PRAGMA synchronous = OFF")
+        conn.execute("BEGIN TRANSACTION")
+        try:
+            conn.executemany(
+                "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved, "
+                "is_fsf_libre, is_high_usage, word_count) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                to_insert_licenses,
+            )
+            conn.executemany(
+                "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+                to_insert_index,
+            )
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
 
     print("  Population complete.")
     return AggregatedLicenseMatcher(db_path, enable_java=False)
@@ -91,7 +113,13 @@ MUST_HAVE_LICENSES = [
 ]
 
 
-def run_accuracy_test(matcher, rates, max_licenses=None, license_ids=None):
+def run_accuracy_test(
+    matcher: AggregatedLicenseMatcher,
+    rates: List[str],
+    max_licenses: Optional[int] = None,
+    license_ids: Optional[List[str]] = None,
+) -> Dict[str, Dict[str, int]]:
+    """Execute matching across multiple distortion rates and aggregate results."""
     results = {rate: {"total": 0, "top1": 0, "top3": 0, "top5": 0} for rate in rates}
 
     fixtures = list(FIXTURES_DIR.glob("*.json"))
@@ -144,7 +172,7 @@ def run_accuracy_test(matcher, rates, max_licenses=None, license_ids=None):
     return results
 
 
-def test_subset_accuracy(matcher):
+def test_must_have_accuracy(matcher: AggregatedLicenseMatcher) -> None:
     """Standard quick test: use the must-have licenses, verbatim and 1% distortion."""
     rates = ["00", "01"]
     results = run_accuracy_test(matcher, rates, license_ids=MUST_HAVE_LICENSES)
@@ -155,7 +183,8 @@ def test_subset_accuracy(matcher):
             top1_acc = (stats["top1"] / stats["total"]) * 100
             top5_acc = (stats["top5"] / stats["total"]) * 100
             print(
-                f"Subset Top 1 Accuracy ({rate}%): {top1_acc:.2f}% ({stats['total']} licenses)"
+                f"Subset Top 1 Accuracy ({rate}%): {top1_acc:.2f}% "
+                f"({stats['total']} licenses)"
             )
             print(f"Subset Top 5 Accuracy ({rate}%): {top5_acc:.2f}%")
 
@@ -166,8 +195,8 @@ def test_subset_accuracy(matcher):
 
 
 @pytest.mark.benchmark
-def test_full_accuracy(matcher):
-    """Full benchmark test: all 200 licenses across all distortion rates."""
+def test_full_accuracy(matcher: AggregatedLicenseMatcher) -> None:
+    """Run full accuracy benchmark across all distortion rates for all licenses."""
     rates = ["00", "01", "02", "05", "10", "20"]
     results = run_accuracy_test(matcher, rates)
 
@@ -189,7 +218,7 @@ def test_full_accuracy(matcher):
     print("=" * 55 + "\n")
 
 
-def test_name_accuracy(matcher):
+def test_name_accuracy(matcher: AggregatedLicenseMatcher) -> None:
     """Test matching using exact license names (lowercase)."""
     fixtures = list(FIXTURES_DIR.glob("*.json"))
     total = 0

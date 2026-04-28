@@ -44,7 +44,21 @@ class LicenseDatabase:
 
     def __init__(self, db_path: str):
         self.db_path = Path(db_path)
+        # Check if it's an in-memory URI
+        db_path_str = str(self.db_path)
+        self.use_uri = "mode=memory" in db_path_str or db_path_str.startswith("file:")
+        self._keep_alive: Optional[sqlite3.Connection] = None
+
+        if self.use_uri or db_path_str == ":memory:":
+            # For in-memory databases, we must keep at least one connection
+            # open to prevent the database from being deleted.
+            self._keep_alive = self._connect()
+
         self._init_db()
+
+    def _connect(self) -> sqlite3.Connection:
+        """Create a new connection to the database."""
+        return sqlite3.connect(str(self.db_path), uri=self.use_uri)
 
     def _get_cache_path(self, filename: str) -> Path:
         """Get the absolute path for a cache file."""
@@ -59,7 +73,7 @@ class LicenseDatabase:
 
     def _init_db(self) -> None:
         """Initialise the SQLite database with FTS5."""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._connect() as conn:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS licenses (
@@ -280,36 +294,44 @@ class LicenseDatabase:
                 print(".", end="", flush=True)
 
         print(f"\nInserting {len(license_records)} records into database...")
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("DELETE FROM license_index")
-            conn.execute("DELETE FROM licenses")
-            conn.execute("DELETE FROM db_metadata")
+        with self._connect() as conn:
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
+            conn.execute("BEGIN TRANSACTION")
+            try:
+                conn.execute("DELETE FROM license_index")
+                conn.execute("DELETE FROM licenses")
+                conn.execute("DELETE FROM db_metadata")
 
-            now = datetime.now().isoformat()
-            metadata_items = [
-                ("license_list_version", list_version),
-                ("release_date", release_date),
-                ("last_check_datetime", now),
-                ("last_update_datetime", now),
-            ]
-            conn.executemany(
-                "INSERT INTO db_metadata (key, value) VALUES (?, ?)", metadata_items
-            )
+                now = datetime.now().isoformat()
+                metadata_items = [
+                    ("license_list_version", list_version),
+                    ("release_date", release_date),
+                    ("last_check_datetime", now),
+                    ("last_update_datetime", now),
+                ]
+                conn.executemany(
+                    "INSERT INTO db_metadata (key, value) VALUES (?, ?)", metadata_items
+                )
 
-            conn.executemany(
-                """
-                INSERT INTO licenses (
-                    license_id, name, xml_template, is_spdx,
-                    is_osi_approved, is_fsf_libre, is_high_usage,
-                    popularity_score, word_count
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                license_records,
-            )
-            conn.executemany(
-                "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
-                index_records,
-            )
+                conn.executemany(
+                    """
+                    INSERT INTO licenses (
+                        license_id, name, xml_template, is_spdx,
+                        is_osi_approved, is_fsf_libre, is_high_usage,
+                        popularity_score, word_count
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    license_records,
+                )
+                conn.executemany(
+                    "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+                    index_records,
+                )
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
 
     def _prepare_license_record(
         self,
@@ -433,7 +455,7 @@ class LicenseDatabase:
             return []
         search_terms = " OR ".join(words)
 
-        with sqlite3.connect(self.db_path) as conn:
+        with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             query = """
                 SELECT 
@@ -462,7 +484,7 @@ class LicenseDatabase:
 
     def get_license_details(self, license_id: str) -> Optional[Dict[str, Any]]:
         """Get full metadata for a license."""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT * FROM licenses WHERE license_id = ?", (license_id,)
@@ -471,7 +493,7 @@ class LicenseDatabase:
 
     def get_all_names_and_ids(self) -> List[Dict[str, str]]:
         """Retrieve all license IDs and names for short-text matching."""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("SELECT license_id, name FROM licenses")
             return [
@@ -481,6 +503,6 @@ class LicenseDatabase:
 
     def get_metadata(self) -> Dict[str, str]:
         """Get database metadata."""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._connect() as conn:
             cursor = conn.execute("SELECT key, value FROM db_metadata")
             return {row[0]: row[1] for row in cursor.fetchall()}
