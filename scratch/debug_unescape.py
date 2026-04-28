@@ -1,5 +1,3 @@
-
-
 def unescape_text(text: str) -> str:
     try:
         return text.encode("utf-8").decode("unicode_escape")

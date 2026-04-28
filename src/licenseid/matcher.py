@@ -43,9 +43,12 @@ class AggregatedLicenseMatcher:
         norm_input = normalize_text(text)
         words = norm_input.split()
 
-        # Tier 0: Short-Text Fallback
-        if len(words) < 12:
-            return self._match_short_text(norm_input)
+        # Tier 0: Short-Text Shortcut (Names/IDs)
+        if len(words) < 20:
+            short_matches = self._match_short_text(norm_input)
+            # Only return early if we found a definite exact name or ID match
+            if short_matches and short_matches[0]["score"] > 1.0:
+                return short_matches
 
         # Tier 1: Broad Recall
         candidates = self._get_candidates(data, text)
@@ -269,11 +272,26 @@ class AggregatedLicenseMatcher:
             )
 
             name_norm = normalize_text(name)
-            score_name = fuzz.token_set_ratio(norm_input, name_norm)
+            score_name_exact = fuzz.ratio(norm_input, name_norm)
+            score_name_flex = fuzz.token_set_ratio(norm_input, name_norm)
 
-            best_score = max(score_id, score_name, score_id_partial)
-            if best_score >= threshold:
-                ranked.append({"license_id": lid, "score": best_score / 100.0})
+            best_raw = max(
+                score_id, score_name_exact, score_name_flex, score_id_partial
+            )
+            if best_raw >= threshold:
+                score = best_raw / 100.0
+                # Boost exact matches for names and IDs
+                if score_name_exact == 100 or score_id == 100:
+                    score += 0.01
+
+                ranked.append(
+                    {
+                        "license_id": lid,
+                        "score": score,
+                        "similarity": best_raw / 100.0,
+                        "coverage": 0.0,  # Not applicable for name matches
+                    }
+                )
 
         ranked.sort(key=lambda x: float(x["score"]), reverse=True)
         return ranked

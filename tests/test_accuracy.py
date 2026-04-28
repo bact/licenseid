@@ -187,3 +187,43 @@ def test_full_accuracy(matcher):
         label = "Verbatim" if rate == "00" else f"{rate}%"
         print(f"{label:<20} | {acc1:6.2f}%  | {acc3:6.2f}%  | {acc5:6.2f}%")
     print("=" * 55 + "\n")
+
+
+def test_name_accuracy(matcher):
+    """Test matching using exact license names (lowercase)."""
+    fixtures = list(FIXTURES_DIR.glob("*.json"))
+    total = 0
+    top1 = 0
+    top5 = 0
+
+    print("\nRunning Name Accuracy Test...")
+    for filepath in fixtures:
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        true_id = data["license_id"]
+        # Use name as input (lowercase as requested)
+        name_val = data.get("name")
+        if not name_val:
+            continue
+        name_input = name_val.lower()
+
+        match_res = matcher.match(name_input)
+        matched_ids = [r["license_id"] for r in match_res]
+
+        total += 1
+        if matched_ids and matched_ids[0] == true_id:
+            top1 += 1
+        else:
+            top_match = matched_ids[0] if matched_ids else "NONE"
+            print(f"FAILED Top 1: Name='{name_val}' True={true_id}, Got={top_match}")
+        if true_id in matched_ids[:5]:
+            top5 += 1
+
+    top1_acc = (top1 / total) * 100
+    top5_acc = (top5 / total) * 100
+    print(f"Name Match Top 1 Accuracy: {top1_acc:.2f}% ({total} licenses)")
+    print(f"Name Match Top 5 Accuracy: {top5_acc:.2f}% ({total} licenses)")
+
+    # We expect very high accuracy for exact name match
+    assert top1_acc > 98.0

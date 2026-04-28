@@ -56,7 +56,7 @@ licenseid match LICENSE.txt
 Or match from a string:
 
 ```bash
-licenseid match --text "MIT License"
+licenseid match --text "Apache License\nVersion 2.0"
 ```
 
 Common options:
