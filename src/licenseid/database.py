@@ -97,7 +97,7 @@ class LicenseDatabase:
             """
             )
 
-    def _clear_cache(self) -> None:
+    def clear_cache(self) -> None:
         """Delete local cache files."""
         print("Clearing cache...")
         for filename in [CACHE_LICENSES_JSON, CACHE_POPULARITY_CSV]:
@@ -178,13 +178,10 @@ class LicenseDatabase:
         version: Optional[str] = None,
         force: bool = False,
         use_cache: bool = True,
-        clear_cache: bool = False,
     ) -> None:
         """
         Fetch license data from SPDX release package and update the local database.
         """
-        if clear_cache:
-            self._clear_cache()
 
         # 1. Version check
         target_version, release_date, ds_licenses = self._get_version_info(

@@ -45,13 +45,26 @@ def check_db_staleness(database: LicenseDatabase) -> None:
             pass
 
 
-@click.group()
-def cli() -> None:
+@click.group(invoke_without_command=True)
+@click.option("--db", help="Path to the license database.")
+@click.option("--clear-cache", is_flag=True, help="Clear local cache and exit.")
+@click.pass_context
+def cli(ctx: click.Context, db: Optional[str], clear_cache: bool) -> None:
     """SPDX License ID matcher tool."""
+    db_path = db or get_default_db_path()
+    ctx.ensure_object(dict)
+    ctx.obj["db_path"] = db_path
+
+    if clear_cache:
+        database = LicenseDatabase(db_path)
+        database.clear_cache()
+        ctx.exit()
+
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
 
 
 @cli.command()
-@click.option("--db", help="Path to the license database.")
 @click.option("--version", default=None, help="SPDX License List version to download.")
 @click.option("--force", is_flag=True, help="Force update even if version matches.")
 @click.option(
@@ -60,27 +73,23 @@ def cli() -> None:
     default=True,
     help="Use local cache for downloads (default: true).",
 )
-@click.option("--clear-cache", is_flag=True, help="Clear local cache before updating.")
+@click.pass_context
 def update(
-    db: Optional[str],
+    ctx: click.Context,
     version: Optional[str],
     force: bool,
     use_cache: bool,
-    clear_cache: bool,
 ) -> None:
     """Update the license database from remote sources."""
-    db_path = db or get_default_db_path()
+    db_path = ctx.obj["db_path"]
     database = LicenseDatabase(db_path)
-    database.update_from_remote(
-        version=version, force=force, use_cache=use_cache, clear_cache=clear_cache
-    )
+    database.update_from_remote(version=version, force=force, use_cache=use_cache)
     click.echo(f"Database updated at {db_path}")
 
 
 @cli.command()
 @click.argument("input_file", type=click.Path(exists=True), required=False)
 @click.option("--text", help="License text to match.")
-@click.option("--db", help="Path to the license database.")
 @click.option(
     "--json", "json_output", is_flag=True, help="Output results in JSON format."
 )
@@ -98,10 +107,11 @@ def update(
     default=False,
     help="Enable/disable popularity score weighting.",
 )
+@click.pass_context
 def match(
+    ctx: click.Context,
     input_file: Optional[str],
     text: Optional[str],
-    db: Optional[str],
     json_output: bool,
     threshold: float,
     top: int,
@@ -109,7 +119,7 @@ def match(
     enable_popularity: bool,
 ) -> None:
     """Identify license text and return the closest matched SPDX License ID."""
-    db_path = db or get_default_db_path()
+    db_path = ctx.obj["db_path"]
 
     if not os.path.exists(db_path):
         click.echo(
@@ -162,7 +172,7 @@ def match(
 
 def main() -> None:
     """Main entry point for the CLI."""
-    cli()
+    cli()  # pylint: disable=no-value-for-parameter
 
 
 if __name__ == "__main__":
