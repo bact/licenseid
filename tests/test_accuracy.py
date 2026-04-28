@@ -25,35 +25,46 @@ def matcher(tmp_path_factory):
 
     print(f"\nPopulating test database with {len(fixtures)} fixtures...")
     import sqlite3
+    from licenseid.normalize import normalize_text
 
+    # Pre-calculate data to avoid overhead inside transaction
+    to_insert_licenses = []
+    to_insert_index = []
+    for i, filepath in enumerate(fixtures):
+        if i % 100 == 0:
+            print(f"  Processing fixture {i}/{len(fixtures)}...")
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        normalized = normalize_text(data["license_text"])
+        word_count = len(normalized.split())
+
+        to_insert_licenses.append(
+            (
+                data["license_id"],
+                data.get("name", ""),
+                data.get("is_spdx", True),
+                data.get("is_osi_approved", False),
+                data.get("is_fsf_libre", False),
+                data.get("is_high_usage", False),
+                word_count,
+            )
+        )
+        to_insert_index.append((data["license_id"], normalized))
+
+    print(f"  Inserting {len(fixtures)} records into database...")
     with sqlite3.connect(db_path) as conn:
-        for filepath in fixtures:
-            with open(filepath, "r", encoding="utf-8") as f:
-                data = json.load(f)
+        conn.executemany(
+            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved, is_fsf_libre, is_high_usage, word_count) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            to_insert_licenses,
+        )
+        conn.executemany(
+            "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+            to_insert_index,
+        )
 
-            # Insert into licenses table
-            conn.execute(
-                "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved, is_fsf_libre, is_high_usage) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (
-                    data["license_id"],
-                    data.get("name", ""),
-                    data.get("is_spdx", True),
-                    data.get("is_osi_approved", False),
-                    data.get("is_fsf_libre", False),
-                    data.get("is_high_usage", False),
-                ),
-            )
-
-            # Insert into license_index table
-            from licenseid.normalize import normalize_text
-
-            normalized = normalize_text(data["license_text"])
-            conn.execute(
-                "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
-                (data["license_id"], normalized),
-            )
-
+    print("  Population complete.")
     return AggregatedLicenseMatcher(db_path, enable_java=False)
 
 

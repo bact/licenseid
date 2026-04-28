@@ -9,10 +9,11 @@ A portable license ID matcher. Get the SPDX License ID from license text.
 ## Features
 
 - **Hybrid strategy**:
-  - **Tier 1**: Broad recall using SQLite FTS5 with trigram tokenization.
-  - **Tier 2**: Precision ranking using RapidFuzz (token set ratio) + Popularity weighting.
-  - **Tier 3**: Optional final validation via `tools-java` if available.
-- **Unix philosophy**: Parseable CLI output.
+  - **Tier 1 (Recall)**: Rapid candidate retrieval using SQLite FTS5 (trigram) with query truncation for performance.
+  - **Tier 2 (Precision)**: Adaptive ranking using RapidFuzz. Performs surgical alignment for snippets and fast global comparison for large documents.
+  - **Tier 3 (Validation)**: Optional final validation via `tools-java` if available.
+- **Unix philosophy**: Parseable, line-delimited CLI output.
+- **Performance**: Sub-second matching for most licenses; optimized for large file handling.
 
 ## Installation
 
@@ -40,7 +41,7 @@ licenseid update
 
 Advanced update options:
 
-- `--version <version>`: Download a specific SPDX License List version (e.g., `3.26.0`).
+- `--version <version>`: Download a specific SPDX License List version (e.g., `3.28.0`).
 - `--force`: Force update even if the local database is already at the target version.
 - `--no-cache`: Bypass the local cache for downloads.
 
@@ -60,12 +61,13 @@ licenseid match --text "MIT License"
 
 Common options:
 
+- `--diff`: Show a word-by-word diff between the input and the best-matching candidate.
 - `--java`: Enable Tier 3 Java validation (requires `SPDX_TOOLS_JAR` and `jpype1`).
 - `--pop`: Enable popularity weighting as a tie-breaker.
 - `--json`: Output results in JSON format.
 - `--db <path>`: Use a custom database path (global option).
 
-The popularity tie-breaker is triggered when candidate similarity scores differ by less than 0.2%.
+The system uses a **composite score** (Similarity + Coverage + Popularity) to ensure the "tightest" match is preferred (e.g., distinguishing between a license and its supersets).
 
 ### 3. Cache management
 
@@ -86,7 +88,7 @@ licenseid --clear-cache
 Default (Unix-friendly):
 
 ```text
-LICENSE_ID=Apache-2.0 SCORE=0.9850
+LICENSE_ID=Apache-2.0 SIMILARITY=0.9850 COVERAGE=1.0000
 ```
 
 JSON:

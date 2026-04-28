@@ -17,6 +17,7 @@ import click
 
 from licenseid.database import LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.normalize import normalize_text
 
 
 def get_default_db_path() -> str:
@@ -25,6 +26,31 @@ def get_default_db_path() -> str:
     db_dir = home / ".local" / "share" / "licenseid"
     db_dir.mkdir(parents=True, exist_ok=True)
     return str(db_dir / "licenses.db")
+
+
+def show_diff(text: str, best_window: str) -> None:
+    """Show word-by-word diff between input text and matched window."""
+    import difflib  # pylint: disable=import-outside-toplevel
+
+    norm_input = normalize_text(text)
+    input_words = norm_input.split()
+    window_words = best_window.split()
+
+    diff_lines = list(
+        difflib.unified_diff(
+            window_words, input_words, fromfile="DATABASE", tofile="INPUT", lineterm=""
+        )
+    )
+    if diff_lines:
+        click.echo("\nWORD DIFF:")
+        for line in diff_lines:
+            if line.startswith("+"):
+                click.secho(line, fg="green")
+            elif line.startswith("-"):
+                click.secho(line, fg="red")
+            else:
+                click.echo(line)
+        click.echo("")
 
 
 def check_db_staleness(database: LicenseDatabase) -> None:
@@ -87,6 +113,14 @@ def update(
     click.echo(f"Database updated at {db_path}")
 
 
+def unescape_text(text: str) -> str:
+    """Unescape backslash-escaped characters in a string."""
+    try:
+        return text.encode("utf-8").decode("unicode_escape")
+    except (UnicodeDecodeError, ValueError):
+        return text
+
+
 @cli.command()
 @click.argument("input_file", type=click.Path(exists=True), required=False)
 @click.option("--text", help="License text to match.")
@@ -107,6 +141,7 @@ def update(
     default=False,
     help="Enable/disable popularity score weighting.",
 )
+@click.option("--diff", is_flag=True, help="Show word diff for the top match.")
 @click.pass_context
 def match(
     ctx: click.Context,
@@ -117,6 +152,7 @@ def match(
     top: int,
     enable_java: bool,
     enable_popularity: bool,
+    diff: bool,
 ) -> None:
     """Identify license text and return the closest matched SPDX License ID."""
     db_path = ctx.obj["db_path"]
@@ -137,7 +173,7 @@ def match(
         with open(input_file, "r", encoding="utf-8") as f:
             license_text = f.read()
     elif text:
-        license_text = text
+        license_text = unescape_text(text)
     else:
         # Try reading from stdin
         if not sys.stdin.isatty():
@@ -166,8 +202,15 @@ def match(
             sys.exit(1)
 
         # Standard output: line-delimited, KEY=VALUE
-        for r in results:
-            click.echo(f"LICENSE_ID={r['license_id']} SCORE={r['score']:.4f}")
+        for i, r in enumerate(results):
+            click.echo(
+                f"LICENSE_ID={r['license_id']} "
+                f"SIMILARITY={r.get('similarity', r['score']):.4f} "
+                f"COVERAGE={r.get('coverage', 0.0):.4f}"
+            )
+            # Show diff for the top match if requested
+            if diff and i == 0 and r.get("similarity", 0) < 1.0:
+                show_diff(license_text, r.get("best_window", ""))
 
 
 def main() -> None:
