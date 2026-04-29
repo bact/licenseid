@@ -491,7 +491,9 @@ class LicenseDatabase:
         if only_spdx:
             conditions.append("l.is_spdx = 1")
         if only_common:
-            conditions.append("(l.is_high_usage = 1 OR l.is_osi_approved = 1 OR l.is_fsf_libre = 1)")
+            conditions.append(
+                "(l.is_high_usage = 1 OR l.is_osi_approved = 1 OR l.is_fsf_libre = 1)"
+            )
         if exclude_ids:
             placeholders = ", ".join("?" for _ in exclude_ids)
             conditions.append(f"l.license_id NOT IN ({placeholders})")

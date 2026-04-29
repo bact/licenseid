@@ -278,7 +278,6 @@ class AggregatedLicenseMatcher:
 
         for cand in candidates:
             lid = cand["license_id"]
-            name = cand["name"]
             id_norm = cand["norm_license_id"]
             name_norm = cand["norm_name"]
 
