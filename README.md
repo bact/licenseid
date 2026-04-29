@@ -1,13 +1,15 @@
 # LicenseID - A portable SPDX License ID matcher
 
 [![PyPI - Version](https://img.shields.io/pypi/v/licenseid)](https://pypi.org/project/licenseid/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19880346.svg)](https://doi.org/10.5281/zenodo.19880346)
 
-Get the SPDX License ID from license text.
+Get the [SPDX License ID][spdx-license-id] from license text.
 
 A portable license ID matcher with command line interface and Python API.
 
 *Used as a license detection engine for [Pitloom] software bill of materilas generator.*
 
+[spdx-license-id]: https://spdx.org/licenses/
 [Pitloom]: https://github.com/bact/pitloom/
 
 ## Features
