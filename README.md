@@ -1,4 +1,4 @@
-# LicenseID
+# LicenseID - A portable SPDX License ID matcher
 
 [![PyPI - Version](https://img.shields.io/pypi/v/licenseid)](https://pypi.org/project/licenseid/)
 

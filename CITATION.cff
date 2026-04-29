@@ -1,0 +1,35 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: LicenseID - A portable SPDX License ID matcher
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Arthit
+    family-names: Suriyawongkul
+    email: suriyawa@tcd.ie
+    affiliation: 'ADAPT Centre, Trinity College Dublin'
+    orcid: 'https://orcid.org/0000-0002-9698-1899'
+repository-code: 'https://github.com/bact/licenseid.git'
+url: 'https://pypi.org/project/licenseid/'
+abstract: >-
+  Identifies the SPDX License ID from license text.
+  A portable license ID matcher with command line interface and Python API.
+keywords:
+  - license identification
+  - license text
+  - SPDX License ID
+  - software license
+  - open source license
+  - license matching
+  - license detection
+  - license classification
+  - SBOM
+  - SPDX
+  - software component transparency
+license: Apache-2.0
+version: 0.2.1
+date-released: '2026-04-29'
