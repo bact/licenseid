@@ -37,7 +37,8 @@ dependencies = [
     "beautifulsoup4>=4.14.3",
     "click>=8.3.3",
     "rapidfuzz>=3.14.5",
-    "requests>=2.33.1",
+    "requests>=2.33.0",
+    "typing_extensions>=4.4.0",
 ]
 
 [project.optional-dependencies]
@@ -49,7 +50,7 @@ licenseid = "licenseid.cli:main"
 [dependency-groups]
 lint = ["flake8>=7.3.0", "pylint>=4.0.5", "ruff>=0.15.7"]
 test = ["coverage", "coveralls", "pytest>=9.0.2"]
-typecheck = ["mypy>=1.19.1"]
+typecheck = ["mypy>=1.19.1", "types-requests>=2.33.0.20260408"]
 dev = [
     { include-group = "lint" },
     { include-group = "test" },
@@ -88,6 +89,10 @@ show_error_context = true
 strict = true
 strict_equality_for_none = true
 warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["jpype", "jpype.*"]
+ignore_missing_imports = true
 
 [tool.pylint.main]
 ignore = ["CVS"]

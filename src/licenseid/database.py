@@ -1,3 +1,4 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -15,11 +16,23 @@ import tempfile
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional, cast
 
 import requests
 
 from licenseid.normalize import normalize_text
+from licenseid.types import (
+    CandidateMatch,
+    DatabaseMetadata,
+    LicenseDetails,
+    LicenseNameId,
+    SpdxLicenseEntry,
+)
+
+# (license_id, name, xml_template, is_spdx, is_osi, is_fsf,
+#  is_high_usage, pop_score, word_count)
+_LicenseInsertRecord = tuple[str, str, Optional[str], bool, bool, bool, bool, int, int]
+_IndexInsertRecord = tuple[str, str]
 
 # Cache expiration settings
 LICENSES_JSON_URL = "https://spdx.org/licenses/licenses.json"
@@ -242,7 +255,7 @@ class LicenseDatabase:
     def _process_and_store(
         self,
         tar_path: Path,
-        popularity_map: Dict[str, int],
+        popularity_map: dict[str, int],
         release_date: Optional[str],
     ) -> None:
         """Extract tarball and update database records."""
@@ -256,7 +269,7 @@ class LicenseDatabase:
                 with open(json_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
-                licenses_data = data.get("licenses", [])
+                licenses_data: list[SpdxLicenseEntry] = data.get("licenses", [])
                 list_version = data.get("licenseListVersion")
                 release_date = data.get("releaseDate") or release_date
 
@@ -275,15 +288,15 @@ class LicenseDatabase:
 
     def _update_db_records(
         self,
-        licenses_data: List[Dict[str, Any]],
+        licenses_data: list[SpdxLicenseEntry],
         root_dir: Path,
-        popularity_map: Dict[str, int],
+        popularity_map: dict[str, int],
         list_version: str,
         release_date: Optional[str],
     ) -> None:
         """Execute database delete and insert operations."""
-        license_records = []
-        index_records = []
+        license_records: list[_LicenseInsertRecord] = []
+        index_records: list[_IndexInsertRecord] = []
 
         print("Preparing license data...", end="", flush=True)
         for i, lic in enumerate(licenses_data):
@@ -306,9 +319,9 @@ class LicenseDatabase:
                 conn.execute("DELETE FROM db_metadata")
 
                 now = datetime.now().isoformat()
-                metadata_items = [
+                metadata_items: list[tuple[str, str]] = [
                     ("license_list_version", list_version),
-                    ("release_date", release_date),
+                    ("release_date", release_date or ""),
                     ("last_check_datetime", now),
                     ("last_update_datetime", now),
                 ]
@@ -337,10 +350,10 @@ class LicenseDatabase:
 
     def _prepare_license_record(
         self,
-        lic: Dict[str, Any],
+        lic: SpdxLicenseEntry,
         root_dir: Path,
-        popularity_map: Dict[str, int],
-    ) -> Optional[tuple[tuple[Any, ...], tuple[str, str]]]:
+        popularity_map: dict[str, int],
+    ) -> Optional[tuple[_LicenseInsertRecord, _IndexInsertRecord]]:
         """Prepare license data for insertion."""
         license_id = lic["licenseId"]
         text_path = root_dir / "text" / f"{license_id}.txt"
@@ -368,7 +381,7 @@ class LicenseDatabase:
         # High usage: OSI, FSF, or significant popularity
         is_high_usage = is_osi or is_fsf or popularity_score > 500
 
-        license_record = (
+        license_record: _LicenseInsertRecord = (
             license_id,
             lic.get("name", ""),
             xml_content,
@@ -379,14 +392,14 @@ class LicenseDatabase:
             popularity_score,
             word_count,
         )
-        index_record = (license_id, fingerprint)
+        index_record: _IndexInsertRecord = (license_id, fingerprint)
         return license_record, index_record
 
     def _fetch_popularity_data(
         self, local_path: Optional[Path] = None
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """Fetch and aggregate popularity data from GitHub Innovation Graph."""
-        popularity_map: Dict[str, int] = {}
+        popularity_map: dict[str, int] = {}
         csv_content = ""
 
         if local_path:
@@ -447,7 +460,7 @@ class LicenseDatabase:
 
         return normalize_text(text)
 
-    def search_candidates(self, text: str, limit: int = 50) -> List[Dict[str, Any]]:
+    def search_candidates(self, text: str, limit: int = 50) -> list[CandidateMatch]:
         """Tier 1: Search for candidates using trigram FTS5."""
         norm_text = normalize_text(text)
         # Use OR between the first few words to ensure broad recall.
@@ -460,9 +473,9 @@ class LicenseDatabase:
         with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             query = """
-                SELECT 
-                    li.license_id, 
-                    li.search_text, 
+                SELECT
+                    li.license_id,
+                    li.search_text,
                     l.word_count,
                     l.is_spdx,
                     l.is_high_usage,
@@ -479,32 +492,31 @@ class LicenseDatabase:
                 # Escape double quotes and use OR-ed keywords for recall
                 match_query = search_terms.replace('"', '""')
                 cursor = conn.execute(query, (match_query, limit))
-                results = [dict(row) for row in cursor.fetchall()]
-                return results
+                return [cast(CandidateMatch, dict(row)) for row in cursor.fetchall()]
             except sqlite3.OperationalError:
                 return []
 
-    def get_license_details(self, license_id: str) -> Optional[Dict[str, Any]]:
+    def get_license_details(self, license_id: str) -> Optional[LicenseDetails]:
         """Get full metadata for a license."""
         with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT * FROM licenses WHERE license_id = ?", (license_id,)
             ).fetchone()
-            return dict(row) if row else None
+            return cast(LicenseDetails, dict(row)) if row else None
 
-    def get_all_names_and_ids(self) -> List[Dict[str, str]]:
+    def get_all_names_and_ids(self) -> list[LicenseNameId]:
         """Retrieve all license IDs and names for short-text matching."""
         with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("SELECT license_id, name FROM licenses")
             return [
-                {"license_id": row["license_id"], "name": row["name"]}
+                LicenseNameId(license_id=row["license_id"], name=row["name"])
                 for row in cursor.fetchall()
             ]
 
-    def get_metadata(self) -> Dict[str, str]:
+    def get_metadata(self) -> DatabaseMetadata:
         """Get database metadata."""
         with self._connect() as conn:
             cursor = conn.execute("SELECT key, value FROM db_metadata")
-            return {row[0]: row[1] for row in cursor.fetchall()}
+            return cast(DatabaseMetadata, {row[0]: row[1] for row in cursor.fetchall()})

@@ -2,6 +2,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
+"""Tests for AggregatedLicenseMatcher hybrid search flow."""
+
 import os
 from typing import Any
 
@@ -41,7 +43,8 @@ def test_hybrid_search_flow(tmp_path: Any) -> None:
             "permission is hereby granted free of charge to any person obtaining a copy"
         )
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
+            "INSERT INTO licenses"
+            " (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
             ("MIT", "MIT License", True, True),
         )
         conn.execute(
@@ -56,7 +59,10 @@ def test_hybrid_search_flow(tmp_path: Any) -> None:
         assert row[0] == 1, "FTS5 index verification failed: 'permission' not found."
 
     matcher = AggregatedLicenseMatcher(db_path)
-    input_text = "Permission is hereby granted, free of charge, to any person obtaining a copy of this software"
+    input_text = (
+        "Permission is hereby granted, free of charge, to any person"
+        " obtaining a copy of this software"
+    )
 
     # Verify DB search directly
     candidates = matcher.db.search_candidates(input_text)
@@ -88,15 +94,18 @@ def test_short_text_rejection(tmp_path: Any) -> None:
 
     with sqlite3.connect(db_path) as conn:
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
+            "INSERT INTO licenses"
+            " (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
             ("MIT", "MIT License", True, True),
         )
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
+            "INSERT INTO licenses"
+            " (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
             ("APSL-2.0", "Apple Public Source License 2.0", True, True),
         )
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
+            "INSERT INTO licenses"
+            " (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
             ("AML", "Apple MIT License", True, True),
         )
 
