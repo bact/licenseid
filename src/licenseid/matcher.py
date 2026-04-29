@@ -1,3 +1,4 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -9,12 +10,18 @@ Aggregated license matching logic using hybrid search.
 import math
 import os
 import shutil
-from typing import Any, Dict, List, Union
+from typing import Union, cast
 
 from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase
 from licenseid.normalize import normalize_text
+from licenseid.types import (
+    CandidateMatch,
+    InternalMatch,
+    LicenseMatch,
+    MatchRequest,
+)
 
 
 class AggregatedLicenseMatcher:
@@ -32,14 +39,17 @@ class AggregatedLicenseMatcher:
         self.jar_path = os.getenv("SPDX_TOOLS_JAR")
         self.has_java = shutil.which("java") is not None
 
-    def match(self, data: Union[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def match(self, data: Union[str, MatchRequest]) -> list[LicenseMatch]:
         """
         Identify license text and return ranked matches.
         """
+        request: MatchRequest
         if isinstance(data, str):
-            data = {"text": data, "only_spdx": True, "only_common": False}
+            request = MatchRequest(text=data, only_spdx=True, only_common=False)
+        else:
+            request = data
 
-        text = data.get("text", "")
+        text = request["text"]
         norm_input = normalize_text(text)
         words = norm_input.split()
 
@@ -51,13 +61,13 @@ class AggregatedLicenseMatcher:
                 return short_matches
 
         # Tier 1: Broad Recall
-        candidates = self._get_candidates(data, text)
+        candidates = self._get_candidates(request, text)
 
         # Tier 2: Precision Ranking
-        ranked = self._rank_candidates(candidates, norm_input, data)
+        ranked = self._rank_candidates(candidates, norm_input, request)
 
         # Tier 3: Optional Java Consultant
-        enable_java = data.get("enable_java", self.enable_java)
+        enable_java = request.get("enable_java", self.enable_java)
         if (
             enable_java
             and self.has_java
@@ -65,16 +75,16 @@ class AggregatedLicenseMatcher:
             and os.path.exists(self.jar_path)
             and ranked
         ):
-            return self._consult_java(text, ranked)
+            return cast(list[LicenseMatch], self._consult_java(text, ranked))
 
-        return ranked
+        return cast(list[LicenseMatch], ranked)
 
-    def _get_candidates(self, data: Dict[str, Any], text: str) -> List[Dict[str, Any]]:
+    def _get_candidates(self, data: MatchRequest, text: str) -> list[CandidateMatch]:
         """Fetch and filter candidates from the database."""
         only_spdx = data.get("only_spdx", True)
         only_common = data.get("only_common", False)
-        exclude_list = data.get("exclude", [])
-        hint_list = data.get("hint", [])
+        exclude_list: list[str] = data.get("exclude", [])
+        hint_list: list[str] = data.get("hint", [])
 
         # Tier 1: Retrieval
         # Truncate very long queries for FTS5 to avoid performance/limit issues
@@ -86,17 +96,17 @@ class AggregatedLicenseMatcher:
 
         # Fetch Top 50 for better recall
         candidates = self.db.search_candidates(search_query, limit=50)
-        filtered = []
+        filtered: list[CandidateMatch] = []
         for cand in candidates:
             license_id = cand["license_id"]
             if license_id in exclude_list:
                 continue
 
             # Filtering logic using pre-fetched metadata
-            if only_spdx and not cand.get("is_spdx"):
+            if only_spdx and not cand["is_spdx"]:
                 continue
-            if only_common and not cand.get("is_high_usage"):
-                if not (cand.get("is_osi_approved") or cand.get("is_fsf_libre")):
+            if only_common and not cand["is_high_usage"]:
+                if not (cand["is_osi_approved"] or cand["is_fsf_libre"]):
                     continue
 
             filtered.append(cand)
@@ -107,23 +117,34 @@ class AggregatedLicenseMatcher:
             if h_id not in candidate_ids:
                 details = self.db.get_license_details(h_id)
                 if details:
-                    filtered.append(details)
+                    filtered.append(
+                        CandidateMatch(
+                            license_id=details["license_id"],
+                            search_text="",
+                            word_count=details["word_count"],
+                            is_spdx=details["is_spdx"],
+                            is_high_usage=details["is_high_usage"],
+                            is_osi_approved=details["is_osi_approved"],
+                            is_fsf_libre=details["is_fsf_libre"],
+                            popularity_score=details["popularity_score"],
+                        )
+                    )
         return filtered
 
     # pylint: disable=too-many-branches
     def _rank_candidates(
-        self, candidates: List[Dict[str, Any]], norm_input: str, data: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, candidates: list[CandidateMatch], norm_input: str, data: MatchRequest
+    ) -> list[InternalMatch]:
         """Rank candidates using dynamic sliding window and popularity boost."""
         enable_popularity = data.get("enable_popularity", self.enable_popularity)
         query_words = norm_input.split()
         q_len = len(query_words)
-        ranked: List[Dict[str, Any]] = []
+        ranked: list[InternalMatch] = []
 
         for cand in candidates:
             license_id = cand["license_id"]
-            search_text = cand.get("search_text") or ""
-            c_len = cand.get("word_count") or 0
+            search_text = cand["search_text"] or ""
+            c_len = cand["word_count"] or 0
             if c_len == 0:
                 c_len = len(search_text.split())
 
@@ -170,14 +191,15 @@ class AggregatedLicenseMatcher:
                         similarity *= 0.95
 
             ranked.append(
-                {
-                    "license_id": license_id,
-                    "base_score": similarity,
-                    "similarity": similarity,
-                    "coverage": coverage,
-                    "pop_score": cand.get("popularity_score", 1),
-                    "best_window": best_window,
-                }
+                InternalMatch(
+                    license_id=license_id,
+                    base_score=similarity,
+                    similarity=similarity,
+                    coverage=coverage,
+                    pop_score=cand["popularity_score"],
+                    best_window=best_window,
+                    score=0.0,
+                )
             )
 
         if ranked:
@@ -204,13 +226,13 @@ class AggregatedLicenseMatcher:
 
                 r["score"] = score
 
-        ranked.sort(key=lambda x: float(x["score"]), reverse=True)
+        ranked.sort(key=lambda x: x["score"], reverse=True)
         return ranked
 
     def _ensure_jvm(self) -> None:
         """Ensure the JVM is started with the tools-java JAR."""
         try:
-            import jpype  # type: ignore[import-untyped] # pylint: disable=import-outside-toplevel
+            import jpype  # pylint: disable=import-outside-toplevel
         except ImportError as exc:
             raise ImportError(
                 "JPype1 is required for Java validation. "
@@ -223,8 +245,8 @@ class AggregatedLicenseMatcher:
             model_factory.init()
 
     def _consult_java(
-        self, text: str, ranked: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, text: str, ranked: list[InternalMatch]
+    ) -> list[InternalMatch]:
         """Consult the tools-java MatchingStandardLicenses logic via JPype."""
         try:
             import jpype  # pylint: disable=import-outside-toplevel
@@ -253,13 +275,13 @@ class AggregatedLicenseMatcher:
         finally:
             j_thread.detach()
 
-        ranked.sort(key=lambda x: float(x["score"]), reverse=True)
+        ranked.sort(key=lambda x: x["score"], reverse=True)
         return ranked
 
-    def _match_short_text(self, norm_input: str) -> List[Dict[str, Any]]:
+    def _match_short_text(self, norm_input: str) -> list[LicenseMatch]:
         """Fallback logic for very short inputs."""
         all_metadata = self.db.get_all_names_and_ids()
-        ranked: List[Dict[str, Any]] = []
+        ranked: list[LicenseMatch] = []
         words = norm_input.split()
         threshold = 90.0 if len(words) <= 2 else 85.0
 
@@ -289,13 +311,13 @@ class AggregatedLicenseMatcher:
                     score += 0.01
 
                 ranked.append(
-                    {
-                        "license_id": lid,
-                        "score": score,
-                        "similarity": best_raw / 100.0,
-                        "coverage": 0.0,  # Not applicable for name matches
-                    }
+                    LicenseMatch(
+                        license_id=lid,
+                        score=score,
+                        similarity=best_raw / 100.0,
+                        coverage=0.0,
+                    )
                 )
 
-        ranked.sort(key=lambda x: float(x["score"]), reverse=True)
+        ranked.sort(key=lambda x: x["score"], reverse=True)
         return ranked

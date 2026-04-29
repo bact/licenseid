@@ -25,7 +25,7 @@ jobs:
       - name: Install Ruff
         run: |
           pip install --upgrade pip
-          pip install ".[dev,java]"
+          pip install ".[java]" --group lint
 
       - name: Ruff linter
         run: |

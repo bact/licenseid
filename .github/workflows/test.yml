@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install ".[dev,java]"
+          pip install ".[java]" --group test
 
       - name: Run tests (w/o code coverage)
         if: ${{ matrix.python-version != env.MAIN_SUPPORT_VERSION }}
