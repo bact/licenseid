@@ -35,23 +35,16 @@ Or using `uv`:
 uv tool install licenseid
 ```
 
+> [!IMPORTANT]
+> After installation, build the local license database by running:
+>
+> ```bash
+> licenseid update
+> ```
+
 ## Usage
 
-### 1. Update the license database
-
-Before matching, you need to build the local license index:
-
-```bash
-licenseid update
-```
-
-Advanced update options:
-
-- `--version <version>`: Download a specific SPDX License List version (e.g., `3.28.0`).
-- `--force`: Force update even if the local database is already at the target version.
-- `--no-cache`: Bypass the local cache for downloads.
-
-### 2. Match a license
+### 1. Match a license
 
 Identify license text from a file:
 
@@ -75,6 +68,18 @@ Common options:
 - `--json`: Output results in JSON format.
 
 The system uses a **composite score** (Similarity + Coverage + Popularity) to ensure the "tightest" match is preferred (e.g., distinguishing between a license and its supersets).
+
+### 2. Update the license database
+
+```bash
+licenseid update
+```
+
+Advanced update options:
+
+- `--version <version>`: Download a specific SPDX License List version (e.g., `3.28.0`).
+- `--force`: Force update even if the local database is already at the target version.
+- `--no-cache`: Bypass the local cache for downloads.
 
 ### 3. Cache management
 
