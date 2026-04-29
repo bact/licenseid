@@ -43,10 +43,20 @@ def test_hybrid_search_flow(tmp_path: Any) -> None:
         mit_text = (
             "permission is hereby granted free of charge to any person obtaining a copy"
         )
+        from licenseid.normalize import normalize_text
+
         conn.execute(
             "INSERT INTO licenses"
-            " (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
-            ("MIT", "MIT License", True, True),
+            " (license_id, name, norm_license_id, norm_name, is_spdx, is_osi_approved)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                "MIT",
+                "MIT License",
+                normalize_text("MIT"),
+                normalize_text("MIT License"),
+                True,
+                True,
+            ),
         )
         conn.execute(
             "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
@@ -89,26 +99,24 @@ def test_short_text_rejection(tmp_path: Any) -> None:
     """Verify that inputs with fewer than 20 normalized words use fallback logic."""
     db_path = str(tmp_path / "test.db")
     from licenseid.database import LicenseDatabase
+    from licenseid.normalize import normalize_text
     import sqlite3
 
     LicenseDatabase(db_path)
 
     with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            "INSERT INTO licenses"
-            " (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
+        records = [
             ("MIT", "MIT License", True, True),
-        )
-        conn.execute(
-            "INSERT INTO licenses"
-            " (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
             ("APSL-2.0", "Apple Public Source License 2.0", True, True),
-        )
-        conn.execute(
-            "INSERT INTO licenses"
-            " (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
             ("AML", "Apple MIT License", True, True),
-        )
+        ]
+        for lid, name, is_spdx, is_osi in records:
+            conn.execute(
+                "INSERT INTO licenses"
+                " (license_id, name, norm_license_id, norm_name, is_spdx, is_osi_approved)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (lid, name, normalize_text(lid), normalize_text(name), is_spdx, is_osi),
+            )
 
     matcher = AggregatedLicenseMatcher(db_path)
 

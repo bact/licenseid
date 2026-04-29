@@ -476,16 +476,16 @@ class LicenseDatabase:
         exclude_ids: Optional[list[str]] = None,
     ) -> list[CandidateMatch]:
         """Tier 1: Search for candidates using trigram FTS5."""
-        norm_text = normalize_text(text)
-        # Use OR between the first few words to ensure broad recall.
-        # This allows candidates that match most, but not necessarily all, terms.
-        words = norm_text.split()[:10]
+        # Use the first 50 words joined with OR to ensure high recall even with distortion.
+        # FTS5 rank will ensure the best matches come first.
+        words = text.split()[:50]
         if not words:
             return []
         search_terms = " OR ".join(words)
 
         # Build dynamic WHERE clause
         conditions = ["li.search_text MATCH ?"]
+        # Escape double quotes for FTS5 syntax
         params: list[object] = [search_terms.replace('"', '""')]
 
         if only_spdx:

@@ -59,6 +59,8 @@ def matcher() -> AggregatedLicenseMatcher:
             (
                 data["license_id"],
                 data.get("name", ""),
+                normalize_text(data["license_id"]),
+                normalize_text(data.get("name", "")),
                 data.get("is_spdx", True),
                 data.get("is_osi_approved", False),
                 data.get("is_fsf_libre", False),
@@ -66,7 +68,9 @@ def matcher() -> AggregatedLicenseMatcher:
                 word_count,
             )
         )
-        to_insert_index.append((data["license_id"], normalized))
+        to_insert_index.append(
+            (data["license_id"], normalize_text(data["license_text"]))
+        )
 
     print(f"  Inserting {len(fixtures)} records into database...")
     with sqlite3.connect(db_path, uri=True) as conn:
@@ -75,9 +79,9 @@ def matcher() -> AggregatedLicenseMatcher:
         conn.execute("BEGIN TRANSACTION")
         try:
             conn.executemany(
-                "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved, "
-                "is_fsf_libre, is_high_usage, word_count) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO licenses (license_id, name, norm_license_id, norm_name, "
+                "is_spdx, is_osi_approved, is_fsf_libre, is_high_usage, word_count) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 to_insert_licenses,
             )
             conn.executemany(

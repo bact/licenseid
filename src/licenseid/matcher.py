@@ -88,8 +88,9 @@ class AggregatedLicenseMatcher:
 
         # Tier 1: Retrieval
         # Truncate very long queries for FTS5 to avoid performance/limit issues
-        words = text.split()
-        search_query = text
+        norm_input = normalize_text(text)
+        words = norm_input.split()
+        search_query = norm_input
         if len(words) > 100:
             search_query = " ".join(words[:100])
 
@@ -111,6 +112,9 @@ class AggregatedLicenseMatcher:
                     filtered.append(
                         CandidateMatch(
                             license_id=details["license_id"],
+                            name=details["name"],
+                            norm_license_id=details["norm_license_id"],
+                            norm_name=details["norm_name"],
                             search_text="",
                             word_count=details["word_count"],
                             is_spdx=details["is_spdx"],
@@ -274,6 +278,7 @@ class AggregatedLicenseMatcher:
         candidates = self.db.search_by_name_or_id(norm_input)
         ranked: list[LicenseMatch] = []
         words = norm_input.split()
+
         threshold = 90.0 if len(words) <= 2 else 85.0
 
         for cand in candidates:
