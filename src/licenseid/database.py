@@ -529,9 +529,7 @@ class LicenseDatabase:
             except sqlite3.OperationalError:
                 return []
 
-    def search_by_name_or_id(
-        self, norm_input: str, threshold: float = 0.8
-    ) -> list[CandidateMatch]:
+    def search_by_name_or_id(self, norm_input: str) -> list[CandidateMatch]:
         """Search by normalized name or ID using efficient SQL lookups."""
         with self._connect() as conn:
             conn.row_factory = sqlite3.Row
