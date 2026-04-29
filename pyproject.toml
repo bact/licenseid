@@ -41,11 +41,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["coverage", "coveralls", "flake8", "mypy", "pylint", "pytest", "ruff"]
 java = ["jpype1>=1.7.0"]
 
 [project.scripts]
 licenseid = "licenseid.cli:main"
+
+[dependency-groups]
+lint = ["flake8>=7.3.0", "pylint>=4.0.5", "ruff>=0.15.7"]
+test = ["coverage", "coveralls", "pytest>=9.0.2"]
+typecheck = ["mypy>=1.19.1"]
+dev = [
+    { include-group = "lint" },
+    { include-group = "test" },
+    { include-group = "typecheck" },
+]
 
 [tool.coverage.paths]
 source = ["src/licenseid", "**/site-packages/licenseid"]
