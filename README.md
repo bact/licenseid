@@ -2,19 +2,22 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/licenseid)](https://pypi.org/project/licenseid/)
 
-A portable license ID matcher. Get the SPDX License ID from license text.
+Get the SPDX License ID from license text.
 
-`licenseid` takes license text as input and identifies the closest matched SPDX License ID using a hybrid search strategy (trigram + token ratio ranking).
+A portable license ID matcher with command line interface and Python API.
+
+*Used as a license detection engine for [Pitloom] software bill of materilas generator.*
+
+[Pitloom]: https://github.com/bact/pitloom/
 
 ## Features
 
-- **Hybrid strategy**:
+- **Hybrid matching strategy**:
   - **Tier 0 (Shortcut)**: Immediate identification for exact license names and IDs.
   - **Tier 1 (Recall)**: Rapid candidate retrieval using SQLite FTS5 (trigram) with query truncation for performance.
   - **Tier 2 (Precision)**: Adaptive ranking using RapidFuzz with boosting for canonical matches.
   - **Tier 3 (Validation)**: Optional final validation via `tools-java` if available.
 - **Unix philosophy**: Parseable, line-delimited CLI output.
-- **Performance**: Sub-second matching for most licenses; optimized for large file handling.
 
 ## Installation
 
@@ -185,7 +188,7 @@ Example JSON output:
 
 ## Development
 
-### Running Tests
+### Running tests
 
 Regular test suite:
 
