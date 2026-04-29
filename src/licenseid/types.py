@@ -28,6 +28,9 @@ class CandidateMatch(TypedDict):
     """Database record returned by LicenseDatabase.search_candidates()."""
 
     license_id: str
+    name: str
+    norm_license_id: str
+    norm_name: str
     search_text: str
     word_count: int
     is_spdx: bool

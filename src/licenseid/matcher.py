@@ -88,28 +88,19 @@ class AggregatedLicenseMatcher:
 
         # Tier 1: Retrieval
         # Truncate very long queries for FTS5 to avoid performance/limit issues
-        # 100 words is more than enough for trigram retrieval.
         words = text.split()
         search_query = text
         if len(words) > 100:
             search_query = " ".join(words[:100])
 
-        # Fetch Top 50 for better recall
-        candidates = self.db.search_candidates(search_query, limit=50)
-        filtered: list[CandidateMatch] = []
-        for cand in candidates:
-            license_id = cand["license_id"]
-            if license_id in exclude_list:
-                continue
-
-            # Filtering logic using pre-fetched metadata
-            if only_spdx and not cand["is_spdx"]:
-                continue
-            if only_common and not cand["is_high_usage"]:
-                if not (cand["is_osi_approved"] or cand["is_fsf_libre"]):
-                    continue
-
-            filtered.append(cand)
+        # Fetch Top 50 for better recall, with SQL filtering
+        filtered = self.db.search_candidates(
+            search_query,
+            limit=50,
+            only_spdx=only_spdx,
+            only_common=only_common,
+            exclude_ids=exclude_list,
+        )
 
         # Force-include hints
         candidate_ids = {c["license_id"] for c in filtered}
@@ -279,23 +270,23 @@ class AggregatedLicenseMatcher:
         return ranked
 
     def _match_short_text(self, norm_input: str) -> list[LicenseMatch]:
-        """Fallback logic for very short inputs."""
-        all_metadata = self.db.get_all_names_and_ids()
+        """Fallback logic for very short inputs using optimized SQL search."""
+        candidates = self.db.search_by_name_or_id(norm_input)
         ranked: list[LicenseMatch] = []
         words = norm_input.split()
         threshold = 90.0 if len(words) <= 2 else 85.0
 
-        for meta in all_metadata:
-            lid = meta["license_id"]
-            name = meta["name"]
+        for cand in candidates:
+            lid = cand["license_id"]
+            name = cand["name"]
+            id_norm = cand["norm_license_id"]
+            name_norm = cand["norm_name"]
 
-            id_norm = normalize_text(lid)
             score_id = fuzz.ratio(norm_input, id_norm)
             score_id_partial = (
                 fuzz.partial_ratio(norm_input, id_norm) if len(words) == 1 else 0
             )
 
-            name_norm = normalize_text(name)
             score_name_exact = fuzz.ratio(norm_input, name_norm)
             score_name_flex = fuzz.token_set_ratio(norm_input, name_norm)
 
