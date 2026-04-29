@@ -14,7 +14,7 @@ authors:
     orcid: "https://orcid.org/0000-0002-9698-1899"
 repository-code: "https://github.com/bact/licenseid.git"
 url: "https://pypi.org/project/licenseid/"
-doi: 10.5281/zenodo.19880345
+doi: 10.5281/zenodo.19881009
 abstract: >-
   Identifies the SPDX License ID from license text. A portable license ID
   matcher with command line interface and Python API.
