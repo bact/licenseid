@@ -1,3 +1,10 @@
+---
+SPDX-FileContributor: Arthit Suriyawongkul
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: Apache-2.0
+---
+
 # Test fixtures
 
 ## License matching test dataset
