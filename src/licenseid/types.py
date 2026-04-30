@@ -22,6 +22,7 @@ class LicenseMatch(TypedDict, total=False):
     is_osi_approved: bool
     is_fsf_libre: bool
     best_window: str
+    method: str
 
 
 class CandidateMatch(TypedDict):
@@ -51,6 +52,7 @@ class InternalMatch(TypedDict, total=False):
     pop_score: Required[int]
     best_window: Required[str]
     java_verified: bool
+    method: str
 
 
 class MatchRequest(TypedDict, total=False):
@@ -63,6 +65,7 @@ class MatchRequest(TypedDict, total=False):
     hint: list[str]
     enable_java: bool
     enable_popularity: bool
+    enable_markers: bool
 
 
 class LicenseNameId(TypedDict):
@@ -86,6 +89,8 @@ class LicenseDetails(TypedDict, total=False):
     xml_template: str
     legacy_template: str
     ignorable_metadata: str
+    norm_license_id: str
+    norm_name: str
 
 
 class SpdxLicenseEntry(TypedDict, total=False):
