@@ -476,7 +476,8 @@ class LicenseDatabase:
         exclude_ids: Optional[list[str]] = None,
     ) -> list[CandidateMatch]:
         """Tier 1: Search for candidates using trigram FTS5."""
-        # Use the first 50 words joined with OR to ensure high recall even with distortion.
+        # Use the first 50 words joined with OR to ensure high recall
+        # even with distortion.
         # FTS5 rank will ensure the best matches come first.
         words = text.split()[:50]
         if not words:
