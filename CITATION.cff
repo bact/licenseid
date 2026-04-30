@@ -2,7 +2,7 @@
 # Visit https://bit.ly/cffinit to generate yours today!
 
 cff-version: 1.2.0
-title: LicenseID - A portable SPDX License ID matcher
+title: "LicenseID: A portable SPDX License ID matcher"
 message: >-
   If you use this software, please cite it using the metadata from this file.
 type: software
