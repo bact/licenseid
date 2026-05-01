@@ -52,25 +52,28 @@ Advanced update options:
 - `--force`: Force update even if the local database is already at the target version.
 - `--no-cache`: Bypass the local cache for downloads.
 
-### 2. Match a license
+### 2. Identify a license
 
-Identify license text from a file:
+Identify license text from a file, an ID, or a string:
 
 ```bash
+# From a file (smart detection)
 licenseid match LICENSE.txt
+
+# From an ID (smart detection)
+licenseid match MIT
+
+# From a string (smart detection / piped)
+echo "MIT License..." | licenseid match
+
+# Explicit ID lookup (fastest, skips similarity check)
+licenseid match --id MIT
 ```
-
-Or match from a string:
-
-```bash
-licenseid match --text "Apache License\nVersion 2.0"
-```
-
-The `--text` argument supports standard escape sequences (e.g., `\n`, `\t`, `\"`) which are automatically unescaped before matching.
 
 Common options:
 
 - `--db <path>`: Use a custom database path (global option). Supports SQLite URIs for in-memory databases (e.g., `file:test?mode=memory&cache=shared`).
+- `--id <id>`: Explicitly treat input as an SPDX License ID (bypasses file/text matching).
 - `--bold`: Print only the top license ID (no other info).
 - `--diff`: Show a word-by-word diff between the input and the best-matching candidate.
 - `--json`: Output results in JSON format.
@@ -164,26 +167,69 @@ The CLI follows standard Unix exit code conventions, making it suitable for use 
 
 | Exit Code | Meaning | Scenarios |
 | :--- | :--- | :--- |
-| **0** | Success | Confident match found; database updated; database already up-to-date. |
-| **1** | Logic Failure | No matching license found; network/download error; data processing error. |
+| **0** | Success | Confident match found; predicate is TRUE; database updated or already up-to-date. |
+| **1** | Logic Failure | No matching license found; predicate is FALSE; network error. |
 | **2** | Usage Error | Missing subcommand; missing input text/file; invalid parameters. |
+
+### 6. License predicates (for CI/CD)
+
+Predicate commands are designed for shell scripting. They print `true`/`false` and exit with `0` (for true) or `1` (for false).
+
+| Command | Description |
+| :--- | :--- |
+| `is-spdx` | True if the license is in the SPDX License List. |
+| `is-open` | True if the license is OSI-approved **OR** FSF-libre. |
+| `is-free` | Alias for `is-open`. |
+| `is-osi` | True if the license is OSI-approved. |
+| `is-fsf` | True if the license is FSF-libre. |
+
+Example usage in a script:
+
+```bash
+# Check by ID
+if licenseid is-osi MIT; then
+  echo "This is an OSI-approved license."
+fi
+
+# Check by File
+licenseid is-open LICENSE.txt || echo "Warning: Not an open source license"
+
+# Check by Text (via stdin)
+echo "MIT License..." | licenseid is-fsf && echo "FSF Libre!"
+```
 
 ## Python API
 
 You can use `licenseid` directly in your Python projects:
 
 ```python
-import json
 from licenseid.matcher import AggregatedLicenseMatcher
 
-# Initialize the matcher (uses default database path if not provided)
+# Initialize with default database
 matcher = AggregatedLicenseMatcher()
 
-# Match license text
-results = matcher.match("MIT License")
+# 1. Match by Raw Text (Positional or Keyword)
+# Programmatic API is explicit: positional 'text' is always treated as text.
+results = matcher.match("Permission is hereby granted...")
+results = matcher.match(text="Custom license text...")
 
-# Results are returned as a list of dictionaries (JSON-serializable)
-print(json.dumps(results, indent=2))
+# 2. Match by SPDX License ID (Explicit)
+# This performs a fast database lookup and returns full metadata.
+results = matcher.match(license_id="MIT")
+
+# 3. Match by File Path (Explicit)
+results = matcher.match(file_path="LICENSE.txt")
+
+# 4. Predicates
+# Supports keyword arguments for precise control.
+if matcher.is_osi(license_id="MIT"):
+    print("OSI Approved!")
+
+if matcher.is_open(file_path="LICENSE.txt"):
+    print("Open Source!")
+
+if matcher.is_spdx(text="Creative Commons Zero v1.0 Universal"):
+    print("SPDX Match Found!")
 ```
 
 Example JSON output:

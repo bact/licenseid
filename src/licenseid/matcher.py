@@ -10,7 +10,7 @@ Aggregated license matching logic using hybrid search.
 import math
 import os
 import shutil
-from typing import Union, cast
+from typing import Any, Optional, cast
 
 from rapidfuzz import fuzz
 
@@ -19,6 +19,7 @@ from licenseid.normalize import normalize_text
 from licenseid.types import (
     CandidateMatch,
     InternalMatch,
+    LicenseDetails,
     LicenseMatch,
     MatchRequest,
 )
@@ -39,29 +40,60 @@ class AggregatedLicenseMatcher:
         self.jar_path = os.getenv("SPDX_TOOLS_JAR")
         self.has_java = shutil.which("java") is not None
 
-    def match(self, data: Union[str, MatchRequest]) -> list[LicenseMatch]:
+    def match(
+        self,
+        text: Optional[str] = None,
+        *,
+        license_id: Optional[str] = None,
+        file_path: Optional[str] = None,
+        **options: Any,
+    ) -> list[LicenseMatch]:
         """
         Identify license text and return ranked matches.
+        Must provide exactly one of text, license_id, or file_path.
         """
-        request: MatchRequest
-        if isinstance(data, str):
-            request = MatchRequest(text=data, only_spdx=True, only_common=False)
-        else:
-            request = data
+        # 1. Explicit ID Lookup
+        if license_id:
+            details = self.db.get_license_details(license_id)
+            if details:
+                return [
+                    LicenseMatch(
+                        license_id=details["license_id"],
+                        score=1.0,
+                        similarity=1.0,
+                        coverage=1.0,
+                        is_spdx=details["is_spdx"],
+                        is_osi_approved=details["is_osi_approved"],
+                        is_fsf_libre=details["is_fsf_libre"],
+                    )
+                ]
+            return []
 
-        text = request["text"]
-        norm_input = normalize_text(text)
+        # 2. File Path
+        target_text = ""
+        if file_path:
+            with open(file_path, "r", encoding="utf-8") as f:
+                target_text = f.read()
+        else:
+            target_text = text or ""
+
+        if not target_text:
+            return []
+
+        request = cast(MatchRequest, options)
+        request["text"] = target_text
+
+        norm_input = normalize_text(target_text)
         words = norm_input.split()
 
         # Tier 0: Short-Text Shortcut (Names/IDs)
         if len(words) < 20:
             short_matches = self._match_short_text(norm_input)
-            # Only return early if we found a definite exact name or ID match
             if short_matches and short_matches[0]["score"] > 1.0:
                 return short_matches
 
         # Tier 1: Broad Recall
-        candidates = self._get_candidates(request, text)
+        candidates = self._get_candidates(request, target_text)
 
         # Tier 2: Precision Ranking
         ranked = self._rank_candidates(candidates, norm_input, request)
@@ -75,9 +107,46 @@ class AggregatedLicenseMatcher:
             and os.path.exists(self.jar_path)
             and ranked
         ):
-            return cast(list[LicenseMatch], self._consult_java(text, ranked))
+            return cast(list[LicenseMatch], self._consult_java(target_text, ranked))
 
         return cast(list[LicenseMatch], ranked)
+
+    def _resolve_to_record(
+        self,
+        text: Optional[str] = None,
+        *,
+        license_id: Optional[str] = None,
+        file_path: Optional[str] = None,
+    ) -> Optional[LicenseDetails]:
+        """Internal helper to resolve explicit inputs to a database record."""
+        results = self.match(text, license_id=license_id, file_path=file_path)
+        if results and results[0]["score"] >= 0.85:
+            return self.db.get_license_details(results[0]["license_id"])
+        return None
+
+    def is_spdx(self, text: Optional[str] = None, **kwargs: Any) -> bool:
+        """True if the license is in the SPDX License List."""
+        record = self._resolve_to_record(text, **kwargs)
+        return record is not None and record.get("is_spdx", False)
+
+    def is_osi(self, text: Optional[str] = None, **kwargs: Any) -> bool:
+        """True if the license is OSI-approved."""
+        record = self._resolve_to_record(text, **kwargs)
+        return record is not None and record.get("is_osi_approved", False)
+
+    def is_fsf(self, text: Optional[str] = None, **kwargs: Any) -> bool:
+        """True if the license is FSF-libre."""
+        record = self._resolve_to_record(text, **kwargs)
+        return record is not None and record.get("is_fsf_libre", False)
+
+    def is_open(self, text: Optional[str] = None, **kwargs: Any) -> bool:
+        """True if the license is OSI-approved OR FSF-libre."""
+        record = self._resolve_to_record(text, **kwargs)
+        if not record:
+            return False
+        return bool(
+            record.get("is_osi_approved", False) or record.get("is_fsf_libre", False)
+        )
 
     def _get_candidates(self, data: MatchRequest, text: str) -> list[CandidateMatch]:
         """Fetch and filter candidates from the database."""

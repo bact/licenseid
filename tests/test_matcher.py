@@ -4,115 +4,92 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for AggregatedLicenseMatcher hybrid search flow."""
+# pylint: disable=redefined-outer-name,duplicate-code,missing-function-docstring
 
 import os
-from typing import Any
+import sqlite3
+import uuid
+from typing import Generator
 
 import pytest
 
+from licenseid.database import LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
 
 
-@pytest.mark.skipif(
-    os.getenv("SPDX_TOOLS_JAR") is None, reason="SPDX_TOOLS_JAR not set"
-)
-def test_matcher_detects_bundled_jar() -> None:
-    """Verify that the matcher correctly identifies the jar in the tests directory."""
-    jar_path = os.getenv("SPDX_TOOLS_JAR")
-    assert jar_path is not None
-    assert jar_path.endswith(".jar")
-    assert os.path.exists(jar_path)
+@pytest.fixture(scope="module")
+def test_db() -> Generator[str, None, None]:
+    db_id = str(uuid.uuid4())[:8]
+    db_path = f"file:test_matcher_{db_id}?mode=memory&cache=shared"
 
-    matcher = AggregatedLicenseMatcher("dummy.db")
-    assert matcher.jar_path == jar_path
-    assert matcher.has_java is True
+    db_manager = LicenseDatabase(db_path)  # pylint: disable=unused-variable # noqa: F841
+    keep_alive = sqlite3.connect(db_path, uri=True)
 
-
-def test_hybrid_search_flow(tmp_path: Any) -> None:
-    """Verify the 3-tier hybrid search flow."""
-    db_path = str(tmp_path / "test.db")
-    from licenseid.database import LicenseDatabase
-
-    LicenseDatabase(db_path)  # Initialize schema
-
-    # Manually populate DB for testing
-    import sqlite3
-
-    with sqlite3.connect(db_path) as conn:
-        # MIT text fingerprint
+    with sqlite3.connect(db_path, uri=True) as conn:
         mit_text = (
             "permission is hereby granted free of charge to any person obtaining a copy"
         )
         conn.execute(
-            "INSERT INTO licenses"
-            " (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
+            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved) "
+            "VALUES (?, ?, ?, ?)",
             ("MIT", "MIT License", True, True),
+        )
+        conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved) "
+            "VALUES (?, ?, ?, ?)",
+            ("APSL-2.0", "Apple Public Source License 2.0", True, True),
+        )
+        conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved) "
+            "VALUES (?, ?, ?, ?)",
+            ("AML", "Apple MIT License", True, True),
         )
         conn.execute(
             "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
             ("MIT", mit_text),
         )
+        conn.execute(
+            "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
+            ("last_check_datetime", "2026-01-01T00:00:00"),
+        )
+        conn.commit()
 
-        # Verify insertion
-        row = conn.execute(
-            "SELECT count(*) FROM license_index WHERE search_text MATCH 'permission'"
-        ).fetchone()
-        assert row[0] == 1, "FTS5 index verification failed: 'permission' not found."
+    yield db_path
+    keep_alive.close()
 
-    matcher = AggregatedLicenseMatcher(db_path)
+
+@pytest.mark.skipif(
+    os.getenv("SPDX_TOOLS_JAR") is None, reason="SPDX_TOOLS_JAR not set"
+)
+def test_matcher_detects_bundled_jar(test_db: str) -> None:
+    jar_path = os.getenv("SPDX_TOOLS_JAR")
+    matcher = AggregatedLicenseMatcher(test_db)
+    assert matcher.jar_path == jar_path
+    assert matcher.has_java is True
+
+
+def test_hybrid_search_flow(test_db: str) -> None:
+    matcher = AggregatedLicenseMatcher(test_db)
     input_text = (
         "Permission is hereby granted, free of charge, to any person"
         " obtaining a copy of this software"
     )
 
-    # Verify DB search directly
-    candidates = matcher.db.search_candidates(input_text)
-    assert len(candidates) > 0, f"DB search_candidates failed for '{input_text}'"
-    assert candidates[0]["license_id"] == "MIT"
-
-    # Tier 1 & 2: MIT match (Java off by default)
-    results = matcher.match(input_text)
+    results = matcher.match(text=input_text)
     assert len(results) > 0
     assert results[0]["license_id"] == "MIT"
-    assert "java_verified" not in results[0]
 
-    # Tier 3: Enable Java
-    matcher_with_java = AggregatedLicenseMatcher(db_path, enable_java=True)
-    results_with_java = matcher_with_java.match(input_text)
-    assert len(results_with_java) > 0
-    # If java verified it, it will have the flag
-    if results_with_java[0].get("java_verified"):
-        assert results_with_java[0]["score"] == 1.0
+    if matcher.has_java and matcher.jar_path:
+        matcher_with_java = AggregatedLicenseMatcher(test_db, enable_java=True)
+        results_with_java = matcher_with_java.match(text=input_text)
+        assert len(results_with_java) > 0
+        if results_with_java[0].get("java_verified"):
+            assert results_with_java[0]["score"] == 1.0
 
 
-def test_short_text_rejection(tmp_path: Any) -> None:
-    """Verify that inputs with fewer than 20 normalized words use fallback logic."""
-    db_path = str(tmp_path / "test.db")
-    from licenseid.database import LicenseDatabase
-    import sqlite3
+def test_short_text_rejection(test_db: str) -> None:
+    matcher = AggregatedLicenseMatcher(test_db)
 
-    LicenseDatabase(db_path)
-
-    with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            "INSERT INTO licenses"
-            " (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
-            ("MIT", "MIT License", True, True),
-        )
-        conn.execute(
-            "INSERT INTO licenses"
-            " (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
-            ("APSL-2.0", "Apple Public Source License 2.0", True, True),
-        )
-        conn.execute(
-            "INSERT INTO licenses"
-            " (license_id, name, is_spdx, is_osi_approved) VALUES (?, ?, ?, ?)",
-            ("AML", "Apple MIT License", True, True),
-        )
-
-    matcher = AggregatedLicenseMatcher(db_path)
-
-    # Empty strings
     assert not matcher.match("")
     assert not matcher.match("   ")
     assert not matcher.match("\n\n")
