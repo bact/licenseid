@@ -89,6 +89,7 @@ def cli(ctx: click.Context, db: Optional[str], clear_cache: bool) -> None:
 
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
+        ctx.exit(2)
 
 
 @cli.command()
@@ -110,15 +111,19 @@ def update(
     """Update the license database from remote sources."""
     db_path = ctx.obj["db_path"]
     database = LicenseDatabase(db_path)
-    updated = database.update_from_remote(
-        version=version, force=force, use_cache=use_cache
-    )
-    if updated:
-        click.echo(f"Database updated at {db_path}")
-    else:
-        metadata = database.get_metadata()
-        current_version = metadata.get("license_list_version", "unknown")
-        click.echo(f"Database remains at version {current_version} at {db_path}")
+    try:
+        updated = database.update_from_remote(
+            version=version, force=force, use_cache=use_cache
+        )
+        if updated:
+            click.echo(f"Database updated at {db_path}")
+        else:
+            metadata = database.get_metadata()
+            current_version = metadata.get("license_list_version", "unknown")
+            click.echo(f"Database remains at version {current_version} at {db_path}")
+    except Exception as e:
+        click.echo(f"ERROR: {e}", err=True)
+        ctx.exit(1)
 
 
 def unescape_text(text: str) -> str:
@@ -169,11 +174,11 @@ def match(
 
     if not os.path.exists(db_path):
         click.echo(
-            f"Error: Database not found at {db_path}. "
+            f"ERROR: Database not found at {db_path}. "
             "Please run 'licenseid update' first.",
             err=True,
         )
-        sys.exit(1)
+        ctx.exit(2)
 
     db_obj = LicenseDatabase(db_path)
     check_db_staleness(db_obj)
@@ -190,11 +195,11 @@ def match(
             license_text = sys.stdin.read()
         else:
             click.echo(
-                "Error: No input text provided. "
+                "ERROR: No input text provided. "
                 "Provide a file, --text, or pipe to stdin.",
                 err=True,
             )
-            sys.exit(1)
+            ctx.exit(2)
 
     matcher = AggregatedLicenseMatcher(
         db_path, enable_java=enable_java, enable_popularity=enable_popularity
@@ -207,18 +212,18 @@ def match(
     if bold:
         if results:
             click.echo(results[0]["license_id"])
+            ctx.exit(0)
         else:
             click.echo("ERROR: No matching license found.", err=True)
-            sys.exit(1)
-        return
+            ctx.exit(1)
+
+    if not results:
+        click.echo("ERROR: No matching license found.", err=True)
+        ctx.exit(1)
 
     if json_output:
         click.echo(json.dumps(results, indent=2))
     else:
-        if not results:
-            click.echo("ERROR: No matching license found.", err=True)
-            sys.exit(1)
-
         # Standard output: line-delimited, KEY=VALUE
         for i, r in enumerate(results):
             click.echo(
@@ -229,6 +234,8 @@ def match(
             # Show diff for the top match if requested
             if diff and i == 0 and r.get("similarity", 0) < 1.0:
                 show_diff(license_text, r.get("best_window", ""))
+
+    ctx.exit(0)
 
 
 def main() -> None:

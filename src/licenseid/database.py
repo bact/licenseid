@@ -171,12 +171,12 @@ class LicenseDatabase:
                     json.dump(data, f)
                 data_source = "remote"
             except requests.RequestException as e:
-                print(f"Warning: Failed to fetch {LICENSES_JSON_URL}: {e}")
                 if not version:
-                    print(f"Falling back to default version {DEFAULT_FALLBACK_VERSION}")
-                    latest_version = DEFAULT_FALLBACK_VERSION
-                else:
-                    latest_version = version
+                    raise RuntimeError(
+                        f"Failed to fetch latest license list info: {e}"
+                    ) from e
+                print(f"Warning: Failed to fetch {LICENSES_JSON_URL}: {e}")
+                latest_version = version
 
         return version or latest_version, release_date, data_source
 
@@ -284,7 +284,7 @@ class LicenseDatabase:
 
             print("\nUpdate complete.")
         except (tarfile.TarError, OSError, json.JSONDecodeError, sqlite3.Error) as e:
-            print(f"\nFailed to update database: {e}")
+            raise RuntimeError(f"Failed to update database: {e}") from e
 
     def _update_db_records(
         self,
