@@ -158,6 +158,16 @@ WORD DIFF:
 +se
 ```
 
+### 5. Exit codes
+
+The CLI follows standard Unix exit code conventions, making it suitable for use in scripts and CI/CD pipelines.
+
+| Exit Code | Meaning | Scenarios |
+| :--- | :--- | :--- |
+| **0** | Success | Confident match found; database updated; database already up-to-date. |
+| **1** | Logic Failure | No matching license found; network/download error; data processing error. |
+| **2** | Usage Error | Missing subcommand; missing input text/file; invalid parameters. |
+
 ## Python API
 
 You can use `licenseid` directly in your Python projects:
