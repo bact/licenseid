@@ -50,6 +50,18 @@ def test_db() -> Generator[str, None, None]:
             ),
         )
         conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx) VALUES (?, ?, ?)",
+            ("GPL-2.0-only WITH Linux-syscall-note", "GPL-2.0-only WITH Linux Syscall Note", True),
+        )
+        conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx) VALUES (?, ?, ?)",
+            ("GPL-2.0-or-later", "GNU GPL v2.0 or later", True),
+        )
+        conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx) VALUES (?, ?, ?)",
+            ("GPL-3.0-or-later", "GNU GPL v3.0 or later", True),
+        )
+        conn.execute(
             "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
             (
                 "MIT",
@@ -73,7 +85,7 @@ def get_fixtures() -> list[tuple[Path, str]]:
     for lic_dir in FIXTURE_DIR.iterdir():
         if not lic_dir.is_dir():
             continue
-        expected_id = lic_dir.name
+        expected_id = lic_dir.name.replace("_", " ")
         for f in lic_dir.iterdir():
             if f.is_file():
                 fixtures.append((f, expected_id))
