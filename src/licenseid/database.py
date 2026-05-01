@@ -30,8 +30,10 @@ from licenseid.types import (
 )
 
 # (license_id, name, xml_template, is_spdx, is_osi, is_fsf,
-#  is_high_usage, pop_score, word_count)
-_LicenseInsertRecord = tuple[str, str, Optional[str], bool, bool, bool, bool, int, int]
+#  is_high_usage, pop_score, word_count, norm_license_id, norm_name)
+_LicenseInsertRecord = tuple[
+    str, str, Optional[str], bool, bool, bool, bool, int, int, str, str
+]
 _IndexInsertRecord = tuple[str, str]
 
 # Cache expiration settings
@@ -100,7 +102,9 @@ class LicenseDatabase:
                     is_fsf_libre BOOLEAN,
                     is_high_usage BOOLEAN,
                     popularity_score INTEGER DEFAULT 1,
-                    word_count INTEGER
+                    word_count INTEGER,
+                    norm_license_id TEXT,
+                    norm_name TEXT
                 )
             """
             )
@@ -334,8 +338,9 @@ class LicenseDatabase:
                     INSERT INTO licenses (
                         license_id, name, xml_template, is_spdx,
                         is_osi_approved, is_fsf_libre, is_high_usage,
-                        popularity_score, word_count
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        popularity_score, word_count,
+                        norm_license_id, norm_name
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     license_records,
                 )
@@ -391,6 +396,8 @@ class LicenseDatabase:
             is_high_usage,
             popularity_score,
             word_count,
+            normalize_text(license_id),
+            normalize_text(lic.get("name", "")),
         )
         index_record: _IndexInsertRecord = (license_id, fingerprint)
         return license_record, index_record
@@ -460,21 +467,49 @@ class LicenseDatabase:
 
         return normalize_text(text)
 
-    def search_candidates(self, text: str, limit: int = 50) -> list[CandidateMatch]:
+    def search_candidates(
+        self,
+        text: str,
+        limit: int = 50,
+        only_spdx: bool = False,
+        only_common: bool = False,
+        exclude_ids: Optional[list[str]] = None,
+    ) -> list[CandidateMatch]:
         """Tier 1: Search for candidates using trigram FTS5."""
+        # Ensure input is normalized for trigram search
         norm_text = normalize_text(text)
-        # Use OR between the first few words to ensure broad recall.
-        # This allows candidates that match most, but not necessarily all, terms.
-        words = norm_text.split()[:10]
+        words = norm_text.split()[:50]
         if not words:
             return []
         search_terms = " OR ".join(words)
 
+        # Build dynamic WHERE clause
+        conditions = ["li.search_text MATCH ?"]
+        # Escape double quotes for FTS5 syntax
+        params: list[object] = [search_terms.replace('"', '""')]
+
+        if only_spdx:
+            conditions.append("l.is_spdx = 1")
+        if only_common:
+            conditions.append(
+                "(l.is_high_usage = 1 OR l.is_osi_approved = 1 OR l.is_fsf_libre = 1)"
+            )
+        if exclude_ids:
+            placeholders = ", ".join("?" for _ in exclude_ids)
+            conditions.append(f"l.license_id NOT IN ({placeholders})")
+            params.extend(exclude_ids)
+
+        params.append(limit)
+        where_clause = " AND ".join(conditions)
+
         with self._connect() as conn:
             conn.row_factory = sqlite3.Row
-            query = """
+            query = f"""
                 SELECT
                     li.license_id,
+                    l.name,
+                    l.norm_license_id,
+                    l.norm_name,
                     li.search_text,
                     l.word_count,
                     l.is_spdx,
@@ -484,17 +519,56 @@ class LicenseDatabase:
                     l.popularity_score
                 FROM license_index li
                 JOIN licenses l ON li.license_id = l.license_id
-                WHERE li.search_text MATCH ?
+                WHERE {where_clause}
                 ORDER BY li.rank
                 LIMIT ?
             """
             try:
-                # Escape double quotes and use OR-ed keywords for recall
-                match_query = search_terms.replace('"', '""')
-                cursor = conn.execute(query, (match_query, limit))
+                cursor = conn.execute(query, params)
                 return [cast(CandidateMatch, dict(row)) for row in cursor.fetchall()]
             except sqlite3.OperationalError:
                 return []
+
+    def search_by_name_or_id(self, norm_input: str) -> list[CandidateMatch]:
+        """Search by normalized name or ID using efficient SQL lookups."""
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            # We use a simple OR with exact matches first, then partial.
+            # For a more advanced version, we could use another FTS table for names.
+            query = """
+                SELECT
+                    license_id,
+                    name,
+                    norm_license_id,
+                    norm_name,
+                    "" as search_text,
+                    word_count,
+                    is_spdx,
+                    is_high_usage,
+                    is_osi_approved,
+                    is_fsf_libre,
+                    popularity_score
+                FROM licenses
+                WHERE norm_license_id = ? OR norm_name = ?
+                OR norm_license_id LIKE ? OR norm_name LIKE ?
+                ORDER BY
+                    (norm_license_id = ?) DESC,
+                    (norm_name = ?) DESC,
+                    (norm_license_id LIKE ?) DESC,
+                    popularity_score DESC
+                LIMIT 20
+            """
+            params = [
+                norm_input,
+                norm_input,
+                f"%{norm_input}%",
+                f"%{norm_input}%",
+                norm_input,
+                norm_input,
+                f"{norm_input}%",
+            ]
+            cursor = conn.execute(query, params)
+            return [cast(CandidateMatch, dict(row)) for row in cursor.fetchall()]
 
     def get_license_details(self, license_id: str) -> Optional[LicenseDetails]:
         """Get full metadata for a license."""

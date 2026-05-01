@@ -10,6 +10,7 @@ Command-line interface for the licenseid tool.
 import json
 import os
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -75,9 +76,24 @@ def check_db_staleness(database: LicenseDatabase) -> None:
 @click.group(invoke_without_command=True)
 @click.option("--db", help="Path to the license database.")
 @click.option("--clear-cache", is_flag=True, help="Clear local cache and exit.")
+@click.option("--timed", is_flag=True, help="Print wall time used for the command.")
 @click.pass_context
-def cli(ctx: click.Context, db: Optional[str], clear_cache: bool) -> None:
+def cli(
+    ctx: click.Context,
+    db: Optional[str],
+    clear_cache: bool,
+    timed: bool,
+) -> None:
     """SPDX License ID matcher tool."""
+    if timed:
+        start_time = time.monotonic()
+
+        def print_wall_time() -> None:
+            duration = time.monotonic() - start_time
+            click.echo(f"WALL_TIME={duration:.4f}s", err=True)
+
+        ctx.call_on_close(print_wall_time)
+
     db_path = db or get_default_db_path()
     ctx.ensure_object(dict)
     ctx.obj["db_path"] = db_path

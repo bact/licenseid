@@ -15,6 +15,7 @@ from typing import Union, cast
 from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase
+from licenseid.marker import MarkerDetector
 from licenseid.normalize import normalize_text
 from licenseid.types import (
     CandidateMatch,
@@ -31,11 +32,17 @@ class AggregatedLicenseMatcher:
     """
 
     def __init__(
-        self, db_path: str, enable_java: bool = False, enable_popularity: bool = False
+        self,
+        db_path: str,
+        enable_java: bool = False,
+        enable_popularity: bool = False,
+        enable_markers: bool = True,
     ):
         self.db = LicenseDatabase(db_path)
+        self.detector = MarkerDetector()
         self.enable_java = enable_java
         self.enable_popularity = enable_popularity
+        self.enable_markers = enable_markers
         self.jar_path = os.getenv("SPDX_TOOLS_JAR")
         self.has_java = shutil.which("java") is not None
 
@@ -58,6 +65,8 @@ class AggregatedLicenseMatcher:
             short_matches = self._match_short_text(norm_input)
             # Only return early if we found a definite exact name or ID match
             if short_matches and short_matches[0]["score"] > 1.0:
+                for sm in short_matches:
+                    sm["method"] = "short-text"
                 return short_matches
 
         # Tier 1: Broad Recall
@@ -65,6 +74,34 @@ class AggregatedLicenseMatcher:
 
         # Tier 2: Precision Ranking
         ranked = self._rank_candidates(candidates, norm_input, request)
+        for r in ranked:
+            r["method"] = "hybrid"
+
+        # Tier 2.5: Marker and Indicator Fallback
+        # If the top score is low, try to detect markers or keywords
+        enable_markers = request.get("enable_markers", self.enable_markers)
+        top_score = ranked[0]["score"] if ranked else 0.0
+        if enable_markers and top_score < 0.85:
+            marker_matches = self._match_marker(text)
+            if marker_matches:
+                # Merge marker matches into ranked list if they are better
+                # or not already present with high score
+                ranked_ids = {r["license_id"] for r in ranked if r["score"] > 0.8}
+                for m in marker_matches:
+                    if m["license_id"] not in ranked_ids:
+                        ranked.append(
+                            InternalMatch(
+                                license_id=m["license_id"],
+                                score=m["score"],
+                                similarity=m["similarity"],
+                                coverage=m["coverage"],
+                                base_score=m["similarity"],
+                                pop_score=0,
+                                best_window="",
+                                method=m["method"],
+                            )
+                        )
+                ranked.sort(key=lambda x: x["score"], reverse=True)
 
         # Tier 3: Optional Java Consultant
         enable_java = request.get("enable_java", self.enable_java)
@@ -88,28 +125,20 @@ class AggregatedLicenseMatcher:
 
         # Tier 1: Retrieval
         # Truncate very long queries for FTS5 to avoid performance/limit issues
-        # 100 words is more than enough for trigram retrieval.
-        words = text.split()
-        search_query = text
+        norm_input = normalize_text(text)
+        words = norm_input.split()
+        search_query = norm_input
         if len(words) > 100:
             search_query = " ".join(words[:100])
 
-        # Fetch Top 50 for better recall
-        candidates = self.db.search_candidates(search_query, limit=50)
-        filtered: list[CandidateMatch] = []
-        for cand in candidates:
-            license_id = cand["license_id"]
-            if license_id in exclude_list:
-                continue
-
-            # Filtering logic using pre-fetched metadata
-            if only_spdx and not cand["is_spdx"]:
-                continue
-            if only_common and not cand["is_high_usage"]:
-                if not (cand["is_osi_approved"] or cand["is_fsf_libre"]):
-                    continue
-
-            filtered.append(cand)
+        # Fetch Top 50 for better recall, with SQL filtering
+        filtered = self.db.search_candidates(
+            search_query,
+            limit=50,
+            only_spdx=only_spdx,
+            only_common=only_common,
+            exclude_ids=exclude_list,
+        )
 
         # Force-include hints
         candidate_ids = {c["license_id"] for c in filtered}
@@ -120,6 +149,9 @@ class AggregatedLicenseMatcher:
                     filtered.append(
                         CandidateMatch(
                             license_id=details["license_id"],
+                            name=details["name"],
+                            norm_license_id=details["norm_license_id"],
+                            norm_name=details["norm_name"],
                             search_text="",
                             word_count=details["word_count"],
                             is_spdx=details["is_spdx"],
@@ -279,23 +311,23 @@ class AggregatedLicenseMatcher:
         return ranked
 
     def _match_short_text(self, norm_input: str) -> list[LicenseMatch]:
-        """Fallback logic for very short inputs."""
-        all_metadata = self.db.get_all_names_and_ids()
+        """Fallback logic for very short inputs using optimized SQL search."""
+        candidates = self.db.search_by_name_or_id(norm_input)
         ranked: list[LicenseMatch] = []
         words = norm_input.split()
+
         threshold = 90.0 if len(words) <= 2 else 85.0
 
-        for meta in all_metadata:
-            lid = meta["license_id"]
-            name = meta["name"]
+        for cand in candidates:
+            lid = cand["license_id"]
+            id_norm = cand["norm_license_id"]
+            name_norm = cand["norm_name"]
 
-            id_norm = normalize_text(lid)
             score_id = fuzz.ratio(norm_input, id_norm)
             score_id_partial = (
                 fuzz.partial_ratio(norm_input, id_norm) if len(words) == 1 else 0
             )
 
-            name_norm = normalize_text(name)
             score_name_exact = fuzz.ratio(norm_input, name_norm)
             score_name_flex = fuzz.token_set_ratio(norm_input, name_norm)
 
@@ -321,3 +353,32 @@ class AggregatedLicenseMatcher:
 
         ranked.sort(key=lambda x: x["score"], reverse=True)
         return ranked
+
+    def _match_marker(self, text: str) -> list[LicenseMatch]:
+        """Use MarkerDetector to find license indicators and match them."""
+        snippets = self.detector.extract_snippets(text)
+        results: list[LicenseMatch] = []
+
+        for snippet in snippets:
+            norm_snippet = normalize_text(snippet)
+            if not norm_snippet:
+                continue
+            matches = self._match_short_text(norm_snippet)
+            for m in matches:
+                m["method"] = "marker"
+                results.append(m)
+
+        # Keyword windowing if still no good match
+        if not results or max((r["score"] for r in results), default=0) < 0.85:
+            windows = self.detector.get_windows(text)
+            for window in windows:
+                norm_window = normalize_text(window)
+                if not norm_window:
+                    continue
+                matches = self._match_short_text(norm_window)
+                for m in matches:
+                    m["method"] = "window"
+                    results.append(m)
+
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results
