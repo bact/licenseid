@@ -30,21 +30,24 @@ class MarkerDetector:
             re.compile(r"(?i)^[ \t]*#+\s*license\s*[\n\r]+\s*([^\n\r]+)", re.MULTILINE),
             # License\n=======
             re.compile(
-                r"(?i)^[ \t]*license\s*[\n\r]+\s*[=-]{3,}\s*[\n\r]+\s*([^\n\r]+)",
+                r"(?i)^[ \t]*license\s*[\n\r]+\s*[=-\*]{3,}\s*[\n\r]+\s*([^\n\r]+)",
                 re.MULTILINE,
             ),
             # =======\nLicense\n=======
             re.compile(
+                # pylint: disable=line-too-long
                 r"(?i)^[ \t]*[=-]{3,}\s*[\n\r]+\s*license\s*[\n\r]+\s*[=-]{3,}\s*[\n\r]+\s*([^\n\r]+)",  # noqa: E501
                 re.MULTILINE,
             ),
             # *******\nLicense\n*******
             re.compile(
+                # pylint: disable=line-too-long
                 r"(?i)^[ \t]*\*{3,}\s*[\n\r]+\s*license\s*[\n\r]+\s*\*{3,}\s*[\n\r]+\s*([^\n\r]+)",  # noqa: E501
                 re.MULTILINE,
             ),
             # #######\nLicense\n#######
             re.compile(
+                # pylint: disable=line-too-long
                 r"(?i)^[ \t]*#{3,}\s*[\n\r]+\s*license\s*[\n\r]+\s*#{3,}\s*[\n\r]+\s*([^\n\r]+)",  # noqa: E501
                 re.MULTILINE,
             ),
