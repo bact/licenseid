@@ -9,6 +9,7 @@ Aggregated license matching logic using hybrid search.
 
 import math
 import os
+import re
 import shutil
 from typing import Any, Optional, cast
 
@@ -87,16 +88,23 @@ class AggregatedLicenseMatcher:
         request["text"] = target_text
 
         # Content Classification
-        is_pure = self._is_pure_license_file(file_path)
+        is_pure = self._is_pure_license_text(file_path, target_text)
 
         # Tier 0.5: Marker Detection
+        # Detects explicit license identifiers and context clues in the text.
+        # SPDX-License-Identifier is an unambiguous machine tag → early return.
+        # All other markers (name fields, headings, first-line) go into the
+        # candidate pool and influence ranking via a confidence bonus.
         marker_candidates = self.detector.detect(target_text)
-        # If we have a perfect marker match, we might return early
-        if marker_candidates and any(c["score"] >= 0.95 for c in marker_candidates):
-            # Sort markers and convert to LicenseMatch
-            ranked_markers = self._rank_candidates(marker_candidates, "", request)
-            if ranked_markers and ranked_markers[0]["score"] >= 0.95:
-                return cast(list[LicenseMatch], ranked_markers)
+        spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
+        if spdx_exact:
+            return cast(list[LicenseMatch], self._finalize_exact_markers(spdx_exact))
+
+        # Build a marker-boost map: license_id → marker confidence score.
+        # Used later in ranking to signal which candidates are marker-confirmed.
+        marker_boosts: dict[str, float] = {
+            c["license_id"]: c.get("score", 0.0) for c in marker_candidates
+        }
 
         norm_input = normalize_text(target_text)
         words = norm_input.split()
@@ -108,16 +116,19 @@ class AggregatedLicenseMatcher:
                 return short_matches
 
         # Tier 1: Broad Recall
-        # Tier 1: Broad Recall
-        if is_pure:
-            candidates = self._get_candidates(request, target_text)
-            # If FTS5 found nothing in a 'pure' file, it might be a reference/marker
-            if not candidates:
-                candidates = self._match_mixed_content(request, target_text)
-        else:
-            candidates = self._match_mixed_content(request, target_text)
+        candidates = self._get_candidates(request, target_text)
 
-        # Also merge marker candidates if not already present
+        # For mixed content or thin FTS5 results, augment via windowed search.
+        if not candidates or (not is_pure and len(candidates) < 5):
+            mixed_candidates = self._match_mixed_content(request, target_text)
+            seen_ids = {c["license_id"] for c in candidates}
+            for mc in mixed_candidates:
+                if mc["license_id"] not in seen_ids:
+                    candidates.append(mc)
+                    seen_ids.add(mc["license_id"])
+
+        # Merge marker candidates not already surfaced by FTS5.
+        # Markers now carry real search_text so they rank on true similarity.
         seen_ids = {cand["license_id"] for cand in candidates}
         for c in marker_candidates:
             if c["license_id"] not in seen_ids:
@@ -125,7 +136,19 @@ class AggregatedLicenseMatcher:
                 seen_ids.add(c["license_id"])
 
         # Tier 2: Precision Ranking
-        ranked = self._rank_candidates(candidates, norm_input, request)
+        # Pass marker boosts and purity context so ranking can weight signals
+        # appropriately: small additive bonus for pure text (similarity leads),
+        # confidence floor for mixed content (marker is primary signal).
+        ranked = self._rank_candidates(
+            candidates,
+            norm_input,
+            request,
+            marker_boosts=marker_boosts,
+            is_pure=is_pure,
+        )
+
+        # Tiebreaker: -only vs -or-later when scores are identical
+        ranked = self._apply_version_suffix_tiebreaker(ranked, target_text, is_pure)
 
         # Tier 3: Optional Java Consultant
         enable_java = request.get("enable_java", self.enable_java)
@@ -231,13 +254,25 @@ class AggregatedLicenseMatcher:
 
     # pylint: disable=too-many-branches
     def _rank_candidates(
-        self, candidates: list[CandidateMatch], norm_input: str, data: MatchRequest
+        self,
+        candidates: list[CandidateMatch],
+        norm_input: str,
+        data: MatchRequest,
+        marker_boosts: Optional[dict[str, float]] = None,
+        is_pure: bool = True,
     ) -> list[InternalMatch]:
-        """Rank candidates using dynamic sliding window and popularity boost."""
+        """Rank candidates using dynamic sliding window and marker-boosted scoring.
+
+        marker_boosts maps license_id → marker confidence (0.85–0.95).
+        For pure license text the marker acts as a small additive bonus so
+        similarity stays primary.  For mixed content it acts as a score floor
+        so the marker signal can dominate when similarity is diluted.
+        """
         enable_popularity = data.get("enable_popularity", self.enable_popularity)
         query_words = norm_input.split()
         q_len = len(query_words)
         ranked: list[InternalMatch] = []
+        boosts = marker_boosts or {}
 
         for cand in candidates:
             license_id = cand["license_id"]
@@ -279,7 +314,7 @@ class AggregatedLicenseMatcher:
 
             coverage = (q_len / c_len) if c_len > 0 else 0.0
 
-            # Step C: Semantic Safeguards
+            # Semantic Safeguards
             critical_tokens = {"not", "except", "unless", "irrevocable"}
             if 0.90 < similarity < 1.0:
                 q_tokens = set(query_words)
@@ -294,33 +329,37 @@ class AggregatedLicenseMatcher:
                     base_score=similarity,
                     similarity=similarity,
                     coverage=coverage,
-                    pop_score=cand["popularity_score"],
+                    pop_score=cand.get("popularity_score", 0),
                     best_window=best_window,
                     score=0.0,
                 )
             )
 
         if ranked:
-            # Composite scoring: Similarity is primary.
-            # Coverage is a strong tie-breaker for similar texts.
             for r in ranked:
                 similarity = r["base_score"]
-                # Penalty for poor coverage: a license that is much larger than
-                # the input is less likely to be the "exact" match than one of
-                # similar size. However, we only apply this if similarity is
-                # high (likely a match).
+
                 coverage_penalty = 0.0
                 if r["coverage"] < 0.8:
-                    # Penalize based on how much of the candidate is "missing"
                     coverage_penalty = (1.0 - r["coverage"]) * 0.02
 
-                # Bonus for near-perfect coverage
                 coverage_bonus = 0.005 if 0.95 <= r["coverage"] <= 1.05 else 0.0
 
                 score = similarity - coverage_penalty + coverage_bonus
 
                 if enable_popularity:
                     score += math.log10(max(1, r["pop_score"])) * 0.0001
+
+                # Apply marker signal.
+                marker_conf = boosts.get(r["license_id"], 0.0)
+                if marker_conf > 0:
+                    if is_pure:
+                        # Small additive bonus — similarity is still primary.
+                        score += marker_conf * 0.03
+                    else:
+                        # Confidence floor — marker is the primary signal when
+                        # similarity is diluted by surrounding non-license text.
+                        score = max(score, marker_conf * 0.95)
 
                 r["score"] = score
 
@@ -376,6 +415,108 @@ class AggregatedLicenseMatcher:
         ranked.sort(key=lambda x: x["score"], reverse=True)
         return ranked
 
+    # Detects -or-later granting language in mixed/source-file contexts.
+    # Allows for comment characters (// # * ;) between "or" and "(at your option)".
+    # Also catches shorthand notations like GPLv2+ and "version 2 or later".
+    _RE_OR_LATER = re.compile(
+        r"or[\s/*#;-]*\(?at\s+your\s+option\)?\s*[\s/*#;-]*any\s+later\s+version"
+        r"|(?:version\s+)?v?\d+(?:\.\d+)?[\s,]+or\s+later\b"
+        r"|(?:lgpl|gpl|agpl)[-v]?\d+(?:\.\d+)?\+",
+        re.IGNORECASE | re.MULTILINE,
+    )
+
+    def _has_or_later_language(self, text: str) -> bool:
+        """Return True if text contains -or-later granting language.
+
+        Only meaningful for non-pure input (source files, READMEs).  The GPL
+        license body itself contains the same phrase in its 'How to Apply'
+        appendix, so this must NOT be called on pure license text.
+        """
+        return bool(self._RE_OR_LATER.search(text))
+
+    def _apply_version_suffix_tiebreaker(
+        self, ranked: list[InternalMatch], raw_text: str, is_pure: bool
+    ) -> list[InternalMatch]:
+        """Break -only / -or-later ties using granting language in the input.
+
+        When two candidates share the same base ID (e.g. GPL-2.0-only and
+        GPL-2.0-or-later) and their scores are within 0.01 of each other,
+        apply a small score nudge:
+
+        - Pure license text: the body is identical for both; the GPL appendix
+          also contains the 'or later' template, making regexes unreliable.
+          Default to -only (conservative: grant exactly this version).
+        - Mixed / source-file text: check for explicit granting language.
+          Granting language present → prefer -or-later.
+          No granting language      → prefer -only.
+        """
+        if is_pure:
+            or_later_signal = False  # body text indistinguishable; default -only
+        else:
+            or_later_signal = self._has_or_later_language(raw_text)
+
+        id_to_score = {r["license_id"]: r["score"] for r in ranked}
+        # Track which base IDs we've already processed to avoid double-counting.
+        processed: set[str] = set()
+        adjustments: dict[str, float] = {}
+
+        for match in ranked:
+            lid = match["license_id"]
+            if lid.endswith("-only"):
+                base, peer = lid[:-5], lid[:-5] + "-or-later"
+            elif lid.endswith("-or-later"):
+                base, peer = lid[:-9], lid[:-9] + "-only"
+            else:
+                continue
+
+            if base in processed or peer not in id_to_score:
+                continue
+
+            if abs(match["score"] - id_to_score[peer]) > 0.01:
+                continue  # not a genuine tie — trust the similarity score
+
+            processed.add(base)
+            delta = 0.005
+            if or_later_signal:
+                adjustments[base + "-or-later"] = delta
+                adjustments[base + "-only"] = -delta
+            else:
+                adjustments[base + "-only"] = delta
+                adjustments[base + "-or-later"] = -delta
+
+        if adjustments:
+            for match in ranked:
+                adj = adjustments.get(match["license_id"], 0.0)
+                if adj:
+                    match["score"] += adj
+            ranked.sort(key=lambda x: x["score"], reverse=True)
+
+        return ranked
+
+    def _finalize_exact_markers(
+        self, exact: list[CandidateMatch]
+    ) -> list[LicenseMatch]:
+        """Convert SPDX-exact marker candidates to LicenseMatch results."""
+        seen: set[str] = set()
+        results: list[LicenseMatch] = []
+        for c in exact:
+            lid = c["license_id"]
+            if lid in seen:
+                continue
+            seen.add(lid)
+            results.append(
+                LicenseMatch(
+                    license_id=lid,
+                    score=1.0,
+                    similarity=1.0,
+                    coverage=1.0,
+                    is_spdx=c.get("is_spdx", False),
+                    is_osi_approved=c.get("is_osi_approved", False),
+                    is_fsf_libre=c.get("is_fsf_libre", False),
+                )
+            )
+        return results
+
     def _match_short_text(self, norm_input: str) -> list[LicenseMatch]:
         """Fallback logic for very short inputs."""
         all_metadata = self.db.get_all_names_and_ids()
@@ -420,16 +561,68 @@ class AggregatedLicenseMatcher:
         ranked.sort(key=lambda x: x["score"], reverse=True)
         return ranked
 
-    def _is_pure_license_file(self, file_path: Optional[str]) -> bool:
-        """Return True if the file name suggests it contains only license text."""
-        if not file_path:
+    # Compiled once at class level for efficiency
+    _RE_NON_LICENSE_SECTION = re.compile(
+        r"^#{1,6}\s*"
+        r"(installation|usage|getting\s+started|contributing|"
+        r"prerequisites|requirements|setup|build|deploy|example|"
+        r"quick\s+start|table\s+of\s+contents|overview|features|"
+        r"changelog|roadmap|faq|support|credits|acknowledgements?)",
+        re.IGNORECASE,
+    )
+    _RE_LICENSE_OPENER = re.compile(
+        r"(permission is hereby granted|permission to use, copy|"
+        r"gnu general public license|apache license|"
+        r"mozilla public license|common development and distribution|"
+        r"creative commons|redistribution and use in source|"
+        r"everyone is permitted to copy)",
+        re.IGNORECASE,
+    )
+    _RE_NUMBERED_SECTION = re.compile(r"^\s*\d+\.\s+\w", re.MULTILINE)
+
+    def _is_pure_license_text(self, file_path: Optional[str], text: str) -> bool:
+        """Return True if the content appears to be a standalone license document.
+
+        Uses filename as a strong positive signal, then falls back to
+        content heuristics so plain-text license input (no file_path) is
+        also classified correctly.
+        """
+        if file_path:
+            basename = os.path.basename(file_path).upper()
+            if basename in ("LICENSE", "COPYING", "UNLICENSE", "LICENCE"):
+                return True
+            if any(
+                basename.startswith(p) for p in ("LICENSE.", "COPYING.", "LICENCE.")
+            ):
+                return True
+
+        words = text.split()
+        if len(words) < 30:
             return False
-        basename = os.path.basename(file_path).upper()
-        # Common license file names
-        if basename in ("LICENSE", "COPYING", "UNLICENSE", "LICENCE"):
+
+        # Code fences are a reliable mixed-content indicator (README, docs)
+        if "```" in text or "~~~" in text:
+            return False
+
+        lines = text.splitlines()
+        md_headers = [line for line in lines if re.match(r"^#{1,6}\s+\S", line)]
+
+        # Non-license section headings → README / mixed document
+        if any(self._RE_NON_LICENSE_SECTION.match(h) for h in md_headers):
+            return False
+
+        # Many headers → multi-section document, not a pure license
+        if len(md_headers) > 3:
+            return False
+
+        # Numbered section structure (Apache, GPL, MPL, CDDL …)
+        if len(self._RE_NUMBERED_SECTION.findall(text)) >= 3:
             return True
-        if any(basename.startswith(p) for p in ("LICENSE.", "COPYING.", "LICENCE.")):
+
+        # Known license preamble phrases in first ~1 kB
+        if self._RE_LICENSE_OPENER.search(text[:1000]):
             return True
+
         return False
 
     def _match_mixed_content(

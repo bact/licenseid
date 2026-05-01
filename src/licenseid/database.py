@@ -512,6 +512,8 @@ class LicenseDatabase:
     def get_license_by_name(self, name: str) -> Optional[LicenseDetails]:
         """Get full metadata for a license by its full name (case-insensitive)."""
         clean_name = name.strip()
+        if not clean_name:
+            return None
         with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
@@ -529,6 +531,15 @@ class LicenseDatabase:
             if key in d:
                 d[key] = bool(d[key])
         return cast(LicenseDetails, d)
+
+    def get_search_text(self, license_id: str) -> str:
+        """Return the normalized search text for a license from the FTS index."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT search_text FROM license_index WHERE license_id = ?",
+                (license_id,),
+            ).fetchone()
+            return row[0] if row else ""
 
     def get_all_names_and_ids(self) -> list[LicenseNameId]:
         """Retrieve all license IDs and names for short-text matching."""
