@@ -10,7 +10,6 @@ Detection of license markers and structural indicators.
 import re
 
 
-
 class MarkerDetector:
     """
     Detects license indicators like SPDX-License-Identifier, field names,
@@ -36,17 +35,17 @@ class MarkerDetector:
             ),
             # =======\nLicense\n=======
             re.compile(
-                r"(?i)^[ \t]*[=-]{3,}\s*[\n\r]+\s*license\s*[\n\r]+\s*[=-]{3,}\s*[\n\r]+\s*([^\n\r]+)",
+                r"(?i)^[ \t]*[=-]{3,}\s*[\n\r]+\s*license\s*[\n\r]+\s*[=-]{3,}\s*[\n\r]+\s*([^\n\r]+)",  # noqa: E501
                 re.MULTILINE,
             ),
             # *******\nLicense\n*******
             re.compile(
-                r"(?i)^[ \t]*\*{3,}\s*[\n\r]+\s*license\s*[\n\r]+\s*\*{3,}\s*[\n\r]+\s*([^\n\r]+)",
+                r"(?i)^[ \t]*\*{3,}\s*[\n\r]+\s*license\s*[\n\r]+\s*\*{3,}\s*[\n\r]+\s*([^\n\r]+)",  # noqa: E501
                 re.MULTILINE,
             ),
             # #######\nLicense\n#######
             re.compile(
-                r"(?i)^[ \t]*#{3,}\s*[\n\r]+\s*license\s*[\n\r]+\s*#{3,}\s*[\n\r]+\s*([^\n\r]+)",
+                r"(?i)^[ \t]*#{3,}\s*[\n\r]+\s*license\s*[\n\r]+\s*#{3,}\s*[\n\r]+\s*([^\n\r]+)",  # noqa: E501
                 re.MULTILINE,
             ),
         ]
