@@ -507,13 +507,28 @@ class LicenseDatabase:
             ).fetchone()
             if not row:
                 return None
+            return self._cast_license_details(row)
 
-            # Ensure boolean types are correctly cast
-            d = dict(row)
-            for key in ["is_spdx", "is_osi_approved", "is_fsf_libre", "is_high_usage"]:
-                if key in d:
-                    d[key] = bool(d[key])
-            return cast(LicenseDetails, d)
+    def get_license_by_name(self, name: str) -> Optional[LicenseDetails]:
+        """Get full metadata for a license by its full name (case-insensitive)."""
+        clean_name = name.strip()
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT * FROM licenses WHERE name = ? COLLATE NOCASE",
+                (clean_name,),
+            ).fetchone()
+            if not row:
+                return None
+            return self._cast_license_details(row)
+
+    def _cast_license_details(self, row: sqlite3.Row) -> LicenseDetails:
+        """Helper to cast sqlite Row to LicenseDetails with proper boolean types."""
+        d = dict(row)
+        for key in ["is_spdx", "is_osi_approved", "is_fsf_libre", "is_high_usage"]:
+            if key in d:
+                d[key] = bool(d[key])
+        return cast(LicenseDetails, d)
 
     def get_all_names_and_ids(self) -> list[LicenseNameId]:
         """Retrieve all license IDs and names for short-text matching."""

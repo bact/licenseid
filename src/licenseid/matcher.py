@@ -15,6 +15,7 @@ from typing import Any, Optional, cast
 from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase
+from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text
 from licenseid.types import (
     CandidateMatch,
@@ -35,6 +36,7 @@ class AggregatedLicenseMatcher:
         self, db_path: str, enable_java: bool = False, enable_popularity: bool = False
     ):
         self.db = LicenseDatabase(db_path)
+        self.detector = MarkerDetector(self.db)
         self.enable_java = enable_java
         self.enable_popularity = enable_popularity
         self.jar_path = os.getenv("SPDX_TOOLS_JAR")
@@ -48,6 +50,7 @@ class AggregatedLicenseMatcher:
         file_path: Optional[str] = None,
         **options: Any,
     ) -> list[LicenseMatch]:
+        # pylint: disable=too-many-return-statements
         """
         Identify license text and return ranked matches.
         Must provide exactly one of text, license_id, or file_path.
@@ -83,6 +86,18 @@ class AggregatedLicenseMatcher:
         request = cast(MatchRequest, options)
         request["text"] = target_text
 
+        # Content Classification
+        is_pure = self._is_pure_license_file(file_path)
+
+        # Tier 0.5: Marker Detection
+        marker_candidates = self.detector.detect(target_text)
+        # If we have a perfect marker match, we might return early
+        if marker_candidates and any(c["score"] >= 0.95 for c in marker_candidates):
+            # Sort markers and convert to LicenseMatch
+            ranked_markers = self._rank_candidates(marker_candidates, "", request)
+            if ranked_markers and ranked_markers[0]["score"] >= 0.95:
+                return ranked_markers
+
         norm_input = normalize_text(target_text)
         words = norm_input.split()
 
@@ -93,7 +108,21 @@ class AggregatedLicenseMatcher:
                 return short_matches
 
         # Tier 1: Broad Recall
-        candidates = self._get_candidates(request, target_text)
+        # Tier 1: Broad Recall
+        if is_pure:
+            candidates = self._get_candidates(request, target_text)
+            # If FTS5 found nothing in a 'pure' file, it might be a reference/marker
+            if not candidates:
+                candidates = self._match_mixed_content(request, target_text)
+        else:
+            candidates = self._match_mixed_content(request, target_text)
+
+        # Also merge marker candidates if not already present
+        seen_ids = {cand["license_id"] for cand in candidates}
+        for c in marker_candidates:
+            if c["license_id"] not in seen_ids:
+                candidates.append(c)
+                seen_ids.add(c["license_id"])
 
         # Tier 2: Precision Ranking
         ranked = self._rank_candidates(candidates, norm_input, request)
@@ -390,3 +419,54 @@ class AggregatedLicenseMatcher:
 
         ranked.sort(key=lambda x: x["score"], reverse=True)
         return ranked
+
+    def _is_pure_license_file(self, file_path: Optional[str]) -> bool:
+        """Return True if the file name suggests it contains only license text."""
+        if not file_path:
+            return False
+        basename = os.path.basename(file_path).upper()
+        # Common license file names
+        if basename in ("LICENSE", "COPYING", "UNLICENSE", "LICENCE"):
+            return True
+        if any(basename.startswith(p) for p in ("LICENSE.", "COPYING.", "LICENCE.")):
+            return True
+        return False
+
+    def _match_mixed_content(
+        self, request: MatchRequest, target_text: str
+    ) -> list[CandidateMatch]:
+        """Extract sections from mixed content and search them for licenses."""
+        sections = self.detector.get_sections(target_text)
+        candidates: list[CandidateMatch] = []
+        seen_ids = set()
+
+        for section in sections:
+            # 1. Try Tier 0 (Short Text) on the windowed section
+            norm_section = normalize_text(section)
+            short_matches = self._match_short_text(norm_section)
+            for m in short_matches:
+                if m["license_id"] not in seen_ids:
+                    details = self.db.get_license_details(m["license_id"])
+                    if details:
+                        candidates.append(
+                            self.detector._to_candidate(details, m["score"])
+                        )
+                        seen_ids.add(m["license_id"])
+
+            # 2. Try Tier 1 (Recall) on a targeted window starting at the keyword
+            # We find the keyword in the section and start there for FTS5
+            words = section.split()
+            for i, word in enumerate(words):
+                if "licens" in word.lower():
+                    # FTS5 works best if the first few words are relevant
+                    fts_query_text = " ".join(words[i : i + 50])
+                    for c in self._get_candidates(request, fts_query_text):
+                        if c["license_id"] not in seen_ids:
+                            candidates.append(c)
+                            seen_ids.add(c["license_id"])
+
+        # Fallback: if no sections found or no candidates from sections,
+        # try the whole text (it might be a pure license without keyword)
+        if not candidates:
+            candidates = self._get_candidates(request, target_text)
+        return candidates

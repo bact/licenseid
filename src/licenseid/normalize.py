@@ -22,7 +22,9 @@ def normalize_text(text: str) -> str:
     5. Hyperlink: http:// and https:// are treated as equivalent.
     """
     # 1. HTML to plain text
-    if bool(re.search(r"<[a-z][\s\S]*>", text, re.IGNORECASE)):
+    # Heuristic: Look for closing HTML tags to avoid false positives with
+    # plain-text placeholders like <year> or <path>.
+    if bool(re.search(r"</[a-z]+>", text, re.IGNORECASE)):
         soup = BeautifulSoup(text, "html.parser")
         text = soup.get_text()
 
