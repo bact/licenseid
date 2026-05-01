@@ -78,7 +78,12 @@ def check_db_staleness(database: LicenseDatabase) -> None:
 @click.option("--clear-cache", is_flag=True, help="Clear local cache and exit.")
 @click.option("--timed", is_flag=True, help="Print wall time used for the command.")
 @click.pass_context
-def cli(ctx: click.Context, db: Optional[str], clear_cache: bool, timed: bool) -> None:
+def cli(
+    ctx: click.Context,
+    db: Optional[str],
+    clear_cache: bool,
+    timed: bool,
+) -> None:
     """SPDX License ID matcher tool."""
     if timed:
         start_time = time.monotonic()
