@@ -81,6 +81,8 @@ class LicenseDetails(TypedDict, total=False):
     is_osi_approved: Required[bool]
     is_fsf_libre: Required[bool]
     is_high_usage: Required[bool]
+    is_deprecated: bool
+    superseded_by: str
     popularity_score: Required[int]
     word_count: Required[int]
     xml_template: str
@@ -95,6 +97,24 @@ class SpdxLicenseEntry(TypedDict, total=False):
     name: str
     isOsiApproved: bool
     isFsfLibre: bool
+    isDeprecatedLicenseId: bool
+
+
+class ExceptionDetails(TypedDict, total=False):
+    """Full exception record from LicenseDatabase.get_exception_details()."""
+
+    exception_id: Required[str]
+    name: Required[str]
+    is_deprecated: Required[bool]
+    superseded_by: str
+
+
+class SpdxExceptionEntry(TypedDict, total=False):
+    """Single exception entry from the SPDX exceptions.json file."""
+
+    licenseExceptionId: Required[str]
+    name: str
+    isDeprecatedLicenseId: bool
 
 
 class DatabaseMetadata(TypedDict, total=False):

@@ -24,14 +24,18 @@ from licenseid.normalize import normalize_text
 from licenseid.types import (
     CandidateMatch,
     DatabaseMetadata,
+    ExceptionDetails,
     LicenseDetails,
     LicenseNameId,
+    SpdxExceptionEntry,
     SpdxLicenseEntry,
 )
 
 # (license_id, name, xml_template, is_spdx, is_osi, is_fsf,
-#  is_high_usage, pop_score, word_count)
-_LicenseInsertRecord = tuple[str, str, Optional[str], bool, bool, bool, bool, int, int]
+#  is_high_usage, is_deprecated, superseded_by, pop_score, word_count)
+_LicenseInsertRecord = tuple[
+    str, str, Optional[str], bool, bool, bool, bool, bool, Optional[str], int, int
+]
 _IndexInsertRecord = tuple[str, str]
 
 # Cache expiration settings
@@ -99,8 +103,20 @@ class LicenseDatabase:
                     is_osi_approved BOOLEAN,
                     is_fsf_libre BOOLEAN,
                     is_high_usage BOOLEAN,
+                    is_deprecated BOOLEAN,
+                    superseded_by TEXT,
                     popularity_score INTEGER DEFAULT 1,
                     word_count INTEGER
+                )
+            """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS exceptions (
+                    exception_id TEXT PRIMARY KEY,
+                    name TEXT,
+                    is_deprecated BOOLEAN,
+                    superseded_by TEXT
                 )
             """
             )
@@ -128,7 +144,10 @@ class LicenseDatabase:
     def clear_cache(self) -> None:
         """Delete local cache files."""
         print("Clearing cache...")
-        for filename in [CACHE_LICENSES_JSON, CACHE_POPULARITY_CSV]:
+        for filename in [
+            CACHE_LICENSES_JSON,
+            CACHE_POPULARITY_CSV,
+        ]:
             path = self._get_cache_path(filename)
             if path.exists():
                 path.unlink()
@@ -245,9 +264,9 @@ class LicenseDatabase:
 
         # Report sources
         print("Data sources:")
-        print(f"  - License list info: {ds_licenses}")
-        print(f"  - Popularity data: {ds_pop}")
-        print(f"  - SPDX license data: {ds_tar}")
+        print(f"  - SPDX License List metadata   : {ds_licenses}")
+        print(f"  - SPDX License List data       : {ds_tar}")
+        print(f"  - GitHub license ranking data  : {ds_pop}")
 
         self._process_and_store(tar_cache_path, popularity_map, release_date)
         return True
@@ -265,21 +284,36 @@ class LicenseDatabase:
                     tar.extractall(path=tmp_dir)
 
                 root_dir = next(Path(tmp_dir).iterdir())
-                json_path = root_dir / "json" / "licenses.json"
-                with open(json_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
+                # 1. Read licenses
+                lic_json_path = root_dir / "json" / "licenses.json"
+                with open(lic_json_path, "r", encoding="utf-8") as f:
+                    lic_data = json.load(f)
 
-                licenses_data: list[SpdxLicenseEntry] = data.get("licenses", [])
-                list_version = data.get("licenseListVersion")
-                release_date = data.get("releaseDate") or release_date
+                licenses_data: list[SpdxLicenseEntry] = lic_data.get("licenses", [])
+                list_version = lic_data.get("licenseListVersion")
+                release_date = lic_data.get("releaseDate") or release_date
+
+                # 2. Read exceptions
+                exc_json_path = root_dir / "json" / "exceptions.json"
+                exceptions_data: list[SpdxExceptionEntry] = []
+                if exc_json_path.exists():
+                    with open(exc_json_path, "r", encoding="utf-8") as f:
+                        exc_data = json.load(f)
+                        exceptions_data = exc_data.get("exceptions", [])
 
                 print(
-                    f"Processing {len(licenses_data)} licenses "
+                    f"Processing {len(licenses_data)} licenses and "
+                    f"{len(exceptions_data)} exceptions "
                     f"(Version: {list_version}, Released: {release_date})"
                 )
 
                 self._update_db_records(
-                    licenses_data, root_dir, popularity_map, list_version, release_date
+                    licenses_data,
+                    root_dir,
+                    popularity_map,
+                    list_version,
+                    release_date,
+                    exceptions_data,
                 )
 
             print("\nUpdate complete.")
@@ -293,20 +327,58 @@ class LicenseDatabase:
         popularity_map: dict[str, int],
         list_version: str,
         release_date: Optional[str],
+        exceptions_data: list[SpdxExceptionEntry],
     ) -> None:
         """Execute database delete and insert operations."""
         license_records: list[_LicenseInsertRecord] = []
         index_records: list[_IndexInsertRecord] = []
+        exception_records: list[tuple[str, str, bool, Optional[str]]] = []
 
-        print("Preparing license data...", end="", flush=True)
+        print("\nPreparing exception data...", end="", flush=True)
+        # Create a name -> license_id map for non-deprecated entries to find successors
+        name_to_license: dict[str, str] = {}
+        for lic in licenses_data:
+            if not lic.get("isDeprecatedLicenseId", False):
+                name_to_license[lic["name"].lower()] = lic["licenseId"]
+
+        name_to_exception: dict[str, str] = {}
+        for exc in exceptions_data:
+            if not exc.get("isDeprecatedLicenseId", False):
+                name_to_exception[exc["name"].lower()] = exc["licenseExceptionId"]
+
         for i, lic in enumerate(licenses_data):
-            res = self._prepare_license_record(lic, root_dir, popularity_map)
+            # Recalculate record with superseded_by info
+            is_deprecated = bool(lic.get("isDeprecatedLicenseId", False))
+            superseded_by = None
+            if is_deprecated:
+                superseded_by = name_to_license.get(lic["name"].lower())
+
+            res = self._prepare_license_record(
+                lic, root_dir, popularity_map, is_deprecated, superseded_by
+            )
             if res:
                 license_records.append(res[0])
                 index_records.append(res[1])
 
             if (i + 1) % 100 == 0 or (i + 1) == len(licenses_data):
                 print(".", end="", flush=True)
+
+        print("\nPreparing exception data...", end="", flush=True)
+        for exc in exceptions_data:
+            exc_id = exc["licenseExceptionId"]
+            is_deprecated = exc.get("isDeprecatedLicenseId", False)
+            superseded_by = None
+            if is_deprecated:
+                superseded_by = name_to_exception.get(exc["name"].lower())
+
+            exception_records.append(
+                (
+                    exc_id,
+                    exc["name"],
+                    is_deprecated,
+                    superseded_by,
+                )
+            )
 
         print(f"\nInserting {len(license_records)} records into database...")
         with self._connect() as conn:
@@ -316,6 +388,7 @@ class LicenseDatabase:
             try:
                 conn.execute("DELETE FROM license_index")
                 conn.execute("DELETE FROM licenses")
+                conn.execute("DELETE FROM exceptions")
                 conn.execute("DELETE FROM db_metadata")
 
                 now = datetime.now().isoformat()
@@ -334,14 +407,21 @@ class LicenseDatabase:
                     INSERT INTO licenses (
                         license_id, name, xml_template, is_spdx,
                         is_osi_approved, is_fsf_libre, is_high_usage,
+                        is_deprecated, superseded_by,
                         popularity_score, word_count
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     license_records,
                 )
                 conn.executemany(
                     "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
                     index_records,
+                )
+                conn.executemany(
+                    "INSERT INTO exceptions "
+                    "(exception_id, name, is_deprecated, superseded_by) "
+                    "VALUES (?, ?, ?, ?)",
+                    exception_records,
                 )
                 conn.execute("COMMIT")
             except Exception:
@@ -353,6 +433,8 @@ class LicenseDatabase:
         lic: SpdxLicenseEntry,
         root_dir: Path,
         popularity_map: dict[str, int],
+        is_deprecated: bool = False,
+        superseded_by: Optional[str] = None,
     ) -> Optional[tuple[_LicenseInsertRecord, _IndexInsertRecord]]:
         """Prepare license data for insertion."""
         license_id = lic["licenseId"]
@@ -389,6 +471,8 @@ class LicenseDatabase:
             is_osi,
             is_fsf,
             is_high_usage,
+            is_deprecated,
+            superseded_by,
             popularity_score,
             word_count,
         )
@@ -446,7 +530,7 @@ class LicenseDatabase:
         return popularity_map
 
     def _create_fingerprint(self, text: str, xml_content: Optional[str] = None) -> str:
-        """Create a search fingerprint by removing optional blocks and normalizing."""
+        """Create a search fingerprint by removing optional parts and normalizing."""
         if xml_content:
             try:
                 # Simple XML parsing to strip optional parts
@@ -524,13 +608,40 @@ class LicenseDatabase:
                 return None
             return self._cast_license_details(row)
 
+    def get_exception_details(self, exception_id: str) -> Optional[ExceptionDetails]:
+        """Get full metadata for an exception (case-insensitive lookup)."""
+        clean_id = exception_id.strip()
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT * FROM exceptions WHERE exception_id = ? COLLATE NOCASE",
+                (clean_id,),
+            ).fetchone()
+            if not row:
+                return None
+            return self._cast_exception_details(row)
+
     def _cast_license_details(self, row: sqlite3.Row) -> LicenseDetails:
         """Helper to cast sqlite Row to LicenseDetails with proper boolean types."""
         d = dict(row)
-        for key in ["is_spdx", "is_osi_approved", "is_fsf_libre", "is_high_usage"]:
+        bool_keys = [
+            "is_spdx",
+            "is_osi_approved",
+            "is_fsf_libre",
+            "is_high_usage",
+            "is_deprecated",
+        ]
+        for key in bool_keys:
             if key in d:
                 d[key] = bool(d[key])
         return cast(LicenseDetails, d)
+
+    def _cast_exception_details(self, row: sqlite3.Row) -> ExceptionDetails:
+        """Helper to cast sqlite Row to ExceptionDetails with proper boolean types."""
+        d = dict(row)
+        if "is_deprecated" in d:
+            d["is_deprecated"] = bool(d["is_deprecated"])
+        return cast(ExceptionDetails, d)
 
     def get_search_text(self, license_id: str) -> str:
         """Return the normalized search text for a license from the FTS index."""

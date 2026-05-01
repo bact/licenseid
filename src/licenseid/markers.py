@@ -8,6 +8,7 @@
 import re
 
 from licenseid.database import LicenseDatabase
+from licenseid.identifiers import normalize_identifier
 from licenseid.types import CandidateMatch, LicenseDetails
 
 
@@ -17,34 +18,13 @@ class MarkerDetector:
     License metadata fields, and headings.
     """
 
-    # Deprecated SPDX License IDs (pre-2.0 naming) mapped to their canonical
-    # successors.
-    # Plain version (e.g. GPL-2.0) -> -only; "+" suffix -> -or-later.
-    DEPRECATED_SPDX_LICENSE_IDS: dict[str, str] = {
-        "GPL-1.0": "GPL-1.0-only",
-        "GPL-2.0": "GPL-2.0-only",
-        "GPL-3.0": "GPL-3.0-only",
-        "LGPL-2.0": "LGPL-2.0-only",
-        "LGPL-2.1": "LGPL-2.1-only",
-        "LGPL-3.0": "LGPL-3.0-only",
-        "AGPL-1.0": "AGPL-1.0-only",
-        "AGPL-3.0": "AGPL-3.0-only",
-        "GPL-1.0+": "GPL-1.0-or-later",
-        "GPL-2.0+": "GPL-2.0-or-later",
-        "GPL-3.0+": "GPL-3.0-or-later",
-        "LGPL-2.0+": "LGPL-2.0-or-later",
-        "LGPL-2.1+": "LGPL-2.1-or-later",
-        "LGPL-3.0+": "LGPL-3.0-or-later",
-        "AGPL-1.0+": "AGPL-1.0-or-later",
-        "AGPL-3.0+": "AGPL-3.0-or-later",
-    }
-
     # SPDX-License-Identifier tag.
-    # Include "+" in the character class to capture deprecated or-later notation
-    # (e.g. GPL-2.0+).  The regex stops before any whitespace, so compound
-    # expressions like "GPL-2.0 WITH Linux-syscall-note" yield only "GPL-2.0".
+    # Capture full expressions including spaces, parentheses, and operators.
+    # We stop at common delimiters like quotes or line breaks.
     RE_SPDX = re.compile(
-        r"SPDX-License-Identifier\s*[:=]\s*['\"]?([a-zA-Z0-9.+-]+)",
+        r"SPDX-License-Identifier\s*[:=]\s*['\"]?"
+        r"([a-zA-Z0-9.+-]+(?:\s+(?:AND|OR|WITH)\s+[a-zA-Z0-9.+-]+"
+        r"|\s*\([^)]+\)|[a-zA-Z0-9.+-]+)*)",
         re.IGNORECASE,
     )
 
@@ -115,29 +95,41 @@ class MarkerDetector:
 
         # 1. SPDX-License-Identifier
         for match in self.RE_SPDX.finditer(text):
-            lic_id = match.group(1).strip()
+            lic_id = normalize_identifier(match.group(1).strip(), self.db)
             details = self.db.get_license_details(lic_id)
-            if not details:
-                canonical = self.DEPRECATED_SPDX_LICENSE_IDS.get(lic_id)
-                if canonical:
-                    details = self.db.get_license_details(canonical)
             if details:
                 candidates.append(self.to_candidate(details, 1.0))
+            elif lic_id:
+                # Even if not in DB, if it's a valid expression we can return it
+                # with a placeholder candidate
+                candidates.append(
+                    {
+                        "license_id": lic_id,
+                        "search_text": "",
+                        "score": 1.0,
+                        "is_spdx": True,
+                    }
+                )
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)
         for match in self.RE_LICENSE_FIELD.finditer(text):
-            val = match.group(1).strip()
+            val = normalize_identifier(match.group(1).strip(), self.db)
             if not val:
                 continue
             details = self.db.get_license_details(val) or self.db.get_license_by_name(
                 val
             )
-            if not details:
-                canonical = self.DEPRECATED_SPDX_LICENSE_IDS.get(val)
-                if canonical:
-                    details = self.db.get_license_details(canonical)
             if details:
                 candidates.append(self.to_candidate(details, 0.95))
+            elif val:
+                candidates.append(
+                    {
+                        "license_id": val,
+                        "search_text": "",
+                        "score": 0.95,
+                        "is_spdx": True,
+                    }
+                )
 
         return candidates
 

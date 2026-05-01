@@ -30,36 +30,65 @@ def test_db() -> Generator[str, None, None]:
     with sqlite3.connect(db_path, uri=True) as conn:
         conn.execute(
             "INSERT INTO licenses (license_id, name, is_spdx, "
-            "is_osi_approved, is_fsf_libre) VALUES (?, ?, ?, ?, ?)",
-            ("MIT", "MIT License", True, True, True),
+            "is_osi_approved, is_fsf_libre, is_deprecated, superseded_by) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("MIT", "MIT License", True, True, True, False, None),
         )
         conn.execute(
             "INSERT INTO licenses (license_id, name, is_spdx, "
-            "is_osi_approved, is_fsf_libre) VALUES (?, ?, ?, ?, ?)",
-            ("Apache-2.0", "Apache License 2.0", True, True, True),
+            "is_osi_approved, is_fsf_libre, is_deprecated, superseded_by) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("Apache-2.0", "Apache License 2.0", True, True, True, False, None),
         )
         conn.execute(
             "INSERT INTO licenses (license_id, name, is_spdx, "
-            "is_osi_approved, is_fsf_libre) VALUES (?, ?, ?, ?, ?)",
+            "is_osi_approved, is_fsf_libre, is_deprecated, superseded_by) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 "BSD-3-Clause",
                 'BSD 3-Clause "New" or "Revised" License',
                 True,
                 True,
                 True,
+                False,
+                None,
             ),
         )
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx) VALUES (?, ?, ?)",
-            ("GPL-2.0-only WITH Linux-syscall-note", "GPL-2.0-only WITH Linux Syscall Note", True),
+            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            (
+                "GPL-2.0-only WITH Linux-syscall-note",
+                "GPL-2.0-only WITH Linux Syscall Note",
+                True,
+                False,
+                None,
+            ),
         )
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx) VALUES (?, ?, ?)",
-            ("GPL-2.0-or-later", "GNU GPL v2.0 or later", True),
+            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            ("GPL-2.0-or-later", "GNU GPL v2.0 or later", True, False, None),
         )
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx) VALUES (?, ?, ?)",
-            ("GPL-3.0-or-later", "GNU GPL v3.0 or later", True),
+            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            ("GPL-3.0-or-later", "GNU GPL v3.0 or later", True, False, None),
+        )
+        conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            (
+                "GPL-2.0",
+                "GNU General Public License v2.0 only",
+                True,
+                True,
+                "GPL-2.0-only",
+            ),
+        )
+        conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            ("GPL-2.0-only", "GNU General Public License v2.0 only", True, False, None),
+        )
+        conn.execute(
+            "INSERT INTO exceptions (exception_id, name, is_deprecated, superseded_by) VALUES (?, ?, ?, ?)",
+            ("Linux-syscall-note", "Linux Syscall Note", False, None),
         )
         conn.execute(
             "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",

@@ -16,6 +16,7 @@ from typing import Any, Optional, cast
 from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase
+from licenseid.identifiers import normalize_identifier
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text
 from licenseid.types import (
@@ -58,6 +59,7 @@ class AggregatedLicenseMatcher:
         """
         # 1. Explicit ID Lookup
         if license_id:
+            license_id = normalize_identifier(license_id, self.db)
             details = self.db.get_license_details(license_id)
             if details:
                 return [
@@ -98,7 +100,7 @@ class AggregatedLicenseMatcher:
         marker_candidates = self.detector.detect(target_text)
         spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
         if spdx_exact:
-            return cast(list[LicenseMatch], self._finalize_exact_markers(spdx_exact))
+            return self._finalize_exact_markers(spdx_exact)
 
         # Build a marker-boost map: license_id → marker confidence score.
         # Used later in ranking to signal which candidates are marker-confirmed.
