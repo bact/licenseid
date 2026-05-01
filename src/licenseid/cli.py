@@ -135,6 +135,11 @@ def unescape_text(text: str) -> str:
         return text
 
 
+def is_sqlite_uri(path: str) -> bool:
+    """Check if a path is a SQLite URI or in-memory database."""
+    return path.startswith("file:") or ":memory:" in path
+
+
 def get_input_content(
     input_val: Optional[str], text: Optional[str]
 ) -> tuple[str, bool]:
@@ -162,7 +167,7 @@ def resolve_license_record(
 ) -> Optional[LicenseDetails]:
     """Helper to resolve a license from CLI arguments (implements Smart Logic)."""
     db_path = ctx.obj["db_path"]
-    if not os.path.exists(db_path):
+    if not os.path.exists(db_path) and not is_sqlite_uri(db_path):
         click.echo(
             f"ERROR: Database not found at {db_path}. "
             "Please run 'licenseid update' first.",
@@ -242,7 +247,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     """Identify license text and return the closest matched SPDX License ID."""
     db_path = ctx.obj["db_path"]
 
-    if not os.path.exists(db_path):
+    if not os.path.exists(db_path) and not is_sqlite_uri(db_path):
         click.echo(
             f"ERROR: Database not found at {db_path}. "
             "Please run 'licenseid update' first.",

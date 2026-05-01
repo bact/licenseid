@@ -57,14 +57,17 @@ Advanced update options:
 Identify license text from a file, an ID, or a string:
 
 ```bash
-# From a file
+# From a file (smart detection)
 licenseid match LICENSE.txt
 
-# From an ID (returns metadata)
+# From an ID (smart detection)
 licenseid match MIT
 
-# From a string (piped)
+# From a string (smart detection / piped)
 echo "MIT License..." | licenseid match
+
+# Explicit ID lookup (fastest, skips similarity check)
+licenseid match --id MIT
 ```
 
 Common options:
@@ -205,22 +208,28 @@ from licenseid.matcher import AggregatedLicenseMatcher
 # Initialize with default database
 matcher = AggregatedLicenseMatcher()
 
-# 1. Smart Matching (ID, File, or Text)
-results = matcher.match("MIT")
-results = matcher.match("LICENSE.txt")
-results = matcher.match("MIT License. Permission is hereby granted...")
-
-# 2. Explicit Matching
-results = matcher.match(license_id="MIT")
-results = matcher.match(file_path="LICENSE.txt")
+# 1. Match by Raw Text (Positional or Keyword)
+# Programmatic API is explicit: positional 'text' is always treated as text.
+results = matcher.match("Permission is hereby granted...")
 results = matcher.match(text="Custom license text...")
 
-# 3. Predicates
-if matcher.is_osi("MIT"):
+# 2. Match by SPDX License ID (Explicit)
+# This performs a fast database lookup and returns full metadata.
+results = matcher.match(license_id="MIT")
+
+# 3. Match by File Path (Explicit)
+results = matcher.match(file_path="LICENSE.txt")
+
+# 4. Predicates
+# Supports keyword arguments for precise control.
+if matcher.is_osi(license_id="MIT"):
     print("OSI Approved!")
 
 if matcher.is_open(file_path="LICENSE.txt"):
     print("Open Source!")
+
+if matcher.is_spdx(text="Creative Commons Zero v1.0 Universal"):
+    print("SPDX Match Found!")
 ```
 
 Example JSON output:
