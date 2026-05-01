@@ -96,7 +96,7 @@ class AggregatedLicenseMatcher:
             # Sort markers and convert to LicenseMatch
             ranked_markers = self._rank_candidates(marker_candidates, "", request)
             if ranked_markers and ranked_markers[0]["score"] >= 0.95:
-                return ranked_markers
+                return cast(list[LicenseMatch], ranked_markers)
 
         norm_input = normalize_text(target_text)
         words = norm_input.split()
@@ -449,7 +449,7 @@ class AggregatedLicenseMatcher:
                     details = self.db.get_license_details(m["license_id"])
                     if details:
                         candidates.append(
-                            self.detector._to_candidate(details, m["score"])
+                            self.detector.to_candidate(details, m["score"])
                         )
                         seen_ids.add(m["license_id"])
 

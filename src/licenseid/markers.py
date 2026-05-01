@@ -7,8 +7,8 @@
 
 import re
 
-from licenseid.database import LicenseDatabase, LicenseDetails
-from licenseid.types import CandidateMatch
+from licenseid.database import LicenseDatabase
+from licenseid.types import CandidateMatch, LicenseDetails
 
 
 class MarkerDetector:
@@ -67,7 +67,7 @@ class MarkerDetector:
             lic_id = match.group(1).strip()
             details = self.db.get_license_details(lic_id)
             if details:
-                candidates.append(self._to_candidate(details, 1.0))
+                candidates.append(self.to_candidate(details, 1.0))
 
         # 2. License metadata field
         for match in self.RE_LICENSE_FIELD.finditer(text):
@@ -76,7 +76,7 @@ class MarkerDetector:
                 val
             )
             if details:
-                candidates.append(self._to_candidate(details, 0.95))
+                candidates.append(self.to_candidate(details, 0.95))
         return candidates
 
     def _detect_headings(self, text: str) -> list[CandidateMatch]:
@@ -93,7 +93,7 @@ class MarkerDetector:
                         next_line
                     ) or self.db.get_license_by_name(next_line)
                     if details:
-                        candidates.append(self._to_candidate(details, 0.9))
+                        candidates.append(self.to_candidate(details, 0.9))
                         break
         return candidates
 
@@ -121,7 +121,7 @@ class MarkerDetector:
                 clean_line
             ) or self.db.get_license_by_name(clean_line)
             if details:
-                return [self._to_candidate(details, 0.85)]
+                return [self.to_candidate(details, 0.85)]
             break
         return []
 
@@ -129,13 +129,14 @@ class MarkerDetector:
         """Find sections of the text that likely contain license information."""
         sections: list[str] = []
 
-        # Look for the word "License" or "Licensing"
+        # Look for the word "License" or "Licensing" or "Licensed"
         # and take a window around it.
         # This is a naive implementation, could be improved.
         words = text.split()
         for i, word in enumerate(words):
             if "licens" in word.lower():
-                # Take a window around the keyword to capture names like "Apache License"
+                # Take a window around the keyword to capture names like
+                # "Apache License"
                 start = max(0, i - 20)
                 end = min(len(words), i + 100)
                 sections.append(" ".join(words[start:end]))
@@ -147,7 +148,7 @@ class MarkerDetector:
         # Overlapping sections are fine since the matcher deduplicates by license_id.
         return sections
 
-    def _to_candidate(
+    def to_candidate(
         self, details: LicenseDetails, base_score: float
     ) -> CandidateMatch:
         """Convert LicenseDetails to CandidateMatch."""

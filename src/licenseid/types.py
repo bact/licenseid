@@ -24,17 +24,18 @@ class LicenseMatch(TypedDict, total=False):
     best_window: str
 
 
-class CandidateMatch(TypedDict):
+class CandidateMatch(TypedDict, total=False):
     """Database record returned by LicenseDatabase.search_candidates()."""
 
-    license_id: str
-    search_text: str
+    license_id: Required[str]
+    search_text: Required[str]
     word_count: int
     is_spdx: bool
     is_high_usage: bool
     is_osi_approved: bool
     is_fsf_libre: bool
     popularity_score: int
+    score: float
 
 
 class InternalMatch(TypedDict, total=False):
