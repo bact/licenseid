@@ -63,6 +63,9 @@ def matcher() -> AggregatedLicenseMatcher:
                 data.get("is_osi_approved", False),
                 data.get("is_fsf_libre", False),
                 data.get("is_high_usage", False),
+                data.get("is_deprecated", False),
+                data.get("superseded_by"),
+                data.get("pop_score", 1),
                 word_count,
             )
         )
@@ -76,8 +79,9 @@ def matcher() -> AggregatedLicenseMatcher:
         try:
             conn.executemany(
                 "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved, "
-                "is_fsf_libre, is_high_usage, word_count) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "is_fsf_libre, is_high_usage, is_deprecated, superseded_by, "
+                "pop_score, word_count) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 to_insert_licenses,
             )
             conn.executemany(

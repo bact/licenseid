@@ -42,7 +42,7 @@ def analyze_thresholds():
         # Get popularity for all
         for r in results:
             details = matcher.db.get_license_details(r["license_id"])
-            r["pop"] = details.get("popularity_score", 1) if details else 1
+            r["pop"] = details.get("pop_score", 1) if details else 1
 
         for t in thresholds:
             # Simulated tie-breaker:

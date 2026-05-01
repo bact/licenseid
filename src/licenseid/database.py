@@ -72,6 +72,7 @@ class LicenseDatabase:
             self._keep_alive = self._connect()
 
         self._init_db()
+        self._deprecated_mappings_cache: Optional[dict[str, str]] = None
 
     def _connect(self) -> sqlite3.Connection:
         """Create a new connection to the database."""
@@ -105,7 +106,7 @@ class LicenseDatabase:
                     is_high_usage BOOLEAN,
                     is_deprecated BOOLEAN,
                     superseded_by TEXT,
-                    popularity_score INTEGER DEFAULT 1,
+                    pop_score INTEGER DEFAULT 1,
                     word_count INTEGER
                 )
             """
@@ -408,7 +409,7 @@ class LicenseDatabase:
                         license_id, name, xml_template, is_spdx,
                         is_osi_approved, is_fsf_libre, is_high_usage,
                         is_deprecated, superseded_by,
-                        popularity_score, word_count
+                        pop_score, word_count
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     license_records,
@@ -458,10 +459,10 @@ class LicenseDatabase:
 
         baseline = 100 if (is_osi or is_fsf) else 1
         pop_count = popularity_map.get(license_id, 0)
-        popularity_score = max(baseline, pop_count)
+        pop_score = max(baseline, pop_count)
 
         # High usage: OSI, FSF, or significant popularity
-        is_high_usage = is_osi or is_fsf or popularity_score > 500
+        is_high_usage = is_osi or is_fsf or pop_score > 500
 
         license_record: _LicenseInsertRecord = (
             license_id,
@@ -473,7 +474,7 @@ class LicenseDatabase:
             is_high_usage,
             is_deprecated,
             superseded_by,
-            popularity_score,
+            pop_score,
             word_count,
         )
         index_record: _IndexInsertRecord = (license_id, fingerprint)
@@ -565,7 +566,9 @@ class LicenseDatabase:
                     l.is_high_usage,
                     l.is_osi_approved,
                     l.is_fsf_libre,
-                    l.popularity_score
+                    l.pop_score,
+                    l.is_deprecated,
+                    l.superseded_by
                 FROM license_index li
                 JOIN licenses l ON li.license_id = l.license_id
                 WHERE li.search_text MATCH ?
@@ -661,6 +664,33 @@ class LicenseDatabase:
                 LicenseNameId(license_id=row["license_id"], name=row["name"])
                 for row in cursor.fetchall()
             ]
+
+    def get_deprecated_mappings(self) -> dict[str, str]:
+        """Get a mapping of all deprecated IDs to their successors."""
+        if self._deprecated_mappings_cache is not None:
+            return self._deprecated_mappings_cache
+
+        mappings: dict[str, str] = {}
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            # Licenses
+            cursor = conn.execute(
+                "SELECT license_id, superseded_by FROM licenses "
+                "WHERE is_deprecated = 1 AND superseded_by IS NOT NULL"
+            )
+            for row in cursor:
+                mappings[row["license_id"]] = row["superseded_by"]
+
+            # Exceptions
+            cursor = conn.execute(
+                "SELECT exception_id, superseded_by FROM exceptions "
+                "WHERE is_deprecated = 1 AND superseded_by IS NOT NULL"
+            )
+            for row in cursor:
+                mappings[row["exception_id"]] = row["superseded_by"]
+
+        self._deprecated_mappings_cache = mappings
+        return mappings
 
     def get_metadata(self) -> DatabaseMetadata:
         """Get database metadata."""

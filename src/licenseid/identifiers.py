@@ -63,6 +63,22 @@ def normalize_identifier(identifier: str, db: Optional[LicenseDatabase] = None) 
 
 def _normalize_single_id(lic_id: str, db: Optional[LicenseDatabase] = None) -> str:
     """Normalises a single license or exception ID."""
+    # 1. Database lookup (most accurate/up-to-date)
+    if db:
+        mappings = db.get_deprecated_mappings()
+        normalized = mappings.get(lic_id)
+        if not normalized:
+            # Case-insensitive search in mappings
+            lic_id_upper = lic_id.upper()
+            for dep_id, canonical in mappings.items():
+                if dep_id.upper() == lic_id_upper:
+                    normalized = canonical
+                    break
+
+        if normalized:
+            return normalized
+
+    # 2. Hardcoded fallback (fast path and legacy "+" conventions)
     normalized = DEPRECATED_SPDX_LICENSE_IDS.get(lic_id)
     lic_id_upper = lic_id.upper()
 
@@ -84,19 +100,12 @@ def _normalize_single_id(lic_id: str, db: Optional[LicenseDatabase] = None) -> s
     if normalized:
         return normalized
 
-    # 4. Database lookup
+    # 3. Canonical-case lookup: the DB uses COLLATE NOCASE, so we can retrieve
+    # the correctly-cased ID for any known (non-deprecated) license.
     if db:
         details = db.get_license_details(lic_id)
         if details:
-            return str(details.get("superseded_by") or details["license_id"])
-
-        exc_details = db.get_exception_details(lic_id)
-        if exc_details:
-            return str(exc_details.get("superseded_by") or exc_details["exception_id"])
-
-    # 5. Fallback for common IDs
-    if lic_id_upper in ("MIT", "APACHE-2.0", "BSD-3-CLAUSE"):
-        return lic_id_upper
+            return details["license_id"]
 
     return lic_id
 

@@ -103,7 +103,7 @@ def setup_bench_db():
     with sqlite3.connect(db_path, uri=True) as conn:
         conn.executemany(
             "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved, "
-            "is_fsf_libre, is_high_usage, popularity_score, word_count) "
+            "is_fsf_libre, is_high_usage, pop_score, word_count) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             to_insert_licenses,
         )

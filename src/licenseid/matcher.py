@@ -53,6 +53,7 @@ class AggregatedLicenseMatcher:
         **options: Any,
     ) -> list[LicenseMatch]:
         # pylint: disable=too-many-return-statements
+        # pylint: disable=too-many-branches
         """
         Identify license text and return ranked matches.
         Must provide exactly one of text, license_id, or file_path.
@@ -97,7 +98,7 @@ class AggregatedLicenseMatcher:
         # SPDX-License-Identifier is an unambiguous machine tag → early return.
         # All other markers (name fields, headings, first-line) go into the
         # candidate pool and influence ranking via a confidence bonus.
-        marker_candidates = self.detector.detect(target_text)
+        marker_candidates = self.detector.detect(target_text, file_path=file_path)
         spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
         if spdx_exact:
             return self._finalize_exact_markers(spdx_exact)
@@ -115,6 +116,12 @@ class AggregatedLicenseMatcher:
         if len(words) < 20:
             short_matches = self._match_short_text(norm_input)
             if short_matches and short_matches[0]["score"] > 1.0:
+                # Apply marker boosts to break ties among equal-scored candidates
+                if marker_boosts:
+                    for sm in short_matches:
+                        marker_conf = marker_boosts.get(sm["license_id"], 0.0)
+                        sm["score"] += marker_conf * 0.01
+                    short_matches.sort(key=lambda x: (-x["score"], x["license_id"]))
                 return short_matches
 
         # Tier 1: Broad Recall
@@ -150,7 +157,12 @@ class AggregatedLicenseMatcher:
         )
 
         # Tiebreaker: -only vs -or-later when scores are identical
-        ranked = self._apply_version_suffix_tiebreaker(ranked, target_text, is_pure)
+        ranked = self._apply_version_suffix_tiebreaker(
+            ranked,
+            target_text,
+            is_pure,
+            enable_pop=request.get("enable_popularity", self.enable_popularity),
+        )
 
         # Tier 3: Optional Java Consultant
         enable_java = request.get("enable_java", self.enable_java)
@@ -221,21 +233,23 @@ class AggregatedLicenseMatcher:
         candidates = self.db.search_candidates(search_query, limit=50)
         filtered: list[CandidateMatch] = []
         for cand in candidates:
-            license_id = cand["license_id"]
-            if license_id in exclude_list:
+            license_id = cand.get("license_id")
+            if not license_id or license_id in exclude_list:
                 continue
 
             # Filtering logic using pre-fetched metadata
-            if only_spdx and not cand["is_spdx"]:
+            if only_spdx and not cand.get("is_spdx", False):
                 continue
-            if only_common and not cand["is_high_usage"]:
-                if not (cand["is_osi_approved"] or cand["is_fsf_libre"]):
+            if only_common and not cand.get("is_high_usage", False):
+                if not (
+                    cand.get("is_osi_approved", False)
+                    or cand.get("is_fsf_libre", False)
+                ):
                     continue
 
             filtered.append(cand)
 
-        # Force-include hints
-        candidate_ids = {c["license_id"] for c in filtered}
+        candidate_ids = {c.get("license_id") for c in filtered if c.get("license_id")}
         for h_id in hint_list:
             if h_id not in candidate_ids:
                 details = self.db.get_license_details(h_id)
@@ -249,7 +263,9 @@ class AggregatedLicenseMatcher:
                             is_high_usage=details["is_high_usage"],
                             is_osi_approved=details["is_osi_approved"],
                             is_fsf_libre=details["is_fsf_libre"],
-                            popularity_score=details["popularity_score"],
+                            pop_score=details.get("pop_score", 0),
+                            is_deprecated=details.get("is_deprecated", False),
+                            superseded_by=details.get("superseded_by", ""),
                         )
                     )
         return filtered
@@ -280,7 +296,9 @@ class AggregatedLicenseMatcher:
                     base_score=similarity,
                     similarity=similarity,
                     coverage=coverage,
-                    pop_score=cand.get("popularity_score", 0),
+                    pop_score=cand.get("pop_score", 0),
+                    is_deprecated=cand.get("is_deprecated", False),
+                    superseded_by=cand.get("superseded_by", ""),
                     best_window=best_window,
                     score=0.0,
                 )
@@ -288,18 +306,33 @@ class AggregatedLicenseMatcher:
 
         for r in ranked:
             r["score"] = self._calculate_final_score(
-                r, boosts, is_pure, enable_popularity
+                r, boosts, is_pure, enable_popularity, q_len
             )
 
-        ranked.sort(key=lambda x: x["score"], reverse=True)
+        # Ranking criteria:
+        # 1. Final score (similarity + boosts)
+        # 2. Prefer non-deprecated
+        # 3. Prefer higher popularity (if enabled)
+        # 4. Alphabetical tie-break
+        # TODO: Prefer more recent version of a license family
+        # (e.g. GPL-3.0-* over GPL-2.0-*) when scores are identical.
+        def sort_key(x: InternalMatch) -> tuple[float, bool, float, str]:
+            return (
+                -x["score"],
+                x.get("is_deprecated", False),
+                -x.get("pop_score", 0) if enable_popularity else 0.0,
+                x["license_id"],
+            )
+
+        ranked.sort(key=sort_key)
         return ranked
 
     def _calculate_base_similarity(
         self, norm_input: str, q_len: int, q_tokens: set[str], cand: CandidateMatch
     ) -> tuple[float, float, str]:
         """Calculate base similarity and coverage for a candidate."""
-        search_text = cand["search_text"] or ""
-        c_len = cand["word_count"] or 0
+        search_text = cand.get("search_text") or ""
+        c_len = cand.get("word_count") or 0
         if c_len == 0:
             c_len = len(search_text.split())
 
@@ -346,6 +379,7 @@ class AggregatedLicenseMatcher:
         boosts: dict[str, float],
         is_pure: bool,
         enable_popularity: bool,
+        q_len: int = 0,
     ) -> float:
         """Calculate the final adjusted score for a match."""
         similarity = match["base_score"]
@@ -361,10 +395,13 @@ class AggregatedLicenseMatcher:
 
         marker_conf = boosts.get(match["license_id"], 0.0)
         if marker_conf > 0:
-            if is_pure:
+            # For long pure license text, similarity dominates; small additive boost.
+            # For mixed content OR short text (< 50 words), the marker is the primary
+            # signal — use an additive boost plus a confidence floor.
+            if is_pure and q_len >= 50:
                 score += marker_conf * 0.03
             else:
-                score = max(score, marker_conf * 0.95)
+                score = max(score + marker_conf * 0.05, marker_conf * 0.95)
 
         return score
 
@@ -379,7 +416,8 @@ class AggregatedLicenseMatcher:
             ) from exc
 
         if not jpype.isJVMStarted():
-            jpype.startJVM(classpath=[self.jar_path], convertStrings=False)
+            classpath = [self.jar_path] if self.jar_path is not None else None
+            jpype.startJVM(classpath=classpath, convertStrings=False)
             model_factory = jpype.JClass("org.spdx.library.SpdxModelFactory")
             model_factory.init()
 
@@ -414,7 +452,15 @@ class AggregatedLicenseMatcher:
         finally:
             j_thread.detach()
 
-        ranked.sort(key=lambda x: x["score"], reverse=True)
+        def sort_key(x: InternalMatch) -> tuple[float, bool, float, str]:
+            return (
+                -x["score"],
+                x.get("is_deprecated", False),
+                -x.get("pop_score", 0) if self.enable_popularity else 0.0,
+                x["license_id"],
+            )
+
+        ranked.sort(key=sort_key)
         return ranked
 
     # Detects -or-later granting language in mixed/source-file contexts.
@@ -437,7 +483,11 @@ class AggregatedLicenseMatcher:
         return bool(self._RE_OR_LATER.search(text))
 
     def _apply_version_suffix_tiebreaker(
-        self, ranked: list[InternalMatch], raw_text: str, is_pure: bool
+        self,
+        ranked: list[InternalMatch],
+        raw_text: str,
+        is_pure: bool,
+        enable_pop: bool = False,
     ) -> list[InternalMatch]:
         """Break -only / -or-later ties using granting language in the input.
 
@@ -491,7 +541,16 @@ class AggregatedLicenseMatcher:
                 adj = adjustments.get(match["license_id"], 0.0)
                 if adj:
                     match["score"] += adj
-            ranked.sort(key=lambda x: x["score"], reverse=True)
+
+            def sort_key(x: InternalMatch) -> tuple[float, bool, float, str]:
+                return (
+                    -x["score"],
+                    x.get("is_deprecated", False),
+                    -x.get("pop_score", 0) if enable_pop else 0.0,
+                    x["license_id"],
+                )
+
+            ranked.sort(key=sort_key)
 
         return ranked
 
@@ -560,7 +619,14 @@ class AggregatedLicenseMatcher:
                     )
                 )
 
-        ranked.sort(key=lambda x: x["score"], reverse=True)
+        ranked.sort(
+            key=lambda x: (
+                -x["score"],
+                x.get("is_deprecated", False),
+                -cast(int, x.get("pop_score", 0)),
+                x["license_id"],
+            )
+        )
         return ranked
 
     # Compiled once at class level for efficiency
@@ -572,13 +638,25 @@ class AggregatedLicenseMatcher:
         r"changelog|roadmap|faq|support|credits|acknowledgements?)",
         re.IGNORECASE,
     )
+    # Openers that appear at the START of a full license document
+    # (not inside source files).
+    # "apache license" removed — too broad; it appears in license notice headers too.
+    # "mozilla public license" removed for the same reason.
+    # These files are caught by filename (LICENSE, COPYING) or by high FTS5 similarity.
     _RE_LICENSE_OPENER = re.compile(
         r"(permission is hereby granted|permission to use, copy|"
-        r"gnu general public license|apache license|"
-        r"mozilla public license|common development and distribution|"
-        r"creative commons|redistribution and use in source|"
+        r"gnu general public license|"
+        r"common development and distribution license|"
+        r"creative commons attribution|redistribution and use in source|"
         r"everyone is permitted to copy)",
         re.IGNORECASE,
+    )
+    # Positive signals that a file is SOURCE CODE, not a license document.
+    _RE_CODE_SIGNAL = re.compile(
+        r"^(?:package\s+\w|import\s+\w|from\s+\w+\s+import\b|"
+        r"#include\s+[<\"]|class\s+\w+[(\s{:]|public\s+class\s+\w|"
+        r"def\s+\w+\s*\(|function\s+\w+\s*\()",
+        re.MULTILINE,
     )
     _RE_NUMBERED_SECTION = re.compile(r"^\s*\d+\.\s+\w", re.MULTILINE)
 
@@ -597,6 +675,10 @@ class AggregatedLicenseMatcher:
                 return True
 
         if len(text.split()) < 30 or "```" in text or "~~~" in text:
+            return False
+
+        # Source code signals override other heuristics
+        if self._RE_CODE_SIGNAL.search(text[:2000]):
             return False
 
         md_headers = [

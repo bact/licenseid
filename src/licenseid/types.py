@@ -31,10 +31,12 @@ class CandidateMatch(TypedDict, total=False):
     search_text: Required[str]
     word_count: int
     is_spdx: bool
-    is_high_usage: bool
     is_osi_approved: bool
     is_fsf_libre: bool
-    popularity_score: int
+    is_deprecated: bool
+    superseded_by: str
+    is_high_usage: bool
+    pop_score: int
     score: float
 
 
@@ -47,6 +49,8 @@ class InternalMatch(TypedDict, total=False):
     coverage: Required[float]
     base_score: Required[float]
     pop_score: Required[int]
+    is_deprecated: bool
+    superseded_by: str
     best_window: Required[str]
     java_verified: bool
 
@@ -83,7 +87,7 @@ class LicenseDetails(TypedDict, total=False):
     is_high_usage: Required[bool]
     is_deprecated: bool
     superseded_by: str
-    popularity_score: Required[int]
+    pop_score: Required[int]
     word_count: Required[int]
     xml_template: str
     legacy_template: str
