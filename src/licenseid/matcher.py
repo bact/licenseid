@@ -252,7 +252,6 @@ class AggregatedLicenseMatcher:
                     )
         return filtered
 
-    # pylint: disable=too-many-branches
     def _rank_candidates(
         self,
         candidates: list[CandidateMatch],
@@ -261,71 +260,21 @@ class AggregatedLicenseMatcher:
         marker_boosts: Optional[dict[str, float]] = None,
         is_pure: bool = True,
     ) -> list[InternalMatch]:
-        """Rank candidates using dynamic sliding window and marker-boosted scoring.
-
-        marker_boosts maps license_id → marker confidence (0.85–0.95).
-        For pure license text the marker acts as a small additive bonus so
-        similarity stays primary.  For mixed content it acts as a score floor
-        so the marker signal can dominate when similarity is diluted.
-        """
+        """Rank candidates using dynamic sliding window and marker-boosted scoring."""
         enable_popularity = data.get("enable_popularity", self.enable_popularity)
         query_words = norm_input.split()
         q_len = len(query_words)
-        ranked: list[InternalMatch] = []
+        q_tokens = set(query_words)
         boosts = marker_boosts or {}
+        ranked: list[InternalMatch] = []
 
         for cand in candidates:
-            license_id = cand["license_id"]
-            search_text = cand["search_text"] or ""
-            c_len = cand["word_count"] or 0
-            if c_len == 0:
-                c_len = len(search_text.split())
-
-            similarity = 0.0
-            best_window = search_text
-
-            if norm_input == search_text:
-                similarity = 1.0
-            elif q_len >= c_len * 0.8:
-                # Rule 1: Full Text Comparison
-                similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
-            else:
-                # Rule 2: Surgical Window Alignment (for snippets)
-                if q_len < 500:
-                    fast_score = fuzz.partial_ratio(norm_input, search_text) / 100.0
-                    if fast_score >= 0.6:
-                        alignment = fuzz.partial_ratio_alignment(
-                            norm_input, search_text
-                        )
-                        if alignment:
-                            best_window = search_text[
-                                alignment.dest_start : alignment.dest_end
-                            ]
-                            similarity = (
-                                fuzz.token_sort_ratio(norm_input, best_window) / 100.0
-                            )
-                        else:
-                            similarity = fast_score
-                    else:
-                        similarity = fast_score
-                else:
-                    # Large-to-large comparison fallback
-                    similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
-
-            coverage = (q_len / c_len) if c_len > 0 else 0.0
-
-            # Semantic Safeguards
-            critical_tokens = {"not", "except", "unless", "irrevocable"}
-            if 0.90 < similarity < 1.0:
-                q_tokens = set(query_words)
-                c_tokens = set(search_text.split())
-                for token in critical_tokens:
-                    if (token in q_tokens) != (token in c_tokens):
-                        similarity *= 0.95
-
+            similarity, coverage, best_window = self._calculate_base_similarity(
+                norm_input, q_len, q_tokens, cand
+            )
             ranked.append(
                 InternalMatch(
-                    license_id=license_id,
+                    license_id=cand["license_id"],
                     base_score=similarity,
                     similarity=similarity,
                     coverage=coverage,
@@ -335,36 +284,87 @@ class AggregatedLicenseMatcher:
                 )
             )
 
-        if ranked:
-            for r in ranked:
-                similarity = r["base_score"]
-
-                coverage_penalty = 0.0
-                if r["coverage"] < 0.8:
-                    coverage_penalty = (1.0 - r["coverage"]) * 0.02
-
-                coverage_bonus = 0.005 if 0.95 <= r["coverage"] <= 1.05 else 0.0
-
-                score = similarity - coverage_penalty + coverage_bonus
-
-                if enable_popularity:
-                    score += math.log10(max(1, r["pop_score"])) * 0.0001
-
-                # Apply marker signal.
-                marker_conf = boosts.get(r["license_id"], 0.0)
-                if marker_conf > 0:
-                    if is_pure:
-                        # Small additive bonus — similarity is still primary.
-                        score += marker_conf * 0.03
-                    else:
-                        # Confidence floor — marker is the primary signal when
-                        # similarity is diluted by surrounding non-license text.
-                        score = max(score, marker_conf * 0.95)
-
-                r["score"] = score
+        for r in ranked:
+            r["score"] = self._calculate_final_score(
+                r, boosts, is_pure, enable_popularity
+            )
 
         ranked.sort(key=lambda x: x["score"], reverse=True)
         return ranked
+
+    def _calculate_base_similarity(
+        self, norm_input: str, q_len: int, q_tokens: set[str], cand: CandidateMatch
+    ) -> tuple[float, float, str]:
+        """Calculate base similarity and coverage for a candidate."""
+        search_text = cand["search_text"] or ""
+        c_len = cand["word_count"] or 0
+        if c_len == 0:
+            c_len = len(search_text.split())
+
+        similarity = 0.0
+        best_window = search_text
+
+        if norm_input == search_text:
+            similarity = 1.0
+        elif q_len >= c_len * 0.8:
+            similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
+        else:
+            if q_len < 500:
+                fast_score = fuzz.partial_ratio(norm_input, search_text) / 100.0
+                if fast_score >= 0.6:
+                    alignment = fuzz.partial_ratio_alignment(norm_input, search_text)
+                    if alignment:
+                        best_window = search_text[
+                            alignment.dest_start : alignment.dest_end
+                        ]
+                        similarity = (
+                            fuzz.token_sort_ratio(norm_input, best_window) / 100.0
+                        )
+                    else:
+                        similarity = fast_score
+                else:
+                    similarity = fast_score
+            else:
+                similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
+
+        # Semantic Safeguards
+        if 0.90 < similarity < 1.0:
+            critical_tokens = {"not", "except", "unless", "irrevocable"}
+            c_tokens = set(search_text.split())
+            for token in critical_tokens:
+                if (token in q_tokens) != (token in c_tokens):
+                    similarity *= 0.95
+
+        coverage = (q_len / c_len) if c_len > 0 else 0.0
+        return similarity, coverage, best_window
+
+    def _calculate_final_score(
+        self,
+        match: InternalMatch,
+        boosts: dict[str, float],
+        is_pure: bool,
+        enable_popularity: bool,
+    ) -> float:
+        """Calculate the final adjusted score for a match."""
+        similarity = match["base_score"]
+        coverage = match["coverage"]
+
+        coverage_penalty = (1.0 - coverage) * 0.02 if coverage < 0.8 else 0.0
+        coverage_bonus = 0.005 if 0.95 <= coverage <= 1.05 else 0.0
+
+        score = similarity - coverage_penalty + coverage_bonus
+
+        if enable_popularity:
+            score += math.log10(max(1, match["pop_score"])) * 0.0001
+
+        marker_conf = boosts.get(match["license_id"], 0.0)
+        if marker_conf > 0:
+            if is_pure:
+                score += marker_conf * 0.03
+            else:
+                score = max(score, marker_conf * 0.95)
+
+        return score
 
     def _ensure_jvm(self) -> None:
         """Ensure the JVM is started with the tools-java JAR."""
@@ -589,41 +589,26 @@ class AggregatedLicenseMatcher:
         """
         if file_path:
             basename = os.path.basename(file_path).upper()
-            if basename in ("LICENSE", "COPYING", "UNLICENSE", "LICENCE"):
-                return True
-            if any(
+            if basename in ("LICENSE", "COPYING", "UNLICENSE", "LICENCE") or any(
                 basename.startswith(p) for p in ("LICENSE.", "COPYING.", "LICENCE.")
             ):
                 return True
 
-        words = text.split()
-        if len(words) < 30:
+        if len(text.split()) < 30 or "```" in text or "~~~" in text:
             return False
 
-        # Code fences are a reliable mixed-content indicator (README, docs)
-        if "```" in text or "~~~" in text:
+        md_headers = [
+            line for line in text.splitlines() if re.match(r"^#{1,6}\s+\S", line)
+        ]
+        if len(md_headers) > 3 or any(
+            self._RE_NON_LICENSE_SECTION.match(h) for h in md_headers
+        ):
             return False
 
-        lines = text.splitlines()
-        md_headers = [line for line in lines if re.match(r"^#{1,6}\s+\S", line)]
-
-        # Non-license section headings → README / mixed document
-        if any(self._RE_NON_LICENSE_SECTION.match(h) for h in md_headers):
-            return False
-
-        # Many headers → multi-section document, not a pure license
-        if len(md_headers) > 3:
-            return False
-
-        # Numbered section structure (Apache, GPL, MPL, CDDL …)
-        if len(self._RE_NUMBERED_SECTION.findall(text)) >= 3:
-            return True
-
-        # Known license preamble phrases in first ~1 kB
-        if self._RE_LICENSE_OPENER.search(text[:1000]):
-            return True
-
-        return False
+        # Positive indicators: numbered sections or known preamble
+        return len(self._RE_NUMBERED_SECTION.findall(text)) >= 3 or bool(
+            self._RE_LICENSE_OPENER.search(text[:1000])
+        )
 
     def _match_mixed_content(
         self, request: MatchRequest, target_text: str

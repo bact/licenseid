@@ -1,4 +1,4 @@
-GNU Grep
+# GNU Grep
 
 Grep searches one or more input files for lines containing a match to a specified pattern. By default, Grep outputs the matching lines.
 Downloads
@@ -7,7 +7,7 @@ Downloads
     The current development version (introducing new features and bugfixes, but also quite possibly new bugs) can be accessed using Git. Detailed instructions can be found in “grep - Git Repositories.”
     For other ways to obtain grep, please read How to get GNU software.
 
-Documentation
+## Documentation
 
 Documentation for Grep is available online, as is documentation for most GNU software. You may also find more information about Grep by running info grep or man grep, or by looking at /usr/share/doc/grep/, /usr/local/doc/grep/, or similar directories on your system. A brief summary is available by running grep --help.
 Mailing lists
@@ -24,15 +24,19 @@ Getting involved
 
 Development of Grep, and GNU in general, is a volunteer effort, and you can contribute. For information, please read How to help GNU. If you'd like to get involved, it's a good idea to join the bug mailing list (see above).
 
-Test releases
+## Test releases
+
     Trying the latest test release (when available) is always appreciated. Test releases of Grep are typically announced on the platform-testers mailing list.
-Development
+
+##Development
     Information for GNU grep developers is a comprehensive source for all development-related matters. For development sources and other information, please see the Grep project page at savannah.gnu.org.
-Translating Grep
+
+## Translating Grep
     To translate Grep's messages into other languages, please see the Translation Project page for Grep. If you have a new translation of the message strings, or updates to the existing strings, please have the changes made in this repository, otherwise they will not be incorporated into Grep. For more information, see the Translation Project.
-Maintainer
+
+## Maintainer
     Grep is currently being maintained by Jim Meyering. Please use the mailing lists for contact.
 
-Licensing
+## Licensing
 
 Grep is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later version.
