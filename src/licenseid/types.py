@@ -51,9 +51,11 @@ class InternalMatch(TypedDict, total=False):
 
 
 class MatchRequest(TypedDict, total=False):
-    """Input to AggregatedLicenseMatcher.match() when passing a dict."""
+    """Input to AggregatedLicenseMatcher.match()."""
 
-    text: Required[str]
+    text: str
+    license_id: str
+    file_path: str
     only_spdx: bool
     only_common: bool
     exclude: list[str]

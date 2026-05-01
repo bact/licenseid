@@ -19,6 +19,7 @@ import click
 from licenseid.database import LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
+from licenseid.types import LicenseDetails
 
 
 def get_default_db_path() -> str:
@@ -134,9 +135,77 @@ def unescape_text(text: str) -> str:
         return text
 
 
-@cli.command()
-@click.argument("input_file", type=click.Path(exists=True), required=False)
+def get_input_content(
+    input_val: Optional[str], text: Optional[str]
+) -> tuple[str, bool]:
+    """
+    Get input content and indicate if it's likely a file path/text vs an ID.
+    Returns (content, is_text_or_file).
+    """
+    if text:
+        return unescape_text(text), True
+    if input_val:
+        if os.path.exists(input_val):
+            with open(input_val, "r", encoding="utf-8") as f:
+                return f.read(), True
+        return input_val, False
+    if not sys.stdin.isatty():
+        return sys.stdin.read(), True
+    return "", False
+
+
+def resolve_license_record(
+    ctx: click.Context,
+    input_val: Optional[str],
+    text: Optional[str],
+    id_val: Optional[str] = None,
+) -> Optional[LicenseDetails]:
+    """Helper to resolve a license from CLI arguments (implements Smart Logic)."""
+    db_path = ctx.obj["db_path"]
+    if not os.path.exists(db_path):
+        click.echo(
+            f"ERROR: Database not found at {db_path}. "
+            "Please run 'licenseid update' first.",
+            err=True,
+        )
+        ctx.exit(2)
+
+    matcher = AggregatedLicenseMatcher(db_path)
+    check_db_staleness(matcher.db)
+
+    # 1. Explicit ID
+    if id_val:
+        return matcher.db.get_license_details(id_val)
+
+    # 2. Handle stdin/arguments
+    content, is_text = get_input_content(input_val, text)
+    if not content:
+        click.echo(
+            "ERROR: No input provided. Provide a file, ID, "
+            "--text, --id, or pipe to stdin.",
+            err=True,
+        )
+        ctx.exit(2)
+
+    # 3. Smart Resolution (ID -> Text)
+    if not is_text:
+        # Try as ID first
+        details = matcher.db.get_license_details(content)
+        if details:
+            return details
+
+    # Try matching as text
+    results = matcher.match(text=content)
+    if results and results[0]["score"] >= 0.85:
+        return matcher.db.get_license_details(results[0]["license_id"])
+
+    return None
+
+
+@cli.command(name="match")
+@click.argument("input_val", required=False)
 @click.option("--text", help="License text to match.")
+@click.option("--id", "id_val", help="Explicit SPDX License ID to lookup.")
 @click.option(
     "--json", "json_output", is_flag=True, help="Output results in JSON format."
 )
@@ -157,10 +226,11 @@ def unescape_text(text: str) -> str:
 @click.option("--diff", is_flag=True, help="Show word diff for the top match.")
 @click.option("--bold", is_flag=True, help="Print only the top license ID.")
 @click.pass_context
-def match(
+def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     ctx: click.Context,
-    input_file: Optional[str],
+    input_val: Optional[str],
     text: Optional[str],
+    id_val: Optional[str],
     json_output: bool,
     threshold: float,
     top: int,
@@ -180,31 +250,34 @@ def match(
         )
         ctx.exit(2)
 
-    db_obj = LicenseDatabase(db_path)
-    check_db_staleness(db_obj)
+    matcher = AggregatedLicenseMatcher(
+        db_path, enable_java=enable_java, enable_popularity=enable_popularity
+    )
+    check_db_staleness(matcher.db)
 
-    license_text = ""
-    if input_file:
-        with open(input_file, "r", encoding="utf-8") as f:
-            license_text = f.read()
-    elif text:
-        license_text = unescape_text(text)
+    if id_val:
+        results = matcher.match(license_id=id_val)
+        license_text = ""
     else:
-        # Try reading from stdin
-        if not sys.stdin.isatty():
-            license_text = sys.stdin.read()
-        else:
+        content, is_text = get_input_content(input_val, text)
+        if not content:
             click.echo(
-                "ERROR: No input text provided. "
-                "Provide a file, --text, or pipe to stdin.",
+                "ERROR: No input provided. Provide a file, ID, "
+                "--text, --id, or pipe to stdin.",
                 err=True,
             )
             ctx.exit(2)
 
-    matcher = AggregatedLicenseMatcher(
-        db_path, enable_java=enable_java, enable_popularity=enable_popularity
-    )
-    results = matcher.match(license_text)
+        license_text = content
+        if not is_text:
+            # Try as ID first (Smart Logic)
+            results = matcher.match(license_id=content)
+            if not results:
+                # Fallback to text matching
+                results = matcher.match(text=content)
+        else:
+            # Explicit text/file matching
+            results = matcher.match(text=content)
 
     # Filter by threshold and limit to top N
     results = [r for r in results if r["score"] >= threshold][:top]
@@ -236,6 +309,101 @@ def match(
                 show_diff(license_text, r.get("best_window", ""))
 
     ctx.exit(0)
+
+
+@cli.command(name="is-osi")
+@click.argument("input_val", required=False)
+@click.option("--text", help="License text to check.")
+@click.option("--id", "id_val", help="Explicit SPDX License ID to check.")
+@click.pass_context
+def is_osi(
+    ctx: click.Context,
+    input_val: Optional[str],
+    text: Optional[str],
+    id_val: Optional[str],
+) -> None:
+    """True if the license is OSI-approved."""
+    record = resolve_license_record(ctx, input_val, text, id_val)
+    if record and record.get("is_osi_approved"):
+        click.echo("true")
+        ctx.exit(0)
+    click.echo("false")
+    ctx.exit(1)
+
+
+@cli.command(name="is-fsf")
+@click.argument("input_val", required=False)
+@click.option("--text", help="License text to check.")
+@click.option("--id", "id_val", help="Explicit SPDX License ID to check.")
+@click.pass_context
+def is_fsf(
+    ctx: click.Context,
+    input_val: Optional[str],
+    text: Optional[str],
+    id_val: Optional[str],
+) -> None:
+    """True if the license is FSF-libre."""
+    record = resolve_license_record(ctx, input_val, text, id_val)
+    if record and record.get("is_fsf_libre"):
+        click.echo("true")
+        ctx.exit(0)
+    click.echo("false")
+    ctx.exit(1)
+
+
+@cli.command(name="is-open")
+@click.argument("input_val", required=False)
+@click.option("--text", help="License text to check.")
+@click.option("--id", "id_val", help="Explicit SPDX License ID to check.")
+@click.pass_context
+def is_open(
+    ctx: click.Context,
+    input_val: Optional[str],
+    text: Optional[str],
+    id_val: Optional[str],
+) -> None:
+    """True if the license is OSI-approved OR FSF-libre."""
+    record = resolve_license_record(ctx, input_val, text, id_val)
+    if record and (record.get("is_osi_approved") or record.get("is_fsf_libre")):
+        click.echo("true")
+        ctx.exit(0)
+    click.echo("false")
+    ctx.exit(1)
+
+
+@cli.command(name="is-free")
+@click.argument("input_val", required=False)
+@click.option("--text", help="License text to check.")
+@click.option("--id", "id_val", help="Explicit SPDX License ID to check.")
+@click.pass_context
+def is_free(  # pylint: disable=unused-argument
+    ctx: click.Context,
+    input_val: Optional[str],
+    text: Optional[str],
+    id_val: Optional[str],
+) -> None:
+    """Alias for is-open."""
+    ctx.forward(is_open)
+
+
+@cli.command(name="is-spdx")
+@click.argument("input_val", required=False)
+@click.option("--text", help="License text to check.")
+@click.option("--id", "id_val", help="Explicit SPDX License ID to check.")
+@click.pass_context
+def is_spdx_cmd(
+    ctx: click.Context,
+    input_val: Optional[str],
+    text: Optional[str],
+    id_val: Optional[str],
+) -> None:
+    """True if the license is in the SPDX License List."""
+    record = resolve_license_record(ctx, input_val, text, id_val)
+    if record and record.get("is_spdx"):
+        click.echo("true")
+        ctx.exit(0)
+    click.echo("false")
+    ctx.exit(1)
 
 
 def main() -> None:

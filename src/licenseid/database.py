@@ -497,13 +497,23 @@ class LicenseDatabase:
                 return []
 
     def get_license_details(self, license_id: str) -> Optional[LicenseDetails]:
-        """Get full metadata for a license."""
+        """Get full metadata for a license (case-insensitive lookup)."""
+        clean_id = license_id.strip()
         with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
-                "SELECT * FROM licenses WHERE license_id = ?", (license_id,)
+                "SELECT * FROM licenses WHERE license_id = ? COLLATE NOCASE",
+                (clean_id,),
             ).fetchone()
-            return cast(LicenseDetails, dict(row)) if row else None
+            if not row:
+                return None
+
+            # Ensure boolean types are correctly cast
+            d = dict(row)
+            for key in ["is_spdx", "is_osi_approved", "is_fsf_libre", "is_high_usage"]:
+                if key in d:
+                    d[key] = bool(d[key])
+            return cast(LicenseDetails, d)
 
     def get_all_names_and_ids(self) -> list[LicenseNameId]:
         """Retrieve all license IDs and names for short-text matching."""
