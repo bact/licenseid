@@ -32,8 +32,9 @@ class MarkerDetector:
     )
 
     # Include + to handle SPDX-legacy notation like GPL-2.0+
+    # Use [ \t]* (not \s*) to prevent matching across line breaks.
     RE_LICENSE_FIELD = re.compile(
-        r"license\s*[:=]\s*['\"]?([a-zA-Z0-9.+,\s-]+)['\"]?", re.IGNORECASE
+        r"license[ \t]*[:=][ \t]*['\"]?([a-zA-Z0-9.+, \t-]+)['\"]?", re.IGNORECASE
     )
 
     # Heading patterns — allow optional words after "License/Licensing"
@@ -51,6 +52,12 @@ class MarkerDetector:
     )
     RE_LINE_HEADING = re.compile(
         r"^\s*Licens(?:e|ing)(?:\s+\w+)*\s*$", re.MULTILINE | re.IGNORECASE
+    )
+
+    # Font-exception-2.0: "As a special exception...embed this font..."
+    RE_FONT_EXCEPTION = re.compile(
+        r"as\s+a\s+special\s+exception.{0,400}embed\s+this\s+font",
+        re.IGNORECASE | re.DOTALL,
     )
 
     # GPL/LGPL/AGPL copyright notice header detection.
@@ -100,6 +107,7 @@ class MarkerDetector:
             self._detect_structured_format(text, ext),
             self._detect_explicit_identifiers(text),
             self._detect_gpl_headers(text),
+            self._detect_bsd_headers(text),
             self._detect_headings(text),
             self._detect_license_mentions(text),
             self._detect_first_line(text),
@@ -312,6 +320,41 @@ class MarkerDetector:
             if license_id in seen:
                 continue
 
+            # Check for Font-exception-2.0 ("As a special exception...embed this font")
+            if family == "GPL" and self.RE_FONT_EXCEPTION.search(text):
+                font_id = f"{license_id} WITH Font-exception-2.0"
+                score = 0.92 if or_later else 0.88
+                font_details = self.db.get_license_details(font_id)
+                if font_details:
+                    candidates.append(self.to_candidate(font_details, score))
+                else:
+                    # WITH expression not in DB — synthetic candidate;
+                    # marker floor in _calculate_final_score ensures it ranks above
+                    # plain GPL without exception (which lacks the marker boost).
+                    base_details = self.db.get_license_details(license_id)
+                    candidates.append(
+                        {
+                            "license_id": font_id,
+                            "search_text": (
+                                self.db.get_search_text(license_id)
+                                if base_details
+                                else ""
+                            ),
+                            "score": score,
+                            "is_spdx": True,
+                            "word_count": base_details.get("word_count", 0)
+                            if base_details
+                            else 0,
+                            "is_high_usage": False,
+                            "is_osi_approved": False,
+                            "is_fsf_libre": False,
+                            "pop_score": 0,
+                        }
+                    )
+                seen.add(font_id)
+                seen.add(license_id)
+                continue
+
             details = self.db.get_license_details(license_id)
             if details:
                 score = 0.92 if or_later else 0.88
@@ -319,6 +362,34 @@ class MarkerDetector:
                 seen.add(license_id)
 
         return candidates
+
+    def _detect_bsd_headers(self, text: str) -> list[CandidateMatch]:
+        """Detect BSD-style licenses by counting numbered redistribution conditions.
+
+        Score 0.95 (structural, high-confidence) so it triggers the marker
+        floor even on is_pure files, overriding wrong candidates like
+        BSD-2-Clause-Darwin whose FTS5 similarity may be higher.
+        """
+        conditions = re.findall(
+            r"^\s*(\d+)\.\s+(?:Redistribution|Neither\b|All\s+advertising|The\s+(?:name|author))",
+            text,
+            re.MULTILINE | re.IGNORECASE,
+        )
+        if not conditions:
+            return []
+        max_cond = max(int(c) for c in conditions)
+        if max_cond == 2:
+            lic_id = "BSD-2-Clause"
+        elif max_cond == 3:
+            lic_id = "BSD-3-Clause"
+        elif max_cond == 4:
+            lic_id = "BSD-4-Clause"
+        else:
+            return []
+        details = self.db.get_license_details(lic_id)
+        if details:
+            return [self.to_candidate(details, 0.95)]
+        return []
 
     def _detect_headings(self, text: str) -> list[CandidateMatch]:
         """Detect license headings and extract the license name from nearby lines."""
@@ -394,6 +465,12 @@ class MarkerDetector:
     def _name_variants(self, name: str) -> list[str]:
         """Generate lookup variants for a captured license name/ID."""
         variants = [name, name + " License", name + " Licence"]
+        # "The FreeBSD Documentation License" → "FreeBSD Documentation License"
+        if name.lower().startswith("the "):
+            rest = name[4:]
+            variants += [rest, rest + " License"]
+            if rest.lower().endswith(" license"):
+                variants.append(rest[:-8].strip())
         # "Apache License, Version 2.0" → "Apache License 2.0"
         no_version_word = re.sub(
             r",?\s*Version\s+", " ", name, flags=re.IGNORECASE
@@ -474,9 +551,11 @@ class MarkerDetector:
             clean_line = line.strip()
             if not clean_line:
                 continue
-            details = self.db.get_license_details(
-                clean_line
-            ) or self.db.get_license_by_name(clean_line)
+            details = (
+                self.db.get_license_details(clean_line)
+                or self.db.get_license_by_name(clean_line)
+                or self._try_license_lookup(clean_line)
+            )
             if details:
                 return [self.to_candidate(details, 0.85)]
             break

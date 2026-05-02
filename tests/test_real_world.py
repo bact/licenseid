@@ -87,8 +87,44 @@ def test_db() -> Generator[str, None, None]:
             ("GPL-2.0-only", "GNU General Public License v2.0 only", True, False, None),
         )
         conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            ("BSD-2-Clause", 'BSD 2-Clause "Simplified" License', True, False, None),
+        )
+        conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            ("MPL-2.0", "Mozilla Public License 2.0", True, False, None),
+        )
+        conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            ("FreeBSD-DOC", "FreeBSD Documentation License", True, False, None),
+        )
+        conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            (
+                "LGPL-2.1-or-later",
+                "GNU Lesser General Public License v2.1 or later",
+                True,
+                False,
+                None,
+            ),
+        )
+        conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            (
+                "GPL-2.0-or-later WITH Font-exception-2.0",
+                "GPL-2.0-or-later with Font Exception 2.0",
+                True,
+                False,
+                None,
+            ),
+        )
+        conn.execute(
             "INSERT INTO exceptions (exception_id, name, is_deprecated, superseded_by) VALUES (?, ?, ?, ?)",
             ("Linux-syscall-note", "Linux Syscall Note", False, None),
+        )
+        conn.execute(
+            "INSERT INTO exceptions (exception_id, name, is_deprecated, superseded_by) VALUES (?, ?, ?, ?)",
+            ("Font-exception-2.0", "Font Exception 2.0", False, None),
         )
         conn.execute(
             "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",

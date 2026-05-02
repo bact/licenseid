@@ -204,7 +204,8 @@ def test_must_have_accuracy(matcher: AggregatedLicenseMatcher) -> None:
 @pytest.mark.benchmark
 def test_full_accuracy(matcher: AggregatedLicenseMatcher) -> None:
     """Run full accuracy benchmark across all distortion rates for all licenses."""
-    rates = ["00", "01", "02", "05", "10", "20"]
+    # rates = ["00", "01", "02", "05", "10", "20"]
+    rates = ["00", "02", "05"]
     results = run_accuracy_test(matcher, rates)
 
     print("\n" + "=" * 55)

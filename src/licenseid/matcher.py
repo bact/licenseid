@@ -395,10 +395,12 @@ class AggregatedLicenseMatcher:
 
         marker_conf = boosts.get(match["license_id"], 0.0)
         if marker_conf > 0:
-            # For long pure license text, similarity dominates; small additive boost.
-            # For mixed content OR short text (< 50 words), the marker is the primary
-            # signal — use an additive boost plus a confidence floor.
-            if is_pure and q_len >= 50:
+            # For long pure license text with moderate-confidence markers,
+            # similarity dominates; use a small additive boost only.
+            # For mixed content, short text, OR high-confidence structural
+            # detection (>= 0.94, e.g. BSD/GPL header analysis), the marker
+            # is authoritative — apply an additive boost plus a confidence floor.
+            if is_pure and q_len >= 50 and marker_conf < 0.94:
                 score += marker_conf * 0.03
             else:
                 score = max(score + marker_conf * 0.05, marker_conf * 0.95)
@@ -645,7 +647,6 @@ class AggregatedLicenseMatcher:
     # These files are caught by filename (LICENSE, COPYING) or by high FTS5 similarity.
     _RE_LICENSE_OPENER = re.compile(
         r"(permission is hereby granted|permission to use, copy|"
-        r"gnu general public license|"
         r"common development and distribution license|"
         r"creative commons attribution|redistribution and use in source|"
         r"everyone is permitted to copy)",
@@ -689,8 +690,10 @@ class AggregatedLicenseMatcher:
         ):
             return False
 
-        # Positive indicators: numbered sections or known preamble
-        return len(self._RE_NUMBERED_SECTION.findall(text)) >= 3 or bool(
+        # Positive indicators: numbered sections or known preamble.
+        # Threshold >= 5 avoids mis-classifying BSD notices (3 conditions)
+        # embedded in copyright headers as standalone license text.
+        return len(self._RE_NUMBERED_SECTION.findall(text)) >= 5 or bool(
             self._RE_LICENSE_OPENER.search(text[:1000])
         )
 
