@@ -1,0 +1,7 @@
+{
+  "name": "lib_mock_cc-by-3.0-us_0",
+  "version": "1.0.0",
+  "description": "An awesome library.",
+  "main": "index.js",
+  "license": "CC-BY-3.0-US"
+}

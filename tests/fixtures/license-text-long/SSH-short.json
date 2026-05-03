@@ -1,0 +1,17 @@
+{
+    "license_text": "As far as I am concerned, the code I have written for this software\ncan be used freely for any purpose.  Any derived versions of this\nsoftware must be clearly marked as such, and if the derived work is\nincompatible with the protocol description in the RFC file, it must be\ncalled by a name other than \"ssh\" or \"Secure Shell\".\n",
+    "license_id": "SSH-short",
+    "name": "SSH short notice",
+    "close_license_ids": [
+        "SSH-OpenSSH"
+    ],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_long_distorted_01": "As far as I am concerned, the code I have written for this software can be used freely for any purpose. Any derived versions of this software must be clearly marked as such, and if the derived work is incompatible with the protocol description in the RFC file, it must be called by a name other than \"ssh\" or \"Secure Shlel\".",
+    "license_text_long_distorted_02": "As far as I am concerned, the code I have written for this software can be used freely for any purpose. Any derived versions of this software must be clearly marked as such, and \n if the derived work is incompatible with the protocol description in the RFC file, it must be called by a name other than \"ssh\" or \"Secure Shell\".",
+    "license_text_long_distorted_05": "As far as I am concerned, the code I have written for this software can be used freely for any purpose. Any derived versions of this software must be clearly marked as such, and \n if the derived work is incompatible with the protoocl description in the RFC file, it must be called by a name other than \"ssh\" or \"Secure Shell\".",
+    "license_text_long_distorted_10": "As far as I am concerned, the code I have writte n this software can be used freely for any purpose. Any derived versions of this software must be clearly marked as such, and if the derived work is incompatible with the protocol description in teh RFC file, it must be called by a name other than \"ssh\" or \"Secure Shell\".",
+    "license_text_long_distorted_20": "As far as I am concerned, the code I have written for Diese Lizenz gilt f\u00fcr diese Software. this software can be used freely any purpose. derived versions of this must be claerly marked as \n such, Esta licencia aplica a este software. and if the derived work is incompatible with \n the protocol description= in the RFC file, it must be called Ce logiciel est sous licence libre. by a name toher than \"ssh\" or \"Secure Shell\"."
+}

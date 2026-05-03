@@ -1,0 +1,542 @@
+[
+    {
+        "license_id": "GPL-2.0-only",
+        "id_verbatim": "GPL-2.0-only",
+        "id_deprecated": "GPL-2.0",
+        "id_space": "   GPL-2.0-only  ",
+        "id_casing": "gpl-2.0-only",
+        "id_punct": "GPL-2.0-only",
+        "id_distorted": "GPL-2.0-on"
+    },
+    {
+        "license_id": "GPL-2.0-or-later",
+        "id_verbatim": "GPL-2.0-or-later",
+        "id_deprecated": "GPL-2.0+",
+        "id_space": "   GPL-2.0-or-later  ",
+        "id_casing": "GPL-2.0-OR-LATER",
+        "id_punct": "GPL-2.0-or-later",
+        "id_distorted": "GPL-2.0-or-lat"
+    },
+    {
+        "license_id": "Interbase-1.0",
+        "id_verbatim": "Interbase-1.0",
+        "id_deprecated": "",
+        "id_space": "  Interbase-1.0   ",
+        "id_casing": "iNTerBaSE-1.0",
+        "id_punct": "Interbase-1.0",
+        "id_distorted": "Interbase-1"
+    },
+    {
+        "license_id": "APSL-2.0",
+        "id_verbatim": "APSL-2.0",
+        "id_deprecated": "",
+        "id_space": "   APSL-2.0   ",
+        "id_casing": "APSL-2.0",
+        "id_punct": "APSL-2.0",
+        "id_distorted": "APSL-2"
+    },
+    {
+        "license_id": "MIT-STK",
+        "id_verbatim": "MIT-STK",
+        "id_deprecated": "",
+        "id_space": " MIT-STK  ",
+        "id_casing": "Mit-StK",
+        "id_punct": "MIT-STK",
+        "id_distorted": "MIT-"
+    },
+    {
+        "license_id": "MIT-enna",
+        "id_verbatim": "MIT-enna",
+        "id_deprecated": "",
+        "id_space": "   MIT-enna  ",
+        "id_casing": "mIT-eNNA",
+        "id_punct": "MITenna",
+        "id_distorted": "MIT-en"
+    },
+    {
+        "license_id": "CC-BY-NC-SA-2.0-DE",
+        "id_verbatim": "CC-BY-NC-SA-2.0-DE",
+        "id_deprecated": "",
+        "id_space": " CC-BY-NC-SA-2.0-DE  ",
+        "id_casing": "cc-By-nC-sa-2.0-dE",
+        "id_punct": "CC-BY-NC-SA-2 0-DE",
+        "id_distorted": "CC-BY-NC-SA-2.0-"
+    },
+    {
+        "license_id": "CC-BY-NC-SA-2.0-UK",
+        "id_verbatim": "CC-BY-NC-SA-2.0-UK",
+        "id_deprecated": "",
+        "id_space": " CC-BY-NC-SA-2.0-UK   ",
+        "id_casing": "CC-by-nc-sa-2.0-Uk",
+        "id_punct": "CC-BY-NC-SA-2.0-UK",
+        "id_distorted": "CC-BY-NC-SA-2.0-"
+    },
+    {
+        "license_id": "BSD-2-Clause-Darwin",
+        "id_verbatim": "BSD-2-Clause-Darwin",
+        "id_deprecated": "",
+        "id_space": " BSD-2-Clause-Darwin  ",
+        "id_casing": "bsD-2-clAUse-darwIN",
+        "id_punct": "BSD 2-Clause-Darwin",
+        "id_distorted": "BSD-2-Clause-Dar"
+    },
+    {
+        "license_id": "BSD-4.3TAHOE",
+        "id_verbatim": "BSD-4.3TAHOE",
+        "id_deprecated": "",
+        "id_space": "   BSD-4.3TAHOE   ",
+        "id_casing": "BSD-4.3tAHOe",
+        "id_punct": "BSD-4.3TAHOE",
+        "id_distorted": "BSD-4.3TAH"
+    },
+    {
+        "license_id": "OSL-2.0",
+        "id_verbatim": "OSL-2.0",
+        "id_deprecated": "",
+        "id_space": "  OSL-2.0  ",
+        "id_casing": "osl20",
+        "id_punct": "OSL 2.0",
+        "id_distorted": "OSL-2"
+    },
+    {
+        "license_id": "OSL-3.0",
+        "id_verbatim": "OSL-3.0",
+        "id_deprecated": "",
+        "id_space": "  OSL-3.0   ",
+        "id_casing": "osl-3.0",
+        "id_punct": "OSL-3 0",
+        "id_distorted": "OSL-"
+    },
+    {
+        "license_id": "EUPL-1.2",
+        "id_verbatim": "EUPL-1.2",
+        "id_deprecated": "",
+        "id_space": "   EUPL-1.2   ",
+        "id_casing": "eupl-1.2",
+        "id_punct": "EUPL-1.2",
+        "id_distorted": "EUPL-"
+    },
+    {
+        "license_id": "EUPL-1.0",
+        "id_verbatim": "EUPL-1.0",
+        "id_deprecated": "",
+        "id_space": " EUPL-1.0  ",
+        "id_casing": "eupl-1.0",
+        "id_punct": "EUPL-1.0",
+        "id_distorted": "EUPL-1"
+    },
+    {
+        "license_id": "GFDL-1.1-no-invariants-or-later",
+        "id_verbatim": "GFDL-1.1-no-invariants-or-later",
+        "id_deprecated": "",
+        "id_space": "   GFDL-1.1-no-invariants-or-later  ",
+        "id_casing": "gFdL-1.1-no-INvaRIantS-or-laTER",
+        "id_punct": "GFDL-1.1-no-invariants-or-later",
+        "id_distorted": "GFDL-1.1-no-invariants-or-lat"
+    },
+    {
+        "license_id": "GFDL-1.2-or-later",
+        "id_verbatim": "GFDL-1.2-or-later",
+        "id_deprecated": "",
+        "id_space": "  GFDL-1.2-or-later   ",
+        "id_casing": "gfdl12OrLater",
+        "id_punct": "GFDL-1.2-or-later",
+        "id_distorted": "GFDL-1.2-or-la"
+    },
+    {
+        "license_id": "MPL-1.1",
+        "id_verbatim": "MPL-1.1",
+        "id_deprecated": "",
+        "id_space": " MPL-1.1  ",
+        "id_casing": "mpl-1.1",
+        "id_punct": "MPL 1.1",
+        "id_distorted": "MPL-"
+    },
+    {
+        "license_id": "MPL-2.0-no-copyleft-exception",
+        "id_verbatim": "MPL-2.0-no-copyleft-exception",
+        "id_deprecated": "",
+        "id_space": " MPL-2.0-no-copyleft-exception  ",
+        "id_casing": "mpl-2.0-no-copyleft-exception",
+        "id_punct": "MPL-2.0-no-copyleft-exception",
+        "id_distorted": "MPL-2.0-no-copyleft-except"
+    },
+    {
+        "license_id": "Apache-1.1",
+        "id_verbatim": "Apache-1.1",
+        "id_deprecated": "",
+        "id_space": "   Apache-1.1 ",
+        "id_casing": "APACHE-1.1",
+        "id_punct": "Apache-11",
+        "id_distorted": "Apache-1"
+    },
+    {
+        "license_id": "Apache-2.0",
+        "id_verbatim": "Apache-2.0",
+        "id_deprecated": "",
+        "id_space": " Apache-2.0   ",
+        "id_casing": "apache-2.0",
+        "id_punct": "Apache-2.0",
+        "id_distorted": "Apache-2"
+    },
+    {
+        "license_id": "Artistic-1.0-Perl",
+        "id_verbatim": "Artistic-1.0-Perl",
+        "id_deprecated": "",
+        "id_space": "   Artistic-1.0-Perl ",
+        "id_casing": "artistic-1.0-perl",
+        "id_punct": "Artistic-1.0-Perl",
+        "id_distorted": "Artistic-1.0-P"
+    },
+    {
+        "license_id": "Artistic-2.0",
+        "id_verbatim": "Artistic-2.0",
+        "id_deprecated": "",
+        "id_space": " Artistic-2.0 ",
+        "id_casing": "artistic-2.0",
+        "id_punct": "Artistic-2.0",
+        "id_distorted": "Artistic-2"
+    },
+    {
+        "license_id": "Unlicense",
+        "id_verbatim": "Unlicense",
+        "id_deprecated": "",
+        "id_space": "   Unlicense  ",
+        "id_casing": "unlicense",
+        "id_punct": "Unlicense",
+        "id_distorted": "Unlicen"
+    },
+    {
+        "license_id": "Unlicense-libwhirlpool",
+        "id_verbatim": "Unlicense-libwhirlpool",
+        "id_deprecated": "",
+        "id_space": "   Unlicense-libwhirlpool ",
+        "id_casing": "unLicENSE-LiBWhiRlPool",
+        "id_punct": "Unlicense-libwhirlpool",
+        "id_distorted": "Unlicense-libwhirlpo"
+    },
+    {
+        "license_id": "W3C-19980720",
+        "id_verbatim": "W3C-19980720",
+        "id_deprecated": "",
+        "id_space": " W3C-19980720   ",
+        "id_casing": "w3c-19980720",
+        "id_punct": "W3C-19980720",
+        "id_distorted": "W3C-199807"
+    },
+    {
+        "license_id": "W3C",
+        "id_verbatim": "W3C",
+        "id_deprecated": "",
+        "id_space": "  W3C  ",
+        "id_casing": "W3c",
+        "id_punct": "W3C",
+        "id_distorted": "W3C"
+    },
+    {
+        "license_id": "CERN-OHL-1.2",
+        "id_verbatim": "CERN-OHL-1.2",
+        "id_deprecated": "",
+        "id_space": " CERN-OHL-1.2 ",
+        "id_casing": "CERN-OHL-1.2",
+        "id_punct": "CERN OHL-12",
+        "id_distorted": "CERN-OHL-1"
+    },
+    {
+        "license_id": "CERN-OHL-W-2.0",
+        "id_verbatim": "CERN-OHL-W-2.0",
+        "id_deprecated": "",
+        "id_space": "   CERN-OHL-W-2.0   ",
+        "id_casing": "CERN-OHL-W-2.0",
+        "id_punct": "CERN-OHL-W-2.0",
+        "id_distorted": "CERN-OHL-W-"
+    },
+    {
+        "license_id": "LGPL-2.0-or-later",
+        "id_verbatim": "LGPL-2.0-or-later",
+        "id_deprecated": "LGPL-2.0+",
+        "id_space": "  LGPL-2.0-or-later   ",
+        "id_casing": "lgpl20OrLater",
+        "id_punct": "LGPL-2.0-or-later",
+        "id_distorted": "LGPL-2.0-or-la"
+    },
+    {
+        "license_id": "LGPL-3.0-only",
+        "id_verbatim": "LGPL-3.0-only",
+        "id_deprecated": "LGPL-3.0",
+        "id_space": " LGPL-3.0-only   ",
+        "id_casing": "lgpl-3.0-only",
+        "id_punct": "LGPL-3.0-only",
+        "id_distorted": "LGPL-3.0-o"
+    },
+    {
+        "license_id": "MS-PL",
+        "id_verbatim": "MS-PL",
+        "id_deprecated": "",
+        "id_space": " MS-PL  ",
+        "id_casing": "ms-pl",
+        "id_punct": "MS-PL",
+        "id_distorted": "MS-PL"
+    },
+    {
+        "license_id": "MS-RL",
+        "id_verbatim": "MS-RL",
+        "id_deprecated": "",
+        "id_space": " MS-RL ",
+        "id_casing": "msRl",
+        "id_punct": "MSRL",
+        "id_distorted": "MS-RL"
+    },
+    {
+        "license_id": "AGPL-3.0-or-later",
+        "id_verbatim": "AGPL-3.0-or-later",
+        "id_deprecated": "",
+        "id_space": " AGPL-3.0-or-later   ",
+        "id_casing": "AGPL-3.0-OR-LATER",
+        "id_punct": "AGPL-3.0-or-later",
+        "id_distorted": "AGPL-3.0-or-la"
+    },
+    {
+        "license_id": "AGPL-1.0-only",
+        "id_verbatim": "AGPL-1.0-only",
+        "id_deprecated": "AGPL-1.0",
+        "id_space": " AGPL-1.0-only   ",
+        "id_casing": "agpL-1.0-ONlY",
+        "id_punct": "AGPL-1.0-only",
+        "id_distorted": "AGPL-1.0-on"
+    },
+    {
+        "license_id": "AFL-2.1",
+        "id_verbatim": "AFL-2.1",
+        "id_deprecated": "",
+        "id_space": " AFL-2.1   ",
+        "id_casing": "afl21",
+        "id_punct": "AFL 2.1",
+        "id_distorted": "AFL-2"
+    },
+    {
+        "license_id": "AFL-1.2",
+        "id_verbatim": "AFL-1.2",
+        "id_deprecated": "",
+        "id_space": "   AFL-1.2   ",
+        "id_casing": "AFL-1.2",
+        "id_punct": "AFL-1.2",
+        "id_distorted": "AFL-"
+    },
+    {
+        "license_id": "CDDL-1.1",
+        "id_verbatim": "CDDL-1.1",
+        "id_deprecated": "",
+        "id_space": " CDDL-1.1 ",
+        "id_casing": "cddl-1.1",
+        "id_punct": "CDDL-1.1",
+        "id_distorted": "CDDL-"
+    },
+    {
+        "license_id": "CDDL-1.0",
+        "id_verbatim": "CDDL-1.0",
+        "id_deprecated": "",
+        "id_space": "  CDDL-1.0 ",
+        "id_casing": "CddL-1.0",
+        "id_punct": "CDDL-1.0",
+        "id_distorted": "CDDL-1"
+    },
+    {
+        "license_id": "OFL-1.1-no-RFN",
+        "id_verbatim": "OFL-1.1-no-RFN",
+        "id_deprecated": "",
+        "id_space": "  OFL-1.1-no-RFN ",
+        "id_casing": "OFl-1.1-NO-RfN",
+        "id_punct": "OFL-1.1-no-RFN",
+        "id_distorted": "OFL-1.1-no-"
+    },
+    {
+        "license_id": "OFL-1.0-no-RFN",
+        "id_verbatim": "OFL-1.0-no-RFN",
+        "id_deprecated": "",
+        "id_space": "   OFL-1.0-no-RFN  ",
+        "id_casing": "ofl10NoRfn",
+        "id_punct": "OFL1.0-no-RFN",
+        "id_distorted": "OFL-1.0-no-R"
+    },
+    {
+        "license_id": "Zlib",
+        "id_verbatim": "Zlib",
+        "id_deprecated": "",
+        "id_space": "   Zlib   ",
+        "id_casing": "zlib",
+        "id_punct": "Zlib",
+        "id_distorted": "Zlib"
+    },
+    {
+        "license_id": "ImageMagick",
+        "id_verbatim": "ImageMagick",
+        "id_deprecated": "",
+        "id_space": " ImageMagick  ",
+        "id_casing": "imagemagick",
+        "id_punct": "ImageMagick",
+        "id_distorted": "ImageMagi"
+    },
+    {
+        "license_id": "MIT-feh",
+        "id_verbatim": "MIT-feh",
+        "id_deprecated": "",
+        "id_space": " MIT-feh   ",
+        "id_casing": "MIt-FEH",
+        "id_punct": "MIT feh",
+        "id_distorted": "MIT-"
+    },
+    {
+        "license_id": "psfrag",
+        "id_verbatim": "psfrag",
+        "id_deprecated": "",
+        "id_space": "  psfrag   ",
+        "id_casing": "psfrag",
+        "id_punct": "psfrag",
+        "id_distorted": "psf"
+    },
+    {
+        "license_id": "IPA",
+        "id_verbatim": "IPA",
+        "id_deprecated": "",
+        "id_space": "  IPA  ",
+        "id_casing": "ipa",
+        "id_punct": "IPA",
+        "id_distorted": "IPA"
+    },
+    {
+        "license_id": "AFL-3.0",
+        "id_verbatim": "AFL-3.0",
+        "id_deprecated": "",
+        "id_space": "  AFL-3.0   ",
+        "id_casing": "AFl-3.0",
+        "id_punct": "AFL-3.0",
+        "id_distorted": "AFL-3"
+    },
+    {
+        "license_id": "CERN-OHL-P-2.0",
+        "id_verbatim": "CERN-OHL-P-2.0",
+        "id_deprecated": "",
+        "id_space": " CERN-OHL-P-2.0 ",
+        "id_casing": "CErN-OHl-p-2.0",
+        "id_punct": "CERN-OHL-P-2.0",
+        "id_distorted": "CERN-OHL-P-"
+    },
+    {
+        "license_id": "CC-BY-3.0-US",
+        "id_verbatim": "CC-BY-3.0-US",
+        "id_deprecated": "",
+        "id_space": "   CC-BY-3.0-US   ",
+        "id_casing": "ccBy30Us",
+        "id_punct": "CC-BY-30-US",
+        "id_distorted": "CC-BY-3.0-"
+    },
+    {
+        "license_id": "Bitstream-Charter",
+        "id_verbatim": "Bitstream-Charter",
+        "id_deprecated": "",
+        "id_space": "  Bitstream-Charter   ",
+        "id_casing": "bitstreamCharter",
+        "id_punct": "Bitstream-Charter",
+        "id_distorted": "Bitstream-Char"
+    },
+    {
+        "license_id": "CC-BY-NC-1.0",
+        "id_verbatim": "CC-BY-NC-1.0",
+        "id_deprecated": "",
+        "id_space": "   CC-BY-NC-1.0   ",
+        "id_casing": "ccByNc10",
+        "id_punct": "CC-BY-NC-1.0",
+        "id_distorted": "CC-BY-NC-"
+    },
+    {
+        "license_id": "BSD-4-Clause-Shortened",
+        "id_verbatim": "BSD-4-Clause-Shortened",
+        "id_deprecated": "",
+        "id_space": " BSD-4-Clause-Shortened ",
+        "id_casing": "bSd-4-CLAUSE-shORTEneD",
+        "id_punct": "BSD-4-Clause-Shortened",
+        "id_distorted": "BSD-4-Clause-Shorte"
+    },
+    {
+        "license_id": "libpng-1.6.35",
+        "id_verbatim": "libpng-1.6.35",
+        "id_deprecated": "",
+        "id_space": " libpng-1.6.35   ",
+        "id_casing": "libpng1635",
+        "id_punct": "libpng-1 6.35",
+        "id_distorted": "libpng-1.6."
+    },
+    {
+        "license_id": "GPL-3.0-or-later",
+        "id_verbatim": "GPL-3.0-or-later",
+        "id_deprecated": "GPL-3.0+",
+        "id_space": "  GPL-3.0-or-later  ",
+        "id_casing": "GPL-3.0-oR-lAtEr",
+        "id_punct": "GPL3.0-or-later",
+        "id_distorted": "GPL-3.0-or-la"
+    },
+    {
+        "license_id": "EPICS",
+        "id_verbatim": "EPICS",
+        "id_deprecated": "",
+        "id_space": " EPICS  ",
+        "id_casing": "EPICS",
+        "id_punct": "EPICS",
+        "id_distorted": "EPICS"
+    },
+    {
+        "license_id": "Mackerras-3-Clause-acknowledgment",
+        "id_verbatim": "Mackerras-3-Clause-acknowledgment",
+        "id_deprecated": "",
+        "id_space": " Mackerras-3-Clause-acknowledgment  ",
+        "id_casing": "MACKERRAS-3-CLAUSE-ACKNOWLEDGMENT",
+        "id_punct": "Mackerras 3-Clause-acknowledgment",
+        "id_distorted": "Mackerras-3-Clause-acknowledgme"
+    },
+    {
+        "license_id": "BSD-3-Clause",
+        "id_verbatim": "BSD-3-Clause",
+        "id_deprecated": "",
+        "id_space": " BSD-3-Clause  ",
+        "id_casing": "bsd-3-clause",
+        "id_punct": "BSD3-Clause",
+        "id_distorted": "BSD-3-Cla"
+    },
+    {
+        "license_id": "HPND-DEC",
+        "id_verbatim": "HPND-DEC",
+        "id_deprecated": "",
+        "id_space": "  HPND-DEC ",
+        "id_casing": "hpnd-Dec",
+        "id_punct": "HPND-DEC",
+        "id_distorted": "HPND-D"
+    },
+    {
+        "license_id": "Spencer-94",
+        "id_verbatim": "Spencer-94",
+        "id_deprecated": "",
+        "id_space": "   Spencer-94 ",
+        "id_casing": "spEnCEr-94",
+        "id_punct": "Spencer-94",
+        "id_distorted": "Spencer"
+    },
+    {
+        "license_id": "ssh-keyscan",
+        "id_verbatim": "ssh-keyscan",
+        "id_deprecated": "",
+        "id_space": " ssh-keyscan   ",
+        "id_casing": "sshKeyscan",
+        "id_punct": "ssh-keyscan",
+        "id_distorted": "ssh-keys"
+    },
+    {
+        "license_id": "SGI-B-2.0",
+        "id_verbatim": "SGI-B-2.0",
+        "id_deprecated": "",
+        "id_space": "  SGI-B-2.0 ",
+        "id_casing": "sgiB20",
+        "id_punct": "SGI B-2.0",
+        "id_distorted": "SGI-B-2"
+    }
+]

@@ -1,0 +1,7 @@
+{
+  "name": "lib_mock_bsd-3-clause_1",
+  "version": "1.0.0",
+  "description": "An awesome library.",
+  "main": "index.js",
+  "license": "BSD 3-Clause "New" or "Revised" License"
+}

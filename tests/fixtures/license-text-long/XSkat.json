@@ -1,0 +1,15 @@
+{
+    "license_text": "This program is free software; you can redistribute it freely.\nUse it at your own risk; there is NO WARRANTY.\n\nRedistribution of modified versions is permitted provided that the following conditions are met:\n\n1. All copyright & permission notices are preserved.\n\n2.a) Only changes required for packaging or porting are made.\n     or\n2.b) It is clearly stated who last changed the program. The program is renamed or the version number is of the form x.y.z, where x.y is the version of the original program and z is an arbitrary suffix.\n",
+    "license_id": "XSkat",
+    "name": "XSkat License",
+    "close_license_ids": [],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_long_distorted_01": "This program is free software; you can redistribute it freely. Use \n it at your own risk; there is NO WARRANTY. Redistribution of modified versions is permitted provided that the following conditions are met: 1. All copyright & permission notices are preserved. 2.a) Only changes required for packaging or porting are made. or 2.b) It is clearly stated who last changed the program. The program is renamed or the version number is of the form x.y.z, where x.y is the version of the original program and z is an arbitrary suffix.",
+    "license_text_long_distorted_02": "This program is free software; oyu can redistribute it freely. Use it at your own risk; there is NO WARRANTY. Redistribution of modified versions is permitted provided that the following conditions are met: 1. All copyright & permission notices are preserved. 2.a) Only changes required for packaging or porting are made. or 2.b) It is clearly stated who last changed the program. The program is renamed or the version number is of the form x.y.z, where x.y is the version of the original program and z is an arbitrary suffix.",
+    "license_text_long_distorted_05": "This program is free software; you can redistribute it freely. Use it at your own risk; there is NO WARRANTY. Redistribution of modified versions is permitted provided that the following conditions are met: 1. All copyright & permission notices are preserved. 2.a) Only changes required for packaging or porting are made. or 2.b) It is clearly stated who last changed the program. The program is renamed or the version number is of the \n form x.y.z, hwere x.y is the version of the original program and z is an arbitrary suffix.",
+    "license_text_long_distorted_10": "This program is free software; you can redistribute it freely. Use it at Esta licencia aplica a este software. your own risk; there is NO WARRANTY. 1. All copyright  permission notices are preserved.",
+    "license_text_long_distorted_20": "This program is free software; you redistribute it freely. Use it at your own risk; there is NO WARRANTY.( Redistribution of modified versions is provided that the following conditions are met: 1. All copyright & permission notices are preserved."
+}

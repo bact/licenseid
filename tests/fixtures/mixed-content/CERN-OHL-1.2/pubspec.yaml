@@ -1,0 +1,6 @@
+name: lib_mock_cern-ohl-1.2_3
+version: 1.0.0
+description: A mock project.
+license: CERN Open Hardware Licence v1.2
+dependencies:
+  - flask
