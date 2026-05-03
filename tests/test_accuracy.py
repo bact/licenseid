@@ -19,7 +19,7 @@ from licenseid.database import LicenseDatabase
 from licenseid.normalize import normalize_text
 
 
-FIXTURES_DIR = Path(__file__).parent / "fixtures" / "license-data"
+FIXTURES_DIR = Path(__file__).parent / "fixtures" / "license-text-long"
 
 
 # pylint: disable=redefined-outer-name
@@ -151,7 +151,7 @@ def run_accuracy_test(
             if rate == "00":
                 text = data["license_text"]
             else:
-                key = f"license_text_distorted_{rate}"
+                key = f"license_text_long_distorted_{rate}"
                 if key not in data:
                     continue
                 text = data[key]

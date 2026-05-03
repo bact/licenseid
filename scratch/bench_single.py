@@ -19,7 +19,7 @@ SRC_PATH = sys.argv[1]
 LABEL = sys.argv[2] if len(sys.argv) > 2 else SRC_PATH
 
 # Fixtures from the license-marker checkout (same set for both branches)
-FIXTURES_DIR = Path(__file__).parent.parent / "tests" / "fixtures" / "license-data"
+FIXTURES_DIR = Path(__file__).parent.parent / "tests" / "fixtures" / "license-text-long"
 RATES = ["00", "02", "05"]
 
 # ── put target branch first on sys.path ──────────────────────────────────────
@@ -117,7 +117,7 @@ for fp in fixtures:
         text = (
             data["license_text"]
             if rate == "00"
-            else data.get(f"license_text_distorted_{rate}")
+            else data.get(f"license_text_long_distorted_{rate}")
         )
         if text is None:
             continue

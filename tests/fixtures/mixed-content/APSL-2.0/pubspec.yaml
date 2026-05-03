@@ -1,0 +1,6 @@
+name: lib_mock_apsl-2.0_3
+version: 1.0.0
+description: A mock project.
+license: Apple Public Source License 2.0
+dependencies:
+  - flask

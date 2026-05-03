@@ -14,7 +14,7 @@ def debug_gpl():
     db = LicenseDatabase(db_path)
 
     # Load GPL-2.0-only and GPL-2.0-or-later fixtures
-    fixtures_dir = "tests/fixtures/license-data"
+    fixtures_dir = "tests/fixtures/license-text-long"
     f1 = os.path.join(fixtures_dir, "GPL-2.0-only.json")
     f2 = os.path.join(fixtures_dir, "GPL-2.0-or-later.json")
 

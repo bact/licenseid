@@ -1,0 +1,6 @@
+name: lib_mock_afl-3.0_2
+version: 1.0.0
+description: A mock project.
+license: Academic Free License v3.0
+dependencies:
+  - flask

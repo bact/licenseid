@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from licenseid.matcher import AggregatedLicenseMatcher
 
-FIXTURES_DIR = Path(__file__).parent.parent / "tests" / "fixtures" / "license-data"
+FIXTURES_DIR = Path(__file__).parent.parent / "tests" / "fixtures" / "license-text-long"
 
 
 def load_fixtures():

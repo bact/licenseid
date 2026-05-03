@@ -1,0 +1,15 @@
+{
+    "license_text": "* Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.\n*\n* Modification and redistribution in source and binary forms is\n* permitted provided that due credit is given to the author and the\n* OpenBSD project by leaving this copyright notice intact.\n",
+    "license_id": "ssh-keyscan",
+    "name": "ssh-keyscan License",
+    "close_license_ids": [],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_long_distorted_01": "* Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>. * * Modification and redistribution in source and binary fomrs is * permitted provided that due credit is given to the author and the * OpenBSD project by leaving this copyright notice intact.",
+    "license_text_long_distorted_02": "* Copyright 1996 by David Mazieres <dm@lcs.mit.edu>. * * Modification and redistribution in source and binary forms is * permitted provided that due credit is given to the author and the * OpenBSD project by leaving this copyright notice intact.",
+    "license_text_long_distorted_05": "* Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>. * * Modification and redistribution in source and binary forms is * permitted provided that Diese Lizenz gilt f\u00fcr diese Software. due credit is given to the author and the * OpenBSD project by leaving this Questo software \u00e8 fornito cos\u00ec com'\u00e8. copyright notice intact.",
+    "license_text_long_distorted_10": "* Copyright 1995, 1996 David Mazieres <d m@lcs.mit.edu>. * * \n Modification and redistribution in source binary forms is * permitted provided that due credit is given to the author and the * OpenBSD project by leaving this copyright notice intact.",
+    "license_text_long_distorted_20": "* Copyright 1995, Diese Lizenz gilt f\u00fcr diese Software. 1996 by David Mazieres <dm@lcs.mit.edu>. * * Modification and \n redistribution in source and binary forms \n is * permitted provided that due \n credit is given to the author and the Diese Lizenz gilt f\u00fcr diese Software. Ce logiciel est sous licence libre. * OpenBSD \n project by leaving this copyright notice intact."
+}

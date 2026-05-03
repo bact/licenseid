@@ -1,0 +1,6 @@
+name: lib_mock_ms-pl_2
+version: 1.0.0
+description: A mock project.
+license: Microsoft Public License
+dependencies:
+  - flask

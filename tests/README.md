@@ -9,7 +9,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ## License matching test dataset
 
-`tests/fixtures/license-data` directory contains 200 JSON fixtures used to
+`tests/fixtures/license-text-long` directory contains 200 JSON fixtures used to
 benchmark and evaluate the accuracy of the `licenseid` matcher.
 
 ## Dataset composition
@@ -25,7 +25,7 @@ Each `.json` file is named after its `license_id` and contains:
 - `license_text`: The verbatim text fetched from the official SPDX License List repository.
 - `license_id`: The correct SPDX ID.
 - `close_license_ids`: A list of IDs that are closely related (e.g., sharing the same stem like `GPL-`).
-- `license_text_distorted_NN`: Programmatically distorted variants of the original text.
+- `license_text_long_distorted_NN`: Programmatically distorted variants of the original text.
 - Metadata flags: `is_high_usage`, `is_osi_approved`, `is_fsf_libre`, `is_spdx`.
 
 ## Distortion heuristics (01, 05, 10, 20, 40)

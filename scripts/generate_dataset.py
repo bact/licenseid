@@ -9,7 +9,7 @@ import requests
 import re
 from pathlib import Path
 
-FIXTURES_DIR = Path("tests/fixtures/license-data")
+FIXTURES_DIR = Path("tests/fixtures/license-text-long")
 DISTORTION_RATES = [1, 2, 5, 10, 20]
 TOTAL_POPULAR = 100
 TOTAL_CONFUSING = 50
@@ -255,7 +255,7 @@ def main():
 
         for rate in DISTORTION_RATES:
             distorted = distort_text(text, rate)
-            data[f"license_text_distorted_{rate:02d}"] = distorted
+            data[f"license_text_long_distorted_{rate:02d}"] = distorted
 
         out_file = FIXTURES_DIR / f"{lid}.json"
         with open(out_file, "w", encoding="utf-8") as f:

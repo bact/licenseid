@@ -9,8 +9,8 @@ from licenseid.database import LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
 
-FIXTURE_MARKERS_DIR = Path("tests/fixtures/license-markers")
-FIXTURE_DATA_DIR = Path("tests/fixtures/license-data")
+FIXTURE_MARKERS_DIR = Path("tests/fixtures/mixed-content")
+FIXTURE_DATA_DIR = Path("tests/fixtures/license-text-long")
 
 MUST_HAVE_LICENSES = [
     "MIT",
@@ -141,7 +141,7 @@ def run_bench(matcher_class, db_path, name):
         if filepath.stem in target_ids:
             with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            text = data.get("license_text_distorted_02")
+            text = data.get("license_text_long_distorted_02")
             if text:
                 pure_fixtures_data.append((text, data["license_id"]))
 

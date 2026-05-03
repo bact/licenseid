@@ -1,6 +1,0 @@
-[project]
-name = "awesome-lib"
-version = "0.1.0"
-description = "A very awesome library"
-license = "MIT"
-authors = [{name = "John Doe"}]

@@ -1,0 +1,7 @@
+{
+  "name": "lib_mock_gpl-3.0-or-later_2",
+  "version": "1.0.0",
+  "description": "An awesome library.",
+  "main": "index.js",
+  "license": "GNU General Public License v3.0 or later"
+}

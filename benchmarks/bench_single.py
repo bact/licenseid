@@ -34,7 +34,7 @@ TIMESTAMP: str = sys.argv[4]
 
 # Fixtures from the license-marker checkout (same set for both branches)
 FIXTURES_DIR: Path = (
-    Path(__file__).parent.parent / "tests" / "fixtures" / "license-data"
+    Path(__file__).parent.parent / "tests" / "fixtures" / "license-text-long"
 )
 RATES: list[str] = ["00", "02", "05"]
 
@@ -145,7 +145,7 @@ def main() -> None:
             text = (
                 data["license_text"]
                 if rate == "00"
-                else data.get(f"license_text_distorted_{rate}")
+                else data.get(f"license_text_long_distorted_{rate}")
             )
             if text is None:
                 continue

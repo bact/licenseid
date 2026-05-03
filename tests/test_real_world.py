@@ -16,7 +16,7 @@ import pytest
 from licenseid.database import LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
 
-FIXTURE_DIR = Path(__file__).parent / "fixtures" / "license-markers"
+FIXTURE_DIR = Path(__file__).parent / "fixtures" / "mixed-content"
 
 
 @pytest.fixture
