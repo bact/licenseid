@@ -22,12 +22,14 @@ CURRENT_REPO = Path(__file__).parent.parent
 BENCHMARK_NAME = "perf_eval"
 
 
-def run_branch(src_path: str, label: str, timestamp: str, verify: bool) -> dict[str, Any]:
+def run_branch(
+    src_path: str, label: str, timestamp: str, verify: bool
+) -> dict[str, Any]:
     print(f"\nRunning: {label} …", flush=True)
     cmd = [sys.executable, str(SCRIPT), src_path, label, BENCHMARK_NAME, timestamp]
     if verify:
         cmd.append("--verify")
-        
+
     proc = subprocess.run(
         cmd,
         capture_output=True,
@@ -45,7 +47,9 @@ def run_branch(src_path: str, label: str, timestamp: str, verify: bool) -> dict[
     return result
 
 
-def generate_markdown_report(a: dict[str, Any], b: dict[str, Any], timestamp: str) -> str:
+def generate_markdown_report(
+    a: dict[str, Any], b: dict[str, Any], timestamp: str
+) -> str:
     lines = []
     lines.append(f"# Benchmark Comparison: `{a['label']}` vs `{b['label']}`")
     lines.append(f"**Date:** {timestamp}")
@@ -58,26 +62,45 @@ def generate_markdown_report(a: dict[str, Any], b: dict[str, Any], timestamp: st
         lines.append(f"### Input Type {t_idx}")
         lines.append("| Category | main | license-marker | Δ |")
         lines.append("| :--- | ---: | ---: | ---: |")
-        
-        all_subcats = sorted(list(set(a["stats"].get(t_key, {}).keys()) | set(b["stats"].get(t_key, {}).keys())))
-        
+
+        all_subcats = sorted(
+            list(
+                set(a["stats"].get(t_key, {}).keys())
+                | set(b["stats"].get(t_key, {}).keys())
+            )
+        )
+
         for subcat in all_subcats:
-            for k, col in [("top1", "Recall@1"), ("top3", "Recall@3"), ("top5", "Recall@5")]:
-                ta = a["stats"].get(t_key, {}).get(subcat, {"total": 0, "top1": 0, "top3": 0, "top5": 0})
-                tb = b["stats"].get(t_key, {}).get(subcat, {"total": 0, "top1": 0, "top3": 0, "top5": 0})
-                
+            for k, col in [
+                ("top1", "Recall@1"),
+                ("top3", "Recall@3"),
+                ("top5", "Recall@5"),
+            ]:
+                ta = (
+                    a["stats"]
+                    .get(t_key, {})
+                    .get(subcat, {"total": 0, "top1": 0, "top3": 0, "top5": 0})
+                )
+                tb = (
+                    b["stats"]
+                    .get(t_key, {})
+                    .get(subcat, {"total": 0, "top1": 0, "top3": 0, "top5": 0})
+                )
+
                 if ta["total"] == 0 or tb["total"] == 0:
                     continue
                 va = ta[k] / ta["total"] * 100
                 vb = tb[k] / tb["total"] * 100
                 mark = " 🟢" if vb > va + 0.005 else (" 🔴" if vb < va - 0.005 else " ")
-                lines.append(f"| {subcat} {col} | {va:.2f}% | {vb:.2f}% | {vb - va:+.2f}%{mark} |")
+                lines.append(
+                    f"| {subcat} {col} | {va:.2f}% | {vb:.2f}% | {vb - va:+.2f}%{mark} |"
+                )
         lines.append("")
 
     lines.append("### Global Summary")
     lines.append("| Metric | main | license-marker | Δ |")
     lines.append("| :--- | ---: | ---: | ---: |")
-    
+
     ap = a["correct_returned"] / a["total_returned"] * 100 if a["total_returned"] else 0
     bp = b["correct_returned"] / b["total_returned"] * 100 if b["total_returned"] else 0
     lines.append(f"| Precision | {ap:.2f}% | {bp:.2f}% | {bp - ap:+.2f}% |")
@@ -93,7 +116,9 @@ def generate_markdown_report(a: dict[str, Any], b: dict[str, Any], timestamp: st
     lines.append(f"| Peak memory (MB) | {am:.1f} | {bm:.1f} | {bm - am:+.1f} |")
 
     avg_a, avg_b = a.get("avg_mem_mb", 0), b.get("avg_mem_mb", 0)
-    lines.append(f"| End memory (MB) | {avg_a:.1f} | {avg_b:.1f} | {avg_b - avg_a:+.1f} |")
+    lines.append(
+        f"| End memory (MB) | {avg_a:.1f} | {avg_b:.1f} | {avg_b - avg_a:+.1f} |"
+    )
 
     lines.append("")
     return "\n".join(lines)

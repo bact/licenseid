@@ -33,7 +33,9 @@ BENCHMARK_NAME: str = sys.argv[3]
 TIMESTAMP: str = sys.argv[4]
 IS_VERIFY: bool = "--verify" in sys.argv
 
-FIXTURES_DIR: Path = Path(__file__).parent.parent / "tests" / "fixtures" / "license-text-long"
+FIXTURES_DIR: Path = (
+    Path(__file__).parent.parent / "tests" / "fixtures" / "license-text-long"
+)
 
 sys.path.insert(0, SRC_PATH)
 # pylint: disable=wrong-import-position
@@ -88,7 +90,11 @@ def main() -> None:
         print(json.dumps({"error": f"No fixtures in {FIXTURES_DIR}"}))
         sys.exit(1)
 
-    print(f"[{LABEL}] {len(fixtures)} DB source fixtures, building DB …", file=sys.stderr, flush=True)
+    print(
+        f"[{LABEL}] {len(fixtures)} DB source fixtures, building DB …",
+        file=sys.stderr,
+        flush=True,
+    )
 
     db_name: str = f"bench_{LABEL}_{uuid.uuid4().hex}"
     db_path: str = f"file:{db_name}?mode=memory&cache=shared"
@@ -98,7 +104,7 @@ def main() -> None:
 
     to_insert_licenses: list[tuple[Any, ...]] = []
     to_insert_index: list[tuple[str, str]] = []
-    
+
     safe_to_canon: dict[str, str] = {}
 
     for fp in fixtures:
@@ -132,23 +138,33 @@ def main() -> None:
             # Dynamically get columns for backward compatibility with 'main' branch
             cursor = conn.execute("PRAGMA table_info(licenses)")
             columns = [row[1] for row in cursor.fetchall()]
-            
+
             # Map available columns to their values from the tuple
-            # Tuple: (license_id, name, is_spdx, is_osi_approved, is_fsf_libre, 
+            # Tuple: (license_id, name, is_spdx, is_osi_approved, is_fsf_libre,
             #         is_high_usage, is_deprecated, superseded_by, pop_score, word_count)
-            all_cols = ["license_id", "name", "is_spdx", "is_osi_approved", "is_fsf_libre", 
-                        "is_high_usage", "is_deprecated", "superseded_by", "pop_score", "word_count"]
-            
+            all_cols = [
+                "license_id",
+                "name",
+                "is_spdx",
+                "is_osi_approved",
+                "is_fsf_libre",
+                "is_high_usage",
+                "is_deprecated",
+                "superseded_by",
+                "pop_score",
+                "word_count",
+            ]
+
             insert_cols = [c for c in all_cols if c in columns]
             col_indices = [all_cols.index(c) for c in insert_cols]
-            
+
             filtered_licenses = []
             for row in to_insert_licenses:
                 filtered_licenses.append(tuple(row[i] for i in col_indices))
-                
+
             placeholders = ", ".join(["?"] * len(insert_cols))
             col_names = ", ".join(insert_cols)
-            
+
             conn.executemany(
                 f"INSERT INTO licenses ({col_names}) VALUES ({placeholders})",
                 filtered_licenses,
@@ -193,18 +209,35 @@ def main() -> None:
     if t1_path.exists():
         with open(t1_path, "r", encoding="utf-8") as f:
             t1_data = json.load(f)
-        if IS_VERIFY: t1_data = t1_data[:2]
-        
-        fields_t1 = ["id_verbatim", "id_deprecated", "id_space", "id_casing", "id_punct", "id_distorted"]
+        if IS_VERIFY:
+            t1_data = t1_data[:2]
+
+        fields_t1 = [
+            "id_verbatim",
+            "id_deprecated",
+            "id_space",
+            "id_casing",
+            "id_punct",
+            "id_distorted",
+        ]
         for fld in fields_t1:
             stats["type_1"][fld] = init_stat()
-            
+
         for item in t1_data:
             true_id = item["license_id"]
             for fld in fields_t1:
                 text = item.get(fld)
                 if text:
-                    check_match(true_id, text, matcher, stats["type_1"][fld], failures, "type_1", fld, global_counts)
+                    check_match(
+                        true_id,
+                        text,
+                        matcher,
+                        stats["type_1"][fld],
+                        failures,
+                        "type_1",
+                        fld,
+                        global_counts,
+                    )
 
     print("Running Type 2...", file=sys.stderr, flush=True)
     # Type 2
@@ -212,26 +245,43 @@ def main() -> None:
     if t2_path.exists():
         with open(t2_path, "r", encoding="utf-8") as f:
             t2_data = json.load(f)
-        if IS_VERIFY: t2_data = t2_data[:2]
-        
-        fields = ["name_verbatim", "name_space", "name_casing", "name_punct", "name_distored"]
+        if IS_VERIFY:
+            t2_data = t2_data[:2]
+
+        fields = [
+            "name_verbatim",
+            "name_space",
+            "name_casing",
+            "name_punct",
+            "name_distored",
+        ]
         for fld in fields:
             stats["type_2"][fld] = init_stat()
-            
+
         for item in t2_data:
             true_id = item["license_id"]
             for fld in fields:
                 text = item.get(fld)
                 if text:
-                    check_match(true_id, text, matcher, stats["type_2"][fld], failures, "type_2", fld, global_counts)
+                    check_match(
+                        true_id,
+                        text,
+                        matcher,
+                        stats["type_2"][fld],
+                        failures,
+                        "type_2",
+                        fld,
+                        global_counts,
+                    )
 
     print("Running Type 3...", file=sys.stderr, flush=True)
     # Type 3
     t3_dir = base_dir / "license-text-short"
     if t3_dir.exists():
         t3_files = sorted(t3_dir.glob("*.json"))
-        if IS_VERIFY: t3_files = t3_files[:2]
-        
+        if IS_VERIFY:
+            t3_files = t3_files[:2]
+
         for fp in t3_files:
             with open(fp, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -243,7 +293,16 @@ def main() -> None:
                         continue
                     if k not in stats["type_3"]:
                         stats["type_3"][k] = init_stat()
-                    check_match(true_id, v, matcher, stats["type_3"][k], failures, "type_3", k, global_counts)
+                    check_match(
+                        true_id,
+                        v,
+                        matcher,
+                        stats["type_3"][k],
+                        failures,
+                        "type_3",
+                        k,
+                        global_counts,
+                    )
                     count += 1
 
     print("Running Type 4...", file=sys.stderr, flush=True)
@@ -251,37 +310,61 @@ def main() -> None:
     t4_dir = base_dir / "license-text-long"
     if t4_dir.exists():
         t4_files = sorted(t4_dir.glob("*.json"))
-        if IS_VERIFY: t4_files = t4_files[:2]
-        
+        if IS_VERIFY:
+            t4_files = t4_files[:2]
+
         for fp in t4_files:
             with open(fp, "r", encoding="utf-8") as f:
                 data = json.load(f)
             true_id = data["license_id"]
-            
-            if "verbatim" not in stats["type_4"]: stats["type_4"]["verbatim"] = init_stat()
-            check_match(true_id, data["license_text"], matcher, stats["type_4"]["verbatim"], failures, "type_4", "verbatim", global_counts)
-            
+
+            if "verbatim" not in stats["type_4"]:
+                stats["type_4"]["verbatim"] = init_stat()
+            check_match(
+                true_id,
+                data["license_text"],
+                matcher,
+                stats["type_4"]["verbatim"],
+                failures,
+                "type_4",
+                "verbatim",
+                global_counts,
+            )
+
             for rate in ["01", "02", "05", "10", "20"]:
                 k = f"license_text_long_distorted_{rate}"
                 v = data.get(k)
                 if v:
-                    if rate not in stats["type_4"]: stats["type_4"][rate] = init_stat()
-                    check_match(true_id, v, matcher, stats["type_4"][rate], failures, "type_4", rate, global_counts)
+                    if rate not in stats["type_4"]:
+                        stats["type_4"][rate] = init_stat()
+                    check_match(
+                        true_id,
+                        v,
+                        matcher,
+                        stats["type_4"][rate],
+                        failures,
+                        "type_4",
+                        rate,
+                        global_counts,
+                    )
 
     print("Running Type 5...", file=sys.stderr, flush=True)
     # Type 5
     t5_dir = base_dir / "mixed-content"
     if t5_dir.exists():
         t5_subdirs = sorted([d for d in t5_dir.iterdir() if d.is_dir()])
-        if IS_VERIFY: t5_subdirs = t5_subdirs[:2]
-        
-        if "mixed" not in stats["type_5"]: stats["type_5"]["mixed"] = init_stat()
-        
+        if IS_VERIFY:
+            t5_subdirs = t5_subdirs[:2]
+
+        if "mixed" not in stats["type_5"]:
+            stats["type_5"]["mixed"] = init_stat()
+
         for d in t5_subdirs:
             print(f"  Type 5: processing dir {d.name}", file=sys.stderr, flush=True)
             true_id = safe_to_canon.get(d.name)
-            if not true_id: continue
-            
+            if not true_id:
+                continue
+
             count = 0
             for fp in d.iterdir():
                 if fp.is_file():
@@ -289,7 +372,16 @@ def main() -> None:
                         break
                     with open(fp, "r", encoding="utf-8") as inner_f:
                         text = inner_f.read()
-                    check_match(true_id, text, matcher, stats["type_5"]["mixed"], failures, "type_5", "mixed", global_counts)
+                    check_match(
+                        true_id,
+                        text,
+                        matcher,
+                        stats["type_5"]["mixed"],
+                        failures,
+                        "type_5",
+                        "mixed",
+                        global_counts,
+                    )
                     count += 1
 
     wall_time: float = time.perf_counter() - t_start
