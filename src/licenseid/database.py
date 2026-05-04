@@ -201,7 +201,7 @@ class LicenseDatabase:
         return version or latest_version, release_date, data_source
 
     def _get_tarball_path(self, version: str, use_cache: bool) -> tuple[Path, str]:
-        """Download or retrieve the SPDX tarball path."""
+        """Download or retrieve the SPDX License List tarball path."""
         tar_filename = CACHE_SPDX_TARBALL_TEMPLATE.format(version=version)
         tar_cache_path = self._get_cache_path(tar_filename)
         data_source = "remote"
