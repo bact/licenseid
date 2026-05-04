@@ -5,12 +5,8 @@
 
 """Compare two licenseid branches on recall, precision, speed, memory.
 
-Orchestrates the benchmark by explicitly checking out `main` into a
-temporary worktree, running `bench_single.py` across both `main` and
-the current branch (`license-marker`), and producing a Markdown report.
-
 Usage:
-    python bench_compare.py
+    python bench_compare.py [--verify]
 """
 
 import datetime
@@ -23,14 +19,17 @@ from typing import Any
 
 SCRIPT = Path(__file__).parent / "bench_single.py"
 CURRENT_REPO = Path(__file__).parent.parent
-RATES = ["00", "02", "05"]
 BENCHMARK_NAME = "perf_eval"
 
 
-def run_branch(src_path: str, label: str, timestamp: str) -> dict[str, Any]:
+def run_branch(src_path: str, label: str, timestamp: str, verify: bool) -> dict[str, Any]:
     print(f"\nRunning: {label} …", flush=True)
+    cmd = [sys.executable, str(SCRIPT), src_path, label, BENCHMARK_NAME, timestamp]
+    if verify:
+        cmd.append("--verify")
+        
     proc = subprocess.run(
-        [sys.executable, str(SCRIPT), src_path, label, BENCHMARK_NAME, timestamp],
+        cmd,
         capture_output=True,
         text=True,
         check=False,
@@ -40,45 +39,45 @@ def run_branch(src_path: str, label: str, timestamp: str) -> dict[str, Any]:
         print(proc.stderr[-2000:], file=sys.stderr)
         sys.exit(1)
 
-    # Progress lines go to stderr; JSON result is the last stdout line
     for line in proc.stderr.splitlines():
         print(f"  {line}", flush=True)
     result: dict[str, Any] = json.loads(proc.stdout.strip().splitlines()[-1])
     return result
 
 
-def fmt_pct(v: float) -> str:
-    return f"{v:6.2f}%"
-
-
-def generate_markdown_report(
-    a: dict[str, Any], b: dict[str, Any], timestamp: str
-) -> str:
+def generate_markdown_report(a: dict[str, Any], b: dict[str, Any], timestamp: str) -> str:
     lines = []
     lines.append(f"# Benchmark Comparison: `{a['label']}` vs `{b['label']}`")
     lines.append(f"**Date:** {timestamp}")
     lines.append("")
     lines.append("## Metrics")
     lines.append("")
+
+    for t_idx in range(1, 6):
+        t_key = f"type_{t_idx}"
+        lines.append(f"### Input Type {t_idx}")
+        lines.append("| Category | main | license-marker | Δ |")
+        lines.append("| :--- | ---: | ---: | ---: |")
+        
+        all_subcats = sorted(list(set(a["stats"].get(t_key, {}).keys()) | set(b["stats"].get(t_key, {}).keys())))
+        
+        for subcat in all_subcats:
+            for k, col in [("top1", "Recall@1"), ("top3", "Recall@3"), ("top5", "Recall@5")]:
+                ta = a["stats"].get(t_key, {}).get(subcat, {"total": 0, "top1": 0, "top3": 0, "top5": 0})
+                tb = b["stats"].get(t_key, {}).get(subcat, {"total": 0, "top1": 0, "top3": 0, "top5": 0})
+                
+                if ta["total"] == 0 or tb["total"] == 0:
+                    continue
+                va = ta[k] / ta["total"] * 100
+                vb = tb[k] / tb["total"] * 100
+                mark = " 🟢" if vb > va + 0.005 else (" 🔴" if vb < va - 0.005 else " ")
+                lines.append(f"| {subcat} {col} | {va:.2f}% | {vb:.2f}% | {vb - va:+.2f}%{mark} |")
+        lines.append("")
+
+    lines.append("### Global Summary")
     lines.append("| Metric | main | license-marker | Δ |")
     lines.append("| :--- | ---: | ---: | ---: |")
-
-    for rate in RATES:
-        lbl = "Verbatim" if rate == "00" else f"{rate}% noise"
-        for k, col in [
-            ("top1", "Recall@1"),
-            ("top3", "Recall@3"),
-            ("top5", "Recall@5"),
-        ]:
-            ta, tb = a["stats"][rate], b["stats"][rate]
-            if ta["total"] == 0 or tb["total"] == 0:
-                continue
-            va = ta[k] / ta["total"] * 100
-            vb = tb[k] / tb["total"] * 100
-            mark = " 🟢" if vb > va + 0.005 else (" 🔴" if vb < va - 0.005 else " ")
-            name = f"{lbl} {col}"
-            lines.append(f"| {name} | {va:.2f}% | {vb:.2f}% | {vb - va:+.2f}%{mark} |")
-
+    
     ap = a["correct_returned"] / a["total_returned"] * 100 if a["total_returned"] else 0
     bp = b["correct_returned"] / b["total_returned"] * 100 if b["total_returned"] else 0
     lines.append(f"| Precision | {ap:.2f}% | {bp:.2f}% | {bp - ap:+.2f}% |")
@@ -94,58 +93,55 @@ def generate_markdown_report(
     lines.append(f"| Peak memory (MB) | {am:.1f} | {bm:.1f} | {bm - am:+.1f} |")
 
     avg_a, avg_b = a.get("avg_mem_mb", 0), b.get("avg_mem_mb", 0)
-    lines.append(
-        f"| End memory (MB) | {avg_a:.1f} | {avg_b:.1f} | {avg_b - avg_a:+.1f} |"
-    )
+    lines.append(f"| End memory (MB) | {avg_a:.1f} | {avg_b:.1f} | {avg_b - avg_a:+.1f} |")
 
+    lines.append("")
     return "\n".join(lines)
 
 
 def main() -> None:
-    """Main orchestration loop."""
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    is_verify = "--verify" in sys.argv
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
-    print("Orchestrating benchmark...")
+    with tempfile.TemporaryDirectory(prefix="licenseid-bench-") as tmpdir:
+        tmp_path = Path(tmpdir)
+        print(f"Creating pristine checkout of main in {tmp_path} ...", flush=True)
 
-    results = []
-
-    # 1. Benchmark current branch (license-marker)
-    current_src = str(CURRENT_REPO / "src" / "licenseid")
-    res_marker = run_branch(current_src, "license-marker", timestamp)
-
-    # 2. Benchmark main branch via temporary clone
-    print("\nCreating temporary clone for `main` branch...", flush=True)
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # Clone using current repo as reference to speed it up
         subprocess.run(
-            [
-                "git",
-                "clone",
-                "--shared",
-                "--branch",
-                "main",
-                "file://" + str(CURRENT_REPO),
-                tmpdir,
-            ],
+            ["git", "worktree", "add", "--detach", str(tmp_path), "main"],
+            cwd=CURRENT_REPO,
             check=True,
             capture_output=True,
         )
-        main_src = str(Path(tmpdir) / "src" / "licenseid")
-        res_main = run_branch(main_src, "main", timestamp)
 
-    # Ensure 'main' is results[0] and 'license-marker' is results[1] for consistent diffing
-    results = [res_main, res_marker]
+        try:
+            res_main = run_branch(
+                src_path=str(tmp_path / "src"),
+                label="main",
+                timestamp=timestamp,
+                verify=is_verify,
+            )
+            res_marker = run_branch(
+                src_path=str(CURRENT_REPO / "src"),
+                label="license-marker",
+                timestamp=timestamp,
+                verify=is_verify,
+            )
 
-    # Generate and print the markdown report
-    md_report = generate_markdown_report(results[0], results[1], timestamp)
-    print("\n" + md_report)
+            report = generate_markdown_report(res_main, res_marker, timestamp)
+            out_file = CURRENT_REPO / "benchmarks" / "summary.md"
+            with open(out_file, "w", encoding="utf-8") as f:
+                f.write(report)
 
-    # Save the markdown report
-    report_file = Path(__file__).parent / f"{BENCHMARK_NAME}_report_{timestamp}.md"
-    with open(report_file, "w", encoding="utf-8") as f:
-        f.write(md_report)
+            print(f"\nReport written to {out_file}")
 
-    print(f"\nMarkdown report saved to: {report_file}")
+        finally:
+            subprocess.run(
+                ["git", "worktree", "remove", "--force", str(tmp_path)],
+                cwd=CURRENT_REPO,
+                check=False,
+                capture_output=True,
+            )
 
 
 if __name__ == "__main__":
