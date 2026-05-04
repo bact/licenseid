@@ -1,0 +1,491 @@
+{
+  "label": "main",
+  "stats": {
+    "type_1": {
+      "id_verbatim": {
+        "total": 60,
+        "top1": 60,
+        "top3": 60,
+        "top5": 60
+      },
+      "id_deprecated": {
+        "total": 6,
+        "top1": 0,
+        "top3": 0,
+        "top5": 0
+      },
+      "id_space": {
+        "total": 60,
+        "top1": 60,
+        "top3": 60,
+        "top5": 60
+      },
+      "id_casing": {
+        "total": 60,
+        "top1": 48,
+        "top3": 48,
+        "top5": 48
+      },
+      "id_punct": {
+        "total": 60,
+        "top1": 52,
+        "top3": 53,
+        "top5": 54
+      },
+      "id_distorted": {
+        "total": 60,
+        "top1": 20,
+        "top3": 30,
+        "top5": 32
+      }
+    },
+    "type_2": {
+      "name_verbatim": {
+        "total": 59,
+        "top1": 59,
+        "top3": 59,
+        "top5": 59
+      },
+      "name_space": {
+        "total": 59,
+        "top1": 59,
+        "top3": 59,
+        "top5": 59
+      },
+      "name_casing": {
+        "total": 59,
+        "top1": 47,
+        "top3": 47,
+        "top5": 47
+      },
+      "name_punct": {
+        "total": 59,
+        "top1": 56,
+        "top3": 56,
+        "top5": 57
+      },
+      "name_distored": {
+        "total": 59,
+        "top1": 36,
+        "top3": 47,
+        "top5": 51
+      }
+    },
+    "type_3": {
+      "license_text_short_head_300": {
+        "total": 60,
+        "top1": 46,
+        "top3": 51,
+        "top5": 53
+      },
+      "license_text_short_tail_300": {
+        "total": 60,
+        "top1": 32,
+        "top3": 39,
+        "top5": 40
+      },
+      "license_text_short_head_500": {
+        "total": 60,
+        "top1": 47,
+        "top3": 51,
+        "top5": 53
+      },
+      "license_text_short_tail_500": {
+        "total": 60,
+        "top1": 35,
+        "top3": 42,
+        "top5": 43
+      },
+      "license_text_short_head_700": {
+        "total": 60,
+        "top1": 47,
+        "top3": 51,
+        "top5": 53
+      },
+      "license_text_short_tail_700": {
+        "total": 60,
+        "top1": 37,
+        "top3": 45,
+        "top5": 45
+      },
+      "license_text_short_head_1000": {
+        "total": 60,
+        "top1": 48,
+        "top3": 52,
+        "top5": 53
+      },
+      "license_text_short_tail_1000": {
+        "total": 60,
+        "top1": 43,
+        "top3": 48,
+        "top5": 48
+      },
+      "license_text_short_head_1500": {
+        "total": 60,
+        "top1": 48,
+        "top3": 52,
+        "top5": 53
+      },
+      "license_text_short_tail_1500": {
+        "total": 60,
+        "top1": 40,
+        "top3": 44,
+        "top5": 45
+      },
+      "license_text_short_head_2000": {
+        "total": 60,
+        "top1": 48,
+        "top3": 52,
+        "top5": 53
+      },
+      "license_text_short_tail_2000": {
+        "total": 60,
+        "top1": 45,
+        "top3": 50,
+        "top5": 51
+      },
+      "license_text_short_head_3000": {
+        "total": 60,
+        "top1": 46,
+        "top3": 47,
+        "top5": 48
+      },
+      "license_text_short_tail_3000": {
+        "total": 60,
+        "top1": 46,
+        "top3": 47,
+        "top5": 48
+      },
+      "license_text_short_head_300_tail_300": {
+        "total": 60,
+        "top1": 31,
+        "top3": 45,
+        "top5": 48
+      },
+      "license_text_short_head_500_tail_300": {
+        "total": 60,
+        "top1": 41,
+        "top3": 52,
+        "top5": 53
+      },
+      "license_text_short_head_700_tail_300": {
+        "total": 60,
+        "top1": 41,
+        "top3": 49,
+        "top5": 52
+      },
+      "license_text_short_head_1000_tail_300": {
+        "total": 60,
+        "top1": 45,
+        "top3": 52,
+        "top5": 53
+      },
+      "license_text_short_head_1500_tail_300": {
+        "total": 60,
+        "top1": 37,
+        "top3": 43,
+        "top5": 45
+      },
+      "license_text_short_head_2000_tail_300": {
+        "total": 60,
+        "top1": 39,
+        "top3": 42,
+        "top5": 46
+      },
+      "license_text_short_head_2700_tail_300": {
+        "total": 60,
+        "top1": 42,
+        "top3": 45,
+        "top5": 46
+      },
+      "license_text_short_head_300_tail_500": {
+        "total": 60,
+        "top1": 40,
+        "top3": 50,
+        "top5": 50
+      },
+      "license_text_short_head_500_tail_500": {
+        "total": 60,
+        "top1": 32,
+        "top3": 46,
+        "top5": 48
+      },
+      "license_text_short_head_700_tail_500": {
+        "total": 60,
+        "top1": 38,
+        "top3": 50,
+        "top5": 52
+      },
+      "license_text_short_head_1000_tail_500": {
+        "total": 60,
+        "top1": 43,
+        "top3": 51,
+        "top5": 52
+      },
+      "license_text_short_head_1500_tail_500": {
+        "total": 60,
+        "top1": 41,
+        "top3": 51,
+        "top5": 53
+      },
+      "license_text_short_head_2000_tail_500": {
+        "total": 60,
+        "top1": 45,
+        "top3": 51,
+        "top5": 52
+      },
+      "license_text_short_head_2500_tail_500": {
+        "total": 60,
+        "top1": 34,
+        "top3": 43,
+        "top5": 44
+      },
+      "license_text_short_head_300_tail_700": {
+        "total": 60,
+        "top1": 41,
+        "top3": 48,
+        "top5": 49
+      },
+      "license_text_short_head_500_tail_700": {
+        "total": 60,
+        "top1": 42,
+        "top3": 49,
+        "top5": 50
+      },
+      "license_text_short_head_700_tail_700": {
+        "total": 60,
+        "top1": 30,
+        "top3": 45,
+        "top5": 48
+      },
+      "license_text_short_head_1000_tail_700": {
+        "total": 60,
+        "top1": 40,
+        "top3": 51,
+        "top5": 53
+      },
+      "license_text_short_head_1500_tail_700": {
+        "total": 60,
+        "top1": 39,
+        "top3": 51,
+        "top5": 52
+      },
+      "license_text_short_head_2000_tail_700": {
+        "total": 60,
+        "top1": 45,
+        "top3": 52,
+        "top5": 53
+      },
+      "license_text_short_head_2300_tail_700": {
+        "total": 60,
+        "top1": 44,
+        "top3": 47,
+        "top5": 48
+      },
+      "license_text_short_head_300_tail_1000": {
+        "total": 60,
+        "top1": 44,
+        "top3": 48,
+        "top5": 50
+      },
+      "license_text_short_head_500_tail_1000": {
+        "total": 60,
+        "top1": 43,
+        "top3": 48,
+        "top5": 49
+      },
+      "license_text_short_head_700_tail_1000": {
+        "total": 60,
+        "top1": 42,
+        "top3": 48,
+        "top5": 50
+      },
+      "license_text_short_head_1000_tail_1000": {
+        "total": 60,
+        "top1": 37,
+        "top3": 46,
+        "top5": 49
+      },
+      "license_text_short_head_1500_tail_1000": {
+        "total": 60,
+        "top1": 39,
+        "top3": 48,
+        "top5": 50
+      },
+      "license_text_short_head_2000_tail_1000": {
+        "total": 60,
+        "top1": 40,
+        "top3": 46,
+        "top5": 47
+      },
+      "license_text_short_head_300_tail_1500": {
+        "total": 60,
+        "top1": 41,
+        "top3": 49,
+        "top5": 50
+      },
+      "license_text_short_head_500_tail_1500": {
+        "total": 60,
+        "top1": 43,
+        "top3": 50,
+        "top5": 51
+      },
+      "license_text_short_head_700_tail_1500": {
+        "total": 60,
+        "top1": 42,
+        "top3": 50,
+        "top5": 51
+      },
+      "license_text_short_head_1000_tail_1500": {
+        "total": 60,
+        "top1": 41,
+        "top3": 48,
+        "top5": 50
+      },
+      "license_text_short_head_1500_tail_1500": {
+        "total": 60,
+        "top1": 35,
+        "top3": 40,
+        "top5": 41
+      },
+      "license_text_short_head_300_tail_2000": {
+        "total": 60,
+        "top1": 39,
+        "top3": 48,
+        "top5": 50
+      },
+      "license_text_short_head_500_tail_2000": {
+        "total": 60,
+        "top1": 44,
+        "top3": 50,
+        "top5": 51
+      },
+      "license_text_short_head_700_tail_2000": {
+        "total": 60,
+        "top1": 44,
+        "top3": 50,
+        "top5": 51
+      },
+      "license_text_short_head_1000_tail_2000": {
+        "total": 60,
+        "top1": 42,
+        "top3": 45,
+        "top5": 46
+      }
+    },
+    "type_4": {
+      "verbatim": {
+        "total": 555,
+        "top1": 518,
+        "top3": 537,
+        "top5": 543
+      },
+      "01": {
+        "total": 555,
+        "top1": 517,
+        "top3": 536,
+        "top5": 542
+      },
+      "02": {
+        "total": 555,
+        "top1": 518,
+        "top3": 537,
+        "top5": 543
+      },
+      "05": {
+        "total": 555,
+        "top1": 401,
+        "top3": 451,
+        "top5": 470
+      },
+      "10": {
+        "total": 555,
+        "top1": 328,
+        "top3": 401,
+        "top5": 418
+      },
+      "20": {
+        "total": 555,
+        "top1": 252,
+        "top3": 306,
+        "top5": 317
+      }
+    },
+    "type_5": {
+      "mixed": {
+        "total": 183,
+        "top1": 37,
+        "top3": 45,
+        "top5": 50
+      }
+    }
+  },
+  "total_q": 7114,
+  "total_returned": 328159,
+  "correct_returned": 6298,
+  "wall_time": 9775.42642779206,
+  "peak_mem_mb": 3.904672622680664,
+  "avg_mem_mb": 1.1386003494262695,
+  "failures_sample": [
+    {
+      "cat": "type_1",
+      "subcat": "id_deprecated",
+      "true": "GPL-2.0-only",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "GPL-2.0-only",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_deprecated",
+      "true": "GPL-2.0-or-later",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "GPL-2.0-or-later",
+      "got": "BUSL-1.1"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "MIT-STK",
+      "got": "MIT"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_punct",
+      "true": "MIT-enna",
+      "got": "NONE"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "MIT-enna",
+      "got": "DL-DE-ZERO-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "CC-BY-NC-SA-2.0-DE",
+      "got": "CC-BY-NC-SA-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "CC-BY-NC-SA-2.0-UK",
+      "got": "CC-BY-NC-SA-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "BSD-2-Clause-Darwin",
+      "got": "Parity-7.0.0"
+    }
+  ]
+}
