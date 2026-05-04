@@ -30,20 +30,45 @@ def run_branch(
     if verify:
         cmd.append("--verify")
 
-    proc = subprocess.run(
+    # Use Popen to stream stderr in real-time while capturing stdout for the final result
+    proc = subprocess.Popen(
         cmd,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        check=False,
+        bufsize=1,
     )
+
+    stdout_lines = []
+
+    # We need a way to read both pipes. Stderr is for progress, Stdout is for the JSON result.
+    # Since progress is more important for real-time, we'll focus on that.
+    import threading
+
+    def stream_stderr(pipe):
+        for line in pipe:
+            print(f"  {line.strip()}", flush=True)
+
+    stderr_thread = threading.Thread(target=stream_stderr, args=(proc.stderr,))
+    stderr_thread.start()
+
+    # Read stdout in the main thread (it will block until the process finishes or buffers)
+    for line in proc.stdout:
+        stdout_lines.append(line)
+
+    proc.wait()
+    stderr_thread.join()
+
     if proc.returncode != 0:
         print(f"  ERROR (exit {proc.returncode}):", file=sys.stderr)
-        print(proc.stderr[-2000:], file=sys.stderr)
+        # We don't have the full stderr captured anymore, but it was streamed to terminal.
         sys.exit(1)
 
-    for line in proc.stderr.splitlines():
-        print(f"  {line}", flush=True)
-    result: dict[str, Any] = json.loads(proc.stdout.strip().splitlines()[-1])
+    if not stdout_lines:
+        print(f"  ERROR: No JSON output from {label}", file=sys.stderr)
+        sys.exit(1)
+
+    result: dict[str, Any] = json.loads(stdout_lines[-1].strip())
     return result
 
 
