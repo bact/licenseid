@@ -1,5 +1,5 @@
 # Benchmark Comparison: `main` vs `license-marker`
-**Date:** 20260504T085613Z
+**Date:** 20260504T090942Z
 
 ## Metrics
 
@@ -87,7 +87,7 @@
 | Metric | main | license-marker | Δ |
 | :--- | ---: | ---: | ---: |
 | Precision | 2.19% | 2.40% | +0.21% |
-| Wall time (s) | 68.5 | 62.1 | -6.4s |
-| Throughput (q/s) | 0.6 | 0.7 | +0.1 |
+| Wall time (s) | 51.3 | 50.8 | -0.5s |
+| Throughput (q/s) | 0.8 | 0.8 | +0.0 |
 | Peak memory (MB) | 1.2 | 1.2 | -0.0 |
 | End memory (MB) | 0.1 | 0.1 | +0.0 |

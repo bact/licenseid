@@ -239,6 +239,9 @@ def main() -> None:
                         global_counts,
                     )
 
+        t1_total = sum(s["total"] for s in stats["type_1"].values())
+        print(f"Finished Type 1 ({t1_total} queries)", file=sys.stderr, flush=True)
+
     print("Running Type 2...", file=sys.stderr, flush=True)
     # Type 2
     t2_path = base_dir / "license-name" / "license_names.json"
@@ -274,6 +277,9 @@ def main() -> None:
                         global_counts,
                     )
 
+        t2_total = sum(s["total"] for s in stats["type_2"].values())
+        print(f"Finished Type 2 ({t2_total} queries)", file=sys.stderr, flush=True)
+
     print("Running Type 3...", file=sys.stderr, flush=True)
     # Type 3
     t3_dir = base_dir / "license-text-short"
@@ -304,6 +310,9 @@ def main() -> None:
                         global_counts,
                     )
                     count += 1
+
+        t3_total = sum(s["total"] for s in stats["type_3"].values())
+        print(f"Finished Type 3 ({t3_total} queries)", file=sys.stderr, flush=True)
 
     print("Running Type 4...", file=sys.stderr, flush=True)
     # Type 4
@@ -348,6 +357,9 @@ def main() -> None:
                         global_counts,
                     )
 
+        t4_total = sum(s["total"] for s in stats["type_4"].values())
+        print(f"Finished Type 4 ({t4_total} queries)", file=sys.stderr, flush=True)
+
     print("Running Type 5...", file=sys.stderr, flush=True)
     # Type 5
     t5_dir = base_dir / "mixed-content"
@@ -383,6 +395,9 @@ def main() -> None:
                         global_counts,
                     )
                     count += 1
+
+        t5_total = sum(s["total"] for s in stats["type_5"].values())
+        print(f"Finished Type 5 ({t5_total} queries)", file=sys.stderr, flush=True)
 
     wall_time: float = time.perf_counter() - t_start
     current_mem, peak_mem = tracemalloc.get_traced_memory()

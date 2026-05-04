@@ -140,19 +140,25 @@ def main() -> None:
         )
 
         try:
+            print("Starting evaluation of branch 'main'...", flush=True)
             res_main = run_branch(
                 src_path=str(tmp_path / "src"),
                 label="main",
                 timestamp=timestamp,
                 verify=is_verify,
             )
+            print("Finished evaluation of branch 'main'.", flush=True)
+
+            print("Starting evaluation of branch 'license-marker'...", flush=True)
             res_marker = run_branch(
                 src_path=str(CURRENT_REPO / "src"),
                 label="license-marker",
                 timestamp=timestamp,
                 verify=is_verify,
             )
+            print("Finished evaluation of branch 'license-marker'.", flush=True)
 
+            print("Generating Markdown report...", flush=True)
             report = generate_markdown_report(res_main, res_marker, timestamp)
             out_file = CURRENT_REPO / "benchmarks" / "summary.md"
             with open(out_file, "w", encoding="utf-8") as f:
@@ -161,12 +167,14 @@ def main() -> None:
             print(f"\nReport written to {out_file}")
 
         finally:
+            print(f"Cleaning up worktree {tmp_path} ...", flush=True)
             subprocess.run(
                 ["git", "worktree", "remove", "--force", str(tmp_path)],
                 cwd=CURRENT_REPO,
                 check=False,
                 capture_output=True,
             )
+            print("Cleanup complete.", flush=True)
 
 
 if __name__ == "__main__":
