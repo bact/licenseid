@@ -222,12 +222,16 @@ class AggregatedLicenseMatcher:
         hint_list: list[str] = data.get("hint", [])
 
         # Tier 1: Retrieval
-        # Truncate very long queries for FTS5 to avoid performance/limit issues
-        # 100 words is more than enough for trigram retrieval.
+        # Truncate very long queries for FTS5 to avoid performance/limit issues.
+        # Raised from 100 to 200 words: benchmarks (Type 3) show Recall@1 is
+        # flat for inputs whose head alone fills more than 100 words, meaning
+        # the extra tokens were silently discarded.  200 words still fits well
+        # within SQLite FTS5 query limits while providing a meaningful gain for
+        # medium-length preambles (≈ 700–1 500 chars).
         words = text.split()
         search_query = text
-        if len(words) > 100:
-            search_query = " ".join(words[:100])
+        if len(words) > 200:
+            search_query = " ".join(words[:200])
 
         # Fetch Top 50 for better recall
         candidates = self.db.search_candidates(search_query, limit=50)
@@ -385,7 +389,18 @@ class AggregatedLicenseMatcher:
         similarity = match["base_score"]
         coverage = match["coverage"]
 
-        coverage_penalty = (1.0 - coverage) * 0.02 if coverage < 0.8 else 0.0
+        # Fragment inputs (coverage < 0.5) are known to be incomplete slices
+        # of a longer license text.  Penalising them for low coverage creates a
+        # systematic bias against the correct candidate when several licenses
+        # share a common preamble.  Suppress the penalty for fragments and keep
+        # it only for inputs that are near-full texts (0.5 ≤ coverage < 0.8).
+        # Reference: Type 3 benchmark results (head+tail combinations).
+        if coverage < 0.5:
+            coverage_penalty = 0.0
+        elif coverage < 0.8:
+            coverage_penalty = (1.0 - coverage) * 0.02
+        else:
+            coverage_penalty = 0.0
         coverage_bonus = 0.005 if 0.95 <= coverage <= 1.05 else 0.0
 
         score = similarity - coverage_penalty + coverage_bonus

@@ -84,7 +84,7 @@ ruff format
 - McCabe complexity ≤ 10; refactor if exceeded.
 - Cognitive complexity ≤ 15; refactor if exceeded.
 - Remove unused imports and trailing whitespace.
-- Max line length = 88
+- Max line length = 79
 
 ## File headers
 

@@ -126,6 +126,10 @@ def generate_markdown_report(
     lines.append("| Metric | main | license-marker | Δ |")
     lines.append("| :--- | ---: | ---: | ---: |")
 
+    ar = a["correct_returned"] / a["total_q"] * 100 if a["total_q"] else 0
+    br = b["correct_returned"] / b["total_q"] * 100 if b["total_q"] else 0
+    lines.append(f"| Recall | {ar:.2f}% | {br:.2f}% | {br - ar:+.2f}% |")
+
     ap = a["correct_returned"] / a["total_returned"] * 100 if a["total_returned"] else 0
     bp = b["correct_returned"] / b["total_returned"] * 100 if b["total_returned"] else 0
     lines.append(f"| Precision | {ap:.2f}% | {bp:.2f}% | {bp - ap:+.2f}% |")
