@@ -1,0 +1,469 @@
+{
+  "label": "license-marker",
+  "stats": {
+    "type_1": {
+      "id_verbatim": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "id_deprecated": {
+        "total": 2,
+        "top1": 0,
+        "top3": 0,
+        "top5": 0,
+        "top10": 0,
+        "top20": 0,
+        "top30": 0,
+        "top40": 0,
+        "top50": 0
+      },
+      "id_space": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "id_casing": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "id_punct": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "id_distorted": {
+        "total": 2,
+        "top1": 0,
+        "top3": 0,
+        "top5": 0,
+        "top10": 0,
+        "top20": 0,
+        "top30": 0,
+        "top40": 0,
+        "top50": 0
+      }
+    },
+    "type_2": {
+      "name_verbatim": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "name_space": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "name_casing": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "name_punct": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "name_distored": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      }
+    },
+    "type_3": {
+      "license_text_short_head_300": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "license_text_short_tail_300": {
+        "total": 2,
+        "top1": 1,
+        "top3": 1,
+        "top5": 1,
+        "top10": 1,
+        "top20": 1,
+        "top30": 1,
+        "top40": 1,
+        "top50": 1
+      }
+    },
+    "type_4": {
+      "verbatim": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "01": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "02": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "05": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "10": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "20": {
+        "total": 2,
+        "top1": 0,
+        "top3": 0,
+        "top5": 0,
+        "top10": 0,
+        "top20": 0,
+        "top30": 0,
+        "top40": 0,
+        "top50": 0
+      }
+    },
+    "type_5": {
+      "mixed": {
+        "total": 4,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      }
+    }
+  },
+  "tier_stats": {
+    "type_1": {
+      "id_verbatim": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "id_deprecated": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 2
+      },
+      "id_space": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "id_casing": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "id_punct": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "id_distorted": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 2
+      }
+    },
+    "type_2": {
+      "name_verbatim": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "name_space": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "name_casing": {
+        "total": 2,
+        "tier0": 1,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 1,
+        "missed": 0
+      },
+      "name_punct": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "name_distored": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      }
+    },
+    "type_3": {
+      "license_text_short_head_300": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 1,
+        "tier1": 1,
+        "tier2": 0,
+        "missed": 0
+      },
+      "license_text_short_tail_300": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 1,
+        "tier2": 0,
+        "missed": 1
+      }
+    },
+    "type_4": {
+      "verbatim": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 1,
+        "tier1": 1,
+        "tier2": 0,
+        "missed": 0
+      },
+      "01": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 2,
+        "tier2": 0,
+        "missed": 0
+      },
+      "02": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 2,
+        "tier2": 0,
+        "missed": 0
+      },
+      "05": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 2,
+        "tier2": 0,
+        "missed": 0
+      },
+      "10": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 2,
+        "tier2": 0,
+        "missed": 0
+      },
+      "20": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 2
+      }
+    },
+    "type_5": {
+      "mixed": {
+        "total": 4,
+        "tier0": 0,
+        "tier05": 2,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 2
+      }
+    }
+  },
+  "total_q": 42,
+  "total_returned": 1375,
+  "correct_returned": 33,
+  "wall_time": 16.143165417015553,
+  "peak_mem_mb": 1.8896064758300781,
+  "avg_mem_mb": 0.13892841339111328,
+  "failures_sample": [
+    {
+      "cat": "type_1",
+      "subcat": "id_deprecated",
+      "true": "GPL-2.0-only",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "GPL-2.0-only",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_deprecated",
+      "true": "GPL-2.0-or-later",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "GPL-2.0-or-later",
+      "got": "BUSL-1.1"
+    },
+    {
+      "cat": "type_3",
+      "subcat": "license_text_short_tail_300",
+      "true": "AAL",
+      "got": "AMPAS"
+    },
+    {
+      "cat": "type_4",
+      "subcat": "20",
+      "true": "0BSD",
+      "got": "HPND"
+    },
+    {
+      "cat": "type_4",
+      "subcat": "20",
+      "true": "AAL",
+      "got": "EUPL-1.0"
+    },
+    {
+      "cat": "type_5",
+      "subcat": "mixed",
+      "true": "AFL-1.2",
+      "got": "GPL-1.0-only"
+    },
+    {
+      "cat": "type_5",
+      "subcat": "mixed",
+      "true": "AFL-2.1",
+      "got": "LGPL-2.0-only"
+    }
+  ]
+}

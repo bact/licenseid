@@ -19,7 +19,10 @@ import time
 import tracemalloc
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from licenseid.types import MatchRequest
 
 if len(sys.argv) < 5:
     print(
@@ -45,20 +48,43 @@ from licenseid.normalize import normalize_text  # noqa: E402
 
 
 def init_stat() -> dict[str, int]:
-    return {"total": 0, "top1": 0, "top3": 0, "top5": 0}
+    return {
+        "total": 0,
+        "top1": 0,
+        "top3": 0,
+        "top5": 0,
+        "top10": 0,
+        "top20": 0,
+        "top30": 0,
+        "top40": 0,
+        "top50": 0,
+    }
+
+
+def init_tier_stat() -> dict[str, int]:
+    """Per-tier recall counters for a single subcat."""
+    return {
+        "total": 0,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0,
+    }
 
 
 def check_match(
     true_id: str,
     text: str,
-    matcher: Any,
+    matcher: "InstrumentedMatcher",
     stat_obj: dict[str, int],
     failures_list: list[dict[str, Any]],
     category: str,
     subcat: str,
     global_counts: dict[str, int],
+    tier_stat_obj: dict[str, int],
 ) -> None:
-    results = matcher.match(text)
+    results, trace = matcher.match_traced(text, true_id)
     matched_ids = [r["license_id"] for r in results]
 
     stat_obj["total"] += 1
@@ -81,6 +107,95 @@ def check_match(
         stat_obj["top3"] += 1
     if true_id in matched_ids[:5]:
         stat_obj["top5"] += 1
+    for n in (10, 20, 30, 40, 50):
+        if true_id in matched_ids[:n]:
+            stat_obj[f"top{n}"] += 1
+
+    # Per-tier recall
+    tier_stat_obj["total"] += 1
+    tier_name = trace.get("hit_tier")
+    if tier_name in ("tier0", "tier05", "tier1", "tier2"):
+        tier_stat_obj[tier_name] += 1
+    else:
+        tier_stat_obj["missed"] += 1
+
+
+class InstrumentedMatcher(AggregatedLicenseMatcher):
+    """Thin subclass used only by benchmarks to record per-tier recall.
+
+    Production behaviour is unchanged — this class adds `match_traced`,
+    which calls the same private methods as `match` but records at which
+    tier the correct candidate first appeared.
+    """
+
+    def match_traced(self, text: str, true_id: str) -> tuple[list[Any], dict[str, Any]]:
+        """Run the full pipeline and return (results, trace).
+
+        ``trace`` contains:
+          ``hit_tier``: one of 'tier0', 'tier05', 'tier1', 'tier2', or None.
+        """
+        from licenseid.normalize import normalize_text  # noqa: PLC0415
+
+        results = self.match(text)
+        trace: dict[str, Any] = {"hit_tier": None}
+
+        if not text:
+            return results, trace
+
+        # Reconstruct tier decisions in read-only order to find the first tier
+        # that would have surfaced true_id, mirroring the logic in match().
+        # Guards use hasattr so this works on branches that lack certain
+        # attributes (e.g. 'main' does not have self.detector).
+
+        norm_input = normalize_text(text)
+        words = norm_input.split()
+
+        # Tier 0.5: marker detection (license-marker branch only)
+        marker_candidates: list[Any] = []
+        if hasattr(self, "detector"):
+            marker_candidates = self.detector.detect(text)
+        spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
+        if spdx_exact:
+            if any(c["license_id"] == true_id for c in spdx_exact):
+                trace["hit_tier"] = "tier05"
+                return results, trace
+            # exact marker fired but not for true_id; pipeline still returned
+            # via marker path so we can't inspect further tiers
+            return results, trace
+
+        # Tier 0: short-text shortcut
+        if len(words) < 20 and hasattr(self, "_match_short_text"):
+            short = self._match_short_text(norm_input)
+            if short and short[0]["score"] > 1.0:
+                if any(s["license_id"] == true_id for s in short):
+                    trace["hit_tier"] = "tier0"
+                return results, trace
+
+        # Tier 0.5 (non-exact markers only) — check if true_id is in marker pool
+        if any(c["license_id"] == true_id for c in marker_candidates):
+            trace["hit_tier"] = "tier05"
+            return results, trace
+
+        # Tier 1: FTS5 candidates
+        request: "MatchRequest" = cast("MatchRequest", {"text": text})
+        tier1_candidates: list[Any] = []
+        if hasattr(self, "_get_candidates"):
+            tier1_candidates = self._get_candidates(request, text)
+        # Merge marker candidates (same as match())
+        seen = {c["license_id"] for c in tier1_candidates}
+        for c in marker_candidates:
+            if c["license_id"] not in seen:
+                tier1_candidates.append(c)
+                seen.add(c["license_id"])
+        if any(c["license_id"] == true_id for c in tier1_candidates):
+            trace["hit_tier"] = "tier1"
+            return results, trace
+
+        # Tier 2: ranked output (final results from match())
+        if any(r["license_id"] == true_id for r in results):
+            trace["hit_tier"] = "tier2"
+
+        return results, trace
 
 
 def main() -> None:
@@ -184,7 +299,7 @@ def main() -> None:
 
     print(f"[{LABEL}] DB ready. Running queries …", file=sys.stderr, flush=True)
 
-    matcher = AggregatedLicenseMatcher(db_path, enable_java=False)
+    matcher = InstrumentedMatcher(db_path, enable_java=False)
     matcher.match("MIT License")  # warm up
 
     tracemalloc.start()
@@ -192,6 +307,13 @@ def main() -> None:
     t_start: float = time.perf_counter()
 
     stats: dict[str, dict[str, dict[str, int]]] = {
+        "type_1": {},
+        "type_2": {},
+        "type_3": {},
+        "type_4": {},
+        "type_5": {},
+    }
+    tier_stats: dict[str, dict[str, dict[str, int]]] = {
         "type_1": {},
         "type_2": {},
         "type_3": {},
@@ -222,6 +344,7 @@ def main() -> None:
         ]
         for fld in fields_t1:
             stats["type_1"][fld] = init_stat()
+            tier_stats["type_1"][fld] = init_tier_stat()
 
         for item in t1_data:
             true_id = item["license_id"]
@@ -237,6 +360,7 @@ def main() -> None:
                         "type_1",
                         fld,
                         global_counts,
+                        tier_stats["type_1"][fld],
                     )
 
         t1_total = sum(s["total"] for s in stats["type_1"].values())
@@ -260,6 +384,7 @@ def main() -> None:
         ]
         for fld in fields:
             stats["type_2"][fld] = init_stat()
+            tier_stats["type_2"][fld] = init_tier_stat()
 
         for item in t2_data:
             true_id = item["license_id"]
@@ -275,6 +400,7 @@ def main() -> None:
                         "type_2",
                         fld,
                         global_counts,
+                        tier_stats["type_2"][fld],
                     )
 
         t2_total = sum(s["total"] for s in stats["type_2"].values())
@@ -299,6 +425,7 @@ def main() -> None:
                         continue
                     if k not in stats["type_3"]:
                         stats["type_3"][k] = init_stat()
+                        tier_stats["type_3"][k] = init_tier_stat()
                     check_match(
                         true_id,
                         v,
@@ -308,6 +435,7 @@ def main() -> None:
                         "type_3",
                         k,
                         global_counts,
+                        tier_stats["type_3"][k],
                     )
                     count += 1
 
@@ -329,6 +457,7 @@ def main() -> None:
 
             if "verbatim" not in stats["type_4"]:
                 stats["type_4"]["verbatim"] = init_stat()
+                tier_stats["type_4"]["verbatim"] = init_tier_stat()
             check_match(
                 true_id,
                 data["license_text"],
@@ -338,6 +467,7 @@ def main() -> None:
                 "type_4",
                 "verbatim",
                 global_counts,
+                tier_stats["type_4"]["verbatim"],
             )
 
             for rate in ["01", "02", "05", "10", "20"]:
@@ -346,6 +476,7 @@ def main() -> None:
                 if v:
                     if rate not in stats["type_4"]:
                         stats["type_4"][rate] = init_stat()
+                        tier_stats["type_4"][rate] = init_tier_stat()
                     check_match(
                         true_id,
                         v,
@@ -355,6 +486,7 @@ def main() -> None:
                         "type_4",
                         rate,
                         global_counts,
+                        tier_stats["type_4"][rate],
                     )
 
         t4_total = sum(s["total"] for s in stats["type_4"].values())
@@ -370,6 +502,7 @@ def main() -> None:
 
         if "mixed" not in stats["type_5"]:
             stats["type_5"]["mixed"] = init_stat()
+            tier_stats["type_5"]["mixed"] = init_tier_stat()
 
         for d in t5_subdirs:
             print(f"  Type 5: processing dir {d.name}", file=sys.stderr, flush=True)
@@ -393,6 +526,7 @@ def main() -> None:
                         "type_5",
                         "mixed",
                         global_counts,
+                        tier_stats["type_5"]["mixed"],
                     )
                     count += 1
 
@@ -413,6 +547,7 @@ def main() -> None:
     result: dict[str, Any] = {
         "label": LABEL,
         "stats": stats,
+        "tier_stats": tier_stats,
         "total_q": total_q,
         "total_returned": global_counts["total_returned"],
         "correct_returned": global_counts["correct_returned"],

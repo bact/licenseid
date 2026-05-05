@@ -409,14 +409,23 @@ def generate_type_3(licenses: list[dict[str, Any]], out_dir: Path) -> None:
             (1000, 2000),
         ]
         for x, y in combs:
+            # If the head already covers the whole text, a tail adds nothing.
+            if x >= len(text):
+                continue
+            # Clip the tail so it starts exactly where the head ends, avoiding
+            # overlap and data duplication.  For example, with a 1300-char text,
+            # head=1000 tail=500 → actual_tail=300 (chars 1000–1299).
+            actual_tail = min(y, len(text) - x)
             head = get_head(x)
-            tail = get_tail(y)
-            if x + y >= len(text):
+            tail = text[-actual_tail:] if actual_tail > 0 else ""
+            if head + tail == text:
+                # Head and clipped tail together reconstruct the full text;
+                # store it verbatim with no separator.
                 result[f"license_text_short_head_{x}_tail_{y}"] = text
             else:
-                result[f"license_text_short_head_{x}_tail_{y}"] = (
-                    head + " ...\n... " + tail
-                )
+                # Non-contiguous: head and tail are separated portions.
+                # A single newline marks the gap without adding noise tokens.
+                result[f"license_text_short_head_{x}_tail_{y}"] = head + "\n" + tail
 
         with open(
             out_dir / f"{c_id.replace('/', '_')}.json", "w", encoding="utf-8"

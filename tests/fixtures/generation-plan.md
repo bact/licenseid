@@ -60,12 +60,12 @@ For each selected license, generate a JSON object containing:
 **Constraints:** At least 50 test fixtures (files), >= 25 license IDs, >= 15 families. Text lengths strictly under 3000 characters.
 
 **Generation Rules:**
-For each selected license, parse its `license_text` by characters and create a dedicated JSON file with fields representing various combinations of the head (beginning) and tail (end) of the license text:
+For each selected licence, parse its `license_text` by characters and create a dedicated JSON file with fields representing various combinations of the head (beginning) and tail (end) of the licence text:
 
-- `license_text`: Verbatim license text.
+- `license_text`: Verbatim licence text.
 - `license_text_short_head_X`: First `X` characters for `X` in [300, 500, 700, 1000, 1500, 2000, 3000].
 - `license_text_short_tail_Y`: Last `Y` characters for `Y` in [300, 500, 700, 1000, 1500, 2000, 3000].
-- `license_text_short_head_X_tail_Y`: First `X` and last `Y` characters for combinations like `300_300`, `500_300`, `700_300`, `1000_300`, `1500_300`, `2000_300`, `2700_300`, etc.
+- `license_text_short_head_X_tail_Y`: First `X` characters and last `actual_tail` characters, joined by a single `\n`, for each (X, Y) combination. The tail is clipped to avoid overlap: `actual_tail = min(Y, len(text) - X)`. Combinations where `X >= len(text)` are omitted entirely. When head and clipped tail together reconstruct the full text, the verbatim text is stored with no separator.
 
 ---
 

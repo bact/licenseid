@@ -1,0 +1,203 @@
+{
+  "label": "main",
+  "stats": {
+    "type_1": {
+      "id_verbatim": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "id_deprecated": {
+        "total": 2,
+        "top1": 0,
+        "top3": 0,
+        "top5": 0
+      },
+      "id_space": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "id_casing": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "id_punct": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "id_distorted": {
+        "total": 2,
+        "top1": 0,
+        "top3": 0,
+        "top5": 0
+      }
+    },
+    "type_2": {
+      "name_verbatim": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "name_space": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "name_casing": {
+        "total": 2,
+        "top1": 1,
+        "top3": 1,
+        "top5": 1
+      },
+      "name_punct": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "name_distored": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      }
+    },
+    "type_3": {
+      "license_text_short_head_300": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "license_text_short_tail_300": {
+        "total": 2,
+        "top1": 1,
+        "top3": 1,
+        "top5": 1
+      }
+    },
+    "type_4": {
+      "verbatim": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "01": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "02": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "05": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "10": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2
+      },
+      "20": {
+        "total": 2,
+        "top1": 0,
+        "top3": 0,
+        "top5": 0
+      }
+    },
+    "type_5": {
+      "mixed": {
+        "total": 4,
+        "top1": 0,
+        "top3": 0,
+        "top5": 0
+      }
+    }
+  },
+  "total_q": 42,
+  "total_returned": 1371,
+  "correct_returned": 30,
+  "wall_time": 15.481399249983951,
+  "peak_mem_mb": 1.186213493347168,
+  "avg_mem_mb": 0.09854984283447266,
+  "failures_sample": [
+    {
+      "cat": "type_1",
+      "subcat": "id_deprecated",
+      "true": "GPL-2.0-only",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "GPL-2.0-only",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_deprecated",
+      "true": "GPL-2.0-or-later",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "GPL-2.0-or-later",
+      "got": "BUSL-1.1"
+    },
+    {
+      "cat": "type_2",
+      "subcat": "name_casing",
+      "true": "GPL-2.0-or-later",
+      "got": "NONE"
+    },
+    {
+      "cat": "type_3",
+      "subcat": "license_text_short_tail_300",
+      "true": "AAL",
+      "got": "BSD-1-Clause"
+    },
+    {
+      "cat": "type_4",
+      "subcat": "20",
+      "true": "0BSD",
+      "got": "HPND"
+    },
+    {
+      "cat": "type_4",
+      "subcat": "20",
+      "true": "AAL",
+      "got": "EUPL-1.0"
+    },
+    {
+      "cat": "type_5",
+      "subcat": "mixed",
+      "true": "AFL-1.2",
+      "got": "APL-1.0"
+    },
+    {
+      "cat": "type_5",
+      "subcat": "mixed",
+      "true": "AFL-1.2",
+      "got": "GPL-2.0-only"
+    }
+  ]
+}

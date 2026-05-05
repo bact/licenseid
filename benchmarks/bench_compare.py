@@ -41,18 +41,19 @@ def run_branch(
 
     stdout_lines = []
 
-    # We need a way to read both pipes. Stderr is for progress, Stdout is for the JSON result.
-    # Since progress is more important for real-time, we'll focus on that.
     import threading
 
-    def stream_stderr(pipe):
+    def stream_stderr(pipe: Any) -> None:
         for line in pipe:
             print(f"  {line.strip()}", flush=True)
 
     stderr_thread = threading.Thread(target=stream_stderr, args=(proc.stderr,))
     stderr_thread.start()
 
-    # Read stdout in the main thread (it will block until the process finishes or buffers)
+    # Read stdout in the main thread
+    if proc.stdout is None:
+        print("  ERROR: No stdout pipe", file=sys.stderr)
+        sys.exit(1)
     for line in proc.stdout:
         stdout_lines.append(line)
 
@@ -95,31 +96,84 @@ def generate_markdown_report(
             )
         )
 
+        _empty_stat: dict[str, int] = {
+            "total": 0,
+            "top1": 0,
+            "top3": 0,
+            "top5": 0,
+            "top10": 0,
+            "top20": 0,
+            "top30": 0,
+            "top40": 0,
+            "top50": 0,
+        }
         for subcat in all_subcats:
             for k, col in [
                 ("top1", "Recall@1"),
                 ("top3", "Recall@3"),
                 ("top5", "Recall@5"),
+                ("top10", "Recall@10"),
+                ("top20", "Recall@20"),
+                ("top30", "Recall@30"),
+                ("top40", "Recall@40"),
+                ("top50", "Recall@50"),
             ]:
-                ta = (
-                    a["stats"]
-                    .get(t_key, {})
-                    .get(subcat, {"total": 0, "top1": 0, "top3": 0, "top5": 0})
-                )
-                tb = (
-                    b["stats"]
-                    .get(t_key, {})
-                    .get(subcat, {"total": 0, "top1": 0, "top3": 0, "top5": 0})
-                )
+                ta = a["stats"].get(t_key, {}).get(subcat, _empty_stat)
+                tb = b["stats"].get(t_key, {}).get(subcat, _empty_stat)
 
                 if ta["total"] == 0 or tb["total"] == 0:
+                    continue
+                if k not in ta or k not in tb:
                     continue
                 va = ta[k] / ta["total"] * 100
                 vb = tb[k] / tb["total"] * 100
                 mark = " 🟢" if vb > va + 0.005 else (" 🔴" if vb < va - 0.005 else " ")
                 lines.append(
-                    f"| {subcat} {col} | {va:.2f}% | {vb:.2f}% | {vb - va:+.2f}%{mark} |"
+                    f"| {subcat} {col} | {va:.2f}% | {vb:.2f}% |"
+                    f" {vb - va:+.2f}%{mark} |"
                 )
+        lines.append("")
+
+    # Per-tier recall section
+    lines.append("## Tier Recall")
+    lines.append("")
+    _tier_keys = [
+        ("tier0", "Tier 0 (short-text)"),
+        ("tier05", "Tier 0.5 (marker)"),
+        ("tier1", "Tier 1 (FTS5 pool)"),
+        ("tier2", "Tier 2 (ranked)"),
+        ("missed", "Missed"),
+    ]
+    for t_idx in range(1, 6):
+        t_key = f"type_{t_idx}"
+
+        # Aggregate across all subcats for this type
+        def _sum_tier(data: dict[str, Any], tkey: str, field: str) -> int:
+            return sum(
+                v.get(field, 0)
+                for v in data.get("tier_stats", {}).get(tkey, {}).values()
+            )
+
+        total_a = _sum_tier(a, t_key, "total")
+        total_b = _sum_tier(b, t_key, "total")
+        if total_a == 0 and total_b == 0:
+            continue
+
+        lines.append(f"### Input Type {t_idx} tier recall")
+        lines.append(
+            f"| Tier | main (n={total_a}) | license-marker (n={total_b}) | Δ |"
+        )
+        lines.append("| :--- | ---: | ---: | ---: |")
+        for tier_key, tier_label in _tier_keys:
+            ca = _sum_tier(a, t_key, tier_key)
+            cb = _sum_tier(b, t_key, tier_key)
+            ra = ca / total_a * 100 if total_a else 0
+            rb = cb / total_b * 100 if total_b else 0
+            mark = " 🟢" if rb > ra + 0.005 else (" 🔴" if rb < ra - 0.005 else " ")
+            lines.append(
+                f"| {tier_label} | {ra:.2f}% ({ca}) |"
+                f" {rb:.2f}% ({cb}) | {rb - ra:+.2f}%{mark} |"
+            )
         lines.append("")
 
     lines.append("### Global Summary")
