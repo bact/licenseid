@@ -58,7 +58,7 @@ def matcher() -> AggregatedLicenseMatcher:
         to_insert_licenses.append(
             (
                 data["license_id"],
-                data.get("name", ""),
+                data.get("name", data["license_id"]),
                 data.get("is_spdx", True),
                 data.get("is_osi_approved", False),
                 data.get("is_fsf_libre", False),
