@@ -253,6 +253,7 @@ class MarkerDetector:
 
         return candidates
 
+    # pylint: disable=too-many-branches
     def _detect_gpl_headers(self, text: str) -> list[CandidateMatch]:
         """Detect GPL/LGPL/AGPL standard copyright notice headers."""
         candidates: list[CandidateMatch] = []
@@ -371,6 +372,7 @@ class MarkerDetector:
         BSD-2-Clause-Darwin whose FTS5 similarity may be higher.
         """
         conditions = re.findall(
+            # pylint: disable=line-too-long
             r"^\s*(\d+)\.\s+(?:Redistribution|Neither\b|All\s+advertising|The\s+(?:name|author))",
             text,
             re.MULTILINE | re.IGNORECASE,

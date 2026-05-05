@@ -318,7 +318,8 @@ class AggregatedLicenseMatcher:
         # 2. Prefer non-deprecated
         # 3. Prefer higher popularity (if enabled)
         # 4. Alphabetical tie-break
-        # TODO: Prefer more recent version of a license family
+        # Not implemented yet:
+        # Prefer more recent version of a license family
         # (e.g. GPL-3.0-* over GPL-2.0-*) when scores are identical.
         def sort_key(x: InternalMatch) -> tuple[float, bool, float, str]:
             return (

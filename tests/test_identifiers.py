@@ -1,6 +1,8 @@
-import pytest
 import sqlite3
 import uuid
+
+import pytest
+
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import normalize_identifier
 
