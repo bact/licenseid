@@ -231,6 +231,27 @@ def select_target_licenses(
     return selected
 
 
+def apply_casing(text: str) -> str:
+    choice = random.choice(["upper", "lower", "camel", "random"])
+    if choice == "upper":
+        return text.upper()
+    if choice == "lower":
+        return text.lower()
+    if choice == "camel":
+        return re.sub(r"[^a-zA-Z0-9]+(.)", lambda m: m.group(1).upper(), text.lower())
+    # random case
+    return "".join(c.upper() if random.random() > 0.5 else c.lower() for c in text)
+
+
+def drop_punct(text: str) -> str:
+    res = text
+    puncts = ["-", ".", ",", "(", ")", ":"]
+    for _ in range(random.randint(1, 2)):
+        p = random.choice(puncts)
+        res = res.replace(p, random.choice(["", " "]), 1)
+    return res
+
+
 def check_dir(dir_path: Path, force: bool) -> bool:
     if dir_path.exists():
         if force:
@@ -251,31 +272,24 @@ def generate_type_1(
     print("Generating Type 1: license-id...")
     results = []
     for lic in licenses:
-        c_id = lic["license_id"]
-        d_id = dep_map.get(c_id)
+        c_id: str = lic["license_id"]
 
-        variations = []
-        # basic
-        variations.append(c_id)
-        if d_id:
-            variations.append(d_id)
+        l_spaces = " " * random.randint(1, 3)
+        r_spaces = " " * random.randint(1, 3)
 
-        # distorted
-        lower_id = c_id.lower()
-        if lower_id not in variations:
-            variations.append(lower_id)
-        spaced_id = c_id.replace("-", " ")
-        if spaced_id not in variations:
-            variations.append(spaced_id)
-        no_space_id = c_id.replace("-", "")
-        if no_space_id not in variations:
-            variations.append(no_space_id)
+        distorted = c_id
+        if len(distorted) > 5:
+            distorted = distorted[: -random.randint(2, 3)]
 
         results.append(
             {
-                "canonical_id": c_id,
-                "deprecated_id": d_id,
-                "variations": variations,
+                "license_id": c_id,
+                "id_verbatim": c_id,
+                "id_deprecated": dep_map.get(c_id, ""),
+                "id_space": f"{l_spaces}{c_id}{r_spaces}",
+                "id_casing": apply_casing(c_id),
+                "id_punct": drop_punct(c_id),
+                "id_distorted": distorted,
             }
         )
 
@@ -283,43 +297,49 @@ def generate_type_1(
         json.dump(results, f, indent=4)
 
 
+def distort_name(name: str) -> str:
+    n = name.lower()
+    if "public" in n and "general" in n:
+        n = n.replace(random.choice(["public", "general"]), "").strip()
+    if "variant" in n:
+        n = n.replace("variant", "").strip()
+    if "license" in n:
+        n = n.replace("license", "").strip()
+    if n.endswith("generic"):
+        n = n[:-7].strip()
+    if "project" in n:
+        n = n.replace("project", "").strip()
+
+    if "licence" in name.lower():
+        n = re.sub(r"(?i)licence", "license", n)
+    elif "license" in name.lower():
+        n = re.sub(r"(?i)license", "licence", n)
+
+    if "non" in name.lower():
+        n = re.sub(r"(?i)\bnon\b", "no", n)
+    elif "no" in name.lower():
+        n = re.sub(r"(?i)\bno\b", "non", n)
+
+    n = re.sub(r"(?i)\bversion\b", random.choice(["ver", "v", "v.", ""]), n)
+
+    # Insert version before standalone float
+    n = re.sub(r"\b(\d+\.\d+)\b", r"v \1", n)
+    n = re.sub(r"(?i)\b(v|ver|version)\s+v\b", r"\1", n)
+
+    def alter_prec(m: re.Match[str]) -> str:
+        val = m.group(1)
+        if len(val.split(".")) == 2:
+            return val + ".0"
+        if len(val.split(".")) == 3 and val.endswith(".0"):
+            return val[:-2]
+        return val
+
+    n = re.sub(r"\b(\d+\.\d+(?:\.\d+)?)\b", alter_prec, n)
+    return re.sub(r"\s+", " ", n).strip()
+
+
 def generate_type_2(licenses: list[dict[str, Any]], out_dir: Path) -> None:
     print("Generating Type 2: license-name...")
-
-    def apply_casing(name: str) -> str:
-        return random.choice([name.lower(), name.upper(), name.title()])
-
-    def drop_punct(name: str) -> str:
-        return re.sub(r"[^A-Za-z0-9 ]", "", name)
-
-    def distort_name(name: str) -> str:
-        n = name
-        n = re.sub(r"(?i)general public", random.choice(["", "pub"]), n)
-        n = re.sub(r"(?i)public", "", n)
-
-        if "licence" not in name.lower():
-            n = re.sub(r"(?i)license", "licence", n)
-
-        if "non" in name.lower():
-            n = re.sub(r"(?i)non", "no", n)
-        elif "no" in name.lower():
-            n = re.sub(r"(?i)no", "non", n)
-
-        n = re.sub(r"(?i)version", random.choice(["ver", "v", "v.", ""]), n)
-
-        n = re.sub(r"(\d+\.\d+)", r"v ", n)
-        n = re.sub(r"(?i)(v|ver|version)\s+v", r"", n)
-
-        def alter_prec(m: re.Match[str]) -> str:
-            val = m.group(1)
-            if len(val.split(".")) == 2:
-                return val + ".0"
-            if len(val.split(".")) > 2 and val.endswith(".0"):
-                return val[:-2]
-            return val
-
-        n = re.sub(r"(\d+\.\d+(?:\.\d+)?)", alter_prec, n)
-        return re.sub(r"\s+", " ", n).strip()
 
     results = []
     for lic in licenses:
@@ -520,7 +540,9 @@ def generate_type_4(licenses: list[dict[str, Any]], out_dir: Path) -> None:
             json.dump(result, f, indent=4)
 
 
-def generate_type_5(licenses: list[dict[str, Any]], out_dir: Path) -> None:
+def generate_type_5(
+    licenses: list[dict[str, Any]], out_dir: Path, force: bool = False
+) -> None:
     print("Generating Type 5: mixed-content...")
     readme_template = """# {project_name}
 
@@ -590,7 +612,8 @@ dependencies:
 
         safe_id = c_id.replace(" ", "_").replace("/", "_")
         target_dir = out_dir / safe_id
-        target_dir.mkdir(parents=True, exist_ok=True)
+        if not check_dir(target_dir, force):
+            continue
 
         grant = f"Licensed under the {c_name}."
         if "GPL" in c_id:
@@ -748,8 +771,8 @@ def main() -> None:
 
     if "5" in types_to_run:
         out = base_out_dir / "mixed-content"
-        if check_dir(out, args.force):
-            generate_type_5(selected_licenses, out)
+        out.mkdir(parents=True, exist_ok=True)
+        generate_type_5(selected_licenses, out, args.force)
 
     print("Done! Fixtures generated successfully.")
 
