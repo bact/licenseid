@@ -92,8 +92,7 @@ class LicenseDatabase:
     def _init_db(self) -> None:
         """Initialise the SQLite database with FTS5."""
         with self._connect() as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS licenses (
                     license_id TEXT PRIMARY KEY,
                     name TEXT,
@@ -109,38 +108,31 @@ class LicenseDatabase:
                     pop_score INTEGER DEFAULT 1,
                     word_count INTEGER
                 )
-            """
-            )
-            conn.execute(
-                """
+            """)
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS exceptions (
                     exception_id TEXT PRIMARY KEY,
                     name TEXT,
                     is_deprecated BOOLEAN,
                     superseded_by TEXT
                 )
-            """
-            )
+            """)
 
             # Create FTS5 virtual table for trigram search
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS license_index USING fts5(
                     license_id UNINDEXED,
                     search_text,
                     tokenize = 'trigram'
                 )
-            """
-            )
+            """)
             # Metadata table for version tracking
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS db_metadata (
                     key TEXT PRIMARY KEY,
                     value TEXT
                 )
-            """
-            )
+            """)
 
     def clear_cache(self) -> None:
         """Delete local cache files."""
@@ -336,11 +328,13 @@ class LicenseDatabase:
         exception_records: list[tuple[str, str, bool, Optional[str]]] = []
 
         print("\nPreparing exception data...", end="", flush=True)
-        # Create a name -> license_id map for non-deprecated entries to find successors
-        name_to_license: dict[str, str] = {}
-        for lic in licenses_data:
-            if not lic.get("isDeprecatedLicenseId", False):
-                name_to_license[lic["name"].lower()] = lic["licenseId"]
+        # Build the superseded_by mapping at DB build time so runtime lookups
+        # are O(1).
+        active_ids: set[str] = {
+            lic["licenseId"]
+            for lic in licenses_data
+            if not lic.get("isDeprecatedLicenseId", False)
+        }
 
         name_to_exception: dict[str, str] = {}
         for exc in exceptions_data:
@@ -350,9 +344,17 @@ class LicenseDatabase:
         for i, lic in enumerate(licenses_data):
             # Recalculate record with superseded_by info
             is_deprecated = bool(lic.get("isDeprecatedLicenseId", False))
-            superseded_by = None
+            superseded_by: Optional[str] = None
             if is_deprecated:
-                superseded_by = name_to_license.get(lic["name"].lower())
+                dep_id = lic["licenseId"]
+                # SPDX '+' token: GPL-2.0+ → GPL-2.0-or-later (certain).
+                # Bare deprecated IDs (e.g. GPL-2.0) are left as NULL because
+                # they cannot be resolved without the granting declaration.
+                if dep_id.endswith("+"):
+                    base_id = dep_id[:-1]  # strip the '+' operator token
+                    or_later = base_id + "-or-later"
+                    if or_later in active_ids:
+                        superseded_by = or_later
 
             res = self._prepare_license_record(
                 lic, root_dir, popularity_map, is_deprecated, superseded_by
@@ -360,6 +362,25 @@ class LicenseDatabase:
             if res:
                 license_records.append(res[0])
                 index_records.append(res[1])
+            elif is_deprecated:
+                # Text file absent for this deprecated ID (some SPDX releases omit
+                # them).  Still store the metadata row so redirect lookups work.
+                license_records.append(
+                    (
+                        lic["licenseId"],
+                        lic.get("name", lic["licenseId"]),
+                        None,  # xml_template
+                        True,  # is_spdx
+                        False,  # is_osi_approved
+                        False,  # is_fsf_libre
+                        False,  # is_high_usage
+                        True,  # is_deprecated
+                        superseded_by,
+                        1,  # pop_score
+                        0,  # word_count
+                    )
+                )
+                # Not added to index_records — no text to index.
 
             if (i + 1) % 100 == 0 or (i + 1) == len(licenses_data):
                 print(".", end="", flush=True)
@@ -400,7 +421,8 @@ class LicenseDatabase:
                     ("last_update_datetime", now),
                 ]
                 conn.executemany(
-                    "INSERT INTO db_metadata (key, value) VALUES (?, ?)", metadata_items
+                    "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
+                    metadata_items,
                 )
 
                 conn.executemany(
@@ -623,6 +645,37 @@ class LicenseDatabase:
             if not row:
                 return None
             return self._cast_exception_details(row)
+
+    def get_license_by_id_prefix(self, prefix: str) -> Optional[LicenseDetails]:
+        """Return the best (shortest) active license whose ID starts with *prefix*.
+
+        Used to canonicalise abbreviated IDs such as ``"Apache-2"`` →
+        ``"Apache-2.0"``.  Only non-deprecated licenses are considered so that
+        a bare prefix never silently resolves to a deprecated ID.  Returns
+        ``None`` when no unambiguous match exists (zero or multiple candidates
+        of the same length).
+        """
+        clean = prefix.strip()
+        if not clean:
+            return None
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT * FROM licenses
+                WHERE license_id LIKE ? ESCAPE '\\'
+                  AND is_deprecated = 0
+                ORDER BY LENGTH(license_id)
+                """,
+                (clean.replace("%", r"\%").replace("_", r"\_") + "%",),
+            ).fetchall()
+        if not rows:
+            return None
+        # Accept only when the shortest match is unambiguous: either there is
+        # exactly one row, or the shortest ID is strictly shorter than the next.
+        if len(rows) == 1 or len(rows[0]["license_id"]) < len(rows[1]["license_id"]):
+            return self._cast_license_details(rows[0])
+        return None
 
     def _cast_license_details(self, row: sqlite3.Row) -> LicenseDetails:
         """Helper to cast sqlite Row to LicenseDetails with proper boolean types."""

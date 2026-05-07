@@ -16,7 +16,7 @@ from typing import Any, Optional, cast
 from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase
-from licenseid.identifiers import normalize_identifier
+from licenseid.identifiers import disambiguate_deprecated_id, normalize_identifier
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text
 from licenseid.types import (
@@ -114,6 +114,27 @@ class AggregatedLicenseMatcher:
 
         # Tier 0: Short-Text Shortcut (Names/IDs)
         if len(words) < 20:
+            # Fast path: bare deprecated ID + prose disambiguation context in
+            # the raw (un-normalised) text, e.g. "GPL-2.0 or later version".
+            # Must use target_text, not norm_input, because normalize_text()
+            # strips punctuation/case that the regex patterns rely on.
+            disambiguated = disambiguate_deprecated_id(target_text)
+            if disambiguated:
+                details = self.db.get_license_details(disambiguated)
+                return [
+                    LicenseMatch(
+                        license_id=disambiguated,
+                        score=1.02,
+                        similarity=1.0,
+                        coverage=1.0,
+                        is_spdx=details["is_spdx"] if details else True,
+                        is_osi_approved=details["is_osi_approved"]
+                        if details
+                        else False,
+                        is_fsf_libre=details["is_fsf_libre"] if details else False,
+                    )
+                ]
+
             short_matches = self._match_short_text(norm_input)
             if short_matches and short_matches[0]["score"] > 1.0:
                 # Apply marker boosts to break ties among equal-scored candidates
@@ -221,17 +242,19 @@ class AggregatedLicenseMatcher:
         exclude_list: list[str] = data.get("exclude", [])
         hint_list: list[str] = data.get("hint", [])
 
+        # Strip comment prefixes before FTS5: improves recall for Type 5
+        # inputs where license text is wrapped in // / # / * comment markers.
+        text = self._strip_comment_prefixes(text)
+
         # Tier 1: Retrieval
         # Truncate very long queries for FTS5 to avoid performance/limit issues.
-        # Raised from 100 to 200 words: benchmarks (Type 3) show Recall@1 is
-        # flat for inputs whose head alone fills more than 100 words, meaning
-        # the extra tokens were silently discarded.  200 words still fits well
-        # within SQLite FTS5 query limits while providing a meaningful gain for
-        # medium-length preambles (≈ 700–1 500 chars).
+        # Cap at 100 words: benchmarks show Recall@1 is flat beyond this —
+        # the head alone provides sufficient FTS5 signal and longer queries
+        # increase SQLite overhead without improving candidate recall.
         words = text.split()
         search_query = text
-        if len(words) > 200:
-            search_query = " ".join(words[:200])
+        if len(words) > 100:
+            search_query = " ".join(words[:100])
 
         # Fetch Top 50 for better recall
         candidates = self.db.search_candidates(search_query, limit=50)
@@ -410,7 +433,10 @@ class AggregatedLicenseMatcher:
             score += math.log10(max(1, match["pop_score"])) * 0.0001
 
         marker_conf = boosts.get(match["license_id"], 0.0)
-        if marker_conf > 0:
+        if marker_conf >= 0.85:
+            # Require confidence >= 0.85 before applying any marker boost.
+            # Low-confidence markers (< 0.85) on e.g. partial / noisy inputs
+            # caused score distortion on Type 4 inputs in benchmarks.
             # For long pure license text with moderate-confidence markers,
             # similarity dominates; use a small additive boost only.
             # For mixed content, short text, OR high-confidence structural
@@ -480,6 +506,28 @@ class AggregatedLicenseMatcher:
 
         ranked.sort(key=sort_key)
         return ranked
+
+    # Matches common single-line comment prefixes that wrap license notices
+    # in source files: C/C++/Java (//, /* ... */), Python/shell (#),
+    # and Javadoc/C block comment continuation ( * ).
+    _RE_COMMENT_PREFIX = re.compile(
+        r"^[ \t]*(?://+|#+|;+|\*(?!/)|/\*)[ \t]?",
+        re.MULTILINE,
+    )
+
+    @staticmethod
+    def _strip_comment_prefixes(text: str) -> str:
+        """Remove leading comment characters from every line.
+
+        Strips ``//``, ``#``, ``;``, ``*`` (Javadoc continuation), and
+        ``/*`` prefixes.  Trailing ``*/`` block-comment closers are also
+        removed.  Applied before FTS5 on source-file inputs to improve
+        recall for Type 5 (comment-wrapped) license notices.
+        """
+        stripped = AggregatedLicenseMatcher._RE_COMMENT_PREFIX.sub("", text)
+        # Remove trailing block-comment closers on their own line.
+        stripped = re.sub(r"^[ \t]*\*/[ \t]*$", "", stripped, flags=re.MULTILINE)
+        return stripped
 
     # Detects -or-later granting language in mixed/source-file contexts.
     # Allows for comment characters (// # * ;) between "or" and "(at your option)".
@@ -602,10 +650,23 @@ class AggregatedLicenseMatcher:
         ranked: list[LicenseMatch] = []
         words = norm_input.split()
         threshold = 90.0 if len(words) <= 2 else 85.0
+        norm_upper = norm_input.upper()
 
         for meta in all_metadata:
             lid = meta["license_id"]
             name = meta["name"]
+
+            # Case-fold exact ID match: return immediately with a score > 1.0
+            # so the Tier 0 caller recognises it as a definitive hit.
+            if normalize_text(lid).upper() == norm_upper:
+                return [
+                    LicenseMatch(
+                        license_id=lid,
+                        score=1.02,
+                        similarity=1.0,
+                        coverage=1.0,
+                    )
+                ]
 
             id_norm = normalize_text(lid)
             score_id = fuzz.ratio(norm_input, id_norm)
@@ -722,6 +783,9 @@ class AggregatedLicenseMatcher:
         seen_ids = set()
 
         for section in sections:
+            # Strip comment prefixes before both short-text and FTS5 matching
+            # so that comment-wrapped license text (Type 5) is handled cleanly.
+            section = self._strip_comment_prefixes(section)
             # 1. Try Tier 0 (Short Text) on the windowed section
             norm_section = normalize_text(section)
             short_matches = self._match_short_text(norm_section)

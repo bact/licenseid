@@ -12,18 +12,14 @@ from typing import Optional
 
 from licenseid.database import LicenseDatabase
 
-# Deprecated SPDX License IDs (pre-2.0 naming) mapped to their canonical
-# successors.
-# Plain version (e.g. GPL-2.0) -> -only; "+" suffix -> -or-later.
+# Deprecated SPDX License IDs using the '+' expression token.
+# The SPDX '+' operator means "or any later version" (SPDX Spec §10.1).
+# These can be resolved to canonical form with certainty because the '+'
+# unambiguously indicates the -or-later variant.
+#
+# Reference: SPDX Specification v3.0, Annex D — SPDX License Expressions
+#   https://spdx.github.io/spdx-spec/v3.0/annexes/spdx-license-expressions/
 DEPRECATED_SPDX_LICENSE_IDS: dict[str, str] = {
-    "GPL-1.0": "GPL-1.0-only",
-    "GPL-2.0": "GPL-2.0-only",
-    "GPL-3.0": "GPL-3.0-only",
-    "LGPL-2.0": "LGPL-2.0-only",
-    "LGPL-2.1": "LGPL-2.1-only",
-    "LGPL-3.0": "LGPL-3.0-only",
-    "AGPL-1.0": "AGPL-1.0-only",
-    "AGPL-3.0": "AGPL-3.0-only",
     "GPL-1.0+": "GPL-1.0-or-later",
     "GPL-2.0+": "GPL-2.0-or-later",
     "GPL-3.0+": "GPL-3.0-or-later",
@@ -32,6 +28,27 @@ DEPRECATED_SPDX_LICENSE_IDS: dict[str, str] = {
     "LGPL-3.0+": "LGPL-3.0-or-later",
     "AGPL-1.0+": "AGPL-1.0-or-later",
     "AGPL-3.0+": "AGPL-3.0-or-later",
+}
+
+# Conservative last-resort fallback for bare deprecated IDs (no '+' suffix).
+# These IDs are technically ambiguous: GPL-2.0 could be either GPL-2.0-only
+# or GPL-2.0-or-later, as both share the same license text.  Strict resolution
+# requires the granting declaration in the source file (e.g. "version 2 only"
+# or "any later version").
+#
+# When no granting context is available this tool maps bare IDs to '-only'
+# as the conservative interpretation, consistent with common practice in the
+# FOSS ecosystem where an unqualified GPL-2.0 reference is usually treated as
+# version-only.  This fallback is applied last, after DB and '+'-form checks.
+DEPRECATED_BARE_LICENSE_IDS: dict[str, str] = {
+    "GPL-1.0": "GPL-1.0-only",
+    "GPL-2.0": "GPL-2.0-only",
+    "GPL-3.0": "GPL-3.0-only",
+    "LGPL-2.0": "LGPL-2.0-only",
+    "LGPL-2.1": "LGPL-2.1-only",
+    "LGPL-3.0": "LGPL-3.0-only",
+    "AGPL-1.0": "AGPL-1.0-only",
+    "AGPL-3.0": "AGPL-3.0-only",
 }
 
 # Mapping of deprecated "-with-" IDs to their modern counterparts
@@ -44,6 +61,74 @@ DEPRECATED_WITH_IDS: dict[str, str] = {
     "GPL-3.0-with-GCC-exception": "GPL-3.0-only WITH GCC-exception-3.1",
 }
 
+# Lookup: bare deprecated ID → canonical or-later form.
+# Derived from DEPRECATED_SPDX_LICENSE_IDS by stripping the trailing "+".
+_BARE_TO_OR_LATER: dict[str, str] = {
+    k[:-1]: v for k, v in DEPRECATED_SPDX_LICENSE_IDS.items()
+}
+
+# Compiled regexes for prose disambiguation of bare deprecated IDs.
+# or-later patterns cover common GPL boilerplate phrasings:
+#   "or later", "or any later", "or a later",
+#   "or (at your option) any later", "or newer",
+#   "any later version" (standalone)
+# Reference: GPL preamble boilerplate and SPDX matching guidelines
+#   https://spdx.github.io/spdx-spec/v3.0/annexes/license-matching-guidelines-and-templates/
+_OR_LATER_RE = re.compile(
+    r"\bor\s+(?:\([^)]{0,50}\)\s+)?(?:a\s+|any\s+)?(?:later|newer)\b"
+    r"|\bany\s+later\s+version\b",
+    re.IGNORECASE,
+)
+# "only" is a common English word; it is checked in a narrow 50-char window
+# AFTER the ID to avoid false positives from unrelated uses.
+_ONLY_RE = re.compile(r"\bonly\b", re.IGNORECASE)
+
+
+def disambiguate_deprecated_id(text: str) -> Optional[str]:
+    """
+    Scan *text* for a bare deprecated SPDX ID and a surrounding prose phrase
+    that resolves the ``-only`` / ``-or-later`` ambiguity.
+
+    Returns the canonical SPDX ID when a phrase is found::
+
+        disambiguate_deprecated_id("GPL-2.0 or later version")
+        # → "GPL-2.0-or-later"
+
+        disambiguate_deprecated_id("GPL-2.0 only")
+        # → "GPL-2.0-only"
+
+    Returns ``None`` when no bare deprecated ID is present or when the ID is
+    found but no disambiguating phrase exists in the surrounding text.  Callers
+    should then apply the conservative ``DEPRECATED_BARE_LICENSE_IDS`` fallback.
+
+    This function must be called *before* SPDX expression tokenisation because
+    ``"or"`` in ``"or later"`` is prose, not an SPDX OR operator.
+    """
+    # Sort longest IDs first so e.g. "LGPL-2.1" is tried before "LGPL-2".
+    for dep_id in sorted(DEPRECATED_BARE_LICENSE_IDS, key=len, reverse=True):
+        m = re.search(r"\b" + re.escape(dep_id) + r"\b", text, re.IGNORECASE)
+        if not m:
+            continue
+
+        # Wide window (±150 chars) for or-later phrases, which can appear
+        # several words before or after the ID.
+        start = max(0, m.start() - 150)
+        end = min(len(text), m.end() + 150)
+        window = text[start:end]
+        if _OR_LATER_RE.search(window):
+            return _BARE_TO_OR_LATER.get(dep_id)
+
+        # Narrow window (50 chars after the ID) for "only" to reduce false
+        # positives from common uses like "only if", "not only", etc.
+        after = text[m.end() : m.end() + 50]
+        if _ONLY_RE.search(after):
+            return DEPRECATED_BARE_LICENSE_IDS[dep_id]
+
+        # ID found but no disambiguating phrase — caller applies fallback.
+        return None
+
+    return None
+
 
 def normalize_identifier(identifier: str, db: Optional[LicenseDatabase] = None) -> str:
     """
@@ -51,6 +136,14 @@ def normalize_identifier(identifier: str, db: Optional[LicenseDatabase] = None) 
     """
     if not identifier:
         return identifier
+
+    # Pre-check: bare deprecated ID + prose disambiguation context.
+    # e.g. "GPL-2.0 or later version" → "GPL-2.0-or-later"
+    # Must run before the AND/OR/WITH check because "or" in "or later" is
+    # prose, not an SPDX OR operator.
+    disambiguated = disambiguate_deprecated_id(identifier)
+    if disambiguated:
+        return disambiguated
 
     # 1. Handle full expression parsing if AND/OR/WITH/+/( are present
     upper_ident = identifier.upper()
@@ -97,6 +190,15 @@ def _normalize_single_id(lic_id: str, db: Optional[LicenseDatabase] = None) -> s
                     normalized = canonical
                     break
 
+    if not normalized:
+        # Conservative last resort: bare deprecated IDs default to '-only'.
+        normalized = DEPRECATED_BARE_LICENSE_IDS.get(lic_id)
+        if not normalized:
+            for dep_id, canonical in DEPRECATED_BARE_LICENSE_IDS.items():
+                if dep_id.upper() == lic_id_upper:
+                    normalized = canonical
+                    break
+
     if normalized:
         return normalized
 
@@ -106,6 +208,19 @@ def _normalize_single_id(lic_id: str, db: Optional[LicenseDatabase] = None) -> s
         details = db.get_license_details(lic_id)
         if details:
             return details["license_id"]
+
+    # 4. '+'-suffixed ID not handled by any mapping (e.g. "CDDL-1.0+",
+    # "Apache-2+"): strip '+', resolve the base to its canonical DB ID — first
+    # by exact lookup, then by prefix — then re-attach '+'.
+    # This preserves the "or later" intent for licenses whose '+' form is not
+    # listed in DEPRECATED_SPDX_LICENSE_IDS.
+    if lic_id.endswith("+") and db:
+        base = lic_id[:-1]
+        base_details = db.get_license_details(base)
+        if not base_details:
+            base_details = db.get_license_by_id_prefix(base)
+        if base_details:
+            return base_details["license_id"] + "+"
 
     return lic_id
 
@@ -146,20 +261,15 @@ def _normalize_expression(expression: str, db: Optional[LicenseDatabase] = None)
             # It's an identifier (possibly with + already attached)
             normalized_tokens.append(_normalize_single_id(token, db))
 
-    # Reconstruct the expression with proper spacing
-    # result will contain tokens that should be joined with spaces if needed
-    result = []
-    for i, token in enumerate(normalized_tokens):
-        result.append(token)
-
-    # Join with spaces, but handle parentheses carefully
+    # Reconstruct the expression with proper spacing,
+    # handling parentheses without extra spaces.
     expr = ""
-    for i, part in enumerate(result):
+    for i, part in enumerate(normalized_tokens):
         if i == 0:
             expr = part
         elif part == ")":
             expr += part
-        elif result[i - 1] == "(":
+        elif normalized_tokens[i - 1] == "(":
             expr += part
         else:
             expr += " " + part
