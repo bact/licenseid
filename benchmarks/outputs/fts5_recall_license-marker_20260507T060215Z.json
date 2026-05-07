@@ -1,0 +1,237 @@
+{
+  "label": "license-marker",
+  "timestamp": "20260507T060215Z",
+  "fixture_count": 5,
+  "sizes": [
+    700,
+    800,
+    900,
+    1000
+  ],
+  "head": {
+    "700": {
+      "total": 5,
+      "top1": 5,
+      "top5": 5,
+      "top10": 5,
+      "top50": 5,
+      "top1_pct": 100.0,
+      "top5_pct": 100.0,
+      "top10_pct": 100.0,
+      "top50_pct": 100.0
+    },
+    "800": {
+      "total": 5,
+      "top1": 5,
+      "top5": 5,
+      "top10": 5,
+      "top50": 5,
+      "top1_pct": 100.0,
+      "top5_pct": 100.0,
+      "top10_pct": 100.0,
+      "top50_pct": 100.0
+    },
+    "900": {
+      "total": 5,
+      "top1": 5,
+      "top5": 5,
+      "top10": 5,
+      "top50": 5,
+      "top1_pct": 100.0,
+      "top5_pct": 100.0,
+      "top10_pct": 100.0,
+      "top50_pct": 100.0
+    },
+    "1000": {
+      "total": 5,
+      "top1": 5,
+      "top5": 5,
+      "top10": 5,
+      "top50": 5,
+      "top1_pct": 100.0,
+      "top5_pct": 100.0,
+      "top10_pct": 100.0,
+      "top50_pct": 100.0
+    }
+  },
+  "tail": {
+    "700": {
+      "total": 5,
+      "top1": 5,
+      "top5": 5,
+      "top10": 5,
+      "top50": 5,
+      "top1_pct": 100.0,
+      "top5_pct": 100.0,
+      "top10_pct": 100.0,
+      "top50_pct": 100.0
+    },
+    "800": {
+      "total": 5,
+      "top1": 5,
+      "top5": 5,
+      "top10": 5,
+      "top50": 5,
+      "top1_pct": 100.0,
+      "top5_pct": 100.0,
+      "top10_pct": 100.0,
+      "top50_pct": 100.0
+    },
+    "900": {
+      "total": 5,
+      "top1": 5,
+      "top5": 5,
+      "top10": 5,
+      "top50": 5,
+      "top1_pct": 100.0,
+      "top5_pct": 100.0,
+      "top10_pct": 100.0,
+      "top50_pct": 100.0
+    },
+    "1000": {
+      "total": 5,
+      "top1": 5,
+      "top5": 5,
+      "top10": 5,
+      "top50": 5,
+      "top1_pct": 100.0,
+      "top5_pct": 100.0,
+      "top10_pct": 100.0,
+      "top50_pct": 100.0
+    }
+  },
+  "union": {
+    "h700_t700": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h700_t800": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h700_t900": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h700_t1000": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h800_t700": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h800_t800": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h800_t900": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h800_t1000": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h900_t700": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h900_t800": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h900_t900": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h900_t1000": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h1000_t700": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h1000_t800": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h1000_t900": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    },
+    "h1000_t1000": {
+      "total": 5,
+      "in_union": 5,
+      "recall_pct": 100.0
+    }
+  },
+  "latency_ms": {
+    "head_700": {
+      "n": 5,
+      "mean_ms": 0.245,
+      "median_ms": 0.239,
+      "p95_ms": 0.301
+    },
+    "head_800": {
+      "n": 5,
+      "mean_ms": 0.229,
+      "median_ms": 0.202,
+      "p95_ms": 0.428
+    },
+    "head_900": {
+      "n": 5,
+      "mean_ms": 0.214,
+      "median_ms": 0.209,
+      "p95_ms": 0.271
+    },
+    "head_1000": {
+      "n": 5,
+      "mean_ms": 0.218,
+      "median_ms": 0.221,
+      "p95_ms": 0.28
+    },
+    "tail_700": {
+      "n": 5,
+      "mean_ms": 0.213,
+      "median_ms": 0.203,
+      "p95_ms": 0.344
+    },
+    "tail_800": {
+      "n": 5,
+      "mean_ms": 0.204,
+      "median_ms": 0.199,
+      "p95_ms": 0.237
+    },
+    "tail_900": {
+      "n": 5,
+      "mean_ms": 0.198,
+      "median_ms": 0.191,
+      "p95_ms": 0.27
+    },
+    "tail_1000": {
+      "n": 5,
+      "mean_ms": 0.196,
+      "median_ms": 0.203,
+      "p95_ms": 0.22
+    }
+  },
+  "wall_time_s": 0.01,
+  "peak_mem_mb": 0.34
+}

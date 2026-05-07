@@ -1,0 +1,6 @@
+name: lib_mock_apache-2.0_0
+version: 1.0.0
+description: A mock project.
+license: Apache License 2.0
+dependencies:
+  - flask

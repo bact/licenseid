@@ -1,0 +1,7 @@
+{
+  "name": "lib_mock_afl-3.0_1",
+  "version": "1.0.0",
+  "description": "An awesome library.",
+  "main": "index.js",
+  "license": "Academic Free License v3.0"
+}

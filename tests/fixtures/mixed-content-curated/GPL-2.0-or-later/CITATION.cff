@@ -1,0 +1,7 @@
+cff-version: 1.2.0
+title: Project Libre
+type: software
+authors:
+  - family-names: Doe
+    given-names: Jane
+license: GPL-2.0+

@@ -1,0 +1,474 @@
+[
+    {
+        "license_id": "GPL-2.0-only",
+        "name_verbatim": "GNU General Public License v2.0 only",
+        "name_space": "   GNU General  Public License v2.0 only  ",
+        "name_casing": "Gnu GEneRAl pUblIc lIcEnse v2.0 only",
+        "name_punct": "GNU General Public License v2.0 only",
+        "name_distored": "gnu public v2.0 only"
+    },
+    {
+        "license_id": "GPL-2.0-or-later",
+        "name_verbatim": "GNU General Public License v2.0 or later",
+        "name_space": " GNU General Public License v2.0 or  later  ",
+        "name_casing": "gnuGeneralPublicLicenseV20OrLater",
+        "name_punct": "GNU General Public License v2 0 or later",
+        "name_distored": "gnu public v2.0 or later"
+    },
+    {
+        "license_id": "Interbase-1.0",
+        "name_verbatim": "Interbase Public License v1.0",
+        "name_space": " Interbase Public  License v1.0   ",
+        "name_casing": "iNTeRbASE PUblIc LICEnSE v1.0",
+        "name_punct": "Interbase Public License v1.0",
+        "name_distored": "interbase public v1.0"
+    },
+    {
+        "license_id": "APSL-2.0",
+        "name_verbatim": "Apple Public Source License 2.0",
+        "name_space": "  Apple Public Source License  2.0  ",
+        "name_casing": "apple public source license 2.0",
+        "name_punct": "Apple Public Source License 20",
+        "name_distored": "apple public source v 2.0.0"
+    },
+    {
+        "license_id": "MIT-STK",
+        "name_verbatim": "MIT-STK License",
+        "name_space": " MIT-STK  License  ",
+        "name_casing": "MIT-STK liCEnse",
+        "name_punct": "MIT-STK License",
+        "name_distored": "mit-stk"
+    },
+    {
+        "license_id": "MIT-enna",
+        "name_verbatim": "enna License",
+        "name_space": " enna  License  ",
+        "name_casing": "ENNa LICENsE",
+        "name_punct": "enna License",
+        "name_distored": "enna"
+    },
+    {
+        "license_id": "CC-BY-NC-SA-2.0-DE",
+        "name_verbatim": "Creative Commons Attribution Non Commercial Share Alike 2.0 Germany",
+        "name_space": " Creative Commons Attribution  Non Commercial Share Alike 2.0 Germany   ",
+        "name_casing": "creative commons attribution non commercial share alike 2.0 germany",
+        "name_punct": "Creative Commons Attribution Non Commercial Share Alike 2.0 Germany",
+        "name_distored": "creative commons attribution no commercial share alike v 2.0.0 germany"
+    },
+    {
+        "license_id": "CC-BY-NC-SA-2.0-UK",
+        "name_verbatim": "Creative Commons Attribution Non Commercial Share Alike 2.0 England and Wales",
+        "name_space": " Creative Commons Attribution Non Commercial Share  Alike 2.0 England and Wales ",
+        "name_casing": "creative commons attribution non commercial share alike 2.0 england and wales",
+        "name_punct": "Creative Commons Attribution Non Commercial Share Alike 2.0 England and Wales",
+        "name_distored": "creative commons attribution no commercial share alike v 2.0.0 england and wales"
+    },
+    {
+        "license_id": "BSD-2-Clause-Darwin",
+        "name_verbatim": "BSD 2-Clause - Ian Darwin variant",
+        "name_space": "   BSD 2-Clause -  Ian Darwin variant   ",
+        "name_casing": "bsd 2-clause - ian darwin variant",
+        "name_punct": "BSD 2-Clause - Ian Darwin variant",
+        "name_distored": "bsd 2-clause - ian darwin"
+    },
+    {
+        "license_id": "BSD-4.3TAHOE",
+        "name_verbatim": "BSD 4.3 TAHOE License",
+        "name_space": " BSD 4.3 TAHOE  License   ",
+        "name_casing": "bsd43TahoeLicense",
+        "name_punct": "BSD 4.3 TAHOE License",
+        "name_distored": "bsd v 4.3.0 tahoe"
+    },
+    {
+        "license_id": "OSL-2.0",
+        "name_verbatim": "Open Software License 2.0",
+        "name_space": "   Open Software  License 2.0   ",
+        "name_casing": "open software license 2.0",
+        "name_punct": "Open Software License 2.0",
+        "name_distored": "open software v 2.0.0"
+    },
+    {
+        "license_id": "OSL-3.0",
+        "name_verbatim": "Open Software License 3.0",
+        "name_space": "  Open Software License  3.0 ",
+        "name_casing": "open sOfTWARe License 3.0",
+        "name_punct": "Open Software License 3.0",
+        "name_distored": "open software v 3.0.0"
+    },
+    {
+        "license_id": "EUPL-1.2",
+        "name_verbatim": "European Union Public License 1.2",
+        "name_space": " European Union Public License  1.2  ",
+        "name_casing": "EuropeAn UNIon public liceNSE 1.2",
+        "name_punct": "European Union Public License 12",
+        "name_distored": "european union public v 1.2.0"
+    },
+    {
+        "license_id": "EUPL-1.0",
+        "name_verbatim": "European Union Public License 1.0",
+        "name_space": "   European  Union Public License 1.0 ",
+        "name_casing": "EUROPEAN UNION PUBLIC LICENSE 1.0",
+        "name_punct": "European Union Public License 1.0",
+        "name_distored": "european union public v 1.0.0"
+    },
+    {
+        "license_id": "GFDL-1.1-no-invariants-or-later",
+        "name_verbatim": "GNU Free Documentation License v1.1 or later - no invariants",
+        "name_space": "   GNU Free Documentation  License v1.1 or later - no invariants  ",
+        "name_casing": "gnu free documentation license v1.1 or later - no invariants",
+        "name_punct": "GNU Free Documentation License v1 1 or later - no invariants",
+        "name_distored": "gnu free documentation v1.1 or later - non ins"
+    },
+    {
+        "license_id": "GFDL-1.2-or-later",
+        "name_verbatim": "GNU Free Documentation License v1.2 or later",
+        "name_space": "   GNU Free Documentation License v1.2  or later  ",
+        "name_casing": "GnU FREE DocUMENTAtION LiCense v1.2 or lATer",
+        "name_punct": "GNU Free Documentation License v1.2 or later",
+        "name_distored": "gnu free documentation v1.2 or later"
+    },
+    {
+        "license_id": "MPL-1.1",
+        "name_verbatim": "Mozilla Public License 1.1",
+        "name_space": " Mozilla Public  License 1.1 ",
+        "name_casing": "mozillaPublicLicense11",
+        "name_punct": "Mozilla Public License 1.1",
+        "name_distored": "mozilla public v 1.1.0"
+    },
+    {
+        "license_id": "MPL-2.0-no-copyleft-exception",
+        "name_verbatim": "Mozilla Public License 2.0 (no copyleft exception)",
+        "name_space": "   Mozilla Public License 2.0  (no copyleft exception)   ",
+        "name_casing": "mozillaPublicLicense20NoCopyleftException)",
+        "name_punct": "Mozilla Public License 2.0 (no copyleft exception)",
+        "name_distored": "mozilla public v 2.0.0 (non copyleft exception)"
+    },
+    {
+        "license_id": "Apache-1.1",
+        "name_verbatim": "Apache License 1.1",
+        "name_space": "  Apache  License 1.1  ",
+        "name_casing": "apacheLicense11",
+        "name_punct": "Apache License 1.1",
+        "name_distored": "apache v 1.1.0"
+    },
+    {
+        "license_id": "Apache-2.0",
+        "name_verbatim": "Apache License 2.0",
+        "name_space": "  Apache License  2.0   ",
+        "name_casing": "aPaChe liCense 2.0",
+        "name_punct": "Apache License 2.0",
+        "name_distored": "apache v 2.0.0"
+    },
+    {
+        "license_id": "Artistic-1.0-Perl",
+        "name_verbatim": "Artistic License 1.0 (Perl)",
+        "name_space": "   Artistic License  1.0 (Perl) ",
+        "name_casing": "artisticLicense10Perl)",
+        "name_punct": "Artistic License 1.0 (Perl)",
+        "name_distored": "artistic v 1.0.0 (perl)"
+    },
+    {
+        "license_id": "Artistic-2.0",
+        "name_verbatim": "Artistic License 2.0",
+        "name_space": " Artistic  License 2.0  ",
+        "name_casing": "ARTISTIC LICENSE 2.0",
+        "name_punct": "Artistic License 2.0",
+        "name_distored": "artistic v 2.0.0"
+    },
+    {
+        "license_id": "Unlicense",
+        "name_verbatim": "The Unlicense",
+        "name_space": " The  Unlicense  ",
+        "name_casing": "theUnlicense",
+        "name_punct": "The Unlicense",
+        "name_distored": "the un"
+    },
+    {
+        "license_id": "Unlicense-libwhirlpool",
+        "name_verbatim": "Unlicense - libwhirlpool variant",
+        "name_space": " Unlicense -  libwhirlpool variant ",
+        "name_casing": "unlicense - libwhirlpool variant",
+        "name_punct": "Unlicense - libwhirlpool variant",
+        "name_distored": "un - libwhirlpool"
+    },
+    {
+        "license_id": "W3C-19980720",
+        "name_verbatim": "W3C Software Notice and License (1998-07-20)",
+        "name_space": "   W3C Software Notice  and License (1998-07-20)  ",
+        "name_casing": "w3c software notice and license (1998-07-20)",
+        "name_punct": "W3C Software Notice and License (1998-07-20 ",
+        "name_distored": "w3c software notice and (1998-07-20)"
+    },
+    {
+        "license_id": "W3C",
+        "name_verbatim": "W3C Software Notice and License (2002-12-31)",
+        "name_space": "   W3C  Software Notice and License (2002-12-31)  ",
+        "name_casing": "W3c sofTWaRe NoticE And lIcenSE (2002-12-31)",
+        "name_punct": "W3C Software Notice and License (200212-31)",
+        "name_distored": "w3c software notice and (2002-12-31)"
+    },
+    {
+        "license_id": "CERN-OHL-1.2",
+        "name_verbatim": "CERN Open Hardware Licence v1.2",
+        "name_space": " CERN Open Hardware Licence  v1.2  ",
+        "name_casing": "CERN OPEN HARDWARE LICENCE V1.2",
+        "name_punct": "CERN Open Hardware Licence v1.2",
+        "name_distored": "cern open hardware license v1.2"
+    },
+    {
+        "license_id": "CERN-OHL-W-2.0",
+        "name_verbatim": "CERN Open Hardware Licence Version 2 - Weakly Reciprocal",
+        "name_space": "   CERN  Open Hardware Licence Version 2 - Weakly Reciprocal  ",
+        "name_casing": "ceRN open haRDwARe liCENcE VerSIoN 2 - WEAkLy reciPRoCAL",
+        "name_punct": "CERN Open Hardware Licence Version 2 - Weakly Reciprocal",
+        "name_distored": "cern open hardware license ver 2 - weakly reciprocal"
+    },
+    {
+        "license_id": "LGPL-2.0-or-later",
+        "name_verbatim": "GNU Library General Public License v2 or later",
+        "name_space": " GNU  Library General Public License v2 or later   ",
+        "name_casing": "GNu libRaRy GeNEral pubLIC liCENSe v2 oR LATER",
+        "name_punct": "GNU Library General Public License v2 or later",
+        "name_distored": "gnu library public v2 or later"
+    },
+    {
+        "license_id": "LGPL-3.0-only",
+        "name_verbatim": "GNU Lesser General Public License v3.0 only",
+        "name_space": "  GNU  Lesser General Public License v3.0 only   ",
+        "name_casing": "GnU lESSeR GeNeRaL pUblIc LIcEnsE v3.0 onLy",
+        "name_punct": "GNU Lesser General Public License v3.0 only",
+        "name_distored": "gnu lesser public v3.0 only"
+    },
+    {
+        "license_id": "MS-PL",
+        "name_verbatim": "Microsoft Public License",
+        "name_space": " Microsoft Public  License ",
+        "name_casing": "microsoft public license",
+        "name_punct": "Microsoft Public License",
+        "name_distored": "microsoft public"
+    },
+    {
+        "license_id": "MS-RL",
+        "name_verbatim": "Microsoft Reciprocal License",
+        "name_space": "  Microsoft Reciprocal  License   ",
+        "name_casing": "mIcRoSOFt RECIpRoCaL LICensE",
+        "name_punct": "Microsoft Reciprocal License",
+        "name_distored": "microsoft reciprocal"
+    },
+    {
+        "license_id": "AGPL-3.0-or-later",
+        "name_verbatim": "GNU Affero General Public License v3.0 or later",
+        "name_space": " GNU Affero General Public License v3.0 or  later   ",
+        "name_casing": "GNu afFEro gENeRAL PubLic liCENsE v3.0 oR LaTeR",
+        "name_punct": "GNU Affero General Public License v3.0 or later",
+        "name_distored": "gnu affero general v3.0 or later"
+    },
+    {
+        "license_id": "AGPL-1.0-only",
+        "name_verbatim": "Affero General Public License v1.0 only",
+        "name_space": " Affero General  Public License v1.0 only   ",
+        "name_casing": "AFfERO GenerAL PuBLic liCeNse v1.0 onLy",
+        "name_punct": "Affero General Public License v1.0 only",
+        "name_distored": "affero public v1.0 only"
+    },
+    {
+        "license_id": "AFL-2.1",
+        "name_verbatim": "Academic Free License v2.1",
+        "name_space": "   Academic Free License  v2.1   ",
+        "name_casing": "acADEMic FREe License V2.1",
+        "name_punct": "Academic Free License v2.1",
+        "name_distored": "academic free v2.1"
+    },
+    {
+        "license_id": "AFL-1.2",
+        "name_verbatim": "Academic Free License v1.2",
+        "name_space": "  Academic Free  License v1.2 ",
+        "name_casing": "academicFreeLicenseV12",
+        "name_punct": "Academic Free License v1.2",
+        "name_distored": "academic free v1.2"
+    },
+    {
+        "license_id": "CDDL-1.1",
+        "name_verbatim": "Common Development and Distribution License 1.1",
+        "name_space": "  Common Development and Distribution License  1.1  ",
+        "name_casing": "common development and distribution license 1.1",
+        "name_punct": "Common Development and Distribution License 1.1",
+        "name_distored": "common development and distribution v 1.1.0"
+    },
+    {
+        "license_id": "CDDL-1.0",
+        "name_verbatim": "Common Development and Distribution License 1.0",
+        "name_space": "   Common Development and Distribution  License 1.0   ",
+        "name_casing": "common development and distribution license 1.0",
+        "name_punct": "Common Development and Distribution License 1.0",
+        "name_distored": "common development and distribution v 1.0.0"
+    },
+    {
+        "license_id": "OFL-1.1-no-RFN",
+        "name_verbatim": "SIL Open Font License 1.1 with no Reserved Font Name",
+        "name_space": "   SIL Open Font License 1.1 with no Reserved Font  Name ",
+        "name_casing": "sil open font license 1.1 with no reserved font name",
+        "name_punct": "SIL Open Font License 1.1 with no Reserved Font Name",
+        "name_distored": "sil open font v 1.1.0 with non reserved font name"
+    },
+    {
+        "license_id": "OFL-1.0-no-RFN",
+        "name_verbatim": "SIL Open Font License 1.0 with no Reserved Font Name",
+        "name_space": "  SIL Open  Font License 1.0 with no Reserved Font Name  ",
+        "name_casing": "Sil open FONT lICENSe 1.0 WITh no REServED FonT NAme",
+        "name_punct": "SIL Open Font License 1.0 with no Reserved Font Name",
+        "name_distored": "sil open font v 1.0.0 with non reserved font name"
+    },
+    {
+        "license_id": "Zlib",
+        "name_verbatim": "zlib License",
+        "name_space": "  zlib  License ",
+        "name_casing": "zlIb LIcEnse",
+        "name_punct": "zlib License",
+        "name_distored": "zlib"
+    },
+    {
+        "license_id": "ImageMagick",
+        "name_verbatim": "ImageMagick License",
+        "name_space": "   ImageMagick  License   ",
+        "name_casing": "iMaGeMaGIck liceNSE",
+        "name_punct": "ImageMagick License",
+        "name_distored": "imagemagick"
+    },
+    {
+        "license_id": "MIT-feh",
+        "name_verbatim": "feh License",
+        "name_space": "  feh  License  ",
+        "name_casing": "fehLicense",
+        "name_punct": "feh License",
+        "name_distored": "feh"
+    },
+    {
+        "license_id": "psfrag",
+        "name_verbatim": "psfrag License",
+        "name_space": " psfrag  License ",
+        "name_casing": "PSFRAG LICENSE",
+        "name_punct": "psfrag License",
+        "name_distored": "psfrag"
+    },
+    {
+        "license_id": "IPA",
+        "name_verbatim": "IPA Font License",
+        "name_space": "  IPA  Font License   ",
+        "name_casing": "ipA Font LICEnse",
+        "name_punct": "IPA Font License",
+        "name_distored": "ipa font"
+    },
+    {
+        "license_id": "AFL-3.0",
+        "name_verbatim": "Academic Free License v3.0",
+        "name_space": " Academic Free License  v3.0 ",
+        "name_casing": "ACADEMIC FREE LICENSE V3.0",
+        "name_punct": "Academic Free License v3.0",
+        "name_distored": "academic free v3.0"
+    },
+    {
+        "license_id": "CERN-OHL-P-2.0",
+        "name_verbatim": "CERN Open Hardware Licence Version 2 - Permissive",
+        "name_space": " CERN Open Hardware  Licence Version 2 - Permissive   ",
+        "name_casing": "cern open hardware licence version 2 - permissive",
+        "name_punct": "CERN Open Hardware Licence Version 2 - Permissive",
+        "name_distored": "cern open hardware license ver 2 - permissive"
+    },
+    {
+        "license_id": "CC-BY-3.0-US",
+        "name_verbatim": "Creative Commons Attribution 3.0 United States",
+        "name_space": "  Creative Commons Attribution  3.0 United States   ",
+        "name_casing": "CREATIVE COMMONS ATTRIBUTION 3.0 UNITED STATES",
+        "name_punct": "Creative Commons Attribution 3.0 United States",
+        "name_distored": "creative commons attribution v 3.0.0 united states"
+    },
+    {
+        "license_id": "Bitstream-Charter",
+        "name_verbatim": "Bitstream Charter Font License",
+        "name_space": "  Bitstream Charter  Font License ",
+        "name_casing": "bitstreamCharterFontLicense",
+        "name_punct": "Bitstream Charter Font License",
+        "name_distored": "bitstream charter font"
+    },
+    {
+        "license_id": "CC-BY-NC-1.0",
+        "name_verbatim": "Creative Commons Attribution Non Commercial 1.0 Generic",
+        "name_space": "   Creative Commons Attribution Non Commercial 1.0  Generic   ",
+        "name_casing": "creativeCommonsAttributionNonCommercial10Generic",
+        "name_punct": "Creative Commons Attribution Non Commercial 10 Generic",
+        "name_distored": "creative commons attribution no commercial v 1.0.0"
+    },
+    {
+        "license_id": "BSD-4-Clause-Shortened",
+        "name_verbatim": "BSD 4 Clause Shortened",
+        "name_space": "   BSD 4 Clause  Shortened  ",
+        "name_casing": "bsd4ClauseShortened",
+        "name_punct": "BSD 4 Clause Shortened",
+        "name_distored": "bsd 4 clause shortened"
+    },
+    {
+        "license_id": "GPL-3.0-or-later",
+        "name_verbatim": "GNU General Public License v3.0 or later",
+        "name_space": "   GNU General Public License v3.0  or later  ",
+        "name_casing": "GNU GENERAL PUBLIC LICENSE V3.0 OR LATER",
+        "name_punct": "GNU General Public License v3.0 or later",
+        "name_distored": "gnu public v3.0 or later"
+    },
+    {
+        "license_id": "EPICS",
+        "name_verbatim": "EPICS Open License",
+        "name_space": "   EPICS  Open License ",
+        "name_casing": "epics open license",
+        "name_punct": "EPICS Open License",
+        "name_distored": "epics open"
+    },
+    {
+        "license_id": "Mackerras-3-Clause-acknowledgment",
+        "name_verbatim": "Mackerras 3-Clause - acknowledgment variant",
+        "name_space": "   Mackerras 3-Clause - acknowledgment  variant  ",
+        "name_casing": "mACkERRas 3-cLAUSE - ackNoWLEDgMEnT vArIANt",
+        "name_punct": "Mackerras 3 Clause - acknowledgment variant",
+        "name_distored": "mackerras 3-clause - acknowledgment"
+    },
+    {
+        "license_id": "BSD-3-Clause",
+        "name_verbatim": "BSD 3-Clause \"New\" or \"Revised\" License",
+        "name_space": "   BSD 3-Clause  \"New\" or \"Revised\" License   ",
+        "name_casing": "BSD 3-CLAUSE \"NEW\" OR \"REVISED\" LICENSE",
+        "name_punct": "BSD 3-Clause \"New\" or \"Revised\" License",
+        "name_distored": "bsd 3-clause \"new\" or \"revised\""
+    },
+    {
+        "license_id": "HPND-DEC",
+        "name_verbatim": "Historical Permission Notice and Disclaimer - DEC variant",
+        "name_space": "   Historical Permission Notice and Disclaimer -  DEC variant ",
+        "name_casing": "HISTORICAL PERMISSION NOTICE AND DISCLAIMER - DEC VARIANT",
+        "name_punct": "Historical Permission Notice and Disclaimer - DEC variant",
+        "name_distored": "historical permission notice and disclaimer - dec"
+    },
+    {
+        "license_id": "Spencer-94",
+        "name_verbatim": "Spencer License 94",
+        "name_space": " Spencer  License 94   ",
+        "name_casing": "sPENcer LicEnSE 94",
+        "name_punct": "Spencer License 94",
+        "name_distored": "spencer 94"
+    },
+    {
+        "license_id": "ssh-keyscan",
+        "name_verbatim": "ssh-keyscan License",
+        "name_space": "  ssh-keyscan  License   ",
+        "name_casing": "ssh-keyscan license",
+        "name_punct": "ssh-keyscan License",
+        "name_distored": "ssh-keyscan"
+    },
+    {
+        "license_id": "SGI-B-2.0",
+        "name_verbatim": "SGI Free Software License B v2.0",
+        "name_space": " SGI Free Software License B  v2.0 ",
+        "name_casing": "sgI FrEE SoFTwAre LIcenSe b v2.0",
+        "name_punct": "SGI Free Software License B v2.0",
+        "name_distored": "sgi free software b v2.0"
+    }
+]

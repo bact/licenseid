@@ -1,0 +1,6 @@
+name: lib_mock_mpl-2.0-no-copyleft-exception_1
+version: 1.0.0
+description: A mock project.
+license: Mozilla Public License 2.0 (no copyleft exception)
+dependencies:
+  - flask

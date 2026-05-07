@@ -1,0 +1,6 @@
+name: lib_mock_imagemagick_3
+version: 1.0.0
+description: A mock project.
+license: ImageMagick License
+dependencies:
+  - flask

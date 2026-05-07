@@ -1,0 +1,6 @@
+name: lib_mock_ofl-1.1-no-rfn_3
+version: 1.0.0
+description: A mock project.
+license: SIL Open Font License 1.1 with no Reserved Font Name
+dependencies:
+  - flask

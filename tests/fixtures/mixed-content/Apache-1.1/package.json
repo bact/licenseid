@@ -1,0 +1,7 @@
+{
+  "name": "lib_mock_apache-1.1_3",
+  "version": "1.0.0",
+  "description": "An awesome library.",
+  "main": "index.js",
+  "license": "Apache License 1.1"
+}

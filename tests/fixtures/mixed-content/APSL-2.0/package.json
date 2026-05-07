@@ -1,0 +1,7 @@
+{
+  "name": "lib_mock_apsl-2.0_1",
+  "version": "1.0.0",
+  "description": "An awesome library.",
+  "main": "index.js",
+  "license": "APSL-2.0"
+}

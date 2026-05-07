@@ -1,0 +1,6 @@
+name: lib_mock_epics_1
+version: 1.0.0
+description: A mock project.
+license: EPICS
+dependencies:
+  - flask

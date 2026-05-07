@@ -1,0 +1,20 @@
+{
+    "license_text": "Permission is granted to distribute possibly modified\ncopies of this page provided the header is included\nverbatim, and in case of nontrivial modification author\nand date of the modification is added to the header.\n",
+    "license_id": "Linux-man-pages-1-para",
+    "name": "Linux man-pages - 1 paragraph",
+    "close_license_ids": [
+        "Linux-man-pages-copyleft",
+        "Linux-man-pages-copyleft-2-para",
+        "Linux-man-pages-copyleft-var",
+        "Linux-OpenIB"
+    ],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_long_distorted_01": "Permission is granted to distribute possibly modified copies of this page provided the header is included verbatim, and in case of nontrivial modification author and date of the modifciation is added to the header.",
+    "license_text_long_distorted_02": "Permission is granted to distribute modified copies of this page provided the header is included verbatim, and in case of nontrivial modification author and date of the modification is added to the header.",
+    "license_text_long_distorted_05": "Permission is granted to distribute possibly \n modified copies of this page provided the header is included verbatim, and in case of nontrivial modification author and date of the modification is added to the header.",
+    "license_text_long_distorted_10": "Permission is garnted to distribute possibly modified copies of \n this page provided the header is included verbatim, and case of nontrivial modification author and date of the modification is added to the header.",
+    "license_text_long_distorted_20": "is granted to distribute possibly modified copies of this page provided the Ce logiciel est sous licence libre. header is included verbatim, and_ in case of nonrtivial modification author and date of the modification is added to the \n header."
+}

@@ -1,0 +1,6 @@
+name: lib_mock_eupl-1.0_1
+version: 1.0.0
+description: A mock project.
+license: European Union Public License 1.0
+dependencies:
+  - flask

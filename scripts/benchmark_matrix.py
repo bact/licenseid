@@ -4,7 +4,7 @@ from pathlib import Path
 
 from licenseid.matcher import AggregatedLicenseMatcher
 
-FIXTURES_DIR = Path(__file__).parent.parent / "tests" / "fixtures" / "license-data"
+FIXTURES_DIR = Path(__file__).parent.parent / "tests" / "fixtures" / "license-text-long"
 
 CONFIGS = [
     {"name": "Textual only", "pop": False, "java": False},
@@ -60,7 +60,7 @@ def run_matrix():
                 if rate == "00":
                     text = data["license_text"]
                 else:
-                    key = f"license_text_distorted_{rate}"
+                    key = f"license_text_long_distorted_{rate}"
                     if key not in data:
                         continue
                     text = data[key]

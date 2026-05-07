@@ -1,0 +1,6 @@
+name: lib_mock_artistic-1.0-perl_0
+version: 1.0.0
+description: A mock project.
+license: Artistic-1.0-Perl
+dependencies:
+  - flask
