@@ -1,6 +1,89 @@
-# Benchmark analysis and optimization recommendation
+# Benchmark analysis and optimisation recommendation
 
-## Full pipeline analysis — `20260505T095558Z`
+## Full pipeline analysis — `20260507T120849Z`
+
+Full-coverage run: 695 SPDX 3.28.0 licences, both `license-marker` and
+`main` branches, 59,738 total queries.
+
+**Previous analysis** (based on `20260505T095558Z`, 60-licence subset) is
+preserved below the current section for reference.
+
+---
+
+### Summary — `20260507T120849Z`
+
+| Type | `license-marker` R@1 | `main` R@1 | Δ |
+|---|---|---|---|
+| Type 1 — IDs | 78.1 % | 78.1 % | 0 |
+| Type 2 — names | 90.2 % | 86.4 % | **+3.8 pp** |
+| Type 2 `name_casing` | 96.6 % | 79.7 % | **+16.9 pp** |
+| Type 3 `head_300` | 85.9 % | 91.4 % | **−5.5 pp** ⚠ fixed |
+| Type 3 `head_500` | 93.5 % | 92.4 % | +1.1 pp |
+| Type 3 `head_800` (peak) | 94.5 % | 93.2 % | +1.3 pp |
+| Type 3 `tail_300` | 65.8 % | 63.7 % | +2.1 pp |
+| Type 3 `tail_2000` | 87.1 % | 83.7 % | +3.4 pp |
+| Type 4 verbatim | 94.2 % | 92.4 % | +1.8 pp |
+| Type 4 05 % distortion | 69.7 % | 71.2 % | **−1.5 pp** |
+| Type 4 20 % distortion | 48.5 % | 44.5 % | +4.0 pp |
+| Type 5 mixed content | 74.9 % | 19.7 % | **+55.2 pp** 🌟 |
+| Type 5.1 curated | 95.8 % | 25.0 % | **+70.8 pp** 🌟 |
+
+Wall time: `license-marker` 13,333 s vs `main` 8,199 s (+63 %).
+The wall-time gap is expected: 695 × 16 type-3 slices vs 60 × 16 in
+previous runs (12× more type-3 queries).
+
+---
+
+### Changes applied since this run
+
+The `head_300` regression (−5.5 pp) was diagnosed and fixed:
+
+- **Tier 0 threshold lowered to 30 words** — 50-word heads no longer fall
+  into the ID/name shortcut path. See
+  `docs/implementation/2026-05-07-threshold-optimizations.md`.
+- **Marker detection suppressed for inputs < 30 words** — eliminates
+  wasted scanning on bare IDs and short names.
+
+---
+
+### Remaining open issues (next optimisation steps)
+
+Priority order by expected return:
+
+1. **`id_casing` flat at 80 % (both branches)** — case-folded exact lookup
+   before the fuzzy loop in `_match_short_text`. Five-line fix, expected
+   +20 pp on type-1.
+
+2. **`id_deprecated` 0 % top-1 (both branches)** — deprecated IDs
+   (`GPL-2.0`, `LGPL-3.0`) are not redirected to canonical successors.
+   Build a `deprecated_map` from the DB `superseded_by` column and return
+   the canonical ID directly in Tier 0.
+
+3. **Type-4 at 5 % distortion (−1.5 pp vs `main`)** — investigate whether
+   the distortion model lands on FTS5-discriminating terms. May be
+   addressable with the marker boost guard (see item 4).
+
+4. **Marker boost guard** — raise the minimum confidence for the additive
+   marker boost from implicit 0 to ≥ 0.85. Eliminates minor regressions on
+   distorted type-4 inputs.
+
+5. **Tail recall floor** — `tail_300` to `tail_500` have 28–35 fixtures
+   absent from top-50. These are licence families sharing boilerplate
+   warranty text (GPL/LGPL/AGPL). Investigate family-aware disambiguation
+   using version number or supersession chain.
+
+6. **Union top-1 does not benefit from tail** — union matrix shows top-1
+   is bounded by the head's top-1. A re-ranking step that boosts candidates
+   appearing in both head and tail results could improve top-1 for
+   head+tail inputs without changing the candidate pool.
+
+---
+
+## Full pipeline analysis — `20260505T095558Z` (archived)
+
+Analysis based on the 60-licence development subset. Superseded by the
+full-coverage run above for quantitative conclusions; preserved for
+diagnostic reasoning.
 
 ---
 

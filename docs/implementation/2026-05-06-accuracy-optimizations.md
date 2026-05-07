@@ -99,16 +99,20 @@ line. It is called:
 This improves recall for Type 5 inputs — license notices wrapped in source-file
 comment blocks — without affecting pure-text inputs.
 
-### 7. Short-text threshold raised to 60 words (`matcher.py`)
+### 7. Short-text threshold set to 30 words (`matcher.py`)
 
-The Tier 0 short-text fast path previously exited early only when the input was
-fewer than 20 words. Inputs of 20–60 words (short licence headers, bare licence
-expressions with surrounding prose) were routed to the full FTS5 pipeline
-needlessly. The threshold is raised to 60 words.
+The Tier 0 short-text fast path triggers when the input is fewer than 30
+normalised words (~200 characters). Inputs at or above 30 words flow through
+FTS5 as full text queries.
 
-When no exact match is found the code falls through to FTS5 unchanged, so the
-only cost is one extra `_match_short_text` call on non-matching inputs in that
-range — negligible.
+The threshold was briefly raised to 60 words during development but reverted
+after the `20260507T120849Z` full-coverage benchmark showed a −5.5 pp top-1
+regression at the 300-character input size. At 50 words (~300 chars), the
+name/ID matcher returns the generic parent licence rather than a specific
+variant (e.g. MIT instead of MIT-STK). Keeping the threshold at 30 words
+preserves the fast path for bare IDs and short names while letting
+licence-text fragments of ≥ 30 words reach the FTS5 pipeline where they
+resolve correctly.
 
 ### 8. Dual FTS5 query: head + tail (`matcher.py`)
 

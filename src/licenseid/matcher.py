@@ -100,15 +100,22 @@ class AggregatedLicenseMatcher:
         # Content Classification
         is_pure = self._is_pure_license_text(file_path, target_text)
 
+        norm_input = normalize_text(target_text)
+        words = norm_input.split()
+
         # Tier 0.5: Marker Detection
         # Detects explicit license identifiers and context clues in the text.
         # SPDX-License-Identifier is an unambiguous machine tag → early return.
         # All other markers (name fields, headings, first-line) go into the
         # candidate pool and influence ranking via a confidence bonus.
-        marker_candidates = self.detector.detect(
-            target_text,
-            file_path=file_path,
-        )
+        # Skip for very short inputs (< 30 words): marker scanning adds
+        # overhead without benefit — these inputs are handled by Tier 0.
+        marker_candidates: list[CandidateMatch] = []
+        if len(words) >= 30:
+            marker_candidates = self.detector.detect(
+                target_text,
+                file_path=file_path,
+            )
         spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
         if spdx_exact:
             return self._finalize_exact_markers(spdx_exact)
@@ -120,18 +127,14 @@ class AggregatedLicenseMatcher:
             c["license_id"]: c.get("score", 0.0) for c in marker_candidates
         }
 
-        norm_input = normalize_text(target_text)
-        words = norm_input.split()
-
         # Tier 0: Short-Text Shortcut (Names/IDs)
-        # Threshold raised from 20 to 60 words: inputs up to ~400 chars that
-        # are an exact ID or name (score > 1.0) short-circuit here without
-        # entering the full FTS5 pipeline.  If no exact match is found the
-        # code falls through, so the only cost is one extra _match_short_text
-        # call — which is negligible.  Raising the threshold matters for
-        # short licence headers (e.g. "MIT License" inside a 40-word notice)
-        # that are currently routed to the slower FTS5 path unnecessarily.
-        if len(words) < 60:
+        # Threshold: inputs under 30 words (~200 chars) are likely bare IDs
+        # or short names and can be resolved via exact/fuzzy name matching
+        # without entering the FTS5 pipeline.  Keeping this threshold low
+        # avoids routing ~50-word licence preambles (head_300 inputs) through
+        # the name matcher, which degrades recall for variant licences
+        # (e.g. MIT-STK, MIT-enna) where it returns the generic parent.
+        if len(words) < 30:
             # Fast path: bare deprecated ID + prose disambiguation context in
             # the raw (un-normalised) text, e.g. "GPL-2.0 or later version".
             # Must use target_text, not norm_input, because normalize_text()
