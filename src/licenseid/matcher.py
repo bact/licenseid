@@ -272,7 +272,19 @@ class AggregatedLicenseMatcher:
         #     Threshold >200 words ensures head (0–99) and tail (last 20) are
         #     non-overlapping for inputs up to any realistic length.
         #
-        # Both queries use limit=50; candidates are unioned by license_id.
+        # Both queries use limit=50 so BM25 ranking is computed over 50
+        # results before any cap.  Tail-only additions (candidates in the
+        # tail set but not the head set) are capped at 25, bounding the
+        # union at 75 candidates and Tier 2 (RapidFuzz) work at 75 passes.
+        #
+        # Benchmark on 469 licences with >200 normalised words showed that
+        # uncapped tail adds a mean of 33 candidates (median 38, max 50),
+        # pushing the union to a mean of 83 (max 100).  Because tail
+        # candidates are in BM25 order the cap retains the 25 most
+        # distinctive tail-only candidates and discards the rest, which are
+        # largely generic vocabulary shared across many licences.
+        # The cap does not affect the head set (always up to 50).
+        _TAIL_ONLY_CAP = 25
         words = text.split()
         raw_candidates: list[CandidateMatch] = []
         if len(words) > 100:
@@ -283,10 +295,14 @@ class AggregatedLicenseMatcher:
                 seen_ids = {
                     c["license_id"] for c in raw_candidates if c.get("license_id")
                 }
+                tail_only_added = 0
                 for c in self.db.search_candidates(tail_query, limit=50):
+                    if tail_only_added >= _TAIL_ONLY_CAP:
+                        break
                     if c.get("license_id") not in seen_ids:
                         raw_candidates.append(c)
                         seen_ids.add(c["license_id"])
+                        tail_only_added += 1
         else:
             raw_candidates = list(self.db.search_candidates(text, limit=50))
 
