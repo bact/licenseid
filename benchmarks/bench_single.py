@@ -15,18 +15,21 @@ Runs completely standalone — no shared state.
 import json
 import sqlite3
 import sys
+import tarfile
+import tempfile
 import time
 import tracemalloc
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 if TYPE_CHECKING:
     from licenseid.types import MatchRequest
 
 if len(sys.argv) < 5:
     print(
-        "Usage: python bench_single.py <src_path> <label> <benchmark_name> <timestamp> [--verify]"
+        "Usage: python bench_single.py <src_path> <label> <benchmark_name> <timestamp>"
+        " [--tarball PATH] [--verify]"
     )
     sys.exit(1)
 
@@ -36,8 +39,11 @@ BENCHMARK_NAME: str = sys.argv[3]
 TIMESTAMP: str = sys.argv[4]
 IS_VERIFY: bool = "--verify" in sys.argv
 
-FIXTURES_DIR: Path = (
-    Path(__file__).parent.parent / "tests" / "fixtures" / "license-text-long"
+_TARBALL_IDX: Optional[int] = next(
+    (i for i, a in enumerate(sys.argv) if a == "--tarball"), None
+)
+TARBALL_PATH: Optional[Path] = (
+    Path(sys.argv[_TARBALL_IDX + 1]) if _TARBALL_IDX is not None else None
 )
 
 sys.path.insert(0, SRC_PATH)
@@ -198,52 +204,121 @@ class InstrumentedMatcher(AggregatedLicenseMatcher):
         return results, trace
 
 
+def _find_tarball() -> Path:
+    """Return the SPDX tarball path, preferring the newest cached version."""
+    candidates = sorted(Path.home().glob(".local/share/licenseid/spdx-data-v*.tar.gz"))
+    if not candidates:
+        print(
+            json.dumps(
+                {
+                    "error": "No SPDX tarball found in ~/.local/share/licenseid/."
+                    " Run 'licenseid update' or pass --tarball PATH."
+                }
+            )
+        )
+        sys.exit(1)
+    return candidates[-1]  # lexicographic sort → newest version last
+
+
+def _build_db_from_tarball(
+    tar_path: Path,
+    label: str,
+) -> tuple[str, list[tuple[Any, ...]], list[tuple[str, str]], dict[str, str]]:
+    """Extract the SPDX tarball and return DB insertion data.
+
+    Returns:
+        db_path: in-memory SQLite URI.
+        to_insert_licenses: rows for the ``licenses`` table.
+        to_insert_index: rows for the ``license_index`` table.
+        safe_to_canon: filesystem-safe licence ID → canonical licence ID.
+    """
+    to_insert_licenses: list[tuple[Any, ...]] = []
+    to_insert_index: list[tuple[str, str]] = []
+    safe_to_canon: dict[str, str] = {}
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        with tarfile.open(tar_path, "r:gz") as tar:
+            tar.extractall(path=tmp_dir)  # noqa: S202
+
+        root_dir = next(Path(tmp_dir).iterdir())
+        lic_json_path = root_dir / "json" / "licenses.json"
+        with open(lic_json_path, "r", encoding="utf-8") as fh:
+            lic_data = json.load(fh)
+
+        licenses_list: list[dict[str, Any]] = lic_data.get("licenses", [])
+
+        # Pre-compute active IDs to resolve superseded_by at index time,
+        # mirroring the logic in LicenseDatabase._update_db_records().
+        active_ids: set[str] = {
+            lic["licenseId"]
+            for lic in licenses_list
+            if not lic.get("isDeprecatedLicenseId", False)
+        }
+
+        for lic in licenses_list:
+            license_id: str = lic["licenseId"]
+            text_path = root_dir / "text" / f"{license_id}.txt"
+            if not text_path.exists():
+                continue
+
+            with open(text_path, "r", encoding="utf-8") as fh:
+                raw_text = fh.read()
+
+            is_deprecated: bool = bool(lic.get("isDeprecatedLicenseId", False))
+            superseded_by: Optional[str] = None
+            if is_deprecated and license_id.endswith("+"):
+                or_later = license_id[:-1] + "-or-later"
+                if or_later in active_ids:
+                    superseded_by = or_later
+
+            is_osi: bool = bool(lic.get("isOsiApproved", False))
+            is_fsf: bool = bool(lic.get("isFsfLibre", False))
+            # Use a modest baseline; popularity CSV is not downloaded for
+            # benchmarks.  The exact pop_score does not affect recall metrics.
+            pop_score: int = 100 if (is_osi or is_fsf) else 1
+            is_high_usage: bool = is_osi or is_fsf
+
+            normalized = normalize_text(raw_text)
+            word_count = len(normalized.split())
+
+            to_insert_licenses.append(
+                (
+                    license_id,
+                    lic.get("name", ""),
+                    True,  # is_spdx
+                    is_osi,
+                    is_fsf,
+                    is_high_usage,
+                    is_deprecated,
+                    superseded_by,
+                    pop_score,
+                    word_count,
+                )
+            )
+            to_insert_index.append((license_id, normalized))
+            safe_to_canon[license_id.replace(" ", "_").replace("/", "_")] = license_id
+
+    db_name = f"bench_{label}_{uuid.uuid4().hex}"
+    db_path = f"file:{db_name}?mode=memory&cache=shared"
+    return db_path, to_insert_licenses, to_insert_index, safe_to_canon
+
+
 def main() -> None:
     # pylint: disable=too-many-locals,too-many-statements
-    fixtures: list[Path] = sorted(FIXTURES_DIR.glob("*.json"))
-    if not fixtures:
-        print(json.dumps({"error": f"No fixtures in {FIXTURES_DIR}"}))
-        sys.exit(1)
+    tar_path: Path = TARBALL_PATH if TARBALL_PATH is not None else _find_tarball()
 
     print(
-        f"[{LABEL}] {len(fixtures)} DB source fixtures, building DB …",
+        f"[{LABEL}] Building DB from {tar_path.name} …",
         file=sys.stderr,
         flush=True,
     )
 
-    db_name: str = f"bench_{LABEL}_{uuid.uuid4().hex}"
-    db_path: str = f"file:{db_name}?mode=memory&cache=shared"
+    db_path, to_insert_licenses, to_insert_index, safe_to_canon = (
+        _build_db_from_tarball(tar_path, LABEL)
+    )
 
     db_manager = LicenseDatabase(db_path)
     _ = db_manager
-
-    to_insert_licenses: list[tuple[Any, ...]] = []
-    to_insert_index: list[tuple[str, str]] = []
-
-    safe_to_canon: dict[str, str] = {}
-
-    for fp in fixtures:
-        with open(fp, encoding="utf-8") as f:
-            data = json.load(f)
-        normalized = normalize_text(data["license_text"])
-        word_count = len(normalized.split())
-        c_id = data["license_id"]
-        to_insert_licenses.append(
-            (
-                c_id,
-                data.get("name", ""),
-                data.get("is_spdx", True),
-                data.get("is_osi_approved", False),
-                data.get("is_fsf_libre", False),
-                data.get("is_high_usage", False),
-                data.get("is_deprecated", False),
-                data.get("superseded_by"),
-                data.get("pop_score", 1),
-                word_count,
-            )
-        )
-        to_insert_index.append((c_id, normalized))
-        safe_to_canon[c_id.replace(" ", "_").replace("/", "_")] = c_id
 
     with sqlite3.connect(db_path, uri=True) as conn:
         conn.execute("PRAGMA journal_mode = OFF")
@@ -297,7 +372,11 @@ def main() -> None:
             conn.execute("ROLLBACK")
             raise
 
-    print(f"[{LABEL}] DB ready. Running queries …", file=sys.stderr, flush=True)
+    print(
+        f"[{LABEL}] DB ready ({len(to_insert_licenses)} licences). Running queries …",
+        file=sys.stderr,
+        flush=True,
+    )
 
     matcher = InstrumentedMatcher(db_path, enable_java=False)
     matcher.match("MIT License")  # warm up
