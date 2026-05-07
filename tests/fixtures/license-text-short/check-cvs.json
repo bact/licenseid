@@ -1,0 +1,39 @@
+{
+    "license_id": "check-cvs",
+    "license_text": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "reference": "https://spdx.org/licenses/check-cvs.html",
+    "isDeprecatedLicenseId": false,
+    "detailsUrl": "https://spdx.org/licenses/check-cvs.json",
+    "referenceNumber": 63,
+    "name": "check-cvs License",
+    "licenseId": "check-cvs",
+    "seeAlso": [
+        "http://cvs.savannah.gnu.org/viewvc/cvs/ccvs/contrib/check_cvs.in?revision=1.1.4.3&view=markup&pathrev=cvs1-11-23#l2"
+    ],
+    "isOsiApproved": false,
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "close_license_ids": [
+        "checkmk"
+    ],
+    "license_text_short_head_300": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_tail_300": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_head_500": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_tail_500": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_head_700": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_tail_700": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_head_800": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_tail_800": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_head_900": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_tail_900": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_head_1000": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_tail_1000": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_head_1500": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_tail_1500": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_head_2000": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_tail_2000": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_head_3000": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n",
+    "license_text_short_tail_3000": "Permission is granted to copy and/or distribute this file, with or\nwithout modifications, provided this notice is preserved.\n"
+}

@@ -98,3 +98,52 @@ line. It is called:
 
 This improves recall for Type 5 inputs — license notices wrapped in source-file
 comment blocks — without affecting pure-text inputs.
+
+### 7. Short-text threshold raised to 60 words (`matcher.py`)
+
+The Tier 0 short-text fast path previously exited early only when the input was
+fewer than 20 words. Inputs of 20–60 words (short licence headers, bare licence
+expressions with surrounding prose) were routed to the full FTS5 pipeline
+needlessly. The threshold is raised to 60 words.
+
+When no exact match is found the code falls through to FTS5 unchanged, so the
+only cost is one extra `_match_short_text` call on non-matching inputs in that
+range — negligible.
+
+### 8. Dual FTS5 query: head + tail (`matcher.py`)
+
+For inputs longer than 200 normalised words, `_get_candidates()` now issues two
+FTS5 queries and unions the candidate sets:
+
+- **Head query**: `words[:100]` — the preamble is the most distinctive part
+  of a licence and provides good FTS5 signal in the first 100 words.
+- **Tail query**: `words[-20:]` — the true last 20 words (warranty disclaimer,
+  governing-law clause, closing statement) are passed directly to
+  `search_candidates`, which uses the first 20 normalised words of whatever
+  it receives. This surfaces licences whose preamble is generic but whose
+  closing clauses are unique (e.g. `OSL-1.0`, `OSL-1.1`, `OPL-1.0`).
+
+The 200-word threshold ensures head (`0–99`) and tail (last `20`) are
+non-overlapping for any realistic input. Only one extra DB call is made, and
+only when the input is long enough to benefit.
+
+Benchmark on 695 canonical SPDX licences (FTS5 recall, in-memory DB,
+`20260507T060233Z`):
+
+| Metric | Before | After | Δ |
+| :--- | ---: | ---: | ---: |
+| Head top-50 recall | 98.7% | 99.9% | +1.2 pp |
+| Tail top-1 recall | 39–46% | 52–57% | +10–13 pp |
+| Union top-50 recall (h700+t700) | 99.4% | 100.0% | +0.6 pp |
+
+### 9. FTS5 OR-term limit raised to 20 (`database.py`)
+
+`search_candidates()` builds an OR query from the first N normalised words of
+the input text. The limit was raised from 10 to 20 words.
+
+This matters most for short licences in the HPND family, whose preambles all
+share the first 10 words (`"permission to use copy modify and distribute this
+software"`). With 10 OR terms, hundreds of indexed licences match and the
+correct short licence is pushed out of the top-50. With 20 OR terms, the
+additional distinctive words (unique author disclaimer text, specific scope
+clauses) narrow the match set sufficiently for the correct candidate to rank.

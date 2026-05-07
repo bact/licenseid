@@ -570,9 +570,14 @@ class LicenseDatabase:
     def search_candidates(self, text: str, limit: int = 50) -> list[CandidateMatch]:
         """Tier 1: Search for candidates using trigram FTS5."""
         norm_text = normalize_text(text)
-        # Use OR between the first few words to ensure broad recall.
-        # This allows candidates that match most, but not necessarily all, terms.
-        words = norm_text.split()[:10]
+        # Build an OR query from the first 20 normalised words.  Using OR
+        # maximises recall: a candidate matches if it contains any of the
+        # terms, not all of them.  FTS5 BM25 ranking still promotes documents
+        # that contain more terms.  20 words (up from 10) gives enough
+        # discriminating signal for licences whose preamble shares the first
+        # 10 words with many other licences (e.g. HPND family: "permission to
+        # use copy modify and distribute this software ...").
+        words = norm_text.split()[:20]
         if not words:
             return []
         search_terms = " OR ".join(words)

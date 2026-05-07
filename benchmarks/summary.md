@@ -691,11 +691,15 @@ same or higher — the routing just shifted upstream.
 
 ### What is not yet addressed (future work)
 
-**Tail-text weakness (type 3, tail ≤ 500 chars)**
-Only ~50% top-1 recall. The licence closing paragraphs (warranty
-disclaimers, governing law) are less distinctive than the preamble.
-A reversed-text index or a dedicated tail-pattern set could help.
-Planned for a separate PR.
+**Tail-text weakness (type 3, tail ≤ 500 chars) — partially addressed**
+Dual FTS5 query (`words[-20:]` tail + `words[:100]` head) and the OR-term limit
+raise from 10 to 20 words together lift tail top-1 recall from 39–46 % to
+52–57 % and bring union (head + tail) top-50 recall to 100 % across 695
+licences (FTS5 recall benchmark, 2026-05-07). The remaining hard cases are
+very short licences (< 150 words) whose full text shares the first 20 OR terms
+with the HPND/GPL family — an inherent FTS5 vocabulary-collision problem, not
+a window-size problem. See implementation doc
+`docs/implementation/2026-05-06-accuracy-optimizations.md`, changes 8 and 9.
 
 **52 missed mixed-content cases**
 These are files where no structural marker pattern matched. Options:

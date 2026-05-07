@@ -188,27 +188,32 @@ def fetch_license_texts_from_tarball(
     return texts
 
 
-def select_target_licenses(licenses_dict: dict[str, Any]) -> list[dict[str, Any]]:
-    family_map = {}
-    for lid, lic in licenses_dict.items():
-        f = get_family(lid)
-        if f not in family_map:
-            family_map[f] = []
-        family_map[f].append(lic)
-
-    selected = []
-    for f, lics in family_map.items():
-        shuffled = list(lics)
-        random.shuffle(shuffled)
-        selected.extend(shuffled[:2])
-
-    remaining = [lic for lic in licenses_dict.values() if lic not in selected]
-    random.shuffle(remaining)
-    needed = 60 - len(selected)
-    if needed > 0:
-        selected.extend(remaining[:needed])
-
+def select_target_licenses(
+    licenses_dict: dict[str, Any], full_coverage: bool = False
+) -> list[dict[str, Any]]:
     all_lids = list(licenses_dict.keys())
+
+    if full_coverage:
+        selected = list(licenses_dict.values())
+    else:
+        family_map: dict[str, list[dict[str, Any]]] = {}
+        for lid, lic in licenses_dict.items():
+            f = get_family(lid)
+            if f not in family_map:
+                family_map[f] = []
+            family_map[f].append(lic)
+
+        selected = []
+        for f, lics in family_map.items():
+            shuffled = list(lics)
+            random.shuffle(shuffled)
+            selected.extend(shuffled[:2])
+
+        remaining = [lic for lic in licenses_dict.values() if lic not in selected]
+        random.shuffle(remaining)
+        needed = 60 - len(selected)
+        if needed > 0:
+            selected.extend(remaining[:needed])
     for lic in selected:
         lid = lic["licenseId"]
         lic["license_id"] = lid
@@ -305,7 +310,7 @@ def generate_type_2(licenses: list[dict[str, Any]], out_dir: Path) -> None:
         n = re.sub(r"(\d+\.\d+)", r"v ", n)
         n = re.sub(r"(?i)(v|ver|version)\s+v", r"", n)
 
-        def alter_prec(m):
+        def alter_prec(m: re.Match[str]) -> str:
             val = m.group(1)
             if len(val.split(".")) == 2:
                 return val + ".0"
@@ -350,7 +355,7 @@ def generate_type_3(licenses: list[dict[str, Any]], out_dir: Path) -> None:
     print("Generating Type 3: license-text-short...")
     for lic in licenses:
         c_id = lic["license_id"]
-        text = lic.get("license_text", "")
+        text: str = lic.get("license_text", "")
 
         result = {"license_id": c_id, "license_text": text}
 
@@ -360,13 +365,13 @@ def generate_type_3(licenses: list[dict[str, Any]], out_dir: Path) -> None:
             ):
                 result[k] = v
 
-        def get_head(n):
+        def get_head(n: int) -> str:
             return text[:n]
 
-        def get_tail(n):
+        def get_tail(n: int) -> str:
             return text[-n:] if n <= len(text) else text
 
-        for x in [300, 500, 700, 1000, 1500, 2000, 3000]:
+        for x in [300, 500, 700, 800, 900, 1000, 1500, 2000, 3000]:
             result[f"license_text_short_head_{x}"] = get_head(x)
             result[f"license_text_short_tail_{x}"] = get_tail(x)
 
@@ -466,11 +471,11 @@ def distort_text(text: str, rate_percent: int) -> str:
                 punct = random.choice(string.punctuation)
                 words[idx] += punct
             elif word_op < 0.9:
-                w = words[idx]
-                if len(w) > 3:
-                    split_idx = random.randint(1, len(w) - 1)
+                word = words[idx]
+                if len(word) > 3:
+                    split_idx = random.randint(1, len(word) - 1)
                     char = random.choice([" ", "-"])
-                    words[idx] = w[:split_idx] + char + w[split_idx:]
+                    words[idx] = word[:split_idx] + char + word[split_idx:]
             else:
                 words[idx] = re.sub(r"[^\w\s]", "", words[idx])
 
@@ -679,6 +684,15 @@ def main() -> None:
         default="",
         help="If provided, outputs to this directory instead of the real fixtures dir and restricts to 5 licenses",
     )
+    parser.add_argument(
+        "--full-coverage",
+        action="store_true",
+        help=(
+            "Generate fixtures for all canonical SPDX licenses instead of "
+            "the default stratified sample (~60 licenses across 20+ families). "
+            "Required for the FTS5 dual-query recall benchmark."
+        ),
+    )
     args = parser.parse_args()
 
     random.seed(42)  # Deterministic generation
@@ -691,7 +705,9 @@ def main() -> None:
         print("Error: Could not fetch licenses from SPDX")
         return
 
-    selected_licenses = select_target_licenses(licenses_dict)
+    selected_licenses = select_target_licenses(
+        licenses_dict, full_coverage=args.full_coverage
+    )
 
     if args.verify_dir:
         print("Verification mode: Limiting to 5 licenses.")

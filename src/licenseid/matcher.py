@@ -113,7 +113,14 @@ class AggregatedLicenseMatcher:
         words = norm_input.split()
 
         # Tier 0: Short-Text Shortcut (Names/IDs)
-        if len(words) < 20:
+        # Threshold raised from 20 to 60 words: inputs up to ~400 chars that
+        # are an exact ID or name (score > 1.0) short-circuit here without
+        # entering the full FTS5 pipeline.  If no exact match is found the
+        # code falls through, so the only cost is one extra _match_short_text
+        # call — which is negligible.  Raising the threshold matters for
+        # short licence headers (e.g. "MIT License" inside a 40-word notice)
+        # that are currently routed to the slower FTS5 path unnecessarily.
+        if len(words) < 60:
             # Fast path: bare deprecated ID + prose disambiguation context in
             # the raw (un-normalised) text, e.g. "GPL-2.0 or later version".
             # Must use target_text, not norm_input, because normalize_text()
@@ -247,19 +254,44 @@ class AggregatedLicenseMatcher:
         text = self._strip_comment_prefixes(text)
 
         # Tier 1: Retrieval
-        # Truncate very long queries for FTS5 to avoid performance/limit issues.
-        # Cap at 100 words: benchmarks show Recall@1 is flat beyond this —
-        # the head alone provides sufficient FTS5 signal and longer queries
-        # increase SQLite overhead without improving candidate recall.
+        # search_candidates builds an OR query from the first 20 normalised
+        # words of whatever text it receives (see database.py).  The caps
+        # below control which words those are:
+        #
+        #   Head query: pass words[:100] so search_candidates uses words 0–19
+        #     (the preamble/title, which is highly distinctive).  The 100-word
+        #     buffer leaves room if the OR-term limit is raised again later.
+        #
+        #   Tail query: pass words[-20:] — exactly the last 20 words — so
+        #     search_candidates uses words -20 to -1 (the true end of the
+        #     document: warranty disclaimer, governing-law clause, etc.).
+        #     Benchmarks showed that passing words[-120:] was wrong: FTS5 only
+        #     saw words -120 to -101, which are mid-text and less distinctive
+        #     than the actual tail.  Aligning the slice with the OR-term limit
+        #     (20 words) recovers those end-specific signals.
+        #     Threshold >200 words ensures head (0–99) and tail (last 20) are
+        #     non-overlapping for inputs up to any realistic length.
+        #
+        # Both queries use limit=50; candidates are unioned by license_id.
         words = text.split()
-        search_query = text
+        raw_candidates: list[CandidateMatch] = []
         if len(words) > 100:
-            search_query = " ".join(words[:100])
+            head_query = " ".join(words[:100])
+            raw_candidates = list(self.db.search_candidates(head_query, limit=50))
+            if len(words) > 200:
+                tail_query = " ".join(words[-20:])
+                seen_ids = {
+                    c["license_id"] for c in raw_candidates if c.get("license_id")
+                }
+                for c in self.db.search_candidates(tail_query, limit=50):
+                    if c.get("license_id") not in seen_ids:
+                        raw_candidates.append(c)
+                        seen_ids.add(c["license_id"])
+        else:
+            raw_candidates = list(self.db.search_candidates(text, limit=50))
 
-        # Fetch Top 50 for better recall
-        candidates = self.db.search_candidates(search_query, limit=50)
         filtered: list[CandidateMatch] = []
-        for cand in candidates:
+        for cand in raw_candidates:
             license_id = cand.get("license_id")
             if not license_id or license_id in exclude_list:
                 continue

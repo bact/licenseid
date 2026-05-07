@@ -1,0 +1,39 @@
+{
+    "license_id": "FSFAP-no-warranty-disclaimer",
+    "license_text": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "reference": "https://spdx.org/licenses/FSFAP-no-warranty-disclaimer.html",
+    "isDeprecatedLicenseId": false,
+    "detailsUrl": "https://spdx.org/licenses/FSFAP-no-warranty-disclaimer.json",
+    "referenceNumber": 223,
+    "name": "FSF All Permissive License (without Warranty)",
+    "licenseId": "FSFAP-no-warranty-disclaimer",
+    "seeAlso": [
+        "https://git.savannah.gnu.org/cgit/wget.git/tree/util/trunc.c?h=v1.21.3&id=40747a11e44ced5a8ac628a41f879ced3e2ebce9#n6"
+    ],
+    "isOsiApproved": false,
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "close_license_ids": [
+        "FSFAP"
+    ],
+    "license_text_short_head_300": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_tail_300": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_head_500": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_tail_500": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_head_700": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_tail_700": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_head_800": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_tail_800": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_head_900": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_tail_900": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_head_1000": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_tail_1000": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_head_1500": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_tail_1500": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_head_2000": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_tail_2000": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_head_3000": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n",
+    "license_text_short_tail_3000": "Copyright (C) 2008 Micah J. Cowan\n\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.\n"
+}
