@@ -1,21 +1,9 @@
 {
     "license_id": "HPND-doc",
     "license_text": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
-    "reference": "https://spdx.org/licenses/HPND-doc.html",
-    "isDeprecatedLicenseId": false,
-    "detailsUrl": "https://spdx.org/licenses/HPND-doc.json",
-    "referenceNumber": 235,
-    "name": "Historical Permission Notice and Disclaimer - documentation variant",
-    "licenseId": "HPND-doc",
-    "seeAlso": [
-        "https://gitlab.freedesktop.org/xorg/lib/libxext/-/blob/master/COPYING?ref_type=heads#L185-197",
-        "https://gitlab.freedesktop.org/xorg/lib/libxtst/-/blob/master/COPYING?ref_type=heads#L70-77"
-    ],
-    "isOsiApproved": false,
-    "is_high_usage": false,
-    "is_osi_approved": false,
-    "is_fsf_libre": false,
     "is_spdx": true,
+    "is_fsf_libre": false,
+    "is_high_usage": false,
     "close_license_ids": [
         "HPND-Netrek",
         "HPND-doc-sell",
@@ -23,6 +11,7 @@
         "HPND-INRIA-IMAG",
         "HPND-DEC"
     ],
+    "is_osi_approved": false,
     "license_text_short_head_300": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the s",
     "license_text_short_tail_300": "by granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
     "license_text_short_head_500": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
@@ -38,13 +27,5 @@
     "license_text_short_head_1500": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
     "license_text_short_tail_1500": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
     "license_text_short_head_2000": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
-    "license_text_short_tail_2000": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
-    "license_text_short_head_3000": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
-    "license_text_short_tail_3000": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
-    "license_text_short_head_300_tail_300": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
-    "license_text_short_head_300_tail_500": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
-    "license_text_short_head_300_tail_700": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
-    "license_text_short_head_300_tail_1000": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
-    "license_text_short_head_300_tail_1500": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n",
-    "license_text_short_head_300_tail_2000": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n"
+    "license_text_short_tail_2000": "Copyright <year> <copyright holder>\n\nPermission to use, copy, modify, and distribute this documentation for\nany purpose and without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n<copyright holder> makes no representations about the suitability for\nany purpose of the information in this document.  This documentation is\nprovided ``as is'' without express or implied warranty.\n"
 }

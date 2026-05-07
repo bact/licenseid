@@ -1,21 +1,11 @@
 {
     "license_id": "Aspell-RU",
     "license_text": "Permission to use, copy, redistribute is granted.\nPermission to redistribute modifications in patch form is granted.\nPermission to redistribute binaries made of modified sources is granted.\nAll other rights reserved.\n",
-    "reference": "https://spdx.org/licenses/Aspell-RU.html",
-    "isDeprecatedLicenseId": false,
-    "detailsUrl": "https://spdx.org/licenses/Aspell-RU.json",
-    "referenceNumber": 350,
-    "name": "Aspell Russian License",
-    "licenseId": "Aspell-RU",
-    "seeAlso": [
-        "https://ftp.gnu.org/gnu/aspell/dict/ru/aspell6-ru-0.99f7-1.tar.bz2"
-    ],
-    "isOsiApproved": false,
-    "is_high_usage": false,
-    "is_osi_approved": false,
-    "is_fsf_libre": false,
     "is_spdx": true,
+    "is_fsf_libre": false,
+    "is_high_usage": false,
     "close_license_ids": [],
+    "is_osi_approved": false,
     "license_text_short_head_300": "Permission to use, copy, redistribute is granted.\nPermission to redistribute modifications in patch form is granted.\nPermission to redistribute binaries made of modified sources is granted.\nAll other rights reserved.\n",
     "license_text_short_tail_300": "Permission to use, copy, redistribute is granted.\nPermission to redistribute modifications in patch form is granted.\nPermission to redistribute binaries made of modified sources is granted.\nAll other rights reserved.\n",
     "license_text_short_head_500": "Permission to use, copy, redistribute is granted.\nPermission to redistribute modifications in patch form is granted.\nPermission to redistribute binaries made of modified sources is granted.\nAll other rights reserved.\n",
@@ -31,7 +21,5 @@
     "license_text_short_head_1500": "Permission to use, copy, redistribute is granted.\nPermission to redistribute modifications in patch form is granted.\nPermission to redistribute binaries made of modified sources is granted.\nAll other rights reserved.\n",
     "license_text_short_tail_1500": "Permission to use, copy, redistribute is granted.\nPermission to redistribute modifications in patch form is granted.\nPermission to redistribute binaries made of modified sources is granted.\nAll other rights reserved.\n",
     "license_text_short_head_2000": "Permission to use, copy, redistribute is granted.\nPermission to redistribute modifications in patch form is granted.\nPermission to redistribute binaries made of modified sources is granted.\nAll other rights reserved.\n",
-    "license_text_short_tail_2000": "Permission to use, copy, redistribute is granted.\nPermission to redistribute modifications in patch form is granted.\nPermission to redistribute binaries made of modified sources is granted.\nAll other rights reserved.\n",
-    "license_text_short_head_3000": "Permission to use, copy, redistribute is granted.\nPermission to redistribute modifications in patch form is granted.\nPermission to redistribute binaries made of modified sources is granted.\nAll other rights reserved.\n",
-    "license_text_short_tail_3000": "Permission to use, copy, redistribute is granted.\nPermission to redistribute modifications in patch form is granted.\nPermission to redistribute binaries made of modified sources is granted.\nAll other rights reserved.\n"
+    "license_text_short_tail_2000": "Permission to use, copy, redistribute is granted.\nPermission to redistribute modifications in patch form is granted.\nPermission to redistribute binaries made of modified sources is granted.\nAll other rights reserved.\n"
 }

@@ -1,21 +1,11 @@
 {
     "license_id": "Zed",
     "license_text": "(c) Jim Davies, January 1995\nYou may copy and distribute this file freely.  Any queries and complaints should be forwarded to Jim.Davies@comlab.ox.ac.uk.\nIf you make any changes to this file, please do not distribute the results under the name `zed-csp.sty'.\n",
-    "reference": "https://spdx.org/licenses/Zed.html",
-    "isDeprecatedLicenseId": false,
-    "detailsUrl": "https://spdx.org/licenses/Zed.json",
-    "referenceNumber": 608,
-    "name": "Zed License",
-    "licenseId": "Zed",
-    "seeAlso": [
-        "https://fedoraproject.org/wiki/Licensing/Zed"
-    ],
-    "isOsiApproved": false,
-    "is_high_usage": false,
-    "is_osi_approved": false,
-    "is_fsf_libre": false,
     "is_spdx": true,
+    "is_fsf_libre": false,
+    "is_high_usage": false,
     "close_license_ids": [],
+    "is_osi_approved": false,
     "license_text_short_head_300": "(c) Jim Davies, January 1995\nYou may copy and distribute this file freely.  Any queries and complaints should be forwarded to Jim.Davies@comlab.ox.ac.uk.\nIf you make any changes to this file, please do not distribute the results under the name `zed-csp.sty'.\n",
     "license_text_short_tail_300": "(c) Jim Davies, January 1995\nYou may copy and distribute this file freely.  Any queries and complaints should be forwarded to Jim.Davies@comlab.ox.ac.uk.\nIf you make any changes to this file, please do not distribute the results under the name `zed-csp.sty'.\n",
     "license_text_short_head_500": "(c) Jim Davies, January 1995\nYou may copy and distribute this file freely.  Any queries and complaints should be forwarded to Jim.Davies@comlab.ox.ac.uk.\nIf you make any changes to this file, please do not distribute the results under the name `zed-csp.sty'.\n",
@@ -31,7 +21,5 @@
     "license_text_short_head_1500": "(c) Jim Davies, January 1995\nYou may copy and distribute this file freely.  Any queries and complaints should be forwarded to Jim.Davies@comlab.ox.ac.uk.\nIf you make any changes to this file, please do not distribute the results under the name `zed-csp.sty'.\n",
     "license_text_short_tail_1500": "(c) Jim Davies, January 1995\nYou may copy and distribute this file freely.  Any queries and complaints should be forwarded to Jim.Davies@comlab.ox.ac.uk.\nIf you make any changes to this file, please do not distribute the results under the name `zed-csp.sty'.\n",
     "license_text_short_head_2000": "(c) Jim Davies, January 1995\nYou may copy and distribute this file freely.  Any queries and complaints should be forwarded to Jim.Davies@comlab.ox.ac.uk.\nIf you make any changes to this file, please do not distribute the results under the name `zed-csp.sty'.\n",
-    "license_text_short_tail_2000": "(c) Jim Davies, January 1995\nYou may copy and distribute this file freely.  Any queries and complaints should be forwarded to Jim.Davies@comlab.ox.ac.uk.\nIf you make any changes to this file, please do not distribute the results under the name `zed-csp.sty'.\n",
-    "license_text_short_head_3000": "(c) Jim Davies, January 1995\nYou may copy and distribute this file freely.  Any queries and complaints should be forwarded to Jim.Davies@comlab.ox.ac.uk.\nIf you make any changes to this file, please do not distribute the results under the name `zed-csp.sty'.\n",
-    "license_text_short_tail_3000": "(c) Jim Davies, January 1995\nYou may copy and distribute this file freely.  Any queries and complaints should be forwarded to Jim.Davies@comlab.ox.ac.uk.\nIf you make any changes to this file, please do not distribute the results under the name `zed-csp.sty'.\n"
+    "license_text_short_tail_2000": "(c) Jim Davies, January 1995\nYou may copy and distribute this file freely.  Any queries and complaints should be forwarded to Jim.Davies@comlab.ox.ac.uk.\nIf you make any changes to this file, please do not distribute the results under the name `zed-csp.sty'.\n"
 }

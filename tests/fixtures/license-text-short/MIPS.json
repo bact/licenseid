@@ -1,21 +1,11 @@
 {
     "license_id": "MIPS",
     "license_text": "Copyright (c) 1992, 1991, 1990 MIPS Computer Systems, Inc.\nMIPS Computer Systems, Inc. grants reproduction and use\nrights to all parties, PROVIDED that this comment is\nmaintained in the copy.\n",
-    "reference": "https://spdx.org/licenses/MIPS.html",
-    "isDeprecatedLicenseId": false,
-    "detailsUrl": "https://spdx.org/licenses/MIPS.json",
-    "referenceNumber": 77,
-    "name": "MIPS License",
-    "licenseId": "MIPS",
-    "seeAlso": [
-        "https://sourceware.org/cgit/binutils-gdb/tree/include/coff/sym.h#n11"
-    ],
-    "isOsiApproved": false,
-    "is_high_usage": false,
-    "is_osi_approved": false,
-    "is_fsf_libre": false,
     "is_spdx": true,
+    "is_fsf_libre": false,
+    "is_high_usage": false,
     "close_license_ids": [],
+    "is_osi_approved": false,
     "license_text_short_head_300": "Copyright (c) 1992, 1991, 1990 MIPS Computer Systems, Inc.\nMIPS Computer Systems, Inc. grants reproduction and use\nrights to all parties, PROVIDED that this comment is\nmaintained in the copy.\n",
     "license_text_short_tail_300": "Copyright (c) 1992, 1991, 1990 MIPS Computer Systems, Inc.\nMIPS Computer Systems, Inc. grants reproduction and use\nrights to all parties, PROVIDED that this comment is\nmaintained in the copy.\n",
     "license_text_short_head_500": "Copyright (c) 1992, 1991, 1990 MIPS Computer Systems, Inc.\nMIPS Computer Systems, Inc. grants reproduction and use\nrights to all parties, PROVIDED that this comment is\nmaintained in the copy.\n",
@@ -31,7 +21,5 @@
     "license_text_short_head_1500": "Copyright (c) 1992, 1991, 1990 MIPS Computer Systems, Inc.\nMIPS Computer Systems, Inc. grants reproduction and use\nrights to all parties, PROVIDED that this comment is\nmaintained in the copy.\n",
     "license_text_short_tail_1500": "Copyright (c) 1992, 1991, 1990 MIPS Computer Systems, Inc.\nMIPS Computer Systems, Inc. grants reproduction and use\nrights to all parties, PROVIDED that this comment is\nmaintained in the copy.\n",
     "license_text_short_head_2000": "Copyright (c) 1992, 1991, 1990 MIPS Computer Systems, Inc.\nMIPS Computer Systems, Inc. grants reproduction and use\nrights to all parties, PROVIDED that this comment is\nmaintained in the copy.\n",
-    "license_text_short_tail_2000": "Copyright (c) 1992, 1991, 1990 MIPS Computer Systems, Inc.\nMIPS Computer Systems, Inc. grants reproduction and use\nrights to all parties, PROVIDED that this comment is\nmaintained in the copy.\n",
-    "license_text_short_head_3000": "Copyright (c) 1992, 1991, 1990 MIPS Computer Systems, Inc.\nMIPS Computer Systems, Inc. grants reproduction and use\nrights to all parties, PROVIDED that this comment is\nmaintained in the copy.\n",
-    "license_text_short_tail_3000": "Copyright (c) 1992, 1991, 1990 MIPS Computer Systems, Inc.\nMIPS Computer Systems, Inc. grants reproduction and use\nrights to all parties, PROVIDED that this comment is\nmaintained in the copy.\n"
+    "license_text_short_tail_2000": "Copyright (c) 1992, 1991, 1990 MIPS Computer Systems, Inc.\nMIPS Computer Systems, Inc. grants reproduction and use\nrights to all parties, PROVIDED that this comment is\nmaintained in the copy.\n"
 }

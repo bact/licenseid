@@ -1,26 +1,16 @@
 {
     "license_id": "Linux-man-pages-1-para",
     "license_text": "Permission is granted to distribute possibly modified\ncopies of this page provided the header is included\nverbatim, and in case of nontrivial modification author\nand date of the modification is added to the header.\n",
-    "reference": "https://spdx.org/licenses/Linux-man-pages-1-para.html",
-    "isDeprecatedLicenseId": false,
-    "detailsUrl": "https://spdx.org/licenses/Linux-man-pages-1-para.json",
-    "referenceNumber": 341,
-    "name": "Linux man-pages - 1 paragraph",
-    "licenseId": "Linux-man-pages-1-para",
-    "seeAlso": [
-        "https://git.kernel.org/pub/scm/docs/man-pages/man-pages.git/tree/man2/getcpu.2#n4"
-    ],
-    "isOsiApproved": false,
-    "is_high_usage": false,
-    "is_osi_approved": false,
-    "is_fsf_libre": false,
     "is_spdx": true,
+    "is_fsf_libre": false,
+    "is_high_usage": false,
     "close_license_ids": [
         "Linux-man-pages-copyleft",
         "Linux-man-pages-copyleft-2-para",
         "Linux-man-pages-copyleft-var",
         "Linux-OpenIB"
     ],
+    "is_osi_approved": false,
     "license_text_short_head_300": "Permission is granted to distribute possibly modified\ncopies of this page provided the header is included\nverbatim, and in case of nontrivial modification author\nand date of the modification is added to the header.\n",
     "license_text_short_tail_300": "Permission is granted to distribute possibly modified\ncopies of this page provided the header is included\nverbatim, and in case of nontrivial modification author\nand date of the modification is added to the header.\n",
     "license_text_short_head_500": "Permission is granted to distribute possibly modified\ncopies of this page provided the header is included\nverbatim, and in case of nontrivial modification author\nand date of the modification is added to the header.\n",
@@ -36,7 +26,5 @@
     "license_text_short_head_1500": "Permission is granted to distribute possibly modified\ncopies of this page provided the header is included\nverbatim, and in case of nontrivial modification author\nand date of the modification is added to the header.\n",
     "license_text_short_tail_1500": "Permission is granted to distribute possibly modified\ncopies of this page provided the header is included\nverbatim, and in case of nontrivial modification author\nand date of the modification is added to the header.\n",
     "license_text_short_head_2000": "Permission is granted to distribute possibly modified\ncopies of this page provided the header is included\nverbatim, and in case of nontrivial modification author\nand date of the modification is added to the header.\n",
-    "license_text_short_tail_2000": "Permission is granted to distribute possibly modified\ncopies of this page provided the header is included\nverbatim, and in case of nontrivial modification author\nand date of the modification is added to the header.\n",
-    "license_text_short_head_3000": "Permission is granted to distribute possibly modified\ncopies of this page provided the header is included\nverbatim, and in case of nontrivial modification author\nand date of the modification is added to the header.\n",
-    "license_text_short_tail_3000": "Permission is granted to distribute possibly modified\ncopies of this page provided the header is included\nverbatim, and in case of nontrivial modification author\nand date of the modification is added to the header.\n"
+    "license_text_short_tail_2000": "Permission is granted to distribute possibly modified\ncopies of this page provided the header is included\nverbatim, and in case of nontrivial modification author\nand date of the modification is added to the header.\n"
 }

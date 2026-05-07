@@ -1,21 +1,11 @@
 {
     "license_id": "McPhee-slideshow",
     "license_text": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
-    "reference": "https://spdx.org/licenses/McPhee-slideshow.html",
-    "isDeprecatedLicenseId": false,
-    "detailsUrl": "https://spdx.org/licenses/McPhee-slideshow.json",
-    "referenceNumber": 48,
-    "name": "McPhee Slideshow License",
-    "licenseId": "McPhee-slideshow",
-    "seeAlso": [
-        "https://mirror.las.iastate.edu/tex-archive/graphics/metapost/contrib/macros/slideshow/slideshow.mp"
-    ],
-    "isOsiApproved": false,
-    "is_high_usage": false,
-    "is_osi_approved": false,
-    "is_fsf_libre": false,
     "is_spdx": true,
+    "is_fsf_libre": false,
+    "is_high_usage": false,
     "close_license_ids": [],
+    "is_osi_approved": false,
     "license_text_short_head_300": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this f",
     "license_text_short_tail_300": " TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
     "license_text_short_head_500": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
@@ -31,13 +21,5 @@
     "license_text_short_head_1500": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
     "license_text_short_tail_1500": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
     "license_text_short_head_2000": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
-    "license_text_short_tail_2000": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
-    "license_text_short_head_3000": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
-    "license_text_short_tail_3000": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
-    "license_text_short_head_300_tail_300": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
-    "license_text_short_head_300_tail_500": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
-    "license_text_short_head_300_tail_700": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
-    "license_text_short_head_300_tail_1000": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
-    "license_text_short_head_300_tail_1500": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n",
-    "license_text_short_head_300_tail_2000": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n"
+    "license_text_short_tail_2000": "Copyright 2001, Patrick TJ McPhee\neveryone is welcome to use this code for any purpose, to modify it, and\nto copy it in whole or in part for use in other macro sets, with the\nconditions that this copyright notice be preserved with any significant\nportion of the code, and that modifications to this file be clearly\nmarked.\n"
 }

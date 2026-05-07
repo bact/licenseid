@@ -371,19 +371,30 @@ def generate_type_2(licenses: list[dict[str, Any]], out_dir: Path) -> None:
         json.dump(results, f, indent=4)
 
 
+# Snake-case metadata fields to include in type-3 fixtures.
+# Raw SPDX API fields (licenseId, isOsiApproved, seeAlso, etc.) are excluded
+# to keep fixtures free from redundant or camelCase keys.
+_T3_METADATA_KEYS: frozenset[str] = frozenset(
+    {
+        "is_high_usage",
+        "is_osi_approved",
+        "is_fsf_libre",
+        "is_spdx",
+        "close_license_ids",
+    }
+)
+
+
 def generate_type_3(licenses: list[dict[str, Any]], out_dir: Path) -> None:
     print("Generating Type 3: license-text-short...")
     for lic in licenses:
         c_id = lic["license_id"]
         text: str = lic.get("license_text", "")
 
-        result = {"license_id": c_id, "license_text": text}
-
-        for k, v in lic.items():
-            if k not in ["license_text", "license_id"] and not k.startswith(
-                "license_text_long"
-            ):
-                result[k] = v
+        result: dict[str, Any] = {"license_id": c_id, "license_text": text}
+        for k in _T3_METADATA_KEYS:
+            if k in lic:
+                result[k] = lic[k]
 
         def get_head(n: int) -> str:
             return text[:n]
@@ -391,66 +402,9 @@ def generate_type_3(licenses: list[dict[str, Any]], out_dir: Path) -> None:
         def get_tail(n: int) -> str:
             return text[-n:] if n <= len(text) else text
 
-        for x in [300, 500, 700, 800, 900, 1000, 1500, 2000, 3000]:
+        for x in [300, 500, 700, 800, 900, 1000, 1500, 2000]:
             result[f"license_text_short_head_{x}"] = get_head(x)
             result[f"license_text_short_tail_{x}"] = get_tail(x)
-
-        combs = [
-            (300, 300),
-            (500, 300),
-            (700, 300),
-            (1000, 300),
-            (1500, 300),
-            (2000, 300),
-            (2700, 300),
-            (300, 500),
-            (500, 500),
-            (700, 500),
-            (1000, 500),
-            (1500, 500),
-            (2000, 500),
-            (2500, 500),
-            (300, 700),
-            (500, 700),
-            (700, 700),
-            (1000, 700),
-            (1500, 700),
-            (2000, 700),
-            (2300, 700),
-            (300, 1000),
-            (500, 1000),
-            (700, 1000),
-            (1000, 1000),
-            (1500, 1000),
-            (2000, 1000),
-            (300, 1500),
-            (500, 1500),
-            (700, 1500),
-            (1000, 1500),
-            (1500, 1500),
-            (300, 2000),
-            (500, 2000),
-            (700, 2000),
-            (1000, 2000),
-        ]
-        for x, y in combs:
-            # If the head already covers the whole text, a tail adds nothing.
-            if x >= len(text):
-                continue
-            # Clip the tail so it starts exactly where the head ends, avoiding
-            # overlap and data duplication.  For example, with a 1300-char text,
-            # head=1000 tail=500 → actual_tail=300 (chars 1000–1299).
-            actual_tail = min(y, len(text) - x)
-            head = get_head(x)
-            tail = text[-actual_tail:] if actual_tail > 0 else ""
-            if head + tail == text:
-                # Head and clipped tail together reconstruct the full text;
-                # store it verbatim with no separator.
-                result[f"license_text_short_head_{x}_tail_{y}"] = text
-            else:
-                # Non-contiguous: head and tail are separated portions.
-                # A single newline marks the gap without adding noise tokens.
-                result[f"license_text_short_head_{x}_tail_{y}"] = head + "\n" + tail
 
         with open(
             out_dir / f"{c_id.replace('/', '_')}.json", "w", encoding="utf-8"
@@ -736,18 +690,38 @@ def main() -> None:
         print("Verification mode: Limiting to 5 licenses.")
         selected_licenses = selected_licenses[:5]
 
-    selected_ids = {lic["license_id"] for lic in selected_licenses}
-    texts = fetch_license_texts_from_tarball(version, selected_ids)
+    # Type 3 always covers all non-deprecated SPDX licenses regardless of
+    # --full-coverage, since its purpose is short-text recall across the full
+    # licence space.
+    if "3" in types_to_run:
+        t3_licenses: list[dict[str, Any]] = select_target_licenses(
+            licenses_dict, full_coverage=True
+        )
+        if args.verify_dir:
+            t3_licenses = t3_licenses[:5]
+    else:
+        t3_licenses = []
 
-    # inject text into selected_licenses
+    # Fetch texts for all IDs needed across types in a single download.
+    selected_ids = {lic["license_id"] for lic in selected_licenses}
+    t3_ids = {lic["license_id"] for lic in t3_licenses}
+    texts = fetch_license_texts_from_tarball(version, selected_ids | t3_ids)
+
     for lic in selected_licenses:
+        lic["license_text"] = texts.get(
+            lic["license_id"], f"Mock text for {lic['license_id']}"
+        )
+    for lic in t3_licenses:
         lic["license_text"] = texts.get(
             lic["license_id"], f"Mock text for {lic['license_id']}"
         )
 
     print(
-        f"Selected {len(selected_licenses)} licenses from {len(set(get_family(lic_['license_id']) for lic_ in selected_licenses))} families."
+        f"Selected {len(selected_licenses)} licenses from "
+        f"{len(set(get_family(lic_['license_id']) for lic_ in selected_licenses))} families."
     )
+    if t3_licenses:
+        print(f"Type 3: using all {len(t3_licenses)} non-deprecated SPDX licenses.")
 
     if "1" in types_to_run:
         out = base_out_dir / "license-id"
@@ -762,7 +736,7 @@ def main() -> None:
     if "3" in types_to_run:
         out = base_out_dir / "license-text-short"
         if check_dir(out, args.force):
-            generate_type_3(selected_licenses, out)
+            generate_type_3(t3_licenses, out)
 
     if "4" in types_to_run:
         out = base_out_dir / "license-text-long"

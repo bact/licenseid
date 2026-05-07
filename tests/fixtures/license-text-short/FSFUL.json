@@ -1,25 +1,15 @@
 {
     "license_id": "FSFUL",
     "license_text": "Copyright (C) 1992-1996, 1998-2012 Free Software Foundation, Inc.\n\nThis configure script is free software; the Free Software Foundation gives unlimited permission to copy, distribute and modify it.\n",
-    "reference": "https://spdx.org/licenses/FSFUL.html",
-    "isDeprecatedLicenseId": false,
-    "detailsUrl": "https://spdx.org/licenses/FSFUL.json",
-    "referenceNumber": 133,
-    "name": "FSF Unlimited License",
-    "licenseId": "FSFUL",
-    "seeAlso": [
-        "https://fedoraproject.org/wiki/Licensing/FSF_Unlimited_License"
-    ],
-    "isOsiApproved": false,
-    "is_high_usage": false,
-    "is_osi_approved": false,
-    "is_fsf_libre": false,
     "is_spdx": true,
+    "is_fsf_libre": false,
+    "is_high_usage": false,
     "close_license_ids": [
         "FSFULLR",
         "FSFULLRSD",
         "FSFULLRWD"
     ],
+    "is_osi_approved": false,
     "license_text_short_head_300": "Copyright (C) 1992-1996, 1998-2012 Free Software Foundation, Inc.\n\nThis configure script is free software; the Free Software Foundation gives unlimited permission to copy, distribute and modify it.\n",
     "license_text_short_tail_300": "Copyright (C) 1992-1996, 1998-2012 Free Software Foundation, Inc.\n\nThis configure script is free software; the Free Software Foundation gives unlimited permission to copy, distribute and modify it.\n",
     "license_text_short_head_500": "Copyright (C) 1992-1996, 1998-2012 Free Software Foundation, Inc.\n\nThis configure script is free software; the Free Software Foundation gives unlimited permission to copy, distribute and modify it.\n",
@@ -35,7 +25,5 @@
     "license_text_short_head_1500": "Copyright (C) 1992-1996, 1998-2012 Free Software Foundation, Inc.\n\nThis configure script is free software; the Free Software Foundation gives unlimited permission to copy, distribute and modify it.\n",
     "license_text_short_tail_1500": "Copyright (C) 1992-1996, 1998-2012 Free Software Foundation, Inc.\n\nThis configure script is free software; the Free Software Foundation gives unlimited permission to copy, distribute and modify it.\n",
     "license_text_short_head_2000": "Copyright (C) 1992-1996, 1998-2012 Free Software Foundation, Inc.\n\nThis configure script is free software; the Free Software Foundation gives unlimited permission to copy, distribute and modify it.\n",
-    "license_text_short_tail_2000": "Copyright (C) 1992-1996, 1998-2012 Free Software Foundation, Inc.\n\nThis configure script is free software; the Free Software Foundation gives unlimited permission to copy, distribute and modify it.\n",
-    "license_text_short_head_3000": "Copyright (C) 1992-1996, 1998-2012 Free Software Foundation, Inc.\n\nThis configure script is free software; the Free Software Foundation gives unlimited permission to copy, distribute and modify it.\n",
-    "license_text_short_tail_3000": "Copyright (C) 1992-1996, 1998-2012 Free Software Foundation, Inc.\n\nThis configure script is free software; the Free Software Foundation gives unlimited permission to copy, distribute and modify it.\n"
+    "license_text_short_tail_2000": "Copyright (C) 1992-1996, 1998-2012 Free Software Foundation, Inc.\n\nThis configure script is free software; the Free Software Foundation gives unlimited permission to copy, distribute and modify it.\n"
 }

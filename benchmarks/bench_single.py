@@ -89,7 +89,7 @@ def check_match(
     subcat: str,
     global_counts: dict[str, int],
     tier_stat_obj: dict[str, int],
-) -> None:
+) -> list[str]:
     results, trace = matcher.match_traced(text, true_id)
     matched_ids = [r["license_id"] for r in results]
 
@@ -124,6 +124,7 @@ def check_match(
         tier_stat_obj[tier_name] += 1
     else:
         tier_stat_obj["missed"] += 1
+    return matched_ids
 
 
 class InstrumentedMatcher(AggregatedLicenseMatcher):
@@ -391,6 +392,7 @@ def main() -> None:
         "type_3": {},
         "type_4": {},
         "type_5": {},
+        "type_51": {},
     }
     tier_stats: dict[str, dict[str, dict[str, int]]] = {
         "type_1": {},
@@ -398,6 +400,7 @@ def main() -> None:
         "type_3": {},
         "type_4": {},
         "type_5": {},
+        "type_51": {},
     }
     global_counts = {"total_returned": 0, "correct_returned": 0}
     failures: list[dict[str, Any]] = []
@@ -486,37 +489,105 @@ def main() -> None:
         print(f"Finished Type 2 ({t2_total} queries)", file=sys.stderr, flush=True)
 
     print("Running Type 3...", file=sys.stderr, flush=True)
-    # Type 3
+    # Type 3: head/tail slices queried independently; the union recall matrix
+    # is derived from cached result lists — no extra pipeline calls per pair.
     t3_dir = base_dir / "license-text-short"
     if t3_dir.exists():
         t3_files = sorted(t3_dir.glob("*.json"))
         if IS_VERIFY:
             t3_files = t3_files[:2]
 
+        T3_SIZES: list[int] = [300, 500, 700, 800, 900, 1000, 1500, 2000]
+        # In verify mode cap the number of sizes to keep the run short.
+        T3_VERIFY_CAP = 2
+
         for fp in t3_files:
             with open(fp, "r", encoding="utf-8") as f:
                 data = json.load(f)
             true_id = data["license_id"]
-            count = 0
-            for k, v in data.items():
-                if k.startswith("license_text_short_") and isinstance(v, str):
-                    if IS_VERIFY and count >= 2:
-                        continue
+
+            # Collect available head and tail slices from the fixture.
+            head_texts: dict[int, str] = {}
+            tail_texts: dict[int, str] = {}
+            for sz in T3_SIZES:
+                h = data.get(f"license_text_short_head_{sz}", "")
+                t = data.get(f"license_text_short_tail_{sz}", "")
+                if h:
+                    head_texts[sz] = h
+                if t:
+                    tail_texts[sz] = t
+
+            if IS_VERIFY:
+                head_texts = dict(list(head_texts.items())[:T3_VERIFY_CAP])
+                tail_texts = dict(list(tail_texts.items())[:T3_VERIFY_CAP])
+
+            # Head-only queries; cache result IDs for the union matrix.
+            head_results: dict[int, list[str]] = {}
+            for sz, text in head_texts.items():
+                k = f"head_{sz}"
+                if k not in stats["type_3"]:
+                    stats["type_3"][k] = init_stat()
+                    tier_stats["type_3"][k] = init_tier_stat()
+                head_results[sz] = check_match(
+                    true_id,
+                    text,
+                    matcher,
+                    stats["type_3"][k],
+                    failures,
+                    "type_3",
+                    k,
+                    global_counts,
+                    tier_stats["type_3"][k],
+                )
+
+            # Tail-only queries; cache result IDs for the union matrix.
+            tail_results: dict[int, list[str]] = {}
+            for sz, text in tail_texts.items():
+                k = f"tail_{sz}"
+                if k not in stats["type_3"]:
+                    stats["type_3"][k] = init_stat()
+                    tier_stats["type_3"][k] = init_tier_stat()
+                tail_results[sz] = check_match(
+                    true_id,
+                    text,
+                    matcher,
+                    stats["type_3"][k],
+                    failures,
+                    "type_3",
+                    k,
+                    global_counts,
+                    tier_stats["type_3"][k],
+                )
+
+            # Union recall matrix — no additional pipeline calls.
+            # Head results rank first; tail results extend the ordered set.
+            # Tier analysis does not apply to the derived union keys.
+            for h_sz, h_ids in head_results.items():
+                for t_sz, t_ids in tail_results.items():
+                    k = f"h{h_sz}_t{t_sz}"
                     if k not in stats["type_3"]:
                         stats["type_3"][k] = init_stat()
-                        tier_stats["type_3"][k] = init_tier_stat()
-                    check_match(
-                        true_id,
-                        v,
-                        matcher,
-                        stats["type_3"][k],
-                        failures,
-                        "type_3",
-                        k,
-                        global_counts,
-                        tier_stats["type_3"][k],
-                    )
-                    count += 1
+                    union_ids = list(dict.fromkeys(h_ids + t_ids))
+                    s = stats["type_3"][k]
+                    s["total"] += 1
+                    if union_ids and union_ids[0] == true_id:
+                        s["top1"] += 1
+                    else:
+                        failures.append(
+                            {
+                                "cat": "type_3",
+                                "subcat": k,
+                                "true": true_id,
+                                "got": (union_ids[0] if union_ids else "NONE"),
+                            }
+                        )
+                    if true_id in union_ids[:3]:
+                        s["top3"] += 1
+                    if true_id in union_ids[:5]:
+                        s["top5"] += 1
+                    for n in (10, 20, 30, 40, 50):
+                        if true_id in union_ids[:n]:
+                            s[f"top{n}"] += 1
 
         t3_total = sum(s["total"] for s in stats["type_3"].values())
         print(f"Finished Type 3 ({t3_total} queries)", file=sys.stderr, flush=True)
@@ -611,6 +682,48 @@ def main() -> None:
 
         t5_total = sum(s["total"] for s in stats["type_5"].values())
         print(f"Finished Type 5 ({t5_total} queries)", file=sys.stderr, flush=True)
+
+    print("Running Type 5.1...", file=sys.stderr, flush=True)
+    # Type 5.1: same logic as Type 5 but uses curated hand-crafted fixtures
+    # from tests/fixtures/mixed-content-curated/ instead of generated ones.
+    t51_dir = base_dir / "mixed-content-curated"
+    if t51_dir.exists():
+        t51_subdirs = sorted([d for d in t51_dir.iterdir() if d.is_dir()])
+        if IS_VERIFY:
+            t51_subdirs = t51_subdirs[:2]
+
+        if "mixed" not in stats["type_51"]:
+            stats["type_51"]["mixed"] = init_stat()
+            tier_stats["type_51"]["mixed"] = init_tier_stat()
+
+        for d in t51_subdirs:
+            print(f"  Type 5.1: processing dir {d.name}", file=sys.stderr, flush=True)
+            true_id = safe_to_canon.get(d.name)
+            if not true_id:
+                continue
+
+            count = 0
+            for fp in sorted(d.iterdir()):
+                if fp.is_file():
+                    if IS_VERIFY and count >= 2:
+                        break
+                    with open(fp, "r", encoding="utf-8") as inner_f:
+                        text = inner_f.read()
+                    check_match(
+                        true_id,
+                        text,
+                        matcher,
+                        stats["type_51"]["mixed"],
+                        failures,
+                        "type_51",
+                        "mixed",
+                        global_counts,
+                        tier_stats["type_51"]["mixed"],
+                    )
+                    count += 1
+
+        t51_total = sum(s["total"] for s in stats["type_51"].values())
+        print(f"Finished Type 5.1 ({t51_total} queries)", file=sys.stderr, flush=True)
 
     wall_time: float = time.perf_counter() - t_start
     current_mem, peak_mem = tracemalloc.get_traced_memory()

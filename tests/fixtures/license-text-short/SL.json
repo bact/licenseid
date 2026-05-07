@@ -1,21 +1,11 @@
 {
     "license_id": "SL",
     "license_text": "Everyone is permitted to do anything on this program including copying,\nmodifying, and improving, unless you try to pretend that you wrote it.\ni.e., the above copyright notice has to appear in all copies.\nTHE AUTHOR DISCLAIMS ANY RESPONSIBILITY WITH REGARD TO THIS SOFTWARE.\n",
-    "reference": "https://spdx.org/licenses/SL.html",
-    "isDeprecatedLicenseId": false,
-    "detailsUrl": "https://spdx.org/licenses/SL.json",
-    "referenceNumber": 652,
-    "name": "SL License",
-    "licenseId": "SL",
-    "seeAlso": [
-        "https://github.com/mtoyoda/sl/blob/master/LICENSE"
-    ],
-    "isOsiApproved": false,
-    "is_high_usage": false,
-    "is_osi_approved": false,
-    "is_fsf_libre": false,
     "is_spdx": true,
+    "is_fsf_libre": false,
+    "is_high_usage": false,
     "close_license_ids": [],
+    "is_osi_approved": false,
     "license_text_short_head_300": "Everyone is permitted to do anything on this program including copying,\nmodifying, and improving, unless you try to pretend that you wrote it.\ni.e., the above copyright notice has to appear in all copies.\nTHE AUTHOR DISCLAIMS ANY RESPONSIBILITY WITH REGARD TO THIS SOFTWARE.\n",
     "license_text_short_tail_300": "Everyone is permitted to do anything on this program including copying,\nmodifying, and improving, unless you try to pretend that you wrote it.\ni.e., the above copyright notice has to appear in all copies.\nTHE AUTHOR DISCLAIMS ANY RESPONSIBILITY WITH REGARD TO THIS SOFTWARE.\n",
     "license_text_short_head_500": "Everyone is permitted to do anything on this program including copying,\nmodifying, and improving, unless you try to pretend that you wrote it.\ni.e., the above copyright notice has to appear in all copies.\nTHE AUTHOR DISCLAIMS ANY RESPONSIBILITY WITH REGARD TO THIS SOFTWARE.\n",
@@ -31,7 +21,5 @@
     "license_text_short_head_1500": "Everyone is permitted to do anything on this program including copying,\nmodifying, and improving, unless you try to pretend that you wrote it.\ni.e., the above copyright notice has to appear in all copies.\nTHE AUTHOR DISCLAIMS ANY RESPONSIBILITY WITH REGARD TO THIS SOFTWARE.\n",
     "license_text_short_tail_1500": "Everyone is permitted to do anything on this program including copying,\nmodifying, and improving, unless you try to pretend that you wrote it.\ni.e., the above copyright notice has to appear in all copies.\nTHE AUTHOR DISCLAIMS ANY RESPONSIBILITY WITH REGARD TO THIS SOFTWARE.\n",
     "license_text_short_head_2000": "Everyone is permitted to do anything on this program including copying,\nmodifying, and improving, unless you try to pretend that you wrote it.\ni.e., the above copyright notice has to appear in all copies.\nTHE AUTHOR DISCLAIMS ANY RESPONSIBILITY WITH REGARD TO THIS SOFTWARE.\n",
-    "license_text_short_tail_2000": "Everyone is permitted to do anything on this program including copying,\nmodifying, and improving, unless you try to pretend that you wrote it.\ni.e., the above copyright notice has to appear in all copies.\nTHE AUTHOR DISCLAIMS ANY RESPONSIBILITY WITH REGARD TO THIS SOFTWARE.\n",
-    "license_text_short_head_3000": "Everyone is permitted to do anything on this program including copying,\nmodifying, and improving, unless you try to pretend that you wrote it.\ni.e., the above copyright notice has to appear in all copies.\nTHE AUTHOR DISCLAIMS ANY RESPONSIBILITY WITH REGARD TO THIS SOFTWARE.\n",
-    "license_text_short_tail_3000": "Everyone is permitted to do anything on this program including copying,\nmodifying, and improving, unless you try to pretend that you wrote it.\ni.e., the above copyright notice has to appear in all copies.\nTHE AUTHOR DISCLAIMS ANY RESPONSIBILITY WITH REGARD TO THIS SOFTWARE.\n"
+    "license_text_short_tail_2000": "Everyone is permitted to do anything on this program including copying,\nmodifying, and improving, unless you try to pretend that you wrote it.\ni.e., the above copyright notice has to appear in all copies.\nTHE AUTHOR DISCLAIMS ANY RESPONSIBILITY WITH REGARD TO THIS SOFTWARE.\n"
 }

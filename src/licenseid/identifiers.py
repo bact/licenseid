@@ -73,7 +73,6 @@ _BARE_TO_OR_LATER: dict[str, str] = {
 #   "or (at your option) any later", "or newer",
 #   "any later version" (standalone)
 # Reference: GPL preamble boilerplate and SPDX matching guidelines
-#   https://spdx.github.io/spdx-spec/v3.0/annexes/license-matching-guidelines-and-templates/
 _OR_LATER_RE = re.compile(
     r"\bor\s+(?:\([^)]{0,50}\)\s+)?(?:a\s+|any\s+)?(?:later|newer)\b"
     r"|\bany\s+later\s+version\b",
@@ -154,7 +153,11 @@ def normalize_identifier(identifier: str, db: Optional[LicenseDatabase] = None) 
     return _normalize_single_id(identifier, db)
 
 
-def _normalize_single_id(lic_id: str, db: Optional[LicenseDatabase] = None) -> str:
+# pylint: disable=too-many-branches
+def _normalize_single_id(
+    lic_id: str,
+    db: Optional[LicenseDatabase] = None,
+) -> str:
     """Normalises a single license or exception ID."""
     # 1. Database lookup (most accurate/up-to-date)
     if db:

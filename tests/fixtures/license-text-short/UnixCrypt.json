@@ -1,23 +1,11 @@
 {
     "license_id": "UnixCrypt",
     "license_text": "Copyright (c) 1996 Aki Yoshida. All rights reserved.\n\nPermission to use, copy, modify and distribute this software\nfor non-commercial or commercial purposes and without fee is\nhereby granted provided that this copyright notice appears in\nall copies.\n",
-    "reference": "https://spdx.org/licenses/UnixCrypt.html",
-    "isDeprecatedLicenseId": false,
-    "detailsUrl": "https://spdx.org/licenses/UnixCrypt.json",
-    "referenceNumber": 425,
-    "name": "UnixCrypt License",
-    "licenseId": "UnixCrypt",
-    "seeAlso": [
-        "https://foss.heptapod.net/python-libs/passlib/-/blob/branch/stable/LICENSE#L70",
-        "https://opensource.apple.com/source/JBoss/JBoss-737/jboss-all/jetty/src/main/org/mortbay/util/UnixCrypt.java.auto.html",
-        "https://archive.eclipse.org/jetty/8.0.1.v20110908/xref/org/eclipse/jetty/http/security/UnixCrypt.html"
-    ],
-    "isOsiApproved": false,
-    "is_high_usage": false,
-    "is_osi_approved": false,
-    "is_fsf_libre": false,
     "is_spdx": true,
+    "is_fsf_libre": false,
+    "is_high_usage": false,
     "close_license_ids": [],
+    "is_osi_approved": false,
     "license_text_short_head_300": "Copyright (c) 1996 Aki Yoshida. All rights reserved.\n\nPermission to use, copy, modify and distribute this software\nfor non-commercial or commercial purposes and without fee is\nhereby granted provided that this copyright notice appears in\nall copies.\n",
     "license_text_short_tail_300": "Copyright (c) 1996 Aki Yoshida. All rights reserved.\n\nPermission to use, copy, modify and distribute this software\nfor non-commercial or commercial purposes and without fee is\nhereby granted provided that this copyright notice appears in\nall copies.\n",
     "license_text_short_head_500": "Copyright (c) 1996 Aki Yoshida. All rights reserved.\n\nPermission to use, copy, modify and distribute this software\nfor non-commercial or commercial purposes and without fee is\nhereby granted provided that this copyright notice appears in\nall copies.\n",
@@ -33,7 +21,5 @@
     "license_text_short_head_1500": "Copyright (c) 1996 Aki Yoshida. All rights reserved.\n\nPermission to use, copy, modify and distribute this software\nfor non-commercial or commercial purposes and without fee is\nhereby granted provided that this copyright notice appears in\nall copies.\n",
     "license_text_short_tail_1500": "Copyright (c) 1996 Aki Yoshida. All rights reserved.\n\nPermission to use, copy, modify and distribute this software\nfor non-commercial or commercial purposes and without fee is\nhereby granted provided that this copyright notice appears in\nall copies.\n",
     "license_text_short_head_2000": "Copyright (c) 1996 Aki Yoshida. All rights reserved.\n\nPermission to use, copy, modify and distribute this software\nfor non-commercial or commercial purposes and without fee is\nhereby granted provided that this copyright notice appears in\nall copies.\n",
-    "license_text_short_tail_2000": "Copyright (c) 1996 Aki Yoshida. All rights reserved.\n\nPermission to use, copy, modify and distribute this software\nfor non-commercial or commercial purposes and without fee is\nhereby granted provided that this copyright notice appears in\nall copies.\n",
-    "license_text_short_head_3000": "Copyright (c) 1996 Aki Yoshida. All rights reserved.\n\nPermission to use, copy, modify and distribute this software\nfor non-commercial or commercial purposes and without fee is\nhereby granted provided that this copyright notice appears in\nall copies.\n",
-    "license_text_short_tail_3000": "Copyright (c) 1996 Aki Yoshida. All rights reserved.\n\nPermission to use, copy, modify and distribute this software\nfor non-commercial or commercial purposes and without fee is\nhereby granted provided that this copyright notice appears in\nall copies.\n"
+    "license_text_short_tail_2000": "Copyright (c) 1996 Aki Yoshida. All rights reserved.\n\nPermission to use, copy, modify and distribute this software\nfor non-commercial or commercial purposes and without fee is\nhereby granted provided that this copyright notice appears in\nall copies.\n"
 }

@@ -1,0 +1,580 @@
+{
+  "label": "license-marker",
+  "stats": {
+    "type_1": {
+      "id_verbatim": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "id_deprecated": {
+        "total": 2,
+        "top1": 0,
+        "top3": 0,
+        "top5": 0,
+        "top10": 0,
+        "top20": 0,
+        "top30": 0,
+        "top40": 0,
+        "top50": 0
+      },
+      "id_space": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "id_casing": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "id_punct": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "id_distorted": {
+        "total": 2,
+        "top1": 0,
+        "top3": 0,
+        "top5": 0,
+        "top10": 0,
+        "top20": 0,
+        "top30": 0,
+        "top40": 0,
+        "top50": 0
+      }
+    },
+    "type_2": {
+      "name_verbatim": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "name_space": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "name_casing": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "name_punct": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "name_distored": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      }
+    },
+    "type_3": {
+      "head_300": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "head_500": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "tail_300": {
+        "total": 2,
+        "top1": 1,
+        "top3": 1,
+        "top5": 1,
+        "top10": 1,
+        "top20": 1,
+        "top30": 1,
+        "top40": 1,
+        "top50": 1
+      },
+      "tail_500": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "h300_t300": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "h300_t500": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "h500_t300": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "h500_t500": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      }
+    },
+    "type_4": {
+      "verbatim": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "01": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "02": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "05": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "10": {
+        "total": 2,
+        "top1": 2,
+        "top3": 2,
+        "top5": 2,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "20": {
+        "total": 2,
+        "top1": 0,
+        "top3": 0,
+        "top5": 0,
+        "top10": 0,
+        "top20": 0,
+        "top30": 0,
+        "top40": 0,
+        "top50": 0
+      }
+    },
+    "type_5": {
+      "mixed": {
+        "total": 4,
+        "top1": 2,
+        "top3": 3,
+        "top5": 3,
+        "top10": 3,
+        "top20": 3,
+        "top30": 3,
+        "top40": 3,
+        "top50": 3
+      }
+    },
+    "type_51": {
+      "mixed": {
+        "total": 3,
+        "top1": 2,
+        "top3": 3,
+        "top5": 3,
+        "top10": 3,
+        "top20": 3,
+        "top30": 3,
+        "top40": 3,
+        "top50": 3
+      }
+    }
+  },
+  "tier_stats": {
+    "type_1": {
+      "id_verbatim": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "id_deprecated": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 2
+      },
+      "id_space": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "id_casing": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "id_punct": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "id_distorted": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 2
+      }
+    },
+    "type_2": {
+      "name_verbatim": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "name_space": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "name_casing": {
+        "total": 2,
+        "tier0": 1,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 1,
+        "missed": 0
+      },
+      "name_punct": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "name_distored": {
+        "total": 2,
+        "tier0": 2,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      }
+    },
+    "type_3": {
+      "head_300": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 1,
+        "tier1": 1,
+        "tier2": 0,
+        "missed": 0
+      },
+      "head_500": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 1,
+        "tier1": 1,
+        "tier2": 0,
+        "missed": 0
+      },
+      "tail_300": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 1,
+        "tier2": 0,
+        "missed": 1
+      },
+      "tail_500": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 2,
+        "tier2": 0,
+        "missed": 0
+      }
+    },
+    "type_4": {
+      "verbatim": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 1,
+        "tier1": 1,
+        "tier2": 0,
+        "missed": 0
+      },
+      "01": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 2,
+        "tier2": 0,
+        "missed": 0
+      },
+      "02": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 2,
+        "tier2": 0,
+        "missed": 0
+      },
+      "05": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 2,
+        "tier2": 0,
+        "missed": 0
+      },
+      "10": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 2,
+        "tier2": 0,
+        "missed": 0
+      },
+      "20": {
+        "total": 2,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 2
+      }
+    },
+    "type_5": {
+      "mixed": {
+        "total": 4,
+        "tier0": 0,
+        "tier05": 2,
+        "tier1": 1,
+        "tier2": 0,
+        "missed": 1
+      }
+    },
+    "type_51": {
+      "mixed": {
+        "total": 3,
+        "tier0": 1,
+        "tier05": 2,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      }
+    }
+  },
+  "total_q": 57,
+  "total_returned": 1545,
+  "correct_returned": 41,
+  "wall_time": 24.24752758303657,
+  "peak_mem_mb": 1.6745939254760742,
+  "avg_mem_mb": 0.162445068359375,
+  "failures_sample": [
+    {
+      "cat": "type_1",
+      "subcat": "id_deprecated",
+      "true": "GPL-2.0-only",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "GPL-2.0-only",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_deprecated",
+      "true": "GPL-2.0-or-later",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "GPL-2.0-or-later",
+      "got": "BUSL-1.1"
+    },
+    {
+      "cat": "type_3",
+      "subcat": "tail_300",
+      "true": "AAL",
+      "got": "AMPAS"
+    },
+    {
+      "cat": "type_4",
+      "subcat": "20",
+      "true": "0BSD",
+      "got": "Brian-Gladman-2-Clause"
+    },
+    {
+      "cat": "type_4",
+      "subcat": "20",
+      "true": "AAL",
+      "got": "EUPL-1.0"
+    },
+    {
+      "cat": "type_5",
+      "subcat": "mixed",
+      "true": "AFL-1.2",
+      "got": "AFL-1.1"
+    },
+    {
+      "cat": "type_5",
+      "subcat": "mixed",
+      "true": "AFL-2.1",
+      "got": "TAPR-OHL-1.0"
+    },
+    {
+      "cat": "type_51",
+      "subcat": "mixed",
+      "true": "BSD-2-Clause",
+      "got": "BSD-2-Clause-Views"
+    }
+  ]
+}

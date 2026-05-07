@@ -1,22 +1,11 @@
 {
     "license_id": "ISO-permission",
     "license_text": "(C) International Organization for Standardization 1986\nPermission to copy in any form is granted for use with\nconforming SGML systems and applications as defined \nin ISO 8879, provided this notice is included in all copies.\n",
-    "reference": "https://spdx.org/licenses/ISO-permission.html",
-    "isDeprecatedLicenseId": false,
-    "detailsUrl": "https://spdx.org/licenses/ISO-permission.json",
-    "referenceNumber": 302,
-    "name": "ISO permission notice",
-    "licenseId": "ISO-permission",
-    "seeAlso": [
-        "https://gitlab.com/agmartin/linuxdoc-tools/-/blob/master/iso-entities/COPYING?ref_type=heads",
-        "https://www.itu.int/ITU-T/formal-language/itu-t/t/t173/1997/ISOMHEG-sir.html"
-    ],
-    "isOsiApproved": false,
-    "is_high_usage": false,
-    "is_osi_approved": false,
-    "is_fsf_libre": false,
     "is_spdx": true,
+    "is_fsf_libre": false,
+    "is_high_usage": false,
     "close_license_ids": [],
+    "is_osi_approved": false,
     "license_text_short_head_300": "(C) International Organization for Standardization 1986\nPermission to copy in any form is granted for use with\nconforming SGML systems and applications as defined \nin ISO 8879, provided this notice is included in all copies.\n",
     "license_text_short_tail_300": "(C) International Organization for Standardization 1986\nPermission to copy in any form is granted for use with\nconforming SGML systems and applications as defined \nin ISO 8879, provided this notice is included in all copies.\n",
     "license_text_short_head_500": "(C) International Organization for Standardization 1986\nPermission to copy in any form is granted for use with\nconforming SGML systems and applications as defined \nin ISO 8879, provided this notice is included in all copies.\n",
@@ -32,7 +21,5 @@
     "license_text_short_head_1500": "(C) International Organization for Standardization 1986\nPermission to copy in any form is granted for use with\nconforming SGML systems and applications as defined \nin ISO 8879, provided this notice is included in all copies.\n",
     "license_text_short_tail_1500": "(C) International Organization for Standardization 1986\nPermission to copy in any form is granted for use with\nconforming SGML systems and applications as defined \nin ISO 8879, provided this notice is included in all copies.\n",
     "license_text_short_head_2000": "(C) International Organization for Standardization 1986\nPermission to copy in any form is granted for use with\nconforming SGML systems and applications as defined \nin ISO 8879, provided this notice is included in all copies.\n",
-    "license_text_short_tail_2000": "(C) International Organization for Standardization 1986\nPermission to copy in any form is granted for use with\nconforming SGML systems and applications as defined \nin ISO 8879, provided this notice is included in all copies.\n",
-    "license_text_short_head_3000": "(C) International Organization for Standardization 1986\nPermission to copy in any form is granted for use with\nconforming SGML systems and applications as defined \nin ISO 8879, provided this notice is included in all copies.\n",
-    "license_text_short_tail_3000": "(C) International Organization for Standardization 1986\nPermission to copy in any form is granted for use with\nconforming SGML systems and applications as defined \nin ISO 8879, provided this notice is included in all copies.\n"
+    "license_text_short_tail_2000": "(C) International Organization for Standardization 1986\nPermission to copy in any form is granted for use with\nconforming SGML systems and applications as defined \nin ISO 8879, provided this notice is included in all copies.\n"
 }

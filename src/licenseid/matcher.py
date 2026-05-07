@@ -16,7 +16,10 @@ from typing import Any, Optional, cast
 from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase
-from licenseid.identifiers import disambiguate_deprecated_id, normalize_identifier
+from licenseid.identifiers import (
+    disambiguate_deprecated_id,
+    normalize_identifier,
+)
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text
 from licenseid.types import (
@@ -35,7 +38,10 @@ class AggregatedLicenseMatcher:
     """
 
     def __init__(
-        self, db_path: str, enable_java: bool = False, enable_popularity: bool = False
+        self,
+        db_path: str,
+        enable_java: bool = False,
+        enable_popularity: bool = False,
     ):
         self.db = LicenseDatabase(db_path)
         self.detector = MarkerDetector(self.db)
@@ -44,6 +50,7 @@ class AggregatedLicenseMatcher:
         self.jar_path = os.getenv("SPDX_TOOLS_JAR")
         self.has_java = shutil.which("java") is not None
 
+    # pylint: disable=too-many-locals
     def match(
         self,
         text: Optional[str] = None,
@@ -98,13 +105,17 @@ class AggregatedLicenseMatcher:
         # SPDX-License-Identifier is an unambiguous machine tag → early return.
         # All other markers (name fields, headings, first-line) go into the
         # candidate pool and influence ranking via a confidence bonus.
-        marker_candidates = self.detector.detect(target_text, file_path=file_path)
+        marker_candidates = self.detector.detect(
+            target_text,
+            file_path=file_path,
+        )
         spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
         if spdx_exact:
             return self._finalize_exact_markers(spdx_exact)
 
-        # Build a marker-boost map: license_id → marker confidence score.
-        # Used later in ranking to signal which candidates are marker-confirmed.
+        # Build a marker-boost map: license_id -> marker confidence score.
+        # Used later in ranking to signal which candidates are
+        # marker-confirmed.
         marker_boosts: dict[str, float] = {
             c["license_id"]: c.get("score", 0.0) for c in marker_candidates
         }
@@ -135,16 +146,17 @@ class AggregatedLicenseMatcher:
                         similarity=1.0,
                         coverage=1.0,
                         is_spdx=details["is_spdx"] if details else True,
-                        is_osi_approved=details["is_osi_approved"]
-                        if details
-                        else False,
+                        is_osi_approved=(
+                            details["is_osi_approved"] if details else False
+                        ),
                         is_fsf_libre=details["is_fsf_libre"] if details else False,
                     )
                 ]
 
             short_matches = self._match_short_text(norm_input)
             if short_matches and short_matches[0]["score"] > 1.0:
-                # Apply marker boosts to break ties among equal-scored candidates
+                # Apply marker boosts to break ties among equal-scored
+                # candidates
                 if marker_boosts:
                     for sm in short_matches:
                         marker_conf = marker_boosts.get(sm["license_id"], 0.0)
@@ -189,7 +201,10 @@ class AggregatedLicenseMatcher:
             ranked,
             target_text,
             is_pure,
-            enable_pop=request.get("enable_popularity", self.enable_popularity),
+            enable_pop=request.get(
+                "enable_popularity",
+                self.enable_popularity,
+            ),
         )
 
         # Tier 3: Optional Java Consultant
@@ -201,7 +216,10 @@ class AggregatedLicenseMatcher:
             and os.path.exists(self.jar_path)
             and ranked
         ):
-            return cast(list[LicenseMatch], self._consult_java(target_text, ranked))
+            return cast(
+                list[LicenseMatch],
+                self._consult_java(target_text, ranked),
+            )
 
         return cast(list[LicenseMatch], ranked)
 
@@ -242,7 +260,11 @@ class AggregatedLicenseMatcher:
             record.get("is_osi_approved", False) or record.get("is_fsf_libre", False)
         )
 
-    def _get_candidates(self, data: MatchRequest, text: str) -> list[CandidateMatch]:
+    def _get_candidates(
+        self,
+        data: MatchRequest,
+        text: str,
+    ) -> list[CandidateMatch]:
         """Fetch and filter candidates from the database."""
         only_spdx = data.get("only_spdx", True)
         only_common = data.get("only_common", False)
@@ -353,8 +375,12 @@ class AggregatedLicenseMatcher:
         marker_boosts: Optional[dict[str, float]] = None,
         is_pure: bool = True,
     ) -> list[InternalMatch]:
-        """Rank candidates using dynamic sliding window and marker-boosted scoring."""
-        enable_popularity = data.get("enable_popularity", self.enable_popularity)
+        """Rank candidates using dynamic sliding window and
+        marker-boosted scoring."""
+        enable_popularity = data.get(
+            "enable_popularity",
+            self.enable_popularity,
+        )
         query_words = norm_input.split()
         q_len = len(query_words)
         q_tokens = set(query_words)
@@ -404,7 +430,11 @@ class AggregatedLicenseMatcher:
         return ranked
 
     def _calculate_base_similarity(
-        self, norm_input: str, q_len: int, q_tokens: set[str], cand: CandidateMatch
+        self,
+        norm_input: str,
+        q_len: int,
+        q_tokens: set[str],
+        cand: CandidateMatch,
     ) -> tuple[float, float, str]:
         """Calculate base similarity and coverage for a candidate."""
         search_text = cand.get("search_text") or ""
@@ -489,7 +519,8 @@ class AggregatedLicenseMatcher:
             # similarity dominates; use a small additive boost only.
             # For mixed content, short text, OR high-confidence structural
             # detection (>= 0.94, e.g. BSD/GPL header analysis), the marker
-            # is authoritative — apply an additive boost plus a confidence floor.
+            # is authoritative — apply an additive boost plus a confidence
+            # floor.
             if is_pure and q_len >= 50 and marker_conf < 0.94:
                 score += marker_conf * 0.03
             else:
@@ -578,7 +609,8 @@ class AggregatedLicenseMatcher:
         return stripped
 
     # Detects -or-later granting language in mixed/source-file contexts.
-    # Allows for comment characters (// # * ;) between "or" and "(at your option)".
+    # Allows for comment characters (// # * ;) between "or" and
+    # "(at your option)".
     # Also catches shorthand notations like GPLv2+ and "version 2 or later".
     _RE_OR_LATER = re.compile(
         r"or[\s/*#;-]*\(?at\s+your\s+option\)?\s*[\s/*#;-]*any\s+later\s+version"
@@ -622,7 +654,8 @@ class AggregatedLicenseMatcher:
             or_later_signal = self._has_or_later_language(raw_text)
 
         id_to_score = {r["license_id"]: r["score"] for r in ranked}
-        # Track which base IDs we've already processed to avoid double-counting.
+        # Track which base IDs we've already processed to avoid
+        # double-counting.
         processed: set[str] = set()
         adjustments: dict[str, float] = {}
 
@@ -767,9 +800,11 @@ class AggregatedLicenseMatcher:
     )
     # Openers that appear at the START of a full license document
     # (not inside source files).
-    # "apache license" removed — too broad; it appears in license notice headers too.
+    # "apache license" removed — too broad; it appears in license
+    # notice headers too.
     # "mozilla public license" removed for the same reason.
-    # These files are caught by filename (LICENSE, COPYING) or by high FTS5 similarity.
+    # These files are caught by filename (LICENSE, COPYING) or by
+    # high FTS5 similarity.
     _RE_LICENSE_OPENER = re.compile(
         r"(permission is hereby granted|permission to use, copy|"
         r"common development and distribution license|"
@@ -786,8 +821,13 @@ class AggregatedLicenseMatcher:
     )
     _RE_NUMBERED_SECTION = re.compile(r"^\s*\d+\.\s+\w", re.MULTILINE)
 
-    def _is_pure_license_text(self, file_path: Optional[str], text: str) -> bool:
-        """Return True if the content appears to be a standalone license document.
+    def _is_pure_license_text(
+        self,
+        file_path: Optional[str],
+        text: str,
+    ) -> bool:
+        """Return True if the content appears to be a standalone
+        license document.
 
         Uses filename as a strong positive signal, then falls back to
         content heuristics so plain-text license input (no file_path) is
@@ -795,8 +835,18 @@ class AggregatedLicenseMatcher:
         """
         if file_path:
             basename = os.path.basename(file_path).upper()
-            if basename in ("LICENSE", "COPYING", "UNLICENSE", "LICENCE") or any(
-                basename.startswith(p) for p in ("LICENSE.", "COPYING.", "LICENCE.")
+            if basename in (
+                "LICENSE",
+                "COPYING",
+                "UNLICENSE",
+                "LICENCE",
+            ) or any(
+                basename.startswith(p)
+                for p in (
+                    "LICENSE.",
+                    "COPYING.",
+                    "LICENCE.",
+                )
             ):
                 return True
 
@@ -846,7 +896,8 @@ class AggregatedLicenseMatcher:
                         )
                         seen_ids.add(m["license_id"])
 
-            # 2. Try Tier 1 (Recall) on a targeted window starting at the keyword
+            # 2. Try Tier 1 (Recall) on a targeted window starting at the
+            # keyword
             # We find the keyword in the section and start there for FTS5
             words = section.split()
             for i, word in enumerate(words):
