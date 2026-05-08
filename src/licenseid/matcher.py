@@ -30,6 +30,23 @@ from licenseid.types import (
     MatchRequest,
 )
 
+# Maximum additive boost applied to a candidate whose highest-IDF fingerprint
+# n-gram has idf_norm == 1.0 (unique to that single license in the corpus).
+# Calibrated to be in the same range as the marker boost (~0.05) so that
+# fingerprint matches can break ties between near-equal similarity scores
+# without overriding genuine similarity differences.
+_FP_BOOST: float = 0.05
+
+# Effective score penalty applied to deprecated licenses during ranking.
+# Ensures that when a deprecated alias (e.g. GPL-2.0) and its canonical
+# non-deprecated replacement (e.g. GPL-2.0-only) are both candidates with
+# similar similarity scores, the canonical ID wins.  Calibrated at 0.03:
+# large enough to overcome the typical 0.01–0.02 score gap caused by
+# marker-confidence differences, small enough to avoid masking cases
+# where the deprecated ID genuinely matches better (e.g. inputs that
+# reference only "GPL-2.0" with no "only"/"or-later" qualifier).
+_DEP_PENALTY: float = 0.03
+
 
 class AggregatedLicenseMatcher:
     """
@@ -413,17 +430,30 @@ class AggregatedLicenseMatcher:
                 r, boosts, is_pure, enable_popularity, q_len
             )
 
+        # Fingerprint boost: add a small bonus to candidates that share at
+        # least one discriminative n-gram with the query.  The bonus is
+        # proportional to idf_norm (the uniqueness of the matching n-gram
+        # within the corpus), capped at _FP_BOOST.  This breaks ties between
+        # high-similarity variants (e.g. MIT vs MIT-0, GPL-2.0 vs GPL-3.0)
+        # without distorting the overall similarity ranking.
+        fp_hits = self.db.find_fingerprint_hits(norm_input)
+        if fp_hits:
+            for r in ranked:
+                idf_norm = fp_hits.get(r["license_id"], 0.0)
+                if idf_norm > 0.0:
+                    r["score"] += _FP_BOOST * idf_norm
+
         # Ranking criteria:
-        # 1. Final score (similarity + boosts)
+        # 1. Final score (similarity + boosts), with deprecated penalty applied
+        #    as an adjustment so deprecated aliases rank below their canonical
+        #    non-deprecated replacements when scores are close.
         # 2. Prefer non-deprecated
         # 3. Prefer higher popularity (if enabled)
         # 4. Alphabetical tie-break
-        # Not implemented yet:
-        # Prefer more recent version of a license family
-        # (e.g. GPL-3.0-* over GPL-2.0-*) when scores are identical.
         def sort_key(x: InternalMatch) -> tuple[float, bool, float, str]:
+            dep_adj = _DEP_PENALTY if x.get("is_deprecated", False) else 0.0
             return (
-                -x["score"],
+                -(x["score"] - dep_adj),
                 x.get("is_deprecated", False),
                 -x.get("pop_score", 0) if enable_popularity else 0.0,
                 x["license_id"],
@@ -772,6 +802,10 @@ class AggregatedLicenseMatcher:
                     score += 0.02
                 elif score_name_flex == 100:
                     score += 0.01
+                # Penalise deprecated aliases so the canonical replacement wins
+                # when scores are otherwise tied or close.
+                if meta["is_deprecated"]:
+                    score -= _DEP_PENALTY
 
                 ranked.append(
                     LicenseMatch(

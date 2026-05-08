@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 if len(sys.argv) < 5:
     print(
         "Usage: python bench_single.py <src_path> <label> <benchmark_name> <timestamp>"
-        " [--tarball PATH] [--verify]"
+        " [--tarball PATH] [--verify] [--subset N] [--fast]"
     )
     sys.exit(1)
 
@@ -39,6 +39,16 @@ BENCHMARK_NAME: str = sys.argv[3]
 TIMESTAMP: str = sys.argv[4]
 IS_VERIFY: bool = "--verify" in sys.argv
 
+# --subset N: use a stratified N-fixture subset for license-text-short and
+# license-text-long to shorten iteration cycles.  Omit for full coverage.
+# Does not affect type-1, type-2, type-5, or type-5.1 fixture sets.
+_SUBSET_IDX: Optional[int] = next(
+    (i for i, a in enumerate(sys.argv) if a == "--subset"), None
+)
+SUBSET_N: Optional[int] = (
+    int(sys.argv[_SUBSET_IDX + 1]) if _SUBSET_IDX is not None else None
+)
+
 _TARBALL_IDX: Optional[int] = next(
     (i for i, a in enumerate(sys.argv) if a == "--tarball"), None
 )
@@ -46,7 +56,54 @@ TARBALL_PATH: Optional[Path] = (
     Path(sys.argv[_TARBALL_IDX + 1]) if _TARBALL_IDX is not None else None
 )
 
+# --fast: reduce matrix size for quicker iteration.
+# Type 3: head_500 and head_800 only (skip head_300).
+# Type 4: verbatim and 02 only (skip 01, 05, 10, 20).
+IS_FAST: bool = "--fast" in sys.argv
+
 sys.path.insert(0, SRC_PATH)
+
+# ---------------------------------------------------------------------------
+# Fast-mode subset selection
+# ---------------------------------------------------------------------------
+
+
+def _select_benchmark_subset(files: list[Path], n: int = 70) -> list[Path]:
+    """Return a deterministic stratified subset of *n* fixture files.
+
+    Strategy:
+
+    1. Sort files by (family_prefix, file_size).  This groups members of
+       the same licence family together and orders within each family by
+       approximate text length, ensuring both dimensions are covered.
+    2. Apply a systematic stride: pick every k-th file where
+       ``k = len(files) // n``.  Files whose index is a multiple of *k*
+       are selected; any remainder slots are filled from the start of the
+       sorted list to reach exactly *n* files.
+    3. If ``len(files) <= n`` return all files unchanged.
+
+    The family prefix is the leading ASCII-letter characters of the
+    filename stem (e.g. ``CC`` from ``CC-BY-4.0.json``, ``GPL`` from
+    ``GPL-2.0-only.json``).  File size is used as an inexpensive proxy
+    for text length (no JSON parsing needed).
+    """
+    if len(files) <= n:
+        return list(files)
+
+    def _sort_key(p: Path) -> tuple[str, int]:
+        import re as _re  # noqa: PLC0415
+
+        m = _re.match(r"^([A-Za-z]+)", p.stem)
+        family = m.group(1).upper() if m else ""
+        return (family, p.stat().st_size)
+
+    sorted_files = sorted(files, key=_sort_key)
+    total = len(sorted_files)
+    stride = total // n
+    selected = [sorted_files[i * stride] for i in range(n)]
+    return selected
+
+
 # pylint: disable=wrong-import-position
 from licenseid.database import LicenseDatabase  # noqa: E402
 from licenseid.matcher import AggregatedLicenseMatcher  # noqa: E402
@@ -489,46 +546,38 @@ def main() -> None:
         print(f"Finished Type 2 ({t2_total} queries)", file=sys.stderr, flush=True)
 
     print("Running Type 3...", file=sys.stderr, flush=True)
-    # Type 3: head/tail slices queried independently; the union recall matrix
-    # is derived from cached result lists — no extra pipeline calls per pair.
+    # Type 3: head-only slices.
+    # The pipeline feeds at most ~800 characters to FTS5 (head only), so the
+    # original full head×tail matrix is no longer needed for iteration.
+    # --fast reduces to head_500 and head_800 only.
+    T3_HEAD_SIZES: list[int] = [800] if IS_FAST else [300, 500, 800]
     t3_dir = base_dir / "license-text-short"
     if t3_dir.exists():
         t3_files = sorted(t3_dir.glob("*.json"))
         if IS_VERIFY:
             t3_files = t3_files[:2]
-
-        T3_SIZES: list[int] = [300, 500, 700, 800, 900, 1000, 1500, 2000]
-        # In verify mode cap the number of sizes to keep the run short.
-        T3_VERIFY_CAP = 2
+        elif SUBSET_N is not None:
+            t3_files = _select_benchmark_subset(t3_files, n=SUBSET_N)
+            print(
+                f"  [subset] Type 3: {len(t3_files)} fixtures",
+                file=sys.stderr,
+                flush=True,
+            )
 
         for fp in t3_files:
             with open(fp, "r", encoding="utf-8") as f:
                 data = json.load(f)
             true_id = data["license_id"]
 
-            # Collect available head and tail slices from the fixture.
-            head_texts: dict[int, str] = {}
-            tail_texts: dict[int, str] = {}
-            for sz in T3_SIZES:
-                h = data.get(f"license_text_short_head_{sz}", "")
-                t = data.get(f"license_text_short_tail_{sz}", "")
-                if h:
-                    head_texts[sz] = h
-                if t:
-                    tail_texts[sz] = t
-
-            if IS_VERIFY:
-                head_texts = dict(list(head_texts.items())[:T3_VERIFY_CAP])
-                tail_texts = dict(list(tail_texts.items())[:T3_VERIFY_CAP])
-
-            # Head-only queries; cache result IDs for the union matrix.
-            head_results: dict[int, list[str]] = {}
-            for sz, text in head_texts.items():
+            for sz in T3_HEAD_SIZES:
+                text = data.get(f"license_text_short_head_{sz}", "")
+                if not text:
+                    continue
                 k = f"head_{sz}"
                 if k not in stats["type_3"]:
                     stats["type_3"][k] = init_stat()
                     tier_stats["type_3"][k] = init_tier_stat()
-                head_results[sz] = check_match(
+                check_match(
                     true_id,
                     text,
                     matcher,
@@ -539,55 +588,6 @@ def main() -> None:
                     global_counts,
                     tier_stats["type_3"][k],
                 )
-
-            # Tail-only queries; cache result IDs for the union matrix.
-            tail_results: dict[int, list[str]] = {}
-            for sz, text in tail_texts.items():
-                k = f"tail_{sz}"
-                if k not in stats["type_3"]:
-                    stats["type_3"][k] = init_stat()
-                    tier_stats["type_3"][k] = init_tier_stat()
-                tail_results[sz] = check_match(
-                    true_id,
-                    text,
-                    matcher,
-                    stats["type_3"][k],
-                    failures,
-                    "type_3",
-                    k,
-                    global_counts,
-                    tier_stats["type_3"][k],
-                )
-
-            # Union recall matrix — no additional pipeline calls.
-            # Head results rank first; tail results extend the ordered set.
-            # Tier analysis does not apply to the derived union keys.
-            for h_sz, h_ids in head_results.items():
-                for t_sz, t_ids in tail_results.items():
-                    k = f"h{h_sz}_t{t_sz}"
-                    if k not in stats["type_3"]:
-                        stats["type_3"][k] = init_stat()
-                    union_ids = list(dict.fromkeys(h_ids + t_ids))
-                    s = stats["type_3"][k]
-                    s["total"] += 1
-                    if union_ids and union_ids[0] == true_id:
-                        s["top1"] += 1
-                    else:
-                        failures.append(
-                            {
-                                "cat": "type_3",
-                                "subcat": k,
-                                "true": true_id,
-                                "got": (union_ids[0] if union_ids else "NONE"),
-                            }
-                        )
-                    if true_id in union_ids[:3]:
-                        s["top3"] += 1
-                    if true_id in union_ids[:5]:
-                        s["top5"] += 1
-                    for n in (10, 20, 30, 40, 50):
-                        if true_id in union_ids[:n]:
-                            s[f"top{n}"] += 1
 
         t3_total = sum(s["total"] for s in stats["type_3"].values())
         print(f"Finished Type 3 ({t3_total} queries)", file=sys.stderr, flush=True)
@@ -599,6 +599,13 @@ def main() -> None:
         t4_files = sorted(t4_dir.glob("*.json"))
         if IS_VERIFY:
             t4_files = t4_files[:2]
+        elif SUBSET_N is not None:
+            t4_files = _select_benchmark_subset(t4_files, n=SUBSET_N)
+            print(
+                f"  [subset] Type 4: {len(t4_files)} fixtures",
+                file=sys.stderr,
+                flush=True,
+            )
 
         for fp in t4_files:
             with open(fp, "r", encoding="utf-8") as f:
@@ -620,7 +627,7 @@ def main() -> None:
                 tier_stats["type_4"]["verbatim"],
             )
 
-            for rate in ["01", "02", "05", "10", "20"]:
+            for rate in ["02"] if IS_FAST else ["01", "02", "05", "10", "20"]:
                 k = f"license_text_long_distorted_{rate}"
                 v = data.get(k)
                 if v:
