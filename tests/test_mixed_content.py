@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests using real-world file patterns and repository structures."""
-# pylint: disable=redefined-outer-name,missing-function-docstring
+# pylint: disable=duplicate-code,redefined-outer-name,missing-function-docstring
 
 import json
 import sqlite3

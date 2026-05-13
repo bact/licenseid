@@ -15,7 +15,7 @@ from typing import Any, Optional, cast
 
 from rapidfuzz import fuzz
 
-from licenseid.database import LicenseDatabase
+from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.identifiers import (
     disambiguate_deprecated_id,
     normalize_identifier,
@@ -39,10 +39,12 @@ class AggregatedLicenseMatcher:
 
     def __init__(
         self,
-        db_path: str,
+        db_path: Optional[str] = None,
         enable_java: bool = False,
         enable_popularity: bool = False,
     ):
+        if not db_path:
+            db_path = get_default_db_path()
         self.db = LicenseDatabase(db_path)
         self.detector = MarkerDetector(self.db)
         self.enable_java = enable_java

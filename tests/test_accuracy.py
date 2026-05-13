@@ -6,6 +6,7 @@
 """
 Accuracy and performance benchmark tests for license identification.
 """
+# pylint: disable=duplicate-code
 
 import json
 from pathlib import Path
