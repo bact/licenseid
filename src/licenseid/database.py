@@ -38,6 +38,14 @@ _LicenseInsertRecord = tuple[
 ]
 _IndexInsertRecord = tuple[str, str]
 
+
+def get_default_db_path() -> str:
+    """Return the default path for the licence database."""
+    db_dir = Path.home() / ".local" / "share" / "licenseid"
+    db_dir.mkdir(parents=True, exist_ok=True)
+    return str(db_dir / "licenses.db")
+
+
 # Cache expiration settings
 LICENSES_JSON_URL = "https://spdx.org/licenses/licenses.json"
 POPULARITY_DATA_URL = (

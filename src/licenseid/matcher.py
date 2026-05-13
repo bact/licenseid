@@ -15,8 +15,7 @@ from typing import Any, Optional, cast
 
 from rapidfuzz import fuzz
 
-from licenseid.cli import get_default_db_path
-from licenseid.database import LicenseDatabase
+from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.identifiers import (
     disambiguate_deprecated_id,
     normalize_identifier,
@@ -44,7 +43,7 @@ class AggregatedLicenseMatcher:
         enable_java: bool = False,
         enable_popularity: bool = False,
     ):
-        if db_path is None:
+        if not db_path:
             db_path = get_default_db_path()
         self.db = LicenseDatabase(db_path)
         self.detector = MarkerDetector(self.db)

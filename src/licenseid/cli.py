@@ -11,23 +11,14 @@ import json
 import os
 import sys
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
 import click
 
-from licenseid.database import LicenseDatabase
+from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
 from licenseid.types import LicenseDetails
-
-
-def get_default_db_path() -> str:
-    """Get the default path for the license database."""
-    home = Path.home()
-    db_dir = home / ".local" / "share" / "licenseid"
-    db_dir.mkdir(parents=True, exist_ok=True)
-    return str(db_dir / "licenses.db")
 
 
 def show_diff(text: str, best_window: str) -> None:
