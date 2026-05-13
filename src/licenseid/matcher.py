@@ -14,6 +14,7 @@ from typing import Any, Optional, cast
 
 from rapidfuzz import fuzz
 
+from licenseid.cli import get_default_db_path
 from licenseid.database import LicenseDatabase
 from licenseid.normalize import normalize_text
 from licenseid.types import (
@@ -32,8 +33,13 @@ class AggregatedLicenseMatcher:
     """
 
     def __init__(
-        self, db_path: str, enable_java: bool = False, enable_popularity: bool = False
+        self,
+        db_path: Optional[str] = None,
+        enable_java: bool = False,
+        enable_popularity: bool = False,
     ):
+        if db_path is None:
+            db_path = get_default_db_path()
         self.db = LicenseDatabase(db_path)
         self.enable_java = enable_java
         self.enable_popularity = enable_popularity
