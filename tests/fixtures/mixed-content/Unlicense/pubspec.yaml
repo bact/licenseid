@@ -1,0 +1,6 @@
+name: lib_mock_unlicense_0
+version: 1.0.0
+description: A mock project.
+license: The Unlicense
+dependencies:
+  - flask

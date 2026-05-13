@@ -1,0 +1,6 @@
+name: lib_mock_bitstream-charter_2
+version: 1.0.0
+description: A mock project.
+license: Bitstream Charter Font License
+dependencies:
+  - flask

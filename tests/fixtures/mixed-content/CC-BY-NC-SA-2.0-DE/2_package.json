@@ -1,0 +1,7 @@
+{
+  "name": "lib_mock_cc-by-nc-sa-2.0-de_2",
+  "version": "1.0.0",
+  "description": "An awesome library.",
+  "main": "index.js",
+  "license": "Creative Commons Attribution Non Commercial Share Alike 2.0 Germany"
+}

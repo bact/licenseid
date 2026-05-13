@@ -1,0 +1,82 @@
+{
+  "label": "main",
+  "n_fixtures": 555,
+  "stats": {
+    "00": {
+      "total": 555,
+      "top1": 520,
+      "top3": 539,
+      "top5": 545
+    },
+    "02": {
+      "total": 555,
+      "top1": 519,
+      "top3": 537,
+      "top5": 543
+    },
+    "05": {
+      "total": 555,
+      "top1": 392,
+      "top3": 449,
+      "top5": 471
+    }
+  },
+  "total_q": 1665,
+  "total_returned": 84220,
+  "correct_returned": 1633,
+  "wall_time": 1300.52040291694,
+  "peak_mem_mb": 8.80153751373291,
+  "avg_mem_mb": 0.4280509948730469,
+  "failures_sample": [
+    {
+      "rate": "05",
+      "true": "AFL-2.1",
+      "got": "OSL-1.1"
+    },
+    {
+      "rate": "05",
+      "true": "AFL-3.0",
+      "got": "AFL-1.1"
+    },
+    {
+      "rate": "05",
+      "true": "AGPL-1.0-only",
+      "got": "GPL-3.0-only"
+    },
+    {
+      "rate": "00",
+      "true": "AGPL-1.0-or-later",
+      "got": "AGPL-1.0-only"
+    },
+    {
+      "rate": "02",
+      "true": "AGPL-1.0-or-later",
+      "got": "AGPL-1.0-only"
+    },
+    {
+      "rate": "05",
+      "true": "AGPL-1.0-or-later",
+      "got": "GPL-1.0-only"
+    },
+    {
+      "rate": "05",
+      "true": "AGPL-3.0-only",
+      "got": "AGPL-3.0-or-later"
+    },
+    {
+      "rate": "00",
+      "true": "AGPL-3.0-or-later",
+      "got": "AGPL-3.0-only"
+    },
+    {
+      "rate": "02",
+      "true": "AGPL-3.0-or-later",
+      "got": "AGPL-3.0-only"
+    },
+    {
+      "rate": "05",
+      "true": "AGPL-3.0-or-later",
+      "got": "AGPL-3.0-only"
+    }
+  ]
+}

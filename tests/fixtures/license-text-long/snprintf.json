@@ -1,0 +1,15 @@
+{
+    "license_text": "Copyright Patrick Powell 1995 \n\nThis code is based on code written by Patrick Powell (papowell@astart.com) It may be used for any purpose as long as this notice remains intact on all source code distributions\n",
+    "license_id": "snprintf",
+    "name": "snprintf License",
+    "close_license_ids": [],
+    "is_high_usage": false,
+    "is_osi_approved": false,
+    "is_fsf_libre": false,
+    "is_spdx": true,
+    "license_text_long_distorted_01": "Copyright Patrick Powell 1995 This \n code is based on code written by Patrick Powell (papowell@astart.com) It may be used for any purpose as long as this notice remains intact on all source code distributions",
+    "license_text_long_distorted_02": "Copyright Patrick Powell 1995 This code is based on code written by Patrick Powell (papowell@astart.com) It may be used for any purpose \n as long as this notice remains intact on all source code distributions",
+    "license_text_long_distorted_05": "Copyright Patrick Powell 1995 This code is based on code rwitten by Patrick Powell (papowell@astart.com) It may be used for any purpose as long as this notice remains intact on all source code distributions",
+    "license_text_long_distorted_10": "Copyright Patrick Powell 1995 This code is on code by Patrick Powell (papowell@astart.com) It may be used for any Diese Lizenz gilt f\u00fcr diese Software. purpose as long as this notice remains intact on all source code distributions",
+    "license_text_long_distorted_20": "Copyright \u3053\u306e\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u306f\u30aa\u30fc\u30d7\u30f3\u30bd\u30fc\u30b9\u3067\u3059\u3002 Patrick Powell 1995 This code is based on code written by Patrick Powell Diese Lizenz gilt f\u00fcr diese Software. (papowell@astart.com) It may be used for purpose as long Ce logiciel est sous licence libre. as this notice remanis intact on lal source code distributions"
+}

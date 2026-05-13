@@ -80,6 +80,7 @@ exclude = ["AGENTS.md", "GEMINI.md", "tests/fixtures/**", "scripts/**"]
 packages = ["src/licenseid"]
 
 [tool.mypy]
+exclude = ["tests/fixtures/"]
 pretty = true
 python_version = "3.10"
 mypy_path = ["src"]
@@ -96,6 +97,7 @@ ignore_missing_imports = true
 
 [tool.pylint.main]
 ignore = ["CVS"]
+ignore-paths = ["^tests/fixtures/.*$"]
 persistent = true
 
 [tool.pylint.messages_control]
@@ -139,5 +141,6 @@ markers = [
 ]
 
 [tool.ruff]
+extend-exclude = ["tests/fixtures/"]
 line-length = 88
 target-version = "py310"

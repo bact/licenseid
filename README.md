@@ -15,11 +15,28 @@ A portable license ID matcher with command line interface and Python API.
 
 ## Features
 
-- **Hybrid matching strategy**:
-  - **Tier 0 (Shortcut)**: Immediate identification for exact license names and IDs.
-  - **Tier 1 (Recall)**: Rapid candidate retrieval using SQLite FTS5 (trigram) with query truncation for performance.
-  - **Tier 2 (Precision)**: Adaptive ranking using RapidFuzz with boosting for canonical matches.
-  - **Tier 3 (Validation)**: Optional final validation via `tools-java` if available.
+- **Hybrid matching pipeline**:
+  - **Tier 0.5 (Marker detection)**: Detects `SPDX-License-Identifier` tags and
+    structured markers (name fields, headings). An exact SPDX tag returns
+    immediately with full confidence.
+  - **Tier 0 (Shortcut)**: Fast path for short inputs (names, IDs, brief
+    expressions). Includes:
+    - Case-insensitive exact ID match.
+    - Prose-context disambiguation for bare deprecated IDs (e.g.
+      `"GPL-2.0 or later version"` → `GPL-2.0-or-later`).
+    - Conservative `-only` fallback when no granting context is present.
+  - **Tier 1 (Recall)**: Candidate retrieval using SQLite FTS5 trigram index,
+    capped at the first 100 query words for consistent performance.
+    Comment prefixes (`//`, `#`, `*`, `;`) are stripped before querying.
+  - **Tier 2 (Precision)**: Adaptive ranking with RapidFuzz. Sliding-window
+    alignment for fragments; coverage-aware scoring to prefer the tightest
+    match. Marker confidence boosts applied only when confidence ≥ 0.85.
+  - **Tier 3 (Validation)**: Optional final validation via `tools-java`.
+- **Deprecated ID normalisation**:
+  - `GPL-2.0+` → `GPL-2.0-or-later` (SPDX `+` operator, unambiguous).
+  - `Apache-2+` → `Apache-2.0+` (abbreviated base canonicalised, `+` retained).
+  - Bare deprecated IDs (e.g. `GPL-2.0`) resolved conservatively to `-only`
+    when no surrounding context is available.
 - **Unix philosophy**: Parseable, line-delimited CLI output.
 
 ## Installation
@@ -78,7 +95,10 @@ Common options:
 - `--diff`: Show a word-by-word diff between the input and the best-matching candidate.
 - `--json`: Output results in JSON format.
 
-The system uses a **composite score** (Similarity + Coverage + Popularity) to ensure the "tightest" match is preferred (e.g., distinguishing between a license and its supersets).
+The system uses a **composite score** (similarity + coverage bonus/penalty +
+optional popularity weight + marker confidence boost) to prefer the tightest
+match. For example, it distinguishes a short permissive licence from a
+superset that shares the same preamble.
 
 ### 3. Cache management
 

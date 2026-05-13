@@ -1,0 +1,7 @@
+{
+  "name": "lib_mock_bsd-4-clause-shortened_0",
+  "version": "1.0.0",
+  "description": "An awesome library.",
+  "main": "index.js",
+  "license": "BSD 4 Clause Shortened"
+}
