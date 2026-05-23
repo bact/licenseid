@@ -2,7 +2,7 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/licenseid)](https://pypi.org/project/licenseid/)
 ![GitHub License](https://img.shields.io/github/license/bact/licenseid)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19881009.svg)](https://doi.org/10.5281/zenodo.19881009)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20314484.svg)](https://doi.org/10.5281/zenodo.20314484)
 
 Get the [SPDX License ID][spdx-license-id] from license text.
 
