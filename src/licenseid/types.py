@@ -74,6 +74,7 @@ class LicenseNameId(TypedDict):
 
     license_id: str
     name: str
+    is_deprecated: bool
 
 
 class LicenseDetails(TypedDict, total=False):

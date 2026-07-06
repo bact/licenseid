@@ -10,10 +10,12 @@ SQLite database management for SPDX licenses.
 import csv
 import io
 import json
+import math
 import sqlite3
 import tarfile
 import tempfile
 import xml.etree.ElementTree as ET
+from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, cast
@@ -60,6 +62,15 @@ CACHE_SPDX_TARBALL_TEMPLATE = "spdx-data-v{version}.tar.gz"
 # Expiration in days
 EXPIRY_LICENSES_JSON = 45
 EXPIRY_POPULARITY_CSV = 75
+
+# Discriminative n-gram fingerprint settings.
+# Each license keeps its top FINGERPRINT_TOP_N highest-IDF word n-grams
+# (n = FINGERPRINT_N) as a compact discriminative signature.  At query time
+# a single indexed SQL lookup finds which candidates share at least one
+# fingerprint n-gram with the query, allowing the ranker to boost them
+# without a full RapidFuzz string comparison.
+_FINGERPRINT_N: int = 5  # word n-gram size
+_FINGERPRINT_TOP_N: int = 20  # fingerprints stored per license
 
 
 class LicenseDatabase:
@@ -140,6 +151,22 @@ class LicenseDatabase:
                     key TEXT PRIMARY KEY,
                     value TEXT
                 )
+            """)
+            # Discriminative n-gram fingerprints.
+            # idf_norm: IDF score normalised to [0, 1] where 1.0 means the
+            # n-gram appears in exactly one license in the corpus.
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS license_fingerprints (
+                    license_id  TEXT NOT NULL,
+                    ngram       TEXT NOT NULL,
+                    idf_norm    REAL NOT NULL,
+                    PRIMARY KEY (license_id, ngram),
+                    FOREIGN KEY (license_id) REFERENCES licenses(license_id)
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_fp_ngram
+                ON license_fingerprints(ngram)
             """)
 
     def clear_cache(self) -> None:
@@ -420,6 +447,7 @@ class LicenseDatabase:
                 conn.execute("DELETE FROM licenses")
                 conn.execute("DELETE FROM exceptions")
                 conn.execute("DELETE FROM db_metadata")
+                conn.execute("DELETE FROM license_fingerprints")
 
                 now = datetime.now().isoformat()
                 metadata_items: list[tuple[str, str]] = [
@@ -458,6 +486,10 @@ class LicenseDatabase:
             except Exception:
                 conn.execute("ROLLBACK")
                 raise
+
+        # Compute fingerprints in a separate transaction so that the FTS5
+        # virtual table is fully committed and readable before we scan it.
+        self._compute_fingerprints()
 
     def _prepare_license_record(
         self,
@@ -574,6 +606,121 @@ class LicenseDatabase:
                 pass
 
         return normalize_text(text)
+
+    def _compute_fingerprints(self) -> None:
+        """Compute and store discriminative n-gram fingerprints for all licenses.
+
+        For each license, the top ``_FINGERPRINT_TOP_N`` highest-IDF word
+        n-grams (``_FINGERPRINT_N`` words each) are stored in
+        ``license_fingerprints``.  IDF is computed across the whole corpus so
+        that n-grams shared by many licenses score near 0 and n-grams unique
+        to one license score near 1.
+
+        Must be called after ``license_index`` has been fully populated.
+        Replaces any previously stored fingerprints.
+        """
+        print("Computing discriminative fingerprints...", end="", flush=True)
+
+        # Read all pre-normalised license texts.  The search_text column in
+        # license_index is the canonical normalised form (see _create_fingerprint).
+        with self._connect() as conn:
+            rows: list[tuple[str, str]] = conn.execute(
+                "SELECT license_id, search_text FROM license_index"
+            ).fetchall()
+
+        if not rows:
+            print(" no data.", flush=True)
+            return
+
+        k = len(rows)
+        # IDF of a 5-gram that appears in exactly one license = log(k/1) = log(k).
+        # Dividing by log(k) normalises scores to [0, 1].
+        max_idf = math.log(k)
+
+        # Build 5-gram sets per license and count document frequency of each
+        # n-gram (number of distinct licenses that contain it).
+        license_ngrams: dict[str, set[str]] = {}
+        doc_freq: Counter[str] = Counter()
+
+        for license_id, search_text in rows:
+            tokens = search_text.split()
+            ngrams: set[str] = {
+                " ".join(tokens[i : i + _FINGERPRINT_N])
+                for i in range(len(tokens) - _FINGERPRINT_N + 1)
+            }
+            if ngrams:
+                license_ngrams[license_id] = ngrams
+                doc_freq.update(ngrams)
+
+        # For each license keep the top-N n-grams ranked by IDF (high IDF =
+        # rare across the corpus = highly discriminative).
+        fp_records: list[tuple[str, str, float]] = []
+        for license_id, ngrams in license_ngrams.items():
+            scored = sorted(
+                (
+                    (ng, math.log(k / doc_freq[ng]) / max_idf)
+                    for ng in ngrams
+                    if doc_freq[ng] > 0
+                ),
+                key=lambda x: -x[1],
+            )
+            for ng, idf_norm in scored[:_FINGERPRINT_TOP_N]:
+                if idf_norm > 0.0:
+                    fp_records.append((license_id, ng, idf_norm))
+
+        with self._connect() as conn:
+            conn.execute("BEGIN TRANSACTION")
+            try:
+                conn.execute("DELETE FROM license_fingerprints")
+                conn.executemany(
+                    "INSERT INTO license_fingerprints (license_id, ngram, idf_norm)"
+                    " VALUES (?, ?, ?)",
+                    fp_records,
+                )
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+
+        print(f" {len(fp_records)} fingerprints for {k} licenses.", flush=True)
+
+    def find_fingerprint_hits(self, norm_input: str) -> dict[str, float]:
+        """Return a map of ``license_id → max_idf_norm`` for fingerprint matches.
+
+        Extracts ``_FINGERPRINT_N``-word n-grams from *norm_input* and queries
+        the ``license_fingerprints`` index for any matching n-grams.  For each
+        candidate license, the highest matching ``idf_norm`` score is returned.
+
+        The ``idf_norm`` value is in ``[0, 1]``: 1.0 means the matching n-gram
+        appears in exactly one license in the corpus (maximally discriminative).
+
+        Returns an empty dict when the table is empty, the input is too short
+        to form any n-grams, or no n-grams match.
+        """
+        tokens = norm_input.split()
+        if len(tokens) < _FINGERPRINT_N:
+            return {}
+
+        query_ngrams = [
+            " ".join(tokens[i : i + _FINGERPRINT_N])
+            for i in range(len(tokens) - _FINGERPRINT_N + 1)
+        ]
+
+        placeholders = ", ".join(["?"] * len(query_ngrams))
+        sql = (
+            f"SELECT license_id, MAX(idf_norm) AS max_idf"
+            f" FROM license_fingerprints"
+            f" WHERE ngram IN ({placeholders})"
+            f" GROUP BY license_id"
+        )
+        with self._connect() as conn:
+            try:
+                rows = conn.execute(sql, query_ngrams).fetchall()
+            except sqlite3.OperationalError:
+                # Table absent on databases built before this schema version.
+                # Degrade gracefully: fingerprint boost is simply skipped.
+                return {}
+        return {row[0]: row[1] for row in rows}
 
     def search_candidates(self, text: str, limit: int = 50) -> list[CandidateMatch]:
         """Tier 1: Search for candidates using trigram FTS5."""
@@ -725,9 +872,15 @@ class LicenseDatabase:
         """Retrieve all license IDs and names for short-text matching."""
         with self._connect() as conn:
             conn.row_factory = sqlite3.Row
-            cursor = conn.execute("SELECT license_id, name FROM licenses")
+            cursor = conn.execute(
+                "SELECT license_id, name, is_deprecated FROM licenses"
+            )
             return [
-                LicenseNameId(license_id=row["license_id"], name=row["name"])
+                LicenseNameId(
+                    license_id=row["license_id"],
+                    name=row["name"],
+                    is_deprecated=bool(row["is_deprecated"]),
+                )
                 for row in cursor.fetchall()
             ]
 

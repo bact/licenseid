@@ -6,7 +6,7 @@
 """Compare two licenseid branches on recall, precision, speed, memory.
 
 Usage:
-    python bench_compare.py [--verify]
+    python bench_compare.py [--verify] [--subset N]
 """
 
 import datetime
@@ -15,7 +15,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 SCRIPT = Path(__file__).parent / "bench_single.py"
 CURRENT_REPO = Path(__file__).parent.parent
@@ -23,12 +23,21 @@ BENCHMARK_NAME = "perf_eval"
 
 
 def run_branch(
-    src_path: str, label: str, timestamp: str, verify: bool
+    src_path: str,
+    label: str,
+    timestamp: str,
+    verify: bool,
+    subset: Optional[int] = None,
+    fast: bool = False,
 ) -> dict[str, Any]:
-    print(f"\nRunning: {label} …", flush=True)
+    print(f"\nRunning: {label} \u2026", flush=True)
     cmd = [sys.executable, str(SCRIPT), src_path, label, BENCHMARK_NAME, timestamp]
     if verify:
         cmd.append("--verify")
+    if subset is not None:
+        cmd.extend(["--subset", str(subset)])
+    if fast:
+        cmd.append("--fast")
 
     # Use Popen to stream stderr in real-time while capturing stdout for the final result
     proc = subprocess.Popen(
@@ -76,8 +85,9 @@ def run_branch(
 def generate_markdown_report(
     a: dict[str, Any], b: dict[str, Any], timestamp: str
 ) -> str:
+    la, lb = a["label"], b["label"]
     lines = []
-    lines.append(f"# Benchmark Comparison: `{a['label']}` vs `{b['label']}`")
+    lines.append(f"# Benchmark Comparison: `{la}` vs `{lb}`")
     lines.append(f"**Date:** {timestamp}")
     lines.append("")
     lines.append("## Metrics")
@@ -86,7 +96,7 @@ def generate_markdown_report(
     for t_idx in range(1, 6):
         t_key = f"type_{t_idx}"
         lines.append(f"### Input Type {t_idx}")
-        lines.append("| Category | main | license-marker | Δ |")
+        lines.append(f"| Category | {la} | {lb} | Δ |")
         lines.append("| :--- | ---: | ---: | ---: |")
 
         all_subcats = sorted(
@@ -177,7 +187,7 @@ def generate_markdown_report(
         lines.append("")
 
     lines.append("### Global Summary")
-    lines.append("| Metric | main | license-marker | Δ |")
+    lines.append(f"| Metric | {la} | {lb} | Δ |")
     lines.append("| :--- | ---: | ---: | ---: |")
 
     ar = a["correct_returned"] / a["total_q"] * 100 if a["total_q"] else 0
@@ -207,39 +217,66 @@ def generate_markdown_report(
     return "\n".join(lines)
 
 
+def _current_branch() -> str:
+    """Return the name of the current git branch."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=CURRENT_REPO,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
 def main() -> None:
     is_verify = "--verify" in sys.argv
+    is_fast = "--fast" in sys.argv
+    _subset_idx = next((i for i, a in enumerate(sys.argv) if a == "--subset"), None)
+    subset_n: Optional[int] = (
+        int(sys.argv[_subset_idx + 1]) if _subset_idx is not None else None
+    )
     timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+    current_label = _current_branch()
+    baseline_label = "main"
 
     with tempfile.TemporaryDirectory(prefix="licenseid-bench-") as tmpdir:
         tmp_path = Path(tmpdir)
-        print(f"Creating pristine checkout of main in {tmp_path} ...", flush=True)
+        print(
+            f"Creating pristine checkout of '{baseline_label}' in {tmp_path} ...",
+            flush=True,
+        )
 
         subprocess.run(
-            ["git", "worktree", "add", "--detach", str(tmp_path), "main"],
+            ["git", "worktree", "add", "--detach", str(tmp_path), baseline_label],
             cwd=CURRENT_REPO,
             check=True,
             capture_output=True,
         )
 
         try:
-            print("Starting evaluation of branch 'main'...", flush=True)
+            print(f"Starting evaluation of branch '{baseline_label}'...", flush=True)
             res_main = run_branch(
                 src_path=str(tmp_path / "src"),
-                label="main",
+                label=baseline_label,
                 timestamp=timestamp,
                 verify=is_verify,
+                subset=subset_n,
+                fast=is_fast,
             )
-            print("Finished evaluation of branch 'main'.", flush=True)
+            print(f"Finished evaluation of branch '{baseline_label}'.", flush=True)
 
-            print("Starting evaluation of branch 'license-marker'...", flush=True)
+            print(f"Starting evaluation of branch '{current_label}'...", flush=True)
             res_marker = run_branch(
                 src_path=str(CURRENT_REPO / "src"),
-                label="license-marker",
+                label=current_label,
                 timestamp=timestamp,
                 verify=is_verify,
+                subset=subset_n,
+                fast=is_fast,
             )
-            print("Finished evaluation of branch 'license-marker'.", flush=True)
+            print(f"Finished evaluation of branch '{current_label}'.", flush=True)
 
             print("Generating Markdown report...", flush=True)
             report = generate_markdown_report(res_main, res_marker, timestamp)

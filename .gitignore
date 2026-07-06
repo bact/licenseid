@@ -137,3 +137,6 @@ org.eclipse.core.resources.prefs
 # Local testing files
 dummy.db
 tests/tool.jar
+
+# Benchmark run artifacts (summary.md is the durable record)
+benchmarks/outputs/
