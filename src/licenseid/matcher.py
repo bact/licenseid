@@ -37,6 +37,16 @@ from licenseid.types import (
 # without overriding genuine similarity differences.
 _FP_BOOST: float = 0.05
 
+# Probe-gate settings for fragment ranking (query shorter than candidate).
+# A full partial_ratio scan of a weak candidate hits RapidFuzz's worst case
+# (~50-80 ms per candidate) because no window aligns well.  Scanning with a
+# short sample of the query first costs ~80x less, and its score tracks the
+# full-fragment score closely: in fixture sampling (incl. distorted inputs)
+# no candidate below _PROBE_GATE ever reached the 0.6 alignment threshold.
+# Only candidates that pass the probe get the full alignment scan.
+_PROBE_WORDS: int = 60  # probe sample size (words, taken from query middle)
+_PROBE_GATE: float = 0.52  # min probe score to run the full alignment scan
+
 # Effective score penalty applied to deprecated licenses during ranking.
 # Ensures that when a deprecated alias (e.g. GPL-2.0) and its canonical
 # non-deprecated replacement (e.g. GPL-2.0-only) are both candidates with
@@ -407,9 +417,18 @@ class AggregatedLicenseMatcher:
         boosts = marker_boosts or {}
         ranked: list[InternalMatch] = []
 
+        # Precompute the probe sample once per query (see _PROBE_WORDS).
+        # Only useful when the query is long enough that the probe is a real
+        # subsample; short queries scan fast without it.
+        probe: Optional[str] = None
+        if _PROBE_WORDS * 2 <= q_len < 500:
+            mid = q_len // 2
+            half = _PROBE_WORDS // 2
+            probe = " ".join(query_words[mid - half : mid + half])
+
         for cand in candidates:
             similarity, coverage, best_window = self._calculate_base_similarity(
-                norm_input, q_len, q_tokens, cand
+                norm_input, q_len, q_tokens, cand, probe
             )
             ranked.append(
                 InternalMatch(
@@ -468,6 +487,7 @@ class AggregatedLicenseMatcher:
         q_len: int,
         q_tokens: set[str],
         cand: CandidateMatch,
+        probe: Optional[str] = None,
     ) -> tuple[float, float, str]:
         """Calculate base similarity and coverage for a candidate."""
         search_text = cand.get("search_text") or ""
@@ -484,20 +504,9 @@ class AggregatedLicenseMatcher:
             similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
         else:
             if q_len < 500:
-                fast_score = fuzz.partial_ratio(norm_input, search_text) / 100.0
-                if fast_score >= 0.6:
-                    alignment = fuzz.partial_ratio_alignment(norm_input, search_text)
-                    if alignment:
-                        best_window = search_text[
-                            alignment.dest_start : alignment.dest_end
-                        ]
-                        similarity = (
-                            fuzz.token_sort_ratio(norm_input, best_window) / 100.0
-                        )
-                    else:
-                        similarity = fast_score
-                else:
-                    similarity = fast_score
+                similarity, best_window = self._fragment_similarity(
+                    norm_input, search_text, probe
+                )
             else:
                 similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
 
@@ -511,6 +520,33 @@ class AggregatedLicenseMatcher:
 
         coverage = (q_len / c_len) if c_len > 0 else 0.0
         return similarity, coverage, best_window
+
+    @staticmethod
+    def _fragment_similarity(
+        norm_input: str,
+        search_text: str,
+        probe: Optional[str],
+    ) -> tuple[float, str]:
+        """Similarity for fragment inputs (query shorter than candidate).
+
+        Probe gate first: a short mid-query sample scans the candidate ~80x
+        faster than the full fragment.  Weak candidates (probe score below
+        _PROBE_GATE) are scored by the probe alone and never pay for the
+        full O(q x c) scan.  Candidates that pass get a single alignment
+        pass (score + window in one scan) followed by a token_sort_ratio
+        re-score of the aligned window.
+        """
+        if probe is not None:
+            probe_score = fuzz.partial_ratio(probe, search_text) / 100.0
+            if probe_score < _PROBE_GATE:
+                return probe_score, search_text
+
+        alignment = fuzz.partial_ratio_alignment(norm_input, search_text)
+        fast_score = (alignment.score / 100.0) if alignment else 0.0
+        if fast_score >= 0.6 and alignment:
+            best_window = search_text[alignment.dest_start : alignment.dest_end]
+            return fuzz.token_sort_ratio(norm_input, best_window) / 100.0, best_window
+        return fast_score, search_text
 
     def _calculate_final_score(
         self,

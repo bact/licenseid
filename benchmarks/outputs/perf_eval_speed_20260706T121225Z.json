@@ -1,0 +1,517 @@
+{
+  "label": "speed",
+  "stats": {
+    "type_1": {
+      "id_verbatim": {
+        "total": 60,
+        "top1": 60,
+        "top3": 60,
+        "top5": 60,
+        "top10": 60,
+        "top20": 60,
+        "top30": 60,
+        "top40": 60,
+        "top50": 60
+      },
+      "id_deprecated": {
+        "total": 6,
+        "top1": 0,
+        "top3": 1,
+        "top5": 1,
+        "top10": 2,
+        "top20": 2,
+        "top30": 2,
+        "top40": 2,
+        "top50": 2
+      },
+      "id_space": {
+        "total": 60,
+        "top1": 60,
+        "top3": 60,
+        "top5": 60,
+        "top10": 60,
+        "top20": 60,
+        "top30": 60,
+        "top40": 60,
+        "top50": 60
+      },
+      "id_casing": {
+        "total": 60,
+        "top1": 48,
+        "top3": 48,
+        "top5": 48,
+        "top10": 48,
+        "top20": 48,
+        "top30": 48,
+        "top40": 48,
+        "top50": 48
+      },
+      "id_punct": {
+        "total": 60,
+        "top1": 52,
+        "top3": 52,
+        "top5": 54,
+        "top10": 54,
+        "top20": 54,
+        "top30": 54,
+        "top40": 55,
+        "top50": 55
+      },
+      "id_distorted": {
+        "total": 60,
+        "top1": 19,
+        "top3": 31,
+        "top5": 33,
+        "top10": 35,
+        "top20": 36,
+        "top30": 36,
+        "top40": 38,
+        "top50": 38
+      }
+    },
+    "type_2": {
+      "name_verbatim": {
+        "total": 59,
+        "top1": 59,
+        "top3": 59,
+        "top5": 59,
+        "top10": 59,
+        "top20": 59,
+        "top30": 59,
+        "top40": 59,
+        "top50": 59
+      },
+      "name_space": {
+        "total": 59,
+        "top1": 59,
+        "top3": 59,
+        "top5": 59,
+        "top10": 59,
+        "top20": 59,
+        "top30": 59,
+        "top40": 59,
+        "top50": 59
+      },
+      "name_casing": {
+        "total": 59,
+        "top1": 57,
+        "top3": 57,
+        "top5": 57,
+        "top10": 57,
+        "top20": 57,
+        "top30": 57,
+        "top40": 57,
+        "top50": 57
+      },
+      "name_punct": {
+        "total": 59,
+        "top1": 56,
+        "top3": 56,
+        "top5": 57,
+        "top10": 58,
+        "top20": 59,
+        "top30": 59,
+        "top40": 59,
+        "top50": 59
+      },
+      "name_distored": {
+        "total": 59,
+        "top1": 34,
+        "top3": 47,
+        "top5": 51,
+        "top10": 53,
+        "top20": 54,
+        "top30": 54,
+        "top40": 54,
+        "top50": 54
+      }
+    },
+    "type_3": {
+      "head_300": {
+        "total": 695,
+        "top1": 640,
+        "top3": 676,
+        "top5": 686,
+        "top10": 691,
+        "top20": 693,
+        "top30": 693,
+        "top40": 693,
+        "top50": 693
+      },
+      "head_500": {
+        "total": 695,
+        "top1": 650,
+        "top3": 682,
+        "top5": 688,
+        "top10": 692,
+        "top20": 694,
+        "top30": 694,
+        "top40": 694,
+        "top50": 694
+      },
+      "head_800": {
+        "total": 695,
+        "top1": 657,
+        "top3": 684,
+        "top5": 690,
+        "top10": 694,
+        "top20": 694,
+        "top30": 694,
+        "top40": 694,
+        "top50": 694
+      }
+    },
+    "type_4": {
+      "verbatim": {
+        "total": 555,
+        "top1": 523,
+        "top3": 543,
+        "top5": 549,
+        "top10": 552,
+        "top20": 552,
+        "top30": 552,
+        "top40": 552,
+        "top50": 552
+      },
+      "01": {
+        "total": 555,
+        "top1": 522,
+        "top3": 543,
+        "top5": 549,
+        "top10": 552,
+        "top20": 552,
+        "top30": 552,
+        "top40": 552,
+        "top50": 552
+      },
+      "02": {
+        "total": 555,
+        "top1": 523,
+        "top3": 542,
+        "top5": 548,
+        "top10": 551,
+        "top20": 551,
+        "top30": 551,
+        "top40": 551,
+        "top50": 551
+      },
+      "05": {
+        "total": 555,
+        "top1": 386,
+        "top3": 443,
+        "top5": 465,
+        "top10": 491,
+        "top20": 518,
+        "top30": 535,
+        "top40": 542,
+        "top50": 543
+      },
+      "10": {
+        "total": 555,
+        "top1": 336,
+        "top3": 404,
+        "top5": 427,
+        "top10": 464,
+        "top20": 489,
+        "top30": 503,
+        "top40": 519,
+        "top50": 527
+      },
+      "20": {
+        "total": 555,
+        "top1": 265,
+        "top3": 334,
+        "top5": 353,
+        "top10": 372,
+        "top20": 393,
+        "top30": 403,
+        "top40": 411,
+        "top50": 415
+      }
+    },
+    "type_5": {
+      "mixed": {
+        "total": 183,
+        "top1": 112,
+        "top3": 141,
+        "top5": 146,
+        "top10": 148,
+        "top20": 152,
+        "top30": 154,
+        "top40": 157,
+        "top50": 159
+      }
+    },
+    "type_51": {
+      "mixed": {
+        "total": 24,
+        "top1": 20,
+        "top3": 23,
+        "top5": 23,
+        "top10": 23,
+        "top20": 23,
+        "top30": 23,
+        "top40": 23,
+        "top50": 23
+      }
+    }
+  },
+  "tier_stats": {
+    "type_1": {
+      "id_verbatim": {
+        "total": 60,
+        "tier0": 60,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "id_deprecated": {
+        "total": 6,
+        "tier0": 0,
+        "tier05": 0,
+        "tier1": 2,
+        "tier2": 0,
+        "missed": 4
+      },
+      "id_space": {
+        "total": 60,
+        "tier0": 60,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "id_casing": {
+        "total": 60,
+        "tier0": 48,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 12
+      },
+      "id_punct": {
+        "total": 60,
+        "tier0": 52,
+        "tier05": 0,
+        "tier1": 3,
+        "tier2": 0,
+        "missed": 5
+      },
+      "id_distorted": {
+        "total": 60,
+        "tier0": 11,
+        "tier05": 0,
+        "tier1": 26,
+        "tier2": 1,
+        "missed": 22
+      }
+    },
+    "type_2": {
+      "name_verbatim": {
+        "total": 59,
+        "tier0": 59,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "name_space": {
+        "total": 59,
+        "tier0": 59,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      },
+      "name_casing": {
+        "total": 59,
+        "tier0": 47,
+        "tier05": 0,
+        "tier1": 0,
+        "tier2": 10,
+        "missed": 2
+      },
+      "name_punct": {
+        "total": 59,
+        "tier0": 55,
+        "tier05": 0,
+        "tier1": 4,
+        "tier2": 0,
+        "missed": 0
+      },
+      "name_distored": {
+        "total": 59,
+        "tier0": 35,
+        "tier05": 0,
+        "tier1": 19,
+        "tier2": 0,
+        "missed": 5
+      }
+    },
+    "type_3": {
+      "head_300": {
+        "total": 695,
+        "tier0": 1,
+        "tier05": 93,
+        "tier1": 599,
+        "tier2": 0,
+        "missed": 2
+      },
+      "head_500": {
+        "total": 695,
+        "tier0": 0,
+        "tier05": 100,
+        "tier1": 594,
+        "tier2": 0,
+        "missed": 1
+      },
+      "head_800": {
+        "total": 695,
+        "tier0": 0,
+        "tier05": 102,
+        "tier1": 592,
+        "tier2": 0,
+        "missed": 1
+      }
+    },
+    "type_4": {
+      "verbatim": {
+        "total": 555,
+        "tier0": 0,
+        "tier05": 93,
+        "tier1": 459,
+        "tier2": 0,
+        "missed": 3
+      },
+      "01": {
+        "total": 555,
+        "tier0": 0,
+        "tier05": 22,
+        "tier1": 530,
+        "tier2": 0,
+        "missed": 3
+      },
+      "02": {
+        "total": 555,
+        "tier0": 0,
+        "tier05": 19,
+        "tier1": 532,
+        "tier2": 0,
+        "missed": 4
+      },
+      "05": {
+        "total": 555,
+        "tier0": 0,
+        "tier05": 15,
+        "tier1": 531,
+        "tier2": 0,
+        "missed": 9
+      },
+      "10": {
+        "total": 555,
+        "tier0": 0,
+        "tier05": 6,
+        "tier1": 533,
+        "tier2": 0,
+        "missed": 16
+      },
+      "20": {
+        "total": 555,
+        "tier0": 0,
+        "tier05": 2,
+        "tier1": 422,
+        "tier2": 0,
+        "missed": 131
+      }
+    },
+    "type_5": {
+      "mixed": {
+        "total": 183,
+        "tier0": 25,
+        "tier05": 91,
+        "tier1": 40,
+        "tier2": 5,
+        "missed": 22
+      }
+    },
+    "type_51": {
+      "mixed": {
+        "total": 24,
+        "tier0": 3,
+        "tier05": 21,
+        "tier1": 0,
+        "tier2": 0,
+        "missed": 0
+      }
+    }
+  },
+  "total_q": 6223,
+  "total_returned": 322712,
+  "correct_returned": 5978,
+  "wall_time": 1393.830318916007,
+  "peak_mem_mb": 5.294015884399414,
+  "avg_mem_mb": 1.376077651977539,
+  "failures_sample": [
+    {
+      "cat": "type_1",
+      "subcat": "id_deprecated",
+      "true": "GPL-2.0-only",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "GPL-2.0-only",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_deprecated",
+      "true": "GPL-2.0-or-later",
+      "got": "SimPL-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "GPL-2.0-or-later",
+      "got": "BUSL-1.1"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "MIT-STK",
+      "got": "MIT"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_punct",
+      "true": "MIT-enna",
+      "got": "NONE"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "MIT-enna",
+      "got": "DL-DE-BY-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "CC-BY-NC-SA-2.0-DE",
+      "got": "CC-BY-NC-SA-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "CC-BY-NC-SA-2.0-UK",
+      "got": "CC-BY-NC-SA-2.0"
+    },
+    {
+      "cat": "type_1",
+      "subcat": "id_distorted",
+      "true": "BSD-2-Clause-Darwin",
+      "got": "Parity-7.0.0"
+    }
+  ]
+}
