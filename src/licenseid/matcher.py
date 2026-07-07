@@ -7,21 +7,25 @@
 Aggregated license matching logic using hybrid search.
 """
 
-import math
 import os
-import re
 import shutil
 from typing import Any, Optional, cast
 
 from rapidfuzz import fuzz
 
+from licenseid.classify import has_or_later_language, is_pure_license_text
 from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.identifiers import (
     disambiguate_deprecated_id,
     normalize_identifier,
 )
 from licenseid.markers import MarkerDetector
-from licenseid.normalize import normalize_text
+from licenseid.normalize import normalize_text, strip_comment_prefixes
+from licenseid.similarity import (
+    build_probe,
+    calculate_base_similarity,
+    calculate_final_score,
+)
 from licenseid.types import (
     CandidateMatch,
     InternalMatch,
@@ -36,16 +40,6 @@ from licenseid.types import (
 # fingerprint matches can break ties between near-equal similarity scores
 # without overriding genuine similarity differences.
 _FP_BOOST: float = 0.05
-
-# Probe-gate settings for fragment ranking (query shorter than candidate).
-# A full partial_ratio scan of a weak candidate hits RapidFuzz's worst case
-# (~50-80 ms per candidate) because no window aligns well.  Scanning with a
-# short sample of the query first costs ~80x less, and its score tracks the
-# full-fragment score closely: in fixture sampling (incl. distorted inputs)
-# no candidate below _PROBE_GATE ever reached the 0.6 alignment threshold.
-# Only candidates that pass the probe get the full alignment scan.
-_PROBE_WORDS: int = 60  # probe sample size (words, taken from query middle)
-_PROBE_GATE: float = 0.52  # min probe score to run the full alignment scan
 
 # Effective score penalty applied to deprecated licenses during ranking.
 # Ensures that when a deprecated alias (e.g. GPL-2.0) and its canonical
@@ -127,7 +121,7 @@ class AggregatedLicenseMatcher:
         request["text"] = target_text
 
         # Content Classification
-        is_pure = self._is_pure_license_text(file_path, target_text)
+        is_pure = is_pure_license_text(file_path, target_text)
 
         norm_input = normalize_text(target_text)
         words = norm_input.split()
@@ -305,7 +299,7 @@ class AggregatedLicenseMatcher:
 
         # Strip comment prefixes before FTS5: improves recall for Type 5
         # inputs where license text is wrapped in // / # / * comment markers.
-        text = self._strip_comment_prefixes(text)
+        text = strip_comment_prefixes(text)
 
         # Normalize the full text once, up front, before any word-count
         # slicing.  normalize_text() applies several line-anchored rules
@@ -447,24 +441,18 @@ class AggregatedLicenseMatcher:
         boosts = marker_boosts or {}
         ranked: list[InternalMatch] = []
 
-        # Precompute the probe sample once per query (see _PROBE_WORDS).
-        # Only useful when the query is long enough that the probe is a real
-        # subsample; short queries scan fast without it.
-        probe: Optional[str] = None
-        if _PROBE_WORDS * 2 <= q_len < 500:
-            mid = q_len // 2
-            half = _PROBE_WORDS // 2
-            probe = " ".join(query_words[mid - half : mid + half])
+        # Precompute the probe sample once per query (see similarity.PROBE_WORDS).
+        probe = build_probe(query_words)
 
         for cand in candidates:
-            similarity, coverage, best_window = self._calculate_base_similarity(
+            sim, coverage, best_window = calculate_base_similarity(
                 norm_input, q_len, q_tokens, cand, probe
             )
             ranked.append(
                 InternalMatch(
                     license_id=cand["license_id"],
-                    base_score=similarity,
-                    similarity=similarity,
+                    base_score=sim,
+                    similarity=sim,
                     coverage=coverage,
                     pop_score=cand.get("pop_score", 0),
                     is_deprecated=cand.get("is_deprecated", False),
@@ -475,7 +463,7 @@ class AggregatedLicenseMatcher:
             )
 
         for r in ranked:
-            r["score"] = self._calculate_final_score(
+            r["score"] = calculate_final_score(
                 r, boosts, is_pure, enable_popularity, q_len
             )
 
@@ -510,122 +498,6 @@ class AggregatedLicenseMatcher:
 
         ranked.sort(key=sort_key)
         return ranked
-
-    def _calculate_base_similarity(
-        self,
-        norm_input: str,
-        q_len: int,
-        q_tokens: set[str],
-        cand: CandidateMatch,
-        probe: Optional[str] = None,
-    ) -> tuple[float, float, str]:
-        """Calculate base similarity and coverage for a candidate."""
-        search_text = cand.get("search_text") or ""
-        c_len = cand.get("word_count") or 0
-        if c_len == 0:
-            c_len = len(search_text.split())
-
-        similarity = 0.0
-        best_window = search_text
-
-        if norm_input == search_text:
-            similarity = 1.0
-        elif q_len >= c_len * 0.8:
-            similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
-        else:
-            if q_len < 500:
-                similarity, best_window = self._fragment_similarity(
-                    norm_input, search_text, probe
-                )
-            else:
-                similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
-
-        # Semantic Safeguards
-        if 0.90 < similarity < 1.0:
-            critical_tokens = {"not", "except", "unless", "irrevocable"}
-            c_tokens = set(search_text.split())
-            for token in critical_tokens:
-                if (token in q_tokens) != (token in c_tokens):
-                    similarity *= 0.95
-
-        coverage = (q_len / c_len) if c_len > 0 else 0.0
-        return similarity, coverage, best_window
-
-    @staticmethod
-    def _fragment_similarity(
-        norm_input: str,
-        search_text: str,
-        probe: Optional[str],
-    ) -> tuple[float, str]:
-        """Similarity for fragment inputs (query shorter than candidate).
-
-        Probe gate first: a short mid-query sample scans the candidate ~80x
-        faster than the full fragment.  Weak candidates (probe score below
-        _PROBE_GATE) are scored by the probe alone and never pay for the
-        full O(q x c) scan.  Candidates that pass get a single alignment
-        pass (score + window in one scan) followed by a token_sort_ratio
-        re-score of the aligned window.
-        """
-        if probe is not None:
-            probe_score = fuzz.partial_ratio(probe, search_text) / 100.0
-            if probe_score < _PROBE_GATE:
-                return probe_score, search_text
-
-        alignment = fuzz.partial_ratio_alignment(norm_input, search_text)
-        fast_score = (alignment.score / 100.0) if alignment else 0.0
-        if fast_score >= 0.6 and alignment:
-            best_window = search_text[alignment.dest_start : alignment.dest_end]
-            return fuzz.token_sort_ratio(norm_input, best_window) / 100.0, best_window
-        return fast_score, search_text
-
-    def _calculate_final_score(
-        self,
-        match: InternalMatch,
-        boosts: dict[str, float],
-        is_pure: bool,
-        enable_popularity: bool,
-        q_len: int = 0,
-    ) -> float:
-        """Calculate the final adjusted score for a match."""
-        similarity = match["base_score"]
-        coverage = match["coverage"]
-
-        # Fragment inputs (coverage < 0.5) are known to be incomplete slices
-        # of a longer license text.  Penalising them for low coverage creates a
-        # systematic bias against the correct candidate when several licenses
-        # share a common preamble.  Suppress the penalty for fragments and keep
-        # it only for inputs that are near-full texts (0.5 ≤ coverage < 0.8).
-        # Reference: Type 3 benchmark results (head+tail combinations).
-        if coverage < 0.5:
-            coverage_penalty = 0.0
-        elif coverage < 0.8:
-            coverage_penalty = (1.0 - coverage) * 0.02
-        else:
-            coverage_penalty = 0.0
-        coverage_bonus = 0.005 if 0.95 <= coverage <= 1.05 else 0.0
-
-        score = similarity - coverage_penalty + coverage_bonus
-
-        if enable_popularity:
-            score += math.log10(max(1, match["pop_score"])) * 0.0001
-
-        marker_conf = boosts.get(match["license_id"], 0.0)
-        if marker_conf >= 0.85:
-            # Require confidence >= 0.85 before applying any marker boost.
-            # Low-confidence markers (< 0.85) on e.g. partial / noisy inputs
-            # caused score distortion on Type 4 inputs in benchmarks.
-            # For long pure license text with moderate-confidence markers,
-            # similarity dominates; use a small additive boost only.
-            # For mixed content, short text, OR high-confidence structural
-            # detection (>= 0.94, e.g. BSD/GPL header analysis), the marker
-            # is authoritative — apply an additive boost plus a confidence
-            # floor.
-            if is_pure and q_len >= 50 and marker_conf < 0.94:
-                score += marker_conf * 0.03
-            else:
-                score = max(score + marker_conf * 0.05, marker_conf * 0.95)
-
-        return score
 
     def _ensure_jvm(self) -> None:
         """Ensure the JVM is started with the tools-java JAR."""
@@ -685,47 +557,6 @@ class AggregatedLicenseMatcher:
         ranked.sort(key=sort_key)
         return ranked
 
-    # Matches common single-line comment prefixes that wrap license notices
-    # in source files: C/C++/Java (//, /* ... */), Python/shell (#),
-    # and Javadoc/C block comment continuation ( * ).
-    _RE_COMMENT_PREFIX = re.compile(
-        r"^[ \t]*(?://+|#+|;+|\*(?!/)|/\*)[ \t]?",
-        re.MULTILINE,
-    )
-
-    @staticmethod
-    def _strip_comment_prefixes(text: str) -> str:
-        """Remove leading comment characters from every line.
-
-        Strips ``//``, ``#``, ``;``, ``*`` (Javadoc continuation), and
-        ``/*`` prefixes.  Trailing ``*/`` block-comment closers are also
-        removed.  Applied before FTS5 on source-file inputs to improve
-        recall for Type 5 (comment-wrapped) license notices.
-        """
-        stripped = AggregatedLicenseMatcher._RE_COMMENT_PREFIX.sub("", text)
-        # Remove trailing block-comment closers on their own line.
-        stripped = re.sub(r"^[ \t]*\*/[ \t]*$", "", stripped, flags=re.MULTILINE)
-        return stripped
-
-    # Detects -or-later granting language in mixed/source-file contexts.
-    # Allows for comment characters (// # * ;) between "or" and
-    # "(at your option)".
-    # Also catches shorthand notations like GPLv2+ and "version 2 or later".
-    _RE_OR_LATER = re.compile(
-        r"or[\s/*#;-]*\(?at\s+your\s+option\)?\s*[\s/*#;-]*any\s+later\s+version"
-        r"|(?:version\s+)?v?\d+(?:\.\d+)?[\s,]+or\s+later\b"
-        r"|(?:lgpl|gpl|agpl)[-v]?\d+(?:\.\d+)?\+",
-        re.IGNORECASE | re.MULTILINE,
-    )
-
-    def _has_or_later_language(self, text: str) -> bool:
-        """Return True if text contains -or-later granting language.
-
-        Only meaningful for non-pure input (source files, READMEs).  The GPL
-        license body itself contains the same phrase in its 'How to Apply'
-        appendix, so this must NOT be called on pure license text.
-        """
-        return bool(self._RE_OR_LATER.search(text))
 
     def _apply_version_suffix_tiebreaker(
         self,
@@ -750,7 +581,7 @@ class AggregatedLicenseMatcher:
         if is_pure:
             or_later_signal = False  # body text indistinguishable; default -only
         else:
-            or_later_signal = self._has_or_later_language(raw_text)
+            or_later_signal = has_or_later_language(raw_text)
 
         id_to_score = {r["license_id"]: r["score"] for r in ranked}
         # Track which base IDs we've already processed to avoid
@@ -898,89 +729,6 @@ class AggregatedLicenseMatcher:
         )
         return ranked
 
-    # Compiled once at class level for efficiency
-    _RE_NON_LICENSE_SECTION = re.compile(
-        r"^#{1,6}\s*"
-        r"(installation|usage|getting\s+started|contributing|"
-        r"prerequisites|requirements|setup|build|deploy|example|"
-        r"quick\s+start|table\s+of\s+contents|overview|features|"
-        r"changelog|roadmap|faq|support|credits|acknowledgements?)",
-        re.IGNORECASE,
-    )
-    # Openers that appear at the START of a full license document
-    # (not inside source files).
-    # "apache license" removed — too broad; it appears in license
-    # notice headers too.
-    # "mozilla public license" removed for the same reason.
-    # These files are caught by filename (LICENSE, COPYING) or by
-    # high FTS5 similarity.
-    _RE_LICENSE_OPENER = re.compile(
-        r"(permission is hereby granted|permission to use, copy|"
-        r"common development and distribution license|"
-        r"creative commons attribution|redistribution and use in source|"
-        r"everyone is permitted to copy)",
-        re.IGNORECASE,
-    )
-    # Positive signals that a file is SOURCE CODE, not a license document.
-    _RE_CODE_SIGNAL = re.compile(
-        r"^(?:package\s+\w|import\s+\w|from\s+\w+\s+import\b|"
-        r"#include\s+[<\"]|class\s+\w+[(\s{:]|public\s+class\s+\w|"
-        r"def\s+\w+\s*\(|function\s+\w+\s*\()",
-        re.MULTILINE,
-    )
-    _RE_NUMBERED_SECTION = re.compile(r"^\s*\d+\.\s+\w", re.MULTILINE)
-
-    def _is_pure_license_text(
-        self,
-        file_path: Optional[str],
-        text: str,
-    ) -> bool:
-        """Return True if the content appears to be a standalone
-        license document.
-
-        Uses filename as a strong positive signal, then falls back to
-        content heuristics so plain-text license input (no file_path) is
-        also classified correctly.
-        """
-        if file_path:
-            basename = os.path.basename(file_path).upper()
-            if basename in (
-                "LICENSE",
-                "COPYING",
-                "UNLICENSE",
-                "LICENCE",
-            ) or any(
-                basename.startswith(p)
-                for p in (
-                    "LICENSE.",
-                    "COPYING.",
-                    "LICENCE.",
-                )
-            ):
-                return True
-
-        if len(text.split()) < 30 or "```" in text or "~~~" in text:
-            return False
-
-        # Source code signals override other heuristics
-        if self._RE_CODE_SIGNAL.search(text[:2000]):
-            return False
-
-        md_headers = [
-            line for line in text.splitlines() if re.match(r"^#{1,6}\s+\S", line)
-        ]
-        if len(md_headers) > 3 or any(
-            self._RE_NON_LICENSE_SECTION.match(h) for h in md_headers
-        ):
-            return False
-
-        # Positive indicators: numbered sections or known preamble.
-        # Threshold >= 5 avoids mis-classifying BSD notices (3 conditions)
-        # embedded in copyright headers as standalone license text.
-        return len(self._RE_NUMBERED_SECTION.findall(text)) >= 5 or bool(
-            self._RE_LICENSE_OPENER.search(text[:1000])
-        )
-
     def _match_mixed_content(
         self, request: MatchRequest, target_text: str
     ) -> list[CandidateMatch]:
@@ -992,7 +740,7 @@ class AggregatedLicenseMatcher:
         for section in sections:
             # Strip comment prefixes before both short-text and FTS5 matching
             # so that comment-wrapped license text (Type 5) is handled cleanly.
-            section = self._strip_comment_prefixes(section)
+            section = strip_comment_prefixes(section)
             # 1. Try Tier 0 (Short Text) on the windowed section
             norm_section = normalize_text(section)
             short_matches = self._match_short_text(norm_section)

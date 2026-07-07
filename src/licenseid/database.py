@@ -7,8 +7,6 @@
 SQLite database management for SPDX licenses.
 """
 
-import csv
-import io
 import json
 import math
 import sqlite3
@@ -17,12 +15,11 @@ import tarfile
 import tempfile
 import xml.etree.ElementTree as ET
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, cast
 
-import requests
-
+from licenseid import spdx_source
 from licenseid.normalize import normalize_text
 from licenseid.types import (
     CandidateMatch,
@@ -61,21 +58,6 @@ def get_default_db_path() -> str:
     db_dir.mkdir(parents=True, exist_ok=True)
     return str(db_dir / "licenses.db")
 
-
-# Cache expiration settings
-LICENSES_JSON_URL = "https://spdx.org/licenses/licenses.json"
-POPULARITY_DATA_URL = (
-    "https://raw.githubusercontent.com/github/innovationgraph/main/data/licenses.csv"
-)
-DEFAULT_FALLBACK_VERSION = "3.28.0"
-
-CACHE_LICENSES_JSON = "licenses.json"
-CACHE_POPULARITY_CSV = "popularity.csv"
-CACHE_SPDX_TARBALL_TEMPLATE = "spdx-data-v{version}.tar.gz"
-
-# Expiration in days
-EXPIRY_LICENSES_JSON = 45
-EXPIRY_POPULARITY_CSV = 75
 
 # Version of the normalize_text() rule set used to build the stored
 # search_text and fingerprints.  Bump whenever normalization rules change so
@@ -144,13 +126,6 @@ class LicenseDatabase:
     def _get_cache_path(self, filename: str) -> Path:
         """Get the absolute path for a cache file."""
         return self.db_path.parent / filename
-
-    def _is_cache_valid(self, path: Path, days: int) -> bool:
-        """Check if the cache file exists and is not older than 'days'."""
-        if not path.exists():
-            return False
-        mtime = datetime.fromtimestamp(path.stat().st_mtime)
-        return datetime.now() - mtime < timedelta(days=days)
 
     def _init_db(self) -> None:
         """Initialise the SQLite database with FTS5."""
@@ -231,8 +206,8 @@ class LicenseDatabase:
         """Delete local cache files."""
         print("Clearing cache...")
         for filename in [
-            CACHE_LICENSES_JSON,
-            CACHE_POPULARITY_CSV,
+            spdx_source.CACHE_LICENSES_JSON,
+            spdx_source.CACHE_POPULARITY_CSV,
         ]:
             path = self._get_cache_path(filename)
             if path.exists():
@@ -244,71 +219,6 @@ class LicenseDatabase:
         if self.db_path.exists():
             print(f"Deleting database at {self.db_path}...")
             self.db_path.unlink()
-
-    def _get_version_info(
-        self, version: Optional[str], use_cache: bool
-    ) -> tuple[str, Optional[str], str]:
-        """Determine target version and fetch version info."""
-        licenses_json_path = self._get_cache_path(CACHE_LICENSES_JSON)
-        latest_version = None
-        release_date = None
-        data_source = "remote"
-
-        if use_cache and self._is_cache_valid(licenses_json_path, EXPIRY_LICENSES_JSON):
-            try:
-                with open(licenses_json_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    latest_version = data.get("licenseListVersion")
-                    release_date = data.get("releaseDate")
-                    data_source = "cache"
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        if not latest_version:
-            try:
-                print(f"Fetching latest license list info from {LICENSES_JSON_URL}...")
-                resp = requests.get(LICENSES_JSON_URL, timeout=30)
-                resp.raise_for_status()
-                data = resp.json()
-                latest_version = data.get("licenseListVersion")
-                release_date = data.get("releaseDate")
-                with open(licenses_json_path, "w", encoding="utf-8") as f:
-                    json.dump(data, f)
-                data_source = "remote"
-            except requests.RequestException as e:
-                if not version:
-                    raise RuntimeError(
-                        f"Failed to fetch latest license list info: {e}"
-                    ) from e
-                print(f"Warning: Failed to fetch {LICENSES_JSON_URL}: {e}")
-                latest_version = version
-
-        return version or latest_version, release_date, data_source
-
-    def _get_tarball_path(self, version: str, use_cache: bool) -> tuple[Path, str]:
-        """Download or retrieve the SPDX License List tarball path."""
-        tar_filename = CACHE_SPDX_TARBALL_TEMPLATE.format(version=version)
-        tar_cache_path = self._get_cache_path(tar_filename)
-        data_source = "remote"
-
-        if not (use_cache and tar_cache_path.exists()):
-            tar_url = (
-                "https://github.com/spdx/license-list-data/archive/"
-                f"refs/tags/v{version}.tar.gz"
-            )
-            print(f"Downloading release: {tar_url}")
-            try:
-                resp = requests.get(tar_url, stream=True, timeout=60)
-                resp.raise_for_status()
-                with open(tar_cache_path, "wb") as f:
-                    for chunk in resp.iter_content(chunk_size=8192):
-                        f.write(chunk)
-            except requests.RequestException as e:
-                raise RuntimeError(f"Error downloading {tar_url}: {e}") from e
-        else:
-            data_source = "cache"
-
-        return tar_cache_path, data_source
 
     def update_from_remote(
         self,
@@ -322,8 +232,8 @@ class LicenseDatabase:
         """
 
         # 1. Version check
-        target_version, release_date, ds_licenses = self._get_version_info(
-            version, use_cache
+        target_version, release_date, ds_licenses = spdx_source.get_version_info(
+            self.db_path.parent, version, use_cache
         )
         print(f"Target SPDX License List version: {target_version}")
 
@@ -335,18 +245,24 @@ class LicenseDatabase:
         print(f"Updating license database to version {target_version}...")
 
         # 2. Fetch Popularity Data
-        pop_cache_path = self._get_cache_path(CACHE_POPULARITY_CSV)
+        pop_cache_path = self._get_cache_path(spdx_source.CACHE_POPULARITY_CSV)
         ds_pop = "remote"
-        if use_cache and self._is_cache_valid(pop_cache_path, EXPIRY_POPULARITY_CSV):
-            popularity_map = self._fetch_popularity_data(pop_cache_path)
+        if use_cache and spdx_source.is_cache_valid(
+            pop_cache_path, spdx_source.EXPIRY_POPULARITY_CSV
+        ):
+            popularity_map = spdx_source.fetch_popularity_data(
+                self.db_path.parent, pop_cache_path
+            )
             ds_pop = "cache"
         else:
-            popularity_map = self._fetch_popularity_data()
+            popularity_map = spdx_source.fetch_popularity_data(self.db_path.parent)
             if popularity_map:
                 ds_pop = "remote"
 
         # 3. Fetch SPDX tarball
-        tar_cache_path, ds_tar = self._get_tarball_path(target_version, use_cache)
+        tar_cache_path, ds_tar = spdx_source.get_tarball_path(
+            self.db_path.parent, target_version, use_cache
+        )
 
         # Report sources
         print("Data sources:")
@@ -416,6 +332,35 @@ class LicenseDatabase:
         exceptions_data: list[SpdxExceptionEntry],
     ) -> None:
         """Execute database delete and insert operations."""
+        license_records, index_records, exception_records = (
+            self._prepare_license_and_exception_records(
+                licenses_data, root_dir, popularity_map, exceptions_data
+            )
+        )
+        self._write_db_records(
+            license_records,
+            index_records,
+            exception_records,
+            list_version,
+            release_date,
+        )
+
+        # Compute fingerprints in a separate transaction so that the FTS5
+        # virtual table is fully committed and readable before we scan it.
+        self._compute_fingerprints()
+
+    def _prepare_license_and_exception_records(
+        self,
+        licenses_data: list[SpdxLicenseEntry],
+        root_dir: Path,
+        popularity_map: dict[str, int],
+        exceptions_data: list[SpdxExceptionEntry],
+    ) -> tuple[
+        list[_LicenseInsertRecord],
+        list[_IndexInsertRecord],
+        list[tuple[str, str, bool, Optional[str]]],
+    ]:
+        """Build the in-memory record lists for insertion (no DB access)."""
         license_records: list[_LicenseInsertRecord] = []
         index_records: list[_IndexInsertRecord] = []
         exception_records: list[tuple[str, str, bool, Optional[str]]] = []
@@ -498,6 +443,17 @@ class LicenseDatabase:
                 )
             )
 
+        return license_records, index_records, exception_records
+
+    def _write_db_records(
+        self,
+        license_records: list[_LicenseInsertRecord],
+        index_records: list[_IndexInsertRecord],
+        exception_records: list[tuple[str, str, bool, Optional[str]]],
+        list_version: str,
+        release_date: Optional[str],
+    ) -> None:
+        """Replace all license/exception/metadata rows in a single transaction."""
         print(f"\nInserting {len(license_records)} records into database...")
         with self._connect() as conn:
             conn.execute("PRAGMA journal_mode = WAL")
@@ -549,10 +505,6 @@ class LicenseDatabase:
             except Exception:
                 conn.execute("ROLLBACK")
                 raise
-
-        # Compute fingerprints in a separate transaction so that the FTS5
-        # virtual table is fully committed and readable before we scan it.
-        self._compute_fingerprints()
 
     def _prepare_license_record(
         self,
@@ -607,56 +559,6 @@ class LicenseDatabase:
         )
         index_record: _IndexInsertRecord = (license_id, fingerprint)
         return license_record, index_record
-
-    def _fetch_popularity_data(
-        self, local_path: Optional[Path] = None
-    ) -> dict[str, int]:
-        """Fetch and aggregate popularity data from GitHub Innovation Graph."""
-        popularity_map: dict[str, int] = {}
-        csv_content = ""
-
-        if local_path:
-            try:
-                with open(local_path, "r", encoding="utf-8") as f:
-                    csv_content = f.read()
-            except OSError as e:
-                print(f"Warning: Failed to read local popularity data: {e}")
-
-        if not csv_content:
-            print(f"Downloading popularity data: {POPULARITY_DATA_URL}")
-            try:
-                resp = requests.get(POPULARITY_DATA_URL, timeout=30)
-                resp.raise_for_status()
-                csv_content = resp.text
-                # Save to cache
-                pop_cache_path = self._get_cache_path(CACHE_POPULARITY_CSV)
-                with open(pop_cache_path, "w", encoding="utf-8") as f:
-                    f.write(csv_content)
-            except requests.RequestException as e:
-                print(f"Warning: Failed to fetch popularity data: {e}")
-                return {}
-
-        try:
-            content = io.StringIO(csv_content)
-            reader = csv.DictReader(content)
-
-            for row in reader:
-                spdx_id = row.get("spdx_license")
-                if not spdx_id or spdx_id == "NOASSERTION":
-                    continue
-
-                try:
-                    count = int(row.get("num_pushers", 0))
-                except ValueError:
-                    count = 0
-
-                popularity_map[spdx_id] = popularity_map.get(spdx_id, 0) + count
-
-            print(f"Aggregated popularity data for {len(popularity_map)} licenses.")
-        except (csv.Error, ValueError) as e:
-            print(f"Warning: Failed to parse popularity data: {e}")
-
-        return popularity_map
 
     def _create_fingerprint(self, text: str, xml_content: Optional[str] = None) -> str:
         """Create a search fingerprint by removing optional parts and normalizing."""

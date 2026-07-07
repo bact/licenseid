@@ -72,6 +72,34 @@ _COMMENT_PREFIX: Final = re.compile(
     r"[ \t]*"
 )
 
+# A second, narrower comment-prefix stripper for a different call site:
+# matcher.py runs strip_comment_prefixes() on raw (not yet normalized) text
+# before FTS5 indexing/querying, to improve recall on Type 5 (comment-
+# wrapped) license notices — separately from _COMMENT_PREFIX above, which
+# only runs inside normalize_text() itself as one step of the guideline
+# pipeline.  They are intentionally not merged into one regex: this one
+# covers fewer comment styles (no VB/BASIC/Lua/Haskell — not expected in
+# the source files this targets) but additionally strips trailing "*/"
+# block-comment closers, which _COMMENT_PREFIX has no equivalent for.
+_LINE_COMMENT_PREFIX: Final = re.compile(
+    r"^[ \t]*(?://+|#+|;+|\*(?!/)|/\*)[ \t]?",
+    re.MULTILINE,
+)
+_BLOCK_COMMENT_CLOSER: Final = re.compile(r"^[ \t]*\*/[ \t]*$", re.MULTILINE)
+
+
+def strip_comment_prefixes(text: str) -> str:
+    """Remove leading comment characters from every line.
+
+    Strips ``//``, ``#``, ``;``, ``*`` (Javadoc continuation), and
+    ``/*`` prefixes.  Trailing ``*/`` block-comment closers are also
+    removed.  Applied before FTS5 on source-file inputs to improve
+    recall for Type 5 (comment-wrapped) license notices.
+    """
+    stripped = _LINE_COMMENT_PREFIX.sub("", text)
+    stripped = _BLOCK_COMMENT_CLOSER.sub("", stripped)
+    return stripped
+
 # Guideline 5b: runs of 3+ identical non-alphanumeric characters used as
 # visual separators (---, ===, ***, ___) carry no meaning.
 _SEPARATOR: Final = re.compile(r"([^\w\s])\1{2,}")
