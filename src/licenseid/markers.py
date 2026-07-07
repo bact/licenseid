@@ -241,15 +241,12 @@ class MarkerDetector:
             )
             if details:
                 candidates.append(self.to_candidate(details, 0.95))
-            elif val:
-                candidates.append(
-                    {
-                        "license_id": val,
-                        "search_text": "",
-                        "score": 0.95,
-                        "is_spdx": True,
-                    }
-                )
+            # No fallback when val doesn't resolve to a known license: a
+            # "license:"/"license="-shaped substring can appear incidentally
+            # (e.g. "ISC License: Copyright (c) ..." captures "Copyright" as
+            # the field value) — fabricating a candidate from an unresolved
+            # value produces a phantom license_id that isn't in the database
+            # at all, ranked at a fixed high confidence.
 
         return candidates
 

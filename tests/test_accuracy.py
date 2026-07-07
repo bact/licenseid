@@ -94,6 +94,14 @@ def matcher() -> AggregatedLicenseMatcher:
             conn.execute("ROLLBACK")
             raise
 
+    # Mirror production DB builds (LicenseDatabase._update_db_records), which
+    # always compute fingerprints after the index is populated.  Without
+    # this, near-duplicate license bodies (e.g. ISC vs Python-2.0, BSD
+    # variants) lose their only disambiguating signal once copyright-notice
+    # text is normalized away, since that's the discriminative content the
+    # fingerprint mechanism exists to replace.
+    db_manager._compute_fingerprints()
+
     print("  Population complete.")
     return AggregatedLicenseMatcher(db_path, enable_java=False)
 

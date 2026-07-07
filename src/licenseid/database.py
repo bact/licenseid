@@ -7,21 +7,19 @@
 SQLite database management for SPDX licenses.
 """
 
-import csv
-import io
 import json
 import math
 import sqlite3
+import sys
 import tarfile
 import tempfile
 import xml.etree.ElementTree as ET
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, cast
 
-import requests
-
+from licenseid import spdx_source
 from licenseid.normalize import normalize_text
 from licenseid.types import (
     CandidateMatch,
@@ -34,9 +32,22 @@ from licenseid.types import (
 )
 
 # (license_id, name, xml_template, is_spdx, is_osi, is_fsf,
-#  is_high_usage, is_deprecated, superseded_by, pop_score, word_count)
+#  is_high_usage, is_deprecated, superseded_by, pop_score, word_count,
+#  norm_license_id, norm_name)
 _LicenseInsertRecord = tuple[
-    str, str, Optional[str], bool, bool, bool, bool, bool, Optional[str], int, int
+    str,
+    str,
+    Optional[str],
+    bool,
+    bool,
+    bool,
+    bool,
+    bool,
+    Optional[str],
+    int,
+    int,
+    str,
+    str,
 ]
 _IndexInsertRecord = tuple[str, str]
 
@@ -48,20 +59,12 @@ def get_default_db_path() -> str:
     return str(db_dir / "licenses.db")
 
 
-# Cache expiration settings
-LICENSES_JSON_URL = "https://spdx.org/licenses/licenses.json"
-POPULARITY_DATA_URL = (
-    "https://raw.githubusercontent.com/github/innovationgraph/main/data/licenses.csv"
-)
-DEFAULT_FALLBACK_VERSION = "3.28.0"
-
-CACHE_LICENSES_JSON = "licenses.json"
-CACHE_POPULARITY_CSV = "popularity.csv"
-CACHE_SPDX_TARBALL_TEMPLATE = "spdx-data-v{version}.tar.gz"
-
-# Expiration in days
-EXPIRY_LICENSES_JSON = 45
-EXPIRY_POPULARITY_CSV = 75
+# Version of the normalize_text() rule set used to build the stored
+# search_text and fingerprints.  Bump whenever normalization rules change so
+# that databases built with the old rules can be detected and rebuilt.
+# Version 2: SPDX Matching Guidelines rules (varietal words, bullets,
+# copyright notices, comment prefixes, separators).
+NORMALIZATION_VERSION = "2"
 
 # Discriminative n-gram fingerprint settings.
 # Each license keeps its top FINGERPRINT_TOP_N highest-IDF word n-grams
@@ -92,6 +95,29 @@ class LicenseDatabase:
 
         self._init_db()
         self._deprecated_mappings_cache: Optional[dict[str, str]] = None
+        self._norm_cols_backfilled = False
+        self._check_normalization_version()
+
+    def _check_normalization_version(self) -> None:
+        """Warn when the DB was built with an older normalize_text() rule set.
+
+        Stored search_text and fingerprints are normalised at build time; if
+        the rules changed since, query-side normalisation no longer matches
+        the index and recall degrades silently.
+        """
+        metadata = self.get_metadata()
+        # Empty/new databases have no version yet — nothing to warn about.
+        if not metadata.get("license_list_version"):
+            return
+        stored = metadata.get("normalization_version", "1")
+        if stored != NORMALIZATION_VERSION:
+            print(
+                "Warning: license database was built with an older text "
+                f"normalization rule set (v{stored}, current "
+                f"v{NORMALIZATION_VERSION}). "
+                "Run 'licenseid update --force' to rebuild it.",
+                file=sys.stderr,
+            )
 
     def _connect(self) -> sqlite3.Connection:
         """Create a new connection to the database."""
@@ -100,13 +126,6 @@ class LicenseDatabase:
     def _get_cache_path(self, filename: str) -> Path:
         """Get the absolute path for a cache file."""
         return self.db_path.parent / filename
-
-    def _is_cache_valid(self, path: Path, days: int) -> bool:
-        """Check if the cache file exists and is not older than 'days'."""
-        if not path.exists():
-            return False
-        mtime = datetime.fromtimestamp(path.stat().st_mtime)
-        return datetime.now() - mtime < timedelta(days=days)
 
     def _init_db(self) -> None:
         """Initialise the SQLite database with FTS5."""
@@ -125,7 +144,9 @@ class LicenseDatabase:
                     is_deprecated BOOLEAN,
                     superseded_by TEXT,
                     pop_score INTEGER DEFAULT 1,
-                    word_count INTEGER
+                    word_count INTEGER,
+                    norm_license_id TEXT,
+                    norm_name TEXT
                 )
             """)
             conn.execute("""
@@ -169,12 +190,24 @@ class LicenseDatabase:
                 ON license_fingerprints(ngram)
             """)
 
+            # Migration: databases created before norm_license_id/norm_name
+            # existed have a "licenses" table without them (CREATE TABLE IF
+            # NOT EXISTS above only creates the table when missing entirely,
+            # it doesn't add columns to one that already exists).
+            existing_cols = {
+                row[1] for row in conn.execute("PRAGMA table_info(licenses)")
+            }
+            if "norm_license_id" not in existing_cols:
+                conn.execute("ALTER TABLE licenses ADD COLUMN norm_license_id TEXT")
+            if "norm_name" not in existing_cols:
+                conn.execute("ALTER TABLE licenses ADD COLUMN norm_name TEXT")
+
     def clear_cache(self) -> None:
         """Delete local cache files."""
         print("Clearing cache...")
         for filename in [
-            CACHE_LICENSES_JSON,
-            CACHE_POPULARITY_CSV,
+            spdx_source.CACHE_LICENSES_JSON,
+            spdx_source.CACHE_POPULARITY_CSV,
         ]:
             path = self._get_cache_path(filename)
             if path.exists():
@@ -186,71 +219,6 @@ class LicenseDatabase:
         if self.db_path.exists():
             print(f"Deleting database at {self.db_path}...")
             self.db_path.unlink()
-
-    def _get_version_info(
-        self, version: Optional[str], use_cache: bool
-    ) -> tuple[str, Optional[str], str]:
-        """Determine target version and fetch version info."""
-        licenses_json_path = self._get_cache_path(CACHE_LICENSES_JSON)
-        latest_version = None
-        release_date = None
-        data_source = "remote"
-
-        if use_cache and self._is_cache_valid(licenses_json_path, EXPIRY_LICENSES_JSON):
-            try:
-                with open(licenses_json_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    latest_version = data.get("licenseListVersion")
-                    release_date = data.get("releaseDate")
-                    data_source = "cache"
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        if not latest_version:
-            try:
-                print(f"Fetching latest license list info from {LICENSES_JSON_URL}...")
-                resp = requests.get(LICENSES_JSON_URL, timeout=30)
-                resp.raise_for_status()
-                data = resp.json()
-                latest_version = data.get("licenseListVersion")
-                release_date = data.get("releaseDate")
-                with open(licenses_json_path, "w", encoding="utf-8") as f:
-                    json.dump(data, f)
-                data_source = "remote"
-            except requests.RequestException as e:
-                if not version:
-                    raise RuntimeError(
-                        f"Failed to fetch latest license list info: {e}"
-                    ) from e
-                print(f"Warning: Failed to fetch {LICENSES_JSON_URL}: {e}")
-                latest_version = version
-
-        return version or latest_version, release_date, data_source
-
-    def _get_tarball_path(self, version: str, use_cache: bool) -> tuple[Path, str]:
-        """Download or retrieve the SPDX License List tarball path."""
-        tar_filename = CACHE_SPDX_TARBALL_TEMPLATE.format(version=version)
-        tar_cache_path = self._get_cache_path(tar_filename)
-        data_source = "remote"
-
-        if not (use_cache and tar_cache_path.exists()):
-            tar_url = (
-                "https://github.com/spdx/license-list-data/archive/"
-                f"refs/tags/v{version}.tar.gz"
-            )
-            print(f"Downloading release: {tar_url}")
-            try:
-                resp = requests.get(tar_url, stream=True, timeout=60)
-                resp.raise_for_status()
-                with open(tar_cache_path, "wb") as f:
-                    for chunk in resp.iter_content(chunk_size=8192):
-                        f.write(chunk)
-            except requests.RequestException as e:
-                raise RuntimeError(f"Error downloading {tar_url}: {e}") from e
-        else:
-            data_source = "cache"
-
-        return tar_cache_path, data_source
 
     def update_from_remote(
         self,
@@ -264,8 +232,8 @@ class LicenseDatabase:
         """
 
         # 1. Version check
-        target_version, release_date, ds_licenses = self._get_version_info(
-            version, use_cache
+        target_version, release_date, ds_licenses = spdx_source.get_version_info(
+            self.db_path.parent, version, use_cache
         )
         print(f"Target SPDX License List version: {target_version}")
 
@@ -277,18 +245,24 @@ class LicenseDatabase:
         print(f"Updating license database to version {target_version}...")
 
         # 2. Fetch Popularity Data
-        pop_cache_path = self._get_cache_path(CACHE_POPULARITY_CSV)
+        pop_cache_path = self._get_cache_path(spdx_source.CACHE_POPULARITY_CSV)
         ds_pop = "remote"
-        if use_cache and self._is_cache_valid(pop_cache_path, EXPIRY_POPULARITY_CSV):
-            popularity_map = self._fetch_popularity_data(pop_cache_path)
+        if use_cache and spdx_source.is_cache_valid(
+            pop_cache_path, spdx_source.EXPIRY_POPULARITY_CSV
+        ):
+            popularity_map = spdx_source.fetch_popularity_data(
+                self.db_path.parent, pop_cache_path
+            )
             ds_pop = "cache"
         else:
-            popularity_map = self._fetch_popularity_data()
+            popularity_map = spdx_source.fetch_popularity_data(self.db_path.parent)
             if popularity_map:
                 ds_pop = "remote"
 
         # 3. Fetch SPDX tarball
-        tar_cache_path, ds_tar = self._get_tarball_path(target_version, use_cache)
+        tar_cache_path, ds_tar = spdx_source.get_tarball_path(
+            self.db_path.parent, target_version, use_cache
+        )
 
         # Report sources
         print("Data sources:")
@@ -358,6 +332,35 @@ class LicenseDatabase:
         exceptions_data: list[SpdxExceptionEntry],
     ) -> None:
         """Execute database delete and insert operations."""
+        license_records, index_records, exception_records = (
+            self._prepare_license_and_exception_records(
+                licenses_data, root_dir, popularity_map, exceptions_data
+            )
+        )
+        self._write_db_records(
+            license_records,
+            index_records,
+            exception_records,
+            list_version,
+            release_date,
+        )
+
+        # Compute fingerprints in a separate transaction so that the FTS5
+        # virtual table is fully committed and readable before we scan it.
+        self._compute_fingerprints()
+
+    def _prepare_license_and_exception_records(
+        self,
+        licenses_data: list[SpdxLicenseEntry],
+        root_dir: Path,
+        popularity_map: dict[str, int],
+        exceptions_data: list[SpdxExceptionEntry],
+    ) -> tuple[
+        list[_LicenseInsertRecord],
+        list[_IndexInsertRecord],
+        list[tuple[str, str, bool, Optional[str]]],
+    ]:
+        """Build the in-memory record lists for insertion (no DB access)."""
         license_records: list[_LicenseInsertRecord] = []
         index_records: list[_IndexInsertRecord] = []
         exception_records: list[tuple[str, str, bool, Optional[str]]] = []
@@ -400,10 +403,11 @@ class LicenseDatabase:
             elif is_deprecated:
                 # Text file absent for this deprecated ID (some SPDX releases omit
                 # them).  Still store the metadata row so redirect lookups work.
+                dep_name = lic.get("name", lic["licenseId"])
                 license_records.append(
                     (
                         lic["licenseId"],
-                        lic.get("name", lic["licenseId"]),
+                        dep_name,
                         None,  # xml_template
                         True,  # is_spdx
                         False,  # is_osi_approved
@@ -413,6 +417,8 @@ class LicenseDatabase:
                         superseded_by,
                         1,  # pop_score
                         0,  # word_count
+                        normalize_text(lic["licenseId"]),
+                        normalize_text(dep_name),
                     )
                 )
                 # Not added to index_records — no text to index.
@@ -437,6 +443,17 @@ class LicenseDatabase:
                 )
             )
 
+        return license_records, index_records, exception_records
+
+    def _write_db_records(
+        self,
+        license_records: list[_LicenseInsertRecord],
+        index_records: list[_IndexInsertRecord],
+        exception_records: list[tuple[str, str, bool, Optional[str]]],
+        list_version: str,
+        release_date: Optional[str],
+    ) -> None:
+        """Replace all license/exception/metadata rows in a single transaction."""
         print(f"\nInserting {len(license_records)} records into database...")
         with self._connect() as conn:
             conn.execute("PRAGMA journal_mode = WAL")
@@ -455,6 +472,7 @@ class LicenseDatabase:
                     ("release_date", release_date or ""),
                     ("last_check_datetime", now),
                     ("last_update_datetime", now),
+                    ("normalization_version", NORMALIZATION_VERSION),
                 ]
                 conn.executemany(
                     "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
@@ -467,8 +485,9 @@ class LicenseDatabase:
                         license_id, name, xml_template, is_spdx,
                         is_osi_approved, is_fsf_libre, is_high_usage,
                         is_deprecated, superseded_by,
-                        pop_score, word_count
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        pop_score, word_count,
+                        norm_license_id, norm_name
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     license_records,
                 )
@@ -486,10 +505,6 @@ class LicenseDatabase:
             except Exception:
                 conn.execute("ROLLBACK")
                 raise
-
-        # Compute fingerprints in a separate transaction so that the FTS5
-        # virtual table is fully committed and readable before we scan it.
-        self._compute_fingerprints()
 
     def _prepare_license_record(
         self,
@@ -526,9 +541,10 @@ class LicenseDatabase:
         # High usage: OSI, FSF, or significant popularity
         is_high_usage = is_osi or is_fsf or pop_score > 500
 
+        name = lic.get("name", "")
         license_record: _LicenseInsertRecord = (
             license_id,
-            lic.get("name", ""),
+            name,
             xml_content,
             True,  # is_spdx
             is_osi,
@@ -538,59 +554,11 @@ class LicenseDatabase:
             superseded_by,
             pop_score,
             word_count,
+            normalize_text(license_id),
+            normalize_text(name),
         )
         index_record: _IndexInsertRecord = (license_id, fingerprint)
         return license_record, index_record
-
-    def _fetch_popularity_data(
-        self, local_path: Optional[Path] = None
-    ) -> dict[str, int]:
-        """Fetch and aggregate popularity data from GitHub Innovation Graph."""
-        popularity_map: dict[str, int] = {}
-        csv_content = ""
-
-        if local_path:
-            try:
-                with open(local_path, "r", encoding="utf-8") as f:
-                    csv_content = f.read()
-            except OSError as e:
-                print(f"Warning: Failed to read local popularity data: {e}")
-
-        if not csv_content:
-            print(f"Downloading popularity data: {POPULARITY_DATA_URL}")
-            try:
-                resp = requests.get(POPULARITY_DATA_URL, timeout=30)
-                resp.raise_for_status()
-                csv_content = resp.text
-                # Save to cache
-                pop_cache_path = self._get_cache_path(CACHE_POPULARITY_CSV)
-                with open(pop_cache_path, "w", encoding="utf-8") as f:
-                    f.write(csv_content)
-            except requests.RequestException as e:
-                print(f"Warning: Failed to fetch popularity data: {e}")
-                return {}
-
-        try:
-            content = io.StringIO(csv_content)
-            reader = csv.DictReader(content)
-
-            for row in reader:
-                spdx_id = row.get("spdx_license")
-                if not spdx_id or spdx_id == "NOASSERTION":
-                    continue
-
-                try:
-                    count = int(row.get("num_pushers", 0))
-                except ValueError:
-                    count = 0
-
-                popularity_map[spdx_id] = popularity_map.get(spdx_id, 0) + count
-
-            print(f"Aggregated popularity data for {len(popularity_map)} licenses.")
-        except (csv.Error, ValueError) as e:
-            print(f"Warning: Failed to parse popularity data: {e}")
-
-        return popularity_map
 
     def _create_fingerprint(self, text: str, xml_content: Optional[str] = None) -> str:
         """Create a search fingerprint by removing optional parts and normalizing."""
@@ -722,9 +690,23 @@ class LicenseDatabase:
                 return {}
         return {row[0]: row[1] for row in rows}
 
-    def search_candidates(self, text: str, limit: int = 50) -> list[CandidateMatch]:
-        """Tier 1: Search for candidates using trigram FTS5."""
-        norm_text = normalize_text(text)
+    def search_candidates(
+        self,
+        text: str,
+        limit: int = 50,
+        already_normalized: bool = False,
+    ) -> list[CandidateMatch]:
+        """Tier 1: Search for candidates using trigram FTS5.
+
+        Set already_normalized=True when the caller has already run
+        normalize_text() on the full original text and is passing a slice of
+        the result (e.g. a head/tail word-count window): re-normalizing a
+        slice can behave differently from normalizing the full text once
+        (line-anchored rules like copyright-notice removal need real line
+        breaks, which a slice reconstructed by joining words with spaces no
+        longer has).
+        """
+        norm_text = text if already_normalized else normalize_text(text)
         # Build an OR query from the first 20 normalised words.  Using OR
         # maximises recall: a candidate matches if it contains any of the
         # terms, not all of them.  FTS5 BM25 ranking still promotes documents
@@ -868,18 +850,53 @@ class LicenseDatabase:
             ).fetchone()
             return row[0] if row else ""
 
+    def _ensure_norm_columns(self) -> None:
+        """Backfill norm_license_id/norm_name for rows that predate this
+        schema addition (on-disk DBs migrated by _init_db) or bypass the
+        normal insert path (e.g. a benchmark harness inserting directly
+        into 'licenses').  Idempotent per instance: after the first
+        successful check/backfill, later calls are a no-op.
+        """
+        if self._norm_cols_backfilled:
+            return
+        with self._connect() as conn:
+            missing = conn.execute(
+                "SELECT license_id, name FROM licenses WHERE norm_license_id IS NULL"
+            ).fetchall()
+            if missing:
+                updates = [
+                    (normalize_text(lid), normalize_text(name or ""), lid)
+                    for lid, name in missing
+                ]
+                conn.execute("BEGIN TRANSACTION")
+                try:
+                    conn.executemany(
+                        "UPDATE licenses SET norm_license_id = ?, norm_name = ?"
+                        " WHERE license_id = ?",
+                        updates,
+                    )
+                    conn.execute("COMMIT")
+                except Exception:
+                    conn.execute("ROLLBACK")
+                    raise
+        self._norm_cols_backfilled = True
+
     def get_all_names_and_ids(self) -> list[LicenseNameId]:
         """Retrieve all license IDs and names for short-text matching."""
+        self._ensure_norm_columns()
         with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute(
-                "SELECT license_id, name, is_deprecated FROM licenses"
+                "SELECT license_id, name, is_deprecated,"
+                " norm_license_id, norm_name FROM licenses"
             )
             return [
                 LicenseNameId(
                     license_id=row["license_id"],
                     name=row["name"],
                     is_deprecated=bool(row["is_deprecated"]),
+                    norm_license_id=row["norm_license_id"],
+                    norm_name=row["norm_name"],
                 )
                 for row in cursor.fetchall()
             ]
