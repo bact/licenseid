@@ -307,17 +307,32 @@ class AggregatedLicenseMatcher:
         # inputs where license text is wrapped in // / # / * comment markers.
         text = self._strip_comment_prefixes(text)
 
+        # Normalize the full text once, up front, before any word-count
+        # slicing.  normalize_text() applies several line-anchored rules
+        # (copyright-notice removal, bullets, comment prefixes, separator
+        # runs) that only fire correctly with real line breaks intact.
+        # Slicing raw words first and rejoining them with spaces (the
+        # previous approach) destroyed that line structure before
+        # normalization ever ran, so the query-side text silently skipped
+        # rules that index-side normalization (run on the untouched
+        # original text in database.py) had already applied — producing
+        # FTS5 OR-terms for words that no longer exist in the indexed
+        # document.  Normalizing here keeps query-side and index-side
+        # normalization consistent.
+        norm_text = normalize_text(text)
+
         # Tier 1: Retrieval
-        # search_candidates builds an OR query from the first 20 normalised
-        # words of whatever text it receives (see database.py).  The caps
-        # below control which words those are:
+        # search_candidates builds an OR query from the first 20 words of
+        # whatever it receives (see database.py).  The caps below control
+        # which normalised words those are:
         #
-        #   Head query: pass words[:100] so search_candidates uses words 0–19
-        #     (the preamble/title, which is highly distinctive).  The 100-word
-        #     buffer leaves room if the OR-term limit is raised again later.
+        #   Head query: pass norm_words[:100] so search_candidates uses
+        #     words 0–19 (the preamble/title, which is highly distinctive).
+        #     The 100-word buffer leaves room if the OR-term limit is raised
+        #     again later.
         #
-        #   Tail query: pass words[-20:] — exactly the last 20 words — so
-        #     search_candidates uses words -20 to -1 (the true end of the
+        #   Tail query: pass norm_words[-20:] — exactly the last 20 words —
+        #     so search_candidates uses words -20 to -1 (the true end of the
         #     document: warranty disclaimer, governing-law clause, etc.).
         #     Benchmarks showed that passing words[-120:] was wrong: FTS5 only
         #     saw words -120 to -101, which are mid-text and less distinctive
@@ -338,19 +353,30 @@ class AggregatedLicenseMatcher:
         # distinctive tail-only candidates and discards the rest, which are
         # largely generic vocabulary shared across many licences.
         # The cap does not affect the head set (always up to 50).
+        #
+        # These thresholds (100/200/50/25/20) were originally tuned against
+        # raw word counts; they now slice normalised word counts instead,
+        # which are usually somewhat shorter (copyright/comment/bullet noise
+        # removed) — re-validate via bench_compare after this change.
         _TAIL_ONLY_CAP = 25
-        words = text.split()
+        norm_words = norm_text.split()
         raw_candidates: list[CandidateMatch] = []
-        if len(words) > 100:
-            head_query = " ".join(words[:100])
-            raw_candidates = list(self.db.search_candidates(head_query, limit=50))
-            if len(words) > 200:
-                tail_query = " ".join(words[-20:])
+        if len(norm_words) > 100:
+            head_query = " ".join(norm_words[:100])
+            raw_candidates = list(
+                self.db.search_candidates(
+                    head_query, limit=50, already_normalized=True
+                )
+            )
+            if len(norm_words) > 200:
+                tail_query = " ".join(norm_words[-20:])
                 seen_ids = {
                     c["license_id"] for c in raw_candidates if c.get("license_id")
                 }
                 tail_only_added = 0
-                for c in self.db.search_candidates(tail_query, limit=50):
+                for c in self.db.search_candidates(
+                    tail_query, limit=50, already_normalized=True
+                ):
                     if tail_only_added >= _TAIL_ONLY_CAP:
                         break
                     if c.get("license_id") not in seen_ids:
@@ -358,7 +384,9 @@ class AggregatedLicenseMatcher:
                         seen_ids.add(c["license_id"])
                         tail_only_added += 1
         else:
-            raw_candidates = list(self.db.search_candidates(text, limit=50))
+            raw_candidates = list(
+                self.db.search_candidates(norm_text, limit=50, already_normalized=True)
+            )
 
         filtered: list[CandidateMatch] = []
         for cand in raw_candidates:
@@ -806,11 +834,12 @@ class AggregatedLicenseMatcher:
 
         for meta in all_metadata:
             lid = meta["license_id"]
-            name = meta["name"]
+            id_norm = meta["norm_license_id"]
+            name_norm = meta["norm_name"]
 
             # Case-fold exact ID match: return immediately with a score > 1.0
             # so the Tier 0 caller recognises it as a definitive hit.
-            if normalize_text(lid).upper() == norm_upper:
+            if id_norm.upper() == norm_upper:
                 return [
                     LicenseMatch(
                         license_id=lid,
@@ -820,15 +849,20 @@ class AggregatedLicenseMatcher:
                     )
                 ]
 
-            id_norm = normalize_text(lid)
-            score_id = fuzz.ratio(norm_input, id_norm)
-            score_id_partial = (
-                fuzz.partial_ratio(norm_input, id_norm) if len(words) == 1 else 0
-            )
-
-            name_norm = normalize_text(name)
-            score_name_exact = fuzz.ratio(norm_input, name_norm)
-            score_name_flex = fuzz.token_set_ratio(norm_input, name_norm)
+            if norm_input == name_norm:
+                # Exact name match: id_norm was already ruled out above, so
+                # the RapidFuzz scores are known without computing them.
+                score_id = 0.0
+                score_id_partial = 0.0
+                score_name_exact = 100.0
+                score_name_flex = 100.0
+            else:
+                score_id = fuzz.ratio(norm_input, id_norm)
+                score_id_partial = (
+                    fuzz.partial_ratio(norm_input, id_norm) if len(words) == 1 else 0
+                )
+                score_name_exact = fuzz.ratio(norm_input, name_norm)
+                score_name_flex = fuzz.token_set_ratio(norm_input, name_norm)
 
             best_raw = max(
                 score_id, score_name_exact, score_name_flex, score_id_partial
