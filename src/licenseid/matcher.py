@@ -358,9 +358,7 @@ class AggregatedLicenseMatcher:
         if len(norm_words) > 100:
             head_query = " ".join(norm_words[:100])
             raw_candidates = list(
-                self.db.search_candidates(
-                    head_query, limit=50, already_normalized=True
-                )
+                self.db.search_candidates(head_query, limit=50, already_normalized=True)
             )
             if len(norm_words) > 200:
                 tail_query = " ".join(norm_words[-20:])
@@ -556,7 +554,6 @@ class AggregatedLicenseMatcher:
 
         ranked.sort(key=sort_key)
         return ranked
-
 
     def _apply_version_suffix_tiebreaker(
         self,

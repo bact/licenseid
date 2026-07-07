@@ -107,9 +107,7 @@ def is_pure_license_text(file_path: Optional[str], text: str) -> bool:
         return False
 
     md_headers = [line for line in text.splitlines() if _RE_MD_HEADER.match(line)]
-    if len(md_headers) > 3 or any(
-        _RE_NON_LICENSE_SECTION.match(h) for h in md_headers
-    ):
+    if len(md_headers) > 3 or any(_RE_NON_LICENSE_SECTION.match(h) for h in md_headers):
         return False
 
     # Positive indicators: numbered sections or known preamble.

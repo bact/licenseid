@@ -7,6 +7,8 @@
 Unit tests for license text normalization logic.
 """
 
+import pytest
+
 from licenseid import normalize as normalize_module
 from licenseid.normalize import normalize_text
 
@@ -44,10 +46,7 @@ def test_normalize_url() -> None:
 def test_normalize_varietal_words() -> None:
     """Guideline 7: variant spellings map to their canonical form."""
     assert normalize_text("This Licence is granted") == "this license is granted"
-    assert (
-        normalize_text("the copyright owner grants")
-        == "the copyright holder grants"
-    )
+    assert normalize_text("the copyright owner grants") == "the copyright holder grants"
     assert normalize_text("sub-license the work") == "sublicense the work"
     assert normalize_text("per cent of the fee") == "percent of the fee"
     assert normalize_text("free of charge & use") == "free of charge and use"
@@ -74,7 +73,9 @@ def test_normalize_copyright_notice_kept_by_default() -> None:
     assert normalize_text(text) == expected
 
 
-def test_normalize_copyright_notice_when_enabled(monkeypatch) -> None:
+def test_normalize_copyright_notice_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Guideline 9: when enabled, copyright notice lines are removed."""
     monkeypatch.setattr(normalize_module, "_STRIP_COPYRIGHT_NOTICE", True)
     text = "Copyright (c) 2024 Example Corp\nPermission is hereby granted"
@@ -83,7 +84,9 @@ def test_normalize_copyright_notice_when_enabled(monkeypatch) -> None:
     assert normalize_text(text) == "the software is provided as is"
 
 
-def test_normalize_copyright_body_text_kept_when_enabled(monkeypatch) -> None:
+def test_normalize_copyright_body_text_kept_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """When enabled, lines merely containing the word 'copyright' without a
     notice cue (digit, symbol, <year>) nearby are NOT removed."""
     monkeypatch.setattr(normalize_module, "_STRIP_COPYRIGHT_NOTICE", True)

@@ -39,9 +39,7 @@ _NON_WORD: Final = re.compile(r"[^\w\s]")
 # second call to normalize_text() to behave differently from the first
 # (non-idempotent).  Folding hyphens to spaces here, before varietal
 # matching runs, keeps normalize_text() idempotent.
-_DASHES: Final = re.compile(
-    r"[‐‑‒–—―−﹘﹣－-]"
-)
+_DASHES: Final = re.compile(r"[‐‑‒–—―−﹘﹣－-]")
 
 # Guideline 4 (quotes): any variation of quotations is considered
 # equivalent.  Normalise to ASCII single quote before stripping punctuation.
@@ -99,6 +97,7 @@ def strip_comment_prefixes(text: str) -> str:
     stripped = _LINE_COMMENT_PREFIX.sub("", text)
     stripped = _BLOCK_COMMENT_CLOSER.sub("", stripped)
     return stripped
+
 
 # Guideline 5b: runs of 3+ identical non-alphanumeric characters used as
 # visual separators (---, ===, ***, ___) carry no meaning.
@@ -176,9 +175,7 @@ _VARIETAL_WORDS: Final[dict[str, str]] = {
 # also anchors correctly.
 _VARIETAL_RE: Final = re.compile(
     r"(?<!\w)(?:"
-    + "|".join(
-        re.escape(v) for v in sorted(_VARIETAL_WORDS, key=len, reverse=True)
-    )
+    + "|".join(re.escape(v) for v in sorted(_VARIETAL_WORDS, key=len, reverse=True))
     + r")(?!\w)"
 )
 
