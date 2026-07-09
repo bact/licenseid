@@ -369,8 +369,8 @@ class MarkerDetector:
         BSD-2-Clause-Darwin whose FTS5 similarity may be higher.
         """
         conditions = re.findall(
-            # pylint: disable=line-too-long
-            r"^\s*(\d+)\.\s+(?:Redistribution|Neither\b|All\s+advertising|The\s+(?:name|author))",
+            r"^\s*(\d+)\.\s+(?:Redistribution|Neither\b|"
+            r"All\s+advertising|The\s+(?:name|author))",
             text,
             re.MULTILINE | re.IGNORECASE,
         )
