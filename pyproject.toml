@@ -103,7 +103,13 @@ warn_unreachable = true
 module = ["jpype", "jpype.*"]
 ignore_missing_imports = true
 
-[tool.pitloom.creator]
+[tool.hatch.build.hooks.pitloom]
+enabled = true
+
+[tool.pitloom]
+sbom-basename = "licenseid"
+
+[[tool.pitloom.creator]]
 name = "Arthit Suriyawongkul"
 email = "suriyawa@tcd.ie"
 
