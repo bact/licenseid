@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.28.0", "pitloom>=0.9.0"]
+requires = ["hatchling>=1.28.0", "pitloom>=0.11.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "licenseid"
-version = "0.2.3"
+version = "0.3.0"
 description = "Get the SPDX License ID from license text"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -17,6 +17,9 @@ keywords = [
     "license-matcher",
     "opensource",
     "licenseid",
+    "copyright",
+    "license-identifier",
+    "spdx-license-id",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -36,23 +39,23 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "beautifulsoup4>=4.14.3",
-    "click>=8.3.3",
+    "beautifulsoup4>=4.15.0",
+    "click>=8.4.2",
     "rapidfuzz>=3.14.5",
     "requests>=2.33.0",
-    "typing_extensions>=4.4.0",
+    "typing_extensions>=4.16.0",
 ]
 
 [project.optional-dependencies]
-java = ["jpype1>=1.7.0"]
+java = ["jpype1>=1.7.1"]
 
 [project.scripts]
 licenseid = "licenseid.cli:main"
 
 [dependency-groups]
-lint = ["flake8>=7.3.0", "pylint>=4.0.5", "ruff>=0.15.7"]
-test = ["coverage", "coveralls", "pytest>=9.0.2"]
-typecheck = ["mypy>=1.19.1", "types-requests>=2.33.0.20260408"]
+lint = ["flake8>=7.3.0", "pylint>=4.0.6", "ruff>=0.15.20"]
+test = ["coverage>=7.15.0", "coveralls>=4.1.0", "pytest>=9.1.1"]
+typecheck = ["mypy>=1.20.2", "types-requests>=2.33.0.20260518"]
 dev = [
     { include-group = "lint" },
     { include-group = "test" },
@@ -75,9 +78,6 @@ show_missing = true
 branch = true
 source = ["licenseid"]
 
-[tool.hatch.build.hooks.pitloom]
-creator-name = "Arthit Suriyawongkul"
-
 [tool.hatch.build.targets.sdist]
 exclude = ["AGENTS.md", "GEMINI.md", "tests/fixtures/**", "scripts/**"]
 
@@ -99,6 +99,10 @@ warn_unreachable = true
 [[tool.mypy.overrides]]
 module = ["jpype", "jpype.*"]
 ignore_missing_imports = true
+
+[tool.pitloom.creator]
+name = "Arthit Suriyawongkul"
+email = "suriyawa@tcd.ie"
 
 [tool.pylint.main]
 ignore = ["CVS"]
