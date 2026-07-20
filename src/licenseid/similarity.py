@@ -57,6 +57,19 @@ def fragment_similarity(
     full O(q x c) scan.  Candidates that pass get a single alignment
     pass (score + window in one scan) followed by a token_sort_ratio
     re-score of the aligned window.
+
+    Do NOT pass score_cutoff=60 to the alignment call below as a "free"
+    speedup (tried and reverted): it makes RapidFuzz return None -- and
+    this function flatten the score to a bare 0.0 -- for every candidate
+    that doesn't clear 60, rather than their true score.  That looks safe
+    (candidates below 0.6 never win the top rank) but isn't: for heavily
+    distorted input the TRUE match itself often legitimately scores below
+    60, and flattening its score to 0.0 destroys its ranking relative to
+    every other sub-60 candidate, which now also reads as 0.0.  Full
+    bench_compare caught this as a real regression concentrated exactly
+    where predicted -- the heaviest-distortion tier and mixed-content
+    fixtures -- down up to -7.93 pts at deeper Recall@N, while low/no
+    distortion stayed at +0.00. Confirmed by reverting: regression gone.
     """
     if probe is not None:
         probe_score = fuzz.partial_ratio(probe, search_text) / 100.0
