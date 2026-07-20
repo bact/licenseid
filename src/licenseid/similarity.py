@@ -28,6 +28,7 @@ from licenseid.types import CandidateMatch, InternalMatch
 PROBE_WORDS: int = 60  # probe sample size (words, taken from query middle)
 PROBE_GATE: float = 0.52  # min probe score to run the full alignment scan
 
+
 def build_probe(query_words: list[str]) -> Optional[str]:
     """Build the mid-query probe sample used by fragment_similarity().
 
