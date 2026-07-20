@@ -52,6 +52,14 @@ java = ["jpype1>=1.7.1"]
 [project.scripts]
 licenseid = "licenseid.cli:main"
 
+[project.urls]
+homepage = "https://pypi.org/project/licenseid/"
+source = "https://github.com/bact/licenseid.git"
+download = "https://github.com/bact/licenseid/releases"
+releasenotes = "https://github.com/bact/licenseid/releases"
+documentation = "https://github.com/bact/licenseid#readme"
+issues = "https://github.com/bact/licenseid/issues"
+
 [dependency-groups]
 lint = ["flake8>=7.3.0", "pylint>=4.0.6", "ruff>=0.15.20"]
 test = ["coverage>=7.15.0", "coveralls>=4.1.0", "pytest>=9.1.1"]

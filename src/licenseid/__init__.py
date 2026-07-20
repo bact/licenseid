@@ -7,7 +7,7 @@
 SPDX License ID matcher package.
 """
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.database import LicenseDatabase
