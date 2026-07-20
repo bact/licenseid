@@ -12,8 +12,6 @@ https://spdx.github.io/spdx-spec/v3.0.1/annexes/license-matching-guidelines-and-
 import re
 from typing import Final
 
-from bs4 import BeautifulSoup
-
 # Guideline 0 (practical): HTML detection heuristic.
 # Closing tags (</p>, </div>, ...) appear only in real HTML — unlike opening
 # tags, they are never used as plain-text placeholders such as <year> or
@@ -300,6 +298,11 @@ def normalize_text(text: str) -> str:
     # 1. HTML to plain text.  Newline separator preserves line structure for
     # the line-based rules below (copyright notices, comments, bullets).
     if _HTML_TAG.search(text):
+        # Local import: bs4 costs ~30ms at import time and is only needed
+        # for the (uncommon) HTML-input case, so it's not worth paying that
+        # cost on every normalize_text() call / CLI startup.
+        from bs4 import BeautifulSoup
+
         soup = BeautifulSoup(text, "html.parser")
         text = soup.get_text(separator="\n")
 

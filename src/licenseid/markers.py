@@ -410,17 +410,15 @@ class MarkerDetector:
             # Skip decorative separator lines (all "=", "-", "*", "#", or space)
             if not text or re.match(r"^[=\-*#\s]+$", text):
                 return None
-            # 1. Direct lookup
-            details = self.db.get_license_details(text) or self.db.get_license_by_name(
-                text
-            )
-            if details:
-                return details
-            # 2. Name variants (ID normalisation, suffix stripping)
+            # 1. Direct lookup + name variants (ID normalisation, suffix
+            # stripping).  _try_license_lookup's first variant is the exact
+            # input text, so it already covers the plain direct lookup --
+            # no need to query get_license_details/get_license_by_name
+            # separately first.
             details = self._try_license_lookup(text)
             if details:
                 return details
-            # 3. Extract "under X License" mention from the line
+            # 2. Extract "under X License" mention from the line
             mention = self._extract_mentioned_license(text)
             if mention:
                 return self._try_license_lookup(mention)
@@ -550,11 +548,10 @@ class MarkerDetector:
             clean_line = line.strip()
             if not clean_line:
                 continue
-            details = (
-                self.db.get_license_details(clean_line)
-                or self.db.get_license_by_name(clean_line)
-                or self._try_license_lookup(clean_line)
-            )
+            # _try_license_lookup's first variant is the exact input text,
+            # so it already covers a plain direct lookup -- no need to query
+            # get_license_details/get_license_by_name separately first.
+            details = self._try_license_lookup(clean_line)
             if details:
                 return [self.to_candidate(details, 0.85)]
             break
