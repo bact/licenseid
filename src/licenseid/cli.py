@@ -10,7 +10,7 @@ Command-line interface for the licenseid tool.
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 import click
 
@@ -52,7 +52,14 @@ def check_db_staleness(database: LicenseDatabase) -> None:
     if last_check:
         try:
             last_check_dt = datetime.fromisoformat(last_check)
-            days_old = (datetime.now() - last_check_dt).days
+            if last_check_dt.tzinfo is None:
+                # Databases written before this timestamp became
+                # tz-aware stored a naive local-time value; treat it as
+                # UTC rather than crashing on the subtraction below (this
+                # is only a rough 6-month staleness check, not something
+                # that needs to account for the original local offset).
+                last_check_dt = last_check_dt.replace(tzinfo=timezone.utc)
+            days_old = (datetime.now(timezone.utc) - last_check_dt).days
             if days_old > 182:  # Approx 6 months
                 click.echo(
                     f"WARNING: License database is {days_old} days old. "

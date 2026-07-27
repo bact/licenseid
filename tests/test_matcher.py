@@ -9,7 +9,7 @@
 import os
 import sqlite3
 import uuid
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 

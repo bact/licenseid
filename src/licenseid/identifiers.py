@@ -368,9 +368,7 @@ def _normalize_expression(expression: str, db: LicenseDatabase | None = None) ->
     for i, part in enumerate(normalized_tokens):
         if i == 0:
             expr = part
-        elif part == ")":
-            expr += part
-        elif normalized_tokens[i - 1] == "(":
+        elif part == ")" or normalized_tokens[i - 1] == "(":
             expr += part
         else:
             expr += " " + part

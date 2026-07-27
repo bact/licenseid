@@ -8,6 +8,7 @@ Type definitions for licenseid.
 """
 
 from typing import TypedDict
+
 from typing_extensions import Required
 
 

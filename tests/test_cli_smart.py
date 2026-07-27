@@ -8,7 +8,8 @@
 
 import sqlite3
 import uuid
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 
 import pytest
 from click.testing import CliRunner
@@ -35,8 +36,10 @@ def test_db() -> Generator[str, None, None]:
             "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
             (
                 "MIT",
-                "permission is hereby granted free of charge to any person "
-                "obtaining a copy",
+                (
+                    "permission is hereby granted free of charge to any person "
+                    "obtaining a copy"
+                ),
             ),
         )
         conn.execute(

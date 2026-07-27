@@ -175,3 +175,11 @@ markers = [
 extend-exclude = ["tests/fixtures/"]
 line-length = 88
 target-version = "py310"
+
+[tool.ruff.lint]
+# BLE001/S110: broad `except Exception` (bare or with a `pass` body) is used
+# deliberately here — CLI-boundary error handling and best-effort optional
+# integrations (Java/JPype consultation, speculative INI parsing) that must
+# degrade gracefully rather than propagate. Same stance as
+# `broad-exception-caught` in [tool.pylint.messages_control].
+ignore = ["BLE001", "S110"]

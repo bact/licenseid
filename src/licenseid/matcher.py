@@ -455,12 +455,15 @@ class AggregatedLicenseMatcher:
             # Filtering logic using pre-fetched metadata
             if only_spdx and not cand.get("is_spdx", False):
                 continue
-            if only_common and not cand.get("is_high_usage", False):
-                if not (
+            if (
+                only_common
+                and not cand.get("is_high_usage", False)
+                and not (
                     cand.get("is_osi_approved", False)
                     or cand.get("is_fsf_libre", False)
-                ):
-                    continue
+                )
+            ):
+                continue
 
             filtered.append(cand)
 

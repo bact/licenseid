@@ -15,7 +15,7 @@ import tarfile
 import tempfile
 import xml.etree.ElementTree as ET
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import cast
 
@@ -497,7 +497,7 @@ class LicenseDatabase:
                 conn.execute("DELETE FROM db_metadata")
                 conn.execute("DELETE FROM license_fingerprints")
 
-                now = datetime.now().isoformat()
+                now = datetime.now(timezone.utc).isoformat()
                 metadata_items: list[tuple[str, str]] = [
                     ("license_list_version", list_version),
                     ("release_date", release_date or ""),

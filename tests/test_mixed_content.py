@@ -9,8 +9,8 @@
 import json
 import sqlite3
 import uuid
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pytest
 
@@ -26,8 +26,7 @@ def test_db() -> Generator[str, None, None]:
     db_id = str(uuid.uuid4())[:8]
     db_path = f"file:test_real_{db_id}?mode=memory&cache=shared"
 
-    # pylint: disable=unused-variable
-    db_manager = LicenseDatabase(db_path)  # noqa: F841
+    db_manager = LicenseDatabase(db_path)  # pylint: disable=unused-variable # noqa: F841
     keep_alive = sqlite3.connect(db_path, uri=True)
 
     with sqlite3.connect(db_path, uri=True) as conn:

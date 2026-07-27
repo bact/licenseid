@@ -15,7 +15,7 @@ parsed data, so they can be reasoned about and tested without a database.
 import csv
 import io
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -39,8 +39,8 @@ def is_cache_valid(path: Path, days: int) -> bool:
     """Check if the cache file exists and is not older than 'days'."""
     if not path.exists():
         return False
-    mtime = datetime.fromtimestamp(path.stat().st_mtime)
-    return datetime.now() - mtime < timedelta(days=days)
+    mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+    return datetime.now(timezone.utc) - mtime < timedelta(days=days)
 
 
 def get_version_info(
@@ -102,8 +102,7 @@ def get_tarball_path(
             resp = requests.get(tar_url, stream=True, timeout=60)
             resp.raise_for_status()
             with open(tar_cache_path, "wb") as f:
-                for chunk in resp.iter_content(chunk_size=8192):
-                    f.write(chunk)
+                f.writelines(resp.iter_content(chunk_size=8192))
         except requests.RequestException as e:
             raise RuntimeError(f"Error downloading {tar_url}: {e}") from e
     else:

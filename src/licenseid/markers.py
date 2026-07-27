@@ -290,17 +290,23 @@ class MarkerDetector:
             # "or later" but is not the grant itself, ignore the signal.
             if or_later:
                 # 1. Check Appendix
-                if appendix_start != -1 and m.start() > appendix_start:
-                    if "one line to give the program's name" in window.lower():
-                        or_later = False
+                if (
+                    appendix_start != -1
+                    and m.start() > appendix_start
+                    and "one line to give the program's name" in window.lower()
+                ):
+                    or_later = False
 
                 # 2. Check Terms Explanation (Section 9/14)
-                if or_later and terms_explanation != -1:
-                    # If the match is within a reasonable distance of the terms
-                    # explanation (e.g. within the same paragraph),
-                    # it's likely just the terms.
-                    if abs(m.start() - terms_explanation) < 500:
-                        or_later = False
+                # If the match is within a reasonable distance of the terms
+                # explanation (e.g. within the same paragraph), it's likely
+                # just the terms.
+                if (
+                    or_later
+                    and terms_explanation != -1
+                    and abs(m.start() - terms_explanation) < 500
+                ):
+                    or_later = False
 
             if "lesser" in modifier or "library" in modifier:
                 family = "LGPL"
@@ -533,11 +539,12 @@ class MarkerDetector:
             line + "\n" + lines[i + 1]
         ):
             return True
-        if 0 < i < len(lines) - 1 and self._RE_BOX_HEADING.match(
-            lines[i - 1] + "\n" + line + "\n" + lines[i + 1]
-        ):
-            return True
-        return False
+        return bool(
+            0 < i < len(lines) - 1
+            and self._RE_BOX_HEADING.match(
+                lines[i - 1] + "\n" + line + "\n" + lines[i + 1]
+            )
+        )
 
     def _detect_first_line(self, text: str) -> list[CandidateMatch]:
         """Check if the first non-empty line is a known license ID or name."""
