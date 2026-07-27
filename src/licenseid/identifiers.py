@@ -339,6 +339,11 @@ def _canonicalize_expression(expr: str) -> str:
     license/exception list is a point-in-time snapshot that can lag behind
     this project's live-downloaded database. Any failure here just means the
     string keeps its original (non-deduplicated, non-reordered) form.
+
+    The ``"+"`` limitation is tracked upstream at
+    https://github.com/JPEWdev/py-spdx-license/issues/1 — once it's natively
+    supported there, this fallback (and CDDL-1.0-style test cases) can be
+    revisited.
     """
     try:
         ast = py_spdx_license.parse(expr, allow_unknown=True)
