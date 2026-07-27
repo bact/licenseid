@@ -301,21 +301,27 @@ def _tokenize_expression(expression: str) -> list[str]:
 
 
 def _is_expression(identifier: str) -> bool:
-    """True if *identifier* is a real multi-part SPDX expression — contains
-    AND/OR/WITH as a genuine operator, ``+``, or parentheses — rather than a
-    single plain ID.
+    """True if *identifier* is a real SPDX expression — contains AND/OR/WITH
+    as a genuine operator, ``+``, or parentheses — rather than a single
+    plain ID or unrecognised garbage.
 
     A plain substring check (e.g. ``"OR" in identifier.upper()``) misfires
     on single IDs that happen to contain "and"/"or"/"with" inside their own
     name (``GPL-2.0-or-later``, or a LicenseRef name like
     ``LicenseRef-BRANDing-1.0``). Tokenizing first avoids that: such names
     always come back as a single token.
+
+    Checking for *any* reserved token — not just "more than one token" —
+    also keeps malformed multi-word input with no real operator (e.g.
+    ``"n M z"``, or whitespace-/symbol-only garbage, which tokenizes to
+    zero tokens) on the single-ID passthrough path, matching the previous
+    substring-check behaviour, rather than having it silently reformatted
+    (or reduced to "") by ``_normalize_expression``.
     """
-    tokens = _tokenize_expression(identifier)
-    if len(tokens) != 1:
-        return True
-    token = tokens[0]
-    return token in ("(", ")") or token.upper() in ("AND", "OR", "WITH")
+    return any(
+        token in ("(", ")", "+") or token.upper() in ("AND", "OR", "WITH")
+        for token in _tokenize_expression(identifier)
+    )
 
 
 def _normalize_expression(expression: str, db: Optional[LicenseDatabase] = None) -> str:

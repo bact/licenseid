@@ -165,6 +165,13 @@ def test_normalize_expression_does_not_split_embedded_operator_words(
         ("GPL-2.0-or-later", False),
         ("GPL-2.0-with-font-exception", False),
         ("LicenseRef-BRANDing-1.0", False),
+        # malformed multi-word garbage with no genuine reserved token: not
+        # an expression either — must stay on the single-ID passthrough
+        # path rather than being reformatted by _normalize_expression.
+        ("n M z", False),
+        ("   ", False),
+        ("***", False),
+        ("", False),
         # real expressions: genuine operators, "+", or parentheses.
         ("MIT AND Apache-2.0", True),
         ("MIT OR Apache-2.0", True),
@@ -177,8 +184,21 @@ def test_is_expression(identifier: str, expected: bool) -> None:
     """_is_expression must not misfire on single IDs containing "and"/"or"/
     "with" as a substring (regression: normalize_identifier's top-level
     dispatch used to do a plain substring check, routing such IDs through
-    the full expression-normalisation pipeline unnecessarily)."""
+    the full expression-normalisation pipeline unnecessarily), nor on
+    malformed input with no genuine reserved token at all (regression:
+    an early version of the tokenizer-based fix treated "more than one
+    token" as sufficient, which misfired on garbage like "n M z" or
+    whitespace-only input)."""
     assert _is_expression(identifier) is expected
+
+
+def test_normalize_identifier_garbage_passthrough(db: LicenseDatabase) -> None:
+    """Whitespace-only, symbol-only, or otherwise unrecognised input passes
+    through unchanged rather than being reformatted or emptied out by
+    _normalize_expression."""
+    assert normalize_identifier("   ", db) == "   "
+    assert normalize_identifier("***", db) == "***"
+    assert normalize_identifier("n M z", db) == "n M z"
 
 
 def test_normalize_expression_dedup(db: LicenseDatabase) -> None:
