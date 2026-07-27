@@ -16,7 +16,6 @@ which AggregatedLicenseMatcher uses to choose a matching strategy.
 
 import os
 import re
-from typing import Optional
 
 # Detects -or-later granting language in mixed/source-file contexts.
 # Allows for comment characters (// # * ;) between "or" and
@@ -74,7 +73,7 @@ def has_or_later_language(text: str) -> bool:
     return bool(_RE_OR_LATER.search(text))
 
 
-def is_pure_license_text(file_path: Optional[str], text: str) -> bool:
+def is_pure_license_text(file_path: str | None, text: str) -> bool:
     """Return True if the content appears to be a standalone
     license document.
 

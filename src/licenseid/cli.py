@@ -10,8 +10,7 @@ Command-line interface for the licenseid tool.
 import json
 import os
 import sys
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
 
 import click
 
@@ -53,7 +52,14 @@ def check_db_staleness(database: LicenseDatabase) -> None:
     if last_check:
         try:
             last_check_dt = datetime.fromisoformat(last_check)
-            days_old = (datetime.now() - last_check_dt).days
+            if last_check_dt.tzinfo is None:
+                # Databases written before this timestamp became
+                # tz-aware stored a naive local-time value; treat it as
+                # UTC rather than crashing on the subtraction below (this
+                # is only a rough 6-month staleness check, not something
+                # that needs to account for the original local offset).
+                last_check_dt = last_check_dt.replace(tzinfo=timezone.utc)
+            days_old = (datetime.now(timezone.utc) - last_check_dt).days
             if days_old > 182:  # Approx 6 months
                 click.echo(
                     f"WARNING: License database is {days_old} days old. "
@@ -68,7 +74,7 @@ def check_db_staleness(database: LicenseDatabase) -> None:
 @click.option("--db", help="Path to the license database.")
 @click.option("--clear-cache", is_flag=True, help="Clear local cache and exit.")
 @click.pass_context
-def cli(ctx: click.Context, db: Optional[str], clear_cache: bool) -> None:
+def cli(ctx: click.Context, db: str | None, clear_cache: bool) -> None:
     """SPDX License ID matcher tool."""
     db_path = db or get_default_db_path()
     ctx.ensure_object(dict)
@@ -96,7 +102,7 @@ def cli(ctx: click.Context, db: Optional[str], clear_cache: bool) -> None:
 @click.pass_context
 def update(
     ctx: click.Context,
-    version: Optional[str],
+    version: str | None,
     force: bool,
     use_cache: bool,
 ) -> None:
@@ -131,9 +137,7 @@ def is_sqlite_uri(path: str) -> bool:
     return path.startswith("file:") or ":memory:" in path
 
 
-def get_input_content(
-    input_val: Optional[str], text: Optional[str]
-) -> tuple[str, bool]:
+def get_input_content(input_val: str | None, text: str | None) -> tuple[str, bool]:
     """
     Get input content and indicate if it's likely a file path/text vs an ID.
     Returns (content, is_text_or_file).
@@ -152,10 +156,10 @@ def get_input_content(
 
 def resolve_license_record(
     ctx: click.Context,
-    input_val: Optional[str],
-    text: Optional[str],
-    id_val: Optional[str] = None,
-) -> Optional[LicenseDetails]:
+    input_val: str | None,
+    text: str | None,
+    id_val: str | None = None,
+) -> LicenseDetails | None:
     """Helper to resolve a license from CLI arguments (implements Smart Logic)."""
     db_path = ctx.obj["db_path"]
     if not os.path.exists(db_path) and not is_sqlite_uri(db_path):
@@ -224,9 +228,9 @@ def resolve_license_record(
 @click.pass_context
 def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     ctx: click.Context,
-    input_val: Optional[str],
-    text: Optional[str],
-    id_val: Optional[str],
+    input_val: str | None,
+    text: str | None,
+    id_val: str | None,
     json_output: bool,
     threshold: float,
     top: int,
@@ -314,9 +318,9 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 @click.pass_context
 def is_osi(
     ctx: click.Context,
-    input_val: Optional[str],
-    text: Optional[str],
-    id_val: Optional[str],
+    input_val: str | None,
+    text: str | None,
+    id_val: str | None,
 ) -> None:
     """True if the license is OSI-approved."""
     record = resolve_license_record(ctx, input_val, text, id_val)
@@ -334,9 +338,9 @@ def is_osi(
 @click.pass_context
 def is_fsf(
     ctx: click.Context,
-    input_val: Optional[str],
-    text: Optional[str],
-    id_val: Optional[str],
+    input_val: str | None,
+    text: str | None,
+    id_val: str | None,
 ) -> None:
     """True if the license is FSF-libre."""
     record = resolve_license_record(ctx, input_val, text, id_val)
@@ -354,9 +358,9 @@ def is_fsf(
 @click.pass_context
 def is_open(
     ctx: click.Context,
-    input_val: Optional[str],
-    text: Optional[str],
-    id_val: Optional[str],
+    input_val: str | None,
+    text: str | None,
+    id_val: str | None,
 ) -> None:
     """True if the license is OSI-approved OR FSF-libre."""
     record = resolve_license_record(ctx, input_val, text, id_val)
@@ -374,9 +378,9 @@ def is_open(
 @click.pass_context
 def is_free(  # pylint: disable=unused-argument
     ctx: click.Context,
-    input_val: Optional[str],
-    text: Optional[str],
-    id_val: Optional[str],
+    input_val: str | None,
+    text: str | None,
+    id_val: str | None,
 ) -> None:
     """Alias for is-open."""
     ctx.forward(is_open)
@@ -389,9 +393,9 @@ def is_free(  # pylint: disable=unused-argument
 @click.pass_context
 def is_spdx_cmd(
     ctx: click.Context,
-    input_val: Optional[str],
-    text: Optional[str],
-    id_val: Optional[str],
+    input_val: str | None,
+    text: str | None,
+    id_val: str | None,
 ) -> None:
     """True if the license is in the SPDX License List."""
     record = resolve_license_record(ctx, input_val, text, id_val)

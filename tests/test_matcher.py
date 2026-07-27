@@ -9,7 +9,7 @@
 import os
 import sqlite3
 import uuid
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 
@@ -47,6 +47,11 @@ def test_db() -> Generator[str, None, None]:
         conn.execute(
             "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
             ("MIT", mit_text),
+        )
+        conn.execute(
+            "INSERT INTO exceptions (exception_id, name, is_deprecated, superseded_by) "
+            "VALUES (?, ?, ?, ?)",
+            ("Font-exception-2.0", "Font exception 2.0", False, None),
         )
         conn.execute(
             "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
@@ -108,3 +113,40 @@ def test_short_text_rejection(test_db: str) -> None:
     # Partial name matches (< 12 words)
     res_apple = matcher.match("APPLE PUBLIC SOURCE LICENSE")
     assert len(res_apple) > 0 and res_apple[0]["license_id"] == "APSL-2.0"
+
+
+def test_match_with_expression(test_db: str) -> None:
+    """A well-formed 'license WITH exception' expression is a real match,
+    not just a literal DB row lookup (there is no such row)."""
+    matcher = AggregatedLicenseMatcher(test_db)
+
+    results = matcher.match(license_id="MIT WITH Font-exception-2.0")
+    assert len(results) == 1
+    assert results[0]["license_id"] == "MIT WITH Font-exception-2.0"
+    assert results[0]["score"] == 1.0
+    assert results[0]["is_spdx"] is True
+
+    assert matcher.is_spdx(license_id="MIT WITH Font-exception-2.0")
+
+
+def test_match_with_expression_unknown_exception(test_db: str) -> None:
+    """An otherwise well-formed WITH expression naming an exception that
+    isn't in the (live-downloaded) exceptions table is not a match."""
+    matcher = AggregatedLicenseMatcher(test_db)
+
+    assert not matcher.match(license_id="MIT WITH Not-A-Real-Exception")
+
+
+def test_match_pathological_expression_does_not_crash(test_db: str) -> None:
+    """A very long AND-chain passed as license_id must degrade to "no
+    match", not crash.
+
+    Regression test: py_spdx_license's AST construction is a plain
+    recursive tree walk with no depth guard, so a long enough chain raises
+    RecursionError (not ParseError) — _match_with_expression previously
+    only caught ParseError, so this propagated out of match() uncaught.
+    """
+    matcher = AggregatedLicenseMatcher(test_db)
+    expr = " AND ".join(f"LicenseRef-{i}" for i in range(400))
+
+    assert not matcher.match(license_id=expr)

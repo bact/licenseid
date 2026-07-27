@@ -16,14 +16,14 @@ from typing import Final
 # Closing tags (</p>, </div>, ...) appear only in real HTML — unlike opening
 # tags, they are never used as plain-text placeholders such as <year> or
 # <organization> that appear in license templates.
-_HTML_TAG: Final = re.compile(r"</[a-z][a-z0-9]*\s*>", re.IGNORECASE)
+_RE_HTML_TAG: Final = re.compile(r"</[a-z][a-z0-9]*\s*>", re.IGNORECASE)
 
 # Guideline 2: Collapse any sequence of whitespace to a single space.
-_WHITESPACE: Final = re.compile(r"\s+")
+_RE_WHITESPACE: Final = re.compile(r"\s+")
 
 # Final punctuation sweep: remove anything left that is not alphanumeric or
 # whitespace, after the specific equivalence normalisations below have run.
-_NON_WORD: Final = re.compile(r"[^\w\s]")
+_RE_NON_WORD: Final = re.compile(r"[^\w\s]")
 
 # Guideline 4 (hyphens): any hyphen, dash, en dash, em dash, or similar
 # variant is considered equivalent.  The final punctuation sweep (step 12)
@@ -37,11 +37,11 @@ _NON_WORD: Final = re.compile(r"[^\w\s]")
 # second call to normalize_text() to behave differently from the first
 # (non-idempotent).  Folding hyphens to spaces here, before varietal
 # matching runs, keeps normalize_text() idempotent.
-_DASHES: Final = re.compile(r"[‐‑‒–—―−﹘﹣－-]")
+_RE_DASHES: Final = re.compile(r"[‐‑‒–—―−﹘﹣－-]")
 
 # Guideline 4 (quotes): any variation of quotations is considered
 # equivalent.  Normalise to ASCII single quote before stripping punctuation.
-_QUOTES: Final = re.compile(
+_RE_QUOTES: Final = re.compile(
     r'["«»'  # " « »
     r"‘’"  # ' '
     r"‚‛"  # ‚ ‛
@@ -56,7 +56,7 @@ _QUOTES: Final = re.compile(
 
 # Guideline 5a: code comment prefixes at the start of a line.
 # Covers: // /* ** * # ' (VB) REM -- -} *)
-_COMMENT_PREFIX: Final = re.compile(
+_RE_COMMENT_PREFIX: Final = re.compile(
     r"(?m)^[ \t]*"
     r"(?://|/\*+|\*\)"  # C/Java-style open & Pascal close
     r"|\*(?![\w*])"  # lone * continuation, but not ** or *word
@@ -71,17 +71,17 @@ _COMMENT_PREFIX: Final = re.compile(
 # A second, narrower comment-prefix stripper for a different call site:
 # matcher.py runs strip_comment_prefixes() on raw (not yet normalized) text
 # before FTS5 indexing/querying, to improve recall on Type 5 (comment-
-# wrapped) license notices — separately from _COMMENT_PREFIX above, which
+# wrapped) license notices — separately from _RE_COMMENT_PREFIX above, which
 # only runs inside normalize_text() itself as one step of the guideline
 # pipeline.  They are intentionally not merged into one regex: this one
 # covers fewer comment styles (no VB/BASIC/Lua/Haskell — not expected in
 # the source files this targets) but additionally strips trailing "*/"
-# block-comment closers, which _COMMENT_PREFIX has no equivalent for.
-_LINE_COMMENT_PREFIX: Final = re.compile(
+# block-comment closers, which _RE_COMMENT_PREFIX has no equivalent for.
+_RE_LINE_COMMENT_PREFIX: Final = re.compile(
     r"^[ \t]*(?://+|#+|;+|\*(?!/)|/\*)[ \t]?",
     re.MULTILINE,
 )
-_BLOCK_COMMENT_CLOSER: Final = re.compile(r"^[ \t]*\*/[ \t]*$", re.MULTILINE)
+_RE_BLOCK_COMMENT_CLOSER: Final = re.compile(r"^[ \t]*\*/[ \t]*$", re.MULTILINE)
 
 
 def strip_comment_prefixes(text: str) -> str:
@@ -92,19 +92,19 @@ def strip_comment_prefixes(text: str) -> str:
     removed.  Applied before FTS5 on source-file inputs to improve
     recall for Type 5 (comment-wrapped) license notices.
     """
-    stripped = _LINE_COMMENT_PREFIX.sub("", text)
-    stripped = _BLOCK_COMMENT_CLOSER.sub("", stripped)
+    stripped = _RE_LINE_COMMENT_PREFIX.sub("", text)
+    stripped = _RE_BLOCK_COMMENT_CLOSER.sub("", stripped)
     return stripped
 
 
 # Guideline 5b: runs of 3+ identical non-alphanumeric characters used as
 # visual separators (---, ===, ***, ___) carry no meaning.
-_SEPARATOR: Final = re.compile(r"([^\w\s])\1{2,}")
+_RE_SEPARATOR: Final = re.compile(r"([^\w\s])\1{2,}")
 
 # Guideline 6: bullets and list-item markers at the start of a line are
 # ignored.  Covers symbol bullets, "1." / "a." / "1)" style, "(1)" / "(a)"
 # style, and short roman numerals ("iv.").
-_BULLETS: Final = re.compile(
+_RE_BULLETS: Final = re.compile(
     r"(?m)^[ \t]*"
     r"(?:"
     r"[*\-•◦‣▪▸]"  # symbol bullets
@@ -171,14 +171,14 @@ _VARIETAL_WORDS: Final[dict[str, str]] = {
 # multiword phrases ("copyright owner", "per cent") win over any single-word
 # prefix; lookarounds instead of \b so the "&" entry (a non-word character)
 # also anchors correctly.
-_VARIETAL_RE: Final = re.compile(
+_RE_VARIETAL: Final = re.compile(
     r"(?<!\w)(?:"
     + "|".join(re.escape(v) for v in sorted(_VARIETAL_WORDS, key=len, reverse=True))
     + r")(?!\w)"
 )
 
 # Guideline 8: copyright symbol equivalence — © Ⓒ ⓒ and "(c)" are the same.
-_COPYRIGHT_SYMBOL: Final = re.compile(r"[©Ⓒⓒ]")
+_RE_COPYRIGHT_SYMBOL: Final = re.compile(r"[©Ⓒⓒ]")
 
 # Guideline 9: copyright notices are not part of the matchable text.
 # Two cases:
@@ -209,7 +209,7 @@ _COPYRIGHT_SYMBOL: Final = re.compile(r"[©Ⓒⓒ]")
 # "(?:[ \t]+\S+)" (horizontal whitespace, not \s) is what enforces the
 # newline stop: a "\n" can't satisfy "[ \t]+", so the repetition can't
 # continue past one even when the word-count budget isn't exhausted.
-_COPYRIGHT_NOTICE: Final = re.compile(
+_RE_COPYRIGHT_NOTICE: Final = re.compile(
     r"(?:"
     r"(?:[©Ⓒⓒ]|\(c\))(?:[ \t]+\S+){0,25}"
     r"|copyright(?=[ \t]+(?:\S+[ \t]+){0,10}?\S*(?:\d|[©Ⓒⓒ]|\(c\)|<year>))"
@@ -219,9 +219,9 @@ _COPYRIGHT_NOTICE: Final = re.compile(
 )
 
 # Guideline 12: http:// and https:// are equivalent.
-_HTTPS: Final = re.compile(r"https://")
+_RE_HTTPS: Final = re.compile(r"https://")
 
-# Guideline 9 (copyright notice removal) is implemented (_COPYRIGHT_NOTICE
+# Guideline 9 (copyright notice removal) is implemented (_RE_COPYRIGHT_NOTICE
 # above) but OFF by default.  A full corpus benchmark (bench_compare.py,
 # main vs a branch with this step enabled) showed a broad recall regression
 # (-0.72% overall; worst on mixed content and Tier 0.5/Tier 1 recall,
@@ -281,7 +281,7 @@ def normalize_text(text: str) -> str:
     3 is re-enabled, it stops being idempotent: copyright-notice detection
     is a bounded heuristic, not an exact parse of "the notice line" — it
     matches a "copyright"/"(c)"/"©" cue anywhere in the text (deliberately
-    not anchored to line start — see the _COPYRIGHT_NOTICE comment for
+    not anchored to line start — see the _RE_COPYRIGHT_NOTICE comment for
     why) and then deletes up to 25 following words, stopping early only if
     a real newline is hit first. On ordinary multi-line input this
     reliably isolates just the notice. But because normalize_text()
@@ -297,7 +297,7 @@ def normalize_text(text: str) -> str:
     """
     # 1. HTML to plain text.  Newline separator preserves line structure for
     # the line-based rules below (copyright notices, comments, bullets).
-    if _HTML_TAG.search(text):
+    if _RE_HTML_TAG.search(text):
         # Local import: bs4 costs ~30ms at import time and is only needed
         # for the (uncommon) HTML-input case, so it's not worth paying that
         # cost on every normalize_text() call / CLI startup.
@@ -308,43 +308,43 @@ def normalize_text(text: str) -> str:
 
     # 2. Code comment prefixes (per-line; must run before copyright notice
     # removal so a "# Copyright ..." header's line-start anchor is reachable)
-    text = _COMMENT_PREFIX.sub("", text)
+    text = _RE_COMMENT_PREFIX.sub("", text)
 
     # 3. Copyright notice removal (before lowercasing/punctuation strip so
     # the (c) / © / digit cues are still present).  See
     # _STRIP_COPYRIGHT_NOTICE for why this is off by default.
     if _STRIP_COPYRIGHT_NOTICE:
-        text = _COPYRIGHT_NOTICE.sub("", text)
+        text = _RE_COPYRIGHT_NOTICE.sub("", text)
 
     # 4. Repeated separator characters
-    text = _SEPARATOR.sub(" ", text)
+    text = _RE_SEPARATOR.sub(" ", text)
 
     # 5. Bullets and list markers (per-line)
-    text = _BULLETS.sub("", text)
+    text = _RE_BULLETS.sub("", text)
 
     # 6. URL protocol
-    text = _HTTPS.sub("http://", text)
+    text = _RE_HTTPS.sub("http://", text)
 
     # 7. Copyright symbol
-    text = _COPYRIGHT_SYMBOL.sub("(c)", text)
+    text = _RE_COPYRIGHT_SYMBOL.sub("(c)", text)
 
     # 8. Dashes / hyphens
-    text = _DASHES.sub(" ", text)
+    text = _RE_DASHES.sub(" ", text)
 
     # 9. Quotes
-    text = _QUOTES.sub("'", text)
+    text = _RE_QUOTES.sub("'", text)
 
     # 10. Case
     text = text.lower()
 
     # 11. Whitespace collapse (see docstring: must run before step 12)
-    text = _WHITESPACE.sub(" ", text).strip()
+    text = _RE_WHITESPACE.sub(" ", text).strip()
 
     # 12. Varietal word spelling (single pass; input is lowercase by now)
-    text = _VARIETAL_RE.sub(lambda m: _VARIETAL_WORDS[m.group(0)], text)
+    text = _RE_VARIETAL.sub(lambda m: _VARIETAL_WORDS[m.group(0)], text)
 
     # 13. Remaining punctuation
-    text = _NON_WORD.sub(" ", text)
+    text = _RE_NON_WORD.sub(" ", text)
 
     # 14. Final whitespace collapse
-    return _WHITESPACE.sub(" ", text).strip()
+    return _RE_WHITESPACE.sub(" ", text).strip()

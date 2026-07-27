@@ -7,7 +7,8 @@
 # pylint: disable=redefined-outer-name,duplicate-code,missing-function-docstring
 
 import sqlite3
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 
 import pytest
 
@@ -41,8 +42,10 @@ def test_db() -> Generator[str, None, None]:
             "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
             (
                 "MIT",
-                "permission is hereby granted free of charge to any person "
-                "obtaining a copy",
+                (
+                    "permission is hereby granted free of charge to any person "
+                    "obtaining a copy"
+                ),
             ),
         )
         conn.execute(

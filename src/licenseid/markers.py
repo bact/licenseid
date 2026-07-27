@@ -8,7 +8,6 @@
 import json
 import os
 import re
-from typing import Optional
 
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import normalize_identifier
@@ -24,7 +23,7 @@ class MarkerDetector:
     # SPDX-License-Identifier tag.
     # Capture full expressions including spaces, parentheses, and operators.
     # We stop at common delimiters like quotes or line breaks.
-    RE_SPDX = re.compile(
+    _RE_SPDX = re.compile(
         r"SPDX-License-Identifier\s*[:=]\s*['\"]?"
         r"([a-zA-Z0-9.+-]+(?:\s+(?:AND|OR|WITH)\s+[a-zA-Z0-9.+-]+"
         r"|\s*\([^)]+\)|[a-zA-Z0-9.+-]+)*)",
@@ -33,48 +32,48 @@ class MarkerDetector:
 
     # Include + to handle SPDX-legacy notation like GPL-2.0+
     # Use [ \t]* (not \s*) to prevent matching across line breaks.
-    RE_LICENSE_FIELD = re.compile(
+    _RE_LICENSE_FIELD = re.compile(
         r"license[ \t]*[:=][ \t]*['\"]?([a-zA-Z0-9.+, \t-]+)['\"]?", re.IGNORECASE
     )
 
     # Heading patterns — allow optional words after "License/Licensing"
     # so "## License Agreement" and "## Licensing Information" both match.
-    RE_MD_HEADING = re.compile(
+    _RE_MD_HEADING = re.compile(
         r"^#+\s*Licens(?:e|ing)(?:\s+\w+)*\s*$", re.MULTILINE | re.IGNORECASE
     )
-    RE_UNDERLINE_HEADING = re.compile(
+    _RE_UNDERLINE_HEADING = re.compile(
         r"^\s*Licens(?:e|ing)(?:\s+\w+)*\s*\n\s*[=\-*#]{3,}\s*$",
         re.MULTILINE | re.IGNORECASE,
     )
-    RE_BOX_HEADING = re.compile(
+    _RE_BOX_HEADING = re.compile(
         r"^\s*[=\-*#]{3,}\s*\n\s*Licens(?:e|ing)(?:\s+\w+)*\s*\n\s*[=\-*#]{3,}\s*$",
         re.MULTILINE | re.IGNORECASE,
     )
-    RE_LINE_HEADING = re.compile(
+    _RE_LINE_HEADING = re.compile(
         r"^\s*Licens(?:e|ing)(?:\s+\w+)*\s*$", re.MULTILINE | re.IGNORECASE
     )
 
     # Font-exception-2.0: "As a special exception...embed this font..."
-    RE_FONT_EXCEPTION = re.compile(
+    _RE_FONT_EXCEPTION = re.compile(
         r"as\s+a\s+special\s+exception.{0,400}embed\s+this\s+font",
         re.IGNORECASE | re.DOTALL,
     )
 
     # GPL/LGPL/AGPL copyright notice header detection.
     # Matches "GNU [Lesser|Library|Affero] General Public License".
-    RE_GPL_FAMILY = re.compile(
+    _RE_GPL_FAMILY = re.compile(
         r"GNU\s+((?:Lesser|Library|Affero)\s+)?General\s+Public\s+License",
         re.IGNORECASE,
     )
     # Version number appearing in or near the license grant.
     # "either version 2" / "version 2.1" / "v3" etc.
-    RE_GPL_VERSION = re.compile(
+    _RE_GPL_VERSION = re.compile(
         r"(?:either\s+)?v(?:ersion)?\s*(\d+(?:\.\d+)?)",
         re.IGNORECASE,
     )
     # "or later" signals within the license grant window.
     # "either version" alone implies "or any later version" in GPL boilerplate.
-    RE_GPL_OR_LATER = re.compile(
+    _RE_GPL_OR_LATER = re.compile(
         r"or\s+\(?at\s+your\s+option\)?\s+any\s+later\s+version"
         r"|\beither\s+version\b",
         re.IGNORECASE,
@@ -84,7 +83,7 @@ class MarkerDetector:
     # "released under Apache License, Version 2.0", etc.
     # `\s+` (not `[ \t]+`) intentionally spans newlines so "licensed \nunder" matches.
     # Capture stops at end-of-line, opening paren, or sentence-terminating punctuation.
-    RE_LICENSE_MENTION = re.compile(
+    _RE_LICENSE_MENTION = re.compile(
         r"(?:licens(?:ed?|ing)|released?|distributed?)\s+under"
         r"(?:\s+the)?(?:\s+project'?s?)?"
         r"\s+([^\n;(]{2,100})",
@@ -94,9 +93,7 @@ class MarkerDetector:
     def __init__(self, db: LicenseDatabase):
         self.db = db
 
-    def detect(
-        self, text: str, file_path: Optional[str] = None
-    ) -> list[CandidateMatch]:
+    def detect(self, text: str, file_path: str | None = None) -> list[CandidateMatch]:
         """Detect license markers in the given text, deduplicating by license_id."""
         seen: set[str] = set()
         result: list[CandidateMatch] = []
@@ -209,7 +206,7 @@ class MarkerDetector:
         candidates: list[CandidateMatch] = []
 
         # 1. SPDX-License-Identifier
-        for match in self.RE_SPDX.finditer(text):
+        for match in self._RE_SPDX.finditer(text):
             lic_id = normalize_identifier(match.group(1).strip(), self.db)
             details = self.db.get_license_details(lic_id)
             if details:
@@ -232,7 +229,7 @@ class MarkerDetector:
                 )
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)
-        for match in self.RE_LICENSE_FIELD.finditer(text):
+        for match in self._RE_LICENSE_FIELD.finditer(text):
             val = normalize_identifier(match.group(1).strip(), self.db)
             if not val:
                 continue
@@ -271,7 +268,7 @@ class MarkerDetector:
                 "General Public License"
             )
 
-        for m in self.RE_GPL_FAMILY.finditer(text):
+        for m in self._RE_GPL_FAMILY.finditer(text):
             modifier = (m.group(1) or "").strip().lower()
 
             # Search for the version number and or-later signal within a window
@@ -279,7 +276,7 @@ class MarkerDetector:
             window_end = min(len(text), m.end() + 1000)
             window = text[m.start() : window_end]
 
-            ver_match = self.RE_GPL_VERSION.search(window)
+            ver_match = self._RE_GPL_VERSION.search(window)
             if not ver_match:
                 continue
 
@@ -287,23 +284,29 @@ class MarkerDetector:
             if "." not in version_str:
                 version_str += ".0"
 
-            or_later = bool(self.RE_GPL_OR_LATER.search(window))
+            or_later = bool(self._RE_GPL_OR_LATER.search(window))
 
             # Logic for appendix/terms: if the match is in a section that explains
             # "or later" but is not the grant itself, ignore the signal.
             if or_later:
                 # 1. Check Appendix
-                if appendix_start != -1 and m.start() > appendix_start:
-                    if "one line to give the program's name" in window.lower():
-                        or_later = False
+                if (
+                    appendix_start != -1
+                    and m.start() > appendix_start
+                    and "one line to give the program's name" in window.lower()
+                ):
+                    or_later = False
 
                 # 2. Check Terms Explanation (Section 9/14)
-                if or_later and terms_explanation != -1:
-                    # If the match is within a reasonable distance of the terms
-                    # explanation (e.g. within the same paragraph),
-                    # it's likely just the terms.
-                    if abs(m.start() - terms_explanation) < 500:
-                        or_later = False
+                # If the match is within a reasonable distance of the terms
+                # explanation (e.g. within the same paragraph), it's likely
+                # just the terms.
+                if (
+                    or_later
+                    and terms_explanation != -1
+                    and abs(m.start() - terms_explanation) < 500
+                ):
+                    or_later = False
 
             if "lesser" in modifier or "library" in modifier:
                 family = "LGPL"
@@ -319,7 +322,7 @@ class MarkerDetector:
                 continue
 
             # Check for Font-exception-2.0 ("As a special exception...embed this font")
-            if family == "GPL" and self.RE_FONT_EXCEPTION.search(text):
+            if family == "GPL" and self._RE_FONT_EXCEPTION.search(text):
                 font_id = f"{license_id} WITH Font-exception-2.0"
                 score = 0.92 if or_later else 0.88
                 font_details = self.db.get_license_details(font_id)
@@ -402,11 +405,11 @@ class MarkerDetector:
                     candidates.append(self.to_candidate(details, 0.9))
         return candidates
 
-    def _extract_license_from_lines(self, lines: list[str]) -> Optional[LicenseDetails]:
+    def _extract_license_from_lines(self, lines: list[str]) -> LicenseDetails | None:
         """Try to identify a license from a block of lines near a heading."""
         cleaned = [line.strip() for line in lines]
 
-        def _try(text: str) -> Optional[LicenseDetails]:
+        def _try(text: str) -> LicenseDetails | None:
             # Skip decorative separator lines (all "=", "-", "*", "#", or space)
             if not text or re.match(r"^[=\-*#\s]+$", text):
                 return None
@@ -438,9 +441,9 @@ class MarkerDetector:
 
         return None
 
-    def _extract_mentioned_license(self, text: str) -> Optional[str]:
+    def _extract_mentioned_license(self, text: str) -> str | None:
         """Extract and clean a license name/ID from 'under the X License' pattern."""
-        m = self.RE_LICENSE_MENTION.search(text)
+        m = self._RE_LICENSE_MENTION.search(text)
         if not m:
             return None
         # Truncate at sentence boundary then clean
@@ -449,7 +452,7 @@ class MarkerDetector:
         candidate = re.sub(r"\s+Licen[sc]e[s]?\s*$", "", candidate, flags=re.IGNORECASE)
         return candidate.strip() if candidate.strip() else None
 
-    def _try_license_lookup(self, name: str) -> Optional[LicenseDetails]:
+    def _try_license_lookup(self, name: str) -> LicenseDetails | None:
         """Try multiple name/ID variants to resolve a license mention."""
         for candidate in self._name_variants(name):
             details = self.db.get_license_details(
@@ -514,7 +517,7 @@ class MarkerDetector:
         joined = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
         candidates: list[CandidateMatch] = []
         seen: set[str] = set()
-        for m in self.RE_LICENSE_MENTION.finditer(joined):
+        for m in self._RE_LICENSE_MENTION.finditer(joined):
             # Truncate at sentence boundary (". " ends the license name phrase)
             raw = re.split(r"\.\s", m.group(1), maxsplit=1)[0].strip().rstrip(".,; ")
             raw = re.sub(r"\bproject'?s?\s+", "", raw, flags=re.IGNORECASE)
@@ -530,17 +533,18 @@ class MarkerDetector:
 
     def _is_heading(self, line: str, i: int, lines: list[str]) -> bool:
         """Helper to identify if a line is part of a license heading."""
-        if self.RE_MD_HEADING.match(line) or self.RE_LINE_HEADING.match(line):
+        if self._RE_MD_HEADING.match(line) or self._RE_LINE_HEADING.match(line):
             return True
-        if i + 1 < len(lines) and self.RE_UNDERLINE_HEADING.match(
+        if i + 1 < len(lines) and self._RE_UNDERLINE_HEADING.match(
             line + "\n" + lines[i + 1]
         ):
             return True
-        if 0 < i < len(lines) - 1 and self.RE_BOX_HEADING.match(
-            lines[i - 1] + "\n" + line + "\n" + lines[i + 1]
-        ):
-            return True
-        return False
+        return bool(
+            0 < i < len(lines) - 1
+            and self._RE_BOX_HEADING.match(
+                lines[i - 1] + "\n" + line + "\n" + lines[i + 1]
+            )
+        )
 
     def _detect_first_line(self, text: str) -> list[CandidateMatch]:
         """Check if the first non-empty line is a known license ID or name."""

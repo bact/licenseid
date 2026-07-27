@@ -12,7 +12,12 @@ import pytest
 
 # pylint: disable=redefined-outer-name
 from licenseid.database import LicenseDatabase
-from licenseid.identifiers import disambiguate_deprecated_id, normalize_identifier
+from licenseid.identifiers import (
+    _MAX_CANONICALIZE_OPERATORS,
+    _is_expression,
+    disambiguate_deprecated_id,
+    normalize_identifier,
+)
 
 
 @pytest.fixture
@@ -99,9 +104,13 @@ def test_normalize_deprecated_with(db: LicenseDatabase) -> None:
 
 
 def test_normalize_expression(db: LicenseDatabase) -> None:
-    """Normalise SPDX expression strings."""
-    assert normalize_identifier("MIT AND Apache-2.0", db) == "MIT AND Apache-2.0"
-    assert normalize_identifier("(MIT OR Apache-2.0)", db) == "(MIT OR Apache-2.0)"
+    """Normalise SPDX expression strings.
+
+    Operand order is canonicalised (alphabetical) by the structural
+    AND/OR sort pass, not preserved verbatim from the input.
+    """
+    assert normalize_identifier("MIT AND Apache-2.0", db) == "Apache-2.0 AND MIT"
+    assert normalize_identifier("(MIT OR Apache-2.0)", db) == "Apache-2.0 OR MIT"
     assert (
         normalize_identifier("GPL-2.0 WITH Linux-syscall-note", db)
         == "GPL-2.0-only WITH Linux-syscall-note"
@@ -109,19 +118,135 @@ def test_normalize_expression(db: LicenseDatabase) -> None:
 
 
 def test_normalize_expression_complex(db: LicenseDatabase) -> None:
-    """Normalise complex SPDX expressions with multiple operators."""
+    """Normalise complex SPDX expressions with multiple operators.
+
+    The parens around the AND subexpression are semantically redundant
+    (AND binds tighter than OR) and are dropped by canonicalisation.
+    """
     expr = "(GPL-2.0+ AND MIT) OR Apache-2.0"
-    expected = "(GPL-2.0-or-later AND MIT) OR Apache-2.0"
+    expected = "GPL-2.0-or-later AND MIT OR Apache-2.0"
     assert normalize_identifier(expr, db) == expected
 
 
 def test_normalize_case_insensitivity(db: LicenseDatabase) -> None:
     """Normalise case-insensitive SPDX expressions to canonical casing."""
-    assert normalize_identifier("mit and apache-2.0", db) == "MIT AND Apache-2.0"
+    assert normalize_identifier("mit and apache-2.0", db) == "Apache-2.0 AND MIT"
     assert (
         normalize_identifier("GPL-2.0 with Linux-syscall-note", db)
         == "GPL-2.0-only WITH Linux-syscall-note"
     )
+
+
+def test_normalize_expression_does_not_split_embedded_operator_words(
+    db: LicenseDatabase,
+) -> None:
+    """A real ID that contains "or"/"with" as a substring (e.g. the
+    "-or-later" suffix) must tokenise as one identifier, not get split on
+    the embedded operator word.
+
+    The tokenizer regex lists AND/OR/WITH as alternatives before the
+    catch-all identifier pattern, but the catch-all's greedy "+" always
+    consumes a full contiguous run of identifier characters starting from
+    its first character, so "GPL-2.0-or-later" is matched whole before the
+    engine ever considers "or" as a standalone alternative partway through.
+    """
+    assert (
+        normalize_identifier("GPL-2.0-or-later AND MIT", db)
+        == "GPL-2.0-or-later AND MIT"
+    )
+
+
+@pytest.mark.parametrize(
+    "identifier, expected",
+    [
+        # single IDs: not expressions, even though they contain AND/OR/WITH
+        # as a substring of their own name.
+        ("MIT", False),
+        ("GPL-2.0-or-later", False),
+        ("GPL-2.0-with-font-exception", False),
+        ("LicenseRef-BRANDing-1.0", False),
+        # malformed multi-word garbage with no genuine reserved token: not
+        # an expression either — must stay on the single-ID passthrough
+        # path rather than being reformatted by _normalize_expression.
+        ("n M z", False),
+        ("   ", False),
+        ("***", False),
+        ("", False),
+        # real expressions: genuine operators, "+", or parentheses.
+        ("MIT AND Apache-2.0", True),
+        ("MIT OR Apache-2.0", True),
+        ("MIT WITH Font-exception-2.0", True),
+        ("Apache-2.0+", True),
+        ("(MIT)", True),
+    ],
+)
+def test_is_expression(identifier: str, expected: bool) -> None:
+    """_is_expression must not misfire on single IDs containing "and"/"or"/
+    "with" as a substring (regression: normalize_identifier's top-level
+    dispatch used to do a plain substring check, routing such IDs through
+    the full expression-normalisation pipeline unnecessarily), nor on
+    malformed input with no genuine reserved token at all (regression:
+    an early version of the tokenizer-based fix treated "more than one
+    token" as sufficient, which misfired on garbage like "n M z" or
+    whitespace-only input)."""
+    assert _is_expression(identifier) is expected
+
+
+def test_normalize_identifier_garbage_passthrough(db: LicenseDatabase) -> None:
+    """Whitespace-only, symbol-only, or otherwise unrecognised input passes
+    through unchanged rather than being reformatted or emptied out by
+    _normalize_expression."""
+    assert normalize_identifier("   ", db) == "   "
+    assert normalize_identifier("***", db) == "***"
+    assert normalize_identifier("n M z", db) == "n M z"
+
+
+def test_normalize_expression_dedup(db: LicenseDatabase) -> None:
+    """Structurally identical AND/OR operands collapse to one (issue #18)."""
+    assert normalize_identifier("(MIT AND MIT)", db) == "MIT"
+    assert normalize_identifier("(MIT OR MIT)", db) == "MIT"
+    assert (
+        normalize_identifier("(MIT AND Apache-2.0) AND (Apache-2.0 AND MIT)", db)
+        == "Apache-2.0 AND MIT"
+    )
+
+
+def test_normalize_with_exception_casing(db: LicenseDatabase) -> None:
+    """The WITH right-hand side is looked up as an exception, not a license.
+
+    Regression test: previously the exception ID after WITH was normalised
+    with the license-oriented lookup, which never matched the exceptions
+    table, so a mis-cased exception ID passed through unchanged.
+    """
+    assert (
+        normalize_identifier("GPL-2.0-only WITH linux-syscall-note", db)
+        == "GPL-2.0-only WITH Linux-syscall-note"
+    )
+
+
+def test_normalize_expression_plus_fallback(db: LicenseDatabase) -> None:
+    """Expressions with a literal '+' (no '-or-later' variant) can't be
+    parsed by py_spdx_license and fall back to the pre-canonicalisation
+    string instead of raising or dropping content."""
+    assert normalize_identifier("CDDL-1.0+ AND MIT", db) == "CDDL-1.0+ AND MIT"
+
+
+def test_normalize_expression_skips_canonicalization_when_large() -> None:
+    """Expressions past _MAX_CANONICALIZE_OPERATORS skip the py_spdx_license
+    sort() pass entirely instead of paying its (observed super-linear) cost.
+
+    Uses LicenseRef- IDs (no DB needed) so this stays a fast, deterministic
+    unit test rather than a timing-based one.
+    """
+    n = _MAX_CANONICALIZE_OPERATORS + 2
+    expr = " AND ".join(f"LicenseRef-{i}" for i in range(n))
+    # Capped: returned unchanged (not deduplicated/reordered), since there
+    # are no duplicates to begin with in this input.
+    assert normalize_identifier(expr, None) == expr
+
+    small_expr = "LicenseRef-B AND LicenseRef-A"
+    # Under the cap: still canonicalised (reordered).
+    assert normalize_identifier(small_expr, None) == "LicenseRef-A AND LicenseRef-B"
 
 
 @pytest.mark.parametrize(
@@ -135,8 +260,17 @@ def test_normalize_case_insensitivity(db: LicenseDatabase) -> None:
         ("GPL-2.0 or newer", "GPL-2.0-or-later"),
         # only prose
         ("GPL-2.0 only", "GPL-2.0-only"),
+        # sentence-ending/list punctuation directly after the bare ID (no
+        # space) must not block matching the disambiguating phrase later on.
+        ("Licensed under GPL-2.0. This version only, not later.", "GPL-2.0-only"),
+        ("Licensed under GPL-2.0, or any later version.", "GPL-2.0-or-later"),
         # no disambiguating phrase — returns None
         ("GPL-2.0", None),
+        # already-canonical suffixed IDs must not be re-matched as the bare
+        # ID via their "-only"/"-or-later" suffix (regression: the bare-ID
+        # boundary check must not treat "-" as a non-continuing boundary).
+        ("GPL-2.0-only", None),
+        ("GPL-2.0-or-later", None),
         # no deprecated ID present
         ("MIT", None),
         # normalize_identifier must apply the prose check too

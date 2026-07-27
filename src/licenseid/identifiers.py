@@ -8,9 +8,21 @@ SPDX Identifier and Expression normalization and validation.
 """
 
 import re
-from typing import Optional
+from typing import cast
+
+import py_spdx_license
 
 from licenseid.database import LicenseDatabase
+
+# Defensive cap on the number of AND/OR/WITH operators an expression may
+# have before we attempt py_spdx_license's structural sort()/dedup pass.
+# sort() has been observed to blow up well past polynomially — seconds of
+# CPU time past roughly 150 unique AND/OR operands in an otherwise flat
+# chain — for large expressions; this is not an SPDX grammar limit. Real
+# SPDX expressions are virtually never this large, so expressions past the
+# cap just skip canonicalization rather than risking a slow/blocking call
+# on a pathological or adversarial one.
+_MAX_CANONICALIZE_OPERATORS = 40
 
 # Deprecated SPDX License IDs using the '+' expression token.
 # The SPDX '+' operator means "or any later version" (SPDX Spec §10.1).
@@ -73,17 +85,21 @@ _BARE_TO_OR_LATER: dict[str, str] = {
 #   "or (at your option) any later", "or newer",
 #   "any later version" (standalone)
 # Reference: GPL preamble boilerplate and SPDX matching guidelines
-_OR_LATER_RE = re.compile(
+_RE_OR_LATER = re.compile(
     r"\bor\s+(?:\([^)]{0,50}\)\s+)?(?:a\s+|any\s+)?(?:later|newer)\b"
     r"|\bany\s+later\s+version\b",
     re.IGNORECASE,
 )
 # "only" is a common English word; it is checked in a narrow 50-char window
 # AFTER the ID to avoid false positives from unrelated uses.
-_ONLY_RE = re.compile(r"\bonly\b", re.IGNORECASE)
+_RE_ONLY = re.compile(r"\bonly\b", re.IGNORECASE)
+
+# Tokenizer for SPDX license expressions: reserved operators/parens, or a
+# run of identifier characters (letters, digits, dots, hyphens).
+_RE_TOKEN = re.compile(r"\(|\)|AND|OR|WITH|\+|[a-zA-Z0-9.-]+", re.IGNORECASE)
 
 
-def disambiguate_deprecated_id(text: str) -> Optional[str]:
+def disambiguate_deprecated_id(text: str) -> str | None:
     """
     Scan *text* for a bare deprecated SPDX ID and a surrounding prose phrase
     that resolves the ``-only`` / ``-or-later`` ambiguity.
@@ -105,7 +121,16 @@ def disambiguate_deprecated_id(text: str) -> Optional[str]:
     """
     # Sort longest IDs first so e.g. "LGPL-2.1" is tried before "LGPL-2".
     for dep_id in sorted(DEPRECATED_BARE_LICENSE_IDS, key=len, reverse=True):
-        m = re.search(r"\b" + re.escape(dep_id) + r"\b", text, re.IGNORECASE)
+        # (?![\w-]) (not just \b) so a bare ID isn't matched as a prefix of
+        # an already-canonical suffixed ID it's contained in, e.g. "GPL-2.0"
+        # inside "GPL-2.0-only" or "GPL-2.0-or-later" — "\b" alone treats
+        # the boundary before "-" as a word boundary and would match, then
+        # the "-only"/"-or-later" suffix itself falsely satisfies the prose
+        # disambiguation checks below. "." is deliberately not excluded here:
+        # both real suffixes start with "-", and excluding "." too would
+        # reject a bare ID immediately followed by sentence punctuation
+        # (e.g. "...licensed under GPL-2.0. This version only.").
+        m = re.search(r"\b" + re.escape(dep_id) + r"(?![\w-])", text, re.IGNORECASE)
         if not m:
             continue
 
@@ -114,13 +139,13 @@ def disambiguate_deprecated_id(text: str) -> Optional[str]:
         start = max(0, m.start() - 150)
         end = min(len(text), m.end() + 150)
         window = text[start:end]
-        if _OR_LATER_RE.search(window):
+        if _RE_OR_LATER.search(window):
             return _BARE_TO_OR_LATER.get(dep_id)
 
         # Narrow window (50 chars after the ID) for "only" to reduce false
         # positives from common uses like "only if", "not only", etc.
         after = text[m.end() : m.end() + 50]
-        if _ONLY_RE.search(after):
+        if _RE_ONLY.search(after):
             return DEPRECATED_BARE_LICENSE_IDS[dep_id]
 
         # ID found but no disambiguating phrase — caller applies fallback.
@@ -129,7 +154,7 @@ def disambiguate_deprecated_id(text: str) -> Optional[str]:
     return None
 
 
-def normalize_identifier(identifier: str, db: Optional[LicenseDatabase] = None) -> str:
+def normalize_identifier(identifier: str, db: LicenseDatabase | None = None) -> str:
     """
     Normalises a single SPDX License ID or a full License Expression.
     """
@@ -144,9 +169,11 @@ def normalize_identifier(identifier: str, db: Optional[LicenseDatabase] = None) 
     if disambiguated:
         return disambiguated
 
-    # 1. Handle full expression parsing if AND/OR/WITH/+/( are present
-    upper_ident = identifier.upper()
-    if any(op in upper_ident for op in ["AND", "OR", "WITH", "+", "("]):
+    # 1. Handle full expression parsing if AND/OR/WITH/+/( are present as
+    # genuine operators/parens, not merely as a substring of a single ID's
+    # own name (e.g. the "or" in "GPL-2.0-or-later", or "and"/"or"/"with"
+    # occurring inside a LicenseRef- name).
+    if _is_expression(identifier):
         return _normalize_expression(identifier, db)
 
     # 2. Handle single ID normalization
@@ -156,7 +183,7 @@ def normalize_identifier(identifier: str, db: Optional[LicenseDatabase] = None) 
 # pylint: disable=too-many-branches
 def _normalize_single_id(
     lic_id: str,
-    db: Optional[LicenseDatabase] = None,
+    db: LicenseDatabase | None = None,
 ) -> str:
     """Normalises a single license or exception ID."""
     # 1. Database lookup (most accurate/up-to-date)
@@ -228,14 +255,78 @@ def _normalize_single_id(
     return lic_id
 
 
-def _normalize_expression(expression: str, db: Optional[LicenseDatabase] = None) -> str:
-    """Parses and normalises an SPDX License Expression."""
-    # Tokenize: keeping separators and identifiers
-    # Identifiers can contain letters, numbers, dots, and hyphens.
-    # "+" is a separate operator that attaches to an ID.
-    tokens = re.findall(
-        r"\(|\)|AND|OR|WITH|\+|[a-zA-Z0-9.-]+", expression, re.IGNORECASE
+def _normalize_exception_id(exc_id: str, db: LicenseDatabase | None = None) -> str:
+    """Normalises a single SPDX License Exception ID (the right-hand side of
+    a ``WITH`` operator).
+
+    Unlike license IDs, exceptions have their own DB table
+    (``get_exception_details`` / the exception half of
+    ``get_deprecated_mappings``); looking them up via the license-oriented
+    ``_normalize_single_id`` would never find a match and silently return the
+    ID unchanged, including its casing.
+    """
+    if not db:
+        return exc_id
+
+    mappings = db.get_deprecated_mappings()
+    normalized = mappings.get(exc_id)
+    if not normalized:
+        exc_id_upper = exc_id.upper()
+        for dep_id, canonical in mappings.items():
+            if dep_id.upper() == exc_id_upper:
+                normalized = canonical
+                break
+    if normalized:
+        return normalized
+
+    details = db.get_exception_details(exc_id)
+    if details:
+        return details["exception_id"]
+
+    return exc_id
+
+
+def _tokenize_expression(expression: str) -> list[str]:
+    """Tokenize an SPDX license expression into reserved tokens
+    (``(``, ``)``, ``AND``, ``OR``, ``WITH``, ``+``) and identifiers.
+
+    Identifiers can contain letters, numbers, dots, and hyphens; the
+    identifier alternative's greedy ``+`` quantifier always consumes a full
+    contiguous run of those characters starting from its first character,
+    so a real ID that contains "and"/"or"/"with" as a substring of its own
+    name (e.g. the "-or-later" suffix, or a custom LicenseRef- name) is
+    always captured whole, never split at the embedded operator word.
+    """
+    return _RE_TOKEN.findall(expression)
+
+
+def _is_expression(identifier: str) -> bool:
+    """True if *identifier* is a real SPDX expression — contains AND/OR/WITH
+    as a genuine operator, ``+``, or parentheses — rather than a single
+    plain ID or unrecognised garbage.
+
+    A plain substring check (e.g. ``"OR" in identifier.upper()``) misfires
+    on single IDs that happen to contain "and"/"or"/"with" inside their own
+    name (``GPL-2.0-or-later``, or a LicenseRef name like
+    ``LicenseRef-BRANDing-1.0``). Tokenizing first avoids that: such names
+    always come back as a single token.
+
+    Checking for *any* reserved token — not just "more than one token" —
+    also keeps malformed multi-word input with no real operator (e.g.
+    ``"n M z"``, or whitespace-/symbol-only garbage, which tokenizes to
+    zero tokens) on the single-ID passthrough path, matching the previous
+    substring-check behaviour, rather than having it silently reformatted
+    (or reduced to "") by ``_normalize_expression``.
+    """
+    return any(
+        token in ("(", ")", "+") or token.upper() in ("AND", "OR", "WITH")
+        for token in _tokenize_expression(identifier)
     )
+
+
+def _normalize_expression(expression: str, db: LicenseDatabase | None = None) -> str:
+    """Parses and normalises an SPDX License Expression."""
+    tokens = _tokenize_expression(expression)
 
     # 1. Pre-process to attach "+" to identifiers
     # This ensures "GPL-2.0" "+" becomes "GPL-2.0+" before normalization
@@ -254,15 +345,22 @@ def _normalize_expression(expression: str, db: Optional[LicenseDatabase] = None)
             i += 1
 
     normalized_tokens = []
+    prev_upper = ""
     for token in combined_tokens:
         upper_token = token.upper()
         if upper_token in ("AND", "OR", "WITH"):
             normalized_tokens.append(upper_token)
         elif token in ("(", ")"):
             normalized_tokens.append(token)
+        elif prev_upper == "WITH":
+            # The right-hand side of WITH is an exception ID, not a license
+            # ID — it has its own DB table/casing and must not be run
+            # through the license-oriented normalizer.
+            normalized_tokens.append(_normalize_exception_id(token, db))
         else:
             # It's an identifier (possibly with + already attached)
             normalized_tokens.append(_normalize_single_id(token, db))
+        prev_upper = upper_token
 
     # Reconstruct the expression with proper spacing,
     # handling parentheses without extra spaces.
@@ -270,11 +368,39 @@ def _normalize_expression(expression: str, db: Optional[LicenseDatabase] = None)
     for i, part in enumerate(normalized_tokens):
         if i == 0:
             expr = part
-        elif part == ")":
-            expr += part
-        elif normalized_tokens[i - 1] == "(":
+        elif part == ")" or normalized_tokens[i - 1] == "(":
             expr += part
         else:
             expr += " " + part
 
-    return expr
+    operator_count = sum(1 for t in normalized_tokens if t in ("AND", "OR", "WITH"))
+    if operator_count > _MAX_CANONICALIZE_OPERATORS:
+        return expr
+
+    return _canonicalize_expression(expr)
+
+
+def _canonicalize_expression(expr: str) -> str:
+    """Best-effort structural canonicalization via ``py_spdx_license``.
+
+    Builds a real AST from the (already ID-normalized) expression and uses
+    its ``sort()`` to de-duplicate identical AND/OR operands and produce a
+    consistent operand ordering (e.g. ``MIT AND MIT`` -> ``MIT``).
+
+    ``py_spdx_license`` doesn't support every string ``_normalize_expression``
+    can produce — notably the legacy ``license-id"+"`` form (e.g.
+    ``CDDL-1.0+``) that has no ``-or-later`` equivalent — and its bundled
+    license/exception list is a point-in-time snapshot that can lag behind
+    this project's live-downloaded database. Any failure here just means the
+    string keeps its original (non-deduplicated, non-reordered) form.
+
+    The ``"+"`` limitation is tracked upstream at
+    https://github.com/JPEWdev/py-spdx-license/issues/1 — once it's natively
+    supported there, this fallback (and CDDL-1.0-style test cases) can be
+    revisited.
+    """
+    try:
+        ast = py_spdx_license.parse(expr, allow_unknown=True)
+        return cast(str, ast.sort().to_string())
+    except Exception:  # pylint: disable=broad-exception-caught
+        return expr

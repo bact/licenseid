@@ -9,16 +9,14 @@ Accuracy and performance benchmark tests for license identification.
 # pylint: disable=duplicate-code
 
 import json
-from pathlib import Path
-from typing import Dict, List, Optional
 import sqlite3
+from pathlib import Path
 
 import pytest
 
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.database import LicenseDatabase
+from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
-
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "license-text-long"
 
@@ -33,7 +31,7 @@ def matcher() -> AggregatedLicenseMatcher:
     db_path = "file:test_benchmark?mode=memory&cache=shared"
 
     # Keep a reference to the manager to ensure the in-memory DB is kept alive
-    db_manager = LicenseDatabase(db_path)  # pylint: disable=unused-variable # noqa: F841
+    db_manager = LicenseDatabase(db_path)  # pylint: disable=unused-variable
 
     # Populate the database with our fixtures
     fixtures = list(FIXTURES_DIR.glob("*.json"))
@@ -131,10 +129,10 @@ MUST_HAVE_LICENSES = [
 
 def run_accuracy_test(
     matcher: AggregatedLicenseMatcher,
-    rates: List[str],
-    max_licenses: Optional[int] = None,
-    license_ids: Optional[List[str]] = None,
-) -> Dict[str, Dict[str, int]]:
+    rates: list[str],
+    max_licenses: int | None = None,
+    license_ids: list[str] | None = None,
+) -> dict[str, dict[str, int]]:
     """Execute matching across multiple distortion rates and aggregate results."""
     results = {rate: {"total": 0, "top1": 0, "top3": 0, "top5": 0} for rate in rates}
 
