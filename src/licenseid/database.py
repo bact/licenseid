@@ -17,7 +17,7 @@ import xml.etree.ElementTree as ET
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, cast
+from typing import cast
 
 from licenseid.normalize import normalize_text
 from licenseid.types import (
@@ -36,13 +36,13 @@ from licenseid.types import (
 _LicenseInsertRecord = tuple[
     str,
     str,
-    Optional[str],
+    str | None,
     bool,
     bool,
     bool,
     bool,
     bool,
-    Optional[str],
+    str | None,
     int,
     int,
     str,
@@ -85,7 +85,7 @@ class LicenseDatabase:
         # Check if it's an in-memory URI
         db_path_str = str(self.db_path)
         self.use_uri = "mode=memory" in db_path_str or db_path_str.startswith("file:")
-        self._keep_alive: Optional[sqlite3.Connection] = None
+        self._keep_alive: sqlite3.Connection | None = None
 
         if self.use_uri or db_path_str == ":memory:":
             # For in-memory databases, we must keep at least one connection
@@ -93,8 +93,8 @@ class LicenseDatabase:
             self._keep_alive = self._connect()
 
         self._init_db()
-        self._deprecated_mappings_cache: Optional[dict[str, str]] = None
-        self._names_and_ids_cache: Optional[list[LicenseNameId]] = None
+        self._deprecated_mappings_cache: dict[str, str] | None = None
+        self._names_and_ids_cache: list[LicenseNameId] | None = None
         self._norm_cols_backfilled = False
         self._check_normalization_version()
 
@@ -250,7 +250,7 @@ class LicenseDatabase:
 
     def update_from_remote(
         self,
-        version: Optional[str] = None,
+        version: str | None = None,
         force: bool = False,
         use_cache: bool = True,
     ) -> bool:
@@ -308,7 +308,7 @@ class LicenseDatabase:
         self,
         tar_path: Path,
         popularity_map: dict[str, int],
-        release_date: Optional[str],
+        release_date: str | None,
     ) -> None:
         """Extract tarball and update database records."""
         try:
@@ -359,7 +359,7 @@ class LicenseDatabase:
         root_dir: Path,
         popularity_map: dict[str, int],
         list_version: str,
-        release_date: Optional[str],
+        release_date: str | None,
         exceptions_data: list[SpdxExceptionEntry],
     ) -> None:
         """Execute database delete and insert operations."""
@@ -389,12 +389,12 @@ class LicenseDatabase:
     ) -> tuple[
         list[_LicenseInsertRecord],
         list[_IndexInsertRecord],
-        list[tuple[str, str, bool, Optional[str]]],
+        list[tuple[str, str, bool, str | None]],
     ]:
         """Build the in-memory record lists for insertion (no DB access)."""
         license_records: list[_LicenseInsertRecord] = []
         index_records: list[_IndexInsertRecord] = []
-        exception_records: list[tuple[str, str, bool, Optional[str]]] = []
+        exception_records: list[tuple[str, str, bool, str | None]] = []
 
         print("\nPreparing exception data...", end="", flush=True)
         # Build the superseded_by mapping at DB build time so runtime lookups
@@ -413,7 +413,7 @@ class LicenseDatabase:
         for i, lic in enumerate(licenses_data):
             # Recalculate record with superseded_by info
             is_deprecated = bool(lic.get("isDeprecatedLicenseId", False))
-            superseded_by: Optional[str] = None
+            superseded_by: str | None = None
             if is_deprecated:
                 dep_id = lic["licenseId"]
                 # SPDX '+' token: GPL-2.0+ → GPL-2.0-or-later (certain).
@@ -480,9 +480,9 @@ class LicenseDatabase:
         self,
         license_records: list[_LicenseInsertRecord],
         index_records: list[_IndexInsertRecord],
-        exception_records: list[tuple[str, str, bool, Optional[str]]],
+        exception_records: list[tuple[str, str, bool, str | None]],
         list_version: str,
-        release_date: Optional[str],
+        release_date: str | None,
     ) -> None:
         """Replace all license/exception/metadata rows in a single transaction."""
         print(f"\nInserting {len(license_records)} records into database...")
@@ -543,8 +543,8 @@ class LicenseDatabase:
         root_dir: Path,
         popularity_map: dict[str, int],
         is_deprecated: bool = False,
-        superseded_by: Optional[str] = None,
-    ) -> Optional[tuple[_LicenseInsertRecord, _IndexInsertRecord]]:
+        superseded_by: str | None = None,
+    ) -> tuple[_LicenseInsertRecord, _IndexInsertRecord] | None:
         """Prepare license data for insertion."""
         license_id = lic["licenseId"]
         text_path = root_dir / "text" / f"{license_id}.txt"
@@ -591,7 +591,7 @@ class LicenseDatabase:
         index_record: _IndexInsertRecord = (license_id, fingerprint)
         return license_record, index_record
 
-    def _create_fingerprint(self, text: str, xml_content: Optional[str] = None) -> str:
+    def _create_fingerprint(self, text: str, xml_content: str | None = None) -> str:
         """Create a search fingerprint by removing optional parts and normalizing."""
         if xml_content:
             try:
@@ -778,7 +778,7 @@ class LicenseDatabase:
             except sqlite3.OperationalError:
                 return []
 
-    def get_license_details(self, license_id: str) -> Optional[LicenseDetails]:
+    def get_license_details(self, license_id: str) -> LicenseDetails | None:
         """Get full metadata for a license (case-insensitive lookup)."""
         clean_id = license_id.strip()
         with self._connect() as conn:
@@ -791,7 +791,7 @@ class LicenseDatabase:
                 return None
             return self._cast_license_details(row)
 
-    def get_license_by_name(self, name: str) -> Optional[LicenseDetails]:
+    def get_license_by_name(self, name: str) -> LicenseDetails | None:
         """Get full metadata for a license by its full name (case-insensitive)."""
         clean_name = name.strip()
         if not clean_name:
@@ -806,7 +806,7 @@ class LicenseDatabase:
                 return None
             return self._cast_license_details(row)
 
-    def get_exception_details(self, exception_id: str) -> Optional[ExceptionDetails]:
+    def get_exception_details(self, exception_id: str) -> ExceptionDetails | None:
         """Get full metadata for an exception (case-insensitive lookup)."""
         clean_id = exception_id.strip()
         with self._connect() as conn:
@@ -819,7 +819,7 @@ class LicenseDatabase:
                 return None
             return self._cast_exception_details(row)
 
-    def get_license_by_id_prefix(self, prefix: str) -> Optional[LicenseDetails]:
+    def get_license_by_id_prefix(self, prefix: str) -> LicenseDetails | None:
         """Return the best (shortest) active license whose ID starts with *prefix*.
 
         Used to canonicalise abbreviated IDs such as ``"Apache-2"`` →

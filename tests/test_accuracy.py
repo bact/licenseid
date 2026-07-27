@@ -10,7 +10,7 @@ Accuracy and performance benchmark tests for license identification.
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 import sqlite3
 
 import pytest
@@ -132,8 +132,8 @@ MUST_HAVE_LICENSES = [
 def run_accuracy_test(
     matcher: AggregatedLicenseMatcher,
     rates: List[str],
-    max_licenses: Optional[int] = None,
-    license_ids: Optional[List[str]] = None,
+    max_licenses: int | None = None,
+    license_ids: List[str] | None = None,
 ) -> Dict[str, Dict[str, int]]:
     """Execute matching across multiple distortion rates and aggregate results."""
     results = {rate: {"total": 0, "top1": 0, "top3": 0, "top5": 0} for rate in rates}

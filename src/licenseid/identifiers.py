@@ -8,7 +8,7 @@ SPDX Identifier and Expression normalization and validation.
 """
 
 import re
-from typing import Optional, cast
+from typing import cast
 
 import py_spdx_license
 
@@ -99,7 +99,7 @@ _RE_ONLY = re.compile(r"\bonly\b", re.IGNORECASE)
 _RE_TOKEN = re.compile(r"\(|\)|AND|OR|WITH|\+|[a-zA-Z0-9.-]+", re.IGNORECASE)
 
 
-def disambiguate_deprecated_id(text: str) -> Optional[str]:
+def disambiguate_deprecated_id(text: str) -> str | None:
     """
     Scan *text* for a bare deprecated SPDX ID and a surrounding prose phrase
     that resolves the ``-only`` / ``-or-later`` ambiguity.
@@ -154,7 +154,7 @@ def disambiguate_deprecated_id(text: str) -> Optional[str]:
     return None
 
 
-def normalize_identifier(identifier: str, db: Optional[LicenseDatabase] = None) -> str:
+def normalize_identifier(identifier: str, db: LicenseDatabase | None = None) -> str:
     """
     Normalises a single SPDX License ID or a full License Expression.
     """
@@ -183,7 +183,7 @@ def normalize_identifier(identifier: str, db: Optional[LicenseDatabase] = None) 
 # pylint: disable=too-many-branches
 def _normalize_single_id(
     lic_id: str,
-    db: Optional[LicenseDatabase] = None,
+    db: LicenseDatabase | None = None,
 ) -> str:
     """Normalises a single license or exception ID."""
     # 1. Database lookup (most accurate/up-to-date)
@@ -255,7 +255,7 @@ def _normalize_single_id(
     return lic_id
 
 
-def _normalize_exception_id(exc_id: str, db: Optional[LicenseDatabase] = None) -> str:
+def _normalize_exception_id(exc_id: str, db: LicenseDatabase | None = None) -> str:
     """Normalises a single SPDX License Exception ID (the right-hand side of
     a ``WITH`` operator).
 
@@ -324,7 +324,7 @@ def _is_expression(identifier: str) -> bool:
     )
 
 
-def _normalize_expression(expression: str, db: Optional[LicenseDatabase] = None) -> str:
+def _normalize_expression(expression: str, db: LicenseDatabase | None = None) -> str:
     """Parses and normalises an SPDX License Expression."""
     tokens = _tokenize_expression(expression)
 

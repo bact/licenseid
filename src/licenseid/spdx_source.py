@@ -17,7 +17,6 @@ import io
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 import requests
 
@@ -45,8 +44,8 @@ def is_cache_valid(path: Path, days: int) -> bool:
 
 
 def get_version_info(
-    cache_dir: Path, version: Optional[str], use_cache: bool
-) -> tuple[str, Optional[str], str]:
+    cache_dir: Path, version: str | None, use_cache: bool
+) -> tuple[str, str | None, str]:
     """Determine target version and fetch version info."""
     licenses_json_path = cache_dir / CACHE_LICENSES_JSON
     latest_version = None
@@ -114,7 +113,7 @@ def get_tarball_path(
 
 
 def fetch_popularity_data(
-    cache_dir: Path, local_path: Optional[Path] = None
+    cache_dir: Path, local_path: Path | None = None
 ) -> dict[str, int]:
     """Fetch and aggregate popularity data from GitHub Innovation Graph."""
     popularity_map: dict[str, int] = {}

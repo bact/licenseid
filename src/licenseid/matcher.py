@@ -9,7 +9,7 @@ Aggregated license matching logic using hybrid search.
 
 import os
 import shutil
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import py_spdx_license
 from rapidfuzz import fuzz
@@ -61,7 +61,7 @@ class AggregatedLicenseMatcher:
 
     def __init__(
         self,
-        db_path: Optional[str] = None,
+        db_path: str | None = None,
         enable_java: bool = False,
         enable_popularity: bool = False,
     ):
@@ -77,10 +77,10 @@ class AggregatedLicenseMatcher:
     # pylint: disable=too-many-locals
     def match(
         self,
-        text: Optional[str] = None,
+        text: str | None = None,
         *,
-        license_id: Optional[str] = None,
-        file_path: Optional[str] = None,
+        license_id: str | None = None,
+        file_path: str | None = None,
         **options: Any,
     ) -> list[LicenseMatch]:
         # pylint: disable=too-many-return-statements
@@ -253,7 +253,7 @@ class AggregatedLicenseMatcher:
 
         return cast(list[LicenseMatch], ranked)
 
-    def _match_with_expression(self, license_id: str) -> Optional[LicenseMatch]:
+    def _match_with_expression(self, license_id: str) -> LicenseMatch | None:
         """Resolve a bare ``<license> WITH <exception>`` expression.
 
         The ``licenses`` table only has rows for plain license IDs (plus a
@@ -296,11 +296,11 @@ class AggregatedLicenseMatcher:
 
     def _resolve_to_record(
         self,
-        text: Optional[str] = None,
+        text: str | None = None,
         *,
-        license_id: Optional[str] = None,
-        file_path: Optional[str] = None,
-    ) -> Optional[LicenseDetails]:
+        license_id: str | None = None,
+        file_path: str | None = None,
+    ) -> LicenseDetails | None:
         """Internal helper to resolve explicit inputs to a database record."""
         results = self.match(text, license_id=license_id, file_path=file_path)
         if not results or results[0]["score"] < 0.85:
@@ -328,22 +328,22 @@ class AggregatedLicenseMatcher:
             },
         )
 
-    def is_spdx(self, text: Optional[str] = None, **kwargs: Any) -> bool:
+    def is_spdx(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is in the SPDX License List."""
         record = self._resolve_to_record(text, **kwargs)
         return record is not None and record.get("is_spdx", False)
 
-    def is_osi(self, text: Optional[str] = None, **kwargs: Any) -> bool:
+    def is_osi(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is OSI-approved."""
         record = self._resolve_to_record(text, **kwargs)
         return record is not None and record.get("is_osi_approved", False)
 
-    def is_fsf(self, text: Optional[str] = None, **kwargs: Any) -> bool:
+    def is_fsf(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is FSF-libre."""
         record = self._resolve_to_record(text, **kwargs)
         return record is not None and record.get("is_fsf_libre", False)
 
-    def is_open(self, text: Optional[str] = None, **kwargs: Any) -> bool:
+    def is_open(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is OSI-approved OR FSF-libre."""
         record = self._resolve_to_record(text, **kwargs)
         if not record:
@@ -490,7 +490,7 @@ class AggregatedLicenseMatcher:
         candidates: list[CandidateMatch],
         norm_input: str,
         data: MatchRequest,
-        marker_boosts: Optional[dict[str, float]] = None,
+        marker_boosts: dict[str, float] | None = None,
         is_pure: bool = True,
     ) -> list[InternalMatch]:
         """Rank candidates using dynamic sliding window and

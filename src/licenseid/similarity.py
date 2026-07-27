@@ -12,7 +12,6 @@ AggregatedLicenseMatcher.
 """
 
 import math
-from typing import Optional
 
 from rapidfuzz import fuzz
 
@@ -29,7 +28,7 @@ PROBE_WORDS: int = 60  # probe sample size (words, taken from query middle)
 PROBE_GATE: float = 0.52  # min probe score to run the full alignment scan
 
 
-def build_probe(query_words: list[str]) -> Optional[str]:
+def build_probe(query_words: list[str]) -> str | None:
     """Build the mid-query probe sample used by fragment_similarity().
 
     Only useful when the query is long enough that the probe is a real
@@ -47,7 +46,7 @@ def build_probe(query_words: list[str]) -> Optional[str]:
 def fragment_similarity(
     norm_input: str,
     search_text: str,
-    probe: Optional[str],
+    probe: str | None,
 ) -> tuple[float, str]:
     """Similarity for fragment inputs (query shorter than candidate).
 
@@ -89,7 +88,7 @@ def calculate_base_similarity(
     q_len: int,
     q_tokens: set[str],
     cand: CandidateMatch,
-    probe: Optional[str] = None,
+    probe: str | None = None,
 ) -> tuple[float, float, str]:
     """Calculate base similarity and coverage for a candidate."""
     search_text = cand.get("search_text") or ""

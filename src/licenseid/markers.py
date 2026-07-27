@@ -8,7 +8,6 @@
 import json
 import os
 import re
-from typing import Optional
 
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import normalize_identifier
@@ -94,9 +93,7 @@ class MarkerDetector:
     def __init__(self, db: LicenseDatabase):
         self.db = db
 
-    def detect(
-        self, text: str, file_path: Optional[str] = None
-    ) -> list[CandidateMatch]:
+    def detect(self, text: str, file_path: str | None = None) -> list[CandidateMatch]:
         """Detect license markers in the given text, deduplicating by license_id."""
         seen: set[str] = set()
         result: list[CandidateMatch] = []
@@ -402,11 +399,11 @@ class MarkerDetector:
                     candidates.append(self.to_candidate(details, 0.9))
         return candidates
 
-    def _extract_license_from_lines(self, lines: list[str]) -> Optional[LicenseDetails]:
+    def _extract_license_from_lines(self, lines: list[str]) -> LicenseDetails | None:
         """Try to identify a license from a block of lines near a heading."""
         cleaned = [line.strip() for line in lines]
 
-        def _try(text: str) -> Optional[LicenseDetails]:
+        def _try(text: str) -> LicenseDetails | None:
             # Skip decorative separator lines (all "=", "-", "*", "#", or space)
             if not text or re.match(r"^[=\-*#\s]+$", text):
                 return None
@@ -438,7 +435,7 @@ class MarkerDetector:
 
         return None
 
-    def _extract_mentioned_license(self, text: str) -> Optional[str]:
+    def _extract_mentioned_license(self, text: str) -> str | None:
         """Extract and clean a license name/ID from 'under the X License' pattern."""
         m = self._RE_LICENSE_MENTION.search(text)
         if not m:
@@ -449,7 +446,7 @@ class MarkerDetector:
         candidate = re.sub(r"\s+Licen[sc]e[s]?\s*$", "", candidate, flags=re.IGNORECASE)
         return candidate.strip() if candidate.strip() else None
 
-    def _try_license_lookup(self, name: str) -> Optional[LicenseDetails]:
+    def _try_license_lookup(self, name: str) -> LicenseDetails | None:
         """Try multiple name/ID variants to resolve a license mention."""
         for candidate in self._name_variants(name):
             details = self.db.get_license_details(
