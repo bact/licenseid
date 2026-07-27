@@ -99,6 +99,21 @@ def test_short_text_rejection(test_db: str) -> None:
     assert not matcher.match("   ")
     assert not matcher.match("\n\n")
 
+    # Generic short string (should fail name matching because threshold is 90/85)
+    assert not matcher.match("This")
+    assert not matcher.match("Copyright 2024.")
+    assert not matcher.match("One two three four")
+
+    # Exact name matches (< 12 words)
+    res_mit = matcher.match("MIT")
+    assert res_mit and res_mit[0]["license_id"] == "MIT"
+    res_aml = matcher.match("Apple MIT License")
+    assert res_aml and res_aml[0]["license_id"] == "AML"
+
+    # Partial name matches (< 12 words)
+    res_apple = matcher.match("APPLE PUBLIC SOURCE LICENSE")
+    assert len(res_apple) > 0 and res_apple[0]["license_id"] == "APSL-2.0"
+
 
 def test_match_with_expression(test_db: str) -> None:
     """A well-formed 'license WITH exception' expression is a real match,
@@ -120,18 +135,3 @@ def test_match_with_expression_unknown_exception(test_db: str) -> None:
     matcher = AggregatedLicenseMatcher(test_db)
 
     assert matcher.match(license_id="MIT WITH Not-A-Real-Exception") == []
-
-    # Generic short string (should fail name matching because threshold is 90/85)
-    assert not matcher.match("This")
-    assert not matcher.match("Copyright 2024.")
-    assert not matcher.match("One two three four")
-
-    # Exact name matches (< 12 words)
-    res_mit = matcher.match("MIT")
-    assert res_mit and res_mit[0]["license_id"] == "MIT"
-    res_aml = matcher.match("Apple MIT License")
-    assert res_aml and res_aml[0]["license_id"] == "AML"
-
-    # Partial name matches (< 12 words)
-    res_apple = matcher.match("APPLE PUBLIC SOURCE LICENSE")
-    assert len(res_apple) > 0 and res_apple[0]["license_id"] == "APSL-2.0"
