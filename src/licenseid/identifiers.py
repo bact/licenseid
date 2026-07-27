@@ -8,7 +8,9 @@ SPDX Identifier and Expression normalization and validation.
 """
 
 import re
-from typing import Optional
+from typing import Optional, cast
+
+import py_spdx_license
 
 from licenseid.database import LicenseDatabase
 
@@ -105,7 +107,13 @@ def disambiguate_deprecated_id(text: str) -> Optional[str]:
     """
     # Sort longest IDs first so e.g. "LGPL-2.1" is tried before "LGPL-2".
     for dep_id in sorted(DEPRECATED_BARE_LICENSE_IDS, key=len, reverse=True):
-        m = re.search(r"\b" + re.escape(dep_id) + r"\b", text, re.IGNORECASE)
+        # (?![\w.-]) (not just \b) so a bare ID isn't matched as a prefix of
+        # an already-canonical suffixed ID it's contained in, e.g. "GPL-2.0"
+        # inside "GPL-2.0-only" or "GPL-2.0-or-later" — "\b" alone treats
+        # the boundary before "-" as a word boundary and would match, then
+        # the "-only"/"-or-later" suffix itself falsely satisfies the prose
+        # disambiguation checks below.
+        m = re.search(r"\b" + re.escape(dep_id) + r"(?![\w.-])", text, re.IGNORECASE)
         if not m:
             continue
 
@@ -228,6 +236,37 @@ def _normalize_single_id(
     return lic_id
 
 
+def _normalize_exception_id(exc_id: str, db: Optional[LicenseDatabase] = None) -> str:
+    """Normalises a single SPDX License Exception ID (the right-hand side of
+    a ``WITH`` operator).
+
+    Unlike license IDs, exceptions have their own DB table
+    (``get_exception_details`` / the exception half of
+    ``get_deprecated_mappings``); looking them up via the license-oriented
+    ``_normalize_single_id`` would never find a match and silently return the
+    ID unchanged, including its casing.
+    """
+    if not db:
+        return exc_id
+
+    mappings = db.get_deprecated_mappings()
+    normalized = mappings.get(exc_id)
+    if not normalized:
+        exc_id_upper = exc_id.upper()
+        for dep_id, canonical in mappings.items():
+            if dep_id.upper() == exc_id_upper:
+                normalized = canonical
+                break
+    if normalized:
+        return normalized
+
+    details = db.get_exception_details(exc_id)
+    if details:
+        return details["exception_id"]
+
+    return exc_id
+
+
 def _normalize_expression(expression: str, db: Optional[LicenseDatabase] = None) -> str:
     """Parses and normalises an SPDX License Expression."""
     # Tokenize: keeping separators and identifiers
@@ -254,15 +293,22 @@ def _normalize_expression(expression: str, db: Optional[LicenseDatabase] = None)
             i += 1
 
     normalized_tokens = []
+    prev_upper = ""
     for token in combined_tokens:
         upper_token = token.upper()
         if upper_token in ("AND", "OR", "WITH"):
             normalized_tokens.append(upper_token)
         elif token in ("(", ")"):
             normalized_tokens.append(token)
+        elif prev_upper == "WITH":
+            # The right-hand side of WITH is an exception ID, not a license
+            # ID — it has its own DB table/casing and must not be run
+            # through the license-oriented normalizer.
+            normalized_tokens.append(_normalize_exception_id(token, db))
         else:
             # It's an identifier (possibly with + already attached)
             normalized_tokens.append(_normalize_single_id(token, db))
+        prev_upper = upper_token
 
     # Reconstruct the expression with proper spacing,
     # handling parentheses without extra spaces.
@@ -277,4 +323,25 @@ def _normalize_expression(expression: str, db: Optional[LicenseDatabase] = None)
         else:
             expr += " " + part
 
-    return expr
+    return _canonicalize_expression(expr)
+
+
+def _canonicalize_expression(expr: str) -> str:
+    """Best-effort structural canonicalization via ``py_spdx_license``.
+
+    Builds a real AST from the (already ID-normalized) expression and uses
+    its ``sort()`` to de-duplicate identical AND/OR operands and produce a
+    consistent operand ordering (e.g. ``MIT AND MIT`` -> ``MIT``).
+
+    ``py_spdx_license`` doesn't support every string ``_normalize_expression``
+    can produce — notably the legacy ``license-id"+"`` form (e.g.
+    ``CDDL-1.0+``) that has no ``-or-later`` equivalent — and its bundled
+    license/exception list is a point-in-time snapshot that can lag behind
+    this project's live-downloaded database. Any failure here just means the
+    string keeps its original (non-deduplicated, non-reordered) form.
+    """
+    try:
+        ast = py_spdx_license.parse(expr, allow_unknown=True)
+        return cast(str, ast.sort().to_string())
+    except Exception:  # pylint: disable=broad-exception-caught
+        return expr

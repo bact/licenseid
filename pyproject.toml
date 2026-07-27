@@ -41,6 +41,7 @@ classifiers = [
 dependencies = [
     "beautifulsoup4>=4.15.0",
     "click>=8.4.2",
+    "py-spdx-license>=0.0.1",
     "rapidfuzz>=3.14.5",
     "requests>=2.33.0",
     "typing_extensions>=4.16.0",
@@ -109,6 +110,10 @@ warn_unreachable = true
 
 [[tool.mypy.overrides]]
 module = ["jpype", "jpype.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["py_spdx_license", "py_spdx_license.*"]
 ignore_missing_imports = true
 
 [tool.hatch.build.hooks.pitloom]

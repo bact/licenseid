@@ -37,6 +37,16 @@ A portable license ID matcher with command line interface and Python API.
   - `Apache-2+` → `Apache-2.0+` (abbreviated base canonicalised, `+` retained).
   - Bare deprecated IDs (e.g. `GPL-2.0`) resolved conservatively to `-only`
     when no surrounding context is available.
+- **SPDX License Expression support** (via [`py-spdx-license`][py-spdx-license]):
+  - Structural normalisation of `AND`/`OR` expressions: duplicate operands
+    collapse (`MIT AND MIT` → `MIT`) and operands are put in a consistent
+    order, making equivalent expressions compare equal.
+  - `WITH <exception>` expressions are validated and matched against the
+    SPDX exception list, not just the license list — e.g.
+    `licenseid match --id "MIT WITH Font-exception-2.0"` resolves correctly
+    even though it isn't a single license row.
+
+[py-spdx-license]: https://github.com/JPEWdev/py-spdx-license
 - **Unix philosophy**: Parseable, line-delimited CLI output.
 
 ## Installation

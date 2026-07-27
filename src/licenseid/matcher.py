@@ -11,6 +11,7 @@ import os
 import shutil
 from typing import Any, Optional, cast
 
+import py_spdx_license
 from rapidfuzz import fuzz
 
 from licenseid.classify import has_or_later_language, is_pure_license_text
@@ -104,6 +105,9 @@ class AggregatedLicenseMatcher:
                         is_fsf_libre=details["is_fsf_libre"],
                     )
                 ]
+            with_match = self._match_with_expression(license_id)
+            if with_match:
+                return [with_match]
             return []
 
         # 2. File Path
@@ -249,6 +253,41 @@ class AggregatedLicenseMatcher:
 
         return cast(list[LicenseMatch], ranked)
 
+    def _match_with_expression(self, license_id: str) -> Optional[LicenseMatch]:
+        """Resolve a bare ``<license> WITH <exception>`` expression.
+
+        The ``licenses`` table only has rows for plain license IDs (plus a
+        handful of legacy hardcoded compound IDs), so a well-formed but
+        otherwise unseen expression like ``MIT WITH Font-exception-2.0``
+        would not be found by a direct ``get_license_details`` lookup even
+        though it is perfectly valid. Parse it structurally, then validate
+        each half against this project's own (live-downloaded) license and
+        exception tables.
+        """
+        try:
+            ast = py_spdx_license.parse(license_id, allow_unknown=True)
+        except py_spdx_license.ParseError:
+            return None
+
+        if not isinstance(ast, py_spdx_license.WithOp):
+            return None
+
+        lic_details = self.db.get_license_details(ast.license.ident)
+        exc_details = self.db.get_exception_details(ast.exception.ident)
+        if not lic_details or not exc_details:
+            return None
+
+        combined_id = f"{lic_details['license_id']} WITH {exc_details['exception_id']}"
+        return LicenseMatch(
+            license_id=combined_id,
+            score=1.0,
+            similarity=1.0,
+            coverage=1.0,
+            is_spdx=lic_details["is_spdx"],
+            is_osi_approved=lic_details["is_osi_approved"],
+            is_fsf_libre=lic_details["is_fsf_libre"],
+        )
+
     def _resolve_to_record(
         self,
         text: Optional[str] = None,
@@ -258,9 +297,30 @@ class AggregatedLicenseMatcher:
     ) -> Optional[LicenseDetails]:
         """Internal helper to resolve explicit inputs to a database record."""
         results = self.match(text, license_id=license_id, file_path=file_path)
-        if results and results[0]["score"] >= 0.85:
-            return self.db.get_license_details(results[0]["license_id"])
-        return None
+        if not results or results[0]["score"] < 0.85:
+            return None
+
+        top = results[0]
+        record = self.db.get_license_details(top["license_id"])
+        if record:
+            return record
+
+        # Composite "license WITH exception" matches aren't a single DB
+        # row (see _match_with_expression) — fall back to the flags match()
+        # already computed rather than reporting "unknown".
+        return cast(
+            LicenseDetails,
+            {
+                "license_id": top["license_id"],
+                "name": top["license_id"],
+                "is_spdx": top.get("is_spdx", False),
+                "is_osi_approved": top.get("is_osi_approved", False),
+                "is_fsf_libre": top.get("is_fsf_libre", False),
+                "is_high_usage": False,
+                "pop_score": 0,
+                "word_count": 0,
+            },
+        )
 
     def is_spdx(self, text: Optional[str] = None, **kwargs: Any) -> bool:
         """True if the license is in the SPDX License List."""

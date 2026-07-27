@@ -99,9 +99,13 @@ def test_normalize_deprecated_with(db: LicenseDatabase) -> None:
 
 
 def test_normalize_expression(db: LicenseDatabase) -> None:
-    """Normalise SPDX expression strings."""
-    assert normalize_identifier("MIT AND Apache-2.0", db) == "MIT AND Apache-2.0"
-    assert normalize_identifier("(MIT OR Apache-2.0)", db) == "(MIT OR Apache-2.0)"
+    """Normalise SPDX expression strings.
+
+    Operand order is canonicalised (alphabetical) by the structural
+    AND/OR sort pass, not preserved verbatim from the input.
+    """
+    assert normalize_identifier("MIT AND Apache-2.0", db) == "Apache-2.0 AND MIT"
+    assert normalize_identifier("(MIT OR Apache-2.0)", db) == "Apache-2.0 OR MIT"
     assert (
         normalize_identifier("GPL-2.0 WITH Linux-syscall-note", db)
         == "GPL-2.0-only WITH Linux-syscall-note"
@@ -109,19 +113,53 @@ def test_normalize_expression(db: LicenseDatabase) -> None:
 
 
 def test_normalize_expression_complex(db: LicenseDatabase) -> None:
-    """Normalise complex SPDX expressions with multiple operators."""
+    """Normalise complex SPDX expressions with multiple operators.
+
+    The parens around the AND subexpression are semantically redundant
+    (AND binds tighter than OR) and are dropped by canonicalisation.
+    """
     expr = "(GPL-2.0+ AND MIT) OR Apache-2.0"
-    expected = "(GPL-2.0-or-later AND MIT) OR Apache-2.0"
+    expected = "GPL-2.0-or-later AND MIT OR Apache-2.0"
     assert normalize_identifier(expr, db) == expected
 
 
 def test_normalize_case_insensitivity(db: LicenseDatabase) -> None:
     """Normalise case-insensitive SPDX expressions to canonical casing."""
-    assert normalize_identifier("mit and apache-2.0", db) == "MIT AND Apache-2.0"
+    assert normalize_identifier("mit and apache-2.0", db) == "Apache-2.0 AND MIT"
     assert (
         normalize_identifier("GPL-2.0 with Linux-syscall-note", db)
         == "GPL-2.0-only WITH Linux-syscall-note"
     )
+
+
+def test_normalize_expression_dedup(db: LicenseDatabase) -> None:
+    """Structurally identical AND/OR operands collapse to one (issue #18)."""
+    assert normalize_identifier("(MIT AND MIT)", db) == "MIT"
+    assert normalize_identifier("(MIT OR MIT)", db) == "MIT"
+    assert (
+        normalize_identifier("(MIT AND Apache-2.0) AND (Apache-2.0 AND MIT)", db)
+        == "Apache-2.0 AND MIT"
+    )
+
+
+def test_normalize_with_exception_casing(db: LicenseDatabase) -> None:
+    """The WITH right-hand side is looked up as an exception, not a license.
+
+    Regression test: previously the exception ID after WITH was normalised
+    with the license-oriented lookup, which never matched the exceptions
+    table, so a mis-cased exception ID passed through unchanged.
+    """
+    assert (
+        normalize_identifier("GPL-2.0-only WITH linux-syscall-note", db)
+        == "GPL-2.0-only WITH Linux-syscall-note"
+    )
+
+
+def test_normalize_expression_plus_fallback(db: LicenseDatabase) -> None:
+    """Expressions with a literal '+' (no '-or-later' variant) can't be
+    parsed by py_spdx_license and fall back to the pre-canonicalisation
+    string instead of raising or dropping content."""
+    assert normalize_identifier("CDDL-1.0+ AND MIT", db) == "CDDL-1.0+ AND MIT"
 
 
 @pytest.mark.parametrize(

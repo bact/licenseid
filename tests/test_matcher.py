@@ -49,6 +49,11 @@ def test_db() -> Generator[str, None, None]:
             ("MIT", mit_text),
         )
         conn.execute(
+            "INSERT INTO exceptions (exception_id, name, is_deprecated, superseded_by) "
+            "VALUES (?, ?, ?, ?)",
+            ("Font-exception-2.0", "Font exception 2.0", False, None),
+        )
+        conn.execute(
             "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
             ("last_check_datetime", "2026-01-01T00:00:00"),
         )
@@ -93,6 +98,28 @@ def test_short_text_rejection(test_db: str) -> None:
     assert not matcher.match("")
     assert not matcher.match("   ")
     assert not matcher.match("\n\n")
+
+
+def test_match_with_expression(test_db: str) -> None:
+    """A well-formed 'license WITH exception' expression is a real match,
+    not just a literal DB row lookup (there is no such row)."""
+    matcher = AggregatedLicenseMatcher(test_db)
+
+    results = matcher.match(license_id="MIT WITH Font-exception-2.0")
+    assert len(results) == 1
+    assert results[0]["license_id"] == "MIT WITH Font-exception-2.0"
+    assert results[0]["score"] == 1.0
+    assert results[0]["is_spdx"] is True
+
+    assert matcher.is_spdx(license_id="MIT WITH Font-exception-2.0")
+
+
+def test_match_with_expression_unknown_exception(test_db: str) -> None:
+    """An otherwise well-formed WITH expression naming an exception that
+    isn't in the (live-downloaded) exceptions table is not a match."""
+    matcher = AggregatedLicenseMatcher(test_db)
+
+    assert matcher.match(license_id="MIT WITH Not-A-Real-Exception") == []
 
     # Generic short string (should fail name matching because threshold is 90/85)
     assert not matcher.match("This")
