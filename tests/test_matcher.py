@@ -135,3 +135,18 @@ def test_match_with_expression_unknown_exception(test_db: str) -> None:
     matcher = AggregatedLicenseMatcher(test_db)
 
     assert matcher.match(license_id="MIT WITH Not-A-Real-Exception") == []
+
+
+def test_match_pathological_expression_does_not_crash(test_db: str) -> None:
+    """A very long AND-chain passed as license_id must degrade to "no
+    match", not crash.
+
+    Regression test: py_spdx_license's AST construction is a plain
+    recursive tree walk with no depth guard, so a long enough chain raises
+    RecursionError (not ParseError) — _match_with_expression previously
+    only caught ParseError, so this propagated out of match() uncaught.
+    """
+    matcher = AggregatedLicenseMatcher(test_db)
+    expr = " AND ".join(f"LicenseRef-{i}" for i in range(400))
+
+    assert matcher.match(license_id=expr) == []

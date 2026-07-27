@@ -14,6 +14,16 @@ import py_spdx_license
 
 from licenseid.database import LicenseDatabase
 
+# Defensive cap on the number of AND/OR/WITH operators an expression may
+# have before we attempt py_spdx_license's structural sort()/dedup pass.
+# sort() has been observed to blow up well past polynomially — seconds of
+# CPU time past roughly 150 unique AND/OR operands in an otherwise flat
+# chain — for large expressions; this is not an SPDX grammar limit. Real
+# SPDX expressions are virtually never this large, so expressions past the
+# cap just skip canonicalization rather than risking a slow/blocking call
+# on a pathological or adversarial one.
+_MAX_CANONICALIZE_OPERATORS = 40
+
 # Deprecated SPDX License IDs using the '+' expression token.
 # The SPDX '+' operator means "or any later version" (SPDX Spec §10.1).
 # These can be resolved to canonical form with certainty because the '+'
@@ -107,13 +117,16 @@ def disambiguate_deprecated_id(text: str) -> Optional[str]:
     """
     # Sort longest IDs first so e.g. "LGPL-2.1" is tried before "LGPL-2".
     for dep_id in sorted(DEPRECATED_BARE_LICENSE_IDS, key=len, reverse=True):
-        # (?![\w.-]) (not just \b) so a bare ID isn't matched as a prefix of
+        # (?![\w-]) (not just \b) so a bare ID isn't matched as a prefix of
         # an already-canonical suffixed ID it's contained in, e.g. "GPL-2.0"
         # inside "GPL-2.0-only" or "GPL-2.0-or-later" — "\b" alone treats
         # the boundary before "-" as a word boundary and would match, then
         # the "-only"/"-or-later" suffix itself falsely satisfies the prose
-        # disambiguation checks below.
-        m = re.search(r"\b" + re.escape(dep_id) + r"(?![\w.-])", text, re.IGNORECASE)
+        # disambiguation checks below. "." is deliberately not excluded here:
+        # both real suffixes start with "-", and excluding "." too would
+        # reject a bare ID immediately followed by sentence punctuation
+        # (e.g. "...licensed under GPL-2.0. This version only.").
+        m = re.search(r"\b" + re.escape(dep_id) + r"(?![\w-])", text, re.IGNORECASE)
         if not m:
             continue
 
@@ -322,6 +335,10 @@ def _normalize_expression(expression: str, db: Optional[LicenseDatabase] = None)
             expr += part
         else:
             expr += " " + part
+
+    operator_count = sum(1 for t in normalized_tokens if t in ("AND", "OR", "WITH"))
+    if operator_count > _MAX_CANONICALIZE_OPERATORS:
+        return expr
 
     return _canonicalize_expression(expr)
 

@@ -263,10 +263,16 @@ class AggregatedLicenseMatcher:
         though it is perfectly valid. Parse it structurally, then validate
         each half against this project's own (live-downloaded) license and
         exception tables.
+
+        Catches broadly (not just ``ParseError``): py_spdx_license's AST
+        construction is a plain recursive tree walk with no depth guard, so
+        a pathological input (e.g. a very long ``AND``-chain passed
+        directly as ``license_id``) raises ``RecursionError`` rather than
+        ``ParseError``. Either way, it isn't a WITH match.
         """
         try:
             ast = py_spdx_license.parse(license_id, allow_unknown=True)
-        except py_spdx_license.ParseError:
+        except Exception:  # pylint: disable=broad-exception-caught
             return None
 
         if not isinstance(ast, py_spdx_license.WithOp):

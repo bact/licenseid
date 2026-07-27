@@ -12,7 +12,11 @@ import pytest
 
 # pylint: disable=redefined-outer-name
 from licenseid.database import LicenseDatabase
-from licenseid.identifiers import disambiguate_deprecated_id, normalize_identifier
+from licenseid.identifiers import (
+    _MAX_CANONICALIZE_OPERATORS,
+    disambiguate_deprecated_id,
+    normalize_identifier,
+)
 
 
 @pytest.fixture
@@ -162,6 +166,24 @@ def test_normalize_expression_plus_fallback(db: LicenseDatabase) -> None:
     assert normalize_identifier("CDDL-1.0+ AND MIT", db) == "CDDL-1.0+ AND MIT"
 
 
+def test_normalize_expression_skips_canonicalization_when_large() -> None:
+    """Expressions past _MAX_CANONICALIZE_OPERATORS skip the py_spdx_license
+    sort() pass entirely instead of paying its (observed super-linear) cost.
+
+    Uses LicenseRef- IDs (no DB needed) so this stays a fast, deterministic
+    unit test rather than a timing-based one.
+    """
+    n = _MAX_CANONICALIZE_OPERATORS + 2
+    expr = " AND ".join(f"LicenseRef-{i}" for i in range(n))
+    # Capped: returned unchanged (not deduplicated/reordered), since there
+    # are no duplicates to begin with in this input.
+    assert normalize_identifier(expr, None) == expr
+
+    small_expr = "LicenseRef-B AND LicenseRef-A"
+    # Under the cap: still canonicalised (reordered).
+    assert normalize_identifier(small_expr, None) == "LicenseRef-A AND LicenseRef-B"
+
+
 @pytest.mark.parametrize(
     "text, expected",
     [
@@ -173,8 +195,16 @@ def test_normalize_expression_plus_fallback(db: LicenseDatabase) -> None:
         ("GPL-2.0 or newer", "GPL-2.0-or-later"),
         # only prose
         ("GPL-2.0 only", "GPL-2.0-only"),
+        # sentence-ending punctuation directly after the bare ID (no space)
+        # must not block matching the disambiguating phrase later on.
+        ("Licensed under GPL-2.0. This version only, not later.", "GPL-2.0-only"),
         # no disambiguating phrase — returns None
         ("GPL-2.0", None),
+        # already-canonical suffixed IDs must not be re-matched as the bare
+        # ID via their "-only"/"-or-later" suffix (regression: the bare-ID
+        # boundary check must not treat "-" as a non-continuing boundary).
+        ("GPL-2.0-only", None),
+        ("GPL-2.0-or-later", None),
         # no deprecated ID present
         ("MIT", None),
         # normalize_identifier must apply the prose check too
