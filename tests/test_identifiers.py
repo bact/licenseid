@@ -14,6 +14,7 @@ import pytest
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import (
     _MAX_CANONICALIZE_OPERATORS,
+    _is_expression,
     disambiguate_deprecated_id,
     normalize_identifier,
 )
@@ -153,6 +154,31 @@ def test_normalize_expression_does_not_split_embedded_operator_words(
         normalize_identifier("GPL-2.0-or-later AND MIT", db)
         == "GPL-2.0-or-later AND MIT"
     )
+
+
+@pytest.mark.parametrize(
+    "identifier, expected",
+    [
+        # single IDs: not expressions, even though they contain AND/OR/WITH
+        # as a substring of their own name.
+        ("MIT", False),
+        ("GPL-2.0-or-later", False),
+        ("GPL-2.0-with-font-exception", False),
+        ("LicenseRef-BRANDing-1.0", False),
+        # real expressions: genuine operators, "+", or parentheses.
+        ("MIT AND Apache-2.0", True),
+        ("MIT OR Apache-2.0", True),
+        ("MIT WITH Font-exception-2.0", True),
+        ("Apache-2.0+", True),
+        ("(MIT)", True),
+    ],
+)
+def test_is_expression(identifier: str, expected: bool) -> None:
+    """_is_expression must not misfire on single IDs containing "and"/"or"/
+    "with" as a substring (regression: normalize_identifier's top-level
+    dispatch used to do a plain substring check, routing such IDs through
+    the full expression-normalisation pipeline unnecessarily)."""
+    assert _is_expression(identifier) is expected
 
 
 def test_normalize_expression_dedup(db: LicenseDatabase) -> None:
