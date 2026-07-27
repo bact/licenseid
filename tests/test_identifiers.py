@@ -136,6 +136,25 @@ def test_normalize_case_insensitivity(db: LicenseDatabase) -> None:
     )
 
 
+def test_normalize_expression_does_not_split_embedded_operator_words(
+    db: LicenseDatabase,
+) -> None:
+    """A real ID that contains "or"/"with" as a substring (e.g. the
+    "-or-later" suffix) must tokenise as one identifier, not get split on
+    the embedded operator word.
+
+    The tokenizer regex lists AND/OR/WITH as alternatives before the
+    catch-all identifier pattern, but the catch-all's greedy "+" always
+    consumes a full contiguous run of identifier characters starting from
+    its first character, so "GPL-2.0-or-later" is matched whole before the
+    engine ever considers "or" as a standalone alternative partway through.
+    """
+    assert (
+        normalize_identifier("GPL-2.0-or-later AND MIT", db)
+        == "GPL-2.0-or-later AND MIT"
+    )
+
+
 def test_normalize_expression_dedup(db: LicenseDatabase) -> None:
     """Structurally identical AND/OR operands collapse to one (issue #18)."""
     assert normalize_identifier("(MIT AND MIT)", db) == "MIT"
@@ -195,9 +214,10 @@ def test_normalize_expression_skips_canonicalization_when_large() -> None:
         ("GPL-2.0 or newer", "GPL-2.0-or-later"),
         # only prose
         ("GPL-2.0 only", "GPL-2.0-only"),
-        # sentence-ending punctuation directly after the bare ID (no space)
-        # must not block matching the disambiguating phrase later on.
+        # sentence-ending/list punctuation directly after the bare ID (no
+        # space) must not block matching the disambiguating phrase later on.
         ("Licensed under GPL-2.0. This version only, not later.", "GPL-2.0-only"),
+        ("Licensed under GPL-2.0, or any later version.", "GPL-2.0-or-later"),
         # no disambiguating phrase — returns None
         ("GPL-2.0", None),
         # already-canonical suffixed IDs must not be re-matched as the bare
