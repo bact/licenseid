@@ -134,7 +134,7 @@ def test_match_with_expression_unknown_exception(test_db: str) -> None:
     isn't in the (live-downloaded) exceptions table is not a match."""
     matcher = AggregatedLicenseMatcher(test_db)
 
-    assert matcher.match(license_id="MIT WITH Not-A-Real-Exception") == []
+    assert not matcher.match(license_id="MIT WITH Not-A-Real-Exception")
 
 
 def test_match_pathological_expression_does_not_crash(test_db: str) -> None:
@@ -149,4 +149,4 @@ def test_match_pathological_expression_does_not_crash(test_db: str) -> None:
     matcher = AggregatedLicenseMatcher(test_db)
     expr = " AND ".join(f"LicenseRef-{i}" for i in range(400))
 
-    assert matcher.match(license_id=expr) == []
+    assert not matcher.match(license_id=expr)
