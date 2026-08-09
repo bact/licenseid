@@ -1,7 +1,8 @@
-# LicenseID - A portable SPDX License ID matcher
+# LicenseID - An SPDX License ID matcher
 
 [![PyPI - Version](https://img.shields.io/pypi/v/licenseid)](https://pypi.org/project/licenseid/)
 ![GitHub License](https://img.shields.io/github/license/bact/licenseid)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14002/badge)](https://www.bestpractices.dev/projects/14002)
 [![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.19881009-blue)](https://doi.org/10.5281/zenodo.19881009)
 
 Get the [SPDX License ID][spdx-license-id] from license text.
