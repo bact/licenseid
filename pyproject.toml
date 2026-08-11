@@ -119,9 +119,6 @@ ignore_missing_imports = true
 [tool.hatch.build.hooks.pitloom]
 enabled = true
 
-[tool.pitloom]
-sbom-basename = "licenseid"
-
 [[tool.pitloom.creator]]
 name = "Arthit Suriyawongkul"
 email = "suriyawa@tcd.ie"
