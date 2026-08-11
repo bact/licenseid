@@ -145,8 +145,14 @@ def test_normalize_operator_casing_combinations(db: LicenseDatabase) -> None:
     # 1. Operators inside expressions
     assert normalize_operator_casing("MIT and Apache-2.0") == "MIT AND Apache-2.0"
     assert normalize_operator_casing("MIT oR Apache-2.0") == "MIT OR Apache-2.0"
-    assert normalize_operator_casing("MIT wiTh Font-exception-2.0") == "MIT WITH Font-exception-2.0"
-    assert normalize_operator_casing("MIT AND(Apache-2.0 OR BSD-3-Clause)") == "MIT AND(Apache-2.0 OR BSD-3-Clause)"
+    assert (
+        normalize_operator_casing("MIT wiTh Font-exception-2.0")
+        == "MIT WITH Font-exception-2.0"
+    )
+    assert (
+        normalize_operator_casing("MIT AND(Apache-2.0 OR BSD-3-Clause)")
+        == "MIT AND(Apache-2.0 OR BSD-3-Clause)"
+    )
 
     # 2. Operators casing combinations in identifier-like strings
     # (Should NOT be transformed because they are part of single identifiers)
