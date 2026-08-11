@@ -1,4 +1,4 @@
-# LicenseID - An SPDX License ID matcher
+# LicenseID - A Portable SPDX License ID matcher
 
 [![PyPI - Version](https://img.shields.io/pypi/v/licenseid)](https://pypi.org/project/licenseid/)
 ![GitHub License](https://img.shields.io/github/license/bact/licenseid)
@@ -8,6 +8,7 @@
 Get the [SPDX License ID][spdx-license-id] from license text.
 
 A portable license ID matcher with command line interface and Python API.
+No database daemon or server needed.
 
 *Used as a license detection engine for [Pitloom] software bill of materilas generator.*
 
@@ -299,3 +300,25 @@ pytest --run-benchmark
 ## License
 
 Apache-2.0
+
+## Citation
+
+If you use this software, please cite it as follows:
+
+> Suriyawongkul, A. (2026). LicenseID - A Portable SPDX License ID Matcher (Version 0.3.4) [Computer software]. https://doi.org/10.5281/zenodo.19881009
+
+BibTeX:
+
+```bibtex
+@software{Suriyawongkul_LicenseID_-_A_2026,
+    author = {Suriyawongkul, Arthit},
+    doi = {10.5281/zenodo.19881009},
+    license = {Apache-2.0},
+    month = aug,
+    title = {{LicenseID - A Portable SPDX License ID Matcher}},
+    url = {https://github.com/bact/licenseid.git},
+    version = {0.3.4},
+    year = {2026}
+}
+```
+
