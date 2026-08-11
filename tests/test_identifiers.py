@@ -17,6 +17,7 @@ from licenseid.identifiers import (
     _is_expression,
     disambiguate_deprecated_id,
     normalize_identifier,
+    normalize_operator_casing,
 )
 
 
@@ -135,6 +136,38 @@ def test_normalize_case_insensitivity(db: LicenseDatabase) -> None:
         normalize_identifier("GPL-2.0 with Linux-syscall-note", db)
         == "GPL-2.0-only WITH Linux-syscall-note"
     )
+
+
+def test_normalize_operator_casing_combinations(db: LicenseDatabase) -> None:
+    """Test various operator casing combinations and ensure that single
+    identifiers containing 'or', 'and', 'with' are not split or altered.
+    """
+    # 1. Operators inside expressions
+    assert normalize_operator_casing("MIT and Apache-2.0") == "MIT AND Apache-2.0"
+    assert normalize_operator_casing("MIT oR Apache-2.0") == "MIT OR Apache-2.0"
+    assert (
+        normalize_operator_casing("MIT wiTh Font-exception-2.0")
+        == "MIT WITH Font-exception-2.0"
+    )
+    assert (
+        normalize_operator_casing("MIT AND(Apache-2.0 OR BSD-3-Clause)")
+        == "MIT AND(Apache-2.0 OR BSD-3-Clause)"
+    )
+
+    # 2. Operators casing combinations in identifier-like strings
+    # (Should NOT be transformed because they are part of single identifiers)
+    assert normalize_operator_casing("LGPL-2.0-or-later") == "LGPL-2.0-or-later"
+    assert normalize_operator_casing("orig") == "orig"
+    assert normalize_operator_casing("without") == "without"
+    assert normalize_operator_casing("or-later") == "or-later"
+
+    # 3. Via normalize_identifier
+    assert normalize_identifier("mit And apache-2.0", db) == "Apache-2.0 AND MIT"
+    assert normalize_identifier("mit oR apache-2.0", db) == "Apache-2.0 OR MIT"
+    assert normalize_identifier("LGPL-2.0-or-later", db) == "LGPL-2.0-or-later"
+    assert normalize_identifier("orig", db) == "orig"
+    assert normalize_identifier("without", db) == "without"
+    assert normalize_identifier("or-later", db) == "or-later"
 
 
 def test_normalize_expression_does_not_split_embedded_operator_words(
