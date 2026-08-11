@@ -19,6 +19,7 @@ from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.identifiers import (
     disambiguate_deprecated_id,
     normalize_identifier,
+    normalize_operator_casing,
 )
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
@@ -271,7 +272,8 @@ class AggregatedLicenseMatcher:
         ``ParseError``. Either way, it isn't a WITH match.
         """
         try:
-            ast = py_spdx_license.parse(license_id, allow_unknown=True)
+            license_id_normalized = normalize_operator_casing(license_id)
+            ast = py_spdx_license.parse(license_id_normalized, allow_unknown=True)
         except Exception:  # pylint: disable=broad-exception-caught
             return None
 

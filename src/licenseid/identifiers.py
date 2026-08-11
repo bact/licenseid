@@ -94,9 +94,23 @@ _RE_OR_LATER = re.compile(
 # AFTER the ID to avoid false positives from unrelated uses.
 _RE_ONLY = re.compile(r"\bonly\b", re.IGNORECASE)
 
-# Tokenizer for SPDX license expressions: reserved operators/parens, or a
-# run of identifier characters (letters, digits, dots, hyphens).
-_RE_TOKEN = re.compile(r"\(|\)|AND|OR|WITH|\+|[a-zA-Z0-9.-]+", re.IGNORECASE)
+_RE_TOKEN = re.compile(
+    r"\(|\)"
+    r"|(?<![a-zA-Z0-9.-])(?:AND|OR|WITH)(?![a-zA-Z0-9.-])"
+    r"|\+|[a-zA-Z0-9.-]+",
+    re.IGNORECASE,
+)
+
+
+def normalize_operator_casing(expression: str) -> str:
+    """Normalize the casing of SPDX operators (AND, OR, WITH) to uppercase,
+    avoiding matching them inside license identifiers (like LGPL-2.0-or-later).
+    """
+    pattern = re.compile(
+        r"(?<![a-zA-Z0-9.-])(and|or|with)(?![a-zA-Z0-9.-])",
+        re.IGNORECASE,
+    )
+    return pattern.sub(lambda m: m.group(0).upper(), expression)
 
 
 def disambiguate_deprecated_id(text: str) -> str | None:
@@ -400,7 +414,8 @@ def _canonicalize_expression(expr: str) -> str:
     revisited.
     """
     try:
-        ast = py_spdx_license.parse(expr, allow_unknown=True)
+        expr_normalized = normalize_operator_casing(expr)
+        ast = py_spdx_license.parse(expr_normalized, allow_unknown=True)
         return cast(str, ast.sort().to_string())
     except Exception:  # pylint: disable=broad-exception-caught
         return expr

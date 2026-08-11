@@ -128,6 +128,15 @@ def test_match_with_expression(test_db: str) -> None:
 
     assert matcher.is_spdx(license_id="MIT WITH Font-exception-2.0")
 
+    # Mixed-cased/lowercase operators
+    results_mixed = matcher.match(license_id="MIT wiTh Font-exception-2.0")
+    assert len(results_mixed) == 1
+    assert results_mixed[0]["license_id"] == "MIT WITH Font-exception-2.0"
+    assert results_mixed[0]["score"] == 1.0
+    assert results_mixed[0]["is_spdx"] is True
+
+    assert matcher.is_spdx(license_id="MIT wiTh Font-exception-2.0")
+
 
 def test_match_with_expression_unknown_exception(test_db: str) -> None:
     """An otherwise well-formed WITH expression naming an exception that
