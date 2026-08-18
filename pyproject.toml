@@ -87,6 +87,9 @@ show_missing = true
 branch = true
 source = ["licenseid"]
 
+[tool.hatch.build.hooks.pitloom]
+enabled = true
+
 [tool.hatch.build.targets.sdist]
 exclude = ["AGENTS.md", "GEMINI.md", "tests/fixtures/**", "scripts/**"]
 
@@ -116,7 +119,7 @@ ignore_missing_imports = true
 module = ["py_spdx_license", "py_spdx_license.*"]
 ignore_missing_imports = true
 
-[tool.hatch.build.hooks.pitloom]
+[tool.pitloom.content-type]
 enabled = true
 
 [[tool.pitloom.creator]]
