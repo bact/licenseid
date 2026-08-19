@@ -50,6 +50,7 @@ jobs:
           artifact-name: "sbom"
 
       - name: Check SBOM is at the PEP 770 location
+        id: locate-sbom
         env:
           SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
         run: |
@@ -80,10 +81,18 @@ jobs:
             exit 1
           fi
           echo "Found: ${matched}"
+          echo "wheel=${whl}" >> "${GITHUB_OUTPUT}"
+          echo "entry=${matched}" >> "${GITHUB_OUTPUT}"
 
-      - name: Validate SBOM
+      - name: Validate SBOM extracted from the wheel
+        env:
+          WHEEL: ${{ steps.locate-sbom.outputs.wheel }}
+          ENTRY: ${{ steps.locate-sbom.outputs.entry }}
         run: |
-          spdx3-validate --json "${{ steps.pitloom.outputs.sbom-path }}"
+          set -euo pipefail
+          extracted="$(mktemp -d)/temp-sbom.json"
+          unzip -p "${WHEEL}" "${ENTRY}" > "${extracted}"
+          spdx3-validate --json "${extracted}"
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -140,4 +149,32 @@ jobs:
         run: |
           set -euo pipefail
           gh release upload "${RELEASE_TAG}" "sbom/${SBOM_BASENAME}" \
+            --clobber --repo "${REPO}"
+
+  attach-release-dist:
+    name: Attach distribution to GitHub Release
+    needs: [ build, publish ]
+    # Only attach once PyPI publish has actually succeeded, so the release
+    # page never carries artifacts that weren't published (or were
+    # published as something different, if a later step were to fail).
+    if: needs.build.result == 'success' && needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # gh release upload, for the sdist/wheel assets
+
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      - name: Attach sdist and wheel to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release upload "${RELEASE_TAG}" dist/*.whl dist/*.tar.gz \
             --clobber --repo "${REPO}"
