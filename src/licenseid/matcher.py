@@ -738,10 +738,17 @@ class AggregatedLicenseMatcher:
 
             # Case-fold exact ID match: return immediately with a score > 1.0
             # so the Tier 0 caller recognises it as a definitive hit.
+            # Deprecated IDs go through normalize_identifier() for the same
+            # canonical-successor redirect the license_id= path already gets.
             if id_norm.upper() == norm_upper:
+                resolved_id = (
+                    normalize_identifier(lid, self.db)
+                    if meta["is_deprecated"]
+                    else lid
+                )
                 return [
                     LicenseMatch(
-                        license_id=lid,
+                        license_id=resolved_id,
                         score=1.02,
                         similarity=1.0,
                         coverage=1.0,
