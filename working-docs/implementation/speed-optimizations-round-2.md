@@ -1,12 +1,17 @@
 ---
+Created: 2026-07-20
+Last-Modified: 2026-07-20
+SPDX-FileContributor: Arthit Suriyawongkul
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: Apache-2.0
 title: "Speed optimisations — round 2 (results)"
-date: 2026-07-20
 status: implemented
 ---
 
 # Speed optimisations round 2 — 20 July 2026
 
-Follow-up to [`2026-05-07-speed-optimizations.md`](2026-05-07-speed-optimizations.md)
+Follow-up to [`speed-optimizations.md`](speed-optimizations.md)
 (planned) and the work merged in PR #19 (RapidFuzz probe-gate) and PR #21
 (normalize-guidelines refactor + Tier-0 precomputed columns). This round is
 a profile-driven sweep of the rest of the codebase for additional wins,
@@ -15,7 +20,7 @@ run as a find → plan → self-review → implement → test → review loop.
 Unlike the round-1 doc, this one reports **results**, not a plan — every
 item below was implemented and verified, including one that was reverted.
 The rejected item is the most important part of this document: it was
-*proposed in round 1* (`2026-05-07-speed-optimizations.md`, Optimisation
+*proposed in round 1* (`speed-optimizations.md`, Optimisation
 2c) and flagged there as risky ("validate on type-3 before deploying").
 That warning turned out to be exactly right, and the failure mode is worth
 recording so it isn't retried the same way.
@@ -278,7 +283,7 @@ systematic gap).
   `--diff` output quality, which the recall benchmarks don't cover at
   all). Flagged for a future round rather than attempted under this
   loop's risk budget — see
-  [`2026-07-20-probe-anchored-windowing-plan.md`](2026-07-20-probe-anchored-windowing-plan.md)
+  [`../design/probe-anchored-windowing-plan.md`](../design/probe-anchored-windowing-plan.md)
   for the detailed plan.
 
 ---

@@ -1,8 +1,18 @@
 ---
+Created: 2026-05-08
+Last-Modified: 2026-08-19
+SPDX-FileContributor: Arthit Suriyawongkul
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: Apache-2.0
 title: "Speed optimisations — plan"
-date: 2026-05-07
-status: planned
+status: implemented
 ---
+
+Implemented as PR #19 (RapidFuzz probe-gate) and PR #21
+(normalize-guidelines refactor + Tier-0 precomputed columns); see
+[`speed-optimizations-round-2.md`](speed-optimizations-round-2.md)
+for the results write-up. This document is the original plan.
 
 # Speed optimisation plan — 7 May 2026
 

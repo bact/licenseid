@@ -1,3 +1,12 @@
+---
+Created: 2026-04-28
+Last-Modified: 2026-04-28
+SPDX-FileContributor: Arthit Suriyawongkul
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: Apache-2.0
+---
+
 # New matcher design
 
 There is an an issue with licenses that slightly modified from another license. Like small revision in one section or an additional of only one clause.

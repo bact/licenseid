@@ -21,7 +21,7 @@ import time
 import tracemalloc
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from licenseid.types import MatchRequest
@@ -42,17 +42,17 @@ IS_VERIFY: bool = "--verify" in sys.argv
 # --subset N: use a stratified N-fixture subset for license-text-short and
 # license-text-long to shorten iteration cycles.  Omit for full coverage.
 # Does not affect type-1, type-2, type-5, or type-5.1 fixture sets.
-_SUBSET_IDX: Optional[int] = next(
+_SUBSET_IDX: int | None = next(
     (i for i, a in enumerate(sys.argv) if a == "--subset"), None
 )
-SUBSET_N: Optional[int] = (
+SUBSET_N: int | None = (
     int(sys.argv[_SUBSET_IDX + 1]) if _SUBSET_IDX is not None else None
 )
 
-_TARBALL_IDX: Optional[int] = next(
+_TARBALL_IDX: int | None = next(
     (i for i, a in enumerate(sys.argv) if a == "--tarball"), None
 )
-TARBALL_PATH: Optional[Path] = (
+TARBALL_PATH: Path | None = (
     Path(sys.argv[_TARBALL_IDX + 1]) if _TARBALL_IDX is not None else None
 )
 
@@ -91,7 +91,7 @@ def _select_benchmark_subset(files: list[Path], n: int = 70) -> list[Path]:
         return list(files)
 
     def _sort_key(p: Path) -> tuple[str, int]:
-        import re as _re  # noqa: PLC0415
+        import re as _re
 
         m = _re.match(r"^([A-Za-z]+)", p.stem)
         family = m.group(1).upper() if m else ""
@@ -105,9 +105,9 @@ def _select_benchmark_subset(files: list[Path], n: int = 70) -> list[Path]:
 
 
 # pylint: disable=wrong-import-position
-from licenseid.database import LicenseDatabase  # noqa: E402
-from licenseid.matcher import AggregatedLicenseMatcher  # noqa: E402
-from licenseid.normalize import normalize_text  # noqa: E402
+from licenseid.database import LicenseDatabase
+from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.normalize import normalize_text
 
 
 def init_stat() -> dict[str, int]:
@@ -198,7 +198,7 @@ class InstrumentedMatcher(AggregatedLicenseMatcher):
         ``trace`` contains:
           ``hit_tier``: one of 'tier0', 'tier05', 'tier1', 'tier2', or None.
         """
-        from licenseid.normalize import normalize_text  # noqa: PLC0415
+        from licenseid.normalize import normalize_text
 
         results = self.match(text)
         trace: dict[str, Any] = {"hit_tier": None}
@@ -241,7 +241,7 @@ class InstrumentedMatcher(AggregatedLicenseMatcher):
             return results, trace
 
         # Tier 1: FTS5 candidates
-        request: "MatchRequest" = cast("MatchRequest", {"text": text})
+        request: MatchRequest = cast("MatchRequest", {"text": text})
         tier1_candidates: list[Any] = []
         if hasattr(self, "_get_candidates"):
             tier1_candidates = self._get_candidates(request, text)
@@ -296,7 +296,7 @@ def _build_db_from_tarball(
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         with tarfile.open(tar_path, "r:gz") as tar:
-            tar.extractall(path=tmp_dir)  # noqa: S202
+            tar.extractall(path=tmp_dir)
 
         root_dir = next(Path(tmp_dir).iterdir())
         lic_json_path = root_dir / "json" / "licenses.json"
@@ -323,7 +323,7 @@ def _build_db_from_tarball(
                 raw_text = fh.read()
 
             is_deprecated: bool = bool(lic.get("isDeprecatedLicenseId", False))
-            superseded_by: Optional[str] = None
+            superseded_by: str | None = None
             if is_deprecated and license_id.endswith("+"):
                 or_later = license_id[:-1] + "-or-later"
                 if or_later in active_ids:

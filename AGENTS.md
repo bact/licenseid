@@ -6,10 +6,13 @@
 - Architecture: SQLite FTS5 trigram tokenization (Tier 1 recall) and RapidFuzz (Tier 2 precision ranking).
 - Optional fallback: `tools-java` for Tier 3 validation (triggered via `SPDX_TOOLS_JAR` env var).
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
-- Design docs: `docs/design/`
-- Implementation docs and progress reports: `docs/implementation/`
+- Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches; may be discarded, not yet built.
+- Implementation docs and progress reports: `working-docs/implementation/` — record of what WAS built: decisions made, why things are the way they are, paths considered and rejected. Not a user manual. Start at `working-docs/implementation/README.md` for current state.
 - Test fixtures: `tests/fixtures/README.md`
 - Private alpha, one developer. No backward compat needed yet.
+- `working-docs/` is internal notes only — content can change without notice. Any user-facing docs published outside this repo must not link into it; reference a PR or issue number instead.
+- **Global file size**: soft limit ~400-500 lines, hard limit ~800 lines. Applies to all files — source, tests, docs. Split before crossing it; see `working-docs/design/complexity-and-file-size-roadmap.md` for the current backlog of files over the limit.
+- **Doc file dating**: every `working-docs/` file's front matter carries `Created`/`Last-Modified` (`YYYY-MM-DD`), alongside the SPDX tags below. No date prefix on the filename — the front matter is authoritative.
 
 ## SPDX guidelines
 
@@ -69,6 +72,13 @@ Groups: stdlib → third-party → local, alphabetically within each. Don't reor
   - `__init__` return type.
   - `__all__`, `__author__`, `__version__`, similar dunder module attrs.
 
+## Code health and continuous refactoring
+
+- **The Boy Scout Rule**: leave the codebase cleaner than you found it. Refactor proactively during small changes.
+- **Prevent monoliths**: never let a single file (like `matcher.py` or `database.py`) become a dumping ground. Extract cohesive pieces into dedicated modules early — see the file-size limit above.
+- **Consolidate patterns**: extract duplicated logic into shared helpers immediately. Don't copy-paste code.
+- **Enforce file size limits**: split files *before* they cross the soft limit, not after.
+
 ## Linting and formatting
 
 Run and fix all errors before committing:
@@ -81,10 +91,18 @@ flake8
 ruff format
 ```
 
-- McCabe complexity ≤ 10; refactor if exceeded.
-- Cognitive complexity ≤ 15; refactor if exceeded.
+- Complexity targets (pylint's own built-in defaults, checked clean outside this repo's config): Args≤5, Locals≤15, Nesting≤5, Branches≤12, Returns≤6, Statements≤50, McCabe≤10, Cognitive≤15.
+  Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
+  ratchets set to the exact current repo max (`max-args=6`,
+  `max-branches=15`, `max-locals=23`, McCabe=23, Cognitive=49, module
+  lines=977) — see
+  `working-docs/design/complexity-and-file-size-roadmap.md` for the
+  backlog that has to shrink before each ceiling can drop to its target.
+  These are maximally tight — any regression trips CI immediately. Don't
+  raise a ceiling to make a change pass; refactor instead, or lower the
+  ceiling back down after shrinking the offender.
 - Remove unused imports and trailing whitespace.
-- Max line length = 79
+- Max line length = 88 (matches `.flake8`, `ruff`, and `[tool.pylint.format]`).
 
 ## File headers
 
@@ -93,8 +111,11 @@ All source files must have SPDX tags in this order (alphabetical):
 ```text
 SPDX-FileCopyrightText: <year> <name>
 SPDX-FileType: SOURCE                # or DOCUMENTATION
-SPDX-License-Identifier: Apache-2.0  # or CC0-1.0 for docs
+SPDX-License-Identifier: Apache-2.0
 ```
+
+`working-docs/` standalone docs also carry `Created` and `Last-Modified`
+(`YYYY-MM-DD`) in the same front matter block, above the SPDX tags.
 
 Sort SPDX metadata keys alphabetically.
 
@@ -188,6 +209,3 @@ Verify version exists and is compatible before suggesting. Prefer Semantic Versi
 - Edit generated files by hand when generation workflow exists.
 - Use destructive git operations unless explicitly requested.
 
-## More guidelines and best practices
-
-See `docs/resources.md` for SBOM, AIBOM, SPDX, standards resources and best practices.

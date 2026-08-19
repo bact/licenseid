@@ -76,9 +76,8 @@ FIXTURES_DIR: Path = (
 
 sys.path.insert(0, SRC_PATH)
 # pylint: disable=wrong-import-position
-from licenseid.database import LicenseDatabase  # noqa: E402
-from licenseid.normalize import normalize_text  # noqa: E402
-
+from licenseid.database import LicenseDatabase
+from licenseid.normalize import normalize_text
 
 # ---------------------------------------------------------------------------
 # DB helpers
@@ -289,7 +288,7 @@ def main() -> None:  # pylint: disable=too-many-locals,too-many-statements
 
             if head_text:
                 t0: float = time.perf_counter()
-                h_results: list["CandidateMatch"] = db.search_candidates(
+                h_results: list[CandidateMatch] = db.search_candidates(
                     head_text, limit=50
                 )
                 latencies_ms[f"head_{n}"].append((time.perf_counter() - t0) * 1000)
@@ -310,7 +309,7 @@ def main() -> None:  # pylint: disable=too-many-locals,too-many-statements
 
             if tail_text:
                 t0 = time.perf_counter()
-                t_results: list["CandidateMatch"] = db.search_candidates(
+                t_results: list[CandidateMatch] = db.search_candidates(
                     tail_text, limit=50
                 )
                 latencies_ms[f"tail_{n}"].append((time.perf_counter() - t0) * 1000)

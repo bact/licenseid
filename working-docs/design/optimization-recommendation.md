@@ -1,3 +1,12 @@
+---
+Created: 2026-05-06
+Last-Modified: 2026-08-19
+SPDX-FileContributor: Arthit Suriyawongkul
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: Apache-2.0
+---
+
 # Benchmark analysis and optimisation recommendation
 
 > **Status note (2026-08-19):** items 1 and 2 of "Remaining open issues"
@@ -52,7 +61,7 @@ The `head_300` regression (−5.5 pp) was diagnosed and fixed:
 
 - **Tier 0 threshold lowered to 30 words** — 50-word heads no longer fall
   into the ID/name shortcut path. See
-  `docs/implementation/2026-05-07-threshold-optimizations.md`.
+  [`../implementation/threshold-optimizations.md`](../implementation/threshold-optimizations.md).
 - **Marker detection suppressed for inputs < 30 words** — eliminates
   wasted scanning on bare IDs and short names.
 

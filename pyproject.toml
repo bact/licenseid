@@ -62,7 +62,12 @@ documentation = "https://github.com/bact/licenseid#readme"
 issues = "https://github.com/bact/licenseid/issues"
 
 [dependency-groups]
-lint = ["flake8>=7.3.0", "pylint>=4.0.6", "ruff>=0.15.20"]
+lint = [
+    "flake8>=7.3.0",
+    "flake8-cognitive-complexity>=0.1.0",
+    "pylint>=4.0.6",
+    "ruff>=0.15.20",
+]
 test = ["coverage>=7.15.0", "coveralls>=4.1.0", "pytest>=9.1.1"]
 typecheck = ["mypy>=1.20.2", "types-requests>=2.33.0.20260518"]
 dev = [
@@ -144,27 +149,35 @@ evaluation = "10.0 - ((float(5 * error + warning + refactor + convention) / stat
 output-format = "text"
 reports = false
 
-[tool.pylint.format]
-max-line-length = 88
-
 [tool.pylint.basic]
 class-rgx = "[A-Z_][a-zA-Z0-9]+$"
 function-rgx = "[a-z_][a-z0-9_]{2,30}$"
 good-names = ["i", "j", "k", "ex", "Run", "_", "f", "r", "m", "dt", "id", "db"]
 method-rgx = "[a-z_][a-z0-9_]{2,30}$"
 
+# Complexity ceilings. "target:" is pylint's own built-in default for that
+# option (checked clean, outside this repo's config). Each ceiling below
+# is an interim ratchet set to the exact current repo max where that max
+# exceeds target — see the "# target:" comment on each line, and
+# working-docs/design/complexity-and-file-size-roadmap.md for the backlog
+# that has to shrink before a ceiling can drop to target.
 [tool.pylint.design]
-max-args = 10
+max-args = 6                 # target: 5
 max-attributes = 10
 max-bool-expr = 5
-max-branches = 15
-max-locals = 25
+max-branches = 15            # target: 12
+max-locals = 23              # target: 15
+max-nested-blocks = 5        # target: 5
 max-parents = 7
-max-positional-arguments = 10
+max-positional-arguments = 6
 max-public-methods = 20
 min-public-methods = 1
-max-returns = 6
-max-statements = 60
+max-returns = 6              # target: 6
+max-statements = 50          # target: 50
+
+[tool.pylint.format]
+max-line-length = 88
+max-module-lines = 977 # target: 800 (hard limit); soft limit 400-500
 
 [tool.pytest.ini_options]
 markers = [

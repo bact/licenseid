@@ -15,7 +15,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 SCRIPT = Path(__file__).parent / "bench_single.py"
 CURRENT_REPO = Path(__file__).parent.parent
@@ -27,7 +27,7 @@ def run_branch(
     label: str,
     timestamp: str,
     verify: bool,
-    subset: Optional[int] = None,
+    subset: int | None = None,
     fast: bool = False,
 ) -> dict[str, Any]:
     print(f"\nRunning: {label} \u2026", flush=True)
@@ -48,8 +48,6 @@ def run_branch(
         bufsize=1,
     )
 
-    stdout_lines = []
-
     import threading
 
     def stream_stderr(pipe: Any) -> None:
@@ -63,8 +61,7 @@ def run_branch(
     if proc.stdout is None:
         print("  ERROR: No stdout pipe", file=sys.stderr)
         sys.exit(1)
-    for line in proc.stdout:
-        stdout_lines.append(line)
+    stdout_lines = list(proc.stdout)
 
     proc.wait()
     stderr_thread.join()
@@ -100,10 +97,8 @@ def generate_markdown_report(
         lines.append("| :--- | ---: | ---: | ---: |")
 
         all_subcats = sorted(
-            list(
-                set(a["stats"].get(t_key, {}).keys())
-                | set(b["stats"].get(t_key, {}).keys())
-            )
+            set(a["stats"].get(t_key, {}).keys())
+            | set(b["stats"].get(t_key, {}).keys())
         )
 
         _empty_stat: dict[str, int] = {
@@ -233,7 +228,7 @@ def main() -> None:
     is_verify = "--verify" in sys.argv
     is_fast = "--fast" in sys.argv
     _subset_idx = next((i for i, a in enumerate(sys.argv) if a == "--subset"), None)
-    subset_n: Optional[int] = (
+    subset_n: int | None = (
         int(sys.argv[_subset_idx + 1]) if _subset_idx is not None else None
     )
     timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")

@@ -1,6 +1,11 @@
 ---
+Created: 2026-05-07
+Last-Modified: 2026-05-07
+SPDX-FileContributor: Arthit Suriyawongkul
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: Apache-2.0
 title: "Accuracy optimisations — May 2026"
-date: 2026-05-06
 ---
 
 ## Accuracy optimisations — May 2026

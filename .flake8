@@ -7,3 +7,12 @@ exclude =
     build,
     dist,
     tests/fixtures/
+
+# Interim ratchets set to the exact current repo max (tightest ceiling
+# that still passes) — see working-docs/design/complexity-and-file-size-roadmap.md
+# for the backlog. Re-measure across all of src/, not just the file you
+# touched, before raising either value.
+# target: 10 (currently 23, identifiers._normalize_single_id)
+max-complexity = 23
+# target: 15 (currently 49, markers._detect_gpl_headers)
+max-cognitive-complexity = 49

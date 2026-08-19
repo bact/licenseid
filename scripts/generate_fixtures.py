@@ -396,10 +396,10 @@ def generate_type_3(licenses: list[dict[str, Any]], out_dir: Path) -> None:
             if k in lic:
                 result[k] = lic[k]
 
-        def get_head(n: int) -> str:
+        def get_head(n: int, text: str = text) -> str:
             return text[:n]
 
-        def get_tail(n: int) -> str:
+        def get_tail(n: int, text: str = text) -> str:
             return text[-n:] if n <= len(text) else text
 
         for x in [300, 500, 700, 800, 900, 1000, 1500, 2000]:
@@ -718,7 +718,7 @@ def main() -> None:
 
     print(
         f"Selected {len(selected_licenses)} licenses from "
-        f"{len(set(get_family(lic_['license_id']) for lic_ in selected_licenses))} families."
+        f"{len({get_family(lic_['license_id']) for lic_ in selected_licenses})} families."
     )
     if t3_licenses:
         print(f"Type 3: using all {len(t3_licenses)} non-deprecated SPDX licenses.")

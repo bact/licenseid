@@ -1,13 +1,21 @@
 ---
+Created: 2026-07-20
+Last-Modified: 2026-07-20
+SPDX-FileContributor: Arthit Suriyawongkul
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: Apache-2.0
 title: "Probe-anchored windowing — plan"
-date: 2026-07-20
 status: planned
 ---
 
 # Probe-anchored windowing — plan
 
+See also: [`tech-debt-roadmap.md`](tech-debt-roadmap.md) for priority
+among deferred work.
+
 Flagged as future work in
-[`2026-07-20-speed-optimizations-round-2.md`](2026-07-20-speed-optimizations-round-2.md)
+[`../implementation/speed-optimizations-round-2.md`](../implementation/speed-optimizations-round-2.md)
 ("Investigated, no action taken"). Not implemented — this document is the
 plan for a later round to pick up, deliberately, with its own validation
 cycle.
