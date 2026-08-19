@@ -1,0 +1,6 @@
+{
+  // MD024: allow repeated headings like "### Added"/"### Changed" across
+  // different version sections (standard Keep a Changelog structure) —
+  // only flag duplicates within the same parent section.
+  "MD024": { "siblings_only": true }
+}
