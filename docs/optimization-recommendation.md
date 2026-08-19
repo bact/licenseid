@@ -1,10 +1,16 @@
 # Benchmark analysis and optimisation recommendation
 
 > **Status note (2026-08-19):** items 1 and 2 of "Remaining open issues"
-> below (Tier 0 case-fold exact ID match, and deprecated→canonical
-> redirect via `superseded_by`) have since been implemented in
-> `matcher.py`/`database.py`. The rest of this document, including the
-> R@1 figures, predates that work and has not been re-benchmarked.
+> below have since been implemented. Item 1 (Tier 0 case-fold exact ID
+> match) landed earlier. Item 2 (deprecated→canonical redirect) was only
+> half-done: `normalize_identifier()` already applied the conservative
+> `-only` fallback for the explicit `license_id=` path, but free-text
+> queries through `_match_short_text`'s case-fold branch returned the
+> bare deprecated ID unchanged — e.g. `match(text="GPL-2.0")` gave
+> `"GPL-2.0"` instead of `"GPL-2.0-only"`. Fixed by routing that branch
+> through the same `normalize_identifier()` call. The rest of this
+> document, including the R@1 figures, predates this work and has not
+> been re-benchmarked.
 
 ## Full pipeline analysis — `20260507T120849Z`
 
