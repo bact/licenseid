@@ -6,7 +6,8 @@ exclude =
     __pycache__,
     build,
     dist,
-    tests/fixtures/
+    tests/fixtures/,
+    benchmarks/
 
 # Interim ratchets set to the exact current repo max (tightest ceiling
 # that still passes) — see working-docs/design/complexity-and-file-size-roadmap.md

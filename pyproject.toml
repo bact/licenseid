@@ -96,7 +96,7 @@ source = ["licenseid"]
 enabled = true
 
 [tool.hatch.build.targets.sdist]
-exclude = ["AGENTS.md", "GEMINI.md", "tests/fixtures/**", "scripts/**"]
+exclude = ["AGENTS.md", "GEMINI.md", "benchmarks/**", "tests/fixtures/**", "scripts/**"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/licenseid"]
