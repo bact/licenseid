@@ -90,7 +90,7 @@ jobs:
           ENTRY: ${{ steps.locate-sbom.outputs.entry }}
         run: |
           set -euo pipefail
-          extracted="$(mktemp -d)/sbom.json"
+          extracted="$(mktemp -d)/temp-sbom.json"
           unzip -p "${WHEEL}" "${ENTRY}" > "${extracted}"
           spdx3-validate --json "${extracted}"
 
