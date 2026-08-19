@@ -742,9 +742,7 @@ class AggregatedLicenseMatcher:
             # canonical-successor redirect the license_id= path already gets.
             if id_norm.upper() == norm_upper:
                 resolved_id = (
-                    normalize_identifier(lid, self.db)
-                    if meta["is_deprecated"]
-                    else lid
+                    normalize_identifier(lid, self.db) if meta["is_deprecated"] else lid
                 )
                 return [
                     LicenseMatch(
