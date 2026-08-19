@@ -232,9 +232,7 @@ cutoff. This is implemented in C++ and has no Python overhead.
 similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
 
 # Proposed (early abort below 40%):
-raw = fuzz.token_sort_ratio(
-    norm_input, search_text, score_cutoff=40
-)
+raw = fuzz.token_sort_ratio(norm_input, search_text, score_cutoff=40)
 similarity = raw / 100.0 if raw else 0.0
 ```
 
@@ -273,9 +271,9 @@ results = process.extract(
     norm_input,
     candidate_map,
     scorer=fuzz.token_sort_ratio,
-    processor=None,        # already normalized
-    score_cutoff=40,       # skip obvious misses in C++
-    limit=None,            # return all above cutoff
+    processor=None,  # already normalized
+    score_cutoff=40,  # skip obvious misses in C++
+    limit=None,  # return all above cutoff
 )
 # results: list of (value, score, key)
 ```

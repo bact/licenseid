@@ -23,7 +23,8 @@ def test_db() -> Generator[str, None, None]:
     db_id = str(uuid.uuid4())[:8]
     db_path = f"file:test_api_{db_id}?mode=memory&cache=shared"
 
-    db_manager = LicenseDatabase(db_path)  # pylint: disable=unused-variable # noqa: F841
+    # pylint: disable-next=unused-variable
+    db_manager = LicenseDatabase(db_path)  # noqa: F841
     # Keep a connection open to keep the in-memory DB alive
     keep_alive = sqlite3.connect(db_path, uri=True)
 
@@ -56,7 +57,7 @@ def test_db() -> Generator[str, None, None]:
     yield db_path
     keep_alive.close()
     # The database will be destroyed when the last connection is closed
-    # which happens after the test ends and db_manager/matcher are GC'd
+    # which happens after the test ends and any matcher is GC'd
 
 
 def test_match_explicit_id(test_db: str) -> None:

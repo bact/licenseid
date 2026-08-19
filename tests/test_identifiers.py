@@ -28,35 +28,41 @@ def db() -> LicenseDatabase:
     db_path = f"file:test_ident_{db_id}?mode=memory&cache=shared"
     db_manager = LicenseDatabase(db_path)
 
+    insert_license = (
+        "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, "
+        "superseded_by) VALUES (?, ?, ?, ?, ?)"
+    )
+    insert_exception = (
+        "INSERT INTO exceptions (exception_id, name, is_deprecated, "
+        "superseded_by) VALUES (?, ?, ?, ?)"
+    )
+
     with sqlite3.connect(db_path, uri=True) as conn:
-        # pylint: disable=line-too-long
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            insert_license,
             ("MIT", "MIT License", True, False, None),
         )
-        # pylint: disable=line-too-long
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            insert_license,
             ("Apache-2.0", "Apache License 2.0", True, False, None),
         )
-        # pylint: disable=line-too-long
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            insert_license,
             # superseded_by is NULL in the DB: SPDX does not define a canonical
             # replacement for bare GPL-2.0.  The '-only' fallback is applied by
             # the tool itself (DEPRECATED_BARE_LICENSE_IDS), not by the DB.
             ("GPL-2.0", "GNU GPL v2.0 only", True, True, None),
         )
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            insert_license,
             ("GPL-2.0-only", "GNU GPL v2.0 only", True, False, None),
         )
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            insert_license,
             ("GPL-2.0-or-later", "GNU GPL v2.0 or later", True, False, None),
         )
         conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx, is_deprecated, superseded_by) VALUES (?, ?, ?, ?, ?)",
+            insert_license,
             (
                 "CDDL-1.0",
                 "Common Development and Distribution License 1.0",
@@ -66,7 +72,7 @@ def db() -> LicenseDatabase:
             ),
         )
         conn.execute(
-            "INSERT INTO exceptions (exception_id, name, is_deprecated, superseded_by) VALUES (?, ?, ?, ?)",
+            insert_exception,
             ("Linux-syscall-note", "Linux Syscall Note", False, None),
         )
     return db_manager

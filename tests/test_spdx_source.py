@@ -13,16 +13,19 @@ from licenseid.spdx_source import is_cache_valid
 
 
 def test_missing_file_is_invalid(tmp_path: Path) -> None:
+    """A cache file that doesn't exist is never valid."""
     assert not is_cache_valid(tmp_path / "does-not-exist.json", days=45)
 
 
 def test_fresh_file_is_valid(tmp_path: Path) -> None:
+    """A cache file written just now is valid."""
     cache_file = tmp_path / "licenses.json"
     cache_file.write_text("{}")
     assert is_cache_valid(cache_file, days=45)
 
 
 def test_old_file_is_invalid(tmp_path: Path) -> None:
+    """A cache file older than the max age is invalid."""
     cache_file = tmp_path / "licenses.json"
     cache_file.write_text("{}")
     old_time = time.time() - 46 * 86400

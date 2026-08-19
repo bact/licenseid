@@ -23,7 +23,8 @@ def test_db() -> Generator[str, None, None]:
     db_id = str(uuid.uuid4())[:8]
     db_path = f"file:test_cli_{db_id}?mode=memory&cache=shared"
 
-    db_manager = LicenseDatabase(db_path)  # pylint: disable=unused-variable # noqa: F841
+    # pylint: disable-next=unused-variable
+    db_manager = LicenseDatabase(db_path)  # noqa: F841
     keep_alive = sqlite3.connect(db_path, uri=True)
 
     with sqlite3.connect(db_path, uri=True) as conn:

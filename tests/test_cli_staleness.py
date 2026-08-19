@@ -36,12 +36,14 @@ def _make_db(last_check_datetime: str) -> Generator[LicenseDatabase, None, None]
 
 @pytest.fixture
 def fresh_db() -> Generator[LicenseDatabase, None, None]:
+    """A database whose last_check_datetime is now."""
     now = datetime.now(timezone.utc).isoformat()
     yield from _make_db(now)
 
 
 @pytest.fixture
 def stale_tz_aware_db() -> Generator[LicenseDatabase, None, None]:
+    """A database whose last_check_datetime is 200 tz-aware days old."""
     old = (datetime.now(timezone.utc) - timedelta(days=200)).isoformat()
     yield from _make_db(old)
 
@@ -56,12 +58,14 @@ def stale_naive_db() -> Generator[LicenseDatabase, None, None]:
 
 @pytest.fixture
 def malformed_db() -> Generator[LicenseDatabase, None, None]:
+    """A database whose last_check_datetime is not a valid timestamp."""
     yield from _make_db("not-a-real-timestamp")
 
 
 def test_fresh_db_no_warning(
     fresh_db: LicenseDatabase, capsys: pytest.CaptureFixture
 ) -> None:
+    """A fresh database doesn't trigger a staleness warning."""
     check_db_staleness(fresh_db)
     assert "WARNING" not in capsys.readouterr().err
 
@@ -69,6 +73,7 @@ def test_fresh_db_no_warning(
 def test_stale_tz_aware_db_warns(
     stale_tz_aware_db: LicenseDatabase, capsys: pytest.CaptureFixture
 ) -> None:
+    """A stale tz-aware database triggers a staleness warning."""
     check_db_staleness(stale_tz_aware_db)
     assert "WARNING" in capsys.readouterr().err
 
@@ -85,5 +90,6 @@ def test_stale_naive_db_warns_without_crashing(
 def test_malformed_timestamp_ignored(
     malformed_db: LicenseDatabase, capsys: pytest.CaptureFixture
 ) -> None:
+    """A malformed timestamp is ignored rather than raising or warning."""
     check_db_staleness(malformed_db)
     assert capsys.readouterr().err == ""

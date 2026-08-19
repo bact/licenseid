@@ -98,7 +98,7 @@ def matcher() -> AggregatedLicenseMatcher:
     # variants) lose their only disambiguating signal once copyright-notice
     # text is normalized away, since that's the discriminative content the
     # fingerprint mechanism exists to replace.
-    db_manager._compute_fingerprints()
+    db_manager._compute_fingerprints()  # pylint: disable=protected-access
 
     print("  Population complete.")
     return AggregatedLicenseMatcher(db_path, enable_java=False)
