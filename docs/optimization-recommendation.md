@@ -1,5 +1,11 @@
 # Benchmark analysis and optimisation recommendation
 
+> **Status note (2026-08-19):** items 1 and 2 of "Remaining open issues"
+> below (Tier 0 case-fold exact ID match, and deprecated→canonical
+> redirect via `superseded_by`) have since been implemented in
+> `matcher.py`/`database.py`. The rest of this document, including the
+> R@1 figures, predates that work and has not been re-benchmarked.
+
 ## Full pipeline analysis — `20260507T120849Z`
 
 Full-coverage run: 695 SPDX 3.28.0 licences, both `license-marker` and
