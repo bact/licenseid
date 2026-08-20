@@ -7,6 +7,7 @@
 SQLite database management for SPDX licenses.
 """
 
+import contextlib
 import json
 import math
 import sqlite3
@@ -15,6 +16,7 @@ import tarfile
 import tempfile
 import xml.etree.ElementTree as ET
 from collections import Counter
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import cast
@@ -136,13 +138,35 @@ class LicenseDatabase:
         conn.execute("PRAGMA mmap_size=268435456")
         return conn
 
+    @contextlib.contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        """Open a connection, commit/rollback it, and always close it.
+
+        ``sqlite3.Connection.__exit__`` only manages the transaction
+        (commit on success, rollback on exception) -- it does NOT close
+        the connection, unlike most context managers. Every query method
+        below used to rely on ``with self._connect() as conn:`` alone,
+        which leaks a connection per call (dozens per ``match()``, per
+        ``_connect()``'s own docstring) and depends on GC to eventually
+        close it. That's always been a real leak, not just a cosmetic
+        one -- it's simply louder now: Python 3.14's stricter unraisable-
+        exception reporting turns each GC-time close into a visible
+        ``ResourceWarning`` where older Pythons stayed silent about it.
+        """
+        conn = self._connect()
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
+
     def _get_cache_path(self, filename: str) -> Path:
         """Get the absolute path for a cache file."""
         return self.db_path.parent / filename
 
     def _init_db(self) -> None:
         """Initialise the SQLite database with FTS5."""
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS licenses (
                     license_id TEXT PRIMARY KEY,
@@ -486,7 +510,7 @@ class LicenseDatabase:
     ) -> None:
         """Replace all license/exception/metadata rows in a single transaction."""
         print(f"\nInserting {len(license_records)} records into database...")
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute("PRAGMA journal_mode = WAL")
             conn.execute("PRAGMA synchronous = NORMAL")
             conn.execute("BEGIN TRANSACTION")
@@ -622,7 +646,7 @@ class LicenseDatabase:
 
         # Read all pre-normalised license texts.  The search_text column in
         # license_index is the canonical normalised form (see _create_fingerprint).
-        with self._connect() as conn:
+        with self._connection() as conn:
             rows: list[tuple[str, str]] = conn.execute(
                 "SELECT license_id, search_text FROM license_index"
             ).fetchall()
@@ -667,7 +691,7 @@ class LicenseDatabase:
                 if idf_norm > 0.0:
                     fp_records.append((license_id, ng, idf_norm))
 
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
                 conn.execute("DELETE FROM license_fingerprints")
@@ -712,7 +736,7 @@ class LicenseDatabase:
             f" WHERE ngram IN ({placeholders})"
             f" GROUP BY license_id"
         )
-        with self._connect() as conn:
+        with self._connection() as conn:
             try:
                 rows = conn.execute(sql, query_ngrams).fetchall()
             except sqlite3.OperationalError:
@@ -750,7 +774,7 @@ class LicenseDatabase:
             return []
         search_terms = " OR ".join(words)
 
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             query = """
                 SELECT
@@ -781,7 +805,7 @@ class LicenseDatabase:
     def get_license_details(self, license_id: str) -> LicenseDetails | None:
         """Get full metadata for a license (case-insensitive lookup)."""
         clean_id = license_id.strip()
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT * FROM licenses WHERE license_id = ? COLLATE NOCASE",
@@ -796,7 +820,7 @@ class LicenseDatabase:
         clean_name = name.strip()
         if not clean_name:
             return None
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT * FROM licenses WHERE name = ? COLLATE NOCASE",
@@ -809,7 +833,7 @@ class LicenseDatabase:
     def get_exception_details(self, exception_id: str) -> ExceptionDetails | None:
         """Get full metadata for an exception (case-insensitive lookup)."""
         clean_id = exception_id.strip()
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT * FROM exceptions WHERE exception_id = ? COLLATE NOCASE",
@@ -831,7 +855,7 @@ class LicenseDatabase:
         clean = prefix.strip()
         if not clean:
             return None
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 """
@@ -874,7 +898,7 @@ class LicenseDatabase:
 
     def get_search_text(self, license_id: str) -> str:
         """Return the normalized search text for a license from the FTS index."""
-        with self._connect() as conn:
+        with self._connection() as conn:
             row = conn.execute(
                 "SELECT search_text FROM license_index WHERE license_id = ?",
                 (license_id,),
@@ -890,7 +914,7 @@ class LicenseDatabase:
         """
         if self._norm_cols_backfilled:
             return
-        with self._connect() as conn:
+        with self._connection() as conn:
             missing = conn.execute(
                 "SELECT license_id, name FROM licenses WHERE norm_license_id IS NULL"
             ).fetchall()
@@ -924,7 +948,7 @@ class LicenseDatabase:
         if self._names_and_ids_cache is not None:
             return self._names_and_ids_cache
         self._ensure_norm_columns()
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute(
                 "SELECT license_id, name, is_deprecated,"
@@ -949,7 +973,7 @@ class LicenseDatabase:
             return self._deprecated_mappings_cache
 
         mappings: dict[str, str] = {}
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             # Licenses
             cursor = conn.execute(
@@ -972,6 +996,6 @@ class LicenseDatabase:
 
     def get_metadata(self) -> DatabaseMetadata:
         """Get database metadata."""
-        with self._connect() as conn:
+        with self._connection() as conn:
             cursor = conn.execute("SELECT key, value FROM db_metadata")
             return cast(DatabaseMetadata, {row[0]: row[1] for row in cursor.fetchall()})
