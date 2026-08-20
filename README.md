@@ -50,6 +50,7 @@ No database daemon or server needed.
     even though it isn't a single license row.
 
 [py-spdx-license]: https://github.com/JPEWdev/py-spdx-license
+
 - **Unix philosophy**: Parseable, line-delimited CLI output.
 
 ## Installation
@@ -78,8 +79,10 @@ licenseid update
 
 Advanced update options:
 
-- `--version <version>`: Download a specific SPDX License List version (e.g., `3.28.0`).
-- `--force`: Force update even if the local database is already at the target version.
+- `--version <version>`: Download a specific SPDX License List version
+  (e.g., `3.28.0`).
+- `--force`: Force update even if the local database is already at
+  the target version.
 - `--no-cache`: Bypass the local cache for downloads.
 
 ### 2. Identify a license
@@ -102,10 +105,14 @@ licenseid match --id MIT
 
 Common options:
 
-- `--db <path>`: Use a custom database path (global option). Supports SQLite URIs for in-memory databases (e.g., `file:test?mode=memory&cache=shared`).
-- `--id <id>`: Explicitly treat input as an SPDX License ID (bypasses file/text matching).
+- `--db <path>`: Use a custom database path (global option).
+  Supports SQLite URIs for in-memory databases
+  (e.g., `file:test?mode=memory&cache=shared`).
+- `--id <id>`: Explicitly treat input as an SPDX License ID
+  (bypasses file/text matching).
 - `--bold`: Print only the top license ID (no other info).
-- `--diff`: Show a word-by-word diff between the input and the best-matching candidate.
+- `--diff`: Show a word-by-word diff between the input and
+  the best-matching candidate.
 - `--json`: Output results in JSON format.
 
 The system uses a **composite score** (similarity + coverage bonus/penalty +
@@ -196,7 +203,8 @@ WORD DIFF:
 
 ### 5. Exit codes
 
-The CLI follows standard Unix exit code conventions, making it suitable for use in scripts and CI/CD pipelines.
+The CLI follows standard Unix exit code conventions,
+making it suitable for use in scripts and CI/CD pipelines.
 
 | Exit Code | Meaning | Scenarios |
 | :--- | :--- | :--- |
@@ -206,7 +214,8 @@ The CLI follows standard Unix exit code conventions, making it suitable for use 
 
 ### 6. License predicates (for CI/CD)
 
-Predicate commands are designed for shell scripting. They print `true`/`false` and exit with `0` (for true) or `1` (for false).
+Predicate commands are designed for shell scripting.
+They print `true`/`false` and exit with `0` (for true) or `1` (for false).
 
 | Command | Description |
 | :--- | :--- |
@@ -306,7 +315,7 @@ Apache-2.0
 
 If you use this software, please cite it as follows:
 
-> Suriyawongkul, A. (2026). LicenseID - A Portable SPDX License ID Matcher (Version 0.3.5) [Computer software]. https://doi.org/10.5281/zenodo.19881009
+> Suriyawongkul, A. (2026). LicenseID - A Portable SPDX License ID Matcher (Version 0.3.7) [Computer software]. <https://doi.org/10.5281/zenodo.19881009>
 
 BibTeX:
 
@@ -318,8 +327,7 @@ BibTeX:
     month = aug,
     title = {{LicenseID - A Portable SPDX License ID Matcher}},
     url = {https://github.com/bact/licenseid.git},
-    version = {0.3.5},
+    version = {0.3.7},
     year = {2026}
 }
 ```
-
