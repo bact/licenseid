@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-08-19
+Last-Modified: 2026-08-20
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -41,7 +41,7 @@ pylint's actual defaults are 12 and 50.
 | Statements | ≤50 | 50 (no ratchet needed) | 49 |
 | McCabe | ≤10 | 23 | 23 (`identifiers._normalize_single_id`) |
 | Cognitive | ≤15 | 49 | 49 (`markers._detect_gpl_headers`) |
-| Module lines | soft 400-500 / hard 800 | 977 | 977 (`database.py`) |
+| Module lines | soft 400-500 / hard 800 | 933 | 933 (`database.py`) |
 
 Measured 2026-08-19 via `pylint --disable=all --enable=too-many-<x>
 --max-<x>=1`, `flake8 --max-complexity 1` and
@@ -97,8 +97,9 @@ the only item that also blocks the module-lines ratchet.
 
 ### 4. `database.py` — split by responsibility (Priority 9)
 
-977 lines: schema/connection management, license-record preparation,
-fingerprint computation, and query methods are all in one file. Not a
+933 lines (down from 977 — the n-gram/IDF fingerprint math moved to
+`fingerprint.py`). Schema/connection management, license-record
+preparation, and query methods are still all in one file. Not a
 complexity offender (no individual function stands out) — purely a
 file-size and module-lines-ratchet problem.
 

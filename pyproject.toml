@@ -177,7 +177,7 @@ max-statements = 50          # target: 50
 
 [tool.pylint.format]
 max-line-length = 88
-max-module-lines = 977 # target: 800 (hard limit); soft limit 400-500
+max-module-lines = 933 # target: 800 (hard limit); soft limit 400-500
 
 [tool.pytest.ini_options]
 markers = [
