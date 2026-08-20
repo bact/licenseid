@@ -63,7 +63,7 @@ def malformed_db() -> Generator[LicenseDatabase, None, None]:
 
 
 def test_fresh_db_no_warning(
-    fresh_db: LicenseDatabase, capsys: pytest.CaptureFixture
+    fresh_db: LicenseDatabase, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """A fresh database doesn't trigger a staleness warning."""
     check_db_staleness(fresh_db)
@@ -71,7 +71,7 @@ def test_fresh_db_no_warning(
 
 
 def test_stale_tz_aware_db_warns(
-    stale_tz_aware_db: LicenseDatabase, capsys: pytest.CaptureFixture
+    stale_tz_aware_db: LicenseDatabase, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """A stale tz-aware database triggers a staleness warning."""
     check_db_staleness(stale_tz_aware_db)
@@ -79,7 +79,7 @@ def test_stale_tz_aware_db_warns(
 
 
 def test_stale_naive_db_warns_without_crashing(
-    stale_naive_db: LicenseDatabase, capsys: pytest.CaptureFixture
+    stale_naive_db: LicenseDatabase, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Regression test: a pre-existing naive-timestamp database must not
     raise TypeError when compared against a tz-aware datetime.now()."""
@@ -88,7 +88,7 @@ def test_stale_naive_db_warns_without_crashing(
 
 
 def test_malformed_timestamp_ignored(
-    malformed_db: LicenseDatabase, capsys: pytest.CaptureFixture
+    malformed_db: LicenseDatabase, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """A malformed timestamp is ignored rather than raising or warning."""
     check_db_staleness(malformed_db)

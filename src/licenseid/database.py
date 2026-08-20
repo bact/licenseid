@@ -7,18 +7,19 @@
 SQLite database management for SPDX licenses.
 """
 
+import contextlib
 import json
-import math
 import sqlite3
 import sys
 import tarfile
 import tempfile
 import xml.etree.ElementTree as ET
-from collections import Counter
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import cast
 
+from licenseid.fingerprint import compute_idf_fingerprints, extract_ngrams
 from licenseid.normalize import normalize_text
 from licenseid.types import (
     CandidateMatch,
@@ -64,15 +65,6 @@ def get_default_db_path() -> str:
 # Version 2: SPDX Matching Guidelines rules (varietal words, bullets,
 # copyright notices, comment prefixes, separators).
 NORMALIZATION_VERSION = "2"
-
-# Discriminative n-gram fingerprint settings.
-# Each license keeps its top FINGERPRINT_TOP_N highest-IDF word n-grams
-# (n = FINGERPRINT_N) as a compact discriminative signature.  At query time
-# a single indexed SQL lookup finds which candidates share at least one
-# fingerprint n-gram with the query, allowing the ranker to boost them
-# without a full RapidFuzz string comparison.
-_FINGERPRINT_N: int = 5  # word n-gram size
-_FINGERPRINT_TOP_N: int = 20  # fingerprints stored per license
 
 
 class LicenseDatabase:
@@ -122,19 +114,33 @@ class LicenseDatabase:
     def _connect(self) -> sqlite3.Connection:
         """Create a new connection to the database.
 
-        Every query method opens its own short-lived connection (dozens per
-        match() call), so per-connection setup cost matters.  mmap_size lets
-        SQLite read the file via memory-mapped I/O instead of read()
-        syscalls -- measured ~35% faster per connection+query on this DB
-        (46MB, mostly the FTS5 trigram index) after controlling for OS page
-        cache warm-up. 256MB is comfortably larger than the on-disk file;
-        it is a virtual mapping (cheap) not a physical memory reservation,
-        and is a documented no-op (not an error) on :memory:/shared-cache
-        URIs, which some callers (tests, benchmarks) use.
+        Every query method opens its own short-lived connection, so
+        per-connection setup cost matters. mmap_size lets SQLite read
+        via memory-mapped I/O instead of read() syscalls -- measured
+        ~35% faster per connection+query on this DB (46MB, mostly the
+        FTS5 trigram index). It's a cheap virtual mapping, not a
+        physical reservation, and a documented no-op on :memory:/
+        shared-cache URIs (used by tests, benchmarks).
         """
         conn = sqlite3.connect(str(self.db_path), uri=self.use_uri)
         conn.execute("PRAGMA mmap_size=268435456")
         return conn
+
+    @contextlib.contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        """Open a connection, commit/rollback it, and always close it.
+
+        ``sqlite3.Connection.__exit__`` only manages the transaction; it
+        does NOT close the connection. ``with self._connect() as conn:``
+        alone leaks a connection per call -- this wraps it in the
+        explicit ``close()`` that was missing.
+        """
+        conn = self._connect()
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _get_cache_path(self, filename: str) -> Path:
         """Get the absolute path for a cache file."""
@@ -142,7 +148,7 @@ class LicenseDatabase:
 
     def _init_db(self) -> None:
         """Initialise the SQLite database with FTS5."""
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS licenses (
                     license_id TEXT PRIMARY KEY,
@@ -486,7 +492,7 @@ class LicenseDatabase:
     ) -> None:
         """Replace all license/exception/metadata rows in a single transaction."""
         print(f"\nInserting {len(license_records)} records into database...")
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute("PRAGMA journal_mode = WAL")
             conn.execute("PRAGMA synchronous = NORMAL")
             conn.execute("BEGIN TRANSACTION")
@@ -609,20 +615,13 @@ class LicenseDatabase:
     def _compute_fingerprints(self) -> None:
         """Compute and store discriminative n-gram fingerprints for all licenses.
 
-        For each license, the top ``_FINGERPRINT_TOP_N`` highest-IDF word
-        n-grams (``_FINGERPRINT_N`` words each) are stored in
-        ``license_fingerprints``.  IDF is computed across the whole corpus so
-        that n-grams shared by many licenses score near 0 and n-grams unique
-        to one license score near 1.
-
+        See ``fingerprint.compute_idf_fingerprints`` for the scoring method.
         Must be called after ``license_index`` has been fully populated.
         Replaces any previously stored fingerprints.
         """
         print("Computing discriminative fingerprints...", end="", flush=True)
 
-        # Read all pre-normalised license texts.  The search_text column in
-        # license_index is the canonical normalised form (see _create_fingerprint).
-        with self._connect() as conn:
+        with self._connection() as conn:
             rows: list[tuple[str, str]] = conn.execute(
                 "SELECT license_id, search_text FROM license_index"
             ).fetchall()
@@ -631,43 +630,9 @@ class LicenseDatabase:
             print(" no data.", flush=True)
             return
 
-        k = len(rows)
-        # IDF of a 5-gram that appears in exactly one license = log(k/1) = log(k).
-        # Dividing by log(k) normalises scores to [0, 1].
-        max_idf = math.log(k)
+        fp_records = compute_idf_fingerprints(rows)
 
-        # Build 5-gram sets per license and count document frequency of each
-        # n-gram (number of distinct licenses that contain it).
-        license_ngrams: dict[str, set[str]] = {}
-        doc_freq: Counter[str] = Counter()
-
-        for license_id, search_text in rows:
-            tokens = search_text.split()
-            ngrams: set[str] = {
-                " ".join(tokens[i : i + _FINGERPRINT_N])
-                for i in range(len(tokens) - _FINGERPRINT_N + 1)
-            }
-            if ngrams:
-                license_ngrams[license_id] = ngrams
-                doc_freq.update(ngrams)
-
-        # For each license keep the top-N n-grams ranked by IDF (high IDF =
-        # rare across the corpus = highly discriminative).
-        fp_records: list[tuple[str, str, float]] = []
-        for license_id, ngrams in license_ngrams.items():
-            scored = sorted(
-                (
-                    (ng, math.log(k / doc_freq[ng]) / max_idf)
-                    for ng in ngrams
-                    if doc_freq[ng] > 0
-                ),
-                key=lambda x: -x[1],
-            )
-            for ng, idf_norm in scored[:_FINGERPRINT_TOP_N]:
-                if idf_norm > 0.0:
-                    fp_records.append((license_id, ng, idf_norm))
-
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
                 conn.execute("DELETE FROM license_fingerprints")
@@ -681,14 +646,10 @@ class LicenseDatabase:
                 conn.execute("ROLLBACK")
                 raise
 
-        print(f" {len(fp_records)} fingerprints for {k} licenses.", flush=True)
+        print(f" {len(fp_records)} fingerprints for {len(rows)} licenses.", flush=True)
 
     def find_fingerprint_hits(self, norm_input: str) -> dict[str, float]:
         """Return a map of ``license_id → max_idf_norm`` for fingerprint matches.
-
-        Extracts ``_FINGERPRINT_N``-word n-grams from *norm_input* and queries
-        the ``license_fingerprints`` index for any matching n-grams.  For each
-        candidate license, the highest matching ``idf_norm`` score is returned.
 
         The ``idf_norm`` value is in ``[0, 1]``: 1.0 means the matching n-gram
         appears in exactly one license in the corpus (maximally discriminative).
@@ -696,14 +657,9 @@ class LicenseDatabase:
         Returns an empty dict when the table is empty, the input is too short
         to form any n-grams, or no n-grams match.
         """
-        tokens = norm_input.split()
-        if len(tokens) < _FINGERPRINT_N:
+        query_ngrams = extract_ngrams(norm_input)
+        if not query_ngrams:
             return {}
-
-        query_ngrams = [
-            " ".join(tokens[i : i + _FINGERPRINT_N])
-            for i in range(len(tokens) - _FINGERPRINT_N + 1)
-        ]
 
         placeholders = ", ".join(["?"] * len(query_ngrams))
         sql = (
@@ -712,7 +668,7 @@ class LicenseDatabase:
             f" WHERE ngram IN ({placeholders})"
             f" GROUP BY license_id"
         )
-        with self._connect() as conn:
+        with self._connection() as conn:
             try:
                 rows = conn.execute(sql, query_ngrams).fetchall()
             except sqlite3.OperationalError:
@@ -750,7 +706,7 @@ class LicenseDatabase:
             return []
         search_terms = " OR ".join(words)
 
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             query = """
                 SELECT
@@ -781,7 +737,7 @@ class LicenseDatabase:
     def get_license_details(self, license_id: str) -> LicenseDetails | None:
         """Get full metadata for a license (case-insensitive lookup)."""
         clean_id = license_id.strip()
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT * FROM licenses WHERE license_id = ? COLLATE NOCASE",
@@ -796,7 +752,7 @@ class LicenseDatabase:
         clean_name = name.strip()
         if not clean_name:
             return None
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT * FROM licenses WHERE name = ? COLLATE NOCASE",
@@ -809,7 +765,7 @@ class LicenseDatabase:
     def get_exception_details(self, exception_id: str) -> ExceptionDetails | None:
         """Get full metadata for an exception (case-insensitive lookup)."""
         clean_id = exception_id.strip()
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT * FROM exceptions WHERE exception_id = ? COLLATE NOCASE",
@@ -831,7 +787,7 @@ class LicenseDatabase:
         clean = prefix.strip()
         if not clean:
             return None
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 """
@@ -874,7 +830,7 @@ class LicenseDatabase:
 
     def get_search_text(self, license_id: str) -> str:
         """Return the normalized search text for a license from the FTS index."""
-        with self._connect() as conn:
+        with self._connection() as conn:
             row = conn.execute(
                 "SELECT search_text FROM license_index WHERE license_id = ?",
                 (license_id,),
@@ -890,7 +846,7 @@ class LicenseDatabase:
         """
         if self._norm_cols_backfilled:
             return
-        with self._connect() as conn:
+        with self._connection() as conn:
             missing = conn.execute(
                 "SELECT license_id, name FROM licenses WHERE norm_license_id IS NULL"
             ).fetchall()
@@ -924,7 +880,7 @@ class LicenseDatabase:
         if self._names_and_ids_cache is not None:
             return self._names_and_ids_cache
         self._ensure_norm_columns()
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute(
                 "SELECT license_id, name, is_deprecated,"
@@ -949,7 +905,7 @@ class LicenseDatabase:
             return self._deprecated_mappings_cache
 
         mappings: dict[str, str] = {}
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             # Licenses
             cursor = conn.execute(
@@ -972,6 +928,6 @@ class LicenseDatabase:
 
     def get_metadata(self) -> DatabaseMetadata:
         """Get database metadata."""
-        with self._connect() as conn:
+        with self._connection() as conn:
             cursor = conn.execute("SELECT key, value FROM db_metadata")
             return cast(DatabaseMetadata, {row[0]: row[1] for row in cursor.fetchall()})
