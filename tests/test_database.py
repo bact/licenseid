@@ -48,9 +48,8 @@ def test_connection_closes_after_successful_query(db: LicenseDatabase) -> None:
 
 def test_connection_closes_even_when_the_query_raises(db: LicenseDatabase) -> None:
     """The connection must be closed on the exception path too, not leaked."""
-    with pytest.raises(RuntimeError, match="boom"):
-        with db._connection() as conn:
-            raise RuntimeError("boom")
+    with pytest.raises(RuntimeError, match="boom"), db._connection() as conn:
+        raise RuntimeError("boom")
 
     _assert_closed(conn)
 
