@@ -17,7 +17,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import cast
+from typing import NamedTuple, cast
 
 from licenseid.fingerprint import compute_idf_fingerprints, extract_ngrams
 from licenseid.normalize import normalize_text
@@ -50,6 +50,15 @@ _LicenseInsertRecord = tuple[
     str,
 ]
 _IndexInsertRecord = tuple[str, str]
+
+
+class SpdxLicenseList(NamedTuple):
+    """Parsed SPDX release payload, bundled to keep call sites under max-args."""
+
+    licenses: list[SpdxLicenseEntry]
+    exceptions: list[SpdxExceptionEntry]
+    list_version: str
+    release_date: str | None
 
 
 def get_default_db_path() -> str:
@@ -112,29 +121,15 @@ class LicenseDatabase:
             )
 
     def _connect(self) -> sqlite3.Connection:
-        """Create a new connection to the database.
-
-        Every query method opens its own short-lived connection, so
-        per-connection setup cost matters. mmap_size lets SQLite read
-        via memory-mapped I/O instead of read() syscalls -- measured
-        ~35% faster per connection+query on this DB (46MB, mostly the
-        FTS5 trigram index). It's a cheap virtual mapping, not a
-        physical reservation, and a documented no-op on :memory:/
-        shared-cache URIs (used by tests, benchmarks).
-        """
+        """Create a new connection."""
         conn = sqlite3.connect(str(self.db_path), uri=self.use_uri)
         conn.execute("PRAGMA mmap_size=268435456")
         return conn
 
     @contextlib.contextmanager
     def _connection(self) -> Iterator[sqlite3.Connection]:
-        """Open a connection, commit/rollback it, and always close it.
-
-        ``sqlite3.Connection.__exit__`` only manages the transaction; it
-        does NOT close the connection. ``with self._connect() as conn:``
-        alone leaks a connection per call -- this wraps it in the
-        explicit ``close()`` that was missing.
-        """
+        """Open, commit/rollback, and always close -- ``Connection.__exit__``
+        alone only handles the transaction, not closing."""
         conn = self._connect()
         try:
             with conn:
@@ -346,14 +341,10 @@ class LicenseDatabase:
                     f"(Version: {list_version}, Released: {release_date})"
                 )
 
-                self._update_db_records(
-                    licenses_data,
-                    root_dir,
-                    popularity_map,
-                    list_version,
-                    release_date,
-                    exceptions_data,
+                license_data = SpdxLicenseList(
+                    licenses_data, exceptions_data, list_version, release_date
                 )
+                self._update_db_records(license_data, root_dir, popularity_map)
 
             print("\nUpdate complete.")
         except (tarfile.TarError, OSError, json.JSONDecodeError, sqlite3.Error) as e:
@@ -361,25 +352,22 @@ class LicenseDatabase:
 
     def _update_db_records(
         self,
-        licenses_data: list[SpdxLicenseEntry],
+        license_data: SpdxLicenseList,
         root_dir: Path,
         popularity_map: dict[str, int],
-        list_version: str,
-        release_date: str | None,
-        exceptions_data: list[SpdxExceptionEntry],
     ) -> None:
         """Execute database delete and insert operations."""
         license_records, index_records, exception_records = (
             self._prepare_license_and_exception_records(
-                licenses_data, root_dir, popularity_map, exceptions_data
+                license_data.licenses, root_dir, popularity_map, license_data.exceptions
             )
         )
         self._write_db_records(
             license_records,
             index_records,
             exception_records,
-            list_version,
-            release_date,
+            license_data.list_version,
+            license_data.release_date,
         )
 
         # Compute fingerprints in a separate transaction so that the FTS5
