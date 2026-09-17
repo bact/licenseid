@@ -40,7 +40,7 @@ classifiers = [
 ]
 dependencies = [
     "beautifulsoup4>=4.15.0",
-    "click>=8.4.2",
+    "click>=8.5.0",
     "py-spdx-license>=0.0.1",
     "rapidfuzz>=3.14.5",
     "requests>=2.33.0", # sync with `types-requests` version
@@ -65,11 +65,11 @@ issues = "https://github.com/bact/licenseid/issues"
 lint = [
     "flake8>=7.3.0",
     "flake8-cognitive-complexity>=0.1.0",
-    "pylint>=4.0.7",
-    "ruff>=0.16.3",
+    "pylint>=4.0.8",
+    "ruff>=0.16.8",
 ]
 test = ["coverage>=7.15.4", "coveralls>=4.1.0", "pytest>=9.1.1"]
-typecheck = ["mypy>=1.20.2", "types-requests>=2.33.0.20260518"]
+typecheck = ["mypy>=2.3.1", "types-requests>=2.33.0.20260906"]
 dev = [
     { include-group = "lint" },
     { include-group = "test" },
@@ -162,22 +162,22 @@ method-rgx = "[a-z_][a-z0-9_]{2,30}$"
 # working-docs/design/complexity-and-file-size-roadmap.md for the backlog
 # that has to shrink before a ceiling can drop to target.
 [tool.pylint.design]
-max-args = 6                 # target: 5
+max-args = 5                  # target: 5 (already at target)
 max-attributes = 10
 max-bool-expr = 5
-max-branches = 15            # target: 12
-max-locals = 23              # target: 15
-max-nested-blocks = 5        # target: 5
+max-branches = 15             # target: 12
+max-locals = 23               # target: 15
+max-nested-blocks = 5         # target: 5
 max-parents = 7
-max-positional-arguments = 6
+max-positional-arguments = 5  # target: 5 (already at target)
 max-public-methods = 20
 min-public-methods = 1
-max-returns = 6              # target: 6
-max-statements = 50          # target: 50
+max-returns = 6                # target: 6 (already at target)
+max-statements = 50            # target: 50 (already at target)
 
 [tool.pylint.format]
 max-line-length = 88
-max-module-lines = 933 # target: 800 (hard limit); soft limit 400-500
+max-module-lines = 921 # target: 800 (hard limit); soft limit 400-500
 
 [tool.pytest.ini_options]
 markers = [
