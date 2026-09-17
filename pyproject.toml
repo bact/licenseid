@@ -1,5 +1,12 @@
 [build-system]
-requires = ["hatchling>=1.32.0", "pitloom>=0.16.2"]
+# hatchling capped below 1.32.1: that release (and 1.32.3, which
+# reintroduced the same change after 1.32.1 was yanked) made
+# BuildHookInterface a 2-type-param generic. pitloom's hatch plugin
+# (even 0.18.0, the latest as of 2026-09-17) still subclasses it with
+# one type param, so any hatchling >=1.32.1 crashes at build-hook
+# registration for every install/build. Raise this cap once pitloom
+# ships a fix for the new interface.
+requires = ["hatchling>=1.32.0,<1.32.1", "pitloom>=0.16.2"]
 build-backend = "hatchling.build"
 
 [project]
