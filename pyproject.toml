@@ -6,7 +6,7 @@
 # one type param, so any hatchling >=1.32.1 crashes at build-hook
 # registration for every install/build. Raise this cap once pitloom
 # ships a fix for the new interface.
-requires = ["hatchling>=1.32.0,<1.32.1", "pitloom>=0.16.2"]
+requires = ["hatchling>=1.32.0,<1.32.1", "pitloom>=0.18.0"]
 build-backend = "hatchling.build"
 
 [project]
