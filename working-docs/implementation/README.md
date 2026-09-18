@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-08-19
+Last-Modified: 2026-09-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,7 +13,7 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-07-20)
+## Current state (as of 2026-09-18)
 
 - **Pipeline**: Tier 0 (short-text ID/name shortcut) → Tier 0.5 (marker
   detection) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz ranking) →
@@ -26,6 +26,9 @@ yet started, see [`../design/`](../design/).
   free-text Tier 0 lookups.
 - **Discriminative n-gram fingerprints**: precomputed at DB-build time,
   used as an additive tie-breaker in Tier 2 ranking.
+- **Update path** (`spdx_source.py`): three cached third-party sources with
+  a fixed fallback order, atomic writes and warnings on every deviation; see
+  [data-fetching-and-caching.md](data-fetching-and-caching.md).
 - **Known deferred work**: probe-anchored windowing (reusing the existing
   probe's match location instead of a full realignment scan) — flagged
   but deliberately not attempted; see
@@ -43,6 +46,7 @@ yet started, see [`../design/`](../design/).
 | 2026-05-07 | [threshold-optimizations.md](threshold-optimizations.md) | implemented | Diagnosed and fixed the `head_300` Tier 0/0.5 regression from the full-coverage benchmark: lowered Tier 0 threshold to 30 words, suppressed marker detection below that. |
 | 2026-05-07 | [speed-optimizations.md](speed-optimizations.md) | implemented (as PR #19, PR #21) | Original plan for discriminative n-gram fingerprints and pre-computed-normalization/RapidFuzz acceleration; superseded in narrative detail by the round-2 doc's results. |
 | 2026-07-20 | [speed-optimizations-round-2.md](speed-optimizations-round-2.md) | implemented | Profile-driven sweep: DB index on `licenses.name`, removed redundant lookups, lazy imports, instance-level metadata caching, `mmap_size` pragma. One change (`score_cutoff` on `partial_ratio_alignment`) was tried and reverted — see its "Rejected" section. CLI cold start ~125ms → ~31ms. |
+| 2026-09-18 | [data-fetching-and-caching.md](data-fetching-and-caching.md) | implemented (PR #51) | Third-party fetching in `spdx_source.py`: gentle requests, fallback order (`--no-cache` never uses stale data), atomic caches, version validation, safe tar extraction, self-healing corrupt caches, non-silent fallbacks; test patterns and traps. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

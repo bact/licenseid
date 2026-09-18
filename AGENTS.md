@@ -127,6 +127,45 @@ Sort SPDX metadata keys alphabetically.
 - `time_machine` for time-dependent tests.
 - `@pytest.mark.parametrize` for multiple similar inputs.
 
+## Traps and test patterns
+
+Things that cost time in earlier sessions; details in `working-docs/`.
+
+- `CLAUDE.md` is a symlink to this file. Edit `AGENTS.md`. `.claude/` is
+  gitignored.
+- `flake8 src/ tests/` lints tests too: a test helper can set a complexity
+  ceiling (the cognitive ceiling was `test_accuracy.py::run_accuracy_test`).
+  Ceilings are exact ratchets: after a refactor re-measure across `src/` and
+  `tests/`, and lower the ceiling if the last holder is gone.
+- Refactor with **characterization tests first**: they found a real bug in
+  every refactor so far. Pin the bug (`# BUG:`), refactor purely, then fix
+  it as a separate step and flip the pin to a regression test.
+- Tests have no `tests/__init__.py`: import shared helpers with
+  `from conftest import ...` (not `tests.conftest`). Helpers there:
+  `make_memory_db_path`, `fake_requests_get`, `leftover_tmp_files`.
+- A shared-cache in-memory SQLite DB vanishes when its last connection
+  closes, and CPython drops an unreferenced connection at once:
+  `make_memory_db_path` opens its keep-alive connection *before* building
+  `LicenseDatabase`. Keep that order.
+- No test may touch the network: patch `requests.get` (autospec). Never
+  modify or clear the real cache in `~/.local/share/licenseid/`; it is fine
+  to read it to validate a parser against real data.
+- CI runs Python 3.10-3.14 but the local `.venv` is 3.10. For anything
+  stdlib-sensitive, also run `uv run --python 3.14 --group test pytest ...`
+  (set `UV_PROJECT_ENVIRONMENT` to a scratch dir). Simulate an older Python
+  with a module flag, never by deleting stdlib attributes
+  (`tarfile.data_filter` breaks `tarfile` itself on 3.12+).
+- Mutation-check new tests by breaking a line and rerunning; clear
+  `__pycache__` between mutants (a same-size mutant restored within the same
+  second leaves a stale `.pyc`).
+- `database.py` imports `spdx_source` lazily (keeps `requests` off the match
+  path and avoids an import cycle). Do not import `licenseid.__version__`
+  at module level in `spdx_source.py`.
+- Text extracted from `[`/`{`-starting input with no extension is tried as
+  JSON first and falls through to TOML/INI; a synthetic marker candidate is
+  only built for a valid SPDX expression or `LicenseRef-*`, never for free
+  text.
+
 ## Git and pull requests
 
 - Commit messages: user impact, not implementation details.
