@@ -246,72 +246,21 @@ inline TOML regex is now the class attribute `_RE_TOML_LICENSE_TABLE`,
 `import configparser` moved to the module top, and the docstring no longer
 claims YAML support (there is none).
 
-- **Tests**: the function had none. `tests/test_markers_structured.py`
-  (new file; `test_markers.py` is already over the soft limit) adds 69
-  tests. They were written as characterisation tests against the
-  unrefactored code first; the ones for the bugs below were then flipped
-  to regression tests. `markers.py` coverage 81%→90%; every line and
-  branch of the three helpers is covered.
-- **Bugs found and fixed** (pinned first, fixed after the pure refactor
-  was green):
-  - Pathologically nested JSON (`"[" * 100_000`) raised `RecursionError`,
-    which the `except (JSONDecodeError, ValueError)` did not catch, so it
-    escaped `detect()` and crashed `match()`. Same class as the earlier
-    `_match_with_expression` fix. `RecursionError` is now caught.
-  - Extensionless text starting with `[` (INI or TOML with a leading
-    section header) was routed to the JSON branch, failed to parse, and
-    the early return skipped the INI/TOML branches. Files with a
-    `.cfg`/`.ini`/`.toml` extension were unaffected.
-    `_detect_json_license` now returns `None` on a parse failure and
-    extensionless input falls through; `.json` and valid JSON still
-    return early.
-- **Follow-on fix**: the extensionless fall-through exposed a phantom
-  candidate. `_resolve_license_value` turned *any* unrecognised string into
-  a synthetic `is_spdx=True` candidate at 0.95, so
-  `[project]\nlicense = {text = "MIT"}` yielded a bogus `{text = "MIT"}`
-  next to the real `MIT`, and `license: see LICENSE file` yielded a
-  candidate of that text. Synthetic candidates are now kept only for
-  well-formed SPDX expressions and `LicenseRef-*` IDs that contain at
-  least one recognised ID (new `_is_spdx_syntax`, via
-  `py_spdx_license.parse`), matching the existing no-phantom policy of
-  the `_RE_LICENSE_FIELD` path. Single unknown IDs and all-unknown
-  expressions (`Dual OR Commercial`) are dropped, as are plain
-  `NOASSERTION`, `NONE` and `UNLICENSED` values, which used to yield a
-  synthetic candidate. `_detect_ini_license` also now skips a section
-  whose value does not resolve and tries the next one.
-  A kept expression that mixes known and unknown IDs
-  (`GPL-3.0 or Commercial`) is marked `is_spdx=False`.
-- **Known quirks, pinned but not fixed** (behaviour changes, out of
-  scope):
-  - A truthy non-string JSON `license` hides a valid `License` key;
-    `[DEFAULT]` INI keys are inherited by the first section; the PEP 639
-    string form (`license = "MIT"`) is not read for `.toml`.
-- **Ceilings**: none move (`.flake8` stays 13 / 29). McCabe 13 is now held
-  only by `spdx_source.fetch_popularity_data`.
-
-### Done: `spdx_source.py::fetch_popularity_data` (McCabe 13→4, cognitive 13→6)
-
-Was the last McCabe-13 function, so the McCabe ceiling dropped 13→12
-(`.flake8`, and the figure in `AGENTS.md`). Extracted `_read_local_csv`,
-`_download_popularity_csv`, `_write_popularity_cache`, `_parse_count` and
-`_aggregate_popularity`; the orchestrator now reads as: usable local data,
-then one download, then a stale cache.
-
 - **Tests**: the function had none (`spdx_source.py` coverage was 20%).
-  `tests/test_spdx_source.py` grew from 3 to 41 tests, and the new
-  `tests/test_spdx_source_cache.py` (39) covers the `licenses.json` cache
-  and `clear_cache`; `tests/test_database.py` gained 2, `tests/test_database_update.py`
-  runs `update_from_remote` and the CLI `update` command end to end on a
-  synthetic release, and checks tarball extraction against each unsafe
-  member kind (with and without the `data` filter), and
-  `tests/test_fingerprint.py` is new. `requests.get` is
-  replaced by an autospec'd fake (`conftest.fake_requests_get`), so
-  nothing touches the network. Written
-  against the unrefactored code first; the ones for the bugs below were then
-  flipped to regression tests.
+  `tests/test_spdx_source.py` grew from 3 to 41 tests. New:
+  `tests/test_spdx_source_cache.py` (39) for the `licenses.json` cache and
+  `clear_cache`; `tests/test_database_update.py` (22) runs
+  `update_from_remote` and the CLI `update` command end to end on a
+  synthetic release and checks tarball extraction against each unsafe
+  member kind, with and without the `data` filter;
+  `tests/test_fingerprint.py` (4). `tests/test_database.py` gained 2.
+  `requests.get` is replaced by an autospec'd fake
+  (`conftest.fake_requests_get`), so nothing touches the network. The
+  tests were written against the unrefactored code first; those for the
+  bugs below were then flipped to regression tests.
 - **Bugs found and fixed**:
   - A row missing `num_pushers` raised an uncaught `TypeError` and crashed
-    `LicenseDatabase.update_from_remote`; it now counts as 0.
+    `LicenseDatabase.update_from_remote`; it now counts as 0 and is reported.
   - A cache-write failure (missing or read-only cache directory) aborted the
     update after a successful download; it now warns and keeps the data.
   - The raw response was cached before parsing, so an error page was served
@@ -330,9 +279,9 @@ then one download, then a stale cache.
     uncaught `OSError` on cache write, a crash on a corrupt cache
     (`UnicodeDecodeError`, or a non-object JSON value), and caching of a
     response with no `licenseListVersion`. It now follows the same order
-    (valid cache, one download, stale cache, then an explicit version or
-    `RuntimeError`) and reports `cache`, `remote`, `stale cache` or
-    `unavailable`.
+    (valid cache, one download, stale cache unless `--no-cache`, then an
+    explicit version or `RuntimeError`) and reports `cache`, `remote`,
+    `stale cache` or `unavailable`.
   - A corrupt or truncated cached tarball failed every later run (a
     truncated gzip raised a bare `EOFError`); `_process_and_store` now
     deletes it and asks for a re-run, so it is re-downloaded once.

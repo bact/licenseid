@@ -130,12 +130,13 @@ def test_forced_update_reuses_all_caches_without_network(
     assert "SPDX License List data       : cache" in out
 
 
-def _attack_tarball(kind: str) -> bytes:
-    """A tarball containing exactly one kind of unsafe member."""
+def _attack_tarball(kind: str, outside: Path) -> bytes:
+    """A tarball containing exactly one kind of unsafe member; *outside* is a
+    directory that must stay untouched."""
     if kind == "parent_dir":
         return _tarball({"../evil.txt": b"pwned"})
     if kind == "absolute_path":
-        return _tarball({"/tmp/licenseid-evil.txt": b"pwned"})
+        return _tarball({str(outside / "evil.txt"): b"pwned"})
     if kind == "symlink_absolute":
         return _tarball({}, {"root/link": "/etc"})
     if kind == "symlink_parent":
@@ -160,19 +161,22 @@ def test_extract_tarball_refuses_each_unsafe_member(
     if not has_filter:
         monkeypatch.delattr(tarfile, "data_filter")
     tar_path = tmp_path / "evil.tar.gz"
-    tar_path.write_bytes(_attack_tarball(kind))
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    tar_path.write_bytes(_attack_tarball(kind, outside))
     dest = tmp_path / "out"
     dest.mkdir()
     if kind == "absolute_path":
         # Absolute names are made relative instead of failing, identically
         # with and without the filter; nothing may land outside dest.
         spdx_source.extract_tarball(tar_path, dest)
-        assert (dest / "tmp" / "licenseid-evil.txt").exists()
+        relative = (outside / "evil.txt").relative_to(outside.anchor)
+        assert (dest / relative).exists()
     else:
         with pytest.raises(tarfile.TarError):
             spdx_source.extract_tarball(tar_path, dest)
     assert not (tmp_path / "evil.txt").exists()
-    assert not Path("/tmp/licenseid-evil.txt").exists()
+    assert not list(outside.iterdir())
 
 
 @pytest.mark.parametrize("has_filter", [True, False], ids=["data_filter", "manual"])
