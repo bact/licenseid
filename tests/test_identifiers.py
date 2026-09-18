@@ -15,6 +15,7 @@ from licenseid.database import LicenseDatabase
 from licenseid.identifiers import (
     _MAX_CANONICALIZE_OPERATORS,
     _is_expression,
+    _lookup_case_insensitive,
     disambiguate_deprecated_id,
     normalize_identifier,
     normalize_operator_casing,
@@ -74,6 +75,13 @@ def db() -> LicenseDatabase:
         conn.execute(
             insert_exception,
             ("Linux-syscall-note", "Linux Syscall Note", False, None),
+        )
+        conn.execute(
+            insert_license,
+            # Deprecated WITH a real superseded_by, unlike GPL-2.0 above:
+            # covers the DB-mappings lookup branch itself, not the
+            # hardcoded-fallback branch GPL-2.0 exists to test.
+            ("Old-License-1.0", "Old License 1.0", True, True, "New-License-1.0"),
         )
     return db_manager
 
@@ -324,3 +332,40 @@ def test_normalize_identifier_or_later_prose(db: LicenseDatabase) -> None:
     """normalize_identifier applies prose disambiguation before tokenisation."""
     assert normalize_identifier("GPL-2.0 or later version", db) == "GPL-2.0-or-later"
     assert normalize_identifier("GPL-2.0 only", db) == "GPL-2.0-only"
+
+
+def test_normalize_single_id_case_insensitive_plus(db: LicenseDatabase) -> None:
+    """Lower-cased '+' forms resolve via DEPRECATED_SPDX_LICENSE_IDS's
+    case-insensitive scan, not just exact-case lookup."""
+    assert normalize_identifier("gpl-2.0+", db) == "GPL-2.0-or-later"
+
+
+def test_normalize_single_id_case_insensitive_with(db: LicenseDatabase) -> None:
+    """Lower-cased '-with-' compound IDs resolve via DEPRECATED_WITH_IDS's
+    case-insensitive scan."""
+    assert (
+        normalize_identifier("gpl-2.0-with-font-exception", db)
+        == "GPL-2.0-only WITH Font-exception-2.0"
+    )
+
+
+def test_normalize_single_id_case_insensitive_bare(db: LicenseDatabase) -> None:
+    """Lower-cased bare deprecated IDs resolve via DEPRECATED_BARE_LICENSE_IDS's
+    case-insensitive scan, defaulting conservatively to '-only'."""
+    assert normalize_identifier("gpl-1.0", db) == "GPL-1.0-only"
+    assert normalize_identifier("gpl-1.0", None) == "GPL-1.0-only"
+
+
+def test_normalize_single_id_case_insensitive_db_mapping(db: LicenseDatabase) -> None:
+    """A case-mismatched deprecated ID resolves via the DB mappings branch
+    (get_deprecated_mappings()), not the hardcoded fallback maps."""
+    assert normalize_identifier("old-license-1.0", db) == "New-License-1.0"
+
+
+def test_lookup_case_insensitive() -> None:
+    """Direct coverage of the shared exact-then-case-insensitive helper."""
+    mapping = {"GPL-2.0": "GPL-2.0-only"}
+    assert _lookup_case_insensitive(mapping, "GPL-2.0") == "GPL-2.0-only"
+    assert _lookup_case_insensitive(mapping, "gpl-2.0") == "GPL-2.0-only"
+    assert _lookup_case_insensitive(mapping, "MIT") is None
+    assert _lookup_case_insensitive({}, "GPL-2.0") is None

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-08-20
+Last-Modified: 2026-09-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -39,7 +39,7 @@ pylint's actual defaults are 12 and 50.
 | Branches | ≤12 | 15 | 15 |
 | Returns | ≤6 | 6 (no ratchet needed) | 5 |
 | Statements | ≤50 | 50 (no ratchet needed) | 49 |
-| McCabe | ≤10 | 23 | 23 (`identifiers._normalize_single_id`) |
+| McCabe | ≤10 | 19 | 19 (`matcher.match`) |
 | Cognitive | ≤15 | 49 | 49 (`markers._detect_gpl_headers`) |
 | Module lines | soft 400-500 / hard 800 | 933 | 933 (`database.py`) |
 
@@ -48,27 +48,31 @@ Measured 2026-08-19 via `pylint --disable=all --enable=too-many-<x>
 `flake8 --max-cognitive-complexity 1` (needs `flake8-cognitive-complexity`,
 run across all of `src/`, not a single file — a single-file scan
 undercounted the true max on the first pass), and `wc -l src/licenseid/*.py`.
+McCabe row re-measured 2026-09-18 after item 1 (below) landed.
 
 ## Backlog, priority order
 
 Priority = (Impact + Risk) × (6 − Effort), same scoring as the general
 tech-debt roadmap.
 
-### 1. `identifiers.py::_normalize_single_id` — reduce McCabe 23 / cognitive 48 (Priority 20)
+### Done: `identifiers.py::_normalize_single_id` (McCabe 23→11, cognitive 48→15)
 
-Both the single highest McCabe score in the repo *and* the second-highest
-cognitive score, in one function: four sequential lookup-with-fallback
-stages (DB mapping, hardcoded deprecated maps, bare-ID conservative
-fallback, `+`-suffix stripping), each with its own case-insensitive
-retry branch.
+Was both the single highest McCabe score in the repo *and* the
+second-highest cognitive score, in one function: four sequential
+lookup-with-fallback stages (DB mapping, hardcoded deprecated maps,
+bare-ID conservative fallback, `+`-suffix stripping), each with its own
+case-insensitive retry branch.
 
-- **Fix**: extract a shared `_lookup_case_insensitive(mapping, key)`
-  helper for the four near-identical "try exact then case-insensitive"
-  blocks; collapses roughly half the branches without changing
-  behaviour. Directly lowers both the McCabe and Cognitive ratchets.
-- Impact 3, Risk 2, Effort 2.
+- **Fix applied**: extracted a shared `_lookup_case_insensitive(mapping,
+  key)` helper, reused by all four blocks here plus the identical
+  pattern in `_normalize_exception_id`. Pure refactor, no behaviour
+  change; new tests lock in the case-insensitive branches
+  (`tests/test_identifiers.py`). McCabe ceiling dropped 23→19 (repo's
+  new max moved to `matcher.match`); Cognitive ceiling unchanged at 49
+  since `markers._detect_gpl_headers` was already the top offender on
+  that metric and this change didn't touch it.
 
-### 2. `markers.py::_detect_gpl_headers` / `_detect_structured_format` (Priority 9)
+### 1. `markers.py::_detect_gpl_headers` / `_detect_structured_format` (Priority 9)
 
 `_detect_gpl_headers` is the single highest cognitive score in the repo
 (49); `_detect_structured_format` is close behind (McCabe 13,
@@ -77,10 +81,10 @@ heading/field patterns in one function.
 
 - **Fix**: table-driven dispatch (list of `(pattern, handler)` pairs)
   instead of sequential `if`/`elif` pattern checks. Directly lowers the
-  Cognitive ratchet, which item 1 alone won't fully resolve.
+  Cognitive ratchet, which the `identifiers.py` fix above didn't touch.
 - Impact 2, Risk 1, Effort 3.
 
-### 3. `matcher.py` — split `match()` and `_get_candidates()` (Priority 9)
+### 2. `matcher.py` — split `match()` and `_get_candidates()` (Priority 9)
 
 841 lines (over the 800-line hard target); `match()` is 178 lines /
 cognitive 46 / McCabe 19, `_get_candidates()` is 136 lines / cognitive 32
@@ -95,7 +99,7 @@ the only item that also blocks the module-lines ratchet.
   comments.
 - Impact 3, Risk 2, Effort 3.
 
-### 4. `database.py` — split by responsibility (Priority 9)
+### 3. `database.py` — split by responsibility (Priority 9)
 
 933 lines (down from 977 — the n-gram/IDF fingerprint math moved to
 `fingerprint.py`). Schema/connection management, license-record
@@ -114,4 +118,4 @@ file-size and module-lines-ratchet problem.
 
 - `spdx_source.py::fetch_popularity_data` (McCabe 13) and
   `cli.py::match` (McCabe 12, cognitive 25) are close to target already
-  relative to the top offenders above; revisit after items 1-4 land.
+  relative to the top offenders above; revisit after items 1-3 land.
