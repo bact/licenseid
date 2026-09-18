@@ -298,7 +298,7 @@ Was the last McCabe-13 function, so the McCabe ceiling dropped 13→12
 then one download, then a stale cache.
 
 - **Tests**: the function had none (`spdx_source.py` coverage was 20%).
-  `tests/test_spdx_source.py` grew from 3 to 22 tests. `requests.get` is
+  `tests/test_spdx_source.py` grew from 3 to 32 tests. `requests.get` is
   replaced by an autospec'd fake, so nothing touches the network. Written
   against the unrefactored code first; the ones for the bugs below were then
   flipped to regression tests.
@@ -313,9 +313,18 @@ then one download, then a stale cache.
     once and overwritten.
   - A non-UTF-8 cache file raised `UnicodeDecodeError` instead of falling
     back to a download.
+  - The cache was written in place, so an interrupted write left a truncated
+    file that parsed to partial data and looked fresh; it is now written to
+    a temporary file and renamed.
+  - `LicenseDatabase.update_from_remote` reported the popularity source from
+    the cache-validity check, not from where the data came from.
+    `fetch_popularity_data` now returns `(map, source)` with source
+    `cache`, `remote`, `stale cache` or `unavailable`, and the report uses
+    it.
 - **Gentle fetching** (all three `requests.get` calls in the module go
   through `_http_get`): an identifying `User-Agent`
-  (`licenseid/<version> (+repo URL)`), explicit timeouts, a single attempt
+  (`licenseid/<version> (+repo URL)`, version read from
+  `licenseid.__version__` at call time), explicit timeouts, a single attempt
   with no retry or backoff loop, and a stale cache file as the fallback
   when a download fails, so a flaky network neither zeroes popularity nor
   triggers repeated requests. Not added: conditional requests (ETag,

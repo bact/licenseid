@@ -17,8 +17,9 @@ from unittest import mock
 import pytest
 import requests
 
-from licenseid import spdx_source
-from licenseid.spdx_source import fetch_popularity_data, is_cache_valid
+from licenseid import __version__, spdx_source
+from licenseid.database import LicenseDatabase
+from licenseid.spdx_source import is_cache_valid
 
 
 def test_missing_file_is_invalid(tmp_path: Path) -> None:
@@ -45,6 +46,13 @@ def test_old_file_is_invalid(tmp_path: Path) -> None:
 # --- fetch_popularity_data ---
 
 _CSV = "spdx_license,num_pushers\n"
+
+
+def fetch_popularity_data(
+    cache_dir: Path, local_path: Path | None = None
+) -> dict[str, int]:
+    """The popularity map only (see _fetch_with_source for the source)."""
+    return spdx_source.fetch_popularity_data(cache_dir, local_path)[0]
 
 
 def _fake_get(
@@ -227,8 +235,11 @@ def test_popularity_request_is_identified_with_timeout_and_single_attempt(
     fetch_popularity_data(tmp_path)
     fake.assert_called_once()
     kwargs = fake.call_args.kwargs
-    assert kwargs["headers"]["User-Agent"] == spdx_source.USER_AGENT
-    assert spdx_source.USER_AGENT.startswith("licenseid/")
+    assert kwargs["headers"]["User-Agent"] == spdx_source.user_agent()
+    assert (
+        spdx_source.user_agent()
+        == f"licenseid/{__version__} (+https://github.com/bact/licenseid)"
+    )
     assert kwargs["timeout"] == 30
 
 
@@ -245,4 +256,126 @@ def test_license_list_and_tarball_requests_are_identified(
 
     assert fake.call_count == 2
     for call in fake.call_args_list:
-        assert call.kwargs["headers"]["User-Agent"] == spdx_source.USER_AGENT
+        assert call.kwargs["headers"]["User-Agent"] == spdx_source.user_agent()
+
+
+# --- data source reporting, atomic cache write ---
+
+
+def test_popularity_source_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    local = tmp_path / "popularity.csv"
+    local.write_text(_CSV + "MIT,2\n", encoding="utf-8")
+    _fake_get(monkeypatch)
+    assert spdx_source.fetch_popularity_data(tmp_path, local) == (
+        {"MIT": 2},
+        "cache",
+    )
+
+
+def test_popularity_source_remote(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _fake_get(monkeypatch, _CSV + "MIT,2\n")
+    assert spdx_source.fetch_popularity_data(tmp_path) == ({"MIT": 2}, "remote")
+
+
+def test_popularity_source_is_remote_when_poisoned_cache_redownloaded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A valid-looking local cache that parses to nothing is replaced by a
+    download, and the source says so."""
+    local = tmp_path / spdx_source.CACHE_POPULARITY_CSV
+    local.write_text("<html>oops</html>")
+    _fake_get(monkeypatch, _CSV + "MIT,4\n")
+    assert spdx_source.fetch_popularity_data(tmp_path, local) == (
+        {"MIT": 4},
+        "remote",
+    )
+
+
+def test_popularity_source_stale_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / spdx_source.CACHE_POPULARITY_CSV).write_text(_CSV + "MIT,1\n")
+    _fake_get(monkeypatch, error=requests.ConnectionError("down"))
+    assert spdx_source.fetch_popularity_data(tmp_path) == (
+        {"MIT": 1},
+        "stale cache",
+    )
+
+
+def test_popularity_source_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _fake_get(monkeypatch, error=requests.ConnectionError("down"))
+    assert spdx_source.fetch_popularity_data(tmp_path) == ({}, "unavailable")
+
+
+def test_popularity_stale_cache_that_parses_to_nothing_is_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / spdx_source.CACHE_POPULARITY_CSV).write_text("<html>oops</html>")
+    _fake_get(monkeypatch, error=requests.ConnectionError("down"))
+    assert spdx_source.fetch_popularity_data(tmp_path) == ({}, "unavailable")
+
+
+def test_popularity_cache_write_is_atomic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The cache is written via a temp file + rename: on success no temp file
+    remains, and if the rename fails the existing cache is left untouched."""
+    cache = tmp_path / spdx_source.CACHE_POPULARITY_CSV
+    _fake_get(monkeypatch, _CSV + "MIT,1\n")
+    fetch_popularity_data(tmp_path)
+    assert cache.read_text() == _CSV + "MIT,1\n"
+    assert not (tmp_path / "popularity.csv.tmp").exists()
+
+    cache.write_text("previous")
+    monkeypatch.setattr(os, "replace", mock.Mock(side_effect=OSError("disk full")))
+    fetch_popularity_data(tmp_path)
+    assert cache.read_text() == "previous"
+    assert not (tmp_path / "popularity.csv.tmp").exists()
+
+
+@pytest.mark.parametrize(
+    ("cache_valid", "use_cache"),
+    [(True, True), (True, False), (False, True)],
+    ids=["valid_cache", "no_cache_flag", "expired_cache"],
+)
+def test_update_from_remote_reports_actual_popularity_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    cache_valid: bool,
+    use_cache: bool,
+) -> None:
+    """update_from_remote() passes the cache path only when it is valid and allowed, and
+    prints the source fetch_popularity_data reports (not a guess)."""
+    db = LicenseDatabase(str(tmp_path / "licenses.db"))
+    pop_cache = tmp_path / spdx_source.CACHE_POPULARITY_CSV
+    pop_cache.write_text(_CSV + "MIT,1\n")
+    if not cache_valid:
+        old = time.time() - 100 * 86400
+        os.utime(pop_cache, (old, old))
+
+    fetch = mock.create_autospec(
+        spdx_source.fetch_popularity_data,
+        return_value=({"MIT": 1}, "stale cache"),
+    )
+    monkeypatch.setattr(spdx_source, "fetch_popularity_data", fetch)
+    monkeypatch.setattr(
+        spdx_source, "get_version_info", lambda *_: ("9.99", None, "cache")
+    )
+    monkeypatch.setattr(
+        spdx_source, "get_tarball_path", lambda *_: (tmp_path / "x.tgz", "cache")
+    )
+    monkeypatch.setattr(db, "_process_and_store", mock.Mock())
+
+    assert db.update_from_remote(force=True, use_cache=use_cache)
+
+    passed_local = fetch.call_args.args[1]
+    assert passed_local == (pop_cache if cache_valid and use_cache else None)
+    out = capsys.readouterr().out
+    assert "GitHub license ranking data  : stale cache" in out

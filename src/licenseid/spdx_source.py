@@ -13,10 +13,11 @@ parsed data, so they can be reasoned about and tested without a database.
 """
 
 import csv
+import importlib
 import io
 import json
+import os
 from datetime import datetime, timedelta, timezone
-from importlib import metadata
 from pathlib import Path
 
 import requests
@@ -27,16 +28,6 @@ POPULARITY_DATA_URL = (
 )
 DEFAULT_FALLBACK_VERSION = "3.28.0"
 
-# Identify ourselves to third-party servers (they can then contact or
-# rate-limit us specifically instead of an anonymous python-requests agent).
-# Read from package metadata: importing licenseid.__version__ here would make
-# a cycle (the package __init__ imports database, which imports this module).
-try:
-    _VERSION = metadata.version("licenseid")
-except metadata.PackageNotFoundError:  # running from a bare source tree
-    _VERSION = "unknown"
-USER_AGENT = f"licenseid/{_VERSION} (+https://github.com/bact/licenseid)"
-
 CACHE_LICENSES_JSON = "licenses.json"
 CACHE_POPULARITY_CSV = "popularity.csv"
 CACHE_SPDX_TARBALL_TEMPLATE = "spdx-data-v{version}.tar.gz"
@@ -46,6 +37,18 @@ EXPIRY_LICENSES_JSON = 45
 EXPIRY_POPULARITY_CSV = 75
 
 
+def user_agent() -> str:
+    """User-Agent that identifies this client to third-party servers, so they
+    can contact or rate-limit us instead of an anonymous python-requests.
+
+    Resolved at call time: importing licenseid.__version__ at module level
+    would make a cycle (the package __init__ imports database, which imports
+    this module).
+    """
+    version = importlib.import_module("licenseid").__version__
+    return f"licenseid/{version} (+https://github.com/bact/licenseid)"
+
+
 def _http_get(url: str, timeout: int, stream: bool = False) -> requests.Response:
     """GET with an identifying User-Agent, a single attempt, and a timeout.
 
@@ -53,7 +56,7 @@ def _http_get(url: str, timeout: int, stream: bool = False) -> requests.Response
     hit once per run, and callers fall back to cached data.
     """
     return requests.get(
-        url, headers={"User-Agent": USER_AGENT}, timeout=timeout, stream=stream
+        url, headers={"User-Agent": user_agent()}, timeout=timeout, stream=stream
     )
 
 
@@ -156,12 +159,19 @@ def _download_popularity_csv() -> str:
 
 
 def _write_popularity_cache(path: Path, csv_content: str) -> None:
-    """Cache the CSV; a write failure only costs a re-download next time."""
+    """Cache the CSV atomically; a write failure only costs a re-download.
+
+    Written to a temporary file and renamed, so an interrupted write cannot
+    leave a truncated file that parses to partial data and looks fresh.
+    """
+    tmp_path = path.with_name(path.name + ".tmp")
     try:
-        with open(path, "w", encoding="utf-8") as f:
+        with open(tmp_path, "w", encoding="utf-8") as f:
             f.write(csv_content)
+        os.replace(tmp_path, path)
     except OSError as e:
         print(f"Warning: Failed to cache popularity data: {e}")
+        tmp_path.unlink(missing_ok=True)
 
 
 def _parse_count(value: str | None) -> int:
@@ -192,25 +202,29 @@ def _aggregate_popularity(csv_content: str) -> dict[str, int]:
 
 def fetch_popularity_data(
     cache_dir: Path, local_path: Path | None = None
-) -> dict[str, int]:
+) -> tuple[dict[str, int], str]:
     """Fetch and aggregate popularity data from GitHub Innovation Graph.
 
-    Order: usable *local_path* data, then one download (cached only if it
-    parses), then a stale cache file if the download failed.
+    Returns ``(popularity_map, source)`` where source is ``"cache"``,
+    ``"remote"``, ``"stale cache"`` or ``"unavailable"``. Order: usable
+    *local_path* data, then one download (cached only if it parses), then a
+    stale cache file if the download failed.
     """
     local_csv = _read_local_csv(local_path) if local_path else ""
     popularity_map = _aggregate_popularity(local_csv) if local_csv else {}
     if popularity_map:
-        return popularity_map
+        return popularity_map, "cache"
 
     cache_path = cache_dir / CACHE_POPULARITY_CSV
     downloaded = _download_popularity_csv()
     popularity_map = _aggregate_popularity(downloaded) if downloaded else {}
     if popularity_map:
         _write_popularity_cache(cache_path, downloaded)
-        return popularity_map
+        return popularity_map, "remote"
 
     if cache_path.exists():
         print("Warning: Using stale cached popularity data.")
-        return _aggregate_popularity(_read_local_csv(cache_path))
-    return {}
+        popularity_map = _aggregate_popularity(_read_local_csv(cache_path))
+        if popularity_map:
+            return popularity_map, "stale cache"
+    return {}, "unavailable"

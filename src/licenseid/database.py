@@ -278,18 +278,12 @@ class LicenseDatabase:
 
         # 2. Fetch Popularity Data
         pop_cache_path = self._get_cache_path(spdx_source.CACHE_POPULARITY_CSV)
-        ds_pop = "remote"
-        if use_cache and spdx_source.is_cache_valid(
+        use_pop_cache = use_cache and spdx_source.is_cache_valid(
             pop_cache_path, spdx_source.EXPIRY_POPULARITY_CSV
-        ):
-            popularity_map = spdx_source.fetch_popularity_data(
-                self.db_path.parent, pop_cache_path
-            )
-            ds_pop = "cache"
-        else:
-            popularity_map = spdx_source.fetch_popularity_data(self.db_path.parent)
-            if popularity_map:
-                ds_pop = "remote"
+        )
+        popularity_map, ds_pop = spdx_source.fetch_popularity_data(
+            self.db_path.parent, pop_cache_path if use_pop_cache else None
+        )
 
         # 3. Fetch SPDX tarball
         tar_cache_path, ds_tar = spdx_source.get_tarball_path(
