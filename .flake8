@@ -15,5 +15,5 @@ exclude =
 # touched, before raising either value.
 # target: 10 (currently 19, matcher.match)
 max-complexity = 19
-# target: 15 (currently 49, markers._detect_gpl_headers)
-max-cognitive-complexity = 49
+# target: 15 (currently 46, matcher.match)
+max-cognitive-complexity = 46

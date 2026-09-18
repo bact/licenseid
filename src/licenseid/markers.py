@@ -247,7 +247,91 @@ class MarkerDetector:
 
         return candidates
 
-    # pylint: disable=too-many-branches
+    def _resolve_gpl_or_later(
+        self,
+        text: str,
+        window_end: int,
+        appendix_start: int,
+        terms_explanation: int,
+        match_start: int,
+    ) -> bool:
+        """Detect the raw "or later" signal within the grant's lookahead
+        window, then suppress it if the match falls in the GPL appendix's
+        sample notice or near the license's own explanation of the "or
+        later" wording (Section 9/14) — both mention the phrase without
+        being an actual grant."""
+        window = text[match_start:window_end]
+        or_later = bool(self._RE_GPL_OR_LATER.search(window))
+        if not or_later:
+            return False
+
+        # 1. Check Appendix
+        # The canonical GPL appendix places a "<one line to give the
+        # program's name...>" placeholder, then a "Copyright (C) <year>
+        # <name of author>" line, then the grant sentence — in that
+        # order, ~220 chars apart in the actual upstream text (measured
+        # directly against the real GPL-2.0 appendix). Require BOTH
+        # anchors, in that order, within a tight backward-only window:
+        # the placeholder alone is too generic to trust on its own — a
+        # document can legitimately quote it elsewhere (e.g. contributor
+        # guidance on how to license new code) while stating its own,
+        # separate, real or-later grant nearby, and a placeholder-only
+        # check would wrongly suppress that real grant.
+        if appendix_start != -1 and match_start > appendix_start:
+            lookback_start = max(appendix_start, match_start - 300)
+            preceding = text[lookback_start:match_start].lower()
+            placeholder_pos = preceding.find("one line to give the program's name")
+            if placeholder_pos != -1 and "copyright (c" in preceding[placeholder_pos:]:
+                return False
+
+        # 2. Check Terms Explanation (Section 9/14)
+        # If the match is within a reasonable distance of the terms
+        # explanation (e.g. within the same paragraph), it's likely
+        # just the terms.
+        return not (
+            terms_explanation != -1 and abs(match_start - terms_explanation) < 500
+        )
+
+    def _classify_gpl_family(self, modifier: str) -> str:
+        """Classify the GPL family from the regex's captured modifier group."""
+        if "lesser" in modifier or "library" in modifier:
+            return "LGPL"
+        if "affero" in modifier:
+            return "AGPL"
+        return "GPL"
+
+    def _build_font_exception_candidate(
+        self, license_id: str, family: str, or_later: bool, text: str
+    ) -> CandidateMatch | None:
+        """Build a '... WITH Font-exception-2.0' candidate when *family* is
+        GPL and the text matches the font-exception pattern ("As a special
+        exception...embed this font"), DB-backed if available, otherwise a
+        synthetic candidate. Returns None when the exception doesn't apply."""
+        if family != "GPL" or not self._RE_FONT_EXCEPTION.search(text):
+            return None
+
+        font_id = f"{license_id} WITH Font-exception-2.0"
+        score = 0.92 if or_later else 0.88
+        font_details = self.db.get_license_details(font_id)
+        if font_details:
+            return self.to_candidate(font_details, score)
+
+        # WITH expression not in DB — synthetic candidate; marker floor in
+        # _calculate_final_score ensures it ranks above plain GPL without
+        # exception (which lacks the marker boost).
+        base_details = self.db.get_license_details(license_id)
+        return {
+            "license_id": font_id,
+            "search_text": self.db.get_search_text(license_id) if base_details else "",
+            "score": score,
+            "is_spdx": True,
+            "word_count": base_details.get("word_count", 0) if base_details else 0,
+            "is_high_usage": False,
+            "is_osi_approved": False,
+            "is_fsf_libre": False,
+            "pop_score": 0,
+        }
+
     def _detect_gpl_headers(self, text: str) -> list[CandidateMatch]:
         """Detect GPL/LGPL/AGPL standard copyright notice headers."""
         candidates: list[CandidateMatch] = []
@@ -268,12 +352,16 @@ class MarkerDetector:
                 "General Public License"
             )
 
-        for m in self._RE_GPL_FAMILY.finditer(text):
+        matches = list(self._RE_GPL_FAMILY.finditer(text))
+        for i, m in enumerate(matches):
             modifier = (m.group(1) or "").strip().lower()
 
             # Search for the version number and or-later signal within a window
             # following the license name (1000 chars covers the typical notice).
-            window_end = min(len(text), m.end() + 1000)
+            # Capped at the next GPL-family match (if any) so a second, nearby
+            # grant's own or-later wording can't leak into this one's window.
+            next_start = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+            window_end = min(len(text), m.end() + 1000, next_start)
             window = text[m.start() : window_end]
 
             ver_match = self._RE_GPL_VERSION.search(window)
@@ -284,36 +372,10 @@ class MarkerDetector:
             if "." not in version_str:
                 version_str += ".0"
 
-            or_later = bool(self._RE_GPL_OR_LATER.search(window))
-
-            # Logic for appendix/terms: if the match is in a section that explains
-            # "or later" but is not the grant itself, ignore the signal.
-            if or_later:
-                # 1. Check Appendix
-                if (
-                    appendix_start != -1
-                    and m.start() > appendix_start
-                    and "one line to give the program's name" in window.lower()
-                ):
-                    or_later = False
-
-                # 2. Check Terms Explanation (Section 9/14)
-                # If the match is within a reasonable distance of the terms
-                # explanation (e.g. within the same paragraph), it's likely
-                # just the terms.
-                if (
-                    or_later
-                    and terms_explanation != -1
-                    and abs(m.start() - terms_explanation) < 500
-                ):
-                    or_later = False
-
-            if "lesser" in modifier or "library" in modifier:
-                family = "LGPL"
-            elif "affero" in modifier:
-                family = "AGPL"
-            else:
-                family = "GPL"
+            or_later = self._resolve_gpl_or_later(
+                text, window_end, appendix_start, terms_explanation, m.start()
+            )
+            family = self._classify_gpl_family(modifier)
 
             suffix = "-or-later" if or_later else "-only"
             license_id = f"{family}-{version_str}{suffix}"
@@ -321,38 +383,12 @@ class MarkerDetector:
             if license_id in seen:
                 continue
 
-            # Check for Font-exception-2.0 ("As a special exception...embed this font")
-            if family == "GPL" and self._RE_FONT_EXCEPTION.search(text):
-                font_id = f"{license_id} WITH Font-exception-2.0"
-                score = 0.92 if or_later else 0.88
-                font_details = self.db.get_license_details(font_id)
-                if font_details:
-                    candidates.append(self.to_candidate(font_details, score))
-                else:
-                    # WITH expression not in DB — synthetic candidate;
-                    # marker floor in _calculate_final_score ensures it ranks above
-                    # plain GPL without exception (which lacks the marker boost).
-                    base_details = self.db.get_license_details(license_id)
-                    candidates.append(
-                        {
-                            "license_id": font_id,
-                            "search_text": (
-                                self.db.get_search_text(license_id)
-                                if base_details
-                                else ""
-                            ),
-                            "score": score,
-                            "is_spdx": True,
-                            "word_count": base_details.get("word_count", 0)
-                            if base_details
-                            else 0,
-                            "is_high_usage": False,
-                            "is_osi_approved": False,
-                            "is_fsf_libre": False,
-                            "pop_score": 0,
-                        }
-                    )
-                seen.add(font_id)
+            font_candidate = self._build_font_exception_candidate(
+                license_id, family, or_later, text
+            )
+            if font_candidate is not None:
+                candidates.append(font_candidate)
+                seen.add(font_candidate["license_id"])
                 seen.add(license_id)
                 continue
 
