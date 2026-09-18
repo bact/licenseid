@@ -102,6 +102,20 @@ _RE_TOKEN = re.compile(
 )
 
 
+def _lookup_case_insensitive(mapping: dict[str, str], key: str) -> str | None:
+    """Look up *key* in *mapping*; if the exact-case lookup misses, retry
+    with a case-insensitive scan (SPDX IDs are ASCII, so upper-casing
+    both sides is safe)."""
+    value = mapping.get(key)
+    if value is not None:
+        return value
+    key_upper = key.upper()
+    for candidate, mapped in mapping.items():
+        if candidate.upper() == key_upper:
+            return mapped
+    return None
+
+
 def normalize_operator_casing(expression: str) -> str:
     """Normalize the casing of SPDX operators (AND, OR, WITH) to uppercase,
     avoiding matching them inside license identifiers (like LGPL-2.0-or-later).
@@ -194,7 +208,6 @@ def normalize_identifier(identifier: str, db: LicenseDatabase | None = None) -> 
     return _normalize_single_id(identifier, db)
 
 
-# pylint: disable=too-many-branches
 def _normalize_single_id(
     lic_id: str,
     db: LicenseDatabase | None = None,
@@ -202,46 +215,19 @@ def _normalize_single_id(
     """Normalises a single license or exception ID."""
     # 1. Database lookup (most accurate/up-to-date)
     if db:
-        mappings = db.get_deprecated_mappings()
-        normalized = mappings.get(lic_id)
-        if not normalized:
-            # Case-insensitive search in mappings
-            lic_id_upper = lic_id.upper()
-            for dep_id, canonical in mappings.items():
-                if dep_id.upper() == lic_id_upper:
-                    normalized = canonical
-                    break
-
+        normalized = _lookup_case_insensitive(db.get_deprecated_mappings(), lic_id)
         if normalized:
             return normalized
 
     # 2. Hardcoded fallback (fast path and legacy "+" conventions)
-    normalized = DEPRECATED_SPDX_LICENSE_IDS.get(lic_id)
-    lic_id_upper = lic_id.upper()
+    normalized = _lookup_case_insensitive(DEPRECATED_SPDX_LICENSE_IDS, lic_id)
 
     if not normalized:
-        for dep_id, canonical in DEPRECATED_SPDX_LICENSE_IDS.items():
-            if dep_id.upper() == lic_id_upper:
-                normalized = canonical
-                break
-
-    if not normalized:
-        normalized = DEPRECATED_WITH_IDS.get(lic_id)
-        if not normalized:
-            lic_id_lower = lic_id.lower()
-            for dep_id, canonical in DEPRECATED_WITH_IDS.items():
-                if dep_id.lower() == lic_id_lower:
-                    normalized = canonical
-                    break
+        normalized = _lookup_case_insensitive(DEPRECATED_WITH_IDS, lic_id)
 
     if not normalized:
         # Conservative last resort: bare deprecated IDs default to '-only'.
-        normalized = DEPRECATED_BARE_LICENSE_IDS.get(lic_id)
-        if not normalized:
-            for dep_id, canonical in DEPRECATED_BARE_LICENSE_IDS.items():
-                if dep_id.upper() == lic_id_upper:
-                    normalized = canonical
-                    break
+        normalized = _lookup_case_insensitive(DEPRECATED_BARE_LICENSE_IDS, lic_id)
 
     if normalized:
         return normalized
@@ -282,14 +268,7 @@ def _normalize_exception_id(exc_id: str, db: LicenseDatabase | None = None) -> s
     if not db:
         return exc_id
 
-    mappings = db.get_deprecated_mappings()
-    normalized = mappings.get(exc_id)
-    if not normalized:
-        exc_id_upper = exc_id.upper()
-        for dep_id, canonical in mappings.items():
-            if dep_id.upper() == exc_id_upper:
-                normalized = canonical
-                break
+    normalized = _lookup_case_insensitive(db.get_deprecated_mappings(), exc_id)
     if normalized:
         return normalized
 
