@@ -6,7 +6,9 @@
 """Tests for LicenseDatabase._connection()'s close-on-exit guarantee."""
 # pylint: disable=redefined-outer-name,missing-function-docstring,protected-access
 
+import io
 import sqlite3
+import tarfile
 import uuid
 from collections.abc import Generator
 from pathlib import Path
@@ -67,3 +69,35 @@ def test_connection_commits_before_closing(db: LicenseDatabase) -> None:
             "SELECT value FROM db_metadata WHERE key = ?", ("test_key",)
         ).fetchone()
     assert row == ("test_value",)
+
+
+def _write_tarball(path: Path, truncate_to: int | None = None) -> None:
+    payload = io.BytesIO()
+    with tarfile.open(fileobj=payload, mode="w:gz") as tar:
+        data = b"x" * 5000
+        info = tarfile.TarInfo("root/json/licenses.json")
+        info.size = len(data)
+        tar.addfile(info, io.BytesIO(data))
+    blob = payload.getvalue()
+    path.write_bytes(blob if truncate_to is None else blob[:truncate_to])
+
+
+@pytest.mark.parametrize(
+    "corrupt",
+    [b"not a tarball at all", None],
+    ids=["not_gzip", "truncated_gzip"],
+)
+def test_corrupt_cached_tarball_is_removed(
+    db: LicenseDatabase, tmp_path: Path, corrupt: bytes | None
+) -> None:
+    """A corrupt/truncated cached tarball fails once with a clear message and
+    is deleted so the next run re-downloads it instead of failing forever."""
+    tar_path = tmp_path / "spdx-data-v9.99.tar.gz"
+    if corrupt is None:
+        _write_tarball(tar_path, truncate_to=60)
+    else:
+        tar_path.write_bytes(corrupt)
+
+    with pytest.raises(RuntimeError, match="cached tarball was removed"):
+        db._process_and_store(tar_path, {}, None)
+    assert not tar_path.exists()

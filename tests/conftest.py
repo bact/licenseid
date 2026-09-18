@@ -12,8 +12,10 @@ import sqlite3
 import uuid
 from collections.abc import Generator
 from pathlib import Path
+from unittest import mock
 
 import pytest
+import requests
 
 from licenseid.database import LicenseDatabase
 
@@ -41,6 +43,30 @@ def make_memory_db_path(name_prefix: str) -> tuple[str, sqlite3.Connection]:
     keep_alive = sqlite3.connect(db_path, uri=True)
     LicenseDatabase(db_path)
     return db_path, keep_alive
+
+
+def leftover_tmp_files(directory: Path) -> list[Path]:
+    """Temporary files (*.tmp) left in *directory*."""
+    return list(directory.glob("*.tmp"))
+
+
+def fake_requests_get(
+    monkeypatch: pytest.MonkeyPatch,
+    text: str = "",
+    error: Exception | None = None,
+    status_error: bool = False,
+) -> mock.MagicMock:
+    """Replace requests.get with an autospec'd fake returning *text*, or
+    raising *error* / an HTTP status error."""
+    response = mock.create_autospec(requests.Response, instance=True)
+    response.text = text
+    if status_error:
+        response.raise_for_status.side_effect = requests.HTTPError("503")
+    fake: mock.MagicMock = mock.create_autospec(requests.get, return_value=response)
+    if error is not None:
+        fake.side_effect = error
+    monkeypatch.setattr(requests, "get", fake)
+    return fake
 
 
 @pytest.fixture(scope="session", autouse=True)

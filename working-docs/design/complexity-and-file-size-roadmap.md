@@ -39,7 +39,7 @@ pylint's actual defaults are 12 and 50.
 | Branches | ≤12 | 15 | 15 (`cli.match`) |
 | Returns | ≤6 | 6 (at target) | 6 (`matcher.match`) |
 | Statements | ≤50 | 50 (at target) | 36 (`cli.match`) |
-| McCabe | ≤10 | 13 | 13 (`spdx_source.fetch_popularity_data`) |
+| McCabe | ≤10 | 12 | 12 (`cli.match` and 2 others) |
 | Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
 | Module lines | soft 400-500 / hard 800 | 944 | 944 (`matcher.py`) |
 
@@ -246,48 +246,83 @@ inline TOML regex is now the class attribute `_RE_TOML_LICENSE_TABLE`,
 `import configparser` moved to the module top, and the docstring no longer
 claims YAML support (there is none).
 
-- **Tests**: the function had none. `tests/test_markers_structured.py`
-  (new file; `test_markers.py` is already over the soft limit) adds 69
-  tests. They were written as characterisation tests against the
-  unrefactored code first; the ones for the bugs below were then flipped
-  to regression tests. `markers.py` coverage 81%→90%; every line and
-  branch of the three helpers is covered.
-- **Bugs found and fixed** (pinned first, fixed after the pure refactor
-  was green):
-  - Pathologically nested JSON (`"[" * 100_000`) raised `RecursionError`,
-    which the `except (JSONDecodeError, ValueError)` did not catch, so it
-    escaped `detect()` and crashed `match()`. Same class as the earlier
-    `_match_with_expression` fix. `RecursionError` is now caught.
-  - Extensionless text starting with `[` (INI or TOML with a leading
-    section header) was routed to the JSON branch, failed to parse, and
-    the early return skipped the INI/TOML branches. Files with a
-    `.cfg`/`.ini`/`.toml` extension were unaffected.
-    `_detect_json_license` now returns `None` on a parse failure and
-    extensionless input falls through; `.json` and valid JSON still
-    return early.
-- **Follow-on fix**: the extensionless fall-through exposed a phantom
-  candidate. `_resolve_license_value` turned *any* unrecognised string into
-  a synthetic `is_spdx=True` candidate at 0.95, so
-  `[project]\nlicense = {text = "MIT"}` yielded a bogus `{text = "MIT"}`
-  next to the real `MIT`, and `license: see LICENSE file` yielded a
-  candidate of that text. Synthetic candidates are now kept only for
-  well-formed SPDX expressions and `LicenseRef-*` IDs that contain at
-  least one recognised ID (new `_is_spdx_syntax`, via
-  `py_spdx_license.parse`), matching the existing no-phantom policy of
-  the `_RE_LICENSE_FIELD` path. Single unknown IDs and all-unknown
-  expressions (`Dual OR Commercial`) are dropped, as are plain
-  `NOASSERTION`, `NONE` and `UNLICENSED` values, which used to yield a
-  synthetic candidate. `_detect_ini_license` also now skips a section
-  whose value does not resolve and tries the next one.
-  A kept expression that mixes known and unknown IDs
-  (`GPL-3.0 or Commercial`) is marked `is_spdx=False`.
-- **Known quirks, pinned but not fixed** (behaviour changes, out of
-  scope):
-  - A truthy non-string JSON `license` hides a valid `License` key;
-    `[DEFAULT]` INI keys are inherited by the first section; the PEP 639
-    string form (`license = "MIT"`) is not read for `.toml`.
-- **Ceilings**: none move (`.flake8` stays 13 / 29). McCabe 13 is now held
-  only by `spdx_source.fetch_popularity_data`.
+- **Tests**: the function had none (`spdx_source.py` coverage was 20%).
+  `tests/test_spdx_source.py` grew from 3 to 41 tests. New:
+  `tests/test_spdx_source_cache.py` (39) for the `licenses.json` cache and
+  `clear_cache`; `tests/test_database_update.py` (22) runs
+  `update_from_remote` and the CLI `update` command end to end on a
+  synthetic release and checks tarball extraction against each unsafe
+  member kind, with and without the `data` filter;
+  `tests/test_fingerprint.py` (4). `tests/test_database.py` gained 2.
+  `requests.get` is replaced by an autospec'd fake
+  (`conftest.fake_requests_get`), so nothing touches the network. The
+  tests were written against the unrefactored code first; those for the
+  bugs below were then flipped to regression tests.
+- **Bugs found and fixed**:
+  - A row missing `num_pushers` raised an uncaught `TypeError` and crashed
+    `LicenseDatabase.update_from_remote`; it now counts as 0 and is reported.
+  - A cache-write failure (missing or read-only cache directory) aborted the
+    update after a successful download; it now warns and keeps the data.
+  - The raw response was cached before parsing, so an error page was served
+    as a valid cache for 75 days; only data that parses to a non-empty map
+    is cached, and a local cache that parses to nothing is re-downloaded
+    once and overwritten.
+  - A non-UTF-8 cache file raised `UnicodeDecodeError` instead of falling
+    back to a download.
+  - The cache was written in place, so an interrupted write left a truncated
+    file that parsed to partial data and looked fresh. All three caches
+    (popularity CSV, `licenses.json`, SPDX tarball) are now written through
+    `_atomic_path`: a unique temporary file, renamed on success and removed
+    either way. The tarball had the worst version of this: an interrupted
+    download left a partial file that every later run reused.
+  - `get_version_info` had the same defects as the popularity fetch: an
+    uncaught `OSError` on cache write, a crash on a corrupt cache
+    (`UnicodeDecodeError`, or a non-object JSON value), and caching of a
+    response with no `licenseListVersion`. It now follows the same order
+    (valid cache, one download, stale cache unless `--no-cache`, then an
+    explicit version or `RuntimeError`) and reports `cache`, `remote`,
+    `stale cache` or `unavailable`.
+  - A corrupt or truncated cached tarball failed every later run (a
+    truncated gzip raised a bare `EOFError`); `_process_and_store` now
+    deletes it and asks for a re-run, so it is re-downloaded once.
+  - `clear_cache` did not remove temporary files orphaned by a killed run.
+  - A license list version (from `--version` or from a third-party
+    `licenses.json`) went unchecked into a cache file name and a download
+    URL (path traversal, CWE-22); versions are now limited to
+    `[A-Za-z0-9][A-Za-z0-9._-]*`, and an invalid one from the network or the
+    cache counts as an unusable response.
+  - `tar.extractall` ran on a third-party tarball with no path checks
+    (CWE-22); `spdx_source.extract_tarball` uses the `data` extraction
+    filter, or an equivalent manual check on Pythons that lack it.
+  - `is_cache_valid` treated a future-dated file as valid forever (the age
+    was negative); it is now invalid beyond a 5-minute clock-skew allowance.
+  - `compute_idf_fingerprints` divided by zero for a one-license corpus
+    (found by the new end-to-end update test); it now returns no records.
+  - `LicenseDatabase.update_from_remote` reported the popularity source from
+    the cache-validity check, not from where the data came from.
+    `fetch_popularity_data` now returns `(map, source)` with source
+    `cache`, `remote`, `stale cache` or `unavailable`, and the report uses
+    it.
+- **Predictable, non-silent fallbacks**: every deviation from the normal
+  path prints a warning, and the `Data sources` report says where each input
+  really came from (`cache`, `remote`, `stale cache`, `unavailable`).
+  Rows with a missing or non-numeric `num_pushers` are counted and reported
+  instead of silently becoming 0; a CSV parse error yields no data at all
+  (never a partial map that then gets cached); an unusable cache or an
+  unusable download says so before the next fallback. `--no-cache` now
+  means what it says: it also disables the stale-cache fallback for both
+  the popularity data and `licenses.json`.
+- **Gentle fetching** (all three `requests.get` calls in the module go
+  through `_http_get`): an identifying `User-Agent`
+  (`licenseid/<version> (+repo URL)`, version read from
+  `licenseid.__version__` at call time), explicit timeouts, a single attempt
+  with no retry or backoff loop, and a stale cache file as the fallback
+  when a download fails, so a flaky network neither zeroes popularity nor
+  triggers repeated requests. Not added: conditional requests (ETag,
+  `If-Modified-Since`) and a rate limiter; the 45/75-day cache expiry
+  already limits this to about one request per source per update.
+- **Ceilings**: McCabe 13→12. Cognitive stays 29
+  (`tests/test_accuracy.py::run_accuracy_test`), module lines 944.
 
 ### 1. `database.py` — split by responsibility (Priority 9)
 
@@ -305,20 +340,10 @@ module-lines-ratchet problem.
   same treatment once its own complexity work has settled.
 - Impact 2, Risk 1, Effort 3.
 
-### 2. `spdx_source.py::fetch_popularity_data` (Priority 6)
-
-McCabe 13 — now the *sole* holder of the McCabe ceiling, so it alone
-blocks the ceiling dropping 13→12 (next in line: `cli.match` and
-`matcher.match`, both 12). Not yet examined in detail; start by
-characterising it with tests, as with the other refactors.
-
-- **Fix**: extract the fetch/parse/merge steps into private helpers.
-- Impact 1, Risk 1, Effort 2.
-
 ## Out of scope for now
 
 - `cli.py::match` (McCabe 12, cognitive 25) is close to target already
-  relative to the top offenders above; revisit after items 1-2 land.
+  relative to the top offenders above; revisit after item 1 lands.
 - `tests/test_accuracy.py::run_accuracy_test` (cognitive 29) now sets
   the repo's Cognitive ceiling — a benchmark-table-printing test helper,
   not production code. Not a priority-ranked backlog item (it isn't

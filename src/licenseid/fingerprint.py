@@ -42,10 +42,12 @@ def compute_idf_fingerprints(
     Returns ``(license_id, ngram, idf_norm)`` records, ``idf_norm > 0``
     only, top ``top_n`` per license.
     """
-    if not rows:
+    k = len(rows)
+    if k < 2:
+        # One document cannot discriminate (every IDF is 0), and log(1) = 0
+        # below would divide by zero.
         return []
 
-    k = len(rows)
     # IDF of an n-gram that appears in exactly one license = log(k/1) = log(k).
     # Dividing by log(k) normalises scores to [0, 1].
     max_idf = math.log(k)

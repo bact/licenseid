@@ -14,6 +14,7 @@ import sys
 import tarfile
 import tempfile
 import xml.etree.ElementTree as ET
+import zlib
 from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
@@ -241,9 +242,15 @@ class LicenseDatabase:
             path = self._get_cache_path(filename)
             if path.exists():
                 path.unlink()
-        # Clear any tarballs
-        for p in self.db_path.parent.glob("spdx-data-v*.tar.gz"):
-            p.unlink()
+        # Clear any tarballs, and temporary files orphaned by a killed run
+        for pattern in (
+            "spdx-data-v*.tar.gz",
+            f"{spdx_source.CACHE_LICENSES_JSON}.*.tmp",
+            f"{spdx_source.CACHE_POPULARITY_CSV}.*.tmp",
+            "spdx-data-v*.tar.gz.*.tmp",
+        ):
+            for p in self.db_path.parent.glob(pattern):
+                p.unlink()
         # Delete the database file itself to force a schema rebuild
         if self.db_path.exists():
             print(f"Deleting database at {self.db_path}...")
@@ -278,18 +285,14 @@ class LicenseDatabase:
 
         # 2. Fetch Popularity Data
         pop_cache_path = self._get_cache_path(spdx_source.CACHE_POPULARITY_CSV)
-        ds_pop = "remote"
-        if use_cache and spdx_source.is_cache_valid(
+        use_pop_cache = use_cache and spdx_source.is_cache_valid(
             pop_cache_path, spdx_source.EXPIRY_POPULARITY_CSV
-        ):
-            popularity_map = spdx_source.fetch_popularity_data(
-                self.db_path.parent, pop_cache_path
-            )
-            ds_pop = "cache"
-        else:
-            popularity_map = spdx_source.fetch_popularity_data(self.db_path.parent)
-            if popularity_map:
-                ds_pop = "remote"
+        )
+        popularity_map, ds_pop = spdx_source.fetch_popularity_data(
+            self.db_path.parent,
+            pop_cache_path if use_pop_cache else None,
+            allow_stale=use_cache,
+        )
 
         # 3. Fetch SPDX tarball
         tar_cache_path, ds_tar = spdx_source.get_tarball_path(
@@ -312,10 +315,12 @@ class LicenseDatabase:
         release_date: str | None,
     ) -> None:
         """Extract tarball and update database records."""
+        # Local import: see clear_cache() for why spdx_source is deferred.
+        from licenseid import spdx_source
+
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
-                with tarfile.open(tar_path, "r:gz") as tar:
-                    tar.extractall(path=tmp_dir)
+                spdx_source.extract_tarball(tar_path, Path(tmp_dir))
 
                 root_dir = next(Path(tmp_dir).iterdir())
                 # 1. Read licenses
@@ -347,7 +352,15 @@ class LicenseDatabase:
                 self._update_db_records(license_data, root_dir, popularity_map)
 
             print("\nUpdate complete.")
-        except (tarfile.TarError, OSError, json.JSONDecodeError, sqlite3.Error) as e:
+        except (tarfile.TarError, EOFError, zlib.error) as e:
+            # A corrupt or truncated cached tarball (e.g. left by an
+            # interrupted download) would otherwise fail every later run.
+            tar_path.unlink(missing_ok=True)
+            raise RuntimeError(
+                f"Failed to update database: {e}. "
+                "The cached tarball was removed; run the update again."
+            ) from e
+        except (OSError, json.JSONDecodeError, sqlite3.Error) as e:
             raise RuntimeError(f"Failed to update database: {e}") from e
 
     def _update_db_records(
