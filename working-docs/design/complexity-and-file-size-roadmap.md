@@ -39,7 +39,7 @@ pylint's actual defaults are 12 and 50.
 | Branches | ≤12 | 15 | 15 (`cli.match`) |
 | Returns | ≤6 | 6 (at target) | 6 (`matcher.match`) |
 | Statements | ≤50 | 50 (at target) | 36 (`cli.match`) |
-| McCabe | ≤10 | 13 | 13 (`spdx_source`, `markers`, see note) |
+| McCabe | ≤10 | 13 | 13 (`spdx_source.fetch_popularity_data`) |
 | Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
 | Module lines | soft 400-500 / hard 800 | 944 | 944 (`matcher.py`) |
 
@@ -143,7 +143,7 @@ inline.
     pins the residual risk rather than leaving it undiscovered).
 
 `_detect_structured_format`, originally grouped with this item, wasn't
-touched by this pass — see item 2 below.
+touched by this pass — see its own "Done" section below.
 
 ### Done: `matcher.py::match()` and `_get_candidates()`
 
@@ -235,9 +235,59 @@ early-return short-circuits threaded through shared local state
   stale before this pass — see the table note above. The new
   Cognitive ceiling (29) is set by a test helper
   (`tests/test_accuracy.py::run_accuracy_test`), not a `src/` function;
-  `markers.py::_detect_structured_format` (item 2 below) is now tied for
-  the McCabe ceiling (13) rather than comfortably under it as previously
-  measured against the old ceiling of 19.
+  `markers.py::_detect_structured_format` was tied for the McCabe ceiling
+  (13) at that point; it is fixed in the next "Done" section.
+
+### Done: `markers.py::_detect_structured_format` (McCabe 13→6, cognitive 23→9)
+
+Extracted `_detect_json_license`, `_detect_toml_license` and
+`_detect_ini_license`; the orchestrator keeps the extension gating. The
+inline TOML regex is now the class attribute `_RE_TOML_LICENSE_TABLE`,
+`import configparser` moved to the module top, and the docstring no longer
+claims YAML support (there is none).
+
+- **Tests**: the function had none. `tests/test_markers_structured.py`
+  (new file; `test_markers.py` is already over the soft limit) adds 69
+  tests. They were written as characterisation tests against the
+  unrefactored code first; the ones for the bugs below were then flipped
+  to regression tests. `markers.py` coverage 81%→90%; every line and
+  branch of the three helpers is covered.
+- **Bugs found and fixed** (pinned first, fixed after the pure refactor
+  was green):
+  - Pathologically nested JSON (`"[" * 100_000`) raised `RecursionError`,
+    which the `except (JSONDecodeError, ValueError)` did not catch, so it
+    escaped `detect()` and crashed `match()`. Same class as the earlier
+    `_match_with_expression` fix. `RecursionError` is now caught.
+  - Extensionless text starting with `[` (INI or TOML with a leading
+    section header) was routed to the JSON branch, failed to parse, and
+    the early return skipped the INI/TOML branches. Files with a
+    `.cfg`/`.ini`/`.toml` extension were unaffected.
+    `_detect_json_license` now returns `None` on a parse failure and
+    extensionless input falls through; `.json` and valid JSON still
+    return early.
+- **Follow-on fix**: the extensionless fall-through exposed a phantom
+  candidate. `_resolve_license_value` turned *any* unrecognised string into
+  a synthetic `is_spdx=True` candidate at 0.95, so
+  `[project]\nlicense = {text = "MIT"}` yielded a bogus `{text = "MIT"}`
+  next to the real `MIT`, and `license: see LICENSE file` yielded a
+  candidate of that text. Synthetic candidates are now kept only for
+  well-formed SPDX expressions and `LicenseRef-*` IDs that contain at
+  least one recognised ID (new `_is_spdx_syntax`, via
+  `py_spdx_license.parse`), matching the existing no-phantom policy of
+  the `_RE_LICENSE_FIELD` path. Single unknown IDs and all-unknown
+  expressions (`Dual OR Commercial`) are dropped, as are plain
+  `NOASSERTION`, `NONE` and `UNLICENSED` values, which used to yield a
+  synthetic candidate. `_detect_ini_license` also now skips a section
+  whose value does not resolve and tries the next one.
+  A kept expression that mixes known and unknown IDs
+  (`GPL-3.0 or Commercial`) is marked `is_spdx=False`.
+- **Known quirks, pinned but not fixed** (behaviour changes, out of
+  scope):
+  - A truthy non-string JSON `license` hides a valid `License` key;
+    `[DEFAULT]` INI keys are inherited by the first section; the PEP 639
+    string form (`license = "MIT"`) is not read for `.toml`.
+- **Ceilings**: none move (`.flake8` stays 13 / 29). McCabe 13 is now held
+  only by `spdx_source.fetch_popularity_data`.
 
 ### 1. `database.py` — split by responsibility (Priority 9)
 
@@ -255,24 +305,20 @@ module-lines-ratchet problem.
   same treatment once its own complexity work has settled.
 - Impact 2, Risk 1, Effort 3.
 
-### 2. `markers.py::_detect_structured_format` (Priority 6)
+### 2. `spdx_source.py::fetch_popularity_data` (Priority 6)
 
-McCabe 13 (now tied for the repo's McCabe ceiling — see the table note
-above), cognitive 23. Parses JSON/TOML/INI file formats for a `license`
-field via three separate `if` blocks (JSON returns early; TOML/INI fall
-through and can both run).
+McCabe 13 — now the *sole* holder of the McCabe ceiling, so it alone
+blocks the ceiling dropping 13→12 (next in line: `cli.match` and
+`matcher.match`, both 12). Not yet examined in detail; start by
+characterising it with tests, as with the other refactors.
 
-- **Fix**: extract each format's parsing into its own private method
-  (`_detect_json_license`, `_detect_toml_license`,
-  `_detect_ini_license`), preserving the JSON early-return quirk.
+- **Fix**: extract the fetch/parse/merge steps into private helpers.
 - Impact 1, Risk 1, Effort 2.
 
 ## Out of scope for now
 
-- `spdx_source.py::fetch_popularity_data` (McCabe 13, tied with
-  `_detect_structured_format` above) and `cli.py::match` (McCabe 12,
-  cognitive 25) are close to target already relative to the top
-  offenders above; revisit after items 1-2 land.
+- `cli.py::match` (McCabe 12, cognitive 25) is close to target already
+  relative to the top offenders above; revisit after items 1-2 land.
 - `tests/test_accuracy.py::run_accuracy_test` (cognitive 29) now sets
   the repo's Cognitive ceiling — a benchmark-table-printing test helper,
   not production code. Not a priority-ranked backlog item (it isn't
