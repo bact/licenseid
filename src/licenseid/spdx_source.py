@@ -16,6 +16,7 @@ import csv
 import io
 import json
 from datetime import datetime, timedelta, timezone
+from importlib import metadata
 from pathlib import Path
 
 import requests
@@ -26,6 +27,16 @@ POPULARITY_DATA_URL = (
 )
 DEFAULT_FALLBACK_VERSION = "3.28.0"
 
+# Identify ourselves to third-party servers (they can then contact or
+# rate-limit us specifically instead of an anonymous python-requests agent).
+# Read from package metadata: importing licenseid.__version__ here would make
+# a cycle (the package __init__ imports database, which imports this module).
+try:
+    _VERSION = metadata.version("licenseid")
+except metadata.PackageNotFoundError:  # running from a bare source tree
+    _VERSION = "unknown"
+USER_AGENT = f"licenseid/{_VERSION} (+https://github.com/bact/licenseid)"
+
 CACHE_LICENSES_JSON = "licenses.json"
 CACHE_POPULARITY_CSV = "popularity.csv"
 CACHE_SPDX_TARBALL_TEMPLATE = "spdx-data-v{version}.tar.gz"
@@ -33,6 +44,17 @@ CACHE_SPDX_TARBALL_TEMPLATE = "spdx-data-v{version}.tar.gz"
 # Expiration in days
 EXPIRY_LICENSES_JSON = 45
 EXPIRY_POPULARITY_CSV = 75
+
+
+def _http_get(url: str, timeout: int, stream: bool = False) -> requests.Response:
+    """GET with an identifying User-Agent, a single attempt, and a timeout.
+
+    Deliberately no retries or backoff loops: a failing third-party server is
+    hit once per run, and callers fall back to cached data.
+    """
+    return requests.get(
+        url, headers={"User-Agent": USER_AGENT}, timeout=timeout, stream=stream
+    )
 
 
 def is_cache_valid(path: Path, days: int) -> bool:
@@ -65,7 +87,7 @@ def get_version_info(
     if not latest_version:
         try:
             print(f"Fetching latest license list info from {LICENSES_JSON_URL}...")
-            resp = requests.get(LICENSES_JSON_URL, timeout=30)
+            resp = _http_get(LICENSES_JSON_URL, timeout=30)
             resp.raise_for_status()
             data = resp.json()
             latest_version = data.get("licenseListVersion")
@@ -99,7 +121,7 @@ def get_tarball_path(
         )
         print(f"Downloading release: {tar_url}")
         try:
-            resp = requests.get(tar_url, stream=True, timeout=60)
+            resp = _http_get(tar_url, timeout=60, stream=True)
             resp.raise_for_status()
             with open(tar_cache_path, "wb") as f:
                 f.writelines(resp.iter_content(chunk_size=8192))
@@ -111,51 +133,84 @@ def get_tarball_path(
     return tar_cache_path, data_source
 
 
-def fetch_popularity_data(
-    cache_dir: Path, local_path: Path | None = None
-) -> dict[str, int]:
-    """Fetch and aggregate popularity data from GitHub Innovation Graph."""
-    popularity_map: dict[str, int] = {}
-    csv_content = ""
-
-    if local_path:
-        try:
-            with open(local_path, "r", encoding="utf-8") as f:
-                csv_content = f.read()
-        except OSError as e:
-            print(f"Warning: Failed to read local popularity data: {e}")
-
-    if not csv_content:
-        print(f"Downloading popularity data: {POPULARITY_DATA_URL}")
-        try:
-            resp = requests.get(POPULARITY_DATA_URL, timeout=30)
-            resp.raise_for_status()
-            csv_content = resp.text
-            pop_cache_path = cache_dir / CACHE_POPULARITY_CSV
-            with open(pop_cache_path, "w", encoding="utf-8") as f:
-                f.write(csv_content)
-        except requests.RequestException as e:
-            print(f"Warning: Failed to fetch popularity data: {e}")
-            return {}
-
+def _read_local_csv(path: Path) -> str:
+    """Read a local popularity CSV; empty string (with a warning) on failure."""
     try:
-        content = io.StringIO(csv_content)
-        reader = csv.DictReader(content)
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"Warning: Failed to read local popularity data: {e}")
+        return ""
 
+
+def _download_popularity_csv() -> str:
+    """Download the popularity CSV; empty string on failure."""
+    print(f"Downloading popularity data: {POPULARITY_DATA_URL}")
+    try:
+        resp = _http_get(POPULARITY_DATA_URL, timeout=30)
+        resp.raise_for_status()
+        return resp.text
+    except requests.RequestException as e:
+        print(f"Warning: Failed to fetch popularity data: {e}")
+        return ""
+
+
+def _write_popularity_cache(path: Path, csv_content: str) -> None:
+    """Cache the CSV; a write failure only costs a re-download next time."""
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(csv_content)
+    except OSError as e:
+        print(f"Warning: Failed to cache popularity data: {e}")
+
+
+def _parse_count(value: str | None) -> int:
+    """Parse a pusher count; 0 if it is missing or not an integer."""
+    try:
+        return int(value or 0)
+    except ValueError:
+        return 0
+
+
+def _aggregate_popularity(csv_content: str) -> dict[str, int]:
+    """Sum pushers per SPDX license ID, skipping blank and NOASSERTION rows."""
+    popularity_map: dict[str, int] = {}
+    try:
+        reader = csv.DictReader(io.StringIO(csv_content))
         for row in reader:
             spdx_id = row.get("spdx_license")
             if not spdx_id or spdx_id == "NOASSERTION":
                 continue
-
-            try:
-                count = int(row.get("num_pushers", 0))
-            except ValueError:
-                count = 0
-
+            count = _parse_count(row.get("num_pushers"))
             popularity_map[spdx_id] = popularity_map.get(spdx_id, 0) + count
 
         print(f"Aggregated popularity data for {len(popularity_map)} licenses.")
     except (csv.Error, ValueError) as e:
         print(f"Warning: Failed to parse popularity data: {e}")
-
     return popularity_map
+
+
+def fetch_popularity_data(
+    cache_dir: Path, local_path: Path | None = None
+) -> dict[str, int]:
+    """Fetch and aggregate popularity data from GitHub Innovation Graph.
+
+    Order: usable *local_path* data, then one download (cached only if it
+    parses), then a stale cache file if the download failed.
+    """
+    local_csv = _read_local_csv(local_path) if local_path else ""
+    popularity_map = _aggregate_popularity(local_csv) if local_csv else {}
+    if popularity_map:
+        return popularity_map
+
+    cache_path = cache_dir / CACHE_POPULARITY_CSV
+    downloaded = _download_popularity_csv()
+    popularity_map = _aggregate_popularity(downloaded) if downloaded else {}
+    if popularity_map:
+        _write_popularity_cache(cache_path, downloaded)
+        return popularity_map
+
+    if cache_path.exists():
+        print("Warning: Using stale cached popularity data.")
+        return _aggregate_popularity(_read_local_csv(cache_path))
+    return {}

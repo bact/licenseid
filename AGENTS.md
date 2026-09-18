@@ -94,7 +94,7 @@ ruff format
 - Complexity targets (pylint's own built-in defaults, checked clean outside this repo's config): Args≤5, Locals≤15, Nesting≤5, Branches≤12, Returns≤6, Statements≤50, McCabe≤10, Cognitive≤15.
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
-  `max-branches=15`, `max-locals=23`, McCabe=13, Cognitive=29, module
+  `max-branches=15`, `max-locals=23`, McCabe=12, Cognitive=29, module
   lines=944) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.

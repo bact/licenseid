@@ -39,7 +39,7 @@ pylint's actual defaults are 12 and 50.
 | Branches | ≤12 | 15 | 15 (`cli.match`) |
 | Returns | ≤6 | 6 (at target) | 6 (`matcher.match`) |
 | Statements | ≤50 | 50 (at target) | 36 (`cli.match`) |
-| McCabe | ≤10 | 13 | 13 (`spdx_source.fetch_popularity_data`) |
+| McCabe | ≤10 | 12 | 12 (`cli.match` and 2 others) |
 | Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
 | Module lines | soft 400-500 / hard 800 | 944 | 944 (`matcher.py`) |
 
@@ -289,6 +289,41 @@ claims YAML support (there is none).
 - **Ceilings**: none move (`.flake8` stays 13 / 29). McCabe 13 is now held
   only by `spdx_source.fetch_popularity_data`.
 
+### Done: `spdx_source.py::fetch_popularity_data` (McCabe 13→4, cognitive 13→6)
+
+Was the last McCabe-13 function, so the McCabe ceiling dropped 13→12
+(`.flake8`, and the figure in `AGENTS.md`). Extracted `_read_local_csv`,
+`_download_popularity_csv`, `_write_popularity_cache`, `_parse_count` and
+`_aggregate_popularity`; the orchestrator now reads as: usable local data,
+then one download, then a stale cache.
+
+- **Tests**: the function had none (`spdx_source.py` coverage was 20%).
+  `tests/test_spdx_source.py` grew from 3 to 22 tests. `requests.get` is
+  replaced by an autospec'd fake, so nothing touches the network. Written
+  against the unrefactored code first; the ones for the bugs below were then
+  flipped to regression tests.
+- **Bugs found and fixed**:
+  - A row missing `num_pushers` raised an uncaught `TypeError` and crashed
+    `LicenseDatabase.update`; it now counts as 0.
+  - A cache-write failure (missing or read-only cache directory) aborted the
+    update after a successful download; it now warns and keeps the data.
+  - The raw response was cached before parsing, so an error page was served
+    as a valid cache for 75 days; only data that parses to a non-empty map
+    is cached, and a local cache that parses to nothing is re-downloaded
+    once and overwritten.
+  - A non-UTF-8 cache file raised `UnicodeDecodeError` instead of falling
+    back to a download.
+- **Gentle fetching** (all three `requests.get` calls in the module go
+  through `_http_get`): an identifying `User-Agent`
+  (`licenseid/<version> (+repo URL)`), explicit timeouts, a single attempt
+  with no retry or backoff loop, and a stale cache file as the fallback
+  when a download fails, so a flaky network neither zeroes popularity nor
+  triggers repeated requests. Not added: conditional requests (ETag,
+  `If-Modified-Since`) and a rate limiter; the 45/75-day cache expiry
+  already limits this to about one request per source per update.
+- **Ceilings**: McCabe 13→12. Cognitive stays 29
+  (`tests/test_accuracy.py::run_accuracy_test`), module lines 944.
+
 ### 1. `database.py` — split by responsibility (Priority 9)
 
 921 lines. Schema/connection management, license-record preparation,
@@ -305,20 +340,10 @@ module-lines-ratchet problem.
   same treatment once its own complexity work has settled.
 - Impact 2, Risk 1, Effort 3.
 
-### 2. `spdx_source.py::fetch_popularity_data` (Priority 6)
-
-McCabe 13 — now the *sole* holder of the McCabe ceiling, so it alone
-blocks the ceiling dropping 13→12 (next in line: `cli.match` and
-`matcher.match`, both 12). Not yet examined in detail; start by
-characterising it with tests, as with the other refactors.
-
-- **Fix**: extract the fetch/parse/merge steps into private helpers.
-- Impact 1, Risk 1, Effort 2.
-
 ## Out of scope for now
 
 - `cli.py::match` (McCabe 12, cognitive 25) is close to target already
-  relative to the top offenders above; revisit after items 1-2 land.
+  relative to the top offenders above; revisit after item 1 lands.
 - `tests/test_accuracy.py::run_accuracy_test` (cognitive 29) now sets
   the repo's Cognitive ceiling — a benchmark-table-printing test helper,
   not production code. Not a priority-ranked backlog item (it isn't
