@@ -5,26 +5,23 @@
 
 """Tests for AggregatedLicenseMatcher hybrid search flow."""
 # pylint: disable=redefined-outer-name,duplicate-code,missing-function-docstring
+# pylint: disable=protected-access
 
 import os
 import sqlite3
-import uuid
 from collections.abc import Generator
+from typing import NamedTuple
 
 import pytest
+from conftest import make_memory_db_path
 
-from licenseid.database import LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.types import InternalMatch
 
 
 @pytest.fixture(scope="module")
 def test_db() -> Generator[str, None, None]:
-    db_id = str(uuid.uuid4())[:8]
-    db_path = f"file:test_matcher_{db_id}?mode=memory&cache=shared"
-
-    # pylint: disable-next=unused-variable
-    db_manager = LicenseDatabase(db_path)  # noqa: F841
-    keep_alive = sqlite3.connect(db_path, uri=True)
+    db_path, keep_alive = make_memory_db_path("test_matcher")
 
     with sqlite3.connect(db_path, uri=True) as conn:
         mit_text = (
@@ -160,3 +157,74 @@ def test_match_pathological_expression_does_not_crash(test_db: str) -> None:
     expr = " AND ".join(f"LicenseRef-{i}" for i in range(400))
 
     assert not matcher.match(license_id=expr)
+
+
+def _tied_gpl_matches(only_score: float, or_later_score: float) -> list[InternalMatch]:
+    return [
+        InternalMatch(
+            license_id="GPL-2.0-only",
+            score=only_score,
+            similarity=only_score,
+            coverage=only_score,
+            base_score=only_score,
+            pop_score=0,
+            best_window="",
+        ),
+        InternalMatch(
+            license_id="GPL-2.0-or-later",
+            score=or_later_score,
+            similarity=or_later_score,
+            coverage=or_later_score,
+            base_score=or_later_score,
+            pop_score=0,
+            best_window="",
+        ),
+    ]
+
+
+class _TiebreakCase(NamedTuple):
+    only_score: float
+    or_later_score: float
+    is_pure: bool
+    expected_winner: str
+    adjusted: bool
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        pytest.param(
+            _TiebreakCase(0.90, 0.90, True, "GPL-2.0-only", True),
+            id="pure_text_defaults_to_only",
+        ),
+        pytest.param(
+            _TiebreakCase(0.90, 0.90, False, "GPL-2.0-or-later", True),
+            id="mixed_text_with_granting_language_prefers_or_later",
+        ),
+        pytest.param(
+            _TiebreakCase(0.95, 0.80, False, "GPL-2.0-only", False),
+            id="not_tied_no_adjustment",
+        ),
+    ],
+)
+def test_version_suffix_tiebreaker(test_db: str, case: _TiebreakCase) -> None:
+    """Pure license text: the body is identical either way, so a genuine
+    tie defaults to -only regardless of any 'or later' wording present
+    (e.g. the GPL appendix quotes it too, so it isn't a reliable signal
+    on pure text). Mixed/source-file text with explicit granting language
+    ties toward -or-later instead. Scores differing by more than 0.01 are
+    not a genuine tie: trust the similarity score, don't adjust or
+    reorder."""
+    matcher = AggregatedLicenseMatcher(test_db)
+    ranked = _tied_gpl_matches(case.only_score, case.or_later_score)
+
+    result = matcher._apply_version_suffix_tiebreaker(
+        ranked, "or (at your option) any later version", is_pure=case.is_pure
+    )
+
+    assert result[0]["license_id"] == case.expected_winner
+    if case.adjusted:
+        assert result[0]["score"] > result[1]["score"]
+    else:
+        assert result[0]["score"] == case.only_score
+        assert result[1]["score"] == case.or_later_score

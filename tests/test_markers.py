@@ -12,6 +12,7 @@ import uuid
 from collections.abc import Generator
 
 import pytest
+from conftest import make_memory_db_path
 
 from licenseid.database import LicenseDatabase
 from licenseid.markers import MarkerDetector
@@ -70,12 +71,7 @@ def gpl_detector_with_font_exception_row() -> MarkerDetector:
 
 @pytest.fixture
 def test_db() -> Generator[str, None, None]:
-    db_id = str(uuid.uuid4())[:8]
-    db_path = f"file:test_markers_{db_id}?mode=memory&cache=shared"
-
-    # pylint: disable-next=unused-variable
-    db_manager = LicenseDatabase(db_path)  # noqa: F841
-    keep_alive = sqlite3.connect(db_path, uri=True)
+    db_path, keep_alive = make_memory_db_path("test_markers")
 
     with sqlite3.connect(db_path, uri=True) as conn:
         conn.execute(
