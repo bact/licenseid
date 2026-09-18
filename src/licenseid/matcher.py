@@ -9,6 +9,7 @@ Aggregated license matching logic using hybrid search.
 
 import os
 import shutil
+from dataclasses import dataclass
 from typing import Any, cast
 
 import py_spdx_license
@@ -53,6 +54,28 @@ _FP_BOOST: float = 0.05
 # reference only "GPL-2.0" with no "only"/"or-later" qualifier).
 _DEP_PENALTY: float = 0.03
 
+# Tail-only additions (candidates found only via _get_candidates()'s tail
+# query, not its head query) are capped at this many, bounding the
+# head+tail union at 75 candidates and Tier 2 (RapidFuzz) work accordingly.
+# See _search_candidates_by_length() for the full rationale.
+_TAIL_ONLY_CAP: int = 25
+
+
+@dataclass(frozen=True)
+class _MatchContext:
+    """Immutable per-call state threaded through match()'s tiers. Built
+    once after file/text resolution; read-only afterward. Not part of
+    the public API. marker_candidates/marker_boosts live outside this
+    context as explicit parameters instead, since they're a tier's
+    *output* (Tier 0.5's) rather than a fixed, request-scoped input."""
+
+    target_text: str
+    file_path: str | None
+    request: MatchRequest
+    is_pure: bool
+    norm_input: str
+    word_count: int
+
 
 class AggregatedLicenseMatcher:
     """
@@ -75,132 +98,143 @@ class AggregatedLicenseMatcher:
         self.jar_path = os.getenv("SPDX_TOOLS_JAR")
         self.has_java = shutil.which("java") is not None
 
-    # pylint: disable=too-many-locals
-    def match(
-        self,
-        text: str | None = None,
-        *,
-        license_id: str | None = None,
-        file_path: str | None = None,
-        **options: Any,
-    ) -> list[LicenseMatch]:
-        # pylint: disable=too-many-return-statements
-        # pylint: disable=too-many-branches
-        """
-        Identify license text and return ranked matches.
-        Must provide exactly one of text, license_id, or file_path.
-        """
-        # 1. Explicit ID Lookup
-        if license_id:
-            license_id = normalize_identifier(license_id, self.db)
-            details = self.db.get_license_details(license_id)
-            if details:
-                return [
-                    LicenseMatch(
-                        license_id=details["license_id"],
-                        score=1.0,
-                        similarity=1.0,
-                        coverage=1.0,
-                        is_spdx=details["is_spdx"],
-                        is_osi_approved=details["is_osi_approved"],
-                        is_fsf_libre=details["is_fsf_libre"],
-                    )
-                ]
-            with_match = self._match_with_expression(license_id)
-            if with_match:
-                return [with_match]
-            return []
+    def _try_explicit_id_match(self, license_id: str) -> list[LicenseMatch]:
+        """Phase 1: resolve an explicit license_id argument to a match."""
+        license_id = normalize_identifier(license_id, self.db)
+        details = self.db.get_license_details(license_id)
+        if details:
+            return [
+                LicenseMatch(
+                    license_id=details["license_id"],
+                    score=1.0,
+                    similarity=1.0,
+                    coverage=1.0,
+                    is_spdx=details["is_spdx"],
+                    is_osi_approved=details["is_osi_approved"],
+                    is_fsf_libre=details["is_fsf_libre"],
+                )
+            ]
+        with_match = self._match_with_expression(license_id)
+        if with_match:
+            return [with_match]
+        return []
 
-        # 2. File Path
-        target_text = ""
+    def _resolve_target_text(self, text: str | None, file_path: str | None) -> str:
+        """Phase 2: read file_path, or fall back to the given text."""
         if file_path:
             with open(file_path, "r", encoding="utf-8") as f:
-                target_text = f.read()
-        else:
-            target_text = text or ""
+                return f.read()
+        return text or ""
 
-        if not target_text:
-            return []
-
-        request = cast(MatchRequest, options)
+    def _build_match_context(
+        self, target_text: str, file_path: str | None, options: MatchRequest
+    ) -> _MatchContext:
+        """Phase 2 (cont.): classify content and build the immutable
+        per-call state shared by the remaining tiers."""
+        request = options
         request["text"] = target_text
-
-        # Content Classification
-        is_pure = is_pure_license_text(file_path, target_text)
-
         norm_input = normalize_text(target_text)
-        words = norm_input.split()
+        return _MatchContext(
+            target_text=target_text,
+            file_path=file_path,
+            request=request,
+            is_pure=is_pure_license_text(file_path, target_text),
+            norm_input=norm_input,
+            word_count=len(norm_input.split()),
+        )
 
-        # Tier 0.5: Marker Detection
-        # Detects explicit license identifiers and context clues in the text.
-        # SPDX-License-Identifier is an unambiguous machine tag → early return.
-        # All other markers (name fields, headings, first-line) go into the
-        # candidate pool and influence ranking via a confidence bonus.
-        # Skip for very short inputs (< 30 words): marker scanning adds
-        # overhead without benefit — these inputs are handled by Tier 0.
+    def _try_tier0_5_markers(
+        self, ctx: _MatchContext
+    ) -> tuple[list[CandidateMatch], dict[str, float], list[LicenseMatch] | None]:
+        """Tier 0.5: Marker Detection.
+
+        Detects explicit license identifiers and context clues in the
+        text. SPDX-License-Identifier is an unambiguous machine tag, so
+        it's returned as a final answer (the third tuple element). All
+        other markers (name fields, headings, first-line) go into the
+        candidate pool and influence ranking via a confidence bonus.
+        Skip for very short inputs (< 30 words): marker scanning adds
+        overhead without benefit — these inputs are handled by Tier 0.
+        """
         marker_candidates: list[CandidateMatch] = []
-        if len(words) >= 30:
+        if ctx.word_count >= 30:
             marker_candidates = self.detector.detect(
-                target_text,
-                file_path=file_path,
+                ctx.target_text,
+                file_path=ctx.file_path,
             )
         spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
         if spdx_exact:
-            return self._finalize_exact_markers(spdx_exact)
+            return marker_candidates, {}, self._finalize_exact_markers(spdx_exact)
 
         # Build a marker-boost map: license_id -> marker confidence score.
         # Used later in ranking to signal which candidates are
         # marker-confirmed.
-        marker_boosts: dict[str, float] = {
+        marker_boosts = {
             c["license_id"]: c.get("score", 0.0) for c in marker_candidates
         }
+        return marker_candidates, marker_boosts, None
 
-        # Tier 0: Short-Text Shortcut (Names/IDs)
-        # Threshold: inputs under 30 words (~200 chars) are likely bare IDs
-        # or short names and can be resolved via exact/fuzzy name matching
-        # without entering the FTS5 pipeline.  Keeping this threshold low
-        # avoids routing ~50-word licence preambles (head_300 inputs) through
-        # the name matcher, which degrades recall for variant licences
-        # (e.g. MIT-STK, MIT-enna) where it returns the generic parent.
-        if len(words) < 30:
-            # Fast path: bare deprecated ID + prose disambiguation context in
-            # the raw (un-normalised) text, e.g. "GPL-2.0 or later version".
-            # Must use target_text, not norm_input, because normalize_text()
-            # strips punctuation/case that the regex patterns rely on.
-            disambiguated = disambiguate_deprecated_id(target_text)
-            if disambiguated:
-                details = self.db.get_license_details(disambiguated)
-                return [
-                    LicenseMatch(
-                        license_id=disambiguated,
-                        score=1.02,
-                        similarity=1.0,
-                        coverage=1.0,
-                        is_spdx=details["is_spdx"] if details else True,
-                        is_osi_approved=(
-                            details["is_osi_approved"] if details else False
-                        ),
-                        is_fsf_libre=details["is_fsf_libre"] if details else False,
-                    )
-                ]
+    def _try_tier0_short_text(
+        self, ctx: _MatchContext, marker_boosts: dict[str, float]
+    ) -> list[LicenseMatch] | None:
+        """Tier 0: Short-Text Shortcut (Names/IDs).
 
-            short_matches = self._match_short_text(norm_input)
-            if short_matches and short_matches[0]["score"] > 1.0:
-                # Apply marker boosts to break ties among equal-scored
-                # candidates
-                if marker_boosts:
-                    for sm in short_matches:
-                        marker_conf = marker_boosts.get(sm["license_id"], 0.0)
-                        sm["score"] += marker_conf * 0.01
-                    short_matches.sort(key=lambda x: (-x["score"], x["license_id"]))
-                return short_matches
+        Threshold: inputs under 30 words (~200 chars) are likely bare IDs
+        or short names and can be resolved via exact/fuzzy name matching
+        without entering the FTS5 pipeline. Keeping this threshold low
+        avoids routing ~50-word licence preambles (head_300 inputs)
+        through the name matcher, which degrades recall for variant
+        licences (e.g. MIT-STK, MIT-enna) where it returns the generic
+        parent. Returns None (fall through to Tier 1) for inputs at or
+        above the threshold, or below it with no confident match.
+        """
+        if ctx.word_count >= 30:
+            return None
 
-        # Tier 1: Broad Recall
-        candidates = self._get_candidates(request, target_text)
+        # Fast path: bare deprecated ID + prose disambiguation context in
+        # the raw (un-normalised) text, e.g. "GPL-2.0 or later version".
+        # Must use target_text, not norm_input, because normalize_text()
+        # strips punctuation/case that the regex patterns rely on.
+        disambiguated = disambiguate_deprecated_id(ctx.target_text)
+        if disambiguated:
+            details = self.db.get_license_details(disambiguated)
+            return [
+                LicenseMatch(
+                    license_id=disambiguated,
+                    score=1.02,
+                    similarity=1.0,
+                    coverage=1.0,
+                    is_spdx=details["is_spdx"] if details else True,
+                    is_osi_approved=(details["is_osi_approved"] if details else False),
+                    is_fsf_libre=details["is_fsf_libre"] if details else False,
+                )
+            ]
+
+        short_matches = self._match_short_text(ctx.norm_input)
+        if short_matches and short_matches[0]["score"] > 1.0:
+            # Apply marker boosts to break ties among equal-scored candidates
+            if marker_boosts:
+                for sm in short_matches:
+                    marker_conf = marker_boosts.get(sm["license_id"], 0.0)
+                    sm["score"] += marker_conf * 0.01
+                short_matches.sort(key=lambda x: (-x["score"], x["license_id"]))
+            return short_matches
+
+        return None
+
+    def _run_tier1_and_tier2(
+        self,
+        ctx: _MatchContext,
+        marker_candidates: list[CandidateMatch],
+        marker_boosts: dict[str, float],
+    ) -> list[InternalMatch]:
+        """Tier 1 (Broad Recall) retrieval + augmentation, then Tier 2
+        (Precision Ranking). Never short-circuits match()."""
+        candidates = self._get_candidates(ctx.request, ctx.target_text)
 
         # For mixed content or thin FTS5 results, augment via windowed search.
-        if not candidates or (not is_pure and len(candidates) < 5):
-            mixed_candidates = self._match_mixed_content(request, target_text)
+        if not candidates or (not ctx.is_pure and len(candidates) < 5):
+            mixed_candidates = self._match_mixed_content(ctx.request, ctx.target_text)
             seen_ids = {c["license_id"] for c in candidates}
             for mc in mixed_candidates:
                 if mc["license_id"] not in seen_ids:
@@ -215,31 +249,69 @@ class AggregatedLicenseMatcher:
                 candidates.append(c)
                 seen_ids.add(c["license_id"])
 
-        # Tier 2: Precision Ranking
         # Pass marker boosts and purity context so ranking can weight signals
         # appropriately: small additive bonus for pure text (similarity leads),
         # confidence floor for mixed content (marker is primary signal).
-        ranked = self._rank_candidates(
+        return self._rank_candidates(
             candidates,
-            norm_input,
-            request,
+            ctx.norm_input,
+            ctx.request,
             marker_boosts=marker_boosts,
-            is_pure=is_pure,
+            is_pure=ctx.is_pure,
         )
+
+    def match(
+        self,
+        text: str | None = None,
+        *,
+        license_id: str | None = None,
+        file_path: str | None = None,
+        **options: Any,
+    ) -> list[LicenseMatch]:
+        """
+        Identify license text and return ranked matches.
+        Must provide exactly one of text, license_id, or file_path.
+        """
+        if license_id:
+            return self._try_explicit_id_match(license_id)
+
+        target_text = self._resolve_target_text(text, file_path)
+        if not target_text:
+            return []
+
+        ctx = self._build_match_context(
+            target_text, file_path, cast(MatchRequest, options)
+        )
+
+        # Tier 0.5: Marker Detection — SPDX-License-Identifier is
+        # unambiguous and short-circuits; other markers feed the
+        # candidate pool and ranking boost.
+        marker_candidates, marker_boosts, spdx_exact = self._try_tier0_5_markers(ctx)
+        if spdx_exact is not None:
+            return spdx_exact
+
+        # Tier 0: Short-Text Shortcut — bare IDs/names below the word
+        # threshold are resolved without entering the FTS5 pipeline.
+        short_text_result = self._try_tier0_short_text(ctx, marker_boosts)
+        if short_text_result is not None:
+            return short_text_result
+
+        # Tier 1: Broad Recall, then Tier 2: Precision Ranking.
+        ranked = self._run_tier1_and_tier2(ctx, marker_candidates, marker_boosts)
 
         # Tiebreaker: -only vs -or-later when scores are identical
         ranked = self._apply_version_suffix_tiebreaker(
             ranked,
-            target_text,
-            is_pure,
-            enable_pop=request.get(
+            ctx.target_text,
+            ctx.is_pure,
+            enable_pop=ctx.request.get(
                 "enable_popularity",
                 self.enable_popularity,
             ),
         )
 
         # Tier 3: Optional Java Consultant
-        enable_java = request.get("enable_java", self.enable_java)
+        enable_java = ctx.request.get("enable_java", self.enable_java)
         if (
             enable_java
             and self.has_java
@@ -249,7 +321,7 @@ class AggregatedLicenseMatcher:
         ):
             return cast(
                 list[LicenseMatch],
-                self._consult_java(target_text, ranked),
+                self._consult_java(ctx.target_text, ranked),
             )
 
         return cast(list[LicenseMatch], ranked)
@@ -354,6 +426,133 @@ class AggregatedLicenseMatcher:
             record.get("is_osi_approved", False) or record.get("is_fsf_libre", False)
         )
 
+    def _search_candidates_by_length(self, norm_text: str) -> list[CandidateMatch]:
+        """Tier 1 retrieval: head query, plus a capped tail query for long
+        documents.
+
+        search_candidates builds an OR query from the first 20 words of
+        whatever it receives (see database.py).  The caps below control
+        which normalised words those are:
+
+          Head query: pass norm_words[:100] so search_candidates uses
+            words 0-19 (the preamble/title, which is highly distinctive).
+            The 100-word buffer leaves room if the OR-term limit is raised
+            again later.
+
+          Tail query: pass norm_words[-20:] -- exactly the last 20 words --
+            so search_candidates uses words -20 to -1 (the true end of the
+            document: warranty disclaimer, governing-law clause, etc.).
+            Benchmarks showed that passing words[-120:] was wrong: FTS5 only
+            saw words -120 to -101, which are mid-text and less distinctive
+            than the actual tail.  Aligning the slice with the OR-term limit
+            (20 words) recovers those end-specific signals.
+            Threshold >200 words ensures head (0-99) and tail (last 20) are
+            non-overlapping for inputs up to any realistic length.
+
+        Both queries use limit=50 so BM25 ranking is computed over 50
+        results before any cap.  Tail-only additions (candidates in the
+        tail set but not the head set) are capped at _TAIL_ONLY_CAP,
+        bounding the union at 75 candidates and Tier 2 (RapidFuzz) work at
+        75 passes.
+
+        Benchmark on 469 licences with >200 normalised words showed that
+        uncapped tail adds a mean of 33 candidates (median 38, max 50),
+        pushing the union to a mean of 83 (max 100).  Because tail
+        candidates are in BM25 order the cap retains the most distinctive
+        tail-only candidates and discards the rest, which are largely
+        generic vocabulary shared across many licences.  The cap does not
+        affect the head set (always up to 50).
+
+        These thresholds (100/200/50/25/20) were originally tuned against
+        raw word counts; they now slice normalised word counts instead,
+        which are usually somewhat shorter (copyright/comment/bullet noise
+        removed) — re-validate via bench_compare after this change.
+        """
+        norm_words = norm_text.split()
+        if len(norm_words) <= 100:
+            return list(
+                self.db.search_candidates(norm_text, limit=50, already_normalized=True)
+            )
+
+        head_query = " ".join(norm_words[:100])
+        raw_candidates = list(
+            self.db.search_candidates(head_query, limit=50, already_normalized=True)
+        )
+        if len(norm_words) <= 200:
+            return raw_candidates
+
+        tail_query = " ".join(norm_words[-20:])
+        seen_ids = {c["license_id"] for c in raw_candidates if c.get("license_id")}
+        tail_only_added = 0
+        tail_candidates = self.db.search_candidates(
+            tail_query, limit=50, already_normalized=True
+        )
+        for c in tail_candidates:
+            if tail_only_added >= _TAIL_ONLY_CAP:
+                break
+            if c.get("license_id") not in seen_ids:
+                raw_candidates.append(c)
+                seen_ids.add(c["license_id"])
+                tail_only_added += 1
+        return raw_candidates
+
+    def _filter_candidates(
+        self,
+        raw_candidates: list[CandidateMatch],
+        only_spdx: bool,
+        only_common: bool,
+        exclude_list: list[str],
+    ) -> list[CandidateMatch]:
+        """Drop candidates with no ID, an excluded ID, or failing the
+        only_spdx/only_common metadata filters."""
+        filtered: list[CandidateMatch] = []
+        for cand in raw_candidates:
+            license_id = cand.get("license_id")
+            if not license_id or license_id in exclude_list:
+                continue
+
+            if only_spdx and not cand.get("is_spdx", False):
+                continue
+            if (
+                only_common
+                and not cand.get("is_high_usage", False)
+                and not (
+                    cand.get("is_osi_approved", False)
+                    or cand.get("is_fsf_libre", False)
+                )
+            ):
+                continue
+
+            filtered.append(cand)
+        return filtered
+
+    def _inject_hinted_candidates(
+        self, filtered: list[CandidateMatch], hint_list: list[str]
+    ) -> list[CandidateMatch]:
+        """Force-include DB-backed hint_list IDs not already present, as
+        synthetic candidates (no search_text, so they rank purely on
+        marker/metadata signals rather than similarity)."""
+        candidate_ids = {c.get("license_id") for c in filtered if c.get("license_id")}
+        for h_id in hint_list:
+            if h_id not in candidate_ids:
+                details = self.db.get_license_details(h_id)
+                if details:
+                    filtered.append(
+                        CandidateMatch(
+                            license_id=details["license_id"],
+                            search_text="",
+                            word_count=details["word_count"],
+                            is_spdx=details["is_spdx"],
+                            is_high_usage=details["is_high_usage"],
+                            is_osi_approved=details["is_osi_approved"],
+                            is_fsf_libre=details["is_fsf_libre"],
+                            pop_score=details.get("pop_score", 0),
+                            is_deprecated=details.get("is_deprecated", False),
+                            superseded_by=details.get("superseded_by", ""),
+                        )
+                    )
+        return filtered
+
     def _get_candidates(
         self,
         data: MatchRequest,
@@ -383,112 +582,11 @@ class AggregatedLicenseMatcher:
         # normalization consistent.
         norm_text = normalize_text(text)
 
-        # Tier 1: Retrieval
-        # search_candidates builds an OR query from the first 20 words of
-        # whatever it receives (see database.py).  The caps below control
-        # which normalised words those are:
-        #
-        #   Head query: pass norm_words[:100] so search_candidates uses
-        #     words 0–19 (the preamble/title, which is highly distinctive).
-        #     The 100-word buffer leaves room if the OR-term limit is raised
-        #     again later.
-        #
-        #   Tail query: pass norm_words[-20:] — exactly the last 20 words —
-        #     so search_candidates uses words -20 to -1 (the true end of the
-        #     document: warranty disclaimer, governing-law clause, etc.).
-        #     Benchmarks showed that passing words[-120:] was wrong: FTS5 only
-        #     saw words -120 to -101, which are mid-text and less distinctive
-        #     than the actual tail.  Aligning the slice with the OR-term limit
-        #     (20 words) recovers those end-specific signals.
-        #     Threshold >200 words ensures head (0–99) and tail (last 20) are
-        #     non-overlapping for inputs up to any realistic length.
-        #
-        # Both queries use limit=50 so BM25 ranking is computed over 50
-        # results before any cap.  Tail-only additions (candidates in the
-        # tail set but not the head set) are capped at 25, bounding the
-        # union at 75 candidates and Tier 2 (RapidFuzz) work at 75 passes.
-        #
-        # Benchmark on 469 licences with >200 normalised words showed that
-        # uncapped tail adds a mean of 33 candidates (median 38, max 50),
-        # pushing the union to a mean of 83 (max 100).  Because tail
-        # candidates are in BM25 order the cap retains the 25 most
-        # distinctive tail-only candidates and discards the rest, which are
-        # largely generic vocabulary shared across many licences.
-        # The cap does not affect the head set (always up to 50).
-        #
-        # These thresholds (100/200/50/25/20) were originally tuned against
-        # raw word counts; they now slice normalised word counts instead,
-        # which are usually somewhat shorter (copyright/comment/bullet noise
-        # removed) — re-validate via bench_compare after this change.
-        _TAIL_ONLY_CAP = 25
-        norm_words = norm_text.split()
-        raw_candidates: list[CandidateMatch] = []
-        if len(norm_words) > 100:
-            head_query = " ".join(norm_words[:100])
-            raw_candidates = list(
-                self.db.search_candidates(head_query, limit=50, already_normalized=True)
-            )
-            if len(norm_words) > 200:
-                tail_query = " ".join(norm_words[-20:])
-                seen_ids = {
-                    c["license_id"] for c in raw_candidates if c.get("license_id")
-                }
-                tail_only_added = 0
-                for c in self.db.search_candidates(
-                    tail_query, limit=50, already_normalized=True
-                ):
-                    if tail_only_added >= _TAIL_ONLY_CAP:
-                        break
-                    if c.get("license_id") not in seen_ids:
-                        raw_candidates.append(c)
-                        seen_ids.add(c["license_id"])
-                        tail_only_added += 1
-        else:
-            raw_candidates = list(
-                self.db.search_candidates(norm_text, limit=50, already_normalized=True)
-            )
-
-        filtered: list[CandidateMatch] = []
-        for cand in raw_candidates:
-            license_id = cand.get("license_id")
-            if not license_id or license_id in exclude_list:
-                continue
-
-            # Filtering logic using pre-fetched metadata
-            if only_spdx and not cand.get("is_spdx", False):
-                continue
-            if (
-                only_common
-                and not cand.get("is_high_usage", False)
-                and not (
-                    cand.get("is_osi_approved", False)
-                    or cand.get("is_fsf_libre", False)
-                )
-            ):
-                continue
-
-            filtered.append(cand)
-
-        candidate_ids = {c.get("license_id") for c in filtered if c.get("license_id")}
-        for h_id in hint_list:
-            if h_id not in candidate_ids:
-                details = self.db.get_license_details(h_id)
-                if details:
-                    filtered.append(
-                        CandidateMatch(
-                            license_id=details["license_id"],
-                            search_text="",
-                            word_count=details["word_count"],
-                            is_spdx=details["is_spdx"],
-                            is_high_usage=details["is_high_usage"],
-                            is_osi_approved=details["is_osi_approved"],
-                            is_fsf_libre=details["is_fsf_libre"],
-                            pop_score=details.get("pop_score", 0),
-                            is_deprecated=details.get("is_deprecated", False),
-                            superseded_by=details.get("superseded_by", ""),
-                        )
-                    )
-        return filtered
+        raw_candidates = self._search_candidates_by_length(norm_text)
+        filtered = self._filter_candidates(
+            raw_candidates, only_spdx, only_common, exclude_list
+        )
+        return self._inject_hinted_candidates(filtered, hint_list)
 
     def _rank_candidates(
         self,

@@ -13,7 +13,7 @@ exclude =
 # that still passes) — see working-docs/design/complexity-and-file-size-roadmap.md
 # for the backlog. Re-measure across all of src/, not just the file you
 # touched, before raising either value.
-# target: 10 (currently 19, matcher.match)
-max-complexity = 19
-# target: 15 (currently 46, matcher.match)
-max-cognitive-complexity = 46
+# target: 10 (currently 13, spdx_source.fetch_popularity_data / markers._detect_structured_format)
+max-complexity = 13
+# target: 15 (currently 29, tests/test_accuracy.py::run_accuracy_test)
+max-cognitive-complexity = 29

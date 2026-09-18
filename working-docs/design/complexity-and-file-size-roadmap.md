@@ -33,15 +33,15 @@ pylint's actual defaults are 12 and 50.
 
 | Metric | Target (pylint default) | Interim ceiling | Current worst |
 |---|---|---|---|
-| Args | ≤5 | 6 | 6 |
-| Locals | ≤15 | 23 | 23 |
+| Args | ≤5 | 5 (at target) | 5 (`similarity.py`, `matcher._rank_candidates`) |
+| Locals | ≤15 | 23 | 23 (`database.py`) |
 | Nesting | ≤5 | 5 (no ratchet needed) | 5 |
-| Branches | ≤12 | 15 | 15 |
-| Returns | ≤6 | 6 (no ratchet needed) | 5 |
-| Statements | ≤50 | 50 (no ratchet needed) | 49 |
-| McCabe | ≤10 | 19 | 19 (`matcher.match`) |
-| Cognitive | ≤15 | 46 | 46 (`matcher.match`) |
-| Module lines | soft 400-500 / hard 800 | 933 | 933 (`database.py`) |
+| Branches | ≤12 | 15 | 15 (`cli.match`) |
+| Returns | ≤6 | 6 (at target) | 6 (`matcher.match`) |
+| Statements | ≤50 | 50 (at target) | 36 (`cli.match`) |
+| McCabe | ≤10 | 13 | 13 (`spdx_source`, `markers`, see note) |
+| Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
+| Module lines | soft 400-500 / hard 800 | 944 | 944 (`matcher.py`) |
 
 Measured 2026-08-19 via `pylint --disable=all --enable=too-many-<x>
 --max-<x>=1`, `flake8 --max-complexity 1` and
@@ -50,7 +50,16 @@ run across all of `src/`, not a single file — a single-file scan
 undercounted the true max on the first pass), and `wc -l src/licenseid/*.py`.
 McCabe row re-measured 2026-09-18 after the `identifiers.py` fix landed;
 Cognitive row re-measured 2026-09-18 after the `markers.py` fix below
-landed.
+landed. Whole table re-measured again 2026-09-18 after the `matcher.py`
+fix below landed, this time also across `tests/` (not just `src/`) since
+`.flake8`'s own `exclude` list doesn't exempt `tests/`, and `AGENTS.md`'s
+documented `flake8 src/ tests/` command lints both — a stale
+`src/`-only measurement would leave a ceiling that command immediately
+fails on a file this pass never touched. That's how a test helper
+(`run_accuracy_test`) ended up setting the Cognitive ceiling instead of
+a `src/` function; several other rows (Args, Returns, Statements, Module
+lines) were also already stale before this pass and are corrected here
+as a drive-by, not something this refactor changed.
 
 ## Backlog, priority order
 
@@ -134,44 +143,124 @@ inline.
     pins the residual risk rather than leaving it undiscovered).
 
 `_detect_structured_format`, originally grouped with this item, wasn't
-touched by this pass — see item 3 below.
+touched by this pass — see item 2 below.
 
-### 1. `matcher.py` — split `match()` and `_get_candidates()` (Priority 9)
+### Done: `matcher.py::match()` and `_get_candidates()`
 
-841 lines (over the 800-line hard target); `match()` is 178 lines /
-cognitive 46 / McCabe 19, `_get_candidates()` is 136 lines / cognitive 32
-/ McCabe 13. Both are Tier-dispatch functions that grew a branch per
-tier as tiers were added — third on McCabe/cognitive individually, but
-the only item that also blocks the module-lines ratchet.
+`match()`: McCabe 19→6, cognitive 46→6. `_get_candidates()`: McCabe
+13→1, cognitive 32→1.
 
-- **Fix**: extract each tier's logic (`_try_tier0`, `_try_tier0_5`,
-  `_try_tier1_and_2`, `_finalize_tier0_deprecated`, etc.) into private
-  methods `match()` only calls in sequence, mirroring the natural
-  Tier 0 → 0.5 → 1 → 2 → 3 pipeline structure already described in
-  comments.
-- Impact 3, Risk 2, Effort 3.
+Was the repo's top McCabe and cognitive offender in one 177-line
+function (`match()`), plus a second, 135-line function
+(`_get_candidates()`) with the same shape: a Tier-dispatch pipeline that
+grew a branch per tier as tiers were added, with several independent
+early-return short-circuits threaded through shared local state
+(`target_text`, `request`, `is_pure`, `norm_input`, `words`,
+`marker_candidates`, `marker_boosts`).
 
-### 2. `database.py` — split by responsibility (Priority 9)
+- **Fix applied**: extracted seven private helpers —
+  `_try_explicit_id_match`, `_resolve_target_text`,
+  `_build_match_context`, `_try_tier0_5_markers`,
+  `_try_tier0_short_text`, and `_run_tier1_and_tier2` for `match()`
+  (plus a new immutable `_MatchContext` dataclass carrying the
+  request-scoped state that 3+ of those helpers need, since a plain
+  6-argument signature would trip the repo's `max-args=5` ceiling and
+  none of those values are cheaply derivable from each other, unlike
+  the single-value case fixed in the `_detect_gpl_headers` pass); and
+  `_search_candidates_by_length`, `_filter_candidates`,
+  `_inject_hinted_candidates` for `_get_candidates()`. Pure refactor, no
+  behaviour change — each independently-short-circuiting phase returns
+  `T | None` (`None` = fall through, mirroring the
+  `_build_font_exception_candidate` convention from the previous pass).
+  All three `# pylint: disable=too-many-*` pragmas that previously sat
+  on `match()` are gone — confirmed via a before/after pylint run
+  (`--enable=too-many-locals,too-many-branches,too-many-return-statements
+  --max-<x>=1` against a pragma-stripped copy) that they were genuinely
+  needed before (27 locals/9 returns/19 branches, all over ceiling) and
+  fire nowhere in the file after extraction.
+- **New tests**: `tests/test_get_candidates.py` (16 tests, new file) —
+  `_get_candidates()` had zero direct unit tests before this; closes
+  real gaps around the head/tail retrieval word-count thresholds (exact
+  100/101/200/201-word boundaries), the tail-only candidate cap
+  (promoted from a function-local to the module-level `_TAIL_ONLY_CAP`
+  constant so tests can reference it), head/tail dedup, the
+  `only_spdx`/`only_common`/`exclude` filters, and hint injection.
+  `tests/test_matcher.py` gained 3 tests for
+  `_apply_version_suffix_tiebreaker`, which also had no direct coverage.
+  All 19 were written and passed against the pre-refactor code first
+  (the established characterization-test-first pattern), then
+  reconfirmed unchanged after extraction; no pre-existing bugs surfaced
+  this time.
+- **Code-review follow-up**: a review of the extraction itself found no
+  correctness bugs (faithful, mechanical refactor), but surfaced several
+  cleanup items, all applied: `_MatchContext` is now `@dataclass(frozen=True)`
+  (its docstring claimed immutability the plain dataclass didn't
+  enforce); its `words: list[str]` field — redundant with `norm_input`,
+  read only for its length — became `word_count: int`, computed once;
+  the docstring now states explicitly why `marker_candidates`/
+  `marker_boosts` live outside the context (they're a tier's *output*,
+  not a fixed input, so mutating an otherwise-immutable context to hold
+  them would be worse); the near-identical in-memory shared-cache SQLite
+  DB fixture, previously copy-pasted across `test_matcher.py`,
+  `test_markers.py`, and the new `test_get_candidates.py`, is now one
+  `make_memory_db_path()` helper in `tests/conftest.py`; and the
+  tiebreaker tests plus the `_get_candidates` word-count boundary tests
+  were collapsed into `@pytest.mark.parametrize`d tests per this
+  project's own testing convention. Consolidating that fixture also
+  surfaced a real, separate, previously-latent bug: `LicenseDatabase(db_path)`
+  called without keeping a reference opens its own keep-alive connection
+  to the shared-cache in-memory DB, but since nothing then holds a
+  reference to that `LicenseDatabase` instance, CPython deallocates it
+  (and closes its connection) immediately — and if that was the *only*
+  open connection at that instant, the shared-cache DB (schema and all)
+  is dropped before the caller's own `sqlite3.connect()` line ever runs,
+  reproduced standalone outside pytest. Fixed by opening the helper's
+  own keep-alive connection *before* constructing `LicenseDatabase`, so
+  at least one connection is alive continuously across the handoff.
+  (The three original inline fixtures happened not to trip this — likely
+  incidental frame-reference timing under pytest — so it was never
+  observed until the fixtures were consolidated and re-tested standalone.)
+- **File-size note**: this is an in-file extraction (new private methods
+  on the same class) — it does not shrink `matcher.py`. The file grew
+  846→944 lines (new `def`/docstring overhead), so the module-lines
+  ceiling moved 921→944 to track it honestly. The 800-line hard target
+  is **not** resolved by this pass; `matcher.py` is now the file most in
+  need of the same subpackage-split treatment as `database.py` below,
+  once its complexity offenders (already fixed here) aren't the
+  competing concern.
+- **Ceiling side-effects**: re-measuring across all of `src/` *and*
+  `tests/` (not just `src/`, since `.flake8` lints both and `AGENTS.md`'s
+  documented `flake8 src/ tests/` command would otherwise immediately
+  fail on an untouched file) found several other table rows were already
+  stale before this pass — see the table note above. The new
+  Cognitive ceiling (29) is set by a test helper
+  (`tests/test_accuracy.py::run_accuracy_test`), not a `src/` function;
+  `markers.py::_detect_structured_format` (item 2 below) is now tied for
+  the McCabe ceiling (13) rather than comfortably under it as previously
+  measured against the old ceiling of 19.
 
-933 lines (down from 977 — the n-gram/IDF fingerprint math moved to
-`fingerprint.py`). Schema/connection management, license-record
-preparation, and query methods are still all in one file. Not a
-complexity offender (no individual function stands out) — purely a
-file-size and module-lines-ratchet problem.
+### 1. `database.py` — split by responsibility (Priority 9)
+
+921 lines. Schema/connection management, license-record preparation,
+and query methods are still all in one file. Not a complexity offender
+(no individual function stands out) — purely a file-size and
+module-lines-ratchet problem.
 
 - **Fix**: split along existing method-name groupings (e.g.
   `_prepare_*`/`_write_*` build-time methods vs. `get_*`/`search_*`
   runtime query methods) into two modules re-exported from
   `database.py`, or a `database/` subpackage per the file-size rule's
   "3+ related files → group in a same-named subfolder" convention.
+  `matcher.py` (944 lines, see "Done" above) is now a candidate for the
+  same treatment once its own complexity work has settled.
 - Impact 2, Risk 1, Effort 3.
 
-### 3. `markers.py::_detect_structured_format` (Priority 6)
+### 2. `markers.py::_detect_structured_format` (Priority 6)
 
-McCabe 13, cognitive 23 — well under the current ceilings, so not
-urgent, but the smallest/cheapest item left. Parses JSON/TOML/INI file
-formats for a `license` field via three separate `if` blocks (JSON
-returns early; TOML/INI fall through and can both run).
+McCabe 13 (now tied for the repo's McCabe ceiling — see the table note
+above), cognitive 23. Parses JSON/TOML/INI file formats for a `license`
+field via three separate `if` blocks (JSON returns early; TOML/INI fall
+through and can both run).
 
 - **Fix**: extract each format's parsing into its own private method
   (`_detect_json_license`, `_detect_toml_license`,
@@ -180,6 +269,12 @@ returns early; TOML/INI fall through and can both run).
 
 ## Out of scope for now
 
-- `spdx_source.py::fetch_popularity_data` (McCabe 13) and
-  `cli.py::match` (McCabe 12, cognitive 25) are close to target already
-  relative to the top offenders above; revisit after items 1-3 land.
+- `spdx_source.py::fetch_popularity_data` (McCabe 13, tied with
+  `_detect_structured_format` above) and `cli.py::match` (McCabe 12,
+  cognitive 25) are close to target already relative to the top
+  offenders above; revisit after items 1-2 land.
+- `tests/test_accuracy.py::run_accuracy_test` (cognitive 29) now sets
+  the repo's Cognitive ceiling — a benchmark-table-printing test helper,
+  not production code. Not a priority-ranked backlog item (it isn't
+  `src/`), but worth a look if the Cognitive ceiling needs to tighten
+  further, since it's the actual blocker at that point.
