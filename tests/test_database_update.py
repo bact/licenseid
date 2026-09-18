@@ -21,6 +21,13 @@ from licenseid import spdx_source
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
 
+# The manual-extraction tests simulate a Python without extraction filters, so
+# tarfile (3.12-3.13) warns that extracting without a filter is deprecated.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:Python 3.14 will, by default, filter extracted tar archives"
+    ":DeprecationWarning"
+)
+
 _LICENSES = {
     "licenseListVersion": "9.99",
     "releaseDate": "2030-01-01",
@@ -159,7 +166,7 @@ def test_extract_tarball_refuses_each_unsafe_member(
     cannot mask another), identically with the tarfile 'data' filter and
     with the manual fallback."""
     if not has_filter:
-        monkeypatch.delattr(tarfile, "data_filter")
+        monkeypatch.setattr(spdx_source, "_HAS_EXTRACTION_FILTER", False)
     tar_path = tmp_path / "evil.tar.gz"
     outside = tmp_path / "outside"
     outside.mkdir()
@@ -190,7 +197,7 @@ def test_extract_tarball_keeps_links_inside_destination(
     """Both extraction paths accept a link that stays inside the destination
     (consistent behaviour across Python versions)."""
     if not has_filter:
-        monkeypatch.delattr(tarfile, "data_filter")
+        monkeypatch.setattr(spdx_source, "_HAS_EXTRACTION_FILTER", False)
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         data = b"content"
@@ -214,7 +221,7 @@ def test_extract_tarball_keeps_links_inside_destination(
 def test_extract_tarball_manual_check_refuses_hardlink_outside(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.delattr(tarfile, "data_filter")
+    monkeypatch.setattr(spdx_source, "_HAS_EXTRACTION_FILTER", False)
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         info = tarfile.TarInfo("root/hard")
@@ -232,7 +239,7 @@ def test_extract_tarball_manual_check_refuses_hardlink_outside(
 def test_extract_tarball_fallback_extracts_safe_archive(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.delattr(tarfile, "data_filter")
+    monkeypatch.setattr(spdx_source, "_HAS_EXTRACTION_FILTER", False)
     tar_path = tmp_path / "ok.tar.gz"
     tar_path.write_bytes(_tarball({"root/json/licenses.json": b"{}"}))
     dest = tmp_path / "out"

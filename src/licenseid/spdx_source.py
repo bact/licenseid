@@ -218,6 +218,11 @@ def get_tarball_path(
     return tar_cache_path, data_source
 
 
+# Extraction filters exist from Python 3.10.12 / 3.11.4 (a module-level flag,
+# so tests can exercise the fallback without patching tarfile itself).
+_HAS_EXTRACTION_FILTER = hasattr(tarfile, "data_filter")
+
+
 def _is_within(root: Path, target: Path) -> bool:
     """True if the resolved *target* is *root* or inside it."""
     return target == root or root in target.parents
@@ -232,7 +237,7 @@ def extract_tarball(tar_path: Path, dest: Path) -> None:
     only if they stay inside *dest*.
     """
     with tarfile.open(tar_path, "r:gz") as tar:
-        if hasattr(tarfile, "data_filter"):
+        if _HAS_EXTRACTION_FILTER:
             tar.extractall(path=dest, filter="data")
             return
         # Python < 3.10.12 / 3.11.4 has no extraction filters: check by hand.
