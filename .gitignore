@@ -130,6 +130,9 @@ dmypy.json
 org.eclipse.core.resources.prefs
 .vscode
 
+# Claude Code local state (never committed)
+.claude/
+
 .DS_Store
 .ruff_cache/
 .pytest_cache/
