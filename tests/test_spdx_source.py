@@ -7,15 +7,17 @@
 
 No test touches the network: requests.get is replaced by an autospec'd fake.
 """
-# pylint: disable=missing-function-docstring
+# pylint: disable=missing-function-docstring,protected-access
 
 import os
 import time
+from collections.abc import Iterator
 from pathlib import Path
 from unittest import mock
 
 import pytest
 import requests
+from conftest import fake_requests_get, leftover_tmp_files
 
 from licenseid import __version__, spdx_source
 from licenseid.database import LicenseDatabase
@@ -48,52 +50,31 @@ def test_old_file_is_invalid(tmp_path: Path) -> None:
 _CSV = "spdx_license,num_pushers\n"
 
 
-def fetch_popularity_data(
-    cache_dir: Path, local_path: Path | None = None
-) -> dict[str, int]:
-    """The popularity map only (see _fetch_with_source for the source)."""
+def _popularity_map(cache_dir: Path, local_path: Path | None = None) -> dict[str, int]:
+    """Just the popularity map; source reporting is tested separately."""
     return spdx_source.fetch_popularity_data(cache_dir, local_path)[0]
-
-
-def _fake_get(
-    monkeypatch: pytest.MonkeyPatch,
-    text: str = "",
-    error: Exception | None = None,
-    status_error: bool = False,
-) -> mock.MagicMock:
-    """Replace requests.get with an autospec'd fake returning *text*, or
-    raising *error* / an HTTP status error."""
-    response = mock.create_autospec(requests.Response, instance=True)
-    response.text = text
-    if status_error:
-        response.raise_for_status.side_effect = requests.HTTPError("503")
-    fake: mock.MagicMock = mock.create_autospec(requests.get, return_value=response)
-    if error is not None:
-        fake.side_effect = error
-    monkeypatch.setattr(requests, "get", fake)
-    return fake
 
 
 def test_popularity_sums_duplicate_ids_and_skips_blank_and_noassertion(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     csv_text = _CSV + "MIT,10\nMIT,5\nApache-2.0,7\nNOASSERTION,99\n,3\n"
-    _fake_get(monkeypatch, csv_text)
-    assert fetch_popularity_data(tmp_path) == {"MIT": 15, "Apache-2.0": 7}
+    fake_requests_get(monkeypatch, csv_text)
+    assert _popularity_map(tmp_path) == {"MIT": 15, "Apache-2.0": 7}
 
 
 def test_popularity_non_numeric_count_is_zero(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _fake_get(monkeypatch, _CSV + "MIT,abc\nMIT,\nISC,4\n")
-    assert fetch_popularity_data(tmp_path) == {"MIT": 0, "ISC": 4}
+    fake_requests_get(monkeypatch, _CSV + "MIT,abc\nMIT,\nISC,4\n")
+    assert _popularity_map(tmp_path) == {"MIT": 0, "ISC": 4}
 
 
 def test_popularity_header_only_is_empty(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _fake_get(monkeypatch, _CSV)
-    assert fetch_popularity_data(tmp_path) == {}
+    fake_requests_get(monkeypatch, _CSV)
+    assert _popularity_map(tmp_path) == {}
 
 
 def test_popularity_local_path_used_without_network(
@@ -101,8 +82,8 @@ def test_popularity_local_path_used_without_network(
 ) -> None:
     local = tmp_path / "popularity.csv"
     local.write_text(_CSV + "MIT,2\n", encoding="utf-8")
-    fake = _fake_get(monkeypatch, _CSV + "ISC,9\n")
-    assert fetch_popularity_data(tmp_path, local) == {"MIT": 2}
+    fake = fake_requests_get(monkeypatch, _CSV + "ISC,9\n")
+    assert _popularity_map(tmp_path, local) == {"MIT": 2}
     fake.assert_not_called()
 
 
@@ -113,8 +94,8 @@ def test_popularity_unusable_local_path_falls_back_to_download(
     local = tmp_path / "local.csv"
     if content is not None:
         local.write_text(content, encoding="utf-8")
-    fake = _fake_get(monkeypatch, _CSV + "ISC,9\n")
-    assert fetch_popularity_data(tmp_path, local) == {"ISC": 9}
+    fake = fake_requests_get(monkeypatch, _CSV + "ISC,9\n")
+    assert _popularity_map(tmp_path, local) == {"ISC": 9}
     fake.assert_called_once()
 
 
@@ -122,8 +103,8 @@ def test_popularity_download_writes_cache(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     text = _CSV + "MIT,1\n"
-    _fake_get(monkeypatch, text)
-    fetch_popularity_data(tmp_path)
+    fake_requests_get(monkeypatch, text)
+    _popularity_map(tmp_path)
     assert (tmp_path / spdx_source.CACHE_POPULARITY_CSV).read_text() == text
 
 
@@ -138,8 +119,8 @@ def test_popularity_download_writes_cache(
 def test_popularity_download_failure_returns_empty_and_no_cache(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kwargs: dict[str, object]
 ) -> None:
-    _fake_get(monkeypatch, _CSV + "MIT,1\n", **kwargs)  # type: ignore[arg-type]
-    assert fetch_popularity_data(tmp_path) == {}
+    fake_requests_get(monkeypatch, _CSV + "MIT,1\n", **kwargs)  # type: ignore[arg-type]
+    assert _popularity_map(tmp_path) == {}
     assert not (tmp_path / spdx_source.CACHE_POPULARITY_CSV).exists()
 
 
@@ -151,8 +132,8 @@ def test_popularity_short_row_counts_as_zero(
 ) -> None:
     """Regression: a row missing num_pushers gives None; int(None) used to
     raise an uncaught TypeError."""
-    _fake_get(monkeypatch, _CSV + "MIT\nISC,3\n")
-    assert fetch_popularity_data(tmp_path) == {"MIT": 0, "ISC": 3}
+    fake_requests_get(monkeypatch, _CSV + "MIT\nISC,3\n")
+    assert _popularity_map(tmp_path) == {"MIT": 0, "ISC": 3}
 
 
 def test_popularity_cache_write_failure_keeps_data(
@@ -162,8 +143,8 @@ def test_popularity_cache_write_failure_keeps_data(
 ) -> None:
     """Regression: an unwritable/missing cache_dir used to abort after a
     successful download; now it only warns."""
-    _fake_get(monkeypatch, _CSV + "MIT,1\n")
-    assert fetch_popularity_data(tmp_path / "missing-dir") == {"MIT": 1}
+    fake_requests_get(monkeypatch, _CSV + "MIT,1\n")
+    assert _popularity_map(tmp_path / "missing-dir") == {"MIT": 1}
     assert "Failed to cache popularity data" in capsys.readouterr().out
 
 
@@ -172,8 +153,8 @@ def test_popularity_unparseable_download_is_not_cached(
 ) -> None:
     """Regression: garbage used to be cached and then served as a valid
     cache for the full expiry period."""
-    _fake_get(monkeypatch, "<html>Service unavailable</html>")
-    assert fetch_popularity_data(tmp_path) == {}
+    fake_requests_get(monkeypatch, "<html>Service unavailable</html>")
+    assert _popularity_map(tmp_path) == {}
     assert not (tmp_path / spdx_source.CACHE_POPULARITY_CSV).exists()
 
 
@@ -184,8 +165,8 @@ def test_popularity_non_utf8_local_file_falls_back_to_download(
     UnicodeDecodeError instead of falling back to a download."""
     local = tmp_path / "popularity.csv"
     local.write_bytes(b"\xff\xfe\x00\x80")
-    _fake_get(monkeypatch, _CSV + "ISC,9\n")
-    assert fetch_popularity_data(tmp_path, local) == {"ISC": 9}
+    fake_requests_get(monkeypatch, _CSV + "ISC,9\n")
+    assert _popularity_map(tmp_path, local) == {"ISC": 9}
 
 
 def test_popularity_poisoned_local_cache_is_replaced(
@@ -195,8 +176,8 @@ def test_popularity_poisoned_local_cache_is_replaced(
     version) is re-downloaded once and overwritten."""
     local = tmp_path / spdx_source.CACHE_POPULARITY_CSV
     local.write_text("<html>oops</html>")
-    fake = _fake_get(monkeypatch, _CSV + "MIT,4\n")
-    assert fetch_popularity_data(tmp_path, local) == {"MIT": 4}
+    fake = fake_requests_get(monkeypatch, _CSV + "MIT,4\n")
+    assert _popularity_map(tmp_path, local) == {"MIT": 4}
     fake.assert_called_once()
     assert local.read_text() == _CSV + "MIT,4\n"
 
@@ -219,8 +200,8 @@ def test_popularity_stale_cache_used_when_download_fails(
     """A failed or unusable download reuses an expired cache file instead of
     returning nothing (and the failure is not retried)."""
     (tmp_path / spdx_source.CACHE_POPULARITY_CSV).write_text(_CSV + "MIT,1\n")
-    fake = _fake_get(monkeypatch, **fake_kwargs)  # type: ignore[arg-type]
-    assert fetch_popularity_data(tmp_path) == {"MIT": 1}
+    fake = fake_requests_get(monkeypatch, **fake_kwargs)  # type: ignore[arg-type]
+    assert _popularity_map(tmp_path) == {"MIT": 1}
     fake.assert_called_once()
     assert "stale cached popularity data" in capsys.readouterr().out
 
@@ -231,8 +212,8 @@ def test_popularity_stale_cache_used_when_download_fails(
 def test_popularity_request_is_identified_with_timeout_and_single_attempt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fake = _fake_get(monkeypatch, _CSV + "MIT,1\n")
-    fetch_popularity_data(tmp_path)
+    fake = fake_requests_get(monkeypatch, _CSV + "MIT,1\n")
+    _popularity_map(tmp_path)
     fake.assert_called_once()
     kwargs = fake.call_args.kwargs
     assert kwargs["headers"]["User-Agent"] == spdx_source.user_agent()
@@ -246,7 +227,7 @@ def test_popularity_request_is_identified_with_timeout_and_single_attempt(
 def test_license_list_and_tarball_requests_are_identified(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fake = _fake_get(monkeypatch)
+    fake = fake_requests_get(monkeypatch)
     response = fake.return_value
     response.json.return_value = {"licenseListVersion": "3.28.0"}
     response.iter_content.return_value = [b"data"]
@@ -267,7 +248,7 @@ def test_popularity_source_cache(
 ) -> None:
     local = tmp_path / "popularity.csv"
     local.write_text(_CSV + "MIT,2\n", encoding="utf-8")
-    _fake_get(monkeypatch)
+    fake_requests_get(monkeypatch)
     assert spdx_source.fetch_popularity_data(tmp_path, local) == (
         {"MIT": 2},
         "cache",
@@ -277,7 +258,7 @@ def test_popularity_source_cache(
 def test_popularity_source_remote(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _fake_get(monkeypatch, _CSV + "MIT,2\n")
+    fake_requests_get(monkeypatch, _CSV + "MIT,2\n")
     assert spdx_source.fetch_popularity_data(tmp_path) == ({"MIT": 2}, "remote")
 
 
@@ -288,7 +269,7 @@ def test_popularity_source_is_remote_when_poisoned_cache_redownloaded(
     download, and the source says so."""
     local = tmp_path / spdx_source.CACHE_POPULARITY_CSV
     local.write_text("<html>oops</html>")
-    _fake_get(monkeypatch, _CSV + "MIT,4\n")
+    fake_requests_get(monkeypatch, _CSV + "MIT,4\n")
     assert spdx_source.fetch_popularity_data(tmp_path, local) == (
         {"MIT": 4},
         "remote",
@@ -299,7 +280,7 @@ def test_popularity_source_stale_cache(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     (tmp_path / spdx_source.CACHE_POPULARITY_CSV).write_text(_CSV + "MIT,1\n")
-    _fake_get(monkeypatch, error=requests.ConnectionError("down"))
+    fake_requests_get(monkeypatch, error=requests.ConnectionError("down"))
     assert spdx_source.fetch_popularity_data(tmp_path) == (
         {"MIT": 1},
         "stale cache",
@@ -309,7 +290,7 @@ def test_popularity_source_stale_cache(
 def test_popularity_source_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _fake_get(monkeypatch, error=requests.ConnectionError("down"))
+    fake_requests_get(monkeypatch, error=requests.ConnectionError("down"))
     assert spdx_source.fetch_popularity_data(tmp_path) == ({}, "unavailable")
 
 
@@ -317,7 +298,7 @@ def test_popularity_stale_cache_that_parses_to_nothing_is_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     (tmp_path / spdx_source.CACHE_POPULARITY_CSV).write_text("<html>oops</html>")
-    _fake_get(monkeypatch, error=requests.ConnectionError("down"))
+    fake_requests_get(monkeypatch, error=requests.ConnectionError("down"))
     assert spdx_source.fetch_popularity_data(tmp_path) == ({}, "unavailable")
 
 
@@ -327,16 +308,76 @@ def test_popularity_cache_write_is_atomic(
     """The cache is written via a temp file + rename: on success no temp file
     remains, and if the rename fails the existing cache is left untouched."""
     cache = tmp_path / spdx_source.CACHE_POPULARITY_CSV
-    _fake_get(monkeypatch, _CSV + "MIT,1\n")
-    fetch_popularity_data(tmp_path)
+    fake_requests_get(monkeypatch, _CSV + "MIT,1\n")
+    _popularity_map(tmp_path)
     assert cache.read_text() == _CSV + "MIT,1\n"
-    assert not (tmp_path / "popularity.csv.tmp").exists()
+    assert not leftover_tmp_files(tmp_path)
 
     cache.write_text("previous")
     monkeypatch.setattr(os, "replace", mock.Mock(side_effect=OSError("disk full")))
-    fetch_popularity_data(tmp_path)
+    assert _popularity_map(tmp_path) == {"MIT": 1}
     assert cache.read_text() == "previous"
-    assert not (tmp_path / "popularity.csv.tmp").exists()
+    assert not leftover_tmp_files(tmp_path)
+
+
+def test_popularity_cache_cleanup_failure_does_not_abort(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Regression: a failing temp-file cleanup (e.g. PermissionError) inside
+    the error handler must not escape and abort the update."""
+    fake_requests_get(monkeypatch, _CSV + "MIT,1\n")
+    monkeypatch.setattr(os, "replace", mock.Mock(side_effect=OSError("disk full")))
+    monkeypatch.setattr(
+        Path, "unlink", mock.Mock(side_effect=PermissionError("denied"))
+    )
+    assert _popularity_map(tmp_path) == {"MIT": 1}
+    assert "Failed to cache popularity data" in capsys.readouterr().out
+
+
+def test_atomic_path_uses_unique_temp_names(tmp_path: Path) -> None:
+    """Regression: a fixed temp name let concurrent runs share and interleave
+    writes to one temp file."""
+    target = tmp_path / "data.csv"
+    with (
+        spdx_source._atomic_path(target) as first,
+        spdx_source._atomic_path(target) as second,
+    ):
+        assert first != second
+        assert first.parent == second.parent == tmp_path
+        first.write_text("a")
+        second.write_text("b")
+    assert target.read_text() == "a"  # outer block renames last
+    assert not leftover_tmp_files(tmp_path)
+
+
+def _interrupted_chunks() -> Iterator[bytes]:
+    yield b"partial"
+    raise requests.exceptions.ChunkedEncodingError("connection dropped")
+
+
+def test_tarball_interrupted_download_is_not_cached(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a download that dies mid-stream used to leave a partial
+    tarball at the cache path, which every later run then reused."""
+    fake = fake_requests_get(monkeypatch)
+    fake.return_value.iter_content.return_value = _interrupted_chunks()
+    tar_path = tmp_path / spdx_source.CACHE_SPDX_TARBALL_TEMPLATE.format(
+        version="3.28.0"
+    )
+
+    with pytest.raises(RuntimeError):
+        spdx_source.get_tarball_path(tmp_path, "3.28.0", use_cache=True)
+    assert not tar_path.exists()
+    assert not leftover_tmp_files(tmp_path)
+
+    fake.return_value.iter_content.return_value = [b"whole"]
+    path, source = spdx_source.get_tarball_path(tmp_path, "3.28.0", use_cache=True)
+    assert (path, source) == (tar_path, "remote")
+    assert tar_path.read_bytes() == b"whole"
+    assert fake.call_count == 2
 
 
 @pytest.mark.parametrize(
@@ -379,3 +420,86 @@ def test_update_from_remote_reports_actual_popularity_source(
     assert passed_local == (pop_cache if cache_valid and use_cache else None)
     out = capsys.readouterr().out
     assert "GitHub license ranking data  : stale cache" in out
+
+
+# --- non-silent deviations ---
+
+
+def test_popularity_bad_counts_are_reported(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Rows with a missing or non-numeric count still list the license (with
+    0), and the deviation is reported once with the number of rows."""
+    fake_requests_get(
+        monkeypatch, _CSV + "MIT,abc\nISC\nGPL-2.0-only,\nBSD-2-Clause,5\n"
+    )
+    assert _popularity_map(tmp_path) == {
+        "MIT": 0,
+        "ISC": 0,
+        "GPL-2.0-only": 0,
+        "BSD-2-Clause": 5,
+    }
+    assert "3 popularity rows have a missing or non-numeric" in capsys.readouterr().out
+
+
+def test_popularity_clean_data_prints_no_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_requests_get(monkeypatch, _CSV + "MIT,1\n")
+    _popularity_map(tmp_path)
+    assert "Warning" not in capsys.readouterr().out
+
+
+def test_popularity_csv_parse_error_uses_no_partial_data(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A parse error mid-file must not leave a partial map that then gets
+    cached for the full expiry period."""
+    oversized = "MIT," + "9" * 200_000  # beyond csv's default field size limit
+    fake_requests_get(monkeypatch, _CSV + "ISC,1\n" + oversized + "\n")
+    assert _popularity_map(tmp_path) == {}
+    assert not (tmp_path / spdx_source.CACHE_POPULARITY_CSV).exists()
+    assert "Failed to parse popularity data" in capsys.readouterr().out
+
+
+def test_popularity_unusable_data_is_reported_not_silent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    local = tmp_path / spdx_source.CACHE_POPULARITY_CSV
+    local.write_text("<html>oops</html>")
+    fake_requests_get(monkeypatch, "<html>still broken</html>")
+    assert _popularity_map(tmp_path, local) == {}
+    out = capsys.readouterr().out
+    assert "Cached popularity data has no usable rows; downloading" in out
+    assert "Downloaded popularity data has no usable rows; not cached" in out
+
+
+def test_popularity_stale_cache_with_no_rows_is_reported(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / spdx_source.CACHE_POPULARITY_CSV).write_text("<html>oops</html>")
+    fake_requests_get(monkeypatch, error=requests.ConnectionError("down"))
+    assert spdx_source.fetch_popularity_data(tmp_path) == ({}, "unavailable")
+    assert "Stale cached popularity data has no usable rows" in capsys.readouterr().out
+
+
+def test_popularity_stale_cache_not_used_when_disallowed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--no-cache means never fall back to cached data, even a stale copy."""
+    (tmp_path / spdx_source.CACHE_POPULARITY_CSV).write_text(_CSV + "MIT,1\n")
+    fake_requests_get(monkeypatch, error=requests.ConnectionError("down"))
+    assert spdx_source.fetch_popularity_data(tmp_path, allow_stale=False) == (
+        {},
+        "unavailable",
+    )

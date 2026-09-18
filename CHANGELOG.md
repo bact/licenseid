@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- `licenseid update` requests now send a `User-Agent` that identifies
+  licenseid, make a single attempt per source, and reuse a stale cache file
+  (with a warning) when a download fails ([#51])
+- `licenseid update --no-cache` never falls back to cached data, even after a
+  failed download ([#51])
+- Fallbacks are reported: unusable caches or downloads, and popularity rows
+  with a missing or non-numeric count, print a warning ([#51])
+
+### Fixed
+
+- Deeply nested JSON no longer crashes license detection with
+  `RecursionError`, and extensionless INI/TOML text that starts with a section
+  header is now read ([#50])
+- Free text in a `license` field no longer becomes a phantom candidate marked
+  as an SPDX license ([#50])
+- `licenseid update` no longer crashes on a short popularity row, a corrupt
+  cache file, or an unwritable cache directory, and no longer caches
+  unparseable downloads ([#51])
+- Cache files and the SPDX tarball are written atomically, so an interrupted
+  download cannot leave a truncated file that is reused; a corrupt cached
+  tarball is removed and downloaded again ([#51])
+- A cache file dated in the future no longer counts as valid forever ([#51])
+- Building a database from a single license no longer fails with
+  `ZeroDivisionError` ([#51])
+
+### Security
+
+- `--version` and the version in a downloaded `licenses.json` are validated
+  before they are used in a file name or URL, and the downloaded SPDX tarball
+  is extracted with path-traversal checks ([#51])
+
+[#50]: https://github.com/bact/licenseid/pull/50
+[#51]: https://github.com/bact/licenseid/pull/51
+
 ## [0.3.7] - 2026-08-20
 
 ### Fixed

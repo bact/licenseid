@@ -298,13 +298,20 @@ Was the last McCabe-13 function, so the McCabe ceiling dropped 13→12
 then one download, then a stale cache.
 
 - **Tests**: the function had none (`spdx_source.py` coverage was 20%).
-  `tests/test_spdx_source.py` grew from 3 to 32 tests. `requests.get` is
-  replaced by an autospec'd fake, so nothing touches the network. Written
+  `tests/test_spdx_source.py` grew from 3 to 41 tests, and the new
+  `tests/test_spdx_source_cache.py` (39) covers the `licenses.json` cache
+  and `clear_cache`; `tests/test_database.py` gained 2, `tests/test_database_update.py`
+  runs `update_from_remote` and the CLI `update` command end to end on a
+  synthetic release, and checks tarball extraction against each unsafe
+  member kind (with and without the `data` filter), and
+  `tests/test_fingerprint.py` is new. `requests.get` is
+  replaced by an autospec'd fake (`conftest.fake_requests_get`), so
+  nothing touches the network. Written
   against the unrefactored code first; the ones for the bugs below were then
   flipped to regression tests.
 - **Bugs found and fixed**:
   - A row missing `num_pushers` raised an uncaught `TypeError` and crashed
-    `LicenseDatabase.update`; it now counts as 0.
+    `LicenseDatabase.update_from_remote`; it now counts as 0.
   - A cache-write failure (missing or read-only cache directory) aborted the
     update after a successful download; it now warns and keeps the data.
   - The raw response was cached before parsing, so an error page was served
@@ -314,13 +321,48 @@ then one download, then a stale cache.
   - A non-UTF-8 cache file raised `UnicodeDecodeError` instead of falling
     back to a download.
   - The cache was written in place, so an interrupted write left a truncated
-    file that parsed to partial data and looked fresh; it is now written to
-    a temporary file and renamed.
+    file that parsed to partial data and looked fresh. All three caches
+    (popularity CSV, `licenses.json`, SPDX tarball) are now written through
+    `_atomic_path`: a unique temporary file, renamed on success and removed
+    either way. The tarball had the worst version of this: an interrupted
+    download left a partial file that every later run reused.
+  - `get_version_info` had the same defects as the popularity fetch: an
+    uncaught `OSError` on cache write, a crash on a corrupt cache
+    (`UnicodeDecodeError`, or a non-object JSON value), and caching of a
+    response with no `licenseListVersion`. It now follows the same order
+    (valid cache, one download, stale cache, then an explicit version or
+    `RuntimeError`) and reports `cache`, `remote`, `stale cache` or
+    `unavailable`.
+  - A corrupt or truncated cached tarball failed every later run (a
+    truncated gzip raised a bare `EOFError`); `_process_and_store` now
+    deletes it and asks for a re-run, so it is re-downloaded once.
+  - `clear_cache` did not remove temporary files orphaned by a killed run.
+  - A license list version (from `--version` or from a third-party
+    `licenses.json`) went unchecked into a cache file name and a download
+    URL (path traversal, CWE-22); versions are now limited to
+    `[A-Za-z0-9][A-Za-z0-9._-]*`, and an invalid one from the network or the
+    cache counts as an unusable response.
+  - `tar.extractall` ran on a third-party tarball with no path checks
+    (CWE-22); `spdx_source.extract_tarball` uses the `data` extraction
+    filter, or an equivalent manual check on Pythons that lack it.
+  - `is_cache_valid` treated a future-dated file as valid forever (the age
+    was negative); it is now invalid beyond a 5-minute clock-skew allowance.
+  - `compute_idf_fingerprints` divided by zero for a one-license corpus
+    (found by the new end-to-end update test); it now returns no records.
   - `LicenseDatabase.update_from_remote` reported the popularity source from
     the cache-validity check, not from where the data came from.
     `fetch_popularity_data` now returns `(map, source)` with source
     `cache`, `remote`, `stale cache` or `unavailable`, and the report uses
     it.
+- **Predictable, non-silent fallbacks**: every deviation from the normal
+  path prints a warning, and the `Data sources` report says where each input
+  really came from (`cache`, `remote`, `stale cache`, `unavailable`).
+  Rows with a missing or non-numeric `num_pushers` are counted and reported
+  instead of silently becoming 0; a CSV parse error yields no data at all
+  (never a partial map that then gets cached); an unusable cache or an
+  unusable download says so before the next fallback. `--no-cache` now
+  means what it says: it also disables the stale-cache fallback for both
+  the popularity data and `licenses.json`.
 - **Gentle fetching** (all three `requests.get` calls in the module go
   through `_http_get`): an identifying `User-Agent`
   (`licenseid/<version> (+repo URL)`, version read from
