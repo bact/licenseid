@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failed download ([#51])
 - Fallbacks are reported: unusable caches or downloads, and popularity rows
   with a missing or non-numeric count, print a warning ([#51])
+- `licenseid update` and `licenseid --clear-cache` write progress, the data
+  sources report and warnings to standard error; standard output carries only
+  the result line
+- Error and warning messages follow one format,
+  `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`, for example
+  `WARNING: popularity.csv: using stale cache` or
+  `ERROR: database: not found: <path>; run 'licenseid update'`. Scripts that
+  match the old message text need updating
 
 ### Fixed
 

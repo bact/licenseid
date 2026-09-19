@@ -77,6 +77,9 @@ Before matching, you need to build the local license index:
 licenseid update
 ```
 
+Progress and warnings go to standard error; standard output carries only the
+result line.
+
 Advanced update options:
 
 - `--version <version>`: Download a specific SPDX License List version
@@ -211,6 +214,23 @@ making it suitable for use in scripts and CI/CD pipelines.
 | **0** | Success | Confident match found; predicate is TRUE; database updated or already up-to-date. |
 | **1** | Logic Failure | No matching license found; predicate is FALSE; network error. |
 | **2** | Usage Error | Missing subcommand; missing input text/file; invalid parameters. |
+
+Errors and warnings go to standard error, one per line, in a fixed format:
+
+```text
+LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]
+```
+
+For example:
+
+```text
+ERROR: database: not found: /tmp/x.db; run 'licenseid update'
+WARNING: popularity.csv: using stale cache
+```
+
+`LEVEL` is `ERROR` (the command fails) or `WARNING` (it continues).
+`SUBJECT` is the thing affected, such as `database`, `input` or a cache file
+name, so `cut -d: -f1-3` gives the level, subject and condition.
 
 ### 6. License predicates (for CI/CD)
 

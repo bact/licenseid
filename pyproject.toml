@@ -169,7 +169,7 @@ method-rgx = "[a-z_][a-z0-9_]{2,30}$"
 max-args = 5                  # target: 5 (already at target)
 max-attributes = 10
 max-bool-expr = 5
-max-branches = 15             # target: 12
+max-branches = 13             # target: 12
 max-locals = 23               # target: 15
 max-nested-blocks = 5         # target: 5
 max-parents = 7
@@ -181,7 +181,7 @@ max-statements = 50            # target: 50 (already at target)
 
 [tool.pylint.format]
 max-line-length = 88
-max-module-lines = 944 # target: 800 (hard limit); soft limit 400-500; currently matcher.py
+max-module-lines = 942 # target: 800 (hard limit); soft limit 400-500; currently matcher.py
 
 [tool.pytest.ini_options]
 markers = [

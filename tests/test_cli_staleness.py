@@ -6,6 +6,7 @@
 """Tests for cli.check_db_staleness()."""
 # pylint: disable=redefined-outer-name
 
+import re
 import sqlite3
 import uuid
 from collections.abc import Generator
@@ -15,6 +16,11 @@ import pytest
 
 from licenseid.cli import check_db_staleness
 from licenseid.database import LicenseDatabase
+
+# 200 days, or 199/201 when the run straddles midnight or a DST change.
+_STALE_WARNING = re.compile(
+    r"WARNING: database: (199|200|201) days old; run 'licenseid update'\n"
+)
 
 
 def _make_db(last_check_datetime: str) -> Generator[LicenseDatabase, None, None]:
@@ -75,7 +81,7 @@ def test_stale_tz_aware_db_warns(
 ) -> None:
     """A stale tz-aware database triggers a staleness warning."""
     check_db_staleness(stale_tz_aware_db)
-    assert "WARNING" in capsys.readouterr().err
+    assert _STALE_WARNING.fullmatch(capsys.readouterr().err)
 
 
 def test_stale_naive_db_warns_without_crashing(
@@ -84,7 +90,7 @@ def test_stale_naive_db_warns_without_crashing(
     """Regression test: a pre-existing naive-timestamp database must not
     raise TypeError when compared against a tz-aware datetime.now()."""
     check_db_staleness(stale_naive_db)
-    assert "WARNING" in capsys.readouterr().err
+    assert _STALE_WARNING.fullmatch(capsys.readouterr().err)
 
 
 def test_malformed_timestamp_ignored(

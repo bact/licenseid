@@ -7,17 +7,49 @@
 Shared test configuration and fixtures for licenseid.
 """
 
+import builtins
 import os
+import re
 import sqlite3
 import uuid
 from collections.abc import Generator
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 import pytest
 import requests
 
+from licenseid import console
 from licenseid.database import LicenseDatabase
+
+# LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION] -- see AGENTS.md "CLI output".
+# The subject is a lowercase word or file name; the condition starts
+# lowercase or with a digit. DETAIL may be third-party text, so the end of
+# the line is not constrained here.
+DIAGNOSTIC_RE = re.compile(r"(ERROR|WARNING): [a-z][a-z0-9._-]*: [a-z0-9].*")
+
+
+@pytest.fixture(autouse=True)
+def check_diagnostic_grammar(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[None, None, None]:
+    """Fail any test whose run prints an ERROR/WARNING line that breaks the
+    message grammar. Violations are collected and reported at teardown, so
+    a broad ``except Exception`` in the code under test cannot hide them."""
+    violations: list[str] = []
+
+    def checked_print(*args: Any, **kwargs: Any) -> None:
+        text = " ".join(str(arg) for arg in args)
+        if text.startswith(("ERROR:", "WARNING:")) and not DIAGNOSTIC_RE.fullmatch(
+            text
+        ):
+            violations.append(text)
+        builtins.print(*args, **kwargs)
+
+    monkeypatch.setattr(console, "print", checked_print, raising=False)
+    yield
+    assert not violations, f"diagnostics break the message grammar: {violations}"
 
 
 def make_memory_db_path(name_prefix: str) -> tuple[str, sqlite3.Connection]:
@@ -43,6 +75,19 @@ def make_memory_db_path(name_prefix: str) -> tuple[str, sqlite3.Connection]:
     keep_alive = sqlite3.connect(db_path, uri=True)
     LicenseDatabase(db_path)
     return db_path, keep_alive
+
+
+def assert_cached_tarball_removed(db: LicenseDatabase, tar_path: Path) -> None:
+    """Building from an unusable cached tarball (corrupt, truncated or
+    unsafe) fails with the grammar message and deletes the file."""
+    with pytest.raises(
+        RuntimeError,
+        match=rf"^{re.escape(tar_path.name)}: cache unusable: .*; removed, run",
+    ):
+        db._process_and_store(  # pylint: disable=protected-access
+            tar_path, {}, None
+        )
+    assert not tar_path.exists()
 
 
 def leftover_tmp_files(directory: Path) -> list[Path]:

@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 import click
 
+from licenseid.console import error, warn
 from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
@@ -61,11 +62,7 @@ def check_db_staleness(database: LicenseDatabase) -> None:
                 last_check_dt = last_check_dt.replace(tzinfo=timezone.utc)
             days_old = (datetime.now(timezone.utc) - last_check_dt).days
             if days_old > 182:  # Approx 6 months
-                click.echo(
-                    f"WARNING: License database is {days_old} days old. "
-                    "Run 'licenseid update' to get the latest license list.",
-                    err=True,
-                )
+                warn(f"database: {days_old} days old; run 'licenseid update'")
         except ValueError:
             pass
 
@@ -120,7 +117,7 @@ def update(
             current_version = metadata.get("license_list_version", "unknown")
             click.echo(f"Database remains at version {current_version} at {db_path}")
     except Exception as e:
-        click.echo(f"ERROR: {e}", err=True)
+        error(str(e))
         ctx.exit(1)
 
 
@@ -135,6 +132,19 @@ def unescape_text(text: str) -> str:
 def is_sqlite_uri(path: str) -> bool:
     """Check if a path is a SQLite URI or in-memory database."""
     return path.startswith("file:") or ":memory:" in path
+
+
+def exit_if_db_missing(ctx: click.Context, db_path: str) -> None:
+    """Exit with a usage error (2) if the database file does not exist."""
+    if not os.path.exists(db_path) and not is_sqlite_uri(db_path):
+        error(f"database: not found: {db_path}; run 'licenseid update'")
+        ctx.exit(2)
+
+
+def exit_no_input(ctx: click.Context) -> None:
+    """Exit with a usage error (2) because no input was given."""
+    error("input: missing; pass a file, an ID, --text, --id or stdin")
+    ctx.exit(2)
 
 
 def get_input_content(input_val: str | None, text: str | None) -> tuple[str, bool]:
@@ -162,13 +172,7 @@ def resolve_license_record(
 ) -> LicenseDetails | None:
     """Helper to resolve a license from CLI arguments (implements Smart Logic)."""
     db_path = ctx.obj["db_path"]
-    if not os.path.exists(db_path) and not is_sqlite_uri(db_path):
-        click.echo(
-            f"ERROR: Database not found at {db_path}. "
-            "Please run 'licenseid update' first.",
-            err=True,
-        )
-        ctx.exit(2)
+    exit_if_db_missing(ctx, db_path)
 
     matcher = AggregatedLicenseMatcher(db_path)
     check_db_staleness(matcher.db)
@@ -180,12 +184,7 @@ def resolve_license_record(
     # 2. Handle stdin/arguments
     content, is_text = get_input_content(input_val, text)
     if not content:
-        click.echo(
-            "ERROR: No input provided. Provide a file, ID, "
-            "--text, --id, or pipe to stdin.",
-            err=True,
-        )
-        ctx.exit(2)
+        exit_no_input(ctx)
 
     # 3. Smart Resolution (ID -> Text)
     if not is_text:
@@ -242,13 +241,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     """Identify license text and return the closest matched SPDX License ID."""
     db_path = ctx.obj["db_path"]
 
-    if not os.path.exists(db_path) and not is_sqlite_uri(db_path):
-        click.echo(
-            f"ERROR: Database not found at {db_path}. "
-            "Please run 'licenseid update' first.",
-            err=True,
-        )
-        ctx.exit(2)
+    exit_if_db_missing(ctx, db_path)
 
     matcher = AggregatedLicenseMatcher(
         db_path, enable_java=enable_java, enable_popularity=enable_popularity
@@ -261,12 +254,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     else:
         content, is_text = get_input_content(input_val, text)
         if not content:
-            click.echo(
-                "ERROR: No input provided. Provide a file, ID, "
-                "--text, --id, or pipe to stdin.",
-                err=True,
-            )
-            ctx.exit(2)
+            exit_no_input(ctx)
 
         license_text = content
         if not is_text:
@@ -282,17 +270,13 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     # Filter by threshold and limit to top N
     results = [r for r in results if r["score"] >= threshold][:top]
 
-    if bold:
-        if results:
-            click.echo(results[0]["license_id"])
-            ctx.exit(0)
-        else:
-            click.echo("ERROR: No matching license found.", err=True)
-            ctx.exit(1)
-
     if not results:
-        click.echo("ERROR: No matching license found.", err=True)
+        error("match: no license found")
         ctx.exit(1)
+
+    if bold:
+        click.echo(results[0]["license_id"])
+        ctx.exit(0)
 
     if json_output:
         click.echo(json.dumps(results, indent=2))

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-09-18
+Last-Modified: 2026-09-19
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -33,8 +33,12 @@ Every function returns where its data came from: `cache`, `remote`,
 - **Fallback order**: valid cache, then one download, then (only with
   caching allowed) a stale cache, then an explicit `--version` or an error.
   `--no-cache` never reads cached data, not even as a fallback.
-- **Non-silent**: every deviation prints a `Warning:` line (unusable cache,
-  unusable download, stale data, bad counts). Do not add a silent fallback.
+- **Non-silent**: every deviation prints one `WARNING:` line to standard
+  error through `console.warn()` (unusable cache, unusable download, stale
+  data, bad counts), in the `LEVEL: SUBJECT: CONDITION` grammar from
+  `AGENTS.md`, with the cache file name as the subject (for example
+  `WARNING: popularity.csv: using stale cache`). Progress goes to standard
+  error through `console.status()`. Do not add a silent fallback.
 - **Gentle**: identifying `User-Agent` (`user_agent()`), explicit timeouts,
   one attempt per source per run, no retry or backoff loop. Not added, on
   purpose: ETag / `If-Modified-Since`, a rate limiter (the expiry already
@@ -110,5 +114,4 @@ when changing a parser; never modify or clear the real cache for it.
 - `licenseId` values in the tarball's JSON are used to build
   `text/<id>.txt` paths without validation.
 - Timeouts are per read, not total, so a slow-drip download can run long.
-- `Warning:` lines go to stdout, like the rest of `update`'s progress output.
 - `DEFAULT_FALLBACK_VERSION` in `spdx_source.py` is unused.

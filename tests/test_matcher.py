@@ -9,6 +9,7 @@
 
 import os
 import sqlite3
+import sys
 from collections.abc import Generator
 from typing import NamedTuple
 
@@ -228,3 +229,15 @@ def test_version_suffix_tiebreaker(test_db: str, case: _TiebreakCase) -> None:
     else:
         assert result[0]["score"] == case.only_score
         assert result[1]["score"] == case.or_later_score
+
+
+def test_java_without_jpype_raises_short_import_error(
+    test_db: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(sys.modules, "jpype", None)  # makes `import jpype` fail
+    matcher = AggregatedLicenseMatcher(test_db)
+    with pytest.raises(
+        ImportError,
+        match=r"^java: JPype1 not installed; run 'pip install licenseid\[java\]'$",
+    ):
+        matcher._ensure_jvm()

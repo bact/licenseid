@@ -29,7 +29,28 @@ Unix philosophy. Consistent, predictable, parseable.
 - Default: line-delimited, one data point per line.
 - Field separator: space or tab (consistent).
 - Key-value: `KEY=VALUE` — uppercase KEY, no spaces around `=`.
-- Errors: `ERROR: <short description>` to stderr.
+- Standard output carries only a command's result. Progress, warnings and
+  errors go to standard error through `licenseid.console` (`status`, `warn`,
+  `error`); never `print` or `click.echo` them directly.
+- Errors and warnings follow one grammar, one event per line:
+  `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`.
+  - `LEVEL`: `ERROR` (the command fails, non-zero exit) or `WARNING` (a
+    fallback lets it continue).
+  - `SUBJECT`: the thing affected, a lowercase word or cache file name:
+    `database`, `input`, `match`, `version`, `java`, `licenses.json`,
+    `popularity.csv`, `spdx-data-v<ver>.tar.gz`.
+  - `CONDITION`: short lowercase fragment, reused across subjects:
+    `not found`, `invalid`, `missing`, `download failed`,
+    `cache read failed`, `cache write failed`, `cache unusable`,
+    `download unusable`, `stale cache unusable`, `using stale cache`,
+    `parse failed`, `update failed`.
+  - `DETAIL`: the variable part (exception text, value, path).
+  - `ACTION`: imperative fragment after a semicolon, e.g.
+    `run 'licenseid update'`.
+  - No trailing period, no "Please", no full sentences. A raised exception
+    carries `SUBJECT: CONDITION…`; the CLI adds `ERROR:`.
+  - `tests/conftest.py::check_diagnostic_grammar` fails any test that
+    prints a line breaking this grammar.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
 - JSON output supported as options.
 
@@ -94,8 +115,8 @@ ruff format
 - Complexity targets (pylint's own built-in defaults, checked clean outside this repo's config): Args≤5, Locals≤15, Nesting≤5, Branches≤12, Returns≤6, Statements≤50, McCabe≤10, Cognitive≤15.
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
-  `max-branches=15`, `max-locals=23`, McCabe=12, Cognitive=29, module
-  lines=944) — see
+  `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
+  lines=942) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't
