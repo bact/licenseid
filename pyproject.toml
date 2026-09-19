@@ -13,13 +13,16 @@ authors = [{ name = "Arthit Suriyawongkul", email = "suriyawa@tcd.ie" }]
 keywords = [
     "license",
     "matcher",
-    "spdx",
     "license-matcher",
-    "opensource",
-    "licenseid",
-    "copyright",
-    "license-identifier",
     "spdx-license-id",
+    "license-identifier",
+    "license-identification",
+    "licenseid",
+    "spdx-id",
+    "spdx",
+    "opensource",
+    "copyright",
+    "transparency",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

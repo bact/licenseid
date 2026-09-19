@@ -36,6 +36,7 @@
     "license classification",
     "SBOM",
     "SPDX",
+    "SPDX ID",
     "software component transparency"
   ],
   "license": "https://spdx.org/licenses/Apache-2.0",
