@@ -48,3 +48,4 @@ jobs:
         with:
           message: "Update CITATION.cff from codemeta.json"
           add: "CITATION.cff"
+          commit: "--signoff"
