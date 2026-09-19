@@ -691,7 +691,6 @@ class AggregatedLicenseMatcher:
         except ImportError:
             return ranked
 
-        print("  DEBUG: Consulting Java...")
         self._ensure_jvm()
         j_thread = jpype.JClass("java.lang.Thread")
         j_thread.attachAsDaemon()

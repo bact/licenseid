@@ -31,12 +31,12 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install . --group typecheck
+          pip install ".[java]" --group typecheck --group test
 
+      # Files and strictness come from [tool.mypy] in pyproject.toml.
       - name: Run mypy
         run: |
-          mypy src/licenseid --ignore-missing-imports --no-strict-optional
-        continue-on-error: true
+          mypy
 
 #   pyright:
 #     name: pyright

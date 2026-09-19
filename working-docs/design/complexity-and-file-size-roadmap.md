@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-18
+Last-Modified: 2026-09-19
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -20,7 +20,10 @@ currently enforced in `pyproject.toml` (`[tool.pylint.design]`,
 `[tool.pylint.format]`) and `.flake8` are **interim ratchets** set to the
 *exact* current repo max (not a buffer above it) where that max exceeds
 target, so CI passes today but any regression — even one point over the
-current worst offender — trips it immediately. This doc is the backlog
+current worst offender — trips it immediately. Until 2026-09-19 that was
+only true for the pylint ceilings, and only on `src/`: CI ran neither
+`flake8` (McCabe, Cognitive) nor `pylint tests/`. `lint.yml` now runs
+`pylint src/ tests/` and `flake8 src/ tests/`. This doc is the backlog
 that has to shrink before each ceiling can be tightened toward its
 target.
 
@@ -326,7 +329,8 @@ claims YAML support (there is none).
 
 ### 1. `database.py` — split by responsibility (Priority 9)
 
-921 lines. Schema/connection management, license-record preparation,
+934 lines (re-measured 2026-09-19), over the 800-line hard limit.
+Schema/connection management, license-record preparation,
 and query methods are still all in one file. Not a complexity offender
 (no individual function stands out) — purely a file-size and
 module-lines-ratchet problem.

@@ -28,10 +28,10 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
-      - name: Install Ruff
+      - name: Install linters
         run: |
           pip install --upgrade pip
-          pip install ".[java]" --group lint
+          pip install ".[java]" --group lint --group test
 
       - name: Ruff linter
         run: |
@@ -39,7 +39,11 @@ jobs:
 
       - name: Pylint
         run: |
-          pylint src/
+          pylint src/ tests/
+
+      - name: Flake8 (includes McCabe and cognitive complexity ceilings)
+        run: |
+          flake8 src/ tests/
 
       - name: Ruff formatter check
         run: |
