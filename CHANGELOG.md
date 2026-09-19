@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A cache file dated in the future no longer counts as valid forever ([#51])
 - Building a database from a single license no longer fails with
   `ZeroDivisionError` ([#51])
+- `licenseid match --java` no longer prints a debug line to standard output,
+  which corrupted JSON and other parseable output
 
 ### Security
 
@@ -57,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Free-text bare deprecated license IDs (`GPL-2.0` -> `GPL-2.0-only`) ([#34])
 
-[#34]: https://github.com/bact/licenseid/pull/37
+[#34]: https://github.com/bact/licenseid/pull/34
 
 ## [0.3.5] - 2026-08-18
 
@@ -174,8 +176,7 @@ materials (SBOM) embedded in the wheel.
 
 - `Apache-2.0` vs `Pixar` matching confusion: `Pixar` is essentially
   `Apache-2.0` with a modified section 6, and license text for one is
-  sometimes misidentified as the other. Tracked in
-  [`working-docs/design/new-matcher.md`](working-docs/design/new-matcher.md).
+  sometimes misidentified as the other.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
