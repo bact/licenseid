@@ -7,8 +7,6 @@
 Aggregated license matching logic using hybrid search.
 """
 
-import os
-import shutil
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -79,24 +77,21 @@ class _MatchContext:
 
 class AggregatedLicenseMatcher:
     """
-    Main matcher class that implements Tier 1 (FTS5), Tier 2 (RapidFuzz),
-    and Tier 3 (Java) matching.
+    Main matcher class that implements Tier 1 (FTS5) and Tier 2 (RapidFuzz)
+    matching.
     """
 
     def __init__(
         self,
         db_path: str | None = None,
-        enable_java: bool = False,
+        *,
         enable_popularity: bool = False,
     ):
         if not db_path:
             db_path = get_default_db_path()
         self.db = LicenseDatabase(db_path)
         self.detector = MarkerDetector(self.db)
-        self.enable_java = enable_java
         self.enable_popularity = enable_popularity
-        self.jar_path = os.getenv("SPDX_TOOLS_JAR")
-        self.has_java = shutil.which("java") is not None
 
     def _try_explicit_id_match(self, license_id: str) -> list[LicenseMatch]:
         """Phase 1: resolve an explicit license_id argument to a match."""
@@ -174,9 +169,7 @@ class AggregatedLicenseMatcher:
         }
         return marker_candidates, marker_boosts, None
 
-    def _try_tier0_short_text(
-        self, ctx: _MatchContext, marker_boosts: dict[str, float]
-    ) -> list[LicenseMatch] | None:
+    def _try_tier0_short_text(self, ctx: _MatchContext) -> list[LicenseMatch] | None:
         """Tier 0: Short-Text Shortcut (Names/IDs).
 
         Threshold: inputs under 30 words (~200 chars) are likely bare IDs
@@ -212,12 +205,6 @@ class AggregatedLicenseMatcher:
 
         short_matches = self._match_short_text(ctx.norm_input)
         if short_matches and short_matches[0]["score"] > 1.0:
-            # Apply marker boosts to break ties among equal-scored candidates
-            if marker_boosts:
-                for sm in short_matches:
-                    marker_conf = marker_boosts.get(sm["license_id"], 0.0)
-                    sm["score"] += marker_conf * 0.01
-                short_matches.sort(key=lambda x: (-x["score"], x["license_id"]))
             return short_matches
 
         return None
@@ -292,7 +279,7 @@ class AggregatedLicenseMatcher:
 
         # Tier 0: Short-Text Shortcut — bare IDs/names below the word
         # threshold are resolved without entering the FTS5 pipeline.
-        short_text_result = self._try_tier0_short_text(ctx, marker_boosts)
+        short_text_result = self._try_tier0_short_text(ctx)
         if short_text_result is not None:
             return short_text_result
 
@@ -309,20 +296,6 @@ class AggregatedLicenseMatcher:
                 self.enable_popularity,
             ),
         )
-
-        # Tier 3: Optional Java Consultant
-        enable_java = ctx.request.get("enable_java", self.enable_java)
-        if (
-            enable_java
-            and self.has_java
-            and self.jar_path
-            and os.path.exists(self.jar_path)
-            and ranked
-        ):
-            return cast(
-                list[LicenseMatch],
-                self._consult_java(ctx.target_text, ranked),
-            )
 
         return cast(list[LicenseMatch], ranked)
 
@@ -666,62 +639,6 @@ class AggregatedLicenseMatcher:
         ranked.sort(key=sort_key)
         return ranked
 
-    def _ensure_jvm(self) -> None:
-        """Ensure the JVM is started with the tools-java JAR."""
-        try:
-            import jpype  # pylint: disable=import-outside-toplevel
-        except ImportError as exc:
-            raise ImportError(
-                "java: JPype1 not installed; run 'pip install licenseid[java]'"
-            ) from exc
-
-        if not jpype.isJVMStarted():
-            classpath = [self.jar_path] if self.jar_path is not None else None
-            jpype.startJVM(classpath=classpath, convertStrings=False)
-            model_factory = jpype.JClass("org.spdx.library.SpdxModelFactory")
-            model_factory.init()
-
-    def _consult_java(
-        self, text: str, ranked: list[InternalMatch]
-    ) -> list[InternalMatch]:
-        """Consult the tools-java MatchingStandardLicenses logic via JPype."""
-        try:
-            import jpype  # pylint: disable=import-outside-toplevel
-        except ImportError:
-            return ranked
-
-        self._ensure_jvm()
-        j_thread = jpype.JClass("java.lang.Thread")
-        j_thread.attachAsDaemon()
-        try:
-            compare_helper = jpype.JClass(
-                "org.spdx.utility.compare.LicenseCompareHelper"
-            )
-            java_matches_list = compare_helper.matchingStandardLicenseIdsWithinText(
-                text
-            )
-            java_matches = {str(m) for m in java_matches_list}
-
-            for r in ranked:
-                if r["license_id"] in java_matches:
-                    r["score"] = 1.0
-                    r["java_verified"] = True
-        except Exception:  # pylint: disable=broad-exception-caught
-            pass
-        finally:
-            j_thread.detach()
-
-        def sort_key(x: InternalMatch) -> tuple[float, bool, float, str]:
-            return (
-                -x["score"],
-                x.get("is_deprecated", False),
-                -x.get("pop_score", 0) if self.enable_popularity else 0.0,
-                x["license_id"],
-            )
-
-        ranked.sort(key=sort_key)
-        return ranked
-
     def _apply_version_suffix_tiebreaker(
         self,
         ranked: list[InternalMatch],
@@ -799,25 +716,19 @@ class AggregatedLicenseMatcher:
         self, exact: list[CandidateMatch]
     ) -> list[LicenseMatch]:
         """Convert SPDX-exact marker candidates to LicenseMatch results."""
-        seen: set[str] = set()
-        results: list[LicenseMatch] = []
-        for c in exact:
-            lid = c["license_id"]
-            if lid in seen:
-                continue
-            seen.add(lid)
-            results.append(
-                LicenseMatch(
-                    license_id=lid,
-                    score=1.0,
-                    similarity=1.0,
-                    coverage=1.0,
-                    is_spdx=c.get("is_spdx", False),
-                    is_osi_approved=c.get("is_osi_approved", False),
-                    is_fsf_libre=c.get("is_fsf_libre", False),
-                )
+        # MarkerDetector.detect() already returns one candidate per license_id.
+        return [
+            LicenseMatch(
+                license_id=c["license_id"],
+                score=1.0,
+                similarity=1.0,
+                coverage=1.0,
+                is_spdx=c.get("is_spdx", False),
+                is_osi_approved=c.get("is_osi_approved", False),
+                is_fsf_libre=c.get("is_fsf_libre", False),
             )
-        return results
+            for c in exact
+        ]
 
     def _match_short_text(self, norm_input: str) -> list[LicenseMatch]:
         """Fallback logic for very short inputs."""

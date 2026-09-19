@@ -31,7 +31,7 @@ jobs:
       - name: Install linters
         run: |
           pip install --upgrade pip
-          pip install ".[java]" --group lint --group test
+          pip install . --group lint --group test
 
       - name: Ruff linter
         run: |

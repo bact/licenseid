@@ -40,11 +40,11 @@ pylint's actual defaults are 12 and 50.
 | Locals | ≤15 | 23 | 23 (`database.py`) |
 | Nesting | ≤5 | 5 (no ratchet needed) | 5 |
 | Branches | ≤12 | 13 | 13 (2 functions, see note) |
-| Returns | ≤6 | 6 (at target) | 6 (`matcher.match`) |
+| Returns | ≤6 | 6 (at target) | 6 (`tests/test_option_matrix.py`) |
 | Statements | ≤50 | 50 (at target) | 35 (`markers._detect_gpl_headers`) |
 | McCabe | ≤10 | 12 | 12 (2 functions, see note) |
 | Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
-| Module lines | soft 400-500 / hard 800 | 942 | 942 (`matcher.py`) |
+| Module lines | soft 400-500 / hard 800 | 935 | 935 (`database.py`) |
 
 Measured 2026-08-19 via `pylint --disable=all --enable=too-many-<x>
 --max-<x>=1`, `flake8 --max-complexity 1` and
@@ -72,7 +72,8 @@ ceiling dropped 15→13. Branches holders:
 `identifiers._normalize_expression`. McCabe holders:
 `matcher._apply_version_suffix_tiebreaker` and
 `database._prepare_license_and_exception_records`. Module lines 944→942
-(`matcher.py`, shorter JPype message).
+(`matcher.py`, shorter JPype message). Then 942→935 when the Java tier
+was removed (2026-09-19); `database.py` now holds it.
 
 ## Backlog, priority order
 
@@ -350,8 +351,8 @@ module-lines-ratchet problem.
   runtime query methods) into two modules re-exported from
   `database.py`, or a `database/` subpackage per the file-size rule's
   "3+ related files → group in a same-named subfolder" convention.
-  `matcher.py` (942 lines, see "Done" above) is now a candidate for the
-  same treatment once its own complexity work has settled.
+  `matcher.py` (852 lines after the Java tier was removed) is now a
+  candidate for the same treatment once its own complexity work has settled.
 - Impact 2, Risk 1, Effort 3.
 
 ## Out of scope for now

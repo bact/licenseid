@@ -9,80 +9,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `licenseid.LicenseIdError`, a `RuntimeError` subclass for failures that
-  licenseid reports in its own message format, such as an invalid version, a
-  failed download or binary input, and its subclass
-  `licenseid.InvalidInputError` for invalid options or input
+- `licenseid.LicenseIdError` (a `RuntimeError`) for failures reported in
+  licenseid's own message format, and its subclass `licenseid.InvalidInputError`
+  for invalid options or input ([#53])
+- `tools/cli_matrix`, a manual test harness that runs the real CLI across
+  shells, locales, standard streams and environments; not run in CI ([#54])
 
 ### Changed
 
-- `licenseid update` requests now send a `User-Agent` that identifies
-  licenseid, make a single attempt per source, and reuse a stale cache file
-  (with a warning) when a download fails ([#51])
-- `licenseid update --no-cache` never falls back to cached data, even after a
-  failed download ([#51])
-- Fallbacks are reported: unusable caches or downloads, and popularity rows
-  with a missing or non-numeric count, print a warning ([#51])
-- `licenseid update` and `licenseid --clear-cache` write progress, the data
-  sources report and warnings to standard error; standard output carries only
-  the result line
-- Error and warning messages follow one format,
+- `licenseid update` sends a `User-Agent` that identifies licenseid, makes one
+  attempt per source, and reuses a stale cache file (with a warning) when a
+  download fails; `--no-cache` never falls back to cached data ([#51])
+- Fallbacks are reported: unusable caches or downloads and popularity rows
+  with a missing or non-numeric count print a warning ([#51])
+- `licenseid update` and `--clear-cache` write progress, the data sources
+  report and warnings to standard error; standard output carries only the
+  result line ([#53])
+- Errors and warnings use one format,
   `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`, for example
-  `WARNING: popularity.csv: download failed: <error>; using stale cache` or
   `ERROR: database: not found: <path>; run 'licenseid update'`. Scripts that
-  match the old message text need updating
-- Every error and warning starts on its own line, even when it interrupts a
-  progress line, and an unexpected failure during `licenseid update` (for
-  example malformed or deeply nested release data, or a database path whose
-  directory does not exist) is reported as
-  `ERROR: database: update failed: <type>: <detail>` instead of a traceback or
-  bare exception text
+  match the old text need updating ([#53])
+- Each error or warning starts on its own line, and an unexpected failure in
+  `licenseid update` is reported as
+  `ERROR: database: update failed: <type>: <detail>`
+  instead of a traceback ([#53])
+
+### Removed
+
+- **Breaking:** the optional Java validation tier: `match --java/--no-java`,
+  the `licenseid[java]` extra, `SPDX_TOOLS_JAR`, `enable_java` and the
+  `java_verified` result field. It was off by default and untested in CI, so
+  match results are unchanged. To migrate, drop them.
+  `AggregatedLicenseMatcher(db, enable_java=True)` raises `TypeError`, but
+  `match(enable_java=True)` is silently ignored ([#54])
+- **Breaking:** `AggregatedLicenseMatcher(enable_popularity=...)` is now
+  keyword-only; it took the positional slot of `enable_java`, so a positional
+  `True` would have silently enabled popularity ranking ([#54])
 
 ### Fixed
 
-- `licenseid match` and the `is-*` commands no longer crash on an input file
-  or piped input that is not UTF-8: text is read as Latin-1 with a warning,
-  binary data (any NUL byte, which includes UTF-16 text) is rejected with
-  `ERROR: input: binary file: <path>`, an empty file gives
-  `ERROR: input: empty: <path>`, and a path that cannot be read (such as a
-  directory) gives `ERROR: input: unreadable: <path>: <reason>`; all exit 2.
-  A UTF-8 byte order mark is dropped before matching
-- `licenseid update --version` with an invalid version exits 2 (usage error),
-  as the exit code table documents, instead of 1; an empty `--version ""` is
-  invalid too, instead of silently meaning the latest version
-- An input given with no text (`--text ""`, `--id " "`, a blank argument or
-  whitespace-only piped input) exits 2 with `ERROR: input: empty: <input>`,
-  instead of being skipped for the next input or reported as no match
-- `--text` keeps non-ASCII characters (such as `©` or `ö`) instead of
-  garbling them; only backslash escapes such as `\n` are decoded, and an
-  invalid escape is kept as typed instead of crashing. The decoded text is
-  treated like file input: line ends become LF, and a NUL (`\0`) exits 2
-  with `ERROR: input: binary file: --text`
 - Deeply nested JSON no longer crashes license detection with
   `RecursionError`, and extensionless INI/TOML text that starts with a section
-  header is now read ([#50])
+  header is read ([#50])
 - Free text in a `license` field no longer becomes a phantom candidate marked
   as an SPDX license ([#50])
 - `licenseid update` no longer crashes on a short popularity row, a corrupt
-  cache file, or an unwritable cache directory, and no longer caches
+  cache file or an unwritable cache directory, and no longer caches
   unparseable downloads ([#51])
 - Cache files and the SPDX tarball are written atomically, so an interrupted
   download cannot leave a truncated file that is reused; a corrupt cached
   tarball is removed and downloaded again ([#51])
-- A cache file dated in the future no longer counts as valid forever ([#51])
-- Building a database from a single license no longer fails with
+- A cache file dated in the future no longer counts as valid forever, and
+  building a database from a single license no longer fails with
   `ZeroDivisionError` ([#51])
-- `licenseid match --java` no longer prints a debug line to standard output,
-  which corrupted JSON and other parseable output
+- `match` and the `is-*` commands no longer crash on input that is not UTF-8:
+  it is read as Latin-1 with a warning; binary data (any NUL byte, including
+  UTF-16) exits 2 with `ERROR: input: binary file: <path>`; an empty or
+  unreadable file (such as a directory) exits 2 with `input: empty` or
+  `input: unreadable`. A UTF-8 byte order mark is dropped ([#53])
+- An input with no text (`--text ""`, `--id " "`, a blank argument or blank
+  piped input) exits 2 with `ERROR: input: empty: <input>` instead of being
+  skipped or reported as no match ([#53])
+- `--text` keeps non-ASCII characters and decodes only backslash escapes such
+  as `\n`; an invalid escape is kept as typed. A NUL exits 2 as binary input
+  ([#53])
+- `update --version` with an invalid or empty version exits 2 (usage error)
+  instead of 1 or meaning the latest version ([#53])
 
 ### Security
 
 - `--version` and the version in a downloaded `licenses.json` are validated
-  before they are used in a file name or URL, and the downloaded SPDX tarball
-  is extracted with path-traversal checks ([#51])
+  before use in a file name or URL, and the SPDX tarball is extracted with
+  path-traversal checks ([#51])
 
 [#50]: https://github.com/bact/licenseid/pull/50
 [#51]: https://github.com/bact/licenseid/pull/51
+[#53]: https://github.com/bact/licenseid/pull/53
+[#54]: https://github.com/bact/licenseid/pull/54
 
 ## [0.3.7] - 2026-08-20
 

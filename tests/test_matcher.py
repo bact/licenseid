@@ -7,9 +7,7 @@
 # pylint: disable=redefined-outer-name,duplicate-code,missing-function-docstring
 # pylint: disable=protected-access
 
-import os
 import sqlite3
-import sys
 from collections.abc import Generator
 from typing import NamedTuple
 
@@ -62,16 +60,6 @@ def test_db() -> Generator[str, None, None]:
     keep_alive.close()
 
 
-@pytest.mark.skipif(
-    os.getenv("SPDX_TOOLS_JAR") is None, reason="SPDX_TOOLS_JAR not set"
-)
-def test_matcher_detects_bundled_jar(test_db: str) -> None:
-    jar_path = os.getenv("SPDX_TOOLS_JAR")
-    matcher = AggregatedLicenseMatcher(test_db)
-    assert matcher.jar_path == jar_path
-    assert matcher.has_java is True
-
-
 def test_hybrid_search_flow(test_db: str) -> None:
     matcher = AggregatedLicenseMatcher(test_db)
     input_text = (
@@ -82,13 +70,6 @@ def test_hybrid_search_flow(test_db: str) -> None:
     results = matcher.match(text=input_text)
     assert len(results) > 0
     assert results[0]["license_id"] == "MIT"
-
-    if matcher.has_java and matcher.jar_path:
-        matcher_with_java = AggregatedLicenseMatcher(test_db, enable_java=True)
-        results_with_java = matcher_with_java.match(text=input_text)
-        assert len(results_with_java) > 0
-        if results_with_java[0].get("java_verified"):
-            assert results_with_java[0]["score"] == 1.0
 
 
 def test_short_text_rejection(test_db: str) -> None:
@@ -229,15 +210,3 @@ def test_version_suffix_tiebreaker(test_db: str, case: _TiebreakCase) -> None:
     else:
         assert result[0]["score"] == case.only_score
         assert result[1]["score"] == case.or_later_score
-
-
-def test_java_without_jpype_raises_short_import_error(
-    test_db: str, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setitem(sys.modules, "jpype", None)  # makes `import jpype` fail
-    matcher = AggregatedLicenseMatcher(test_db)
-    with pytest.raises(
-        ImportError,
-        match=r"^java: JPype1 not installed; run 'pip install licenseid\[java\]'$",
-    ):
-        matcher._ensure_jvm()

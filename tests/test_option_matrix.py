@@ -115,7 +115,9 @@ def test_match_matrix(
 
 
 def _assert_match_stdout(stdout: str, output: tuple[str, ...]) -> None:
-    """--bold wins over --json and --diff; --json ignores --diff."""
+    """Current behaviour, not a documented contract (roadmap: conflicting
+    options are resolved silently): --bold wins over --json and --diff, and
+    --json ignores --diff."""
     if "--bold" in output:
         assert stdout == "MIT\n"
     elif "--json" in output:

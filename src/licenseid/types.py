@@ -53,7 +53,6 @@ class InternalMatch(TypedDict, total=False):
     is_deprecated: bool
     superseded_by: str
     best_window: Required[str]
-    java_verified: bool
 
 
 class MatchRequest(TypedDict, total=False):
@@ -66,7 +65,6 @@ class MatchRequest(TypedDict, total=False):
     only_common: bool
     exclude: list[str]
     hint: list[str]
-    enable_java: bool
     enable_popularity: bool
 
 

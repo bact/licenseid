@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install ".[java]" --group typecheck --group test
+          pip install . --group typecheck --group test
 
       # Files and strictness come from [tool.mypy] in pyproject.toml.
       - name: Run mypy

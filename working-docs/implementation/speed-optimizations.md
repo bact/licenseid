@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-08
-Last-Modified: 2026-08-19
+Last-Modified: 2026-09-19
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -28,7 +28,7 @@ targeted goal is sub-100 ms per query for full-text (type-4) inputs.
 
 ## Background — current bottlenecks
 
-The pipeline processes each query through four layers:
+The pipeline processes each query through three layers:
 
 1. **Tier 0 / 0.5** — short-text shortcut and marker detection. Fast
    (Python regex, no DB). Bottleneck: unconditional `normalize_text()`
@@ -43,8 +43,6 @@ The pipeline processes each query through four layers:
    50–75 candidates, calls `fuzz.token_sort_ratio` or
    `fuzz.partial_ratio` with long Python strings in a Python `for` loop.
    This is the primary wall-time bottleneck for long inputs (≥ 500 words).
-
-4. **Tier 3 — Java validation** (optional, not addressed here).
 
 The three optimisations below target bottlenecks in this order of expected
 impact: Tier 2 first (discriminative fingerprints + RapidFuzz
