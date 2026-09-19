@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-18
+Last-Modified: 2026-09-19
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,11 +13,12 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-09-18)
+## Current state (as of 2026-09-19)
 
 - **Pipeline**: Tier 0 (short-text ID/name shortcut) → Tier 0.5 (marker
-  detection) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz ranking) →
-  optional Tier 3 (Java `tools-java` validation).
+  detection) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz ranking).
+  The optional Tier 3 (Java `tools-java` validation) was removed on
+  2026-09-19.
 - **Deprecated ID handling**: DB-backed `superseded_by` redirect for
   unambiguous cases (e.g. `GPL-2.0+` → `GPL-2.0-or-later`); conservative
   `-only` fallback for bare ambiguous IDs (e.g. `GPL-2.0`) with no
@@ -29,6 +30,14 @@ yet started, see [`../design/`](../design/).
 - **Update path** (`spdx_source.py`): three cached third-party sources with
   a fixed fallback order, atomic writes and warnings on every deviation; see
   [data-fetching-and-caching.md](data-fetching-and-caching.md).
+- **CLI matrix** (`tools/cli_matrix/`, added 2026-09-19): a manual harness
+  that runs the real CLI in real shells, locales and stdio states and
+  compares against a known-flags baseline. Run it before CLI, stream or
+  database-path changes; usage in its README. It found the locale crash in
+  `py-spdx-license` and the environment failures in the tech-debt roadmap.
+  Not run in CI (it needs a real database). CI type-checks it with `mypy`;
+  `ruff`, `pylint` and `flake8` cover only `src/` and `tests/` there, and
+  `ruff` is kept clean on it by hand.
 - **Known deferred work**: probe-anchored windowing (reusing the existing
   probe's match location instead of a full realignment scan) — flagged
   but deliberately not attempted; see

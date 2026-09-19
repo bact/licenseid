@@ -34,7 +34,6 @@ No database daemon or server needed.
   - **Tier 2 (Precision)**: Adaptive ranking with RapidFuzz. Sliding-window
     alignment for fragments; coverage-aware scoring to prefer the tightest
     match. Marker confidence boosts applied only when confidence ≥ 0.85.
-  - **Tier 3 (Validation)**: Optional final validation via `tools-java`.
 - **Deprecated ID normalisation**:
   - `GPL-2.0+` → `GPL-2.0-or-later` (SPDX `+` operator, unambiguous).
   - `Apache-2+` → `Apache-2.0+` (abbreviated base canonicalised, `+` retained).
@@ -328,10 +327,6 @@ Run benchmarks and accuracy tests (expensive):
 ```bash
 pytest --run-benchmark
 ```
-
-## Configuration
-
-- `SPDX_TOOLS_JAR`: Path to the `tools-java` jar for Tier 3 validation.
 
 ## License
 

@@ -436,7 +436,7 @@ def main() -> None:
         flush=True,
     )
 
-    matcher = InstrumentedMatcher(db_path, enable_java=False)
+    matcher = InstrumentedMatcher(db_path)
     matcher.match("MIT License")  # warm up
 
     tracemalloc.start()

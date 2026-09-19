@@ -101,7 +101,7 @@ def matcher() -> AggregatedLicenseMatcher:
     db_manager._compute_fingerprints()  # pylint: disable=protected-access
 
     print("  Population complete.")
-    return AggregatedLicenseMatcher(db_path, enable_java=False)
+    return AggregatedLicenseMatcher(db_path)
 
 
 MUST_HAVE_LICENSES = [

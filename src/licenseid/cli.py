@@ -319,12 +319,6 @@ def resolve_license_record(
 @click.option("--threshold", type=float, default=0.85, help="Minimum score threshold.")
 @click.option("--top", type=int, default=3, help="Maximum number of results to return.")
 @click.option(
-    "--java/--no-java",
-    "enable_java",
-    default=False,
-    help="Enable/disable Tier 3 Java validation (requires tools-java).",
-)
-@click.option(
     "--pop/--no-pop",
     "enable_popularity",
     default=False,
@@ -341,7 +335,6 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     json_output: bool,
     threshold: float,
     top: int,
-    enable_java: bool,
     enable_popularity: bool,
     diff: bool,
     bold: bool,
@@ -352,9 +345,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     exit_if_db_missing(ctx, db_path)
     reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
 
-    matcher = AggregatedLicenseMatcher(
-        db_path, enable_java=enable_java, enable_popularity=enable_popularity
-    )
+    matcher = AggregatedLicenseMatcher(db_path, enable_popularity=enable_popularity)
     check_db_staleness(matcher.db)
 
     if id_val:

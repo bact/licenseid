@@ -8,7 +8,6 @@ Shared test configuration and fixtures for licenseid.
 """
 
 import builtins
-import os
 import re
 import sqlite3
 import uuid
@@ -144,15 +143,6 @@ def fake_requests_get(
         fake.side_effect = error
     monkeypatch.setattr(requests, "get", fake)
     return fake
-
-
-@pytest.fixture(scope="session", autouse=True)
-def setup_spdx_tools_jar() -> Generator[None, None, None]:
-    """Sets the SPDX_TOOLS_JAR environment variable to the bundled test jar."""
-    jar_path = Path(__file__).parent / "tool.jar"
-    if jar_path.exists():
-        os.environ["SPDX_TOOLS_JAR"] = str(jar_path.absolute())
-    yield
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:

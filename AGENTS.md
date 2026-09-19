@@ -4,7 +4,6 @@
 
 - License ID detection using hybrid search (`licenseid` package).
 - Architecture: SQLite FTS5 trigram tokenization (Tier 1 recall) and RapidFuzz (Tier 2 precision ranking).
-- Optional fallback: `tools-java` for Tier 3 validation (triggered via `SPDX_TOOLS_JAR` env var).
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
 - Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches; may be discarded, not yet built.
 - Implementation docs and progress reports: `working-docs/implementation/` — record of what WAS built: decisions made, why things are the way they are, paths considered and rejected. Not a user manual. Start at `working-docs/implementation/README.md` for current state.
@@ -37,7 +36,7 @@ Unix philosophy. Consistent, predictable, parseable.
   - `LEVEL`: `ERROR` (the command fails, non-zero exit) or `WARNING` (a
     fallback lets it continue).
   - `SUBJECT`: the thing affected, a lowercase word or cache file name:
-    `database`, `input`, `match`, `version`, `java`, `licenses.json`,
+    `database`, `input`, `match`, `version`, `licenses.json`,
     `popularity.csv`, `spdx-data-v<ver>.tar.gz`.
   - `CONDITION`: short lowercase fragment, reused across subjects. The
     full current set (add new ones here): `not found`, `invalid`,
@@ -46,8 +45,7 @@ Unix philosophy. Consistent, predictable, parseable.
     `normalization vN outdated`, `download failed`, `cache read failed`,
     `cache write failed`, `cache unusable`, `download unusable`,
     `stale cache unusable`, `parse failed`,
-    `N rows with missing or non-numeric num_pushers`, `update failed`,
-    `JPype1 not installed`.
+    `N rows with missing or non-numeric num_pushers`, `update failed`.
   - `DETAIL`: the variable part (exception text, value, path).
   - `ACTION`: what happens next, after a semicolon: the fallback taken
     (`using stale cache`, `downloading`, `counted as 0`) or the command for
@@ -130,7 +128,7 @@ ruff format
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
-  lines=942) — see
+  lines=935) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't
@@ -197,6 +195,14 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - Mutation-check new tests by breaking a line and rerunning; clear
   `__pycache__` between mutants (a same-size mutant restored within the same
   second leaves a stale `.pyc`).
+- Pytest cannot see the shell, locale, stdio, `HOME`, signal and input-size
+  interactions between the OS and the CLI. Run the manual matrix,
+  `python -m tools.cli_matrix --db <copy of a real database> --check`, before
+  a PR that touches the CLI, exit codes, streams, input handling or the
+  database path. It reports flags that are not in `baseline.txt`; read
+  `tools/cli_matrix/README.md` first. Never run its cells by hand with
+  `HOME` unset: Python then resolves the real cache (an early version
+  deleted the developer's `licenses.db` that way).
 - `database.py` imports `spdx_source` lazily (keeps `requests` off the match
   path and avoids an import cycle). Do not import `licenseid.__version__`
   at module level in `spdx_source.py`.

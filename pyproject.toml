@@ -50,9 +50,6 @@ dependencies = [
     "typing_extensions>=4.16.0",
 ]
 
-[project.optional-dependencies]
-java = ["jpype1>=1.7.1"]
-
 [project.scripts]
 licenseid = "licenseid.cli:main"
 
@@ -99,7 +96,14 @@ source = ["licenseid"]
 enabled = true
 
 [tool.hatch.build.targets.sdist]
-exclude = ["AGENTS.md", "GEMINI.md", "benchmarks/**", "tests/fixtures/**", "scripts/**"]
+exclude = [
+    "AGENTS.md",
+    "GEMINI.md",
+    "benchmarks/**",
+    "scripts/**",
+    "tests/fixtures/**",
+    "tools/**",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/licenseid"]
@@ -109,7 +113,7 @@ path = "src/licenseid/__init__.py"
 
 [tool.mypy]
 exclude = ["tests/fixtures/"]
-files = ["src", "tests"]
+files = ["src", "tests", "tools"]
 pretty = true
 python_version = "3.10"
 mypy_path = ["src"]
@@ -119,10 +123,6 @@ show_error_context = true
 strict = true
 strict_equality_for_none = true
 warn_unreachable = true
-
-[[tool.mypy.overrides]]
-module = ["jpype", "jpype.*"]
-ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["py_spdx_license", "py_spdx_license.*"]
@@ -139,6 +139,10 @@ email = "suriyawa@tcd.ie"
 ignore = ["CVS"]
 ignore-paths = ["^tests/fixtures/.*$"]
 persistent = true
+# The repository root on sys.path, so tests/ can import the developer
+# tools in tools/. source-roots would do this too, but it also makes
+# pylint treat tests/ as a package, which breaks "from conftest import".
+init-hook = "import sys; sys.path.insert(0, '.')"
 
 [tool.pylint.messages_control]
 disable = [
@@ -181,9 +185,11 @@ max-statements = 50            # target: 50 (already at target)
 
 [tool.pylint.format]
 max-line-length = 88
-max-module-lines = 942 # target: 800 (hard limit); soft limit 400-500; currently matcher.py
+max-module-lines = 935 # target: 800 (hard limit); soft limit 400-500; currently database.py
 
 [tool.pytest.ini_options]
+# The repository root, so tests can import the developer tools in tools/.
+pythonpath = ["."]
 markers = [
     "benchmark: marks tests as slow benchmark (deselect with '-m \"not benchmark\"')",
 ]
@@ -196,7 +202,7 @@ target-version = "py310"
 [tool.ruff.lint]
 # BLE001/S110: broad `except Exception` (bare or with a `pass` body) is used
 # deliberately here — CLI-boundary error handling and best-effort optional
-# integrations (Java/JPype consultation, speculative INI parsing) that must
-# degrade gracefully rather than propagate. Same stance as
+# behaviour (speculative INI parsing) that must degrade gracefully rather
+# than propagate. Same stance as
 # `broad-exception-caught` in [tool.pylint.messages_control].
 ignore = ["BLE001", "S110"]

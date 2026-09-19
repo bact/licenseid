@@ -38,6 +38,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ERROR: database: update failed: <type>: <detail>` instead of a traceback or
   bare exception text
 
+### Removed
+
+- **Breaking:** the optional Java validation tier (`tools-java` through
+  JPype) is gone: `licenseid match --java/--no-java`, the `licenseid[java]`
+  extra, the `SPDX_TOOLS_JAR` environment variable, the `enable_java`
+  parameter and the `java_verified` result field. It was off by default and
+  not tested in CI, so match results are unchanged. To migrate, drop the
+  option, the extra and the variable. `AggregatedLicenseMatcher(db,
+  enable_java=True)` now raises `TypeError`, but `match()` ignores unknown
+  keyword options, so `match(enable_java=True)` gets no error
+- **Breaking:** `AggregatedLicenseMatcher(db_path, enable_popularity=...)`:
+  `enable_popularity` is now keyword-only. It took the positional slot of the
+  removed `enable_java`, so a caller passing `True` positionally would
+  otherwise have switched popularity ranking on silently
+
 ### Fixed
 
 - `licenseid match` and the `is-*` commands no longer crash on an input file
@@ -72,8 +87,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A cache file dated in the future no longer counts as valid forever ([#51])
 - Building a database from a single license no longer fails with
   `ZeroDivisionError` ([#51])
-- `licenseid match --java` no longer prints a debug line to standard output,
-  which corrupted JSON and other parseable output
 
 ### Security
 
