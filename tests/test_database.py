@@ -14,8 +14,9 @@ from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+from conftest import assert_cached_tarball_removed
 
-from licenseid.database import LicenseDatabase
+from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 
 
 @pytest.fixture()
@@ -98,6 +99,45 @@ def test_corrupt_cached_tarball_is_removed(
     else:
         tar_path.write_bytes(corrupt)
 
-    with pytest.raises(RuntimeError, match="cached tarball was removed"):
-        db._process_and_store(tar_path, {}, None)
-    assert not tar_path.exists()
+    assert_cached_tarball_removed(db, tar_path)
+
+
+def test_older_normalization_version_warns_on_stderr(
+    db: LicenseDatabase, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with db._connection() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
+            [("license_list_version", "9.99"), ("normalization_version", "1")],
+        )
+        conn.commit()
+    capsys.readouterr()
+
+    LicenseDatabase(str(db.db_path))
+
+    captured = capsys.readouterr()
+    assert captured.err == (
+        f"WARNING: database: normalization v1 outdated: "
+        f"current v{NORMALIZATION_VERSION}; run 'licenseid update --force'\n"
+    )
+    assert captured.out == ""
+
+
+def test_current_normalization_version_does_not_warn(
+    db: LicenseDatabase, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with db._connection() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
+            ("license_list_version", "9.99"),
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
+            ("normalization_version", NORMALIZATION_VERSION),
+        )
+        conn.commit()
+    capsys.readouterr()
+
+    LicenseDatabase(str(db.db_path))
+
+    assert capsys.readouterr().err == ""

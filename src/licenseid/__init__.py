@@ -10,13 +10,16 @@ SPDX License ID matcher package.
 __version__ = "0.3.7"
 
 from licenseid.database import LicenseDatabase
+from licenseid.errors import InvalidInputError, LicenseIdError
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
 from licenseid.types import LicenseMatch, MatchRequest
 
 __all__ = [
     "AggregatedLicenseMatcher",
+    "InvalidInputError",
     "LicenseDatabase",
+    "LicenseIdError",
     "LicenseMatch",
     "MatchRequest",
     "normalize_text",

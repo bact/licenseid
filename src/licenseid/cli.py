@@ -9,12 +9,16 @@ Command-line interface for the licenseid tool.
 
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
+from typing import NoReturn
 
 import click
 
+from licenseid.console import error, warn
 from licenseid.database import LicenseDatabase, get_default_db_path
+from licenseid.errors import InvalidInputError, LicenseIdError
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
 from licenseid.types import LicenseDetails
@@ -61,11 +65,7 @@ def check_db_staleness(database: LicenseDatabase) -> None:
                 last_check_dt = last_check_dt.replace(tzinfo=timezone.utc)
             days_old = (datetime.now(timezone.utc) - last_check_dt).days
             if days_old > 182:  # Approx 6 months
-                click.echo(
-                    f"WARNING: License database is {days_old} days old. "
-                    "Run 'licenseid update' to get the latest license list.",
-                    err=True,
-                )
+                warn(f"database: {days_old} days old; run 'licenseid update'")
         except ValueError:
             pass
 
@@ -108,8 +108,8 @@ def update(
 ) -> None:
     """Update the license database from remote sources."""
     db_path = ctx.obj["db_path"]
-    database = LicenseDatabase(db_path)
     try:
+        database = LicenseDatabase(db_path)
         updated = database.update_from_remote(
             version=version, force=force, use_cache=use_cache
         )
@@ -119,17 +119,43 @@ def update(
             metadata = database.get_metadata()
             current_version = metadata.get("license_list_version", "unknown")
             click.echo(f"Database remains at version {current_version} at {db_path}")
+    except InvalidInputError as e:
+        exit_usage_error(ctx, str(e))
+    except LicenseIdError as e:
+        # Already worded "SUBJECT: CONDITION...".
+        error(str(e))
+        ctx.exit(1)
     except Exception as e:
-        click.echo(f"ERROR: {e}", err=True)
+        # Anything else (e.g. KeyError or RecursionError from malformed
+        # release data) has no subject of its own; name the type.
+        detail = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
+        error(f"database: update failed: {detail}")
         ctx.exit(1)
 
 
+# Python's string escapes. Octal stops at \377: \400-\777 give a
+# DeprecationWarning on Python 3.12+ and are to become invalid, so they are
+# left unchanged on every version.
+_ESCAPE_RE = re.compile(
+    r"\\(?:[\\'\"abfnrtv]|[0-3][0-7]{2}|[0-7]{1,2}(?![0-7])"
+    r"|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|N\{[^}]+\})"
+)
+
+
 def unescape_text(text: str) -> str:
-    """Unescape backslash-escaped characters in a string."""
+    """Decode Python backslash escapes (e.g. ``\\n``) in *text*.
+
+    Only the escape sequences are decoded, so other non-ASCII characters are
+    kept as is; an unknown or invalid escape is left unchanged.
+    """
+    return _ESCAPE_RE.sub(_decode_escape, text)
+
+
+def _decode_escape(escape: re.Match[str]) -> str:
     try:
-        return text.encode("utf-8").decode("unicode_escape")
-    except (UnicodeDecodeError, ValueError):
-        return text
+        return escape.group(0).encode("ascii").decode("unicode_escape")
+    except UnicodeDecodeError:  # e.g. \U00110000, beyond U+10FFFF
+        return escape.group(0)
 
 
 def is_sqlite_uri(path: str) -> bool:
@@ -137,20 +163,111 @@ def is_sqlite_uri(path: str) -> bool:
     return path.startswith("file:") or ":memory:" in path
 
 
-def get_input_content(input_val: str | None, text: str | None) -> tuple[str, bool]:
+def exit_usage_error(ctx: click.Context, message: str) -> NoReturn:
+    """Print *message* as an ERROR line and exit with a usage error (2)."""
+    error(message)
+    ctx.exit(2)
+
+
+def exit_if_db_missing(ctx: click.Context, db_path: str) -> None:
+    """Exit with a usage error (2) if the database file does not exist."""
+    if not os.path.exists(db_path) and not is_sqlite_uri(db_path):
+        exit_usage_error(ctx, f"database: not found: {db_path}; run 'licenseid update'")
+
+
+def exit_bad_input(ctx: click.Context, condition: str) -> NoReturn:
+    """Exit with a usage error (2) for unusable input."""
+    exit_usage_error(ctx, f"input: {condition}")
+
+
+def exit_no_input(ctx: click.Context) -> NoReturn:
+    """Exit with a usage error (2) because no input was given."""
+    exit_bad_input(ctx, "missing; pass a file, an ID, --text, --id or stdin")
+
+
+def decode_input(data: bytes, source: str) -> str:
+    """Decode input *data* from *source* (a path or ``stdin``) into text.
+
+    Bytes with a NUL are binary and raise LicenseIdError, whether or not they
+    happen to be valid UTF-8 (UTF-16 text is binary here too). Otherwise UTF-8
+    first, with a leading BOM dropped, then Latin-1 (older license files use
+    it; every byte decodes) with a warning.
+    CRLF and CR then become LF, as text-mode reading did before, so matching
+    sees the same text whichever way the input arrived.
+    """
+    if b"\x00" in data:
+        raise InvalidInputError(f"input: binary file: {source}")
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        warn(f"input: not UTF-8, read as Latin-1: {source}")
+        text = data.decode("latin-1")
+    return normalize_newlines(text)
+
+
+def normalize_newlines(text: str) -> str:
+    """Turn CRLF and CR line ends into LF."""
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def read_input(ctx: click.Context, path: str | None) -> str:
+    """Read the file at *path*, or standard input if None, as text.
+    Exit with a usage error (2) if it cannot be read, is binary, or is a file
+    with no text (empty stdin is left to the caller's "input: missing")."""
+    source = path if path is not None else "stdin"
+    try:
+        if path is not None:
+            with open(path, "rb") as f:
+                data = f.read()
+        elif (buffer := getattr(sys.stdin, "buffer", None)) is not None:
+            data = buffer.read()
+        else:  # stdin replaced by a text-only stream
+            data = sys.stdin.read().encode("utf-8", "surrogatepass")
+        text = decode_input(data, source)
+    except OSError as e:
+        exit_bad_input(ctx, f"unreadable: {source}: {e.strerror or e}")
+    except InvalidInputError as e:  # binary data; already "input: ..."
+        exit_usage_error(ctx, str(e))
+    # No bytes at all on stdin means nothing was piped: "input: missing".
+    if (data or path is not None) and not text.strip():
+        exit_bad_input(ctx, f"empty: {source}")
+    return text
+
+
+def reject_blank_options(ctx: click.Context, values: dict[str, str | None]) -> None:
+    """Exit with a usage error (2) if an input given on the command line has
+    no text, rather than skip it for the next input or match it as text."""
+    for name, value in values.items():
+        if value is not None and not value.strip():
+            exit_bad_input(ctx, f"empty: {name}")
+
+
+def read_text_option(ctx: click.Context, text: str) -> str:
+    """Decode the escapes in --text, then treat it as file or stdin text is
+    treated: LF line ends; exit 2 if binary (a NUL) or blank."""
+    content = normalize_newlines(unescape_text(text))
+    if "\x00" in content:
+        exit_bad_input(ctx, "binary file: --text")
+    if not content.strip():
+        exit_bad_input(ctx, "empty: --text")
+    return content
+
+
+def get_input_content(
+    ctx: click.Context, input_val: str | None, text: str | None
+) -> tuple[str, bool]:
     """
     Get input content and indicate if it's likely a file path/text vs an ID.
     Returns (content, is_text_or_file).
     """
-    if text:
-        return unescape_text(text), True
+    if text is not None:
+        return read_text_option(ctx, text), True
     if input_val:
         if os.path.exists(input_val):
-            with open(input_val, "r", encoding="utf-8") as f:
-                return f.read(), True
+            return read_input(ctx, input_val), True
         return input_val, False
     if not sys.stdin.isatty():
-        return sys.stdin.read(), True
+        return read_input(ctx, None), True
     return "", False
 
 
@@ -162,14 +279,9 @@ def resolve_license_record(
 ) -> LicenseDetails | None:
     """Helper to resolve a license from CLI arguments (implements Smart Logic)."""
     db_path = ctx.obj["db_path"]
-    if not os.path.exists(db_path) and not is_sqlite_uri(db_path):
-        click.echo(
-            f"ERROR: Database not found at {db_path}. "
-            "Please run 'licenseid update' first.",
-            err=True,
-        )
-        ctx.exit(2)
+    exit_if_db_missing(ctx, db_path)
 
+    reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
     matcher = AggregatedLicenseMatcher(db_path)
     check_db_staleness(matcher.db)
 
@@ -178,14 +290,9 @@ def resolve_license_record(
         return matcher.db.get_license_details(id_val)
 
     # 2. Handle stdin/arguments
-    content, is_text = get_input_content(input_val, text)
+    content, is_text = get_input_content(ctx, input_val, text)
     if not content:
-        click.echo(
-            "ERROR: No input provided. Provide a file, ID, "
-            "--text, --id, or pipe to stdin.",
-            err=True,
-        )
-        ctx.exit(2)
+        exit_no_input(ctx)
 
     # 3. Smart Resolution (ID -> Text)
     if not is_text:
@@ -242,13 +349,8 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     """Identify license text and return the closest matched SPDX License ID."""
     db_path = ctx.obj["db_path"]
 
-    if not os.path.exists(db_path) and not is_sqlite_uri(db_path):
-        click.echo(
-            f"ERROR: Database not found at {db_path}. "
-            "Please run 'licenseid update' first.",
-            err=True,
-        )
-        ctx.exit(2)
+    exit_if_db_missing(ctx, db_path)
+    reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
 
     matcher = AggregatedLicenseMatcher(
         db_path, enable_java=enable_java, enable_popularity=enable_popularity
@@ -259,14 +361,9 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         results = matcher.match(license_id=id_val)
         license_text = ""
     else:
-        content, is_text = get_input_content(input_val, text)
+        content, is_text = get_input_content(ctx, input_val, text)
         if not content:
-            click.echo(
-                "ERROR: No input provided. Provide a file, ID, "
-                "--text, --id, or pipe to stdin.",
-                err=True,
-            )
-            ctx.exit(2)
+            exit_no_input(ctx)
 
         license_text = content
         if not is_text:
@@ -282,17 +379,13 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     # Filter by threshold and limit to top N
     results = [r for r in results if r["score"] >= threshold][:top]
 
-    if bold:
-        if results:
-            click.echo(results[0]["license_id"])
-            ctx.exit(0)
-        else:
-            click.echo("ERROR: No matching license found.", err=True)
-            ctx.exit(1)
-
     if not results:
-        click.echo("ERROR: No matching license found.", err=True)
+        error("match: no license found")
         ctx.exit(1)
+
+    if bold:
+        click.echo(results[0]["license_id"])
+        ctx.exit(0)
 
     if json_output:
         click.echo(json.dumps(results, indent=2))

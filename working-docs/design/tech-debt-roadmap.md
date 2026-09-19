@@ -15,39 +15,19 @@ for code-health/complexity debt specifically. This doc tracks the rest.
 Priority = (Impact + Risk) × (6 − Effort), each scored 1-5; same scale as
 the complexity roadmap, so the two lists can be read together.
 
-Items 1-5 and 7 come from a tech-debt audit on 2026-09-19.
+Items 1, 2, 4 and 6 come from a tech-debt audit on 2026-09-19; item 3
+from the review of the diagnostics change.
 
-## 1. Three ranking sort keys disagree — Priority 20
-
-`matcher.py` sorts candidates in three places with a local `sort_key`.
-The main ranking subtracts `_DEP_PENALTY` from a deprecated ID's score;
-the re-sorts after the Java check (`_consult_java`) and the version-suffix
-tie-breaker (`_apply_version_suffix_tiebreaker`) do not. After either
-step, a deprecated alias can rank above the ID that replaces it.
-
-- **Fix**: one module-level sort key used by all three. Write
-  characterisation tests first and pin the current order.
-- Impact 2, Risk 3, Effort 2.
-
-## 2. Library diagnostics go to standard output — Priority 20
-
-`spdx_source.py` and `database.py` report progress and warnings with
-`print()`, so `licenseid update` mixes them with normal output. This
-breaks the `AGENTS.md` rule that errors go to standard error.
-
-- **Fix**: `logging`, or `click.echo(err=True)` at the CLI boundary.
-  Tests that capture the output must follow.
-- Impact 2, Risk 3, Effort 2.
-
-## 3. `cli.py` test coverage is 66% — Priority 18
+## 1. `cli.py` test coverage is 75% — Priority 18
 
 The lowest-covered module, and the user-facing contract: output formats,
-exit codes and `is-*` predicates.
+exit codes and `is-*` predicates. Was 66% at the audit;
+`tests/test_cli_errors.py` (2026-09-19) now pins the error paths.
 
 - **Fix**: one CLI test per output format and exit code in `README.md`.
 - Impact 3, Risk 3, Effort 3.
 
-## 4. `py-spdx-license` has no upper bound — Priority 16
+## 2. `py-spdx-license` has no upper bound — Priority 16
 
 Version 0.0.1, a single release, with no type information (a mypy
 `ignore_missing_imports` override). The author is credible, but a 0.0.x
@@ -56,15 +36,44 @@ API can change without notice. Only `markers.py` imports it.
 - **Fix**: add `<0.1` to the requirement.
 - Impact 1, Risk 3, Effort 2.
 
-## 5. Tier 3 Java path is untested and silent on failure — Priority 15
+## 3. API `file_path` input is read as strict UTF-8 — Priority 16
 
-`_ensure_jvm` and `_consult_java` have no test coverage. A broad
-`except Exception: pass` makes a JVM failure look like "no Java match".
+`AggregatedLicenseMatcher.match(file_path=...)` (and the `is_*` predicates)
+open the file as strict UTF-8, so a Latin-1 or binary file raises
+`UnicodeDecodeError`. The CLI reads the same file through
+`cli.decode_input` (Latin-1 fallback with a warning, binary rejected as
+`InvalidInputError`). Pinned by
+`tests/test_option_matrix.py::test_api_file_path_not_utf8` (`# BUG:`).
+Fix: move `decode_input` out of `cli.py` into a shared module and use it in
+`matcher._resolve_target_text`; flip the pin.
 
-- **Fix**: tests with an autospec'd fake `jpype`; warn on failure.
+- Impact 2, Risk 2, Effort 2.
+
+## 4. Tier 3 Java path is untested and silent on failure — Priority 15
+
+`_ensure_jvm` and `_consult_java` have no test coverage beyond the missing
+JPype message. A broad `except Exception: pass` makes a JVM failure look
+like "no Java match".
+
+Folded in: `matcher.py` sorts candidates in three places with a local
+`sort_key`. The main ranking subtracts `_DEP_PENALTY` from a deprecated
+ID's score; the re-sorts after `_consult_java` and
+`_apply_version_suffix_tiebreaker` do not, and the Java re-sort reads
+`self.enable_popularity`, ignoring a per-request `enable_popularity`. The
+audit scored this 20 as a ranking bug, but it is unreachable today:
+deprecated IDs are not in the FTS index (0 of 32 in the real DB), marker
+candidates never set `is_deprecated`, and the only way in is the Python
+API's `hint=`, whose candidates have empty search text and cannot come
+within `_DEP_PENALTY` of an `-only`/`-or-later` pair. Real GPL, LGPL, AGPL
+and GFDL texts (full, head-300, tail-300) never rank a deprecated ID in the
+top 4. Re-scored on its own: Impact 2, Risk 1, Effort 2 = 12.
+
+- **Fix**: tests with an autospec'd fake `jpype`; warn on failure through
+  `console.warn()`; one module-level sort key for all three sorts, with
+  characterisation tests first.
 - Impact 2, Risk 3, Effort 3.
 
-## 6. GPL/LGPL/AGPL family disambiguation (tail recall floor) — Priority 12
+## 5. GPL/LGPL/AGPL family disambiguation (tail recall floor) — Priority 12
 
 `tail_300`-`tail_500` benchmark subcategories lose 28-35 fixtures out of
 top-50: GPL/LGPL/AGPL family members share boilerplate warranty text, so
@@ -80,7 +89,7 @@ alone.
   this is based on — note that document predates the deprecated-ID fixes
   described in its own status note and has not been re-benchmarked since.
 
-## 7. `scripts/` and `benchmarks/` are not linted in CI — Priority 12
+## 6. `scripts/` and `benchmarks/` are not linted in CI — Priority 12
 
 `bench_single.py` (770 lines) and `generate_fixtures.py` (755) are near
 the 800-line hard limit. Pylint rates the two directories 9.48/10;
@@ -89,7 +98,7 @@ the 800-line hard limit. Pylint rates the two directories 9.48/10;
 - **Fix**: fix the findings, then add both directories to `lint.yml`.
 - Impact 1, Risk 2, Effort 2.
 
-## 8. Probe-anchored windowing — Priority 9
+## 7. Probe-anchored windowing — Priority 9
 
 The one large remaining lever on `fragment_similarity`'s dominant cost:
 reuse the existing 60-word probe's match location instead of re-running
@@ -101,7 +110,7 @@ just an internal ranking score — needs its own validation cycle (a
 - Impact 2, Risk 2, Effort 3.
 - Full plan: [`probe-anchored-windowing-plan.md`](probe-anchored-windowing-plan.md).
 
-## 9. Apache-2.0 vs Pixar near-duplicate confusion — Priority 6
+## 8. Apache-2.0 vs Pixar near-duplicate confusion — Priority 6
 
 Licenses that are near-identical modifications of another license (e.g.
 `Pixar` is `Apache-2.0` with a modified section 6) can be misidentified
@@ -114,6 +123,15 @@ statistics; no fix has been designed yet, only the problem is documented.
 
 ## Already resolved (kept for record)
 
+- Library diagnostics on standard output (2026-09-19 audit, Priority 16
+  after re-scoring): progress, the `Data sources:` report and warnings from
+  `licenseid update` and `--clear-cache` now go to standard error through
+  `licenseid.console` (`status`, `warn`, `error`); standard output carries
+  only the result line. Error and warning texts were rewritten to one
+  `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]` grammar (see `AGENTS.md`),
+  guarded by `tests/conftest.py::check_diagnostic_grammar`. Drive-by: the
+  license-preparation progress line wrongly said `Preparing exception
+  data...`.
 - Type-1 `id_casing` and `id_deprecated` accuracy gaps — implemented; see
   the status note at the top of
   [`optimization-recommendation.md`](optimization-recommendation.md).

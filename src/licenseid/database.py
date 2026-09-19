@@ -10,7 +10,6 @@ SQLite database management for SPDX licenses.
 import contextlib
 import json
 import sqlite3
-import sys
 import tarfile
 import tempfile
 import xml.etree.ElementTree as ET
@@ -20,6 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple, cast
 
+from licenseid.console import end_line, status, warn
+from licenseid.errors import LicenseIdError
 from licenseid.fingerprint import compute_idf_fingerprints, extract_ngrams
 from licenseid.normalize import normalize_text
 from licenseid.types import (
@@ -113,12 +114,10 @@ class LicenseDatabase:
             return
         stored = metadata.get("normalization_version", "1")
         if stored != NORMALIZATION_VERSION:
-            print(
-                "Warning: license database was built with an older text "
-                f"normalization rule set (v{stored}, current "
-                f"v{NORMALIZATION_VERSION}). "
-                "Run 'licenseid update --force' to rebuild it.",
-                file=sys.stderr,
+            warn(
+                f"database: normalization v{stored} outdated: "
+                f"current v{NORMALIZATION_VERSION}; "
+                "run 'licenseid update --force'"
             )
 
     def _connect(self) -> sqlite3.Connection:
@@ -234,7 +233,7 @@ class LicenseDatabase:
         # update_from_remote() keeps that cost out of normal startup.
         from licenseid import spdx_source
 
-        print("Clearing cache...")
+        status("Clearing cache...")
         for filename in [
             spdx_source.CACHE_LICENSES_JSON,
             spdx_source.CACHE_POPULARITY_CSV,
@@ -253,7 +252,7 @@ class LicenseDatabase:
                 p.unlink()
         # Delete the database file itself to force a schema rebuild
         if self.db_path.exists():
-            print(f"Deleting database at {self.db_path}...")
+            status(f"Deleting database at {self.db_path}...")
             self.db_path.unlink()
 
     def update_from_remote(
@@ -274,14 +273,14 @@ class LicenseDatabase:
         target_version, release_date, ds_licenses = spdx_source.get_version_info(
             self.db_path.parent, version, use_cache
         )
-        print(f"Target SPDX License List version: {target_version}")
+        status(f"Target SPDX License List version: {target_version}")
 
         metadata = self.get_metadata()
         if metadata.get("license_list_version") == target_version and not force:
-            print(f"Database is already at version {target_version}. Skipping update.")
+            status(f"Database is already at version {target_version}. Skipping update.")
             return False
 
-        print(f"Updating license database to version {target_version}...")
+        status(f"Updating license database to version {target_version}...")
 
         # 2. Fetch Popularity Data
         pop_cache_path = self._get_cache_path(spdx_source.CACHE_POPULARITY_CSV)
@@ -300,10 +299,10 @@ class LicenseDatabase:
         )
 
         # Report sources
-        print("Data sources:")
-        print(f"  - SPDX License List metadata   : {ds_licenses}")
-        print(f"  - SPDX License List data       : {ds_tar}")
-        print(f"  - GitHub license ranking data  : {ds_pop}")
+        status("Data sources:")
+        status(f"  - SPDX License List metadata   : {ds_licenses}")
+        status(f"  - SPDX License List data       : {ds_tar}")
+        status(f"  - GitHub license ranking data  : {ds_pop}")
 
         self._process_and_store(tar_cache_path, popularity_map, release_date)
         return True
@@ -340,7 +339,7 @@ class LicenseDatabase:
                         exc_data = json.load(f)
                         exceptions_data = exc_data.get("exceptions", [])
 
-                print(
+                status(
                     f"Processing {len(licenses_data)} licenses and "
                     f"{len(exceptions_data)} exceptions "
                     f"(Version: {list_version}, Released: {release_date})"
@@ -351,17 +350,19 @@ class LicenseDatabase:
                 )
                 self._update_db_records(license_data, root_dir, popularity_map)
 
-            print("\nUpdate complete.")
+            status("\nUpdate complete.")
         except (tarfile.TarError, EOFError, zlib.error) as e:
             # A corrupt or truncated cached tarball (e.g. left by an
             # interrupted download) would otherwise fail every later run.
             tar_path.unlink(missing_ok=True)
-            raise RuntimeError(
-                f"Failed to update database: {e}. "
-                "The cached tarball was removed; run the update again."
+            raise LicenseIdError(
+                f"{tar_path.name}: cache unusable: {e}; "
+                "removed, run 'licenseid update' again"
             ) from e
         except (OSError, json.JSONDecodeError, sqlite3.Error) as e:
-            raise RuntimeError(f"Failed to update database: {e}") from e
+            raise LicenseIdError(f"database: update failed: {e}") from e
+        finally:
+            end_line()  # a failure mid "Preparing ...": leave stderr at column 0
 
     def _update_db_records(
         self,
@@ -403,7 +404,7 @@ class LicenseDatabase:
         index_records: list[_IndexInsertRecord] = []
         exception_records: list[tuple[str, str, bool, str | None]] = []
 
-        print("\nPreparing exception data...", end="", flush=True)
+        status("\nPreparing license data...", end="")
         # Build the superseded_by mapping at DB build time so runtime lookups
         # are O(1).
         active_ids: set[str] = {
@@ -462,9 +463,9 @@ class LicenseDatabase:
                 # Not added to index_records — no text to index.
 
             if (i + 1) % 100 == 0 or (i + 1) == len(licenses_data):
-                print(".", end="", flush=True)
+                status(".", end="")
 
-        print("\nPreparing exception data...", end="", flush=True)
+        status("\nPreparing exception data...", end="")
         for exc in exceptions_data:
             exc_id = exc["licenseExceptionId"]
             is_deprecated = exc.get("isDeprecatedLicenseId", False)
@@ -492,7 +493,7 @@ class LicenseDatabase:
         release_date: str | None,
     ) -> None:
         """Replace all license/exception/metadata rows in a single transaction."""
-        print(f"\nInserting {len(license_records)} records into database...")
+        status(f"\nInserting {len(license_records)} records into database...")
         with self._connection() as conn:
             conn.execute("PRAGMA journal_mode = WAL")
             conn.execute("PRAGMA synchronous = NORMAL")
@@ -620,7 +621,7 @@ class LicenseDatabase:
         Must be called after ``license_index`` has been fully populated.
         Replaces any previously stored fingerprints.
         """
-        print("Computing discriminative fingerprints...", end="", flush=True)
+        status("Computing discriminative fingerprints...", end="")
 
         with self._connection() as conn:
             rows: list[tuple[str, str]] = conn.execute(
@@ -628,7 +629,7 @@ class LicenseDatabase:
             ).fetchall()
 
         if not rows:
-            print(" no data.", flush=True)
+            status(" no data.")
             return
 
         fp_records = compute_idf_fingerprints(rows)
@@ -647,7 +648,7 @@ class LicenseDatabase:
                 conn.execute("ROLLBACK")
                 raise
 
-        print(f" {len(fp_records)} fingerprints for {len(rows)} licenses.", flush=True)
+        status(f" {len(fp_records)} fingerprints for {len(rows)} licenses.")
 
     def find_fingerprint_hits(self, norm_input: str) -> dict[str, float]:
         """Return a map of ``license_id → max_idf_norm`` for fingerprint matches.

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `licenseid.LicenseIdError`, a `RuntimeError` subclass for failures that
+  licenseid reports in its own message format, such as an invalid version, a
+  failed download or binary input, and its subclass
+  `licenseid.InvalidInputError` for invalid options or input
+
 ### Changed
 
 - `licenseid update` requests now send a `User-Agent` that identifies
@@ -16,9 +23,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failed download ([#51])
 - Fallbacks are reported: unusable caches or downloads, and popularity rows
   with a missing or non-numeric count, print a warning ([#51])
+- `licenseid update` and `licenseid --clear-cache` write progress, the data
+  sources report and warnings to standard error; standard output carries only
+  the result line
+- Error and warning messages follow one format,
+  `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`, for example
+  `WARNING: popularity.csv: download failed: <error>; using stale cache` or
+  `ERROR: database: not found: <path>; run 'licenseid update'`. Scripts that
+  match the old message text need updating
+- Every error and warning starts on its own line, even when it interrupts a
+  progress line, and an unexpected failure during `licenseid update` (for
+  example malformed or deeply nested release data, or a database path whose
+  directory does not exist) is reported as
+  `ERROR: database: update failed: <type>: <detail>` instead of a traceback or
+  bare exception text
 
 ### Fixed
 
+- `licenseid match` and the `is-*` commands no longer crash on an input file
+  or piped input that is not UTF-8: text is read as Latin-1 with a warning,
+  binary data (any NUL byte, which includes UTF-16 text) is rejected with
+  `ERROR: input: binary file: <path>`, an empty file gives
+  `ERROR: input: empty: <path>`, and a path that cannot be read (such as a
+  directory) gives `ERROR: input: unreadable: <path>: <reason>`; all exit 2.
+  A UTF-8 byte order mark is dropped before matching
+- `licenseid update --version` with an invalid version exits 2 (usage error),
+  as the exit code table documents, instead of 1; an empty `--version ""` is
+  invalid too, instead of silently meaning the latest version
+- An input given with no text (`--text ""`, `--id " "`, a blank argument or
+  whitespace-only piped input) exits 2 with `ERROR: input: empty: <input>`,
+  instead of being skipped for the next input or reported as no match
+- `--text` keeps non-ASCII characters (such as `©` or `ö`) instead of
+  garbling them; only backslash escapes such as `\n` are decoded, and an
+  invalid escape is kept as typed instead of crashing. The decoded text is
+  treated like file input: line ends become LF, and a NUL (`\0`) exits 2
+  with `ERROR: input: binary file: --text`
 - Deeply nested JSON no longer crashes license detection with
   `RecursionError`, and extensionless INI/TOML text that starts with a section
   header is now read ([#50])

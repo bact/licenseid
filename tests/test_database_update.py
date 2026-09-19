@@ -16,9 +16,11 @@ from unittest import mock
 import pytest
 import requests
 from click.testing import CliRunner
+from conftest import assert_cached_tarball_removed
 
 from licenseid import spdx_source
 from licenseid.cli import cli
+from licenseid.console import warn
 from licenseid.database import LicenseDatabase
 
 # The manual-extraction tests simulate a Python without extraction filters, so
@@ -73,7 +75,11 @@ def _release_tarball() -> bytes:
     )
 
 
-def _serve(monkeypatch: pytest.MonkeyPatch, tarball: bytes) -> mock.MagicMock:
+def _serve(
+    monkeypatch: pytest.MonkeyPatch,
+    tarball: bytes,
+    popularity_csv: str = "spdx_license,num_pushers\nMIT,1000\n",
+) -> mock.MagicMock:
     """Fake the three remote sources by URL."""
 
     def fake_get(url: str, **_: object) -> mock.MagicMock:
@@ -84,7 +90,7 @@ def _serve(monkeypatch: pytest.MonkeyPatch, tarball: bytes) -> mock.MagicMock:
                 "releaseDate": "2030-01-01",
             }
         elif url == spdx_source.POPULARITY_DATA_URL:
-            response.text = "spdx_license,num_pushers\nMIT,1000\n"
+            response.text = popularity_csv
         else:
             response.iter_content.return_value = [tarball]
         return response  # type: ignore[no-any-return]
@@ -108,8 +114,8 @@ def test_update_from_remote_end_to_end_then_offline(
     details = db.get_license_details("MIT")
     assert details is not None
     assert details["pop_score"] == 1000  # from the popularity data
-    out = capsys.readouterr().out
-    assert "GitHub license ranking data  : remote" in out
+    err = capsys.readouterr().err
+    assert "GitHub license ranking data  : remote" in err
 
     cache_files = {p.name for p in tmp_path.iterdir()}
     assert {"licenses.json", "popularity.csv", "spdx-data-v9.99.tar.gz"} <= cache_files
@@ -132,9 +138,9 @@ def test_forced_update_reuses_all_caches_without_network(
 
     assert db.update_from_remote(force=True)
     fake.assert_not_called()
-    out = capsys.readouterr().out
-    assert "GitHub license ranking data  : cache" in out
-    assert "SPDX License List data       : cache" in out
+    err = capsys.readouterr().err
+    assert "GitHub license ranking data  : cache" in err
+    assert "SPDX License List data       : cache" in err
 
 
 def _attack_tarball(kind: str, outside: Path) -> bytes:
@@ -252,9 +258,7 @@ def test_unsafe_cached_tarball_is_removed_and_reported(tmp_path: Path) -> None:
     db = LicenseDatabase(str(tmp_path / "licenses.db"))
     tar_path = tmp_path / "spdx-data-v9.99.tar.gz"
     tar_path.write_bytes(_tarball({"../evil.txt": b"pwned"}))
-    with pytest.raises(RuntimeError, match="cached tarball was removed"):
-        db._process_and_store(tar_path, {}, None)
-    assert not tar_path.exists()
+    assert_cached_tarball_removed(db, tar_path)
 
 
 def test_cli_update_reports_success_then_no_change(
@@ -266,11 +270,114 @@ def test_cli_update_reports_success_then_no_change(
 
     first = runner.invoke(cli, ["--db", db_path, "update"])
     assert first.exit_code == 0, first.output
-    assert f"Database updated at {db_path}" in first.output
+    assert first.stdout == f"Database updated at {db_path}\n"
+    assert "Data sources:" in first.stderr
+    assert "Update complete." in first.stderr
 
     second = runner.invoke(cli, ["--db", db_path, "update"])
     assert second.exit_code == 0, second.output
-    assert "Database remains at version 9.99" in second.output
+    assert second.stdout == f"Database remains at version 9.99 at {db_path}\n"
+    assert "Skipping update" in second.stderr
+
+
+def test_cli_clear_cache_prints_nothing_on_stdout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db_path = tmp_path / "licenses.db"
+    _serve(monkeypatch, _release_tarball())
+    runner = CliRunner()
+    assert runner.invoke(cli, ["--db", str(db_path), "update"]).exit_code == 0
+
+    result = runner.invoke(cli, ["--db", str(db_path), "--clear-cache"])
+    assert result.exit_code == 0, result.output
+    assert result.stdout == ""
+    assert "Clearing cache..." in result.stderr
+    assert not db_path.exists()
+
+
+def test_cli_update_warnings_go_to_stderr(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Warnings must not mix with the result line on standard output."""
+    db_path = str(tmp_path / "licenses.db")
+    _serve(
+        monkeypatch,
+        _release_tarball(),
+        popularity_csv="spdx_license,num_pushers\nMIT,1000\nApache-2.0,\n",
+    )
+    result = CliRunner().invoke(cli, ["--db", db_path, "update"])
+    assert result.exit_code == 0, result.output
+    assert "WARNING: popularity.csv: 1 rows with missing" in result.stderr
+    assert "WARNING" not in result.stdout
+    assert "Warning" not in result.stdout
+    assert f"Database updated at {db_path}" in result.stdout
+
+
+def test_cli_update_unexpected_error_keeps_message_grammar(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An exception that is not one of the worded RuntimeErrors (here a
+    KeyError from a license entry without licenseId) still prints one
+    grammar line, not the bare exception text."""
+    licenses = {**_LICENSES, "licenses": [{"name": "No ID License"}]}
+    root = "license-list-data-9.99"
+    tarball = _tarball(
+        {
+            f"{root}/json/licenses.json": json.dumps(licenses).encode(),
+            f"{root}/json/exceptions.json": json.dumps({"exceptions": []}).encode(),
+        }
+    )
+    _serve(monkeypatch, tarball)
+    result = CliRunner().invoke(cli, ["--db", str(tmp_path / "x.db"), "update"])
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    errors = [line for line in result.stderr.splitlines() if line.startswith("ERROR")]
+    assert errors == ["ERROR: database: update failed: KeyError: 'licenseId'"]
+
+
+def test_cli_update_recursion_error_is_not_passed_through_raw(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RecursionError subclasses RuntimeError; a deeply nested licenses.json
+    in the release must still give a grammar line, not the bare text."""
+    root = "license-list-data-9.99"
+    nested = ("[" * 200_000 + "]" * 200_000).encode()
+    _serve(monkeypatch, _tarball({f"{root}/json/licenses.json": nested}))
+    result = CliRunner().invoke(cli, ["--db", str(tmp_path / "x.db"), "update"])
+    assert result.exit_code == 1
+    errors = [line for line in result.stderr.splitlines() if line.startswith("ERROR")]
+    assert len(errors) == 1
+    assert errors[0].startswith("ERROR: database: update failed: RecursionError: ")
+
+
+def test_cli_update_unopenable_database_path_is_an_error_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _serve(monkeypatch, _release_tarball())
+    db_path = tmp_path / "no" / "such" / "x.db"
+    result = CliRunner().invoke(cli, ["--db", str(db_path), "update"])
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert result.stderr == (
+        "ERROR: database: update failed: OperationalError: "
+        "unable to open database file\n"
+    )
+    fake.assert_not_called()
+
+
+def test_cli_update_exception_without_message_has_no_dangling_colon(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        LicenseDatabase,
+        "update_from_remote",
+        mock.create_autospec(
+            LicenseDatabase.update_from_remote, side_effect=StopIteration
+        ),
+    )
+    result = CliRunner().invoke(cli, ["--db", str(tmp_path / "x.db"), "update"])
+    assert result.exit_code == 1
+    assert result.stderr == "ERROR: database: update failed: StopIteration\n"
 
 
 def test_cli_update_failure_is_a_short_error_and_exit_1(
@@ -282,21 +389,23 @@ def test_cli_update_failure_is_a_short_error_and_exit_1(
     monkeypatch.setattr(requests, "get", fake)
     result = CliRunner().invoke(cli, ["--db", str(tmp_path / "x.db"), "update"])
     assert result.exit_code == 1
-    assert "ERROR: Failed to fetch latest license list info" in result.output
+    assert "ERROR: licenses.json: download failed: " in result.stderr
     assert "network down" in result.output
     assert "Traceback" not in result.output
     assert fake.call_count == 1  # one attempt, no retry loop
 
 
+@pytest.mark.parametrize("version", ["../../evil", ""])
 def test_cli_update_rejects_unsafe_version(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, version: str
 ) -> None:
+    """An empty --version is invalid too, not silently "latest"."""
     fake = _serve(monkeypatch, _release_tarball())
     result = CliRunner().invoke(
-        cli, ["--db", str(tmp_path / "x.db"), "update", "--version", "../../evil"]
+        cli, ["--db", str(tmp_path / "x.db"), "update", "--version", version]
     )
-    assert result.exit_code == 1
-    assert "ERROR: Invalid SPDX License List version" in result.output
+    assert result.exit_code == 2  # invalid parameter: usage error (README)
+    assert result.stderr == f"ERROR: version: invalid: {version!r}\n"
     fake.assert_not_called()
     assert not list(tmp_path.glob("**/*evil*"))
 
@@ -320,3 +429,25 @@ def test_update_passes_no_cache_flag_to_stale_fallback(
     monkeypatch.setattr(db, "_process_and_store", mock.Mock())
     assert db.update_from_remote(force=True, use_cache=use_cache)
     assert fetch.call_args.kwargs["allow_stale"] is use_cache
+
+
+def test_failure_mid_progress_line_leaves_stderr_at_line_start(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A library caller that catches the exception and writes its own
+    stderr text must not have it glued to the progress dots."""
+    db = LicenseDatabase(str(tmp_path / "licenses.db"))
+    root = "license-list-data-9.99"
+    licenses = {**_LICENSES, "licenses": [{"name": "No ID License"}]}
+    tar_path = tmp_path / "spdx-data-v9.99.tar.gz"
+    tar_path.write_bytes(
+        _tarball({f"{root}/json/licenses.json": json.dumps(licenses).encode()})
+    )
+    capsys.readouterr()
+    with pytest.raises(KeyError):
+        db._process_and_store(tar_path, {}, None)
+    err = capsys.readouterr().err
+    assert "Preparing license data..." in err
+    assert err.endswith("\n")
+    warn("popularity.csv: using stale cache")
+    assert capsys.readouterr().err == "WARNING: popularity.csv: using stale cache\n"

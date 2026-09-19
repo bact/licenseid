@@ -672,8 +672,7 @@ class AggregatedLicenseMatcher:
             import jpype  # pylint: disable=import-outside-toplevel
         except ImportError as exc:
             raise ImportError(
-                "JPype1 is required for Java validation. "
-                "Install it with 'pip install licenseid[java]'"
+                "java: JPype1 not installed; run 'pip install licenseid[java]'"
             ) from exc
 
         if not jpype.isJVMStarted():

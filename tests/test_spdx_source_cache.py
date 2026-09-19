@@ -22,6 +22,7 @@ from conftest import fake_requests_get, leftover_tmp_files
 
 from licenseid import spdx_source
 from licenseid.database import LicenseDatabase
+from licenseid.errors import InvalidInputError, LicenseIdError
 
 _LICENSES = {"licenseListVersion": "3.28.0", "releaseDate": "2026-01-01"}
 
@@ -110,7 +111,7 @@ def test_cache_write_failure_keeps_data(
         tmp_path / "missing-dir", None, use_cache=False
     )
     assert result == ("3.28.0", "2026-01-01", "remote")
-    assert "Failed to cache license list info" in capsys.readouterr().out
+    assert "WARNING: licenses.json: cache write failed: " in capsys.readouterr().err
 
 
 @pytest.mark.parametrize(
@@ -124,7 +125,10 @@ def test_response_without_version_is_not_cached(
     """Regression: such a response used to be cached and could return a None
     version; it is now treated as a failed fetch."""
     _fake_json_get(monkeypatch, payload)
-    with pytest.raises(RuntimeError, match="no valid license list version"):
+    with pytest.raises(
+        LicenseIdError,
+        match="^licenses.json: download unusable: no valid license list version$",
+    ):
         spdx_source.get_version_info(tmp_path, None, use_cache=False)
     assert not (tmp_path / spdx_source.CACHE_LICENSES_JSON).exists()
 
@@ -150,25 +154,35 @@ def test_stale_cache_used_when_fetch_fails(
     result = spdx_source.get_version_info(tmp_path, None, use_cache=True)
     assert result == ("3.28.0", "2026-01-01", "stale cache")
     fake.assert_called_once()
-    assert "stale cached license list info" in capsys.readouterr().out
+    err = capsys.readouterr().err
+    assert "WARNING: licenses.json: download " in err
+    assert err.rstrip().endswith("; using stale cache")
+    assert err.count("WARNING:") == 1  # one event, one line
 
 
 def test_fetch_failure_without_cache_or_version_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _fake_json_get(monkeypatch, error=requests.ConnectionError("down"))
-    with pytest.raises(RuntimeError, match="down"):
+    with pytest.raises(LicenseIdError, match="down"):
         spdx_source.get_version_info(tmp_path, None, use_cache=True)
 
 
 def test_fetch_failure_with_explicit_version_is_unavailable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     _fake_json_get(monkeypatch, error=requests.ConnectionError("down"))
     assert spdx_source.get_version_info(tmp_path, "3.20.0", use_cache=True) == (
         "3.20.0",
         None,
         "unavailable",
+    )
+    assert capsys.readouterr().err == (
+        "Fetching latest license list info from "
+        f"{spdx_source.LICENSES_JSON_URL}...\n"
+        "WARNING: licenses.json: download failed: down; using version 3.20.0\n"
     )
 
 
@@ -201,9 +215,9 @@ def test_invalid_explicit_version_is_rejected(
     """A --version value becomes a cache file name and a URL, so path
     separators and URL syntax must not get through."""
     fake = _fake_json_get(monkeypatch, _LICENSES)
-    with pytest.raises(RuntimeError, match="Invalid SPDX License List version"):
+    with pytest.raises(InvalidInputError, match="^version: invalid: "):
         spdx_source.get_version_info(tmp_path, bad_version, use_cache=True)
-    with pytest.raises(RuntimeError, match="Invalid SPDX License List version"):
+    with pytest.raises(InvalidInputError, match="^version: invalid: "):
         spdx_source.get_tarball_path(tmp_path, bad_version, use_cache=True)
     fake.assert_not_called()
     assert not list(tmp_path.iterdir())
@@ -225,7 +239,10 @@ def test_unsafe_version_in_remote_licenses_json_is_not_used_or_cached(
     """A compromised or broken licenses.json must not be able to steer the
     tarball file name or URL."""
     _fake_json_get(monkeypatch, {"licenseListVersion": "../../evil"})
-    with pytest.raises(RuntimeError, match="no valid license list version"):
+    with pytest.raises(
+        LicenseIdError,
+        match="^licenses.json: download unusable: no valid license list version$",
+    ):
         spdx_source.get_version_info(tmp_path, None, use_cache=False)
     assert not (tmp_path / spdx_source.CACHE_LICENSES_JSON).exists()
 
@@ -265,7 +282,10 @@ def test_unusable_valid_cache_is_reported_not_silent(
     _write_cache(tmp_path, "not json")
     _fake_json_get(monkeypatch, _LICENSES)
     spdx_source.get_version_info(tmp_path, None, use_cache=True)
-    assert "Cached license list info is unusable" in capsys.readouterr().out
+    assert (
+        "WARNING: licenses.json: cache unusable; downloading\n"
+        in capsys.readouterr().err
+    )
 
 
 def test_no_cache_flag_never_falls_back_to_stale_cache(
@@ -275,7 +295,7 @@ def test_no_cache_flag_never_falls_back_to_stale_cache(
     fail loudly (or use the explicit version) instead."""
     _write_cache(tmp_path, json.dumps(_LICENSES), age_days=100)
     _fake_json_get(monkeypatch, error=requests.ConnectionError("down"))
-    with pytest.raises(RuntimeError, match="down"):
+    with pytest.raises(LicenseIdError, match="down"):
         spdx_source.get_version_info(tmp_path, None, use_cache=False)
     assert spdx_source.get_version_info(tmp_path, "3.20.0", use_cache=False) == (
         "3.20.0",

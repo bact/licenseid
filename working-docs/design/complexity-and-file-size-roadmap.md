@@ -39,12 +39,12 @@ pylint's actual defaults are 12 and 50.
 | Args | ≤5 | 5 (at target) | 5 (`similarity.py`, `matcher._rank_candidates`) |
 | Locals | ≤15 | 23 | 23 (`database.py`) |
 | Nesting | ≤5 | 5 (no ratchet needed) | 5 |
-| Branches | ≤12 | 15 | 15 (`cli.match`) |
+| Branches | ≤12 | 13 | 13 (2 functions, see note) |
 | Returns | ≤6 | 6 (at target) | 6 (`matcher.match`) |
-| Statements | ≤50 | 50 (at target) | 36 (`cli.match`) |
-| McCabe | ≤10 | 12 | 12 (`cli.match` and 2 others) |
+| Statements | ≤50 | 50 (at target) | 35 (`markers._detect_gpl_headers`) |
+| McCabe | ≤10 | 12 | 12 (2 functions, see note) |
 | Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
-| Module lines | soft 400-500 / hard 800 | 944 | 944 (`matcher.py`) |
+| Module lines | soft 400-500 / hard 800 | 942 | 942 (`matcher.py`) |
 
 Measured 2026-08-19 via `pylint --disable=all --enable=too-many-<x>
 --max-<x>=1`, `flake8 --max-complexity 1` and
@@ -63,6 +63,16 @@ fails on a file this pass never touched. That's how a test helper
 a `src/` function; several other rows (Args, Returns, Statements, Module
 lines) were also already stale before this pass and are corrected here
 as a drive-by, not something this refactor changed.
+Branches, Statements and McCabe rows re-measured 2026-09-19 across `src/`
+and `tests/`, after the CLI error handling moved into `exit_if_db_missing`
+and `exit_no_input` and the two `--bold`/plain "no match" branches merged:
+`cli.match` fell to McCabe 10, cognitive 20, 12 branches, so the Branches
+ceiling dropped 15→13. Branches holders:
+`matcher._apply_version_suffix_tiebreaker` and
+`identifiers._normalize_expression`. McCabe holders:
+`matcher._apply_version_suffix_tiebreaker` and
+`database._prepare_license_and_exception_records`. Module lines 944→942
+(`matcher.py`, shorter JPype message).
 
 ## Backlog, priority order
 
@@ -340,14 +350,14 @@ module-lines-ratchet problem.
   runtime query methods) into two modules re-exported from
   `database.py`, or a `database/` subpackage per the file-size rule's
   "3+ related files → group in a same-named subfolder" convention.
-  `matcher.py` (944 lines, see "Done" above) is now a candidate for the
+  `matcher.py` (942 lines, see "Done" above) is now a candidate for the
   same treatment once its own complexity work has settled.
 - Impact 2, Risk 1, Effort 3.
 
 ## Out of scope for now
 
-- `cli.py::match` (McCabe 12, cognitive 25) is close to target already
-  relative to the top offenders above; revisit after item 1 lands.
+- `cli.py::match` (McCabe 10, cognitive 20, 12 branches since
+  2026-09-19) is at target except for cognitive complexity.
 - `tests/test_accuracy.py::run_accuracy_test` (cognitive 29) now sets
   the repo's Cognitive ceiling — a benchmark-table-printing test helper,
   not production code. Not a priority-ranked backlog item (it isn't
