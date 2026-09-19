@@ -174,31 +174,32 @@ the 800-line hard limit. Pylint rates the two directories 9.48/10;
 Found by running the CLI under odd environments (manual matrix, 2026-09-19).
 Each case is outside the message grammar or hides a failure:
 
-- **Default path has a side effect**: `get_default_db_path()` calls `mkdir`,
-  so every read command (`match`, `is-*`) fails with a traceback when
-  `HOME` is unset to `/nonexistent`, read-only, a regular file or the empty
-  string (`OSError`, `PermissionError`, `NotADirectoryError`). Reading must
-  not create directories; only `update` should. Also fixed as part of the
-  database readiness work.
-- **`--clear-cache`** on a missing or read-only directory: `sqlite3`
-  traceback.
+- **`--clear-cache` and `update` when the default directory cannot be
+  made** (unwritable `HOME`): the `mkdir` error is a traceback for
+  `--clear-cache`. (A foreign file or a read-only directory given with `--db`
+  now exits 2 with `database: unreadable`.)
 - **Closed standard input** (`<&-`): `AttributeError: 'NoneType' object has
   no attribute 'isatty'` from `read_input`.
 - **Closed standard output** (`>&-`): exit 0 and the result is lost. A
   script sees success with no data.
 - **Output error** (`ulimit -f 0` with output to a file): `OSError`
   traceback and exit 120, instead of one `ERROR:` line.
-- **DB replaced during a run**: `database disk image is malformed`.
+- **DB replaced during a run**: on the CLI a `sqlite3` failure after the
+  readiness check now exits 2 with `database: unreadable`. The Python API
+  still raises a raw `sqlite3.OperationalError` from a live matcher whose
+  file was deleted (pinned in `tests/test_db_ready.py`); wrapping it in
+  `LicenseIdError` needs a decision on where (matcher, `LicenseDatabase`).
 - **Ctrl-C (SIGINT)**: prints `Aborted!` (click's own wording, outside the
   message grammar) and exits **1**, the code for "no". A script that tests
   `licenseid is-osi X` reads an interrupted run as "not OSI". Exit 130
   (128 + 2, the shell convention) or 2 would be safe; `update` interrupted
   during its first download also leaves an empty `licenses.db`
-  (the unready database that the readiness check will report).
+  (the readiness check now reports that database).
 - **Fix**: handle `OSError` and `sqlite3.Error` once at the top of the CLI
   and print `ERROR: <subject>: <condition>: <detail>`; treat a `None`
   `sys.stdin` as no input; flush standard output at the end and exit 2 when
-  it fails; make the default path pure.
+  it fails. The `sqlite3.Error` part is done for the CLI in
+  `DatabaseErrorGroup`; the API is left.
 - Impact 2, Risk 2, Effort 3.
 
 ## 11. Probe-anchored windowing — Priority 9
@@ -237,6 +238,23 @@ statistics; no fix has been designed yet, only the problem is documented.
   estimate is meaningful — treat this as provisional).
 
 ## Already resolved (kept for record)
+
+- Unready database answers silently (2026-09-19 audit): after a failed first
+  `update`, `match` said "no license found" and `is-osi` printed `false`
+  (exit 1); a non-SQLite `--db` or a directory crashed with a traceback; and
+  a read command on a 0-byte file wrote tables into it. Now `match`, the
+  `is-*` commands and `AggregatedLicenseMatcher()` check readiness first, read
+  only, and report `database: not found`, `empty` or `unreadable` with exit 2
+  (`DatabaseNotReadyError`). Ready means the `licenses` and `db_metadata`
+  tables exist, `license_list_version` is not blank and `licenses` has a row.
+  Same change: `get_default_db_path()` no longer creates the directory (only
+  `update` and `--clear-cache` do), so read commands no longer crash on an
+  unwritable `HOME`.
+  Left open: the metadata is committed before the fingerprints are computed,
+  so a kill in between leaves a "ready" database without fingerprints (fix by
+  writing the metadata in the fingerprint transaction). A `sqlite3` failure
+  after the check exits 2 on the CLI (`database: unreadable`); the API keeps
+  raising the raw error (item 10).
 
 - `cli.py` test coverage (2026-09-19 audit, Priority 18): was 66-75%. Now
   100% of lines and branches, from `tests/test_cli_errors.py`,

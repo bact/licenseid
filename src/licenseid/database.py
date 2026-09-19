@@ -65,9 +65,7 @@ class SpdxLicenseList(NamedTuple):
 
 def get_default_db_path() -> str:
     """Return the default path for the licence database."""
-    db_dir = Path.home() / ".local" / "share" / "licenseid"
-    db_dir.mkdir(parents=True, exist_ok=True)
-    return str(db_dir / "licenses.db")
+    return str(Path.home() / ".local" / "share" / "licenseid" / "licenses.db")
 
 
 # Version of the normalize_text() rule set used to build the stored

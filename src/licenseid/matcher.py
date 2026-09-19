@@ -15,6 +15,7 @@ from rapidfuzz import fuzz
 
 from licenseid.classify import has_or_later_language, is_pure_license_text
 from licenseid.database import LicenseDatabase, get_default_db_path
+from licenseid.dbcheck import check_database_ready
 from licenseid.identifiers import (
     disambiguate_deprecated_id,
     normalize_identifier,
@@ -89,6 +90,8 @@ class AggregatedLicenseMatcher:
     ):
         if not db_path:
             db_path = get_default_db_path()
+        # Before LicenseDatabase, which creates its tables on open.
+        check_database_ready(db_path)
         self.db = LicenseDatabase(db_path)
         self.detector = MarkerDetector(self.db)
         self.enable_popularity = enable_popularity

@@ -218,7 +218,7 @@ making it suitable for use in scripts and CI/CD pipelines.
 | :--- | :--- | :--- |
 | **0** | Success | Confident match found; predicate is TRUE; database updated or already up-to-date. |
 | **1** | Logic Failure | No matching license found; predicate is FALSE; network error. |
-| **2** | Usage Error | Missing subcommand; missing input text/file; invalid parameters. |
+| **2** | Usage or Setup Error | Missing subcommand; missing input text/file; invalid parameters; database missing, empty or unreadable. |
 
 Errors and warnings go to standard error, one per line, in a fixed format:
 
@@ -298,6 +298,10 @@ if matcher.is_open(file_path="LICENSE.txt"):
 if matcher.is_spdx(text="Creative Commons Zero v1.0 Universal"):
     print("SPDX Match Found!")
 ```
+
+The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
+when the database is missing, empty or unreadable, for example before the first
+`licenseid update`. It never creates or changes the file.
 
 Example JSON output:
 

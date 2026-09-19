@@ -12,6 +12,7 @@ import re
 import sqlite3
 import uuid
 from collections.abc import Generator
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -20,7 +21,7 @@ import pytest
 import requests
 
 from licenseid import console
-from licenseid.database import LicenseDatabase
+from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.errors import LicenseIdError
 
 # LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION] -- see AGENTS.md "CLI output".
@@ -55,6 +56,21 @@ def check_diagnostic_grammar(
     assert not violations, f"diagnostics break the message grammar: {violations}"
 
 
+def seed_ready_metadata(db_path: str) -> None:
+    """Record what an update records: the license list version and the current
+    normalisation version. With at least one license row the database is then
+    ready (see licenseid.dbcheck) and prints no normalisation warning. Safe to
+    call on a database that already has these keys."""
+    with sqlite3.connect(db_path, uri=True) as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
+            [
+                ("license_list_version", "3.30"),
+                ("normalization_version", NORMALIZATION_VERSION),
+            ],
+        )
+
+
 def make_memory_db_path(name_prefix: str) -> tuple[str, sqlite3.Connection]:
     """Create a shared-cache in-memory SQLite DB with the licenseid schema
     initialised, for tests that seed their own rows directly via sqlite3.
@@ -77,12 +93,26 @@ def make_memory_db_path(name_prefix: str) -> tuple[str, sqlite3.Connection]:
     db_path = f"file:{name_prefix}_{db_id}?mode=memory&cache=shared"
     keep_alive = sqlite3.connect(db_path, uri=True)
     LicenseDatabase(db_path)
+    seed_ready_metadata(db_path)
     return db_path, keep_alive
 
 
 MIT_SEARCH_TEXT = (
     "permission is hereby granted free of charge to any person obtaining a copy"
 )
+
+
+def insert_mit_license(conn: sqlite3.Connection) -> None:
+    """Add MIT (SPDX, OSI- and FSF-approved), indexed by MIT_SEARCH_TEXT."""
+    conn.execute(
+        "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved, "
+        "is_fsf_libre) VALUES (?, ?, ?, ?, ?)",
+        ("MIT", "MIT License", True, True, True),
+    )
+    conn.execute(
+        "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+        ("MIT", MIT_SEARCH_TEXT),
+    )
 
 
 def make_mit_db_path(
@@ -92,20 +122,19 @@ def make_mit_db_path(
     FSF-approved), indexed by MIT_SEARCH_TEXT. Same keep-alive contract."""
     db_path, keep_alive = make_memory_db_path(name_prefix)
     with sqlite3.connect(db_path, uri=True) as conn:
-        conn.execute(
-            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved, "
-            "is_fsf_libre) VALUES (?, ?, ?, ?, ?)",
-            ("MIT", "MIT License", True, True, True),
-        )
-        conn.execute(
-            "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
-            ("MIT", MIT_SEARCH_TEXT),
-        )
+        insert_mit_license(conn)
         conn.execute(
             "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
             ("last_check_datetime", last_check_datetime),
         )
     return db_path, keep_alive
+
+
+def make_ready_db_path(name_prefix: str) -> tuple[str, sqlite3.Connection]:
+    """A database that is ready and silent: MIT, the license list version,
+    a fresh check time and the current normalisation version, so a command
+    on it prints no warning. Same keep-alive contract as make_memory_db_path."""
+    return make_mit_db_path(name_prefix, datetime.now(timezone.utc).isoformat())
 
 
 def assert_cached_tarball_removed(db: LicenseDatabase, tar_path: Path) -> None:

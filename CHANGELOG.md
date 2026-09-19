@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `licenseid.DatabaseNotReadyError`, a `LicenseIdError` for a missing, empty or
+  unreadable database ([#55])
 - `licenseid.LicenseIdError` (a `RuntimeError`) for failures reported in
   licenseid's own message format, and its subclass `licenseid.InvalidInputError`
   for invalid options or input ([#53])
@@ -16,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shells, locales, standard streams and environments; not run in CI ([#54])
 
 ### Changed
+
+- `match` and the `is-*` commands check that the database is ready before
+  answering. A missing, empty (for example after a failed first `update`) or
+  unreadable database exits 2 with `ERROR: database: not found`, `empty` or
+  `unreadable`, instead of "no license found", `false` (exit 1) or a
+  traceback, and a file that is not ready is no longer modified. A SQLite
+  failure while reading exits 2 the same way, also for `--clear-cache`. The Python
+  API raises `DatabaseNotReadyError` from the `AggregatedLicenseMatcher`
+  constructor ([#55])
+- Read commands no longer create `~/.local/share/licenseid`; only `update`
+  and `--clear-cache` do, so an unwritable `HOME` no longer crashes them ([#55])
 
 - `licenseid update` sends a `User-Agent` that identifies licenseid, makes one
   attempt per source, and reuses a stale cache file (with a warning) when a
@@ -86,6 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#51]: https://github.com/bact/licenseid/pull/51
 [#53]: https://github.com/bact/licenseid/pull/53
 [#54]: https://github.com/bact/licenseid/pull/54
+[#55]: https://github.com/bact/licenseid/pull/55
 
 ## [0.3.7] - 2026-08-20
 

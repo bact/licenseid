@@ -19,6 +19,12 @@ class LicenseIdError(RuntimeError):
     """
 
 
+class DatabaseNotReadyError(LicenseIdError):
+    """The license database is missing, empty or unreadable, so an answer
+    from it could not be trusted. The CLI exits with code 2, not 1, because
+    1 means "no" for ``match`` and every ``is-*`` command."""
+
+
 class InvalidInputError(LicenseIdError):
     """An invalid option or input (e.g. a malformed ``--version`` or binary
     input): a usage error, so the CLI exits with code 2 rather than 1."""

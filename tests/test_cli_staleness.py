@@ -11,6 +11,7 @@ import sqlite3
 import uuid
 from collections.abc import Generator
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
@@ -98,4 +99,12 @@ def test_malformed_timestamp_ignored(
 ) -> None:
     """A malformed timestamp is ignored rather than raising or warning."""
     check_db_staleness(malformed_db)
+    assert capsys.readouterr().err == ""
+
+
+def test_missing_timestamp_is_ignored(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A database that never recorded a check time has nothing to compare."""
+    check_db_staleness(LicenseDatabase(str(tmp_path / "licenses.db")))
     assert capsys.readouterr().err == ""
