@@ -6,6 +6,8 @@
 """Tests for the shared diagnostic output helpers."""
 # pylint: disable=missing-function-docstring
 
+import sys
+
 import pytest
 from conftest import DIAGNOSTIC_RE
 
@@ -70,3 +72,30 @@ def test_grammar_rejects_free_prose(line: str) -> None:
 )
 def test_grammar_accepts_diagnostics(line: str) -> None:
     assert DIAGNOSTIC_RE.fullmatch(line)
+
+
+def test_diagnostic_after_partial_progress_line_starts_a_new_line(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    status("Preparing license data...", end="")
+    error("database: update failed: KeyError: 'licenseId'")
+    status("Next step")
+    warn("popularity.csv: using stale cache")
+    assert capsys.readouterr().err == (
+        "Preparing license data...\n"
+        "ERROR: database: update failed: KeyError: 'licenseId'\n"
+        "Next step\n"
+        "WARNING: popularity.csv: using stale cache\n"
+    )
+
+
+def test_closed_stderr_never_falls_back_to_stdout(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """With stderr closed (`2>&-`) Python sets sys.stderr to None, and
+    print(file=None) would write to stdout, mixing into the result."""
+    monkeypatch.setattr(sys, "stderr", None)
+    status("Working", end="")
+    warn("popularity.csv: using stale cache")
+    error("database: not found: x.db")
+    assert capsys.readouterr().out == ""

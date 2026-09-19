@@ -106,6 +106,9 @@ echo "MIT License..." | licenseid match
 licenseid match --id MIT
 ```
 
+Input is read as UTF-8. Text that is not valid UTF-8 is read as Latin-1,
+with a warning on standard error; binary data is rejected (exit code 2).
+
 Common options:
 
 - `--db <path>`: Use a custom database path (global option).
@@ -113,6 +116,9 @@ Common options:
   (e.g., `file:test?mode=memory&cache=shared`).
 - `--id <id>`: Explicitly treat input as an SPDX License ID
   (bypasses file/text matching).
+- `--text <text>`: Match the given text. Backslash escapes such as `\n`,
+  `\t` and `\u00e9` are decoded, so write `\\` for a literal backslash
+  (for example in a Windows path).
 - `--bold`: Print only the top license ID (no other info).
 - `--diff`: Show a word-by-word diff between the input and
   the best-matching candidate.
@@ -225,7 +231,7 @@ For example:
 
 ```text
 ERROR: database: not found: /tmp/x.db; run 'licenseid update'
-WARNING: popularity.csv: using stale cache
+WARNING: popularity.csv: download failed: timed out; using stale cache
 ```
 
 `LEVEL` is `ERROR` (the command fails) or `WARNING` (it continues).

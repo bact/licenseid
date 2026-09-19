@@ -21,6 +21,7 @@ from conftest import fake_requests_get, leftover_tmp_files
 
 from licenseid import __version__, spdx_source
 from licenseid.database import LicenseDatabase
+from licenseid.errors import LicenseIdError
 from licenseid.spdx_source import is_cache_valid
 
 
@@ -206,7 +207,13 @@ def test_popularity_stale_cache_used_when_download_fails(
     fake = fake_requests_get(monkeypatch, **fake_kwargs)  # type: ignore[arg-type]
     assert _popularity_map(tmp_path) == {"MIT": 1}
     fake.assert_called_once()
-    assert "WARNING: popularity.csv: using stale cache\n" in capsys.readouterr().err
+    warnings = [
+        line for line in capsys.readouterr().err.splitlines() if "WARNING" in line
+    ]
+    # One event, one line: why the download was not used, then the fallback.
+    assert len(warnings) == 1
+    assert warnings[0].startswith("WARNING: popularity.csv: download ")
+    assert warnings[0].endswith("; using stale cache")
 
 
 # --- gentle fetching ---
@@ -372,7 +379,7 @@ def test_tarball_interrupted_download_is_not_cached(
     )
 
     with pytest.raises(
-        RuntimeError, match=r"^spdx-data-v3\.28\.0\.tar\.gz: download failed: "
+        LicenseIdError, match=r"^spdx-data-v3\.28\.0\.tar\.gz: download failed: "
     ):
         spdx_source.get_tarball_path(tmp_path, "3.28.0", use_cache=True)
     assert not tar_path.exists()
@@ -478,18 +485,33 @@ def test_popularity_csv_parse_error_uses_no_partial_data(
     assert "WARNING: popularity.csv: parse failed: " in capsys.readouterr().err
 
 
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("<html>oops</html>", {"text": "<html>x</html>"}, "download unusable"),
+        ("", {"error": requests.ConnectionError("down")}, "download failed: down"),
+    ],
+    ids=["garbage", "empty_file"],
+)
 def test_popularity_unusable_data_is_reported_not_silent(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    case: tuple[str, dict[str, object], str],
 ) -> None:
+    cached, fake_kwargs, download_warning = case
     local = tmp_path / spdx_source.CACHE_POPULARITY_CSV
-    local.write_text("<html>oops</html>")
-    fake_requests_get(monkeypatch, "<html>still broken</html>")
+    local.write_text(cached)
+    fake_requests_get(monkeypatch, **fake_kwargs)  # type: ignore[arg-type]
     assert _popularity_map(tmp_path, local) == {}
-    err = capsys.readouterr().err
-    assert "WARNING: popularity.csv: cache unusable; downloading\n" in err
-    assert "WARNING: popularity.csv: download unusable; not cached\n" in err
+    warnings = [
+        line for line in capsys.readouterr().err.splitlines() if "WARNING" in line
+    ]
+    # The cache already rejected is not read again as a stale fallback.
+    assert warnings == [
+        "WARNING: popularity.csv: cache unusable; downloading",
+        f"WARNING: popularity.csv: {download_warning}",
+    ]
 
 
 def test_popularity_stale_cache_with_no_rows_is_reported(
@@ -500,7 +522,13 @@ def test_popularity_stale_cache_with_no_rows_is_reported(
     (tmp_path / spdx_source.CACHE_POPULARITY_CSV).write_text("<html>oops</html>")
     fake_requests_get(monkeypatch, error=requests.ConnectionError("down"))
     assert spdx_source.fetch_popularity_data(tmp_path) == ({}, "unavailable")
-    assert "WARNING: popularity.csv: stale cache unusable\n" in capsys.readouterr().err
+    warnings = [
+        line for line in capsys.readouterr().err.splitlines() if "WARNING" in line
+    ]
+    assert warnings == [
+        "WARNING: popularity.csv: download failed: down",
+        "WARNING: popularity.csv: stale cache unusable",
+    ]
 
 
 def test_popularity_stale_cache_not_used_when_disallowed(

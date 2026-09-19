@@ -22,6 +22,7 @@ import requests
 
 from licenseid import console
 from licenseid.database import LicenseDatabase
+from licenseid.errors import LicenseIdError
 
 # LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION] -- see AGENTS.md "CLI output".
 # The subject is a lowercase word or file name; the condition starts
@@ -48,6 +49,9 @@ def check_diagnostic_grammar(
         builtins.print(*args, **kwargs)
 
     monkeypatch.setattr(console, "print", checked_print, raising=False)
+    # A test that ends mid progress line must not shift the next test's output.
+    # pylint: disable-next=protected-access
+    monkeypatch.setitem(console._state, "line_open", False)
     yield
     assert not violations, f"diagnostics break the message grammar: {violations}"
 
@@ -77,11 +81,39 @@ def make_memory_db_path(name_prefix: str) -> tuple[str, sqlite3.Connection]:
     return db_path, keep_alive
 
 
+MIT_SEARCH_TEXT = (
+    "permission is hereby granted free of charge to any person obtaining a copy"
+)
+
+
+def make_mit_db_path(
+    name_prefix: str, last_check_datetime: str
+) -> tuple[str, sqlite3.Connection]:
+    """make_memory_db_path() seeded with one license, MIT (SPDX, OSI- and
+    FSF-approved), indexed by MIT_SEARCH_TEXT. Same keep-alive contract."""
+    db_path, keep_alive = make_memory_db_path(name_prefix)
+    with sqlite3.connect(db_path, uri=True) as conn:
+        conn.execute(
+            "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved, "
+            "is_fsf_libre) VALUES (?, ?, ?, ?, ?)",
+            ("MIT", "MIT License", True, True, True),
+        )
+        conn.execute(
+            "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+            ("MIT", MIT_SEARCH_TEXT),
+        )
+        conn.execute(
+            "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
+            ("last_check_datetime", last_check_datetime),
+        )
+    return db_path, keep_alive
+
+
 def assert_cached_tarball_removed(db: LicenseDatabase, tar_path: Path) -> None:
     """Building from an unusable cached tarball (corrupt, truncated or
     unsafe) fails with the grammar message and deletes the file."""
     with pytest.raises(
-        RuntimeError,
+        LicenseIdError,
         match=rf"^{re.escape(tar_path.name)}: cache unusable: .*; removed, run",
     ):
         db._process_and_store(  # pylint: disable=protected-access

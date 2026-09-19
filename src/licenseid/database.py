@@ -19,7 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple, cast
 
-from licenseid.console import status, warn
+from licenseid.console import end_line, status, warn
+from licenseid.errors import LicenseIdError
 from licenseid.fingerprint import compute_idf_fingerprints, extract_ngrams
 from licenseid.normalize import normalize_text
 from licenseid.types import (
@@ -354,12 +355,14 @@ class LicenseDatabase:
             # A corrupt or truncated cached tarball (e.g. left by an
             # interrupted download) would otherwise fail every later run.
             tar_path.unlink(missing_ok=True)
-            raise RuntimeError(
+            raise LicenseIdError(
                 f"{tar_path.name}: cache unusable: {e}; "
                 "removed, run 'licenseid update' again"
             ) from e
         except (OSError, json.JSONDecodeError, sqlite3.Error) as e:
-            raise RuntimeError(f"database: update failed: {e}") from e
+            raise LicenseIdError(f"database: update failed: {e}") from e
+        finally:
+            end_line()  # a failure mid "Preparing ...": leave stderr at column 0
 
     def _update_db_records(
         self,
@@ -565,7 +568,7 @@ class LicenseDatabase:
             with open(xml_path, "r", encoding="utf-8") as f:
                 xml_content = f.read()
 
-        fingerprint = self._create_fingerstatus(raw_text, xml_content)
+        fingerprint = self._create_fingerprint(raw_text, xml_content)
         word_count = len(fingerprint.split())
         is_osi = lic.get("isOsiApproved", False)
         is_fsf = lic.get("isFsfLibre", False)
@@ -596,7 +599,7 @@ class LicenseDatabase:
         index_record: _IndexInsertRecord = (license_id, fingerprint)
         return license_record, index_record
 
-    def _create_fingerstatus(self, text: str, xml_content: str | None = None) -> str:
+    def _create_fingerprint(self, text: str, xml_content: str | None = None) -> str:
         """Create a search fingerprint by removing optional parts and normalizing."""
         if xml_content:
             try:

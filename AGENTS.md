@@ -39,16 +39,30 @@ Unix philosophy. Consistent, predictable, parseable.
   - `SUBJECT`: the thing affected, a lowercase word or cache file name:
     `database`, `input`, `match`, `version`, `java`, `licenses.json`,
     `popularity.csv`, `spdx-data-v<ver>.tar.gz`.
-  - `CONDITION`: short lowercase fragment, reused across subjects:
-    `not found`, `invalid`, `missing`, `download failed`,
-    `cache read failed`, `cache write failed`, `cache unusable`,
-    `download unusable`, `stale cache unusable`, `using stale cache`,
-    `parse failed`, `update failed`.
+  - `CONDITION`: short lowercase fragment, reused across subjects. The
+    full current set (add new ones here): `not found`, `invalid`,
+    `missing`, `empty`, `unreadable`, `binary file`,
+    `not UTF-8, read as Latin-1`, `no license found`, `N days old`,
+    `normalization vN outdated`, `download failed`, `cache read failed`,
+    `cache write failed`, `cache unusable`, `download unusable`,
+    `stale cache unusable`, `parse failed`,
+    `N rows with missing or non-numeric num_pushers`, `update failed`,
+    `JPype1 not installed`.
   - `DETAIL`: the variable part (exception text, value, path).
-  - `ACTION`: imperative fragment after a semicolon, e.g.
-    `run 'licenseid update'`.
-  - No trailing period, no "Please", no full sentences. A raised exception
-    carries `SUBJECT: CONDITION…`; the CLI adds `ERROR:`.
+  - `ACTION`: what happens next, after a semicolon: the fallback taken
+    (`using stale cache`, `downloading`, `counted as 0`) or the command for
+    the user to run (`run 'licenseid update'`). A fallback goes on the same
+    line as its cause, e.g.
+    `popularity.csv: download failed: <error>; using stale cache`.
+  - No trailing period, no "Please", no full sentences.
+  - A failure worded this way is raised as `licenseid.errors.LicenseIdError`
+    (`SUBJECT: CONDITION…`, no prefix); the CLI prints it after `ERROR:` and
+    exits 1, or 2 for its subclass `InvalidInputError` (a usage error).
+  - A step that prints partial progress (`status(..., end="")`) and can fail
+    must call `console.end_line()` in a `finally`, so the caller's next
+    stderr line starts at column 0.
+    Any other exception, including RuntimeError subclasses such as
+    RecursionError, is wrapped as `SUBJECT: update failed: <Type>: <text>`.
   - `tests/conftest.py::check_diagnostic_grammar` fails any test that
     prints a line breaking this grammar.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
@@ -147,6 +161,9 @@ Sort SPDX metadata keys alphabetically.
 - `spec`/`autospec` when mocking.
 - `time_machine` for time-dependent tests.
 - `@pytest.mark.parametrize` for multiple similar inputs.
+- A new CLI option or API parameter goes into `tests/test_option_matrix.py`
+  as an axis (or a value on one), so it is tested in combination with the
+  others, not only on its own.
 
 ## Traps and test patterns
 

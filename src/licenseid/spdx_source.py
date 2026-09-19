@@ -28,6 +28,7 @@ from pathlib import Path
 import requests
 
 from licenseid.console import status, warn
+from licenseid.errors import InvalidInputError, LicenseIdError
 
 LICENSES_JSON_URL = "https://spdx.org/licenses/licenses.json"
 POPULARITY_DATA_URL = (
@@ -161,8 +162,8 @@ def get_version_info(
     all fail, an explicit *version* is used as is; otherwise RuntimeError is
     raised.
     """
-    if version and not _is_valid_version(version):
-        raise RuntimeError(f"version: invalid: {version!r}")
+    if version is not None and not _is_valid_version(version):
+        raise InvalidInputError(f"version: invalid: {version!r}")
     licenses_json_path = cache_dir / CACHE_LICENSES_JSON
 
     if use_cache and is_cache_valid(licenses_json_path, EXPIRY_LICENSES_JSON):
@@ -173,20 +174,21 @@ def get_version_info(
 
     try:
         latest_version, release_date = _download_licenses_json(licenses_json_path)
-        error = "response has no valid license list version"
+        failure = "download unusable: no valid license list version"
     except requests.RequestException as e:
-        latest_version, release_date, error = None, None, str(e)
+        latest_version, release_date = None, None
+        failure = f"download failed: {e}"
     if latest_version:
         return version or latest_version, release_date, "remote"
 
     if use_cache:  # --no-cache means never fall back to cached data
         latest_version, release_date = _read_licenses_json(licenses_json_path)
         if latest_version:
-            warn(f"{CACHE_LICENSES_JSON}: download failed: {error}; using stale cache")
+            warn(f"{CACHE_LICENSES_JSON}: {failure}; using stale cache")
             return version or latest_version, release_date, "stale cache"
     if not version:
-        raise RuntimeError(f"{CACHE_LICENSES_JSON}: download failed: {error}")
-    warn(f"{CACHE_LICENSES_JSON}: download failed: {error}; using version {version}")
+        raise LicenseIdError(f"{CACHE_LICENSES_JSON}: {failure}")
+    warn(f"{CACHE_LICENSES_JSON}: {failure}; using version {version}")
     return version, None, "unavailable"
 
 
@@ -195,7 +197,7 @@ def get_tarball_path(
 ) -> tuple[Path, str]:
     """Download or retrieve the SPDX License List tarball path."""
     if not _is_valid_version(version):
-        raise RuntimeError(f"version: invalid: {version!r}")
+        raise InvalidInputError(f"version: invalid: {version!r}")
     tar_filename = CACHE_SPDX_TARBALL_TEMPLATE.format(version=version)
     tar_cache_path = cache_dir / tar_filename
     data_source = "remote"
@@ -212,7 +214,7 @@ def get_tarball_path(
             with _atomic_path(tar_cache_path) as tmp_path, open(tmp_path, "wb") as f:
                 f.writelines(resp.iter_content(chunk_size=8192))
         except requests.RequestException as e:
-            raise RuntimeError(f"{tar_filename}: download failed: {e}") from e
+            raise LicenseIdError(f"{tar_filename}: download failed: {e}") from e
     else:
         data_source = "cache"
 
@@ -258,26 +260,26 @@ def extract_tarball(tar_path: Path, dest: Path) -> None:
         tar.extractall(path=dest)
 
 
-def _read_local_csv(path: Path) -> str:
-    """Read a local popularity CSV; empty string (with a warning) on failure."""
+def _read_local_csv(path: Path) -> str | None:
+    """Read a local popularity CSV; None (with a warning) on failure."""
     try:
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
     except (OSError, UnicodeDecodeError) as e:
         warn(f"{CACHE_POPULARITY_CSV}: cache read failed: {e}")
-        return ""
+        return None
 
 
-def _download_popularity_csv() -> str:
-    """Download the popularity CSV; empty string on failure."""
+def _download_popularity_csv() -> tuple[str, str]:
+    """Download the popularity CSV. Returns ``(text, failure)``: text is empty
+    and *failure* is a ``download failed: ...`` condition on failure."""
     status(f"Downloading popularity data: {POPULARITY_DATA_URL}")
     try:
         resp = _http_get(POPULARITY_DATA_URL, timeout=30)
         resp.raise_for_status()
-        return resp.text
+        return resp.text, ""
     except requests.RequestException as e:
-        warn(f"{CACHE_POPULARITY_CSV}: download failed: {e}")
-        return ""
+        return "", f"download failed: {e}"
 
 
 def _write_popularity_cache(path: Path, csv_content: str) -> None:
@@ -340,26 +342,29 @@ def fetch_popularity_data(
     *local_path* data, then one download (cached only if it parses), then, if
     *allow_stale*, a stale cache file. Every fallback prints a warning.
     """
-    local_csv = _read_local_csv(local_path) if local_path else ""
+    local_csv = _read_local_csv(local_path) if local_path else None
     popularity_map = _aggregate_popularity(local_csv) if local_csv else {}
     if popularity_map:
         return popularity_map, "cache"
-    if local_csv:
+    if local_csv is not None:  # read, even if empty; a read failure has warned
         warn(f"{CACHE_POPULARITY_CSV}: cache unusable; downloading")
 
     cache_path = cache_dir / CACHE_POPULARITY_CSV
-    downloaded = _download_popularity_csv()
+    downloaded, failure = _download_popularity_csv()
     popularity_map = _aggregate_popularity(downloaded) if downloaded else {}
     if popularity_map:
         _write_popularity_cache(cache_path, downloaded)
         return popularity_map, "remote"
-    if downloaded:
-        warn(f"{CACHE_POPULARITY_CSV}: download unusable; not cached")
+    failure = failure or "download unusable"  # never cached
 
-    if allow_stale and cache_path.exists():
-        warn(f"{CACHE_POPULARITY_CSV}: using stale cache")
-        popularity_map = _aggregate_popularity(_read_local_csv(cache_path))
+    # A cache file already tried above as *local_path* is not read again.
+    try_stale = allow_stale and cache_path.exists() and local_path != cache_path
+    if try_stale:
+        popularity_map = _aggregate_popularity(_read_local_csv(cache_path) or "")
         if popularity_map:
+            warn(f"{CACHE_POPULARITY_CSV}: {failure}; using stale cache")
             return popularity_map, "stale cache"
+    warn(f"{CACHE_POPULARITY_CSV}: {failure}")
+    if try_stale:
         warn(f"{CACHE_POPULARITY_CSV}: stale cache unusable")
     return {}, "unavailable"

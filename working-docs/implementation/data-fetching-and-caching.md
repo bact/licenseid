@@ -37,7 +37,8 @@ Every function returns where its data came from: `cache`, `remote`,
   error through `console.warn()` (unusable cache, unusable download, stale
   data, bad counts), in the `LEVEL: SUBJECT: CONDITION` grammar from
   `AGENTS.md`, with the cache file name as the subject (for example
-  `WARNING: popularity.csv: using stale cache`). Progress goes to standard
+  `WARNING: popularity.csv: download failed: <error>; using stale cache`,
+  one line per event). Progress goes to standard
   error through `console.status()`. Do not add a silent fallback.
 - **Gentle**: identifying `User-Agent` (`user_agent()`), explicit timeouts,
   one attempt per source per run, no retry or backoff loop. Not added, on
