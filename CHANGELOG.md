@@ -48,6 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `LicenseDatabase.clear_cache`, so the Python API and the CLI agree.
   A file the system will not remove is reported as
   `database: delete failed: <path>: <reason>` ([#55])
+- **Breaking (Python API):** `AggregatedLicenseMatcher.match()` rejects an
+  option it does not know (a typo such as `enable_popularty`, or a removed one)
+  with `InvalidInputError`, `option: invalid: '<name>'; use one of ...`,
+  instead of ignoring it. The known options are `enable_popularity`,
+  `exclude`, `hint`, `only_common` and `only_spdx`. To migrate, drop or
+  correct the option ([#57])
 - Read commands no longer create `~/.local/share/licenseid`; only `update`
   does, so an unwritable `HOME` no longer crashes them ([#55])
 - `--clear-cache` no longer opens the database to clear it, so it also clears
@@ -80,8 +86,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the `licenseid[java]` extra, `SPDX_TOOLS_JAR`, `enable_java` and the
   `java_verified` result field. It was off by default and untested in CI, so
   match results are unchanged. To migrate, drop them.
-  `AggregatedLicenseMatcher(db, enable_java=True)` raises `TypeError`, but
-  `match(enable_java=True)` is silently ignored ([#54])
+  `AggregatedLicenseMatcher(db, enable_java=True)` raises `TypeError`, and
+  `match(enable_java=True)` raises `InvalidInputError` as an unknown option
+  ([#54], [#57])
 - **Breaking:** `AggregatedLicenseMatcher(enable_popularity=...)` is now
   keyword-only; it took the positional slot of `enable_java`, so a positional
   `True` would have silently enabled popularity ranking ([#54])
@@ -129,6 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#53]: https://github.com/bact/licenseid/pull/53
 [#54]: https://github.com/bact/licenseid/pull/54
 [#55]: https://github.com/bact/licenseid/pull/55
+[#57]: https://github.com/bact/licenseid/pull/57
 
 ## [0.3.7] - 2026-08-20
 

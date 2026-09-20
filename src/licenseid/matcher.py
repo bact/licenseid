@@ -16,6 +16,7 @@ from rapidfuzz import fuzz
 from licenseid.classify import has_or_later_language, is_pure_license_text
 from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.dbcheck import check_database_ready
+from licenseid.errors import InvalidInputError
 from licenseid.identifiers import (
     disambiguate_deprecated_id,
     normalize_identifier,
@@ -58,6 +59,25 @@ _DEP_PENALTY: float = 0.03
 # head+tail union at 75 candidates and Tier 2 (RapidFuzz) work accordingly.
 # See _search_candidates_by_length() for the full rationale.
 _TAIL_ONLY_CAP: int = 25
+
+# The keyword options match() accepts; `text`, `license_id` and `file_path`
+# are its named parameters, so a request can carry no other key.
+_MATCH_OPTIONS: frozenset[str] = frozenset(MatchRequest.__annotations__) - {
+    "text",
+    "license_id",
+    "file_path",
+}
+
+
+def _reject_unknown_options(options: dict[str, Any]) -> None:
+    """Raise InvalidInputError for an option match() does not know, so a typo
+    or a removed option (`enable_java`) cannot pass with no effect."""
+    unknown = sorted(options.keys() - _MATCH_OPTIONS)
+    if unknown:
+        raise InvalidInputError(
+            f"option: invalid: {', '.join(map(repr, unknown))}"
+            f"; use one of {', '.join(sorted(_MATCH_OPTIONS))}"
+        )
 
 
 @dataclass(frozen=True)
@@ -261,7 +281,9 @@ class AggregatedLicenseMatcher:
         """
         Identify license text and return ranked matches.
         Must provide exactly one of text, license_id, or file_path.
+        Raises licenseid.errors.InvalidInputError for an unknown option.
         """
+        _reject_unknown_options(options)
         if license_id:
             return self._try_explicit_id_match(license_id)
 

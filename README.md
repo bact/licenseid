@@ -308,6 +308,10 @@ if matcher.is_spdx(text="Creative Commons Zero v1.0 Universal"):
     print("SPDX Match Found!")
 ```
 
+`match()` takes the keyword options `enable_popularity`, `exclude`, `hint`,
+`only_common` and `only_spdx`, and raises `licenseid.InvalidInputError` (a
+`RuntimeError`) for any other, such as a mistyped name.
+
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or
 unreadable, for example before the first `licenseid update`. The check opens
