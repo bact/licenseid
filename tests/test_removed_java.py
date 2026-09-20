@@ -17,6 +17,7 @@ from click.testing import CliRunner
 from conftest import MIT_SEARCH_TEXT, make_mit_db_path
 
 from licenseid.cli import cli
+from licenseid.errors import InvalidInputError
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.types import InternalMatch, LicenseMatch, MatchRequest
 
@@ -101,11 +102,9 @@ def test_match_result_has_no_java_key(mit_db: str) -> None:
     assert all("java_verified" not in r for r in results)
 
 
-def test_stale_enable_java_option_is_ignored_silently(mit_db: str) -> None:
-    """BUG: match() takes **options and does not reject an unknown one, so a
-    caller that still passes enable_java=True (or mistypes any option) gets
-    no error and no effect. Pinned, not fixed (roadmap)."""
+def test_stale_enable_java_option_is_rejected(mit_db: str) -> None:
+    """A caller that still passes enable_java gets an error, not a silent
+    no-op (roadmap item 1; see also tests/test_match_options.py)."""
     matcher = AggregatedLicenseMatcher(mit_db)
-    plain = matcher.match(text=MIT_SEARCH_TEXT)
-    assert matcher.match(text=MIT_SEARCH_TEXT, enable_java=True) == plain
-    assert matcher.match(text=MIT_SEARCH_TEXT, enable_javaa=True) == plain
+    with pytest.raises(InvalidInputError, match="option: invalid: 'enable_java'"):
+        matcher.match(text=MIT_SEARCH_TEXT, enable_java=True)

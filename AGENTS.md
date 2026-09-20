@@ -36,7 +36,7 @@ Unix philosophy. Consistent, predictable, parseable.
   - `LEVEL`: `ERROR` (the command fails, non-zero exit) or `WARNING` (a
     fallback lets it continue).
   - `SUBJECT`: the thing affected, a lowercase word or cache file name:
-    `database`, `input`, `match`, `version`, `licenses.json`,
+    `database`, `input`, `match`, `option`, `version`, `licenses.json`,
     `popularity.csv`, `spdx-data-v<ver>.tar.gz`.
   - `CONDITION`: short lowercase fragment, reused across subjects. The
     full current set (add new ones here): `not found`, `invalid`,
@@ -216,6 +216,10 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   JSON first and falls through to TOML/INI; a synthetic marker candidate is
   only built for a valid SPDX expression or `LicenseRef-*`, never for free
   text.
+- Judge `pylint` by its exit code (`pylint src/ tests/ >/dev/null; echo $?`),
+  not the rating: one convention message still prints `10.00/10` and exits
+  16, and CI fails on the exit code. Run CI's own commands, and plain
+  `pytest tests/` (no `-m 'not benchmark'`).
 - A flag in `tools/cli_matrix/baseline.txt` can stop flagging because the
   command now fails *earlier*, not because the defect is gone. Read the
   cell's recorded output in `.cli-matrix/results.json` before deleting the
