@@ -216,6 +216,33 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   JSON first and falls through to TOML/INI; a synthetic marker candidate is
   only built for a valid SPDX expression or `LicenseRef-*`, never for free
   text.
+- A flag in `tools/cli_matrix/baseline.txt` can stop flagging because the
+  command now fails *earlier*, not because the defect is gone. Read the
+  cell's recorded output in `.cli-matrix/results.json` before deleting the
+  line, and record why it went.
+- `--db` can name a thing that blocks or lies. Check the file type
+  (`stat.S_ISREG`/`S_ISDIR`) before opening: a named pipe makes a read-only
+  open hang for ever, with no exit code and no traceback, and a test for it
+  hangs too. `file::memory:NAME` is a file on disk (only `mode=memory` and
+  the exact base `file::memory:` are memory), and `file://localhost/p` and
+  `?vfs=` are valid spellings SQLite resolves.
+- Resolve a path spelling once, in `dbcheck._os_file`, not with an
+  `endswith` patch at the call site: `x`, `x/` and `x/.` must reach the same
+  verdict, on every command.
+- `dbcheck` answers read and write differently on purpose: read is
+  fail-open (`check_database_ready` ignores the `unknown` tag), write and
+  delete are fail-closed (`reject_foreign_database` refuses it). Keep the
+  `Refusal` tag when adding a condition, and decide both policies.
+- `Path.unlink(missing_ok=True)` swallows `FileNotFoundError` only — a
+  parent that is a file still raises `NotADirectoryError`.
+- Database tests must import the autouse `safe_home` fixture from
+  `tests/db_asserts.py` (it patches `Path.home` as well as `HOME`) with
+  `# noqa: F401  # pylint: disable=unused-import`.
+- Do not run a mutation-testing agent while another agent edits `src/`: a
+  snapshot taken then can capture a live mutant and produce phantom
+  findings. Diff any snapshot against the working tree first.
+- Details and the rest of the findings from PR #55:
+  `working-docs/implementation/database-readiness-gate.md`.
 
 ## Git and pull requests
 

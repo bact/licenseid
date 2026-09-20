@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-19
+Last-Modified: 2026-09-20
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,7 +13,7 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-09-19)
+## Current state (as of 2026-09-20)
 
 - **Pipeline**: Tier 0 (short-text ID/name shortcut) → Tier 0.5 (marker
   detection) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz ranking).
@@ -38,6 +38,12 @@ yet started, see [`../design/`](../design/).
   Not run in CI (it needs a real database). CI type-checks it with `mypy`;
   `ruff`, `pylint` and `flake8` cover only `src/` and `tests/` there, and
   `ruff` is kept clean on it by hand.
+- **Database readiness gate** (`dbcheck.py`, added 2026-09-20, PR #55):
+  read commands refuse a database that is not ready with exit 2, and
+  `update`/`--clear-cache` refuse one licenseid did not build. The traps
+  behind it (blocking named pipes, path and URI spellings, `mode=ro` and
+  WAL, foreign table names) are in
+  [database-readiness-gate.md](database-readiness-gate.md).
 - **Known deferred work**: probe-anchored windowing (reusing the existing
   probe's match location instead of a full realignment scan) — flagged
   but deliberately not attempted; see
@@ -56,6 +62,7 @@ yet started, see [`../design/`](../design/).
 | 2026-05-07 | [speed-optimizations.md](speed-optimizations.md) | implemented (as PR #19, PR #21) | Original plan for discriminative n-gram fingerprints and pre-computed-normalization/RapidFuzz acceleration; superseded in narrative detail by the round-2 doc's results. |
 | 2026-07-20 | [speed-optimizations-round-2.md](speed-optimizations-round-2.md) | implemented | Profile-driven sweep: DB index on `licenses.name`, removed redundant lookups, lazy imports, instance-level metadata caching, `mmap_size` pragma. One change (`score_cutoff` on `partial_ratio_alignment`) was tried and reverted — see its "Rejected" section. CLI cold start ~125ms → ~31ms. |
 | 2026-09-18 | [data-fetching-and-caching.md](data-fetching-and-caching.md) | implemented (PR #51) | Third-party fetching in `spdx_source.py`: gentle requests, fallback order (`--no-cache` never uses stale data), atomic caches, version validation, safe tar extraction, self-healing corrupt caches, non-silent fallbacks; test patterns and traps. |
+| 2026-09-20 | [database-readiness-gate.md](database-readiness-gate.md) | implemented (PR #55) | The readiness gate and the write/delete guard: fail-open on read, fail-closed on write, the `unknown` condition between them; SQLite URI, path-spelling and file-type traps; test and process anti-patterns found over four review rounds. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only
