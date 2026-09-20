@@ -15,9 +15,10 @@ for code-health/complexity debt specifically. This doc tracks the rest.
 Priority = (Impact + Risk) × (6 − Effort), each scored 1-5; same scale as
 the complexity roadmap, so the two lists can be read together.
 
-Items 3, 8 and 9 come from a tech-debt audit on 2026-09-19; items 1, 4, 5,
-6 and 12 from code reviews of the diagnostics change and the Java removal;
-items 2 and 10 from manual CLI testing under other locales and environments.
+Items 8 and 9 (and the resolved item 3) come from a tech-debt audit on
+2026-09-19; items 1, 4, 5, 6 and 12 from code reviews of the diagnostics
+change and the Java removal; items 2 and 10 from manual CLI testing under
+other locales and environments.
 
 ## 1. `match()` silently ignores unknown options — Priority 20
 
@@ -69,15 +70,6 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
   or vendor the two JSON files. Importing `py_spdx_license` lazily would
   only move the crash to marker detection, so it is not a cure.
 - Impact 2, Risk 3, Effort 2.
-
-## 3. `py-spdx-license` has no upper bound — Priority 16
-
-Version 0.0.1, a single release, with no type information (a mypy
-`ignore_missing_imports` override). The author is credible, but a 0.0.x
-API can change without notice. Only `markers.py` imports it.
-
-- **Fix**: add `<0.1` to the requirement.
-- Impact 1, Risk 3, Effort 2.
 
 ## 4. API `file_path` input is read as strict UTF-8 — Priority 16
 
@@ -270,6 +262,12 @@ statistics; no fix has been designed yet, only the problem is documented.
   estimate is meaningful — treat this as provisional).
 
 ## Already resolved (kept for record)
+
+- `py-spdx-license` upper bound (item 3, Priority 16): the requirement is
+  now `py-spdx-license>=0.0.1,<0.1`. Version 0.0.1 is a single release with
+  no type information, so a 0.0.x API can change without notice; only
+  `markers.py` imports it. Raise the bound by hand after checking the new
+  release against `tests/test_markers*.py`.
 
 - Unready database answers silently (2026-09-19 audit): after a failed first
   `update`, `match` said "no license found" and `is-osi` printed `false`
