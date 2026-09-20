@@ -42,6 +42,7 @@ INPUTS = ["arg_file", "arg_id", "text", "id", "stdin", "none", "blank", "blank_t
 # traceback, no stray exit code) are pinned.
 NOT_FOUND = "not found"
 EMPTY = "empty"
+INVALID = "invalid"  # another program's tables, none of ours
 UNREADABLE = "unreadable"
 REFUSED = "refused"
 READY = "ready"
@@ -88,17 +89,22 @@ def writer(path: Path) -> Iterator[sqlite3.Connection]:
         yield conn
 
 
-def _seed_ready(conn: sqlite3.Connection) -> None:
-    """One license row plus the metadata a READY database must carry."""
-    insert_mit_license(conn)
-    # A fresh last_check_datetime and the current normalisation version keep
-    # stderr empty for READY databases (no staleness, no outdated warning).
+def _seed_metadata(conn: sqlite3.Connection) -> None:
+    """The metadata a READY database must carry. A fresh last_check_datetime
+    and the current normalisation version keep stderr empty for it (no
+    staleness, no outdated warning)."""
     for key, value in (
         ("license_list_version", LICENSE_LIST_VERSION),
         ("normalization_version", NORMALIZATION_VERSION),
         ("last_check_datetime", datetime.now(timezone.utc).isoformat()),
     ):
         conn.execute("INSERT INTO db_metadata (key, value) VALUES (?, ?)", (key, value))
+
+
+def _seed_ready(conn: sqlite3.Connection) -> None:
+    """One license row plus the metadata a READY database must carry."""
+    insert_mit_license(conn)
+    _seed_metadata(conn)
 
 
 def make_ready_file_db(path: Path) -> Path:
@@ -253,6 +259,18 @@ def build_wal_copy_without_wal(name: str, db_dir: Path) -> Variant:
     return Variant(name, str(path), EMPTY, path)
 
 
+def ready_file_then(statement: str) -> Builder:
+    """A ready database that *statement* then damages: not ready any more."""
+
+    def build(name: str, db_dir: Path) -> Variant:
+        path = make_ready_file_db(_db_path(db_dir))
+        with writer(path) as conn:
+            conn.execute(statement)
+        return Variant(name, str(path), EMPTY, path)
+
+    return build
+
+
 def build_ready_file(name: str, db_dir: Path) -> Variant:
     path = make_ready_file_db(_db_path(db_dir))
     return Variant(name, str(path), READY, path)
@@ -267,19 +285,11 @@ def build_ready_memory_uri(name: str, db_dir: Path) -> Variant:
 def build_ready_wal_with_wal(name: str, db_dir: Path) -> Variant:
     """Ready only because of its -wal: the main file has the schema and the
     metadata but no license row; the row was committed in WAL mode and is not
-    checkpointed. Reading the main file alone (``immutable=1``) would call it
-    empty."""
+    checkpointed. Reading only the main file would call it empty."""
     path = _db_path(db_dir)
     LicenseDatabase(str(path))
     with writer(path) as conn:
-        for key, value in (
-            ("license_list_version", LICENSE_LIST_VERSION),
-            ("normalization_version", NORMALIZATION_VERSION),
-            ("last_check_datetime", datetime.now(timezone.utc).isoformat()),
-        ):
-            conn.execute(
-                "INSERT INTO db_metadata (key, value) VALUES (?, ?)", (key, value)
-            )
+        _seed_metadata(conn)
     keep_alive = sqlite3.connect(str(path))
     keep_alive.execute("PRAGMA journal_mode=WAL")
     insert_mit_license(keep_alive)
@@ -288,15 +298,10 @@ def build_ready_wal_with_wal(name: str, db_dir: Path) -> Variant:
     return Variant(name, str(path), READY, path, keep_alive)
 
 
-_VER_ROW_SQL = (
-    "INSERT INTO db_metadata (key, value) VALUES ('license_list_version', {})"
-)
-
-
 def version_value(sql_value: str) -> Builder:
     """A database whose license_list_version is blank in some way."""
-    return sql_db(
-        (_LIC_TABLE, _MIT_ROW, _META_TABLE, _VER_ROW_SQL.format(sql_value)), EMPTY
+    return ready_file_then(
+        f"UPDATE db_metadata SET value = {sql_value} WHERE key = 'license_list_version'"
     )
 
 
@@ -347,6 +352,24 @@ BUILDERS: dict[str, Builder] = {
             "CREATE VIEW licenses AS SELECT license_id FROM backing",
             "CREATE VIEW db_metadata AS SELECT key, value FROM backing",
         ),
+        INVALID,
+    ),
+    # Somebody else's populated database: "update" would write into it.
+    "foreign_table_only": sql_db(
+        ("CREATE TABLE history (url TEXT)", "INSERT INTO history VALUES ('x')"),
+        INVALID,
+    ),
+    # A foreign table beside a partial licenseid schema: not ours to write to.
+    "foreign_table_beside_partial": sql_db(
+        ("CREATE TABLE history (url TEXT)", _LIC_TABLE, _MIT_ROW), INVALID
+    ),
+    # Only SQLite's own bookkeeping left: nothing foreign, so "empty".
+    "only_sqlite_sequence": sql_db(
+        (
+            "CREATE TABLE t (id INTEGER PRIMARY KEY AUTOINCREMENT)",
+            "INSERT INTO t DEFAULT VALUES",
+            "DROP TABLE t",
+        ),
         EMPTY,
     ),
     # Tables, version and a row, but not the columns every answer reads.
@@ -354,12 +377,32 @@ BUILDERS: dict[str, Builder] = {
         (
             "CREATE TABLE licenses (spdx_id TEXT, title TEXT)",
             "INSERT INTO licenses VALUES ('MIT', 'MIT License')",
+            "CREATE VIRTUAL TABLE license_index USING fts5(license_id, search_text)",
+            "INSERT INTO license_index VALUES ('MIT', 'x')",
             _META_TABLE,
             _VER_ROW,
         ),
-        UNREADABLE,
+        INVALID,
+    ),
+    # SQLite matches column names without case; the code looks them up with it.
+    "column_name_case_flipped": sql_db(
+        (
+            _LIC_TABLE.replace("is_fsf_libre", "is_fsf_librE"),
+            _MIT_ROW,
+            "CREATE VIRTUAL TABLE license_index USING fts5(license_id, search_text)",
+            "INSERT INTO license_index VALUES ('MIT', 'x')",
+            _META_TABLE,
+            _VER_ROW,
+        ),
+        INVALID,
     ),
     "wal_copy_without_wal": build_wal_copy_without_wal,
+    # The search index is what match reads: without rows it answers "no".
+    # SQLite lets a TEXT key hold NULL or a blob; normalising one raises.
+    "null_license_id": ready_file_then("UPDATE licenses SET license_id = NULL"),
+    "blob_license_id": ready_file_then("UPDATE licenses SET license_id = X'4D4954'"),
+    "index_dropped": ready_file_then("DROP TABLE license_index"),
+    "index_emptied": ready_file_then("DELETE FROM license_index"),
     # Real paths that must never be parsed as URIs or as options.
     "path_with_spaces": odd_path("a licence db.db", EMPTY),
     "path_leading_dash": odd_path("-licenses.db", EMPTY),
@@ -379,10 +422,9 @@ BUILDERS: dict[str, Builder] = {
     "file_mode_memory": memory_uri(
         EMPTY, "file:adversarial_{uuid}?mode=memory&cache=shared"
     ),
-    # A file: URI is exempt from the existence check, so either refusal
-    # message is contract-consistent; it must still create nothing.
-    "file_uri_missing": file_uri("", REFUSED, seed=False),
-    "file_uri_mode_ro_missing": file_uri("?mode=ro", UNREADABLE, seed=False),
+    # A file: URI naming a missing file is "not found", like a plain path.
+    "file_uri_missing": file_uri("", NOT_FOUND, seed=False),
+    "file_uri_mode_ro_missing": file_uri("?mode=ro", NOT_FOUND, seed=False),
     "ready_file_uri": file_uri("", READY, seed=True),
     "ready_file_uri_mode_ro": file_uri("?mode=ro", READY, seed=True),
     "ready_file": build_ready_file,

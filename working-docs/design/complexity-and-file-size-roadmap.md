@@ -44,7 +44,7 @@ pylint's actual defaults are 12 and 50.
 | Statements | ≤50 | 50 (at target) | 35 (`markers._detect_gpl_headers`) |
 | McCabe | ≤10 | 12 | 12 (2 functions, see note) |
 | Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
-| Module lines | soft 400-500 / hard 800 | 933 | 933 (`database.py`) |
+| Module lines | soft 400-500 / hard 800 | 931 | 931 (`database.py`) |
 
 Measured 2026-08-19 via `pylint --disable=all --enable=too-many-<x>
 --max-<x>=1`, `flake8 --max-complexity 1` and
@@ -74,7 +74,8 @@ ceiling dropped 15→13. Branches holders:
 `database._prepare_license_and_exception_records`. Module lines 944→942
 (`matcher.py`, shorter JPype message). Then 942→935 when the Java tier
 was removed (2026-09-19); `database.py` now holds it. Then 935→933 when
-`get_default_db_path()` stopped creating the directory.
+`get_default_db_path()` stopped creating the directory. Then 933→931 when
+`_get_cache_path` was inlined.
 
 ## Backlog, priority order
 

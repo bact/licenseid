@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import NamedTuple, cast
 
 from licenseid.console import end_line, status, warn
+from licenseid.dbcheck import is_plain_path
 from licenseid.errors import LicenseIdError
 from licenseid.fingerprint import compute_idf_fingerprints, extract_ngrams
 from licenseid.normalize import normalize_text
@@ -83,9 +84,8 @@ class LicenseDatabase:
 
     def __init__(self, db_path: str):
         self.db_path = Path(db_path)
-        # Check if it's an in-memory URI
         db_path_str = str(self.db_path)
-        self.use_uri = "mode=memory" in db_path_str or db_path_str.startswith("file:")
+        self.use_uri = db_path_str.startswith("file:")
         self._keep_alive: sqlite3.Connection | None = None
 
         if self.use_uri or db_path_str == ":memory:":
@@ -134,10 +134,6 @@ class LicenseDatabase:
                 yield conn
         finally:
             conn.close()
-
-    def _get_cache_path(self, filename: str) -> Path:
-        """Get the absolute path for a cache file."""
-        return self.db_path.parent / filename
 
     def _init_db(self) -> None:
         """Initialise the SQLite database with FTS5."""
@@ -223,20 +219,22 @@ class LicenseDatabase:
             if "norm_name" not in existing_cols:
                 conn.execute("ALTER TABLE licenses ADD COLUMN norm_name TEXT")
 
-    def clear_cache(self) -> None:
-        """Delete local cache files."""
-        # Local import: spdx_source pulls in `requests`, which costs ~60ms
-        # at import time and is otherwise unused by the match()/query path
-        # (the vast majority of CLI invocations). Deferring it here and in
-        # update_from_remote() keeps that cost out of normal startup.
+    @staticmethod
+    def clear_cache(db_path: str | Path) -> None:
+        """Delete the cache files and the database (unopened) at *db_path*."""
+        # Local import: spdx_source pulls in `requests` (~60ms at import),
+        # unused on the match path; update_from_remote() defers it too.
         from licenseid import spdx_source
 
+        db_path = Path(db_path)
         status("Clearing cache...")
+        if not is_plain_path(str(db_path)):
+            return  # an in-memory database or a URI has no directory to clear
         for filename in [
             spdx_source.CACHE_LICENSES_JSON,
             spdx_source.CACHE_POPULARITY_CSV,
         ]:
-            path = self._get_cache_path(filename)
+            path = db_path.parent / filename
             if path.exists():
                 path.unlink()
         # Clear any tarballs, and temporary files orphaned by a killed run
@@ -246,12 +244,12 @@ class LicenseDatabase:
             f"{spdx_source.CACHE_POPULARITY_CSV}.*.tmp",
             "spdx-data-v*.tar.gz.*.tmp",
         ):
-            for p in self.db_path.parent.glob(pattern):
+            for p in db_path.parent.glob(pattern):
                 p.unlink()
         # Delete the database file itself to force a schema rebuild
-        if self.db_path.exists():
-            status(f"Deleting database at {self.db_path}...")
-            self.db_path.unlink()
+        if db_path.is_symlink() or db_path.exists():
+            status(f"Deleting database at {db_path}...")
+            db_path.unlink()
 
     def update_from_remote(
         self,
@@ -281,7 +279,7 @@ class LicenseDatabase:
         status(f"Updating license database to version {target_version}...")
 
         # 2. Fetch Popularity Data
-        pop_cache_path = self._get_cache_path(spdx_source.CACHE_POPULARITY_CSV)
+        pop_cache_path = self.db_path.parent / spdx_source.CACHE_POPULARITY_CSV
         use_pop_cache = use_cache and spdx_source.is_cache_valid(
             pop_cache_path, spdx_source.EXPIRY_POPULARITY_CSV
         )

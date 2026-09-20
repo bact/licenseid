@@ -28,7 +28,3 @@ E4-028 bash
 E5-021 bash
 E5-022 bash
 E5-024 bash
-E7-011 bash
-E7-015 bash
-E7-019 bash
-E7-027 bash

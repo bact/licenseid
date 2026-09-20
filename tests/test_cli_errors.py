@@ -72,16 +72,15 @@ def test_unreadable_database(tmp_path: Path, command: str) -> None:
     assert result.stderr.count("\n") == 1
 
 
-def test_clear_cache_on_a_file_that_is_not_a_database(tmp_path: Path) -> None:
-    """Clearing opens the file with SQLite, which refuses it."""
+def test_clear_cache_removes_a_file_that_is_not_a_database(tmp_path: Path) -> None:
+    """Clearing works on the path alone, so the recovery command is not
+    refused by the corruption it exists to recover from."""
     db_path = tmp_path / "notes.db"
     db_path.write_text("this is not an SQLite database, " * 8)
     result = CliRunner().invoke(cli, ["--db", str(db_path), "--clear-cache"])
-    assert result.exit_code == 2
+    assert result.exit_code == 0
     assert result.stdout == ""
-    assert result.stderr == (
-        f"ERROR: database: unreadable: {db_path}: file is not a database\n"
-    )
+    assert not db_path.exists()
 
 
 @pytest.mark.parametrize(
@@ -96,7 +95,7 @@ def test_sqlite_failure_after_the_check_is_an_unreadable_database(
 ) -> None:
     """The file went bad after the readiness check: still exit 2, one line."""
     failure = sqlite3.DatabaseError("database disk image is malformed")
-    with mock.patch.object(target, target_attr, side_effect=failure):
+    with mock.patch.object(target, target_attr, autospec=True, side_effect=failure):
         result = CliRunner().invoke(cli, ["--db", ready_db, *args])
     assert result.exit_code == 2
     assert result.stdout == ""
@@ -108,10 +107,26 @@ def test_sqlite_failure_after_the_check_is_an_unreadable_database(
 def test_other_exceptions_are_not_worded_as_a_database_error(ready_db: str) -> None:
     """Only SQLite failures are; a bug elsewhere must still show its traceback."""
     with mock.patch.object(
-        AggregatedLicenseMatcher, "match", side_effect=KeyError("x")
+        AggregatedLicenseMatcher, "match", autospec=True, side_effect=KeyError("x")
     ):
         result = CliRunner().invoke(cli, ["--db", ready_db, "match", "--id", "MIT"])
     assert isinstance(result.exception, KeyError)
+
+
+@pytest.mark.parametrize(
+    "failure", [sqlite3.ProgrammingError("bad"), sqlite3.InterfaceError("bad")]
+)
+def test_sqlite_programming_errors_are_not_worded_as_a_database_error(
+    ready_db: str, failure: sqlite3.Error
+) -> None:
+    """A bad query is a bug in licenseid, not a fault in the file: the user is
+    not told to rebuild a healthy database."""
+    with mock.patch.object(
+        AggregatedLicenseMatcher, "match", autospec=True, side_effect=failure
+    ):
+        result = CliRunner().invoke(cli, ["--db", ready_db, "match", "--id", "MIT"])
+    assert result.exception is failure
+    assert "unreadable" not in result.stderr
 
 
 @pytest.mark.parametrize("command", ["match", "is-osi"])

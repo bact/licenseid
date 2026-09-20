@@ -60,7 +60,7 @@ def build_env(
     """The complete environment one cell runs in.
 
     HOME is inside the cell's own work directory, not shared: cells that
-    write under HOME (``--clear-cache`` with no ``--db``) would otherwise
+    write under HOME (``update`` with no ``--db``) would otherwise
     race each other whenever two of them run at the same time.
     """
     env = {

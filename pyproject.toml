@@ -185,7 +185,7 @@ max-statements = 50            # target: 50 (already at target)
 
 [tool.pylint.format]
 max-line-length = 88
-max-module-lines = 933 # target: 800 (hard limit); soft limit 400-500; currently database.py
+max-module-lines = 931 # target: 800 (hard limit); soft limit 400-500; currently database.py
 
 [tool.pytest.ini_options]
 # The repository root, so tests can import the developer tools in tools/.

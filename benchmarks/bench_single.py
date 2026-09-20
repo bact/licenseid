@@ -105,7 +105,7 @@ def _select_benchmark_subset(files: list[Path], n: int = 70) -> list[Path]:
 
 
 # pylint: disable=wrong-import-position
-from licenseid.database import LicenseDatabase
+from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
 
@@ -421,9 +421,13 @@ def main() -> None:
                 "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
                 to_insert_index,
             )
-            conn.execute(
+            conn.executemany(
                 "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
-                ("last_check_datetime", "2099-01-01T00:00:00"),
+                [
+                    ("last_check_datetime", "2099-01-01T00:00:00"),
+                    ("license_list_version", "benchmark"),
+                    ("normalization_version", NORMALIZATION_VERSION),
+                ],
             )
             conn.execute("COMMIT")
         except Exception:

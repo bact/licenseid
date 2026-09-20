@@ -24,11 +24,18 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from click.testing import CliRunner, Result
+from db_asserts import (
+    assert_no_traceback,
+    assert_one_diagnostic_line,
+    assert_refused,
+    expected_refusal,
+    run_cli,
+)
 from db_variants import (
     COMMANDS,
     EMPTY,
     INPUTS,
+    INVALID,
     LENIENT_NAMES,
     MIT_TEXT,
     NOT_FOUND,
@@ -42,7 +49,6 @@ from db_variants import (
     writer,
 )
 
-from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
 from licenseid.errors import DatabaseNotReadyError, LicenseIdError
 from licenseid.matcher import AggregatedLicenseMatcher
@@ -61,57 +67,6 @@ def variant(
         built.keep_alive.close()
     if built.name == "no_permission" and built.path is not None:
         built.path.chmod(0o600)  # so pytest can clean tmp_path up
-
-
-# Assertions
-
-
-def run_cli(db_arg: str, args: list[str], stdin: str = "") -> Result:
-    """Invoke the CLI. ``--db=`` keeps a path starting with "-" a value."""
-    return CliRunner().invoke(cli, [f"--db={db_arg}", *args], input=stdin)
-
-
-def expected_refusal(kind: str, db_arg: str) -> str:
-    if kind == NOT_FOUND:
-        return f"ERROR: database: not found: {db_arg}; run 'licenseid update'\n"
-    assert kind == EMPTY, f"{kind} has no fixed message"
-    return f"ERROR: database: empty: {db_arg}; run 'licenseid update'\n"
-
-
-def assert_one_diagnostic_line(stderr: str) -> None:
-    assert stderr.endswith("\n"), f"not newline-terminated: {stderr!r}"
-    assert stderr.count("\n") == 1, f"expected exactly one line: {stderr!r}"
-    line = stderr[:-1]
-    assert not line.startswith("Traceback"), stderr
-    assert line == line.strip(), f"padded diagnostic line: {stderr!r}"
-
-
-def assert_no_traceback(result: Result) -> None:
-    exception = result.exception
-    assert exception is None or isinstance(exception, SystemExit), (
-        f"unhandled {type(exception).__name__}: {exception}"
-    )
-
-
-def assert_refused(result: Result, kind: str, db_arg: str) -> None:
-    """Exit 2, empty stdout, exactly one contract-shaped stderr line."""
-    assert_no_traceback(result)
-    assert result.stdout == "", f"stdout not empty: {result.stdout!r}"
-    assert result.exit_code == 2, f"exit {result.exit_code}, stderr {result.stderr!r}"
-    assert_one_diagnostic_line(result.stderr)
-    if kind in (NOT_FOUND, EMPTY):
-        assert result.stderr == expected_refusal(kind, db_arg)
-    elif kind == UNREADABLE:
-        # The SQLite error text varies by version, so only the head is pinned.
-        assert result.stderr.startswith(f"ERROR: database: unreadable: {db_arg}: ")
-    else:
-        assert result.stderr.startswith(
-            (
-                f"ERROR: database: not found: {db_arg};",
-                f"ERROR: database: empty: {db_arg};",
-                f"ERROR: database: unreadable: {db_arg}: ",
-            )
-        ), result.stderr
 
 
 def input_args(source: str, tmp_path: Path) -> tuple[list[str], str]:
@@ -206,10 +161,23 @@ def test_empty_db_option(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
 # (b) The refusal is read-only
 
 
+def is_wal_file(path: Path) -> bool:
+    """Whether *path* is an SQLite file in write-ahead-log mode."""
+    try:
+        return path.read_bytes()[18:20] == b"\x02\x02"
+    except OSError:
+        return False
+
+
 def fs_state(path: Path) -> dict[str, Any]:
-    """What a read-only check must leave untouched."""
+    """What a read-only check must leave untouched. The -shm and -wal files
+    that SQLite makes when it reads a write-ahead-log database are not."""
     state: dict[str, Any] = {
-        "siblings": sorted(p.name for p in path.parent.iterdir()),
+        "siblings": sorted(
+            p.name
+            for p in path.parent.iterdir()
+            if not p.name.endswith(("-shm", "-wal"))
+        ),
         "lexists": path.is_symlink() or path.exists(),
     }
     if path.is_symlink():
@@ -230,7 +198,8 @@ def fs_state(path: Path) -> dict[str, Any]:
 
 def assert_untouched(path: Path, before: dict[str, Any]) -> None:
     assert fs_state(path) == before
-    for suffix in ("-journal", "-wal", "-shm"):
+    suffixes = ("-journal",) if is_wal_file(path) else ("-journal", "-wal", "-shm")
+    for suffix in suffixes:
         sidecar = path.with_name(path.name + suffix)
         assert not sidecar.exists(), f"{sidecar.name} was created"
 
@@ -278,7 +247,7 @@ def test_api_constructor_raises(variant: Variant) -> None:
     message = str(excinfo.value)
     assert "\n" not in message
     assert not message.startswith("ERROR: ")
-    if variant.kind in (NOT_FOUND, EMPTY):
+    if variant.kind in (NOT_FOUND, EMPTY, INVALID):
         head = len("ERROR: ")
         assert message == expected_refusal(variant.kind, variant.db_arg)[head:-1]
     elif variant.kind == UNREADABLE:
@@ -329,8 +298,16 @@ def test_license_database_stays_permissive(variant: Variant) -> None:
     """LicenseDatabase stays permissive; only the matcher and the CLI gate."""
     if variant.kind in (UNREADABLE, REFUSED):
         pytest.skip("not a database SQLite can open, so nothing to build on")
-    if variant.name in ("views_not_tables", "memory_uri", "file_colon_memory"):
+    if variant.name in (
+        "views_not_tables",
+        "memory_uri",
+        "file_colon_memory",
+    ):
         pytest.skip("LicenseDatabase cannot index a view or share a private memory db")
+    if variant.name == "file_uri_mode_ro_missing":
+        pytest.skip("mode=ro cannot create the missing file")
+    if variant.name in ("wrong_columns", "column_name_case_flipped"):
+        pytest.skip("the table has other columns than LicenseDatabase adds to")
     LicenseDatabase(variant.db_arg)
 
 
@@ -466,6 +443,7 @@ def test_random_corruption_sweep(tmp_path: Path) -> None:
         assert result.stderr.startswith(
             (
                 f"ERROR: database: empty: {target};",
+                f"ERROR: database: invalid: {target}\n",
                 f"ERROR: database: unreadable: {target}: ",
             )
         ), context + repr(result.stderr)

@@ -12,6 +12,7 @@ fragments, symlinks, write-ahead logs, and the matcher's own second check.
 
 # pylint: disable=protected-access,missing-function-docstring
 
+import os
 import sqlite3
 from pathlib import Path
 
@@ -77,55 +78,31 @@ def _idle_wal_database(directory: Path) -> Path:
     return path
 
 
-def test_idle_wal_database_is_read_as_immutable(tmp_path: Path) -> None:
+@pytest.mark.parametrize("via", ["path", "symlink", "file_uri"])
+def test_a_wal_database_is_never_read_as_immutable(tmp_path: Path, via: str) -> None:
+    """Immutable turns locking off. Every database licenseid writes is in WAL
+    mode, so reading one that way would race with a running ``update``."""
     path = _idle_wal_database(tmp_path)
-    assert _read_only_uri(str(path)).endswith("?mode=ro&immutable=1")
-    assert "immutable=1" in _read_only_uri(f"file:{path}")
-
-
-def test_symlink_to_an_idle_wal_database_is_read_as_immutable(
-    tmp_path: Path,
-) -> None:
-    link = tmp_path / "link.db"
-    link.symlink_to(_idle_wal_database(tmp_path))
-    assert "immutable=1" in _read_only_uri(str(link))
-
-
-def test_rollback_journal_database_is_never_read_as_immutable(
-    tmp_path: Path,
-) -> None:
-    """Immutable turns locking off, and an update may be rewriting the file."""
-    path = make_ready_file_db(tmp_path / "plain.db")
-    assert "immutable" not in _read_only_uri(str(path))
-    assert "immutable" not in _read_only_uri(f"file:{path}")
-
-
-@pytest.mark.parametrize("kind", ["missing", "directory", "short"])
-def test_a_file_that_cannot_be_a_wal_database_is_not_immutable(
-    tmp_path: Path, kind: str
-) -> None:
-    path = tmp_path / "x.db"
-    if kind == "directory":
-        path.mkdir()
-    elif kind == "short":
-        path.write_bytes(b"SQLite format 3\x00")
-    assert "immutable" not in _read_only_uri(str(path))
+    if via == "symlink":
+        link = tmp_path / "link.db"
+        link.symlink_to(path)
+        path = link
+    arg = f"file:{path}" if via == "file_uri" else str(path)
+    assert "immutable" not in _read_only_uri(arg)
+    assert _read_only_uri(arg).endswith("mode=ro")
 
 
 def test_uri_keeps_an_explicit_immutable(tmp_path: Path) -> None:
-    uri = _read_only_uri(f"file:{_idle_wal_database(tmp_path)}?immutable=0")
-    assert "immutable=0" in uri
-    assert "immutable=1" not in uri
+    """The user's own URI parameters are theirs to choose."""
+    uri = _read_only_uri(f"file:{_idle_wal_database(tmp_path)}?immutable=1")
+    assert "immutable=1" in uri
+    assert "mode=ro" in uri
 
 
 def test_uri_with_an_empty_authority_is_ready(tmp_path: Path) -> None:
     """``file:///abs/path`` is the same file as ``file:/abs/path``."""
     path = make_ready_file_db(tmp_path / "auth.db")
     check_database_ready(f"file://{path}")
-
-
-def test_uri_naming_a_host_is_not_made_immutable() -> None:
-    assert "immutable" not in _read_only_uri("file://host/x.db")
 
 
 @pytest.mark.parametrize("state", ["missing", "empty", "unreadable"])
@@ -149,14 +126,49 @@ def test_a_newline_in_the_path_keeps_the_message_on_one_line(
 
 
 def test_nul_byte_in_a_uri_is_refused_not_raised() -> None:
-    with pytest.raises(DatabaseNotReadyError, match="database: unreadable: "):
+    with pytest.raises(DatabaseNotReadyError, match="database: not found: "):
         check_database_ready("file:/tmp/a\x00b.db")
 
 
-def test_unencodable_path_is_refused_not_raised(tmp_path: Path) -> None:
-    """A lone surrogate cannot be percent-encoded as UTF-8."""
-    with pytest.raises(DatabaseNotReadyError):
+def test_a_path_that_is_not_utf8_keeps_its_bytes(tmp_path: Path) -> None:
+    """A lone surrogate (a file name byte that is not UTF-8) is percent-encoded
+    as the raw byte, not refused as an encoding error."""
+    assert "bad%FF.db?mode=ro" in _read_only_uri(str(tmp_path / "bad\udcff.db"))
+    with pytest.raises(DatabaseNotReadyError, match="database: not found: "):
         check_database_ready(str(tmp_path / "bad\udcff.db"))
+
+
+def _make_non_utf8_named_db(directory: Path) -> str:
+    """A ready database at ``<directory>/lic\\xff.db``, or skip the test where
+    the file system refuses the name (Linux allows it, macOS does not)."""
+    name = os.fsdecode(os.fsencode(directory) + b"/lic\xff.db")
+    try:
+        make_ready_file_db(Path(name))
+    except (OSError, UnicodeError, sqlite3.OperationalError):
+        pytest.skip("this file system refuses a non-UTF-8 file name")
+    return name
+
+
+def test_a_ready_database_with_a_non_utf8_name_is_ready(tmp_path: Path) -> None:
+    name = _make_non_utf8_named_db(tmp_path)
+    check_database_ready(name)
+
+
+@pytest.mark.parametrize("suffix", ["", "?mode=ro"])
+def test_a_missing_file_uri_is_not_found(tmp_path: Path, suffix: str) -> None:
+    """The same condition as a missing plain path, with the same action."""
+    uri = f"file:{tmp_path / 'nope.db'}{suffix}"
+    with pytest.raises(DatabaseNotReadyError) as info:
+        check_database_ready(uri)
+    assert str(info.value) == f"database: not found: {uri}; run 'licenseid update'"
+
+
+def test_a_file_uri_with_a_percent_encoded_non_utf8_name_is_found(
+    tmp_path: Path,
+) -> None:
+    """The name is decoded to bytes, so it is looked up as it is on disk."""
+    _make_non_utf8_named_db(tmp_path)
+    check_database_ready(f"file:{tmp_path}/lic%FF.db")
 
 
 def test_symlink_to_a_wal_database_reads_the_wal(tmp_path: Path) -> None:
@@ -170,13 +182,6 @@ def test_symlink_to_a_wal_database_reads_the_wal(tmp_path: Path) -> None:
     finally:
         assert variant.keep_alive is not None
         variant.keep_alive.close()
-
-
-def test_file_uri_leaves_no_wal_files_behind(tmp_path: Path) -> None:
-    path = _idle_wal_database(tmp_path)
-    before = sorted(p.name for p in tmp_path.iterdir())
-    check_database_ready(f"file:{path}")
-    assert sorted(p.name for p in tmp_path.iterdir()) == before
 
 
 @pytest.mark.parametrize("args", [["match", "MIT"], ["is-osi", "MIT"]])
@@ -204,5 +209,25 @@ def test_required_columns_exist_in_the_schema_licenseid_writes(
     LicenseDatabase(str(path))
     with sqlite3.connect(str(path)) as conn:
         columns = {row[1] for row in conn.execute("PRAGMA table_info(licenses)")}
-    required = {name.strip() for name in _REQUIRED_COLUMNS.split(",")}
-    assert required <= columns
+    assert set(_REQUIRED_COLUMNS) <= columns
+
+
+@pytest.mark.parametrize("scheme", ["file:", ""])
+def test_a_path_with_a_non_utf8_byte_never_raises(tmp_path: Path, scheme: str) -> None:
+    """argv gives a surrogate for such a byte; it is refused with a message
+    (here 'not found'), not a traceback."""
+    with pytest.raises(DatabaseNotReadyError, match="database: not found: "):
+        check_database_ready(f"{scheme}{tmp_path}/lic\udcff.db")
+
+
+def test_a_path_object_is_accepted(tmp_path: Path) -> None:
+    """The API took a Path before the check existed."""
+    check_database_ready(make_ready_file_db(tmp_path / "p.db"))
+    with pytest.raises(DatabaseNotReadyError, match="database: not found: "):
+        check_database_ready(tmp_path / "absent.db")
+
+
+def test_a_uri_with_a_vfs_is_left_to_sqlite() -> None:
+    """The name of a database in a non-default VFS need not be a file."""
+    with pytest.raises(DatabaseNotReadyError, match="database: (empty|unreadable)"):
+        check_database_ready("file:m1?vfs=memdb")

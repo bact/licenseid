@@ -57,8 +57,8 @@ Unix philosophy. Consistent, predictable, parseable.
     (`SUBJECT: CONDITION…`, no prefix); the CLI prints it after `ERROR:` and
     exits 1, or 2 for its subclass `InvalidInputError` (a usage error). The
     CLI also exits 2 for `DatabaseNotReadyError` (a database that is missing,
-    empty or unreadable) in `match` and the `is-*` commands, where exit 1
-    already means "no".
+    empty, invalid or unreadable) in `match` and the `is-*` commands, where
+    exit 1 already means "no".
   - A step that prints partial progress (`status(..., end="")`) and can fail
     must call `console.end_line()` in a `finally`, so the caller's next
     stderr line starts at column 0.
@@ -131,7 +131,7 @@ ruff format
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
-  lines=933) — see
+  lines=931) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't

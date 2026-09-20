@@ -77,12 +77,22 @@ def test_update_does_not_build_the_directory_of_an_explicit_path(
 
 
 def test_clear_cache_on_a_fresh_home_works(home: Path) -> None:
-    """Clearing opens the database, so it makes the default directory too, and
-    then deletes the empty file it just created."""
+    """Nothing to clear: it succeeds and does not make the directory."""
     result = CliRunner().invoke(cli, ["--clear-cache"])
     assert result.exit_code == 0
     assert result.exception is None or isinstance(result.exception, SystemExit)
     assert result.stdout == ""
-    directory = home / ".local" / "share" / "licenseid"
-    assert directory.is_dir()
-    assert not (directory / "licenses.db").exists()
+    assert not (home / ".local" / "share" / "licenseid").exists()
+
+
+def test_clear_cache_with_a_file_where_the_default_directory_would_be(
+    home: Path,
+) -> None:
+    """A file where the directory should be is no reason for a traceback."""
+    blocker = home / ".local" / "share" / "licenseid"
+    blocker.parent.mkdir(parents=True)
+    blocker.write_text("not a directory")
+    result = CliRunner().invoke(cli, ["--clear-cache"])
+    assert result.exit_code == 0
+    assert result.stdout == ""
+    assert blocker.read_text() == "not a directory"

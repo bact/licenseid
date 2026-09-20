@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `licenseid.DatabaseNotReadyError`, a `LicenseIdError` for a missing, empty or
-  unreadable database ([#55])
+- `licenseid.DatabaseNotReadyError`, a `LicenseIdError` for a missing, empty,
+  invalid or unreadable database ([#55])
 - `licenseid.LicenseIdError` (a `RuntimeError`) for failures reported in
   licenseid's own message format, and its subclass `licenseid.InvalidInputError`
   for invalid options or input ([#53])
@@ -20,16 +20,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `match` and the `is-*` commands check that the database is ready before
-  answering. A missing, empty (for example after a failed first `update`) or
-  unreadable database exits 2 with `ERROR: database: not found`, `empty` or
-  `unreadable`, instead of "no license found", `false` (exit 1) or a
-  traceback, and a file that is not ready is no longer modified. A SQLite
-  failure while reading exits 2 the same way, also for `--clear-cache`. The Python
-  API raises `DatabaseNotReadyError` from the `AggregatedLicenseMatcher`
-  constructor ([#55])
+  answering. A missing, empty (for example after a failed first `update`),
+  invalid (another program's file) or unreadable database exits 2 with
+  `ERROR: database: not found`, `empty`, `invalid` or `unreadable`, instead of
+  "no license found", `false` (exit 1) or a traceback, and a file that is not
+  ready is not written to. A SQLite failure while reading exits 2 the same
+  way. The Python API raises `DatabaseNotReadyError` from the
+  `AggregatedLicenseMatcher` constructor ([#55])
 - Read commands no longer create `~/.local/share/licenseid`; only `update`
-  and `--clear-cache` do, so an unwritable `HOME` no longer crashes them ([#55])
-
+  does, so an unwritable `HOME` no longer crashes them ([#55])
+- `--clear-cache` no longer opens the database, so it also clears a file that
+  SQLite cannot read, and does not create the default directory. It no longer
+  crashes on an unwritable `HOME`. **Breaking (Python API):**
+  `LicenseDatabase.clear_cache` is a static method taking the path, so
+  `db.clear_cache()` becomes `LicenseDatabase.clear_cache(db.db_path)` ([#55])
 - `licenseid update` sends a `User-Agent` that identifies licenseid, makes one
   attempt per source, and reuses a stale cache file (with a warning) when a
   download fails; `--no-cache` never falls back to cached data ([#51])

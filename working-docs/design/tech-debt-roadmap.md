@@ -174,10 +174,28 @@ the 800-line hard limit. Pylint rates the two directories 9.48/10;
 Found by running the CLI under odd environments (manual matrix, 2026-09-19).
 Each case is outside the message grammar or hides a failure:
 
-- **`--clear-cache` and `update` when the default directory cannot be
-  made** (unwritable `HOME`): the `mkdir` error is a traceback for
-  `--clear-cache`. (A foreign file or a read-only directory given with `--db`
-  now exits 2 with `database: unreadable`.)
+- **`update` when the default directory cannot be made** (unwritable
+  `HOME`): the `mkdir` error is worded `database: update failed:
+  PermissionError: ...`, with the wrong subject (the directory failed, not
+  the database) and no action. (`--clear-cache` no longer makes the
+  directory. A foreign file or a read-only directory given with `--db` now
+  exits 2 with `database: unreadable`.)
+- **A valid but read-only database** (a read-only mount, a root-owned
+  install): every database licenseid writes is in WAL mode, and SQLite must
+  create `-shm` beside it even to read, so the readiness check fails with
+  `database: unreadable: attempt to write a readonly database` (and no
+  `run 'licenseid update'` hint, which could not help). Main crashed here
+  too, in `LicenseDatabase`. Fix options: copy the file, or open it with
+  `immutable=1` when the directory is not writable (safe then, since no
+  `update` can be running there).
+- **`--db file://localhost/abs.db`**: SQLite accepts the `localhost`
+  authority, so the readiness check passes, but `LicenseDatabase` turns the
+  URI into a `Path`, which collapses the `//`, and the command exits 2 with
+  `database: unreadable`. Pinned as an xfail in
+  `tests/test_db_ready_adversarial.py`.
+- **Lock contention** (`database is locked`, for example the first `update`
+  that switches a database to WAL, during a `match`) is worded
+  `database: unreadable`.
 - **Closed standard input** (`<&-`): `AttributeError: 'NoneType' object has
   no attribute 'isatty'` from `read_input`.
 - **Closed standard output** (`>&-`): exit 0 and the result is lost. A
@@ -244,12 +262,25 @@ statistics; no fix has been designed yet, only the problem is documented.
   (exit 1); a non-SQLite `--db` or a directory crashed with a traceback; and
   a read command on a 0-byte file wrote tables into it. Now `match`, the
   `is-*` commands and `AggregatedLicenseMatcher()` check readiness first, read
-  only, and report `database: not found`, `empty` or `unreadable` with exit 2
-  (`DatabaseNotReadyError`). Ready means the `licenses` and `db_metadata`
-  tables exist, `license_list_version` is not blank and `licenses` has a row.
+  only, and report `database: not found`, `empty`, `invalid` (another
+  program's objects beside an incomplete set of ours, or a `licenses` table
+  without our columns; no `update` hint, as it would write into the file) or
+  `unreadable` with exit 2 (`DatabaseNotReadyError`). Ready means the
+  `licenses`, `db_metadata` and `license_index` (FTS5) tables exist,
+  `license_list_version` is not blank, every `license_id` is text, and
+  `licenses` and `license_index` each have a row. The check reads with plain
+  `mode=ro`: `immutable=1` was tried and dropped, because every database
+  licenseid writes is in WAL mode and immutable turns locking off, so a read
+  during an `update` could see a torn file.
+  The check is structural, not `PRAGMA quick_check` (about 200 ms on a real
+  database, twice per command): damaged pages that keep the schema and the
+  first rows plausible can still give a wrong answer. A fuzz run found only
+  page swaps of the `licenses` root page (exit 1 or a traceback before the
+  `typeof` probe, `NOT INDEXED` and exact column names were added).
   Same change: `get_default_db_path()` no longer creates the directory (only
-  `update` and `--clear-cache` do), so read commands no longer crash on an
-  unwritable `HOME`.
+  `update` does) and `--clear-cache` works on the path without opening the
+  database, so read commands no longer crash on an unwritable `HOME` and a
+  corrupt database can be cleared.
   Left open: the metadata is committed before the fingerprints are computed,
   so a kill in between leaves a "ready" database without fingerprints (fix by
   writing the metadata in the fingerprint transaction). A `sqlite3` failure

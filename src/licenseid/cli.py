@@ -69,31 +69,46 @@ def check_db_staleness(database: LicenseDatabase) -> None:
             days_old = (datetime.now(timezone.utc) - last_check_dt).days
             if days_old > 182:  # Approx 6 months
                 warn(f"database: {days_old} days old; run 'licenseid update'")
-        except ValueError:
+        except (TypeError, ValueError):
             pass
 
 
 def make_default_db_dir(ctx: click.Context) -> None:
     """Create the directory of the default database path, if that is the one
-    in use. Reading never creates it; building or clearing does, because
+    in use. Reading and clearing never create it; ``update`` does, because
     ``LicenseDatabase`` opens (and so creates) the file."""
     if ctx.obj["db_is_default"]:
         Path(ctx.obj["db_path"]).parent.mkdir(parents=True, exist_ok=True)
 
 
-class DatabaseErrorGroup(click.Group):
-    """A group that words a SQLite failure as an ``unreadable`` database.
+def clear_local_cache(ctx: click.Context, db_path: str) -> None:
+    """Clear the cache files beside *db_path* and the database itself."""
+    try:
+        LicenseDatabase.clear_cache(db_path)
+    except OSError as exc:
+        reason = OSError(exc.strerror or type(exc).__name__)
+        exit_usage_error(ctx, str(unreadable_error(db_path, reason)))
 
-    The readiness check runs first, but a file can go bad after it (replaced
-    or corrupted mid-run) or fail in a way the check does not probe. Without
-    this, that reaches the user as a traceback, and its exit status would
-    read as "no".
+
+class DatabaseErrorGroup(click.Group):
+    """A group that exits 2 when the database cannot answer.
+
+    ``match`` and the ``is-*`` commands answer "no" with exit 1, so an unready
+    database (``DatabaseNotReadyError``) must not share it. A file can also go
+    bad after the readiness check (replaced or corrupted mid-run): a SQLite
+    failure is then worded as an ``unreadable`` database, not a traceback. A
+    ProgrammingError or InterfaceError is a bug in a query, not a fault in the
+    file, so it still shows its traceback.
     """
 
     def invoke(self, ctx: click.Context) -> Any:
         try:
             return super().invoke(ctx)
+        except DatabaseNotReadyError as exc:
+            exit_usage_error(ctx, str(exc))
         except sqlite3.Error as exc:
+            if isinstance(exc, (sqlite3.ProgrammingError, sqlite3.InterfaceError)):
+                raise
             exit_usage_error(ctx, str(unreadable_error(ctx.obj["db_path"], exc)))
 
 
@@ -109,9 +124,7 @@ def cli(ctx: click.Context, db: str | None, clear_cache: bool) -> None:
     ctx.obj["db_is_default"] = not db
 
     if clear_cache:
-        make_default_db_dir(ctx)
-        database = LicenseDatabase(db_path)
-        database.clear_cache()
+        clear_local_cache(ctx, db_path)
         ctx.exit()
 
     if ctx.invoked_subcommand is None:
@@ -192,34 +205,6 @@ def exit_usage_error(ctx: click.Context, message: str) -> NoReturn:
     """Print *message* as an ERROR line and exit with a usage error (2)."""
     error(message)
     ctx.exit(2)
-
-
-def exit_if_db_not_ready(ctx: click.Context, db_path: str) -> None:
-    """Exit with a usage error (2) if the database cannot answer.
-
-    Exit 1 already means "no" for ``match`` and the ``is-*`` commands, so an
-    unready database must not share it.
-
-    This check and the one in ``AggregatedLicenseMatcher.__init__`` (via
-    ``open_matcher``) are both needed: this one runs first, so a bad database
-    is reported before any input error; the constructor's protects the Python
-    API and catches a file that changed in between. Do not fold them into one.
-    """
-    try:
-        check_database_ready(db_path)
-    except DatabaseNotReadyError as exc:
-        exit_usage_error(ctx, str(exc))
-
-
-def open_matcher(
-    ctx: click.Context, db_path: str, *, enable_popularity: bool = False
-) -> AggregatedLicenseMatcher:
-    """Build the matcher; the database may have changed since the first check
-    at the top of the command, so a refusal here exits 2 as well, never 1."""
-    try:
-        return AggregatedLicenseMatcher(db_path, enable_popularity=enable_popularity)
-    except DatabaseNotReadyError as exc:
-        exit_usage_error(ctx, str(exc))
 
 
 def exit_bad_input(ctx: click.Context, condition: str) -> NoReturn:
@@ -326,10 +311,10 @@ def resolve_license_record(
 ) -> LicenseDetails | None:
     """Helper to resolve a license from CLI arguments (implements Smart Logic)."""
     db_path = ctx.obj["db_path"]
-    exit_if_db_not_ready(ctx, db_path)
+    check_database_ready(db_path)  # before input handling: report the database first
 
     reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
-    matcher = open_matcher(ctx, db_path)
+    matcher = AggregatedLicenseMatcher(db_path)
     check_db_staleness(matcher.db)
 
     # 1. Explicit ID
@@ -389,10 +374,10 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     """Identify license text and return the closest matched SPDX License ID."""
     db_path = ctx.obj["db_path"]
 
-    exit_if_db_not_ready(ctx, db_path)
+    check_database_ready(db_path)  # before input handling: report the database first
     reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
 
-    matcher = open_matcher(ctx, db_path, enable_popularity=enable_popularity)
+    matcher = AggregatedLicenseMatcher(db_path, enable_popularity=enable_popularity)
     check_db_staleness(matcher.db)
 
     if id_val:
