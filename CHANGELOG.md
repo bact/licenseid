@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `licenseid.DatabaseNotReadyError`, a `LicenseIdError` for a missing, empty,
+  invalid or unreadable database ([#55])
 - `licenseid.LicenseIdError` (a `RuntimeError`) for failures reported in
   licenseid's own message format, and its subclass `licenseid.InvalidInputError`
   for invalid options or input ([#53])
@@ -17,6 +19,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `match` and the `is-*` commands check that the database is ready before
+  answering. A missing, empty (for example after a failed first `update`),
+  invalid (another program's file) or unreadable database exits 2 with
+  `ERROR: database: not found`, `empty`, `invalid` or `unreadable`, instead of
+  "no license found", `false` (exit 1) or a traceback, and a file that is not
+  ready is not written to. A SQLite failure while reading exits 2 the same
+  way. A path the system will not look at (an unreadable parent directory, a
+  symlink loop) is reported as `unreadable` rather than `not found`, which
+  would have suggested an `update` that could not help, and so is anything
+  that is not a file a database could be in, such as a named pipe (which the
+  read-only open would have waited on for ever). Every spelling of one file
+  gets the same answer, whether it differs by path (`licenses.db`,
+  `licenses.db/`, `licenses.db/.`) or by URI (`file:`, `file://`,
+  `file://localhost`). The
+  Python API raises `DatabaseNotReadyError` from the
+  `AggregatedLicenseMatcher` constructor ([#55])
+- `update` and `--clear-cache` refuse a database licenseid did not build,
+  with `ERROR: database: invalid: <path>` and exit 2, instead of writing
+  licenseid's schema over it or deleting it: another program's SQLite file, a
+  file that is not a database, anything that is not a regular file (a
+  directory, a named pipe), a path naming no file (`.`, `/`), a `file:` URI
+  only SQLite can resolve (one carrying `vfs=` or another host's name), a
+  file they may not read, and one locked by another process. Every other
+  state is still
+  accepted, including a damaged database: they exist to build or clear one.
+  The refusal comes before anything is removed, and the same check runs in
+  `LicenseDatabase.clear_cache`, so the Python API and the CLI agree.
+  A file the system will not remove is reported as
+  `database: delete failed: <path>: <reason>` ([#55])
+- Read commands no longer create `~/.local/share/licenseid`; only `update`
+  does, so an unwritable `HOME` no longer crashes them ([#55])
+- `--clear-cache` no longer opens the database to clear it, so it also clears
+  one that SQLite cannot read, and does not create the default directory. It
+  works through a `file:` URI, and removes SQLite's `-wal`, `-shm` and
+  `-journal` files beside the database. It no longer crashes on an unwritable
+  `HOME`. **Breaking (Python API):** `LicenseDatabase.clear_cache` is a static
+  method taking the path, so `db.clear_cache()` becomes
+  `LicenseDatabase.clear_cache(db.db_path)` ([#55])
 - `licenseid update` sends a `User-Agent` that identifies licenseid, makes one
   attempt per source, and reuses a stale cache file (with a warning) when a
   download fails; `--no-cache` never falls back to cached data ([#51])
@@ -48,6 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `--db` with a blank value is a usage error (`ERROR: database: missing:
+  --db`) instead of silently using the default database ([#55])
 - Deeply nested JSON no longer crashes license detection with
   `RecursionError`, and extensionless INI/TOML text that starts with a section
   header is read ([#50])
@@ -86,6 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#51]: https://github.com/bact/licenseid/pull/51
 [#53]: https://github.com/bact/licenseid/pull/53
 [#54]: https://github.com/bact/licenseid/pull/54
+[#55]: https://github.com/bact/licenseid/pull/55
 
 ## [0.3.7] - 2026-08-20
 

@@ -142,6 +142,11 @@ To clear the cache manually:
 licenseid --clear-cache
 ```
 
+This deletes the database and the cache files beside it, so it refuses a
+`--db` path holding a file licenseid did not build (exit 2,
+`database: invalid`). A database it cannot read is still cleared: that is
+what the command is for.
+
 ### 4. Output formats
 
 Default (Unix-friendly):
@@ -218,7 +223,11 @@ making it suitable for use in scripts and CI/CD pipelines.
 | :--- | :--- | :--- |
 | **0** | Success | Confident match found; predicate is TRUE; database updated or already up-to-date. |
 | **1** | Logic Failure | No matching license found; predicate is FALSE; network error. |
-| **2** | Usage Error | Missing subcommand; missing input text/file; invalid parameters. |
+| **2** | Usage or Setup Error | Missing subcommand; missing input text/file; invalid parameters; database not ready. |
+
+A database is not ready when it is missing, empty (no licenses yet), invalid
+(another program's file) or unreadable. `match` and the `is-*` commands refuse
+to answer from one, rather than reporting "no license found" or `false`.
 
 Errors and warnings go to standard error, one per line, in a fixed format:
 
@@ -298,6 +307,12 @@ if matcher.is_open(file_path="LICENSE.txt"):
 if matcher.is_spdx(text="Creative Commons Zero v1.0 Universal"):
     print("SPDX Match Found!")
 ```
+
+The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
+when the database is missing, empty, invalid (another program's file) or
+unreadable, for example before the first `licenseid update`. The check opens
+the file read-only: it never creates or changes the database itself, though
+SQLite may leave its own `-shm` and `-wal` files beside it.
 
 Example JSON output:
 

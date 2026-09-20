@@ -62,6 +62,10 @@ def seeded_db(
             conn.execute(_INSERT_LICENSE, tuple(row)[:7])
             if row.search_text:
                 conn.execute(_INSERT_INDEX, (row.license_id, row.search_text))
+        if rows and not any(row.search_text for row in rows):
+            # A database with an empty search index is not ready; this text
+            # matches nothing the tests search for.
+            conn.execute(_INSERT_INDEX, (rows[0].license_id, "unmatchable filler"))
         for exception_id in exception_ids:
             conn.execute(_INSERT_EXCEPTION, (exception_id, exception_id, False, None))
         conn.execute(_INSERT_METADATA, ("last_check_datetime", "2026-01-01T00:00:00"))

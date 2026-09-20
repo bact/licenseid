@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from licenseid.database import LicenseDatabase
+from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.normalize import normalize_text
 from tools.cli_matrix.config import RunConfig, build_parser, configure_args
 from tools.cli_matrix.fixtures import MIT
@@ -35,15 +35,24 @@ _INSERT_METADATA = "INSERT INTO db_metadata (key, value) VALUES (?, ?)"
 def make_file_db(path: Path) -> Path:
     """Build a one-licence database file (MIT) the CLI can be pointed at.
 
-    ``license_list_version`` is left out on purpose: with no version stored,
-    the CLI does not warn that the normalisation rules are out of date.
+    The database is ready (see ``licenseid.dbcheck``) and silent: it records
+    the ``license_list_version`` an update writes, and the current
+    normalisation version, so the CLI neither refuses it nor warns that the
+    normalisation rules are out of date.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     LicenseDatabase(str(path))
     with sqlite3.connect(path) as conn:
         conn.execute(_INSERT_LICENSE, ("MIT", "MIT License", True, True, True))
         conn.execute(_INSERT_INDEX, ("MIT", normalize_text(MIT)))
-        conn.execute(_INSERT_METADATA, ("last_check_datetime", _now()))
+        conn.executemany(
+            _INSERT_METADATA,
+            [
+                ("last_check_datetime", _now()),
+                ("license_list_version", "3.30"),
+                ("normalization_version", NORMALIZATION_VERSION),
+            ],
+        )
     return path
 
 

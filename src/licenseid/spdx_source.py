@@ -54,6 +54,23 @@ EXPIRY_POPULARITY_CSV = 75
 _CLOCK_SKEW_TOLERANCE = timedelta(minutes=5)
 
 
+def clear_cache_files(directory: Path) -> None:
+    """Remove every download cache file in *directory*, including the
+    temporary files a killed download orphans."""
+    for filename in (CACHE_LICENSES_JSON, CACHE_POPULARITY_CSV):
+        path = directory / filename
+        if path.exists():  # a parent that is not a directory has none
+            path.unlink(missing_ok=True)
+    for pattern in (
+        "spdx-data-v*.tar.gz",
+        f"{CACHE_LICENSES_JSON}.*.tmp",
+        f"{CACHE_POPULARITY_CSV}.*.tmp",
+        "spdx-data-v*.tar.gz.*.tmp",
+    ):
+        for path in directory.glob(pattern):
+            path.unlink(missing_ok=True)
+
+
 def user_agent() -> str:
     """User-Agent that identifies this client to third-party servers, so they
     can contact or rate-limit us instead of an anonymous python-requests.

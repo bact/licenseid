@@ -88,8 +88,8 @@ class RunConfig:
 def protected_dirs() -> list[Path]:
     """Directories the tool must never open: the real licenseid cache.
 
-    Computed from the environment rather than by calling licenseid, because
-    ``get_default_db_path()`` creates the directory as a side effect.
+    Computed from the environment rather than by calling licenseid, so that
+    the tool depends on nothing it is meant to test.
     """
     import pwd  # POSIX only; imported here so Windows reaches the refusal first
 

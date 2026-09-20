@@ -13,6 +13,7 @@ from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+from conftest import seed_ready_metadata
 
 from licenseid.database import LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
@@ -82,6 +83,7 @@ def test_db() -> Generator[str, None, None]:
             ("last_check_datetime", "2026-01-01T00:00:00"),
         )
 
+    seed_ready_metadata(db_path)
     yield db_path
     keep_alive.close()
 

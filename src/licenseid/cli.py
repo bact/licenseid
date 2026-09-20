@@ -10,15 +10,23 @@ Command-line interface for the licenseid tool.
 import json
 import os
 import re
+import sqlite3
 import sys
 from datetime import datetime, timezone
-from typing import NoReturn
+from pathlib import Path
+from typing import Any, NoReturn
 
 import click
 
 from licenseid.console import error, warn
 from licenseid.database import LicenseDatabase, get_default_db_path
-from licenseid.errors import InvalidInputError, LicenseIdError
+from licenseid.dbcheck import (
+    check_database_ready,
+    delete_failed_error,
+    reject_foreign_database,
+    unreadable_error,
+)
+from licenseid.errors import DatabaseNotReadyError, InvalidInputError, LicenseIdError
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
 from licenseid.types import LicenseDetails
@@ -66,23 +74,73 @@ def check_db_staleness(database: LicenseDatabase) -> None:
             days_old = (datetime.now(timezone.utc) - last_check_dt).days
             if days_old > 182:  # Approx 6 months
                 warn(f"database: {days_old} days old; run 'licenseid update'")
-        except ValueError:
+        except (TypeError, ValueError):
             pass
 
 
-@click.group(invoke_without_command=True)
+def make_default_db_dir(ctx: click.Context) -> None:
+    """Create the directory of the default database path, if that is the one
+    in use. Reading and clearing never create it; ``update`` does, because
+    ``LicenseDatabase`` opens (and so creates) the file."""
+    if ctx.obj["db_is_default"]:
+        Path(ctx.obj["db_path"]).parent.mkdir(parents=True, exist_ok=True)
+
+
+def clear_local_cache(ctx: click.Context, db_path: str) -> None:
+    """Clear the cache files beside *db_path* and the database itself.
+
+    ``clear_cache`` refuses a file licenseid did not build (one mistyped
+    ``--db`` must not destroy another program's database); the group turns
+    that refusal into exit 2. A delete the system refuses is reported here,
+    naming the file that actually failed.
+    """
+    try:
+        LicenseDatabase.clear_cache(db_path)
+    except OSError as exc:
+        failed = exc.filename or db_path
+        exit_usage_error(ctx, str(delete_failed_error(str(failed), exc)))
+
+
+class DatabaseErrorGroup(click.Group):
+    """A group that exits 2 when the database cannot answer.
+
+    ``match`` and the ``is-*`` commands answer "no" with exit 1, so an unready
+    database (``DatabaseNotReadyError``) must not share it. A file can also go
+    bad after the readiness check (replaced or corrupted mid-run): a SQLite
+    failure is then worded as an ``unreadable`` database, not a traceback. A
+    ProgrammingError or InterfaceError is a bug in a query, not a fault in the
+    file, so it still shows its traceback.
+    """
+
+    def invoke(self, ctx: click.Context) -> Any:
+        try:
+            return super().invoke(ctx)
+        except DatabaseNotReadyError as exc:
+            exit_usage_error(ctx, str(exc))
+        except sqlite3.Error as exc:
+            if isinstance(exc, (sqlite3.ProgrammingError, sqlite3.InterfaceError)):
+                raise
+            exit_usage_error(ctx, str(unreadable_error(ctx.obj["db_path"], exc)))
+
+
+@click.group(cls=DatabaseErrorGroup, invoke_without_command=True)
 @click.option("--db", help="Path to the license database.")
 @click.option("--clear-cache", is_flag=True, help="Clear local cache and exit.")
 @click.pass_context
 def cli(ctx: click.Context, db: str | None, clear_cache: bool) -> None:
     """SPDX License ID matcher tool."""
+    if db is not None and not db.strip():
+        # Silently falling back to the default database would answer from a
+        # file the user did not ask for. Every other blank option is a usage
+        # error too (see reject_blank_options).
+        exit_usage_error(ctx, "database: missing: --db; pass a path or drop --db")
     db_path = db or get_default_db_path()
     ctx.ensure_object(dict)
     ctx.obj["db_path"] = db_path
+    ctx.obj["db_is_default"] = not db
 
     if clear_cache:
-        database = LicenseDatabase(db_path)
-        database.clear_cache()
+        clear_local_cache(ctx, db_path)
         ctx.exit()
 
     if ctx.invoked_subcommand is None:
@@ -108,7 +166,12 @@ def update(
 ) -> None:
     """Update the license database from remote sources."""
     db_path = ctx.obj["db_path"]
+    # It writes the schema on open, so never into somebody else's file. Kept
+    # outside the try: an unready database is a setup error (exit 2), not an
+    # update that failed (exit 1).
+    reject_foreign_database(db_path)
     try:
+        make_default_db_dir(ctx)
         database = LicenseDatabase(db_path)
         updated = database.update_from_remote(
             version=version, force=force, use_cache=use_cache
@@ -158,21 +221,10 @@ def _decode_escape(escape: re.Match[str]) -> str:
         return escape.group(0)
 
 
-def is_sqlite_uri(path: str) -> bool:
-    """Check if a path is a SQLite URI or in-memory database."""
-    return path.startswith("file:") or ":memory:" in path
-
-
 def exit_usage_error(ctx: click.Context, message: str) -> NoReturn:
     """Print *message* as an ERROR line and exit with a usage error (2)."""
     error(message)
     ctx.exit(2)
-
-
-def exit_if_db_missing(ctx: click.Context, db_path: str) -> None:
-    """Exit with a usage error (2) if the database file does not exist."""
-    if not os.path.exists(db_path) and not is_sqlite_uri(db_path):
-        exit_usage_error(ctx, f"database: not found: {db_path}; run 'licenseid update'")
 
 
 def exit_bad_input(ctx: click.Context, condition: str) -> NoReturn:
@@ -279,7 +331,7 @@ def resolve_license_record(
 ) -> LicenseDetails | None:
     """Helper to resolve a license from CLI arguments (implements Smart Logic)."""
     db_path = ctx.obj["db_path"]
-    exit_if_db_missing(ctx, db_path)
+    check_database_ready(db_path)  # before input handling: report the database first
 
     reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
     matcher = AggregatedLicenseMatcher(db_path)
@@ -342,7 +394,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     """Identify license text and return the closest matched SPDX License ID."""
     db_path = ctx.obj["db_path"]
 
-    exit_if_db_missing(ctx, db_path)
+    check_database_ready(db_path)  # before input handling: report the database first
     reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
 
     matcher = AggregatedLicenseMatcher(db_path, enable_popularity=enable_popularity)

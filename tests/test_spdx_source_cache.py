@@ -200,7 +200,7 @@ def test_clear_cache_removes_orphaned_temp_files(tmp_path: Path) -> None:
     unrelated = tmp_path / "notes.tmp"
     for path in [*ours, unrelated]:
         path.write_text("x")
-    db.clear_cache()
+    LicenseDatabase.clear_cache(db.db_path)
     assert not any(path.exists() for path in ours)
     assert unrelated.exists()
 

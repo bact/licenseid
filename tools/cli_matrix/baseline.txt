@@ -6,15 +6,8 @@
 # line when the defect is fixed; `--check` then reports it as FIXED.
 #
 # Generated: 2026-09-19 on Darwin arm64
-# Run: 2504 executions, 924 PASS, 1488 OBSERVE, 92 FLAG
+# Run: 2504 executions, 924 PASS, 1533 OBSERVE, 47 FLAG
 #
-C1-015 bash
-C1-016 bash
-C1-019 bash
-C1-025 bash
-C1-026 bash
-C3-005 bash
-C3-009 bash
 E2-082 bash
 E2-083 bash
 E2-084 bash
@@ -31,26 +24,6 @@ E4-005 bash
 E4-006 bash
 E4-007 bash
 E4-008 bash
-E4-025 bash
-E4-026 bash
-E4-027 bash
-E4-028 bash
 E5-021 bash
 E5-022 bash
 E5-024 bash
-E7-009 bash
-E7-010 bash
-E7-011 bash
-E7-012 bash
-E7-013 bash
-E7-014 bash
-E7-015 bash
-E7-016 bash
-E7-017 bash
-E7-018 bash
-E7-019 bash
-E7-020 bash
-E7-025 bash
-E7-026 bash
-E7-027 bash
-E7-028 bash

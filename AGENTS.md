@@ -45,7 +45,8 @@ Unix philosophy. Consistent, predictable, parseable.
     `normalization vN outdated`, `download failed`, `cache read failed`,
     `cache write failed`, `cache unusable`, `download unusable`,
     `stale cache unusable`, `parse failed`,
-    `N rows with missing or non-numeric num_pushers`, `update failed`.
+    `N rows with missing or non-numeric num_pushers`, `update failed`,
+    `delete failed`.
   - `DETAIL`: the variable part (exception text, value, path).
   - `ACTION`: what happens next, after a semicolon: the fallback taken
     (`using stale cache`, `downloading`, `counted as 0`) or the command for
@@ -55,7 +56,12 @@ Unix philosophy. Consistent, predictable, parseable.
   - No trailing period, no "Please", no full sentences.
   - A failure worded this way is raised as `licenseid.errors.LicenseIdError`
     (`SUBJECT: CONDITION…`, no prefix); the CLI prints it after `ERROR:` and
-    exits 1, or 2 for its subclass `InvalidInputError` (a usage error).
+    exits 1, or 2 for its subclass `InvalidInputError` (a usage error). The
+    CLI also exits 2 for `DatabaseNotReadyError` (a database that is missing,
+    empty, invalid or unreadable) in `match` and the `is-*` commands, where
+    exit 1 already means "no". `update` and `--clear-cache` write or delete,
+    so they refuse only an `invalid` database — one licenseid did not build
+    — and accept every other condition, which is what they exist to fix.
   - A step that prints partial progress (`status(..., end="")`) and can fail
     must call `console.end_line()` in a `finally`, so the caller's next
     stderr line starts at column 0.
@@ -128,7 +134,7 @@ ruff format
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
-  lines=935) — see
+  lines=926) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-19
+Last-Modified: 2026-09-20
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -174,31 +174,64 @@ the 800-line hard limit. Pylint rates the two directories 9.48/10;
 Found by running the CLI under odd environments (manual matrix, 2026-09-19).
 Each case is outside the message grammar or hides a failure:
 
-- **Default path has a side effect**: `get_default_db_path()` calls `mkdir`,
-  so every read command (`match`, `is-*`) fails with a traceback when
-  `HOME` is unset to `/nonexistent`, read-only, a regular file or the empty
-  string (`OSError`, `PermissionError`, `NotADirectoryError`). Reading must
-  not create directories; only `update` should. Also fixed as part of the
-  database readiness work.
-- **`--clear-cache`** on a missing or read-only directory: `sqlite3`
-  traceback.
+- **`update` when the default directory cannot be made** (unwritable
+  `HOME`): the `mkdir` error is worded `database: update failed:
+  PermissionError: ...`, with the wrong subject (the directory failed, not
+  the database) and no action. (`--clear-cache` no longer makes the
+  directory. A file licenseid did not build now exits 2 with
+  `database: invalid`, and a delete the system refuses with
+  `database: delete failed`.)
+- **A valid but read-only database** (a read-only mount, a root-owned
+  install): every database licenseid writes is in WAL mode, and SQLite must
+  create `-shm` beside it even to read. The readiness check gives no verdict
+  for this (`_no_verdict`), so the failure now comes from the real open, as
+  `database: unreadable: attempt to write a readonly database` (and no
+  `run 'licenseid update'` hint, which could not help). Main crashed here
+  too, in `LicenseDatabase`. Fix options: copy the file, or open it with
+  `immutable=1` when the directory is not writable (safe then, since no
+  `update` can be running there).
+- **`--db file://localhost/abs.db`**: SQLite accepts the `localhost`
+  authority, so the readiness check passes, but `LicenseDatabase` turns the
+  URI into a `Path`, which collapses the `//`, and the command exits 2 with
+  `database: unreadable`. Pinned as an xfail in
+  `tests/test_db_ready_adversarial.py`.
+- **Lock contention** (`database is locked`, for example the first `update`
+  that switches a database to WAL, during a `match`): the readiness check
+  cannot tell a busy database from a hot rollback journal it may not replay,
+  so it returns the condition `unknown`. A reader goes on and whatever opens
+  the file next reports the failure, still worded `database: unreadable`;
+  `update` and `--clear-cache` refuse, because a file they could not inspect
+  may be anybody's and deleting one needs no lock at all. The probe waits
+  `_BUSY_WAIT` (1 s), not SQLite's default 5 s, since the command that
+  follows waits again.
 - **Closed standard input** (`<&-`): `AttributeError: 'NoneType' object has
   no attribute 'isatty'` from `read_input`.
 - **Closed standard output** (`>&-`): exit 0 and the result is lost. A
   script sees success with no data.
 - **Output error** (`ulimit -f 0` with output to a file): `OSError`
-  traceback and exit 120, instead of one `ERROR:` line.
-- **DB replaced during a run**: `database disk image is malformed`.
+  traceback and exit 120, instead of one `ERROR:` line. The matrix no longer
+  shows it (cell `E4-028` left the baseline): under that limit SQLite cannot
+  create the `-shm` file, so the readiness check now refuses first, with
+  `database: unreadable: <path>: disk I/O error` and exit 2. The failing
+  write of standard output is still unhandled; a cell that reaches it needs a
+  database the check can read on a filesystem the output cannot be written
+  to.
+- **DB replaced during a run**: on the CLI a `sqlite3` failure after the
+  readiness check now exits 2 with `database: unreadable`. The Python API
+  still raises a raw `sqlite3.OperationalError` from a live matcher whose
+  file was deleted (pinned in `tests/test_db_ready.py`); wrapping it in
+  `LicenseIdError` needs a decision on where (matcher, `LicenseDatabase`).
 - **Ctrl-C (SIGINT)**: prints `Aborted!` (click's own wording, outside the
   message grammar) and exits **1**, the code for "no". A script that tests
   `licenseid is-osi X` reads an interrupted run as "not OSI". Exit 130
   (128 + 2, the shell convention) or 2 would be safe; `update` interrupted
   during its first download also leaves an empty `licenses.db`
-  (the unready database that the readiness check will report).
+  (the readiness check now reports that database).
 - **Fix**: handle `OSError` and `sqlite3.Error` once at the top of the CLI
   and print `ERROR: <subject>: <condition>: <detail>`; treat a `None`
   `sys.stdin` as no input; flush standard output at the end and exit 2 when
-  it fails; make the default path pure.
+  it fails. The `sqlite3.Error` part is done for the CLI in
+  `DatabaseErrorGroup`; the API is left.
 - Impact 2, Risk 2, Effort 3.
 
 ## 11. Probe-anchored windowing — Priority 9
@@ -237,6 +270,57 @@ statistics; no fix has been designed yet, only the problem is documented.
   estimate is meaningful — treat this as provisional).
 
 ## Already resolved (kept for record)
+
+- Unready database answers silently (2026-09-19 audit): after a failed first
+  `update`, `match` said "no license found" and `is-osi` printed `false`
+  (exit 1); a non-SQLite `--db` or a directory crashed with a traceback; and
+  a read command on a 0-byte file wrote tables into it. Now `match`, the
+  `is-*` commands and `AggregatedLicenseMatcher()` check readiness first, read
+  only, and report `database: not found`, `empty`, `invalid` (another
+  program's objects beside an incomplete set of ours, or a `licenses` table
+  without our columns; no `update` hint, as it would write into the file) or
+  `unreadable` with exit 2 (`DatabaseNotReadyError`). Ready means the
+  `licenses`, `db_metadata` and `license_index` (FTS5) tables exist,
+  `license_list_version` is not blank, every `license_id` is text, and
+  `licenses` and `license_index` each have a row. The check reads with plain
+  `mode=ro`: `immutable=1` was tried and dropped, because every database
+  licenseid writes is in WAL mode and immutable turns locking off, so a read
+  during an `update` could see a torn file.
+  The check is structural, not `PRAGMA quick_check` (about 200 ms on a real
+  database, twice per command): damaged pages that keep the schema and the
+  first rows plausible can still give a wrong answer. A fuzz run found only
+  page swaps of the `licenses` root page (exit 1 or a traceback before the
+  `typeof` probe, `NOT INDEXED` and exact column names were added).
+  A table of ours whose schema is not ours is `invalid` too: the table names
+  are common enough (`licenses`, `db_metadata`) that a seat inventory or an
+  asset register hits them, and calling such a file `empty` used to send the
+  user to `update`, which wrote licenseid's schema into it.
+  Same change: `get_default_db_path()` no longer creates the directory (only
+  `update` does) and `--clear-cache` works on the path without opening the
+  database, so read commands no longer crash on an unwritable `HOME` and a
+  corrupt database can be cleared. Because they write or delete, `update` and
+  `--clear-cache` call `reject_foreign_database` first (it runs inside
+  `LicenseDatabase.clear_cache`, so the Python API refuses what the CLI
+  refuses). It refuses an `invalid` database, anything that is not a regular
+  file with the SQLite header, a path naming no file, a file it may not read,
+  and an `unknown` one; it accepts every other condition, which is what those
+  commands are for. Gate and guard resolve one file the same way through every
+  spelling of it, by path (`licenses.db`, `licenses.db/`, `licenses.db/.`) and
+  by URI (`file:`, `file://`, `file://localhost`, `?vfs=`), and refuse
+  anything that is not a regular file or a directory: a named pipe would have
+  held the read-only open for ever. Only `mode=memory` and the exact base
+  `file::memory:` are memory; `file::memory:notes` names a file on disk.
+  Reading is the opposite way round: an `unknown` database
+  is not refused, because a wrong refusal costs the user an answer they could
+  have had.
+  Left open: the metadata is committed before the fingerprints are computed,
+  so a kill in between leaves a "ready" database without fingerprints. That
+  is not merely a degraded answer — measured on a real database, the top
+  match changes (`MIT` becomes `Xnet` for MIT text), so the command reports a
+  different license with no warning. Fix by writing the metadata in the
+  fingerprint transaction, or by adding a fingerprint row to the readiness
+  check. A `sqlite3` failure after the check exits 2 on the CLI
+  (`database: unreadable`); the API keeps raising the raw error (item 10).
 
 - `cli.py` test coverage (2026-09-19 audit, Priority 18): was 66-75%. Now
   100% of lines and branches, from `tests/test_cli_errors.py`,

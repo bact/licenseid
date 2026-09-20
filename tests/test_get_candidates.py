@@ -30,6 +30,9 @@ from licenseid.types import MatchRequest
 @pytest.fixture
 def db_path() -> Generator[str, None, None]:
     path, keep_alive = make_memory_db_path("test_get_candidates")
+    # One row no test text matches, so the database is ready when the
+    # matcher fixture builds (see licenseid.dbcheck).
+    _seed(path, "READY-ROW", "readiness placeholder", is_spdx=False)
     yield path
     keep_alive.close()
 

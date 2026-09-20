@@ -13,6 +13,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from conftest import seed_ready_metadata
 
 from licenseid.database import LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
@@ -100,6 +101,7 @@ def matcher() -> AggregatedLicenseMatcher:
     # fingerprint mechanism exists to replace.
     db_manager._compute_fingerprints()  # pylint: disable=protected-access
 
+    seed_ready_metadata(db_path)
     print("  Population complete.")
     return AggregatedLicenseMatcher(db_path)
 
