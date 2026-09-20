@@ -72,15 +72,26 @@ def test_unreadable_database(tmp_path: Path, command: str) -> None:
     assert result.stderr.count("\n") == 1
 
 
-def test_clear_cache_removes_a_file_that_is_not_a_database(tmp_path: Path) -> None:
-    """Clearing works on the path alone, so the recovery command is not
+def test_clear_cache_removes_a_corrupt_database(tmp_path: Path) -> None:
+    """Clearing never opens the database, so the recovery command is not
     refused by the corruption it exists to recover from."""
-    db_path = tmp_path / "notes.db"
-    db_path.write_text("this is not an SQLite database, " * 8)
+    db_path = tmp_path / "licenses.db"
+    db_path.write_bytes(b"SQLite format 3\x00" + b"\xff" * 4096)
     result = CliRunner().invoke(cli, ["--db", str(db_path), "--clear-cache"])
     assert result.exit_code == 0
     assert result.stdout == ""
     assert not db_path.exists()
+
+
+def test_clear_cache_keeps_a_file_that_is_not_a_database(tmp_path: Path) -> None:
+    """It deletes, so one mistyped --db must not destroy somebody's notes."""
+    notes = tmp_path / "notes.txt"
+    notes.write_text("this is not an SQLite database, " * 8)
+    result = CliRunner().invoke(cli, ["--db", str(notes), "--clear-cache"])
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert result.stderr == f"ERROR: database: invalid: {notes}\n"
+    assert notes.exists()
 
 
 @pytest.mark.parametrize(

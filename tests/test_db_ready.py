@@ -135,10 +135,13 @@ def test_non_ascii_path_printed_intact(tmp_path: Path) -> None:
     assert "\\u" not in result.stderr and "\\x" not in result.stderr
 
 
-def test_empty_db_option(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """``--db ''``: an empty path or a fall-back to the default path -- both
-    contract-consistent, so only the shared part is pinned. The default path
-    is patched, so the real ~/.local/share database can never answer this."""
+@pytest.mark.parametrize("blank", ["", "  "])
+def test_empty_db_option(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, blank: str
+) -> None:
+    """``--db ''`` is a usage error, not a silent fall-back to the default
+    database: the answer would come from a file the user did not name. The
+    default path is patched, so the real ~/.local/share one cannot answer."""
     default = tmp_path / "default" / "licenses.db"
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "home" / "share"))
@@ -146,15 +149,13 @@ def test_empty_db_option(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
         monkeypatch.setattr(
             f"{module}.get_default_db_path", lambda: str(default), raising=False
         )
-    result = run_cli("", ["match", "--id", "MIT"])
+    result = run_cli(blank, ["match", "--id", "MIT"])
     assert_no_traceback(result)
     assert result.exit_code == 2
     assert result.stdout == ""
     assert_one_diagnostic_line(result.stderr)
-    assert result.stderr.startswith("ERROR: database: ")
-    assert str(default) in result.stderr or result.stderr.startswith(
-        "ERROR: database: not found: ;"
-    )
+    assert result.stderr == "ERROR: database: missing: --db; pass a path or drop --db\n"
+    assert str(default) not in result.stderr
     assert not default.exists()
 
 
@@ -334,6 +335,8 @@ def test_ready_database_answers_yes_and_no(variant: Variant, command: str) -> No
     assert_no_traceback(no)
     assert no.exit_code == 1
     assert no.stdout in ("", "false\n")
+    # "no" is an answer, not a fault: nothing but the match's own ERROR line.
+    assert no.stderr in ("", "ERROR: match: no license found\n")
 
 
 @pytest.mark.parametrize("variant", ["ready_file", "ready_memory_uri"], indirect=True)

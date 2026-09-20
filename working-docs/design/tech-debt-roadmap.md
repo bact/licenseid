@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-19
+Last-Modified: 2026-09-20
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -178,11 +178,13 @@ Each case is outside the message grammar or hides a failure:
   `HOME`): the `mkdir` error is worded `database: update failed:
   PermissionError: ...`, with the wrong subject (the directory failed, not
   the database) and no action. (`--clear-cache` no longer makes the
-  directory. A foreign file or a read-only directory given with `--db` now
-  exits 2 with `database: unreadable`.)
+  directory. A file licenseid did not build now exits 2 with
+  `database: invalid`, and a delete the system refuses with
+  `database: delete failed`.)
 - **A valid but read-only database** (a read-only mount, a root-owned
   install): every database licenseid writes is in WAL mode, and SQLite must
-  create `-shm` beside it even to read, so the readiness check fails with
+  create `-shm` beside it even to read. The readiness check gives no verdict
+  for this (`_no_verdict`), so the failure now comes from the real open, as
   `database: unreadable: attempt to write a readonly database` (and no
   `run 'licenseid update'` hint, which could not help). Main crashed here
   too, in `LicenseDatabase`. Fix options: copy the file, or open it with
@@ -194,14 +196,26 @@ Each case is outside the message grammar or hides a failure:
   `database: unreadable`. Pinned as an xfail in
   `tests/test_db_ready_adversarial.py`.
 - **Lock contention** (`database is locked`, for example the first `update`
-  that switches a database to WAL, during a `match`) is worded
-  `database: unreadable`.
+  that switches a database to WAL, during a `match`): the readiness check
+  cannot tell a busy database from a hot rollback journal it may not replay,
+  so it returns the condition `unknown`. A reader goes on and whatever opens
+  the file next reports the failure, still worded `database: unreadable`;
+  `update` and `--clear-cache` refuse, because a file they could not inspect
+  may be anybody's and deleting one needs no lock at all. The probe waits
+  `_BUSY_WAIT` (1 s), not SQLite's default 5 s, since the command that
+  follows waits again.
 - **Closed standard input** (`<&-`): `AttributeError: 'NoneType' object has
   no attribute 'isatty'` from `read_input`.
 - **Closed standard output** (`>&-`): exit 0 and the result is lost. A
   script sees success with no data.
 - **Output error** (`ulimit -f 0` with output to a file): `OSError`
-  traceback and exit 120, instead of one `ERROR:` line.
+  traceback and exit 120, instead of one `ERROR:` line. The matrix no longer
+  shows it (cell `E4-028` left the baseline): under that limit SQLite cannot
+  create the `-shm` file, so the readiness check now refuses first, with
+  `database: unreadable: <path>: disk I/O error` and exit 2. The failing
+  write of standard output is still unhandled; a cell that reaches it needs a
+  database the check can read on a filesystem the output cannot be written
+  to.
 - **DB replaced during a run**: on the CLI a `sqlite3` failure after the
   readiness check now exits 2 with `database: unreadable`. The Python API
   still raises a raw `sqlite3.OperationalError` from a live matcher whose
@@ -277,15 +291,36 @@ statistics; no fix has been designed yet, only the problem is documented.
   first rows plausible can still give a wrong answer. A fuzz run found only
   page swaps of the `licenses` root page (exit 1 or a traceback before the
   `typeof` probe, `NOT INDEXED` and exact column names were added).
+  A table of ours whose schema is not ours is `invalid` too: the table names
+  are common enough (`licenses`, `db_metadata`) that a seat inventory or an
+  asset register hits them, and calling such a file `empty` used to send the
+  user to `update`, which wrote licenseid's schema into it.
   Same change: `get_default_db_path()` no longer creates the directory (only
   `update` does) and `--clear-cache` works on the path without opening the
   database, so read commands no longer crash on an unwritable `HOME` and a
-  corrupt database can be cleared.
+  corrupt database can be cleared. Because they write or delete, `update` and
+  `--clear-cache` call `reject_foreign_database` first (it runs inside
+  `LicenseDatabase.clear_cache`, so the Python API refuses what the CLI
+  refuses). It refuses an `invalid` database, anything that is not a regular
+  file with the SQLite header, a path naming no file, a file it may not read,
+  and an `unknown` one; it accepts every other condition, which is what those
+  commands are for. Gate and guard resolve one file the same way through every
+  spelling of it, by path (`licenses.db`, `licenses.db/`, `licenses.db/.`) and
+  by URI (`file:`, `file://`, `file://localhost`, `?vfs=`), and refuse
+  anything that is not a regular file or a directory: a named pipe would have
+  held the read-only open for ever. Only `mode=memory` and the exact base
+  `file::memory:` are memory; `file::memory:notes` names a file on disk.
+  Reading is the opposite way round: an `unknown` database
+  is not refused, because a wrong refusal costs the user an answer they could
+  have had.
   Left open: the metadata is committed before the fingerprints are computed,
-  so a kill in between leaves a "ready" database without fingerprints (fix by
-  writing the metadata in the fingerprint transaction). A `sqlite3` failure
-  after the check exits 2 on the CLI (`database: unreadable`); the API keeps
-  raising the raw error (item 10).
+  so a kill in between leaves a "ready" database without fingerprints. That
+  is not merely a degraded answer — measured on a real database, the top
+  match changes (`MIT` becomes `Xnet` for MIT text), so the command reports a
+  different license with no warning. Fix by writing the metadata in the
+  fingerprint transaction, or by adding a fingerprint row to the readiness
+  check. A `sqlite3` failure after the check exits 2 on the CLI
+  (`database: unreadable`); the API keeps raising the raw error (item 10).
 
 - `cli.py` test coverage (2026-09-19 audit, Priority 18): was 66-75%. Now
   100% of lines and branches, from `tests/test_cli_errors.py`,

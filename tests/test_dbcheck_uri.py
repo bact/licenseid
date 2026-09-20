@@ -12,18 +12,28 @@ fragments, symlinks, write-ahead logs, and the matcher's own second check.
 
 # pylint: disable=protected-access,missing-function-docstring
 
+import contextlib
 import os
 import sqlite3
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
-from db_variants import build_ready_wal_with_wal, make_ready_file_db
+from db_asserts import assert_refused, expected_refusal, run_cli
+from db_variants import NOT_FOUND, build_ready_wal_with_wal, make_ready_file_db
 
 from licenseid import cli as cli_module
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
-from licenseid.dbcheck import _REQUIRED_COLUMNS, _read_only_uri, check_database_ready
+from licenseid.dbcheck import (
+    _REQUIRED_COLUMNS,
+    _open_condition,
+    _open_failure,
+    _read_only_uri,
+    check_database_ready,
+    reject_foreign_database,
+)
 from licenseid.errors import DatabaseNotReadyError
 
 
@@ -42,11 +52,8 @@ def test_relative_path_not_found(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, prefix: str
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    result = CliRunner().invoke(cli, ["--db", f"{prefix}nope.db", "is-osi", "MIT"])
-    assert result.exit_code == 2
-    assert result.stderr == (
-        f"ERROR: database: not found: {prefix}nope.db; run 'licenseid update'\n"
-    )
+    result = run_cli(f"{prefix}nope.db", ["is-osi", "MIT"])
+    assert_refused(result, NOT_FOUND, f"{prefix}nope.db")
     assert not list(tmp_path.iterdir())
 
 
@@ -160,7 +167,7 @@ def test_a_missing_file_uri_is_not_found(tmp_path: Path, suffix: str) -> None:
     uri = f"file:{tmp_path / 'nope.db'}{suffix}"
     with pytest.raises(DatabaseNotReadyError) as info:
         check_database_ready(uri)
-    assert str(info.value) == f"database: not found: {uri}; run 'licenseid update'"
+    assert f"ERROR: {info.value}\n" == expected_refusal(NOT_FOUND, uri)
 
 
 def test_a_file_uri_with_a_percent_encoded_non_utf8_name_is_found(
@@ -192,12 +199,8 @@ def test_second_check_failing_still_exits_2(
     refusal is an exit 2 with one line, not a traceback and exit 1."""
     monkeypatch.setattr(cli_module, "check_database_ready", lambda _path: None)
     missing = tmp_path / "gone.db"
-    result = CliRunner().invoke(cli, ["--db", str(missing), *args])
-    assert result.exit_code == 2
-    assert result.stdout == ""
-    assert result.stderr == (
-        f"ERROR: database: not found: {missing}; run 'licenseid update'\n"
-    )
+    result = run_cli(str(missing), args)
+    assert_refused(result, NOT_FOUND, str(missing))
 
 
 def test_required_columns_exist_in_the_schema_licenseid_writes(
@@ -231,3 +234,188 @@ def test_a_uri_with_a_vfs_is_left_to_sqlite() -> None:
     """The name of a database in a non-default VFS need not be a file."""
     with pytest.raises(DatabaseNotReadyError, match="database: (empty|unreadable)"):
         check_database_ready("file:m1?vfs=memdb")
+
+
+# A path the OS refuses to look at is not the same as one that is not there
+
+
+def test_an_unreadable_parent_directory_is_not_reported_as_not_found(
+    tmp_path: Path,
+) -> None:
+    """The database may well be there, and 'licenseid update' could not write
+    it either, so the "run update" action would mislead."""
+    inner = tmp_path / "inner"
+    inner.mkdir()
+    db_path = make_ready_file_db(inner / "licenses.db")
+    inner.chmod(0o000)
+    try:
+        if os.access(str(db_path), os.R_OK):
+            pytest.skip("this user can read through a 000 directory (root?)")
+        with pytest.raises(DatabaseNotReadyError) as info:
+            check_database_ready(str(db_path))
+    finally:
+        inner.chmod(0o755)
+    assert str(info.value).startswith(f"database: unreadable: {db_path}: ")
+    assert "licenseid update" not in str(info.value)
+
+
+def test_a_symlink_loop_is_not_reported_as_not_found(tmp_path: Path) -> None:
+    """os.path.exists() answers False for a loop; the file is not absent."""
+    first, second = tmp_path / "a.db", tmp_path / "b.db"
+    first.symlink_to(second)
+    second.symlink_to(first)
+    with pytest.raises(DatabaseNotReadyError) as info:
+        check_database_ready(str(first))
+    assert str(info.value).startswith(f"database: unreadable: {first}: ")
+
+
+def test_a_dangling_symlink_is_still_not_found(tmp_path: Path) -> None:
+    """Nothing is there, and 'licenseid update' is the way to put it there."""
+    link = tmp_path / "link.db"
+    link.symlink_to(tmp_path / "gone.db")
+    with pytest.raises(DatabaseNotReadyError) as info:
+        check_database_ready(str(link))
+    assert f"ERROR: {info.value}\n" == expected_refusal(NOT_FOUND, str(link))
+
+
+def test_a_hot_rollback_journal_is_not_called_unreadable(tmp_path: Path) -> None:
+    """A read-only connection cannot roll back a hot journal, so SQLite says
+    "database is locked" for a database an ordinary open would repair and
+    read. The check gives no verdict rather than refusing a working file."""
+    db_path = make_ready_file_db(tmp_path / "licenses.db")
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA journal_mode=DELETE")
+    conn.close()
+    journal = db_path.with_name(db_path.name + "-journal")
+    journal.write_bytes(b"\xd9\xd5\x05\xf9\x20\xa1\x63\xd7" + b"\x00" * 504)
+    check_database_ready(str(db_path))  # no verdict, so no refusal
+    result = run_cli(str(db_path), ["is-osi", "MIT"])
+    assert result.exit_code == 0, result.stderr
+    assert "unreadable" not in result.stderr
+
+
+@contextlib.contextmanager
+def _exclusive_lock(db_path: Path) -> Iterator[None]:
+    """Hold the write lock another process would hold."""
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA locking_mode=EXCLUSIVE")
+    conn.execute("BEGIN EXCLUSIVE")
+    conn.execute("UPDATE db_metadata SET value = value")
+    try:
+        yield
+    finally:
+        conn.rollback()
+        conn.close()
+
+
+def test_a_locked_database_gives_no_verdict_to_a_reader(tmp_path: Path) -> None:
+    """Somebody else holds the write lock. That says nothing about the file,
+    so a reader goes on and finds out for itself rather than being refused."""
+    db_path = make_ready_file_db(tmp_path / "licenses.db")
+    with _exclusive_lock(db_path):
+        refusal = _open_condition(str(db_path))
+        assert refusal is not None and refusal[0] == "unknown"
+        check_database_ready(str(db_path))  # no verdict, so no refusal
+
+
+def test_a_locked_database_is_never_written_to_or_deleted(tmp_path: Path) -> None:
+    """The same "unknown" stops a write: the file could be anybody's, and
+    deleting one needs no lock at all."""
+    db_path = make_ready_file_db(tmp_path / "licenses.db")
+    before = db_path.read_bytes()
+    with _exclusive_lock(db_path):
+        with pytest.raises(DatabaseNotReadyError, match="database: unreadable: "):
+            reject_foreign_database(str(db_path))
+        result = run_cli(str(db_path), ["--clear-cache"])
+    assert result.exit_code == 2, result.stderr
+    assert db_path.exists(), "a locked database was deleted"
+    assert db_path.read_bytes() == before
+
+
+@pytest.mark.parametrize("text", ["database is locked", "database table is locked"])
+def test_every_lock_message_is_unknown_not_unreadable(text: str) -> None:
+    """Pinned directly: which message SQLite gives for a real lock varies by
+    build, and an unpinned string here would silently drop the protection."""
+    assert _open_failure(sqlite3.OperationalError(text)) == "unknown"
+
+
+def test_a_readonly_open_failure_gives_no_verdict_at_all() -> None:
+    """A write-ahead log that cannot make its -shm is not in doubt; only this
+    way of opening it is, so the command must go on."""
+    assert (
+        _open_failure(sqlite3.OperationalError("attempt to write a readonly database"))
+        is None
+    )
+    assert (
+        _open_failure(sqlite3.DatabaseError("file is not a database")) == "unreadable"
+    )
+
+
+def test_a_named_pipe_is_refused_rather_than_waited_on(tmp_path: Path) -> None:
+    """The check opens read-only, and opening a FIFO that way waits for a
+    writer that never comes: the command would hang with no exit code."""
+    fifo = tmp_path / "p.db"
+    try:
+        os.mkfifo(fifo)
+    except (AttributeError, OSError):
+        pytest.skip("this platform has no named pipes")
+    with pytest.raises(DatabaseNotReadyError) as info:
+        check_database_ready(str(fifo))
+    assert str(info.value) == f"database: unreadable: {fifo}: not a regular file"
+
+
+def test_a_directory_is_still_left_to_sqlite_to_report(tmp_path: Path) -> None:
+    """It cannot block, and SQLite's own wording says more than ours."""
+    directory = tmp_path / "adir"
+    directory.mkdir()
+    with pytest.raises(DatabaseNotReadyError, match="database: unreadable: ") as info:
+        check_database_ready(str(directory))
+    assert "not a regular file" not in str(info.value)
+
+
+@pytest.mark.parametrize("template", ["file://localhost{p}", "file:{p}?vfs=unix"])
+def test_no_uri_spelling_of_a_named_pipe_waits_for_a_writer(
+    tmp_path: Path, template: str
+) -> None:
+    """SQLite resolves these to the same file, so the check must too: it
+    opens read-only, and that waits for a writer that never comes."""
+    fifo = tmp_path / "p.db"
+    try:
+        os.mkfifo(fifo)
+    except (AttributeError, OSError):
+        pytest.skip("this platform has no named pipes")
+    db_arg = template.format(p=fifo)
+    with pytest.raises(DatabaseNotReadyError) as info:
+        check_database_ready(db_arg)
+    assert str(info.value) == f"database: unreadable: {db_arg}: not a regular file"
+
+
+def test_a_uri_with_a_vfs_naming_no_file_is_still_left_to_sqlite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A VFS need not read a file, so a name with nothing at it decides
+    nothing: only a file that would block the open does."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(DatabaseNotReadyError) as info:
+        check_database_ready("file:m1?vfs=memdb")
+    assert "not found" not in str(info.value)
+
+
+def test_a_memory_uri_with_a_name_after_it_is_an_ordinary_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """SQLite compares the whole name, so "file::memory:notes" opens a file
+    called ":memory:notes". Treating it as memory would drop mode=ro and
+    create it."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(DatabaseNotReadyError, match="database: not found: "):
+        check_database_ready("file::memory:notes")
+    assert not list(tmp_path.iterdir()), "the check created a file"
+
+
+@pytest.mark.parametrize(
+    "db_arg", [":memory:", "file::memory:", "file::memory:?cache=shared"]
+)
+def test_the_memory_spellings_are_still_memory(db_arg: str) -> None:
+    with pytest.raises(DatabaseNotReadyError, match="database: empty: "):
+        check_database_ready(db_arg)

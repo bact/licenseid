@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import NamedTuple, cast
 
 from licenseid.console import end_line, status, warn
-from licenseid.dbcheck import is_plain_path
+from licenseid.dbcheck import named_file, reject_foreign_database
 from licenseid.errors import LicenseIdError
 from licenseid.fingerprint import compute_idf_fingerprints, extract_ngrams
 from licenseid.normalize import normalize_text
@@ -221,35 +221,30 @@ class LicenseDatabase:
 
     @staticmethod
     def clear_cache(db_path: str | Path) -> None:
-        """Delete the cache files and the database (unopened) at *db_path*."""
+        """Delete the database (unopened) at *db_path* and the cache files
+        beside it. Raises :class:`licenseid.DatabaseNotReadyError` for a path
+        licenseid did not build a database at, as the CLI does."""
         # Local import: spdx_source pulls in `requests` (~60ms at import),
         # unused on the match path; update_from_remote() defers it too.
         from licenseid import spdx_source
 
-        db_path = Path(db_path)
+        reject_foreign_database(str(db_path))
         status("Clearing cache...")
-        if not is_plain_path(str(db_path)):
-            return  # an in-memory database or a URI has no directory to clear
-        for filename in [
-            spdx_source.CACHE_LICENSES_JSON,
-            spdx_source.CACHE_POPULARITY_CSV,
-        ]:
-            path = db_path.parent / filename
-            if path.exists():
-                path.unlink()
-        # Clear any tarballs, and temporary files orphaned by a killed run
-        for pattern in (
-            "spdx-data-v*.tar.gz",
-            f"{spdx_source.CACHE_LICENSES_JSON}.*.tmp",
-            f"{spdx_source.CACHE_POPULARITY_CSV}.*.tmp",
-            "spdx-data-v*.tar.gz.*.tmp",
-        ):
-            for p in db_path.parent.glob(pattern):
-                p.unlink()
-        # Delete the database file itself to force a schema rebuild
+        named = named_file(str(db_path))
+        if named is None:
+            return  # in-memory: no directory to clear
+        db_path = Path(named)
+        # The database goes first, so a refused delete leaves the cache
+        # intact. Its sidecars follow, best effort: once it is gone a stale
+        # -wal cannot be replayed, and reporting one would claim the delete
+        # failed when it succeeded.
         if db_path.is_symlink() or db_path.exists():
             status(f"Deleting database at {db_path}...")
-            db_path.unlink()
+            db_path.unlink(missing_ok=True)
+        for suffix in ("-wal", "-shm", "-journal"):
+            with contextlib.suppress(OSError):
+                db_path.with_name(db_path.name + suffix).unlink()
+        spdx_source.clear_cache_files(db_path.parent)
 
     def update_from_remote(
         self,

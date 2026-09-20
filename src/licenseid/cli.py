@@ -20,7 +20,12 @@ import click
 
 from licenseid.console import error, warn
 from licenseid.database import LicenseDatabase, get_default_db_path
-from licenseid.dbcheck import check_database_ready, unreadable_error
+from licenseid.dbcheck import (
+    check_database_ready,
+    delete_failed_error,
+    reject_foreign_database,
+    unreadable_error,
+)
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError, LicenseIdError
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
@@ -82,12 +87,18 @@ def make_default_db_dir(ctx: click.Context) -> None:
 
 
 def clear_local_cache(ctx: click.Context, db_path: str) -> None:
-    """Clear the cache files beside *db_path* and the database itself."""
+    """Clear the cache files beside *db_path* and the database itself.
+
+    ``clear_cache`` refuses a file licenseid did not build (one mistyped
+    ``--db`` must not destroy another program's database); the group turns
+    that refusal into exit 2. A delete the system refuses is reported here,
+    naming the file that actually failed.
+    """
     try:
         LicenseDatabase.clear_cache(db_path)
     except OSError as exc:
-        reason = OSError(exc.strerror or type(exc).__name__)
-        exit_usage_error(ctx, str(unreadable_error(db_path, reason)))
+        failed = exc.filename or db_path
+        exit_usage_error(ctx, str(delete_failed_error(str(failed), exc)))
 
 
 class DatabaseErrorGroup(click.Group):
@@ -118,6 +129,11 @@ class DatabaseErrorGroup(click.Group):
 @click.pass_context
 def cli(ctx: click.Context, db: str | None, clear_cache: bool) -> None:
     """SPDX License ID matcher tool."""
+    if db is not None and not db.strip():
+        # Silently falling back to the default database would answer from a
+        # file the user did not ask for. Every other blank option is a usage
+        # error too (see reject_blank_options).
+        exit_usage_error(ctx, "database: missing: --db; pass a path or drop --db")
     db_path = db or get_default_db_path()
     ctx.ensure_object(dict)
     ctx.obj["db_path"] = db_path
@@ -150,6 +166,10 @@ def update(
 ) -> None:
     """Update the license database from remote sources."""
     db_path = ctx.obj["db_path"]
+    # It writes the schema on open, so never into somebody else's file. Kept
+    # outside the try: an unready database is a setup error (exit 2), not an
+    # update that failed (exit 1).
+    reject_foreign_database(db_path)
     try:
         make_default_db_dir(ctx)
         database = LicenseDatabase(db_path)

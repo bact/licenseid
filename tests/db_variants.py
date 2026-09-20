@@ -342,15 +342,26 @@ BUILDERS: dict[str, Builder] = {
     "version_null": version_value("NULL"),
     # Views, not tables: a readiness check that queries sqlite_master without
     # filtering on type='table' (or that just runs SELECT) is fooled here.
+    # Every required name exists, but as a view over one foreign table, with
+    # all the required columns and a row. Only the type = 'table' filter in
+    # the gate's sqlite_master query tells this apart from a real database.
     "views_not_tables": sql_db(
         (
-            "CREATE TABLE backing (license_id TEXT, key TEXT, value TEXT)",
             (
-                "INSERT INTO backing VALUES "
-                f"('MIT', 'license_list_version', '{LICENSE_LIST_VERSION}')"
+                "CREATE TABLE backing (license_id TEXT, name TEXT, "
+                "is_spdx BOOLEAN, is_osi_approved BOOLEAN, is_fsf_libre BOOLEAN, "
+                "key TEXT, value TEXT, search_text TEXT)"
             ),
-            "CREATE VIEW licenses AS SELECT license_id FROM backing",
+            (
+                "INSERT INTO backing VALUES ('MIT', 'MIT License', 1, 1, 1, "
+                f"'license_list_version', '{LICENSE_LIST_VERSION}', 'mit')"
+            ),
+            (
+                "CREATE VIEW licenses AS SELECT license_id, name, is_spdx, "
+                "is_osi_approved, is_fsf_libre FROM backing"
+            ),
             "CREATE VIEW db_metadata AS SELECT key, value FROM backing",
+            "CREATE VIEW license_index AS SELECT license_id, search_text FROM backing",
         ),
         INVALID,
     ),

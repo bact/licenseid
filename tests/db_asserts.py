@@ -7,8 +7,12 @@
 like on the command line (exit 2, empty stdout, one grammar line)."""
 # pylint: disable=missing-function-docstring
 
+import os
+from pathlib import Path
+
+import pytest
 from click.testing import CliRunner, Result
-from db_variants import EMPTY, INVALID, NOT_FOUND, UNREADABLE
+from db_variants import EMPTY, INVALID, NOT_FOUND, UNREADABLE, make_ready_file_db
 
 from licenseid.cli import cli
 
@@ -58,6 +62,34 @@ def assert_refused(result: Result, kind: str, db_arg: str) -> None:
             (
                 f"ERROR: database: not found: {db_arg};",
                 f"ERROR: database: empty: {db_arg};",
+                f"ERROR: database: invalid: {db_arg}\n",
                 f"ERROR: database: unreadable: {db_arg}: ",
             )
         ), result.stderr
+
+
+def run_args(*args: str, stdin: str = "") -> Result:
+    """Invoke the CLI with the arguments exactly as given."""
+    return CliRunner().invoke(cli, list(args), input=stdin)
+
+
+@pytest.fixture(autouse=True)
+def safe_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Never let anything resolve the developer's real cache."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: home))
+
+
+def db_in_an_unreadable_directory(tmp_path: Path) -> Path:
+    """A ready database whose parent directory cannot be searched, or skip
+    where the user can read through one anyway (root)."""
+    inner = tmp_path / "inner"
+    inner.mkdir()
+    db_path = make_ready_file_db(inner / "licenses.db")
+    inner.chmod(0o000)
+    if os.access(str(db_path), os.R_OK):
+        inner.chmod(0o755)
+        pytest.skip("this user can read through a 000 directory (root?)")
+    return db_path

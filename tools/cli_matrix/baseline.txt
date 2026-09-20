@@ -24,7 +24,6 @@ E4-005 bash
 E4-006 bash
 E4-007 bash
 E4-008 bash
-E4-028 bash
 E5-021 bash
 E5-022 bash
 E5-024 bash
