@@ -80,6 +80,10 @@ option or input is dropped without a warning. All of it is pinned as
 "current behaviour" in `tests/test_option_matrix.py` and
 `tests/test_cli_output.py`.
 
+- The same holds for the API options: `exclude`, `only_spdx`, `only_common`,
+  `hint` and `enable_popularity` are read only by ranking, so an explicit
+  `license_id`, a bare ID or name, and an `SPDX-License-Identifier` tag
+  ignore them. Unknown option names are already rejected.
 - **Fix**: decide per pair whether to reject it (usage error, exit 2) or
   document it, then flip the pins.
 - Impact 2, Risk 3, Effort 3.
@@ -257,7 +261,10 @@ statistics; no fix has been designed yet, only the problem is documented.
   unreadable file cannot let one through. The names are sorted, so the message
   is stable. The `is_*` predicates already refused an unknown keyword, with the
   interpreter's `TypeError` rather than this message; that difference is left.
-  Tests: `tests/test_match_options.py`.
+  Left open: a *known* option is still ignored when `match()` returns before
+  ranking (an explicit `license_id`, a bare ID or name, an
+  `SPDX-License-Identifier` tag), so `match(license_id="MIT", exclude=["MIT"])`
+  returns `MIT`. See item 5. Tests: `tests/test_match_options.py`.
 
 - `py-spdx-license` upper bound (item 3, Priority 16): the requirement is
   now `py-spdx-license>=0.0.1,<0.1`. Version 0.0.1 is a single release with

@@ -310,7 +310,9 @@ if matcher.is_spdx(text="Creative Commons Zero v1.0 Universal"):
 
 `match()` takes the keyword options `enable_popularity`, `exclude`, `hint`,
 `only_common` and `only_spdx`, and raises `licenseid.InvalidInputError` (a
-`RuntimeError`) for any other, such as a mistyped name.
+`RuntimeError`) for any other, such as a mistyped name. The options shape the
+ranking of license text; an explicit `license_id`, a bare ID or name and an
+`SPDX-License-Identifier` tag are answered before they are read.
 
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or

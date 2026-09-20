@@ -87,10 +87,15 @@ def test_the_option_is_checked_before_any_input(
 def test_every_unknown_option_is_named_once_in_order(
     matcher: AggregatedLicenseMatcher,
 ) -> None:
+    """Enough names that a set's arbitrary order would show (the hash seed
+    varies between runs), and the known options listed in a fixed order."""
+    unknown = ["zed", "yak", "xor", "wax", "vim", "urn", "tab", "sun", "ark"]
+    options: dict[str, Any] = {name: 1 for name in unknown}
     with pytest.raises(InvalidInputError) as raised:
-        matcher.match(text=MIT_SEARCH_TEXT, only_spdx=True, zed=1, alpha=2)
-    assert str(raised.value).startswith("option: invalid: 'alpha', 'zed'; use one of")
-    assert "only_spdx'" not in str(raised.value).split(";")[0]
+        matcher.match(text=MIT_SEARCH_TEXT, only_spdx=True, **options)
+    named = ", ".join(repr(name) for name in sorted(unknown))
+    known = ", ".join(sorted(VALID_OPTIONS))
+    assert str(raised.value) == f"option: invalid: {named}; use one of {known}"
 
 
 def test_the_error_is_a_licenseid_error_and_a_runtime_error(
