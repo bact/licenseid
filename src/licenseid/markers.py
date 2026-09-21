@@ -12,6 +12,7 @@ import re
 
 import py_spdx_license
 
+from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import normalize_identifier
 from licenseid.types import CandidateMatch, LicenseDetails
@@ -74,12 +75,12 @@ class MarkerDetector:
         r"(?:either\s+)?v(?:ersion)?\s*(\d+(?:\.\d+)?)",
         re.IGNORECASE,
     )
-    # "or later" signals within the license grant window.
-    # "either version" alone implies "or any later version" in GPL boilerplate.
+    # "or later" signals within the license grant window: the phrases every
+    # other reader uses (classify.OR_LATER_PHRASE), so a header reads the same
+    # here as in the tie-breaker. "either version" alone implies "or any later
+    # version" in GPL boilerplate.
     _RE_GPL_OR_LATER = re.compile(
-        r"or\s+\(?at\s+your\s+option\)?\s+any\s+later\s+version"
-        r"|\beither\s+version\b",
-        re.IGNORECASE,
+        OR_LATER_PHRASE.pattern + r"|\beither\s+version\b", re.IGNORECASE
     )
 
     # PEP 621 table form: license = {text = "MIT"}

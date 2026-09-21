@@ -23,6 +23,7 @@ import requests
 from licenseid import console
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.errors import LicenseIdError
+from licenseid.matcher import AggregatedLicenseMatcher
 
 # LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION] -- see AGENTS.md "CLI output".
 # The subject is a lowercase word or file name; the condition starts
@@ -135,6 +136,17 @@ def make_ready_db_path(name_prefix: str) -> tuple[str, sqlite3.Connection]:
     a fresh check time and the current normalisation version, so a command
     on it prints no warning. Same keep-alive contract as make_memory_db_path."""
     return make_mit_db_path(name_prefix, datetime.now(timezone.utc).isoformat())
+
+
+@pytest.fixture
+def ordering_matcher() -> Generator[AggregatedLicenseMatcher, None, None]:
+    """A matcher over a one-license database, for tests that call its ordering
+    methods directly (tests/test_match_ordering*.py)."""
+    db_path, keep_alive = make_mit_db_path(
+        "test_match_ordering", datetime.now(timezone.utc).isoformat()
+    )
+    yield AggregatedLicenseMatcher(db_path)
+    keep_alive.close()
 
 
 def assert_cached_tarball_removed(db: LicenseDatabase, tar_path: Path) -> None:

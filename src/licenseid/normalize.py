@@ -69,8 +69,8 @@ _RE_COMMENT_PREFIX: Final = re.compile(
 )
 
 # A second, narrower comment-prefix stripper for a different call site:
-# matcher.py runs strip_comment_prefixes() on raw (not yet normalized) text
-# before FTS5 indexing/querying, to improve recall on Type 5 (comment-
+# retrieval.py and matcher.py run strip_comment_prefixes() on raw (not yet
+# normalized) text before FTS5 indexing/querying, to improve recall on Type 5 (comment-
 # wrapped) license notices — separately from _RE_COMMENT_PREFIX above, which
 # only runs inside normalize_text() itself as one step of the guideline
 # pipeline.  They are intentionally not merged into one regex: this one
