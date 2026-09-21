@@ -7,13 +7,16 @@
 
 import sqlite3
 import uuid
+from unittest import mock
 
 import pytest
 
 # pylint: disable=redefined-outer-name
+from licenseid import identifiers
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import (
     _MAX_CANONICALIZE_OPERATORS,
+    _canonicalize_expression,
     _is_expression,
     _lookup_case_insensitive,
     disambiguate_deprecated_id,
@@ -369,3 +372,20 @@ def test_lookup_case_insensitive() -> None:
     assert _lookup_case_insensitive(mapping, "gpl-2.0") == "GPL-2.0-only"
     assert _lookup_case_insensitive(mapping, "MIT") is None
     assert _lookup_case_insensitive({}, "GPL-2.0") is None
+
+
+def test_canonicalize_keeps_the_expression_when_sorting_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sorting is best effort: whatever it raises, the input string is kept."""
+
+    unsortable = mock.Mock(spec=["sort"])
+    unsortable.sort.side_effect = ValueError("cannot sort")
+    monkeypatch.setattr(identifiers, "parse_expression", lambda _expr: unsortable)
+
+    assert _canonicalize_expression("MIT OR Apache-2.0") == "MIT OR Apache-2.0"
+
+
+def test_canonicalize_reads_operators_in_any_case() -> None:
+    """The parser wrapper upper-cases operators before it parses."""
+    assert _canonicalize_expression("mit or apache-2.0") == "Apache-2.0 OR MIT"

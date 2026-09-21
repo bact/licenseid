@@ -14,6 +14,7 @@ import py_spdx_license
 
 from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
+from licenseid.types import ExceptionDetails, LicenseDetails
 
 # Defensive cap on the number of AND/OR/WITH operators an expression may
 # have before we attempt py_spdx_license's structural sort()/dedup pass.
@@ -118,6 +119,64 @@ def normalize_operator_casing(expression: str) -> str:
         re.IGNORECASE,
     )
     return pattern.sub(lambda m: m.group(0).upper(), expression)
+
+
+def parse_expression(expression: str) -> py_spdx_license.Node | None:
+    """Parse an SPDX license expression into a ``py_spdx_license`` tree, with
+    any operator casing and any (unknown) IDs allowed; None if it is not a
+    well-formed expression.
+
+    Catches broadly, not just ``ParseError``: the parser is a plain recursive
+    tree walk with no depth guard, so a pathological input (a very long
+    ``AND`` chain) raises ``RecursionError`` instead.
+    """
+    try:
+        return py_spdx_license.parse(
+            normalize_operator_casing(expression), allow_unknown=True
+        )
+    except Exception:  # pylint: disable=broad-exception-caught
+        return None
+
+
+# The "+" ("or any later version") operator, which py_spdx_license cannot
+# parse (https://github.com/JPEWdev/py-spdx-license/issues/1): it only ever
+# follows the last character of an ID, so a "+" after a space, a "(" or another
+# "+" is not one.
+_RE_PLUS_OPERATOR = re.compile(r"(?<=[^\s+(])\+(?=\s|\)|$)")
+
+
+def strip_plus_operator(expression: str) -> str:
+    """Drop the "+" operators of *expression* so ``py_spdx_license`` can parse
+    it (``Apache-2.0+ OR MIT`` becomes ``Apache-2.0 OR MIT``)."""
+    return _RE_PLUS_OPERATOR.sub("", expression)
+
+
+def with_expression_details(
+    tree: py_spdx_license.Node | None, db: LicenseDatabase
+) -> tuple[LicenseDetails, ExceptionDetails] | None:
+    """The database rows of a parsed ``<license> WITH <exception>`` tree, or
+    None if *tree* is not one or either half is not in *db*."""
+    if not isinstance(tree, py_spdx_license.WithOp):
+        return None
+    licence = db.get_license_details(tree.license.ident)
+    exception = db.get_exception_details(tree.exception.ident)
+    if licence and exception:
+        return licence, exception
+    return None
+
+
+def flag_source(
+    tree: py_spdx_license.Node | None, db: LicenseDatabase
+) -> LicenseDetails | None:
+    """The license row whose OSI and FSF flags an expression takes: the license
+    of a ``WITH`` expression, or the ID itself for a lone (possibly ``+``) ID.
+    None for anything else, where "OSI-approved" has no plain meaning."""
+    with_parts = with_expression_details(tree, db)
+    if with_parts:
+        return with_parts[0]
+    if isinstance(tree, py_spdx_license.Identifier):
+        return db.get_license_details(tree.ident)  # None for a LicenseRef
+    return None
 
 
 def disambiguate_deprecated_id(text: str) -> str | None:
@@ -385,9 +444,10 @@ def _canonicalize_expression(expr: str) -> str:
     supported there, this fallback (and CDDL-1.0-style test cases) can be
     revisited.
     """
+    ast = parse_expression(expr)
+    if ast is None:
+        return expr
     try:
-        expr_normalized = normalize_operator_casing(expr)
-        ast = py_spdx_license.parse(expr_normalized, allow_unknown=True)
         return cast(str, ast.sort().to_string())
     except Exception:  # pylint: disable=broad-exception-caught
         return expr

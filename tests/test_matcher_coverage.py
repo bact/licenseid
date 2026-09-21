@@ -19,22 +19,12 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
-from matcher_db import Lic, seeded_db
+from matcher_db import PROSE, Lic, seeded_db
 
 from licenseid.database import get_default_db_path
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.ranking import DEP_PENALTY
 from licenseid.types import CandidateMatch, MatchRequest
-
-# Prose long enough to push an input over the 30-word threshold, so
-# Tier 0.5 (marker detection) runs instead of Tier 0 (short text).
-_PROSE = (
-    " * This module implements the widget scheduler used by the runtime.\n"
-    " * It keeps a queue of pending widgets and dispatches them to worker\n"
-    " * threads in arrival order, retrying transient failures a few times\n"
-    " * before giving up and reporting an error to the caller.\n"
-)
-
 
 _MIT_TEXT = "permission is hereby granted free of charge to any person obtaining a copy"
 _APACHE_TEXT = "apache license version 2.0 terms and conditions for use reproduction"
@@ -129,7 +119,7 @@ def test_spdx_tag_in_source_file_short_circuits(marker_db: str) -> None:
     answer, with the flags of the database row it resolved to."""
     text = (
         "/*\n * Copyright (c) 2026 Example Corp.\n"
-        f" * SPDX-License-Identifier: MIT\n{_PROSE} */\n"
+        f" * SPDX-License-Identifier: MIT\n{PROSE} */\n"
     )
 
     results = AggregatedLicenseMatcher(marker_db).match(text=text)
@@ -148,7 +138,7 @@ def test_two_spdx_tags_return_both_matches(marker_db: str) -> None:
     order of the results is not asserted.)"""
     text = (
         "/*\n * SPDX-License-Identifier: MIT\n"
-        f"{_PROSE} * SPDX-License-Identifier: Apache-2.0\n */\n"
+        f"{PROSE} * SPDX-License-Identifier: Apache-2.0\n */\n"
     )
 
     results = AggregatedLicenseMatcher(marker_db).match(text=text)
@@ -163,7 +153,7 @@ def test_repeated_spdx_tag_returns_one_match(marker_db: str) -> None:
     already deduplicates by license_id before the matcher sees it."""
     text = (
         "/*\n * SPDX-License-Identifier: MIT\n"
-        f"{_PROSE} * SPDX-License-Identifier: MIT\n */\n"
+        f"{PROSE} * SPDX-License-Identifier: MIT\n */\n"
     )
 
     results = AggregatedLicenseMatcher(marker_db).match(text=text)
@@ -171,32 +161,10 @@ def test_repeated_spdx_tag_returns_one_match(marker_db: str) -> None:
     assert [r["license_id"] for r in results] == ["MIT"]
 
 
-def test_unknown_spdx_tag_id_is_reported_verbatim(marker_db: str) -> None:
-    """A tag naming an ID that is in no license list is still returned as
-    a certain, SPDX-flagged match.
-
-    # BUG: MarkerDetector._detect_explicit_identifiers() builds a
-    # placeholder candidate with is_spdx=True for any tag value that
-    # survives normalize_identifier(), without checking that the value
-    # parses as an SPDX expression or exists anywhere. The matcher then
-    # short-circuits on it, so match() reports license_id
-    # "NoSuchLicense-9.9" with score 1.0 and is_spdx True, while `is-spdx`
-    # on the same text says false. This pins the CURRENT, WRONG behaviour so
-    # that fixing it is deliberate (tech-debt roadmap item 6).
-    """
-    text = f"/*\n * SPDX-License-Identifier: NoSuchLicense-9.9\n{_PROSE} */\n"
-
-    results = AggregatedLicenseMatcher(marker_db).match(text=text)
-
-    assert [r["license_id"] for r in results] == ["NoSuchLicense-9.9"]
-    assert results[0]["score"] == 1.0
-    assert results[0]["is_spdx"] is True
-
-
 def test_license_field_marker_does_not_short_circuit(marker_db: str) -> None:
     """A "License:" field scores 0.95, not 1.0, so it is only a ranking
     signal: the result comes from Tier 2 scoring and is below 1.0."""
-    text = f"/*\n * License: MIT\n{_PROSE} */\n"
+    text = f"/*\n * License: MIT\n{PROSE} */\n"
 
     results = AggregatedLicenseMatcher(marker_db).match(text=text)
 
@@ -206,7 +174,7 @@ def test_license_field_marker_does_not_short_circuit(marker_db: str) -> None:
 
 def test_source_file_without_any_marker_has_no_match(marker_db: str) -> None:
     """Prose with no tag and no license text matches nothing."""
-    text = f"/*\n * There is no machine readable tag in this file.\n{_PROSE} */\n"
+    text = f"/*\n * There is no machine readable tag in this file.\n{PROSE} */\n"
 
     assert not AggregatedLicenseMatcher(marker_db).match(text=text)
 

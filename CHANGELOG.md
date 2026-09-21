@@ -107,6 +107,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the bare-ID prose check each read it differently, so the same header could
   give `-only` or `-or-later` depending on its length. "not any later version"
   no longer counts as a grant ([#58])
+- An `SPDX-License-Identifier` tag with no license ID we recognise
+  (`NoSuchLicense-9.9`, a typo such as `Apache-2.O`, `Copyright`, `NONE`) is
+  no longer reported as a certain SPDX match; the file is matched by its
+  text, as when a `License:` field does not resolve. A tag that is an SPDX
+  expression with at least one known ID is still a match, but with `is_spdx`
+  false if any part is unknown; `Apache-2.0+` is read. The tag now follows
+  the same rule as the `license` field of JSON, TOML and INI files, which
+  therefore also read `+` and give a `WITH` value its license's flags. The
+  `is-spdx`, `is-osi`, `is-fsf`, `is-open` and `is-free` commands answer from
+  the same match as `match` and the Python `is_*()` methods: before, they said
+  false for every expression and `LicenseRef-*`, whether given as text, an ID
+  or `--id`. A `WITH` expression has the OSI and FSF flags of its license
+  ([#60])
 - `match(file_path=...)` and the `is_*` predicates read the file the way the
   CLI does: UTF-8 with a byte order mark dropped, else Latin-1 with a
   warning on standard error, and binary data (any NUL byte, including UTF-16)
@@ -162,6 +175,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#57]: https://github.com/bact/licenseid/pull/57
 [#58]: https://github.com/bact/licenseid/pull/58
 [#59]: https://github.com/bact/licenseid/pull/59
+[#60]: https://github.com/bact/licenseid/pull/60
 
 ## [0.3.7] - 2026-08-20
 

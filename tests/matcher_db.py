@@ -16,6 +16,15 @@ from typing import NamedTuple
 
 from conftest import make_memory_db_path
 
+# Prose long enough to push an input over the 30-word threshold, so
+# Tier 0.5 (marker detection) runs instead of Tier 0 (short text).
+PROSE = (
+    " * This module implements the widget scheduler used by the runtime.\n"
+    " * It keeps a queue of pending widgets and dispatches them to worker\n"
+    " * threads in arrival order, retrying transient failures a few times\n"
+    " * before giving up and reporting an error to the caller.\n"
+)
+
 _INSERT_LICENSE = (
     "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved,"
     " is_fsf_libre, is_deprecated, superseded_by)"

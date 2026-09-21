@@ -324,7 +324,7 @@ def resolve_license_record(
 
     # 1. Explicit ID
     if id_val:
-        return matcher.db.get_license_details(id_val)
+        return matcher.resolve_record(license_id=id_val)
 
     # 2. Handle stdin/arguments
     content, is_text = get_input_content(ctx, input_val, text)
@@ -333,17 +333,13 @@ def resolve_license_record(
 
     # 3. Smart Resolution (ID -> Text)
     if not is_text:
-        # Try as ID first
-        details = matcher.db.get_license_details(content)
-        if details:
-            return details
+        # Try as ID first, as `match` does
+        record = matcher.resolve_record(license_id=content)
+        if record:
+            return record
 
     # Try matching as text
-    results = matcher.match(text=content)
-    if results and results[0]["score"] >= 0.85:
-        return matcher.db.get_license_details(results[0]["license_id"])
-
-    return None
+    return matcher.resolve_record(content)
 
 
 @cli.command(name="match")

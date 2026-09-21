@@ -10,8 +10,6 @@ Aggregated license matching logic using hybrid search.
 from dataclasses import dataclass
 from typing import Any, cast
 
-import py_spdx_license
-
 from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.dbcheck import check_database_ready
@@ -19,7 +17,9 @@ from licenseid.errors import InvalidInputError
 from licenseid.identifiers import (
     disambiguate_deprecated_id,
     normalize_identifier,
-    normalize_operator_casing,
+    parse_expression,
+    strip_plus_operator,
+    with_expression_details,
 )
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
@@ -322,27 +322,20 @@ class AggregatedLicenseMatcher:
         each half against this project's own (live-downloaded) license and
         exception tables.
 
-        Catches broadly (not just ``ParseError``): py_spdx_license's AST
-        construction is a plain recursive tree walk with no depth guard, so
-        a pathological input (e.g. a very long ``AND``-chain passed
-        directly as ``license_id``) raises ``RecursionError`` rather than
-        ``ParseError``. Either way, it isn't a WITH match.
+        A ``+`` after the license is kept (``Apache-2.0+ WITH X``). An input
+        that does not parse (see identifiers.parse_expression) is not a WITH
+        match.
         """
-        try:
-            license_id_normalized = normalize_operator_casing(license_id)
-            ast = py_spdx_license.parse(license_id_normalized, allow_unknown=True)
-        except Exception:  # pylint: disable=broad-exception-caught
+        without_plus = strip_plus_operator(license_id)
+        details = with_expression_details(parse_expression(without_plus), self.db)
+        if not details:
             return None
+        lic_details, exc_details = details
 
-        if not isinstance(ast, py_spdx_license.WithOp):
-            return None
-
-        lic_details = self.db.get_license_details(ast.license.ident)
-        exc_details = self.db.get_exception_details(ast.exception.ident)
-        if not lic_details or not exc_details:
-            return None
-
-        combined_id = f"{lic_details['license_id']} WITH {exc_details['exception_id']}"
+        plus = "+" if without_plus != license_id else ""
+        combined_id = (
+            f"{lic_details['license_id']}{plus} WITH {exc_details['exception_id']}"
+        )
         return LicenseMatch(
             license_id=combined_id,
             score=1.0,
@@ -353,14 +346,16 @@ class AggregatedLicenseMatcher:
             is_fsf_libre=lic_details["is_fsf_libre"],
         )
 
-    def _resolve_to_record(
+    def resolve_record(
         self,
         text: str | None = None,
         *,
         license_id: str | None = None,
         file_path: str | None = None,
     ) -> LicenseDetails | None:
-        """Internal helper to resolve explicit inputs to a database record."""
+        """Resolve the input to the record of its top match (score 0.85 or
+        more), or None. The is_*() predicates and the CLI's is-* commands both
+        answer from this, so they cannot disagree with match()."""
         results = self.match(text, license_id=license_id, file_path=file_path)
         if not results or results[0]["score"] < 0.85:
             return None
@@ -389,22 +384,22 @@ class AggregatedLicenseMatcher:
 
     def is_spdx(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is in the SPDX License List."""
-        record = self._resolve_to_record(text, **kwargs)
+        record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_spdx", False)
 
     def is_osi(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is OSI-approved."""
-        record = self._resolve_to_record(text, **kwargs)
+        record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_osi_approved", False)
 
     def is_fsf(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is FSF-libre."""
-        record = self._resolve_to_record(text, **kwargs)
+        record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_fsf_libre", False)
 
     def is_open(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is OSI-approved OR FSF-libre."""
-        record = self._resolve_to_record(text, **kwargs)
+        record = self.resolve_record(text, **kwargs)
         if not record:
             return False
         return bool(
