@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-20
+Last-Modified: 2026-09-21
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,12 +13,17 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-09-20)
+## Current state (as of 2026-09-21)
 
 - **Pipeline**: Tier 0 (short-text ID/name shortcut) → Tier 0.5 (marker
   detection) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz ranking).
   The optional Tier 3 (Java `tools-java` validation) was removed on
-  2026-09-19.
+  2026-09-19. `matcher.py` holds the pipeline; Tier 1 is `retrieval.py`,
+  Tier 0 is `shorttext.py`, and the sort order with the `-only` /
+  `-or-later` tie-breaker is `ranking.py`. The split (2026-09-21) is
+  in [`../design/complexity-and-file-size-roadmap.md`](../design/complexity-and-file-size-roadmap.md);
+  the tie-breaker is in
+  [accuracy-optimizations.md](accuracy-optimizations.md) section 10.
 - **Deprecated ID handling**: DB-backed `superseded_by` redirect for
   unambiguous cases (e.g. `GPL-2.0+` → `GPL-2.0-or-later`); conservative
   `-only` fallback for bare ambiguous IDs (e.g. `GPL-2.0`) with no

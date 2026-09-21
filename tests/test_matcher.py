@@ -15,6 +15,7 @@ import pytest
 from conftest import make_memory_db_path
 
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.ranking import apply_version_suffix_tiebreaker
 from licenseid.types import InternalMatch
 
 
@@ -189,7 +190,7 @@ class _TiebreakCase(NamedTuple):
         ),
     ],
 )
-def test_version_suffix_tiebreaker(test_db: str, case: _TiebreakCase) -> None:
+def test_version_suffix_tiebreaker(case: _TiebreakCase) -> None:
     """Pure license text: the body is identical either way, so a genuine
     tie defaults to -only regardless of any 'or later' wording present
     (e.g. the GPL appendix quotes it too, so it isn't a reliable signal
@@ -197,10 +198,9 @@ def test_version_suffix_tiebreaker(test_db: str, case: _TiebreakCase) -> None:
     ties toward -or-later instead. Scores differing by more than 0.01 are
     not a genuine tie: trust the similarity score, don't adjust or
     reorder."""
-    matcher = AggregatedLicenseMatcher(test_db)
     ranked = _tied_gpl_matches(case.only_score, case.or_later_score)
 
-    result = matcher._apply_version_suffix_tiebreaker(
+    result = apply_version_suffix_tiebreaker(
         ranked, "or (at your option) any later version", is_pure=case.is_pure
     )
 

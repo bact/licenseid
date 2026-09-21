@@ -15,14 +15,16 @@ windowed keyword search used for mixed content.
 # pylint: disable=protected-access
 
 from collections.abc import Generator
+from pathlib import Path
 from unittest import mock
 
 import pytest
 from matcher_db import Lic, seeded_db
 
 from licenseid.database import get_default_db_path
-from licenseid.matcher import _DEP_PENALTY, AggregatedLicenseMatcher
-from licenseid.types import MatchRequest
+from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.ranking import DEP_PENALTY
+from licenseid.types import CandidateMatch, MatchRequest
 
 # Prose long enough to push an input over the 30-word threshold, so
 # Tier 0.5 (marker detection) runs instead of Tier 0 (short text).
@@ -318,7 +320,7 @@ def test_deprecated_alias_is_penalised_in_short_text(
     alias_db: str, request: pytest.FixtureRequest
 ) -> None:
     """The alias matches the input name by token set (1.00 + 0.01 flex
-    bonus). Deprecated, it loses _DEP_PENALTY from that 1.01; current, it
+    bonus). Deprecated, it loses DEP_PENALTY from that 1.01; current, it
     keeps it. Either way the exact-name match leads."""
     deprecated = "deprecated" in request.node.callspec.id
 
@@ -329,7 +331,7 @@ def test_deprecated_alias_is_penalised_in_short_text(
     assert [r["license_id"] for r in results] == ["GPL-2.0-only", "GPL-2.0"]
     assert results[0]["score"] == pytest.approx(1.02)
     assert results[1]["score"] == pytest.approx(
-        1.01 - (_DEP_PENALTY if deprecated else 0)
+        1.01 - (DEP_PENALTY if deprecated else 0)
     )
 
 
@@ -420,3 +422,44 @@ def test_mixed_content_skips_id_without_a_row(broken_successor_db: str) -> None:
 
     assert not matcher._match_mixed_content(MatchRequest(), "Unlicense")
     assert [r["license_id"] for r in matcher.match("Unlicense")] == ["Unlicense-2.0"]
+
+
+# -- The windowed search that augments Tier 1 --------------------------------
+
+
+@pytest.mark.parametrize(
+    "case",  # (candidates found, text is a standalone license, windowed search runs)
+    [
+        pytest.param((0, True, True), id="nothing-found-even-if-pure"),
+        pytest.param((4, False, True), id="thin-results-on-mixed-text"),
+        pytest.param((5, False, False), id="enough-results-on-mixed-text"),
+        pytest.param((4, True, False), id="thin-results-on-pure-text"),
+    ],
+)
+def test_the_windowed_search_runs_for_no_or_thin_results_on_mixed_text(
+    ordering_matcher: AggregatedLicenseMatcher,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    case: tuple[int, bool, bool],
+) -> None:
+    """Fewer than five candidates on text that is not a standalone license
+    (or none at all) also gets the windowed keyword search; pure text with
+    a few candidates does not."""
+    found, pure, windowed = case
+    text = "filler word " * 20
+    candidates = [
+        CandidateMatch(license_id=f"L-{i}.0", search_text="") for i in range(found)
+    ]
+    monkeypatch.setattr(
+        ordering_matcher, "_get_candidates", lambda *_args: list(candidates)
+    )
+    windowed_search = mock.Mock(return_value=[])
+    monkeypatch.setattr(ordering_matcher, "_match_mixed_content", windowed_search)
+    if pure:
+        license_file = tmp_path / "LICENSE"
+        license_file.write_text(text, encoding="utf-8")
+        ordering_matcher.match(file_path=str(license_file))
+    else:
+        ordering_matcher.match(text=text)
+
+    assert windowed_search.called is windowed

@@ -4,6 +4,11 @@
 
 - License ID detection using hybrid search (`licenseid` package).
 - Architecture: SQLite FTS5 trigram tokenization (Tier 1 recall) and RapidFuzz (Tier 2 precision ranking).
+- Matching modules: `matcher.py` (the pipeline), `retrieval.py` (Tier 1),
+  `shorttext.py` (Tier 0 IDs and names), `ranking.py` (sort order and the
+  `-only`/`-or-later` tie-breaker), `similarity.py`, `markers.py`,
+  `identifiers.py`, `classify.py`, `normalize.py`. Keep `matcher.py` under the 800-line limit:
+  put logic that needs no matcher state in one of the others.
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
 - Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches; may be discarded, not yet built.
 - Implementation docs and progress reports: `working-docs/implementation/` — record of what WAS built: decisions made, why things are the way they are, paths considered and rejected. Not a user manual. Start at `working-docs/implementation/README.md` for current state.
@@ -216,6 +221,20 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   JSON first and falls through to TOML/INI; a synthetic marker candidate is
   only built for a valid SPDX expression or `LicenseRef-*`, never for free
   text.
+- "or any later version" has ONE reader, `classify.OR_LATER_PHRASE`; the
+  tie-breaker (`ranking`), `identifiers.disambiguate_deprecated_id` and
+  `markers` import it. Add a phrasing there and to `PHRASES` in
+  `tests/test_match_ordering.py`; do not write a regex of your own. The
+  ranking and the tie-breaker sort with `ranking.ranking_key`; short-text
+  results sort by `(-score, license_id)`.
+- A regex with `\s+` directly followed by a class that also matches
+  whitespace (`\s+[\s/*#]*`) is quadratic on a long run of spaces (5 s at
+  32,000): write `\s[\s/*#]*`. Time every new prose regex on `"x" + " " * N`
+  payloads (see `test_the_phrase_regex_does_not_backtrack`).
+- A fixture imported into a test module and then used as its argument trips
+  ruff `F811`/flake8 (the argument redefines the import). Put a shared fixture
+  in `tests/conftest.py`; keep plain helpers in a module (`ordering_helpers`,
+  `db_asserts`).
 - Judge `pylint` by its exit code (`pylint src/ tests/ >/dev/null; echo $?`),
   not the rating: one convention message still prints `10.00/10` and exits
   16, and CI fails on the exit code. Run CI's own commands, and plain

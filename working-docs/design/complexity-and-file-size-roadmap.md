@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-20
+Last-Modified: 2026-09-21
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -39,10 +39,10 @@ pylint's actual defaults are 12 and 50.
 | Args | ≤5 | 5 (at target) | 5 (`similarity.py`, `matcher._rank_candidates`) |
 | Locals | ≤15 | 23 | 23 (`database.py`) |
 | Nesting | ≤5 | 5 (no ratchet needed) | 5 |
-| Branches | ≤12 | 13 | 13 (2 functions, see note) |
+| Branches | ≤12 | 13 | 13 (`identifiers._normalize_expression`) |
 | Returns | ≤6 | 6 (at target) | 6 (`tests/test_option_matrix.py`) |
 | Statements | ≤50 | 50 (at target) | 35 (`markers._detect_gpl_headers`) |
-| McCabe | ≤10 | 12 | 12 (2 functions, see note) |
+| McCabe | ≤10 | 12 | 12 (`database._prepare_license_and_exception_records`) |
 | Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
 | Module lines | soft 400-500 / hard 800 | 926 | 926 (`database.py`) |
 
@@ -69,9 +69,13 @@ and `exit_no_input` and the two `--bold`/plain "no match" branches merged:
 `cli.match` fell to McCabe 10, cognitive 20, 12 branches, so the Branches
 ceiling dropped 15→13. Branches holders:
 `matcher._apply_version_suffix_tiebreaker` and
-`identifiers._normalize_expression`. McCabe holders:
+`identifiers._normalize_expression`; the tie-breaker left the Branches
+ceiling on 2026-09-21 (see the `matcher.py` split below), so
+`identifiers` alone holds it. McCabe holders:
 `matcher._apply_version_suffix_tiebreaker` and
-`database._prepare_license_and_exception_records`. Module lines 944→942
+`database._prepare_license_and_exception_records`; the tie-breaker left
+the McCabe ceiling on 2026-09-20, when its nested sort key moved to the
+module-level `ranking_key`, so `database` alone holds it. Module lines 944→942
 (`matcher.py`, shorter JPype message). Then 942→935 when the Java tier
 was removed (2026-09-19); `database.py` now holds it. Then 935→933 when
 `get_default_db_path()` stopped creating the directory. Then 933→931 when
@@ -244,10 +248,8 @@ early-return short-circuits threaded through shared local state
   on the same class) — it does not shrink `matcher.py`. The file grew
   846→944 lines (new `def`/docstring overhead), so the module-lines
   ceiling moved 921→944 to track it honestly. The 800-line hard target
-  is **not** resolved by this pass; `matcher.py` is now the file most in
-  need of the same subpackage-split treatment as `database.py` below,
-  once its complexity offenders (already fixed here) aren't the
-  competing concern.
+  is **not** resolved by this pass; it was resolved on 2026-09-21 by
+  splitting `matcher.py` (see "Done: `matcher.py` split" below).
 - **Ceiling side-effects**: re-measuring across all of `src/` *and*
   `tests/` (not just `src/`, since `.flake8` lints both and `AGENTS.md`'s
   documented `flake8 src/ tests/` command would otherwise immediately
@@ -344,6 +346,36 @@ claims YAML support (there is none).
 - **Ceilings**: McCabe 13→12. Cognitive stays 29
   (`tests/test_accuracy.py::run_accuracy_test`), module lines 944.
 
+### Done: `matcher.py` split by responsibility (888 → 544 lines)
+
+Pure move, no behaviour change (2026-09-21). `matcher.py` had grown to 888
+lines, over the 800-line hard limit. The pieces that need no matcher state
+moved to three modules, each taking the database (or nothing) as an argument:
+
+- `ranking.py` (117 lines): `ranking_key`, `apply_version_suffix_tiebreaker`,
+  `DEP_PENALTY`, `TIE_WINDOW`, `TIE_NUDGE`.
+- `retrieval.py` (179): Tier 1, `get_candidates` and its three helpers,
+  `TAIL_ONLY_CAP`.
+- `shorttext.py` (87): Tier 0, `match_short_text`.
+
+`AggregatedLicenseMatcher._get_candidates` and `_match_short_text` stay as
+one-line methods over these: tests, `benchmarks/bench_single.py` (which
+`hasattr`-guards them so it also runs against older branches) and the
+mixed-content code call them. `_rank_candidates` stays in the class: it needs
+`self.db` and `self.enable_popularity`, and a module function would take six
+arguments, over the argument ceiling of 5.
+
+The moved bodies are token-identical to the old ones apart from the
+renames (`self.db` to `db`, leading underscores dropped), with one
+deliberate exception: the tie-breaker loop now visits only the `-only`
+member of a pair. It used to visit both and keep a `processed` set; a
+mutation audit showed that bookkeeping could not change a result, and a
+60,000-list differential test found no difference for unique IDs (only for
+duplicate IDs in one list, which `match()` never produces). A before/after
+run over 4,741 fixture and synthetic results is identical. The tie-breaker
+now has 11 branches, so `identifiers._normalize_expression` (13) alone
+holds the Branches ceiling; no ceiling number changed.
+
 ### 1. `database.py` — split by responsibility (Priority 9)
 
 934 lines (re-measured 2026-09-19), over the 800-line hard limit.
@@ -357,8 +389,7 @@ module-lines-ratchet problem.
   runtime query methods) into two modules re-exported from
   `database.py`, or a `database/` subpackage per the file-size rule's
   "3+ related files → group in a same-named subfolder" convention.
-  `matcher.py` (852 lines after the Java tier was removed) is now a
-  candidate for the same treatment once its own complexity work has settled.
+  `matcher.py` was split the same way on 2026-09-21 (see "Done" above).
 - Impact 2, Risk 1, Effort 3.
 
 ## Out of scope for now

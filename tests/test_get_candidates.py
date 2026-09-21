@@ -3,10 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Direct unit tests for AggregatedLicenseMatcher._get_candidates().
+"""Direct unit tests for AggregatedLicenseMatcher._get_candidates() (the
+retrieval in licenseid.retrieval).
 
 Characterization tests written before the matcher.py complexity refactor
-(see working-docs/design/complexity-and-file-size-roadmap.md, item 1) to
+(see working-docs/design/complexity-and-file-size-roadmap.md, "Done:
+`matcher.py::match()` and `_get_candidates()`") to
 pin down behaviour that was previously only reachable incidentally
 through match()'s public surface: the head/tail retrieval-window word
 thresholds, the tail-only candidate cap, hint injection, and the
@@ -22,7 +24,7 @@ from typing import Any
 import pytest
 from conftest import make_memory_db_path
 
-from licenseid import matcher as matcher_module
+from licenseid import retrieval
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.types import MatchRequest
 
@@ -87,6 +89,33 @@ def _install_search_spy(
 
     matcher.db.search_candidates = spy  # type: ignore[method-assign]
     return calls
+
+
+def test_the_tail_cap_is_25() -> None:
+    """The docs say the head+tail union is at most 75 candidates: a 50-row
+    head query plus 25 tail-only additions."""
+    assert retrieval.TAIL_ONLY_CAP == 25
+
+
+@pytest.mark.parametrize("word_count", [50, 150, 250])
+def test_every_query_asks_for_fifty_normalised_candidates(
+    matcher: AggregatedLicenseMatcher, word_count: int
+) -> None:
+    """The text is normalised once up front; the database must not repeat
+    the work (already_normalized) and must be asked for 50 rows."""
+    seen: list[dict[str, Any]] = []
+    original: Callable[..., Any] = matcher.db.search_candidates
+
+    def spy(*args: Any, **kwargs: Any) -> Any:
+        seen.append(kwargs)
+        return original(*args, **kwargs)
+
+    matcher.db.search_candidates = spy  # type: ignore[method-assign]
+
+    matcher._get_candidates(MatchRequest(), _words(word_count))
+
+    assert seen
+    assert all(k == {"limit": 50, "already_normalized": True} for k in seen)
 
 
 # --- retrieval branch: head/tail word-count thresholds ---
@@ -184,10 +213,10 @@ def test_get_candidates_tail_only_cap_enforced(
     db_path: str, matcher: AggregatedLicenseMatcher
 ) -> None:
     """Tail-only additions (candidates found only via the tail query, not
-    the head query) are capped at _TAIL_ONLY_CAP, even when more would
+    the head query) are capped at TAIL_ONLY_CAP, even when more would
     otherwise match.
     """
-    expected_cap = matcher_module._TAIL_ONLY_CAP
+    expected_cap = retrieval.TAIL_ONLY_CAP
     # 200 head-window filler words the 40 tail-only candidates must NOT
     # match, followed by 20 distinct tail words used to build 40 tail-only
     # candidates (2 candidates per tail word, well over the cap).

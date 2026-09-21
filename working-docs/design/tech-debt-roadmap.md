@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-20
+Last-Modified: 2026-09-21
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -15,7 +15,7 @@ for code-health/complexity debt specifically. This doc tracks the rest.
 Priority = (Impact + Risk) × (6 − Effort), each scored 1-5; same scale as
 the complexity roadmap, so the two lists can be read together.
 
-Items 8 and 9 (and the resolved item 3) come from a tech-debt audit on
+Item 9 (and the resolved items 3 and 8) come from a tech-debt audit on
 2026-09-19; items 4, 5, 6 and 12 (and the resolved item 1) from code reviews
 of the diagnostics change and the Java removal; items 2 and 10 from manual
 CLI testing under other locales and environments.
@@ -119,25 +119,6 @@ alone.
   ("Remaining open issues", item 5) for the original benchmark analysis
   this is based on — note that document predates the deprecated-ID fixes
   described in its own status note and has not been re-benchmarked since.
-
-## 8. Local `sort_key` functions disagree on deprecated IDs — Priority 12
-
-`matcher.py` sorts candidates with a local `sort_key` in two places. The main
-ranking subtracts `_DEP_PENALTY` from a deprecated ID's score;
-`_apply_version_suffix_tiebreaker`'s re-sort does not. The audit scored this
-20 as a ranking bug, but it is unreachable today: deprecated IDs are not in
-the FTS index (0 of 32 in the real DB), marker candidates never set
-`is_deprecated`, and the only way in is the Python API's `hint=`, whose
-candidates have empty search text and cannot come within `_DEP_PENALTY` of an
-`-only`/`-or-later` pair. Real GPL, LGPL, AGPL and GFDL texts (full,
-head-300, tail-300) never rank a deprecated ID in the top 4. (A third sort,
-after the removed Java tier, is gone.) `_match_short_text`'s final sort also
-keys on `is_deprecated` and `pop_score`, which its results never carry, so
-only the score and ID order apply there.
-
-- **Fix**: one module-level sort key for both sorts, with characterisation
-  tests first.
-- Impact 2, Risk 1, Effort 2.
 
 ## 9. `scripts/` and `benchmarks/` are not linted in CI — Priority 12
 
@@ -251,7 +232,56 @@ statistics; no fix has been designed yet, only the problem is documented.
 - Impact 2, Risk 2, Effort 4 (needs a design pass before an effort
   estimate is meaningful — treat this as provisional).
 
+## 14. Comment prefixes are probably stripped twice in retrieval — Priority 10
+
+`retrieval.get_candidates` calls `strip_comment_prefixes` and then
+`normalize_text`, whose own comment-prefix rule may already cover it. A
+mutation audit (2026-09-21) found that removing the call changes no test,
+and 3,000 random `//`, `#`, `;`, `*`, `/*`, `--` inputs normalised
+identically with and without it. The two regexes are documented as
+separate on purpose (`normalize.py`), so this is unproven: find an input
+where they differ (a lone `*/` line, or an odd prefix) or remove the call.
+
+- Impact 1, Risk 1, Effort 1.
+
 ## Already resolved (kept for record)
+
+- One ranking order, and a consistent `-only` / `-or-later` tie-breaker (item
+  8, Priority 12; widened on 2026-09-20 to the whole tie-breaker). Three sorts
+  in `matcher.py` had drifted apart: the main ranking took `DEP_PENALTY` off
+  a deprecated ID, the tie-breaker's re-sort did not (so it could put a
+  deprecated ID back above its replacement), and `match_short_text` carried
+  keys its results never have. All three now use `ranking.ranking_key`, or (short
+  text) `(-score, license_id)`. Three more inconsistencies in the tie-breaker:
+  its 0.01 window was decided by the last bit of a float (`0.91 - 0.90` is not
+  a tie, `0.35 - 0.34` is), now compared after rounding to 9 places and named
+  `TIE_WINDOW` (in `ranking.py`); and three readers of "or later" disagreed.
+  The tie-breaker,
+  the bare-ID prose path (`identifiers`) and the marker detector (`markers`)
+  each had a regex of their own, so `version 2 of the License, or any later
+  version` came out `-only` from the marker detector and `-or-later` from
+  Tier 0. They
+  now share `classify.OR_LATER_PHRASE` (with a `not`/`no` guard), and
+  `tests/test_match_ordering.py` pins that both paths read every phrase alike.
+  Measured with a before/after run over the fixtures plus 160 synthetic
+  headers (4,741 results): 344 changed. 184 are fixture results; 182 of them
+  are GFDL slices or distorted copies that moved from `-only` to `-or-later`
+  (the GNU Free Documentation License's own text says "or any later
+  version", and the `-only` and `-or-later` variants have identical bodies),
+  and 2 differ only at rank 5. The other 160 are synthetic headers; 32 of
+  them changed their top answer, all `-only` to `-or-later`, for `or newer`.
+  Of the 3,249 license-text results (both popularity settings), 1,949 had the
+  right top answer before and 1,948 after (30 GFDL `-only` rows lost it, 29
+  `-or-later` rows gained it).
+  The GPL family already behaved this way.
+  Left open: the tie-breaker is applied once per `match()` and is not
+  idempotent (a second pass on a pair whose preferred side started below its
+  peer nudges it again); the +/-0.005 nudge is kept on purpose, so results stay
+  sorted by score, at the price of moving reported scores by up to 0.005 and
+  letting a pair member pass an unrelated license within that; the name-based
+  reader in `markers.MarkerDetector._name_variants` (`or any version later`)
+  is a fourth regex that is not shared; `is_pure_license_text` does not flag
+  slices of a license, so a quoted notice in one still counts as a grant.
 
 - `match()` silently ignored unknown options (item 1, Priority 20):
   `AggregatedLicenseMatcher.match()` now raises

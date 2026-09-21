@@ -12,6 +12,7 @@ from typing import cast
 
 import py_spdx_license
 
+from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
 
 # Defensive cap on the number of AND/OR/WITH operators an expression may
@@ -80,16 +81,8 @@ _BARE_TO_OR_LATER: dict[str, str] = {
 }
 
 # Compiled regexes for prose disambiguation of bare deprecated IDs.
-# or-later patterns cover common GPL boilerplate phrasings:
-#   "or later", "or any later", "or a later",
-#   "or (at your option) any later", "or newer",
-#   "any later version" (standalone)
-# Reference: GPL preamble boilerplate and SPDX matching guidelines
-_RE_OR_LATER = re.compile(
-    r"\bor\s+(?:\([^)]{0,50}\)\s+)?(?:a\s+|any\s+)?(?:later|newer)\b"
-    r"|\bany\s+later\s+version\b",
-    re.IGNORECASE,
-)
+# The or-later phrases are read by classify.OR_LATER_PHRASE, shared with the
+# -only / -or-later tie-breaker.
 # "only" is a common English word; it is checked in a narrow 50-char window
 # AFTER the ID to avoid false positives from unrelated uses.
 _RE_ONLY = re.compile(r"\bonly\b", re.IGNORECASE)
@@ -167,7 +160,7 @@ def disambiguate_deprecated_id(text: str) -> str | None:
         start = max(0, m.start() - 150)
         end = min(len(text), m.end() + 150)
         window = text[start:end]
-        if _RE_OR_LATER.search(window):
+        if OR_LATER_PHRASE.search(window):
             return _BARE_TO_OR_LATER.get(dep_id)
 
         # Narrow window (50 chars after the ID) for "only" to reduce false

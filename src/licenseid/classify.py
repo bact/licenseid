@@ -17,15 +17,33 @@ which AggregatedLicenseMatcher uses to choose a matching strategy.
 import os
 import re
 
-# Detects -or-later granting language in mixed/source-file contexts.
-# Allows for comment characters (// # * ;) between "or" and
-# "(at your option)".
-# Also catches shorthand notations like GPLv2+ and "version 2 or later".
-_RE_OR_LATER = re.compile(
-    r"or[\s/*#;-]*\(?at\s+your\s+option\)?\s*[\s/*#;-]*any\s+later\s+version"
-    r"|(?:version\s+)?v?\d+(?:\.\d+)?[\s,]+or\s+later\b"
-    r"|(?:lgpl|gpl|agpl)[-v]?\d+(?:\.\d+)?\+",
-    re.IGNORECASE | re.MULTILINE,
+# The phrases that grant "or any later version", the one detector for prose:
+# the -only / -or-later tie-breaker (ranking), the bare-ID disambiguation
+# (identifiers) and the GPL header marker (markers) all use it, so a header
+# reads the same on every path.
+#   - "or [(at your option)] a|any later": the words stand alone. Comment
+#     characters and commas may sit between them, so a header wrapped over
+#     "// ", " * " or "# " lines is read.
+#   - "or newer" on its own; "or later" only after a number ("version 2 or
+#     later", "version 2 (or later)", "GPL-2.0+ or later"), or "sooner or
+#     later" would count.
+#   - "any later version" on its own, unless negated ("not any later version").
+# "or-later" inside an ID such as GPL-2.0-or-later is not a phrase.
+_GAP = r"[\s/*#;,-]*"
+_NOT_NEGATED = r"(?<!\bnot )(?<!\bno )"
+OR_LATER_PHRASE = re.compile(
+    rf"{_NOT_NEGATED}\bor{_GAP}"
+    rf"(?:\([^)]{{0,50}}\){_GAP}|at\s+your\s+option{_GAP})?"
+    rf"(?:a|any)\s{_GAP}(?:later|newer)\b"
+    rf"|\d[\s,()\[\]+/*#;-]*\bor\s+later\b"
+    rf"|{_NOT_NEGATED}\bor\s+newer\b"
+    rf"|{_NOT_NEGATED}\bany\s+later\s+version\b",
+    re.IGNORECASE,
+)
+# "GPLv2+" style notices; only meaningful in source files (the ID path reads
+# "+" itself).
+_RE_OR_LATER_SHORTHAND = re.compile(
+    r"(?:lgpl|gpl|agpl)[-v]?\d+(?:\.\d+)?\+", re.IGNORECASE
 )
 
 # Markdown section headers that indicate the surrounding document is a
@@ -70,7 +88,7 @@ def has_or_later_language(text: str) -> bool:
     license body itself contains the same phrase in its 'How to Apply'
     appendix, so this must NOT be called on pure license text.
     """
-    return bool(_RE_OR_LATER.search(text))
+    return bool(OR_LATER_PHRASE.search(text) or _RE_OR_LATER_SHORTHAND.search(text))
 
 
 def is_pure_license_text(file_path: str | None, text: str) -> bool:

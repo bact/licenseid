@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-07
-Last-Modified: 2026-05-07
+Last-Modified: 2026-09-21
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -156,3 +156,40 @@ software"`). With 10 OR terms, hundreds of indexed licences match and the
 correct short licence is pushed out of the top-50. With 20 OR terms, the
 additional distinctive words (unique author disclaimer text, specific scope
 clauses) narrow the match set sufficiently for the correct candidate to rank.
+
+### 10. `-only` / `-or-later` tie-breaker and its phrase detector (2026-09-21)
+
+`GPL-2.0-only` and `GPL-2.0-or-later` have identical license bodies, so their
+scores tie and the alphabetical ID tie-break would always pick `-only`. The
+granting language around the text is the only evidence, and
+`ranking.apply_version_suffix_tiebreaker` (called from
+`AggregatedLicenseMatcher.match`) uses it.
+
+- **Why it moves scores.** The result is a list sorted by score and
+  `results[0]` is the answer, so the only lever is the score. Two scores that
+  differ by less than `TIE_WINDOW` (0.01) are a tie; the preferred one gains
+  `TIE_NUDGE` (0.005) and the other loses it, which together span the window.
+  A swap that left the scores alone was rejected: the list would no longer be
+  in score order. The costs are accepted and pinned in
+  `tests/test_match_ordering.py`: reported scores move by up to 0.005, and a
+  pair member can pass an unrelated license scoring within that of it.
+- **The window is compared after rounding to 9 places.** `abs(a - b) > 0.01`
+  let the last bit of a float decide a gap of exactly 0.01.
+- **One order.** `ranking.ranking_key` is the single sort key (score with the
+  deprecated penalty, then non-deprecated, then popularity if enabled, then
+  ID). The re-sort used to omit the penalty.
+- **One reader of "or later".** `classify.OR_LATER_PHRASE` is used by the
+  tie-breaker, by `identifiers.disambiguate_deprecated_id` and by
+  `markers` (which adds its own `either version` rule). Before, each had a
+  regex of its own and read `or any later version`, `or a later version` and
+  `or newer` differently. A bare `or later` needs a number before it (`sooner
+  or later` is not a grant) and `not`/`no` directly before the phrase turns it
+  off. Add a phrasing there and in `PHRASES` in
+  `tests/test_match_ordering.py`, not in a fourth regex.
+- **Trade-off found by the before/after run.** The GNU Free Documentation
+  License's own text says "or any later version", so a slice or distorted copy
+  of it (not recognised as a pure license text) now resolves to
+  `-or-later` where it used to resolve to `-only`. Their bodies are identical,
+  so nothing can tell the variants apart: over 3,249 license-text results
+  the correct top answers went from 1,949 to 1,948 (30 `-only` rows lost it, 29
+  `-or-later` rows gained it). The GPL family already behaved this way.
