@@ -35,13 +35,13 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner, Result
 from conftest import make_mit_db_path
+from db_variants import MIT_TEXT
+from input_payloads import PAYLOADS, Payload
 
 from licenseid.cli import cli
+from licenseid.errors import InvalidInputError
 from licenseid.matcher import AggregatedLicenseMatcher
 
-MIT_TEXT = (
-    "Permission is hereby granted, free of charge, to any person obtaining a copy"
-)
 OTHER_TEXT = "The quick brown fox jumps over the lazy dog near the river bank"
 MISSING = "ERROR: input: missing; pass a file, an ID, --text, --id or stdin\n"
 NO_MATCH = "ERROR: match: no license found\n"
@@ -284,11 +284,39 @@ def test_api_predicate_matrix(
     assert check(**kwargs) is found
 
 
-def test_api_file_path_not_utf8(mit_db: str, tmp_path: Path) -> None:
-    """The API reads file_path as strict UTF-8; the CLI reads the same file
-    as Latin-1 with a warning and matches it."""
-    # BUG: pinned, not fixed: the API should decode like the CLI.
+@pytest.mark.parametrize("payload", PAYLOADS, ids=lambda p: p.name)
+def test_file_path_is_read_the_way_the_cli_reads_a_file(
+    mit_db: str,
+    tmp_path: Path,
+    payload: Payload,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The same bytes in a file give the same answer and the same warning
+    through `licenseid match FILE` and `match(file_path=FILE)`: decoding is
+    one function (licenseid.textinput), and this keeps it that way."""
     path = tmp_path / "LICENSE"
-    path.write_bytes((MIT_TEXT + " (Jérôme)").encode("latin-1"))
-    with pytest.raises(UnicodeDecodeError):
-        AggregatedLicenseMatcher(mit_db).match(file_path=str(path))
+    path.write_bytes(payload.data)
+    matcher = AggregatedLicenseMatcher(mit_db)
+
+    cli_result = _invoke(mit_db, "match", [str(path)], "")
+    if payload.text is None:
+        message = f"input: binary file: {path}"
+        assert (cli_result.exit_code, cli_result.stderr) == (2, f"ERROR: {message}\n")
+        with pytest.raises(InvalidInputError, match=f"^{message}$"):
+            matcher.match(file_path=str(path))
+        with pytest.raises(InvalidInputError, match=f"^{message}$"):
+            matcher.is_open(file_path=str(path))
+        return
+
+    warning = f"WARNING: input: not UTF-8, read as Latin-1: {path}\n"
+    expected_stderr = warning if payload.latin1 else ""
+    assert (cli_result.exit_code, cli_result.stderr) == (0, expected_stderr)
+    assert cli_result.stdout.startswith("LICENSE_ID=MIT ")
+    assert matcher.match(file_path=str(path))[0]["license_id"] == "MIT"
+    assert capsys.readouterr().err == expected_stderr
+
+
+def test_a_missing_file_path_raises_oserror(mit_db: str, tmp_path: Path) -> None:
+    """Not worded as a licenseid error: the API leaves I/O errors as they are."""
+    with pytest.raises(FileNotFoundError):
+        AggregatedLicenseMatcher(mit_db).match(file_path=str(tmp_path / "nope"))

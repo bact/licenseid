@@ -22,7 +22,15 @@ from licenseid.shorttext import match_short_text
 from licenseid.types import MatchRequest
 
 SPLIT = ["ranking", "retrieval", "shorttext"]
-MATCH_PATH = ["matcher", "ranking", "retrieval", "shorttext", "markers", "identifiers"]
+MATCH_PATH = [
+    "matcher",
+    "ranking",
+    "retrieval",
+    "shorttext",
+    "markers",
+    "identifiers",
+    "textinput",
+]
 
 
 def imported_after(statement: str, home: Path) -> set[str]:

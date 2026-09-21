@@ -7,7 +7,8 @@
 - Matching modules: `matcher.py` (the pipeline), `retrieval.py` (Tier 1),
   `shorttext.py` (Tier 0 IDs and names), `ranking.py` (sort order and the
   `-only`/`-or-later` tie-breaker), `similarity.py`, `markers.py`,
-  `identifiers.py`, `classify.py`, `normalize.py`. Keep `matcher.py` under the 800-line limit:
+  `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
+  to text). Keep `matcher.py` under the 800-line limit:
   put logic that needs no matcher state in one of the others.
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
 - Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches; may be discarded, not yet built.
@@ -214,6 +215,12 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `tools/cli_matrix/README.md` first. Never run its cells by hand with
   `HOME` unset: Python then resolves the real cache (an early version
   deleted the developer's `licenses.db` that way).
+- One reader for user input: `textinput.read_text_file` / `decode_input`
+  (UTF-8 with BOM dropped, else Latin-1 with a warning, NUL means binary).
+  The CLI and `match(file_path=...)` both use it; do not `open()` a user file
+  anywhere else (`tests/test_textinput.py` fails if `cli.py` or `matcher.py`
+  does). The SPDX data files stay strict UTF-8 on purpose: a fallback there
+  would hide a corrupt download.
 - `database.py` imports `spdx_source` lazily (keeps `requests` off the match
   path and avoids an import cycle). Do not import `licenseid.__version__`
   at module level in `spdx_source.py`.

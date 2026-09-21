@@ -31,6 +31,7 @@ from licenseid.similarity import (
     calculate_base_similarity,
     calculate_final_score,
 )
+from licenseid.textinput import read_text_file
 from licenseid.types import (
     CandidateMatch,
     InternalMatch,
@@ -125,10 +126,9 @@ class AggregatedLicenseMatcher:
         return []
 
     def _resolve_target_text(self, text: str | None, file_path: str | None) -> str:
-        """Phase 2: read file_path, or fall back to the given text."""
+        """Phase 2: read file_path as the CLI reads a file, or use the text."""
         if file_path:
-            with open(file_path, "r", encoding="utf-8") as f:
-                return f.read()
+            return read_text_file(file_path)
         return text or ""
 
     def _build_match_context(

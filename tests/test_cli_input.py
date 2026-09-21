@@ -3,62 +3,13 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Unit tests for cli.decode_input(): how input bytes become match text."""
+"""Unit tests for the CLI's --text handling: escapes and line ends."""
 # pylint: disable=missing-function-docstring
 
 import click
 import pytest
 
-from licenseid.cli import cli, decode_input, read_text_option, unescape_text
-from licenseid.errors import InvalidInputError
-
-
-@pytest.mark.parametrize(
-    ("data", "expected"),
-    [
-        (b"MIT License\n", "MIT License\n"),
-        (b"\xef\xbb\xbfMIT License\n", "MIT License\n"),  # UTF-8 BOM stripped
-        (b"a\r\nb\rc\n", "a\nb\nc\n"),  # newlines as text-mode reading
-        ("Copyright © Jérôme".encode(), "Copyright © Jérôme"),
-    ],
-    ids=["ascii", "utf8_bom", "newlines", "utf8_non_ascii"],
-)
-def test_utf8_input_decodes_without_warning(
-    data: bytes, expected: str, capsys: pytest.CaptureFixture[str]
-) -> None:
-    assert decode_input(data, "LICENSE") == expected
-    assert capsys.readouterr().err == ""
-
-
-def test_latin1_input_falls_back_with_warning(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    data = "Copyright © Jérôme\r\n".encode("latin-1")
-    assert decode_input(data, "LICENSE") == "Copyright © Jérôme\n"
-    assert capsys.readouterr().err == (
-        "WARNING: input: not UTF-8, read as Latin-1: LICENSE\n"
-    )
-
-
-def test_binary_input_raises() -> None:
-    with pytest.raises(InvalidInputError, match=r"^input: binary file: logo\.png$"):
-        decode_input(b"\x89PNG\r\n\x1a\n\x00\x00", "logo.png")
-
-
-@pytest.mark.parametrize(
-    "data",
-    [
-        b"MIT License\x00\x00",  # valid UTF-8, but contains NUL
-        "MIT License".encode("utf-16-le"),  # no BOM: valid UTF-8 with NULs
-        "MIT License".encode("utf-16"),  # with BOM: not UTF-8
-    ],
-    ids=["utf8_with_nul", "utf16le_no_bom", "utf16_bom"],
-)
-def test_any_nul_byte_is_binary(data: bytes) -> None:
-    """The binary rule applies whether or not the bytes happen to be valid
-    UTF-8, so the same text is not accepted or rejected by accident."""
-    with pytest.raises(InvalidInputError, match=r"^input: binary file: f$"):
-        decode_input(data, "f")
+from licenseid.cli import cli, read_text_option, unescape_text
 
 
 @pytest.mark.parametrize(

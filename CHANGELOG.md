@@ -107,6 +107,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the bare-ID prose check each read it differently, so the same header could
   give `-only` or `-or-later` depending on its length. "not any later version"
   no longer counts as a grant ([#58])
+- `match(file_path=...)` and the `is_*` predicates read the file the way the
+  CLI does: UTF-8 with a byte order mark dropped, else Latin-1 with a
+  warning on standard error, and binary data (any NUL byte, including UTF-16)
+  raises `InvalidInputError` (`input: binary file: <path>`). Before, a
+  Latin-1 file or UTF-16 file with a byte order mark raised
+  `UnicodeDecodeError`, and a NUL byte, a byte order mark or UTF-16 without
+  one was matched as text ([#59])
 - The `-only`/`-or-later` tie-breaker treats a score gap of exactly 0.01 the
   same at every score, as no tie, instead of leaving it to floating-point
   rounding, and
@@ -154,6 +161,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#55]: https://github.com/bact/licenseid/pull/55
 [#57]: https://github.com/bact/licenseid/pull/57
 [#58]: https://github.com/bact/licenseid/pull/58
+[#59]: https://github.com/bact/licenseid/pull/59
 
 ## [0.3.7] - 2026-08-20
 
