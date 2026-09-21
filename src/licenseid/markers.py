@@ -14,7 +14,12 @@ import py_spdx_license
 
 from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
-from licenseid.identifiers import normalize_identifier
+from licenseid.identifiers import (
+    flag_source,
+    normalize_identifier,
+    parse_expression,
+    strip_plus_operator,
+)
 from licenseid.types import CandidateMatch, LicenseDetails
 
 
@@ -205,27 +210,28 @@ class MarkerDetector:
             return [self.to_candidate(details, score)]
         return self._synthetic_candidate(lic_id, score)
 
-    @classmethod
-    def _synthetic_candidate(cls, lic_id: str, score: float) -> list[CandidateMatch]:
+    def _synthetic_candidate(self, lic_id: str, score: float) -> list[CandidateMatch]:
         """Build a candidate for an ID that is not in the DB.
 
         Keeps only well-formed SPDX expressions and LicenseRef-* IDs with at
         least one recognised ID: fabricating a candidate from arbitrary text
         (e.g. "see LICENSE file", "Dual OR Commercial") would create a
         phantom license_id ranked at a fixed high confidence. ``is_spdx`` is
-        False if any part is unknown.
+        False if any part is unknown; a LicenseRef-* is a valid SPDX ID, so it
+        counts as known. Used for every source of an expression
+        (SPDX tag, JSON, TOML, INI), so they all decide alike. The OSI and FSF
+        flags come from ``identifiers.flag_source``.
         """
-        try:
-            leaves = cls._expression_leaves(
-                py_spdx_license.parse(lic_id, allow_unknown=True)
-            )
-        except Exception:  # pylint: disable=broad-exception-caught
-            return []  # ParseError, or RecursionError on pathological input
+        tree = parse_expression(strip_plus_operator(lic_id))
+        if tree is None:
+            return []  # not an expression (or too deep to parse)
+        leaves = self._expression_leaves(tree)
         if not any(
             isinstance(leaf, (py_spdx_license.LicenseId, py_spdx_license.LicenseRef))
             for leaf in leaves
         ):
             return []
+        licence = flag_source(tree, self.db)
         return [
             {
                 "license_id": lic_id,
@@ -236,8 +242,8 @@ class MarkerDetector:
                 ),
                 "word_count": 0,
                 "is_high_usage": False,
-                "is_osi_approved": False,
-                "is_fsf_libre": False,
+                "is_osi_approved": bool(licence and licence["is_osi_approved"]),
+                "is_fsf_libre": bool(licence and licence["is_fsf_libre"]),
                 "pop_score": 0,
             }
         ]
@@ -264,21 +270,10 @@ class MarkerDetector:
             if details:
                 candidates.append(self.to_candidate(details, 1.0))
             elif lic_id:
-                # Even if not in DB, if it's a valid expression we can return it
-                # with a placeholder candidate
-                candidates.append(
-                    {
-                        "license_id": lic_id,
-                        "search_text": "",
-                        "score": 1.0,
-                        "is_spdx": True,
-                        "word_count": 0,
-                        "is_high_usage": False,
-                        "is_osi_approved": False,
-                        "is_fsf_libre": False,
-                        "pop_score": 0,
-                    }
-                )
+                # An expression (or LicenseRef-*) has no row of its own; a
+                # value with no recognised ID (a typo, free text) is no
+                # evidence of a license and builds no candidate.
+                candidates.extend(self._synthetic_candidate(lic_id, 1.0))
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)
         for match in self._RE_LICENSE_FIELD.finditer(text):

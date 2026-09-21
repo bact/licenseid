@@ -226,9 +226,13 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   path and avoids an import cycle). Do not import `licenseid.__version__`
   at module level in `spdx_source.py`.
 - Text extracted from `[`/`{`-starting input with no extension is tried as
-  JSON first and falls through to TOML/INI; a synthetic marker candidate is
-  only built for a valid SPDX expression or `LicenseRef-*`, never for free
-  text.
+  JSON first and falls through to TOML/INI. A synthetic marker candidate for
+  an expression comes from one function, `MarkerDetector._synthetic_candidate`
+  (SPDX tag, JSON, TOML and INI alike): only for a valid SPDX expression or
+  `LicenseRef-*` with at least one recognised ID, never for free text or an
+  unknown ID. `is_*()` and the CLI's `is-*` commands answer from
+  `matcher.resolve_record`, so they agree with `match`; do not look a record
+  up in the database on the side.
 - "or any later version" has ONE reader, `classify.OR_LATER_PHRASE`; the
   tie-breaker (`ranking`), `identifiers.disambiguate_deprecated_id` and
   `markers` import it. Add a phrasing there and to `PHRASES` in
