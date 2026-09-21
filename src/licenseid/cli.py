@@ -29,7 +29,12 @@ from licenseid.dbcheck import (
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError, LicenseIdError
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
-from licenseid.textinput import decode_input, normalize_newlines, read_text_file
+from licenseid.textinput import (
+    decode_input,
+    normalize_newlines,
+    read_text_file,
+    reject_binary,
+)
 from licenseid.types import LicenseDetails
 
 
@@ -276,8 +281,10 @@ def read_text_option(ctx: click.Context, text: str) -> str:
     """Decode the escapes in --text, then treat it as file or stdin text is
     treated: LF line ends; exit 2 if binary (a NUL) or blank."""
     content = normalize_newlines(unescape_text(text))
-    if "\x00" in content:
-        exit_bad_input(ctx, "binary file: --text")
+    try:
+        reject_binary(content, "--text")
+    except InvalidInputError as e:
+        exit_usage_error(ctx, str(e))
     if not content.strip():
         exit_bad_input(ctx, "empty: --text")
     return content

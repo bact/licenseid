@@ -216,8 +216,9 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `HOME` unset: Python then resolves the real cache (an early version
   deleted the developer's `licenses.db` that way).
 - One reader for user input: `textinput.read_text_file` / `decode_input`
-  (UTF-8 with BOM dropped, else Latin-1 with a warning, NUL means binary).
-  The CLI and `match(file_path=...)` both use it; do not `open()` a user file
+  (UTF-8 with BOM dropped, else Latin-1 with a warning, NUL means binary,
+  checked by `reject_binary`, which `--text` also calls). The CLI and
+  `match(file_path=...)` both use it; do not `open()` a user file
   anywhere else (`tests/test_textinput.py` fails if `cli.py` or `matcher.py`
   does). The SPDX data files stay strict UTF-8 on purpose: a fallback there
   would hide a corrupt download.

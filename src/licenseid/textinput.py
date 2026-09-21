@@ -25,18 +25,27 @@ def normalize_newlines(text: str) -> str:
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
+def reject_binary(data: bytes | str, source: str) -> None:
+    """Raise InvalidInputError if *data* (from *source*) has a NUL: text never
+    does, so it is binary, whether or not it happens to be valid UTF-8."""
+    if isinstance(data, bytes):
+        has_nul = b"\x00" in data
+    else:
+        has_nul = "\x00" in data
+    if has_nul:
+        raise InvalidInputError(f"input: binary file: {source}")
+
+
 def decode_input(data: bytes, source: str) -> str:
     """Decode input *data* from *source* (a path or ``stdin``) into text.
 
-    Bytes with a NUL are binary and raise InvalidInputError, whether or not
-    they happen to be valid UTF-8 (UTF-16 text is binary here too). Otherwise
-    UTF-8 first, with a leading BOM dropped, then Latin-1 (older license files
-    use it; every byte decodes) with a warning.
+    Bytes with a NUL are binary (reject_binary; UTF-16 text is binary here
+    too). Otherwise UTF-8 first, with a leading BOM dropped, then Latin-1
+    (older license files use it; every byte decodes) with a warning.
     CRLF and CR then become LF, as text-mode reading did before, so matching
     sees the same text whichever way the input arrived.
     """
-    if b"\x00" in data:
-        raise InvalidInputError(f"input: binary file: {source}")
+    reject_binary(data, source)
     try:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError:

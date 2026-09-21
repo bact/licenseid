@@ -268,7 +268,7 @@ class AggregatedLicenseMatcher:
         """
         Identify license text and return ranked matches.
         Must provide exactly one of text, license_id, or file_path.
-        Raises licenseid.errors.InvalidInputError for an unknown option.
+        Raises licenseid.errors.InvalidInputError: unknown option, binary file.
         """
         _reject_unknown_options(options)
         if license_id:

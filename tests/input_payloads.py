@@ -15,6 +15,7 @@ from typing import NamedTuple
 from db_variants import MIT_TEXT
 
 ACCENTED = MIT_TEXT + " (Jérôme)"
+LARGE = MIT_TEXT + "\n" * 5000  # over 4 KiB: read and scanned to the end
 
 
 class Payload(NamedTuple):
@@ -44,7 +45,9 @@ PAYLOADS = [
         ACCENTED.replace(", ", ",\n"),
         latin1=True,
     ),
+    Payload("large", LARGE.encode(), LARGE),
     Payload("nul", MIT_TEXT.encode() + b"\x00\x00", None),
+    Payload("nul_at_the_end_of_a_large_file", LARGE.encode() + b"\x00", None),
     Payload("utf16_no_bom", MIT_TEXT.encode("utf-16-le"), None),
     Payload("utf16_bom", MIT_TEXT.encode("utf-16"), None),
     Payload("png", b"\x89PNG\r\n\x1a\n\x00\x00", None),
