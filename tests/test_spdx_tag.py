@@ -13,6 +13,7 @@ the API (`match`, `is_spdx`, `is_osi`) and from the CLI (`match`, `is-spdx`).
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
+import time
 from collections.abc import Generator
 from pathlib import Path
 from typing import NamedTuple
@@ -88,6 +89,8 @@ KNOWN = {
     "GPL-2.0-only WITH Classpath-exception-2.0": (
         "GPL-2.0-only WITH Classpath-exception-2.0"
     ),
+    # A LicenseRef-* is a valid SPDX ID, so it counts as known (as it does for
+    # the `license` field of JSON, TOML and INI).
     "LicenseRef-Foo": "LicenseRef-Foo",
     "LicenseRef-Foo WITH Classpath-exception-2.0": (
         "LicenseRef-Foo WITH Classpath-exception-2.0"
@@ -106,6 +109,7 @@ UNKNOWN = [
     "NOASSERTION",
     "GPL-2.0-only WITH NoSuch-exception",
     "MIT++",  # not the "+" operator: no ID to fabricate from it
+    "Apache-2.0 WITH Classpath-exception-2.0+",  # an exception has no "+"
 ]
 
 
@@ -169,6 +173,8 @@ def test_a_plus_before_with_is_kept_on_every_path(db: str, tmp_path: Path) -> No
     by_id = AggregatedLicenseMatcher(db).match(license_id=PLUS_WITH)
     assert [r["license_id"] for r in by_tag] == [PLUS_WITH]
     assert [r["license_id"] for r in by_id] == [PLUS_WITH]
+    exception_plus = "Apache-2.0 WITH Classpath-exception-2.0+"
+    assert not AggregatedLicenseMatcher(db).match(license_id=exception_plus)
     assert answers(db, PLUS_WITH, tmp_path) == Answers(PLUS_WITH, True, PLUS_WITH, True)
 
 
@@ -208,7 +214,28 @@ def test_an_expression_given_as_an_id_is_known_to_every_command(
         ("LicenseRef-foo+bar", "LicenseRef-foo+bar"),  # a + inside a name stays
         ("MIT++", "MIT++"),  # a "+" after a "+" is not an operator
         ("MIT+ +", "MIT +"),  # nor one after a space
+        ("(+ MIT)", "(+ MIT)"),  # nor one after a "("
+        ("Apache-2.0 WITH LLVM-exception+", "Apache-2.0 WITH LLVM-exception+"),
+        ("Apache-2.0+ WITH LLVM-exception", "Apache-2.0 WITH LLVM-exception"),
+        ("apache-2.0+ with llvm-exception+", "apache-2.0 with llvm-exception+"),
     ],
 )
 def test_strip_plus_operator(expression: str, stripped: str) -> None:
     assert strip_plus_operator(expression) == stripped
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        "A" * 100000,
+        "A+ " * 30000,
+        "A+" * 50000,
+        "(" * 100000,
+        "WITH" + " " * 100000 + ")",
+    ],
+    ids=["one-token", "plus-runs", "plus-no-space", "open-parens", "with-spaces"],
+)
+def test_strip_plus_operator_does_not_backtrack(payload: str) -> None:
+    start = time.monotonic()
+    strip_plus_operator(payload)
+    assert time.monotonic() - start < 1.0

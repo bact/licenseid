@@ -217,7 +217,8 @@ class MarkerDetector:
         least one recognised ID: fabricating a candidate from arbitrary text
         (e.g. "see LICENSE file", "Dual OR Commercial") would create a
         phantom license_id ranked at a fixed high confidence. ``is_spdx`` is
-        False if any part is unknown. Used for every source of an expression
+        False if any part is unknown; a LicenseRef-* is a valid SPDX ID, so it
+        counts as known. Used for every source of an expression
         (SPDX tag, JSON, TOML, INI), so they all decide alike. The OSI and FSF
         flags come from ``identifiers.flag_source``.
         """
