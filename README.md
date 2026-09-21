@@ -47,6 +47,9 @@ No database daemon or server needed.
     SPDX exception list, not just the license list — e.g.
     `licenseid match --id "MIT WITH Font-exception-2.0"` resolves correctly
     even though it isn't a single license row.
+  - Any expression a `SPDX-License-Identifier` tag accepts is also accepted
+    as an ID, including parentheses and `LicenseRef-*`:
+    `licenseid match --id "MIT OR (Apache-2.0 AND BSD-3-Clause)"`.
 
 [py-spdx-license]: https://github.com/JPEWdev/py-spdx-license
 
@@ -113,8 +116,9 @@ Common options:
 - `--db <path>`: Use a custom database path (global option).
   Supports SQLite URIs for in-memory databases
   (e.g., `file:test?mode=memory&cache=shared`).
-- `--id <id>`: Explicitly treat input as an SPDX License ID
-  (bypasses file/text matching).
+- `--id <id>`: Explicitly treat input as an SPDX License ID or expression
+  (bypasses file/text matching). A bare argument is read as an ID only when
+  every part of it is recognised; otherwise it is matched as text.
 - `--text <text>`: Match the given text. Backslash escapes such as `\n`,
   `\t` and `\u00e9` are decoded, so write `\\` for a literal backslash
   (for example in a Windows path).

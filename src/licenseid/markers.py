@@ -16,6 +16,7 @@ from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import (
     flag_source,
+    leading_expression,
     normalize_identifier,
     parse_expression,
     strip_plus_operator,
@@ -29,13 +30,13 @@ class MarkerDetector:
     License metadata fields, and headings.
     """
 
-    # SPDX-License-Identifier tag.
-    # Capture full expressions including spaces, parentheses, and operators.
-    # We stop at common delimiters like quotes or line breaks.
+    # SPDX-License-Identifier tag. The value is the rest of the line ("[ \t]",
+    # never "\s", so a tag cannot reach across a line break);
+    # identifiers.leading_expression decides where the expression in it ends.
+    # The value is captured in a lookahead, so a second tag on the same line
+    # is still found.
     _RE_SPDX = re.compile(
-        r"SPDX-License-Identifier\s*[:=]\s*['\"]?"
-        r"([a-zA-Z0-9.+-]+(?:\s+(?:AND|OR|WITH)\s+[a-zA-Z0-9.+-]+"
-        r"|\s*\([^)]+\)|[a-zA-Z0-9.+-]+)*)",
+        r"SPDX-License-Identifier[ \t]*[:=][ \t]*['\"]?(?=([^\r\n]*))",
         re.IGNORECASE,
     )
 
@@ -200,17 +201,28 @@ class MarkerDetector:
         if val.startswith("http") and "/licenses/" in val:
             val = val.rstrip("/").split("/")[-1]
 
-        lic_id = normalize_identifier(val.strip(), self.db)
-        if not lic_id:
-            return []
-        details = self.db.get_license_details(lic_id) or self.db.get_license_by_name(
-            lic_id
-        )
+        val = val.strip()
+        # A value runs to the end of its line and can trail off into prose, so
+        # only the expression it starts with is normalized: normalizing the
+        # whole line would let disambiguate_deprecated_id read an ID out of
+        # the prose. The name lookup still sees the whole value ("BSD 3-Clause"
+        # is a name, not an expression).
+        lic_id = normalize_identifier(leading_expression(val), self.db)
+        # The name comes first: the expression can be a prefix of the value,
+        # and "MIT No Attribution" is MIT-0, not MIT.
+        named = self.db.get_license_by_name(val)
+        if named and named["is_deprecated"]:
+            # A deprecated ID keeps the name of the ID that replaced it.
+            current = normalize_identifier(named["license_id"], self.db)
+            named = self.db.get_license_details(current) or named
+        details = named or (self.db.get_license_details(lic_id) if lic_id else None)
         if details:
             return [self.to_candidate(details, score)]
-        return self._synthetic_candidate(lic_id, score)
+        # A value with no recognised ID (a typo, free text) is no evidence of
+        # a license and builds no candidate.
+        return self.synthetic_candidate(lic_id, score) if lic_id else []
 
-    def _synthetic_candidate(self, lic_id: str, score: float) -> list[CandidateMatch]:
+    def synthetic_candidate(self, lic_id: str, score: float) -> list[CandidateMatch]:
         """Build a candidate for an ID that is not in the DB.
 
         Keeps only well-formed SPDX expressions and LicenseRef-* IDs with at
@@ -219,8 +231,9 @@ class MarkerDetector:
         phantom license_id ranked at a fixed high confidence. ``is_spdx`` is
         False if any part is unknown; a LicenseRef-* is a valid SPDX ID, so it
         counts as known. Used for every source of an expression
-        (SPDX tag, JSON, TOML, INI), so they all decide alike. The OSI and FSF
-        flags come from ``identifiers.flag_source``.
+        (SPDX tag, JSON, TOML, INI, and an explicit ``license_id``), so they
+        all decide alike. The OSI and FSF flags come from
+        ``identifiers.flag_source``.
         """
         tree = parse_expression(strip_plus_operator(lic_id))
         if tree is None:
@@ -265,15 +278,7 @@ class MarkerDetector:
 
         # 1. SPDX-License-Identifier
         for match in self._RE_SPDX.finditer(text):
-            lic_id = normalize_identifier(match.group(1).strip(), self.db)
-            details = self.db.get_license_details(lic_id)
-            if details:
-                candidates.append(self.to_candidate(details, 1.0))
-            elif lic_id:
-                # An expression (or LicenseRef-*) has no row of its own; a
-                # value with no recognised ID (a typo, free text) is no
-                # evidence of a license and builds no candidate.
-                candidates.extend(self._synthetic_candidate(lic_id, 1.0))
+            candidates.extend(self._resolve_license_value(match.group(1), 1.0))
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)
         for match in self._RE_LICENSE_FIELD.finditer(text):

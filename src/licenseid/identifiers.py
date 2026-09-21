@@ -88,12 +88,14 @@ _BARE_TO_OR_LATER: dict[str, str] = {
 # AFTER the ID to avoid false positives from unrelated uses.
 _RE_ONLY = re.compile(r"\bonly\b", re.IGNORECASE)
 
+# ":" belongs to an identifier: a DocumentRef-x:LicenseRef-y is one ID.
 _RE_TOKEN = re.compile(
     r"\(|\)"
-    r"|(?<![a-zA-Z0-9.-])(?:AND|OR|WITH)(?![a-zA-Z0-9.-])"
-    r"|\+|[a-zA-Z0-9.-]+",
+    r"|(?<![a-zA-Z0-9.:-])(?:AND|OR|WITH)(?![a-zA-Z0-9.:-])"
+    r"|\+|[a-zA-Z0-9.:-]+",
     re.IGNORECASE,
 )
+_OPERATORS = ("AND", "OR", "WITH")
 
 
 def _lookup_case_insensitive(mapping: dict[str, str], key: str) -> str | None:
@@ -163,6 +165,52 @@ def strip_plus_operator(expression: str) -> str:
         return match.group("id")
 
     return _RE_PLUS_OPERATOR.sub(drop, expression)
+
+
+def _token_kind(text: str) -> str:
+    """Which part of an expression a token can be."""
+    if text in ("(", ")", "+"):
+        return text
+    return "OP" if text.upper() in _OPERATORS else "ID"
+
+
+# What may stand where an operand is expected; everything else follows one.
+_OPERAND_START = ("ID", "(")
+
+
+def leading_expression(value: str) -> str:
+    """The longest prefix of *value* that can still be an SPDX expression.
+
+    A tag runs to the end of its line, so its value can trail off into prose
+    ("CAL-1.0 Licensed under the ..."). Only AND, OR and WITH join two parts,
+    so a token none of them bridges ends the expression. A value that ends
+    dangling, or with unbalanced brackets, is no expression at all: answering
+    with a shorter prefix of one would name a license the value does not.
+    """
+    depth = 0
+    expect_operand = True
+    complete = None  # end of the longest complete, bracket-balanced prefix
+    end = 0
+    for token in _RE_TOKEN.finditer(value):
+        kind = _token_kind(token.group(0))
+        if expect_operand != (kind in _OPERAND_START):
+            break
+        if kind == "+" and token.start() != end:
+            break  # "+" follows its ID with no space, or it is not the operator
+        end = token.end()
+        if kind == "(":
+            depth += 1
+        elif kind == ")":
+            if not depth:
+                break
+            depth -= 1
+        if kind in ("ID", "OP"):
+            expect_operand = kind == "OP"
+        if not depth and not expect_operand:
+            complete = token.end()
+    if expect_operand or depth or complete is None:
+        return ""
+    return value[:complete]
 
 
 def with_expression_details(
@@ -378,7 +426,7 @@ def _is_expression(identifier: str) -> bool:
     (or reduced to "") by ``_normalize_expression``.
     """
     return any(
-        token in ("(", ")", "+") or token.upper() in ("AND", "OR", "WITH")
+        token in ("(", ")", "+") or token.upper() in _OPERATORS
         for token in _tokenize_expression(identifier)
     )
 
@@ -407,7 +455,7 @@ def _normalize_expression(expression: str, db: LicenseDatabase | None = None) ->
     prev_upper = ""
     for token in combined_tokens:
         upper_token = token.upper()
-        if upper_token in ("AND", "OR", "WITH"):
+        if upper_token in _OPERATORS:
             normalized_tokens.append(upper_token)
         elif token in ("(", ")"):
             normalized_tokens.append(token)
@@ -432,7 +480,7 @@ def _normalize_expression(expression: str, db: LicenseDatabase | None = None) ->
         else:
             expr += " " + part
 
-    operator_count = sum(1 for t in normalized_tokens if t in ("AND", "OR", "WITH"))
+    operator_count = sum(1 for t in normalized_tokens if t in _OPERATORS)
     if operator_count > _MAX_CANONICALIZE_OPERATORS:
         return expr
 

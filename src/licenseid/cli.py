@@ -35,7 +35,7 @@ from licenseid.textinput import (
     read_text_file,
     reject_binary,
 )
-from licenseid.types import LicenseDetails
+from licenseid.types import LicenseDetails, LicenseMatch
 
 
 def show_diff(text: str, best_window: str) -> None:
@@ -308,6 +308,16 @@ def get_input_content(
     return "", False
 
 
+def accepts_guessed_id(result: LicenseDetails | LicenseMatch | None) -> bool:
+    """Whether a bare argument may be read as a license ID.
+
+    A bare argument is a guess between an ID and text, so it takes the ID
+    reading only when every part is recognised. Every database row is an SPDX
+    license, so is_spdx false here means the value holds an unknown part.
+    """
+    return bool(result and result["is_spdx"])
+
+
 def resolve_license_record(
     ctx: click.Context,
     input_val: str | None,
@@ -335,7 +345,7 @@ def resolve_license_record(
     if not is_text:
         # Try as ID first, as `match` does
         record = matcher.resolve_record(license_id=content)
-        if record:
+        if accepts_guessed_id(record):
             return record
 
     # Try matching as text
@@ -393,7 +403,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         if not is_text:
             # Try as ID first (Smart Logic)
             results = matcher.match(license_id=content)
-            if not results:
+            if not accepts_guessed_id(results[0] if results else None):
                 # Fallback to text matching
                 results = matcher.match(text=content)
         else:

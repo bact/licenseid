@@ -14,70 +14,25 @@ the API (`match`, `is_spdx`, `is_osi`) and from the CLI (`match`, `is-spdx`).
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
+import json
 import time
 from collections.abc import Generator
 from pathlib import Path
-from typing import NamedTuple
 
 import pytest
 from click.testing import CliRunner
 from matcher_db import PROSE, Lic, seeded_db
+from spdx_tag_helpers import Answers, answers, cli_match_id, source_with, tag_db
 
 from licenseid.cli import cli
 from licenseid.identifiers import strip_plus_operator
 from licenseid.matcher import AggregatedLicenseMatcher
-
-
-class Answers(NamedTuple):
-    """One file's answer from each entry point. The API's match counts only at
-    the score (0.85) the CLI and the predicates use: a weaker top result is
-    not an answer."""
-
-    api_match: str | None
-    api_is_spdx: bool
-    cli_match: str | None
-    cli_is_spdx: bool
+from licenseid.types import LicenseMatch
 
 
 @pytest.fixture
 def db() -> Generator[str, None, None]:
-    yield from seeded_db(
-        "test_spdx_tag",
-        [
-            Lic("MIT", "MIT License", True, True, True),
-            Lic("Apache-2.0", "Apache License 2.0", True, True, True),
-            Lic("GPL-2.0-only", "GNU GPL v2.0 only", True, True, True),
-            Lic("GPL-2.0-or-later", "GNU GPL v2.0 or later", True, True, True),
-            Lic("Artistic-1.0", "Artistic License 1.0", True, True, False),
-            Lic("BSD-4-Clause", "BSD 4-Clause", True, False, True),
-        ],
-        exception_ids=["Classpath-exception-2.0"],
-    )
-
-
-def source_with(tag: str) -> str:
-    return f"/*\n * SPDX-License-Identifier: {tag}\n{PROSE} */\n"
-
-
-def answers(db: str, tag: str, tmp_path: Path) -> Answers:
-    matcher = AggregatedLicenseMatcher(db)
-    text = source_with(tag)
-    results = matcher.match(text=text)
-    path = tmp_path / "source.c"
-    path.write_text(text, encoding="utf-8")
-    runner = CliRunner()
-    matched = runner.invoke(cli, ["--db", db, "match", str(path)])
-    cli_match = None
-    if matched.exit_code == 0:
-        first_line = matched.stdout.splitlines()[0]  # an ID can hold spaces
-        cli_match = first_line.removeprefix("LICENSE_ID=").rsplit(" SIMILARITY=")[0]
-    is_spdx = runner.invoke(cli, ["--db", db, "is-spdx", str(path)])
-    return Answers(
-        results[0]["license_id"] if results and results[0]["score"] >= 0.85 else None,
-        matcher.is_spdx(text=text),
-        cli_match,
-        is_spdx.exit_code == 0,
-    )
+    yield from tag_db("test_spdx_tag")
 
 
 # Tags that name licenses this database has, or valid expressions of known
@@ -232,6 +187,88 @@ def test_an_expression_given_as_an_id_is_known_to_every_command(
     commands answer from the same code and must not say false."""
     result = CliRunner().invoke(cli, ["--db", db, command, *args])
     assert result.exit_code == 0
+
+
+# The same value must get the same answer wherever it reaches the matcher.
+SHARED_VALUES = [
+    "MIT",
+    "MIT OR Apache-2.0",
+    "MIT AND Apache-2.0",
+    "LicenseRef-Foo",
+    "Apache-2.0+",
+    WITH_EXPRESSION,
+    PLUS_WITH,
+    "MIT OR NoSuch-1.0",
+]
+
+
+def flags(result: LicenseMatch) -> tuple[object, ...]:
+    """What every source of a value must agree on."""
+    return (
+        result["license_id"],
+        result["is_spdx"],
+        result["is_osi_approved"],
+        result["is_fsf_libre"],
+    )
+
+
+@pytest.mark.parametrize("value", SHARED_VALUES)
+def test_every_source_of_a_value_gives_the_same_answer(
+    db: str, tmp_path: Path, value: str
+) -> None:
+    """An ID, a tag and a JSON `license` field share one judge, so they cannot
+    drift apart."""
+    matcher = AggregatedLicenseMatcher(db)
+    package = tmp_path / "package.json"
+    package.write_text(
+        json.dumps({"license": value, "description": PROSE}), encoding="utf-8"
+    )
+    sources = (
+        matcher.match(license_id=value),
+        matcher.match(text=source_with(value)),
+        matcher.match(file_path=str(package)),
+    )
+    by_id, by_tag, by_json = (flags(r[0]) for r in sources)
+    assert by_id == by_tag == by_json
+
+
+def test_a_bare_argument_that_names_no_license_is_matched_as_text(db: str) -> None:
+    """A bare argument is the CLI guessing between an ID and text, so it takes
+    the ID reading only when every part is recognised."""
+    assert cli_match_id(db, "MIT or something") is None
+    result = CliRunner().invoke(cli, ["--db", db, "is-spdx", "MIT or something"])
+    assert result.exit_code == 1
+
+
+PARTLY_KNOWN_VALUE = "MIT AND Proprietary"
+
+
+@pytest.fixture
+def named_db() -> Generator[str, None, None]:
+    """A database holding a license whose NAME is what the text tiers find for
+    PARTLY_KNOWN_VALUE, so the two readings of it differ."""
+    yield from seeded_db(
+        "test_spdx_tag_named",
+        [
+            Lic("MIT", "MIT License", True, True, True),
+            Lic("Weird-1.0", "MIT AND Proprietary Extras", True, False, False),
+        ],
+    )
+
+
+def test_only_an_explicit_id_is_trusted_when_a_part_is_unknown(named_db: str) -> None:
+    """`--id` is a declaration, so the expression answers even though one part
+    is unknown. The same value as a bare argument is only a guess, so it falls
+    through to text matching. `match` and `is-spdx` follow the same reading."""
+    with_id = ["--id", PARTLY_KNOWN_VALUE]
+    assert cli_match_id(named_db, *with_id) == PARTLY_KNOWN_VALUE
+    assert cli_match_id(named_db, PARTLY_KNOWN_VALUE) == "Weird-1.0"
+    run = CliRunner()
+    assert run.invoke(cli, ["--db", named_db, "is-spdx", *with_id]).exit_code == 1
+    assert (
+        run.invoke(cli, ["--db", named_db, "is-spdx", PARTLY_KNOWN_VALUE]).exit_code
+        == 0
+    )
 
 
 @pytest.mark.parametrize(

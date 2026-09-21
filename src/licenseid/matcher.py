@@ -14,13 +14,7 @@ from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import InvalidInputError
-from licenseid.identifiers import (
-    disambiguate_deprecated_id,
-    normalize_identifier,
-    parse_expression,
-    strip_plus_operator,
-    with_expression_details,
-)
+from licenseid.identifiers import disambiguate_deprecated_id, normalize_identifier
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
@@ -120,10 +114,11 @@ class AggregatedLicenseMatcher:
                     is_fsf_libre=details["is_fsf_libre"],
                 )
             ]
-        with_match = self._match_with_expression(license_id)
-        if with_match:
-            return [with_match]
-        return []
+        # An expression is not a row of its own; the marker detector is the
+        # one judge of whether it names a license.
+        return self._finalize_exact_markers(
+            self.detector.synthetic_candidate(license_id, 1.0)
+        )
 
     def _resolve_target_text(self, text: str | None, file_path: str | None) -> str:
         """Phase 2: read file_path as the CLI reads a file, or use the text."""
@@ -311,42 +306,6 @@ class AggregatedLicenseMatcher:
 
         return cast(list[LicenseMatch], ranked)
 
-    def _match_with_expression(self, license_id: str) -> LicenseMatch | None:
-        """Resolve a bare ``<license> WITH <exception>`` expression.
-
-        The ``licenses`` table only has rows for plain license IDs (plus a
-        handful of legacy hardcoded compound IDs), so a well-formed but
-        otherwise unseen expression like ``MIT WITH Font-exception-2.0``
-        would not be found by a direct ``get_license_details`` lookup even
-        though it is perfectly valid. Parse it structurally, then validate
-        each half against this project's own (live-downloaded) license and
-        exception tables.
-
-        A ``+`` after the license is kept (``Apache-2.0+ WITH X``); one after
-        the exception or the word ``WITH`` makes it no match. An input
-        that does not parse (see identifiers.parse_expression) is not a WITH
-        match.
-        """
-        without_plus = strip_plus_operator(license_id)
-        details = with_expression_details(parse_expression(without_plus), self.db)
-        if not details:
-            return None
-        lic_details, exc_details = details
-
-        plus = "+" if without_plus != license_id else ""
-        combined_id = (
-            f"{lic_details['license_id']}{plus} WITH {exc_details['exception_id']}"
-        )
-        return LicenseMatch(
-            license_id=combined_id,
-            score=1.0,
-            similarity=1.0,
-            coverage=1.0,
-            is_spdx=lic_details["is_spdx"],
-            is_osi_approved=lic_details["is_osi_approved"],
-            is_fsf_libre=lic_details["is_fsf_libre"],
-        )
-
     def resolve_record(
         self,
         text: str | None = None,
@@ -366,9 +325,8 @@ class AggregatedLicenseMatcher:
         if record:
             return record
 
-        # Composite "license WITH exception" matches aren't a single DB
-        # row (see _match_with_expression) — fall back to the flags match()
-        # already computed rather than reporting "unknown".
+        # An expression (a WITH, an OR, a LicenseRef) is not a single DB row:
+        # fall back to the flags match() already computed, not "unknown".
         return cast(
             LicenseDetails,
             {

@@ -6,6 +6,7 @@
 """Identifier normalization tests."""
 
 import sqlite3
+import time
 import uuid
 from unittest import mock
 
@@ -20,6 +21,7 @@ from licenseid.identifiers import (
     _is_expression,
     _lookup_case_insensitive,
     disambiguate_deprecated_id,
+    leading_expression,
     normalize_identifier,
     normalize_operator_casing,
 )
@@ -389,3 +391,63 @@ def test_canonicalize_keeps_the_expression_when_sorting_fails(
 def test_canonicalize_reads_operators_in_any_case() -> None:
     """The parser wrapper upper-cases operators before it parses."""
     assert _canonicalize_expression("mit or apache-2.0") == "Apache-2.0 OR MIT"
+
+
+@pytest.mark.parametrize(
+    ("value", "expression"),
+    [
+        ("MIT", "MIT"),
+        ("", ""),
+        ("(MIT OR Apache-2.0)", "(MIT OR Apache-2.0)"),
+        ("((MIT))", "((MIT))"),
+        (
+            "MIT OR (Apache-2.0 AND BSD-3-Clause)",
+            "MIT OR (Apache-2.0 AND BSD-3-Clause)",
+        ),
+        ("DocumentRef-x:LicenseRef-y", "DocumentRef-x:LicenseRef-y"),
+        ("MIT OR DocumentRef-x:LicenseRef-y", "MIT OR DocumentRef-x:LicenseRef-y"),
+        ("Apache-2.0+", "Apache-2.0+"),
+        ("Apache-2.0+ WITH LLVM-exception", "Apache-2.0+ WITH LLVM-exception"),
+        ("mit or apache-2.0", "mit or apache-2.0"),  # the parser reads any case
+        # A token no operator bridges ends the expression.
+        ("CAL-1.0 Licensed under the Autonomy License", "CAL-1.0"),
+        ("A-1.0 with B-exception under permission", "A-1.0 with B-exception"),
+        ("MIT (see LICENSE)", "MIT"),
+        ("MIT, Apache-2.0", "MIT"),
+        ("MIT */", "MIT"),
+        ("MIT -->", "MIT"),
+        ("MIT SPDX-License-Identifier: Apache-2.0", "MIT"),
+        ("MIT)", "MIT"),  # the expression ended before the junk
+        # Prose keeps its first word; synthetic_candidate rejects it, as it
+        # has no recognised ID.
+        ("See the LICENSE file", "See"),
+        ("MIT++", "MIT++"),  # left to the parser to reject
+        # SPDX allows no space before "+", so a detached one is not the
+        # operator and ends the expression.
+        ("LGPL-2.1 + MIT", "LGPL-2.1"),
+        ("MIT +", "MIT"),
+        ("MIT+ +", "MIT+"),
+        # Dangling or unbalanced: no expression at all, not a shorter one.
+        ("MIT OR", ""),
+        ("MIT OR (Apache-2.0 AND BSD-3-Clause", ""),
+        ("(MIT", ""),
+        ("(+ MIT)", ""),
+        ("+ MIT", ""),
+        ("()", ""),
+    ],
+)
+def test_leading_expression(value: str, expression: str) -> None:
+    """Where the expression in a tag value ends."""
+    assert leading_expression(value) == expression
+
+
+@pytest.mark.parametrize(
+    "payload",
+    ["a" * 200000, "a " * 100000, "(" * 100000, "a OR " * 40000, "a:" * 100000],
+    ids=["one-token", "tokens", "open-parens", "operators", "colons"],
+)
+def test_leading_expression_does_not_backtrack(payload: str) -> None:
+    """One long token must not make the scan quadratic."""
+    start = time.monotonic()
+    leading_expression(payload)
+    assert time.monotonic() - start < 1.0

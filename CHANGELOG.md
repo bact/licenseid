@@ -99,6 +99,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An `SPDX-License-Identifier` tag is read as one whole expression:
+  `(MIT OR Apache-2.0)`, `MIT OR (Apache-2.0 AND BSD-3-Clause)` and
+  `DocumentRef-x:LicenseRef-y` were dropped or cut short before, and a
+  cut-short value could be reported as a certain match for the wrong license.
+  A value that trails off into prose keeps the expression it starts with
+  (`CAL-1.0 Licensed under ...` is `CAL-1.0`); one that is unbalanced or
+  dangling is no evidence at all, and a `+` with a space before it is not
+  the "or later" operator. A tag and its value must now be on one line. A
+  tag holding a license name or an SPDX URL resolves, as it already did in
+  a JSON `license` field, and a name that a deprecated ID shares with the ID
+  that replaced it answers with the current one ([#61])
+- `match(license_id=...)`, `match --id` and `is-* --id` accept any expression
+  a tag accepts: `MIT OR Apache-2.0`, `LicenseRef-Foo` and `Apache-2.0+` were
+  no match before, though the same values in a tag were. A bare argument
+  (`licenseid match "MIT or something"`) is still read as an ID only when
+  every part of it is recognised ([#61])
+
 - A header granting "or any later version" in any wording (`or a later
   version`, `or newer`, `or, at your option, any later version`, or wrapped
   over comment lines) is read as `-or-later` on every path; the marker
@@ -168,6 +185,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#58]: https://github.com/bact/licenseid/pull/58
 [#59]: https://github.com/bact/licenseid/pull/59
 [#60]: https://github.com/bact/licenseid/pull/60
+[#61]: https://github.com/bact/licenseid/pull/61
 
 ## [0.3.7] - 2026-08-20
 

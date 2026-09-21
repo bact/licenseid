@@ -18,8 +18,8 @@ the complexity roadmap, so the two lists can be read together.
 Item 9 (and the resolved items 3 and 8) come from a tech-debt audit on
 2026-09-19; items 5 and 12 (and the resolved items 1, 4 and 6) from code
 reviews of the diagnostics change and the Java removal; items 2 and 10 from
-manual CLI testing under other locales and environments; items 15 to 18
-from the work on item 6.
+manual CLI testing under other locales and environments; items 15 to 18 from the
+work on item 6, and item 19 from the work on items 15 and 17.
 
 ## 2. `py-spdx-license` reads its data with the locale encoding — Priority 20
 
@@ -58,22 +58,6 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
   only move the crash to marker detection, so it is not a cure.
 - Impact 2, Risk 3, Effort 2.
 
-## 17. `match(license_id=...)` reads only WITH expressions — Priority 16
-
-`_try_explicit_id_match` finds a row, or a `<license> WITH <exception>`
-expression (`_match_with_expression`), and nothing else. Measured on the
-real database on 2026-09-21, `match(license_id=...)` returns no match for
-`MIT OR Apache-2.0`, `MIT AND Apache-2.0`, `LicenseRef-Foo` and `Apache-2.0+`,
-while the same values as an `SPDX-License-Identifier` tag are matches. So
-`is_spdx(license_id=...)`, `match --id` and `is-* --id` say false for a valid
-expression that the tag path accepts.
-
-- **Fix**: let the explicit-ID path fall back to
-  `MarkerDetector._synthetic_candidate`, the one function that decides for
-  every other source of an expression, then drop `_match_with_expression` if
-  it becomes redundant. Pin the values above with `# BUG:` first.
-- Impact 2, Risk 2, Effort 2.
-
 ## 18. TOML and INI license fields lose the SPDX flags — Priority 16
 
 A JSON `license` field is scored 1.0 and returns at Tier 0.5 with `is_spdx`,
@@ -107,42 +91,6 @@ option or input is dropped without a warning. All of it is pinned as
   ignore them. Unknown option names are already rejected.
 - **Fix**: decide per pair whether to reject it (usage error, exit 2) or
   document it, then flip the pins.
-- Impact 2, Risk 3, Effort 3.
-
-## 15. SPDX tag parentheses and colons are not parsed — Priority 15
-
-`MarkerDetector._RE_SPDX` cannot read a parenthesised expression or an ID
-with a colon, so a tag is dropped or cut short, and a cut-short value can
-be reported as a certain match. Measured on 2026-09-21 with a tag inside a
-source comment:
-
-| Tag value | Regex captures | `match` returns |
-| --- | --- | --- |
-| `(MIT OR Apache-2.0)` | nothing | noise (`VOSTROM`) |
-| `(MIT)`, `((MIT))` | nothing | noise (`CECILL-C`) |
-| `(MIT OR Apache-2.0) AND BSD-3-Clause` | nothing | noise |
-| `MIT OR (Apache-2.0 AND BSD-3-Clause)` | `MIT` | `MIT`, certain |
-| `MIT OR (Apache-2.0 WITH LLVM-exception)` | `MIT` | `MIT`, certain |
-| `DocumentRef-x:LicenseRef-y` | `DocumentRef-x` | noise (`CERN-OHL-S-2.0`) |
-| `LicenseRef-a:b` | `LicenseRef-a` | `LicenseRef-a`, certain |
-| `MIT OR DocumentRef-x:LicenseRef-y` | `MIT OR DocumentRef-x` | that, certain |
-
-Noise is a text-matching result scoring about 0.5, below the 0.85 threshold.
-Certain means score 1.0.
-
-The regex wants an ID before any `(` and after every operator, and its
-character class has no `:`. Check `identifiers._tokenize_expression` for
-the colon too.
-
-- **Fix**: stop writing a grammar in a regex. Capture the rest of the tag
-  line (up to a comment closer or the end of the line) and let the parser
-  decide: `identifiers.parse_expression` reads the whole value with
-  `py_spdx_license` (after `strip_plus_operator`), and
-  `MarkerDetector._synthetic_candidate`, which every expression source
-  already shares, accepts or rejects it, so a cut-short capture cannot become
-  an answer. Pin the table above with `# BUG:` first, then flip. Known limit
-  of the parser: it rejects an exception it does not list, so an exception
-  newer than its bundled list reads as unknown.
 - Impact 2, Risk 3, Effort 3.
 
 ## 16. Matching time is quadratic in the length of one token — Priority 15
@@ -268,6 +216,22 @@ just an internal ranking score — needs its own validation cycle (a
 - Impact 2, Risk 2, Effort 3.
 - Full plan: [`probe-anchored-windowing-plan.md`](probe-anchored-windowing-plan.md).
 
+## 19. How deep an expression may be depends on the Python version — Priority 9
+
+`py_spdx_license` builds its AST with a plain recursive walk and no depth
+guard, so `identifiers.parse_expression` reads a long chain differently per
+interpreter: a 400-term `AND` of `LicenseRef-*` raises RecursionError on
+Python 3.10 (read as "not an expression", no match) and parses on 3.14 (a
+match). The cut-off is wherever the recursion limit falls, so the same file
+can answer differently on two supported versions. Pinned as "either answer"
+in `tests/test_matcher.py::test_match_pathological_expression_does_not_crash`.
+
+- **Fix**: cap the operator count before parsing, as
+  `_MAX_CANONICALIZE_OPERATORS` already caps canonicalisation, so the
+  cut-off is the same everywhere. Decide the cap from real expressions (the
+  longest in the SPDX list is far below 40).
+- Impact 1, Risk 2, Effort 2.
+
 ## 12. Usage and click errors skip the stream and message rules — Priority 8
 
 Running with no subcommand prints the help text to standard output (exit 2),
@@ -293,17 +257,44 @@ statistics; no fix has been designed yet, only the problem is documented.
 
 ## Already resolved (kept for record)
 
+- A tag read with a hand-written grammar, and an ID path that read only
+  `WITH` (items 15 and 17, Priorities 15 and 16; 2026-09-21).
+  `MarkerDetector._RE_SPDX` wrote the SPDX grammar into a regex: it wanted a
+  bare ID first, so `(MIT OR Apache-2.0)` was dropped; it wanted an ID after
+  every operator, so `MIT OR (Apache-2.0 AND BSD-3-Clause)` was cut to `MIT`
+  and reported as a certain match for the wrong license; and its character
+  class had no `:`, so `DocumentRef-x:LicenseRef-y` was cut to
+  `DocumentRef-x`. Meanwhile `matcher._try_explicit_id_match` knew a database
+  row or a `<license> WITH <exception>` and nothing else, so `--id
+  "MIT OR Apache-2.0"`, `LicenseRef-Foo` and `Apache-2.0+` were no match
+  though the same values in a tag were.
+  The tag value is now the rest of its line and
+  `identifiers.leading_expression` decides where the expression ends: only
+  AND, OR and WITH join two parts, so a token none of them bridges ends it
+  (`CAL-1.0 Licensed under ...` is `CAL-1.0`), and a dangling or unbalanced
+  value is no expression at all. Comment closers need no case of their own.
+  The tag branch and the explicit-ID path both resolve through the functions
+  JSON, TOML and INI already used (`_resolve_license_value`,
+  `synthetic_candidate`), and `_match_with_expression` was deleted as
+  redundant. `:` was added to `identifiers._RE_TOKEN`, which silently dropped
+  it. Two deliberate tightenings: a tag and its value must be on one line,
+  and a bare CLI argument is read as an ID only when every part is recognised
+  (`licenseid match "MIT or something"` no longer prints an invented ID at
+  similarity 1.0000). Over the 1,405 fixture files the before/after run
+  differed nowhere. Left open: item 18 and the new item 19.
+
 - An unknown SPDX tag reported as a certain match (item 6, Priority 15;
   2026-09-21). `SPDX-License-Identifier: NoSuchLicense-9.9` (or a typo such
   as `Apache-2.O`, or `Copyright`, `NONE`) made `match` return that ID with
   score 1.0 and `is_spdx: true`, while `is-spdx` said false. The tag branch
   built a placeholder candidate for any value; the JSON, TOML and INI
   `license` fields already used a stricter rule of their own
-  (`MarkerDetector._synthetic_candidate`). The tag now uses that same
-  function, so every source of an expression decides alike: a value with no
-  recognised ID builds no candidate and matching falls through to the text
-  tiers; a valid expression (or `LicenseRef-*`) with at least one recognised
-  ID is a candidate, with `is_spdx` false if any part is unknown; the OSI and
+  (`MarkerDetector._synthetic_candidate`, now `synthetic_candidate`). The
+  tag took that same function, so every source of an expression decides
+  alike: a value with no recognised ID builds no candidate and matching
+  falls through to the text tiers; a valid expression (or `LicenseRef-*`)
+  with at least one recognised ID is a candidate, with `is_spdx` false if
+  any part is unknown; the OSI and
   FSF flags of a `WITH` expression are its license's, as for an explicit
   `license_id`; so are those of a lone `+` ID. A `+` operator is read
   (`Apache-2.0+`), which `py_spdx_license` cannot parse, and kept in an
@@ -314,13 +305,14 @@ statistics; no fix has been designed yet, only the problem is documented.
   `LicenseRef-*` that `match` accepted; they now call
   `AggregatedLicenseMatcher.resolve_record`, the same code as the `is_*()`
   predicates, for `--id`, a positional ID and text alike. One parser wrapper,
-  `identifiers.parse_expression`, serves `_synthetic_candidate`,
-  `_match_with_expression` and `_canonicalize_expression`, and one `WITH`
-  lookup, `identifiers.with_expression_details`, the first two.
+  `identifiers.parse_expression`, served the synthetic candidate, the `WITH`
+  match and `_canonicalize_expression`, and one `WITH` lookup,
+  `identifiers.with_expression_details`, the first two (items 15 and 17 later
+  deleted the separate `WITH` match).
   `tests/test_spdx_tag.py` holds the table of tags and checks that the API
   and the CLI agree on each. Not done: a `NONE` or `NOASSERTION` tag reads
-  as unknown (valid in SPDX documents, not licenses); the tag regex is item
-  15. "Known" for a license ID follows `py_spdx_license`'s bundled list, not
+  as unknown (valid in SPDX documents, not licenses); the tag regex became
+  item 15. "Known" for a license ID follows `py_spdx_license`'s bundled list, not
   the database, as it did for the `license` fields; a license newer than that
   list in an expression makes it `is_spdx` false.
 - API `file_path` read as strict UTF-8 (item 4, Priority 16; 2026-09-21).
