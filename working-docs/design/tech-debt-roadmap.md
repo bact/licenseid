@@ -16,7 +16,7 @@ Priority = (Impact + Risk) × (6 − Effort), each scored 1-5; same scale as
 the complexity roadmap, so the two lists can be read together.
 
 Item 9 (and the resolved items 3 and 8) come from a tech-debt audit on
-2026-09-19; items 4, 5, 6 and 12 (and the resolved item 1) from code reviews
+2026-09-19; items 5, 6 and 12 (and the resolved items 1 and 4) from code reviews
 of the diagnostics change and the Java removal; items 2 and 10 from manual
 CLI testing under other locales and environments.
 
@@ -56,19 +56,6 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
   or vendor the two JSON files. Importing `py_spdx_license` lazily would
   only move the crash to marker detection, so it is not a cure.
 - Impact 2, Risk 3, Effort 2.
-
-## 4. API `file_path` input is read as strict UTF-8 — Priority 16
-
-`AggregatedLicenseMatcher.match(file_path=...)` (and the `is_*` predicates)
-open the file as strict UTF-8, so a Latin-1 or binary file raises
-`UnicodeDecodeError`. The CLI reads the same file through
-`cli.decode_input` (Latin-1 fallback with a warning, binary rejected as
-`InvalidInputError`). Pinned by
-`tests/test_option_matrix.py::test_api_file_path_not_utf8` (`# BUG:`).
-Fix: move `decode_input` out of `cli.py` into a shared module and use it in
-`matcher._resolve_target_text`; flip the pin.
-
-- Impact 2, Risk 2, Effort 2.
 
 ## 5. Conflicting options and inputs are resolved silently — Priority 15
 
@@ -232,20 +219,28 @@ statistics; no fix has been designed yet, only the problem is documented.
 - Impact 2, Risk 2, Effort 4 (needs a design pass before an effort
   estimate is meaningful — treat this as provisional).
 
-## 14. Comment prefixes are probably stripped twice in retrieval — Priority 10
-
-`retrieval.get_candidates` calls `strip_comment_prefixes` and then
-`normalize_text`, whose own comment-prefix rule may already cover it. A
-mutation audit (2026-09-21) found that removing the call changes no test,
-and 3,000 random `//`, `#`, `;`, `*`, `/*`, `--` inputs normalised
-identically with and without it. The two regexes are documented as
-separate on purpose (`normalize.py`), so this is unproven: find an input
-where they differ (a lone `*/` line, or an odd prefix) or remove the call.
-
-- Impact 1, Risk 1, Effort 1.
-
 ## Already resolved (kept for record)
 
+- API `file_path` read as strict UTF-8 (item 4, Priority 16; 2026-09-21).
+  `match(file_path=...)` raised `UnicodeDecodeError` on Latin-1 or UTF-16
+  and matched NUL bytes and a byte order mark as text, while the CLI reads
+  the same file with a Latin-1 fallback, a warning and a binary check. The
+  decoder moved from `cli.py` to `licenseid.textinput`, and
+  `textinput.read_text_file` is now the only place a user file becomes text,
+  for the CLI and the API alike (`tests/test_textinput.py` and the parity
+  test in `tests/test_option_matrix.py` keep it so). Left as they were, on
+  purpose: SPDX data files (`database.py`, `spdx_source.py`) stay strict
+  UTF-8, since a Latin-1 fallback there would hide a corrupt download.
+  Known gaps, not part of this item: `match(text=...)` does not check for a
+  NUL byte or normalise line ends as `--text` does, and an empty file
+  returns no match instead of an error.
+- Comment prefixes stripped twice in retrieval (item 14, Priority 10;
+  checked 2026-09-21, not a defect). `retrieval.get_candidates` calls
+  `strip_comment_prefixes` before `normalize_text` on purpose: the two
+  regexes differ. A prefix that `normalize_text` leaves behind (`;`, `;;`,
+  `///`, `**`) hides a list marker from its bullet rule, so `; 1. term`
+  keeps the `1` in the query. A first random check (3,000 inputs without
+  list markers) missed this; `tests/test_get_candidates.py` now pins it.
 - One ranking order, and a consistent `-only` / `-or-later` tie-breaker (item
   8, Priority 12; widened on 2026-09-20 to the whole tie-breaker). Three sorts
   in `matcher.py` had drifted apart: the main ranking took `DEP_PENALTY` off

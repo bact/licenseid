@@ -294,6 +294,8 @@ results = matcher.match(text="Custom license text...")
 results = matcher.match(license_id="MIT")
 
 # 3. Match by File Path (Explicit)
+# The file is read as the CLI reads it: UTF-8, else Latin-1 with a warning;
+# binary data raises licenseid.InvalidInputError.
 results = matcher.match(file_path="LICENSE.txt")
 
 # 4. Predicates

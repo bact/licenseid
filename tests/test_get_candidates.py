@@ -118,6 +118,22 @@ def test_every_query_asks_for_fifty_normalised_candidates(
     assert all(k == {"limit": 50, "already_normalized": True} for k in seen)
 
 
+@pytest.mark.parametrize("prefix", [";", ";;", "///", "**"])
+def test_comment_prefixes_are_stripped_before_normalisation(
+    matcher: AggregatedLicenseMatcher, prefix: str
+) -> None:
+    """normalize_text() does not strip these prefixes itself, so a list marker
+    after one (`; 1. term`) would survive into the query: the raw-text strip
+    in get_candidates() is not redundant."""
+    calls = _install_search_spy(matcher)
+
+    matcher._get_candidates(
+        MatchRequest(), f"{prefix} 1. term0 term1\n{prefix} (a) term2"
+    )
+
+    assert [args[0] for args in calls] == ["term0 term1 term2"]
+
+
 # --- retrieval branch: head/tail word-count thresholds ---
 
 

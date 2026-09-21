@@ -29,6 +29,12 @@ from licenseid.dbcheck import (
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError, LicenseIdError
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
+from licenseid.textinput import (
+    decode_input,
+    normalize_newlines,
+    read_text_file,
+    reject_binary,
+)
 from licenseid.types import LicenseDetails
 
 
@@ -237,51 +243,28 @@ def exit_no_input(ctx: click.Context) -> NoReturn:
     exit_bad_input(ctx, "missing; pass a file, an ID, --text, --id or stdin")
 
 
-def decode_input(data: bytes, source: str) -> str:
-    """Decode input *data* from *source* (a path or ``stdin``) into text.
-
-    Bytes with a NUL are binary and raise LicenseIdError, whether or not they
-    happen to be valid UTF-8 (UTF-16 text is binary here too). Otherwise UTF-8
-    first, with a leading BOM dropped, then Latin-1 (older license files use
-    it; every byte decodes) with a warning.
-    CRLF and CR then become LF, as text-mode reading did before, so matching
-    sees the same text whichever way the input arrived.
-    """
-    if b"\x00" in data:
-        raise InvalidInputError(f"input: binary file: {source}")
-    try:
-        text = data.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        warn(f"input: not UTF-8, read as Latin-1: {source}")
-        text = data.decode("latin-1")
-    return normalize_newlines(text)
-
-
-def normalize_newlines(text: str) -> str:
-    """Turn CRLF and CR line ends into LF."""
-    return text.replace("\r\n", "\n").replace("\r", "\n")
-
-
 def read_input(ctx: click.Context, path: str | None) -> str:
     """Read the file at *path*, or standard input if None, as text.
     Exit with a usage error (2) if it cannot be read, is binary, or is a file
     with no text (empty stdin is left to the caller's "input: missing")."""
     source = path if path is not None else "stdin"
+    piped_nothing = False
     try:
         if path is not None:
-            with open(path, "rb") as f:
-                data = f.read()
-        elif (buffer := getattr(sys.stdin, "buffer", None)) is not None:
-            data = buffer.read()
-        else:  # stdin replaced by a text-only stream
-            data = sys.stdin.read().encode("utf-8", "surrogatepass")
-        text = decode_input(data, source)
+            text = read_text_file(path)
+        else:
+            if (buffer := getattr(sys.stdin, "buffer", None)) is not None:
+                data = buffer.read()
+            else:  # stdin replaced by a text-only stream
+                data = sys.stdin.read().encode("utf-8", "surrogatepass")
+            piped_nothing = not data
+            text = decode_input(data, source)
     except OSError as e:
         exit_bad_input(ctx, f"unreadable: {source}: {e.strerror or e}")
     except InvalidInputError as e:  # binary data; already "input: ..."
         exit_usage_error(ctx, str(e))
     # No bytes at all on stdin means nothing was piped: "input: missing".
-    if (data or path is not None) and not text.strip():
+    if not piped_nothing and not text.strip():
         exit_bad_input(ctx, f"empty: {source}")
     return text
 
@@ -298,8 +281,10 @@ def read_text_option(ctx: click.Context, text: str) -> str:
     """Decode the escapes in --text, then treat it as file or stdin text is
     treated: LF line ends; exit 2 if binary (a NUL) or blank."""
     content = normalize_newlines(unescape_text(text))
-    if "\x00" in content:
-        exit_bad_input(ctx, "binary file: --text")
+    try:
+        reject_binary(content, "--text")
+    except InvalidInputError as e:
+        exit_usage_error(ctx, str(e))
     if not content.strip():
         exit_bad_input(ctx, "empty: --text")
     return content
