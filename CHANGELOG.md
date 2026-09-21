@@ -55,10 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `exclude`, `hint`, `only_common` and `only_spdx`. To migrate, drop or
   correct the option ([#57])
 - Text that quotes an "or any later version" notice without being a whole
-  license, such as a slice of the GNU Free Documentation License, now
-  resolves to the `-or-later` license instead of `-only`. The two variants
-  have identical bodies, so nothing can tell them apart; this is what the GPL
-  family already did ([#58])
+  license (such as a slice of the GNU Free Documentation License) now resolves
+  to `-or-later`, not `-only`. The bodies are identical; the GPL family
+  already did this ([#58])
 - Read commands no longer create `~/.local/share/licenseid`; only `update`
   does, so an unwritable `HOME` no longer crashes them ([#55])
 - `--clear-cache` no longer opens the database to clear it, so it also clears
@@ -100,37 +99,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A header granting "or any later version" in other words (`or any later
-  version`, `or a later version`, `or newer`, `or, at your option, any later
-  version`, or wrapped over comment lines) is read as the `-or-later` license
-  on every path. The marker detector, the `-only`/`-or-later` tie-breaker and
-  the bare-ID prose check each read it differently, so the same header could
-  give `-only` or `-or-later` depending on its length. "not any later version"
-  no longer counts as a grant ([#58])
-- An `SPDX-License-Identifier` tag with no license ID we recognise
-  (`NoSuchLicense-9.9`, a typo such as `Apache-2.O`, `Copyright`, `NONE`) is
-  no longer reported as a certain SPDX match; the file is matched by its
-  text, as when a `License:` field does not resolve. A tag that is an SPDX
-  expression with at least one known ID is still a match, but with `is_spdx`
-  false if any part is unknown; `Apache-2.0+` is read. The tag now follows
-  the same rule as the `license` field of JSON, TOML and INI files, which
-  therefore also read `+` and give a `WITH` value its license's flags. The
-  `is-spdx`, `is-osi`, `is-fsf`, `is-open` and `is-free` commands answer from
-  the same match as `match` and the Python `is_*()` methods: before, they said
-  false for every expression and `LicenseRef-*`, whether given as text, an ID
-  or `--id`. A `WITH` expression has the OSI and FSF flags of its license
-  ([#60])
-- `match(file_path=...)` and the `is_*` predicates read the file the way the
-  CLI does: UTF-8 with a byte order mark dropped, else Latin-1 with a
-  warning on standard error, and binary data (any NUL byte, including UTF-16)
-  raises `InvalidInputError` (`input: binary file: <path>`). Before, a
-  Latin-1 file or UTF-16 file with a byte order mark raised
-  `UnicodeDecodeError`, and a NUL byte, a byte order mark or UTF-16 without
-  one was matched as text ([#59])
-- The `-only`/`-or-later` tie-breaker treats a score gap of exactly 0.01 the
-  same at every score, as no tie, instead of leaving it to floating-point
-  rounding, and
-  its re-sort no longer ranks a deprecated ID above its replacement ([#58])
+- A header granting "or any later version" in any wording (`or a later
+  version`, `or newer`, `or, at your option, any later version`, or wrapped
+  over comment lines) is read as `-or-later` on every path; the marker
+  detector, tie-breaker and bare-ID check used to disagree. "not any later
+  version" is no grant ([#58])
+- An `SPDX-License-Identifier` tag with no recognised license ID
+  (`NoSuchLicense-9.9`, `Apache-2.O`, `NONE`) is no longer a certain SPDX
+  match; the file is matched by its text. An expression with at least one
+  known ID stays a match, with `is_spdx` false if any part is unknown, and a
+  `WITH` expression takes its license's OSI and FSF flags. JSON, TOML and INI
+  `license` fields follow the same rule and now read `+` ([#60])
+- `is-spdx`, `is-osi`, `is-fsf`, `is-open` and `is-free` answer from the same
+  match as `match` and the `is_*()` methods; before, they said false for every
+  expression and `LicenseRef-*` ([#60])
+- `match(file_path=...)` and the `is_*` predicates read files as the CLI
+  does: UTF-8 (byte order mark dropped), else Latin-1 with a warning; binary
+  data (any NUL byte, including UTF-16) raises `InvalidInputError`. Before,
+  Latin-1 raised `UnicodeDecodeError` and NUL bytes were matched as text
+  ([#59])
+- The `-only`/`-or-later` tie-breaker treats a score gap of exactly 0.01 as
+  no tie at every score, and no longer ranks a deprecated ID above its
+  replacement ([#58])
 - `--db` with a blank value is a usage error (`ERROR: database: missing:
   --db`) instead of silently using the default database ([#55])
 - Deeply nested JSON no longer crashes license detection with
