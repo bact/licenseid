@@ -7,8 +7,9 @@
 
 A tag is evidence only when it holds a license this database has, or a valid
 SPDX expression (or LicenseRef-*) with at least one recognised ID; it is
-flagged as not SPDX if any part is unknown. The same rule reads the `license`
-field of JSON, TOML and INI files. The same file must get the same answer from
+flagged as not SPDX if any part is unknown. The `license` field of JSON, TOML
+and INI files goes through the same function (pinned in
+`test_markers_structured.py`). The same file must get the same answer from
 the API (`match`, `is_spdx`, `is_osi`) and from the CLI (`match`, `is-spdx`).
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
@@ -47,6 +48,8 @@ def db() -> Generator[str, None, None]:
             Lic("Apache-2.0", "Apache License 2.0", True, True, True),
             Lic("GPL-2.0-only", "GNU GPL v2.0 only", True, True, True),
             Lic("GPL-2.0-or-later", "GNU GPL v2.0 or later", True, True, True),
+            Lic("Artistic-1.0", "Artistic License 1.0", True, True, False),
+            Lic("BSD-4-Clause", "BSD 4-Clause", True, False, True),
         ],
         exception_ids=["Classpath-exception-2.0"],
     )
@@ -164,6 +167,31 @@ def test_a_with_tag_has_the_flags_of_its_license(db: str, tmp_path: Path) -> Non
             assert result.exit_code == 0, (command, args)
 
 
+@pytest.mark.parametrize(
+    ("tag", "osi", "fsf"),
+    [
+        ("Artistic-1.0", True, False),
+        ("Artistic-1.0+", True, False),
+        ("Artistic-1.0 WITH Classpath-exception-2.0", True, False),
+        ("BSD-4-Clause", False, True),
+        ("BSD-4-Clause+", False, True),
+        ("BSD-4-Clause WITH Classpath-exception-2.0", False, True),
+    ],
+)
+def test_the_flags_come_from_the_license_not_the_other_flag(
+    db: str, tmp_path: Path, tag: str, osi: bool, fsf: bool
+) -> None:
+    """A license approved by only one body shows that in every entry point."""
+    matcher = AggregatedLicenseMatcher(db)
+    path = tmp_path / "source.c"
+    path.write_text(source_with(tag), encoding="utf-8")
+    assert matcher.is_osi(text=source_with(tag)) is osi
+    assert matcher.is_fsf(text=source_with(tag)) is fsf
+    for command, expected in (("is-osi", osi), ("is-fsf", fsf)):
+        result = CliRunner().invoke(cli, ["--db", db, command, str(path)])
+        assert (result.exit_code == 0) is expected, (command, tag)
+
+
 PLUS_WITH = "Apache-2.0+ WITH Classpath-exception-2.0"
 
 
@@ -175,6 +203,8 @@ def test_a_plus_before_with_is_kept_on_every_path(db: str, tmp_path: Path) -> No
     assert [r["license_id"] for r in by_id] == [PLUS_WITH]
     exception_plus = "Apache-2.0 WITH Classpath-exception-2.0+"
     assert not AggregatedLicenseMatcher(db).match(license_id=exception_plus)
+    with_plus = "Apache-2.0 with+ Classpath-exception-2.0"  # nor is the keyword's
+    assert not AggregatedLicenseMatcher(db).match(license_id=with_plus)
     assert answers(db, PLUS_WITH, tmp_path) == Answers(PLUS_WITH, True, PLUS_WITH, True)
 
 
@@ -218,6 +248,12 @@ def test_an_expression_given_as_an_id_is_known_to_every_command(
         ("Apache-2.0 WITH LLVM-exception+", "Apache-2.0 WITH LLVM-exception+"),
         ("Apache-2.0+ WITH LLVM-exception", "Apache-2.0 WITH LLVM-exception"),
         ("apache-2.0+ with llvm-exception+", "apache-2.0 with llvm-exception+"),
+        ("A WITH  B+", "A WITH  B+"),  # any run of spaces after WITH
+        ("Apache-2.0 with+ LLVM-exception", "Apache-2.0 with+ LLVM-exception"),
+        ("Apache-2.0 WITH+ LLVM-exception", "Apache-2.0 WITH+ LLVM-exception"),
+        ("MIT or+ Apache-2.0", "MIT or+ Apache-2.0"),
+        ("MIT AND+ Apache-2.0", "MIT AND+ Apache-2.0"),
+        ("swith+ or+x", "swith or+x"),  # only a whole word is an operator
     ],
 )
 def test_strip_plus_operator(expression: str, stripped: str) -> None:

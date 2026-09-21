@@ -141,11 +141,14 @@ def parse_expression(expression: str) -> py_spdx_license.Node | None:
 # The "+" ("or any later version") operator, which py_spdx_license cannot
 # parse (https://github.com/JPEWdev/py-spdx-license/issues/1): it only ever
 # follows the last character of a license ID, so a "+" after a space, a "(" or
-# another "+", or after the exception of a WITH, is not one. The ID must start
-# at a token start (""): without it every offset of a long token is
-# tried and the scan is quadratic (8 s at 32,000 characters).
+# another "+", after the exception of a WITH, or after an operator word
+# (WITH, AND, OR), is not one. The ID must start at a token start (lookbehind):
+# without it every offset of a long token is tried and the scan is quadratic
+# (8 s at 32,000 characters).
 _RE_PLUS_OPERATOR = re.compile(
-    r"(?P<with>\bWITH\s+)?(?<![^\s(])(?P<id>[^\s()+]+)\+(?=\s|\)|$)", re.IGNORECASE
+    r"(?P<with>\bWITH\s+)?(?<![^\s(])(?!(?:with|and|or)\+)"
+    r"(?P<id>[^\s()+]+)\+(?=\s|\)|$)",
+    re.IGNORECASE,
 )
 
 

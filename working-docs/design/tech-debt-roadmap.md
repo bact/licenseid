@@ -18,7 +18,7 @@ the complexity roadmap, so the two lists can be read together.
 Item 9 (and the resolved items 3 and 8) come from a tech-debt audit on
 2026-09-19; items 5 and 12 (and the resolved items 1, 4 and 6) from code
 reviews of the diagnostics change and the Java removal; items 2 and 10 from
-manual CLI testing under other locales and environments; items 15, 16 and 17
+manual CLI testing under other locales and environments; items 15 to 18
 from the work on item 6.
 
 ## 2. `py-spdx-license` reads its data with the locale encoding — Priority 20
@@ -72,6 +72,23 @@ expression that the tag path accepts.
   `MarkerDetector._synthetic_candidate`, the one function that decides for
   every other source of an expression, then drop `_match_with_expression` if
   it becomes redundant. Pin the values above with `# BUG:` first.
+- Impact 2, Risk 2, Effort 2.
+
+## 18. TOML and INI license fields lose the SPDX flags — Priority 16
+
+A JSON `license` field is scored 1.0 and returns at Tier 0.5 with `is_spdx`,
+`is_osi_approved` and `is_fsf_libre` set. A TOML or INI field is scored 0.95,
+so it goes on through Tiers 1 and 2, and their result dicts carry no such
+flags; `matcher.resolve_record` then reports them as false. Measured on
+2026-09-21 with `MIT OR Apache-2.0` and 30+ words of filler: `package.json`
+gives `is-spdx` true; `pyproject.toml` gives false (score 0.902). The same
+gap makes the `--json` output of a text match lack the `is_spdx` and
+`is_osi_approved` keys that `README.md` shows.
+
+- **Fix**: decide whether the flags belong on every result (add them in one
+  place, from `flag_source`) or only on marker results (correct the README),
+  and whether 0.95 for TOML and INI is meant. Pin the values above with
+  `# BUG:` first.
 - Impact 2, Risk 2, Effort 2.
 
 ## 5. Conflicting options and inputs are resolved silently — Priority 15

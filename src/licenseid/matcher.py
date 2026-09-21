@@ -322,7 +322,8 @@ class AggregatedLicenseMatcher:
         each half against this project's own (live-downloaded) license and
         exception tables.
 
-        A ``+`` after the license is kept (``Apache-2.0+ WITH X``). An input
+        A ``+`` after the license is kept (``Apache-2.0+ WITH X``); one after
+        the exception or the word ``WITH`` makes it no match. An input
         that does not parse (see identifiers.parse_expression) is not a WITH
         match.
         """

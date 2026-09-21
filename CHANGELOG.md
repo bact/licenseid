@@ -108,8 +108,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`NoSuchLicense-9.9`, `Apache-2.O`, `NONE`) is no longer a certain SPDX
   match; the file is matched by its text. An expression with at least one
   known ID stays a match, with `is_spdx` false if any part is unknown, and a
-  `WITH` expression takes its license's OSI and FSF flags. JSON, TOML and INI
-  `license` fields follow the same rule and now read `+` ([#60])
+  `WITH` expression takes its license's OSI and FSF flags (in a tag or a JSON
+  field, not yet in TOML or INI). JSON, TOML and INI `license` fields decide
+  by the same rule and now read `+`, except after a `WITH` exception, where it
+  is no operator ([#60])
 - `is-spdx`, `is-osi`, `is-fsf`, `is-open` and `is-free` answer from the same
   match as `match` and the `is_*()` methods; before, they said false for every
   expression and `LicenseRef-*` ([#60])
