@@ -14,7 +14,7 @@ from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import InvalidInputError
-from licenseid.identifiers import disambiguate_deprecated_id, normalize_identifier
+from licenseid.identifiers import disambiguate_deprecated_id
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
@@ -99,25 +99,13 @@ class AggregatedLicenseMatcher:
         self.enable_popularity = enable_popularity
 
     def _try_explicit_id_match(self, license_id: str) -> list[LicenseMatch]:
-        """Phase 1: resolve an explicit license_id argument to a match."""
-        license_id = normalize_identifier(license_id, self.db)
-        details = self.db.get_license_details(license_id)
-        if details:
-            return [
-                LicenseMatch(
-                    license_id=details["license_id"],
-                    score=1.0,
-                    similarity=1.0,
-                    coverage=1.0,
-                    is_spdx=details["is_spdx"],
-                    is_osi_approved=details["is_osi_approved"],
-                    is_fsf_libre=details["is_fsf_libre"],
-                )
-            ]
-        # An expression is not a row of its own; the marker detector is the
-        # one judge of whether it names a license.
+        """Phase 1: resolve an explicit license_id argument to a match.
+
+        Through the resolver every other source of a license value uses, so
+        an ID, a tag and a JSON field cannot answer differently.
+        """
         return self._finalize_exact_markers(
-            self.detector.synthetic_candidate(license_id, 1.0)
+            self.detector.resolve_license_value(license_id, 1.0)
         )
 
     def _resolve_target_text(self, text: str | None, file_path: str | None) -> str:

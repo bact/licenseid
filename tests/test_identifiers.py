@@ -418,7 +418,7 @@ def test_canonicalize_reads_operators_in_any_case() -> None:
         ("MIT -->", "MIT"),
         ("MIT SPDX-License-Identifier: Apache-2.0", "MIT"),
         ("MIT)", "MIT"),  # the expression ended before the junk
-        # Prose keeps its first word; synthetic_candidate rejects it, as it
+        # Prose keeps its first word; the candidate builder rejects it, as it
         # has no recognised ID.
         ("See the LICENSE file", "See"),
         ("MIT++", "MIT++"),  # left to the parser to reject
@@ -427,6 +427,16 @@ def test_canonicalize_reads_operators_in_any_case() -> None:
         ("LGPL-2.1 + MIT", "LGPL-2.1"),
         ("MIT +", "MIT"),
         ("MIT+ +", "MIT+"),
+        # Only white space separates the parts of an expression.
+        ("MIT */ and_mask = 1", "MIT"),
+        ("MIT */ or(x);", "MIT"),
+        ("BSD-3-Clause, and the patent grant", "BSD-3-Clause"),
+        ("MIT, with additions", "MIT"),
+        ("MIT and_mask", "MIT"),
+        ("MIT\tOR\nApache-2.0", "MIT\tOR\nApache-2.0"),
+        # A ":" joins two identifiers and is nothing on its own.
+        ("Apache-2.0: see NOTICE", "Apache-2.0"),
+        ("DocumentRef-x:LicenseRef-y: see NOTICE", "DocumentRef-x:LicenseRef-y"),
         # Dangling or unbalanced: no expression at all, not a shorter one.
         ("MIT OR", ""),
         ("MIT OR (Apache-2.0 AND BSD-3-Clause", ""),

@@ -49,7 +49,10 @@ No database daemon or server needed.
     even though it isn't a single license row.
   - Any expression a `SPDX-License-Identifier` tag accepts is also accepted
     as an ID, including parentheses and `LicenseRef-*`:
-    `licenseid match --id "MIT OR (Apache-2.0 AND BSD-3-Clause)"`.
+    `licenseid match --id "MIT OR (Apache-2.0 AND BSD-3-Clause)"`. An `AND`
+    or `OR` expression has no single license's flags, so `is-osi`, `is-fsf`,
+    `is-open` and `is-free` answer false for one; a lone ID and a `WITH`
+    expression take the flags of their license.
 
 [py-spdx-license]: https://github.com/JPEWdev/py-spdx-license
 

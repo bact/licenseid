@@ -158,6 +158,73 @@ def test_a_detached_plus_is_not_the_or_later_operator(
     assert certain(db, source_with(tag)) == certain_id
 
 
+@pytest.mark.parametrize(
+    ("line", "certain_id"),
+    [
+        ("/* SPDX-License-Identifier: MIT */ and_mask = 1;", "MIT"),
+        ("/* SPDX-License-Identifier: MIT */ or(x);", "MIT"),
+        (
+            "# SPDX-License-Identifier: BSD-3-Clause, and the patent grant",
+            "BSD-3-Clause",
+        ),
+        ("# SPDX-License-Identifier: MIT, with additions", "MIT"),
+        ("# SPDX-License-Identifier: Apache-2.0: see NOTICE", "Apache-2.0"),
+    ],
+)
+def test_only_white_space_joins_the_parts_of_an_expression(
+    db: str, line: str, certain_id: str
+) -> None:
+    """Code or punctuation after the tag must not be read as an operand: a
+    comment closer is not white space."""
+    assert certain(db, f"{line}\n{PROSE}") == certain_id
+
+
+@pytest.mark.parametrize(
+    ("tag", "certain_id"),
+    [
+        ("GPL-2.0 or any later version", "GPL-2.0-or-later"),
+        ("GPL-2.0 or later", "GPL-2.0-or-later"),
+        ("LGPL-2.1 or, at your option, any later version", "LGPL-2.1-or-later"),
+        ("GPL-2.0 only", "GPL-2.0-only"),
+        ("GPL-2.0", "GPL-2.0-only"),  # no phrase: the conservative fallback
+        # The ID the value starts with wins: prose further along must not
+        # decide the answer.
+        ("MIT; see COPYING for GPL-2.0 or later parts", "MIT"),
+        ("Apache-2.0 - GPL-2.0 users only", "Apache-2.0"),
+        # An explicit -only ID says what the author chose; the phrase after
+        # it resolves nothing.
+        ("GPL-2.0-only or (at your option) any later version", "GPL-2.0-only"),
+        # A grant qualifies the ID beside it, not another one on the line.
+        ("GPL-2.0 AND LGPL-2.1 or later", "GPL-2.0-only AND LGPL-2.1-or-later"),
+        ("MIT OR GPL-2.0 or later", "GPL-2.0-or-later OR MIT"),
+        # Three arms: the grant beside GPL-2.0 is its own, not LGPL-2.1's.
+        (
+            "MPL-1.1 OR GPL-2.0 or later OR LGPL-2.1 or later",
+            "GPL-2.0-or-later OR MPL-1.1",
+        ),
+    ],
+)
+def test_or_later_prose_is_read_before_the_expression(
+    db: str, tag: str, certain_id: str
+) -> None:
+    """ "or later" is prose, not the OR operator: `classify.OR_LATER_PHRASE`
+    stays the one reader of it, on the tag path too."""
+    assert certain(db, source_with(tag)) == certain_id
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "/* SPDX-License-Identifier: MIT No Attribution */",
+        "<!-- SPDX-License-Identifier: MIT No Attribution -->",
+        "# SPDX-License-Identifier: MIT No Attribution.",
+    ],
+)
+def test_a_name_is_read_inside_a_comment_too(db: str, line: str) -> None:
+    """The name lookup must not be defeated by the closer around it."""
+    assert certain(db, f"{line}\n{PROSE}") == "MIT-0"
+
+
 def test_a_name_shared_with_a_deprecated_id_answers_with_the_current_one(
     db: str,
 ) -> None:
@@ -175,14 +242,12 @@ def test_a_name_beats_the_expression_it_starts_with(db: str) -> None:
     "tag",
     [
         "MIT OR (at your option) Apache-2.0",
-        "GPL-2.0-only or (at your option) any later version",
         "MIT OR (Apache-2.0 AND BSD-3-Clause",
+        "MIT AND",
     ],
 )
 def test_a_value_left_dangling_is_no_evidence(db: str, tag: str) -> None:
-    """An operator with nothing valid after it means the author's intent is
-    unknown, so the head of the value must not answer for the whole: reading
-    `GPL-2.0-only or (at your option) any later version` as `GPL-2.0-only`
-    would drop the grant. Text matching decides these instead.
-    """
+    """An operator with nothing valid after it leaves the author's intent
+    unknown, so the head of the value must not answer for the whole. Text
+    matching decides these instead."""
     assert certain(db, source_with(tag)) is None

@@ -19,6 +19,7 @@ from licenseid.identifiers import (
     leading_expression,
     normalize_identifier,
     parse_expression,
+    qualify_trailing_grant,
     strip_plus_operator,
 )
 from licenseid.types import CandidateMatch, LicenseDetails
@@ -29,6 +30,10 @@ class MarkerDetector:
     Detector for license markers like SPDX-License-Identifier,
     License metadata fields, and headings.
     """
+
+    # No license name ends in anything but a word character or ")", so a tag
+    # value can lose its comment closer or full stop before the name lookup.
+    _RE_NAME_TAIL = re.compile(r"[^\w)]+$")
 
     # SPDX-License-Identifier tag. The value is the rest of the line ("[ \t]",
     # never "\s", so a tag cannot reach across a line break);
@@ -170,14 +175,14 @@ class MarkerDetector:
             return []
         val = data.get("license") or data.get("License") or data.get("LICENSE")
         if isinstance(val, str) and val:
-            return self._resolve_license_value(val, 1.0)
+            return self.resolve_license_value(val, 1.0)
         return []
 
     def _detect_toml_license(self, text: str) -> list[CandidateMatch]:
         """Read the PEP 621 table form: license = {text = "MIT"}."""
         match = self._RE_TOML_LICENSE_TABLE.search(text)
         if match:
-            return self._resolve_license_value(match.group(1), 0.95)
+            return self.resolve_license_value(match.group(1), 0.95)
         return []
 
     def _detect_ini_license(self, text: str) -> list[CandidateMatch]:
@@ -188,14 +193,14 @@ class MarkerDetector:
             for section in cfg.sections():
                 val = cfg.get(section, "license", fallback=None)
                 if val:
-                    resolved = self._resolve_license_value(val.strip(), 0.95)
+                    resolved = self.resolve_license_value(val.strip(), 0.95)
                     if resolved:
                         return resolved
         except Exception:  # pylint: disable=broad-exception-caught
             pass
         return []
 
-    def _resolve_license_value(self, val: str, score: float) -> list[CandidateMatch]:
+    def resolve_license_value(self, val: str, score: float) -> list[CandidateMatch]:
         """Resolve a license string (ID, name, or SPDX URL) to candidates."""
         # SPDX license URL: https://spdx.org/licenses/Apache-2.0
         if val.startswith("http") and "/licenses/" in val:
@@ -207,10 +212,11 @@ class MarkerDetector:
         # whole line would let disambiguate_deprecated_id read an ID out of
         # the prose. The name lookup still sees the whole value ("BSD 3-Clause"
         # is a name, not an expression).
-        lic_id = normalize_identifier(leading_expression(val), self.db)
+        expression = qualify_trailing_grant(leading_expression(val), val)
+        lic_id = normalize_identifier(expression, self.db)
         # The name comes first: the expression can be a prefix of the value,
         # and "MIT No Attribution" is MIT-0, not MIT.
-        named = self.db.get_license_by_name(val)
+        named = self.db.get_license_by_name(self._RE_NAME_TAIL.sub("", val))
         if named and named["is_deprecated"]:
             # A deprecated ID keeps the name of the ID that replaced it.
             current = normalize_identifier(named["license_id"], self.db)
@@ -220,9 +226,9 @@ class MarkerDetector:
             return [self.to_candidate(details, score)]
         # A value with no recognised ID (a typo, free text) is no evidence of
         # a license and builds no candidate.
-        return self.synthetic_candidate(lic_id, score) if lic_id else []
+        return self._synthetic_candidate(lic_id, score) if lic_id else []
 
-    def synthetic_candidate(self, lic_id: str, score: float) -> list[CandidateMatch]:
+    def _synthetic_candidate(self, lic_id: str, score: float) -> list[CandidateMatch]:
         """Build a candidate for an ID that is not in the DB.
 
         Keeps only well-formed SPDX expressions and LicenseRef-* IDs with at
@@ -278,7 +284,7 @@ class MarkerDetector:
 
         # 1. SPDX-License-Identifier
         for match in self._RE_SPDX.finditer(text):
-            candidates.extend(self._resolve_license_value(match.group(1), 1.0))
+            candidates.extend(self.resolve_license_value(match.group(1), 1.0))
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)
         for match in self._RE_LICENSE_FIELD.finditer(text):

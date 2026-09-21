@@ -88,11 +88,16 @@ _BARE_TO_OR_LATER: dict[str, str] = {
 # AFTER the ID to avoid false positives from unrelated uses.
 _RE_ONLY = re.compile(r"\bonly\b", re.IGNORECASE)
 
-# ":" belongs to an identifier: a DocumentRef-x:LicenseRef-y is one ID.
+# An identifier starts and ends alphanumeric, so a trailing full stop is
+# punctuation, not part of it. A ":" joins two identifiers
+# (DocumentRef-x:LicenseRef-y is one ID) and is nothing on its own. "_" is no
+# part of an SPDX ID but is part of a word, so "and_mask" stays one token
+# instead of becoming the AND operator.
+_ID_WORD = r"[a-zA-Z0-9]+(?:[._-]+[a-zA-Z0-9]+)*"
 _RE_TOKEN = re.compile(
     r"\(|\)"
-    r"|(?<![a-zA-Z0-9.:-])(?:AND|OR|WITH)(?![a-zA-Z0-9.:-])"
-    r"|\+|[a-zA-Z0-9.:-]+",
+    r"|(?<![a-zA-Z0-9._:-])(?:AND|OR|WITH)(?![a-zA-Z0-9._:-])"
+    rf"|\+|{_ID_WORD}(?::{_ID_WORD})*",
     re.IGNORECASE,
 )
 _OPERATORS = ("AND", "OR", "WITH")
@@ -178,6 +183,29 @@ def _token_kind(text: str) -> str:
 _OPERAND_START = ("ID", "(")
 
 
+def qualify_trailing_grant(expression: str, value: str) -> str:
+    """*expression* with the bare deprecated ID it ends in replaced by the
+    form the prose after it in *value* gives.
+
+    "or later" is a grant, not the OR operator, and it qualifies the ID
+    beside it: "MIT OR GPL-2.0 or later" is "MIT OR GPL-2.0-or-later". The ID
+    must be the one the expression ends with, so prose elsewhere on the line
+    cannot decide the answer.
+    """
+    last = None
+    for last in _RE_TOKEN.finditer(expression):
+        pass
+    if last is None:
+        return expression
+    # Only as far as the first grant: a later one belongs to another ID.
+    text = last.group(0) + value[len(expression) :]
+    grant = OR_LATER_PHRASE.search(text)
+    resolved = disambiguate_deprecated_id(text[: grant.end()] if grant else text)
+    if resolved and resolved.lower().startswith(last.group(0).lower()):
+        return expression[: last.start()] + resolved
+    return expression
+
+
 def leading_expression(value: str) -> str:
     """The longest prefix of *value* that can still be an SPDX expression.
 
@@ -187,6 +215,9 @@ def leading_expression(value: str) -> str:
     dangling, or with unbalanced brackets, is no expression at all: answering
     with a shorter prefix of one would name a license the value does not.
     """
+    # "or any later version" is a grant, not the OR operator, and the phrase
+    # can start before the "or" ("GPL-2.0 or later" needs the version).
+    grants = [m.span() for m in OR_LATER_PHRASE.finditer(value)]
     depth = 0
     expect_operand = True
     complete = None  # end of the longest complete, bracket-balanced prefix
@@ -195,8 +226,13 @@ def leading_expression(value: str) -> str:
         kind = _token_kind(token.group(0))
         if expect_operand != (kind in _OPERAND_START):
             break
-        if kind == "+" and token.start() != end:
-            break  # "+" follows its ID with no space, or it is not the operator
+        gap = value[end : token.start()]
+        if gap.strip() or (kind == "+" and gap):
+            # Only white space separates the parts of an expression, and a
+            # "+" touches the ID it follows. Anything else is prose.
+            break
+        if kind == "OP" and any(a <= token.start() < b for a, b in grants):
+            break
         end = token.end()
         if kind == "(":
             depth += 1

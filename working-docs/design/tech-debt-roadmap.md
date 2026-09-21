@@ -273,11 +273,14 @@ statistics; no fix has been designed yet, only the problem is documented.
   AND, OR and WITH join two parts, so a token none of them bridges ends it
   (`CAL-1.0 Licensed under ...` is `CAL-1.0`), and a dangling or unbalanced
   value is no expression at all. Comment closers need no case of their own.
-  The tag branch and the explicit-ID path both resolve through the functions
-  JSON, TOML and INI already used (`_resolve_license_value`,
-  `synthetic_candidate`), and `_match_with_expression` was deleted as
-  redundant. `:` was added to `identifiers._RE_TOKEN`, which silently dropped
-  it. Two deliberate tightenings: a tag and its value must be on one line,
+  The tag branch and the explicit-ID path both resolve through the function
+  JSON, TOML and INI already used (`resolve_license_value`), and
+  `_match_with_expression` was deleted as redundant. An "or later" grant is
+  read before the value is read as an expression, so it qualifies the ID
+  beside it instead of looking like the OR operator. `:` was added to
+  `identifiers._RE_TOKEN`, which silently dropped it, and an identifier now
+  ends alphanumeric, so a trailing full stop is punctuation.
+  Two deliberate tightenings: a tag and its value must be on one line,
   and a bare CLI argument is read as an ID only when every part is recognised
   (`licenseid match "MIT or something"` no longer prints an invented ID at
   similarity 1.0000). Over the 1,405 fixture files the before/after run

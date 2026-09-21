@@ -199,6 +199,9 @@ SHARED_VALUES = [
     WITH_EXPRESSION,
     PLUS_WITH,
     "MIT OR NoSuch-1.0",
+    "MIT OR GPL-2.0 or later",  # a grant, not the OR operator
+    "Apache-2.0.",  # a full stop is punctuation
+    "MIT No Attribution",  # a name, not MIT with prose after it
 ]
 
 
