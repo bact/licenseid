@@ -33,7 +33,8 @@ class MarkerDetector:
 
     # No license name ends in anything but a word character or ")", so a tag
     # value can lose its comment closer or full stop before the name lookup.
-    _RE_NAME_TAIL = re.compile(r"[^\w)]+$")
+    # A "+" is kept: it is part of the expression, not punctuation.
+    _RE_NAME_TAIL = re.compile(r"[^\w)+]+$")
 
     # SPDX-License-Identifier tag. The value is the rest of the line ("[ \t]",
     # never "\s", so a tag cannot reach across a line break);

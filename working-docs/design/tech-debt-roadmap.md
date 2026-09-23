@@ -232,6 +232,24 @@ in `tests/test_matcher.py::test_match_pathological_expression_does_not_crash`.
   longest in the SPDX list is far below 40).
 - Impact 1, Risk 2, Effort 2.
 
+## 20. A grant inside an expression loses the value — Priority 9
+
+An "or later" grant ends the expression that `identifiers.leading_expression`
+reads, because the phrase sits where an operator would (`classify`
+`OR_LATER_PHRASE` is the one reader of it). A tag whose value goes on after
+the grant, such as `MIT AND GPL-2.0 or later AND Apache-2.0`, is therefore
+refused outright: answering `MIT AND GPL-2.0-or-later` would drop an operand
+and understate the obligations, so no answer is the safe reading, but the
+value does name three licenses a reader could resolve.
+
+- **Fix**: let the walk carry the grant instead of stopping at it — rewrite
+  the ID it qualifies to its `-or-later` form and go on scanning — so
+  `leading_expression` returns the expression the value means rather than a
+  prefix of it. That makes `qualify_trailing_grant` part of the walk;
+  `cli.accepts_guessed_id` then needs the end offset of what was read, not a
+  string comparison, to tell a whole argument from a cut one.
+- Impact 2, Risk 2, Effort 3.
+
 ## 12. Usage and click errors skip the stream and message rules — Priority 8
 
 Running with no subcommand prints the help text to standard output (exit 2),
@@ -292,9 +310,9 @@ statistics; no fix has been designed yet, only the problem is documented.
   score 1.0 and `is_spdx: true`, while `is-spdx` said false. The tag branch
   built a placeholder candidate for any value; the JSON, TOML and INI
   `license` fields already used a stricter rule of their own
-  (`MarkerDetector._synthetic_candidate`, now `synthetic_candidate`). The
-  tag took that same function, so every source of an expression decides
-  alike: a value with no recognised ID builds no candidate and matching
+  (`MarkerDetector._synthetic_candidate`). The tag took that same function,
+  so every source of an expression decides alike: a value with no
+  recognised ID builds no candidate and matching
   falls through to the text tiers; a valid expression (or `LicenseRef-*`)
   with at least one recognised ID is a candidate, with `is_spdx` false if
   any part is unknown; the OSI and

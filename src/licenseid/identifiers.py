@@ -7,6 +7,7 @@
 SPDX Identifier and Expression normalization and validation.
 """
 
+import bisect
 import re
 from typing import cast
 
@@ -184,26 +185,49 @@ _OPERAND_START = ("ID", "(")
 
 
 def qualify_trailing_grant(expression: str, value: str) -> str:
-    """*expression* with the bare deprecated ID it ends in replaced by the
-    form the prose after it in *value* gives.
+    """*expression* with the bare deprecated ID it ends in replaced by its
+    ``-or-later`` form, when the prose right after it in *value* grants it.
 
     "or later" is a grant, not the OR operator, and it qualifies the ID
-    beside it: "MIT OR GPL-2.0 or later" is "MIT OR GPL-2.0-or-later". The ID
-    must be the one the expression ends with, so prose elsewhere on the line
-    cannot decide the answer.
+    beside it: "MIT OR GPL-2.0 or later" is "MIT OR GPL-2.0-or-later". The
+    grant of a WITH belongs to its license, not to its exception. A version
+    number between the ID and the grant means another license stands in
+    between, so the grant is that one's, not this ID's.
     """
-    last = None
-    for last in _RE_TOKEN.finditer(expression):
-        pass
-    if last is None:
+    tokens = list(_RE_TOKEN.finditer(expression))
+    if not tokens:
         return expression
-    # Only as far as the first grant: a later one belongs to another ID.
-    text = last.group(0) + value[len(expression) :]
+    target = tokens[-1]
+    if len(tokens) >= 3 and tokens[-2].group(0).upper() == "WITH":
+        target = tokens[-3]
+    or_later = _lookup_case_insensitive(_BARE_TO_OR_LATER, target.group(0))
+    if not or_later:
+        return expression
+    # The phrase can start inside the last ID: "or later" needs the version.
+    tail = tokens[-1].group(0)
+    text = tail + value[len(expression) :]
     grant = OR_LATER_PHRASE.search(text)
-    resolved = disambiguate_deprecated_id(text[: grant.end()] if grant else text)
-    if resolved and resolved.lower().startswith(last.group(0).lower()):
-        return expression[: last.start()] + resolved
-    return expression
+    if not grant or any(c.isdigit() for c in text[len(tail) : grant.start()]):
+        return expression
+    return expression[: target.start()] + or_later + expression[target.end() :]
+
+
+def _continues_after(value: str, end: int) -> bool:
+    """Whether an expression goes on after *end*: an operator joined to what
+    stands before it by white space alone."""
+    token = _RE_TOKEN.search(value, end)
+    if token is None or _token_kind(token.group(0)) != "OP":
+        return False
+    return not value[end : token.start()].strip()
+
+
+def _grant_covering(starts: list[int], ends: list[int], pos: int) -> int | None:
+    """The end of the "or later" grant *pos* falls in, if one does. A binary
+    search, not a scan: a minified line can hold thousands of each."""
+    index = bisect.bisect_right(starts, pos) - 1
+    if index < 0 or pos >= ends[index]:
+        return None
+    return ends[index]
 
 
 def leading_expression(value: str) -> str:
@@ -218,6 +242,8 @@ def leading_expression(value: str) -> str:
     # "or any later version" is a grant, not the OR operator, and the phrase
     # can start before the "or" ("GPL-2.0 or later" needs the version).
     grants = [m.span() for m in OR_LATER_PHRASE.finditer(value)]
+    starts = [a for a, _ in grants]
+    ends = [b for _, b in grants]
     depth = 0
     expect_operand = True
     complete = None  # end of the longest complete, bracket-balanced prefix
@@ -231,7 +257,15 @@ def leading_expression(value: str) -> str:
             # Only white space separates the parts of an expression, and a
             # "+" touches the ID it follows. Anything else is prose.
             break
-        if kind == "OP" and any(a <= token.start() < b for a, b in grants):
+        grant_end = (
+            _grant_covering(starts, ends, token.start()) if kind == "OP" else None
+        )
+        if grant_end is not None:
+            # The grant qualifies the ID before it (qualify_trailing_grant),
+            # so it ends the expression. Operands after it would be lost, so
+            # a value that goes on past the grant is no evidence at all.
+            if _continues_after(value, grant_end):
+                return ""
             break
         end = token.end()
         if kind == "(":

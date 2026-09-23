@@ -82,6 +82,11 @@ def test_parentheses_and_colons(db: str, tag: str, certain_id: str | None) -> No
         # decide the answer.
         ("MIT; see COPYING for GPL-2.0 or later parts", "MIT"),
         ("Apache-2.0 - GPL-2.0 users only", "Apache-2.0"),
+        # A grant belonging to another ID on the line decides nothing.
+        ("GPL-2.0 only (see GPL-3.0 or later for the tools)", "GPL-2.0-only"),
+        # An unrecognised operand keeps its spelling; the prose after the full
+        # stop is no part of the expression.
+        ("MIT OR GPL only. See GPL-3.0 or later elsewhere", "MIT OR GPL"),
     ],
 )
 def test_prose_after_the_expression(db: str, tag: str, certain_id: str | None) -> None:
@@ -142,6 +147,12 @@ def test_a_tag_resolves_what_a_json_field_resolves(db: str, tag: str) -> None:
     assert certain(db, source_with(tag)) == "MIT"
 
 
+def test_a_name_whose_first_word_is_no_id_resolves(db: str) -> None:
+    """The name lookup, not the expression reader, answers this one: "BSD" is
+    no license, so only the whole value names BSD-3-Clause."""
+    assert certain(db, source_with("BSD 3-Clause")) == "BSD-3-Clause"
+
+
 @pytest.mark.parametrize(
     ("tag", "certain_id"),
     [
@@ -191,17 +202,27 @@ def test_only_white_space_joins_the_parts_of_an_expression(
         # decide the answer.
         ("MIT; see COPYING for GPL-2.0 or later parts", "MIT"),
         ("Apache-2.0 - GPL-2.0 users only", "Apache-2.0"),
+        # A grant belonging to another ID on the line decides nothing.
+        ("GPL-2.0 only (see GPL-3.0 or later for the tools)", "GPL-2.0-only"),
+        ("MIT OR GPL only. See GPL-3.0 or later elsewhere", "MIT OR GPL"),
         # An explicit -only ID says what the author chose; the phrase after
         # it resolves nothing.
         ("GPL-2.0-only or (at your option) any later version", "GPL-2.0-only"),
         # A grant qualifies the ID beside it, not another one on the line.
         ("GPL-2.0 AND LGPL-2.1 or later", "GPL-2.0-only AND LGPL-2.1-or-later"),
         ("MIT OR GPL-2.0 or later", "GPL-2.0-or-later OR MIT"),
-        # Three arms: the grant beside GPL-2.0 is its own, not LGPL-2.1's.
+        # The grant of a WITH belongs to its license, not to its exception.
         (
-            "MPL-1.1 OR GPL-2.0 or later OR LGPL-2.1 or later",
-            "GPL-2.0-or-later OR MPL-1.1",
+            "GPL-2.0 WITH Classpath-exception-2.0 or later",
+            "GPL-2.0-or-later WITH Classpath-exception-2.0",
         ),
+        # The words between the ID and the grant are no other license, so the
+        # grant is this ID's.
+        ("GPL-2.0 (at your option) any later version", "GPL-2.0-or-later"),
+        ("GPL-2.0, or later", "GPL-2.0-or-later"),
+        # Punctuation after the grant: the "and" is prose, so no operand is
+        # lost and the grant still answers.
+        ("GPL-2.0 or later, and also MIT", "GPL-2.0-or-later"),
     ],
 )
 def test_or_later_prose_is_read_before_the_expression(
@@ -210,6 +231,21 @@ def test_or_later_prose_is_read_before_the_expression(
     """ "or later" is prose, not the OR operator: `classify.OR_LATER_PHRASE`
     stays the one reader of it, on the tag path too."""
     assert certain(db, source_with(tag)) == certain_id
+
+
+@pytest.mark.parametrize(
+    "tag",
+    [
+        "MIT AND GPL-2.0 or later AND Apache-2.0",
+        "GPL-2.0 or later OR MIT",
+        "MPL-1.1 OR GPL-2.0 or later OR LGPL-2.1 or later",
+    ],
+)
+def test_a_grant_inside_an_expression_is_no_evidence(db: str, tag: str) -> None:
+    """A grant ends the expression, so operands after it would be dropped:
+    answering "MIT AND GPL-2.0-or-later" for a value that also names
+    Apache-2.0 understates the obligations. The value is refused instead."""
+    assert certain(db, source_with(tag)) is None
 
 
 @pytest.mark.parametrize(
@@ -230,6 +266,12 @@ def test_a_name_shared_with_a_deprecated_id_answers_with_the_current_one(
 ) -> None:
     """A deprecated ID keeps the name of the ID that replaced it."""
     assert certain(db, source_with("GNU GPL v2.0 only")) == "GPL-2.0-only"
+
+
+def test_a_plus_is_not_stripped_as_punctuation(db: str) -> None:
+    """A license whose name is its ID must not lose the "+" to the name
+    lookup: the "+" is part of the expression."""
+    assert certain(db, source_with("Artistic-1.0+")) == "Artistic-1.0+"
 
 
 def test_a_name_beats_the_expression_it_starts_with(db: str) -> None:

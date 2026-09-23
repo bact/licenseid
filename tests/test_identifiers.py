@@ -453,8 +453,17 @@ def test_leading_expression(value: str, expression: str) -> None:
 
 @pytest.mark.parametrize(
     "payload",
-    ["a" * 200000, "a " * 100000, "(" * 100000, "a OR " * 40000, "a:" * 100000],
-    ids=["one-token", "tokens", "open-parens", "operators", "colons"],
+    [
+        "a" * 200000,
+        "a " * 100000,
+        "(" * 100000,
+        "a OR " * 40000,
+        "a:" * 100000,
+        # Every operator used to be tested against every grant phrase on the
+        # line, which is quadratic in the two together.
+        "MIT OR " * 4000 + "MIT" + " any later version" * 4000,
+    ],
+    ids=["one-token", "tokens", "open-parens", "operators", "colons", "grants"],
 )
 def test_leading_expression_does_not_backtrack(payload: str) -> None:
     """One long token must not make the scan quadratic."""

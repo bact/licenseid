@@ -107,12 +107,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its value must be on one line. An "or later" grant is read as a grant, not
   as the OR operator: `MIT OR GPL-2.0 or later` is
   `GPL-2.0-or-later OR MIT` ([#61])
+- An "or later" grant qualifies the license beside it:
+  `GPL-2.0 WITH Classpath-exception-2.0 or later` is
+  `GPL-2.0-or-later WITH ...` (it was reported as `-only`, the opposite of
+  what the line grants), and words that name no other license no longer hide
+  the grant (`GPL-2.0 (at your option) any later version`). A grant in the
+  middle of an expression ends it, so a value that goes on after one
+  (`MIT AND GPL-2.0 or later AND Apache-2.0`) is no evidence rather than an
+  answer missing an operand ([#61])
 - A tag holding a license name or an SPDX URL resolves, as in a JSON
   `license` field; a name shared with a deprecated ID answers with the
   current one ([#61])
-- `match --id`, `match(license_id=...)` and `is-* --id` accept any expression
-  a tag accepts (`MIT OR Apache-2.0`, `LicenseRef-Foo`, `Apache-2.0+`). A bare
-  argument is read as an ID only when every part of it is recognised ([#61])
+- `match --id`, `match(license_id=...)` and `is-* --id` accept any value a
+  tag accepts: an expression (`MIT OR Apache-2.0`, `LicenseRef-Foo`,
+  `Apache-2.0+`), a license name or an SPDX license URL. A bare argument is a
+  guess, so it is read as an ID only when the whole of it is an expression and
+  every part of that is recognised: `MIT but modified heavily by us` is text,
+  not MIT ([#61])
 - A header granting "or any later version" in any wording (`or a later
   version`, `or newer`, `or, at your option, any later version`, or wrapped
   over comment lines) is read as `-or-later` on every path; the marker

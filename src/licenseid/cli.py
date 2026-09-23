@@ -27,6 +27,7 @@ from licenseid.dbcheck import (
     unreadable_error,
 )
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError, LicenseIdError
+from licenseid.identifiers import leading_expression
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
 from licenseid.textinput import (
@@ -308,13 +309,21 @@ def get_input_content(
     return "", False
 
 
-def accepts_guessed_id(result: LicenseDetails | LicenseMatch | None) -> bool:
+def accepts_guessed_id(
+    result: LicenseDetails | LicenseMatch | None, value: str
+) -> bool:
     """Whether a bare argument may be read as a license ID.
 
     A bare argument is a guess between an ID and text, so it takes the ID
-    reading only when every part is recognised. Every database row is an SPDX
+    reading only when every part of it is recognised. A tag value runs to the
+    end of its line and may trail off into prose, but an argument is
+    delimited: a tail means the argument is text ("BSD-3-Clause but modified
+    heavily by us" is not BSD-3-Clause). Every database row is an SPDX
     license, so is_spdx false here means the value holds an unknown part.
     """
+    value = value.strip()
+    if leading_expression(value) != value:
+        return False
     return bool(result and result["is_spdx"])
 
 
@@ -345,7 +354,7 @@ def resolve_license_record(
     if not is_text:
         # Try as ID first, as `match` does
         record = matcher.resolve_record(license_id=content)
-        if accepts_guessed_id(record):
+        if accepts_guessed_id(record, content):
             return record
 
     # Try matching as text
@@ -403,7 +412,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         if not is_text:
             # Try as ID first (Smart Logic)
             results = matcher.match(license_id=content)
-            if not accepts_guessed_id(results[0] if results else None):
+            if not accepts_guessed_id(results[0] if results else None, content):
                 # Fallback to text matching
                 results = matcher.match(text=content)
         else:

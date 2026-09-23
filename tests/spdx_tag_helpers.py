@@ -34,7 +34,8 @@ LICENSES = [
     Lic("LGPL-2.1-only", "GNU LGPL v2.1 only", True, True, True),
     Lic("LGPL-2.1-or-later", "GNU LGPL v2.1 or later", True, True, True),
     Lic("MPL-1.1", "Mozilla Public License 1.1", True, True, True),
-    Lic("Artistic-1.0", "Artistic License 1.0", True, True, False),
+    # A license whose name is its own ID, so the name lookup can shadow it.
+    Lic("Artistic-1.0", "Artistic-1.0", True, True, False),
     Lic("BSD-4-Clause", "BSD 4-Clause", True, False, True),
 ]
 EXCEPTIONS = ["Classpath-exception-2.0"]

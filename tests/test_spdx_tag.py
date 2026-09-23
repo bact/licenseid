@@ -18,16 +18,17 @@ import json
 import time
 from collections.abc import Generator
 from pathlib import Path
+from typing import cast
 
 import pytest
 from click.testing import CliRunner
 from matcher_db import PROSE, Lic, seeded_db
 from spdx_tag_helpers import Answers, answers, cli_match_id, source_with, tag_db
 
-from licenseid.cli import cli
+from licenseid.cli import accepts_guessed_id, cli
 from licenseid.identifiers import strip_plus_operator
 from licenseid.matcher import AggregatedLicenseMatcher
-from licenseid.types import LicenseMatch
+from licenseid.types import LicenseDetails, LicenseMatch
 
 
 @pytest.fixture
@@ -235,12 +236,52 @@ def test_every_source_of_a_value_gives_the_same_answer(
     assert by_id == by_tag == by_json
 
 
-def test_a_bare_argument_that_names_no_license_is_matched_as_text(db: str) -> None:
+@pytest.mark.parametrize(
+    "argument",
+    [
+        "MIT or something",  # an operator joins an unknown part
+        # A tag value may trail off into prose, but an argument is delimited:
+        # reading only the ID it starts with would answer for a value that
+        # qualifies it away.
+        "MIT but modified heavily by us",
+    ],
+)
+def test_a_bare_argument_that_names_no_license_is_matched_as_text(
+    db: str, argument: str
+) -> None:
     """A bare argument is the CLI guessing between an ID and text, so it takes
-    the ID reading only when every part is recognised."""
-    assert cli_match_id(db, "MIT or something") is None
-    result = CliRunner().invoke(cli, ["--db", db, "is-spdx", "MIT or something"])
+    the ID reading only when every part of it is recognised."""
+    assert cli_match_id(db, argument) is None
+    result = CliRunner().invoke(cli, ["--db", db, "is-spdx", argument])
     assert result.exit_code == 1
+
+
+def test_a_bare_argument_that_is_an_expression_is_read_as_one(db: str) -> None:
+    """The whole-argument rule must not reject a real expression."""
+    assert cli_match_id(db, "MIT OR Apache-2.0") == "Apache-2.0 OR MIT"
+    assert cli_match_id(db, " MIT ") == "MIT"
+
+
+@pytest.mark.parametrize(
+    ("argument", "accepted"),
+    [
+        ("MIT", True),
+        (" MIT OR Apache-2.0 ", True),
+        ("Apache-2.0+", True),
+        ("Apache-2.0 WITH Classpath-exception-2.0", True),
+        ("MIT (see LICENSE)", False),
+        ("MIT; see COPYING", False),
+        ("MPL-1.1 no copyleft exception", False),
+        ("MIT No Attribution", False),  # a name is text, not an expression
+    ],
+)
+def test_only_a_whole_expression_is_read_as_an_id(
+    argument: str, accepted: bool
+) -> None:
+    """The gate reads the argument, not the record: a value the reader had to
+    cut short is text, whatever the cut prefix resolved to."""
+    record = cast(LicenseDetails, {"is_spdx": True})
+    assert accepts_guessed_id(record, argument) is accepted
 
 
 PARTLY_KNOWN_VALUE = "MIT AND Proprietary"
