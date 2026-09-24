@@ -26,8 +26,13 @@ from licenseid.dbcheck import (
     reject_foreign_database,
     unreadable_error,
 )
-from licenseid.errors import DatabaseNotReadyError, InvalidInputError, LicenseIdError
-from licenseid.identifiers import leading_expression
+from licenseid.errors import (
+    DatabaseNotReadyError,
+    InvalidInputError,
+    LicenseIdError,
+    invalid_id_error,
+)
+from licenseid.identifiers import is_simple_expression
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
 from licenseid.textinput import (
@@ -36,7 +41,7 @@ from licenseid.textinput import (
     read_text_file,
     reject_binary,
 )
-from licenseid.types import LicenseDetails, LicenseMatch
+from licenseid.types import LicenseDetails
 
 
 def show_diff(text: str, best_window: str) -> None:
@@ -270,6 +275,17 @@ def read_input(ctx: click.Context, path: str | None) -> str:
     return text
 
 
+def reject_compound_id(ctx: click.Context, id_val: str | None) -> None:
+    """Exit with a usage error (2) if --id does not name one license.
+
+    --id is a declaration: "MIT OR Apache-2.0" declares neither license, and
+    a name or an SPDX URL is not an ID. A file's tag may still hold any of
+    them, so the reading of a file is unaffected.
+    """
+    if id_val and not is_simple_expression(id_val):
+        exit_usage_error(ctx, str(invalid_id_error("--id", id_val)))
+
+
 def reject_blank_options(ctx: click.Context, values: dict[str, str | None]) -> None:
     """Exit with a usage error (2) if an input given on the command line has
     no text, rather than skip it for the next input or match it as text."""
@@ -309,22 +325,18 @@ def get_input_content(
     return "", False
 
 
-def accepts_guessed_id(
-    result: LicenseDetails | LicenseMatch | None, value: str
-) -> bool:
-    """Whether a bare argument may be read as a license ID.
+def reads_as_id(value: str) -> bool:
+    """Whether a bare argument may be tried as a license ID.
 
-    A bare argument is a guess between an ID and text, so it takes the ID
-    reading only when every part of it is recognised. A tag value runs to the
-    end of its line and may trail off into prose, but an argument is
-    delimited: a tail means the argument is text ("BSD-3-Clause but modified
-    heavily by us" is not BSD-3-Clause). Every database row is an SPDX
-    license, so is_spdx false here means the value holds an unknown part.
+    A bare argument is a guess between an ID and text, so only a value that
+    names one license is tried as one; anything else is matched as text. A
+    tag value runs to the end of its line and may trail off into prose, but
+    an argument is delimited, so a tail means text ("BSD-3-Clause but
+    modified heavily by us" is not BSD-3-Clause). `--id` reads the same rule
+    in the other direction: it refuses what it cannot take as an ID
+    (reject_compound_id).
     """
-    value = value.strip()
-    if leading_expression(value) != value:
-        return False
-    return bool(result and result["is_spdx"])
+    return is_simple_expression(value)
 
 
 def resolve_license_record(
@@ -338,6 +350,7 @@ def resolve_license_record(
     check_database_ready(db_path)  # before input handling: report the database first
 
     reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
+    reject_compound_id(ctx, id_val)
     matcher = AggregatedLicenseMatcher(db_path)
     check_db_staleness(matcher.db)
 
@@ -351,10 +364,10 @@ def resolve_license_record(
         exit_no_input(ctx)
 
     # 3. Smart Resolution (ID -> Text)
-    if not is_text:
+    if not is_text and reads_as_id(content):
         # Try as ID first, as `match` does
         record = matcher.resolve_record(license_id=content)
-        if accepts_guessed_id(record, content):
+        if record:
             return record
 
     # Try matching as text
@@ -396,6 +409,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
     check_database_ready(db_path)  # before input handling: report the database first
     reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
+    reject_compound_id(ctx, id_val)
 
     matcher = AggregatedLicenseMatcher(db_path, enable_popularity=enable_popularity)
     check_db_staleness(matcher.db)
@@ -409,14 +423,10 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             exit_no_input(ctx)
 
         license_text = content
-        if not is_text:
-            # Try as ID first (Smart Logic)
-            results = matcher.match(license_id=content)
-            if not accepts_guessed_id(results[0] if results else None, content):
-                # Fallback to text matching
-                results = matcher.match(text=content)
-        else:
-            # Explicit text/file matching
+        results = []
+        if not is_text and reads_as_id(content):
+            results = matcher.match(license_id=content)  # try as ID first
+        if not results:
             results = matcher.match(text=content)
 
     # Filter by threshold and limit to top N

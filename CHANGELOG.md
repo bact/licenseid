@@ -96,6 +96,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `AggregatedLicenseMatcher(enable_popularity=...)` is now
   keyword-only; it took the positional slot of `enable_java`, so a positional
   `True` would have silently enabled popularity ranking ([#54])
+- A `WITH` expression is checked against the SPDX exception list alone, not
+  against this database's rows, so `<license> WITH <exception>` now matches
+  when either half is missing from the local list: the result carries
+  `is_spdx` true and neither the OSI nor the FSF flag, where it used to be no
+  match at all. A complete database answers as before ([#61])
+- **Breaking:** `--id` and `match(license_id=...)` declare one license, so
+  they take only an ID, a `LicenseRef-*`, an ID with `+` and either `WITH
+  <exception>` (`MIT`, `Apache-2.0+`, `MIT WITH Font-exception-2.0`). An
+  `AND`/`OR` expression, a license name, an SPDX URL and prose name no single
+  license: the CLI exits 2 with
+  `ERROR: option: invalid: --id: <value>; pass one license ID`, and the API
+  raises `InvalidInputError` where it used to answer or say nothing. A tag
+  and a `license` field still hold any expression, so a file is read as
+  before. To migrate, pass the ID (`GPL-2.0-or-later`, not `GPL-2.0 or
+  later`) or match the value as text ([#61])
 
 ### Fixed
 
@@ -118,12 +133,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A tag holding a license name or an SPDX URL resolves, as in a JSON
   `license` field; a name shared with a deprecated ID answers with the
   current one ([#61])
-- `match --id`, `match(license_id=...)` and `is-* --id` accept any value a
-  tag accepts: an expression (`MIT OR Apache-2.0`, `LicenseRef-Foo`,
-  `Apache-2.0+`), a license name or an SPDX license URL. A bare argument is a
-  guess, so it is read as an ID only when the whole of it is an expression and
-  every part of that is recognised: `MIT but modified heavily by us` is text,
-  not MIT ([#61])
+- `match --id`, `match(license_id=...)` and `is-* --id` accept every form of
+  a single license a tag accepts, which `LicenseRef-Foo`, `Apache-2.0+` and
+  `Apache-2.0+ WITH <exception>` were not. A bare argument is a guess, so it
+  is read as an ID under the same rule and matched as text otherwise:
+  `MIT but modified heavily by us` is text, not MIT ([#61])
 - A header granting "or any later version" in any wording (`or a later
   version`, `or newer`, `or, at your option, any later version`, or wrapped
   over comment lines) is read as `-or-later` on every path; the marker

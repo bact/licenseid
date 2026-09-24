@@ -248,11 +248,19 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   the ID and the phrase means another license stands in between, so the grant
   is that one's. A grant ends the expression, so a value that goes on after
   one (`MIT AND GPL-2.0 or later AND Apache-2.0`) is refused rather than
-  answered without the operands that follow. A bare CLI argument is a guess
-  between an ID and text, so `cli.accepts_guessed_id` takes the ID reading
-  only when the whole argument is the expression and every part of it is
-  recognised; `--id` and a tag trust the author, and their values may trail
-  off into prose.
+  answered without the operands that follow.
+- A tag and a `license` field hold whatever their author wrote, but `--id`
+  and `match(license_id=...)` declare ONE license:
+  `identifiers.is_simple_expression` is the one judge of that (an ID, a
+  `LicenseRef-*`, `+`, and either `WITH` an exception), and both entry points
+  read it — `cli.reject_compound_id` exits 2 through
+  `errors.invalid_id_error`, `matcher._try_explicit_id_match` raises. A bare
+  argument is a guess between an ID and text, so `cli.reads_as_id` tries the
+  ID reading only for a value that names one license and matches the rest as
+  text; it must be asked BEFORE calling `match(license_id=...)`, which now
+  raises rather than returning no match. Do not widen `--id` to expressions
+  again: `MIT OR Apache-2.0` declares neither license, and the flags
+  (`is-osi`, `is-fsf`) have no answer for it.
 - "or any later version" has ONE reader, `classify.OR_LATER_PHRASE`; the
   tie-breaker (`ranking`), `identifiers.disambiguate_deprecated_id` and
   `markers` import it. Add a phrasing there and to `PHRASES` in

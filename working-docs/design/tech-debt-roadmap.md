@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-24
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -283,9 +283,8 @@ statistics; no fix has been designed yet, only the problem is documented.
   and reported as a certain match for the wrong license; and its character
   class had no `:`, so `DocumentRef-x:LicenseRef-y` was cut to
   `DocumentRef-x`. Meanwhile `matcher._try_explicit_id_match` knew a database
-  row or a `<license> WITH <exception>` and nothing else, so `--id
-  "MIT OR Apache-2.0"`, `LicenseRef-Foo` and `Apache-2.0+` were no match
-  though the same values in a tag were.
+  row or a `<license> WITH <exception>` and nothing else, so `LicenseRef-Foo`
+  and `Apache-2.0+` were no match though the same values in a tag were.
   The tag value is now the rest of its line and
   `identifiers.leading_expression` decides where the expression ends: only
   AND, OR and WITH join two parts, so a token none of them bridges ends it
@@ -298,11 +297,23 @@ statistics; no fix has been designed yet, only the problem is documented.
   beside it instead of looking like the OR operator. `:` was added to
   `identifiers._RE_TOKEN`, which silently dropped it, and an identifier now
   ends alphanumeric, so a trailing full stop is punctuation.
-  Two deliberate tightenings: a tag and its value must be on one line,
-  and a bare CLI argument is read as an ID only when every part is recognised
-  (`licenseid match "MIT or something"` no longer prints an invented ID at
-  similarity 1.0000). Over the 1,405 fixture files the before/after run
-  differed nowhere. Left open: item 18 and the new item 19.
+  Item 17 was then settled the other way round (2026-09-24): `--id` is a
+  declaration of ONE license, not a second way in for expressions. It takes
+  an ID, a `LicenseRef-*`, an ID with `+` and either `WITH` an exception; an
+  `AND`/`OR` expression, a license name, an SPDX URL and prose exit 2
+  (`option: invalid: --id: <value>; pass one license ID`), where the first
+  attempt had `--id` read a tag's whole grammar and silently cut prose off
+  the end (`--id "BSD-3-Clause but modified"` answered `BSD-3-Clause`).
+  `identifiers.is_simple_expression` is the one judge of that rule, read by
+  the CLI (`reject_compound_id`) and the matcher alike. What a *file* holds
+  is unchanged: a tag and a `license` field still carry any expression.
+  Three deliberate tightenings: a tag and its value must be on one line; a
+  bare CLI argument is read as an ID only when it names one license and every
+  part is recognised (`licenseid match "MIT or something"` no longer prints
+  an invented ID at similarity 1.0000); and a 400-term chain given as an ID
+  is a usage error rather than a question for the parser, which is why item
+  19 now bites only on a tag. Over the 1,405 fixture files the before/after
+  run differed nowhere. Left open: item 18, item 19 and the new item 20.
 
 - An unknown SPDX tag reported as a certain match (item 6, Priority 15;
   2026-09-21). `SPDX-License-Identifier: NoSuchLicense-9.9` (or a typo such

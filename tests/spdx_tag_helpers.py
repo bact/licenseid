@@ -63,8 +63,16 @@ def source_with(tag: str) -> str:
 
 
 def cli_match_id(db: str, *args: str) -> str | None:
-    """The top LICENSE_ID the CLI's match prints, or None when it finds none."""
+    """The top LICENSE_ID the CLI's match prints, or None when it finds none.
+
+    A command that dies of an uncaught exception also prints nothing, and
+    CliRunner reports that as exit 1 — the same code as "no license found".
+    Fail loudly instead, so no test can read a traceback as an answer.
+    """
     result = CliRunner().invoke(cli, ["--db", db, "match", *args])
+    assert result.exception is None or isinstance(result.exception, SystemExit), (
+        result.exception
+    )
     if result.exit_code != 0:
         return None
     first_line = result.stdout.splitlines()[0]  # an ID can hold spaces

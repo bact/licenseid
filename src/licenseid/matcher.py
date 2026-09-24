@@ -13,8 +13,8 @@ from typing import Any, cast
 from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.dbcheck import check_database_ready
-from licenseid.errors import InvalidInputError
-from licenseid.identifiers import disambiguate_deprecated_id
+from licenseid.errors import InvalidInputError, invalid_id_error
+from licenseid.identifiers import disambiguate_deprecated_id, is_simple_expression
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
@@ -101,9 +101,14 @@ class AggregatedLicenseMatcher:
     def _try_explicit_id_match(self, license_id: str) -> list[LicenseMatch]:
         """Phase 1: resolve an explicit license_id argument to a match.
 
-        Through the resolver every other source of a license value uses, so
+        A declaration names one license, so a compound expression, a license
+        name and an SPDX URL are all a mistake to declare, not a value to
+        resolve; a file's tag may still hold any of them. What is left goes
+        through the resolver every other source of a license value uses, so
         an ID, a tag and a JSON field cannot answer differently.
         """
+        if not is_simple_expression(license_id):
+            raise invalid_id_error("license_id", license_id)
         return self._finalize_exact_markers(
             self.detector.resolve_license_value(license_id, 1.0)
         )

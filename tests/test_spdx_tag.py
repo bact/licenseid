@@ -18,17 +18,17 @@ import json
 import time
 from collections.abc import Generator
 from pathlib import Path
-from typing import cast
 
 import pytest
 from click.testing import CliRunner
-from matcher_db import PROSE, Lic, seeded_db
+from matcher_db import PROSE
 from spdx_tag_helpers import Answers, answers, cli_match_id, source_with, tag_db
 
-from licenseid.cli import accepts_guessed_id, cli
-from licenseid.identifiers import strip_plus_operator
+from licenseid.cli import cli
+from licenseid.errors import InvalidInputError
+from licenseid.identifiers import is_simple_expression, strip_plus_operator
 from licenseid.matcher import AggregatedLicenseMatcher
-from licenseid.types import LicenseDetails, LicenseMatch
+from licenseid.types import LicenseMatch
 
 
 @pytest.fixture
@@ -160,7 +160,8 @@ def test_a_plus_before_with_is_kept_on_every_path(db: str, tmp_path: Path) -> No
     exception_plus = "Apache-2.0 WITH Classpath-exception-2.0+"
     assert not AggregatedLicenseMatcher(db).match(license_id=exception_plus)
     with_plus = "Apache-2.0 with+ Classpath-exception-2.0"  # nor is the keyword's
-    assert not AggregatedLicenseMatcher(db).match(license_id=with_plus)
+    with pytest.raises(InvalidInputError):  # not an ID at all, so not an answer
+        AggregatedLicenseMatcher(db).match(license_id=with_plus)
     assert answers(db, PLUS_WITH, tmp_path) == Answers(PLUS_WITH, True, PLUS_WITH, True)
 
 
@@ -191,14 +192,19 @@ def test_an_expression_given_as_an_id_is_known_to_every_command(
 
 
 # The same value must get the same answer wherever it reaches the matcher.
+# Values every source may hold: one license, so `--id` takes them too.
 SHARED_VALUES = [
     "MIT",
-    "MIT OR Apache-2.0",
-    "MIT AND Apache-2.0",
     "LicenseRef-Foo",
     "Apache-2.0+",
     WITH_EXPRESSION,
     PLUS_WITH,
+]
+# Values only a file may hold: a tag and a `license` field carry whatever the
+# author wrote, but none of these names one license, so `--id` refuses them.
+FILE_ONLY_VALUES = [
+    "MIT OR Apache-2.0",
+    "MIT AND Apache-2.0",
     "MIT OR NoSuch-1.0",
     "MIT OR GPL-2.0 or later",  # a grant, not the OR operator
     "Apache-2.0.",  # a full stop is punctuation
@@ -236,6 +242,24 @@ def test_every_source_of_a_value_gives_the_same_answer(
     assert by_id == by_tag == by_json
 
 
+@pytest.mark.parametrize("value", FILE_ONLY_VALUES)
+def test_a_tag_and_a_json_field_agree_on_what_no_id_may_hold(
+    db: str, tmp_path: Path, value: str
+) -> None:
+    """A file's two sources still share one judge; only the declaration is
+    narrower, and it refuses these rather than answering differently."""
+    matcher = AggregatedLicenseMatcher(db)
+    package = tmp_path / "package.json"
+    package.write_text(
+        json.dumps({"license": value, "description": PROSE}), encoding="utf-8"
+    )
+    by_tag = flags(matcher.match(text=source_with(value))[0])
+    by_json = flags(matcher.match(file_path=str(package))[0])
+    assert by_tag == by_json
+    with pytest.raises(InvalidInputError, match="pass one license ID"):
+        matcher.match(license_id=value)
+
+
 @pytest.mark.parametrize(
     "argument",
     [
@@ -250,69 +274,89 @@ def test_a_bare_argument_that_names_no_license_is_matched_as_text(
     db: str, argument: str
 ) -> None:
     """A bare argument is the CLI guessing between an ID and text, so it takes
-    the ID reading only when every part of it is recognised."""
+    the ID reading only when it names one license. Anything else is text, and
+    text that matches nothing is "no license found" — never the usage error
+    `--id` would raise for the same value, and never a traceback."""
     assert cli_match_id(db, argument) is None
-    result = CliRunner().invoke(cli, ["--db", db, "is-spdx", argument])
-    assert result.exit_code == 1
+    for command in ("match", "is-spdx"):
+        result = CliRunner().invoke(cli, ["--db", db, command, argument])
+        assert result.exit_code == 1, command
+        assert result.exception is None or isinstance(result.exception, SystemExit)
 
 
-def test_a_bare_argument_that_is_an_expression_is_read_as_one(db: str) -> None:
-    """The whole-argument rule must not reject a real expression."""
-    assert cli_match_id(db, "MIT OR Apache-2.0") == "Apache-2.0 OR MIT"
+def test_a_bare_argument_that_names_one_license_is_read_as_an_id(db: str) -> None:
+    """The whole-argument rule must not reject a real ID."""
+    assert cli_match_id(db, "Apache-2.0 WITH Classpath-exception-2.0") == (
+        "Apache-2.0 WITH Classpath-exception-2.0"
+    )
     assert cli_match_id(db, " MIT ") == "MIT"
 
 
 @pytest.mark.parametrize(
-    ("argument", "accepted"),
+    ("value", "names_one_license"),
     [
         ("MIT", True),
-        (" MIT OR Apache-2.0 ", True),
         ("Apache-2.0+", True),
         ("Apache-2.0 WITH Classpath-exception-2.0", True),
+        ("Apache-2.0+ WITH Classpath-exception-2.0", True),
+        ("LicenseRef-Foo", True),
+        ("DocumentRef-x:LicenseRef-y", True),
+        ("mit with classpath-exception-2.0", True),  # casing is the author's
+        (" MIT OR Apache-2.0 ", False),  # two licenses, so neither is declared
+        ("MIT AND Apache-2.0", False),
+        ("(MIT)", False),
         ("MIT (see LICENSE)", False),
         ("MIT; see COPYING", False),
         ("MPL-1.1 no copyleft exception", False),
-        ("MIT No Attribution", False),  # a name is text, not an expression
+        ("MIT No Attribution", False),  # a name is not an ID
+        ("https://spdx.org/licenses/MIT", False),  # nor is a URL
+        ("GPL-2.0 or later", False),  # prose: the ID is GPL-2.0-or-later
+        ("", False),
     ],
 )
-def test_only_a_whole_expression_is_read_as_an_id(
-    argument: str, accepted: bool
+def test_only_a_value_naming_one_license_is_an_id(
+    value: str, names_one_license: bool
 ) -> None:
-    """The gate reads the argument, not the record: a value the reader had to
-    cut short is text, whatever the cut prefix resolved to."""
-    record = cast(LicenseDetails, {"is_spdx": True})
-    assert accepts_guessed_id(record, argument) is accepted
+    """What `--id` takes and what a bare argument may be read as: one ID,
+    optionally with "+" and WITH an exception. One judge for both."""
+    assert is_simple_expression(value) is names_one_license
 
 
-PARTLY_KNOWN_VALUE = "MIT AND Proprietary"
+COMPOUND_VALUE = "MIT OR Apache-2.0"
 
 
-@pytest.fixture
-def named_db() -> Generator[str, None, None]:
-    """A database holding a license whose NAME is what the text tiers find for
-    PARTLY_KNOWN_VALUE, so the two readings of it differ."""
-    yield from seeded_db(
-        "test_spdx_tag_named",
-        [
-            Lic("MIT", "MIT License", True, True, True),
-            Lic("Weird-1.0", "MIT AND Proprietary Extras", True, False, False),
-        ],
-    )
-
-
-def test_only_an_explicit_id_is_trusted_when_a_part_is_unknown(named_db: str) -> None:
-    """`--id` is a declaration, so the expression answers even though one part
-    is unknown. The same value as a bare argument is only a guess, so it falls
-    through to text matching. `match` and `is-spdx` follow the same reading."""
-    with_id = ["--id", PARTLY_KNOWN_VALUE]
-    assert cli_match_id(named_db, *with_id) == PARTLY_KNOWN_VALUE
-    assert cli_match_id(named_db, PARTLY_KNOWN_VALUE) == "Weird-1.0"
+def test_an_id_that_names_more_than_one_license_is_a_usage_error(db: str) -> None:
+    """`--id` is a declaration of one license, so a compound expression is a
+    mistake to report, not a value to resolve. The same value as a bare
+    argument is only a guess, so it falls through to text matching instead."""
     run = CliRunner()
-    assert run.invoke(cli, ["--db", named_db, "is-spdx", *with_id]).exit_code == 1
-    assert (
-        run.invoke(cli, ["--db", named_db, "is-spdx", PARTLY_KNOWN_VALUE]).exit_code
-        == 0
-    )
+    for command in ("match", "is-spdx", "is-osi"):
+        result = run.invoke(cli, ["--db", db, command, "--id", COMPOUND_VALUE])
+        assert result.exit_code == 2, command
+        assert result.stderr.splitlines()[-1] == (
+            f"ERROR: option: invalid: --id: {COMPOUND_VALUE}; pass one license ID"
+        )
+    assert run.invoke(cli, ["--db", db, "match", COMPOUND_VALUE]).exit_code == 1
+
+
+def test_a_refused_id_is_not_echoed_whole(db: str) -> None:
+    """A minified line can be declared too: the error names the value but
+    must not fill the terminal with it."""
+    result = CliRunner().invoke(cli, ["--db", db, "match", "--id", "MIT " * 500])
+    assert result.exit_code == 2
+    line = result.stderr.splitlines()[-1]
+    assert len(line) < 120 and line.endswith("...; pass one license ID")
+
+
+def test_the_api_refuses_a_license_id_that_names_more_than_one_license(
+    db: str,
+) -> None:
+    """The CLI's rule is the matcher's: `match(license_id=...)` and the
+    predicates raise rather than answer for a value that is not an ID."""
+    matcher = AggregatedLicenseMatcher(db)
+    for call in (matcher.match, matcher.is_spdx, matcher.is_osi):
+        with pytest.raises(InvalidInputError, match="pass one license ID"):
+            call(license_id=COMPOUND_VALUE)
 
 
 @pytest.mark.parametrize(

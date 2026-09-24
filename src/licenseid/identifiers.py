@@ -283,6 +283,24 @@ def leading_expression(value: str) -> str:
     return value[:complete]
 
 
+def is_simple_expression(value: str) -> bool:
+    """Whether *value* names one license: an ID (or ``LicenseRef-*``),
+    optionally with "+" and ``WITH`` an exception.
+
+    What a declaration may hold. A tag carries whatever its author wrote, but
+    "MIT OR Apache-2.0" declares neither license, and a name or an SPDX URL
+    is not an ID, so those are a mistake to declare rather than a value to
+    resolve.
+    """
+    value = value.strip()
+    if not value or leading_expression(value) != value:
+        return False
+    return not any(
+        token.group(0) in ("(", ")") or token.group(0).upper() in ("AND", "OR")
+        for token in _RE_TOKEN.finditer(value)
+    )
+
+
 def with_expression_details(
     tree: py_spdx_license.Node | None, db: LicenseDatabase
 ) -> tuple[LicenseDetails, ExceptionDetails] | None:

@@ -14,6 +14,7 @@ from typing import NamedTuple
 import pytest
 from conftest import make_memory_db_path
 
+from licenseid.errors import InvalidInputError
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.ranking import apply_version_suffix_tiebreaker
 from licenseid.types import InternalMatch
@@ -130,18 +131,23 @@ def test_match_with_expression_unknown_exception(test_db: str) -> None:
 
 
 def test_match_pathological_expression_does_not_crash(test_db: str) -> None:
-    """A very long AND-chain passed as license_id must not crash.
+    """A very long AND-chain must not crash, from either source.
 
-    py_spdx_license builds its AST with a plain recursive walk and no depth
-    guard, so a 400-term chain raises RecursionError on Python 3.10, which
-    parse_expression reads as "not an expression", while 3.14's deeper limit
-    parses it. Either way the chain is never reported as another license
-    (roadmap item 19 tracks the version-dependent cut-off).
+    As a declaration it names 400 licenses, so it is a usage error and never
+    reaches the parser. In a tag it does: py_spdx_license builds its AST with
+    a plain recursive walk and no depth guard, so the chain raises
+    RecursionError on Python 3.10, which parse_expression reads as "not an
+    expression", while 3.14's deeper limit parses it. Either way the chain is
+    never reported as another license (roadmap item 19 tracks the
+    version-dependent cut-off).
     """
     matcher = AggregatedLicenseMatcher(test_db)
     expr = " AND ".join(f"LicenseRef-{i}" for i in range(400))
 
-    assert [r["license_id"] for r in matcher.match(license_id=expr)] in ([], [expr])
+    with pytest.raises(InvalidInputError, match="pass one license ID"):
+        matcher.match(license_id=expr)
+    tagged = f"/*\n * SPDX-License-Identifier: {expr}\n */\n" + "word " * 40
+    assert [r["license_id"] for r in matcher.match(text=tagged)] in ([], [expr])
 
 
 def _tied_gpl_matches(only_score: float, or_later_score: float) -> list[InternalMatch]:
