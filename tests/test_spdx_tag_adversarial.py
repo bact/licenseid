@@ -11,8 +11,10 @@ written to catch a wrong reading or a drift back to one.
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
+import json
 import time
 from collections.abc import Generator
+from pathlib import Path
 
 import pytest
 from matcher_db import PROSE
@@ -78,7 +80,7 @@ def test_parentheses_and_colons(db: str, tag: str, certain_id: str | None) -> No
             "Apache-2.0 WITH Classpath-exception-2.0",
         ),
         ("See the LICENSE file", None),  # no ID to take from prose
-        # Prose is never normalized: a deprecated ID mentioned in it used to
+        # Prose is never normalised: a deprecated ID mentioned in it used to
         # decide the answer.
         ("MIT; see COPYING for GPL-2.0 or later parts", "MIT"),
         ("Apache-2.0 - GPL-2.0 users only", "Apache-2.0"),
@@ -125,11 +127,28 @@ def test_both_tags_on_one_line_are_read(db: str) -> None:
     assert [r["license_id"] for r in results] == ["MIT", "Apache-2.0"]
 
 
-def test_a_very_long_value_is_read_quickly(db: str) -> None:
-    """A minified line must not make the reader quadratic."""
-    tag = "MIT OR " + "a" * 40000
+@pytest.mark.parametrize(
+    "tag",
+    ["MIT OR " + "a" * 40000, "MIT" + " " * 40000 + "x", "MIT" + "-" * 40000 + "x"],
+    ids=["one-token", "spaces", "dashes"],
+)
+def test_a_very_long_value_is_read_quickly(db: str, tag: str) -> None:
+    """A minified or padded line must not make the reader quadratic: a run of
+    spaces or dashes used to cost the name lookup 6 s at this length."""
     start = time.monotonic()
     AggregatedLicenseMatcher(db).match(text=source_with(tag))
+    assert time.monotonic() - start < 5.0
+
+
+def test_a_long_license_field_is_read_quickly(db: str, tmp_path: Path) -> None:
+    """A JSON `license` value goes through the same name lookup."""
+    package = tmp_path / "package.json"
+    value = "MIT" + "-" * 40000 + "x"
+    package.write_text(
+        json.dumps({"license": value, "description": PROSE}), encoding="utf-8"
+    )
+    start = time.monotonic()
+    AggregatedLicenseMatcher(db).match(file_path=str(package))
     assert time.monotonic() - start < 5.0
 
 
@@ -211,6 +230,12 @@ def test_only_white_space_joins_the_parts_of_an_expression(
         # A grant qualifies the ID beside it, not another one on the line.
         ("GPL-2.0 AND LGPL-2.1 or later", "GPL-2.0-only AND LGPL-2.1-or-later"),
         ("MIT OR GPL-2.0 or later", "GPL-2.0-or-later OR MIT"),
+        # A closing bracket stands between the ID and its grant.
+        ("(GPL-2.0) or later", "GPL-2.0-or-later"),
+        (
+            "(GPL-2.0 WITH Classpath-exception-2.0) or later",
+            "GPL-2.0-or-later WITH Classpath-exception-2.0",
+        ),
         # The grant of a WITH belongs to its license, not to its exception.
         (
             "GPL-2.0 WITH Classpath-exception-2.0 or later",

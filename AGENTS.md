@@ -255,10 +255,10 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `LicenseRef-*`, `+`, and either `WITH` an exception), and both entry points
   read it — `cli.reject_compound_id` exits 2 through
   `errors.invalid_id_error`, `matcher._try_explicit_id_match` raises. A bare
-  argument is a guess between an ID and text, so `cli.reads_as_id` tries the
-  ID reading only for a value that names one license and matches the rest as
-  text; it must be asked BEFORE calling `match(license_id=...)`, which now
-  raises rather than returning no match. Do not widen `--id` to expressions
+  argument is a guess between an ID and text, so the CLI tries the ID reading
+  only for a value that names one license and matches the rest as text; ask
+  the predicate BEFORE calling `match(license_id=...)`, which raises rather
+  than returning no match. Do not widen `--id` to expressions
   again: `MIT OR Apache-2.0` declares neither license, and the flags
   (`is-osi`, `is-fsf`) have no answer for it.
 - "or any later version" has ONE reader, `classify.OR_LATER_PHRASE`; the

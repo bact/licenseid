@@ -256,7 +256,9 @@ class AggregatedLicenseMatcher:
         """
         Identify license text and return ranked matches.
         Must provide exactly one of text, license_id, or file_path.
-        Raises licenseid.errors.InvalidInputError: unknown option, binary file.
+        Raises licenseid.errors.InvalidInputError: unknown option, binary file,
+        or a license_id that names no single license (an AND/OR expression, a
+        license name, an SPDX URL, prose).
         """
         _reject_unknown_options(options)
         if license_id:
@@ -308,7 +310,8 @@ class AggregatedLicenseMatcher:
     ) -> LicenseDetails | None:
         """Resolve the input to the record of its top match (score 0.85 or
         more), or None. The is_*() predicates and the CLI's is-* commands both
-        answer from this, so they cannot disagree with match()."""
+        answer from this, so they cannot disagree with match(), and raise
+        what it raises."""
         results = self.match(text, license_id=license_id, file_path=file_path)
         if not results or results[0]["score"] < 0.85:
             return None
@@ -335,22 +338,28 @@ class AggregatedLicenseMatcher:
         )
 
     def is_spdx(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is in the SPDX License List."""
+        """True if the license is in the SPDX License List.
+
+        Raises what match() raises.
+        """
         record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_spdx", False)
 
     def is_osi(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is OSI-approved."""
+        """True if the license is OSI-approved. Raises what match() raises."""
         record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_osi_approved", False)
 
     def is_fsf(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is FSF-libre."""
+        """True if the license is FSF-libre. Raises what match() raises."""
         record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_fsf_libre", False)
 
     def is_open(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is OSI-approved OR FSF-libre."""
+        """True if the license is OSI-approved OR FSF-libre.
+
+        Raises what match() raises.
+        """
         record = self.resolve_record(text, **kwargs)
         if not record:
             return False

@@ -325,20 +325,6 @@ def get_input_content(
     return "", False
 
 
-def reads_as_id(value: str) -> bool:
-    """Whether a bare argument may be tried as a license ID.
-
-    A bare argument is a guess between an ID and text, so only a value that
-    names one license is tried as one; anything else is matched as text. A
-    tag value runs to the end of its line and may trail off into prose, but
-    an argument is delimited, so a tail means text ("BSD-3-Clause but
-    modified heavily by us" is not BSD-3-Clause). `--id` reads the same rule
-    in the other direction: it refuses what it cannot take as an ID
-    (reject_compound_id).
-    """
-    return is_simple_expression(value)
-
-
 def resolve_license_record(
     ctx: click.Context,
     input_val: str | None,
@@ -363,8 +349,10 @@ def resolve_license_record(
     if not content:
         exit_no_input(ctx)
 
-    # 3. Smart Resolution (ID -> Text)
-    if not is_text and reads_as_id(content):
+    # 3. Smart Resolution (ID -> Text). A bare argument is a guess, so only a
+    # value that names one license is tried as an ID (the rule --id enforces);
+    # "BSD-3-Clause but modified heavily by us" is text.
+    if not is_text and is_simple_expression(content):
         # Try as ID first, as `match` does
         record = matcher.resolve_record(license_id=content)
         if record:
@@ -424,7 +412,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
         license_text = content
         results = []
-        if not is_text and reads_as_id(content):
+        if not is_text and is_simple_expression(content):
             results = matcher.match(license_id=content)  # try as ID first
         if not results:
             results = matcher.match(text=content)

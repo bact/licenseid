@@ -36,8 +36,11 @@ def invalid_id_error(option: str, value: str) -> InvalidInputError:
     command line, ``license_id`` in the API.
 
     A minified line can be declared too, so the value is cut: one error must
-    not fill the terminal. ASCII only, because stderr may be in any encoding.
+    not fill the terminal, nor span two lines, so white space (a line break
+    included) is folded to single spaces. ASCII only, because stderr may be
+    in any encoding.
     """
+    value = " ".join(value.split())
     if len(value) > 60:
         value = value[:60] + "..."
     return InvalidInputError(f"option: invalid: {option}: {value}; pass one license ID")

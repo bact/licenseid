@@ -158,10 +158,10 @@ def test_a_plus_before_with_is_kept_on_every_path(db: str, tmp_path: Path) -> No
     assert [r["license_id"] for r in by_tag] == [PLUS_WITH]
     assert [r["license_id"] for r in by_id] == [PLUS_WITH]
     exception_plus = "Apache-2.0 WITH Classpath-exception-2.0+"
-    assert not AggregatedLicenseMatcher(db).match(license_id=exception_plus)
     with_plus = "Apache-2.0 with+ Classpath-exception-2.0"  # nor is the keyword's
-    with pytest.raises(InvalidInputError):  # not an ID at all, so not an answer
-        AggregatedLicenseMatcher(db).match(license_id=with_plus)
+    for value in (exception_plus, with_plus):  # not one license, so no answer
+        with pytest.raises(InvalidInputError):
+            AggregatedLicenseMatcher(db).match(license_id=value)
     assert answers(db, PLUS_WITH, tmp_path) == Answers(PLUS_WITH, True, PLUS_WITH, True)
 
 
@@ -311,6 +311,9 @@ def test_a_bare_argument_that_names_one_license_is_read_as_an_id(db: str) -> Non
         ("MIT No Attribution", False),  # a name is not an ID
         ("https://spdx.org/licenses/MIT", False),  # nor is a URL
         ("GPL-2.0 or later", False),  # prose: the ID is GPL-2.0-or-later
+        ("MIT WITH Classpath-exception-2.0 WITH Font-exception-2.0", False),
+        ("MIT++", False),
+        ("MIT WITH Classpath-exception-2.0+", False),  # an exception has no "+"
         ("", False),
     ],
 )
@@ -337,6 +340,15 @@ def test_an_id_that_names_more_than_one_license_is_a_usage_error(db: str) -> Non
             f"ERROR: option: invalid: --id: {COMPOUND_VALUE}; pass one license ID"
         )
     assert run.invoke(cli, ["--db", db, "match", COMPOUND_VALUE]).exit_code == 1
+
+
+def test_a_refused_id_stays_one_line(db: str) -> None:
+    """A line break in the value must not split the error into two events."""
+    result = CliRunner().invoke(cli, ["--db", db, "match", "--id", "MIT\nfoo"])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        "ERROR: option: invalid: --id: MIT foo; pass one license ID\n"
+    )
 
 
 def test_a_refused_id_is_not_echoed_whole(db: str) -> None:

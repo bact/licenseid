@@ -194,7 +194,8 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     number between the ID and the grant means another license stands in
     between, so the grant is that one's, not this ID's.
     """
-    tokens = list(_RE_TOKEN.finditer(expression))
+    # Closing brackets stand between the ID and the grant: "(GPL-2.0) or later".
+    tokens = [t for t in _RE_TOKEN.finditer(expression) if t.group(0) != ")"]
     if not tokens:
         return expression
     target = tokens[-1]
@@ -205,7 +206,7 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
         return expression
     # The phrase can start inside the last ID: "or later" needs the version.
     tail = tokens[-1].group(0)
-    text = tail + value[len(expression) :]
+    text = expression[tokens[-1].start() :] + value[len(expression) :]
     grant = OR_LATER_PHRASE.search(text)
     if not grant or any(c.isdigit() for c in text[len(tail) : grant.start()]):
         return expression
@@ -295,10 +296,20 @@ def is_simple_expression(value: str) -> bool:
     value = value.strip()
     if not value or leading_expression(value) != value:
         return False
-    return not any(
-        token.group(0) in ("(", ")") or token.group(0).upper() in ("AND", "OR")
+    shape = tuple(
+        "WITH" if token.group(0).upper() == "WITH" else _token_kind(token.group(0))
         for token in _RE_TOKEN.finditer(value)
     )
+    return shape in _SIMPLE_SHAPES
+
+
+# An ID, then at most one "+", then at most one WITH an exception.
+_SIMPLE_SHAPES = (
+    ("ID",),
+    ("ID", "+"),
+    ("ID", "WITH", "ID"),
+    ("ID", "+", "WITH", "ID"),
+)
 
 
 def with_expression_details(

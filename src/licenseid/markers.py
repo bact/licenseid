@@ -31,10 +31,19 @@ class MarkerDetector:
     License metadata fields, and headings.
     """
 
-    # No license name ends in anything but a word character or ")", so a tag
-    # value can lose its comment closer or full stop before the name lookup.
-    # A "+" is kept: it is part of the expression, not punctuation.
-    _RE_NAME_TAIL = re.compile(r"[^\w)+]+$")
+    @staticmethod
+    def _without_name_tail(value: str) -> str:
+        """*value* without its comment closer or full stop, for the name lookup.
+
+        No license name ends in anything but a word character or ")", and a
+        "+" is part of the expression, not punctuation. A backward scan, not
+        the regex "[^\\w)+]+$": that retries a long run of spaces or dashes
+        from every start and is quadratic (6 s at 40,000 characters).
+        """
+        end = len(value)
+        while end and not (value[end - 1].isalnum() or value[end - 1] in "_)+"):
+            end -= 1
+        return value[:end]
 
     # SPDX-License-Identifier tag. The value is the rest of the line ("[ \t]",
     # never "\s", so a tag cannot reach across a line break);
@@ -209,7 +218,7 @@ class MarkerDetector:
 
         val = val.strip()
         # A value runs to the end of its line and can trail off into prose, so
-        # only the expression it starts with is normalized: normalizing the
+        # only the expression it starts with is normalised: normalising the
         # whole line would let disambiguate_deprecated_id read an ID out of
         # the prose. The name lookup still sees the whole value ("BSD 3-Clause"
         # is a name, not an expression).
@@ -217,7 +226,7 @@ class MarkerDetector:
         lic_id = normalize_identifier(expression, self.db)
         # The name comes first: the expression can be a prefix of the value,
         # and "MIT No Attribution" is MIT-0, not MIT.
-        named = self.db.get_license_by_name(self._RE_NAME_TAIL.sub("", val))
+        named = self.db.get_license_by_name(self._without_name_tail(val))
         if named and named["is_deprecated"]:
             # A deprecated ID keeps the name of the ID that replaced it.
             current = normalize_identifier(named["license_id"], self.db)
