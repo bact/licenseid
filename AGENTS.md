@@ -226,13 +226,41 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   path and avoids an import cycle). Do not import `licenseid.__version__`
   at module level in `spdx_source.py`.
 - Text extracted from `[`/`{`-starting input with no extension is tried as
-  JSON first and falls through to TOML/INI. A synthetic marker candidate for
-  an expression comes from one function, `MarkerDetector._synthetic_candidate`
-  (SPDX tag, JSON, TOML and INI alike): only for a valid SPDX expression or
+  JSON first and falls through to TOML/INI. Every source of a license value
+  (SPDX tag, JSON, TOML, INI and an explicit `license_id`) resolves through
+  one function, `MarkerDetector.resolve_license_value`, and every expression
+  through `_synthetic_candidate`: a candidate only for a valid SPDX expression or
   `LicenseRef-*` with at least one recognised ID, never for free text or an
   unknown ID. `is_*()` and the CLI's `is-*` commands answer from
   `matcher.resolve_record`, so they agree with `match`; do not look a record
   up in the database on the side.
+- An `SPDX-License-Identifier` tag value is the rest of its line (`[ \t]`,
+  never `\s`, so a tag cannot reach across a line break), and
+  `identifiers.leading_expression` decides where the expression in it ends:
+  only AND, OR and WITH join two parts, so a token none of them bridges ends
+  it, and a dangling or unbalanced value is no expression at all. Do not
+  write the SPDX grammar into a regex again; comment closers need no case of
+  their own. Only white space joins the parts of an expression, and an
+  "or later" grant qualifies the license beside it (`identifiers`
+  `qualify_trailing_grant`, still through `classify.OR_LATER_PHRASE`), so
+  `MIT OR GPL-2.0 or later` is `GPL-2.0-or-later OR MIT` and the grant of a
+  WITH belongs to its license, not its exception. A version number between
+  the ID and the phrase means another license stands in between, so the grant
+  is that one's. A grant ends the expression, so a value that goes on after
+  one (`MIT AND GPL-2.0 or later AND Apache-2.0`) is refused rather than
+  answered without the operands that follow.
+- A tag and a `license` field hold whatever their author wrote, but `--id`
+  and `match(license_id=...)` declare ONE license:
+  `identifiers.is_simple_expression` is the one judge of that (an ID, a
+  `LicenseRef-*`, `+`, and either `WITH` an exception), and both entry points
+  read it — `cli.reject_compound_id` exits 2 through
+  `errors.invalid_id_error`, `matcher._try_explicit_id_match` raises. A bare
+  argument is a guess between an ID and text, so the CLI tries the ID reading
+  only for a value that names one license and matches the rest as text; ask
+  the predicate BEFORE calling `match(license_id=...)`, which raises rather
+  than returning no match. Do not widen `--id` to expressions
+  again: `MIT OR Apache-2.0` declares neither license, and the flags
+  (`is-osi`, `is-fsf`) have no answer for it.
 - "or any later version" has ONE reader, `classify.OR_LATER_PHRASE`; the
   tie-breaker (`ranking`), `identifiers.disambiguate_deprecated_id` and
   `markers` import it. Add a phrasing there and to `PHRASES` in

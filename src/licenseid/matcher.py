@@ -13,14 +13,8 @@ from typing import Any, cast
 from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.dbcheck import check_database_ready
-from licenseid.errors import InvalidInputError
-from licenseid.identifiers import (
-    disambiguate_deprecated_id,
-    normalize_identifier,
-    parse_expression,
-    strip_plus_operator,
-    with_expression_details,
-)
+from licenseid.errors import InvalidInputError, invalid_id_error
+from licenseid.identifiers import disambiguate_deprecated_id, is_simple_expression
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
@@ -105,25 +99,19 @@ class AggregatedLicenseMatcher:
         self.enable_popularity = enable_popularity
 
     def _try_explicit_id_match(self, license_id: str) -> list[LicenseMatch]:
-        """Phase 1: resolve an explicit license_id argument to a match."""
-        license_id = normalize_identifier(license_id, self.db)
-        details = self.db.get_license_details(license_id)
-        if details:
-            return [
-                LicenseMatch(
-                    license_id=details["license_id"],
-                    score=1.0,
-                    similarity=1.0,
-                    coverage=1.0,
-                    is_spdx=details["is_spdx"],
-                    is_osi_approved=details["is_osi_approved"],
-                    is_fsf_libre=details["is_fsf_libre"],
-                )
-            ]
-        with_match = self._match_with_expression(license_id)
-        if with_match:
-            return [with_match]
-        return []
+        """Phase 1: resolve an explicit license_id argument to a match.
+
+        A declaration names one license, so a compound expression, a license
+        name and an SPDX URL are all a mistake to declare, not a value to
+        resolve; a file's tag may still hold any of them. What is left goes
+        through the resolver every other source of a license value uses, so
+        an ID, a tag and a JSON field cannot answer differently.
+        """
+        if not is_simple_expression(license_id):
+            raise invalid_id_error("license_id", license_id)
+        return self._finalize_exact_markers(
+            self.detector.resolve_license_value(license_id, 1.0)
+        )
 
     def _resolve_target_text(self, text: str | None, file_path: str | None) -> str:
         """Phase 2: read file_path as the CLI reads a file, or use the text."""
@@ -268,7 +256,9 @@ class AggregatedLicenseMatcher:
         """
         Identify license text and return ranked matches.
         Must provide exactly one of text, license_id, or file_path.
-        Raises licenseid.errors.InvalidInputError: unknown option, binary file.
+        Raises licenseid.errors.InvalidInputError: unknown option, binary file,
+        or a license_id that names no single license (an AND/OR expression, a
+        license name, an SPDX URL, prose).
         """
         _reject_unknown_options(options)
         if license_id:
@@ -311,42 +301,6 @@ class AggregatedLicenseMatcher:
 
         return cast(list[LicenseMatch], ranked)
 
-    def _match_with_expression(self, license_id: str) -> LicenseMatch | None:
-        """Resolve a bare ``<license> WITH <exception>`` expression.
-
-        The ``licenses`` table only has rows for plain license IDs (plus a
-        handful of legacy hardcoded compound IDs), so a well-formed but
-        otherwise unseen expression like ``MIT WITH Font-exception-2.0``
-        would not be found by a direct ``get_license_details`` lookup even
-        though it is perfectly valid. Parse it structurally, then validate
-        each half against this project's own (live-downloaded) license and
-        exception tables.
-
-        A ``+`` after the license is kept (``Apache-2.0+ WITH X``); one after
-        the exception or the word ``WITH`` makes it no match. An input
-        that does not parse (see identifiers.parse_expression) is not a WITH
-        match.
-        """
-        without_plus = strip_plus_operator(license_id)
-        details = with_expression_details(parse_expression(without_plus), self.db)
-        if not details:
-            return None
-        lic_details, exc_details = details
-
-        plus = "+" if without_plus != license_id else ""
-        combined_id = (
-            f"{lic_details['license_id']}{plus} WITH {exc_details['exception_id']}"
-        )
-        return LicenseMatch(
-            license_id=combined_id,
-            score=1.0,
-            similarity=1.0,
-            coverage=1.0,
-            is_spdx=lic_details["is_spdx"],
-            is_osi_approved=lic_details["is_osi_approved"],
-            is_fsf_libre=lic_details["is_fsf_libre"],
-        )
-
     def resolve_record(
         self,
         text: str | None = None,
@@ -356,7 +310,8 @@ class AggregatedLicenseMatcher:
     ) -> LicenseDetails | None:
         """Resolve the input to the record of its top match (score 0.85 or
         more), or None. The is_*() predicates and the CLI's is-* commands both
-        answer from this, so they cannot disagree with match()."""
+        answer from this, so they cannot disagree with match(), and raise
+        what it raises."""
         results = self.match(text, license_id=license_id, file_path=file_path)
         if not results or results[0]["score"] < 0.85:
             return None
@@ -366,9 +321,8 @@ class AggregatedLicenseMatcher:
         if record:
             return record
 
-        # Composite "license WITH exception" matches aren't a single DB
-        # row (see _match_with_expression) — fall back to the flags match()
-        # already computed rather than reporting "unknown".
+        # An expression (a WITH, an OR, a LicenseRef) is not a single DB row:
+        # fall back to the flags match() already computed, not "unknown".
         return cast(
             LicenseDetails,
             {
@@ -384,22 +338,28 @@ class AggregatedLicenseMatcher:
         )
 
     def is_spdx(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is in the SPDX License List."""
+        """True if the license is in the SPDX License List.
+
+        Raises what match() raises.
+        """
         record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_spdx", False)
 
     def is_osi(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is OSI-approved."""
+        """True if the license is OSI-approved. Raises what match() raises."""
         record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_osi_approved", False)
 
     def is_fsf(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is FSF-libre."""
+        """True if the license is FSF-libre. Raises what match() raises."""
         record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_fsf_libre", False)
 
     def is_open(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is OSI-approved OR FSF-libre."""
+        """True if the license is OSI-approved OR FSF-libre.
+
+        Raises what match() raises.
+        """
         record = self.resolve_record(text, **kwargs)
         if not record:
             return False

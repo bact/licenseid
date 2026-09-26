@@ -7,6 +7,7 @@
 SPDX Identifier and Expression normalization and validation.
 """
 
+import bisect
 import re
 from typing import cast
 
@@ -88,12 +89,19 @@ _BARE_TO_OR_LATER: dict[str, str] = {
 # AFTER the ID to avoid false positives from unrelated uses.
 _RE_ONLY = re.compile(r"\bonly\b", re.IGNORECASE)
 
+# An identifier starts and ends alphanumeric, so a trailing full stop is
+# punctuation, not part of it. A ":" joins two identifiers
+# (DocumentRef-x:LicenseRef-y is one ID) and is nothing on its own. "_" is no
+# part of an SPDX ID but is part of a word, so "and_mask" stays one token
+# instead of becoming the AND operator.
+_ID_WORD = r"[a-zA-Z0-9]+(?:[._-]+[a-zA-Z0-9]+)*"
 _RE_TOKEN = re.compile(
     r"\(|\)"
-    r"|(?<![a-zA-Z0-9.-])(?:AND|OR|WITH)(?![a-zA-Z0-9.-])"
-    r"|\+|[a-zA-Z0-9.-]+",
+    r"|(?<![a-zA-Z0-9._:-])(?:AND|OR|WITH)(?![a-zA-Z0-9._:-])"
+    rf"|\+|{_ID_WORD}(?::{_ID_WORD})*",
     re.IGNORECASE,
 )
+_OPERATORS = ("AND", "OR", "WITH")
 
 
 def _lookup_case_insensitive(mapping: dict[str, str], key: str) -> str | None:
@@ -163,6 +171,145 @@ def strip_plus_operator(expression: str) -> str:
         return match.group("id")
 
     return _RE_PLUS_OPERATOR.sub(drop, expression)
+
+
+def _token_kind(text: str) -> str:
+    """Which part of an expression a token can be."""
+    if text in ("(", ")", "+"):
+        return text
+    return "OP" if text.upper() in _OPERATORS else "ID"
+
+
+# What may stand where an operand is expected; everything else follows one.
+_OPERAND_START = ("ID", "(")
+
+
+def qualify_trailing_grant(expression: str, value: str) -> str:
+    """*expression* with the bare deprecated ID it ends in replaced by its
+    ``-or-later`` form, when the prose right after it in *value* grants it.
+
+    "or later" is a grant, not the OR operator, and it qualifies the ID
+    beside it: "MIT OR GPL-2.0 or later" is "MIT OR GPL-2.0-or-later". The
+    grant of a WITH belongs to its license, not to its exception. A version
+    number between the ID and the grant means another license stands in
+    between, so the grant is that one's, not this ID's.
+    """
+    # Closing brackets stand between the ID and the grant: "(GPL-2.0) or later".
+    tokens = [t for t in _RE_TOKEN.finditer(expression) if t.group(0) != ")"]
+    if not tokens:
+        return expression
+    target = tokens[-1]
+    if len(tokens) >= 3 and tokens[-2].group(0).upper() == "WITH":
+        target = tokens[-3]
+    or_later = _lookup_case_insensitive(_BARE_TO_OR_LATER, target.group(0))
+    if not or_later:
+        return expression
+    # The phrase can start inside the last ID: "or later" needs the version.
+    tail = tokens[-1].group(0)
+    text = expression[tokens[-1].start() :] + value[len(expression) :]
+    grant = OR_LATER_PHRASE.search(text)
+    if not grant or any(c.isdigit() for c in text[len(tail) : grant.start()]):
+        return expression
+    return expression[: target.start()] + or_later + expression[target.end() :]
+
+
+def _continues_after(value: str, end: int) -> bool:
+    """Whether an expression goes on after *end*: an operator joined to what
+    stands before it by white space alone."""
+    token = _RE_TOKEN.search(value, end)
+    if token is None or _token_kind(token.group(0)) != "OP":
+        return False
+    return not value[end : token.start()].strip()
+
+
+def _grant_covering(starts: list[int], ends: list[int], pos: int) -> int | None:
+    """The end of the "or later" grant *pos* falls in, if one does. A binary
+    search, not a scan: a minified line can hold thousands of each."""
+    index = bisect.bisect_right(starts, pos) - 1
+    if index < 0 or pos >= ends[index]:
+        return None
+    return ends[index]
+
+
+def leading_expression(value: str) -> str:
+    """The longest prefix of *value* that can still be an SPDX expression.
+
+    A tag runs to the end of its line, so its value can trail off into prose
+    ("CAL-1.0 Licensed under the ..."). Only AND, OR and WITH join two parts,
+    so a token none of them bridges ends the expression. A value that ends
+    dangling, or with unbalanced brackets, is no expression at all: answering
+    with a shorter prefix of one would name a license the value does not.
+    """
+    # "or any later version" is a grant, not the OR operator, and the phrase
+    # can start before the "or" ("GPL-2.0 or later" needs the version).
+    grants = [m.span() for m in OR_LATER_PHRASE.finditer(value)]
+    starts = [a for a, _ in grants]
+    ends = [b for _, b in grants]
+    depth = 0
+    expect_operand = True
+    complete = None  # end of the longest complete, bracket-balanced prefix
+    end = 0
+    for token in _RE_TOKEN.finditer(value):
+        kind = _token_kind(token.group(0))
+        if expect_operand != (kind in _OPERAND_START):
+            break
+        gap = value[end : token.start()]
+        if gap.strip() or (kind == "+" and gap):
+            # Only white space separates the parts of an expression, and a
+            # "+" touches the ID it follows. Anything else is prose.
+            break
+        grant_end = (
+            _grant_covering(starts, ends, token.start()) if kind == "OP" else None
+        )
+        if grant_end is not None:
+            # The grant qualifies the ID before it (qualify_trailing_grant),
+            # so it ends the expression. Operands after it would be lost, so
+            # a value that goes on past the grant is no evidence at all.
+            if _continues_after(value, grant_end):
+                return ""
+            break
+        end = token.end()
+        if kind == "(":
+            depth += 1
+        elif kind == ")":
+            if not depth:
+                break
+            depth -= 1
+        if kind in ("ID", "OP"):
+            expect_operand = kind == "OP"
+        if not depth and not expect_operand:
+            complete = token.end()
+    if expect_operand or depth or complete is None:
+        return ""
+    return value[:complete]
+
+
+def is_simple_expression(value: str) -> bool:
+    """Whether *value* names one license: an ID (or ``LicenseRef-*``),
+    optionally with "+" and ``WITH`` an exception.
+
+    What a declaration may hold. A tag carries whatever its author wrote, but
+    "MIT OR Apache-2.0" declares neither license, and a name or an SPDX URL
+    is not an ID, so those are a mistake to declare rather than a value to
+    resolve.
+    """
+    value = value.strip()
+    if not value or leading_expression(value) != value:
+        return False
+    shape = tuple(
+        "WITH" if token.group(0).upper() == "WITH" else _token_kind(token.group(0))
+        for token in _RE_TOKEN.finditer(value)
+    )
+    return shape in _SIMPLE_SHAPES
+
+
+# An ID, then at most one "+", then at most one WITH an exception.
+_SIMPLE_SHAPES = (
+    ("ID",),
+    ("ID", "+"),
+    ("ID", "WITH", "ID"),
+    ("ID", "+", "WITH", "ID"),
+)
 
 
 def with_expression_details(
@@ -378,7 +525,7 @@ def _is_expression(identifier: str) -> bool:
     (or reduced to "") by ``_normalize_expression``.
     """
     return any(
-        token in ("(", ")", "+") or token.upper() in ("AND", "OR", "WITH")
+        token in ("(", ")", "+") or token.upper() in _OPERATORS
         for token in _tokenize_expression(identifier)
     )
 
@@ -407,7 +554,7 @@ def _normalize_expression(expression: str, db: LicenseDatabase | None = None) ->
     prev_upper = ""
     for token in combined_tokens:
         upper_token = token.upper()
-        if upper_token in ("AND", "OR", "WITH"):
+        if upper_token in _OPERATORS:
             normalized_tokens.append(upper_token)
         elif token in ("(", ")"):
             normalized_tokens.append(token)
@@ -432,7 +579,7 @@ def _normalize_expression(expression: str, db: LicenseDatabase | None = None) ->
         else:
             expr += " " + part
 
-    operator_count = sum(1 for t in normalized_tokens if t in ("AND", "OR", "WITH"))
+    operator_count = sum(1 for t in normalized_tokens if t in _OPERATORS)
     if operator_count > _MAX_CANONICALIZE_OPERATORS:
         return expr
 

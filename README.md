@@ -47,6 +47,10 @@ No database daemon or server needed.
     SPDX exception list, not just the license list — e.g.
     `licenseid match --id "MIT WITH Font-exception-2.0"` resolves correctly
     even though it isn't a single license row.
+  - A `SPDX-License-Identifier` tag, and the `license` field of a JSON, TOML
+    or INI file, are read as whole expressions, parentheses, `LicenseRef-*`
+    and all: `MIT OR (Apache-2.0 AND BSD-3-Clause)` in a file resolves to
+    one answer. `--id` is narrower on purpose — see below.
 
 [py-spdx-license]: https://github.com/JPEWdev/py-spdx-license
 
@@ -113,8 +117,16 @@ Common options:
 - `--db <path>`: Use a custom database path (global option).
   Supports SQLite URIs for in-memory databases
   (e.g., `file:test?mode=memory&cache=shared`).
-- `--id <id>`: Explicitly treat input as an SPDX License ID
-  (bypasses file/text matching).
+- `--id <id>`: Explicitly treat input as one SPDX License ID (bypasses
+  file/text matching). It declares a single license, so it takes an ID, a
+  `LicenseRef-*`, an ID with `+`, and either `WITH <exception>`:
+  `MIT`, `Apache-2.0+`, `MIT WITH Font-exception-2.0`. It does not take an
+  `AND`/`OR` expression, a license name, an SPDX URL or prose — those name
+  no single license, so they exit 2 with
+  `ERROR: option: invalid: --id: <value>; pass one license ID`. A file's tag
+  may still hold any expression. A bare argument is a guess between an ID
+  and text, so it is read as an ID under the same rule and matched as text
+  otherwise: `MIT but modified heavily by us` is text, not MIT.
 - `--text <text>`: Match the given text. Backslash escapes such as `\n`,
   `\t` and `\u00e9` are decoded, so write `\\` for a literal backslash
   (for example in a Windows path).

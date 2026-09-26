@@ -96,9 +96,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `AggregatedLicenseMatcher(enable_popularity=...)` is now
   keyword-only; it took the positional slot of `enable_java`, so a positional
   `True` would have silently enabled popularity ranking ([#54])
+- A `WITH` expression is checked against the SPDX exception list alone, not
+  against this database's rows, so `<license> WITH <exception>` now matches
+  when either half is missing from the local list: the result carries
+  `is_spdx` true and neither the OSI nor the FSF flag, where it used to be no
+  match at all. A complete database answers as before ([#61])
+- **Breaking:** `--id` and `match(license_id=...)` declare one license, so
+  they take only an ID, a `LicenseRef-*`, an ID with `+` and either `WITH
+  <exception>` (`MIT`, `Apache-2.0+`, `MIT WITH Font-exception-2.0`). An
+  `AND`/`OR` expression, a license name, an SPDX URL and prose name no single
+  license: the CLI exits 2 with
+  `ERROR: option: invalid: --id: <value>; pass one license ID`, and the API
+  raises `InvalidInputError` where it used to answer or say nothing. A tag
+  and a `license` field still hold any expression, so a file is read as
+  before. To migrate, pass the ID (`GPL-2.0-or-later`, not `GPL-2.0 or
+  later`) or match the value as text ([#61])
 
 ### Fixed
 
+- An `SPDX-License-Identifier` tag is read as one expression:
+  `(MIT OR Apache-2.0)` and `DocumentRef-x:LicenseRef-y` were dropped or cut
+  short, and a cut-short value could be a certain match for the wrong
+  license. Prose after the expression is ignored, an unbalanced or dangling
+  value is no evidence, a `+` after a space is not "or later", and a tag and
+  its value must be on one line. An "or later" grant is read as a grant, not
+  as the OR operator: `MIT OR GPL-2.0 or later` is
+  `GPL-2.0-or-later OR MIT` ([#61])
+- An "or later" grant qualifies the license beside it:
+  `GPL-2.0 WITH Classpath-exception-2.0 or later` is
+  `GPL-2.0-or-later WITH ...` (it was reported as `-only`, the opposite of
+  what the line grants), and words that name no other license no longer hide
+  the grant (`GPL-2.0 (at your option) any later version`). A grant in the
+  middle of an expression ends it, so a value that goes on after one
+  (`MIT AND GPL-2.0 or later AND Apache-2.0`) is no evidence rather than an
+  answer missing an operand ([#61])
+- A tag holding a license name or an SPDX URL resolves, as in a JSON
+  `license` field; a name shared with a deprecated ID answers with the
+  current one ([#61])
+- `match --id`, `match(license_id=...)` and `is-* --id` accept every form of
+  a single license a tag accepts, which `LicenseRef-Foo`, `Apache-2.0+` and
+  `Apache-2.0+ WITH <exception>` were not. A bare argument is a guess, so it
+  is read as an ID under the same rule and matched as text otherwise:
+  `MIT but modified heavily by us` is text, not MIT ([#61])
 - A header granting "or any later version" in any wording (`or a later
   version`, `or newer`, `or, at your option, any later version`, or wrapped
   over comment lines) is read as `-or-later` on every path; the marker
@@ -168,6 +207,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#58]: https://github.com/bact/licenseid/pull/58
 [#59]: https://github.com/bact/licenseid/pull/59
 [#60]: https://github.com/bact/licenseid/pull/60
+[#61]: https://github.com/bact/licenseid/pull/61
 
 ## [0.3.7] - 2026-08-20
 

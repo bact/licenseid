@@ -317,11 +317,11 @@ def test_json_deep_nesting_does_not_crash(
     assert not detector._detect_structured_format(text, ext)
 
 
-# --- _resolve_license_value (callee) ---
+# --- resolve_license_value (callee) ---
 
 
 def test_resolve_spdx_url(detector: MarkerDetector) -> None:
-    result = detector._resolve_license_value("https://spdx.org/licenses/MIT/", 0.9)
+    result = detector.resolve_license_value("https://spdx.org/licenses/MIT/", 0.9)
     assert _summary(result) == [("MIT", 0.9)]
 
 
@@ -343,7 +343,7 @@ def test_resolve_unrecognised_value_returns_nothing(
 ) -> None:
     """Regression: arbitrary text used to become a phantom candidate with
     is_spdx=True at a fixed high score."""
-    assert not detector._resolve_license_value(value, 0.95)
+    assert not detector.resolve_license_value(value, 0.95)
 
 
 @pytest.mark.parametrize(
@@ -361,7 +361,7 @@ def test_resolve_valid_expression_or_licenseref_yields_synthetic_candidate(
 ) -> None:
     """Well-formed values with no DB row are kept as synthetic candidates;
     is_spdx is False if any part of the expression is unknown."""
-    result = detector._resolve_license_value(value, 0.95)
+    result = detector.resolve_license_value(value, 0.95)
     assert len(result) == 1
     assert result[0]["license_id"] == expected_id
     assert result[0]["is_spdx"] is is_spdx
@@ -373,4 +373,4 @@ def test_resolve_valid_expression_or_licenseref_yields_synthetic_candidate(
 def test_resolve_blank_value_returns_nothing(
     detector: MarkerDetector, value: str
 ) -> None:
-    assert not detector._resolve_license_value(value, 0.95)
+    assert not detector.resolve_license_value(value, 0.95)
