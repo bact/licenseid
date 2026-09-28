@@ -323,6 +323,7 @@ def test_normalize_expression_skips_canonicalization_when_large() -> None:
 def test_outer_brackets_never_reach_the_answer(
     db: LicenseDatabase, expression: str, expected: str
 ) -> None:
+    """One answer however many brackets wrap it, sorted or not."""
     assert normalize_identifier(expression, db) == expected
 
 
