@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -49,6 +49,11 @@ yet started, see [`../design/`](../design/).
   behind it (blocking named pipes, path and URI spellings, `mode=ro` and
   WAL, foreign table names) are in
   [database-readiness-gate.md](database-readiness-gate.md).
+- **SPDX expressions** (PR #61, 2026-09-28): one reader
+  (`identifiers.leading_expression`), one resolver
+  (`MarkerDetector.resolve_license_value`) and one judge of what `--id` may
+  hold (`identifiers.is_simple_expression`); see
+  [spdx-expression-reading.md](spdx-expression-reading.md).
 - **Known deferred work**: probe-anchored windowing (reusing the existing
   probe's match location instead of a full realignment scan) — flagged
   but deliberately not attempted; see
@@ -68,6 +73,7 @@ yet started, see [`../design/`](../design/).
 | 2026-07-20 | [speed-optimizations-round-2.md](speed-optimizations-round-2.md) | implemented | Profile-driven sweep: DB index on `licenses.name`, removed redundant lookups, lazy imports, instance-level metadata caching, `mmap_size` pragma. One change (`score_cutoff` on `partial_ratio_alignment`) was tried and reverted — see its "Rejected" section. CLI cold start ~125ms → ~31ms. |
 | 2026-09-18 | [data-fetching-and-caching.md](data-fetching-and-caching.md) | implemented (PR #51) | Third-party fetching in `spdx_source.py`: gentle requests, fallback order (`--no-cache` never uses stale data), atomic caches, version validation, safe tar extraction, self-healing corrupt caches, non-silent fallbacks; test patterns and traps. |
 | 2026-09-20 | [database-readiness-gate.md](database-readiness-gate.md) | implemented (PR #55) | The readiness gate and the write/delete guard: fail-open on read, fail-closed on write, the `unknown` condition between them; SQLite URI, path-spelling and file-type traps; test and process anti-patterns found over four review rounds. |
+| 2026-09-28 | [spdx-expression-reading.md](spdx-expression-reading.md) | implemented (PR #61) | A tag's whole expression, `--id` narrowed to one license, "or later" as a grant; quadratic paths each fix added, timing against `main`, the slow deep parse on Python 3.10. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

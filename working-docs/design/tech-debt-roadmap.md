@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-24
+Last-Modified: 2026-09-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -225,6 +225,9 @@ Python 3.10 (read as "not an expression", no match) and parses on 3.14 (a
 match). The cut-off is wherever the recursion limit falls, so the same file
 can answer differently on two supported versions. Pinned as "either answer"
 in `tests/test_matcher.py::test_match_pathological_expression_does_not_crash`.
+A parse that fails this deep is also slow on 3.10: a deep-bracket test took
+5.3 s on CI's 3.10 and passed on 3.14 (PR #61, where brackets around the
+whole expression are now dropped before the parser sees them).
 
 - **Fix**: cap the operator count before parsing, as
   `_MAX_CANONICALIZE_OPERATORS` already caps canonicalisation, so the
@@ -246,8 +249,8 @@ value does name three licenses a reader could resolve.
   the ID it qualifies to its `-or-later` form and go on scanning — so
   `leading_expression` returns the expression the value means rather than a
   prefix of it. That makes `qualify_trailing_grant` part of the walk;
-  `cli.accepts_guessed_id` then needs the end offset of what was read, not a
-  string comparison, to tell a whole argument from a cut one.
+  `is_simple_expression` then needs the end offset of what was read, not a
+  string comparison, to tell a whole value from a cut one.
 - Impact 2, Risk 2, Effort 3.
 
 ## 12. Usage and click errors skip the stream and message rules — Priority 8

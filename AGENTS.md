@@ -234,8 +234,9 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   unknown ID. `is_*()` and the CLI's `is-*` commands answer from
   `matcher.resolve_record`, so they agree with `match`; do not look a record
   up in the database on the side.
-- An `SPDX-License-Identifier` tag value is the rest of its line (`[ \t]`,
-  never `\s`, so a tag cannot reach across a line break), and
+- An `SPDX-License-Identifier` tag value is the rest of its line, up to the
+  next tag on it (`[ \t]`, never `\s`, so a tag cannot reach across a line
+  break), and
   `identifiers.leading_expression` decides where the expression in it ends:
   only AND, OR and WITH join two parts, so a token none of them bridges ends
   it, and a dangling or unbalanced value is no expression at all. Do not
@@ -306,6 +307,15 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   findings. Diff any snapshot against the working tree first.
 - Details and the rest of the findings from PR #55:
   `working-docs/implementation/database-readiness-gate.md`.
+- A fix to input reading can add the next quadratic path: a loop that
+  re-slices or rescans its input once per item (`s = s[1:-1]` per bracket,
+  a whole line per tag). Time a change against `main`, not against the
+  branch, with distinct values (a dedupe hides the per-item cost) and
+  balanced payloads (unbalanced ones fail early). Give a timing test 10x
+  headroom for CI's Python 3.10, where a deep `py_spdx_license` parse
+  that fails is slowest; keep deep nesting away from the parser rather
+  than raising the limit. Details from PR #61:
+  `working-docs/implementation/spdx-expression-reading.md`.
 
 ## Git and pull requests
 
