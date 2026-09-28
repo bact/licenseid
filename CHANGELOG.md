@@ -137,9 +137,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   does, even when an expression replaced it: the name of
   `GPL-2.0-with-GCC-exception` is `GPL-2.0-only WITH GCC-exception-2.0`
   ([#61])
-- A minified line with thousands of tags is read in linear time (4,000 tags
-  took 36 seconds), and a first line padded with a long run of spaces no
-  longer takes seconds ([#61])
+- A first line padded with a long run of spaces no longer takes seconds to
+  read, and a license named in thousands of tags on one minified line is
+  looked up once ([#61])
 - `match --id`, `match(license_id=...)` and `is-* --id` accept every form of
   a single license a tag accepts, which `LicenseRef-Foo`, `Apache-2.0+` and
   `Apache-2.0+ WITH <exception>` were not. A bare argument is a guess, so it

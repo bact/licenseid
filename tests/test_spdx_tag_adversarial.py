@@ -15,11 +15,13 @@ import json
 import time
 from collections.abc import Generator
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from matcher_db import PROSE
 from spdx_tag_helpers import source_with, tag_db
 
+from licenseid.database import LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
 
 
@@ -43,6 +45,10 @@ def certain(db: str, text: str) -> str | None:
     [
         ("(MIT)", "MIT"),
         ("((MIT))", "MIT"),
+        # A "+" keeps the parser from sorting, but not the brackets on.
+        ("((Apache-2.0+))", "Apache-2.0+"),
+        ("(MIT OR Apache-2.0+)", "MIT OR Apache-2.0+"),
+        ("(Apache-2.0+) OR (MIT)", "(Apache-2.0+) OR (MIT)"),
         ("(MIT OR Apache-2.0)", "Apache-2.0 OR MIT"),
         (
             "(MIT OR Apache-2.0) AND BSD-3-Clause",
@@ -150,6 +156,28 @@ def test_many_tags_on_one_line_are_read_quickly(db: str) -> None:
     start = time.monotonic()
     assert certain(db, line) == "MIT"
     assert time.monotonic() - start < 5.0
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        [f"/* SPDX-License-Identifier: MIT */ a{i}=1;" for i in range(50)],
+        # A name: the full stops differ, so no two values are alike.
+        [f"// SPDX-License-Identifier: MIT License{'.' * i}" for i in range(50)],
+    ],
+    ids=["id", "name"],
+)
+def test_a_repeated_license_is_indexed_once(db: str, lines: list[str]) -> None:
+    """Every tag names MIT, so its search text is fetched once, not once per
+    tag, and the one candidate kept still carries it."""
+    detector = AggregatedLicenseMatcher(db).detector
+    with patch.object(
+        LicenseDatabase, "get_search_text", autospec=True, return_value="text"
+    ) as get_search_text:
+        candidates = detector.detect("\n".join(lines))
+    assert [c["license_id"] for c in candidates] == ["MIT"]
+    assert candidates[0]["search_text"] == "text"
+    assert get_search_text.call_count == 1
 
 
 def test_a_padded_first_line_is_read_quickly(db: str) -> None:

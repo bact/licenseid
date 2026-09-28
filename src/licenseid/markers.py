@@ -150,6 +150,12 @@ class MarkerDetector:
                     result.append(c)
                     seen.add(lid)
 
+        # A license value's candidate has no search text yet: a bundle can
+        # repeat one license in thousands of tags, and only the kept one
+        # needs it.
+        for c in result:
+            if not c["search_text"]:
+                c["search_text"] = self.db.get_search_text(c["license_id"])
         return result
 
     def _detect_structured_format(
@@ -232,7 +238,7 @@ class MarkerDetector:
         # and "MIT No Attribution" is MIT-0, not MIT.
         named = self.db.get_license_by_name(self._without_name_tail(val))
         if named and not named["is_deprecated"]:
-            return [self.to_candidate(named, score)]
+            return [self._candidate_without_text(named, score)]
         if named:
             # A deprecated ID keeps the name of the ID that replaced it, so
             # the name answers as that ID does: the name of
@@ -240,7 +246,7 @@ class MarkerDetector:
             lic_id = normalize_identifier(named["license_id"], self.db)
         details = self.db.get_license_details(lic_id) if lic_id else None
         if details:
-            return [self.to_candidate(details, score)]
+            return [self._candidate_without_text(details, score)]
         # A value with no recognised ID (a typo, free text) is no evidence of
         # a license and builds no candidate.
         return self._synthetic_candidate(lic_id, score) if lic_id else []
@@ -698,9 +704,18 @@ class MarkerDetector:
         self, details: LicenseDetails, base_score: float
     ) -> CandidateMatch:
         """Convert LicenseDetails to CandidateMatch with search text from index."""
+        candidate = self._candidate_without_text(details, base_score)
+        candidate["search_text"] = self.db.get_search_text(details["license_id"])
+        return candidate
+
+    @staticmethod
+    def _candidate_without_text(
+        details: LicenseDetails, base_score: float
+    ) -> CandidateMatch:
+        """to_candidate without the search text, which detect() adds."""
         return {
             "license_id": details["license_id"],
-            "search_text": self.db.get_search_text(details["license_id"]),
+            "search_text": "",
             "score": base_score,
             "is_spdx": details.get("is_spdx", False),
             "is_high_usage": details.get("is_high_usage", False),

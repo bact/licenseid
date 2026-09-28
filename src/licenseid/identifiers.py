@@ -624,8 +624,21 @@ def _canonicalize_expression(expr: str) -> str:
     """
     ast = parse_expression(expr)
     if ast is None:
-        return expr
+        return _without_outer_brackets(expr)
     try:
         return cast(str, ast.sort().to_string())
     except Exception:  # pylint: disable=broad-exception-caught
-        return expr
+        return _without_outer_brackets(expr)
+
+
+def _without_outer_brackets(expr: str) -> str:
+    """*expr* without brackets around the whole of it, which the sort in
+    _canonicalize_expression drops too: "(Apache-2.0+)" is "Apache-2.0+"."""
+    while expr.startswith("(") and expr.endswith(")"):
+        depth = 0
+        for i, char in enumerate(expr):
+            depth += {"(": 1, ")": -1}.get(char, 0)
+            if not depth and i < len(expr) - 1:
+                return expr  # "(A) OR (B)": the first bracket closes early
+        expr = expr[1:-1]
+    return expr

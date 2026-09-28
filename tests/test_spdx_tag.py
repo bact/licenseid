@@ -364,8 +364,10 @@ def test_a_refused_id_cannot_forge_an_action(db: str) -> None:
 
 
 def test_a_bracketed_id_is_an_id(db: str) -> None:
-    """ "(MIT)" declares MIT, as it does in a tag."""
+    """ "(MIT)" declares MIT, as it does in a tag, and the brackets are not
+    part of the answer."""
     assert cli_match_id(db, "--id", "(MIT)") == "MIT"
+    assert cli_match_id(db, "--id", "(Apache-2.0+)") == "Apache-2.0+"
 
 
 def test_a_refused_id_is_not_echoed_whole(db: str) -> None:
