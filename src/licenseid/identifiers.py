@@ -9,6 +9,7 @@ SPDX Identifier and Expression normalization and validation.
 
 import bisect
 import re
+from itertools import dropwhile
 from typing import cast
 
 import py_spdx_license
@@ -323,9 +324,11 @@ def is_simple_expression(value: str) -> bool:
         for token in _RE_TOKEN.finditer(value)
     )
     # SPDX allows brackets around any expression: "(MIT)" is MIT. The value
-    # is balanced (leading_expression), so outer brackets come in pairs.
-    while shape[:1] == ("(",) and shape[-1:] == (")",):
-        shape = shape[1:-1]
+    # is balanced (leading_expression), and a simple shape holds no bracket,
+    # so all the leading ones must pair with as many trailing ones.
+    pairs = len(shape) - len(tuple(dropwhile(lambda kind: kind == "(", shape)))
+    if pairs and shape[len(shape) - pairs :] == (")",) * pairs:
+        shape = shape[pairs : len(shape) - pairs]
     return shape in _SIMPLE_SHAPES
 
 
@@ -633,12 +636,17 @@ def _canonicalize_expression(expr: str) -> str:
 
 def _without_outer_brackets(expr: str) -> str:
     """*expr* without brackets around the whole of it, which the sort in
-    _canonicalize_expression drops too: "(Apache-2.0+)" is "Apache-2.0+"."""
-    while expr.startswith("(") and expr.endswith(")"):
-        depth = 0
-        for i, char in enumerate(expr):
-            depth += {"(": 1, ")": -1}.get(char, 0)
-            if not depth and i < len(expr) - 1:
-                return expr  # "(A) OR (B)": the first bracket closes early
-        expr = expr[1:-1]
-    return expr
+    _canonicalize_expression drops too: "(Apache-2.0+)" is "Apache-2.0+".
+
+    One pass, as a tag can nest thousands deep: an outer pair holds the whole
+    only while no bracket between the leading and trailing runs closes it, so
+    the shallowest depth there is how many pairs go ("(A) OR (B)": none).
+    """
+    lead = len(expr) - len(expr.lstrip("("))
+    trail = len(expr) - len(expr.rstrip(")"))
+    depth = shallowest = lead
+    for char in expr[lead : len(expr) - trail]:
+        depth += {"(": 1, ")": -1}.get(char, 0)
+        shallowest = min(shallowest, depth)
+    pairs = min(shallowest, trail)
+    return expr[pairs : len(expr) - pairs]

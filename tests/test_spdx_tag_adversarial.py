@@ -180,6 +180,19 @@ def test_a_repeated_license_is_indexed_once(db: str, lines: list[str]) -> None:
     assert get_search_text.call_count == 1
 
 
+DEEP = "(" * 40000 + "Apache-2.0+" + ")" * 40000
+
+
+def test_deep_brackets_are_read_quickly(db: str) -> None:
+    """Brackets around the whole value used to go one pair per pass over the
+    string, which is quadratic (15 s at 16,000 pairs)."""
+    matcher = AggregatedLicenseMatcher(db)
+    start = time.monotonic()
+    assert certain(db, source_with(DEEP)) == "Apache-2.0+"
+    assert [r["license_id"] for r in matcher.match(license_id=DEEP)] == ["Apache-2.0+"]
+    assert time.monotonic() - start < 5.0
+
+
 def test_a_padded_first_line_is_read_quickly(db: str) -> None:
     """The first-line name lookup drops "Version" with a regex that was
     quadratic on a run of spaces (3 s at 40,000)."""
