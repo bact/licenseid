@@ -31,6 +31,16 @@ LICENSES = [
     Lic("GPL-2.0", "GNU GPL v2.0 only", True, True, True, True, None),
     Lic("GPL-2.0-only", "GNU GPL v2.0 only", True, True, True),
     Lic("GPL-2.0-or-later", "GNU GPL v2.0 or later", True, True, True),
+    # A deprecated ID replaced by an expression, not by a row.
+    Lic(
+        "GPL-2.0-with-GCC-exception",
+        "GNU GPL v2.0 w/GCC exception",
+        True,
+        False,
+        False,
+        True,
+        None,
+    ),
     Lic("LGPL-2.1-only", "GNU LGPL v2.1 only", True, True, True),
     Lic("LGPL-2.1-or-later", "GNU LGPL v2.1 or later", True, True, True),
     Lic("MPL-1.1", "Mozilla Public License 1.1", True, True, True),
@@ -38,7 +48,7 @@ LICENSES = [
     Lic("Artistic-1.0", "Artistic-1.0", True, True, False),
     Lic("BSD-4-Clause", "BSD 4-Clause", True, False, True),
 ]
-EXCEPTIONS = ["Classpath-exception-2.0"]
+EXCEPTIONS = ["Classpath-exception-2.0", "GCC-exception-2.0"]
 
 
 def tag_db(prefix: str) -> Generator[str, None, None]:

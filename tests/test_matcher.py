@@ -80,6 +80,8 @@ def test_short_text_rejection(test_db: str) -> None:
     assert not matcher.match("")
     assert not matcher.match("   ")
     assert not matcher.match("\n\n")
+    # A blank license_id declares nothing, as an empty one does.
+    assert not matcher.match(license_id="   ")
 
     # Generic short string (should fail name matching because threshold is 90/85)
     assert not matcher.match("This")

@@ -37,10 +37,10 @@ def invalid_id_error(option: str, value: str) -> InvalidInputError:
 
     A minified line can be declared too, so the value is cut: one error must
     not fill the terminal, nor span two lines, so white space (a line break
-    included) is folded to single spaces. ASCII only, because stderr may be
-    in any encoding.
+    included) is folded to single spaces. A ";" in the value becomes ",", as
+    it would otherwise read as the start of the ACTION.
     """
-    value = " ".join(value.split())
+    value = " ".join(value.split()).replace(";", ",")
     if len(value) > 60:
         value = value[:60] + "..."
     return InvalidInputError(f"option: invalid: {option}: {value}; pass one license ID")

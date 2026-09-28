@@ -45,15 +45,19 @@ class MarkerDetector:
             end -= 1
         return value[:end]
 
-    # SPDX-License-Identifier tag. The value is the rest of the line ("[ \t]",
-    # never "\s", so a tag cannot reach across a line break);
-    # identifiers.leading_expression decides where the expression in it ends.
-    # The value is captured in a lookahead, so a second tag on the same line
-    # is still found.
+    # SPDX-License-Identifier tag. Its value is the rest of the line ("[ \t]",
+    # never "\s", so a tag cannot reach across a line break), up to the next
+    # tag on it (_spdx_tag_values); identifiers.leading_expression decides
+    # where the expression in it ends.
     _RE_SPDX = re.compile(
-        r"SPDX-License-Identifier[ \t]*[:=][ \t]*['\"]?(?=([^\r\n]*))",
-        re.IGNORECASE,
+        r"SPDX-License-Identifier[ \t]*[:=][ \t]*['\"]?", re.IGNORECASE
     )
+    _RE_LINE_BREAK = re.compile(r"[\r\n]")
+
+    # "Apache License, Version 2.0" → "Apache License 2.0". A run of white
+    # space is tried from its first character only: ",?\s*Version" retries
+    # it from every one and is quadratic (3 s at 40,000 spaces).
+    _RE_VERSION_WORD = re.compile(r"(?:,\s*|(?<![\s,])\s+)?Version\s+", re.IGNORECASE)
 
     # Include + to handle SPDX-legacy notation like GPL-2.0+
     # Use [ \t]* (not \s*) to prevent matching across line breaks.
@@ -227,11 +231,14 @@ class MarkerDetector:
         # The name comes first: the expression can be a prefix of the value,
         # and "MIT No Attribution" is MIT-0, not MIT.
         named = self.db.get_license_by_name(self._without_name_tail(val))
-        if named and named["is_deprecated"]:
-            # A deprecated ID keeps the name of the ID that replaced it.
-            current = normalize_identifier(named["license_id"], self.db)
-            named = self.db.get_license_details(current) or named
-        details = named or (self.db.get_license_details(lic_id) if lic_id else None)
+        if named and not named["is_deprecated"]:
+            return [self.to_candidate(named, score)]
+        if named:
+            # A deprecated ID keeps the name of the ID that replaced it, so
+            # the name answers as that ID does: the name of
+            # GPL-2.0-with-GCC-exception is GPL-2.0-only WITH GCC-exception-2.0.
+            lic_id = normalize_identifier(named["license_id"], self.db)
+        details = self.db.get_license_details(lic_id) if lic_id else None
         if details:
             return [self.to_candidate(details, score)]
         # A value with no recognised ID (a typo, free text) is no evidence of
@@ -288,13 +295,29 @@ class MarkerDetector:
             leaf for child in node.children for leaf in cls._expression_leaves(child)
         ]
 
+    def _spdx_tag_values(self, text: str) -> list[str]:
+        """The value of each SPDX-License-Identifier tag in *text*.
+
+        A value ends at its line break or at the next tag, whichever comes
+        first. The rest of the line would do for one tag, but on a minified
+        line with thousands of tags every value would then be the whole line.
+        """
+        tags = list(self._RE_SPDX.finditer(text))
+        ends = [tag.start() for tag in tags[1:]] + [len(text)]
+        values = []
+        for tag, end in zip(tags, ends):
+            line_break = self._RE_LINE_BREAK.search(text, tag.end(), end)
+            values.append(text[tag.end() : line_break.start() if line_break else end])
+        return values
+
     def _detect_explicit_identifiers(self, text: str) -> list[CandidateMatch]:
         """Detect SPDX-License-Identifier tags and License: metadata fields."""
         candidates: list[CandidateMatch] = []
 
         # 1. SPDX-License-Identifier
-        for match in self._RE_SPDX.finditer(text):
-            candidates.extend(self.resolve_license_value(match.group(1), 1.0))
+        # A bundle can repeat one tag thousands of times; one lookup does.
+        for value in dict.fromkeys(self._spdx_tag_values(text)):
+            candidates.extend(self.resolve_license_value(value, 1.0))
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)
         for match in self._RE_LICENSE_FIELD.finditer(text):
@@ -575,19 +598,14 @@ class MarkerDetector:
             variants += [rest, rest + " License"]
             if rest.lower().endswith(" license"):
                 variants.append(rest[:-8].strip())
-        # "Apache License, Version 2.0" → "Apache License 2.0"
-        no_version_word = re.sub(
-            r",?\s*Version\s+", " ", name, flags=re.IGNORECASE
-        ).strip()
+        no_version_word = self._RE_VERSION_WORD.sub(" ", name).strip()
         if no_version_word != name:
             variants += [no_version_word, no_version_word + " License"]
         # "Mozilla Public License v2.0" → "Mozilla Public License 2.0"
         stripped_v = re.sub(r"\bv(\d)", r"\1", name, flags=re.IGNORECASE)
         if stripped_v != name:
             variants += [stripped_v, stripped_v + " License"]
-            no_v_no_ver = re.sub(
-                r",?\s*Version\s+", " ", stripped_v, flags=re.IGNORECASE
-            ).strip()
+            no_v_no_ver = self._RE_VERSION_WORD.sub(" ", stripped_v).strip()
             if no_v_no_ver != stripped_v:
                 variants += [no_v_no_ver, no_v_no_ver + " License"]
         # "MIT License" → also try bare "MIT"

@@ -304,7 +304,10 @@ def test_a_bare_argument_that_names_one_license_is_read_as_an_id(db: str) -> Non
         ("mit with classpath-exception-2.0", True),  # casing is the author's
         (" MIT OR Apache-2.0 ", False),  # two licenses, so neither is declared
         ("MIT AND Apache-2.0", False),
-        ("(MIT)", False),
+        ("(MIT)", True),  # SPDX allows brackets around any expression
+        ("((MIT WITH Classpath-exception-2.0))", True),
+        ("(MIT) WITH Classpath-exception-2.0", False),  # WITH takes an ID
+        ("(MIT)+", False),
         ("MIT (see LICENSE)", False),
         ("MIT; see COPYING", False),
         ("MPL-1.1 no copyleft exception", False),
@@ -349,6 +352,20 @@ def test_a_refused_id_stays_one_line(db: str) -> None:
     assert result.stderr == (
         "ERROR: option: invalid: --id: MIT foo; pass one license ID\n"
     )
+
+
+def test_a_refused_id_cannot_forge_an_action(db: str) -> None:
+    """A ";" in the value would read as the start of the ACTION."""
+    result = CliRunner().invoke(cli, ["--db", db, "match", "--id", "MIT; rm"])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        "ERROR: option: invalid: --id: MIT, rm; pass one license ID\n"
+    )
+
+
+def test_a_bracketed_id_is_an_id(db: str) -> None:
+    """ "(MIT)" declares MIT, as it does in a tag."""
+    assert cli_match_id(db, "--id", "(MIT)") == "MIT"
 
 
 def test_a_refused_id_is_not_echoed_whole(db: str) -> None:

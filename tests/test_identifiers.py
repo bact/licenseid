@@ -172,6 +172,9 @@ def test_normalize_operator_casing_combinations(db: LicenseDatabase) -> None:
         normalize_operator_casing("MIT AND(Apache-2.0 OR BSD-3-Clause)")
         == "MIT AND(Apache-2.0 OR BSD-3-Clause)"
     )
+    # The tokenizer's word: "_" and ":" join, so no operator hides inside.
+    assert normalize_operator_casing("LicenseRef-a_or_b") == "LicenseRef-a_or_b"
+    assert normalize_operator_casing("DocumentRef-a:with") == "DocumentRef-a:with"
 
     # 2. Operators casing combinations in identifier-like strings
     # (Should NOT be transformed because they are part of single identifiers)
@@ -444,6 +447,15 @@ def test_canonicalize_reads_operators_in_any_case() -> None:
         ("(+ MIT)", ""),
         ("+ MIT", ""),
         ("()", ""),
+        # A grant ends the expression but not the brackets it stands in.
+        ("(GPL-2.0 or later)", "(GPL-2.0)"),
+        ("MIT OR ((GPL-2.0 or later))", "MIT OR ((GPL-2.0))"),
+        ("(GPL-2.0 or later", ""),
+        ("(GPL-2.0 or later AND MIT)", ""),
+        # Only white space stands before a closing bracket, as for "(MIT.)".
+        ("(GPL-2.0 or later.)", ""),
+        ("(GPL-2.0 or later; see COPYING)", ""),
+        ("(GPL-2.0 or later) AND MIT", ""),
     ],
 )
 def test_leading_expression(value: str, expression: str) -> None:

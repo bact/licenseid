@@ -103,7 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   match at all. A complete database answers as before ([#61])
 - **Breaking:** `--id` and `match(license_id=...)` declare one license, so
   they take only an ID, a `LicenseRef-*`, an ID with `+` and either `WITH
-  <exception>` (`MIT`, `Apache-2.0+`, `MIT WITH Font-exception-2.0`). An
+  <exception>`, in brackets or not (`MIT`, `(MIT)`, `Apache-2.0+`,
+  `MIT WITH Font-exception-2.0`). An
   `AND`/`OR` expression, a license name, an SPDX URL and prose name no single
   license: the CLI exits 2 with
   `ERROR: option: invalid: --id: <value>; pass one license ID`, and the API
@@ -129,10 +130,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the grant (`GPL-2.0 (at your option) any later version`). A grant in the
   middle of an expression ends it, so a value that goes on after one
   (`MIT AND GPL-2.0 or later AND Apache-2.0`) is no evidence rather than an
-  answer missing an operand ([#61])
+  answer missing an operand. A grant inside brackets counts too:
+  `MIT OR (GPL-2.0 or later)` is `GPL-2.0-or-later OR MIT` ([#61])
 - A tag holding a license name or an SPDX URL resolves, as in a JSON
-  `license` field; a name shared with a deprecated ID answers with the
-  current one ([#61])
+  `license` field; a name shared with a deprecated ID answers as that ID
+  does, even when an expression replaced it: the name of
+  `GPL-2.0-with-GCC-exception` is `GPL-2.0-only WITH GCC-exception-2.0`
+  ([#61])
+- A minified line with thousands of tags is read in linear time (4,000 tags
+  took 36 seconds), and a first line padded with a long run of spaces no
+  longer takes seconds ([#61])
 - `match --id`, `match(license_id=...)` and `is-* --id` accept every form of
   a single license a tag accepts, which `LicenseRef-Foo`, `Apache-2.0+` and
   `Apache-2.0+ WITH <exception>` were not. A bare argument is a guess, so it

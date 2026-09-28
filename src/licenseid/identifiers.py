@@ -95,10 +95,10 @@ _RE_ONLY = re.compile(r"\bonly\b", re.IGNORECASE)
 # part of an SPDX ID but is part of a word, so "and_mask" stays one token
 # instead of becoming the AND operator.
 _ID_WORD = r"[a-zA-Z0-9]+(?:[._-]+[a-zA-Z0-9]+)*"
+_OPERATOR = r"(?<![a-zA-Z0-9._:-])(?:AND|OR|WITH)(?![a-zA-Z0-9._:-])"
+_RE_OPERATOR = re.compile(_OPERATOR, re.IGNORECASE)
 _RE_TOKEN = re.compile(
-    r"\(|\)"
-    r"|(?<![a-zA-Z0-9._:-])(?:AND|OR|WITH)(?![a-zA-Z0-9._:-])"
-    rf"|\+|{_ID_WORD}(?::{_ID_WORD})*",
+    rf"\(|\)|{_OPERATOR}|\+|{_ID_WORD}(?::{_ID_WORD})*",
     re.IGNORECASE,
 )
 _OPERATORS = ("AND", "OR", "WITH")
@@ -122,11 +122,7 @@ def normalize_operator_casing(expression: str) -> str:
     """Normalize the casing of SPDX operators (AND, OR, WITH) to uppercase,
     avoiding matching them inside license identifiers (like LGPL-2.0-or-later).
     """
-    pattern = re.compile(
-        r"(?<![a-zA-Z0-9.-])(and|or|with)(?![a-zA-Z0-9.-])",
-        re.IGNORECASE,
-    )
-    return pattern.sub(lambda m: m.group(0).upper(), expression)
+    return _RE_OPERATOR.sub(lambda m: m.group(0).upper(), expression)
 
 
 def parse_expression(expression: str) -> py_spdx_license.Node | None:
@@ -205,8 +201,10 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     if not or_later:
         return expression
     # The phrase can start inside the last ID: "or later" needs the version.
+    # The expression is a prefix of the value up to that ID, whatever
+    # closing brackets follow it.
     tail = tokens[-1].group(0)
-    text = expression[tokens[-1].start() :] + value[len(expression) :]
+    text = value[tokens[-1].start() :]
     grant = OR_LATER_PHRASE.search(text)
     if not grant or any(c.isdigit() for c in text[len(tail) : grant.start()]):
         return expression
@@ -220,6 +218,17 @@ def _continues_after(value: str, end: int) -> bool:
     if token is None or _token_kind(token.group(0)) != "OP":
         return False
     return not value[end : token.start()].strip()
+
+
+def _closing_brackets_end(value: str, pos: int, depth: int) -> int | None:
+    """Where the *depth* closing brackets after *pos* end, when white space
+    alone stands before each; None if they are not there."""
+    for _ in range(depth):
+        token = _RE_TOKEN.search(value, pos)
+        if token is None or token.group(0) != ")" or value[pos : token.start()].strip():
+            return None
+        pos = token.end()
+    return pos
 
 
 def _grant_covering(starts: list[int], ends: list[int], pos: int) -> int | None:
@@ -239,6 +248,9 @@ def leading_expression(value: str) -> str:
     so a token none of them bridges ends the expression. A value that ends
     dangling, or with unbalanced brackets, is no expression at all: answering
     with a shorter prefix of one would name a license the value does not.
+
+    An "or later" grant ends the expression, but not the brackets it stands
+    in: "(GPL-2.0 or later)" gives "(GPL-2.0)", for qualify_trailing_grant.
     """
     # "or any later version" is a grant, not the OR operator, and the phrase
     # can start before the "or" ("GPL-2.0 or later" needs the version).
@@ -265,9 +277,10 @@ def leading_expression(value: str) -> str:
             # The grant qualifies the ID before it (qualify_trailing_grant),
             # so it ends the expression. Operands after it would be lost, so
             # a value that goes on past the grant is no evidence at all.
-            if _continues_after(value, grant_end):
+            close_end = _closing_brackets_end(value, grant_end, depth)
+            if close_end is None or _continues_after(value, close_end):
                 return ""
-            break
+            return value[:end] + ")" * depth
         end = token.end()
         if kind == "(":
             depth += 1
@@ -284,9 +297,18 @@ def leading_expression(value: str) -> str:
     return value[:complete]
 
 
+# An ID, then at most one "+", then at most one WITH an exception.
+_SIMPLE_SHAPES = (
+    ("ID",),
+    ("ID", "+"),
+    ("ID", "WITH", "ID"),
+    ("ID", "+", "WITH", "ID"),
+)
+
+
 def is_simple_expression(value: str) -> bool:
     """Whether *value* names one license: an ID (or ``LicenseRef-*``),
-    optionally with "+" and ``WITH`` an exception.
+    optionally with "+" and ``WITH`` an exception, in any number of brackets.
 
     What a declaration may hold. A tag carries whatever its author wrote, but
     "MIT OR Apache-2.0" declares neither license, and a name or an SPDX URL
@@ -300,16 +322,11 @@ def is_simple_expression(value: str) -> bool:
         "WITH" if token.group(0).upper() == "WITH" else _token_kind(token.group(0))
         for token in _RE_TOKEN.finditer(value)
     )
+    # SPDX allows brackets around any expression: "(MIT)" is MIT. The value
+    # is balanced (leading_expression), so outer brackets come in pairs.
+    while shape[:1] == ("(",) and shape[-1:] == (")",):
+        shape = shape[1:-1]
     return shape in _SIMPLE_SHAPES
-
-
-# An ID, then at most one "+", then at most one WITH an exception.
-_SIMPLE_SHAPES = (
-    ("ID",),
-    ("ID", "+"),
-    ("ID", "WITH", "ID"),
-    ("ID", "+", "WITH", "ID"),
-)
 
 
 def with_expression_details(

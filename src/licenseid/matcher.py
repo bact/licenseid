@@ -107,6 +107,8 @@ class AggregatedLicenseMatcher:
         through the resolver every other source of a license value uses, so
         an ID, a tag and a JSON field cannot answer differently.
         """
+        if not license_id.strip():
+            return []  # as for an empty license_id: nothing is declared
         if not is_simple_expression(license_id):
             raise invalid_id_error("license_id", license_id)
         return self._finalize_exact_markers(

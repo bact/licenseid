@@ -140,6 +140,26 @@ def test_a_very_long_value_is_read_quickly(db: str, tag: str) -> None:
     assert time.monotonic() - start < 5.0
 
 
+def test_many_tags_on_one_line_are_read_quickly(db: str) -> None:
+    """A bundle can hold thousands of tags on one minified line. Each value
+    used to run to the end of the line, so the line was read once per tag
+    (36 s at 4,000 tags). Every value differs, so no cache hides the cost."""
+    line = " ".join(
+        f"/*! SPDX-License-Identifier: MIT */ var a{i}=1;" for i in range(4000)
+    )
+    start = time.monotonic()
+    assert certain(db, line) == "MIT"
+    assert time.monotonic() - start < 5.0
+
+
+def test_a_padded_first_line_is_read_quickly(db: str) -> None:
+    """The first-line name lookup drops "Version" with a regex that was
+    quadratic on a run of spaces (3 s at 40,000)."""
+    start = time.monotonic()
+    AggregatedLicenseMatcher(db).match(text="Foo" + " " * 40000 + "x\n" + PROSE)
+    assert time.monotonic() - start < 1.0
+
+
 def test_a_long_license_field_is_read_quickly(db: str, tmp_path: Path) -> None:
     """A JSON `license` value goes through the same name lookup."""
     package = tmp_path / "package.json"
@@ -232,6 +252,10 @@ def test_only_white_space_joins_the_parts_of_an_expression(
         ("MIT OR GPL-2.0 or later", "GPL-2.0-or-later OR MIT"),
         # A closing bracket stands between the ID and its grant.
         ("(GPL-2.0) or later", "GPL-2.0-or-later"),
+        # A grant inside the brackets qualifies the ID beside it too.
+        ("(GPL-2.0 or later)", "GPL-2.0-or-later"),
+        ("((GPL-2.0 or later))", "GPL-2.0-or-later"),
+        ("MIT OR (GPL-2.0 or later)", "GPL-2.0-or-later OR MIT"),
         (
             "(GPL-2.0 WITH Classpath-exception-2.0) or later",
             "GPL-2.0-or-later WITH Classpath-exception-2.0",
@@ -264,6 +288,8 @@ def test_or_later_prose_is_read_before_the_expression(
         "MIT AND GPL-2.0 or later AND Apache-2.0",
         "GPL-2.0 or later OR MIT",
         "MPL-1.1 OR GPL-2.0 or later OR LGPL-2.1 or later",
+        "(GPL-2.0 or later AND MIT)",
+        "(GPL-2.0 or later) AND MIT",
     ],
 )
 def test_a_grant_inside_an_expression_is_no_evidence(db: str, tag: str) -> None:
@@ -291,6 +317,14 @@ def test_a_name_shared_with_a_deprecated_id_answers_with_the_current_one(
 ) -> None:
     """A deprecated ID keeps the name of the ID that replaced it."""
     assert certain(db, source_with("GNU GPL v2.0 only")) == "GPL-2.0-only"
+
+
+def test_a_deprecated_name_answers_as_its_id_does(db: str) -> None:
+    """A deprecated ID replaced by an expression must not come back under
+    its name: the name and the ID give one answer."""
+    expected = "GPL-2.0-only WITH GCC-exception-2.0"
+    assert certain(db, source_with("GPL-2.0-with-GCC-exception")) == expected
+    assert certain(db, source_with("GNU GPL v2.0 w/GCC exception")) == expected
 
 
 def test_a_plus_is_not_stripped_as_punctuation(db: str) -> None:
