@@ -599,6 +599,10 @@ def _normalize_expression(expression: str, db: LicenseDatabase | None = None) ->
         else:
             expr += " " + part
 
+    # Brackets around the whole go first, whatever happens next: the sort
+    # would drop them, but it is skipped past the cap or for a "+", and the
+    # parser gives up on thousands of them.
+    expr = _without_outer_brackets(expr)
     operator_count = sum(1 for t in normalized_tokens if t in _OPERATORS)
     if operator_count > _MAX_CANONICALIZE_OPERATORS:
         return expr
@@ -627,16 +631,16 @@ def _canonicalize_expression(expr: str) -> str:
     """
     ast = parse_expression(expr)
     if ast is None:
-        return _without_outer_brackets(expr)
+        return expr
     try:
         return cast(str, ast.sort().to_string())
     except Exception:  # pylint: disable=broad-exception-caught
-        return _without_outer_brackets(expr)
+        return expr
 
 
 def _without_outer_brackets(expr: str) -> str:
-    """*expr* without brackets around the whole of it, which the sort in
-    _canonicalize_expression drops too: "(Apache-2.0+)" is "Apache-2.0+".
+    """*expr* without brackets around the whole of it, as the sort in
+    _canonicalize_expression drops them: "(Apache-2.0+)" is "Apache-2.0+".
 
     One pass, as a tag can nest thousands deep: an outer pair holds the whole
     only while no bracket between the leading and trailing runs closes it, so

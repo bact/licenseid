@@ -305,6 +305,28 @@ def test_normalize_expression_skips_canonicalization_when_large() -> None:
 
 
 @pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        # Brackets around the whole go whether or not the sort runs: past
+        # the cap, for a "+", and beyond the depth the parser can read.
+        ("(Apache-2.0+)", "Apache-2.0+"),
+        (
+            "(" + " AND ".join(["MIT"] * (_MAX_CANONICALIZE_OPERATORS + 2)) + ")",
+            " AND ".join(["MIT"] * (_MAX_CANONICALIZE_OPERATORS + 2)),
+        ),
+        ("(" * 5000 + "MIT OR Apache-2.0" + ")" * 5000, "Apache-2.0 OR MIT"),
+        # Brackets that close early hold no whole: nothing goes.
+        ("(Apache-2.0+) OR (MIT)", "(Apache-2.0+) OR (MIT)"),
+    ],
+    ids=["plus", "over-cap", "deep", "two-groups"],
+)
+def test_outer_brackets_never_reach_the_answer(
+    db: LicenseDatabase, expression: str, expected: str
+) -> None:
+    assert normalize_identifier(expression, db) == expected
+
+
+@pytest.mark.parametrize(
     "text, expected",
     [
         # or-later prose
