@@ -244,19 +244,17 @@ def test_with_expression_both_halves_known(with_db: str) -> None:
     assert results[0]["score"] == 1.0
 
 
-def test_with_expression_exception_missing_from_db(with_db: str) -> None:
-    """The expression parses and the license is known, but the exception
-    has no row in this database: not a match."""
-    assert not AggregatedLicenseMatcher(with_db).match(
-        license_id="MIT WITH GCC-exception-2.0"
-    )
-
-
-def test_with_expression_license_missing_from_db(with_db: str) -> None:
-    """Mirror image: the exception is known, the license is not."""
-    assert not AggregatedLicenseMatcher(with_db).match(
-        license_id="Apache-2.0 WITH Font-exception-2.0"
-    )
+@pytest.mark.parametrize(
+    "expression", ["MIT WITH GCC-exception-2.0", "Apache-2.0 WITH Font-exception-2.0"]
+)
+def test_with_expression_half_missing_from_db(with_db: str, expression: str) -> None:
+    """One half has no row in this database: a valid SPDX expression still,
+    so it matches, but neither OSI nor FSF can be claimed for it."""
+    results = AggregatedLicenseMatcher(with_db).match(license_id=expression)
+    assert [r["license_id"] for r in results] == [expression]
+    assert results[0]["is_spdx"] is True
+    assert results[0]["is_osi_approved"] is False
+    assert results[0]["is_fsf_libre"] is False
 
 
 # -- Deprecated penalty in short-text matching -----------------------------

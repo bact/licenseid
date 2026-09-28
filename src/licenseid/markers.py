@@ -16,8 +16,10 @@ from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import (
     flag_source,
+    leading_expression,
     normalize_identifier,
     parse_expression,
+    qualify_trailing_grant,
     strip_plus_operator,
 )
 from licenseid.types import CandidateMatch, LicenseDetails
@@ -29,15 +31,33 @@ class MarkerDetector:
     License metadata fields, and headings.
     """
 
-    # SPDX-License-Identifier tag.
-    # Capture full expressions including spaces, parentheses, and operators.
-    # We stop at common delimiters like quotes or line breaks.
+    @staticmethod
+    def _without_name_tail(value: str) -> str:
+        """*value* without its comment closer or full stop, for the name lookup.
+
+        No license name ends in anything but a word character or ")", and a
+        "+" is part of the expression, not punctuation. A backward scan, not
+        the regex "[^\\w)+]+$": that retries a long run of spaces or dashes
+        from every start and is quadratic (6 s at 40,000 characters).
+        """
+        end = len(value)
+        while end and not (value[end - 1].isalnum() or value[end - 1] in "_)+"):
+            end -= 1
+        return value[:end]
+
+    # SPDX-License-Identifier tag. Its value is the rest of the line ("[ \t]",
+    # never "\s", so a tag cannot reach across a line break), up to the next
+    # tag on it (_spdx_tag_values); identifiers.leading_expression decides
+    # where the expression in it ends.
     _RE_SPDX = re.compile(
-        r"SPDX-License-Identifier\s*[:=]\s*['\"]?"
-        r"([a-zA-Z0-9.+-]+(?:\s+(?:AND|OR|WITH)\s+[a-zA-Z0-9.+-]+"
-        r"|\s*\([^)]+\)|[a-zA-Z0-9.+-]+)*)",
-        re.IGNORECASE,
+        r"SPDX-License-Identifier[ \t]*[:=][ \t]*['\"]?", re.IGNORECASE
     )
+    _RE_LINE_BREAK = re.compile(r"[\r\n]")
+
+    # "Apache License, Version 2.0" → "Apache License 2.0". A run of white
+    # space is tried from its first character only: ",?\s*Version" retries
+    # it from every one and is quadratic (3 s at 40,000 spaces).
+    _RE_VERSION_WORD = re.compile(r"(?:,\s*|(?<![\s,])\s+)?Version\s+", re.IGNORECASE)
 
     # Include + to handle SPDX-legacy notation like GPL-2.0+
     # Use [ \t]* (not \s*) to prevent matching across line breaks.
@@ -130,6 +150,12 @@ class MarkerDetector:
                     result.append(c)
                     seen.add(lid)
 
+        # A license value's candidate has no search text yet: a bundle can
+        # repeat one license in thousands of tags, and only the kept one
+        # needs it.
+        for c in result:
+            if not c["search_text"]:
+                c["search_text"] = self.db.get_search_text(c["license_id"])
         return result
 
     def _detect_structured_format(
@@ -169,14 +195,14 @@ class MarkerDetector:
             return []
         val = data.get("license") or data.get("License") or data.get("LICENSE")
         if isinstance(val, str) and val:
-            return self._resolve_license_value(val, 1.0)
+            return self.resolve_license_value(val, 1.0)
         return []
 
     def _detect_toml_license(self, text: str) -> list[CandidateMatch]:
         """Read the PEP 621 table form: license = {text = "MIT"}."""
         match = self._RE_TOML_LICENSE_TABLE.search(text)
         if match:
-            return self._resolve_license_value(match.group(1), 0.95)
+            return self.resolve_license_value(match.group(1), 0.95)
         return []
 
     def _detect_ini_license(self, text: str) -> list[CandidateMatch]:
@@ -187,28 +213,43 @@ class MarkerDetector:
             for section in cfg.sections():
                 val = cfg.get(section, "license", fallback=None)
                 if val:
-                    resolved = self._resolve_license_value(val.strip(), 0.95)
+                    resolved = self.resolve_license_value(val.strip(), 0.95)
                     if resolved:
                         return resolved
         except Exception:  # pylint: disable=broad-exception-caught
             pass
         return []
 
-    def _resolve_license_value(self, val: str, score: float) -> list[CandidateMatch]:
+    def resolve_license_value(self, val: str, score: float) -> list[CandidateMatch]:
         """Resolve a license string (ID, name, or SPDX URL) to candidates."""
         # SPDX license URL: https://spdx.org/licenses/Apache-2.0
         if val.startswith("http") and "/licenses/" in val:
             val = val.rstrip("/").split("/")[-1]
 
-        lic_id = normalize_identifier(val.strip(), self.db)
-        if not lic_id:
-            return []
-        details = self.db.get_license_details(lic_id) or self.db.get_license_by_name(
-            lic_id
-        )
+        val = val.strip()
+        # A value runs to the end of its line and can trail off into prose, so
+        # only the expression it starts with is normalised: normalising the
+        # whole line would let disambiguate_deprecated_id read an ID out of
+        # the prose. The name lookup still sees the whole value ("BSD 3-Clause"
+        # is a name, not an expression).
+        expression = qualify_trailing_grant(leading_expression(val), val)
+        lic_id = normalize_identifier(expression, self.db)
+        # The name comes first: the expression can be a prefix of the value,
+        # and "MIT No Attribution" is MIT-0, not MIT.
+        named = self.db.get_license_by_name(self._without_name_tail(val))
+        if named and not named["is_deprecated"]:
+            return [self._candidate_without_text(named, score)]
+        if named:
+            # A deprecated ID keeps the name of the ID that replaced it, so
+            # the name answers as that ID does: the name of
+            # GPL-2.0-with-GCC-exception is GPL-2.0-only WITH GCC-exception-2.0.
+            lic_id = normalize_identifier(named["license_id"], self.db)
+        details = self.db.get_license_details(lic_id) if lic_id else None
         if details:
-            return [self.to_candidate(details, score)]
-        return self._synthetic_candidate(lic_id, score)
+            return [self._candidate_without_text(details, score)]
+        # A value with no recognised ID (a typo, free text) is no evidence of
+        # a license and builds no candidate.
+        return self._synthetic_candidate(lic_id, score) if lic_id else []
 
     def _synthetic_candidate(self, lic_id: str, score: float) -> list[CandidateMatch]:
         """Build a candidate for an ID that is not in the DB.
@@ -219,8 +260,9 @@ class MarkerDetector:
         phantom license_id ranked at a fixed high confidence. ``is_spdx`` is
         False if any part is unknown; a LicenseRef-* is a valid SPDX ID, so it
         counts as known. Used for every source of an expression
-        (SPDX tag, JSON, TOML, INI), so they all decide alike. The OSI and FSF
-        flags come from ``identifiers.flag_source``.
+        (SPDX tag, JSON, TOML, INI, and an explicit ``license_id``), so they
+        all decide alike. The OSI and FSF flags come from
+        ``identifiers.flag_source``.
         """
         tree = parse_expression(strip_plus_operator(lic_id))
         if tree is None:
@@ -259,21 +301,29 @@ class MarkerDetector:
             leaf for child in node.children for leaf in cls._expression_leaves(child)
         ]
 
+    def _spdx_tag_values(self, text: str) -> list[str]:
+        """The value of each SPDX-License-Identifier tag in *text*.
+
+        A value ends at its line break or at the next tag, whichever comes
+        first. The rest of the line would do for one tag, but on a minified
+        line with thousands of tags every value would then be the whole line.
+        """
+        tags = list(self._RE_SPDX.finditer(text))
+        ends = [tag.start() for tag in tags[1:]] + [len(text)]
+        values = []
+        for tag, end in zip(tags, ends):
+            line_break = self._RE_LINE_BREAK.search(text, tag.end(), end)
+            values.append(text[tag.end() : line_break.start() if line_break else end])
+        return values
+
     def _detect_explicit_identifiers(self, text: str) -> list[CandidateMatch]:
         """Detect SPDX-License-Identifier tags and License: metadata fields."""
         candidates: list[CandidateMatch] = []
 
         # 1. SPDX-License-Identifier
-        for match in self._RE_SPDX.finditer(text):
-            lic_id = normalize_identifier(match.group(1).strip(), self.db)
-            details = self.db.get_license_details(lic_id)
-            if details:
-                candidates.append(self.to_candidate(details, 1.0))
-            elif lic_id:
-                # An expression (or LicenseRef-*) has no row of its own; a
-                # value with no recognised ID (a typo, free text) is no
-                # evidence of a license and builds no candidate.
-                candidates.extend(self._synthetic_candidate(lic_id, 1.0))
+        # A bundle can repeat one tag thousands of times; one lookup does.
+        for value in dict.fromkeys(self._spdx_tag_values(text)):
+            candidates.extend(self.resolve_license_value(value, 1.0))
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)
         for match in self._RE_LICENSE_FIELD.finditer(text):
@@ -554,19 +604,14 @@ class MarkerDetector:
             variants += [rest, rest + " License"]
             if rest.lower().endswith(" license"):
                 variants.append(rest[:-8].strip())
-        # "Apache License, Version 2.0" → "Apache License 2.0"
-        no_version_word = re.sub(
-            r",?\s*Version\s+", " ", name, flags=re.IGNORECASE
-        ).strip()
+        no_version_word = self._RE_VERSION_WORD.sub(" ", name).strip()
         if no_version_word != name:
             variants += [no_version_word, no_version_word + " License"]
         # "Mozilla Public License v2.0" → "Mozilla Public License 2.0"
         stripped_v = re.sub(r"\bv(\d)", r"\1", name, flags=re.IGNORECASE)
         if stripped_v != name:
             variants += [stripped_v, stripped_v + " License"]
-            no_v_no_ver = re.sub(
-                r",?\s*Version\s+", " ", stripped_v, flags=re.IGNORECASE
-            ).strip()
+            no_v_no_ver = self._RE_VERSION_WORD.sub(" ", stripped_v).strip()
             if no_v_no_ver != stripped_v:
                 variants += [no_v_no_ver, no_v_no_ver + " License"]
         # "MIT License" → also try bare "MIT"
@@ -659,9 +704,18 @@ class MarkerDetector:
         self, details: LicenseDetails, base_score: float
     ) -> CandidateMatch:
         """Convert LicenseDetails to CandidateMatch with search text from index."""
+        candidate = self._candidate_without_text(details, base_score)
+        candidate["search_text"] = self.db.get_search_text(details["license_id"])
+        return candidate
+
+    @staticmethod
+    def _candidate_without_text(
+        details: LicenseDetails, base_score: float
+    ) -> CandidateMatch:
+        """to_candidate without the search text, which detect() adds."""
         return {
             "license_id": details["license_id"],
-            "search_text": self.db.get_search_text(details["license_id"]),
+            "search_text": "",
             "score": base_score,
             "is_spdx": details.get("is_spdx", False),
             "is_high_usage": details.get("is_high_usage", False),

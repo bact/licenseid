@@ -6,6 +6,7 @@
 """Identifier normalization tests."""
 
 import sqlite3
+import time
 import uuid
 from unittest import mock
 
@@ -20,6 +21,7 @@ from licenseid.identifiers import (
     _is_expression,
     _lookup_case_insensitive,
     disambiguate_deprecated_id,
+    leading_expression,
     normalize_identifier,
     normalize_operator_casing,
 )
@@ -170,6 +172,9 @@ def test_normalize_operator_casing_combinations(db: LicenseDatabase) -> None:
         normalize_operator_casing("MIT AND(Apache-2.0 OR BSD-3-Clause)")
         == "MIT AND(Apache-2.0 OR BSD-3-Clause)"
     )
+    # The tokenizer's word: "_" and ":" join, so no operator hides inside.
+    assert normalize_operator_casing("LicenseRef-a_or_b") == "LicenseRef-a_or_b"
+    assert normalize_operator_casing("DocumentRef-a:with") == "DocumentRef-a:with"
 
     # 2. Operators casing combinations in identifier-like strings
     # (Should NOT be transformed because they are part of single identifiers)
@@ -300,6 +305,29 @@ def test_normalize_expression_skips_canonicalization_when_large() -> None:
 
 
 @pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        # Brackets around the whole go whether or not the sort runs: past
+        # the cap, for a "+", and beyond the depth the parser can read.
+        ("(Apache-2.0+)", "Apache-2.0+"),
+        (
+            "(" + " AND ".join(["MIT"] * (_MAX_CANONICALIZE_OPERATORS + 2)) + ")",
+            " AND ".join(["MIT"] * (_MAX_CANONICALIZE_OPERATORS + 2)),
+        ),
+        ("(" * 5000 + "MIT OR Apache-2.0" + ")" * 5000, "Apache-2.0 OR MIT"),
+        # Brackets that close early hold no whole: nothing goes.
+        ("(Apache-2.0+) OR (MIT)", "(Apache-2.0+) OR (MIT)"),
+    ],
+    ids=["plus", "over-cap", "deep", "two-groups"],
+)
+def test_outer_brackets_never_reach_the_answer(
+    db: LicenseDatabase, expression: str, expected: str
+) -> None:
+    """One answer however many brackets wrap it, sorted or not."""
+    assert normalize_identifier(expression, db) == expected
+
+
+@pytest.mark.parametrize(
     "text, expected",
     [
         # or-later prose
@@ -389,3 +417,91 @@ def test_canonicalize_keeps_the_expression_when_sorting_fails(
 def test_canonicalize_reads_operators_in_any_case() -> None:
     """The parser wrapper upper-cases operators before it parses."""
     assert _canonicalize_expression("mit or apache-2.0") == "Apache-2.0 OR MIT"
+
+
+@pytest.mark.parametrize(
+    ("value", "expression"),
+    [
+        ("MIT", "MIT"),
+        ("", ""),
+        ("(MIT OR Apache-2.0)", "(MIT OR Apache-2.0)"),
+        ("((MIT))", "((MIT))"),
+        (
+            "MIT OR (Apache-2.0 AND BSD-3-Clause)",
+            "MIT OR (Apache-2.0 AND BSD-3-Clause)",
+        ),
+        ("DocumentRef-x:LicenseRef-y", "DocumentRef-x:LicenseRef-y"),
+        ("MIT OR DocumentRef-x:LicenseRef-y", "MIT OR DocumentRef-x:LicenseRef-y"),
+        ("Apache-2.0+", "Apache-2.0+"),
+        ("Apache-2.0+ WITH LLVM-exception", "Apache-2.0+ WITH LLVM-exception"),
+        ("mit or apache-2.0", "mit or apache-2.0"),  # the parser reads any case
+        # A token no operator bridges ends the expression.
+        ("CAL-1.0 Licensed under the Autonomy License", "CAL-1.0"),
+        ("A-1.0 with B-exception under permission", "A-1.0 with B-exception"),
+        ("MIT (see LICENSE)", "MIT"),
+        ("MIT, Apache-2.0", "MIT"),
+        ("MIT */", "MIT"),
+        ("MIT -->", "MIT"),
+        ("MIT SPDX-License-Identifier: Apache-2.0", "MIT"),
+        ("MIT)", "MIT"),  # the expression ended before the junk
+        # Prose keeps its first word; the candidate builder rejects it, as it
+        # has no recognised ID.
+        ("See the LICENSE file", "See"),
+        ("MIT++", "MIT++"),  # left to the parser to reject
+        # SPDX allows no space before "+", so a detached one is not the
+        # operator and ends the expression.
+        ("LGPL-2.1 + MIT", "LGPL-2.1"),
+        ("MIT +", "MIT"),
+        ("MIT+ +", "MIT+"),
+        # Only white space separates the parts of an expression.
+        ("MIT */ and_mask = 1", "MIT"),
+        ("MIT */ or(x);", "MIT"),
+        ("BSD-3-Clause, and the patent grant", "BSD-3-Clause"),
+        ("MIT, with additions", "MIT"),
+        ("MIT and_mask", "MIT"),
+        ("MIT\tOR\nApache-2.0", "MIT\tOR\nApache-2.0"),
+        # A ":" joins two identifiers and is nothing on its own.
+        ("Apache-2.0: see NOTICE", "Apache-2.0"),
+        ("DocumentRef-x:LicenseRef-y: see NOTICE", "DocumentRef-x:LicenseRef-y"),
+        # Dangling or unbalanced: no expression at all, not a shorter one.
+        ("MIT OR", ""),
+        ("MIT OR (Apache-2.0 AND BSD-3-Clause", ""),
+        ("(MIT", ""),
+        ("(+ MIT)", ""),
+        ("+ MIT", ""),
+        ("()", ""),
+        # A grant ends the expression but not the brackets it stands in.
+        ("(GPL-2.0 or later)", "(GPL-2.0)"),
+        ("MIT OR ((GPL-2.0 or later))", "MIT OR ((GPL-2.0))"),
+        ("(GPL-2.0 or later", ""),
+        ("(GPL-2.0 or later AND MIT)", ""),
+        # Only white space stands before a closing bracket, as for "(MIT.)".
+        ("(GPL-2.0 or later.)", ""),
+        ("(GPL-2.0 or later; see COPYING)", ""),
+        ("(GPL-2.0 or later) AND MIT", ""),
+    ],
+)
+def test_leading_expression(value: str, expression: str) -> None:
+    """Where the expression in a tag value ends."""
+    assert leading_expression(value) == expression
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        "a" * 200000,
+        "a " * 100000,
+        "(" * 100000,
+        "a OR " * 40000,
+        "a:" * 100000,
+        # Every operator used to be tested against every grant phrase on the
+        # line, which is quadratic in the two together.
+        "MIT OR " * 4000 + "MIT" + " any later version" * 4000,
+    ],
+    ids=["one-token", "tokens", "open-parens", "operators", "colons", "grants"],
+)
+def test_leading_expression_does_not_backtrack(payload: str) -> None:
+    """One long token must not make the scan quadratic."""
+    start = time.monotonic()
+    leading_expression(payload)
+    assert time.monotonic() - start < 1.0
