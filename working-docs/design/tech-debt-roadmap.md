@@ -46,16 +46,23 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
   UTF-8) and `PYTHONUTF8=1`. Python 3.15 makes UTF-8 the default
   (PEP 686), which hides the bug there.
 - **Root cause**: missing `encoding="utf-8"` in two `open()` calls
-  (`ast.py` lines 22 and 34). Pylint `unspecified-encoding` (W1514) and
+  (`ast.py` lines 21 and 33). Pylint `unspecified-encoding` (W1514) and
   Python's `-X warn_default_encoding` flag exactly this.
 - **Upstream fix** (report and send a pull request to
   `github.com/JPEWdev/py-spdx-license`): use
   `p.open("r", encoding="utf-8")`, or `json.loads(p.read_bytes())`, which
   lets the `json` module detect UTF-8 itself. Add a test that runs the
   import under `-X warn_default_encoding -W error`.
-- **Workaround until a release** (choose one): document `PYTHONUTF8=1`;
-  or vendor the two JSON files. Importing `py_spdx_license` lazily would
-  only move the crash to marker detection, so it is not a cure.
+- **Workaround until a release**: `PYTHONUTF8=1`, documented in
+  `README.md` (2026-09-28); vendoring the two JSON files was not chosen.
+  Importing `py_spdx_license` lazily would only move the crash to marker
+  detection, so it is not a cure.
+- **Status (2026-09-28)**: upstream pull request
+  <https://github.com/JPEWdev/py-spdx-license/pull/5> adds the encoding and
+  a test (`tests/test_encoding.py`, import under `-X warn_default_encoding
+  -W error::EncodingWarning`). With it, licenseid runs under `ja_JP.eucJP`.
+  After a release, raise the minimum `py-spdx-license` version, drop the
+  README section and close this item.
 - Impact 2, Risk 3, Effort 2.
 
 ## 18. TOML and INI license fields lose the SPDX flags — Priority 16
