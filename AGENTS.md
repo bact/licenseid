@@ -8,7 +8,8 @@
   `shorttext.py` (Tier 0 IDs and names), `ranking.py` (sort order and the
   `-only`/`-or-later` tie-breaker), `similarity.py`, `markers.py`,
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
-  to text). Keep `matcher.py` under the 800-line limit:
+  to text), `manifest.py` (the `license` field of package.json,
+  pyproject.toml, Cargo.toml, setup.cfg). Keep `matcher.py` under the 800-line limit:
   put logic that needs no matcher state in one of the others.
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
 - Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches; may be discarded, not yet built.

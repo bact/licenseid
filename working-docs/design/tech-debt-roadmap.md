@@ -20,7 +20,8 @@ Item 9 (and the resolved items 3 and 8) come from a tech-debt audit on
 reviews of the diagnostics change and the Java removal; items 2 and 10 from
 manual CLI testing under other locales and environments; items 15 to 18 from the
 work on item 6, and item 19 from the work on items 15 and 17. Item 11 was
-re-scored from the work on item 16.
+re-scored from the work on item 16, and items 21 to 23 come from the work on
+item 18.
 
 ## 2. `py-spdx-license` reads its data with the locale encoding — Priority 20
 
@@ -66,22 +67,18 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
   README section and close this item.
 - Impact 2, Risk 3, Effort 2.
 
-## 18. TOML and INI license fields lose the SPDX flags — Priority 16
+## 21. `--text GPL-2.0+` answers GPL-2.0-only — Priority 20
 
-A JSON `license` field is scored 1.0 and returns at Tier 0.5 with `is_spdx`,
-`is_osi_approved` and `is_fsf_libre` set. A TOML or INI field is scored 0.95,
-so it goes on through Tiers 1 and 2, and their result dicts carry no such
-flags; `matcher.resolve_record` then reports them as false. Measured on
-2026-09-21 with `MIT OR Apache-2.0` and 30+ words of filler: `package.json`
-gives `is-spdx` true; `pyproject.toml` gives false (score 0.902). The same
-gap makes the `--json` output of a text match lack the `is_spdx` and
-`is_osi_approved` keys that `README.md` shows.
+The same value gives two answers. As a bare argument, `licenseid match
+GPL-2.0+` reads it as an ID and answers `GPL-2.0-or-later`. Through `--text`,
+or the API's `match(text=...)`, Tier 0 matches the normalised text, which
+has lost the `+`, and answers `GPL-2.0-only` at 1.02: a certain answer that
+drops the "or later" grant. Found on 2026-09-30 while checking item 18;
+`main` behaves the same.
 
-- **Fix**: decide whether the flags belong on every result (add them in one
-  place, from `flag_source`) or only on marker results (correct the README),
-  and whether 0.95 for TOML and INI is meant. Pin the values above with
-  `# BUG:` first.
-- Impact 2, Risk 2, Effort 2.
+- **Fix**: let Tier 0 see a trailing `+` (or send a lone simple expression
+  through the ID path, as the CLI's bare argument does). Pin first.
+- Impact 2, Risk 3, Effort 2.
 
 ## 5. Conflicting options and inputs are resolved silently — Priority 15
 
@@ -215,6 +212,30 @@ Each case is outside the message grammar or hides a failure:
   `DatabaseErrorGroup`; the API is left.
 - Impact 2, Risk 2, Effort 3.
 
+## 22. `--json` prints internal ranking keys — Priority 12
+
+A Tier 2 result is the ranking's own record, so `match --json` prints
+`base_score`, `pop_score`, `is_deprecated`, `superseded_by` and
+`best_window` (a slice of license text) beside the keys the README shows.
+Found on 2026-09-30 while checking item 18.
+
+- **Fix**: decide the public key set of a result, build it in one place
+  at the end of `match()` (keeping `best_window` for `--diff`), and pin it.
+- Impact 2, Risk 1, Effort 2.
+
+## 23. The loose `License:` field reader resolves every match — Priority 12
+
+`MarkerDetector._detect_explicit_identifiers` resolves each
+`license:`/`license =` match in the text, each with database lookups. A file
+of 10,000 such lines takes 9 s on the real database, on `main` as on the
+item 18 change. The manifest readers stop at one value per form and table
+(`manifest.toml_license_values`); this reader has no such bound. Found on
+2026-09-30 while checking item 18.
+
+- **Fix**: resolve each distinct value once and stop at the first that
+  resolves, or cap the number read. Time distinct values, not repeats.
+- Impact 1, Risk 2, Effort 2.
+
 ## 19. How deep an expression may be depends on the Python version — Priority 9
 
 `py_spdx_license` builds its AST with a plain recursive walk and no depth
@@ -276,6 +297,31 @@ statistics; no fix has been designed yet, only the problem is documented.
   estimate is meaningful — treat this as provisional).
 
 ## Already resolved (kept for record)
+
+- A manifest's license field was lost or unflagged (item 18, Priority 16;
+  2026-09-30). A TOML or INI field scored 0.95, not the 1.0 of JSON, so it
+  went on to ranking and came out at 0.902 with no SPDX flags, and
+  `is_spdx()` said false for `pyproject.toml` with `MIT OR Apache-2.0`. A
+  Tier 0 or Tier 2 result carried no flags at all, so
+  `GPL-2.0-with-GCC-exception` was not "SPDX" either. Checking it found two
+  worse faults: the PEP 639 string form (`license = "MIT OR Apache-2.0"`,
+  now the usual `pyproject.toml` form, and Poetry's and Cargo's) was not
+  read, and no marker ran under 30 words, so a small `package.json`,
+  `pyproject.toml` or `Cargo.toml` was matched by name and answered
+  `Apache-1.0` at 1.01. Now:
+  - the manifest readers live in `licenseid.manifest`; a JSON, TOML or INI
+    field that resolves scores 1.0 and is read at any length
+    (`MarkerDetector.detect_structured`);
+  - the string form is read only in `[project]`, `[tool.poetry]` and
+    `[package]`, so a Python `license = "MIT"` in `--text` is not a field;
+  - every result carries `is_spdx`, `is_osi_approved` and `is_fsf_libre`:
+    Tier 2 copies them from its candidates, and Tier 0 takes them from
+    `MarkerDetector.license_flags`, the rule synthetic expression candidates
+    already used.
+
+  The loose `License:` reader stays at 0.95: it matches prose. OSI and FSF
+  flags of an OR or AND stay false by design (`identifiers.flag_source`).
+  Found on the way and not fixed: items 21 to 23.
 
 - A blob made matching slow (item 16, Priority 15; 2026-09-30). A query of
   few words and many characters (one long token, embedded base64, a run of

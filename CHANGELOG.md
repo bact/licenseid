@@ -115,6 +115,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A small `package.json`, `pyproject.toml` or `Cargo.toml` (under 30 words)
+  is read for its `license` field: it was matched by name instead, and
+  `"license": "MIT OR Apache-2.0"` answered `Apache-1.0` with certainty
+- The `license` string of `pyproject.toml` (PEP 639, and Poetry's) and of
+  `Cargo.toml` is read; only `license = {text = ...}` was
+- A TOML or INI `license` field is a certain match (score 1.0), as a JSON
+  one is, with its SPDX, OSI and FSF flags: `is-spdx` said false for
+  `license = {text = "MIT OR Apache-2.0"}`
+- Every result of `match` carries `is_spdx`, `is_osi_approved` and
+  `is_fsf_libre`, so `--json` shows them as the README does, and the `is-*`
+  commands answer for an expression such as `GPL-2.0-with-GCC-exception`
 - A file with a very long token or embedded base64 (a data URI, a PEM block)
   no longer takes seconds to minutes to match: a comment with one
   5,000-character token took about a minute and now takes under 0.1 s

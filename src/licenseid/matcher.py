@@ -148,14 +148,19 @@ class AggregatedLicenseMatcher:
         it's returned as a final answer (the third tuple element). All
         other markers (name fields, headings, first-line) go into the
         candidate pool and influence ranking via a confidence bonus.
-        Skip for very short inputs (< 30 words): marker scanning adds
-        overhead without benefit — these inputs are handled by Tier 0.
+        A very short input (< 30 words) is read only for a manifest's license
+        field, which is certain: the other markers add overhead without
+        benefit there, and Tier 0 handles the rest. A small package.json
+        would otherwise be matched by name, and wrongly.
         """
-        marker_candidates: list[CandidateMatch] = []
         if ctx.word_count >= 30:
             marker_candidates = self.detector.detect(
                 ctx.target_text,
                 file_path=ctx.file_path,
+            )
+        else:
+            marker_candidates = self.detector.detect_structured(
+                ctx.target_text, ctx.file_path
             )
         spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
         if spdx_exact:
@@ -205,6 +210,11 @@ class AggregatedLicenseMatcher:
 
         short_matches = self._match_short_text(ctx.norm_input)
         if short_matches and short_matches[0]["score"] > 1.0:
+            for m in short_matches:
+                flags = self.detector.license_flags(m["license_id"])
+                m["is_spdx"] = flags["is_spdx"]
+                m["is_osi_approved"] = flags["is_osi_approved"]
+                m["is_fsf_libre"] = flags["is_fsf_libre"]
             return short_matches
 
         return None
@@ -416,6 +426,9 @@ class AggregatedLicenseMatcher:
                     superseded_by=cand.get("superseded_by", ""),
                     best_window=best_window,
                     score=0.0,
+                    is_spdx=bool(cand.get("is_spdx", False)),
+                    is_osi_approved=bool(cand.get("is_osi_approved", False)),
+                    is_fsf_libre=bool(cand.get("is_fsf_libre", False)),
                 )
             )
 

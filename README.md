@@ -51,6 +51,10 @@ No database daemon or server needed.
     or INI file, are read as whole expressions, parentheses, `LicenseRef-*`
     and all: `MIT OR (Apache-2.0 AND BSD-3-Clause)` in a file resolves to
     one answer. `--id` is narrower on purpose — see below.
+  - Package manifests are read for their `license` field, however small:
+    `package.json`, `pyproject.toml` (`license = "..."` or
+    `license = {text = "..."}`, and Poetry's), `Cargo.toml` and
+    `setup.cfg`.
 
 [py-spdx-license]: https://github.com/JPEWdev/py-spdx-license
 
