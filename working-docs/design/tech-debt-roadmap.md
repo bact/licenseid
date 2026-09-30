@@ -116,7 +116,9 @@ just an internal ranking score — needs its own validation cycle (a
   the probe and each gets a full scan of the whole query. The scan's cost
   follows the query's characters (item 16), and item 16's guard does not
   apply: this query is prose, and its fixture twins (`head_3000`) must keep
-  their answers.
+  their answers. Blob around a licence-like middle pays it too: 200 words of
+  Apache-2.0 among 120 random 25-character tokens (4,426 characters) takes
+  134 s, as 141 candidates pass the probe and each scan takes about 1 s.
 - Impact 3, Risk 2, Effort 3.
 - Full plan: [`probe-anchored-windowing-plan.md`](probe-anchored-windowing-plan.md).
 
@@ -284,15 +286,28 @@ statistics; no fix has been designed yet, only the problem is documented.
   120-499 words, and 500 words or more already fell back to
   `token_sort_ratio`. Base64 is split at `+` and `/` when normalised, so it
   arrives as many medium tokens: dropping long tokens would not have been
-  enough. `similarity.alignment_affordable` is now the one judge of the
-  scan: an unprobed query of 1,500 characters or more, or one of more than
-  16 characters a word, is scored with `token_sort_ratio` (a few
-  milliseconds). Both limits sit above every fixture input (at most 1,427
-  characters unprobed, at most 15.27 characters a word), so no fixture
-  answer changed. Such inputs score below 0.6 either way, so the CLI's
-  answer is the same; the API's top pick for them can differ. Still bounded
-  but not free: an unprobed query just under 1,500 characters costs up to
-  about 2 s with 50 candidates, and probed prose is item 11.
+  enough. A first fix scored a query of more than 16 characters a word with
+  `token_sort_ratio`, and review found that it lost Japanese licence text:
+  Japanese is written without spaces, so a 1,570-character slice of
+  CC-BY-SA-2.1-JP (104 words) fell from a certain match to 0.5. Characters
+  per word says nothing about a blob. The guard now uses the probe:
+  - a query of 1,500 characters or more always has a probe, cut from its
+    middle by characters when it has fewer than 120 words;
+  - a probe is at most 500 characters, where its own cost jumps (15 ms a
+    candidate at 500, 43 ms at 600, 136 ms at 1,000); the 60 words of a
+    base64 probe had been 1,900 characters;
+  - the scan takes at most 6,000 characters (`similarity.alignment_affordable`,
+    the one judge of it); a longer query gets `token_sort_ratio`.
+
+  A blob fails its probe, so each candidate costs a few milliseconds; a
+  Japanese slice passes it and is scanned as before. No fixture query
+  reaches the character limits (at most 1,427 characters unprobed, 5,478
+  probed). Trimming the 16 fixture probes longer than 500 characters, all
+  Japanese or Chinese, keeps every one's top answer; only ranks two and
+  three, at scores near 0.11, change. Still bounded but not free: an
+  unprobed query just under 1,500 characters (a 1,000-character token)
+  takes about 1 s, as on `main`, and a licence-like middle among blob
+  tokens under 6,000 characters is item 11.
 
 - A tag read with a hand-written grammar, and an ID path that read only
   `WITH` (items 15 and 17, Priorities 15 and 16; 2026-09-21).

@@ -27,43 +27,61 @@ from licenseid.types import CandidateMatch, InternalMatch
 PROBE_WORDS: int = 60  # probe sample size (words, taken from query middle)
 PROBE_GATE: float = 0.52  # min probe score to run the full alignment scan
 
-# When the full alignment scan is affordable. Its cost grows with the query's
-# length in CHARACTERS, whatever they are (per candidate, against a licence of
-# 18,000 characters: 700 chars 7 ms, 2,150 chars 124 ms, 4,000 chars 758 ms),
-# but the gates above count WORDS. A blob (a long token, embedded base64) is
-# few words and many characters, so it would pass unprobed and take seconds to
-# minutes. Such a query is scored with token_sort_ratio, as a query of
-# ALIGN_MAX_WORDS or more already is. Both character limits sit above every
-# fixture input (unprobed: at most 1,427 characters; at most 15.27 characters
-# a word, the Japanese CC-BY-SA-2.1-JP slices), so no fixture changes path.
+# What the full alignment scan and the probe may cost. RapidFuzz's cost grows
+# with the query's length in CHARACTERS, whatever they are (per candidate,
+# against a licence of 18,000 characters: 700 chars 7 ms, 2,150 chars 124 ms,
+# 4,000 chars 758 ms), and so does the probe's. Word counts alone let a blob
+# (a long token, embedded base64) of few words and many characters through,
+# and characters per word is no better a guide: Japanese and Chinese are
+# written without spaces, so their "words" are long too. So:
+# - a query of ALIGN_UNPROBED_MAX_CHARS or more always has a probe, cut by
+#   characters when it has too few words for the word probe;
+# - a probe is at most PROBE_MAX_CHARS long: its cost per candidate jumps
+#   past about 500 characters (15 ms at 500, 43 ms at 600, 136 ms at 1,000).
+#   Only 16 fixture probes are longer, all Japanese or Chinese; trimming them
+#   keeps every one's top answer;
+# - the scan takes a query of at most ALIGN_MAX_CHARS (fixture maximum in the
+#   probed range: 5,478) and fewer than ALIGN_MAX_WORDS words; a longer one is
+#   scored with token_sort_ratio.
 ALIGN_MAX_WORDS: int = 500
+ALIGN_MAX_CHARS: int = 6000
 ALIGN_UNPROBED_MAX_CHARS: int = 1500
-ALIGN_MAX_CHARS_PER_WORD: int = 16
+PROBE_MAX_CHARS: int = 500
+
+
+def _center(text: str, size: int) -> str:
+    """The middle *size* characters of *text* (all of it if shorter)."""
+    if len(text) <= size:
+        return text
+    start = (len(text) - size) // 2
+    return text[start : start + size]
 
 
 def build_probe(query_words: list[str]) -> str | None:
     """Build the mid-query probe sample used by fragment_similarity().
 
-    Only useful when the query is long enough that the probe is a real
-    subsample; short queries scan fast without it (see fragment_similarity's
-    q_len < 500 branch, which is where probes apply).
+    The middle PROBE_WORDS words of a query of 120 to 499 words, or the
+    middle characters of a shorter one that is long in characters; at most
+    PROBE_MAX_CHARS either way. None when the query is short enough to scan
+    without one, or too long to be scanned at all (see alignment_affordable).
     """
     q_len = len(query_words)
-    if not PROBE_WORDS * 2 <= q_len < 500:
+    if q_len >= ALIGN_MAX_WORDS:
         return None
-    mid = q_len // 2
-    half = PROBE_WORDS // 2
-    return " ".join(query_words[mid - half : mid + half])
+    if q_len >= PROBE_WORDS * 2:
+        mid = q_len // 2
+        half = PROBE_WORDS // 2
+        return _center(" ".join(query_words[mid - half : mid + half]), PROBE_MAX_CHARS)
+    text = " ".join(query_words)
+    if len(text) < ALIGN_UNPROBED_MAX_CHARS:
+        return None
+    return _center(text, PROBE_MAX_CHARS)
 
 
 def alignment_affordable(norm_input: str, q_len: int) -> bool:
     """Whether the full alignment scan of *norm_input* (*q_len* words) is
-    affordable; the one judge of it. See ALIGN_MAX_WORDS."""
-    if q_len >= ALIGN_MAX_WORDS:
-        return False
-    if q_len < PROBE_WORDS * 2 and len(norm_input) >= ALIGN_UNPROBED_MAX_CHARS:
-        return False  # no probe to spare the weak candidates the scan
-    return len(norm_input) <= ALIGN_MAX_CHARS_PER_WORD * q_len
+    affordable; the one judge of it. See ALIGN_MAX_CHARS."""
+    return q_len < ALIGN_MAX_WORDS and len(norm_input) <= ALIGN_MAX_CHARS
 
 
 def fragment_similarity(
