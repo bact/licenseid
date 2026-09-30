@@ -27,6 +27,19 @@ from licenseid.types import CandidateMatch, InternalMatch
 PROBE_WORDS: int = 60  # probe sample size (words, taken from query middle)
 PROBE_GATE: float = 0.52  # min probe score to run the full alignment scan
 
+# When the full alignment scan is affordable. Its cost grows with the query's
+# length in CHARACTERS, whatever they are (per candidate, against a licence of
+# 18,000 characters: 700 chars 7 ms, 2,150 chars 124 ms, 4,000 chars 758 ms),
+# but the gates above count WORDS. A blob (a long token, embedded base64) is
+# few words and many characters, so it would pass unprobed and take seconds to
+# minutes. Such a query is scored with token_sort_ratio, as a query of
+# ALIGN_MAX_WORDS or more already is. Both character limits sit above every
+# fixture input (unprobed: at most 1,427 characters; at most 15.27 characters
+# a word, the Japanese CC-BY-SA-2.1-JP slices), so no fixture changes path.
+ALIGN_MAX_WORDS: int = 500
+ALIGN_UNPROBED_MAX_CHARS: int = 1500
+ALIGN_MAX_CHARS_PER_WORD: int = 16
+
 
 def build_probe(query_words: list[str]) -> str | None:
     """Build the mid-query probe sample used by fragment_similarity().
@@ -41,6 +54,16 @@ def build_probe(query_words: list[str]) -> str | None:
     mid = q_len // 2
     half = PROBE_WORDS // 2
     return " ".join(query_words[mid - half : mid + half])
+
+
+def alignment_affordable(norm_input: str, q_len: int) -> bool:
+    """Whether the full alignment scan of *norm_input* (*q_len* words) is
+    affordable; the one judge of it. See ALIGN_MAX_WORDS."""
+    if q_len >= ALIGN_MAX_WORDS:
+        return False
+    if q_len < PROBE_WORDS * 2 and len(norm_input) >= ALIGN_UNPROBED_MAX_CHARS:
+        return False  # no probe to spare the weak candidates the scan
+    return len(norm_input) <= ALIGN_MAX_CHARS_PER_WORD * q_len
 
 
 def fragment_similarity(
@@ -101,15 +124,10 @@ def calculate_base_similarity(
 
     if norm_input == search_text:
         similarity = 1.0
-    elif q_len >= c_len * 0.8:
+    elif q_len >= c_len * 0.8 or not alignment_affordable(norm_input, q_len):
         similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
     else:
-        if q_len < 500:
-            similarity, best_window = fragment_similarity(
-                norm_input, search_text, probe
-            )
-        else:
-            similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
+        similarity, best_window = fragment_similarity(norm_input, search_text, probe)
 
     # Semantic Safeguards
     if 0.90 < similarity < 1.0:

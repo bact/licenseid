@@ -305,6 +305,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - Do not run a mutation-testing agent while another agent edits `src/`: a
   snapshot taken then can capture a live mutant and produce phantom
   findings. Diff any snapshot against the working tree first.
+- RapidFuzz's alignment scan costs time in the query's CHARACTERS, not its
+  words: a blob of few words and many characters used to take minutes.
+  `similarity.alignment_affordable` is the one judge of whether the scan
+  runs; its limits sit just above every fixture input, so re-check them
+  against the fixtures before changing either.
 - Details and the rest of the findings from PR #55:
   `working-docs/implementation/database-readiness-gate.md`.
 - A fix to input reading can add the next quadratic path: a loop that
