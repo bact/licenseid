@@ -310,8 +310,12 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   characters used to take minutes. Guard by the probe
   (`similarity.build_probe`) and by `similarity.alignment_affordable`, never
   by characters per word: Japanese and Chinese have no spaces, so their words
-  are long, and a per-word limit lost CC-BY-SA-2.1-JP. Re-check the limits
-  against the fixtures' query and probe lengths before changing either.
+  are long, and a per-word limit lost CC-BY-SA-2.1-JP. A limit that clears
+  every fixture proves little: that one did, and the same licence sliced at
+  other offsets crossed it. Before changing a limit, sweep real licence texts
+  (Japanese included) at several offsets and lengths on the branch and on
+  `main`, and compare the top answers. Details from PR #62: the roadmap's
+  "Already resolved" entry for item 16.
 - Details and the rest of the findings from PR #55:
   `working-docs/implementation/database-readiness-gate.md`.
 - A fix to input reading can add the next quadratic path: a loop that
