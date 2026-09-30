@@ -7,7 +7,7 @@
 Aggregated license matching logic using hybrid search.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, cast
 
 from licenseid.classify import is_pure_license_text
@@ -19,7 +19,7 @@ from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
 from licenseid.retrieval import get_candidates
-from licenseid.shorttext import match_short_text
+from licenseid.shorttext import EXACT_MATCH_SCORE, match_short_text
 from licenseid.similarity import (
     build_probe,
     calculate_base_similarity,
@@ -211,13 +211,41 @@ class AggregatedLicenseMatcher:
         short_matches = self._match_short_text(ctx.norm_input)
         if short_matches and short_matches[0]["score"] > 1.0:
             for m in short_matches:
-                flags = self.detector.license_flags(m["license_id"])
-                m["is_spdx"] = flags["is_spdx"]
-                m["is_osi_approved"] = flags["is_osi_approved"]
-                m["is_fsf_libre"] = flags["is_fsf_libre"]
+                if "is_spdx" not in m:  # an expression (see shorttext)
+                    flags = self.detector.license_flags(m["license_id"])
+                    m["is_spdx"] = flags["is_spdx"]
+                    m["is_osi_approved"] = flags["is_osi_approved"]
+                    m["is_fsf_libre"] = flags["is_fsf_libre"]
             return short_matches
 
         return None
+
+    def _try_manifest_value(self, ctx: _MatchContext) -> list[LicenseMatch] | None:
+        """Tier 0 on a manifest's license value that did not resolve as an ID,
+        name or expression (Tier 0.5): "Apache 2.0" names Apache-2.0.
+
+        A small manifest is not license text, so it is never matched by name
+        as a whole (that answered Apache-1.0 for "Apache 2.0"): if its value
+        names no license, there is no answer. A larger one goes on to Tiers 1
+        and 2 as before.
+        """
+        values = self.detector.manifest_values(ctx.target_text, ctx.file_path)
+        if not values:
+            return None
+        for value in values:
+            norm_value = normalize_text(value)
+            result = self._try_tier0_short_text(
+                replace(
+                    ctx,
+                    target_text=value,
+                    norm_input=norm_value,
+                    word_count=len(norm_value.split()),
+                )
+            )
+            # Only an exact ID or name: "BSD" is a fuzzy match for 0BSD.
+            if result and result[0]["score"] >= EXACT_MATCH_SCORE:
+                return result
+        return [] if ctx.word_count < 30 else None
 
     def _run_tier1_and_tier2(
         self,
@@ -290,6 +318,11 @@ class AggregatedLicenseMatcher:
         marker_candidates, marker_boosts, spdx_exact = self._try_tier0_5_markers(ctx)
         if spdx_exact is not None:
             return spdx_exact
+
+        # A manifest field that names its license loosely ("Apache 2.0").
+        field_result = self._try_manifest_value(ctx)
+        if field_result is not None:
+            return field_result
 
         # Tier 0: Short-Text Shortcut — bare IDs/names below the word
         # threshold are resolved without entering the FTS5 pipeline.

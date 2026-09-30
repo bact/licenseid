@@ -876,17 +876,12 @@ class LicenseDatabase:
         with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute(
-                "SELECT license_id, name, is_deprecated,"
-                " norm_license_id, norm_name FROM licenses"
+                "SELECT license_id, name, is_deprecated, norm_license_id,"
+                " norm_name, is_spdx, is_osi_approved, is_fsf_libre FROM licenses"
             )
+            # The same columns as LicenseNameId, with its flags made bool.
             result = [
-                LicenseNameId(
-                    license_id=row["license_id"],
-                    name=row["name"],
-                    is_deprecated=bool(row["is_deprecated"]),
-                    norm_license_id=row["norm_license_id"],
-                    norm_name=row["norm_name"],
-                )
+                cast(LicenseNameId, self._cast_license_details(row))
                 for row in cursor.fetchall()
             ]
         self._names_and_ids_cache = result

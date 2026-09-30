@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-30
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -44,7 +44,7 @@ pylint's actual defaults are 12 and 50.
 | Statements | ≤50 | 50 (at target) | 35 (`markers._detect_gpl_headers`) |
 | McCabe | ≤10 | 12 | 12 (`database._prepare_license_and_exception_records`) |
 | Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
-| Module lines | soft 400-500 / hard 800 | 926 | 926 (`database.py`) |
+| Module lines | soft 400-500 / hard 800 | 921 | 921 (`database.py`) |
 
 Measured 2026-08-19 via `pylint --disable=all --enable=too-many-<x>
 --max-<x>=1`, `flake8 --max-complexity 1` and
@@ -83,7 +83,8 @@ was removed (2026-09-19); `database.py` now holds it. Then 935→933 when
 names moved from `LicenseDatabase.clear_cache` into
 `spdx_source.clear_cache_files`, beside the constants that name them. Then
 924→926 when `clear_cache` grew the guard that keeps it off another
-program's file.
+program's file. Then 926→921 when `get_all_names_and_ids` reused
+`_cast_license_details` for its rows (PR #65).
 
 ## Backlog, priority order
 

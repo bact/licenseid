@@ -117,7 +117,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A small `package.json`, `pyproject.toml` or `Cargo.toml` (under 30 words)
   is read for its `license` field: it was matched by name instead, and
-  `"license": "MIT OR Apache-2.0"` answered `Apache-1.0` with certainty
+  `"license": "MIT OR Apache-2.0"` answered `Apache-1.0` with certainty. A
+  manifest is never matched by name as a whole: a value that is no ID or
+  expression is matched on its own if it names a license exactly
+  (`"Apache 2.0"` is Apache-2.0), and a small file whose value names none
+  (`"UNLICENSED"`, `"BSD"`) has no answer
+- A manifest's `license` value must be an expression as a whole:
+  `"MIT/Apache-2.0"` answered a certain `MIT`, dropping Apache-2.0. In
+  `Cargo.toml`, where the slash is the old spelling of OR, it now reads as
+  `Apache-2.0 OR MIT`
 - The `license` string of `pyproject.toml` (PEP 639, and Poetry's) and of
   `Cargo.toml` is read; only `license = {text = ...}` was
 - A TOML or INI `license` field is a certain match (score 1.0), as a JSON

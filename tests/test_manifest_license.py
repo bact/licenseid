@@ -10,6 +10,7 @@ on every result. Roadmap item 18."""
 import json
 from collections.abc import Generator
 from pathlib import Path
+from unittest import mock
 
 import pytest
 from click.testing import CliRunner
@@ -17,6 +18,7 @@ from conftest import MIT_SEARCH_TEXT
 from matcher_db import Lic, seeded_db
 
 from licenseid.cli import cli
+from licenseid.database import LicenseDatabase
 from licenseid.manifest import toml_license_values
 from licenseid.matcher import AggregatedLicenseMatcher
 
@@ -75,7 +77,15 @@ def db() -> Generator[str, None, None]:
         Lic("MIT", "MIT License", True, True, True, search_text=MIT_SEARCH_TEXT),
         Lic("Apache-2.0", "Apache License 2.0", True, True, True, search_text="x"),
         Lic("Apache-1.0", "Apache License 1.0", True, False, True, search_text="y"),
+        Lic("0BSD", "BSD Zero Clause License", True, True, False),
         Lic("GPL-2.0-only", "GNU General Public License v2.0 only", True, True, True),
+        Lic(
+            "GPL-2.0-or-later",
+            "GNU General Public License v2.0 or later",
+            True,
+            True,
+            True,
+        ),
         Lic(
             "GPL-2.0-with-GCC-exception",
             "GNU General Public License v2.0 w/GCC Runtime Library exception",
@@ -186,3 +196,78 @@ def test_a_manifest_declares_one_license_per_table() -> None:
         '[package]\nlicense = "C"\n[project]\nlicense = "D"\n'
     )
     assert toml_license_values(text) == ["A", "C"]
+
+
+@pytest.mark.parametrize("large", [False, True], ids=["small", "large"])
+@pytest.mark.parametrize("kind", ["package-json", "cargo", "setup-cfg"])
+def test_a_loosely_named_license_is_matched_on_its_own(
+    db: str, tmp_path: Path, kind: str, large: bool
+) -> None:
+    """ "Apache 2.0" is no ID or expression, but names Apache-2.0 exactly. The
+    small file used to be matched by name as a whole: Apache-1.0 at 1.01."""
+    path = manifest(tmp_path, kind, "Apache 2.0", large)
+    top = AggregatedLicenseMatcher(db).match(file_path=path)[0]
+    assert top["license_id"] == "Apache-2.0"
+    assert top["is_spdx"] and top["is_osi_approved"]
+
+
+@pytest.mark.parametrize(
+    "value",
+    # "Apache" is also every word of "Apache License 1.0" in the small file,
+    # which is how the whole file was matched by name: Apache-1.0 at 1.01.
+    ["Apache", "BSD", "UNLICENSED", "SEE LICENSE IN LICENSE.txt", "Proprietary"],
+)
+@pytest.mark.parametrize("kind", ["package-json", "cargo"])
+def test_a_small_manifest_naming_no_license_has_no_answer(
+    db: str, tmp_path: Path, kind: str, value: str
+) -> None:
+    """Not a name match of the whole file, and not a fuzzy one of the value:
+    "BSD" is a fuzzy match for 0BSD."""
+    path = manifest(tmp_path, kind, value, large=False)
+    assert AggregatedLicenseMatcher(db).match(file_path=path) == []
+
+
+@pytest.mark.parametrize(
+    ("kind", "value", "expected"),
+    [
+        # Cargo's old spelling of OR.
+        ("cargo", "MIT/Apache-2.0", "Apache-2.0 OR MIT"),
+        ("cargo", "MIT / Apache-2.0", "Apache-2.0 OR MIT"),
+        # A slash that is not between two IDs is not an OR.
+        ("cargo", "https://spdx.org/licenses/MIT", "MIT"),
+        # A grant after the expression is the only thing that may follow it.
+        ("package-json", "GPL-2.0 or later", "GPL-2.0-or-later"),
+    ],
+)
+def test_a_manifest_value_is_read_whole(
+    db: str, tmp_path: Path, kind: str, value: str, expected: str
+) -> None:
+    path = manifest(tmp_path, kind, value, large=False)
+    top = AggregatedLicenseMatcher(db).match(file_path=path)[0]
+    assert (top["license_id"], top["score"]) == (expected, 1.0)
+
+
+@pytest.mark.parametrize("kind", ["package-json", "pyproject-string"])
+def test_a_slash_elsewhere_is_not_or(db: str, tmp_path: Path, kind: str) -> None:
+    """Only Cargo spells OR with a slash; elsewhere it is no expression, and
+    answering the MIT before it would drop a license."""
+    path = manifest(tmp_path, kind, "MIT/Apache-2.0", large=True)
+    results = AggregatedLicenseMatcher(db).match(file_path=path)
+    assert all(r["license_id"] != "MIT" or r["score"] < 0.85 for r in results)
+
+
+def test_a_name_match_needs_no_lookup_per_result(db: str) -> None:
+    """Tier 0 takes the flags from its cached name table: a broad name
+    returns dozens of results, and a lookup each made it 20 times slower."""
+    matcher = AggregatedLicenseMatcher(db)
+    matcher.match(text="warm up the name cache")
+    with mock.patch.object(
+        LicenseDatabase,
+        "get_license_details",
+        autospec=True,
+        wraps=LicenseDatabase.get_license_details,
+    ) as lookup:
+        results = matcher.match(text="Apache License")
+    assert len(results) >= 2
+    assert all(isinstance(r.get("is_spdx"), bool) for r in results)
+    assert lookup.call_count == 0

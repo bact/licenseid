@@ -227,10 +227,10 @@ Found on 2026-09-30 while checking item 18.
 
 `MarkerDetector._detect_explicit_identifiers` resolves each
 `license:`/`license =` match in the text, each with database lookups. A file
-of 10,000 such lines takes 9 s on the real database, on `main` as on the
-item 18 change. The manifest readers stop at one value per form and table
-(`manifest.toml_license_values`); this reader has no such bound. Found on
-2026-09-30 while checking item 18.
+of 10,000 such lines took 9 s on the real database. The manifest readers stop
+at one value per form and table (`manifest.toml_license_values`), and since
+item 18 this reader skips a manifest, but any other text still has no such
+bound. Found on 2026-09-30 while checking item 18.
 
 - **Fix**: resolve each distinct value once and stop at the first that
   resolves, or cap the number read. Time distinct values, not repeats.
@@ -315,13 +315,26 @@ statistics; no fix has been designed yet, only the problem is documented.
   - the string form is read only in `[project]`, `[tool.poetry]` and
     `[package]`, so a Python `license = "MIT"` in `--text` is not a field;
   - every result carries `is_spdx`, `is_osi_approved` and `is_fsf_libre`:
-    Tier 2 copies them from its candidates, and Tier 0 takes them from
+    Tier 2 copies them from its candidates, and Tier 0 from its cached name
+    table (a lookup per result made a broad name such as `GPL`, 42 results,
+    20 times slower); an expression takes them from
     `MarkerDetector.license_flags`, the rule synthetic expression candidates
-    already used.
+    already used;
+  - a manifest value must be an expression as a whole (`resolve_license_value`
+    with `whole=True`): a tag's value can trail into prose, a field's cannot,
+    and the MIT prefix of `MIT/Apache-2.0` dropped a license. Cargo's
+    `[package]` reads the slash as OR, its old spelling;
+  - a manifest is never matched by name as a whole: a value that does not
+    resolve goes to Tier 0 on its own, and only an exact ID or name counts
+    (`"Apache 2.0"` is Apache-2.0; `"BSD"` would be a fuzzy 0BSD). A small
+    manifest whose value names no license has no answer;
+  - the loose `License:` reader skips a manifest, whose field the manifest
+    reader has read whole.
 
-  The loose `License:` reader stays at 0.95: it matches prose. OSI and FSF
-  flags of an OR or AND stay false by design (`identifiers.flag_source`).
-  Found on the way and not fixed: items 21 to 23.
+  The loose `License:` reader stays at 0.95 elsewhere: it matches prose. OSI
+  and FSF flags of an OR or AND stay false by design
+  (`identifiers.flag_source`). Found on the way and not fixed: items 21 to
+  23.
 
 - A blob made matching slow (item 16, Priority 15; 2026-09-30). A query of
   few words and many characters (one long token, embedded base64, a run of

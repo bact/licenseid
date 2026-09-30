@@ -29,6 +29,8 @@ _RE_TOML_HEADER = re.compile(r"[ \t]*\[([^\[\]]*)\][ \t]*(?:#.*)?")
 _RE_TOML_LICENSE_STRING = re.compile(
     r"""[ \t]*license[ \t]*=[ \t]*(?:"([^"\\]*)"|'([^']*)')[ \t]*(?:#.*)?"""
 )
+# Cargo's old spelling of OR, "MIT/Apache-2.0", still common in crates.
+_RE_CARGO_SLASH_OR = re.compile(r"[\w.+-]+(?:[ \t]*/[ \t]*[\w.+-]+)+")
 # Tables whose license key is a string: PEP 639 ([project]), Poetry and Cargo
 # (an SPDX expression in each). A license key elsewhere means anything.
 _TOML_LICENSE_TABLES = frozenset({"project", "tool.poetry", "package"})
@@ -67,6 +69,10 @@ def toml_license_values(text: str) -> list[str]:
             value = (field.group(1) or field.group(2) or "") if field else ""
             if value.strip():
                 by_table[table] = value
+    if "package" in by_table and _RE_CARGO_SLASH_OR.fullmatch(by_table["package"]):
+        by_table["package"] = " OR ".join(
+            part.strip() for part in by_table["package"].split("/")
+        )
     values.extend(by_table.values())
     return [value for value in values if value.strip()]
 
@@ -86,3 +92,23 @@ def ini_license_values(text: str) -> list[str]:
         except configparser.Error:  # a stray % in this section only
             continue
     return [value for value in values if value]
+
+
+def license_value_groups(text: str, ext: str) -> list[list[str]]:
+    """The license values of each format *text* may be, chosen by its
+    extension *ext* ("" for text with no file name, which is tried as each)."""
+    stripped = text.strip()
+    is_json_ext = ext == ".json"
+    if is_json_ext or (not ext and stripped.startswith(("{", "["))):
+        values = json_license_values(stripped)
+        if values is not None:
+            return [values]  # valid JSON: don't fall through to TOML/INI
+        if is_json_ext:
+            return []
+        # Extensionless "[section]" text is INI/TOML, not JSON: fall through.
+    groups: list[list[str]] = []
+    if ext in (".toml", ""):
+        groups.append(toml_license_values(text))
+    if ext in (".cfg", ".ini", ""):
+        groups.append(ini_license_values(text))
+    return groups

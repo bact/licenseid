@@ -87,6 +87,9 @@ class LicenseNameId(TypedDict):
     is_deprecated: bool
     norm_license_id: str
     norm_name: str
+    is_spdx: bool
+    is_osi_approved: bool
+    is_fsf_libre: bool
 
 
 class LicenseDetails(TypedDict, total=False):
