@@ -63,7 +63,8 @@ def build_probe(query_words: list[str]) -> str | None:
     The middle PROBE_WORDS words of a query of 120 to 499 words, or the
     middle characters of a shorter one that is long in characters; at most
     PROBE_MAX_CHARS either way. None when the query is short enough to scan
-    without one, or too long to be scanned at all (see alignment_affordable).
+    without one, or of ALIGN_MAX_WORDS words or more. A query too long in
+    characters to scan still gets one; alignment_affordable keeps it unused.
     """
     q_len = len(query_words)
     if q_len >= ALIGN_MAX_WORDS:

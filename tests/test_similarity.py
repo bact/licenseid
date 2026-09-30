@@ -158,8 +158,10 @@ def test_a_probe_is_cut_from_the_middle() -> None:
     by_chars = ["x" * 1000, "y" * 1000]  # too few words for the word probe
     assert similarity.build_probe(by_chars) == "x" * 250 + " " + "y" * 249
     long_words = [f"{i:03d}" + "z" * 36 for i in range(200)]  # 39 characters
-    probe = similarity.build_probe(long_words)
-    assert probe == " ".join(long_words[70:130])[949:1449]
+    middle_60 = " ".join(long_words[70:130])  # too long for a probe
+    start = (len(middle_60) - similarity.PROBE_MAX_CHARS) // 2
+    expected = middle_60[start : start + similarity.PROBE_MAX_CHARS]
+    assert similarity.build_probe(long_words) == expected
 
 
 @pytest.mark.parametrize(
