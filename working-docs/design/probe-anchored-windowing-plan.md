@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-07-20
+Last-Modified: 2026-09-30
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,6 +13,15 @@ status: planned
 
 See also: [`tech-debt-roadmap.md`](tech-debt-roadmap.md) for priority
 among deferred work.
+
+**Changed since this plan (2026-09-30, roadmap item 16).** The probe is no
+longer always 60 whole words of a 120-499-word query. `build_probe()` also
+cuts a probe by characters from the middle of a query of fewer than 120
+words and 1,500 characters or more, and trims every probe to the middle
+`PROBE_MAX_CHARS` (500) characters. A probe is therefore a character slice
+of the query, not always on a word boundary: have `build_probe()` return its
+character offset, not the word offset `mid - half` proposed below. The full
+scan also stops at `ALIGN_MAX_CHARS` (6,000) characters.
 
 Flagged as future work in
 [`../implementation/speed-optimizations-round-2.md`](../implementation/speed-optimizations-round-2.md)
@@ -28,7 +37,7 @@ cycle.
 on realistic workloads. Measured directly: its cost scales with **query
 length**, not candidate length —
 
-```
+```text
 q=80  words, cand=7244 words -> ~2ms   (any candidate length)
 q=300 words, cand=464..7244  -> ~47-67ms  (roughly flat across candidate length)
 ```
