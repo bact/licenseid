@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-30
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -19,7 +19,8 @@ Item 9 (and the resolved items 3 and 8) come from a tech-debt audit on
 2026-09-19; items 5 and 12 (and the resolved items 1, 4 and 6) from code
 reviews of the diagnostics change and the Java removal; items 2 and 10 from
 manual CLI testing under other locales and environments; items 15 to 18 from the
-work on item 6, and item 19 from the work on items 15 and 17.
+work on item 6, and item 19 from the work on items 15 and 17. Item 11 was
+re-scored from the work on item 16.
 
 ## 2. `py-spdx-license` reads its data with the locale encoding — Priority 20
 
@@ -100,23 +101,26 @@ option or input is dropped without a warning. All of it is pinned as
   document it, then flip the pins.
 - Impact 2, Risk 3, Effort 3.
 
-## 16. Matching time is quadratic in the length of one token — Priority 15
+## 11. Probe-anchored windowing — Priority 15
 
-A very long run of characters with no space in it makes `match` slow, with or
-without a tag. Measured on 2026-09-21 on the real database, a source comment
-of 30 or more words with one token of N characters added:
+The one large remaining lever on `fragment_similarity`'s dominant cost:
+reuse the existing 60-word probe's match location instead of re-running
+a full realignment scan. Deliberately deferred because it changes
+`best_window`, which is user-facing via the CLI's `--diff` flag, not
+just an internal ranking score — needs its own validation cycle (a
+`bench_compare.py` run plus a manual `--diff` output quality check).
 
-| N | 250 | 500 | 1,000 | 2,000 | 5,000 |
-| --- | --- | --- | --- | --- | --- |
-| `match` time (s) | 0.1 | 0.4 | 1.3 | 6.3 | about 60 |
-
-Minified code and base64 blobs are single tokens of this size. The cause is
-not located yet (the text tiers, not the tag path); profile first.
-
-- **Fix**: find the quadratic step (likely RapidFuzz on the long token, or
-  windowing) and cap or skip it. Add a timing test with a 40,000 character
-  token, as the `OR_LATER_PHRASE` regex tests do.
-- Impact 2, Risk 3, Effort 3.
+- Re-scored 2026-09-30 (Impact 2 → 3): ordinary license text pays for it,
+  not only crafted input. On the real database a 3,000-character slice of
+  Apache-2.0 (a probed query) takes 9 s, because many similar licenses pass
+  the probe and each gets a full scan of the whole query. The scan's cost
+  follows the query's characters (item 16), and item 16's guard does not
+  apply: this query is prose, and its fixture twins (`head_3000`) must keep
+  their answers. Blob around a licence-like middle pays it too: 200 words of
+  Apache-2.0 among 120 random 25-character tokens (4,426 characters) takes
+  134 s, as 141 candidates pass the probe and each scan takes about 1 s.
+- Impact 3, Risk 2, Effort 3.
+- Full plan: [`probe-anchored-windowing-plan.md`](probe-anchored-windowing-plan.md).
 
 ## 7. GPL/LGPL/AGPL family disambiguation (tail recall floor) — Priority 12
 
@@ -211,18 +215,6 @@ Each case is outside the message grammar or hides a failure:
   `DatabaseErrorGroup`; the API is left.
 - Impact 2, Risk 2, Effort 3.
 
-## 11. Probe-anchored windowing — Priority 9
-
-The one large remaining lever on `fragment_similarity`'s dominant cost:
-reuse the existing 60-word probe's match location instead of re-running
-a full realignment scan. Deliberately deferred because it changes
-`best_window`, which is user-facing via the CLI's `--diff` flag, not
-just an internal ranking score — needs its own validation cycle (a
-`bench_compare.py` run plus a manual `--diff` output quality check).
-
-- Impact 2, Risk 2, Effort 3.
-- Full plan: [`probe-anchored-windowing-plan.md`](probe-anchored-windowing-plan.md).
-
 ## 19. How deep an expression may be depends on the Python version — Priority 9
 
 `py_spdx_license` builds its AST with a plain recursive walk and no depth
@@ -284,6 +276,38 @@ statistics; no fix has been designed yet, only the problem is documented.
   estimate is meaningful — treat this as provisional).
 
 ## Already resolved (kept for record)
+
+- A blob made matching slow (item 16, Priority 15; 2026-09-30). A query of
+  few words and many characters (one long token, embedded base64, a run of
+  60-character tokens) went through the full RapidFuzz alignment scan on
+  every candidate: 27 words plus one 2,000-character token took 5 s, and
+  5,000 characters about 60 s. The scan's cost follows the query's length in
+  characters, but its guards counted words: the probe is built only for
+  120-499 words, and 500 words or more already fell back to
+  `token_sort_ratio`. Base64 is split at `+` and `/` when normalised, so it
+  arrives as many medium tokens: dropping long tokens would not have been
+  enough. A first fix scored a query of more than 16 characters a word with
+  `token_sort_ratio`, and review found that it lost Japanese licence text:
+  Japanese is written without spaces, so a 1,570-character slice of
+  CC-BY-SA-2.1-JP (104 words) fell from a certain match to 0.5. Characters
+  per word says nothing about a blob. The guard now uses the probe:
+  - a query of 1,500 characters or more always has a probe, cut from its
+    middle by characters when it has fewer than 120 words;
+  - a probe is at most 500 characters, where its own cost jumps (15 ms a
+    candidate at 500, 43 ms at 600, 136 ms at 1,000); the 60 words of a
+    base64 probe had been 1,900 characters;
+  - the scan takes at most 6,000 characters (`similarity.alignment_affordable`,
+    the one judge of it); a longer query gets `token_sort_ratio`.
+
+  A blob fails its probe, so each candidate costs a few milliseconds; a
+  Japanese slice passes it and is scanned as before. No fixture query
+  reaches the character limits (at most 1,427 characters unprobed, 5,478
+  probed). Trimming the 16 fixture probes longer than 500 characters, all
+  Japanese or Chinese, keeps every one's top answer; only ranks two and
+  three, at scores near 0.11, change. Still bounded but not free: an
+  unprobed query just under 1,500 characters (a 1,000-character token)
+  takes about 1 s, as on `main`, and a licence-like middle among blob
+  tokens under 6,000 characters is item 11.
 
 - A tag read with a hand-written grammar, and an ID path that read only
   `WITH` (items 15 and 17, Priorities 15 and 16; 2026-09-21).

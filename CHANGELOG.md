@@ -115,6 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A file with a very long token or embedded base64 (a data URI, a PEM block)
+  no longer takes seconds to minutes to match: a comment with one
+  5,000-character token took about a minute and now takes under 0.1 s
 - An `SPDX-License-Identifier` tag is read as one expression:
   `(MIT OR Apache-2.0)` and `DocumentRef-x:LicenseRef-y` were dropped or cut
   short, and a cut-short value could be a certain match for the wrong
