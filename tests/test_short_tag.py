@@ -114,10 +114,19 @@ def test_a_long_tag_value_reads_in_linear_time(db: str) -> None:
         ("LicenseRef-" + "a" * 246, False),
         ("((LicenseRef-" + "a" * 245 + "))", True),  # brackets do not count
         ("MIT OR LicenseRef-" + "a" * 245, True),
-        ("MIT\tOR\nLicenseRef-" + "a" * 245, True),  # any white space breaks
+        # The parser's breaks: each beside a token at the limit.
+        (
+            "\tOR\n".join(["LicenseRef-" + "a" * 245] * 2)
+            + "\rOR LicenseRef-"
+            + "b" * 245,
+            True,
+        ),
+        # The parser does not break at other white space, so neither may the
+        # guard: one token of a million characters to the parser.
+        (("x" * 200 + " ") * 5000, False),
         ("x" * 1_000_000, False),
     ],
-    ids=["at-limit", "over-limit", "brackets", "with-operator", "tab", "huge"],
+    ids=["at-limit", "over-limit", "brackets", "with-operator", "tab", "nbsp", "huge"],
 )
 def test_the_parser_refuses_an_overlong_token(expression: str, parsed: bool) -> None:
     start = time.monotonic()

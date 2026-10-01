@@ -133,8 +133,11 @@ def normalize_operator_casing(expression: str) -> str:
 # token's length (7 s at 1,000,000 characters). Relax it once the parser
 # reads in linear time (tech-debt roadmap, item 26).
 _MAX_TOKEN_LENGTH = 256
-# A token: a run between white space and brackets, the parser's own breaks.
-_RE_PARSER_TOKEN = re.compile(r"[^\s()]+")
+# A token as the parser sees it: a run between space, tab, line feed,
+# carriage return and brackets. Not \s: the parser does not break at other
+# white space (no-break space, vertical tab), so a run joined by it is one
+# token there. "+" breaks there too; counting it in only refuses more.
+_RE_PARSER_TOKEN = re.compile(r"[^ \t\n\r()]+")
 
 
 def parse_expression(expression: str) -> py_spdx_license.Node | None:

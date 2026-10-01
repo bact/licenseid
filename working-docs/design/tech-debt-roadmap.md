@@ -147,8 +147,12 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
 
 `identifiers.parse_expression` refuses an expression with a token longer
 than `_MAX_TOKEN_LENGTH` (256 characters; the longest License List ID has
-36), a workaround added with item 24. `py_spdx_license` 0.0.1 parses in
-quadratic time, in two places (`src/py_spdx_license/ast.py`):
+36), a workaround added with item 24. A token is counted as the parser
+splits it, at space, tab, line feed, carriage return and brackets only:
+a run joined by a no-break space is one token there, and a guard that
+split at `\s` let a million-character one through (found in review of
+PR #66). `py_spdx_license` 0.0.1 parses in quadratic time, in two places
+(`src/py_spdx_license/ast.py`):
 
 - `tokenize` builds each token with `t.value += c`; on an attribute CPython
   cannot append in place, so each character copies the token: 0.11 s at
