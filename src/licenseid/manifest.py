@@ -23,8 +23,9 @@ _RE_TOML_LICENSE_TABLE = re.compile(
 )
 # Any key, bare or quoted: a TOML file has at least one.
 _RE_TOML_KEY = re.compile(r"""[ \t]*[\w."'-]+[ \t]*=""")
-# The delimiters of a multi-line string, whose lines are text, not TOML.
-_TOML_MULTILINE_QUOTES = ('"""', "'''")
+# The next string delimiter or comment on a line, a multi-line string's
+# delimiter tried before a one-line string's.
+_RE_TOML_QUOTE_OR_COMMENT = re.compile(r"\"\"\"|'''|[\"'#]")
 # A table header, [project] or [tool.poetry], but not an array of tables
 # ([[bin]]). No two neighbouring parts can match the same run of characters,
 # so a long line cannot make either pattern backtrack.
@@ -119,12 +120,45 @@ def _toml_lines(text: str) -> Iterator[str]:
     text, not TOML: a header or a field there is none."""
     open_quote = ""
     for line in text.splitlines():
-        if open_quote:
-            if line.count(open_quote) % 2:  # the string closes on this line
-                open_quote = ""
-            continue
-        open_quote = next((q for q in _TOML_MULTILINE_QUOTES if line.count(q) % 2), "")
-        yield line
+        if not open_quote:
+            yield line
+        open_quote = _open_string(line, open_quote)
+
+
+def _open_string(line: str, quote: str) -> str:
+    """The multi-line string delimiter still open at the end of *line*,
+    given *quote*, the one open at its start ("" for none). A delimiter in a
+    comment or a one-line string opens nothing."""
+    pos = 0
+    while True:
+        if not quote:
+            token = _RE_TOML_QUOTE_OR_COMMENT.search(line, pos)
+            if not token or token.group() == "#":
+                return ""
+            quote, pos = token.group(), token.end()
+        end = _string_end(line, pos, quote)
+        if end < 0:
+            # A one-line string cannot stay open: that is no TOML.
+            return quote if len(quote) == 3 else ""
+        quote, pos = "", end
+
+
+def _string_end(line: str, pos: int, quote: str) -> int:
+    """The index just past the delimiter at or after *pos* that closes a
+    *quote* string, or -1. A basic string ('"') has backslash escapes; a
+    literal one has none."""
+    end = line.find(quote, pos)
+    while end >= 0 and quote[0] == '"' and _escaped(line, end):
+        end = line.find(quote, end + 1)
+    return end + len(quote) if end >= 0 else -1
+
+
+def _escaped(line: str, index: int) -> bool:
+    """Whether an odd run of backslashes comes just before *index*."""
+    start = index
+    while start and line[start - 1] == "\\":
+        start -= 1
+    return (index - start) % 2 == 1
 
 
 def _license_string(line: str, table: str) -> str:

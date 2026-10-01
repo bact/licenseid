@@ -206,8 +206,10 @@ def test_is_spdx_answers_yes_for_a_toml_expression(db: str, tmp_path: Path) -> N
     ("text", "expected"),
     [
         (
-            '[project]\nlicense = "A"\nlicense = "B"\n'
-            '[package]\nlicense = "C"\n[project]\nlicense = "D"\n',
+            (
+                '[project]\nlicense = "A"\nlicense = "B"\n'
+                '[package]\nlicense = "C"\n[project]\nlicense = "D"\n'
+            ),
             ["A", "C"],
         ),
         ('[a]\nlicense = {text = "A"}\n[b]\nlicense = {text = "B"}\n', ["A"]),
@@ -424,6 +426,8 @@ _RUN = 50_000
         '[package]\nlicense = "' + "a/" * _RUN + '"',
         "license = {text" + " " * _RUN,
         "[a]\n" * _RUN,
+        '[a]\nx = """' + '\\"""' * _RUN,  # every delimiter escaped
+        "[a]\nx = " + '"a" ' * _RUN,
     ],
     ids=[
         "open-header",
@@ -435,6 +439,8 @@ _RUN = 50_000
         "slashes",
         "open-table-form",
         "many-headers",
+        "escaped-delimiters",
+        "one-line-strings",
     ],
 )
 def test_a_long_run_reads_in_linear_time(text: str) -> None:

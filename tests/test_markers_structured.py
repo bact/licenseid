@@ -214,6 +214,26 @@ def test_toml_commented_out_line_not_matched(detector: MarkerDetector) -> None:
         ),
         ('[project]\nx = """a"""\nlicense = "MIT"\n', "MIT"),
         ('[project]\nx = """\n\'\'\'\n"""\nlicense = "MIT"\n', "MIT"),
+        ('[project]\nx = [\n  """\n[tool.y]\n""",\n]\nlicense = "MIT"\n', "MIT"),
+        # Delimiters that open no multi-line string: in a comment, a one-line
+        # string or a quoted key.
+        ('[tool.x]\n# see #12, use """ here\n[project]\nlicense = "MIT"\n', "MIT"),
+        ("[tool.x]\nq = '\"\"\"'\n[project]\nlicense = 'MIT'\n", "MIT"),
+        ('[tool.x]\nq = "it\'\'\'s"\n[project]\nlicense = "MIT"\n', "MIT"),
+        ('[tool.x]\n"a\'\'\'b" = 1\n[project]\nlicense = "MIT"\n', "MIT"),
+        ('[tool.x]\nq = "unclosed\n[project]\nlicense = "MIT"\n', "MIT"),
+        # An escaped quote does not close a basic string, an escaped
+        # backslash before the delimiter does not stop it closing, and a
+        # literal string has no escapes.
+        (
+            (
+                '[project]\nx = """a \\"""\nlicense = "Apache-2.0"\n"""\n'
+                'license = "MIT"\n'
+            ),
+            "MIT",
+        ),
+        ('[project]\nx = """a \\\\"""\nlicense = "MIT"\n', "MIT"),
+        ("[project]\nx = '''a \\'''\nlicense = 'MIT'\n", "MIT"),
     ],
     ids=[
         "pep639",
@@ -229,6 +249,15 @@ def test_toml_commented_out_line_not_matched(detector: MarkerDetector) -> None:
         "table-form-in-string",
         "one-line-string",
         "other-quotes-in-string",
+        "array-of-strings",
+        "quotes-in-comment",
+        "quotes-in-literal",
+        "quotes-in-basic",
+        "quotes-in-key",
+        "unclosed-one-line-string",
+        "escaped-quote",
+        "escaped-backslash",
+        "literal-backslash",
     ],
 )
 def test_toml_string_form_resolves(
