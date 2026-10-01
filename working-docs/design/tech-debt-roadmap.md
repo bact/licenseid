@@ -21,24 +21,11 @@ reviews of the diagnostics change and the Java removal; items 2 and 10 from
 manual CLI testing under other locales and environments; items 15 to 18 from the
 work on item 6, and item 19 from the work on items 15 and 17. Item 11 was
 re-scored from the work on item 16, and items 21 to 25 come from the work on
-item 18, items 26 and 27 from the work on item 24, and items 28 and 29 from
-the review of PR #66.
+item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
+the review of PR #66, and items 30 and 31 from the work on item 21.
 
-Next up (order chosen 2026-10-01: 24, 25, 21, 22): item 21, then item 22;
-items 24 and 25 are done. Item 2 waits on an upstream release.
-
-## 21. `--text GPL-2.0+` answers GPL-2.0-only — Priority 20
-
-The same value gives two answers. As a bare argument, `licenseid match
-GPL-2.0+` reads it as an ID and answers `GPL-2.0-or-later`. Through `--text`,
-or the API's `match(text=...)`, Tier 0 matches the normalised text, which
-has lost the `+`, and answers `GPL-2.0-only` at 1.02: a certain answer that
-drops the "or later" grant. Found on 2026-09-30 while checking item 18;
-`main` behaves the same.
-
-- **Fix**: let Tier 0 see a trailing `+` (or send a lone simple expression
-  through the ID path, as the CLI's bare argument does). Pin first.
-- Impact 2, Risk 3, Effort 2.
+Next up (order chosen 2026-10-01: 24, 25, 21, 22): item 22; items 24, 25
+and 21 are done. Item 2 waits on an upstream release.
 
 ## 22. `--json` prints internal ranking keys — Priority 12
 
@@ -200,11 +187,11 @@ certainty. `license identifier`, or an `SPDX-License-Identifier:` tag with
 no value, answers `CAL-1.0` at 1.0, and `is-osi` then says yes. `main`
 behaves the same; found in review of PR #66 (2026-10-01).
 
-A tag that is no expression falls through to Tier 0 the same way, which
-reads the ID inside it as certain: under 30 words,
-`SPDX-License-Identifier: MIT OR` and `SPDX-License-Identifier: (MIT`
-answer MIT at 1.01, where a long input refuses the tag and answers nothing.
-`main` behaves the same.
+A tag that is no expression used to fall through to Tier 0 the same way:
+under 30 words, `SPDX-License-Identifier: MIT OR` answered MIT at 1.01.
+Fixed in PR #67, where refusing `LicenseRef-MIT+` made its tag answer MIT
+too: Tier 0 now matches the input without its tags, which Tier 0.5 has
+read (`MarkerDetector.without_spdx_tags`).
 
 - **Direction**: a verbatim hit on a few words is evidence, not an answer.
   Cap the score of a Tier 0 text hit below 1.0 when the phrase is shorter
@@ -227,6 +214,56 @@ budget of item 26 plays no part: 32 tags of 31,600 characters each take
   `get_license_by_name` for a call. Mind the shared-cache in-memory test
   databases, which vanish when their last connection closes.
 - Impact 1, Risk 1, Effort 2.
+
+## 30. `GPL 2.0+` in prose loses its "+" in Tier 0 — Priority 6
+
+Item 21 reads a lone SPDX expression as an ID, but a value that is not
+SPDX-shaped still goes to Tier 0, which matches the normalised text, where
+the "+" is gone: `GPL 2.0+` and `GPL-2.0 +` answer `GPL-2.0-only` at 1.02,
+and `LGPL 2.1+` `LGPL-2.1-only`. Left out of item 21 on purpose
+(2026-10-01): reading a "+" out of prose is a guess (`C++`).
+
+- **Direction**: when a Tier 0 exact hit's raw text ends in a lone "+",
+  answer its or-later form, or lower the hit below certain.
+- Impact 1, Risk 2, Effort 2.
+
+## 31. Revisit how an SPDX expression is judged valid — Priority 12
+
+Come back to this and think it through systematically, for one consistent
+answer: so far each fix has patched the one case that was found. Whether a
+value is an SPDX expression is decided in several places, each with its own
+partial grammar:
+
+- `identifiers.leading_expression` (where an expression ends in a value);
+- `identifiers.is_simple_expression` and `_SIMPLE_SHAPES` (one license);
+- `identifiers._RE_PLUS_OPERATOR` and `strip_plus_operator` (which "+" is
+  the operator, since `py_spdx_license` cannot parse it);
+- `identifiers.parse_expression` (`py_spdx_license` with unknown IDs
+  allowed, behind the cost budget of item 26);
+- `markers._expression_flags` and `_synthetic_candidate` (a recognised ID);
+- `identifiers.qualify_trailing_grant` and the deprecated-ID tables.
+
+Cases found one at a time: a "+" after an exception (PR #61), a dangling
+operator or an unbalanced bracket (PR #61), a "+" after a `LicenseRef-*`
+(review of PR #67: it answered as a valid SPDX license from a tag, `--id`
+and text). Each time the rule went into one place, and the others were
+checked by hand. Found on 2026-10-01; the user asked to return to it.
+
+**Decided (2026-10-01)**: no more one-off fixes of these edge cases. The
+last were in PR #67 (a "+" after a `LicenseRef-*`, and a short input's
+refused tag matched as a name). The next step is a revision of the
+license matching rules as a whole, of which this grammar is one part:
+which tier may answer what, and with how much certainty (items 28 and 30
+are the same question for short text).
+
+- **Direction**: one reader for the SPDX grammar (Annex D:
+  `license-id ["+"]`, `license-ref`, `WITH`, `AND`, `OR`, brackets, and the
+  case rules for operators and prefixes) that returns a typed tree, with
+  the other judges derived from it; and a table-driven conformance test
+  written from the grammar, not from the bugs. Decide `NONE` and
+  `NOASSERTION` there too. Weigh delegating to `py_spdx_license` once it
+  parses "+" (upstream issue #1) in linear time (item 26).
+- Impact 2, Risk 2, Effort 3.
 
 ## 5. Conflicting options and inputs are resolved silently — Priority 15
 
@@ -441,6 +478,18 @@ statistics; no fix has been designed yet, only the problem is documented.
 
 ## Already resolved (kept for record)
 
+- `--text GPL-2.0+` answered `GPL-2.0-only` (item 21, Priority 20;
+  2026-10-01). Tier 0 matched the normalised text, which had lost the "+";
+  only the CLI's bare argument tried the value as an ID first. Now
+  `_try_tier0_short_text` reads a lone simple expression
+  (`identifiers.is_simple_expression`) through the resolver `license_id`
+  uses, so text, stdin, a file and an ID answer alike, at 1.0; a value that
+  resolves to nothing goes on to the name match. The CLI's own ID-first try
+  went with it. Prose spellings are item 30. Found in its review: the
+  deprecated GFDL-1.1 to 1.3 had no redirect at all, so `GFDL-1.3+`
+  answered `GFDL-1.3+`. They now map as the GPL family does, and
+  `tests/test_deprecated_ids.py` checks every deprecated ID of the bundled
+  License List that has `-only` and `-or-later` successors.
 - A short input never read its `SPDX-License-Identifier` tag (item 24,
   Priority 24; 2026-10-01). Under 30 words `matcher._try_tier0_5_markers`
   read only a manifest's field (item 18), so a header line went to Tier 0
@@ -455,7 +504,7 @@ statistics; no fix has been designed yet, only the problem is documented.
 - `GPL-2.0-with-classpath-exception` was not redirected (item 25, Priority
   20; 2026-10-01). `identifiers.DEPRECATED_WITH_IDS` had six of the seven
   deprecated `-with-` IDs. Now it has all seven, and
-  `tests/test_deprecated_with_ids.py` checks every deprecated `-with-` ID of
+  `tests/test_deprecated_ids.py` checks every deprecated `-with-` ID of
   the License List bundled with `py_spdx_license` against it, so the next
   one fails by name.
 

@@ -309,20 +309,18 @@ def read_text_option(ctx: click.Context, text: str) -> str:
 
 def get_input_content(
     ctx: click.Context, input_val: str | None, text: str | None
-) -> tuple[str, bool]:
-    """
-    Get input content and indicate if it's likely a file path/text vs an ID.
-    Returns (content, is_text_or_file).
-    """
+) -> str:
+    """The input to match: --text, else the argument (a file if one exists by
+    that name, else the value itself), else stdin; "" if there is none."""
     if text is not None:
-        return read_text_option(ctx, text), True
+        return read_text_option(ctx, text)
     if input_val:
         if os.path.exists(input_val):
-            return read_input(ctx, input_val), True
-        return input_val, False
+            return read_input(ctx, input_val)
+        return input_val
     if not sys.stdin.isatty():
-        return read_input(ctx, None), True
-    return "", False
+        return read_input(ctx, None)
+    return ""
 
 
 def resolve_license_record(
@@ -345,20 +343,11 @@ def resolve_license_record(
         return matcher.resolve_record(license_id=id_val)
 
     # 2. Handle stdin/arguments
-    content, is_text = get_input_content(ctx, input_val, text)
+    content = get_input_content(ctx, input_val, text)
     if not content:
         exit_no_input(ctx)
 
-    # 3. Smart Resolution (ID -> Text). A bare argument is a guess, so only a
-    # value that names one license is tried as an ID (the rule --id enforces);
-    # "BSD-3-Clause but modified heavily by us" is text.
-    if not is_text and is_simple_expression(content):
-        # Try as ID first, as `match` does
-        record = matcher.resolve_record(license_id=content)
-        if record:
-            return record
-
-    # Try matching as text
+    # A lone expression is read as an ID by the matcher, whatever brings it.
     return matcher.resolve_record(content)
 
 
@@ -406,16 +395,13 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         results = matcher.match(license_id=id_val)
         license_text = ""
     else:
-        content, is_text = get_input_content(ctx, input_val, text)
+        content = get_input_content(ctx, input_val, text)
         if not content:
             exit_no_input(ctx)
 
         license_text = content
-        results = []
-        if not is_text and is_simple_expression(content):
-            results = matcher.match(license_id=content)  # try as ID first
-        if not results:
-            results = matcher.match(text=content)
+        # A lone expression is read as an ID by the matcher, whatever brings it.
+        results = matcher.match(text=content)
 
     # Filter by threshold and limit to top N
     results = [r for r in results if r["score"] >= threshold][:top]

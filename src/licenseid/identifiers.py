@@ -9,7 +9,7 @@ SPDX Identifier and Expression normalization and validation.
 
 import bisect
 import re
-from itertools import dropwhile
+from itertools import dropwhile, pairwise
 from typing import cast
 
 import py_spdx_license
@@ -44,6 +44,9 @@ DEPRECATED_SPDX_LICENSE_IDS: dict[str, str] = {
     "LGPL-3.0+": "LGPL-3.0-or-later",
     "AGPL-1.0+": "AGPL-1.0-or-later",
     "AGPL-3.0+": "AGPL-3.0-or-later",
+    "GFDL-1.1+": "GFDL-1.1-or-later",
+    "GFDL-1.2+": "GFDL-1.2-or-later",
+    "GFDL-1.3+": "GFDL-1.3-or-later",
 }
 
 # Conservative last-resort fallback for bare deprecated IDs (no '+' suffix).
@@ -65,6 +68,9 @@ DEPRECATED_BARE_LICENSE_IDS: dict[str, str] = {
     "LGPL-3.0": "LGPL-3.0-only",
     "AGPL-1.0": "AGPL-1.0-only",
     "AGPL-3.0": "AGPL-3.0-only",
+    "GFDL-1.1": "GFDL-1.1-only",
+    "GFDL-1.2": "GFDL-1.2-only",
+    "GFDL-1.3": "GFDL-1.3-only",
 }
 
 # Mapping of deprecated "-with-" IDs to their modern counterparts
@@ -178,6 +184,9 @@ _RE_PLUS_OPERATOR = re.compile(
     r"(?P<id>[^\s()+]+)\+(?=\s|\)|$)",
     re.IGNORECASE,
 )
+# A license reference: SPDX gives "+" to a license ID only
+# (simple-expression = license-id / license-id "+" / license-ref).
+_RE_LICENSE_REF = re.compile(r"(?:DocumentRef-[^\s():]+:)?LicenseRef-", re.IGNORECASE)
 
 
 def strip_plus_operator(expression: str) -> str:
@@ -186,7 +195,8 @@ def strip_plus_operator(expression: str) -> str:
     not an operator stays, so the expression stays unparseable."""
 
     def drop(match: re.Match[str]) -> str:
-        if match.group("with"):  # an exception ID has no "+"
+        # Neither an exception nor a LicenseRef takes a "+".
+        if match.group("with") or _RE_LICENSE_REF.match(match.group("id")):
             return match.group(0)
         return match.group("id")
 
@@ -331,8 +341,8 @@ _SIMPLE_SHAPES = (
 
 
 def is_simple_expression(value: str) -> bool:
-    """Whether *value* names one license: an ID (or ``LicenseRef-*``),
-    optionally with "+" and ``WITH`` an exception, in any number of brackets.
+    """Whether *value* names one license: an ID, optionally with "+", or a
+    ``LicenseRef-*``, either ``WITH`` an exception, in any number of brackets.
 
     What a declaration may hold. A tag carries whatever its author wrote, but
     "MIT OR Apache-2.0" declares neither license, and a name or an SPDX URL
@@ -342,9 +352,14 @@ def is_simple_expression(value: str) -> bool:
     value = value.strip()
     if not value or leading_expression(value) != value:
         return False
+    tokens = [token.group(0) for token in _RE_TOKEN.finditer(value)]
+    if any(
+        token == "+" and _RE_LICENSE_REF.match(before)
+        for before, token in pairwise(tokens)
+    ):
+        return False  # a LicenseRef takes no "+"
     shape = tuple(
-        "WITH" if token.group(0).upper() == "WITH" else _token_kind(token.group(0))
-        for token in _RE_TOKEN.finditer(value)
+        "WITH" if token.upper() == "WITH" else _token_kind(token) for token in tokens
     )
     # SPDX allows brackets around any expression: "(MIT)" is MIT. The value
     # is balanced (leading_expression), and a simple shape holds no bracket,

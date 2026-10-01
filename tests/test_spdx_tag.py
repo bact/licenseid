@@ -69,6 +69,10 @@ UNKNOWN = [
     "GPL-2.0-only WITH NoSuch-exception",
     "MIT++",  # not the "+" operator: no ID to fabricate from it
     "Apache-2.0 WITH Classpath-exception-2.0+",  # an exception has no "+"
+    # SPDX gives "+" to a license ID only, never to a LicenseRef.
+    "LicenseRef-Foo+",
+    "DocumentRef-x:LicenseRef-y+",
+    "MIT OR LicenseRef-Foo+",
 ]
 
 
@@ -301,6 +305,9 @@ def test_a_bare_argument_that_names_one_license_is_read_as_an_id(db: str) -> Non
         ("Apache-2.0+ WITH Classpath-exception-2.0", True),
         ("LicenseRef-Foo", True),
         ("DocumentRef-x:LicenseRef-y", True),
+        ("LicenseRef-Foo+", False),  # SPDX gives "+" to a license ID only
+        ("(documentref-x:licenseref-y+)", False),
+        ("LicenseRef-Foo+ WITH Classpath-exception-2.0", False),
         ("mit with classpath-exception-2.0", True),  # casing is the author's
         (" MIT OR Apache-2.0 ", False),  # two licenses, so neither is declared
         ("MIT AND Apache-2.0", False),
@@ -398,6 +405,8 @@ def test_the_api_refuses_a_license_id_that_names_more_than_one_license(
         ("(Apache-2.0+)", "(Apache-2.0)"),
         ("MIT", "MIT"),
         ("LicenseRef-foo+bar", "LicenseRef-foo+bar"),  # a + inside a name stays
+        ("LicenseRef-foo+", "LicenseRef-foo+"),  # a LicenseRef has no "+"
+        ("MIT+ OR DocumentRef-x:licenseref-y+", "MIT OR DocumentRef-x:licenseref-y+"),
         ("MIT++", "MIT++"),  # a "+" after a "+" is not an operator
         ("MIT+ +", "MIT +"),  # nor one after a space
         ("(+ MIT)", "(+ MIT)"),  # nor one after a "("

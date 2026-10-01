@@ -329,13 +329,29 @@ class MarkerDetector:
         first. The rest of the line would do for one tag, but on a minified
         line with thousands of tags every value would then be the whole line.
         """
+        return [text[tag.end() : end] for tag, end in self._spdx_tags(text)]
+
+    def without_spdx_tags(self, text: str) -> str:
+        """*text* with each SPDX-License-Identifier tag and its value cut out:
+        what is left to match by name once the tags have been read."""
+        parts: list[str] = []
+        start = 0
+        for tag, end in self._spdx_tags(text):
+            parts.append(text[start : tag.start()])
+            start = end
+        parts.append(text[start:])
+        return "".join(parts)
+
+    def _spdx_tags(self, text: str) -> list[tuple[re.Match[str], int]]:
+        """Each SPDX-License-Identifier tag in *text*, with where its value
+        ends (see _spdx_tag_values)."""
         tags = list(self._RE_SPDX.finditer(text))
         ends = [tag.start() for tag in tags[1:]] + [len(text)]
-        values = []
+        spans = []
         for tag, end in zip(tags, ends):
             line_break = self._RE_LINE_BREAK.search(text, tag.end(), end)
-            values.append(text[tag.end() : line_break.start() if line_break else end])
-        return values
+            spans.append((tag, line_break.start() if line_break else end))
+        return spans
 
     def _detect_explicit_identifiers(
         self, text: str, read_fields: bool = True

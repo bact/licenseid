@@ -253,14 +253,18 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   answered without the operands that follow.
 - A tag and a `license` field hold whatever their author wrote, but `--id`
   and `match(license_id=...)` declare ONE license:
-  `identifiers.is_simple_expression` is the one judge of that (an ID, a
-  `LicenseRef-*`, `+`, and either `WITH` an exception, in any brackets), and
+  `identifiers.is_simple_expression` is the one judge of that (an ID,
+  optionally with `+`, or a `LicenseRef-*`, which takes no `+`; either
+  `WITH` an exception, in any brackets), and
   both entry points read it — `cli.reject_compound_id` exits 2 through
-  `errors.invalid_id_error`, `matcher._try_explicit_id_match` raises. A bare
-  argument is a guess between an ID and text, so the CLI tries the ID reading
-  only for a value that names one license and matches the rest as text; ask
-  the predicate BEFORE calling `match(license_id=...)`, which raises rather
-  than returning no match. Do not widen `--id` to expressions
+  `errors.invalid_id_error`, `matcher._try_explicit_id_match` raises. Text
+  that is one simple expression and nothing else (`GPL-2.0+`) is read as
+  `license_id` reads it, by `matcher._try_tier0_short_text`, whatever
+  brings it (argument, `--text`, stdin, file, `match(text=...)`); the rest,
+  and a value that resolves to no license, is matched as text. The CLI
+  makes no ID guess of its own. Ask the predicate BEFORE calling
+  `match(license_id=...)`, which raises rather than returning no match.
+  Do not widen `--id` to expressions
   again: `MIT OR Apache-2.0` declares neither license, and the flags
   (`is-osi`, `is-fsf`) have no answer for it.
 - "or any later version" has ONE reader, `classify.OR_LATER_PHRASE`; the

@@ -113,8 +113,12 @@ class AggregatedLicenseMatcher:
             return []  # as for an empty license_id: nothing is declared
         if not is_simple_expression(license_id):
             raise invalid_id_error("license_id", license_id)
+        return self._resolve_declared(license_id)
+
+    def _resolve_declared(self, value: str) -> list[LicenseMatch]:
+        """The answer to a declared license value: certain, or none."""
         return self._finalize_exact_markers(
-            self.detector.resolve_license_value(license_id, 1.0)
+            self.detector.resolve_license_value(value, 1.0)
         )
 
     def _resolve_target_text(self, text: str | None, file_path: str | None) -> str:
@@ -186,11 +190,21 @@ class AggregatedLicenseMatcher:
         avoids routing ~50-word licence preambles (head_300 inputs)
         through the name matcher, which degrades recall for variant
         licences (e.g. MIT-STK, MIT-enna) where it returns the generic
-        parent. Returns None (fall through to Tier 1) for inputs at or
-        above the threshold, or below it with no confident match.
+        parent. A lone SPDX expression answers as license_id would.
+        Returns None (fall through to Tier 1) for inputs at or above the
+        threshold, or below it with no confident match.
         """
         if ctx.word_count >= 30:
             return None
+
+        # A lone expression ("GPL-2.0+") is read as license_id reads it, so
+        # text and ID answer alike: the normalised text has lost the "+",
+        # and GPL-2.0 alone is GPL-2.0-only. A value that names no license
+        # goes on to the name match.
+        if is_simple_expression(ctx.target_text):
+            declared = self._resolve_declared(ctx.target_text)
+            if declared:
+                return declared
 
         # Fast path: bare deprecated ID + prose disambiguation context in
         # the raw (un-normalised) text, e.g. "GPL-2.0 or later version".
@@ -222,6 +236,24 @@ class AggregatedLicenseMatcher:
             return short_matches
 
         return None
+
+    def _without_tags(self, ctx: _MatchContext) -> _MatchContext:
+        """A short *ctx* without its SPDX-License-Identifier tags. Tier 0.5
+        read them, so one left named no license, and is neither a name nor
+        text to match: "SPDX-License-Identifier: LicenseRef-MIT+" is not MIT.
+        A long input keeps them: its tags are a small part of its text."""
+        if ctx.word_count >= 30:
+            return ctx
+        text = self.detector.without_spdx_tags(ctx.target_text)
+        if text == ctx.target_text:
+            return ctx
+        norm_input = normalize_text(text)
+        return replace(
+            ctx,
+            target_text=text,
+            norm_input=norm_input,
+            word_count=len(norm_input.split()),
+        )
 
     def _try_manifest_value(self, ctx: _MatchContext) -> list[LicenseMatch] | None:
         """Tier 0 on a manifest's license value that did not resolve as an ID,
@@ -328,6 +360,9 @@ class AggregatedLicenseMatcher:
 
         # Tier 0: Short-Text Shortcut — bare IDs/names below the word
         # threshold are resolved without entering the FTS5 pipeline.
+        # A short input is matched without its tags, read above: one left
+        # named no license, and is no text to match.
+        ctx = self._without_tags(ctx)
         short_text_result = self._try_tier0_short_text(ctx)
         if short_text_result is not None:
             return short_text_result
