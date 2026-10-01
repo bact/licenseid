@@ -8,6 +8,7 @@ on every result. Roadmap item 18."""
 # pylint: disable=missing-function-docstring,redefined-outer-name
 
 import json
+import time
 from collections.abc import Generator
 from pathlib import Path
 from unittest import mock
@@ -86,6 +87,8 @@ def db() -> Generator[str, None, None]:
             True,
             True,
         ),
+        # Its own row's flags differ from GPL-2.0-only's, which it answers.
+        Lic("GPL-2.0", "GNU General Public License v2.0", False, is_deprecated=True),
         Lic(
             "GPL-2.0-with-GCC-exception",
             "GNU General Public License v2.0 w/GCC Runtime Library exception",
@@ -154,19 +157,30 @@ def test_every_result_carries_the_flags(db: str, text: str) -> None:
     assert all(results[0].get(flag) for flag in FLAGS)
 
 
-def test_a_deprecated_id_takes_the_flags_of_its_replacement(db: str) -> None:
-    """GPL-2.0-with-GCC-exception answers GPL-2.0-only WITH GCC-exception-2.0,
-    an expression: its flags are the license's, not "unknown"."""
+@pytest.mark.parametrize(
+    ("deprecated", "replacement"),
+    [
+        ("GPL-2.0", "GPL-2.0-only"),
+        ("GPL-2.0-with-GCC-exception", "GPL-2.0-only WITH GCC-exception-2.0"),
+    ],
+    ids=["to-id", "to-expression"],
+)
+def test_a_deprecated_id_takes_the_flags_of_its_replacement(
+    db: str, deprecated: str, replacement: str
+) -> None:
+    """A deprecated ID answers its replacement, a license row or an
+    expression: the flags are the replacement's, not the deprecated row's
+    nor "unknown"."""
     matcher = AggregatedLicenseMatcher(db)
-    top = matcher.match(text="GPL-2.0-with-GCC-exception")[0]
-    assert top["license_id"] == "GPL-2.0-only WITH GCC-exception-2.0"
+    top = matcher.match(text=deprecated)[0]
+    assert top["license_id"] == replacement
     assert (top["is_spdx"], top["is_osi_approved"], top["is_fsf_libre"]) == (
         True,
         True,
         True,
     )
-    assert matcher.is_spdx("GPL-2.0-with-GCC-exception")
-    assert matcher.is_osi("GPL-2.0-with-GCC-exception")
+    assert matcher.is_spdx(deprecated)
+    assert matcher.is_osi(deprecated)
 
 
 def test_match_json_shows_the_flags_of_a_manifest(db: str, tmp_path: Path) -> None:
@@ -286,15 +300,33 @@ def test_a_small_package_json_in_npm_object_form(db: str, tmp_path: Path) -> Non
     assert (top["license_id"], top["score"]) == ("Apache-2.0", 1.0)
 
 
-def test_a_readme_with_a_toml_example_is_not_answered_from_it(db: str) -> None:
+@pytest.mark.parametrize("first_line", ["# Usage", "[![PyPI](https://x)](https://y)"])
+@pytest.mark.parametrize("field", ['license = "MIT"', 'license = {text = "MIT"}'])
+def test_a_readme_with_a_toml_example_is_not_answered_from_it(
+    db: str, first_line: str, field: str
+) -> None:
     """Piped text has no file name, so it is tried as TOML; the example
-    names the reader's license, not this file's."""
+    names the reader's license, not this file's. A badge line starts with a
+    bracket too."""
     text = (
-        "# Usage\nSet the license in your own pyproject.toml, for example:\n\n"
-        '```toml\n[project]\nlicense = "MIT"\n```\n\n' + FILLER
+        f"{first_line}\nSet the license in your own pyproject.toml, for example:"
+        f"\n\n```toml\n[project]\n{field}\n```\n\n{FILLER}"
     )
     results = AggregatedLicenseMatcher(db).match(text=text)
     assert not results or results[0]["score"] < 1.0
+
+
+def test_a_small_pyproject_with_a_license_sub_table(db: str, tmp_path: Path) -> None:
+    """[project.license] with text = "..." is PEP 621's table written out;
+    unread, the file was matched by name: Apache-1.0 at 1.01."""
+    path = tmp_path / "pyproject.toml"
+    path.write_text(
+        '[project]\nname = "x"\nversion = "1.0.0"\n\n'
+        '[project.license]\ntext = "MIT OR Apache-2.0"\n',
+        encoding="utf-8",
+    )
+    top = AggregatedLicenseMatcher(db).match(file_path=str(path))[0]
+    assert (top["license_id"], top["score"]) == ("Apache-2.0 OR MIT", 1.0)
 
 
 def test_a_manifest_is_parsed_once_per_match(db: str, tmp_path: Path) -> None:
@@ -313,3 +345,39 @@ def test_a_manifest_is_parsed_once_per_match(db: str, tmp_path: Path) -> None:
     ):
         AggregatedLicenseMatcher(db).match(file_path=path)
     assert in_matcher.call_count + in_markers.call_count == 1
+
+
+_RUN = 50_000
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "[" + " " * _RUN,
+        "[[" + "a" * _RUN + "]",
+        "[project]\nlicense" + " " * _RUN + "x",  # 9 s in configparser on 3.10
+        "[project]\nlicense" + "\u00a0\t" * _RUN + "x",
+        '[project]\nlicense = "' + "a" * _RUN,
+        '[project]\nlicense = "MIT"' + " " * _RUN + "x",
+        '[package]\nlicense = "' + "a/" * _RUN + '"',
+        "license = {text" + " " * _RUN,
+        "[a]\n" * _RUN,
+    ],
+    ids=[
+        "open-header",
+        "open-array",
+        "key-space-run",
+        "key-unicode-space-run",
+        "open-string",
+        "trailing-space-run",
+        "slashes",
+        "open-table-form",
+        "many-headers",
+    ],
+)
+def test_a_long_run_reads_in_linear_time(text: str) -> None:
+    """Every reader on an extensionless input, which tries each format.
+    Each takes a few milliseconds; the limit leaves CI headroom."""
+    start = time.monotonic()
+    license_value_groups(text, "")
+    assert time.monotonic() - start < 0.5

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-01
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -313,10 +313,16 @@ statistics; no fix has been designed yet, only the problem is documented.
     field that resolves scores 1.0 and is read at any length
     (`MarkerDetector.detect_structured`);
   - the string form is read only in `[project]`, `[tool.poetry]` and
-    `[package]`, so a Python `license = "MIT"` in `--text` is not a field,
-    and in text with no file name only if the text starts with a table: a
-    README piped in with a `[project]` example answered the example's MIT
-    at 1.0;
+    `[package]`, so a Python `license = "MIT"` in `--text` is not a field;
+    PEP 621's table is also read written out, as `[project.license]` or
+    `license.text` (a small one answered `Apache-1.0` at 1.01);
+  - text with no file name is read as TOML, in either form, only if its
+    first line that is not blank or a comment is a whole table header: a
+    README piped in with a `[project]` example, or opening with a
+    `[![badge](...)]`, answered the example's MIT at 1.0;
+  - a run of white space inside a line is collapsed before `configparser`
+    reads it: on Python 3.10 it scans the run once per character of the key
+    before it, so 50,000 spaces after `license` took 9 s;
   - npm's old object (`{"type": ...}`) and array (`"licenses"`, joined with
     OR) forms are read; every array entry must name its license;
   - every result carries `is_spdx`, `is_osi_approved` and `is_fsf_libre`:

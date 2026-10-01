@@ -25,16 +25,29 @@ _RE_TOML_LICENSE_TABLE = re.compile(
 # ([[bin]]). No two neighbouring parts can match the same run of characters,
 # so a long line cannot make either pattern backtrack.
 _RE_TOML_HEADER = re.compile(r"[ \t]*\[([^\[\]]*)\][ \t]*(?:#.*)?")
-# The string form, as TOML writes it: a case-sensitive key and a basic or a
+_RE_TOML_ARRAY_HEADER = re.compile(r"[ \t]*\[\[[^\[\]]*\]\][ \t]*(?:#.*)?")
+# A string value, as TOML writes it: a case-sensitive key and a basic or a
 # literal string, with an optional trailing comment.
-_RE_TOML_LICENSE_STRING = re.compile(
-    r"""[ \t]*license[ \t]*=[ \t]*(?:"([^"\\]*)"|'([^']*)')[ \t]*(?:#.*)?"""
+_RE_TOML_STRING = re.compile(
+    r"""[ \t]*([\w.-]+)[ \t]*=[ \t]*(?:"([^"\\]*)"|'([^']*)')[ \t]*(?:#.*)?"""
 )
+# A run of white space inside or at the end of a line. Older configparser
+# (Python 3.10) scans it once per character of the key before it, so 50,000
+# spaces after "license" took 9 s. Leading white space marks a continuation
+# line, so it stays.
+_RE_INNER_SPACE_RUN = re.compile(r"(?<=\S)[^\S\n]{2,}")
 # Cargo's old spelling of OR, "MIT/Apache-2.0", still common in crates.
 _RE_CARGO_SLASH_OR = re.compile(r"[\w.+-]+(?:[ \t]*/[ \t]*[\w.+-]+)+")
-# Tables whose license key is a string: PEP 639 ([project]), Poetry and Cargo
-# (an SPDX expression in each). A license key elsewhere means anything.
-_TOML_LICENSE_TABLES = frozenset({"project", "tool.poetry", "package"})
+# The table and keys of each string that holds a license: PEP 639
+# ([project]), Poetry and Cargo (an SPDX expression in each), and PEP 621's
+# license table written as a table of its own or as a dotted key. A license
+# key elsewhere means anything.
+_TOML_LICENSE_KEYS = {
+    "project": ("license", "license.text"),
+    "tool.poetry": ("license",),
+    "package": ("license",),
+    "project.license": ("text",),
+}
 
 
 def json_license_values(stripped: str) -> list[str] | None:
@@ -70,23 +83,26 @@ def _license_type(entry: object) -> str:
     return entry.strip() if isinstance(entry, str) else ""
 
 
-def toml_license_values(text: str, string_form: bool = True) -> list[str]:
-    """The first table-form value, then (with *string_form*) the first
-    string-form value of each table in _TOML_LICENSE_TABLES: a manifest
-    declares one license, and each value costs a database lookup, so a file
-    of thousands of license lines yields at most four."""
+def toml_license_values(text: str) -> list[str]:
+    """The first inline-table value, then the first string value of each
+    table in _TOML_LICENSE_KEYS: a manifest declares one license, and each
+    value costs a database lookup, so a file of thousands of license lines
+    yields at most five."""
     table_form = _RE_TOML_LICENSE_TABLE.search(text)
     values = [table_form.group(1)] if table_form else []
     by_table: dict[str, str] = {}
     table = ""
-    for line in text.splitlines() if string_form else ():
+    for line in text.splitlines():
         header = _RE_TOML_HEADER.fullmatch(line)
-        if header:
-            table = re.sub(r"\s", "", header.group(1))
+        if header or _RE_TOML_ARRAY_HEADER.fullmatch(line):
+            table = re.sub(r"\s", "", header.group(1)) if header else ""
             continue
-        if table in _TOML_LICENSE_TABLES and table not in by_table:
-            field = _RE_TOML_LICENSE_STRING.fullmatch(line)
-            value = (field.group(1) or field.group(2) or "") if field else ""
+        keys = _TOML_LICENSE_KEYS.get(table, ())
+        if table in by_table:
+            continue
+        field = _RE_TOML_STRING.fullmatch(line)
+        if field and field.group(1) in keys:
+            value = field.group(2) or field.group(3) or ""
             if value.strip():
                 by_table[table] = value
     if "package" in by_table and _RE_CARGO_SLASH_OR.fullmatch(by_table["package"]):
@@ -102,7 +118,7 @@ def ini_license_values(text: str) -> list[str]:
     section header, a duplicate option, a stray %) has none."""
     cfg = configparser.ConfigParser()
     try:
-        cfg.read_string(text)
+        cfg.read_string(_RE_INNER_SPACE_RUN.sub(" ", text))
     except configparser.Error:
         return []
     values = []
@@ -127,11 +143,10 @@ def license_value_groups(text: str, ext: str) -> list[list[str]]:
             return []
         # Extensionless "[section]" text is INI/TOML, not JSON: fall through.
     groups: list[list[str]] = []
-    if ext in (".toml", ""):
-        # Text with no file name is a manifest only if it starts like one: a
-        # README showing a [project] example is not one.
-        string_form = ext == ".toml" or _starts_with_table(text)
-        groups.append(toml_license_values(text, string_form))
+    # Text with no file name is TOML only if it starts like it: a README
+    # showing a [project] example, or starting with a [![badge](...)], is not.
+    if ext == ".toml" or (not ext and _starts_with_table(text)):
+        groups.append(toml_license_values(text))
     if ext in (".cfg", ".ini", ""):
         groups.append(ini_license_values(text))
     return groups
@@ -143,10 +158,11 @@ def extension(file_path: str | None) -> str:
 
 
 def _starts_with_table(text: str) -> bool:
-    """Whether the first line that is not blank or a # comment is a TOML
-    table header."""
+    """Whether the first line that is not blank or a # comment is a whole
+    TOML table header."""
     for line in text.splitlines():
-        line = line.strip()
-        if line and not line.startswith("#"):
-            return line.startswith("[")
+        if line.strip() and not line.lstrip().startswith("#"):
+            return bool(
+                _RE_TOML_HEADER.fullmatch(line) or _RE_TOML_ARRAY_HEADER.fullmatch(line)
+            )
     return False
