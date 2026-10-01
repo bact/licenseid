@@ -145,9 +145,12 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
 
 ## 26. Relax the parser guard once the parser is linear — Priority 10
 
-`identifiers.parse_expression` refuses an expression with a token longer
-than `_MAX_TOKEN_LENGTH` (256 characters; the longest License List ID has
-36), a workaround added with item 24. A token is counted as the parser
+`identifiers.parse_expression` refuses an expression whose tokens' squared
+lengths sum to more than `_MAX_PARSE_COST` (10**9, about 8 ms of tokenizer
+time: one token of 31,622 characters), a workaround added with item 24.
+A budget on the cost, not a cap on a token: SPDX sets no length on a
+`LicenseRef-*`, and a 256-character cap refused real ones (found in review
+of PR #66). A token is counted as the parser
 splits it, at space, tab, line feed, carriage return and brackets only:
 a run joined by a no-break space is one token there, and a guard that
 split at `\s` let a million-character one through (found in review of
@@ -170,7 +173,8 @@ upstream (`JPEWdev/py-spdx-license`; the user is fixing it there). Found on
 - **Lift when**: licenseid depends on a release with linear parsing, and
   `test_short_tag.py::test_the_parser_refuses_an_overlong_token` and
   `test_a_long_tag_value_reads_in_linear_time` pass with the guard removed.
-  Then remove the guard or raise the limit, and flip the over-limit cases.
+  Then remove the guard or raise the budget, and flip the over-budget
+  cases.
 - Impact 1, Risk 1, Effort 1.
 
 ## 27. A few words of many characters cost seconds in Tier 0 — Priority 10
@@ -187,6 +191,19 @@ while timing item 24.
   any ID or name (the longest name has 89 characters) cannot be one,
   so skip the fuzzy scan for it. Find what the 2.0 s of SQLite is first.
 - Impact 1, Risk 1, Effort 1.
+
+## 28. A two- or three-word phrase from a licence text scores 1.0 — Priority 10
+
+Any short phrase found verbatim in a licence text answers that licence with
+certainty. `license identifier`, or an `SPDX-License-Identifier:` tag with
+no value, answers `CAL-1.0` at 1.0, and `is-osi` then says yes. `main`
+behaves the same; found in review of PR #66 (2026-10-01).
+
+- **Direction**: a verbatim hit on a few words is evidence, not an answer.
+  Cap the score of a Tier 0 text hit below 1.0 when the phrase is shorter
+  than some minimum, or require it to cover a share of the licence's
+  distinctive words, so `is-*` answers no for it.
+- Impact 2, Risk 2, Effort 2.
 
 ## 5. Conflicting options and inputs are resolved silently — Priority 15
 

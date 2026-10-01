@@ -127,12 +127,14 @@ def normalize_operator_casing(expression: str) -> str:
     return _RE_OPERATOR.sub(lambda m: m.group(0).upper(), expression)
 
 
-# The longest token an expression may hold. The longest ID in the License
-# List has 36 characters; a LicenseRef-* is the author's, so allow more. A
-# workaround, not a rule: py_spdx_license's tokenizer is quadratic in a
-# token's length (7 s at 1,000,000 characters). Relax it once the parser
-# reads in linear time (tech-debt roadmap, item 26).
-_MAX_TOKEN_LENGTH = 256
+# The most an expression may cost the parser, as the sum of its tokens'
+# squared lengths. py_spdx_license's tokenizer is quadratic in a token's
+# length (7 s at 1,000,000 characters); at this budget it takes about 8 ms
+# (one token of 31,622 characters). SPDX sets no length on a LicenseRef-*,
+# so a budget on the cost, not a cap on a token, keeps every real one. A
+# workaround: drop it once the parser reads in linear time (tech-debt
+# roadmap, item 26).
+_MAX_PARSE_COST = 10**9
 # A token as the parser sees it: a run between space, tab, line feed,
 # carriage return and brackets. Not \s: the parser does not break at other
 # white space (no-break space, vertical tab), so a run joined by it is one
@@ -143,16 +145,18 @@ _RE_PARSER_TOKEN = re.compile(r"[^ \t\n\r()]+")
 def parse_expression(expression: str) -> py_spdx_license.Node | None:
     """Parse an SPDX license expression into a ``py_spdx_license`` tree, with
     any operator casing and any (unknown) IDs allowed; None if it is not a
-    well-formed expression, or holds a token longer than _MAX_TOKEN_LENGTH.
+    well-formed expression, or would cost the parser more than
+    _MAX_PARSE_COST.
 
     Catches broadly, not just ``ParseError``: the parser is a plain recursive
     tree walk with no depth guard, so a pathological input (a very long
     ``AND`` chain) raises ``RecursionError`` instead.
     """
-    if any(
-        token.end() - token.start() > _MAX_TOKEN_LENGTH
+    cost = sum(
+        (token.end() - token.start()) ** 2
         for token in _RE_PARSER_TOKEN.finditer(expression)
-    ):
+    )
+    if cost > _MAX_PARSE_COST:
         return None
     try:
         return py_spdx_license.parse(

@@ -22,6 +22,11 @@ TAG = "SPDX-License-Identifier:"
 FILLER = " ".join(["widget"] * 40)
 
 
+def _ref(length: int, letter: str = "a") -> str:
+    """A LicenseRef ID of *length* characters."""
+    return "LicenseRef-" + letter * (length - len("LicenseRef-"))
+
+
 @pytest.fixture(scope="module")
 def db() -> Generator[str, None, None]:
     rows = [
@@ -53,8 +58,19 @@ def db() -> Generator[str, None, None]:
             f"{TAG} GPL-2.0-with-classpath-exception",
             "GPL-2.0-only WITH Classpath-exception-2.0",
         ),
+        # SPDX sets no length on a LicenseRef: none may be dropped (and an
+        # expression this long keeps its order).
+        (f"{TAG} MIT OR {_ref(300)}", f"MIT OR {_ref(300)}"),
     ],
-    ids=["or", "with", "hash-comment", "deprecated", "plus", "deprecated-with"],
+    ids=[
+        "or",
+        "with",
+        "hash-comment",
+        "deprecated",
+        "plus",
+        "deprecated-with",
+        "long-ref",
+    ],
 )
 @pytest.mark.parametrize("large", [False, True], ids=["header-line", "long"])
 def test_a_tag_answers_at_any_length(
@@ -65,6 +81,11 @@ def test_a_tag_answers_at_any_length(
     )
     assert [(r["license_id"], r["score"]) for r in results] == [(expected, 1.0)]
     assert results[0]["is_spdx"]
+
+
+def test_a_long_license_ref_is_one_license(db: str) -> None:
+    results = AggregatedLicenseMatcher(db).match(license_id=_ref(300))
+    assert [r["license_id"] for r in results] == [_ref(300)]
 
 
 def test_a_tag_naming_no_license_falls_through(db: str) -> None:
@@ -110,23 +131,43 @@ def test_a_long_tag_value_reads_in_linear_time(db: str) -> None:
 @pytest.mark.parametrize(
     ("expression", "parsed"),
     [
-        ("LicenseRef-" + "a" * 245, True),  # 256 characters
-        ("LicenseRef-" + "a" * 246, False),
-        ("((LicenseRef-" + "a" * 245 + "))", True),  # brackets do not count
-        ("MIT OR LicenseRef-" + "a" * 245, True),
-        # The parser's breaks: each beside a token at the limit.
+        # SPDX sets no length on a LicenseRef; 256 characters used to be
+        # refused, and a tag lost the license.
+        (_ref(300), True),
+        # The parse budget is the sum of squared token lengths, 10**9.
+        # Exactly the budget: 31,598^2 + 1,108^2 + 582^2 + 2 * 2^2 ("OR").
+        (f"{_ref(31_598)} OR {_ref(1_108, 'b')} OR {_ref(582, 'c')}", True),
+        (_ref(31_623), False),  # 1,000,014,129
+        ("((" + _ref(31_622) + "))", True),  # brackets break a token
+        # The sum, not the longest: two tokens each within the budget.
+        (f"{_ref(22_360)} OR {_ref(22_360, 'b')}", True),
+        (f"{_ref(22_361)} OR {_ref(22_361, 'b')}", False),
+        # The parser's breaks, each between two long tokens: a pair joined
+        # into one token would cost more than the budget.
         (
-            "\tOR\n".join(["LicenseRef-" + "a" * 245] * 2)
-            + "\rOR LicenseRef-"
-            + "b" * 245,
+            (
+                f"{_ref(12_000)}\tOR\t{_ref(12_000, 'b')} OR "
+                f"{_ref(12_000, 'c')}\nOR\n{_ref(12_000, 'd')} OR "
+                f"{_ref(12_000, 'e')}\rOR\r{_ref(12_000, 'f')}"
+            ),
             True,
         ),
         # The parser does not break at other white space, so neither may the
         # guard: one token of a million characters to the parser.
-        (("x" * 200 + " ") * 5000, False),
+        (("x" * 200 + "\u00a0") * 5000, False),
         ("x" * 1_000_000, False),
     ],
-    ids=["at-limit", "over-limit", "brackets", "with-operator", "tab", "nbsp", "huge"],
+    ids=[
+        "long-ref",
+        "at-budget",
+        "over-budget",
+        "brackets",
+        "sum-within",
+        "sum-over",
+        "breaks",
+        "nbsp",
+        "huge",
+    ],
 )
 def test_the_parser_refuses_an_overlong_token(expression: str, parsed: bool) -> None:
     start = time.monotonic()
