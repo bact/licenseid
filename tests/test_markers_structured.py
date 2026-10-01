@@ -101,13 +101,13 @@ def test_json_parse_failure_does_not_fall_through(detector: MarkerDetector) -> N
 
 @pytest.mark.parametrize(
     "value",
-    ['{"type": "MIT"}', '["MIT"]', "42", "true", "null", '""'],
+    ['{"name": "MIT"}', '["MIT"]', "42", "true", "null", '""', '{"type": 42}'],
 )
 def test_json_non_string_or_empty_value_returns_nothing(
     detector: MarkerDetector, value: str
 ) -> None:
-    """Legacy npm object form, lists, numbers, booleans, null, and the
-    empty string are not resolved."""
+    """An object without a string "type", lists, numbers, booleans, null,
+    and the empty string are not resolved."""
     assert not detector._detect_structured_format('{"license": ' + value + "}", ".json")
 
 
@@ -116,7 +116,55 @@ def test_json_truthy_non_string_license_shadows_valid_key(
 ) -> None:
     """Quirk: the key fallback is `license or License or LICENSE`, so a
     truthy non-string "license" hides a valid "License"."""
-    text = '{"license": {"type": "MIT"}, "License": "MIT"}'
+    text = '{"license": ["MIT"], "License": "MIT"}'
+    assert not detector._detect_structured_format(text, ".json")
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # npm's old object form.
+        ('{"license": {"type": "MIT", "url": "https://x"}}', "MIT"),
+        # npm's old array form: the user may choose any one.
+        (
+            '{"licenses": [{"type": "MIT"}, {"type": "Apache-2.0"}]}',
+            "Apache-2.0 OR MIT",
+        ),
+        ('{"licenses": ["MIT", "Apache-2.0"]}', "Apache-2.0 OR MIT"),
+        ('{"licenses": [{"type": "MIT"}]}', "MIT"),
+        # An entry that is itself an expression stays one operand: AND binds
+        # tighter than OR.
+        (
+            '{"licenses": [{"type": "MIT AND Apache-2.0"}, {"type": "MIT"}]}',
+            "Apache-2.0 AND MIT OR MIT",
+        ),
+        # The "license" key comes first.
+        ('{"license": "MIT", "licenses": [{"type": "Apache-2.0"}]}', "MIT"),
+    ],
+    ids=["object", "array", "array-of-strings", "array-of-one", "nested", "both"],
+)
+def test_json_npm_legacy_forms_resolve(
+    detector: MarkerDetector, text: str, expected: str
+) -> None:
+    assert _summary(detector._detect_structured_format(text, ".json")) == [
+        (expected, 1.0)
+    ]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"licenses": [{"type": "MIT"}, {"url": "https://x"}]}',  # one unnamed
+        '{"licenses": []}',
+        '{"licenses": "MIT"}',
+    ],
+    ids=["unnamed-entry", "empty", "not-a-list"],
+)
+def test_json_npm_array_with_a_gap_is_not_read(
+    detector: MarkerDetector, text: str
+) -> None:
+    """Every entry must name its license: an OR that leaves one out would
+    answer for fewer licenses than the file offers."""
     assert not detector._detect_structured_format(text, ".json")
 
 
@@ -135,7 +183,7 @@ def test_json_truthy_non_string_license_shadows_valid_key(
 )
 def test_toml_table_form_resolves(detector: MarkerDetector, text: str) -> None:
     result = detector._detect_structured_format(text, ".toml")
-    assert _summary(result) == [("MIT", 0.95)]
+    assert _summary(result) == [("MIT", 1.0)]
 
 
 def test_toml_commented_out_line_not_matched(detector: MarkerDetector) -> None:
@@ -143,95 +191,254 @@ def test_toml_commented_out_line_not_matched(detector: MarkerDetector) -> None:
     assert not detector._detect_structured_format(text, ".toml")
 
 
-def test_toml_plain_string_form_not_supported(detector: MarkerDetector) -> None:
-    """Pin: only the PEP 621 table form is parsed, and the INI branch does
-    not run for .toml, so a PEP 639 string `license = "MIT"` is missed."""
-    text = '[project]\nlicense = "MIT"\n'
-    assert not detector._detect_structured_format(text, ".toml")
-
-
-# --- INI ---
-
-
-@pytest.mark.parametrize("ext", [".cfg", ".ini"])
-def test_ini_section_license_resolves(detector: MarkerDetector, ext: str) -> None:
-    result = detector._detect_structured_format("[metadata]\nlicense = MIT\n", ext)
-    assert _summary(result) == [("MIT", 0.95)]
-
-
-def test_ini_license_name_and_whitespace(detector: MarkerDetector) -> None:
-    text = "[metadata]\nlicense =   Apache License 2.0   \n"
-    result = detector._detect_structured_format(text, ".cfg")
-    assert _summary(result) == [("Apache-2.0", 0.95)]
-
-
-def test_ini_first_section_with_license_wins(detector: MarkerDetector) -> None:
-    text = "[a]\nname = x\n[b]\nlicense = MIT\n[c]\nlicense = Apache-2.0\n"
-    result = detector._detect_structured_format(text, ".ini")
-    assert _summary(result) == [("MIT", 0.95)]
-
-
-def test_ini_empty_license_skipped_to_next_section(detector: MarkerDetector) -> None:
-    text = "[a]\nlicense =\n[b]\nlicense = Apache-2.0\n"
-    result = detector._detect_structured_format(text, ".ini")
-    assert _summary(result) == [("Apache-2.0", 0.95)]
-
-
-def test_ini_default_section_inherited_by_first_section(
-    detector: MarkerDetector,
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ('[project]\nlicense = "MIT"\n', "MIT"),  # PEP 639
+        ("[project]\nlicense = 'MIT'\n", "MIT"),  # a literal string
+        ('[project]\nlicense = "MIT"  # SPDX\n', "MIT"),
+        ('[ project ]\n  license="MIT"\n', "MIT"),
+        ('[tool.poetry]\nname = "x"\nlicense = "MIT"\n', "MIT"),
+        ('[package]\nname = "x"\nlicense = "MIT OR Apache-2.0"\n', "Apache-2.0 OR MIT"),
+        ('[tool.x]\nlicense = "Apache-2.0"\n[project]\nlicense = "MIT"\n', "MIT"),
+        ('[workspace.package]\nlicense = "MIT/Apache-2.0"\n', "Apache-2.0 OR MIT"),
+        # A header or a field inside a multi-line string is text, not TOML.
+        ('[project]\nx = """\n[tool.x]\n"""\nlicense = "MIT"\n', "MIT"),
+        ("[project]\nx = '''\nlicense = 'Apache-2.0'\n'''\nlicense = 'MIT'\n", "MIT"),
+        (
+            (
+                '[project]\nx = """\nlicense = {text = "Apache-2.0"}\n"""\n'
+                'license = "MIT"\n'
+            ),
+            "MIT",
+        ),
+        ('[project]\nx = """a"""\nlicense = "MIT"\n', "MIT"),
+        ('[project]\nx = """\n\'\'\'\n"""\nlicense = "MIT"\n', "MIT"),
+        ('[project]\nx = [\n  """\n[tool.y]\n""",\n]\nlicense = "MIT"\n', "MIT"),
+        # Delimiters that open no multi-line string: in a comment, a one-line
+        # string or a quoted key.
+        ('[tool.x]\n# see #12, use """ here\n[project]\nlicense = "MIT"\n', "MIT"),
+        ("[tool.x]\nq = '\"\"\"'\n[project]\nlicense = 'MIT'\n", "MIT"),
+        ('[tool.x]\nq = "it\'\'\'s"\n[project]\nlicense = "MIT"\n', "MIT"),
+        ('[tool.x]\n"a\'\'\'b" = 1\n[project]\nlicense = "MIT"\n', "MIT"),
+        ('[tool.x]\nq = "unclosed\n[project]\nlicense = "MIT"\n', "MIT"),
+        # An escaped quote does not close a basic string, an escaped
+        # backslash before the delimiter does not stop it closing, and a
+        # literal string has no escapes.
+        (
+            (
+                '[project]\nx = """a \\"""\nlicense = "Apache-2.0"\n"""\n'
+                'license = "MIT"\n'
+            ),
+            "MIT",
+        ),
+        ('[project]\nx = """a \\\\"""\nlicense = "MIT"\n', "MIT"),
+        # One or two quotes before the delimiter are the string's own.
+        (
+            (
+                '[project]\nx = ["""a"""", """\nlicense = "Apache-2.0"\n"""]\n'
+                'license = "MIT"\n'
+            ),
+            "MIT",
+        ),
+        (
+            (
+                '[project]\nx = ["""a""""", """\nlicense = "Apache-2.0"\n"""]\n'
+                'license = "MIT"\n'
+            ),
+            "MIT",
+        ),
+        (
+            (
+                "[project]\nx = ['''a'''', '''\nlicense = 'Apache-2.0'\n''']\n"
+                "license = 'MIT'\n"
+            ),
+            "MIT",
+        ),
+        ("[project]\nx = '''a \\'''\nlicense = 'MIT'\n", "MIT"),
+    ],
+    ids=[
+        "pep639",
+        "literal",
+        "comment",
+        "spacing",
+        "poetry",
+        "cargo",
+        "later-table",
+        "cargo-workspace",
+        "header-in-string",
+        "field-in-literal-string",
+        "table-form-in-string",
+        "one-line-string",
+        "other-quotes-in-string",
+        "array-of-strings",
+        "quotes-in-comment",
+        "quotes-in-literal",
+        "quotes-in-basic",
+        "quotes-in-key",
+        "unclosed-one-line-string",
+        "escaped-quote",
+        "escaped-backslash",
+        "quote-before-delimiter",
+        "two-quotes-before-delimiter",
+        "quotes-before-literal-delimiter",
+        "literal-backslash",
+    ],
+)
+def test_toml_string_form_resolves(
+    detector: MarkerDetector, text: str, expected: str
 ) -> None:
-    """Quirk: [DEFAULT] is not a section, but its keys are inherited by
-    every real section, so the first section reports it."""
-    text = "[DEFAULT]\nlicense = MIT\n[a]\nname = x\n"
-    result = detector._detect_structured_format(text, ".ini")
-    assert _summary(result) == [("MIT", 0.95)]
+    result = detector._detect_structured_format(text, ".toml")
+    assert _summary(result) == [(expected, 1.0)]
 
 
-def test_ini_sections_without_license_return_nothing(
-    detector: MarkerDetector,
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ('[project]\nname = "x"\n[project.license]\ntext = "MIT"\n', "MIT"),
+        ('[project]\nlicense.text = "MIT"\n', "MIT"),
+        ('[project.license]\nfile = "LICENSE"\n', None),
+        ('[tool.x.license]\ntext = "MIT"\n', None),
+        ('[package]\nname = "x"\n[[bin]]\nlicense = "MIT"\n', None),
+    ],
+    ids=["sub-table", "dotted-key", "sub-table-file", "other-sub-table", "array"],
+)
+def test_toml_pep621_table_written_out(
+    detector: MarkerDetector, text: str, expected: str | None
 ) -> None:
-    assert not detector._detect_structured_format("[a]\nname = x\n[b]\nk = v\n", ".ini")
-
-
-def test_ini_unresolvable_first_section_does_not_hide_later_one(
-    detector: MarkerDetector,
-) -> None:
-    """Regression: a first-section license value that resolves to nothing
-    must not stop the scan; the next section's valid license is used."""
-    text = "[a]\nlicense = see LICENSE file\n[b]\nlicense = MIT\n"
-    result = detector._detect_structured_format(text, ".ini")
-    assert _summary(result) == [("MIT", 0.95)]
-
-
-def test_ini_unrecognised_license_text_is_not_a_candidate(
-    detector: MarkerDetector,
-) -> None:
-    """Regression: free text after 'license' must not become a phantom
-    is_spdx candidate."""
-    text = "[docs]\nlicense: see LICENSE file\n"
-    assert not detector._detect_structured_format(text, ".ini")
-    assert not detector._detect_structured_format(text)
+    """PEP 621's license table as a table of its own or a dotted key; an
+    array of tables ([[bin]]) is not the table above it."""
+    result = _summary(detector._detect_structured_format(text, ".toml"))
+    assert result == ([(expected, 1.0)] if expected else [])
 
 
 @pytest.mark.parametrize(
     "text",
     [
-        "license = MIT\n",
-        "[a]\nlicense = MIT\nlicense = Apache-2.0\n",
-        "[a]\nlicense = 100% free\n",
+        'license = "MIT"\n',  # no table: a Python assignment, say
+        '[tool.other]\nlicense = "MIT"\n',
+        '[[package]]\nlicense = "MIT"\n',  # an array of tables
+        '[project]\n# license = "MIT"\n',
+        '[project]\nLicense = "MIT"\n',  # TOML keys are case-sensitive
+        '[project]\nlicense = {file = "LICENSE"}\n',
+        '[project]\nlicense = ""\n',
+        '[project]\nlicense = "see LICENSE file"\n',
+        # Starts like a header but is not one: the table stays tool.other.
+        '[tool.other]\nrows = [\n[package], 1\n]\nlicense = "MIT"\n',
     ],
-    ids=["no_section_header", "duplicate_option", "percent_interpolation"],
+    ids=[
+        "no-table",
+        "other-table",
+        "array-of-tables",
+        "commented",
+        "capitalised-key",
+        "file-only",
+        "empty",
+        "free-text",
+        "not-a-header",
+    ],
 )
-def test_ini_malformed_returns_nothing_without_raising(
+def test_toml_string_form_elsewhere_is_not_read(
     detector: MarkerDetector, text: str
 ) -> None:
-    assert not detector._detect_structured_format(text, ".ini")
+    assert not detector._detect_structured_format(text, ".toml")
 
 
-def test_ini_ignores_toml_table_under_cfg_ext(detector: MarkerDetector) -> None:
-    """TOML parsing is gated to .toml/no-ext, so .cfg never runs it."""
-    text = 'license = {text = "MIT"}'
-    assert not detector._detect_structured_format(text, ".cfg")
+@pytest.mark.parametrize(
+    "text",
+    [
+        '[project]\nlicense = "MIT"\n',
+        '# pyproject\n\n[project]\nlicense = "MIT"\n',
+        '[build-system]\nrequires = []\n[project]\nlicense = "MIT"\n',
+        '[project] # metadata\r\nlicense = "MIT"\r\n',
+        '[project]\nlicense = {text = "MIT"}',
+        # A Cargo.toml may open with an array of tables.
+        '[[bin]]\nname = "x"\n\n[package]\nlicense = "MIT"\n',
+        "# setup\n[metadata]\nlicense = MIT\n",  # INI
+    ],
+    ids=[
+        "header-first",
+        "after-comments",
+        "after-another-table",
+        "comment-and-crlf",
+        "table-form",
+        "array-of-tables-first",
+        "ini",
+    ],
+)
+def test_no_ext_manifest_resolves(detector: MarkerDetector, text: str) -> None:
+    assert _summary(detector._detect_structured_format(text)) == [("MIT", 1.0)]
+
+
+# --- INI ---
+
+
+@pytest.mark.parametrize(
+    ("text", "ext", "expected"),
+    [
+        ("[metadata]\nlicense = MIT\n", ".cfg", "MIT"),
+        ("[metadata]\nlicense = MIT\n", ".ini", "MIT"),
+        ("[metadata]\nlicense =   Apache License 2.0   \n", ".cfg", "Apache-2.0"),
+        (
+            "[a]\nname = x\n[b]\nlicense = MIT\n[c]\nlicense = Apache-2.0\n",
+            ".ini",
+            "MIT",
+        ),
+        ("[a]\nlicense =\n[b]\nlicense = Apache-2.0\n", ".ini", "Apache-2.0"),
+        # Quirk: [DEFAULT] is no section, but every section inherits it.
+        ("[DEFAULT]\nlicense = MIT\n[a]\nname = x\n", ".ini", "MIT"),
+        ("[a]\nlicense = see LICENSE file\n[b]\nlicense = MIT\n", ".ini", "MIT"),
+        ("[a]\nlicense = 100% free\n[b]\nlicense = MIT\n", ".ini", "MIT"),
+        ("[a]\nlicense  =  MIT  OR\tApache-2.0  \n", ".cfg", "Apache-2.0 OR MIT"),
+        # A deeper indent continues the value; collapsing it would not.
+        ("[a]\n  license = MIT\n    OR Apache-2.0\n", ".cfg", "Apache-2.0 OR MIT"),
+    ],
+    ids=[
+        "cfg",
+        "ini",
+        "name-and-spaces",
+        "first-section-wins",
+        "empty-skipped",
+        "default-inherited",
+        "unresolved-then-next",
+        "bad-interpolation-then-next",
+        "space-runs",
+        "indented-continuation",
+    ],
+)
+def test_ini_license_resolves(
+    detector: MarkerDetector, text: str, ext: str, expected: str
+) -> None:
+    result = detector._detect_structured_format(text, ext)
+    assert _summary(result) == [(expected, 1.0)]
+
+
+@pytest.mark.parametrize(
+    ("text", "ext"),
+    [
+        ("[a]\nname = x\n[b]\nk = v\n", ".ini"),
+        # Free text is no phantom is_spdx candidate, with or without a name.
+        ("[docs]\nlicense: see LICENSE file\n", ".ini"),
+        ("[docs]\nlicense: see LICENSE file\n", ""),
+        ("license = MIT\n", ".ini"),  # no section header
+        ("[a]\nlicense = MIT\nlicense = Apache-2.0\n", ".ini"),  # duplicate
+        ("[a]\nlicense = 100% free\n", ".ini"),  # bad interpolation
+        ('license = {text = "MIT"}', ".cfg"),  # TOML is not read from .cfg
+    ],
+    ids=[
+        "no-license",
+        "free-text",
+        "free-text-no-ext",
+        "no-section",
+        "duplicate-option",
+        "bad-interpolation",
+        "toml-under-cfg",
+    ],
+)
+def test_ini_without_a_license_returns_nothing(
+    detector: MarkerDetector, text: str, ext: str
+) -> None:
+    assert not detector._detect_structured_format(text, ext)
 
 
 # --- extension gating ---
@@ -246,15 +453,30 @@ def test_unknown_extension_returns_nothing(detector: MarkerDetector, ext: str) -
 # --- no extension: TOML then INI both run ---
 
 
-def test_no_ext_toml_table_resolves(detector: MarkerDetector) -> None:
-    result = detector._detect_structured_format('license = {text = "MIT"}')
-    assert _summary(result) == [("MIT", 0.95)]
-
-
-def test_no_ext_ini_resolves(detector: MarkerDetector) -> None:
-    text = "# setup\n[metadata]\nlicense = MIT\n"
-    result = detector._detect_structured_format(text)
-    assert _summary(result) == [("MIT", 0.95)]
+@pytest.mark.parametrize(
+    "text",
+    [
+        'license = {text = "MIT"}',  # no table: not TOML that starts like it
+        '# Usage\n```toml\n[project]\nlicense = "MIT"\n```\n',
+        '# Usage\n```toml\n[project]\nlicense = {text = "MIT"}\n```\n',
+        '[![PyPI](https://x)](https://y)\n[project]\nlicense = "MIT"\n',
+        '[![PyPI](https://x)](https://y)\n[project]\nlicense = {text = "MIT"}\n',
+    ],
+    ids=[
+        "bare-line",
+        "readme-string-form",
+        "readme-table-form",
+        "badge-string-form",
+        "badge-table-form",
+    ],
+)
+def test_no_ext_text_not_starting_as_toml_is_not_read_as_toml(
+    detector: MarkerDetector, text: str
+) -> None:
+    """A README piped in (a badge first, a [project] example inside) is not
+    a manifest, in either form; since the field scores 1.0, the example
+    would be a certain answer."""
+    assert not detector._detect_structured_format(text)
 
 
 def test_no_ext_toml_and_ini_both_run_toml_first(detector: MarkerDetector) -> None:
@@ -262,7 +484,7 @@ def test_no_ext_toml_and_ini_both_run_toml_first(detector: MarkerDetector) -> No
         '# metadata\n[a]\nlicense = Apache-2.0\n[project]\nlicense = {text = "MIT"}\n'
     )
     result = detector._detect_structured_format(text)
-    assert _summary(result) == [("MIT", 0.95), ("Apache-2.0", 0.95)]
+    assert _summary(result) == [("MIT", 1.0), ("Apache-2.0", 1.0)]
 
 
 def test_no_ext_toml_table_not_reparsed_as_ini_phantom_candidate(
@@ -273,16 +495,16 @@ def test_no_ext_toml_table_not_reparsed_as_ini_phantom_candidate(
     phantom candidate alongside the real MIT one."""
     text = '# pyproject\n[project]\nlicense = {text = "MIT"}\n'
     result = detector._detect_structured_format(text)
-    assert _summary(result) == [("MIT", 0.95)]
+    assert _summary(result) == [("MIT", 1.0)]
 
 
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
-        ("[metadata]\nlicense = MIT\n", [("MIT", 0.95)]),
+        ("[metadata]\nlicense = MIT\n", [("MIT", 1.0)]),
         (
             '[project]\nlicense = {text = "MIT"}\n',
-            [("MIT", 0.95)],
+            [("MIT", 1.0)],
         ),
     ],
     ids=["ini", "toml_table"],

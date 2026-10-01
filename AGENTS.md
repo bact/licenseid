@@ -8,7 +8,8 @@
   `shorttext.py` (Tier 0 IDs and names), `ranking.py` (sort order and the
   `-only`/`-or-later` tie-breaker), `similarity.py`, `markers.py`,
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
-  to text). Keep `matcher.py` under the 800-line limit:
+  to text), `manifest.py` (the `license` field of package.json,
+  pyproject.toml, Cargo.toml, setup.cfg). Keep `matcher.py` under the 800-line limit:
   put logic that needs no matcher state in one of the others.
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
 - Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches; may be discarded, not yet built.
@@ -140,7 +141,7 @@ ruff format
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
-  lines=926) — see
+  lines=921) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't

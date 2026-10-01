@@ -25,6 +25,14 @@ class LicenseMatch(TypedDict, total=False):
     best_window: str
 
 
+class LicenseFlags(TypedDict):
+    """What SPDX, the OSI and the FSF say of a license or expression."""
+
+    is_spdx: bool
+    is_osi_approved: bool
+    is_fsf_libre: bool
+
+
 class CandidateMatch(TypedDict, total=False):
     """Database record returned by LicenseDatabase.search_candidates()."""
 
@@ -53,6 +61,9 @@ class InternalMatch(TypedDict, total=False):
     is_deprecated: bool
     superseded_by: str
     best_window: Required[str]
+    is_spdx: bool
+    is_osi_approved: bool
+    is_fsf_libre: bool
 
 
 class MatchRequest(TypedDict, total=False):
@@ -76,6 +87,9 @@ class LicenseNameId(TypedDict):
     is_deprecated: bool
     norm_license_id: str
     norm_name: str
+    is_spdx: bool
+    is_osi_approved: bool
+    is_fsf_libre: bool
 
 
 class LicenseDetails(TypedDict, total=False):

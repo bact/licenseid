@@ -5,9 +5,6 @@
 
 """Logic for detecting explicit license markers and headings in text."""
 
-import configparser
-import json
-import os
 import re
 
 import py_spdx_license
@@ -22,7 +19,8 @@ from licenseid.identifiers import (
     qualify_trailing_grant,
     strip_plus_operator,
 )
-from licenseid.types import CandidateMatch, LicenseDetails
+from licenseid.manifest import extension, license_value_groups
+from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags
 
 
 class MarkerDetector:
@@ -108,12 +106,6 @@ class MarkerDetector:
         OR_LATER_PHRASE.pattern + r"|\beither\s+version\b", re.IGNORECASE
     )
 
-    # PEP 621 table form: license = {text = "MIT"}
-    _RE_TOML_LICENSE_TABLE = re.compile(
-        r'^license\s*=\s*\{[^}]*\btext\s*=\s*["\']([^"\']+)["\']',
-        re.MULTILINE | re.IGNORECASE,
-    )
-
     # License mention patterns: "licensed under the MIT License",
     # "released under Apache License, Version 2.0", etc.
     # `\s+` (not `[ \t]+`) intentionally spans newlines so "licensed \nunder" matches.
@@ -128,16 +120,26 @@ class MarkerDetector:
     def __init__(self, db: LicenseDatabase):
         self.db = db
 
-    def detect(self, text: str, file_path: str | None = None) -> list[CandidateMatch]:
-        """Detect license markers in the given text, deduplicating by license_id."""
+    def detect(
+        self,
+        text: str,
+        file_path: str | None = None,
+        manifest: list[list[str]] | None = None,
+    ) -> list[CandidateMatch]:
+        """Detect license markers in the given text, deduplicating by
+        license_id. *manifest* is license_value_groups() of the text, if the
+        caller has it already."""
         seen: set[str] = set()
         result: list[CandidateMatch] = []
 
-        ext = os.path.splitext(file_path)[1].lower() if file_path else ""
-
+        if manifest is None:
+            manifest = license_value_groups(text, extension(file_path))
         for group in (
-            self._detect_structured_format(text, ext),
-            self._detect_explicit_identifiers(text),
+            self._structured_candidates(manifest),
+            # A manifest's own license field is read whole, above; the loose
+            # field reader would read it again, and in part: the MIT of
+            # "MIT/Apache-2.0".
+            self._detect_explicit_identifiers(text, read_fields=not any(manifest)),
             self._detect_gpl_headers(text),
             self._detect_bsd_headers(text),
             self._detect_headings(text),
@@ -158,73 +160,50 @@ class MarkerDetector:
                 c["search_text"] = self.db.get_search_text(c["license_id"])
         return result
 
+    def detect_structured(self, manifest: list[list[str]]) -> list[CandidateMatch]:
+        """The license field of a manifest (JSON, TOML, INI), from its
+        license_value_groups(): one candidate per license, each certain
+        (score 1.0). Cheap enough to run on every input, however short: a
+        small package.json is still a declaration."""
+        return self._structured_candidates(manifest)
+
     def _detect_structured_format(
         self, text: str, ext: str = ""
     ) -> list[CandidateMatch]:
         """Parse structured file formats (JSON, TOML, INI) for license fields."""
-        stripped = text.strip()
+        return self._structured_candidates(license_value_groups(text, ext))
 
-        is_json_ext = ext == ".json"
-        if is_json_ext or (not ext and stripped.startswith(("{", "["))):
-            found = self._detect_json_license(stripped)
-            if found is not None:
-                return found  # valid JSON: don't fall through to regex/INI
-            if is_json_ext:
-                return []
-            # Extensionless "[section]" text is INI/TOML, not JSON: fall through.
+    def _structured_candidates(self, groups: list[list[str]]) -> list[CandidateMatch]:
+        """The first value of each format that resolves, one candidate per
+        license."""
+        found = {
+            c["license_id"]: c for group in groups for c in self._first_resolved(group)
+        }
+        return list(found.values())
 
-        candidates: list[CandidateMatch] = []
-        if ext in (".toml", ""):
-            candidates.extend(self._detect_toml_license(text))
-        if ext in (".cfg", ".ini", ""):
-            candidates.extend(self._detect_ini_license(text))
-        return candidates
+    def _first_resolved(self, values: list[str]) -> list[CandidateMatch]:
+        """The candidates of the first manifest value that resolves. A field
+        is machine-readable and deliberate, as an SPDX tag is, so it scores
+        1.0."""
+        for value in values:
+            resolved = self.resolve_license_value(value, 1.0, whole=True)
+            if resolved:
+                return resolved
+        return []
 
-    def _detect_json_license(self, stripped: str) -> list[CandidateMatch] | None:
-        """Read the license field of a JSON object.
+    def resolve_license_value(
+        self, val: str, score: float, *, whole: bool = False
+    ) -> list[CandidateMatch]:
+        """Resolve a license string (ID, name, or SPDX URL) to candidates.
 
-        Returns None if the text is not parseable JSON, so the caller can
-        decide whether to fall through. Scores 1.0 (JSON is machine-readable,
-        like SPDX tags), higher than the 0.95 of TOML/INI.
+        With *whole*, the expression must be the entire value, as in a
+        manifest field, which holds nothing else: "MIT/Apache-2.0" there is
+        not MIT with trailing prose, and answering MIT would drop a license.
         """
-        try:
-            data = json.loads(stripped)
-        except (ValueError, RecursionError):  # JSONDecodeError is a ValueError
-            return None
-        if not isinstance(data, dict):
-            return []
-        val = data.get("license") or data.get("License") or data.get("LICENSE")
-        if isinstance(val, str) and val:
-            return self.resolve_license_value(val, 1.0)
-        return []
-
-    def _detect_toml_license(self, text: str) -> list[CandidateMatch]:
-        """Read the PEP 621 table form: license = {text = "MIT"}."""
-        match = self._RE_TOML_LICENSE_TABLE.search(text)
-        if match:
-            return self.resolve_license_value(match.group(1), 0.95)
-        return []
-
-    def _detect_ini_license(self, text: str) -> list[CandidateMatch]:
-        """Read the first INI/cfg section whose license option resolves."""
-        try:
-            cfg = configparser.ConfigParser()
-            cfg.read_string(text)
-            for section in cfg.sections():
-                val = cfg.get(section, "license", fallback=None)
-                if val:
-                    resolved = self.resolve_license_value(val.strip(), 0.95)
-                    if resolved:
-                        return resolved
-        except Exception:  # pylint: disable=broad-exception-caught
-            pass
-        return []
-
-    def resolve_license_value(self, val: str, score: float) -> list[CandidateMatch]:
-        """Resolve a license string (ID, name, or SPDX URL) to candidates."""
-        # SPDX license URL: https://spdx.org/licenses/Apache-2.0
+        # SPDX license URL: https://spdx.org/licenses/Apache-2.0, or the
+        # License List's own page for it, .../Apache-2.0.html
         if val.startswith("http") and "/licenses/" in val:
-            val = val.rstrip("/").split("/")[-1]
+            val = val.rstrip("/").split("/")[-1].removesuffix(".html")
 
         val = val.strip()
         # A value runs to the end of its line and can trail off into prose, so
@@ -232,7 +211,11 @@ class MarkerDetector:
         # whole line would let disambiguate_deprecated_id read an ID out of
         # the prose. The name lookup still sees the whole value ("BSD 3-Clause"
         # is a name, not an expression).
-        expression = qualify_trailing_grant(leading_expression(val), val)
+        leading = leading_expression(val)
+        expression = qualify_trailing_grant(leading, val)
+        # A grant after the expression qualifies it (leading_expression
+        # refuses anything after a grant), so only a grant may be left over.
+        partial = leading != val and expression == leading
         lic_id = normalize_identifier(expression, self.db)
         # The name comes first: the expression can be a prefix of the value,
         # and "MIT No Attribution" is MIT-0, not MIT.
@@ -244,6 +227,8 @@ class MarkerDetector:
             # the name answers as that ID does: the name of
             # GPL-2.0-with-GCC-exception is GPL-2.0-only WITH GCC-exception-2.0.
             lic_id = normalize_identifier(named["license_id"], self.db)
+        elif whole and partial:
+            return []
         details = self.db.get_license_details(lic_id) if lic_id else None
         if details:
             return [self._candidate_without_text(details, score)]
@@ -251,42 +236,73 @@ class MarkerDetector:
         # a license and builds no candidate.
         return self._synthetic_candidate(lic_id, score) if lic_id else []
 
-    def _synthetic_candidate(self, lic_id: str, score: float) -> list[CandidateMatch]:
-        """Build a candidate for an ID that is not in the DB.
+    def license_flags(self, lic_id: str) -> LicenseFlags:
+        """The SPDX, OSI and FSF flags of a license ID or expression: a
+        database row's own, else those of the expression (see
+        _expression_flags); all False for anything else."""
+        details = self.db.get_license_details(lic_id)
+        if details:
+            return {
+                "is_spdx": bool(details["is_spdx"]),
+                "is_osi_approved": bool(details["is_osi_approved"]),
+                "is_fsf_libre": bool(details["is_fsf_libre"]),
+            }
+        flags = self._expression_flags(lic_id)
+        return flags or {
+            "is_spdx": False,
+            "is_osi_approved": False,
+            "is_fsf_libre": False,
+        }
+
+    def _expression_flags(self, lic_id: str) -> LicenseFlags | None:
+        """The flags of an ID that is not in the DB, or None when it is no
+        evidence of a license.
 
         Keeps only well-formed SPDX expressions and LicenseRef-* IDs with at
         least one recognised ID: fabricating a candidate from arbitrary text
         (e.g. "see LICENSE file", "Dual OR Commercial") would create a
         phantom license_id ranked at a fixed high confidence. ``is_spdx`` is
         False if any part is unknown; a LicenseRef-* is a valid SPDX ID, so it
-        counts as known. Used for every source of an expression
-        (SPDX tag, JSON, TOML, INI, and an explicit ``license_id``), so they
-        all decide alike. The OSI and FSF flags come from
+        counts as known. The OSI and FSF flags come from
         ``identifiers.flag_source``.
         """
         tree = parse_expression(strip_plus_operator(lic_id))
         if tree is None:
-            return []  # not an expression (or too deep to parse)
+            return None  # not an expression (or too deep to parse)
         leaves = self._expression_leaves(tree)
         if not any(
             isinstance(leaf, (py_spdx_license.LicenseId, py_spdx_license.LicenseRef))
             for leaf in leaves
         ):
-            return []
+            return None
         licence = flag_source(tree, self.db)
+        return {
+            "is_spdx": not any(
+                isinstance(leaf, py_spdx_license.UnknownId) for leaf in leaves
+            ),
+            "is_osi_approved": bool(licence and licence["is_osi_approved"]),
+            "is_fsf_libre": bool(licence and licence["is_fsf_libre"]),
+        }
+
+    def _synthetic_candidate(self, lic_id: str, score: float) -> list[CandidateMatch]:
+        """Build a candidate for an ID that is not in the DB, if its flags
+        say it is evidence of a license (see _expression_flags). Used for
+        every source of an expression (SPDX tag, JSON, TOML, INI, and an
+        explicit ``license_id``), so they all decide alike."""
+        flags = self._expression_flags(lic_id)
+        if flags is None:
+            return []
         return [
             {
                 "license_id": lic_id,
                 "search_text": "",
                 "score": score,
-                "is_spdx": not any(
-                    isinstance(leaf, py_spdx_license.UnknownId) for leaf in leaves
-                ),
                 "word_count": 0,
                 "is_high_usage": False,
-                "is_osi_approved": bool(licence and licence["is_osi_approved"]),
-                "is_fsf_libre": bool(licence and licence["is_fsf_libre"]),
                 "pop_score": 0,
+                "is_spdx": flags["is_spdx"],
+                "is_osi_approved": flags["is_osi_approved"],
+                "is_fsf_libre": flags["is_fsf_libre"],
             }
         ]
 
@@ -316,8 +332,11 @@ class MarkerDetector:
             values.append(text[tag.end() : line_break.start() if line_break else end])
         return values
 
-    def _detect_explicit_identifiers(self, text: str) -> list[CandidateMatch]:
-        """Detect SPDX-License-Identifier tags and License: metadata fields."""
+    def _detect_explicit_identifiers(
+        self, text: str, read_fields: bool = True
+    ) -> list[CandidateMatch]:
+        """Detect SPDX-License-Identifier tags and, if *read_fields*,
+        License: metadata fields."""
         candidates: list[CandidateMatch] = []
 
         # 1. SPDX-License-Identifier
@@ -326,7 +345,7 @@ class MarkerDetector:
             candidates.extend(self.resolve_license_value(value, 1.0))
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)
-        for match in self._RE_LICENSE_FIELD.finditer(text):
+        for match in self._RE_LICENSE_FIELD.finditer(text) if read_fields else ():
             val = normalize_identifier(match.group(1).strip(), self.db)
             if not val:
                 continue

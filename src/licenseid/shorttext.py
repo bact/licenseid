@@ -11,7 +11,10 @@ from rapidfuzz import fuzz
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import normalize_identifier
 from licenseid.ranking import DEP_PENALTY
-from licenseid.types import LicenseMatch
+from licenseid.types import LicenseMatch, LicenseNameId
+
+# The score of an exact ID or name match; a fuzzy one scores less.
+EXACT_MATCH_SCORE = 1.02
 
 
 def match_short_text(db: LicenseDatabase, norm_input: str) -> list[LicenseMatch]:
@@ -35,14 +38,17 @@ def match_short_text(db: LicenseDatabase, norm_input: str) -> list[LicenseMatch]
             resolved_id = (
                 normalize_identifier(lid, db) if meta["is_deprecated"] else lid
             )
-            return [
-                LicenseMatch(
-                    license_id=resolved_id,
-                    score=1.02,
-                    similarity=1.0,
-                    coverage=1.0,
-                )
-            ]
+            match = LicenseMatch(
+                license_id=resolved_id,
+                score=EXACT_MATCH_SCORE,
+                similarity=1.0,
+                coverage=1.0,
+            )
+            if resolved_id == lid:
+                _copy_flags(meta, match)
+            # A deprecated ID can resolve to an expression, whose flags are
+            # not this row's: the caller works them out.
+            return [match]
 
         if norm_input == name_norm:
             # Exact name match: id_norm was already ruled out above, so
@@ -72,16 +78,20 @@ def match_short_text(db: LicenseDatabase, norm_input: str) -> list[LicenseMatch]
             if meta["is_deprecated"]:
                 score -= DEP_PENALTY
 
-            ranked.append(
-                LicenseMatch(
-                    license_id=lid,
-                    score=score,
-                    similarity=best_raw / 100.0,
-                    coverage=0.0,
-                )
+            match = LicenseMatch(
+                license_id=lid, score=score, similarity=best_raw / 100.0, coverage=0.0
             )
+            _copy_flags(meta, match)
+            ranked.append(match)
 
     # The deprecated penalty is already in each score, and these results
     # carry no is_deprecated or pop_score.
     ranked.sort(key=lambda x: (-x["score"], x["license_id"]))
     return ranked
+
+
+def _copy_flags(meta: LicenseNameId, match: LicenseMatch) -> None:
+    """Give *match* the SPDX, OSI and FSF flags of its license row."""
+    match["is_spdx"] = meta["is_spdx"]
+    match["is_osi_approved"] = meta["is_osi_approved"]
+    match["is_fsf_libre"] = meta["is_fsf_libre"]
