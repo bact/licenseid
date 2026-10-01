@@ -23,6 +23,15 @@ from licenseid.manifest import extension, license_value_groups
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags
 
 
+def _first_per_license(*groups: list[CandidateMatch]) -> list[CandidateMatch]:
+    """The candidates of *groups* in order, the first of each license only."""
+    found: dict[str, CandidateMatch] = {}
+    for group in groups:
+        for candidate in group:
+            found.setdefault(candidate["license_id"], candidate)
+    return list(found.values())
+
+
 class MarkerDetector:
     """
     Detector for license markers like SPDX-License-Identifier,
@@ -129,12 +138,9 @@ class MarkerDetector:
         """Detect license markers in the given text, deduplicating by
         license_id. *manifest* is license_value_groups() of the text, if the
         caller has it already."""
-        seen: set[str] = set()
-        result: list[CandidateMatch] = []
-
         if manifest is None:
             manifest = license_value_groups(text, extension(file_path))
-        for group in (
+        result = _first_per_license(
             self._structured_candidates(manifest),
             # A manifest's own license field is read whole, above; the loose
             # field reader would read it again, and in part: the MIT of
@@ -145,12 +151,7 @@ class MarkerDetector:
             self._detect_headings(text),
             self._detect_license_mentions(text),
             self._detect_first_line(text),
-        ):
-            for c in group:
-                lid = c["license_id"]
-                if lid not in seen:
-                    result.append(c)
-                    seen.add(lid)
+        )
 
         # A license value's candidate has no search text yet: a bundle can
         # repeat one license in thousands of tags, and only the kept one
@@ -160,12 +161,19 @@ class MarkerDetector:
                 c["search_text"] = self.db.get_search_text(c["license_id"])
         return result
 
-    def detect_structured(self, manifest: list[list[str]]) -> list[CandidateMatch]:
-        """The license field of a manifest (JSON, TOML, INI), from its
-        license_value_groups(): one candidate per license, each certain
-        (score 1.0). Cheap enough to run on every input, however short: a
-        small package.json is still a declaration."""
-        return self._structured_candidates(manifest)
+    def detect_declared(
+        self, text: str, manifest: list[list[str]]
+    ) -> list[CandidateMatch]:
+        """What *text* declares: a manifest's license field, from its
+        license_value_groups() *manifest*, and its SPDX-License-Identifier
+        tags. One candidate per license, each certain (score 1.0). Cheap
+        enough to run on every input, however short: a small package.json or
+        a header line is still a declaration. The loose License: reader stays
+        out; it reads prose."""
+        return _first_per_license(
+            self._structured_candidates(manifest),
+            self._detect_explicit_identifiers(text, read_fields=False),
+        )
 
     def _detect_structured_format(
         self, text: str, ext: str = ""
@@ -176,10 +184,7 @@ class MarkerDetector:
     def _structured_candidates(self, groups: list[list[str]]) -> list[CandidateMatch]:
         """The first value of each format that resolves, one candidate per
         license."""
-        found = {
-            c["license_id"]: c for group in groups for c in self._first_resolved(group)
-        }
-        return list(found.values())
+        return _first_per_license(*(self._first_resolved(group) for group in groups))
 
     def _first_resolved(self, values: list[str]) -> list[CandidateMatch]:
         """The candidates of the first manifest value that resolves. A field

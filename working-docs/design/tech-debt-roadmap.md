@@ -21,11 +21,11 @@ reviews of the diagnostics change and the Java removal; items 2 and 10 from
 manual CLI testing under other locales and environments; items 15 to 18 from the
 work on item 6, and item 19 from the work on items 15 and 17. Item 11 was
 re-scored from the work on item 16, and items 21 to 25 come from the work on
-item 18.
+item 18, items 26 and 27 from the work on item 24, and items 28 and 29 from
+the review of PR #66.
 
-Next up (chosen 2026-10-01): items 21 and 22, ahead of their priority
-order; item 2 waits on an upstream release. Items 24 and 25 were found after
-that choice and outrank both by priority.
+Next up (order chosen 2026-10-01: 24, 25, 21, 22): item 21, then item 22;
+items 24 and 25 are done. Item 2 waits on an upstream release.
 
 ## 21. `--text GPL-2.0+` answers GPL-2.0-only — Priority 20
 
@@ -100,36 +100,6 @@ higher score than a certain tag.
   README example.
 - Impact 2, Risk 1, Effort 2.
 
-## 24. A short input never reads its `SPDX-License-Identifier` tag — Priority 24
-
-Under 30 words, `matcher._try_tier0_5_markers` reads only a manifest's
-license field (item 18); the tag reader never runs, so the line goes to
-Tier 0 as a license name. `SPDX-License-Identifier: MIT OR Apache-2.0`
-answers `Apache-2.0` at 1.01, dropping MIT, and
-`// SPDX-License-Identifier: GPL-2.0-or-later WITH Classpath-exception-2.0`
-answers `CAL-1.0` at 0.667. `SPDX-License-Identifier: MIT` comes out right
-only because Tier 0 finds the name. A one-line header (`head -1 file.c |
-licenseid match`) is a common input. Found on 2026-10-01 while reviewing
-item 18; `main` behaves the same.
-
-- **Fix**: under 30 words, also run the tag reader, which is cheap and
-  certain, as item 18 did for the manifest field. Pin first.
-- Impact 3, Risk 3, Effort 2.
-
-## 25. `GPL-2.0-with-classpath-exception` is not redirected — Priority 20
-
-`identifiers.DEPRECATED_WITH_IDS` maps six of the seven deprecated `-with-`
-IDs in the License List to `<license> WITH <exception>`; it lacks
-`GPL-2.0-with-classpath-exception`, so that ID answers itself (deprecated)
-where the others answer `GPL-2.0-only WITH ...`. Found on 2026-10-01 while
-reviewing item 18; `main` behaves the same.
-
-- **Fix**: add `GPL-2.0-only WITH Classpath-exception-2.0`, and add a test
-  that every deprecated `-with-` ID in the License List has an entry, so
-  the next one cannot be missed. Check the exception ID against the
-  exceptions list.
-- Impact 2, Risk 2, Effort 1.
-
 ## 2. `py-spdx-license` reads its data with the locale encoding — Priority 20
 
 `py_spdx_license/ast.py` (v0.0.1) loads `data/licenses.json` and
@@ -173,6 +143,90 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
   After a release, raise the minimum `py-spdx-license` version, drop the
   README section and close this item.
 - Impact 2, Risk 3, Effort 2.
+
+## 26. Relax the parser guard once the parser is linear — Priority 10
+
+`identifiers.parse_expression` refuses an expression whose tokens' squared
+lengths sum to more than `_MAX_PARSE_COST` (10**9, about 8 ms of tokenizer
+time: one token of 31,622 characters), a workaround added with item 24.
+A budget on the cost, not a cap on a token: SPDX sets no length on a
+`LicenseRef-*`, and a 256-character cap refused real ones (found in review
+of PR #66). A token is counted as the parser
+splits it, at space, tab, line feed, carriage return and brackets only:
+a run joined by a no-break space is one token there, and a guard that
+split at `\s` let a million-character one through (found in review of
+PR #66). `py_spdx_license` 0.0.1 parses in quadratic time, in two places
+(`src/py_spdx_license/ast.py`):
+
+- `tokenize` builds each token with `t.value += c`; on an attribute CPython
+  cannot append in place, so each character copies the token: 0.11 s at
+  100,000 characters, 0.35 s at 200,000, 6.8 s at 1,000,000.
+- `create_ast` takes tokens with `tokens.pop(0)`, which shifts the list:
+  0.18 s at 10,000 operands, 1.05 s at 40,000. The guard does not cover
+  this; under 30 words an input cannot hold that many tokens, and longer
+  inputs already pay it (and hit item 19's `RecursionError` first).
+
+Item 24 opened the parser to inputs under 30 words, where a single long run
+with no spaces would have cost the whole tokenizer time. The fix belongs
+upstream (`JPEWdev/py-spdx-license`; the user is fixing it there). Found on
+2026-10-01 while planning item 24.
+
+- **Lift when**: licenseid depends on a release with linear parsing, and
+  `test_short_tag.py::test_the_parser_refuses_an_overlong_token` and
+  `test_a_long_tag_value_reads_in_linear_time` pass with the guard removed.
+  Then remove the guard or raise the budget, and flip the over-budget
+  cases.
+- Impact 1, Risk 1, Effort 1.
+
+## 27. A few words of many characters cost seconds in Tier 0 — Priority 10
+
+An input under 30 words reaches `shorttext.match_short_text`, which scores
+it against every license ID and name with RapidFuzz, at a cost in the
+input's characters, not its words. One 200,000-character word takes 4.8 s
+(2.7 s there, 2.0 s in SQLite), and a tag with a 1,000,000-character value
+about 30 s; `main` behaves the same. `similarity.alignment_affordable`
+guards Tier 2 against this, but nothing guards Tier 0. Found on 2026-10-01
+while timing item 24.
+
+- **Fix**: bound Tier 0 by characters, as Tier 2 is: a word far longer than
+  any ID or name (the longest name has 89 characters) cannot be one,
+  so skip the fuzzy scan for it. Find what the 2.0 s of SQLite is first.
+- Impact 1, Risk 1, Effort 1.
+
+## 28. A two- or three-word phrase from a licence text scores 1.0 — Priority 10
+
+Any short phrase found verbatim in a licence text answers that licence with
+certainty. `license identifier`, or an `SPDX-License-Identifier:` tag with
+no value, answers `CAL-1.0` at 1.0, and `is-osi` then says yes. `main`
+behaves the same; found in review of PR #66 (2026-10-01).
+
+A tag that is no expression falls through to Tier 0 the same way, which
+reads the ID inside it as certain: under 30 words,
+`SPDX-License-Identifier: MIT OR` and `SPDX-License-Identifier: (MIT`
+answer MIT at 1.01, where a long input refuses the tag and answers nothing.
+`main` behaves the same.
+
+- **Direction**: a verbatim hit on a few words is evidence, not an answer.
+  Cap the score of a Tier 0 text hit below 1.0 when the phrase is shorter
+  than some minimum, or require it to cover a share of the licence's
+  distinctive words, so `is-*` answers no for it.
+- Impact 2, Risk 2, Effort 2.
+
+## 29. Every database lookup opens its own connection — Priority 8
+
+`LicenseDatabase._connection` opens, and closes, a SQLite connection for
+each query, and resolving one tag value takes about five lookups: some 3 ms
+a value. An input of 4,000 distinct tags (1.1 MB of 256-character
+`LicenseRef-*` values) takes 13 s, nearly all in `sqlite3.connect`,
+`execute` and `close` (20,009 connections); `main` takes 12 s. The parse
+budget of item 26 plays no part: 32 tags of 31,600 characters each take
+0.6 s. Found in review of PR #66 (2026-10-01).
+
+- **Fix**: keep one read-only connection per `LicenseDatabase` (or per
+  `match()` call), or cache `get_license_details` and
+  `get_license_by_name` for a call. Mind the shared-cache in-memory test
+  databases, which vanish when their last connection closes.
+- Impact 1, Risk 1, Effort 2.
 
 ## 5. Conflicting options and inputs are resolved silently — Priority 15
 
@@ -386,6 +440,24 @@ statistics; no fix has been designed yet, only the problem is documented.
   estimate is meaningful — treat this as provisional).
 
 ## Already resolved (kept for record)
+
+- A short input never read its `SPDX-License-Identifier` tag (item 24,
+  Priority 24; 2026-10-01). Under 30 words `matcher._try_tier0_5_markers`
+  read only a manifest's field (item 18), so a header line went to Tier 0
+  as a license name: `SPDX-License-Identifier: MIT OR Apache-2.0` answered
+  `Apache-2.0` at 1.01, and a `WITH Classpath-exception-2.0` header
+  `CAL-1.0`. Now `MarkerDetector.detect_declared` reads both declarations,
+  the field and the tag, at any length, and both `detect()` and it keep the
+  first candidate per license through one helper (`_first_per_license`).
+  The loose `License:` reader stays out of short inputs: it reads prose.
+  This opened the expression parser to short inputs, whose one long token
+  cost its quadratic tokenizer up to 7 s: hence the guard of item 26.
+- `GPL-2.0-with-classpath-exception` was not redirected (item 25, Priority
+  20; 2026-10-01). `identifiers.DEPRECATED_WITH_IDS` had six of the seven
+  deprecated `-with-` IDs. Now it has all seven, and
+  `tests/test_deprecated_with_ids.py` checks every deprecated `-with-` ID of
+  the License List bundled with `py_spdx_license` against it, so the next
+  one fails by name.
 
 - A manifest's license field was lost or unflagged (item 18, Priority 16;
   2026-09-30). A TOML or INI field scored 0.95, not the 1.0 of JSON, so it

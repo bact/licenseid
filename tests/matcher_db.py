@@ -55,6 +55,17 @@ class Lic(NamedTuple):
     search_text: str = ""
 
 
+# The GPL-2.0 family: both canonical IDs and the deprecated bare one, whose
+# own flags differ from GPL-2.0-only's, which it answers.
+GPL2_ROWS = (
+    Lic("GPL-2.0-only", "GNU General Public License v2.0 only", True, True, True),
+    Lic(
+        "GPL-2.0-or-later", "GNU General Public License v2.0 or later", True, True, True
+    ),
+    Lic("GPL-2.0", "GNU General Public License v2.0", False, is_deprecated=True),
+)
+
+
 def seeded_db(
     prefix: str,
     rows: Sequence[Lic],
