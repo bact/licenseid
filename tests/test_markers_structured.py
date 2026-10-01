@@ -233,6 +233,28 @@ def test_toml_commented_out_line_not_matched(detector: MarkerDetector) -> None:
             "MIT",
         ),
         ('[project]\nx = """a \\\\"""\nlicense = "MIT"\n', "MIT"),
+        # One or two quotes before the delimiter are the string's own.
+        (
+            (
+                '[project]\nx = ["""a"""", """\nlicense = "Apache-2.0"\n"""]\n'
+                'license = "MIT"\n'
+            ),
+            "MIT",
+        ),
+        (
+            (
+                '[project]\nx = ["""a""""", """\nlicense = "Apache-2.0"\n"""]\n'
+                'license = "MIT"\n'
+            ),
+            "MIT",
+        ),
+        (
+            (
+                "[project]\nx = ['''a'''', '''\nlicense = 'Apache-2.0'\n''']\n"
+                "license = 'MIT'\n"
+            ),
+            "MIT",
+        ),
         ("[project]\nx = '''a \\'''\nlicense = 'MIT'\n", "MIT"),
     ],
     ids=[
@@ -257,6 +279,9 @@ def test_toml_commented_out_line_not_matched(detector: MarkerDetector) -> None:
         "unclosed-one-line-string",
         "escaped-quote",
         "escaped-backslash",
+        "quote-before-delimiter",
+        "two-quotes-before-delimiter",
+        "quotes-before-literal-delimiter",
         "literal-backslash",
     ],
 )

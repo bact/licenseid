@@ -150,7 +150,14 @@ def _string_end(line: str, pos: int, quote: str) -> int:
     end = line.find(quote, pos)
     while end >= 0 and quote[0] == '"' and _escaped(line, end):
         end = line.find(quote, end + 1)
-    return end + len(quote) if end >= 0 else -1
+    if end < 0:
+        return -1
+    end += len(quote)
+    # A multi-line string may end in one or two quotes of its own, just
+    # before its delimiter: """say "hi"""" holds 'say "hi"'.
+    for _ in range(2 if len(quote) == 3 else 0):
+        end += line.startswith(quote[0], end)
+    return end
 
 
 def _escaped(line: str, index: int) -> bool:
