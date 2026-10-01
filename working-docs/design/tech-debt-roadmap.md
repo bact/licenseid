@@ -20,8 +20,115 @@ Item 9 (and the resolved items 3 and 8) come from a tech-debt audit on
 reviews of the diagnostics change and the Java removal; items 2 and 10 from
 manual CLI testing under other locales and environments; items 15 to 18 from the
 work on item 6, and item 19 from the work on items 15 and 17. Item 11 was
-re-scored from the work on item 16, and items 21 to 23 come from the work on
+re-scored from the work on item 16, and items 21 to 25 come from the work on
 item 18.
+
+Next up (chosen 2026-10-01): items 21 and 22, ahead of their priority
+order; item 2 waits on an upstream release. Items 24 and 25 were found after
+that choice and outrank both by priority.
+
+## 21. `--text GPL-2.0+` answers GPL-2.0-only — Priority 20
+
+The same value gives two answers. As a bare argument, `licenseid match
+GPL-2.0+` reads it as an ID and answers `GPL-2.0-or-later`. Through `--text`,
+or the API's `match(text=...)`, Tier 0 matches the normalised text, which
+has lost the `+`, and answers `GPL-2.0-only` at 1.02: a certain answer that
+drops the "or later" grant. Found on 2026-09-30 while checking item 18;
+`main` behaves the same.
+
+- **Fix**: let Tier 0 see a trailing `+` (or send a lone simple expression
+  through the ID path, as the CLI's bare argument does). Pin first.
+- Impact 2, Risk 3, Effort 2.
+
+## 22. `--json` prints internal ranking keys — Priority 12
+
+A Tier 2 result is the ranking's own record, so `match --json` prints
+`base_score`, `pop_score`, `is_deprecated`, `superseded_by` and
+`best_window` (a slice of license text) beside the keys the README shows.
+Found on 2026-09-30 while checking item 18.
+
+The output is not stable either: `json.dumps(results, indent=2)` prints keys
+in the order each tier happened to build them, Python's float form (`1.0`),
+and `is_deprecated` as `0` rather than `false`.
+
+`score` is a ranking key, not a confidence, and its scale depends on the
+tier: a tag or a manifest field scores 1.0, a Tier 0 exact ID 1.02 and a
+name 1.01, and a Tier 2 text match can reach about 1.05 through its
+additive tie-breakers (`similarity.calculate_final_score`, and
+`_FP_BOOST` × `idf_norm` in `matcher._rank_candidates`; the first 400
+characters of the Apache-2.0 text score 1.0 + 0.05). One `match()` answers
+from one tier, so the order is sound, but a fuzzy text match prints a
+higher score than a certain tag.
+
+**Decided (2026-10-01)**: publish both how the answer was found and a 0-1
+`score`.
+
+- A new key names the method: tag, field, ID, name or text.
+- Public `score` is the ranking key capped to 0-1. It keeps the `is-*` bar
+  (0.85, `matcher.resolve_record`) reproducible from the output, and it is
+  the one value comparable across methods. Two results above 1 both print
+  `1`, so the list order is the ranking. The score is closeness, not a
+  probability: below 1 it still carries the tie-breakers.
+- Ranking and the internal checks keep the raw key (`> 1.0` marks Tier 0 as
+  definitive; `_try_manifest_value` needs `EXACT_MATCH_SCORE`), so the cap
+  is applied in one place, at the end of `match()`.
+- Every result has the same keys; `similarity` and `coverage` are `null`
+  where nothing was measured (a name match prints `coverage: 0.0` today).
+- The text output gains `SCORE=` and the method, so it agrees with JSON.
+
+- **Fix**: build the public key set above in one place at the end of
+  `match()` (keeping `best_window` internal for `--diff`), and pin it.
+  Serialise it with the JSON Canonicalization Scheme (JCS, RFC 8785) through
+  `rfc8785` (Trail of Bits, Apache-2.0, no runtime dependencies; 0.1.4
+  checked on 2026-10-01): sorted keys, no white space, ECMAScript number
+  form, so equal results give equal bytes and a line of output is one value.
+- JCS normalises numbers, which is wanted: `1.0` prints as `1`, one value
+  one spelling.
+- **Decided (2026-10-01)**: JSON Lines, one JCS object per result per line.
+  It fits the line-delimited CLI rule, and `wc -l`, `awk` and `xargs` work
+  on it as on the text output.
+- **Decided (2026-10-01)**: `best_window` stays internal, for `--diff` only.
+  It is normalised text (lower case, no punctuation), not the license as
+  written, and when no alignment ran it is the candidate's whole text,
+  repeated for every result. It is also the one value that carries
+  non-ASCII text (the Japanese licenses), so without it the output is
+  ASCII and JCS writing UTF-8 as is, where `json.dumps` escaped it, meets
+  no stdout encoding question.
+- A new runtime dependency: add it to `pyproject.toml` and `codemeta.json`.
+- Breaking for `--json` readers (an array becomes lines; keys and score
+  change): mark it so in `CHANGELOG.md` with the migration, and update the
+  README example.
+- Impact 2, Risk 1, Effort 2.
+
+## 24. A short input never reads its `SPDX-License-Identifier` tag — Priority 24
+
+Under 30 words, `matcher._try_tier0_5_markers` reads only a manifest's
+license field (item 18); the tag reader never runs, so the line goes to
+Tier 0 as a license name. `SPDX-License-Identifier: MIT OR Apache-2.0`
+answers `Apache-2.0` at 1.01, dropping MIT, and
+`// SPDX-License-Identifier: GPL-2.0-or-later WITH Classpath-exception-2.0`
+answers `CAL-1.0` at 0.667. `SPDX-License-Identifier: MIT` comes out right
+only because Tier 0 finds the name. A one-line header (`head -1 file.c |
+licenseid match`) is a common input. Found on 2026-10-01 while reviewing
+item 18; `main` behaves the same.
+
+- **Fix**: under 30 words, also run the tag reader, which is cheap and
+  certain, as item 18 did for the manifest field. Pin first.
+- Impact 3, Risk 3, Effort 2.
+
+## 25. `GPL-2.0-with-classpath-exception` is not redirected — Priority 20
+
+`identifiers.DEPRECATED_WITH_IDS` maps six of the seven deprecated `-with-`
+IDs in the License List to `<license> WITH <exception>`; it lacks
+`GPL-2.0-with-classpath-exception`, so that ID answers itself (deprecated)
+where the others answer `GPL-2.0-only WITH ...`. Found on 2026-10-01 while
+reviewing item 18; `main` behaves the same.
+
+- **Fix**: add `GPL-2.0-only WITH Classpath-exception-2.0`, and add a test
+  that every deprecated `-with-` ID in the License List has an entry, so
+  the next one cannot be missed. Check the exception ID against the
+  exceptions list.
+- Impact 2, Risk 2, Effort 1.
 
 ## 2. `py-spdx-license` reads its data with the locale encoding — Priority 20
 
@@ -65,19 +172,6 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
   -W error::EncodingWarning`). With it, licenseid runs under `ja_JP.eucJP`.
   After a release, raise the minimum `py-spdx-license` version, drop the
   README section and close this item.
-- Impact 2, Risk 3, Effort 2.
-
-## 21. `--text GPL-2.0+` answers GPL-2.0-only — Priority 20
-
-The same value gives two answers. As a bare argument, `licenseid match
-GPL-2.0+` reads it as an ID and answers `GPL-2.0-or-later`. Through `--text`,
-or the API's `match(text=...)`, Tier 0 matches the normalised text, which
-has lost the `+`, and answers `GPL-2.0-only` at 1.02: a certain answer that
-drops the "or later" grant. Found on 2026-09-30 while checking item 18;
-`main` behaves the same.
-
-- **Fix**: let Tier 0 see a trailing `+` (or send a lone simple expression
-  through the ID path, as the CLI's bare argument does). Pin first.
 - Impact 2, Risk 3, Effort 2.
 
 ## 5. Conflicting options and inputs are resolved silently — Priority 15
@@ -211,17 +305,6 @@ Each case is outside the message grammar or hides a failure:
   it fails. The `sqlite3.Error` part is done for the CLI in
   `DatabaseErrorGroup`; the API is left.
 - Impact 2, Risk 2, Effort 3.
-
-## 22. `--json` prints internal ranking keys — Priority 12
-
-A Tier 2 result is the ranking's own record, so `match --json` prints
-`base_score`, `pop_score`, `is_deprecated`, `superseded_by` and
-`best_window` (a slice of license text) beside the keys the README shows.
-Found on 2026-09-30 while checking item 18.
-
-- **Fix**: decide the public key set of a result, build it in one place
-  at the end of `match()` (keeping `best_window` for `--diff`), and pin it.
-- Impact 2, Risk 1, Effort 2.
 
 ## 23. The loose `License:` field reader resolves every match — Priority 12
 
