@@ -139,7 +139,8 @@ Common options:
   (e.g., `file:test?mode=memory&cache=shared`).
 - `--id <id>`: Explicitly treat input as one SPDX License ID (bypasses
   file/text matching). It declares a single license, so it takes an ID, a
-  `LicenseRef-*`, an ID with `+`, and either `WITH <exception>`, in
+  `LicenseRef-*`, an ID with `+` (a `LicenseRef-*` takes none), and either
+  `WITH <exception>`, in
   brackets or not: `MIT`, `(MIT)`, `Apache-2.0+`,
   `MIT WITH Font-exception-2.0`. It does not take an
   `AND`/`OR` expression, a license name, an SPDX URL or prose — those name

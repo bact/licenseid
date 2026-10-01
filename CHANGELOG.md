@@ -120,6 +120,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dropping the "or later", and `GPL-2.0+ WITH Classpath-exception-2.0`
   answered nothing close. An ID given as text now scores 1.0, as it does
   through `--id`, so a `--threshold` above 1.0 no longer keeps it
+- A `LicenseRef-*` with a `+` is no expression, as SPDX gives `+` to a
+  license ID only: `LicenseRef-x+` answered as a valid SPDX license from a
+  tag, `--id` or text. `--id LicenseRef-x+` now exits 2
 - The deprecated `GFDL-1.1`, `GFDL-1.2` and `GFDL-1.3` answer their `-only`
   form, and with a `+` or an "or later" grant their `-or-later` form, as
   the GPL family does, with that form's flags: `GFDL-1.3` answered itself,

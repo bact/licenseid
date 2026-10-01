@@ -101,7 +101,10 @@ CHANNELS = [
         ),
         # No -or-later ID: the "+" stays.
         ("Apache-2.0+", "Apache-2.0+"),
-        ("LicenseRef-x+", "LicenseRef-x+"),
+        (
+            "LicenseRef-x WITH Classpath-exception-2.0",
+            "LicenseRef-x WITH Classpath-exception-2.0",
+        ),
         ("GPL-2.0", "GPL-2.0-only"),
         # GFDL had no redirect: GFDL-1.3+ answered itself.
         ("GFDL-1.3+", "GFDL-1.3-or-later"),
@@ -147,3 +150,11 @@ def test_a_deprecated_gfdl_id_has_the_flags_of_its_successor(db: str) -> None:
     """GFDL-1.3 answered itself, with the deprecated row's flags."""
     result = CliRunner().invoke(cli, ["--db", db, "is-fsf", "--text", "GFDL-1.3"])
     assert (result.exit_code, result.stdout) == (0, "true\n")
+
+
+def test_a_license_ref_with_a_plus_is_no_license(db: str) -> None:
+    """SPDX gives "+" to a license ID only. It answered LicenseRef-x+ as a
+    valid SPDX license; as --id it is no single license, a usage error."""
+    assert not AggregatedLicenseMatcher(db).match(text="LicenseRef-x+")
+    result = CliRunner().invoke(cli, ["--db", db, "match", "--id", "LicenseRef-x+"])
+    assert result.exit_code == 2
