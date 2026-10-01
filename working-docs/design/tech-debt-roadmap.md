@@ -187,11 +187,11 @@ certainty. `license identifier`, or an `SPDX-License-Identifier:` tag with
 no value, answers `CAL-1.0` at 1.0, and `is-osi` then says yes. `main`
 behaves the same; found in review of PR #66 (2026-10-01).
 
-A tag that is no expression falls through to Tier 0 the same way, which
-reads the ID inside it as certain: under 30 words,
-`SPDX-License-Identifier: MIT OR` and `SPDX-License-Identifier: (MIT`
-answer MIT at 1.01, where a long input refuses the tag and answers nothing.
-`main` behaves the same.
+A tag that is no expression used to fall through to Tier 0 the same way:
+under 30 words, `SPDX-License-Identifier: MIT OR` answered MIT at 1.01.
+Fixed in PR #67, where refusing `LicenseRef-MIT+` made its tag answer MIT
+too: Tier 0 now matches the input without its tags, which Tier 0.5 has
+read (`MarkerDetector.without_spdx_tags`).
 
 - **Direction**: a verbatim hit on a few words is evidence, not an answer.
   Cap the score of a Tier 0 text hit below 1.0 when the phrase is shorter
@@ -248,6 +248,13 @@ operator or an unbalanced bracket (PR #61), a "+" after a `LicenseRef-*`
 (review of PR #67: it answered as a valid SPDX license from a tag, `--id`
 and text). Each time the rule went into one place, and the others were
 checked by hand. Found on 2026-10-01; the user asked to return to it.
+
+**Decided (2026-10-01)**: no more one-off fixes of these edge cases. The
+last were in PR #67 (a "+" after a `LicenseRef-*`, and a short input's
+refused tag matched as a name). The next step is a revision of the
+license matching rules as a whole, of which this grammar is one part:
+which tier may answer what, and with how much certainty (items 28 and 30
+are the same question for short text).
 
 - **Direction**: one reader for the SPDX grammar (Annex D:
   `license-id ["+"]`, `license-ref`, `WITH`, `AND`, `OR`, brackets, and the

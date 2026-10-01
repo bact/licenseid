@@ -123,6 +123,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A `LicenseRef-*` with a `+` is no expression, as SPDX gives `+` to a
   license ID only: `LicenseRef-x+` answered as a valid SPDX license from a
   tag, `--id` or text. `--id LicenseRef-x+` now exits 2
+- A short input's `SPDX-License-Identifier` tag that names no license is
+  not matched as a license name: `SPDX-License-Identifier: MIT OR` answered
+  MIT with certainty, as did `SPDX-License-Identifier: LicenseRef-MIT+`
 - The deprecated `GFDL-1.1`, `GFDL-1.2` and `GFDL-1.3` answer their `-only`
   form, and with a `+` or an "or later" grant their `-or-later` form, as
   the GPL family does, with that form's flags: `GFDL-1.3` answered itself,

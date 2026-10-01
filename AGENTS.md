@@ -253,8 +253,9 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   answered without the operands that follow.
 - A tag and a `license` field hold whatever their author wrote, but `--id`
   and `match(license_id=...)` declare ONE license:
-  `identifiers.is_simple_expression` is the one judge of that (an ID, a
-  `LicenseRef-*`, `+`, and either `WITH` an exception, in any brackets), and
+  `identifiers.is_simple_expression` is the one judge of that (an ID,
+  optionally with `+`, or a `LicenseRef-*`, which takes no `+`; either
+  `WITH` an exception, in any brackets), and
   both entry points read it — `cli.reject_compound_id` exits 2 through
   `errors.invalid_id_error`, `matcher._try_explicit_id_match` raises. Text
   that is one simple expression and nothing else (`GPL-2.0+`) is read as

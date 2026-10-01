@@ -237,6 +237,24 @@ class AggregatedLicenseMatcher:
 
         return None
 
+    def _without_tags(self, ctx: _MatchContext) -> _MatchContext:
+        """A short *ctx* without its SPDX-License-Identifier tags. Tier 0.5
+        read them, so one left named no license, and is neither a name nor
+        text to match: "SPDX-License-Identifier: LicenseRef-MIT+" is not MIT.
+        A long input keeps them: its tags are a small part of its text."""
+        if ctx.word_count >= 30:
+            return ctx
+        text = self.detector.without_spdx_tags(ctx.target_text)
+        if text == ctx.target_text:
+            return ctx
+        norm_input = normalize_text(text)
+        return replace(
+            ctx,
+            target_text=text,
+            norm_input=norm_input,
+            word_count=len(norm_input.split()),
+        )
+
     def _try_manifest_value(self, ctx: _MatchContext) -> list[LicenseMatch] | None:
         """Tier 0 on a manifest's license value that did not resolve as an ID,
         name or expression (Tier 0.5): "Apache 2.0" names Apache-2.0.
@@ -342,6 +360,9 @@ class AggregatedLicenseMatcher:
 
         # Tier 0: Short-Text Shortcut — bare IDs/names below the word
         # threshold are resolved without entering the FTS5 pipeline.
+        # A short input is matched without its tags, read above: one left
+        # named no license, and is no text to match.
+        ctx = self._without_tags(ctx)
         short_text_result = self._try_tier0_short_text(ctx)
         if short_text_result is not None:
             return short_text_result

@@ -88,10 +88,26 @@ def test_a_long_license_ref_is_one_license(db: str) -> None:
     assert [r["license_id"] for r in results] == [_ref(300)]
 
 
-def test_a_tag_naming_no_license_falls_through(db: str) -> None:
-    """A value that is no expression is no answer; Tier 0 goes on as before."""
-    results = AggregatedLicenseMatcher(db).match(text=f"{TAG} Proprietary")
-    assert all(r["score"] < 1.0 for r in results)
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Proprietary",
+        # The name match read the license inside them: MIT at 1.01.
+        "LicenseRef-MIT+",  # SPDX gives "+" to a license ID only
+        "MIT OR",  # a dangling operator
+        "(MIT",
+        "",
+    ],
+)
+def test_a_tag_naming_no_license_is_no_name_to_match(db: str, value: str) -> None:
+    """The tag was read and named no license, and there is nothing else."""
+    assert not AggregatedLicenseMatcher(db).match(text=f"// {TAG} {value}")
+
+
+def test_a_name_beside_a_refused_tag_still_answers(db: str) -> None:
+    results = AggregatedLicenseMatcher(db).match(text=f"{TAG} Proprietary\nMIT")
+    assert [r["license_id"] for r in results][:1] == ["MIT"]
+    assert results[0]["score"] >= 1.0
 
 
 @pytest.mark.parametrize(
