@@ -37,6 +37,22 @@ def db() -> Generator[str, None, None]:
         Lic("Apache-2.0", "Apache License 2.0", True, True, True),
         Lic("MIT", "MIT License", True, True, True),
         Lic("Fair-1.0", "Fair-Play"),
+        Lic(
+            "GFDL-1.3-only",
+            "GNU Free Documentation License v1.3 only",
+            True,
+            False,
+            True,
+        ),
+        Lic(
+            "GFDL-1.3-or-later",
+            "GNU Free Documentation License v1.3 or later",
+            True,
+            False,
+            True,
+        ),
+        # The deprecated row's own flags differ from those of the -only form.
+        Lic("GFDL-1.3", "GNU Free Documentation License v1.3", is_deprecated=True),
     ]
     yield from seeded_db("test_lone_expression", rows, ["Classpath-exception-2.0"])
 
@@ -87,6 +103,9 @@ CHANNELS = [
         ("Apache-2.0+", "Apache-2.0+"),
         ("LicenseRef-x+", "LicenseRef-x+"),
         ("GPL-2.0", "GPL-2.0-only"),
+        # GFDL had no redirect: GFDL-1.3+ answered itself.
+        ("GFDL-1.3+", "GFDL-1.3-or-later"),
+        ("GFDL-1.3", "GFDL-1.3-only"),
     ],
 )
 @pytest.mark.parametrize("channel", CHANNELS)
@@ -122,3 +141,9 @@ def test_any_other_value_is_read_as_text(
 ) -> None:
     results = AggregatedLicenseMatcher(db).match(text=value)
     assert [(r["license_id"], r["score"]) for r in results] == expected
+
+
+def test_a_deprecated_gfdl_id_has_the_flags_of_its_successor(db: str) -> None:
+    """GFDL-1.3 answered itself, with the deprecated row's flags."""
+    result = CliRunner().invoke(cli, ["--db", db, "is-fsf", "--text", "GFDL-1.3"])
+    assert (result.exit_code, result.stdout) == (0, "true\n")

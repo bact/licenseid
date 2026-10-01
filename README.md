@@ -145,9 +145,10 @@ Common options:
   `AND`/`OR` expression, a license name, an SPDX URL or prose — those name
   no single license, so they exit 2 with
   `ERROR: option: invalid: --id: <value>; pass one license ID`. A file's tag
-  may still hold any expression. A bare argument is a guess between an ID
-  and text, so it is read as an ID under the same rule and matched as text
-  otherwise: `MIT but modified heavily by us` is text, not MIT.
+  may still hold any expression. Input that is one such value and nothing
+  else, whether an argument, `--text`, standard input or a file, is read as
+  `--id` reads it (`--text GPL-2.0+` is `GPL-2.0-or-later`); anything else
+  is matched as text: `MIT but modified heavily by us` is text, not MIT.
 - `--text <text>`: Match the given text. Backslash escapes such as `\n`,
   `\t` and `\u00e9` are decoded, so write `\\` for a literal backslash
   (for example in a Windows path).

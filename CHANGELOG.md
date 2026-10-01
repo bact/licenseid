@@ -122,8 +122,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through `--id`, so a `--threshold` above 1.0 no longer keeps it
 - The deprecated `GFDL-1.1`, `GFDL-1.2` and `GFDL-1.3` answer their `-only`
   form, and with a `+` or an "or later" grant their `-or-later` form, as
-  the GPL family does: `GFDL-1.3` answered itself and `GFDL-1.3+` answered
-  `GFDL-1.3+`
+  the GPL family does, with that form's flags: `GFDL-1.3` answered itself,
+  not FSF-libre, and `GFDL-1.3+` answered `GFDL-1.3+`
 - A short input, such as a source file's header line, is answered from its
   `SPDX-License-Identifier` tag: under 30 words the tag was matched as a
   license name, so `SPDX-License-Identifier: MIT OR Apache-2.0` answered
