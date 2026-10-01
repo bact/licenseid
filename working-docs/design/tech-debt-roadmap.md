@@ -21,7 +21,8 @@ reviews of the diagnostics change and the Java removal; items 2 and 10 from
 manual CLI testing under other locales and environments; items 15 to 18 from the
 work on item 6, and item 19 from the work on items 15 and 17. Item 11 was
 re-scored from the work on item 16, and items 21 to 25 come from the work on
-item 18, and items 26 and 27 from the work on item 24.
+item 18, items 26 and 27 from the work on item 24, and items 28 and 29 from
+the review of PR #66.
 
 Next up (order chosen 2026-10-01: 24, 25, 21, 22): item 21, then item 22;
 items 24 and 25 are done. Item 2 waits on an upstream release.
@@ -199,11 +200,33 @@ certainty. `license identifier`, or an `SPDX-License-Identifier:` tag with
 no value, answers `CAL-1.0` at 1.0, and `is-osi` then says yes. `main`
 behaves the same; found in review of PR #66 (2026-10-01).
 
+A tag that is no expression falls through to Tier 0 the same way, which
+reads the ID inside it as certain: under 30 words,
+`SPDX-License-Identifier: MIT OR` and `SPDX-License-Identifier: (MIT`
+answer MIT at 1.01, where a long input refuses the tag and answers nothing.
+`main` behaves the same.
+
 - **Direction**: a verbatim hit on a few words is evidence, not an answer.
   Cap the score of a Tier 0 text hit below 1.0 when the phrase is shorter
   than some minimum, or require it to cover a share of the licence's
   distinctive words, so `is-*` answers no for it.
 - Impact 2, Risk 2, Effort 2.
+
+## 29. Every database lookup opens its own connection — Priority 8
+
+`LicenseDatabase._connection` opens, and closes, a SQLite connection for
+each query, and resolving one tag value takes about five lookups: some 3 ms
+a value. An input of 4,000 distinct tags (1.1 MB of 256-character
+`LicenseRef-*` values) takes 13 s, nearly all in `sqlite3.connect`,
+`execute` and `close` (20,009 connections); `main` takes 12 s. The parse
+budget of item 26 plays no part: 32 tags of 31,600 characters each take
+0.6 s. Found in review of PR #66 (2026-10-01).
+
+- **Fix**: keep one read-only connection per `LicenseDatabase` (or per
+  `match()` call), or cache `get_license_details` and
+  `get_license_by_name` for a call. Mind the shared-cache in-memory test
+  databases, which vanish when their last connection closes.
+- Impact 1, Risk 1, Effort 2.
 
 ## 5. Conflicting options and inputs are resolved silently — Priority 15
 

@@ -492,7 +492,7 @@ class AggregatedLicenseMatcher:
         self, exact: list[CandidateMatch]
     ) -> list[LicenseMatch]:
         """Convert SPDX-exact marker candidates to LicenseMatch results."""
-        # MarkerDetector.detect() already returns one candidate per license_id.
+        # The detector keeps one candidate per license_id (_first_per_license).
         return [
             LicenseMatch(
                 license_id=c["license_id"],

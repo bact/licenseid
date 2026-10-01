@@ -91,7 +91,7 @@ def test_a_long_license_ref_is_one_license(db: str) -> None:
 def test_a_tag_naming_no_license_falls_through(db: str) -> None:
     """A value that is no expression is no answer; Tier 0 goes on as before."""
     results = AggregatedLicenseMatcher(db).match(text=f"{TAG} Proprietary")
-    assert all(r["score"] != 1.0 for r in results)
+    assert all(r["score"] < 1.0 for r in results)
 
 
 @pytest.mark.parametrize(
