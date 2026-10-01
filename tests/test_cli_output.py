@@ -225,14 +225,14 @@ def test_terminal_stdin_is_never_read(monkeypatch: pytest.MonkeyPatch) -> None:
     """With no argument and a terminal on stdin the command must not block
     waiting for input: no content, so the caller reports it as missing."""
     monkeypatch.setattr(sys, "stdin", _Tty("this must not be read"))
-    assert get_input_content(_ctx(), None, None) == ("", False)
+    assert get_input_content(_ctx(), None, None) == ""
 
 
 def test_piped_stdin_is_read_when_no_argument(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(sys, "stdin", io.StringIO("MIT"))
-    assert get_input_content(_ctx(), None, None) == ("MIT", True)
+    assert get_input_content(_ctx(), None, None) == "MIT"
 
 
 # --- entry points ---

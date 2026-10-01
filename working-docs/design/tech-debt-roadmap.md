@@ -21,24 +21,11 @@ reviews of the diagnostics change and the Java removal; items 2 and 10 from
 manual CLI testing under other locales and environments; items 15 to 18 from the
 work on item 6, and item 19 from the work on items 15 and 17. Item 11 was
 re-scored from the work on item 16, and items 21 to 25 come from the work on
-item 18, items 26 and 27 from the work on item 24, and items 28 and 29 from
-the review of PR #66.
+item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
+the review of PR #66, and item 30 from the work on item 21.
 
-Next up (order chosen 2026-10-01: 24, 25, 21, 22): item 21, then item 22;
-items 24 and 25 are done. Item 2 waits on an upstream release.
-
-## 21. `--text GPL-2.0+` answers GPL-2.0-only — Priority 20
-
-The same value gives two answers. As a bare argument, `licenseid match
-GPL-2.0+` reads it as an ID and answers `GPL-2.0-or-later`. Through `--text`,
-or the API's `match(text=...)`, Tier 0 matches the normalised text, which
-has lost the `+`, and answers `GPL-2.0-only` at 1.02: a certain answer that
-drops the "or later" grant. Found on 2026-09-30 while checking item 18;
-`main` behaves the same.
-
-- **Fix**: let Tier 0 see a trailing `+` (or send a lone simple expression
-  through the ID path, as the CLI's bare argument does). Pin first.
-- Impact 2, Risk 3, Effort 2.
+Next up (order chosen 2026-10-01: 24, 25, 21, 22): item 22; items 24, 25
+and 21 are done. Item 2 waits on an upstream release.
 
 ## 22. `--json` prints internal ranking keys — Priority 12
 
@@ -227,6 +214,18 @@ budget of item 26 plays no part: 32 tags of 31,600 characters each take
   `get_license_by_name` for a call. Mind the shared-cache in-memory test
   databases, which vanish when their last connection closes.
 - Impact 1, Risk 1, Effort 2.
+
+## 30. `GPL 2.0+` in prose loses its "+" in Tier 0 — Priority 6
+
+Item 21 reads a lone SPDX expression as an ID, but a value that is not
+SPDX-shaped still goes to Tier 0, which matches the normalised text, where
+the "+" is gone: `GPL 2.0+` and `GPL-2.0 +` answer `GPL-2.0-only` at 1.02,
+and `LGPL 2.1+` `LGPL-2.1-only`. Left out of item 21 on purpose
+(2026-10-01): reading a "+" out of prose is a guess (`C++`).
+
+- **Direction**: when a Tier 0 exact hit's raw text ends in a lone "+",
+  answer its or-later form, or lower the hit below certain.
+- Impact 1, Risk 2, Effort 2.
 
 ## 5. Conflicting options and inputs are resolved silently — Priority 15
 
@@ -441,6 +440,18 @@ statistics; no fix has been designed yet, only the problem is documented.
 
 ## Already resolved (kept for record)
 
+- `--text GPL-2.0+` answered `GPL-2.0-only` (item 21, Priority 20;
+  2026-10-01). Tier 0 matched the normalised text, which had lost the "+";
+  only the CLI's bare argument tried the value as an ID first. Now
+  `_try_tier0_short_text` reads a lone simple expression
+  (`identifiers.is_simple_expression`) through the resolver `license_id`
+  uses, so text, stdin, a file and an ID answer alike, at 1.0; a value that
+  resolves to nothing goes on to the name match. The CLI's own ID-first try
+  went with it. Prose spellings are item 30. Found in its review: the
+  deprecated GFDL-1.1 to 1.3 had no redirect at all, so `GFDL-1.3+`
+  answered `GFDL-1.3+`. They now map as the GPL family does, and
+  `tests/test_deprecated_ids.py` checks every deprecated ID of the bundled
+  License List that has `-only` and `-or-later` successors.
 - A short input never read its `SPDX-License-Identifier` tag (item 24,
   Priority 24; 2026-10-01). Under 30 words `matcher._try_tier0_5_markers`
   read only a manifest's field (item 18), so a header line went to Tier 0
@@ -455,7 +466,7 @@ statistics; no fix has been designed yet, only the problem is documented.
 - `GPL-2.0-with-classpath-exception` was not redirected (item 25, Priority
   20; 2026-10-01). `identifiers.DEPRECATED_WITH_IDS` had six of the seven
   deprecated `-with-` IDs. Now it has all seven, and
-  `tests/test_deprecated_with_ids.py` checks every deprecated `-with-` ID of
+  `tests/test_deprecated_ids.py` checks every deprecated `-with-` ID of
   the License List bundled with `py_spdx_license` against it, so the next
   one fails by name.
 

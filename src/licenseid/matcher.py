@@ -113,8 +113,12 @@ class AggregatedLicenseMatcher:
             return []  # as for an empty license_id: nothing is declared
         if not is_simple_expression(license_id):
             raise invalid_id_error("license_id", license_id)
+        return self._resolve_declared(license_id)
+
+    def _resolve_declared(self, value: str) -> list[LicenseMatch]:
+        """The answer to a declared license value: certain, or none."""
         return self._finalize_exact_markers(
-            self.detector.resolve_license_value(license_id, 1.0)
+            self.detector.resolve_license_value(value, 1.0)
         )
 
     def _resolve_target_text(self, text: str | None, file_path: str | None) -> str:
@@ -186,11 +190,21 @@ class AggregatedLicenseMatcher:
         avoids routing ~50-word licence preambles (head_300 inputs)
         through the name matcher, which degrades recall for variant
         licences (e.g. MIT-STK, MIT-enna) where it returns the generic
-        parent. Returns None (fall through to Tier 1) for inputs at or
-        above the threshold, or below it with no confident match.
+        parent. A lone SPDX expression answers as license_id would.
+        Returns None (fall through to Tier 1) for inputs at or above the
+        threshold, or below it with no confident match.
         """
         if ctx.word_count >= 30:
             return None
+
+        # A lone expression ("GPL-2.0+") is read as license_id reads it, so
+        # text and ID answer alike: the normalised text has lost the "+",
+        # and GPL-2.0 alone is GPL-2.0-only. A value that names no license
+        # goes on to the name match.
+        if is_simple_expression(ctx.target_text):
+            declared = self._resolve_declared(ctx.target_text)
+            if declared:
+                return declared
 
         # Fast path: bare deprecated ID + prose disambiguation context in
         # the raw (un-normalised) text, e.g. "GPL-2.0 or later version".

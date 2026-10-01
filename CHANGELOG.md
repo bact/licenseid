@@ -115,6 +115,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A lone SPDX expression given as text, on standard input or in a file is
+  read as `--id` reads it: `--text GPL-2.0+` answered `GPL-2.0-only`,
+  dropping the "or later", and `GPL-2.0+ WITH Classpath-exception-2.0`
+  answered nothing close. An ID given as text now scores 1.0, as it does
+  through `--id`, so a `--threshold` above 1.0 no longer keeps it
+- The deprecated `GFDL-1.1`, `GFDL-1.2` and `GFDL-1.3` answer their `-only`
+  form, and with a `+` or an "or later" grant their `-or-later` form, as
+  the GPL family does: `GFDL-1.3` answered itself and `GFDL-1.3+` answered
+  `GFDL-1.3+`
 - A short input, such as a source file's header line, is answered from its
   `SPDX-License-Identifier` tag: under 30 words the tag was matched as a
   license name, so `SPDX-License-Identifier: MIT OR Apache-2.0` answered

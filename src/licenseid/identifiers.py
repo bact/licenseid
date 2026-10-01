@@ -44,6 +44,9 @@ DEPRECATED_SPDX_LICENSE_IDS: dict[str, str] = {
     "LGPL-3.0+": "LGPL-3.0-or-later",
     "AGPL-1.0+": "AGPL-1.0-or-later",
     "AGPL-3.0+": "AGPL-3.0-or-later",
+    "GFDL-1.1+": "GFDL-1.1-or-later",
+    "GFDL-1.2+": "GFDL-1.2-or-later",
+    "GFDL-1.3+": "GFDL-1.3-or-later",
 }
 
 # Conservative last-resort fallback for bare deprecated IDs (no '+' suffix).
@@ -65,6 +68,9 @@ DEPRECATED_BARE_LICENSE_IDS: dict[str, str] = {
     "LGPL-3.0": "LGPL-3.0-only",
     "AGPL-1.0": "AGPL-1.0-only",
     "AGPL-3.0": "AGPL-3.0-only",
+    "GFDL-1.1": "GFDL-1.1-only",
+    "GFDL-1.2": "GFDL-1.2-only",
+    "GFDL-1.3": "GFDL-1.3-only",
 }
 
 # Mapping of deprecated "-with-" IDs to their modern counterparts
