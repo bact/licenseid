@@ -202,14 +202,27 @@ def test_is_spdx_answers_yes_for_a_toml_expression(db: str, tmp_path: Path) -> N
     assert (result.exit_code, result.stdout) == (0, "true\n")
 
 
-def test_a_manifest_declares_one_license_per_table() -> None:
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            '[project]\nlicense = "A"\nlicense = "B"\n'
+            '[package]\nlicense = "C"\n[project]\nlicense = "D"\n',
+            ["A", "C"],
+        ),
+        ('[a]\nlicense = {text = "A"}\n[b]\nlicense = {text = "B"}\n', ["A"]),
+        ('[project]\nlicense = "MIT/Apache-2.0"\n', ["MIT/Apache-2.0"]),
+        ('[package]\nlicense = "MIT/Apache-2.0"\n', ["MIT OR Apache-2.0"]),
+    ],
+    ids=["string-forms", "table-forms", "slash-elsewhere", "slash-in-cargo"],
+)
+def test_a_manifest_declares_one_license_per_table(
+    text: str, expected: list[str]
+) -> None:
     """Each value costs a database lookup, so a file of thousands of license
-    lines yields one value per form and table."""
-    text = (
-        '[project]\nlicense = "A"\nlicense = "B"\n'
-        '[package]\nlicense = "C"\n[project]\nlicense = "D"\n'
-    )
-    assert toml_license_values(text) == ["A", "C"]
+    lines yields one value per form and table. Only Cargo spells OR with a
+    slash."""
+    assert toml_license_values(text) == expected
 
 
 @pytest.mark.parametrize("large", [False, True], ids=["small", "large"])
@@ -242,6 +255,52 @@ def test_a_small_manifest_naming_no_license_has_no_answer(
 
 
 @pytest.mark.parametrize(
+    ("name", "text"),
+    [
+        ("package.json", '{"name": "apache", "version": "1.0.0"}'),
+        ("package.json", '{"name": "apache", "license": ""}'),
+        ("composer.json", '{"name": "apache", "license": ["MIT", "Apache-2.0"]}'),
+        ("Cargo.toml", '[package]\nname = "apache"\nlicense-file = "LICENSE"\n'),
+        ("pyproject.toml", '[project]\nname = "apache"\nlicense = {file = "L"}\n'),
+        ("setup.cfg", "[metadata]\nname = apache\n"),
+        ("", '{"name": "apache", "license": ""}'),
+        ("", '[package]\nname = "apache"\nlicense-file = "LICENSE"\n'),
+    ],
+    ids=[
+        "no-field",
+        "empty",
+        "array",
+        "license-file",
+        "file-table",
+        "setup-cfg",
+        "text-json",
+        "text-toml",
+    ],
+)
+def test_a_small_manifest_with_no_license_value_has_no_answer(
+    db: str, tmp_path: Path, name: str, text: str
+) -> None:
+    """The crate name "zlib-rs" answered Zlib at 1.01 when the field was
+    missing; a manifest is never matched by name as a whole."""
+    matcher = AggregatedLicenseMatcher(db)
+    if name:
+        (tmp_path / name).write_text(text, encoding="utf-8")
+        assert matcher.match(file_path=str(tmp_path / name)) == []
+    else:
+        assert matcher.match(text=text) == []
+
+
+@pytest.mark.parametrize(
+    "text", ["[MIT]", "[MIT](LICENSE)", "[MIT License]", '["MIT"]']
+)
+def test_a_bracketed_name_is_no_manifest(db: str, text: str) -> None:
+    """Text that starts with [x] reads as an INI section, a TOML table or a
+    JSON array, but with no key in it, it is no manifest: Tier 0 still
+    answers."""
+    assert AggregatedLicenseMatcher(db).match(text=text)[0]["license_id"] == "MIT"
+
+
+@pytest.mark.parametrize(
     ("kind", "value", "expected"),
     [
         # Cargo's old spelling of OR.
@@ -249,6 +308,9 @@ def test_a_small_manifest_naming_no_license_has_no_answer(
         ("cargo", "MIT / Apache-2.0", "Apache-2.0 OR MIT"),
         # A slash that is not between two IDs is not an OR.
         ("cargo", "https://spdx.org/licenses/MIT", "MIT"),
+        # The SPDX License List's own page for a license.
+        ("package-json", "https://spdx.org/licenses/MIT.html", "MIT"),
+        ("cargo", "https://spdx.org/licenses/Apache-2.0.html", "Apache-2.0"),
         # A grant after the expression is the only thing that may follow it.
         ("package-json", "GPL-2.0 or later", "GPL-2.0-or-later"),
     ],

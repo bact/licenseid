@@ -200,9 +200,36 @@ def test_toml_commented_out_line_not_matched(detector: MarkerDetector) -> None:
         ('[ project ]\n  license="MIT"\n', "MIT"),
         ('[tool.poetry]\nname = "x"\nlicense = "MIT"\n', "MIT"),
         ('[package]\nname = "x"\nlicense = "MIT OR Apache-2.0"\n', "Apache-2.0 OR MIT"),
-        ('[tool.x]\nlicense = "GPL"\n[project]\nlicense = "MIT"\n', "MIT"),
+        ('[tool.x]\nlicense = "Apache-2.0"\n[project]\nlicense = "MIT"\n', "MIT"),
+        ('[workspace.package]\nlicense = "MIT/Apache-2.0"\n', "Apache-2.0 OR MIT"),
+        # A header or a field inside a multi-line string is text, not TOML.
+        ('[project]\nx = """\n[tool.x]\n"""\nlicense = "MIT"\n', "MIT"),
+        ("[project]\nx = '''\nlicense = 'Apache-2.0'\n'''\nlicense = 'MIT'\n", "MIT"),
+        (
+            (
+                '[project]\nx = """\nlicense = {text = "Apache-2.0"}\n"""\n'
+                'license = "MIT"\n'
+            ),
+            "MIT",
+        ),
+        ('[project]\nx = """a"""\nlicense = "MIT"\n', "MIT"),
+        ('[project]\nx = """\n\'\'\'\n"""\nlicense = "MIT"\n', "MIT"),
     ],
-    ids=["pep639", "literal", "comment", "spacing", "poetry", "cargo", "later-table"],
+    ids=[
+        "pep639",
+        "literal",
+        "comment",
+        "spacing",
+        "poetry",
+        "cargo",
+        "later-table",
+        "cargo-workspace",
+        "header-in-string",
+        "field-in-literal-string",
+        "table-form-in-string",
+        "one-line-string",
+        "other-quotes-in-string",
+    ],
 )
 def test_toml_string_form_resolves(
     detector: MarkerDetector, text: str, expected: str

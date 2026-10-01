@@ -200,9 +200,10 @@ class MarkerDetector:
         manifest field, which holds nothing else: "MIT/Apache-2.0" there is
         not MIT with trailing prose, and answering MIT would drop a license.
         """
-        # SPDX license URL: https://spdx.org/licenses/Apache-2.0
+        # SPDX license URL: https://spdx.org/licenses/Apache-2.0, or the
+        # License List's own page for it, .../Apache-2.0.html
         if val.startswith("http") and "/licenses/" in val:
-            val = val.rstrip("/").split("/")[-1]
+            val = val.rstrip("/").split("/")[-1].removesuffix(".html")
 
         val = val.strip()
         # A value runs to the end of its line and can trail off into prose, so

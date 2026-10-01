@@ -120,14 +120,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `"license": "MIT OR Apache-2.0"` answered `Apache-1.0` with certainty. A
   manifest is never matched by name as a whole: a value that is no ID or
   expression is matched on its own if it names a license exactly
-  (`"Apache 2.0"` is Apache-2.0), and a small file whose value names none
-  (`"UNLICENSED"`, `"BSD"`) has no answer
+  (`"Apache 2.0"` is Apache-2.0), and a small file with no value, or one
+  that names none (`"UNLICENSED"`, `"BSD"`), has no answer: a `Cargo.toml`
+  with only `license-file` answered its crate's name, `zlib-rs`, as `Zlib`
 - A manifest's `license` value must be an expression as a whole:
   `"MIT/Apache-2.0"` answered a certain `MIT`, dropping Apache-2.0. In
   `Cargo.toml`, where the slash is the old spelling of OR, it now reads as
-  `Apache-2.0 OR MIT`
+  `Apache-2.0 OR MIT`. A License List page URL
+  (`https://spdx.org/licenses/MIT.html`) names its license
 - The `license` string of `pyproject.toml` (PEP 639, and Poetry's) and of
-  `Cargo.toml` is read; only `license = {text = ...}` was. So is PEP 621's
+  `Cargo.toml` (`[package]` and `[workspace.package]`) is read; only
+  `license = {text = ...}` was, and not inside a multi-line string. So is PEP 621's
   table written out (`[project.license]` or `license.text`). Text with no
   file name (standard input, `--text`) is read as TOML only if it starts with
   a table header, so a README showing a `[project]` example, or opening with

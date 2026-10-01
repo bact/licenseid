@@ -6,21 +6,25 @@
 """Read the license field of a package manifest: package.json,
 pyproject.toml, Cargo.toml, setup.cfg.
 
-Each reader returns the raw values in file order; licenseid.markers resolves
-them to licenses. A field is its author's declaration, so the caller treats a
-value that resolves as certain.
+Each reader returns the raw values in file order, or None when the text is
+not that format; licenseid.markers resolves them to licenses. A field is its
+author's declaration, so the caller treats a value that resolves as certain.
 """
 
 import configparser
 import json
 import os
 import re
+from collections.abc import Iterator
 
 # PEP 621 table form, in any table: license = {text = "MIT"}
 _RE_TOML_LICENSE_TABLE = re.compile(
-    r'^license\s*=\s*\{[^}]*\btext\s*=\s*["\']([^"\']+)["\']',
-    re.MULTILINE | re.IGNORECASE,
+    r'license\s*=\s*\{[^}]*\btext\s*=\s*["\']([^"\']+)["\']', re.IGNORECASE
 )
+# Any key, bare or quoted: a TOML file has at least one.
+_RE_TOML_KEY = re.compile(r"""[ \t]*[\w."'-]+[ \t]*=""")
+# The delimiters of a multi-line string, whose lines are text, not TOML.
+_TOML_MULTILINE_QUOTES = ('"""', "'''")
 # A table header, [project] or [tool.poetry], but not an array of tables
 # ([[bin]]). No two neighbouring parts can match the same run of characters,
 # so a long line cannot make either pattern backtrack.
@@ -38,6 +42,8 @@ _RE_TOML_STRING = re.compile(
 _RE_INNER_SPACE_RUN = re.compile(r"(?<=\S)[^\S\n]{2,}")
 # Cargo's old spelling of OR, "MIT/Apache-2.0", still common in crates.
 _RE_CARGO_SLASH_OR = re.compile(r"[\w.+-]+(?:[ \t]*/[ \t]*[\w.+-]+)+")
+# Cargo's tables: a crate's, and a workspace's, which its members inherit.
+_CARGO_TABLES = ("package", "workspace.package")
 # The table and keys of each string that holds a license: PEP 639
 # ([project]), Poetry and Cargo (an SPDX expression in each), and PEP 621's
 # license table written as a table of its own or as a dotted key. A license
@@ -45,21 +51,22 @@ _RE_CARGO_SLASH_OR = re.compile(r"[\w.+-]+(?:[ \t]*/[ \t]*[\w.+-]+)+")
 _TOML_LICENSE_KEYS = {
     "project": ("license", "license.text"),
     "tool.poetry": ("license",),
-    "package": ("license",),
     "project.license": ("text",),
+    **{table: ("license",) for table in _CARGO_TABLES},
 }
+_NOT_JSON = object()
 
 
-def json_license_values(stripped: str) -> list[str] | None:
-    """The license field of a JSON object, or None if *stripped* is not
-    JSON at all, so the caller can decide whether to read it as another
-    format."""
+def _parse_json(stripped: str) -> object:
+    """The JSON value of *stripped*, or _NOT_JSON."""
     try:
-        data = json.loads(stripped)
+        return json.loads(stripped)
     except (ValueError, RecursionError):  # JSONDecodeError is a ValueError
-        return None
-    if not isinstance(data, dict):
-        return []
+        return _NOT_JSON
+
+
+def json_license_values(data: dict[str, object]) -> list[str]:
+    """The license field of a JSON object."""
     val = data.get("license") or data.get("License") or data.get("LICENSE")
     if isinstance(val, dict):  # npm's old object form: {"type": "MIT", ...}
         val = val.get("type")
@@ -83,44 +90,69 @@ def _license_type(entry: object) -> str:
     return entry.strip() if isinstance(entry, str) else ""
 
 
-def toml_license_values(text: str) -> list[str]:
+def toml_license_values(text: str) -> list[str] | None:
     """The first inline-table value, then the first string value of each
     table in _TOML_LICENSE_KEYS: a manifest declares one license, and each
     value costs a database lookup, so a file of thousands of license lines
-    yields at most five."""
-    table_form = _RE_TOML_LICENSE_TABLE.search(text)
-    values = [table_form.group(1)] if table_form else []
+    yields at most six. None if no line outside a string holds a key."""
+    table_form = ""
     by_table: dict[str, str] = {}
     table = ""
-    for line in text.splitlines():
+    has_key = False
+    for line in _toml_lines(text):
         header = _RE_TOML_HEADER.fullmatch(line)
         if header or _RE_TOML_ARRAY_HEADER.fullmatch(line):
             table = re.sub(r"\s", "", header.group(1)) if header else ""
             continue
-        keys = _TOML_LICENSE_KEYS.get(table, ())
-        if table in by_table:
+        has_key = has_key or bool(_RE_TOML_KEY.match(line))
+        inline = None if table_form else _RE_TOML_LICENSE_TABLE.match(line)
+        table_form = inline.group(1) if inline else table_form
+        value = "" if table in by_table else _license_string(line, table)
+        if value:
+            by_table[table] = _cargo_or(value) if table in _CARGO_TABLES else value
+    values = [table_form, *by_table.values()]
+    return [value for value in values if value.strip()] if has_key else None
+
+
+def _toml_lines(text: str) -> Iterator[str]:
+    """The lines of *text* outside multi-line strings, whose lines are
+    text, not TOML: a header or a field there is none."""
+    open_quote = ""
+    for line in text.splitlines():
+        if open_quote:
+            if line.count(open_quote) % 2:  # the string closes on this line
+                open_quote = ""
             continue
-        field = _RE_TOML_STRING.fullmatch(line)
-        if field and field.group(1) in keys:
-            value = field.group(2) or field.group(3) or ""
-            if value.strip():
-                by_table[table] = value
-    if "package" in by_table and _RE_CARGO_SLASH_OR.fullmatch(by_table["package"]):
-        by_table["package"] = " OR ".join(
-            part.strip() for part in by_table["package"].split("/")
-        )
-    values.extend(by_table.values())
-    return [value for value in values if value.strip()]
+        open_quote = next((q for q in _TOML_MULTILINE_QUOTES if line.count(q) % 2), "")
+        yield line
 
 
-def ini_license_values(text: str) -> list[str]:
-    """The license option of each INI section, in order. Malformed INI (no
-    section header, a duplicate option, a stray %) has none."""
+def _license_string(line: str, table: str) -> str:
+    """The value of *line* if it is a license string of *table*, else ""."""
+    field = _RE_TOML_STRING.fullmatch(line)
+    if field and field.group(1) in _TOML_LICENSE_KEYS.get(table, ()):
+        return field.group(2) or field.group(3) or ""
+    return ""
+
+
+def _cargo_or(value: str) -> str:
+    """Cargo's "MIT/Apache-2.0" as "MIT OR Apache-2.0"."""
+    if _RE_CARGO_SLASH_OR.fullmatch(value):
+        return " OR ".join(part.strip() for part in value.split("/"))
+    return value
+
+
+def ini_license_values(text: str) -> list[str] | None:
+    """The license option of each INI section, in order. None for malformed
+    INI (no section header, a duplicate option, a stray %) or INI with no
+    option at all ("[MIT]" is no manifest)."""
     cfg = configparser.ConfigParser()
     try:
         cfg.read_string(_RE_INNER_SPACE_RUN.sub(" ", text))
     except configparser.Error:
-        return []
+        return None
+    if not any(cfg.options(section) for section in cfg.sections()):
+        return None
     values = []
     for section in cfg.sections():
         try:
@@ -131,25 +163,28 @@ def ini_license_values(text: str) -> list[str]:
 
 
 def license_value_groups(text: str, ext: str) -> list[list[str]]:
-    """The license values of each format *text* may be, chosen by its
-    extension *ext* ("" for text with no file name, which is tried as each)."""
+    """The license values of each manifest format *text* is, chosen by its
+    extension *ext* ("" for text with no file name, which is tried as each).
+    No group at all means *text* is no manifest; an empty one, a manifest
+    with no license value."""
     stripped = text.strip()
     is_json_ext = ext == ".json"
     if is_json_ext or (not ext and stripped.startswith(("{", "["))):
-        values = json_license_values(stripped)
-        if values is not None:
-            return [values]  # valid JSON: don't fall through to TOML/INI
+        data = _parse_json(stripped)
+        if data is not _NOT_JSON:
+            # Valid JSON: don't fall through to TOML/INI.
+            return [json_license_values(data)] if isinstance(data, dict) else []
         if is_json_ext:
             return []
         # Extensionless "[section]" text is INI/TOML, not JSON: fall through.
-    groups: list[list[str]] = []
+    groups: list[list[str] | None] = []
     # Text with no file name is TOML only if it starts like it: a README
     # showing a [project] example, or starting with a [![badge](...)], is not.
     if ext == ".toml" or (not ext and _starts_with_table(text)):
         groups.append(toml_license_values(text))
     if ext in (".cfg", ".ini", ""):
         groups.append(ini_license_values(text))
-    return groups
+    return [group for group in groups if group is not None]
 
 
 def extension(file_path: str | None) -> str:

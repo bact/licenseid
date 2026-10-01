@@ -225,14 +225,13 @@ class AggregatedLicenseMatcher:
         name or expression (Tier 0.5): "Apache 2.0" names Apache-2.0.
 
         A small manifest is not license text, so it is never matched by name
-        as a whole (that answered Apache-1.0 for "Apache 2.0"): if its value
-        names no license, there is no answer. A larger one goes on to Tiers 1
-        and 2 as before.
+        as a whole (that answered Apache-1.0 for "Apache 2.0"): if it has no
+        value, or its value names no license, there is no answer. A larger
+        one goes on to Tiers 1 and 2 as before.
         """
-        values = [value for group in ctx.manifest for value in group]
-        if not values:
-            return None
-        for value in values:
+        if not ctx.manifest:
+            return None  # no manifest
+        for value in (value for group in ctx.manifest for value in group):
             norm_value = normalize_text(value)
             result = self._try_tier0_short_text(
                 replace(

@@ -232,8 +232,14 @@ at one value per form and table (`manifest.toml_license_values`), and since
 item 18 this reader skips a manifest, but any other text still has no such
 bound. Found on 2026-09-30 while checking item 18.
 
+The INI reader has a cost of the same kind on Python 3.10: `configparser`
+builds its error message one bad line at a time, so text with no file name
+and 100,000 lines that are not `key = value` took 2 s (as on `main`; 0.3 s
+on 3.14). Found on 2026-10-01 while checking item 18.
+
 - **Fix**: resolve each distinct value once and stop at the first that
-  resolves, or cap the number read. Time distinct values, not repeats.
+  resolves, or cap the number read. Time distinct values, not repeats. For
+  INI, stop at the first bad line rather than collect them all.
 - Impact 1, Risk 2, Effort 2.
 
 ## 19. How deep an expression may be depends on the Python version — Priority 9
@@ -312,8 +318,10 @@ statistics; no fix has been designed yet, only the problem is documented.
   - the manifest readers live in `licenseid.manifest`; a JSON, TOML or INI
     field that resolves scores 1.0 and is read at any length
     (`MarkerDetector.detect_structured`);
-  - the string form is read only in `[project]`, `[tool.poetry]` and
-    `[package]`, so a Python `license = "MIT"` in `--text` is not a field;
+  - the string form is read only in `[project]`, `[tool.poetry]`,
+    `[package]` and `[workspace.package]` (a Cargo workspace root, which
+    answered `Apache-1.0` at 1.01), so a Python `license = "MIT"` in
+    `--text` is not a field, and never inside a multi-line string;
     PEP 621's table is also read written out, as `[project.license]` or
     `license.text` (a small one answered `Apache-1.0` at 1.01);
   - text with no file name is read as TOML, in either form, only if its
@@ -334,11 +342,16 @@ statistics; no fix has been designed yet, only the problem is documented.
   - a manifest value must be an expression as a whole (`resolve_license_value`
     with `whole=True`): a tag's value can trail into prose, a field's cannot,
     and the MIT prefix of `MIT/Apache-2.0` dropped a license. Cargo's
-    `[package]` reads the slash as OR, its old spelling;
+    `[package]` reads the slash as OR, its old spelling. A License List
+    page URL (`https://spdx.org/licenses/MIT.html`) names its license; its
+    `.html` made a small manifest lose the answer `main` gave;
   - a manifest is never matched by name as a whole: a value that does not
     resolve goes to Tier 0 on its own, and only an exact ID or name counts
     (`"Apache 2.0"` is Apache-2.0; `"BSD"` would be a fuzzy 0BSD). A small
-    manifest whose value names no license has no answer;
+    manifest with no value, or whose value names no license, has no answer:
+    `license-file` alone answered the crate name `zlib-rs` as `Zlib` at
+    1.01. A reader returns None for text that is not its format, or has no
+    key in it, so `[MIT]` and `["MIT"]` are no manifest and Tier 0 answers;
   - the loose `License:` reader skips a manifest, whose field the manifest
     reader has read whole;
   - the text is parsed as a manifest once per match
