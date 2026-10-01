@@ -151,17 +151,20 @@ class AggregatedLicenseMatcher:
         it's returned as a final answer (the third tuple element). All
         other markers (name fields, headings, first-line) go into the
         candidate pool and influence ranking via a confidence bonus.
-        A very short input (< 30 words) is read only for a manifest's license
-        field, which is certain: the other markers add overhead without
-        benefit there, and Tier 0 handles the rest. A small package.json
-        would otherwise be matched by name, and wrongly.
+        A very short input (< 30 words) is read only for what it declares, a
+        manifest's license field or an SPDX-License-Identifier tag, which is
+        certain: the other markers add overhead without benefit there, and
+        Tier 0 handles the rest. A small package.json or a header line would
+        otherwise be matched by name, and wrongly.
         """
         if ctx.word_count >= 30:
             marker_candidates = self.detector.detect(
                 ctx.target_text, file_path=ctx.file_path, manifest=ctx.manifest
             )
         else:
-            marker_candidates = self.detector.detect_structured(ctx.manifest)
+            marker_candidates = self.detector.detect_declared(
+                ctx.target_text, ctx.manifest
+            )
         spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
         if spdx_exact:
             return marker_candidates, {}, self._finalize_exact_markers(spdx_exact)

@@ -16,7 +16,7 @@ from unittest import mock
 import pytest
 from click.testing import CliRunner
 from conftest import MIT_SEARCH_TEXT
-from matcher_db import Lic, seeded_db
+from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
@@ -79,16 +79,7 @@ def db() -> Generator[str, None, None]:
         Lic("Apache-2.0", "Apache License 2.0", True, True, True, search_text="x"),
         Lic("Apache-1.0", "Apache License 1.0", True, False, True, search_text="y"),
         Lic("0BSD", "BSD Zero Clause License", True, True, False),
-        Lic("GPL-2.0-only", "GNU General Public License v2.0 only", True, True, True),
-        Lic(
-            "GPL-2.0-or-later",
-            "GNU General Public License v2.0 or later",
-            True,
-            True,
-            True,
-        ),
-        # Its own row's flags differ from GPL-2.0-only's, which it answers.
-        Lic("GPL-2.0", "GNU General Public License v2.0", False, is_deprecated=True),
+        *GPL2_ROWS,
         Lic(
             "GPL-2.0-with-GCC-exception",
             "GNU General Public License v2.0 w/GCC Runtime Library exception",

@@ -75,6 +75,7 @@ DEPRECATED_WITH_IDS: dict[str, str] = {
     "GPL-2.0-with-bison-exception": "GPL-2.0-only WITH Bison-exception-2.2",
     "GPL-3.0-with-autoconf-exception": "GPL-3.0-only WITH Autoconf-exception-3.0",
     "GPL-3.0-with-GCC-exception": "GPL-3.0-only WITH GCC-exception-3.1",
+    "GPL-2.0-with-classpath-exception": "GPL-2.0-only WITH Classpath-exception-2.0",
 }
 
 # Lookup: bare deprecated ID → canonical or-later form.
@@ -126,15 +127,30 @@ def normalize_operator_casing(expression: str) -> str:
     return _RE_OPERATOR.sub(lambda m: m.group(0).upper(), expression)
 
 
+# The longest token an expression may hold. The longest ID in the License
+# List has 36 characters; a LicenseRef-* is the author's, so allow more. A
+# workaround, not a rule: py_spdx_license's tokenizer is quadratic in a
+# token's length (7 s at 1,000,000 characters). Relax it once the parser
+# reads in linear time (tech-debt roadmap, item 26).
+_MAX_TOKEN_LENGTH = 256
+# A token: a run between white space and brackets, the parser's own breaks.
+_RE_PARSER_TOKEN = re.compile(r"[^\s()]+")
+
+
 def parse_expression(expression: str) -> py_spdx_license.Node | None:
     """Parse an SPDX license expression into a ``py_spdx_license`` tree, with
     any operator casing and any (unknown) IDs allowed; None if it is not a
-    well-formed expression.
+    well-formed expression, or holds a token longer than _MAX_TOKEN_LENGTH.
 
     Catches broadly, not just ``ParseError``: the parser is a plain recursive
     tree walk with no depth guard, so a pathological input (a very long
     ``AND`` chain) raises ``RecursionError`` instead.
     """
+    if any(
+        token.end() - token.start() > _MAX_TOKEN_LENGTH
+        for token in _RE_PARSER_TOKEN.finditer(expression)
+    ):
+        return None
     try:
         return py_spdx_license.parse(
             normalize_operator_casing(expression), allow_unknown=True

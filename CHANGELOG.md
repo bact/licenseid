@@ -115,6 +115,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A short input, such as a source file's header line, is answered from its
+  `SPDX-License-Identifier` tag: under 30 words the tag was matched as a
+  license name, so `SPDX-License-Identifier: MIT OR Apache-2.0` answered
+  `Apache-2.0` alone, and a `WITH Classpath-exception-2.0` header answered
+  `CAL-1.0`
+- `GPL-2.0-with-classpath-exception` answers
+  `GPL-2.0-only WITH Classpath-exception-2.0`, as the other deprecated
+  `-with-` IDs answer theirs; it answered itself
+- An expression with a token hundreds of characters long is no expression:
+  the parser took 7 s on a 1,000,000-character tag value
 - A small `package.json`, `pyproject.toml` or `Cargo.toml` (under 30 words)
   is read for its `license` field: it was matched by name instead, and
   `"license": "MIT OR Apache-2.0"` answered `Apache-1.0` with certainty. A
