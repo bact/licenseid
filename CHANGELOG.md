@@ -127,7 +127,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Cargo.toml`, where the slash is the old spelling of OR, it now reads as
   `Apache-2.0 OR MIT`
 - The `license` string of `pyproject.toml` (PEP 639, and Poetry's) and of
-  `Cargo.toml` is read; only `license = {text = ...}` was
+  `Cargo.toml` is read; only `license = {text = ...}` was. Text with no file
+  name (standard input, `--text`) is read for it only if it starts with a
+  TOML table, so a README showing a `[project]` example is not answered from
+  the example
+- npm's old `"license": {"type": ...}` and `"licenses": [...]` forms of
+  `package.json` are read; the array is a choice, so it reads as OR
 - A TOML or INI `license` field is a certain match (score 1.0), as a JSON
   one is, with its SPDX, OSI and FSF flags: `is-spdx` said false for
   `license = {text = "MIT OR Apache-2.0"}`

@@ -19,7 +19,7 @@ from matcher_db import Lic, seeded_db
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
-from licenseid.manifest import toml_license_values
+from licenseid.manifest import license_value_groups, toml_license_values
 from licenseid.matcher import AggregatedLicenseMatcher
 
 FILLER = (
@@ -271,3 +271,45 @@ def test_a_name_match_needs_no_lookup_per_result(db: str) -> None:
     assert len(results) >= 2
     assert all(isinstance(r.get("is_spdx"), bool) for r in results)
     assert lookup.call_count == 0
+
+
+def test_a_small_package_json_in_npm_object_form(db: str, tmp_path: Path) -> None:
+    """The old object form was not read, so the file was matched by name:
+    Apache-1.0 at 1.01."""
+    path = tmp_path / "package.json"
+    path.write_text(
+        '{"name": "x", "version": "1.0.0", "license": '
+        '{"type": "Apache-2.0", "url": "https://www.apache.org/licenses/"}}',
+        encoding="utf-8",
+    )
+    top = AggregatedLicenseMatcher(db).match(file_path=str(path))[0]
+    assert (top["license_id"], top["score"]) == ("Apache-2.0", 1.0)
+
+
+def test_a_readme_with_a_toml_example_is_not_answered_from_it(db: str) -> None:
+    """Piped text has no file name, so it is tried as TOML; the example
+    names the reader's license, not this file's."""
+    text = (
+        "# Usage\nSet the license in your own pyproject.toml, for example:\n\n"
+        '```toml\n[project]\nlicense = "MIT"\n```\n\n' + FILLER
+    )
+    results = AggregatedLicenseMatcher(db).match(text=text)
+    assert not results or results[0]["score"] < 1.0
+
+
+def test_a_manifest_is_parsed_once_per_match(db: str, tmp_path: Path) -> None:
+    path = manifest(tmp_path, "package-json", "Apache 2.0", large=True)
+    with (
+        mock.patch(
+            "licenseid.matcher.license_value_groups",
+            autospec=True,
+            wraps=license_value_groups,
+        ) as in_matcher,
+        mock.patch(
+            "licenseid.markers.license_value_groups",
+            autospec=True,
+            wraps=license_value_groups,
+        ) as in_markers,
+    ):
+        AggregatedLicenseMatcher(db).match(file_path=path)
+    assert in_matcher.call_count + in_markers.call_count == 1

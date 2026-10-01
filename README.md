@@ -52,9 +52,9 @@ No database daemon or server needed.
     and all: `MIT OR (Apache-2.0 AND BSD-3-Clause)` in a file resolves to
     one answer. `--id` is narrower on purpose — see below.
   - Package manifests are read for their `license` field, however small:
-    `package.json`, `pyproject.toml` (`license = "..."` or
-    `license = {text = "..."}`, and Poetry's), `Cargo.toml` and
-    `setup.cfg`.
+    `package.json` (with npm's old `license` object and `licenses` array),
+    `pyproject.toml` (`license = "..."` or `license = {text = "..."}`, and
+    Poetry's), `Cargo.toml` and `setup.cfg`.
 
 [py-spdx-license]: https://github.com/JPEWdev/py-spdx-license
 

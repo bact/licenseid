@@ -101,13 +101,13 @@ def test_json_parse_failure_does_not_fall_through(detector: MarkerDetector) -> N
 
 @pytest.mark.parametrize(
     "value",
-    ['{"type": "MIT"}', '["MIT"]', "42", "true", "null", '""'],
+    ['{"name": "MIT"}', '["MIT"]', "42", "true", "null", '""', '{"type": 42}'],
 )
 def test_json_non_string_or_empty_value_returns_nothing(
     detector: MarkerDetector, value: str
 ) -> None:
-    """Legacy npm object form, lists, numbers, booleans, null, and the
-    empty string are not resolved."""
+    """An object without a string "type", lists, numbers, booleans, null,
+    and the empty string are not resolved."""
     assert not detector._detect_structured_format('{"license": ' + value + "}", ".json")
 
 
@@ -116,7 +116,55 @@ def test_json_truthy_non_string_license_shadows_valid_key(
 ) -> None:
     """Quirk: the key fallback is `license or License or LICENSE`, so a
     truthy non-string "license" hides a valid "License"."""
-    text = '{"license": {"type": "MIT"}, "License": "MIT"}'
+    text = '{"license": ["MIT"], "License": "MIT"}'
+    assert not detector._detect_structured_format(text, ".json")
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # npm's old object form.
+        ('{"license": {"type": "MIT", "url": "https://x"}}', "MIT"),
+        # npm's old array form: the user may choose any one.
+        (
+            '{"licenses": [{"type": "MIT"}, {"type": "Apache-2.0"}]}',
+            "Apache-2.0 OR MIT",
+        ),
+        ('{"licenses": ["MIT", "Apache-2.0"]}', "Apache-2.0 OR MIT"),
+        ('{"licenses": [{"type": "MIT"}]}', "MIT"),
+        # An entry that is itself an expression stays one operand: AND binds
+        # tighter than OR.
+        (
+            '{"licenses": [{"type": "MIT AND Apache-2.0"}, {"type": "MIT"}]}',
+            "Apache-2.0 AND MIT OR MIT",
+        ),
+        # The "license" key comes first.
+        ('{"license": "MIT", "licenses": [{"type": "Apache-2.0"}]}', "MIT"),
+    ],
+    ids=["object", "array", "array-of-strings", "array-of-one", "nested", "both"],
+)
+def test_json_npm_legacy_forms_resolve(
+    detector: MarkerDetector, text: str, expected: str
+) -> None:
+    assert _summary(detector._detect_structured_format(text, ".json")) == [
+        (expected, 1.0)
+    ]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"licenses": [{"type": "MIT"}, {"url": "https://x"}]}',  # one unnamed
+        '{"licenses": []}',
+        '{"licenses": "MIT"}',
+    ],
+    ids=["unnamed-entry", "empty", "not-a-list"],
+)
+def test_json_npm_array_with_a_gap_is_not_read(
+    detector: MarkerDetector, text: str
+) -> None:
+    """Every entry must name its license: an OR that leaves one out would
+    answer for fewer licenses than the file offers."""
     assert not detector._detect_structured_format(text, ".json")
 
 
@@ -193,6 +241,36 @@ def test_toml_string_form_elsewhere_is_not_read(
     detector: MarkerDetector, text: str
 ) -> None:
     assert not detector._detect_structured_format(text, ".toml")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '[project]\nlicense = "MIT"\n',
+        '# pyproject\n\n[project]\nlicense = "MIT"\n',
+        '[build-system]\nrequires = []\n[project]\nlicense = "MIT"\n',
+    ],
+    ids=["header-first", "after-comments", "after-another-table"],
+)
+def test_no_ext_text_that_starts_as_toml_reads_the_string_form(
+    detector: MarkerDetector, text: str
+) -> None:
+    assert _summary(detector._detect_structured_format(text)) == [("MIT", 1.0)]
+
+
+def test_no_ext_prose_with_a_toml_example_is_not_a_manifest(
+    detector: MarkerDetector,
+) -> None:
+    """A README piped in shows a [project] example; the license in it is the
+    reader's, not this project's."""
+    text = (
+        "# Usage\nSet the license in your pyproject.toml:\n\n```toml\n"
+        '[project]\nlicense = "MIT"\n```\n'
+    )
+    assert not detector._detect_structured_format(text)
+    # A .toml file is a manifest wherever its tables start.
+    toml = 'name = "x"\n[project]\nlicense = "MIT"\n'
+    assert _summary(detector._detect_structured_format(toml, ".toml")) == [("MIT", 1.0)]
 
 
 def test_no_ext_python_assignment_is_not_a_license_field(

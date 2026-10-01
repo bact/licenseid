@@ -313,7 +313,12 @@ statistics; no fix has been designed yet, only the problem is documented.
     field that resolves scores 1.0 and is read at any length
     (`MarkerDetector.detect_structured`);
   - the string form is read only in `[project]`, `[tool.poetry]` and
-    `[package]`, so a Python `license = "MIT"` in `--text` is not a field;
+    `[package]`, so a Python `license = "MIT"` in `--text` is not a field,
+    and in text with no file name only if the text starts with a table: a
+    README piped in with a `[project]` example answered the example's MIT
+    at 1.0;
+  - npm's old object (`{"type": ...}`) and array (`"licenses"`, joined with
+    OR) forms are read; every array entry must name its license;
   - every result carries `is_spdx`, `is_osi_approved` and `is_fsf_libre`:
     Tier 2 copies them from its candidates, and Tier 0 from its cached name
     table (a lookup per result made a broad name such as `GPL`, 42 results,
@@ -329,7 +334,9 @@ statistics; no fix has been designed yet, only the problem is documented.
     (`"Apache 2.0"` is Apache-2.0; `"BSD"` would be a fuzzy 0BSD). A small
     manifest whose value names no license has no answer;
   - the loose `License:` reader skips a manifest, whose field the manifest
-    reader has read whole.
+    reader has read whole;
+  - the text is parsed as a manifest once per match
+    (`_MatchContext.manifest`), not by each tier.
 
   The loose `License:` reader stays at 0.95 elsewhere: it matches prose. OSI
   and FSF flags of an OR or AND stay false by design

@@ -15,6 +15,7 @@ from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import InvalidInputError, invalid_id_error
 from licenseid.identifiers import disambiguate_deprecated_id, is_simple_expression
+from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
@@ -76,6 +77,7 @@ class _MatchContext:
     is_pure: bool
     norm_input: str
     word_count: int
+    manifest: list[list[str]]  # license_value_groups(): parsed once per call
 
 
 class AggregatedLicenseMatcher:
@@ -136,6 +138,7 @@ class AggregatedLicenseMatcher:
             is_pure=is_pure_license_text(file_path, target_text),
             norm_input=norm_input,
             word_count=len(norm_input.split()),
+            manifest=license_value_groups(target_text, extension(file_path)),
         )
 
     def _try_tier0_5_markers(
@@ -155,13 +158,10 @@ class AggregatedLicenseMatcher:
         """
         if ctx.word_count >= 30:
             marker_candidates = self.detector.detect(
-                ctx.target_text,
-                file_path=ctx.file_path,
+                ctx.target_text, file_path=ctx.file_path, manifest=ctx.manifest
             )
         else:
-            marker_candidates = self.detector.detect_structured(
-                ctx.target_text, ctx.file_path
-            )
+            marker_candidates = self.detector.detect_structured(ctx.manifest)
         spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
         if spdx_exact:
             return marker_candidates, {}, self._finalize_exact_markers(spdx_exact)
@@ -229,7 +229,7 @@ class AggregatedLicenseMatcher:
         names no license, there is no answer. A larger one goes on to Tiers 1
         and 2 as before.
         """
-        values = self.detector.manifest_values(ctx.target_text, ctx.file_path)
+        values = [value for group in ctx.manifest for value in group]
         if not values:
             return None
         for value in values:

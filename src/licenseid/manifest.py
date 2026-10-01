@@ -13,6 +13,7 @@ value that resolves as certain.
 
 import configparser
 import json
+import os
 import re
 
 # PEP 621 table form, in any table: license = {text = "MIT"}
@@ -47,19 +48,38 @@ def json_license_values(stripped: str) -> list[str] | None:
     if not isinstance(data, dict):
         return []
     val = data.get("license") or data.get("License") or data.get("LICENSE")
-    return [val] if isinstance(val, str) and val else []
+    if isinstance(val, dict):  # npm's old object form: {"type": "MIT", ...}
+        val = val.get("type")
+    if isinstance(val, str) and val:
+        return [val]
+    # npm's old array form, one entry per license the user may choose. Each
+    # entry is one operand without brackets: every operator binds at least
+    # as tightly as OR.
+    types = [_license_type(entry) for entry in _as_list(data.get("licenses"))]
+    return [" OR ".join(types)] if types and all(types) else []
 
 
-def toml_license_values(text: str) -> list[str]:
-    """The first table-form value, then the first string-form value of each
-    table in _TOML_LICENSE_TABLES: a manifest declares one license, and each
-    value costs a database lookup, so a file of thousands of license lines
-    yields at most four."""
+def _as_list(value: object) -> list[object]:
+    return value if isinstance(value, list) else []
+
+
+def _license_type(entry: object) -> str:
+    """The license of one entry of npm's "licenses" array, "" if none."""
+    if isinstance(entry, dict):
+        entry = entry.get("type")
+    return entry.strip() if isinstance(entry, str) else ""
+
+
+def toml_license_values(text: str, string_form: bool = True) -> list[str]:
+    """The first table-form value, then (with *string_form*) the first
+    string-form value of each table in _TOML_LICENSE_TABLES: a manifest
+    declares one license, and each value costs a database lookup, so a file
+    of thousands of license lines yields at most four."""
     table_form = _RE_TOML_LICENSE_TABLE.search(text)
     values = [table_form.group(1)] if table_form else []
     by_table: dict[str, str] = {}
     table = ""
-    for line in text.splitlines():
+    for line in text.splitlines() if string_form else ():
         header = _RE_TOML_HEADER.fullmatch(line)
         if header:
             table = re.sub(r"\s", "", header.group(1))
@@ -108,7 +128,25 @@ def license_value_groups(text: str, ext: str) -> list[list[str]]:
         # Extensionless "[section]" text is INI/TOML, not JSON: fall through.
     groups: list[list[str]] = []
     if ext in (".toml", ""):
-        groups.append(toml_license_values(text))
+        # Text with no file name is a manifest only if it starts like one: a
+        # README showing a [project] example is not one.
+        string_form = ext == ".toml" or _starts_with_table(text)
+        groups.append(toml_license_values(text, string_form))
     if ext in (".cfg", ".ini", ""):
         groups.append(ini_license_values(text))
     return groups
+
+
+def extension(file_path: str | None) -> str:
+    """The lowercase extension of *file_path*, "" for text or none."""
+    return os.path.splitext(file_path)[1].lower() if file_path else ""
+
+
+def _starts_with_table(text: str) -> bool:
+    """Whether the first line that is not blank or a # comment is a TOML
+    table header."""
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            return line.startswith("[")
+    return False

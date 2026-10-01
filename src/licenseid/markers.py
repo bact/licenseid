@@ -5,7 +5,6 @@
 
 """Logic for detecting explicit license markers and headings in text."""
 
-import os
 import re
 
 import py_spdx_license
@@ -20,13 +19,8 @@ from licenseid.identifiers import (
     qualify_trailing_grant,
     strip_plus_operator,
 )
-from licenseid.manifest import license_value_groups
+from licenseid.manifest import extension, license_value_groups
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags
-
-
-def _extension(file_path: str | None) -> str:
-    """The lowercase extension of *file_path*, "" for text or none."""
-    return os.path.splitext(file_path)[1].lower() if file_path else ""
 
 
 class MarkerDetector:
@@ -126,12 +120,20 @@ class MarkerDetector:
     def __init__(self, db: LicenseDatabase):
         self.db = db
 
-    def detect(self, text: str, file_path: str | None = None) -> list[CandidateMatch]:
-        """Detect license markers in the given text, deduplicating by license_id."""
+    def detect(
+        self,
+        text: str,
+        file_path: str | None = None,
+        manifest: list[list[str]] | None = None,
+    ) -> list[CandidateMatch]:
+        """Detect license markers in the given text, deduplicating by
+        license_id. *manifest* is license_value_groups() of the text, if the
+        caller has it already."""
         seen: set[str] = set()
         result: list[CandidateMatch] = []
 
-        manifest = license_value_groups(text, _extension(file_path))
+        if manifest is None:
+            manifest = license_value_groups(text, extension(file_path))
         for group in (
             self._structured_candidates(manifest),
             # A manifest's own license field is read whole, above; the loose
@@ -158,18 +160,12 @@ class MarkerDetector:
                 c["search_text"] = self.db.get_search_text(c["license_id"])
         return result
 
-    def detect_structured(
-        self, text: str, file_path: str | None = None
-    ) -> list[CandidateMatch]:
-        """The license field of a manifest (JSON, TOML, INI), one candidate
-        per license, each certain (score 1.0). Cheap enough to run on every
-        input, however short: a small package.json is still a declaration."""
-        return self._detect_structured_format(text, _extension(file_path))
-
-    def manifest_values(self, text: str, file_path: str | None = None) -> list[str]:
-        """The raw license values of a manifest, resolved or not."""
-        groups = license_value_groups(text, _extension(file_path))
-        return [value for group in groups for value in group]
+    def detect_structured(self, manifest: list[list[str]]) -> list[CandidateMatch]:
+        """The license field of a manifest (JSON, TOML, INI), from its
+        license_value_groups(): one candidate per license, each certain
+        (score 1.0). Cheap enough to run on every input, however short: a
+        small package.json is still a declaration."""
+        return self._structured_candidates(manifest)
 
     def _detect_structured_format(
         self, text: str, ext: str = ""
