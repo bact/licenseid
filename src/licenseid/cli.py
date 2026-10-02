@@ -7,6 +7,7 @@
 Command-line interface for the licenseid tool.
 """
 
+import errno
 import os
 import re
 import sqlite3
@@ -17,7 +18,7 @@ from typing import Any, NoReturn
 
 import click
 
-from licenseid.console import error, warn
+from licenseid.console import discard_stdout, end_line, error, warn
 from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.dbcheck import (
     check_database_ready,
@@ -43,6 +44,29 @@ from licenseid.textinput import (
 from licenseid.types import LicenseDetails
 
 
+class OutputError(Exception):
+    """Standard output could not take a result line."""
+
+    def __init__(self, cause: OSError | None) -> None:
+        super().__init__(cause.strerror or str(cause) if cause else "closed")
+        self.broken_pipe = cause is not None and cause.errno == errno.EPIPE
+
+
+def echo(message: str = "") -> None:
+    """Write *message* and a newline to standard output.
+
+    Raises OutputError when it cannot be written: click.echo drops output
+    silently when standard output is closed (``>&-``), and raises a bare
+    OSError for a full disk, a size limit or a closed pipe.
+    """
+    if sys.stdout is None:
+        raise OutputError(None)
+    try:
+        click.echo(message)
+    except OSError as exc:
+        raise OutputError(exc) from exc
+
+
 def show_diff(norm_input: str, best_window: str) -> None:
     """Show word-by-word diff between the normalised input and the window
     of the license text it matched."""
@@ -57,15 +81,15 @@ def show_diff(norm_input: str, best_window: str) -> None:
         )
     )
     if diff_lines:
-        click.echo("\nWORD DIFF:")
+        echo("\nWORD DIFF:")
         for line in diff_lines:
             if line.startswith("+"):
-                click.secho(line, fg="green")
+                echo(click.style(line, fg="green"))
             elif line.startswith("-"):
-                click.secho(line, fg="red")
+                echo(click.style(line, fg="red"))
             else:
-                click.echo(line)
-        click.echo("")
+                echo(line)
+        echo("")
 
 
 def check_db_staleness(database: LicenseDatabase) -> None:
@@ -113,7 +137,7 @@ def clear_local_cache(ctx: click.Context, db_path: str) -> None:
 
 
 class DatabaseErrorGroup(click.Group):
-    """A group that exits 2 when the database cannot answer.
+    """A group that never lets a failure pass for an answer.
 
     ``match`` and the ``is-*`` commands answer "no" with exit 1, so an unready
     database (``DatabaseNotReadyError``) must not share it. A file can also go
@@ -121,11 +145,25 @@ class DatabaseErrorGroup(click.Group):
     failure is then worded as an ``unreadable`` database, not a traceback. A
     ProgrammingError or InterfaceError is a bug in a query, not a fault in the
     file, so it still shows its traceback.
+
+    Click itself would exit 1 for both an interrupt (Ctrl-C) and a closed
+    pipe. An interrupt exits 130 (128 + SIGINT), as the shell reports a
+    killed command; a pipe whose reader has gone (``| head -1``) exits 141
+    (128 + SIGPIPE) quietly, as ``cat`` and ``grep`` do; any other output
+    that cannot be written exits 2 with an ``output`` error.
     """
 
     def invoke(self, ctx: click.Context) -> Any:
         try:
             return super().invoke(ctx)
+        except KeyboardInterrupt as exc:
+            end_line()
+            raise click.exceptions.Exit(130) from exc
+        except OutputError as exc:
+            discard_stdout()
+            if exc.broken_pipe:
+                raise click.exceptions.Exit(141) from exc
+            exit_usage_error(ctx, f"output: write failed: {exc}")
         except DatabaseNotReadyError as exc:
             exit_usage_error(ctx, str(exc))
         except sqlite3.Error as exc:
@@ -155,7 +193,7 @@ def cli(ctx: click.Context, db: str | None, clear_cache: bool) -> None:
         ctx.exit()
 
     if ctx.invoked_subcommand is None:
-        click.echo(ctx.get_help())
+        echo(ctx.get_help())
         ctx.exit(2)
 
 
@@ -188,11 +226,11 @@ def update(
             version=version, force=force, use_cache=use_cache
         )
         if updated:
-            click.echo(f"Database updated at {db_path}")
+            outcome = f"Database updated at {db_path}"
         else:
             metadata = database.get_metadata()
             current_version = metadata.get("license_list_version", "unknown")
-            click.echo(f"Database remains at version {current_version} at {db_path}")
+            outcome = f"Database remains at version {current_version} at {db_path}"
     except InvalidInputError as e:
         exit_usage_error(ctx, str(e))
     except LicenseIdError as e:
@@ -205,6 +243,8 @@ def update(
         detail = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
         error(f"database: update failed: {detail}")
         ctx.exit(1)
+    # Outside the try: an output failure is not a failed update.
+    echo(outcome)
 
 
 # Python's string escapes. Octal stops at \377: \400-\777 give a
@@ -317,7 +357,8 @@ def get_input_content(
         if os.path.exists(input_val):
             return read_input(ctx, input_val)
         return input_val
-    if not sys.stdin.isatty():
+    # A closed standard input (`<&-`) is None: no input, not a crash.
+    if sys.stdin is not None and not sys.stdin.isatty():
         return read_input(ctx, None)
     return ""
 
@@ -434,17 +475,17 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         ctx.exit(1)
 
     if bold:
-        click.echo(results[0]["license_id"])
+        echo(results[0]["license_id"])
         ctx.exit(0)
 
     if json_output:
         # JSON Lines: one canonical (RFC 8785) object per result.
         for r in results:
-            click.echo(json_line(r))
+            echo(json_line(r))
     else:
         # Standard output: line-delimited, KEY=VALUE
         for i, r in enumerate(results):
-            click.echo(text_line(r))
+            echo(text_line(r))
             # A word diff for the top match, if it is a close text match.
             if diff and i == 0 and r["method"] == "text" and not r["exact"]:
                 show_diff(*matcher.diff_pair(license_text, r["license_id"]))
@@ -466,9 +507,9 @@ def is_osi(
     """True if the license is OSI-approved."""
     record = resolve_license_record(ctx, input_val, text, id_val)
     if record and record.get("is_osi_approved"):
-        click.echo("true")
+        echo("true")
         ctx.exit(0)
-    click.echo("false")
+    echo("false")
     ctx.exit(1)
 
 
@@ -486,9 +527,9 @@ def is_fsf(
     """True if the license is FSF-libre."""
     record = resolve_license_record(ctx, input_val, text, id_val)
     if record and record.get("is_fsf_libre"):
-        click.echo("true")
+        echo("true")
         ctx.exit(0)
-    click.echo("false")
+    echo("false")
     ctx.exit(1)
 
 
@@ -506,9 +547,9 @@ def is_open(
     """True if the license is OSI-approved OR FSF-libre."""
     record = resolve_license_record(ctx, input_val, text, id_val)
     if record and (record.get("is_osi_approved") or record.get("is_fsf_libre")):
-        click.echo("true")
+        echo("true")
         ctx.exit(0)
-    click.echo("false")
+    echo("false")
     ctx.exit(1)
 
 
@@ -541,9 +582,9 @@ def is_spdx_cmd(
     """True if the license is in the SPDX License List."""
     record = resolve_license_record(ctx, input_val, text, id_val)
     if record and record.get("is_spdx"):
-        click.echo("true")
+        echo("true")
         ctx.exit(0)
-    click.echo("false")
+    echo("false")
     ctx.exit(1)
 
 

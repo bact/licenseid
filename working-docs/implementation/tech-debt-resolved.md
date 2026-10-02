@@ -14,6 +14,30 @@ Items resolved from
 for the record: what each was, and what was done. Item numbers are the
 roadmap's. Moved out of the roadmap on 2026-10-02.
 
+- Streams and signals (part of item 10, Priority 12; 2026-10-02). Click
+  exits 1, the code for "no", on Ctrl-C and on a closed pipe, and
+  `click.echo` drops output silently when standard output is closed, so
+  `is-osi` could read an interrupt as "not OSI" and a closed standard
+  output as success. Standard input closed with `<&-` crashed with
+  `AttributeError`, and a full disk or `ulimit -f` gave a traceback and
+  exit 120. Now every result line goes through `cli.echo`, and
+  `DatabaseErrorGroup` maps the failures:
+  - an output write failure exits 2 with `output: write failed: <reason>`
+    (a new subject and condition in the grammar), and standard output is
+    pointed at the null device so the flush at exit cannot fail again;
+  - a closed pipe exits 141 (128 + SIGPIPE) quietly, as `cat` and `grep`
+    do;
+  - Ctrl-C exits 130 (128 + SIGINT) quietly, closing an open progress
+    line; an `update` interrupted mid-download still leaves an empty
+    `licenses.db`, which the readiness check reports;
+  - a closed standard input is no input (`input: missing`), and a failing
+    standard error is skipped (`console._write`), having nowhere to report.
+  `update` prints its result after its catch-all `except`, so an output
+  failure is not reported as a failed update. Cells `E3-023` to `E3-025`,
+  `E4-005` to `E4-008`, `E5-021`, `E5-022` and `E5-024` left the matrix
+  baseline. The user chose 130 and 141 without a message, and exit 2 for
+  every other output failure.
+
 - Every database lookup opened its own connection (item 29, Priority 8;
   2026-10-02), and resolving a tag value takes about five lookups: 4,000
   distinct `LicenseRef-*` tags took 9.0 s on the real database, nearly all

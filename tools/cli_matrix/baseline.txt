@@ -17,13 +17,3 @@ E2-087 bash
 E2-088 bash
 E2-089 bash
 E2-090 bash
-E3-023 bash
-E3-024 bash
-E3-025 bash
-E4-005 bash
-E4-006 bash
-E4-007 bash
-E4-008 bash
-E5-021 bash
-E5-022 bash
-E5-024 bash

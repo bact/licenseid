@@ -45,8 +45,8 @@ Unix philosophy. Consistent, predictable, parseable.
   - `LEVEL`: `ERROR` (the command fails, non-zero exit) or `WARNING` (a
     fallback lets it continue).
   - `SUBJECT`: the thing affected, a lowercase word or cache file name:
-    `database`, `input`, `match`, `option`, `version`, `licenses.json`,
-    `popularity.csv`, `spdx-data-v<ver>.tar.gz`.
+    `database`, `input`, `match`, `option`, `output`, `version`,
+    `licenses.json`, `popularity.csv`, `spdx-data-v<ver>.tar.gz`.
   - `CONDITION`: short lowercase fragment, reused across subjects. The
     full current set (add new ones here): `not found`, `invalid`,
     `missing`, `empty`, `unreadable`, `binary file`,
@@ -55,7 +55,7 @@ Unix philosophy. Consistent, predictable, parseable.
     `cache write failed`, `cache unusable`, `download unusable`,
     `stale cache unusable`, `parse failed`,
     `N rows with missing or non-numeric num_pushers`, `update failed`,
-    `delete failed`.
+    `delete failed`, `write failed`.
   - `DETAIL`: the variable part (exception text, value, path).
   - `ACTION`: what happens next, after a semicolon: the fallback taken
     (`using stale cache`, `downloading`, `counted as 0`) or the command for
@@ -71,6 +71,12 @@ Unix philosophy. Consistent, predictable, parseable.
     exit 1 already means "no". `update` and `--clear-cache` write or delete,
     so they refuse only an `invalid` database — one licenseid did not build
     — and accept every other condition, which is what they exist to fix.
+  - Write a result line with `cli.echo`, not `click.echo`: a result that
+    cannot be written (standard output closed, a full disk) exits 2 with
+    `output: write failed: <reason>`, never 0 or 1. A reader that closes
+    the pipe (`| head -1`) ends the run quietly with 141, and Ctrl-C with
+    130, both without a message (`DatabaseErrorGroup`). A closed standard
+    input is no input; a failing standard error is skipped.
   - A step that prints partial progress (`status(..., end="")`) and can fail
     must call `console.end_line()` in a `finally`, so the caller's next
     stderr line starts at column 0.
