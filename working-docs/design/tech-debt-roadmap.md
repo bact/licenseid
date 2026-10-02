@@ -23,13 +23,16 @@ work on item 6, and item 19 from the work on items 15 and 17. Item 11 was
 re-scored from the work on item 16, and items 21 to 25 come from the work on
 item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
 the review of PR #66, items 30 and 31 from the work on item 21, and items
-32 to 35 from the review of item 22.
+32 to 35 from the review of item 22, and item 36 from the docs audit
+after it.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
 in the order chosen on 2026-10-01, are done. Item 32 (Priority 24) is the
 highest open priority but lies outside item 31; it has not been scheduled.
-Item 2 waits on an upstream release.
+Item 2 waits on an upstream release. The open items that need a rule or a
+decision before a fix are grouped in
+[`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02).
 
 ## 2. `py-spdx-license` reads its data with the locale encoding — Priority 20
 
@@ -225,6 +228,8 @@ SPDX matching guidelines let both differ (replaceable and omittable text).
 A text with a leading byte order mark (BOM) given as `--text` keeps it and
 is not exact, though the same file is.
 
+- **Areas and decisions**: grammar, certainty and ranking are areas 1-3 of
+  [`matching-rules-redesign.md`](matching-rules-redesign.md).
 - **Direction**: one reader for the SPDX grammar (Annex D:
   `license-id ["+"]`, `license-ref`, `WITH`, `AND`, `OR`, brackets, and the
   case rules for operators and prefixes) that returns a typed tree, with
@@ -294,6 +299,20 @@ Found in review of item 22 (2026-10-02); `main` does the same:
   `GPL-2.0` at 0.855.
 - Impact 1, Risk 2, Effort 3.
 
+## 36. `codemeta.json` and `pyproject.toml` disagree — Priority 10
+
+`AGENTS.md` asks both to agree, but the description differs ("Identifies the
+SPDX License ID from license text…" against "Get the SPDX License ID from
+license text"), and the keywords are two different lists: short tags in
+`pyproject.toml` (`spdx-id`, `license-matcher`), phrases in `codemeta.json`
+(`SPDX License ID`, `software component transparency`). `main` is the same;
+found in a docs audit on 2026-10-02.
+
+- **Fix**: choose one description and one keyword set (the user decides
+  which wording wins), then copy it to the other file. `CITATION.cff` follows
+  `codemeta.json` through its workflow.
+- Impact 1, Risk 1, Effort 1.
+
 ## 5. Conflicting options and inputs are resolved silently — Priority 15
 
 When several inputs are given, the CLI uses `--id`, then `--text`, then the
@@ -322,9 +341,10 @@ warning. All of it is pinned as "current behaviour" in
 The one large remaining lever on `fragment_similarity`'s dominant cost:
 reuse the existing 60-word probe's match location instead of re-running
 a full realignment scan. Deliberately deferred because it changes
-`best_window`, which is user-facing via the CLI's `--diff` flag, not
-just an internal ranking score — needs its own validation cycle (a
-`bench_compare.py` run plus a manual `--diff` output quality check).
+the window that the CLI's `--diff` flag shows (recomputed through
+`diff_pair`), not just an internal ranking score — needs its own
+validation cycle (a `bench_compare.py` run plus a manual `--diff` output
+quality check).
 
 - Re-scored 2026-09-30 (Impact 2 → 3): ordinary license text pays for it,
   not only crafted input. On the real database a 3,000-character slice of

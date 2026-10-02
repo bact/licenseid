@@ -29,7 +29,8 @@ No database daemon or server needed.
       `"GPL-2.0 or later version"` → `GPL-2.0-or-later`).
     - Conservative `-only` fallback when no granting context is present.
   - **Tier 1 (Recall)**: Candidate retrieval using SQLite FTS5 trigram index,
-    capped at the first 100 query words for consistent performance.
+    queried with the input's first 20 words, plus its last 20 for an input
+    over 200 words (at most 25 more candidates), for consistent performance.
     Comment prefixes (`//`, `#`, `*`, `;`) are stripped before querying.
   - **Tier 2 (Precision)**: Adaptive ranking with RapidFuzz. Sliding-window
     alignment for fragments; coverage-aware scoring to prefer the tightest
@@ -161,6 +162,7 @@ Common options:
   1 (default 0.85). A value outside 0 to 1 exits 2.
 - `--top <n>`: Keep at most this many results (default 3).
 - `--exact`: Keep only exact results (`EXACT=true`, see below).
+- `--pop/--no-pop`: Weigh results by popularity, or not (default off).
 
 The system uses a **composite score** (similarity + coverage bonus/penalty +
 optional popularity weight + marker confidence boost) to prefer the tightest

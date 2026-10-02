@@ -120,7 +120,7 @@ of candidates that pass the gate.
 
 ## Risks (why this wasn't just implemented)
 
-### 1. `best_window` is user-facing, not just an internal score
+### 1. `best_window` reaches `--diff`, not just an internal score
 
 Unlike `score_cutoff` (which only affected an internal ranking value for
 already-rejected candidates), this changes **which substring of the candidate is

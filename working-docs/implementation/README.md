@@ -13,10 +13,10 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-09-21)
+## Current state (as of 2026-10-02)
 
-- **Pipeline**: Tier 0 (short-text ID/name shortcut) → Tier 0.5 (marker
-  detection) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz ranking).
+- **Pipeline**: Tier 0.5 (marker detection: tags, then a manifest's
+  `license` field) → Tier 0 (short-text ID/name shortcut) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz ranking).
   The optional Tier 3 (Java `tools-java` validation) was removed on
   2026-09-19. `matcher.py` holds the pipeline; Tier 1 is `retrieval.py`,
   Tier 0 is `shorttext.py`, and the sort order with the `-only` /
@@ -54,6 +54,11 @@ yet started, see [`../design/`](../design/).
   (`MarkerDetector.resolve_license_value`) and one judge of what `--id` may
   hold (`identifiers.is_simple_expression`); see
   [spdx-expression-reading.md](spdx-expression-reading.md).
+- **Public result** (PR #68, 2026-10-02): every match has the same nine
+  keys, built once by `result.public_result` at the exit of `match()`; the
+  score is capped to 0-1 and `exact` tells results at 1 apart. Ranking
+  reads the raw records. `--json` prints RFC 8785 JSON Lines; see item 22
+  in [tech-debt-resolved.md](tech-debt-resolved.md).
 - **Known deferred work**: probe-anchored windowing (reusing the existing
   probe's match location instead of a full realignment scan) — flagged
   but deliberately not attempted; see
