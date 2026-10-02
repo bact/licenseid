@@ -69,12 +69,20 @@ def match_short_text(db: LicenseDatabase, norm_input: str) -> list[RawMatch]:
             score_name_exact = 100.0
             score_name_flex = 100.0
         else:
-            score_id = fuzz.ratio(norm_input, id_norm)
+            # A score under the threshold is dropped below, so the cutoff
+            # changes no result; it lets RapidFuzz stop early, where a long
+            # word against every row cost seconds (roadmap item 27).
+            cut = threshold
+            score_id = fuzz.ratio(norm_input, id_norm, score_cutoff=cut)
             score_id_partial = (
-                fuzz.partial_ratio(norm_input, id_norm) if len(words) == 1 else 0
+                fuzz.partial_ratio(norm_input, id_norm, score_cutoff=cut)
+                if len(words) == 1
+                else 0
             )
-            score_name_exact = fuzz.ratio(norm_input, name_norm)
-            score_name_flex = fuzz.token_set_ratio(norm_input, name_norm)
+            score_name_exact = fuzz.ratio(norm_input, name_norm, score_cutoff=cut)
+            score_name_flex = fuzz.token_set_ratio(
+                norm_input, name_norm, score_cutoff=cut
+            )
 
         best_raw = max(score_id, score_name_exact, score_name_flex, score_id_partial)
         if best_raw >= threshold:

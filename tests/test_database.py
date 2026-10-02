@@ -33,14 +33,14 @@ def _assert_closed(conn: sqlite3.Connection) -> None:
 def test_connection_closes_after_successful_query(db: LicenseDatabase) -> None:
     """A query method must close its connection, not just commit it."""
     opened: list[sqlite3.Connection] = []
-    real_connect = db._connect
+    real_connect = db._connections.connect
 
     def tracking_connect() -> sqlite3.Connection:
         conn = real_connect()
         opened.append(conn)
         return conn
 
-    db._connect = tracking_connect  # type: ignore[method-assign]
+    db._connections.connect = tracking_connect  # type: ignore[method-assign]
 
     db.get_metadata()
 

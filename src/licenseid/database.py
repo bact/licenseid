@@ -14,13 +14,13 @@ import tarfile
 import tempfile
 import xml.etree.ElementTree as ET
 import zlib
-from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple, cast
 
 from licenseid.console import end_line, status, warn
 from licenseid.dbcheck import named_file, reject_foreign_database
+from licenseid.dbconnection import Connections
 from licenseid.errors import LicenseIdError
 from licenseid.fingerprint import compute_idf_fingerprints, extract_ngrams
 from licenseid.normalize import normalize_text
@@ -86,6 +86,7 @@ class LicenseDatabase:
         self.db_path = Path(db_path)
         db_path_str = str(self.db_path)
         self.use_uri = db_path_str.startswith("file:")
+        self._connections = Connections(db_path_str, self.use_uri)
         self._keep_alive: sqlite3.Connection | None = None
 
         if self.use_uri or db_path_str == ":memory:":
@@ -119,21 +120,14 @@ class LicenseDatabase:
             )
 
     def _connect(self) -> sqlite3.Connection:
-        """Create a new connection."""
-        conn = sqlite3.connect(str(self.db_path), uri=self.use_uri)
-        conn.execute("PRAGMA mmap_size=268435456")
-        return conn
+        return self._connections.connect()
 
-    @contextlib.contextmanager
-    def _connection(self) -> Iterator[sqlite3.Connection]:
-        """Open, commit/rollback, and always close -- ``Connection.__exit__``
-        alone only handles the transaction, not closing."""
-        conn = self._connect()
-        try:
-            with conn:
-                yield conn
-        finally:
-            conn.close()
+    def _connection(self) -> contextlib.AbstractContextManager[sqlite3.Connection]:
+        return self._connections.connection()
+
+    def reading(self) -> contextlib.AbstractContextManager[None]:
+        """Share one connection among the queries of a block (one match)."""
+        return self._connections.reading()
 
     def _init_db(self) -> None:
         """Initialise the SQLite database with FTS5."""

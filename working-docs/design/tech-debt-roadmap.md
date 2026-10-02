@@ -23,12 +23,13 @@ work on item 6, and item 19 from the work on items 15 and 17. Item 11 was
 re-scored from the work on item 16, and items 21 to 25 come from the work on
 item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
 the review of PR #66, items 30 and 31 from the work on item 21, and items
-32 to 35 from the review of item 22, and item 36 from the docs audit
-after it.
+32 to 35 from the review of item 22, item 36 from the docs audit
+after it, and item 37 from the work on item 29.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
-in the order chosen on 2026-10-01, are done. Item 32 (Priority 24) is the
+in the order chosen on 2026-10-01, are done, and so are items 27 and 29
+(2026-10-02). Item 32 (Priority 24) is the
 highest open priority but lies outside item 31; it has not been scheduled.
 Item 2 waits on an upstream release. The open items that need a rule or a
 decision before a fix are grouped in
@@ -112,21 +113,6 @@ upstream (`JPEWdev/py-spdx-license`; the user is fixing it there). Found on
   cases.
 - Impact 1, Risk 1, Effort 1.
 
-## 27. A few words of many characters cost seconds in Tier 0 — Priority 10
-
-An input under 30 words reaches `shorttext.match_short_text`, which scores
-it against every license ID and name with RapidFuzz, at a cost in the
-input's characters, not its words. One 200,000-character word takes 4.8 s
-(2.7 s there, 2.0 s in SQLite), and a tag with a 1,000,000-character value
-about 30 s; `main` behaves the same. `similarity.alignment_affordable`
-guards Tier 2 against this, but nothing guards Tier 0. Found on 2026-10-01
-while timing item 24.
-
-- **Fix**: bound Tier 0 by characters, as Tier 2 is: a word far longer than
-  any ID or name (the longest name has 89 characters) cannot be one,
-  so skip the fuzzy scan for it. Find what the 2.0 s of SQLite is first.
-- Impact 1, Risk 1, Effort 1.
-
 ## 28. A two- or three-word phrase from a licence text scores 1.0 — Priority 10
 
 Any short phrase found verbatim in a licence text answers that licence with
@@ -153,21 +139,25 @@ Since item 22 these are `exact` false, but they still score 1 and pass
   distinctive words, so `is-*` answers no for it.
 - Impact 2, Risk 2, Effort 2.
 
-## 29. Every database lookup opens its own connection — Priority 8
+## 37. Two lookups scan a whole table — Priority 10
 
-`LicenseDatabase._connection` opens, and closes, a SQLite connection for
-each query, and resolving one tag value takes about five lookups: some 3 ms
-a value. An input of 4,000 distinct tags (1.1 MB of 256-character
-`LicenseRef-*` values) takes 13 s, nearly all in `sqlite3.connect`,
-`execute` and `close` (20,009 connections); `main` takes 12 s. The parse
-budget of item 26 plays no part: 32 tags of 31,600 characters each take
-0.6 s. Found in review of PR #66 (2026-10-01).
+After item 29, 4,000 distinct `LicenseRef-*` tags take 1.85 s, and 1.6 s
+of it is `execute` on two queries that cannot use an index:
 
-- **Fix**: keep one read-only connection per `LicenseDatabase` (or per
-  `match()` call), or cache `get_license_details` and
-  `get_license_by_name` for a call. Mind the shared-cache in-memory test
-  databases, which vanish when their last connection closes.
-- Impact 1, Risk 1, Effort 2.
+- `get_search_text` reads the FTS5 table `license_index`, whose
+  `license_id` is `UNINDEXED`, so each call scans every row (about 0.25 ms;
+  1 s for the 4,000 tags). It is asked even for a `LicenseRef-*` or an
+  expression, which has no row there.
+- `get_license_details` compares `license_id = ? COLLATE NOCASE`, which
+  the primary key's binary index cannot serve (0.46 s for 12,000 calls).
+
+Found on 2026-10-02 while fixing item 29.
+
+- **Fix**: look the search text up through a plain table or column keyed
+  by ID (or skip it for an ID with no row), and give `licenses` an index on
+  `license_id COLLATE NOCASE` (a schema change: bump what `update`
+  rebuilds). Time distinct values against `main`.
+- Impact 1, Risk 1, Effort 1.
 
 ## 30. `GPL 2.0+` in prose loses its "+" in Tier 0 — Priority 6
 
@@ -432,13 +422,14 @@ Each case is outside the message grammar or hides a failure:
 - **Closed standard output** (`>&-`): exit 0 and the result is lost. A
   script sees success with no data.
 - **Output error** (`ulimit -f 0` with output to a file): `OSError`
-  traceback and exit 120, instead of one `ERROR:` line. The matrix no longer
-  shows it (cell `E4-028` left the baseline): under that limit SQLite cannot
-  create the `-shm` file, so the readiness check now refuses first, with
-  `database: unreadable: <path>: disk I/O error` and exit 2. The failing
-  write of standard output is still unhandled; a cell that reaches it needs a
-  database the check can read on a filesystem the output cannot be written
-  to.
+  traceback and exit 120, instead of one `ERROR:` line. Under that limit
+  SQLite cannot create the `-shm` file, so the readiness check refuses
+  first (`database: unreadable: <path>: disk I/O error`, exit 2), unless
+  another process holds the database open and its `-shm` exists. In a
+  parallel matrix run that happens: since item 29 keeps a connection open
+  for a whole `match()`, cells `E4-025` to `E4-028` reach the unhandled
+  write again and are back in the baseline (2026-10-02); with `--jobs 1`
+  they refuse first, as on `main`.
 - **DB replaced during a run**: on the CLI a `sqlite3` failure after the
   readiness check now exits 2 with `database: unreadable`. The Python API
   still raises a raw `sqlite3.OperationalError` from a live matcher whose

@@ -14,6 +14,34 @@ Items resolved from
 for the record: what each was, and what was done. Item numbers are the
 roadmap's. Moved out of the roadmap on 2026-10-02.
 
+- Every database lookup opened its own connection (item 29, Priority 8;
+  2026-10-02), and resolving a tag value takes about five lookups: 4,000
+  distinct `LicenseRef-*` tags took 9.0 s on the real database, nearly all
+  in `connect` and `close`. `dbconnection.Connections` now holds the
+  connection code, moved out of `database.py`. Inside
+  `LicenseDatabase.reading()` a thread's queries share one connection,
+  opened at the first query and closed when the outermost block ends;
+  `match()`, `resolve_record()` and `diff_pair()` each run in one block.
+  The same input now takes 1.85 s; the rest is two lookups that scan a
+  table (item 37).
+  - Rejected: a cache per value, which does not help distinct values; and
+    one connection kept for the life of a `LicenseDatabase`, which sqlite3
+    refuses from a second thread and which would read a deleted file
+    through a stale handle (the pin in `test_db_ready.py`). The shared
+    connection is per thread (`threading.local`).
+- A few words of many characters cost seconds in Tier 0 (item 27,
+  Priority 10; 2026-10-02): `match_short_text` scores a short input against
+  every ID and name with RapidFuzz, at a cost in the input's characters. A
+  200,000-character word took 2.7 s. Each scorer now gets
+  `score_cutoff=threshold`, which lets RapidFuzz stop early: 0.3 s. A score
+  under the threshold was dropped anyway, so no result changes
+  (`test_the_cutoff_changes_no_short_text_result`). The roadmap's 2.0 s
+  in SQLite was gone by then, and a 1,000,000-character tag already took
+  0.23 s.
+  - Rejected: skipping the scan for a word longer than any name, the
+    roadmap's direction. It is a limit on characters per word, which the
+    CJK lesson of item 16 rules out, and it would change answers.
+
 - `--json` printed internal ranking keys (item 22, Priority 12;
   2026-10-02). Each tier's own record went out as it was, with `base_score`,
   `pop_score`, `is_deprecated`, `superseded_by` and `best_window`, keys in
