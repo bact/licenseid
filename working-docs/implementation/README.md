@@ -54,6 +54,11 @@ yet started, see [`../design/`](../design/).
   (`MarkerDetector.resolve_license_value`) and one judge of what `--id` may
   hold (`identifiers.is_simple_expression`); see
   [spdx-expression-reading.md](spdx-expression-reading.md).
+- **Database lookups** (PRs #69 and #72, 2026-10-02): a `match()` shares one
+  SQLite connection among its lookups (`dbconnection.py`), and a lookup by
+  licence ID reads each table's IDs once (`dbcache.py`), dropped when a
+  rebuild changes `last_update_datetime`; see items 29 and 37 in
+  [tech-debt-resolved.md](tech-debt-resolved.md).
 - **Public result** (PR #68, 2026-10-02): every match has the same nine
   keys, built once by `result.public_result` at the exit of `match()`; the
   score is capped to 0-1 and `exact` tells results at 1 apart. Ranking

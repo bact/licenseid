@@ -342,7 +342,8 @@ class AggregatedLicenseMatcher:
         """
         # The one exit: every tier ranks on its raw score, and only here does
         # a result take its public form. One connection serves the call's
-        # lookups, about five for each tag value.
+        # lookups, about five for each tag value, and the database is checked
+        # once for a rebuild.
         with self.db.reading():
             raw = self._match_raw(
                 text, license_id=license_id, file_path=file_path, **options

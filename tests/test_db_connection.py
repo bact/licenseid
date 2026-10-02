@@ -68,12 +68,14 @@ def test_a_block_opens_lazily_and_a_query_outside_closes_its_own(
     db_path: str, opened: list[sqlite3.Connection]
 ) -> None:
     db = LicenseDatabase(db_path)
+    _lookups(db)  # the first lookup by ID reads the table's IDs once
     opened.clear()
     with db.reading():
         pass
     assert not opened
     _lookups(db)
-    assert len(opened) == 4 and all(is_closed(c) for c in opened)
+    # Four queries, and the ID lookup reads the rebuild stamp first.
+    assert len(opened) == 5 and all(is_closed(c) for c in opened)
 
 
 _READ_KEY = "SELECT value FROM db_metadata WHERE key = ?"

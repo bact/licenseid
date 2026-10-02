@@ -14,6 +14,40 @@ Items resolved from
 for the record: what each was, and what was done. Item numbers are the
 roadmap's. Moved out of the roadmap on 2026-10-02.
 
+- Two lookups scan a whole table (item 37, Priority 10; 2026-10-02). After
+  item 29, 4,000 distinct `LicenseRef-*` tags took 1.73 s, 1.2 s of it in
+  two queries no index could serve: `get_search_text` matched the
+  `UNINDEXED` `license_id` of the FTS5 table, and `get_license_details`
+  compared `license_id = ? COLLATE NOCASE`, which the binary primary key
+  cannot seek. Now `dbcache.TableCache` reads each table's IDs once per
+  `LicenseDatabase`: a lookup seeks by rowid or primary key, and an unknown
+  ID costs no query (0.52 s, one query per tag instead of five).
+  - The ID map folds ASCII case only (`dbcache.fold_case`), as NOCASE does:
+    `str.lower` would turn the KELVIN SIGN into `k`.
+  - `_write_db_records` clears the reads. It also clears the names and the
+    deprecated IDs, which moved there too, and which stayed stale after a
+    rebuild before.
+  - A rebuild by another process is seen too: every rebuild stamps
+    `last_update_datetime`, read again once per `reading()` block (one
+    match) and at every lookup outside one. Before, a long-lived matcher
+    kept the old names for Tier 0, and the first version of this change
+    would have kept the old IDs as well (found in review).
+  - Within one match a rebuild can still move the rows, so the search-text
+    read checks the row's ID too: it answers "" rather than another
+    licence's text.
+  - Review also found two races between threads, fixed: an accessor read
+    its attribute twice, so another thread's `clear()` could make the
+    second read `None`; and a map built from the old rows while another
+    thread cleared could be kept for good (now dropped, `_generation`).
+    A row with a NULL `license_id`, which a non-INTEGER primary key allows,
+    no longer breaks every lookup.
+  - Rejected: an index on `license_id COLLATE NOCASE`, and a plain search
+    text table. Both are schema changes, and `_init_db` runs at every open,
+    so a new `CREATE INDEX` would write on a read and fail on a read-only
+    file.
+  - `database.py` went from 913 to 864 lines, and the module-lines ceiling
+    with it.
+
 - `codemeta.json` and `pyproject.toml` disagree (item 36, Priority 10;
   2026-10-02). The descriptions differed, and the keywords were two
   different lists. Both now carry one description, "Identify the SPDX

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import NamedTuple, cast
 
 from licenseid.console import end_line, status, warn
+from licenseid.dbcache import TableCache, cast_license_details
 from licenseid.dbcheck import named_file, reject_foreign_database
 from licenseid.dbconnection import Connections
 from licenseid.errors import LicenseIdError
@@ -95,8 +96,7 @@ class LicenseDatabase:
             self._keep_alive = self._connections.connect()
 
         self._init_db()
-        self._deprecated_mappings_cache: dict[str, str] | None = None
-        self._names_and_ids_cache: list[LicenseNameId] | None = None
+        self._tables = TableCache(self._connections)
         self._norm_cols_backfilled = False
         self._check_normalization_version()
 
@@ -124,7 +124,7 @@ class LicenseDatabase:
         return self._connections.connection()
 
     def reading(self) -> contextlib.AbstractContextManager[None]:
-        """Share one connection among the queries of a block (one match)."""
+        """One connection and one rebuild check for a block's queries (one match)."""
         return self._connections.reading()
 
     def _init_db(self) -> None:
@@ -527,6 +527,8 @@ class LicenseDatabase:
             except Exception:
                 conn.execute("ROLLBACK")
                 raise
+            finally:
+                self._tables.clear()
 
     def _prepare_license_record(
         self,
@@ -720,17 +722,16 @@ class LicenseDatabase:
                 return []
 
     def get_license_details(self, license_id: str) -> LicenseDetails | None:
-        """Get full metadata for a license (case-insensitive lookup)."""
-        clean_id = license_id.strip()
+        """Get full metadata for a license (ASCII case-insensitive lookup)."""
+        found = self._tables.license_id(license_id.strip())
+        if found is None:
+            return None
         with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
-                "SELECT * FROM licenses WHERE license_id = ? COLLATE NOCASE",
-                (clean_id,),
+                "SELECT * FROM licenses WHERE license_id = ?", (found,)
             ).fetchone()
-            if not row:
-                return None
-            return self._cast_license_details(row)
+            return cast_license_details(row) if row else None
 
     def get_license_by_name(self, name: str) -> LicenseDetails | None:
         """Get full metadata for a license by its full name (case-insensitive)."""
@@ -745,7 +746,7 @@ class LicenseDatabase:
             ).fetchone()
             if not row:
                 return None
-            return self._cast_license_details(row)
+            return cast_license_details(row)
 
     def get_exception_details(self, exception_id: str) -> ExceptionDetails | None:
         """Get full metadata for an exception (case-insensitive lookup)."""
@@ -788,23 +789,8 @@ class LicenseDatabase:
         # Accept only when the shortest match is unambiguous: either there is
         # exactly one row, or the shortest ID is strictly shorter than the next.
         if len(rows) == 1 or len(rows[0]["license_id"]) < len(rows[1]["license_id"]):
-            return self._cast_license_details(rows[0])
+            return cast_license_details(rows[0])
         return None
-
-    def _cast_license_details(self, row: sqlite3.Row) -> LicenseDetails:
-        """Helper to cast sqlite Row to LicenseDetails with proper boolean types."""
-        d = dict(row)
-        bool_keys = [
-            "is_spdx",
-            "is_osi_approved",
-            "is_fsf_libre",
-            "is_high_usage",
-            "is_deprecated",
-        ]
-        for key in bool_keys:
-            if key in d:
-                d[key] = bool(d[key])
-        return cast(LicenseDetails, d)
 
     def _cast_exception_details(self, row: sqlite3.Row) -> ExceptionDetails:
         """Helper to cast sqlite Row to ExceptionDetails with proper boolean types."""
@@ -815,10 +801,15 @@ class LicenseDatabase:
 
     def get_search_text(self, license_id: str) -> str:
         """Return the normalized search text for a license from the FTS index."""
+        rowid = self._tables.index_row(license_id)
+        if rowid is None:
+            return ""
         with self._connection() as conn:
+            # The ID too: a rebuild during this match may move the rows.
             row = conn.execute(
-                "SELECT search_text FROM license_index WHERE license_id = ?",
-                (license_id,),
+                "SELECT search_text FROM license_index"
+                " WHERE rowid = ? AND license_id = ?",
+                (rowid, license_id),
             ).fetchone()
             return row[0] if row else ""
 
@@ -856,55 +847,15 @@ class LicenseDatabase:
     def get_all_names_and_ids(self) -> list[LicenseNameId]:
         """Retrieve all license IDs and names for short-text matching.
 
-        Cached per instance: the license table is static for the lifetime
-        of a LicenseDatabase (updates happen out-of-process via `licenseid
-        update`), and this is queried on every Tier-0 short-text match, so
-        re-fetching all ~700 rows every call is pure waste.  Same pattern
-        as get_deprecated_mappings() below.
+        Read once per instance (see dbcache.TableCache): this is queried on
+        every Tier-0 short-text match.
         """
-        if self._names_and_ids_cache is not None:
-            return self._names_and_ids_cache
         self._ensure_norm_columns()
-        with self._connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.execute(
-                "SELECT license_id, name, is_deprecated, norm_license_id,"
-                " norm_name, is_spdx, is_osi_approved, is_fsf_libre FROM licenses"
-            )
-            # The same columns as LicenseNameId, with its flags made bool.
-            result = [
-                cast(LicenseNameId, self._cast_license_details(row))
-                for row in cursor.fetchall()
-            ]
-        self._names_and_ids_cache = result
-        return result
+        return self._tables.names_and_ids()
 
     def get_deprecated_mappings(self) -> dict[str, str]:
         """Get a mapping of all deprecated IDs to their successors."""
-        if self._deprecated_mappings_cache is not None:
-            return self._deprecated_mappings_cache
-
-        mappings: dict[str, str] = {}
-        with self._connection() as conn:
-            conn.row_factory = sqlite3.Row
-            # Licenses
-            cursor = conn.execute(
-                "SELECT license_id, superseded_by FROM licenses "
-                "WHERE is_deprecated = 1 AND superseded_by IS NOT NULL"
-            )
-            for row in cursor:
-                mappings[row["license_id"]] = row["superseded_by"]
-
-            # Exceptions
-            cursor = conn.execute(
-                "SELECT exception_id, superseded_by FROM exceptions "
-                "WHERE is_deprecated = 1 AND superseded_by IS NOT NULL"
-            )
-            for row in cursor:
-                mappings[row["exception_id"]] = row["superseded_by"]
-
-        self._deprecated_mappings_cache = mappings
-        return mappings
+        return self._tables.deprecated()
 
     def get_metadata(self) -> DatabaseMetadata:
         """Get database metadata."""
