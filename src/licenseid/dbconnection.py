@@ -11,6 +11,15 @@ import threading
 from collections.abc import Iterator
 
 
+class _ThreadState(threading.local):
+    """One thread's share: sqlite3 refuses a connection made in another
+    thread, and two threads may match on one matcher at once."""
+
+    blocks = 0  # reading() blocks open
+    queries = 0  # connection() blocks open on the shared connection
+    conn: sqlite3.Connection | None = None
+
+
 class Connections:
     """Open SQLite connections to one database.
 
@@ -23,9 +32,7 @@ class Connections:
     def __init__(self, path: str, use_uri: bool) -> None:
         self.path = path
         self.use_uri = use_uri
-        # Per thread: sqlite3 refuses a connection made in another thread,
-        # and two threads may match on one matcher at once.
-        self._local = threading.local()
+        self._state = _ThreadState()
 
     def connect(self) -> sqlite3.Connection:
         """Open a new connection."""
@@ -38,18 +45,31 @@ class Connections:
         """Commit or roll back, and close unless a ``reading()`` block shares
         the connection -- ``Connection.__exit__`` alone only handles the
         transaction, not closing."""
-        if getattr(self._local, "depth", 0):
-            if getattr(self._local, "conn", None) is None:
-                self._local.conn = self.connect()
-            with self._local.conn:
-                yield self._local.conn
+        state = self._state
+        if not state.blocks:
+            conn = self.connect()
+            try:
+                with conn:
+                    yield conn
+            finally:
+                conn.close()
             return
-        conn = self.connect()
+        if state.conn is None:
+            state.conn = self.connect()
+        conn = state.conn
+        # Each query starts as on a new connection. A query nested in
+        # another joins its transaction: committing there would commit the
+        # outer one's writes before it knows whether they stand. There is no
+        # savepoint, so a nested write whose error the outer query catches
+        # still commits with it; nothing nests a write today.
+        conn.row_factory = None
+        transaction = contextlib.nullcontext() if state.queries else conn
+        state.queries += 1
         try:
-            with conn:
+            with transaction:
                 yield conn
         finally:
-            conn.close()
+            state.queries -= 1
 
     @contextlib.contextmanager
     def reading(self) -> Iterator[None]:
@@ -59,12 +79,12 @@ class Connections:
         and it closes when the outermost block ends, so a file deleted
         between two blocks is not read through a stale connection.
         """
-        self._local.depth = getattr(self._local, "depth", 0) + 1
+        state = self._state
+        state.blocks += 1
         try:
             yield
         finally:
-            self._local.depth -= 1
-            conn = getattr(self._local, "conn", None)
-            if not self._local.depth and conn is not None:
-                self._local.conn = None
+            state.blocks -= 1
+            if not state.blocks and state.conn is not None:
+                conn, state.conn = state.conn, None
                 conn.close()

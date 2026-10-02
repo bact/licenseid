@@ -150,7 +150,7 @@ ruff format
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
-  lines=915) — see
+  lines=913) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't
@@ -328,9 +328,13 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - A `match()` call shares one SQLite connection among its lookups, through
   `LicenseDatabase.reading()` (per thread, opened at the first query,
   closed at the end): query through `_connection()`, never
-  `sqlite3.connect`, and wrap a new entry point that makes several lookups.
-  Tier 0's RapidFuzz scorers take `score_cutoff=threshold`, which changes
-  no result and stops early on a long word.
+  `sqlite3.connect`, and wrap a new entry point that makes several lookups
+  (`MarkerDetector` or `identifiers` called on their own still open one per
+  query). Only the outermost query in a block ends its transaction, and
+  each query starts with the default `row_factory`. Tests count connections
+  with the `opened` fixture in `conftest.py`. Tier 0's RapidFuzz scorers
+  take `score_cutoff=threshold`, which changes no result and stops early on
+  a long word.
 - Database tests must import the autouse `safe_home` fixture from
   `tests/db_asserts.py` (it patches `Path.home` as well as `HOME`) with
   `# noqa: F401  # pylint: disable=unused-import`.

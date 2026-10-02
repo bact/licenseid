@@ -92,7 +92,7 @@ class LicenseDatabase:
         if self.use_uri or db_path_str == ":memory:":
             # For in-memory databases, we must keep at least one connection
             # open to prevent the database from being deleted.
-            self._keep_alive = self._connect()
+            self._keep_alive = self._connections.connect()
 
         self._init_db()
         self._deprecated_mappings_cache: dict[str, str] | None = None
@@ -119,10 +119,8 @@ class LicenseDatabase:
                 "run 'licenseid update --force'"
             )
 
-    def _connect(self) -> sqlite3.Connection:
-        return self._connections.connect()
-
     def _connection(self) -> contextlib.AbstractContextManager[sqlite3.Connection]:
+        """A connection for one query (see dbconnection.Connections)."""
         return self._connections.connection()
 
     def reading(self) -> contextlib.AbstractContextManager[None]:

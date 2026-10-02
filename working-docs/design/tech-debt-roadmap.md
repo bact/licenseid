@@ -425,11 +425,12 @@ Each case is outside the message grammar or hides a failure:
   traceback and exit 120, instead of one `ERROR:` line. Under that limit
   SQLite cannot create the `-shm` file, so the readiness check refuses
   first (`database: unreadable: <path>: disk I/O error`, exit 2), unless
-  another process holds the database open and its `-shm` exists. In a
-  parallel matrix run that happens: since item 29 keeps a connection open
-  for a whole `match()`, cells `E4-025` to `E4-028` reach the unhandled
-  write again and are back in the baseline (2026-10-02); with `--jobs 1`
-  they refuse first, as on `main`.
+  another process holds the database open and its `-shm` exists. On the
+  matrix's shared copy that happened in a parallel run once item 29 kept a
+  connection open for a whole `match()`, so cells `E4-025` to `E4-028` now
+  use a copy of their own (2026-10-02). The failing write of standard
+  output is still unhandled; a cell that reaches it needs a database
+  another process holds open, so its `-shm` already exists.
 - **DB replaced during a run**: on the CLI a `sqlite3` failure after the
   readiness check now exits 2 with `database: unreadable`. The Python API
   still raises a raw `sqlite3.OperationalError` from a live matcher whose

@@ -29,13 +29,14 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
     refuses from a second thread and which would read a deleted file
     through a stale handle (the pin in `test_db_ready.py`). The shared
     connection is per thread (`threading.local`).
+
 - A few words of many characters cost seconds in Tier 0 (item 27,
   Priority 10; 2026-10-02): `match_short_text` scores a short input against
   every ID and name with RapidFuzz, at a cost in the input's characters. A
   200,000-character word took 2.7 s. Each scorer now gets
   `score_cutoff=threshold`, which lets RapidFuzz stop early: 0.3 s. A score
   under the threshold was dropped anyway, so no result changes
-  (`test_the_cutoff_changes_no_short_text_result`). The roadmap's 2.0 s
+  (`test_shorttext.py::test_the_cutoff_changes_no_result`). The roadmap's 2.0 s
   in SQLite was gone by then, and a 1,000,000-character tag already took
   0.23 s.
   - Rejected: skipping the scan for a word longer than any name, the

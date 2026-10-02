@@ -459,16 +459,13 @@ class AggregatedLicenseMatcher:
             if not details:
                 return "", ""
             ctx = self._build_match_context(text, None, cast(MatchRequest, {}))
-            norm_input = self._without_tags(ctx).norm_input
-            words = norm_input.split()
-            _, _, window = calculate_base_similarity(
-                norm_input,
-                len(words),
-                set(words),
-                self.detector.to_candidate(details, 0.0),
-                build_probe(words),
-            )
-            return norm_input, window
+            candidate = self.detector.to_candidate(details, 0.0)
+        norm_input = self._without_tags(ctx).norm_input
+        words = norm_input.split()
+        _, _, window = calculate_base_similarity(
+            norm_input, len(words), set(words), candidate, build_probe(words)
+        )
+        return norm_input, window
 
     def is_spdx(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is in the SPDX License List.
