@@ -16,7 +16,6 @@ from datetime import datetime, timezone
 
 import click
 import pytest
-from click.testing import CliRunner
 from conftest import MIT_SEARCH_TEXT, invoke_match, make_mit_db_path
 
 from licenseid import cli as cli_module
@@ -157,18 +156,6 @@ def test_match_diff_is_dropped_for_json_and_bold(mit_db: str, other: str) -> Non
     )
     assert "WORD DIFF" not in result.stdout
     assert "@@" not in result.stdout
-
-
-# --- no subcommand ---
-
-
-@pytest.mark.parametrize("args", [[], ["--db", "unused.db"]])
-def test_no_subcommand_shows_usage_and_exits_2(args: list[str]) -> None:
-    """README: a missing subcommand is a usage error (exit 2). Which stream
-    carries the usage text is not asserted."""
-    result = CliRunner().invoke(cli, args)
-    assert result.exit_code == 2
-    assert "[OPTIONS] [COMMAND] [ARGS]..." in result.stdout + result.stderr
 
 
 # --- stdin variants ---

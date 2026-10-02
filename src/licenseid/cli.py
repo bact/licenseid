@@ -7,7 +7,6 @@
 Command-line interface for the licenseid tool.
 """
 
-import io
 import os
 import re
 import sqlite3
@@ -43,6 +42,7 @@ from licenseid.textinput import (
     reject_binary,
 )
 from licenseid.types import LicenseDetails
+from licenseid.usage import UsageLineCommand, UsageLineError, UsageLineGroup
 
 
 def show_diff(norm_input: str, best_window: str) -> None:
@@ -114,7 +114,12 @@ def clear_local_cache(ctx: click.Context, db_path: str) -> None:
         exit_usage_error(ctx, str(delete_failed_error(str(failed), exc)))
 
 
-class DatabaseErrorGroup(EchoHelpCommand, click.Group):
+class LicenseIdCommand(UsageLineCommand, EchoHelpCommand):
+    """A command whose help and usage errors follow the stream and message
+    rules (``output.EchoHelpCommand``, ``usage.UsageLineCommand``)."""
+
+
+class DatabaseErrorGroup(UsageLineGroup, EchoHelpCommand):
     """A group that never lets a failure pass for an answer.
 
     ``match`` and the ``is-*`` commands answer "no" with exit 1, so an unready
@@ -131,7 +136,7 @@ class DatabaseErrorGroup(EchoHelpCommand, click.Group):
     that cannot be written exits 2 with an ``output`` error.
     """
 
-    command_class = EchoHelpCommand
+    command_class = LicenseIdCommand
 
     def invoke(self, ctx: click.Context) -> Any:
         try:
@@ -170,7 +175,8 @@ def cli(ctx: click.Context, db: str | None, clear_cache: bool) -> None:
         ctx.exit()
 
     if ctx.invoked_subcommand is None:
-        echo(ctx.get_help())
+        # A usage error, not a result: the help goes to standard error.
+        write(ctx.get_help() + "\n")
         ctx.exit(2)
 
 
@@ -569,18 +575,17 @@ def main() -> None:
     """Main entry point for the CLI.
 
     Click's own handling (standalone mode) would exit 1 on Ctrl-C, the code
-    for "no", and print usage errors with no regard for a failing standard
-    error, which then turned the exit status into 120 at the flush on exit.
+    for "no", and print a ClickException with no regard for a failing
+    standard error, which then turned the exit status into 120 at the flush
+    on exit.
     """
     try:
         status = cli.main(standalone_mode=False)
     except click.exceptions.Abort:  # Ctrl-C before a command runs
         end_line()
         status = 130
-    except click.ClickException as exc:  # a usage error: click's own wording
-        buffer = io.StringIO()
-        exc.show(file=buffer)
-        write(buffer.getvalue())
+    except click.ClickException as exc:  # a usage error, through the console
+        UsageLineError(exc).show()
         status = exc.exit_code
     except OutputError as exc:  # `licenseid --help`, before any command runs
         status = output_failed(exc)

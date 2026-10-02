@@ -112,17 +112,17 @@ Decide:
 
 ## 6. Exit codes and error taxonomy
 
-Items 10, 12, 35.
+Items 10, 35.
 
-Exit 1 means both "no" and "failed": Ctrl-C and a closed standard output
-exit 1, so `is-osi` reads an interrupted run as "not OSI".
+Decided on 2026-10-02:
+
+- Ctrl-C exits 130 and a closed pipe 141, both quietly; any other failed
+  write to standard output exits 2 (PR #70);
+- click's usage errors are worded in the grammar, and the help for a
+  missing subcommand goes to standard error (item 12, PR #73).
 
 Decide:
 
-- Ctrl-C exit code: 130 or 2;
-- a failed write to standard output: exit 2;
-- whether click's usage errors are reworded to
-  `LEVEL: SUBJECT: CONDITION`;
 - whether the API wraps `sqlite3` errors and `FileNotFoundError` in
   `LicenseIdError`, and in which layer.
 

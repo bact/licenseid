@@ -28,8 +28,8 @@ after it, and item 37 from the work on item 29.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
-in the order chosen on 2026-10-01, are done, and so are items 27, 29,
-36 and 37 (2026-10-02). Item 32 (Priority 24) is the
+in the order chosen on 2026-10-01, are done, and so are items 12, 27,
+29, 36 and 37 (2026-10-02). Item 32 (Priority 24) is the
 highest open priority but lies outside item 31; it has not been scheduled.
 Item 2 waits on an upstream release. The open items that need a rule or a
 decision before a fix are grouped in
@@ -451,18 +451,6 @@ value does name three licenses a reader could resolve.
   `is_simple_expression` then needs the end offset of what was read, not a
   string comparison, to tell a whole value from a cut one.
 - Impact 2, Risk 2, Effort 3.
-
-## 12. Usage and click errors skip the stream and message rules — Priority 8
-
-Running with no subcommand prints the help text to standard output (exit 2),
-and click's own usage errors (`No such option`, missing argument) go to
-standard error in click's format, not `LEVEL: SUBJECT: CONDITION`.
-`tests/test_cli_output.py` asserts the exit code and that the usage text
-appears, not which stream carries it.
-
-- **Fix**: send the no-subcommand usage to standard error; decide whether
-  click errors should be re-worded through `console.error()`.
-- Impact 1, Risk 1, Effort 2.
 
 ## 13. Apache-2.0 vs Pixar near-duplicate confusion — Priority 6
 

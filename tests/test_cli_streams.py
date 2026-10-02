@@ -133,9 +133,12 @@ def _environ(tmp_path: Path) -> dict[str, str]:
         # turned every status into 120
         ("$L match --text 'zz qq' 2</dev/null", 1, ""),
         ("$L match --text MIT 1</dev/null 2</dev/null", 2, ""),
-        # click's usage error, outside the console, kept its status too
+        # a usage error kept its status too; it once went round the console
         ("$L match --bogus 2</dev/null", 2, ""),
         ("$L match --bogus 2>&-", 2, ""),  # and stays off standard output
+        # through cli.main(), the real entry point: one line in the grammar
+        ("$L match --bogus", 2, "ERROR: option: not found: --bogus; did you mean"),
+        ("$L", 2, "Usage: "),  # no subcommand: the help, on standard error
         ("$L match --bold MIT", 0, ""),
     ],
     ids=[
@@ -148,6 +151,8 @@ def _environ(tmp_path: Path) -> dict[str, str]:
         "both-read-only",
         "usage-stderr-read-only",
         "usage-stderr-closed",
+        "usage-error",
+        "no-subcommand",
         "control",
     ],
 )

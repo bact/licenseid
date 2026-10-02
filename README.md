@@ -286,7 +286,7 @@ making it suitable for use in scripts and CI/CD pipelines.
 | :--- | :--- | :--- |
 | **0** | Success | Confident match found; predicate is TRUE; database updated or already up-to-date. |
 | **1** | Logic Failure | No matching license found; predicate is FALSE; network error. |
-| **2** | Usage or Setup Error | Missing subcommand; missing input text/file; invalid parameters; database not ready; output that cannot be written. |
+| **2** | Usage or Setup Error | Missing subcommand (help on standard error); missing input text/file; invalid parameters; database not ready; output that cannot be written. |
 | **130** | Interrupted | Ctrl-C (SIGINT); no message once started. |
 | **141** | Reader gone | The reader closed the pipe (`head -1`); no message. |
 
@@ -304,6 +304,7 @@ For example:
 
 ```text
 ERROR: database: not found: /tmp/x.db; run 'licenseid update'
+ERROR: option: not found: --jsn; did you mean --json
 WARNING: popularity.csv: download failed: timed out; using stale cache
 ```
 

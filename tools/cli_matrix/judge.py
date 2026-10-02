@@ -25,9 +25,8 @@ from tools.cli_matrix.model import Cell
 #: LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION] -- the diagnostic grammar.
 GRAMMAR = re.compile(r"(ERROR|WARNING): [a-z][a-z0-9._-]*: [a-z0-9].*")
 
-#: What click itself is allowed to print. The empty alternative at the end
-#: lets blank lines through.
-CLICK = re.compile(r"(Usage: .*|Try '.*' for help\.|Error: .*|Aborted!|)")
+#: The help printed for a missing subcommand: stderr, exit 2, not a result.
+HELP = re.compile(r"Usage: .*\n(.*\n)*Commands:\n")
 
 #: The default one-line result of ``match``.
 #: An expression's operators are its only spaces; a score is 0-1, and
@@ -120,13 +119,18 @@ def _stream_flags(cell: Cell, result: Result) -> list[str]:
     flags: list[str] = []
     if re.search(r"(?m)^(ERROR|WARNING):", result["out"]):
         flags.append("diagnostic on stdout")
+    if result["rc"] == 2 and not result["out"] and HELP.match(result["err"]):
+        return flags  # the help for a missing subcommand
     for line in result["err"].splitlines():
         if cell.progress:
             # Free-text progress is allowed, but a diagnostic is not exempt.
             if re.match(r"(ERROR|WARNING):", line) and not GRAMMAR.fullmatch(line):
                 flags.append(f"bad grammar: {line[:70]}")
             continue
-        if GRAMMAR.fullmatch(line) or CLICK.fullmatch(line):
+        # click's own usage error (``Usage:``, ``Try '…'``, ``Error:``) and
+        # ``Aborted!`` are no longer allowed: licenseid words them in the
+        # grammar (roadmap item 12) and exits 130 quietly on Ctrl-C.
+        if GRAMMAR.fullmatch(line) or not line:
             continue
         # The shell's own messages, and the markers cells print themselves.
         if _SHELL_MESSAGE.match(line) or line.startswith("["):
