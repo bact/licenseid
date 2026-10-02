@@ -13,6 +13,7 @@ this on the match path.
 
 import os
 import sys
+from typing import TextIO
 
 # Whether the last status() call left a partial line open (end="", e.g. a
 # row of progress dots). error() and warn() close it first, so every
@@ -29,7 +30,9 @@ def _write(text: str, end: str = "\n") -> None:
     try:
         print(text, end=end, file=sys.stderr, flush=True)
     except OSError:
-        pass
+        # The text stays buffered, and the flush at exit would fail again
+        # and turn every exit status into 120.
+        _discard(sys.stderr)
 
 
 def _diagnostic(level: str, message: str) -> None:
@@ -44,6 +47,12 @@ def error(message: str) -> None:
     _diagnostic("ERROR", message)
 
 
+def write(text: str) -> None:
+    """Write *text* to standard error as it is, such as click's usage
+    errors, which have a grammar of their own."""
+    _write(text, end="")
+
+
 def warn(message: str) -> None:
     """Print *message* to standard error, prefixed ``WARNING:``."""
     _diagnostic("WARNING", message)
@@ -52,8 +61,6 @@ def warn(message: str) -> None:
 def status(message: str, *, end: str = "\n") -> None:
     """Print progress *message* to standard error, flushed at once so partial
     lines (``end=""``) show live."""
-    if sys.stderr is None:
-        return
     _write(message, end)
     if message + end:
         _state["line_open"] = not (message + end).endswith("\n")
@@ -72,9 +79,15 @@ def discard_stdout() -> None:
     """Point standard output at the null device after a write to it failed,
     so the flush at exit does not fail a second time (the Python manual's
     advice for SIGPIPE)."""
+    _discard(sys.stdout)
+
+
+def _discard(stream: TextIO | None) -> None:
+    if stream is None:
+        return
     try:
         devnull = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(devnull, sys.stdout.fileno())
+        os.dup2(devnull, stream.fileno())
         os.close(devnull)
-    except (AttributeError, OSError, ValueError):  # closed or not a real file
+    except (OSError, ValueError):  # not a real file
         pass

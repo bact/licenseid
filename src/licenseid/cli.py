@@ -7,7 +7,7 @@
 Command-line interface for the licenseid tool.
 """
 
-import errno
+import io
 import os
 import re
 import sqlite3
@@ -18,7 +18,7 @@ from typing import Any, NoReturn
 
 import click
 
-from licenseid.console import discard_stdout, end_line, error, warn
+from licenseid.console import end_line, error, warn, write
 from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.dbcheck import (
     check_database_ready,
@@ -34,6 +34,7 @@ from licenseid.errors import (
 )
 from licenseid.identifiers import is_simple_expression
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.output import EchoHelpCommand, OutputError, echo, output_failed
 from licenseid.result import json_line, text_line
 from licenseid.textinput import (
     decode_input,
@@ -42,29 +43,6 @@ from licenseid.textinput import (
     reject_binary,
 )
 from licenseid.types import LicenseDetails
-
-
-class OutputError(Exception):
-    """Standard output could not take a result line."""
-
-    def __init__(self, cause: OSError | None) -> None:
-        super().__init__(cause.strerror or str(cause) if cause else "closed")
-        self.broken_pipe = cause is not None and cause.errno == errno.EPIPE
-
-
-def echo(message: str = "") -> None:
-    """Write *message* and a newline to standard output.
-
-    Raises OutputError when it cannot be written: click.echo drops output
-    silently when standard output is closed (``>&-``), and raises a bare
-    OSError for a full disk, a size limit or a closed pipe.
-    """
-    if sys.stdout is None:
-        raise OutputError(None)
-    try:
-        click.echo(message)
-    except OSError as exc:
-        raise OutputError(exc) from exc
 
 
 def show_diff(norm_input: str, best_window: str) -> None:
@@ -136,7 +114,7 @@ def clear_local_cache(ctx: click.Context, db_path: str) -> None:
         exit_usage_error(ctx, str(delete_failed_error(str(failed), exc)))
 
 
-class DatabaseErrorGroup(click.Group):
+class DatabaseErrorGroup(EchoHelpCommand, click.Group):
     """A group that never lets a failure pass for an answer.
 
     ``match`` and the ``is-*`` commands answer "no" with exit 1, so an unready
@@ -153,6 +131,8 @@ class DatabaseErrorGroup(click.Group):
     that cannot be written exits 2 with an ``output`` error.
     """
 
+    command_class = EchoHelpCommand
+
     def invoke(self, ctx: click.Context) -> Any:
         try:
             return super().invoke(ctx)
@@ -160,10 +140,7 @@ class DatabaseErrorGroup(click.Group):
             end_line()
             raise click.exceptions.Exit(130) from exc
         except OutputError as exc:
-            discard_stdout()
-            if exc.broken_pipe:
-                raise click.exceptions.Exit(141) from exc
-            exit_usage_error(ctx, f"output: write failed: {exc}")
+            raise click.exceptions.Exit(output_failed(exc)) from exc
         except DatabaseNotReadyError as exc:
             exit_usage_error(ctx, str(exc))
         except sqlite3.Error as exc:
@@ -589,8 +566,25 @@ def is_spdx_cmd(
 
 
 def main() -> None:
-    """Main entry point for the CLI."""
-    cli()  # pylint: disable=no-value-for-parameter
+    """Main entry point for the CLI.
+
+    Click's own handling (standalone mode) would exit 1 on Ctrl-C, the code
+    for "no", and print usage errors with no regard for a failing standard
+    error, which then turned the exit status into 120 at the flush on exit.
+    """
+    try:
+        status = cli.main(standalone_mode=False)
+    except click.exceptions.Abort:  # Ctrl-C before a command runs
+        end_line()
+        status = 130
+    except click.ClickException as exc:  # a usage error: click's own wording
+        buffer = io.StringIO()
+        exc.show(file=buffer)
+        write(buffer.getvalue())
+        status = exc.exit_code
+    except OutputError as exc:  # `licenseid --help`, before any command runs
+        status = output_failed(exc)
+    sys.exit(status if isinstance(status, int) else 0)
 
 
 if __name__ == "__main__":

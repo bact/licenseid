@@ -8,12 +8,14 @@ answer. Click exits 1, the code for "no", on a closed pipe and on Ctrl-C."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
 import errno
+import io
 import os
+import shlex
 import signal
 import subprocess
 import sys
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from pathlib import Path
 from unittest import mock
 
@@ -26,6 +28,7 @@ from db_variants import make_ready_file_db
 
 from licenseid import console
 from licenseid.cli import cli
+from licenseid.cli import main as cli_main
 from licenseid.database import LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
 
@@ -102,10 +105,11 @@ def test_an_interrupt_ends_an_open_progress_line(db: str) -> None:
 
 @pytest.mark.parametrize("function", [console.error, console.warn])
 def test_a_failing_stderr_does_not_crash(
-    monkeypatch: pytest.MonkeyPatch, function: mock.Mock
+    monkeypatch: pytest.MonkeyPatch, function: Callable[[str], None]
 ) -> None:
     broken = mock.Mock(spec=sys.stderr)
     broken.write.side_effect = OSError(errno.EFBIG, "File too large")
+    broken.fileno.side_effect = io.UnsupportedOperation  # no descriptor to discard
     monkeypatch.setattr(sys, "stderr", broken)
     function("database: not found")  # nowhere to report it; no exception
 
@@ -123,15 +127,38 @@ def _environ(tmp_path: Path) -> dict[str, str]:
         ("$L match <&-", 2, "ERROR: input: missing; pass a file, an ID,"),
         ("$L match --bold MIT >&-", 2, "ERROR: output: write failed: closed"),
         ("$L is-osi MIT >&-", 2, "ERROR: output: write failed: closed"),
+        # click writes help itself, before any command runs
+        ("$L --help >&-", 2, "ERROR: output: write failed: closed"),
+        ("$L match --help 1</dev/null", 2, "ERROR: output: write failed: Bad file"),
+        # stderr read-only: its text cannot be flushed at exit either, which
+        # turned every status into 120
+        ("$L match --text 'zz qq' 2</dev/null", 1, ""),
+        ("$L match --text MIT 1</dev/null 2</dev/null", 2, ""),
+        # click's usage error, outside the console, kept its status too
+        ("$L match --bogus 2</dev/null", 2, ""),
+        ("$L match --bogus 2>&-", 2, ""),  # and stays off standard output
         ("$L match --bold MIT", 0, ""),
     ],
-    ids=["stdin-closed", "stdout-closed", "is-osi-stdout-closed", "control"],
+    ids=[
+        "stdin-closed",
+        "stdout-closed",
+        "is-osi-stdout-closed",
+        "help-stdout-closed",
+        "help-stdout-read-only",
+        "stderr-read-only-no-match",
+        "both-read-only",
+        "usage-stderr-read-only",
+        "usage-stderr-closed",
+        "control",
+    ],
 )
-def test_a_closed_stream(
+def test_a_broken_stream(
     tmp_path: Path, script: str, exit_code: int, stderr: str
 ) -> None:
     db_path = make_ready_file_db(tmp_path / "licenses.db")
-    licenseid = f'"{sys.executable}" -m licenseid.cli --db "{db_path}"'
+    licenseid = shlex.join(
+        [sys.executable, "-m", "licenseid.cli", "--db", str(db_path)]
+    )
     result = subprocess.run(
         ["/bin/sh", "-c", script.replace("$L", licenseid)],
         capture_output=True,
@@ -141,12 +168,18 @@ def test_a_closed_stream(
     )
     assert result.returncode == exit_code
     assert result.stderr.startswith(stderr) and "Traceback" not in result.stderr
+    assert "Usage" not in result.stdout
 
 
-def test_a_reader_that_leaves_ends_the_run_quietly(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "args", [["is-osi", "MIT"], ["--help"]], ids=["is-osi", "help"]
+)
+def test_a_reader_that_leaves_ends_the_run_quietly(
+    tmp_path: Path, args: list[str]
+) -> None:
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     with subprocess.Popen(
-        [sys.executable, "-m", "licenseid.cli", "--db", str(db_path), "is-osi", "MIT"],
+        [sys.executable, "-m", "licenseid.cli", "--db", str(db_path), *args],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=_environ(tmp_path),
@@ -156,17 +189,38 @@ def test_a_reader_that_leaves_ends_the_run_quietly(tmp_path: Path) -> None:
         assert (proc.wait(timeout=30), proc.stderr.read()) == (141, b"")
 
 
+# The child says when its imports are done: a SIGINT before then is Python's
+# own (a traceback), not licenseid's. It then waits on standard input.
+_READY = (
+    "import sys; import licenseid.cli as c; sys.stderr.write('ready\\n');"
+    " sys.stderr.flush(); sys.argv[1:] = ['--db', sys.argv[1], 'match']; c.main()"
+)
+
+
 def test_ctrl_c_exits_130(tmp_path: Path) -> None:
-    """The run waits on standard input, which is never closed."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     with subprocess.Popen(
-        [sys.executable, "-m", "licenseid.cli", "--db", str(db_path), "match"],
+        [sys.executable, "-c", _READY, str(db_path)],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=_environ(tmp_path),
     ) as proc:
-        time.sleep(3)  # past the imports, into the read
+        assert proc.stderr is not None
+        assert proc.stderr.readline() == b"ready\n"
+        time.sleep(0.3)  # from main() into the read of standard input
         proc.send_signal(signal.SIGINT)
         out, err = proc.communicate(timeout=30)
     assert (proc.returncode, out, err) == (130, b"", b"")
+
+
+def test_ctrl_c_before_a_command_exits_130() -> None:
+    """Click turns it into Abort while it parses the options."""
+    with (
+        mock.patch.object(
+            cli, "main", autospec=True, side_effect=click.exceptions.Abort
+        ),
+        pytest.raises(SystemExit) as exit_info,
+    ):
+        cli_main()
+    assert exit_info.value.code == 130

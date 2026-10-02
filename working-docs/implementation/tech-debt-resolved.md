@@ -20,7 +20,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   `is-osi` could read an interrupt as "not OSI" and a closed standard
   output as success. Standard input closed with `<&-` crashed with
   `AttributeError`, and a full disk or `ulimit -f` gave a traceback and
-  exit 120. Now every result line goes through `cli.echo`, and
+  exit 120. Now every result line goes through `output.echo`, and
   `DatabaseErrorGroup` maps the failures:
   - an output write failure exits 2 with `output: write failed: <reason>`
     (a new subject and condition in the grammar), and standard output is
@@ -31,7 +31,17 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
     line; an `update` interrupted mid-download still leaves an empty
     `licenses.db`, which the readiness check reports;
   - a closed standard input is no input (`input: missing`), and a failing
-    standard error is skipped (`console._write`), having nowhere to report.
+    standard error is skipped (`console._write`), having nowhere to report,
+    and pointed at the null device: its text stays buffered, and the flush
+    at exit failed again and turned every status into 120 (`main` too);
+  - `--help` goes through `echo` (`EchoHelpCommand`, whose help option
+    callback is replaced). It gave a traceback and 120, or exit 0 with
+    nothing written;
+  - `cli.main()` runs click outside its standalone mode: an `Abort` (Ctrl-C
+    while click parses the options) exits 130, a usage error is written
+    through `console.write`, so a failing standard error cannot turn it into
+    120, and the group's own `--help`, printed before any command runs, is
+    caught there.
   `update` prints its result after its catch-all `except`, so an output
   failure is not reported as a failed update. Cells `E3-023` to `E3-025`,
   `E4-005` to `E4-008`, `E5-021`, `E5-022` and `E5-024` left the matrix

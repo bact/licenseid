@@ -421,6 +421,9 @@ Ctrl-C) were fixed on 2026-10-02; see `tech-debt-resolved.md`.
   still raises a raw `sqlite3.OperationalError` from a live matcher whose
   file was deleted (pinned in `tests/test_db_ready.py`); wrapping it in
   `LicenseIdError` needs a decision on where (matcher, `LicenseDatabase`).
+- **Ctrl-C during imports** (the first ~30 ms, before click runs): Python
+  prints a `KeyboardInterrupt` traceback and dies by SIGINT, which the shell
+  reports as 130. Found in review of PR #70; `main` is the same.
 - **Fix**: word `update`'s directory failure with its own subject; open a
   read-only database with `immutable=1`; keep a `file:` URI a URI; decide
   where the Python API wraps `sqlite3` errors in `LicenseIdError`
