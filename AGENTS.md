@@ -10,7 +10,8 @@
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
   pyproject.toml, Cargo.toml, setup.cfg), `dbconnection.py` (SQLite
-  connections), `fingerprint.py`, `result.py`
+  connections), `fingerprint.py`, `output.py` (the CLI's standard
+  output and what a failed write means), `result.py`
   (the public result and its JSON and text lines), `types.py`. Keep `matcher.py` under the 800-line limit:
   put logic that needs no matcher state in one of the others.
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
@@ -45,8 +46,8 @@ Unix philosophy. Consistent, predictable, parseable.
   - `LEVEL`: `ERROR` (the command fails, non-zero exit) or `WARNING` (a
     fallback lets it continue).
   - `SUBJECT`: the thing affected, a lowercase word or cache file name:
-    `database`, `input`, `match`, `option`, `version`, `licenses.json`,
-    `popularity.csv`, `spdx-data-v<ver>.tar.gz`.
+    `database`, `input`, `match`, `option`, `output`, `version`,
+    `licenses.json`, `popularity.csv`, `spdx-data-v<ver>.tar.gz`.
   - `CONDITION`: short lowercase fragment, reused across subjects. The
     full current set (add new ones here): `not found`, `invalid`,
     `missing`, `empty`, `unreadable`, `binary file`,
@@ -55,7 +56,7 @@ Unix philosophy. Consistent, predictable, parseable.
     `cache write failed`, `cache unusable`, `download unusable`,
     `stale cache unusable`, `parse failed`,
     `N rows with missing or non-numeric num_pushers`, `update failed`,
-    `delete failed`.
+    `delete failed`, `write failed`.
   - `DETAIL`: the variable part (exception text, value, path).
   - `ACTION`: what happens next, after a semicolon: the fallback taken
     (`using stale cache`, `downloading`, `counted as 0`) or the command for
@@ -71,6 +72,17 @@ Unix philosophy. Consistent, predictable, parseable.
     exit 1 already means "no". `update` and `--clear-cache` write or delete,
     so they refuse only an `invalid` database — one licenseid did not build
     — and accept every other condition, which is what they exist to fix.
+  - Write a result line with `output.echo`, not `click.echo`: a result
+    that cannot be written (standard output closed, a full disk) exits 2
+    with `output: write failed: <reason>`, never 0 or 1. A reader that
+    closes the pipe (`| head -1`) ends the run quietly with 141, and Ctrl-C
+    with 130, both without a message (`DatabaseErrorGroup`). `--help` goes
+    through `echo` too (`output.EchoHelpCommand`). `cli.main()` runs click
+    outside its standalone mode, so Ctrl-C while options are parsed is 130
+    too, and click's usage errors go through `console.write`. A closed
+    standard input is no input; a failing standard error is skipped and
+    pointed at the null device, or the flush at exit would turn every exit
+    status into 120.
   - A step that prints partial progress (`status(..., end="")`) and can fail
     must call `console.end_line()` in a `finally`, so the caller's next
     stderr line starts at column 0.

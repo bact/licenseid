@@ -379,14 +379,13 @@ the 800-line hard limit. Pylint rates the two directories 9.48/10;
   `flake8` cannot until the judging code fits the complexity ceilings.
 - Impact 1, Risk 2, Effort 2.
 
-## 10. Environment failures end in a traceback or lost output — Priority 12
+## 10. Environment failures in the database and the API — Priority 12
 
 Found by running the CLI under odd environments (manual matrix, 2026-09-19).
-Each case is outside the message grammar or hides a failure:
+Each case is outside the message grammar or hides a failure. The stream
+and signal cases (closed streams, a closed pipe, an output write error,
+Ctrl-C) were fixed on 2026-10-02; see `tech-debt-resolved.md`.
 
-- **A closed standard output** (`licenseid match … | head -0`) exits 1,
-  the status of "no license found", so a script cannot tell them apart
-  (review of item 22, 2026-10-02).
 - **`update` when the default directory cannot be made** (unwritable
   `HOME`): the `mkdir` error is worded `database: update failed:
   PermissionError: ...`, with the wrong subject (the directory failed, not
@@ -417,36 +416,18 @@ Each case is outside the message grammar or hides a failure:
   may be anybody's and deleting one needs no lock at all. The probe waits
   `_BUSY_WAIT` (1 s), not SQLite's default 5 s, since the command that
   follows waits again.
-- **Closed standard input** (`<&-`): `AttributeError: 'NoneType' object has
-  no attribute 'isatty'` from `read_input`.
-- **Closed standard output** (`>&-`): exit 0 and the result is lost. A
-  script sees success with no data.
-- **Output error** (`ulimit -f 0` with output to a file): `OSError`
-  traceback and exit 120, instead of one `ERROR:` line. Under that limit
-  SQLite cannot create the `-shm` file, so the readiness check refuses
-  first (`database: unreadable: <path>: disk I/O error`, exit 2), unless
-  another process holds the database open and its `-shm` exists. On the
-  matrix's shared copy that happened in a parallel run once item 29 kept a
-  connection open for a whole `match()`, so cells `E4-025` to `E4-028` now
-  use a copy of their own (2026-10-02). The failing write of standard
-  output is still unhandled; a cell that reaches it needs a database
-  another process holds open, so its `-shm` already exists.
 - **DB replaced during a run**: on the CLI a `sqlite3` failure after the
   readiness check now exits 2 with `database: unreadable`. The Python API
   still raises a raw `sqlite3.OperationalError` from a live matcher whose
   file was deleted (pinned in `tests/test_db_ready.py`); wrapping it in
   `LicenseIdError` needs a decision on where (matcher, `LicenseDatabase`).
-- **Ctrl-C (SIGINT)**: prints `Aborted!` (click's own wording, outside the
-  message grammar) and exits **1**, the code for "no". A script that tests
-  `licenseid is-osi X` reads an interrupted run as "not OSI". Exit 130
-  (128 + 2, the shell convention) or 2 would be safe; `update` interrupted
-  during its first download also leaves an empty `licenses.db`
-  (the readiness check now reports that database).
-- **Fix**: handle `OSError` and `sqlite3.Error` once at the top of the CLI
-  and print `ERROR: <subject>: <condition>: <detail>`; treat a `None`
-  `sys.stdin` as no input; flush standard output at the end and exit 2 when
-  it fails. The `sqlite3.Error` part is done for the CLI in
-  `DatabaseErrorGroup`; the API is left.
+- **Ctrl-C during imports** (the first ~30 ms, before click runs): Python
+  prints a `KeyboardInterrupt` traceback and dies by SIGINT, which the shell
+  reports as 130. Found in review of PR #70; `main` is the same.
+- **Fix**: word `update`'s directory failure with its own subject; open a
+  read-only database with `immutable=1`; keep a `file:` URI a URI; decide
+  where the Python API wraps `sqlite3` errors in `LicenseIdError`
+  (matcher or `LicenseDatabase`).
 - Impact 2, Risk 2, Effort 3.
 
 ## 23. The loose `License:` field reader resolves every match — Priority 12

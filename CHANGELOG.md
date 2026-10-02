@@ -114,6 +114,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `LicenseRef-x+` is no expression; `--id LicenseRef-x+` exits 2 ([#67])
 - A file of thousands of distinct tags matches about 5× faster, and a short
   input of one very long word about 9× faster ([#69])
+- A failure no longer passes for an answer: Ctrl-C exits 130, not 1; a
+  closed pipe exits 141 quietly; output or help that cannot be written exits
+  2, not 0 or 120; a closed stdin is no input; a failing stderr no longer
+  turns the exit status into 120 ([#70])
 
 ### Security
 
@@ -140,6 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#67]: https://github.com/bact/licenseid/pull/67
 [#68]: https://github.com/bact/licenseid/pull/68
 [#69]: https://github.com/bact/licenseid/pull/69
+[#70]: https://github.com/bact/licenseid/pull/70
 
 ## [0.3.7] - 2026-08-20
 

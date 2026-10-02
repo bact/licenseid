@@ -7,6 +7,7 @@
 Command-line interface for the licenseid tool.
 """
 
+import io
 import os
 import re
 import sqlite3
@@ -17,7 +18,7 @@ from typing import Any, NoReturn
 
 import click
 
-from licenseid.console import error, warn
+from licenseid.console import end_line, error, warn, write
 from licenseid.database import LicenseDatabase, get_default_db_path
 from licenseid.dbcheck import (
     check_database_ready,
@@ -33,6 +34,7 @@ from licenseid.errors import (
 )
 from licenseid.identifiers import is_simple_expression
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.output import EchoHelpCommand, OutputError, echo, output_failed
 from licenseid.result import json_line, text_line
 from licenseid.textinput import (
     decode_input,
@@ -57,15 +59,15 @@ def show_diff(norm_input: str, best_window: str) -> None:
         )
     )
     if diff_lines:
-        click.echo("\nWORD DIFF:")
+        echo("\nWORD DIFF:")
         for line in diff_lines:
             if line.startswith("+"):
-                click.secho(line, fg="green")
+                echo(click.style(line, fg="green"))
             elif line.startswith("-"):
-                click.secho(line, fg="red")
+                echo(click.style(line, fg="red"))
             else:
-                click.echo(line)
-        click.echo("")
+                echo(line)
+        echo("")
 
 
 def check_db_staleness(database: LicenseDatabase) -> None:
@@ -112,8 +114,8 @@ def clear_local_cache(ctx: click.Context, db_path: str) -> None:
         exit_usage_error(ctx, str(delete_failed_error(str(failed), exc)))
 
 
-class DatabaseErrorGroup(click.Group):
-    """A group that exits 2 when the database cannot answer.
+class DatabaseErrorGroup(EchoHelpCommand, click.Group):
+    """A group that never lets a failure pass for an answer.
 
     ``match`` and the ``is-*`` commands answer "no" with exit 1, so an unready
     database (``DatabaseNotReadyError``) must not share it. A file can also go
@@ -121,11 +123,24 @@ class DatabaseErrorGroup(click.Group):
     failure is then worded as an ``unreadable`` database, not a traceback. A
     ProgrammingError or InterfaceError is a bug in a query, not a fault in the
     file, so it still shows its traceback.
+
+    Click itself would exit 1 for both an interrupt (Ctrl-C) and a closed
+    pipe. An interrupt exits 130 (128 + SIGINT), as the shell reports a
+    killed command; a pipe whose reader has gone (``| head -1``) exits 141
+    (128 + SIGPIPE) quietly, as ``cat`` and ``grep`` do; any other output
+    that cannot be written exits 2 with an ``output`` error.
     """
+
+    command_class = EchoHelpCommand
 
     def invoke(self, ctx: click.Context) -> Any:
         try:
             return super().invoke(ctx)
+        except KeyboardInterrupt as exc:
+            end_line()
+            raise click.exceptions.Exit(130) from exc
+        except OutputError as exc:
+            raise click.exceptions.Exit(output_failed(exc)) from exc
         except DatabaseNotReadyError as exc:
             exit_usage_error(ctx, str(exc))
         except sqlite3.Error as exc:
@@ -155,7 +170,7 @@ def cli(ctx: click.Context, db: str | None, clear_cache: bool) -> None:
         ctx.exit()
 
     if ctx.invoked_subcommand is None:
-        click.echo(ctx.get_help())
+        echo(ctx.get_help())
         ctx.exit(2)
 
 
@@ -188,11 +203,11 @@ def update(
             version=version, force=force, use_cache=use_cache
         )
         if updated:
-            click.echo(f"Database updated at {db_path}")
+            outcome = f"Database updated at {db_path}"
         else:
             metadata = database.get_metadata()
             current_version = metadata.get("license_list_version", "unknown")
-            click.echo(f"Database remains at version {current_version} at {db_path}")
+            outcome = f"Database remains at version {current_version} at {db_path}"
     except InvalidInputError as e:
         exit_usage_error(ctx, str(e))
     except LicenseIdError as e:
@@ -205,6 +220,8 @@ def update(
         detail = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
         error(f"database: update failed: {detail}")
         ctx.exit(1)
+    # Outside the try: an output failure is not a failed update.
+    echo(outcome)
 
 
 # Python's string escapes. Octal stops at \377: \400-\777 give a
@@ -317,7 +334,8 @@ def get_input_content(
         if os.path.exists(input_val):
             return read_input(ctx, input_val)
         return input_val
-    if not sys.stdin.isatty():
+    # A closed standard input (`<&-`) is None: no input, not a crash.
+    if sys.stdin is not None and not sys.stdin.isatty():
         return read_input(ctx, None)
     return ""
 
@@ -434,17 +452,17 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         ctx.exit(1)
 
     if bold:
-        click.echo(results[0]["license_id"])
+        echo(results[0]["license_id"])
         ctx.exit(0)
 
     if json_output:
         # JSON Lines: one canonical (RFC 8785) object per result.
         for r in results:
-            click.echo(json_line(r))
+            echo(json_line(r))
     else:
         # Standard output: line-delimited, KEY=VALUE
         for i, r in enumerate(results):
-            click.echo(text_line(r))
+            echo(text_line(r))
             # A word diff for the top match, if it is a close text match.
             if diff and i == 0 and r["method"] == "text" and not r["exact"]:
                 show_diff(*matcher.diff_pair(license_text, r["license_id"]))
@@ -466,9 +484,9 @@ def is_osi(
     """True if the license is OSI-approved."""
     record = resolve_license_record(ctx, input_val, text, id_val)
     if record and record.get("is_osi_approved"):
-        click.echo("true")
+        echo("true")
         ctx.exit(0)
-    click.echo("false")
+    echo("false")
     ctx.exit(1)
 
 
@@ -486,9 +504,9 @@ def is_fsf(
     """True if the license is FSF-libre."""
     record = resolve_license_record(ctx, input_val, text, id_val)
     if record and record.get("is_fsf_libre"):
-        click.echo("true")
+        echo("true")
         ctx.exit(0)
-    click.echo("false")
+    echo("false")
     ctx.exit(1)
 
 
@@ -506,9 +524,9 @@ def is_open(
     """True if the license is OSI-approved OR FSF-libre."""
     record = resolve_license_record(ctx, input_val, text, id_val)
     if record and (record.get("is_osi_approved") or record.get("is_fsf_libre")):
-        click.echo("true")
+        echo("true")
         ctx.exit(0)
-    click.echo("false")
+    echo("false")
     ctx.exit(1)
 
 
@@ -541,15 +559,32 @@ def is_spdx_cmd(
     """True if the license is in the SPDX License List."""
     record = resolve_license_record(ctx, input_val, text, id_val)
     if record and record.get("is_spdx"):
-        click.echo("true")
+        echo("true")
         ctx.exit(0)
-    click.echo("false")
+    echo("false")
     ctx.exit(1)
 
 
 def main() -> None:
-    """Main entry point for the CLI."""
-    cli()  # pylint: disable=no-value-for-parameter
+    """Main entry point for the CLI.
+
+    Click's own handling (standalone mode) would exit 1 on Ctrl-C, the code
+    for "no", and print usage errors with no regard for a failing standard
+    error, which then turned the exit status into 120 at the flush on exit.
+    """
+    try:
+        status = cli.main(standalone_mode=False)
+    except click.exceptions.Abort:  # Ctrl-C before a command runs
+        end_line()
+        status = 130
+    except click.ClickException as exc:  # a usage error: click's own wording
+        buffer = io.StringIO()
+        exc.show(file=buffer)
+        write(buffer.getvalue())
+        status = exc.exit_code
+    except OutputError as exc:  # `licenseid --help`, before any command runs
+        status = output_failed(exc)
+    sys.exit(status if isinstance(status, int) else 0)
 
 
 if __name__ == "__main__":
