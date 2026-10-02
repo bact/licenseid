@@ -7,7 +7,6 @@
 Command-line interface for the licenseid tool.
 """
 
-import json
 import os
 import re
 import sqlite3
@@ -34,7 +33,7 @@ from licenseid.errors import (
 )
 from licenseid.identifiers import is_simple_expression
 from licenseid.matcher import AggregatedLicenseMatcher
-from licenseid.normalize import normalize_text
+from licenseid.result import json_line, text_line
 from licenseid.textinput import (
     decode_input,
     normalize_newlines,
@@ -44,11 +43,11 @@ from licenseid.textinput import (
 from licenseid.types import LicenseDetails
 
 
-def show_diff(text: str, best_window: str) -> None:
-    """Show word-by-word diff between input text and matched window."""
+def show_diff(norm_input: str, best_window: str) -> None:
+    """Show word-by-word diff between the normalised input and the window
+    of the license text it matched."""
     import difflib  # pylint: disable=import-outside-toplevel
 
-    norm_input = normalize_text(text)
     input_words = norm_input.split()
     window_words = best_window.split()
 
@@ -356,9 +355,20 @@ def resolve_license_record(
 @click.option("--text", help="License text to match.")
 @click.option("--id", "id_val", help="Explicit SPDX License ID to lookup.")
 @click.option(
-    "--json", "json_output", is_flag=True, help="Output results in JSON format."
+    "--json",
+    "json_output",
+    is_flag=True,
+    help="Output results as JSON Lines, one RFC 8785 object per result.",
 )
-@click.option("--threshold", type=float, default=0.85, help="Minimum score threshold.")
+@click.option(
+    "--threshold", type=float, default=0.85, help="Minimum score, from 0 to 1."
+)
+@click.option(
+    "--exact",
+    "exact_only",
+    is_flag=True,
+    help="Keep only exact matches: declared, an exact ID or name, a whole text.",
+)
 @click.option("--top", type=int, default=3, help="Maximum number of results to return.")
 @click.option(
     "--pop/--no-pop",
@@ -366,7 +376,11 @@ def resolve_license_record(
     default=False,
     help="Enable/disable popularity score weighting.",
 )
-@click.option("--diff", is_flag=True, help="Show word diff for the top match.")
+@click.option(
+    "--diff",
+    is_flag=True,
+    help="Show a word diff for the top match when it is a close text match.",
+)
 @click.option("--bold", is_flag=True, help="Print only the top license ID.")
 @click.pass_context
 def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -376,6 +390,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     id_val: str | None,
     json_output: bool,
     threshold: float,
+    exact_only: bool,
     top: int,
     enable_popularity: bool,
     diff: bool,
@@ -387,6 +402,12 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     check_database_ready(db_path)  # before input handling: report the database first
     reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
     reject_compound_id(ctx, id_val)
+    # A score is 0-1: a threshold outside it means nothing (above 1, or
+    # nan, would keep nothing).
+    if not 0.0 <= threshold <= 1.0:
+        exit_usage_error(
+            ctx, f"option: invalid: --threshold: {threshold}; pass a value from 0 to 1"
+        )
 
     matcher = AggregatedLicenseMatcher(db_path, enable_popularity=enable_popularity)
     check_db_staleness(matcher.db)
@@ -403,8 +424,10 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         # A lone expression is read as an ID by the matcher, whatever brings it.
         results = matcher.match(text=content)
 
-    # Filter by threshold and limit to top N
-    results = [r for r in results if r["score"] >= threshold][:top]
+    # Filter by threshold (and exactness), then limit to top N
+    results = [
+        r for r in results if r["score"] >= threshold and (r["exact"] or not exact_only)
+    ][:top]
 
     if not results:
         error("match: no license found")
@@ -415,18 +438,16 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         ctx.exit(0)
 
     if json_output:
-        click.echo(json.dumps(results, indent=2))
+        # JSON Lines: one canonical (RFC 8785) object per result.
+        for r in results:
+            click.echo(json_line(r))
     else:
         # Standard output: line-delimited, KEY=VALUE
         for i, r in enumerate(results):
-            click.echo(
-                f"LICENSE_ID={r['license_id']} "
-                f"SIMILARITY={r.get('similarity', r['score']):.4f} "
-                f"COVERAGE={r.get('coverage', 0.0):.4f}"
-            )
-            # Show diff for the top match if requested
-            if diff and i == 0 and r.get("similarity", 0) < 1.0:
-                show_diff(license_text, r.get("best_window", ""))
+            click.echo(text_line(r))
+            # A word diff for the top match, if it is a close text match.
+            if diff and i == 0 and r["method"] == "text" and not r["exact"]:
+                show_diff(*matcher.diff_pair(license_text, r["license_id"]))
 
     ctx.exit(0)
 

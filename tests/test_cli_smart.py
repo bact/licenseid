@@ -62,7 +62,7 @@ def test_cli_explicit_id(test_db: str, tmp_path: Any) -> None:
     result = runner.invoke(cli, ["--db", test_db, "match", "--id", "MIT"])
     assert result.exit_code == 0
     assert "LICENSE_ID=MIT" in result.output
-    assert "SIMILARITY=1.0000" in result.output
+    assert "METHOD=id EXACT=true SCORE=1.0000 SIMILARITY= COVERAGE=\n" in result.output
 
 
 def test_cli_stdin(test_db: str) -> None:

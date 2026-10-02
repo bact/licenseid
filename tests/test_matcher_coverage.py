@@ -124,10 +124,8 @@ def test_spdx_tag_in_source_file_short_circuits(marker_db: str) -> None:
 
     results = AggregatedLicenseMatcher(marker_db).match(text=text)
 
-    assert [r["license_id"] for r in results] == ["MIT"]
-    assert results[0]["score"] == 1.0
-    assert results[0]["similarity"] == 1.0
-    assert results[0]["coverage"] == 1.0
+    # The result's shape for a tag: test_public_result.
+    assert [(r["license_id"], r["method"]) for r in results] == [("MIT", "tag")]
     assert results[0]["is_spdx"] is True
     assert results[0]["is_osi_approved"] is True
     assert results[0]["is_fsf_libre"] is True
@@ -182,22 +180,19 @@ def test_source_file_without_any_marker_has_no_match(marker_db: str) -> None:
 # -- Bare deprecated ID disambiguation -------------------------------------
 
 
-def test_bare_deprecated_id_with_or_later_prose(gpl_db: str) -> None:
-    """The phrase 'GPL-2.0 or later' resolves to the canonical or-later
-    ID, with the flags of its database row."""
-    results = AggregatedLicenseMatcher(gpl_db).match("Licensed under GPL-2.0 or later")
-
-    assert [r["license_id"] for r in results] == ["GPL-2.0-or-later"]
-    assert results[0]["score"] == 1.02
+@pytest.mark.parametrize(
+    ("text", "license_id"),
+    [
+        ("Licensed under GPL-2.0 or later", "GPL-2.0-or-later"),
+        ("Licensed under GPL-2.0 only", "GPL-2.0-only"),
+    ],
+)
+def test_bare_deprecated_id_with_prose(gpl_db: str, text: str, license_id: str) -> None:
+    """The phrase resolves to the canonical ID, with the flags of its
+    database row. (The result's shape: test_public_result.)"""
+    results = AggregatedLicenseMatcher(gpl_db).match(text)
+    assert [(r["license_id"], r["method"]) for r in results] == [(license_id, "id")]
     assert results[0]["is_osi_approved"] is True
-
-
-def test_bare_deprecated_id_with_only_prose(gpl_db: str) -> None:
-    """The phrase 'GPL-2.0 only' resolves to the -only ID."""
-    results = AggregatedLicenseMatcher(gpl_db).match("Licensed under GPL-2.0 only")
-
-    assert [r["license_id"] for r in results] == ["GPL-2.0-only"]
-    assert results[0]["score"] == 1.02
 
 
 def test_disambiguated_id_missing_from_database(gpl_db: str) -> None:
@@ -290,9 +285,13 @@ def test_deprecated_alias_is_penalised_in_short_text(
     keeps it. Either way the exact-name match leads."""
     deprecated = "deprecated" in request.node.callspec.id
 
-    results = AggregatedLicenseMatcher(alias_db).match(
+    # The raw scores: the public one is capped to 1, the order kept.
+    matcher = AggregatedLicenseMatcher(alias_db)
+    results = matcher._match_raw(  # pylint: disable=protected-access
         "GNU General Public License v2.0 only"
     )
+    public = matcher.match("GNU General Public License v2.0 only")
+    assert [r["license_id"] for r in public] == ["GPL-2.0-only", "GPL-2.0"]
 
     assert [r["license_id"] for r in results] == ["GPL-2.0-only", "GPL-2.0"]
     assert results[0]["score"] == pytest.approx(1.02)

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-28
+Last-Modified: 2026-10-02
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,10 +13,10 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-09-21)
+## Current state (as of 2026-10-02)
 
-- **Pipeline**: Tier 0 (short-text ID/name shortcut) → Tier 0.5 (marker
-  detection) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz ranking).
+- **Pipeline**: Tier 0.5 (marker detection: tags, then a manifest's
+  `license` field) → Tier 0 (short-text ID/name shortcut) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz ranking).
   The optional Tier 3 (Java `tools-java` validation) was removed on
   2026-09-19. `matcher.py` holds the pipeline; Tier 1 is `retrieval.py`,
   Tier 0 is `shorttext.py`, and the sort order with the `-only` /
@@ -54,6 +54,11 @@ yet started, see [`../design/`](../design/).
   (`MarkerDetector.resolve_license_value`) and one judge of what `--id` may
   hold (`identifiers.is_simple_expression`); see
   [spdx-expression-reading.md](spdx-expression-reading.md).
+- **Public result** (PR #68, 2026-10-02): every match has the same nine
+  keys, built once by `result.public_result` at the exit of `match()`; the
+  score is capped to 0-1 and `exact` tells results at 1 apart. Ranking
+  reads the raw records. `--json` prints RFC 8785 JSON Lines; see item 22
+  in [tech-debt-resolved.md](tech-debt-resolved.md).
 - **Known deferred work**: probe-anchored windowing (reusing the existing
   probe's match location instead of a full realignment scan) — flagged
   but deliberately not attempted; see
@@ -74,6 +79,7 @@ yet started, see [`../design/`](../design/).
 | 2026-09-18 | [data-fetching-and-caching.md](data-fetching-and-caching.md) | implemented (PR #51) | Third-party fetching in `spdx_source.py`: gentle requests, fallback order (`--no-cache` never uses stale data), atomic caches, version validation, safe tar extraction, self-healing corrupt caches, non-silent fallbacks; test patterns and traps. |
 | 2026-09-20 | [database-readiness-gate.md](database-readiness-gate.md) | implemented (PR #55) | The readiness gate and the write/delete guard: fail-open on read, fail-closed on write, the `unknown` condition between them; SQLite URI, path-spelling and file-type traps; test and process anti-patterns found over four review rounds. |
 | 2026-09-28 | [spdx-expression-reading.md](spdx-expression-reading.md) | implemented (PR #61) | A tag's whole expression, `--id` narrowed to one license, "or later" as a grant; quadratic paths each fix added, timing against `main`, the slow deep parse on Python 3.10. |
+| 2026-10-02 | [tech-debt-resolved.md](tech-debt-resolved.md) | record | The tech-debt roadmap's resolved items: what each was and what was done, moved out of the roadmap to keep it under the size limit. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

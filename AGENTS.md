@@ -9,7 +9,8 @@
   `-only`/`-or-later` tie-breaker), `similarity.py`, `markers.py`,
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
-  pyproject.toml, Cargo.toml, setup.cfg). Keep `matcher.py` under the 800-line limit:
+  pyproject.toml, Cargo.toml, setup.cfg), `fingerprint.py`, `result.py`
+  (the public result and its JSON and text lines), `types.py`. Keep `matcher.py` under the 800-line limit:
   put logic that needs no matcher state in one of the others.
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
 - Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches; may be discarded, not yet built.
@@ -77,7 +78,14 @@ Unix philosophy. Consistent, predictable, parseable.
   - `tests/conftest.py::check_diagnostic_grammar` fails any test that
     prints a line breaking this grammar.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
-- JSON output supported as options.
+- JSON output supported as options. `match --json` prints JSON Lines, one
+  RFC 8785 (JCS) object per result, through `licenseid.result.json_line`;
+  the text line comes from `text_line` beside it. Both print the public form
+  `result.public_result` builds at the one exit of `match()`: tiers rank on
+  their raw score (above 1 for a Tier 0 ID or name hit, look-alikes
+  included, and for a close text with its bonuses), never on the public
+  one, capped to 1. `exact`
+  is what tells results at 1 apart; set it where a result is made.
 
 ## Python
 
@@ -207,7 +215,10 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   (`tarfile.data_filter` breaks `tarfile` itself on 3.12+).
 - Mutation-check new tests by breaking a line and rerunning; clear
   `__pycache__` between mutants (a same-size mutant restored within the same
-  second leaves a stale `.pyc`).
+  second leaves a stale `.pyc`). To mutate a copy of the tree, run it with
+  `PYTHONPATH=<copy>/src`: `.venv` is an editable install of this checkout,
+  so without it the tests import the unmutated `src/` and every mutant
+  seems to survive.
 - Pytest cannot see the shell, locale, stdio, `HOME`, signal and input-size
   interactions between the OS and the CLI. Run the manual matrix,
   `python -m tools.cli_matrix --db <copy of a real database> --check`, before
@@ -304,6 +315,15 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `Refusal` tag when adding a condition, and decide both policies.
 - `Path.unlink(missing_ok=True)` swallows `FileNotFoundError` only — a
   parent that is a file still raises `NotADirectoryError`.
+- `match()` returns the public form: a score capped to 1 and rounded to 4
+  places, so an exact hit and a look-alike both show 1. Code or a test that
+  ranks, orders or asks "above 1" (Tier 0's early return, the tie-breaker)
+  reads the raw records of `_match_raw`, not `match()`. `exact` is set
+  where a result is made, never derived from the score; an exact text is
+  the whole non-empty normalised input equal to the licence's
+  `search_text`. A deprecated name is not exact only when a row in use has
+  the same normalised name: making every deprecated row inexact lost
+  AGPL-3.0 and GFDL-1.x, which have names of their own.
 - Database tests must import the autouse `safe_home` fixture from
   `tests/db_asserts.py` (it patches `Path.home` as well as `HOME`) with
   `# noqa: F401  # pylint: disable=unused-import`.
@@ -319,8 +339,8 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   every fixture proves little: that one did, and the same licence sliced at
   other offsets crossed it. Before changing a limit, sweep real licence texts
   (Japanese included) at several offsets and lengths on the branch and on
-  `main`, and compare the top answers. Details from PR #62: the roadmap's
-  "Already resolved" entry for item 16.
+  `main`, and compare the top answers. Details from PR #62: item 16 in
+  `working-docs/implementation/tech-debt-resolved.md`.
 - Details and the rest of the findings from PR #55:
   `working-docs/implementation/database-readiness-gate.md`.
 - A fix to input reading can add the next quadratic path: a loop that
@@ -338,7 +358,17 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - Commit messages: user impact, not implementation details.
 - Follow: <https://chris.beams.io/posts/git-commit/>
 - Every PR must address: **What changed?** / **Why?** / **Breaking changes?**
-- Update `CHANGELOG.md` for significant changes per Keep a Changelog (<https://keepachangelog.com/>) and Semantic Versioning (<https://semver.org/>). Mark breaking changes clearly with migration instructions.
+- Asked for a PR title and summary, give each in its own fenced code block
+  (ready to copy): a title under 60 characters, and a summary under 280
+  characters, as Markdown bullets (code spans for flags and keys).
+- Update `CHANGELOG.md` for significant changes per Keep a Changelog
+  (<https://keepachangelog.com/>).
+  Mark breaking changes clearly with very concise migration instructions.
+- **CHANGELOG entries**: concise, to the point. No background/rationale --
+  link the PR for that. Target ~160 chars per bullet; exception for a genuinely
+  complex PR. Merge related PRs into one entry (`[#1], [#2]`);
+  sort entries per section by lowest PR number;
+  skip docs/version-bump/CI-only noise.
 
 ## Project metadata consistency
 

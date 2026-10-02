@@ -26,26 +26,24 @@ input is ignored without a warning):
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
 import itertools
-import json
-import re
 from collections.abc import Callable, Generator
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 from click.testing import CliRunner, Result
-from conftest import make_mit_db_path
+from conftest import RESULT_KEYS, json_lines, make_mit_db_path
 from db_variants import MIT_TEXT
 from input_payloads import PAYLOADS, Payload
 
 from licenseid.cli import cli
 from licenseid.errors import InvalidInputError
 from licenseid.matcher import AggregatedLicenseMatcher
+from tools.cli_matrix.judge import PLAIN
 
 OTHER_TEXT = "The quick brown fox jumps over the lazy dog near the river bank"
 MISSING = "ERROR: input: missing; pass a file, an ID, --text, --id or stdin\n"
 NO_MATCH = "ERROR: match: no license found\n"
-PLAIN_LINE = re.compile(r"LICENSE_ID=\S+ SIMILARITY=\d\.\d{4} COVERAGE=\d\.\d{4}")
 
 SOURCES = ["arg_id", "arg_file", "text", "id", "stdin", "none"]
 OUTPUTS = [
@@ -57,6 +55,10 @@ OUTPUTS = [
     ("--json", "--diff"),
     ("--bold", "--diff"),
 ]
+# Every found input is exact here (the ID, or MIT's text word for word), so
+# --exact keeps the answer: this axis checks that --exact combines with the
+# other options and inputs, not what it filters (test_public_result does).
+OUTPUTS += [(*output, "--exact") for output in OUTPUTS]
 PREDICATES = ["is-osi", "is-fsf", "is-open", "is-free", "is-spdx"]
 
 
@@ -121,10 +123,12 @@ def _assert_match_stdout(stdout: str, output: tuple[str, ...]) -> None:
     if "--bold" in output:
         assert stdout == "MIT\n"
     elif "--json" in output:
-        assert [r["license_id"] for r in json.loads(stdout)] == ["MIT"]
+        results = json_lines(stdout)
+        assert [r["license_id"] for r in results] == ["MIT"]
+        assert all(set(r) == RESULT_KEYS for r in results)
     else:
         lines = stdout.splitlines()
-        assert PLAIN_LINE.fullmatch(lines[0])
+        assert PLAIN.fullmatch(lines[0])
         assert lines[0].startswith("LICENSE_ID=MIT ")
         if "--diff" not in output:
             assert len(lines) == 1

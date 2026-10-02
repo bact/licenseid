@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 import click
 import pytest
 from click.testing import CliRunner
-from conftest import MIT_SEARCH_TEXT, make_mit_db_path
+from conftest import MIT_SEARCH_TEXT, invoke_match, make_mit_db_path
 
 from licenseid import cli as cli_module
 from licenseid.cli import cli, get_input_content, read_input, show_diff
@@ -42,7 +42,7 @@ def test_show_diff_marks_added_removed_and_context_words(
 ) -> None:
     """A unified diff of DATABASE -> INPUT. The three lines of context are
     difflib's default: current behaviour, not a documented contract."""
-    show_diff("one two THREE four five", "one two three four")
+    show_diff("one two three four five", "one two three four")
     assert capsys.readouterr().out == (
         "\nWORD DIFF:\n--- DATABASE\n+++ INPUT\n@@ -2,3 +2,4 @@\n"
         " two\n three\n four\n+five\n\n"
@@ -57,11 +57,11 @@ def test_show_diff_marks_added_removed_and_context_words(
 @pytest.mark.parametrize(
     ("text", "window"),
     [
-        ("Permission is hereby granted.", "permission is hereby granted"),
+        ("permission is hereby granted", "permission is hereby granted"),
         ("", ""),
         ("   \n", ""),
     ],
-    ids=["equal_after_normalising", "both_empty", "input_blank"],
+    ids=["equal", "both_empty", "input_blank"],
 )
 def test_show_diff_prints_nothing_without_a_difference(
     capsys: pytest.CaptureFixture[str], text: str, window: str
@@ -82,16 +82,14 @@ def test_show_diff_with_empty_window_marks_every_word_added(
 # --- match --diff, end to end ---
 
 
-def _match(db: str, *args: str, color: bool = False) -> click.testing.Result:
-    return CliRunner().invoke(cli, ["--db", db, "match", *args], color=color)
-
-
 def test_match_diff_shows_word_diff_after_the_result_line(mit_db: str) -> None:
-    result = _match(mit_db, "--diff", "--text", MIT_SEARCH_TEXT + " and more words")
+    result = invoke_match(
+        mit_db, "--diff", "--text", MIT_SEARCH_TEXT + " and more words"
+    )
     assert result.exit_code == 0
     assert result.stderr == ""
     first, rest = result.stdout.split("\n", 1)
-    assert first.startswith("LICENSE_ID=MIT SIMILARITY=0.9")
+    assert first.startswith("LICENSE_ID=MIT METHOD=text EXACT=false SCORE=0.9")
     assert rest.startswith("\nWORD DIFF:\n--- DATABASE\n+++ INPUT\n@@")
     assert rest.endswith(" copy\n+and\n+more\n+words\n\n")
 
@@ -99,11 +97,11 @@ def test_match_diff_shows_word_diff_after_the_result_line(mit_db: str) -> None:
 def test_match_diff_colours_added_green_and_removed_red(mit_db: str) -> None:
     """Added words are green, removed words red. (How the ---/+++ header lines
     are coloured is not asserted: it is incidental, not a stated contract.)"""
-    added = _match(
+    added = invoke_match(
         mit_db, "--diff", "--text", MIT_SEARCH_TEXT + " and more", color=True
     )
     assert f"{GREEN}+and{RESET}\n{GREEN}+more{RESET}\n" in added.stdout
-    replaced = _match(
+    replaced = invoke_match(
         mit_db,
         "--diff",
         "--text",
@@ -117,24 +115,36 @@ def test_match_diff_colours_added_green_and_removed_red(mit_db: str) -> None:
 
 
 def test_match_diff_is_plain_text_when_not_a_terminal(mit_db: str) -> None:
-    result = _match(mit_db, "--diff", "--text", MIT_SEARCH_TEXT + " and more")
+    result = invoke_match(mit_db, "--diff", "--text", MIT_SEARCH_TEXT + " and more")
     assert "\x1b[" not in result.stdout
 
 
-def test_match_diff_of_an_exact_match_prints_no_diff(mit_db: str) -> None:
-    result = _match(mit_db, "--diff", "--text", MIT_SEARCH_TEXT)
-    assert result.stdout == "LICENSE_ID=MIT SIMILARITY=1.0000 COVERAGE=1.0000\n"
-
-
-def test_match_diff_of_a_fragment_prints_no_diff(mit_db: str) -> None:
-    """The input is a piece of the license (similarity 1.0, coverage below
-    1.0). The window it aligned to equals the input, so there is nothing to
-    show."""
-    result = _match(
-        mit_db, "--diff", "--text", "permission is hereby granted free of charge"
-    )
-    assert result.stdout.startswith("LICENSE_ID=MIT SIMILARITY=1.0000 COVERAGE=0.")
+@pytest.mark.parametrize(
+    ("args", "method_exact"),
+    [
+        # Matched as text, but nothing to show: the whole text, or a piece
+        # of it (similarity 1.0, coverage below 1.0) whose window equals it.
+        (["--text", MIT_SEARCH_TEXT], "METHOD=text EXACT=true"),
+        (
+            ["--text", "permission is hereby granted free of charge"],
+            "METHOD=text EXACT=false",
+        ),
+        # Not matched as text, so aligned with no license text.
+        (["--id", "MIT"], "METHOD=id EXACT=true"),
+        (["--text", "SPDX-License-Identifier: MIT"], "METHOD=tag EXACT=true"),
+        (["--text", '{"license": "MIT"}'], "METHOD=field EXACT=true"),
+        (["--text", "MIT License"], "METHOD=name EXACT=true"),
+        (["--text", "The MIT Licence"], "METHOD=name EXACT=false"),
+    ],
+    ids=["exact", "fragment", "id", "tag", "field", "name", "close-name"],
+)
+def test_match_diff_prints_no_diff_without_one(
+    mit_db: str, args: list[str], method_exact: str
+) -> None:
+    result = invoke_match(mit_db, "--diff", *args)
+    assert result.exit_code == 0
     assert result.stdout.count("\n") == 1
+    assert f" {method_exact} " in result.stdout
 
 
 @pytest.mark.parametrize("other", ["--json", "--bold"])
@@ -142,7 +152,7 @@ def test_match_diff_is_dropped_for_json_and_bold(mit_db: str, other: str) -> Non
     """Current behaviour, not a documented contract: --diff has no effect with
     --json or --bold, and nothing says so (roadmap: conflicting options are
     resolved silently). Pinned so a change is deliberate."""
-    result = _match(
+    result = invoke_match(
         mit_db, "--diff", other, "--text", MIT_SEARCH_TEXT + " and more words"
     )
     assert "WORD DIFF" not in result.stdout

@@ -9,287 +9,160 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `licenseid.DatabaseNotReadyError`, a `LicenseIdError` for a missing, empty,
-  invalid or unreadable database ([#55])
-- `licenseid.LicenseIdError` (a `RuntimeError`) for failures reported in
-  licenseid's own message format, and its subclass `licenseid.InvalidInputError`
-  for invalid options or input ([#53])
-- `tools/cli_matrix`, a manual test harness that runs the real CLI across
-  shells, locales, standard streams and environments; not run in CI ([#54])
+- Release files carry Sigstore signatures and build provenance attestations
+  ([#39])
+- `licenseid.LicenseIdError` and its subclass `InvalidInputError` for
+  licenseid's own failures ([#53])
+- `tools/cli_matrix`, a manual harness that runs the real CLI across shells,
+  locales and streams ([#54])
+- `licenseid.DatabaseNotReadyError` for a missing, empty, invalid or unreadable
+  database ([#55])
+- `match --exact` keeps only exact results, and `licenseid.Method` types a
+  result's `method` ([#68])
 
 ### Changed
 
-- `match` and the `is-*` commands check that the database is ready before
-  answering. A missing, empty (for example after a failed first `update`),
-  invalid (another program's file) or unreadable database exits 2 with
-  `ERROR: database: not found`, `empty`, `invalid` or `unreadable`, instead of
-  "no license found", `false` (exit 1) or a traceback, and a file that is not
-  ready is not written to. A SQLite failure while reading exits 2 the same
-  way. A path the system will not look at (an unreadable parent directory, a
-  symlink loop) is reported as `unreadable` rather than `not found`, which
-  would have suggested an `update` that could not help, and so is anything
-  that is not a file a database could be in, such as a named pipe (which the
-  read-only open would have waited on for ever). Every spelling of one file
-  gets the same answer, whether it differs by path (`licenses.db`,
-  `licenses.db/`, `licenses.db/.`) or by URI (`file:`, `file://`,
-  `file://localhost`). The
-  Python API raises `DatabaseNotReadyError` from the
-  `AggregatedLicenseMatcher` constructor ([#55])
-- `update` and `--clear-cache` refuse a database licenseid did not build,
-  with `ERROR: database: invalid: <path>` and exit 2, instead of writing
-  licenseid's schema over it or deleting it: another program's SQLite file, a
-  file that is not a database, anything that is not a regular file (a
-  directory, a named pipe), a path naming no file (`.`, `/`), a `file:` URI
-  only SQLite can resolve (one carrying `vfs=` or another host's name), a
-  file they may not read, and one locked by another process. Every other
-  state is still
-  accepted, including a damaged database: they exist to build or clear one.
-  The refusal comes before anything is removed, and the same check runs in
-  `LicenseDatabase.clear_cache`, so the Python API and the CLI agree.
-  A file the system will not remove is reported as
-  `database: delete failed: <path>: <reason>` ([#55])
-- **Breaking (Python API):** `AggregatedLicenseMatcher.match()` rejects an
-  option it does not know (a typo such as `enable_popularty`, or a removed one)
-  with `InvalidInputError`, `option: invalid: '<name>'; use one of ...`,
-  instead of ignoring it. The known options are `enable_popularity`,
-  `exclude`, `hint`, `only_common` and `only_spdx`. To migrate, drop or
-  correct the option ([#57])
-- Text that quotes an "or any later version" notice without being a whole
-  license (such as a slice of the GNU Free Documentation License) now resolves
-  to `-or-later`, not `-only`. The bodies are identical; the GPL family
-  already did this ([#58])
-- Read commands no longer create `~/.local/share/licenseid`; only `update`
-  does, so an unwritable `HOME` no longer crashes them ([#55])
-- `--clear-cache` no longer opens the database to clear it, so it also clears
-  one that SQLite cannot read, and does not create the default directory. It
-  works through a `file:` URI, and removes SQLite's `-wal`, `-shm` and
-  `-journal` files beside the database. It no longer crashes on an unwritable
-  `HOME`. **Breaking (Python API):** `LicenseDatabase.clear_cache` is a static
-  method taking the path, so `db.clear_cache()` becomes
-  `LicenseDatabase.clear_cache(db.db_path)` ([#55])
-- `licenseid update` sends a `User-Agent` that identifies licenseid, makes one
-  attempt per source, and reuses a stale cache file (with a warning) when a
-  download fails; `--no-cache` never falls back to cached data ([#51])
-- Fallbacks are reported: unusable caches or downloads and popularity rows
-  with a missing or non-numeric count print a warning ([#51])
-- `licenseid update` and `--clear-cache` write progress, the data sources
-  report and warnings to standard error; standard output carries only the
-  result line ([#53])
+- Requires `click>=8.5.0` and `py-spdx-license<0.1`; building needs
+  `hatchling<1.32.1` until Pitloom supports it ([#46], [#56])
+- `update` sends a licenseid `User-Agent`, tries each source once and warns on
+  every fallback, such as a stale cache; `--no-cache` never falls back ([#51])
+- `update` and `--clear-cache` write progress and warnings to standard error;
+  standard output carries only the result ([#53])
 - Errors and warnings use one format,
-  `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`, for example
-  `ERROR: database: not found: <path>; run 'licenseid update'`. Scripts that
-  match the old text need updating ([#53])
-- Each error or warning starts on its own line, and an unexpected failure in
-  `licenseid update` is reported as
-  `ERROR: database: update failed: <type>: <detail>`
-  instead of a traceback ([#53])
+  `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`, one per line; an `update`
+  failure is no traceback. Scripts matching old text need updating ([#53])
+- `match` and `is-*` exit 2 with `ERROR: database: <condition>` when the
+  database is not ready; the API raises `DatabaseNotReadyError` ([#55])
+- `update` and `--clear-cache` refuse a database licenseid did not build (exit
+  2) instead of overwriting or deleting it ([#55])
+- Read commands no longer create `~/.local/share/licenseid` or crash on an
+  unwritable `HOME` ([#55])
+- `--clear-cache` clears a database SQLite cannot read, with its `-wal`, `-shm`
+  and `-journal` files. **Breaking (Python API):** call
+  `LicenseDatabase.clear_cache(path)` ([#55])
+- **Breaking (Python API):** `match()` rejects an unknown option with
+  `InvalidInputError`; drop or correct it ([#57])
+- Text quoting an "or any later version" notice resolves to `-or-later`, as the
+  GPL family already did ([#58])
+- A `WITH` expression matches even when the local database lacks its license or
+  exception ([#61])
+- **Breaking:** `--id` and `match(license_id=...)` take one license: an ID or
+  `LicenseRef-*`, with `+` or `WITH`. Anything else exits 2 or raises; match it
+  as text instead ([#61])
+- **Breaking:** every match has the same keys, adding `method` and `exact`;
+  `score` is 0 to 1, `similarity` and `coverage` may be `null`, and ranking-only
+  keys are gone. Read `exact`, not a score above 1 ([#68])
+- **Breaking:** `--json` prints JSON Lines in RFC 8785 form, not one array
+  (`jq -s .` makes the array). Adds the `rfc8785` dependency ([#68])
+- **Breaking:** the text line adds `METHOD=`, `EXACT=` and `SCORE=`;
+  `SIMILARITY=` and `COVERAGE=` are empty where not measured. Read fields by key
+  ([#68])
+- **Breaking:** `--threshold` takes 0 to 1, else exits 2; use `--exact` to keep
+  exact answers ([#68])
+- `--diff` shows only for a top text match that is not exact, and leaves out the
+  input's SPDX tags ([#68])
 
 ### Removed
 
-- **Breaking:** the optional Java validation tier: `match --java/--no-java`,
-  the `licenseid[java]` extra, `SPDX_TOOLS_JAR`, `enable_java` and the
-  `java_verified` result field. It was off by default and untested in CI, so
-  match results are unchanged. To migrate, drop them.
-  `AggregatedLicenseMatcher(db, enable_java=True)` raises `TypeError`, and
-  `match(enable_java=True)` raises `InvalidInputError` as an unknown option
-  ([#54], [#57])
-- **Breaking:** `AggregatedLicenseMatcher(enable_popularity=...)` is now
-  keyword-only; it took the positional slot of `enable_java`, so a positional
-  `True` would have silently enabled popularity ranking ([#54])
-- A `WITH` expression is checked against the SPDX exception list alone, not
-  against this database's rows, so `<license> WITH <exception>` now matches
-  when either half is missing from the local list: the result carries
-  `is_spdx` true and neither the OSI nor the FSF flag, where it used to be no
-  match at all. A complete database answers as before ([#61])
-- **Breaking:** `--id` and `match(license_id=...)` declare one license, so
-  they take only an ID, a `LicenseRef-*`, an ID with `+` and either `WITH
-  <exception>`, in brackets or not (`MIT`, `(MIT)`, `Apache-2.0+`,
-  `MIT WITH Font-exception-2.0`). An
-  `AND`/`OR` expression, a license name, an SPDX URL and prose name no single
-  license: the CLI exits 2 with
-  `ERROR: option: invalid: --id: <value>; pass one license ID`, and the API
-  raises `InvalidInputError` where it used to answer or say nothing. A tag
-  and a `license` field still hold any expression, so a file is read as
-  before. To migrate, pass the ID (`GPL-2.0-or-later`, not `GPL-2.0 or
-  later`) or match the value as text ([#61])
+- **Breaking:** the Java validation tier: `--java`, `licenseid[java]`,
+  `SPDX_TOOLS_JAR`, `enable_java` and `java_verified`. Results are unchanged;
+  drop them ([#54], [#57])
+- **Breaking:** `AggregatedLicenseMatcher(enable_popularity=...)` is
+  keyword-only ([#54])
 
 ### Fixed
 
-- A lone SPDX expression given as text, on standard input or in a file is
-  read as `--id` reads it: `--text GPL-2.0+` answered `GPL-2.0-only`,
-  dropping the "or later", and `GPL-2.0+ WITH Classpath-exception-2.0`
-  answered nothing close. An ID given as text now scores 1.0, as it does
-  through `--id`, so a `--threshold` above 1.0 no longer keeps it
-- A `LicenseRef-*` with a `+` is no expression, as SPDX gives `+` to a
-  license ID only: `LicenseRef-x+` answered as a valid SPDX license from a
-  tag, `--id` or text. `--id LicenseRef-x+` now exits 2
-- A short input's `SPDX-License-Identifier` tag that names no license is
-  not matched as a license name: `SPDX-License-Identifier: MIT OR` answered
-  MIT with certainty, as did `SPDX-License-Identifier: LicenseRef-MIT+`
-- The deprecated `GFDL-1.1`, `GFDL-1.2` and `GFDL-1.3` answer their `-only`
-  form, and with a `+` or an "or later" grant their `-or-later` form, as
-  the GPL family does, with that form's flags: `GFDL-1.3` answered itself,
-  not FSF-libre, and `GFDL-1.3+` answered `GFDL-1.3+`
-- A short input, such as a source file's header line, is answered from its
-  `SPDX-License-Identifier` tag: under 30 words the tag was matched as a
-  license name, so `SPDX-License-Identifier: MIT OR Apache-2.0` answered
-  `Apache-2.0` alone, and a `WITH Classpath-exception-2.0` header answered
-  `CAL-1.0`
-- `GPL-2.0-with-classpath-exception` answers
-  `GPL-2.0-only WITH Classpath-exception-2.0`, as the other deprecated
-  `-with-` IDs answer theirs; it answered itself
-- An expression that would cost the parser more than about 8 ms (a token
-  of tens of thousands of characters) is no expression: the parser took 7 s
-  on a 1,000,000-character tag value. A `LicenseRef-*` of any real length is
-  kept
-- A small `package.json`, `pyproject.toml` or `Cargo.toml` (under 30 words)
-  is read for its `license` field: it was matched by name instead, and
-  `"license": "MIT OR Apache-2.0"` answered `Apache-1.0` with certainty. A
-  manifest is never matched by name as a whole: a value that is no ID or
-  expression is matched on its own if it names a license exactly
-  (`"Apache 2.0"` is Apache-2.0), and a small file with no value, or one
-  that names none (`"UNLICENSED"`, `"BSD"`), has no answer: a `Cargo.toml`
-  with only `license-file` answered its crate's name, `zlib-rs`, as `Zlib`
-- A manifest's `license` value must be an expression as a whole:
-  `"MIT/Apache-2.0"` answered a certain `MIT`, dropping Apache-2.0. In
-  `Cargo.toml`, where the slash is the old spelling of OR, it now reads as
-  `Apache-2.0 OR MIT`. A License List page URL
-  (`https://spdx.org/licenses/MIT.html`) names its license
-- The `license` string of `pyproject.toml` (PEP 639, and Poetry's) and of
-  `Cargo.toml` (`[package]` and `[workspace.package]`) is read; only
-  `license = {text = ...}` was, and not inside a multi-line string. So is PEP 621's
-  table written out (`[project.license]` or `license.text`). Text with no
-  file name (standard input, `--text`) is read as TOML only if it starts with
-  a table header, so a README showing a `[project]` example, or opening with
-  a badge, is not answered from the example
-- A `setup.cfg` or text with a long run of spaces inside a line no longer
-  takes seconds to read on Python 3.10
-- npm's old `"license": {"type": ...}` and `"licenses": [...]` forms of
-  `package.json` are read; the array is a choice, so it reads as OR
-- A TOML or INI `license` field is a certain match (score 1.0), as a JSON
-  one is, with its SPDX, OSI and FSF flags: `is-spdx` said false for
-  `license = {text = "MIT OR Apache-2.0"}`
-- Every result of `match` carries `is_spdx`, `is_osi_approved` and
-  `is_fsf_libre`, so `--json` shows them as the README does, and the `is-*`
-  commands answer for an expression such as `GPL-2.0-with-GCC-exception`
-- A file with a very long token or embedded base64 (a data URI, a PEM block)
-  no longer takes seconds to minutes to match: a comment with one
-  5,000-character token took about a minute and now takes under 0.1 s
-- An `SPDX-License-Identifier` tag is read as one expression:
-  `(MIT OR Apache-2.0)` and `DocumentRef-x:LicenseRef-y` were dropped or cut
-  short, and a cut-short value could be a certain match for the wrong
-  license. Prose after the expression is ignored, an unbalanced or dangling
-  value is no evidence, a `+` after a space is not "or later", and a tag and
-  its value must be on one line. An "or later" grant is read as a grant, not
-  as the OR operator: `MIT OR GPL-2.0 or later` is
-  `GPL-2.0-or-later OR MIT` ([#61])
-- An "or later" grant qualifies the license beside it:
-  `GPL-2.0 WITH Classpath-exception-2.0 or later` is
-  `GPL-2.0-or-later WITH ...` (it was reported as `-only`, the opposite of
-  what the line grants), and words that name no other license no longer hide
-  the grant (`GPL-2.0 (at your option) any later version`). A grant in the
-  middle of an expression ends it, so a value that goes on after one
-  (`MIT AND GPL-2.0 or later AND Apache-2.0`) is no evidence rather than an
-  answer missing an operand. A grant inside brackets counts too:
-  `MIT OR (GPL-2.0 or later)` is `GPL-2.0-or-later OR MIT` ([#61])
-- A tag holding a license name or an SPDX URL resolves, as in a JSON
-  `license` field; a name shared with a deprecated ID answers as that ID
-  does, even when an expression replaced it: the name of
-  `GPL-2.0-with-GCC-exception` is `GPL-2.0-only WITH GCC-exception-2.0`
-  ([#61])
-- A first line padded with a long run of spaces no longer takes seconds to
-  read, and a license named in thousands of tags on one minified line is
-  looked up once ([#61])
-- `match --id`, `match(license_id=...)` and `is-* --id` accept every form of
-  a single license a tag accepts, which `LicenseRef-Foo`, `Apache-2.0+` and
-  `Apache-2.0+ WITH <exception>` were not. A bare argument is a guess, so it
-  is read as an ID under the same rule and matched as text otherwise:
-  `MIT but modified heavily by us` is text, not MIT ([#61])
-- A header granting "or any later version" in any wording (`or a later
-  version`, `or newer`, `or, at your option, any later version`, or wrapped
-  over comment lines) is read as `-or-later` on every path; the marker
-  detector, tie-breaker and bare-ID check used to disagree. "not any later
-  version" is no grant ([#58])
-- An `SPDX-License-Identifier` tag with no recognised license ID
-  (`NoSuchLicense-9.9`, `Apache-2.O`, `NONE`) is no longer a certain SPDX
-  match; the file is matched by its text. An expression with at least one
-  known ID stays a match, with `is_spdx` false if any part is unknown, and a
-  `WITH` expression takes its license's OSI and FSF flags (in a tag or a JSON
-  field, not yet in TOML or INI). JSON, TOML and INI `license` fields decide
-  by the same rule and now read `+`, except after a `WITH` exception, where it
-  is no operator ([#60])
-- `is-spdx`, `is-osi`, `is-fsf`, `is-open` and `is-free` answer from the same
-  match as `match` and the `is_*()` methods; before, they said false for every
-  expression and `LicenseRef-*` ([#60])
-- `match(file_path=...)` and the `is_*` predicates read files as the CLI
-  does: UTF-8 (byte order mark dropped), else Latin-1 with a warning; binary
-  data (any NUL byte, including UTF-16) raises `InvalidInputError`. Before,
-  Latin-1 raised `UnicodeDecodeError` and NUL bytes were matched as text
-  ([#59])
-- The `-only`/`-or-later` tie-breaker treats a score gap of exactly 0.01 as
-  no tie at every score, and no longer ranks a deprecated ID above its
-  replacement ([#58])
-- `--db` with a blank value is a usage error (`ERROR: database: missing:
-  --db`) instead of silently using the default database ([#55])
-- Deeply nested JSON no longer crashes license detection with
-  `RecursionError`, and extensionless INI/TOML text that starts with a section
-  header is read ([#50])
-- Free text in a `license` field no longer becomes a phantom candidate marked
-  as an SPDX license ([#50])
-- `licenseid update` no longer crashes on a short popularity row, a corrupt
-  cache file or an unwritable cache directory, and no longer caches
-  unparseable downloads ([#51])
-- Cache files and the SPDX tarball are written atomically, so an interrupted
-  download cannot leave a truncated file that is reused; a corrupt cached
-  tarball is removed and downloaded again ([#51])
-- A cache file dated in the future no longer counts as valid forever, and
-  building a database from a single license no longer fails with
+- Deeply nested JSON no longer crashes detection; free text in a `license` field
+  is no SPDX candidate; extensionless INI/TOML text is read ([#50])
+- `update` no longer crashes on a short popularity row, a corrupt cache or an
+  unwritable cache directory, nor caches a bad download ([#51])
+- Cache files are written atomically; a corrupt cached tarball is downloaded
+  again; a future-dated cache no longer stays valid ([#51])
+- A database built from a single license no longer fails with
   `ZeroDivisionError` ([#51])
-- `match` and the `is-*` commands no longer crash on input that is not UTF-8:
-  it is read as Latin-1 with a warning; binary data (any NUL byte, including
-  UTF-16) exits 2 with `ERROR: input: binary file: <path>`; an empty or
-  unreadable file (such as a directory) exits 2 with `input: empty` or
-  `input: unreadable`. A UTF-8 byte order mark is dropped ([#53])
-- An input with no text (`--text ""`, `--id " "`, a blank argument or blank
-  piped input) exits 2 with `ERROR: input: empty: <input>` instead of being
-  skipped or reported as no match ([#53])
-- `--text` keeps non-ASCII characters and decodes only backslash escapes such
-  as `\n`; an invalid escape is kept as typed. A NUL exits 2 as binary input
-  ([#53])
-- `update --version` with an invalid or empty version exits 2 (usage error)
-  instead of 1 or meaning the latest version ([#53])
+- Input that is not UTF-8 is read as Latin-1 with a warning, by the CLI and the
+  API; binary, empty or unreadable input exits 2 or raises `InvalidInputError`
+  ([#53], [#59])
+- `--text` keeps non-ASCII text and decodes only backslash escapes;
+  `update --version` with a bad value exits 2 ([#53])
+- A blank `--db` is a usage error, not the default database ([#55])
+- An "or any later version" grant in any wording reads as `-or-later` on every
+  path; it qualifies the license beside it, after `WITH` or in brackets too
+  ([#58], [#61])
+- The `-only`/`-or-later` tie-breaker treats a 0.01 gap alike at every score and
+  never ranks a deprecated ID above its replacement ([#58])
+- A tag with no known license ID is no certain match; tags and `license` fields
+  decide by one rule, and `is-*` answers as `match` does ([#60])
+- An `SPDX-License-Identifier` tag is read as one whole expression, and may hold
+  a license name or SPDX URL ([#61])
+- `--id` accepts `LicenseRef-*`, `+` and `+ WITH` forms; a bare argument that is
+  no ID is matched as text ([#61])
+- Long tokens, embedded base64, overlong expressions or long runs of spaces no
+  longer take seconds to minutes ([#61], [#62], [#65], [#66])
+- A small `package.json`, `pyproject.toml` or `Cargo.toml` answers from its
+  `license` field, never by name; `MIT/Apache-2.0` is no longer just MIT ([#65])
+- PEP 639, Poetry, Cargo and written-out PEP 621 license forms are read, as are
+  npm's old `license` object and `licenses` array ([#65])
+- A TOML or INI `license` field is a certain match, as JSON is, and every result
+  carries its SPDX, OSI and FSF flags ([#65])
+- A short input answers from its `SPDX-License-Identifier` tag, not by license
+  name; a tag that names no license is no match ([#66], [#67])
+- `GPL-2.0-with-classpath-exception` and the deprecated `GFDL-1.x` IDs answer
+  their current forms, with `+` and "or later" ([#66], [#67])
+- A lone SPDX expression in any input is read as `--id` reads it:
+  `--text GPL-2.0+` answers `GPL-2.0-or-later` ([#67])
+- `LicenseRef-x+` is no expression; `--id LicenseRef-x+` exits 2 ([#67])
 
 ### Security
 
-- `--version` and the version in a downloaded `licenses.json` are validated
-  before use in a file name or URL, and the SPDX tarball is extracted with
-  path-traversal checks ([#51])
+- `--version` and the downloaded `licenses.json` version are validated before
+  use in a path or URL; the SPDX tarball is extracted with path-traversal checks
+  ([#51])
 
+[#39]: https://github.com/bact/licenseid/pull/39
+[#46]: https://github.com/bact/licenseid/pull/46
 [#50]: https://github.com/bact/licenseid/pull/50
 [#51]: https://github.com/bact/licenseid/pull/51
 [#53]: https://github.com/bact/licenseid/pull/53
 [#54]: https://github.com/bact/licenseid/pull/54
 [#55]: https://github.com/bact/licenseid/pull/55
+[#56]: https://github.com/bact/licenseid/pull/56
 [#57]: https://github.com/bact/licenseid/pull/57
 [#58]: https://github.com/bact/licenseid/pull/58
 [#59]: https://github.com/bact/licenseid/pull/59
 [#60]: https://github.com/bact/licenseid/pull/60
 [#61]: https://github.com/bact/licenseid/pull/61
+[#62]: https://github.com/bact/licenseid/pull/62
+[#65]: https://github.com/bact/licenseid/pull/65
+[#66]: https://github.com/bact/licenseid/pull/66
+[#67]: https://github.com/bact/licenseid/pull/67
+[#68]: https://github.com/bact/licenseid/pull/68
 
 ## [0.3.7] - 2026-08-20
+
+### Added
+
+- Releases attach the sdist and wheel, and the SBOM is validated in the
+  built wheel ([#36])
 
 ### Fixed
 
 - `LicenseDatabase` no longer leaks a SQLite connection per query ([#37])
 
+[#36]: https://github.com/bact/licenseid/pull/36
 [#37]: https://github.com/bact/licenseid/pull/37
 
 ## [0.3.6] - 2026-08-19
+
+### Added
+
+- Releases attach the SBOM ([#33])
 
 ### Fixed
 
 - Free-text bare deprecated license IDs (`GPL-2.0` -> `GPL-2.0-only`) ([#34])
 
+[#33]: https://github.com/bact/licenseid/pull/33
 [#34]: https://github.com/bact/licenseid/pull/34
 
 ## [0.3.5] - 2026-08-18

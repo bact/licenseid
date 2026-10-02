@@ -30,6 +30,8 @@ from tools.cli_matrix.pairwise import pairwise
 
 TOPS = ["", "1", "2", "3", "5", "0", "-1", "abc", "1.5"]
 THRS = ["", "0", "0.5", "0.85", "0.99", "1", "1.5", "-1", "abc", "nan"]
+#: Thresholds refused with exit 2: not a number, or outside the 0-1 score.
+BAD_THRS = ("1.5", "-1", "abc", "nan")
 
 #: Every ``match`` factor, for the all-pairs sweep. ``pos`` is where the
 #: options sit relative to the input and whether ``--opt=value`` is used.
@@ -73,7 +75,7 @@ SYNTAX: list[tuple[str, str, int | None]] = [
     ("--threshold .5", "--threshold .5 MIT", None),
     ("--threshold 1,5", "--threshold 1,5 MIT", 2),
     ("--top 99999999999999999999", "--top 99999999999999999999 MIT", None),
-    ("--threshold inf", "--threshold inf MIT", None),
+    ("--threshold inf", "--threshold inf MIT", 2),
     ("two positionals", "MIT Apache-2.0", 2),
     ("unknown flag", "--nope MIT", 2),
     ("short flag -j", "-j MIT", 2),
@@ -143,7 +145,7 @@ def _add_top_threshold(cells: CellSet) -> None:
                     )
                     if x
                 )
-                bad = top in ("abc", "1.5") or thr == "abc"
+                bad = top in ("abc", "1.5") or thr in BAD_THRS
                 cells.add(
                     "A2",
                     f"match FRAG top={top or 'default'} "
@@ -176,6 +178,25 @@ def _add_top_threshold(cells: CellSet) -> None:
             kind="match",
             outflags=frozenset({"json"}),
             top=int(top) if top else None,
+        )
+    # --exact keeps an exact answer (an ID) and drops a close one (a piece
+    # of a licence text).
+    for args, exit_code in (
+        ("--exact MIT", 0),
+        ("--exact --json --top 1 --id MIT", 0),
+        (f"--exact --text {shlex.quote(FRAG)}", 1),
+        (f"--exact --threshold 0 --text {shlex.quote(FRAG)}", 1),
+        ("--exact --bold --pop MIT", 0),
+        (f"--exact --diff --no-pop --text {shlex.quote(FRAG)}", 1),
+    ):
+        cells.add(
+            "A2",
+            f"match {args.split(' --text')[0]}",
+            licenseid(f"match {args}"),
+            kind="match",
+            outflags=frozenset(f for f in ("json", "bold", "diff") if f"--{f}" in args),
+            exp_exit=exit_code,
+            top=1 if "--top 1" in args else None,
         )
 
 
@@ -210,7 +231,13 @@ def _add_pairwise(cells: CellSet) -> None:
             f"{pre}{licenseid(f'match {body}')}",
             kind="match",
             outflags=frozenset(out),
-            exp_exit=(0 if row["found"] else 1) if defaults else None,
+            exp_exit=(
+                2
+                if row["thr"] in BAD_THRS
+                else (0 if row["found"] else 1)
+                if defaults
+                else None
+            ),
             top=int(row["top"]) if row["top"] not in ("", "0", "-1") else None,
         )
         cell.tags.add(f"src:{tag}")

@@ -8,6 +8,7 @@ Shared test configuration and fixtures for licenseid.
 """
 
 import builtins
+import json
 import re
 import sqlite3
 import uuid
@@ -19,11 +20,14 @@ from unittest import mock
 
 import pytest
 import requests
+from click.testing import CliRunner, Result
 
 from licenseid import console
+from licenseid.cli import cli
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.errors import LicenseIdError
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.types import LicenseMatch, Method
 
 # LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION] -- see AGENTS.md "CLI output".
 # The subject is a lowercase word or file name; the condition starts
@@ -160,6 +164,55 @@ def assert_cached_tarball_removed(db: LicenseDatabase, tar_path: Path) -> None:
             tar_path, {}, None
         )
     assert not tar_path.exists()
+
+
+# The keys of every match() result and --json line (types.LicenseMatch).
+RESULT_KEYS = frozenset(
+    {
+        "license_id",
+        "method",
+        "exact",
+        "score",
+        "similarity",
+        "coverage",
+        "is_spdx",
+        "is_osi_approved",
+        "is_fsf_libre",
+    }
+)
+
+
+def public_match(  # pylint: disable=too-many-arguments
+    license_id: str = "MIT",
+    *,
+    method: Method = "tag",
+    exact: bool = True,
+    score: float = 1.0,
+    similarity: float | None = None,
+    coverage: float | None = None,
+) -> LicenseMatch:
+    """A result as match() returns it, for the code that prints one."""
+    return LicenseMatch(
+        license_id=license_id,
+        method=method,
+        exact=exact,
+        score=score,
+        similarity=similarity,
+        coverage=coverage,
+        is_spdx=True,
+        is_osi_approved=True,
+        is_fsf_libre=False,
+    )
+
+
+def invoke_match(db: str, *args: str, color: bool = False) -> Result:
+    """``licenseid --db <db> match <args>`` through click's runner."""
+    return CliRunner().invoke(cli, ["--db", db, "match", *args], color=color)
+
+
+def json_lines(stdout: str) -> list[dict[str, Any]]:
+    """The results `match --json` printed: one JSON object per line."""
+    return [json.loads(line) for line in stdout.splitlines()]
 
 
 def leftover_tmp_files(directory: Path) -> list[Path]:

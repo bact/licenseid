@@ -16,7 +16,9 @@ from typing import Any
 
 import pytest
 from cli_matrix_env import make_cell, make_result
+from conftest import public_match
 
+from licenseid.result import json_line, text_line
 from tools.cli_matrix import judge as judge_mod
 from tools.cli_matrix.model import Cell
 
@@ -73,8 +75,8 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
         {"kind": "match", "top": 1, "outflags": frozenset({"json"})},
         {
             "rc": 0,
-            "out": '[{"license_id": "MIT", "score": 1.0},'
-            ' {"license_id": "X", "score": 0.5}]',
+            "out": '{"license_id":"MIT","method":"text","score":1}\n'
+            '{"license_id":"X","method":"text","score":0.5}\n',
         },
         "--top 1 returned 2",
     ),
@@ -111,10 +113,19 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
     (
         "--bold printed more than an identifier",
         {"kind": "match", "outflags": frozenset({"bold"}), "exp_exit": 0},
-        {"rc": 0, "out": "LICENSE_ID=MIT SIMILARITY=1.0000 COVERAGE=1.0000\n"},
+        {
+            "rc": 0,
+            "out": "LICENSE_ID=MIT METHOD=id EXACT=true SCORE=1.0000 SIMILARITY="
+            " COVERAGE=\n",
+        },
         "--bold not a single id",
     ),
 ]
+
+
+MIT_JSON = '{"exact":true,"license_id":"MIT","method":"id","score":1}'
+BSD_JSON = '{"exact":false,"license_id":"0BSD","method":"name","score":0.9}'
+ISC_JSON = '{"exact":false,"license_id":"ISC","method":"name","score":0.9}'
 
 
 @pytest.mark.parametrize(
@@ -219,7 +230,7 @@ def test_differential_flags_a_group_outlier() -> None:
 
 
 def test_group_compares_a_json_answer_whole() -> None:
-    """JSON starts with ``[`` for every licence, so the first line proves nothing."""
+    """A JSON answer is compared whole, every line, not by its top result."""
     flags = frozenset({"json"})
     cells = {
         "A1-001": make_cell(id="A1-001", group="A1-x", outflags=flags),
@@ -227,9 +238,9 @@ def test_group_compares_a_json_answer_whole() -> None:
         "A1-003": make_cell(id="A1-003", group="A1-x", outflags=flags),
     }
     results = [
-        make_result(id="A1-001", out='[\n {"license_id": "MIT"}\n]\n'),
-        make_result(id="A1-002", out='[\n {"license_id": "MIT"}\n]\n'),
-        make_result(id="A1-003", out='[\n {"license_id": "GPL-2.0-only"}\n]\n'),
+        make_result(id="A1-001", out=f"{MIT_JSON}\n{BSD_JSON}\n"),
+        make_result(id="A1-002", out=f"{MIT_JSON}\n{BSD_JSON}\n"),
+        make_result(id="A1-003", out=f"{MIT_JSON}\n{ISC_JSON}\n"),
     ]
     assert list(judge_mod.differential(cells, results, "/out")) == [
         ("A1-003", "bash", "310")
@@ -301,3 +312,55 @@ def _relational_fixture(is_open_rc: int) -> tuple[dict[str, Cell], list[Any]]:
         )
         rows.append(make_result(id=cell_id, rc=rc, verdict="OBSERVE", notes=[]))
     return cells, rows
+
+
+# What match prints, from the code that prints it.
+# Coverage, input words over licence words, can reach two digits.
+RESULT = public_match(
+    "GPL-2.0-only WITH Classpath-exception-2.0",
+    method="text",
+    exact=False,
+    score=0.9908,
+    similarity=1.0,
+    coverage=13.0,
+)
+PLAIN_LINE = text_line(RESULT)
+TEXT: frozenset[str] = frozenset()
+JSON = frozenset({"json"})
+
+
+@pytest.mark.parametrize(
+    ("flags", "out", "ok"),
+    [
+        (TEXT, PLAIN_LINE, True),
+        (TEXT, text_line(public_match()), True),
+        (TEXT, PLAIN_LINE.replace("WITH", "OR"), True),  # an expression from a tag
+        # The format before the method, exact and score keys.
+        (TEXT, "LICENSE_ID=MIT SIMILARITY=1.0000 COVERAGE=1.0000", False),
+        (TEXT, PLAIN_LINE.replace("EXACT=false", "EXACT=no"), False),
+        (TEXT, PLAIN_LINE.replace("SCORE=0.9908", "SCORE=1.02"), False),
+        (TEXT, PLAIN_LINE.replace("SCORE=0.9908", "SCORE=10.9908"), False),
+        (TEXT, PLAIN_LINE.replace("SCORE=0.9908", "SCORE=1.9908"), False),
+        # Two results on one line.
+        (TEXT, f"{PLAIN_LINE} {text_line(public_match())}", False),
+        (TEXT, PLAIN_LINE.replace("METHOD=text", "METHOD=TEXT"), False),
+        (TEXT, PLAIN_LINE.replace("METHOD=text", "METHOD="), False),
+        (TEXT, PLAIN_LINE.replace("COVERAGE=13.0000", "COVERAGE=1.02"), False),
+        (JSON, json_line(RESULT), True),
+        (JSON, f"{MIT_JSON}\n{BSD_JSON}", True),
+        # The array --json printed before JSON Lines.
+        (JSON, f"[{MIT_JSON},{BSD_JSON}]", False),
+        (JSON, '{"license_id":"MIT","score":1}', False),  # no method
+        (JSON, f"{MIT_JSON}\nnot json", False),
+        (JSON, f"{MIT_JSON}\n\n{BSD_JSON}", False),
+        (JSON, "[]", False),
+    ],
+)
+def test_match_output_is_the_format_its_flags_ask_for(
+    flags: frozenset[str], out: str, ok: bool
+) -> None:
+    """The judge accepts what match prints, and nothing else: one KEY=VALUE
+    line, or one result object per JSON line (not an array, not a bare
+    value)."""
+    notes = judge_mod.check_match_format(make_cell(outflags=flags), out + "\n")
+    assert (not notes) is ok, notes

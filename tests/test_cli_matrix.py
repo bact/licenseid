@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import pwd
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -31,6 +32,7 @@ from cli_matrix_env import (
     make_result,
 )
 
+from licenseid import cli as cli_mod
 from tools.cli_matrix import baseline as baseline_mod
 from tools.cli_matrix import config as config_mod
 from tools.cli_matrix import main as main_mod
@@ -42,7 +44,8 @@ from tools.cli_matrix.config import (
     snapshot_protected,
 )
 from tools.cli_matrix.main import main, run
-from tools.cli_matrix.report import write_coverage
+from tools.cli_matrix.model import Cell
+from tools.cli_matrix.report import MATCH_FLAGS, UNIVERSE, write_coverage
 from tools.cli_matrix.runner import plan, run_cell
 
 #: Cells the smoke run covers: one per input source for ``match`` and for
@@ -302,6 +305,50 @@ def test_signal_cells_reset_sigint_first() -> None:
     for cell in build_cells().cells:
         if "kill -INT" in cell.cmd:
             assert "SIG_DFL" in cell.cmd, cell.id
+
+
+def _threshold_refused(cmd: str) -> bool:
+    """True when *cmd* passes a --threshold the CLI refuses (exit 2)."""
+    found = re.search(r"--threshold[ =](\S+)", cmd)
+    if not found:
+        return False
+    try:
+        return not 0.0 <= float(found.group(1)) <= 1.0
+    except ValueError:
+        return True
+
+
+def _match_cells() -> list[Cell]:
+    return [c for c in build_cells().cells if c.fam in ("A2", "A3")]
+
+
+def test_a_cell_with_a_refused_threshold_expects_a_usage_error() -> None:
+    """A threshold outside 0-1 exits 2, so its cells must expect it."""
+    refused = [c for c in _match_cells() if _threshold_refused(c.cmd)]
+    assert refused
+    assert all(c.exp_exit == 2 for c in refused)
+
+
+def test_a_match_cell_judges_the_flags_it_passes() -> None:
+    """The judge reads a cell's outflags and top, not its command line."""
+    for cell in _match_cells():
+        asked = {f for f in ("json", "bold", "diff") if f"--{f}" in cell.cmd}
+        assert cell.outflags == asked, cell.id
+        top = re.search(r"--top[ =](\d+)(?=\s|$)", cell.cmd)
+        if top and int(top.group(1)) > 0:
+            assert cell.top == int(top.group(1)), cell.id
+
+
+def test_the_checklist_lists_every_match_option() -> None:
+    """A new option shows up in the coverage checklist, or this fails."""
+    options = {
+        o
+        for p in cli_mod.cli.commands["match"].params
+        for o in (*p.opts, *p.secondary_opts)
+        if o.startswith("--")
+    }
+    assert set(UNIVERSE["match"]) == options | {"--help"}
+    assert set(MATCH_FLAGS) == options
 
 
 def test_python_label_must_be_a_plain_name(tmp_path: Path) -> None:

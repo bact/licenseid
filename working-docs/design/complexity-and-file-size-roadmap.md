@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-02
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -41,8 +41,8 @@ pylint's actual defaults are 12 and 50.
 | Nesting | ≤5 | 5 (no ratchet needed) | 5 |
 | Branches | ≤12 | 13 | 13 (`identifiers._normalize_expression`) |
 | Returns | ≤6 | 6 (at target) | 6 (`tests/test_option_matrix.py`) |
-| Statements | ≤50 | 50 (at target) | 35 (`markers._detect_gpl_headers`) |
-| McCabe | ≤10 | 12 | 12 (`database._prepare_license_and_exception_records`) |
+| Statements | ≤50 | 50 (at target) | 38 (`shorttext.match_short_text`) |
+| McCabe | ≤10 | 12 | 12 (`database._prepare_license_and_exception_records`, `identifiers.leading_expression`) |
 | Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
 | Module lines | soft 400-500 / hard 800 | 921 | 921 (`database.py`) |
 
@@ -379,7 +379,7 @@ holds the Branches ceiling; no ceiling number changed.
 
 ### 1. `database.py` — split by responsibility (Priority 9)
 
-934 lines (re-measured 2026-09-19), over the 800-line hard limit.
+921 lines (re-measured 2026-10-02), over the 800-line hard limit.
 Schema/connection management, license-record preparation,
 and query methods are still all in one file. Not a complexity offender
 (no individual function stands out) — purely a file-size and
@@ -395,8 +395,8 @@ module-lines-ratchet problem.
 
 ## Out of scope for now
 
-- `cli.py::match` (McCabe 10, cognitive 20, 12 branches since
-  2026-09-19) is at target except for cognitive complexity.
+- `cli.py::match` (McCabe 10, cognitive 19, 11 branches on
+  2026-10-02) is at target except for cognitive complexity.
 - `tests/test_accuracy.py::run_accuracy_test` (cognitive 29) now sets
   the repo's Cognitive ceiling — a benchmark-table-printing test helper,
   not production code. Not a priority-ranked backlog item (it isn't

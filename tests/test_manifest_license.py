@@ -7,7 +7,6 @@
 on every result. Roadmap item 18."""
 # pylint: disable=missing-function-docstring,redefined-outer-name
 
-import json
 import time
 from collections.abc import Generator
 from pathlib import Path
@@ -15,7 +14,7 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from conftest import MIT_SEARCH_TEXT
+from conftest import MIT_SEARCH_TEXT, json_lines
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.cli import cli
@@ -178,7 +177,7 @@ def test_match_json_shows_the_flags_of_a_manifest(db: str, tmp_path: Path) -> No
     path = manifest(tmp_path, "pyproject-string", "MIT OR Apache-2.0", large=False)
     result = CliRunner().invoke(cli, ["--db", db, "match", "--json", path])
     assert result.exit_code == 0, result.output
-    top = json.loads(result.stdout)[0]
+    top = json_lines(result.stdout)[0]
     assert {flag: top[flag] for flag in FLAGS} == {
         "is_spdx": True,
         "is_osi_approved": False,

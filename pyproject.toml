@@ -47,6 +47,7 @@ dependencies = [
     "py-spdx-license>=0.0.1,<0.1",
     "rapidfuzz>=3.14.5",
     "requests>=2.33.0", # sync with `types-requests` version
+    "rfc8785>=0.1.4,<0.2",
     "typing_extensions>=4.16.0",
 ]
 

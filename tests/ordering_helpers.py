@@ -17,6 +17,8 @@ def im(
     """A ranked candidate, as _rank_candidates builds it."""
     return InternalMatch(
         license_id=license_id,
+        method="text",
+        exact=False,
         score=score,
         similarity=score,
         coverage=score,

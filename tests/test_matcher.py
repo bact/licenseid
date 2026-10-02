@@ -156,6 +156,8 @@ def _tied_gpl_matches(only_score: float, or_later_score: float) -> list[Internal
     return [
         InternalMatch(
             license_id="GPL-2.0-only",
+            method="text",
+            exact=False,
             score=only_score,
             similarity=only_score,
             coverage=only_score,
@@ -165,6 +167,8 @@ def _tied_gpl_matches(only_score: float, or_later_score: float) -> list[Internal
         ),
         InternalMatch(
             license_id="GPL-2.0-or-later",
+            method="text",
+            exact=False,
             score=or_later_score,
             similarity=or_later_score,
             coverage=or_later_score,
