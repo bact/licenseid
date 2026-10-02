@@ -20,11 +20,14 @@ from unittest import mock
 
 import pytest
 import requests
+from click.testing import CliRunner, Result
 
 from licenseid import console
+from licenseid.cli import cli
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.errors import LicenseIdError
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.types import LicenseMatch, Method
 
 # LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION] -- see AGENTS.md "CLI output".
 # The subject is a lowercase word or file name; the condition starts
@@ -177,6 +180,34 @@ RESULT_KEYS = frozenset(
         "is_fsf_libre",
     }
 )
+
+
+def public_match(  # pylint: disable=too-many-arguments
+    license_id: str = "MIT",
+    *,
+    method: Method = "tag",
+    exact: bool = True,
+    score: float = 1.0,
+    similarity: float | None = None,
+    coverage: float | None = None,
+) -> LicenseMatch:
+    """A result as match() returns it, for the code that prints one."""
+    return LicenseMatch(
+        license_id=license_id,
+        method=method,
+        exact=exact,
+        score=score,
+        similarity=similarity,
+        coverage=coverage,
+        is_spdx=True,
+        is_osi_approved=True,
+        is_fsf_libre=False,
+    )
+
+
+def invoke_match(db: str, *args: str, color: bool = False) -> Result:
+    """``licenseid --db <db> match <args>`` through click's runner."""
+    return CliRunner().invoke(cli, ["--db", db, "match", *args], color=color)
 
 
 def json_lines(stdout: str) -> list[dict[str, Any]]:

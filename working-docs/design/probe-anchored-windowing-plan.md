@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-02
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -123,15 +123,15 @@ of candidates that pass the gate.
 ### 1. `best_window` is user-facing, not just an internal score
 
 Unlike `score_cutoff` (which only affected an internal ranking value for
-already-rejected candidates), this changes **which substring of the
-candidate gets returned** as `best_window` for *any* candidate scored
-this way — including the eventual winner. `best_window` reaches the CLI's
-`--diff` flag (`cli.py`'s `show_diff()`), which renders a word-by-word
-diff against it. An estimated window that's shifted from the true optimal
-alignment would produce a visibly worse or misleading diff even in cases
-where the *score* comes out fine. The recall benchmarks (`bench_compare.py`)
-do not check `best_window` at all — a regression here could pass every
-existing recall check and still ship a broken `--diff` output.
+already-rejected candidates), this changes **which substring of the candidate is
+aligned** for *any* candidate scored this way — including the eventual winner.
+The window stays internal, but `--diff` recomputes it
+(`AggregatedLicenseMatcher.diff_pair`) and `cli.py`'s `show_diff()` renders a
+word-by-word diff against it. An estimated window that's shifted from the true
+optimal alignment would produce a visibly worse or misleading diff even in cases
+where the *score* comes out fine. The recall benchmarks (`bench_compare.py`) do
+not check `best_window` at all — a regression here could pass every existing
+recall check and still ship a broken `--diff` output.
 
 ### 2. The offset estimate can be wrong in ways recall benchmarks won't catch
 

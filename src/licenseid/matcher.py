@@ -276,11 +276,13 @@ class AggregatedLicenseMatcher:
             )
             # Only an exact ID or name: "BSD" is a fuzzy match for 0BSD.
             if result and result[0]["score"] >= EXACT_MATCH_SCORE:
-                # The field declares the exact hit; a look-alike name after
+                # The field declares the exact hit, so nothing is measured
+                # (as for a field Tier 0.5 resolved); a look-alike name after
                 # it was only found by name.
                 for match in result:
                     if match["exact"]:
                         match["method"] = "field"
+                        match["similarity"] = None
                 return result
         return [] if ctx.word_count < 30 else None
 
@@ -415,7 +417,8 @@ class AggregatedLicenseMatcher:
         """Resolve the input to the record of its top match (score 0.85 or
         more), or None. The is_*() predicates and the CLI's is-* commands both
         answer from this, so they cannot disagree with match(), and raise
-        what it raises."""
+        what it raises. The bar reads the public score, as --threshold does:
+        rounded to 4 places, so a raw 0.84995 passes."""
         results = self.match(text, license_id=license_id, file_path=file_path)
         if not results or results[0]["score"] < 0.85:
             return None
@@ -441,18 +444,19 @@ class AggregatedLicenseMatcher:
             },
         )
 
-    def diff_window(self, text: str, license_id: str) -> str:
-        """The part of *license_id*'s normalised text that a text match of
-        *text* aligned with, for a word diff; "" if it has no text. The
-        alignment Tier 2 makes, made again for one license, on the same
-        input: a short one without its tags."""
+    def diff_pair(self, text: str, license_id: str) -> tuple[str, str]:
+        """The two sides of a word diff of *text* against *license_id*: the
+        normalised input Tier 2 read (a short one without its tags) and the
+        part of the license's normalised text it aligned with. ("", "") if
+        the license has no text. The alignment Tier 2 makes, made again for
+        one license."""
         # A "WITH Font-exception-2.0" the License List has no row for is
         # ranked on its license's text (markers, the font-exception rule).
         details = self.db.get_license_details(
             license_id
         ) or self.db.get_license_details(license_id.split(" WITH ")[0])
         if not details:
-            return ""
+            return "", ""
         ctx = self._build_match_context(text, None, cast(MatchRequest, {}))
         norm_input = self._without_tags(ctx).norm_input
         words = norm_input.split()
@@ -463,7 +467,7 @@ class AggregatedLicenseMatcher:
             self.detector.to_candidate(details, 0.0),
             build_probe(words),
         )
-        return window
+        return norm_input, window
 
     def is_spdx(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is in the SPDX License List.
@@ -535,9 +539,12 @@ class AggregatedLicenseMatcher:
                 InternalMatch(
                     license_id=cand["license_id"],
                     method="text",
-                    # The license text word for word, as SPDX matching
-                    # reads it (both normalised).
-                    exact=norm_input == cand.get("search_text"),
+                    # The whole input is the License List's text, both
+                    # normalised. Stricter than SPDX matching, which lets a
+                    # copyright line differ (roadmap item 31). An input that
+                    # normalises to nothing equals no text: a hinted
+                    # candidate has none.
+                    exact=bool(norm_input) and norm_input == cand.get("search_text"),
                     base_score=sim,
                     similarity=sim,
                     coverage=coverage,

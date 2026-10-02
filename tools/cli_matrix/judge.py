@@ -30,9 +30,11 @@ GRAMMAR = re.compile(r"(ERROR|WARNING): [a-z][a-z0-9._-]*: [a-z0-9].*")
 CLICK = re.compile(r"(Usage: .*|Try '.*' for help\.|Error: .*|Aborted!|)")
 
 #: The default one-line result of ``match``.
+#: An expression's operators are its only spaces; a score is 0-1, and
+#: coverage passes 1 when the input is longer than the licence.
 PLAIN = re.compile(
-    r"LICENSE_ID=\S+( WITH \S+)? METHOD=[a-z]+ EXACT=(true|false) SCORE=\d\.\d{4}"
-    r" SIMILARITY=(\d\.\d{4})? COVERAGE=(\d\.\d{4})?"
+    r"LICENSE_ID=\S+( (AND|OR|WITH) \S+)* METHOD=[a-z]+ EXACT=(true|false)"
+    r" SCORE=(0\.\d{4}|1\.0000) SIMILARITY=(\d\.\d{4})? COVERAGE=(\d+\.\d{4})?"
 )
 
 #: The whole result of ``match --bold``: an identifier and nothing else.
@@ -340,7 +342,7 @@ def _groups(
         signatures: dict[tuple[int, str], list[str]] = {}
         for run in runs:
             # Plain output may differ after its first line (ties, order);
-            # JSON is one document, so it is compared whole.
+            # JSON Lines are compared whole, every line, not by the top one.
             whole = "json" in cells[run["id"]].outflags or "A1" not in name
             head = run["out"] if whole else run["out"].split("\n", 1)[0]
             signatures.setdefault((run["rc"], head), []).append(run["id"])

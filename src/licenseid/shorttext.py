@@ -37,6 +37,9 @@ def match_short_text(db: LicenseDatabase, norm_input: str) -> list[RawMatch]:
     words = norm_input.split()
     threshold = 90.0 if len(words) <= 2 else 85.0
     norm_upper = norm_input.upper()
+    # The names of rows in use: a deprecated row that shares one is not the
+    # exact answer, the row that replaced it is.
+    live_names = {m["norm_name"] for m in all_metadata if not m["is_deprecated"]}
 
     for meta in all_metadata:
         lid = meta["license_id"]
@@ -76,9 +79,9 @@ def match_short_text(db: LicenseDatabase, norm_input: str) -> list[RawMatch]:
         best_raw = max(score_id, score_name_exact, score_name_flex, score_id_partial)
         if best_raw >= threshold:
             score = best_raw / 100.0
-            # Boost exact matches for names and IDs more than flex matches
-            exact = score_name_exact == 100 or score_id == 100
-            if exact:
+            # Boost exact name matches more than flex matches. (An exact ID
+            # returned above: fuzz.ratio is 100 only for equal strings.)
+            if score_name_exact == 100:
                 score += 0.02
             elif score_name_flex == 100:
                 score += 0.01
@@ -92,7 +95,8 @@ def match_short_text(db: LicenseDatabase, norm_input: str) -> list[RawMatch]:
             match = RawMatch(
                 license_id=lid,
                 method="name",
-                exact=exact,
+                exact=score_name_exact == 100
+                and not (meta["is_deprecated"] and name_norm in live_names),
                 score=score,
                 similarity=best_raw / 100.0,
                 coverage=None,

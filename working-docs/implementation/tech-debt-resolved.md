@@ -17,26 +17,42 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
 - `--json` printed internal ranking keys (item 22, Priority 12;
   2026-10-02). Each tier's own record went out as it was, with `base_score`,
   `pop_score`, `is_deprecated`, `superseded_by` and `best_window`, keys in
-  build order, and a `score` on each tier's scale (a tag 1.0; an exact ID
-  or name 1.02, a name sharing the input's words 1.01; a text match up to
-  about 1.05). Now `match()` has one exit, which maps each raw record
+  build order, and a `score` on each tier's scale (a tag 1.0, an exact ID
+  or name 1.0 or 1.02, a name sharing the input's words 1.01, a text match
+  up to about 1.08). Now `match()` has one exit, which maps each raw record
   through `result.public_result`: the same nine keys for every result, a
   `method` (tag, field, id, name, text), an `exact` flag, the score capped
   to 0-1 and rounded to 4 places, and null where nothing was measured.
   Ranking keeps the raw score (`_match_raw`). `--json` prints JSON Lines in
   RFC 8785 form through `rfc8785`, a new dependency; the text line gains
   `METHOD=`, `EXACT=` and `SCORE=`, with an empty value for null. `--diff`
-  recomputes the window (`AggregatedLicenseMatcher.diff_window`) on the
+  recomputes the window (`AggregatedLicenseMatcher.diff_pair`) on the
   input Tier 2 read (a short one without its tags), since `best_window`
   stays internal. `coverage` is a length ratio and passes 1 when the input
   is longer, as it did; it is not capped.
   - The cap makes an exact hit and a look-alike both 1 (`MIT License`
     answers MIT at 1.02 and a name sharing its words at 1.01). Kept on
     purpose; `exact` tells them apart, and `--exact` keeps only exact
-    results, in place of `--threshold 1.02`. `exact` is true for a
-    declaration, an exact name or ID, and a text equal to the licence text
-    after normalisation. A threshold outside 0-1 now exits 2. How to rank
+    results (`--threshold 1.02` never did: a close text scored up to 1.08,
+    a tag 1.0). `exact` is true for a declaration, an exact name or ID (a
+    deprecated row gives way to a row in use of the same name), and a whole
+    input equal to the licence text after normalisation; a filled-in
+    copyright line makes a text not exact, which is stricter than SPDX
+    matching (item 31). A threshold outside 0-1 now exits 2. How to rank
     internally is left to item 31.
+  - Decisions and paths rejected. Values are rounded to 4 places so that
+    JSON and the text line agree; `-0.0` becomes `0.0`. Null, not 0 or 1,
+    marks a value nothing measured: a tag, a field or an ID compares no
+    text, and a name covers none. JSON Lines in RFC 8785 form print equal
+    results as equal bytes and stream one result at a time. A field's exact
+    hit is `method=field` with no similarity; a look-alike after it stays
+    `name`. Rejected: `--threshold 1.02` as an "exact only" filter, since a
+    tag scores 1.0 and a close text up to 1.08. Rejected: every deprecated
+    row not exact, which made `--exact` find nothing for "GNU Affero
+    General Public License v3.0" (AGPL-3.0 has a name of its own); only a
+    deprecated row whose normalised name a row in use shares gives way.
+    Rejected: keeping `best_window` in the result for `--diff`;
+    `diff_pair` aligns again, for one licence.
 - `--text GPL-2.0+` answered `GPL-2.0-only` (item 21, Priority 20;
   2026-10-01). Tier 0 matched the normalised text, which had lost the "+";
   only the CLI's bare argument tried the value as an ID first. Now

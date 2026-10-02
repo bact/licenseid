@@ -25,9 +25,10 @@ item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
 the review of PR #66, items 30 and 31 from the work on item 21, and items
 32 to 35 from the review of item 22.
 
-Next up: the revision of the license matching rules (item 31, decided
-2026-10-01), with the ranking itself (item 31, 2026-10-02); items 24, 25,
-21 and 22, the order chosen on 2026-10-01, are done.
+Next up: item 31, the revision of the license matching rules (decided
+2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
+in the order chosen on 2026-10-01, are done. Item 32 (Priority 24) is the
+highest open priority but lies outside item 31; it has not been scheduled.
 Item 2 waits on an upstream release.
 
 ## 2. `py-spdx-license` reads its data with the locale encoding — Priority 20
@@ -177,7 +178,7 @@ and `LGPL 2.1+` `LGPL-2.1-only`. Left out of item 21 on purpose
   answer its or-later form, or lower the hit below certain.
 - Impact 1, Risk 2, Effort 2.
 
-## 31. Revisit how an SPDX expression is judged valid — Priority 12
+## 31. Revise the matching rules: grammar, certainty, ranking — Priority 12
 
 Come back to this and think it through systematically, for one consistent
 answer: so far each fix has patched the one case that was found. Whether a
@@ -196,8 +197,11 @@ partial grammar:
 Cases found one at a time: a "+" after an exception (PR #61), a dangling
 operator or an unbalanced bracket (PR #61), a "+" after a `LicenseRef-*`
 (review of PR #67: it answered as a valid SPDX license from a tag, `--id`
-and text). Each time the rule went into one place, and the others were
-checked by hand. Found on 2026-10-01; the user asked to return to it.
+and text), and "or later" after an ID with no or-later form (review of
+PR #68: `SPDX-License-Identifier: MIT or later` answers `MIT OR later`,
+as if `or` were the operator and `later` an ID). Each time the rule went
+into one place, and the others were checked by hand. Found on 2026-10-01;
+the user asked to return to it.
 
 **Decided (2026-10-01)**: no more one-off fixes of these edge cases. The
 last were in PR #67 (a "+" after a `LicenseRef-*`, and a short input's
@@ -208,12 +212,18 @@ are the same question for short text).
 
 **Ranking (2026-10-02)**: rethink the internal ranking in the same
 revision. Each tier ranks on a key of its own scale (a tag 1.0, an exact
-name or ID 1.02, a look-alike name 1.01, a text match up to about 1.05 with
-its bonuses), and the tiers never meet in one list, so the scales were
-never made comparable. Item 22 caps the public score to 0-1 and adds
+name or ID 1.0 or 1.02, a look-alike name 1.01, a text match up to about
+1.08 with its bonuses), and the tiers never meet in one list, so the scales
+were never made comparable. Item 22 caps the public score to 0-1 and adds
 `exact`, which keeps the order but shows several answers at 1. Separate
 certainty (how the answer was found, and whether exactly) from closeness
 (how alike), and rank on both, so that a capped score is no longer needed.
+Decide there too what an exact text is: item 22 asks for the whole input
+equal to the License List's text after normalisation, so a filled-in
+copyright line or a title makes a real licence file not exact, where the
+SPDX matching guidelines let both differ (replaceable and omittable text).
+A text with a leading byte order mark (BOM) given as `--text` keeps it and
+is not exact, though the same file is.
 
 - **Direction**: one reader for the SPDX grammar (Annex D:
   `license-id ["+"]`, `license-ref`, `WITH`, `AND`, `OR`, brackets, and the
@@ -253,7 +263,7 @@ answered in part. `main` does the same; found in review of item 22
   as the expression reader does, and let the grammar refuse it (item 31).
 - Impact 2, Risk 2, Effort 3.
 
-## 34. Results for expressions and references carry the wrong flags — Priority 12
+## 34. Expressions and references carry the wrong flags — Priority 12
 
 `is_spdx` is true for any `LicenseRef-*`, which is by definition not on
 the SPDX License List, and a compound expression (`MIT OR Apache-2.0`)
@@ -275,6 +285,9 @@ Found in review of item 22 (2026-10-02); `main` does the same:
   still answers an excluded licence (item 5 covers the other options).
 - `match(file_path=<missing>)` raises a bare `FileNotFoundError`, not a
   `LicenseIdError` worded `input: not found: <path>`.
+- A licence text repeated three times answers a licence it barely
+  resembles: `LICENSE` (Apache-2.0) three times over gives `BSD-4-Clause`
+  at 0.9025, with similarity 0.0968 and coverage 20.08 (review of PR #68).
 - A deprecated row the License List gives no text is still a Tier 2
   candidate, matched with similarity and coverage 0 but ranked by its
   markers: the README of a GPL-2.0-only project answers the deprecated
@@ -286,10 +299,10 @@ Found in review of item 22 (2026-10-02); `main` does the same:
 When several inputs are given, the CLI uses `--id`, then `--text`, then the
 positional argument, then stdin; the API uses `license_id`, then `file_path`,
 then `text`. `--bold` wins over `--json`, and `--diff` has no effect with
-`--json` or `--bold`. The README documents none of this, and the losing
-option or input is dropped without a warning. All of it is pinned as
-"current behaviour" in `tests/test_option_matrix.py` and
-`tests/test_cli_output.py`.
+`--json`, `--bold` or `--exact` (an exact result has no diff). The README
+documents none of this, and the losing option or input is dropped without a
+warning. All of it is pinned as "current behaviour" in
+`tests/test_option_matrix.py` and `tests/test_cli_output.py`.
 
 - The same holds for the API options: `exclude`, `only_spdx`, `only_common`,
   `hint` and `enable_popularity` are read only by ranking, so an explicit

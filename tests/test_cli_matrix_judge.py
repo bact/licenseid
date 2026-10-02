@@ -16,7 +16,9 @@ from typing import Any
 
 import pytest
 from cli_matrix_env import make_cell, make_result
+from conftest import public_match
 
+from licenseid.result import json_line, text_line
 from tools.cli_matrix import judge as judge_mod
 from tools.cli_matrix.model import Cell
 
@@ -312,52 +314,53 @@ def _relational_fixture(is_open_rc: int) -> tuple[dict[str, Cell], list[Any]]:
     return cells, rows
 
 
-PLAIN_LINE = (
-    "LICENSE_ID=MIT METHOD=text EXACT=false SCORE=0.9908 SIMILARITY=1.0000"
-    " COVERAGE=0.5000"
+# What match prints, from the code that prints it.
+# Coverage, input words over licence words, can reach two digits.
+RESULT = public_match(
+    "GPL-2.0-only WITH Classpath-exception-2.0",
+    method="text",
+    exact=False,
+    score=0.9908,
+    similarity=1.0,
+    coverage=13.0,
 )
+PLAIN_LINE = text_line(RESULT)
+TEXT: frozenset[str] = frozenset()
+JSON = frozenset({"json"})
 
 
 @pytest.mark.parametrize(
-    ("line", "ok"),
+    ("flags", "out", "ok"),
     [
-        (PLAIN_LINE, True),
-        (
-            "LICENSE_ID=MIT METHOD=id EXACT=true SCORE=1.0000 SIMILARITY= COVERAGE=",
-            True,
-        ),
-        (
-            (
-                "LICENSE_ID=GPL-2.0-only WITH Classpath-exception-2.0 METHOD=tag"
-                " EXACT=true SCORE=1.0000 SIMILARITY= COVERAGE="
-            ),
-            True,
-        ),
+        (TEXT, PLAIN_LINE, True),
+        (TEXT, text_line(public_match()), True),
+        (TEXT, PLAIN_LINE.replace("WITH", "OR"), True),  # an expression from a tag
         # The format before the method, exact and score keys.
-        ("LICENSE_ID=MIT SIMILARITY=1.0000 COVERAGE=1.0000", False),
-        (PLAIN_LINE.replace("EXACT=false", "EXACT=no"), False),
-        (PLAIN_LINE.replace("SCORE=0.9908", "SCORE=1.02"), False),
-    ],
-)
-def test_plain_output_is_the_one_line_format(line: str, ok: bool) -> None:
-    """The judge accepts the result line match prints, and nothing else."""
-    notes = judge_mod.check_match_format(make_cell(), line + "\n")
-    assert (not notes) is ok, notes
-
-
-@pytest.mark.parametrize(
-    ("out", "ok"),
-    [
-        (f"{MIT_JSON}\n", True),
-        (f"{MIT_JSON}\n{BSD_JSON}\n", True),
+        (TEXT, "LICENSE_ID=MIT SIMILARITY=1.0000 COVERAGE=1.0000", False),
+        (TEXT, PLAIN_LINE.replace("EXACT=false", "EXACT=no"), False),
+        (TEXT, PLAIN_LINE.replace("SCORE=0.9908", "SCORE=1.02"), False),
+        (TEXT, PLAIN_LINE.replace("SCORE=0.9908", "SCORE=10.9908"), False),
+        (TEXT, PLAIN_LINE.replace("SCORE=0.9908", "SCORE=1.9908"), False),
+        # Two results on one line.
+        (TEXT, f"{PLAIN_LINE} {text_line(public_match())}", False),
+        (TEXT, PLAIN_LINE.replace("METHOD=text", "METHOD=TEXT"), False),
+        (TEXT, PLAIN_LINE.replace("METHOD=text", "METHOD="), False),
+        (TEXT, PLAIN_LINE.replace("COVERAGE=13.0000", "COVERAGE=1.02"), False),
+        (JSON, json_line(RESULT), True),
+        (JSON, f"{MIT_JSON}\n{BSD_JSON}", True),
         # The array --json printed before JSON Lines.
-        (f"[{MIT_JSON},{BSD_JSON}]\n", False),
-        ('{"license_id":"MIT","score":1}\n', False),  # no method
-        (f"{MIT_JSON}\nnot json\n", False),
-        ("[]\n", False),
+        (JSON, f"[{MIT_JSON},{BSD_JSON}]", False),
+        (JSON, '{"license_id":"MIT","score":1}', False),  # no method
+        (JSON, f"{MIT_JSON}\nnot json", False),
+        (JSON, f"{MIT_JSON}\n\n{BSD_JSON}", False),
+        (JSON, "[]", False),
     ],
 )
-def test_json_output_is_json_lines_of_results(out: str, ok: bool) -> None:
-    """--json is one result object per line: not an array, not a bare value."""
-    notes = judge_mod.check_match_format(make_cell(outflags=frozenset({"json"})), out)
+def test_match_output_is_the_format_its_flags_ask_for(
+    flags: frozenset[str], out: str, ok: bool
+) -> None:
+    """The judge accepts what match prints, and nothing else: one KEY=VALUE
+    line, or one result object per JSON line (not an array, not a bare
+    value)."""
+    notes = judge_mod.check_match_format(make_cell(outflags=flags), out + "\n")
     assert (not notes) is ok, notes

@@ -33,7 +33,6 @@ from licenseid.errors import (
 )
 from licenseid.identifiers import is_simple_expression
 from licenseid.matcher import AggregatedLicenseMatcher
-from licenseid.normalize import normalize_text
 from licenseid.result import json_line, text_line
 from licenseid.textinput import (
     decode_input,
@@ -44,11 +43,11 @@ from licenseid.textinput import (
 from licenseid.types import LicenseDetails
 
 
-def show_diff(text: str, best_window: str) -> None:
-    """Show word-by-word diff between input text and matched window."""
+def show_diff(norm_input: str, best_window: str) -> None:
+    """Show word-by-word diff between the normalised input and the window
+    of the license text it matched."""
     import difflib  # pylint: disable=import-outside-toplevel
 
-    norm_input = normalize_text(text)
     input_words = norm_input.split()
     window_words = best_window.split()
 
@@ -356,7 +355,10 @@ def resolve_license_record(
 @click.option("--text", help="License text to match.")
 @click.option("--id", "id_val", help="Explicit SPDX License ID to lookup.")
 @click.option(
-    "--json", "json_output", is_flag=True, help="Output results in JSON format."
+    "--json",
+    "json_output",
+    is_flag=True,
+    help="Output results as JSON Lines, one RFC 8785 object per result.",
 )
 @click.option(
     "--threshold", type=float, default=0.85, help="Minimum score, from 0 to 1."
@@ -365,7 +367,7 @@ def resolve_license_record(
     "--exact",
     "exact_only",
     is_flag=True,
-    help="Keep only exact matches: declared, an exact name, or the whole text.",
+    help="Keep only exact matches: declared, an exact ID or name, a whole text.",
 )
 @click.option("--top", type=int, default=3, help="Maximum number of results to return.")
 @click.option(
@@ -374,7 +376,11 @@ def resolve_license_record(
     default=False,
     help="Enable/disable popularity score weighting.",
 )
-@click.option("--diff", is_flag=True, help="Show word diff for the top match.")
+@click.option(
+    "--diff",
+    is_flag=True,
+    help="Show a word diff for the top match when it is a close text match.",
+)
 @click.option("--bold", is_flag=True, help="Print only the top license ID.")
 @click.pass_context
 def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -396,7 +402,8 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     check_database_ready(db_path)  # before input handling: report the database first
     reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
     reject_compound_id(ctx, id_val)
-    # A score is 0-1, so a threshold above 1 (or nan) would keep nothing.
+    # A score is 0-1: a threshold outside it means nothing (above 1, or
+    # nan, would keep nothing).
     if not 0.0 <= threshold <= 1.0:
         exit_usage_error(
             ctx, f"option: invalid: --threshold: {threshold}; pass a value from 0 to 1"
@@ -438,10 +445,9 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         # Standard output: line-delimited, KEY=VALUE
         for i, r in enumerate(results):
             click.echo(text_line(r))
-            # A word diff for the top match, if it was matched as text.
+            # A word diff for the top match, if it is a close text match.
             if diff and i == 0 and r["method"] == "text" and not r["exact"]:
-                window = matcher.diff_window(license_text, r["license_id"])
-                show_diff(license_text, window)
+                show_diff(*matcher.diff_pair(license_text, r["license_id"]))
 
     ctx.exit(0)
 

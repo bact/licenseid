@@ -154,8 +154,8 @@ Common options:
   `\t` and `\u00e9` are decoded, so write `\\` for a literal backslash
   (for example in a Windows path).
 - `--bold`: Print only the top license ID (no other info).
-- `--diff`: Show a word-by-word diff between the input and
-  the best-matching candidate.
+- `--diff`: Show a word-by-word diff between the input and the top
+  result, when it was matched as text and is not exact.
 - `--json`: Output results as JSON Lines (see below).
 - `--threshold <score>`: Keep results that score at least this, from 0 to
   1 (default 0.85). A value outside 0 to 1 exits 2.
@@ -200,13 +200,17 @@ LICENSE_ID=ECL-2.0 METHOD=text EXACT=false SCORE=0.9584 SIMILARITY=0.9584 COVERA
   tag), `field` (a manifest's `license` field), `id` (a license ID), `name`
   (a license name) or `text` (the license text).
 - `EXACT` is `true` when the answer was found exactly: declared (a tag, a
-  field or an ID), a license name spelt out in full, or the license text
-  word for word, as SPDX matching normalises it. A name that only shares
-  the words of the input, or a text that is merely close, is `false`.
+  field or an ID), a license name spelt out in full (for a name a
+  deprecated license shares with its successor, only the successor), or the
+  whole input equal to the license text as the SPDX License List writes
+  it, after case, punctuation and white space are normalised.
+  A filled-in copyright line or an added title makes a text not exact, as
+  does a name that only shares the words of the input. Licenses with the
+  same text (`GPL-2.0-only` and `GPL-2.0-or-later`) are all exact for it.
   `--exact` keeps only the exact results.
-- `SCORE` is 0 to 1 and comparable across methods; `--threshold` reads it.
-  Several results can score 1: the order tells them apart, and `EXACT`
-  tells an exact one from a close one.
+- `SCORE` is 0 to 1; `--threshold` reads it. Several results can score 1:
+  the order tells them apart, and `EXACT` tells an exact one from a close
+  one.
 - `SIMILARITY` and `COVERAGE` are empty where nothing was measured: a tag,
   a field or an ID has neither, a name has no coverage. `COVERAGE` is the
   input's words over the license's, so it passes 1 when the input is longer.
@@ -238,30 +242,37 @@ JSON Canonicalization Scheme (RFC 8785), so equal results print equal bytes
 {"coverage":0.9236,"exact":false,"is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"license_id":"ECL-2.0","method":"text","score":0.9584,"similarity":0.9584}
 ```
 
-Diff (visual comparison):
+Diff (visual comparison), here of an Apache-2.0 file with its copyright
+line filled in:
 
 ```bash
-licenseid match LICENSE.txt --diff
+licenseid match LICENSE --diff --top 1
 ```
 
-Example output (a diff is shown for a text match that is not exact):
+Example output (a diff is shown for the top result when it was matched as
+text and is not exact; any other results follow it):
 
 ```diff
-LICENSE_ID=Apache-2.0 METHOD=text EXACT=false SCORE=1.0000 SIMILARITY=0.9980 COVERAGE=0.9975
+LICENSE_ID=Apache-2.0 METHOD=text EXACT=false SCORE=1.0000 SIMILARITY=0.9978 COVERAGE=0.9987
 
 WORD DIFF:
 --- DATABASE
 +++ INPUT
-@@ -1601,8 +1601,4 @@
- language
- governing
- permissions
--and
--limitations
--under
--the
--license
-+se
+@@ -1502,11 +1502,9 @@
+ party
+ archives
+ copyright
+-yyyy
+-name
+-of
+-copyright
+-holder
++2024
++jane
++doe
+ licensed
+ under
+ the
 ```
 
 ### 5. Exit codes

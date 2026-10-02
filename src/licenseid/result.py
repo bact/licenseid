@@ -6,10 +6,11 @@
 """The public form of a match, and its two output lines.
 
 A tier's record carries its ranking state: a raw score on a scale of its
-own (a tag 1.0; an exact ID or name 1.02, a name that only shares its words
-1.01; a text match up to about 1.05) and, for a text match, the aligned
-window and the popularity and deprecation keys. The public form keeps what
-a reader can use, the same keys for every method.
+own (a tag 1.0, an exact ID or name 1.0 or 1.02, a name that only shares
+the input's words 1.01, a text match up to about 1.08 with its bonuses)
+and, for a text match, the aligned window and the popularity and
+deprecation keys. The public form keeps what a reader can use, the same
+keys for every method.
 """
 
 from licenseid.types import InternalMatch, LicenseMatch, RawMatch
@@ -20,7 +21,8 @@ _DIGITS = 4
 
 
 def _rounded(value: float | None) -> float | None:
-    return None if value is None else round(value, _DIGITS)
+    # + 0.0 turns -0.0 into 0.0, which text prints as "-0.0000" but JSON as 0.
+    return None if value is None else round(value, _DIGITS) + 0.0
 
 
 def public_result(raw: RawMatch | InternalMatch) -> LicenseMatch:

@@ -20,10 +20,12 @@ Method = Literal["tag", "field", "id", "name", "text"]
 class LicenseMatch(TypedDict):
     """A match as match() returns it: the same keys for every method.
 
-    ``score`` is 0-1 and comparable across methods; the list is in ranking
-    order, which also orders results that share a score of 1. ``exact`` says
+    ``score`` is 0-1: each method's ranking key, capped to 1, so scores from
+    different methods are not on one scale; the list is in ranking order,
+    which also orders results that share a score of 1. ``exact`` says
     the answer was found exactly: declared (a tag, a field, an ID), an exact
-    name, or the license text word for word; a look-alike name or a close
+    name, or an input equal to the license text after normalisation (a
+    filled-in copyright line is a difference); a look-alike name or a close
     text is not. ``similarity`` and ``coverage`` are None where nothing was
     measured (a tag, a field, an ID; a name has no coverage). ``coverage``
     is the input's words over the license's, so it passes 1 when the input
