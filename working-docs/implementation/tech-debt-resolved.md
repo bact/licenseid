@@ -14,6 +14,16 @@ Items resolved from
 for the record: what each was, and what was done. Item numbers are the
 roadmap's. Moved out of the roadmap on 2026-10-02.
 
+- `codemeta.json` and `pyproject.toml` disagree (item 36, Priority 10;
+  2026-10-02). The descriptions differed, and the keywords were two
+  different lists. Both now carry one description, "Identify the SPDX
+  License ID of a license text, from the command line or Python.", and one
+  merged keyword list in the same order, written in each file's own style:
+  lowercase hyphenated tags in `pyproject.toml` (`spdx-license-id`), phrases
+  in `codemeta.json` (`SPDX License ID`). The bare `license`, `matcher`,
+  `opensource` and `transparency` were dropped, each covered by a longer
+  keyword. `CITATION.cff` follows `codemeta.json` through its workflow.
+
 - Streams and signals (part of item 10, Priority 12; 2026-10-02). Click
   exits 1, the code for "no", on Ctrl-C and on a closed pipe, and
   `click.echo` drops output silently when standard output is closed, so

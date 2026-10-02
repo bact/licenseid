@@ -5,24 +5,28 @@ build-backend = "hatchling.build"
 [project]
 name = "licenseid"
 dynamic = ["version"]
-description = "Get the SPDX License ID from license text"
+description = "Identify the SPDX License ID of a license text, from the command line or Python."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 authors = [{ name = "Arthit Suriyawongkul", email = "suriyawa@tcd.ie" }]
 keywords = [
-    "license",
-    "matcher",
-    "license-matcher",
+    "license-identification",
+    "license-text",
     "spdx-license-id",
     "license-identifier",
-    "license-identification",
-    "licenseid",
-    "spdx-id",
+    "software-license",
+    "open-source-license",
+    "license-matching",
+    "license-matcher",
+    "license-detection",
+    "license-classification",
+    "sbom",
     "spdx",
-    "opensource",
+    "spdx-id",
+    "software-component-transparency",
     "copyright",
-    "transparency",
+    "licenseid",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
