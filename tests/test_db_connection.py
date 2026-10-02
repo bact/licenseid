@@ -74,7 +74,8 @@ def test_a_block_opens_lazily_and_a_query_outside_closes_its_own(
         pass
     assert not opened
     _lookups(db)
-    assert len(opened) == 4 and all(is_closed(c) for c in opened)
+    # Four queries, and the ID lookup reads the rebuild stamp first.
+    assert len(opened) == 5 and all(is_closed(c) for c in opened)
 
 
 _READ_KEY = "SELECT value FROM db_metadata WHERE key = ?"

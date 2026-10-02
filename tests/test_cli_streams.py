@@ -14,7 +14,6 @@ import shlex
 import signal
 import subprocess
 import sys
-import time
 from collections.abc import Callable, Generator
 from pathlib import Path
 from unittest import mock
@@ -189,12 +188,28 @@ def test_a_reader_that_leaves_ends_the_run_quietly(
         assert (proc.wait(timeout=30), proc.stderr.read()) == (141, b"")
 
 
-# The child says when its imports are done: a SIGINT before then is Python's
-# own (a traceback), not licenseid's. It then waits on standard input.
-_READY = (
-    "import sys; import licenseid.cli as c; sys.stderr.write('ready\\n');"
-    " sys.stderr.flush(); sys.argv[1:] = ['--db', sys.argv[1], 'match']; c.main()"
-)
+# The child says "ready" from its read of standard input, so the signal comes
+# while it waits there, never before main() handles it. A background job
+# starts with SIGINT ignored, which Python keeps: the child restores it.
+_READY = """
+import signal, sys
+import licenseid.cli as c
+
+class Stdin:
+    def __init__(self, real):
+        self.real, self.buffer = real, self
+    def isatty(self):
+        return False
+    def read(self, *args):
+        sys.stderr.write("ready\\n")
+        sys.stderr.flush()
+        return self.real.read(*args)
+
+signal.signal(signal.SIGINT, signal.default_int_handler)
+sys.stdin = Stdin(sys.stdin.buffer)
+sys.argv[1:] = ["--db", sys.argv[1], "match"]
+c.main()
+"""
 
 
 def test_ctrl_c_exits_130(tmp_path: Path) -> None:
@@ -208,8 +223,10 @@ def test_ctrl_c_exits_130(tmp_path: Path) -> None:
     ) as proc:
         assert proc.stderr is not None
         assert proc.stderr.readline() == b"ready\n"
-        time.sleep(0.3)  # from main() into the read of standard input
         proc.send_signal(signal.SIGINT)
+        # Standard input stays open until the child exits: closed first, the
+        # child could read end of input before the signal (`input: missing`).
+        proc.wait(timeout=30)
         out, err = proc.communicate(timeout=30)
     assert (proc.returncode, out, err) == (130, b"", b"")
 

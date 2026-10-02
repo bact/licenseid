@@ -163,7 +163,7 @@ ruff format
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
-  lines=867) — see
+  lines=864) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't
@@ -349,10 +349,17 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   take `score_cutoff=threshold`, which changes no result and stops early on
   a long word.
 - A lookup by licence ID never scans a table: `dbcache.TableCache` reads
-  each table's IDs once per `LicenseDatabase` (ASCII case folded as SQLite's
-  NOCASE folds it, `dbcache.fold_case`), and an unknown ID costs no query.
-  A new write to `licenses` or `license_index` must call
-  `self._tables.clear()`, as `_write_db_records` does.
+  each table's IDs once (ASCII case folded as SQLite's NOCASE folds it,
+  `dbcache.fold_case`), and an unknown ID costs no query. It drops its reads
+  when `last_update_datetime` changes, checked once per `reading()` block
+  and at every lookup outside one, so a long-lived matcher sees another
+  process's `update`. A new write to `licenses` or `license_index` must
+  call `self._tables.clear()`, as `_write_db_records` does. A read made
+  while another thread cleared is not kept (`_generation`).
+- A test that sends SIGINT to a child must restore the child's handler
+  (`signal.default_int_handler`): a shell starts a background job, a CI step
+  maybe too, with SIGINT ignored, and Python keeps it ignored. Signal at a
+  point the child reports (`test_cli_streams._READY`), not after a sleep.
 - Database tests must import the autouse `safe_home` fixture from
   `tests/db_asserts.py` (it patches `Path.home` as well as `HOME`) with
   `# noqa: F401  # pylint: disable=unused-import`.

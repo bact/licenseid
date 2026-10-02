@@ -27,14 +27,25 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   - `_write_db_records` clears the reads. It also clears the names and the
     deprecated IDs, which moved there too, and which stayed stale after a
     rebuild before.
-  - A rebuild by another process is not seen, as before; the search-text
-    read checks the row's ID too, and re-reads the map once if it moved, so
-    it never answers another licence's text.
+  - A rebuild by another process is seen too: every rebuild stamps
+    `last_update_datetime`, read again once per `reading()` block (one
+    match) and at every lookup outside one. Before, a long-lived matcher
+    kept the old names for Tier 0, and the first version of this change
+    would have kept the old IDs as well (found in review).
+  - Within one match a rebuild can still move the rows, so the search-text
+    read checks the row's ID too: it answers "" rather than another
+    licence's text.
+  - Review also found two races between threads, fixed: an accessor read
+    its attribute twice, so another thread's `clear()` could make the
+    second read `None`; and a map built from the old rows while another
+    thread cleared could be kept for good (now dropped, `_generation`).
+    A row with a NULL `license_id`, which a non-INTEGER primary key allows,
+    no longer breaks every lookup.
   - Rejected: an index on `license_id COLLATE NOCASE`, and a plain search
     text table. Both are schema changes, and `_init_db` runs at every open,
     so a new `CREATE INDEX` would write on a read and fail on a read-only
     file.
-  - `database.py` went from 913 to 867 lines, and the module-lines ceiling
+  - `database.py` went from 913 to 864 lines, and the module-lines ceiling
     with it.
 
 - `codemeta.json` and `pyproject.toml` disagree (item 36, Priority 10;

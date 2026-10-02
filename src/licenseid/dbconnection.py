@@ -16,6 +16,7 @@ class _ThreadState(threading.local):
     thread, and two threads may match on one matcher at once."""
 
     blocks = 0  # reading() blocks open
+    block = 0  # outermost reading() blocks entered so far
     queries = 0  # connection() blocks open on the shared connection
     conn: sqlite3.Connection | None = None
 
@@ -80,6 +81,8 @@ class Connections:
         between two blocks is not read through a stale connection.
         """
         state = self._state
+        if not state.blocks:
+            state.block += 1
         state.blocks += 1
         try:
             yield
@@ -88,3 +91,9 @@ class Connections:
             if not state.blocks and state.conn is not None:
                 conn, state.conn = state.conn, None
                 conn.close()
+
+    def current_block(self) -> int:
+        """This thread's outermost ``reading()`` block, counted from 1, or 0
+        outside one."""
+        state = self._state
+        return state.block if state.blocks else 0

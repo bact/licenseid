@@ -124,7 +124,7 @@ class LicenseDatabase:
         return self._connections.connection()
 
     def reading(self) -> contextlib.AbstractContextManager[None]:
-        """Share one connection among the queries of a block (one match)."""
+        """One connection and one rebuild check for a block's queries (one match)."""
         return self._connections.reading()
 
     def _init_db(self) -> None:
@@ -801,20 +801,17 @@ class LicenseDatabase:
 
     def get_search_text(self, license_id: str) -> str:
         """Return the normalized search text for a license from the FTS index."""
-        for retry in (False, True):
-            rowid = self._tables.index_row(license_id)
-            if rowid is None:
-                return ""
-            with self._connection() as conn:
-                row = conn.execute(
-                    "SELECT search_text FROM license_index"
-                    " WHERE rowid = ? AND license_id = ?",
-                    (rowid, license_id),
-                ).fetchone()
-            if row or retry:
-                return row[0] if row else ""
-            self._tables.clear()  # another process rebuilt the file
-        return ""
+        rowid = self._tables.index_row(license_id)
+        if rowid is None:
+            return ""
+        with self._connection() as conn:
+            # The ID too: a rebuild during this match may move the rows.
+            row = conn.execute(
+                "SELECT search_text FROM license_index"
+                " WHERE rowid = ? AND license_id = ?",
+                (rowid, license_id),
+            ).fetchone()
+            return row[0] if row else ""
 
     def _ensure_norm_columns(self) -> None:
         """Backfill norm_license_id/norm_name for rows that predate this

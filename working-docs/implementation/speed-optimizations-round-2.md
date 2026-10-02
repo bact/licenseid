@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-07-20
+Last-Modified: 2026-10-02
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -152,6 +152,11 @@ def get_all_names_and_ids(self) -> list[LicenseNameId]:
 Confirmed the only caller (`matcher.py`'s `_match_short_text`) only reads
 the returned list, never mutates it, so returning the cached object by
 reference is safe.
+
+Superseded in PR #72 (roadmap item 37): the table was not static, as a
+rebuild in the same process or by another one kept the old list. The
+cache is now `dbcache.TableCache`, which drops its reads when
+`last_update_datetime` changes.
 
 **Risk:** none within a single process/instance lifetime; caching does
 not survive process restarts, so a separate `licenseid update` run is

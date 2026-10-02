@@ -118,6 +118,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   closed pipe exits 141 quietly; output or help that cannot be written exits
   2, not 0 or 120; a closed stdin is no input; a failing stderr no longer
   turns the exit status into 120 ([#70])
+- A long-lived matcher sees a database that `licenseid update` rebuilt
+  meanwhile ([#72])
 
 ### Security
 
