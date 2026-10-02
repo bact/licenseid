@@ -28,8 +28,8 @@ after it, and item 37 from the work on item 29.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
-in the order chosen on 2026-10-01, are done, and so are items 27 and 29
-(2026-10-02). Item 32 (Priority 24) is the
+in the order chosen on 2026-10-01, are done, and so are items 27, 29
+and 36 (2026-10-02). Item 32 (Priority 24) is the
 highest open priority but lies outside item 31; it has not been scheduled.
 Item 2 waits on an upstream release. The open items that need a rule or a
 decision before a fix are grouped in
@@ -288,20 +288,6 @@ Found in review of item 22 (2026-10-02); `main` does the same:
   markers: the README of a GPL-2.0-only project answers the deprecated
   `GPL-2.0` at 0.855.
 - Impact 1, Risk 2, Effort 3.
-
-## 36. `codemeta.json` and `pyproject.toml` disagree — Priority 10
-
-`AGENTS.md` asks both to agree, but the description differs ("Identifies the
-SPDX License ID from license text…" against "Get the SPDX License ID from
-license text"), and the keywords are two different lists: short tags in
-`pyproject.toml` (`spdx-id`, `license-matcher`), phrases in `codemeta.json`
-(`SPDX License ID`, `software component transparency`). `main` is the same;
-found in a docs audit on 2026-10-02.
-
-- **Fix**: choose one description and one keyword set (the user decides
-  which wording wins), then copy it to the other file. `CITATION.cff` follows
-  `codemeta.json` through its workflow.
-- Impact 1, Risk 1, Effort 1.
 
 ## 5. Conflicting options and inputs are resolved silently — Priority 15
 

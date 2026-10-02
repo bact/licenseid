@@ -5,7 +5,7 @@ authors:
   - family-names: Suriyawongkul
     given-names: Arthit
     orcid: https://orcid.org/0000-0002-9698-1899
-abstract: Identifies the SPDX License ID from license text. A portable license ID matcher with command line interface and Python API.
+abstract: Identify the SPDX License ID of a license text, from the command line or Python.
 repository-code: "https://github.com/bact/licenseid"
 type: software
 doi: 10.5281/zenodo.19881009
@@ -15,13 +15,17 @@ keywords:
   - license identification
   - license text
   - SPDX License ID
+  - license identifier
   - software license
   - open source license
   - license matching
+  - license matcher
   - license detection
   - license classification
   - SBOM
   - SPDX
   - SPDX ID
   - software component transparency
+  - copyright
+  - licenseid
 date-released: 2026-08-20
