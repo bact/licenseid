@@ -77,7 +77,13 @@ Unix philosophy. Consistent, predictable, parseable.
   - `tests/conftest.py::check_diagnostic_grammar` fails any test that
     prints a line breaking this grammar.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
-- JSON output supported as options.
+- JSON output supported as options. `match --json` prints JSON Lines, one
+  RFC 8785 (JCS) object per result, through `licenseid.result.json_line`;
+  the text line comes from `text_line` beside it. Both print the public form
+  `result.public_result` builds at the one exit of `match()`: tiers rank on
+  their raw score (above 1 for an exact ID or name, and for a close text
+  match with its bonuses), never on the public one, capped to 1. `exact`
+  is what tells results at 1 apart; set it where a result is made.
 
 ## Python
 
@@ -319,8 +325,8 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   every fixture proves little: that one did, and the same licence sliced at
   other offsets crossed it. Before changing a limit, sweep real licence texts
   (Japanese included) at several offsets and lengths on the branch and on
-  `main`, and compare the top answers. Details from PR #62: the roadmap's
-  "Already resolved" entry for item 16.
+  `main`, and compare the top answers. Details from PR #62: item 16 in
+  `working-docs/implementation/tech-debt-resolved.md`.
 - Details and the rest of the findings from PR #55:
   `working-docs/implementation/database-readiness-gate.md`.
 - A fix to input reading can add the next quadratic path: a loop that

@@ -31,7 +31,8 @@ CLICK = re.compile(r"(Usage: .*|Try '.*' for help\.|Error: .*|Aborted!|)")
 
 #: The default one-line result of ``match``.
 PLAIN = re.compile(
-    r"LICENSE_ID=\S+( WITH \S+)? SIMILARITY=-?\d+\.\d{4} COVERAGE=-?\d+\.\d{4}"
+    r"LICENSE_ID=\S+( WITH \S+)? METHOD=[a-z]+ EXACT=(true|false) SCORE=\d\.\d{4}"
+    r" SIMILARITY=(\d\.\d{4})? COVERAGE=(\d\.\d{4})?"
 )
 
 #: The whole result of ``match --bold``: an identifier and nothing else.
@@ -188,25 +189,27 @@ def check_match_format(cell: Cell, out: str) -> list[str]:
     return []
 
 
-def _is_result_json(out: str) -> bool:
-    """True when *out* is a JSON list of result objects."""
+def _json_results(out: str) -> list[object] | None:
+    """The values *out* holds as JSON Lines (one per line), or None."""
     try:
-        parsed = json.loads(out)
+        return [json.loads(line) for line in out.splitlines()]
     except ValueError:
-        return False
-    return isinstance(parsed, list) and all(
-        isinstance(item, dict) and {"license_id", "score"} <= set(item)
-        for item in parsed
+        return None
+
+
+def _is_result_json(out: str) -> bool:
+    """True when *out* is JSON Lines of result objects, one or more."""
+    parsed = _json_results(out)
+    return bool(parsed) and all(
+        isinstance(item, dict) and {"license_id", "method", "score"} <= set(item)
+        for item in parsed or ()
     )
 
 
 def json_count(out: str) -> int | None:
-    """How many results *out* holds, when it is a JSON list."""
-    try:
-        parsed = json.loads(out)
-    except ValueError:
-        return None
-    return len(parsed) if isinstance(parsed, list) else None
+    """How many results *out* holds, when it is JSON Lines."""
+    parsed = _json_results(out)
+    return None if parsed is None else len(parsed)
 
 
 def _update_flags(cell: Cell, result: Result) -> list[str]:

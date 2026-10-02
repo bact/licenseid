@@ -20,7 +20,7 @@ from licenseid.identifiers import (
     strip_plus_operator,
 )
 from licenseid.manifest import extension, license_value_groups
-from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags
+from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags, Method
 
 
 def _first_per_license(*groups: list[CandidateMatch]) -> list[CandidateMatch]:
@@ -30,6 +30,13 @@ def _first_per_license(*groups: list[CandidateMatch]) -> list[CandidateMatch]:
         for candidate in group:
             found.setdefault(candidate["license_id"], candidate)
     return list(found.values())
+
+
+def _found_by(method: Method, candidates: list[CandidateMatch]) -> list[CandidateMatch]:
+    """*candidates*, each marked as found by *method*."""
+    for candidate in candidates:
+        candidate["method"] = method
+    return candidates
 
 
 class MarkerDetector:
@@ -193,7 +200,7 @@ class MarkerDetector:
         for value in values:
             resolved = self.resolve_license_value(value, 1.0, whole=True)
             if resolved:
-                return resolved
+                return _found_by("field", resolved)
         return []
 
     def resolve_license_value(
@@ -363,7 +370,7 @@ class MarkerDetector:
         # 1. SPDX-License-Identifier
         # A bundle can repeat one tag thousands of times; one lookup does.
         for value in dict.fromkeys(self._spdx_tag_values(text)):
-            candidates.extend(self.resolve_license_value(value, 1.0))
+            candidates.extend(_found_by("tag", self.resolve_license_value(value, 1.0)))
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)
         for match in self._RE_LICENSE_FIELD.finditer(text) if read_fields else ():

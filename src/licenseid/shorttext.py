@@ -11,16 +11,29 @@ from rapidfuzz import fuzz
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import normalize_identifier
 from licenseid.ranking import DEP_PENALTY
-from licenseid.types import LicenseMatch, LicenseNameId
+from licenseid.types import LicenseNameId, RawMatch
 
 # The score of an exact ID or name match; a fuzzy one scores less.
 EXACT_MATCH_SCORE = 1.02
 
 
-def match_short_text(db: LicenseDatabase, norm_input: str) -> list[LicenseMatch]:
+def exact_id_match(license_id: str) -> RawMatch:
+    """A result found by its ID: certain, with nothing measured. The caller
+    adds the flags."""
+    return RawMatch(
+        license_id=license_id,
+        method="id",
+        exact=True,
+        score=EXACT_MATCH_SCORE,
+        similarity=None,
+        coverage=None,
+    )
+
+
+def match_short_text(db: LicenseDatabase, norm_input: str) -> list[RawMatch]:
     """Fallback logic for very short inputs."""
     all_metadata = db.get_all_names_and_ids()
-    ranked: list[LicenseMatch] = []
+    ranked: list[RawMatch] = []
     words = norm_input.split()
     threshold = 90.0 if len(words) <= 2 else 85.0
     norm_upper = norm_input.upper()
@@ -38,12 +51,7 @@ def match_short_text(db: LicenseDatabase, norm_input: str) -> list[LicenseMatch]
             resolved_id = (
                 normalize_identifier(lid, db) if meta["is_deprecated"] else lid
             )
-            match = LicenseMatch(
-                license_id=resolved_id,
-                score=EXACT_MATCH_SCORE,
-                similarity=1.0,
-                coverage=1.0,
-            )
+            match = exact_id_match(resolved_id)
             if resolved_id == lid:
                 _copy_flags(meta, match)
             # A deprecated ID can resolve to an expression, whose flags are
@@ -69,7 +77,8 @@ def match_short_text(db: LicenseDatabase, norm_input: str) -> list[LicenseMatch]
         if best_raw >= threshold:
             score = best_raw / 100.0
             # Boost exact matches for names and IDs more than flex matches
-            if score_name_exact == 100 or score_id == 100:
+            exact = score_name_exact == 100 or score_id == 100
+            if exact:
                 score += 0.02
             elif score_name_flex == 100:
                 score += 0.01
@@ -78,8 +87,15 @@ def match_short_text(db: LicenseDatabase, norm_input: str) -> list[LicenseMatch]
             if meta["is_deprecated"]:
                 score -= DEP_PENALTY
 
-            match = LicenseMatch(
-                license_id=lid, score=score, similarity=best_raw / 100.0, coverage=0.0
+            # A name match measures how alike the names are, not how much of
+            # a license text the input covers.
+            match = RawMatch(
+                license_id=lid,
+                method="name",
+                exact=exact,
+                score=score,
+                similarity=best_raw / 100.0,
+                coverage=None,
             )
             _copy_flags(meta, match)
             ranked.append(match)
@@ -90,7 +106,7 @@ def match_short_text(db: LicenseDatabase, norm_input: str) -> list[LicenseMatch]
     return ranked
 
 
-def _copy_flags(meta: LicenseNameId, match: LicenseMatch) -> None:
+def _copy_flags(meta: LicenseNameId, match: RawMatch) -> None:
     """Give *match* the SPDX, OSI and FSF flags of its license row."""
     match["is_spdx"] = meta["is_spdx"]
     match["is_osi_approved"] = meta["is_osi_approved"]

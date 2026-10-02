@@ -86,7 +86,7 @@ def cli_match_id(db: str, *args: str) -> str | None:
     if result.exit_code != 0:
         return None
     first_line = result.stdout.splitlines()[0]  # an ID can hold spaces
-    return first_line.removeprefix("LICENSE_ID=").rsplit(" SIMILARITY=")[0]
+    return first_line.removeprefix("LICENSE_ID=").rsplit(" METHOD=")[0]
 
 
 def answers(db: str, tag: str, tmp_path: Path) -> Answers:

@@ -8,12 +8,12 @@ item 21: as text, Tier 0 read the normalised value, which has lost its "+",
 so --text GPL-2.0+ answered GPL-2.0-only."""
 # pylint: disable=missing-function-docstring,redefined-outer-name
 
-import json
 from collections.abc import Generator
 from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+from conftest import json_lines
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.cli import cli
@@ -81,7 +81,7 @@ def _cli(db: str, value: str, tmp_path: Path, channel: str) -> list[str]:
     (tmp_path / "LICENSE").write_text(f"{value}\n", encoding="utf-8")
     result = CliRunner().invoke(cli, ["--db", db, "match", "--json", *args], stdin)
     assert result.exit_code == 0, result.output
-    return [r["license_id"] for r in json.loads(result.stdout)]
+    return [r["license_id"] for r in json_lines(result.stdout)]
 
 
 CHANNELS = [
@@ -133,17 +133,21 @@ def test_a_lone_expression_is_judged_as_its_id(
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
-        # Shaped like an ID but none: the name match reads it, as before.
-        ("Fair.Play", [("Fair-1.0", 1.02)]),
+        # Shaped like an ID but none: the name match reads it, as before,
+        # and finds the name exactly.
+        ("Fair.Play", [("Fair-1.0", "name", 1.0, 1.0)]),
         # Not SPDX-shaped, so Tier 0 still drops the "+" (roadmap item 30).
-        ("GPL 2.0+", [("GPL-2.0-only", 1.02)]),
+        ("GPL 2.0+", [("GPL-2.0-only", "id", 1.0, None)]),
     ],
 )
 def test_any_other_value_is_read_as_text(
-    db: str, value: str, expected: list[tuple[str, float]]
+    db: str, value: str, expected: list[tuple[str, str, float, float | None]]
 ) -> None:
     results = AggregatedLicenseMatcher(db).match(text=value)
-    assert [(r["license_id"], r["score"]) for r in results] == expected
+    assert [
+        (r["license_id"], r["method"], r["score"], r["similarity"]) for r in results
+    ] == expected
+    assert all(r["exact"] for r in results)
 
 
 def test_a_deprecated_gfdl_id_has_the_flags_of_its_successor(db: str) -> None:

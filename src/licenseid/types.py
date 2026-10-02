@@ -7,22 +7,54 @@
 Type definitions for licenseid.
 """
 
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 from typing_extensions import Required
 
+# How a match was found: an SPDX-License-Identifier tag, a manifest's license
+# field, a license ID (given, the whole input, or a deprecated ID in a few
+# words), a license name (or an ID it is only like), or the license text.
+Method = Literal["tag", "field", "id", "name", "text"]
 
-class LicenseMatch(TypedDict, total=False):
-    """Public representation of a license match result."""
 
-    license_id: Required[str]
-    score: Required[float]
-    similarity: Required[float]
-    coverage: Required[float]
+class LicenseMatch(TypedDict):
+    """A match as match() returns it: the same keys for every method.
+
+    ``score`` is 0-1 and comparable across methods; the list is in ranking
+    order, which also orders results that share a score of 1. ``exact`` says
+    the answer was found exactly: declared (a tag, a field, an ID), an exact
+    name, or the license text word for word; a look-alike name or a close
+    text is not. ``similarity`` and ``coverage`` are None where nothing was
+    measured (a tag, a field, an ID; a name has no coverage). ``coverage``
+    is the input's words over the license's, so it passes 1 when the input
+    is longer.
+    """
+
+    license_id: str
+    method: Method
+    exact: bool
+    score: float
+    similarity: float | None
+    coverage: float | None
     is_spdx: bool
     is_osi_approved: bool
     is_fsf_libre: bool
-    best_window: str
+
+
+class RawMatch(TypedDict, total=False):
+    """A match as a tier builds it, with its raw ranking score (above 1 for
+    a name or ID hit, or a close text with its bonuses). Not part of the
+    public API."""
+
+    license_id: Required[str]
+    method: Required[Method]
+    exact: Required[bool]
+    score: Required[float]
+    similarity: Required[float | None]
+    coverage: Required[float | None]
+    is_spdx: bool
+    is_osi_approved: bool
+    is_fsf_libre: bool
 
 
 class LicenseFlags(TypedDict):
@@ -47,12 +79,15 @@ class CandidateMatch(TypedDict, total=False):
     is_high_usage: bool
     pop_score: int
     score: float
+    method: Method
 
 
 class InternalMatch(TypedDict, total=False):
     """Intermediate ranking state. Not part of the public API."""
 
     license_id: Required[str]
+    method: Required[Method]
+    exact: Required[bool]
     score: Required[float]
     similarity: Required[float]
     coverage: Required[float]

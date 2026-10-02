@@ -156,7 +156,11 @@ Common options:
 - `--bold`: Print only the top license ID (no other info).
 - `--diff`: Show a word-by-word diff between the input and
   the best-matching candidate.
-- `--json`: Output results in JSON format.
+- `--json`: Output results as JSON Lines (see below).
+- `--threshold <score>`: Keep results that score at least this, from 0 to
+  1 (default 0.85). A value outside 0 to 1 exits 2.
+- `--top <n>`: Keep at most this many results (default 3).
+- `--exact`: Keep only exact results (`EXACT=true`, see below).
 
 The system uses a **composite score** (similarity + coverage bonus/penalty +
 optional popularity weight + marker confidence boost) to prefer the tightest
@@ -184,11 +188,28 @@ what the command is for.
 
 ### 4. Output formats
 
-Default (Unix-friendly):
+Default (Unix-friendly), one result per line, best first (the examples
+show the first two results):
 
 ```text
-LICENSE_ID=Apache-2.0 SIMILARITY=0.9850 COVERAGE=1.0000
+LICENSE_ID=Apache-2.0 METHOD=text EXACT=true SCORE=1.0000 SIMILARITY=1.0000 COVERAGE=1.0000
+LICENSE_ID=ECL-2.0 METHOD=text EXACT=false SCORE=0.9584 SIMILARITY=0.9584 COVERAGE=0.9236
 ```
+
+- `METHOD` is how the answer was found: `tag` (an `SPDX-License-Identifier`
+  tag), `field` (a manifest's `license` field), `id` (a license ID), `name`
+  (a license name) or `text` (the license text).
+- `EXACT` is `true` when the answer was found exactly: declared (a tag, a
+  field or an ID), a license name spelt out in full, or the license text
+  word for word, as SPDX matching normalises it. A name that only shares
+  the words of the input, or a text that is merely close, is `false`.
+  `--exact` keeps only the exact results.
+- `SCORE` is 0 to 1 and comparable across methods; `--threshold` reads it.
+  Several results can score 1: the order tells them apart, and `EXACT`
+  tells an exact one from a close one.
+- `SIMILARITY` and `COVERAGE` are empty where nothing was measured: a tag,
+  a field or an ID has neither, a name has no coverage. `COVERAGE` is the
+  input's words over the license's, so it passes 1 when the input is longer.
 
 ID only:
 
@@ -208,19 +229,13 @@ JSON:
 licenseid match LICENSE.txt --json
 ```
 
-Example output:
+Example output, in JSON Lines: one object per result per line, in the
+JSON Canonicalization Scheme (RFC 8785), so equal results print equal bytes
+(`jq -s .` makes an array of them):
 
 ```json
-[
-  {
-    "license_id": "Apache-2.0",
-    "score": 0.985,
-    "similarity": 0.985,
-    "coverage": 1.0,
-    "is_spdx": true,
-    "is_osi_approved": true
-  }
-]
+{"coverage":1,"exact":true,"is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"license_id":"Apache-2.0","method":"text","score":1,"similarity":1}
+{"coverage":0.9236,"exact":false,"is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"license_id":"ECL-2.0","method":"text","score":0.9584,"similarity":0.9584}
 ```
 
 Diff (visual comparison):
@@ -229,10 +244,10 @@ Diff (visual comparison):
 licenseid match LICENSE.txt --diff
 ```
 
-Example output:
+Example output (a diff is shown for a text match that is not exact):
 
 ```diff
-LICENSE_ID=Apache-2.0 SIMILARITY=0.9980 COVERAGE=0.9975
+LICENSE_ID=Apache-2.0 METHOD=text EXACT=false SCORE=1.0000 SIMILARITY=0.9980 COVERAGE=0.9975
 
 WORD DIFF:
 --- DATABASE
@@ -357,16 +372,25 @@ unreadable, for example before the first `licenseid update`. The check opens
 the file read-only: it never creates or changes the database itself, though
 SQLite may leave its own `-shm` and `-wal` files beside it.
 
-Example JSON output:
+Each result is a `licenseid.LicenseMatch` with the same keys, `license_id`,
+`method` (a `licenseid.Method`), `exact`, `score`, `similarity`, `coverage`,
+`is_spdx`, `is_osi_approved` and `is_fsf_libre`, as in the CLI's output
+above; `similarity` and `coverage` are `None` where nothing was measured.
+For `match(text="MIT")`:
 
-```json
+```python
 [
-  {
-    "license_id": "MIT",
-    "score": 1.01,
-    "similarity": 1.0,
-    "coverage": 0.0
-  }
+    {
+        "license_id": "MIT",
+        "method": "id",
+        "exact": True,
+        "score": 1.0,
+        "similarity": None,
+        "coverage": None,
+        "is_spdx": True,
+        "is_osi_approved": True,
+        "is_fsf_libre": True,
+    }
 ]
 ```
 

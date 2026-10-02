@@ -125,9 +125,10 @@ def test_spdx_tag_in_source_file_short_circuits(marker_db: str) -> None:
     results = AggregatedLicenseMatcher(marker_db).match(text=text)
 
     assert [r["license_id"] for r in results] == ["MIT"]
+    assert results[0]["method"] == "tag"
     assert results[0]["score"] == 1.0
-    assert results[0]["similarity"] == 1.0
-    assert results[0]["coverage"] == 1.0
+    assert results[0]["similarity"] is None  # nothing was measured
+    assert results[0]["coverage"] is None
     assert results[0]["is_spdx"] is True
     assert results[0]["is_osi_approved"] is True
     assert results[0]["is_fsf_libre"] is True
@@ -188,7 +189,7 @@ def test_bare_deprecated_id_with_or_later_prose(gpl_db: str) -> None:
     results = AggregatedLicenseMatcher(gpl_db).match("Licensed under GPL-2.0 or later")
 
     assert [r["license_id"] for r in results] == ["GPL-2.0-or-later"]
-    assert results[0]["score"] == 1.02
+    assert (results[0]["method"], results[0]["score"]) == ("id", 1.0)
     assert results[0]["is_osi_approved"] is True
 
 
@@ -197,7 +198,7 @@ def test_bare_deprecated_id_with_only_prose(gpl_db: str) -> None:
     results = AggregatedLicenseMatcher(gpl_db).match("Licensed under GPL-2.0 only")
 
     assert [r["license_id"] for r in results] == ["GPL-2.0-only"]
-    assert results[0]["score"] == 1.02
+    assert (results[0]["method"], results[0]["score"]) == ("id", 1.0)
 
 
 def test_disambiguated_id_missing_from_database(gpl_db: str) -> None:
@@ -290,9 +291,13 @@ def test_deprecated_alias_is_penalised_in_short_text(
     keeps it. Either way the exact-name match leads."""
     deprecated = "deprecated" in request.node.callspec.id
 
-    results = AggregatedLicenseMatcher(alias_db).match(
+    # The raw scores: the public one is capped to 1, the order kept.
+    matcher = AggregatedLicenseMatcher(alias_db)
+    results = matcher._match_raw(  # pylint: disable=protected-access
         "GNU General Public License v2.0 only"
     )
+    public = matcher.match("GNU General Public License v2.0 only")
+    assert [r["license_id"] for r in public] == ["GPL-2.0-only", "GPL-2.0"]
 
     assert [r["license_id"] for r in results] == ["GPL-2.0-only", "GPL-2.0"]
     assert results[0]["score"] == pytest.approx(1.02)

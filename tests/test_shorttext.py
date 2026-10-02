@@ -34,22 +34,26 @@ def db() -> Generator[LicenseDatabase, None, None]:
         yield LicenseDatabase(path)
 
 
-def summary(db: LicenseDatabase, text: str) -> list[tuple[str, float, float]]:
+def summary(db: LicenseDatabase, text: str) -> list[tuple[str, float, float | None]]:
     return [
-        (m["license_id"], round(m["score"], 6), round(m["similarity"], 6))
+        (
+            m["license_id"],
+            round(m["score"], 6),
+            None if m["similarity"] is None else round(m["similarity"], 6),
+        )
         for m in match_short_text(db, text)
     ]
 
 
 def test_an_id_ignoring_case_is_a_definitive_hit(db: LicenseDatabase) -> None:
-    """The caller treats a score above 1.0 as final, so the whole triple is
-    part of the contract."""
+    """The caller treats a score above 1.0 as final. An ID is not compared,
+    so nothing is measured."""
     results = match_short_text(db, "acme 1 0")
 
     assert len(results) == 1
     assert results[0]["license_id"] == "Acme-1.0"
-    assert (results[0]["score"], results[0]["similarity"]) == (1.02, 1.0)
-    assert results[0]["coverage"] == 1.0
+    assert (results[0]["method"], results[0]["score"]) == ("id", 1.02)
+    assert (results[0]["similarity"], results[0]["coverage"]) == (None, None)
 
 
 def test_an_exact_name_scores_1_02_without_an_id_match(db: LicenseDatabase) -> None:

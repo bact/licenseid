@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `match --exact` keeps only exact results, and every result says whether
+  it is exact (`exact`, `EXACT=`): declared, a name spelt out in full, or
+  the license text word for word
 - `licenseid.DatabaseNotReadyError`, a `LicenseIdError` for a missing, empty,
   invalid or unreadable database ([#55])
 - `licenseid.LicenseIdError` (a `RuntimeError`) for failures reported in
@@ -19,6 +22,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** every match has the same keys: `license_id`, `method`,
+  `exact`, `score`, `similarity`, `coverage`, `is_spdx`, `is_osi_approved`
+  and `is_fsf_libre`, from `match()` and in `--json`. `method` says how the
+  answer was found (`tag`, `field`, `id`, `name` or `text`). `score` is 0 to
+  1, comparable across methods; it was a ranking key on each tier's own
+  scale (a tag 1.0; an exact ID or name 1.02, a name sharing the input's
+  words 1.01; a text match up to about 1.05). A text match no longer carries
+  `base_score`, `pop_score`, `is_deprecated`, `superseded_by` or
+  `best_window`, and `similarity` and `coverage` are null where nothing was
+  measured (a name printed `coverage` 0.0). Values are rounded to 4 places.
+  To migrate, read `exact` where you compared a score above 1 (or use
+  `--exact` for `--threshold 1.02`), and expect `null` similarity and
+  coverage
+- **Breaking:** `--json` prints JSON Lines, one object per result per line,
+  in the JSON Canonicalization Scheme (RFC 8785): sorted keys, no white
+  space, `1` for `1.0`. It printed one indented array. To migrate, read one
+  line at a time, or pipe through `jq -s .` for the array
+- **Breaking:** the text output adds `METHOD=`, `EXACT=` and `SCORE=`
+  between `LICENSE_ID=` and `SIMILARITY=`. `SIMILARITY=` and `COVERAGE=` are
+  empty where nothing was measured; they printed a stand-in there (the
+  score, or `0.0000`). To migrate, read a field by its key, not by its
+  position (`awk` `$2` is now `METHOD=`)
+- **Breaking:** `--threshold` reads the 0-1 score and takes a value from 0
+  to 1; any other value exits 2 with
+  `ERROR: option: invalid: --threshold: <value>; pass a value from 0 to 1`.
+  To migrate, use `--exact` in place of a threshold above 1
 - `match` and the `is-*` commands check that the database is ready before
   answering. A missing, empty (for example after a failed first `update`),
   invalid (another program's file) or unreadable database exits 2 with

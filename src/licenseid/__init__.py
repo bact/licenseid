@@ -17,7 +17,7 @@ from licenseid.errors import (
 )
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
-from licenseid.types import LicenseMatch, MatchRequest
+from licenseid.types import LicenseMatch, MatchRequest, Method
 
 __all__ = [
     "AggregatedLicenseMatcher",
@@ -27,5 +27,6 @@ __all__ = [
     "LicenseIdError",
     "LicenseMatch",
     "MatchRequest",
+    "Method",
     "normalize_text",
 ]

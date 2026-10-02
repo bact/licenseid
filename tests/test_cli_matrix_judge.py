@@ -73,8 +73,8 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
         {"kind": "match", "top": 1, "outflags": frozenset({"json"})},
         {
             "rc": 0,
-            "out": '[{"license_id": "MIT", "score": 1.0},'
-            ' {"license_id": "X", "score": 0.5}]',
+            "out": '{"license_id":"MIT","method":"text","score":1}\n'
+            '{"license_id":"X","method":"text","score":0.5}\n',
         },
         "--top 1 returned 2",
     ),
@@ -111,10 +111,19 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
     (
         "--bold printed more than an identifier",
         {"kind": "match", "outflags": frozenset({"bold"}), "exp_exit": 0},
-        {"rc": 0, "out": "LICENSE_ID=MIT SIMILARITY=1.0000 COVERAGE=1.0000\n"},
+        {
+            "rc": 0,
+            "out": "LICENSE_ID=MIT METHOD=id EXACT=true SCORE=1.0000 SIMILARITY="
+            " COVERAGE=\n",
+        },
         "--bold not a single id",
     ),
 ]
+
+
+MIT_JSON = '{"exact":true,"license_id":"MIT","method":"id","score":1}'
+BSD_JSON = '{"exact":false,"license_id":"0BSD","method":"name","score":0.9}'
+ISC_JSON = '{"exact":false,"license_id":"ISC","method":"name","score":0.9}'
 
 
 @pytest.mark.parametrize(
@@ -219,7 +228,7 @@ def test_differential_flags_a_group_outlier() -> None:
 
 
 def test_group_compares_a_json_answer_whole() -> None:
-    """JSON starts with ``[`` for every licence, so the first line proves nothing."""
+    """A JSON answer is compared whole, every line, not by its top result."""
     flags = frozenset({"json"})
     cells = {
         "A1-001": make_cell(id="A1-001", group="A1-x", outflags=flags),
@@ -227,9 +236,9 @@ def test_group_compares_a_json_answer_whole() -> None:
         "A1-003": make_cell(id="A1-003", group="A1-x", outflags=flags),
     }
     results = [
-        make_result(id="A1-001", out='[\n {"license_id": "MIT"}\n]\n'),
-        make_result(id="A1-002", out='[\n {"license_id": "MIT"}\n]\n'),
-        make_result(id="A1-003", out='[\n {"license_id": "GPL-2.0-only"}\n]\n'),
+        make_result(id="A1-001", out=f"{MIT_JSON}\n{BSD_JSON}\n"),
+        make_result(id="A1-002", out=f"{MIT_JSON}\n{BSD_JSON}\n"),
+        make_result(id="A1-003", out=f"{MIT_JSON}\n{ISC_JSON}\n"),
     ]
     assert list(judge_mod.differential(cells, results, "/out")) == [
         ("A1-003", "bash", "310")
@@ -301,3 +310,54 @@ def _relational_fixture(is_open_rc: int) -> tuple[dict[str, Cell], list[Any]]:
         )
         rows.append(make_result(id=cell_id, rc=rc, verdict="OBSERVE", notes=[]))
     return cells, rows
+
+
+PLAIN_LINE = (
+    "LICENSE_ID=MIT METHOD=text EXACT=false SCORE=0.9908 SIMILARITY=1.0000"
+    " COVERAGE=0.5000"
+)
+
+
+@pytest.mark.parametrize(
+    ("line", "ok"),
+    [
+        (PLAIN_LINE, True),
+        (
+            "LICENSE_ID=MIT METHOD=id EXACT=true SCORE=1.0000 SIMILARITY= COVERAGE=",
+            True,
+        ),
+        (
+            (
+                "LICENSE_ID=GPL-2.0-only WITH Classpath-exception-2.0 METHOD=tag"
+                " EXACT=true SCORE=1.0000 SIMILARITY= COVERAGE="
+            ),
+            True,
+        ),
+        # The format before the method, exact and score keys.
+        ("LICENSE_ID=MIT SIMILARITY=1.0000 COVERAGE=1.0000", False),
+        (PLAIN_LINE.replace("EXACT=false", "EXACT=no"), False),
+        (PLAIN_LINE.replace("SCORE=0.9908", "SCORE=1.02"), False),
+    ],
+)
+def test_plain_output_is_the_one_line_format(line: str, ok: bool) -> None:
+    """The judge accepts the result line match prints, and nothing else."""
+    notes = judge_mod.check_match_format(make_cell(), line + "\n")
+    assert (not notes) is ok, notes
+
+
+@pytest.mark.parametrize(
+    ("out", "ok"),
+    [
+        (f"{MIT_JSON}\n", True),
+        (f"{MIT_JSON}\n{BSD_JSON}\n", True),
+        # The array --json printed before JSON Lines.
+        (f"[{MIT_JSON},{BSD_JSON}]\n", False),
+        ('{"license_id":"MIT","score":1}\n', False),  # no method
+        (f"{MIT_JSON}\nnot json\n", False),
+        ("[]\n", False),
+    ],
+)
+def test_json_output_is_json_lines_of_results(out: str, ok: bool) -> None:
+    """--json is one result object per line: not an array, not a bare value."""
+    notes = judge_mod.check_match_format(make_cell(outflags=frozenset({"json"})), out)
+    assert (not notes) is ok, notes

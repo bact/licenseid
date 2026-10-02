@@ -8,6 +8,7 @@ Shared test configuration and fixtures for licenseid.
 """
 
 import builtins
+import json
 import re
 import sqlite3
 import uuid
@@ -160,6 +161,27 @@ def assert_cached_tarball_removed(db: LicenseDatabase, tar_path: Path) -> None:
             tar_path, {}, None
         )
     assert not tar_path.exists()
+
+
+# The keys of every match() result and --json line (types.LicenseMatch).
+RESULT_KEYS = frozenset(
+    {
+        "license_id",
+        "method",
+        "exact",
+        "score",
+        "similarity",
+        "coverage",
+        "is_spdx",
+        "is_osi_approved",
+        "is_fsf_libre",
+    }
+)
+
+
+def json_lines(stdout: str) -> list[dict[str, Any]]:
+    """The results `match --json` printed: one JSON object per line."""
+    return [json.loads(line) for line in stdout.splitlines()]
 
 
 def leftover_tmp_files(directory: Path) -> list[Path]:

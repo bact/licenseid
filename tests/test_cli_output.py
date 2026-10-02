@@ -91,7 +91,7 @@ def test_match_diff_shows_word_diff_after_the_result_line(mit_db: str) -> None:
     assert result.exit_code == 0
     assert result.stderr == ""
     first, rest = result.stdout.split("\n", 1)
-    assert first.startswith("LICENSE_ID=MIT SIMILARITY=0.9")
+    assert first.startswith("LICENSE_ID=MIT METHOD=text EXACT=false SCORE=0.9")
     assert rest.startswith("\nWORD DIFF:\n--- DATABASE\n+++ INPUT\n@@")
     assert rest.endswith(" copy\n+and\n+more\n+words\n\n")
 
@@ -123,7 +123,25 @@ def test_match_diff_is_plain_text_when_not_a_terminal(mit_db: str) -> None:
 
 def test_match_diff_of_an_exact_match_prints_no_diff(mit_db: str) -> None:
     result = _match(mit_db, "--diff", "--text", MIT_SEARCH_TEXT)
-    assert result.stdout == "LICENSE_ID=MIT SIMILARITY=1.0000 COVERAGE=1.0000\n"
+    assert result.stdout == (
+        "LICENSE_ID=MIT METHOD=text EXACT=true SCORE=1.0000 SIMILARITY=1.0000"
+        " COVERAGE=1.0000\n"
+    )
+
+
+def test_match_diff_of_an_answer_not_matched_as_text_prints_no_diff(
+    mit_db: str,
+) -> None:
+    """An ID, a tag, a field or a name aligns with no license text, so there
+    is no diff."""
+    for args in (
+        ["--id", "MIT"],
+        ["--text", "SPDX-License-Identifier: MIT"],
+        ["--text", '{"license": "MIT"}'],
+        ["--text", "MIT License"],
+    ):
+        result = _match(mit_db, "--diff", *args)
+        assert result.stdout.count("\n") == 1, args
 
 
 def test_match_diff_of_a_fragment_prints_no_diff(mit_db: str) -> None:
@@ -133,7 +151,10 @@ def test_match_diff_of_a_fragment_prints_no_diff(mit_db: str) -> None:
     result = _match(
         mit_db, "--diff", "--text", "permission is hereby granted free of charge"
     )
-    assert result.stdout.startswith("LICENSE_ID=MIT SIMILARITY=1.0000 COVERAGE=0.")
+    assert result.stdout.startswith(
+        "LICENSE_ID=MIT METHOD=text EXACT=false SCORE=0.9908 SIMILARITY=1.0000"
+        " COVERAGE=0."
+    )
     assert result.stdout.count("\n") == 1
 
 
