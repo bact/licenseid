@@ -44,7 +44,7 @@ pylint's actual defaults are 12 and 50.
 | Statements | ≤50 | 50 (at target) | 38 (`shorttext.match_short_text`) |
 | McCabe | ≤10 | 12 | 12 (`database._prepare_license_and_exception_records`, `identifiers.leading_expression`) |
 | Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
-| Module lines | soft 400-500 / hard 800 | 913 | 913 (`database.py`) |
+| Module lines | soft 400-500 / hard 800 | 867 | 867 (`database.py`) |
 
 Measured 2026-08-19 via `pylint --disable=all --enable=too-many-<x>
 --max-<x>=1`, `flake8 --max-complexity 1` and
@@ -85,8 +85,9 @@ names moved from `LicenseDatabase.clear_cache` into
 924→926 when `clear_cache` grew the guard that keeps it off another
 program's file. Then 926→921 when `get_all_names_and_ids` reused
 `_cast_license_details` for its rows (PR #65), 921→915 when the
-connection code moved to `dbconnection.py` (roadmap item 29), and 915→913
-when `_connect` was inlined.
+connection code moved to `dbconnection.py` (roadmap item 29), 915→913
+when `_connect` was inlined, and 913→867 when the whole-table reads moved
+to `dbcache.py` (roadmap item 37).
 
 ## Backlog, priority order
 
@@ -381,8 +382,8 @@ holds the Branches ceiling; no ceiling number changed.
 
 ### 1. `database.py` — split by responsibility (Priority 9)
 
-913 lines (re-measured 2026-10-02), over the 800-line hard limit.
-Schema/connection management, license-record preparation,
+867 lines (re-measured 2026-10-02), over the 800-line hard limit.
+Schema management, license-record preparation,
 and query methods are still all in one file. Not a complexity offender
 (no individual function stands out) — purely a file-size and
 module-lines-ratchet problem.

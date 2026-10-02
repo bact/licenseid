@@ -28,8 +28,8 @@ after it, and item 37 from the work on item 29.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
-in the order chosen on 2026-10-01, are done, and so are items 27, 29
-and 36 (2026-10-02). Item 32 (Priority 24) is the
+in the order chosen on 2026-10-01, are done, and so are items 27, 29,
+36 and 37 (2026-10-02). Item 32 (Priority 24) is the
 highest open priority but lies outside item 31; it has not been scheduled.
 Item 2 waits on an upstream release. The open items that need a rule or a
 decision before a fix are grouped in
@@ -138,26 +138,6 @@ Since item 22 these are `exact` false, but they still score 1 and pass
   than some minimum, or require it to cover a share of the licence's
   distinctive words, so `is-*` answers no for it.
 - Impact 2, Risk 2, Effort 2.
-
-## 37. Two lookups scan a whole table — Priority 10
-
-After item 29, 4,000 distinct `LicenseRef-*` tags take 1.85 s, and 1.6 s
-of it is `execute` on two queries that cannot use an index:
-
-- `get_search_text` reads the FTS5 table `license_index`, whose
-  `license_id` is `UNINDEXED`, so each call scans every row (about 0.25 ms;
-  1 s for the 4,000 tags). It is asked even for a `LicenseRef-*` or an
-  expression, which has no row there.
-- `get_license_details` compares `license_id = ? COLLATE NOCASE`, which
-  the primary key's binary index cannot serve (0.46 s for 12,000 calls).
-
-Found on 2026-10-02 while fixing item 29.
-
-- **Fix**: look the search text up through a plain table or column keyed
-  by ID (or skip it for an ID with no row), and give `licenses` an index on
-  `license_id COLLATE NOCASE` (a schema change: bump what `update`
-  rebuilds). Time distinct values against `main`.
-- Impact 1, Risk 1, Effort 1.
 
 ## 30. `GPL 2.0+` in prose loses its "+" in Tier 0 — Priority 6
 

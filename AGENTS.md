@@ -10,10 +10,11 @@
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
   pyproject.toml, Cargo.toml, setup.cfg), `dbconnection.py` (SQLite
-  connections), `fingerprint.py`, `output.py` (the CLI's standard
-  output and what a failed write means), `result.py`
-  (the public result and its JSON and text lines), `types.py`. Keep `matcher.py` under the 800-line limit:
-  put logic that needs no matcher state in one of the others.
+  connections), `dbcache.py` (whole-table reads kept per database),
+  `fingerprint.py`, `output.py` (the CLI's standard output and what a
+  failed write means), `result.py` (the public result and its JSON and text
+  lines), `types.py`. Keep `matcher.py` under the 800-line limit: put logic
+  that needs no matcher state in one of the others.
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
 - Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches; may be discarded, not yet built.
 - Implementation docs and progress reports: `working-docs/implementation/` — record of what WAS built: decisions made, why things are the way they are, paths considered and rejected. Not a user manual. Start at `working-docs/implementation/README.md` for current state.
@@ -162,7 +163,7 @@ ruff format
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
-  lines=913) — see
+  lines=867) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't
@@ -347,6 +348,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   with the `opened` fixture in `conftest.py`. Tier 0's RapidFuzz scorers
   take `score_cutoff=threshold`, which changes no result and stops early on
   a long word.
+- A lookup by licence ID never scans a table: `dbcache.TableCache` reads
+  each table's IDs once per `LicenseDatabase` (ASCII case folded as SQLite's
+  NOCASE folds it, `dbcache.fold_case`), and an unknown ID costs no query.
+  A new write to `licenses` or `license_index` must call
+  `self._tables.clear()`, as `_write_db_records` does.
 - Database tests must import the autouse `safe_home` fixture from
   `tests/db_asserts.py` (it patches `Path.home` as well as `HOME`) with
   `# noqa: F401  # pylint: disable=unused-import`.

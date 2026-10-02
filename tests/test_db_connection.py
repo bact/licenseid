@@ -68,6 +68,7 @@ def test_a_block_opens_lazily_and_a_query_outside_closes_its_own(
     db_path: str, opened: list[sqlite3.Connection]
 ) -> None:
     db = LicenseDatabase(db_path)
+    _lookups(db)  # the first lookup by ID reads the table's IDs once
     opened.clear()
     with db.reading():
         pass
