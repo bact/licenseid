@@ -108,8 +108,18 @@ def _ctx() -> click.Context:
             "option: missing: --pair; pass a value",
         ),
         (
+            click.BadOptionUsage(
+                "--requires-x", "Option '--requires-x' does not take a value."
+            ),
+            "option: invalid: --requires-x: does not take a value",
+        ),
+        (
             click.UsageError("Something new. Again", _ctx()),
             "usage: invalid: something new. Again; run 'licenseid --help'",
+        ),
+        (
+            click.BadParameter("URL is not https.", param=click.Argument(["url"])),
+            "input: invalid: URL is not https",
         ),
         (
             click.ClickException("File 'x' unreadable."),
@@ -122,7 +132,9 @@ def _ctx() -> click.Context:
         "missing-argument",
         "bad-argument",
         "nargs",
+        "name-holds-requires",
         "fallback",
+        "acronym",
         "not-usage",
     ],
 )

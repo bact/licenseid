@@ -46,7 +46,9 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
     (it passes through now); and a long value cut at 60 characters lost
     the end of click's sentence ("… is not a valid integer"), now cut in
     the middle. A `BadParameter` naming its option by `param_hint` alone
-    keeps the name.
+    keeps the name. Later rounds: "requires" is looked for after the
+    option's name, which may hold the word, and only a capitalised word is
+    lowercased (`URL …` stays).
   - The CLI matrix judge no longer allows click's `Usage:`, `Try`,
     `Error:` and `Aborted!` lines on standard error; it exempts only the
     no-subcommand help.

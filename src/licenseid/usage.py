@@ -38,7 +38,9 @@ def _sentence(message: str) -> str:
     text = fold(message.strip().removesuffix("."))
     if len(text) > 100:
         text = text[:60] + "..." + text[-37:]
-    return text[:1].lower() + text[1:]
+    if text[1:2].islower():  # "Invalid …", not "URL …" or "GPL-2.0 …"
+        text = text[:1].lower() + text[1:]
+    return text
 
 
 def _action(ctx: click.Context | None, possibilities: Sequence[str] | None) -> str:
@@ -89,9 +91,10 @@ def _not_found(
 def _bad_option_usage(exc: click.BadOptionUsage) -> str:
     """An option given no value, or one it does not take."""
     name = one_line(exc.option_name)
-    if "requires" in exc.message:  # "requires an argument", "… 2 arguments"
-        return f"option: missing: {name}; pass a value"
+    # After the option's name, which may hold the word itself.
     detail = exc.message.replace(f"Option {exc.option_name!r} ", "", 1)
+    if detail.startswith("requires "):  # "requires an argument", "… 2 arguments"
+        return f"option: missing: {name}; pass a value"
     return f"option: invalid: {name}: {_sentence(detail)}"
 
 
