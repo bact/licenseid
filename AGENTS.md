@@ -13,8 +13,9 @@
   connections), `dbcache.py` (whole-table reads kept per database),
   `fingerprint.py`, `output.py` (the CLI's standard output and what a
   failed write means), `result.py` (the public result and its JSON and text
-  lines), `types.py`. Keep `matcher.py` under the 800-line limit: put logic
-  that needs no matcher state in one of the others.
+  lines), `types.py`, `usage.py` (click's usage errors in the grammar).
+  Keep `matcher.py` under the 800-line limit: put logic that needs no
+  matcher state in one of the others.
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
 - Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches; may be discarded, not yet built.
 - Implementation docs and progress reports: `working-docs/implementation/` — record of what WAS built: decisions made, why things are the way they are, paths considered and rejected. Not a user manual. Start at `working-docs/implementation/README.md` for current state.
@@ -47,8 +48,8 @@ Unix philosophy. Consistent, predictable, parseable.
   - `LEVEL`: `ERROR` (the command fails, non-zero exit) or `WARNING` (a
     fallback lets it continue).
   - `SUBJECT`: the thing affected, a lowercase word or cache file name:
-    `database`, `input`, `match`, `option`, `output`, `version`,
-    `licenses.json`, `popularity.csv`, `spdx-data-v<ver>.tar.gz`.
+    `command`, `database`, `input`, `match`, `option`, `output`, `usage`,
+    `version`, `licenses.json`, `popularity.csv`, `spdx-data-v<ver>.tar.gz`.
   - `CONDITION`: short lowercase fragment, reused across subjects. The
     full current set (add new ones here): `not found`, `invalid`,
     `missing`, `empty`, `unreadable`, `binary file`,
@@ -80,10 +81,19 @@ Unix philosophy. Consistent, predictable, parseable.
     with 130, both without a message (`DatabaseErrorGroup`). `--help` goes
     through `echo` too (`output.EchoHelpCommand`). `cli.main()` runs click
     outside its standalone mode, so Ctrl-C while options are parsed is 130
-    too, and click's usage errors go through `console.write`. A closed
+    too. A closed
     standard input is no input; a failing standard error is skipped and
     pointed at the null device, or the flush at exit would turn every exit
     status into 120.
+  - click's usage errors are worded in the grammar too
+    (`ERROR: option: not found: --bogus; did you mean --bold`): `usage.py`
+    re-raises them as `UsageLineError` in `parse_args` (option callbacks
+    included) and in the group's `invoke` (an unknown command, and a
+    command's own `BadParameter`), so click's standalone mode (every
+    `CliRunner` test) and `cli.main()` print the same line. A command run
+    outside the group would show click's format: wrap it too. With no
+    subcommand, the help goes to standard error (exit 2), through
+    `console.write`.
   - A step that prints partial progress (`status(..., end="")`) and can fail
     must call `console.end_line()` in a `finally`, so the caller's next
     stderr line starts at column 0.

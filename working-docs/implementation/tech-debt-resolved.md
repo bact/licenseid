@@ -14,6 +14,45 @@ Items resolved from
 for the record: what each was, and what was done. Item numbers are the
 roadmap's. Moved out of the roadmap on 2026-10-02.
 
+- Usage and click errors skip the stream and message rules (item 12,
+  Priority 8; 2026-10-02). click printed its usage errors in three parts of
+  its own (`Usage: …`, `Try '… --help' for help.`, `Error: …`), and with no
+  subcommand the help went to standard output, with exit 2. Now `usage.py`
+  words each click error in the grammar, from the exception's attributes
+  (only the extra-argument failure is read from click's English):
+  - `option: not found: --bogus; did you mean --bold` (and
+    `command: not found: mat; did you mean match`), click's suggestions
+    closest first, else `run '<command> --help'`;
+  - `option: missing: --top; pass a value`,
+    `option: invalid: --top: 'x' is not a valid integer`,
+    `option: invalid: --json: does not take a value`;
+  - `input: invalid: extra argument: GPL-2.0; …`, and
+    `usage: invalid: <message>; …` for anything else;
+  - every value goes through `errors.one_line` (taken out of
+    `invalid_id_error`), so a newline or `;` cannot split the line.
+
+  The help for a missing subcommand goes to standard error through
+  `console.write`. Exit codes are unchanged (2).
+  - Found: `CliRunner` runs click in standalone mode, where click shows
+    the error itself, and only the subprocess tests reached `cli.main()`.
+    Rewording in `cli.main()` alone would have left the tests seeing
+    click's format. So the errors are re-raised as `UsageLineError` where
+    click raises them: in `parse_args` (option callbacks included) and in
+    the group's `invoke`, which finds an unknown command after parsing and
+    runs the command's body.
+  - Review found three more, fixed: a `BadParameter` from a command's body
+    showed click's format (the first version wrapped `resolve_command`
+    only); a `no_args_is_help` help would have been squeezed into one line
+    (it passes through now); and a long value cut at 60 characters lost
+    the end of click's sentence ("… is not a valid integer"), now cut in
+    the middle. A `BadParameter` naming its option by `param_hint` alone
+    keeps the name. Later rounds: "requires" is looked for after the
+    option's name, which may hold the word, and only a capitalised word is
+    lowercased (`URL …` stays).
+  - The CLI matrix judge no longer allows click's `Usage:`, `Try`,
+    `Error:` and `Aborted!` lines on standard error; it exempts only the
+    no-subcommand help.
+
 - Two lookups scan a whole table (item 37, Priority 10; 2026-10-02). After
   item 29, 4,000 distinct `LicenseRef-*` tags took 1.73 s, 1.2 s of it in
   two queries no index could serve: `get_search_text` matched the

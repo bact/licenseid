@@ -29,8 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `update` and `--clear-cache` write progress and warnings to standard error;
   standard output carries only the result ([#53])
 - Errors and warnings use one format,
-  `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`, one per line; an `update`
-  failure is no traceback. Scripts matching old text need updating ([#53])
+  `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`, one per line, usage errors
+  included; an `update` failure is no traceback. Scripts matching old text
+  need updating ([#53], [#73])
 - `match` and `is-*` exit 2 with `ERROR: database: <condition>` when the
   database is not ready; the API raises `DatabaseNotReadyError` ([#55])
 - `update` and `--clear-cache` refuse a database licenseid did not build (exit
@@ -61,6 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exact answers ([#68])
 - `--diff` shows only for a top text match that is not exact, and leaves out the
   input's SPDX tags ([#68])
+- With no subcommand, the help goes to standard error, as a usage error
+  (exit 2) ([#73])
 
 ### Removed
 
@@ -148,6 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#69]: https://github.com/bact/licenseid/pull/69
 [#70]: https://github.com/bact/licenseid/pull/70
 [#72]: https://github.com/bact/licenseid/pull/72
+[#73]: https://github.com/bact/licenseid/pull/73
 
 ## [0.3.7] - 2026-08-20
 

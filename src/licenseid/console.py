@@ -48,8 +48,8 @@ def error(message: str) -> None:
 
 
 def write(text: str) -> None:
-    """Write *text* to standard error as it is, such as click's usage
-    errors, which have a grammar of their own."""
+    """Write *text* to standard error as it is: the help shown for a
+    missing subcommand, which is no diagnostic."""
     _write(text, end="")
 
 

@@ -30,17 +30,26 @@ class InvalidInputError(LicenseIdError):
     input): a usage error, so the CLI exits with code 2 rather than 1."""
 
 
+def fold(value: str) -> str:
+    """*value* on one line of a diagnostic: white space (a line break
+    included) folded to single spaces, and a ";" made ",", as it would
+    otherwise read as the start of the ACTION."""
+    return " ".join(value.split()).replace(";", ",")
+
+
+def one_line(value: str) -> str:
+    """*value* as one DETAIL of a diagnostic: folded (``fold``), and cut to
+    60 characters, as one error must not fill the terminal."""
+    value = fold(value)
+    return value[:60] + "..." if len(value) > 60 else value
+
+
 def invalid_id_error(option: str, value: str) -> InvalidInputError:
     """The one wording for a value declared as a license ID that names no
     single license. *option* is what the caller spells it: ``--id`` on the
-    command line, ``license_id`` in the API.
-
-    A minified line can be declared too, so the value is cut: one error must
-    not fill the terminal, nor span two lines, so white space (a line break
-    included) is folded to single spaces. A ";" in the value becomes ",", as
-    it would otherwise read as the start of the ACTION.
+    command line, ``license_id`` in the API. A minified line can be declared
+    too, so the value goes through ``one_line``.
     """
-    value = " ".join(value.split()).replace(";", ",")
-    if len(value) > 60:
-        value = value[:60] + "..."
-    return InvalidInputError(f"option: invalid: {option}: {value}; pass one license ID")
+    return InvalidInputError(
+        f"option: invalid: {option}: {one_line(value)}; pass one license ID"
+    )

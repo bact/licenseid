@@ -37,11 +37,11 @@ def mit_db() -> Generator[str, None, None]:
     ids=["java", "no_java", "java_bold", "pop_java"],
 )
 def test_java_options_are_rejected(mit_db: str, flags: list[str]) -> None:
-    """click's usage error (exit 2); its wording is click's, not our grammar."""
+    """A usage error (exit 2), worded as every other diagnostic."""
     result = CliRunner().invoke(cli, ["--db", mit_db, "match", "MIT", *flags])
     assert result.exit_code == 2
     assert result.stdout == ""
-    assert re.search(r"[Nn]o such option:? '?--(no-)?java", result.stderr)
+    assert re.match(r"ERROR: option: not found: --(no-)?java;", result.stderr)
 
 
 @pytest.mark.parametrize("args", [["--help"], ["match", "--help"]])

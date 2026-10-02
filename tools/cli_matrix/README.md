@@ -90,12 +90,14 @@ are those of `bash zsh sh dash ksh` found on `PATH`.
 `FLAG`
 : An invariant or a documented expectation is violated. The invariants come
   from `AGENTS.md` under "CLI output": stdout carries only results, every
-  diagnostic goes to stderr in the `LEVEL: SUBJECT: CONDITION` grammar, a
-  predicate answers `true`, `false` or a usage error, `match` prints one of
-  its three documented shapes, exit statuses are 0, 1 or 2, and nothing ever
-  shows a traceback. A cell also flags when its answer depends on the shell
-  or the interpreter, when the five predicates contradict each other, or
-  when `update` leaves temporary files behind.
+  diagnostic goes to stderr in the `LEVEL: SUBJECT: CONDITION` grammar
+  (click's usage errors included; the help for a missing subcommand is the
+  one free text allowed there), a predicate answers `true`, `false` or a
+  usage error, `match` prints one of its three documented shapes, exit
+  statuses are 0, 1 or 2, and nothing ever shows a traceback. A cell also
+  flags when its answer depends on the shell or the interpreter, when the
+  five predicates contradict each other, or when `update` leaves temporary
+  files behind.
 
 A cell that could not run is a `SKIP`, listed in the ledger with its
 reason. A skip is never a pass.
