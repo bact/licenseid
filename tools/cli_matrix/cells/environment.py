@@ -202,12 +202,20 @@ def _add_stdout(cells: CellSet) -> None:
     """E4: every shape stdout can have, and every colour hint."""
     for name, redirect in STDOUT_KINDS.items():
         for desc, cmd, kind, _ in (CORE[0], CORE[2], CORE[3], CORE[4]):
-            # ulimit -f 0 forbids writing any file at all; POSIX, and the
-            # limit applies to the redirect, not to the CLI's own writes.
-            pre = "ulimit -f 0; " if name.startswith("ulimit") else ""
+            # ulimit -f 0 (POSIX) forbids the CLI any file write, SQLite's
+            # -shm file included, so the readiness check refuses before any
+            # output: these cells never reach the write of standard output
+            # (roadmap item 10). On the shared copy that held only while no
+            # other cell had it open; a private copy, made before the limit,
+            # keeps it so.
+            pre, note = "", ""
+            if name.startswith("ulimit"):
+                pre = 'cp "$DB" "$W/own.db"; ulimit -f 0; '
+                cmd = cmd.replace("--db $DB", '--db "$W/own.db"')
+                note = " (refused before output)"
             cells.add(
                 "E4",
-                f"stdout={name}: {desc}",
+                f"stdout={name}{note}: {desc}",
                 f"{pre}{cmd} {redirect}",
                 kind=kind,
                 xenv=name in ("file", "/dev/null"),

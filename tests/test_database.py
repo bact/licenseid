@@ -14,7 +14,7 @@ from collections.abc import Generator
 from pathlib import Path
 
 import pytest
-from conftest import assert_cached_tarball_removed
+from conftest import assert_cached_tarball_removed, is_closed
 
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 
@@ -25,28 +25,13 @@ def db(tmp_path: Path) -> Generator[LicenseDatabase, None, None]:
     yield LicenseDatabase(db_path)
 
 
-def _assert_closed(conn: sqlite3.Connection) -> None:
-    with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
-        conn.execute("SELECT 1")
-
-
-def test_connection_closes_after_successful_query(db: LicenseDatabase) -> None:
+def test_connection_closes_after_successful_query(
+    db: LicenseDatabase, opened: list[sqlite3.Connection]
+) -> None:
     """A query method must close its connection, not just commit it."""
-    opened: list[sqlite3.Connection] = []
-    real_connect = db._connect
-
-    def tracking_connect() -> sqlite3.Connection:
-        conn = real_connect()
-        opened.append(conn)
-        return conn
-
-    db._connect = tracking_connect  # type: ignore[method-assign]
-
     db.get_metadata()
 
-    assert opened
-    for conn in opened:
-        _assert_closed(conn)
+    assert opened and all(is_closed(conn) for conn in opened)
 
 
 def test_connection_closes_even_when_the_query_raises(db: LicenseDatabase) -> None:
@@ -54,7 +39,7 @@ def test_connection_closes_even_when_the_query_raises(db: LicenseDatabase) -> No
     with pytest.raises(RuntimeError, match="boom"), db._connection() as conn:
         raise RuntimeError("boom")
 
-    _assert_closed(conn)
+    assert is_closed(conn)
 
 
 def test_connection_commits_before_closing(db: LicenseDatabase) -> None:

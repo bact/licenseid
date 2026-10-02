@@ -11,11 +11,15 @@ match could be changed without a test noticing.
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
-from collections.abc import Generator
+from collections.abc import Callable, Generator
+from typing import Any
+from unittest import mock
 
 import pytest
 from matcher_db import Lic, seeded_db
+from rapidfuzz import fuzz
 
+from licenseid import shorttext
 from licenseid.database import LicenseDatabase
 from licenseid.shorttext import match_short_text
 
@@ -97,3 +101,60 @@ def test_the_thresholds_are_exactly_90_and_85(db: LicenseDatabase) -> None:
     90); three score 84.62 against `qmx a vycfysb` (no match: needs 85)."""
     assert not match_short_text(db, "sreltpus ctaperhvwp")
     assert not match_short_text(db, "pmx a tycfysb")
+
+
+# The cutoff stops RapidFuzz early (roadmap item 27) and changes no result.
+CUTOFF_INPUTS = [
+    "acme-1.0",
+    "acme public license",
+    "acme public licence",
+    "acme",
+    "copyleft thing",
+    "copyleft thing for everyone who wants it",
+    "zebra quokka",
+    "quokka",
+    "ferret lynx",
+    "ferret lynx ocelot and more words",
+    "gpl like 3",
+    "the",
+    "本ライセンスは",
+    "a" * 2_000,
+]
+
+
+def _no_cutoff(scorer: Callable[..., float]) -> Callable[..., float]:
+    def score(a: str, b: str, **_: Any) -> float:
+        return scorer(a, b)
+
+    return score
+
+
+def test_the_cutoff_changes_no_result(db: LicenseDatabase) -> None:
+    reference = mock.Mock(
+        spec=fuzz,
+        ratio=_no_cutoff(fuzz.ratio),
+        partial_ratio=_no_cutoff(fuzz.partial_ratio),
+        token_set_ratio=_no_cutoff(fuzz.token_set_ratio),
+    )
+    with mock.patch.object(shorttext, "fuzz", reference):
+        expected = [match_short_text(db, t) for t in CUTOFF_INPUTS]
+    assert [match_short_text(db, t) for t in CUTOFF_INPUTS] == expected
+    # Most inputs reach a fuzzy match, or the comparison proves little.
+    assert sum(map(bool, expected)) >= 6
+
+
+@pytest.mark.parametrize(("text", "threshold"), [("acme", 90.0), ("a b c", 85.0)])
+def test_every_scorer_stops_at_the_threshold(
+    db: LicenseDatabase, text: str, threshold: float
+) -> None:
+    """A long word against every row took seconds without the cutoff."""
+    spy = mock.Mock(spec=fuzz, wraps=fuzz)
+    with mock.patch.object(shorttext, "fuzz", spy):
+        match_short_text(db, text)
+    calls = [
+        *spy.ratio.call_args_list,
+        *spy.partial_ratio.call_args_list,
+        *spy.token_set_ratio.call_args_list,
+    ]
+    assert calls
+    assert {c.kwargs.get("score_cutoff") for c in calls} == {threshold}

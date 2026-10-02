@@ -341,13 +341,13 @@ class AggregatedLicenseMatcher:
         license name, an SPDX URL, prose).
         """
         # The one exit: every tier ranks on its raw score, and only here does
-        # a result take its public form.
-        return [
-            public_result(raw)
-            for raw in self._match_raw(
+        # a result take its public form. One connection serves the call's
+        # lookups, about five for each tag value.
+        with self.db.reading():
+            raw = self._match_raw(
                 text, license_id=license_id, file_path=file_path, **options
             )
-        ]
+        return [public_result(r) for r in raw]
 
     def _match_raw(
         self,
@@ -419,12 +419,12 @@ class AggregatedLicenseMatcher:
         answer from this, so they cannot disagree with match(), and raise
         what it raises. The bar reads the public score, as --threshold does:
         rounded to 4 places, so a raw 0.84995 passes."""
-        results = self.match(text, license_id=license_id, file_path=file_path)
-        if not results or results[0]["score"] < 0.85:
-            return None
-
-        top = results[0]
-        record = self.db.get_license_details(top["license_id"])
+        with self.db.reading():
+            results = self.match(text, license_id=license_id, file_path=file_path)
+            if not results or results[0]["score"] < 0.85:
+                return None
+            top = results[0]
+            record = self.db.get_license_details(top["license_id"])
         if record:
             return record
 
@@ -450,22 +450,20 @@ class AggregatedLicenseMatcher:
         part of the license's normalised text it aligned with. ("", "") if
         the license has no text. The alignment Tier 2 makes, made again for
         one license."""
-        # A "WITH Font-exception-2.0" the License List has no row for is
-        # ranked on its license's text (markers, the font-exception rule).
-        details = self.db.get_license_details(
-            license_id
-        ) or self.db.get_license_details(license_id.split(" WITH ")[0])
-        if not details:
-            return "", ""
-        ctx = self._build_match_context(text, None, cast(MatchRequest, {}))
+        with self.db.reading():
+            # A "WITH Font-exception-2.0" the License List has no row for is
+            # ranked on its license's text (markers, the font-exception rule).
+            details = self.db.get_license_details(
+                license_id
+            ) or self.db.get_license_details(license_id.split(" WITH ")[0])
+            if not details:
+                return "", ""
+            ctx = self._build_match_context(text, None, cast(MatchRequest, {}))
+            candidate = self.detector.to_candidate(details, 0.0)
         norm_input = self._without_tags(ctx).norm_input
         words = norm_input.split()
         _, _, window = calculate_base_similarity(
-            norm_input,
-            len(words),
-            set(words),
-            self.detector.to_candidate(details, 0.0),
-            build_probe(words),
+            norm_input, len(words), set(words), candidate, build_probe(words)
         )
         return norm_input, window
 

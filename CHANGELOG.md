@@ -112,6 +112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A lone SPDX expression in any input is read as `--id` reads it:
   `--text GPL-2.0+` answers `GPL-2.0-or-later` ([#67])
 - `LicenseRef-x+` is no expression; `--id LicenseRef-x+` exits 2 ([#67])
+- A file of thousands of distinct tags matches about 5× faster, and a short
+  input of one very long word about 9× faster ([#69])
 
 ### Security
 
@@ -137,6 +139,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#66]: https://github.com/bact/licenseid/pull/66
 [#67]: https://github.com/bact/licenseid/pull/67
 [#68]: https://github.com/bact/licenseid/pull/68
+[#69]: https://github.com/bact/licenseid/pull/69
 
 ## [0.3.7] - 2026-08-20
 

@@ -25,6 +25,7 @@ from click.testing import CliRunner, Result
 from licenseid import console
 from licenseid.cli import cli
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
+from licenseid.dbconnection import Connections
 from licenseid.errors import LicenseIdError
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.types import LicenseMatch, Method
@@ -213,6 +214,30 @@ def invoke_match(db: str, *args: str, color: bool = False) -> Result:
 def json_lines(stdout: str) -> list[dict[str, Any]]:
     """The results `match --json` printed: one JSON object per line."""
     return [json.loads(line) for line in stdout.splitlines()]
+
+
+@pytest.fixture
+def opened() -> Generator[list[sqlite3.Connection], None, None]:
+    """Every database connection licenseid opens while the test runs."""
+    conns: list[sqlite3.Connection] = []
+    real = Connections.connect
+
+    def track(self: Connections) -> sqlite3.Connection:
+        conn = real(self)
+        conns.append(conn)
+        return conn
+
+    with mock.patch.object(Connections, "connect", autospec=True, side_effect=track):
+        yield conns
+
+
+def is_closed(conn: sqlite3.Connection) -> bool:
+    """Whether *conn* was closed."""
+    try:
+        conn.execute("SELECT 1")
+    except sqlite3.ProgrammingError:
+        return True
+    return False
 
 
 def leftover_tmp_files(directory: Path) -> list[Path]:
