@@ -30,15 +30,17 @@ class InvalidInputError(LicenseIdError):
     input): a usage error, so the CLI exits with code 2 rather than 1."""
 
 
-def one_line(value: str) -> str:
-    """*value* as one DETAIL of a diagnostic.
+def fold(value: str) -> str:
+    """*value* on one line of a diagnostic: white space (a line break
+    included) folded to single spaces, and a ";" made ",", as it would
+    otherwise read as the start of the ACTION."""
+    return " ".join(value.split()).replace(";", ",")
 
-    One error must not fill the terminal, nor span two lines, so white space
-    (a line break included) is folded to single spaces and the value is cut
-    to 60 characters. A ";" becomes ",", as it would otherwise read as the
-    start of the ACTION.
-    """
-    value = " ".join(value.split()).replace(";", ",")
+
+def one_line(value: str) -> str:
+    """*value* as one DETAIL of a diagnostic: folded (``fold``), and cut to
+    60 characters, as one error must not fill the terminal."""
+    value = fold(value)
     return value[:60] + "..." if len(value) > 60 else value
 
 

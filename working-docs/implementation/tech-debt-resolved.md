@@ -37,8 +37,16 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
     the error itself, and only the subprocess tests reached `cli.main()`.
     Rewording in `cli.main()` alone would have left the tests seeing
     click's format. So the errors are re-raised as `UsageLineError` where
-    click raises them, in `parse_args` and in `resolve_command` (an
-    unknown command is found in `Group.invoke`, after parsing).
+    click raises them: in `parse_args` (option callbacks included) and in
+    the group's `invoke`, which finds an unknown command after parsing and
+    runs the command's body.
+  - Review found three more, fixed: a `BadParameter` from a command's body
+    showed click's format (the first version wrapped `resolve_command`
+    only); a `no_args_is_help` help would have been squeezed into one line
+    (it passes through now); and a long value cut at 60 characters lost
+    the end of click's sentence ("… is not a valid integer"), now cut in
+    the middle. A `BadParameter` naming its option by `param_hint` alone
+    keeps the name.
   - The CLI matrix judge no longer allows click's `Usage:`, `Try`,
     `Error:` and `Aborted!` lines on standard error; it exempts only the
     no-subcommand help.

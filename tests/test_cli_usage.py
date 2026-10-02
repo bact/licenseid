@@ -22,7 +22,12 @@ from click.testing import CliRunner
 
 from licenseid.cli import cli
 from licenseid.cli import main as cli_main
-from licenseid.usage import UsageLineError, usage_line
+from licenseid.usage import (
+    UsageLineCommand,
+    UsageLineError,
+    UsageLineGroup,
+    usage_line,
+)
 
 # CliRunner names the program after the function, "cli".
 CASES = [
@@ -139,3 +144,61 @@ def test_main_words_any_click_error(capsys: pytest.CaptureFixture[str]) -> None:
     assert capsys.readouterr().err == (
         "ERROR: usage: invalid: boom; run 'licenseid --help'\n"
     )
+
+
+# A group built as the CLI's is, with what the CLI has none of today.
+@click.group(cls=UsageLineGroup)
+def group() -> None:
+    """Commands."""
+
+
+@group.command(cls=UsageLineCommand)
+@click.option("--n", type=int, callback=lambda _ctx, _param, n: _odd(n))
+def callback(n: int) -> None:  # pylint: disable=unused-argument
+    """An option whose callback refuses a value."""
+
+
+def _odd(n: int | None) -> int | None:
+    if n == 3:
+        raise click.BadParameter("odd value")
+    return n
+
+
+@group.command(cls=UsageLineCommand)
+def body() -> None:
+    """A command whose own check fails after parsing."""
+    raise click.BadParameter("bad in body", param_hint=["'--x'", "'-x'"])
+
+
+@group.command(cls=UsageLineCommand, no_args_is_help=True)
+@click.argument("name")
+def needs(name: str) -> None:  # pylint: disable=unused-argument
+    """A command that shows its help when given nothing."""
+
+
+@pytest.mark.parametrize(
+    ("argv", "stderr"),
+    [
+        (["callback", "--n", "3"], "ERROR: option: invalid: --n: odd value\n"),
+        (["body"], "ERROR: option: invalid: --x / -x: bad in body\n"),
+    ],
+    ids=["callback", "body"],
+)
+def test_an_error_after_parsing_is_one_line(argv: list[str], stderr: str) -> None:
+    result = CliRunner().invoke(group, argv)
+    assert (result.exit_code, result.stderr) == (2, stderr)
+
+
+def test_no_args_is_help_shows_the_help() -> None:
+    """A help, not an error: never squeezed into one line."""
+    result = CliRunner().invoke(group, ["needs"])
+    assert result.exit_code == 2
+    assert result.stderr.startswith("Usage: group needs [OPTIONS] NAME\n")
+
+
+def test_a_long_value_keeps_what_is_wrong() -> None:
+    result = CliRunner().invoke(cli, ["--db", "x.db", "match", "--top", "z" * 300])
+    line = result.stderr
+    assert line.startswith("ERROR: option: invalid: --top: 'zzz")
+    assert line.endswith("...zzzzzzzzzzzzz' is not a valid integer\n")
+    assert len(line) < 160

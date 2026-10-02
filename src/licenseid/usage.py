@@ -8,21 +8,23 @@
 click prints a usage error in three parts of its own (``Usage: …``,
 ``Try '… --help' for help.``, ``Error: …``); licenseid prints one line,
 ``ERROR: SUBJECT: CONDITION[: DETAIL][; ACTION]``. click raises these errors
-while it parses (``Command.parse_args``) and while it finds the command
-(``Group.resolve_command``), so ``UsageLineCommand`` and ``UsageLineGroup``
+while it parses (``Command.parse_args``, option callbacks included) and
+while the group runs a command (``Group.invoke``: an unknown command, or a
+command's own check), so ``UsageLineCommand`` and ``UsageLineGroup``
 re-raise them there as ``UsageLineError``. Its ``show()`` writes through
 ``licenseid.console``, both in click's standalone mode (what the tests'
 ``CliRunner`` runs) and in ``cli.main()``.
 """
 
+import contextlib
 import re
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import IO, Any
 
 import click
 
 from licenseid.console import error
-from licenseid.errors import one_line
+from licenseid.errors import fold, one_line
 
 # The one usage error click words only in English: Command.parse_args's
 # ctx.fail for arguments left over.
@@ -31,8 +33,11 @@ _EXTRA_ARGUMENTS = re.compile(r"Got unexpected extra arguments? \((.*)\)", re.DO
 
 def _sentence(message: str) -> str:
     """click's sentence as a DETAIL: no full stop, a lowercase start, and
-    one line."""
-    text = one_line(message.strip().removesuffix("."))
+    one line. A long one, such as a long value quoted, is cut in the middle:
+    its end says what is wrong ("… is not a valid integer")."""
+    text = fold(message.strip().removesuffix("."))
+    if len(text) > 100:
+        text = text[:60] + "..." + text[-37:]
     return text[:1].lower() + text[1:]
 
 
@@ -50,17 +55,24 @@ def _option_name(param: click.Parameter) -> str:
 
 
 def _bad_parameter(exc: click.BadParameter, ctx: click.Context | None) -> str:
-    """A value click could not read, or a parameter given none."""
-    param = exc.param
+    """A value click could not read, or a parameter given none. A command's
+    own check may name its option by ``param_hint`` alone."""
+    param, hint = exc.param, exc.param_hint
+    if isinstance(param, click.Option):
+        name: str | None = _option_name(param)
+    elif param is None and hint:
+        name = " / ".join(hint) if not isinstance(hint, str) else hint
+        name = name.replace("'", "")
+    else:  # an argument: the input
+        name = None
     missing = isinstance(exc, click.MissingParameter)
-    if param is None or isinstance(param, click.Argument):
+    if name is None:
         if missing:
             return f"input: missing; {_action(ctx, None)}"
         return f"input: invalid: {_sentence(exc.message)}"
-    name = one_line(_option_name(param))
     if missing:
-        return f"option: missing: {name}; pass a value"
-    return f"option: invalid: {name}: {_sentence(exc.message)}"
+        return f"option: missing: {one_line(name)}; pass a value"
+    return f"option: invalid: {one_line(name)}: {_sentence(exc.message)}"
 
 
 def _not_found(
@@ -121,28 +133,31 @@ class UsageLineError(click.UsageError):
         error(self.message)
 
 
+@contextlib.contextmanager
+def _reworded() -> Iterator[None]:
+    """Re-raise a click usage error as a ``UsageLineError``. The help that
+    ``no_args_is_help`` shows is no error to reword: it stays as it is."""
+    try:
+        yield
+    except (UsageLineError, click.exceptions.NoArgsIsHelpError):
+        raise
+    except click.UsageError as exc:
+        raise UsageLineError(exc) from exc
+
+
 class UsageLineCommand(click.Command):
     """A command whose usage errors are worded as licenseid's."""
 
     def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
-        try:
+        with _reworded():
             return super().parse_args(ctx, args)
-        except UsageLineError:
-            raise
-        except click.UsageError as exc:
-            raise UsageLineError(exc) from exc
 
 
 class UsageLineGroup(UsageLineCommand, click.Group):
-    """A group whose usage errors, an unknown command included, are worded
-    as licenseid's."""
+    """A group whose usage errors are worded as licenseid's, including those
+    raised while it runs a command: an unknown command (``resolve_command``)
+    and one a command's body raises."""
 
-    def resolve_command(
-        self, ctx: click.Context, args: list[str]
-    ) -> tuple[str | None, click.Command | None, list[str]]:
-        try:
-            return super().resolve_command(ctx, args)
-        except UsageLineError:
-            raise
-        except click.UsageError as exc:
-            raise UsageLineError(exc) from exc
+    def invoke(self, ctx: click.Context) -> Any:
+        with _reworded():
+            return super().invoke(ctx)

@@ -87,10 +87,11 @@ Unix philosophy. Consistent, predictable, parseable.
     status into 120.
   - click's usage errors are worded in the grammar too
     (`ERROR: option: not found: --bogus; did you mean --bold`): `usage.py`
-    re-raises them as `UsageLineError` where click raises them,
-    `parse_args` and `resolve_command`, so click's standalone mode (every
-    `CliRunner` test) and `cli.main()` print the same line. A click error
-    raised anywhere else would show click's format: wrap it too. With no
+    re-raises them as `UsageLineError` in `parse_args` (option callbacks
+    included) and in the group's `invoke` (an unknown command, and a
+    command's own `BadParameter`), so click's standalone mode (every
+    `CliRunner` test) and `cli.main()` print the same line. A command run
+    outside the group would show click's format: wrap it too. With no
     subcommand, the help goes to standard error (exit 2), through
     `console.write`.
   - A step that prints partial progress (`status(..., end="")`) and can fail
