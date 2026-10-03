@@ -17,8 +17,8 @@
   "codeRepository": "https://github.com/bact/licenseid",
   "copyrightYear": 2026,
   "dateCreated": "2026-04-27",
-  "dateModified": "2026-08-20",
-  "datePublished": "2026-08-20",
+  "dateModified": "2026-10-03",
+  "datePublished": "2026-10-03",
   "description": "Identify the SPDX License ID of a license text, from the command line or Python.",
   "developmentStatus": "active",
   "downloadUrl": "https://github.com/bact/licenseid/releases",
@@ -63,5 +63,5 @@
   "readme": "https://github.com/bact/licenseid/blob/main/README.md",
   "runtimePlatform": "Python 3.10+",
   "url": "https://pypi.org/project/licenseid/",
-  "version": "0.3.7"
+  "version": "0.4.0"
 }
