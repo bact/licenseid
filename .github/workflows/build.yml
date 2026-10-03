@@ -52,3 +52,10 @@ jobs:
         id: build
         run: |
           python -m build
+
+      # The same check the release runs (pypi-publish.yml), so a missing or
+      # invalid SBOM shows on a pull request, not first at release time.
+      - name: Check the SBOM embedded in the wheel
+        run: |
+          pip install spdx3-validate
+          .github/scripts/check-wheel-sbom.sh dist "${RUNNER_TEMP}/sbom"

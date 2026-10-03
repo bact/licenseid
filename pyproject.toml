@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.32.3", "pitloom>=0.18.1"]
+requires = ["hatchling>=1.32.3", "pitloom[content-type]>=0.19.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -135,6 +135,9 @@ ignore_missing_imports = true
 
 [tool.pitloom.content-type]
 enabled = true
+# Detect from the bytes (magika, the content-type extra), and fail the build
+# rather than fall back to guessing from the file extension.
+method = "magika"
 
 [[tool.pitloom.creator]]
 name = "Arthit Suriyawongkul"

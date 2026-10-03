@@ -11,7 +11,7 @@ Get the [SPDX License ID][spdx-license-id] from license text.
 A portable license ID matcher with command line interface and Python API.
 No database daemon or server needed.
 
-*Used as a license detection engine for [Pitloom] software bill of materilas generator.*
+*Used as a license detection engine for [Pitloom] software bill of materials generator.*
 
 [spdx-license-id]: https://spdx.org/licenses/
 [Pitloom]: https://github.com/bact/pitloom/

@@ -16,7 +16,7 @@ jobs:
     permissions:
       contents: read
     outputs:
-      sbom-path: ${{ steps.pitloom.outputs.sbom-path }}
+      sbom-path: ${{ steps.sbom.outputs.sbom-path }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -38,61 +38,23 @@ jobs:
         run: |
           python -m build
 
-      - name: Embed SBOM into the wheel
-        id: pitloom
-        uses: bact/pitloom@3c555bf08e8c7f24ff9b4eb5659a5f9d999739f9 # v0.19.0
+      # The pitloom build hook ([tool.hatch.build.hooks.pitloom]) embedded
+      # the SBOM while the wheel was built. Re-embedding with the pitloom
+      # action would rescan the finished wheel, and record hashes for RECORD
+      # and for the SBOM itself that the embedding then makes stale.
+      - name: Check and extract the SBOM embedded in the wheel
+        id: sbom
+        run: |
+          set -euo pipefail
+          name=$(.github/scripts/check-wheel-sbom.sh dist sbom)
+          echo "sbom-path=${name}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          embed-wheel: "dist/*.whl"
-          project-path: "."
-          extras: "content-type"
-          content-type: "true"
-          upload-artifact: "true"
-          artifact-name: "sbom"
-
-      - name: Check SBOM is at the PEP 770 location
-        id: locate-sbom
-        env:
-          SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          wheels=(dist/*.whl)
-          if [ "${#wheels[@]}" -ne 1 ]; then
-            echo "::error::expected exactly one wheel in dist/, found" \
-              "${#wheels[@]}: ${wheels[*]}"
-            exit 1
-          fi
-          whl="${wheels[0]}"
-          sbom_basename=$(basename "${SBOM_PATH}")
-
-          matched=""
-          while IFS= read -r entry; do
-            case "${entry}" in
-              *.dist-info/sboms/"${sbom_basename}")
-                matched="${entry}"
-                break
-                ;;
-            esac
-          done < <(unzip -Z1 "${whl}")
-
-          if [ -z "${matched}" ]; then
-            echo "::error::${sbom_basename} not found under" \
-              "*.dist-info/sboms/ in ${whl}"
-            exit 1
-          fi
-          echo "Found: ${matched}"
-          echo "wheel=${whl}" >> "${GITHUB_OUTPUT}"
-          echo "entry=${matched}" >> "${GITHUB_OUTPUT}"
-
-      - name: Validate SBOM extracted from the wheel
-        env:
-          WHEEL: ${{ steps.locate-sbom.outputs.wheel }}
-          ENTRY: ${{ steps.locate-sbom.outputs.entry }}
-        run: |
-          set -euo pipefail
-          extracted="$(mktemp -d)/temp-sbom.json"
-          unzip -p "${WHEEL}" "${ENTRY}" > "${extracted}"
-          spdx3-validate --json "${extracted}"
+          name: sbom
+          path: sbom/
+          retention-days: 3
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -127,9 +89,8 @@ jobs:
     # - build.result == 'success': skip if "Validate SBOM" failed in "build".
     # - publish.result == 'success': skip if PyPI publish failed, so the
     #   release never carries an SBOM for a package that wasn't published.
-    # - sbom-path != '': skip if "build" produced no standalone SBOM
-    #   (embed-wheel matched more than one wheel), since no "sbom"
-    #   artifact was uploaded for this job to download.
+    # - sbom-path != '': skip if "build" reported no SBOM name, since no
+    #   "sbom" artifact would be there for this job to download.
     if: |
       needs.build.result == 'success' && needs.publish.result == 'success' &&
       needs.build.outputs.sbom-path != ''
