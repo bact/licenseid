@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Requires `click>=8.5.0` and `py-spdx-license<0.1`; building needs
-  `hatchling<1.32.1` until Pitloom supports it ([#46], [#56])
+  `hatchling>=1.32.3` and `pitloom[content-type]>=0.19.0` ([#46], [#56], [#74])
 - `update` sends a licenseid `User-Agent`, tries each source once and warns on
   every fallback, such as a stale cache; `--no-cache` never falls back ([#51])
 - `update` and `--clear-cache` write progress and warnings to standard error;
@@ -64,6 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   input's SPDX tags ([#68])
 - With no subcommand, the help goes to standard error, as a usage error
   (exit 2) ([#73])
+- The release attaches the SBOM the wheel carries, built by the Pitloom build
+  hook with content types detected by magika, and no longer re-embeds it
+  ([#74])
 
 ### Removed
 
@@ -152,6 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#70]: https://github.com/bact/licenseid/pull/70
 [#72]: https://github.com/bact/licenseid/pull/72
 [#73]: https://github.com/bact/licenseid/pull/73
+[#74]: https://github.com/bact/licenseid/pull/74
 
 ## [0.3.7] - 2026-08-20
 
