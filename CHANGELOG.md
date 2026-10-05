@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-10-05
 
 ### Added
 
@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Requires `click>=8.5.0` and `py-spdx-license<0.1`; building needs
-  `hatchling>=1.32.3` and `pitloom[content-type]>=0.19.0` ([#46], [#56], [#74])
+  `hatchling>=1.32.3` and `pitloom[content-type]>=0.20.0` ([#46], [#56], [#74])
 - `update` sends a licenseid `User-Agent`, tries each source once and warns on
   every fallback, such as a stale cache; `--no-cache` never falls back ([#51])
 - `update` and `--clear-cache` write progress and warnings to standard error;
@@ -34,8 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   need updating ([#53], [#73])
 - `match` and `is-*` exit 2 with `ERROR: database: <condition>` when the
   database is not ready; the API raises `DatabaseNotReadyError` ([#55])
-- `update` and `--clear-cache` refuse a database licenseid did not build (exit
-  2) instead of overwriting or deleting it ([#55])
+- `update` and `--clear-cache` refuse a database licenseid did not build
+  (exit 2) instead of overwriting or deleting it ([#55])
 - Read commands no longer create `~/.local/share/licenseid` or crash on an
   unwritable `HOME` ([#55])
 - `--clear-cache` clears a database SQLite cannot read, with its `-wal`, `-shm`
@@ -78,39 +78,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Deeply nested JSON no longer crashes detection; free text in a `license` field
-  is no SPDX candidate; extensionless INI/TOML text is read ([#50])
+- Deeply nested JSON no longer crashes detection; free text in a `license`
+  field is no SPDX candidate; extensionless INI/TOML text is read ([#50])
 - `update` no longer crashes on a short popularity row, a corrupt cache or an
   unwritable cache directory, nor caches a bad download ([#51])
 - Cache files are written atomically; a corrupt cached tarball is downloaded
   again; a future-dated cache no longer stays valid ([#51])
 - A database built from a single license no longer fails with
   `ZeroDivisionError` ([#51])
-- Input that is not UTF-8 is read as Latin-1 with a warning, by the CLI and the
-  API; binary, empty or unreadable input exits 2 or raises `InvalidInputError`
-  ([#53], [#59])
+- Input that is not UTF-8 is read as Latin-1 with a warning,
+  by the CLI and the API; binary, empty or unreadable input exits 2 or
+  raises `InvalidInputError` ([#53], [#59])
 - `--text` keeps non-ASCII text and decodes only backslash escapes;
   `update --version` with a bad value exits 2 ([#53])
 - A blank `--db` is a usage error, not the default database ([#55])
 - An "or any later version" grant in any wording reads as `-or-later` on every
   path; it qualifies the license beside it, after `WITH` or in brackets too
   ([#58], [#61])
-- The `-only`/`-or-later` tie-breaker treats a 0.01 gap alike at every score and
-  never ranks a deprecated ID above its replacement ([#58])
-- A tag with no known license ID is no certain match; tags and `license` fields
-  decide by one rule, and `is-*` answers as `match` does ([#60])
-- An `SPDX-License-Identifier` tag is read as one whole expression, and may hold
-  a license name or SPDX URL ([#61])
-- `--id` accepts `LicenseRef-*`, `+` and `+ WITH` forms; a bare argument that is
-  no ID is matched as text ([#61])
+- The `-only`/`-or-later` tie-breaker treats a 0.01 gap alike at every score
+  and never ranks a deprecated ID above its replacement ([#58])
+- A tag with no known license ID is no certain match; tags and `license`
+  fields decide by one rule, and `is-*` answers as `match` does ([#60])
+- An `SPDX-License-Identifier` tag is read as one whole expression,
+  and may hold a license name or SPDX URL ([#61])
+- `--id` accepts `LicenseRef-*`, `+` and `+ WITH` forms;
+  a bare argument that is no ID is matched as text ([#61])
 - Long tokens, embedded base64, overlong expressions or long runs of spaces no
   longer take seconds to minutes ([#61], [#62], [#65], [#66])
 - A small `package.json`, `pyproject.toml` or `Cargo.toml` answers from its
-  `license` field, never by name; `MIT/Apache-2.0` is no longer just MIT ([#65])
-- PEP 639, Poetry, Cargo and written-out PEP 621 license forms are read, as are
-  npm's old `license` object and `licenses` array ([#65])
-- A TOML or INI `license` field is a certain match, as JSON is, and every result
-  carries its SPDX, OSI and FSF flags ([#65])
+  `license` field, never by name; `MIT/Apache-2.0` is no longer just MIT
+  ([#65])
+- PEP 639, Poetry, Cargo and written-out PEP 621 license forms are read,
+  as are npm's old `license` object and `licenses` array ([#65])
+- A TOML or INI `license` field is a certain match, as JSON is,
+  and every result carries its SPDX, OSI and FSF flags ([#65])
 - A short input answers from its `SPDX-License-Identifier` tag, not by license
   name; a tag that names no license is no match ([#66], [#67])
 - `GPL-2.0-with-classpath-exception` and the deprecated `GFDL-1.x` IDs answer
@@ -130,8 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - `--version` and the downloaded `licenses.json` version are validated before
-  use in a path or URL; the SPDX tarball is extracted with path-traversal checks
-  ([#51])
+  use in a path or URL; the SPDX tarball is extracted with path-traversal
+  checks ([#51])
 
 [#39]: https://github.com/bact/licenseid/pull/39
 [#46]: https://github.com/bact/licenseid/pull/46
@@ -303,6 +304,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[0.4.0]: https://github.com/bact/licenseid/compare/v0.3.7...v0.4.0
 [0.3.7]: https://github.com/bact/licenseid/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/bact/licenseid/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/bact/licenseid/compare/v0.3.4...v0.3.5
