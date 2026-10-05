@@ -19,6 +19,9 @@
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
 - Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches; may be discarded, not yet built.
 - Implementation docs and progress reports: `working-docs/implementation/` — record of what WAS built: decisions made, why things are the way they are, paths considered and rejected. Not a user manual. Start at `working-docs/implementation/README.md` for current state.
+- Paper notes: `working-docs/paper-notes/` — sourced raw material for an
+  academic write-up (system, results, history, human–AI sessions). Add to
+  it when a finding is worth publishing; start at its `README.md`.
 - Test fixtures: `tests/fixtures/README.md`
 - Private alpha, one developer. No backward compat needed yet.
 - `working-docs/` is internal notes only — content can change without notice. Any user-facing docs published outside this repo must not link into it; reference a PR or issue number instead.
