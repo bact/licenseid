@@ -53,9 +53,19 @@ jobs:
         run: |
           python -m build
 
-      # The same check the release runs (pypi-publish.yml), so a missing or
+      # The same checks the release runs (pypi-publish.yml), so a missing or
       # invalid SBOM shows on a pull request, not first at release time.
       - name: Check the SBOM embedded in the wheel
         run: |
-          pip install spdx3-validate
-          .github/scripts/check-wheel-sbom.sh dist "${RUNNER_TEMP}/sbom"
+          set -euo pipefail
+          pip install "pitloom[content-type]>=0.20.0" spdx3-validate==0.0.7
+          python scripts/extract_wheel_sbom.py dist "${RUNNER_TEMP}/sbom" \
+            --require-magika --github-output "${RUNNER_TEMP}/sbom.out"
+          wheel=$(sed -n 's/^wheel-path=//p' "${RUNNER_TEMP}/sbom.out")
+          sbom=$(sed -n 's/^sbom-path=//p' "${RUNNER_TEMP}/sbom.out")
+          name=$(sed -n 's/^sbom-name=//p' "${RUNNER_TEMP}/sbom.out")
+          loom verify-wheel --fail-on-mismatch "${wheel}" --sbom-filename "${name}"
+          python scripts/check_sbom_license.py --license Apache-2.0 \
+            "${wheel}" "${sbom}"
+          loom validate-wheel "${wheel}" --sbom-filename "${name}"
+          spdx3-validate --json "${sbom}"

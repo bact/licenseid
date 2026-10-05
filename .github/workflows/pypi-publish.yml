@@ -16,7 +16,7 @@ jobs:
     permissions:
       contents: read
     outputs:
-      sbom-path: ${{ steps.sbom.outputs.sbom-path }}
+      sbom-name: ${{ steps.sbom.outputs.sbom-name }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,7 +32,7 @@ jobs:
         run: |
           pip install --upgrade build pip
           pip install -e .
-          pip install spdx3-validate
+          pip install "pitloom[content-type]>=0.20.0" spdx3-validate==0.0.7
 
       - name: Build sdist and wheel
         run: |
@@ -42,12 +42,56 @@ jobs:
       # the SBOM while the wheel was built. Re-embedding with the pitloom
       # action would rescan the finished wheel, and record hashes for RECORD
       # and for the SBOM itself that the embedding then makes stale.
-      - name: Check and extract the SBOM embedded in the wheel
+      - name: Check and extract the embedded SBOM
+        # The SBOM released is the one the build hook embedded, byte for
+        # byte: no second generation. Fails unless the wheel has exactly
+        # one, named *.spdx3.json, matching its RECORD hash, with every
+        # file's content type detected by magika. Writes it to sbom/,
+        # outside dist/.
         id: sbom
         run: |
           set -euo pipefail
-          name=$(.github/scripts/check-wheel-sbom.sh dist sbom)
-          echo "sbom-path=${name}" >> "${GITHUB_OUTPUT}"
+          python scripts/extract_wheel_sbom.py dist sbom \
+            --require-magika --github-output "$GITHUB_OUTPUT"
+
+      - name: Verify the SBOM is at the PEP 770 location
+        env:
+          SBOM_NAME: ${{ steps.sbom.outputs.sbom-name }}
+          WHEEL_PATH: ${{ steps.sbom.outputs.wheel-path }}
+        run: |
+          set -euo pipefail
+          loom verify-wheel --fail-on-mismatch "${WHEEL_PATH}" \
+            --sbom-filename "${SBOM_NAME}"
+
+      - name: Check SBOM declares and concludes Apache-2.0
+        # Checks both the wheel's embedded copy and the extracted one
+        # attached to the release.
+        env:
+          SBOM_PATH: ${{ steps.sbom.outputs.sbom-path }}
+          WHEEL_PATH: ${{ steps.sbom.outputs.wheel-path }}
+        run: |
+          set -euo pipefail
+          python scripts/check_sbom_license.py --license Apache-2.0 \
+            "${WHEEL_PATH}" "${SBOM_PATH}"
+
+      - name: Validate SBOM
+        env:
+          SBOM_NAME: ${{ steps.sbom.outputs.sbom-name }}
+          WHEEL_PATH: ${{ steps.sbom.outputs.wheel-path }}
+        run: |
+          set -euo pipefail
+          loom validate-wheel "${WHEEL_PATH}" --sbom-filename "${SBOM_NAME}"
+
+      - name: Validate extracted SBOM with spdx3-validate
+        # Hard gate: no release while the SBOM fails schema/SHACL
+        # validation, and a failure to download the schema (network) fails
+        # this step too. Version auto-detected; --spdx-version is omitted
+        # (spdx3-validate 0.0.7 raises AttributeError on args.version).
+        env:
+          SBOM_PATH: ${{ steps.sbom.outputs.sbom-path }}
+        run: |
+          set -euo pipefail
+          spdx3-validate --json "${SBOM_PATH}"
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -89,11 +133,12 @@ jobs:
     # - build.result == 'success': skip if "Validate SBOM" failed in "build".
     # - publish.result == 'success': skip if PyPI publish failed, so the
     #   release never carries an SBOM for a package that wasn't published.
-    # - sbom-path != '': skip if "build" reported no SBOM name, since no
-    #   "sbom" artifact would be there for this job to download.
+    # - sbom-name != '': defensive. "build" fails before its outputs are
+    #   set unless "Check and extract the embedded SBOM" succeeded, so a
+    #   successful build always has a name and an uploaded "sbom" artifact.
     if: |
       needs.build.result == 'success' && needs.publish.result == 'success' &&
-      needs.build.outputs.sbom-path != ''
+      needs.build.outputs.sbom-name != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write # gh release upload, for the standalone SBOM asset
@@ -109,7 +154,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-          SBOM_BASENAME: ${{ needs.build.outputs.sbom-path }}
+          SBOM_BASENAME: ${{ needs.build.outputs.sbom-name }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -160,10 +205,18 @@ jobs:
           name: dist
           path: dist/
 
+      - name: Download SBOM artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sbom
+          path: sbom/
+
       - name: Sign artifacts with Sigstore
         uses: sigstore/gh-action-sigstore-python@790bc6befb9d733738f18d8f895854b453640ec9 # v3.5.0
         with:
-          inputs: dist/*.whl dist/*.tar.gz
+          inputs: >-
+            dist/*.whl dist/*.tar.gz
+            sbom/${{ needs.build.outputs.sbom-name }}
           # Default is "true" and, on a release-triggered run, additionally
           # downloads and signs GitHub's auto-generated source zip/tar.gz
           # archives -- unwanted here, and a hard failure (unhandled
@@ -173,14 +226,18 @@ jobs:
       - name: Generate build provenance attestation
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: "dist/*.whl, dist/*.tar.gz"
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
+            sbom/${{ needs.build.outputs.sbom-name }}
 
-      - name: Attach signatures and provenance to GitHub Release
+      - name: Attach Sigstore bundles to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           REPO: ${{ github.repository }}
+          SBOM_NAME: ${{ needs.build.outputs.sbom-name }}
         run: |
           set -euo pipefail
           gh release upload "${RELEASE_TAG}" dist/*.sigstore.json \
-            --clobber --repo "${REPO}"
+            "sbom/${SBOM_NAME}.sigstore.json" --clobber --repo "${REPO}"
