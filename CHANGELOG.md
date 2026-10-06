@@ -5,29 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.2] - 2026-10-07
 
 ### Added
 
-- `get_default_db_path` is public (`from licenseid import get_default_db_path`)
-  ([#80])
-- `LicenseDatabase(path, create=False)` opens a database that must exist,
-  as the matcher now does ([#80])
+- `get_default_db_path` is public; `LicenseDatabase(path, create=False)` opens a
+  database that must exist, as the matcher now does ([#80])
 
 ### Changed
 
-- A database that fails during a lookup raises `DatabaseNotReadyError`, not a
-  raw `sqlite3.Error`; code that catches `sqlite3.Error` around a lookup must
-  catch it instead. The CLI exits 2, also for `ProgrammingError` ([#80])
-- `update` no longer puts the database in WAL mode, and takes one built by an
-  earlier version out of it, so lookups leave no `-wal` or `-shm` file ([#80])
+- A failing lookup raises `DatabaseNotReadyError`, not a raw `sqlite3.Error`
+  (catch it instead); the CLI exits 2, also for `ProgrammingError` ([#80])
+- `update` no longer uses WAL mode and takes an older database out of it; until
+  then a lookup on that database still leaves `-wal` and `-shm` ([#80])
 
 ### Fixed
 
-- A lookup or a matcher no longer creates a missing database file or writes
-  to the database; a search no longer hides a locked or damaged database as
-  "no candidates"; a FIFO in place of the database (or its `-journal`) no
-  longer hangs a lookup ([#80])
+- A lookup no longer creates a missing database file or writes to it, no longer
+  hides a locked or damaged database as "no candidates", and no longer hangs on
+  a FIFO in place of the database, its `-journal` or `-wal` ([#80])
+- A failed `update` is no longer skipped next time, and processes opening an
+  older database at once no longer fail with `duplicate column name` ([#80])
+
+[#80]: https://github.com/bact/licenseid/pull/80
 
 ## [0.4.1] - 2026-10-06
 
@@ -53,7 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#76]: https://github.com/bact/licenseid/pull/76
 [#77]: https://github.com/bact/licenseid/pull/77
-[#80]: https://github.com/bact/licenseid/pull/80
 
 ## [0.4.0] - 2026-10-05
 
@@ -354,7 +353,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
-[Unreleased]: https://github.com/bact/licenseid/compare/v0.4.1...HEAD
+[0.4.2]: https://github.com/bact/licenseid/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/bact/licenseid/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/bact/licenseid/compare/v0.3.7...v0.4.0
 [0.3.7]: https://github.com/bact/licenseid/compare/v0.3.6...v0.3.7
