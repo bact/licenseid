@@ -130,17 +130,17 @@ def test_other_exceptions_are_not_worded_as_a_database_error(ready_db: str) -> N
 @pytest.mark.parametrize(
     "failure", [sqlite3.ProgrammingError("bad"), sqlite3.InterfaceError("bad")]
 )
-def test_sqlite_programming_errors_are_not_worded_as_a_database_error(
+def test_sqlite_programming_errors_are_worded_as_a_database_error(
     ready_db: str, failure: sqlite3.Error
 ) -> None:
-    """A bad query is a bug in licenseid, not a fault in the file: the user is
-    not told to rebuild a healthy database."""
+    """One policy, in the matcher and the CLI: every sqlite3.Error is a
+    DatabaseNotReadyError (exit 2), and the original stays its cause."""
     with mock.patch.object(
         AggregatedLicenseMatcher, "match", autospec=True, side_effect=failure
     ):
         result = CliRunner().invoke(cli, ["--db", ready_db, "match", "--id", "MIT"])
-    assert result.exception is failure
-    assert "unreadable" not in result.stderr
+    assert result.exit_code == 2
+    assert result.stderr == f"ERROR: database: unreadable: {ready_db}: bad\n"
 
 
 @pytest.mark.parametrize("command", ["match", "is-osi"])

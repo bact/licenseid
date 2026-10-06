@@ -14,18 +14,23 @@ file, and a SQLite failure surfaces as ``DatabaseNotReadyError``.
 import shutil
 import sqlite3
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 from unittest import mock
 
 import pytest
 from click.testing import CliRunner
+from conftest import posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db
 
 import licenseid
 from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError
 from licenseid.cli import cli
+from licenseid.database import LicenseDatabase
+from licenseid.dbcheck import lookup_error
+from licenseid.dbconnection import Connections
 from licenseid.errors import InvalidInputError
 
 
@@ -70,16 +75,85 @@ def test_lookup_after_failure_is_database_not_ready(
     assert isinstance(info.value.__cause__, sqlite3.Error)
 
 
+LOOKUPS: list[dict[str, Any]] = [
+    {"license_id": "MIT"},
+    {"text": "MIT"},  # Tier 0: reads every name and ID
+    {"text": "Apache License 2.0 text of some length"},
+    {"text": "SPDX-License-Identifier: MIT"},
+]
+
+
+@pytest.mark.parametrize("lookup", LOOKUPS, ids=lambda d: str(d)[:40])
 def test_lookup_does_not_recreate_a_deleted_database(
-    matcher_db: tuple[AggregatedLicenseMatcher, Path],
+    tmp_path: Path, lookup: dict[str, Any]
 ) -> None:
-    matcher, path = matcher_db
+    path = make_ready_file_db(tmp_path / "d.db")
+    matcher = AggregatedLicenseMatcher(db_path=str(path))
     path.unlink()
     with pytest.raises(DatabaseNotReadyError):
-        matcher.match(license_id="MIT")
+        matcher.match(**lookup)
     assert not path.exists()
     with pytest.raises(DatabaseNotReadyError, match="database: not found"):
         AggregatedLicenseMatcher(db_path=str(path))
+
+
+def test_backfill_reads_before_it_writes(tmp_path: Path) -> None:
+    """A database that needs no backfill never opens a write connection."""
+    path = make_ready_file_db(tmp_path / "e.db")
+    LicenseDatabase(str(path)).get_all_names_and_ids()  # the seed needs one
+    db = LicenseDatabase(str(path))
+    writes: list[bool] = []
+    real = Connections.connect
+
+    def record(self: Connections, write: bool = False) -> sqlite3.Connection:
+        writes.append(write)
+        return real(self, write)
+
+    with mock.patch.object(Connections, "connect", autospec=True, side_effect=record):
+        db.get_all_names_and_ids()
+    assert writes
+    assert not any(writes)
+
+
+def test_backfill_inside_reading_block_writes_on_its_own_connection(
+    tmp_path: Path,
+) -> None:
+    path = make_ready_file_db(tmp_path / "f.db")
+    with sqlite3.connect(path) as conn:
+        conn.execute("UPDATE licenses SET norm_license_id = NULL")
+    db = LicenseDatabase(str(path))
+    with db.reading():
+        assert db.get_license_details("MIT")  # the shared reader is open
+        names = db.get_all_names_and_ids()
+    assert names
+    with sqlite3.connect(path) as conn:
+        left = conn.execute(
+            "SELECT count(*) FROM licenses WHERE norm_license_id IS NULL"
+        ).fetchone()[0]
+    assert left == 0
+
+
+def test_backfill_on_threads(tmp_path: Path) -> None:
+    path = make_ready_file_db(tmp_path / "g.db")
+    with sqlite3.connect(path) as conn:
+        conn.execute("UPDATE licenses SET norm_license_id = NULL")
+    matcher = AggregatedLicenseMatcher(db_path=str(path))
+    with ThreadPoolExecutor(4) as pool:
+        results = list(pool.map(lambda _: matcher.match(license_id="MIT"), range(8)))
+    assert all(results)
+
+
+@pytest.mark.parametrize(
+    ("message", "action"),
+    [
+        ("disk image is malformed", True),
+        ("database is locked", False),
+        ("attempt to write a readonly database", False),
+    ],
+)
+def test_action_only_for_an_unreadable_file(message: str, action: bool) -> None:
+    error = lookup_error("x.db", sqlite3.OperationalError(message))
+    assert str(error).endswith("; run 'licenseid update'") is action
 
 
 @pytest.mark.parametrize("method", ["is_spdx", "is_osi", "is_fsf", "is_open"])
@@ -177,6 +251,7 @@ def test_cli_exits_2_for_a_database_gone_bad(
     assert result.stderr.startswith("ERROR: database: ")
 
 
+@posix_only  # chmod only sets a read-only flag on Windows
 def test_a_normal_lookup_still_works_read_only(tmp_path: Path) -> None:
     path = make_ready_file_db(tmp_path / "ok.db")
     path.chmod(0o444)

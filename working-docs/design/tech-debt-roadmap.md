@@ -382,18 +382,16 @@ Ctrl-C) were fixed on 2026-10-02; see `tech-debt-resolved.md`.
   may be anybody's and deleting one needs no lock at all. The probe waits
   `_BUSY_WAIT` (1 s), not SQLite's default 5 s, since the command that
   follows waits again.
-- **DB replaced during a run**: on the CLI a `sqlite3` failure after the
-  readiness check now exits 2 with `database: unreadable`. The Python API
-  still raises a raw `sqlite3.OperationalError` from a live matcher whose
-  file was deleted (pinned in `tests/test_db_ready.py`); wrapping it in
-  `LicenseIdError` needs a decision on where (matcher, `LicenseDatabase`).
+- **DB replaced during a run** (resolved in 0.4.2): a lookup opens its
+  connection read-only, so a deleted file is not re-created empty, and the
+  matcher words every `sqlite3.Error` of a lookup as `DatabaseNotReadyError`
+  (`database: unreadable: ...; run 'licenseid update'`; no action for a lock
+  or a read-only WAL database). See `database-readiness-gate.md`.
 - **Ctrl-C during imports** (the first ~30 ms, before click runs): Python
   prints a `KeyboardInterrupt` traceback and dies by SIGINT, which the shell
   reports as 130. Found in review of PR #70; `main` is the same.
 - **Fix**: word `update`'s directory failure with its own subject; open a
-  read-only database with `immutable=1`; keep a `file:` URI a URI; decide
-  where the Python API wraps `sqlite3` errors in `LicenseIdError`
-  (matcher or `LicenseDatabase`).
+  read-only database with `immutable=1`; keep a `file:` URI a URI.
 - Impact 2, Risk 2, Effort 3.
 
 ## 23. The loose `License:` field reader resolves every match — Priority 12

@@ -820,26 +820,21 @@ class LicenseDatabase:
         """
         if self._norm_cols_backfilled:
             return
-        with self._connection(write=True) as conn:
+        with self._connection() as conn:  # read-only: never creates the file
             missing = conn.execute(
                 "SELECT license_id, name FROM licenses WHERE norm_license_id IS NULL"
             ).fetchall()
-            if missing:
-                updates = [
-                    (normalize_text(lid), normalize_text(name or ""), lid)
-                    for lid, name in missing
-                ]
-                conn.execute("BEGIN TRANSACTION")
-                try:
-                    conn.executemany(
-                        "UPDATE licenses SET norm_license_id = ?, norm_name = ?"
-                        " WHERE license_id = ?",
-                        updates,
-                    )
-                    conn.execute("COMMIT")
-                except Exception:
-                    conn.execute("ROLLBACK")
-                    raise
+        if missing:
+            updates = [
+                (normalize_text(lid), normalize_text(name or ""), lid)
+                for lid, name in missing
+            ]
+            with self._connection(write=True) as conn:
+                conn.executemany(
+                    "UPDATE licenses SET norm_license_id = ?, norm_name = ?"
+                    " WHERE license_id = ?",
+                    updates,
+                )
         self._norm_cols_backfilled = True
 
     def get_all_names_and_ids(self) -> list[LicenseNameId]:

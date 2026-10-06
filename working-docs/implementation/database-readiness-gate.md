@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-09-20
+Last-Modified: 2026-10-06
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -120,3 +120,24 @@ Each of these cost at least one review round.
   the last two rounds, and every new finding came from the write/delete
   guard added in round 4 — code being reviewed for the first time. Count
   findings per surface, not per round.
+
+## After the gate: lookups (0.4.2)
+
+The gate runs once, at construction. A database that fails later used to
+raise a raw `sqlite3.Error`, and a lookup re-created a deleted file as an
+empty one, so the next matcher said `empty` instead of `not found`.
+
+- **Read-only by default.** `Connections.connect(write=False)` opens
+  `dbcheck.read_only_uri`; only schema init, `_write_db_records`, the
+  fingerprint rewrite and the norm-column backfill pass `write=True`. A
+  write inside a `reading()` block gets its own connection, since the shared
+  one is read-only. In-memory databases open as they are.
+- **The backfill reads first.** `_ensure_norm_columns` opened a read-write
+  connection for a `SELECT`, so a short-text lookup re-created the file; the
+  first test only used `license_id=` and missed it. Test every lookup path
+  (ID, short text, long text, tag), not one.
+- **One wording.** `matcher._database_errors` wraps `match`, `resolve_record`
+  and `diff_pair`; `dbcheck.lookup_error` adds the `update` action only for
+  an `unreadable` file, not for a lock or `_NEEDS_WRITING`. Every
+  `sqlite3.Error` is wrapped, `ProgrammingError` and `InterfaceError`
+  included, and the CLI does the same; the original is the `__cause__`.

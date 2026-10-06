@@ -131,7 +131,7 @@ def _is_memory_uri(base: str, query: list[tuple[str, str]]) -> bool:
     return ("mode", "memory") in query or base == "file::memory:"
 
 
-def _read_only_uri(db_path: str) -> str:
+def read_only_uri(db_path: str) -> str:
     """The SQLite URI that opens *db_path* read-only, without creating it.
 
     ``mode=memory`` URIs (a shared in-memory database) stay as they are: they
@@ -148,11 +148,6 @@ def _read_only_uri(db_path: str) -> str:
     query = [(key, value) for key, value in query if key != "mode"]
     query.append(("mode", "ro"))
     return f"{base}?{urlencode(query, quote_via=quote)}"
-
-
-def read_only_uri(db_path: str) -> str:
-    """The SQLite URI that opens *db_path* read-only, without creating it."""
-    return _read_only_uri(db_path)
 
 
 def is_memory_database(db_path: str) -> bool:
@@ -385,11 +380,13 @@ def lookup_error(db_path: str, exc: sqlite3.Error) -> DatabaseNotReadyError:
     """The refusal for a lookup that failed in a database found ready when the
     matcher was built (deleted, truncated, overwritten since).
 
-    A lock another process holds says nothing about the file, so it points at
-    no command: ``licenseid update`` would not clear it.
+    Only an ``unreadable`` file is pointed at ``licenseid update``. A lock
+    another process holds says nothing about the file, and a read-only
+    database that needs its -shm (``_NEEDS_WRITING``) is one ``update``
+    cannot fix either.
     """
     error = unreadable_error(db_path, exc)
-    if _open_failure(exc) == "unknown":
+    if _open_failure(exc) != "unreadable":
         return error
     return DatabaseNotReadyError(f"{error}{_ACTION}")
 
@@ -398,7 +395,7 @@ def _open_condition(db_path: str) -> Refusal | None:
     """The refusal the file's own contents call for, or None."""
     try:
         with contextlib.closing(
-            sqlite3.connect(_read_only_uri(db_path), uri=True, timeout=_BUSY_WAIT)
+            sqlite3.connect(read_only_uri(db_path), uri=True, timeout=_BUSY_WAIT)
         ) as conn:
             condition = _not_ready(conn)
     except (sqlite3.Error, UnicodeError, ValueError) as exc:

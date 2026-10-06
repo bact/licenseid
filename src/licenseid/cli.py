@@ -132,9 +132,10 @@ class DatabaseErrorGroup(UsageLineGroup, EchoHelpCommand):
     ``match`` and the ``is-*`` commands answer "no" with exit 1, so an unready
     database (``DatabaseNotReadyError``) must not share it. A file can also go
     bad after the readiness check (replaced or corrupted mid-run): a SQLite
-    failure is then worded as an ``unreadable`` database, not a traceback. A
-    ProgrammingError or InterfaceError is a bug in a query, not a fault in the
-    file, so it still shows its traceback.
+    failure is then worded as an ``unreadable`` database, not a traceback.
+    The matcher words its own the same way (``DatabaseNotReadyError``), and
+    that includes a ProgrammingError or InterfaceError: the original stays
+    the ``__cause__`` for whoever debugs it.
 
     Click itself would exit 1 for both an interrupt (Ctrl-C) and a closed
     pipe. An interrupt exits 130 (128 + SIGINT), as the shell reports a
@@ -156,8 +157,6 @@ class DatabaseErrorGroup(UsageLineGroup, EchoHelpCommand):
         except DatabaseNotReadyError as exc:
             exit_usage_error(ctx, str(exc))
         except sqlite3.Error as exc:
-            if isinstance(exc, (sqlite3.ProgrammingError, sqlite3.InterfaceError)):
-                raise
             exit_usage_error(ctx, str(unreadable_error(ctx.obj["db_path"], exc)))
 
 
