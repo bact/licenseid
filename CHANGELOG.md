@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pull request and release builds pin Pitloom and its checks through
   `.github/requirements-release.txt`; the SBOM check runs once per pull
-  request ([#76])
+  request ([#77])
 
 ## [0.4.0] - 2026-10-05
 
@@ -176,6 +176,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#73]: https://github.com/bact/licenseid/pull/73
 [#74]: https://github.com/bact/licenseid/pull/74
 [#76]: https://github.com/bact/licenseid/pull/76
+[#77]: https://github.com/bact/licenseid/pull/77
 
 ## [0.3.7] - 2026-08-20
 
