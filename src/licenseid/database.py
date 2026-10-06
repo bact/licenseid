@@ -85,8 +85,8 @@ class LicenseDatabase:
 
     def __init__(self, db_path: str):
         self.db_path = Path(db_path)
-        db_path_str = str(self.db_path)
-        self.use_uri = db_path_str.startswith("file:")
+        self.use_uri = str(db_path).startswith("file:")  # Path() rewrites a URI
+        db_path_str = str(db_path) if self.use_uri else str(self.db_path)
         self._connections = Connections(db_path_str, self.use_uri)
         self._keep_alive: sqlite3.Connection | None = None
 

@@ -85,7 +85,10 @@ def _plain_path_uri(path: PurePath) -> str:
     """The read-only URI of an absolute file path, on any OS's path flavour.
 
     ``as_posix`` gives forward slashes, so a Windows path has no ``\\`` to be
-    encoded into the authority.
+    encoded into the authority. On POSIX ``os.fsencode`` keeps a file name
+    that is not valid UTF-8 (a surrogate escape in the str) intact; Windows
+    has no such names. The empty authority keeps a path that starts with "//"
+    from being read as a host.
     """
     uri_path = _path_uri_part(os.fsencode(path.as_posix()))
     return f"file://{quote(uri_path, safe='/:')}?mode=ro"
@@ -102,7 +105,12 @@ def _uri_file_path(base: str) -> str | None:
             rest = rest[len("localhost") :]
         elif not rest.startswith("/"):
             return None
-    path = os.fsdecode(unquote_to_bytes(os.fsencode(rest)))
+    try:
+        path = os.fsdecode(unquote_to_bytes(os.fsencode(rest)))
+    except UnicodeError:
+        # Windows decodes file names as UTF-8: a byte such as %FF names no
+        # file there, so no file can be said to be named.
+        return None
     return _drop_drive_slash(path) if _IS_WINDOWS else path
 
 
@@ -131,9 +139,7 @@ def _read_only_uri(db_path: str) -> str:
     if db_path == ":memory:":
         return "file::memory:"
     if is_plain_path(db_path):
-        # os.fsencode keeps a file name that is not valid UTF-8 (a surrogate
-        # escape in the str) intact. The empty authority ("file://" + "/path")
-        # keeps a path that starts with "//" from being read as a host name.
+        # See _plain_path_uri for the encoding and the empty authority.
         return _plain_path_uri(Path(db_path).absolute())
     base, query = _split_file_uri(db_path)
     if _is_memory_uri(base, query):

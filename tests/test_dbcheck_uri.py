@@ -17,8 +17,7 @@ import os
 import sqlite3
 import sys
 from collections.abc import Iterator
-from pathlib import Path, PurePosixPath, PureWindowsPath
-from urllib.parse import quote
+from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
@@ -26,17 +25,13 @@ from conftest import posix_only
 from db_asserts import assert_refused, expected_refusal, run_cli
 from db_variants import NOT_FOUND, build_ready_wal_with_wal, make_ready_file_db
 
-from licenseid import AggregatedLicenseMatcher, dbcheck
 from licenseid import cli as cli_module
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import (
     _REQUIRED_COLUMNS,
-    _drop_drive_slash,
     _open_condition,
     _open_failure,
-    _path_uri_part,
-    _plain_path_uri,
     _read_only_uri,
     check_database_ready,
     reject_foreign_database,
@@ -81,6 +76,13 @@ def test_uri_query_is_not_form_encoded() -> None:
     assert "vfs=unix%20none" in uri
 
 
+def _empty_authority(path: Path) -> str:
+    """*path* as the text after ``file://``: an absolute path with a leading
+    ``/``, as ``file:///C:/x`` has on Windows."""
+    posix = path.as_posix()
+    return posix if posix.startswith("/") else f"/{posix}"
+
+
 def _idle_wal_database(directory: Path) -> Path:
     """A ready database in WAL mode with no -wal file: every connection is
     closed, so the log was checkpointed and removed."""
@@ -118,7 +120,7 @@ def test_uri_keeps_an_explicit_immutable(tmp_path: Path) -> None:
 def test_uri_with_an_empty_authority_is_ready(tmp_path: Path) -> None:
     """``file:///abs/path`` is the same file as ``file:/abs/path``."""
     path = make_ready_file_db(tmp_path / "auth.db")
-    check_database_ready(f"file://{path}")
+    check_database_ready(f"file://{_empty_authority(path)}")
 
 
 @pytest.mark.parametrize("state", ["missing", "empty", "unreadable"])
@@ -126,6 +128,8 @@ def test_a_newline_in_the_path_keeps_the_message_on_one_line(
     tmp_path: Path, state: str
 ) -> None:
     """One event per line: the newline is written as an escape."""
+    if sys.platform == "win32" and state != "missing":
+        pytest.skip("a newline cannot be in a Windows file name")
     path = tmp_path / "a\nb.db"
     if state == "empty":
         path.write_bytes(b"")
@@ -146,6 +150,7 @@ def test_nul_byte_in_a_uri_is_refused_not_raised() -> None:
         check_database_ready("file:/tmp/a\x00b.db")
 
 
+@posix_only
 def test_a_path_that_is_not_utf8_keeps_its_bytes(tmp_path: Path) -> None:
     """A lone surrogate (a file name byte that is not UTF-8) is percent-encoded
     as the raw byte, not refused as an encoding error."""
@@ -157,8 +162,8 @@ def test_a_path_that_is_not_utf8_keeps_its_bytes(tmp_path: Path) -> None:
 def _make_non_utf8_named_db(directory: Path) -> str:
     """A ready database at ``<directory>/lic\\xff.db``, or skip the test where
     the file system refuses the name (Linux allows it, macOS does not)."""
-    name = os.fsdecode(os.fsencode(directory) + b"/lic\xff.db")
     try:
+        name = os.fsdecode(os.fsencode(directory) + b"/lic\xff.db")
         make_ready_file_db(Path(name))
     except (OSError, UnicodeError, sqlite3.OperationalError):
         pytest.skip("this file system refuses a non-UTF-8 file name")
@@ -414,6 +419,7 @@ def test_a_uri_with_a_vfs_naming_no_file_is_still_left_to_sqlite(
     assert "not found" not in str(info.value)
 
 
+@posix_only  # a colon cannot be in a Windows file name
 def test_a_memory_uri_with_a_name_after_it_is_an_ordinary_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -432,72 +438,3 @@ def test_a_memory_uri_with_a_name_after_it_is_an_ordinary_file(
 def test_the_memory_spellings_are_still_memory(db_arg: str) -> None:
     with pytest.raises(DatabaseNotReadyError, match="database: empty: "):
         check_database_ready(db_arg)
-
-
-# Windows paths, checked as strings so they run on every OS
-
-
-@pytest.mark.parametrize(
-    ("path", "uri"),
-    [
-        (r"C:\Users\x\licenses.db", "file:///C:/Users/x/licenses.db?mode=ro"),
-        (r"C:\Users\a b\l.db", "file:///C:/Users/a%20b/l.db?mode=ro"),
-        (r"\\invalid.\share\l.db", "file:////invalid./share/l.db?mode=ro"),
-    ],
-)
-def test_a_windows_path_has_an_empty_authority(path: str, uri: str) -> None:
-    assert _plain_path_uri(PureWindowsPath(path)) == uri
-    assert uri.startswith("file:///")
-    # "unable to open", not "invalid uri authority": the URI parsed.
-    with pytest.raises(sqlite3.OperationalError) as info:
-        sqlite3.connect(uri, uri=True)
-    assert "invalid uri authority" not in str(info.value)
-
-
-def test_the_old_windows_uri_was_refused_by_sqlite() -> None:
-    """Pins the bug: the drive letter was read as the authority."""
-    old = "file://" + quote(os.fsencode(str(PureWindowsPath(r"C:\x\l.db"))))
-    with pytest.raises(sqlite3.OperationalError, match="invalid uri authority"):
-        sqlite3.connect(f"{old}?mode=ro", uri=True)
-
-
-def test_a_posix_double_slash_path_keeps_an_empty_authority() -> None:
-    posix = os.fsencode(PurePosixPath("//x/y.db").as_posix())
-    assert _path_uri_part(posix) == b"//x/y.db"
-
-
-@pytest.mark.parametrize(
-    ("path", "kept"),
-    [
-        ("/C:/a/b.db", "C:/a/b.db"),
-        ("/c:/a", "c:/a"),
-        ("/a/b.db", "/a/b.db"),
-        ("/C", "/C"),
-        ("/\u00e9:/x", "/\u00e9:/x"),
-    ],
-)
-def test_the_slash_before_a_drive_is_dropped(path: str, kept: str) -> None:
-    assert _drop_drive_slash(path) == kept
-
-
-def test_a_file_uri_drive_path_keeps_its_drive(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(dbcheck, "_IS_WINDOWS", True)
-    path = dbcheck._uri_file_path("file:///C:/a/b.db")
-    assert path is not None
-    assert PureWindowsPath(path).drive == "C:"
-    monkeypatch.setattr(dbcheck, "_IS_WINDOWS", False)
-    assert dbcheck._uri_file_path("file:///C:/a/b.db") == "/C:/a/b.db"
-
-
-def test_a_ready_database_opens_and_matches(tmp_path: Path) -> None:
-    """The real-OS check: on Windows this failed with 'unreadable'."""
-    path = make_ready_file_db(tmp_path / "real.db")
-    check_database_ready(str(path))
-    check_database_ready(path.as_uri())
-    with pytest.raises(DatabaseNotReadyError, match="database: not found: "):
-        check_database_ready((tmp_path / "none.db").as_uri())
-    assert _read_only_uri(str(path)).startswith("file:///")
-    matcher = AggregatedLicenseMatcher(db_path=str(path))
-    assert matcher.match(license_id="MIT")

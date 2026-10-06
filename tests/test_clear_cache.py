@@ -437,6 +437,8 @@ def test_clear_cache_through_every_local_uri_spelling(
     all three name the same database and must clear the same directory."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     (tmp_path / "licenses.json").write_text("x\n", encoding="utf-8")
-    result = run("--db", template.format(p=db_path), "--clear-cache")
+    posix = db_path.as_posix()
+    where = posix if posix.startswith("/") else f"/{posix}"
+    result = run("--db", template.format(p=where), "--clear-cache")
     assert result.exit_code == 0, result.stderr
     assert [p.name for p in tmp_path.iterdir() if p.is_file()] == []

@@ -31,9 +31,6 @@ from licenseid.cli import main as cli_main
 from licenseid.database import LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
 
-# The shell, /dev/null, SIGINT and exit 141 are POSIX.
-pytestmark = posix_only
-
 
 @pytest.fixture
 def db() -> Generator[str, None, None]:
@@ -117,12 +114,14 @@ def test_a_failing_stderr_does_not_crash(
 
 
 # The real streams, through a shell: click's test runner always has them.
+# The shell, /dev/null, SIGINT and exit 141 are POSIX.
 
 
 def _environ(tmp_path: Path) -> dict[str, str]:
     return {**os.environ, "HOME": str(tmp_path / "home")}
 
 
+@posix_only
 @pytest.mark.parametrize(
     ("script", "exit_code", "stderr"),
     [
@@ -178,6 +177,7 @@ def test_a_broken_stream(
     assert "Usage" not in result.stdout
 
 
+@posix_only
 @pytest.mark.parametrize(
     "args", [["is-osi", "MIT"], ["--help"]], ids=["is-osi", "help"]
 )
@@ -220,6 +220,7 @@ c.main()
 """
 
 
+@posix_only
 def test_ctrl_c_exits_130(tmp_path: Path) -> None:
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     with subprocess.Popen(
@@ -239,6 +240,7 @@ def test_ctrl_c_exits_130(tmp_path: Path) -> None:
     assert (proc.returncode, out, err) == (130, b"", b"")
 
 
+@posix_only
 def test_ctrl_c_before_a_command_exits_130() -> None:
     """Click turns it into Abort while it parses the options."""
     with (

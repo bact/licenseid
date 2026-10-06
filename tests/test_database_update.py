@@ -9,6 +9,7 @@ extraction: a small synthetic SPDX release and a faked requests.get."""
 
 import io
 import json
+import sys
 import tarfile
 from pathlib import Path
 from unittest import mock
@@ -179,7 +180,8 @@ def test_extract_tarball_refuses_each_unsafe_member(
     tar_path.write_bytes(_attack_tarball(kind, outside))
     dest = tmp_path / "out"
     dest.mkdir()
-    if kind == "absolute_path":
+    if kind == "absolute_path" and sys.platform != "win32":
+        # (Windows refuses a drive-letter member outright.)
         # Absolute names are made relative instead of failing, identically
         # with and without the filter; nothing may land outside dest.
         spdx_source.extract_tarball(tar_path, dest)

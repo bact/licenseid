@@ -42,7 +42,12 @@ def imported_after(statement: str, home: Path) -> set[str]:
         capture_output=True,
         text=True,
         check=True,
-        env={"HOME": str(home), "PATH": "", "PYTHONDONTWRITEBYTECODE": "1"},
+        env={
+            "HOME": str(home),
+            "USERPROFILE": str(home),
+            "PATH": "",
+            "PYTHONDONTWRITEBYTECODE": "1",
+        },
         timeout=60,
     )
     return set(result.stdout.split())

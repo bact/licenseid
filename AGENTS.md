@@ -234,7 +234,8 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - No test may touch the network: patch `requests.get` (autospec). Never
   modify or clear the real cache in `~/.local/share/licenseid/`; it is fine
   to read it to validate a parser against real data.
-- CI tests on Python 3.10 and 3.14 only (it builds on 3.10-3.14); the local
+- CI tests on Python 3.10 and 3.14 (Ubuntu) and 3.11 (Windows); it builds
+  on 3.10-3.14 (Ubuntu); the local
   `.venv` is 3.10. For anything stdlib-sensitive, also run
   `uv run --python 3.14 --group test pytest ...`
   (set `UV_PROJECT_ENVIRONMENT` to a scratch dir). Simulate an older Python

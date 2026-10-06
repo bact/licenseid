@@ -21,6 +21,8 @@ from licenseid.database import LicenseDatabase, get_default_db_path
 def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A home directory with nothing in it, as the only home there is."""
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Path.home() on Windows
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
     monkeypatch.delenv("XDG_DATA_HOME", raising=False)
     return tmp_path
 

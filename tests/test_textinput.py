@@ -7,6 +7,7 @@
 # pylint: disable=missing-function-docstring
 
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -46,7 +47,9 @@ def test_a_file_is_read_as_its_bytes_are_decoded(
     path = tmp_path / "LICENSE"
     path.write_bytes(payload.data)
     if payload.text is None:
-        with pytest.raises(InvalidInputError, match=f"^input: binary file: {path}$"):
+        with pytest.raises(
+            InvalidInputError, match=f"^input: binary file: {re.escape(str(path))}$"
+        ):
             read_text_file(str(path))
     else:
         assert read_text_file(str(path)) == payload.text
