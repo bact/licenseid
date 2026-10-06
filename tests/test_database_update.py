@@ -9,6 +9,7 @@ extraction: a small synthetic SPDX release and a faked requests.get."""
 
 import io
 import json
+import os
 import sqlite3
 import sys
 import tarfile
@@ -25,6 +26,7 @@ from licenseid import spdx_source
 from licenseid.cli import cli
 from licenseid.console import warn
 from licenseid.database import LicenseDatabase
+from licenseid.errors import LicenseIdError
 
 # The manual-extraction tests simulate a Python without extraction filters, so
 # tarfile (3.12-3.13) warns that extracting without a filter is deprecated.
@@ -160,6 +162,45 @@ def test_a_file_uri_keeps_its_query_when_opened(tmp_path: Path) -> None:
         connections.connect() as conn,
     ):
         conn.execute("DELETE FROM db_metadata")
+
+
+def test_update_succeeds_when_the_temporary_files_cannot_be_removed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows: antivirus or the indexer holds an extracted file, so the
+    clean-up raises after the database was already updated."""
+    held = {"MIT.txt", "licenses.json", "exceptions.json"}
+    real_unlink = os.unlink
+
+    def unlink(
+        path: str | bytes | os.PathLike[str], *args: object, **kw: object
+    ) -> None:
+        if os.path.basename(os.fsdecode(path)) in held:
+            raise PermissionError(13, "in use")
+        real_unlink(path, *args, **kw)  # type: ignore[arg-type]
+
+    db = LicenseDatabase(str(tmp_path / "licenses.db"))
+    _serve(monkeypatch, _release_tarball())
+    # The same names in the cache directory are never unlinked by update.
+    monkeypatch.setattr(os, "unlink", unlink)
+    assert db.update_from_remote()
+    assert db.get_metadata()["license_list_version"] == "9.99"
+
+
+def test_a_tarball_that_cannot_be_written_is_a_cache_write_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows: the destination is open (another update, a virus scan), so the
+    rename is refused. One grammar line, not "update failed: PermissionError"."""
+    _serve(monkeypatch, _release_tarball())
+
+    def refuse(src: object, dst: object) -> None:
+        raise PermissionError(13, "in use")
+
+    monkeypatch.setattr(os, "replace", refuse)
+    with pytest.raises(LicenseIdError) as info:
+        spdx_source.get_tarball_path(tmp_path, "9.99", use_cache=False)
+    assert str(info.value).startswith("spdx-data-v9.99.tar.gz: cache write failed: ")
 
 
 def test_forced_update_reuses_all_caches_without_network(

@@ -9,8 +9,8 @@
   `-only`/`-or-later` tie-breaker), `similarity.py`, `markers.py`,
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
-  pyproject.toml, Cargo.toml, setup.cfg), `dbconnection.py` (SQLite
-  connections), `dbcache.py` (whole-table reads kept per database),
+  pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default database path), `dbconnection.py`
+  (SQLite connections), `dbcache.py` (whole-table reads kept per database),
   `fingerprint.py`, `output.py` (the CLI's standard output and what a
   failed write means), `result.py` (the public result and its JSON and text
   lines), `types.py`, `usage.py` (click's usage errors in the grammar).
@@ -176,7 +176,7 @@ ruff format
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
-  lines=864) — see
+  lines=862) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't

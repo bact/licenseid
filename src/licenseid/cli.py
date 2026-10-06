@@ -18,7 +18,8 @@ from typing import Any, NoReturn
 import click
 
 from licenseid.console import end_line, error, warn, write
-from licenseid.database import LicenseDatabase, get_default_db_path
+from licenseid.database import LicenseDatabase
+from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import (
     check_database_ready,
     delete_failed_error,
@@ -33,7 +34,13 @@ from licenseid.errors import (
 )
 from licenseid.identifiers import is_simple_expression
 from licenseid.matcher import AggregatedLicenseMatcher
-from licenseid.output import EchoHelpCommand, OutputError, echo, output_failed
+from licenseid.output import (
+    EchoHelpCommand,
+    OutputError,
+    echo,
+    escape_unencodable_output,
+    output_failed,
+)
 from licenseid.result import json_line, text_line
 from licenseid.textinput import (
     decode_input,
@@ -579,6 +586,7 @@ def main() -> None:
     standard error, which then turned the exit status into 120 at the flush
     on exit.
     """
+    escape_unencodable_output()
     try:
         status = cli.main(standalone_mode=False)
     except click.exceptions.Abort:  # Ctrl-C before a command runs

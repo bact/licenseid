@@ -14,7 +14,8 @@ import pytest
 from click.testing import CliRunner
 
 from licenseid.cli import cli
-from licenseid.database import LicenseDatabase, get_default_db_path
+from licenseid.database import LicenseDatabase
+from licenseid.datadir import get_default_db_path
 
 
 @pytest.fixture
@@ -47,6 +48,24 @@ def test_read_command_reports_a_missing_default_database(
         f"ERROR: database: not found: {expected}; run 'licenseid update'\n"
     )
     assert not list(home.iterdir())
+
+
+@pytest.mark.parametrize("error", [RuntimeError, KeyError])
+@pytest.mark.parametrize("args", [["match", "MIT"], ["is-osi", "MIT"], ["update"]])
+def test_no_home_directory_is_an_error_line_not_a_traceback(
+    monkeypatch: pytest.MonkeyPatch, error: type[Exception], args: list[str]
+) -> None:
+    """A service account or a container user may have none, and exit 1 would
+    read as "no"."""
+
+    def no_home() -> Path:
+        raise error("no home")
+
+    monkeypatch.setattr(Path, "home", staticmethod(no_home))
+    result = CliRunner().invoke(cli, args)
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert result.stderr == "ERROR: database: not found: no home directory; pass --db\n"
 
 
 def test_update_builds_the_default_directory(home: Path) -> None:

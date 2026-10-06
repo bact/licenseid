@@ -17,6 +17,7 @@ from __future__ import annotations
 import os
 import pwd
 import re
+import runpy
 import subprocess
 import sys
 from pathlib import Path
@@ -622,3 +623,16 @@ def test_windows_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("tools.cli_matrix.config.os.name", "nt")
     with pytest.raises(ConfigError, match="platform: unsupported"):
         configure_args(build_parser().parse_args(["--db", "x"]))
+
+
+def test_windows_is_refused_before_the_posix_only_imports(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The runner imports pty and termios, so on Windows the tool must say so
+    before it imports anything, not die with a bare ModuleNotFoundError."""
+    monkeypatch.setattr(os, "name", "nt")
+    with pytest.raises(SystemExit) as info:
+        runpy.run_module("tools.cli_matrix", run_name="__main__")
+    monkeypatch.undo()
+    assert info.value.code == 2
+    assert capsys.readouterr().err.startswith("ERROR: platform: unsupported: ")

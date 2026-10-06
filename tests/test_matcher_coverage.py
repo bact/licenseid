@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 from matcher_db import PROSE, Lic, seeded_db
 
-from licenseid.database import get_default_db_path
+from licenseid.datadir import get_default_db_path
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.ranking import DEP_PENALTY
 from licenseid.types import CandidateMatch, MatchRequest
