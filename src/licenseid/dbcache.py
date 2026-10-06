@@ -18,7 +18,9 @@ import string
 import threading
 from typing import TypeVar, cast
 
+from licenseid.dbcheck import lookup_error
 from licenseid.dbconnection import Connections
+from licenseid.normalize import normalize_text
 from licenseid.types import LicenseDetails, LicenseNameId
 
 _ASCII_LOWER = str.maketrans(string.ascii_uppercase, string.ascii_lowercase)
@@ -46,6 +48,36 @@ def cast_license_details(row: sqlite3.Row) -> LicenseDetails:
         if key in details:
             details[key] = bool(details[key])
     return cast(LicenseDetails, details)
+
+
+def backfill_norm_columns(connections: Connections) -> None:
+    """Fill norm_license_id and norm_name where a row has none: rows that
+    predate those columns or bypass the normal insert path (a benchmark
+    harness inserting directly into ``licenses``).
+
+    The rows are read read-only, so a missing file is never created, and the
+    write is its own connection. The UPDATE fills only NULLs: another process
+    may rebuild the table between the two. A write the file refuses (a
+    read-only install, a lock) is worded as any failed lookup is.
+    """
+    with connections.connection() as conn:
+        missing = conn.execute(
+            "SELECT license_id, name FROM licenses WHERE norm_license_id IS NULL"
+        ).fetchall()
+    if not missing:
+        return
+    updates = [
+        (normalize_text(lid), normalize_text(name or ""), lid) for lid, name in missing
+    ]
+    try:
+        with connections.connection(write=True) as conn:
+            conn.executemany(
+                "UPDATE licenses SET norm_license_id = ?, norm_name = ?"
+                " WHERE license_id = ? AND norm_license_id IS NULL",
+                updates,
+            )
+    except sqlite3.Error as exc:
+        raise lookup_error(connections.label, exc) from exc
 
 
 class TableCache:

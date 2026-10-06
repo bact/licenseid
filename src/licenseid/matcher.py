@@ -7,16 +7,14 @@
 Aggregated license matching logic using hybrid search.
 """
 
-import contextlib
-import sqlite3
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Any, cast
 
 from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
-from licenseid.dbcheck import check_database_ready, lookup_error
+from licenseid.dbcheck import check_database_ready
 from licenseid.errors import InvalidInputError, invalid_id_error
 from licenseid.identifiers import disambiguate_deprecated_id, is_simple_expression
 from licenseid.manifest import extension, license_value_groups
@@ -106,16 +104,6 @@ class AggregatedLicenseMatcher:
         self.db = LicenseDatabase(db_path)
         self.detector = MarkerDetector(self.db)
         self.enable_popularity = enable_popularity
-
-    @contextlib.contextmanager
-    def _database_errors(self) -> Iterator[None]:
-        """Word a SQLite failure of a lookup as ``DatabaseNotReadyError``, so
-        a caller tells a bad database from bad input (``InvalidInputError``)
-        without catching ``sqlite3.Error``."""
-        try:
-            yield
-        except sqlite3.Error as exc:
-            raise lookup_error(str(self.db.db_path), exc) from exc
 
     def _try_explicit_id_match(self, license_id: str) -> list[RawMatch]:
         """Phase 1: resolve an explicit license_id argument to a match.
@@ -357,7 +345,7 @@ class AggregatedLicenseMatcher:
         # a result take its public form. One connection serves the call's
         # lookups, about five for each tag value, and the database is checked
         # once for a rebuild.
-        with self._database_errors(), self.db.reading():
+        with self.db.reading():
             raw = self._match_raw(
                 text, license_id=license_id, file_path=file_path, **options
             )
@@ -433,7 +421,7 @@ class AggregatedLicenseMatcher:
         answer from this, so they cannot disagree with match(), and raise
         what it raises. The bar reads the public score, as --threshold does:
         rounded to 4 places, so a raw 0.84995 passes."""
-        with self._database_errors(), self.db.reading():
+        with self.db.reading():
             results = self.match(text, license_id=license_id, file_path=file_path)
             if not results or results[0]["score"] < 0.85:
                 return None
@@ -464,7 +452,7 @@ class AggregatedLicenseMatcher:
         part of the license's normalised text it aligned with. ("", "") if
         the license has no text. The alignment Tier 2 makes, made again for
         one license."""
-        with self._database_errors(), self.db.reading():
+        with self.db.reading():
             # A "WITH Font-exception-2.0" the License List has no row for is
             # ranked on its license's text (markers, the font-exception rule).
             details = self.db.get_license_details(

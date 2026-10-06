@@ -110,11 +110,9 @@ def test_sqlite_failure_after_the_check_is_an_unreadable_database(
         result = CliRunner().invoke(cli, ["--db", ready_db, *args])
     assert result.exit_code == 2
     assert result.stdout == ""
-    # Raised inside the matcher it is worded there, with the action.
-    action = "; run 'licenseid update'" if target is LicenseDatabase else ""
+    # Mocked above the connection layer, so the CLI words it, with no action.
     assert result.stderr == (
-        f"ERROR: database: unreadable: {ready_db}: "
-        f"database disk image is malformed{action}\n"
+        f"ERROR: database: unreadable: {ready_db}: database disk image is malformed\n"
     )
 
 

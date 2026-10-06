@@ -10,7 +10,7 @@ import sqlite3
 import threading
 from collections.abc import Iterator
 
-from licenseid.dbcheck import is_memory_database, read_only_uri
+from licenseid.dbcheck import is_memory_database, lookup_error, read_only_uri
 
 QueryConnection = contextlib.AbstractContextManager[sqlite3.Connection]
 
@@ -34,9 +34,13 @@ class Connections:
     nearly all its time opening connections.
     """
 
-    def __init__(self, path: str, use_uri: bool) -> None:
+    def __init__(self, path: str, use_uri: bool, label: str | None = None) -> None:
         self.path = path
         self.use_uri = use_uri
+        self.label = label or path  # the file, for a message
+        # A read opens read-only, so it never creates the file; an in-memory
+        # database has no file and opens as it is.
+        self._read_uri = None if is_memory_database(path) else read_only_uri(path)
         self._state = _ThreadState()
 
     def connect(self, write: bool = False) -> sqlite3.Connection:
@@ -46,15 +50,30 @@ class Connections:
         file, so a lookup after the database was deleted left an empty one
         behind. An in-memory database has no file and opens as it is.
         """
-        if write or is_memory_database(self.path):
+        if write or self._read_uri is None:
             conn = sqlite3.connect(self.path, uri=self.use_uri)
         else:
-            conn = sqlite3.connect(read_only_uri(self.path), uri=True)
+            conn = sqlite3.connect(self._read_uri, uri=True)
         conn.execute("PRAGMA mmap_size=268435456")
         return conn
 
     @contextlib.contextmanager
     def connection(self, write: bool = False) -> Iterator[sqlite3.Connection]:
+        """One query's connection (``_open``). A read that fails in SQLite
+        raises ``DatabaseNotReadyError`` (``dbcheck.lookup_error``), whatever
+        the caller: the file was deleted, truncated or overwritten after the
+        readiness check. A write keeps its own error, which ``update`` words.
+        """
+        try:
+            with self._open(write) as conn:
+                yield conn
+        except sqlite3.Error as exc:
+            if write:
+                raise
+            raise lookup_error(self.label, exc) from exc
+
+    @contextlib.contextmanager
+    def _open(self, write: bool) -> Iterator[sqlite3.Connection]:
         """Commit or roll back, and close unless a ``reading()`` block shares
         the connection -- ``Connection.__exit__`` alone only handles the
         transaction, not closing. A *write* query always has a connection of

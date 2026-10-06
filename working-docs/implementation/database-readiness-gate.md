@@ -136,8 +136,30 @@ empty one, so the next matcher said `empty` instead of `not found`.
   connection for a `SELECT`, so a short-text lookup re-created the file; the
   first test only used `license_id=` and missed it. Test every lookup path
   (ID, short text, long text, tag), not one.
-- **One wording.** `matcher._database_errors` wraps `match`, `resolve_record`
-  and `diff_pair`; `dbcheck.lookup_error` adds the `update` action only for
-  an `unreadable` file, not for a lock or `_NEEDS_WRITING`. Every
-  `sqlite3.Error` is wrapped, `ProgrammingError` and `InterfaceError`
-  included, and the CLI does the same; the original is the `__cause__`.
+- **One wording, at the one place every read passes.**
+  `Connections.connection(write=False)` words a SQLite failure as
+  `DatabaseNotReadyError` through `dbcheck.lookup_error`, so `match`, the
+  `is_*` calls, a direct `LicenseDatabase` read and a standalone
+  `MarkerDetector` agree (a first version wrapped three matcher methods and
+  left the rest raw). A write keeps its error, which `update` words and some
+  reads catch inside their own `with` (`find_fingerprint_hits`). The action
+  `run 'licenseid update'` goes only on an `unreadable` file, not on a lock
+  or `_NEEDS_WRITING`. Every `sqlite3.Error` is wrapped,
+  `ProgrammingError` and `InterfaceError` included, and the CLI does the
+  same; the original is the `__cause__`.
+- **The backfill** moved to `dbcache.backfill_norm_columns` (it also took
+  `database.py` from 862 to 850 lines, and the module-lines ceiling with
+  it). It reads read-only, then writes on its own connection, and its UPDATE
+  fills only NULLs, since another process may rebuild between the two. A
+  write the file refuses (a read-only install, a lock) is worded with
+  `lookup_error`: moving the wrapping into `connection(write=False)` had
+  left it raw, because a write keeps its own error.
+- **`update` words a failed read as its own.** `update_from_remote` turns a
+  `DatabaseNotReadyError` that has a `sqlite3` cause into
+  `database: update failed: <cause>`; it must not tell the user to run
+  `licenseid update`.
+- **The read-only URI is built once**, in `Connections.__init__`, so a
+  relative path names the file it named at construction, not the one a later
+  `chdir` would. Left open: `LicenseDatabase()` still opens read-write to
+  create its tables (`_init_db`), so a file deleted between the readiness
+  check and the constructor is re-created.

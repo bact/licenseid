@@ -10,11 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `get_default_db_path` is public (`from licenseid import get_default_db_path`)
+  ([#80])
 
 ### Fixed
 
 - A lookup no longer creates a missing database file; a database that fails
-  during a lookup raises `DatabaseNotReadyError`, not a raw `sqlite3` error
+  during a lookup raises `DatabaseNotReadyError`, not a raw `sqlite3` error;
+  the CLI now exits 2 for `ProgrammingError` too, not a traceback ([#80])
 
 ## [0.4.1] - 2026-10-06
 
@@ -40,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#76]: https://github.com/bact/licenseid/pull/76
 [#77]: https://github.com/bact/licenseid/pull/77
+[#80]: https://github.com/bact/licenseid/pull/80
 
 ## [0.4.0] - 2026-10-05
 

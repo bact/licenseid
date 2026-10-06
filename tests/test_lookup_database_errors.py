@@ -11,8 +11,10 @@ file, and a SQLite failure surfaces as ``DatabaseNotReadyError``.
 
 # pylint: disable=missing-function-docstring,protected-access
 
+import contextlib
 import shutil
 import sqlite3
+import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -26,12 +28,12 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db
 
 import licenseid
-from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError
+from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError, spdx_source
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import lookup_error
 from licenseid.dbconnection import Connections
-from licenseid.errors import InvalidInputError
+from licenseid.errors import InvalidInputError, LicenseIdError
 
 
 def _delete(path: Path) -> None:
@@ -133,14 +135,138 @@ def test_backfill_inside_reading_block_writes_on_its_own_connection(
     assert left == 0
 
 
-def test_backfill_on_threads(tmp_path: Path) -> None:
-    path = make_ready_file_db(tmp_path / "g.db")
+def _null_norm_columns(path: Path) -> None:
     with sqlite3.connect(path) as conn:
         conn.execute("UPDATE licenses SET norm_license_id = NULL")
-    matcher = AggregatedLicenseMatcher(db_path=str(path))
-    with ThreadPoolExecutor(4) as pool:
-        results = list(pool.map(lambda _: matcher.match(license_id="MIT"), range(8)))
-    assert all(results)
+
+
+def test_backfill_on_threads(tmp_path: Path) -> None:
+    """Four databases on one file all read the NULL rows, and only then any
+    writes: no lock error, no NULL left."""
+    path = make_ready_file_db(tmp_path / "g.db")
+    _null_norm_columns(path)
+    barrier = threading.Barrier(4, timeout=10)
+    writes: list[bool] = []
+    real = Connections.connect
+
+    def meet_before_writing(self: Connections, write: bool = False) -> Any:
+        writes.append(write)
+        if write and threading.current_thread() is not threading.main_thread():
+            barrier.wait()
+        return real(self, write)
+
+    def backfill(_: int) -> int:
+        return len(LicenseDatabase(str(path)).get_all_names_and_ids())
+
+    with (
+        mock.patch.object(
+            Connections, "connect", autospec=True, side_effect=meet_before_writing
+        ),
+        ThreadPoolExecutor(4) as pool,
+    ):
+        counts = list(pool.map(backfill, range(4)))
+    assert any(writes)
+    assert all(counts)
+    with sqlite3.connect(path) as conn:
+        left = conn.execute(
+            "SELECT count(*) FROM licenses WHERE norm_license_id IS NULL"
+        ).fetchone()[0]
+    assert left == 0
+
+
+def test_backfill_keeps_a_value_another_process_wrote(tmp_path: Path) -> None:
+    """The UPDATE only fills NULLs, so a rebuild between the SELECT and the
+    UPDATE is not overwritten with values read from the old rows."""
+    path = make_ready_file_db(tmp_path / "h.db")
+    _null_norm_columns(path)
+    db = LicenseDatabase(str(path))
+    real = Connections.connect
+
+    def rebuilt_before_writing(self: Connections, write: bool = False) -> Any:
+        if write:
+            with sqlite3.connect(path) as conn:
+                conn.execute("UPDATE licenses SET norm_license_id = 'fresh'")
+        return real(self, write)
+
+    with mock.patch.object(
+        Connections, "connect", autospec=True, side_effect=rebuilt_before_writing
+    ):
+        db.get_all_names_and_ids()
+    with sqlite3.connect(path) as conn:
+        values = {r[0] for r in conn.execute("SELECT norm_license_id FROM licenses")}
+    assert values == {"fresh"}
+
+
+@posix_only  # chmod only sets a read-only flag on Windows
+def test_a_backfill_the_file_refuses_is_database_not_ready(tmp_path: Path) -> None:
+    path = make_ready_file_db(tmp_path / "r.db")
+    _null_norm_columns(path)
+    path.chmod(0o444)
+    db = LicenseDatabase(str(path))
+    with pytest.raises(DatabaseNotReadyError, match="database: unreadable") as info:
+        db.get_all_names_and_ids()
+    assert "readonly" in str(info.value)
+    assert "licenseid update" not in str(info.value)
+    assert isinstance(info.value.__cause__, sqlite3.OperationalError)
+
+
+def test_a_read_failing_during_update_is_an_update_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = make_ready_file_db(tmp_path / "u.db")
+    db = LicenseDatabase(str(path))
+    real = Connections.connect
+
+    def failing_read(self: Connections, write: bool = False) -> Any:
+        if not write:
+            raise sqlite3.OperationalError("disk I/O error")
+        return real(self, write)
+
+    # No network: the version is known, so the first thing update does is read.
+    version_info = mock.create_autospec(
+        spdx_source.get_version_info, return_value=("9.99", None, "cache")
+    )
+    monkeypatch.setattr(spdx_source, "get_version_info", version_info)
+    monkeypatch.setattr(Connections, "connect", failing_read)
+    with pytest.raises(LicenseIdError) as info:
+        db.update_from_remote()
+    assert not isinstance(info.value, DatabaseNotReadyError)
+    assert str(info.value) == "database: update failed: disk I/O error"
+
+
+def test_the_read_only_uri_is_fixed_at_construction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A relative path names the file it named when the database was made, not
+    the one a later chdir would make it name."""
+    (tmp_path / "one").mkdir()
+    (tmp_path / "two").mkdir()
+    make_ready_file_db(tmp_path / "one" / "x.db")
+    monkeypatch.chdir(tmp_path / "one")
+    connections = Connections("x.db", False)
+    monkeypatch.chdir(tmp_path / "two")
+    with contextlib.closing(connections.connect()) as conn:
+        assert conn.execute("SELECT count(*) FROM licenses").fetchone()[0] > 0
+    assert not (tmp_path / "two" / "x.db").exists()
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["file:%FF.db", "file://localhost/x.db", "file:a.db?vfs=unix", "file:///C:/x.db"],
+)
+def test_connections_can_be_made_for_an_odd_path(path: str) -> None:
+    """The URI is built at construction, so it must not raise for any path
+    the readiness check lets through."""
+    assert Connections(path, True).label == path
+
+
+def test_a_direct_database_read_raises_database_not_ready(tmp_path: Path) -> None:
+    path = make_ready_file_db(tmp_path / "i.db")
+    db = LicenseDatabase(str(path))
+    path.unlink()
+    with pytest.raises(DatabaseNotReadyError, match="database: unreadable"):
+        db.get_metadata()
+    assert not path.exists()
 
 
 @pytest.mark.parametrize(
@@ -195,7 +321,7 @@ def test_every_sqlite_error_is_wrapped(
     matcher, _ = matcher_db
     with (
         mock.patch.object(
-            matcher, "_match_raw", side_effect=error("multi\nline detail")
+            Connections, "connect", side_effect=error("multi\nline detail")
         ),
         pytest.raises(DatabaseNotReadyError) as info,
     ):
@@ -210,8 +336,8 @@ def test_locked_database_names_no_command(
     matcher, _ = matcher_db
     with (
         mock.patch.object(
-            matcher,
-            "_match_raw",
+            Connections,
+            "connect",
             side_effect=sqlite3.OperationalError("database is locked"),
         ),
         pytest.raises(DatabaseNotReadyError) as info,

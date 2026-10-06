@@ -44,7 +44,7 @@ pylint's actual defaults are 12 and 50.
 | Statements | ≤50 | 50 (at target) | 38 (`shorttext.match_short_text`) |
 | McCabe | ≤10 | 12 | 12 (`database._prepare_license_and_exception_records`, `identifiers.leading_expression`) |
 | Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
-| Module lines | soft 400-500 / hard 800 | 862 | 862 (`database.py`) |
+| Module lines | soft 400-500 / hard 800 | 850 | 850 (`database.py`) |
 
 Measured 2026-08-19 via `pylint --disable=all --enable=too-many-<x>
 --max-<x>=1`, `flake8 --max-complexity 1` and
@@ -382,7 +382,7 @@ holds the Branches ceiling; no ceiling number changed.
 
 ### 1. `database.py` — split by responsibility (Priority 9)
 
-862 lines (re-measured 2026-10-06), over the 800-line hard limit.
+850 lines (re-measured 2026-10-06), over the 800-line hard limit.
 Schema management, license-record preparation,
 and query methods are still all in one file. Not a complexity offender
 (no individual function stands out) — purely a file-size and

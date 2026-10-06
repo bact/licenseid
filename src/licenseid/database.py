@@ -19,10 +19,10 @@ from pathlib import Path
 from typing import NamedTuple, cast
 
 from licenseid.console import end_line, status, warn
-from licenseid.dbcache import TableCache, cast_license_details
+from licenseid.dbcache import TableCache, backfill_norm_columns, cast_license_details
 from licenseid.dbcheck import named_file, reject_foreign_database
 from licenseid.dbconnection import Connections, QueryConnection
-from licenseid.errors import LicenseIdError
+from licenseid.errors import DatabaseNotReadyError, LicenseIdError
 from licenseid.fingerprint import compute_idf_fingerprints, extract_ngrams
 from licenseid.normalize import normalize_text
 from licenseid.types import (
@@ -82,7 +82,7 @@ class LicenseDatabase:
         self.db_path = Path(named_file(str(db_path)) or db_path)  # URI: its file
         self.use_uri = str(db_path).startswith("file:")  # Path() rewrites a URI
         db_path_str = str(db_path) if self.use_uri else str(self.db_path)
-        self._connections = Connections(db_path_str, self.use_uri)
+        self._connections = Connections(db_path_str, self.use_uri, str(self.db_path))
         self._keep_alive: sqlite3.Connection | None = None
 
         if self.use_uri or db_path_str == ":memory:":
@@ -243,6 +243,18 @@ class LicenseDatabase:
         Fetch license data from SPDX release package and update the local database.
         Returns True if the database was updated, False if it was already up-to-date.
         """
+        try:
+            return self._update_from_remote(version, force, use_cache)
+        except DatabaseNotReadyError as e:
+            # A read of this database failed: update words it as its own.
+            if e.__cause__ is None:
+                raise
+            raise LicenseIdError(f"database: update failed: {e.__cause__}") from e
+
+    def _update_from_remote(
+        self, version: str | None, force: bool, use_cache: bool
+    ) -> bool:
+        """``update_from_remote`` without the wording of a failed read."""
         # Local import: see clear_cache() for why spdx_source (and its
         # `requests` dependency) is not imported at module level.
         from licenseid import spdx_source
@@ -812,30 +824,11 @@ class LicenseDatabase:
             return row[0] if row else ""
 
     def _ensure_norm_columns(self) -> None:
-        """Backfill norm_license_id/norm_name for rows that predate this
-        schema addition (on-disk DBs migrated by _init_db) or bypass the
-        normal insert path (e.g. a benchmark harness inserting directly
-        into 'licenses').  Idempotent per instance: after the first
-        successful check/backfill, later calls are a no-op.
-        """
-        if self._norm_cols_backfilled:
-            return
-        with self._connection() as conn:  # read-only: never creates the file
-            missing = conn.execute(
-                "SELECT license_id, name FROM licenses WHERE norm_license_id IS NULL"
-            ).fetchall()
-        if missing:
-            updates = [
-                (normalize_text(lid), normalize_text(name or ""), lid)
-                for lid, name in missing
-            ]
-            with self._connection(write=True) as conn:
-                conn.executemany(
-                    "UPDATE licenses SET norm_license_id = ?, norm_name = ?"
-                    " WHERE license_id = ?",
-                    updates,
-                )
-        self._norm_cols_backfilled = True
+        """Backfill norm_license_id/norm_name once per instance (see
+        ``dbcache.backfill_norm_columns``)."""
+        if not self._norm_cols_backfilled:
+            backfill_norm_columns(self._connections)
+            self._norm_cols_backfilled = True
 
     def get_all_names_and_ids(self) -> list[LicenseNameId]:
         """Retrieve all license IDs and names for short-text matching.
