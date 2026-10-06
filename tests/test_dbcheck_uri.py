@@ -15,11 +15,13 @@ fragments, symlinks, write-ahead logs, and the matcher's own second check.
 import contextlib
 import os
 import sqlite3
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+from conftest import posix_only
 from db_asserts import assert_refused, expected_refusal, run_cli
 from db_variants import NOT_FOUND, build_ready_wal_with_wal, make_ready_file_db
 
@@ -74,6 +76,13 @@ def test_uri_query_is_not_form_encoded() -> None:
     assert "vfs=unix%20none" in uri
 
 
+def _empty_authority(path: Path) -> str:
+    """*path* as the text after ``file://``: an absolute path with a leading
+    ``/``, as ``file:///C:/x`` has on Windows."""
+    posix = path.as_posix()
+    return posix if posix.startswith("/") else f"/{posix}"
+
+
 def _idle_wal_database(directory: Path) -> Path:
     """A ready database in WAL mode with no -wal file: every connection is
     closed, so the log was checkpointed and removed."""
@@ -91,6 +100,8 @@ def test_a_wal_database_is_never_read_as_immutable(tmp_path: Path, via: str) -> 
     mode, so reading one that way would race with a running ``update``."""
     path = _idle_wal_database(tmp_path)
     if via == "symlink":
+        if sys.platform == "win32":
+            pytest.skip("symlinks need a privilege on Windows")
         link = tmp_path / "link.db"
         link.symlink_to(path)
         path = link
@@ -109,7 +120,7 @@ def test_uri_keeps_an_explicit_immutable(tmp_path: Path) -> None:
 def test_uri_with_an_empty_authority_is_ready(tmp_path: Path) -> None:
     """``file:///abs/path`` is the same file as ``file:/abs/path``."""
     path = make_ready_file_db(tmp_path / "auth.db")
-    check_database_ready(f"file://{path}")
+    check_database_ready(f"file://{_empty_authority(path)}")
 
 
 @pytest.mark.parametrize("state", ["missing", "empty", "unreadable"])
@@ -117,6 +128,8 @@ def test_a_newline_in_the_path_keeps_the_message_on_one_line(
     tmp_path: Path, state: str
 ) -> None:
     """One event per line: the newline is written as an escape."""
+    if sys.platform == "win32" and state != "missing":
+        pytest.skip("a newline cannot be in a Windows file name")
     path = tmp_path / "a\nb.db"
     if state == "empty":
         path.write_bytes(b"")
@@ -137,6 +150,7 @@ def test_nul_byte_in_a_uri_is_refused_not_raised() -> None:
         check_database_ready("file:/tmp/a\x00b.db")
 
 
+@posix_only
 def test_a_path_that_is_not_utf8_keeps_its_bytes(tmp_path: Path) -> None:
     """A lone surrogate (a file name byte that is not UTF-8) is percent-encoded
     as the raw byte, not refused as an encoding error."""
@@ -148,8 +162,8 @@ def test_a_path_that_is_not_utf8_keeps_its_bytes(tmp_path: Path) -> None:
 def _make_non_utf8_named_db(directory: Path) -> str:
     """A ready database at ``<directory>/lic\\xff.db``, or skip the test where
     the file system refuses the name (Linux allows it, macOS does not)."""
-    name = os.fsdecode(os.fsencode(directory) + b"/lic\xff.db")
     try:
+        name = os.fsdecode(os.fsencode(directory) + b"/lic\xff.db")
         make_ready_file_db(Path(name))
     except (OSError, UnicodeError, sqlite3.OperationalError):
         pytest.skip("this file system refuses a non-UTF-8 file name")
@@ -178,6 +192,7 @@ def test_a_file_uri_with_a_percent_encoded_non_utf8_name_is_found(
     check_database_ready(f"file:{tmp_path}/lic%FF.db")
 
 
+@posix_only
 def test_symlink_to_a_wal_database_reads_the_wal(tmp_path: Path) -> None:
     """The -wal sits beside the target, not beside the link."""
     variant = build_ready_wal_with_wal("ready_wal_with_wal", tmp_path)
@@ -239,6 +254,7 @@ def test_a_uri_with_a_vfs_is_left_to_sqlite() -> None:
 # A path the OS refuses to look at is not the same as one that is not there
 
 
+@posix_only
 def test_an_unreadable_parent_directory_is_not_reported_as_not_found(
     tmp_path: Path,
 ) -> None:
@@ -259,6 +275,7 @@ def test_an_unreadable_parent_directory_is_not_reported_as_not_found(
     assert "licenseid update" not in str(info.value)
 
 
+@posix_only
 def test_a_symlink_loop_is_not_reported_as_not_found(tmp_path: Path) -> None:
     """os.path.exists() answers False for a loop; the file is not absent."""
     first, second = tmp_path / "a.db", tmp_path / "b.db"
@@ -269,6 +286,7 @@ def test_a_symlink_loop_is_not_reported_as_not_found(tmp_path: Path) -> None:
     assert str(info.value).startswith(f"database: unreadable: {first}: ")
 
 
+@posix_only
 def test_a_dangling_symlink_is_still_not_found(tmp_path: Path) -> None:
     """Nothing is there, and 'licenseid update' is the way to put it there."""
     link = tmp_path / "link.db"
@@ -401,6 +419,7 @@ def test_a_uri_with_a_vfs_naming_no_file_is_still_left_to_sqlite(
     assert "not found" not in str(info.value)
 
 
+@posix_only  # a colon cannot be in a Windows file name
 def test_a_memory_uri_with_a_name_after_it_is_an_ordinary_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

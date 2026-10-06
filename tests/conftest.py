@@ -11,6 +11,7 @@ import builtins
 import json
 import re
 import sqlite3
+import sys
 import uuid
 from collections.abc import Generator
 from datetime import datetime, timezone
@@ -29,6 +30,16 @@ from licenseid.dbconnection import Connections
 from licenseid.errors import LicenseIdError
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.types import LicenseMatch, Method
+
+# tools/cli_matrix drives real shells and terminals (pwd, pty, termios): POSIX
+# only, so its tests are not collected on Windows.
+collect_ignore: list[str] = ["test_cli_matrix.py"] if sys.platform == "win32" else []
+
+# Tests that need POSIX permission bits, symlinks, signals or /bin/sh. On
+# Windows chmod only sets a read-only flag and symlinks need a privilege.
+posix_only = pytest.mark.skipif(
+    sys.platform == "win32", reason="needs POSIX permissions, symlinks or signals"
+)
 
 # LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION] -- see AGENTS.md "CLI output".
 # The subject is a lowercase word or file name; the condition starts

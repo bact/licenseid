@@ -26,6 +26,7 @@ input is ignored without a warning):
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
 import itertools
+import re
 from collections.abc import Callable, Generator
 from datetime import datetime, timezone
 from pathlib import Path
@@ -306,9 +307,9 @@ def test_file_path_is_read_the_way_the_cli_reads_a_file(
     if payload.text is None:
         message = f"input: binary file: {path}"
         assert (cli_result.exit_code, cli_result.stderr) == (2, f"ERROR: {message}\n")
-        with pytest.raises(InvalidInputError, match=f"^{message}$"):
+        with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
             matcher.match(file_path=str(path))
-        with pytest.raises(InvalidInputError, match=f"^{message}$"):
+        with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
             matcher.is_open(file_path=str(path))
         return
 

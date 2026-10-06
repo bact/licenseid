@@ -6,6 +6,8 @@
 """The CLI's results and help on standard output, and what a failed write
 means: a result that was not delivered must not pass for an answer."""
 
+import contextlib
+import io
 import sys
 
 import click
@@ -16,11 +18,12 @@ from licenseid.console import discard_stdout, error
 class OutputError(Exception):
     """Standard output could not take a result line."""
 
-    def __init__(self, cause: OSError | None) -> None:
+    def __init__(self, cause: OSError | UnicodeError | None) -> None:
         if cause is None:
             detail = "closed"
         else:
-            detail = cause.strerror or str(cause) or type(cause).__name__
+            detail = getattr(cause, "strerror", None) or str(cause)
+            detail = detail or type(cause).__name__
         super().__init__(detail)
         self.broken_pipe = isinstance(cause, BrokenPipeError)
 
@@ -36,8 +39,25 @@ def echo(message: str = "") -> None:
         raise OutputError(None)
     try:
         click.echo(message)
-    except OSError as exc:
+    except (OSError, UnicodeEncodeError) as exc:
         raise OutputError(exc) from exc
+
+
+def escape_unencodable_output() -> None:
+    """Write a character standard output cannot encode as a backslash escape,
+    as standard error already does, instead of failing the command.
+
+    On Windows a pipe or file takes the ANSI code page, which has no room for
+    most scripts (a Japanese word of the input in ``--diff``, an accented
+    user name in a path), and Python would raise after the result was
+    written, with exit 1: the code for "no".
+    """
+    stream = sys.stdout
+    # Only the strict default: a handler the user chose (PYTHONIOENCODING, UTF-8
+    # mode's surrogateescape) is theirs.
+    if isinstance(stream, io.TextIOWrapper) and stream.errors == "strict":
+        with contextlib.suppress(OSError, ValueError):
+            stream.reconfigure(errors="backslashreplace")
 
 
 def output_failed(exc: OutputError) -> int:

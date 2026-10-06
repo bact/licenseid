@@ -9,7 +9,11 @@ extraction: a small synthetic SPDX release and a faked requests.get."""
 
 import io
 import json
+import os
+import sqlite3
+import sys
 import tarfile
+import tempfile
 from pathlib import Path
 from unittest import mock
 
@@ -17,11 +21,13 @@ import pytest
 import requests
 from click.testing import CliRunner
 from conftest import assert_cached_tarball_removed
+from db_variants import make_ready_file_db
 
 from licenseid import spdx_source
 from licenseid.cli import cli
 from licenseid.console import warn
 from licenseid.database import LicenseDatabase
+from licenseid.errors import LicenseIdError
 
 # The manual-extraction tests simulate a Python without extraction filters, so
 # tarfile (3.12-3.13) warns that extracting without a filter is deprecated.
@@ -127,6 +133,79 @@ def test_update_from_remote_end_to_end_then_offline(
     fake.assert_not_called()
 
 
+@pytest.mark.parametrize("template", ["file:{p}", "file://{p}", "file://localhost{p}"])
+def test_update_of_a_file_uri_caches_beside_the_database(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, template: str
+) -> None:
+    """The cache goes where the URI says the database is, not into a
+    "file:" directory made from the URI's text."""
+    posix = (tmp_path / "licenses.db").as_posix()
+    where = posix if posix.startswith("/") else f"/{posix}"
+    (tmp_path / "cwd").mkdir()
+    monkeypatch.chdir(tmp_path / "cwd")
+    db = LicenseDatabase(template.format(p=where))
+    _serve(monkeypatch, _release_tarball())
+    assert db.update_from_remote()
+    cache_files = {p.name for p in tmp_path.iterdir()}
+    assert {"licenses.json", "popularity.csv", "spdx-data-v9.99.tar.gz"} <= cache_files
+    assert not list((tmp_path / "cwd").iterdir())
+
+
+def test_a_file_uri_keeps_its_query_when_opened(tmp_path: Path) -> None:
+    """SQLite gets the URI as given: a bare path would drop ``mode=ro``."""
+    path = make_ready_file_db(tmp_path / "ro.db")
+    posix = path.as_posix()
+    where = posix if posix.startswith("/") else f"/{posix}"
+    db = LicenseDatabase(f"file://{where}?mode=ro")
+    connections = db._connections  # pylint: disable=protected-access
+    with (
+        pytest.raises(sqlite3.OperationalError, match="readonly"),
+        connections.connect() as conn,
+    ):
+        conn.execute("DELETE FROM db_metadata")
+
+
+def test_update_succeeds_when_the_temporary_files_cannot_be_removed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows: antivirus or the indexer holds an extracted file, so the
+    clean-up raises after the database was already updated."""
+    held = {"MIT.txt", "licenses.json", "exceptions.json"}
+    real_unlink = os.unlink
+
+    def unlink(
+        path: str | bytes | os.PathLike[str], *args: object, **kw: object
+    ) -> None:
+        if os.path.basename(os.fsdecode(path)) in held:
+            raise PermissionError(13, "in use")
+        real_unlink(path, *args, **kw)  # type: ignore[arg-type]
+
+    db = LicenseDatabase(str(tmp_path / "licenses.db"))
+    _serve(monkeypatch, _release_tarball())
+    # The clean-up is stopped, so what it leaves must land under tmp_path.
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    # The same names in the cache directory are never unlinked by update.
+    monkeypatch.setattr(os, "unlink", unlink)
+    assert db.update_from_remote()
+    assert db.get_metadata()["license_list_version"] == "9.99"
+
+
+def test_a_tarball_that_cannot_be_written_is_a_cache_write_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows: the destination is open (another update, a virus scan), so the
+    rename is refused. One grammar line, not "update failed: PermissionError"."""
+    _serve(monkeypatch, _release_tarball())
+
+    def refuse(src: object, dst: object) -> None:
+        raise PermissionError(13, "in use")
+
+    monkeypatch.setattr(os, "replace", refuse)
+    with pytest.raises(LicenseIdError) as info:
+        spdx_source.get_tarball_path(tmp_path, "9.99", use_cache=False)
+    assert str(info.value).startswith("spdx-data-v9.99.tar.gz: cache write failed: ")
+
+
 def test_forced_update_reuses_all_caches_without_network(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -158,6 +237,21 @@ def _attack_tarball(kind: str, outside: Path) -> bytes:
 
 
 @pytest.mark.parametrize("has_filter", [True, False], ids=["data_filter", "manual"])
+def test_extract_tarball_makes_a_root_slash_name_relative(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, has_filter: bool
+) -> None:
+    """A POSIX-style absolute member name, on any OS, lands inside dest."""
+    if not has_filter:
+        monkeypatch.setattr(spdx_source, "_HAS_EXTRACTION_FILTER", False)
+    tar_path = tmp_path / "evil.tar.gz"
+    tar_path.write_bytes(_tarball({"/evil.txt": b"pwned"}))
+    dest = tmp_path / "out"
+    dest.mkdir()
+    spdx_source.extract_tarball(tar_path, dest)
+    assert (dest / "evil.txt").read_bytes() == b"pwned"
+
+
+@pytest.mark.parametrize("has_filter", [True, False], ids=["data_filter", "manual"])
 @pytest.mark.parametrize(
     "kind", ["parent_dir", "absolute_path", "symlink_absolute", "symlink_parent"]
 )
@@ -179,7 +273,8 @@ def test_extract_tarball_refuses_each_unsafe_member(
     tar_path.write_bytes(_attack_tarball(kind, outside))
     dest = tmp_path / "out"
     dest.mkdir()
-    if kind == "absolute_path":
+    if kind == "absolute_path" and sys.platform != "win32":
+        # (Windows refuses a drive-letter member outright.)
         # Absolute names are made relative instead of failing, identically
         # with and without the filter; nothing may land outside dest.
         spdx_source.extract_tarball(tar_path, dest)

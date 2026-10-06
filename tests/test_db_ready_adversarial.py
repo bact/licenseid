@@ -157,28 +157,23 @@ def test_a_relative_file_uri_is_ready(
     [
         "file:{path}",
         "file://{path}",
-        pytest.param(
-            "file://localhost{path}",
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="BUG: the gate accepts the localhost authority SQLite "
-                "documents, then LicenseDatabase's Path() collapses the '//' and "
-                "the matcher reports 'unreadable'",
-            ),
-        ),
+        "file://localhost{path}",
         "file:{path}#frag",
         "file:{path}?mode=ro#frag",
     ],
 )
 def test_absolute_file_uri_spellings_are_ready(tmp_path: Path, template: str) -> None:
     path = make_ready_file_db(tmp_path / "abs.db")
-    result = run("--db", template.format(path=path), "is-osi", "MIT")
+    posix = path.as_posix()
+    where = posix if posix.startswith("/") else f"/{posix}"
+    result = run("--db", template.format(path=where), "is-osi", "MIT")
     assert (result.exit_code, result.stdout, result.stderr) == (0, "true\n", "")
 
 
 def test_a_percent_encoded_space_in_a_file_uri_is_ready(tmp_path: Path) -> None:
     path = make_ready_file_db(tmp_path / "a licence.db")
-    uri = f"file://{tmp_path}/a%20licence.db"
+    posix = tmp_path.as_posix()
+    uri = f"file://{posix if posix.startswith('/') else '/' + posix}/a%20licence.db"
     result = run("--db", uri, "is-osi", "MIT")
     assert (result.exit_code, result.stdout, result.stderr) == (0, "true\n", "")
     assert path.exists()

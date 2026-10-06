@@ -19,6 +19,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    env:
+      # The pins of the release, so a pull request builds as a release does.
+      PIP_CONSTRAINT: ${{ github.workspace }}/.github/requirements-release.txt
     defaults:
       run:
         shell: bash
@@ -55,10 +58,12 @@ jobs:
 
       # The same checks the release runs (pypi-publish.yml), so a missing or
       # invalid SBOM shows on a pull request, not first at release time.
+      # Once, not per Python: the SBOM does not depend on the interpreter.
       - name: Check the SBOM embedded in the wheel
+        if: matrix.python-version == '3.14'
         run: |
           set -euo pipefail
-          pip install "pitloom[content-type]>=0.20.0" spdx3-validate==0.0.7
+          pip install "pitloom[content-type]" spdx3-validate
           python scripts/extract_wheel_sbom.py dist "${RUNNER_TEMP}/sbom" \
             --require-magika --github-output "${RUNNER_TEMP}/sbom.out"
           wheel=$(sed -n 's/^wheel-path=//p' "${RUNNER_TEMP}/sbom.out")

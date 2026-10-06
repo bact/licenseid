@@ -9,8 +9,9 @@
   `-only`/`-or-later` tie-breaker), `similarity.py`, `markers.py`,
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
-  pyproject.toml, Cargo.toml, setup.cfg), `dbconnection.py` (SQLite
-  connections), `dbcache.py` (whole-table reads kept per database),
+  pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
+  database path), `dbconnection.py` (SQLite connections), `dbcache.py`
+  (whole-table reads kept per database),
   `fingerprint.py`, `output.py` (the CLI's standard output and what a
   failed write means), `result.py` (the public result and its JSON and text
   lines), `types.py`, `usage.py` (click's usage errors in the grammar).
@@ -176,7 +177,7 @@ ruff format
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
-  lines=864) — see
+  lines=862) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't
@@ -234,7 +235,8 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - No test may touch the network: patch `requests.get` (autospec). Never
   modify or clear the real cache in `~/.local/share/licenseid/`; it is fine
   to read it to validate a parser against real data.
-- CI tests on Python 3.10 and 3.14 only (it builds on 3.10-3.14); the local
+- CI tests on Python 3.10 and 3.14 (Ubuntu) and 3.11 (Windows); it builds
+  on 3.10-3.14 (Ubuntu); the local
   `.venv` is 3.10. For anything stdlib-sensitive, also run
   `uv run --python 3.14 --group test pytest ...`
   (set `UV_PROJECT_ENVIRONMENT` to a scratch dir). Simulate an older Python
@@ -246,6 +248,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `PYTHONPATH=<copy>/src`: `.venv` is an editable install of this checkout,
   so without it the tests import the unmutated `src/` and every mutant
   seems to survive.
+- Windows: before touching `dbcheck.py`, a database path or `file:` URI,
+  `Path.home()`, or a test that needs POSIX features (chmod, symlinks,
+  signals, `/bin/sh`), read `working-docs/implementation/cross-platform.md`.
+  Mark such a test `posix_only` (`tests/conftest.py`); build a `file://` URI
+  with `Path.as_posix()`, not `f"file://{path}"`. CI runs Windows on 3.11.
 - Pytest cannot see the shell, locale, stdio, `HOME`, signal and input-size
   interactions between the OS and the CLI. Run the manual matrix,
   `python -m tools.cli_matrix --db <copy of a real database> --check`, before

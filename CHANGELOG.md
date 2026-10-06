@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- The release SBOM has a Sigstore bundle and a build provenance attestation;
+  `SECURITY.md` shows how to verify release files ([#76])
+
+### Changed
+
+- Pull request and release builds pin Pitloom and its checks through
+  `.github/requirements-release.txt`; the SBOM check runs once per pull
+  request ([#77])
+
+### Fixed
+
+- Windows: a plain database path opens read-only (no "invalid uri authority"),
+  `file:` URIs (`file:///C:/...`, `file://localhost/...`) reach SQLite as
+  given, and `update` writes its cache beside the database ([#77])
+- No home directory exits 2 with an error line, not a traceback; a locked
+  temporary file no longer fails a finished `update`; unencodable output is
+  escaped, not a traceback ([#77])
+
 ## [0.4.0] - 2026-10-05
 
 ### Added
@@ -157,6 +179,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#72]: https://github.com/bact/licenseid/pull/72
 [#73]: https://github.com/bact/licenseid/pull/73
 [#74]: https://github.com/bact/licenseid/pull/74
+[#76]: https://github.com/bact/licenseid/pull/76
+[#77]: https://github.com/bact/licenseid/pull/77
 
 ## [0.3.7] - 2026-08-20
 
@@ -304,6 +328,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[Unreleased]: https://github.com/bact/licenseid/compare/v0.4.0...HEAD
 [0.4.0]: https://github.com/bact/licenseid/compare/v0.3.7...v0.4.0
 [0.3.7]: https://github.com/bact/licenseid/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/bact/licenseid/compare/v0.3.5...v0.3.6

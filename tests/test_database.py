@@ -17,6 +17,7 @@ import pytest
 from conftest import assert_cached_tarball_removed, is_closed
 
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
+from licenseid.errors import LicenseIdError
 
 
 @pytest.fixture()
@@ -85,6 +86,24 @@ def test_corrupt_cached_tarball_is_removed(
         tar_path.write_bytes(corrupt)
 
     assert_cached_tarball_removed(db, tar_path)
+
+
+def test_a_corrupt_tarball_another_process_holds_is_not_called_removed(
+    db: LicenseDatabase, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows refuses to delete a file that is open elsewhere: the message
+    must not say "removed" for a file that is still there."""
+    tar_path = tmp_path / "spdx-data-v9.99.tar.gz"
+    tar_path.write_bytes(b"not a tarball at all")
+
+    def held(self: Path, missing_ok: bool = False) -> None:
+        raise PermissionError(13, "in use")
+
+    monkeypatch.setattr(Path, "unlink", held)
+    with pytest.raises(LicenseIdError) as info:
+        db._process_and_store(tar_path, {}, None)  # pylint: disable=protected-access
+    assert str(info.value).endswith("; remove it and run 'licenseid update' again")
+    assert tar_path.exists()
 
 
 def test_older_normalization_version_warns_on_stderr(

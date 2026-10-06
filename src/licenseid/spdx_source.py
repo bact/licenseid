@@ -232,6 +232,8 @@ def get_tarball_path(
                 f.writelines(resp.iter_content(chunk_size=8192))
         except requests.RequestException as e:
             raise LicenseIdError(f"{tar_filename}: download failed: {e}") from e
+        except OSError as e:  # a full disk; on Windows, a file held open
+            raise LicenseIdError(f"{tar_filename}: cache write failed: {e}") from e
     else:
         data_source = "cache"
 

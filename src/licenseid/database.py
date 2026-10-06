@@ -65,11 +65,6 @@ class SpdxLicenseList(NamedTuple):
     release_date: str | None
 
 
-def get_default_db_path() -> str:
-    """Return the default path for the licence database."""
-    return str(Path.home() / ".local" / "share" / "licenseid" / "licenses.db")
-
-
 # Version of the normalize_text() rule set used to build the stored
 # search_text and fingerprints.  Bump whenever normalization rules change so
 # that databases built with the old rules can be detected and rebuilt.
@@ -84,9 +79,9 @@ class LicenseDatabase:
     """
 
     def __init__(self, db_path: str):
-        self.db_path = Path(db_path)
-        db_path_str = str(self.db_path)
-        self.use_uri = db_path_str.startswith("file:")
+        self.db_path = Path(named_file(str(db_path)) or db_path)  # URI: its file
+        self.use_uri = str(db_path).startswith("file:")  # Path() rewrites a URI
+        db_path_str = str(db_path) if self.use_uri else str(self.db_path)
         self._connections = Connections(db_path_str, self.use_uri)
         self._keep_alive: sqlite3.Connection | None = None
 
@@ -301,7 +296,7 @@ class LicenseDatabase:
         from licenseid import spdx_source
 
         try:
-            with tempfile.TemporaryDirectory() as tmp_dir:
+            with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp_dir:
                 spdx_source.extract_tarball(tar_path, Path(tmp_dir))
 
                 root_dir = next(Path(tmp_dir).iterdir())
@@ -337,10 +332,13 @@ class LicenseDatabase:
         except (tarfile.TarError, EOFError, zlib.error) as e:
             # A corrupt or truncated cached tarball (e.g. left by an
             # interrupted download) would otherwise fail every later run.
-            tar_path.unlink(missing_ok=True)
+            try:
+                tar_path.unlink(missing_ok=True)
+                action = "removed, run 'licenseid update' again"
+            except OSError:  # Windows: another process holds the file
+                action = "remove it and run 'licenseid update' again"
             raise LicenseIdError(
-                f"{tar_path.name}: cache unusable: {e}; "
-                "removed, run 'licenseid update' again"
+                f"{tar_path.name}: cache unusable: {e}; {action}"
             ) from e
         except (OSError, json.JSONDecodeError, sqlite3.Error) as e:
             raise LicenseIdError(f"database: update failed: {e}") from e

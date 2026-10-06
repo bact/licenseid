@@ -12,7 +12,8 @@ from dataclasses import dataclass, replace
 from typing import Any, cast
 
 from licenseid.classify import is_pure_license_text
-from licenseid.database import LicenseDatabase, get_default_db_path
+from licenseid.database import LicenseDatabase
+from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import InvalidInputError, invalid_id_error
 from licenseid.identifiers import disambiguate_deprecated_id, is_simple_expression

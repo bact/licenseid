@@ -8,6 +8,7 @@ like on the command line (exit 2, empty stdout, one grammar line)."""
 # pylint: disable=missing-function-docstring
 
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -79,12 +80,15 @@ def safe_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))  # Path.home() on Windows
     monkeypatch.setattr(Path, "home", staticmethod(lambda: home))
 
 
 def db_in_an_unreadable_directory(tmp_path: Path) -> Path:
     """A ready database whose parent directory cannot be searched, or skip
     where the user can read through one anyway (root)."""
+    if sys.platform == "win32":
+        pytest.skip("chmod 000 does not hide a directory on Windows")
     inner = tmp_path / "inner"
     inner.mkdir()
     db_path = make_ready_file_db(inner / "licenses.db")
