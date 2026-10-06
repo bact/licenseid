@@ -15,12 +15,14 @@ fragments, symlinks, write-ahead logs, and the matcher's own second check.
 import contextlib
 import os
 import sqlite3
+import sys
 from collections.abc import Iterator
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from urllib.parse import quote
 
 import pytest
 from click.testing import CliRunner
+from conftest import posix_only
 from db_asserts import assert_refused, expected_refusal, run_cli
 from db_variants import NOT_FOUND, build_ready_wal_with_wal, make_ready_file_db
 
@@ -34,6 +36,7 @@ from licenseid.dbcheck import (
     _open_condition,
     _open_failure,
     _path_uri_part,
+    _plain_path_uri,
     _read_only_uri,
     check_database_ready,
     reject_foreign_database,
@@ -95,6 +98,8 @@ def test_a_wal_database_is_never_read_as_immutable(tmp_path: Path, via: str) -> 
     mode, so reading one that way would race with a running ``update``."""
     path = _idle_wal_database(tmp_path)
     if via == "symlink":
+        if sys.platform == "win32":
+            pytest.skip("symlinks need a privilege on Windows")
         link = tmp_path / "link.db"
         link.symlink_to(path)
         path = link
@@ -182,6 +187,7 @@ def test_a_file_uri_with_a_percent_encoded_non_utf8_name_is_found(
     check_database_ready(f"file:{tmp_path}/lic%FF.db")
 
 
+@posix_only
 def test_symlink_to_a_wal_database_reads_the_wal(tmp_path: Path) -> None:
     """The -wal sits beside the target, not beside the link."""
     variant = build_ready_wal_with_wal("ready_wal_with_wal", tmp_path)
@@ -243,6 +249,7 @@ def test_a_uri_with_a_vfs_is_left_to_sqlite() -> None:
 # A path the OS refuses to look at is not the same as one that is not there
 
 
+@posix_only
 def test_an_unreadable_parent_directory_is_not_reported_as_not_found(
     tmp_path: Path,
 ) -> None:
@@ -263,6 +270,7 @@ def test_an_unreadable_parent_directory_is_not_reported_as_not_found(
     assert "licenseid update" not in str(info.value)
 
 
+@posix_only
 def test_a_symlink_loop_is_not_reported_as_not_found(tmp_path: Path) -> None:
     """os.path.exists() answers False for a loop; the file is not absent."""
     first, second = tmp_path / "a.db", tmp_path / "b.db"
@@ -273,6 +281,7 @@ def test_a_symlink_loop_is_not_reported_as_not_found(tmp_path: Path) -> None:
     assert str(info.value).startswith(f"database: unreadable: {first}: ")
 
 
+@posix_only
 def test_a_dangling_symlink_is_still_not_found(tmp_path: Path) -> None:
     """Nothing is there, and 'licenseid update' is the way to put it there."""
     link = tmp_path / "link.db"
@@ -428,22 +437,16 @@ def test_the_memory_spellings_are_still_memory(db_arg: str) -> None:
 # Windows paths, checked as strings so they run on every OS
 
 
-def _windows_uri(path: str) -> str:
-    """The URI for a Windows path, built as ``_read_only_uri`` builds it."""
-    posix = os.fsencode(PureWindowsPath(path).as_posix())
-    return f"file://{quote(_path_uri_part(posix), safe='/:')}?mode=ro"
-
-
 @pytest.mark.parametrize(
     ("path", "uri"),
     [
         (r"C:\Users\x\licenses.db", "file:///C:/Users/x/licenses.db?mode=ro"),
         (r"C:\Users\a b\l.db", "file:///C:/Users/a%20b/l.db?mode=ro"),
-        (r"\\server\share\l.db", "file:////server/share/l.db?mode=ro"),
+        (r"\\invalid.\share\l.db", "file:////invalid./share/l.db?mode=ro"),
     ],
 )
 def test_a_windows_path_has_an_empty_authority(path: str, uri: str) -> None:
-    assert _windows_uri(path) == uri
+    assert _plain_path_uri(PureWindowsPath(path)) == uri
     assert uri.startswith("file:///")
     # "unable to open", not "invalid uri authority": the URI parsed.
     with pytest.raises(sqlite3.OperationalError) as info:
@@ -470,6 +473,7 @@ def test_a_posix_double_slash_path_keeps_an_empty_authority() -> None:
         ("/c:/a", "c:/a"),
         ("/a/b.db", "/a/b.db"),
         ("/C", "/C"),
+        ("/\u00e9:/x", "/\u00e9:/x"),
     ],
 )
 def test_the_slash_before_a_drive_is_dropped(path: str, kept: str) -> None:
@@ -491,6 +495,9 @@ def test_a_ready_database_opens_and_matches(tmp_path: Path) -> None:
     """The real-OS check: on Windows this failed with 'unreadable'."""
     path = make_ready_file_db(tmp_path / "real.db")
     check_database_ready(str(path))
+    check_database_ready(path.as_uri())
+    with pytest.raises(DatabaseNotReadyError, match="database: not found: "):
+        check_database_ready((tmp_path / "none.db").as_uri())
     assert _read_only_uri(str(path)).startswith("file:///")
     matcher = AggregatedLicenseMatcher(db_path=str(path))
     assert matcher.match(license_id="MIT")

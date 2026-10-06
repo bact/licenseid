@@ -6,6 +6,17 @@ SPDX-License-Identifier: Apache-2.0
 
 # Security
 
+## Report a vulnerability
+
+Report a vulnerability in licenseid privately: open the
+[Security tab](https://github.com/bact/licenseid/security)
+and choose "Report a vulnerability".
+If unsure, report privately.
+
+A vulnerability with a public advisory (a CVE or GHSA ID) in a dependency,
+where the fix is an update, can go in a normal issue or pull request.
+Do not describe how it can be reached through licenseid there.
+
 ## Verify release files
 
 Releases after 0.4.0 attach these files to each

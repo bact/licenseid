@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Windows: a plain database path opened read-only no longer fails as an
-  invalid SQLite URI authority; a `file:///C:/...` path keeps its drive
-
 ### Added
 
 - The release SBOM has a Sigstore bundle and a build provenance attestation;
@@ -22,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pull request and release builds pin Pitloom and its checks through
   `.github/requirements-release.txt`; the SBOM check runs once per pull
   request ([#77])
+
+### Fixed
+
+- Windows: a plain database path opened read-only no longer fails as an
+  invalid SQLite URI authority; a `file:///C:/...` path keeps its drive
 
 ## [0.4.0] - 2026-10-05
 

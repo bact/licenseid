@@ -18,11 +18,14 @@ import contextlib
 import os
 import sqlite3
 import stat
-from pathlib import Path
+import string
+from pathlib import Path, PurePath
 from typing import cast
 from urllib.parse import parse_qsl, quote, unquote_to_bytes, urlencode
 
 from licenseid.errors import DatabaseNotReadyError
+
+_IS_WINDOWS = os.name == "nt"
 
 _ACTION = "; run 'licenseid update'"
 
@@ -53,16 +56,18 @@ def is_plain_path(db_path: str) -> bool:
     return db_path != ":memory:" and not db_path.startswith("file:")
 
 
-_IS_WINDOWS = os.name == "nt"
-
-
 def _drop_drive_slash(path: str) -> str:
     """``/C:/x`` as ``C:/x``: the URI form of a Windows drive path.
 
     On Windows, ``Path`` turns ``/C:/x`` into a path with no drive, which
     names another file.
     """
-    if len(path) >= 3 and path[0] == "/" and path[1].isalpha() and path[2] == ":":
+    if (
+        len(path) >= 3
+        and path[0] == "/"
+        and path[1] in string.ascii_letters
+        and path[2] == ":"
+    ):
         return path[1:]
     return path
 
@@ -74,6 +79,16 @@ def _path_uri_part(posix_path: bytes) -> bytes:
     the first ``/`` as the authority, so ``file://C:/x`` is refused.
     """
     return posix_path if posix_path.startswith(b"/") else b"/" + posix_path
+
+
+def _plain_path_uri(path: PurePath) -> str:
+    """The read-only URI of an absolute file path, on any OS's path flavour.
+
+    ``as_posix`` gives forward slashes, so a Windows path has no ``\\`` to be
+    encoded into the authority.
+    """
+    uri_path = _path_uri_part(os.fsencode(path.as_posix()))
+    return f"file://{quote(uri_path, safe='/:')}?mode=ro"
 
 
 def _uri_file_path(base: str) -> str | None:
@@ -119,10 +134,7 @@ def _read_only_uri(db_path: str) -> str:
         # os.fsencode keeps a file name that is not valid UTF-8 (a surrogate
         # escape in the str) intact. The empty authority ("file://" + "/path")
         # keeps a path that starts with "//" from being read as a host name.
-        # as_posix gives forward slashes, so a Windows path has no "\\" to
-        # be encoded into the authority.
-        path = _path_uri_part(os.fsencode(Path(db_path).absolute().as_posix()))
-        return f"file://{quote(path, safe='/:')}?mode=ro"
+        return _plain_path_uri(Path(db_path).absolute())
     base, query = _split_file_uri(db_path)
     if _is_memory_uri(base, query):
         return db_path

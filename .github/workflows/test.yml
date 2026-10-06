@@ -28,7 +28,7 @@ jobs:
           # 0.4.0 shipped a Windows-only path bug (invalid SQLite URI).
           - os: windows-latest
             python-version: "3.11"
-      fail-fast: true
+      fail-fast: false
     env:
       MAIN_SUPPORT_VERSION: "3.10"
 

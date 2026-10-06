@@ -16,6 +16,7 @@ them; ``test_cli_matrix``-style tools can reuse the builders.
 import contextlib
 import os
 import sqlite3
+import sys
 import uuid
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -198,10 +199,16 @@ def file_uri(suffix: str, kind: str, seed: bool) -> Builder:
     return build
 
 
+def _skip_on_windows(reason: str) -> None:
+    if sys.platform == "win32":
+        pytest.skip(reason)
+
+
 def symlink(make_target: Callable[[Path], Path], kind: str) -> Builder:
     """A symlink at the database path, pointing where *make_target* says."""
 
     def build(name: str, db_dir: Path) -> Variant:
+        _skip_on_windows("symlinks need a privilege on Windows")
         path = _db_path(db_dir)
         path.symlink_to(make_target(db_dir))
         return Variant(name, str(path), kind, path)
@@ -235,6 +242,7 @@ def build_directory(name: str, db_dir: Path) -> Variant:
 
 
 def build_no_permission(name: str, db_dir: Path) -> Variant:
+    _skip_on_windows("chmod 000 does not hide a file on Windows")
     path = make_ready_file_db(_db_path(db_dir))
     path.chmod(0o000)
     return Variant(name, str(path), UNREADABLE, path)

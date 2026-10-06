@@ -21,7 +21,7 @@ from unittest import mock
 import click
 import pytest
 from click.testing import CliRunner
-from conftest import invoke_match, make_ready_db_path
+from conftest import invoke_match, make_ready_db_path, posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db
 
@@ -30,6 +30,9 @@ from licenseid.cli import cli
 from licenseid.cli import main as cli_main
 from licenseid.database import LicenseDatabase
 from licenseid.matcher import AggregatedLicenseMatcher
+
+# The shell, /dev/null, SIGINT and exit 141 are POSIX.
+pytestmark = posix_only
 
 
 @pytest.fixture

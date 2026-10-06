@@ -17,6 +17,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from conftest import posix_only
 from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
     assert_no_traceback,
     db_in_an_unreadable_directory,
@@ -114,6 +115,7 @@ def test_clear_cache_removes_a_corrupt_db_and_its_cache_but_no_foreign_file(
     ]
 
 
+@posix_only
 def test_clear_cache_that_cannot_delete_says_so_in_one_line(tmp_path: Path) -> None:
     """A read-only directory: the OS refuses the delete, and the user gets a
     grammar line and exit 2, not a traceback."""
@@ -166,6 +168,7 @@ def test_clear_cache_with_an_explicit_db_does_not_create_the_default_dir(
     assert not (tmp_path / "home" / ".local").exists(), "default dir was created"
 
 
+@posix_only
 def test_clear_cache_on_a_symlink_does_not_leave_a_live_database(
     tmp_path: Path,
 ) -> None:
@@ -180,6 +183,7 @@ def test_clear_cache_on_a_symlink_does_not_leave_a_live_database(
     assert target.exists(), "the link's target was deleted, not the link"
 
 
+@posix_only
 def test_clear_cache_on_a_dangling_symlink_leaves_nothing_behind(
     tmp_path: Path,
 ) -> None:
@@ -301,6 +305,7 @@ def test_clear_cache_refuses_a_path_that_names_no_file(
     assert sorted(p.name for p in work.iterdir()) == sorted(CACHE_NAMES)
 
 
+@posix_only
 def test_clear_cache_refuses_a_file_it_may_not_read(tmp_path: Path) -> None:
     """Deleting needs no read permission, so without this the less readable
     file would be the one destroyed."""
