@@ -12,7 +12,9 @@
   pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
   database path), `dbconnection.py` (SQLite connections), `dbcache.py`
   (whole-table reads kept per database),
-  `fingerprint.py`, `output.py` (the CLI's standard output and what a
+  `fingerprint.py` (the maths), `fingerprintstore.py` (its table),
+  `dbschema.py` (the tables and whether a file has them), `output.py` (the
+  CLI's standard output and what a
   failed write means), `result.py` (the public result and its JSON and text
   lines), `types.py`, `usage.py` (click's usage errors in the grammar).
   Keep `matcher.py` under the 800-line limit: put logic that needs no
@@ -177,7 +179,7 @@ ruff format
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
-  lines=862) — see
+  lines=773) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't
@@ -376,6 +378,19 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   process's `update`. A new write to `licenses` or `license_index` must
   call `self._tables.clear()`, as `_write_db_records` does. A read made
   while another thread cleared is not kept (`_generation`).
+- A lookup never creates or writes the database. `Connections.connect` opens
+  read-only (`dbcheck.open_uri`); the matcher makes `LicenseDatabase(path,
+  create=False)`, whose writes open `mode=rw` (a missing file fails, not
+  created) and happen only for an older schema (`dbschema.schema_state`)
+  of licenseid's own file. A missing norm column is filled in memory
+  (`dbcache.TableCache.names_and_ids`), never written back. Any `sqlite3.Error`
+  of a read becomes `DatabaseNotReadyError` in `Connections.connection`
+  (`dbcheck.lookup_error`): do not wrap per method, and do not swallow a
+  `sqlite3.Error` in a query (`search_candidates` quotes its words so its text
+  cannot fail). The action `run 'licenseid update'` is only for a file update
+  can rebuild (`dbcheck._can_rebuild`). A database must not be in WAL mode:
+  `update` leaves it (`Connections.leave_wal`), since a read-only connection
+  cannot remove `-wal` and `-shm`.
 - A test that sends SIGINT to a child must restore the child's handler
   (`signal.default_int_handler`): a shell starts a background job, a CI step
   maybe too, with SIGINT ignored, and Python keeps it ignored. Signal at a

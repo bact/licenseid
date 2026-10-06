@@ -86,10 +86,8 @@ Order within a section is by value, highest first.
   `popularity.csv` are deleted, then the tarball delete fails, reported as
   `database: delete failed: …` where the grammar wants the cache file name
   as the subject (`spdx-data-v<ver>.tar.gz`). Recoverable.
-- **`file:` URI databases keep a connection open** (`_keep_alive`) with no
-  `close()`, so in one process a later `clear_cache` of the same file fails
-  on Windows until the object is collected. Keep it only for memory URIs,
-  or add `close()` and context-manager support. The CLI is unaffected.
+- **`file:` URI databases keep a connection open** (`_keep_alive`): resolved
+  in 0.4.2. It is kept for in-memory URIs only.
 - **`update` for a URI that names no file** (a `vfs=` URI, another host, an
   undecodable name, `mode=memory`) still takes the cache directory from
   `Path(<URI>)`. The CLI's write guard refuses these; direct API callers do

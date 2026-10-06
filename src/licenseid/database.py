@@ -9,6 +9,7 @@ SQLite database management for SPDX licenses.
 
 import contextlib
 import json
+import os
 import sqlite3
 import tarfile
 import tempfile
@@ -20,10 +21,19 @@ from typing import NamedTuple, cast
 
 from licenseid.console import end_line, status, warn
 from licenseid.dbcache import TableCache, cast_license_details
-from licenseid.dbcheck import named_file, reject_foreign_database
-from licenseid.dbconnection import Connections
-from licenseid.errors import LicenseIdError
-from licenseid.fingerprint import compute_idf_fingerprints, extract_ngrams
+from licenseid.dbcheck import (
+    absolute_path,
+    empty_error,
+    is_memory_database,
+    named_file,
+    needs_writing,
+    not_found_error,
+    reject_foreign_database,
+)
+from licenseid.dbconnection import Connections, QueryConnection
+from licenseid.dbschema import create_schema, schema_state
+from licenseid.errors import DatabaseNotReadyError, LicenseIdError, typed
+from licenseid.fingerprintstore import fingerprint_hits, store_fingerprints
 from licenseid.normalize import normalize_text
 from licenseid.types import (
     CandidateMatch,
@@ -78,21 +88,28 @@ class LicenseDatabase:
     Handles SQLite database operations for storing and searching SPDX licenses.
     """
 
-    def __init__(self, db_path: str):
-        self.db_path = Path(named_file(str(db_path)) or db_path)  # URI: its file
-        self.use_uri = str(db_path).startswith("file:")  # Path() rewrites a URI
-        db_path_str = str(db_path) if self.use_uri else str(self.db_path)
-        self._connections = Connections(db_path_str, self.use_uri)
+    def __init__(self, db_path: str | os.PathLike[str], create: bool = True):
+        """Open the database at *db_path*. With *create* (the default) a
+        missing file, or missing tables, are created; without it the file
+        must be there, and only a schema of an older version is written to,
+        so a matcher never makes a database out of one that went missing."""
+        db_path = os.fspath(db_path)
+        self._create = create
+        named = named_file(db_path)  # a URI: the file it names
+        self.db_path = Path(absolute_path(named) if named else db_path)
+        self.use_uri = db_path.startswith("file:")  # Path() rewrites a URI
+        self._source = db_path if self.use_uri else str(self.db_path)
+        self._connections = Connections(
+            self._source, self.use_uri, str(self.db_path), create
+        )
         self._keep_alive: sqlite3.Connection | None = None
 
-        if self.use_uri or db_path_str == ":memory:":
-            # For in-memory databases, we must keep at least one connection
-            # open to prevent the database from being deleted.
-            self._keep_alive = self._connections.connect()
+        if is_memory_database(self._source):
+            # An in-memory database goes when its last connection closes.
+            self._keep_alive = self._connections.connect(write=True)
 
         self._init_db()
         self._tables = TableCache(self._connections)
-        self._norm_cols_backfilled = False
         self._check_normalization_version()
 
     def _check_normalization_version(self) -> None:
@@ -114,97 +131,38 @@ class LicenseDatabase:
                 "run 'licenseid update --force'"
             )
 
-    def _connection(self) -> contextlib.AbstractContextManager[sqlite3.Connection]:
-        """A connection for one query (see dbconnection.Connections)."""
-        return self._connections.connection()
+    def _connection(self, write: bool = False) -> QueryConnection:
+        """A connection for one query, read-only unless *write*."""
+        return self._connections.connection(write)
 
     def reading(self) -> contextlib.AbstractContextManager[None]:
         """One connection and one rebuild check for a block's queries (one match)."""
         return self._connections.reading()
 
     def _init_db(self) -> None:
-        """Initialise the SQLite database with FTS5."""
-        with self._connection() as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS licenses (
-                    license_id TEXT PRIMARY KEY,
-                    name TEXT,
-                    xml_template TEXT,
-                    legacy_template TEXT,
-                    ignorable_metadata TEXT,
-                    is_spdx BOOLEAN,
-                    is_osi_approved BOOLEAN,
-                    is_fsf_libre BOOLEAN,
-                    is_high_usage BOOLEAN,
-                    is_deprecated BOOLEAN,
-                    superseded_by TEXT,
-                    pop_score INTEGER DEFAULT 1,
-                    word_count INTEGER,
-                    norm_license_id TEXT,
-                    norm_name TEXT
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS exceptions (
-                    exception_id TEXT PRIMARY KEY,
-                    name TEXT,
-                    is_deprecated BOOLEAN,
-                    superseded_by TEXT
-                )
-            """)
-
-            # Create FTS5 virtual table for trigram search
-            conn.execute("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS license_index USING fts5(
-                    license_id UNINDEXED,
-                    search_text,
-                    tokenize = 'trigram'
-                )
-            """)
-            # Metadata table for version tracking
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS db_metadata (
-                    key TEXT PRIMARY KEY,
-                    value TEXT
-                )
-            """)
-            # Discriminative n-gram fingerprints.
-            # idf_norm: IDF score normalised to [0, 1] where 1.0 means the
-            # n-gram appears in exactly one license in the corpus.
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS license_fingerprints (
-                    license_id  TEXT NOT NULL,
-                    ngram       TEXT NOT NULL,
-                    idf_norm    REAL NOT NULL,
-                    PRIMARY KEY (license_id, ngram),
-                    FOREIGN KEY (license_id) REFERENCES licenses(license_id)
-                )
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_fp_ngram
-                ON license_fingerprints(ngram)
-            """)
-            # get_license_by_name() and every case-insensitive name lookup
-            # in markers.py's _try_license_lookup() (tried for ~10 name
-            # variants per marker candidate) query "name COLLATE NOCASE"
-            # with no index otherwise available, forcing SQLite to do a
-            # full table scan every time.  This index lets it seek instead.
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_licenses_name
-                ON licenses(name COLLATE NOCASE)
-            """)
-
-            # Migration: databases created before norm_license_id/norm_name
-            # existed have a "licenses" table without them (CREATE TABLE IF
-            # NOT EXISTS above only creates the table when missing entirely,
-            # it doesn't add columns to one that already exists).
-            existing_cols = {
-                row[1] for row in conn.execute("PRAGMA table_info(licenses)")
-            }
-            if "norm_license_id" not in existing_cols:
-                conn.execute("ALTER TABLE licenses ADD COLUMN norm_license_id TEXT")
-            if "norm_name" not in existing_cols:
-                conn.execute("ALTER TABLE licenses ADD COLUMN norm_name TEXT")
+        """Create the tables with FTS5 (and add what an older version lacked).
+        A database made without *create* is only checked: it is written to
+        for an older schema, and only if it is licenseid's own file."""
+        try:
+            state = schema_state(self._connections)
+        except DatabaseNotReadyError as exc:
+            if self._create:
+                state = "none"  # no file yet, or no tables: made below
+            elif needs_writing(exc.__cause__):  # a hot journal, or a WAL's -shm
+                self._connections.recover()
+                state = schema_state(self._connections)
+            elif not os.path.lexists(self.db_path):
+                raise not_found_error(str(self.db_path)) from exc
+            else:
+                raise
+        if state == "current":
+            return  # nothing to write: a read-only open needs no more
+        if not self._create:
+            reject_foreign_database(self._source)  # never write to another's file
+            if state == "none":
+                raise empty_error(str(self.db_path))
+        with self._connection(write=True) as conn:
+            create_schema(conn)
 
     @staticmethod
     def clear_cache(db_path: str | Path) -> None:
@@ -243,6 +201,21 @@ class LicenseDatabase:
         Fetch license data from SPDX release package and update the local database.
         Returns True if the database was updated, False if it was already up-to-date.
         """
+        try:
+            self._connections.leave_wal()  # a database of an earlier version used WAL
+            return self._update_from_remote(version, force, use_cache)
+        except DatabaseNotReadyError as e:
+            # A read of this database failed: update words it as its own.
+            if e.__cause__ is None:
+                raise
+            raise LicenseIdError(
+                f"database: update failed: {typed(e.__cause__)}"
+            ) from e
+
+    def _update_from_remote(
+        self, version: str | None, force: bool, use_cache: bool
+    ) -> bool:
+        """``update_from_remote`` without the wording of a failed read."""
         # Local import: see clear_cache() for why spdx_source (and its
         # `requests` dependency) is not imported at module level.
         from licenseid import spdx_source
@@ -361,13 +334,17 @@ class LicenseDatabase:
             license_records,
             index_records,
             exception_records,
-            license_data.list_version,
             license_data.release_date,
         )
 
         # Compute fingerprints in a separate transaction so that the FTS5
         # virtual table is fully committed and readable before we scan it.
-        self._compute_fingerprints()
+        store_fingerprints(self._connections)
+        with self._connection(write=True) as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
+                ("license_list_version", license_data.list_version),
+            )
 
     def _prepare_license_and_exception_records(
         self,
@@ -470,14 +447,14 @@ class LicenseDatabase:
         license_records: list[_LicenseInsertRecord],
         index_records: list[_IndexInsertRecord],
         exception_records: list[tuple[str, str, bool, str | None]],
-        list_version: str,
         release_date: str | None,
     ) -> None:
-        """Replace all license/exception/metadata rows in a single transaction."""
+        """Replace all license/exception/metadata rows in a single transaction.
+
+        ``update`` stamps ``license_list_version`` after the fingerprints: a
+        run that fails before leaves a database it does not skip."""
         status(f"\nInserting {len(license_records)} records into database...")
-        with self._connection() as conn:
-            conn.execute("PRAGMA journal_mode = WAL")
-            conn.execute("PRAGMA synchronous = NORMAL")
+        with self._connection(write=True) as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
                 conn.execute("DELETE FROM license_index")
@@ -488,7 +465,6 @@ class LicenseDatabase:
 
                 now = datetime.now(timezone.utc).isoformat()
                 metadata_items: list[tuple[str, str]] = [
-                    ("license_list_version", list_version),
                     ("release_date", release_date or ""),
                     ("last_check_datetime", now),
                     ("last_update_datetime", now),
@@ -597,70 +573,10 @@ class LicenseDatabase:
 
         return normalize_text(text)
 
-    def _compute_fingerprints(self) -> None:
-        """Compute and store discriminative n-gram fingerprints for all licenses.
-
-        See ``fingerprint.compute_idf_fingerprints`` for the scoring method.
-        Must be called after ``license_index`` has been fully populated.
-        Replaces any previously stored fingerprints.
-        """
-        status("Computing discriminative fingerprints...", end="")
-
-        with self._connection() as conn:
-            rows: list[tuple[str, str]] = conn.execute(
-                "SELECT license_id, search_text FROM license_index"
-            ).fetchall()
-
-        if not rows:
-            status(" no data.")
-            return
-
-        fp_records = compute_idf_fingerprints(rows)
-
-        with self._connection() as conn:
-            conn.execute("BEGIN TRANSACTION")
-            try:
-                conn.execute("DELETE FROM license_fingerprints")
-                conn.executemany(
-                    "INSERT INTO license_fingerprints (license_id, ngram, idf_norm)"
-                    " VALUES (?, ?, ?)",
-                    fp_records,
-                )
-                conn.execute("COMMIT")
-            except Exception:
-                conn.execute("ROLLBACK")
-                raise
-
-        status(f" {len(fp_records)} fingerprints for {len(rows)} licenses.")
-
     def find_fingerprint_hits(self, norm_input: str) -> dict[str, float]:
-        """Return a map of ``license_id → max_idf_norm`` for fingerprint matches.
-
-        The ``idf_norm`` value is in ``[0, 1]``: 1.0 means the matching n-gram
-        appears in exactly one license in the corpus (maximally discriminative).
-
-        Returns an empty dict when the table is empty, the input is too short
-        to form any n-grams, or no n-grams match.
-        """
-        query_ngrams = extract_ngrams(norm_input)
-        if not query_ngrams:
-            return {}
-
-        placeholders = ", ".join(["?"] * len(query_ngrams))
-        sql = (
-            f"SELECT license_id, MAX(idf_norm) AS max_idf"
-            f" FROM license_fingerprints"
-            f" WHERE ngram IN ({placeholders})"
-            f" GROUP BY license_id"
-        )
-        with self._connection() as conn:
-            try:
-                rows = conn.execute(sql, query_ngrams).fetchall()
-            except sqlite3.OperationalError:
-                # Table absent on databases built before this schema version.
-                # Degrade gracefully: fingerprint boost is simply skipped.
-                return {}
-        return {row[0]: row[1] for row in rows}
+        """Map each licence ID to the best idf_norm of the fingerprint n-grams it
+        shares with *norm_input* (see ``fingerprintstore.fingerprint_hits``)."""
+        return fingerprint_hits(self._connections, norm_input)
 
     def search_candidates(
         self,
@@ -689,7 +605,12 @@ class LicenseDatabase:
         words = norm_text.split()[:20]
         if not words:
             return []
-        search_terms = " OR ".join(words)
+        # Each word is quoted: a word is a phrase to FTS5, never an operator,
+        # so a query cannot fail for its own text and every error is the
+        # database's.
+        search_terms = " OR ".join(
+            '"' + word.replace('"', '""') + '"' for word in words
+        )
 
         with self._connection() as conn:
             conn.row_factory = sqlite3.Row
@@ -711,13 +632,8 @@ class LicenseDatabase:
                 ORDER BY li.rank
                 LIMIT ?
             """
-            try:
-                # Escape double quotes and use OR-ed keywords for recall
-                match_query = search_terms.replace('"', '""')
-                cursor = conn.execute(query, (match_query, limit))
-                return [cast(CandidateMatch, dict(row)) for row in cursor.fetchall()]
-            except sqlite3.OperationalError:
-                return []
+            cursor = conn.execute(query, (search_terms, limit))
+            return [cast(CandidateMatch, dict(row)) for row in cursor.fetchall()]
 
     def get_license_details(self, license_id: str) -> LicenseDetails | None:
         """Get full metadata for a license (ASCII case-insensitive lookup)."""
@@ -811,44 +727,12 @@ class LicenseDatabase:
             ).fetchone()
             return row[0] if row else ""
 
-    def _ensure_norm_columns(self) -> None:
-        """Backfill norm_license_id/norm_name for rows that predate this
-        schema addition (on-disk DBs migrated by _init_db) or bypass the
-        normal insert path (e.g. a benchmark harness inserting directly
-        into 'licenses').  Idempotent per instance: after the first
-        successful check/backfill, later calls are a no-op.
-        """
-        if self._norm_cols_backfilled:
-            return
-        with self._connection() as conn:
-            missing = conn.execute(
-                "SELECT license_id, name FROM licenses WHERE norm_license_id IS NULL"
-            ).fetchall()
-            if missing:
-                updates = [
-                    (normalize_text(lid), normalize_text(name or ""), lid)
-                    for lid, name in missing
-                ]
-                conn.execute("BEGIN TRANSACTION")
-                try:
-                    conn.executemany(
-                        "UPDATE licenses SET norm_license_id = ?, norm_name = ?"
-                        " WHERE license_id = ?",
-                        updates,
-                    )
-                    conn.execute("COMMIT")
-                except Exception:
-                    conn.execute("ROLLBACK")
-                    raise
-        self._norm_cols_backfilled = True
-
     def get_all_names_and_ids(self) -> list[LicenseNameId]:
         """Retrieve all license IDs and names for short-text matching.
 
         Read once per instance (see dbcache.TableCache): this is queried on
         every Tier-0 short-text match.
         """
-        self._ensure_norm_columns()
         return self._tables.names_and_ids()
 
     def get_deprecated_mappings(self) -> dict[str, str]:

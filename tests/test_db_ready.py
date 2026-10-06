@@ -350,20 +350,15 @@ def test_ready_database_api(variant: Variant) -> None:
 
 
 def test_match_after_database_deleted(tmp_path: Path) -> None:
-    """The gate runs once, at construction, so a file deleted afterwards is
-    outside its remit.
-
-    # BUG: current, wrong behaviour: the next call reaches SQLite, which
-    # recreates an empty file, and a raw sqlite3.OperationalError escapes.
-    Wording it as a licenseid error is roadmap item 10 (environment
-    failures); flip this pin when that lands.
-    """
+    """The gate runs once, at construction. A file deleted afterwards is not
+    re-created by the lookup, and the failure is a licenseid error."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     matcher = AggregatedLicenseMatcher(db_path=str(db_path))
     assert matcher.match(license_id="MIT")
     db_path.unlink()
-    with pytest.raises(sqlite3.OperationalError, match="no such table"):
+    with pytest.raises(DatabaseNotReadyError, match="database: unreadable"):
         matcher.match(license_id="MIT")
+    assert not db_path.exists()
 
 
 def test_two_matchers_on_one_database(tmp_path: Path) -> None:

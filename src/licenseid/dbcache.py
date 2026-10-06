@@ -19,6 +19,7 @@ import threading
 from typing import TypeVar, cast
 
 from licenseid.dbconnection import Connections
+from licenseid.normalize import normalize_text
 from licenseid.types import LicenseDetails, LicenseNameId
 
 _ASCII_LOWER = str.maketrans(string.ascii_uppercase, string.ascii_lowercase)
@@ -144,7 +145,18 @@ class TableCache:
                     " FROM licenses"
                 ).fetchall()
             # The same columns as LicenseNameId, with its flags made bool.
-            names = [cast(LicenseNameId, cast_license_details(row)) for row in rows]
+            records = [dict(cast_license_details(row)) for row in rows]
+            # A row without its normalised columns (a database of an earlier
+            # version, or one a script filled directly) is normalised here
+            # and not written back: a lookup never writes.
+            for record in records:
+                if record["norm_license_id"] is None:
+                    record["norm_license_id"] = normalize_text(
+                        str(record["license_id"])
+                    )
+                if record["norm_name"] is None:
+                    record["norm_name"] = normalize_text(str(record["name"] or ""))
+            names = cast(list[LicenseNameId], records)
             if generation == self._generation:
                 self._names_and_ids = names
         return names

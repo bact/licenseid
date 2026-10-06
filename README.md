@@ -384,9 +384,16 @@ ranking of license text; an explicit `license_id`, a bare ID or name and an
 
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or
-unreadable, for example before the first `licenseid update`. The check opens
-the file read-only: it never creates or changes the database itself, though
-SQLite may leave its own `-shm` and `-wal` files beside it.
+unreadable, for example before the first `licenseid update`. So does any later
+call, such as `match()`, if the file is deleted, truncated or damaged in the
+meantime; then the `sqlite3` error is its `__cause__`. A lookup creates
+nothing and writes nothing, except that the constructor adds what a database of
+an earlier version lacks. A database that an earlier version built is in WAL
+mode, and SQLite then leaves `-shm` and `-wal` files beside it until the next
+`licenseid update`.
+
+`licenseid.get_default_db_path()` returns the path used when none is given
+(it raises `DatabaseNotReadyError` when the account has no home directory).
 
 Each result is a `licenseid.LicenseMatch` with the same keys, `license_id`,
 `method` (a `licenseid.Method`), `exact`, `score`, `similarity`, `coverage`,

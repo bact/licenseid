@@ -32,8 +32,8 @@ from licenseid.dbcheck import (
     _REQUIRED_COLUMNS,
     _open_condition,
     _open_failure,
-    _read_only_uri,
     check_database_ready,
+    open_uri,
     reject_foreign_database,
 )
 from licenseid.errors import DatabaseNotReadyError
@@ -71,7 +71,7 @@ def test_uri_fragment_does_not_defeat_read_only(tmp_path: Path) -> None:
 
 def test_uri_query_is_not_form_encoded() -> None:
     """A space in a value is %20; SQLite does not decode '+'."""
-    uri = _read_only_uri("file:/x.db?vfs=unix none")
+    uri = open_uri("file:/x.db?vfs=unix none")
     assert "+" not in uri
     assert "vfs=unix%20none" in uri
 
@@ -106,13 +106,13 @@ def test_a_wal_database_is_never_read_as_immutable(tmp_path: Path, via: str) -> 
         link.symlink_to(path)
         path = link
     arg = f"file:{path}" if via == "file_uri" else str(path)
-    assert "immutable" not in _read_only_uri(arg)
-    assert _read_only_uri(arg).endswith("mode=ro")
+    assert "immutable" not in open_uri(arg)
+    assert open_uri(arg).endswith("mode=ro")
 
 
 def test_uri_keeps_an_explicit_immutable(tmp_path: Path) -> None:
     """The user's own URI parameters are theirs to choose."""
-    uri = _read_only_uri(f"file:{_idle_wal_database(tmp_path)}?immutable=1")
+    uri = open_uri(f"file:{_idle_wal_database(tmp_path)}?immutable=1")
     assert "immutable=1" in uri
     assert "mode=ro" in uri
 
@@ -154,7 +154,7 @@ def test_nul_byte_in_a_uri_is_refused_not_raised() -> None:
 def test_a_path_that_is_not_utf8_keeps_its_bytes(tmp_path: Path) -> None:
     """A lone surrogate (a file name byte that is not UTF-8) is percent-encoded
     as the raw byte, not refused as an encoding error."""
-    assert "bad%FF.db?mode=ro" in _read_only_uri(str(tmp_path / "bad\udcff.db"))
+    assert "bad%FF.db?mode=ro" in open_uri(str(tmp_path / "bad\udcff.db"))
     with pytest.raises(DatabaseNotReadyError, match="database: not found: "):
         check_database_ready(str(tmp_path / "bad\udcff.db"))
 
@@ -438,3 +438,19 @@ def test_a_memory_uri_with_a_name_after_it_is_an_ordinary_file(
 def test_the_memory_spellings_are_still_memory(db_arg: str) -> None:
     with pytest.raises(DatabaseNotReadyError, match="database: empty: "):
         check_database_ready(db_arg)
+
+
+@pytest.mark.parametrize(
+    ("db_path", "expected"),
+    [
+        ("C:\\Users\\a b\\licenses.db", "file:///C:/Users/a%20b/licenses.db?mode=ro"),
+        ("C:/x/licenses.db", "file:///C:/x/licenses.db?mode=ro"),
+    ],
+)
+def test_windows_drive_path_uri(db_path: str, expected: str) -> None:
+    """Pins the Windows spelling the lookup's read-only connection opens."""
+    from pathlib import PureWindowsPath  # pylint: disable=import-outside-toplevel
+
+    from licenseid.dbcheck import _plain_path_uri  # pylint: disable=C0415
+
+    assert _plain_path_uri(PureWindowsPath(db_path)) == expected

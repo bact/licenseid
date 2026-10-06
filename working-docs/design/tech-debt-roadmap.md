@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -24,7 +24,8 @@ re-scored from the work on item 16, and items 21 to 25 come from the work on
 item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
 the review of PR #66, items 30 and 31 from the work on item 21, and items
 32 to 35 from the review of item 22, item 36 from the docs audit
-after it, and item 37 from the work on item 29.
+after it, item 37 from the work on item 29, and item 38 from the
+review of PR #80.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -292,6 +293,21 @@ warning. All of it is pinned as "current behaviour" in
   document it, then flip the pins.
 - Impact 2, Risk 3, Effort 3.
 
+## 38. Two named-pipe tests can hang the suite — Priority 15
+
+Found in review of PR #80: `tests/test_dbcheck_uri.py`
+`test_a_named_pipe_is_refused_rather_than_waited_on` and
+`test_no_uri_spelling_of_a_named_pipe_waits_for_a_writer` call
+`check_database_ready` in the test process on a FIFO. If the `_path_problem`
+guard stopped working, the read-only open would wait for ever and block the
+whole run, with no failure to read. The FIFO tests added by that PR run the
+open in a child process with a timeout instead
+(`db_asserts.probe_does_not_hang`).
+
+- Move the two tests onto `probe_does_not_hang`, keeping their
+  parametrisation (`file://localhost{p}`, `file:{p}?vfs=unix`).
+- Impact 1, Risk 2, Effort 1.
+
 ## 11. Probe-anchored windowing — Priority 15
 
 The one large remaining lever on `fragment_similarity`'s dominant cost:
@@ -382,18 +398,16 @@ Ctrl-C) were fixed on 2026-10-02; see `tech-debt-resolved.md`.
   may be anybody's and deleting one needs no lock at all. The probe waits
   `_BUSY_WAIT` (1 s), not SQLite's default 5 s, since the command that
   follows waits again.
-- **DB replaced during a run**: on the CLI a `sqlite3` failure after the
-  readiness check now exits 2 with `database: unreadable`. The Python API
-  still raises a raw `sqlite3.OperationalError` from a live matcher whose
-  file was deleted (pinned in `tests/test_db_ready.py`); wrapping it in
-  `LicenseIdError` needs a decision on where (matcher, `LicenseDatabase`).
+- **DB replaced during a run** (resolved in 0.4.2): a lookup opens its
+  connection read-only, so a deleted file is not re-created empty, and the
+  matcher words every `sqlite3.Error` of a lookup as `DatabaseNotReadyError`
+  (`database: unreadable: ...; run 'licenseid update'`; no action for a lock
+  or a read-only WAL database). See `database-readiness-gate.md`.
 - **Ctrl-C during imports** (the first ~30 ms, before click runs): Python
   prints a `KeyboardInterrupt` traceback and dies by SIGINT, which the shell
   reports as 130. Found in review of PR #70; `main` is the same.
 - **Fix**: word `update`'s directory failure with its own subject; open a
-  read-only database with `immutable=1`; keep a `file:` URI a URI; decide
-  where the Python API wraps `sqlite3` errors in `LicenseIdError`
-  (matcher or `LicenseDatabase`).
+  read-only database with `immutable=1`; keep a `file:` URI a URI.
 - Impact 2, Risk 2, Effort 3.
 
 ## 23. The loose `License:` field reader resolves every match — Priority 12

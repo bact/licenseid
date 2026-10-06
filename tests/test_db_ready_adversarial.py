@@ -208,10 +208,10 @@ def test_a_memory_mode_uri_naming_a_real_file_never_touches_it(
     assert (path.read_bytes(), path.stat().st_mtime_ns) == before
 
 
-def test_a_programming_error_is_not_worded_unreadable(
+def test_a_programming_error_is_worded_unreadable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A bug in a query is not a fault in the file."""
+    """One policy with the matcher: every sqlite3.Error is a database error."""
     path = make_ready_file_db(tmp_path / "licenses.db")
 
     def boom(*args: object, **kwargs: object) -> None:
@@ -219,11 +219,11 @@ def test_a_programming_error_is_not_worded_unreadable(
 
     monkeypatch.setattr(cli_module, "AggregatedLicenseMatcher", boom)
     result = run("--db", str(path), "match", "--text", MIT_TEXT)
-    assert isinstance(result.exception, sqlite3.ProgrammingError), result.exception
-    assert "unreadable" not in result.stderr
+    assert result.exit_code == 2
+    assert "ERROR: database: unreadable" in result.stderr
 
 
-def test_an_interface_error_is_not_worded_unreadable(
+def test_an_interface_error_is_worded_unreadable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = make_ready_file_db(tmp_path / "licenses.db")
@@ -233,8 +233,8 @@ def test_an_interface_error_is_not_worded_unreadable(
 
     monkeypatch.setattr(cli_module, "AggregatedLicenseMatcher", boom)
     result = run("--db", str(path), "is-osi", "MIT")
-    assert isinstance(result.exception, sqlite3.InterfaceError), result.exception
-    assert "unreadable" not in result.stderr
+    assert result.exit_code == 2
+    assert "ERROR: database: unreadable" in result.stderr
 
 
 def test_the_api_clear_cache_of_a_memory_database_keeps_the_cwd(

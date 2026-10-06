@@ -10,6 +10,7 @@ SPDX License ID matcher package.
 __version__ = "0.4.1"
 
 from licenseid.database import LicenseDatabase
+from licenseid.datadir import get_default_db_path
 from licenseid.errors import (
     DatabaseNotReadyError,
     InvalidInputError,
@@ -28,5 +29,6 @@ __all__ = [
     "LicenseMatch",
     "MatchRequest",
     "Method",
+    "get_default_db_path",
     "normalize_text",
 ]

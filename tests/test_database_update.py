@@ -7,6 +7,7 @@
 extraction: a small synthetic SPDX release and a faked requests.get."""
 # pylint: disable=missing-function-docstring,protected-access
 
+import contextlib
 import io
 import json
 import os
@@ -23,7 +24,7 @@ from click.testing import CliRunner
 from conftest import assert_cached_tarball_removed
 from db_variants import make_ready_file_db
 
-from licenseid import spdx_source
+from licenseid import AggregatedLicenseMatcher, spdx_source
 from licenseid.cli import cli
 from licenseid.console import warn
 from licenseid.database import LicenseDatabase
@@ -546,3 +547,82 @@ def test_failure_mid_progress_line_leaves_stderr_at_line_start(
     assert err.endswith("\n")
     warn("popularity.csv: using stale cache")
     assert capsys.readouterr().err == "WARNING: popularity.csv: using stale cache\n"
+
+
+def _journal_mode(path: Path) -> str:
+    with contextlib.closing(sqlite3.connect(path)) as conn:
+        return str(conn.execute("PRAGMA journal_mode").fetchone()[0])
+
+
+def test_update_builds_a_database_without_wal_and_a_lookup_leaves_no_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "licenses.db"
+    db = LicenseDatabase(str(path))
+    _serve(monkeypatch, _release_tarball())
+    assert db.update_from_remote()
+    assert _journal_mode(path) == "delete"
+    AggregatedLicenseMatcher(db_path=str(path)).match(license_id="MIT")
+    assert sorted(p.name for p in tmp_path.glob("licenses.db*")) == ["licenses.db"]
+
+
+def test_update_takes_a_database_of_an_earlier_version_out_of_wal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Also when it has nothing to download: the next run converts it."""
+    path = tmp_path / "licenses.db"
+    db = LicenseDatabase(str(path))
+    _serve(monkeypatch, _release_tarball())
+    assert db.update_from_remote()
+    with contextlib.closing(sqlite3.connect(path)) as conn:
+        conn.execute("PRAGMA journal_mode = WAL")
+    assert _journal_mode(path) == "wal"
+    assert not db.update_from_remote()  # already at the version
+    assert _journal_mode(path) == "delete"
+
+
+def test_a_failed_fingerprint_write_leaves_a_database_update_does_not_skip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The version is stamped after the fingerprints: a lock that fails their
+    write must not make the next plain update skip them for ever."""
+    path = tmp_path / "licenses.db"
+    db = LicenseDatabase(str(path))
+    _serve(monkeypatch, _release_tarball())
+    with (
+        mock.patch(
+            "licenseid.database.store_fingerprints",
+            autospec=True,
+            side_effect=sqlite3.OperationalError("database is locked"),
+        ),
+        pytest.raises(LicenseIdError, match="update failed"),
+    ):
+        db.update_from_remote()
+    assert not db.get_metadata().get("license_list_version")
+    assert db.update_from_remote()  # not skipped
+    assert db.get_metadata().get("license_list_version")
+
+
+def test_a_failed_update_leaves_no_old_version_over_new_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``update --version <old>`` must not skip a half-updated database."""
+    path = tmp_path / "licenses.db"
+    db = LicenseDatabase(str(path))
+    _serve(monkeypatch, _release_tarball())
+    assert db.update_from_remote()
+    with contextlib.closing(sqlite3.connect(path)) as conn:
+        conn.execute(
+            "UPDATE db_metadata SET value = '1.0' WHERE key = 'license_list_version'"
+        )
+        conn.commit()
+    with (
+        mock.patch(
+            "licenseid.database.store_fingerprints",
+            autospec=True,
+            side_effect=sqlite3.OperationalError("database is locked"),
+        ),
+        pytest.raises(LicenseIdError),
+    ):
+        db.update_from_remote(force=True)
+    assert db.get_metadata().get("license_list_version") is None
