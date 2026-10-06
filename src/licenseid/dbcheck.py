@@ -95,7 +95,8 @@ def _plain_path_uri(path: PurePath) -> str:
 
 
 def _uri_file_path(base: str) -> str | None:
-    """The file a ``file:`` URI names, or None when another host names it."""
+    """The file a ``file:`` URI names, or None when another host names it or
+    no file can have that name (a byte Windows cannot decode)."""
     rest = base[len("file:") :]
     if rest.startswith("//"):
         rest = rest[2:]

@@ -128,6 +128,22 @@ def test_update_from_remote_end_to_end_then_offline(
     fake.assert_not_called()
 
 
+@pytest.mark.parametrize("template", ["file:{p}", "file://{p}", "file://localhost{p}"])
+def test_update_of_a_file_uri_caches_beside_the_database(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, template: str
+) -> None:
+    """The cache goes where the URI says the database is, not into a
+    "file:" directory made from the URI's text."""
+    posix = (tmp_path / "licenses.db").as_posix()
+    where = posix if posix.startswith("/") else f"/{posix}"
+    db = LicenseDatabase(template.format(p=where))
+    _serve(monkeypatch, _release_tarball())
+    assert db.update_from_remote()
+    cache_files = {p.name for p in tmp_path.iterdir()}
+    assert {"licenses.json", "popularity.csv", "spdx-data-v9.99.tar.gz"} <= cache_files
+    assert not [p for p in Path.cwd().iterdir() if p.name.startswith("file:")]
+
+
 def test_forced_update_reuses_all_caches_without_network(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -156,6 +172,21 @@ def _attack_tarball(kind: str, outside: Path) -> bytes:
     if kind == "symlink_parent":
         return _tarball({}, {"root/link": "../../outside"})
     raise ValueError(kind)
+
+
+@pytest.mark.parametrize("has_filter", [True, False], ids=["data_filter", "manual"])
+def test_extract_tarball_makes_a_root_slash_name_relative(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, has_filter: bool
+) -> None:
+    """A POSIX-style absolute member name, on any OS, lands inside dest."""
+    if not has_filter:
+        monkeypatch.setattr(spdx_source, "_HAS_EXTRACTION_FILTER", False)
+    tar_path = tmp_path / "evil.tar.gz"
+    tar_path.write_bytes(_tarball({"/evil.txt": b"pwned"}))
+    dest = tmp_path / "out"
+    dest.mkdir()
+    spdx_source.extract_tarball(tar_path, dest)
+    assert (dest / "evil.txt").read_bytes() == b"pwned"
 
 
 @pytest.mark.parametrize("has_filter", [True, False], ids=["data_filter", "manual"])

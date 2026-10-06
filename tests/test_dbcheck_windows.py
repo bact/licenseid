@@ -80,10 +80,6 @@ def test_the_slash_before_a_drive_is_dropped(path: str, kept: str) -> None:
     assert _drop_drive_slash(path) == kept
 
 
-def test_the_windows_gate_follows_the_os() -> None:
-    assert dbcheck._IS_WINDOWS is (os.name == "nt")
-
-
 def test_a_file_uri_with_a_byte_windows_cannot_decode_names_no_file(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

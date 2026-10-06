@@ -21,8 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Windows: a plain database path opened read-only no longer fails as an
-  invalid SQLite URI authority; a `file:///C:/...` path keeps its drive; `file://localhost/` database
-  URIs reach SQLite as given ([#77])
+  invalid SQLite URI authority ([#77])
+- `file:` database URIs (`file:///C:/...`, `file://localhost/...`) reach SQLite
+  as given, and `update` writes its cache beside the database ([#77])
 
 ## [0.4.0] - 2026-10-05
 

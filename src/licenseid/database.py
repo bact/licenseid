@@ -84,7 +84,7 @@ class LicenseDatabase:
     """
 
     def __init__(self, db_path: str):
-        self.db_path = Path(db_path)
+        self.db_path = Path(named_file(str(db_path)) or db_path)  # URI: its file
         self.use_uri = str(db_path).startswith("file:")  # Path() rewrites a URI
         db_path_str = str(db_path) if self.use_uri else str(self.db_path)
         self._connections = Connections(db_path_str, self.use_uri)
