@@ -584,7 +584,7 @@ def test_a_huge_input_does_not_exceed_the_sql_variable_limit(
 
 
 @posix_only  # chmod
-@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores directory modes")
+@pytest.mark.skipif(IS_ROOT, reason="root ignores directory modes")
 def test_an_unsearchable_parent_directory_is_unreadable_not_a_traceback(
     tmp_path: Path,
 ) -> None:
