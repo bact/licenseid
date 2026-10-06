@@ -26,7 +26,7 @@ from licenseid.dbcheck import (
     _path_uri_part,
     _plain_path_uri,
     check_database_ready,
-    read_only_uri,
+    open_uri,
 )
 from licenseid.errors import DatabaseNotReadyError
 
@@ -121,6 +121,6 @@ def test_a_ready_database_opens_and_matches(tmp_path: Path) -> None:
     del uri_matcher  # Windows cannot delete a file a connection holds open
     with pytest.raises(DatabaseNotReadyError, match="database: not found: "):
         check_database_ready((tmp_path / "none.db").as_uri())
-    assert read_only_uri(str(path)).startswith("file:///")
+    assert open_uri(str(path)).startswith("file:///")
     matcher = AggregatedLicenseMatcher(db_path=str(path))
     assert matcher.match(license_id="MIT")

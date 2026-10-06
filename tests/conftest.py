@@ -242,6 +242,20 @@ def opened() -> Generator[list[sqlite3.Connection], None, None]:
         yield conns
 
 
+@pytest.fixture
+def connects() -> Generator[list[bool], None, None]:
+    """The ``write`` flag of every connection licenseid opens in the test."""
+    flags: list[bool] = []
+    real = Connections.connect
+
+    def record(self: Connections, write: bool = False) -> sqlite3.Connection:
+        flags.append(write)
+        return real(self, write)
+
+    with mock.patch.object(Connections, "connect", autospec=True, side_effect=record):
+        yield flags
+
+
 def is_closed(conn: sqlite3.Connection) -> bool:
     """Whether *conn* was closed."""
     try:

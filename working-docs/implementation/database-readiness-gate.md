@@ -123,43 +123,74 @@ Each of these cost at least one review round.
 
 ## After the gate: lookups (0.4.2)
 
-The gate runs once, at construction. A database that fails later used to
+The gate runs once, at construction. A database that failed later used to
 raise a raw `sqlite3.Error`, and a lookup re-created a deleted file as an
 empty one, so the next matcher said `empty` instead of `not found`.
 
 - **Read-only by default.** `Connections.connect(write=False)` opens
-  `dbcheck.read_only_uri`; only schema init, `_write_db_records`, the
-  fingerprint rewrite and the norm-column backfill pass `write=True`. A
+  `dbcheck.open_uri(path)` (`mode=ro`). A write opens the file as given only
+  when the database was made to `create` it (`update`, tests); the matcher's
+  `create=False` opens `open_uri(path, "rw")`, which fails on a file that is
+  gone. A user URI that says `mode=ro` or `immutable=1` is never upgraded. A
   write inside a `reading()` block gets its own connection, since the shared
-  one is read-only. In-memory databases open as they are.
-- **The backfill reads first.** `_ensure_norm_columns` opened a read-write
-  connection for a `SELECT`, so a short-text lookup re-created the file; the
-  first test only used `license_id=` and missed it. Test every lookup path
-  (ID, short text, long text, tag), not one.
+  one is read-only.
 - **One wording, at the one place every read passes.**
-  `Connections.connection(write=False)` words a SQLite failure as
-  `DatabaseNotReadyError` through `dbcheck.lookup_error`, so `match`, the
-  `is_*` calls, a direct `LicenseDatabase` read and a standalone
-  `MarkerDetector` agree (a first version wrapped three matcher methods and
-  left the rest raw). A write keeps its error, which `update` words and some
-  reads catch inside their own `with` (`find_fingerprint_hits`). The action
-  `run 'licenseid update'` goes only on an `unreadable` file, not on a lock
-  or `_NEEDS_WRITING`. Every `sqlite3.Error` is wrapped,
-  `ProgrammingError` and `InterfaceError` included, and the CLI does the
-  same; the original is the `__cause__`.
-- **The backfill** moved to `dbcache.backfill_norm_columns` (it also took
-  `database.py` from 862 to 850 lines, and the module-lines ceiling with
-  it). It reads read-only, then writes on its own connection, and its UPDATE
-  fills only NULLs, since another process may rebuild between the two. A
-  write the file refuses (a read-only install, a lock) is worded with
-  `lookup_error`: moving the wrapping into `connection(write=False)` had
-  left it raw, because a write keeps its own error.
-- **`update` words a failed read as its own.** `update_from_remote` turns a
-  `DatabaseNotReadyError` that has a `sqlite3` cause into
-  `database: update failed: <cause>`; it must not tell the user to run
-  `licenseid update`.
-- **The read-only URI is built once**, in `Connections.__init__`, so a
-  relative path names the file it named at construction, not the one a later
-  `chdir` would. Left open: `LicenseDatabase()` still opens read-write to
-  create its tables (`_init_db`), so a file deleted between the readiness
-  check and the constructor is re-created.
+  `Connections.connection` words a `sqlite3.Error` of a read as
+  `DatabaseNotReadyError` through `dbcheck.lookup_error`: `match`, the `is_*`
+  calls, a direct `LicenseDatabase` read and a standalone `MarkerDetector`
+  agree (a first version wrapped three matcher methods and left the rest raw).
+  Every `sqlite3.Error` is wrapped, `ProgrammingError` and `InterfaceError`
+  too, and the CLI does the same; the original is the `__cause__`. A write of
+  a database made with `create` keeps its error: `update` words it
+  (`database: update failed: <Type>: <text>`, exit 1, since `update` failures
+  exit 1; a `DatabaseNotReadyError` without a cause passes unchanged).
+- **The action** `run 'licenseid update'` is only for a file `update` can
+  rebuild (`dbcheck._can_rebuild`: `no such table`, or `unable to open` a
+  file that is gone). `update` refuses a file that is not a database, fails
+  on a malformed one, and cannot open one that is there but unreadable.
+- **The constructor** (`LicenseDatabase(path, create=True)`): `_init_db` asks
+  `dbschema.schema_state` through a read-only connection and writes only for
+  an older schema (`older`, migrated in place, only if
+  `reject_foreign_database` finds the file licenseid's own) or, with
+  `create`, for a missing file or tables (`none`). The matcher passes
+  `create=False`, so a file deleted between the readiness check and the
+  constructor raises `not found`, where it used to be re-created empty and
+  answer `false`. A hot journal, or a WAL without its `-shm`, makes the
+  read-only open fail with `readonly`; the constructor opens once for writing
+  and reads (`Connections.recover`) to heal it. A journal that appears after
+  the constructor is not healed: the lookup says so.
+- **No WAL.** `update` wrote in WAL mode (`journal_mode=WAL`, `synchronous=
+  NORMAL`) for no recorded reason: the same write took 430 ms in rollback
+  mode and 473 ms in WAL on this machine. A read-only connection cannot
+  remove the `-wal` and `-shm` files a WAL database gets, a read-only mount
+  cannot create them, and switching a database to WAL needs a lock a reader
+  holds. `update` now leaves WAL (`Connections.leave_wal`, never waiting for
+  a lock) at its start, also when there is nothing to download.
+- **Rows without norm columns** are normalised in memory
+  (`TableCache.names_and_ids`), not written back, so a lookup works on a
+  read-only install. The columns are only added to an older schema.
+- **Searches forgive nothing.** `search_candidates` quotes each word, so an
+  FTS5 operator in the text is a phrase and no query fails for its own text;
+  every `sqlite3.Error` is the database's. `find_fingerprint_hits` forgives
+  nothing either: opening a database creates its table.
+- **The FIFO.** A read-only open of a named pipe, or of its `-journal` or
+  `-wal`, waits for ever; `reject_blocking_file` stats the three before every
+  connection, and the gate's own open (`_path_problem`) stats the sidecars
+  too.
+- **Version last.** `update` stamps `license_list_version` after the
+  fingerprints. With the rollback journal a reader can fail the fingerprint
+  commit with `database is locked`; stamped first, the version would make the
+  next plain `update` skip the missing fingerprints for ever. `create_schema`
+  is one `BEGIN IMMEDIATE` transaction, so two processes opening an older
+  database do not both run `ALTER TABLE`.
+- **One path, for reads and writes.** `Connections` makes a plain relative
+  path absolute (and pins a relative `file:` URI) once, and
+  `LicenseDatabase.db_path` is absolute, so the cache follows the database
+  after a `chdir`. A `\\?\` prefix is dropped from the URI, and a NUL in a
+  path is refused, as SQLite would read the name up to it.
+- **Left open.** A lock is worded `unreadable` (a new condition would change
+  the closed set in `AGENTS.md`); a hot journal that appears after the
+  constructor is not healed; a read-only database that lacks `idx_licenses_name`
+  or the fingerprint table is refused, as it was before; a lookup on a
+  database an earlier version left in WAL mode creates `-shm` and `-wal`
+  (the read-only connection cannot remove them) until `update` converts it.

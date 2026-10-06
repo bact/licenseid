@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -24,7 +24,8 @@ re-scored from the work on item 16, and items 21 to 25 come from the work on
 item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
 the review of PR #66, items 30 and 31 from the work on item 21, and items
 32 to 35 from the review of item 22, item 36 from the docs audit
-after it, and item 37 from the work on item 29.
+after it, item 37 from the work on item 29, and item 38 from the
+review of PR #80.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -291,6 +292,21 @@ warning. All of it is pinned as "current behaviour" in
 - **Fix**: decide per pair whether to reject it (usage error, exit 2) or
   document it, then flip the pins.
 - Impact 2, Risk 3, Effort 3.
+
+## 38. Two named-pipe tests can hang the suite — Priority 15
+
+Found in review of PR #80: `tests/test_dbcheck_uri.py`
+`test_a_named_pipe_is_refused_rather_than_waited_on` and
+`test_no_uri_spelling_of_a_named_pipe_waits_for_a_writer` call
+`check_database_ready` in the test process on a FIFO. If the `_path_problem`
+guard stopped working, the read-only open would wait for ever and block the
+whole run, with no failure to read. The FIFO tests added by that PR run the
+open in a child process with a timeout instead
+(`db_asserts.probe_does_not_hang`).
+
+- Move the two tests onto `probe_does_not_hang`, keeping their
+  parametrisation (`file://localhost{p}`, `file:{p}?vfs=unix`).
+- Impact 1, Risk 2, Effort 1.
 
 ## 11. Probe-anchored windowing — Priority 15
 

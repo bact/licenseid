@@ -99,9 +99,10 @@ class AggregatedLicenseMatcher:
     ):
         if not db_path:
             db_path = get_default_db_path()
-        # Before LicenseDatabase, which creates its tables on open.
+        # Before LicenseDatabase, which opens the file (create=False below: it
+        # must be there, and a lookup never makes one).
         check_database_ready(db_path)
-        self.db = LicenseDatabase(db_path)
+        self.db = LicenseDatabase(db_path, create=False)
         self.detector = MarkerDetector(self.db)
         self.enable_popularity = enable_popularity
 

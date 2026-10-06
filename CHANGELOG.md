@@ -11,12 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `get_default_db_path` is public (`from licenseid import get_default_db_path`)
   ([#80])
+- `LicenseDatabase(path, create=False)` opens a database that must exist,
+  as the matcher now does ([#80])
+
+### Changed
+
+- A database that fails during a lookup raises `DatabaseNotReadyError`, not a
+  raw `sqlite3.Error`; code that catches `sqlite3.Error` around a lookup must
+  catch it instead. The CLI exits 2, also for `ProgrammingError` ([#80])
+- `update` no longer puts the database in WAL mode, and takes one built by an
+  earlier version out of it, so lookups leave no `-wal` or `-shm` file ([#80])
 
 ### Fixed
 
-- A lookup no longer creates a missing database file; a database that fails
-  during a lookup raises `DatabaseNotReadyError`, not a raw `sqlite3` error;
-  the CLI now exits 2 for `ProgrammingError` too, not a traceback ([#80])
+- A lookup or a matcher no longer creates a missing database file or writes
+  to the database; a search no longer hides a locked or damaged database as
+  "no candidates"; a FIFO in place of the database (or its `-journal`) no
+  longer hangs a lookup ([#80])
 
 ## [0.4.1] - 2026-10-06
 

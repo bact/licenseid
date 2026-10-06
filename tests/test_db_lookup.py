@@ -142,7 +142,6 @@ def test_a_rebuild_clears_what_was_read(db: LicenseDatabase) -> None:
           "zlib", "zlib license")],
         [("Zlib", "the origin of this software")],
         [],
-        "3.30",
         None,
     )  # fmt: skip
     assert db.get_license_details("MIT") is None

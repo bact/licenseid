@@ -37,6 +37,11 @@ def fold(value: str) -> str:
     return " ".join(value.split()).replace(";", ",")
 
 
+def typed(exc: BaseException) -> str:
+    """*exc* as the DETAIL of a diagnostic: ``Type: text``, folded (``fold``)."""
+    return f"{type(exc).__name__}: {fold(str(exc))}"
+
+
 def one_line(value: str) -> str:
     """*value* as one DETAIL of a diagnostic: folded (``fold``), and cut to
     60 characters, as one error must not fill the terminal."""

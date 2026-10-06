@@ -6,10 +6,11 @@
 """
 Check that a license database is ready to answer, before anything opens it.
 
-``LicenseDatabase`` creates its tables on open, so an unready or foreign file
-opened through it would be written to, and a partly built database would
-answer "no license found" as if it were complete. The check here opens the
-file read-only and never writes to it.
+``LicenseDatabase`` creates its tables on open (unless made with
+``create=False``), so an unready or foreign file opened through it could be
+written to, and a partly built database would answer "no license found" as
+if it were complete. The check here opens the file read-only and never writes
+to it.
 
 Stdlib only, so importing it does not pull in ``requests``.
 """
@@ -19,11 +20,12 @@ import os
 import sqlite3
 import stat
 import string
-from pathlib import Path, PurePath
+from pathlib import Path, PurePath, PureWindowsPath
 from typing import cast
 from urllib.parse import parse_qsl, quote, unquote_to_bytes, urlencode
 
-from licenseid.errors import DatabaseNotReadyError
+from licenseid.dbschema import SCHEMA_OBJECTS
+from licenseid.errors import DatabaseNotReadyError, fold
 
 _IS_WINDOWS = os.name == "nt"
 
@@ -41,14 +43,23 @@ _BUSY_WAIT = 1.0
 
 # An object licenseid does not create: not one of its tables or indexes, the
 # shadow tables of the FTS5 index, or SQLite's own.
-_FOREIGN_OBJECT = r"""
+_FOREIGN_OBJECT = f"""
     SELECT 1 FROM sqlite_master
-    WHERE name NOT IN ('licenses', 'exceptions', 'license_index', 'db_metadata',
-                       'license_fingerprints', 'idx_fp_ngram', 'idx_licenses_name')
-      AND name NOT LIKE 'license\_index\_%' ESCAPE '\'
-      AND name NOT LIKE 'sqlite\_%' ESCAPE '\'
+    WHERE name NOT IN ({", ".join(repr(name) for name in SCHEMA_OBJECTS)})
+      AND name NOT LIKE 'license\\_index\\_%' ESCAPE '\\'
+      AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'
     LIMIT 1
 """
+
+
+def absolute_path(path: str) -> str:
+    """*path* made absolute against the working directory. On POSIX ``..`` is
+    kept as written: after a symlink, ``lnk/..`` is not the directory above
+    ``lnk``, which ``os.path.abspath`` would make it. Windows resolves ``..``
+    by text, and a drive-relative ``C:x`` needs ``abspath``."""
+    if os.name == "nt":
+        return os.path.abspath(path)
+    return path if os.path.isabs(path) else os.path.join(os.getcwd(), path)
 
 
 def is_plain_path(db_path: str) -> bool:
@@ -81,8 +92,9 @@ def _path_uri_part(posix_path: bytes) -> bytes:
     return posix_path if posix_path.startswith(b"/") else b"/" + posix_path
 
 
-def _plain_path_uri(path: PurePath) -> str:
-    """The read-only URI of an absolute file path, on any OS's path flavour.
+def _plain_path_uri(path: PurePath, mode: str = "ro") -> str:
+    """The URI of an absolute file path, opened with *mode*, on any OS's path
+    flavour.
 
     ``as_posix`` gives forward slashes, so a Windows path has no ``\\`` to be
     encoded into the authority. On POSIX ``os.fsencode`` keeps a file name
@@ -90,8 +102,14 @@ def _plain_path_uri(path: PurePath) -> str:
     has no such names. The empty authority keeps a path that starts with "//"
     from being read as a host.
     """
-    uri_path = _path_uri_part(os.fsencode(path.as_posix()))
-    return f"file://{quote(uri_path, safe='/:')}?mode=ro"
+    posix = path.as_posix()
+    if isinstance(path, PureWindowsPath):  # a POSIX path may start with //?/
+        if posix.startswith("//?/UNC/"):  # \\?\UNC\host\share: the UNC name
+            posix = "//" + posix[len("//?/UNC/") :]
+        elif posix.startswith("//?/"):  # \\?\C:\x: the plain drive path
+            posix = posix[len("//?/") :]
+    uri_path = _path_uri_part(os.fsencode(posix))
+    return f"file://{quote(uri_path, safe='/:')}?mode={mode}"
 
 
 def _uri_file_path(base: str) -> str | None:
@@ -131,23 +149,46 @@ def _is_memory_uri(base: str, query: list[tuple[str, str]]) -> bool:
     return ("mode", "memory") in query or base == "file::memory:"
 
 
-def read_only_uri(db_path: str) -> str:
-    """The SQLite URI that opens *db_path* read-only, without creating it.
+def open_uri(db_path: str, mode: str = "ro") -> str:
+    """The SQLite URI that opens *db_path* with *mode* and never creates it:
+    ``ro`` to read, ``rw`` to write a file that must already exist.
 
     ``mode=memory`` URIs (a shared in-memory database) stay as they are: they
-    cannot create a file, and ``mode=ro`` would contradict them.
+    cannot create a file, and a ``mode`` would contradict them.
     """
+    if "\0" in db_path:  # SQLite would read the name up to the NUL
+        raise ValueError("embedded null byte")
     if db_path == ":memory:":
         return "file::memory:"
     if is_plain_path(db_path):
         # See _plain_path_uri for the encoding and the empty authority.
-        return _plain_path_uri(Path(db_path).absolute())
+        return _plain_path_uri(PurePath(absolute_path(db_path)), mode)
     base, query = _split_file_uri(db_path)
     if _is_memory_uri(base, query):
         return db_path
+    if ("mode", "ro") in query or ("immutable", "1") in query:
+        mode = "ro"  # a URI that says read-only is never opened for writing
     query = [(key, value) for key, value in query if key != "mode"]
-    query.append(("mode", "ro"))
+    query.append(("mode", mode))
     return f"{base}?{urlencode(query, quote_via=quote)}"
+
+
+def pin_relative_uri(db_path: str) -> str:
+    """*db_path* with a relative ``file:`` URI (``file:x.db?cache=shared``)
+    made absolute, so it names one file for good as a plain path does. Any
+    other path, and every in-memory database, is returned as it is."""
+    if not db_path.startswith("file:") or db_path.startswith("file:/"):
+        return db_path
+    base, query = _split_file_uri(db_path)
+    if _is_memory_uri(base, query):
+        return db_path
+    try:
+        name = os.fsdecode(unquote_to_bytes(base[len("file:") :]))
+    except UnicodeError:  # a byte this system cannot name: SQLite and the guard
+        return db_path  # say so, as for an absolute URI
+    absolute = PurePath(absolute_path(name))
+    uri_path = _path_uri_part(os.fsencode(absolute.as_posix()))
+    return f"file://{quote(uri_path, safe='/:')}{db_path[len(base) :]}"
 
 
 def is_memory_database(db_path: str) -> bool:
@@ -199,16 +240,17 @@ def named_file(db_path: str) -> str | None:
 
 def _shown(db_path: str) -> str:
     """*db_path* for a message: a control character (a newline in a file name)
-    is written as an escape, so the message stays one line."""
+    is written as an escape, so the message stays one line, and a ";" becomes
+    ",", as it would start the ACTION."""
     return "".join(
         char if char.isprintable() else char.encode("unicode_escape").decode()
-        for char in db_path
+        for char in db_path.replace(";", ",")
     )
 
 
 def _one_line(exc: Exception) -> str:
-    """The error text on one line; some SQLite errors have none."""
-    return " ".join(str(exc).split()) or type(exc).__name__
+    """The error text on one line (and no ";"); some SQLite errors have none."""
+    return fold(str(exc)) or type(exc).__name__
 
 
 def os_reason(exc: OSError) -> Exception:
@@ -233,9 +275,15 @@ def _stat_failure(db_path: str, exc: OSError | ValueError) -> Refusal:
     )
     if looked:
         return "unreadable", unreadable_error(db_path, os_reason(cast(OSError, exc)))
-    return "not found", DatabaseNotReadyError(
-        f"database: not found: {_shown(db_path)}{_ACTION}"
-    )
+    return "not found", not_found_error(db_path)
+
+
+def _blocking_refusal(db_path: str, mode: int) -> Refusal | None:
+    """The refusal for a file of type *mode* that is neither a regular file
+    nor a directory (a FIFO, a device), or None."""
+    if stat.S_ISREG(mode) or stat.S_ISDIR(mode):
+        return None
+    return "unreadable", unreadable_error(db_path, OSError("not a regular file"))
 
 
 def _path_problem(db_path: str) -> Refusal | None:
@@ -255,11 +303,20 @@ def _path_problem(db_path: str) -> Refusal | None:
         # system says about the name decides nothing. The type below still
         # does: a pipe blocks whoever opens it read-only, VFS or no VFS.
         return None if _has_own_vfs(db_path) else _stat_failure(db_path, exc)
-    if not stat.S_ISREG(mode) and not stat.S_ISDIR(mode):
-        # Reading opens read-only, and opening a FIFO that way waits for a
-        # writer that never comes. A directory is left to SQLite, which says
-        # so at once; nothing else can be a database.
-        return "unreadable", unreadable_error(db_path, OSError("not a regular file"))
+    # Reading opens read-only, and opening a FIFO that way waits for a writer
+    # that never comes. A directory is left to SQLite, which says so at once;
+    # nothing else can be a database.
+    refusal = _blocking_refusal(db_path, mode)
+    if refusal:
+        return refusal
+    # SQLite opens ``-journal`` and ``-wal`` too, and a pipe there hangs it.
+    for name in (f"{path}-journal", f"{path}-wal"):
+        try:
+            refusal = _blocking_refusal(db_path, os.stat(name).st_mode)
+        except (OSError, ValueError):
+            continue
+        if refusal:
+            return refusal
     return None
 
 
@@ -268,6 +325,11 @@ def unreadable_error(db_path: str, exc: Exception) -> DatabaseNotReadyError:
     return DatabaseNotReadyError(
         f"database: unreadable: {_shown(db_path)}: {_one_line(exc)}"
     )
+
+
+def empty_error(db_path: str) -> DatabaseNotReadyError:
+    """The refusal for a file with none of licenseid's tables."""
+    return DatabaseNotReadyError(f"database: empty: {_shown(db_path)}{_ACTION}")
 
 
 def invalid_error(db_path: str) -> DatabaseNotReadyError:
@@ -376,26 +438,75 @@ def _open_failure(exc: Exception) -> str | None:
     return None if any(text in str(exc) for text in _NEEDS_WRITING) else "unreadable"
 
 
+def needs_writing(exc: BaseException | None) -> bool:
+    """Whether *exc* says only this read-only way of opening is the problem:
+    a hot journal to roll back, or a WAL database's -shm to create."""
+    return isinstance(exc, sqlite3.Error) and any(
+        text in str(exc) for text in _NEEDS_WRITING
+    )
+
+
+def _can_rebuild(db_path: str, exc: sqlite3.Error) -> bool:
+    """Whether ``licenseid update`` would put right the file that made *exc*:
+    its tables are gone, or the file is. It refuses a file that is not a
+    database, fails on a malformed one, and cannot open a file that is there
+    but unreadable (the same SQLite text as a missing file). It has nothing
+    to rebuild in memory."""
+    text = str(exc)
+    if "no such table" in text:
+        return not is_memory_database(db_path)
+    path = _os_file(db_path)
+    return (
+        "unable to open database file" in text
+        and path is not None
+        and not os.path.lexists(path)
+    )
+
+
 def lookup_error(db_path: str, exc: sqlite3.Error) -> DatabaseNotReadyError:
     """The refusal for a lookup that failed in a database found ready when the
     matcher was built (deleted, truncated, overwritten since).
 
-    Only an ``unreadable`` file is pointed at ``licenseid update``. A lock
-    another process holds says nothing about the file, and a read-only
-    database that needs its -shm (``_NEEDS_WRITING``) is one ``update``
-    cannot fix either.
+    Only a file ``licenseid update`` can rebuild is pointed at it (see
+    ``_can_rebuild``). A lock another process holds says nothing about the
+    file, and a read-only database that needs its -shm (``_NEEDS_WRITING``)
+    cannot be helped by it.
     """
     error = unreadable_error(db_path, exc)
-    if _open_failure(exc) != "unreadable":
+    if _open_failure(exc) != "unreadable" or not _can_rebuild(db_path, exc):
         return error
     return DatabaseNotReadyError(f"{error}{_ACTION}")
+
+
+def not_found_error(db_path: str) -> DatabaseNotReadyError:
+    """The refusal for a database that is not there."""
+    return DatabaseNotReadyError(f"database: not found: {_shown(db_path)}{_ACTION}")
+
+
+def reject_blocking_file(db_path: str) -> None:
+    """Raise ``DatabaseNotReadyError`` when *db_path*, or a file SQLite opens
+    beside it (``-journal``, ``-wal``), is neither a regular file nor a
+    directory, such as a FIFO: opening one waits for a writer that never
+    comes, so the lookup would hang for good. Whatever the file system will
+    not describe is left to SQLite to report."""
+    path = _os_file(db_path)
+    if path is None:
+        return
+    for name in (path, f"{path}-journal", f"{path}-wal"):
+        try:
+            mode = os.stat(name).st_mode
+        except (OSError, ValueError):
+            continue
+        refusal = _blocking_refusal(db_path, mode)
+        if refusal:
+            raise refusal[1]
 
 
 def _open_condition(db_path: str) -> Refusal | None:
     """The refusal the file's own contents call for, or None."""
     try:
         with contextlib.closing(
-            sqlite3.connect(read_only_uri(db_path), uri=True, timeout=_BUSY_WAIT)
+            sqlite3.connect(open_uri(db_path), uri=True, timeout=_BUSY_WAIT)
         ) as conn:
             condition = _not_ready(conn)
     except (sqlite3.Error, UnicodeError, ValueError) as exc:
@@ -486,10 +597,10 @@ def check_database_ready(db_path: str | os.PathLike[str]) -> None:
     (FTS5) tables exist with the columns licenseid reads, the metadata holds
     a non-blank ``license_list_version``, ``licenses`` and ``license_index``
     each have a row, and every ``license_id`` is text (a NULL or blob key
-    counts as not ready, because normalising one raises). The version is
-    written in the same transaction as those rows, so it marks them complete.
-    The fingerprints are computed in a later transaction and are not checked
-    (an open item in the tech-debt roadmap).
+    counts as not ready, because normalising one raises). ``update`` clears
+    the version with the old rows and stamps it after the fingerprints, so a
+    version marks a finished update. The fingerprints themselves are not
+    checked (an open item in the tech-debt roadmap).
 
     The file is opened read-only and is never created or written. A
     write-ahead-log file may get -shm and -wal files beside it, which stay

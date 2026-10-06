@@ -16,6 +16,7 @@ import pytest
 from conftest import seed_ready_metadata
 
 from licenseid.database import LicenseDatabase
+from licenseid.fingerprintstore import store_fingerprints
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
 
@@ -99,7 +100,7 @@ def matcher() -> AggregatedLicenseMatcher:
     # variants) lose their only disambiguating signal once copyright-notice
     # text is normalized away, since that's the discriminative content the
     # fingerprint mechanism exists to replace.
-    db_manager._compute_fingerprints()  # pylint: disable=protected-access
+    store_fingerprints(db_manager._connections)  # pylint: disable=protected-access
 
     seed_ready_metadata(db_path)
     print("  Population complete.")

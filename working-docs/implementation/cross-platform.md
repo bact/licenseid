@@ -17,7 +17,7 @@ in [`../design/cross-platform-roadmap.md`](../design/cross-platform-roadmap.md).
 ## The bug in 0.4.0
 
 On Windows every `match` failed with `database: unreadable`. The readiness
-check (`dbcheck._read_only_uri`) built `file://C%3A%5CUsers%5C…?mode=ro`.
+check (`dbcheck.open_uri` (then `_read_only_uri`)) built `file://C%3A%5CUsers%5C…?mode=ro`.
 SQLite reads the text after `file://` up to the first `/` as the authority,
 and refused it (`invalid uri authority`). `licenseid update` passed on
 Windows because it never goes through the readiness check. Linux and macOS
@@ -104,3 +104,20 @@ Only simulated on macOS (patched `os.name`, `PureWindowsPath`, injected
 a refused tarball rename, output with an unencodable character, and the
 no-home behaviour. Treat them as likely, not proven, until a Windows run
 shows them.
+
+## Lookups and the database file (0.4.2)
+
+- A lookup opens the file read-only (`open_uri`), so no handle can create it
+  and tests delete, truncate or zero a file between queries. Each query still
+  opens and closes its own connection; only a `reading()` block shares one.
+- `update` no longer uses WAL, so no `-wal` or `-shm` remains after a lookup,
+  which on Windows would make deletes and `tmp_path` clean-up noisier. A
+  database built earlier is converted by the next `update`.
+- A plain relative path is made absolute (`os.path.abspath`) when
+  `Connections` is built, and so is a relative `file:` URI; a `\\?\` prefix is
+  dropped. Still simulated, not run on Windows: a UNC path
+  (`file:////server/share/x.db`).
+- `reject_blocking_file` also looks at `-journal` and `-wal`: a named pipe
+  there hangs the open.
+- Tests that need `chmod` skip as root (`IS_ROOT`) and on Windows
+  (`posix_only`).

@@ -8,6 +8,7 @@ like on the command line (exit 2, empty stdout, one grammar line)."""
 # pylint: disable=missing-function-docstring
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -97,3 +98,30 @@ def db_in_an_unreadable_directory(tmp_path: Path) -> Path:
         inner.chmod(0o755)
         pytest.skip("this user can read through a 000 directory (root?)")
     return db_path
+
+
+_FIFO_PROBE = """
+import sys
+from licenseid.dbconnection import Connections
+try:
+    Connections(sys.argv[1], sys.argv[1].startswith("file:"), create=False).connect()
+except Exception as exc:
+    print(type(exc).__name__, exc)
+"""
+
+
+def probe_does_not_hang(path: Path | str) -> str:
+    """Open *path* in a child process: a guard that broke would hang it, and
+    not the suite."""
+    try:
+        done = subprocess.run(
+            [sys.executable, "-c", _FIFO_PROBE, str(path)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+            start_new_session=True,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"opening {path} hung")
+    return done.stdout
