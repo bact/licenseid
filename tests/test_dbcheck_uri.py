@@ -16,20 +16,24 @@ import contextlib
 import os
 import sqlite3
 from collections.abc import Iterator
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from urllib.parse import quote
 
 import pytest
 from click.testing import CliRunner
 from db_asserts import assert_refused, expected_refusal, run_cli
 from db_variants import NOT_FOUND, build_ready_wal_with_wal, make_ready_file_db
 
+from licenseid import AggregatedLicenseMatcher, dbcheck
 from licenseid import cli as cli_module
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import (
     _REQUIRED_COLUMNS,
+    _drop_drive_slash,
     _open_condition,
     _open_failure,
+    _path_uri_part,
     _read_only_uri,
     check_database_ready,
     reject_foreign_database,
@@ -419,3 +423,74 @@ def test_a_memory_uri_with_a_name_after_it_is_an_ordinary_file(
 def test_the_memory_spellings_are_still_memory(db_arg: str) -> None:
     with pytest.raises(DatabaseNotReadyError, match="database: empty: "):
         check_database_ready(db_arg)
+
+
+# Windows paths, checked as strings so they run on every OS
+
+
+def _windows_uri(path: str) -> str:
+    """The URI for a Windows path, built as ``_read_only_uri`` builds it."""
+    posix = os.fsencode(PureWindowsPath(path).as_posix())
+    return f"file://{quote(_path_uri_part(posix), safe='/:')}?mode=ro"
+
+
+@pytest.mark.parametrize(
+    ("path", "uri"),
+    [
+        (r"C:\Users\x\licenses.db", "file:///C:/Users/x/licenses.db?mode=ro"),
+        (r"C:\Users\a b\l.db", "file:///C:/Users/a%20b/l.db?mode=ro"),
+        (r"\\server\share\l.db", "file:////server/share/l.db?mode=ro"),
+    ],
+)
+def test_a_windows_path_has_an_empty_authority(path: str, uri: str) -> None:
+    assert _windows_uri(path) == uri
+    assert uri.startswith("file:///")
+    # "unable to open", not "invalid uri authority": the URI parsed.
+    with pytest.raises(sqlite3.OperationalError) as info:
+        sqlite3.connect(uri, uri=True)
+    assert "invalid uri authority" not in str(info.value)
+
+
+def test_the_old_windows_uri_was_refused_by_sqlite() -> None:
+    """Pins the bug: the drive letter was read as the authority."""
+    old = "file://" + quote(os.fsencode(str(PureWindowsPath(r"C:\x\l.db"))))
+    with pytest.raises(sqlite3.OperationalError, match="invalid uri authority"):
+        sqlite3.connect(f"{old}?mode=ro", uri=True)
+
+
+def test_a_posix_double_slash_path_keeps_an_empty_authority() -> None:
+    posix = os.fsencode(PurePosixPath("//x/y.db").as_posix())
+    assert _path_uri_part(posix) == b"//x/y.db"
+
+
+@pytest.mark.parametrize(
+    ("path", "kept"),
+    [
+        ("/C:/a/b.db", "C:/a/b.db"),
+        ("/c:/a", "c:/a"),
+        ("/a/b.db", "/a/b.db"),
+        ("/C", "/C"),
+    ],
+)
+def test_the_slash_before_a_drive_is_dropped(path: str, kept: str) -> None:
+    assert _drop_drive_slash(path) == kept
+
+
+def test_a_file_uri_drive_path_keeps_its_drive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(dbcheck, "_IS_WINDOWS", True)
+    path = dbcheck._uri_file_path("file:///C:/a/b.db")
+    assert path is not None
+    assert PureWindowsPath(path).drive == "C:"
+    monkeypatch.setattr(dbcheck, "_IS_WINDOWS", False)
+    assert dbcheck._uri_file_path("file:///C:/a/b.db") == "/C:/a/b.db"
+
+
+def test_a_ready_database_opens_and_matches(tmp_path: Path) -> None:
+    """The real-OS check: on Windows this failed with 'unreadable'."""
+    path = make_ready_file_db(tmp_path / "real.db")
+    check_database_ready(str(path))
+    assert _read_only_uri(str(path)).startswith("file:///")
+    matcher = AggregatedLicenseMatcher(db_path=str(path))
+    assert matcher.match(license_id="MIT")

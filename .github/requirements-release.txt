@@ -1,0 +1,7 @@
+# Tools that write and check the release SBOM. Pinned so a release does not
+# change with the newest Pitloom; the workflows pass this file to pip as a
+# constraint (PIP_CONSTRAINT), which reaches the isolated build too. The
+# `>=` floor in pyproject.toml stays, for users who build from the sdist.
+magika==1.0.3
+pitloom==0.20.0
+spdx3-validate==0.0.7

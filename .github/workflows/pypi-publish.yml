@@ -9,6 +9,10 @@ on:
 
 permissions: read-all
 
+# If attach-release-* or sign-and-attest fails after the PyPI publish, use
+# "Re-run failed jobs": it attaches and signs the files that were published,
+# while the artifacts exist (60 days). "Re-run all jobs" rebuilds a different
+# wheel, which PyPI rejects as a duplicate.
 jobs:
   build:
     name: Build distribution
@@ -17,6 +21,9 @@ jobs:
       contents: read
     outputs:
       sbom-name: ${{ steps.sbom.outputs.sbom-name }}
+    env:
+      # Pins Pitloom (hook and checks) for the isolated build too.
+      PIP_CONSTRAINT: ${{ github.workspace }}/.github/requirements-release.txt
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -31,8 +38,7 @@ jobs:
       - name: Install build dependencies
         run: |
           pip install --upgrade build pip
-          pip install -e .
-          pip install "pitloom[content-type]>=0.20.0" spdx3-validate==0.0.7
+          pip install "pitloom[content-type]" spdx3-validate
 
       - name: Build sdist and wheel
         run: |
@@ -98,14 +104,14 @@ jobs:
         with:
           name: sbom
           path: sbom/
-          retention-days: 3
+          retention-days: 60
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dist
           path: dist/
-          retention-days: 3
+          retention-days: 60
 
   publish:
     name: Publish to PyPI
