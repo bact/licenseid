@@ -10,6 +10,10 @@ import sqlite3
 import threading
 from collections.abc import Iterator
 
+from licenseid.dbcheck import is_memory_database, read_only_uri
+
+QueryConnection = contextlib.AbstractContextManager[sqlite3.Connection]
+
 
 class _ThreadState(threading.local):
     """One thread's share: sqlite3 refuses a connection made in another
@@ -35,20 +39,29 @@ class Connections:
         self.use_uri = use_uri
         self._state = _ThreadState()
 
-    def connect(self) -> sqlite3.Connection:
-        """Open a new connection."""
-        conn = sqlite3.connect(self.path, uri=self.use_uri)
+    def connect(self, write: bool = False) -> sqlite3.Connection:
+        """Open a new connection.
+
+        Read-only unless *write*: a plain read-write open creates a missing
+        file, so a lookup after the database was deleted left an empty one
+        behind. An in-memory database has no file and opens as it is.
+        """
+        if write or is_memory_database(self.path):
+            conn = sqlite3.connect(self.path, uri=self.use_uri)
+        else:
+            conn = sqlite3.connect(read_only_uri(self.path), uri=True)
         conn.execute("PRAGMA mmap_size=268435456")
         return conn
 
     @contextlib.contextmanager
-    def connection(self) -> Iterator[sqlite3.Connection]:
+    def connection(self, write: bool = False) -> Iterator[sqlite3.Connection]:
         """Commit or roll back, and close unless a ``reading()`` block shares
         the connection -- ``Connection.__exit__`` alone only handles the
-        transaction, not closing."""
+        transaction, not closing. A *write* query always has a connection of
+        its own: the shared one is read-only."""
         state = self._state
-        if not state.blocks:
-            conn = self.connect()
+        if write or not state.blocks:
+            conn = self.connect(write)
             try:
                 with conn:
                     yield conn

@@ -150,6 +150,11 @@ def _read_only_uri(db_path: str) -> str:
     return f"{base}?{urlencode(query, quote_via=quote)}"
 
 
+def read_only_uri(db_path: str) -> str:
+    """The SQLite URI that opens *db_path* read-only, without creating it."""
+    return _read_only_uri(db_path)
+
+
 def is_memory_database(db_path: str) -> bool:
     """Whether *db_path* is an in-memory database, which has no file."""
     if db_path == ":memory:":
@@ -374,6 +379,19 @@ def _open_failure(exc: Exception) -> str | None:
     if any(text in str(exc) for text in _LOCKED):
         return "unknown"
     return None if any(text in str(exc) for text in _NEEDS_WRITING) else "unreadable"
+
+
+def lookup_error(db_path: str, exc: sqlite3.Error) -> DatabaseNotReadyError:
+    """The refusal for a lookup that failed in a database found ready when the
+    matcher was built (deleted, truncated, overwritten since).
+
+    A lock another process holds says nothing about the file, so it points at
+    no command: ``licenseid update`` would not clear it.
+    """
+    error = unreadable_error(db_path, exc)
+    if _open_failure(exc) == "unknown":
+        return error
+    return DatabaseNotReadyError(f"{error}{_ACTION}")
 
 
 def _open_condition(db_path: str) -> Refusal | None:

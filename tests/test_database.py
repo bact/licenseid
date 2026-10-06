@@ -45,7 +45,7 @@ def test_connection_closes_even_when_the_query_raises(db: LicenseDatabase) -> No
 
 def test_connection_commits_before_closing(db: LicenseDatabase) -> None:
     """Data written inside the context manager must survive past its exit."""
-    with db._connection() as conn:
+    with db._connection(write=True) as conn:
         conn.execute(
             "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
             ("test_key", "test_value"),
@@ -109,7 +109,7 @@ def test_a_corrupt_tarball_another_process_holds_is_not_called_removed(
 def test_older_normalization_version_warns_on_stderr(
     db: LicenseDatabase, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    with db._connection() as conn:
+    with db._connection(write=True) as conn:
         conn.executemany(
             "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
             [("license_list_version", "9.99"), ("normalization_version", "1")],
@@ -130,7 +130,7 @@ def test_older_normalization_version_warns_on_stderr(
 def test_current_normalization_version_does_not_warn(
     db: LicenseDatabase, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    with db._connection() as conn:
+    with db._connection(write=True) as conn:
         conn.execute(
             "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
             ("license_list_version", "9.99"),

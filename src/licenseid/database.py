@@ -21,7 +21,7 @@ from typing import NamedTuple, cast
 from licenseid.console import end_line, status, warn
 from licenseid.dbcache import TableCache, cast_license_details
 from licenseid.dbcheck import named_file, reject_foreign_database
-from licenseid.dbconnection import Connections
+from licenseid.dbconnection import Connections, QueryConnection
 from licenseid.errors import LicenseIdError
 from licenseid.fingerprint import compute_idf_fingerprints, extract_ngrams
 from licenseid.normalize import normalize_text
@@ -88,7 +88,7 @@ class LicenseDatabase:
         if self.use_uri or db_path_str == ":memory:":
             # For in-memory databases, we must keep at least one connection
             # open to prevent the database from being deleted.
-            self._keep_alive = self._connections.connect()
+            self._keep_alive = self._connections.connect(write=True)
 
         self._init_db()
         self._tables = TableCache(self._connections)
@@ -114,9 +114,9 @@ class LicenseDatabase:
                 "run 'licenseid update --force'"
             )
 
-    def _connection(self) -> contextlib.AbstractContextManager[sqlite3.Connection]:
-        """A connection for one query (see dbconnection.Connections)."""
-        return self._connections.connection()
+    def _connection(self, write: bool = False) -> QueryConnection:
+        """A connection for one query, read-only unless *write*."""
+        return self._connections.connection(write)
 
     def reading(self) -> contextlib.AbstractContextManager[None]:
         """One connection and one rebuild check for a block's queries (one match)."""
@@ -124,7 +124,7 @@ class LicenseDatabase:
 
     def _init_db(self) -> None:
         """Initialise the SQLite database with FTS5."""
-        with self._connection() as conn:
+        with self._connection(write=True) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS licenses (
                     license_id TEXT PRIMARY KEY,
@@ -475,7 +475,7 @@ class LicenseDatabase:
     ) -> None:
         """Replace all license/exception/metadata rows in a single transaction."""
         status(f"\nInserting {len(license_records)} records into database...")
-        with self._connection() as conn:
+        with self._connection(write=True) as conn:
             conn.execute("PRAGMA journal_mode = WAL")
             conn.execute("PRAGMA synchronous = NORMAL")
             conn.execute("BEGIN TRANSACTION")
@@ -617,7 +617,7 @@ class LicenseDatabase:
 
         fp_records = compute_idf_fingerprints(rows)
 
-        with self._connection() as conn:
+        with self._connection(write=True) as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
                 conn.execute("DELETE FROM license_fingerprints")
@@ -820,7 +820,7 @@ class LicenseDatabase:
         """
         if self._norm_cols_backfilled:
             return
-        with self._connection() as conn:
+        with self._connection(write=True) as conn:
             missing = conn.execute(
                 "SELECT license_id, name FROM licenses WHERE norm_license_id IS NULL"
             ).fetchall()

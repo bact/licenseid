@@ -438,3 +438,19 @@ def test_a_memory_uri_with_a_name_after_it_is_an_ordinary_file(
 def test_the_memory_spellings_are_still_memory(db_arg: str) -> None:
     with pytest.raises(DatabaseNotReadyError, match="database: empty: "):
         check_database_ready(db_arg)
+
+
+@pytest.mark.parametrize(
+    ("db_path", "expected"),
+    [
+        ("C:\\Users\\a b\\licenses.db", "file:///C:/Users/a%20b/licenses.db?mode=ro"),
+        ("C:/x/licenses.db", "file:///C:/x/licenses.db?mode=ro"),
+    ],
+)
+def test_windows_drive_path_uri(db_path: str, expected: str) -> None:
+    """Pins the Windows spelling the lookup's read-only connection opens."""
+    from pathlib import PureWindowsPath  # pylint: disable=import-outside-toplevel
+
+    from licenseid.dbcheck import _plain_path_uri  # pylint: disable=C0415
+
+    assert _plain_path_uri(PureWindowsPath(db_path)) == expected

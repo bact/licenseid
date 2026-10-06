@@ -39,8 +39,8 @@ def statements() -> Generator[list[str], None, None]:
     sql: list[str] = []
     real = Connections.connect
 
-    def traced(self: Connections) -> sqlite3.Connection:
-        conn = real(self)
+    def traced(self: Connections, write: bool = False) -> sqlite3.Connection:
+        conn = real(self, write)
         conn.set_trace_callback(sql.append)
         return conn
 

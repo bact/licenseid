@@ -13,6 +13,9 @@ from licenseid.errors import DatabaseNotReadyError
 def get_default_db_path() -> str:
     """Return the default path for the licence database.
 
+    Public: ``from licenseid import get_default_db_path``. The file need not
+    exist yet.
+
     Raises :class:`licenseid.errors.DatabaseNotReadyError` (exit 2, not 1,
     which means "no") when the account has no home directory: Windows ignores
     ``HOME``, and a service or a container user may have no ``USERPROFILE``
