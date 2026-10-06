@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -376,6 +376,28 @@ loop, then ran `spdx3-validate`.
   licenseid is the licence detection engine used by Pitloom, same
   maintainer, so the two projects co-evolved (licenseid is both a Pitloom
   user and a Pitloom dependency).
+
+### 4.4 Release SBOM tooling pinned (PR #77, 2026-10-06)
+
+- Prompted by ntia-conformance-checker PR 462 (publish only after the SBOM
+  is validated; attach, sign and attest after the publish; re-runnable).
+  licenseid already had that order (#76), so the PR kept only the gaps:
+  artifact retention 3 → 60 days (so "Re-run failed jobs" works after a
+  failed sign; a full re-run rebuilds a different wheel that PyPI rejects),
+  a pin file, and `SECURITY.md` (how to verify release files).
+- Release SBOM generator unpinned was a reproducibility gap: the hook ran
+  whatever Pitloom was newest (`>=0.20.0`). `.github/requirements-release.txt`
+  pins Pitloom, magika and spdx3-validate via `PIP_CONSTRAINT`.
+  **Measured**: a constraint reaches the isolated build (a conflicting
+  `pitloom==0.19.0` made `python -m build` fail against the `>=0.20.0`
+  floor); the pins resolve on 3.10 and 3.14.
+- Design choice recorded: hook-embedded SBOM, extracted byte for byte, not
+  re-embedded by the Pitloom Action. Re-embedding rescans the finished wheel
+  and would record stale `RECORD` hashes (workflow comment, from Pitloom).
+- Tested in a scratch copy that `pip install -e .` was not needed in the
+  release build job; all SBOM checks passed without it (Python 3.14).
+- The SBOM check on pull requests runs once (3.14) instead of per matrix
+  entry; the SBOM does not depend on the interpreter.
 
 ## 5. AI-assisted development evidence
 

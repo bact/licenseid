@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -583,6 +583,35 @@ Grouped by how each was caught. Timestamps are approximate to the minute.
   (10-03 08:36). The premise was refuted with data.
 - "i think i will wait for the new pitloom before release new version of
   licenseid" (10-03 11:44).
+
+## 6b. Addendum, 2026-10-06 (PR #77; no transcript prefix kept)
+
+- User request: "do the same for licenseid" as PR 462. The agent compared
+  first and reported that the signing order was already in place, then
+  changed only the gaps, instead of rewriting a working workflow.
+- Mistakes caught by the agent's second review round, before the user saw
+  them: `SECURITY.md` said 0.4.0 had no SBOM, signatures or attestations
+  (0.4.0 signs the wheel and sdist, and attaches an unsigned SBOM); a
+  changelog "Added" entry said the SBOM was now attached (it already was;
+  only its signature was new). Both came from not reading the earlier
+  workflow before writing prose about history. **[observation]**
+- A recommendation weakened by one user question: the agent proposed
+  allowing a public issue for dependency CVEs. Asked "is this safe?", it
+  reversed to private-by-default with a narrow exception, naming the
+  risk (exposure of how licenseid reaches the flaw; a "public" CVE that is
+  not yet public). The first answer had optimised for reporter convenience.
+- Scope error corrected by evidence: the user asked for a "CI failed" fix;
+  the agent traced the Windows `pwd` failure to the user's own new Windows
+  job, not to the SBOM change, and blocked `pwd`/`pty`/`termios` to show no
+  other module failed at import. It said that run-time failures could not
+  be known without CI.
+- Tool-use pattern: the agent tested claims in a scratch copy (a venv in
+  the scratchpad; the first attempt put the venv inside the tree and broke
+  `python -m build` with an absolute symlink in the sdist).
+- A pending question the user answered tersely: "minimal fashion, follow
+  github recommendation", for the vulnerability section; GitHub's private
+  reporting was off on the repository, which the agent checked with
+  `gh api` before writing.
 
 ## 7. Memory files (state on 10-05), one line each
 

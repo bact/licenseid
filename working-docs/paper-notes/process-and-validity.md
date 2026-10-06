@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -213,6 +213,13 @@ SPDX grammar (`DES/matching-rules-redesign.md` L28-49).
 - Python-version dependence of expression results (3.10 vs 3.14,
   `ROAD` item 19).
 - Wall-time comparisons confounded by query-count changes (`OPT` L52-54).
+- Platform coverage: the 2,500-odd tests ran on Linux (and macOS locally)
+  only. A Windows job (3.11) was added on 2026-10-06 (commit 427dfd6) after
+  0.4.0 shipped a Windows-only SQLite URI bug; its first run failed at
+  collection (`tests/test_cli_matrix.py` imports `pwd`). Test counts and
+  coverage claims before that date say nothing about Windows. Run-time
+  failures in POSIX-only tests (`os.mkfifo`, `chmod(0o000)`, SIGINT) were
+  still expected when this was written.
 
 ### 5.2 Known limitations (open roadmap items, `ROAD`)
 
