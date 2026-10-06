@@ -12,6 +12,9 @@ look exactly like a clean tree.
 
 from __future__ import annotations
 
+import os
+import runpy
+import sys
 from typing import Any
 
 import pytest
@@ -364,3 +367,25 @@ def test_match_output_is_the_format_its_flags_ask_for(
     value)."""
     notes = judge_mod.check_match_format(make_cell(outflags=flags), out + "\n")
     assert (not notes) is ok, notes
+
+
+def test_windows_is_refused_before_the_posix_only_imports(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The runner imports pty and termios, so on Windows the tool must say so
+    before it imports anything, not die with a bare ModuleNotFoundError.
+
+    Collected on Windows too, where the refusal is real. Elsewhere, os.name is
+    patched and the modules the tool would import are made unavailable, so an
+    import placed before the refusal fails the test.
+    """
+    for name in ("pty", "termios"):
+        monkeypatch.setitem(sys.modules, name, None)
+    for name in [n for n in sys.modules if n.startswith("tools.cli_matrix.")]:
+        monkeypatch.delitem(sys.modules, name)
+    monkeypatch.setattr(os, "name", "nt")
+    with pytest.raises(SystemExit) as info:
+        runpy.run_module("tools.cli_matrix", run_name="__main__")
+    monkeypatch.undo()
+    assert info.value.code == 2
+    assert capsys.readouterr().err.startswith("ERROR: platform: unsupported: ")

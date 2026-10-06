@@ -20,10 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Windows: a plain database path opened read-only no longer fails as an
-  invalid SQLite URI authority ([#77])
-- `file:` database URIs (`file:///C:/...`, `file://localhost/...`) reach SQLite
-  as given, and `update` writes its cache beside the database ([#77])
+- Windows: a plain database path opens read-only (no "invalid uri authority"),
+  `file:` URIs (`file:///C:/...`, `file://localhost/...`) reach SQLite as
+  given, and `update` writes its cache beside the database ([#77])
+- No home directory exits 2 with an error line, not a traceback; a locked
+  temporary file no longer fails a finished `update`; unencodable output is
+  escaped, not a traceback ([#77])
 
 ## [0.4.0] - 2026-10-05
 

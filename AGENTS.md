@@ -9,8 +9,9 @@
   `-only`/`-or-later` tie-breaker), `similarity.py`, `markers.py`,
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
-  pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default database path), `dbconnection.py`
-  (SQLite connections), `dbcache.py` (whole-table reads kept per database),
+  pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
+  database path), `dbconnection.py` (SQLite connections), `dbcache.py`
+  (whole-table reads kept per database),
   `fingerprint.py`, `output.py` (the CLI's standard output and what a
   failed write means), `result.py` (the public result and its JSON and text
   lines), `types.py`, `usage.py` (click's usage errors in the grammar).

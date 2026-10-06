@@ -161,6 +161,19 @@ class DatabaseErrorGroup(UsageLineGroup, EchoHelpCommand):
             exit_usage_error(ctx, str(unreadable_error(ctx.obj["db_path"], exc)))
 
 
+class _WithoutDatabase(dict[str, Any]):
+    """The context of a run with no default database to name (no home
+    directory): help and a bare run need none, so the error waits for the first
+    command that reads ``db_path``."""
+
+    def __init__(self, cause: DatabaseNotReadyError, items: dict[str, Any]) -> None:
+        super().__init__(items)
+        self.cause = cause
+
+    def __missing__(self, key: str) -> Any:
+        raise self.cause
+
+
 @click.group(cls=DatabaseErrorGroup, invoke_without_command=True)
 @click.option("--db", help="Path to the license database.")
 @click.option("--clear-cache", is_flag=True, help="Clear local cache and exit.")
@@ -172,13 +185,15 @@ def cli(ctx: click.Context, db: str | None, clear_cache: bool) -> None:
         # file the user did not ask for. Every other blank option is a usage
         # error too (see reject_blank_options).
         exit_usage_error(ctx, "database: missing: --db; pass a path or drop --db")
-    db_path = db or get_default_db_path()
     ctx.ensure_object(dict)
-    ctx.obj["db_path"] = db_path
     ctx.obj["db_is_default"] = not db
+    try:
+        ctx.obj["db_path"] = db or get_default_db_path()
+    except DatabaseNotReadyError as exc:
+        ctx.obj = _WithoutDatabase(exc, ctx.obj)
 
     if clear_cache:
-        clear_local_cache(ctx, db_path)
+        clear_local_cache(ctx, ctx.obj["db_path"])
         ctx.exit()
 
     if ctx.invoked_subcommand is None:

@@ -16,6 +16,9 @@ from click.testing import CliRunner
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
+from licenseid.errors import DatabaseNotReadyError
+
+NO_HOME = "ERROR: database: not found: no home directory; pass --db\n"
 
 
 @pytest.fixture
@@ -50,22 +53,58 @@ def test_read_command_reports_a_missing_default_database(
     assert not list(home.iterdir())
 
 
-@pytest.mark.parametrize("error", [RuntimeError, KeyError])
 @pytest.mark.parametrize("args", [["match", "MIT"], ["is-osi", "MIT"], ["update"]])
 def test_no_home_directory_is_an_error_line_not_a_traceback(
-    monkeypatch: pytest.MonkeyPatch, error: type[Exception], args: list[str]
+    monkeypatch: pytest.MonkeyPatch, args: list[str]
 ) -> None:
     """A service account or a container user may have none, and exit 1 would
     read as "no"."""
 
     def no_home() -> Path:
-        raise error("no home")
+        raise RuntimeError("Could not determine home directory.")
 
     monkeypatch.setattr(Path, "home", staticmethod(no_home))
     result = CliRunner().invoke(cli, args)
     assert result.exit_code == 2
     assert result.stdout == ""
-    assert result.stderr == "ERROR: database: not found: no home directory; pass --db\n"
+    assert result.stderr == NO_HOME
+
+
+@pytest.mark.parametrize("args", [["match", "--help"], ["is-osi", "--help"], []])
+def test_help_and_a_bare_run_need_no_home_directory(
+    monkeypatch: pytest.MonkeyPatch, args: list[str]
+) -> None:
+    """The default database is only looked up by a command that opens it."""
+
+    def no_home() -> Path:
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(Path, "home", staticmethod(no_home))
+    result = CliRunner().invoke(cli, args)
+    assert "no home directory" not in result.stderr
+    assert (result.exit_code, bool(result.stdout or result.stderr)) == (
+        (2 if not args else 0),
+        True,
+    )
+
+
+def test_clear_cache_without_a_home_directory_is_an_error_line(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def no_home() -> Path:
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(Path, "home", staticmethod(no_home))
+    result = CliRunner().invoke(cli, ["--clear-cache"])
+    assert (result.exit_code, result.stderr) == (2, NO_HOME)
+
+
+def test_an_empty_home_is_no_home(monkeypatch: pytest.MonkeyPatch) -> None:
+    """USERPROFILE or HOME set to nothing: Path.home() is the current
+    directory, and the database would be made there."""
+    monkeypatch.setattr(Path, "home", staticmethod(Path))
+    with pytest.raises(DatabaseNotReadyError, match="no home directory"):
+        get_default_db_path()
 
 
 def test_update_builds_the_default_directory(home: Path) -> None:

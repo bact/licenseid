@@ -70,6 +70,12 @@ Order within a section is by value, highest first.
 
 ## Wording and small inconsistencies
 
+- **Invalid UTF-8 in the text argument** (confirmed, found on POSIX, older
+  than #77). `licenseid match $'…\xff…'` exits 1 with a traceback: a lone
+  surrogate reaches `database.get_license_by_name`, and `sqlite3` raises
+  `UnicodeEncodeError`. Exit 1 reads as "no". Decode or refuse the argument
+  at the CLI input boundary.
+
 - **`%FF` in a `file:` URI on Windows.** The write guard says
   `database: invalid` (a file licenseid did not build) and the read check
   says `unreadable`, for a name that cannot be decoded. Safe, but `not found`

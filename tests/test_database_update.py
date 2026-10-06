@@ -13,6 +13,7 @@ import os
 import sqlite3
 import sys
 import tarfile
+import tempfile
 from pathlib import Path
 from unittest import mock
 
@@ -181,6 +182,8 @@ def test_update_succeeds_when_the_temporary_files_cannot_be_removed(
 
     db = LicenseDatabase(str(tmp_path / "licenses.db"))
     _serve(monkeypatch, _release_tarball())
+    # The clean-up is stopped, so what it leaves must land under tmp_path.
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
     # The same names in the cache directory are never unlinked by update.
     monkeypatch.setattr(os, "unlink", unlink)
     assert db.update_from_remote()

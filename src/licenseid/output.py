@@ -53,7 +53,9 @@ def escape_unencodable_output() -> None:
     written, with exit 1: the code for "no".
     """
     stream = sys.stdout
-    if isinstance(stream, io.TextIOWrapper):
+    # Only the strict default: a handler the user chose (PYTHONIOENCODING, UTF-8
+    # mode's surrogateescape) is theirs.
+    if isinstance(stream, io.TextIOWrapper) and stream.errors == "strict":
         with contextlib.suppress(OSError, ValueError):
             stream.reconfigure(errors="backslashreplace")
 

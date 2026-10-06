@@ -78,12 +78,28 @@ def test_unencodable_output_is_escaped_as_stderr_is(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     raw = io.BytesIO()
-    stream = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+    stream = io.TextIOWrapper(raw, encoding="cp1252", errors="strict", newline="\n")
     monkeypatch.setattr(sys, "stdout", stream)
     output.escape_unencodable_output()
     click.echo("caf\u00e9 \u65e5")
     stream.flush()
     assert raw.getvalue() == b"caf\xe9 \\u65e5\n"
+
+
+def test_an_error_handler_the_user_chose_is_kept(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stream = io.TextIOWrapper(io.BytesIO(), encoding="utf-8", errors="surrogateescape")
+    monkeypatch.setattr(sys, "stdout", stream)
+    output.escape_unencodable_output()
+    assert stream.errors == "surrogateescape"
+
+
+def test_a_closed_stream_is_left_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    stream = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+    stream.close()
+    monkeypatch.setattr(sys, "stdout", stream)
+    output.escape_unencodable_output()  # reconfigure raises ValueError
 
 
 @pytest.mark.parametrize("stream", [None, io.StringIO()], ids=["closed", "no_codec"])
