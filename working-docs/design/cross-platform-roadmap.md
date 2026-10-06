@@ -7,12 +7,14 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0
 ---
 
-# Follow-up roadmap: Windows and cross-platform
+# Cross-platform roadmap: open items
 
-Findings from the review rounds on PR #77 and the Windows review after it
-that no PR has fixed yet. Each item says how sure we are: *confirmed* (shown
-by a run or a simulation) or *plausible* (read from code or documentation,
-not run on Windows). Nothing here is a decision; items may be dropped.
+What was built is in
+[`../implementation/cross-platform.md`](../implementation/cross-platform.md).
+This lists the findings from the review rounds on PR #77 and the Windows
+review after it that no PR has fixed yet. Each item says how sure we are:
+*confirmed* (shown by a run or a simulation) or *plausible* (read from code
+or documentation, not run on Windows). Nothing here is a decision; items may be dropped.
 
 Order within a section is by value, highest first.
 

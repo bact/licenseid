@@ -248,6 +248,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `PYTHONPATH=<copy>/src`: `.venv` is an editable install of this checkout,
   so without it the tests import the unmutated `src/` and every mutant
   seems to survive.
+- Windows: before touching `dbcheck.py`, a database path or `file:` URI,
+  `Path.home()`, or a test that needs POSIX features (chmod, symlinks,
+  signals, `/bin/sh`), read `working-docs/implementation/cross-platform.md`.
+  Mark such a test `posix_only` (`tests/conftest.py`); build a `file://` URI
+  with `Path.as_posix()`, not `f"file://{path}"`. CI runs Windows on 3.11.
 - Pytest cannot see the shell, locale, stdio, `HOME`, signal and input-size
   interactions between the OS and the CLI. Run the manual matrix,
   `python -m tools.cli_matrix --db <copy of a real database> --check`, before

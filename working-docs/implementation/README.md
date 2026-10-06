@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-06
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -84,6 +84,7 @@ yet started, see [`../design/`](../design/).
 | 2026-09-18 | [data-fetching-and-caching.md](data-fetching-and-caching.md) | implemented (PR #51) | Third-party fetching in `spdx_source.py`: gentle requests, fallback order (`--no-cache` never uses stale data), atomic caches, version validation, safe tar extraction, self-healing corrupt caches, non-silent fallbacks; test patterns and traps. |
 | 2026-09-20 | [database-readiness-gate.md](database-readiness-gate.md) | implemented (PR #55) | The readiness gate and the write/delete guard: fail-open on read, fail-closed on write, the `unknown` condition between them; SQLite URI, path-spelling and file-type traps; test and process anti-patterns found over four review rounds. |
 | 2026-09-28 | [spdx-expression-reading.md](spdx-expression-reading.md) | implemented (PR #61) | A tag's whole expression, `--id` narrowed to one license, "or later" as a grant; quadratic paths each fix added, timing against `main`, the slow deep parse on Python 3.10. |
+| 2026-10-06 | [cross-platform.md](cross-platform.md) | record | The Windows work of PR #77: the 0.4.0 URI bug, the path and URI rules, how tests handle Windows, and what a real Windows run has and has not confirmed. |
 | 2026-10-02 | [tech-debt-resolved.md](tech-debt-resolved.md) | record | The tech-debt roadmap's resolved items: what each was and what was done, moved out of the roadmap to keep it under the size limit. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
