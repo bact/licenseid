@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.1] - 2026-10-06
 
 ### Added
 
@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - No home directory exits 2 with an error line, not a traceback; a locked
   temporary file no longer fails a finished `update`; unencodable output is
   escaped, not a traceback ([#77])
+
+[#76]: https://github.com/bact/licenseid/pull/76
+[#77]: https://github.com/bact/licenseid/pull/77
 
 ## [0.4.0] - 2026-10-05
 
@@ -179,8 +182,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#72]: https://github.com/bact/licenseid/pull/72
 [#73]: https://github.com/bact/licenseid/pull/73
 [#74]: https://github.com/bact/licenseid/pull/74
-[#76]: https://github.com/bact/licenseid/pull/76
-[#77]: https://github.com/bact/licenseid/pull/77
 
 ## [0.3.7] - 2026-08-20
 
@@ -328,7 +329,8 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
-[Unreleased]: https://github.com/bact/licenseid/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/bact/licenseid/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/bact/licenseid/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/bact/licenseid/compare/v0.3.7...v0.4.0
 [0.3.7]: https://github.com/bact/licenseid/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/bact/licenseid/compare/v0.3.5...v0.3.6
