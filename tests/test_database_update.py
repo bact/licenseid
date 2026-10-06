@@ -9,6 +9,7 @@ extraction: a small synthetic SPDX release and a faked requests.get."""
 
 import io
 import json
+import sqlite3
 import sys
 import tarfile
 from pathlib import Path
@@ -18,6 +19,7 @@ import pytest
 import requests
 from click.testing import CliRunner
 from conftest import assert_cached_tarball_removed
+from db_variants import make_ready_file_db
 
 from licenseid import spdx_source
 from licenseid.cli import cli
@@ -136,12 +138,28 @@ def test_update_of_a_file_uri_caches_beside_the_database(
     "file:" directory made from the URI's text."""
     posix = (tmp_path / "licenses.db").as_posix()
     where = posix if posix.startswith("/") else f"/{posix}"
+    (tmp_path / "cwd").mkdir()
+    monkeypatch.chdir(tmp_path / "cwd")
     db = LicenseDatabase(template.format(p=where))
     _serve(monkeypatch, _release_tarball())
     assert db.update_from_remote()
     cache_files = {p.name for p in tmp_path.iterdir()}
     assert {"licenses.json", "popularity.csv", "spdx-data-v9.99.tar.gz"} <= cache_files
-    assert not [p for p in Path.cwd().iterdir() if p.name.startswith("file:")]
+    assert not list((tmp_path / "cwd").iterdir())
+
+
+def test_a_file_uri_keeps_its_query_when_opened(tmp_path: Path) -> None:
+    """SQLite gets the URI as given: a bare path would drop ``mode=ro``."""
+    path = make_ready_file_db(tmp_path / "ro.db")
+    posix = path.as_posix()
+    where = posix if posix.startswith("/") else f"/{posix}"
+    db = LicenseDatabase(f"file://{where}?mode=ro")
+    connections = db._connections  # pylint: disable=protected-access
+    with (
+        pytest.raises(sqlite3.OperationalError, match="readonly"),
+        connections.connect() as conn,
+    ):
+        conn.execute("DELETE FROM db_metadata")
 
 
 def test_forced_update_reuses_all_caches_without_network(

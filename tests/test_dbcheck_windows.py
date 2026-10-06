@@ -93,6 +93,13 @@ def test_a_file_uri_with_a_byte_windows_cannot_decode_names_no_file(
     assert dbcheck._uri_file_path("file:///C:/t/lic%FF.db") is None
 
 
+def test_the_real_os_decides_whether_a_drive_slash_is_dropped() -> None:
+    """No monkeypatch: a wrong ``_IS_WINDOWS`` would make the guards name a
+    different file from the one SQLite opens."""
+    expected = "C:/a/b.db" if os.name == "nt" else "/C:/a/b.db"
+    assert dbcheck._uri_file_path("file:///C:/a/b.db") == expected
+
+
 def test_a_file_uri_drive_path_keeps_its_drive(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -111,6 +118,7 @@ def test_a_ready_database_opens_and_matches(tmp_path: Path) -> None:
     check_database_ready(path.as_uri())
     uri_matcher = AggregatedLicenseMatcher(db_path=path.as_uri())
     assert uri_matcher.match(license_id="MIT")
+    del uri_matcher  # Windows cannot delete a file a connection holds open
     with pytest.raises(DatabaseNotReadyError, match="database: not found: "):
         check_database_ready((tmp_path / "none.db").as_uri())
     assert _read_only_uri(str(path)).startswith("file:///")
