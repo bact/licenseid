@@ -450,7 +450,7 @@ BibTeX:
     author = {Suriyawongkul, Arthit},
     doi = {10.5281/zenodo.19881009},
     license = {Apache-2.0},
-    month = aug,
+    month = oct,
     title = {{LicenseID - A Portable SPDX License ID Matcher}},
     url = {https://github.com/bact/licenseid.git},
     version = {0.4.2},
