@@ -3,7 +3,8 @@
 ## Project context
 
 - License ID detection using hybrid search (`licenseid` package).
-- Architecture: SQLite FTS5 trigram tokenization (Tier 1 recall) and RapidFuzz (Tier 2 precision ranking).
+- Architecture: SQLite FTS5 trigram tokenization (Tier 1 recall) and RapidFuzz
+  (Tier 2 precision ranking).
 - Matching modules: `matcher.py` (the pipeline), `retrieval.py` (Tier 1),
   `shorttext.py` (Tier 0 IDs and names), `ranking.py` (sort order and the
   `-only`/`-or-later` tie-breaker), `similarity.py`, `markers.py`,
@@ -20,24 +21,37 @@
   Keep `matcher.py` under the 800-line limit: put logic that needs no
   matcher state in one of the others.
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
-- Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches; may be discarded, not yet built.
-- Implementation docs and progress reports: `working-docs/implementation/` — record of what WAS built: decisions made, why things are the way they are, paths considered and rejected. Not a user manual. Start at `working-docs/implementation/README.md` for current state.
+- Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches;
+  may be discarded, not yet built.
+- Implementation docs and progress reports: `working-docs/implementation/` —
+  record of what WAS built: decisions made, why things are the way they are,
+  paths considered and rejected. Not a user manual. Start at
+  `working-docs/implementation/README.md` for current state.
 - Paper notes: `working-docs/paper-notes/` — sourced raw material for an
   academic write-up (system, results, history, human–AI sessions). Add to
   it when a finding is worth publishing; start at its `README.md`.
 - Test fixtures: `tests/fixtures/README.md`
 - Private alpha, one developer. No backward compat needed yet.
-- `working-docs/` is internal notes only — content can change without notice. Any user-facing docs published outside this repo must not link into it; reference a PR or issue number instead.
-- **Global file size**: soft limit ~400-500 lines, hard limit ~800 lines. Applies to all files — source, tests, docs. Split before crossing it; see `working-docs/design/complexity-and-file-size-roadmap.md` for the current backlog of files over the limit.
-- **Doc file dating**: every `working-docs/` file's front matter carries `Created`/`Last-Modified` (`YYYY-MM-DD`), alongside the SPDX tags below. No date prefix on the filename — the front matter is authoritative.
+- `working-docs/` is internal notes only — content can change without notice.
+  Any user-facing docs published outside this repo must not link into it;
+  reference a PR or issue number instead.
+- **Global file size**: soft limit ~400-500 lines, hard limit ~800 lines.
+  Applies to all files — source, tests, docs. Split before crossing it; see
+  `working-docs/design/complexity-and-file-size-roadmap.md` for the current
+  backlog of files over the limit.
+- **Doc file dating**: every `working-docs/` file's front matter carries
+  `Created`/`Last-Modified` (`YYYY-MM-DD`), alongside the SPDX tags below. No
+  date prefix on the filename — the front matter is authoritative.
 
 ## SPDX guidelines
 
 - When doing normalization and matching, consult the
   SPDX License List matching guidelines and templates (Normative)
-  https://spdx.github.io/spdx-spec/v3.0/annexes/license-matching-guidelines-and-templates/
-- Be careful about the order of text transformation. The order is sensitive as text will be changed in each step.
-- Document the text transformation steps in the code, explain the rationale, give references.
+  <https://spdx.github.io/spdx-spec/v3.0/annexes/license-matching-guidelines-and-templates/>
+- Be careful about the order of text transformation. The order is sensitive as
+  text will be changed in each step.
+- Document the text transformation steps in the code, explain the rationale,
+  give references.
 
 ## CLI output
 
@@ -120,28 +134,37 @@ Unix philosophy. Consistent, predictable, parseable.
 ## Python
 
 - Min version: Python 3.10.
-- Idiomatic Python. Prefer built-ins (`list`, `dict`, `set`, `tuple`) unless `collections`/`collections.abc` clearly better.
-- Full type annotations on all functions, methods, classes, variables. Minimize `Any`. Use `if TYPE_CHECKING:` for heavy type-only imports.
-- Verify types with mypy (strict=true). Use pyright/pytype for second opinions. Recheck `# noqa:` and `# type: ignore`. Reset mypy cache on unexpected errors.
-- Type stubs: no official stubs → check <https://github.com/python/typeshed> for stubs; unavailable → derive from source on GitHub/GitLab.
-- Fully qualified names in docstrings for non-stdlib types (e.g., `numpy.ndarray`, not `ndarray`).
+- Idiomatic Python. Prefer built-ins (`list`, `dict`, `set`, `tuple`) unless
+  `collections`/`collections.abc` clearly better.
+- Full type annotations on all functions, methods, classes, variables. Minimize
+  `Any`. Use `if TYPE_CHECKING:` for heavy type-only imports.
+- Verify types with mypy (strict=true). Use pyright/pytype for second opinions.
+  Recheck `# noqa:` and `# type: ignore`. Reset mypy cache on unexpected errors.
+- Type stubs: no official stubs → check <https://github.com/python/typeshed> for
+  stubs; unavailable → derive from source on GitHub/GitLab.
+- Fully qualified names in docstrings for non-stdlib types (e.g.,
+  `numpy.ndarray`, not `ndarray`).
 - No `assert` in production — tests only.
 - No mutable default arguments.
 - No wildcard imports (`from module import *`).
 - No `pickle` (CWE-502).
 - No `eval()` unless absolutely necessary and demonstrably safe.
 - No hardcoded secrets/credentials/tokens.
-- Defensive coding: check `None`/empty, handle exceptions for all external inputs.
+- Defensive coding: check `None`/empty, handle exceptions for all external
+  inputs.
 - `time.monotonic()` for durations, not `time.time()`.
 - All config in `pyproject.toml` where possible.
 - `requires-python` must match actual min version.
 - Make packages zip-safe when possible.
 - Packaging metadata follows Core metadata spec: <https://packaging.python.org/en/latest/specifications/core-metadata/>
-- Be careful of regex flags, lookahead, lookbehind, greediness, multi-line matching.
+- Be careful of regex flags, lookahead, lookbehind, greediness, multi-line
+  matching.
 
 ### Import order
 
-Groups: stdlib → third-party → local, alphabetically within each. Don't reorder imports with comments explaining required order (circular import/init constraint).
+Groups: stdlib → third-party → local, alphabetically within each. Don't reorder
+imports with comments explaining required order (circular import/init
+constraint).
 
 ### Type completeness
 
@@ -149,7 +172,8 @@ Groups: stdlib → third-party → local, alphabetically within each. Don't reor
 - All function/method params and return types annotated.
 - Generic base classes have type args specified.
 - Omit annotations only for:
-  - Simple literal constants (e.g., `MAX = 50`, `RED = '#F00'`), preferably `Final`.
+  - Simple literal constants (e.g., `MAX = 50`, `RED = '#F00'`), preferably
+    `Final`.
   - Enum member values inside `Enum`.
   - Module-level type aliases.
   - `self` and `cls` params.
@@ -158,10 +182,15 @@ Groups: stdlib → third-party → local, alphabetically within each. Don't reor
 
 ## Code health and continuous refactoring
 
-- **The Boy Scout Rule**: leave the codebase cleaner than you found it. Refactor proactively during small changes.
-- **Prevent monoliths**: never let a single file (like `matcher.py` or `database.py`) become a dumping ground. Extract cohesive pieces into dedicated modules early — see the file-size limit above.
-- **Consolidate patterns**: extract duplicated logic into shared helpers immediately. Don't copy-paste code.
-- **Enforce file size limits**: split files *before* they cross the soft limit, not after.
+- **The Boy Scout Rule**: leave the codebase cleaner than you found it. Refactor
+  proactively during small changes.
+- **Prevent monoliths**: never let a single file (like `matcher.py` or
+  `database.py`) become a dumping ground. Extract cohesive pieces into dedicated
+  modules early — see the file-size limit above.
+- **Consolidate patterns**: extract duplicated logic into shared helpers
+  immediately. Don't copy-paste code.
+- **Enforce file size limits**: split files *before* they cross the soft limit,
+  not after.
 
 ## Linting and formatting
 
@@ -175,7 +204,9 @@ flake8
 ruff format
 ```
 
-- Complexity targets (pylint's own built-in defaults, checked clean outside this repo's config): Args≤5, Locals≤15, Nesting≤5, Branches≤12, Returns≤6, Statements≤50, McCabe≤10, Cognitive≤15.
+- Complexity targets (pylint's own built-in defaults, checked clean outside this
+  repo's config): Args≤5, Locals≤15, Nesting≤5, Branches≤12, Returns≤6,
+  Statements≤50, McCabe≤10, Cognitive≤15.
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
@@ -277,7 +308,8 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   JSON first and falls through to TOML/INI. Every source of a license value
   (SPDX tag, JSON, TOML, INI and an explicit `license_id`) resolves through
   one function, `MarkerDetector.resolve_license_value`, and every expression
-  through `_synthetic_candidate`: a candidate only for a valid SPDX expression or
+  through `_synthetic_candidate`: a candidate only for a valid SPDX expression
+  or
   `LicenseRef-*` with at least one recognised ID, never for free text or an
   unknown ID. `is_*()` and the CLI's `is-*` commands answer from
   `matcher.resolve_record`, so they agree with `match`; do not look a record
@@ -458,11 +490,13 @@ Keep in sync: `pyproject.toml`, `codemeta.json`, other metadata files.
 update `version`, `dateModified` and `datePublished` in `codemeta.json`
 (`dateModified` becomes `date-released` in `CITATION.cff`).
 
-Consistent fields: project name, version, author/contributor names, license, description, repository URL, keywords/tags (same order).
+Consistent fields: project name, version, author/contributor names, license,
+description, repository URL, keywords/tags (same order).
 
 ## Dependencies
 
-- Sort in `pyproject.toml`. (Do not use `requirements.txt` or legacy setup files).
+- Sort in `pyproject.toml`. (Do not use `requirements.txt` or legacy setup
+  files).
 - Use most current compatible version.
 - Verify package names — guard against typosquatting/slopsquatting.
 - Remove unused imports and dependencies.
@@ -471,7 +505,8 @@ Consistent fields: project name, version, author/contributor names, license, des
 ## Security
 
 - No deprecated/obsolete/insecure libraries/APIs.
-- Validate/sanitize all user inputs (SQL injection, XSS, buffer overflows, path traversal CWE-22).
+- Validate/sanitize all user inputs (SQL injection, XSS, buffer overflows, path
+  traversal CWE-22).
 - No hardcoded secrets. Use env vars or secret managers.
 - Strong, well-established crypto algorithms and key sizes.
 - OAuth2/OpenID Connect for auth.
@@ -487,7 +522,8 @@ Consistent fields: project name, version, author/contributor names, license, des
 
 - ASCII letters, digits, hyphens (`-`), underscores (`_`) only.
 - Standard naming conventions for the language/framework.
-- Noun number: singular for single-entity classes, plural only for collections/utility modules/aggregates.
+- Noun number: singular for single-entity classes, plural only for
+  collections/utility modules/aggregates.
 
 ## Markdown
 
@@ -513,7 +549,8 @@ Count characters, align carefully. Misaligned ASCII = bug.
 
 ## Versions
 
-Verify version exists and is compatible before suggesting. Prefer Semantic Versioning.
+Verify version exists and is compatible before suggesting. Prefer Semantic
+Versioning.
 
 ## Boundaries
 
@@ -528,4 +565,3 @@ Verify version exists and is compatible before suggesting. Prefer Semantic Versi
 - Commit secrets, credentials, or tokens.
 - Edit generated files by hand when generation workflow exists.
 - Use destructive git operations unless explicitly requested.
-

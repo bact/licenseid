@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-06
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -17,7 +17,8 @@ in [`../design/cross-platform-roadmap.md`](../design/cross-platform-roadmap.md).
 ## The bug in 0.4.0
 
 On Windows every `match` failed with `database: unreadable`. The readiness
-check (`dbcheck.open_uri` (then `_read_only_uri`)) built `file://C%3A%5CUsers%5C…?mode=ro`.
+check (`dbcheck.open_uri` (then `_read_only_uri`)) built
+`file://C%3A%5CUsers%5C…?mode=ro`.
 SQLite reads the text after `file://` up to the first `/` as the authority,
 and refused it (`invalid uri authority`). `licenseid update` passed on
 Windows because it never goes through the readiness check. Linux and macOS
@@ -84,7 +85,7 @@ Ubuntu legs. Rules for a test that cannot run there:
 What is skipped, and why:
 
 | Group | Why it cannot run on Windows |
-|---|---|
+| --- | --- |
 | chmod 000 files and directories | chmod only sets a read-only flag |
 | symlinks and links | creating one needs a privilege |
 | `?`, `:` and newline in a file name | not allowed in Windows file names |

@@ -9,7 +9,8 @@ SPDX-License-Identifier: Apache-2.0
 
 # Tech debt roadmap
 
-See also: [`complexity-and-file-size-roadmap.md`](complexity-and-file-size-roadmap.md)
+See also:
+[`complexity-and-file-size-roadmap.md`](complexity-and-file-size-roadmap.md)
 for code-health/complexity debt specifically. This doc tracks the rest.
 
 Priority = (Impact + Risk) × (6 − Effort), each scored 1-5; same scale as
@@ -385,7 +386,8 @@ quality check).
   inside a word, so its first and last lines can be word fragments (review
   of item 22, 2026-10-02). Snap the window to word boundaries here too.
 - Impact 3, Risk 2, Effort 3.
-- Full plan: [`probe-anchored-windowing-plan.md`](probe-anchored-windowing-plan.md).
+- Full plan:
+  [`probe-anchored-windowing-plan.md`](probe-anchored-windowing-plan.md).
 
 ## 7. GPL/LGPL/AGPL family disambiguation (tail recall floor) — Priority 12
 

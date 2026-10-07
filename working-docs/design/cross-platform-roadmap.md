@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-06
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -14,7 +14,8 @@ What was built is in
 This lists the findings from the review rounds on PR #77 and the Windows
 review after it that no PR has fixed yet. Each item says how sure we are:
 *confirmed* (shown by a run or a simulation) or *plausible* (read from code
-or documentation, not run on Windows). Nothing here is a decision; items may be dropped.
+or documentation, not run on Windows). Nothing here is a decision; items may be
+dropped.
 
 Order within a section is by value, highest first.
 
@@ -94,8 +95,8 @@ Order within a section is by value, highest first.
   not get that.
 - **Newlines.** The positional argument (`cli.py`) and `match(text=…)` skip
   `normalize_newlines`, which `--text` applies. CRLF changed no result over
-  359 fixtures, but `normalize.strip_comment_prefixes` leaves ` */` on CRLF
-  input.
+  359 fixtures, but `normalize.strip_comment_prefixes` leaves the comment
+  closer `*/`, with the space before it, on CRLF input.
 
 ## CI and tests
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -35,7 +35,7 @@ up quoting pitloom's Branches≤20/Statements≤80 as if they were standard;
 pylint's actual defaults are 12 and 50.
 
 | Metric | Target (pylint default) | Interim ceiling | Current worst |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Args | ≤5 | 5 (at target) | 5 (`similarity.py`, `matcher._rank_candidates`) |
 | Locals | ≤15 | 23 | 23 (`database.py`) |
 | Nesting | ≤5 | 5 (no ratchet needed) | 5 |

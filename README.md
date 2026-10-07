@@ -11,7 +11,8 @@ Get the [SPDX License ID][spdx-license-id] from license text.
 A portable license ID matcher with command line interface and Python API.
 No database daemon or server needed.
 
-*Used as a license detection engine for [Pitloom] software bill of materials generator.*
+*Used as a license detection engine for [Pitloom] software bill of materials
+generator.*
 
 [spdx-license-id]: https://spdx.org/licenses/
 [Pitloom]: https://github.com/bact/pitloom/
@@ -40,7 +41,8 @@ No database daemon or server needed.
   - `Apache-2+` → `Apache-2.0+` (abbreviated base canonicalised, `+` retained).
   - Bare deprecated IDs (e.g. `GPL-2.0`) resolved conservatively to `-only`
     when no surrounding context is available.
-- **SPDX License Expression support** (via [`py-spdx-license`][py-spdx-license]):
+- **SPDX License Expression support** (via
+  [`py-spdx-license`][py-spdx-license]):
   - Structural normalisation of `AND`/`OR` expressions: duplicate operands
     collapse (`MIT AND MIT` → `MIT`) and operands are put in a consistent
     order, making equivalent expressions compare equal.
@@ -441,7 +443,9 @@ Apache-2.0
 
 If you use this software, please cite it as follows:
 
-> Suriyawongkul, A. (2026). LicenseID - A Portable SPDX License ID Matcher (Version 0.4.3) [Computer software]. <https://doi.org/10.5281/zenodo.19881009>
+> Suriyawongkul, A. (2026). LicenseID - A Portable SPDX License ID Matcher
+> (Version 0.4.3) [Computer software].
+> <https://doi.org/10.5281/zenodo.19881009>
 
 BibTeX:
 
