@@ -9,7 +9,7 @@ abstract: Identify the SPDX License ID of a license text, from the command line 
 repository-code: "https://github.com/bact/licenseid"
 type: software
 doi: 10.5281/zenodo.19881009
-version: 0.4.2
+version: 0.4.3
 license-url: "https://spdx.org/licenses/Apache-2.0"
 keywords:
   - license identification
