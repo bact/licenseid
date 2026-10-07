@@ -167,18 +167,20 @@ class TableCache:
         Replaces a SQL ``LIKE``: no pattern built from input reaches SQLite,
         whose 50,000-byte pattern limit made a long input look like a broken
         database. Any length or character is a plain no match. ASCII case is
-        folded as ``LIKE`` folds it. Deprecated IDs are left out. The answer
-        is None unless the shortest match is alone or strictly shorter than
-        the next.
+        folded as ``LIKE`` folds it. Deprecated IDs are left out; a NULL
+        ``is_deprecated`` counts as active, as in Tier 0, and a NULL ID
+        matches nothing, as in SQL. The answer is None unless the shortest
+        match is alone or strictly shorter than the next.
         """
         folded = fold_case(prefix)
+        # A hand-filled table can hold a NULL ID, whatever the type says.
+        ids = (
+            record["license_id"]
+            for record in self.names_and_ids()
+            if isinstance(record["license_id"], str) and not record["is_deprecated"]
+        )
         found = sorted(
-            (
-                str(record["license_id"])
-                for record in self.names_and_ids()
-                if not record["is_deprecated"]
-                and fold_case(str(record["license_id"])).startswith(folded)
-            ),
+            (lic_id for lic_id in ids if fold_case(lic_id).startswith(folded)),
             key=len,
         )
         if len(found) == 1 or (found and len(found[0]) < len(found[1])):

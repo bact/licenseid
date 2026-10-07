@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - An overlong licence ID ending in `+` (in an ID or a text) is no match, not
-  `DatabaseNotReadyError` ([#NN])
+  `DatabaseNotReadyError` ([#82])
+
+[#82]: https://github.com/bact/licenseid/pull/82
 
 ## [0.4.2] - 2026-10-07
 

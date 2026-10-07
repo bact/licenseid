@@ -209,9 +209,18 @@ The fix moves the prefix match into memory.
 `dbcache.TableCache.active_id_with_prefix` scans the cached ID list (ASCII
 case fold like LIKE, active IDs only, same shortest-unambiguous rule) and
 finds the prefix. The exact row is then read from the database with `=` on
-the ID. An unknown prefix costs no query, and input of any length is handled.
+the ID. Inside a `reading()` block an unknown prefix costs no query;
+outside one, only the stamp check runs. Input of any length is handled.
 
 A length guard on the LIKE pattern was rejected: it would keep an input-built
 pattern in SQL, require a magic constant or an extra MAX(LENGTH) query,
 and still allow other characters through; no pattern from untrusted input
 should reach SQLite.
+
+Three differences from the old query are deliberate. A backslash is now an
+ordinary character: the old `ESCAPE '\'` made `Apache\-2` match `Apache-2.0`.
+A NULL `is_deprecated` counts as active, as Tier 0 reads the same rows; the
+old `is_deprecated = 0` left it out.
+Inside a `reading()` block, a database broken after the stamp check gives
+"no match" for an unknown prefix rather than an error, as every other cached
+lookup there already does; the next block's stamp check raises.

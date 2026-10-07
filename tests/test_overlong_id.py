@@ -78,7 +78,9 @@ def match_ids(matcher: AggregatedLicenseMatcher, **kwargs: str) -> list[str]:
         ("Zzz", None),
         ("Apache%", None),  # wildcards are literal
         ("Apache_2", None),
-        ("Apache\\", None),  # the escape does not escape a backslash itself
+        ("Apache\\", None),  # a backslash is an ordinary character
+        ("Apache\\-2", None),  # not an escape (LIKE's ESCAPE made it "-")
+        ("M\\IT", None),
     ],
 )
 def test_prefix_lookup(db_path: str, prefix: str, found: str | None) -> None:
@@ -141,6 +143,19 @@ REPRODUCTIONS = [
     pytest.param("text", '{"license": "' + BIG + '+"}', [], id="json"),
     # A seventh route, found while recording the non-triggering rows.
     pytest.param("text", f'[project]\nlicense = "{BIG}+"\n', [], id="toml"),
+    # Inside an expression, and a LicenseRef- name.
+    pytest.param(
+        "text", f"SPDX-License-Identifier: ({BIG}+)\n{MIT_BODY}", ["MIT"], id="parens"
+    ),
+    # An overlong operand voids the tag, with or without "+", as on main.
+    pytest.param("text", f"SPDX-License-Identifier: {BIG}+ OR MIT", [], id="or-1"),
+    pytest.param("text", f"SPDX-License-Identifier: MIT OR {BIG}+", [], id="or-2"),
+    pytest.param(
+        "text",
+        f"SPDX-License-Identifier: LicenseRef-{BIG}+\n{MIT_BODY}",
+        ["MIT"],
+        id="licenseref",
+    ),
 ]
 
 
@@ -154,9 +169,9 @@ def test_overlong_id_is_no_match(
 # What each input gives today; none reaches the prefix lookup with a long
 # pattern.  "ids" is the result, "error" an InvalidInputError (a usage error).
 NON_TRIGGERING = [
-    pytest.param("text", "(" * 5000 + "MIT" + ")" * 5000, None, None, id="nested"),
+    pytest.param("text", "(" * 5000 + "MIT" + ")" * 5000, ["MIT"], None, id="nested"),
     pytest.param(
-        "text", " OR ".join(["MIT"] * 20_000), None, None, id="operands-20000"
+        "text", " OR ".join(["MIT"] * 20_000), ["MIT"], None, id="operands-20000"
     ),
     pytest.param("text", "x" * 2_000_000, [], None, id="word-2mb"),
     # 25,001 two-byte characters pass the 50,000-byte mark, yet an explicit ID
@@ -185,9 +200,17 @@ def test_non_triggering_inputs(
         assert found == ids
 
 
-def test_cli_overlong_id_exits_one(db_path: str) -> None:
-    result = CliRunner().invoke(cli, ["--db", db_path, "match", "--id", BIG + "+"])
-    assert result.exit_code == 1
+@pytest.mark.parametrize("predicate", ["is_spdx", "is_osi", "is_fsf", "is_open"])
+def test_predicate_on_overlong_id_is_false(
+    matcher: AggregatedLicenseMatcher, predicate: str
+) -> None:
+    assert getattr(matcher, predicate)(license_id=BIG + "+") is False
+
+
+@pytest.mark.parametrize("command", ["match", "is-spdx", "is-osi"])
+def test_cli_overlong_id_exits_one(db_path: str, command: str) -> None:
+    result = CliRunner().invoke(cli, ["--db", db_path, command, "--id", BIG + "+"])
+    assert result.exit_code == 1, result.stderr
     assert "unreadable" not in result.stderr
 
 
@@ -218,13 +241,27 @@ def test_prefix_boundary(db_path: str) -> None:
     assert db.get_license_by_id_prefix(longest + "x") is None
 
 
+@pytest.mark.parametrize("warm", [False, True], ids=["cold", "warm"])
 @pytest.mark.parametrize("break_db", BREAKERS, ids=lambda f: f.__name__)
 def test_real_failure_still_raises(
-    tmp_path: Path, break_db: Callable[[Path], None]
+    tmp_path: Path, break_db: Callable[[Path], None], warm: bool
 ) -> None:
+    """The prefix lookup itself raises on a broken file, cache filled or not:
+    a match() would fail earlier, at the deprecated-ID read."""
     path = make_ready_file_db(tmp_path / "b.db")
-    matcher = AggregatedLicenseMatcher(db_path=str(path))
+    db = LicenseDatabase(str(path), create=False)
+    if warm:
+        assert db.get_license_by_id_prefix("Zzz") is None
     break_db(path)
-    # "Apache-2" is no ID in this database, so "+" takes the prefix path
     with pytest.raises(DatabaseNotReadyError):
-        matcher.match(license_id="Apache-2+")
+        db.get_license_by_id_prefix("Zzz")
+
+
+def test_null_id_matches_nothing() -> None:
+    """A NULL ID (a hand-filled table) is no "None", as SQL's LIKE skipped it."""
+    for path in seeded_db("test_overlong_id_null", (Lic("Nonesuch-1.0", "N"),)):
+        with sqlite3.connect(path, uri=True) as conn:
+            conn.execute("INSERT INTO licenses (license_id, name) VALUES (NULL, 'x')")
+        details = LicenseDatabase(path, create=False).get_license_by_id_prefix("no")
+        assert details is not None
+        assert details["license_id"] == "Nonesuch-1.0"

@@ -341,7 +341,7 @@ class AggregatedLicenseMatcher:
         Raises licenseid.errors.InvalidInputError: unknown option, binary file,
         or a license_id that names no single license (an AND/OR expression, a
         license name, an SPDX URL, prose).
-        An overlong or garbage ID or text is no match, not
+        An overlong licence ID, as license_id or in a text, is no match, not
         DatabaseNotReadyError, which means only that the database itself
         cannot be read.
         """
