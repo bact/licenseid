@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -15,7 +15,7 @@ coding agents. These are notes, not a draft. Every claim cites a source
 (repository file and line, pull request, commit, or session transcript and
 timestamp) so that it can be checked before it is cited.
 
-Covers 2026-04-27 (first commit) to 2026-10-06 (v0.4.0, PRs #76 and #77).
+Covers 2026-04-27 (first commit) to 2026-10-07 (v0.4.2, PRs #76 to #82).
 
 ## Files
 

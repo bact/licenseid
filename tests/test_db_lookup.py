@@ -14,6 +14,7 @@ from typing import Any
 from unittest import mock
 
 import pytest
+from db_variants import stamp_rebuild
 from matcher_db import Lic, seeded_db
 
 from licenseid.database import LicenseDatabase
@@ -126,12 +127,7 @@ def _rebuild(db: LicenseDatabase, stamp: str | None) -> None:
         conn.execute(
             "INSERT INTO licenses (license_id, name) VALUES ('Zlib', 'zlib License')"
         )
-        if stamp:
-            conn.execute(
-                "INSERT OR REPLACE INTO db_metadata (key, value)"
-                " VALUES ('last_update_datetime', ?)",
-                (stamp,),
-            )
+        stamp_rebuild(conn, stamp)
 
 
 def test_a_rebuild_clears_what_was_read(db: LicenseDatabase) -> None:

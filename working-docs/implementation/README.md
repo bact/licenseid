@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -16,12 +16,14 @@ yet started, see [`../design/`](../design/).
 ## Current state (as of 2026-10-02)
 
 - **Pipeline**: Tier 0.5 (marker detection: tags, then a manifest's
-  `license` field) → Tier 0 (short-text ID/name shortcut) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz ranking).
+  `license` field) → Tier 0 (short-text ID/name shortcut) → Tier 1 (SQLite FTS5
+  recall) → Tier 2 (RapidFuzz ranking).
   The optional Tier 3 (Java `tools-java` validation) was removed on
   2026-09-19. `matcher.py` holds the pipeline; Tier 1 is `retrieval.py`,
   Tier 0 is `shorttext.py`, and the sort order with the `-only` /
   `-or-later` tie-breaker is `ranking.py`. The split (2026-09-21) is
-  in [`../design/complexity-and-file-size-roadmap.md`](../design/complexity-and-file-size-roadmap.md);
+  in
+  [`../design/complexity-and-file-size-roadmap.md`](../design/complexity-and-file-size-roadmap.md);
   the tie-breaker is in
   [accuracy-optimizations.md](accuracy-optimizations.md) section 10.
 - **Deprecated ID handling**: DB-backed `superseded_by` redirect for
@@ -75,7 +77,7 @@ yet started, see [`../design/`](../design/).
 ## Chronology
 
 | Date | Doc | Status | Summary |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 2026-04-28 | [performance-optimization.md](performance-optimization.md) | implemented | Initial matching-pipeline tuning: FTS5 query truncation, Tier 1 candidate limit 20→50, adaptive RapidFuzz rule selection, coverage-aware composite scoring. |
 | 2026-05-06 | [accuracy-optimizations.md](accuracy-optimizations.md) | implemented | Deprecated-ID normalisation semantics: DB-lookup-first, `-only` conservative fallback for ambiguous bare IDs. |
 | 2026-05-07 | [threshold-optimizations.md](threshold-optimizations.md) | implemented | Diagnosed and fixed the `head_300` Tier 0/0.5 regression from the full-coverage benchmark: lowered Tier 0 threshold to 30 words, suppressed marker detection below that. |

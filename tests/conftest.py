@@ -304,10 +304,22 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "benchmark: mark test as a benchmark")
 
 
+# pytest puts the running test's ID in PYTEST_CURRENT_TEST, and Windows
+# refuses an environment variable over 32,767 characters: a huge parameter
+# used as its own ID errors there only. Give such a parameter a short id.
+MAX_TEST_ID = 300
+
+
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
-    """Skip benchmark tests by default."""
+    """Refuse an overlong test ID; skip benchmark tests by default."""
+    long_ids = [item.nodeid[:80] for item in items if len(item.nodeid) > MAX_TEST_ID]
+    if long_ids:
+        raise pytest.UsageError(
+            f"test IDs over {MAX_TEST_ID} characters; give the parameter an id: "
+            + ", ".join(long_ids)
+        )
     if config.getoption("--run-benchmark"):
         # --run-benchmark given in cli: do not skip benchmark tests
         return

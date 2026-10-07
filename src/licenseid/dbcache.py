@@ -13,6 +13,7 @@ table, about 1.2 s for 4,000 distinct tags. Reading each table's IDs once
 turns every later lookup into a seek, and an unknown ID into no query.
 """
 
+import bisect
 import sqlite3
 import string
 import threading
@@ -65,13 +66,14 @@ class TableCache:
         self._license_ids: dict[str, str] | None = None
         self._index_rows: dict[str, int] | None = None
         self._names_and_ids: list[LicenseNameId] | None = None
+        self._active_ids: list[tuple[str, str]] | None = None
         self._deprecated: dict[str, str] | None = None
 
     def clear(self) -> None:
         """Forget every read, after the tables were rewritten."""
         self._generation += 1
         self._license_ids = self._index_rows = None
-        self._names_and_ids = None
+        self._names_and_ids = self._active_ids = None
         self._deprecated = None
 
     def _check_stamp(self) -> None:
@@ -160,6 +162,46 @@ class TableCache:
             if generation == self._generation:
                 self._names_and_ids = names
         return names
+
+    def active_id_with_prefix(self, prefix: str) -> str | None:
+        """The ID of the one active licence whose ID starts with *prefix*.
+
+        Replaces a SQL ``LIKE``: no pattern built from input reaches SQLite,
+        whose 50,000-byte pattern limit made a long input look like a broken
+        database. Any length or character is a plain no match. ASCII case is
+        folded as ``LIKE`` folds it. Deprecated IDs are left out; a NULL
+        ``is_deprecated`` counts as active, as in Tier 0, and a NULL ID
+        matches nothing, as in SQL. The answer is None unless the shortest
+        match is alone or strictly shorter than the next.
+        """
+        folded = fold_case(prefix)
+        ids = self._folded_active_ids()
+        # The IDs that start with the prefix sort together, from where the
+        # prefix itself would go.
+        found: list[str] = []
+        at = bisect.bisect_left(ids, (folded,))
+        while at < len(ids) and ids[at][0].startswith(folded):
+            found.append(ids[at][1])
+            at += 1
+        found.sort(key=len)
+        if len(found) == 1 or (found and len(found[0]) < len(found[1])):
+            return found[0]
+        return None
+
+    def _folded_active_ids(self) -> list[tuple[str, str]]:
+        """Each active licence's ID, case folded, and the ID, in folded order."""
+        self._check_stamp()
+        generation, ids = self._generation, self._active_ids
+        if ids is None:
+            # A hand-filled table can hold a NULL ID, whatever the type says.
+            ids = sorted(
+                (fold_case(record["license_id"]), record["license_id"])
+                for record in self.names_and_ids()
+                if isinstance(record["license_id"], str) and not record["is_deprecated"]
+            )
+            if generation == self._generation:
+                self._active_ids = ids
+        return ids
 
     def deprecated(self) -> dict[str, str]:
         """Each deprecated licence and exception ID to its successor."""

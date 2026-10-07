@@ -46,7 +46,7 @@ cross-contamination between the two runs.
 ## Input types and fixtures
 
 | Type | Fixtures | What it tests |
-|---|---|---|
+| --- | --- | --- |
 | 1 — License IDs | `tests/fixtures/license-id/license_ids.json` | Each `variations` entry should resolve to `canonical_id` |
 | 2 — License names | `tests/fixtures/license-name/license_names.json` | `name_verbatim`, `name_space`, `name_casing`, `name_punct`, `name_distored` fields |
 | 3 — Short text | `tests/fixtures/license-text-short/*.json` | Every `license_text_short_*` key per file |

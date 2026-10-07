@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -388,7 +388,8 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   `tests/test_spdx_tag.py` holds the table of tags and checks that the API
   and the CLI agree on each. Not done: a `NONE` or `NOASSERTION` tag reads
   as unknown (valid in SPDX documents, not licenses); the tag regex became
-  item 15. "Known" for a license ID follows `py_spdx_license`'s bundled list, not
+  item 15. "Known" for a license ID follows `py_spdx_license`'s bundled list,
+  not
   the database, as it did for the `license` fields; a license newer than that
   list in an expression makes it `is_spdx` false.
 - API `file_path` read as strict UTF-8 (item 4, Priority 16; 2026-09-21).
@@ -416,7 +417,8 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   in `matcher.py` had drifted apart: the main ranking took `DEP_PENALTY` off
   a deprecated ID, the tie-breaker's re-sort did not (so it could put a
   deprecated ID back above its replacement), and `match_short_text` carried
-  keys its results never have. All three now use `ranking.ranking_key`, or (short
+  keys its results never have. All three now use `ranking.ranking_key`, or
+  (short
   text) `(-score, license_id)`. Three more inconsistencies in the tie-breaker:
   its 0.01 window was decided by the last bit of a float (`0.91 - 0.90` is not
   a tie, `0.35 - 0.34` is), now compared after rounding to 9 places and named

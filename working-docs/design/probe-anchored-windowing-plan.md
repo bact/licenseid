@@ -1,11 +1,10 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0
-title: "Probe-anchored windowing — plan"
 status: planned
 ---
 

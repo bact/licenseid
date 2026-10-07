@@ -200,7 +200,8 @@ is rebuilt from scratch on every run.
 - The real cache, `~/.local/share/licenseid`, is never opened, and the run
   proves it: the tool records every entry's size and modification time
   before and after, and exits 2 if anything changed, whatever the verdicts.
-  Four cells that would resolve the default database path to it (`HOME` unset, where
+  Four cells that would resolve the default database path to it (`HOME` unset,
+  where
   Python falls back to the password database) are permanently skipped with
   that reason. An earlier version of this harness ran them, and one of them
   deleted the developer's own `licenses.db`.

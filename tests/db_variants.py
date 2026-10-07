@@ -116,6 +116,35 @@ def make_ready_file_db(path: Path) -> Path:
     return path
 
 
+def stamp_rebuild(conn: sqlite3.Connection, stamp: str | None) -> None:
+    """Record *stamp* as an update's ``last_update_datetime``; None keeps the
+    old one, as a change made outside ``update`` would."""
+    if stamp:
+        conn.execute(
+            "INSERT OR REPLACE INTO db_metadata (key, value)"
+            " VALUES ('last_update_datetime', ?)",
+            (stamp,),
+        )
+
+
+def delete_db(path: Path) -> None:
+    path.unlink()
+
+
+def truncate_db(path: Path) -> None:
+    path.write_bytes(b"")
+
+
+def corrupt_db(path: Path) -> None:
+    size = path.stat().st_size
+    with path.open("r+b") as handle:
+        handle.write(b"\0" * min(4096, size))
+
+
+# Ways a ready database fails after a matcher was built on it.
+BREAKERS: list[Callable[[Path], None]] = [delete_db, truncate_db, corrupt_db]
+
+
 def _bare_db(path: Path, statements: tuple[str, ...]) -> Path:
     """A database built from *statements* only -- no licenseid schema."""
     with writer(path) as conn:

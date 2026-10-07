@@ -1,20 +1,19 @@
 ---
 Created: 2026-05-08
-Last-Modified: 2026-09-19
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0
-title: "Speed optimisations — plan"
 status: implemented
 ---
+
+# Speed optimisation plan — 7 May 2026
 
 Implemented as PR #19 (RapidFuzz probe-gate) and PR #21
 (normalize-guidelines refactor + Tier-0 precomputed columns); see
 [`speed-optimizations-round-2.md`](speed-optimizations-round-2.md)
 for the results write-up. This document is the original plan.
-
-# Speed optimisation plan — 7 May 2026
 
 This document outlines three coordinated optimisations targeting the
 matching pipeline's wall-time bottlenecks. Each optimisation is
@@ -365,7 +364,7 @@ by Python at DB build time. Generated columns cannot replace this.
 ### What is feasible
 
 | Derived value | SQL expression | Feasibility |
-|---|---|---|
+| --- | --- | --- |
 | `char_count` | `LENGTH(search_text)` | ✅ simple, useful for length filter |
 | `word_count` | Not directly in SQL | ❌ requires Python (split on spaces) |
 | `normalized_head_100` | `SUBSTR(search_text, 1, 100)` | ✅ character-level, approximate |
@@ -434,7 +433,7 @@ and matching logic. All existing queries remain valid.
 ## Implementation order and dependencies
 
 | Phase | Optimisation | File(s) | Prerequisite |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | 2b — length filter | `matcher.py` | None |
 | 1 | 2c — `score_cutoff` | `matcher.py` | None |
 | 1 | 2d — `processor=None` | `matcher.py` | None |

@@ -1,11 +1,10 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0
-title: "Speed optimisations — round 2 (results)"
 status: implemented
 ---
 
@@ -236,7 +235,7 @@ the mechanism exactly — regressions concentrated in the categories where
 the true match is most likely to score below 60%:
 
 | Category | Before | After `score_cutoff` | Δ |
-|---|---:|---:|---:|
+| --- | ---: | ---: | ---: |
 | 05% distortion, Recall@1 | 71.71% | 71.71% | +0.00% |
 | 10% distortion, Recall@30 | 91.17% | 89.73% | −1.44pp |
 | **20% distortion, Recall@30** | 75.86% | 67.93% | **−7.93pp** |
@@ -327,7 +326,7 @@ Final state after keeping items 1–5 and reverting the `score_cutoff`
 change:
 
 | Check | Result |
-|---|---|
+| --- | --- |
 | `pylint src/licenseid` | 10.00/10 |
 | `ruff check src tests` | clean |
 | `mypy src tests` (strict) | 0 issues, 21 files |

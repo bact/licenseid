@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -327,6 +327,24 @@ RapidFuzz cost data points:
   URIs (`R2` L182-186).
 - Cache staleness: the "static" names table was not static — a rebuild by the
   same or another process kept the old list (`R2` L156-159).
+- **An input-built `LIKE` pattern turns bad input into a "broken
+  database"** (PR #82, 2026-10-07). SQLite refuses a `LIKE`/`GLOB` pattern
+  over 50,000 bytes (`SQLITE_LIMIT_LIKE_PATTERN_LENGTH`) with an
+  `OperationalError`, and licenseid maps every read `sqlite3.Error` to
+  `DatabaseNotReadyError`, so a 50,001-character ID ending in `+` made a
+  healthy database look unusable; a caller (Pitloom) then disabled
+  detection. Seven input routes reached it (ID, tag, `License:` line, SPDX
+  URL, JSON, TOML, and expressions); the bug report had listed TOML as safe,
+  and characterisation tests found it. The fix removed SQL from the lookup:
+  the prefix is matched in memory against the cached IDs. A differential
+  check against the old query over 10,010 prefixes of a real database found
+  8 differences, all prefixes with a backslash that the old `ESCAPE '\'`
+  had silently dropped (`DOC/implementation/database-readiness-gate.md`).
+- **FTS5 trigram search costs time in a word's length**, on `main` too: one
+  word of 2,000,000 characters takes 83 s cold and 27 s warm on a real
+  database, about 11 µs per character (500,000: 5.6 s). A seeded test
+  database hides it on Linux (1.2 s) but not on Windows' SQLite, where the
+  same test took 312 s in CI (PR #82; `ROAD` item 42).
 
 ### 3.3 SPDX semantics findings
 

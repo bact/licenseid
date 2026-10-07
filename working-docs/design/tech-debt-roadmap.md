@@ -9,7 +9,8 @@ SPDX-License-Identifier: Apache-2.0
 
 # Tech debt roadmap
 
-See also: [`complexity-and-file-size-roadmap.md`](complexity-and-file-size-roadmap.md)
+See also:
+[`complexity-and-file-size-roadmap.md`](complexity-and-file-size-roadmap.md)
 for code-health/complexity debt specifically. This doc tracks the rest.
 
 Priority = (Impact + Risk) × (6 − Effort), each scored 1-5; same scale as
@@ -24,8 +25,8 @@ re-scored from the work on item 16, and items 21 to 25 come from the work on
 item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
 the review of PR #66, items 30 and 31 from the work on item 21, and items
 32 to 35 from the review of item 22, item 36 from the docs audit
-after it, item 37 from the work on item 29, and item 38 from the
-review of PR #80.
+after it, item 37 from the work on item 29, item 38 from the
+review of PR #80, and items 39 to 42 from the review of PR #82.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -308,6 +309,60 @@ open in a child process with a timeout instead
   parametrisation (`file://localhost{p}`, `file:{p}?vfs=unix`).
 - Impact 1, Risk 2, Effort 1.
 
+## 39. An abbreviated ID with `+` becomes an invalid ID — Priority 18
+
+Found in review of PR #82, on `main` too. `identifiers._normalize_single_id`
+strips a trailing `+`, resolves the base by exact ID and then by prefix
+(`get_license_by_id_prefix`), and puts the `+` back. `GPL-2+` gives
+`GPL-2.0-only+`, which is no valid SPDX expression (an `-only` ID takes no
+`+`), and `MI+` gives `MIT+` at score 1.
+
+- **Fix**: decide the rule first (a prefix must end at a version boundary;
+  an `-only` hit with `+` becomes its `-or-later` sibling, through
+  `classify.OR_LATER_PHRASE`). Characterisation tests in
+  `tests/test_identifiers.py` and the prefix table in
+  `tests/test_overlong_id.py`. Keep the lookup in memory (no `LIKE`).
+- Impact 3, Risk 3, Effort 3.
+
+## 40. A database truncated during a block crashes with SIGBUS — Priority 20
+
+Found in review of PR #82, on `main` too. Truncating the file while a
+`reading()` block holds its connection, then querying in that block, kills
+the process with SIGBUS (exit 138) on macOS: no message, no exit code of
+licenseid's own. Likely cause: `PRAGMA mmap_size=268435456` in
+`dbconnection`, a mapped page past the new end of file.
+
+- **Fix**: a `posix_only` test in a child process first, then drop or shrink
+  the mapping, or another approach; time a match against `main`. The lookup
+  must raise `DatabaseNotReadyError`.
+- Impact 2, Risk 3, Effort 2.
+
+## 41. A lone surrogate in a text raises `UnicodeEncodeError` — Priority 20
+
+Found in review of PR #82, on `main` too.
+`match(text="SPDX-License-Identifier: \ud800+")` raises a raw
+`UnicodeEncodeError`; `match(license_id="\ud800+")` is already an
+`InvalidInputError`. The CLI cannot send one (`textinput.decode_input`), but
+an API caller such as Pitloom can.
+
+- **Fix**: find where the string meets an encoder; decide between an
+  `input: invalid` error at the API entry and no match. Never a raw exception
+  or `DatabaseNotReadyError`.
+- Impact 2, Risk 2, Effort 1.
+
+## 42. A very long word costs seconds in the full-text search — Priority 16
+
+Found by PR #82's Windows CI, on `main` too. One word of 2,000,000
+characters takes 83 s cold and 27 s warm on a real database, nearly all in
+the FTS5 trigram query of `search_candidates` (about 11 µs per character;
+500,000 characters: 5.6 s). The probe gate guards RapidFuzz, not this
+query. A seeded test database took 312 s on Windows.
+
+- **Fix**: cap what one word contributes to the Tier 1 query (its trigrams
+  or its characters), as the probe caps RapidFuzz; sweep real licence texts
+  (CJK included) on the branch and on `main` before choosing the cap.
+- Impact 2, Risk 2, Effort 2.
+
 ## 11. Probe-anchored windowing — Priority 15
 
 The one large remaining lever on `fragment_similarity`'s dominant cost:
@@ -331,7 +386,8 @@ quality check).
   inside a word, so its first and last lines can be word fragments (review
   of item 22, 2026-10-02). Snap the window to word boundaries here too.
 - Impact 3, Risk 2, Effort 3.
-- Full plan: [`probe-anchored-windowing-plan.md`](probe-anchored-windowing-plan.md).
+- Full plan:
+  [`probe-anchored-windowing-plan.md`](probe-anchored-windowing-plan.md).
 
 ## 7. GPL/LGPL/AGPL family disambiguation (tail recall floor) — Priority 12
 
