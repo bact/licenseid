@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -68,10 +68,15 @@ merged PRs (35 of 62) landed in the last 19 days (2026-09-17 to 10-05).
 | 0.3.6 | 2026-08-19 | SBOM attached to release (#33); `GPL-2.0` -> `GPL-2.0-only` for bare text (#34) |
 | 0.3.7 | 2026-08-20 | sdist/wheel attached, SBOM validated in-wheel (#36); SQLite connection leak (#37) |
 | 0.4.0 | 2026-10-05 | 34 PRs (#38-#75); many breaking changes; tag `v0.4.0` points at `7085b66` (merge of #75), i.e. before #76 |
+| 0.4.1 | 2026-10-06 | Signed release SBOM and provenance (#76); pinned release tooling, Windows database paths (#77) |
+| 0.4.2 | 2026-10-06 | Lookups never create or write the database; read failures raise `DatabaseNotReadyError` (#80) |
+| 0.4.3 | 2026-10-07 | An overlong licence ID ending in `+` is no match, not `DatabaseNotReadyError` (#82) |
 
 <!-- markdownlint-restore -->
 
-Fifteen releases in 161 days; five on the first two days (04-28/29). The
+Eighteen releases in 163 days; five on the first two days (04-28/29), and
+three patch releases in two days after 0.4.0 (10-06/07), driven by the
+Pitloom integration. The
 0.4.0 CHANGELOG section lists 5 Added, 22 Changed (8 marked **Breaking**),
 2 Removed (both breaking), 25 Fixed, 1 Security bullet.
 
