@@ -3,5 +3,5 @@
 # constraint (PIP_CONSTRAINT), which reaches the isolated build too. The
 # `>=` floor in pyproject.toml stays, for users who build from the sdist.
 magika==1.0.3
-pitloom==0.20.0
+pitloom==0.20.1
 spdx3-validate==0.0.7
