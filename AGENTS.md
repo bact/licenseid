@@ -378,6 +378,9 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   process's `update`. A new write to `licenses` or `license_index` must
   call `self._tables.clear()`, as `_write_db_records` does. A read made
   while another thread cleared is not kept (`_generation`).
+- Never build a `LIKE` or `GLOB` pattern from input: SQLite refuses one
+  over 50,000 bytes, and `connection()` reports that as a broken database.
+  Compare in memory from `TableCache` (`active_id_with_prefix`).
 - A lookup never creates or writes the database. `Connections.connect` opens
   read-only (`dbcheck.open_uri`); the matcher makes `LicenseDatabase(path,
   create=False)`, whose writes open `mode=rw` (a missing file fails, not

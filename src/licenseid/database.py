@@ -638,12 +638,14 @@ class LicenseDatabase:
     def get_license_details(self, license_id: str) -> LicenseDetails | None:
         """Get full metadata for a license (ASCII case-insensitive lookup)."""
         found = self._tables.license_id(license_id.strip())
-        if found is None:
-            return None
+        return None if found is None else self._license_row(found)
+
+    def _license_row(self, license_id: str) -> LicenseDetails | None:
+        """The ``licenses`` row of *license_id*, in its exact case."""
         with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
-                "SELECT * FROM licenses WHERE license_id = ?", (found,)
+                "SELECT * FROM licenses WHERE license_id = ?", (license_id,)
             ).fetchone()
             return cast_license_details(row) if row else None
 
@@ -682,29 +684,15 @@ class LicenseDatabase:
         ``"Apache-2.0"``.  Only non-deprecated licenses are considered so that
         a bare prefix never silently resolves to a deprecated ID.  Returns
         ``None`` when no unambiguous match exists (zero or multiple candidates
-        of the same length).
+        of the same length).  Input of any length is no match, never an
+        error: the prefix is compared in memory, not in SQL.
         """
         clean = prefix.strip()
         if not clean:
             return None
-        with self._connection() as conn:
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute(
-                """
-                SELECT * FROM licenses
-                WHERE license_id LIKE ? ESCAPE '\\'
-                  AND is_deprecated = 0
-                ORDER BY LENGTH(license_id)
-                """,
-                (clean.replace("%", r"\%").replace("_", r"\_") + "%",),
-            ).fetchall()
-        if not rows:
-            return None
-        # Accept only when the shortest match is unambiguous: either there is
-        # exactly one row, or the shortest ID is strictly shorter than the next.
-        if len(rows) == 1 or len(rows[0]["license_id"]) < len(rows[1]["license_id"]):
-            return cast_license_details(rows[0])
-        return None
+        found = self._tables.active_id_with_prefix(clean)
+        # The exact row: a case-folded lookup could pick a deprecated twin.
+        return None if found is None else self._license_row(found)
 
     def _cast_exception_details(self, row: sqlite3.Row) -> ExceptionDetails:
         """Helper to cast sqlite Row to ExceptionDetails with proper boolean types."""

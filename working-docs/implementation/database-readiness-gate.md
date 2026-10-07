@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -194,3 +194,24 @@ empty one, so the next matcher said `empty` instead of `not found`.
   or the fingerprint table is refused, as it was before; a lookup on a
   database an earlier version left in WAL mode creates `-shm` and `-wal`
   (the read-only connection cannot remove them) until `update` converts it.
+
+## Input never builds a SQL pattern
+
+An overlong licence ID ending in `+` (via `match(license_id=...)`, an
+SPDX-License-Identifier tag, a `License:` line, or a JSON/TOML field)
+made a healthy database look broken: `LicenseDatabase.get_license_by_id_prefix`
+built a LIKE pattern from input, and SQLite refuses a pattern over 50,000 bytes
+with `LIKE or GLOB pattern too complex`. `Connections.connection()` reports
+every read `sqlite3.Error` as `DatabaseNotReadyError`, so the result was
+an avoidable `DatabaseNotReadyError` on a working database.
+
+The fix moves the prefix match into memory.
+`dbcache.TableCache.active_id_with_prefix` scans the cached ID list (ASCII
+case fold like LIKE, active IDs only, same shortest-unambiguous rule) and
+finds the prefix. The exact row is then read from the database with `=` on
+the ID. An unknown prefix costs no query, and input of any length is handled.
+
+A length guard on the LIKE pattern was rejected: it would keep an input-built
+pattern in SQL, require a magic constant or an extra MAX(LENGTH) query,
+and still allow other characters through; no pattern from untrusted input
+should reach SQLite.

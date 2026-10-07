@@ -23,7 +23,13 @@ from unittest import mock
 import pytest
 from conftest import posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
-from db_variants import IS_ROOT, make_ready_file_db, writer
+from db_variants import (
+    BREAKERS,
+    IS_ROOT,
+    corrupt_db,
+    make_ready_file_db,
+    writer,
+)
 
 import licenseid
 from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError, spdx_source
@@ -31,23 +37,6 @@ from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import lookup_error
 from licenseid.dbconnection import Connections
 from licenseid.errors import InvalidInputError, LicenseIdError
-
-
-def _delete(path: Path) -> None:
-    path.unlink()
-
-
-def _truncate(path: Path) -> None:
-    path.write_bytes(b"")
-
-
-def _corrupt(path: Path) -> None:
-    size = path.stat().st_size
-    with path.open("r+b") as handle:
-        handle.write(b"\0" * min(4096, size))
-
-
-BREAKERS: list[Callable[[Path], None]] = [_delete, _truncate, _corrupt]
 
 
 @pytest.fixture(name="matcher_db")
@@ -70,7 +59,7 @@ def test_lookup_after_failure_is_database_not_ready(
     message = str(info.value)
     assert message.startswith(f"database: unreadable: {path}: "), message
     # update rebuilds a missing or empty database, not a file that is not one
-    repairable = break_db is not _corrupt
+    repairable = break_db is not corrupt_db
     assert message.endswith("; run 'licenseid update'") is repairable, message
     assert "\n" not in message
     assert isinstance(info.value.__cause__, sqlite3.Error)
