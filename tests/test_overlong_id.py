@@ -174,7 +174,8 @@ NON_TRIGGERING = [
     pytest.param(
         "text", " OR ".join(["MIT"] * 20_000), ["MIT"], None, id="operands-20000"
     ),
-    pytest.param("text", "x" * 2_000_000, [], None, id="word-2mb"),
+    # A long word, not 2 MB: its full-text search costs time in its length.
+    pytest.param("text", "x" * 60_000, [], None, id="word-60k"),
     # 25,001 two-byte characters pass the 50,000-byte mark, yet an explicit ID
     # that is no ID is a usage error before any lookup.
     pytest.param("license_id", "é" * 25_001 + "+", None, "error", id="id-e-acute"),
@@ -215,7 +216,11 @@ def test_cli_overlong_id_exits_one(db_path: str, command: str) -> None:
     assert "unreadable" not in result.stderr
 
 
-@pytest.mark.parametrize("prefix", [BIG, "Zzz", "Apache-1"])
+# Short IDs: pytest puts the test ID in PYTEST_CURRENT_TEST, and Windows
+# refuses an environment variable over 32,767 characters.
+@pytest.mark.parametrize(
+    "prefix", [BIG, "Zzz", "Apache-1"], ids=["big", "unknown", "tie"]
+)
 def test_prefix_lookup_runs_no_input_built_sql(db_path: str, prefix: str) -> None:
     """After warm-up, no statement holds a LIKE or any part of the input."""
     db = LicenseDatabase(db_path, create=False)

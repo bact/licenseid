@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-07
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -612,6 +612,34 @@ Grouped by how each was caught. Timestamps are approximate to the minute.
   github recommendation", for the vulnerability section; GitHub's private
   reporting was off on the repository, which the agent checked with
   `gh api` before writing.
+
+## 6c. Addendum, 2026-10-07 (PR #82; session 72cd36e7)
+
+- Delegation by cost, at the user's request: Opus planned and reviewed,
+  Sonnet implemented, Haiku wrote docs and ran mechanical checks; the plan
+  listed traps and counter-intuitive points for the cheaper agents.
+- The agent replaced the brief's fix (a length guard on the `LIKE`) with
+  no SQL at all, and said so in the plan; the user approved.
+- Characterisation first paid off again: a seventh route (TOML), listed as
+  safe in the bug report, failed on `main`.
+- A review agent found that a test meant to prove "a broken database still
+  raises" never reached the code it guarded: a spy showed zero calls, the
+  error came from an earlier read. It was rewritten to call the lookup
+  directly, and mutation checks confirmed it.
+- A regression the agent had found and deferred ("focus on correctness")
+  was fixed when the user asked: 4,000 distinct unknown `Foo-N+` tags,
+  1.41 s on `main`, 2.0 s after the fix, 1.21 s after caching the folded
+  IDs and bisecting. A test counts folds instead of timing.
+- Windows-only CI failure: pytest stores the running test's ID in
+  `PYTEST_CURRENT_TEST`, and Windows refuses an environment variable over
+  32,767 characters, so a 50,001-character parameter used as its own ID
+  errored there only. The same run spent 312 s on one 2 MB input (see
+  `results-and-findings.md` §3.2). A collection guard now refuses test IDs
+  over 300 characters; an older test had IDs of 10,079 characters.
+- Agent slips it caught itself: a probe crashed printing a lone surrogate
+  and was first read as a licenseid failure; `itertools.islice` would have
+  walked the list from index 0 and defeated the bisection; an exit status
+  was read from `cut` rather than from pytest. **[observation]**
 
 ## 7. Memory files (state on 10-05), one line each
 

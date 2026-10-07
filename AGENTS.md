@@ -381,6 +381,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - Never build a `LIKE` or `GLOB` pattern from input: SQLite refuses one
   over 50,000 bytes, and `connection()` reports that as a broken database.
   Compare in memory from `TableCache` (`active_id_with_prefix`).
+- Give a huge test parameter a short `id`: pytest puts the test ID in
+  `PYTEST_CURRENT_TEST`, and Windows refuses an environment variable over
+  32,767 characters (`conftest.MAX_TEST_ID` refuses IDs over 300). Keep a
+  single long word in a test short too: Tier 1's full-text query costs time
+  in its length, 312 s for 2 MB on Windows CI (roadmap item 42).
 - A lookup never creates or writes the database. `Connections.connect` opens
   read-only (`dbcheck.open_uri`); the matcher makes `LicenseDatabase(path,
   create=False)`, whose writes open `mode=rw` (a missing file fails, not

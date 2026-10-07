@@ -528,7 +528,9 @@ def test_no_ext_valid_json_still_does_not_fall_through(
 _NESTING_DEPTH = sys.getrecursionlimit() + 1000
 
 
-@pytest.mark.parametrize("text", ["[" * _NESTING_DEPTH, '{"a":' * _NESTING_DEPTH])
+@pytest.mark.parametrize(
+    "text", ["[" * _NESTING_DEPTH, '{"a":' * _NESTING_DEPTH], ids=["array", "object"]
+)
 @pytest.mark.parametrize("ext", ["", ".json"])
 def test_json_deep_nesting_does_not_crash(
     detector: MarkerDetector, text: str, ext: str

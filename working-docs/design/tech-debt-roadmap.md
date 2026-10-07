@@ -25,7 +25,7 @@ item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
 the review of PR #66, items 30 and 31 from the work on item 21, and items
 32 to 35 from the review of item 22, item 36 from the docs audit
 after it, item 37 from the work on item 29, item 38 from the
-review of PR #80, and items 39 to 41 from the review of PR #82.
+review of PR #80, and items 39 to 42 from the review of PR #82.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -348,6 +348,19 @@ an API caller such as Pitloom can.
   `input: invalid` error at the API entry and no match. Never a raw exception
   or `DatabaseNotReadyError`.
 - Impact 2, Risk 2, Effort 1.
+
+## 42. A very long word costs seconds in the full-text search — Priority 16
+
+Found by PR #82's Windows CI, on `main` too. One word of 2,000,000
+characters takes 83 s cold and 27 s warm on a real database, nearly all in
+the FTS5 trigram query of `search_candidates` (about 11 µs per character;
+500,000 characters: 5.6 s). The probe gate guards RapidFuzz, not this
+query. A seeded test database took 312 s on Windows.
+
+- **Fix**: cap what one word contributes to the Tier 1 query (its trigrams
+  or its characters), as the probe caps RapidFuzz; sweep real licence texts
+  (CJK included) on the branch and on `main` before choosing the cap.
+- Impact 2, Risk 2, Effort 2.
 
 ## 11. Probe-anchored windowing — Priority 15
 
