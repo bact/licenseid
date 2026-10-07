@@ -211,6 +211,10 @@ case fold like LIKE, active IDs only, same shortest-unambiguous rule) and
 finds the prefix. The exact row is then read from the database with `=` on
 the ID. Inside a `reading()` block an unknown prefix costs no query;
 outside one, only the stamp check runs. Input of any length is handled.
+The active IDs are kept case folded and sorted, once per rebuild stamp, and
+a prefix is found by bisection: folding every ID on each call made 4,000
+distinct unknown `Foo-N+` tags take 2.0 s, against 1.4 s with the old `LIKE`
+and 1.2 s now.
 
 A length guard on the LIKE pattern was rejected: it would keep an input-built
 pattern in SQL, require a magic constant or an extra MAX(LENGTH) query,

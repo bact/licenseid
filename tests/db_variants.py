@@ -116,6 +116,17 @@ def make_ready_file_db(path: Path) -> Path:
     return path
 
 
+def stamp_rebuild(conn: sqlite3.Connection, stamp: str | None) -> None:
+    """Record *stamp* as an update's ``last_update_datetime``; None keeps the
+    old one, as a change made outside ``update`` would."""
+    if stamp:
+        conn.execute(
+            "INSERT OR REPLACE INTO db_metadata (key, value)"
+            " VALUES ('last_update_datetime', ?)",
+            (stamp,),
+        )
+
+
 def delete_db(path: Path) -> None:
     path.unlink()
 

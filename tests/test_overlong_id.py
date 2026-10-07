@@ -20,11 +20,12 @@ from unittest import mock
 import pytest
 from click.testing import CliRunner
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
-from db_variants import BREAKERS, make_ready_file_db
+from db_variants import BREAKERS, make_ready_file_db, stamp_rebuild
 from matcher_db import Lic, seeded_db
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
+from licenseid.dbcache import fold_case
 from licenseid.dbconnection import Connections
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
 from licenseid.matcher import AggregatedLicenseMatcher
@@ -265,3 +266,26 @@ def test_null_id_matches_nothing() -> None:
         details = LicenseDatabase(path, create=False).get_license_by_id_prefix("no")
         assert details is not None
         assert details["license_id"] == "Nonesuch-1.0"
+
+
+@pytest.mark.parametrize("stamp", [None, "2026-10-08"], ids=["same", "rebuilt"])
+def test_prefix_lookup_follows_a_rebuild(db_path: str, stamp: str | None) -> None:
+    """Another process's update is seen once it stamps the database."""
+    db = LicenseDatabase(db_path, create=False)
+    assert db.get_license_by_id_prefix("Zlib") is None  # fills the cache
+    with sqlite3.connect(db_path, uri=True) as conn:
+        conn.execute("INSERT INTO licenses (license_id, name) VALUES ('Zlib', 'z')")
+        stamp_rebuild(conn, stamp)
+    details = db.get_license_by_id_prefix("zl")
+    assert (details["license_id"] if details else None) == ("Zlib" if stamp else None)
+
+
+def test_prefix_lookup_folds_each_id_once(db_path: str) -> None:
+    """The IDs are folded once per rebuild, not once per lookup: 4,000
+    distinct unknown "<id>+" tags used to fold every ID 4,000 times."""
+    db = LicenseDatabase(db_path, create=False)
+    db.get_license_by_id_prefix("Apache-2")  # fills the cache
+    with mock.patch("licenseid.dbcache.fold_case", wraps=fold_case) as spy:
+        for i in range(100):
+            db.get_license_by_id_prefix(f"Foo-{i}")
+    assert spy.call_count == 100  # the prefix only
