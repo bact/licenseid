@@ -12,12 +12,10 @@ import json
 import os
 import sqlite3
 import tarfile
-import tempfile
-import xml.etree.ElementTree as ET
 import zlib
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import NamedTuple, cast
+from typing import cast
 
 from licenseid.console import end_line, status, warn
 from licenseid.dbcache import TableCache, cast_license_details
@@ -35,45 +33,20 @@ from licenseid.dbschema import create_schema, schema_state
 from licenseid.errors import DatabaseNotReadyError, LicenseIdError, typed
 from licenseid.fingerprintstore import fingerprint_hits, store_fingerprints
 from licenseid.normalize import normalize_text
+from licenseid.records import (
+    ExceptionInsertRecord,
+    IndexInsertRecord,
+    LicenseInsertRecord,
+    build_records,
+)
+from licenseid.spdxdata import SpdxData
 from licenseid.types import (
     CandidateMatch,
     DatabaseMetadata,
     ExceptionDetails,
     LicenseDetails,
     LicenseNameId,
-    SpdxExceptionEntry,
-    SpdxLicenseEntry,
 )
-
-# (license_id, name, xml_template, is_spdx, is_osi, is_fsf,
-#  is_high_usage, is_deprecated, superseded_by, pop_score, word_count,
-#  norm_license_id, norm_name)
-_LicenseInsertRecord = tuple[
-    str,
-    str,
-    str | None,
-    bool,
-    bool,
-    bool,
-    bool,
-    bool,
-    str | None,
-    int,
-    int,
-    str,
-    str,
-]
-_IndexInsertRecord = tuple[str, str]
-
-
-class SpdxLicenseList(NamedTuple):
-    """Parsed SPDX release payload, bundled to keep call sites under max-args."""
-
-    licenses: list[SpdxLicenseEntry]
-    exceptions: list[SpdxExceptionEntry]
-    list_version: str
-    release_date: str | None
-
 
 # Version of the normalize_text() rule set used to build the stored
 # search_text and fingerprints.  Bump whenever normalization rules change so
@@ -264,43 +237,16 @@ class LicenseDatabase:
         popularity_map: dict[str, int],
         release_date: str | None,
     ) -> None:
-        """Extract tarball and update database records."""
-        # Local import: see clear_cache() for why spdx_source is deferred.
-        from licenseid import spdx_source
-
+        """Read the cached tarball and update database records."""
         try:
-            with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp_dir:
-                spdx_source.extract_tarball(tar_path, Path(tmp_dir))
-
-                root_dir = next(Path(tmp_dir).iterdir())
-                # 1. Read licenses
-                lic_json_path = root_dir / "json" / "licenses.json"
-                with open(lic_json_path, "r", encoding="utf-8") as f:
-                    lic_data = json.load(f)
-
-                licenses_data: list[SpdxLicenseEntry] = lic_data.get("licenses", [])
-                list_version = lic_data.get("licenseListVersion")
-                release_date = lic_data.get("releaseDate") or release_date
-
-                # 2. Read exceptions
-                exc_json_path = root_dir / "json" / "exceptions.json"
-                exceptions_data: list[SpdxExceptionEntry] = []
-                if exc_json_path.exists():
-                    with open(exc_json_path, "r", encoding="utf-8") as f:
-                        exc_data = json.load(f)
-                        exceptions_data = exc_data.get("exceptions", [])
-
-                status(
-                    f"Processing {len(licenses_data)} licenses and "
-                    f"{len(exceptions_data)} exceptions "
-                    f"(Version: {list_version}, Released: {release_date})"
-                )
-
-                license_data = SpdxLicenseList(
-                    licenses_data, exceptions_data, list_version, release_date
-                )
-                self._update_db_records(license_data, root_dir, popularity_map)
-
+            data = SpdxData.from_tarball(tar_path)
+            release_date = data.release_date or release_date
+            status(
+                f"Processing {len(data.licenses)} licenses and "
+                f"{len(data.exceptions)} exceptions "
+                f"(Version: {data.version}, Released: {release_date})"
+            )
+            self._update_db_records(data, popularity_map, release_date)
             status("\nUpdate complete.")
         except (tarfile.TarError, EOFError, zlib.error) as e:
             # A corrupt or truncated cached tarball (e.g. left by an
@@ -320,21 +266,14 @@ class LicenseDatabase:
 
     def _update_db_records(
         self,
-        license_data: SpdxLicenseList,
-        root_dir: Path,
+        data: SpdxData,
         popularity_map: dict[str, int],
+        release_date: str | None,
     ) -> None:
         """Execute database delete and insert operations."""
-        license_records, index_records, exception_records = (
-            self._prepare_license_and_exception_records(
-                license_data.licenses, root_dir, popularity_map, license_data.exceptions
-            )
-        )
+        records = build_records(data, popularity_map)
         self._write_db_records(
-            license_records,
-            index_records,
-            exception_records,
-            license_data.release_date,
+            records.licenses, records.index_entries, records.exceptions, release_date
         )
 
         # Compute fingerprints in a separate transaction so that the FTS5
@@ -343,110 +282,25 @@ class LicenseDatabase:
         with self._connection(write=True) as conn:
             conn.execute(
                 "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
-                ("license_list_version", license_data.list_version),
+                ("license_list_version", data.version),
             )
+        self._compact()
 
-    def _prepare_license_and_exception_records(
-        self,
-        licenses_data: list[SpdxLicenseEntry],
-        root_dir: Path,
-        popularity_map: dict[str, int],
-        exceptions_data: list[SpdxExceptionEntry],
-    ) -> tuple[
-        list[_LicenseInsertRecord],
-        list[_IndexInsertRecord],
-        list[tuple[str, str, bool, str | None]],
-    ]:
-        """Build the in-memory record lists for insertion (no DB access)."""
-        license_records: list[_LicenseInsertRecord] = []
-        index_records: list[_IndexInsertRecord] = []
-        exception_records: list[tuple[str, str, bool, str | None]] = []
-
-        status("\nPreparing license data...", end="")
-        # Build the superseded_by mapping at DB build time so runtime lookups
-        # are O(1).
-        active_ids: set[str] = {
-            lic["licenseId"]
-            for lic in licenses_data
-            if not lic.get("isDeprecatedLicenseId", False)
-        }
-
-        name_to_exception: dict[str, str] = {}
-        for exc in exceptions_data:
-            if not exc.get("isDeprecatedLicenseId", False):
-                name_to_exception[exc["name"].lower()] = exc["licenseExceptionId"]
-
-        for i, lic in enumerate(licenses_data):
-            # Recalculate record with superseded_by info
-            is_deprecated = bool(lic.get("isDeprecatedLicenseId", False))
-            superseded_by: str | None = None
-            if is_deprecated:
-                dep_id = lic["licenseId"]
-                # SPDX '+' token: GPL-2.0+ → GPL-2.0-or-later (certain).
-                # Bare deprecated IDs (e.g. GPL-2.0) are left as NULL because
-                # they cannot be resolved without the granting declaration.
-                if dep_id.endswith("+"):
-                    base_id = dep_id[:-1]  # strip the '+' operator token
-                    or_later = base_id + "-or-later"
-                    if or_later in active_ids:
-                        superseded_by = or_later
-
-            res = self._prepare_license_record(
-                lic, root_dir, popularity_map, is_deprecated, superseded_by
-            )
-            if res:
-                license_records.append(res[0])
-                index_records.append(res[1])
-            elif is_deprecated:
-                # Text file absent for this deprecated ID (some SPDX releases omit
-                # them).  Still store the metadata row so redirect lookups work.
-                dep_name = lic.get("name", lic["licenseId"])
-                license_records.append(
-                    (
-                        lic["licenseId"],
-                        dep_name,
-                        None,  # xml_template
-                        True,  # is_spdx
-                        False,  # is_osi_approved
-                        False,  # is_fsf_libre
-                        False,  # is_high_usage
-                        True,  # is_deprecated
-                        superseded_by,
-                        1,  # pop_score
-                        0,  # word_count
-                        normalize_text(lic["licenseId"]),
-                        normalize_text(dep_name),
-                    )
-                )
-                # Not added to index_records — no text to index.
-
-            if (i + 1) % 100 == 0 or (i + 1) == len(licenses_data):
-                status(".", end="")
-
-        status("\nPreparing exception data...", end="")
-        for exc in exceptions_data:
-            exc_id = exc["licenseExceptionId"]
-            is_deprecated = exc.get("isDeprecatedLicenseId", False)
-            superseded_by = None
-            if is_deprecated:
-                superseded_by = name_to_exception.get(exc["name"].lower())
-
-            exception_records.append(
-                (
-                    exc_id,
-                    exc["name"],
-                    is_deprecated,
-                    superseded_by,
-                )
-            )
-
-        return license_records, index_records, exception_records
+    def _compact(self) -> None:
+        """Return the space of deleted rows to the file (``VACUUM``). A failure
+        is a warning: the data is complete and stamped, the file is only
+        larger."""
+        try:
+            with self._connection(write=True) as conn:
+                conn.execute("VACUUM")  # no transaction: nothing was written on conn
+        except sqlite3.Error as exc:
+            warn(f"database: compact failed: {typed(exc)}")
 
     def _write_db_records(
         self,
-        license_records: list[_LicenseInsertRecord],
-        index_records: list[_IndexInsertRecord],
-        exception_records: list[tuple[str, str, bool, str | None]],
+        license_records: list[LicenseInsertRecord],
+        index_records: list[IndexInsertRecord],
+        exception_records: list[ExceptionInsertRecord],
         release_date: str | None,
     ) -> None:
         """Replace all license/exception/metadata rows in a single transaction.
@@ -503,75 +357,6 @@ class LicenseDatabase:
                 raise
             finally:
                 self._tables.clear()
-
-    def _prepare_license_record(
-        self,
-        lic: SpdxLicenseEntry,
-        root_dir: Path,
-        popularity_map: dict[str, int],
-        is_deprecated: bool = False,
-        superseded_by: str | None = None,
-    ) -> tuple[_LicenseInsertRecord, _IndexInsertRecord] | None:
-        """Prepare license data for insertion."""
-        license_id = lic["licenseId"]
-        text_path = root_dir / "text" / f"{license_id}.txt"
-        if not text_path.exists():
-            return None
-
-        with open(text_path, "r", encoding="utf-8") as f:
-            raw_text = f.read()
-
-        xml_path = root_dir / "license-list-XML" / f"{license_id}.xml"
-        xml_content = None
-        if xml_path.exists():
-            with open(xml_path, "r", encoding="utf-8") as f:
-                xml_content = f.read()
-
-        fingerprint = self._create_fingerprint(raw_text, xml_content)
-        word_count = len(fingerprint.split())
-        is_osi = lic.get("isOsiApproved", False)
-        is_fsf = lic.get("isFsfLibre", False)
-
-        baseline = 100 if (is_osi or is_fsf) else 1
-        pop_count = popularity_map.get(license_id, 0)
-        pop_score = max(baseline, pop_count)
-
-        # High usage: OSI, FSF, or significant popularity
-        is_high_usage = is_osi or is_fsf or pop_score > 500
-
-        name = lic.get("name", "")
-        license_record: _LicenseInsertRecord = (
-            license_id,
-            name,
-            xml_content,
-            True,  # is_spdx
-            is_osi,
-            is_fsf,
-            is_high_usage,
-            is_deprecated,
-            superseded_by,
-            pop_score,
-            word_count,
-            normalize_text(license_id),
-            normalize_text(name),
-        )
-        index_record: _IndexInsertRecord = (license_id, fingerprint)
-        return license_record, index_record
-
-    def _create_fingerprint(self, text: str, xml_content: str | None = None) -> str:
-        """Create a search fingerprint by removing optional parts and normalizing."""
-        if xml_content:
-            try:
-                # Simple XML parsing to strip optional parts
-                # This is a heuristic; real implementation would use a proper
-                # SPDX matcher
-                ET.fromstring(xml_content)
-                # Find all optional elements and remove them from a virtual text build
-                # For now, we just use the raw text and normalize it
-            except ET.ParseError:
-                pass
-
-        return normalize_text(text)
 
     def find_fingerprint_hits(self, norm_input: str) -> dict[str, float]:
         """Map each licence ID to the best idf_norm of the fingerprint n-grams it

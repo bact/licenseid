@@ -30,6 +30,7 @@ MATCH_PATH = [
     "markers",
     "identifiers",
     "textinput",
+    "spdxdata",
 ]
 
 

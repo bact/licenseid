@@ -14,6 +14,8 @@
   database path), `dbconnection.py` (SQLite connections), `dbcache.py`
   (whole-table reads kept per database),
   `fingerprint.py` (the maths), `fingerprintstore.py` (its table),
+  `spdxdata.py` (an SPDX release as data: reads the tarball and the bundle,
+  standard library only), `records.py` (the database rows built from it),
   `dbschema.py` (the tables and whether a file has them), `output.py` (the
   CLI's standard output and what a
   failed write means), `result.py` (the public result and its JSON and text
@@ -78,7 +80,7 @@ Unix philosophy. Consistent, predictable, parseable.
     `cache write failed`, `cache unusable`, `download unusable`,
     `stale cache unusable`, `parse failed`,
     `N rows with missing or non-numeric num_pushers`, `update failed`,
-    `delete failed`, `write failed`.
+    `delete failed`, `write failed`, `compact failed`.
   - `DETAIL`: the variable part (exception text, value, path).
   - `ACTION`: what happens next, after a semicolon: the fallback taken
     (`using stale cache`, `downloading`, `counted as 0`) or the command for
@@ -209,7 +211,7 @@ ruff format
   Statements≤50, McCabe≤10, Cognitive≤15.
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
-  `max-branches=13`, `max-locals=23`, McCabe=12, Cognitive=29, module
+  `max-branches=13`, `max-locals=22`, McCabe=12, Cognitive=29, module
   lines=773) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.

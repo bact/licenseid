@@ -59,7 +59,7 @@ def stale_tz_aware_db() -> Generator[LicenseDatabase, None, None]:
 def stale_naive_db() -> Generator[LicenseDatabase, None, None]:
     """Mimics a database written before last_check_datetime became
     tz-aware: a naive local-time ISO string with no UTC offset."""
-    old_naive = (datetime.now() - timedelta(days=200)).isoformat()  # noqa: DTZ005
+    old_naive = (datetime.now() - timedelta(days=200)).isoformat()
     yield from _make_db(old_naive)
 
 
