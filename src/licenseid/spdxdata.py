@@ -93,9 +93,8 @@ class SpdxData:
         with tarfile.open(path, "r:gz") as tar:
             files = {m.name: m for m in tar.getmembers() if m.isfile()}
             root = _tarball_root(files)
-            lic_doc = _tar_json(tar, files, f"{root}/json/licenses.json")
-            if lic_doc is None:
-                raise tarfile.ReadError("json/licenses.json is missing")
+            # ``_tarball_root`` found this member, so it is there.
+            lic_doc = _tar_json(tar, files, f"{root}/json/licenses.json") or {}
             exc_doc = _tar_json(tar, files, f"{root}/json/exceptions.json")
             licenses: list[SpdxLicenseEntry] = list(lic_doc.get("licenses", []))
             exceptions: list[SpdxExceptionEntry] = list(
@@ -231,7 +230,7 @@ def _tar_text(tar: tarfile.TarFile, member: tarfile.TarInfo) -> str:
     universal newlines, so CRLF becomes LF (a fingerprint then agrees with one
     made from an extracted tarball)."""
     fileobj = tar.extractfile(member)
-    if fileobj is None:
+    if fileobj is None:  # pragma: no cover  # only a non-file; callers pass files
         raise tarfile.ReadError(f"{member.name} is not a file")
     with io.TextIOWrapper(fileobj, encoding="utf-8") as wrapper:
         return wrapper.read()

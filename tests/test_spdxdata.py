@@ -307,3 +307,19 @@ def test_packaged_bundle_reads_the_file(
     (tmp_path / "data" / spdxdata.PACKAGED_NAME).write_bytes(b"snapshot")
     monkeypatch.setattr(importlib.resources, "files", lambda _name: tmp_path)
     assert packaged_bundle() == b"snapshot"
+
+
+def test_a_release_date_that_is_not_a_string_is_refused() -> None:
+    doc = good_doc()
+    doc["releaseDate"] = 20990101
+    with pytest.raises(BundleError, match="releaseDate"):
+        SpdxData.from_bundle(bundle_of(doc), None)
+
+
+def test_an_exceptions_json_that_is_not_an_object_is_refused(tmp_path: Path) -> None:
+    tar = make_tarball(
+        tmp_path / "t.tar.gz",
+        {"json/licenses.json": licenses_json("MIT"), "json/exceptions.json": b"[]"},
+    )
+    with pytest.raises(tarfile.ReadError, match="not a JSON object"):
+        SpdxData.from_tarball(tar)

@@ -247,3 +247,19 @@ def test_metadata_keys_after_update(
         "last_check_datetime",
         "last_update_datetime",
     } <= set(meta)
+
+
+def test_a_failed_insert_rolls_back_and_names_the_database(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A duplicate ID breaks the PRIMARY KEY mid-transaction.
+    with pytest.raises(LicenseIdError, match=r"^database: update failed"):
+        _update(
+            tmp_path,
+            monkeypatch,
+            [_lic("A-1"), _lic("A-1")],
+            {"text/A-1.txt": _TEXT.encode()},
+        )
+    conn = sqlite3.connect(tmp_path / "licenses.db")
+    assert _rows(conn, "SELECT license_id FROM licenses") == []
+    conn.close()
