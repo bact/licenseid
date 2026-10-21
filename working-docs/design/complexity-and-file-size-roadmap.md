@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-21
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -319,7 +319,8 @@ claims YAML support (there is none).
     cache counts as an unusable response.
   - `tar.extractall` ran on a third-party tarball with no path checks
     (CWE-22); `spdx_source.extract_tarball` uses the `data` extraction
-    filter, or an equivalent manual check on Pythons that lack it.
+    filter, or an equivalent manual check on Pythons that lack it. PR #85
+    removed it: `SpdxData.from_tarball` reads the archive in place.
   - `is_cache_valid` treated a future-dated file as valid forever (the age
     was negative); it is now invalid beyond a 5-minute clock-skew allowance.
   - `compute_idf_fingerprints` divided by zero for a one-license corpus
@@ -382,21 +383,14 @@ holds the Branches ceiling; no ceiling number changed.
 
 ### 1. `database.py` — split by responsibility (Priority 9)
 
-740 lines (re-measured 2026-10-06), under the 800-line hard limit since the
-schema moved to `dbschema.py` and the fingerprint SQL to `fingerprintstore.py`;
-still over the soft limit.
-Schema management, license-record preparation,
-and query methods are still all in one file. Not a complexity offender
-(no individual function stands out) — purely a file-size and
-module-lines-ratchet problem.
+520 lines (re-measured 2026-10-21), over the 500-line soft limit by a little.
+Record building moved to `records.py` and the SPDX release reader to
+`spdxdata.py` in PR #85. Left in the file: update orchestration and the query
+methods. Not a complexity offender; a file-size problem only.
 
-- **Fix**: split along existing method-name groupings (e.g.
-  `_prepare_*`/`_write_*` build-time methods vs. `get_*`/`search_*`
-  runtime query methods) into two modules re-exported from
-  `database.py`, or a `database/` subpackage per the file-size rule's
-  "3+ related files → group in a same-named subfolder" convention.
-  `matcher.py` was split the same way on 2026-09-21 (see "Done" above).
-- Impact 2, Risk 1, Effort 3.
+- **Fix**: move the `get_*`/`search_*` query methods to their own module,
+  re-exported from `database.py`, if the file grows past the soft limit again.
+- Impact 1, Risk 1, Effort 2.
 
 ## Out of scope for now
 

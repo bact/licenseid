@@ -9,9 +9,12 @@ synthetic release becomes in the database. They pin today's behaviour
 by accident."""
 # pylint: disable=missing-function-docstring
 
+import contextlib
 import json
 import sqlite3
+from collections.abc import Iterator
 from pathlib import Path
+from unittest import mock
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
@@ -43,6 +46,18 @@ def _exc(exc_id: str, name: str, deprecated: bool = False) -> dict[str, object]:
     }
 
 
+_OPEN: list[sqlite3.Connection] = []
+
+
+@pytest.fixture(autouse=True)
+def _close_connections() -> Iterator[None]:
+    """Close the connections ``_update`` hands out: an open handle blocks the
+    removal of the temporary directory on Windows."""
+    yield
+    while _OPEN:
+        _OPEN.pop().close()
+
+
 def _update(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -65,7 +80,9 @@ def _update(
     _serve(monkeypatch, _tarball(members))
     path = tmp_path / "licenses.db"
     assert LicenseDatabase(str(path)).update_from_remote()
-    return sqlite3.connect(path)
+    conn = sqlite3.connect(path)
+    _OPEN.append(conn)
+    return conn
 
 
 def _rows(conn: sqlite3.Connection, sql: str) -> list[tuple[object, ...]]:
@@ -171,7 +188,8 @@ def test_a_tarball_without_licenselistversion_is_unusable(
     _serve(monkeypatch, _tarball({f"{_ROOT}/json/licenses.json": listing}))
     path = tmp_path / "licenses.db"
     with pytest.raises(
-        LicenseIdError, match=r"cache unusable: licenseListVersion is missing"
+        LicenseIdError,
+        match=r"cache unusable: licenseListVersion is missing or invalid",
     ):
         LicenseDatabase(str(path)).update_from_remote()
 
@@ -252,14 +270,43 @@ def test_metadata_keys_after_update(
 def test_a_failed_insert_rolls_back_and_names_the_database(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # A duplicate ID breaks the PRIMARY KEY mid-transaction.
-    with pytest.raises(LicenseIdError, match=r"^database: update failed"):
+    path = tmp_path / "licenses.db"
+    LicenseDatabase(str(path))  # creates the schema
+    with contextlib.closing(sqlite3.connect(path)) as conn:
+        conn.execute(
+            "CREATE TRIGGER no_exceptions BEFORE INSERT ON exceptions "
+            "BEGIN SELECT RAISE(ABORT, 'boom'); END"
+        )
+    with pytest.raises(LicenseIdError, match=r"^database: update failed: boom"):
         _update(
             tmp_path,
             monkeypatch,
-            [_lic("A-1"), _lic("A-1")],
-            {"text/A-1.txt": _TEXT.encode()},
+            [_lic("A-1")],
+            {
+                "text/A-1.txt": _TEXT.encode(),
+                "json/exceptions.json": json.dumps(
+                    {"exceptions": [_exc("E-1", "e")]}
+                ).encode(),
+            },
         )
-    conn = sqlite3.connect(tmp_path / "licenses.db")
-    assert _rows(conn, "SELECT license_id FROM licenses") == []
-    conn.close()
+    with contextlib.closing(sqlite3.connect(path)) as conn:
+        assert _rows(conn, "SELECT license_id FROM licenses") == []
+
+
+def test_a_failed_vacuum_is_a_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    @contextlib.contextmanager
+    def failing(write: bool = False) -> Iterator[mock.Mock]:  # pylint: disable=W0613
+        conn = mock.Mock(spec=sqlite3.Connection)
+        conn.execute.side_effect = sqlite3.OperationalError("database is locked")
+        yield conn
+
+    db = LicenseDatabase(str(tmp_path / "licenses.db"))
+    monkeypatch.setattr(db, "_connection", failing)
+    db._compact()  # pylint: disable=protected-access
+    assert capsys.readouterr().err == (
+        "WARNING: database: compact failed: OperationalError: database is locked\n"
+    )

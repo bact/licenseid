@@ -287,15 +287,14 @@ class LicenseDatabase:
         self._compact()
 
     def _compact(self) -> None:
-        """Give the space of deleted rows back to the file (``VACUUM``), so a
-        database that held the XML of the licences shrinks. Best effort: the
-        data is complete and stamped, so a reader or a lock that stops it
-        leaves a larger file, not a wrong one."""
-        with (
-            contextlib.suppress(sqlite3.Error),
-            self._connection(write=True) as conn,
-        ):
-            conn.execute("VACUUM")  # no transaction: nothing was written on conn
+        """Return the space of deleted rows to the file (``VACUUM``). A failure
+        is a warning: the data is complete and stamped, the file is only
+        larger."""
+        try:
+            with self._connection(write=True) as conn:
+                conn.execute("VACUUM")  # no transaction: nothing was written on conn
+        except sqlite3.Error as exc:
+            warn(f"database: compact failed: {typed(exc)}")
 
     def _write_db_records(
         self,

@@ -21,8 +21,7 @@ from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 # (license_id, name, xml_template, is_spdx, is_osi, is_fsf,
 #  is_high_usage, is_deprecated, superseded_by, pop_score, word_count,
 #  norm_license_id, norm_name)
-# xml_template is always None: the license-list-XML is not read. The column
-# stays in the schema so that databases of earlier versions keep their shape.
+# xml_template is always None. The column stays in the schema.
 LicenseInsertRecord = tuple[
     str,
     str,

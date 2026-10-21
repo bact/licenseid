@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-09-19
+Last-Modified: 2026-10-21
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -12,6 +12,10 @@ SPDX-License-Identifier: Apache-2.0
 What was built in PR #51, why, and the traps found on the way. Code:
 `src/licenseid/spdx_source.py`; caller: `LicenseDatabase.update_from_remote`
 in `database.py`.
+
+Since PR #85 `update` reads the tarball into one `SpdxData`
+(`spdxdata.py`, standard library only) and `records.py` builds the database
+rows from it; see "Store path" below.
 
 ## What it does
 
@@ -53,14 +57,45 @@ Every function returns where its data came from: `cache`, `remote`,
   `clear_cache` also removes orphaned `*.tmp` files.
 - **Untrusted input**: a version (from `--version` or a downloaded
   `licenses.json`) must match `[A-Za-z0-9][A-Za-z0-9._-]*` before it reaches a
-  file name or URL. The tarball is extracted by `extract_tarball`: tarfile's
-  `data` filter, or an equivalent manual check on Pythons without filters
-  (leading slashes stripped, members and links must stay inside the
-  destination). Both paths behave the same.
+  file name or URL. `SpdxData.from_tarball` does not extract: it reads only
+  `<root>/json/*.json` and `<root>/text/*.txt`, so a member with an absolute
+  or `..` name is never read. The tarball and the bundle share one check of
+  the version, the release date and every licence and exception ID
+  (`[A-Za-z0-9][A-Za-z0-9.+-]{0,99}`, no duplicates).
 - **Self-healing**: a corrupt or truncated cached tarball is deleted by
   `_process_and_store` (`TarError`, `EOFError`, `zlib.error`) so the next run
   downloads it again; a local popularity cache that parses to nothing is
   re-downloaded once.
+
+## Store path (PR #85)
+
+- One object feeds the store: `SpdxData` (version, release date, licence and
+  exception entries, `texts` by licence ID). `_process_and_store` builds it
+  from the cached tarball and keeps its error mapping (a bad tarball is
+  deleted: `cache unusable`).
+- `records.build_records` is pure: no file or database access. A licence
+  with no text is dropped, unless deprecated; then it keeps a row without an
+  index entry (pinned by `tests/test_update_characterization.py`, with a
+  `# BUG:` note for the silent drop).
+- The XML (`license-list-XML/`) is no longer read or stored: nothing used
+  it. `xml_template` stays in the schema, always NULL. `update` runs `VACUUM`
+  at the end, so an existing database shrinks (24.6 MB to 17.3 MB for 3.29.0);
+  a failure is a `database: compact failed` warning.
+- `from_tarball` reads the archive in one forward pass (`_scan_tarball`). A
+  lookup of each text by name seeks back in the gzip stream, which
+  decompresses from the start each time: 93 s instead of 1.5 s for 3.29.0
+  (`test_a_tarball_is_read_forward_once` pins it). Whole store path, cached
+  3.29.0 tarball: 14 s on `main`, 7-10 s now.
+- Text is read through `io.TextIOWrapper` (universal newlines), the same as
+  `open(..., encoding="utf-8")`, so CRLF text gives the same fingerprint
+  whichever way it was read.
+- A tarball whose `licenses.json` has no valid `licenseListVersion` or a bad ID
+  fails as `cache unusable`. Before, `update` stored a NULL version.
+- Checked on the real 3.29.0 tarball (read-only): licences, search texts,
+  exceptions and metadata equal those of a database built before the change.
+  Fingerprints differ because of an older bug, not this change:
+  `fingerprint.py` sorts ties by set order, so the top 20 n-grams of a
+  licence change from process to process.
 
 ## Traps and surprises
 
@@ -102,9 +137,11 @@ when changing a parser; never modify or clear the real cache for it.
   end to end on a small synthetic release built in memory (a tarball,
   `licenses.json`, one CSV); extraction attacks tested one member kind at a
   time (a combined archive let one check mask another).
-- Simulate an older Python by patching `spdx_source._HAS_EXTRACTION_FILTER`,
-  not by deleting `tarfile.data_filter` (that breaks `tarfile` itself on
-  3.12+ and failed CI on 3.14).
+- `tests/test_spdxdata.py`, `tests/test_update_characterization.py`: the
+  `SpdxData` readers and what a small release becomes in the database.
+- Simulate an older Python with a module flag, not by deleting
+  `tarfile.data_filter` (that breaks `tarfile` itself on 3.12+ and failed CI on
+  3.14).
 - Mutation check used to find weak tests: break a line, run the affected
   tests, restore. Clear `__pycache__` between mutants; a same-size mutant
   restored within the same second leaves a stale `.pyc` that looks like a
@@ -112,7 +149,5 @@ when changing a parser; never modify or clear the real cache for it.
 
 ## Known gaps (deliberately not done)
 
-- `licenseId` values in the tarball's JSON are used to build
-  `text/<id>.txt` paths without validation.
 - Timeouts are per read, not total, so a slow-drip download can run long.
 - `DEFAULT_FALLBACK_VERSION` in `spdx_source.py` is unused.

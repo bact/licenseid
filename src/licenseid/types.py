@@ -142,7 +142,7 @@ class LicenseDetails(TypedDict, total=False):
     superseded_by: str
     pop_score: Required[int]
     word_count: Required[int]
-    xml_template: str
+    xml_template: str | None  # always NULL
     legacy_template: str
     ignorable_metadata: str
 

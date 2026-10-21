@@ -7,6 +7,16 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- `update` stores no SPDX XML (`xml_template` is NULL); the database is about
+  7 MB smaller ([#85])
+- A release without `licenseListVersion` fails as `cache unusable` ([#85])
+
+[#85]: https://github.com/bact/licenseid/pull/85
+
 ## [0.4.3] - 2026-10-07
 
 ### Fixed

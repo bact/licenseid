@@ -64,14 +64,7 @@ class SpdxData:
         Raises :class:`BundleError` for anything unusable.
         """
         doc = _load_document(raw)
-        version = doc.get("licenseListVersion")
-        if not isinstance(version, str) or not _VERSION_RE.fullmatch(version):
-            raise BundleError("licenseListVersion is not a valid version")
-        if expected is not None and version != expected:
-            raise BundleError(f"version {version} is not the expected {expected}")
-        release_date = doc.get("releaseDate")
-        if release_date is not None and not isinstance(release_date, str):
-            raise BundleError("releaseDate is not a string")
+        version, release_date = _release(doc, expected)
         licenses, texts = _entries(doc, "licenses", "licenseId", with_text=True)
         exceptions, _ = _entries(doc, "exceptions", "licenseExceptionId")
         return cls(
@@ -86,35 +79,34 @@ class SpdxData:
     def from_tarball(cls, path: Path) -> "SpdxData":
         """Read a ``license-list-data`` release tarball without extracting it.
 
-        Only the members it needs are looked up by exact name, so a member
-        with an absolute or ``..`` name is never read. ``tarfile.TarError``,
+        Only ``<root>/json/*.json`` and ``<root>/text/*.txt`` are read, so a
+        member with an absolute or ``..`` name never is. ``tarfile.TarError``,
         ``EOFError``, ``zlib.error`` and ``OSError`` propagate to the caller.
         """
         with tarfile.open(path, "r:gz") as tar:
-            files = {m.name: m for m in tar.getmembers() if m.isfile()}
-            root = _tarball_root(files)
-            # ``_tarball_root`` found this member, so it is there.
-            lic_doc = _tar_json(tar, files, f"{root}/json/licenses.json") or {}
-            exc_doc = _tar_json(tar, files, f"{root}/json/exceptions.json")
-            licenses: list[SpdxLicenseEntry] = list(lic_doc.get("licenses", []))
-            exceptions: list[SpdxExceptionEntry] = list(
-                (exc_doc or {}).get("exceptions", [])
-            )
-            version = lic_doc.get("licenseListVersion")
-            if not isinstance(version, str):
-                raise tarfile.ReadError("licenseListVersion is missing")
-            texts: dict[str, str] = {}
-            for lic in licenses:
-                # An entry without an ID has no text; the records fail on it.
-                ident = lic.get("licenseId")
-                name = f"{root}/text/{ident}.txt"
-                if isinstance(ident, str) and name in files:
-                    texts[ident] = _tar_text(tar, files[name])
+            documents, texts_by_root = _scan_tarball(tar)
+        root = _tarball_root(documents)
+        lic_doc = _json_object(documents[f"{root}/json/licenses.json"], "licenses.json")
+        exc_text = documents.get(f"{root}/json/exceptions.json")
+        exc_doc = _json_object(exc_text, "exceptions.json") if exc_text else {}
+        exc_doc.setdefault("exceptions", [])
+        try:
+            version, release_date = _release(lic_doc, None)
+            licenses, _ = _entries(lic_doc, "licenses", "licenseId")
+            exceptions, _ = _entries(exc_doc, "exceptions", "licenseExceptionId")
+        except BundleError as exc:
+            raise tarfile.ReadError(str(exc)) from exc
+        found = texts_by_root.get(root, {})
+        texts = {
+            lic["licenseId"]: found[lic["licenseId"]]
+            for lic in licenses
+            if lic["licenseId"] in found
+        }
         return cls(
             version=version,
-            release_date=lic_doc.get("releaseDate"),
-            licenses=tuple(licenses),
-            exceptions=tuple(exceptions),
+            release_date=release_date,
+            licenses=tuple(licenses),  # type: ignore[arg-type]
+            exceptions=tuple(exceptions),  # type: ignore[arg-type]
             texts=texts,
         )
 
@@ -137,6 +129,20 @@ def _load_document(raw: bytes) -> dict[str, Any]:
     if doc.get("format") != BUNDLE_FORMAT or isinstance(doc.get("format"), bool):
         raise BundleError(f"format {doc.get('format')!r} is not {BUNDLE_FORMAT}")
     return doc
+
+
+def _release(doc: dict[str, Any], expected: str | None) -> tuple[str, str | None]:
+    """Version and release date of a document, validated; *expected* is the
+    version the caller asked for (``None``: any)."""
+    version = doc.get("licenseListVersion")
+    if not isinstance(version, str) or not _VERSION_RE.fullmatch(version):
+        raise BundleError("licenseListVersion is missing or invalid")
+    if expected is not None and version != expected:
+        raise BundleError(f"version {version} is not the expected {expected}")
+    release_date = doc.get("releaseDate")
+    if release_date is not None and not isinstance(release_date, str):
+        raise BundleError("releaseDate is not a string")
+    return version, release_date
 
 
 def _entries(
@@ -199,27 +205,42 @@ def packaged_bundle() -> bytes | None:
         return None
 
 
-def _tarball_root(files: Mapping[str, tarfile.TarInfo]) -> str:
-    """The one top-level directory that holds ``json/licenses.json``."""
-    for name in sorted(files):
-        parts = name.split("/")
-        if (
-            len(parts) == 3
-            and parts[1:] == ["json", "licenses.json"]
-            and parts[0] not in ("", ".", "..")
-        ):
-            return parts[0]
-    raise tarfile.ReadError("json/licenses.json is missing")
+_JSON_FILES: Final = ("licenses.json", "exceptions.json")
 
 
-def _tar_json(
-    tar: tarfile.TarFile, files: Mapping[str, tarfile.TarInfo], name: str
-) -> dict[str, Any] | None:
-    """JSON object of member *name*, or ``None`` if absent."""
-    member = files.get(name)
-    if member is None:
-        return None
-    doc = json.loads(_tar_text(tar, member))
+def _scan_tarball(
+    tar: tarfile.TarFile,
+) -> tuple[dict[str, str], dict[str, dict[str, str]]]:
+    """The ``<root>/json`` files by member name and the ``<root>/text`` files
+    by root and licence ID, read in one pass in archive order: a gzip stream
+    cannot seek back, and every jump back decompresses from the start."""
+    documents: dict[str, str] = {}
+    texts: dict[str, dict[str, str]] = {}
+    for member in tar:
+        parts = member.name.split("/")
+        if not member.isfile() or len(parts) != 3 or parts[0] in ("", ".", ".."):
+            continue
+        root, folder, base = parts
+        if folder == "json" and base in _JSON_FILES:
+            documents[member.name] = _tar_text(tar, member)
+        elif folder == "text" and base.endswith(".txt"):
+            texts.setdefault(root, {})[base[: -len(".txt")]] = _tar_text(tar, member)
+    return documents, texts
+
+
+def _tarball_root(documents: Mapping[str, str]) -> str:
+    """The top-level directory that holds ``json/licenses.json``."""
+    roots = sorted(
+        name.split("/")[0] for name in documents if name.endswith("/json/licenses.json")
+    )
+    if not roots:
+        raise tarfile.ReadError("json/licenses.json is missing")
+    return roots[0]
+
+
+def _json_object(text: str, name: str) -> dict[str, Any]:
+    """The JSON object in *text*; *name* is for the error."""
+    doc = json.loads(text)
     if not isinstance(doc, dict):
         raise tarfile.ReadError(f"{name} is not a JSON object")
     return doc
@@ -227,8 +248,7 @@ def _tar_json(
 
 def _tar_text(tar: tarfile.TarFile, member: tarfile.TarInfo) -> str:
     """Text of *member* read as ``open(..., encoding="utf-8")`` reads a file:
-    universal newlines, so CRLF becomes LF (a fingerprint then agrees with one
-    made from an extracted tarball)."""
+    universal newlines, so CRLF becomes LF."""
     fileobj = tar.extractfile(member)
     if fileobj is None:  # pragma: no cover  # only a non-file; callers pass files
         raise tarfile.ReadError(f"{member.name} is not a file")

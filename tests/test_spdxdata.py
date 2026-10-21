@@ -118,7 +118,7 @@ def test_the_expected_version_must_match() -> None:
 def test_a_bad_version_is_refused(version: object) -> None:
     doc = good_doc()
     doc["licenseListVersion"] = version
-    with pytest.raises(BundleError, match="version"):
+    with pytest.raises(BundleError, match="licenseListVersion"):
         SpdxData.from_bundle(bundle_of(doc), None)
 
 
@@ -242,18 +242,49 @@ def test_a_tarball_without_a_string_version_is_refused(
     tar = make_tarball(
         tmp_path / "t.tar.gz", {"json/licenses.json": json.dumps(doc).encode()}
     )
-    with pytest.raises(tarfile.ReadError, match="licenseListVersion is missing"):
+    with pytest.raises(
+        tarfile.ReadError, match="licenseListVersion is missing or invalid"
+    ):
         SpdxData.from_tarball(tar)
 
 
-def test_an_entry_without_an_id_is_kept_and_has_no_text(tmp_path: Path) -> None:
-    doc = {"licenseListVersion": "3.99", "licenses": [{"name": "No ID"}]}
+@pytest.mark.parametrize(
+    ("file", "key", "entries"),
+    [
+        pytest.param("licenses", "licenseId", [{"name": "No ID"}], id="noid"),
+        pytest.param("licenses", "licenseId", [{"licenseId": "a b"}], id="badid"),
+        pytest.param("licenses", "licenseId", [{"licenseId": 7}], id="intid"),
+        pytest.param(
+            "licenses", "licenseId", [{"licenseId": "A"}, {"licenseId": "A"}], id="dup"
+        ),
+        pytest.param("exceptions", "licenseExceptionId", [{"name": "x"}], id="noexc"),
+    ],
+)
+def test_a_tarball_entry_without_a_valid_unique_id_is_refused(
+    tmp_path: Path, file: str, key: str, entries: list[dict[str, object]]
+) -> None:
+    doc = json.loads(licenses_json("MIT"))
+    members = {"json/licenses.json": json.dumps(doc).encode()}
+    if file == "licenses":
+        doc["licenses"] = entries
+        members["json/licenses.json"] = json.dumps(doc).encode()
+    else:
+        members["json/exceptions.json"] = json.dumps({"exceptions": entries}).encode()
+    tar = make_tarball(tmp_path / "t.tar.gz", members)
+    with pytest.raises(tarfile.ReadError, match=key):
+        SpdxData.from_tarball(tar)
+
+
+def test_a_tarball_release_date_that_is_not_a_string_is_refused(
+    tmp_path: Path,
+) -> None:
+    doc = json.loads(licenses_json("MIT"))
+    doc["releaseDate"] = 20990101
     tar = make_tarball(
         tmp_path / "t.tar.gz", {"json/licenses.json": json.dumps(doc).encode()}
     )
-    data = SpdxData.from_tarball(tar)
-    assert data.licenses == ({"name": "No ID"},)
-    assert data.texts == {}
+    with pytest.raises(tarfile.ReadError, match="releaseDate"):
+        SpdxData.from_tarball(tar)
 
 
 def test_unsafe_member_names_are_never_read(tmp_path: Path) -> None:
@@ -323,3 +354,45 @@ def test_an_exceptions_json_that_is_not_an_object_is_refused(tmp_path: Path) -> 
     )
     with pytest.raises(tarfile.ReadError, match="not a JSON object"):
         SpdxData.from_tarball(tar)
+
+
+def test_a_tarball_is_read_forward_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The text members come in the reverse of the order licenses.json lists
+    # them, and before it: a lookup by name would jump back in the stream.
+    tar = make_tarball(
+        tmp_path / "t.tar.gz",
+        {
+            "text/B-1.txt": b"b",
+            "text/A-1.txt": b"a",
+            "json/licenses.json": licenses_json("A-1", "B-1"),
+        },
+    )
+    offsets: list[int] = []
+    real = tarfile.TarFile.extractfile
+
+    def spy(self: tarfile.TarFile, member: str | tarfile.TarInfo) -> Any:
+        assert isinstance(member, tarfile.TarInfo)
+        offsets.append(member.offset_data)
+        return real(self, member)
+
+    monkeypatch.setattr(tarfile.TarFile, "extractfile", spy)
+    data = SpdxData.from_tarball(tar)
+    assert dict(data.texts) == {"A-1": "a", "B-1": "b"}
+    assert offsets == sorted(offsets)
+
+
+def test_texts_of_another_root_are_ignored(tmp_path: Path) -> None:
+    path = tmp_path / "t.tar.gz"
+    with tarfile.open(path, "w:gz") as tar:
+        for name, content in {
+            "a-root/json/licenses.json": licenses_json("A-1"),
+            "a-root/text/A-1.txt": b"mine",
+            "z-root/json/licenses.json": licenses_json("A-1"),
+            "z-root/text/A-1.txt": b"theirs",
+        }.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(content)
+            tar.addfile(info, io.BytesIO(content))
+    assert dict(SpdxData.from_tarball(path).texts) == {"A-1": "mine"}

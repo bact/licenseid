@@ -19,7 +19,6 @@ import io
 import json
 import os
 import re
-import tarfile
 import uuid
 from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
@@ -238,45 +237,6 @@ def get_tarball_path(
         data_source = "cache"
 
     return tar_cache_path, data_source
-
-
-# Extraction filters exist from Python 3.10.12 / 3.11.4 (a module-level flag,
-# so tests can exercise the fallback without patching tarfile itself).
-_HAS_EXTRACTION_FILTER = hasattr(tarfile, "data_filter")
-
-
-def _is_within(root: Path, target: Path) -> bool:
-    """True if the resolved *target* is *root* or inside it."""
-    return target == root or root in target.parents
-
-
-def extract_tarball(tar_path: Path, dest: Path) -> None:
-    """Extract a downloaded (third-party) tarball, refusing members that
-    would land outside *dest* (CWE-22, tarfile path traversal).
-
-    Behaves the same with and without the ``data`` extraction filter (which
-    older Pythons lack): leading slashes are stripped, and links are allowed
-    only if they stay inside *dest*.
-    """
-    with tarfile.open(tar_path, "r:gz") as tar:
-        if _HAS_EXTRACTION_FILTER:
-            tar.extractall(path=dest, filter="data")
-            return
-        # Python < 3.10.12 / 3.11.4 has no extraction filters: check by hand.
-        root = dest.resolve()
-        for member in tar.getmembers():
-            member.name = member.name.lstrip("/" + os.sep)
-            if not _is_within(root, (root / member.name).resolve()):
-                raise tarfile.TarError(f"unsafe path in tarball: {member.name!r}")
-            if member.issym():  # target is relative to the link's directory
-                link_target = root / Path(member.name).parent / member.linkname
-            elif member.islnk():  # target is relative to the archive root
-                link_target = root / member.linkname
-            else:
-                continue
-            if not _is_within(root, link_target.resolve()):
-                raise tarfile.TarError(f"unsafe link in tarball: {member.name!r}")
-        tar.extractall(path=dest)
 
 
 def _read_local_csv(path: Path) -> str | None:

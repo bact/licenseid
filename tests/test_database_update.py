@@ -12,7 +12,6 @@ import io
 import json
 import os
 import sqlite3
-import sys
 import tarfile
 import tempfile
 from pathlib import Path
@@ -29,13 +28,6 @@ from licenseid.cli import cli
 from licenseid.console import warn
 from licenseid.database import LicenseDatabase
 from licenseid.errors import LicenseIdError
-
-# The manual-extraction tests simulate a Python without extraction filters, so
-# tarfile (3.12-3.13) warns that extracting without a filter is deprecated.
-pytestmark = pytest.mark.filterwarnings(
-    "ignore:Python 3.14 will, by default, filter extracted tar archives"
-    ":DeprecationWarning"
-)
 
 _LICENSES = {
     "licenseListVersion": "9.99",
@@ -223,133 +215,6 @@ def test_forced_update_reuses_all_caches_without_network(
     assert "SPDX License List data       : cache" in err
 
 
-def _attack_tarball(kind: str, outside: Path) -> bytes:
-    """A tarball containing exactly one kind of unsafe member; *outside* is a
-    directory that must stay untouched."""
-    if kind == "parent_dir":
-        return _tarball({"../evil.txt": b"pwned"})
-    if kind == "absolute_path":
-        return _tarball({str(outside / "evil.txt"): b"pwned"})
-    if kind == "symlink_absolute":
-        return _tarball({}, {"root/link": "/etc"})
-    if kind == "symlink_parent":
-        return _tarball({}, {"root/link": "../../outside"})
-    raise ValueError(kind)
-
-
-@pytest.mark.parametrize("has_filter", [True, False], ids=["data_filter", "manual"])
-def test_extract_tarball_makes_a_root_slash_name_relative(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, has_filter: bool
-) -> None:
-    """A POSIX-style absolute member name, on any OS, lands inside dest."""
-    if not has_filter:
-        monkeypatch.setattr(spdx_source, "_HAS_EXTRACTION_FILTER", False)
-    tar_path = tmp_path / "evil.tar.gz"
-    tar_path.write_bytes(_tarball({"/evil.txt": b"pwned"}))
-    dest = tmp_path / "out"
-    dest.mkdir()
-    spdx_source.extract_tarball(tar_path, dest)
-    assert (dest / "evil.txt").read_bytes() == b"pwned"
-
-
-@pytest.mark.parametrize("has_filter", [True, False], ids=["data_filter", "manual"])
-@pytest.mark.parametrize(
-    "kind", ["parent_dir", "absolute_path", "symlink_absolute", "symlink_parent"]
-)
-def test_extract_tarball_refuses_each_unsafe_member(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    kind: str,
-    has_filter: bool,
-) -> None:
-    """CWE-22: path traversal and links leaving the destination must be
-    refused, and absolute names made relative (each on its own, so one check
-    cannot mask another), identically with the tarfile 'data' filter and
-    with the manual fallback."""
-    if not has_filter:
-        monkeypatch.setattr(spdx_source, "_HAS_EXTRACTION_FILTER", False)
-    tar_path = tmp_path / "evil.tar.gz"
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    tar_path.write_bytes(_attack_tarball(kind, outside))
-    dest = tmp_path / "out"
-    dest.mkdir()
-    if kind == "absolute_path" and sys.platform != "win32":
-        # (Windows refuses a drive-letter member outright.)
-        # Absolute names are made relative instead of failing, identically
-        # with and without the filter; nothing may land outside dest.
-        spdx_source.extract_tarball(tar_path, dest)
-        relative = (outside / "evil.txt").relative_to(outside.anchor)
-        assert (dest / relative).exists()
-    else:
-        with pytest.raises(tarfile.TarError):
-            spdx_source.extract_tarball(tar_path, dest)
-    assert not (tmp_path / "evil.txt").exists()
-    assert not list(outside.iterdir())
-
-
-@pytest.mark.parametrize("has_filter", [True, False], ids=["data_filter", "manual"])
-@pytest.mark.parametrize("link_type", [tarfile.SYMTYPE, tarfile.LNKTYPE])
-def test_extract_tarball_keeps_links_inside_destination(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    link_type: bytes,
-    has_filter: bool,
-) -> None:
-    """Both extraction paths accept a link that stays inside the destination
-    (consistent behaviour across Python versions)."""
-    if not has_filter:
-        monkeypatch.setattr(spdx_source, "_HAS_EXTRACTION_FILTER", False)
-    buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-        data = b"content"
-        info = tarfile.TarInfo("root/target.txt")
-        info.size = len(data)
-        tar.addfile(info, io.BytesIO(data))
-        link = tarfile.TarInfo("root/link.txt")
-        link.type = link_type
-        link.linkname = (
-            "target.txt" if link_type == tarfile.SYMTYPE else "root/target.txt"
-        )
-        tar.addfile(link)
-    tar_path = tmp_path / "ok.tar.gz"
-    tar_path.write_bytes(buf.getvalue())
-    dest = tmp_path / "out"
-    dest.mkdir()
-    spdx_source.extract_tarball(tar_path, dest)
-    assert (dest / "root" / "link.txt").read_bytes() == b"content"
-
-
-def test_extract_tarball_manual_check_refuses_hardlink_outside(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(spdx_source, "_HAS_EXTRACTION_FILTER", False)
-    buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-        info = tarfile.TarInfo("root/hard")
-        info.type = tarfile.LNKTYPE
-        info.linkname = "../../outside"
-        tar.addfile(info)
-    tar_path = tmp_path / "evil.tar.gz"
-    tar_path.write_bytes(buf.getvalue())
-    dest = tmp_path / "out"
-    dest.mkdir()
-    with pytest.raises(tarfile.TarError, match="unsafe link"):
-        spdx_source.extract_tarball(tar_path, dest)
-
-
-def test_extract_tarball_fallback_extracts_safe_archive(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(spdx_source, "_HAS_EXTRACTION_FILTER", False)
-    tar_path = tmp_path / "ok.tar.gz"
-    tar_path.write_bytes(_tarball({"root/json/licenses.json": b"{}"}))
-    dest = tmp_path / "out"
-    dest.mkdir()
-    spdx_source.extract_tarball(tar_path, dest)
-    assert (dest / "root" / "json" / "licenses.json").read_bytes() == b"{}"
-
-
 def test_unsafe_cached_tarball_is_removed_and_reported(tmp_path: Path) -> None:
     db = LicenseDatabase(str(tmp_path / "licenses.db"))
     tar_path = tmp_path / "spdx-data-v9.99.tar.gz"
@@ -413,14 +278,14 @@ def test_cli_update_unexpected_error_keeps_message_grammar(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """An exception that is not one of the worded RuntimeErrors (here a
-    KeyError from a license entry without licenseId) still prints one
+    KeyError from an exception entry without a name) still prints one
     grammar line, not the bare exception text."""
-    licenses = {**_LICENSES, "licenses": [{"name": "No ID License"}]}
     root = "license-list-data-9.99"
+    exceptions = {"exceptions": [{"licenseExceptionId": "E-1"}]}
     tarball = _tarball(
         {
-            f"{root}/json/licenses.json": json.dumps(licenses).encode(),
-            f"{root}/json/exceptions.json": json.dumps({"exceptions": []}).encode(),
+            f"{root}/json/licenses.json": json.dumps(_LICENSES).encode(),
+            f"{root}/json/exceptions.json": json.dumps(exceptions).encode(),
         }
     )
     _serve(monkeypatch, tarball)
@@ -428,7 +293,7 @@ def test_cli_update_unexpected_error_keeps_message_grammar(
     assert result.exit_code == 1
     assert result.stdout == ""
     errors = [line for line in result.stderr.splitlines() if line.startswith("ERROR")]
-    assert errors == ["ERROR: database: update failed: KeyError: 'licenseId'"]
+    assert errors == ["ERROR: database: update failed: KeyError: 'name'"]
 
 
 def test_cli_update_recursion_error_is_not_passed_through_raw(
@@ -534,10 +399,15 @@ def test_failure_mid_progress_line_leaves_stderr_at_line_start(
     stderr text must not have it glued to the progress dots."""
     db = LicenseDatabase(str(tmp_path / "licenses.db"))
     root = "license-list-data-9.99"
-    licenses = {**_LICENSES, "licenses": [{"name": "No ID License"}]}
+    exceptions = {"exceptions": [{"licenseExceptionId": "E-1"}]}
     tar_path = tmp_path / "spdx-data-v9.99.tar.gz"
     tar_path.write_bytes(
-        _tarball({f"{root}/json/licenses.json": json.dumps(licenses).encode()})
+        _tarball(
+            {
+                f"{root}/json/licenses.json": json.dumps(_LICENSES).encode(),
+                f"{root}/json/exceptions.json": json.dumps(exceptions).encode(),
+            }
+        )
     )
     capsys.readouterr()
     with pytest.raises(KeyError):

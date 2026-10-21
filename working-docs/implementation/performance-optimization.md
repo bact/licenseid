@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-28
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-21
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -31,8 +31,8 @@ SPDX-License-Identifier: Apache-2.0
 ### 2. Database Update (database.py)
 
 - **Bulk Operations**: Refactored `_update_db_records` and
-  `_prepare_license_record` to use `executemany`. This replaces hundreds of
-  individual `INSERT` calls with a single bulk transaction.
+  `_prepare_license_record` (now in `records.py`) to use `executemany`. This
+  replaces hundreds of individual `INSERT` calls with a single bulk transaction.
 - **Pre-calculated Metadata**: Added `is_high_usage` calculation to the update
   process, ensuring it is correctly populated based on OSI/FSF status and
   popularity data.
