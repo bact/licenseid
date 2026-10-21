@@ -287,12 +287,13 @@ RapidFuzz cost data points:
 - **CPython string append**: `t.value += c` on an attribute cannot append in
   place, so tokenizing is quadratic (`ROAD` L95-98).
 
-- **Fingerprints are not reproducible.** `fingerprint.py` sorts n-grams by
-  score only (L65-72), so ties between equal-IDF n-grams follow set order,
-  which changes per process. A rebuild of SPDX 3.29.0 and the existing database
-  hold the same 14,117 fingerprints by count, but 8,091 differ in which
-  n-gram was kept (the top 20 per licence). Found on 2026-10-21 by comparing a rebuild with the
-  existing database while checking PR #85; not yet fixed.
+- **Fingerprints were not reproducible.** `fingerprint.py` sorted n-grams by
+  score only, so ties between equal-IDF n-grams followed set order, which
+  changes per process. A rebuild of SPDX 3.29.0 and the existing database
+  held the same 14,117 fingerprints by count, but 8,091 differed in which
+  n-gram was kept (the top 20 per licence). Found on 2026-10-21 while
+  checking PR #85. Fixed the same day by sorting ties by n-gram: three
+  builds under different hash seeds are identical.
 
 ### 3.2 SQLite findings
 

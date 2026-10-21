@@ -68,7 +68,7 @@ def compute_idf_fingerprints(
                 for ng in ngrams
                 if doc_freq[ng] > 0
             ),
-            key=lambda x: -x[1],
+            key=lambda x: (-x[1], x[0]),  # ties: by n-gram, not set order
         )
         for ng, idf_norm in scored[:top_n]:
             if idf_norm > 0.0:
