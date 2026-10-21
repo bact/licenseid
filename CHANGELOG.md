@@ -18,9 +18,10 @@ and this project adheres to
 ### Fixed
 
 - `update` stores the same fingerprints on every run: ties between n-grams sort
-  by n-gram, not set order; `update --force` rebuilds an older database
+  by n-gram, not set order; `update --force` rebuilds an older database ([#86])
 
 [#85]: https://github.com/bact/licenseid/pull/85
+[#86]: https://github.com/bact/licenseid/pull/86
 
 ## [0.4.3] - 2026-10-07
 
