@@ -37,12 +37,12 @@ pylint's actual defaults are 12 and 50.
 | Metric | Target (pylint default) | Interim ceiling | Current worst |
 | --- | --- | --- | --- |
 | Args | ≤5 | 5 (at target) | 5 (`similarity.py`, `matcher._rank_candidates`) |
-| Locals | ≤15 | 23 | 23 (`database.py`) |
+| Locals | ≤15 | 22 | 22 (`markers.py`) |
 | Nesting | ≤5 | 5 (no ratchet needed) | 5 |
 | Branches | ≤12 | 13 | 13 (`identifiers._normalize_expression`) |
 | Returns | ≤6 | 6 (at target) | 6 (`tests/test_option_matrix.py`) |
 | Statements | ≤50 | 50 (at target) | 38 (`shorttext.match_short_text`) |
-| McCabe | ≤10 | 12 | 12 (`database._prepare_license_and_exception_records`, `identifiers.leading_expression`) |
+| McCabe | ≤10 | 12 | 12 (`identifiers.leading_expression`) |
 | Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
 | Module lines | soft 400-500 / hard 800 | 773 | 773 (`markers.py`) |
 
