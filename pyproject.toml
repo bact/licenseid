@@ -73,8 +73,17 @@ lint = [
     "pylint>=4.0.8",
     "ruff>=0.16.8",
 ]
-test = ["coverage>=7.15.4", "coveralls>=4.1.0", "pytest>=9.1.1"]
-typecheck = ["mypy>=2.3.1", "types-requests>=2.33.0.20260906"]
+test = [
+    "coverage>=7.15.4",
+    "coveralls>=4.1.0",
+    "hatchling>=1.32.3",
+    "pytest>=9.1.1",
+]
+typecheck = [
+    "hatchling>=1.32.3",
+    "mypy>=2.3.1",
+    "types-requests>=2.33.0.20260906",
+]
 dev = [
     { include-group = "lint" },
     { include-group = "test" },
@@ -100,6 +109,10 @@ source = ["licenseid"]
 [tool.hatch.build.hooks.pitloom]
 enabled = true
 
+# hatch_build.py ships the SPDX snapshot `licenseid update` falls back to.
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
+
 [tool.hatch.build.targets.sdist]
 exclude = [
     "AGENTS.md",
@@ -118,7 +131,7 @@ path = "src/licenseid/__init__.py"
 
 [tool.mypy]
 exclude = ["tests/fixtures/"]
-files = ["src", "tests", "tools"]
+files = ["hatch_build.py", "src", "tests", "tools"]
 pretty = true
 python_version = "3.10"
 mypy_path = ["src"]

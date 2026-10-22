@@ -12,7 +12,7 @@ import json
 import tarfile
 from collections.abc import Mapping
 from pathlib import Path
-from types import MappingProxyType
+from types import MappingProxyType, TracebackType
 from typing import cast
 from unittest import mock
 
@@ -219,3 +219,25 @@ def without(routes: dict[str, Route], *gone: str) -> dict[str, Route]:
 def data_line(err: str) -> str:
     """The ``SPDX License List data`` line of the Data sources report."""
     return next(line for line in err.splitlines() if "License List data" in line)
+
+
+class FakeResponse:
+    """Just enough of a urlopen result."""
+
+    def __init__(self, content: bytes) -> None:
+        self._stream = io.BytesIO(content)
+
+    def __enter__(self) -> "FakeResponse":  # noqa: PYI034
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        return None
+
+    def read(self, size: int) -> bytes:
+        """The next *size* bytes."""
+        return self._stream.read(size)

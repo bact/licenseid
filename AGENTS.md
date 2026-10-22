@@ -310,6 +310,14 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   anywhere else (`tests/test_textinput.py` fails if `cli.py` or `matcher.py`
   does). The SPDX data files stay strict UTF-8 on purpose: a fallback there
   would hide a corrupt download.
+- `hatch_build.py` (Hatch custom hook, standard library only: the build
+  environment has no `licenseid`) puts the SPDX bundle in the wheel and the
+  sdist (`src/licenseid/data/`, gitignored). `LICENSEID_BUNDLE=skip|<path>`
+  and `LICENSEID_REQUIRE_BUNDLE=1` steer it; CI jobs that only install the
+  package set `skip`. An editable install ships nothing, so a local run never
+  sees a snapshot, and the `offline` fixture hides one from the tests. The
+  hook repeats the URL and file names of `spdx_source` and `spdxdata`;
+  `tests/test_hatch_build.py` checks they agree.
 - `database.py` imports `spdx_source` lazily (keeps `requests` off the match
   path and avoids an import cycle). Do not import `licenseid.__version__`
   at module level in `spdx_source.py`.

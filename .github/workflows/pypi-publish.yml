@@ -41,6 +41,9 @@ jobs:
           python -m pip install "pitloom[content-type]" spdx3-validate
 
       - name: Build sdist and wheel
+        env:
+          # A release ships the SPDX snapshot, or the build fails.
+          LICENSEID_REQUIRE_BUNDLE: "1"
         run: |
           python -m build
 

@@ -118,9 +118,9 @@ download failed: ...; using packaged data v3.28.0`.
 - **Version** (`auto`): the first valid cache of the two version files, then
   a download of `latest.json` and of spdx.org's `licenses.json` in turn, then
   (only with caching) the first stale cache, then the version of the
-  packaged snapshot. Each file has its own cache: `latest.json` and `licenses.json`
-  for 45 days each (SPDX releases every 3-6 months and the pointer follows
-  within a day).
+  packaged snapshot. Each file has its own cache: `latest.json` and
+  `licenses.json` for 45 days each (SPDX releases every 3-6 months and the
+  pointer follows within a week).
   `--source bundle` reads only `latest.json`, `tarball` only spdx.org, so one
   never sees the other's answer. A version from the snapshot makes no
   network call, popularity included. A stale cache of the other file is
@@ -166,6 +166,51 @@ download failed: ...; using packaged data v3.28.0`.
   gzip: a server fake that answers every URL with it hides a bundle failure.
 - `tools/cli_matrix/launcher.py` answers `latest.json` and `.json.gz` with a
   404 and its `Resp` has `close()`.
+
+## Publishing the bundle (`.github/workflows/spdx-bundle.yml`)
+
+- Weekly cron (Tuesdays, 22:19 UTC) and manual run (`version` input). A
+  bundle lags SPDX by up to a week; `--source tarball` goes straight to SPDX.
+- It reads SPDX's latest release, skips when
+  `data/spdx/format-1/v<ver>.json.gz` exists, else runs `tools.build_bundle`
+  and pushes one commit to the orphan `data` branch.
+- The decision reads a checkout of `data`, never the raw URL (cached 5 min).
+- The push token reaches git only in the last step, never the build. Actions
+  are pinned by SHA. The job runs only in `bact/licenseid`.
+- By hand, once: create the orphan `data` branch and protect it from
+  force-push and deletion. A scheduled workflow stops after 60 days without
+  repository activity.
+- Checked locally: the build and `git add` steps on a scratch orphan repo
+  (v3.28.0: 960,239-byte bundle and `latest.json`); `actionlint` is clean.
+  The push step has not run.
+
+## Packaged snapshot (`hatch_build.py`)
+
+- A wheel runs no code at install time, so `licenseid update` cannot be part
+  of `pip install`. The package carries a snapshot instead, and `update`
+  falls back to it (see "Source chain").
+- The hook adds the bundle to the wheel (`licenseid/data/spdx-bundle.json.gz`)
+  and to the sdist (`src/licenseid/data/...`). A wheel built from an unpacked
+  sdist finds the file in the tree and makes no request. It uses
+  `force_include`: `artifacts` does not reach the sdist, because hatchling
+  ships `.gitignore` in it and the file is ignored.
+- Source: `LICENSEID_BUNDLE=<path>`, else the file in the tree, else
+  `latest.json` and the bundle it names from the `data` branch, checked for
+  size, SHA-256, gzip, format and version. `skip` ships nothing. An editable
+  install (`version == "editable"`; hatchling has no `dev_mode`) ships
+  nothing either.
+- A failed download is a warning and a package without a snapshot, unless
+  `LICENSEID_REQUIRE_BUNDLE=1`: `build.yml` and `pypi-publish.yml` set it.
+  They fail until the first bundle is on the `data` branch.
+- The build runs in an isolated environment with hatchling and Pitloom only,
+  so the hook is standard library only and repeats two constants of the
+  package; `tests/test_hatch_build.py` checks they agree.
+- Not in the SBOM: Pitloom reads the source tree, so the snapshot (third-party
+  licence texts) is missing from the wheel's SBOM. Undecided.
+- Checked by hand: `uv build` with `LICENSEID_BUNDLE=<3.28.0 bundle>` gives an
+  sdist and a wheel that carry the same bytes; the wheel in a clean venv ran
+  `update --source packaged` and matched MIT with no network; `skip` ships
+  nothing; an unreachable host warns, or fails with the require flag.
 
 ## Traps and surprises
 

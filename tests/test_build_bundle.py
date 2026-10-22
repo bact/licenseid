@@ -14,10 +14,10 @@ import runpy
 import tarfile
 import urllib.request
 from pathlib import Path
-from types import TracebackType
 from typing import Any
 
 import pytest
+from release_fakes import FakeResponse
 
 from licenseid.spdxdata import SpdxData
 from tools import build_bundle
@@ -202,27 +202,6 @@ def test_a_corrupt_tarball_is_one_line(
 def test_a_missing_tarball_exits_1(tmp_path: Path) -> None:
     argv = ["--out", str(tmp_path), "--tarball", str(tmp_path / "none.tar.gz")]
     assert main(argv) == 1
-
-
-class FakeResponse:
-    """Just enough of a urlopen result."""
-
-    def __init__(self, content: bytes) -> None:
-        self._stream = io.BytesIO(content)
-
-    def __enter__(self) -> "FakeResponse":  # noqa: PYI034
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        return None
-
-    def read(self, size: int) -> bytes:
-        return self._stream.read(size)
 
 
 def fake_urlopen(

@@ -31,6 +31,8 @@ jobs:
       fail-fast: false
     env:
       MAIN_SUPPORT_VERSION: "3.10"
+      # No snapshot: this job builds the package only to install it.
+      LICENSEID_BUNDLE: skip
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

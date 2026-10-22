@@ -17,6 +17,9 @@ and this project adheres to
 - `update --source packaged` refuses to replace a newer database with an older
   snapshot unless `--force` ([#90])
 
+- Each wheel and sdist ships the SPDX bundle of its build date; `update` uses
+  it when no network source answers ([#91])
+
 ### Changed
 
 - `update` stores no SPDX XML (`xml_template` is NULL); the database is about
@@ -33,6 +36,7 @@ and this project adheres to
 [#85]: https://github.com/bact/licenseid/pull/85
 [#86]: https://github.com/bact/licenseid/pull/86
 [#90]: https://github.com/bact/licenseid/pull/90
+[#91]: https://github.com/bact/licenseid/pull/91
 
 ## [0.4.3] - 2026-10-07
 

@@ -145,3 +145,6 @@ benchmarks/outputs/
 
 # CLI matrix run artifacts (baseline.txt is the durable record)
 .cli-matrix/
+
+# The SPDX snapshot hatch_build.py puts in a built sdist and wheel.
+src/licenseid/data/

@@ -118,7 +118,9 @@ Advanced update options:
   GitHub, then the snapshot shipped in the package; the other values use that
   one source only. The bundle is about 1 MB and comes from
   `raw.githubusercontent.com`, so `licenseid update` works where only that
-  host is reachable.
+  host is reachable. The snapshot is the bundle of the release that was
+  newest when the package was built: `licenseid update` still works with no
+  network, with data that may be older.
 
 ### 2. Identify a license
 
