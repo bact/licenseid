@@ -9,7 +9,8 @@ back to when no network source answers.
 The snapshot is the published bundle (``licenseid.spdxdata``, format 1). The
 hook adds it to the wheel as ``licenseid/data/spdx-bundle.json.gz`` and to the
 sdist as ``src/licenseid/data/spdx-bundle.json.gz``, so a wheel built from an
-unpacked sdist finds it in the tree and needs no network.
+unpacked sdist finds it in the tree and needs no network. A checkout never
+uses a file in the tree: it downloads, or takes ``LICENSEID_BUNDLE``.
 
 Standard library only: the build runs in an isolated environment that has
 hatchling and nothing of ``licenseid``.
@@ -17,8 +18,7 @@ hatchling and nothing of ``licenseid``.
 Environment:
 
 ``LICENSEID_BUNDLE=skip``
-    Ship no snapshot (CI jobs that only install the package, and the workflow
-    that publishes the bundle).
+    Ship no snapshot (CI jobs that only install the package).
 ``LICENSEID_BUNDLE=<path>``
     Ship that bundle: a hermetic build, no network.
 ``LICENSEID_REQUIRE_BUNDLE=1``
@@ -27,6 +27,7 @@ Environment:
 
 import gzip
 import hashlib
+import http.client
 import io
 import json
 import os
@@ -35,7 +36,7 @@ import shutil
 import tempfile
 import urllib.request
 from pathlib import Path
-from typing import Any, Final
+from typing import IO, Any, Final
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
@@ -62,18 +63,49 @@ class SnapshotError(Exception):
     """The snapshot cannot be had; ``str()`` says why."""
 
 
+class _HttpsRedirects(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect only to https: urllib would follow one to http."""
+
+    # The signature is urllib's.
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        if not newurl.startswith("https://"):
+            fp.close()  # urllib closes it only after this method returns
+            raise SnapshotError(f"{req.full_url}: redirected to {newurl}, not https")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def open_url(url: str) -> Any:
+    """An open response for *url* (a context manager with ``read``)."""
+    opener = urllib.request.build_opener(_HttpsRedirects)
+    return opener.open(url, timeout=TIMEOUT)  # nosec B310
+
+
 def fetch(url: str, limit: int) -> bytes:
-    """The body of *url*, refused over *limit* bytes."""
+    """The body of *url*, refused over *limit* bytes. A broken HTTP exchange
+    (``http.client.HTTPException``, which urllib does not wrap in an
+    ``OSError``) is a ``SnapshotError``."""
     if not url.startswith("https://"):
         raise SnapshotError(f"{url}: not https")
     chunks: list[bytes] = []
     size = 0
-    with urllib.request.urlopen(url, timeout=TIMEOUT) as response:  # nosec B310
-        while chunk := response.read(CHUNK):
-            size += len(chunk)
-            if size > limit:
-                raise SnapshotError(f"{url}: larger than {limit} bytes")
-            chunks.append(chunk)
+    try:
+        with open_url(url) as response:
+            while chunk := response.read(CHUNK):
+                size += len(chunk)
+                if size > limit:
+                    raise SnapshotError(f"{url}: larger than {limit} bytes")
+                chunks.append(chunk)
+    except http.client.HTTPException as exc:
+        raise SnapshotError(f"{url}: {type(exc).__name__}") from exc
     return b"".join(chunks)
 
 
@@ -140,12 +172,21 @@ class SpdxSnapshotHook(BuildHookInterface):  # type: ignore[type-arg]
             return
         build_data["force_include"][str(source)] = target
 
-    def _source(self, override: str) -> Path:
-        """The bundle to ship: the override, else the file in the tree (a
-        wheel built from an unpacked sdist), else a download."""
+    def _local(self, override: str) -> Path | None:
+        """The bundle to ship without a download: the override, else the file
+        in the tree of an unpacked sdist (it has ``PKG-INFO``; a checkout does
+        not, and a file left in one would ship stale)."""
+        if override:
+            return Path(override).resolve(strict=True)
         in_tree = Path(self.root, IN_TREE)
-        path = Path(override).resolve(strict=True) if override else in_tree
-        if override or path.is_file():
+        if Path(self.root, "PKG-INFO").is_file() and in_tree.is_file():
+            return in_tree
+        return None
+
+    def _source(self, override: str) -> Path:
+        """The bundle to ship: a local one (see ``_local``), else a download."""
+        path = self._local(override)
+        if path is not None:
             check_bundle(path.read_bytes(), None)
             return path
         self._scratch = tempfile.mkdtemp(prefix="licenseid-bundle-")

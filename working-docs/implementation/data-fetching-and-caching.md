@@ -180,6 +180,10 @@ download failed: ...; using packaged data v3.28.0`.
   `data/spdx/format-1/v<ver>.json.gz` exists, else runs `tools.build_bundle`
   and pushes one commit to the orphan `data` branch.
 - The decision reads a checkout of `data`, never the raw URL (cached 5 min).
+- The build installs the runtime dependencies listed in `pyproject.toml`, not
+  a wheel (no Pitloom, Magika or onnxruntime), and runs with
+  `PYTHONPATH=src`. A rebuild of 3.29.0 is byte-identical to the published
+  bundle.
 - The push token reaches git only in the last step, never the build. Actions
   are pinned by SHA. The job runs only in `bact/licenseid`.
 - Set up by hand: the orphan `data` branch, seeded with the 3.29.0 bundle by
@@ -200,9 +204,11 @@ download failed: ...; using packaged data v3.28.0`.
   sdist finds the file in the tree and makes no request. It uses
   `force_include`: `artifacts` does not reach the sdist, because hatchling
   ships `.gitignore` in it and the file is ignored.
-- Source: `LICENSEID_BUNDLE=<path>`, else the file in the tree, else
-  `latest.json` and the bundle it names from the `data` branch, checked for
-  size, SHA-256, gzip, format and version. `skip` ships nothing. An editable
+- Source: `LICENSEID_BUNDLE=<path>`, else the file in the tree of an
+  unpacked sdist (it has `PKG-INFO`; a file left in a checkout is ignored, as
+  it would ship stale), else `latest.json` and the bundle it names from the
+  `data` branch, checked for size, SHA-256, gzip, format and version. A
+  redirect to http is refused. `skip` ships nothing. An editable
   install (`version == "editable"`; hatchling has no `dev_mode`) ships
   nothing either.
 - A failed download is a warning and a package without a snapshot, unless

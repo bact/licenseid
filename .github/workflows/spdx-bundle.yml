@@ -36,9 +36,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
-    env:
-      # The pins of the release, as in build.yml.
-      PIP_CONSTRAINT: ${{ github.workspace }}/.github/requirements-release.txt
     defaults:
       run:
         shell: bash
@@ -89,17 +86,19 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
+      # The runtime dependencies, read from pyproject.toml: the tool imports
+      # the package, which needs them, but not a built wheel.
       - name: Build the bundle
         if: steps.want.outputs.build == 'true'
         env:
           VERSION: ${{ steps.want.outputs.version }}
-          # The bundle cannot depend on the snapshot it is about to replace.
-          LICENSEID_BUNDLE: skip
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          python -m pip install .
-          python -m tools.build_bundle --version "${VERSION}" \
+          python -c 'import tomllib; print(*tomllib.load(open("pyproject.toml", "rb"))["project"]["dependencies"], sep="\n")' \
+            > "${RUNNER_TEMP}/requirements.txt"
+          python -m pip install -r "${RUNNER_TEMP}/requirements.txt"
+          PYTHONPATH=src python -m tools.build_bundle --version "${VERSION}" \
             --out data/spdx/format-1
 
       # The token reaches git only here, for the push, and never the build.
