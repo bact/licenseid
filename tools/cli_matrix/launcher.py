@@ -109,6 +109,9 @@ class Resp:
         """Decode the body as JSON, failing the way requests would."""
         return json.loads(self.text)
 
+    def close(self) -> None:
+        """Release the connection; there is none."""
+
     def iter_content(self, chunk_size: int = 8192) -> Iterator[bytes]:
         """Yield the body in *chunk_size* pieces, as a streamed download."""
         for start in range(0, len(self._data), chunk_size):
@@ -150,6 +153,8 @@ def fake_get(
         if MODE == "pop_garbage":
             return Resp(text="<html>oops</html>")
         return Resp(text="spdx_license,num_pushers\nMIT,100\nApache-2.0,50\n")
+    if url.endswith(("latest.json", ".json.gz")):  # the bundle is not published
+        return Resp(fail="404 Not Found")
     raise RuntimeError(f"unexpected URL {url}")
 
 

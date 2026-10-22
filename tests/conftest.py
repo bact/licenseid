@@ -23,7 +23,7 @@ import pytest
 import requests
 from click.testing import CliRunner, Result
 
-from licenseid import console
+from licenseid import console, spdxdata
 from licenseid.cli import cli
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.dbconnection import Connections
@@ -71,6 +71,30 @@ def check_diagnostic_grammar(
     monkeypatch.setitem(console._state, "line_open", False)
     yield
     assert not violations, f"diagnostics break the message grammar: {violations}"
+
+
+_REAL_GET = requests.get
+_REAL_PACKAGED_BUNDLE = spdxdata.packaged_bundle
+
+
+@pytest.fixture(autouse=True)
+def offline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test reaches the network or sees the snapshot a wheel build ships.
+    A test fakes ``requests.get`` itself (``fake_requests_get``,
+    ``release_fakes.serve``) and ships a snapshot of its own
+    (``release_fakes.ship``)."""
+    monkeypatch.setattr(
+        requests,
+        "get",
+        mock.create_autospec(
+            _REAL_GET, side_effect=requests.ConnectionError("offline: a test")
+        ),
+    )
+    monkeypatch.setattr(
+        spdxdata,
+        "packaged_bundle",
+        mock.create_autospec(_REAL_PACKAGED_BUNDLE, return_value=None),
+    )
 
 
 def seed_ready_metadata(db_path: str) -> None:
@@ -165,16 +189,25 @@ def ordering_matcher() -> Generator[AggregatedLicenseMatcher, None, None]:
     keep_alive.close()
 
 
-def assert_cached_tarball_removed(db: LicenseDatabase, tar_path: Path) -> None:
-    """Building from an unusable cached tarball (corrupt, truncated or
-    unsafe) fails with the grammar message and deletes the file."""
-    with pytest.raises(
-        LicenseIdError,
-        match=rf"^{re.escape(tar_path.name)}: cache unusable: .*; removed, run",
-    ):
-        db._process_and_store(  # pylint: disable=protected-access
-            tar_path, {}, None
-        )
+def assert_cached_tarball_removed(
+    db: LicenseDatabase, tar_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An unusable cached tarball (corrupt, truncated or unsafe) beside *db*
+    is reported in one grammar line and deleted, and update downloads it
+    again: here the network is down (the autouse ``offline`` fixture), so
+    that is the error."""
+    capsys.readouterr()
+    name = re.escape(tar_path.name)
+    version = tar_path.name.removeprefix("spdx-data-v").removesuffix(".tar.gz")
+    with pytest.raises(LicenseIdError, match=rf"^{name}: download failed: "):
+        db.update_from_remote(version=version, source="tarball")
+    warnings = [
+        line for line in capsys.readouterr().err.splitlines() if "WARNING" in line
+    ]
+    assert [w for w in warnings if w.startswith(f"WARNING: {tar_path.name}")]
+    assert re.fullmatch(
+        rf"WARNING: {name}: cache unusable: .+; downloading", warnings[-1]
+    )
     assert not tar_path.exists()
 
 
@@ -282,7 +315,7 @@ def fake_requests_get(
     response.text = text
     if status_error:
         response.raise_for_status.side_effect = requests.HTTPError("503")
-    fake: mock.MagicMock = mock.create_autospec(requests.get, return_value=response)
+    fake: mock.MagicMock = mock.create_autospec(_REAL_GET, return_value=response)
     if error is not None:
         fake.side_effect = error
     monkeypatch.setattr(requests, "get", fake)

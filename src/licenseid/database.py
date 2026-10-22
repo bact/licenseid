@@ -8,14 +8,11 @@ SQLite database management for SPDX licenses.
 """
 
 import contextlib
-import json
 import os
 import sqlite3
-import tarfile
-import zlib
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from licenseid.console import end_line, status, warn
 from licenseid.dbcache import TableCache, cast_license_details
@@ -30,7 +27,7 @@ from licenseid.dbcheck import (
 )
 from licenseid.dbconnection import Connections, QueryConnection
 from licenseid.dbschema import create_schema, schema_state
-from licenseid.errors import DatabaseNotReadyError, LicenseIdError, typed
+from licenseid.errors import DatabaseNotReadyError, LicenseIdError, fold, typed
 from licenseid.fingerprintstore import fingerprint_hits, store_fingerprints
 from licenseid.normalize import normalize_text
 from licenseid.records import (
@@ -46,7 +43,11 @@ from licenseid.types import (
     ExceptionDetails,
     LicenseDetails,
     LicenseNameId,
+    UpdateSource,
 )
+
+if TYPE_CHECKING:
+    from licenseid.releasesource import UpdateRequest
 
 # Version of the normalize_text() rule set used to build the stored
 # search_text and fingerprints.  Bump whenever normalization rules change so
@@ -169,14 +170,20 @@ class LicenseDatabase:
         version: str | None = None,
         force: bool = False,
         use_cache: bool = True,
+        source: UpdateSource = "auto",
     ) -> bool:
-        """
-        Fetch license data from SPDX release package and update the local database.
-        Returns True if the database was updated, False if it was already up-to-date.
-        """
+        """Install a version of the SPDX License List: *version* (default: the
+        latest), from *source* (see ``licenseid.releasesource``), unless the
+        database already has it and not *force*. Returns True if the database
+        was updated, False if it was already up to date."""
+        # Local import: releasesource pulls in `requests` (~60ms at import),
+        # unused on the match path.
+        from licenseid.releasesource import UpdateRequest
+
+        request = UpdateRequest(version, use_cache, source, force)
         try:
             self._connections.leave_wal()  # a database of an earlier version used WAL
-            return self._update_from_remote(version, force, use_cache)
+            return self._update_from_remote(request)
         except DatabaseNotReadyError as e:
             # A read of this database failed: update words it as its own.
             if e.__cause__ is None:
@@ -185,61 +192,43 @@ class LicenseDatabase:
                 f"database: update failed: {typed(e.__cause__)}"
             ) from e
 
-    def _update_from_remote(
-        self, version: str | None, force: bool, use_cache: bool
-    ) -> bool:
+    def _update_from_remote(self, request: "UpdateRequest") -> bool:
         """``update_from_remote`` without the wording of a failed read."""
-        # Local import: see clear_cache() for why spdx_source (and its
-        # `requests` dependency) is not imported at module level.
-        from licenseid import spdx_source
+        from licenseid import releasesource  # see update_from_remote
 
-        # 1. Version check
-        target_version, release_date, ds_licenses = spdx_source.get_version_info(
-            self.db_path.parent, version, use_cache
-        )
+        current = self.get_metadata().get("license_list_version")
+        chain = releasesource.ReleaseChain(self.db_path.parent, request, current)
+        target_version, release_date, ds_licenses = chain.target()
         status(f"Target SPDX License List version: {target_version}")
-
-        metadata = self.get_metadata()
-        if metadata.get("license_list_version") == target_version and not force:
-            status(f"Database is already at version {target_version}. Skipping update.")
-            return False
+        if current == target_version and not request.force:
+            return _skip(target_version)
 
         status(f"Updating license database to version {target_version}...")
-
-        # 2. Fetch Popularity Data
-        pop_cache_path = self.db_path.parent / spdx_source.CACHE_POPULARITY_CSV
-        use_pop_cache = use_cache and spdx_source.is_cache_valid(
-            pop_cache_path, spdx_source.EXPIRY_POPULARITY_CSV
-        )
-        popularity_map, ds_pop = spdx_source.fetch_popularity_data(
-            self.db_path.parent,
-            pop_cache_path if use_pop_cache else None,
-            allow_stale=use_cache,
+        data, ds_data = chain.load(target_version)
+        if data.version == current and not request.force:  # a snapshot fallback
+            return _skip(data.version)
+        # After the data: a skip needs none, and the chain knows by now
+        # whether the network is out of reach.
+        popularity_map, ds_pop = releasesource.fetch_popularity(
+            self.db_path.parent, request.use_cache, chain.offline
         )
 
-        # 3. Fetch SPDX tarball
-        tar_cache_path, ds_tar = spdx_source.get_tarball_path(
-            self.db_path.parent, target_version, use_cache
-        )
-
-        # Report sources
         status("Data sources:")
         status(f"  - SPDX License List metadata   : {ds_licenses}")
-        status(f"  - SPDX License List data       : {ds_tar}")
+        status(f"  - SPDX License List data       : {ds_data}")
         status(f"  - GitHub license ranking data  : {ds_pop}")
-
-        self._process_and_store(tar_cache_path, popularity_map, release_date)
+        self._store(data, popularity_map, release_date)
         return True
 
-    def _process_and_store(
+    def _store(
         self,
-        tar_path: Path,
+        data: SpdxData,
         popularity_map: dict[str, int],
         release_date: str | None,
     ) -> None:
-        """Read the cached tarball and update database records."""
+        """Replace the database's rows with *data*, from any source. Its own
+        release date wins over *release_date*, the version lookup's."""
         try:
-            data = SpdxData.from_tarball(tar_path)
             release_date = data.release_date or release_date
             status(
                 f"Processing {len(data.licenses)} licenses and "
@@ -248,19 +237,8 @@ class LicenseDatabase:
             )
             self._update_db_records(data, popularity_map, release_date)
             status("\nUpdate complete.")
-        except (tarfile.TarError, EOFError, zlib.error) as e:
-            # A corrupt or truncated cached tarball (e.g. left by an
-            # interrupted download) would otherwise fail every later run.
-            try:
-                tar_path.unlink(missing_ok=True)
-                action = "removed, run 'licenseid update' again"
-            except OSError:  # Windows: another process holds the file
-                action = "remove it and run 'licenseid update' again"
-            raise LicenseIdError(
-                f"{tar_path.name}: cache unusable: {e}; {action}"
-            ) from e
-        except (OSError, json.JSONDecodeError, sqlite3.Error) as e:
-            raise LicenseIdError(f"database: update failed: {e}") from e
+        except (OSError, sqlite3.Error) as e:
+            raise LicenseIdError(f"database: update failed: {fold(str(e))}") from e
         finally:
             end_line()  # a failure mid "Preparing ...": leave stderr at column 0
 
@@ -517,3 +495,9 @@ class LicenseDatabase:
         with self._connection() as conn:
             cursor = conn.execute("SELECT key, value FROM db_metadata")
             return cast(DatabaseMetadata, {row[0]: row[1] for row in cursor.fetchall()})
+
+
+def _skip(version: str) -> bool:
+    """Report that the database already has *version*; False: not updated."""
+    status(f"Database is already at version {version}. Skipping update.")
+    return False

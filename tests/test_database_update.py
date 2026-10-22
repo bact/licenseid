@@ -8,11 +8,9 @@ extraction: a small synthetic SPDX release and a faked requests.get."""
 # pylint: disable=missing-function-docstring,protected-access
 
 import contextlib
-import io
 import json
 import os
 import sqlite3
-import tarfile
 import tempfile
 from pathlib import Path
 from unittest import mock
@@ -20,83 +18,47 @@ from unittest import mock
 import pytest
 import requests
 from click.testing import CliRunner
-from conftest import assert_cached_tarball_removed
+from conftest import assert_cached_tarball_removed, fake_requests_get
 from db_variants import make_ready_file_db
+from release_fakes import (
+    POPULARITY_CSV,
+    bundle_url,
+    listing,
+    release_tarball,
+    serve,
+    stub_chain,
+    tarball,
+    tarball_url,
+    urls,
+    version_json,
+)
 
 from licenseid import AggregatedLicenseMatcher, spdx_source
 from licenseid.cli import cli
 from licenseid.console import warn
 from licenseid.database import LicenseDatabase
 from licenseid.errors import LicenseIdError
+from licenseid.spdxdata import SpdxData
 
-_LICENSES = {
-    "licenseListVersion": "9.99",
-    "releaseDate": "2030-01-01",
-    "licenses": [
-        {
-            "licenseId": "MIT",
-            "name": "MIT License",
-            "isOsiApproved": True,
-            "isFsfLibre": True,
-            "isDeprecatedLicenseId": False,
-        }
-    ],
-}
-_MIT_TEXT = (
-    "Permission is hereby granted, free of charge, to any person obtaining a "
-    "copy of this software and associated documentation files."
-)
-
-
-def _tarball(members: dict[str, bytes], links: dict[str, str] | None = None) -> bytes:
-    buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-        for name, data in members.items():
-            info = tarfile.TarInfo(name)
-            info.size = len(data)
-            tar.addfile(info, io.BytesIO(data))
-        for name, target in (links or {}).items():
-            info = tarfile.TarInfo(name)
-            info.type = tarfile.SYMTYPE
-            info.linkname = target
-            tar.addfile(info)
-    return buf.getvalue()
-
-
-def _release_tarball() -> bytes:
-    root = "license-list-data-9.99"
-    return _tarball(
-        {
-            f"{root}/json/licenses.json": json.dumps(_LICENSES).encode(),
-            f"{root}/json/exceptions.json": json.dumps({"exceptions": []}).encode(),
-            f"{root}/text/MIT.txt": _MIT_TEXT.encode(),
-        }
-    )
+_LICENSES = listing()
 
 
 def _serve(
     monkeypatch: pytest.MonkeyPatch,
-    tarball: bytes,
-    popularity_csv: str = "spdx_license,num_pushers\nMIT,1000\n",
+    tarball_bytes: bytes,
+    popularity_csv: str = POPULARITY_CSV,
 ) -> mock.MagicMock:
-    """Fake the three remote sources by URL."""
-
-    def fake_get(url: str, **_: object) -> mock.MagicMock:
-        response = mock.create_autospec(requests.Response, instance=True)
-        if url == spdx_source.LICENSES_JSON_URL:
-            response.json.return_value = {
-                "licenseListVersion": "9.99",
-                "releaseDate": "2030-01-01",
-            }
-        elif url == spdx_source.POPULARITY_DATA_URL:
-            response.text = popularity_csv
-        else:
-            response.iter_content.return_value = [tarball]
-        return response  # type: ignore[no-any-return]
-
-    fake: mock.MagicMock = mock.create_autospec(requests.get, side_effect=fake_get)
-    monkeypatch.setattr(requests, "get", fake)
-    return fake
+    """Fake the remote sources of the tarball path by URL: spdx.org's
+    licenses.json, the popularity data and the 9.99 tarball. Our latest.json
+    and bundle are a 404, as before they are published."""
+    return serve(
+        monkeypatch,
+        {
+            spdx_source.LICENSES_JSON_URL: version_json(),
+            spdx_source.POPULARITY_DATA_URL: popularity_csv,
+            tarball_url(): tarball_bytes,
+        },
+    )
 
 
 def test_update_from_remote_end_to_end_then_offline(
@@ -105,16 +67,24 @@ def test_update_from_remote_end_to_end_then_offline(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     db = LicenseDatabase(str(tmp_path / "licenses.db"))
-    fake = _serve(monkeypatch, _release_tarball())
+    fake = _serve(monkeypatch, release_tarball())
 
     assert db.update_from_remote()
-    assert fake.call_count == 3  # licenses.json, popularity, tarball
+    # Our latest.json and bundle are a 404, so spdx.org and the tarball follow.
+    assert urls(fake) == [
+        spdx_source.LATEST_JSON_URL,
+        spdx_source.LICENSES_JSON_URL,
+        bundle_url(),
+        tarball_url(),
+        spdx_source.POPULARITY_DATA_URL,  # after the data: a skip needs none
+    ]
     assert db.get_metadata()["license_list_version"] == "9.99"
     details = db.get_license_details("MIT")
     assert details is not None
     assert details["pop_score"] == 1000  # from the popularity data
     err = capsys.readouterr().err
     assert "GitHub license ranking data  : remote" in err
+    assert "SPDX License List data       : tarball (remote)" in err
 
     cache_files = {p.name for p in tmp_path.iterdir()}
     assert {"licenses.json", "popularity.csv", "spdx-data-v9.99.tar.gz"} <= cache_files
@@ -137,7 +107,7 @@ def test_update_of_a_file_uri_caches_beside_the_database(
     (tmp_path / "cwd").mkdir()
     monkeypatch.chdir(tmp_path / "cwd")
     db = LicenseDatabase(template.format(p=where))
-    _serve(monkeypatch, _release_tarball())
+    _serve(monkeypatch, release_tarball())
     assert db.update_from_remote()
     cache_files = {p.name for p in tmp_path.iterdir()}
     assert {"licenses.json", "popularity.csv", "spdx-data-v9.99.tar.gz"} <= cache_files
@@ -174,7 +144,7 @@ def test_update_succeeds_when_the_temporary_files_cannot_be_removed(
         real_unlink(path, *args, **kw)  # type: ignore[arg-type]
 
     db = LicenseDatabase(str(tmp_path / "licenses.db"))
-    _serve(monkeypatch, _release_tarball())
+    _serve(monkeypatch, release_tarball())
     # The clean-up is stopped, so what it leaves must land under tmp_path.
     monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
     # The same names in the cache directory are never unlinked by update.
@@ -188,7 +158,7 @@ def test_a_tarball_that_cannot_be_written_is_a_cache_write_failure(
 ) -> None:
     """Windows: the destination is open (another update, a virus scan), so the
     rename is refused. One grammar line, not "update failed: PermissionError"."""
-    _serve(monkeypatch, _release_tarball())
+    _serve(monkeypatch, release_tarball())
 
     def refuse(src: object, dst: object) -> None:
         raise PermissionError(13, "in use")
@@ -203,7 +173,7 @@ def test_forced_update_reuses_all_caches_without_network(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     db = LicenseDatabase(str(tmp_path / "licenses.db"))
-    fake = _serve(monkeypatch, _release_tarball())
+    fake = _serve(monkeypatch, release_tarball())
     db.update_from_remote()
     fake.reset_mock()
     capsys.readouterr()
@@ -212,21 +182,23 @@ def test_forced_update_reuses_all_caches_without_network(
     fake.assert_not_called()
     err = capsys.readouterr().err
     assert "GitHub license ranking data  : cache" in err
-    assert "SPDX License List data       : cache" in err
+    assert "SPDX License List data       : tarball (cache)" in err
 
 
-def test_unsafe_cached_tarball_is_removed_and_reported(tmp_path: Path) -> None:
+def test_unsafe_cached_tarball_is_removed_and_reported(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     db = LicenseDatabase(str(tmp_path / "licenses.db"))
     tar_path = tmp_path / "spdx-data-v9.99.tar.gz"
-    tar_path.write_bytes(_tarball({"../evil.txt": b"pwned"}))
-    assert_cached_tarball_removed(db, tar_path)
+    tar_path.write_bytes(tarball({"../evil.txt": b"pwned"}))
+    assert_cached_tarball_removed(db, tar_path, capsys)
 
 
 def test_cli_update_reports_success_then_no_change(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     db_path = str(tmp_path / "licenses.db")
-    _serve(monkeypatch, _release_tarball())
+    _serve(monkeypatch, release_tarball())
     runner = CliRunner()
 
     first = runner.invoke(cli, ["--db", db_path, "update"])
@@ -245,7 +217,7 @@ def test_cli_clear_cache_prints_nothing_on_stdout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     db_path = tmp_path / "licenses.db"
-    _serve(monkeypatch, _release_tarball())
+    _serve(monkeypatch, release_tarball())
     runner = CliRunner()
     assert runner.invoke(cli, ["--db", str(db_path), "update"]).exit_code == 0
 
@@ -263,7 +235,7 @@ def test_cli_update_warnings_go_to_stderr(
     db_path = str(tmp_path / "licenses.db")
     _serve(
         monkeypatch,
-        _release_tarball(),
+        release_tarball(),
         popularity_csv="spdx_license,num_pushers\nMIT,1000\nApache-2.0,\n",
     )
     result = CliRunner().invoke(cli, ["--db", db_path, "update"])
@@ -282,13 +254,13 @@ def test_cli_update_unexpected_error_keeps_message_grammar(
     grammar line, not the bare exception text."""
     root = "license-list-data-9.99"
     exceptions = {"exceptions": [{"licenseExceptionId": "E-1"}]}
-    tarball = _tarball(
+    archive = tarball(
         {
             f"{root}/json/licenses.json": json.dumps(_LICENSES).encode(),
             f"{root}/json/exceptions.json": json.dumps(exceptions).encode(),
         }
     )
-    _serve(monkeypatch, tarball)
+    _serve(monkeypatch, archive)
     result = CliRunner().invoke(cli, ["--db", str(tmp_path / "x.db"), "update"])
     assert result.exit_code == 1
     assert result.stdout == ""
@@ -303,18 +275,20 @@ def test_cli_update_recursion_error_is_not_passed_through_raw(
     in the release must still give a grammar line, not the bare text."""
     root = "license-list-data-9.99"
     nested = ("[" * 200_000 + "]" * 200_000).encode()
-    _serve(monkeypatch, _tarball({f"{root}/json/licenses.json": nested}))
+    _serve(monkeypatch, tarball({f"{root}/json/licenses.json": nested}))
     result = CliRunner().invoke(cli, ["--db", str(tmp_path / "x.db"), "update"])
     assert result.exit_code == 1
     errors = [line for line in result.stderr.splitlines() if line.startswith("ERROR")]
     assert len(errors) == 1
-    assert errors[0].startswith("ERROR: database: update failed: RecursionError: ")
+    assert errors[0].startswith(
+        "ERROR: spdx-data-v9.99.tar.gz: download unusable: RecursionError: "
+    )
 
 
 def test_cli_update_unopenable_database_path_is_an_error_line(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fake = _serve(monkeypatch, _release_tarball())
+    fake = _serve(monkeypatch, release_tarball())
     db_path = tmp_path / "no" / "such" / "x.db"
     result = CliRunner().invoke(cli, ["--db", str(db_path), "update"])
     assert result.exit_code == 1
@@ -344,16 +318,16 @@ def test_cli_update_exception_without_message_has_no_dangling_colon(
 def test_cli_update_failure_is_a_short_error_and_exit_1(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fake: mock.MagicMock = mock.create_autospec(
-        requests.get, side_effect=requests.ConnectionError("network down")
+    fake = fake_requests_get(
+        monkeypatch, error=requests.ConnectionError("network down")
     )
-    monkeypatch.setattr(requests, "get", fake)
     result = CliRunner().invoke(cli, ["--db", str(tmp_path / "x.db"), "update"])
     assert result.exit_code == 1
     assert "ERROR: licenses.json: download failed: " in result.stderr
     assert "network down" in result.output
     assert "Traceback" not in result.output
-    assert fake.call_count == 1  # one attempt, no retry loop
+    # One attempt per version file (latest.json, licenses.json), no retry loop.
+    assert fake.call_count == 2
 
 
 @pytest.mark.parametrize("version", ["../../evil", ""])
@@ -361,7 +335,7 @@ def test_cli_update_rejects_unsafe_version(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, version: str
 ) -> None:
     """An empty --version is invalid too, not silently "latest"."""
-    fake = _serve(monkeypatch, _release_tarball())
+    fake = _serve(monkeypatch, release_tarball())
     result = CliRunner().invoke(
         cli, ["--db", str(tmp_path / "x.db"), "update", "--version", version]
     )
@@ -384,10 +358,7 @@ def test_update_passes_no_cache_flag_to_stale_fallback(
     monkeypatch.setattr(
         spdx_source, "get_version_info", lambda *_: ("9.99", None, "remote")
     )
-    monkeypatch.setattr(
-        spdx_source, "get_tarball_path", lambda *_: (tmp_path / "x.tgz", "remote")
-    )
-    monkeypatch.setattr(db, "_process_and_store", mock.Mock())
+    stub_chain(monkeypatch, db)
     assert db.update_from_remote(force=True, use_cache=use_cache)
     assert fetch.call_args.kwargs["allow_stale"] is use_cache
 
@@ -402,7 +373,7 @@ def test_failure_mid_progress_line_leaves_stderr_at_line_start(
     exceptions = {"exceptions": [{"licenseExceptionId": "E-1"}]}
     tar_path = tmp_path / "spdx-data-v9.99.tar.gz"
     tar_path.write_bytes(
-        _tarball(
+        tarball(
             {
                 f"{root}/json/licenses.json": json.dumps(_LICENSES).encode(),
                 f"{root}/json/exceptions.json": json.dumps(exceptions).encode(),
@@ -411,7 +382,7 @@ def test_failure_mid_progress_line_leaves_stderr_at_line_start(
     )
     capsys.readouterr()
     with pytest.raises(KeyError):
-        db._process_and_store(tar_path, {}, None)
+        db._store(SpdxData.from_tarball(tar_path), {}, None)
     err = capsys.readouterr().err
     assert "Preparing license data..." in err
     assert err.endswith("\n")
@@ -429,7 +400,7 @@ def test_update_builds_a_database_without_wal_and_a_lookup_leaves_no_files(
 ) -> None:
     path = tmp_path / "licenses.db"
     db = LicenseDatabase(str(path))
-    _serve(monkeypatch, _release_tarball())
+    _serve(monkeypatch, release_tarball())
     assert db.update_from_remote()
     assert _journal_mode(path) == "delete"
     AggregatedLicenseMatcher(db_path=str(path)).match(license_id="MIT")
@@ -442,7 +413,7 @@ def test_update_takes_a_database_of_an_earlier_version_out_of_wal(
     """Also when it has nothing to download: the next run converts it."""
     path = tmp_path / "licenses.db"
     db = LicenseDatabase(str(path))
-    _serve(monkeypatch, _release_tarball())
+    _serve(monkeypatch, release_tarball())
     assert db.update_from_remote()
     with contextlib.closing(sqlite3.connect(path)) as conn:
         conn.execute("PRAGMA journal_mode = WAL")
@@ -458,7 +429,7 @@ def test_a_failed_fingerprint_write_leaves_a_database_update_does_not_skip(
     write must not make the next plain update skip them for ever."""
     path = tmp_path / "licenses.db"
     db = LicenseDatabase(str(path))
-    _serve(monkeypatch, _release_tarball())
+    _serve(monkeypatch, release_tarball())
     with (
         mock.patch(
             "licenseid.database.store_fingerprints",
@@ -479,7 +450,7 @@ def test_a_failed_update_leaves_no_old_version_over_new_rows(
     """``update --version <old>`` must not skip a half-updated database."""
     path = tmp_path / "licenses.db"
     db = LicenseDatabase(str(path))
-    _serve(monkeypatch, _release_tarball())
+    _serve(monkeypatch, release_tarball())
     assert db.update_from_remote()
     with contextlib.closing(sqlite3.connect(path)) as conn:
         conn.execute(

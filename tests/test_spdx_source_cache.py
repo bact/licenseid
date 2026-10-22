@@ -182,7 +182,8 @@ def test_fetch_failure_with_explicit_version_is_unavailable(
     assert capsys.readouterr().err == (
         "Fetching latest license list info from "
         f"{spdx_source.LICENSES_JSON_URL}...\n"
-        "WARNING: licenses.json: download failed: down; using version 3.20.0\n"
+        "WARNING: licenses.json: download failed: ConnectionError: down; "
+        "using version 3.20.0\n"
     )
 
 
@@ -195,6 +196,10 @@ def test_clear_cache_removes_orphaned_temp_files(tmp_path: Path) -> None:
         tmp_path / f"{spdx_source.CACHE_POPULARITY_CSV}.1a2b3c4d.tmp",
         tmp_path / "spdx-data-v3.28.0.tar.gz.1a2b3c4d.tmp",
         tmp_path / "spdx-data-v3.28.0.tar.gz",
+        tmp_path / "spdx-bundle-v3.28.0.json.gz",
+        tmp_path / "spdx-bundle-v3.28.0.json.gz.1a2b3c4d.tmp",
+        tmp_path / "latest.json",
+        tmp_path / "latest.json.1a2b3c4d.tmp",
         tmp_path / spdx_source.CACHE_LICENSES_JSON,
     ]
     unrelated = tmp_path / "notes.tmp"
@@ -225,12 +230,12 @@ def test_invalid_explicit_version_is_rejected(
 
 @pytest.mark.parametrize("version", ["3.28.0", "3.21", "3.0rc1", "3.20-rc1", "v3"])
 def test_reasonable_versions_are_accepted(version: str) -> None:
-    assert spdx_source._is_valid_version(version)
+    assert spdx_source.is_valid_version(version)
 
 
 @pytest.mark.parametrize("version", ["", None, 3.28, ["3.28"], "../x"])
 def test_non_string_or_unsafe_versions_are_rejected(version: object) -> None:
-    assert not spdx_source._is_valid_version(version)
+    assert not spdx_source.is_valid_version(version)
 
 
 def test_unsafe_version_in_remote_licenses_json_is_not_used_or_cached(

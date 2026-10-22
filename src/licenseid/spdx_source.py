@@ -23,17 +23,36 @@ import uuid
 from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any, Final
 
 import requests
 
 from licenseid.console import status, warn
-from licenseid.errors import InvalidInputError, LicenseIdError
+from licenseid.errors import InvalidInputError, LicenseIdError, typed
+from licenseid.spdxdata import BundleError, SpdxData
 
 LICENSES_JSON_URL = "https://spdx.org/licenses/licenses.json"
 POPULARITY_DATA_URL = (
     "https://raw.githubusercontent.com/github/innovationgraph/main/data/licenses.csv"
 )
-DEFAULT_FALLBACK_VERSION = "3.28.0"
+TARBALL_URL_TEMPLATE = (
+    "https://github.com/spdx/license-list-data/archive/refs/tags/v{version}.tar.gz"
+)
+# Our own compact bundles (gzipped JSON, spdxdata format 1), published on the
+# `data` branch: `latest.json` (the two keys of SPDX's licenses.json, and more)
+# and `v<version>.json.gz`. The format is in the path, so a later format cannot
+# break an installed client; refs/heads/ stops a tag named `data` shadowing it.
+BUNDLE_BASE_URL = (
+    "https://raw.githubusercontent.com/bact/licenseid/refs/heads/data/spdx/format-1/"
+)
+LATEST_JSON_URL = f"{BUNDLE_BASE_URL}latest.json"
+BUNDLE_URL_TEMPLATE = f"{BUNDLE_BASE_URL}v{{version}}.json.gz"
+# Compressed size cap of a downloaded bundle: 3.29.0 is about 1 MiB.
+MAX_BUNDLE_BYTES: Final = 16 * 2**20
+# (connect, read) in seconds: a host that a sandbox blocks fails in seconds,
+# not minutes; a small file needs less time to arrive than a release.
+SMALL_FILE_TIMEOUT: Final = (10, 30)
+RELEASE_TIMEOUT: Final = (10, 60)
 
 # License list versions become part of a cache file name and a download URL, so
 # reject anything that could carry a path separator or URL syntax, whether it
@@ -41,11 +60,16 @@ DEFAULT_FALLBACK_VERSION = "3.28.0"
 _VERSION_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 CACHE_LICENSES_JSON = "licenses.json"
+CACHE_LATEST_JSON = "latest.json"
 CACHE_POPULARITY_CSV = "popularity.csv"
 CACHE_SPDX_TARBALL_TEMPLATE = "spdx-data-v{version}.tar.gz"
+CACHE_BUNDLE_TEMPLATE = "spdx-bundle-v{version}.json.gz"
 
 # Expiration in days
 EXPIRY_LICENSES_JSON = 45
+# SPDX releases every 3-6 months and latest.json follows within a day, so it
+# can last as long as licenses.json.
+EXPIRY_LATEST_JSON = EXPIRY_LICENSES_JSON
 EXPIRY_POPULARITY_CSV = 75
 
 # A cache file may look slightly newer than "now" (clock differences on a
@@ -56,15 +80,18 @@ _CLOCK_SKEW_TOLERANCE = timedelta(minutes=5)
 def clear_cache_files(directory: Path) -> None:
     """Remove every download cache file in *directory*, including the
     temporary files a killed download orphans."""
-    for filename in (CACHE_LICENSES_JSON, CACHE_POPULARITY_CSV):
+    for filename in (CACHE_LICENSES_JSON, CACHE_LATEST_JSON, CACHE_POPULARITY_CSV):
         path = directory / filename
         if path.exists():  # a parent that is not a directory has none
             path.unlink(missing_ok=True)
     for pattern in (
         "spdx-data-v*.tar.gz",
         f"{CACHE_LICENSES_JSON}.*.tmp",
+        f"{CACHE_LATEST_JSON}.*.tmp",
         f"{CACHE_POPULARITY_CSV}.*.tmp",
         "spdx-data-v*.tar.gz.*.tmp",
+        "spdx-bundle-v*.json.gz",
+        "spdx-bundle-v*.json.gz.*.tmp",
     ):
         for path in directory.glob(pattern):
             path.unlink(missing_ok=True)
@@ -82,7 +109,9 @@ def user_agent() -> str:
     return f"licenseid/{version} (+https://github.com/bact/licenseid)"
 
 
-def _http_get(url: str, timeout: int, stream: bool = False) -> requests.Response:
+def _http_get(
+    url: str, timeout: float | tuple[float, float], stream: bool = False
+) -> requests.Response:
     """GET with an identifying User-Agent, a single attempt, and a timeout.
 
     Deliberately no retries or backoff loops: a failing third-party server is
@@ -111,7 +140,7 @@ def _atomic_path(path: Path) -> Iterator[Path]:
             tmp_path.unlink(missing_ok=True)
 
 
-def _is_valid_version(version: object) -> bool:
+def is_valid_version(version: object) -> bool:
     """True if *version* is a string safe to use in a file name and URL."""
     return isinstance(version, str) and _VERSION_RE.fullmatch(version) is not None
 
@@ -129,82 +158,155 @@ def is_cache_valid(path: Path, days: int) -> bool:
     return -_CLOCK_SKEW_TOLERANCE <= age < timedelta(days=days)
 
 
-def _read_licenses_json(path: Path) -> tuple[str | None, str | None]:
-    """(licenseListVersion, releaseDate) of a cached licenses.json, or
+def _version_and_date(data: Any) -> tuple[str | None, str | None]:
+    """(licenseListVersion, releaseDate) of a parsed licenses.json or
+    latest.json, or (None, None) if it has no valid version. Both come from a
+    third party: a release date that is not a string is dropped."""
+    if not isinstance(data, dict) or not is_valid_version(
+        data.get("licenseListVersion")
+    ):
+        return None, None
+    release_date = data.get("releaseDate")
+    return data["licenseListVersion"], (
+        release_date if isinstance(release_date, str) else None
+    )
+
+
+# Each version file has a cache of its own: spdx.org can name a version our
+# bundle does not have yet, so the bundle never reads spdx.org's answer.
+_VERSION_CACHES: dict[str, tuple[str, int]] = {
+    LICENSES_JSON_URL: (CACHE_LICENSES_JSON, EXPIRY_LICENSES_JSON),
+    LATEST_JSON_URL: (CACHE_LATEST_JSON, EXPIRY_LATEST_JSON),
+}
+
+
+def _read_version_file(path: Path) -> tuple[str | None, str | None]:
+    """(licenseListVersion, releaseDate) of a cached version file, or
     (None, None) if it is missing, unreadable, or not a usable object."""
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except (ValueError, OSError):  # incl. JSONDecodeError, UnicodeDecodeError
         return None, None
-    if not isinstance(data, dict) or not _is_valid_version(
-        data.get("licenseListVersion")
-    ):
-        return None, None
-    return data["licenseListVersion"], data.get("releaseDate")
+    return _version_and_date(data)
 
 
-def _download_licenses_json(path: Path) -> tuple[str | None, str | None]:
-    """Download licenses.json and cache it if usable.
+def _download_version_file(url: str, path: Path) -> tuple[str | None, str | None]:
+    """Download the version file at *url* (spdx.org's licenses.json or our
+    latest.json) and cache it at *path* if usable.
 
     Returns (licenseListVersion, releaseDate), or (None, None) if the
     response has no license list version (and is then not cached). Raises
     requests.RequestException on a network, HTTP or JSON-decoding failure.
     """
-    status(f"Fetching latest license list info from {LICENSES_JSON_URL}...")
-    resp = _http_get(LICENSES_JSON_URL, timeout=30)
+    status(f"Fetching latest license list info from {url}...")
+    resp = _http_get(url, timeout=SMALL_FILE_TIMEOUT)
     resp.raise_for_status()
     data = resp.json()
-    if not isinstance(data, dict) or not _is_valid_version(
-        data.get("licenseListVersion")
-    ):
+    version, release_date = _version_and_date(data)
+    if version is None:
         return None, None
     try:
         with _atomic_path(path) as tmp_path, open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(data, f)
     except OSError as e:
-        warn(f"{CACHE_LICENSES_JSON}: cache write failed: {e}")
-    return data["licenseListVersion"], data.get("releaseDate")
+        warn(f"{path.name}: cache write failed: {typed(e)}")
+    return version, release_date
+
+
+def _fresh_version(
+    cache_dir: Path, urls: tuple[str, ...]
+) -> tuple[str | None, str | None]:
+    """The version in the first valid cache of *urls* that holds one; a
+    valid cache that holds none is reported."""
+    for url in urls:
+        name, days = _VERSION_CACHES[url]
+        path = cache_dir / name
+        if not is_cache_valid(path, days):
+            continue
+        version, release_date = _read_version_file(path)
+        if version:
+            return version, release_date
+        warn(f"{name}: cache unusable; downloading")
+    return None, None
+
+
+def _download_version(
+    cache_dir: Path, urls: tuple[str, ...]
+) -> tuple[str | None, str | None, str]:
+    """The version of the first of *urls* whose download gives one, as
+    ``(version, release_date, "")``, or ``(None, None, failure)``: *failure*
+    is the ``SUBJECT: CONDITION: DETAIL`` of the last one. A URL that fails
+    with another to try warns, naming the next."""
+    failure = ""
+    for url in urls:
+        name = _VERSION_CACHES[url][0]
+        if failure:
+            warn(f"{failure}; downloading {name}")
+        try:
+            version, release_date = _download_version_file(url, cache_dir / name)
+        except requests.RequestException as e:
+            failure = f"{name}: download failed: {typed(e)}"
+            continue
+        if version:
+            return version, release_date, ""
+        failure = f"{name}: download unusable: no valid license list version"
+    return None, None, failure
+
+
+def _stale_version(
+    cache_dir: Path, urls: tuple[str, ...], failure: str
+) -> tuple[str | None, str | None]:
+    """The version in the first cache of *urls* that has one, whatever its
+    age, with the warning that *failure* falls back to it."""
+    for url in urls:
+        name = _VERSION_CACHES[url][0]
+        version, release_date = _read_version_file(cache_dir / name)
+        if version:
+            own = failure.startswith(f"{name}:")
+            warn(f"{failure}; using stale {'cache' if own else name}")
+            return version, release_date
+    return None, None
 
 
 def get_version_info(
-    cache_dir: Path, version: str | None, use_cache: bool
+    cache_dir: Path,
+    version: str | None,
+    use_cache: bool,
+    urls: tuple[str, ...] = (LICENSES_JSON_URL,),
 ) -> tuple[str, str | None, str]:
     """Determine target version and fetch version info.
 
     Returns ``(version, release_date, source)`` where source is ``"cache"``,
-    ``"remote"``, ``"stale cache"`` or ``"unavailable"``. Order: a valid
-    cache, then one download, then (only if *use_cache*) a stale cache. If
-    all fail, an explicit *version* is used as is; otherwise RuntimeError is
-    raised.
+    ``"remote"``, ``"stale cache"`` or ``"unavailable"``. Each of *urls*
+    (not empty; LICENSES_JSON_URL, LATEST_JSON_URL) has a cache file of its
+    own. Order: the first valid cache of *urls* (if *use_cache*), then one
+    download of each in turn until one gives a version, then (only if
+    *use_cache*) the first stale cache of them. Only the caches of *urls*
+    are read: spdx.org's licenses.json can name a version our latest.json
+    does not have yet. If all fail, an explicit
+    *version* is used as is; otherwise LicenseIdError is raised, worded
+    ``SUBJECT: CONDITION: DETAIL`` with no ACTION, so a caller can add the
+    fallback it takes.
     """
-    if version is not None and not _is_valid_version(version):
+    if version is not None and not is_valid_version(version):
         raise InvalidInputError(f"version: invalid: {version!r}")
-    licenses_json_path = cache_dir / CACHE_LICENSES_JSON
 
-    if use_cache and is_cache_valid(licenses_json_path, EXPIRY_LICENSES_JSON):
-        latest_version, release_date = _read_licenses_json(licenses_json_path)
+    if use_cache:
+        latest_version, release_date = _fresh_version(cache_dir, urls)
         if latest_version:
             return version or latest_version, release_date, "cache"
-        warn(f"{CACHE_LICENSES_JSON}: cache unusable; downloading")
-
-    try:
-        latest_version, release_date = _download_licenses_json(licenses_json_path)
-        failure = "download unusable: no valid license list version"
-    except requests.RequestException as e:
-        latest_version, release_date = None, None
-        failure = f"download failed: {e}"
+    latest_version, release_date, failure = _download_version(cache_dir, urls)
     if latest_version:
         return version or latest_version, release_date, "remote"
 
     if use_cache:  # --no-cache means never fall back to cached data
-        latest_version, release_date = _read_licenses_json(licenses_json_path)
+        latest_version, release_date = _stale_version(cache_dir, urls, failure)
         if latest_version:
-            warn(f"{CACHE_LICENSES_JSON}: {failure}; using stale cache")
             return version or latest_version, release_date, "stale cache"
     if not version:
-        raise LicenseIdError(f"{CACHE_LICENSES_JSON}: {failure}")
-    warn(f"{CACHE_LICENSES_JSON}: {failure}; using version {version}")
+        raise LicenseIdError(failure)
+    warn(f"{failure}; using version {version}")
     return version, None, "unavailable"
 
 
@@ -212,31 +314,91 @@ def get_tarball_path(
     cache_dir: Path, version: str, use_cache: bool
 ) -> tuple[Path, str]:
     """Download or retrieve the SPDX License List tarball path."""
-    if not _is_valid_version(version):
+    if not is_valid_version(version):
         raise InvalidInputError(f"version: invalid: {version!r}")
     tar_filename = CACHE_SPDX_TARBALL_TEMPLATE.format(version=version)
     tar_cache_path = cache_dir / tar_filename
     data_source = "remote"
 
     if not (use_cache and tar_cache_path.exists()):
-        tar_url = (
-            "https://github.com/spdx/license-list-data/archive/"
-            f"refs/tags/v{version}.tar.gz"
-        )
+        tar_url = TARBALL_URL_TEMPLATE.format(version=version)
         status(f"Downloading release: {tar_url}")
         try:
-            resp = _http_get(tar_url, timeout=60, stream=True)
+            resp = _http_get(tar_url, timeout=RELEASE_TIMEOUT, stream=True)
             resp.raise_for_status()
             with _atomic_path(tar_cache_path) as tmp_path, open(tmp_path, "wb") as f:
                 f.writelines(resp.iter_content(chunk_size=8192))
         except requests.RequestException as e:
-            raise LicenseIdError(f"{tar_filename}: download failed: {e}") from e
+            raise LicenseIdError(f"{tar_filename}: download failed: {typed(e)}") from e
         except OSError as e:  # a full disk; on Windows, a file held open
-            raise LicenseIdError(f"{tar_filename}: cache write failed: {e}") from e
+            raise LicenseIdError(
+                f"{tar_filename}: cache write failed: {typed(e)}"
+            ) from e
     else:
         data_source = "cache"
 
     return tar_cache_path, data_source
+
+
+def get_bundle(cache_dir: Path, version: str, use_cache: bool) -> tuple[SpdxData, str]:
+    """The bundle of *version*, from the cache (if *use_cache*) or one
+    download; returns ``(data, source)``, source ``"cache"`` or ``"remote"``.
+
+    A cached bundle that cannot be read is removed and downloaded again, with
+    a warning. Integrity is gzip's CRC, checked as the whole stream is read; a
+    bundle is cached only once it parses, atomically, and never expires. A
+    cache that cannot be written is a warning: the data is in memory.
+    Raises LicenseIdError (``download failed`` or ``download unusable``,
+    no ACTION) when the download gives no usable bundle, a 404 included.
+    """
+    if not is_valid_version(version):
+        raise InvalidInputError(f"version: invalid: {version!r}")
+    name = CACHE_BUNDLE_TEMPLATE.format(version=version)
+    path = cache_dir / name
+    if use_cache and path.exists():
+        try:
+            return SpdxData.from_bundle(path.read_bytes(), version), "cache"
+        except (BundleError, OSError) as e:
+            with contextlib.suppress(OSError):
+                path.unlink(missing_ok=True)
+            detail = str(e) if isinstance(e, BundleError) else typed(e)
+            warn(f"{name}: cache unusable: {detail}; downloading")
+    raw = _download_bundle(name, BUNDLE_URL_TEMPLATE.format(version=version))
+    try:
+        data = SpdxData.from_bundle(raw, version)
+    except BundleError as e:
+        raise LicenseIdError(f"{name}: download unusable: {e}") from e
+    try:
+        with _atomic_path(path) as tmp_path:
+            tmp_path.write_bytes(raw)
+    except OSError as e:
+        warn(f"{name}: cache write failed: {typed(e)}")
+    return data, "remote"
+
+
+def _download_bundle(name: str, url: str) -> bytes:
+    """The bytes at *url*, at most MAX_BUNDLE_BYTES of them: counted as they
+    arrive, as a Content-Length header can lie or be absent."""
+    status(f"Downloading bundle: {url}")
+    chunks: list[bytes] = []
+    size = 0
+    try:
+        resp = _http_get(url, timeout=RELEASE_TIMEOUT, stream=True)
+        try:
+            resp.raise_for_status()
+            for chunk in resp.iter_content(chunk_size=65536):
+                size += len(chunk)
+                if size > MAX_BUNDLE_BYTES:
+                    raise LicenseIdError(
+                        f"{name}: download unusable: "
+                        f"larger than {MAX_BUNDLE_BYTES} bytes"
+                    )
+                chunks.append(chunk)
+        finally:
+            resp.close()  # a stream given up early still holds its connection
+    except requests.RequestException as e:
+        raise LicenseIdError(f"{name}: download failed: {typed(e)}") from e
+    return b"".join(chunks)
 
 
 def _read_local_csv(path: Path) -> str | None:
@@ -254,11 +416,11 @@ def _download_popularity_csv() -> tuple[str, str]:
     and *failure* is a ``download failed: ...`` condition on failure."""
     status(f"Downloading popularity data: {POPULARITY_DATA_URL}")
     try:
-        resp = _http_get(POPULARITY_DATA_URL, timeout=30)
+        resp = _http_get(POPULARITY_DATA_URL, timeout=SMALL_FILE_TIMEOUT)
         resp.raise_for_status()
         return resp.text, ""
     except requests.RequestException as e:
-        return "", f"download failed: {e}"
+        return "", f"download failed: {typed(e)}"
 
 
 def _write_popularity_cache(path: Path, csv_content: str) -> None:
@@ -347,3 +509,27 @@ def fetch_popularity_data(
     if try_stale:
         warn(f"{CACHE_POPULARITY_CSV}: stale cache unusable")
     return {}, "unavailable"
+
+
+def cached_popularity_data(
+    cache_dir: Path, use_cache: bool
+) -> tuple[dict[str, int], str]:
+    """Popularity data with no download, for an update that makes no network
+    call: the cache file only, and only if *use_cache*. An expired file is
+    still used, with a warning, as nothing fresher can be had; a missing or
+    unusable one gives baseline scores, with a warning. Returns
+    ``(popularity_map, source)`` as fetch_popularity_data does."""
+    path = cache_dir / CACHE_POPULARITY_CSV
+    if not (use_cache and path.exists()):
+        warn(f"{CACHE_POPULARITY_CSV}: missing")
+        return {}, "unavailable"
+    popularity_map = _aggregate_popularity(_read_local_csv(path) or "")
+    if not popularity_map:
+        warn(f"{CACHE_POPULARITY_CSV}: cache unusable")
+        return {}, "unavailable"
+    if is_cache_valid(path, EXPIRY_POPULARITY_CSV):
+        return popularity_map, "cache"
+    mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+    days = max((datetime.now(timezone.utc) - mtime).days, 0)
+    warn(f"{CACHE_POPULARITY_CSV}: {days} days old; using stale cache")
+    return popularity_map, "stale cache"
