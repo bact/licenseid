@@ -7,13 +7,6 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Fixed
-
-- A text with a lone surrogate (an argument of invalid UTF-8, or an API string)
-  is `input: invalid` (exit 2), not a `UnicodeEncodeError`
-
 ## [0.5.0] - 2026-10-22
 
 ### Added
@@ -38,10 +31,13 @@ and this project adheres to
 
 - `update` stores the same fingerprints on every run: ties between n-grams sort
   by n-gram, not set order; `update --force` rebuilds an older database ([#86])
+- A text with a lone surrogate (an argument of invalid UTF-8, or an API string)
+  is `input: invalid` (exit 2), not a `UnicodeEncodeError` ([#94])
 
 [#85]: https://github.com/bact/licenseid/pull/85
 [#86]: https://github.com/bact/licenseid/pull/86
 [#90]: https://github.com/bact/licenseid/pull/90
+[#94]: https://github.com/bact/licenseid/pull/94
 [9e789d1]: https://github.com/bact/licenseid/commit/9e789d1
 
 ## [0.4.3] - 2026-10-07
