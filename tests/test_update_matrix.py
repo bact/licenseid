@@ -1,0 +1,107 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Combination matrix for ``licenseid update``: every ``--source`` x
+``--cache/--no-cache`` x ``--version`` x ``--force``, each run twice on one
+database, so an option is never only tested on its own (AGENTS.md
+"Testing"; the ``match`` and ``is-*`` axes are in test_option_matrix.py).
+
+The world: the network serves version 9.99 from every source, and the
+snapshot shipped in the wheel is 9.98."""
+# pylint: disable=missing-function-docstring
+
+from pathlib import Path
+
+import pytest
+from click.testing import CliRunner, Result
+from release_fakes import online, release_bundle, serve, ship, urls
+
+from licenseid.cli import cli
+
+SOURCES = ["auto", "bundle", "tarball", "packaged"]
+CACHES = ["--cache", "--no-cache"]
+VERSIONS = [None, "9.99", "9.98"]
+PACKAGED = "9.98"
+
+
+def _expected(source: str, version: str | None) -> tuple[str | None, str]:
+    """``(installed version, data source)`` of a first run, or ``(None,
+    error)`` when it fails."""
+    if source == "packaged":
+        if version in (None, PACKAGED):
+            return PACKAGED, "packaged"
+        return None, f"spdx-bundle.json.gz: not found: version {version}"
+    if version == PACKAGED:  # the network has no 9.98
+        if source == "auto":
+            return PACKAGED, "packaged"
+        name = "spdx-bundle" if source == "bundle" else "spdx-data"
+        return None, f"{name}-v9.98."
+    return "9.99", "tarball (remote)" if source == "tarball" else "bundle (remote)"
+
+
+def _run(db: Path, args: list[str]) -> Result:
+    return CliRunner().invoke(cli, ["--db", str(db), "update", *args])
+
+
+def _data_source(stderr: str) -> str:
+    line = next(line for line in stderr.splitlines() if "License List data " in line)
+    return line.split(" : ")[1]
+
+
+def _second_source(source: str, version: str | None, cache: str) -> str:
+    """The data source of a forced second run."""
+    first = _expected(source, version)[1]
+    if cache == "--cache" and first.endswith("(remote)"):
+        return first.replace("(remote)", "(cache)")
+    return first
+
+
+@pytest.mark.parametrize("force", [False, True], ids=["plain", "force"])
+@pytest.mark.parametrize("version", VERSIONS, ids=lambda v: v or "latest")
+@pytest.mark.parametrize("cache", CACHES)
+@pytest.mark.parametrize("source", SOURCES)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_update_matrix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+    cache: str,
+    version: str | None,
+    force: bool,
+) -> None:
+    fake = serve(monkeypatch, online())
+    ship(monkeypatch, release_bundle(PACKAGED))
+    db = tmp_path / "licenses.db"
+    args = ["--source", source, cache]
+    args += ["--version", version] if version else []
+    args += ["--force"] if force else []
+    installed, detail = _expected(source, version)
+
+    first = _run(db, args)
+    if installed is None:
+        assert first.exit_code == 1, first.output
+        assert first.stdout == ""
+        assert first.stderr.splitlines()[-1].startswith(f"ERROR: {detail}")
+        assert _run(db, args).exit_code == 1  # no state that hides the failure
+        return
+    assert first.exit_code == 0, first.output
+    assert first.stdout == f"Database updated at {db}\n"
+    assert _data_source(first.stderr) == detail
+    if source == "packaged":
+        fake.assert_not_called()
+
+    fake.reset_mock()
+    second = _run(db, args)
+    assert second.exit_code == 0, second.output
+    if force:
+        assert second.stdout == f"Database updated at {db}\n"
+        assert _data_source(second.stderr) == _second_source(source, version, cache)
+    else:
+        assert second.stdout == f"Database remains at version {installed} at {db}\n"
+    if source == "packaged":
+        fake.assert_not_called()
+    elif cache == "--cache" and installed != PACKAGED:
+        # A fresh version cache and a cached bundle or tarball: no download.
+        assert urls(fake) == []

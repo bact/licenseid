@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-22
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -19,24 +19,29 @@ rows from it; see "Store path" below.
 
 ## What it does
 
-`licenseid update` reads three third-party sources and caches each in the
-database directory (`~/.local/share/licenseid/` by default):
+`licenseid update` reads third-party sources and caches each in the database
+directory (`~/.local/share/licenseid/` by default):
 
-- spdx.org `licenses.json` → `licenses.json`, 45 days, `get_version_info`
-- GitHub `license-list-data` tarball → `spdx-data-v<ver>.tar.gz`, never
-  expires, `get_tarball_path`
+- version: the bundle pointer `latest.json` or spdx.org `licenses.json` →
+  `licenses.json` (both have `licenseListVersion` and `releaseDate`), 45
+  days, `get_version_info`
+- data, one of: the published bundle → `spdx-bundle-v<ver>.json.gz`; the
+  GitHub `license-list-data` tarball → `spdx-data-v<ver>.tar.gz`; the
+  snapshot in the package (no cache). Neither cached file expires.
 - GitHub Innovation Graph CSV → `popularity.csv`, 75 days,
   `fetch_popularity_data`
 
-Every function returns where its data came from: `cache`, `remote`,
-`stale cache` or `unavailable`; `update_from_remote` prints them under
-`Data sources:`.
+The functions return where their data came from: `cache`, `remote`,
+`stale cache`, `unavailable` or `packaged`; `update_from_remote` prints them
+under `Data sources:` (the data line reads `bundle (remote)`, `bundle
+(cache)`, `tarball (remote)`, `tarball (cache)` or `packaged`).
 
 ## Rules to keep
 
 - **Fallback order**: valid cache, then one download, then (only with
   caching allowed) a stale cache, then an explicit `--version` or an error.
-  `--no-cache` never reads cached data, not even as a fallback.
+  `--no-cache` never reads cached data, not even as a fallback. The
+  snapshot in the package is shipped data, not cache: `--no-cache` may use it.
 - **Non-silent**: every deviation prints one `WARNING:` line to standard
   error through `console.warn()` (unusable cache, unusable download, stale
   data, bad counts), in the `LEVEL: SUBJECT: CONDITION` grammar from
@@ -62,17 +67,18 @@ Every function returns where its data came from: `cache`, `remote`,
   or `..` name is never read. The tarball and the bundle share one check of
   the version, the release date and every licence and exception ID
   (`[A-Za-z0-9][A-Za-z0-9.+-]{0,99}`, no duplicates).
-- **Self-healing**: a corrupt or truncated cached tarball is deleted by
-  `_process_and_store` (`TarError`, `EOFError`, `zlib.error`) so the next run
-  downloads it again; a local popularity cache that parses to nothing is
-  re-downloaded once.
+- **Self-healing**: a cached bundle or tarball that cannot be read is
+  removed (`ReleaseChain._read_tarball`; `TarError`, `EOFError`,
+  `zlib.error`), warned about (`cache unusable: ...; downloading`) and
+  downloaded again in the same run; if it cannot be removed (Windows, held
+  open) the error says `remove it and run 'licenseid update' again`; a local
+  popularity cache that parses to nothing is re-downloaded once.
 
 ## Store path (PR #85)
 
 - One object feeds the store: `SpdxData` (version, release date, licence and
-  exception entries, `texts` by licence ID). `_process_and_store` builds it
-  from the cached tarball and keeps its error mapping (a bad tarball is
-  deleted: `cache unusable`).
+  exception entries, `texts` by licence ID). `ReleaseChain` builds it from
+  the bundle, the tarball or the snapshot; `database._store` stores it.
 - `records.build_records` is pure: no file or database access. A licence
   with no text is dropped, unless deprecated; then it keeps a row without an
   index entry (pinned by `tests/test_update_characterization.py`, with a
@@ -99,6 +105,66 @@ Every function returns where its data came from: `cache`, `remote`,
   builds under different `PYTHONHASHSEED` values store identical rows
   (14,117 fingerprints). A database built earlier keeps its old rows until
   `update --force`.
+
+## Source chain (`releasesource.py`)
+
+`update --source auto|bundle|tarball|packaged`, default `auto`. An explicit
+source is the only one tried; `auto` falls back, one `WARNING:` per step whose
+ACTION names the next source, e.g.
+`spdx-bundle-v3.29.0.json.gz: download failed: HTTPError: 404 ...;
+downloading spdx-data-v3.29.0.tar.gz`, then `spdx-data-v3.29.0.tar.gz:
+download failed: ...; using packaged data v3.28.0`.
+
+- **Version** (`auto`): the first valid cache of the two version files, then
+  a download of `latest.json` and of spdx.org's `licenses.json` in turn, then
+  (only with caching) the first stale cache, then the version of the
+  packaged snapshot. Each file has its own cache: `latest.json` for one day
+  (the pointer moves with the daily bundle job), `licenses.json` for 45 days.
+  `--source bundle` reads only `latest.json`, `tarball` only spdx.org, so one
+  never sees the other's answer. A version from the snapshot makes no
+  network call, popularity included. A stale cache of the other file is
+  reported as `using stale <file>`.
+- **Data** (`auto`): a cached bundle or tarball of the target version first
+  (cache before download across sources, so a forced re-run stays offline),
+  then the bundle, the tarball, the snapshot. The snapshot is used only if it
+  exists, equals `--version` when one is given, and is not older than the
+  database: a failed download never downgrades it.
+- **Skip**: the database is already at the target version without `--force`,
+  or a fallback produced the version the database already has (the snapshot
+  is never stored twice). Popularity data is fetched after both checks, so a
+  skip makes no popularity request.
+- **`--source packaged` and a newer database**: refused unless `--force`
+  (`spdx-bundle.json.gz: older than the database: v3.28.0 < v3.29.0; run
+  'licenseid update --source packaged --force'`). An explicit `--version`
+  naming the snapshot's version passes, as it does for the other sources.
+- **Timeouts** are (connect, read): (10, 30) for the version files and
+  popularity, (10, 60) for the bundle and the tarball, so a black-holed host
+  fails in seconds.
+- **Bundle fetch**: one streamed request, `timeout=(10, 60)`; bytes are
+  counted from `iter_content` and refused over 16 MiB; gzip's CRC is the
+  integrity check (no hash on the client); cached atomically; a failed cache
+  write is a warning. An unusable cache file is removed and the file fetched
+  again in the same run.
+- **One store path**: every source yields a `SpdxData`; `database._store`
+  takes it; there is no other store entry point.
+- **A valid `licenses.json` can answer `auto` before `latest.json` is
+  fetched** (valid caches come before downloads, so a forced re-run stays
+  offline). If the bundle of that version is not published yet, `auto` falls
+  back to the tarball.
+- **New diagnostics**: SUBJECTs `latest.json`, `spdx-bundle-v<ver>.json.gz`,
+  `spdx-bundle.json.gz` (the snapshot); ACTIONs `downloading <file>`,
+  `using cached <file>`, `using packaged data v<ver>`, `using stale <file>`,
+  `run 'licenseid update --source packaged --force'`; CONDITION `older than
+  the database`.
+- **Timings** (cached 3.29.0, best of three, read-only): tarball 49,400,135
+  bytes, read 1.2 s, store 3.8 s; bundle 980,375 bytes (4,954,511 unzipped),
+  read 0.04 s, store 2.7 s. The two databases match row for row.
+- **Tests**: `tests/release_fakes.py` serves a synthetic release (404 for any
+  other URL); an autouse `offline` fixture makes `requests.get` fail and
+  `packaged_bundle()` return `None`, so a test opts in. A tarball is valid
+  gzip: a server fake that answers every URL with it hides a bundle failure.
+- `tools/cli_matrix/launcher.py` answers `latest.json` and `.json.gz` with a
+  404 and its `Resp` has `close()`.
 
 ## Traps and surprises
 
@@ -153,4 +219,3 @@ when changing a parser; never modify or clear the real cache for it.
 ## Known gaps (deliberately not done)
 
 - Timeouts are per read, not total, so a slow-drip download can run long.
-- `DEFAULT_FALLBACK_VERSION` in `spdx_source.py` is unused.

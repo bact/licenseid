@@ -16,6 +16,8 @@
   `fingerprint.py` (the maths), `fingerprintstore.py` (its table),
   `spdxdata.py` (an SPDX release as data: reads the tarball and the bundle,
   standard library only), `records.py` (the database rows built from it),
+  `releasesource.py` (where `update` gets a release: bundle, tarball or the
+  packaged snapshot, and the order between them),
   `dbschema.py` (the tables and whether a file has them), `output.py` (the
   CLI's standard output and what a
   failed write means), `result.py` (the public result and its JSON and text
@@ -71,7 +73,9 @@ Unix philosophy. Consistent, predictable, parseable.
     fallback lets it continue).
   - `SUBJECT`: the thing affected, a lowercase word or cache file name:
     `command`, `database`, `input`, `match`, `option`, `output`, `usage`,
-    `version`, `licenses.json`, `popularity.csv`, `spdx-data-v<ver>.tar.gz`.
+    `version`, `latest.json`, `licenses.json`, `popularity.csv`,
+    `spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz` (the snapshot in the
+    wheel), `spdx-data-v<ver>.tar.gz`.
   - `CONDITION`: short lowercase fragment, reused across subjects. The
     full current set (add new ones here): `not found`, `invalid`,
     `missing`, `empty`, `unreadable`, `binary file`,
@@ -80,12 +84,15 @@ Unix philosophy. Consistent, predictable, parseable.
     `cache write failed`, `cache unusable`, `download unusable`,
     `stale cache unusable`, `parse failed`,
     `N rows with missing or non-numeric num_pushers`, `update failed`,
-    `delete failed`, `write failed`, `compact failed`.
+    `delete failed`, `write failed`, `compact failed`,
+    `older than the database`.
   - `DETAIL`: the variable part (exception text, value, path).
   - `ACTION`: what happens next, after a semicolon: the fallback taken
-    (`using stale cache`, `downloading`, `counted as 0`) or the command for
-    the user to run (`run 'licenseid update'`). A fallback goes on the same
-    line as its cause, e.g.
+    (`using stale cache`, `using stale <file>`, `downloading`,
+    `downloading <file>`, `using cached <file>`, `using packaged data v<ver>`,
+    `counted as 0`) or the command for the user to run
+    (`run 'licenseid update'`). A fallback goes on the same line as its
+    cause, e.g.
     `popularity.csv: download failed: <error>; using stale cache`.
   - No trailing period, no "Please", no full sentences.
   - A failure worded this way is raised as `licenseid.errors.LicenseIdError`

@@ -75,7 +75,10 @@ def _write_tarball(path: Path, truncate_to: int | None = None) -> None:
     ids=["not_gzip", "truncated_gzip"],
 )
 def test_corrupt_cached_tarball_is_removed(
-    db: LicenseDatabase, tmp_path: Path, corrupt: bytes | None
+    db: LicenseDatabase,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    corrupt: bytes | None,
 ) -> None:
     """A corrupt/truncated cached tarball fails once with a clear message and
     is deleted so the next run re-downloads it instead of failing forever."""
@@ -85,7 +88,7 @@ def test_corrupt_cached_tarball_is_removed(
     else:
         tar_path.write_bytes(corrupt)
 
-    assert_cached_tarball_removed(db, tar_path)
+    assert_cached_tarball_removed(db, tar_path, capsys)
 
 
 def test_a_corrupt_tarball_another_process_holds_is_not_called_removed(
@@ -101,7 +104,8 @@ def test_a_corrupt_tarball_another_process_holds_is_not_called_removed(
 
     monkeypatch.setattr(Path, "unlink", held)
     with pytest.raises(LicenseIdError) as info:
-        db._process_and_store(tar_path, {}, None)  # pylint: disable=protected-access
+        db.update_from_remote(version="9.99", source="tarball")
+    assert str(info.value).startswith("spdx-data-v9.99.tar.gz: cache unusable: ")
     assert str(info.value).endswith("; remove it and run 'licenseid update' again")
     assert tar_path.exists()
 

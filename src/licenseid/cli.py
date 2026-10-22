@@ -13,7 +13,7 @@ import sqlite3
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, NoReturn, get_args
 
 import click
 
@@ -48,7 +48,7 @@ from licenseid.textinput import (
     read_text_file,
     reject_binary,
 )
-from licenseid.types import LicenseDetails
+from licenseid.types import LicenseDetails, UpdateSource
 from licenseid.usage import UsageLineCommand, UsageLineError, UsageLineGroup
 
 
@@ -210,12 +210,21 @@ def cli(ctx: click.Context, db: str | None, clear_cache: bool) -> None:
     default=True,
     help="Use local cache for downloads (default: true).",
 )
+@click.option(
+    "--source",
+    type=click.Choice(get_args(UpdateSource)),
+    default="auto",
+    show_default=True,
+    help="Where to get the license list: our bundle, SPDX's tarball, the copy "
+    "shipped with licenseid, or each in turn (auto).",
+)
 @click.pass_context
 def update(
     ctx: click.Context,
     version: str | None,
     force: bool,
     use_cache: bool,
+    source: UpdateSource,
 ) -> None:
     """Update the license database from remote sources."""
     db_path = ctx.obj["db_path"]
@@ -227,7 +236,7 @@ def update(
         make_default_db_dir(ctx)
         database = LicenseDatabase(db_path)
         updated = database.update_from_remote(
-            version=version, force=force, use_cache=use_cache
+            version=version, force=force, use_cache=use_cache, source=source
         )
         if updated:
             outcome = f"Database updated at {db_path}"

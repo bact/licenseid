@@ -309,8 +309,9 @@ claims YAML support (there is none).
     explicit version or `RuntimeError`) and reports `cache`, `remote`,
     `stale cache` or `unavailable`.
   - A corrupt or truncated cached tarball failed every later run (a
-    truncated gzip raised a bare `EOFError`); `_process_and_store` now
-    deletes it and asks for a re-run, so it is re-downloaded once.
+    truncated gzip raised a bare `EOFError`); the update path (once
+    `_process_and_store`, since removed) now deletes it and downloads it
+    again.
   - `clear_cache` did not remove temporary files orphaned by a killed run.
   - A license list version (from `--version` or from a third-party
     `licenses.json`) went unchecked into a cache file name and a download

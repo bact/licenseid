@@ -9,11 +9,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- `update --source auto|bundle|tarball|packaged`: `update` fetches a 1 MB
+  bundle from `raw.githubusercontent.com`, else the SPDX tarball, else the
+  snapshot in the package; it works where only that host is reachable
+- `update --source packaged` refuses to replace a newer database with an older
+  snapshot unless `--force`
+
 ### Changed
 
 - `update` stores no SPDX XML (`xml_template` is NULL); the database is about
   7 MB smaller ([#85])
 - A release without `licenseListVersion` fails as `cache unusable` ([#85])
+- `update` fails fast on a host that does not answer: connect timeout 10 s;
+  `latest.json` is cached for one day, `licenses.json` for 45
 
 ### Fixed
 

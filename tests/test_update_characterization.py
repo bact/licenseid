@@ -18,7 +18,8 @@ from unittest import mock
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
-from test_database_update import _serve, _tarball
+from release_fakes import tarball
+from test_database_update import _serve
 
 from licenseid.database import LicenseDatabase
 from licenseid.errors import LicenseIdError
@@ -77,7 +78,7 @@ def _update(
         f"{_ROOT}/json/exceptions.json": b'{"exceptions": []}',
     }
     members.update({f"{_ROOT}/{k}": v for k, v in (files or {}).items()})
-    _serve(monkeypatch, _tarball(members))
+    _serve(monkeypatch, tarball(members))
     path = tmp_path / "licenses.db"
     assert LicenseDatabase(str(path)).update_from_remote()
     conn = sqlite3.connect(path)
@@ -185,11 +186,12 @@ def test_a_tarball_without_licenselistversion_is_unusable(
 ) -> None:
     # Before, such an update stored a NULL version (and so was never skipped).
     listing = json.dumps({"licenses": [_lic("A-1")]}).encode()
-    _serve(monkeypatch, _tarball({f"{_ROOT}/json/licenses.json": listing}))
+    _serve(monkeypatch, tarball({f"{_ROOT}/json/licenses.json": listing}))
     path = tmp_path / "licenses.db"
     with pytest.raises(
         LicenseIdError,
-        match=r"cache unusable: licenseListVersion is missing or invalid",
+        match=r"^spdx-data-v9\.99\.tar\.gz: download unusable: ReadError: "
+        r"licenseListVersion is missing or invalid$",
     ):
         LicenseDatabase(str(path)).update_from_remote()
 
@@ -210,7 +212,7 @@ def test_update_vacuums_the_xml_of_an_older_database_away(
     assert before > 2_000_000
     _serve(
         monkeypatch,
-        _tarball(
+        tarball(
             {
                 f"{_ROOT}/json/licenses.json": json.dumps(
                     {"licenseListVersion": "9.99", "licenses": [_lic("A-1")]}

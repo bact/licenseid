@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-22
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -234,6 +234,11 @@ RapidFuzz cost data points:
 - SPDX 3.28.0 tarball: 13,018 files, 19 directories, no links (`FETCH` L90-93);
   `popularity.csv` covers 29 licences (`FETCH` L93). On-disk DB ~46 MB
   (`R2` L177).
+- Release data, SPDX 3.29.0, cached, best of three (PR 2 session, 2026-10-22):
+  tarball 49,400,135 bytes, read 1.2 s, store 3.8 s; published bundle (JSON,
+  gzip) 980,375 bytes, read 0.04 s, store 2.7 s; both give the same database
+  row for row. Reading the tarball member by member in lookup order took
+  93 s; in archive order 1.5 s.
 - Readiness probe `_BUSY_WAIT` = 1.0 s vs SQLite default 5 s (`GATE` L72-75).
 - CLI matrix: ~1,200 cells, five shells, two interpreters, ~3 minutes
   (`tools/cli_matrix/README.md` L56-57); baseline file 19 lines.

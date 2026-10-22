@@ -113,6 +113,12 @@ Advanced update options:
 - `--force`: Force update even if the local database is already at
   the target version.
 - `--no-cache`: Bypass the local cache for downloads.
+- `--source auto|bundle|tarball|packaged`: Where the license data comes from.
+  `auto` (default) tries the published bundle, then the SPDX tarball on
+  GitHub, then the snapshot shipped in the package; the other values use that
+  one source only. The bundle is about 1 MB and comes from
+  `raw.githubusercontent.com`, so `licenseid update` works where only that
+  host is reachable.
 
 ### 2. Identify a license
 
@@ -177,7 +183,7 @@ superset that shares the same preamble.
 
 - `licenses.json`: Cached for 45 days.
 - `popularity.csv`: Cached for 75 days.
-- SPDX data tarballs are versioned and never expire.
+- SPDX data bundles and tarballs are versioned and never expire.
 
 To clear the cache manually:
 

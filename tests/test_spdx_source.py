@@ -18,6 +18,7 @@ from unittest import mock
 import pytest
 import requests
 from conftest import fake_requests_get, leftover_tmp_files
+from release_fakes import stub_chain
 
 from licenseid import __version__, spdx_source
 from licenseid.database import LicenseDatabase
@@ -231,7 +232,7 @@ def test_popularity_request_is_identified_with_timeout_and_single_attempt(
         spdx_source.user_agent()
         == f"licenseid/{__version__} (+https://github.com/bact/licenseid)"
     )
-    assert kwargs["timeout"] == 30
+    assert kwargs["timeout"] == (10, 30)  # (connect, read)
 
 
 def test_license_list_and_tarball_requests_are_identified(
@@ -248,6 +249,11 @@ def test_license_list_and_tarball_requests_are_identified(
     assert fake.call_count == 2
     for call in fake.call_args_list:
         assert call.kwargs["headers"]["User-Agent"] == spdx_source.user_agent()
+    # (connect, read): a blocked host fails in 10 s; a release reads longer.
+    assert [call.kwargs["timeout"] for call in fake.call_args_list] == [
+        (10, 30),
+        (10, 60),
+    ]
 
 
 # --- data source reporting, atomic cache write ---
@@ -421,10 +427,7 @@ def test_update_from_remote_reports_actual_popularity_source(
     monkeypatch.setattr(
         spdx_source, "get_version_info", lambda *_: ("9.99", None, "cache")
     )
-    monkeypatch.setattr(
-        spdx_source, "get_tarball_path", lambda *_: (tmp_path / "x.tgz", "cache")
-    )
-    monkeypatch.setattr(db, "_process_and_store", mock.Mock())
+    stub_chain(monkeypatch, db)
 
     assert db.update_from_remote(force=True, use_cache=use_cache)
 
@@ -489,7 +492,11 @@ def test_popularity_csv_parse_error_uses_no_partial_data(
     "case",
     [
         ("<html>oops</html>", {"text": "<html>x</html>"}, "download unusable"),
-        ("", {"error": requests.ConnectionError("down")}, "download failed: down"),
+        (
+            "",
+            {"error": requests.ConnectionError("down")},
+            "download failed: ConnectionError: down",
+        ),
     ],
     ids=["garbage", "empty_file"],
 )
@@ -526,7 +533,7 @@ def test_popularity_stale_cache_with_no_rows_is_reported(
         line for line in capsys.readouterr().err.splitlines() if "WARNING" in line
     ]
     assert warnings == [
-        "WARNING: popularity.csv: download failed: down",
+        "WARNING: popularity.csv: download failed: ConnectionError: down",
         "WARNING: popularity.csv: stale cache unusable",
     ]
 

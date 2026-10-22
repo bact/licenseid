@@ -16,6 +16,11 @@ from typing_extensions import Required
 # words), a license name (or an ID it is only like), or the license text.
 Method = Literal["tag", "field", "id", "name", "text"]
 
+# Where `licenseid update` gets the SPDX License List (see
+# licenseid.releasesource): our bundle, SPDX's tarball, the snapshot shipped in
+# the wheel, or each in turn.
+UpdateSource = Literal["auto", "bundle", "tarball", "packaged"]
+
 
 class LicenseMatch(TypedDict):
     """A match as match() returns it: the same keys for every method.
