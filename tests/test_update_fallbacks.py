@@ -232,6 +232,23 @@ def test_an_unusable_downloaded_tarball_is_removed(
     assert not (tmp_path / TARBALL).exists()
 
 
+@pytest.mark.parametrize("cached", [False, True], ids=["download", "cache"])
+def test_a_tarball_of_another_version_is_removed_and_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cached: bool
+) -> None:
+    routes = online()
+    routes[tarball_url()] = release_tarball("1.0")
+    serve(monkeypatch, routes)
+    if cached:
+        (tmp_path / TARBALL).write_bytes(release_tarball("1.0"))
+    with pytest.raises(
+        LicenseIdError,
+        match=f"^{TARBALL}: download unusable: .*version 1.0 is not the expected",
+    ):
+        open_db(tmp_path).update_from_remote(source="tarball")
+    assert not (tmp_path / TARBALL).exists()
+
+
 def test_a_cached_tarball_that_cannot_be_removed_is_the_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

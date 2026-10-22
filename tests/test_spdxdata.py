@@ -217,6 +217,16 @@ def test_a_tarball_with_exceptions(tmp_path: Path) -> None:
     assert data.texts == {"MIT": "mit text\n"}
 
 
+def test_a_tarball_of_another_version_is_refused(tmp_path: Path) -> None:
+    tar = make_tarball(
+        tmp_path / "t.tar.gz", {"json/licenses.json": licenses_json("MIT")}
+    )
+    assert SpdxData.from_tarball(tar, "3.99").version == "3.99"
+    assert SpdxData.from_tarball(tar, None).version == "3.99"
+    with pytest.raises(tarfile.ReadError, match="version 3.99 is not the expected 1.0"):
+        SpdxData.from_tarball(tar, "1.0")
+
+
 def test_a_tarball_without_exceptions_json(tmp_path: Path) -> None:
     tar = make_tarball(
         tmp_path / "t.tar.gz", {"json/licenses.json": licenses_json("MIT")}
