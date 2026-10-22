@@ -18,8 +18,7 @@ hatchling and nothing of ``licenseid``.
 Environment:
 
 ``LICENSEID_BUNDLE=skip``
-    Ship no snapshot (CI jobs that only install the package, and the workflow
-    that publishes the bundle).
+    Ship no snapshot (CI jobs that only install the package).
 ``LICENSEID_BUNDLE=<path>``
     Ship that bundle: a hermetic build, no network.
 ``LICENSEID_REQUIRE_BUNDLE=1``
@@ -28,6 +27,7 @@ Environment:
 
 import gzip
 import hashlib
+import http.client
 import io
 import json
 import os
@@ -36,7 +36,7 @@ import shutil
 import tempfile
 import urllib.request
 from pathlib import Path
-from typing import Any, Final, IO
+from typing import IO, Any, Final
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
@@ -66,7 +66,9 @@ class SnapshotError(Exception):
 class _HttpsRedirects(urllib.request.HTTPRedirectHandler):
     """Follow a redirect only to https: urllib would follow one to http."""
 
-    def redirect_request(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    # The signature is urllib's.
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def redirect_request(
         self,
         req: urllib.request.Request,
         fp: IO[bytes],
@@ -76,6 +78,7 @@ class _HttpsRedirects(urllib.request.HTTPRedirectHandler):
         newurl: str,
     ) -> urllib.request.Request | None:
         if not newurl.startswith("https://"):
+            fp.close()  # urllib closes it only after this method returns
             raise SnapshotError(f"{req.full_url}: redirected to {newurl}, not https")
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
@@ -87,17 +90,22 @@ def open_url(url: str) -> Any:
 
 
 def fetch(url: str, limit: int) -> bytes:
-    """The body of *url*, refused over *limit* bytes."""
+    """The body of *url*, refused over *limit* bytes. A broken HTTP exchange
+    (``http.client.HTTPException``, which urllib does not wrap in an
+    ``OSError``) is a ``SnapshotError``."""
     if not url.startswith("https://"):
         raise SnapshotError(f"{url}: not https")
     chunks: list[bytes] = []
     size = 0
-    with open_url(url) as response:
-        while chunk := response.read(CHUNK):
-            size += len(chunk)
-            if size > limit:
-                raise SnapshotError(f"{url}: larger than {limit} bytes")
-            chunks.append(chunk)
+    try:
+        with open_url(url) as response:
+            while chunk := response.read(CHUNK):
+                size += len(chunk)
+                if size > limit:
+                    raise SnapshotError(f"{url}: larger than {limit} bytes")
+                chunks.append(chunk)
+    except http.client.HTTPException as exc:
+        raise SnapshotError(f"{url}: {type(exc).__name__}") from exc
     return b"".join(chunks)
 
 

@@ -8,10 +8,11 @@
 
 import gzip
 import hashlib
-import json
-import tempfile
+import http.client
 import http.server
 import io
+import json
+import tempfile
 import threading
 import urllib.request
 from http.client import HTTPMessage
@@ -235,6 +236,45 @@ def test_a_bad_pointer_fetches_no_bundle(
     assert [url.rsplit("/", 1)[1] for url in calls] == ["latest.json"]
 
 
+class CutResponse(FakeResponse):
+    """A response whose body is cut off."""
+
+    def read(self, size: int) -> bytes:
+        raise http.client.IncompleteRead(b"ab", 5)
+
+
+def refused_status(url: str) -> FakeResponse:
+    raise http.client.BadStatusLine(url)
+
+
+def cut_body(url: str) -> FakeResponse:
+    return CutResponse(url.encode())
+
+
+@pytest.mark.parametrize("opener", [refused_status, cut_body], ids=["status", "body"])
+@pytest.mark.parametrize("required", [False, True], ids=["warns", "fails"])
+def test_a_broken_http_exchange_is_a_snapshot_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    required: bool,
+    opener: Any,
+) -> None:
+    """``http.client`` errors are not ``OSError``: they must not crash a build
+    that does not require the snapshot."""
+    monkeypatch.setattr(hatch_build, "open_url", opener)
+    if required:
+        monkeypatch.setenv("LICENSEID_REQUIRE_BUNDLE", "1")
+        with pytest.raises(
+            SnapshotError, match=r"latest\.json: (BadStatusLine|Incomp)"
+        ):
+            run(tmp_path)
+        return
+    build_data, app = run(tmp_path)
+    assert build_data == {"force_include": {}}
+    (call,) = app.display_warning.call_args_list
+    assert call.args[0].startswith("licenseid: no SPDX snapshot shipped: ")
+
+
 @pytest.mark.parametrize("required", [False, True], ids=["warns", "fails"])
 def test_a_failed_download_leaves_no_scratch_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, required: bool
@@ -390,14 +430,17 @@ def test_open_url_has_a_timeout_and_refuses_http_redirects(
 def test_a_redirect_to_https_is_followed_and_to_http_is_not() -> None:
     handler = hatch_build._HttpsRedirects()
     request = urllib.request.Request("https://example.org/a")
+    followed, refused = io.BytesIO(), io.BytesIO()
     follow = handler.redirect_request(
-        request, io.BytesIO(), 302, "Found", HTTPMessage(), "https://example.org/b"
+        request, followed, 302, "Found", HTTPMessage(), "https://example.org/b"
     )
     assert follow is not None and follow.full_url == "https://example.org/b"
+    assert not followed.closed  # urllib closes it
     with pytest.raises(SnapshotError, match="redirected to http://example.org/b"):
         handler.redirect_request(
-            request, io.BytesIO(), 302, "Found", HTTPMessage(), "http://example.org/b"
+            request, refused, 302, "Found", HTTPMessage(), "http://example.org/b"
         )
+    assert refused.closed
 
 
 def test_the_opener_stops_at_a_redirect_to_http(
