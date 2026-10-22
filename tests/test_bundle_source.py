@@ -261,14 +261,21 @@ def test_only_the_caches_of_the_urls_asked_are_read(
     fake.assert_not_called()
 
 
-def test_a_day_old_latest_json_is_downloaded_again(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("age", "expected"),
+    [
+        pytest.param(44, "9.98", id="valid"),
+        pytest.param(46, "9.99", id="expired"),
+    ],
+)
+def test_latest_json_is_cached_until_it_expires(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, age: int, expected: str
 ) -> None:
-    _version_cache(tmp_path, "latest.json", "9.98", 1)
+    _version_cache(tmp_path, "latest.json", "9.98", age)
     fake = serve(monkeypatch, {spdx_source.LATEST_JSON_URL: version_json("9.99")})
     result = spdx_source.get_version_info(tmp_path, None, True, BOTH)
-    assert result == ("9.99", RELEASE_DATE, "remote")
-    assert urls(fake) == [spdx_source.LATEST_JSON_URL]
+    assert result[0] == expected
+    assert urls(fake) == ([] if expected == "9.98" else [spdx_source.LATEST_JSON_URL])
 
 
 @pytest.mark.parametrize(

@@ -67,9 +67,9 @@ CACHE_BUNDLE_TEMPLATE = "spdx-bundle-v{version}.json.gz"
 
 # Expiration in days
 EXPIRY_LICENSES_JSON = 45
-# latest.json moves the day a bundle is published (a daily job), so a day-old
-# copy may name an older bundle; one small request a day is cheap.
-EXPIRY_LATEST_JSON = 1
+# SPDX releases every 3-6 months and latest.json follows within a day, so it
+# can last as long as licenses.json.
+EXPIRY_LATEST_JSON = EXPIRY_LICENSES_JSON
 EXPIRY_POPULARITY_CSV = 75
 
 # A cache file may look slightly newer than "now" (clock differences on a

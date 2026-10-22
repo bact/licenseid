@@ -118,8 +118,9 @@ download failed: ...; using packaged data v3.28.0`.
 - **Version** (`auto`): the first valid cache of the two version files, then
   a download of `latest.json` and of spdx.org's `licenses.json` in turn, then
   (only with caching) the first stale cache, then the version of the
-  packaged snapshot. Each file has its own cache: `latest.json` for one day
-  (the pointer moves with the daily bundle job), `licenses.json` for 45 days.
+  packaged snapshot. Each file has its own cache: `latest.json` and `licenses.json`
+  for 45 days each (SPDX releases every 3-6 months and the pointer follows
+  within a day).
   `--source bundle` reads only `latest.json`, `tarball` only spdx.org, so one
   never sees the other's answer. A version from the snapshot makes no
   network call, popularity included. A stale cache of the other file is

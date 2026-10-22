@@ -18,7 +18,7 @@ from unittest import mock
 import pytest
 import requests
 from click.testing import CliRunner
-from conftest import assert_cached_tarball_removed
+from conftest import assert_cached_tarball_removed, fake_requests_get
 from db_variants import make_ready_file_db
 from release_fakes import (
     POPULARITY_CSV,
@@ -318,10 +318,9 @@ def test_cli_update_exception_without_message_has_no_dangling_colon(
 def test_cli_update_failure_is_a_short_error_and_exit_1(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fake: mock.MagicMock = mock.create_autospec(
-        requests.get, side_effect=requests.ConnectionError("network down")
+    fake = fake_requests_get(
+        monkeypatch, error=requests.ConnectionError("network down")
     )
-    monkeypatch.setattr(requests, "get", fake)
     result = CliRunner().invoke(cli, ["--db", str(tmp_path / "x.db"), "update"])
     assert result.exit_code == 1
     assert "ERROR: licenses.json: download failed: " in result.stderr

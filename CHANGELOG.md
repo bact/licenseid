@@ -13,9 +13,9 @@ and this project adheres to
 
 - `update --source auto|bundle|tarball|packaged`: `update` fetches a 1 MB
   bundle from `raw.githubusercontent.com`, else the SPDX tarball, else the
-  snapshot in the package; it works where only that host is reachable
+  snapshot in the package; it works where only that host is reachable ([#90])
 - `update --source packaged` refuses to replace a newer database with an older
-  snapshot unless `--force`
+  snapshot unless `--force` ([#90])
 
 ### Changed
 
@@ -23,7 +23,7 @@ and this project adheres to
   7 MB smaller ([#85])
 - A release without `licenseListVersion` fails as `cache unusable` ([#85])
 - `update` fails fast on a host that does not answer: connect timeout 10 s;
-  `latest.json` is cached for one day, `licenses.json` for 45
+  `latest.json` is cached for 45 days, like `licenses.json` ([#90])
 
 ### Fixed
 
@@ -32,6 +32,7 @@ and this project adheres to
 
 [#85]: https://github.com/bact/licenseid/pull/85
 [#86]: https://github.com/bact/licenseid/pull/86
+[#90]: https://github.com/bact/licenseid/pull/90
 
 ## [0.4.3] - 2026-10-07
 
