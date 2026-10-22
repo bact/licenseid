@@ -315,7 +315,9 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   sdist (`src/licenseid/data/`, gitignored). `LICENSEID_BUNDLE=skip|<path>`
   and `LICENSEID_REQUIRE_BUNDLE=1` steer it; CI jobs that only install the
   package set `skip`. An editable install ships nothing, so a local run never
-  sees a snapshot, and the `offline` fixture hides one from the tests. The
+  sees a snapshot, and the `offline` fixture hides one from the tests. Only an
+  unpacked sdist (it has `PKG-INFO`) uses a file in `src/licenseid/data/`; a
+  checkout ignores one left there and downloads. The
   hook repeats the URL and file names of `spdx_source` and `spdxdata`;
   `tests/test_hatch_build.py` checks they agree.
 - `database.py` imports `spdx_source` lazily (keeps `requests` off the match

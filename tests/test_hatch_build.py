@@ -10,7 +10,11 @@ import gzip
 import hashlib
 import json
 import tempfile
+import http.server
+import io
+import threading
 import urllib.request
+from http.client import HTTPMessage
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -36,26 +40,34 @@ def pointer(raw: bytes = BUNDLE, **changes: Any) -> bytes:
     return json.dumps({**doc, **changes}).encode()
 
 
-def serve(
-    monkeypatch: pytest.MonkeyPatch, files: dict[str, bytes]
-) -> list[tuple[str, float]]:
+def serve(monkeypatch: pytest.MonkeyPatch, files: dict[str, bytes]) -> list[str]:
     """Answer the URLs of *files* (by name under the base); anything else is an
-    error. Return the calls."""
-    calls: list[tuple[str, float]] = []
+    error. Return the URLs asked for."""
+    calls: list[str] = []
 
-    def urlopen(url: str, timeout: float) -> FakeResponse:
-        calls.append((url, timeout))
+    def open_url(url: str) -> FakeResponse:
+        calls.append(url)
         name = url.removeprefix(hatch_build.BASE_URL)
         if url == name or name not in files:
             raise OSError(f"404: {url}")
         return FakeResponse(files[name])
 
-    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(hatch_build, "open_url", open_url)
     return calls
 
 
-def online(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, float]]:
+def online(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     return serve(monkeypatch, {"latest.json": pointer(), NAME: BUNDLE})
+
+
+def unpacked_sdist(root: Path, content: bytes) -> Path:
+    """Put *content* where an sdist keeps the snapshot; return the file. An
+    sdist has a ``PKG-INFO``, a checkout does not."""
+    (root / "PKG-INFO").write_text("Metadata-Version: 2.4\n", encoding="utf-8")
+    in_tree = root / hatch_build.IN_TREE
+    in_tree.parent.mkdir(parents=True)
+    in_tree.write_bytes(content)
+    return in_tree
 
 
 def hook(root: Path, target: str = "wheel") -> tuple[SpdxSnapshotHook, mock.Mock]:
@@ -102,8 +114,7 @@ def test_a_build_ships_the_downloaded_bundle(
     build_data, app = run(tmp_path, target)
     source, archive = next(iter(build_data["force_include"].items()))
     assert archive == hatch_build.ARCHIVE_PATH[target]
-    assert [url.rsplit("/", 1)[1] for url, _ in calls] == ["latest.json", NAME]
-    assert {timeout for _, timeout in calls} == {hatch_build.TIMEOUT}
+    assert [url.rsplit("/", 1)[1] for url in calls] == ["latest.json", NAME]
     app.display_warning.assert_not_called()
     # The scratch directory is gone with the build.
     assert not Path(source).exists()
@@ -126,9 +137,7 @@ def test_the_file_in_the_tree_is_used_without_the_network(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls = serve(monkeypatch, {})
-    in_tree = tmp_path / hatch_build.IN_TREE
-    in_tree.parent.mkdir(parents=True)
-    in_tree.write_bytes(BUNDLE)
+    in_tree = unpacked_sdist(tmp_path, BUNDLE)
     build_data, _ = run(tmp_path, "wheel")
     assert build_data["force_include"] == {
         str(in_tree): "licenseid/data/spdx-bundle.json.gz"
@@ -140,9 +149,7 @@ def test_an_override_path_wins_over_the_tree(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls = serve(monkeypatch, {})
-    in_tree = tmp_path / hatch_build.IN_TREE
-    in_tree.parent.mkdir(parents=True)
-    in_tree.write_bytes(b"not a bundle")
+    unpacked_sdist(tmp_path, b"not a bundle")
     mine = tmp_path / "mine.json.gz"
     mine.write_bytes(BUNDLE)
     monkeypatch.setenv("LICENSEID_BUNDLE", str(mine))
@@ -225,7 +232,7 @@ def test_a_bad_pointer_fetches_no_bundle(
 ) -> None:
     calls = serve(monkeypatch, {"latest.json": bad, "x.json.gz": BUNDLE, NAME: BUNDLE})
     run(tmp_path)
-    assert [url.rsplit("/", 1)[1] for url, _ in calls] == ["latest.json"]
+    assert [url.rsplit("/", 1)[1] for url in calls] == ["latest.json"]
 
 
 @pytest.mark.parametrize("required", [False, True], ids=["warns", "fails"])
@@ -269,9 +276,7 @@ def test_an_unusable_file_in_the_tree_is_a_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls = serve(monkeypatch, {})
-    in_tree = tmp_path / hatch_build.IN_TREE
-    in_tree.parent.mkdir(parents=True)
-    in_tree.write_bytes(b"not gzip")
+    unpacked_sdist(tmp_path, b"not gzip")
     build_data, app = run(tmp_path)
     assert build_data == {"force_include": {}}
     app.display_warning.assert_called_once()
@@ -323,3 +328,103 @@ def test_a_url_that_is_not_https_is_refused(monkeypatch: pytest.MonkeyPatch) -> 
     with pytest.raises(SnapshotError, match="not https"):
         hatch_build.fetch("file:///etc/passwd", 10)
     assert not calls
+
+
+def test_a_checkout_ignores_a_file_left_in_the_tree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only an unpacked sdist (which has PKG-INFO) trusts the file in the tree."""
+    calls = online(monkeypatch)
+    stale = tmp_path / hatch_build.IN_TREE
+    stale.parent.mkdir(parents=True)
+    stale.write_bytes(gz({"format": 1, "licenseListVersion": "0.1"}))
+    instance, _ = hook(tmp_path)
+    build_data: dict[str, Any] = {"force_include": {}}
+    instance.initialize("standard", build_data)
+    source = next(iter(build_data["force_include"]))
+    assert source != str(stale)
+    assert Path(source).read_bytes() == BUNDLE
+    assert len(calls) == 2
+    instance.finalize("standard", build_data, "")
+
+
+def test_an_sdist_without_a_snapshot_downloads_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An sdist built with no snapshot (the download failed) is not a source."""
+    calls = online(monkeypatch)
+    (tmp_path / "PKG-INFO").write_text("Metadata-Version: 2.4\n", encoding="utf-8")
+    instance, _ = hook(tmp_path)
+    build_data: dict[str, Any] = {"force_include": {}}
+    instance.initialize("standard", build_data)
+    assert len(build_data["force_include"]) == 1
+    assert len(calls) == 2
+    instance.finalize("standard", build_data, "")
+
+
+def test_open_url_has_a_timeout_and_refuses_http_redirects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, Any] = {}
+
+    class Opener:
+        """An opener that records its call."""
+
+        def open(self, url: str, timeout: float) -> str:
+            seen.update(url=url, timeout=timeout)
+            return "response"
+
+    def build_opener(*handlers: Any) -> Opener:
+        seen["handlers"] = handlers
+        return Opener()
+
+    monkeypatch.setattr(urllib.request, "build_opener", build_opener)
+    assert hatch_build.open_url("https://example.org/a") == "response"
+    assert seen == {
+        "url": "https://example.org/a",
+        "timeout": hatch_build.TIMEOUT,
+        "handlers": (hatch_build._HttpsRedirects,),
+    }
+
+
+def test_a_redirect_to_https_is_followed_and_to_http_is_not() -> None:
+    handler = hatch_build._HttpsRedirects()
+    request = urllib.request.Request("https://example.org/a")
+    follow = handler.redirect_request(
+        request, io.BytesIO(), 302, "Found", HTTPMessage(), "https://example.org/b"
+    )
+    assert follow is not None and follow.full_url == "https://example.org/b"
+    with pytest.raises(SnapshotError, match="redirected to http://example.org/b"):
+        handler.redirect_request(
+            request, io.BytesIO(), 302, "Found", HTTPMessage(), "http://example.org/b"
+        )
+
+
+def test_the_opener_stops_at_a_redirect_to_http(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The handler is wired into the opener, with a real redirect."""
+    for name in ("http_proxy", "HTTP_PROXY", "all_proxy", "ALL_PROXY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("no_proxy", "127.0.0.1")
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+
+    class Redirect(http.server.BaseHTTPRequestHandler):
+        """A server that sends every request to an http URL."""
+
+        def do_GET(self) -> None:  # pylint: disable=invalid-name
+            self.send_response(302)
+            self.send_header("Location", "http://example.org/elsewhere")
+            self.end_headers()
+
+        def log_message(self, *args: Any) -> None:
+            """Silent."""
+
+    with http.server.HTTPServer(("127.0.0.1", 0), Redirect) as server:
+        thread = threading.Thread(target=server.handle_request)
+        thread.start()
+        try:
+            with pytest.raises(SnapshotError, match="not https"):
+                hatch_build.open_url(f"http://127.0.0.1:{server.server_port}/a")
+        finally:
+            thread.join(timeout=10)
