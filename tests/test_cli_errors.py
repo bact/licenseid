@@ -183,6 +183,24 @@ def test_binary_text_option(ready_db: str, text: str) -> None:
     assert result.stderr == "ERROR: input: binary file: --text\n"
 
 
+@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize(
+    "args",
+    [["--text", "MIT\udcff"], ["MIT\udcff"], ["SPDX-License-Identifier: \udcff+"]],
+    ids=["text", "argument", "tag"],
+)
+def test_an_argument_of_invalid_utf8_is_a_usage_error(
+    ready_db: str, command: str, args: list[str]
+) -> None:
+    """Python decodes a byte that is not UTF-8 in an argument to a lone
+    surrogate ("\\udcff"): it was a traceback, with exit 1."""
+    result = CliRunner().invoke(cli, ["--db", ready_db, command, *args])
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert result.stderr.startswith("ERROR: input: invalid: text: lone surrogate at ")
+    assert result.stderr.count("\n") == 1
+
+
 def test_binary_stdin(ready_db: str) -> None:
     result = CliRunner().invoke(cli, ["--db", ready_db, "match"], input=_PNG)
     assert result.exit_code == 2

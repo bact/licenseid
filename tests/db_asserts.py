@@ -110,12 +110,32 @@ except Exception as exc:
 """
 
 
+_CHECK_PROBE = """
+import sys
+from licenseid.dbcheck import check_database_ready
+try:
+    check_database_ready(sys.argv[1])
+except Exception as exc:
+    print(type(exc).__name__, exc)
+"""
+
+
 def probe_does_not_hang(path: Path | str) -> str:
     """Open *path* in a child process: a guard that broke would hang it, and
     not the suite."""
+    return _run_probe(_FIFO_PROBE, path)
+
+
+def probe_check_does_not_hang(path: Path | str) -> str:
+    """``check_database_ready(path)`` in a child process, for the same reason;
+    returns ``<exception type> <message>``, or nothing if it raised nothing."""
+    return _run_probe(_CHECK_PROBE, path)
+
+
+def _run_probe(script: str, path: Path | str) -> str:
     try:
         done = subprocess.run(
-            [sys.executable, "-c", _FIFO_PROBE, str(path)],
+            [sys.executable, "-c", script, str(path)],
             capture_output=True,
             text=True,
             timeout=30,

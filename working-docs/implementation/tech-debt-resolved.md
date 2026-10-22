@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-22
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -556,3 +556,25 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   path, the unused `debug_gpl.db`, a `working-docs/` link and a wrong PR link in
   `CHANGELOG.md`; added `codemeta.json`, now the source that `codemeta2cff.yml`
   generates `CITATION.cff` from.
+- Two named-pipe tests could hang the suite (item 38, Priority 15;
+  2026-10-22). `test_a_named_pipe_is_refused_rather_than_waited_on` and
+  `test_no_uri_spelling_of_a_named_pipe_waits_for_a_writer` called
+  `check_database_ready` in the test process: had the `_blocking_refusal`
+  guard in `dbcheck.py` stopped working, the read-only open would have waited
+  for ever, with no failure to read. They now run it in a child process with
+  a 30 s timeout (`db_asserts.probe_check_does_not_hang`, beside
+  `probe_does_not_hang`, both over `_run_probe`) and compare the child's
+  `DatabaseNotReadyError` line. Mutation check: with the guard removed the
+  test fails after the timeout, as `opening … hung`.
+- A lone surrogate in a text raised `UnicodeEncodeError` (item 41, Priority
+  20; 2026-10-22). The string met an encoder in SQLite's parameter binding,
+  in the lookup by name that a tag value (or a short text) goes through. The
+  CLI could send one too: Python decodes a byte of an argument that is not
+  UTF-8 to `\udcXX` (`licenseid match $'MIT\xff'` printed a traceback, exit
+  1). Now `textinput.reject_lone_surrogate` raises
+  `InvalidInputError` (`input: invalid: text: lone surrogate at character N`)
+  at the one place the matcher takes a text (`_resolve_target_text`), so
+  `match`, `resolve_record` and the `is_*()` predicates agree, as they do for
+  a `license_id`; the CLI checks `--text` and the argument first
+  (`cli.reject_unencodable`) and exits 2. Not "no match": a text that cannot
+  be read is the caller's mistake, and a silent `[]` would hide it.

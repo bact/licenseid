@@ -47,6 +47,7 @@ from licenseid.textinput import (
     normalize_newlines,
     read_text_file,
     reject_binary,
+    reject_lone_surrogate,
 )
 from licenseid.types import LicenseDetails, UpdateSource
 from licenseid.usage import UsageLineCommand, UsageLineError, UsageLineGroup
@@ -346,14 +347,25 @@ def reject_blank_options(ctx: click.Context, values: dict[str, str | None]) -> N
             exit_bad_input(ctx, f"empty: {name}")
 
 
-def read_text_option(ctx: click.Context, text: str) -> str:
-    """Decode the escapes in --text, then treat it as file or stdin text is
-    treated: LF line ends; exit 2 if binary (a NUL) or blank."""
-    content = normalize_newlines(unescape_text(text))
+def reject_unencodable(
+    ctx: click.Context, content: str, binary_source: str | None = None
+) -> None:
+    """Exit with a usage error (2) if text from the command line has a lone
+    surrogate (an argument of invalid UTF-8 decodes to one) or, given
+    *binary_source*, a NUL."""
     try:
-        reject_binary(content, "--text")
+        if binary_source is not None:
+            reject_binary(content, binary_source)
+        reject_lone_surrogate(content)
     except InvalidInputError as e:
         exit_usage_error(ctx, str(e))
+
+
+def read_text_option(ctx: click.Context, text: str) -> str:
+    """Decode the escapes in --text, then treat it as file or stdin text is
+    treated: LF line ends; exit 2 if binary (a NUL), blank or not encodable."""
+    content = normalize_newlines(unescape_text(text))
+    reject_unencodable(ctx, content, binary_source="--text")
     if not content.strip():
         exit_bad_input(ctx, "empty: --text")
     return content
@@ -369,6 +381,7 @@ def get_input_content(
     if input_val:
         if os.path.exists(input_val):
             return read_input(ctx, input_val)
+        reject_unencodable(ctx, input_val)
         return input_val
     # A closed standard input (`<&-`) is None: no input, not a crash.
     if sys.stdin is not None and not sys.stdin.isatty():

@@ -141,7 +141,8 @@ def test_a_long_tag_value_reads_in_linear_time(db: str) -> None:
     text = f"{TAG} " + "x" * 1_000_000
     start = time.monotonic()
     assert not detector.detect_declared(text, [])
-    assert time.monotonic() - start < 0.5
+    # 10x the time on a quiet machine; the quadratic tokenizer took 7 s.
+    assert time.monotonic() - start < 5
 
 
 @pytest.mark.parametrize(

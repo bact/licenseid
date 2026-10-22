@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-22
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -294,21 +294,6 @@ warning. All of it is pinned as "current behaviour" in
   document it, then flip the pins.
 - Impact 2, Risk 3, Effort 3.
 
-## 38. Two named-pipe tests can hang the suite — Priority 15
-
-Found in review of PR #80: `tests/test_dbcheck_uri.py`
-`test_a_named_pipe_is_refused_rather_than_waited_on` and
-`test_no_uri_spelling_of_a_named_pipe_waits_for_a_writer` call
-`check_database_ready` in the test process on a FIFO. If the `_path_problem`
-guard stopped working, the read-only open would wait for ever and block the
-whole run, with no failure to read. The FIFO tests added by that PR run the
-open in a child process with a timeout instead
-(`db_asserts.probe_does_not_hang`).
-
-- Move the two tests onto `probe_does_not_hang`, keeping their
-  parametrisation (`file://localhost{p}`, `file:{p}?vfs=unix`).
-- Impact 1, Risk 2, Effort 1.
-
 ## 39. An abbreviated ID with `+` becomes an invalid ID — Priority 18
 
 Found in review of PR #82, on `main` too. `identifiers._normalize_single_id`
@@ -336,19 +321,6 @@ licenseid's own. Likely cause: `PRAGMA mmap_size=268435456` in
   the mapping, or another approach; time a match against `main`. The lookup
   must raise `DatabaseNotReadyError`.
 - Impact 2, Risk 3, Effort 2.
-
-## 41. A lone surrogate in a text raises `UnicodeEncodeError` — Priority 20
-
-Found in review of PR #82, on `main` too.
-`match(text="SPDX-License-Identifier: \ud800+")` raises a raw
-`UnicodeEncodeError`; `match(license_id="\ud800+")` is already an
-`InvalidInputError`. The CLI cannot send one (`textinput.decode_input`), but
-an API caller such as Pitloom can.
-
-- **Fix**: find where the string meets an encoder; decide between an
-  `input: invalid` error at the API entry and no match. Never a raw exception
-  or `DatabaseNotReadyError`.
-- Impact 2, Risk 2, Effort 1.
 
 ## 42. A very long word costs seconds in the full-text search — Priority 16
 
