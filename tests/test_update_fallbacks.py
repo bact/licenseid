@@ -41,7 +41,7 @@ from licenseid.errors import LicenseIdError
 # --- auto: each fallback is one warning naming the next source ---
 
 
-def test_a_missing_bundle_falls_back_to_the_tarball(
+def test_a_missing_compact_file_falls_back_to_upstream(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     db = open_db(tmp_path)
@@ -55,10 +55,10 @@ def test_a_missing_bundle_falls_back_to_the_tarball(
             f"Not Found for url: {bundle_url()}; downloading {TARBALL}"
         )
     ]
-    assert data_line(err).endswith(": tarball (remote)")
+    assert data_line(err).endswith(": upstream (remote)")
 
 
-def test_a_failed_tarball_falls_back_to_the_snapshot(
+def test_a_failed_upstream_falls_back_to_packaged(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     db = open_db(tmp_path)
@@ -197,7 +197,7 @@ def test_a_data_fallback_to_the_database_version_is_not_stored(
 # --- caches ---
 
 
-def test_a_cached_tarball_comes_before_a_bundle_download(
+def test_a_cached_upstream_file_comes_before_a_compact_download(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     (tmp_path / TARBALL).write_bytes(release_tarball())
@@ -212,12 +212,12 @@ def test_an_unusable_cached_tarball_is_downloaded_again(
     (tmp_path / TARBALL).write_bytes(b"garbage")
     serve(monkeypatch, online())
     db = open_db(tmp_path)
-    assert db.update_from_remote(source="tarball")
+    assert db.update_from_remote(source="upstream")
     err = capsys.readouterr().err
     assert warnings_of(err) == [
         f"WARNING: {TARBALL}: cache unusable: ReadError: not a gzip file; downloading"
     ]
-    assert data_line(err).endswith(": tarball (remote)")
+    assert data_line(err).endswith(": upstream (remote)")
     assert (tmp_path / TARBALL).read_bytes() == release_tarball()
 
 
@@ -228,7 +228,7 @@ def test_an_unusable_downloaded_tarball_is_removed(
     routes[tarball_url()] = gzip.compress(b"not a tar")
     serve(monkeypatch, routes)
     with pytest.raises(LicenseIdError, match=f"^{TARBALL}: download unusable: "):
-        open_db(tmp_path).update_from_remote(source="tarball")
+        open_db(tmp_path).update_from_remote(source="upstream")
     assert not (tmp_path / TARBALL).exists()
 
 
@@ -245,7 +245,7 @@ def test_a_tarball_of_another_version_is_removed_and_refused(
         LicenseIdError,
         match=f"^{TARBALL}: download unusable: .*version 1.0 is not the expected",
     ):
-        open_db(tmp_path).update_from_remote(source="tarball")
+        open_db(tmp_path).update_from_remote(source="upstream")
     assert not (tmp_path / TARBALL).exists()
 
 
@@ -264,7 +264,7 @@ def test_a_cached_tarball_that_cannot_be_removed_is_the_error(
 
     monkeypatch.setattr(Path, "unlink", unlink)
     with pytest.raises(LicenseIdError, match=f"^{TARBALL}: cache unusable: "):
-        open_db(tmp_path).update_from_remote(source="tarball")
+        open_db(tmp_path).update_from_remote(source="upstream")
     assert tarball_url() not in urls(fake)
 
 
@@ -292,7 +292,7 @@ def test_a_held_tarball_in_auto_warns_with_the_next_source_only(
     ]
 
 
-def test_after_a_failed_bundle_a_cached_tarball_is_named_as_cached(
+def test_after_a_failed_compact_a_cached_upstream_file_is_named_as_cached(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     (tmp_path / BUNDLE).write_bytes(b"garbage")

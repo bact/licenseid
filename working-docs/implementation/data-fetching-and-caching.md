@@ -22,24 +22,43 @@ the traps found on the way.
 
 The caller is `LicenseDatabase.update_from_remote` in `database.py`.
 
+## Terms
+
+Three sources, named by where the data comes from (`update --source`, the
+`Data sources:` line, the docs). Until 0.5.0 was released they were `bundle`,
+`tarball` and `packaged`; "bundle" named both our download and the file in the
+wheel, which are the same format and the same bytes, so the name did not say
+which was meant.
+
+- **compact**: our bundle of about 1 MB (JSON and licence texts, no XML), from
+  the `data` branch via `raw.githubusercontent.com`.
+- **upstream**: SPDX's own release tarball from `license-list-data` (about 49
+  MB).
+- **packaged**: the bundle shipped in the wheel and the sdist (also called
+  "the snapshot" in this document).
+
+"Bundle" stays the name of the file format (`spdxdata.SpdxData.from_bundle`,
+`spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz`, `tools/build_bundle.py`),
+so file names, diagnostic SUBJECTs and the `data` branch layout did not change.
+
 ## What it does
 
 `licenseid update` reads third-party sources and caches each in the database
 directory (`~/.local/share/licenseid/` by default):
 
-- version: the bundle pointer `latest.json` or spdx.org `licenses.json` →
+- version: the compact pointer `latest.json` or spdx.org `licenses.json` →
   `licenses.json` (both have `licenseListVersion` and `releaseDate`), 45
   days, `get_version_info`
-- data, one of: the published bundle → `spdx-bundle-v<ver>.json.gz`; the
-  GitHub `license-list-data` tarball → `spdx-data-v<ver>.tar.gz`; the
-  snapshot in the package (no cache). Neither cached file expires.
+- data, one of: the compact bundle → `spdx-bundle-v<ver>.json.gz`; the
+  upstream `license-list-data` tarball → `spdx-data-v<ver>.tar.gz`; the
+  packaged snapshot (no cache). Neither cached file expires.
 - GitHub Innovation Graph CSV → `popularity.csv`, 75 days,
   `fetch_popularity_data`
 
 The functions return where their data came from: `cache`, `remote`,
 `stale cache`, `unavailable` or `packaged`; `update_from_remote` prints them
-under `Data sources:` (the data line reads `bundle (remote)`, `bundle
-(cache)`, `tarball (remote)`, `tarball (cache)` or `packaged`).
+under `Data sources:` (the data line reads `compact (remote)`, `compact
+(cache)`, `upstream (remote)`, `upstream (cache)` or `packaged`).
 
 ## Rules to keep
 
@@ -113,7 +132,7 @@ under `Data sources:` (the data line reads `bundle (remote)`, `bundle
 
 ## Source chain (`releasesource.py`)
 
-`update --source auto|bundle|tarball|packaged`, default `auto`. An explicit
+`update --source auto|compact|upstream|packaged`, default `auto`. An explicit
 source is the only one tried; `auto` falls back, one `WARNING:` per step whose
 ACTION names the next source, e.g.
 `spdx-bundle-v3.29.0.json.gz: download failed: HTTPError: 404 ...;
@@ -126,13 +145,13 @@ download failed: ...; using packaged data v3.28.0`.
   packaged snapshot. Each file has its own cache: `latest.json` and
   `licenses.json` for 45 days each (SPDX releases every 3-6 months and the
   pointer follows within a week).
-  `--source bundle` reads only `latest.json`, `tarball` only spdx.org, so one
+  `--source compact` reads only `latest.json`, `upstream` only spdx.org, so one
   never sees the other's answer. A version from the snapshot makes no
   network call, popularity included. A stale cache of the other file is
   reported as `using stale <file>`.
-- **Data** (`auto`): a cached bundle or tarball of the target version first
+- **Data** (`auto`): a cached compact or upstream file of the target version first
   (cache before download across sources, so a forced re-run stays offline),
-  then the bundle, the tarball, the snapshot. The snapshot is used only if it
+  then compact, upstream, packaged. The snapshot is used only if it
   exists, equals `--version` when one is given, and is not older than the
   database: a failed download never downgrades it.
 - **Skip**: the database is already at the target version without `--force`,
@@ -144,7 +163,7 @@ download failed: ...; using packaged data v3.28.0`.
   'licenseid update --source packaged --force'`). An explicit `--version`
   naming the snapshot's version passes, as it does for the other sources.
 - **Timeouts** are (connect, read): (10, 30) for the version files and
-  popularity, (10, 60) for the bundle and the tarball, so a black-holed host
+  popularity, (10, 60) for the compact bundle and the upstream tarball, so a black-holed host
   fails in seconds.
 - **Bundle fetch**: one streamed request, `timeout=(10, 60)`; bytes are
   counted from `iter_content` and refused over 16 MiB; gzip's CRC is the
@@ -155,8 +174,8 @@ download failed: ...; using packaged data v3.28.0`.
   takes it; there is no other store entry point.
 - **A valid `licenses.json` can answer `auto` before `latest.json` is
   fetched** (valid caches come before downloads, so a forced re-run stays
-  offline). If the bundle of that version is not published yet, `auto` falls
-  back to the tarball.
+  offline). If the compact bundle of that version is not published yet, `auto`
+  falls back to upstream.
 - **New diagnostics**: SUBJECTs `latest.json`, `spdx-bundle-v<ver>.json.gz`,
   `spdx-bundle.json.gz` (the snapshot); ACTIONs `downloading <file>`,
   `using cached <file>`, `using packaged data v<ver>`, `using stale <file>`,
@@ -175,7 +194,7 @@ download failed: ...; using packaged data v3.28.0`.
 ## Publishing the bundle (`.github/workflows/spdx-bundle.yml`)
 
 - Weekly cron (Tuesdays, 22:19 UTC) and manual run (`version` input). A
-  bundle lags SPDX by up to a week; `--source tarball` goes straight to SPDX.
+  bundle lags SPDX by up to a week; `--source upstream` goes straight to SPDX.
 - It reads SPDX's latest release, skips when
   `data/spdx/format-1/v<ver>.json.gz` exists, else runs `tools.build_bundle`
   and pushes one commit to the orphan `data` branch.
@@ -190,7 +209,7 @@ download failed: ...; using packaged data v3.28.0`.
   `tools.build_bundle --tarball`, protected from force-push and deletion. A
   scheduled workflow stops after 60 days without repository activity.
 - Checked: a manual run found 3.29.0 already published and skipped the build;
-  `licenseid update --source bundle` from a clean `HOME`, behind a proxy that
+  `licenseid update --source compact` from a clean `HOME`, behind a proxy that
   tunnelled only `raw.githubusercontent.com`, built the database. The build
   and push steps have not run in CI: the first release after 3.29.0 runs them.
 

@@ -48,9 +48,9 @@ def _serve(
     tarball_bytes: bytes,
     popularity_csv: str = POPULARITY_CSV,
 ) -> mock.MagicMock:
-    """Fake the remote sources of the tarball path by URL: spdx.org's
+    """Fake the remote sources of the upstream path by URL: spdx.org's
     licenses.json, the popularity data and the 9.99 tarball. Our latest.json
-    and bundle are a 404, as before they are published."""
+    and compact bundle are a 404, as before they are published."""
     return serve(
         monkeypatch,
         {
@@ -70,7 +70,8 @@ def test_update_from_remote_end_to_end_then_offline(
     fake = _serve(monkeypatch, release_tarball())
 
     assert db.update_from_remote()
-    # Our latest.json and bundle are a 404, so spdx.org and the tarball follow.
+    # Our latest.json and compact bundle are a 404, so spdx.org and the upstream
+    # tarball follow.
     assert urls(fake) == [
         spdx_source.LATEST_JSON_URL,
         spdx_source.LICENSES_JSON_URL,
@@ -84,7 +85,7 @@ def test_update_from_remote_end_to_end_then_offline(
     assert details["pop_score"] == 1000  # from the popularity data
     err = capsys.readouterr().err
     assert "GitHub license ranking data  : remote" in err
-    assert "SPDX License List data       : tarball (remote)" in err
+    assert "SPDX License List data       : upstream (remote)" in err
 
     cache_files = {p.name for p in tmp_path.iterdir()}
     assert {"licenses.json", "popularity.csv", "spdx-data-v9.99.tar.gz"} <= cache_files
@@ -182,7 +183,7 @@ def test_forced_update_reuses_all_caches_without_network(
     fake.assert_not_called()
     err = capsys.readouterr().err
     assert "GitHub license ranking data  : cache" in err
-    assert "SPDX License List data       : tarball (cache)" in err
+    assert "SPDX License List data       : upstream (cache)" in err
 
 
 def test_unsafe_cached_tarball_is_removed_and_reported(

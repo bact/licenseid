@@ -11,9 +11,10 @@ and this project adheres to
 
 ### Added
 
-- `update --source auto|bundle|tarball|packaged`: `update` fetches a 1 MB
-  bundle from `raw.githubusercontent.com`, else the SPDX tarball, else the
-  snapshot in the package; it works where only that host is reachable ([#90])
+- `update --source auto|compact|upstream|packaged`: `update` fetches a 1 MB
+  compact bundle from `raw.githubusercontent.com`, else SPDX's upstream
+  tarball, else the packaged bundle; it works where only that host is
+  reachable ([#90])
 - `update --source packaged` refuses to replace a newer database with an older
   snapshot unless `--force` ([#90])
 - Each wheel and sdist ships the SPDX bundle of its build date; `update` uses

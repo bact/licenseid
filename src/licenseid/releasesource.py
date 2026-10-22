@@ -9,19 +9,19 @@ License List and its data come from.
 
 Sources (``update --source``):
 
-- ``bundle``: our compact bundle, ``v<version>.json.gz`` under
+- ``compact``: our compact bundle, ``v<version>.json.gz`` under
   ``spdx_source.BUNDLE_BASE_URL`` (raw.githubusercontent.com, about 1 MB),
   cached as ``spdx-bundle-v<version>.json.gz``. Version from our
   ``latest.json``.
-- ``tarball``: SPDX's release tarball from GitHub (about 49 MB), cached as
+- ``upstream``: SPDX's own release tarball from GitHub (about 49 MB), cached as
   ``spdx-data-v<version>.tar.gz``. Version from spdx.org's ``licenses.json``.
-- ``packaged``: the snapshot shipped in the wheel
+- ``packaged``: the bundle shipped in the wheel, called the snapshot
   (``spdxdata.packaged_bundle``, reported as ``spdx-bundle.json.gz``), its own
   version. No network call at all, popularity data included.
 - ``auto`` (the default): the version from ``latest.json``, then
   ``licenses.json``, then a stale cache, then the snapshot; the data from a
-  cached bundle or tarball of that version, then the bundle, then the
-  tarball, then the snapshot.
+  cached compact or upstream file of that version, then compact, then
+  upstream, then packaged.
 
 An explicit source is that source only: its failure is the error. In ``auto``
 a failure prints one warning, its ACTION naming the next source
@@ -54,8 +54,8 @@ SOURCES: tuple[UpdateSource, ...] = get_args(UpdateSource)
 # The version files each source trusts; the packaged source reads none.
 _LOOKUPS: dict[UpdateSource, tuple[str, ...]] = {
     "auto": (spdx_source.LATEST_JSON_URL, spdx_source.LICENSES_JSON_URL),
-    "bundle": (spdx_source.LATEST_JSON_URL,),
-    "tarball": (spdx_source.LICENSES_JSON_URL,),
+    "compact": (spdx_source.LATEST_JSON_URL,),
+    "upstream": (spdx_source.LICENSES_JSON_URL,),
 }
 # What makes a tarball unusable when it is read (OSError: it cannot be read).
 _BAD_TARBALL = (tarfile.TarError, EOFError, zlib.error, ValueError, RecursionError)
@@ -150,7 +150,7 @@ class ReleaseChain:
 
     def load(self, target: str) -> tuple[SpdxData, str]:
         """The data of *target* from the first source that has it, and how
-        it was got (``bundle (cache)``, ``tarball (remote)``, ``packaged``
+        it was got (``compact (cache)``, ``upstream (remote)``, ``packaged``
         and so on), for the ``Data sources:`` report."""
         steps = self._steps(target)
         kind = steps.pop(0)
@@ -170,12 +170,13 @@ class ReleaseChain:
 
     def _steps(self, target: str) -> list[UpdateSource]:
         """The sources to try for *target*, in order: in ``auto``, a cached
-        bundle or tarball first, as the cache comes before a download."""
+        compact or upstream file first, as the cache comes before a
+        download."""
         if self.offline:
             return ["packaged"]
         if self.request.source != "auto":
             return [self.request.source]
-        network: list[UpdateSource] = ["bundle", "tarball"]
+        network: list[UpdateSource] = ["compact", "upstream"]
         cached = [kind for kind in network if self._cached(kind, target)]
         return [*cached, *(k for k in network if k not in cached), "packaged"]
 
@@ -201,11 +202,11 @@ class ReleaseChain:
         """The data of *target* from *kind*; LicenseIdError if it has none."""
         if kind == "packaged":
             return self._packaged(), "packaged"
-        if kind == "bundle":
+        if kind == "compact":
             data, origin = spdx_source.get_bundle(
                 self.cache_dir, target, self.request.use_cache
             )
-            return data, f"bundle ({origin})"
+            return data, f"compact ({origin})"
         return self._tarball(target)
 
     def _tarball(self, target: str) -> tuple[SpdxData, str]:
@@ -217,7 +218,7 @@ class ReleaseChain:
         if origin == "cache":
             try:
                 data = _read_tarball(path, "cache unusable", target)
-                return data, "tarball (cache)"
+                return data, "upstream (cache)"
             except LicenseIdError as exc:
                 if path.exists():  # not removed: a download cannot replace it
                     raise _StepError(
@@ -226,7 +227,7 @@ class ReleaseChain:
                 warn(f"{exc}; downloading")
             path, origin = spdx_source.get_tarball_path(self.cache_dir, target, False)
         data = _read_tarball(path, "download unusable", target)
-        return data, f"tarball ({origin})"
+        return data, f"upstream ({origin})"
 
     @functools.cached_property
     def _snapshot(self) -> SpdxData | str:
@@ -273,10 +274,10 @@ class ReleaseChain:
 
 
 def _cache_name(kind: UpdateSource, version: str) -> str:
-    """The cache file name of *kind* (bundle or tarball) for *version*."""
+    """The cache file name of *kind* (compact or upstream) for *version*."""
     template = (
         spdx_source.CACHE_BUNDLE_TEMPLATE
-        if kind == "bundle"
+        if kind == "compact"
         else spdx_source.CACHE_SPDX_TARBALL_TEMPLATE
     )
     return template.format(version=version)

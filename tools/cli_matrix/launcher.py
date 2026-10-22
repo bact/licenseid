@@ -153,7 +153,8 @@ def fake_get(
         if MODE == "pop_garbage":
             return Resp(text="<html>oops</html>")
         return Resp(text="spdx_license,num_pushers\nMIT,100\nApache-2.0,50\n")
-    if url.endswith(("latest.json", ".json.gz")):  # the bundle is not published
+    # The compact bundle is not published.
+    if url.endswith(("latest.json", ".json.gz")):
         return Resp(fail="404 Not Found")
     raise RuntimeError(f"unexpected URL {url}")
 

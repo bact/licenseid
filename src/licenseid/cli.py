@@ -216,8 +216,9 @@ def cli(ctx: click.Context, db: str | None, clear_cache: bool) -> None:
     type=click.Choice(get_args(UpdateSource)),
     default="auto",
     show_default=True,
-    help="Where to get the license list: our bundle, SPDX's tarball, the copy "
-    "shipped with licenseid, or each in turn (auto).",
+    help="Where to get the license list: compact (our 1 MB bundle), upstream "
+    "(SPDX's tarball), packaged (the copy shipped with licenseid), or each in "
+    "turn (auto).",
 )
 @click.pass_context
 def update(

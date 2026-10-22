@@ -71,7 +71,7 @@ merged PRs (35 of 62) landed in the last 19 days (2026-09-17 to 10-05).
 | 0.4.1 | 2026-10-06 | Signed release SBOM and provenance (#76); pinned release tooling, Windows database paths (#77) |
 | 0.4.2 | 2026-10-06 | Lookups never create or write the database; read failures raise `DatabaseNotReadyError` (#80) |
 | 0.4.3 | 2026-10-07 | An overlong licence ID ending in `+` is no match, not `DatabaseNotReadyError` (#82) |
-| 0.5.0 | 2026-10-22 | `update --source`: published bundle, tarball or snapshot in the wheel; no XML stored (#85, #90); stable fingerprints (#86) |
+| 0.5.0 | 2026-10-22 | `update --source`: compact (published bundle), upstream (SPDX tarball) or packaged (in the wheel); no XML stored (#85, #90); stable fingerprints (#86) |
 
 <!-- markdownlint-restore -->
 

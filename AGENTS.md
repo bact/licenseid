@@ -14,10 +14,10 @@
   database path), `dbconnection.py` (SQLite connections), `dbcache.py`
   (whole-table reads kept per database),
   `fingerprint.py` (the maths), `fingerprintstore.py` (its table),
-  `spdxdata.py` (an SPDX release as data: reads the tarball and the bundle,
-  standard library only), `records.py` (the database rows built from it),
-  `releasesource.py` (where `update` gets a release: bundle, tarball or the
-  packaged snapshot, and the order between them),
+  `spdxdata.py` (an SPDX release as data: reads the upstream tarball and a
+  bundle, standard library only), `records.py` (the database rows built from it),
+  `releasesource.py` (where `update` gets a release: compact, upstream or
+  packaged, and the order between them),
   `dbschema.py` (the tables and whether a file has them), `output.py` (the
   CLI's standard output and what a
   failed write means), `result.py` (the public result and its JSON and text
@@ -74,8 +74,8 @@ Unix philosophy. Consistent, predictable, parseable.
   - `SUBJECT`: the thing affected, a lowercase word or cache file name:
     `command`, `database`, `input`, `match`, `option`, `output`, `usage`,
     `version`, `latest.json`, `licenses.json`, `popularity.csv`,
-    `spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz` (the snapshot in the
-    wheel), `spdx-data-v<ver>.tar.gz`.
+    `spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz` (the packaged bundle in
+    the wheel), `spdx-data-v<ver>.tar.gz`.
   - `CONDITION`: short lowercase fragment, reused across subjects. The
     full current set (add new ones here): `not found`, `invalid`,
     `missing`, `empty`, `unreadable`, `binary file`,
@@ -311,7 +311,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   does). The SPDX data files stay strict UTF-8 on purpose: a fallback there
   would hide a corrupt download.
 - `hatch_build.py` (Hatch custom hook, standard library only: the build
-  environment has no `licenseid`) puts the SPDX bundle in the wheel and the
+  environment has no `licenseid`) puts the packaged SPDX bundle in the wheel and the
   sdist (`src/licenseid/data/`, gitignored). `LICENSEID_BUNDLE=skip|<path>`
   and `LICENSEID_REQUIRE_BUNDLE=1` steer it; CI jobs that only install the
   package set `skip`. An editable install ships nothing, so a local run never

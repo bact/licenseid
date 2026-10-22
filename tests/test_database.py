@@ -104,7 +104,7 @@ def test_a_corrupt_tarball_another_process_holds_is_not_called_removed(
 
     monkeypatch.setattr(Path, "unlink", held)
     with pytest.raises(LicenseIdError) as info:
-        db.update_from_remote(version="9.99", source="tarball")
+        db.update_from_remote(version="9.99", source="upstream")
     assert str(info.value).startswith("spdx-data-v9.99.tar.gz: cache unusable: ")
     assert str(info.value).endswith("; remove it and run 'licenseid update' again")
     assert tar_path.exists()

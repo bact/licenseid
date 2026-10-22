@@ -44,7 +44,7 @@ from licenseid.types import UpdateSource
 # --- each source on its own ---
 
 
-def test_auto_takes_the_bundle_and_the_version_from_latest_json(
+def test_auto_takes_the_compact_bundle_and_the_version_from_latest_json(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     db = open_db(tmp_path)
@@ -53,7 +53,7 @@ def test_auto_takes_the_bundle_and_the_version_from_latest_json(
     assert urls(fake) == [LATEST, bundle_url(), POPULARITY]
     assert db_version(db) == "9.99"
     err = capsys.readouterr().err
-    assert data_line(err) == "  - SPDX License List data       : bundle (remote)"
+    assert data_line(err) == "  - SPDX License List data       : compact (remote)"
     assert not warnings_of(err)
     assert (tmp_path / BUNDLE).exists()
     assert not (tmp_path / TARBALL).exists()
@@ -61,7 +61,7 @@ def test_auto_takes_the_bundle_and_the_version_from_latest_json(
     assert details is not None and details["pop_score"] == 1000
 
 
-def test_a_forced_rerun_reads_the_cached_bundle_without_network(
+def test_a_forced_rerun_reads_the_cached_compact_file_without_network(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     db = open_db(tmp_path)
@@ -71,14 +71,14 @@ def test_a_forced_rerun_reads_the_cached_bundle_without_network(
     capsys.readouterr()
     assert db.update_from_remote(force=True)
     fake.assert_not_called()
-    assert "data       : bundle (cache)" in capsys.readouterr().err
+    assert "data       : compact (cache)" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize(
     ("source", "expected"),
     [
-        ("bundle", [LATEST, bundle_url(), POPULARITY]),
-        ("tarball", [SPDX_ORG, tarball_url(), POPULARITY]),
+        ("compact", [LATEST, bundle_url(), POPULARITY]),
+        ("upstream", [SPDX_ORG, tarball_url(), POPULARITY]),
     ],
 )
 def test_an_explicit_source_reads_its_own_version_file(
@@ -94,37 +94,37 @@ def test_an_explicit_source_reads_its_own_version_file(
     assert db_version(db) == "9.99"
 
 
-def test_the_bundle_source_never_asks_spdx_org_for_the_version(
+def test_the_compact_source_never_asks_spdx_org_for_the_version(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """spdx.org can name a version our bundle does not have yet."""
+    """spdx.org can name a version the compact source does not have yet."""
     fake = serve(monkeypatch, without(online(), LATEST))
     with pytest.raises(LicenseIdError, match="^latest.json: download failed: "):
-        open_db(tmp_path).update_from_remote(source="bundle")
+        open_db(tmp_path).update_from_remote(source="compact")
     assert urls(fake) == [LATEST]
 
 
-def test_a_tarball_run_does_not_steer_a_later_bundle_run(
+def test_an_upstream_run_does_not_steer_a_later_compact_run(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """spdx.org names 9.99 before our bundle of it is out: the version the
-    tarball run cached must not send the bundle run to a 404."""
+    """spdx.org names 9.99 before our compact file of it is out: the version
+    the upstream run cached must not send the compact run to a 404."""
     routes = online("9.98")
     routes.update({SPDX_ORG: version_json("9.99"), tarball_url(): release_tarball()})
     fake = serve(monkeypatch, routes)
-    assert open_db(tmp_path).update_from_remote(source="tarball")
+    assert open_db(tmp_path).update_from_remote(source="upstream")
     assert (tmp_path / "licenses.json").exists()
     assert not (tmp_path / "latest.json").exists()
 
     fake.reset_mock()
     other = LicenseDatabase(str(tmp_path / "other.db"))  # the same cache files
-    assert other.update_from_remote(source="bundle")
+    assert other.update_from_remote(source="compact")
     assert db_version(other) == "9.98"
     assert urls(fake) == [LATEST, bundle_url("9.98")]  # popularity: cached
 
     fake.reset_mock()  # each file is read from its own cache now
-    assert open_db(tmp_path).update_from_remote(source="tarball", force=True)
-    assert other.update_from_remote(source="bundle", force=True)
+    assert open_db(tmp_path).update_from_remote(source="upstream", force=True)
+    assert other.update_from_remote(source="compact", force=True)
     assert urls(fake) == []
 
 
@@ -186,7 +186,7 @@ def test_the_packaged_source_without_the_data_is_an_error(
     assert db_version(db) is None
 
 
-@pytest.mark.parametrize("source", ["bundle", "tarball"])
+@pytest.mark.parametrize("source", ["compact", "upstream"])
 def test_an_explicit_source_has_no_fallback(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -198,14 +198,14 @@ def test_an_explicit_source_has_no_fallback(
     ship(monkeypatch, release_bundle())
     result = CliRunner().invoke(cli, ["--db", db_path, "update", "--source", source])
     assert result.exit_code == 1
-    name = BUNDLE if source == "bundle" else TARBALL
+    name = BUNDLE if source == "compact" else TARBALL
     assert result.stderr.endswith(
         f"ERROR: {name}: download failed: HTTPError: 404 "
         f"Client Error: Not Found for url: "
-        f"{bundle_url() if source == 'bundle' else tarball_url()}\n"
+        f"{bundle_url() if source == 'compact' else tarball_url()}\n"
     )
     assert not warnings_of(result.stderr)
-    assert urls(fake)[-1] == (bundle_url() if source == "bundle" else tarball_url())
+    assert urls(fake)[-1] == (bundle_url() if source == "compact" else tarball_url())
     capsys.readouterr()
 
 
@@ -233,7 +233,7 @@ def test_an_older_snapshot_is_refused_unless_forced(
 def test_an_older_snapshot_named_by_version_is_installed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """--version names the downgrade, as it does for the bundle and tarball."""
+    """--version names the downgrade, as it does for compact and upstream."""
     db = open_db(tmp_path)
     serve(monkeypatch, online())
     assert db.update_from_remote()
@@ -270,8 +270,8 @@ def test_the_cli_refuses_an_older_snapshot(
         (
             {"source": "nope"},
             (
-                "option: invalid: source: 'nope'; pass one of auto, bundle, "
-                "tarball, packaged"
+                "option: invalid: source: 'nope'; pass one of auto, compact, "
+                "upstream, packaged"
             ),
         ),
         ({"version": "../x", "source": "packaged"}, "version: invalid: '../x'"),
@@ -317,4 +317,4 @@ def test_is_older(version: str, than: str, older: bool) -> None:
 
 
 def test_the_sources_are_the_options_of_the_cli() -> None:
-    assert releasesource.SOURCES == ("auto", "bundle", "tarball", "packaged")
+    assert releasesource.SOURCES == ("auto", "compact", "upstream", "packaged")

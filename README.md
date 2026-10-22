@@ -113,14 +113,16 @@ Advanced update options:
 - `--force`: Force update even if the local database is already at
   the target version.
 - `--no-cache`: Bypass the local cache for downloads.
-- `--source auto|bundle|tarball|packaged`: Where the license data comes from.
-  `auto` (default) tries the published bundle, then the SPDX tarball on
-  GitHub, then the snapshot shipped in the package; the other values use that
-  one source only. The bundle is about 1 MB and comes from
-  `raw.githubusercontent.com`, so `licenseid update` works where only that
-  host is reachable. The snapshot is the bundle of the release that was
-  newest when the package was built: `licenseid update` still works with no
-  network, with data that may be older.
+- `--source auto|compact|upstream|packaged`: Where the license data comes
+  from. `auto` (default) tries `compact`, then `upstream`, then `packaged`;
+  the other values use that one source only.
+  - `compact`: our bundle of about 1 MB (JSON and license texts, no XML), from
+    `raw.githubusercontent.com`, so `licenseid update` works where only that
+    host is reachable.
+  - `upstream`: SPDX's own release tarball on GitHub (about 49 MB).
+  - `packaged`: the bundle shipped in the package, of the release that was
+    newest when the package was built. `licenseid update` still works with
+    no network, with data that may be older.
 
 ### 2. Identify a license
 
@@ -183,11 +185,11 @@ superset that shares the same preamble.
 
 `licenseid` maintains a local cache of remote data to save bandwidth.
 
-- `latest.json` (the published bundle's version pointer) and `licenses.json`
-  (spdx.org's): Cached for 45 days each. `--source tarball` asks spdx.org
+- `latest.json` (the compact bundle's version pointer) and `licenses.json`
+  (spdx.org's): Cached for 45 days each. `--source upstream` asks spdx.org
   only, and `--no-cache` skips the caches.
 - `popularity.csv`: Cached for 75 days.
-- SPDX data bundles and tarballs are versioned and never expire.
+- Compact bundles and upstream tarballs are versioned and never expire.
 
 To clear the cache manually:
 

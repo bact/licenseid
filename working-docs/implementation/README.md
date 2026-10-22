@@ -41,12 +41,14 @@ yet started, see [`../design/`](../design/).
   or bundle) into `SpdxData`, `records.py` builds the database rows from it.
   No XML is stored. Same document.
 - **Release sources** (`releasesource.py`, PR #90): `update --source` picks
-  the published bundle (about 1 MB, from `raw.githubusercontent.com`), the
-  SPDX tarball or the snapshot shipped in the wheel; `auto` falls back in that
-  order. `tools/build_bundle.py` builds the bundle and `spdx-bundle.yml`
+  `compact` (our bundle, about 1 MB, from `raw.githubusercontent.com`),
+  `upstream` (SPDX's tarball) or `packaged` (the bundle shipped in the wheel);
+  `auto` falls back in that order. The terms are defined in
+  `data-fetching-and-caching.md`.
+  `tools/build_bundle.py` builds the compact bundle and `spdx-bundle.yml`
   publishes it weekly to the `data` branch. Same document.
-- **Snapshot in the wheel** (`hatch_build.py`): a Hatch hook adds the
-  published bundle to the wheel and the sdist at build time. Same document.
+- **Packaged bundle** (`hatch_build.py`): a Hatch hook adds the
+  compact bundle to the wheel and the sdist at build time. Same document.
 - **CLI matrix** (`tools/cli_matrix/`, added 2026-09-19): a manual harness
   that runs the real CLI in real shells, locales and stdio states and
   compares against a known-flags baseline. Run it before CLI, stream or
