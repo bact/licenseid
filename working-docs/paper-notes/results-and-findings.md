@@ -234,7 +234,7 @@ RapidFuzz cost data points:
 - SPDX 3.28.0 tarball: 13,018 files, 19 directories, no links (`FETCH` L90-93);
   `popularity.csv` covers 29 licences (`FETCH` L93). On-disk DB ~46 MB
   (`R2` L177).
-- Release data, SPDX 3.29.0, cached, best of three (PR 2 session, 2026-10-22):
+- Release data, SPDX 3.29.0, cached, best of three (PR #90, 2026-10-22):
   tarball 49,400,135 bytes, read 1.2 s, store 3.8 s; published bundle (JSON,
   gzip) 980,375 bytes, read 0.04 s, store 2.7 s; both give the same database
   row for row. Reading the tarball member by member in lookup order took

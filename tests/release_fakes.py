@@ -7,6 +7,7 @@
 files, tarball, bundle), and a fake ``requests.get`` that serves them by
 URL and answers anything else with a 404."""
 
+import gzip
 import io
 import json
 import tarfile
@@ -67,7 +68,11 @@ def tarball(
 ) -> bytes:
     """A gzipped tar of *members* (name: bytes) and symbolic *links*."""
     buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+    # mtime=0: the same bytes whichever second they are made in.
+    with (
+        gzip.GzipFile(fileobj=buf, mode="wb", mtime=0) as zipped,
+        tarfile.open(fileobj=zipped, mode="w") as tar,
+    ):
         for name, data in members.items():
             info = tarfile.TarInfo(name)
             info.size = len(data)

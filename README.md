@@ -452,7 +452,7 @@ Apache-2.0
 If you use this software, please cite it as follows:
 
 > Suriyawongkul, A. (2026). LicenseID - A Portable SPDX License ID Matcher
-> (Version 0.4.3) [Computer software].
+> (Version 0.5.0) [Computer software].
 > <https://doi.org/10.5281/zenodo.19881009>
 
 BibTeX:
@@ -465,7 +465,7 @@ BibTeX:
     month = oct,
     title = {{LicenseID - A Portable SPDX License ID Matcher}},
     url = {https://github.com/bact/licenseid.git},
-    version = {0.4.3},
+    version = {0.5.0},
     year = {2026}
 }
 ```
