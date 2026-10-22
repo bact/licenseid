@@ -7,9 +7,9 @@
 The SPDX License List as data, whatever its source: a bundle (gzipped JSON,
 ``format`` 1) or a release tarball.
 
-Standard library only: this module must not import ``requests``, ``click`` or
-``rapidfuzz``, so the build hook's neighbours and the match path stay light.
-It reads bytes and files; it never touches the network or the database.
+Standard library only (no ``requests``, ``click`` or ``rapidfuzz``), so the
+match path stays light. It reads bytes and files; it never touches the network
+or the database.
 """
 
 import gzip
@@ -28,8 +28,8 @@ from licenseid.errors import typed
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 
 BUNDLE_FORMAT: Final = 1
-# Decompressed size cap: the list of 3.29.0 is about 9 MiB, so this leaves room
-# and stops a gzip bomb.
+# Decompressed size cap: the bundle of 3.29.0 is about 5 MiB, so this leaves
+# room and stops a gzip bomb.
 MAX_UNZIPPED: Final = 32 * 2**20
 PACKAGED_NAME: Final = "spdx-bundle.json.gz"
 
@@ -80,8 +80,9 @@ class SpdxData:
         """Read a ``license-list-data`` release tarball without extracting it.
 
         Only ``<root>/json/*.json`` and ``<root>/text/*.txt`` are read, so a
-        member with an absolute or ``..`` name never is. ``tarfile.TarError``,
-        ``EOFError``, ``zlib.error`` and ``OSError`` propagate to the caller.
+        member with an absolute or ``..`` name is never followed.
+        ``tarfile.TarError``, ``EOFError``, ``zlib.error`` and ``OSError``
+        propagate to the caller.
         """
         with tarfile.open(path, "r:gz") as tar:
             documents, texts_by_root = _scan_tarball(tar)

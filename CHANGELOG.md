@@ -7,7 +7,7 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-10-22
 
 ### Added
 
@@ -16,9 +16,8 @@ and this project adheres to
   snapshot in the package; it works where only that host is reachable ([#90])
 - `update --source packaged` refuses to replace a newer database with an older
   snapshot unless `--force` ([#90])
-
 - Each wheel and sdist ships the SPDX bundle of its build date; `update` uses
-  it when no network source answers ([#91])
+  it when no network source answers ([9e789d1])
 
 ### Changed
 
@@ -36,7 +35,7 @@ and this project adheres to
 [#85]: https://github.com/bact/licenseid/pull/85
 [#86]: https://github.com/bact/licenseid/pull/86
 [#90]: https://github.com/bact/licenseid/pull/90
-[#91]: https://github.com/bact/licenseid/pull/91
+[9e789d1]: https://github.com/bact/licenseid/commit/9e789d1
 
 ## [0.4.3] - 2026-10-07
 
@@ -395,6 +394,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[0.5.0]: https://github.com/bact/licenseid/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/bact/licenseid/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/bact/licenseid/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/bact/licenseid/compare/v0.4.0...v0.4.1

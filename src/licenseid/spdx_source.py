@@ -4,12 +4,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-Fetching and caching SPDX License List data and GitHub popularity data
-from remote sources.
+Fetching and caching the SPDX License List (version files, our bundle, SPDX's
+tarball) and GitHub popularity data.
 
-Kept independent of SQLite storage (see database.py): these functions only
-read/write plain cache files under a caller-supplied directory and return
-parsed data, so they can be reasoned about and tested without a database.
+Kept independent of SQLite storage (see database.py) and of the order of
+sources (see releasesource.py): these functions only read and write plain cache
+files under a caller-supplied directory and return parsed data, so they can be
+tested without a database.
 """
 
 import contextlib
@@ -278,13 +279,14 @@ def get_version_info(
     """Determine target version and fetch version info.
 
     Returns ``(version, release_date, source)`` where source is ``"cache"``,
-    ``"remote"``, ``"stale cache"`` or ``"unavailable"``. Each of *urls*
-    (not empty; LICENSES_JSON_URL, LATEST_JSON_URL) has a cache file of its
-    own. Order: the first valid cache of *urls* (if *use_cache*), then one
-    download of each in turn until one gives a version, then (only if
-    *use_cache*) the first stale cache of them. Only the caches of *urls*
-    are read: spdx.org's licenses.json can name a version our latest.json
-    does not have yet. If all fail, an explicit
+    ``"remote"``, ``"stale cache"`` or ``"unavailable"``.
+
+    *urls* (not empty; ``LICENSES_JSON_URL``, ``LATEST_JSON_URL``) are the
+    version files to trust, each with a cache file of its own. Only their
+    caches are read: spdx.org's licenses.json can name a version our
+    latest.json does not have yet. Order: the first valid cache (if
+    *use_cache*), then one download of each in turn until one gives a version,
+    then (only if *use_cache*) the first stale cache. If all fail, an explicit
     *version* is used as is; otherwise LicenseIdError is raised, worded
     ``SUBJECT: CONDITION: DETAIL`` with no ACTION, so a caller can add the
     fallback it takes.

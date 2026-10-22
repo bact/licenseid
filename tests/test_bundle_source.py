@@ -237,7 +237,9 @@ def test_latest_json_answers_first_and_has_a_cache_of_its_own(
 def _version_cache(tmp_path: Path, name: str, version: str, age_days: int) -> None:
     path = tmp_path / name
     path.write_text(json.dumps(version_json(version)), encoding="utf-8")
-    old = time.time() - age_days * 86400
+    # An hour past the whole day: a file system that rounds the time (Windows)
+    # must not turn "100 days" into 99.
+    old = time.time() - age_days * 86400 - (3600 if age_days else 0)
     os.utime(path, (old, old))
 
 

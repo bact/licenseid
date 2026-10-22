@@ -7,7 +7,7 @@
 SPDX License ID matcher package.
 """
 
-__version__ = "0.4.3"
+__version__ = "0.5.0"
 
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path

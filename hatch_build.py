@@ -17,7 +17,8 @@ hatchling and nothing of ``licenseid``.
 Environment:
 
 ``LICENSEID_BUNDLE=skip``
-    Ship no snapshot (tests, lint and the publishing workflow itself).
+    Ship no snapshot (CI jobs that only install the package, and the workflow
+    that publishes the bundle).
 ``LICENSEID_BUNDLE=<path>``
     Ship that bundle: a hermetic build, no network.
 ``LICENSEID_REQUIRE_BUNDLE=1``
@@ -38,8 +39,9 @@ from typing import Any, Final
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-# Keep in step with ``licenseid.spdx_source.BUNDLE_BASE_URL`` and
-# ``licenseid.spdxdata.PACKAGED_NAME`` (tests/test_hatch_build.py checks).
+# Copies of constants in ``licenseid.spdx_source`` and ``licenseid.spdxdata``
+# (BUNDLE_BASE_URL, PACKAGED_NAME, BUNDLE_FORMAT, MAX_UNZIPPED), which the
+# build cannot import; tests/test_hatch_build.py checks they agree.
 BASE_URL: Final = (
     "https://raw.githubusercontent.com/bact/licenseid/refs/heads/data/spdx/format-1/"
 )
