@@ -15,7 +15,13 @@ and this project adheres to
   7 MB smaller ([#85])
 - A release without `licenseListVersion` fails as `cache unusable` ([#85])
 
+### Fixed
+
+- `update` stores the same fingerprints on every run: ties between n-grams sort
+  by n-gram, not set order; `update --force` rebuilds an older database ([#86])
+
 [#85]: https://github.com/bact/licenseid/pull/85
+[#86]: https://github.com/bact/licenseid/pull/86
 
 ## [0.4.3] - 2026-10-07
 

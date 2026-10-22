@@ -93,9 +93,12 @@ Every function returns where its data came from: `cache`, `remote`,
   fails as `cache unusable`. Before, `update` stored a NULL version.
 - Checked on the real 3.29.0 tarball (read-only): licences, search texts,
   exceptions and metadata equal those of a database built before the change.
-  Fingerprints differ because of an older bug, not this change:
-  `fingerprint.py` sorts ties by set order, so the top 20 n-grams of a
-  licence change from process to process.
+  Fingerprints differed because of an older bug, not this change:
+  `fingerprint.py` sorted ties by set order, so the top 20 n-grams of a
+  licence changed from process to process. Ties now sort by n-gram; three
+  builds under different `PYTHONHASHSEED` values store identical rows
+  (14,117 fingerprints). A database built earlier keeps its old rows until
+  `update --force`.
 
 ## Traps and surprises
 

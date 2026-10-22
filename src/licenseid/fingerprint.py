@@ -10,6 +10,7 @@ schema and query methods; this module has no SQLite dependency and can
 be unit-tested directly.
 """
 
+import heapq
 import math
 from collections import Counter
 
@@ -62,15 +63,16 @@ def compute_idf_fingerprints(
 
     fp_records: list[tuple[str, str, float]] = []
     for license_id, ngrams in license_ngrams.items():
-        scored = sorted(
+        scored = heapq.nsmallest(
+            top_n,
             (
                 (ng, math.log(k / doc_freq[ng]) / max_idf)
                 for ng in ngrams
                 if doc_freq[ng] > 0
             ),
-            key=lambda x: -x[1],
+            key=lambda x: (-x[1], x[0]),  # ties: by n-gram, not set order
         )
-        for ng, idf_norm in scored[:top_n]:
+        for ng, idf_norm in scored:
             if idf_norm > 0.0:
                 fp_records.append((license_id, ng, idf_norm))
 
