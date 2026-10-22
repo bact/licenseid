@@ -76,8 +76,11 @@ class SpdxData:
         )
 
     @classmethod
-    def from_tarball(cls, path: Path) -> "SpdxData":
+    def from_tarball(cls, path: Path, expected: str | None = None) -> "SpdxData":
         """Read a ``license-list-data`` release tarball without extracting it.
+
+        *expected* is the version the caller asked for (``None``: any); a
+        tarball of another version is a ``tarfile.ReadError``.
 
         Only ``<root>/json/*.json`` and ``<root>/text/*.txt`` are read, so a
         member with an absolute or ``..`` name is never followed.
@@ -92,7 +95,7 @@ class SpdxData:
         exc_doc = _json_object(exc_text, "exceptions.json") if exc_text else {}
         exc_doc.setdefault("exceptions", [])
         try:
-            version, release_date = _release(lic_doc, None)
+            version, release_date = _release(lic_doc, expected)
             licenses, _ = _entries(lic_doc, "licenses", "licenseId")
             exceptions, _ = _entries(exc_doc, "exceptions", "licenseExceptionId")
         except BundleError as exc:

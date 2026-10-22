@@ -149,11 +149,19 @@ class SpdxSnapshotHook(BuildHookInterface):  # type: ignore[type-arg]
             check_bundle(path.read_bytes(), None)
             return path
         self._scratch = tempfile.mkdtemp(prefix="licenseid-bundle-")
-        return download(Path(self._scratch))
+        try:
+            return download(Path(self._scratch))
+        except BaseException:
+            # Hatchling calls finalize only after every initialize returned.
+            self._remove_scratch()
+            raise
 
     def finalize(
         self, version: str, build_data: dict[str, Any], artifact_path: str
     ) -> None:
+        self._remove_scratch()
+
+    def _remove_scratch(self) -> None:
         if self._scratch is not None:
             shutil.rmtree(self._scratch, ignore_errors=True)
             self._scratch = None

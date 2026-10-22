@@ -9,6 +9,7 @@
 import gzip
 import hashlib
 import json
+import tempfile
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -227,16 +228,31 @@ def test_a_bad_pointer_fetches_no_bundle(
     assert [url.rsplit("/", 1)[1] for url, _ in calls] == ["latest.json"]
 
 
+@pytest.mark.parametrize("required", [False, True], ids=["warns", "fails"])
 def test_a_failed_download_leaves_no_scratch_directory(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, required: bool
 ) -> None:
+    """Hatchling runs no finalize after an initialize that raised."""
     serve(monkeypatch, {})
+    made: list[str] = []
+    mkdtemp = tempfile.mkdtemp
+
+    def recording_mkdtemp(*args: Any, **kwargs: Any) -> str:
+        made.append(mkdtemp(*args, **kwargs))
+        return made[-1]
+
+    monkeypatch.setattr(tempfile, "mkdtemp", recording_mkdtemp)
+    if required:
+        monkeypatch.setenv("LICENSEID_REQUIRE_BUNDLE", "1")
     instance, _ = hook(tmp_path)
-    instance.initialize("standard", {"force_include": {}})
-    scratch = instance._scratch
-    assert scratch is not None and Path(scratch).is_dir()
-    instance.finalize("standard", {}, "")
-    assert not Path(scratch).exists()
+    build_data: dict[str, Any] = {"force_include": {}}
+    if required:
+        with pytest.raises(OSError):
+            instance.initialize("standard", build_data)
+    else:
+        instance.initialize("standard", build_data)
+    assert len(made) == 1
+    assert not Path(made[0]).exists()
     assert instance._scratch is None
 
 

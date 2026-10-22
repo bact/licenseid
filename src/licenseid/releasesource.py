@@ -216,7 +216,8 @@ class ReleaseChain:
         )
         if origin == "cache":
             try:
-                return _read_tarball(path, "cache unusable"), "tarball (cache)"
+                data = _read_tarball(path, "cache unusable", target)
+                return data, "tarball (cache)"
             except LicenseIdError as exc:
                 if path.exists():  # not removed: a download cannot replace it
                     raise _StepError(
@@ -224,7 +225,8 @@ class ReleaseChain:
                     ) from exc
                 warn(f"{exc}; downloading")
             path, origin = spdx_source.get_tarball_path(self.cache_dir, target, False)
-        return _read_tarball(path, "download unusable"), f"tarball ({origin})"
+        data = _read_tarball(path, "download unusable", target)
+        return data, f"tarball ({origin})"
 
     @functools.cached_property
     def _snapshot(self) -> SpdxData | str:
@@ -280,11 +282,12 @@ def _cache_name(kind: UpdateSource, version: str) -> str:
     return template.format(version=version)
 
 
-def _read_tarball(path: Path, condition: str) -> SpdxData:
-    """The data in the tarball at *path*. One that cannot be read is removed,
-    best effort, and LicenseIdError ``<name>: <condition>: <detail>`` raised."""
+def _read_tarball(path: Path, condition: str, version: str) -> SpdxData:
+    """The data in the tarball at *path*, which must hold *version*. One that
+    cannot be read is removed, best effort, and LicenseIdError
+    ``<name>: <condition>: <detail>`` raised."""
     try:
-        return SpdxData.from_tarball(path)
+        return SpdxData.from_tarball(path, version)
     except (*_BAD_TARBALL, OSError) as exc:
         with contextlib.suppress(OSError):
             path.unlink(missing_ok=True)

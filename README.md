@@ -183,7 +183,9 @@ superset that shares the same preamble.
 
 `licenseid` maintains a local cache of remote data to save bandwidth.
 
-- `licenses.json`: Cached for 45 days.
+- `latest.json` (the published bundle's version pointer) and `licenses.json`
+  (spdx.org's): Cached for 45 days each. `--source tarball` asks spdx.org
+  only, and `--no-cache` skips the caches.
 - `popularity.csv`: Cached for 75 days.
 - SPDX data bundles and tarballs are versioned and never expire.
 
