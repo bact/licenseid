@@ -7,6 +7,13 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- A text with a lone surrogate (an argument of invalid UTF-8, or an API string)
+  is `input: invalid` (exit 2), not a `UnicodeEncodeError`
+
 ## [0.5.0] - 2026-10-22
 
 ### Added

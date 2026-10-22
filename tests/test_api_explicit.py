@@ -14,6 +14,7 @@ import pytest
 from conftest import seed_ready_metadata
 
 from licenseid.database import LicenseDatabase
+from licenseid.errors import InvalidInputError
 from licenseid.matcher import AggregatedLicenseMatcher
 
 
@@ -105,3 +106,40 @@ def test_match_explicit_text(test_db: str) -> None:
     res = matcher.match(text=text)
     assert len(res) == 1
     assert res[0]["license_id"] == "MIT"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "SPDX-License-Identifier: \ud800+",
+        "\ud800",
+        "MIT License \udcff permission is hereby granted",
+        '{"license": "\ud800"}',
+    ],
+    ids=["tag", "alone", "inside", "json"],
+)
+def test_a_lone_surrogate_in_a_text_is_invalid_input(test_db: str, text: str) -> None:
+    """No encoder takes one: it was a raw UnicodeEncodeError from SQLite's
+    parameter binding. Like a license_id, it is invalid input, whatever the
+    entry point."""
+    matcher = AggregatedLicenseMatcher(test_db)
+    with pytest.raises(InvalidInputError, match=r"^input: invalid: text: lone"):
+        matcher.match(text=text)
+    with pytest.raises(InvalidInputError, match=r"^input: invalid: text: lone"):
+        matcher.resolve_record(text)
+    with pytest.raises(InvalidInputError, match=r"^input: invalid: text: lone"):
+        matcher.is_osi(text)
+
+
+def test_the_error_names_the_character_of_the_first_surrogate(test_db: str) -> None:
+    matcher = AggregatedLicenseMatcher(test_db)
+    with pytest.raises(InvalidInputError) as caught:
+        matcher.match(text="MIT\ud800 \udc00")
+    assert str(caught.value) == "input: invalid: text: lone surrogate at character 3"
+
+
+def test_a_pair_of_surrogates_written_as_one_character_is_text(test_db: str) -> None:
+    """Only a lone half is refused: U+1F600 is valid, however it was built."""
+    matcher = AggregatedLicenseMatcher(test_db)
+    text = "Permission is hereby granted, free of charge, to any person \U0001f600"
+    assert isinstance(matcher.match(text=text), list)

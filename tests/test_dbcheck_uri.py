@@ -22,7 +22,12 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 from conftest import posix_only
-from db_asserts import assert_refused, expected_refusal, run_cli
+from db_asserts import (
+    assert_refused,
+    expected_refusal,
+    probe_check_does_not_hang,
+    run_cli,
+)
 from db_variants import NOT_FOUND, build_ready_wal_with_wal, make_ready_file_db
 
 from licenseid import cli as cli_module
@@ -377,9 +382,9 @@ def test_a_named_pipe_is_refused_rather_than_waited_on(tmp_path: Path) -> None:
         os.mkfifo(fifo)
     except (AttributeError, OSError):
         pytest.skip("this platform has no named pipes")
-    with pytest.raises(DatabaseNotReadyError) as info:
-        check_database_ready(str(fifo))
-    assert str(info.value) == f"database: unreadable: {fifo}: not a regular file"
+    assert probe_check_does_not_hang(fifo) == (
+        f"DatabaseNotReadyError database: unreadable: {fifo}: not a regular file\n"
+    )
 
 
 def test_a_directory_is_still_left_to_sqlite_to_report(tmp_path: Path) -> None:
@@ -403,9 +408,9 @@ def test_no_uri_spelling_of_a_named_pipe_waits_for_a_writer(
     except (AttributeError, OSError):
         pytest.skip("this platform has no named pipes")
     db_arg = template.format(p=fifo)
-    with pytest.raises(DatabaseNotReadyError) as info:
-        check_database_ready(db_arg)
-    assert str(info.value) == f"database: unreadable: {db_arg}: not a regular file"
+    assert probe_check_does_not_hang(db_arg) == (
+        f"DatabaseNotReadyError database: unreadable: {db_arg}: not a regular file\n"
+    )
 
 
 def test_a_uri_with_a_vfs_naming_no_file_is_still_left_to_sqlite(

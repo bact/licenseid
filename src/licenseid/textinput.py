@@ -36,6 +36,18 @@ def reject_binary(data: bytes | str, source: str) -> None:
         raise InvalidInputError(f"input: binary file: {source}")
 
 
+def reject_lone_surrogate(text: str) -> None:
+    """Raise InvalidInputError if *text* has a lone surrogate (``\\ud800``, or
+    the ``\\udcXX`` an argument of invalid UTF-8 decodes to): no encoder takes
+    it, so SQLite's parameter binding would raise a raw UnicodeEncodeError."""
+    try:
+        text.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise InvalidInputError(
+            f"input: invalid: text: lone surrogate at character {exc.start}"
+        ) from exc
+
+
 def decode_input(data: bytes, source: str) -> str:
     """Decode input *data* from *source* (a path or ``stdin``) into text.
 

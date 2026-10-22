@@ -26,6 +26,7 @@ import pytest
 from click.testing import CliRunner
 from conftest import posix_only
 from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
+    probe_check_does_not_hang,
     probe_does_not_hang,
     safe_home,
 )
@@ -623,16 +624,6 @@ def test_connect_closes_the_connection_when_a_pragma_fails(
     assert closed == [True]
 
 
-_GATE_PROBE = """
-import sys
-from licenseid.dbcheck import check_database_ready
-try:
-    check_database_ready(sys.argv[1])
-except Exception as exc:
-    print(type(exc).__name__, exc)
-"""
-
-
 @posix_only  # a FIFO
 @pytest.mark.parametrize("suffix", ["-journal", "-wal"])
 def test_the_readiness_gate_does_not_hang_on_a_fifo_sidecar(
@@ -640,15 +631,5 @@ def test_the_readiness_gate_does_not_hang_on_a_fifo_sidecar(
 ) -> None:
     path = make_ready_file_db(tmp_path / "g.db")
     os.mkfifo(f"{path}{suffix}")
-    try:
-        done = subprocess.run(
-            [sys.executable, "-c", _GATE_PROBE, str(path)],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-            start_new_session=True,
-        )
-    except subprocess.TimeoutExpired:
-        pytest.fail("the readiness gate hung")
-    assert "not a regular file" in done.stdout, done.stdout
+    output = probe_check_does_not_hang(path)
+    assert "not a regular file" in output, output

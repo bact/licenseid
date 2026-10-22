@@ -29,7 +29,7 @@ from licenseid.similarity import (
     calculate_base_similarity,
     calculate_final_score,
 )
-from licenseid.textinput import read_text_file
+from licenseid.textinput import read_text_file, reject_lone_surrogate
 from licenseid.types import (
     CandidateMatch,
     InternalMatch,
@@ -131,6 +131,7 @@ class AggregatedLicenseMatcher:
         """Phase 2: read file_path as the CLI reads a file, or use the text."""
         if file_path:
             return read_text_file(file_path)
+        reject_lone_surrogate(text or "")
         return text or ""
 
     def _build_match_context(
@@ -339,8 +340,8 @@ class AggregatedLicenseMatcher:
         keys (see licenseid.types.LicenseMatch).
         Must provide exactly one of text, license_id, or file_path.
         Raises licenseid.errors.InvalidInputError: unknown option, binary file,
-        or a license_id that names no single license (an AND/OR expression, a
-        license name, an SPDX URL, prose).
+        a text with a lone surrogate, or a license_id that names no single
+        license (an AND/OR expression, a license name, an SPDX URL, prose).
         An overlong licence ID, as license_id or in a text, is no match, not
         DatabaseNotReadyError, which means only that the database itself
         cannot be read.
