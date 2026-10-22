@@ -3,10 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Hatch build hook: ship the SPDX snapshot that ``licenseid update`` falls
-back to when no network source answers.
+"""Hatch build hook: ship the SPDX bundle that ``licenseid update`` falls
+back to (source ``packaged``) when no network source answers.
 
-The snapshot is the published bundle (``licenseid.spdxdata``, format 1). The
+It is the compact bundle (``licenseid.spdxdata``, format 1), as published. The
 hook adds it to the wheel as ``licenseid/data/spdx-bundle.json.gz`` and to the
 sdist as ``src/licenseid/data/spdx-bundle.json.gz``, so a wheel built from an
 unpacked sdist finds it in the tree and needs no network. A checkout never

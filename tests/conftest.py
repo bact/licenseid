@@ -200,7 +200,7 @@ def assert_cached_tarball_removed(
     name = re.escape(tar_path.name)
     version = tar_path.name.removeprefix("spdx-data-v").removesuffix(".tar.gz")
     with pytest.raises(LicenseIdError, match=rf"^{name}: download failed: "):
-        db.update_from_remote(version=version, source="tarball")
+        db.update_from_remote(version=version, source="upstream")
     warnings = [
         line for line in capsys.readouterr().err.splitlines() if "WARNING" in line
     ]

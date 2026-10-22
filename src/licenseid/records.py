@@ -6,9 +6,9 @@
 """The rows of the ``licenses``, ``license_index`` and ``exceptions`` tables,
 built in memory from one :class:`licenseid.spdxdata.SpdxData`.
 
-No database access and no network: whatever the source of the data (a
-tarball, a bundle), the same input gives the same rows. The text of every
-licence is normalised once, here, into the fingerprint that is indexed.
+No database access and no network: whatever the source of the data (an
+upstream tarball, a bundle), the same input gives the same rows. The text of
+every licence is normalised once, here, into the fingerprint that is indexed.
 """
 
 from typing import NamedTuple

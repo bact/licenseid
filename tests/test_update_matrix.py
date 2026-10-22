@@ -20,7 +20,7 @@ from release_fakes import online, release_bundle, serve, ship, urls
 
 from licenseid.cli import cli
 
-SOURCES = ["auto", "bundle", "tarball", "packaged"]
+SOURCES = ["auto", "compact", "upstream", "packaged"]
 CACHES = ["--cache", "--no-cache"]
 VERSIONS = [None, "9.99", "9.98"]
 PACKAGED = "9.98"
@@ -36,9 +36,9 @@ def _expected(source: str, version: str | None) -> tuple[str | None, str]:
     if version == PACKAGED:  # the network has no 9.98
         if source == "auto":
             return PACKAGED, "packaged"
-        name = "spdx-bundle" if source == "bundle" else "spdx-data"
+        name = "spdx-bundle" if source == "compact" else "spdx-data"
         return None, f"{name}-v9.98."
-    return "9.99", "tarball (remote)" if source == "tarball" else "bundle (remote)"
+    return "9.99", "upstream (remote)" if source == "upstream" else "compact (remote)"
 
 
 def _run(db: Path, args: list[str]) -> Result:
@@ -103,5 +103,6 @@ def test_update_matrix(
     if source == "packaged":
         fake.assert_not_called()
     elif cache == "--cache" and installed != PACKAGED:
-        # A fresh version cache and a cached bundle or tarball: no download.
+        # A fresh version cache and a cached compact or upstream file: no
+        # download.
         assert urls(fake) == []

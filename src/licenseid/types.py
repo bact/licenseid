@@ -17,9 +17,10 @@ from typing_extensions import Required
 Method = Literal["tag", "field", "id", "name", "text"]
 
 # Where `licenseid update` gets the SPDX License List (see
-# licenseid.releasesource): our bundle, SPDX's tarball, the snapshot shipped in
-# the wheel, or each in turn.
-UpdateSource = Literal["auto", "bundle", "tarball", "packaged"]
+# licenseid.releasesource): "compact" (our bundle, about 1 MB), "upstream"
+# (SPDX's release tarball), "packaged" (the snapshot shipped in the wheel), or
+# each in turn.
+UpdateSource = Literal["auto", "compact", "upstream", "packaged"]
 
 
 class LicenseMatch(TypedDict):

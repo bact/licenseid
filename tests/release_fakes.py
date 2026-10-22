@@ -110,23 +110,23 @@ def release_data(version: str = VERSION) -> SpdxData:
 
 
 def release_bundle(version: str = VERSION) -> bytes:
-    """The one-license release as our bundle."""
+    """The one-license release as the compact bundle."""
     return to_bundle(release_data(version))
 
 
 def bundle_url(version: str = VERSION) -> str:
-    """Where our bundle of *version* is published."""
+    """Where the compact bundle of *version* is published."""
     return spdx_source.BUNDLE_URL_TEMPLATE.format(version=version)
 
 
 def tarball_url(version: str = VERSION) -> str:
-    """Where SPDX publishes the tarball of *version*."""
+    """Where SPDX publishes the upstream tarball of *version*."""
     return spdx_source.TARBALL_URL_TEMPLATE.format(version=version)
 
 
 def online(version: str = VERSION) -> dict[str, Route]:
-    """Every source of *version* up: both version files, the bundle, the
-    tarball and the popularity data."""
+    """Every source of *version* up: both version files, the compact
+    bundle, the upstream tarball and the popularity data."""
     return {
         spdx_source.LATEST_JSON_URL: version_json(version),
         spdx_source.LICENSES_JSON_URL: version_json(version),

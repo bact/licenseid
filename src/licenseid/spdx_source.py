@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-Fetching and caching the SPDX License List (version files, our bundle, SPDX's
-tarball) and GitHub popularity data.
+Fetching and caching the SPDX License List (version files, the compact bundle,
+the upstream tarball) and GitHub popularity data.
 
 Kept independent of SQLite storage (see database.py) and of the order of
 sources (see releasesource.py): these functions only read and write plain cache
