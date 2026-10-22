@@ -24,6 +24,13 @@
   lines), `types.py`, `usage.py` (click's usage errors in the grammar).
   Keep `matcher.py` under the 800-line limit: put logic that needs no
   matcher state in one of the others.
+- Release sources of `update`, by where the data comes from: `compact`
+  (our 1 MB bundle on the `data` branch), `upstream` (SPDX's own tarball),
+  `packaged` (the bundle in the wheel). "Bundle" is only the file format
+  (`spdxdata`, `spdx-bundle*.json.gz`); say `compact` or `packaged` for a
+  source. Terms: `working-docs/implementation/data-fetching-and-caching.md`.
+- Releasing: `working-docs/implementation/release-process.md` (order, checks
+  before the tag, traps).
 - Build system: `hatchling` via PEP 621 `pyproject.toml`.
 - Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches;
   may be discarded, not yet built.
@@ -309,10 +316,15 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `match(file_path=...)` both use it; do not `open()` a user file
   anywhere else (`tests/test_textinput.py` fails if `cli.py` or `matcher.py`
   does). The SPDX data files stay strict UTF-8 on purpose: a fallback there
-  would hide a corrupt download.
+  would hide a corrupt download. A text with a lone surrogate (an API string,
+  or a command-line argument of invalid UTF-8, which Python decodes to
+  `\udcXX`) cannot be encoded for SQLite's parameter binding:
+  `textinput.reject_lone_surrogate` raises `InvalidInputError` at the one
+  place the matcher takes a text, and `cli.reject_unencodable` exits 2 first
+  for `--text` and the argument.
 - `hatch_build.py` (Hatch custom hook, standard library only: the build
-  environment has no `licenseid`) puts the packaged SPDX bundle in the wheel and the
-  sdist (`src/licenseid/data/`, gitignored). `LICENSEID_BUNDLE=skip|<path>`
+  environment has no `licenseid`) puts the packaged SPDX bundle in the wheel and
+  the sdist (`src/licenseid/data/`, gitignored). `LICENSEID_BUNDLE=skip|<path>`
   and `LICENSEID_REQUIRE_BUNDLE=1` steer it; CI jobs that only install the
   package set `skip`. An editable install ships nothing, so a local run never
   sees a snapshot, and the `offline` fixture hides one from the tests. Only an
@@ -382,7 +394,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - Judge `pylint` by its exit code (`pylint src/ tests/ >/dev/null; echo $?`),
   not the rating: one convention message still prints `10.00/10` and exits
   16, and CI fails on the exit code. Run CI's own commands, and plain
-  `pytest tests/` (no `-m 'not benchmark'`).
+  `pytest tests/` (no `-m 'not benchmark'`). CI's ruff is newer than a local
+  one: also run `ruff check --select I` (import order failed CI once with a
+  clean local run). pylint's duplicate-code check (R0801) sees two similar
+  inline scripts in different test files: put a probe script in
+  `tests/db_asserts.py` and import it.
 - A flag in `tools/cli_matrix/baseline.txt` can stop flagging because the
   command now fails *earlier*, not because the defect is gone. Read the
   cell's recorded output in `.cli-matrix/results.json` before deleting the
@@ -390,7 +406,9 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - `--db` can name a thing that blocks or lies. Check the file type
   (`stat.S_ISREG`/`S_ISDIR`) before opening: a named pipe makes a read-only
   open hang for ever, with no exit code and no traceback, and a test for it
-  hangs too. `file::memory:NAME` is a file on disk (only `mode=memory` and
+  hangs too: run `check_database_ready` on a FIFO in a child process with a
+  timeout (`db_asserts.probe_check_does_not_hang`), so a broken guard fails
+  the test after 30 s instead of hanging the run. `file::memory:NAME` is a file on disk (only `mode=memory` and
   the exact base `file::memory:` are memory), and `file://localhost/p` and
   `?vfs=` are valid spellings SQLite resolves.
 - Resolve a path spelling once, in `dbcheck._os_file`, not with an
@@ -494,6 +512,9 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - Update `CHANGELOG.md` for significant changes per Keep a Changelog
   (<https://keepachangelog.com/>).
   Mark breaking changes clearly with very concise migration instructions.
+- A release not yet tagged keeps its section in `CHANGELOG.md` open: a PR
+  merged before the tag goes into that section, not a new `[Unreleased]` one.
+  Link the PR once it has a number (never guess one).
 - **CHANGELOG entries**: concise, to the point. No background/rationale --
   link the PR for that. Target ~160 chars per bullet; exception for a genuinely
   complex PR. Merge related PRs into one entry (`[#1], [#2]`);

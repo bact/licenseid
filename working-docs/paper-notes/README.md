@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-22
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -15,7 +15,8 @@ coding agents. These are notes, not a draft. Every claim cites a source
 (repository file and line, pull request, commit, or session transcript and
 timestamp) so that it can be checked before it is cited.
 
-Covers 2026-04-27 (first commit) to 2026-10-07 (v0.4.2, PRs #76 to #82).
+Covers 2026-04-27 (first commit) to 2026-10-22 (v0.5.0, PRs #85 to #95); the
+older files stop at 2026-10-07 (v0.4.3).
 
 ## Files
 
@@ -27,6 +28,7 @@ Covers 2026-04-27 (first commit) to 2026-10-07 (v0.4.2, PRs #76 to #82).
 | [history.md](history.md) | Timeline, releases, metrics, complexity ratchets, SBOM chronology |
 | [ai-sessions-early.md](ai-sessions-early.md) | Human–AI sessions, July to mid-September: decisions, mistakes, patterns |
 | [ai-sessions-recent.md](ai-sessions-recent.md) | Human–AI session, 19 September to 5 October: decisions, mistakes, patterns |
+| [ai-sessions-0-5-0.md](ai-sessions-0-5-0.md) | Human–AI session, release 0.5.0 (20 to 22 October): sources, reviews, mistakes |
 
 ## Method
 
