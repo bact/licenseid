@@ -404,7 +404,9 @@ def test_a_release_date_that_is_not_a_string_is_dropped(
 def _popularity_cache(tmp_path: Path, text: str, age_days: int = 0) -> None:
     path = tmp_path / spdx_source.CACHE_POPULARITY_CSV
     path.write_text(text, encoding="utf-8")
-    old = time.time() - age_days * 86400
+    # Half a day past the boundary: a file exactly N days old reads as N - 1
+    # once the file system rounds its time up (NTFS keeps 100 ns steps).
+    old = time.time() - age_days * 86400 - 43200
     os.utime(path, (old, old))
 
 
