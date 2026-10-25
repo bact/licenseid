@@ -23,7 +23,12 @@ from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
 from licenseid.result import public_result
 from licenseid.retrieval import get_candidates
-from licenseid.shorttext import EXACT_MATCH_SCORE, exact_id_match, match_short_text
+from licenseid.shorttext import (
+    EXACT_MATCH_SCORE,
+    exact_id_match,
+    match_short_text,
+    match_version_key,
+)
 from licenseid.similarity import (
     build_probe,
     calculate_base_similarity,
@@ -226,7 +231,11 @@ class AggregatedLicenseMatcher:
             match["is_fsf_libre"] = details["is_fsf_libre"] if details else False
             return [match]
 
-        short_matches = self._match_short_text(ctx.norm_input)
+        # An ID written without its ".0" or its dashes ("Apache2") is that
+        # ID; read from the raw text, as normalize_text() drops the dots.
+        short_matches = match_version_key(
+            self.db, ctx.target_text
+        ) or self._match_short_text(ctx.norm_input)
         if short_matches and short_matches[0]["score"] > 1.0:
             for m in short_matches:
                 if "is_spdx" not in m:  # an expression (see shorttext)

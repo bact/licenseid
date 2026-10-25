@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-25
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -141,18 +141,6 @@ Since item 22 these are `exact` false, but they still score 1 and pass
   distinctive words, so `is-*` answers no for it.
 - Impact 2, Risk 2, Effort 2.
 
-## 30. `GPL 2.0+` in prose loses its "+" in Tier 0 — Priority 6
-
-Item 21 reads a lone SPDX expression as an ID, but a value that is not
-SPDX-shaped still goes to Tier 0, which matches the normalised text, where
-the "+" is gone: `GPL 2.0+` and `GPL-2.0 +` answer `GPL-2.0-only` at 1.02,
-and `LGPL 2.1+` `LGPL-2.1-only`. Left out of item 21 on purpose
-(2026-10-01): reading a "+" out of prose is a guess (`C++`).
-
-- **Direction**: when a Tier 0 exact hit's raw text ends in a lone "+",
-  answer its or-later form, or lower the hit below certain.
-- Impact 1, Risk 2, Effort 2.
-
 ## 31. Revise the matching rules: grammar, certainty, ranking — Priority 12
 
 Come back to this and think it through systematically, for one consistent
@@ -182,8 +170,8 @@ the user asked to return to it.
 last were in PR #67 (a "+" after a `LicenseRef-*`, and a short input's
 refused tag matched as a name). The next step is a revision of the
 license matching rules as a whole, of which this grammar is one part:
-which tier may answer what, and with how much certainty (items 28 and 30
-are the same question for short text).
+which tier may answer what, and with how much certainty (item 28 is the
+same question for short text; item 30, resolved, was another).
 
 **Ranking (2026-10-02)**: rethink the internal ranking in the same
 revision. Each tier ranks on a key of its own scale (a tag 1.0, an exact

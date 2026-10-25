@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-07
-Last-Modified: 2026-09-21
+Last-Modified: 2026-10-25
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -193,3 +193,35 @@ granting language around the text is the only evidence, and
   so nothing can tell the variants apart: over 3,249 license-text results
   the correct top answers went from 1,949 to 1,948 (30 `-only` rows lost it, 29
   `-or-later` rows gained it). The GPL family already behaved this way.
+
+### 11. Version-tolerant ID key in Tier 0 (`shorttext.py`, 2026-10-25)
+
+`Apache2`, `GPL3`, `MPL2` and `EPL2` found no license, and `GPLv3` and
+`GPL-2` were answered by a text match with another license (LiLiQ-R-1.1,
+SimPL-2.0). `shorttext.version_key` gives a short input and every ID one key;
+`shorttext.match_version_key` answers the one ID whose key is the input's, as
+an exact ID match. `matcher._try_tier0_short_text` asks it after the lone
+expression and the prose fast path, before the fuzzy name match, so a
+manifest's `license` field gets it too.
+
+- **Steps, in order.** A "v" before a digit is dropped (`GPLv3`); a letter and
+  a digit side by side are split (`Apache2`, `0BSD`); a version whose parts
+  after the major are all 0 loses them (`2.0`, `2.0.0`, not `1.2.0`, `2.0.1`
+  or `2.0.0.0`); a "+" becomes "or later"; then `normalize_text`. The fold
+  reads the raw text: `normalize_text` drops the full stops, and `2 0` is
+  not `2.0`.
+- **Collisions.** Over the 740 IDs of SPDX 3.29, keys collide only for the
+  deprecated `GPL-2.0+` forms and their `-or-later` rows; the row in use wins.
+  Two rows in use with one key give no answer. A deprecated ID is redirected
+  as on the `license_id=` path (`GPL3` is `GPL-3.0-only`).
+- **The "+".** Without the "or later" step, `GPL-2.0+` and `GPL-2.0` share a
+  key. With it, `GPL 2.0+` answers `GPL-2.0-or-later`, not `GPL-2.0-only`
+  (tech-debt roadmap item 30, resolved). A "+" after a license with no
+  or-later form (`Apache 2+`, `C++`) finds no key and goes on to the
+  fuzzy name match, as before.
+- **Cost.** The keys of the IDs are cached (`functools.lru_cache`). The fold
+  regex starts only at the beginning of a number: without its lookbehind, a
+  run of `1.0` repeated 50,000 times took minutes
+  (`test_the_key_regexes_do_not_backtrack`).
+- **Not done.** Names get no key: `Apache License 2` is still a fuzzy name
+  match. `BSD3` is not `BSD-3-Clause`.

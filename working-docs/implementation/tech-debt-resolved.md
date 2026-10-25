@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-25
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -578,3 +578,13 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   a `license_id`; the CLI checks `--text` and the argument first
   (`cli.reject_unencodable`) and exits 2. Not "no match": a text that cannot
   be read is the caller's mistake, and a silent `[]` would hide it.
+- `GPL 2.0+` in prose lost its "+" in Tier 0 (item 30, Priority 6;
+  2026-10-25). A value that is not SPDX-shaped went to Tier 0, which matched
+  the normalised text, where the "+" is gone: `GPL 2.0+`, `GPL-2.0 +` and
+  `LGPL 2.1+` answered their `-only` form. Now `shorttext.version_key` turns
+  a "+" into "or later" before `normalize_text` drops it, so they answer
+  `GPL-2.0-or-later` and `LGPL-2.1-or-later`. Not a guess from prose: the
+  key must equal an ID's key, so a "+" after a license with no or-later form
+  (`Apache 2+`, `C++`) finds none and goes on to the fuzzy name match, as
+  before. Pinned in `tests/test_lone_expression.py` and
+  `tests/test_version_key.py`.

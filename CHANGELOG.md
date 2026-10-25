@@ -7,6 +7,14 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `match` reads an ID without its dashes, a `v` or a zero minor version as
+  that ID: `Apache2` and `Apache 2` are `Apache-2.0`, `GPLv3` is
+  `GPL-3.0-only`, `CC by 3 nl` is `CC-BY-3.0-NL`
+
 ## [0.5.0] - 2026-10-22
 
 ### Added
