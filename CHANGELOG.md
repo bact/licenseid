@@ -13,7 +13,10 @@ and this project adheres to
 
 - `match` reads an ID without its dashes, a `v` or a zero minor version as
   that ID: `Apache2` and `Apache 2` are `Apache-2.0`, `GPLv3` is
-  `GPL-3.0-only`, `CC by 3 nl` is `CC-BY-3.0-NL`
+  `GPL-3.0-only`, `CC by 3 nl` is `CC-BY-3.0-NL`; `GPL 2.0+` is
+  `GPL-2.0-or-later` ([#96])
+
+[#96]: https://github.com/bact/licenseid/pull/96
 
 ## [0.5.0] - 2026-10-22
 
