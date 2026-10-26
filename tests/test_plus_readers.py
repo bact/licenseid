@@ -24,7 +24,7 @@ from licenseid.identifiers import (
     normalize_identifier,
     strip_plus_operator,
 )
-from licenseid.shorttext import version_key
+from licenseid.looseid import version_key
 
 FAMILIES = ("GPL", "LGPL", "AGPL", "gpl")
 OTHERS = ("Apache", "MIT", "C", "LicenseRef-x")

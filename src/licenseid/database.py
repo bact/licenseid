@@ -10,6 +10,7 @@ SQLite database management for SPDX licenses.
 import contextlib
 import os
 import sqlite3
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -485,6 +486,13 @@ class LicenseDatabase:
         every Tier-0 short-text match.
         """
         return self._tables.names_and_ids()
+
+    def get_names_by_key(
+        self, key: Callable[[str], str]
+    ) -> dict[str, list[LicenseNameId]]:
+        """get_all_names_and_ids() by *key* of each ID (see
+        dbcache.TableCache.names_by_key)."""
+        return self._tables.names_by_key(key)
 
     def get_deprecated_mappings(self) -> dict[str, str]:
         """Get a mapping of all deprecated IDs to their successors."""

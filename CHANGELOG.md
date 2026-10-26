@@ -12,7 +12,7 @@ and this project adheres to
 ### Added
 
 - `match` reads loose IDs: `Apache2`, `Apache_2.0` are `Apache-2.0`;
-  `GPL 2.0+` is `GPL-2.0-or-later` ([#96])
+  `GPL 2.0+`, `GPLv2 or any later version` are `GPL-2.0-or-later` ([#96])
 - `GPLv3` (no `-only`/`-or-later`) is `GPL-3.0-only`, not exact, with
   `WARNING: match: variant not stated` ([#96])
 

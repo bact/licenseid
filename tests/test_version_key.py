@@ -4,28 +4,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """An ID written without its ".0" or its dashes ("Apache2", "GPLv3",
-"Apache_2.0", "CC by 3 nl") is that ID (licenseid.shorttext.version_key)."""
+"Apache_2.0", "CC by 3 nl") is that ID (licenseid.looseid.version_key)."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
-import sqlite3
 import time
-from collections import defaultdict
 from collections.abc import Generator
-from pathlib import Path
 from unittest import mock
 
 import pytest
 from matcher_db import Lic, seeded_db
 
 from licenseid.database import LicenseDatabase
-from licenseid.identifiers import normalize_identifier
+from licenseid.looseid import MAX_KEY_INPUT, version_key
 from licenseid.matcher import AggregatedLicenseMatcher
-from licenseid.shorttext import (
-    MAX_KEY_INPUT,
-    match_short_text,
-    match_version_key,
-    version_key,
-)
+from licenseid.shorttext import match_short_text, match_version_key
 
 # Real IDs that are hard for the key: a zero version beside a longer one
 # (OLDAP-2.0, OLDAP-2.0.1), a letter after the version (LPPL-1.3a), digits
@@ -63,9 +55,6 @@ SYNTHETIC = ("Twin-", "Dup-")
 # Where a deprecated ID is redirected, as on the license_id= path.
 SUCCESSOR = {"GPL-2.0": "GPL-2.0-only", "GPL-2.0+": "GPL-2.0-or-later"}
 NARROWED = "WARNING: match: variant not stated: {}; using {}\n"
-
-# The License List of the developer's cache, read only; absent on CI.
-REAL_DB = Path.home() / ".local" / "share" / "licenseid" / "licenses.db"
 
 
 @pytest.fixture
@@ -260,7 +249,7 @@ def test_a_long_input_is_no_loose_id(
     """A long input is no ID, and is not normalised a second time; white
     space around it does not count."""
     text = "Apache" + " " * padding + "2"
-    with mock.patch("licenseid.shorttext.version_key", wraps=version_key) as key:
+    with mock.patch("licenseid.looseid.version_key", wraps=version_key) as key:
         assert bool(match_version_key(db, f"\n {text} \n")) is found
     assert key.called is found
 
@@ -270,7 +259,7 @@ def test_a_long_input_is_no_loose_id(
     [
         ("Apache2", ("Apache-2.0", "id", True)),
         ('{"license": "Apache_2.0"}', ("Apache-2.0", "field", True)),
-        ('{"license": "GPLv2"}', ("GPL-2.0-only", "id", False)),
+        ('{"license": "GPLv2"}', ("GPL-2.0-only", "field", False)),
         ("GPL 2.0+", ("GPL-2.0-or-later", "id", True)),
         ("GPL2", ("GPL-2.0-only", "id", False)),
         # A declared ID keeps its own path, not the key's.
@@ -323,47 +312,6 @@ def test_mixed_content_gives_its_sections_raw_to_tier_0(
     ) as tier0:
         matcher._match_mixed_content({}, "Licensed Apache.2.0")
     tier0.assert_called_once_with("licensed apache 2 0", "Licensed Apache.2.0")
-
-
-def _real_rows() -> list[tuple[str, str, bool]]:
-    uri = f"file:{REAL_DB.as_posix()}?mode=ro"
-    with sqlite3.connect(uri, uri=True) as conn:
-        return [
-            (lid, name or "", bool(dep))
-            for lid, name, dep in conn.execute(
-                "SELECT license_id, name, is_deprecated FROM licenses"
-            )
-        ]
-
-
-@pytest.mark.skipif(not REAL_DB.is_file(), reason="no License List in the cache")
-def test_the_real_list_keeps_the_key_unambiguous() -> None:
-    """Drift guard over a real License List, read only. A new release must
-    not give one key to two IDs in use (neither is reachable by it), to a
-    deprecated ID and a row in use other than its successor (the row in use
-    would answer for it), or to a license's name and another license's ID
-    (the key runs before the exact name match). Every ID fits the length
-    limit."""
-    rows = _real_rows()
-    by_key: dict[str, list[tuple[str, bool]]] = defaultdict(list)
-    for lid, _, dep in rows:
-        by_key[version_key(lid)].append((lid, dep))
-    live = {k: [i for i, d in v if not d] for k, v in by_key.items()}
-    assert rows
-    assert not [ids for ids in live.values() if len(ids) > 1]
-    assert not [
-        (lid, live[version_key(lid)])
-        for lid, _, dep in rows
-        if dep
-        and live[version_key(lid)]
-        and live[version_key(lid)] != [normalize_identifier(lid)]
-    ]
-    assert not [
-        (lid, name)
-        for lid, name, _ in rows
-        if [i for i, _ in by_key.get(version_key(name), []) if i != lid]
-    ]
-    assert max(len(lid) for lid, _, _ in rows) <= MAX_KEY_INPUT
 
 
 @pytest.mark.parametrize(

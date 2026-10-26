@@ -17,6 +17,7 @@ import bisect
 import sqlite3
 import string
 import threading
+from collections.abc import Callable
 from typing import TypeVar, cast
 
 from licenseid.dbconnection import Connections
@@ -68,6 +69,9 @@ class TableCache:
         self._names_and_ids: list[LicenseNameId] | None = None
         self._active_ids: list[tuple[str, str]] | None = None
         self._deprecated: dict[str, str] | None = None
+        # One index of names_and_ids() by a key of each ID, and its key.
+        self._keyed: tuple[Callable[[str], str], dict[str, list[LicenseNameId]]] | None
+        self._keyed = None
 
     def clear(self) -> None:
         """Forget every read, after the tables were rewritten."""
@@ -75,6 +79,7 @@ class TableCache:
         self._license_ids = self._index_rows = None
         self._names_and_ids = self._active_ids = None
         self._deprecated = None
+        self._keyed = None
 
     def _check_stamp(self) -> None:
         """Drop every read if the tables were rebuilt since they were made."""
@@ -162,6 +167,22 @@ class TableCache:
             if generation == self._generation:
                 self._names_and_ids = names
         return names
+
+    def names_by_key(self, key: Callable[[str], str]) -> dict[str, list[LicenseNameId]]:
+        """names_and_ids() by *key* of each ID, in table order: built once,
+        so a lookup by key costs no pass over every row. One key is kept; a
+        call with another rebuilds it."""
+        generation, keyed = self._generation, self._keyed
+        names = self.names_and_ids()  # checks the stamp, which may clear
+        if keyed is None or keyed[0] is not key or generation != self._generation:
+            index: dict[str, list[LicenseNameId]] = {}
+            for record in names:
+                if isinstance(record["license_id"], str):
+                    index.setdefault(key(record["license_id"]), []).append(record)
+            keyed = (key, index)
+            if generation == self._generation:
+                self._keyed = keyed
+        return keyed[1]
 
     def active_id_with_prefix(self, prefix: str) -> str | None:
         """The ID of the one active licence whose ID starts with *prefix*.

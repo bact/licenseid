@@ -6,8 +6,10 @@
 - Architecture: SQLite FTS5 trigram tokenization (Tier 1 recall) and RapidFuzz
   (Tier 2 precision ranking).
 - Matching modules: `matcher.py` (the pipeline), `retrieval.py` (Tier 1),
-  `shorttext.py` (Tier 0 IDs and names), `ranking.py` (sort order and the
-  `-only`/`-or-later` tie-breaker), `similarity.py`, `markers.py`,
+  `shorttext.py` (Tier 0 IDs and names), `looseid.py` (a loosely written
+  ID: "Apache2", "GPLv3", "GPLv2 or any later version"), `ranking.py`
+  (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
+  `markers.py`,
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
   pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
