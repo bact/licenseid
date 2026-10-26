@@ -41,9 +41,14 @@ OR_LATER_PHRASE = re.compile(
     re.IGNORECASE,
 )
 # "GPLv2+" style notices; only meaningful in source files (the ID path reads
-# "+" itself).
+# "+" itself, with identifiers._RE_PLUS_OPERATOR). Prose, so a comma or a
+# full stop may follow the "+"; otherwise it agrees with that reader, for the
+# spellings Tier 0's version key accepts ("GPL 2+", "GPL-v2+", "GPL_2.0+"):
+# a "+" touches its version and ends the word ("GPLv2++", "GPL-2.0+foo" are
+# no grant). tests/test_plus_readers.py holds the two together.
 _RE_OR_LATER_SHORTHAND = re.compile(
-    r"(?:lgpl|gpl|agpl)[-v]?\d+(?:\.\d+)?\+", re.IGNORECASE
+    r"(?:lgpl|gpl|agpl)(?:[-_ ]?v)?[-_ ]?\d+(?:\.\d+){0,2}\+(?![\w+])",
+    re.IGNORECASE,
 )
 
 # Markdown section headers that indicate the surrounding document is a

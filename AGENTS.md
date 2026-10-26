@@ -89,7 +89,7 @@ Unix philosophy. Consistent, predictable, parseable.
     `not UTF-8, read as Latin-1`, `no license found`, `N days old`,
     `normalization vN outdated`, `download failed`, `cache read failed`,
     `cache write failed`, `cache unusable`, `download unusable`,
-    `stale cache unusable`, `parse failed`,
+    `stale cache unusable`, `parse failed`, `variant not stated`,
     `N rows with missing or non-numeric num_pushers`, `update failed`,
     `delete failed`, `write failed`, `compact failed`,
     `older than the database`.
@@ -377,6 +377,14 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   Do not widen `--id` to expressions
   again: `MIT OR Apache-2.0` declares neither license, and the flags
   (`is-osi`, `is-fsf`) have no answer for it.
+- The "+" operator has ONE reader, `identifiers._RE_PLUS_OPERATOR`
+  (`strip_plus_operator`, `replace_plus_operator`): a "+" right after an ID,
+  never after a space, a "+", an exception or a `LicenseRef-*`. Tier 0's
+  version key (`shorttext.version_key`) spells it out with it. The
+  tokenizer (`is_simple_expression`) and the prose shorthand of `classify`
+  ("GPLv2+", which also takes a comma or full stop after it) read the same
+  grammar their own way: `tests/test_plus_readers.py` holds all four to one
+  table. Change one, run it.
 - "or any later version" has ONE reader, `classify.OR_LATER_PHRASE`; the
   tie-breaker (`ranking`), `identifiers.disambiguate_deprecated_id` and
   `markers` import it. Add a phrasing there and to `PHRASES` in

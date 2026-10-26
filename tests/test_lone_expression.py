@@ -136,10 +136,10 @@ def test_a_lone_expression_is_judged_as_its_id(
         # Shaped like an ID but none: the name match reads it, as before,
         # and finds the name exactly.
         ("Fair.Play", [("Fair-1.0", "name", 1.0, 1.0)]),
-        # Not SPDX-shaped, but its version key keeps the "+" as "or later"
-        # (shorttext.version_key).
+        # Not SPDX-shaped, but its version key keeps the "+" operator as "or
+        # later" (shorttext.version_key). A "+" apart from its ID is no
+        # operator: tests/test_version_key.py.
         ("GPL 2.0+", [("GPL-2.0-or-later", "id", 1.0, None)]),
-        ("GPL-2.0 +", [("GPL-2.0-or-later", "id", 1.0, None)]),
         ("LGPL 2.1+", [("LGPL-2.1-or-later", "id", 1.0, None)]),
     ],
 )

@@ -11,10 +11,15 @@ and this project adheres to
 
 ### Added
 
-- `match` reads an ID without its dashes, a `v` or a zero minor version as
-  that ID: `Apache2` and `Apache 2` are `Apache-2.0`, `GPLv3` is
-  `GPL-3.0-only`, `CC by 3 nl` is `CC-BY-3.0-NL`; `GPL 2.0+` is
-  `GPL-2.0-or-later` ([#96])
+- `match` reads loose IDs: `Apache2`, `Apache_2.0` are `Apache-2.0`;
+  `GPL 2.0+` is `GPL-2.0-or-later` ([#96])
+- `GPLv3` (no `-only`/`-or-later`) is `GPL-3.0-only`, not exact, with
+  `WARNING: match: variant not stated` ([#96])
+
+### Fixed
+
+- `GPL 2+` and `GPL-v2+` in a source file count as or-later; `GPLv2++` and
+  `GPL-2.0+foo` do not ([#96])
 
 [#96]: https://github.com/bact/licenseid/pull/96
 

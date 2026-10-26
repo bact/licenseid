@@ -193,14 +193,21 @@ def strip_plus_operator(expression: str) -> str:
     """Drop the "+" operators of *expression* so ``py_spdx_license`` can parse
     it (``Apache-2.0+ OR MIT`` becomes ``Apache-2.0 OR MIT``). A "+" that is
     not an operator stays, so the expression stays unparseable."""
+    return replace_plus_operator(expression, "")
 
-    def drop(match: re.Match[str]) -> str:
+
+def replace_plus_operator(text: str, replacement: str) -> str:
+    """*text* with each "+" operator after a license ID replaced by
+    *replacement*: "" drops it, " or later" spells it out
+    (``shorttext.version_key``). Any other "+" stays."""
+
+    def replace(match: re.Match[str]) -> str:
         # Neither an exception nor a LicenseRef takes a "+".
         if match.group("with") or _RE_LICENSE_REF.match(match.group("id")):
             return match.group(0)
-        return match.group("id")
+        return match.group("id") + replacement
 
-    return _RE_PLUS_OPERATOR.sub(drop, expression)
+    return _RE_PLUS_OPERATOR.sub(replace, text)
 
 
 def _token_kind(text: str) -> str:
