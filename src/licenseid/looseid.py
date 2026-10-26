@@ -20,6 +20,7 @@ from licenseid.identifiers import (
     normalize_identifier,
     qualify_trailing_grant,
     replace_plus_operator,
+    without_outer_brackets,
 )
 from licenseid.normalize import normalize_text
 from licenseid.types import LicenseNameId
@@ -120,10 +121,15 @@ def loose_with(db: LicenseDatabase, text: str) -> tuple[str, str | None] | None:
     of the ID ("GPL2 WITH Classpath-exception-2.0" is GPL-2.0-only WITH
     Classpath-exception-2.0), and the loose license text if it was narrowed
     to -only (the caller warns once the expression resolves). None if *text*
-    is no such expression. The exception is the caller's to check.
+    is no such expression. The exception is the caller's to check. Brackets
+    around the whole are no part of it ("(GPL2 WITH Classpath-exception-2.0)"),
+    as for a declared expression. Any other bracket is none of this shape:
+    WITH takes a license ID, not a bracketed one ("(GPL2) WITH x"), and an
+    unbalanced one ("(GPL2 WITH x") is no expression.
     """
-    parts = _RE_WITH.split(text.strip())
-    if len(parts) != 2:
+    inner = without_outer_brackets(text.strip())
+    parts = _RE_WITH.split(inner)
+    if len(parts) != 2 or "(" in inner or ")" in inner:
         return None
     found = loose_id(db, parts[0])
     if found is None or " WITH " in found[1]:

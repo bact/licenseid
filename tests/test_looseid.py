@@ -10,6 +10,7 @@ and the key over a whole License List."""
 
 import json
 import sqlite3
+import time
 from collections.abc import Generator
 from pathlib import Path
 from unittest import mock
@@ -172,6 +173,22 @@ def test_the_warning_detail_is_one_printable_line(text: str, detail: str) -> Non
         ("Apache2 WITH LLVM-exception WITH LLVM-exception", None, False),
         ("Apache2 OR MIT", None, False),
         ("Apache2 AND MIT", None, False),
+        # Brackets around the whole are no part of it, at any depth.
+        (
+            "(GPL2 WITH Classpath-exception-2.0)",
+            ("GPL-2.0-only WITH Classpath-exception-2.0", False),
+            True,
+        ),
+        (
+            "((Apache2 WITH LLVM-exception))",
+            ("Apache-2.0 WITH LLVM-exception", True),
+            False,
+        ),
+        (
+            "( Apache2 WITH LLVM-exception )",
+            ("Apache-2.0 WITH LLVM-exception", True),
+            False,
+        ),
     ],
 )
 def test_a_loose_license_with_an_exception(
@@ -196,6 +213,14 @@ def test_a_loose_license_with_an_exception(
         "WITH LLVM-exception",
         # The license carries an exception already.
         "GPL-2.0-with-classpath-exception WITH LLVM-exception",
+        # Any other bracket: unbalanced, around the license alone (WITH takes
+        # an ID), around the exception, or two pairs side by side.
+        "(Apache2 WITH LLVM-exception",
+        "Apache2 WITH LLVM-exception)",
+        "(Apache2) WITH LLVM-exception",
+        "Apache2 WITH (LLVM-exception)",
+        "(Apache2) WITH (LLVM-exception)",
+        ")Apache2 WITH LLVM-exception(",
     ],
 )
 def test_no_loose_with_expression(db: LicenseDatabase, text: str) -> None:
@@ -284,3 +309,20 @@ def test_a_license_list_keeps_the_key_unambiguous(source: object) -> None:
             ]
         ]
         assert max(len(row.license_id) for row in rows) <= MAX_KEY_INPUT
+
+
+@pytest.mark.parametrize(
+    ("text", "answered"),
+    [
+        ("(" * 100_000 + "Apache2 WITH LLVM-exception" + ")" * 100_000, True),
+        ("(" * 100_000 + "Apache2 WITH LLVM-exception" + ")" * 99_999, False),
+    ],
+    ids=["balanced", "unbalanced"],
+)
+def test_deep_brackets_are_read_in_one_pass(
+    db: LicenseDatabase, text: str, answered: bool
+) -> None:
+    start = time.monotonic()
+    found = loose_with(db, text)
+    assert time.monotonic() - start < 2.0
+    assert (found is not None) is answered

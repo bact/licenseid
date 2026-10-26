@@ -647,7 +647,7 @@ def _normalize_expression(expression: str, db: LicenseDatabase | None = None) ->
     # Brackets around the whole go first, whatever happens next: the sort
     # would drop them, but it is skipped past the cap or for a "+", and the
     # parser gives up on thousands of them.
-    expr = _without_outer_brackets(expr)
+    expr = without_outer_brackets(expr)
     operator_count = sum(1 for t in normalized_tokens if t in _OPERATORS)
     if operator_count > _MAX_CANONICALIZE_OPERATORS:
         return expr
@@ -683,9 +683,10 @@ def _canonicalize_expression(expr: str) -> str:
         return expr
 
 
-def _without_outer_brackets(expr: str) -> str:
+def without_outer_brackets(expr: str) -> str:
     """*expr* without brackets around the whole of it, as the sort in
-    _canonicalize_expression drops them: "(Apache-2.0+)" is "Apache-2.0+".
+    _canonicalize_expression drops them: "(Apache-2.0+)" is "Apache-2.0+"
+    (and as looseid.loose_with reads a bracketed expression).
 
     One pass, as a tag can nest thousands deep: an outer pair holds the whole
     only while no bracket between the leading and trailing runs closes it, so
