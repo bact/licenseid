@@ -9,7 +9,8 @@ license ID or name."""
 from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase
-from licenseid.identifiers import normalize_identifier
+from licenseid.identifiers import strip_plus_operator
+from licenseid.looseid import loose_id, narrowed, resolved_id, warn_narrowed
 from licenseid.ranking import DEP_PENALTY
 from licenseid.types import LicenseNameId, RawMatch
 
@@ -30,13 +31,32 @@ def exact_id_match(license_id: str) -> RawMatch:
     )
 
 
-def match_short_text(db: LicenseDatabase, norm_input: str) -> list[RawMatch]:
-    """Fallback logic for very short inputs."""
+def match_version_key(db: LicenseDatabase, text: str) -> list[RawMatch]:
+    """The license *text* names loosely (see licenseid.looseid), as an ID
+    match: "Apache2" is Apache-2.0."""
+    found = loose_id(db, text)
+    return [] if found is None else [_id_hit(found[0], found[1], text)]
+
+
+def match_short_text(
+    db: LicenseDatabase, norm_input: str, text: str | None = None
+) -> list[RawMatch]:
+    """Tier 0 for very short inputs: the ID of the version key of *text* (the
+    raw input; *norm_input* when not given, which has lost its full stops),
+    else an exact or fuzzy ID or name match on *norm_input*."""
+    raw = norm_input if text is None else text
+    loose = match_version_key(db, raw)
+    if loose:
+        return loose
     all_metadata = db.get_all_names_and_ids()
+    # Case-fold exact ID match: a score > 1.0, so the Tier 0 caller
+    # recognises it as a definitive hit.
+    exact = _exact_id_row(all_metadata, norm_input, raw)
+    if exact is not None:
+        return [_id_hit(exact, resolved_id(db, exact), raw)]
     ranked: list[RawMatch] = []
     words = norm_input.split()
     threshold = 90.0 if len(words) <= 2 else 85.0
-    norm_upper = norm_input.upper()
     # The names of rows in use: a deprecated row that shares one is not the
     # exact answer, the row that replaced it is.
     live_names = {m["norm_name"] for m in all_metadata if not m["is_deprecated"]}
@@ -45,21 +65,6 @@ def match_short_text(db: LicenseDatabase, norm_input: str) -> list[RawMatch]:
         lid = meta["license_id"]
         id_norm = meta["norm_license_id"]
         name_norm = meta["norm_name"]
-
-        # Case-fold exact ID match: return immediately with a score > 1.0
-        # so the Tier 0 caller recognises it as a definitive hit.
-        # Deprecated IDs go through normalize_identifier() for the same
-        # canonical-successor redirect the license_id= path already gets.
-        if id_norm.upper() == norm_upper:
-            resolved_id = (
-                normalize_identifier(lid, db) if meta["is_deprecated"] else lid
-            )
-            match = exact_id_match(resolved_id)
-            if resolved_id == lid:
-                _copy_flags(meta, match)
-            # A deprecated ID can resolve to an expression, whose flags are
-            # not this row's: the caller works them out.
-            return [match]
 
         if norm_input == name_norm:
             # Exact name match: id_norm was already ruled out above, so
@@ -115,6 +120,37 @@ def match_short_text(db: LicenseDatabase, norm_input: str) -> list[RawMatch]:
     # carry no is_deprecated or pop_score.
     ranked.sort(key=lambda x: (-x["score"], x["license_id"]))
     return ranked
+
+
+def _exact_id_row(
+    rows: list[LicenseNameId], norm_input: str, text: str
+) -> LicenseNameId | None:
+    """The row whose normalised ID is *norm_input*, ASCII case folded.
+    normalize_text() drops a "+", so GPL-2.0 and GPL-2.0+ share one: a row
+    with a "+" answers only for a *text* with the "+" operator (as
+    identifiers reads it: "GPL 2 0 +" has none); else the first in the
+    table. (The version key, asked first, already chose between a row in use
+    and a deprecated one.)"""
+    norm_upper = norm_input.upper()
+    found = [row for row in rows if row["norm_license_id"].upper() == norm_upper]
+    if strip_plus_operator(text) == text:
+        found = [row for row in found if not row["license_id"].endswith("+")]
+    return found[0] if found else None
+
+
+def _id_hit(row: LicenseNameId, resolved: str, text: str) -> RawMatch:
+    """An ID match on *row*, answering *resolved*. A deprecated ID narrowed
+    to -only that *text* did not state ("GPL3", "GPL 2 0") is a guess: the
+    narrower grant is the safer one, and a guess is not exact, nor silent."""
+    match = exact_id_match(resolved)
+    if resolved == row["license_id"]:
+        _copy_flags(row, match)
+    # A deprecated ID can resolve to an expression, whose flags are not this
+    # row's: the caller works them out.
+    if narrowed(row["license_id"], resolved, text):
+        match["exact"] = False
+        warn_narrowed(text, resolved)
+    return match
 
 
 def _copy_flags(meta: LicenseNameId, match: RawMatch) -> None:

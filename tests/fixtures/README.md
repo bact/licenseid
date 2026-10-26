@@ -76,6 +76,20 @@ uses the official SPDX License List as its authoritative, pristine data source.
   names, short granting statements, or URLs. Only a strict minority of files (<
   15%) contain the exact SPDX License ID verbatim.
 
+### 6. `license-list`
+
+- **Data Source:** `spdx-license-ids.json`, every license ID of SPDX License
+  List 3.29.0 with its name, deprecation and successor, exported from a
+  `licenses.db` that `licenseid update` built.
+- **Description:** A whole License List for checks that must see every ID,
+  on every run (the developer's cache is absent on CI), such as
+  `tests/test_looseid.py`'s check that no two IDs share a version key.
+- **Characteristics:** One row per line, as
+  `[license_id, name, is_deprecated, superseded_by]`. Not made by
+  `scripts/generate_fixtures.py`; refresh it from a newer database with the
+  query `SELECT license_id, name, is_deprecated, superseded_by FROM licenses
+  ORDER BY license_id`.
+
 ## Generating Fixtures
 
 To regenerate or expand the fixture set:

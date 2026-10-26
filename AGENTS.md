@@ -6,8 +6,10 @@
 - Architecture: SQLite FTS5 trigram tokenization (Tier 1 recall) and RapidFuzz
   (Tier 2 precision ranking).
 - Matching modules: `matcher.py` (the pipeline), `retrieval.py` (Tier 1),
-  `shorttext.py` (Tier 0 IDs and names), `ranking.py` (sort order and the
-  `-only`/`-or-later` tie-breaker), `similarity.py`, `markers.py`,
+  `shorttext.py` (Tier 0 IDs and names), `looseid.py` (a loosely written
+  ID: "Apache2", "GPLv3", "GPLv2 or any later version"), `ranking.py`
+  (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
+  `markers.py`,
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
   pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
@@ -89,7 +91,7 @@ Unix philosophy. Consistent, predictable, parseable.
     `not UTF-8, read as Latin-1`, `no license found`, `N days old`,
     `normalization vN outdated`, `download failed`, `cache read failed`,
     `cache write failed`, `cache unusable`, `download unusable`,
-    `stale cache unusable`, `parse failed`,
+    `stale cache unusable`, `parse failed`, `variant not stated`,
     `N rows with missing or non-numeric num_pushers`, `update failed`,
     `delete failed`, `write failed`, `compact failed`,
     `older than the database`.
@@ -377,6 +379,14 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   Do not widen `--id` to expressions
   again: `MIT OR Apache-2.0` declares neither license, and the flags
   (`is-osi`, `is-fsf`) have no answer for it.
+- The "+" operator has ONE reader, `identifiers._RE_PLUS_OPERATOR`
+  (`strip_plus_operator`, `replace_plus_operator`): a "+" right after an ID,
+  never after a space, a "+", an exception or a `LicenseRef-*`. Tier 0's
+  version key (`shorttext.version_key`) spells it out with it. The
+  tokenizer (`is_simple_expression`) and the prose shorthand of `classify`
+  ("GPLv2+", which also takes a comma or full stop after it) read the same
+  grammar their own way: `tests/test_plus_readers.py` holds all four to one
+  table. Change one, run it.
 - "or any later version" has ONE reader, `classify.OR_LATER_PHRASE`; the
   tie-breaker (`ranking`), `identifiers.disambiguate_deprecated_id` and
   `markers` import it. Add a phrasing there and to `PHRASES` in

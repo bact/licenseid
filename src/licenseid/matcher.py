@@ -17,6 +17,7 @@ from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import InvalidInputError, invalid_id_error
 from licenseid.identifiers import disambiguate_deprecated_id, is_simple_expression
+from licenseid.looseid import loose_with, warn_narrowed
 from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
@@ -127,6 +128,21 @@ class AggregatedLicenseMatcher:
             self.detector.resolve_license_value(value, 1.0), method="id"
         )
 
+    def _resolve_loose_with(self, text: str) -> list[RawMatch]:
+        """*text*, a license written loosely WITH an exception, answered as
+        the expression of its ID (see looseid.loose_with); a narrowed -only
+        guess is not exact, and is said once the expression resolves."""
+        found = loose_with(self.db, text)
+        if found is None:
+            return []
+        expression, loose = found
+        declared = self._resolve_declared(expression)
+        if declared and loose is not None:
+            warn_narrowed(loose, declared[0]["license_id"])
+            for match in declared:
+                match["exact"] = False
+        return declared
+
     def _resolve_target_text(self, text: str | None, file_path: str | None) -> str:
         """Phase 2: read file_path as the CLI reads a file, or use the text."""
         if file_path:
@@ -208,10 +224,15 @@ class AggregatedLicenseMatcher:
         # text and ID answer alike: the normalised text has lost the "+",
         # and GPL-2.0 alone is GPL-2.0-only. A value that names no license
         # goes on to the name match.
-        if is_simple_expression(ctx.target_text):
-            declared = self._resolve_declared(ctx.target_text)
-            if declared:
-                return declared
+        # So is a license written loosely WITH an exception ("GPL2 WITH
+        # Classpath-exception-2.0"), simple-shaped or not ("Apache 2 WITH").
+        declared = (
+            self._resolve_declared(ctx.target_text)
+            if is_simple_expression(ctx.target_text)
+            else []
+        ) or self._resolve_loose_with(ctx.target_text)
+        if declared:
+            return declared
 
         # Fast path: bare deprecated ID + prose disambiguation context in
         # the raw (un-normalised) text, e.g. "GPL-2.0 or later version".
@@ -226,7 +247,7 @@ class AggregatedLicenseMatcher:
             match["is_fsf_libre"] = details["is_fsf_libre"] if details else False
             return [match]
 
-        short_matches = self._match_short_text(ctx.norm_input)
+        short_matches = self._match_short_text(ctx.norm_input, ctx.target_text)
         if short_matches and short_matches[0]["score"] > 1.0:
             for m in short_matches:
                 if "is_spdx" not in m:  # an expression (see shorttext)
@@ -279,11 +300,12 @@ class AggregatedLicenseMatcher:
             )
             # Only an exact ID or name: "BSD" is a fuzzy match for 0BSD.
             if result and result[0]["score"] >= EXACT_MATCH_SCORE:
-                # The field declares the exact hit, so nothing is measured
-                # (as for a field Tier 0.5 resolved); a look-alike name after
-                # it was only found by name.
+                # The field declares the exact hit, or the ID it names
+                # loosely, so nothing is measured (as for a field Tier 0.5
+                # resolved); a look-alike name after it was only found by
+                # name.
                 for match in result:
-                    if match["exact"]:
+                    if match["exact"] or match["method"] == "id":
                         match["method"] = "field"
                         match["similarity"] = None
                 return result
@@ -508,10 +530,12 @@ class AggregatedLicenseMatcher:
         """Tier 1 retrieval for *text* (see licenseid.retrieval)."""
         return get_candidates(self.db, data, text)
 
-    def _match_short_text(self, norm_input: str) -> list[RawMatch]:
-        """Tier 0 ID and name matching for a short input (see
+    def _match_short_text(
+        self, norm_input: str, text: str | None = None
+    ) -> list[RawMatch]:
+        """Tier 0 ID and name matching for a short input, *text* raw (see
         licenseid.shorttext)."""
-        return match_short_text(self.db, norm_input)
+        return match_short_text(self.db, norm_input, text)
 
     def _rank_candidates(
         self,
@@ -620,7 +644,7 @@ class AggregatedLicenseMatcher:
             section = strip_comment_prefixes(section)
             # 1. Try Tier 0 (Short Text) on the windowed section
             norm_section = normalize_text(section)
-            short_matches = self._match_short_text(norm_section)
+            short_matches = self._match_short_text(norm_section, section)
             for m in short_matches:
                 if m["license_id"] not in seen_ids:
                     details = self.db.get_license_details(m["license_id"])

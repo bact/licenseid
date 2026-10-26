@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-25
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -40,7 +40,8 @@ Decide:
   from it;
 - what it does with a non-ASCII letter (refuse the value, not cut it: item
   33), a grant inside an expression (carry it or refuse: item 20),
-  `NONE` and `NOASSERTION`, and a "+" in prose (item 30);
+  `NONE` and `NOASSERTION`, and a "+" in prose (item 30, now read by
+  `shorttext.version_key`);
 - one depth cap on every Python version (item 19);
 - whether to delegate to `py_spdx_license` once it parses "+" in linear
   time (item 26).

@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-07
-Last-Modified: 2026-09-21
+Last-Modified: 2026-10-26
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -193,3 +193,84 @@ granting language around the text is the only evidence, and
   so nothing can tell the variants apart: over 3,249 license-text results
   the correct top answers went from 1,949 to 1,948 (30 `-only` rows lost it, 29
   `-or-later` rows gained it). The GPL family already behaved this way.
+
+### 11. Loose license IDs in Tier 0 (`looseid.py`, 2026-10-25)
+
+`Apache2`, `GPL3`, `MPL2` and `EPL2` found no license, and `GPLv3` and
+`GPL-2` were answered by a text match with another license (LiLiQ-R-1.1,
+SimPL-2.0). `looseid.version_key` gives a short input and every ID one key,
+and `looseid.loose_id` answers the one ID whose key is the input's.
+`shorttext.match_short_text` asks it first, from the raw text its caller
+passes, before the exact and fuzzy matches; so `matcher`'s Tier 0 (after the
+lone expression and the prose fast path), a manifest's `license` field and
+the sections of mixed content all get it. A section always holds its
+"licens" word, so it is never a loose ID itself.
+
+- **Steps, in order.** The "+" operator becomes "or later", read as
+  expressions read it (`identifiers.replace_plus_operator`); "_" becomes a
+  space; a "v" before a digit is dropped (`GPLv3`); a letter and a digit
+  side by side are split (`Apache2`, `0BSD`); a version whose parts after
+  the major are all 0 loses them (`2.0`, `2.0.0`, not `1.2.0`, `2.0.1` or
+  `2.0.0.0`); then `normalize_text`. The fold reads the raw text:
+  `normalize_text` drops the full stops, and `2 0` is not `2.0`. A full stop
+  with no digit before it separates (`Apache.2.0`); an underscore does not
+  stand for one (`Apache_2_0` is no ID).
+- **A family alone.** `GPL3`, `GPLv2`, `LGPL 2.1` and `GPL 2 0` state
+  neither `-only` nor `-or-later`. The row they name is the deprecated bare
+  ID, which the License List redirects to `-only`: the narrower grant, the
+  safer guess. Because it is a guess, the result is not `exact`, and the CLI
+  says so on standard error:
+  `WARNING: match: variant not stated: GPL3; using GPL-3.0-only`. WARNING,
+  not a new INFO level: the grammar's WARNING is "a fallback lets it
+  continue", and a guess that departs from what the input states must not be
+  silent, nor hidden from a filter on `^WARNING`. One check
+  (`looseid.narrowed`) serves the key, the exact-ID match after it
+  (`GPL 2 0`, which the key misses) and a loose license WITH an exception.
+  The deprecated ID written as is (`GPL-2.0`) is `-only` by the License
+  List's definition and gets no warning. The DETAIL is the input on one
+  line, with every unprintable character and ";" as "?" (`looseid.shown`),
+  so it neither splits the grammar nor reaches the terminal raw. A manifest
+  value read this way is still `method=field`.
+- **A grant after it.** `GPLv2 or any later version` was answered by a text
+  match with CERN-OHL-S-2.0. A loose ID followed by a grant that ends the
+  text (and at most "version", "of the License" and punctuation) is read by
+  the one reader of the phrase, `classify.OR_LATER_PHRASE` through
+  `identifiers.qualify_trailing_grant`. Where the phrase starts at the
+  version ("2.1 or later"), the ID keeps its whole version: cut at the
+  phrase, `LGPL v2.1 or later` read as LGPL-2.0-or-later. A license with
+  no -or-later form (`Apache2 or any later version`) gets no answer: the
+  grant is not dropped in silence.
+- **WITH.** `GPL2 WITH Classpath-exception-2.0` is the expression of the
+  loose license's ID, resolved as a declared expression (so the exception
+  must be known). `Apache2 OR MIT` stays without an answer, as
+  `Apache-2.0 OR MIT` does: text declares one license or none.
+- **Collisions.** Over the 740 IDs of SPDX 3.29, keys collide only for the
+  deprecated `GPL-2.0+` forms and their `-or-later` rows; the row in use wins.
+  Two rows in use with one key give no answer. A deprecated ID is redirected
+  as on the `license_id=` path (`GPL3` is `GPL-3.0-only`). In the exact-ID
+  match, GPL-2.0 and GPL-2.0+ share a normalised ID; the "+" row answers
+  only for a text with the "+" operator, whatever the table order.
+- **The "+".** Without the "or later" step, `GPL-2.0+` and `GPL-2.0` share a
+  key. With it, `GPL 2.0+` answers `GPL-2.0-or-later`, not `GPL-2.0-only`
+  (tech-debt roadmap item 30, resolved). The first version had a reader of
+  its own (any "+"); it now uses the expressions' one, so a "+" apart from
+  its ID (`GPL-2.0 +`) is no grant: that is a family alone, with the
+  warning. A "+" after a license with no or-later form (`Apache 2+`, `C++`)
+  finds no key and goes on to the fuzzy name match, as before. The four
+  readers of "+" are held to one table by `tests/test_plus_readers.py`.
+- **Cost.** An input over `MAX_KEY_INPUT` (100) characters is no loose ID
+  (the longest ID has 36) and gets no key, so a one-word blob of megabytes is
+  not normalised twice. The index of rows by key is built once per table
+  read (`dbcache.TableCache.names_by_key`) and dropped with the other reads
+  when `update` rewrites the table. The fold regex starts only at the
+  beginning of a number: without its lookbehind, a run of `1.0` repeated
+  50,000 times took minutes (`test_the_key_regexes_do_not_backtrack`).
+- **Drift guard.** `test_a_license_list_keeps_the_key_unambiguous` runs over
+  a snapshot of the 3.29.0 IDs (`tests/fixtures/license-list/`, on every
+  run, CI included) and the developer's cache (read only, when present): no
+  two IDs in use, no deprecated ID and a row in use other than its successor
+  as the database resolves it, and no name and another license's ID share a
+  key; every ID fits `MAX_KEY_INPUT`.
+- **Not done.** Names get no key: `Apache License 2` is still a fuzzy name
+  match. `BSD3` is not `BSD-3-Clause`. A prefix (`License: Apache2`) adds a
+  word to the key, so it finds no ID.

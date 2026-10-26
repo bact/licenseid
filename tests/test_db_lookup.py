@@ -183,6 +183,9 @@ def test_a_row_with_no_id_is_skipped() -> None:
         db = LicenseDatabase(path)
         assert db.get_license_details("mit")
         assert db.get_search_text("MIT") == "permission is hereby"
+        index = db.get_names_by_key(str.lower)
+        assert all(isinstance(r["license_id"], str) for v in index.values() for r in v)
+        assert [r["license_id"] for r in index["mit"]] == ["MIT"]
 
 
 @pytest.mark.parametrize(
@@ -192,8 +195,9 @@ def test_a_row_with_no_id_is_skipped() -> None:
         (lambda t: t.index_row("MIT"), "_index_rows"),
         (lambda t: t.names_and_ids(), "_names_and_ids"),
         (lambda t: t.deprecated(), "_deprecated"),
+        (lambda t: t.names_by_key(str.lower), "_keyed"),
     ],
-    ids=["ids", "index", "names", "deprecated"],
+    ids=["ids", "index", "names", "deprecated", "keyed"],
 )
 def test_a_read_made_during_a_clear_is_not_kept(
     db: LicenseDatabase, read: Callable[[TableCache], object], kept: str
