@@ -287,18 +287,23 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   modify or clear the real cache in `~/.local/share/licenseid/`; it is fine
   to read it to validate a parser against real data.
 - CI tests on Python 3.10 and 3.14 (Ubuntu) and 3.11 (Windows); it builds
-  on 3.10-3.14 (Ubuntu); the local
-  `.venv` is 3.10. For anything stdlib-sensitive, also run
-  `uv run --python 3.14 --group test pytest ...`
-  (set `UV_PROJECT_ENVIRONMENT` to a scratch dir). Simulate an older Python
+  on 3.10-3.14 (Ubuntu). The local environment is the pyenv virtualenv
+  named in `.python-version` (`license310`, Python 3.10, an editable
+  install); there is no `.venv`. It can lag `pyproject.toml` (it lacked
+  `rfc8785` and `hatchling`): then build a scratch one,
+  `UV_PROJECT_ENVIRONMENT=<scratch> uv sync --python 3.10 --all-groups`.
+  For anything stdlib-sensitive, also run
+  `uv run --python 3.14 --group test pytest ...`. Always set
+  `UV_PROJECT_ENVIRONMENT` to a scratch dir for `uv run` and `uv sync`:
+  without it uv creates a `.venv` in the checkout. Simulate an older Python
   with a module flag, never by deleting stdlib attributes
   (`tarfile.data_filter` breaks `tarfile` itself on 3.12+).
 - Mutation-check new tests by breaking a line and rerunning; clear
   `__pycache__` between mutants (a same-size mutant restored within the same
   second leaves a stale `.pyc`). To mutate a copy of the tree, run it with
-  `PYTHONPATH=<copy>/src`: `.venv` is an editable install of this checkout,
-  so without it the tests import the unmutated `src/` and every mutant
-  seems to survive.
+  `PYTHONPATH=<copy>/src`: the environment is an editable install of this
+  checkout, so without it the tests import the unmutated `src/` and every
+  mutant seems to survive.
 - Windows: before touching `dbcheck.py`, a database path or `file:` URI,
   `Path.home()`, or a test that needs POSIX features (chmod, symlinks,
   signals, `/bin/sh`), read `working-docs/implementation/cross-platform.md`.

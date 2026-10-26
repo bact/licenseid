@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-22
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-26
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -51,6 +51,13 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
   hold `spdx-bundle.json.gz` (980,375 bytes for 3.29.0). Install the wheel in a
   fresh venv and run `env -i HOME=<scratch> licenseid update --source packaged`:
   it must build the database with no network.
+- The ID snapshot `tests/fixtures/license-list/spdx-license-ids.json` has the
+  `license_list_version` of the packaged bundle. If SPDX released since,
+  refresh it from a database `update` built (query in
+  `tests/fixtures/README.md`) and run `tests/test_looseid.py`: its drift
+  guard is the only check on CI that no two IDs of the new list share a
+  loose-ID key (PR #96). A failure there means `looseid.version_key` needs
+  a rule, not that the snapshot should stay old.
 - `python -m tools.cli_matrix --db <copy> --check` when the CLI, exit codes or
   input handling changed since the last run (see `AGENTS.md`).
 - Claims in the notes and the README match the code: they were checked by
