@@ -187,6 +187,17 @@ _RE_PLUS_OPERATOR = re.compile(
 # A license reference: SPDX gives "+" to a license ID only
 # (simple-expression = license-id / license-id "+" / license-ref).
 _RE_LICENSE_REF = re.compile(r"(?:DocumentRef-[^\s():]+:)?LicenseRef-", re.IGNORECASE)
+# A whole license reference, its idstrings as SPDX defines them
+# (idstring = 1*(ALPHA / DIGIT / "-" / "."); ABNF strings ignore case).
+_RE_WHOLE_LICENSE_REF = re.compile(
+    r"(?:DocumentRef-[A-Za-z0-9.-]+:)?LicenseRef-[A-Za-z0-9.-]+", re.IGNORECASE
+)
+
+
+def is_license_ref(text: str) -> bool:
+    """Whether *text* is one ``LicenseRef-*``, with its ``DocumentRef-*:`` if
+    any, and nothing else."""
+    return _RE_WHOLE_LICENSE_REF.fullmatch(text) is not None
 
 
 def strip_plus_operator(expression: str) -> str:

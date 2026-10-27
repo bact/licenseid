@@ -36,6 +36,7 @@ from release_fakes import (
     without,
 )
 
+from licenseid.database import LicenseDatabase
 from licenseid.errors import LicenseIdError
 
 # --- auto: each fallback is one warning naming the next source ---
@@ -173,6 +174,33 @@ def test_a_database_at_the_snapshot_version_is_not_rebuilt(
     assert not db.update_from_remote()
     assert "Database is already at version 9.98. Skipping" in capsys.readouterr().err
     assert db.update_from_remote(force=True)
+
+
+def stamp_old_rules(db: LicenseDatabase, key: str) -> None:
+    """Mark *db* as built with the first version of the rules *key* names."""
+    with db._connection(write=True) as conn:  # pylint: disable=protected-access
+        conn.execute("UPDATE db_metadata SET value = '1' WHERE key = ?", (key,))
+        conn.commit()
+
+
+@pytest.mark.parametrize("key", ["normalization_version", "build_version"])
+@pytest.mark.parametrize("fallback", [False, True], ids=["target", "fallback"])
+def test_a_database_built_with_older_rules_is_rebuilt_at_its_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str, fallback: bool
+) -> None:
+    """Both skips give way: the version the lookup names, and the packaged
+    data a failed download falls back to."""
+    db = open_db(tmp_path)
+    serve(monkeypatch, {})
+    ship(monkeypatch, release_bundle("9.98"))
+    assert db.update_from_remote()
+    if fallback:
+        serve(monkeypatch, without(online(), bundle_url(), tarball_url()))
+    stamp_old_rules(db, key)
+    assert db.update_from_remote(use_cache=False)
+    assert db.get_metadata().get(key) != "1"
+    assert db_version(db) == "9.98"
+    assert not db.update_from_remote(use_cache=False)  # current again: skipped
 
 
 def test_a_data_fallback_to_the_database_version_is_not_stored(

@@ -412,6 +412,65 @@ r["category"]    # "version_spelling"
 r["resolver"]["purl"], r["lists"][0]["version"]  # who resolved, and from which list
 ```
 
+The whole result of `resolve("Apache2")`, as JSON:
+
+```json
+{
+  "input": "Apache2",
+  "expression": "Apache-2.0",
+  "category": "version_spelling",
+  "trust": "resolver_rule",
+  "steps": [
+    {"kind": "separator", "applied": true, "from": "Apache2",
+     "to": "Apache-2.0", "list": "spdx-license-list", "detail": ""},
+    {"kind": "version_spelling", "applied": true, "from": "Apache2",
+     "to": "Apache-2.0", "list": "spdx-license-list", "detail": ""}
+  ],
+  "expansions": [],
+  "candidates": [],
+  "resolver": {
+    "name": "licenseid",
+    "version": "0.6.0",
+    "url": "https://github.com/bact/licenseid/releases/tag/v0.6.0",
+    "purl": "pkg:pypi/licenseid@0.6.0"
+  },
+  "lists": [
+    {
+      "id": "spdx-license-list",
+      "name": "SPDX License List",
+      "version": "3.29.0",
+      "url": "https://github.com/spdx/license-list-data/releases/tag/v3.29.0",
+      "license": "CC0-1.0",
+      "provides": ["deprecation", "ids", "names", "texts"],
+      "id_authority": true
+    }
+  ]
+}
+```
+
+`steps` change the value; `expansions` hold a qualifier (`-only`,
+`-or-later`) added or, with `applied` false, declined. A step that rests on a
+list names it in `list`. The `category` of a result is the weakest of its
+steps, in this order (strongest first):
+
+| Category | Trust | The value |
+| --- | --- | --- |
+| `exact` | `identity` | is a listed ID as written |
+| `lexical` | `identity` | differs in case, spacing or brackets only |
+| `listed_name` | `list_data` | is the List's name of a licence |
+| `deprecated_equal_successor` | `list_data` | is a renamed deprecated ID |
+| `plus_to_or_later` | `list_data` | is `X+`, read as `X-or-later` |
+| `stated_qualifier` | `author_words` | states "or later" in words |
+| `separator` | `resolver_rule` | is an ID with other separators |
+| `version_spelling` | `resolver_rule` | is an ID with its version re-spelt |
+| `deprecated_ambiguous` | `list_data` | is deprecated, with no successor |
+| `assumed_only` | `none` | is a bare split ID (`GPL-3.0`), kept |
+| `expression` | `none` | joins several licences: not resolved |
+| `malformed` | `none` | states a qualifier twice, or misplaces it |
+| `unresolved` | `none` | names no licence |
+
+A consumer ignores a step kind it does not know.
+
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or
 unreadable, for example before the first `licenseid update`. So does any later
@@ -472,7 +531,7 @@ Apache-2.0
 If you use this software, please cite it as follows:
 
 > Suriyawongkul, A. (2026). LicenseID - A Portable SPDX License ID Matcher
-> (Version 0.5.0) [Computer software].
+> (Version 0.6.0) [Computer software].
 > <https://doi.org/10.5281/zenodo.19881009>
 
 BibTeX:
@@ -485,7 +544,7 @@ BibTeX:
     month = oct,
     title = {{LicenseID - A Portable SPDX License ID Matcher}},
     url = {https://github.com/bact/licenseid.git},
-    version = {0.5.0},
+    version = {0.6.0},
     year = {2026}
 }
 ```

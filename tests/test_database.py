@@ -18,6 +18,7 @@ from conftest import assert_cached_tarball_removed, is_closed
 
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.errors import LicenseIdError
+from licenseid.records import BUILD_VERSION
 
 
 @pytest.fixture()
@@ -110,13 +111,45 @@ def test_a_corrupt_tarball_another_process_holds_is_not_called_removed(
     assert tar_path.exists()
 
 
-def test_older_normalization_version_warns_on_stderr(
-    db: LicenseDatabase, capsys: pytest.CaptureFixture[str]
+CURRENT = {
+    "normalization_version": NORMALIZATION_VERSION,
+    "build_version": BUILD_VERSION,
+}
+NORM_OLD = (
+    f"WARNING: database: normalization v1 outdated: current v{NORMALIZATION_VERSION}"
+    "; run 'licenseid update'"
+)
+BUILD_OLD = (
+    f"WARNING: database: build v1 outdated: current v{BUILD_VERSION}"
+    "; run 'licenseid update'"
+)
+
+
+@pytest.mark.parametrize(
+    ("stamps", "expected"),
+    [
+        (CURRENT, []),
+        ({**CURRENT, "normalization_version": "1"}, [NORM_OLD]),
+        ({**CURRENT, "build_version": "1"}, [BUILD_OLD]),
+        ({}, [NORM_OLD, BUILD_OLD]),  # a database from before either stamp
+        ({"normalization_version": "1", "build_version": "1"}, [NORM_OLD, BUILD_OLD]),
+    ],
+    ids=["current", "normalization", "build", "unstamped", "both"],
+)
+def test_older_build_rules_warn_on_stderr(
+    db: LicenseDatabase,
+    capsys: pytest.CaptureFixture[str],
+    stamps: dict[str, str],
+    expected: list[str],
 ) -> None:
     with db._connection(write=True) as conn:
+        conn.execute(
+            "DELETE FROM db_metadata"
+            " WHERE key IN ('normalization_version', 'build_version')"
+        )
         conn.executemany(
             "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
-            [("license_list_version", "9.99"), ("normalization_version", "1")],
+            [("license_list_version", "9.99"), *stamps.items()],
         )
         conn.commit()
     capsys.readouterr()
@@ -124,28 +157,13 @@ def test_older_normalization_version_warns_on_stderr(
     LicenseDatabase(str(db.db_path))
 
     captured = capsys.readouterr()
-    assert captured.err == (
-        f"WARNING: database: normalization v1 outdated: "
-        f"current v{NORMALIZATION_VERSION}; run 'licenseid update --force'\n"
-    )
+    assert captured.err.splitlines() == expected
     assert captured.out == ""
 
 
-def test_current_normalization_version_does_not_warn(
+def test_an_empty_database_has_no_build_rules_to_warn_about(
     db: LicenseDatabase, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    with db._connection(write=True) as conn:
-        conn.execute(
-            "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
-            ("license_list_version", "9.99"),
-        )
-        conn.execute(
-            "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
-            ("normalization_version", NORMALIZATION_VERSION),
-        )
-        conn.commit()
     capsys.readouterr()
-
     LicenseDatabase(str(db.db_path))
-
     assert capsys.readouterr().err == ""

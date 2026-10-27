@@ -11,9 +11,10 @@ resolver do to get there". A caller that records the result needs the second
 part: a changed case is no decision, a re-spelt ID is, and a qualifier
 (``-only``) the author never wrote is a guess that must not be applied.
 
-This release resolves a value that names one licence. An expression of
-several (``MIT OR Apache2``) is reported as category ``expression`` with no
-resolution. A step that rests on a list cites it.
+This release resolves a value that names one licence, with its exception if
+it has one. An expression of several (``MIT OR Apache2``) is reported as
+category ``expression`` with no resolution. A step that rests on a list cites
+it.
 """
 
 import importlib
@@ -24,12 +25,14 @@ from dataclasses import dataclass, field
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
 from licenseid.identifiers import (
+    is_license_ref,
     parse_expression,
     strip_plus_operator,
     without_outer_brackets,
 )
 from licenseid.looseid import (
     MAX_KEY_INPUT,
+    WITH_OPERATOR,
     declared_grant_id_text,
     granted_id_text,
     loose_id,
@@ -52,6 +55,7 @@ _PROVIDES = ["deprecation", "ids", "names", "texts"]
 _RE_NUMBERS = re.compile(r"\d+(?:\.\d+)*")
 _RE_VERSION = re.compile(r"[vV]?\d+(?:\.\d+)*")
 _OPERATORS = frozenset({"AND", "OR", "WITH"})
+_JOINS = frozenset({"AND", "OR"})
 _RE_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]*")
 _RE_IDLIKE = re.compile(r"[\d.-]")
 # Brackets other than around the whole value: "[MIT]", "MIT)" are no ID.
@@ -107,9 +111,7 @@ def _lookup(db: LicenseDatabase, value: str) -> _Found:
     if len(text) > MAX_KEY_INPUT:  # no ID is this long: only an expression is
         found.category = "expression" if _is_expression(db, text) else "unresolved"
         return found
-    if text.endswith("+") and _plus(db, text, found):
-        return found
-    if _single(db, text, found):
+    if _with(db, text, found) or _one(db, text, found):
         return found
     found.category = "expression" if _is_expression(db, text) else "unresolved"
     return found
@@ -136,17 +138,70 @@ def _is_expression(db: LicenseDatabase, text: str) -> bool:
     operands = [
         token.rstrip("+") for token in tokens if token.upper() not in _OPERATORS
     ]
-    # One ID-shaped word (Foo-1.0, LicenseRef-foo) is a single licence, not an
-    # expression of several.
-    return len(operands) < len(tokens) and all(
+    # Only AND and OR join several licences: one ID-shaped word (Foo-1.0) is
+    # one licence, and WITH qualifies one (_with).
+    return any(token.upper() in _JOINS for token in tokens) and all(
         _RE_IDLIKE.search(token) or db.get_license_details(token) for token in operands
     )
 
 
 def _has_control(text: str) -> bool:
-    """Whether *text* holds a control character other than white space: not
-    dropped as a separator, but no licence value."""
-    return any(unicodedata.category(c) == "Cc" and not c.isspace() for c in text)
+    """Whether *text* holds a control or format character other than white
+    space (a NUL, a zero-width space, a bidi override): no licence value, and
+    not to be dropped as a separator, which would resolve text that shows
+    other than it reads."""
+    return any(
+        unicodedata.category(c) in ("Cc", "Cf") and not c.isspace() for c in text
+    )
+
+
+def _one(db: LicenseDatabase, text: str, found: _Found) -> bool:
+    """*text* as one licence: with a "+", else as an ID, a name or a grant."""
+    return (text.endswith("+") and _plus(db, text, found)) or _single(db, text, found)
+
+
+def _with(db: LicenseDatabase, text: str, found: _Found) -> bool:
+    """``X WITH exception``: X read as a value of its own (a "+", a grant, a
+    loose ID), the exception by its ID. False unless the exception is listed
+    and X names a licence; a malformed or unresolved X makes the whole so."""
+    parts = WITH_OPERATOR.split(text)
+    if len(parts) != 2:
+        return False
+    licence, tail = _Found(), _Found()
+    exception = _exception(db, parts[1], tail)
+    if exception is None or not _one(db, parts[0], licence):
+        return False
+    if licence.expression is None:
+        found.category = licence.category
+        return True
+    found.steps.extend(licence.steps + tail.steps)
+    found.expansions.extend(licence.expansions + tail.expansions)
+    found.expression = f"{licence.expression} WITH {exception}"
+    found.candidates = [f"{c} WITH {exception}" for c in licence.candidates]
+    return True
+
+
+def _exception(db: LicenseDatabase, text: str, found: _Found) -> str | None:
+    """The listed exception *text* names, its case and its deprecation read
+    as for a licence (_deprecation), or None."""
+    details = db.get_exception_details(text)
+    if details is None:
+        return None
+    exception_id = details["exception_id"]
+    if exception_id != text:
+        found.steps.append(_step("id_case", True, text, exception_id))
+    if not details["is_deprecated"]:
+        return exception_id
+    successor = details.get("superseded_by")
+    if successor:
+        found.steps.append(
+            _step("deprecated_equal_successor", True, exception_id, successor)
+        )
+        return successor
+    found.expansions.append(
+        _step("deprecated_ambiguous", False, exception_id, exception_id)
+    )
+    return exception_id
 
 
 def _plus(db: LicenseDatabase, text: str, found: _Found) -> bool:
@@ -156,21 +211,22 @@ def _plus(db: LicenseDatabase, text: str, found: _Found) -> bool:
     (``X-only+``, ``X++``, ``X + +``) is malformed. Nothing is recorded in
     *found* unless the value names a licence."""
     core = _RE_TRAILING.sub("", text)
-    attempt = _Found()
+    spacing = []
     stripped = text[:-1].rstrip()
     if stripped != text[:-1]:
-        attempt.steps.append(_step("whitespace", True, text, stripped + "+"))
-    base = _base(db, _unbracketed(stripped, attempt).strip())
+        spacing.append(_step("whitespace", True, text, stripped + "+"))
+    if stripped.endswith(")"):  # a "+" follows a license ID, not a bracket
+        return _malformed_if_named(db, without_outer_brackets(stripped).strip(), found)
+    base = _base(db, stripped)
     if base is None:
-        if text[len(core) :].count("+") > 1 and _base(db, core):
-            found.category = "malformed"
-            return True
-        return False
+        doubled = text[len(core) :].count("+") > 1
+        return doubled and _malformed_if_named(db, core, found)
     license_id, steps = base
-    if license_id.endswith(("-only", "-or-later", "+")):
-        found.category = "malformed"  # the qualifier is stated; "+" adds a second
+    if license_id.endswith(("-only", "-or-later", "+")) or is_license_ref(license_id):
+        # The qualifier is stated, and "+" adds a second; a LicenseRef takes none.
+        found.category = "malformed"
         return True
-    found.steps.extend(attempt.steps + steps)
+    found.steps.extend(spacing + steps)
     or_later = f"{license_id}-or-later"
     if _in_use(db, or_later):
         found.expansions.append(_step("plus_to_or_later", True, text, or_later))
@@ -181,15 +237,23 @@ def _plus(db: LicenseDatabase, text: str, found: _Found) -> bool:
     return True
 
 
+def _malformed_if_named(db: LicenseDatabase, text: str, found: _Found) -> bool:
+    """Mark *found* malformed if *text* names a licence, whose qualifier the
+    caller found broken; False if it names none."""
+    if _base(db, text) is None:
+        return False
+    found.category = "malformed"
+    return True
+
+
 def _single(db: LicenseDatabase, text: str, found: _Found) -> bool:
     """A value that names one licence: a stated qualifier ("GPLv2 or later"),
     or an ID, a name or a loose ID, then its deprecation."""
     named = granted_id_text(text) or declared_grant_id_text(text)
     if named is not None:
         named = named.rstrip(" \t([")  # "GPL-3.0 (or later)": the "(" is the grant's
-        twice = declared_grant_id_text(named) or granted_id_text(named)
-        if twice is not None and _base(db, twice.rstrip(" \t([")):
-            found.category = "malformed"  # "X or later or later"
+        if _qualified(db, named):
+            found.category = "malformed"
             return True
         base = _base(db, named.strip())
         if base is not None:
@@ -200,6 +264,17 @@ def _single(db: LicenseDatabase, text: str, found: _Found) -> bool:
     found.steps.extend(base[1])
     _deprecation(db, base[0], found)
     return True
+
+
+def _qualified(db: LicenseDatabase, named: str) -> bool:
+    """Whether *named*, a licence before an "or later" grant, states a
+    qualifier already: a grant ("X or later or later") or a "+" ("GPLv3+ or
+    later"). A stated "-only" or "-or-later" is _grant's to refuse."""
+    twice = declared_grant_id_text(named) or granted_id_text(named)
+    if twice is not None:
+        return _base(db, twice.rstrip(" \t([")) is not None
+    core = _RE_TRAILING.sub("", named)
+    return core != named and _base(db, core) is not None
 
 
 def _grant(
@@ -226,17 +301,16 @@ def _grant(
 
 def _base(db: LicenseDatabase, text: str) -> tuple[str, list[Step]] | None:
     """The listed ID *text* names, and the steps from *text* to it: its own
-    ID in other case, a listed name, or a loosely written ID."""
+    ID in other case, a listed name, or a loosely written ID. A
+    ``LicenseRef-*`` names itself."""
+    if is_license_ref(text):
+        return text, []
     details = db.get_license_details(text)
     if details is not None:
         license_id = details["license_id"]
         same = license_id == text
         return license_id, [] if same else [_step("id_case", True, text, license_id)]
-    names = [
-        row["license_id"]
-        for row in db.get_all_names_and_ids()
-        if not row["is_deprecated"] and row["name"].casefold() == text.casefold()
-    ]
+    names = db.get_active_ids_by_name().get(text.casefold(), [])
     if len(names) == 1:
         return names[0], [_step("listed_name", True, text, names[0])]
     if "+" in text or _RE_BRACKET.search(text):

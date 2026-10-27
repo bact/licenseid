@@ -13,7 +13,7 @@ exact and fuzzy matches.
 
 import re
 
-from licenseid.classify import OR_LATER_PHRASE
+from licenseid.classify import OR_LATER_PHRASE, is_negated
 from licenseid.console import warn
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import (
@@ -43,13 +43,13 @@ _RE_ZERO_VERSION = re.compile(r"(?<!\d)(?<!\d\.)(\d+)(?:\.0){1,2}(?!\.?\d)")
 # before it ("2 or later").
 _RE_GRANT_WORD = re.compile(r"\bor\b", re.IGNORECASE)
 # What may follow the grant at the end of the text: "version", "of the
-# License", punctuation.
+# License", punctuation, the bracket that closes "(or later)" or "[or later]".
 _RE_GRANT_TAIL = re.compile(
-    r"(?:\s+versions?)?(?:\s+of\s+(?:the|this)\s+licen[cs]e)?[\s.,;:)]*",
+    r"(?:\s+versions?)?(?:\s+of\s+(?:the|this)\s+licen[cs]e)?[\s.,;:)\]]*",
     re.IGNORECASE,
 )
 # The WITH of a simple expression ("GPL2 WITH Classpath-exception-2.0").
-_RE_WITH = re.compile(r"\s+WITH\s+", re.IGNORECASE)
+WITH_OPERATOR = re.compile(r"\s+WITH\s+", re.IGNORECASE)
 
 
 def version_key(text: str) -> str:
@@ -128,7 +128,7 @@ def loose_with(db: LicenseDatabase, text: str) -> tuple[str, str | None] | None:
     unbalanced one ("(GPL2 WITH x") is no expression.
     """
     inner = without_outer_brackets(text.strip())
-    parts = _RE_WITH.split(inner)
+    parts = WITH_OPERATOR.split(inner)
     if len(parts) != 2 or "(" in inner or ")" in inner:
         return None
     found = loose_id(db, parts[0])
@@ -161,27 +161,38 @@ def granted_id_text(text: str) -> str | None:
     return text[:start]
 
 
-# A grant that ends a declared value, number or not: "MIT or later",
-# "GPL-3.0-only or later". classify.OR_LATER_PHRASE wants a number before "or
-# later" because prose also says "sooner or later"; a value that is only an
-# ID and a grant, plain or in brackets, has no such doubt. The lookbehind
-# starts a match only at the start of a run of white space, so a long run is
-# not rescanned from each of its characters.
-_GRANT_CORE = r"or\s+(?:any\s+)?(?:later|newer)(?:\s+versions?)?"
-_RE_DECLARED_GRANT = re.compile(
-    rf"(?<!\s)\s+(?:\(\s*{_GRANT_CORE}\s*\)|{_GRANT_CORE})[\s.]*\Z",
-    re.IGNORECASE,
-)
+# The word a declared grant starts with. Only a word boundary, so finding
+# the last one is one pass over the text, whatever its white space.
+_RE_OR_WORD = re.compile(r"\bor\b", re.IGNORECASE)
 
 
 def declared_grant_id_text(text: str) -> str | None:
     """The part of a declared value before an "or later" grant that ends it,
-    with or without a number before the grant: "GPL-3.0-only or later" gives
-    "GPL-3.0-only". None for a value without one."""
-    grant = _RE_DECLARED_GRANT.search(text)
-    if grant is None:
+    with or without a number before the grant: "GPL-3.0-only or later" and
+    "GPL-3.0-only (or later)" give "GPL-3.0-only". None for a value without
+    one.
+
+    The grant starts at the last "or" after white space or a bracket, and
+    classify.OR_LATER_PHRASE judges it. That reader wants a number before a
+    bare "or later", as prose also says "sooner or later"; a declared value
+    has its ID there, so the phrase is read as after a number, unless a
+    negation takes it back."""
+    last = None
+    for last in _RE_OR_WORD.finditer(text):
+        pass
+    if last is None:
         return None
-    return text[: grant.start()]
+    before = text[: last.start()]
+    if not before or not (before[-1].isspace() or before[-1] in "(["):
+        return None
+    probe = text
+    grant = OR_LATER_PHRASE.match(text, last.start())  # sees "not" before it
+    if grant is None and not is_negated(before):
+        probe = "1 " + text[last.start() :]
+        grant = OR_LATER_PHRASE.match(probe)
+    if grant is None or not _RE_GRANT_TAIL.fullmatch(probe, grant.end()):
+        return None
+    return before.rstrip().rstrip("([").rstrip()
 
 
 def _granted(db: LicenseDatabase, text: str) -> tuple[LicenseNameId, str] | None:

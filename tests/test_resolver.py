@@ -12,12 +12,13 @@ from collections.abc import Callable, Generator
 
 import pytest
 from matcher_db import Lic, seeded_db
+from resolver_helpers import summary
 
 import licenseid
 from licenseid import LicenseDatabase
 from licenseid.looseid import declared_grant_id_text
 from licenseid.resolver import resolve
-from licenseid.resolvertypes import CATEGORY_ORDER, LIST_PROVIDES, TRUST, Resolution
+from licenseid.resolvertypes import CATEGORY_ORDER, LIST_PROVIDES, TRUST
 
 ROWS = (
     Lic("MIT", "MIT License"),
@@ -52,16 +53,6 @@ ROWS = (
 def _db() -> Generator[LicenseDatabase, None, None]:
     for path in seeded_db("test_resolver", ROWS):
         yield LicenseDatabase(path, create=False)
-
-
-def _summary(r: Resolution) -> tuple[object, ...]:
-    return (
-        r["expression"],
-        r["category"],
-        [s["kind"] for s in r["steps"]],
-        [(s["kind"], s["applied"]) for s in r["expansions"]],
-        r["candidates"],
-    )
 
 
 @pytest.mark.parametrize(
@@ -193,16 +184,7 @@ def _summary(r: Resolution) -> tuple[object, ...]:
             ),
         ),
         ("MIT +", ("MIT+", "lexical", ["whitespace"], [], [])),
-        (
-            "(GPL-2.0)+",
-            (
-                "GPL-2.0-or-later",
-                "plus_to_or_later",
-                ["brackets"],
-                [("plus_to_or_later", True)],
-                [],
-            ),
-        ),
+        ("(GPL-2.0)+", (None, "malformed", [], [], [])),  # "+" follows an ID only
         # a qualifier twice is malformed; a grant that cannot apply is not dropped
         ("GPL-2.0++", (None, "malformed", [], [], [])),
         ("GPL-2.0-only or later", (None, "malformed", [], [], [])),
@@ -215,7 +197,7 @@ def _summary(r: Resolution) -> tuple[object, ...]:
         ("AND", (None, "unresolved", [], [], [])),
         # one ID-shaped word is not an expression of several licences
         ("Foo-1.0", (None, "unresolved", [], [], [])),
-        ("LicenseRef-foo", (None, "unresolved", [], [], [])),
+        ("LicenseRef-foo", ("LicenseRef-foo", "exact", [], [], [])),  # names itself
         ("(Acme-1.0+)", (None, "unresolved", [], [], [])),
         # a "+" inside a loose spelling is not dropped
         ("GPL-2.0+-only", (None, "unresolved", [], [], [])),
@@ -282,7 +264,7 @@ def test_a_value_resolves_with_its_steps(
     db: LicenseDatabase, value: str, expected: tuple[object, ...]
 ) -> None:
     """Each value gives its expression, category, steps and offers."""
-    assert _summary(resolve(value, db)) == expected
+    assert summary(resolve(value, db)) == expected
 
 
 @pytest.mark.parametrize(

@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from conftest import MIT_SEARCH_TEXT
 from matcher_db import Lic, seeded_db
-from ordering_helpers import HEADER_OR_LATER, ids, im
+from ordering_helpers import HEADER_OR_LATER, PHRASES, ids, im
 
 from licenseid import matcher as matcher_module
 from licenseid.classify import has_or_later_language
@@ -269,32 +269,6 @@ def test_applying_the_tiebreaker_twice_changes_nothing_more() -> None:
 
 
 # -- The tie-breaker: the phrase detector ---------------------------------
-
-# Each phrase: does the tie-breaker read it as "or later" (classify), and does
-# the ID path (identifiers) resolve "GPL-2.0 <phrase>" to -or-later?
-PHRASES: dict[str, tuple[bool, bool]] = {
-    "or (at your option) any later version": (True, True),
-    "or later": (True, True),
-    "or any later version": (True, True),
-    "or a later version": (True, True),
-    "or newer": (True, True),
-    "or, at your option, any later version": (True, True),
-    "or\n * (at your option) any later version": (True, True),
-    "or\n// (at your option)\n// any later version": (True, True),
-    "or\n# any later version": (True, True),
-    "or\n * a later version": (True, True),
-    "(or later)": (True, True),
-    "[or later]": (True, True),
-    "+ or later": (True, True),
-    "\n// or later": (True, True),
-    "\n * or (at your option) any\n * later version": (True, True),
-    "or,\n// a later version": (True, True),
-    "or a laterally": (False, False),
-    "not any later version": (False, False),
-    "no any later version": (False, False),
-    "not or a later version": (False, False),
-    "not or newer": (False, False),
-}
 
 
 def tiebreaker_reads(phrase: str) -> bool:

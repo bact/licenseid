@@ -90,7 +90,8 @@ Unix philosophy. Consistent, predictable, parseable.
     full current set (add new ones here): `not found`, `invalid`,
     `missing`, `empty`, `unreadable`, `binary file`,
     `not UTF-8, read as Latin-1`, `no license found`, `N days old`,
-    `normalization vN outdated`, `download failed`, `cache read failed`,
+    `normalization vN outdated`, `build vN outdated`, `download failed`,
+    `cache read failed`,
     `cache write failed`, `cache unusable`, `download unusable`,
     `stale cache unusable`, `parse failed`, `variant not stated`,
     `N rows with missing or non-numeric num_pushers`, `update failed`,
@@ -394,11 +395,20 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   grammar their own way: `tests/test_plus_readers.py` holds all four to one
   table. Change one, run it.
 - "or any later version" has ONE reader, `classify.OR_LATER_PHRASE`; the
-  tie-breaker (`ranking`), `identifiers.disambiguate_deprecated_id` and
-  `markers` import it. Add a phrasing there and to `PHRASES` in
-  `tests/test_match_ordering.py`; do not write a regex of your own. The
+  tie-breaker (`ranking`), `identifiers.disambiguate_deprecated_id`,
+  `markers` and `looseid` import it. `looseid.declared_grant_id_text` only
+  finds where a declared value's grant starts and lets it judge, reading a
+  bare "or later" as after a number unless `classify.is_negated`. Add a
+  phrasing there and to `PHRASES` in `tests/ordering_helpers.py`, which
+  `test_match_ordering` and `test_resolver_shapes` hold every reader to; do
+  not write a regex of your own. The
   ranking and the tie-breaker sort with `ranking.ranking_key`; short-text
   results sort by `(-score, license_id)`.
+- A change to the rows `records` builds bumps `records.BUILD_VERSION`, as a
+  change to `normalize_text` bumps `database.NORMALIZATION_VERSION`: a
+  database stamped older warns (`build vN outdated`) and `update` rebuilds
+  it at the release it has. Without the bump, a user who upgrades keeps the
+  old rows and is told nothing.
 - A regex with `\s+` directly followed by a class that also matches
   whitespace (`\s+[\s/*#]*`) is quadratic on a long run of spaces (5 s at
   32,000): write `\s[\s/*#]*`. Time every new prose regex on `"x" + " " * N`

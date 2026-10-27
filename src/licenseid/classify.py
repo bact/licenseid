@@ -30,7 +30,10 @@ import re
 #   - "any later version" on its own, unless negated ("not any later version").
 # "or-later" inside an ID such as GPL-2.0-or-later is not a phrase.
 _GAP = r"[\s/*#;,-]*"
-_NOT_NEGATED = r"(?<!\bnot )(?<!\bno )"
+# The words that take back a phrase right after them.
+_NEGATIONS = ("not", "no")
+_NOT_NEGATED = "".join(rf"(?<!\b{word} )" for word in _NEGATIONS)
+_RE_NEGATED_END = re.compile(rf"\b(?:{'|'.join(_NEGATIONS)}) \Z", re.IGNORECASE)
 OR_LATER_PHRASE = re.compile(
     rf"{_NOT_NEGATED}\bor{_GAP}"
     rf"(?:\([^)]{{0,50}}\){_GAP}|at\s+your\s+option{_GAP})?"
@@ -40,6 +43,14 @@ OR_LATER_PHRASE = re.compile(
     rf"|{_NOT_NEGATED}\bany\s+later\s+version\b",
     re.IGNORECASE,
 )
+
+
+def is_negated(before: str) -> bool:
+    """Whether a phrase right after *before* is taken back, as
+    OR_LATER_PHRASE reads "not any later version"."""
+    return _RE_NEGATED_END.search(before) is not None
+
+
 # "GPLv2+" style notices; only meaningful in source files (the ID path reads
 # "+" itself, with identifiers._RE_PLUS_OPERATOR). Prose, so a comma or a
 # full stop may follow the "+"; otherwise it agrees with that reader, for the

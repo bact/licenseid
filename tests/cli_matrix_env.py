@@ -20,6 +20,7 @@ from typing import Any
 
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.normalize import normalize_text
+from licenseid.records import BUILD_VERSION
 from tools.cli_matrix.config import RunConfig, build_parser, configure_args
 from tools.cli_matrix.fixtures import MIT
 from tools.cli_matrix.model import Cell
@@ -51,6 +52,7 @@ def make_file_db(path: Path) -> Path:
                 ("last_check_datetime", _now()),
                 ("license_list_version", "3.30"),
                 ("normalization_version", NORMALIZATION_VERSION),
+                ("build_version", BUILD_VERSION),
             ],
         )
     return path

@@ -29,6 +29,7 @@ from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.dbconnection import Connections
 from licenseid.errors import LicenseIdError
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.records import BUILD_VERSION
 from licenseid.types import LicenseMatch, Method
 
 # tools/cli_matrix drives real shells and terminals (pwd, pty, termios): POSIX
@@ -108,6 +109,7 @@ def seed_ready_metadata(db_path: str) -> None:
             [
                 ("license_list_version", "3.30"),
                 ("normalization_version", NORMALIZATION_VERSION),
+                ("build_version", BUILD_VERSION),
             ],
         )
 
