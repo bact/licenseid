@@ -16,6 +16,13 @@ and this project adheres to
 - `GPLv3` (no `-only`/`-or-later`) is `GPL-3.0-only`, not exact, with
   `WARNING: match: variant not stated` ([#96])
 
+- `licenseid.resolve.resolve(value)` resolves a declared licence value to an SPDX expression and
+  reports each step (`id_case`, `separator`, `version_spelling`, `listed_name`,
+  rename, `+`, stated "or later"), the resolver and the list version. A bare
+  deprecated ID (`GPL-3.0`) is never narrowed to `-only`; it is returned as
+  written with both candidates. Single licences only; an expression is
+  reported as `expression`
+
 ### Fixed
 
 - A database build records the successor of a renamed deprecated ID (one ID in
