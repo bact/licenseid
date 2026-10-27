@@ -401,3 +401,12 @@ def test_the_module_imports_cleanly_in_any_order(statement: str) -> None:
         timeout=60,
     )
     assert done.returncode == 0, done.stderr.decode("utf-8", "replace")
+
+
+def test_the_package_exports_resolve_and_keeps_the_module_reachable() -> None:
+    """``licenseid.resolve`` is the function, ``licenseid.resolver`` the
+    module: neither hides the other."""
+    assert callable(licenseid.resolve)
+    assert licenseid.resolve is resolve
+    assert licenseid.resolve.__module__ == "licenseid.resolver"
+    assert "resolve" in licenseid.__all__

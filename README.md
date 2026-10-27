@@ -396,6 +396,22 @@ if matcher.is_spdx(text="Creative Commons Zero v1.0 Universal"):
 ranking of license text; an explicit `license_id`, a bare ID or name and an
 `SPDX-License-Identifier` tag are answered before they are read.
 
+To record a licence a package *declares* (a `license` field, a model card),
+use `licenseid.resolve()`. It returns the SPDX expression and each step taken,
+so a caller can tell a changed case from a re-spelt ID. A bare deprecated ID
+such as `GPL-3.0` is never narrowed to `-only`: it comes back as written
+(category `assumed_only`) with both candidates.
+
+```python
+from licenseid import resolve
+
+r = resolve("Apache2")
+r["expression"]  # "Apache-2.0"
+r["category"]    # "version_spelling"
+[s["kind"] for s in r["steps"]]  # ["separator", "version_spelling"]
+r["resolver"]["purl"], r["lists"][0]["version"]  # who resolved, and from which list
+```
+
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or
 unreadable, for example before the first `licenseid update`. So does any later

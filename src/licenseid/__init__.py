@@ -18,6 +18,7 @@ from licenseid.errors import (
 )
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
+from licenseid.resolver import resolve
 from licenseid.types import LicenseMatch, MatchRequest, Method
 
 __all__ = [
@@ -31,4 +32,5 @@ __all__ = [
     "Method",
     "get_default_db_path",
     "normalize_text",
+    "resolve",
 ]

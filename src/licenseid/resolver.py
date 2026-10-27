@@ -16,6 +16,7 @@ several (``MIT OR Apache2``) is reported as category ``expression`` with no
 resolution. A step that rests on a list cites it.
 """
 
+import importlib
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -330,17 +331,16 @@ def _list_info(db: LicenseDatabase) -> ListInfo:
 
 
 def _resolver_info() -> Resolver:
-    """Who resolved. The version is read when asked for, not when this module
-    is imported, so the package may import this module (and be imported by it)
-    in either order."""
-    # pylint: disable-next=import-outside-toplevel
-    from licenseid import __version__
-
+    """Who resolved. The version is read at call time, as
+    ``spdx_source`` reads it (``importlib``, not an import statement): the
+    package exports this module, so a static import of the package here would
+    be a cycle."""
+    version = str(importlib.import_module("licenseid").__version__)
     return {
         "name": "licenseid",
-        "version": __version__,
-        "url": f"https://github.com/bact/licenseid/releases/tag/v{__version__}",
-        "purl": f"pkg:pypi/licenseid@{__version__}",
+        "version": version,
+        "url": f"https://github.com/bact/licenseid/releases/tag/v{version}",
+        "purl": f"pkg:pypi/licenseid@{version}",
     }
 
 

@@ -15,7 +15,7 @@ and this project adheres to
   `GPL 2.0+`, `GPLv2 or any later version` are `GPL-2.0-or-later` ([#96])
 - `GPLv3` (no `-only`/`-or-later`) is `GPL-3.0-only`, not exact, with
   `WARNING: match: variant not stated` ([#96])
-- `licenseid.resolver.resolve(value)` gives the SPDX expression for a declared
+- `licenseid.resolve(value)` gives the SPDX expression for a declared
   licence, each step taken, the resolver and the list version; a bare
   deprecated ID (`GPL-3.0`) is never narrowed to `-only` ([#97])
 
