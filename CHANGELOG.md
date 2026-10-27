@@ -15,23 +15,19 @@ and this project adheres to
   `GPL 2.0+`, `GPLv2 or any later version` are `GPL-2.0-or-later` ([#96])
 - `GPLv3` (no `-only`/`-or-later`) is `GPL-3.0-only`, not exact, with
   `WARNING: match: variant not stated` ([#96])
-
-- `licenseid.resolve.resolve(value)` resolves a declared licence value to an SPDX expression and
-  reports each step (`id_case`, `separator`, `version_spelling`, `listed_name`,
-  rename, `+`, stated "or later"), the resolver and the list version. A bare
-  deprecated ID (`GPL-3.0`) is never narrowed to `-only`; it is returned as
-  written with both candidates. Single licences only; an expression is
-  reported as `expression`
+- `licenseid.resolve.resolve(value)` gives the SPDX expression for a declared
+  licence, each step taken, the resolver and the list version; a bare
+  deprecated ID (`GPL-3.0`) is never narrowed to `-only` ([#97])
 
 ### Fixed
 
-- A database build records the successor of a renamed deprecated ID (one ID in
-  use with the same name): `StandardML-NJ` is `SMLNJ`. The `-only`/`-or-later`
-  split (`GPL-2.0`) stays unresolved. Run `licenseid update --force`
 - `GPL 2+` and `GPL-v2+` in a source file count as or-later; `GPLv2++` and
   `GPL-2.0+foo` do not ([#96])
+- A database build records a renamed deprecated ID's successor
+  (`StandardML-NJ` is `SMLNJ`); run `licenseid update --force` ([#97])
 
 [#96]: https://github.com/bact/licenseid/pull/96
+[#97]: https://github.com/bact/licenseid/pull/97
 
 ## [0.5.0] - 2026-10-22
 
