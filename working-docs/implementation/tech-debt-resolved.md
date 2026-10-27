@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-25
+Last-Modified: 2026-10-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -592,3 +592,39 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   (`Apache 2+`, `C++`) finds none and goes on to the fuzzy name match, as
   before. Pinned in `tests/test_lone_expression.py` and
   `tests/test_version_key.py`.
+- How deep an expression may be depended on the Python version (item 19,
+  Priority 9; 2026-10-27). `py_spdx_license` walks its tree by recursion
+  with no guard: Python 3.10 gave up at 335 operators in a row or 250
+  brackets with an operator in each, 3.14 at 500 and 335, so one tag
+  answered on 3.14 and not on 3.10. Now `identifiers.parse_expression`
+  refuses over 150 operators or 150 levels of brackets before it parses
+  (`_too_large_to_parse`, one pass), the same everywhere and within 3.10's
+  limit. The test pinned as "either answer" now expects none. Pinned in
+  `tests/test_plus_and_depth.py`, with the deepest shape the cap lets through
+  parsed at a recursion limit of 1000.
+- A missing file named as an argument was matched as text (item 32,
+  Priority 24; 2026-10-27). `licenseid match LICENSE.txt` with no such file
+  answered `APL-1.0` at 1 and exited 0. Now an argument that names no file
+  and is shaped like a path (one word, no URL, with `/` or `\` or a file
+  name's extension such as `.txt`; `textinput.looks_like_path`) exits 2
+  with `input: not found: <path>; pass --text`. No SPDX ID ends in a full
+  stop and letters, so IDs, names and sentences are matched as before.
+  The CLI matrix's E6 "relative file" cells named a `../mit.txt` that does
+  not exist from their working directory and merged standard error into
+  standard output (`2>&1`): the new error read as a diagnostic on stdout.
+  They no longer merge the streams.
+- An abbreviated ID with "+" became an invalid ID (item 39, Priority 18;
+  2026-10-27). `identifiers._normalize_single_id` resolved the ID before a
+  "+" by the shortest ID it prefixed, so `GPL-2+` gave `GPL-2.0-only+` and
+  `MI+` gave `MIT+`, both exact. Now the ID before a "+" is read by ID or
+  by its version key (`versionkey.named_row`, as `resolve()` reads it), and
+  the "+" becomes the -or-later ID where the List has one in use: `GPL-2+`
+  is `GPL-2.0-or-later`, `Apache-2+` stays `Apache-2.0+`, and `MI+` names
+  nothing. A "+" after a stated qualifier (`GPL-2.0-only+`) names no
+  licence: `identifiers.parse_declared` refuses it, and Tier 0 no longer
+  drops a "+" to match the ID without it. The prefix lookup
+  (`get_license_by_id_prefix`, `TableCache.active_id_with_prefix`) had no
+  other caller and is gone; `tests/test_overlong_id.py` now guards the "+"
+  path against long input. To read the version key without an import cycle,
+  the "+" reader moved to `plusoperator.py` (standard library only) and the
+  version key to `versionkey.py`.

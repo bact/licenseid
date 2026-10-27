@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-25
+Last-Modified: 2026-10-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -26,15 +26,15 @@ item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
 the review of PR #66, items 30 and 31 from the work on item 21, and items
 32 to 35 from the review of item 22, item 36 from the docs audit
 after it, item 37 from the work on item 29, item 38 from the
-review of PR #80, and items 39 to 42 from the review of PR #82.
+review of PR #80, items 39 to 42 from the review of PR #82, and item 43
+from the review of PR #99.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
 in the order chosen on 2026-10-01, are done, and so are items 12, 27,
-29, 36 and 37 (2026-10-02). Item 32 (Priority 24) is the
-highest open priority but lies outside item 31; it has not been scheduled.
-Item 2 waits on an upstream release. The open items that need a rule or a
-decision before a fix are grouped in
+29, 36 and 37 (2026-10-02), and items 19, 32 and 39 (2026-10-27, for
+0.6.0). Item 2 waits on an upstream release. The open items that need a
+rule or a decision before a fix are grouped in
 [`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02).
 
 ## 2. `py-spdx-license` reads its data with the locale encoding — Priority 20
@@ -150,7 +150,7 @@ partial grammar:
 
 - `identifiers.leading_expression` (where an expression ends in a value);
 - `identifiers.is_simple_expression` and `_SIMPLE_SHAPES` (one license);
-- `identifiers._RE_PLUS_OPERATOR` and `strip_plus_operator` (which "+" is
+- `plusoperator.PLUS_OPERATOR` and `strip_plus_operator` (which "+" is
   the operator, since `py_spdx_license` cannot parse it);
 - `identifiers.parse_expression` (`py_spdx_license` with unknown IDs
   allowed, behind the cost budget of item 26);
@@ -198,21 +198,6 @@ is not exact, though the same file is.
   `NOASSERTION` there too. Weigh delegating to `py_spdx_license` once it
   parses "+" (upstream issue #1) in linear time (item 26).
 - Impact 2, Risk 2, Effort 3.
-
-## 32. A missing file named as an argument is matched as text — Priority 24
-
-A bare argument is a guess between a file, an ID and text: one that names
-no file is matched as text, and its name is short enough to answer by name
-or phrase. `licenseid match LICENSE.txt`, with no such file, answers
-`APL-1.0` at 1 and exits 0; `licenseid is-osi LICENSE.txt` prints `true`.
-A typo in a path in a script gives a confident wrong answer. `main` does
-the same; found in review of item 22 (2026-10-02).
-
-- **Direction**: an argument shaped like a path (a separator, or a file
-  name with an extension that is no licence ID) that names no file exits 2
-  with `input: not found: <path>`; `--text` stays the way to match such a
-  value as text.
-- Impact 3, Risk 3, Effort 2.
 
 ## 33. A tag value with a non-ASCII letter is cut short — Priority 12
 
@@ -282,21 +267,6 @@ warning. All of it is pinned as "current behaviour" in
   document it, then flip the pins.
 - Impact 2, Risk 3, Effort 3.
 
-## 39. An abbreviated ID with `+` becomes an invalid ID — Priority 18
-
-Found in review of PR #82, on `main` too. `identifiers._normalize_single_id`
-strips a trailing `+`, resolves the base by exact ID and then by prefix
-(`get_license_by_id_prefix`), and puts the `+` back. `GPL-2+` gives
-`GPL-2.0-only+`, which is no valid SPDX expression (an `-only` ID takes no
-`+`), and `MI+` gives `MIT+` at score 1.
-
-- **Fix**: decide the rule first (a prefix must end at a version boundary;
-  an `-only` hit with `+` becomes its `-or-later` sibling, through
-  `classify.OR_LATER_PHRASE`). Characterisation tests in
-  `tests/test_identifiers.py` and the prefix table in
-  `tests/test_overlong_id.py`. Keep the lookup in memory (no `LIKE`).
-- Impact 3, Risk 3, Effort 3.
-
 ## 40. A database truncated during a block crashes with SIGBUS — Priority 20
 
 Found in review of PR #82, on `main` too. Truncating the file while a
@@ -309,6 +279,18 @@ licenseid's own. Likely cause: `PRAGMA mmap_size=268435456` in
   the mapping, or another approach; time a match against `main`. The lookup
   must raise `DatabaseNotReadyError`.
 - Impact 2, Risk 3, Effort 2.
+
+## 43. Cargo's `MIT/Apache-2.0` is matched as text — Priority 16
+
+Found in review of PR #99 (2026-10-27). Cargo once wrote OR as `/`, and
+crates still declare `MIT/Apache-2.0`. Given as an argument, the CLI no
+longer calls it a missing file (`cli.names_licences`), but `match` reads
+it as text and answers `ECL-2.0` at 0.86, and `resolve` gives
+`unresolved`. Reading `/` as OR is a rule to decide (only between listed
+IDs, in a declared value only, with a step of its own), not a fix: see
+[`matching-rules-redesign.md`](matching-rules-redesign.md).
+
+- Impact 2, Risk 2, Effort 2.
 
 ## 42. A very long word costs seconds in the full-text search — Priority 16
 
@@ -443,25 +425,6 @@ on 3.14). Found on 2026-10-01 while checking item 18.
 - **Fix**: resolve each distinct value once and stop at the first that
   resolves, or cap the number read. Time distinct values, not repeats. For
   INI, stop at the first bad line rather than collect them all.
-- Impact 1, Risk 2, Effort 2.
-
-## 19. How deep an expression may be depends on the Python version — Priority 9
-
-`py_spdx_license` builds its AST with a plain recursive walk and no depth
-guard, so `identifiers.parse_expression` reads a long chain differently per
-interpreter: a 400-term `AND` of `LicenseRef-*` raises RecursionError on
-Python 3.10 (read as "not an expression", no match) and parses on 3.14 (a
-match). The cut-off is wherever the recursion limit falls, so the same file
-can answer differently on two supported versions. Pinned as "either answer"
-in `tests/test_matcher.py::test_match_pathological_expression_does_not_crash`.
-A parse that fails this deep is also slow on 3.10: a deep-bracket test took
-5.3 s on CI's 3.10 and passed on 3.14 (PR #61, where brackets around the
-whole expression are now dropped before the parser sees them).
-
-- **Fix**: cap the operator count before parsing, as
-  `_MAX_CANONICALIZE_OPERATORS` already caps canonicalisation, so the
-  cut-off is the same everywhere. Decide the cap from real expressions (the
-  longest in the SPDX list is far below 40).
 - Impact 1, Risk 2, Effort 2.
 
 ## 20. A grant inside an expression loses the value — Priority 9

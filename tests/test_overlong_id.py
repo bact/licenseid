@@ -6,9 +6,10 @@
 """An overlong ID ending in ``+`` is no match, not a broken database.
 
 ``get_license_by_id_prefix`` used to build a SQL ``LIKE`` pattern from its
-input, and SQLite refuses a pattern over 50,000 bytes.  The prefix is now
-compared in memory.  The rows below reproduce the old failure, pin what must
-not change, and guard the fix.
+input, and SQLite refuses a pattern over 50,000 bytes. The prefix was then
+compared in memory, and since item 39 an ID before a "+" is read by ID or as
+a loosely written ID (``looseid``), never by a bare prefix. The rows below
+reproduce the old failure, pin what must not change, and guard the fix.
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
@@ -25,10 +26,11 @@ from matcher_db import Lic, seeded_db
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
-from licenseid.dbcache import fold_case
 from licenseid.dbconnection import Connections
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
+from licenseid.identifiers import normalize_identifier
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.versionkey import version_key
 
 MIT_TEXT = (
     "permission is hereby granted free of charge to any person obtaining a copy"
@@ -66,60 +68,27 @@ def match_ids(matcher: AggregatedLicenseMatcher, **kwargs: str) -> list[str]:
 
 
 @pytest.mark.parametrize(
-    ("prefix", "found"),
+    ("value", "found"),
     [
-        ("Apache-2", "Apache-2.0"),
-        ("apache-2", "Apache-2.0"),  # ASCII case fold
-        ("Apache-1", None),  # ties on length
-        ("AB-", None),  # ties on length
-        ("GPL-2.0", "GPL-2.0-only"),  # the deprecated GPL-2.0 is left out
-        ("MIT", "MIT"),  # a whole ID is its own prefix
-        ("", None),
-        ("  ", None),
-        ("Zzz", None),
-        ("Apache%", None),  # wildcards are literal
-        ("Apache_2", None),
-        ("Apache\\", None),  # a backslash is an ordinary character
-        ("Apache\\-2", None),  # not an escape (LIKE's ESCAPE made it "-")
-        ("M\\IT", None),
+        ("Apache-2+", "Apache-2.0+"),  # a version written short
+        ("apache-2+", "Apache-2.0+"),
+        ("Apache2+", "Apache-2.0+"),
+        ("GPL-2+", "GPL-2.0-or-later"),  # the "+" is the -or-later ID in use
+        ("GPL2+", "GPL-2.0-or-later"),
+        ("GPL-2.0-only+", "GPL-2.0-only+"),  # stated twice: left for refusal
+        ("GPL-2.0-or-later+", "GPL-2.0-or-later+"),
+        ("MI+", "MI+"),  # a bare prefix names nothing: it was MIT+
+        ("Apache-1+", "Apache-1.0+"),  # 1 is 1.0, never 1.1
+        ("AB+", "AB+"),  # AB-1 or AB-2: neither
+        ("Zzz+", "Zzz+"),
+        ("Apache_2+", "Apache-2.0+"),  # "_" is a separator, as in "Apache_2.0"
     ],
 )
-def test_prefix_lookup(db_path: str, prefix: str, found: str | None) -> None:
-    details = LicenseDatabase(db_path, create=False).get_license_by_id_prefix(prefix)
-    assert (details["license_id"] if details else None) == found
-
-
-def test_prefix_lookup_edge_is_stripped(db_path: str) -> None:
-    db = LicenseDatabase(db_path, create=False)
-    details = db.get_license_by_id_prefix("  Apache-2 \n")
-    assert details is not None
-    assert details["license_id"] == "Apache-2.0"
-
-
-TWINS = (
-    Lic("Foo-1.0", "Foo deprecated", is_deprecated=True),  # first, so a NOCASE
-    Lic("FOO-1.0", "Foo active"),  # lookup of the folded ID finds this one
-    Lic("Kelvin-1.0", "Kelvin licence"),
-)
-
-
-@pytest.mark.parametrize(
-    ("prefix", "found", "deprecated"),
-    [
-        ("foo", "FOO-1.0", False),  # the exact active row, not its twin
-        ("Foo", "FOO-1.0", False),
-        ("\u212a", None, None),  # KELVIN SIGN is no "k": only ASCII folds
-        ("\u212aelvin", None, None),
-        ("k", "Kelvin-1.0", False),
-    ],
-)
-def test_prefix_lookup_case(
-    prefix: str, found: str | None, deprecated: bool | None
+def test_an_id_before_a_plus_is_read_whole_not_by_prefix(
+    db_path: str, value: str, found: str
 ) -> None:
-    for path in seeded_db("test_overlong_id_twins", TWINS):
-        details = LicenseDatabase(path, create=False).get_license_by_id_prefix(prefix)
-        assert (details["license_id"] if details else None) == found
-        assert details is None or details["is_deprecated"] is deprecated
+    db = LicenseDatabase(db_path, create=False)
+    assert normalize_identifier(value, db) == found
 
 
 # The ways an overlong "<id>+" reaches the prefix lookup.  Each must be no
@@ -219,12 +188,12 @@ def test_cli_overlong_id_exits_one(db_path: str, command: str) -> None:
 # Short IDs: pytest puts the test ID in PYTEST_CURRENT_TEST, and Windows
 # refuses an environment variable over 32,767 characters.
 @pytest.mark.parametrize(
-    "prefix", [BIG, "Zzz", "Apache-1"], ids=["big", "unknown", "tie"]
+    "value", [BIG, "Zzz", "Apache-1"], ids=["big", "unknown", "tie"]
 )
-def test_prefix_lookup_runs_no_input_built_sql(db_path: str, prefix: str) -> None:
+def test_an_id_before_a_plus_runs_no_input_built_sql(db_path: str, value: str) -> None:
     """After warm-up, no statement holds a LIKE or any part of the input."""
     db = LicenseDatabase(db_path, create=False)
-    db.get_license_by_id_prefix("Apache-2")  # fills the table cache
+    normalize_identifier("Apache-2+", db)  # fills the table cache
     statements: list[str] = []
     real = Connections.connect
 
@@ -234,17 +203,8 @@ def test_prefix_lookup_runs_no_input_built_sql(db_path: str, prefix: str) -> Non
         return conn
 
     with mock.patch.object(Connections, "connect", autospec=True, side_effect=trace):
-        db.get_license_by_id_prefix(prefix)
-    assert not any("LIKE" in s.upper() or prefix in s for s in statements), statements
-
-
-def test_prefix_boundary(db_path: str) -> None:
-    db = LicenseDatabase(db_path, create=False)
-    longest = max((r.license_id for r in ROWS if not r.is_deprecated), key=len)
-    found = db.get_license_by_id_prefix(longest)
-    assert found is not None
-    assert found["license_id"] == longest
-    assert db.get_license_by_id_prefix(longest + "x") is None
+        normalize_identifier(value + "+", db)
+    assert not any("LIKE" in s.upper() or value in s for s in statements), statements
 
 
 @pytest.mark.parametrize("warm", [False, True], ids=["cold", "warm"])
@@ -252,45 +212,34 @@ def test_prefix_boundary(db_path: str) -> None:
 def test_real_failure_still_raises(
     tmp_path: Path, break_db: Callable[[Path], None], warm: bool
 ) -> None:
-    """The prefix lookup itself raises on a broken file, cache filled or not:
-    a match() would fail earlier, at the deprecated-ID read."""
+    """Reading an ID before a "+" raises on a broken file, cache filled or not."""
     path = make_ready_file_db(tmp_path / "b.db")
     db = LicenseDatabase(str(path), create=False)
     if warm:
-        assert db.get_license_by_id_prefix("Zzz") is None
+        assert normalize_identifier("Zzz+", db) == "Zzz+"
     break_db(path)
     with pytest.raises(DatabaseNotReadyError):
-        db.get_license_by_id_prefix("Zzz")
-
-
-def test_null_id_matches_nothing() -> None:
-    """A NULL ID (a hand-filled table) is no "None", as SQL's LIKE skipped it."""
-    for path in seeded_db("test_overlong_id_null", (Lic("Nonesuch-1.0", "N"),)):
-        with sqlite3.connect(path, uri=True) as conn:
-            conn.execute("INSERT INTO licenses (license_id, name) VALUES (NULL, 'x')")
-        details = LicenseDatabase(path, create=False).get_license_by_id_prefix("no")
-        assert details is not None
-        assert details["license_id"] == "Nonesuch-1.0"
+        normalize_identifier("Zzz+", db)
 
 
 @pytest.mark.parametrize("stamp", [None, "2026-10-08"], ids=["same", "rebuilt"])
-def test_prefix_lookup_follows_a_rebuild(db_path: str, stamp: str | None) -> None:
+def test_an_id_before_a_plus_follows_a_rebuild(db_path: str, stamp: str | None) -> None:
     """Another process's update is seen once it stamps the database."""
     db = LicenseDatabase(db_path, create=False)
-    assert db.get_license_by_id_prefix("Zlib") is None  # fills the cache
+    assert normalize_identifier("Zlib-1+", db) == "Zlib-1+"  # fills the cache
     with sqlite3.connect(db_path, uri=True) as conn:
-        conn.execute("INSERT INTO licenses (license_id, name) VALUES ('Zlib', 'z')")
+        conn.execute("INSERT INTO licenses (license_id, name) VALUES ('Zlib-1.0', 'z')")
         stamp_rebuild(conn, stamp)
-    details = db.get_license_by_id_prefix("zl")
-    assert (details["license_id"] if details else None) == ("Zlib" if stamp else None)
+    assert normalize_identifier("Zlib-1+", db) == ("Zlib-1.0+" if stamp else "Zlib-1+")
 
 
-def test_prefix_lookup_folds_each_id_once(db_path: str) -> None:
-    """The IDs are folded once per rebuild, not once per lookup: 4,000
-    distinct unknown "<id>+" tags used to fold every ID 4,000 times."""
+def test_each_id_is_keyed_once(db_path: str) -> None:
+    """The IDs are keyed once per rebuild, not once per lookup: each distinct
+    "<id>+" costs the keys of its own text only."""
     db = LicenseDatabase(db_path, create=False)
-    db.get_license_by_id_prefix("Apache-2")  # fills the cache
-    with mock.patch("licenseid.dbcache.fold_case", wraps=fold_case) as spy:
+    normalize_identifier("Apache-2+", db)  # fills the cache
+    with mock.patch("licenseid.versionkey.version_key", wraps=version_key) as spy:
         for i in range(100):
-            db.get_license_by_id_prefix(f"Foo-{i}")
-    assert spy.call_count == 100  # the prefix only
+            normalize_identifier(f"Foo-{i}+", db)
+    # One key or two per text; one per row would be 100 for each lookup.
+    assert spy.call_count <= 2 * 100

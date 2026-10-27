@@ -9,8 +9,10 @@
   `shorttext.py` (Tier 0 IDs and names), `looseid.py` (a loosely written
   ID: "Apache2", "GPLv3", "GPLv2 or any later version"), `ranking.py`
   (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
-  `markers.py`, `resolver.py` (a declared licence value to an SPDX expression
-  and the steps taken; its types and vocabularies are in `resolvertypes.py`),
+  `markers.py`, `plusoperator.py` (the "+" operator), `versionkey.py` (one
+  key for each spelling of an ID), `resolver.py` (a declared licence value
+  to an SPDX expression and the steps taken; its types and vocabularies are
+  in `resolvertypes.py`),
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
   pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
@@ -373,7 +375,8 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - A tag and a `license` field hold whatever their author wrote, but `--id`
   and `match(license_id=...)` declare ONE license:
   `identifiers.is_simple_expression` is the one judge of that (an ID,
-  optionally with `+`, or a `LicenseRef-*`, which takes no `+`; either
+  optionally with `+` unless it ends in `-only` or `-or-later`, or a
+  `LicenseRef-*`, which takes no `+`; either
   `WITH` an exception, in any brackets), and
   both entry points read it — `cli.reject_compound_id` exits 2 through
   `errors.invalid_id_error`, `matcher._try_explicit_id_match` raises. Text
@@ -386,10 +389,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   Do not widen `--id` to expressions
   again: `MIT OR Apache-2.0` declares neither license, and the flags
   (`is-osi`, `is-fsf`) have no answer for it.
-- The "+" operator has ONE reader, `identifiers._RE_PLUS_OPERATOR`
-  (`strip_plus_operator`, `replace_plus_operator`): a "+" right after an ID,
-  never after a space, a "+", an exception or a `LicenseRef-*`. Tier 0's
-  version key (`shorttext.version_key`) spells it out with it. The
+- The "+" operator has ONE reader, `plusoperator.PLUS_OPERATOR`
+  (`strip_plus_operator`, `replace_plus_operator`, `plus_after_qualifier`;
+  standard library only, so any module can import it): a "+" right after an
+  ID, never after a space, a "+", an exception or a `LicenseRef-*`. The
+  version key (`versionkey.version_key`) spells it out with it. The
   tokenizer (`is_simple_expression`) and the prose shorthand of `classify`
   ("GPLv2+", which also takes a comma or full stop after it) read the same
   grammar their own way: `tests/test_plus_readers.py` holds all four to one
@@ -475,7 +479,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   while another thread cleared is not kept (`_generation`).
 - Never build a `LIKE` or `GLOB` pattern from input: SQLite refuses one
   over 50,000 bytes, and `connection()` reports that as a broken database.
-  Compare in memory from `TableCache` (`active_id_with_prefix`).
+  Compare in memory from `TableCache`.
 - Give a huge test parameter a short `id`: pytest puts the test ID in
   `PYTEST_CURRENT_TEST`, and Windows refuses an environment variable over
   32,767 characters (`conftest.MAX_TEST_ID` refuses IDs over 300). Keep a

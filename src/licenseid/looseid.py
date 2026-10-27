@@ -19,26 +19,11 @@ from licenseid.database import LicenseDatabase
 from licenseid.identifiers import (
     normalize_identifier,
     qualify_trailing_grant,
-    replace_plus_operator,
     without_outer_brackets,
 )
-from licenseid.normalize import normalize_text
 from licenseid.types import LicenseNameId
+from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_key
 
-# The longest input read as a loose ID: the longest SPDX ID has 36
-# characters. A longer input names no ID, and its key would cost a second
-# normalize_text() of a text that can be megabytes in one word.
-MAX_KEY_INPUT = 100
-# "v" directly before a digit is a version prefix: "GPLv3", "v2.0".
-_RE_VERSION_PREFIX = re.compile(r"v(?=\d)", re.IGNORECASE)
-# A boundary between a letter and a digit: "Apache2", "0BSD".
-_RE_LETTER_DIGIT = re.compile(r"(?<=[^\W\d_])(?=\d)|(?<=\d)(?=[^\W\d_])")
-# A whole version number whose every part after the major is 0: "2.0" and
-# "2.0.0", not "1.2.0", "2.0.1" or "2.00". The lookarounds keep it to the
-# whole number: no digit, and no digit and full stop, before it ("1.2.0"
-# keeps its "2.0"), while a full stop alone is a separator ("Apache.2.0").
-# After it, a full stop ends a sentence.
-_RE_ZERO_VERSION = re.compile(r"(?<!\d)(?<!\d\.)(\d+)(?:\.0){1,2}(?!\.?\d)")
 # The word a grant starts with, where OR_LATER_PHRASE starts at the version
 # before it ("2 or later").
 _RE_GRANT_WORD = re.compile(r"\bor\b", re.IGNORECASE)
@@ -52,27 +37,6 @@ _RE_GRANT_TAIL = re.compile(
 WITH_OPERATOR = re.compile(r"\s+WITH\s+", re.IGNORECASE)
 
 
-def version_key(text: str) -> str:
-    """*text* as a version-tolerant ID: "Apache2", "apache 2", "Apache_2.0"
-    and "Apache-2.0" all give "apache 2", and "CC by 3 nl" gives the key of
-    CC-BY-3.0-NL.
-
-    Order matters: the "+" operator becomes the "or later" it means while
-    the ID it follows is still one token (identifiers.replace_plus_operator,
-    the reader expressions use), or GPL-2.0+ and GPL-2.0 would share a key;
-    "_" becomes a space, as normalize_text() keeps it; the prefix goes before
-    the split, or "GPLv3" would become "gplv 3"; the split goes before the
-    fold, or "Apache2.0" would keep its ".0"; the fold reads the full stops
-    normalize_text() drops ("2.0" and "2 0" differ). normalize_text() then
-    folds case, dashes and punctuation as for an ID.
-    """
-    text = replace_plus_operator(text, " or later").replace("_", " ")
-    text = _RE_VERSION_PREFIX.sub(" ", text)
-    text = _RE_LETTER_DIGIT.sub(" ", text)
-    text = _RE_ZERO_VERSION.sub(r"\1", text)
-    return normalize_text(text)
-
-
 def loose_id(db: LicenseDatabase, text: str) -> tuple[LicenseNameId, str] | None:
     """The row *text* names loosely, and the ID it answers: the row's own,
     its successor if deprecated, or its -or-later form for a grant after it
@@ -81,7 +45,7 @@ def loose_id(db: LicenseDatabase, text: str) -> tuple[LicenseNameId, str] | None
     text = text.strip()
     if len(text) > MAX_KEY_INPUT:
         return None
-    row = _keyed_row(db, version_key(text))
+    row = named_row(db, text)
     if row is not None:
         return row, resolved_id(db, row)
     return _granted(db, text)
@@ -137,14 +101,6 @@ def loose_with(db: LicenseDatabase, text: str) -> tuple[str, str | None] | None:
     row, resolved = found
     loose = parts[0] if narrowed(row["license_id"], resolved, parts[0]) else None
     return f"{resolved} WITH {parts[1].strip()}", loose
-
-
-def _keyed_row(db: LicenseDatabase, key: str) -> LicenseNameId | None:
-    """The one row whose ID has *key*. A row in use wins over a deprecated
-    one ("GPL2+" is GPL-2.0-or-later, not GPL-2.0+); two in use are none."""
-    rows = db.get_names_by_key(version_key).get(key, []) if key else []
-    rows = [row for row in rows if not row["is_deprecated"]] or rows
-    return rows[0] if len(rows) == 1 else None
 
 
 def granted_id_text(text: str) -> str | None:
@@ -204,7 +160,7 @@ def _granted(db: LicenseDatabase, text: str) -> tuple[LicenseNameId, str] | None
     named = granted_id_text(text)
     if named is None:
         return None
-    row = _keyed_row(db, version_key(named))
+    row = keyed_row(db, version_key(named))
     if row is None:
         return None
     lid = row["license_id"]

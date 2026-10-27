@@ -16,7 +16,13 @@ import py_spdx_license
 
 from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
+from licenseid.plusoperator import (
+    LICENSE_REF_PREFIX,
+    plus_after_qualifier,
+    strip_plus_operator,
+)
 from licenseid.types import ExceptionDetails, LicenseDetails
+from licenseid.versionkey import named_row
 
 # Defensive cap on the number of AND/OR/WITH operators an expression may
 # have before we attempt py_spdx_license's structural sort()/dedup pass.
@@ -146,6 +152,15 @@ _MAX_PARSE_COST = 10**9
 # white space (no-break space, vertical tab), so a run joined by it is one
 # token there. "+" breaks there too; counting it in only refuses more.
 _RE_PARSER_TOKEN = re.compile(r"[^ \t\n\r()]+")
+# The largest expression read, in operators and in depth of brackets. The
+# parser walks its tree by recursion, with no guard, so where it gives up
+# depended on the interpreter: Python 3.10 at 335 operators in a row or 250
+# brackets with an operator in each, Python 3.14 at 500 and 335. Under both,
+# every supported version answers alike (tech-debt roadmap, item 19). Real
+# expressions hold a few dozen operators at most.
+_MAX_PARSE_OPERATORS = 150
+_MAX_PARSE_DEPTH = 150
+_RE_PARSER_PART = re.compile(r"[()]|[^ \t\n\r()]+")
 
 
 def parse_expression(expression: str) -> py_spdx_license.Node | None:
@@ -155,14 +170,15 @@ def parse_expression(expression: str) -> py_spdx_license.Node | None:
     _MAX_PARSE_COST.
 
     Catches broadly, not just ``ParseError``: the parser is a plain recursive
-    tree walk with no depth guard, so a pathological input (a very long
-    ``AND`` chain) raises ``RecursionError`` instead.
+    tree walk with no depth guard. An expression over _MAX_PARSE_OPERATORS
+    or _MAX_PARSE_DEPTH is refused before it, so the answer does not depend
+    on where the interpreter's recursion limit falls.
     """
     cost = sum(
         (token.end() - token.start()) ** 2
         for token in _RE_PARSER_TOKEN.finditer(expression)
     )
-    if cost > _MAX_PARSE_COST:
+    if cost > _MAX_PARSE_COST or _too_large_to_parse(expression):
         return None
     try:
         return py_spdx_license.parse(
@@ -172,21 +188,33 @@ def parse_expression(expression: str) -> py_spdx_license.Node | None:
         return None
 
 
-# The "+" ("or any later version") operator, which py_spdx_license cannot
-# parse (https://github.com/JPEWdev/py-spdx-license/issues/1): it only ever
-# follows the last character of a license ID, so a "+" after a space, a "(" or
-# another "+", after the exception of a WITH, or after an operator word
-# (WITH, AND, OR), is not one. The ID must start at a token start (lookbehind):
-# without it every offset of a long token is tried and the scan is quadratic
-# (8 s at 32,000 characters).
-_RE_PLUS_OPERATOR = re.compile(
-    r"(?P<with>\bWITH\s+)?(?<![^\s(])(?!(?:with|and|or)\+)"
-    r"(?P<id>[^\s()+]+)\+(?=\s|\)|$)",
-    re.IGNORECASE,
-)
-# A license reference: SPDX gives "+" to a license ID only
-# (simple-expression = license-id / license-id "+" / license-ref).
-_RE_LICENSE_REF = re.compile(r"(?:DocumentRef-[^\s():]+:)?LicenseRef-", re.IGNORECASE)
+def parse_declared(value: str) -> py_spdx_license.Node | None:
+    """Parse a declared *value*, its "+" operators read as the "or later" of
+    the ID before them; None as parse_expression gives it, and for a "+"
+    after a stated qualifier ("GPL-2.0-only+"), which no ID takes."""
+    if plus_after_qualifier(value):
+        return None
+    return parse_expression(strip_plus_operator(value))
+
+
+def _too_large_to_parse(expression: str) -> bool:
+    """Whether *expression* holds more operators or deeper brackets than the
+    parser is given (_MAX_PARSE_OPERATORS, _MAX_PARSE_DEPTH). One pass, which
+    stops at the first part over either."""
+    operators = depth = 0
+    for part in _RE_PARSER_PART.finditer(expression):
+        word = part.group(0)
+        if word == "(":
+            depth += 1
+        elif word == ")":
+            depth -= 1
+        elif word.upper() in _OPERATORS:
+            operators += 1
+        if operators > _MAX_PARSE_OPERATORS or depth > _MAX_PARSE_DEPTH:
+            return True
+    return False
+
+
 # A whole license reference, its idstrings as SPDX defines them
 # (idstring = 1*(ALPHA / DIGIT / "-" / "."); ABNF strings ignore case).
 _RE_WHOLE_LICENSE_REF = re.compile(
@@ -198,27 +226,6 @@ def is_license_ref(text: str) -> bool:
     """Whether *text* is one ``LicenseRef-*``, with its ``DocumentRef-*:`` if
     any, and nothing else."""
     return _RE_WHOLE_LICENSE_REF.fullmatch(text) is not None
-
-
-def strip_plus_operator(expression: str) -> str:
-    """Drop the "+" operators of *expression* so ``py_spdx_license`` can parse
-    it (``Apache-2.0+ OR MIT`` becomes ``Apache-2.0 OR MIT``). A "+" that is
-    not an operator stays, so the expression stays unparseable."""
-    return replace_plus_operator(expression, "")
-
-
-def replace_plus_operator(text: str, replacement: str) -> str:
-    """*text* with each "+" operator after a license ID replaced by
-    *replacement*: "" drops it, " or later" spells it out
-    (``shorttext.version_key``). Any other "+" stays."""
-
-    def replace(match: re.Match[str]) -> str:
-        # Neither an exception nor a LicenseRef takes a "+".
-        if match.group("with") or _RE_LICENSE_REF.match(match.group("id")):
-            return match.group(0)
-        return match.group("id") + replacement
-
-    return _RE_PLUS_OPERATOR.sub(replace, text)
 
 
 def _token_kind(text: str) -> str:
@@ -359,8 +366,9 @@ _SIMPLE_SHAPES = (
 
 
 def is_simple_expression(value: str) -> bool:
-    """Whether *value* names one license: an ID, optionally with "+", or a
-    ``LicenseRef-*``, either ``WITH`` an exception, in any number of brackets.
+    """Whether *value* names one license: an ID, optionally with "+" (not
+    after ``-only`` or ``-or-later``), or a ``LicenseRef-*``, either ``WITH``
+    an exception, in any number of brackets.
 
     What a declaration may hold. A tag carries whatever its author wrote, but
     "MIT OR Apache-2.0" declares neither license, and a name or an SPDX URL
@@ -370,9 +378,11 @@ def is_simple_expression(value: str) -> bool:
     value = value.strip()
     if not value or leading_expression(value) != value:
         return False
+    if plus_after_qualifier(value):
+        return False  # "GPL-2.0-only+": no ID takes both
     tokens = [token.group(0) for token in _RE_TOKEN.finditer(value)]
     if any(
-        token == "+" and _RE_LICENSE_REF.match(before)
+        token == "+" and LICENSE_REF_PREFIX.match(before)
         for before, token in pairwise(tokens)
     ):
         return False  # a LicenseRef takes no "+"
@@ -529,19 +539,33 @@ def _normalize_single_id(
             return details["license_id"]
 
     # 4. '+'-suffixed ID not handled by any mapping (e.g. "CDDL-1.0+",
-    # "Apache-2+"): strip '+', resolve the base to its canonical DB ID — first
-    # by exact lookup, then by prefix — then re-attach '+'.
-    # This preserves the "or later" intent for licenses whose '+' form is not
-    # listed in DEPRECATED_SPDX_LICENSE_IDS.
+    # "Apache-2+", "GPL-2+"): see _plus_id.
     if lic_id.endswith("+") and db:
-        base = lic_id[:-1]
-        base_details = db.get_license_details(base)
-        if not base_details:
-            base_details = db.get_license_by_id_prefix(base)
-        if base_details:
-            return base_details["license_id"] + "+"
+        return _plus_id(lic_id, db) or lic_id
 
     return lic_id
+
+
+def _plus_id(lic_id: str, db: LicenseDatabase) -> str | None:
+    """*lic_id*, an ID and a "+", with its base read by ID or as a loosely
+    written ID ("Apache-2", "GPL-2"), as resolve() reads it; never by a bare
+    prefix, which made "MI+" MIT+. The "+" becomes the base's -or-later ID
+    where the List has one in use ("GPL-2+" is GPL-2.0-or-later), and stays
+    otherwise ("Apache-2+" is Apache-2.0+). None for no base, or one that
+    states its qualifier already ("GPL-2.0-only+"): no valid ID takes it."""
+    base = lic_id[:-1]
+    details = db.get_license_details(base)
+    if details is None:
+        row = named_row(db, base)
+        if row is None:
+            return None
+        found = row["license_id"]
+    else:
+        found = details["license_id"]
+    if found.endswith(("-only", "-or-later", "+")):
+        return None
+    or_later = db.get_license_details(f"{found}-or-later")
+    return f"{found}+" if or_later is None else or_later["license_id"]
 
 
 def _normalize_exception_id(exc_id: str, db: LicenseDatabase | None = None) -> str:

@@ -16,8 +16,31 @@ Stdlib and ``licenseid.console``/``errors`` only, so importing it does not
 pull in ``requests``.
 """
 
+import re
+
 from licenseid.console import warn
 from licenseid.errors import InvalidInputError
+
+# A file name's extension at the end of a word: "LICENSE.txt", "COPYING.LESSER".
+# No SPDX ID ends so: each ends in a version ("Apache-2.0", "LPPL-1.3c") or
+# a word after a hyphen.
+_RE_FILE_EXTENSION = re.compile(r"\.[A-Za-z][A-Za-z0-9]*\Z")
+# A host name before the first "/": a URL written without its scheme
+# ("www.apache.org/licenses/LICENSE-2.0"), not a directory.
+_RE_HOST = re.compile(r"(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?::\d+)?/")
+
+
+def looks_like_path(value: str) -> bool:
+    """Whether a command-line argument that names no file is shaped like a
+    path: one word, no URL (with or without its scheme), with a directory
+    separator or a file name's extension ("docs/LICENSE", "LICENSE.txt").
+    Matched as text, a mistyped path answers some licence with confidence,
+    so the CLI refuses it; ``--text`` matches such a value as text."""
+    if not value or "://" in value or any(c.isspace() for c in value):
+        return False
+    if _RE_HOST.match(value):
+        return False
+    return "/" in value or "\\" in value or bool(_RE_FILE_EXTENSION.search(value))
 
 
 def normalize_newlines(text: str) -> str:

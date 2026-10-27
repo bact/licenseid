@@ -15,9 +15,8 @@ from licenseid.identifiers import (
     flag_source,
     leading_expression,
     normalize_identifier,
-    parse_expression,
+    parse_declared,
     qualify_trailing_grant,
-    strip_plus_operator,
 )
 from licenseid.manifest import extension, license_value_groups
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags, Method
@@ -278,7 +277,7 @@ class MarkerDetector:
         counts as known. The OSI and FSF flags come from
         ``identifiers.flag_source``.
         """
-        tree = parse_expression(strip_plus_operator(lic_id))
+        tree = parse_declared(lic_id)
         if tree is None:
             return None  # not an expression (or too deep to parse)
         leaves = self._expression_leaves(tree)

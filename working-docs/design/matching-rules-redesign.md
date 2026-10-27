@@ -21,13 +21,13 @@ cases for it, not separate fixes. Written from a roadmap review on
 ## Order
 
 Areas 1 → 2 → 3 are item 31 and go together, the grammar first, as
-certainty and ranking build on it. Area 5 can go first: item 32
-(Priority 24) needs none of the others. Areas 4 and 6 are small
+certainty and ranking build on it. Item 32 of area 5 is done (0.6.0).
+Areas 4 and 6 are small
 decisions that can be made at any time.
 
 ## 1. SPDX grammar: one reader
 
-Items 31, 33, 20, 19, 26, 30.
+Items 31, 33, 20, 26 (19 and 30 are done).
 
 Six places each hold part of the grammar: `leading_expression`,
 `is_simple_expression`, the "+" operator regex, `parse_expression`,
@@ -41,8 +41,9 @@ Decide:
 - what it does with a non-ASCII letter (refuse the value, not cut it: item
   33), a grant inside an expression (carry it or refuse: item 20),
   `NONE` and `NOASSERTION`, and a "+" in prose (item 30, now read by
-  `shorttext.version_key`);
-- one depth cap on every Python version (item 19);
+  `versionkey.version_key`);
+- one depth cap on every Python version (item 19, done: 150 operators
+  and 150 brackets, `identifiers.parse_expression`);
 - whether to delegate to `py_spdx_license` once it parses "+" in linear
   time (item 26).
 
@@ -104,7 +105,7 @@ what decides.
 Decide:
 
 - whether an argument shaped like a path that names no file exits 2
-  (item 32);
+  (item 32, done: it does, `input: not found: <path>; pass --text`);
 - for each conflicting pair, reject (exit 2) or document which wins:
   `--id` with `--text`, `--bold` with `--json`, `--diff` with `--exact`,
   and the options the declared paths ignore (`exclude`, `only_spdx`,

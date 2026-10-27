@@ -52,7 +52,7 @@ def is_negated(before: str) -> bool:
 
 
 # "GPLv2+" style notices; only meaningful in source files (the ID path reads
-# "+" itself, with identifiers._RE_PLUS_OPERATOR). Prose, so a comma or a
+# "+" itself, with plusoperator.PLUS_OPERATOR). Prose, so a comma or a
 # full stop may follow the "+"; otherwise it agrees with that reader, for the
 # spellings Tier 0's version key accepts ("GPL 2+", "GPL-v2+", "GPL_2.0+"):
 # a "+" touches its version and ends the word ("GPLv2++", "GPL-2.0+foo" are

@@ -26,8 +26,9 @@ from spdx_tag_helpers import Answers, answers, cli_match_id, source_with, tag_db
 
 from licenseid.cli import cli
 from licenseid.errors import InvalidInputError
-from licenseid.identifiers import is_simple_expression, strip_plus_operator
+from licenseid.identifiers import is_simple_expression
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.plusoperator import strip_plus_operator
 from licenseid.types import LicenseMatch
 
 

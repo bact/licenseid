@@ -13,11 +13,13 @@ import sys
 import warnings
 from collections.abc import Generator
 from datetime import datetime, timezone
+from unittest import mock
 
 import click
 import pytest
 from conftest import MIT_SEARCH_TEXT, invoke_match, make_mit_db_path
 
+from licenseid import LicenseDatabase
 from licenseid import cli as cli_module
 from licenseid.cli import cli, get_input_content, read_input, show_diff
 
@@ -213,6 +215,10 @@ def test_read_input_from_text_only_stdin_keeps_non_ascii(
     assert capsys.readouterr().err == ""
 
 
+# no argument, so no licence ID to look up
+_NO_DB = mock.create_autospec(LicenseDatabase, instance=True)
+
+
 class _Tty(io.StringIO):
     def isatty(self) -> bool:
         return True
@@ -222,14 +228,14 @@ def test_terminal_stdin_is_never_read(monkeypatch: pytest.MonkeyPatch) -> None:
     """With no argument and a terminal on stdin the command must not block
     waiting for input: no content, so the caller reports it as missing."""
     monkeypatch.setattr(sys, "stdin", _Tty("this must not be read"))
-    assert get_input_content(_ctx(), None, None) == ""
+    assert get_input_content(_ctx(), None, None, _NO_DB) == ""
 
 
 def test_piped_stdin_is_read_when_no_argument(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(sys, "stdin", io.StringIO("MIT"))
-    assert get_input_content(_ctx(), None, None) == "MIT"
+    assert get_input_content(_ctx(), None, None, _NO_DB) == "MIT"
 
 
 # --- entry points ---

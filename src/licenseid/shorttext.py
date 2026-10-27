@@ -9,8 +9,8 @@ license ID or name."""
 from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase
-from licenseid.identifiers import strip_plus_operator
 from licenseid.looseid import loose_id, narrowed, resolved_id, warn_narrowed
+from licenseid.plusoperator import strip_plus_operator
 from licenseid.ranking import DEP_PENALTY
 from licenseid.types import LicenseNameId, RawMatch
 
@@ -127,14 +127,19 @@ def _exact_id_row(
 ) -> LicenseNameId | None:
     """The row whose normalised ID is *norm_input*, ASCII case folded.
     normalize_text() drops a "+", so GPL-2.0 and GPL-2.0+ share one: a row
-    with a "+" answers only for a *text* with the "+" operator (as
-    identifiers reads it: "GPL 2 0 +" has none); else the first in the
-    table. (The version key, asked first, already chose between a row in use
-    and a deprecated one.)"""
+    with a "+" answers a *text* with the "+" operator (as identifiers reads
+    it: "GPL 2 0 +" has none), and only such a row does, or the "+" would be
+    dropped in silence ("GPL-2.0-only+" is no GPL-2.0-only). (The version
+    key, asked first, already chose between a row in use and a deprecated
+    one.)"""
     norm_upper = norm_input.upper()
-    found = [row for row in rows if row["norm_license_id"].upper() == norm_upper]
-    if strip_plus_operator(text) == text:
-        found = [row for row in found if not row["license_id"].endswith("+")]
+    plus = strip_plus_operator(text) != text
+    found = [
+        row
+        for row in rows
+        if row["norm_license_id"].upper() == norm_upper
+        and row["license_id"].endswith("+") == plus
+    ]
     return found[0] if found else None
 
 
