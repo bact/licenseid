@@ -97,4 +97,5 @@ def _successors(*entries: SpdxLicenseEntry) -> dict[str, str | None]:
 def test_the_successor_recorded_for_a_deprecated_id(
     entries: list[SpdxLicenseEntry], expected: dict[str, str | None]
 ) -> None:
+    """Only a rename and the '+' token give a successor."""
     assert _successors(*entries) == expected
