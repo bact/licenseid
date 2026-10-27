@@ -172,7 +172,9 @@ Common options:
   `--id` reads it (`--text GPL-2.0+` is `GPL-2.0-or-later`); anything else
   is matched as text: `MIT but modified heavily by us` is text, not MIT.
   An argument that names no file is first checked for the shape of a path
-  (see above).
+  (see above). A value that is no license, such as `GPL-2.0-only+` (a "+"
+  after a stated qualifier), is a "no" as text (exit 1, and `match()`
+  returns no result) and a usage error as `--id` (exit 2).
 - `--text <text>`: Match the given text. Backslash escapes such as `\n`,
   `\t` and `\u00e9` are decoded, so write `\\` for a literal backslash
   (for example in a Windows path).

@@ -197,6 +197,16 @@ def parse_declared(value: str) -> py_spdx_license.Node | None:
     return parse_expression(strip_plus_operator(value))
 
 
+def is_qualified_plus(value: str) -> bool:
+    """Whether *value*, whole, is shaped as an SPDX expression but for a "+"
+    after a stated qualifier ("GPL-2.0-only+", "MIT OR GPL-2.0-or-later+").
+    It names no license, so no license may answer in its place: a near name
+    ("LGPL-3.0-only") is not what the value says either. Not parsed, so an
+    expression too large to parse is one too."""
+    value = value.strip()
+    return plus_after_qualifier(value) and leading_expression(value) == value
+
+
 def _too_large_to_parse(expression: str) -> bool:
     """Whether *expression* holds more operators or deeper brackets than the
     parser is given (_MAX_PARSE_OPERATORS, _MAX_PARSE_DEPTH). One pass, which

@@ -26,8 +26,8 @@ item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
 the review of PR #66, items 30 and 31 from the work on item 21, and items
 32 to 35 from the review of item 22, item 36 from the docs audit
 after it, item 37 from the work on item 29, item 38 from the
-review of PR #80, items 39 to 42 from the review of PR #82, and item 43
-from the review of PR #99.
+review of PR #80, items 39 to 42 from the review of PR #82, and items 43
+to 45 from the reviews of PR #99.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -290,7 +290,35 @@ it as text and answers `ECL-2.0` at 0.86, and `resolve` gives
 IDs, in a declared value only, with a step of its own), not a fix: see
 [`matching-rules-redesign.md`](matching-rules-redesign.md).
 
+Reading "/" as OR alone gains nothing: a lone compound expression given as
+text is matched as text too. `match(text="MIT OR Apache-2.0")` answers
+`ECL-2.0` at 0.76, while the same value in a tag answers
+`Apache-2.0 OR MIT`, exact. Read a lone, valid expression as its tag is
+read first; "/" can then be one more spelling of OR.
+
 - Impact 2, Risk 2, Effort 2.
+
+## 44. A "+" that is no operator is dropped and the answer is exact — Priority 12
+
+Found in the second review of PR #99 (2026-10-27); 0.5.0 does the same.
+`GPL-2.0-only++`, `GPL-2.0-only+,` and `MIT++` answer `GPL-2.0-only` (or
+`MIT`) exact at 1.0: `normalize_text` drops the stray "+" as punctuation,
+so the ID matches as if it were not there. Pinned as `# BUG:` in
+`tests/test_qualified_plus.py`. A detached "+" (`GPL-2.0-only +`) is the
+same case, decided as no operator; the answer may stand, but not as exact.
+
+- Impact 2, Risk 2, Effort 3.
+
+## 45. A licence URL is matched as text — Priority 12
+
+Found in the second review of PR #99 (2026-10-27); 0.5.0 does the same.
+`opensource.org/licenses/MIT` answers `any-OSI-perl-modules` at 0.87 and
+`spdx.org/licenses/MIT.html` `Parity-7.0.0`, with or without the scheme.
+An SPDX or OSI licence URL names its ID in the path: read it as that ID,
+with a step of its own in `resolve`, and only for the hosts that publish
+licences by ID (spdx.org, opensource.org).
+
+- Impact 2, Risk 2, Effort 3.
 
 ## 42. A very long word costs seconds in the full-text search — Priority 16
 
