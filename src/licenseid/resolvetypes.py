@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The result of ``licenseid.resolve``: the types and the fixed vocabularies.
+"""The result of ``licenseid.resolver``: the types and the fixed vocabularies.
 
 A step is something the resolver did to the input (or declined to do, with
 ``applied`` false). Its ``kind`` is one of a closed set; a consumer ignores a

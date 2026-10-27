@@ -14,7 +14,7 @@ from matcher_db import Lic, seeded_db
 import licenseid
 from licenseid import LicenseDatabase
 from licenseid.looseid import declared_grant_id_text
-from licenseid.resolve import resolve
+from licenseid.resolver import resolve
 from licenseid.resolvetypes import CATEGORY_ORDER, LIST_PROVIDES, TRUST, Resolution
 
 ROWS = (
@@ -48,7 +48,7 @@ ROWS = (
 
 @pytest.fixture(name="db")
 def _db() -> Generator[LicenseDatabase, None, None]:
-    for path in seeded_db("test_resolve", ROWS):
+    for path in seeded_db("test_resolver", ROWS):
         yield LicenseDatabase(path, create=False)
 
 
