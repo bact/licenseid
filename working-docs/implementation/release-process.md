@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-22
-Last-Modified: 2026-10-26
+Last-Modified: 2026-10-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -9,8 +9,8 @@ SPDX-License-Identifier: Apache-2.0
 
 # Release process
 
-How a licenseid release is cut, as done for 0.5.0 (2026-10-22, PRs #85 to
-#95), and what went wrong on the way. The developer tags and publishes; an
+How a licenseid release is cut, as done for 0.5.0 (2026-10-22, PRs #85
+to #95), and what went wrong on the way. The developer tags and publishes; an
 agent prepares and checks.
 
 ## Order

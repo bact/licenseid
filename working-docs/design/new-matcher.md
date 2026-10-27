@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-28
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -209,23 +209,23 @@ changes).
 ### The 3-Step "Variant" Detection Pipeline
 
 1. **Normalization (Placeholder Stripping):**
-    Legal templates often change only the name of the owner, the year, or the
-    jurisdiction.
-    - **Action:** Before matching, use Regex to replace common variables (e.g.,
-      `Copyright (c) [YEAR] [HOLDER]`) with a generic token like
-      `{{COPYRIGHT_BLOCK}}`.
-    - **Result:** This prevents "modified" scores caused simply by different
-      company names.
+   Legal templates often change only the name of the owner, the year, or the
+   jurisdiction.
+   - **Action:** Before matching, use Regex to replace common variables (e.g.,
+     `Copyright (c) [YEAR] [HOLDER]`) with a generic token like
+     `{{COPYRIGHT_BLOCK}}`.
+   - **Result:** This prevents "modified" scores caused simply by different
+     company names.
 
 2. **The "High-Water Mark" Score:**
-    Use RapidFuzz’s `fuzz.ratio` (which is sensitive to order) against your
-    database.
-    - If you get a score between **95% and 99.9%**, you have a **Variant**.
-    - If you get a score of **100%**, you have an **Identical Match**.
+   Use RapidFuzz’s `fuzz.ratio` (which is sensitive to order) against your
+   database.
+   - If you get a score between **95% and 99.9%**, you have a **Variant**.
+   - If you get a score of **100%**, you have an **Identical Match**.
 
 3. **Visual Diffing (The "Redline"):**
-    When a match is $>90\%$ but $<100\%$, you shouldn't just give a number.
-    You should generate a "Redline" diff.
+   When a match is $>90\%$ but $<100\%$, you shouldn't just give a number.
+   You should generate a "Redline" diff.
 
 ---
 

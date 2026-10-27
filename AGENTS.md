@@ -438,7 +438,8 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   open hang for ever, with no exit code and no traceback, and a test for it
   hangs too: run `check_database_ready` on a FIFO in a child process with a
   timeout (`db_asserts.probe_check_does_not_hang`), so a broken guard fails
-  the test after 30 s instead of hanging the run. `file::memory:NAME` is a file on disk (only `mode=memory` and
+  the test after 30 s instead of hanging the run. `file::memory:NAME` is a
+  file on disk (only `mode=memory` and
   the exact base `file::memory:` are memory), and `file://localhost/p` and
   `?vfs=` are valid spellings SQLite resolves.
 - Resolve a path spelling once, in `dbcheck._os_file`, not with an

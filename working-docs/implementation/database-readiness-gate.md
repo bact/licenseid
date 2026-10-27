@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -205,7 +205,9 @@ with `LIKE or GLOB pattern too complex`. `Connections.connection()` reports
 every read `sqlite3.Error` as `DatabaseNotReadyError`, so the result was
 an avoidable `DatabaseNotReadyError` on a working database.
 
-The fix moves the prefix match into memory.
+The fix moves the prefix match into memory. (Gone since 0.6.0, PR #99: a
+"+" base is read by its version key, `versionkey.named_row`, and the
+prefix lookup below was removed.)
 `dbcache.TableCache.active_id_with_prefix` scans the cached ID list (ASCII
 case fold like LIKE, active IDs only, same shortest-unambiguous rule) and
 finds the prefix. The exact row is then read from the database with `=` on

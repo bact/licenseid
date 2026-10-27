@@ -581,9 +581,10 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
 - `GPL 2.0+` in prose lost its "+" in Tier 0 (item 30, Priority 6;
   2026-10-25). A value that is not SPDX-shaped went to Tier 0, which matched
   the normalised text, where the "+" is gone: `GPL 2.0+`, `GPL-2.0 +` and
-  `LGPL 2.1+` answered their `-only` form. Now `shorttext.version_key` turns
-  the "+" operator into "or later" before `normalize_text` drops it, read by
-  the expressions' reader (`identifiers.replace_plus_operator`), so
+  `LGPL 2.1+` answered their `-only` form. Now the version key (since 0.6.0
+  `versionkey.version_key`) turns the "+" operator into "or later" before
+  `normalize_text` drops it, read by the expressions' reader
+  (`plusoperator.replace_plus_operator`), so
   `GPL 2.0+` and `LGPL 2.1+` answer `GPL-2.0-or-later` and
   `LGPL-2.1-or-later`. `GPL-2.0 +` has no operator (a "+" apart from its
   ID): it answers `GPL-2.0-only`, not exact, with

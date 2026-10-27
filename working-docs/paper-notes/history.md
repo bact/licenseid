@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -91,9 +91,10 @@ Pitloom integration. The
   10, `dependabot[bot]` 9, `bact` (GitHub web UI) 1 (`cd9f03d`, CITATION.cff
   regenerated).
 - 228 commit messages carry `Signed-off-by` (DCO sign-off).
-- Pull requests: 66 opened, 62 merged, 4 closed unmerged (#2 normalisation,
-  #9 normalisation in SQLite, #42/#43 superseded Dependabot bumps). 9 merged
-  PRs are Dependabot bumps (#26, #27, #30, #40, #41, #44, #45, #63, #64).
+- Pull requests: 66 opened, 62 merged, 4 closed unmerged (#2
+  normalisation, #9 normalisation in SQLite, #42/#43 superseded Dependabot
+  bumps). 9 merged PRs are Dependabot bumps
+  (#26, #27, #30, #40, #41, #44, #45, #63, #64).
 - Lines changed in merged PRs (GitHub counts): +85,155 / -18,552. Non-merge
   commits (`git --shortstat`, approx.): +146,322 / -59,789. PR #12 alone is
   +50,492/-10,432 over 2,066 files, of which 2,019 files (+33,051/-9,897)
@@ -181,9 +182,9 @@ flake8 complexity and pylint-on-tests to CI.
 - Initial three tiers plus optional Java: Tier 0 short-text ID/name, Tier 1
   SQLite FTS5 trigram recall, Tier 2 RapidFuzz; Tier 3 SPDX `tools-java`
   validation, present from the initial commit `e7ae188` (04-28).
-- #4 (04-28): separate logic for short inputs (<20 words) and long texts;
+- PR #4 (04-28): separate logic for short inputs (<20 words) and long texts;
   CLI escape handling; resolves issue #1 (Apache-2.0 vs Pixar).
-- #12 "License marker" (05-01 to 05-07, issue #6): Tier 0.5 detection of
+- PR #12 "License marker" (05-01 to 05-07, issue #6): Tier 0.5 detection of
   `SPDX-License-Identifier` tags and structured `license` fields; mixed-
   content fixtures; full benchmark. `threshold-optimizations.md` records a
   head_300 top-1 regression of -5.5 pp (597 vs 635 of 695 fixtures) fixed
@@ -191,25 +192,25 @@ flake8 complexity and pylint-on-tests to CI.
   short inputs (`fe67442`, 05-07). `accuracy-optimizations.md`: on 695
   SPDX licences, head top-50 recall 98.7% -> 99.9%, tail top-1 39-46% ->
   52-57%, union top-50 99.4% -> 100%.
-- #21 (07-07): normalisation follows SPDX License List Matching Guidelines
+- PR #21 (07-07): normalisation follows SPDX License List Matching Guidelines
   (spec v3.0.1 annex).
-- #28 (07-27): SPDX expressions, structural canonicalisation via
+- PR #28 (07-27): SPDX expressions, structural canonicalisation via
   `py-spdx-license`; cap of 40 operators against super-linear cost.
-- #34 (08-19): bare deprecated ID text redirects (`GPL-2.0` ->
+- PR #34 (08-19): bare deprecated ID text redirects (`GPL-2.0` ->
   `GPL-2.0-only`).
-- #58 (09-21): one sort key and one "or later" phrase reader
+- PR #58 (09-21): one sort key and one "or later" phrase reader
   (`classify.OR_LATER_PHRASE`); tie window exactly 0.01; "or any later
   version"/"or newer" -> `-or-later`.
-- #60 (09-21): an unknown SPDX tag is no longer a certain match; `is-*`
+- PR #60 (09-21): an unknown SPDX tag is no longer a certain match; `is-*`
   agrees with `match`.
-- #61 (09-21 to 09-28): a tag is read as one whole expression; old regex
+- PR #61 (09-21 to 09-28): a tag is read as one whole expression; old regex
   read `(MIT OR Apache-2.0)` as nothing and
   `MIT OR (Apache-2.0 AND BSD-3-Clause)` as a certain `MIT` (PR body).
   `--id` narrowed to one licence (breaking).
-- #65 (10-01): licence fields from package.json, pyproject.toml (PEP 621,
+- PR #65 (10-01): licence fields from package.json, pyproject.toml (PEP 621,
   PEP 639, Poetry), Cargo.toml, setup.cfg; `MIT/Apache-2.0` no longer read
   as MIT.
-- #66, #67 (10-01): short inputs answer from their tag; lone expression
+- PR #66, #67 (10-01): short inputs answer from their tag; lone expression
   `GPL-2.0+` read as `GPL-2.0-or-later` from any input; classpath and GFDL
   deprecated IDs redirected.
 
@@ -217,60 +218,60 @@ flake8 complexity and pylint-on-tests to CI.
 
 - Baseline (`speed-optimizations.md`): ~13,333 s over 59,738 benchmark
   queries (~0.22 s/query); target <100 ms for full texts.
-- #19 (07-06) probe gate: profiling showed ~93% of `match()` time in
+- PR #19 (07-06) probe gate: profiling showed ~93% of `match()` time in
   RapidFuzz `partial_ratio`, ~5% SQLite; a 60-word mid-query probe with
   gate 0.52 skips full alignment for weak candidates. Benchmark wall time
   4,925 s -> 1,394 s (~3.5x), recall unchanged except small deep-N dips
   (source: developer's agent memory note `perf-probe-gate.md`, not in the
   repo; treat as secondary). A chunked-FTS5 alternative was prototyped and
   was slower.
-- #25 (07-20) `speed-optimizations-round-2.md`: CLI cold start ~125 ms ->
+- PR #25 (07-20) `speed-optimizations-round-2.md`: CLI cold start ~125 ms ->
   ~31 ms (lazy `requests`/`bs4` imports); a lookup ~3x (0.676 s -> 0.220 s
   over 1,317 calls); connection+query 0.51 -> 0.33 ms; one path 66 -> 11
   ms; accuracy within 0.18 pp on 675 fixtures. `score_cutoff` on
   alignment tried and reverted.
-- #62 (09-30) blobs: 27 words plus one 2,000-char token took 5 s; 5,000
+- PR #62 (09-30) blobs: 27 words plus one 2,000-char token took 5 s; 5,000
   chars ~60 s. Guards counted words, cost follows characters. First fix
   (chars-per-word limit) lost Japanese CC-BY-SA-2.1-JP (a 1,570-char slice
   fell from certain to 0.5), caught in review (`b9c315e`). Final: probe
   capped at 500 chars (partial_ratio 15 ms/candidate at 500, 43 ms at 600,
   136 ms at 1,000), scan capped at 6,000 chars
   (`tech-debt-resolved.md` item 16).
-- #69 (10-02): one SQLite connection per `match()`: 4,000 distinct tags
+- PR #69 (10-02): one SQLite connection per `match()`: 4,000 distinct tags
   9 s -> 1.9 s; Tier 0 `score_cutoff` early stop: one 200,000-char word
   2.7 s -> 0.3 s; no answer changes.
-- #72 (10-02): ID lookups from an in-memory table cache: 4,000 tags
+- PR #72 (10-02): ID lookups from an in-memory table cache: 4,000 tags
   1.73 s -> 0.52 s; unknown ID costs no query; cache invalidated on
   `last_update_datetime` change. CHANGELOG sums #69/#72 as ">20x faster"
   for thousands of tags, ~9x for one very long word.
 
 ### 3.3 Security and robustness
 
-- #51 (09-18) data fetching: `User-Agent`, single attempt, stale-cache
+- PR #51 (09-18) data fetching: `User-Agent`, single attempt, stale-cache
   fallback with warning, `--no-cache` never stale; atomic cache writes;
   version strings validated before use in a path or URL; tarball extracted
   with path-traversal checks (CWE-22); fixes for short CSV rows, corrupt
   caches, single-licence `ZeroDivisionError`. +1,603/-147.
-- #50 (09-18): `RecursionError` on deeply nested JSON fixed; 69 tests.
-- #37 (08-20): one SQLite connection leaked per query.
-- #55 (09-19 to 09-20) database readiness gate (`dbcheck.py`): read
+- PR #50 (09-18): `RecursionError` on deeply nested JSON fixed; 69 tests.
+- PR #37 (08-20): one SQLite connection leaked per query.
+- PR #55 (09-19 to 09-20) database readiness gate (`dbcheck.py`): read
   commands exit 2 on missing/empty/invalid/unreadable DB; `update` and
   `--clear-cache` refuse a DB licenseid did not build (fail-closed on
   write, fail-open on read). Traps documented: a named pipe hangs a
   read-only open forever; `file::memory:NAME` is a disk file; URI and
   path spellings (`x`, `x/`, `x/.`). +3,353/-142, 35 files. Review rounds
   4-7 each found something (`database-readiness-gate.md`).
-- #59 (09-21): one decoder (`textinput.py`) for CLI and API: UTF-8 with
+- PR #59 (09-21): one decoder (`textinput.py`) for CLI and API: UTF-8 with
   BOM dropped, else Latin-1 with warning, NUL = binary.
 - Quadratic paths: `\s+[\s/*#]*` regex quadratic on long space runs (5 s
   at 32,000 spaces), rewritten `\s[\s/*#]*`; per-bracket re-slicing and
   per-tag rescans removed in #61; deep nesting kept from the parser (#61,
   #66; `spdx-expression-reading.md`).
-- #70 (10-02) exit codes: Ctrl-C 130 (was 1, read as "no"), closed pipe
+- PR #70 (10-02) exit codes: Ctrl-C 130 (was 1, read as "no"), closed pipe
   141 quietly, unwritable stdout exits 2 with `ERROR: output: write
   failed` (was 0 or 120), closed stdin is no input, failing stderr no
   longer turns status into 120; 10 CLI-matrix cells fixed.
-- #57 (09-20): `match()` rejects unknown keyword options (e.g. removed
+- PR #57 (09-20): `match()` rejects unknown keyword options (e.g. removed
   `enable_java`).
 
 ### 3.4 Removal of the Java tier
@@ -285,15 +286,15 @@ of known flags) and brought `cli.py`/`matcher.py` to 100% coverage
 
 ### 3.5 CLI output grammar and result format
 
-- #10 (05-01) predictable exit codes; #11 `is-spdx`/`is-open` for scripts/CI.
-- #53 (09-19): stdout carries only results; diagnostics to stderr in
+- PR #10 (05-01) predictable exit codes; #11 `is-spdx`/`is-open` for scripts/CI.
+- PR #53 (09-19): stdout carries only results; diagnostics to stderr in
   `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`; `LicenseIdError`,
   `InvalidInputError`; a conftest guard fails any test printing a
   non-conforming line. +1,519/-257.
-- #73 (10-02): click's usage errors reworded into the same grammar
+- PR #73 (10-02): click's usage errors reworded into the same grammar
   (`ERROR: option: not found: --bogus; did you mean --bold`); bare
   command prints help to stderr with exit 2.
-- #68 (10-02): every result has the same nine keys, `score` capped to
+- PR #68 (10-02): every result has the same nine keys, `score` capped to
   0-1, `method`, `exact`; `--json` prints JSON Lines canonicalised per
   RFC 8785 (JCS, new dependency `rfc8785`); text line adds `METHOD=`,
   `EXACT=`, `SCORE=`; `--exact`; `--threshold` 0-1. Four breaking bullets
@@ -305,7 +306,7 @@ of known flags) and brought `cli.py`/`matcher.py` to 100% coverage
   (`bffa85d`). Since 09-19, `codemeta.json` is the source and
   `.github/workflows/codemeta2cff.yml` (caltechlibrary/codemeta2cff,
   cff-validator) regenerates `CITATION.cff` (`cd9f03d`, `dc9c336`).
-- #71 (10-02): one description and one keyword list (same order) across
+- PR #71 (10-02): one description and one keyword list (same order) across
   `pyproject.toml` and `codemeta.json`.
 
 ## 4. Supply chain and SBOM
@@ -353,7 +354,7 @@ loop, then ran `spdx3-validate`.
 
 ### 4.3 How it was fixed
 
-- #74 (2026-10-03, +92/-60): the SBOM is embedded only by the Pitloom
+- PR #74 (2026-10-03, +92/-60): the SBOM is embedded only by the Pitloom
   Hatchling build hook (`[tool.hatch.build.hooks.pitloom]`); the Action
   re-embed step is removed; build requirement
   `pitloom[content-type]>=0.19.0` with `[tool.pitloom.content-type]
@@ -362,7 +363,7 @@ loop, then ran `spdx3-validate`.
   `build.yml` and `pypi-publish.yml`; the release attaches that same SBOM.
 - v0.4.0 bump (`e143562`, 10-05): build floor raised to
   `pitloom[content-type]>=0.20.0`.
-- #76 (2026-10-05, +496/-73): copies Pitloom's
+- PR #76 (2026-10-05, +496/-73): copies Pitloom's
   `scripts/extract_wheel_sbom.py` and `scripts/check_sbom_license.py`
   (replacing the shell script). Release job now: exactly one
   `*.spdx3.json` in the wheel, matching its `RECORD` hash, every file's
