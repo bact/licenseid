@@ -28,11 +28,11 @@ and this project adheres to
   (`StandardML-NJ` is `SMLNJ`); `update` rebuilds a database built by older
   rules, which warns `build v1 outdated`, without `--force` ([#97])
 - `GPL-2+` is `GPL-2.0-or-later`, not the invalid `GPL-2.0-only+`; `MI+`
-  and `GPL-2.0-only+` name no licence ([#99])
+  names no licence, and `--id GPL-2.0-only+` is a usage error (exit 2) ([#99])
 - A missing file named as an argument (`match LICENSE.txt`) exits 2 with
   `input: not found`, not a confident text match; use `--text` ([#99])
-- An expression over 150 operators or 150 brackets is refused on every
-  Python, not only where 3.10's recursion limit fell ([#99])
+- An expression over 150 operators or 150 levels of brackets is refused on
+  every Python, not only where 3.10's recursion limit fell ([#99])
 
 [#96]: https://github.com/bact/licenseid/pull/96
 [#97]: https://github.com/bact/licenseid/pull/97

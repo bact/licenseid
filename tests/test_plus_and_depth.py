@@ -13,11 +13,14 @@ from collections.abc import Generator
 from unittest import mock
 
 import pytest
+from click.testing import CliRunner
 from matcher_db import Lic, seeded_db
 from resolver_helpers import GPL2, GPL2_PLUS
 
 from licenseid import resolve
+from licenseid.cli import cli
 from licenseid.identifiers import (
+    is_simple_expression,
     normalize_identifier,
     parse_declared,
     parse_expression,
@@ -97,6 +100,61 @@ def test_plus_after_qualifier(expression: str, twice: bool) -> None:
     assert plus_after_qualifier(expression) is twice
     unparsed = parse_expression(strip_plus_operator(expression)) is None
     assert (parse_declared(expression) is None) is (twice or unparsed)
+
+
+@pytest.mark.parametrize(
+    ("value", "simple"),
+    [
+        ("GPL-2.0-only+", False),
+        ("(gpl-2.0-OR-LATER+)", False),
+        ("GPL-2.0-only+ WITH Classpath-exception-2.0", False),
+        ("GPL-2.0+", True),
+        ("MI+", True),  # shaped as one ID; that it names none is match's answer
+        ("GPL-2.0-only", True),
+    ],
+)
+def test_a_plus_after_a_qualifier_declares_no_licence(value: str, simple: bool) -> None:
+    assert is_simple_expression(value) is simple
+
+
+@pytest.mark.parametrize(
+    ("value", "code"),
+    [
+        ("GPL-2.0-only+", 2),  # malformed: a usage error, as resolve says
+        ("GPL-2.0-or-later+", 2),
+        ("MI+", 1),  # well formed, names nothing: "no", as for any unknown ID
+        ("Foo", 1),
+    ],
+)
+@pytest.mark.parametrize("command", ["match", "is-osi"])
+def test_id_refuses_a_plus_after_a_qualifier(
+    command: str, value: str, code: int
+) -> None:
+    for path in seeded_db("test_plus_and_depth_cli", ROWS):
+        result = CliRunner().invoke(cli, ["--db", path, command, "--id", value])
+        assert result.exit_code == code
+        if code == 2:
+            assert result.stdout == ""
+            assert result.stderr.splitlines()[-1] == (
+                f"ERROR: option: invalid: --id: {value}; pass one license ID"
+            )
+
+
+@pytest.mark.parametrize(
+    ("value", "category"),
+    [
+        ("MIT OR GPL-2.0-only+", "malformed"),  # as GPL-2.0-only+ on its own
+        ("(MIT AND GPL-2.0-or-later+)", "malformed"),
+        ("MIT OR GPL-2.0+", "expression"),
+        ("MIT OR GPL-2.0-only", "expression"),
+        ("MIT OR " + "GPL-2.0-only+ OR " * 8 + "MIT", "malformed"),  # a long one
+        ("Proprietary or GPL-2.0-only+", "unresolved"),  # not an expression
+    ],
+)
+def test_a_plus_after_a_qualifier_in_an_expression_is_malformed(
+    matcher: AggregatedLicenseMatcher, value: str, category: str
+) -> None:
+    assert resolve(value, matcher.db)["category"] == category
 
 
 def chain(operators: int) -> str:

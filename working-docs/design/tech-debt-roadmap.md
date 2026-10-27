@@ -26,7 +26,8 @@ item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
 the review of PR #66, items 30 and 31 from the work on item 21, and items
 32 to 35 from the review of item 22, item 36 from the docs audit
 after it, item 37 from the work on item 29, item 38 from the
-review of PR #80, and items 39 to 42 from the review of PR #82.
+review of PR #80, items 39 to 42 from the review of PR #82, and item 43
+from the review of PR #99.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -278,6 +279,18 @@ licenseid's own. Likely cause: `PRAGMA mmap_size=268435456` in
   the mapping, or another approach; time a match against `main`. The lookup
   must raise `DatabaseNotReadyError`.
 - Impact 2, Risk 3, Effort 2.
+
+## 43. Cargo's `MIT/Apache-2.0` is matched as text — Priority 16
+
+Found in review of PR #99 (2026-10-27). Cargo once wrote OR as `/`, and
+crates still declare `MIT/Apache-2.0`. Given as an argument, the CLI no
+longer calls it a missing file (`cli.names_licences`), but `match` reads
+it as text and answers `ECL-2.0` at 0.86, and `resolve` gives
+`unresolved`. Reading `/` as OR is a rule to decide (only between listed
+IDs, in a declared value only, with a step of its own), not a fix: see
+[`matching-rules-redesign.md`](matching-rules-redesign.md).
+
+- Impact 2, Risk 2, Effort 2.
 
 ## 42. A very long word costs seconds in the full-text search — Priority 16
 

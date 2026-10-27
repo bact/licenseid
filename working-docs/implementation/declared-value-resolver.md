@@ -18,7 +18,8 @@ narrows it to `-only` and warns.
 
 ## Decisions from the pre-release review
 
-The review before 0.6.0 found nine issues. What was decided:
+The review before 0.6.0 found nine issues, and a second review of PR #99
+seven more. What was decided:
 
 - **WITH.** `X WITH exception` names one licence. `_with` reads `X` as a
   value of its own (a "+", a grant, a loose ID, a `LicenseRef-*`) and the
@@ -65,6 +66,19 @@ The review before 0.6.0 found nine issues. What was decided:
   `database: build v1 outdated: current v2; run 'licenseid update'`, and
   `update` rebuilds such a database at the release it has. The
   normalisation stamp works the same way now, so neither needs `--force`.
+- **A "+" after a qualifier in an expression.** `MIT OR GPL-2.0-only+`
+  is `malformed`, as `GPL-2.0-only+` is on its own; it was `unresolved`,
+  because the expression check parsed through `parse_declared`, which
+  answers None for both. `--id GPL-2.0-only+` is a usage error (exit 2):
+  `is_simple_expression` refuses it. `--id MI+` is well formed and names
+  no licence, so it exits 1, as `--id Foo` does.
+- **A path that names no file** (`cli.get_input_content`,
+  `textinput.looks_like_path`). A URL without its scheme
+  (`www.apache.org/licenses/LICENSE-2.0`) is no path: a host name before
+  the first "/" says so. Licence IDs joined by "/" (`MIT/Apache-2.0`) are
+  not either: the CLI asks the database. An extension is any word of
+  letters and digits after a full stop, so `COPYING.LESSER` is a path; no
+  SPDX ID ends in one.
 - **Version number.** The release was first planned as a patch. A new
   public API makes it a minor release under SemVer, so it is 0.6.0.
 

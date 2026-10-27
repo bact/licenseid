@@ -33,7 +33,7 @@ from licenseid.errors import (
     invalid_id_error,
     one_line,
 )
-from licenseid.identifiers import is_simple_expression
+from licenseid.identifiers import is_license_ref, is_simple_expression
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.output import (
     EchoHelpCommand,
@@ -374,19 +374,30 @@ def read_text_option(ctx: click.Context, text: str) -> str:
     return content
 
 
+def names_licences(db: LicenseDatabase, value: str) -> bool:
+    """Whether every part of a "/"-joined *value* is a licence ID or a
+    ``LicenseRef-*`` ("MIT/Apache-2.0", Cargo's old way to write OR): a
+    declared value, not a path, whatever its shape."""
+    return all(
+        is_license_ref(part) or db.get_license_details(part)
+        for part in value.split("/")
+    )
+
+
 def get_input_content(
-    ctx: click.Context, input_val: str | None, text: str | None
+    ctx: click.Context, input_val: str | None, text: str | None, db: LicenseDatabase
 ) -> str:
     """The input to match: --text, else the argument (a file if one exists by
-    that name, a usage error if it is shaped like a path, else the value
-    itself), else stdin; "" if there is none."""
+    that name, a usage error if it is shaped like a path and names no
+    licence, else the value itself), else stdin; "" if there is none."""
     if text is not None:
         return read_text_option(ctx, text)
     if input_val:
         if os.path.exists(input_val):
             return read_input(ctx, input_val)
         reject_unencodable(ctx, input_val)
-        if looks_like_path(input_val):  # a mistyped path is no text to match
+        if looks_like_path(input_val) and not names_licences(db, input_val):
+            # a mistyped path is no text to match
             exit_bad_input(ctx, f"not found: {one_line(input_val)}; pass --text")
         return input_val
     # A closed standard input (`<&-`) is None: no input, not a crash.
@@ -415,7 +426,7 @@ def resolve_license_record(
         return matcher.resolve_record(license_id=id_val)
 
     # 2. Handle stdin/arguments
-    content = get_input_content(ctx, input_val, text)
+    content = get_input_content(ctx, input_val, text, matcher.db)
     if not content:
         exit_no_input(ctx)
 
@@ -489,7 +500,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         results = matcher.match(license_id=id_val)
         license_text = ""
     else:
-        content = get_input_content(ctx, input_val, text)
+        content = get_input_content(ctx, input_val, text, matcher.db)
         if not content:
             exit_no_input(ctx)
 

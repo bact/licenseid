@@ -142,6 +142,13 @@ echo "MIT License..." | licenseid match
 licenseid match --id MIT
 ```
 
+An argument names a file when one exists by that name. One that does not,
+but is shaped like a path (one word with `/`, `\` or a file extension, such
+as `LICENSE.txt` or `docs/LICENSE`), exits 2 with
+`ERROR: input: not found: <value>; pass --text`, rather than be matched as
+text. A URL, with or without its scheme, and license IDs joined by `/`
+(`MIT/Apache-2.0`) are not paths. Use `--text` to match any value as text.
+
 Input is read as UTF-8. Text that is not valid UTF-8 is read as Latin-1,
 with a warning on standard error; binary data is rejected (exit code 2).
 
@@ -152,7 +159,8 @@ Common options:
   (e.g., `file:test?mode=memory&cache=shared`).
 - `--id <id>`: Explicitly treat input as one SPDX License ID (bypasses
   file/text matching). It declares a single license, so it takes an ID, a
-  `LicenseRef-*`, an ID with `+` (a `LicenseRef-*` takes none), and either
+  `LicenseRef-*`, an ID with `+` (a `LicenseRef-*` takes none, nor does an
+  ID that ends in `-only` or `-or-later`), and either
   `WITH <exception>`, in
   brackets or not: `MIT`, `(MIT)`, `Apache-2.0+`,
   `MIT WITH Font-exception-2.0`. It does not take an
@@ -163,6 +171,8 @@ Common options:
   else, whether an argument, `--text`, standard input or a file, is read as
   `--id` reads it (`--text GPL-2.0+` is `GPL-2.0-or-later`); anything else
   is matched as text: `MIT but modified heavily by us` is text, not MIT.
+  An argument that names no file is first checked for the shape of a path
+  (see above).
 - `--text <text>`: Match the given text. Backslash escapes such as `\n`,
   `\t` and `\u00e9` are decoded, so write `\\` for a literal backslash
   (for example in a Windows path).

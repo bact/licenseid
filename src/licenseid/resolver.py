@@ -26,7 +26,7 @@ from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
 from licenseid.identifiers import (
     is_license_ref,
-    parse_declared,
+    parse_expression,
     without_outer_brackets,
 )
 from licenseid.looseid import (
@@ -35,6 +35,7 @@ from licenseid.looseid import (
     granted_id_text,
     loose_id,
 )
+from licenseid.plusoperator import plus_after_qualifier, strip_plus_operator
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
     LEXICAL_KINDS,
@@ -107,12 +108,11 @@ def _lookup(db: LicenseDatabase, value: str) -> _Found:
     if not text or len(text) > MAX_EXPRESSION_CHARS or _has_control(text):
         found.category = "unresolved"
         return found
-    if len(text) > MAX_KEY_INPUT:  # no ID is this long: only an expression is
-        found.category = "expression" if _is_expression(db, text) else "unresolved"
+    if len(text) <= MAX_KEY_INPUT and (  # no ID is longer: only an expression
+        _with(db, text, found) or _one(db, text, found)
+    ):
         return found
-    if _with(db, text, found) or _one(db, text, found):
-        return found
-    found.category = "expression" if _is_expression(db, text) else "unresolved"
+    found.category = _expression_category(db, text)
     return found
 
 
@@ -125,13 +125,22 @@ def _unbracketed(text: str, found: _Found) -> str:
     return inner.strip()
 
 
+def _expression_category(db: LicenseDatabase, text: str) -> Category:
+    """``expression`` for an SPDX expression of several licences,
+    ``malformed`` for one with a "+" after a stated qualifier
+    (``MIT OR GPL-2.0-only+``), as on its own; else ``unresolved``."""
+    if not _is_expression(db, text):
+        return "unresolved"
+    return "malformed" if plus_after_qualifier(text) else "expression"
+
+
 def _is_expression(db: LicenseDatabase, text: str) -> bool:
     """Whether *text* is an SPDX expression of several licences: it parses (a
     "+" operator aside), and every operand is a listed ID or looks like one
     (a digit, a hyphen or a full stop in it). ``MIT OR Apache2`` is;
     ``Proprietary or custom``, ``GPL-3.0 or higher`` and ``Licensed with love``
     name one licence, or none, and are not."""
-    if _RE_SQUARE.search(text) or parse_declared(text) is None:
+    if _RE_SQUARE.search(text) or parse_expression(strip_plus_operator(text)) is None:
         return False
     tokens = _RE_TOKEN.findall(text)
     operands = [

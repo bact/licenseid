@@ -366,8 +366,9 @@ _SIMPLE_SHAPES = (
 
 
 def is_simple_expression(value: str) -> bool:
-    """Whether *value* names one license: an ID, optionally with "+", or a
-    ``LicenseRef-*``, either ``WITH`` an exception, in any number of brackets.
+    """Whether *value* names one license: an ID, optionally with "+" (not
+    after ``-only`` or ``-or-later``), or a ``LicenseRef-*``, either ``WITH``
+    an exception, in any number of brackets.
 
     What a declaration may hold. A tag carries whatever its author wrote, but
     "MIT OR Apache-2.0" declares neither license, and a name or an SPDX URL
@@ -377,6 +378,8 @@ def is_simple_expression(value: str) -> bool:
     value = value.strip()
     if not value or leading_expression(value) != value:
         return False
+    if plus_after_qualifier(value):
+        return False  # "GPL-2.0-only+": no ID takes both
     tokens = [token.group(0) for token in _RE_TOKEN.finditer(value)]
     if any(
         token == "+" and LICENSE_REF_PREFIX.match(before)
