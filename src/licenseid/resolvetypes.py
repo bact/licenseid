@@ -16,7 +16,7 @@ from typing import Final, Literal, TypedDict
 # Every kind of step, in the family it belongs to. A: the same text with only
 # its form changed (no decision). B: the resolver decides which licence is
 # meant. C: an expansion of a qualifier (``-only``, ``-or-later``).
-LEXICAL_KINDS: Final = frozenset({"brackets", "id_case", "trim"})
+LEXICAL_KINDS: Final = frozenset({"brackets", "id_case", "trim", "whitespace"})
 DECISION_KINDS: Final = frozenset(
     {
         "separator",
@@ -29,6 +29,20 @@ DECISION_KINDS: Final = frozenset(
 EXPANSION_KINDS: Final = frozenset(
     {"plus_to_or_later", "stated_qualifier", "assumed_only"}
 )
+
+# What a list must provide for a step of this kind to cite it. A kind that is
+# not here rests on no list (a trimmed space, brackets, an author's own
+# "or later") and cites none.
+LIST_PROVIDES: Final = {
+    "id_case": "ids",
+    "separator": "ids",
+    "version_spelling": "ids",
+    "listed_name": "names",
+    "deprecated_equal_successor": "deprecation",
+    "deprecated_ambiguous": "deprecation",
+    "plus_to_or_later": "ids",
+    "assumed_only": "deprecation",
+}
 
 Category = Literal[
     "exact",

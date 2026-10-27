@@ -13,7 +13,7 @@ from matcher_db import Lic, seeded_db
 import licenseid
 from licenseid import LicenseDatabase
 from licenseid.resolve import resolve
-from licenseid.resolvetypes import CATEGORY_ORDER, TRUST, Resolution
+from licenseid.resolvetypes import CATEGORY_ORDER, LIST_PROVIDES, TRUST, Resolution
 
 ROWS = (
     Lic("MIT", "MIT License"),
@@ -165,6 +165,50 @@ def _summary(r: Resolution) -> tuple[object, ...]:
                 [],
             ),
         ),
+        # "+" follows the deprecation of its base
+        (
+            "StandardML-NJ+",
+            (
+                "SMLNJ+",
+                "deprecated_equal_successor",
+                ["deprecated_equal_successor"],
+                [],
+                [],
+            ),
+        ),
+        (
+            "BSD-2-Clause-FreeBSD+",
+            (
+                "BSD-2-Clause-FreeBSD+",
+                "deprecated_ambiguous",
+                [],
+                [("deprecated_ambiguous", False)],
+                [],
+            ),
+        ),
+        ("MIT +", ("MIT+", "lexical", ["whitespace"], [], [])),
+        (
+            "(GPL-2.0)+",
+            (
+                "GPL-2.0-or-later",
+                "plus_to_or_later",
+                ["brackets"],
+                [("plus_to_or_later", True)],
+                [],
+            ),
+        ),
+        # a qualifier twice is malformed; a grant that cannot apply is not dropped
+        ("GPL-2.0++", (None, "malformed", [], [], [])),
+        ("GPL-2.0-only or later", (None, "malformed", [], [], [])),
+        ("GPL-2.0+ or later", (None, "malformed", [], [], [])),
+        ("MIT or later", (None, "unresolved", [], [], [])),
+        # an expression needs a structure and a listed ID, not just the word "or"
+        ("MIT OR Foo", (None, "expression", [], [], [])),
+        ("Proprietary or custom", (None, "unresolved", [], [], [])),
+        ("Licensed with love", (None, "unresolved", [], [], [])),
+        ("AND", (None, "unresolved", [], [], [])),
+        ("MIT OR", (None, "unresolved", [], [], [])),
+        ("(MIT OR Foo", (None, "unresolved", [], [], [])),
         # D: no answer
         ("Proprietary", (None, "unresolved", [], [], [])),
         ("GPL-2.0-only+", (None, "malformed", [], [], [])),
@@ -187,7 +231,18 @@ def test_a_value_resolves_with_its_steps(
 
 
 @pytest.mark.parametrize(
-    "value", ["mit", "Apache2", "GPL-2.0+", "StandardML-NJ", "GPLv2 or later"]
+    "value",
+    [
+        "mit",
+        "Apache2",
+        "GPL-2.0+",
+        "StandardML-NJ",
+        "GPLv2 or later",
+        "(mit)",
+        " MIT +",
+        "Apache License 2.0",
+        "StandardML-NJ+",
+    ],
 )
 def test_an_accepted_expression_resolves_to_itself(
     db: LicenseDatabase, value: str
@@ -200,21 +255,37 @@ def test_an_accepted_expression_resolves_to_itself(
 
 
 def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> None:
-    """A step never rests on a list that does not provide its kind."""
-    kinds = {
-        "id_case": "ids",
-        "separator": "ids",
-        "version_spelling": "ids",
-        "listed_name": "names",
-        "deprecated_equal_successor": "deprecation",
-        "deprecated_ambiguous": "deprecation",
-        "plus_to_or_later": "ids",
-    }
-    for value in ("mit", "Apache2", "apache license 2.0", "StandardML-NJ", "GPL-2.0+"):
+    """A step cites the list only for a kind the list provides; a step that
+    rests on no list (trimming, brackets, the author's own words) cites none."""
+    values = (
+        " mit ",
+        "(mit)",
+        "Apache2",
+        "apache license 2.0",
+        "StandardML-NJ",
+        "BSD-2-Clause-FreeBSD",
+        "GPL-2.0+",
+        "GPL-3.0",
+        "GPL-2.0 or later",
+        "MIT +",
+    )
+    seen = set()
+    for value in values:
         r = resolve(value, db)
         lists = {entry["id"]: entry for entry in r["lists"]}
         for step in r["steps"] + r["expansions"]:
-            assert kinds[step["kind"]] in lists[step["list"]]["provides"]
+            seen.add(step["kind"])
+            if step["kind"] in LIST_PROVIDES:
+                assert LIST_PROVIDES[step["kind"]] in lists[step["list"]]["provides"]
+            else:
+                assert step["list"] == ""
+    # every kind the table lists is exercised, and so are the ones without a list
+    assert seen == set(LIST_PROVIDES) | {
+        "trim",
+        "whitespace",
+        "brackets",
+        "stated_qualifier",
+    }
 
 
 def test_the_result_names_the_resolver_and_the_list(db: LicenseDatabase) -> None:

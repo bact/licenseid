@@ -23,10 +23,17 @@ from dataclasses import dataclass, field
 from licenseid import __version__
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
-from licenseid.identifiers import without_outer_brackets
-from licenseid.looseid import MAX_KEY_INPUT, granted_id_text, loose_id
+from licenseid.identifiers import parse_expression, without_outer_brackets
+from licenseid.looseid import (
+    MAX_KEY_INPUT,
+    declared_grant_id_text,
+    granted_id_text,
+    loose_id,
+)
 from licenseid.resolvetypes import (
     CATEGORY_ORDER,
+    LEXICAL_KINDS,
+    LIST_PROVIDES,
     TRUST,
     Category,
     ListInfo,
@@ -40,9 +47,9 @@ SPDX_LIST = "spdx-license-list"
 _PROVIDES = ["deprecation", "ids", "names", "texts"]
 _RE_NUMBERS = re.compile(r"\d+(?:\.\d+)*")
 _RE_VERSION = re.compile(r"[vV]?\d+(?:\.\d+)*")
-_RE_EXPRESSION = re.compile(r"\b(?:AND|OR|WITH)\b|[()]", re.IGNORECASE)
+_RE_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]*")
 # A step kind that is not also a category name, mapped to the one it counts as.
-_AS_CATEGORY = {"trim": "lexical", "id_case": "lexical", "brackets": "lexical"}
+_AS_CATEGORY = {kind: "lexical" for kind in LEXICAL_KINDS}
 
 
 @dataclass
@@ -80,10 +87,7 @@ def _lookup(db: LicenseDatabase, value: str) -> _Found:
     text = value.strip()
     if text != value:
         found.steps.append(_step("trim", True, value, text))
-    unbracketed = without_outer_brackets(text)
-    if unbracketed != text:
-        found.steps.append(_step("brackets", True, text, unbracketed))
-        text = unbracketed.strip()
+    text = _unbracketed(text, found)
     if not text or len(text) > MAX_KEY_INPUT or _has_control(text):
         found.category = "unresolved"
         return found
@@ -91,8 +95,26 @@ def _lookup(db: LicenseDatabase, value: str) -> _Found:
         return found
     if _single(db, text, found):
         return found
-    found.category = "expression" if _RE_EXPRESSION.search(text) else "unresolved"
+    found.category = "expression" if _is_expression(db, text) else "unresolved"
     return found
+
+
+def _unbracketed(text: str, found: _Found) -> str:
+    """*text* without brackets around the whole of it, as a ``brackets`` step."""
+    inner = without_outer_brackets(text)
+    if inner == text:
+        return text
+    found.steps.append(_step("brackets", True, text, inner))
+    return inner.strip()
+
+
+def _is_expression(db: LicenseDatabase, text: str) -> bool:
+    """Whether *text* is an SPDX expression of several licences with at least
+    one ID the List knows: ``MIT OR Foo`` is, ``Proprietary or custom`` and
+    ``Licensed with love`` are not."""
+    if parse_expression(text) is None:
+        return False
+    return any(db.get_license_details(token) for token in _RE_TOKEN.findall(text))
 
 
 def _has_control(text: str) -> bool:
@@ -102,12 +124,19 @@ def _has_control(text: str) -> bool:
 
 
 def _plus(db: LicenseDatabase, text: str, found: _Found) -> bool:
-    """``X+`` as ``X-or-later`` where the List has that ID; else ``X+``."""
-    base = _base(db, text[:-1].strip())
+    """``X+`` as ``X-or-later`` where the List has that ID. Otherwise ``X+`` as
+    written, after the deprecation of ``X`` (a rename is followed, an ID with
+    no known successor is offered, not changed). A qualifier already stated
+    (``X-only+``, ``X++``) is malformed."""
+    base_text = text[:-1]
+    stripped = base_text.rstrip()
+    if stripped != base_text:
+        found.steps.append(_step("whitespace", True, text, stripped + "+"))
+    base = _base(db, _unbracketed(stripped, found).strip())
     if base is None:
         return False
     license_id, steps = base
-    if license_id.endswith(("-only", "-or-later")):
+    if license_id.endswith(("-only", "-or-later", "+")):
         found.category = "malformed"  # the qualifier is stated; "+" adds a second
         return True
     found.steps.extend(steps)
@@ -115,30 +144,47 @@ def _plus(db: LicenseDatabase, text: str, found: _Found) -> bool:
     if _in_use(db, or_later):
         found.expansions.append(_step("plus_to_or_later", True, text, or_later))
         found.expression = _canonical(db, or_later)
-    else:
-        found.expression = f"{license_id}+"
+        return True
+    _deprecation(db, license_id, found)
+    found.expression = f"{found.expression}+"
     return True
 
 
 def _single(db: LicenseDatabase, text: str, found: _Found) -> bool:
     """A value that names one licence: a stated qualifier ("GPLv2 or later"),
     or an ID, a name or a loose ID, then its deprecation."""
-    named = granted_id_text(text)
+    named = granted_id_text(text) or declared_grant_id_text(text)
     if named is not None:
-        granted = loose_id(db, text)
         base = _base(db, named.strip())
-        if granted and base and granted[1].endswith("-or-later"):
-            found.steps.extend(base[1])
-            found.expansions.append(
-                _step("stated_qualifier", True, text, granted[1], "or later stated")
-            )
-            found.expression = granted[1]
-            return True
+        if base is not None:
+            return _grant(db, text, base, found)
     base = _base(db, text)
     if base is None:
         return False
     found.steps.extend(base[1])
     _deprecation(db, base[0], found)
+    return True
+
+
+def _grant(
+    db: LicenseDatabase, text: str, base: tuple[str, list[Step]], found: _Found
+) -> bool:
+    """An ID followed by an "or later" grant. The grant is applied where the
+    List has the ``-or-later`` ID; a qualifier already stated (``X-only or
+    later``) is malformed; an ID with no ``-or-later`` form is unresolved,
+    not read without its grant."""
+    license_id, steps = base
+    granted = loose_id(db, text)
+    if license_id.endswith(("-only", "-or-later", "+")):
+        found.category = "malformed"
+    elif granted is None or not granted[1].endswith("-or-later"):
+        found.category = "unresolved"
+    else:
+        found.steps.extend(steps)
+        found.expansions.append(
+            _step("stated_qualifier", True, text, granted[1], "or later stated")
+        )
+        found.expression = granted[1]
     return True
 
 
@@ -215,7 +261,7 @@ def _step(kind: str, applied: bool, source: str, target: str, detail: str = "") 
         "applied": applied,
         "from": source,
         "to": target,
-        "list": SPDX_LIST,
+        "list": SPDX_LIST if kind in LIST_PROVIDES else "",
         "detail": detail,
     }
 

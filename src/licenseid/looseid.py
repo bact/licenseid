@@ -161,6 +161,25 @@ def granted_id_text(text: str) -> str | None:
     return text[:start]
 
 
+# A grant that ends a declared value, number or not: "MIT or later",
+# "GPL-3.0-only or later". classify.OR_LATER_PHRASE wants a number before "or
+# later" because prose also says "sooner or later"; a value that is only an
+# ID and a grant has no such doubt.
+_RE_DECLARED_GRANT = re.compile(
+    r"\s+or\s+(?:any\s+)?(?:later|newer)(?:\s+versions?)?[\s.]*", re.IGNORECASE
+)
+
+
+def declared_grant_id_text(text: str) -> str | None:
+    """The part of a declared value before an "or later" grant that ends it,
+    with or without a number before the grant: "GPL-3.0-only or later" gives
+    "GPL-3.0-only". None for a value without one."""
+    grant = _RE_DECLARED_GRANT.search(text)
+    if grant is None or grant.end() != len(text):
+        return None
+    return text[: grant.start()]
+
+
 def _granted(db: LicenseDatabase, text: str) -> tuple[LicenseNameId, str] | None:
     """*text* as a loose ID and an "or later" grant that ends it, read by the
     one reader of the phrase (classify.OR_LATER_PHRASE, through
