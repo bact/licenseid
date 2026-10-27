@@ -8,8 +8,10 @@
 "or later" readers it shares with ``match``."""
 # pylint: disable=missing-function-docstring
 
+import re
 import sqlite3
 from collections.abc import Generator
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -21,6 +23,7 @@ from licenseid import LicenseDatabase
 from licenseid.classify import is_negated
 from licenseid.looseid import declared_grant_id_text, granted_id_text
 from licenseid.resolver import resolve
+from licenseid.resolvertypes import CATEGORY_ORDER, TRUST
 
 ROWS = (
     Lic("MIT", "MIT License"),
@@ -275,3 +278,9 @@ def test_a_name_held_by_a_deprecated_row_only_is_no_listed_name() -> None:
             "standard ml of new jersey license": ["SMLNJ"]
         }
         assert resolve("Old License", db)["category"] == "unresolved"
+
+
+def test_the_readme_lists_every_category_in_order_with_its_trust() -> None:
+    readme = (Path(__file__).parents[1] / "README.md").read_text(encoding="utf-8")
+    rows = re.findall(r"^\| `(\w+)` \| `(\w+)` \|", readme, re.MULTILINE)
+    assert rows == [(c, TRUST[c]) for c in CATEGORY_ORDER]
