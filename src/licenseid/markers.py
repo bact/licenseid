@@ -16,6 +16,7 @@ from licenseid.identifiers import (
     leading_expression,
     normalize_identifier,
     parse_expression,
+    plus_after_qualifier,
     qualify_trailing_grant,
     strip_plus_operator,
 )
@@ -278,6 +279,8 @@ class MarkerDetector:
         counts as known. The OSI and FSF flags come from
         ``identifiers.flag_source``.
         """
+        if plus_after_qualifier(lic_id):
+            return None  # "GPL-2.0-only+": the qualifier is stated twice
         tree = parse_expression(strip_plus_operator(lic_id))
         if tree is None:
             return None  # not an expression (or too deep to parse)

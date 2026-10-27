@@ -31,6 +31,7 @@ from licenseid.errors import (
     InvalidInputError,
     LicenseIdError,
     invalid_id_error,
+    one_line,
 )
 from licenseid.identifiers import is_simple_expression
 from licenseid.matcher import AggregatedLicenseMatcher
@@ -44,6 +45,7 @@ from licenseid.output import (
 from licenseid.result import json_line, text_line
 from licenseid.textinput import (
     decode_input,
+    looks_like_path,
     normalize_newlines,
     read_text_file,
     reject_binary,
@@ -376,13 +378,16 @@ def get_input_content(
     ctx: click.Context, input_val: str | None, text: str | None
 ) -> str:
     """The input to match: --text, else the argument (a file if one exists by
-    that name, else the value itself), else stdin; "" if there is none."""
+    that name, a usage error if it is shaped like a path, else the value
+    itself), else stdin; "" if there is none."""
     if text is not None:
         return read_text_option(ctx, text)
     if input_val:
         if os.path.exists(input_val):
             return read_input(ctx, input_val)
         reject_unencodable(ctx, input_val)
+        if looks_like_path(input_val):  # a mistyped path is no text to match
+            exit_bad_input(ctx, f"not found: {one_line(input_val)}; pass --text")
         return input_val
     # A closed standard input (`<&-`) is None: no input, not a crash.
     if sys.stdin is not None and not sys.stdin.isatty():

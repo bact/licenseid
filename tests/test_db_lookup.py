@@ -202,10 +202,9 @@ def test_a_row_with_no_id_is_skipped() -> None:
         (lambda t: t.names_and_ids(), "_names_and_ids"),
         (lambda t: t.deprecated(), "_deprecated"),
         (lambda t: t.names_by_key(str.lower), "_keyed"),
-        (lambda t: t.active_ids_by_name(), "_active"),
-        (lambda t: t.active_id_with_prefix("M"), "_active"),
+        (lambda t: t.active_ids_by_name(), "_active_by_name"),
     ],
-    ids=["ids", "index", "names", "deprecated", "keyed", "by-name", "prefix"],
+    ids=["ids", "index", "names", "deprecated", "keyed", "by-name"],
 )
 def test_a_read_made_during_a_clear_is_not_kept(
     db: LicenseDatabase, read: Callable[[TableCache], object], kept: str

@@ -146,6 +146,15 @@ _MAX_PARSE_COST = 10**9
 # white space (no-break space, vertical tab), so a run joined by it is one
 # token there. "+" breaks there too; counting it in only refuses more.
 _RE_PARSER_TOKEN = re.compile(r"[^ \t\n\r()]+")
+# The largest expression read, in operators and in depth of brackets. The
+# parser walks its tree by recursion, with no guard, so where it gives up
+# depended on the interpreter: Python 3.10 at 335 operators in a row or 250
+# brackets with an operator in each, Python 3.14 at 500 and 335. Under both,
+# every supported version answers alike (tech-debt roadmap, item 19). Real
+# expressions hold a few dozen operators at most.
+_MAX_PARSE_OPERATORS = 150
+_MAX_PARSE_DEPTH = 150
+_RE_PARSER_PART = re.compile(r"[()]|[^ \t\n\r()]+")
 
 
 def parse_expression(expression: str) -> py_spdx_license.Node | None:
@@ -155,14 +164,15 @@ def parse_expression(expression: str) -> py_spdx_license.Node | None:
     _MAX_PARSE_COST.
 
     Catches broadly, not just ``ParseError``: the parser is a plain recursive
-    tree walk with no depth guard, so a pathological input (a very long
-    ``AND`` chain) raises ``RecursionError`` instead.
+    tree walk with no depth guard. An expression over _MAX_PARSE_OPERATORS
+    or _MAX_PARSE_DEPTH is refused before it, so the answer does not depend
+    on where the interpreter's recursion limit falls.
     """
     cost = sum(
         (token.end() - token.start()) ** 2
         for token in _RE_PARSER_TOKEN.finditer(expression)
     )
-    if cost > _MAX_PARSE_COST:
+    if cost > _MAX_PARSE_COST or _too_large_to_parse(expression):
         return None
     try:
         return py_spdx_license.parse(
@@ -170,6 +180,24 @@ def parse_expression(expression: str) -> py_spdx_license.Node | None:
         )
     except Exception:  # pylint: disable=broad-exception-caught
         return None
+
+
+def _too_large_to_parse(expression: str) -> bool:
+    """Whether *expression* holds more operators or deeper brackets than the
+    parser is given (_MAX_PARSE_OPERATORS, _MAX_PARSE_DEPTH). One pass, which
+    stops at the first part over either."""
+    operators = depth = 0
+    for part in _RE_PARSER_PART.finditer(expression):
+        word = part.group(0)
+        if word == "(":
+            depth += 1
+        elif word == ")":
+            depth -= 1
+        elif word.upper() in _OPERATORS:
+            operators += 1
+        if operators > _MAX_PARSE_OPERATORS or depth > _MAX_PARSE_DEPTH:
+            return True
+    return False
 
 
 # The "+" ("or any later version") operator, which py_spdx_license cannot
@@ -198,6 +226,17 @@ def is_license_ref(text: str) -> bool:
     """Whether *text* is one ``LicenseRef-*``, with its ``DocumentRef-*:`` if
     any, and nothing else."""
     return _RE_WHOLE_LICENSE_REF.fullmatch(text) is not None
+
+
+def plus_after_qualifier(expression: str) -> bool:
+    """Whether a "+" operator in *expression* follows an ID that states its
+    qualifier already ("GPL-2.0-only+", "GPL-2.0-or-later+"): no SPDX ID
+    takes both, so the value names no license."""
+    return any(
+        match.group("id").lower().endswith(("-only", "-or-later"))
+        for match in _RE_PLUS_OPERATOR.finditer(expression)
+        if not match.group("with")
+    )
 
 
 def strip_plus_operator(expression: str) -> str:
@@ -529,19 +568,38 @@ def _normalize_single_id(
             return details["license_id"]
 
     # 4. '+'-suffixed ID not handled by any mapping (e.g. "CDDL-1.0+",
-    # "Apache-2+"): strip '+', resolve the base to its canonical DB ID — first
-    # by exact lookup, then by prefix — then re-attach '+'.
-    # This preserves the "or later" intent for licenses whose '+' form is not
-    # listed in DEPRECATED_SPDX_LICENSE_IDS.
+    # "Apache-2+", "GPL-2+"): see _plus_id.
     if lic_id.endswith("+") and db:
-        base = lic_id[:-1]
-        base_details = db.get_license_details(base)
-        if not base_details:
-            base_details = db.get_license_by_id_prefix(base)
-        if base_details:
-            return base_details["license_id"] + "+"
+        return _plus_id(lic_id, db) or lic_id
 
     return lic_id
+
+
+def _plus_id(lic_id: str, db: LicenseDatabase) -> str | None:
+    """*lic_id*, an ID and a "+", with its base read by ID or as a loosely
+    written ID ("Apache-2", "GPL-2"), as resolve() reads it; never by a bare
+    prefix, which made "MI+" MIT+. The "+" becomes the base's -or-later ID
+    where the List has one in use ("GPL-2+" is GPL-2.0-or-later), and stays
+    otherwise ("Apache-2+" is Apache-2.0+). None for no base, or one that
+    states its qualifier already ("GPL-2.0-only+"): no valid ID takes it."""
+    # Local import: looseid imports this module.
+    from licenseid.looseid import loose_id  # pylint: disable=import-outside-toplevel
+
+    base = lic_id[:-1]
+    details = db.get_license_details(base)
+    if details is None:
+        loose = loose_id(db, base)
+        if loose is None:
+            return None
+        found = loose[0]["license_id"]
+    else:
+        found = details["license_id"]
+    if found.endswith(("-only", "-or-later", "+")):
+        return None
+    or_later = db.get_license_details(f"{found}-or-later")
+    if or_later is not None and not or_later["is_deprecated"]:
+        return or_later["license_id"]
+    return f"{found}+"
 
 
 def _normalize_exception_id(exc_id: str, db: LicenseDatabase | None = None) -> str:

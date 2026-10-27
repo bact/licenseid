@@ -456,23 +456,6 @@ class LicenseDatabase:
                 return None
             return self._cast_exception_details(row)
 
-    def get_license_by_id_prefix(self, prefix: str) -> LicenseDetails | None:
-        """Return the best (shortest) active license whose ID starts with *prefix*.
-
-        Used to canonicalise abbreviated IDs such as ``"Apache-2"`` →
-        ``"Apache-2.0"``.  Only non-deprecated licenses are considered so that
-        a bare prefix never silently resolves to a deprecated ID.  Returns
-        ``None`` when no unambiguous match exists (zero or multiple candidates
-        of the same length).  Input of any length is no match, never an
-        error: the prefix is compared in memory, not in SQL.
-        """
-        clean = prefix.strip()
-        if not clean:
-            return None
-        found = self._tables.active_id_with_prefix(clean)
-        # The exact row: a case-folded lookup could pick a deprecated twin.
-        return None if found is None else self._license_row(found)
-
     def _cast_exception_details(self, row: sqlite3.Row) -> ExceptionDetails:
         """Helper to cast sqlite Row to ExceptionDetails with proper boolean types."""
         d = dict(row)
