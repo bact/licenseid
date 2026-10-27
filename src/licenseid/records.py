@@ -73,10 +73,15 @@ def _license_records(
         for lic in data.licenses
         if not lic.get("isDeprecatedLicenseId", False)
     }
+    active_by_name = _active_ids_by_name(data.licenses)
 
     for i, lic in enumerate(data.licenses):
         is_deprecated = bool(lic.get("isDeprecatedLicenseId", False))
-        superseded_by = _superseded_license(lic, active_ids) if is_deprecated else None
+        superseded_by = (
+            _superseded_license(lic, active_ids, active_by_name)
+            if is_deprecated
+            else None
+        )
         res = _prepare_license_record(
             lic, data.texts.get(lic["licenseId"]), popularity_map, superseded_by
         )
@@ -93,18 +98,45 @@ def _license_records(
     return license_records, index_records
 
 
-def _superseded_license(lic: SpdxLicenseEntry, active_ids: set[str]) -> str | None:
+def _active_ids_by_name(
+    licenses: tuple[SpdxLicenseEntry, ...],
+) -> dict[str, list[str]]:
+    """The IDs in use, by case-folded name."""
+    by_name: dict[str, list[str]] = {}
+    for lic in licenses:
+        if not lic.get("isDeprecatedLicenseId", False):
+            by_name.setdefault(lic["name"].casefold(), []).append(lic["licenseId"])
+    return by_name
+
+
+def _superseded_license(
+    lic: SpdxLicenseEntry,
+    active_ids: set[str],
+    active_by_name: dict[str, list[str]],
+) -> str | None:
     """The successor of a deprecated licence, or ``None``.
 
-    SPDX '+' token: GPL-2.0+ -> GPL-2.0-or-later (certain). Bare deprecated
-    IDs (e.g. GPL-2.0) are left as NULL because they cannot be resolved
-    without the granting declaration.
+    Two cases are certain:
+
+    - the SPDX '+' token: GPL-2.0+ -> GPL-2.0-or-later;
+    - a rename: the one ID in use with the same name (StandardML-NJ ->
+      SMLNJ). The List does not record a successor, but an unchanged name
+      with one holder leaves no other reading.
+
+    Everything else stays NULL: a bare deprecated ID that the List split
+    into -only and -or-later (GPL-2.0, whose name equals GPL-2.0-only's)
+    cannot be resolved without the granting declaration, and an ID replaced
+    by an expression or by a licence of another name is no rename. The split
+    is therefore refused by ID, not left to the name check.
     """
     dep_id = lic["licenseId"]
-    if not dep_id.endswith("+"):
+    if dep_id.endswith("+"):
+        or_later = dep_id[:-1] + "-or-later"  # strip the '+' operator token
+        return or_later if or_later in active_ids else None
+    holders = active_by_name.get(lic["name"].casefold(), [])
+    if len(holders) != 1 or holders[0] in (f"{dep_id}-only", f"{dep_id}-or-later"):
         return None
-    or_later = dep_id[:-1] + "-or-later"  # strip the '+' operator token
-    return or_later if or_later in active_ids else None
+    return holders[0]
 
 
 def _metadata_only_record(
