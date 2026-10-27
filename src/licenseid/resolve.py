@@ -51,6 +51,7 @@ SPDX_LIST = "spdx-license-list"
 _PROVIDES = ["deprecation", "ids", "names", "texts"]
 _RE_NUMBERS = re.compile(r"\d+(?:\.\d+)*")
 _RE_VERSION = re.compile(r"[vV]?\d+(?:\.\d+)*")
+_OPERATORS = frozenset({"AND", "OR", "WITH"})
 _RE_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]*")
 _RE_IDLIKE = re.compile(r"[\d.-]")
 # Brackets other than around the whole value: "[MIT]", "MIT)" are no ID.
@@ -131,12 +132,13 @@ def _is_expression(db: LicenseDatabase, text: str) -> bool:
     name one licence, or none, and are not."""
     if _RE_SQUARE.search(text) or parse_expression(strip_plus_operator(text)) is None:
         return False
+    tokens = _RE_TOKEN.findall(text)
     operands = [
-        token.rstrip("+")
-        for token in _RE_TOKEN.findall(text)
-        if token.upper() not in ("AND", "OR", "WITH")
+        token.rstrip("+") for token in tokens if token.upper() not in _OPERATORS
     ]
-    return bool(operands) and all(
+    # One ID-shaped word (Foo-1.0, LicenseRef-foo) is a single licence, not an
+    # expression of several.
+    return len(operands) < len(tokens) and all(
         _RE_IDLIKE.search(token) or db.get_license_details(token) for token in operands
     )
 
@@ -165,10 +167,7 @@ def _plus(db: LicenseDatabase, text: str, found: _Found) -> bool:
             return True
         return False
     license_id, steps = base
-    if (
-        license_id.endswith(("-only", "-or-later", "+"))
-        or text.count("+", len(core)) > 1
-    ):
+    if license_id.endswith(("-only", "-or-later", "+")):
         found.category = "malformed"  # the qualifier is stated; "+" adds a second
         return True
     found.steps.extend(attempt.steps + steps)
@@ -240,7 +239,7 @@ def _base(db: LicenseDatabase, text: str) -> tuple[str, list[Step]] | None:
     ]
     if len(names) == 1:
         return names[0], [_step("listed_name", True, text, names[0])]
-    if text.endswith("+") or _RE_BRACKET.search(text):
+    if "+" in text or _RE_BRACKET.search(text):
         return None  # "+" and brackets are read by the caller, not folded away
     loose = loose_id(db, text)
     if loose is None:

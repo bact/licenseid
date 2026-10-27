@@ -18,8 +18,8 @@ from typing import Final, Literal, TypedDict
 LEXICAL_KINDS: Final = frozenset({"brackets", "id_case", "trim", "whitespace"})
 
 # What a list must provide for a step of this kind to cite it. A kind that is
-# not here rests on no list (a trimmed space, brackets, an author's own
-# "or later") and cites none.
+# not here rests on no list (a trimmed space, brackets) and cites none. An
+# "or later" the author wrote still rests on the -or-later ID being in use.
 LIST_PROVIDES: Final = {
     "id_case": "ids",
     "separator": "ids",
@@ -28,6 +28,7 @@ LIST_PROVIDES: Final = {
     "deprecated_equal_successor": "deprecation",
     "deprecated_ambiguous": "deprecation",
     "plus_to_or_later": "ids",
+    "stated_qualifier": "ids",
     "assumed_only": "deprecation",
 }
 

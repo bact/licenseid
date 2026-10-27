@@ -211,6 +211,20 @@ def _summary(r: Resolution) -> tuple[object, ...]:
         ("Proprietary or custom", (None, "unresolved", [], [], [])),
         ("Licensed with love", (None, "unresolved", [], [], [])),
         ("AND", (None, "unresolved", [], [], [])),
+        # one ID-shaped word is not an expression of several licences
+        ("Foo-1.0", (None, "unresolved", [], [], [])),
+        ("LicenseRef-foo", (None, "unresolved", [], [], [])),
+        ("(Acme-1.0+)", (None, "unresolved", [], [], [])),
+        # a "+" inside a loose spelling is not dropped
+        ("GPL-2.0+-only", (None, "unresolved", [], [], [])),
+        ("GPL-2.0++-only", (None, "unresolved", [], [], [])),
+        ("GPL-2.0+.", (None, "unresolved", [], [], [])),
+        # a bracketed grant is a grant
+        ("GPL-2.0-only (or later)", (None, "malformed", [], [], [])),
+        ("MIT (or later)", (None, "unresolved", [], [], [])),
+        # an expression over the cap is read as none; under it, as one
+        (" OR ".join(["Apache-2.0"] * 120), (None, "expression", [], [], [])),
+        (" OR ".join(["Apache-2.0"] * 200), (None, "unresolved", [], [], [])),
         # an expression with a "+" operand, or longer than any one ID
         ("GPL-2.0+ OR MIT", (None, "expression", [], [], [])),
         ("(MIT+ AND Apache-2.0)", (None, "expression", [], [], [])),
@@ -319,12 +333,7 @@ def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> 
             else:
                 assert step["list"] == ""
     # every kind the table lists is exercised, and so are the ones without a list
-    assert seen == set(LIST_PROVIDES) | {
-        "trim",
-        "whitespace",
-        "brackets",
-        "stated_qualifier",
-    }
+    assert seen == set(LIST_PROVIDES) | {"trim", "whitespace", "brackets"}
 
 
 def test_the_result_names_the_resolver_and_the_list(db: LicenseDatabase) -> None:
@@ -366,5 +375,5 @@ def test_the_declared_grant_regex_does_not_backtrack(
 ) -> None:
     """Time on long runs of white space (CLAUDE.md: every new prose regex)."""
     start = time.monotonic()
-    assert declared_grant_id_text(payload(200_000)) is None
-    assert time.monotonic() - start < 5  # about 0.1 s; 10x headroom for CI
+    assert declared_grant_id_text(payload(30_000)) is None
+    assert time.monotonic() - start < 3  # linear: about 0.01 s; quadratic: 20 s

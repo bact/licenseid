@@ -164,11 +164,13 @@ def granted_id_text(text: str) -> str | None:
 # A grant that ends a declared value, number or not: "MIT or later",
 # "GPL-3.0-only or later". classify.OR_LATER_PHRASE wants a number before "or
 # later" because prose also says "sooner or later"; a value that is only an
-# ID and a grant has no such doubt. The lookbehind starts a match only at the
-# start of a run of white space, so a long run is not rescanned from each of
-# its characters.
+# ID and a grant, plain or in brackets, has no such doubt. The lookbehind
+# starts a match only at the start of a run of white space, so a long run is
+# not rescanned from each of its characters.
+_GRANT_CORE = r"or\s+(?:any\s+)?(?:later|newer)(?:\s+versions?)?"
 _RE_DECLARED_GRANT = re.compile(
-    r"(?<!\s)\s+or\s+(?:any\s+)?(?:later|newer)(?:\s+versions?)?[\s.]*\Z", re.IGNORECASE
+    rf"(?<!\s)\s+(?:\(\s*{_GRANT_CORE}\s*\)|{_GRANT_CORE})[\s.]*\Z",
+    re.IGNORECASE,
 )
 
 
