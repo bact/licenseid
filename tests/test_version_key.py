@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """An ID written without its ".0" or its dashes ("Apache2", "GPLv3",
-"Apache_2.0", "CC by 3 nl") is that ID (licenseid.looseid.version_key)."""
+"Apache_2.0", "CC by 3 nl") is that ID (licenseid.versionkey.version_key)."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
 import time
@@ -15,9 +15,9 @@ import pytest
 from matcher_db import Lic, seeded_db
 
 from licenseid.database import LicenseDatabase
-from licenseid.looseid import MAX_KEY_INPUT, version_key
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.shorttext import match_short_text, match_version_key
+from licenseid.versionkey import MAX_KEY_INPUT, version_key
 
 # Real IDs that are hard for the key: a zero version beside a longer one
 # (OLDAP-2.0, OLDAP-2.0.1), a letter after the version (LPPL-1.3a), digits
@@ -249,7 +249,7 @@ def test_a_long_input_is_no_loose_id(
     """A long input is no ID, and is not normalised a second time; white
     space around it does not count."""
     text = "Apache" + " " * padding + "2"
-    with mock.patch("licenseid.looseid.version_key", wraps=version_key) as key:
+    with mock.patch("licenseid.versionkey.version_key", wraps=version_key) as key:
         assert bool(match_version_key(db, f"\n {text} \n")) is found
     assert key.called is found
 

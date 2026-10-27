@@ -29,8 +29,8 @@ from licenseid.database import LicenseDatabase
 from licenseid.dbconnection import Connections
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
 from licenseid.identifiers import normalize_identifier
-from licenseid.looseid import version_key
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.versionkey import version_key
 
 MIT_TEXT = (
     "permission is hereby granted free of charge to any person obtaining a copy"
@@ -187,7 +187,9 @@ def test_cli_overlong_id_exits_one(db_path: str, command: str) -> None:
 
 # Short IDs: pytest puts the test ID in PYTEST_CURRENT_TEST, and Windows
 # refuses an environment variable over 32,767 characters.
-@pytest.mark.parametrize("value", [BIG, "Zzz", "Apache-1"], ids=["big", "unknown", "tie"])
+@pytest.mark.parametrize(
+    "value", [BIG, "Zzz", "Apache-1"], ids=["big", "unknown", "tie"]
+)
 def test_an_id_before_a_plus_runs_no_input_built_sql(db_path: str, value: str) -> None:
     """After warm-up, no statement holds a LIKE or any part of the input."""
     db = LicenseDatabase(db_path, create=False)
@@ -236,7 +238,7 @@ def test_each_id_is_keyed_once(db_path: str) -> None:
     "<id>+" costs the keys of its own text only."""
     db = LicenseDatabase(db_path, create=False)
     normalize_identifier("Apache-2+", db)  # fills the cache
-    with mock.patch("licenseid.looseid.version_key", wraps=version_key) as spy:
+    with mock.patch("licenseid.versionkey.version_key", wraps=version_key) as spy:
         for i in range(100):
             normalize_identifier(f"Foo-{i}+", db)
     # One key or two per text; one per row would be 100 for each lookup.

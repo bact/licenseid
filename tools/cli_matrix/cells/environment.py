@@ -270,7 +270,7 @@ def _add_cwd(cells: CellSet) -> None:
         cells.add(
             "E6",
             f"cwd={name}: relative file + relative db",
-            f"{pre}$L --db $DB match --bold ../mit.txt 2>&1 | head -c 300; true",
+            f"{pre}$L --db $DB match --bold ../mit.txt | head -c 300; true",
             kind="other",
             xenv=False,
         )

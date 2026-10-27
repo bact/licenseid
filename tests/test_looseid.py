@@ -20,9 +20,10 @@ from matcher_db import Lic, seeded_db
 
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import normalize_identifier
-from licenseid.looseid import MAX_KEY_INPUT, loose_id, loose_with, shown, version_key
+from licenseid.looseid import loose_id, loose_with, shown
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.shorttext import match_short_text
+from licenseid.versionkey import MAX_KEY_INPUT, version_key
 
 # The "+" row first: the exact-ID match must not depend on row order.
 ROWS = [

@@ -9,8 +9,8 @@ license ID or name."""
 from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase
-from licenseid.identifiers import strip_plus_operator
 from licenseid.looseid import loose_id, narrowed, resolved_id, warn_narrowed
+from licenseid.plusoperator import strip_plus_operator
 from licenseid.ranking import DEP_PENALTY
 from licenseid.types import LicenseNameId, RawMatch
 

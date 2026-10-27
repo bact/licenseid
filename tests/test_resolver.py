@@ -12,7 +12,7 @@ from collections.abc import Callable, Generator
 
 import pytest
 from matcher_db import Lic, seeded_db
-from resolver_helpers import summary
+from resolver_helpers import GPL2, GPL2_PLUS, summary
 
 import licenseid
 from licenseid import LicenseDatabase
@@ -24,15 +24,8 @@ ROWS = (
     Lic("MIT", "MIT License"),
     Lic("Apache-2.0", "Apache License 2.0"),
     Lic("Apache-1.1", "Apache Software License 1.1"),
-    Lic("GPL-2.0-only", "GNU General Public License v2.0 only"),
-    Lic("GPL-2.0-or-later", "GNU General Public License v2.0 or later"),
-    Lic("GPL-2.0", "GNU General Public License v2.0 only", is_deprecated=True),
-    Lic(
-        "GPL-2.0+",
-        "GNU General Public License v2.0 or later",
-        is_deprecated=True,
-        superseded_by="GPL-2.0-or-later",
-    ),
+    *GPL2,
+    GPL2_PLUS,
     Lic("GPL-3.0-only", "GNU General Public License v3.0 only"),
     Lic("GPL-3.0-or-later", "GNU General Public License v3.0 or later"),
     Lic("GPL-3.0", "GNU General Public License v3.0 only", is_deprecated=True),

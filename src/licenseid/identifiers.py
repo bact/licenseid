@@ -16,7 +16,13 @@ import py_spdx_license
 
 from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
+from licenseid.plusoperator import (
+    LICENSE_REF_PREFIX,
+    plus_after_qualifier,
+    strip_plus_operator,
+)
 from licenseid.types import ExceptionDetails, LicenseDetails
+from licenseid.versionkey import named_row
 
 # Defensive cap on the number of AND/OR/WITH operators an expression may
 # have before we attempt py_spdx_license's structural sort()/dedup pass.
@@ -182,6 +188,15 @@ def parse_expression(expression: str) -> py_spdx_license.Node | None:
         return None
 
 
+def parse_declared(value: str) -> py_spdx_license.Node | None:
+    """Parse a declared *value*, its "+" operators read as the "or later" of
+    the ID before them; None as parse_expression gives it, and for a "+"
+    after a stated qualifier ("GPL-2.0-only+"), which no ID takes."""
+    if plus_after_qualifier(value):
+        return None
+    return parse_expression(strip_plus_operator(value))
+
+
 def _too_large_to_parse(expression: str) -> bool:
     """Whether *expression* holds more operators or deeper brackets than the
     parser is given (_MAX_PARSE_OPERATORS, _MAX_PARSE_DEPTH). One pass, which
@@ -200,21 +215,6 @@ def _too_large_to_parse(expression: str) -> bool:
     return False
 
 
-# The "+" ("or any later version") operator, which py_spdx_license cannot
-# parse (https://github.com/JPEWdev/py-spdx-license/issues/1): it only ever
-# follows the last character of a license ID, so a "+" after a space, a "(" or
-# another "+", after the exception of a WITH, or after an operator word
-# (WITH, AND, OR), is not one. The ID must start at a token start (lookbehind):
-# without it every offset of a long token is tried and the scan is quadratic
-# (8 s at 32,000 characters).
-_RE_PLUS_OPERATOR = re.compile(
-    r"(?P<with>\bWITH\s+)?(?<![^\s(])(?!(?:with|and|or)\+)"
-    r"(?P<id>[^\s()+]+)\+(?=\s|\)|$)",
-    re.IGNORECASE,
-)
-# A license reference: SPDX gives "+" to a license ID only
-# (simple-expression = license-id / license-id "+" / license-ref).
-_RE_LICENSE_REF = re.compile(r"(?:DocumentRef-[^\s():]+:)?LicenseRef-", re.IGNORECASE)
 # A whole license reference, its idstrings as SPDX defines them
 # (idstring = 1*(ALPHA / DIGIT / "-" / "."); ABNF strings ignore case).
 _RE_WHOLE_LICENSE_REF = re.compile(
@@ -226,38 +226,6 @@ def is_license_ref(text: str) -> bool:
     """Whether *text* is one ``LicenseRef-*``, with its ``DocumentRef-*:`` if
     any, and nothing else."""
     return _RE_WHOLE_LICENSE_REF.fullmatch(text) is not None
-
-
-def plus_after_qualifier(expression: str) -> bool:
-    """Whether a "+" operator in *expression* follows an ID that states its
-    qualifier already ("GPL-2.0-only+", "GPL-2.0-or-later+"): no SPDX ID
-    takes both, so the value names no license."""
-    return any(
-        match.group("id").lower().endswith(("-only", "-or-later"))
-        for match in _RE_PLUS_OPERATOR.finditer(expression)
-        if not match.group("with")
-    )
-
-
-def strip_plus_operator(expression: str) -> str:
-    """Drop the "+" operators of *expression* so ``py_spdx_license`` can parse
-    it (``Apache-2.0+ OR MIT`` becomes ``Apache-2.0 OR MIT``). A "+" that is
-    not an operator stays, so the expression stays unparseable."""
-    return replace_plus_operator(expression, "")
-
-
-def replace_plus_operator(text: str, replacement: str) -> str:
-    """*text* with each "+" operator after a license ID replaced by
-    *replacement*: "" drops it, " or later" spells it out
-    (``shorttext.version_key``). Any other "+" stays."""
-
-    def replace(match: re.Match[str]) -> str:
-        # Neither an exception nor a LicenseRef takes a "+".
-        if match.group("with") or _RE_LICENSE_REF.match(match.group("id")):
-            return match.group(0)
-        return match.group("id") + replacement
-
-    return _RE_PLUS_OPERATOR.sub(replace, text)
 
 
 def _token_kind(text: str) -> str:
@@ -411,7 +379,7 @@ def is_simple_expression(value: str) -> bool:
         return False
     tokens = [token.group(0) for token in _RE_TOKEN.finditer(value)]
     if any(
-        token == "+" and _RE_LICENSE_REF.match(before)
+        token == "+" and LICENSE_REF_PREFIX.match(before)
         for before, token in pairwise(tokens)
     ):
         return False  # a LicenseRef takes no "+"
@@ -582,24 +550,19 @@ def _plus_id(lic_id: str, db: LicenseDatabase) -> str | None:
     where the List has one in use ("GPL-2+" is GPL-2.0-or-later), and stays
     otherwise ("Apache-2+" is Apache-2.0+). None for no base, or one that
     states its qualifier already ("GPL-2.0-only+"): no valid ID takes it."""
-    # Local import: looseid imports this module.
-    from licenseid.looseid import loose_id  # pylint: disable=import-outside-toplevel
-
     base = lic_id[:-1]
     details = db.get_license_details(base)
     if details is None:
-        loose = loose_id(db, base)
-        if loose is None:
+        row = named_row(db, base)
+        if row is None:
             return None
-        found = loose[0]["license_id"]
+        found = row["license_id"]
     else:
         found = details["license_id"]
     if found.endswith(("-only", "-or-later", "+")):
         return None
     or_later = db.get_license_details(f"{found}-or-later")
-    if or_later is not None and not or_later["is_deprecated"]:
-        return or_later["license_id"]
-    return f"{found}+"
+    return f"{found}+" if or_later is None else or_later["license_id"]
 
 
 def _normalize_exception_id(exc_id: str, db: LicenseDatabase | None = None) -> str:

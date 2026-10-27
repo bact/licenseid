@@ -26,12 +26,10 @@ from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
 from licenseid.identifiers import (
     is_license_ref,
-    parse_expression,
-    strip_plus_operator,
+    parse_declared,
     without_outer_brackets,
 )
 from licenseid.looseid import (
-    MAX_KEY_INPUT,
     WITH_OPERATOR,
     declared_grant_id_text,
     granted_id_text,
@@ -48,6 +46,7 @@ from licenseid.resolvertypes import (
     Resolver,
     Step,
 )
+from licenseid.versionkey import MAX_KEY_INPUT
 
 SPDX_LIST = "spdx-license-list"
 # The kinds of step the SPDX License List supports; see ListInfo.provides.
@@ -132,7 +131,7 @@ def _is_expression(db: LicenseDatabase, text: str) -> bool:
     (a digit, a hyphen or a full stop in it). ``MIT OR Apache2`` is;
     ``Proprietary or custom``, ``GPL-3.0 or higher`` and ``Licensed with love``
     name one licence, or none, and are not."""
-    if _RE_SQUARE.search(text) or parse_expression(strip_plus_operator(text)) is None:
+    if _RE_SQUARE.search(text) or parse_declared(text) is None:
         return False
     tokens = _RE_TOKEN.findall(text)
     operands = [

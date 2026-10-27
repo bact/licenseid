@@ -5,7 +5,7 @@
 
 """The readers of the "+" ("or any later version") agree.
 
-One reader, identifiers._RE_PLUS_OPERATOR, decides which "+" is the
+One reader, plusoperator.PLUS_OPERATOR, decides which "+" is the
 operator; strip_plus_operator and Tier 0's version key use it. Two others
 read the same grammar in their own way and must agree with it: the
 expression tokenizer (is_simple_expression, normalize_identifier), and the
@@ -19,12 +19,9 @@ import time
 import pytest
 
 from licenseid.classify import has_or_later_language
-from licenseid.identifiers import (
-    is_simple_expression,
-    normalize_identifier,
-    strip_plus_operator,
-)
-from licenseid.looseid import version_key
+from licenseid.identifiers import is_simple_expression, normalize_identifier
+from licenseid.plusoperator import strip_plus_operator
+from licenseid.versionkey import version_key
 
 FAMILIES = ("GPL", "LGPL", "AGPL", "gpl")
 OTHERS = ("Apache", "MIT", "C", "LicenseRef-x")
@@ -65,7 +62,7 @@ def _cases() -> list[tuple[str, bool, bool]]:
 def test_the_plus_readers_agree(text: str, operator: bool, grant: bool) -> None:
     """Every family and other ID, in every spelling the version key takes,
     with each kind of "+" after it."""
-    assert _operator(text) is operator, "identifiers._RE_PLUS_OPERATOR"
+    assert _operator(text) is operator, "plusoperator.PLUS_OPERATOR"
     # Tier 0 spells out exactly the operator, nothing else.
     assert ("or later" in version_key(text)) is operator, "version_key"
     # The prose shorthand reads the GPL family's operator, and prose.

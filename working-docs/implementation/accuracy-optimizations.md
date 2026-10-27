@@ -49,7 +49,9 @@ Examples:
 When a `+`-suffixed ID (e.g. `"CDDL-1.0+"`, `"Apache-2+"`) is not covered by
 `DEPRECATED_SPDX_LICENSE_IDS`, the base is resolved — first by exact DB lookup,
 then by `get_license_by_id_prefix()` (shortest unambiguous prefix match) — and
-`+` is re-attached to the canonical form.
+`+` is re-attached to the canonical form. Replaced in 0.6.0 (PR #99, roadmap
+item 39): a bare prefix made `MI+` MIT+ and `GPL-2+` GPL-2.0-only+; the base
+is now read by its version key, and the helper below is gone.
 
 Examples:
 
@@ -198,7 +200,7 @@ granting language around the text is the only evidence, and
 
 `Apache2`, `GPL3`, `MPL2` and `EPL2` found no license, and `GPLv3` and
 `GPL-2` were answered by a text match with another license (LiLiQ-R-1.1,
-SimPL-2.0). `looseid.version_key` gives a short input and every ID one key,
+SimPL-2.0). `versionkey.version_key` gives a short input and every ID one key,
 and `looseid.loose_id` answers the one ID whose key is the input's.
 `shorttext.match_short_text` asks it first, from the raw text its caller
 passes, before the exact and fuzzy matches; so `matcher`'s Tier 0 (after the

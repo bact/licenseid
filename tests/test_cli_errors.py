@@ -232,3 +232,36 @@ def test_empty_input_file(
     assert result.exit_code == 2
     assert result.stdout == ""
     assert result.stderr == f"ERROR: input: empty: {path}\n"
+
+
+@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize(
+    "argument",
+    ["LICENSE.txt", "COPYING.md", "docs/LICENSE", "docs\\LICENSE", "x.toml"],
+)
+def test_a_missing_file_named_as_an_argument(
+    ready_db: str, command: str, argument: str
+) -> None:
+    """A mistyped path is no text to match: as text it answered a licence
+    at score 1 and exited 0 (tech-debt roadmap, item 32)."""
+    result = CliRunner().invoke(cli, ["--db", ready_db, command, argument])
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert result.stderr == f"ERROR: input: not found: {argument}; pass --text\n"
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["MIT"],  # an ID
+        ["Apache-2.0"],  # a full stop that is a version
+        ["MIT."],  # one that ends a sentence
+        ["https://spdx.org/licenses/MIT.html"],  # a URL
+        ["MIT License.txt"],  # more than one word is text
+        ["--text", "LICENSE.txt"],  # --text matches anything as text
+    ],
+)
+def test_an_argument_that_is_no_path_is_matched(ready_db: str, args: list[str]) -> None:
+    result = CliRunner().invoke(cli, ["--db", ready_db, "match", *args])
+    assert "not found" not in result.stderr
+    assert result.exit_code in (0, 1)
