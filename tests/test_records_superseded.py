@@ -61,6 +61,8 @@ def _successors(*entries: SpdxLicenseEntry) -> dict[str, str | None]:
             ],
             {"X-1.0": None},
         ),
+        # the '+' token without an -or-later ID in use is no rename
+        ([_entry("X+", "X or later", True)], {"X+": None}),
         # two holders of the name: no first choice
         (
             [
@@ -88,6 +90,7 @@ def _successors(*entries: SpdxLicenseEntry) -> dict[str, str | None]:
         "plus",
         "bare-only-split",
         "bare-or-later-split",
+        "plus-no-or-later",
         "two-holders",
         "other-name",
         "no-holder",

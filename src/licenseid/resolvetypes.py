@@ -13,22 +13,9 @@ to decide: the category of a value is the weakest of its steps.
 
 from typing import Final, Literal, TypedDict
 
-# Every kind of step, in the family it belongs to. A: the same text with only
-# its form changed (no decision). B: the resolver decides which licence is
-# meant. C: an expansion of a qualifier (``-only``, ``-or-later``).
+# The steps that change only the form of the text and decide nothing; the
+# others are the resolver's decisions or an expansion of a qualifier.
 LEXICAL_KINDS: Final = frozenset({"brackets", "id_case", "trim", "whitespace"})
-DECISION_KINDS: Final = frozenset(
-    {
-        "separator",
-        "version_spelling",
-        "listed_name",
-        "deprecated_equal_successor",
-        "deprecated_ambiguous",
-    }
-)
-EXPANSION_KINDS: Final = frozenset(
-    {"plus_to_or_later", "stated_qualifier", "assumed_only"}
-)
 
 # What a list must provide for a step of this kind to cite it. A kind that is
 # not here rests on no list (a trimmed space, brackets, an author's own
@@ -134,8 +121,9 @@ class Resolution(TypedDict):
     """What ``resolve`` returns for one declared value.
 
     ``expression`` is the SPDX expression to record, or None when the value
-    cannot be recorded as one (``candidates`` then lists what it might be,
-    sorted). ``steps`` are the applied or declined changes in order;
+    names no single licence. A bare deprecated ID (``GPL-3.0``) is returned as
+    written (category ``assumed_only``), with the licences it might be in
+    ``candidates``, sorted. ``steps`` are the applied or declined changes in order;
     ``expansions`` hold the qualifier steps, kept apart from ``steps``.
     """
 

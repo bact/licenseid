@@ -5,13 +5,15 @@
 
 """``resolve``: the SPDX expression a declared value stands for, and how."""
 
-from collections.abc import Generator
+import time
+from collections.abc import Callable, Generator
 
 import pytest
 from matcher_db import Lic, seeded_db
 
 import licenseid
 from licenseid import LicenseDatabase
+from licenseid.looseid import declared_grant_id_text
 from licenseid.resolve import resolve
 from licenseid.resolvetypes import CATEGORY_ORDER, LIST_PROVIDES, TRUST, Resolution
 
@@ -39,6 +41,8 @@ ROWS = (
         superseded_by="SMLNJ",
     ),
     Lic("BSD-2-Clause-FreeBSD", "BSD 2-Clause FreeBSD", is_deprecated=True),
+    Lic("Dup-1.0", "Dup License"),
+    Lic("Dup-2.0", "Dup License"),
 )
 
 
@@ -203,10 +207,45 @@ def _summary(r: Resolution) -> tuple[object, ...]:
         ("GPL-2.0+ or later", (None, "malformed", [], [], [])),
         ("MIT or later", (None, "unresolved", [], [], [])),
         # an expression needs a structure and a listed ID, not just the word "or"
-        ("MIT OR Foo", (None, "expression", [], [], [])),
+        ("MIT OR Foo", (None, "unresolved", [], [], [])),  # Foo is no ID
         ("Proprietary or custom", (None, "unresolved", [], [], [])),
         ("Licensed with love", (None, "unresolved", [], [], [])),
         ("AND", (None, "unresolved", [], [], [])),
+        # an expression with a "+" operand, or longer than any one ID
+        ("GPL-2.0+ OR MIT", (None, "expression", [], [], [])),
+        ("(MIT+ AND Apache-2.0)", (None, "expression", [], [], [])),
+        (" OR ".join(["Apache-2.0"] * 12), (None, "expression", [], [], [])),
+        # a doubled "+" or a doubled grant is malformed, however the ID is spelt
+        ("GPLv2++", (None, "malformed", [], [], [])),
+        ("GPL-2.0 ++", (None, "malformed", [], [], [])),
+        ("GPL-2.0 + +", (None, "malformed", [], [], [])),
+        ("GPL-2.0 or later or later", (None, "malformed", [], [], [])),
+        ("MIT or later or later", (None, "malformed", [], [], [])),
+        # a word after an ID that is no ID names one licence, not two
+        ("GPL-2.0 or higher", (None, "unresolved", [], [], [])),
+        ("GPL-2.0 and later", (None, "unresolved", [], [], [])),
+        # a step is not kept for a value that resolved to nothing
+        ("Foo +", (None, "unresolved", [], [], [])),
+        ("()", (None, "unresolved", [], [], [])),
+        # brackets are read only around the whole value
+        ("[MIT]", (None, "unresolved", [], [], [])),
+        ("MIT)", (None, "unresolved", [], [], [])),
+        (
+            "GPL-2.0 (or later)",
+            (
+                "GPL-2.0-or-later",
+                "stated_qualifier",
+                [],
+                [("stated_qualifier", True)],
+                [],
+            ),
+        ),
+        # an ID in use wins over a deprecated ID of the same name; two holders: none
+        (
+            "GNU General Public License v2.0 only",
+            ("GPL-2.0-only", "listed_name", ["listed_name"], [], []),
+        ),
+        ("Dup License", (None, "unresolved", [], [], [])),
         ("MIT OR", (None, "unresolved", [], [], [])),
         ("(MIT OR Foo", (None, "unresolved", [], [], [])),
         # D: no answer
@@ -216,9 +255,9 @@ def _summary(r: Resolution) -> tuple[object, ...]:
         ("MIT\x00", (None, "unresolved", [], [], [])),
         ("\udc80", (None, "unresolved", [], [], [])),
         ("", (None, "unresolved", [], [], [])),
-        ("   ", (None, "unresolved", ["trim"], [], [])),
+        ("   ", (None, "unresolved", [], [], [])),  # no step: nothing resolved
         ("MIT OR Apache2", (None, "expression", [], [], [])),
-        ("(MIT OR Apache2)", (None, "expression", ["brackets"], [], [])),
+        ("(MIT OR Apache2)", (None, "expression", [], [], [])),
         ("MIT" + "x" * 200, (None, "unresolved", [], [], [])),
     ],
     ids=lambda v: v[:30] if isinstance(v, str) else "",
@@ -311,3 +350,21 @@ def test_the_same_input_gives_the_same_result(db: LicenseDatabase) -> None:
 def test_the_category_vocabulary_is_closed() -> None:
     """Every category has a trust, and the order lists them all."""
     assert set(TRUST) == set(CATEGORY_ORDER)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        lambda n: "x" + " or " * n,
+        lambda n: "a" + " " * n + "or later " + " " * n + "b",
+        lambda n: "or" + " " * n + "or" + " " * n + "later" + " " * n + ".x",
+    ],
+    ids=["many-or", "spaces-around-grant", "spaces-between-words"],
+)
+def test_the_declared_grant_regex_does_not_backtrack(
+    payload: Callable[[int], str],
+) -> None:
+    """Time on long runs of white space (CLAUDE.md: every new prose regex)."""
+    start = time.monotonic()
+    assert declared_grant_id_text(payload(200_000)) is None
+    assert time.monotonic() - start < 5  # about 0.1 s; 10x headroom for CI
