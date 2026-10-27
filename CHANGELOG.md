@@ -34,10 +34,10 @@ and this project adheres to
 - An expression over 150 operators or 150 levels of brackets is refused on
   every Python, not only where 3.10's recursion limit fell ([#99])
 - `match(text="GPL-2.0-only+")` answers no licence, not a near name such as
-  `LGPL-3.0-only`, alone or in an expression
+  `LGPL-3.0-only`, alone or in an expression ([#101])
 - A database built by a newer licenseid warns `build v3 newer` and is not
   rebuilt (downgraded) by `update`; `update` no longer warns about the
-  database it is rebuilding
+  database it is rebuilding ([#101])
 
 ### Removed
 
@@ -47,6 +47,7 @@ and this project adheres to
 [#96]: https://github.com/bact/licenseid/pull/96
 [#97]: https://github.com/bact/licenseid/pull/97
 [#99]: https://github.com/bact/licenseid/pull/99
+[#101]: https://github.com/bact/licenseid/pull/101
 
 ## [0.5.0] - 2026-10-22
 
