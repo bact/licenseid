@@ -176,31 +176,53 @@ def test_a_database_at_the_snapshot_version_is_not_rebuilt(
     assert db.update_from_remote(force=True)
 
 
-def stamp_old_rules(db: LicenseDatabase, key: str) -> None:
-    """Mark *db* as built with the first version of the rules *key* names."""
+def stamp_rules(db: LicenseDatabase, key: str, value: str) -> None:
+    """Mark *db* as built with version *value* of the rules *key* names."""
     with db._connection(write=True) as conn:  # pylint: disable=protected-access
-        conn.execute("UPDATE db_metadata SET value = '1' WHERE key = ?", (key,))
+        conn.execute("UPDATE db_metadata SET value = ? WHERE key = ?", (value, key))
         conn.commit()
 
 
 @pytest.mark.parametrize("key", ["normalization_version", "build_version"])
 @pytest.mark.parametrize("fallback", [False, True], ids=["target", "fallback"])
+@pytest.mark.parametrize("stamp", ["1", "0", "x", "", "1.5", "\u0661"])
 def test_a_database_built_with_older_rules_is_rebuilt_at_its_version(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str, fallback: bool
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    key: str,
+    fallback: bool,
+    stamp: str,
 ) -> None:
     """Both skips give way: the version the lookup names, and the packaged
-    data a failed download falls back to."""
+    data a failed download falls back to. A stamp that is no ASCII number
+    (an Arabic-Indic one included) is older than any."""
     db = open_db(tmp_path)
     serve(monkeypatch, {})
     ship(monkeypatch, release_bundle("9.98"))
     assert db.update_from_remote()
     if fallback:
         serve(monkeypatch, without(online(), bundle_url(), tarball_url()))
-    stamp_old_rules(db, key)
+    stamp_rules(db, key, stamp)
     assert db.update_from_remote(use_cache=False)
-    assert db.get_metadata().get(key) != "1"
+    assert db.get_metadata().get(key) != stamp
     assert db_version(db) == "9.98"
     assert not db.update_from_remote(use_cache=False)  # current again: skipped
+
+
+@pytest.mark.parametrize("key", ["normalization_version", "build_version"])
+@pytest.mark.parametrize("stamp", ["3", "10", "999999999"])
+def test_a_database_built_by_newer_rules_is_not_downgraded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str, stamp: str
+) -> None:
+    """A later licenseid built it: rebuilding with these rules would undo
+    what they add, so update skips it as for any current database."""
+    db = open_db(tmp_path)
+    serve(monkeypatch, {})
+    ship(monkeypatch, release_bundle("9.98"))
+    assert db.update_from_remote()
+    stamp_rules(db, key, stamp)
+    assert not db.update_from_remote(use_cache=False)
+    assert db.get_metadata().get(key) == stamp
 
 
 def test_a_data_fallback_to_the_database_version_is_not_stored(

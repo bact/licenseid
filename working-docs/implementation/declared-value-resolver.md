@@ -79,6 +79,16 @@ seven more. What was decided:
   not either: the CLI asks the database. An extension is any word of
   letters and digits after a full stop, so `COPYING.LESSER` is a path; no
   SPDX ID ends in one.
+- **The second review of PR #99** (after the merge). `match(text=...)` of
+  a "+" after a qualifier fell through to Tiers 1 and 2, which answered a
+  near name (`GPL-2.0-only+` gave `LGPL-3.0-only` at 0.755). Tier 0 now
+  stops at a value that is wholly such an expression
+  (`identifiers.is_qualified_plus`, not parsed, so one too large to parse
+  stops too). The seeded test had four rows with no text, which Tiers 1
+  and 2 never reach: `tests/test_qualified_plus.py` gives its near
+  neighbours a text, and fails without the stop. The build stamps compare
+  as numbers, a newer one is not rebuilt, and `update` does not warn about
+  the database it rebuilds.
 - **Version number.** The release was first planned as a patch. A new
   public API makes it a minor release under SemVer, so it is 0.6.0.
 

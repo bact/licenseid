@@ -12,10 +12,13 @@ import tarfile
 import uuid
 from collections.abc import Generator
 from pathlib import Path
+from unittest import mock
 
 import pytest
+from click.testing import CliRunner
 from conftest import assert_cached_tarball_removed, is_closed
 
+from licenseid.cli import cli
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.errors import LicenseIdError
 from licenseid.records import BUILD_VERSION
@@ -125,6 +128,17 @@ BUILD_OLD = (
 )
 
 
+def newer(rules: str, stamp: str, current: str) -> str:
+    return f"WARNING: database: {rules} v{stamp} newer: current v{current}"
+
+
+def outdated(rules: str, stamp: str, current: str) -> str:
+    return (
+        f"WARNING: database: {rules} v{stamp} outdated: current v{current}"
+        "; run 'licenseid update'"
+    )
+
+
 @pytest.mark.parametrize(
     ("stamps", "expected"),
     [
@@ -133,8 +147,44 @@ BUILD_OLD = (
         ({**CURRENT, "build_version": "1"}, [BUILD_OLD]),
         ({}, [NORM_OLD, BUILD_OLD]),  # a database from before either stamp
         ({"normalization_version": "1", "build_version": "1"}, [NORM_OLD, BUILD_OLD]),
+        # a later licenseid built it: newer, not outdated, and nothing to run
+        ({**CURRENT, "build_version": "3"}, [newer("build", "3", BUILD_VERSION)]),
+        (
+            {**CURRENT, "normalization_version": "10"},  # 10 > 2, not "10" < "2"
+            [newer("normalization", "10", NORMALIZATION_VERSION)],
+        ),
+        ({**CURRENT, "build_version": "02"}, []),  # the same number
+        # a stamp that is no number: no licenseid wrote it, so it is older
+        ({**CURRENT, "build_version": "x"}, [outdated("build", "x", BUILD_VERSION)]),
+        ({**CURRENT, "build_version": "-3"}, [outdated("build", "-3", BUILD_VERSION)]),
+        (
+            {**CURRENT, "build_version": "\u0663"},  # an Arabic-Indic 3
+            [outdated("build", "\u0663", BUILD_VERSION)],
+        ),
+        (
+            {**CURRENT, "build_version": "9" * 5000},  # past int()'s digit limit
+            [outdated("build", "9" * 5000, BUILD_VERSION)],
+        ),
+        (
+            {"normalization_version": "1", "build_version": "3"},
+            [NORM_OLD, newer("build", "3", BUILD_VERSION)],
+        ),
     ],
-    ids=["current", "normalization", "build", "unstamped", "both"],
+    ids=[
+        "current",
+        "normalization",
+        "build",
+        "unstamped",
+        "both",
+        "newer-build",
+        "newer-two-digits",
+        "leading-zero",
+        "letter",
+        "negative",
+        "non-ascii-digit",
+        "huge",
+        "older-and-newer",
+    ],
 )
 def test_older_build_rules_warn_on_stderr(
     db: LicenseDatabase,
@@ -154,16 +204,37 @@ def test_older_build_rules_warn_on_stderr(
         conn.commit()
     capsys.readouterr()
 
-    LicenseDatabase(str(db.db_path))
-
+    LicenseDatabase(str(db.db_path), create=False)
     captured = capsys.readouterr()
     assert captured.err.splitlines() == expected
     assert captured.out == ""
+
+    # Opened to build, as update does: it is about to fix what it would say.
+    LicenseDatabase(str(db.db_path))
+    assert capsys.readouterr().err == ""
 
 
 def test_an_empty_database_has_no_build_rules_to_warn_about(
     db: LicenseDatabase, capsys: pytest.CaptureFixture[str]
 ) -> None:
     capsys.readouterr()
-    LicenseDatabase(str(db.db_path))
+    LicenseDatabase(str(db.db_path), create=False)
     assert capsys.readouterr().err == ""
+
+
+def test_update_does_not_warn_about_the_database_it_is_rebuilding(
+    db: LicenseDatabase,
+) -> None:
+    with db._connection(write=True) as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
+            [("license_list_version", "9.99"), ("build_version", "1")],
+        )
+        conn.commit()
+    with mock.patch.object(
+        LicenseDatabase, "update_from_remote", autospec=True, return_value=True
+    ) as update:
+        result = CliRunner().invoke(cli, ["--db", str(db.db_path), "update"])
+    assert result.exit_code == 0
+    update.assert_called_once()
+    assert "outdated" not in result.stderr

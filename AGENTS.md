@@ -92,7 +92,8 @@ Unix philosophy. Consistent, predictable, parseable.
     full current set (add new ones here): `not found`, `invalid`,
     `missing`, `empty`, `unreadable`, `binary file`,
     `not UTF-8, read as Latin-1`, `no license found`, `N days old`,
-    `normalization vN outdated`, `build vN outdated`, `download failed`,
+    `normalization vN outdated`, `build vN outdated`, `build vN newer`,
+    `download failed`,
     `cache read failed`,
     `cache write failed`, `cache unusable`, `download unusable`,
     `stale cache unusable`, `parse failed`, `variant not stated`,
@@ -412,7 +413,10 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   change to `normalize_text` bumps `database.NORMALIZATION_VERSION`: a
   database stamped older warns (`build vN outdated`) and `update` rebuilds
   it at the release it has. Without the bump, a user who upgrades keeps the
-  old rows and is told nothing.
+  old rows and is told nothing. Stamps compare as numbers (`"10"` is newer
+  than `"2"`); a newer one warns `build vN newer` and is never rebuilt, and
+  one that is no number is older. Only a database opened without `create`
+  warns: `update`, which creates, is about to fix it.
 - A regex with `\s+` directly followed by a class that also matches
   whitespace (`\s+[\s/*#]*`) is quadratic on a long run of spaces (5 s at
   32,000): write `\s[\s/*#]*`. Time every new prose regex on `"x" + " " * N`

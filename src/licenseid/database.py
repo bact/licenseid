@@ -60,6 +60,19 @@ if TYPE_CHECKING:
 NORMALIZATION_VERSION = "2"
 
 
+def _stamp(value: str) -> int:
+    """A build stamp as a number to compare: -1 for one that is no short
+    ASCII number, which no licenseid wrote, so it is older than any."""
+    return (
+        int(value)
+        if isinstance(value, str)
+        and value.isascii()
+        and value.isdecimal()
+        and len(value) < 10
+        else -1
+    )
+
+
 class LicenseDatabase:
     """
     Handles SQLite database operations for storing and searching SPDX licenses.
@@ -87,13 +100,23 @@ class LicenseDatabase:
 
         self._init_db()
         self._tables = TableCache(self._connections)
-        for outdated in self._outdated_rules():
-            warn(f"database: {outdated}; run 'licenseid update'")
+        if not create:  # update, which creates, is about to fix it
+            for outdated in self._outdated_rules():
+                warn(f"database: {outdated}; run 'licenseid update'")
+            for newer in self._stamped_rules(newer=True):
+                warn(f"database: {newer}")
 
     def _outdated_rules(self) -> list[str]:
         """The rules this database was built with that are older than this
         licenseid's, each as a condition and its detail ("normalization v1
-        outdated: current v2"). ``update`` rebuilds such a database.
+        outdated: current v2"). ``update`` rebuilds such a database."""
+        return self._stamped_rules(newer=False)
+
+    def _stamped_rules(self, newer: bool) -> list[str]:
+        """The rules this database was built with that are older than this
+        licenseid's (a stamp that is no number counts as older), or with
+        *newer*, the newer ones ("build v3 newer: current v2"): a later
+        licenseid built it, and rebuilding would downgrade it.
 
         Stored search_text and fingerprints are normalised at build time; if
         the normalize_text() rules changed since, query-side normalisation no
@@ -112,10 +135,15 @@ class LicenseDatabase:
             ),
             ("build", metadata.get("build_version", "1"), BUILD_VERSION),
         )
-        return [
-            f"{rules} v{stored} outdated: current v{current}"
+        ahead = [
+            (rules, stored, current, _stamp(stored) - _stamp(current))
             for rules, stored, current in built
-            if stored != current
+        ]
+        condition = "newer" if newer else "outdated"
+        return [
+            f"{rules} v{stored} {condition}: current v{current}"
+            for rules, stored, current, diff in ahead
+            if (diff > 0 if newer else diff < 0)
         ]
 
     def _connection(self, write: bool = False) -> QueryConnection:

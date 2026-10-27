@@ -20,15 +20,22 @@ and this project adheres to
   resolver and the list version; `GPL-3.0` is never narrowed to `-only`
   ([#97])
 
+### Removed
+
+- `LicenseDatabase.get_license_by_id_prefix()`: a "+" base is read by its
+  version key; no replacement in the public API ([#99])
+
 ### Fixed
 
 - `GPL 2+` and `GPL-v2+` in a source file count as or-later; `GPLv2++` and
   `GPL-2.0+foo` do not ([#96])
 - A database build records a renamed deprecated ID's successor
   (`StandardML-NJ` is `SMLNJ`); `update` rebuilds a database built by older
-  rules, which warns `build v1 outdated`, without `--force` ([#97])
+  rules (`build v1 outdated`) without `--force`, and keeps one built by newer
+  rules (`build v3 newer`) ([#97], [#101])
 - `GPL-2+` is `GPL-2.0-or-later`, not the invalid `GPL-2.0-only+`; `MI+`
-  names no licence, and `--id GPL-2.0-only+` is a usage error (exit 2) ([#99])
+  names no licence; `GPL-2.0-only+` answers none, not a near name, and is a
+  usage error as `--id` (exit 2) ([#99], [#101])
 - A missing file named as an argument (`match LICENSE.txt`) exits 2 with
   `input: not found`, not a confident text match; use `--text` ([#99])
 - An expression over 150 operators or 150 levels of brackets is refused on
@@ -37,6 +44,7 @@ and this project adheres to
 [#96]: https://github.com/bact/licenseid/pull/96
 [#97]: https://github.com/bact/licenseid/pull/97
 [#99]: https://github.com/bact/licenseid/pull/99
+[#101]: https://github.com/bact/licenseid/pull/101
 
 ## [0.5.0] - 2026-10-22
 

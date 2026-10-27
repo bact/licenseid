@@ -16,7 +16,11 @@ from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import InvalidInputError, invalid_id_error
-from licenseid.identifiers import disambiguate_deprecated_id, is_simple_expression
+from licenseid.identifiers import (
+    disambiguate_deprecated_id,
+    is_qualified_plus,
+    is_simple_expression,
+)
 from licenseid.looseid import loose_with, warn_narrowed
 from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
@@ -217,6 +221,8 @@ class AggregatedLicenseMatcher:
         Returns None (fall through to Tier 1) for inputs at or above the
         threshold, or below it with no confident match.
         """
+        if is_qualified_plus(ctx.target_text):
+            return []  # "GPL-2.0-only+" names no license, nor a near one
         if ctx.word_count >= 30:
             return None
 
