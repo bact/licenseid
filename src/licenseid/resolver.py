@@ -20,7 +20,6 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 
-from licenseid import __version__
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
 from licenseid.identifiers import (
@@ -34,7 +33,7 @@ from licenseid.looseid import (
     granted_id_text,
     loose_id,
 )
-from licenseid.resolvetypes import (
+from licenseid.resolvertypes import (
     CATEGORY_ORDER,
     LEXICAL_KINDS,
     LIST_PROVIDES,
@@ -330,16 +329,25 @@ def _list_info(db: LicenseDatabase) -> ListInfo:
     }
 
 
-def _resolution(value: str, found: _Found, lists: list[ListInfo]) -> Resolution:
-    category = _category(found)
-    if found.expression is None:  # nothing was resolved: no step was taken
-        found.steps, found.expansions = [], []
-    resolver: Resolver = {
+def _resolver_info() -> Resolver:
+    """Who resolved. The version is read when asked for, not when this module
+    is imported, so the package may import this module (and be imported by it)
+    in either order."""
+    # pylint: disable-next=import-outside-toplevel
+    from licenseid import __version__
+
+    return {
         "name": "licenseid",
         "version": __version__,
         "url": f"https://github.com/bact/licenseid/releases/tag/v{__version__}",
         "purl": f"pkg:pypi/licenseid@{__version__}",
     }
+
+
+def _resolution(value: str, found: _Found, lists: list[ListInfo]) -> Resolution:
+    category = _category(found)
+    if found.expression is None:  # nothing was resolved: no step was taken
+        found.steps, found.expansions = [], []
     return {
         "input": value,
         "expression": found.expression,
@@ -348,6 +356,6 @@ def _resolution(value: str, found: _Found, lists: list[ListInfo]) -> Resolution:
         "steps": found.steps,
         "expansions": found.expansions,
         "candidates": found.candidates,
-        "resolver": resolver,
+        "resolver": _resolver_info(),
         "lists": lists,
     }

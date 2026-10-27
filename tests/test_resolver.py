@@ -5,6 +5,8 @@
 
 """``resolve``: the SPDX expression a declared value stands for, and how."""
 
+import subprocess
+import sys
 import time
 from collections.abc import Callable, Generator
 
@@ -15,7 +17,7 @@ import licenseid
 from licenseid import LicenseDatabase
 from licenseid.looseid import declared_grant_id_text
 from licenseid.resolver import resolve
-from licenseid.resolvetypes import CATEGORY_ORDER, LIST_PROVIDES, TRUST, Resolution
+from licenseid.resolvertypes import CATEGORY_ORDER, LIST_PROVIDES, TRUST, Resolution
 
 ROWS = (
     Lic("MIT", "MIT License"),
@@ -377,3 +379,25 @@ def test_the_declared_grant_regex_does_not_backtrack(
     start = time.monotonic()
     assert declared_grant_id_text(payload(30_000)) is None
     assert time.monotonic() - start < 3  # linear: about 0.01 s; quadratic: 20 s
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "import licenseid.resolver",
+        "import licenseid.resolvertypes, licenseid.resolver",
+        "from licenseid.resolver import resolve",
+        "import licenseid.resolver, licenseid",
+    ],
+    ids=["resolver", "types-first", "function", "resolver-before-package"],
+)
+def test_the_module_imports_cleanly_in_any_order(statement: str) -> None:
+    """A fresh interpreter, so no earlier import hides a cycle (the package
+    version is read when asked for, not at import)."""
+    done = subprocess.run(  # nosec B603
+        [sys.executable, "-c", statement],
+        capture_output=True,
+        check=False,
+        timeout=60,
+    )
+    assert done.returncode == 0, done.stderr.decode("utf-8", "replace")
