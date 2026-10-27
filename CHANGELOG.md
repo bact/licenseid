@@ -18,6 +18,9 @@ and this project adheres to
 
 ### Fixed
 
+- A database build records the successor of a renamed deprecated ID (one ID in
+  use with the same name): `StandardML-NJ` is `SMLNJ`. The `-only`/`-or-later`
+  split (`GPL-2.0`) stays unresolved. Run `licenseid update --force`
 - `GPL 2+` and `GPL-v2+` in a source file count as or-later; `GPLv2++` and
   `GPL-2.0+foo` do not ([#96])
 
