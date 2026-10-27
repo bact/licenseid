@@ -1,0 +1,269 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Resolve a declared licence value to an SPDX expression and say how.
+
+``match`` answers "which licence is this text"; ``resolve`` answers "which
+SPDX expression does this *declared value* stand for, and what did the
+resolver do to get there". A caller that records the result needs the second
+part: a changed case is no decision, a re-spelt ID is, and a qualifier
+(``-only``) the author never wrote is a guess that must not be applied.
+
+This release resolves a value that names one licence. An expression of
+several (``MIT OR Apache2``) is reported as category ``expression`` with no
+resolution. Every step cites the list that supports it.
+"""
+
+import re
+import unicodedata
+from dataclasses import dataclass, field
+
+from licenseid import __version__
+from licenseid.database import LicenseDatabase
+from licenseid.datadir import get_default_db_path
+from licenseid.identifiers import without_outer_brackets
+from licenseid.looseid import MAX_KEY_INPUT, granted_id_text, loose_id
+from licenseid.resolvetypes import (
+    CATEGORY_ORDER,
+    TRUST,
+    Category,
+    ListInfo,
+    Resolution,
+    Resolver,
+    Step,
+)
+
+SPDX_LIST = "spdx-license-list"
+# The kinds of step the SPDX License List supports; see ListInfo.provides.
+_PROVIDES = ["deprecation", "ids", "names", "texts"]
+_RE_NUMBERS = re.compile(r"\d+(?:\.\d+)*")
+_RE_VERSION = re.compile(r"[vV]?\d+(?:\.\d+)*")
+_RE_EXPRESSION = re.compile(r"\b(?:AND|OR|WITH)\b|[()]", re.IGNORECASE)
+# A step kind that is not also a category name, mapped to the one it counts as.
+_AS_CATEGORY = {"trim": "lexical", "id_case": "lexical", "brackets": "lexical"}
+
+
+@dataclass
+class _Found:
+    """What the lookup decided, before it is put in the public shape."""
+
+    expression: str | None = None
+    steps: list[Step] = field(default_factory=list)
+    expansions: list[Step] = field(default_factory=list)
+    candidates: list[str] = field(default_factory=list)
+    category: Category | None = None  # set where the lookup knows better
+
+
+def resolve(value: str, db: LicenseDatabase | None = None) -> Resolution:
+    """Resolve the declared licence *value*.
+
+    Never raises on content: a value that names nothing is category
+    ``unresolved``. A missing or unusable database raises
+    :class:`licenseid.errors.DatabaseNotReadyError`, as ``match`` does.
+    *db* defaults to the database at the default path.
+
+    A deprecated ID that the List split into ``-only`` and ``-or-later`` is
+    never narrowed: ``GPL-3.0`` comes back as written, category
+    ``assumed_only``, with both candidates.
+    """
+    db = db or LicenseDatabase(get_default_db_path(), create=False)
+    with db.reading():
+        found = _lookup(db, value)
+        lists = [_list_info(db)]
+    return _resolution(value, found, lists)
+
+
+def _lookup(db: LicenseDatabase, value: str) -> _Found:
+    found = _Found()
+    text = value.strip()
+    if text != value:
+        found.steps.append(_step("trim", True, value, text))
+    unbracketed = without_outer_brackets(text)
+    if unbracketed != text:
+        found.steps.append(_step("brackets", True, text, unbracketed))
+        text = unbracketed.strip()
+    if not text or len(text) > MAX_KEY_INPUT or _has_control(text):
+        found.category = "unresolved"
+        return found
+    if text.endswith("+") and _plus(db, text, found):
+        return found
+    if _single(db, text, found):
+        return found
+    found.category = "expression" if _RE_EXPRESSION.search(text) else "unresolved"
+    return found
+
+
+def _has_control(text: str) -> bool:
+    """Whether *text* holds a control character other than white space: not
+    dropped as a separator, but no licence value."""
+    return any(unicodedata.category(c) == "Cc" and not c.isspace() for c in text)
+
+
+def _plus(db: LicenseDatabase, text: str, found: _Found) -> bool:
+    """``X+`` as ``X-or-later`` where the List has that ID; else ``X+``."""
+    base = _base(db, text[:-1].strip())
+    if base is None:
+        return False
+    license_id, steps = base
+    if license_id.endswith(("-only", "-or-later")):
+        found.category = "malformed"  # the qualifier is stated; "+" adds a second
+        return True
+    found.steps.extend(steps)
+    or_later = f"{license_id}-or-later"
+    if _in_use(db, or_later):
+        found.expansions.append(_step("plus_to_or_later", True, text, or_later))
+        found.expression = _canonical(db, or_later)
+    else:
+        found.expression = f"{license_id}+"
+    return True
+
+
+def _single(db: LicenseDatabase, text: str, found: _Found) -> bool:
+    """A value that names one licence: a stated qualifier ("GPLv2 or later"),
+    or an ID, a name or a loose ID, then its deprecation."""
+    named = granted_id_text(text)
+    if named is not None:
+        granted = loose_id(db, text)
+        base = _base(db, named.strip())
+        if granted and base and granted[1].endswith("-or-later"):
+            found.steps.extend(base[1])
+            found.expansions.append(
+                _step("stated_qualifier", True, text, granted[1], "or later stated")
+            )
+            found.expression = granted[1]
+            return True
+    base = _base(db, text)
+    if base is None:
+        return False
+    found.steps.extend(base[1])
+    _deprecation(db, base[0], found)
+    return True
+
+
+def _base(db: LicenseDatabase, text: str) -> tuple[str, list[Step]] | None:
+    """The listed ID *text* names, and the steps from *text* to it: its own
+    ID in other case, a listed name, or a loosely written ID."""
+    details = db.get_license_details(text)
+    if details is not None:
+        license_id = details["license_id"]
+        same = license_id == text
+        return license_id, [] if same else [_step("id_case", True, text, license_id)]
+    names = [
+        row["license_id"]
+        for row in db.get_all_names_and_ids()
+        if not row["is_deprecated"] and row["name"].casefold() == text.casefold()
+    ]
+    if len(names) == 1:
+        return names[0], [_step("listed_name", True, text, names[0])]
+    loose = loose_id(db, text)
+    if loose is None or text.endswith("+"):
+        return None
+    license_id = loose[0]["license_id"]
+    return license_id, _spelling(text, license_id)
+
+
+def _spelling(text: str, license_id: str) -> list[Step]:
+    """The steps from a loose *text* to the *license_id* it names: its form
+    (``separator``), its number (``version_spelling``), or both. What was
+    applied is read back from the two strings; it does not decide the match."""
+    steps = []
+    skeleton = _RE_VERSION.sub("#", text).casefold()
+    if skeleton != _RE_VERSION.sub("#", license_id).casefold():
+        steps.append(_step("separator", True, text, license_id))
+    if _RE_NUMBERS.findall(text) != _RE_NUMBERS.findall(license_id):
+        steps.append(_step("version_spelling", True, text, license_id))
+    return steps or [_step("separator", True, text, license_id)]
+
+
+def _deprecation(db: LicenseDatabase, license_id: str, found: _Found) -> None:
+    """Set the expression for the listed *license_id*, following a rename and
+    declining to narrow a split ID."""
+    details = db.get_license_details(license_id)
+    if details is None or not details.get("is_deprecated"):
+        found.expression = license_id
+        return
+    successor = details.get("superseded_by")
+    if successor:
+        found.steps.append(
+            _step("deprecated_equal_successor", True, license_id, successor)
+        )
+        found.expression = _canonical(db, successor)
+        return
+    found.expression = license_id
+    found.candidates = sorted(
+        c for c in (f"{license_id}-only", f"{license_id}-or-later") if _in_use(db, c)
+    )
+    kind = "assumed_only" if found.candidates else "deprecated_ambiguous"
+    found.expansions.append(_step(kind, False, license_id, license_id))
+
+
+def _in_use(db: LicenseDatabase, license_id: str) -> bool:
+    details = db.get_license_details(license_id)
+    return details is not None and not details.get("is_deprecated")
+
+
+def _canonical(db: LicenseDatabase, license_id: str) -> str:
+    details = db.get_license_details(license_id)
+    return details["license_id"] if details else license_id
+
+
+def _step(kind: str, applied: bool, source: str, target: str, detail: str = "") -> Step:
+    return {
+        "kind": kind,
+        "applied": applied,
+        "from": source,
+        "to": target,
+        "list": SPDX_LIST,
+        "detail": detail,
+    }
+
+
+def _category(found: _Found) -> Category:
+    if found.category is not None:
+        return found.category
+    kinds = {_AS_CATEGORY.get(s["kind"], s["kind"]) for s in found.steps}
+    kinds |= {s["kind"] for s in found.expansions}
+    ranked = [c for c in CATEGORY_ORDER if c in kinds]
+    return ranked[-1] if ranked else "exact"
+
+
+def _list_info(db: LicenseDatabase) -> ListInfo:
+    version = db.get_metadata().get("license_list_version")
+    return {
+        "id": SPDX_LIST,
+        "name": "SPDX License List",
+        "version": version,
+        "url": (
+            None
+            if version is None
+            else f"https://github.com/spdx/license-list-data/releases/tag/v{version}"
+        ),
+        "license": "CC0-1.0",
+        "provides": list(_PROVIDES),
+        "id_authority": True,
+    }
+
+
+def _resolution(value: str, found: _Found, lists: list[ListInfo]) -> Resolution:
+    category = _category(found)
+    if found.category in ("expression", "malformed", "unresolved"):
+        found.expression = None
+    resolver: Resolver = {
+        "name": "licenseid",
+        "version": __version__,
+        "url": f"https://github.com/bact/licenseid/releases/tag/v{__version__}",
+        "purl": f"pkg:pypi/licenseid@{__version__}",
+    }
+    return {
+        "input": value,
+        "expression": found.expression,
+        "category": category,
+        "trust": TRUST[category],
+        "steps": found.steps,
+        "expansions": found.expansions,
+        "candidates": found.candidates,
+        "resolver": resolver,
+        "lists": lists,
+    }
