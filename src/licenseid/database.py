@@ -32,6 +32,7 @@ from licenseid.errors import DatabaseNotReadyError, LicenseIdError, fold, typed
 from licenseid.fingerprintstore import fingerprint_hits, store_fingerprints
 from licenseid.normalize import normalize_text
 from licenseid.records import (
+    BUILD_VERSION,
     ExceptionInsertRecord,
     IndexInsertRecord,
     LicenseInsertRecord,
@@ -52,7 +53,8 @@ if TYPE_CHECKING:
 
 # Version of the normalize_text() rule set used to build the stored
 # search_text and fingerprints.  Bump whenever normalization rules change so
-# that databases built with the old rules can be detected and rebuilt.
+# that databases built with the old rules can be detected and rebuilt (see
+# also records.BUILD_VERSION).
 # Version 2: SPDX Matching Guidelines rules (varietal words, bullets,
 # copyright notices, comment prefixes, separators).
 NORMALIZATION_VERSION = "2"
@@ -85,26 +87,36 @@ class LicenseDatabase:
 
         self._init_db()
         self._tables = TableCache(self._connections)
-        self._check_normalization_version()
+        for outdated in self._outdated_rules():
+            warn(f"database: {outdated}; run 'licenseid update'")
 
-    def _check_normalization_version(self) -> None:
-        """Warn when the DB was built with an older normalize_text() rule set.
+    def _outdated_rules(self) -> list[str]:
+        """The rules this database was built with that are older than this
+        licenseid's, each as a condition and its detail ("normalization v1
+        outdated: current v2"). ``update`` rebuilds such a database.
 
         Stored search_text and fingerprints are normalised at build time; if
-        the rules changed since, query-side normalisation no longer matches
-        the index and recall degrades silently.
+        the normalize_text() rules changed since, query-side normalisation no
+        longer matches the index and recall degrades silently. Rows built by
+        older records rules miss what those rules now record.
         """
         metadata = self.get_metadata()
         # Empty/new databases have no version yet — nothing to warn about.
         if not metadata.get("license_list_version"):
-            return
-        stored = metadata.get("normalization_version", "1")
-        if stored != NORMALIZATION_VERSION:
-            warn(
-                f"database: normalization v{stored} outdated: "
-                f"current v{NORMALIZATION_VERSION}; "
-                "run 'licenseid update --force'"
-            )
+            return []
+        built = (
+            (
+                "normalization",
+                metadata.get("normalization_version", "1"),
+                NORMALIZATION_VERSION,
+            ),
+            ("build", metadata.get("build_version", "1"), BUILD_VERSION),
+        )
+        return [
+            f"{rules} v{stored} outdated: current v{current}"
+            for rules, stored, current in built
+            if stored != current
+        ]
 
     def _connection(self, write: bool = False) -> QueryConnection:
         """A connection for one query, read-only unless *write*."""
@@ -201,12 +213,14 @@ class LicenseDatabase:
         chain = releasesource.ReleaseChain(self.db_path.parent, request, current)
         target_version, release_date, ds_licenses = chain.target()
         status(f"Target SPDX License List version: {target_version}")
-        if current == target_version and not request.force:
+        # Older build rules need the same release built again.
+        force = request.force or bool(self._outdated_rules())
+        if current == target_version and not force:
             return _skip(target_version)
 
         status(f"Updating license database to version {target_version}...")
         data, ds_data = chain.load(target_version)
-        if data.version == current and not request.force:  # a snapshot fallback
+        if data.version == current and not force:  # a snapshot fallback
             return _skip(data.version)
         # After the data: a skip needs none, and the chain knows by now
         # whether the network is out of reach.
@@ -302,6 +316,7 @@ class LicenseDatabase:
                     ("last_check_datetime", now),
                     ("last_update_datetime", now),
                     ("normalization_version", NORMALIZATION_VERSION),
+                    ("build_version", BUILD_VERSION),
                 ]
                 conn.executemany(
                     "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
@@ -493,6 +508,11 @@ class LicenseDatabase:
         """get_all_names_and_ids() by *key* of each ID (see
         dbcache.TableCache.names_by_key)."""
         return self._tables.names_by_key(key)
+
+    def get_active_ids_by_name(self) -> dict[str, list[str]]:
+        """The licence IDs in use by case-folded name (see
+        dbcache.TableCache.active_ids_by_name)."""
+        return self._tables.active_ids_by_name()
 
     def get_deprecated_mappings(self) -> dict[str, str]:
         """Get a mapping of all deprecated IDs to their successors."""

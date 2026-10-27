@@ -18,6 +18,11 @@ from licenseid.normalize import normalize_text
 from licenseid.spdxdata import SpdxData
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 
+# Version of the rules that turn a release into rows. A database stores the
+# version it was built with; `update` rebuilds one built with older rules.
+# Version 2: a renamed deprecated ID records its successor (StandardML-NJ).
+BUILD_VERSION = "2"
+
 # (license_id, name, xml_template, is_spdx, is_osi, is_fsf,
 #  is_high_usage, is_deprecated, superseded_by, pop_score, word_count,
 #  norm_license_id, norm_name)

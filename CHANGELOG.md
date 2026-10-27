@@ -7,7 +7,7 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-10-27
 
 ### Added
 
@@ -16,15 +16,17 @@ and this project adheres to
 - `GPLv3` (no `-only`/`-or-later`) is `GPL-3.0-only`, not exact, with
   `WARNING: match: variant not stated` ([#96])
 - `licenseid.resolve(value)` gives the SPDX expression for a declared
-  licence, each step taken, the resolver and the list version; a bare
-  deprecated ID (`GPL-3.0`) is never narrowed to `-only` ([#97])
+  licence, `WITH` an exception or a `LicenseRef-*`, each step taken, the
+  resolver and the list version; `GPL-3.0` is never narrowed to `-only`
+  ([#97])
 
 ### Fixed
 
 - `GPL 2+` and `GPL-v2+` in a source file count as or-later; `GPLv2++` and
   `GPL-2.0+foo` do not ([#96])
 - A database build records a renamed deprecated ID's successor
-  (`StandardML-NJ` is `SMLNJ`); run `licenseid update --force` ([#97])
+  (`StandardML-NJ` is `SMLNJ`); `update` rebuilds a database built by older
+  rules, which warns `build v1 outdated`, without `--force` ([#97])
 
 [#96]: https://github.com/bact/licenseid/pull/96
 [#97]: https://github.com/bact/licenseid/pull/97

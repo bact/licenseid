@@ -28,6 +28,7 @@ import pytest
 from conftest import insert_mit_license, make_ready_db_path
 
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
+from licenseid.records import BUILD_VERSION
 
 MIT_TEXT = (
     "Permission is hereby granted, free of charge, to any person obtaining a copy"
@@ -97,6 +98,7 @@ def _seed_metadata(conn: sqlite3.Connection) -> None:
     for key, value in (
         ("license_list_version", LICENSE_LIST_VERSION),
         ("normalization_version", NORMALIZATION_VERSION),
+        ("build_version", BUILD_VERSION),
         ("last_check_datetime", datetime.now(timezone.utc).isoformat()),
     ):
         conn.execute("INSERT INTO db_metadata (key, value) VALUES (?, ?)", (key, value))

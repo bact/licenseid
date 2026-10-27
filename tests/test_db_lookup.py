@@ -133,6 +133,7 @@ def _rebuild(db: LicenseDatabase, stamp: str | None) -> None:
 def test_a_rebuild_clears_what_was_read(db: LicenseDatabase) -> None:
     assert db.get_license_details("MIT")
     assert db.get_all_names_and_ids()
+    assert db.get_active_ids_by_name()
     db._write_db_records(
         [("Zlib", "zlib License", None, True, True, True, True, False, None, 1, 3,
           "zlib", "zlib license")],
@@ -145,6 +146,7 @@ def test_a_rebuild_clears_what_was_read(db: LicenseDatabase) -> None:
     assert zlib and zlib["license_id"] == "Zlib"
     assert db.get_search_text("Zlib") == "the origin of this software"
     assert [r["license_id"] for r in db.get_all_names_and_ids()] == ["Zlib"]
+    assert db.get_active_ids_by_name() == {"zlib license": ["Zlib"]}
 
 
 @pytest.mark.parametrize("in_block", [True, False], ids=["next-match", "api-call"])
@@ -177,6 +179,7 @@ def test_a_row_with_no_id_is_skipped() -> None:
     for path in seeded_db("test_db_lookup_null", ROWS):
         with sqlite3.connect(path, uri=True) as conn:
             conn.execute("INSERT INTO licenses (license_id, name) VALUES (NULL, 'x')")
+            conn.execute("INSERT INTO licenses (license_id, name) VALUES ('Y', NULL)")
             conn.execute(
                 "INSERT INTO license_index (license_id, search_text) VALUES (NULL, 'x')"
             )
@@ -186,6 +189,9 @@ def test_a_row_with_no_id_is_skipped() -> None:
         index = db.get_names_by_key(str.lower)
         assert all(isinstance(r["license_id"], str) for v in index.values() for r in v)
         assert [r["license_id"] for r in index["mit"]] == ["MIT"]
+        by_name = db.get_active_ids_by_name()
+        assert "x" not in by_name
+        assert all(isinstance(i, str) for ids in by_name.values() for i in ids)
 
 
 @pytest.mark.parametrize(
@@ -196,8 +202,10 @@ def test_a_row_with_no_id_is_skipped() -> None:
         (lambda t: t.names_and_ids(), "_names_and_ids"),
         (lambda t: t.deprecated(), "_deprecated"),
         (lambda t: t.names_by_key(str.lower), "_keyed"),
+        (lambda t: t.active_ids_by_name(), "_active"),
+        (lambda t: t.active_id_with_prefix("M"), "_active"),
     ],
-    ids=["ids", "index", "names", "deprecated", "keyed"],
+    ids=["ids", "index", "names", "deprecated", "keyed", "by-name", "prefix"],
 )
 def test_a_read_made_during_a_clear_is_not_kept(
     db: LicenseDatabase, read: Callable[[TableCache], object], kept: str

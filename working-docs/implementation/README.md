@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -101,6 +101,7 @@ yet started, see [`../design/`](../design/).
 | 2026-10-06 | [cross-platform.md](cross-platform.md) | record | The Windows work of PR #77: the 0.4.0 URI bug, the path and URI rules, how tests handle Windows, and what a real Windows run has and has not confirmed. |
 | 2026-10-02 | [tech-debt-resolved.md](tech-debt-resolved.md) | record | The tech-debt roadmap's resolved items: what each was and what was done, moved out of the roadmap to keep it under the size limit. |
 | 2026-10-22 | [release-process.md](release-process.md) | implemented (0.5.0) | How a release is cut: order, checks before the tag, traps seen in 0.5.0 |
+| 2026-10-27 | [declared-value-resolver.md](declared-value-resolver.md) | implemented (PR #97, 0.6.0 review) | `resolve()`: WITH, `LicenseRef-*`, malformed qualifiers, hidden characters, the declared "or later" reader on `OR_LATER_PHRASE`, and the build stamp that makes `update` rebuild an older database. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

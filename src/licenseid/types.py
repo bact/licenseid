@@ -187,3 +187,5 @@ class DatabaseMetadata(TypedDict, total=False):
     release_date: str
     last_check_datetime: str
     last_update_datetime: str
+    normalization_version: str
+    build_version: str

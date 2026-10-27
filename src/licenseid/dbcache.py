@@ -67,7 +67,9 @@ class TableCache:
         self._license_ids: dict[str, str] | None = None
         self._index_rows: dict[str, int] | None = None
         self._names_and_ids: list[LicenseNameId] | None = None
-        self._active_ids: list[tuple[str, str]] | None = None
+        # The active rows: (folded ID, ID) in folded order, and IDs by name.
+        self._active: tuple[list[tuple[str, str]], dict[str, list[str]]] | None
+        self._active = None
         self._deprecated: dict[str, str] | None = None
         # One index of names_and_ids() by a key of each ID, and its key.
         self._keyed: tuple[Callable[[str], str], dict[str, list[LicenseNameId]]] | None
@@ -77,7 +79,7 @@ class TableCache:
         """Forget every read, after the tables were rewritten."""
         self._generation += 1
         self._license_ids = self._index_rows = None
-        self._names_and_ids = self._active_ids = None
+        self._names_and_ids = self._active = None
         self._deprecated = None
         self._keyed = None
 
@@ -184,6 +186,11 @@ class TableCache:
                 self._keyed = keyed
         return keyed[1]
 
+    def active_ids_by_name(self) -> dict[str, list[str]]:
+        """The IDs in use by case-folded name: a lookup by name costs no pass
+        over every row."""
+        return self._active_rows()[1]
+
     def active_id_with_prefix(self, prefix: str) -> str | None:
         """The ID of the one active licence whose ID starts with *prefix*.
 
@@ -211,18 +218,28 @@ class TableCache:
 
     def _folded_active_ids(self) -> list[tuple[str, str]]:
         """Each active licence's ID, case folded, and the ID, in folded order."""
+        return self._active_rows()[0]
+
+    def _active_rows(self) -> tuple[list[tuple[str, str]], dict[str, list[str]]]:
+        """The licences in use, read once: each ID case folded and the ID, in
+        folded order, and the IDs by case-folded name."""
         self._check_stamp()
-        generation, ids = self._generation, self._active_ids
-        if ids is None:
-            # A hand-filled table can hold a NULL ID, whatever the type says.
-            ids = sorted(
-                (fold_case(record["license_id"]), record["license_id"])
-                for record in self.names_and_ids()
-                if isinstance(record["license_id"], str) and not record["is_deprecated"]
-            )
+        generation, active = self._generation, self._active
+        if active is None:
+            ids: list[tuple[str, str]] = []
+            by_name: dict[str, list[str]] = {}
+            # A hand-filled table can hold a NULL, whatever the type says.
+            for record in self.names_and_ids():
+                license_id, name = record["license_id"], record["name"]
+                if not isinstance(license_id, str) or record["is_deprecated"]:
+                    continue
+                ids.append((fold_case(license_id), license_id))
+                if isinstance(name, str):
+                    by_name.setdefault(name.casefold(), []).append(license_id)
+            active = (sorted(ids), by_name)
             if generation == self._generation:
-                self._active_ids = ids
-        return ids
+                self._active = active
+        return active
 
     def deprecated(self) -> dict[str, str]:
         """Each deprecated licence and exception ID to its successor."""
