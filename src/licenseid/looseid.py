@@ -147,12 +147,10 @@ def _keyed_row(db: LicenseDatabase, key: str) -> LicenseNameId | None:
     return rows[0] if len(rows) == 1 else None
 
 
-def _granted(db: LicenseDatabase, text: str) -> tuple[LicenseNameId, str] | None:
-    """*text* as a loose ID and an "or later" grant that ends it, read by the
-    one reader of the phrase (classify.OR_LATER_PHRASE, through
-    identifiers.qualify_trailing_grant): "GPLv2 or any later version" is
-    GPL-2.0-or-later. None if the ID has no -or-later form: the grant is not
-    dropped in silence."""
+def granted_id_text(text: str) -> str | None:
+    """The part of *text* before an "or later" grant that ends it ("GPLv2 or
+    any later version" gives "GPLv2 "), or None for a text without one. Read
+    by the one reader of the phrase (classify.OR_LATER_PHRASE)."""
     grant = OR_LATER_PHRASE.search(text)
     if grant is None or not _RE_GRANT_TAIL.fullmatch(text, grant.end()):
         return None
@@ -160,9 +158,44 @@ def _granted(db: LicenseDatabase, text: str) -> tuple[LicenseNameId, str] | None
     if text[start].isdigit():  # the phrase starts at the version: "2 or later"
         word = _RE_GRANT_WORD.search(grant.group(0))
         start += word.start() if word else 0
-    row = _keyed_row(db, version_key(text[:start]))
+    return text[:start]
+
+
+# A grant that ends a declared value, number or not: "MIT or later",
+# "GPL-3.0-only or later". classify.OR_LATER_PHRASE wants a number before "or
+# later" because prose also says "sooner or later"; a value that is only an
+# ID and a grant, plain or in brackets, has no such doubt. The lookbehind
+# starts a match only at the start of a run of white space, so a long run is
+# not rescanned from each of its characters.
+_GRANT_CORE = r"or\s+(?:any\s+)?(?:later|newer)(?:\s+versions?)?"
+_RE_DECLARED_GRANT = re.compile(
+    rf"(?<!\s)\s+(?:\(\s*{_GRANT_CORE}\s*\)|{_GRANT_CORE})[\s.]*\Z",
+    re.IGNORECASE,
+)
+
+
+def declared_grant_id_text(text: str) -> str | None:
+    """The part of a declared value before an "or later" grant that ends it,
+    with or without a number before the grant: "GPL-3.0-only or later" gives
+    "GPL-3.0-only". None for a value without one."""
+    grant = _RE_DECLARED_GRANT.search(text)
+    if grant is None:
+        return None
+    return text[: grant.start()]
+
+
+def _granted(db: LicenseDatabase, text: str) -> tuple[LicenseNameId, str] | None:
+    """*text* as a loose ID and an "or later" grant that ends it, read by the
+    one reader of the phrase (classify.OR_LATER_PHRASE, through
+    identifiers.qualify_trailing_grant): "GPLv2 or any later version" is
+    GPL-2.0-or-later. None if the ID has no -or-later form: the grant is not
+    dropped in silence."""
+    named = granted_id_text(text)
+    if named is None:
+        return None
+    row = _keyed_row(db, version_key(named))
     if row is None:
         return None
     lid = row["license_id"]
-    or_later = qualify_trailing_grant(lid, f"{lid} {text[start:]}")
+    or_later = qualify_trailing_grant(lid, f"{lid} {text[len(named) :]}")
     return None if or_later == lid else (row, or_later)

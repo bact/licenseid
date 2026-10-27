@@ -9,7 +9,8 @@
   `shorttext.py` (Tier 0 IDs and names), `looseid.py` (a loosely written
   ID: "Apache2", "GPLv3", "GPLv2 or any later version"), `ranking.py`
   (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
-  `markers.py`,
+  `markers.py`, `resolver.py` (a declared licence value to an SPDX expression
+  and the steps taken; its types and vocabularies are in `resolvertypes.py`),
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
   pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
