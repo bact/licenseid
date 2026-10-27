@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -163,8 +163,8 @@ download failed: ...; using packaged data v3.28.0`.
   'licenseid update --source packaged --force'`). An explicit `--version`
   naming the snapshot's version passes, as it does for the other sources.
 - **Timeouts** are (connect, read): (10, 30) for the version files and
-  popularity, (10, 60) for the compact bundle and the upstream tarball, so a black-holed host
-  fails in seconds.
+  popularity, (10, 60) for the compact bundle and the upstream tarball, so
+  a black-holed host fails in seconds.
 - **Bundle fetch**: one streamed request, `timeout=(10, 60)`; bytes are
   counted from `iter_content` and refused over 16 MiB; gzip's CRC is the
   integrity check (no hash on the client); cached atomically; a failed cache

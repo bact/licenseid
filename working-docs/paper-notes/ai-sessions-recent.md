@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -222,9 +222,9 @@ Grouped by how each was caught. Timestamps are approximate to the minute.
 - **13.** **10-02, PRs #72 and #73.** First versions passed every gate and
   mutation
   check, yet review still found real bugs:
-  - #72, four bugs: lost freshness in long-lived processes, two thread
+  - PR #72, four bugs: lost freshness in long-lived processes, two thread
     races, and a crash on a NULL key;
-  - #73, three bugs: errors raised inside a command, `no_args_is_help`, and
+  - PR #73, three bugs: errors raised inside a command, `no_args_is_help`, and
     long values;
   - then two more in #73: "requires" matched inside an option name, and
     acronyms were lowercased to "uRL".
@@ -373,10 +373,10 @@ Grouped by how each was caught. Timestamps are approximate to the minute.
 - **Rounds per PR.** Section 1 gives the count for each PR.
   - PR #55: about 12 passes in all. Its findings moved from the original code
     to the agent's own fixes.
-  - #61: about 11 passes over 9 days.
+  - PR #61: about 11 passes over 9 days.
   - Convergence was usually declared after one or two clean rounds:
-    - #72: rounds 4 and 5 found nothing new;
-    - #73: round 4 found nothing.
+    - PR #72: rounds 4 and 5 found nothing new;
+    - PR #73: round 4 found nothing.
 - **Reviewer angles used.**
   - Line-by-line review.
   - Adversarial black-box testing in real shells (bash, zsh, dash, sh, ksh).

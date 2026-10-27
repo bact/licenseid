@@ -2,5 +2,7 @@
   // MD024: allow repeated headings like "### Added"/"### Changed" across
   // different version sections (standard Keep a Changelog structure) —
   // only flag duplicates within the same parent section.
-  "MD024": { "siblings_only": true }
+  "MD024": { "siblings_only": true },
+  // MD013: a table row cannot be wrapped; prose and code stay within 80.
+  "MD013": { "tables": false }
 }

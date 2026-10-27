@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-22
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -27,7 +27,8 @@ author's reading.
   an Opus subagent; every finding was fixed or closed on purpose.
   **[observation]**
 - Two roadmap items closed after (#94): a named-pipe test that could hang the
-  suite, and a lone surrogate that raised `UnicodeEncodeError`. **[observation]**
+  suite, and a lone surrogate that raised `UnicodeEncodeError`.
+  **[observation]**
 
 ## Decisions that came from the human
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-07
-Last-Modified: 2026-10-26
+Last-Modified: 2026-10-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -60,7 +60,7 @@ Examples:
 | `"CDDL-1.0+"` | `"CDDL-1.0+"` |
 | `"Apache-2+"` | `"Apache-2.0+"` |
 
-#### New DB helper: `get_license_by_id_prefix()`
+#### New DB helper: `get_license_by_id_prefix()` (removed in 0.6.0)
 
 Returns the shortest active (non-deprecated) license whose ID starts with the
 given prefix, only when that match is unambiguous (unique shortest length).

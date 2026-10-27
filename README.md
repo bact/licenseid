@@ -419,7 +419,8 @@ r = resolve("Apache2")
 r["expression"]  # "Apache-2.0"
 r["category"]    # "version_spelling"
 [s["kind"] for s in r["steps"]]  # ["separator", "version_spelling"]
-r["resolver"]["purl"], r["lists"][0]["version"]  # who resolved, and from which list
+r["resolver"]["purl"]  # who resolved it
+r["lists"][0]["version"]  # from which list version
 ```
 
 The whole result of `resolve("Apache2")`, as JSON:
