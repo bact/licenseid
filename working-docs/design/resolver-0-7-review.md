@@ -1,0 +1,138 @@
+---
+Created: 2026-10-28
+Last-Modified: 2026-10-28
+SPDX-FileContributor: Arthit Suriyawongkul
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: Apache-2.0
+---
+
+# Review of T0 to T4 before T5 to T7
+
+Status: decisions taken by the maintainer on 2026-10-28; the task changes
+below are folded into [`resolver-0-7-plan.md`](resolver-0-7-plan.md)
+(sections 3, 8, 10 and 11).
+
+T0 (#110), T2 (#108), T3 (#107) and T4 (#112) were each reviewed on their
+own. This round reviewed them together, at `main` f514ca1, against what T5,
+T6 and T7 need. Two independent Opus reviews: one of the seams (with a
+throwaway in-memory index), one audit of the parity corpus's
+`expected_0_7_0` column and of the T0 fix commit 50a8e2e, which had had no
+second review.
+
+## 1. What the seams review proved
+
+- T5 is buildable from public pieces. A scratch `ListIndex` built from
+  `listrules.kept_licenses`, `active_exceptions_by_name`,
+  `exception_successor`, `normalize_text`, `fold_case` and `SpdxData`
+  (the 3.29.0 tarball round-tripped through the bundle format) gave the same
+  `resolve()` answer as the 3.29.0 database on 4,322 values (every ID, ID in
+  lower case, ID with `+`, every name, three `WITH` forms per exception,
+  every parity and sample value): 0 differ, 0 raise. The bundle loads in
+  0.069 s, the index in 0.030 s.
+- It cannot honestly fill the whole `LicenseDetails`: `pop_score` and
+  `is_high_usage` need `popularity.csv`, and `word_count` costs 1.2 to
+  1.6 s. The resolver chain reads only `license_id`, `is_deprecated` and
+  `superseded_by` (and `license_id`, `is_deprecated` of name rows).
+- No import cycles; `listindex` needs only the standard library,
+  `normalize`, `listrules`, `listlookup` and `spdxdata`.
+
+## 2. Defects and gaps found
+
+| # | Where | Finding | Goes to |
+| - | - | - | - |
+| G1 | `resolver.py:126-133`, `database.py:474-485` | A lone surrogate after `WITH` (`MIT WITH Classpath-exception-2.0\udcff`) raises `UnicodeEncodeError` with a database (`_has_control` misses Cs), and would be `unresolved` with an index | T4b: refuse Cs among the early refusals, reason `lone surrogate` |
+| G2 | `listlookup.py:57-72`, `types.py:138-153` | The Protocol promises `LicenseDetails` fields an index cannot give | T4b: narrow the return types to the fields read; `with_expression_details` and `flag_source` back to `LicenseDatabase` (they read the OSI and FSF flags) |
+| G3 | `listrules.py:39,80,117,130`, `spdxdata.py:152-178` | A bundle entry with no `name` raises `KeyError` (predates T2) | T4b: `spdxdata` refuses a `name` that is not a string (`BundleError`) |
+| G4 | `listlookup.py:71-72` | `get_deprecated_mappings` returns only IDs with a successor (licences in table order, then exceptions, an exception winning a clash), not "all deprecated IDs"; `release_date` is `""` when absent | T4b: docstrings |
+| G5 | `errors.py:22`, `dbcheck.py:262` | `DatabaseNotReadyError` carries no condition, so "missing" cannot be told from "unusable" | T5 |
+| G6 | `releasesource.py:298-313` | The version compare imports `spdx_source`, which imports `requests` | T5: move `is_older` and `_numbers` to `spdxdata` |
+| G7 | `conftest.py:95-99`, `release_fakes.py:172-178` | A process-wide `packaged_index()` cache would leak between tests that patch the bundle | T5: call `spdxdata.packaged_bundle()` through the module; `offline` and `ship` reset the cache |
+| G8 | `listrules.py:94-100` | 3.29.0 has no ID in use without a text, so real data cannot test the kept-rows rule of `get_active_ids_by_name` | T5: a synthetic bundle with such an ID, the successor of a rename |
+| G9 | `resolver.py:136-142,176-179`; `resolveleaf.py:47-55` | Category, trust and the "clear steps when nothing resolved" rule are private to `resolver`; `Found` has no `reason` | T6 adds `reason`; T7 makes `category_of(found)` public in `resolveleaf` |
+| G10 | `resolver.py:76-95`, `identifiers.py:731-747` | Stripping and outer brackets keep no offsets; Q8 spans need them | T7, outside `identifiers` (747 lines) |
+| G11 | `resolver._RE_TOKEN`, `identifiers._RE_TOKEN` | Two tokenizers already | T7 reuses `identifiers`' (made public or moved), no third |
+| G12 | `looseid.py:37` (`WITH_OPERATOR`) | A single `X with Y`, a tab or a double space answers `exact` with no step | T7 (Q17) |
+| G13 | `looseid._RE_GRANT_TAIL` (`looseid.py:32-35`) | The grant tail accepts `; : ) ]` | T6: guard the ID part only |
+| G14 | `tests/test_listlookup.py:20` | Imports the private `_lookup` and `_list_info` | T7 rewrites it |
+
+Audit of the T0 test harness (commit 50a8e2e):
+
+| # | Where | Finding | Goes to |
+| - | - | - | - |
+| H1 | `tests/resolver_corpus.py:196-203` | No test checks that the guard covers the PyPI sample: dropping `sample_rows()` survives every test | T4b |
+| H2 | `tools/pypi_licence_sample/__main__.py:330` | The sample's header hash covers expression, category and candidates only; re-pinned steps or trust pass | T4b: hash every answer column, re-export |
+| H3 | `tools/pypi_licence_sample/answer.py` | `Answer` pins step kinds only, not a step's targets or `applied`, nor the planned `reason` | T4b: add `reason` (`None` for 0.6.0) and step targets |
+| H4 | `resolver_corpus.py:219-228` | The report prints keys escaped twice; a pasted key then fails | T4b: print `{value!r}` |
+| H5 | `answer.py` | `Answer` is a positional 7-tuple; two swapped tuple fields pass mypy | T4b: keyword construction, a field-by-field diff in the report |
+| H6 | `__main__.py:448` | Every `ValueError` (a bad JSONL line) is reported as a usage error | T4b |
+| H7 | `release-process.md:62-70` | "Regenerate the fixtures" has no generator for the parity file | T4b: document hand re-pinning at a release boundary |
+| H8 | `resolver_corpus.py:167` | `read_rows` does not check the field count | T4b |
+
+## 3. Parity corpus audit
+
+Of 140 rows: 120 agree with the plan and the decisions, 1 prediction was
+wrong, 10 rows waited for a decision (now taken, section 4), and 9 `?`
+rows were in fact decided by the plan. Corrections, made in T4b:
+
+| Row (value) | Was | Now | Why |
+| - | - | - | - |
+| `W3C License` | `W3C [trove_name]` | `- [unresolved]` | Q22: the trove table comes first, and this name states no version |
+| `GNU Lesser General Public License v2 (LGPLv2)` | `LGPL-2.0 [assumed_only]` | `- [unresolved]` | Q23: "Lesser" says 2.1, "v2" says 2.0 |
+| `(MIT OR ISC) AND GPL-2.0-only WITH Classpath-exception-2.0` | listed as undecided | prediction kept | Q19: groups after all leaves |
+| `MIT WITH AdditionRef-x` | `?` | `MIT WITH AdditionRef-x [exact]` | Q20 |
+| `[MIT OR ISC]` | `?` | `ISC OR MIT [lexical]` | Q21 |
+| Parenthesised abbreviations (`(GPLv2)`, `(MIT)`, `(Unlicense)`, ...) | assumed a fall-through | prediction kept | Q18 |
+| `3-Clause BSD License`, `Artistic License`, `BSD (3 clause)`, `CC0 1.0 Universal`, `GNU GPLv3+`, `LGPL with exceptions`, `Modified BSD License`, `W3C SOFTWARE NOTICE AND LICENSE`, `W3C software and Document Notice License` | `?` | `- [unresolved]` | No rule reads them; Q9 and Q15 for the last two |
+| `Apache-2.0 WITH Foo-exception` | `why` cites F2 | `why`: licenseid's exception lookup refuses it | Under D1 the library never sees `WITH` |
+| `MIT\udcff` | `why`: reason `lone surrogate` | kept | G1: surrogates are refused before the drop guard |
+
+No row tells an ordinal key from a case-folded one in D1; T7 adds one
+(`MirOS OR MIT`).
+
+## 4. Decisions (2026-10-28)
+
+| # | Question | Decision |
+| - | - | - |
+| Q10 | A tie between database and bundle when the database's build is outdated | The packaged list wins unless the database's build stamp is current (the `build vN outdated` warning still prints). A newer database list still wins (Q4) |
+| Q11 | `source="auto"` with no database file | Silent; `lists[*].source` says `packaged`. A database that exists but is unusable warns `database: <condition>: <detail>; using packaged data v<ver>`. An explicit `db=` or `source="database"` still raises |
+| Q12 | `"MIT"` with quotes under T6 | Refused in T6 (1 project, 843,066 downloads; reason `character dropped`). Follow-up task T6b reads quoted values in their different forms, balanced or not, as a rule with its own evidence |
+| Q13 | Steps of a value the drop guard refuses | A `drop` step, `applied: false`, naming the dropped characters and the reading it stopped (`Apache 2.0?` to `Apache-2.0`), plus `reason` |
+| Q14 | "or later" inside a compound | `OR`/`or` is an operator unless a grant phrase follows; then the phrase is one grant token equal to `+` on the ID before it. The phrase is the one reader, `classify.OR_LATER_PHRASE`, anchored at the `or` token. Extend it: the hyphenated `or-later`; and the grant reader writes `ID+` for an ID with no `-or-later` form (`Apache 2.0 or later` to `Apache-2.0+`; 0.6.0 answers unresolved although the phrase already matches). New phrasings go into `PHRASES` in `tests/ordering_helpers.py` |
+| Q15 | What an operand may contain (Q9 made precise) | One token, plus `WITH` and its exception, a `+`, or a grant token (Q14). No other inner white space: `Apache License 2.0 OR MIT` is unresolved, reason `operand not resolved: Apache License 2.0` |
+| Q16 | The 100-character key cap | Per `WITH` half; a `LicenseRef-` is exempt. The answers it moves are listed in the guard |
+| Q17 | Operator case and spacing in a single `X WITH Y` | An `operator_case` or `whitespace` step: `exact` means the input equals the expression. Such values move to `lexical`, listed in the guard |
+| Q18 | A value the compound stage refuses (`MIT License (MIT)`) | Falls through to the trove and prose rules first; `malformed` only when no rule reads it (`(MIT`, `MIT AND`). Order: one licence, compound, trove table, prose, malformed |
+| Q19 | Where a bracketed group sorts (D1) | After all leaves, groups by their rendered text. Differs from `py-spdx-license` for `(A OR B) AND X WITH Y`; report upstream with the sort issues (section 5) |
+| Q20 | `AdditionRef-` exceptions | Accepted as `LicenseRef-` is, unchecked against the list; the `WITH` leaf's rank (2) |
+| Q21 | `[ ]` and `{ }` in a compound | Read as parentheses, with a `brackets` step; unbalanced or mixed stays `malformed` |
+| Q22 | Trove table or prose rules first | The trove table first: a trove name the table reads as `none` (`W3C License`) is not read by P1 |
+| Q23 | `GNU Lesser General Public License v2 (LGPLv2)` | Reading `none`: unresolved, reason naming `LGPL-2.0` and `LGPL-2.1` |
+
+Technical choices taken without a question, from the reviews:
+
+- `ListLookup` return types narrowed to the fields the chain reads (G2): a
+  placeholder `pop_score` would be a value a later caller trusts.
+- `dropguard.dropped(text) -> str`, the characters neither alphanumeric nor
+  allowed; a diff against the resolved ID would refuse `GPLv3` and the `.0`
+  the version key folds. Called in `resolveleaf._base` after the loose read,
+  before `_spelling`; a refusal makes `read_leaf` return True with
+  `unresolved`, so a compound reader does not retry the text.
+- `reason` first lands in T6 (`Found.reason`, `Resolution.reason`, `None`
+  by default); T7 fills it for compounds.
+- Steps in a result: steps taken before the split first, then each
+  operand's, then canonicalisation steps.
+- A prose or trove rule maps a step kind to its category; it never sets
+  `found.category` directly, or weakest-wins is lost (`GPL-3.0 License`
+  must stay `assumed_only`).
+
+## 5. For upstream (`py-spdx-license`)
+
+Report with reproducers, not blocking 0.7.0 (D1 avoids all three):
+
+1. `sort()` raises `TypeError` on repeated terms, also nested ones
+   (`(A AND B) OR (B AND A)`) (F3).
+2. The sort key includes the node class name, so an ID newer than the
+   library's list sorts after every known one (F1).
+3. A bracketed group sorts before a `WITH` leaf; licenseid puts groups after
+   all leaves (Q19). Propose one documented order.
