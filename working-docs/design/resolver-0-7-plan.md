@@ -9,9 +9,12 @@ SPDX-License-Identifier: Apache-2.0
 
 # Plan for the 0.7.0 resolver
 
-Status: plan, unbuilt. Drafted on 2026-10-28 by an Opus planning agent from
-the code of both repositories, then edited. The maintainer confirmed every
-answer of section 8 on 2026-10-28; implementation starts with T0.
+Status: T0 to T4 built (#107, #108, #110, #112); T5 onwards unbuilt.
+Drafted on 2026-10-28 by an Opus planning agent from the code of both
+repositories, then edited. The maintainer confirmed every answer of section
+8 on 2026-10-28. A review of T0 to T4 against T5 to T7, and decisions Q10 to
+Q23, are in [`resolver-0-7-review.md`](resolver-0-7-review.md); this plan is
+updated to match.
 
 See also: [`expression-resolution.md`](expression-resolution.md) (the design
 this executes), [`resolver-0-7-evidence.md`](resolver-0-7-evidence.md) (the
@@ -73,16 +76,16 @@ Each file stays under about 450 lines; no ceiling is raised.
 
 | File | Contents |
 | - | - |
-| `listlookup.py` (new, stdlib) | A `ListLookup` Protocol of the 7 methods the resolver chain calls (`get_license_details`, `get_exception_details`, `get_active_ids_by_name`, `get_names_by_key`, `get_deprecated_mappings`, `get_metadata`, `reading()`), and `fold_case` (moved from `dbcache`, which re-exports it). `LicenseDatabase` satisfies it unchanged. `resolver`, `looseid`, `versionkey` and `identifiers.normalize_identifier` are retyped to it. |
-| `listrules.py` (new, stdlib) | The pure list rules taken out of `records.py`: `active_ids_by_name`, `superseded_license`, `kept(lic, has_text)`, the exception successor rule. `records.py` calls them, so its rows are unchanged and `BUILD_VERSION` stays. This is how F5 cannot drift. |
-| `listindex.py` (new) | `ListIndex(SpdxData)` implements `ListLookup` in memory through `listrules` and `normalize_text`. Drops texts once built. `packaged_index()` loads once under a lock (the wheel's bundle cannot change) and returns `None` with no bundle. `get_metadata()` gives the list version and release date. |
-| `resolveleaf.py` (new) | 0.6.0's `_lookup` body (`_with`, `_one`, `_plus`, `_single`, `_grant`, `_base`, `_spelling`, `_deprecation`) moved verbatim against `ListLookup`, plus a call to the drop guard. A pure move first, under characterisation tests. |
-| `dropguard.py` (new, stdlib) | `dropped(text, license_id) -> str`: the characters normalisation discarded. Allowed: white space, `-`, `_`, `.`, Unicode `Pd` dashes, one trailing `,`. Any other, surrogates and U+FFFD included, gives `unresolved` with reason `character dropped: '?'`. Not applied to `listed_name`: the List's own name (`Yahoo! Public License v1.0`) keeps its `!`. |
+| `listlookup.py` (built, T3, 75 lines) | `ListLookup`, a Protocol of 7 methods (`reading`, `get_license_details`, `get_exception_details`, `get_names_by_key`, `get_active_ids_by_name`, `get_deprecated_mappings`, `get_metadata`), and `fold_case` (`dbcache` re-exports it). Typed to it: `resolver`, `resolveleaf`, `looseid`, `versionkey`, `identifiers` (`normalize_identifier`, `with_expression_details`, `flag_source`). T4b narrows the return types to the fields the chain reads; `with_expression_details` and `flag_source` go back to `LicenseDatabase` (they read the OSI and FSF flags). |
+| `listrules.py` (built, T2, 130 lines) | `is_deprecated`, `active_ids`, `active_ids_by_name`, `kept`, `superseded_license`, `kept_licenses` (kept entries with successor), `active_exceptions_by_name`, `exception_successor`. `records.py` calls them; `BUILD_VERSION` stays 2. This is how F5 cannot drift. |
+| `listindex.py` (new, T5) | `ListIndex(SpdxData)` implements `ListLookup` from `listrules.kept_licenses`, `exception_successor` and `normalize_text` (IDs and names only, never the texts: `word_count` alone costs 1.2 s). `get_active_ids_by_name` from the kept rows only. `reading()` is a null context. `get_metadata()`: `license_list_version`, `release_date` (`""` if none). `packaged_index()` calls `spdxdata.packaged_bundle()` through the module, caches under a lock with a reset for tests, returns `None` with no bundle. |
+| `resolveleaf.py` (built, T4, 275 lines) | `Found`; `read_leaf(db, text, found) -> bool`: False names none; True with `found.category` set is `malformed` or `unresolved`. Gate: `MAX_KEY_INPUT` on the whole text (per `WITH` half from T7, Q16). Private `_with`, `_exception`, `_one`, `_plus`, `_single`, `_qualified`, `_grant`, `_base`, `_spelling`, `_deprecation`. T6 adds `Found.reason`; T7 adds a public `category_of(found)` (from `resolver._category`). |
+| `dropguard.py` (new, stdlib, T6) | `dropped(text) -> str`: the characters neither alphanumeric nor allowed (white space, `-`, `_`, `.`, Unicode `Pd`, one trailing `,`). Called in `resolveleaf._base` after the loose read, before `_spelling`; a refusal makes `read_leaf` return True, `unresolved`, a `drop` step with `applied: false` (Q13) and reason `character dropped: '?'`. Not on `listed_name` (`Yahoo! Public License v1.0` keeps its `!`), not on the grant tail (`looseid._RE_GRANT_TAIL`). Quotes are refused (Q12). Surrogates are refused earlier, in `resolver` (T4b). |
 | `proseforms.py` (new, stdlib) | Rules P1 to P3 as an ordered table of `(kind, compiled regex, replacement)`. The reduced text goes back through `resolveleaf` and must resolve by id, listed name or loose id. Every regex is timed on `"x" + " " * N`. |
 | `trovenames.py` (new, data) | The `License ::` table: name to `(ids, reading)` with `reading` one of `stated`, `assumed`, `none`; `strip_trove_path`. About 90 entries, checked against the `trove-classifiers` package (a test dependency only). |
 | `exprcanon.py` (new) | See D1 below. |
 | `resolvecompound.py` (new) | Calls `resolveleaf` per leaf. All-or-nothing acceptance; the category is the weakest operand's; builds `operands` and `reason`; tells `malformed` (an operator or bracket and a resolved operand, but the grammar refuses it) from `unresolved`. Must handle `MIT OR GPL-2.0-only+` (`malformed` today). |
-| `resolver.py` (changed) | Entry point only: `resolve(value, db=None, *, source="auto")` chooses the list (4.5), runs the early refusals, tries one licence first (so 0.6.0 answers are kept), then a compound, then prose or trove. Builds `Resolution`, `components`, `lists`. Target 250 lines or fewer. |
+| `resolver.py` (190 lines after T4) | Entry point: `resolve(value, db=None, *, source="auto")` chooses the list (4.5, Q4, Q10, Q11), runs the early refusals (empty, over 2000, Cc and Cf, Cs from T4b), tries one licence (`read_leaf`), then a compound, then the trove table, then prose (Q18, Q22), then `malformed`. Builds `Resolution`, `components`, `lists`. T7 removes `_expression_category`, `_is_expression`, `_RE_TOKEN`, `_RE_IDLIKE`, `_RE_SQUARE`. At most 250 lines. |
 | `resolvertypes.py` (changed) | New keys, categories, kinds, trust levels (section 4). |
 | `identifiers.py` (747 lines) | Type hints only. Do not add to it. `normalize_identifier` keeps its narrowing for `match()`. |
 | `tools/pypi_licence_sample/` | `analyze --source packaged` (no database), `--json out` and `--compare base.json` for before and after per rule. |
@@ -245,6 +248,7 @@ version and source.
 | Q9 | Several-word operands | **Decided: defer**; `reason: operand not resolved`. |
 | R1 | Pinned answers churn when rules change | The sample fixture's "changed set is empty" guard. |
 | R2 | Two release trains in lockstep | licenseid first; Pitloom 0.21.1 does not depend on it; 0.22.0 floors on it. |
+| Q10-Q23 | Taken after the review of T0 to T4 | **Decided**: see [`resolver-0-7-review.md`](resolver-0-7-review.md) section 4 (tie with an outdated build, silence when no database, quotes, refusal steps, "or later" as a grant token, operands, the key cap, operator case, rule order, group order, `AdditionRef-`, brackets, two trove names). |
 
 ## 9. Risks
 
@@ -268,9 +272,11 @@ if it turns out to change the result shape, a category or the trust policy.
 | T2 | Move the list rules out of `records` | `listrules.py`; `records` output byte-identical on 3.29.0; `BUILD_VERSION` unchanged | Sonnet | medium |
 | T3 | Type the resolver on a `ListLookup` protocol | mypy strict clean; no behaviour change | Sonnet | low |
 | T4 | Move the single-value lookup to `resolveleaf` | Pure move; characterisation green; `resolver.py` at most 250 lines | Sonnet | medium |
-| T5 | `resolve()` reads the packaged list when there is no database | `listindex.py`; `source=`; warning on an unusable default database; `lists[*].source`; option-matrix axes; equivalence test; first load under 0.5 s | **Opus** | **high** |
-| T6 | Refuse a value whose dropped characters change it | `dropguard.py`; F6 pins flipped; sample: changed set listed and justified | Sonnet | medium (Opus reviews) |
-| T7 | Read compound expressions in `resolve()` | `exprcanon.py`, `resolvecompound.py`, `operands`, `components`, `reason`, `schema: 2`, `by`, `expression` removed; parity, adversarial and timing tests | **Opus** | **high** |
+| T4b | Tests and types the next tasks need | Review gaps G1 to G4 and H1 to H8 and the parity corrections of `resolver-0-7-review.md`: Cs refused early, `ListLookup` return types narrowed, `spdxdata` refuses an entry with no `name`, `Answer` with `reason` and step targets, the guard tested on the sample | Sonnet | medium (Opus reviews) |
+| T5 | `resolve()` reads the packaged list when there is no database | `listindex.py`; `source=`; warning on an unusable default database; `lists[*].source`; option-matrix axes; equivalence test (with a synthetic bundle for the kept-rows rule, G8); first load under 0.5 s; G5 to G7; Q10, Q11 | **Opus** | **high** |
+| T6 | Refuse a value whose dropped characters change it | `dropguard.py`; `reason` added; F6 pins flipped; sample: changed set listed and justified (`"MIT"` included, Q12); Q13 | Sonnet | medium (Opus reviews) |
+| T6b | Read quoted values | Quotes in their different forms, balanced or not (Q12), as a rule with a correctness argument and a sample run | Sonnet | medium (Opus reviews) |
+| T7 | Read compound expressions in `resolve()` | `exprcanon.py`, `resolvecompound.py`, `operands`, `components`, `reason`, `schema: 2`, `by`, `expression` removed; Q14 to Q21 and G9 to G14; parity, adversarial and timing tests | **Opus** | **high** |
 | T8 | Read prose forms of one id (P1 to P3) | Sample before and after committed; regex timing tests | Sonnet | medium |
 | T9 | Read trove classifier names and paths (T1 to T3) | `trovenames.py`; `trove-classifiers` check; `lists` entry; sample before and after | Sonnet | medium |
 | T10 | Deferred to 0.8 (Q3): offer assumed trove readings as candidates | `assumed_usage`; Pitloom keeps them as text | **Opus** | **high** |
@@ -287,17 +293,20 @@ if it turns out to change the result shape, a category or the trust policy.
 
 | Module | Role | Note |
 | - | - | - |
-| `resolver.py` (443 lines) | `resolve()`, `_lookup`, `_with`, `_one`, `_plus`, `_single`, `_base`, `_spelling`, `_deprecation`, `_expression_category`, `_resolution` | Compounds are not read: `_expression_category` only labels them |
-| `resolvertypes.py` | `Category`, `Trust`, `CATEGORY_ORDER` (weakest wins), `TRUST`, `LIST_PROVIDES`, `Step`, `ListInfo`, `Resolution` | Keep the tables in step with `Category` |
+| `resolver.py` (190 lines) | `resolve()`, `_lookup` (trim, outer brackets, refusals), `_unbracketed`, `_expression_category`, `_is_expression`, `_has_control`, `_category`, `_list_info`, `_resolver_info`, `_resolution` | Compounds are not read: `_expression_category` only labels them |
+| `resolveleaf.py` (275 lines) | `Found`, `read_leaf`; private `_with`, `_exception`, `_one`, `_plus`, `_single`, `_qualified`, `_grant`, `_base`, `_spelling`, `_deprecation` | One licence; reads the list through `ListLookup` only |
+| `listlookup.py`, `listrules.py` | `ListLookup`, `fold_case`; the keep and successor rules | The index uses both; `records.py` uses `listrules` |
+| `resolvertypes.py` | `Category`, `Trust`, `CATEGORY_ORDER` (weakest wins), `TRUST`, `LIST_PROVIDES`, `Step`, `step()`, `SPDX_LIST`, `ListInfo`, `Resolution` | Keep the tables in step with `Category` |
 | `identifiers.py` (747 lines) | `parse_expression`, `parse_declared`, `normalize_identifier`, `_canonicalize_expression` (cap 40 operators), `leading_expression`, `is_simple_expression` | Near the limit: put new code elsewhere |
 | `classify.py` | `OR_LATER_PHRASE`, the one reader of "or later" | Import it |
 | `plusoperator.py` | `PLUS_OPERATOR`, `strip_plus_operator`, `plus_after_qualifier`, the one reader of `+` | Import it |
 | `looseid.py`, `versionkey.py` | Loose ids (`Apache2`, `GPLv3`); one key per spelling | Lexical rules extend these |
 | `spdxdata.py`, `releasesource.py` | Reads the packaged, compact or upstream bundle (stdlib only) | The no-database path builds on `spdxdata` |
-| `records.py` | Builds database rows; the keep rule (`_license_records`) | Share its rules (T2) |
+| `records.py` | Builds database rows from `listrules`; `_metadata_only_record` and `_prepare_license_record` stay private (flags, popularity) | Not for the index |
 | `dbcache.py`, `database.py` | `TableCache`; `LicenseDatabase.reading()` | The in-memory index offers the same lookups |
 | `tests/test_resolver.py`, `test_resolver_shapes.py`, `resolver_helpers.py`, `ordering_helpers.PHRASES` | Resolver tests | A new phrasing goes into `PHRASES` |
-| `tools/pypi_licence_sample/` | `fetch`, `analyze` | The acceptance number |
+| `tools/pypi_licence_sample/` | `fetch`, `analyze`, `export`; `answer.Answer` | The acceptance number |
+| `tests/resolver_corpus.py`, `test_resolver_parity.py`, `test_resolver_sample.py`, `test_resolver_characterisation.py` | The pinned answers and the guard (`EXPECTED_CHANGES`: value to `(Answer, reason)`) | A rule PR lists every changed answer there |
 
 Consumer, Pitloom (its own repository):
 `src/pitloom/extract/_license_resolve.py`
@@ -372,16 +381,17 @@ _RULES: Final = (
      r"\g<n> \g<v>"),
 )
 
-def read_prose(text: str, lookup: ListLookup) -> _Found | None:
+# The kind maps to the category prose_form; never set found.category, or
+# weakest-wins is lost (GPL-3.0 License must stay assumed_only).
+def read_prose(text: str, lookup: ListLookup) -> Found | None:
     for kind, pattern, replacement in _RULES:
         match = pattern.fullmatch(text.strip())
-        if match:
-            reduced = match.expand(replacement)
-            found = resolve_leaf(lookup, reduced)      # must resolve uniquely
-            if found.expression is not None:
-                found.steps.insert(0, step(kind, True, text, reduced))
-                found.category = "prose_form"
-                return found
+        if match is None:
+            continue
+        reduced, found = match.expand(replacement), Found()
+        if read_leaf(lookup, reduced, found) and found.expression:
+            found.steps.insert(0, step(kind, True, text, reduced))
+            return found
     return None
 ```
 
@@ -406,13 +416,17 @@ def test_the_prose_regexes_do_not_backtrack(db):
 Compound: resolve the operands first, canonicalise second (D1):
 
 ```python
-leaves = split_leaves(value)                       # [(text, start, end)], linear
-results = [resolve_leaf(lookup, t) for t, _, _ in leaves]
-if any(r.expression is None for r in results):
-    return unresolved(value, operands=results, reason="operand not resolved: ...")
-skeleton = render_skeleton(value, leaves, placeholders(results))   # LicenseRef-licenseid-leaf-0001 ...
-tree = identifiers.parse_expression(skeleton)      # py-spdx-license sees only AND/OR/()/LicenseRef-
-canonical = render(dedupe(sort_chains(flatten(tree))), placeholders(results))
+leaves = split_leaves(value)       # [(text, start, end)], raw offsets (Q8);
+                                   # a grant phrase is part of its leaf (Q14)
+founds = [Found() for _ in leaves]
+read = [read_leaf(lookup, t, f) for (t, _, _), f in zip(leaves, founds)]
+if not all(read) or any(f.expression is None for f in founds):
+    return unresolved(value, operands(leaves, founds),
+                      reason="operand not resolved: ...")
+categories = [category_of(f) for f in founds]   # weakest wins
+skeleton = render_skeleton(value, leaves, placeholders(founds))
+tree = identifiers.parse_expression(skeleton)   # only AND, OR, (), LicenseRef-
+canonical = render(dedupe(sort_chains(flatten(tree))), placeholders(founds))
 ```
 
 With and without a database, and the sample as acceptance:
