@@ -29,7 +29,16 @@ python -m tools.pypi_licence_sample fetch --count 5000 --out sample.jsonl
 
 # 2. Count (no network; needs the licence database: licenseid update).
 python -m tools.pypi_licence_sample analyze sample.jsonl --top 40
+
+# 3. Freeze the distinct values and their answers as test fixtures.
+python -m tools.pypi_licence_sample export sample.jsonl \
+    --out tests/fixtures/pypi_values_2026-10 --db /path/to/licenses.db
 ```
+
+`analyze` and `export` read the default database unless `--db PATH` names one
+(opened read only). The `fetch` list is in download order, so the first N
+lines of the file are the top N projects: `head -5000 sample.jsonl >
+top5000.jsonl` makes the top-5,000 subset.
 
 `fetch` reads the `top-pypi-packages` list (hugovk; download counts) and the
 PyPI JSON API of each project's latest release. It sends a User-Agent naming
@@ -45,6 +54,21 @@ PyPI changes over time.
 - the unresolved values by group (`GROUPS` in `__main__.py`), with project
   counts and download totals;
 - the most common unresolved values.
+
+`export` writes the distinct short values (the value `analyze` picks, but not
+several classifiers joined by `AND`) to tab-separated files, sorted by value:
+`value` (Python `unicode_escape`), `field` (the source most projects used),
+`projects`, `downloads` and the answer of `resolve()`: `expression_0_6_0`,
+`category_0_6_0`, `candidates_0_6_0`, `steps_0_6_0`, `expansions_0_6_0`,
+`trust_0_6_0` and `input_same_0_6_0` (`-` is none). A file has at most 790
+lines (`--max-lines`), so `--out P` gives `P.tsv`, or `P-1.tsv`, `P-2.tsv` and
+on. If the values need more than `--max-files` (6) files, `export` keeps every
+value whose category is not `exact`; if those still do not fit, or
+`--max-files` is below 1, it exits 2 and writes nothing. Each header records
+the number of distinct values and the SHA-256 of the full sorted `(value,
+expression, category, candidates)` set. Remove the files of an earlier export
+first: it does not delete them. `tests/test_resolver_sample.py` freezes these
+files (see `tests/fixtures/README.md`).
 
 ## Reading the result
 

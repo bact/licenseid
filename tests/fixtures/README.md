@@ -89,6 +89,58 @@ uses the official SPDX License List as its authoritative, pristine data source.
   `scripts/generate_fixtures.py`; refresh it from a newer database with the
   query `SELECT license_id, name, is_deprecated, superseded_by FROM licenses
   ORDER BY license_id`.
+- **Exceptions:** `spdx-exception-ids.json` holds the 86 exceptions of the same
+  release as `[exception_id, name, is_deprecated, superseded_by]`, made once
+  from the upstream tarball with `licenseid.spdxdata` and `licenseid.records`.
+  Both files carry the `license_list_version` and the `release_date` of the
+  release; a test checks that they, the sample header and the test database
+  agree. `tests/resolver_corpus.py` builds a database from both files (every
+  licence and exception, and the text of the near neighbours of the corpus
+  values). Refresh the exceptions from a database `update` built with
+  `SELECT exception_id, name, is_deprecated, superseded_by FROM exceptions
+  ORDER BY exception_id` (one row per line, as in the licence file).
+- **Refreshing a snapshot** means re-pinning the corpus and the sample: the
+  guard in `tests/test_resolver_sample.py` lists every answer that moved. Take
+  the snapshots from a database of build v2 or later (`StandardML-NJ` names
+  `SMLNJ`; an older build leaves it null). The licence file's `StandardML-NJ`
+  row names its successor `SMLNJ` for that reason.
+
+### 7. `resolver_parity.tsv` and `pypi_values_2026-10*.tsv`
+
+- **Data Source:** The parity corpus: 83 real declared values (the
+  `License-Expression`, `License` and `License ::` classifier fields of
+  installed distributions and of the sdists and test projects of Pitloom,
+  collected 2026-10-28) and 50 synthetic ones (the gaps in
+  `working-docs/design/expression-resolution.md`, the dropped-character and
+  control-character cases of the 0.7.0 plan, and compound shapes). The PyPI
+  sample: the 462 distinct short licence values of the 10,000 most downloaded
+  PyPI projects, fetched 2026-10-28 and exported by
+  `python -m tools.pypi_licence_sample export`.
+- **Description:** Frozen answers of `licenseid.resolve()` 0.6.0 on SPDX 3.29.0,
+  so that each 0.7.0 task proves what it changed
+  (`tests/test_resolver_parity.py`, `tests/test_resolver_sample.py`).
+- **Characteristics:** Tab-separated, one header row, `#` comment lines at the
+  top. The `value` column is Python `unicode_escape` (a tab, newline,
+  backslash, non-ASCII character or lone surrogate such as `\udcff` is
+  written escaped); `-` is `None` or an empty list. Parity columns:
+  `value`, `field`, `source`, `pitloom_0_21_1` (`kind:value` that Pitloom
+  0.21.1 records), the answer columns `expression_0_6_0`, `category_0_6_0`,
+  `candidates_0_6_0`, `steps_0_6_0`, `expansions_0_6_0` (a `!` marks an
+  expansion that did not apply), `trust_0_6_0` and `input_same_0_6_0` (`yes`
+  when `input` is the raw value), then `expected_0_7_0` and `why`. The header
+  records the row count and the SHA-256 of the rows. `expected_0_7_0` is `=`
+  (as in 0.6.0), `EXPR [category]`, `- [category]` (no expression) or `?`
+  (the plan does not decide). The compounds' expected values were predicted
+  from the plan by a script, not by running 0.7.0; the pull request of each
+  rule confirms or corrects them. Sample columns: `value`, `field` (the
+  source most projects used), `projects`, `downloads` and the same answer
+  columns; the header records the number of distinct values and the SHA-256
+  of the sorted `(value, expression, category, candidates)` set. `pypi_sample_small.jsonl`
+  is a dozen synthetic projects for `tests/test_pypi_sample_export.py`.
+- **Changing an answer:** Do not edit a pinned column. A rule that moves an
+  answer adds the value, the whole new answer and the reason to
+  `EXPECTED_CHANGES` in `tests/resolver_corpus.py`; the guard test lists every
+  other change, and a listed value that gives another answer.
 
 ## Generating Fixtures
 

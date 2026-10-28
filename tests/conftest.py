@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 import requests
 from click.testing import CliRunner, Result
+from resolver_corpus import corpus_db_path
 
 from licenseid import console, spdxdata
 from licenseid.cli import cli
@@ -322,6 +323,15 @@ def fake_requests_get(
         fake.side_effect = error
     monkeypatch.setattr(requests, "get", fake)
     return fake
+
+
+@pytest.fixture(scope="session")
+def corpus_db() -> Generator[LicenseDatabase, None, None]:
+    """A database of the whole SPDX 3.29.0 List (every licence and exception,
+    the text of the near neighbours of the resolver corpus), built once per
+    session. Read only: a test must not write to it."""
+    for path in corpus_db_path("corpus", make_memory_db_path):
+        yield LicenseDatabase(path, create=False)
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
