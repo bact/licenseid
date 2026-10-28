@@ -12,6 +12,7 @@ show that the set of values whose answer changed is exactly the set it
 announces (``resolver_corpus.EXPECTED_CHANGES``).
 """
 
+import ast
 import hashlib
 import re
 
@@ -22,6 +23,7 @@ from resolver_corpus import (
     EXCEPTION_LIST,
     EXPECTED_CHANGES,
     LICENSE_LIST,
+    UNRESOLVED,
     changed_answers,
     changes_report,
     corpus_rows,
@@ -118,6 +120,15 @@ def test_the_guard_refuses_a_listed_value_with_a_wrong_answer(
     report = changes_report(changed, {"MIT": (wrong, "test")})
     assert "in EXPECTED_CHANGES, wrong answer: 'MIT'" in report
     assert "expression: 'ISC' -> 'MIT'" in report
+
+
+def test_a_reported_key_can_be_pasted_back() -> None:
+    """The report prints the value as a Python literal, once escaped: a tab,
+    a backslash and a lone surrogate come back as the value."""
+    value = "a\tb\\c\udcff"
+    changed = {value: (UNRESOLVED, UNRESOLVED._replace(trust="x"))}
+    key = changes_report(changed, {}).split(": ")[1]
+    assert ast.literal_eval(key) == value
 
 
 def test_the_expected_answers_are_whole_answers() -> None:

@@ -7,19 +7,32 @@
 and how the guard reads a TSV file (``resolver_corpus.read_rows``)."""
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 from resolver_corpus import read_rows
 
+from licenseid.resolvertypes import Resolution
 from tools.pypi_licence_sample.answer import (
     ANSWER_COLUMNS,
     Answer,
     answer_diff,
     answer_fields,
     answer_from_row,
+    answer_of,
     dump_targets,
     load_targets,
 )
+
+RESULT = {
+    "input": "MIT",
+    "expression": "MIT",
+    "category": "exact",
+    "trust": "identity",
+    "steps": [],
+    "expansions": [],
+    "candidates": [],
+}
 
 PLAIN = Answer(
     expression="MIT",
@@ -99,3 +112,11 @@ def test_a_well_formed_file_is_read(tmp_path: Path) -> None:
     path = tmp_path / "t.tsv"
     path.write_text("# c\na\tb\n 1\t2 \n", encoding="utf-8")
     assert read_rows(path) == [{"a": " 1", "b": "2 "}]
+
+
+def test_the_reason_of_a_result_is_pinned() -> None:
+    """``Resolution.reason`` comes with T6; until then a result without one is
+    ``None`` and a result with one is read."""
+    result = cast(Resolution, {**RESULT})
+    assert answer_of("MIT", result).reason is None
+    assert answer_of("MIT", cast(Resolution, {**RESULT, "reason": "x"})).reason == "x"
