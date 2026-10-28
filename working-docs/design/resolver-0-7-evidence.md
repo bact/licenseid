@@ -132,9 +132,9 @@ classifier names.
 3. **Prose with a trailing short name** (`MIT License (MIT)`, `ISC License
    (ISCL)`, `... (MPL 2.0)`, `... (LGPLv3+)`) is 4 of the 17 unresolved short
    values of the first corpus, but about 1% of the PyPI sample's (the trove
-   forms in item 4 carry most of it). A step that drops a trailing parenthesis when
-   the head resolves, naming what it dropped (the design's `drop` step), would
-   read all four.
+   forms in item 4 carry most of it). A step that drops a trailing
+   parenthesis when the head resolves, naming what it dropped (the design's
+   `drop` step), would read all four.
 
 4. **Trove classifier names are a closed vocabulary** (about 80 `License ::`
    entries; 27% of the unresolved values, mostly `Apache Software License`). A
