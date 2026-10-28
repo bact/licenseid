@@ -78,7 +78,7 @@ rows were in fact decided by the plan. Corrections, made in T4b:
 | Row (value) | Was | Now | Why |
 | - | - | - | - |
 | `W3C License` | `W3C [trove_name]` | `- [unresolved]` | Q22: the trove table comes first, and this name states no version |
-| `GNU Lesser General Public License v2 (LGPLv2)` | `LGPL-2.0 [assumed_only]` | `- [unresolved]` | Q23: "Lesser" says 2.1, "v2" says 2.0 |
+| `GNU Lesser General Public License v2 (LGPLv2)` | `LGPL-2.0 [assumed_only]` | prediction kept | Q23, changed by the maintainer on 2026-10-28: a special case, only the `why` is new |
 | `(MIT OR ISC) AND GPL-2.0-only WITH Classpath-exception-2.0` | listed as undecided | prediction kept | Q19: groups after all leaves |
 | `MIT WITH AdditionRef-x` | `?` | `MIT WITH AdditionRef-x [exact]` | Q20 |
 | `[MIT OR ISC]` | `?` | `ISC OR MIT [lexical]` | Q21 |
@@ -87,8 +87,9 @@ rows were in fact decided by the plan. Corrections, made in T4b:
 | `Apache-2.0 WITH Foo-exception` | `why` cites F2 | `why`: licenseid's exception lookup refuses it | Under D1 the library never sees `WITH` |
 | `MIT\udcff` | `why`: reason `lone surrogate` | kept | G1: surrogates are refused before the drop guard |
 
-No row tells an ordinal key from a case-folded one in D1; T7 adds one
-(`MirOS OR MIT`).
+No row told an ordinal key from a case-folded one in D1; T4b added one
+(`MirOS OR MIT`, expected `?`: the plan gives the key as `(rank, text)` and
+does not say which; T7 decides).
 
 ## 4. Decisions (2026-10-28)
 
@@ -107,7 +108,7 @@ No row tells an ordinal key from a case-folded one in D1; T7 adds one
 | Q20 | `AdditionRef-` exceptions | Accepted as `LicenseRef-` is, unchecked against the list; the `WITH` leaf's rank (2) |
 | Q21 | `[ ]` and `{ }` in a compound | Read as parentheses, with a `brackets` step; unbalanced or mixed stays `malformed` |
 | Q22 | Trove table or prose rules first | The trove table first: a trove name the table reads as `none` (`W3C License`) is not read by P1 |
-| Q23 | `GNU Lesser General Public License v2 (LGPLv2)` | Reading `none`: unresolved, reason naming `LGPL-2.0` and `LGPL-2.1` |
+| Q23 | `GNU Lesser General Public License v2 (LGPLv2)` | Special case for this one trove name, because LGPL is widespread: read as written, `LGPL-2.0`, `assumed_only` (bare deprecated ID, candidates `-only` and `-or-later`). The misspelt "Lesser" (LGPL-2.0 is the "Library" GPL) does not block it, as the version is clearly 2. Not a general rule: another self-contradicting name stays unresolved unless listed the same way. Changed by the maintainer on 2026-10-28, replacing "reading none" |
 
 Technical choices taken without a question, from the reviews:
 

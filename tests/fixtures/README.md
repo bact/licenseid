@@ -110,7 +110,7 @@ uses the official SPDX License List as its authoritative, pristine data source.
 - **Data Source:** The parity corpus: 83 real declared values (the
   `License-Expression`, `License` and `License ::` classifier fields of
   installed distributions and of the sdists and test projects of Pitloom,
-  collected 2026-10-28) and 50 synthetic ones (the gaps in
+  collected 2026-10-28) and 58 synthetic ones (the gaps in
   `working-docs/design/expression-resolution.md`, the dropped-character and
   control-character cases of the 0.7.0 plan, and compound shapes). The PyPI
   sample: the 462 distinct short licence values of the 10,000 most downloaded
@@ -125,9 +125,11 @@ uses the official SPDX License List as its authoritative, pristine data source.
   written escaped); `-` is `None` or an empty list. Parity columns:
   `value`, `field`, `source`, `pitloom_0_21_1` (`kind:value` that Pitloom
   0.21.1 records), the answer columns `expression_0_6_0`, `category_0_6_0`,
-  `candidates_0_6_0`, `steps_0_6_0`, `expansions_0_6_0` (a `!` marks an
-  expansion that did not apply), `trust_0_6_0` and `input_same_0_6_0` (`yes`
-  when `input` is the raw value), then `expected_0_7_0` and `why`. The header
+  `candidates_0_6_0`, `steps_0_6_0` and `expansions_0_6_0` (a `!` marks one
+  that did not apply), `step_targets_0_6_0` and `expansion_targets_0_6_0` (the
+  `to` of each; a comma is written `\x2c`), `trust_0_6_0`, `input_same_0_6_0`
+  (`yes` when `input` is the raw value) and `reason_0_6_0` (`-` until T6), then
+  `expected_0_7_0` and `why`. The header
   records the row count and the SHA-256 of the rows. `expected_0_7_0` is `=`
   (as in 0.6.0), `EXPR [category]`, `- [category]` (no expression) or `?`
   (the plan does not decide). The compounds' expected values were predicted
@@ -135,7 +137,7 @@ uses the official SPDX License List as its authoritative, pristine data source.
   rule confirms or corrects them. Sample columns: `value`, `field` (the
   source most projects used), `projects`, `downloads` and the same answer
   columns; the header records the number of distinct values and the SHA-256
-  of the sorted `(value, expression, category, candidates)` set. `pypi_sample_small.jsonl`
+  of the sorted `(value, every answer column)` lines. `pypi_sample_small.jsonl`
   is a dozen synthetic projects for `tests/test_pypi_sample_export.py`.
 - **Changing an answer:** Do not edit a pinned column. A rule that moves an
   answer adds the value, the whole new answer and the reason to
