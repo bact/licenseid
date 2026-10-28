@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-22
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -10,7 +10,8 @@ SPDX-License-Identifier: Apache-2.0
 # Release process
 
 How a licenseid release is cut, as done for 0.5.0 (2026-10-22, PRs #85
-to #95), and what went wrong on the way. The developer tags and publishes; an
+to #95) and 0.6.0 (2026-10-27, PRs #96 to #101), and what went wrong on
+the way. The developer tags and publishes; an
 agent prepares and checks.
 
 ## Order
@@ -67,6 +68,16 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
 
 ## Traps seen
 
+- An outside review after the last planned merge of 0.6.0 found four bugs,
+  one a wrong licence from `match(text="GPL-2.0-only+")` that the seeded
+  tests could not show (#101). Before the tag, probe each new input shape on
+  a full database built by `update`, against the last release.
+- The release planned as 0.5.1 became 0.6.0 after its preparation PR was
+  open: a new public API (`resolve()`) is a minor release. Rename the
+  version in docs and comments too, not only in the three version files.
+- A fix PR after the preparation PR goes into the open release section;
+  merge its entry with the related one (`[#99], [#101]`), and keep Keep a
+  Changelog's section order (Removed before Fixed).
 - A local tool older than CI: ruff did not report import order (I001) that CI
   did. Run `ruff check --select I`.
 - The mocked test `offline` fixture hides the packaged bundle; only a built

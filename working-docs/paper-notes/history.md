@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -72,10 +72,11 @@ merged PRs (35 of 62) landed in the last 19 days (2026-09-17 to 10-05).
 | 0.4.2 | 2026-10-06 | Lookups never create or write the database; read failures raise `DatabaseNotReadyError` (#80) |
 | 0.4.3 | 2026-10-07 | An overlong licence ID ending in `+` is no match, not `DatabaseNotReadyError` (#82) |
 | 0.5.0 | 2026-10-22 | `update --source`: compact (published bundle), upstream (SPDX tarball) or packaged (in the wheel); no XML stored (#85, #90); stable fingerprints (#86) |
+| 0.6.0 | 2026-10-27 | `resolve()` for declared values (#97); loose IDs (#96); `GPL-2+`, missing paths and parse caps (#99); outside-review fixes (#101) |
 
 <!-- markdownlint-restore -->
 
-Nineteen releases in 178 days; five on the first two days (04-28/29), and
+Twenty releases in 183 days; five on the first two days (04-28/29), and
 three patch releases in two days after 0.4.0 (10-06/07), driven by the
 Pitloom integration. The
 0.4.0 CHANGELOG section lists 5 Added, 22 Changed (8 marked **Breaking**),

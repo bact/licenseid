@@ -309,6 +309,13 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `PYTHONPATH=<copy>/src`: the environment is an editable install of this
   checkout, so without it the tests import the unmutated `src/` and every
   mutant seems to survive.
+- A negative test ("answers no licence", "ranks X below Y") on a seeded
+  database passes trivially when its rows have no `search_text`: Tiers 1
+  and 2 retrieve nothing. Seed the near neighbours the real list has, with
+  a text (`Lic(..., search_text=...)`, as `tests/test_qualified_plus.py`
+  does), mutate the fix to see the test fail, and probe the input on a full
+  database too. A four-row test hid a wrong answer that a reviewer found on
+  3.29.0 (PR #101).
 - Windows: before touching `dbcheck.py`, a database path or `file:` URI,
   `Path.home()`, or a test that needs POSIX features (chmod, symlinks,
   signals, `/bin/sh`), read `working-docs/implementation/cross-platform.md`.

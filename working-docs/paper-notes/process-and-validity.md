@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -159,6 +159,12 @@ docs refer to them but do not quote the constant. Remarks marked
   (`TDR` L69-82); click error rewording missed three cases (`TDR` L43-51).
 - "Re-read the PR description before merging: after the `--id` reversal it
   still described the opposite" (`EXPR` L92-93).
+- 0.6.0: the agent's review of its own PR found that the fix made new wrong
+  refusals (scheme-less URLs); an outside review after the agent's last
+  round found a wrong answer that a seeded four-row test database hid
+  (`ai-sessions-0-6-0.md`; `IMPL/declared-value-resolver.md`). A negative
+  test ("answers no licence") needs the near neighbours a real corpus has,
+  and a mutant of the fix that makes it fail.
 - Decision to stop one-off fixes: "no more one-off fixes of these edge cases";
   revise the matching rules as a whole (`ROAD` item 31, L179-184;
   `DES/matching-rules-redesign.md`).

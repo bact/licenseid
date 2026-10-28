@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -15,8 +15,9 @@ coding agents. These are notes, not a draft. Every claim cites a source
 (repository file and line, pull request, commit, or session transcript and
 timestamp) so that it can be checked before it is cited.
 
-Covers 2026-04-27 (first commit) to 2026-10-22 (v0.5.0, PRs #85 to #95); the
-older files stop at 2026-10-07 (v0.4.3).
+Covers 2026-04-27 (first commit) to 2026-10-27 (v0.6.0, PRs #96 to #101);
+the older files stop at 2026-10-07 (v0.4.3), and `ai-sessions-0-5-0.md` at
+2026-10-22 (v0.5.0).
 
 ## Files
 
@@ -29,6 +30,7 @@ older files stop at 2026-10-07 (v0.4.3).
 | [ai-sessions-early.md](ai-sessions-early.md) | Human–AI sessions, July to mid-September: decisions, mistakes, patterns |
 | [ai-sessions-recent.md](ai-sessions-recent.md) | Human–AI session, 19 September to 5 October: decisions, mistakes, patterns |
 | [ai-sessions-0-5-0.md](ai-sessions-0-5-0.md) | Human–AI session, release 0.5.0 (20 to 22 October): sources, reviews, mistakes |
+| [ai-sessions-0-6-0.md](ai-sessions-0-6-0.md) | Human–AI session, release 0.6.0 (24 to 28 October): loose IDs, `resolve()`, review yield |
 
 ## Method
 
@@ -126,3 +128,6 @@ inference, not a claim made in the repository.
   proportions with no stated method.
 - Check quoted user messages and session details with the developer before
   publishing them.
+- Review yield for 0.6.0 (`ai-sessions-0-6-0.md`): an outside review after
+  the agent's last round found a medium bug on the full database that a
+  four-row test database could not show. Use it as a case, not a rate.
