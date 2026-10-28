@@ -39,7 +39,17 @@ def fold_case(value: str) -> str:
 
 
 class ListLookup(Protocol):
-    """What the resolver reads of a licence list."""
+    """What the resolver reads of a licence list.
+
+    The contract an implementation copies from ``LicenseDatabase``:
+
+    - Both ID lookups strip surrounding white space from the ID.
+    - IDs compare with ASCII case folding only, as SQLite's NOCASE does
+      (``fold_case``), never ``str.lower`` or ``str.casefold``: the KELVIN
+      SIGN is not a ``k``.
+    - ``get_deprecated_mappings`` covers licence and exception IDs.
+    - ``get_active_ids_by_name`` is keyed by ``str.casefold()`` of the name.
+    """
 
     def reading(self) -> contextlib.AbstractContextManager[None]:
         """One block of queries (one resolution)."""
