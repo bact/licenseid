@@ -1,0 +1,469 @@
+# PyPI licence values of sample-2026-10.jsonl: 10000 projects, licenseid 0.6.0, SPDX 3.29.0.
+# value: the first of License-Expression, a short License or the classifiers, as Python unicode_escape.
+# field: the source most projects used. '-' is None or empty. The _0_6_0 columns are the answer of resolve() before the 0.7.0 work.
+# distinct values: 462; kept in these files: 462. See tests/fixtures/README.md.
+# sha256 of the sorted (value, expression, category): 9b77ee11bf49f12972113a51acc7534fb4bf076dd19f260042af934a0ad44edb
+# file 1 of 1
+value	field	projects	downloads	expression_0_6_0	category_0_6_0	candidates_0_6_0
+"MIT"	License	1	843066	MIT	separator	-
+'BSD'	License	1	525301	-	unresolved	-
+(specified using classifiers)	License	2	3559698	-	unresolved	-
+0BSD	License-Expression	5	179490993	0BSD	exact	-
+0BSD OR CC0-1.0	License-Expression	2	10755860	-	expression	-
+2-clause BSD	License	3	30513180	-	unresolved	-
+2-clause BSD License	License	1	5284571	-	unresolved	-
+3-Clause BSD License	License	1	619205877	-	unresolved	-
+3-clause BSD	License	2	904220	-	unresolved	-
+3-clause BSD <https://opensource.org/licenses/bsd-license.php>	License	1	397970	-	unresolved	-
+ADI BSD	License	1	159893	-	unresolved	-
+AGPL	License	2	347183	-	unresolved	-
+AGPL-3	License	1	292505	AGPL-3.0	assumed_only	AGPL-3.0-only,AGPL-3.0-or-later
+AGPL-3.0	License	7	9248944	AGPL-3.0	assumed_only	AGPL-3.0-only,AGPL-3.0-or-later
+AGPL-3.0-only	License-Expression	6	2868555	AGPL-3.0-only	exact	-
+AGPL-3.0-or-later	License	3	2512008	AGPL-3.0-or-later	exact	-
+AGPL-3.0-or-later WITH viewflow-library-exception	License	1	509998	-	unresolved	-
+AGPLv3	License	2	370342	AGPL-3.0	assumed_only	AGPL-3.0-only,AGPL-3.0-or-later
+AGPLv3+	License	2	791561	AGPL-3.0-or-later	version_spelling	-
+AL2	License	1	224742	-	unresolved	-
+APACHE	License	2	2167663	-	unresolved	-
+APACHE 2.0	License	1	690121	Apache-2.0	separator	-
+APGL3	License	1	156894	-	unresolved	-
+APL 2	License	3	1784929	-	unresolved	-
+APL 2.0	License	1	149225	-	unresolved	-
+AS License	License	1	817813	-	unresolved	-
+ASL	License	1	2682696	-	unresolved	-
+ASL 2.0	License	2	1501546	-	unresolved	-
+Apache	License	37	80533452	-	unresolved	-
+Apache 2	License	25	230880560	Apache-2.0	version_spelling	-
+Apache 2 License	License	1	581184	-	unresolved	-
+Apache 2.0	License	240	3545519526	Apache-2.0	separator	-
+Apache 2.0 Licence	License	1	182603	-	unresolved	-
+Apache 2.0 License	License	5	103172149	-	unresolved	-
+Apache 2.0 Software License	License	2	705064	-	unresolved	-
+Apache 2.0 license. See LICENSE.md for details.	License	1	131804	-	unresolved	-
+Apache LICENSE 2.0	License	1	550400	Apache-2.0	listed_name	-
+Apache Licence 2.0	License	1	174463	-	unresolved	-
+Apache Licence, Version 2.0	License	1	1377498	-	unresolved	-
+Apache License	License	3	2428378	-	unresolved	-
+Apache License (2.0)	License	1	685137	-	unresolved	-
+Apache License - Version 2.0	License	1	194764	-	unresolved	-
+Apache License 2	License	1	815985	-	unresolved	-
+Apache License 2.0	License	207	1226783424	Apache-2.0	listed_name	-
+Apache License 2.0.	License	1	208227	-	unresolved	-
+Apache License Version 2.0	License	16	39277917	-	unresolved	-
+Apache License v2.0	License	3	3371226	-	unresolved	-
+Apache License v2.0 with LLVM Exceptions	License	1	273501	-	unresolved	-
+Apache License, Version 2.0	License	68	657629333	-	unresolved	-
+Apache License, v2.0	License	1	602921	-	unresolved	-
+Apache Public License 2.0	License	1	1058951	-	unresolved	-
+Apache Software License	Classifier	354	1638394626	-	unresolved	-
+Apache Software License (Apache 2.0)	License	8	6509904	-	unresolved	-
+Apache Software License (Apache Software License 2.0)	License	1	148384	-	unresolved	-
+Apache Software License (http://www.apache.org/licenses/LICENSE-2.0)	License	1	147647	-	unresolved	-
+Apache Software License 2.0	License	24	16880878	-	unresolved	-
+Apache Software License v2	License	3	11919062	-	unresolved	-
+Apache Software License, Version 2.0	License	1	1188659	-	unresolved	-
+Apache Software License, Version 2.0, http://www.apache.org/licenses/LICENSE-2.0	License	1	2819099	-	unresolved	-
+Apache V2.0	License	1	297064	Apache-2.0	separator	-
+Apache Version 2.0	License	1	470510	-	unresolved	-
+Apache licensed, as found in the LICENSE file	License	1	1466774	-	unresolved	-
+Apache modified	License	1	629726	-	unresolved	-
+Apache v2	License	2	13175003	Apache-2.0	version_spelling	-
+Apache-2	License	2	22561604	Apache-2.0	version_spelling	-
+Apache-2.0	License-Expression	1543	22286496744	Apache-2.0	exact	-
+Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND ISC AND MIT AND Zlib	License-Expression	1	61685076	-	expression	-
+Apache-2.0 AND BSD-2-Clause	License-Expression	1	136740194	-	expression	-
+Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT	License-Expression	1	18290660	-	expression	-
+Apache-2.0 AND BSD-3-Clause AND MIT	License	1	336282	-	expression	-
+Apache-2.0 AND CC0-1.0 AND CC-BY-SA-4.0 AND GPL-3.0-or-later	License	1	684016	-	expression	-
+Apache-2.0 AND CNRI-Python	License-Expression	1	309895354	-	expression	-
+Apache-2.0 AND GPL-3.0-only	License	1	256330	-	expression	-
+Apache-2.0 AND LicenseRef-LiveKit-Model	License	1	2628680	-	expression	-
+Apache-2.0 AND MIT	License-Expression	4	459945989	-	expression	-
+Apache-2.0 AND Python-2.0	License-Expression	1	12493106	-	expression	-
+Apache-2.0 License	License	2	613508	-	unresolved	-
+Apache-2.0 OR BSD-2-Clause	License-Expression	1	1550430820	-	expression	-
+Apache-2.0 OR BSD-3-Clause	License	3	1070729860	-	expression	-
+Apache-2.0 OR GPL-2.0-or-later	License-Expression	1	50164006	-	expression	-
+Apache-2.0 OR LGPL-2.1-or-later	License-Expression	1	388803	-	expression	-
+Apache-2.0 OR MIT	License	4	44689673	-	expression	-
+Apache-2.0 WITH LLVM-exception	License-Expression	2	3930254	Apache-2.0 WITH LLVM-exception	exact	-
+Apache-2.0 license	License	32	117248629	-	unresolved	-
+Apache-2.0 or BSD	License	3	1596420	-	unresolved	-
+Apache-2.0 or MIT	License	1	388832	-	expression	-
+Apache-2.0 with LLVM exception	License	2	2739640	-	unresolved	-
+Apache-2.0 with LLVM exceptions	License	1	404561	-	unresolved	-
+Apache-2.0, http://www.apache.org/licenses/LICENSE-2.0	License	2	3878396	-	unresolved	-
+Apache2	License	6	4465559	Apache-2.0	version_spelling	-
+Apache2.0	License	3	9384066	Apache-2.0	separator	-
+Applitools SDK License	License	1	233167	-	unresolved	-
+Artistic License	Classifier	2	66375686	-	unresolved	-
+BSD	License	325	2267158018	-	unresolved	-
+BSD (3 clause)	License	1	500852	-	unresolved	-
+BSD (3-clause)	License	1	1924294	-	unresolved	-
+BSD - See ndg/httpsclient/LICENCE file for details	License	1	5314671	-	unresolved	-
+BSD 2-Clause License	License	8	53164122	-	unresolved	-
+BSD 2-clause	License	2	392273	BSD-2-Clause	separator	-
+BSD 3	License	3	1947361	-	unresolved	-
+BSD 3 clause	License	2	288938	BSD-3-Clause	separator	-
+BSD 3-Clause	License	21	36042495	BSD-3-Clause	separator	-
+BSD 3-Clause License	License	26	153885834	-	unresolved	-
+BSD 3-Clause License; partially licensed under the Python Software Foundation License	License	1	2216459	-	unresolved	-
+BSD 3-Clause OR Apache-2.0	License	1	128937870	-	unresolved	-
+BSD 3-Clause license	License	1	416312	-	unresolved	-
+BSD 3-clause	License	10	15303339	BSD-3-Clause	separator	-
+BSD 3-clause "New" or "Revised License"	License	1	318109	-	unresolved	-
+BSD License	Classifier	271	4395554380	-	unresolved	-
+BSD license	License	6	8726557	-	unresolved	-
+BSD license (see license.txt for details), Copyright (c) 2000-2025, ReportLab Inc.	License	1	68512641	-	unresolved	-
+BSD license, Copyright (c) 2000-2022, ReportLab Inc.	License	1	972376	-	unresolved	-
+BSD or Apache License, Version 2.0	License	1	187969	-	unresolved	-
+BSD, Public Domain	License	1	47477810	-	unresolved	-
+BSD-2-Clause	License-Expression	103	2619694488	BSD-2-Clause	exact	-
+BSD-2-Clause AND Apache-2.0 WITH LLVM-exception	License-Expression	1	52183739	-	expression	-
+BSD-2-Clause AND CC-BY-4.0 AND CC0-1.0	License	1	196792	-	expression	-
+BSD-2-Clause AND GPL-2.0-or-later	License-Expression	1	269985	-	expression	-
+BSD-2-Clause AND Unlicense AND MIT	License-Expression	1	69586596	-	expression	-
+BSD-2-Clause-Views	License-Expression	1	160767	BSD-2-Clause-Views	exact	-
+BSD-2-clause	License	1	188084	BSD-2-Clause	lexical	-
+BSD-3	License	9	3465995	-	unresolved	-
+BSD-3-Clause	License-Expression	409	15088569749	BSD-3-Clause	exact	-
+BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0	License-Expression	1	801552837	-	expression	-
+BSD-3-Clause AND BSL-1.0	License-Expression	1	774852	-	expression	-
+BSD-3-Clause AND ISC	License-Expression	1	40201001	-	expression	-
+BSD-3-Clause AND MIT	License-Expression	2	1501478	-	expression	-
+BSD-3-Clause AND TCL	License-Expression	1	28716411	-	expression	-
+BSD-3-Clause OR Apache-2.0	License	1	1002643	-	expression	-
+BSD-3-Clause and Public-Domain	License	1	6326970	-	expression	-
+BSD-3-Clause, Apache-2.0, dependency licenses	License	1	61185795	-	unresolved	-
+BSD-3-Clause-LBNL	License-Expression	3	917457	BSD-3-Clause-LBNL	exact	-
+BSD-3-clause	License	1	311496	BSD-3-Clause	lexical	-
+BSD-4-Clause	License-Expression	1	795242	BSD-4-Clause	exact	-
+BSD-derived (Repoze)	License	3	4225207	-	unresolved	-
+BSD-derived (http://www.repoze.org/LICENSE.txt)	License	3	9681309	-	unresolved	-
+BSD-like	License	1	1245412	-	unresolved	-
+BSD-like (http://repoze.org/license.html)	License	2	2321774	-	unresolved	-
+BSD-style	License	1	420580	-	unresolved	-
+BSD3	License	2	3326855	-	unresolved	-
+BSL-1.0	License-Expression	1	1277450	BSL-1.0	exact	-
+BUSL-1.1	License	2	616972	BUSL-1.1	exact	-
+BlueOak-1.0.0	License-Expression	2	342801	BlueOak-1.0.0	exact	-
+Boost Software License	License	1	180037	-	unresolved	-
+Boost Software License 1.0 (BSL-1.0)	Classifier	1	170202	-	unresolved	-
+BrowserStack Software License Agreement	License	1	154263	-	unresolved	-
+Business Source License 1.1 (See LICENSE.txt)	License	1	158200	-	unresolved	-
+CC-BY-3.0	License-Expression	1	375785	CC-BY-3.0	exact	-
+CC-BY-4.0	License-Expression	1	1165568	CC-BY-4.0	exact	-
+CC-BY-SA-4.0	License	1	148987	CC-BY-SA-4.0	exact	-
+CC0	License	3	842015	-	unresolved	-
+CC0 1.0 Universal	License	8	3619656	-	unresolved	-
+CC0 1.0 Universal (CC0 1.0) Public Domain Dedication	Classifier	2	3295297	-	unresolved	-
+CC0-1.0	License-Expression	3	884336	CC0-1.0	exact	-
+CC0-1.0 OR Apache-2.0	License	1	14560205	-	expression	-
+Commercial license. See artifex.com for details.	License	1	552853	-	unresolved	-
+Copyright	License	1	379525	-	unresolved	-
+Copyright (C) 2001-2005 by Vinay Sajip. All Rights Reserved. See LICENSE for license.	License	1	634534	-	unresolved	-
+Copyright (C) 2004-2020 by Vinay Sajip. All Rights Reserved. See LICENSE for license.	License	1	776834	-	unresolved	-
+Copyright (c) 2015 Brent Tubbs	License	1	336935	-	unresolved	-
+Copyright 2011-2017 Jeffrey Gelens <jeffrey@noppo.pro>	License	1	613913	-	unresolved	-
+Copyright 2016 Joshua Carp	License	1	450579	-	unresolved	-
+Creative Commons Attribution-NonCommercial 4.0 International	License	2	487086	-	unresolved	-
+Creative Commons Zero v1.0 Universal	License	1	625635	CC0-1.0	listed_name	-
+DataRobot Tool and Utility Agreement	License	1	405442	-	unresolved	-
+Databricks License	License	1	205899	-	unresolved	-
+Databricks Proprietary License	License	5	15108553	-	unresolved	-
+Dual License	License	1	904912826	-	unresolved	-
+Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License	License	1	85271565	-	unresolved	-
+EPL	License	1	1301458	-	unresolved	-
+EPL-2.0	License	1	129471	EPL-2.0	exact	-
+EPL-2.0 OR BSD-3-Clause	License	1	7847161	-	expression	-
+EPL-2.0 OR GPL-2.0-or-later	License	1	11616817	-	expression	-
+EUPL 1.1+	License	2	6876410	EUPL-1.1+	separator	-
+Eclipse Public License 2.0 (EPL-2.0)	Classifier	1	201908	-	unresolved	-
+Elastic-2.0	License	5	6397897	Elastic-2.0	exact	-
+Expat	License	1	1317649	-	unresolved	-
+Expat License	License	2	1366438	-	unresolved	-
+Expat license	License	3	72288287	-	unresolved	-
+FSL-1.1-MIT	License	1	198299	FSL-1.1-MIT	exact	-
+Free To Use But Restricted	License	2	623016	-	unresolved	-
+FreeBSD	License	2	16241985	-	unresolved	-
+FreeBSD License	License	1	214737	-	unresolved	-
+FreeBSD and LGPLv3+	License	1	388363	-	unresolved	-
+GNU AFFERO GPL 3.0	License	1	1983742	-	unresolved	-
+GNU Affero General Public License	License	1	2229321	-	unresolved	-
+GNU Affero General Public License (AGPL) version 3.0	License	1	200540	-	unresolved	-
+GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.	License	1	1108915	-	unresolved	-
+GNU Affero General Public License v3	Classifier	10	3006536	-	unresolved	-
+GNU Affero General Public License v3 or later (AGPLv3+)	License	1	525730	-	unresolved	-
+GNU GENERAL PUBLIC LICENSE	License	1	141824	-	unresolved	-
+GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007	License	1	315997	-	unresolved	-
+GNU GPL V3.0	License	1	255461	-	unresolved	-
+GNU GPL v2	License	1	239054	-	unresolved	-
+GNU GPL v2+	License	1	1273133	-	unresolved	-
+GNU GPLv2 (with FOSS License Exception)	License	3	30587122	-	unresolved	-
+GNU GPLv3	License	2	3009815	-	unresolved	-
+GNU GPLv3+	License	1	3640898	-	unresolved	-
+GNU General Public License (GPL)	License	3	3921765	-	unresolved	-
+GNU General Public License Version 3	License	1	935953	-	unresolved	-
+GNU General Public License v2 (GPLv2)	Classifier	5	2460435	-	unresolved	-
+GNU General Public License v2 or later (GPLv2+)	Classifier	3	2302440	-	unresolved	-
+GNU General Public License v3	License	1	1351595	-	unresolved	-
+GNU General Public License v3 (GPLv3)	Classifier	20	8699978	-	unresolved	-
+GNU General Public License v3 or later (GPLv3+)	Classifier	15	8557267	-	unresolved	-
+GNU LGPL	License	3	17833993	-	unresolved	-
+GNU LGPL 3.0	License	1	674969	-	unresolved	-
+GNU LGPL v2.1	License	1	1843711	-	unresolved	-
+GNU LGPL v3+	License	1	413981	-	unresolved	-
+GNU Lesser General Public License (LGPL), Version 3	License	1	324695	-	unresolved	-
+GNU Lesser General Public License v2 (LGPLv2)	Classifier	1	1161121	-	unresolved	-
+GNU Lesser General Public License v2 or later (LGPLv2+)	Classifier	2	1054898	-	unresolved	-
+GNU Lesser General Public License v3	License	2	934541	-	unresolved	-
+GNU Lesser General Public License v3 (LGPLv3)	Classifier	6	23735651	-	unresolved	-
+GNU Lesser General Public License v3 or later	License	1	768068	-	unresolved	-
+GNU Lesser General Public License v3 or later (LGPLv3+)	Classifier	8	6256488	-	unresolved	-
+GNU Lesser General Public License v3+	License	1	705666	-	unresolved	-
+GNU Lesser General Public License v3.0	License	1	628451	-	unresolved	-
+GNU Lesser General Public License, Version 3 (LGPLv3)	License	1	175792	-	unresolved	-
+GNU Library or Lesser General Public License (LGPL)	Classifier	7	62555695	-	unresolved	-
+GNU-GPL	License	1	1274143	-	unresolved	-
+GPL	License	9	41559466	-	unresolved	-
+GPL 2	License	1	407001	GPL-2.0	assumed_only	GPL-2.0-only,GPL-2.0-or-later
+GPL 2.0/LGPL 2.1	License	1	724968	-	unresolved	-
+GPL 3.0	License	1	934011	GPL-3.0	assumed_only	GPL-3.0-only,GPL-3.0-or-later
+GPL V3.0	License	1	1191500	GPL-3.0	assumed_only	GPL-3.0-only,GPL-3.0-or-later
+GPL v2	License	1	148482	GPL-2.0	assumed_only	GPL-2.0-only,GPL-2.0-or-later
+GPL v3	License	4	2827435	GPL-3.0	assumed_only	GPL-3.0-only,GPL-3.0-or-later
+GPL-2+	License	1	278138	GPL-2.0-or-later	version_spelling	-
+GPL-2.0	License	3	659698	GPL-2.0	assumed_only	GPL-2.0-only,GPL-2.0-or-later
+GPL-2.0+	License	2	1034269	GPL-2.0-or-later	plus_to_or_later	-
+GPL-2.0-only	License-Expression	8	10675256	GPL-2.0-only	exact	-
+GPL-2.0-only OR LGPL-2.1-only OR BSD-3-Clause	License	1	572575	-	expression	-
+GPL-2.0-or-later	License-Expression	17	96394752	GPL-2.0-or-later	exact	-
+GPL-2.0-or-later OR Apache-2.0	License-Expression	1	893228	-	expression	-
+GPL-3	License	2	1094226	GPL-3.0	assumed_only	GPL-3.0-only,GPL-3.0-or-later
+GPL-3.0	License	11	6187305	GPL-3.0	assumed_only	GPL-3.0-only,GPL-3.0-or-later
+GPL-3.0+	License	3	3821259	GPL-3.0-or-later	plus_to_or_later	-
+GPL-3.0-only	License-Expression	15	102595380	GPL-3.0-only	exact	-
+GPL-3.0-or-later	License-Expression	49	107605008	GPL-3.0-or-later	exact	-
+GPL-3.0-or-later AND BSD-2-Clause	License-Expression	1	236150	-	expression	-
+GPL-3.0-or-later AND BSD-2-Clause AND MIT AND PSF-2.0	License-Expression	1	235703	-	expression	-
+GPL-3.0-or-later OR Apache-2.0	License-Expression	2	906029	-	expression	-
+GPL2	License	3	3130079	GPL-2.0	assumed_only	GPL-2.0-only,GPL-2.0-or-later
+GPL2+	License	1	509294	GPL-2.0-or-later	version_spelling	-
+GPL3	License	4	2882909	GPL-3.0	assumed_only	GPL-3.0-only,GPL-3.0-or-later
+GPLv2	License	7	13818256	GPL-2.0	assumed_only	GPL-2.0-only,GPL-2.0-or-later
+GPLv2 with linking exception	License	1	4749873	-	unresolved	-
+GPLv2 | EPLv1	License	1	2265099	-	unresolved	-
+GPLv2+	License	4	1502805	GPL-2.0-or-later	version_spelling	-
+GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)	License	1	10979725	-	unresolved	-
+GPLv3	License	21	13659268	GPL-3.0	assumed_only	GPL-3.0-only,GPL-3.0-or-later
+GPLv3+	License	10	18363749	GPL-3.0-or-later	version_spelling	-
+GPLv3+/BSD	License	1	189476	-	unresolved	-
+Google Cloud Platform Terms of Service	License	1	824078	-	unresolved	-
+ISC	License	49	680952021	ISC	exact	-
+ISC License	License	3	275123900	ISC	listed_name	-
+ISC License (ISCL)	Classifier	8	189478931	-	unresolved	-
+ISC license	License	1	125242636	ISC	listed_name	-
+ISCL	License	3	3816061	-	unresolved	-
+Intel End User License Agreement for Developer Tools	License	4	1486183	-	unresolved	-
+Intel Simplified Software License	License	8	5823456	-	unresolved	-
+LGPL	License	16	26258294	-	unresolved	-
+LGPL 2.1	License	1	377507	LGPL-2.1	assumed_only	LGPL-2.1-only,LGPL-2.1-or-later
+LGPL 3	License	1	699652	LGPL-3.0	assumed_only	LGPL-3.0-only,LGPL-3.0-or-later
+LGPL v2.1	License	1	502236	LGPL-2.1	assumed_only	LGPL-2.1-only,LGPL-2.1-or-later
+LGPL v3	License	13	37240888	LGPL-3.0	assumed_only	LGPL-3.0-only,LGPL-3.0-or-later
+LGPL with exceptions	License	2	272227785	-	unresolved	-
+LGPL-2.0-only	License-Expression	1	245713	LGPL-2.0-only	exact	-
+LGPL-2.0-or-later	License	1	188920	LGPL-2.0-or-later	exact	-
+LGPL-2.0-or-later WITH WxWindows-exception-3.1	License-Expression	1	176915	LGPL-2.0-or-later WITH WxWindows-exception-3.1	exact	-
+LGPL-2.1	License	2	106189212	LGPL-2.1	assumed_only	LGPL-2.1-only,LGPL-2.1-or-later
+LGPL-2.1+	License	1	8477158	LGPL-2.1-or-later	plus_to_or_later	-
+LGPL-2.1-only	License	10	46858444	LGPL-2.1-only	exact	-
+LGPL-2.1-only AND BSD-3-Clause AND MIT AND LicenseRef-Public-Domain	License-Expression	1	177416	-	expression	-
+LGPL-2.1-only OR MIT	License-Expression	1	4010405	-	expression	-
+LGPL-2.1-only OR MPL-1.1	License	1	2415688	-	expression	-
+LGPL-2.1-or-later	License-Expression	20	149159553	LGPL-2.1-or-later	exact	-
+LGPL-3.0	License	5	3502968	LGPL-3.0	assumed_only	LGPL-3.0-only,LGPL-3.0-or-later
+LGPL-3.0-only	License-Expression	13	331168239	LGPL-3.0-only	exact	-
+LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only	License	4	11938723	-	expression	-
+LGPL-3.0-only OR MIT	License-Expression	1	265356	-	expression	-
+LGPL-3.0-or-later	License-Expression	36	85495509	LGPL-3.0-or-later	exact	-
+LGPL-3.0-or-newer	License	1	2139084	-	unresolved	-
+LGPL-v2.0-or-later	License	1	290738	LGPL-2.0-or-later	separator	-
+LGPL3	License	2	777239	LGPL-3.0	assumed_only	LGPL-3.0-only,LGPL-3.0-or-later
+LGPLv2	License	3	7974630	LGPL-2.0	assumed_only	LGPL-2.0-only,LGPL-2.0-or-later
+LGPLv2+	License	5	3773288	LGPL-2.0-or-later	version_spelling	-
+LGPLv3	License	26	22663067	LGPL-3.0	assumed_only	LGPL-3.0-only,LGPL-3.0-or-later
+LGPLv3+	License	6	15356938	LGPL-3.0-or-later	version_spelling	-
+LICENCE.txt	License	1	700130	-	unresolved	-
+LICENSE	License	4	4978747	-	unresolved	-
+LICENSE AGREEMENT FOR NVIDIA SOFTWARE DEVELOPMENT KITS	License	1	270162	-	unresolved	-
+LICENSE.BSD3	License	1	39552130	-	unresolved	-
+LICENSE.md	License	2	1104775	-	unresolved	-
+LICENSE.txt	License	10	9525735	-	unresolved	-
+LangServe	License	1	351519	-	unresolved	-
+License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication	License	1	263908	-	unresolved	-
+License :: OSI Approved :: Apache Software License	License	6	5953066	-	unresolved	-
+License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)	License	1	254892	-	unresolved	-
+License :: OSI Approved :: MIT License	License	5	28324149	-	unresolved	-
+License :: OSI Approved :: MIT License (http://opensource.org/licenses/MIT)	License	1	3917335	-	unresolved	-
+LicenseRef-All-Rights-Reserved	License-Expression	1	346296	LicenseRef-All-Rights-Reserved	exact	-
+LicenseRef-Biopython-License-Agreement	License-Expression	1	4177345	LicenseRef-Biopython-License-Agreement	exact	-
+LicenseRef-Esri-MLA	License-Expression	1	139248	LicenseRef-Esri-MLA	exact	-
+LicenseRef-InterSystems-External-Repository	License-Expression	1	509326	LicenseRef-InterSystems-External-Repository	exact	-
+LicenseRef-Matrice-Proprietary	License-Expression	1	410649	LicenseRef-Matrice-Proprietary	exact	-
+LicenseRef-Mergify-Proprietary	License-Expression	2	335588	LicenseRef-Mergify-Proprietary	exact	-
+LicenseRef-NVIDIA-Proprietary	License-Expression	29	399342875	LicenseRef-NVIDIA-Proprietary	exact	-
+LicenseRef-NvidiaProprietary	License-Expression	1	149960	LicenseRef-NvidiaProprietary	exact	-
+LicenseRef-Proprietary	License-Expression	5	10952914	LicenseRef-Proprietary	exact	-
+LicenseRef-Repoze-BSD-derived	License-Expression	2	4562674	LicenseRef-Repoze-BSD-derived	exact	-
+LicenseRef-TOST-1.0	License	1	757390	LicenseRef-TOST-1.0	exact	-
+MIT	License	3164	43668559309	MIT	exact	-
+MIT -or- Apache License 2.0	License	3	8497900	-	unresolved	-
+MIT AND (Apache-2.0 OR BSD-2-Clause)	License-Expression	3	996397	-	expression	-
+MIT AND (BSD-2-Clause OR LGPL-2.1-or-later)	License-Expression	1	2641026	-	expression	-
+MIT AND (GPL-2.0-or-later OR AFL-2.1)	License-Expression	1	385840	-	expression	-
+MIT AND Apache-2.0	License-Expression	3	1406832	-	expression	-
+MIT AND BSD-2-Clause	License-Expression	1	381817	-	expression	-
+MIT AND BSD-3-Clause	License-Expression	3	16069714	-	expression	-
+MIT AND BSD-3-Clause AND BSD-2-Clause	License-Expression	1	128659	-	expression	-
+MIT AND GPL-2.0-or-later	License-Expression	1	546057	-	expression	-
+MIT AND IPA	License-Expression	1	178312	-	expression	-
+MIT AND LGPL-2.1-or-later	License-Expression	1	174031	-	expression	-
+MIT AND LGPL-3.0-or-later	License-Expression	1	165664	-	expression	-
+MIT AND PSF-2.0	License-Expression	1	369974693	-	expression	-
+MIT Licence	License	3	7927915	-	unresolved	-
+MIT License	Classifier	1047	6377587262	MIT	listed_name	-
+MIT License (MIT)	License	1	10023668	-	unresolved	-
+MIT License, Apache License, Version 2.0	License	1	5419447	-	unresolved	-
+MIT OR AFL-2.1	License	1	42202185	-	expression	-
+MIT OR Apache-2.0	License	24	731438024	-	expression	-
+MIT OR Unlicense	License-Expression	1	194223	-	expression	-
+MIT X11 style	License	1	927058	-	unresolved	-
+MIT and MPL-2.0	License	1	6298589	-	expression	-
+MIT license	License	44	179976276	MIT	listed_name	-
+MIT licensed, as found in the LICENSE file	License	1	1711053	-	unresolved	-
+MIT or ISC	License	1	262087	-	expression	-
+MIT style	License	1	21893761	-	unresolved	-
+MIT, BSD	License	1	1658576	-	unresolved	-
+MIT-0	License-Expression	4	1024677178	MIT-0	exact	-
+MIT-CMU	License-Expression	1	425694980	MIT-CMU	exact	-
+MIT-LICENSE	License	1	249200	-	unresolved	-
+MIT-License	License	1	1083200	-	unresolved	-
+MIT/Apache-2.0	License	1	238126	-	unresolved	-
+MIT; Copyright (c) 2016-2024 Cisco and/or its affiliates.	License	1	477709	-	unresolved	-
+MITNFA	License	1	4317168	MITNFA	exact	-
+MPL	License	8	1863221	-	unresolved	-
+MPL 2.0	License	12	5414157	MPL-2.0	separator	-
+MPL 2.0 (Mozilla Public License)	License	1	964702	-	unresolved	-
+MPL v2.0	License	1	269136	MPL-2.0	separator	-
+MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later	License-Expression	1	15764825	-	expression	-
+MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later	License	2	14324010	-	expression	-
+MPL-2.0	License-Expression	34	1497429958	MPL-2.0	exact	-
+MPL-2.0 AND (Apache-2.0 OR MIT)	License-Expression	1	180495295	-	expression	-
+MPL-2.0 AND MIT	License	1	414684714	-	expression	-
+MPL-2.0 and MIT and BSD-3-Clause	License	1	576990	-	expression	-
+MPL2	License	2	1596892	MPL-2.0	version_spelling	-
+MPLv2	License	1	345946	MPL-2.0	version_spelling	-
+MPLv2.0	License	5	6952679	MPL-2.0	separator	-
+Moderne Source Available License	License	1	145730	-	unresolved	-
+Modified BSD License	License	2	129189035	-	unresolved	-
+Mostly MIT, some GPL/BSD, see LICENSE-pwntools.txt	License	1	338740	-	unresolved	-
+Mozilla	License	1	2113874	-	unresolved	-
+Mozilla Public License 2.0 (MPL 2.0)	Classifier	19	564537673	-	unresolved	-
+Mulan PSL v2	License	3	1025207	-	unresolved	-
+NCSA	License-Expression	2	1306744	NCSA	exact	-
+NVIDIA Proprietary Software	License	14	59533434	-	unresolved	-
+New BSD	License	8	53426657	-	unresolved	-
+New BSD License	License	1	2589118	-	unresolved	-
+New BSD license	License	1	303395	-	unresolved	-
+OFL-1.1	License-Expression	1	213131	OFL-1.1	exact	-
+OLDAP-2.8	License	1	2666220	OLDAP-2.8	exact	-
+OSI Approved :: Apache Software License	License	2	1244344	-	unresolved	-
+Other/Proprietary License	Classifier	22	52866166	-	unresolved	-
+PSF	License	6	25048484	-	unresolved	-
+PSF License	License	1	9740707	-	unresolved	-
+PSF license	License	2	1101127	-	unresolved	-
+PSF or ZPL	License	1	299874	-	unresolved	-
+PSF-2.0	License	20	2126271312	PSF-2.0	exact	-
+PSFL	License	2	197993866	-	unresolved	-
+PSFL (Keccak: CC0 1.0 Universal)	License	1	903503	-	unresolved	-
+PayPal SDK License	License	1	1024332	-	unresolved	-
+PolyForm-Noncommercial-1.0.0	License-Expression	1	229560	PolyForm-Noncommercial-1.0.0	exact	-
+PostgreSQL	License	2	479294	PostgreSQL	exact	-
+Proprietary	License	14	7577381	-	unresolved	-
+PubNub Software Development Kit License	License	1	286272	-	unresolved	-
+Public Domain	License	14	31252884	-	unresolved	-
+Public domain	License	2	20233463	-	unresolved	-
+Python	License	1	4839227	-	unresolved	-
+Python (MIT style)	License	1	255693	-	unresolved	-
+Python Software Foundation License	Classifier	21	209823433	-	unresolved	-
+Python Software Foundation License (BSD-like)	License	1	228073	-	unresolved	-
+Python Software Foundation License Version 2	License	2	1518074	-	unresolved	-
+Python-2.0	License	1	725789	Python-2.0	exact	-
+Revised BSD License	License	1	1933155	-	unresolved	-
+Revised BSD License (LICENSE.txt)	License	1	146710	-	unresolved	-
+SAP DEVELOPER LICENSE AGREEMENT	License	3	2678157	-	unresolved	-
+SEE LICENSE IN https://livekit.io/legal/terms-of-service	License	2	2105716	-	unresolved	-
+SIL OFL V1.1	License	1	285118	-	unresolved	-
+SSPLv1	License	1	960259	SSPL-1.0	version_spelling	-
+See license in package description	License	1	254296	-	unresolved	-
+Simplified BSD	License	1	7438801	-	unresolved	-
+Simplified BSD license	License	1	162657	-	unresolved	-
+Tecton Proprietary	License	1	990825	-	unresolved	-
+Tencent	License	1	172616	-	unresolved	-
+Teradata License Agreement	License	3	7240786	-	unresolved	-
+The BSD 2-Clause License	License	1	11335196	-	unresolved	-
+The MIT License	License	3	1996514	-	unresolved	-
+The MIT License (MIT)	License	4	2186446	-	unresolved	-
+The MIT License: http://www.opensource.org/licenses/mit-license.php	License	1	5142745	-	unresolved	-
+The Unlicense	License	1	134014	Unlicense	listed_name	-
+The Unlicense (Unlicense)	Classifier	5	12073083	-	unresolved	-
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.	License	1	134380	-	unresolved	-
+Two-clause BSD license	License	1	976405	-	unresolved	-
+UNLICENSE	License	1	6852490	Unlicense	lexical	-
+UPL-1.0	License-Expression	1	222845	UPL-1.0	exact	-
+UPL-1.0 OR Apache-2.0	License-Expression	1	18388545	-	expression	-
+Universal Permissive License (UPL)	Classifier	1	187686	-	unresolved	-
+Universal Permissive License 1.0 or Apache License 2.0	License	2	6238986	-	unresolved	-
+Unlicense	License	15	199484242	Unlicense	exact	-
+Unlicense AND MIT AND ISC	License-Expression	1	1707778	-	expression	-
+Unlicense OR MIT	License-Expression	1	257019	-	expression	-
+Unlicense license	License	1	148877	-	unresolved	-
+Various	License	1	243419	-	unresolved	-
+W3C License	Classifier	1	592097	-	unresolved	-
+W3C SOFTWARE NOTICE AND LICENSE	License	1	1416610	-	unresolved	-
+W3C-20150513	License	1	1528754	W3C-20150513	exact	-
+WTFPL	License	1	4937608	WTFPL	exact	-
+Waqef	License	1	1063636	-	unresolved	-
+X11	License	1	135151	X11	exact	-
+ZPL 2.1	License	3	7498137	ZPL-2.1	separator	-
+ZPL-2.1	License-Expression	22	101326449	ZPL-2.1	exact	-
+Zlib	License-Expression	5	4183126	Zlib	exact	-
+Zlib AND MIT AND BSD-2-Clause AND BSD-3-Clause AND PSF-2.0	License	1	203166	-	expression	-
+any-OSI	License	1	1373671	any-OSI	exact	-
+apache-2.0	License	3	1848521	Apache-2.0	lexical	-
+bsd-3-clause	License	1	186837	BSD-3-Clause	lexical	-
+gpl v3	License	1	258369	GPL-3.0	assumed_only	GPL-3.0-only,GPL-3.0-or-later
+gpl-3.0.txt	License	1	371795	-	unresolved	-
+http://www.apache.org/licenses/LICENSE-2.0	License	5	2163712	-	unresolved	-
+http://www.gnu.org/licenses/gpl.html	License	1	247064	-	unresolved	-
+http://www.opensource.org/licenses/mit-license.php	License	2	817717	-	unresolved	-
+https://about.aspose.com/legal/eula/	License	1	171904	-	unresolved	-
+https://aka.ms/azureml-sdk-license	License	4	1175483	-	unresolved	-
+https://fontawesome.com/license/free	License	1	138753	-	unresolved	-
+https://mosek.com/products/license-agreement	License	1	323755	-	unresolved	-
+https://opensource.org/license/mit/	License	1	159103	-	unresolved	-
+https://opensource.org/licenses/BSD-3-Clause	License	1	330933	-	unresolved	-
+https://www.apache.org/licenses/LICENSE-2.0	License	3	528936	-	unresolved	-
+lgpl	License	3	3412872	-	unresolved	-
+lgplv3+	License	2	441271	LGPL-3.0-or-later	version_spelling	-
+mit	License	2	1646122	MIT	lexical	-
+modified BSD	License	1	377818	-	unresolved	-
+new BSD	License	1	139906	-	unresolved	-
+proprietary and confidential	License	2	1395158	-	unresolved	-
+python-ldap	License	1	3570746	python-ldap	exact	-
+wxWindows Library Licence, Version 3.1	License	2	1001261	-	unresolved	-
+zlib	License	1	486250	Zlib	lexical	-
+zlib/libpng	License	3	4587161	-	unresolved	-
+zlib/libpng License	Classifier	1	449576	-	unresolved	-

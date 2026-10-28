@@ -5,7 +5,7 @@
 
 """Measure how ``licenseid.resolve()`` fares on real PyPI licence values.
 
-Two steps, run as ``python -m tools.pypi_licence_sample``:
+Three steps, run as ``python -m tools.pypi_licence_sample``:
 
 ``fetch``
     Reads the ``top-pypi-packages`` list (download counts, hugovk) and asks
@@ -23,6 +23,17 @@ Two steps, run as ``python -m tools.pypi_licence_sample``:
     its project count and download total. Needs the licence database
     (``licenseid update``); no network.
 
+``export``
+    Writes the distinct short values (the value a consumer would use, as
+    ``analyze`` picks it) with their project and download counts and the
+    answer of ``resolve()`` to tab-separated files of at most 790 lines, for
+    a test fixture (``tests/fixtures/pypi_values_*.tsv``). The values are
+    escaped as Python ``unicode_escape``. Several classifiers (joined by
+    ``AND``) are left out, as ``analyze`` counts them apart. When the values
+    do not fit in ``--max-files`` files, every value whose category is not
+    ``exact`` is kept and the header records the count and the SHA-256 of the
+    full sorted set.
+
 Standard library and ``licenseid`` only. Findings are recorded in
 ``working-docs/design/resolver-0-7-evidence.md``.
 """
@@ -30,6 +41,7 @@ Standard library and ``licenseid`` only. Findings are recorded in
 import argparse
 import collections
 import concurrent.futures
+import hashlib
 import json
 import re
 import sys
@@ -38,7 +50,10 @@ import urllib.error
 import urllib.request
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
+
+if TYPE_CHECKING:
+    from licenseid import LicenseDatabase
 
 TOP_URL: Final = "https://hugovk.github.io/top-pypi-packages/top-pypi-packages.min.json"
 PYPI_URL: Final = "https://pypi.org/pypi/{name}/json"
@@ -101,6 +116,26 @@ GROUPS: Final = (
 )
 
 Project = dict[str, Any]
+
+#: The lines of one exported file, header comments included.
+MAX_LINES: Final = 790
+#: Comment and header lines of an exported file (the header is 6 lines, and
+#: the file mark and the column row 2 more; some room is left).
+HEADER_LINES: Final = 10
+#: The files an export may use before it keeps only the values that are
+#: not ``exact``.
+MAX_FILES: Final = 6
+EXPORT_COLUMNS: Final = (
+    "value",
+    "field",
+    "projects",
+    "downloads",
+    "expression_0_6_0",
+    "category_0_6_0",
+    "candidates_0_6_0",
+)
+#: The field of a ``None`` expression or an empty list in an exported file.
+NONE_FIELD: Final = "-"
 
 
 def _fetch_one(row: dict[str, Any]) -> Project:
@@ -188,10 +223,19 @@ def group_of(value: str) -> str:
     return "other"
 
 
-def analyze(path: Path, top: int) -> None:
-    """Print the statistics of the JSON Lines file *path*."""
+def _open_database(path: Path | None) -> "LicenseDatabase | None":
+    """The database at *path*, read only; ``None`` for the default one."""
+    from licenseid import LicenseDatabase  # pylint: disable=import-outside-toplevel
+
+    return None if path is None else LicenseDatabase(path, create=False)
+
+
+def analyze(path: Path, top: int, db_path: Path | None = None) -> None:
+    """Print the statistics of the JSON Lines file *path*, answered from the
+    database at *db_path* (the default database when ``None``)."""
     from licenseid import resolve  # pylint: disable=import-outside-toplevel
 
+    db = _open_database(db_path)
     projects = [json.loads(line) for line in path.read_text("utf-8").splitlines()]
     fetched = [p for p in projects if "error" not in p]
     print(f"projects {len(projects)}, fetched {len(fetched)}")
@@ -209,7 +253,7 @@ def analyze(path: Path, top: int) -> None:
         if source == "Classifier" and " AND " in value:
             categories["several classifiers"] += 1
             continue
-        category = resolve(value)["category"]
+        category = resolve(value, db)["category"]
         categories[category] += 1
         if category == "unresolved":
             group = group_of(value)
@@ -218,6 +262,18 @@ def analyze(path: Path, top: int) -> None:
             key = (group, source, value)
             values[key] += 1
             downloads[key] += project["downloads"]
+    _report(sources, categories, (groups, group_downloads, values, downloads), top)
+
+
+def _report(
+    sources: collections.Counter[str],
+    categories: collections.Counter[str],
+    tables: tuple[collections.Counter[Any], ...],
+    top: int,
+) -> None:
+    """Print the counts of :func:`analyze`; *tables* is the projects and
+    the downloads by group, then the projects and downloads by value."""
+    groups, group_downloads, values, downloads = tables
     valued = sum(categories.values())
     print("\nsource used:", dict(sources))
     print(f"\nanswer of resolve() ({valued} projects with a short value)")
@@ -238,8 +294,136 @@ def analyze(path: Path, top: int) -> None:
         )
 
 
+def _escape(value: str) -> str:
+    """*value* as one TSV field: Python ``unicode_escape`` (a tab, a newline,
+    a backslash, a non-ASCII character and a lone surrogate survive)."""
+    return value.encode("unicode_escape").decode("ascii")
+
+
+def distinct_values(projects: Sequence[Project]) -> list[tuple[str, str, int, int]]:
+    """``(value, field, projects, downloads)`` for each distinct short value,
+    sorted by the escaped value. *field* is the source most projects used.
+    Several classifiers, which ``analyze`` counts apart, are left out."""
+    sources: dict[str, collections.Counter[str]] = {}
+    downloads: collections.Counter[str] = collections.Counter()
+    for project in projects:
+        if "error" in project:
+            continue
+        source, value = declared_value(project)
+        if value is None or (source == "Classifier" and " AND " in value):
+            continue
+        sources.setdefault(value, collections.Counter())[source] += 1
+        downloads[value] += project["downloads"]
+    return [
+        (
+            value,
+            max(sorted(counts), key=counts.__getitem__),
+            sum(counts.values()),
+            downloads[value],
+        )
+        for value, counts in sorted(sources.items(), key=lambda kv: _escape(kv[0]))
+    ]
+
+
+def _answer_fields(value: str, db: "LicenseDatabase | None") -> tuple[str, str, str]:
+    """The expression, category and candidates ``resolve()`` gives *value*,
+    as three TSV fields."""
+    from licenseid import resolve  # pylint: disable=import-outside-toplevel
+
+    found = resolve(value, db)
+    return (
+        _escape(found["expression"]) if found["expression"] else NONE_FIELD,
+        found["category"],
+        ",".join(found["candidates"]) or NONE_FIELD,
+    )
+
+
+def _export_rows(
+    values: Sequence[tuple[str, str, int, int]], db: "LicenseDatabase | None"
+) -> tuple[list[tuple[str, ...]], str]:
+    """The exported rows of *values*, and the SHA-256 (hex) of the sorted
+    ``value, expression, category`` lines of all of them."""
+    rows: list[tuple[str, ...]] = []
+    digest = hashlib.sha256()
+    for value, field, count, downloads in values:
+        expression, category, candidates = _answer_fields(value, db)
+        digest.update(f"{_escape(value)}\t{expression}\t{category}\n".encode())
+        rows.append(
+            (_escape(value), field, str(count), str(downloads))
+            + (expression, category, candidates)
+        )
+    return rows, digest.hexdigest()
+
+
+def _export_header(
+    sample: Path, projects: int, db: "LicenseDatabase | None", counts: tuple[int, int]
+) -> list[str]:
+    """The comment lines that start every exported file; *counts* is the
+    number of distinct values and the number kept."""
+    from licenseid import __version__  # pylint: disable=import-outside-toplevel
+
+    return [
+        (
+            f"# PyPI licence values of {sample.name}: {projects} projects,"
+            f" licenseid {__version__}, SPDX {_list_version(db)}."
+        ),
+        (
+            "# value: the first of License-Expression, a short License or the"
+            " classifiers, as Python unicode_escape."
+        ),
+        (
+            "# field: the source most projects used. '-' is None or empty. The"
+            " _0_6_0 columns are the answer of resolve() before the 0.7.0 work."
+        ),
+        (
+            f"# distinct values: {counts[0]}; kept in these files: {counts[1]}."
+            " See tests/fixtures/README.md."
+        ),
+    ]
+
+
+def export(
+    sample: Path,
+    prefix: Path,
+    db_path: Path | None = None,
+    max_files: int = MAX_FILES,
+) -> list[Path]:
+    """Write the distinct values of *sample* to ``<prefix>.tsv`` (or
+    ``<prefix>-1.tsv`` and on, when more than one file is needed) and return
+    the files. See the module docstring for what is kept."""
+    db = _open_database(db_path)
+    projects = [json.loads(line) for line in sample.read_text("utf-8").splitlines()]
+    rows, digest = _export_rows(distinct_values(projects), db)
+    if len(rows) <= max_files * (MAX_LINES - HEADER_LINES):
+        kept = rows
+    else:
+        kept = [row for row in rows if row[5] != "exact"]
+    header = _export_header(sample, len(projects), db, (len(rows), len(kept)))
+    header.append(f"# sha256 of the sorted (value, expression, category): {digest}")
+    chunk = MAX_LINES - HEADER_LINES
+    parts = [kept[i : i + chunk] for i in range(0, len(kept), chunk)] or [[]]
+    written = []
+    for number, part in enumerate(parts, 1):
+        suffix = f"-{number}" if len(parts) > 1 else ""
+        path = prefix.with_name(prefix.name + suffix + ".tsv")
+        lines = [*header, f"# file {number} of {len(parts)}", "\t".join(EXPORT_COLUMNS)]
+        lines += ["\t".join(row) for row in part]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        written.append(path)
+    return written
+
+
+def _list_version(db: "LicenseDatabase | None") -> str:
+    """The SPDX License List version of *db* (the default database for
+    ``None``)."""
+    from licenseid import resolve  # pylint: disable=import-outside-toplevel
+
+    version = resolve("MIT", db)["lists"][0]["version"]
+    return version or "unknown"
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run ``fetch`` or ``analyze``."""
+    """Run ``fetch``, ``analyze`` or ``export``."""
     parser = argparse.ArgumentParser(prog="python -m tools.pypi_licence_sample")
     commands = parser.add_subparsers(dest="command", required=True)
     fetch_parser = commands.add_parser("fetch", help="download the licence fields")
@@ -248,11 +432,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     analyze_parser = commands.add_parser("analyze", help="run resolve() and count")
     analyze_parser.add_argument("sample", type=Path)
     analyze_parser.add_argument("--top", type=int, default=40)
+    analyze_parser.add_argument("--db", type=Path, help="database (default: cache)")
+    export_parser = commands.add_parser(
+        "export", help="write the distinct values and their answers as TSV"
+    )
+    export_parser.add_argument("sample", type=Path)
+    export_parser.add_argument(
+        "--out", type=Path, required=True, help="path prefix; .tsv is added"
+    )
+    export_parser.add_argument("--db", type=Path, help="database (default: cache)")
+    export_parser.add_argument("--max-files", type=int, default=MAX_FILES)
     args = parser.parse_args(argv)
     if args.command == "fetch":
         fetch(args.count, args.out)
+    elif args.command == "analyze":
+        analyze(args.sample, args.top, args.db)
     else:
-        analyze(args.sample, args.top)
+        for path in export(args.sample, args.out, args.db, args.max_files):
+            print(path)
     return 0
 
 

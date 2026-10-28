@@ -102,11 +102,12 @@ uses the official SPDX License List as its authoritative, pristine data source.
 - **Data Source:** The parity corpus: 83 real declared values (the
   `License-Expression`, `License` and `License ::` classifier fields of
   installed distributions and of the sdists and test projects of Pitloom,
-  collected 2026-10-28) and 37 synthetic ones (the gaps in
-  `working-docs/design/expression-resolution.md`, the dropped-character cases
-  of the 0.7.0 plan, and compound shapes). The PyPI sample: the distinct
-  short licence values of the 10,000 most downloaded PyPI projects, fetched
-  2026-10-28 and exported by `python -m tools.pypi_licence_sample export`.
+  collected 2026-10-28) and 50 synthetic ones (the gaps in
+  `working-docs/design/expression-resolution.md`, the dropped-character and
+  control-character cases of the 0.7.0 plan, and compound shapes). The PyPI
+  sample: the 462 distinct short licence values of the 10,000 most downloaded
+  PyPI projects, fetched 2026-10-28 and exported by
+  `python -m tools.pypi_licence_sample export`.
 - **Description:** Frozen answers of `licenseid.resolve()` 0.6.0 on SPDX 3.29.0,
   so that each 0.7.0 task proves what it changed
   (`tests/test_resolver_parity.py`, `tests/test_resolver_sample.py`).
