@@ -17,15 +17,18 @@ later rule is allowed to move.
 
 import json
 import sqlite3
-from collections.abc import Generator, Iterable
+from collections.abc import Callable, Generator, Iterable
 from pathlib import Path
-from typing import NamedTuple
-
-from conftest import make_memory_db_path
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.normalize import normalize_text
-from licenseid.resolvertypes import Resolution
+from tools.pypi_licence_sample.answer import (
+    Answer,
+    answer_from_row,
+    answer_of,
+    escape_field,
+    unescape_field,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 LICENSE_LIST = FIXTURES / "license-list" / "spdx-license-ids.json"
@@ -33,9 +36,6 @@ EXCEPTION_LIST = FIXTURES / "license-list" / "spdx-exception-ids.json"
 LICENSE_TEXTS = FIXTURES / "license-text-long"
 PARITY_FILE = FIXTURES / "resolver_parity.tsv"
 SAMPLE_GLOB = "pypi_values_2026-10*.tsv"
-
-#: Release date of SPDX 3.29.0, as an update records it.
-RELEASE_DATE = "2026-09-16T00:00:00Z"
 
 #: Licences that get a search text: the near neighbours of the corpus values.
 #: MPL-2.0 itself has no long-text fixture; its two neighbours stand in. A test
@@ -63,11 +63,13 @@ NEIGHBOURS = (
     "Zlib",
 )
 
-#: The values whose answer a rule may move, each with the reason. A later
-#: rule pull request adds every value it changes here, and no other: this is
-#: how "the changed set is exactly the expected set" is stated. Empty on
+#: The values whose answer a rule may move, each with the answer it must give
+#: and the reason: ``{value: (answer, reason)}``. A later rule pull request
+#: adds every value it changes here, and no other; the guard fails on a value
+#: that moves without being listed, on a listed value that does not move, and
+#: on a listed value that answers anything but the listed answer. Empty on
 #: 0.6.0, whose answers the fixtures pin.
-EXPECTED_CHANGES: dict[str, str] = {}
+EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {}
 
 _INSERT_LICENSE = (
     "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved,"
@@ -81,17 +83,10 @@ _INSERT_EXCEPTION = (
 _SET_METADATA = "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)"
 
 
-class Answer(NamedTuple):
-    """What a fixture pins of a ``resolve()`` result."""
-
-    expression: str | None
-    category: str
-    candidates: tuple[str, ...]
-
-
-def answer_of(result: Resolution) -> Answer:
-    """The pinned part of *result*."""
-    return Answer(result["expression"], result["category"], tuple(result["candidates"]))
+def list_meta(path: Path) -> tuple[str, str]:
+    """``(license_list_version, release_date)`` of a List fixture."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return str(data["license_list_version"]), str(data["release_date"])
 
 
 def list_rows(path: Path, key: str) -> list[list[object]]:
@@ -108,11 +103,16 @@ def _search_text(license_id: str) -> str:
     return normalize_text(str(data["license_text"]))
 
 
-def corpus_db_path(prefix: str) -> Generator[str, None, None]:
-    """Yield the path of an in-memory database that holds every 3.29.0
-    licence and exception (ids, names, deprecation, successors), and the text
-    of the :data:`NEIGHBOURS`. The keep-alive connection is closed after."""
-    db_path, keep_alive = make_memory_db_path(prefix)
+def corpus_db_path(
+    prefix: str, make_path: Callable[[str], tuple[str, sqlite3.Connection]]
+) -> Generator[str, None, None]:
+    """Yield the path of an in-memory database that holds every licence and
+    exception of the List fixtures (ids, names, deprecation, successors, the
+    version and release date) and the text of the :data:`NEIGHBOURS`.
+    *make_path* is ``conftest.make_memory_db_path``; its keep-alive connection
+    is closed after."""
+    version, release_date = list_meta(LICENSE_LIST)
+    db_path, keep_alive = make_path(prefix)
     with sqlite3.connect(db_path, uri=True) as conn:
         conn.executemany(
             _INSERT_LICENSE,
@@ -131,8 +131,8 @@ def corpus_db_path(prefix: str) -> Generator[str, None, None]:
         conn.executemany(
             _SET_METADATA,
             [
-                ("license_list_version", "3.29.0"),
-                ("release_date", RELEASE_DATE),
+                ("license_list_version", version),
+                ("release_date", release_date),
                 ("last_update_datetime", "2026-10-28T00:00:00+00:00"),
             ],
         )
@@ -143,40 +143,26 @@ def corpus_db_path(prefix: str) -> Generator[str, None, None]:
 # --- fixture files ---------------------------------------------------------
 
 
-def escape(value: str) -> str:
-    """*value* as one TSV field: Python ``unicode_escape``, so a tab, a
-    newline, a backslash, a non-ASCII character and a lone surrogate
-    (``\\udcff``) all survive."""
-    return value.encode("unicode_escape").decode("ascii")
+def _split(path: Path) -> tuple[list[str], list[str]]:
+    """``(comment lines, lines from the header row on)`` of a TSV fixture. Only
+    the lines before the header row are comments: a value may start with
+    ``#``."""
+    lines = [line for line in path.read_text(encoding="utf-8").split("\n") if line]
+    top = 0
+    while top < len(lines) and lines[top].startswith("#"):
+        top += 1
+    return lines[:top], lines[top:]
 
 
-def unescape(field: str) -> str:
-    """Inverse of :func:`escape`."""
-    return field.encode("ascii").decode("unicode_escape")
-
-
-NONE = "-"  # the field of a None expression or an empty list
-
-
-def dump_list(items: Iterable[str]) -> str:
-    """A list of words as one field: comma-joined, :data:`NONE` when empty."""
-    return ",".join(items) or NONE
-
-
-def load_list(field: str) -> tuple[str, ...]:
-    """Inverse of :func:`dump_list`."""
-    return () if field == NONE else tuple(field.split(","))
+def read_comments(path: Path) -> list[str]:
+    """The comment lines at the top of a TSV fixture."""
+    return _split(path)[0]
 
 
 def read_rows(path: Path) -> list[dict[str, str]]:
-    """The rows of a TSV fixture, by column name. ``#`` lines are comments;
-    the first other line is the header. Fields are not stripped: a value may
-    start or end with white space."""
-    lines = [
-        line
-        for line in path.read_text(encoding="utf-8").split("\n")
-        if line and not line.startswith("#")
-    ]
+    """The rows of a TSV fixture, by column name. Fields are not stripped: a
+    value may start or end with white space."""
+    _, lines = _split(path)
     header = lines[0].split("\t")
     return [dict(zip(header, line.split("\t"))) for line in lines[1:]]
 
@@ -198,12 +184,7 @@ def sample_rows() -> list[dict[str, str]]:
 
 def pinned(row: dict[str, str]) -> Answer:
     """The 0.6.0 answer a fixture row records."""
-    expression = row["expression_0_6_0"]
-    return Answer(
-        None if expression == NONE else unescape(expression),
-        row["category_0_6_0"],
-        load_list(row["candidates_0_6_0"]),
-    )
+    return answer_from_row(row)
 
 
 def changed_answers(
@@ -216,8 +197,8 @@ def changed_answers(
         rows = [*parity_rows(), *sample_rows()]
     changed: dict[str, tuple[Answer, Answer]] = {}
     for row in rows:
-        value = unescape(row["value"])
-        old, new = pinned(row), answer_of(resolve(value, db))
+        value = unescape_field(row["value"])
+        old, new = pinned(row), answer_of(value, resolve(value, db))
         if old != new:
             changed[value] = (old, new)
     return changed
@@ -225,21 +206,27 @@ def changed_answers(
 
 def changes_report(
     changed: dict[str, tuple[Answer, Answer]],
-    expected: dict[str, str] | None = None,
+    expected: dict[str, tuple[Answer, str]] | None = None,
 ) -> str:
     """Why *changed* is not the expected set, one value per line with the old
-    and the new answer; empty when it is exactly *expected* (default
-    :data:`EXPECTED_CHANGES`)."""
+    and the new answer; empty when every changed value is listed in
+    *expected* (default :data:`EXPECTED_CHANGES`) with the answer it now
+    gives, and every listed value changed."""
     if expected is None:
         expected = EXPECTED_CHANGES
-    lines = [
-        f"changed, not in EXPECTED_CHANGES: {escape(value)!r}: {old} -> {new}"
-        for value, (old, new) in changed.items()
-        if value not in expected
-    ]
+    lines = []
+    for value, (old, new) in changed.items():
+        name = escape_field(value)
+        if value not in expected:
+            lines.append(f"changed, not in EXPECTED_CHANGES: {name!r}: {old} -> {new}")
+        elif new != expected[value][0]:
+            lines.append(
+                f"in EXPECTED_CHANGES, wrong answer: {name!r}: got {new},"
+                f" expected {expected[value][0]}"
+            )
     lines += [
-        f"in EXPECTED_CHANGES, answer unchanged: {escape(value)!r} ({reason})"
-        for value, reason in expected.items()
+        f"in EXPECTED_CHANGES, answer unchanged: {escape_field(value)!r} ({why})"
+        for value, (_, why) in expected.items()
         if value not in changed
     ]
     return "\n".join(lines)

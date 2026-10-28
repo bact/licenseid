@@ -59,6 +59,15 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
   guard is the only check on CI that no two IDs of the new list share a
   loose-ID key (PR #96). A failure there means `versionkey.version_key` needs
   a rule, not that the snapshot should stay old.
+  Refresh `tests/fixtures/license-list/spdx-exception-ids.json` with it
+  (`SELECT exception_id, name, is_deprecated, superseded_by FROM exceptions
+  ORDER BY exception_id`, in the file's format) and set the new
+  `license_list_version` and `release_date` in both files. The database must
+  be a build v2 or later (`StandardML-NJ` names `SMLNJ`). Refreshing means
+  re-pinning the resolver corpus and the PyPI sample
+  (`tests/fixtures/resolver_parity.tsv`, `pypi_values_2026-10*.tsv`): run
+  `tests/test_resolver_sample.py`, whose guard lists every answer that moved,
+  and regenerate the fixtures (`tools/pypi_licence_sample/README.md`).
 - `python -m tools.cli_matrix --db <copy> --check` when the CLI, exit codes or
   input handling changed since the last run (see `AGENTS.md`).
 - Claims in the notes and the README match the code: they were checked by

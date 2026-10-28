@@ -1,5 +1,6 @@
 {
  "license_list_version": "3.29.0",
+ "release_date": "2026-09-16T00:00:00Z",
  "columns": ["license_id", "name", "is_deprecated", "superseded_by"],
  "licenses": [
   ["0BSD", "BSD Zero Clause License", false, null],

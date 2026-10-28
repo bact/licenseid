@@ -8,7 +8,6 @@ Shared test configuration and fixtures for licenseid.
 """
 
 import builtins
-import importlib
 import json
 import re
 import sqlite3
@@ -23,6 +22,7 @@ from unittest import mock
 import pytest
 import requests
 from click.testing import CliRunner, Result
+from resolver_corpus import corpus_db_path
 
 from licenseid import console, spdxdata
 from licenseid.cli import cli
@@ -330,9 +330,7 @@ def corpus_db() -> Generator[LicenseDatabase, None, None]:
     """A database of the whole SPDX 3.29.0 List (every licence and exception,
     the text of the near neighbours of the resolver corpus), built once per
     session. Read only: a test must not write to it."""
-    # By name: resolver_corpus imports this module (a static import is a cycle).
-    corpus: Any = importlib.import_module("resolver_corpus")
-    for path in corpus.corpus_db_path("corpus"):
+    for path in corpus_db_path("corpus", make_memory_db_path):
         yield LicenseDatabase(path, create=False)
 
 

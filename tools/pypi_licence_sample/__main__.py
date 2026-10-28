@@ -52,6 +52,13 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
 
+from tools.pypi_licence_sample.answer import (
+    ANSWER_COLUMNS,
+    answer_fields,
+    answer_of,
+    escape_field,
+)
+
 if TYPE_CHECKING:
     from licenseid import LicenseDatabase
 
@@ -125,17 +132,7 @@ HEADER_LINES: Final = 10
 #: The files an export may use before it keeps only the values that are
 #: not ``exact``.
 MAX_FILES: Final = 6
-EXPORT_COLUMNS: Final = (
-    "value",
-    "field",
-    "projects",
-    "downloads",
-    "expression_0_6_0",
-    "category_0_6_0",
-    "candidates_0_6_0",
-)
-#: The field of a ``None`` expression or an empty list in an exported file.
-NONE_FIELD: Final = "-"
+EXPORT_COLUMNS: Final = ("value", "field", "projects", "downloads", *ANSWER_COLUMNS)
 
 
 def _fetch_one(row: dict[str, Any]) -> Project:
@@ -294,12 +291,6 @@ def _report(
         )
 
 
-def _escape(value: str) -> str:
-    """*value* as one TSV field: Python ``unicode_escape`` (a tab, a newline,
-    a backslash, a non-ASCII character and a lone surrogate survive)."""
-    return value.encode("unicode_escape").decode("ascii")
-
-
 def distinct_values(projects: Sequence[Project]) -> list[tuple[str, str, int, int]]:
     """``(value, field, projects, downloads)`` for each distinct short value,
     sorted by the escaped value. *field* is the source most projects used.
@@ -321,37 +312,23 @@ def distinct_values(projects: Sequence[Project]) -> list[tuple[str, str, int, in
             sum(counts.values()),
             downloads[value],
         )
-        for value, counts in sorted(sources.items(), key=lambda kv: _escape(kv[0]))
+        for value, counts in sorted(sources.items(), key=lambda kv: escape_field(kv[0]))
     ]
-
-
-def _answer_fields(value: str, db: "LicenseDatabase | None") -> tuple[str, str, str]:
-    """The expression, category and candidates ``resolve()`` gives *value*,
-    as three TSV fields."""
-    from licenseid import resolve  # pylint: disable=import-outside-toplevel
-
-    found = resolve(value, db)
-    return (
-        _escape(found["expression"]) if found["expression"] else NONE_FIELD,
-        found["category"],
-        ",".join(found["candidates"]) or NONE_FIELD,
-    )
 
 
 def _export_rows(
     values: Sequence[tuple[str, str, int, int]], db: "LicenseDatabase | None"
 ) -> tuple[list[tuple[str, ...]], str]:
     """The exported rows of *values*, and the SHA-256 (hex) of the sorted
-    ``value, expression, category`` lines of all of them."""
+    ``value, expression, category, candidates`` lines of all of them."""
+    from licenseid import resolve  # pylint: disable=import-outside-toplevel
+
     rows: list[tuple[str, ...]] = []
     digest = hashlib.sha256()
     for value, field, count, downloads in values:
-        expression, category, candidates = _answer_fields(value, db)
-        digest.update(f"{_escape(value)}\t{expression}\t{category}\n".encode())
-        rows.append(
-            (_escape(value), field, str(count), str(downloads))
-            + (expression, category, candidates)
-        )
+        answer = answer_fields(answer_of(value, resolve(value, db)))
+        digest.update(("\t".join((escape_field(value), *answer[:3])) + "\n").encode())
+        rows.append((escape_field(value), field, str(count), str(downloads), *answer))
     return rows, digest.hexdigest()
 
 
@@ -387,20 +364,30 @@ def export(
     prefix: Path,
     db_path: Path | None = None,
     max_files: int = MAX_FILES,
+    max_lines: int = MAX_LINES,
 ) -> list[Path]:
     """Write the distinct values of *sample* to ``<prefix>.tsv`` (or
     ``<prefix>-1.tsv`` and on, when more than one file is needed) and return
-    the files. See the module docstring for what is kept."""
+    the files. See the module docstring for what is kept.
+
+    Raises :class:`ValueError` when *max_files* is below 1, *max_lines*
+    leaves no room for a row, or the values that are kept (every value that is
+    not ``exact``, when all do not fit) still need more than *max_files*."""
+    chunk = max_lines - HEADER_LINES
+    if max_files < 1 or chunk < 1:
+        raise ValueError(f"need max_files >= 1 and max_lines > {HEADER_LINES}")
     db = _open_database(db_path)
     projects = [json.loads(line) for line in sample.read_text("utf-8").splitlines()]
     rows, digest = _export_rows(distinct_values(projects), db)
-    if len(rows) <= max_files * (MAX_LINES - HEADER_LINES):
-        kept = rows
-    else:
-        kept = [row for row in rows if row[5] != "exact"]
+    kept = rows if len(rows) <= max_files * chunk else _not_exact(rows)
+    if len(kept) > max_files * chunk:
+        raise ValueError(
+            f"{len(kept)} values that are not exact need over {max_files} files"
+        )
     header = _export_header(sample, len(projects), db, (len(rows), len(kept)))
-    header.append(f"# sha256 of the sorted (value, expression, category): {digest}")
-    chunk = MAX_LINES - HEADER_LINES
+    header.append(
+        f"# sha256 of the sorted (value, expression, category, candidates): {digest}"
+    )
     parts = [kept[i : i + chunk] for i in range(0, len(kept), chunk)] or [[]]
     written = []
     for number, part in enumerate(parts, 1):
@@ -411,6 +398,11 @@ def export(
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         written.append(path)
     return written
+
+
+def _not_exact(rows: Sequence[tuple[str, ...]]) -> list[tuple[str, ...]]:
+    """The rows whose category (the sixth field) is not ``exact``."""
+    return [row for row in rows if row[5] != "exact"]
 
 
 def _list_version(db: "LicenseDatabase | None") -> str:
@@ -442,13 +434,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     export_parser.add_argument("--db", type=Path, help="database (default: cache)")
     export_parser.add_argument("--max-files", type=int, default=MAX_FILES)
+    export_parser.add_argument("--max-lines", type=int, default=MAX_LINES)
     args = parser.parse_args(argv)
     if args.command == "fetch":
         fetch(args.count, args.out)
     elif args.command == "analyze":
         analyze(args.sample, args.top, args.db)
     else:
-        for path in export(args.sample, args.out, args.db, args.max_files):
+        try:
+            written = export(
+                args.sample, args.out, args.db, args.max_files, args.max_lines
+            )
+        except ValueError as exc:
+            parser.error(f"export: {exc}")
+        for path in written:
             print(path)
     return 0
 

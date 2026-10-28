@@ -1,5 +1,6 @@
 {
  "license_list_version": "3.29.0",
+ "release_date": "2026-09-16T00:00:00Z",
  "columns": ["exception_id", "name", "is_deprecated", "superseded_by"],
  "exceptions": [
   ["389-exception", "389 Directory Server Exception", false, null],

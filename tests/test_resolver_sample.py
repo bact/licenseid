@@ -17,20 +17,28 @@ import re
 
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from resolver_corpus import (
-    NONE,
-    Answer,
+    EXCEPTION_LIST,
+    EXPECTED_CHANGES,
+    LICENSE_LIST,
     changed_answers,
     changes_report,
-    escape,
+    list_meta,
     parity_rows,
     pinned,
+    read_comments,
     read_rows,
     sample_files,
     sample_rows,
-    unescape,
 )
 
-from licenseid import LicenseDatabase
+from licenseid import LicenseDatabase, resolve
+from tools.pypi_licence_sample.answer import (
+    NONE_FIELD,
+    Answer,
+    answer_of,
+    escape_field,
+    unescape_field,
+)
 
 SAMPLE = sample_rows()
 
@@ -38,15 +46,16 @@ SAMPLE = sample_rows()
 def _rows(*values: str) -> list[dict[str, str]]:
     """Copies of the parity rows of single, stable ids (a later rule does not
     move them), to be edited by a test."""
-    by_value = {unescape(row["value"]): row for row in parity_rows()}
+    by_value = {unescape_field(row["value"]): row for row in parity_rows()}
     return [dict(by_value[value]) for value in values]
 
 
 def test_the_changed_set_is_the_expected_set(corpus_db: LicenseDatabase) -> None:
-    """The guard. Over the parity corpus and the PyPI sample, the values whose
-    answer (expression, category, candidates) differs from the pinned 0.6.0
-    one are exactly the keys of ``EXPECTED_CHANGES``. A later rule pull
-    request adds each value it changes, with its reason, and no other."""
+    """The guard. Over the parity corpus and the PyPI sample, a value whose
+    answer differs from the pinned 0.6.0 one is listed in ``EXPECTED_CHANGES``
+    and gives the listed answer; every other value gives its pinned answer.
+    A later rule pull request adds each value it changes, with the new answer
+    and the reason, and no other."""
     changed = changed_answers(corpus_db)
     assert not changes_report(changed), "\n" + changes_report(changed)
 
@@ -70,21 +79,64 @@ def test_the_guard_names_a_value_that_should_have_changed(
     corpus_db: LicenseDatabase,
 ) -> None:
     """A value in ``EXPECTED_CHANGES`` whose answer did not move is reported."""
-    rows = _rows("0BSD", "MIT")
-    changed = changed_answers(corpus_db, rows)
-    report = changes_report(changed, {"0BSD": "a later rule reads it"})
+    changed = changed_answers(corpus_db, _rows("0BSD", "MIT"))
+    listed = {"0BSD": (pinned(_rows("0BSD")[0]), "a later rule reads it")}
+    report = changes_report(changed, listed)
     assert report.startswith("in EXPECTED_CHANGES, answer unchanged: '0BSD'")
     assert changes_report(changed, {}) == ""
 
 
+def _declared(
+    corpus_db: LicenseDatabase, field: str, new: str
+) -> tuple[dict[str, tuple[Answer, Answer]], Answer]:
+    """Pin ``MIT`` with *field* set to *new* in a copy of its row; return the
+    changed set and the answer ``MIT`` really gives."""
+    rows = _rows("MIT")
+    rows[0][field] = new
+    return changed_answers(corpus_db, rows), answer_of("MIT", resolve("MIT", corpus_db))
+
+
 def test_the_guard_accepts_a_declared_change(corpus_db: LicenseDatabase) -> None:
-    """A moved answer that ``EXPECTED_CHANGES`` lists is not a failure."""
-    rows = _rows("0BSD", "MIT")
-    rows[0]["category_0_6_0"] = "unresolved"
-    value = unescape(rows[0]["value"])
-    changed = changed_answers(corpus_db, rows)
-    assert changes_report(changed, {value: "test"}) == ""
+    """A moved answer that ``EXPECTED_CHANGES`` lists, with the answer it now
+    gives, is not a failure."""
+    changed, now = _declared(corpus_db, "category_0_6_0", "unresolved")
+    assert changes_report(changed, {"MIT": (now, "test")}) == ""
     assert "changed, not in EXPECTED_CHANGES" in changes_report(changed, {})
+
+
+def test_the_guard_refuses_a_listed_value_with_a_wrong_answer(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """Listing a value is not a licence to give any answer: the answer is
+    compared too."""
+    changed, now = _declared(corpus_db, "category_0_6_0", "unresolved")
+    wrong = now._replace(expression="ISC")
+    report = changes_report(changed, {"MIT": (wrong, "test")})
+    assert "in EXPECTED_CHANGES, wrong answer: 'MIT'" in report
+
+
+def test_the_expected_answers_are_whole_answers() -> None:
+    """Every entry of ``EXPECTED_CHANGES`` is an ``Answer`` and a reason."""
+    for answer, reason in EXPECTED_CHANGES.values():
+        assert isinstance(answer, Answer)
+        assert reason
+
+
+def test_a_change_of_steps_only_is_seen_and_declarable(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """The guard compares step kinds, expansion kinds, trust and whether
+    ``input`` is the value, not only the expression and the category."""
+    for field, new in (
+        ("steps_0_6_0", "trim"),
+        ("expansions_0_6_0", "plus_to_or_later"),
+        ("trust_0_6_0", "none"),
+        ("input_same_0_6_0", "no"),
+    ):
+        changed, now = _declared(corpus_db, field, new)
+        assert list(changed) == ["MIT"], field
+        assert changes_report(changed, {"MIT": (now, "steps only")}) == ""
+        assert changes_report(changed, {}) != ""
 
 
 def test_the_sample_files_are_small_and_named() -> None:
@@ -103,7 +155,7 @@ def test_the_sample_rows_are_distinct_and_escaped() -> None:
     assert len(values) == len(set(values))
     assert len(SAMPLE) >= 100
     for row in SAMPLE:
-        assert escape(unescape(row["value"])) == row["value"]
+        assert escape_field(unescape_field(row["value"])) == row["value"]
         assert int(row["projects"]) >= 1
         assert int(row["downloads"]) >= 0
         assert row["field"] in {"License", "License-Expression", "Classifier"}
@@ -112,9 +164,9 @@ def test_the_sample_rows_are_distinct_and_escaped() -> None:
 def test_a_sample_row_without_an_expression_pins_none() -> None:
     """``-`` is ``None``: no row has the text ``-`` as its expression."""
     for row in SAMPLE:
-        answer = pinned(row)
-        assert isinstance(answer, Answer)
-        assert (answer.expression is None) == (row["expression_0_6_0"] == NONE)
+        assert (pinned(row).expression is None) == (
+            row["expression_0_6_0"] == NONE_FIELD
+        )
 
 
 def _header_numbers() -> tuple[int, int]:
@@ -122,7 +174,7 @@ def _header_numbers() -> tuple[int, int]:
     numbers = {
         tuple(re.findall(r"\d+", line)[:2])
         for path in sample_files()
-        for line in path.read_text(encoding="utf-8").splitlines()
+        for line in read_comments(path)
         if line.startswith("# distinct values:")
     }
     assert len(numbers) == 1, "the headers disagree"
@@ -132,9 +184,10 @@ def _header_numbers() -> tuple[int, int]:
 
 def test_the_sample_header_records_the_full_set() -> None:
     """Each file says how many distinct values the sample had and the SHA-256
-    of the sorted ``(value, expression, category)`` lines of all of them. When
-    every value is kept the rows must hash to exactly that; when only the
-    values that are not ``exact`` are kept, the files hold no ``exact`` one."""
+    of the sorted ``(value, expression, category, candidates)`` lines of all
+    of them. When every value is kept the rows must hash to exactly that; when
+    only the values that are not ``exact`` are kept, the files hold no
+    ``exact`` one."""
     total, kept = _header_numbers()
     assert kept == len(SAMPLE)
     if kept < total:
@@ -142,10 +195,10 @@ def test_the_sample_header_records_the_full_set() -> None:
         return
     digest = hashlib.sha256()
     for row in sorted(SAMPLE, key=lambda r: r["value"]):
-        line = f"{row['value']}\t{row['expression_0_6_0']}\t{row['category_0_6_0']}\n"
-        digest.update(line.encode())
-    text = sample_files()[0].read_text(encoding="utf-8")
-    assert f"(value, expression, category): {digest.hexdigest()}" in text
+        fields = [row["value"], *(row[c] for c in list(row)[4:7])]
+        digest.update(("\t".join(fields) + "\n").encode())
+    text = "\n".join(read_comments(sample_files()[0]))
+    assert f"candidates): {digest.hexdigest()}" in text
 
 
 def test_every_sample_file_reads_the_same_columns() -> None:
@@ -156,8 +209,21 @@ def test_every_sample_file_reads_the_same_columns() -> None:
 
 def test_the_sample_and_the_parity_corpus_agree_on_shared_values() -> None:
     """A value in both fixtures is pinned to the same answer."""
-    parity = {unescape(r["value"]): pinned(r) for r in parity_rows()}
+    parity = {unescape_field(r["value"]): pinned(r) for r in parity_rows()}
     for row in SAMPLE:
-        value = unescape(row["value"])
+        value = unescape_field(row["value"])
         if value in parity:
             assert pinned(row) == parity[value], value
+
+
+def test_the_list_version_is_one_in_every_fixture(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """Both List snapshots and the sample header name the same release, and the
+    corpus database records it."""
+    version, released = list_meta(LICENSE_LIST)
+    assert list_meta(EXCEPTION_LIST) == (version, released)
+    header = read_comments(sample_files()[0])[0]
+    assert f"SPDX {version}." in header
+    assert corpus_db.get_metadata()["license_list_version"] == version
+    assert corpus_db.get_metadata()["release_date"] == released
