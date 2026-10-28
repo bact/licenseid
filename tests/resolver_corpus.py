@@ -67,9 +67,16 @@ NEIGHBOURS = (
 #: and the reason: ``{value: (answer, reason)}``. A later rule pull request
 #: adds every value it changes here, and no other; the guard fails on a value
 #: that moves without being listed, on a listed value that does not move, and
-#: on a listed value that answers anything but the listed answer. Empty on
-#: 0.6.0, whose answers the fixtures pin.
-EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {}
+#: on a listed value that answers anything but the listed answer. Before
+#: T4b it was empty: 0.6.0's answers are the fixtures'.
+EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
+    "MIT\udcff": (
+        Answer(None, "unresolved", (), (), (), "none", True),
+        "G1 (T4b): a lone surrogate is refused before any rule reads the"
+        " value (reason `lone surrogate` from T6); 0.6.0 dropped it as a"
+        " separator",
+    ),
+}
 
 _INSERT_LICENSE = (
     "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved,"
