@@ -10,8 +10,8 @@ SPDX-License-Identifier: Apache-2.0
 # Plan for the 0.7.0 resolver
 
 Status: plan, unbuilt. Drafted on 2026-10-28 by an Opus planning agent from
-the code of both repositories, then edited. Implementation waits for the
-maintainer's answers to section 8.
+the code of both repositories, then edited. The maintainer confirmed every
+answer of section 8 on 2026-10-28; implementation starts with T0.
 
 See also: [`expression-resolution.md`](expression-resolution.md) (the design
 this executes), [`resolver-0-7-evidence.md`](resolver-0-7-evidence.md) (the
@@ -234,15 +234,15 @@ version and source.
 
 | # | Question | Recommendation |
 | - | - | - |
-| Q1 | Canonicalise with our own code (D1) or `sort()` plus a workaround? | Our own code over the library's parse; report the `TypeError` and the class-name key upstream with a reproducer. |
+| Q1 | Canonicalise with our own code (D1) or `sort()` plus a workaround? | **Decided: our own code** over the library's parse; report the `TypeError` and the class-name key upstream with a reproducer. |
 | Q2 | Remove the `expression` category now or keep it a release? | **Decided: remove** (alpha, one consumer, its allow-list lacks it). |
 | Q3 | Policy for T4 (assumed trove readings) | `assumed_usage`, trust `none`, no expression, id in `candidates`. **Decided: defer to 0.8**; T10 is not in 0.7.0. |
 | Q4 | Which list wins when both a database and the packaged list exist (F7) | **Decided: the newer SPDX list version wins** (a tie goes to the database); `source=` forces one. Always report source and version in `lists`; Pitloom records them in the SBOM. |
-| Q5 | Text detection with no database | Out of scope for 0.7.0. Measure an in-memory `LicenseDatabase` built from the bundle; if under 1 s, offer it in 0.8. |
-| Q6 | `py-spdx-license` is a 0.0.1 library with one maintainer | Keep `<0.1`. With D1 we depend on `parse()` only; the drift guard catches a change. Vendor only if upstream goes stale. |
-| Q7 | `StandardML-NJ` to `SMLNJ` inside compounds | Apply per operand; keep the old id in the step. |
-| Q8 | Spans in the raw input or the stripped text | Raw `input`, in code points. |
-| Q9 | Several-word operands | Defer; `reason: operand not resolved`. |
+| Q5 | Text detection with no database | **Decided: out of scope** for 0.7.0. Measure an in-memory `LicenseDatabase` built from the bundle; if under 1 s, offer it in 0.8. |
+| Q6 | `py-spdx-license` is a 0.0.1 library with one maintainer | **Decided: keep `<0.1`.** With D1 we depend on `parse()` only; the drift guard catches a change. Vendor only if upstream goes stale. |
+| Q7 | `StandardML-NJ` to `SMLNJ` inside compounds | **Decided: apply per operand**; keep the old id in the step. |
+| Q8 | Spans in the raw input or the stripped text | **Decided: raw `input`**, in code points. |
+| Q9 | Several-word operands | **Decided: defer**; `reason: operand not resolved`. |
 | R1 | Pinned answers churn when rules change | The sample fixture's "changed set is empty" guard. |
 | R2 | Two release trains in lockstep | licenseid first; Pitloom 0.21.1 does not depend on it; 0.22.0 floors on it. |
 
