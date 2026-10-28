@@ -119,29 +119,37 @@ classifier names.
 
 1. **Compounds are a small share of projects (1.3%) but a large share of
    downloads.** 6 of the 57 values in the first corpus are compounds, and
-   every one is answered by Pitloom's own parser, not by `resolve()`. Operands must be resolved first and the result canonicalised
-   second: `normalize_identifier()` on the whole value upper-cases the "or" of
-   prose and keeps unresolved operands, so it cannot be the first step.
+   every one is answered by Pitloom's own parser, not by `resolve()`. Operands
+   must be resolved first and the result canonicalised second:
+   `normalize_identifier()` on the whole value upper-cases the "or" of prose
+   and keeps unresolved operands, so it cannot be the first step.
+
 2. **Prose forms of one id are the safest gain: 16% of the unresolved
    values.** `Apache License, Version 2.0`, `Apache-2.0 license`, `BSD
    3-Clause License` and `Apache License Version 2.0` state one id; they are
    lexical rules, not assumptions.
+
 3. **Prose with a trailing short name** (`MIT License (MIT)`, `ISC License
    (ISCL)`, `... (MPL 2.0)`, `... (LGPLv3+)`) is 4 of the 17 unresolved short
-   values and common on PyPI. A step that drops a trailing parenthesis when
+   values of the first corpus, but about 1% of the PyPI sample's (the trove
+   forms in item 4 carry most of it). A step that drops a trailing parenthesis when
    the head resolves, naming what it dropped (the design's `drop` step), would
    read all four.
+
 4. **Trove classifier names are a closed vocabulary** (about 80 `License ::`
-   entries; 27% of the unresolved values, mostly `Apache Software License`). A table with its ambiguity flags (`Apache Software License` is
-   `Apache-2.0` by usage, not by statement; `BSD License` is several) would
-   serve the classifier route without guessing in free text. Needs a decision
-   on what an assumed reading is called in `trust`.
+   entries; 27% of the unresolved values, mostly `Apache Software License`). A
+   table with its ambiguity flags (`Apache Software License` is `Apache-2.0`
+   by usage, not by statement; `BSD License` is several) would serve the
+   classifier route without guessing in free text. Needs a decision on what an
+   assumed reading is called in `trust`.
+
 5. **Alternative names and aliases** (`Expat license`, `PSFL`, `3-Clause BSD
    License`, `Apache License, Version 2.0`) are lexical: check whether the
-   List's `otherNames` and the common prose forms belong in the lexical
-   table.
+   List's `otherNames` and the common prose forms belong in the lexical table.
+
 6. **A consumer still needs its own filters**: whole licence texts, trove
    categories (`OSI Approved`), `UNKNOWN`. None belongs in `resolve()`.
+
 7. **Behaviours to pin as tests in 0.7.0**: the `sort()` failure on repeated
    terms, the narrowing of a bare deprecated id, `StandardML-NJ` to `SMLNJ`,
    the unresolved-operand handling, and the "or" of prose.
