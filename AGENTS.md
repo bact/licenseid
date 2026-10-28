@@ -47,6 +47,10 @@
   academic write-up (system, results, history, human–AI sessions). Add to
   it when a finding is worth publishing; start at its `README.md`.
 - Test fixtures: `tests/fixtures/README.md`
+- Which licence values `resolve()` should read next: measure, do not guess.
+  `tools/pypi_licence_sample/README.md` samples real PyPI values and counts
+  what `resolve()` reads; findings in
+  `working-docs/design/resolver-0-7-evidence.md`.
 - Private alpha, one developer. No backward compat needed yet.
 - `working-docs/` is internal notes only — content can change without notice.
   Any user-facing docs published outside this repo must not link into it;
