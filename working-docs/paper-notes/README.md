@@ -31,6 +31,7 @@ the older files stop at 2026-10-07 (v0.4.3), and `ai-sessions-0-5-0.md` at
 | [ai-sessions-recent.md](ai-sessions-recent.md) | Human–AI session, 19 September to 5 October: decisions, mistakes, patterns |
 | [ai-sessions-0-5-0.md](ai-sessions-0-5-0.md) | Human–AI session, release 0.5.0 (20 to 22 October): sources, reviews, mistakes |
 | [ai-sessions-0-6-0.md](ai-sessions-0-6-0.md) | Human–AI session, release 0.6.0 (24 to 28 October): loose IDs, `resolve()`, review yield |
+| [ai-sessions-0-7-plan.md](ai-sessions-0-7-plan.md) | Human–AI session, Pitloom 0.21.0 and the 0.7.0 resolver plan (27 to 28 October): evidence, review yield, mistakes |
 
 ## Method
 

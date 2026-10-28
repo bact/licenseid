@@ -428,3 +428,35 @@ RapidFuzz cost data points:
   default 4,300 digits) (PR #101; `ai-sessions-0-6-0.md`).
 - Floating-point tie window: `0.91 - 0.90` was not a tie but `0.35 - 0.34`
   was; now compared after rounding to 9 places (`TDR` L420-423).
+
+### 3.5 What real PyPI licence values look like (2026-10-28)
+
+Sample: the 5,000 most downloaded PyPI projects (hugovk `top-pypi-packages`
+list of 2026-10-01); 4,999 answered the JSON API (`info.license`,
+`info.license_expression`, `License ::` classifiers of the latest release).
+Tool: `tools/pypi_licence_sample/` (`fetch`, `analyze`); tables and method in
+`../design/resolver-0-7-evidence.md` (PR #103). **[observation]**
+
+- The value a consumer uses (first of `License-Expression`, a short `License`,
+  the classifiers): `License` 2,494 projects, `License-Expression` 1,571,
+  classifiers only 692, none 205, licence text only 37.
+- `resolve()` 0.6.0 on the 4,757 projects with a short value: one id 3,797
+  (79.8%), unresolved 848 (17.8%), compound with no expression returned 63
+  (1.3%), deprecated id with `-only`/`-or-later` unknown 40 (0.8%), several
+  classifiers 9.
+- The 848 unresolved, by what would resolve them (a first reading by pattern,
+  not tested rules): bare or family names 348 (`BSD License` 155, `BSD` 150);
+  trove classifier names 224 (`Apache Software License` 153); prose forms of one
+  id 140 (`Apache License, Version 2.0` 31); other 63; proprietary or custom 35;
+  trailing parenthesis 16; aliases 14; a full trove path in `License` 8.
+- Compounds are 1.3% of projects but carry about 6.6 billion of the sample's
+  downloads (widely installed projects write `MIT OR Apache-2.0`), against 7.3
+  billion for the 504 unresolved `License` values.
+- `normalize_identifier()` is unfit as the first step on a whole declared
+  value: it upper-cases the "or" of prose (`... v3 OR later`), narrows
+  `GPL-3.0` to `GPL-3.0-only`, keeps unresolved operands (`Apache2 OR MIT`
+  becomes `MIT OR Apache2`) and returns its input when `py-spdx-license`'s
+  `sort()` raises on a repeated term (`MIT OR ISC OR MIT OR ISC`).
+- Threats: top-5,000 by downloads only; latest release only; the groups are
+  patterns, not rules; the list is the 30-day count, which weights a value by
+  installation, not by authorship.
