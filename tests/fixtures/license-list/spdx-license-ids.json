@@ -607,7 +607,7 @@
   ["Spencer-86", "Spencer License 86", false, null],
   ["Spencer-94", "Spencer License 94", false, null],
   ["Spencer-99", "Spencer License 99", false, null],
-  ["StandardML-NJ", "Standard ML of New Jersey License", true, null],
+  ["StandardML-NJ", "Standard ML of New Jersey License", true, "SMLNJ"],
   ["SugarCRM-1.1.3", "SugarCRM Public License v1.1.3", false, null],
   ["Sun-PPP", "Sun PPP License", false, null],
   ["Sun-PPP-2000", "Sun PPP License (2000)", false, null],

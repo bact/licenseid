@@ -8,6 +8,7 @@ Shared test configuration and fixtures for licenseid.
 """
 
 import builtins
+import importlib
 import json
 import re
 import sqlite3
@@ -322,6 +323,17 @@ def fake_requests_get(
         fake.side_effect = error
     monkeypatch.setattr(requests, "get", fake)
     return fake
+
+
+@pytest.fixture(scope="session")
+def corpus_db() -> Generator[LicenseDatabase, None, None]:
+    """A database of the whole SPDX 3.29.0 List (every licence and exception,
+    the text of the near neighbours of the resolver corpus), built once per
+    session. Read only: a test must not write to it."""
+    # By name: resolver_corpus imports this module (a static import is a cycle).
+    corpus: Any = importlib.import_module("resolver_corpus")
+    for path in corpus.corpus_db_path("corpus"):
+        yield LicenseDatabase(path, create=False)
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
