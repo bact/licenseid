@@ -172,6 +172,8 @@ def _entries(
         text = item.get("text")
         if text is not None and not isinstance(text, str):
             raise BundleError(f"{key} has a text that is not a string")
+        if not isinstance(item.get("name"), str):
+            raise BundleError(f"{key} has an invalid name")
         if with_text and text is not None:
             texts[ident] = text
         entries.append(entry)

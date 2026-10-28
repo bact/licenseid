@@ -28,7 +28,7 @@ def sample() -> SpdxData:
         release_date="2099-01-01T00:00:00Z",
         licenses=(
             {"licenseId": "MIT", "name": "MIT License", "isOsiApproved": True},
-            {"licenseId": "Old-1.0", "isDeprecatedLicenseId": True},
+            {"licenseId": "Old-1.0", "name": "Old", "isDeprecatedLicenseId": True},
         ),
         exceptions=({"licenseExceptionId": "Ex-1.0", "name": "Ex é"},),
         texts={"MIT": MIT_TEXT},
@@ -44,7 +44,7 @@ def good_doc() -> dict[str, Any]:
         "format": 1,
         "licenseListVersion": "3.99",
         "releaseDate": "2099-01-01T00:00:00Z",
-        "licenses": [{"licenseId": "MIT", "text": "t"}],
+        "licenses": [{"licenseId": "MIT", "name": "MIT License", "text": "t"}],
         "exceptions": [],
     }
 
@@ -139,8 +139,30 @@ def test_a_bad_exception_id_is_refused() -> None:
 
 def test_a_duplicate_id_is_refused() -> None:
     doc = good_doc()
-    doc["licenses"] = [{"licenseId": "MIT"}, {"licenseId": "MIT"}]
+    doc["licenses"] = [
+        {"licenseId": "MIT", "name": "A"},
+        {"licenseId": "MIT", "name": "B"},
+    ]
     with pytest.raises(BundleError, match="duplicate"):
+        SpdxData.from_bundle(bundle_of(doc), None)
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [{}, {"name": None}, {"name": 3}, {"name": ["MIT"]}, {"name": {}}],
+    ids=["no-name", "null", "int", "list", "dict"],
+)
+@pytest.mark.parametrize(
+    ("key", "id_key"),
+    [("licenses", "licenseId"), ("exceptions", "licenseExceptionId")],
+)
+def test_an_entry_without_a_string_name_is_refused(
+    key: str, id_key: str, extra: dict[str, object]
+) -> None:
+    """A bundle entry with no usable name raised KeyError downstream."""
+    doc = good_doc()
+    doc[key] = [{id_key: "Foo-1.0", **extra}]
+    with pytest.raises(BundleError, match=f"{key} has an invalid name"):
         SpdxData.from_bundle(bundle_of(doc), None)
 
 
@@ -164,14 +186,14 @@ def test_an_entry_that_is_not_an_object_is_refused(entry: object) -> None:
 @pytest.mark.parametrize("text", [3, ["x"], {}])
 def test_a_text_that_is_not_a_string_is_refused(text: object) -> None:
     doc = good_doc()
-    doc["licenses"] = [{"licenseId": "MIT", "text": text}]
+    doc["licenses"] = [{"licenseId": "MIT", "name": "MIT", "text": text}]
     with pytest.raises(BundleError, match="text"):
         SpdxData.from_bundle(bundle_of(doc), None)
 
 
 def test_a_null_text_is_no_text() -> None:
     doc = good_doc()
-    doc["licenses"] = [{"licenseId": "MIT", "text": None}]
+    doc["licenses"] = [{"licenseId": "MIT", "name": "MIT", "text": None}]
     assert SpdxData.from_bundle(bundle_of(doc), None).texts == {}
 
 
@@ -200,7 +222,7 @@ def licenses_json(*ids: str) -> bytes:
 
 
 def test_a_tarball_with_exceptions(tmp_path: Path) -> None:
-    exceptions = {"exceptions": [{"licenseExceptionId": "Ex-1.0"}]}
+    exceptions = {"exceptions": [{"licenseExceptionId": "Ex-1.0", "name": "Ex"}]}
     tar = make_tarball(
         tmp_path / "t.tar.gz",
         {
@@ -213,7 +235,7 @@ def test_a_tarball_with_exceptions(tmp_path: Path) -> None:
     assert data.version == "3.99"
     assert data.release_date == "2099-01-01T00:00:00Z"
     assert [lic["licenseId"] for lic in data.licenses] == ["MIT", "NoText"]
-    assert data.exceptions == ({"licenseExceptionId": "Ex-1.0"},)
+    assert data.exceptions == ({"licenseExceptionId": "Ex-1.0", "name": "Ex"},)
     assert data.texts == {"MIT": "mit text\n"}
 
 
@@ -265,7 +287,10 @@ def test_a_tarball_without_a_string_version_is_refused(
         pytest.param("licenses", "licenseId", [{"licenseId": "a b"}], id="badid"),
         pytest.param("licenses", "licenseId", [{"licenseId": 7}], id="intid"),
         pytest.param(
-            "licenses", "licenseId", [{"licenseId": "A"}, {"licenseId": "A"}], id="dup"
+            "licenses",
+            "licenseId",
+            [{"licenseId": "A", "name": "A"}, {"licenseId": "A", "name": "A"}],
+            id="dup",
         ),
         pytest.param("exceptions", "licenseExceptionId", [{"name": "x"}], id="noexc"),
     ],
@@ -282,6 +307,35 @@ def test_a_tarball_entry_without_a_valid_unique_id_is_refused(
         members["json/exceptions.json"] = json.dumps({"exceptions": entries}).encode()
     tar = make_tarball(tmp_path / "t.tar.gz", members)
     with pytest.raises(tarfile.ReadError, match=key):
+        SpdxData.from_tarball(tar)
+
+
+@pytest.mark.parametrize(
+    ("file", "entry"),
+    [
+        pytest.param("licenses", {"licenseId": "A"}, id="licence-no-name"),
+        pytest.param("licenses", {"licenseId": "A", "name": 5}, id="licence-int-name"),
+        pytest.param("exceptions", {"licenseExceptionId": "E"}, id="exception-no-name"),
+        pytest.param(
+            "exceptions",
+            {"licenseExceptionId": "E", "name": None},
+            id="exception-null-name",
+        ),
+    ],
+)
+def test_a_tarball_entry_without_a_string_name_is_refused(
+    tmp_path: Path, file: str, entry: dict[str, object]
+) -> None:
+    """The tarball path refuses it as it does a bundle."""
+    doc = json.loads(licenses_json("MIT"))
+    members = {"json/licenses.json": json.dumps(doc).encode()}
+    if file == "licenses":
+        doc["licenses"] = [entry]
+        members["json/licenses.json"] = json.dumps(doc).encode()
+    else:
+        members["json/exceptions.json"] = json.dumps({"exceptions": [entry]}).encode()
+    tar = make_tarball(tmp_path / "t.tar.gz", members)
+    with pytest.raises(tarfile.ReadError, match="has an invalid name"):
         SpdxData.from_tarball(tar)
 
 
