@@ -14,7 +14,7 @@ Pure: standard library and :mod:`licenseid.types` only. No console, no
 normalisation, no database.
 """
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 
@@ -55,7 +55,8 @@ def superseded_license(
     active: set[str],
     active_by_name: dict[str, list[str]],
 ) -> str | None:
-    """The successor of a deprecated licence, or ``None``.
+    """The successor of a deprecated licence, or ``None`` (also for one in
+    use).
 
     Two cases are certain:
 
@@ -70,6 +71,8 @@ def superseded_license(
     by an expression or by a licence of another name is no rename. The split
     is therefore refused by ID, not left to the name check.
     """
+    if not is_deprecated(lic):
+        return None
     dep_id = lic["licenseId"]
     if dep_id.endswith("+"):
         or_later = dep_id[:-1] + "-or-later"  # strip the '+' operator token
@@ -78,6 +81,31 @@ def superseded_license(
     if len(holders) != 1 or holders[0] in (f"{dep_id}-only", f"{dep_id}-or-later"):
         return None
     return holders[0]
+
+
+def kept_licenses(
+    licenses: Iterable[SpdxLicenseEntry], has_text: Callable[[str], bool]
+) -> list[tuple[SpdxLicenseEntry, str | None]]:
+    """The kept licences with their successor, in list order.
+
+    *has_text* tells whether a licence ID has a text. Which map each
+    consumer must use:
+
+    - the successors here come from :func:`active_ids` and
+      :func:`active_ids_by_name` over ALL entries, kept or not;
+    - the database's ``get_active_ids_by_name`` (``dbcache``) sees only the
+      kept rows, so an index that answers it must build its map from the
+      kept licences only. The two differ when an ID in use has no text: it
+      is not kept, yet it is the successor of a deprecated rename.
+    """
+    entries = list(licenses)
+    active = active_ids(entries)
+    by_name = active_ids_by_name(entries)
+    return [
+        (lic, superseded_license(lic, active, by_name))
+        for lic in entries
+        if kept(lic, has_text(lic["licenseId"]))
+    ]
 
 
 def active_exceptions_by_name(

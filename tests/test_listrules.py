@@ -1,3 +1,4 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -124,7 +125,7 @@ def test_kept(deprecated: bool | None, has_text: bool, expected: bool) -> None:
         # a similar ID is no split
         ([lic_entry("G", "Nm", True), lic_entry("G-only2", "Nm")], "G-only2"),
         ([lic_entry("G", "Nm", True), lic_entry("H-only", "Nm")], "H-only"),
-        # a '+' ID has no rename reading, and ends with '+' only at the end
+        # a '+' inside an ID is no '+' token: the rename reading applies
         ([lic_entry("A+B", "Nm", True), lic_entry("C", "Nm")], "C"),
     ],
     ids=[
@@ -203,3 +204,50 @@ def test_the_same_sharp_s_name_matches_under_each_rule() -> None:
     assert _successor(lic_entry("O", "STRASSE", True), lic_entry("N", "Straße")) == "N"
     by_name = listrules.active_exceptions_by_name([exc_entry("E", "Straße")])
     assert listrules.exception_successor(exc_entry("O", "Straße", True), by_name) == "E"
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [lic_entry("A", "Nm"), lic_entry("A", "Nm", None), lic_entry("A+", "Nm")],
+    ids=["active", "flag-absent", "active-plus"],
+)
+def test_an_active_licence_has_no_successor(entry: SpdxLicenseEntry) -> None:
+    """Even with a unique name of its own, or an -or-later ID in use."""
+    other = lic_entry("A-or-later", "Nm")
+    assert (
+        listrules.superseded_license(
+            entry,
+            listrules.active_ids([entry, other]),
+            listrules.active_ids_by_name([entry]),
+        )
+        is None
+    )
+
+
+def test_kept_licenses_in_list_order_with_successors() -> None:
+    """Kept by the text rule; successors from all the entries."""
+    entries = [
+        lic_entry("Act", "Active"),
+        lic_entry("Bare", "Bare"),  # active, no text: dropped
+        lic_entry("O", "Nm", True),  # deprecated, no text: kept
+        lic_entry("N", "Nm"),  # active, no text: dropped, still the successor
+        lic_entry("D", "Dep", True),
+    ]
+    texts = {"Act", "D"}
+    got = listrules.kept_licenses(entries, lambda i: i in texts)
+    assert [(lic["licenseId"], s) for lic, s in got] == [
+        ("Act", None),
+        ("O", "N"),
+        ("D", None),
+    ]
+    assert listrules.kept_licenses([], lambda _: True) == []
+
+
+def test_the_kept_only_by_name_map_differs_from_the_successor_map() -> None:
+    """O points to N although N is not kept: an index answering
+    `get_active_ids_by_name` must build its map from the kept licences."""
+    entries = [lic_entry("O", "Nm", True), lic_entry("N", "Nm")]
+    got = listrules.kept_licenses(entries, lambda _: False)
+    assert [(lic["licenseId"], s) for lic, s in got] == [("O", "N")]
+    assert listrules.active_ids_by_name(entries) == {"nm": ["N"]}
+    assert not listrules.active_ids_by_name([lic for lic, _ in got])

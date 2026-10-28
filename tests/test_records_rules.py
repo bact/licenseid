@@ -1,3 +1,4 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -138,3 +139,12 @@ def test_the_same_sharp_s_name_matches_in_both_rules() -> None:
     recs = build_records(data, {})
     assert recs.licenses[0][8] == "New"
     assert recs.exceptions[0][3] == "New-exc"
+
+
+def test_the_exception_flag_is_stored_as_it_was_read() -> None:
+    """Licence rows hold a bool; an exception row holds the raw flag."""
+    entry = exc_entry("Old-exc", "Nm")
+    entry["isDeprecatedLicenseId"] = 1  # type: ignore[typeddict-item]
+    rows = build_records(SpdxData("3.99", None, (), (entry,), {}), {}).exceptions
+    assert rows == [("Old-exc", "Nm", 1, None)]
+    assert not isinstance(rows[0][2], bool)

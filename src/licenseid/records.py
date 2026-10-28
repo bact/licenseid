@@ -16,12 +16,8 @@ from typing import NamedTuple
 from licenseid.console import status
 from licenseid.listrules import (
     active_exceptions_by_name,
-    active_ids,
-    active_ids_by_name,
     exception_successor,
-    is_deprecated,
-    kept,
-    superseded_license,
+    kept_licenses,
 )
 from licenseid.normalize import normalize_text
 from licenseid.spdxdata import SpdxData
@@ -80,31 +76,24 @@ def _license_records(
     index_records: list[IndexInsertRecord] = []
 
     status("\nPreparing license data...", end="")
-    # Build the superseded_by mapping at DB build time so runtime lookups
-    # are O(1).
-    active = active_ids(data.licenses)
-    active_by_name = active_ids_by_name(data.licenses)
-
-    for i, lic in enumerate(data.licenses):
-        text = data.texts.get(lic["licenseId"])
-        if kept(lic, text is not None):
-            superseded_by = (
-                superseded_license(lic, active, active_by_name)
-                if is_deprecated(lic)
-                else None
-            )
-            res = _prepare_license_record(lic, text, popularity_map, superseded_by)
-            if res:
-                license_records.append(res[0])
-                index_records.append(res[1])
-            else:
-                # Text absent for this deprecated ID (some SPDX releases
-                # omit them).  Still store the metadata row so redirect
-                # lookups work.
-                license_records.append(_metadata_only_record(lic, superseded_by))
-
-        if (i + 1) % 100 == 0 or (i + 1) == len(data.licenses):
-            status(".", end="")
+    # The superseded_by mapping is built at DB build time so runtime
+    # lookups are O(1).
+    for lic, superseded_by in kept_licenses(
+        data.licenses, lambda license_id: data.texts.get(license_id) is not None
+    ):
+        res = _prepare_license_record(
+            lic, data.texts.get(lic["licenseId"]), popularity_map, superseded_by
+        )
+        if res:
+            license_records.append(res[0])
+            index_records.append(res[1])
+        else:
+            # Text absent for this deprecated ID (some SPDX releases omit
+            # them).  Still store the metadata row so redirect lookups work.
+            license_records.append(_metadata_only_record(lic, superseded_by))
+    # One dot per 100 licences and one at the end.
+    count = len(data.licenses)
+    status("." * (count // 100 + (1 if count % 100 else 0)), end="")
     return license_records, index_records
 
 
@@ -134,7 +123,7 @@ def _exception_records(
     exceptions_data: tuple[SpdxExceptionEntry, ...],
 ) -> list[ExceptionInsertRecord]:
     """Exception rows; a deprecated one points to the active exception that
-    has the same name (case-folded)."""
+    has the same name (lower-cased)."""
     status("\nPreparing exception data...", end="")
     by_name = active_exceptions_by_name(exceptions_data)
     return [
