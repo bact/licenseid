@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -384,6 +384,12 @@ RapidFuzz cost data points:
 - "Exact" is stricter than SPDX matching: a filled-in copyright line or title
   makes a real licence file not exact, whereas the guidelines allow
   replaceable/omittable text to differ (`ROAD` item 31; `README.md` §4).
+- One value, four readers, three answers (before PR #101): `GPL-2.0-only+`
+  in a tag gave none, `resolve()` said `malformed`, `--id` exited 2, and as
+  text it answered `LGPL-3.0-only` at 0.755 (`GPL-2.0-or-later+`:
+  `SimPL-2.0` at 0.84). A lone compound expression still differs by entry
+  point: in a tag `MIT OR Apache-2.0` is exact, as text it answers `ECL-2.0`
+  at 0.76 (`ROAD` item 43; `ai-sessions-0-6-0.md`).
 - GPL appendix heuristics: the canonical GPL-2.0 appendix places the
   `<one line to give the program's name...>` placeholder *before* the grant,
   so forward-only suppression never fired on real boilerplate; a
@@ -415,5 +421,10 @@ RapidFuzz cost data points:
   (`log(1)=0`), found only by the end-to-end test (`FETCH` L65-81).
 - `Path.unlink(missing_ok=True)` swallows only `FileNotFoundError`
   (`GATE` L87-90).
+- Build stamps compared as strings or with `!=` go wrong both ways: "10"
+  sorts before "2", and a database built by a newer release looked
+  "outdated" and was rebuilt (downgraded). `int()` on a stamp of 5,000
+  digits raises on Python 3.11+ (the integer string conversion limit,
+  default 4,300 digits) (PR #101; `ai-sessions-0-6-0.md`).
 - Floating-point tie window: `0.91 - 0.90` was not a tie but `0.35 - 0.34`
   was; now compared after rounding to 9 places (`TDR` L420-423).
