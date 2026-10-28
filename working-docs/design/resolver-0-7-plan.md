@@ -114,7 +114,7 @@ answer. Needs the maintainer (Q1).
 | Item | 0.6.0 | 0.7.0 | Kind |
 | - | - | - | - |
 | Signature | `resolve(value, db=None)` | `resolve(value, db=None, *, source="auto")`, `source` one of `auto`, `database`, `packaged` | additive |
-| No database | raises `DatabaseNotReadyError` | `auto` uses the packaged index; raises only with no bundle either (editable install, `LICENSEID_BUNDLE=skip`), message unchanged | behaviour |
+| No database | raises `DatabaseNotReadyError` | `auto` uses the packaged index (with a database, the newer list version wins, a tie goes to the database: Q4); raises only with no bundle either (editable install, `LICENSEID_BUNDLE=skip`), message unchanged | behaviour |
 | Unusable default database | raises | `auto`: `WARNING: database: <condition>: <detail>; using packaged data v3.29.0` (existing ACTION vocabulary), then the packaged index. An explicit `db=` or `source="database"` still raises. | behaviour |
 | `schema` | none | `2` | additive |
 | `operands` | none | one per leaf: `text`, `span` (`[start, end)` in code points of the raw `input`), `expression`, `category`, `trust`, `steps`, `expansions`, `candidates`, `reason`. A single value is one operand; a value that cannot be split gives `[]`. | additive |
@@ -235,9 +235,9 @@ version and source.
 | # | Question | Recommendation |
 | - | - | - |
 | Q1 | Canonicalise with our own code (D1) or `sort()` plus a workaround? | Our own code over the library's parse; report the `TypeError` and the class-name key upstream with a reproducer. |
-| Q2 | Remove the `expression` category now or keep it a release? | Remove: alpha, one consumer, and its allow-list lacks it. |
-| Q3 | Policy for T4 (assumed trove readings) | `assumed_usage`, trust `none`, no expression, id in `candidates`. Decide whether to ship it in 0.7.0 at all. |
-| Q4 | The database wins over the packaged list (F7) | Keep `auto` as database first; add `source=`. Pitloom uses `auto` so it agrees with its text detection. Record source and version in the SBOM. |
+| Q2 | Remove the `expression` category now or keep it a release? | **Decided: remove** (alpha, one consumer, its allow-list lacks it). |
+| Q3 | Policy for T4 (assumed trove readings) | `assumed_usage`, trust `none`, no expression, id in `candidates`. **Decided: defer to 0.8**; T10 is not in 0.7.0. |
+| Q4 | Which list wins when both a database and the packaged list exist (F7) | **Decided: the newer SPDX list version wins** (a tie goes to the database); `source=` forces one. Always report source and version in `lists`; Pitloom records them in the SBOM. |
 | Q5 | Text detection with no database | Out of scope for 0.7.0. Measure an in-memory `LicenseDatabase` built from the bundle; if under 1 s, offer it in 0.8. |
 | Q6 | `py-spdx-license` is a 0.0.1 library with one maintainer | Keep `<0.1`. With D1 we depend on `parse()` only; the drift guard catches a change. Vendor only if upstream goes stale. |
 | Q7 | `StandardML-NJ` to `SMLNJ` inside compounds | Apply per operand; keep the old id in the step. |
@@ -273,7 +273,7 @@ if it turns out to change the result shape, a category or the trust policy.
 | T7 | Read compound expressions in `resolve()` | `exprcanon.py`, `resolvecompound.py`, `operands`, `components`, `reason`, `schema: 2`, `by`, `expression` removed; parity, adversarial and timing tests | **Opus** | **high** |
 | T8 | Read prose forms of one id (P1 to P3) | Sample before and after committed; regex timing tests | Sonnet | medium |
 | T9 | Read trove classifier names and paths (T1 to T3) | `trovenames.py`; `trove-classifiers` check; `lists` entry; sample before and after | Sonnet | medium |
-| T10 | (if Q3 approves) Offer assumed trove readings as candidates | `assumed_usage`; Pitloom keeps them as text | **Opus** | **high** |
+| T10 | Deferred to 0.8 (Q3): offer assumed trove readings as candidates | `assumed_usage`; Pitloom keeps them as text | **Opus** | **high** |
 | T11 | Docs: implementation note, evidence update, CHANGELOG 0.7.0 | Front-matter dates; a migration line for the breaking bullets | Haiku or Sonnet | low |
 | T12 | Release licenseid 0.7.0 | `release-process.md`; the wheel ships the bundle; `resolve()` checked in a fresh venv with no database (the maintainer tags and publishes) | Sonnet | low |
 | T13 | Pitloom: read every declared value through `resolve()` (0.22.0) | Floor bump; about 250 lines deleted; drift guard; before and after sweep reviewed | Sonnet | high (Opus reviews) |
