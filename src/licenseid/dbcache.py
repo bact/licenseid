@@ -14,25 +14,17 @@ turns every later lookup into a seek, and an unknown ID into no query.
 """
 
 import sqlite3
-import string
 import threading
 from collections.abc import Callable
 from typing import TypeVar, cast
 
 from licenseid.dbconnection import Connections
+from licenseid.listlookup import fold_case
 from licenseid.normalize import normalize_text
 from licenseid.types import LicenseDetails, LicenseNameId
 
-_ASCII_LOWER = str.maketrans(string.ascii_uppercase, string.ascii_lowercase)
+__all__ = ["TableCache", "cast_license_details", "fold_case"]
 _V = TypeVar("_V", str, int)
-
-
-def fold_case(value: str) -> str:
-    """*value* with ASCII letters lowercased, as SQLite's NOCASE compares.
-
-    ``str.lower`` folds more: the KELVIN SIGN would become ``k``.
-    """
-    return value.translate(_ASCII_LOWER)
 
 
 def cast_license_details(row: sqlite3.Row) -> LicenseDetails:
