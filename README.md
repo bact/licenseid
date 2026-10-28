@@ -43,13 +43,15 @@ generator.*
     by `match()` when no surrounding context is available; `resolve()` keeps
     them as written (below).
 - **Declared-value resolution** (`resolve()`): turns one declared licence
-  value (a `license` field, `License-Expression`, a model card) into an SPDX
-  expression and the steps taken, without fuzzy matching:
+  value (a `license` field, a model card) into an SPDX expression and the
+  steps taken, without fuzzy matching:
   - exact and case-folded IDs; loosely written IDs (`Apache2`, `GPLv3`,
     `GPLv2 or any later version`); the List's own licence names;
   - a bare deprecated ID (`GPL-3.0`) comes back as written, category
     `assumed_only`, with both candidates, never narrowed; a renamed one
     (`StandardML-NJ`) becomes its successor (`SMLNJ`);
+  - a compound expression (`MIT OR Apache-2.0`) is recognised (category
+    `expression`) but returned without an expression;
   - every result names its category and trust level, each step, the list
     and list version it rests on, and the resolver's version (see
     [Python API](#python-api)).

@@ -11,8 +11,8 @@ and this project adheres to
 
 ### Fixed
 
-- `resolve()` answers `unresolved` for a value with a lone surrogate instead
-  of raising `UnicodeEncodeError` after `WITH`
+- `resolve()` answers `unresolved` for a value with a lone surrogate; it
+  raised `UnicodeEncodeError` after `WITH` and dropped the character elsewhere
 
 ## [0.6.0] - 2026-10-27
 
