@@ -17,15 +17,10 @@ no import cycle.
 
 import contextlib
 import string
-from collections.abc import Callable
-from typing import Protocol
+from collections.abc import Callable, Mapping, Sequence
+from typing import Protocol, TypedDict
 
-from licenseid.types import (
-    DatabaseMetadata,
-    ExceptionDetails,
-    LicenseDetails,
-    LicenseNameId,
-)
+from typing_extensions import Required
 
 _ASCII_LOWER = str.maketrans(string.ascii_uppercase, string.ascii_lowercase)
 
@@ -38,6 +33,41 @@ def fold_case(value: str) -> str:
     return value.translate(_ASCII_LOWER)
 
 
+class ListedLicense(TypedDict, total=False):
+    """The fields of a licence row that the resolver chain reads. The
+    database's ``LicenseDetails`` satisfies it; so can an index that has no
+    popularity or word count. ``superseded_by`` is absent, empty or ``None``
+    when the ID has no successor: read it as a truth value."""
+
+    license_id: Required[str]
+    is_deprecated: bool
+    superseded_by: str
+
+
+class ListedException(TypedDict, total=False):
+    """The fields of an exception row that the resolver chain reads (the
+    database's ``ExceptionDetails`` satisfies it)."""
+
+    exception_id: Required[str]
+    is_deprecated: Required[bool]
+    superseded_by: str
+
+
+class ListedName(TypedDict):
+    """The fields of a licence row found by key that the resolver chain
+    reads (the database's ``LicenseNameId`` satisfies it)."""
+
+    license_id: str
+    is_deprecated: bool
+
+
+class ListedMetadata(TypedDict, total=False):
+    """The metadata the resolver reads (the database's ``DatabaseMetadata``
+    satisfies it)."""
+
+    license_list_version: str
+
+
 class ListLookup(Protocol):
     """What the resolver reads of a licence list.
 
@@ -47,29 +77,38 @@ class ListLookup(Protocol):
     - IDs compare with ASCII case folding only, as SQLite's NOCASE does
       (``fold_case``), never ``str.lower`` or ``str.casefold``: the KELVIN
       SIGN is not a ``k``.
-    - ``get_deprecated_mappings`` covers licence and exception IDs.
+    - ``get_deprecated_mappings`` returns only the deprecated IDs that have a
+      successor: the licences in table order, then the exceptions; on a clash
+      an exception wins the key.
+    - ``get_metadata`` has no ``license_list_version`` key when the list does
+      not say. (``LicenseDatabase`` also stores ``release_date``, which is
+      ``""`` when the update did not know it; the resolver does not read it.)
+    - The return types hold the fields the resolver chain reads, no more, so
+      an index need not invent a popularity or a word count. A caller that
+      needs the flags (``identifiers.flag_source``) takes a ``LicenseDatabase``.
     - ``get_active_ids_by_name`` is keyed by ``str.casefold()`` of the name.
     """
 
     def reading(self) -> contextlib.AbstractContextManager[None]:
         """One block of queries (one resolution)."""
 
-    def get_license_details(self, license_id: str) -> LicenseDetails | None:
-        """Full metadata for a licence (ASCII case-insensitive lookup)."""
+    def get_license_details(self, license_id: str) -> ListedLicense | None:
+        """The row of a licence (ASCII case-insensitive lookup)."""
 
-    def get_exception_details(self, exception_id: str) -> ExceptionDetails | None:
-        """Full metadata for an exception (case-insensitive lookup)."""
+    def get_exception_details(self, exception_id: str) -> ListedException | None:
+        """The row of an exception (case-insensitive lookup)."""
 
     def get_names_by_key(
         self, key: Callable[[str], str]
-    ) -> dict[str, list[LicenseNameId]]:
+    ) -> Mapping[str, Sequence[ListedName]]:
         """The licence rows grouped by *key* of each ID."""
 
     def get_active_ids_by_name(self) -> dict[str, list[str]]:
         """The licence IDs in use by case-folded name."""
 
     def get_deprecated_mappings(self) -> dict[str, str]:
-        """All deprecated IDs, each with its successor."""
+        """Each deprecated ID that has a successor, with it: the licences in
+        table order, then the exceptions (an exception wins a clash)."""
 
-    def get_metadata(self) -> DatabaseMetadata:
+    def get_metadata(self) -> ListedMetadata:
         """The list's metadata (``license_list_version``)."""

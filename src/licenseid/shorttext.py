@@ -13,6 +13,7 @@ from licenseid.looseid import loose_id, narrowed, resolved_id, warn_narrowed
 from licenseid.plusoperator import strip_plus_operator
 from licenseid.ranking import DEP_PENALTY
 from licenseid.types import LicenseNameId, RawMatch
+from licenseid.versionkey import version_key
 
 # The score of an exact ID or name match; a fuzzy one scores less.
 EXACT_MATCH_SCORE = 1.02
@@ -35,7 +36,17 @@ def match_version_key(db: LicenseDatabase, text: str) -> list[RawMatch]:
     """The license *text* names loosely (see licenseid.looseid), as an ID
     match: "Apache2" is Apache-2.0."""
     found = loose_id(db, text)
-    return [] if found is None else [_id_hit(found[0], found[1], text)]
+    if found is None:
+        return []
+    # loose_id reads the narrow row of ListLookup; the flags are in the full one.
+    row = _full_row(db, found[0]["license_id"])
+    return [] if row is None else [_id_hit(row, found[1], text)]
+
+
+def _full_row(db: LicenseDatabase, license_id: str) -> LicenseNameId | None:
+    """The row of *license_id* from the cached rows by version key."""
+    rows = db.get_names_by_key(version_key).get(version_key(license_id), [])
+    return next((row for row in rows if row["license_id"] == license_id), None)
 
 
 def match_short_text(
