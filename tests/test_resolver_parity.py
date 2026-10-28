@@ -22,6 +22,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from resolver_corpus import (
     EXPECTED_CHANGES,
     PARITY_FILE,
+    UNRESOLVED,
     parity_rows,
     pinned,
     read_comments,
@@ -30,7 +31,6 @@ from resolver_corpus import (
 
 from licenseid import LicenseDatabase, resolve
 from tools.pypi_licence_sample.answer import (
-    Answer,
     answer_of,
     escape_field,
     unescape_field,
@@ -186,4 +186,4 @@ def test_a_row_without_an_expression_pins_none() -> None:
     row = next(
         r for r in ROWS if unescape_field(r["value"]) == "Apache Software License"
     )
-    assert pinned(row) == Answer(None, "unresolved", (), (), (), "none", True)
+    assert pinned(row) == UNRESOLVED

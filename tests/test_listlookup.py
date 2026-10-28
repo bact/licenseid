@@ -247,4 +247,4 @@ def test_a_loose_id_row_the_database_lacks_is_no_hit(
     match, not a raise."""
     row = ListedName(license_id="Gone-1.0", is_deprecated=False)
     monkeypatch.setattr(shorttext, "loose_id", lambda _db, _text: (row, "Gone-1.0"))
-    assert match_version_key(db, "Apache2") == []
+    assert not match_version_key(db, "Apache2")

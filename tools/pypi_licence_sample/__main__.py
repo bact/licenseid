@@ -32,7 +32,7 @@ Three steps, run as ``python -m tools.pypi_licence_sample``:
     ``AND``) are left out, as ``analyze`` counts them apart. When the values
     do not fit in ``--max-files`` files, every value whose category is not
     ``exact`` is kept and the header records the count and the SHA-256 of the
-    full sorted set.
+    full sorted set (the value and every answer column).
 
 Standard library and ``licenseid`` only. Findings are recorded in
 ``working-docs/design/resolver-0-7-evidence.md``.
@@ -123,6 +123,27 @@ GROUPS: Final = (
 )
 
 Project = dict[str, Any]
+
+
+class SampleError(ValueError):
+    """The sample file holds a line that is not a JSON object: a data error,
+    not a usage error."""
+
+
+def read_projects(path: Path) -> list[Project]:
+    """The projects of the JSON Lines file *path*. Raises :class:`SampleError`
+    for a line that is not a JSON object."""
+    projects: list[Project] = []
+    for number, line in enumerate(path.read_text("utf-8").splitlines(), 1):
+        try:
+            project = json.loads(line)
+        except ValueError as exc:
+            raise SampleError(f"{path}:{number}: not JSON: {exc}") from exc
+        if not isinstance(project, dict):
+            raise SampleError(f"{path}:{number}: not a JSON object")
+        projects.append(project)
+    return projects
+
 
 #: The lines of one exported file, header comments included.
 MAX_LINES: Final = 790
@@ -233,7 +254,7 @@ def analyze(path: Path, top: int, db_path: Path | None = None) -> None:
     from licenseid import resolve  # pylint: disable=import-outside-toplevel
 
     db = _open_database(db_path)
-    projects = [json.loads(line) for line in path.read_text("utf-8").splitlines()]
+    projects = read_projects(path)
     fetched = [p for p in projects if "error" not in p]
     print(f"projects {len(projects)}, fetched {len(fetched)}")
     sources: collections.Counter[str] = collections.Counter()
@@ -320,14 +341,14 @@ def _export_rows(
     values: Sequence[tuple[str, str, int, int]], db: "LicenseDatabase | None"
 ) -> tuple[list[tuple[str, ...]], str]:
     """The exported rows of *values*, and the SHA-256 (hex) of the sorted
-    ``value, expression, category, candidates`` lines of all of them."""
+    ``value`` and answer lines (every answer column) of all of them."""
     from licenseid import resolve  # pylint: disable=import-outside-toplevel
 
     rows: list[tuple[str, ...]] = []
     digest = hashlib.sha256()
     for value, field, count, downloads in values:
         answer = answer_fields(answer_of(value, resolve(value, db)))
-        digest.update(("\t".join((escape_field(value), *answer[:3])) + "\n").encode())
+        digest.update(("\t".join((escape_field(value), *answer)) + "\n").encode())
         rows.append((escape_field(value), field, str(count), str(downloads), *answer))
     return rows, digest.hexdigest()
 
@@ -370,14 +391,15 @@ def export(
     ``<prefix>-1.tsv`` and on, when more than one file is needed) and return
     the files. See the module docstring for what is kept.
 
-    Raises :class:`ValueError` when *max_files* is below 1, *max_lines*
+    Raises :class:`SampleError` for a bad sample file, and
+    :class:`ValueError` when *max_files* is below 1, *max_lines*
     leaves no room for a row, or the values that are kept (every value that is
     not ``exact``, when all do not fit) still need more than *max_files*."""
     chunk = max_lines - HEADER_LINES
     if max_files < 1 or chunk < 1:
         raise ValueError(f"need max_files >= 1 and max_lines > {HEADER_LINES}")
     db = _open_database(db_path)
-    projects = [json.loads(line) for line in sample.read_text("utf-8").splitlines()]
+    projects = read_projects(sample)
     rows, digest = _export_rows(distinct_values(projects), db)
     kept = rows if len(rows) <= max_files * chunk else _not_exact(rows)
     if len(kept) > max_files * chunk:
@@ -386,7 +408,7 @@ def export(
         )
     header = _export_header(sample, len(projects), db, (len(rows), len(kept)))
     header.append(
-        f"# sha256 of the sorted (value, expression, category, candidates): {digest}"
+        f"# sha256 of the sorted (value, every answer column) lines: {digest}"
     )
     parts = [kept[i : i + chunk] for i in range(0, len(kept), chunk)] or [[]]
     written = []
@@ -436,19 +458,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     export_parser.add_argument("--max-files", type=int, default=MAX_FILES)
     export_parser.add_argument("--max-lines", type=int, default=MAX_LINES)
     args = parser.parse_args(argv)
-    if args.command == "fetch":
-        fetch(args.count, args.out)
-    elif args.command == "analyze":
-        analyze(args.sample, args.top, args.db)
-    else:
-        try:
-            written = export(
+    try:
+        if args.command == "fetch":
+            fetch(args.count, args.out)
+        elif args.command == "analyze":
+            analyze(args.sample, args.top, args.db)
+        else:
+            for path in export(
                 args.sample, args.out, args.db, args.max_files, args.max_lines
-            )
-        except ValueError as exc:
-            parser.error(f"export: {exc}")
-        for path in written:
-            print(path)
+            ):
+                print(path)
+    except SampleError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except ValueError as exc:  # an export option the values cannot meet
+        parser.error(f"{args.command}: {exc}")
     return 0
 
 
