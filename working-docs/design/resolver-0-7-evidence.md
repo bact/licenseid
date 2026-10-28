@@ -69,37 +69,89 @@ for `resolve()`; a consumer filters them). The other 17 are short values:
 | `GPL-2.0+ OR MIT` | `expression`, none | `GPL-2.0-or-later OR MIT` | same |
 | `Apache-2.0 WITH LLVM-exception`, `(MIT OR Apache-2.0) AND BSD-3-Clause` | `exact` / `expression` | as written, sorted | same |
 
+## PyPI sample: how often each case occurs
+
+The top 5,000 projects by downloads (hugovk's `top-pypi-packages` list of
+2026-10-01); `info.license`, `info.license_expression` and the `License ::`
+classifiers of each project's latest release from the PyPI JSON API, fetched
+on 2026-10-28. 4,999 answered. The value a consumer would use is the first of
+`License-Expression`, a short `License`, the classifiers.
+
+| Source used | Projects |
+| - | - |
+| `License` (short, one line) | 2,494 |
+| `License-Expression` | 1,571 |
+| `License ::` classifiers only | 692 |
+| none, or `UNKNOWN` | 205 |
+| a long or multi-line `License` text only | 37 |
+
+Of the 4,757 projects with a short value, `resolve()` 0.6.0 answers:
+
+| Answer | Projects | Share |
+| - | - | - |
+| one id (`exact`, `listed_name`, `separator`, `version_spelling`, `plus_to_or_later`, `lexical`) | 3,796 | 79.8% |
+| `unresolved` | 848 | 17.8% |
+| `expression` (a compound, no expression returned) | 63 | 1.3% |
+| `assumed_only` (a deprecated id, `-only` or `-or-later` unknown) | 40 | 0.8% |
+| several classifiers | 9 | 0.2% |
+
+The 848 unresolved short values, by what would resolve them (a first reading
+of each value, not a tested rule set):
+
+| Group | Projects | Share | Examples (projects) |
+| - | - | - | - |
+| A bare or family name: more than one licence | 348 | 41% | `BSD License` (155), `BSD` (150), `Apache` (14), `LGPL` (8) |
+| A trove classifier name | 231 | 27% | `Apache Software License` (153), `Python Software Foundation License` (14), `Other/Proprietary License` (13), `ISC License (ISCL)` (8) |
+| A prose form of one id | 139 | 16% | `Apache License, Version 2.0` (31), `Apache-2.0 license` (18), `BSD 3-Clause License` (13), `Apache License Version 2.0` (9) |
+| Other | 61 | 7% | `Apache Software License 2.0` (8), `LGPL with exceptions` (2), `FreeBSD` (2) |
+| Proprietary or custom | 35 | 4% | `NVIDIA Proprietary Software` (13), `LICENSE.txt` (3) |
+| An alias or abbreviation | 14 | 2% | `PSF` (5), `Expat license` (3), `ISCL` (3) |
+| A trailing parenthesis after a name | 12 | 1% | `The Unlicense (Unlicense)` (4) |
+| A full trove path in `License` | 8 | 1% | `License :: OSI Approved :: Apache Software License` (4) |
+
+Weighted by downloads, the compounds matter more than their count: the 63
+carry about 6.6 billion downloads in the sample (`MIT OR Apache-2.0`,
+`Apache-2.0 AND MIT` on widely installed projects), against 7.3 billion for
+the 504 unresolved `License` values and 6.6 billion for the 344 unresolved
+classifier names.
+
 ## What this says for the plan
 
-1. **Compounds are the largest single gap.** 6 of the 57 real values are
-   compounds and every one is answered by Pitloom's own parser, not by
-   `resolve()`. Operands must be resolved first and the result canonicalised
+1. **Compounds are a small share of projects (1.3%) but a large share of
+   downloads.** 6 of the 57 values in the first corpus are compounds, and
+   every one is answered by Pitloom's own parser, not by `resolve()`. Operands must be resolved first and the result canonicalised
    second: `normalize_identifier()` on the whole value upper-cases the "or" of
    prose and keeps unresolved operands, so it cannot be the first step.
-2. **Prose with a trailing short name** (`MIT License (MIT)`, `ISC License
+2. **Prose forms of one id are the safest gain: 16% of the unresolved
+   values.** `Apache License, Version 2.0`, `Apache-2.0 license`, `BSD
+   3-Clause License` and `Apache License Version 2.0` state one id; they are
+   lexical rules, not assumptions.
+3. **Prose with a trailing short name** (`MIT License (MIT)`, `ISC License
    (ISCL)`, `... (MPL 2.0)`, `... (LGPLv3+)`) is 4 of the 17 unresolved short
    values and common on PyPI. A step that drops a trailing parenthesis when
    the head resolves, naming what it dropped (the design's `drop` step), would
    read all four.
-3. **Trove classifier names are a closed vocabulary** (about 80 `License ::`
-   entries). A table with its ambiguity flags (`Apache Software License` is
+4. **Trove classifier names are a closed vocabulary** (about 80 `License ::`
+   entries; 27% of the unresolved values, mostly `Apache Software License`). A table with its ambiguity flags (`Apache Software License` is
    `Apache-2.0` by usage, not by statement; `BSD License` is several) would
    serve the classifier route without guessing in free text. Needs a decision
    on what an assumed reading is called in `trust`.
-4. **Alternative names and aliases** (`Expat license`, `PSFL`, `3-Clause BSD
+5. **Alternative names and aliases** (`Expat license`, `PSFL`, `3-Clause BSD
    License`, `Apache License, Version 2.0`) are lexical: check whether the
    List's `otherNames` and the common prose forms belong in the lexical
    table.
-5. **A consumer still needs its own filters**: whole licence texts, trove
+6. **A consumer still needs its own filters**: whole licence texts, trove
    categories (`OSI Approved`), `UNKNOWN`. None belongs in `resolve()`.
-6. **Behaviours to pin as tests in 0.7.0**: the `sort()` failure on repeated
+7. **Behaviours to pin as tests in 0.7.0**: the `sort()` failure on repeated
    terms, the narrowing of a bare deprecated id, `StandardML-NJ` to `SMLNJ`,
    the unresolved-operand handling, and the "or" of prose.
 
 ## Not yet collected
 
-- Frequency: the corpus is 57 distinct values, not their counts across PyPI. A
-  sample of PyPI metadata would rank items 2 to 4.
+- Frequency beyond the top 5,000 projects, and across releases (the sample is
+  each project's latest release).
+- Rules tested against the 848: the groups above are a first reading by
+  pattern; each rule needs a run against the sample before it is promised.
 - The same table for package-lock, Cargo and npm `license` fields.
 - `resolve()` timing on a compound of many operands (the design's budget is 1
   ms per leaf).
