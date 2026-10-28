@@ -15,7 +15,7 @@ from typing import cast
 import py_spdx_license
 
 from licenseid.classify import OR_LATER_PHRASE
-from licenseid.database import LicenseDatabase
+from licenseid.listlookup import ListLookup
 from licenseid.plusoperator import (
     LICENSE_REF_PREFIX,
     plus_after_qualifier,
@@ -409,9 +409,9 @@ def is_simple_expression(value: str) -> bool:
 
 
 def with_expression_details(
-    tree: py_spdx_license.Node | None, db: LicenseDatabase
+    tree: py_spdx_license.Node | None, db: ListLookup
 ) -> tuple[LicenseDetails, ExceptionDetails] | None:
-    """The database rows of a parsed ``<license> WITH <exception>`` tree, or
+    """The list rows of a parsed ``<license> WITH <exception>`` tree, or
     None if *tree* is not one or either half is not in *db*."""
     if not isinstance(tree, py_spdx_license.WithOp):
         return None
@@ -423,7 +423,7 @@ def with_expression_details(
 
 
 def flag_source(
-    tree: py_spdx_license.Node | None, db: LicenseDatabase
+    tree: py_spdx_license.Node | None, db: ListLookup
 ) -> LicenseDetails | None:
     """The license row whose OSI and FSF flags an expression takes: the license
     of a ``WITH`` expression, or the ID itself for a lone (possibly ``+``) ID.
@@ -491,7 +491,7 @@ def disambiguate_deprecated_id(text: str) -> str | None:
     return None
 
 
-def normalize_identifier(identifier: str, db: LicenseDatabase | None = None) -> str:
+def normalize_identifier(identifier: str, db: ListLookup | None = None) -> str:
     """
     Normalises a single SPDX License ID or a full License Expression.
     """
@@ -519,11 +519,11 @@ def normalize_identifier(identifier: str, db: LicenseDatabase | None = None) -> 
 
 def _normalize_single_id(
     lic_id: str,
-    db: LicenseDatabase | None = None,
+    db: ListLookup | None = None,
 ) -> str:
     """Normalises a single license or exception ID."""
-    # 1. Database lookup (most accurate/up-to-date)
-    if db:
+    # 1. List lookup (most accurate/up-to-date)
+    if db is not None:
         normalized = _lookup_case_insensitive(db.get_deprecated_mappings(), lic_id)
         if normalized:
             return normalized
@@ -543,20 +543,20 @@ def _normalize_single_id(
 
     # 3. Canonical-case lookup: the DB uses COLLATE NOCASE, so we can retrieve
     # the correctly-cased ID for any known (non-deprecated) license.
-    if db:
+    if db is not None:
         details = db.get_license_details(lic_id)
         if details:
             return details["license_id"]
 
     # 4. '+'-suffixed ID not handled by any mapping (e.g. "CDDL-1.0+",
     # "Apache-2+", "GPL-2+"): see _plus_id.
-    if lic_id.endswith("+") and db:
+    if lic_id.endswith("+") and db is not None:
         return _plus_id(lic_id, db) or lic_id
 
     return lic_id
 
 
-def _plus_id(lic_id: str, db: LicenseDatabase) -> str | None:
+def _plus_id(lic_id: str, db: ListLookup) -> str | None:
     """*lic_id*, an ID and a "+", with its base read by ID or as a loosely
     written ID ("Apache-2", "GPL-2"), as resolve() reads it; never by a bare
     prefix, which made "MI+" MIT+. The "+" becomes the base's -or-later ID
@@ -578,7 +578,7 @@ def _plus_id(lic_id: str, db: LicenseDatabase) -> str | None:
     return f"{found}+" if or_later is None else or_later["license_id"]
 
 
-def _normalize_exception_id(exc_id: str, db: LicenseDatabase | None = None) -> str:
+def _normalize_exception_id(exc_id: str, db: ListLookup | None = None) -> str:
     """Normalises a single SPDX License Exception ID (the right-hand side of
     a ``WITH`` operator).
 
@@ -588,7 +588,7 @@ def _normalize_exception_id(exc_id: str, db: LicenseDatabase | None = None) -> s
     ``_normalize_single_id`` would never find a match and silently return the
     ID unchanged, including its casing.
     """
-    if not db:
+    if db is None:
         return exc_id
 
     normalized = _lookup_case_insensitive(db.get_deprecated_mappings(), exc_id)
@@ -640,7 +640,7 @@ def _is_expression(identifier: str) -> bool:
     )
 
 
-def _normalize_expression(expression: str, db: LicenseDatabase | None = None) -> str:
+def _normalize_expression(expression: str, db: ListLookup | None = None) -> str:
     """Parses and normalises an SPDX License Expression."""
     tokens = _tokenize_expression(expression)
 

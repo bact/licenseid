@@ -15,12 +15,12 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, is_negated
 from licenseid.console import warn
-from licenseid.database import LicenseDatabase
 from licenseid.identifiers import (
     normalize_identifier,
     qualify_trailing_grant,
     without_outer_brackets,
 )
+from licenseid.listlookup import ListLookup
 from licenseid.types import LicenseNameId
 from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_key
 
@@ -37,7 +37,7 @@ _RE_GRANT_TAIL = re.compile(
 WITH_OPERATOR = re.compile(r"\s+WITH\s+", re.IGNORECASE)
 
 
-def loose_id(db: LicenseDatabase, text: str) -> tuple[LicenseNameId, str] | None:
+def loose_id(db: ListLookup, text: str) -> tuple[LicenseNameId, str] | None:
     """The row *text* names loosely, and the ID it answers: the row's own,
     its successor if deprecated, or its -or-later form for a grant after it
     ("GPLv2 or any later version"). None for no row, or for two rows in use.
@@ -51,7 +51,7 @@ def loose_id(db: LicenseDatabase, text: str) -> tuple[LicenseNameId, str] | None
     return _granted(db, text)
 
 
-def resolved_id(db: LicenseDatabase, row: LicenseNameId) -> str:
+def resolved_id(db: ListLookup, row: LicenseNameId) -> str:
     """The ID a hit on *row* answers. A deprecated ID goes through
     normalize_identifier() for the same canonical-successor redirect the
     license_id= path gets; it can resolve to an expression."""
@@ -80,7 +80,7 @@ def shown(text: str) -> str:
     return "".join(c if c.isprintable() and c != ";" else "?" for c in line)
 
 
-def loose_with(db: LicenseDatabase, text: str) -> tuple[str, str | None] | None:
+def loose_with(db: ListLookup, text: str) -> tuple[str, str | None] | None:
     """*text*, a license written loosely WITH an exception, as an expression
     of the ID ("GPL2 WITH Classpath-exception-2.0" is GPL-2.0-only WITH
     Classpath-exception-2.0), and the loose license text if it was narrowed
@@ -151,7 +151,7 @@ def declared_grant_id_text(text: str) -> str | None:
     return before.rstrip().rstrip("([").rstrip()
 
 
-def _granted(db: LicenseDatabase, text: str) -> tuple[LicenseNameId, str] | None:
+def _granted(db: ListLookup, text: str) -> tuple[LicenseNameId, str] | None:
     """*text* as a loose ID and an "or later" grant that ends it, read by the
     one reader of the phrase (classify.OR_LATER_PHRASE, through
     identifiers.qualify_trailing_grant): "GPLv2 or any later version" is

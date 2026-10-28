@@ -29,6 +29,7 @@ from licenseid.identifiers import (
     parse_expression,
     without_outer_brackets,
 )
+from licenseid.listlookup import ListLookup
 from licenseid.looseid import (
     WITH_OPERATOR,
     declared_grant_id_text,
@@ -99,7 +100,7 @@ def resolve(value: str, db: LicenseDatabase | None = None) -> Resolution:
     return _resolution(value, found, lists)
 
 
-def _lookup(db: LicenseDatabase, value: str) -> _Found:
+def _lookup(db: ListLookup, value: str) -> _Found:
     found = _Found()
     text = value.strip()
     if text != value:
@@ -125,7 +126,7 @@ def _unbracketed(text: str, found: _Found) -> str:
     return inner.strip()
 
 
-def _expression_category(db: LicenseDatabase, text: str) -> Category:
+def _expression_category(db: ListLookup, text: str) -> Category:
     """``expression`` for an SPDX expression of several licences,
     ``malformed`` for one with a "+" after a stated qualifier
     (``MIT OR GPL-2.0-only+``), as on its own; else ``unresolved``."""
@@ -134,7 +135,7 @@ def _expression_category(db: LicenseDatabase, text: str) -> Category:
     return "malformed" if plus_after_qualifier(text) else "expression"
 
 
-def _is_expression(db: LicenseDatabase, text: str) -> bool:
+def _is_expression(db: ListLookup, text: str) -> bool:
     """Whether *text* is an SPDX expression of several licences: it parses (a
     "+" operator aside), and every operand is a listed ID or looks like one
     (a digit, a hyphen or a full stop in it). ``MIT OR Apache2`` is;
@@ -163,12 +164,12 @@ def _has_control(text: str) -> bool:
     )
 
 
-def _one(db: LicenseDatabase, text: str, found: _Found) -> bool:
+def _one(db: ListLookup, text: str, found: _Found) -> bool:
     """*text* as one licence: with a "+", else as an ID, a name or a grant."""
     return (text.endswith("+") and _plus(db, text, found)) or _single(db, text, found)
 
 
-def _with(db: LicenseDatabase, text: str, found: _Found) -> bool:
+def _with(db: ListLookup, text: str, found: _Found) -> bool:
     """``X WITH exception``: X read as a value of its own (a "+", a grant, a
     loose ID), the exception by its ID. False unless the exception is listed
     and X names a licence; a malformed or unresolved X makes the whole so."""
@@ -189,7 +190,7 @@ def _with(db: LicenseDatabase, text: str, found: _Found) -> bool:
     return True
 
 
-def _exception(db: LicenseDatabase, text: str, found: _Found) -> str | None:
+def _exception(db: ListLookup, text: str, found: _Found) -> str | None:
     """The listed exception *text* names, its case and its deprecation read
     as for a licence (_deprecation), or None."""
     details = db.get_exception_details(text)
@@ -212,7 +213,7 @@ def _exception(db: LicenseDatabase, text: str, found: _Found) -> str | None:
     return exception_id
 
 
-def _plus(db: LicenseDatabase, text: str, found: _Found) -> bool:
+def _plus(db: ListLookup, text: str, found: _Found) -> bool:
     """``X+`` as ``X-or-later`` where the List has that ID. Otherwise ``X+`` as
     written, after the deprecation of ``X`` (a rename is followed, an ID with
     no known successor is offered, not changed). A qualifier already stated
@@ -245,7 +246,7 @@ def _plus(db: LicenseDatabase, text: str, found: _Found) -> bool:
     return True
 
 
-def _malformed_if_named(db: LicenseDatabase, text: str, found: _Found) -> bool:
+def _malformed_if_named(db: ListLookup, text: str, found: _Found) -> bool:
     """Mark *found* malformed if *text* names a licence, whose qualifier the
     caller found broken; False if it names none."""
     if _base(db, text) is None:
@@ -254,7 +255,7 @@ def _malformed_if_named(db: LicenseDatabase, text: str, found: _Found) -> bool:
     return True
 
 
-def _single(db: LicenseDatabase, text: str, found: _Found) -> bool:
+def _single(db: ListLookup, text: str, found: _Found) -> bool:
     """A value that names one licence: a stated qualifier ("GPLv2 or later"),
     or an ID, a name or a loose ID, then its deprecation."""
     named = granted_id_text(text) or declared_grant_id_text(text)
@@ -274,7 +275,7 @@ def _single(db: LicenseDatabase, text: str, found: _Found) -> bool:
     return True
 
 
-def _qualified(db: LicenseDatabase, named: str) -> bool:
+def _qualified(db: ListLookup, named: str) -> bool:
     """Whether *named*, a licence before an "or later" grant, states a
     qualifier already: a grant ("X or later or later") or a "+" ("GPLv3+ or
     later"). A stated "-only" or "-or-later" is _grant's to refuse."""
@@ -286,7 +287,7 @@ def _qualified(db: LicenseDatabase, named: str) -> bool:
 
 
 def _grant(
-    db: LicenseDatabase, text: str, base: tuple[str, list[Step]], found: _Found
+    db: ListLookup, text: str, base: tuple[str, list[Step]], found: _Found
 ) -> bool:
     """An ID followed by an "or later" grant. The grant is applied where the
     List has the ``-or-later`` ID; a qualifier already stated (``X-only or
@@ -307,7 +308,7 @@ def _grant(
     return True
 
 
-def _base(db: LicenseDatabase, text: str) -> tuple[str, list[Step]] | None:
+def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
     """The listed ID *text* names, and the steps from *text* to it: its own
     ID in other case, a listed name, or a loosely written ID. A
     ``LicenseRef-*`` names itself."""
@@ -343,7 +344,7 @@ def _spelling(text: str, license_id: str) -> list[Step]:
     return steps or [_step("separator", True, text, license_id)]
 
 
-def _deprecation(db: LicenseDatabase, license_id: str, found: _Found) -> None:
+def _deprecation(db: ListLookup, license_id: str, found: _Found) -> None:
     """Set the expression for the listed *license_id*, following a rename and
     declining to narrow a split ID."""
     details = db.get_license_details(license_id)
@@ -365,12 +366,12 @@ def _deprecation(db: LicenseDatabase, license_id: str, found: _Found) -> None:
     found.expansions.append(_step(kind, False, license_id, license_id))
 
 
-def _in_use(db: LicenseDatabase, license_id: str) -> bool:
+def _in_use(db: ListLookup, license_id: str) -> bool:
     details = db.get_license_details(license_id)
     return details is not None and not details.get("is_deprecated")
 
 
-def _canonical(db: LicenseDatabase, license_id: str) -> str:
+def _canonical(db: ListLookup, license_id: str) -> str:
     details = db.get_license_details(license_id)
     return details["license_id"] if details else license_id
 
@@ -395,7 +396,7 @@ def _category(found: _Found) -> Category:
     return ranked[-1] if ranked else "exact"
 
 
-def _list_info(db: LicenseDatabase) -> ListInfo:
+def _list_info(db: ListLookup) -> ListInfo:
     version = db.get_metadata().get("license_list_version")
     return {
         "id": SPDX_LIST,
