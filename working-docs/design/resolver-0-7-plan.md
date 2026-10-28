@@ -265,6 +265,11 @@ Model and effort are suggestions for the author; every task is reviewed by a
 different agent (Opus for tasks marked high). Escalate a task to the next row
 if it turns out to change the result shape, a category or the trust policy.
 
+A task that changes what `resolve()` reads or returns (T5, T6, T6b, T7, T8,
+T9) updates, in its own pull request, the `README.md` Features section (the
+description of the matching strategy) and the `resolve()` part of its Python
+API section; its reviewer checks that they match the behaviour.
+
 | # | Pull request title | Exit criteria | Author | Effort |
 | - | - | - | - | - |
 | T0 | Tests: rebuild the parity corpus and freeze a PyPI sample | Fixtures committed under 800 lines each; 0.6.0 answers pinned; `# BUG:` pins for F6 and `Apache 2.0?` | Sonnet | medium |
@@ -280,7 +285,7 @@ if it turns out to change the result shape, a category or the trust policy.
 | T8 | Read prose forms of one id (P1 to P3) | Sample before and after committed; regex timing tests | Sonnet | medium |
 | T9 | Read trove classifier names and paths (T1 to T3) | `trovenames.py`; `trove-classifiers` check; `lists` entry; sample before and after | Sonnet | medium |
 | T10 | Deferred to 0.8 (Q3): offer assumed trove readings as candidates | `assumed_usage`; Pitloom keeps them as text | **Opus** | **high** |
-| T11 | Docs: implementation note, evidence update, CHANGELOG 0.7.0 | Front-matter dates; a migration line for the breaking bullets | Haiku or Sonnet | low |
+| T11 | Docs: implementation note, evidence update, CHANGELOG 0.7.0, a final pass on the README Features section | Front-matter dates; a migration line for the breaking bullets; Features describes the 0.7.0 matching strategy (compounds in licenseid's own canonical order, not `py-spdx-license`'s sort; no database needed for `resolve()`) | Haiku or Sonnet | low |
 | T12 | Release licenseid 0.7.0 | `release-process.md`; the wheel ships the bundle; `resolve()` checked in a fresh venv with no database (the maintainer tags and publishes) | Sonnet | low |
 | T13 | Pitloom: read every declared value through `resolve()` (0.22.0) | Floor bump; about 250 lines deleted; drift guard; before and after sweep reviewed | Sonnet | high (Opus reviews) |
 | T14 | Pitloom: per-operand provenance and list version | `Resolution-n` per operand; no `py_spdx_license` in `src/` | Sonnet | medium |
@@ -330,6 +335,8 @@ deletes).
 - One reader per concept (`+`, "or later", version key): import it.
 - Output is deterministic: sort; no set or dict order; no clock.
 - A rule is promised only after a run of the sample with it (changed set empty).
+- The README says what the code does: a change to what `resolve()` reads updates
+  its Features section in the same pull request.
 
 ### 11.3 Traps
 

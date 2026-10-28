@@ -7,6 +7,13 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `resolve()` answers `unresolved` for a value with a lone surrogate instead
+  of raising `UnicodeEncodeError` after `WITH`
+
 ## [0.6.0] - 2026-10-27
 
 ### Added
