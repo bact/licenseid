@@ -89,7 +89,7 @@ Of the 4,757 projects with a short value, `resolve()` 0.6.0 answers:
 
 | Answer | Projects | Share |
 | - | - | - |
-| one id (`exact`, `listed_name`, `separator`, `version_spelling`, `plus_to_or_later`, `lexical`) | 3,796 | 79.8% |
+| one id (`exact`, `listed_name`, `separator`, `version_spelling`, `plus_to_or_later`, `lexical`) | 3,797 | 79.8% |
 | `unresolved` | 848 | 17.8% |
 | `expression` (a compound, no expression returned) | 63 | 1.3% |
 | `assumed_only` (a deprecated id, `-only` or `-or-later` unknown) | 40 | 0.8% |
@@ -101,12 +101,12 @@ of each value, not a tested rule set):
 | Group | Projects | Share | Examples (projects) |
 | - | - | - | - |
 | A bare or family name: more than one licence | 348 | 41% | `BSD License` (155), `BSD` (150), `Apache` (14), `LGPL` (8) |
-| A trove classifier name | 231 | 27% | `Apache Software License` (153), `Python Software Foundation License` (14), `Other/Proprietary License` (13), `ISC License (ISCL)` (8) |
-| A prose form of one id | 139 | 16% | `Apache License, Version 2.0` (31), `Apache-2.0 license` (18), `BSD 3-Clause License` (13), `Apache License Version 2.0` (9) |
-| Other | 61 | 7% | `Apache Software License 2.0` (8), `LGPL with exceptions` (2), `FreeBSD` (2) |
+| A trove classifier name | 224 | 26% | `Apache Software License` (153), `Python Software Foundation License` (14), `Other/Proprietary License` (13), `ISC License (ISCL)` (8) |
+| A prose form of one id | 140 | 16% | `Apache License, Version 2.0` (31), `Apache-2.0 license` (18), `BSD 3-Clause License` (13), `Apache License Version 2.0` (9) |
+| Other | 63 | 7% | `Apache Software License 2.0` (8), `LGPL with exceptions` (2), `FreeBSD` (2) |
 | Proprietary or custom | 35 | 4% | `NVIDIA Proprietary Software` (13), `LICENSE.txt` (3) |
 | An alias or abbreviation | 14 | 2% | `PSF` (5), `Expat license` (3), `ISCL` (3) |
-| A trailing parenthesis after a name | 12 | 1% | `The Unlicense (Unlicense)` (4) |
+| A trailing parenthesis after a name | 16 | 2% | `The Unlicense (Unlicense)` (4) |
 | A full trove path in `License` | 8 | 1% | `License :: OSI Approved :: Apache Software License` (4) |
 
 Weighted by downloads, the compounds matter more than their count: the 63
@@ -131,13 +131,13 @@ classifier names.
 
 3. **Prose with a trailing short name** (`MIT License (MIT)`, `ISC License
    (ISCL)`, `... (MPL 2.0)`, `... (LGPLv3+)`) is 4 of the 17 unresolved short
-   values of the first corpus, but about 1% of the PyPI sample's (the trove
+   values of the first corpus, but about 2% of the PyPI sample's (the trove
    forms in item 4 carry most of it). A step that drops a trailing
    parenthesis when the head resolves, naming what it dropped (the design's
    `drop` step), would read all four.
 
 4. **Trove classifier names are a closed vocabulary** (about 80 `License ::`
-   entries; 27% of the unresolved values, mostly `Apache Software License`). A
+   entries; 26% of the unresolved values, mostly `Apache Software License`). A
    table with its ambiguity flags (`Apache Software License` is `Apache-2.0`
    by usage, not by statement; `BSD License` is several) would serve the
    classifier route without guessing in free text. Needs a decision on what an
@@ -154,12 +154,21 @@ classifier names.
    terms, the narrowing of a bare deprecated id, `StandardML-NJ` to `SMLNJ`,
    the unresolved-operand handling, and the "or" of prose.
 
+## Reproducing
+
+`python -m tools.pypi_licence_sample fetch` and `analyze` (see
+`tools/pypi_licence_sample/README.md`) produce the PyPI tables from a fresh
+sample. A new sample will differ from the one above: PyPI and the download
+counts move. The first corpus (57 values from installed distributions and
+sdists) was collected by hand and is not scripted.
+
 ## Not yet collected
 
 - Frequency beyond the top 5,000 projects, and across releases (the sample is
   each project's latest release).
 - Rules tested against the 848: the groups above are a first reading by
-  pattern; each rule needs a run against the sample before it is promised.
+  pattern (`GROUPS` in the tool); each rule needs a run against the sample
+  before it is promised.
 - The same table for package-lock, Cargo and npm `license` fields.
 - `resolve()` timing on a compound of many operands (the design's budget is 1
   ms per leaf).
