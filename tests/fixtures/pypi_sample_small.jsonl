@@ -1,0 +1,12 @@
+{"name": "a", "downloads": 900, "license": null, "license_expression": "MIT", "classifiers": []}
+{"name": "b", "downloads": 100, "license": "MIT", "license_expression": null, "classifiers": []}
+{"name": "c", "downloads": 50, "license": "mit", "license_expression": null, "classifiers": []}
+{"name": "d", "downloads": 40, "license": "ISC", "license_expression": null, "classifiers": ["License :: OSI Approved :: ISC License (ISCL)"]}
+{"name": "e", "downloads": 30, "license": "Apache 2.0", "license_expression": null, "classifiers": []}
+{"name": "f", "downloads": 20, "license": "Apache\t2.0 \\ \u00e9", "license_expression": null, "classifiers": []}
+{"name": "g", "downloads": 10, "license": null, "license_expression": null, "classifiers": ["License :: OSI Approved :: MIT License", "License :: OSI Approved :: BSD License"]}
+{"name": "h", "downloads": 5, "license": null, "license_expression": null, "classifiers": ["License :: OSI Approved :: BSD License"]}
+{"name": "i", "downloads": 4, "license": "line one\nline two", "license_expression": null, "classifiers": []}
+{"name": "j", "downloads": 3, "error": 404}
+{"name": "k", "downloads": 2, "license": "UNKNOWN", "license_expression": null, "classifiers": []}
+{"name": "l", "downloads": 1, "license": null, "license_expression": "MIT", "classifiers": []}
