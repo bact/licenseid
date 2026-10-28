@@ -32,6 +32,7 @@ the older files stop at 2026-10-07 (v0.4.3), and `ai-sessions-0-5-0.md` at
 | [ai-sessions-0-5-0.md](ai-sessions-0-5-0.md) | Human–AI session, release 0.5.0 (20 to 22 October): sources, reviews, mistakes |
 | [ai-sessions-0-6-0.md](ai-sessions-0-6-0.md) | Human–AI session, release 0.6.0 (24 to 28 October): loose IDs, `resolve()`, review yield |
 | [ai-sessions-0-7-plan.md](ai-sessions-0-7-plan.md) | Human–AI session, Pitloom 0.21.0 and the 0.7.0 resolver plan (27 to 28 October): evidence, review yield, mistakes |
+| [dataset-licence-values.md](dataset-licence-values.md) | A dataset of declared licence values (PyPI top 10,000, parity corpus): content, uses, what publication needs |
 
 ## Method
 
@@ -94,6 +95,10 @@ inference, not a claim made in the repository.
    stale `RECORD` and self hashes while a schema validator still passed;
    the fix was to ship the build hook's SBOM, check the hashes, and sign
    it. The findings went upstream into Pitloom 0.20.0.
+6. **A dataset of declared licence values.** 462 distinct strings that
+   the 10,000 most downloaded PyPI projects declare, and 140 parity values
+   with two tools' answers (PR #110). Needs a gold standard, a datasheet and
+   clear rights before release; see `dataset-licence-values.md`.
 
 ## Headline findings (details in the files above)
 
