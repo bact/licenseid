@@ -78,9 +78,10 @@ def _license_records(
     status("\nPreparing license data...", end="")
     # The superseded_by mapping is built at DB build time so runtime
     # lookups are O(1).
-    for lic, superseded_by in kept_licenses(
+    kept = kept_licenses(
         data.licenses, lambda license_id: data.texts.get(license_id) is not None
-    ):
+    )
+    for i, (lic, superseded_by) in enumerate(kept):
         res = _prepare_license_record(
             lic, data.texts.get(lic["licenseId"]), popularity_map, superseded_by
         )
@@ -91,9 +92,9 @@ def _license_records(
             # Text absent for this deprecated ID (some SPDX releases omit
             # them).  Still store the metadata row so redirect lookups work.
             license_records.append(_metadata_only_record(lic, superseded_by))
-    # One dot per 100 licences and one at the end.
-    count = len(data.licenses)
-    status("." * (count // 100 + (1 if count % 100 else 0)), end="")
+
+        if (i + 1) % 100 == 0 or (i + 1) == len(kept):
+            status(".", end="")
     return license_records, index_records
 
 
