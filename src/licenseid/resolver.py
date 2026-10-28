@@ -26,17 +26,18 @@ from licenseid.datadir import get_default_db_path
 from licenseid.identifiers import parse_expression, without_outer_brackets
 from licenseid.listlookup import ListLookup
 from licenseid.plusoperator import plus_after_qualifier, strip_plus_operator
-from licenseid.resolveleaf import SPDX_LIST, Found, one_licence, step, with_exception
+from licenseid.resolveleaf import Found, read_leaf
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
     LEXICAL_KINDS,
+    SPDX_LIST,
     TRUST,
     Category,
     ListInfo,
     Resolution,
     Resolver,
+    step,
 )
-from licenseid.versionkey import MAX_KEY_INPUT
 
 # The kinds of step the SPDX License List supports; see ListInfo.provides.
 _PROVIDES = ["deprecation", "ids", "names", "texts"]
@@ -45,7 +46,7 @@ _JOINS = frozenset({"AND", "OR"})
 _RE_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]*")
 _RE_IDLIKE = re.compile(r"[\d.-]")
 _RE_SQUARE = re.compile(r"[\[\]{}]")
-# The longest expression read; one licence is MAX_KEY_INPUT characters or less.
+# The longest expression read; one licence is MAX_KEY_INPUT or less (versionkey).
 MAX_EXPRESSION_CHARS = 2000
 # A step kind that is not also a category name, mapped to the one it counts as.
 _AS_CATEGORY = {kind: "lexical" for kind in LEXICAL_KINDS}
@@ -79,9 +80,7 @@ def _lookup(db: ListLookup, value: str) -> Found:
     if not text or len(text) > MAX_EXPRESSION_CHARS or _has_control(text):
         found.category = "unresolved"
         return found
-    if len(text) <= MAX_KEY_INPUT and (  # no ID is longer: only an expression
-        with_exception(db, text, found) or one_licence(db, text, found)
-    ):
+    if read_leaf(db, text, found):
         return found
     found.category = _expression_category(db, text)
     return found

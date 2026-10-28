@@ -17,6 +17,8 @@ from typing import Final, Literal, TypedDict
 # others are the resolver's decisions or an expansion of a qualifier.
 LEXICAL_KINDS: Final = frozenset({"brackets", "id_case", "trim", "whitespace"})
 
+SPDX_LIST: Final = "spdx-license-list"
+
 # What a list must provide for a step of this kind to cite it. A kind that is
 # not here rests on no list (a trimmed space, brackets) and cites none. An
 # "or later" the author wrote still rests on the -or-later ID being in use.
@@ -137,3 +139,15 @@ class Resolution(TypedDict):
     candidates: list[str]
     resolver: Resolver
     lists: list[ListInfo]
+
+
+def step(kind: str, applied: bool, source: str, target: str, detail: str = "") -> Step:
+    """One step of the public shape, citing the list if its kind rests on one."""
+    return {
+        "kind": kind,
+        "applied": applied,
+        "from": source,
+        "to": target,
+        "list": SPDX_LIST if kind in LIST_PROVIDES else "",
+        "detail": detail,
+    }

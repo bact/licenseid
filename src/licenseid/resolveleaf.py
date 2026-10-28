@@ -5,15 +5,21 @@
 
 """The single-value reading of the resolver: one declared value, one licence.
 
-``resolver.resolve`` calls :func:`one_licence` and :func:`with_exception`
-once for the whole declared value; the compound reader will call them once
-for each operand. Each reads a value that names one licence (an ID, a listed
+:func:`read_leaf` reads a value that names one licence (an ID, a listed
 name, a loosely written ID, a ``+`` or an "or later" grant, with its
 exception if it has one) and records in a :class:`Found` the expression, the
-steps taken, the expansions it declined to apply and the candidates. It
-reads the list through :class:`licenseid.listlookup.ListLookup` alone and
-knows nothing of the database, of brackets around the whole value, or of an
-expression of several licences: those belong to ``resolver``.
+steps taken, the expansions it declined to apply and the candidates.
+``resolver.resolve`` calls it once for the whole declared value; the
+compound reader will call it once for each operand. It refuses a text longer
+than ``MAX_KEY_INPUT`` (no ID is longer: that is an expression), but not a
+control character or an over-long value: the caller refuses those first, as
+``resolve`` does. It reads the list through
+:class:`licenseid.listlookup.ListLookup` alone and knows nothing of the
+database, of brackets around the whole value, or of an expression of several
+licences. Note for the compound reader: the gate covers the whole text, so a
+long licence name with an exception (``Creative Commons Attribution Non
+Commercial No Derivatives 2.5 Generic WITH RRDtool-FLOSS-exception-2.0``) is
+refused as a whole today.
 """
 
 import re
@@ -27,9 +33,9 @@ from licenseid.looseid import (
     granted_id_text,
     loose_id,
 )
-from licenseid.resolvertypes import LIST_PROVIDES, Category, Step
+from licenseid.resolvertypes import Category, Step, step
+from licenseid.versionkey import MAX_KEY_INPUT
 
-SPDX_LIST = "spdx-license-list"
 _RE_NUMBERS = re.compile(r"\d+(?:\.\d+)*")
 _RE_VERSION = re.compile(r"[vV]?\d+(?:\.\d+)*")
 # Brackets other than around the whole value: "[MIT]", "MIT)" are no ID.
@@ -49,12 +55,20 @@ class Found:
     category: Category | None = None  # set where the lookup knows better
 
 
-def one_licence(db: ListLookup, text: str, found: Found) -> bool:
+def read_leaf(db: ListLookup, text: str, found: Found) -> bool:
+    """Read *text* as one licence (with its exception, if any) into *found*.
+    False if it names none, or is longer than any ID (MAX_KEY_INPUT)."""
+    return len(text) <= MAX_KEY_INPUT and (
+        _with(db, text, found) or _one(db, text, found)
+    )
+
+
+def _one(db: ListLookup, text: str, found: Found) -> bool:
     """*text* as one licence: with a "+", else as an ID, a name or a grant."""
     return (text.endswith("+") and _plus(db, text, found)) or _single(db, text, found)
 
 
-def with_exception(db: ListLookup, text: str, found: Found) -> bool:
+def _with(db: ListLookup, text: str, found: Found) -> bool:
     """``X WITH exception``: X read as a value of its own (a "+", a grant, a
     loose ID), the exception by its ID. False unless the exception is listed
     and X names a licence; a malformed or unresolved X makes the whole so."""
@@ -63,7 +77,7 @@ def with_exception(db: ListLookup, text: str, found: Found) -> bool:
         return False
     licence, tail = Found(), Found()
     exception = _exception(db, parts[1], tail)
-    if exception is None or not one_licence(db, parts[0], licence):
+    if exception is None or not _one(db, parts[0], licence):
         return False
     if licence.expression is None:
         found.category = licence.category
@@ -259,15 +273,3 @@ def _in_use(db: ListLookup, license_id: str) -> bool:
 def _canonical(db: ListLookup, license_id: str) -> str:
     details = db.get_license_details(license_id)
     return details["license_id"] if details else license_id
-
-
-def step(kind: str, applied: bool, source: str, target: str, detail: str = "") -> Step:
-    """One step of the public shape, citing the list if its kind rests on one."""
-    return {
-        "kind": kind,
-        "applied": applied,
-        "from": source,
-        "to": target,
-        "list": SPDX_LIST if kind in LIST_PROVIDES else "",
-        "detail": detail,
-    }
