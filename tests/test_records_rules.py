@@ -1,0 +1,141 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Characterisation of the rules `records.build_records` applies to a
+release: which licences are kept, indexed, and what a deprecated one points
+to. The full rows and the order of the lists are pinned."""
+
+from licenseid.records import build_records
+from licenseid.spdxdata import SpdxData
+from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
+
+
+def _lic(
+    license_id: str, name: str, deprecated: bool | None = False
+) -> SpdxLicenseEntry:
+    entry: SpdxLicenseEntry = {"licenseId": license_id, "name": name}
+    if deprecated is not None:
+        entry["isDeprecatedLicenseId"] = deprecated
+    return entry
+
+
+def _exc(exc_id: str, name: str, deprecated: bool | None = False) -> SpdxExceptionEntry:
+    entry: SpdxExceptionEntry = {"licenseExceptionId": exc_id, "name": name}
+    if deprecated is not None:
+        entry["isDeprecatedLicenseId"] = deprecated
+    return entry
+
+
+def test_licence_rows_and_index_in_input_order() -> None:
+    """Every kept/dropped combination, with the full rows."""
+    data = SpdxData(
+        "3.99",
+        None,
+        (
+            _lic("Act-1.0", "Active One", None),  # key absent = active
+            _lic("NoText-1.0", "No Text"),  # active without text: dropped
+            _lic("Dep-1.0", "Dep Text", True),  # deprecated with text
+            _lic("DepNo-1.0", "Dep No Text", True),  # metadata-only
+            _lic("Act-2.0", "Active Two"),
+        ),
+        (),
+        {"Act-1.0": "Hello World", "Dep-1.0": "Old Text", "Act-2.0": ""},
+    )
+    recs = build_records(data, {"Act-1.0": 7})
+    assert recs.licenses == [
+        ("Act-1.0", "Active One", None, True, False, False, False, False, None,
+         7, 2, "act 1 0", "active one"),
+        ("Dep-1.0", "Dep Text", None, True, False, False, False, True, None,
+         1, 2, "dep 1 0", "dep text"),
+        ("DepNo-1.0", "Dep No Text", None, True, False, False, False, True,
+         None, 1, 0, "depno 1 0", "dep no text"),
+        ("Act-2.0", "Active Two", None, True, False, False, False, False, None,
+         1, 0, "act 2 0", "active two"),
+    ]  # fmt: skip
+    assert recs.index_entries == [
+        ("Act-1.0", "hello world"),
+        ("Dep-1.0", "old text"),
+        ("Act-2.0", ""),
+    ]
+    assert recs.exceptions == []
+
+
+def test_successors_beside_texts() -> None:
+    """A successor is recorded on a row with a text and on a metadata row."""
+    data = SpdxData(
+        "3.99",
+        None,
+        (
+            _lic("GPL-2.0+", "GPL two plus", True),
+            _lic("GPL-2.0-or-later", "GPL two or later"),
+            _lic("StandardML-NJ", "Standard ML of NJ", True),
+            _lic("SMLNJ", "standard ml of nj"),
+            _lic("GPL-2.0", "GPL two only", True),
+            _lic("GPL-2.0-only", "GPL two only"),
+            _lic("Two-0", "Shared", True),
+            _lic("TwoA", "shared"),
+            _lic("TwoB", "SHARED"),
+            _lic("Lone+", "Lone", True),
+        ),
+        (),
+        {"StandardML-NJ": "t", "GPL-2.0+": "t"},
+    )
+    rows = {r[0]: (r[8], r[10]) for r in build_records(data, {}).licenses}
+    assert rows == {
+        "GPL-2.0+": ("GPL-2.0-or-later", 1),
+        "StandardML-NJ": ("SMLNJ", 1),
+        "GPL-2.0": (None, 0),
+        "Two-0": (None, 0),
+        "Lone+": (None, 0),
+    }
+    assert list(rows) == [
+        "GPL-2.0+",
+        "StandardML-NJ",
+        "GPL-2.0",
+        "Two-0",
+        "Lone+",
+    ]
+
+
+def test_exceptions_rows_and_order() -> None:
+    """A deprecated exception points to the active one of the same name,
+    compared with str.lower(); an exception with none, or a deprecated
+    holder, gets None."""
+    data = SpdxData(
+        "3.99",
+        None,
+        (),
+        (
+            _exc("Old-exc", "Some Exception", True),
+            _exc("New-exc", "SOME exception"),
+            _exc("Absent-exc", "Nothing here", True),
+            _exc("Flag-less", "Flagless", None),
+            _exc("Dep-holder", "Held by deprecated", True),
+            _exc("Dep-holder2", "held by deprecated", True),
+        ),
+        {},
+    )
+    assert build_records(data, {}).exceptions == [
+        ("Old-exc", "Some Exception", True, "New-exc"),
+        ("New-exc", "SOME exception", False, None),
+        ("Absent-exc", "Nothing here", True, None),
+        ("Flag-less", "Flagless", False, None),
+        ("Dep-holder", "Held by deprecated", True, None),
+        ("Dep-holder2", "held by deprecated", True, None),
+    ]
+
+
+def test_licences_fold_with_casefold_and_exceptions_with_lower() -> None:
+    """The two rules differ today: 'ß' casefolds to 'ss' but lowers to 'ß'.
+    Kept as it is."""
+    data = SpdxData(
+        "3.99",
+        None,
+        (_lic("Old", "Straße", True), _lic("New", "STRASSE")),
+        (_exc("Old-exc", "Straße", True), _exc("New-exc", "STRASSE")),
+        {},
+    )
+    recs = build_records(data, {})
+    assert recs.licenses[0][8] == "New"
+    assert recs.exceptions[0][3] is None
