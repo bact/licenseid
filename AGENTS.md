@@ -13,7 +13,8 @@
   key for each spelling of an ID), `resolver.py` (a declared licence value
   to an SPDX expression and the steps taken; its types and vocabularies are
   in `resolvertypes.py`), `listlookup.py` (the list lookups the resolver
-  reads through: a Protocol),
+  reads through: a Protocol), `resolveleaf.py` (the reading of one value
+  that names one licence, called by `resolver.py` per value),
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
   pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
