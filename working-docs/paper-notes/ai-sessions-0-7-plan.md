@@ -62,3 +62,26 @@ the author's reading.
 - Measuring before choosing: the PyPI sample showed that prose forms of one id
   (16% of the unresolved) are the safest gain, and that the first corpus
   over-weighted trailing parentheses (2% of the unresolved, not 4 of 17).
+
+## 0.21.1 and the start of 0.7.0 (28 October)
+
+- The patch release took six small changes: a log level (#364), two small bugs
+  (#365), a docs audit from the parser's option list, and the version bump
+  (#366). Four independent reviews over the whole stretch found ten defects in
+  code and docs that the suites, linters and per-change checks had passed.
+  **[observation]** Two were the same mistake in two places: a helper sets a
+  signal, and one path that logs the same failure does not call it.
+- The human's decisions were small and exact: defer the assumed readings (Q3),
+  remove the `expression` category (Q2), and "the newer list version wins"
+  (Q4), which reversed the plan's recommendation. The plan had recorded the
+  alternatives with examples, so the reversal cost one edit.
+- Four sub-agents launched for the groundwork returned plans and changed
+  nothing: the session was in plan mode and they inherited it. The same mode
+  stopped two review agents from running mutation checks. The cost was a round
+  trip, not a defect. **[observation]** Check the mode before a fan-out.
+- A strict network gate in the release workflow failed on two outside hosts
+  (a government Forgejo server's DNS, SourceHut's port 443); re-running the
+  failed job passed. Pitloom
+  `working-docs/implementation/recurring-bug-patterns-review-rounds.md` ("From
+  PR #364, #365 and the 0.21.1 release") has the detail.
+
