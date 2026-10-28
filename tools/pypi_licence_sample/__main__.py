@@ -133,8 +133,12 @@ class SampleError(ValueError):
 def read_projects(path: Path) -> list[Project]:
     """The projects of the JSON Lines file *path*. Raises :class:`SampleError`
     for a line that is not a JSON object."""
+    try:
+        lines = path.read_text("utf-8").splitlines()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise SampleError(f"{path}: unreadable: {exc}") from exc
     projects: list[Project] = []
-    for number, line in enumerate(path.read_text("utf-8").splitlines(), 1):
+    for number, line in enumerate(lines, 1):
         try:
             project = json.loads(line)
         except ValueError as exc:

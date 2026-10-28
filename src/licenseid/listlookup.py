@@ -36,8 +36,9 @@ def fold_case(value: str) -> str:
 class ListedLicense(TypedDict, total=False):
     """The fields of a licence row that the resolver chain reads. The
     database's ``LicenseDetails`` satisfies it; so can an index that has no
-    popularity or word count. ``superseded_by`` is absent, empty or ``None``
-    when the ID has no successor: read it as a truth value."""
+    popularity or word count. ``superseded_by`` is absent when the ID has
+    no successor, and a database row holds ``None`` there (typed ``str``, as
+    ``LicenseDetails`` is): read it as a truth value."""
 
     license_id: Required[str]
     is_deprecated: bool

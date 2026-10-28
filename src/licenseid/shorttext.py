@@ -44,7 +44,9 @@ def match_version_key(db: LicenseDatabase, text: str) -> list[RawMatch]:
 
 
 def _full_row(db: LicenseDatabase, license_id: str) -> LicenseNameId | None:
-    """The row of *license_id* from the cached rows by version key."""
+    """The row of *license_id* from the cached rows by version key. The
+    ``None`` fallback can only fire when the table cache is rebuilt between
+    the two reads (another process's ``update``)."""
     rows = db.get_names_by_key(version_key).get(version_key(license_id), [])
     return next((row for row in rows if row["license_id"] == license_id), None)
 

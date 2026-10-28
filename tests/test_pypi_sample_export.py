@@ -219,3 +219,19 @@ def test_the_header_hash_covers_every_answer_column(
     )
     _, after = sample_tool._export_rows(values, corpus_db)  # pylint: disable=W0212
     assert after != before
+
+
+@pytest.mark.parametrize("command", ["export", "analyze"])
+def test_a_sample_file_that_is_not_utf8_is_a_data_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], command: str
+) -> None:
+    """Exit 1, a line on standard error, nothing written."""
+    bad = tmp_path / "x.jsonl"
+    bad.write_bytes(b"\xff\xfe")
+    argv = [command, str(bad)]
+    if command == "export":
+        argv += ["--out", str(tmp_path / "out")]
+    assert sample_tool.main(argv) == 1
+    err = capsys.readouterr().err
+    assert f"error: {bad}: unreadable" in err
+    assert not list(tmp_path.glob("out*"))

@@ -62,9 +62,10 @@ PLAIN = Answer(
             reason="lone surrogate",
         ),
         PLAIN._replace(step_targets=("tab\there", "back\\slash", "é", "\udcff", "-")),
+        PLAIN._replace(reason="tab\t back\\slash \udcff é"),
         PLAIN._replace(candidates=("GPL-3.0-only", "GPL-3.0-or-later")),
     ],
-    ids=["plain", "none", "all-fields", "escapes", "candidates"],
+    ids=["plain", "none", "all-fields", "escapes", "reason-escapes", "candidates"],
 )
 def test_an_answer_survives_its_fields(answer: Answer) -> None:
     """Writing an answer as TSV fields and reading it back gives the same."""
@@ -120,3 +121,13 @@ def test_the_reason_of_a_result_is_pinned() -> None:
     result = cast(Resolution, {**RESULT})
     assert answer_of("MIT", result).reason is None
     assert answer_of("MIT", cast(Resolution, {**RESULT, "reason": "x"})).reason == "x"
+
+
+def test_a_step_that_did_not_apply_is_pinned_with_a_bang() -> None:
+    """The first such step comes with T6's ``drop`` (``applied: false``)."""
+    step = {"kind": "drop", "applied": False, "from": "MIT?", "to": "MIT"}
+    result = cast(Resolution, {**RESULT, "steps": [step], "expansions": [step]})
+    answer = answer_of("MIT?", result)
+    assert answer.steps == ("drop!",)
+    assert answer.expansions == ("drop!",)
+    assert answer.step_targets == ("MIT",)

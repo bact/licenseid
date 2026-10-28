@@ -526,7 +526,8 @@ class LicenseDatabase:
         return self._tables.active_ids_by_name()
 
     def get_deprecated_mappings(self) -> dict[str, str]:
-        """Get a mapping of all deprecated IDs to their successors."""
+        """The deprecated IDs that have a successor, each with it: the licences
+        in table order, then the exceptions (an exception wins a clash)."""
         return self._tables.deprecated()
 
     def get_metadata(self) -> DatabaseMetadata:
