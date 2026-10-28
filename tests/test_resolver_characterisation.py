@@ -29,6 +29,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
 from licenseid import LicenseDatabase
 from licenseid.resolver import resolve
+from licenseid.resolvertypes import CATEGORY_ORDER
 
 FIXTURE = Path(__file__).parent / "fixtures" / "resolver_characterisation.json"
 _INSERT_LICENSE = (
@@ -103,21 +104,7 @@ def test_every_category_a_value_can_reach_is_pinned() -> None:
         for case in CASES
         for step in case["result"]["steps"] + case["result"]["expansions"]
     }
-    assert categories >= {
-        "exact",
-        "lexical",
-        "listed_name",
-        "deprecated_equal_successor",
-        "plus_to_or_later",
-        "stated_qualifier",
-        "separator",
-        "version_spelling",
-        "deprecated_ambiguous",
-        "assumed_only",
-        "expression",
-        "malformed",
-        "unresolved",
-    }
+    assert categories == set(CATEGORY_ORDER)
     assert kinds >= {
         "brackets",
         "deprecated_ambiguous",
