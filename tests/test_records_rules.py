@@ -6,25 +6,10 @@
 release: which licences are kept, indexed, and what a deprecated one points
 to. The full rows and the order of the lists are pinned."""
 
+from list_entries import exc_entry, lic_entry
+
 from licenseid.records import build_records
 from licenseid.spdxdata import SpdxData
-from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
-
-
-def _lic(
-    license_id: str, name: str, deprecated: bool | None = False
-) -> SpdxLicenseEntry:
-    entry: SpdxLicenseEntry = {"licenseId": license_id, "name": name}
-    if deprecated is not None:
-        entry["isDeprecatedLicenseId"] = deprecated
-    return entry
-
-
-def _exc(exc_id: str, name: str, deprecated: bool | None = False) -> SpdxExceptionEntry:
-    entry: SpdxExceptionEntry = {"licenseExceptionId": exc_id, "name": name}
-    if deprecated is not None:
-        entry["isDeprecatedLicenseId"] = deprecated
-    return entry
 
 
 def test_licence_rows_and_index_in_input_order() -> None:
@@ -33,11 +18,11 @@ def test_licence_rows_and_index_in_input_order() -> None:
         "3.99",
         None,
         (
-            _lic("Act-1.0", "Active One", None),  # key absent = active
-            _lic("NoText-1.0", "No Text"),  # active without text: dropped
-            _lic("Dep-1.0", "Dep Text", True),  # deprecated with text
-            _lic("DepNo-1.0", "Dep No Text", True),  # metadata-only
-            _lic("Act-2.0", "Active Two"),
+            lic_entry("Act-1.0", "Active One", None),  # key absent = active
+            lic_entry("NoText-1.0", "No Text"),  # active without text: dropped
+            lic_entry("Dep-1.0", "Dep Text", True),  # deprecated with text
+            lic_entry("DepNo-1.0", "Dep No Text", True),  # metadata-only
+            lic_entry("Act-2.0", "Active Two"),
         ),
         (),
         {"Act-1.0": "Hello World", "Dep-1.0": "Old Text", "Act-2.0": ""},
@@ -67,16 +52,16 @@ def test_successors_beside_texts() -> None:
         "3.99",
         None,
         (
-            _lic("GPL-2.0+", "GPL two plus", True),
-            _lic("GPL-2.0-or-later", "GPL two or later"),
-            _lic("StandardML-NJ", "Standard ML of NJ", True),
-            _lic("SMLNJ", "standard ml of nj"),
-            _lic("GPL-2.0", "GPL two only", True),
-            _lic("GPL-2.0-only", "GPL two only"),
-            _lic("Two-0", "Shared", True),
-            _lic("TwoA", "shared"),
-            _lic("TwoB", "SHARED"),
-            _lic("Lone+", "Lone", True),
+            lic_entry("GPL-2.0+", "GPL two plus", True),
+            lic_entry("GPL-2.0-or-later", "GPL two or later"),
+            lic_entry("StandardML-NJ", "Standard ML of NJ", True),
+            lic_entry("SMLNJ", "standard ml of nj"),
+            lic_entry("GPL-2.0", "GPL two only", True),
+            lic_entry("GPL-2.0-only", "GPL two only"),
+            lic_entry("Two-0", "Shared", True),
+            lic_entry("TwoA", "shared"),
+            lic_entry("TwoB", "SHARED"),
+            lic_entry("Lone+", "Lone", True),
         ),
         (),
         {"StandardML-NJ": "t", "GPL-2.0+": "t"},
@@ -107,12 +92,12 @@ def test_exceptions_rows_and_order() -> None:
         None,
         (),
         (
-            _exc("Old-exc", "Some Exception", True),
-            _exc("New-exc", "SOME exception"),
-            _exc("Absent-exc", "Nothing here", True),
-            _exc("Flag-less", "Flagless", None),
-            _exc("Dep-holder", "Held by deprecated", True),
-            _exc("Dep-holder2", "held by deprecated", True),
+            exc_entry("Old-exc", "Some Exception", True),
+            exc_entry("New-exc", "SOME exception"),
+            exc_entry("Absent-exc", "Nothing here", True),
+            exc_entry("Flag-less", "Flagless", None),
+            exc_entry("Dep-holder", "Held by deprecated", True),
+            exc_entry("Dep-holder2", "held by deprecated", True),
         ),
         {},
     )
@@ -132,10 +117,24 @@ def test_licences_fold_with_casefold_and_exceptions_with_lower() -> None:
     data = SpdxData(
         "3.99",
         None,
-        (_lic("Old", "Straße", True), _lic("New", "STRASSE")),
-        (_exc("Old-exc", "Straße", True), _exc("New-exc", "STRASSE")),
+        (lic_entry("Old", "Straße", True), lic_entry("New", "STRASSE")),
+        (exc_entry("Old-exc", "Straße", True), exc_entry("New-exc", "STRASSE")),
         {},
     )
     recs = build_records(data, {})
     assert recs.licenses[0][8] == "New"
     assert recs.exceptions[0][3] is None
+
+
+def test_the_same_sharp_s_name_matches_in_both_rules() -> None:
+    """Whichever way a name is folded, the same name on both sides matches."""
+    data = SpdxData(
+        "3.99",
+        None,
+        (lic_entry("Old", "STRASSE", True), lic_entry("New", "Straße")),
+        (exc_entry("Old-exc", "Straße", True), exc_entry("New-exc", "Straße")),
+        {},
+    )
+    recs = build_records(data, {})
+    assert recs.licenses[0][8] == "New"
+    assert recs.exceptions[0][3] == "New-exc"

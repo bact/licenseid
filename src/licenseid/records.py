@@ -14,6 +14,15 @@ every licence is normalised once, here, into the fingerprint that is indexed.
 from typing import NamedTuple
 
 from licenseid.console import status
+from licenseid.listrules import (
+    active_exceptions_by_name,
+    active_ids,
+    active_ids_by_name,
+    exception_successor,
+    is_deprecated,
+    kept,
+    superseded_license,
+)
 from licenseid.normalize import normalize_text
 from licenseid.spdxdata import SpdxData
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
@@ -73,75 +82,30 @@ def _license_records(
     status("\nPreparing license data...", end="")
     # Build the superseded_by mapping at DB build time so runtime lookups
     # are O(1).
-    active_ids: set[str] = {
-        lic["licenseId"]
-        for lic in data.licenses
-        if not lic.get("isDeprecatedLicenseId", False)
-    }
-    active_by_name = _active_ids_by_name(data.licenses)
+    active = active_ids(data.licenses)
+    active_by_name = active_ids_by_name(data.licenses)
 
     for i, lic in enumerate(data.licenses):
-        is_deprecated = bool(lic.get("isDeprecatedLicenseId", False))
-        superseded_by = (
-            _superseded_license(lic, active_ids, active_by_name)
-            if is_deprecated
-            else None
-        )
-        res = _prepare_license_record(
-            lic, data.texts.get(lic["licenseId"]), popularity_map, superseded_by
-        )
-        if res:
-            license_records.append(res[0])
-            index_records.append(res[1])
-        elif is_deprecated:
-            # Text absent for this deprecated ID (some SPDX releases omit
-            # them).  Still store the metadata row so redirect lookups work.
-            license_records.append(_metadata_only_record(lic, superseded_by))
+        text = data.texts.get(lic["licenseId"])
+        if kept(lic, text is not None):
+            superseded_by = (
+                superseded_license(lic, active, active_by_name)
+                if is_deprecated(lic)
+                else None
+            )
+            res = _prepare_license_record(lic, text, popularity_map, superseded_by)
+            if res:
+                license_records.append(res[0])
+                index_records.append(res[1])
+            else:
+                # Text absent for this deprecated ID (some SPDX releases
+                # omit them).  Still store the metadata row so redirect
+                # lookups work.
+                license_records.append(_metadata_only_record(lic, superseded_by))
 
         if (i + 1) % 100 == 0 or (i + 1) == len(data.licenses):
             status(".", end="")
     return license_records, index_records
-
-
-def _active_ids_by_name(
-    licenses: tuple[SpdxLicenseEntry, ...],
-) -> dict[str, list[str]]:
-    """The IDs in use, by case-folded name."""
-    by_name: dict[str, list[str]] = {}
-    for lic in licenses:
-        if not lic.get("isDeprecatedLicenseId", False):
-            by_name.setdefault(lic["name"].casefold(), []).append(lic["licenseId"])
-    return by_name
-
-
-def _superseded_license(
-    lic: SpdxLicenseEntry,
-    active_ids: set[str],
-    active_by_name: dict[str, list[str]],
-) -> str | None:
-    """The successor of a deprecated licence, or ``None``.
-
-    Two cases are certain:
-
-    - the SPDX '+' token: GPL-2.0+ -> GPL-2.0-or-later;
-    - a rename: the one ID in use with the same name (StandardML-NJ ->
-      SMLNJ). The List does not record a successor, but an unchanged name
-      with one holder leaves no other reading.
-
-    Everything else stays NULL: a bare deprecated ID that the List split
-    into -only and -or-later (GPL-2.0, whose name equals GPL-2.0-only's)
-    cannot be resolved without the granting declaration, and an ID replaced
-    by an expression or by a licence of another name is no rename. The split
-    is therefore refused by ID, not left to the name check.
-    """
-    dep_id = lic["licenseId"]
-    if dep_id.endswith("+"):
-        or_later = dep_id[:-1] + "-or-later"  # strip the '+' operator token
-        return or_later if or_later in active_ids else None
-    holders = active_by_name.get(lic["name"].casefold(), [])
-    if len(holders) != 1 or holders[0] in (f"{dep_id}-only", f"{dep_id}-or-later"):
-        return None
-    return holders[0]
 
 
 def _metadata_only_record(
@@ -172,21 +136,16 @@ def _exception_records(
     """Exception rows; a deprecated one points to the active exception that
     has the same name (case-folded)."""
     status("\nPreparing exception data...", end="")
-    name_to_exception: dict[str, str] = {}
-    for exc in exceptions_data:
-        if not exc.get("isDeprecatedLicenseId", False):
-            name_to_exception[exc["name"].lower()] = exc["licenseExceptionId"]
-
-    exception_records: list[ExceptionInsertRecord] = []
-    for exc in exceptions_data:
-        is_deprecated = exc.get("isDeprecatedLicenseId", False)
-        superseded_by = None
-        if is_deprecated:
-            superseded_by = name_to_exception.get(exc["name"].lower())
-        exception_records.append(
-            (exc["licenseExceptionId"], exc["name"], is_deprecated, superseded_by)
+    by_name = active_exceptions_by_name(exceptions_data)
+    return [
+        (
+            exc["licenseExceptionId"],
+            exc["name"],
+            exc.get("isDeprecatedLicenseId", False),
+            exception_successor(exc, by_name),
         )
-    return exception_records
+        for exc in exceptions_data
+    ]
 
 
 def _prepare_license_record(
