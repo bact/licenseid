@@ -36,6 +36,9 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
 
 ## Checks before the tag
 
+- A new `trove-classifiers` release can fail `tests/test_trovenames.py`
+  (a new `License ::` classifier): decide each new entry in
+  `src/licenseid/trovenames.py` and `tests/trove_golden.py`.
 - `main` CI is green on the commit to tag. Scorecard
   (`Scorecard supply-chain security`) can fail on GitHub's GraphQL
   (`githubv4.Query: Something went wrong`) while the code is fine: re-run it.
