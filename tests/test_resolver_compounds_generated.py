@@ -182,8 +182,8 @@ def test_prose_with_an_operator_word_is_no_compound(
 #: but with the operators in upper case the reason is the first refused
 #: operand's (Q15, P43 amended after review); a dropped mark in any case.
 FALLBACK = [
-    ("Apache License 2.0 OR MIT", "operand not resolved: Apache License 2.0", []),
-    ("BSD 3-Clause OR Apache-2.0", "operand not resolved: BSD 3-Clause", []),
+    ("Apache License 2.0 OR MIT", "operand of several words: Apache License 2.0", []),
+    ("BSD 3-Clause OR Apache-2.0", "operand of several words: BSD 3-Clause", []),
     ("Foo OR Apache License 2.0", "operand not resolved: Foo", []),
     ("MIT OR GPLv2 or later!", "character dropped: U+0021", ["drop"]),
     ("Apache 2.0? OR MIT", "character dropped: U+003F", ["drop"]),
