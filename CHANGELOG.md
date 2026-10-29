@@ -9,6 +9,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- `resolve()` works with no database: it reads the SPDX License List shipped
+  in the wheel, in memory, with the same answers; `source=` (`auto`,
+  `database`, `packaged`) picks the list, and `lists[*].source` says which
+- `DatabaseNotReadyError.condition` and `.detail`: why a database cannot be
+  read (`not found`, `empty`, `invalid`, `unreadable`)
+
+### Changed
+
+- `resolve()` with no database given reads whichever list is newer, the
+  default database's or the shipped one (a tie: the database, unless an older
+  licenseid built it); an unusable default database is a warning, not an
+  error
+
 ### Fixed
 
 - `resolve()` answers `unresolved` for a value with a lone surrogate; it

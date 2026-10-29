@@ -44,7 +44,11 @@ generator.*
     them as written (below).
 - **Declared-value resolution** (`resolve()`): turns one declared licence
   value (a `license` field, a model card) into an SPDX expression and the
-  steps taken, without fuzzy matching:
+  steps taken, without fuzzy matching and without a database:
+  - with no database it reads the SPDX License List shipped in the wheel, in
+    memory, and gives the answer a database built from that list gives;
+    with both, the newer List wins, and a tie goes to the database unless an
+    older licenseid built it (`source=` picks one);
   - exact and case-folded IDs; loosely written IDs (`Apache2`, `GPLv3`,
     `GPLv2 or any later version`); the List's own licence names;
   - a bare deprecated ID (`GPL-3.0`) comes back as written, category
@@ -53,8 +57,8 @@ generator.*
   - a compound expression (`MIT OR Apache-2.0`) is recognised (category
     `expression`) but returned without an expression;
   - every result names its category and trust level, each step, the list
-    and list version it rests on, and the resolver's version (see
-    [Python API](#python-api)).
+    it rests on with its version and where it was read (`database` or
+    `packaged`), and the resolver's version (see [Python API](#python-api)).
 - **SPDX License Expression support** (via
   [`py-spdx-license`][py-spdx-license]):
   - Structural normalisation of `AND`/`OR` expressions: duplicate operands
@@ -428,6 +432,19 @@ so a caller can tell a changed case from a re-spelt ID. A bare deprecated ID
 such as `GPL-3.0` is never narrowed to `-only`: it comes back as written
 (category `assumed_only`) with both candidates.
 
+`resolve()` needs no database. With none given (`source="auto"`, the
+default), it reads the database at the default path or the SPDX License List
+shipped in the wheel, whichever holds the newer List; a tie goes to the
+database unless an older licenseid built it. With no database file it reads
+the shipped list; with a database that is there but unusable, the shipped
+list after one `WARNING: database: <condition>: <detail>; using packaged data
+v<version>` on standard error. `source="database"` reads only the database
+and `source="packaged"` only the shipped list; `resolve(value, db)` reads
+`db`. The answer is the same from either, and `lists[*].source` says which
+was read. `licenseid.DatabaseNotReadyError` is raised only when the chosen
+list cannot be read: with `auto`, when there is neither (an editable install
+ships no list).
+
 ```python
 from licenseid import resolve
 
@@ -437,6 +454,7 @@ r["category"]    # "version_spelling"
 [s["kind"] for s in r["steps"]]  # ["separator", "version_spelling"]
 r["resolver"]["purl"]  # who resolved it
 r["lists"][0]["version"]  # from which list version
+r["lists"][0]["source"]  # read from the "database" or the "packaged" list
 ```
 
 The whole result of `resolve("Apache2")`, as JSON:
@@ -466,6 +484,7 @@ The whole result of `resolve("Apache2")`, as JSON:
       "id": "spdx-license-list",
       "name": "SPDX License List",
       "version": "3.29.0",
+      "source": "packaged",
       "url": "https://github.com/spdx/license-list-data/releases/tag/v3.29.0",
       "license": "CC0-1.0",
       "provides": ["deprecation", "ids", "names", "texts"],
@@ -500,7 +519,9 @@ A consumer ignores a step kind it does not know.
 
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or
-unreadable, for example before the first `licenseid update`. So does any later
+unreadable, for example before the first `licenseid update`; its `condition`
+(`not found`, `empty`, `invalid`, `unreadable`) and `detail` say which, apart
+from the message. So does any later
 call, such as `match()`, if the file is deleted, truncated or damaged in the
 meantime; then the `sqlite3` error is its `__cause__`. A lookup creates
 nothing and writes nothing, except that the constructor adds what a database of

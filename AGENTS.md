@@ -16,7 +16,9 @@
   reads through: a Protocol), `listrules.py` (which SPDX entries are kept and
   what a deprecated ID points to; `records.py` builds rows from it),
   `resolveleaf.py` (the reading of one value that names one licence, called
-  by `resolver.py` per value),
+  by `resolver.py` per value), `listindex.py` (the shipped SPDX bundle in
+  memory, a `ListLookup` for `resolve()` with no database),
+  `listsource.py` (which list `resolve()` reads: database or packaged),
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
   pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
@@ -354,7 +356,9 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   the sdist (`src/licenseid/data/`, gitignored). `LICENSEID_BUNDLE=skip|<path>`
   and `LICENSEID_REQUIRE_BUNDLE=1` steer it; CI jobs that only install the
   package set `skip`. An editable install ships nothing, so a local run never
-  sees a snapshot, and the `offline` fixture hides one from the tests. Only an
+  sees a snapshot, and the `offline` fixture hides one from the tests;
+  `listindex.packaged_index()` keeps one per process, which `offline` and
+  `release_fakes.ship` forget. Only an
   unpacked sdist (it has `PKG-INFO`) uses a file in `src/licenseid/data/`; a
   checkout ignores one left there and downloads. The
   hook repeats the URL and file names of `spdx_source` and `spdxdata`;
