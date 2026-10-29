@@ -75,10 +75,9 @@ SHAPES: list[tuple[str, tuple[str | None, str, list[str]]]] = [
     ),
     ("GPL-2.0-only  WITH Classpath-exception-2.0", (_WITH, "lexical", ["whitespace"])),
     ("GPL-2.0-only\tWITH\tClasspath-exception-2.0", (_WITH, "lexical", ["whitespace"])),
-    # Q14: a grant on a versioned ID with no -or-later form is "+" (was
-    # unresolved); one with no version stays unresolved (P35)
+    # Q14, P35: a grant on an ID with no -or-later form is "+"
     ("Apache 2.0 or later", ("Apache-2.0+", "separator", ["separator"])),
-    ("MIT or later", (None, "unresolved", [])),  # P35 (amended): no version
+    ("MIT or later", ("MIT+", "stated_qualifier", [])),  # P35
     # Q14: the hyphenated grant is a grant (was separator, by the version
     # key) and a qualifier stated twice is malformed (was unresolved)
     ("GPL-2.0 or-later", ("GPL-2.0-or-later", "stated_qualifier", [])),

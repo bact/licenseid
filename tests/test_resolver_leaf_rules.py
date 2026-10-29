@@ -160,14 +160,19 @@ def test_the_hyphenated_grant_is_a_grant(
         ("Apache 2.0 or later", ("Apache-2.0+", "separator", ["separator"])),
         ("Apache-2.0 or any later version", ("Apache-2.0+", "stated_qualifier", [])),
         ("MPL-1.1 or later", ("MPL-1.1+", "stated_qualifier", [])),
-        # P35 (amended): an ID with no version has no later version to grant
-        ("MIT (or later)", (None, "unresolved", [])),
-        ("MIT or later", (None, "unresolved", [])),
-        ("BSD-3-Clause or later", (None, "unresolved", [])),  # 3 counts clauses
-        ("StandardML-NJ or later", (None, "unresolved", [])),
+        # P35 decided by the maintainer: any ID with no -or-later form
+        ("MIT (or later)", ("MIT+", "stated_qualifier", [])),
+        ("MIT or later", ("MIT+", "stated_qualifier", [])),
+        ("BSD-3-Clause or later", ("BSD-3-Clause+", "stated_qualifier", [])),
+        (
+            "StandardML-NJ or later",
+            ("SMLNJ+", "stated_qualifier", ["deprecated_equal_successor"]),
+        ),
         ("eCos-2.0 or later", ("eCos-2.0+", "deprecated_ambiguous", [])),
         ("GPL-2.0 or later", ("GPL-2.0-or-later", "stated_qualifier", [])),
         ("LicenseRef-x or later", (None, "unresolved", [])),
+        ("DocumentRef-d:LicenseRef-x or later", (None, "unresolved", [])),
+        ("MIT-only or later", (None, "unresolved", [])),
         ("LicenseRef-x-1.0 or later", (None, "unresolved", [])),  # takes no "+"
         ("Foo or later", (None, "unresolved", [])),
         ("MIT+ or later", (None, "malformed", [])),
@@ -207,7 +212,7 @@ _CP = "Classpath-exception-2.0"
                 ["operator_case", "separator", "version_spelling"],
             ),
         ),
-        ("MIT WITH LLVM-exception or later", (None, [])),  # P35: no version
+        ("MIT WITH LLVM-exception or later", ("MIT+ WITH LLVM-exception", [])),  # P35
         (f"GPL-2.0-only WITH {_CP} or later", (None, [])),  # malformed
         (f"GPL-2.0 or later WITH {_CP} or later", (None, [])),  # twice
         ("LicenseRef-x WITH LLVM-exception or later", (None, [])),
