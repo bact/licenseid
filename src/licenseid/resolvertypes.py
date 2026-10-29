@@ -151,7 +151,9 @@ class Component(TypedDict):
 class Operand(TypedDict):
     """One leaf of the value: one word, an ID or a reference, or ``X WITH
     Y``, with its "+" or grant, read as that text would be alone (a loose ID
-    with a space is no operand; per operand only a balanced pair of quotes).
+    with a space is no operand; per operand only a balanced pair of quotes). In
+    a value of licences joined by ``;`` an operand is one part, of any shape,
+    read as that text would be alone (:mod:`licenseid.resolvesemicolon`).
     ``span`` is ``[start, end)`` in code points of the raw ``input``;
     ``text`` is ``input[start:end]``."""
 

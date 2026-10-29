@@ -460,3 +460,39 @@ Tool: `tools/pypi_licence_sample/` (`fetch`, `analyze`); tables and method in
 - Threats: top-5,000 by downloads only; latest release only; the groups are
   patterns, not rules; the list is the 30-day count, which weights a value by
   installation, not by authorship.
+
+### 3.6 An operator the author did not state: the semicolon (T8b, 2026-10-29)
+
+`MIT ; Apache 2` names two licences and does not say whether they combine as
+`AND` or `OR`; both are fair readings, and a resolver that picks one asserts
+what the author did not write (the same reason a bare `GPL-3.0` is not
+narrowed to `-only`). The maintainer decided that the value still carries
+information: `resolve()` returns no expression, the reason `operator not
+stated: ;`, and one operand per part, each read as that text would be read
+alone. **[observation]** The point for a consumer is that a property which
+holds for every operand needs no operator: "is every licence OSI approved?"
+is true of `A AND B` and of `A OR B` alike when it is true of `A` and of `B`;
+only a question that depends on the operator ("which licence applies?",
+"what is the combined obligation?") stays unanswered. A recorded list lets a
+caller answer the first kind of question and refuse the second.
+
+Narrowing rules, each decided as P80 to P86 in
+`../design/resolver-0-7-review.md`: a `;` outside brackets; no empty part; at
+least two parts that name a licence (so `MIT; Copyright (c) 2016-2024 Cisco`
+is a licence and a notice, not a list); one part must resolve; a `;` beside
+`AND`, `OR` or `WITH` (in any case, also with three parts) means an operator
+was stated, so no list; a comma and `/` are not separators.
+
+Frequency: in the frozen PyPI sample (462 distinct values from the top
+10,000 projects, `tests/fixtures/pypi_values_2026-10.tsv`) and the 141-value
+parity corpus (521 distinct values together), two values hold a top-level
+`;`, 2 of 9,353 projects (0.02%), both before and after the change: `BSD
+3-Clause License; partially licensed under the Python Software Foundation
+License` and `MIT; Copyright (c) 2016-2024 Cisco and/or its affiliates.`
+Each has one part that names a licence, so neither is a list of licences and
+neither answer moved. The sample holds no real value of two licences joined
+by `;`; the rule rests on the maintainer's decision and on generated cases,
+not on a measured share. The larger 5,000-project download was not repeated
+for this task (no network). Property test: for 676 generated `A ; B` from
+List IDs and List names (`tests/test_resolver_semicolon.py`), every operand
+equals what `resolve()` answers for its part alone.

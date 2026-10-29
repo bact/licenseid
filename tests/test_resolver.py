@@ -200,7 +200,17 @@ def _db() -> Generator[LicenseDatabase, None, None]:
         # a "+" inside a loose spelling is not dropped
         ("GPL-2.0+-only", (None, "unresolved", [], [], [])),
         ("GPL-2.0++-only", (None, "unresolved", [], [], [])),
-        ("GPL-2.0+.", (None, "unresolved", [], [], [])),
+        # one end mark after a "+" is an ending (P80)
+        (
+            "GPL-2.0+.",
+            (
+                "GPL-2.0-or-later",
+                "separator",
+                ["separator"],
+                [("plus_to_or_later", True)],
+                [],
+            ),
+        ),
         # a bracketed grant is a grant
         ("GPL-2.0-only (or later)", (None, "malformed", [], [], [])),
         # Q14: no -or-later ID, so the grant is the "+" operator (was unresolved)

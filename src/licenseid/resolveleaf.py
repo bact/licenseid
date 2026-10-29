@@ -121,20 +121,67 @@ def read_leaf(db: ListLookup, text: str, found: Found) -> bool:
 
     One ``;`` or ``:`` at the end (``MIT;``) is an ending, not a mark that
     says something: when the value is refused for it, it is read again
-    without it, with a ``separator`` step (P77)."""
+    without it, with a ``separator`` step (P77). So is any one end mark
+    after a ``+``, an exception or a ``LicenseRef-*``, where no loose
+    reading ran to refuse it, and any other mark there is refused as after
+    an ID (P80)."""
     if over_key_cap(text):
         return False
     read = _read(db, text, found)
-    if read and found.expression is None and found.reason is not None:
-        trimmed = trim_end_mark(text, ";:")
-        again = Found()
-        if trimmed is not None and _read(db, trimmed, again) and again.expression:
-            found.expression, found.category = again.expression, again.category
-            found.steps = [step("separator", True, text, trimmed, "end mark")]
-            found.steps += again.steps
-            found.expansions, found.candidates = again.expansions, again.candidates
-            found.reason = None
+    if not read:
+        return _after_core(db, text, found)
+    if found.expression is None and found.reason is not None:
+        _read_without_end(db, text, found, ";:")
     return read
+
+
+def _read_without_end(db: ListLookup, text: str, found: Found, marks: str) -> bool:
+    """Read *text* again without its one end mark of *marks*, if that names a
+    licence: *found* is then the reading, after an ending ``separator``
+    step."""
+    trimmed = trim_end_mark(text, marks)
+    again = Found()
+    if trimmed is None or not _read(db, trimmed, again) or not again.expression:
+        return False
+    found.expression, found.category = again.expression, again.category
+    found.steps = [step("separator", True, text, trimmed, "end mark")]
+    found.steps += again.steps
+    found.expansions, found.candidates = again.expansions, again.candidates
+    found.reason = None
+    return True
+
+
+def _after_core(db: ListLookup, text: str, found: Found) -> bool:
+    """A value no reader read, that ends in marks after a ``+``, an exception
+    or a ``LicenseRef-*`` (P80): those readers return before the drop guard.
+    One end mark is an ending, read without it; marks that say something
+    (``GPL-2.0+?``, ``MIT+;;``) refuse the value, as they do after an ID.
+    False when the value is not of that shape or its core names nothing."""
+    body = text.rstrip()
+    ended = trim_end_mark(body)
+    if ended is not None and _is_core(ended):
+        return _read_without_end(db, text, found, ".,;:")
+    lost = set(dropped(body)) - set("+()[]{}")
+    core = body
+    while core and core[-1] in lost:
+        core = core[:-1].rstrip()
+    again = Found()
+    if core == body or not _is_core(core) or not _read(db, core, again):
+        return False
+    if again.expression is None:
+        return False
+    marks = "".join(dict.fromkeys(c for c in body[len(core) :] if c in lost))
+    _Dropped(text, marks, again.expression).record(found)
+    return True
+
+
+def _is_core(core: str) -> bool:
+    """Whether *core* is of the shape :func:`_after_core` handles."""
+    return bool(core) and (
+        core.endswith("+")
+        or WITH_OPERATOR.search(core) is not None
+        or is_license_ref(core)
+    )
 
 
 def _read(db: ListLookup, text: str, found: Found) -> bool:

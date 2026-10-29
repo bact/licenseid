@@ -22,6 +22,7 @@
   operand read by `resolveleaf`), `resolvetrove.py` (a trove classifier name
   or path, and a name with its short form; the table is `trovenames.py`),
   `resolveprose.py` (the prose form of one ID: `BSD 3-Clause License`),
+  `resolvesemicolon.py` (licences joined by `;`: listed, no operator),
   `exprcanon.py` (its leaves and canonical
   order), `exprtokens.py` (the words of an expression), `resolverinfo.py`
   (the resolver, parser and list blocks of a result),

@@ -66,8 +66,9 @@ licence the value names, in the order written: its `text`, its `span`, which
 indexes the raw `input` (`[start, end)` in code points; the trim and the
 quotes and brackets around the whole fall outside it), and the answer the
 same text would get alone (an operand is one word, so a loose ID with a space
-is no operand). A compound adds the steps of the whole after
-those of its operands, in this order: `operator_case`, `whitespace`,
+is no operand; a part of a value joined by `;`, below, is the exception). A
+compound adds the steps of the whole after those of its operands, in this
+order: `operator_case`, `whitespace`,
 `brackets`, `reorder` and `dedupe`, each with the expression before and
 after. `components` names the tools besides licenseid that took part (the
 expression parser, `py-spdx-license`, whenever it parsed the value: a
@@ -106,6 +107,47 @@ compound, read or refused), and `by` on a step names the one that took it
   "reason": null
 }
 ```
+
+## Licences joined by a semicolon
+
+A `;` between licences says there are several and not how they combine:
+`MIT ; Apache 2` may be `Apache-2.0 AND MIT` or `Apache-2.0 OR MIT`.
+`resolve()` does not choose. The value is `unresolved`, `expression` is
+`None`, `reason` is `operator not stated: ;`, and `operands` holds one entry
+for each part, in order, each read as the same text would be alone (so a part
+that is a compound, `MIT OR ISC`, is read as that compound, and a part that
+cannot be read keeps its own category and `reason`). A caller that asks only
+whether every licence is OSI approved has an answer whatever the operator.
+For `resolve("MIT ; Apache 2")`, shortened:
+
+```json
+{
+  "input": "MIT ; Apache 2",
+  "expression": null,
+  "category": "unresolved",
+  "trust": "none",
+  "operands": [
+    {"text": "MIT", "span": [0, 3], "expression": "MIT",
+     "category": "exact", "...": "..."},
+    {"text": "Apache 2", "span": [6, 14], "expression": "Apache-2.0",
+     "category": "version_spelling", "...": "..."}
+  ],
+  "reason": "operator not stated: ;"
+}
+```
+
+The rule is narrow. The `;` must stand outside brackets, with a non-empty
+part on each side: `MIT;;Apache-2.0` and `; MIT` are refused as before, and
+one `;` at the very end is an ending (`MIT; ISC;` is two parts). At least two
+parts must name a licence, or would but for a mark they drop (`Apache
+2.0?`), and one must resolve: `MIT; Copyright (c) 2016` and `-MIT ; -MIT`
+stay `unresolved`, with the reason they had. A `;` beside an operator word
+(in any case) means one was stated: `MIT; OR ISC` is `ISC OR MIT`, and
+`MIT; OR ISC; Apache-2.0` is no list. A value that reads whole as a name
+(`MIT; (MIT)`) is read as that name. A comma and `/` are not separators here
+(`not an SPDX operator: ,` and `/`). A part is not split again, so a `;` in
+brackets inside a part is not read as a list. `steps` holds only what was done
+to the whole before the split (`trim`, `unquote`, `brackets`).
 
 ## Steps and categories
 
@@ -152,7 +194,9 @@ separated), `word dropped: rem 1` (a comment or list marker that the reading wou
 `operand not resolved: <operand>` (or that operand's own reason),
 `operand of several words: <leaf>` (a leaf that reads alone, as
 `BSD 3-Clause` does),
-`not an SPDX operator: /` (also `|`, `&`, `;` and `,` between IDs),
+`not an SPDX operator: /` (also `|`, `&` and `,` between IDs, and `;` when
+fewer than two parts name a licence: `MIT; Foo`),
+`operator not stated: ;` (above),
 `parse failed: <the parser's message>`, `mismatched brackets`,
 `too many operators` (over 150) and `too deeply nested` (over 150). A value
 with a part of several words (`Apache License 2.0 OR MIT`) is no compound,
@@ -169,7 +213,8 @@ reading named (`resolve("Apache 2.0?")` would have read `Apache-2.0`; a
 renamed ID is not followed) and its `detail` the code points. White space,
 `_`, `.`, a dash (the hyphen-minus, the Unicode hyphens and dashes and the
 minus sign) and one `.` or `,` at the end are not marks; nor is one `;` or
-`:` there, which is an ending left off.
+`:` there, which is an ending left off. The same holds after a `+`, an
+exception or a `LicenseRef-*` (`MIT+;` is `MIT+`; `GPL-2.0+?` is refused).
 
 ## Quote marks
 
