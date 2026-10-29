@@ -63,6 +63,11 @@
   academic write-up (system, results, history, human–AI sessions). Add to
   it when a finding is worth publishing; start at its `README.md`.
 - Test fixtures: `tests/fixtures/README.md`
+- User docs: `README.md` (overview, CLI, Python API) and `docs/resolve.md`
+  (every field of `resolve()`'s result, its categories and trust, the
+  reasons for a refusal, quote marks). A change to any of those updates
+  `docs/resolve.md`; `tests/test_resolver_shapes.py` checks its category
+  table.
 - Which licence values `resolve()` should read next: measure, do not guess.
   `tools/pypi_licence_sample/README.md` samples real PyPI values and counts
   what `resolve()` reads; findings in

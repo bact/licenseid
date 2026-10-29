@@ -316,7 +316,9 @@ def test_a_name_held_by_a_deprecated_row_only_is_no_listed_name() -> None:
         assert resolve("Old License", db)["category"] == "unresolved"
 
 
-def test_the_readme_lists_every_category_in_order_with_its_trust() -> None:
-    readme = (Path(__file__).parents[1] / "README.md").read_text(encoding="utf-8")
-    rows = re.findall(r"^\| `(\w+)` \| `(\w+)` \|", readme, re.MULTILINE)
+def test_the_docs_list_every_category_in_order_with_its_trust() -> None:
+    doc = Path(__file__).parents[1] / "docs" / "resolve.md"
+    rows = re.findall(
+        r"^\| `(\w+)` \| `(\w+)` \|", doc.read_text(encoding="utf-8"), re.MULTILINE
+    )
     assert rows == [(c, TRUST[c]) for c in CATEGORY_ORDER]
