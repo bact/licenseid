@@ -234,6 +234,21 @@ Numbering starts at P45: the T7 branch takes P23 to P44.
 | P51 | T9a | `strip_trove_path` and a path that is no classifier (`License :: MIT License`, `License :: OSI Approved :: Aladdin Free Public License (AFPL)`) | `None`: a path is accepted only in the real form of its classifier; each table entry records whether it is under `OSI Approved` (`TroveEntry.osi`), and a test checks that against `trove_classifiers` | Accept any path whose last segment is a key | A value that no tool writes is not a classifier; narrower, and reversible by ignoring the flag |
 | P52 | T9a | The five deprecated `License ::` classifiers (`deprecated_classifiers`: Intel, Jabber, MITRE CVW, SISSL, X.Net) | In the table, decided like the rest (`Intel` and `Xnet` `stated`, the others `none`) | An explicit skip set | Old projects still declare them; the table and its test then cover all 89 |
 
+### T9: reading the trove names
+
+Numbering continues at P53.
+
+| # | Task | Question | Chosen | Other options | Why |
+| - | - | - | - | - | - |
+| P53 | T9 | Where the rules sit | `resolvetrove.read_named`, called by `resolver._read` after the one-licence and compound readers and before any rule of prose (Q18, Q22). A name the table reads as `none` returns True with `unresolved`, so a later rule (P1 of T8) cannot read it | Inside `read_leaf`; after the prose rules | The order of the plan; the same contract as `read_leaf`; `resolveleaf` stays under its size |
+| P54 | T9 | How a `stated` or `assumed` name gives its ID | The table's ID goes through `read_leaf` as if the author had written it: an ID the list lacks leaves the value unresolved, a renamed one is followed, a deprecated one without successor is `assumed_only` with candidates. A `trove_name` step comes first | Assert the table's ID without the list | One reader of IDs and of the deprecation policy; the answer is the list's, with or without a database |
+| P55 | T9 | A path (T1) | The name is read as it is alone: the leaf lookup first (`MIT License` is `listed_name`), then the table. The answer is the same as the bare name, plus a `trove_path` step first | Always the table (`trove_name`) | A path is only the classifier's syntax (P50, P51): the name then has the answer it has alone |
+| P56 | T9 | Kind and category of `trove_path` and `trailing_name` | Both are lexical kinds (`LEXICAL_KINDS`): the category is the weakest of the other steps (the name's, the head's), and `lexical` when there is none (`MIT (MIT)`) | A category of their own | They change the form and choose nothing: the two readings of T3 agree |
+| P57 | T9 | The list of a trove step | `Step.list` is `pypi-trove-classifiers` for `trove_name` and `trove_path`; `lists` gets a second entry (`name` "PyPI trove classifiers", `version` None, `source` `packaged`, `url` `https://pypi.org/classifiers/`, `license` Apache-2.0, `provides` `["names"]`, `id_authority` false) only when such a step is in the result | The trove-classifiers version the table was checked against as `version`; always list it | The table is licenseid's data, not read at run time; the version of the check is a test fact |
+| P58 | T9 | The shape of T3 | `head`, white space, one `(inside)`, no other bracket; head and inside each read by `read_leaf` alone and equal as expressions; the category is the head's, the steps `trailing_name` then the head's. Neither part is read through the trove or prose rules | Read the head through every rule | Narrow, and T8 can widen it by plugging its reader in one place (`_trailing`) |
+| P59 | T9 | A `none` name | `unresolved`, no `reason`, no step. The `family of licences` reason of the plan has no task and no wording rule for names like `BSD License` | Reason `family of licences: BSD` | Left to the task that owns it; a reason invented here would be undecided vocabulary |
+| P60 | T9 | How exactly a name matches | Exact and case-sensitive, after trimming, quotes and outer brackets; no case folding, no collapsed spaces | Case-insensitive | A closed vocabulary; `iSC license (iscl)` is not a classifier (P50) |
+
 ## 7. T6b: reading quoted values
 
 Decision Q12 refused `"MIT"` in T6 (the drop guard names every quote mark) and
