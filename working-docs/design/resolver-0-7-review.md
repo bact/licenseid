@@ -252,6 +252,47 @@ Numbering continues at P53.
 | P60 | T9 | How exactly a name matches | Amended after review: `stated` and `assumed` names match exactly and case-sensitively, after trimming, quotes and outer brackets. A name the table reads as `none` is refused when it matches case-folded with white space collapsed (`w3c license`, `Python   License (CNRI Python License)`), so no later rule can read round Q22 | Case-insensitive for every name; exact for `none` too (first built) | A closed vocabulary for reading; a looser match is safe only for refusing |
 | P63 | T9 | Order of the trailing name (T3) and the table (T2) | T3 first: `Boost Software License 1.0 (BSL-1.0)` is `listed_name` (`list_data`) with a `trailing_name` step and no trove list entry, as is its lower-case form; the table reads the names the List does not back. 13 table names move (CeCILL-B and C, BSL-1.0, MIT-CMU, CDDL-1.0, EPL-1.0 and 2.0, HPND, MPL 1.1 and 2.0, OSL-3.0, OFL-1.1, The Unlicense). A `none` name is claimed before both | Table first (first built) | A reading the SPDX List backs is stronger than the table's, as P55 reads a path; the same name no longer reads weaker in its exact form than in lower case |
 
+### T8: prose forms of one ID and the dropped-word guard
+
+Code: `licenseid.resolveprose` (P1 to P3), `dropguard.dropped_words` and
+`dropguard.without_end_marks`. Measured on the frozen sample: 18 values, 177
+projects and 1.16 bn downloads read (unresolved 239 to 221, `prose_form` 0
+to 18); the dropped-word guard moves no value of the sample or of the
+parity corpus. Three parity rows now give their `expected_0_7_0`
+(`Apache License, Version 2.0`, `BSD 3-Clause License`, `The MIT License
+(MIT)`).
+
+| # | Task | Question | Chosen | Other options | Why |
+| - | - | - | - | - | - |
+| P64 | T8 | Trailing `.`, `,`, `;`, `:`, `…` after a value | **Replaced by P77.** First built: a prose form left off what the drop guard lets pass (white space, dots, one comma) and refused `;`, `:` and `…` | See P77 | The grant tail (`GPLv2 or later;`) is shared with `match` and `markers` and is left as it is |
+| P65 | T8 | Names of the step and the category | Step kind and category are both `prose_form` (the brief; the plan said `prose_words` for the step). Weakest-wins order: after `version_spelling`, before `trove_name`; trust `resolver_rule`. The step cites no list; the steps of the reduction do | `prose_words` for the step | One name for the kind and the category, so `category_of` needs no map |
+| P66 | T8 | Steps of a prose form | One `prose_form` step for each reduction, from the text to what remains (`detail`: `leading article`, `licence word`, `version`), then the steps of the reduction read alone. `The MIT License` is article, then `listed_name` | One step for the whole | Each step is true by itself and the chain from value to ID shows |
+| P67 | T8 | P3 and a listed name; P3 with T3 | After `The`, the rest is read by P1, P2, or as a List name (a `listed_name` step); an ID alone is not (`The MIT`). The head of T3 may be a prose form (`The MIT License (MIT)`): `resolveprose` reads `head (inside)` with `resolvetrove.trailing_parts`, the one parser of the shape, the head by the prose rules and the inside by `read_leaf` | `The` before any reading; no prose head in T3 | The plan asks for P3 only with a rule or a name; the parity row `The MIT License (MIT)` expects it |
+| P68 | T8 | P2 target | Decided by the maintainer (replaces the first build, `<name> N` only): P2 reads `<name> N` through the loose key and, where `get_active_ids_by_name` holds exactly one ID for the exact name `<name> License N`, that too; if the two give different expressions the value is unresolved. `Mozilla Public License, Version 2.0` is `MPL-2.0` (`listed_name`); `GNU General Public License, Version 3` stays unresolved (no such name, and no loose key over names) | `<name> N` only | The exact name is a List name the author wrote in other words; a loose key over names would reach one they did not |
+| P69 | T8 | A name that states no licence | Claimed (`resolvetrove.is_no_licence`, folded) also with a leading article, an end mark and as the head of a trailing name: `The W3C License`, `W3C license.`, `W3C License (W3C)` stay unresolved | Claim only the exact folded name | Q22 and P60: no later rule may read round it |
+| P70 | T8 | Where the reader of an operand lives | `read_alone` and `read_by_name` (trove names, then prose) are in `resolveprose`; the compound reader and `resolver._read` import them. A prose form reads alone, so `BSD 3-Clause License OR MIT` is `operand of several words: BSD 3-Clause License` (P62), not `operand not resolved`. A reduction that the drop guard refuses gives that refusal (reason and `drop` step), as the head would alone | Keep `read_alone` in `resolvetrove` | `resolvetrove` cannot import prose without a cycle |
+| P71 | T8 | R7 item 3: which words are dropped | The words that `normalize_text` takes off a line: the value is read twice by `version_key`, with and without the line rules (comment prefix, repeated separators, bullets and list markers; `normalize_text(..., line_rules=False)`), and the words of the second reading that the first lacks are the dropped words. No list of markers. Reason `word dropped: rem 1` (lower case, through `errors.one_line`), `drop` step not applied. Checked on 9,912 spellings of the List's IDs and names: none drops a word | A list of markers; refuse at `normalize_text` | One reader (`normalize_text`) says what it drops. `rem MIT` (lower case) is not a marker for it and stays unresolved without a reason, as `not MIT` |
+| P72 | T8 | Dangling dash or dots | **Amended by P77 and P78.** A lone dash at either end (`MIT -`, `-- MIT`) and a first token of dashes or dots (`. MIT`, `... MIT`) are dropped marks; a lone dot at the end is an ending (`MIT .`). Ellipsis: `MIT...`, `MIT…` refused | Read `MIT...` | A single mark is an ending; a run is a list or a cut |
+| P73 | T8 | Marks after a prose form | **Amended by P77.** One mark at the end is left off first, as for a leaf (`MIT License;`); any other mark stays on the reduction, so the drop guard refuses it with its reason (`MIT License...`, `MIT License?`), and a mark never helps a reading (`Apache-2.0 License+` stays unresolved) | Leave all marks off | One reason, from the reader that knows the mark |
+| P74 | T8 | P1 and P2 reach a deprecated ID through the loose key (`Net-SNMP License`, `Nunit License`, `BSD 2-Clause FreeBSD License`, `eCos license version 2.0`) | Kept: `deprecated_ambiguous` (`list_data`), as the same ID written with other separators is. 31 List spellings, none in the sample | Refuse | It names the right licence; the deprecation policy already keeps the ID as written |
+| P75 | T8 | A doubled article or licence word | Refused: `The The MIT License`, `MIT License License`; P3 needs the rest not to start with an article, P1 a head that does not end in a licence word. `GNU General Public License v2.0 only License` still reads (its head ends in `only`) | Read when the inner part is a List name | Even rule, no dependence on the List |
+| P76 | T8 | What P1 reads | One licence, a simple expression: `MIT+ License` is `MIT+`, `LicenseRef-Proprietary License`, `X WITH Y License`; docs say "one licence" | "One ID" | `read_leaf` is the reader; no second grammar |
+| P77 | T8 | Marks at the end of a value (replaces P64) | Maintainer, 2026-10-29, single marks only: one `.`, `,`, `;` or `:` with white space around it is an ending. `.` and `,` pass in the drop guard as before; `;` and `:` are read again without it when the value is refused for them (`resolveleaf.read_leaf`, a `separator` step `end mark`, category `separator`; a grant tail that already reads is not touched). Two or more marks (`MIT;;`, `MIT.;`, `MIT..`), an ellipsis (`MIT...`, `MIT…`) and a lone dash are refused with `character dropped`. A prose form trims one mark the same way (`trim_end_mark`). Compound operands follow the rule alone, so `MIT; OR ISC` is `ISC OR MIT`. `MIT..` and `MIT...` were read before (P72) | Trim runs; trim nothing | Narrow: a run could be a list or a cut value. `MIT+;` stays unresolved without a reason (R7 item 4, the plus path has no guard) |
+| P78 | T8 | Marks at the start | Nothing is trimmed: `-- MIT`, `; MIT`, `... MIT` are refused. A dot or dash touching the ID (`.GPL-3.0-only`, `-MIT`) was read on main as `separator`; it is refused now (`dropguard.lead_marks`): 38 IDs end in another ID (`AGPL-3.0-only`), so it is a cut value. No sample or parity value moves | Leave it | The cut value would resolve to a licence the author did not write |
+| P79 | T8 | Where the end rule sits | In `read_leaf`, so a whole value, a compound operand and a prose head follow one rule; only after the first reading was a refusal, so values that read today keep their steps | In `resolver._prepared` (whole value only) | Operands read as the same text alone |
+
+Follow-ups left for 0.8:
+
+- Marks inside the grant phrase (`GPLv2 or any *later version`) are read
+  (shared with `match`); `"MIT".` and `"MIT",` are
+  refused while `MIT,"` is read.
+- A compound of prose names (`Apache License 2.0 OR MIT`) is not split (P43);
+  `W3C SOFTWARE NOTICE AND LICENSE` still gets
+  `operand not resolved: W3C SOFTWARE NOTICE`.
+- `<name> License N` for a List name (P68).
+- A dropped word that is no line marker (`MIT draft`) is not a drop: it
+  names no licence.
+
 ## 7. T6b: reading quoted values
 
 Decision Q12 refused `"MIT"` in T6 (the drop guard names every quote mark) and

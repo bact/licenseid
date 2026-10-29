@@ -35,7 +35,6 @@ KEPT = [
     ("Apache—2.0", "Apache-2.0", "separator"),  # em dash
     ("Apache‐2.0", "Apache-2.0", "separator"),  # hyphen U+2010
     ("Apache 2.0.", "Apache-2.0", "separator"),
-    ("MIT..", "MIT", "separator"),
     ("MIT,", "MIT", "separator"),
     ("Apache 2.0,", "Apache-2.0", "separator"),
 ]
@@ -68,8 +67,9 @@ DROPPED = [
     ("MIT*", "MIT", "*"),
     ("#MIT", "MIT", "#"),
     ("MIT,,", "MIT", ","),
-    ("MIT;", "MIT", ";"),
-    ("MIT:", "MIT", ":"),
+    ("MIT;;", "MIT", ";"),
+    ("MIT..", "MIT", "."),
+    ("MIT.;", "MIT", ";."),
     ("MIT/", "MIT", "/"),
     ("MIT\\", "MIT", "\\"),
     ("MIT|", "MIT", "|"),

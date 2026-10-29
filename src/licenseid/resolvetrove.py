@@ -62,24 +62,21 @@ def read_named(db: ListLookup, text: str, found: Found) -> bool:
     return True
 
 
-def read_alone(db: ListLookup, text: str, found: Found) -> bool:
-    """Read *text* as ``resolve`` reads a value of no operator: one licence
-    (:func:`licenseid.resolveleaf.read_leaf`), else by a name
-    (:func:`read_named`). The compound reader asks it whether a leaf of
-    several words reads alone (P43, P62), so it never judges by the leaf
-    reader only."""
-    return read_leaf(db, text, found) or read_named(db, text, found)
-
-
 def _by_name(db: ListLookup, text: str, found: Found) -> bool:
     """The rules of a name, in order: a name that states no licence is
     claimed first (Q22), however it is written; then a name and a parenthesis
     that agree (T3), since a reading the List backs is stronger than the
     table's; then the table (T2)."""
-    if _folded(text) in _NO_LICENCE:
+    if is_no_licence(text):
         _nothing(found)
         return True
     return _trailing(db, text, found) or _name(db, text, found)
+
+
+def is_no_licence(text: str) -> bool:
+    """Whether *text* is a name that states no licence (Q22), however it is
+    cased or spaced: no rule may read it, the prose forms included."""
+    return _folded(text) in _NO_LICENCE
 
 
 def _folded(text: str) -> str:
@@ -108,8 +105,27 @@ def _name(db: ListLookup, text: str, found: Found) -> bool:
 
 def _trailing(db: ListLookup, text: str, found: Found) -> bool:
     """T3: ``head (inside)`` whose two parts are one expression."""
-    if not text.endswith(")"):
+    parts = trailing_parts(text)
+    if parts is None:
         return False
+    head, inside = parts
+    named, alone = Found(), Found()
+    if not (read_leaf(db, head, named) and read_leaf(db, inside, alone)):
+        return False
+    if named.expression is None or named.expression != alone.expression:
+        return False
+    found.steps = [step("trailing_name", True, text, head), *named.steps]
+    _copy(found, named)
+    return True
+
+
+def trailing_parts(text: str) -> tuple[str, str] | None:
+    """``(head, inside)`` for ``head (inside)``: white space, then one
+    bracket pair at the end and no other bracket (P58); else None. Read by
+    T3 here and by the prose forms of :mod:`licenseid.resolveprose`, which
+    read the head their way."""
+    if not text.endswith(")"):
+        return None
     opening = text.rfind("(")
     # Spaces and tabs only: a value is one line, so no other white space
     head, inside = text[:opening].rstrip(" \t"), text[opening + 1 : -1].strip(" \t")
@@ -120,15 +136,8 @@ def _trailing(db: ListLookup, text: str, found: Found) -> bool:
         or not inside
         or any(mark in head + inside for mark in "()")
     ):
-        return False
-    named, alone = Found(), Found()
-    if not (read_leaf(db, head, named) and read_leaf(db, inside, alone)):
-        return False
-    if named.expression is None or named.expression != alone.expression:
-        return False
-    found.steps = [step("trailing_name", True, text, head), *named.steps]
-    _copy(found, named)
-    return True
+        return None
+    return head, inside
 
 
 def _copy(found: Found, reading: Found) -> None:

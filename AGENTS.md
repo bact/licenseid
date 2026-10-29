@@ -21,11 +21,12 @@
   by `resolver.py` per value), `resolvecompound.py` (a compound, each
   operand read by `resolveleaf`), `resolvetrove.py` (a trove classifier name
   or path, and a name with its short form; the table is `trovenames.py`),
+  `resolveprose.py` (the prose form of one ID: `BSD 3-Clause License`),
   `exprcanon.py` (its leaves and canonical
   order), `exprtokens.py` (the words of an expression), `resolverinfo.py`
   (the resolver, parser and list blocks of a result),
-  `dropguard.py` (the characters a loose reading must not drop: `Apache
-  2.0?`), `listindex.py` (the shipped SPDX bundle in
+  `dropguard.py` (the characters and words a loose reading must not drop:
+  `Apache 2.0?`, `REM MIT`), `listindex.py` (the shipped SPDX bundle in
   memory, a `ListLookup` for `resolve()` with no database),
   `listsource.py` (which list `resolve()` reads: database or packaged),
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes

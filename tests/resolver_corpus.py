@@ -21,6 +21,7 @@ from collections.abc import Callable, Generator, Iterable
 from pathlib import Path
 
 from resolver_changes_t7 import T7_CHANGES, answer
+from resolver_changes_t8 import T8_CHANGES
 from resolver_changes_t9 import T9_CHANGES
 from seed_sql import INSERT_EXCEPTION, INSERT_INDEX, INSERT_LICENSE, SET_METADATA
 
@@ -145,6 +146,7 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
         ),
     ),
     **T7_CHANGES,
+    **T8_CHANGES,
     **T9_CHANGES,
 }
 

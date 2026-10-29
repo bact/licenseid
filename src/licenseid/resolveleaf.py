@@ -25,7 +25,8 @@ read.
 import re
 from dataclasses import dataclass, field
 
-from licenseid.dropguard import code_points, dropped
+from licenseid.dropguard import code_points, dropped, dropped_words, trim_end_mark
+from licenseid.errors import one_line
 from licenseid.exprtokens import is_addition_ref, is_license_ref
 from licenseid.identifiers import without_outer_brackets
 from licenseid.listlookup import ListLookup
@@ -87,11 +88,14 @@ class _Dropped(Exception):
     """A loose reading would drop a character that says something (see
     :mod:`licenseid.dropguard`): the whole value is refused, not read."""
 
-    def __init__(self, text: str, lost: str, license_id: str) -> None:
+    def __init__(
+        self, text: str, lost: str, license_id: str, *, words: bool = False
+    ) -> None:
         super().__init__(text)
         self.text = text
         self.lost = lost
         self.license_id = license_id
+        self.words = words  # *lost* is words, else characters
 
     def record(self, found: Found) -> None:
         """Make *found* the refusal: ``unresolved``, a ``drop`` step that did
@@ -101,10 +105,9 @@ class _Dropped(Exception):
         # step but its own.
         found.expression = None
         found.category = "unresolved"
-        found.reason = f"character dropped: {code_points(self.lost)}"
-        found.steps = [
-            step("drop", False, self.text, self.license_id, code_points(self.lost))
-        ]
+        detail = one_line(self.lost) if self.words else code_points(self.lost)
+        found.reason = f"{'word' if self.words else 'character'} dropped: {detail}"
+        found.steps = [step("drop", False, self.text, self.license_id, detail)]
         found.expansions = []
         found.candidates = []
 
@@ -114,9 +117,28 @@ def read_leaf(db: ListLookup, text: str, found: Found) -> bool:
     False if it names none, or if the licence or the exception is longer
     than any ID (:func:`over_key_cap`). True with ``unresolved`` and a
     ``reason`` if a loose reading would drop a character that says something
-    (``Apache 2.0?``)."""
+    (``Apache 2.0?``).
+
+    One ``;`` or ``:`` at the end (``MIT;``) is an ending, not a mark that
+    says something: when the value is refused for it, it is read again
+    without it, with a ``separator`` step (P77)."""
     if over_key_cap(text):
         return False
+    read = _read(db, text, found)
+    if read and found.expression is None and found.reason is not None:
+        trimmed = trim_end_mark(text, ";:")
+        again = Found()
+        if trimmed is not None and _read(db, trimmed, again) and again.expression:
+            found.expression, found.category = again.expression, again.category
+            found.steps = [step("separator", True, text, trimmed, "end mark")]
+            found.steps += again.steps
+            found.expansions, found.candidates = again.expansions, again.candidates
+            found.reason = None
+    return read
+
+
+def _read(db: ListLookup, text: str, found: Found) -> bool:
+    """:func:`read_leaf` without the cap and the ending of the value."""
     try:
         return _with(db, text, found) or _one(db, text, found)
     except _Dropped as refusal:
@@ -351,6 +373,9 @@ def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
     lost = dropped(text)
     if lost:
         raise _Dropped(text, lost, license_id)
+    lost = dropped_words(text)
+    if lost:
+        raise _Dropped(text, lost, license_id, words=True)
     return license_id, _spelling(text, license_id)
 
 

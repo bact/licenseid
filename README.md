@@ -64,7 +64,14 @@ generator.*
   - a loose reading never drops a character that says something:
     `Apache 2.0?`, `MIT*` and `"MIT?"` are `unresolved`, with a
     `reason` and a `drop` step that was not applied; white space, `-`, `_`,
-    `.`, a dash and one trailing comma are still dropped;
+    `.`, a dash and one trailing comma are still dropped. So is no word:
+    a list or comment marker (`REM MIT`, `1. MIT`, `iv. MIT`) is refused
+    with `word dropped: rem`. At the end of a value one `.`, `,`, `;` or
+    `:`, with white space around it, is an ending and is left off (`MIT;`,
+    `MIT License :`; a `separator` step); two or more marks, an ellipsis
+    and a lone dash (`MIT;;`, `MIT...`, `MIT…`, `MIT -`) are refused. At
+    the start nothing is left off: `-- MIT`, `; MIT`, `... MIT`, and an ID
+    cut from a longer one (`.GPL-3.0-only`, `-MIT`) are refused;
   - a compound expression is read operand by operand: one-word operands
     (with `WITH`, `+` or an "or later" grant), each as the same text would be
     read alone, and per operand only a balanced pair of quotes; an operand
@@ -88,11 +95,24 @@ generator.*
     (`License :: OSI Approved :: MIT License`) is read as its name is
     read alone, with a `trove_path` step;
   - a name followed by a parenthesis (`MIT License (MIT)`) is read as the
-    name when the name and the parenthesis are each an ID or a List name
-    and are one expression (`trailing_name` step); if they differ, or only
-    one reads, the value is not read. Where the List backs both parts this
-    is read before the table, so `Eclipse Public License 2.0 (EPL-2.0)`
-    is `listed_name`;
+    name when the name and the parenthesis are each an ID, a List name or
+    a prose form (below) and are one expression (`trailing_name` step); if
+    they differ, or only one reads, the value is not read. Where the List
+    backs both parts this is read before the table, so `Eclipse Public
+    License 2.0 (EPL-2.0)` is `listed_name`;
+  - the prose form of one licence is read last, as category `prose_form`
+    (a `prose_form` step, then the steps of what it reduces to): a final
+    `license` or `licence` after a value that names one licence, with a `+`
+    or a `WITH` if it has one (`BSD 3-Clause License`, `MIT+ License`), `<name>
+    License[,] (Version|v) N` as `<name> N`, or as the List name `<name>
+    License N` if both name the same licence (`Apache License, Version 2.0`,
+    `Mozilla Public License, Version 2.0`), and a leading `The` with
+    either, or with a List name (`The MIT License`; `The MIT` is not
+    read). One mark at the end is left off, as for any value (`MIT
+    License.`, `MIT License;`). A name that
+    states no licence (`BSD License`, `W3C License`) and a bare family
+    (`BSD`) stay `unresolved`, and a prose form is no operand of a
+    compound (`BSD 3-Clause License OR MIT`: `operand of several words`);
   - a compound is all or nothing: its category is the weakest operand's,
     and one operand that names nothing leaves the whole unresolved, with a
     `reason` naming it; a mark used as an operator (`MIT/Apache-2.0`) is
@@ -642,6 +662,7 @@ SPDX entry: find the SPDX list by its `id`, not by position). The
 | `stated_qualifier` | `author_words` | states "or later" in words |
 | `separator` | `resolver_rule` | is an ID with other separators |
 | `version_spelling` | `resolver_rule` | is an ID with its version re-spelt |
+| `prose_form` | `resolver_rule` | is an ID in a prose form (`BSD 3-Clause License`, `Apache License, Version 2.0`) |
 | `trove_name` | `resolver_rule` | is a PyPI trove classifier name that states one licence |
 | `deprecated_ambiguous` | `list_data` | is deprecated, with no successor |
 | `assumed_only` | `none` | is a bare split ID (`GPL-3.0`), kept |
@@ -652,10 +673,12 @@ A consumer ignores a step kind it does not know. Before 0.7.0 a compound
 was category `expression`, with no expression; that category is gone.
 
 `reason` is `None` unless the value was refused, when it is one line,
-`CONDITION[: DETAIL]`, the detail in code points: `character dropped: U+003F`
+`CONDITION[: DETAIL]`, the detail of a mark in code points:
+`character dropped: U+003F`
 (the value would be read as a licence only by dropping a mark that is not a
-separator, such as `?`, `!`, `*` or a quote inside the value; several are
-space separated),
+separator, such as `?`, `!`, `*` or a quote inside the value, a mark at the
+start, two or more at the end, or a lone dash; several are space separated), `word dropped: rem 1`
+(a comment or list marker that the reading would drop, in lower case),
 `lone surrogate`, `control or format character: U+200B`; for a compound,
 `operand not resolved: <operand>` (or that operand's own reason),
 `operand of several words: <leaf>` (a leaf that reads alone, as
@@ -676,7 +699,8 @@ one `drop` step with `applied` false: its `to` is the listed ID the loose
 reading named (`resolve("Apache 2.0?")` would have read `Apache-2.0`; a
 renamed ID is not followed) and its `detail` the code points. White space,
 `_`, `.`, a dash (the hyphen-minus, the Unicode hyphens and dashes and the
-minus sign) and one trailing comma are not marks.
+minus sign) and one `.` or `,` at the end are not marks; nor is one `;` or
+`:` there, which is an ending left off.
 
 Quote marks that delimit the whole value are not marks of that kind: the
 `unquote` step takes them off first. Two marks of one kind, double

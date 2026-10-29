@@ -32,7 +32,7 @@ _RE_LETTER_DIGIT = re.compile(r"(?<=[^\W\d_])(?=\d)|(?<=\d)(?=[^\W\d_])")
 _RE_ZERO_VERSION = re.compile(r"(?<!\d)(?<!\d\.)(\d+)(?:\.0){1,2}(?!\.?\d)")
 
 
-def version_key(text: str) -> str:
+def version_key(text: str, *, line_rules: bool = True) -> str:
     """*text* as a version-tolerant ID: "Apache2", "apache 2", "Apache_2.0"
     and "Apache-2.0" all give "apache 2", and "CC by 3 nl" gives the key of
     CC-BY-3.0-NL.
@@ -44,13 +44,15 @@ def version_key(text: str) -> str:
     the split, or "GPLv3" would become "gplv 3"; the split goes before the
     fold, or "Apache2.0" would keep its ".0"; the fold reads the full stops
     normalize_text() drops ("2.0" and "2 0" differ). normalize_text() then
-    folds case, dashes and punctuation as for an ID.
+    folds case, dashes and punctuation as for an ID. *line_rules* false
+    keeps the words normalize_text() takes off a line (a list or comment
+    marker): :func:`licenseid.dropguard.dropped_words` compares the two.
     """
     text = replace_plus_operator(text, " or later").replace("_", " ")
     text = _RE_VERSION_PREFIX.sub(" ", text)
     text = _RE_LETTER_DIGIT.sub(" ", text)
     text = _RE_ZERO_VERSION.sub(r"\1", text)
-    return normalize_text(text)
+    return normalize_text(text, line_rules=line_rules)
 
 
 def keyed_row(db: ListLookup, key: str) -> ListedName | None:
