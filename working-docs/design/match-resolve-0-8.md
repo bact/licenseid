@@ -7,11 +7,13 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0
 ---
 
-# Detection and declared values in 0.8
+# Detection and declared values
 
-Status: draft for the maintainer, 2026-10-29. Nothing here is built. It
-answers "do we need both `match()` and `resolve()`?", proposes how they fit
-together, and renames them.
+Status: draft, 2026-10-29. Nothing here is built. It answers "do we need
+both `match()` and `resolve()`?", proposes how they fit together, and
+renames them. The names (section 2, D1) and the `match` command (D6) are
+decided and land in 0.7.0 as tasks T10a and T10b; the delegation (section
+3) is for 0.8.
 
 ## 1. Two questions
 
@@ -60,28 +62,28 @@ Tier 0, the manifest path). That is the duplication to remove.
 
 ## 2. Names
 
-The names below are the maintainer's proposal (2026-10-29): `resolve` is
-hard to type and remember, and `match` says how, not what.
+The names below are the maintainer's (decided 2026-10-29): `resolve` is
+hard to type and remember, and `match` says how, not what. They land in
+0.7.0, before the tag. No backward compatibility is owed (private alpha):
+no alias, no deprecation period, no release without a `match` command.
 
 - `licenseid detect`: today's `licenseid match`. It finds the licence in a
   file, a text or a tag.
 - `licenseid match`: today's `resolve()`. It matches one declared value to
-  an SPDX expression.
+  an SPDX expression (D6).
 
 This works: each command answers one of the two questions, both names are
 short, and `detect` is the field's own word (ScanCode calls the same job
 "licence detection"). Two things to handle:
 
-- **The same command, a new meaning.** A script that runs
-  `licenseid match LICENSE` today would get a value reading of the string
-  `LICENSE` in 0.8, which is `unresolved`: exit 1, "no licence", not an
-  error. No backward compatibility is owed, but a silent change of meaning
-  is the worst kind. Proposed: the new `match` refuses what only `detect`
-  can answer, with exit 2 and
-  `ERROR: input: invalid: a file or a licence text; run 'licenseid detect'`
-  (wording to fit the grammar). That is a value with a line break, one over
-  the length cap, `--text`, a file argument and standard input that is a
-  file. CHANGELOG gives the migration in one line.
+- **A file or a text given to `match`.** `licenseid match LICENSE` reads
+  the string `LICENSE` as a declared value: `unresolved`, exit 1, which
+  says "no licence" when the user meant "detect this file". The new
+  `match` refuses what only `detect` can answer, with exit 2 and a line
+  such as `ERROR: input: invalid: a file or a licence text; run 'licenseid
+  detect'` (wording to fit the grammar): `--text`, a file argument,
+  standard input, a value with a line break or one over the length cap.
+  This is input validation, not a compatibility shim.
 - **SPDX's own use of "match".** The SPDX License List matching guidelines
   use "match" for comparing a licence *text* with a template: that is
   `detect`'s job, not the new `match`'s. Code comments and docs that cite
@@ -95,9 +97,10 @@ The Python names follow the CLI, so one question has one name everywhere:
   database as `match` opens its list. `AggregatedLicenseMatcher` becomes
   `LicenseDetector`, its method `detect()`; `LicenseMatch` becomes
   `Detection`, `MatchRequest` `DetectRequest`; `matcher.py` becomes
-  `detector.py`. `Method` stays.
+  `detector.py`. `Method` stays. Callers that hold a database keep a
+  class; the function is for the rest.
 - `licenseid.match(...)`: today's `resolve()`, same signature and result.
-  `Resolution` becomes `MatchResult`, or stays (D1); `resolver.py`,
+  `Resolution` stays (D1); `resolver.py`,
   `resolveleaf.py`, `resolvecompound.py` and `resolvetrove.py` keep their
   file names, which say how, not what the call is named.
 - The `is-*` commands and `is_*()` methods keep their names. They take a
@@ -169,9 +172,11 @@ How a resolution becomes a `detect` result. Each point is a decision
 
 ## 4. Decisions needed
 
-- **D1 names.** CLI `detect` and `match`, Python `detect()` and `match()`,
-  as in section 2? Keep `Resolution` as the result type's name, or rename it
-  `MatchResult`?
+- **D1 names.** Decided 2026-10-29: CLI `detect` and `match`, Python
+  `detect()` and `match()`, as in section 2, renamed in 0.7.0 (T10a).
+  Proposed for T10a: `Resolution` stays the result type's name (it says
+  what the result is: a resolution of a value), and so do the
+  `resolve*.py` module names.
 - **D2 `exact` of a re-spelt value.** Is `Apache2` in a `license` field an
   exact detection? Proposed: no. `exact` is true only for category `exact`,
   so `--exact` keeps only values read as written. Today every declared value
@@ -187,24 +192,25 @@ How a resolution becomes a `detect` result. Each point is a decision
 - **D5 flags of a compound.** `MIT OR GPL-2.0-only` is neither one licence
   nor the other. Proposed: the flags are false and the `is-*` commands exit
   2 for a compound, as `--id` refuses one now.
-- **D6 the output of `licenseid match`.** Proposed: one line
+- **D6 the `licenseid match` command.** Decided for 0.7.0 (T10b), output
+  proposed: one line
   `EXPRESSION=<expr> CATEGORY=<category> TRUST=<trust>`, then one
   `STEP=<kind> FROM=<from> TO=<to>` line per applied step; `REASON=` for a
   refusal; exit 0 when resolved, 1 when not, 2 for a usage error. `--json`
   prints the resolution as one RFC 8785 object. It needs no database: the
   CLI for SBOM tools.
-- **D7 order of work.** First the rename alone (pure, one PR, tests renamed,
-  answers unchanged). Then the new `licenseid match` command. Then the
-  delegation, which changes answers: a characterisation corpus of `detect`
-  on every declared form first, as T0 did for `resolve()`, with an
-  `EXPECTED_CHANGES` guard.
+- **D7 order of work.** In 0.7.0: T10a, the rename alone (pure, one PR,
+  tests renamed, every answer unchanged); then T10b, the `licenseid match`
+  command. In 0.8: the delegation, which changes answers: a
+  characterisation corpus of `detect` on every declared form first, as T0
+  did for `resolve()`, with an `EXPECTED_CHANGES` guard.
 
 ## 5. Documentation
 
 The README and the docstrings of both calls open with the two questions of
 section 1 and one example of each, so a reader picks the right call before
-reading options. The README carries this from 0.7.0 with today's names
-(`match()` and `resolve()`); 0.8 renames them.
+reading options. The README carries this from 0.7.0; T10a gives it the new
+names.
 
 ## 6. Not in scope
 
