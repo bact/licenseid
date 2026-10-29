@@ -12,6 +12,7 @@ refusal of that state says (``refusal``), or ``None`` for a database that
 answers.
 """
 
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -26,9 +27,10 @@ MISSING = "missing"
 INVALID = "invalid"
 EMPTY = "empty"
 NO_ROWS = "no_rows"
+UNREADABLE = "unreadable"
 OUTDATED = "outdated"
 NO_HOME = "no_home"
-STATES = [USABLE, MISSING, INVALID, EMPTY, NO_ROWS, OUTDATED, NO_HOME]
+STATES = [USABLE, MISSING, INVALID, EMPTY, NO_ROWS, UNREADABLE, OUTDATED, NO_HOME]
 
 #: The version of the List in every database built here.
 VERSION = LICENSE_LIST_VERSION
@@ -66,6 +68,11 @@ def _no_rows(_: pytest.MonkeyPatch) -> None:
     LicenseDatabase(str(_default_path()))
 
 
+def _unreadable(_: pytest.MonkeyPatch) -> None:
+    """A directory where the database should be: there, but no database."""
+    _default_path().mkdir()
+
+
 def _outdated(_: pytest.MonkeyPatch) -> None:
     path = make_ready_file_db(_default_path())
     with writer(path) as conn:
@@ -84,26 +91,33 @@ BUILDERS: dict[str, Callable[[pytest.MonkeyPatch], None]] = {
     INVALID: _invalid,
     EMPTY: _empty,
     NO_ROWS: _no_rows,
+    UNREADABLE: _unreadable,
     OUTDATED: _outdated,
     NO_HOME: _no_home,
 }
 
 
-def refusal(state: str) -> str | None:
-    """What reading the database in *state* raises, once built; None for a
-    database that answers."""
+def refusal(state: str) -> tuple[str, str] | None:
+    """What reading the database in *state* raises, once built, as a regular
+    expression of its head (``database: <condition>: <detail>``) and its
+    ACTION (``; ...``, or ``""``); None for a database that answers. The
+    head of ``unreadable`` ends in SQLite's own words, which vary."""
     if state == NO_HOME:
-        return "database: not found: no home directory; pass --db"
+        return re.escape("database: not found: no home directory"), "; pass --db"
     path = get_default_db_path()
-    return {
-        MISSING: f"database: not found: {path}; run 'licenseid update'",
-        INVALID: f"database: invalid: {path}",
-        EMPTY: f"database: empty: {path}; run 'licenseid update'",
-        NO_ROWS: f"database: empty: {path}; run 'licenseid update'",
+    action = "; run 'licenseid update'"
+    found = {
+        MISSING: (f"database: not found: {path}", action),
+        INVALID: (f"database: invalid: {path}", ""),
+        EMPTY: (f"database: empty: {path}", action),
+        NO_ROWS: (f"database: empty: {path}", action),
     }.get(state)
+    if state == UNREADABLE:
+        return re.escape(f"database: unreadable: {path}: ") + "[^;]+", ""
+    return None if found is None else (re.escape(found[0]), found[1])
 
 
-def build(state: str, monkeypatch: pytest.MonkeyPatch) -> str | None:
+def build(state: str, monkeypatch: pytest.MonkeyPatch) -> tuple[str, str] | None:
     """Put *state* in place; return what reading it raises (see refusal)."""
     BUILDERS[state](monkeypatch)
     return refusal(state)

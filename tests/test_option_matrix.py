@@ -26,6 +26,7 @@ input is ignored without a warning):
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
+import contextlib
 import itertools
 import re
 from collections.abc import Callable, Generator
@@ -345,28 +346,47 @@ def test_a_missing_file_path_raises_oserror(mit_db: str, tmp_path: Path) -> None
 # --- API resolve(): source x the database at the default path x bundle ---
 
 RESOLVE_SOURCES = ["auto", "database", "packaged"]
-BUNDLES = ["shipped", "none"]
-NO_BUNDLE = "spdx-bundle.json.gz: not found"
+BUNDLES = ["shipped", "none", "invalid"]
+_BUNDLE_BYTES = {"shipped": release_bundle(VERSION), "none": None, "invalid": b"bad"}
+_BAD_BUNDLE = "spdx-bundle.json.gz: invalid: BadGzipFile: Not a gzipped file (b'ba')"
+# What each bundle prints when resolve() loads it: an unusable one warns once.
+_LOADED = {"shipped": "", "none": "", "invalid": f"WARNING: {_BAD_BUNDLE}\n"}
+_NO_LIST = {"none": "spdx-bundle.json.gz: not found", "invalid": _BAD_BUNDLE}
 
 
-def _resolve_outcome(source: str, state: str, shipped: bool) -> tuple[str, str]:
-    """What resolve("MIT", source=source) does: ``("raise", message)`` or
-    ``(list source, stderr)``. The bundle holds the database's version, so
-    a usable database wins the tie (Q4), an outdated one loses it (Q10)."""
+def _resolve_outcome(source: str, state: str, bundle: str) -> tuple[str, str, str]:
+    """What resolve("MIT", source=source) does, as ``(list source or
+    "raise", what it raises, what it prints)``, the last two as regular
+    expressions. The bundle holds the database's version, so a usable
+    database wins the tie (Q4), an outdated one loses it (Q10). Only
+    ``database`` leaves the bundle unread."""
     refused = refusal(state)
-    opened = OUTDATED_WARNING if state == OUTDATED else ""
+    loaded = "" if source == "database" else _LOADED[bundle]
     if source == "packaged":
-        return ("packaged", "") if shipped else ("raise", NO_BUNDLE)
-    if source == "database" or not shipped:
-        return ("raise", refused) if refused else ("database", opened)
+        if bundle != "shipped":
+            return "raise", re.escape(_NO_LIST[bundle]), re.escape(loaded)
+        return "packaged", "", ""
+    if source == "database" or bundle != "shipped":
+        if refused:
+            return "raise", refused[0] + re.escape(refused[1]), re.escape(loaded)
+        opened = OUTDATED_WARNING if state == OUTDATED else ""
+        return "database", "", re.escape(opened + loaded)
+    return _auto_with_a_bundle(state, refused)
+
+
+def _auto_with_a_bundle(
+    state: str, refused: tuple[str, str] | None
+) -> tuple[str, str, str]:
+    """``auto`` with the bundle shipped: the database, the bundle silently,
+    or the bundle after a warning."""
     if state == OUTDATED:
-        return "packaged", opened
+        return "packaged", "", re.escape(OUTDATED_WARNING)
     if refused is None:
-        return "database", ""
+        return "database", "", ""
     if state in (NO_DATABASE, NO_HOME):  # no database file: silent (Q11)
-        return "packaged", ""
-    said = refused.split(";")[0]
-    return "packaged", f"WARNING: {said}; using packaged data v{VERSION}\n"
+        return "packaged", "", ""
+    fallback = re.escape(f"; using packaged data v{VERSION}\n")
+    return "packaged", "", f"WARNING: {refused[0]}{fallback}"
 
 
 @pytest.mark.parametrize("bundle", BUNDLES)
@@ -382,22 +402,24 @@ def test_resolve_matrix(
     """With no database given, resolve() reads the database at the default
     path or the bundle shipped in the wheel, as *source* says; a list it
     cannot read raises, a database's message unchanged from 0.6.0."""
-    shipped = bundle == "shipped"
-    ship(monkeypatch, release_bundle(VERSION) if shipped else None)
+    ship(monkeypatch, _BUNDLE_BYTES[bundle])
     build(state, monkeypatch)
     capsys.readouterr()
-    where, said = _resolve_outcome(source, state, shipped)
+    where, raised, said = _resolve_outcome(source, state, bundle)
     if where == "raise":
-        with pytest.raises(DatabaseNotReadyError, match=f"^{re.escape(said)}$"):
+        with pytest.raises(DatabaseNotReadyError) as error:
             resolve("MIT", source=source)
-        assert capsys.readouterr().err == ""
-        return
-    got = resolve("MIT", source=source)
-    assert (got["expression"], got["category"]) == ("MIT", "exact")
-    assert [(e["source"], e["version"]) for e in got["lists"]] == [(where, VERSION)]
-    assert capsys.readouterr().err == said
-    # Every warning, an opened database's included, is said once per process.
-    resolve("MIT", source=source)
+        assert re.fullmatch(raised, str(error.value)), str(error.value)
+    else:
+        got = resolve("MIT", source=source)
+        assert (got["expression"], got["category"]) == ("MIT", "exact")
+        assert [(e["source"], e["version"]) for e in got["lists"]] == [(where, VERSION)]
+    err = capsys.readouterr().err
+    assert re.fullmatch(said, err), err
+    # Every warning, an opened database's and the bundle's included, is said
+    # once per process.
+    with contextlib.suppress(DatabaseNotReadyError):
+        resolve("MIT", source=source)
     assert capsys.readouterr().err == ""
 
 
