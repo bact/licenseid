@@ -132,8 +132,9 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
     """``X WITH exception``: X read as a value of its own (a "+", a grant, a
     loose ID), the exception by its ID. False unless the exception is listed
     and X names a licence; a malformed or unresolved X makes the whole so."""
+    operator = WITH_OPERATOR.search(text)
     parts = WITH_OPERATOR.split(text)
-    if len(parts) != 2:
+    if operator is None or len(parts) != 2:
         return False
     licence, tail = Found(), Found()
     exception = _exception(db, parts[1], tail)
@@ -142,11 +143,27 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
     if licence.expression is None:
         found.category = licence.category
         return True
-    found.steps.extend(licence.steps + tail.steps)
+    found.steps.extend(_with_form(text, operator) + licence.steps + tail.steps)
     found.expansions.extend(licence.expansions + tail.expansions)
     found.expression = f"{licence.expression} WITH {exception}"
     found.candidates = [f"{c} WITH {exception}" for c in licence.candidates]
     return True
+
+
+def _with_form(text: str, operator: re.Match[str]) -> list[Step]:
+    """The steps that give the WITH of *text* its form: an ``operator_case``
+    step for ``with`` in other case, a ``whitespace`` step for other spacing
+    around it (a tab, two spaces), so that ``exact`` means the input is the
+    expression (decision Q17)."""
+    steps = []
+    before, after = text[: operator.start()], text[operator.end() :]
+    cased = before + operator.group(0).upper() + after
+    if cased != text:
+        steps.append(step("operator_case", True, text, cased))
+    spaced = f"{before} WITH {after}"
+    if spaced != cased:
+        steps.append(step("whitespace", True, cased, spaced))
+    return steps
 
 
 def _exception(db: ListLookup, text: str, found: Found) -> str | None:

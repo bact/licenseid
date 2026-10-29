@@ -168,13 +168,16 @@ def test_a_generated_compound_keeps_its_answer(
 
 _WITH = "GPL-2.0-only WITH Classpath-exception-2.0"
 
-#: Shapes task T7 decides (review decisions Q14 to Q21), with the answer
-#: before it: ``(expression, category, step kinds)``.
-SHAPES_BEFORE: list[tuple[str, tuple[str | None, str, list[str]]]] = [
-    # Q17: the case and spacing of a single WITH leave no step
-    ("GPL-2.0-only with Classpath-exception-2.0", (_WITH, "exact", [])),
-    ("GPL-2.0-only  WITH Classpath-exception-2.0", (_WITH, "exact", [])),
-    ("GPL-2.0-only\tWITH\tClasspath-exception-2.0", (_WITH, "exact", [])),
+#: Shapes task T7 decides (review decisions Q14 to Q21), with the answer:
+#: ``(expression, category, step kinds)``. A comment names what it was before.
+SHAPES: list[tuple[str, tuple[str | None, str, list[str]]]] = [
+    # Q17: the case and spacing of a single WITH are steps (were none, exact)
+    (
+        "GPL-2.0-only with Classpath-exception-2.0",
+        (_WITH, "lexical", ["operator_case"]),
+    ),
+    ("GPL-2.0-only  WITH Classpath-exception-2.0", (_WITH, "lexical", ["whitespace"])),
+    ("GPL-2.0-only\tWITH\tClasspath-exception-2.0", (_WITH, "lexical", ["whitespace"])),
     # Q14: a grant on an ID with no -or-later form is not read
     ("Apache 2.0 or later", (None, "unresolved", [])),
     ("MIT or later", (None, "unresolved", [])),
@@ -203,9 +206,7 @@ SHAPES_BEFORE: list[tuple[str, tuple[str | None, str, list[str]]]] = [
 ]
 
 
-@pytest.mark.parametrize(
-    ("value", "expected"), SHAPES_BEFORE, ids=[v[:40] for v, _ in SHAPES_BEFORE]
-)
+@pytest.mark.parametrize(("value", "expected"), SHAPES, ids=[v[:40] for v, _ in SHAPES])
 def test_a_shape_t7_decides_keeps_its_answer(
     corpus_db: LicenseDatabase, value: str, expected: tuple[object, ...]
 ) -> None:

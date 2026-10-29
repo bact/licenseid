@@ -68,7 +68,32 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         (f"GPL-2.0-only WITH {CP}", (f"GPL-2.0-only WITH {CP}", "exact", [], [], [])),
         (
             f"gpl-2.0-only with {CP.lower()}",
-            (f"GPL-2.0-only WITH {CP}", "lexical", ["id_case", "id_case"], [], []),
+            (
+                f"GPL-2.0-only WITH {CP}",
+                "lexical",
+                ["operator_case", "id_case", "id_case"],
+                [],
+                [],
+            ),
+        ),
+        # Q17: the case and the spacing of WITH are steps; exact is as written
+        (
+            f"GPL-2.0-only With {CP}",
+            (f"GPL-2.0-only WITH {CP}", "lexical", ["operator_case"], [], []),
+        ),
+        (
+            f"GPL-2.0-only \tWITH  {CP}",
+            (f"GPL-2.0-only WITH {CP}", "lexical", ["whitespace"], [], []),
+        ),
+        (
+            f"GPL-2.0-only\u00a0with {CP}",
+            (
+                f"GPL-2.0-only WITH {CP}",
+                "lexical",
+                ["operator_case", "whitespace"],
+                [],
+                [],
+            ),
         ),
         (
             f"(GPL-2.0-only WITH {CP})",

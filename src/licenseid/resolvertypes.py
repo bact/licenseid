@@ -21,7 +21,16 @@ SCHEMA: Final = 2
 # The steps that change only the form of the text and decide nothing; the
 # others are the resolver's decisions or an expansion of a qualifier.
 LEXICAL_KINDS: Final = frozenset(
-    {"brackets", "id_case", "trim", "unquote", "whitespace"}
+    {
+        "brackets",
+        "dedupe",
+        "id_case",
+        "operator_case",
+        "reorder",
+        "trim",
+        "unquote",
+        "whitespace",
+    }
 )
 
 SPDX_LIST: Final = "spdx-license-list"
