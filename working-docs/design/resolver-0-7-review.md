@@ -154,8 +154,23 @@ Provisional: the maintainer may reverse any of them.
 | P6 | T5 | An account with no home directory under `auto` | Silent, like a missing file (Q11): both are `not found` | Warn | No database file to repair; the condition is the same |
 | P7 | T5 | A deprecation flag that is not a JSON boolean (`"false"`) in a bundle | Read as `bool()`, as `listrules.is_deprecated` reads it, for licences and exceptions | Mimic SQLite's `is_deprecated = 1` for the exceptions' mappings | Every SPDX release has booleans; `spdxdata` does not check the type. The two can differ only on such a flag |
 | P8 | T5 | `source="database"` on a default database that `auto` calls unusable (the tables, no rows) | Refused with the same `DatabaseNotReadyError` (`database: empty: ...`): `check_database_ready` runs first. A `db=` object is read as the caller built it. Narrows P5 | Read it as 0.6.0 did, answering `unresolved` for every value | Q11: an explicit database source raises rather than answering from a database that cannot answer; one verdict for both sources |
-| P9 | T6 | Refused values of the early gate (control or format character) | Get a `reason` too: `control character: U+200B`; a lone surrogate gets `lone surrogate`. No `drop` step: nothing was read | Leave them without a reason until T7 | The plan names `lone surrogate`; a refusal with no reason is the odd one out, and the gate is one function |
-| P10 | T6 | What `dropped()` returns | The dropped characters, each once, in order of first appearance; the `drop` step's `detail` and the reason's quoted text are that string (`'?!'`) | Every occurrence; only the first | A run of 2,000 `?` must not make a 2,000-character reason |
+| P9 | T6 | Refused values of the early gate (control or format character) | Get a `reason` too: `control or format character: U+200B`; a lone surrogate gets `lone surrogate`. No `drop` step: nothing was read | Leave them without a reason until T7 | The plan names `lone surrogate`; a refusal with no reason is the odd one out, and the gate is one function |
+| P10 | T6 | What `dropped()` returns | The dropped characters, each once, in order of first appearance; the `drop` step's `detail` and the reason's quoted text are that string (code points, `U+003F U+0021`, from S2 of the T6 review; first a repr, `'?!'`) | Every occurrence; only the first | A run of 2,000 `?` must not make a 2,000-character reason |
 | P11 | T6 | Steps of a refused value | Only the `drop` step: a `trim` or `brackets` step before it is not kept, as no step is kept for any value with no expression | Keep the earlier steps | They would show applied changes that led to nothing; `from` is the text the leaf saw |
 | P12 | T6 | `GPLv2 or later!` and `GPLv2? or later` | Refused (`!` and `?` are no grant tail; the tail `. , ; : ) ]` is read as before). 0.6.0 read the first as `GPL-2.0-or-later` | Leave the grant path unguarded | Same doubt as `Apache 2.0?`; only `looseid._RE_GRANT_TAIL` is exempt, as the plan says |
 | P13 | T6 | Dropped character inside an operand that no leaf reads whole (`Apache 2.0?+`, `MIT? WITH X`) | The whole value is refused through the same exception: `unresolved` with the `drop` step and reason | `malformed`, or the `+`/exception read on its own | One rule at the one place (`_base`); T7 may refine it per operand |
+| P14 | T6 | Is the minus sign U+2212 a dash for the drop guard? | Yes: the allowed dashes and the quotes are the sets `normalize_text` folds (`normalize.RE_DASHES`, `RE_QUOTES`, now public), not Unicode category Pd. So `Apache−2.0` is read; modifier letters U+02B9 to U+02BD are marks (quotes); a wave dash U+301C is a mark | Category Pd | One definition, independent of the Python Unicode version; SPDX matching guideline 4 calls the minus sign a dash |
+
+### Follow-ups found in T6
+
+Not fixed in T6; for T8 or R7.
+
+- R7: `licenseid match "Apache 2.0?"`, `"MIT*"` and `'"MIT"'` still answer
+  `METHOD=id EXACT=true`: the Tier 0 loose ID has no drop guard, so `match`
+  and `resolve` disagree.
+- R7: `normalize_text` drops letters and digits too, so `REM MIT`, `x. MIT`
+  and `1. MIT` still resolve.
+- T8: trailing punctuation is uneven: `MIT;` is refused but
+  `GPLv2 or later;` is read; `MIT...` is read but `MIT…` is refused.
+- T8: marks inside the grant phrase (`GPLv2 or any *later version`) are still
+  read.

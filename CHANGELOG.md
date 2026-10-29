@@ -17,6 +17,10 @@ and this project adheres to
 - `DatabaseNotReadyError.condition` and `.detail`: why a database cannot be
   read (`not found`, `empty`, `invalid`, `unreadable`)
 
+- `resolve()` result has a `reason` (`None` unless refused): `character dropped:
+  U+003F`, `lone surrogate`, `control or format character: U+200B`; a `drop`
+  step that was not applied names the reading it stopped
+
 ### Changed
 
 - `resolve()` with no database given reads whichever list is newer, the
@@ -29,9 +33,8 @@ and this project adheres to
 - `resolve()` answers `unresolved` for a value with a lone surrogate; it
   raised `UnicodeEncodeError` after `WITH` and dropped the character elsewhere
   ([#117])
-- `resolve()` answers `unresolved` for a value it could read only by dropping
-  a character that says something (`Apache 2.0?`, `MIT*`, `"MIT"`, U+FFFD),
-  with a new `reason` field and a `drop` step that was not applied
+- `resolve()` answers `unresolved` for a value it read only by dropping a mark
+  (`Apache 2.0?`, `MIT*`, `"MIT"`, U+FFFD), not the licence it did not write
 
 [#117]: https://github.com/bact/licenseid/pull/117
 
