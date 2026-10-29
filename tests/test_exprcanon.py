@@ -161,6 +161,14 @@ def _canonical(text: str, texts: list[str]) -> tuple[str, list[str]]:
         ("(MIT AND ISC) OR 0BSD", ("0BSD OR ISC AND MIT", ["brackets", "reorder"])),
         ("MIT OR MIT", ("MIT", ["dedupe"])),
         ("(MIT OR ISC) AND (ISC OR MIT)", ("ISC OR MIT", ["reorder", "dedupe"])),
+        (  # a group left with one operand joins its parent's operator
+            "Zlib AND ((MIT AND ISC) OR (ISC AND MIT))",
+            ("ISC AND MIT AND Zlib", ["brackets", "reorder", "dedupe"]),
+        ),
+        (
+            "Zlib OR ((MIT OR ISC) AND (ISC OR MIT))",
+            ("ISC OR MIT OR Zlib", ["brackets", "reorder", "dedupe"]),
+        ),
         (  # groups by case-folded text: "miros" before "mit"
             "(MIT OR Zlib) AND (MirOS OR Zlib)",
             ("(MirOS OR Zlib) AND (MIT OR Zlib)", ["reorder"]),
