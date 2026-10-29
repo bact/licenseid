@@ -13,6 +13,9 @@ and this project adheres to
 
 - `resolve()` answers `unresolved` for a value with a lone surrogate; it
   raised `UnicodeEncodeError` after `WITH` and dropped the character elsewhere
+  ([#117])
+
+[#117]: https://github.com/bact/licenseid/pull/117
 
 ## [0.6.0] - 2026-10-27
 

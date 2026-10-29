@@ -109,6 +109,7 @@ does not say which; T7 decides).
 | Q21 | `[ ]` and `{ }` in a compound | Read as parentheses, with a `brackets` step; unbalanced or mixed stays `malformed` |
 | Q22 | Trove table or prose rules first | The trove table first: a trove name the table reads as `none` (`W3C License`) is not read by P1 |
 | Q23 | `GNU Lesser General Public License v2 (LGPLv2)` | Special case for this one trove name, because LGPL is widespread: read as written, `LGPL-2.0`, `assumed_only` (bare deprecated ID, candidates `-only` and `-or-later`). The misspelt "Lesser" (LGPL-2.0 is the "Library" GPL) does not block it, as the version is clearly 2. Not a general rule: another self-contradicting name stays unresolved unless listed the same way. Changed by the maintainer on 2026-10-28, replacing "reading none" |
+| Q24 | Text order of the D1 leaf key | Case-folded, as the SPDX License List orders its IDs (licence expressions are case-insensitive, SPDX 3.1-dev); ordinal as a tie-break so the order is total: `MirOS OR MIT`. `py-spdx-license` and Pitloom 0.21.1 sort ordinally (`MIT OR MirOS`); announce in Pitloom 0.22.0 |
 
 Technical choices taken without a question, from the reviews:
 

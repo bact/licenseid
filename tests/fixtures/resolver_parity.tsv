@@ -9,7 +9,7 @@
 # each, escaped, a comma as \x2c; input_same: input equals the value; reason: '-', none before T6).
 # expected_0_7_0: '=' same as 0.6.0, 'EXPR [category]', '- [category]' (no expression) or '?'
 # (the plan does not decide).
-# rows: 141; sha256 of the lines after the header row: fc77f4dd74b0f369f9f5857d7c1a6208f5c2f3d4ef24ab64321fe96b8653b97b
+# rows: 141; sha256 of the lines after the header row: 0f257185c177534c7bac6d70c1a940c8e8c60deb6924510948dd2cf5fdc8c434
 value	field	source	pitloom_0_21_1	expression_0_6_0	category_0_6_0	candidates_0_6_0	steps_0_6_0	step_targets_0_6_0	expansions_0_6_0	expansion_targets_0_6_0	trust_0_6_0	input_same_0_6_0	reason_0_6_0	expected_0_7_0	why
 0BSD	License-Expression	real:dist:chardet-7.4.3.dist-info	expression:0BSD	0BSD	exact	-	-	-	-	-	identity	yes	-	=	a value that names one licence is read as in 0.6.0 (try one licence first)
 0BSD OR CC0-1.0	License-Expression	real:dist:roman_numerals-4.1.0.dist-info	expression:0BSD OR CC0-1.0	-	expression	-	-	-	-	-	none	yes	-	0BSD OR CC0-1.0 [exact]	R0: operands read first, D1 order; predicted by the T0 script from the plan, not run
@@ -143,7 +143,7 @@ MIT\udcff	synthetic	plan F6: characters the separator step drops	text:	MIT	separ
 MIT\ufffd	synthetic	plan F6: characters the separator step drops	text:	MIT	separator	-	separator	MIT	-	-	resolver_rule	yes	-	- [unresolved]	T6 (R0b): U+FFFD is corruption, refused; reason: character dropped
 MIT\x00	synthetic	plan section 6: control characters and white space	text:	-	unresolved	-	-	-	-	-	none	yes	-	- [unresolved]	control character (Cc): refused by 0.6.0 and kept so by the plan
 MIT\xa0	synthetic	plan section 6: control characters and white space	expression:MIT	MIT	lexical	-	trim	MIT	-	-	identity	yes	-	=	a no-break space is white space: trimmed, as in 0.6.0
-MirOS OR MIT	License-Expression	extra: D1 key, ordinal or case-folded (T4b)	expression:MIT OR MirOS	-	expression	-	-	-	-	-	none	yes	-	?	the plan gives the D1 leaf key as (rank, text) and does not say whether text is ordinal ('MIT OR MirOS', as py-spdx-license and Pitloom) or case-folded ('MirOS OR MIT'); decide in T7
+MirOS OR MIT	License-Expression	extra: D1 key, ordinal or case-folded (T4b)	expression:MIT OR MirOS	-	expression	-	-	-	-	-	none	yes	-	MirOS OR MIT [exact]	Q24: text compares case-folded, as the SPDX License List orders its IDs, an ordinal tie-break after; already in that order. py-spdx-license and Pitloom 0.21.1 sort ordinally ('MIT OR MirOS')
 StandardML-NJ	synthetic	gap: expression-resolution.md section 2	expression:StandardML-NJ	SMLNJ	deprecated_equal_successor	-	deprecated_equal_successor	SMLNJ	-	-	list_data	yes	-	=	0.6.0 already renames to SMLNJ (decision Q7); Pitloom 0.21.1 keeps the old id
 StandardML-NJ OR MIT	synthetic	reviewer additions (Q7, D1 WITH leaf, Q9, leading #)	expression:MIT OR StandardML-NJ	-	expression	-	-	-	-	-	none	yes	-	MIT OR SMLNJ [deprecated_equal_successor]	Q7: the rename applies per operand; the old id stays in the step
 The MIT License (MIT)	synthetic	evidence doc: synthetic table	text:	-	unresolved	-	-	-	-	-	none	yes	-	MIT [prose_form]	P3 (leading The) with T3 (agreeing parenthesis); category per plan section 4 is prose_form

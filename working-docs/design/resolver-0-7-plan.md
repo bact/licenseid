@@ -103,7 +103,8 @@ licenseid sorts and de-duplicates the parsed tree itself (about 60 lines):
    brackets. Emit the steps `operator_case`, `brackets`, `reorder`, `dedupe`.
 
 The leaf key is `(rank, text)` with ranks: listed id 0, `LicenseRef-` or
-`DocumentRef-` 1, `X WITH Y` 2. That reproduces the library's order for every
+`DocumentRef-` 1, `X WITH Y` 2; `text` compares case-folded, then ordinally
+(Q24). That reproduces the library's order for every
 shape among today's 29 agreements (`MIT OR LicenseRef-x`). The order of a
 `WITH` leaf against an `OR` group (`(A OR B) AND X WITH Y`) can differ from the
 library's; pin it in a test and list it in the parity table. Why not call
@@ -248,7 +249,7 @@ version and source.
 | Q9 | Several-word operands | **Decided: defer**; `reason: operand not resolved`. |
 | R1 | Pinned answers churn when rules change | The sample fixture's "changed set is empty" guard. |
 | R2 | Two release trains in lockstep | licenseid first; Pitloom 0.21.1 does not depend on it; 0.22.0 floors on it. |
-| Q10-Q23 | Taken after the review of T0 to T4 | **Decided**: see [`resolver-0-7-review.md`](resolver-0-7-review.md) section 4 (tie with an outdated build, silence when no database, quotes, refusal steps, "or later" as a grant token, operands, the key cap, operator case, rule order, group order, `AdditionRef-`, brackets, two trove names). |
+| Q10-Q24 | Taken after the review of T0 to T4 | **Decided**: see [`resolver-0-7-review.md`](resolver-0-7-review.md) section 4 (tie with an outdated build, silence when no database, quotes, refusal steps, "or later" as a grant token, operands, the key cap, operator case, rule order, group order, `AdditionRef-`, brackets, two trove names, the text order of the sort key). |
 
 ## 9. Risks
 
