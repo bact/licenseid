@@ -71,8 +71,9 @@ REASONS: dict[str, str] = {
         f" upper case); {_WAS}"
     ),
     "reason": (
-        "T7 (D1, P13): refused as before; the reason now names the first"
-        " operand that resolves to nothing"
+        "T7 (D1, P13, Q15): refused as before; with the operators in upper"
+        " case the reason names the first operand that resolves to nothing,"
+        " or is no operand (a leaf of several words)"
     ),
     "grammar": (
         "T7 (Q4): every part names a licence but the expression does not"

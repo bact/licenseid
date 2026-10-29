@@ -525,14 +525,15 @@ The whole result of `resolve("Apache2")`, as JSON:
 ```
 
 `schema` is the version of this shape (2 since 0.7.0). `operands` holds each
-licence the value names, in the order written: its `text`, its `span` in the
-input (`[start, end)` in code points, after the trim and the quotes and
-brackets around the whole), and the answer the same text would get alone. A
+licence the value names, in the order written: its `text`, its `span`, which
+indexes the raw `input` (`[start, end)` in code points; the trim and the
+quotes and brackets around the whole fall outside it), and the answer the
+same text would get alone. A
 compound adds the steps of the whole after those of its operands, in this
 order: `operator_case`, `whitespace`, `brackets`, `reorder` and `dedupe`,
 each with the expression before and after. `components` names the tools
 besides licenseid that took part (the expression parser, `py-spdx-license`,
-for a compound), and `by` on a step names the one that took it (`""`:
+whenever it parsed the value: a compound, read or refused), and `by` on a step names the one that took it (`""`:
 licenseid). For `resolve("GPLv2+ or MIT")`, shortened:
 
 ```json
@@ -602,9 +603,11 @@ space separated),
 `not an SPDX operator: /` (also `|`, `&`, `;` and `,` between IDs),
 `parse failed: <the parser's message>`, `mismatched brackets`,
 `too many operators` (over 150) and `too deeply nested` (over 150). A value
-with a lower-case `or` or `and` whose words name nothing (`GPL-3.0 or
-higher`), or with a part of several words (`Apache License 2.0 OR MIT`), is
-read as prose, not as a compound: no reason. A refused value is category
+with a part of several words (`Apache License 2.0 OR MIT`) is no compound,
+but its reason names the first operand refused, as above, when its
+operators are in upper case. One with a lower-case `or` or `and` whose words
+name nothing (`GPL-3.0 or higher`) is prose: no reason, unless an operand
+has its own (a dropped mark). A refused value is category
 `unresolved` with no expression, or `malformed` when the compound breaks the
 grammar but names a licence (`MIT AND`). For a dropped mark, `steps` holds
 one `drop` step with `applied` false: its `to` is the listed ID the loose

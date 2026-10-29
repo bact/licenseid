@@ -54,7 +54,14 @@ from licenseid.listlookup import ListLookup
 from licenseid.looseid import WITH_OPERATOR, declared_grant_id_text, granted_id_text
 from licenseid.quotes import unquote
 from licenseid.resolveleaf import Found, category_of, read_leaf
-from licenseid.resolvertypes import CATEGORY_ORDER, TRUST, Category, Operand, step
+from licenseid.resolvertypes import (
+    CATEGORY_ORDER,
+    TRUST,
+    Category,
+    Operand,
+    Step,
+    step,
+)
 
 # A mark people write between two licences that SPDX does not read as an
 # operator ("MIT/Apache-2.0", "MIT, ISC", "MIT | ISC", "MIT & ISC").
@@ -65,11 +72,14 @@ _RE_ID_WORD: Final = re.compile(ID_WORD)
 class Compound(NamedTuple):
     """What :func:`read_compound` found besides what it put in the
     :class:`licenseid.resolveleaf.Found`: the operands, whether the
-    expression parser ran, and whether the value is a compound at all."""
+    expression parser ran, and whether the value is a compound at all. A
+    value of compound form that is not claimed may carry the refusal of its
+    first refused operand in *fallback*, for when no later rule reads it."""
 
     operands: list[Operand]
     parsed: bool
     claimed: bool
+    fallback: Found | None = None
 
 
 class _Leaf(NamedTuple):
@@ -132,21 +142,24 @@ def read_compound(db: ListLookup, text: str, start: int, found: Found) -> Compou
     tokens = split(text)
     if len(tokens) == 1:
         return Compound([], False, False)
+    spans = leaves(tokens)
+    parts = [text[leaf.start : leaf.end] for leaf in spans]
+    if not all(_is_operand(_unquoted(part)[0]) for part in parts):  # first:
+        # prose ("Apache License 2.0 OR MIT") is no compound, however long
+        return Compound([], False, False, _fallback(db, text, tokens, parts))
     refusal = oversize(tokens)
     if refusal in ("too many operators", "too deeply nested"):
         _refuse(found, "unresolved", refusal)
         return Compound([], False, True)
-    spans = leaves(tokens)
     cache: dict[str, _Leaf] = {}
     reading = _Reading(text, start, tokens, spans, [])
-    for leaf in spans:
-        part = text[leaf.start : leaf.end]
-        reading.read.append(cache.setdefault(part, _read_operand(db, part)))
-    if not all(leaf.shaped for leaf in reading.read):
-        return Compound([], False, False)  # prose: "Apache License 2.0 OR MIT"
+    for part in parts:
+        if part not in cache:
+            cache[part] = _read_operand(db, part)
+        reading.read.append(cache[part])
     if refusal is not None:  # mismatched brackets: no parse
         return _refuse_grammar(found, reading, refusal, False)
-    tree = parse(tokens, [text[leaf.start : leaf.end] for leaf in spans])
+    tree = parse(tokens, parts)
     if isinstance(tree, str):
         return _refuse_grammar(found, reading, tree, True)
     return _combine(found, reading, tree)
@@ -186,10 +199,12 @@ def _combine(found: Found, reading: _Reading, tree: Node) -> Compound:
     ]
     expressions = [r.found.expression for r in read]
     if None in expressions:
-        first = expressions.index(None)
-        if _is_nothing(operands[first]) and not written_upper(text, reading.tokens):
-            return Compound([], True, False)  # prose: "GPL-3.0 or higher"
-        _refuse_operands(found, operands, read, first)
+        refused = [i for i, e in enumerate(expressions) if e is None]
+        if not written_upper(text, reading.tokens):  # only an operand's own
+            refused = [i for i in refused if not _is_nothing(operands[i])]
+            if not refused:  # reason: "GPL-3.0 or higher" is prose
+                return Compound([], True, False)
+        _refuse_operands(found, operands, read, refused[0])
         return Compound(operands, True, True)
     named = [str(expression) for expression in expressions]
     expression, steps = canonical(text, reading.tokens, tree, named)
@@ -201,24 +216,54 @@ def _combine(found: Found, reading: _Reading, tree: Node) -> Compound:
     return Compound(operands, True, True)
 
 
+def _fallback(
+    db: ListLookup, text: str, tokens: list[Token], parts: list[str]
+) -> Found | None:
+    """The refusal a value of compound form with a leaf of several words
+    gives when no later rule reads it (Q15, P43): the first refused leaf's
+    own reason (a dropped mark), else, with the operators in upper case,
+    ``operand not resolved: <leaf>``; None for a value with no operator or
+    two operands side by side, and for a lower-case one with no reason."""
+    if missing_operator(tokens) or not any(t.kind in ("AND", "OR") for t in tokens):
+        return None
+    upper = written_upper(text, tokens)
+    for part in dict.fromkeys(parts):
+        leaf = _read_operand(db, part)
+        if leaf.shaped and leaf.found.expression is not None:
+            continue
+        if leaf.found.reason is not None:
+            return Found(
+                category="unresolved",
+                reason=leaf.found.reason,
+                steps=list(leaf.found.steps),
+            )
+        if upper:
+            return Found(category="unresolved", reason=f"operand not resolved: {part}")
+    return None
+
+
+def _unquoted(text: str) -> tuple[str, list[Step]]:
+    """*text* without the quotes around it, a balanced pair only (a lone
+    mark may pair with one in another operand), and the step that says so."""
+    unquoted = unquote(text)
+    if unquoted is None or not unquoted.balanced:
+        return text, []
+    return unquoted.text, [step("unquote", True, text, unquoted.text, unquoted.detail)]
+
+
 def _read_operand(db: ListLookup, text: str) -> _Leaf:
     """*text*, one leaf, read as the same text alone would be, after the
-    quotes around it (balanced only: a lone mark may pair with one in
-    another operand), if it is shaped as an operand (Q15)."""
-    found = Found()
-    unquoted = unquote(text)
-    if unquoted is not None and unquoted.balanced:
-        found.steps.append(step("unquote", True, text, unquoted.text, unquoted.detail))
-        text = unquoted.text
-    if not _is_operand(text):
-        found.category = "unresolved"
-        return _Leaf(found, False)
+    quotes around it, and whether it is shaped as an operand (Q15). A leaf
+    of another shape is read too, for the reason it may give (a dropped
+    mark), never for its licence."""
+    inner, steps = _unquoted(text)
+    found = Found(steps=steps)
     leaf = Found()
-    if read_leaf(db, text, leaf):
+    if read_leaf(db, inner, leaf):
         absorb(found, leaf)
     else:
-        found.category, found.reason = "unresolved", not_an_operator(text)
-    return _Leaf(found, True)
+        found.category, found.reason = "unresolved", not_an_operator(inner)
+    return _Leaf(found, _is_operand(inner))
 
 
 def _is_operand(text: str) -> bool:

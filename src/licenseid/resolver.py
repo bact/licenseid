@@ -109,8 +109,11 @@ def _read(db: ListLookup, value: str) -> tuple[Found, list[Operand], bool]:
     compound = read_compound(db, text, start, found)
     if compound.claimed:
         return found, compound.operands, compound.parsed
-    # One leaf that names nothing (the trove and prose rules come here, Q18).
+    # One leaf that names nothing (the trove and prose rules come here, Q18),
+    # or prose in compound form, with its first refused operand's reason.
     found.category, found.reason = "unresolved", not_an_operator(text)
+    if compound.fallback is not None:
+        found.reason, found.steps = compound.fallback.reason, compound.fallback.steps
     nothing = Found(category="unresolved", reason=found.reason)
     return found, [operand_of(text, start, nothing)], False  # no parse used
 

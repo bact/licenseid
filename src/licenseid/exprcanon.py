@@ -124,8 +124,11 @@ def _delimited(text: str, part: re.Match[str]) -> bool:
 def _grant(text: str, part: re.Match[str]) -> int | None:
     """Where the grant that starts at *part* ends, if it is one: an ``or``,
     or a bracket and an ``or`` (``(or later)``), the phrase, its words
-    ("version", "of the License"), the closing bracket; then white space, a
-    closing bracket or the end."""
+    ("version", "of the License"), the closing bracket, and marks after it
+    (``or later,``, ``or later!``: the leaf's reading judges them, as it
+    would alone); then white space, a closing bracket or the end. A grant
+    in curly brackets (``{or later}``) is not one here, as it is not alone
+    (decision Q21 makes them brackets of an expression only)."""
     start, close = part.start(), ""
     if part.group(0) in "([":
         close = _OPENS[part.group(0)]
@@ -142,8 +145,16 @@ def _grant(text: str, part: re.Match[str]) -> int | None:
         if text[end : end + 1] != close:
             return None
         end += 1
+    while end < len(text) and _is_trailing_mark(text[end]):
+        end += 1
     after = text[end : end + 1]
     return end if not after or after.isspace() or after in _CLOSES else None
+
+
+def _is_trailing_mark(char: str) -> bool:
+    """Whether *char* may follow a grant in its leaf: punctuation, not a
+    part of a word (``-``, ``_``), a bracket or a ``/`` between two IDs."""
+    return not (char.isalnum() or char.isspace() or char in "-_/()[]{}")
 
 
 def _after_space(text: str, pos: int) -> int:

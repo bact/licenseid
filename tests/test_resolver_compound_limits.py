@@ -71,7 +71,9 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     ("GPL-2.0 or MIT or later", (None, "unresolved", None)),
     ("MIT OR later OR ISC", (None, "unresolved", "operand not resolved: MIT OR later")),
     ("Apache-2.0 OR later OR ISC", ("Apache-2.0+ OR ISC", "stated_qualifier", None)),
-    ("GPL-2.0 or later, OR MIT", (None, "unresolved", None)),  # no grant: "later,"
+    # a mark after a grant stays in its leaf, judged as alone
+    ("GPL-2.0 or later, OR MIT", ("GPL-2.0-or-later OR MIT", "stated_qualifier", None)),
+    ("GPL-2.0 or later-ish OR MIT", (None, "unresolved", None)),  # no grant
     # quotes per operand
     ("MIT OR 'ISC'", ("ISC OR MIT", "lexical", None)),
     ('"MIT" AND "ISC', (None, "unresolved", "character dropped: U+0022")),
@@ -138,6 +140,20 @@ def test_a_chain_is_read_up_to_the_operator_cap(
         assert len(got["operands"]) == operators + 1
     else:
         assert (got["category"], got["reason"]) == ("unresolved", "too many operators")
+
+
+@pytest.mark.parametrize(
+    ("operator", "reason"),
+    [("and", None), ("AND", "operand not resolved: foo bar")],
+)
+def test_prose_over_the_operator_cap_is_still_prose(
+    corpus_db: LicenseDatabase, operator: str, reason: str | None
+) -> None:
+    """The shape is judged before the cap: 160 phrases of two words are no
+    compound, as 10 are, not ``too many operators``."""
+    for count in (10, 160):
+        got = resolve(f" {operator} ".join(["foo bar"] * count), corpus_db)
+        assert (got["category"], got["reason"]) == ("unresolved", reason)
 
 
 @pytest.mark.parametrize(

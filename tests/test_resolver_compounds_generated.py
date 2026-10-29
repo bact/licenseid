@@ -150,8 +150,9 @@ def test_a_shape_t7_refuses_says_why(
 
 
 #: Values with an operator word that T7 does not read as a compound: a leaf
-#: of several words, or a lower-case operator and an operand that names
-#: nothing. Before T7 they were unresolved, with no reason, as now.
+#: of several words with a lower-case operator, or a lower-case operator and
+#: an operand that names nothing. Before T7 they were unresolved, with no
+#: reason, as now.
 PROSE = [
     "Proprietary or custom",
     "proprietary and confidential",
@@ -160,7 +161,6 @@ PROSE = [
     "MIT or Foo",
     "MIT and",
     "(MIT or",
-    "Apache License 2.0 OR MIT",
     "DataRobot Tool and Utility Agreement",
     'BSD 3-clause "New" or "Revised License"',
 ]
@@ -176,3 +176,33 @@ def test_prose_with_an_operator_word_is_no_compound(
     assert (got["category"], got["reason"], texts) == ("unresolved", None, [value])
     assert got["expression"] is None
     assert not got["components"]
+
+
+#: Values in compound form with a leaf of several words: no compound (Q18),
+#: but with the operators in upper case the reason is the first refused
+#: operand's (Q15, P43 amended after review); a dropped mark in any case.
+FALLBACK = [
+    ("Apache License 2.0 OR MIT", "operand not resolved: Apache License 2.0", []),
+    ("BSD 3-Clause OR Apache-2.0", "operand not resolved: BSD 3-Clause", []),
+    ("Foo OR Apache License 2.0", "operand not resolved: Foo", []),
+    ("MIT OR GPLv2 or later!", "character dropped: U+0021", ["drop"]),
+    ("Apache 2.0? OR MIT", "character dropped: U+003F", ["drop"]),
+    ("Apache 2.0? or MIT", "character dropped: U+003F", ["drop"]),
+    ("Foo or MIT?", "character dropped: U+003F", ["drop"]),
+]
+
+
+@pytest.mark.parametrize(
+    ("value", "reason", "kinds"), FALLBACK, ids=[v for v, _, _ in FALLBACK]
+)
+def test_prose_in_compound_form_says_which_operand_was_refused(
+    corpus_db: LicenseDatabase, value: str, reason: str, kinds: list[str]
+) -> None:
+    """Unresolved, the reason of its first refused operand, its drop step."""
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["category"], got["reason"]) == (
+        None,
+        "unresolved",
+        reason,
+    )
+    assert [s["kind"] for s in got["steps"]] == kinds
