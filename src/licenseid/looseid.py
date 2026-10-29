@@ -26,14 +26,18 @@ from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_ke
 # The word a grant starts with, where OR_LATER_PHRASE starts at the version
 # before it ("2 or later").
 _RE_GRANT_WORD = re.compile(r"\bor\b", re.IGNORECASE)
-# What may follow the grant at the end of the text: "version", "of the
-# License", punctuation, the bracket that closes "(or later)" or "[or later]".
-_RE_GRANT_TAIL = re.compile(
-    r"(?:\s+versions?)?(?:\s+of\s+(?:the|this)\s+licen[cs]e)?[\s.,;:)\]]*",
-    re.IGNORECASE,
-)
-# The WITH of a simple expression ("GPL2 WITH Classpath-exception-2.0").
-WITH_OPERATOR = re.compile(r"\s+WITH\s+", re.IGNORECASE)
+# The words that may follow a grant: "version", "of the License".
+_GRANT_WORDS = r"(?:\s+versions?)?(?:\s+of\s+(?:the|this)\s+licen[cs]e)?"
+#: The words that may end a grant, as a pattern to match where it ends.
+RE_GRANT_WORDS = re.compile(_GRANT_WORDS, re.IGNORECASE)
+# What may follow the grant at the end of the text: those words, then
+# punctuation, the bracket that closes "(or later)" or "[or later]".
+_RE_GRANT_TAIL = re.compile(_GRANT_WORDS + r"[\s.,;:)\]]*", re.IGNORECASE)
+# The WITH of a simple expression ("GPL2 WITH Classpath-exception-2.0"). The
+# match starts at the first white space of a run (lookbehind): without it,
+# every offset of a long run of spaces is tried and a split is quadratic
+# (1.6 s at 20,000 spaces).
+WITH_OPERATOR = re.compile(r"(?<!\s)\s+WITH\s+", re.IGNORECASE)
 
 
 def loose_id(db: ListLookup, text: str) -> tuple[ListedName, str] | None:
@@ -140,14 +144,25 @@ def declared_grant_id_text(text: str) -> str | None:
     before = text[: last.start()]
     if not before or not (before[-1].isspace() or before[-1] in "(["):
         return None
-    probe = text
-    grant = OR_LATER_PHRASE.match(text, last.start())  # sees "not" before it
-    if grant is None and not is_negated(before):
-        probe = "1 " + text[last.start() :]
-        grant = OR_LATER_PHRASE.match(probe)
-    if grant is None or not _RE_GRANT_TAIL.fullmatch(probe, grant.end()):
+    end = grant_end(text, last.start())
+    if end is None or not _RE_GRANT_TAIL.fullmatch(text, end):
         return None
     return before.rstrip().rstrip("([").rstrip()
+
+
+def grant_end(text: str, start: int) -> int | None:
+    """Where the "or later" grant whose "or" is at *start* of *text* ends,
+    or None if no grant starts there. Read by classify.OR_LATER_PHRASE, as
+    after a number (a declared value has its ID before the "or"), unless a
+    negation right before it takes it back ("not or later"). The compound
+    reader of resolve() asks it at each "or" (decision Q14)."""
+    grant = OR_LATER_PHRASE.match(text, start)  # sees "not" before it
+    if grant is not None:
+        return grant.end()
+    if is_negated(text[max(0, start - 5) : start]):  # "xnot ": enough to judge
+        return None
+    probe = OR_LATER_PHRASE.match("1 " + text[start:])
+    return None if probe is None else start + probe.end() - 2
 
 
 def _granted(db: ListLookup, text: str) -> tuple[ListedName, str] | None:

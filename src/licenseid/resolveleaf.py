@@ -10,23 +10,24 @@ name, a loosely written ID, a ``+`` or an "or later" grant, with its
 exception if it has one) and records in a :class:`Found` the expression, the
 steps taken, the expansions it declined to apply and the candidates.
 ``resolver.resolve`` calls it once for the whole declared value; the
-compound reader will call it once for each operand. It refuses a text longer
-than ``MAX_KEY_INPUT`` (no ID is longer: that is an expression), but not a
-control character or an over-long value: the caller refuses those first, as
+compound reader calls it once for each operand. It refuses a licence or an
+exception longer than ``MAX_KEY_INPUT`` (no ID is longer), but not a control
+character or an over-long value: the caller refuses those first, as
 ``resolve`` does. It reads the list through
 :class:`licenseid.listlookup.ListLookup` alone and knows nothing of the
 database, of brackets around the whole value, or of an expression of several
-licences. Note for the compound reader: the gate covers the whole text, so a
-long licence name with an exception (``Creative Commons Attribution Non
+licences. The gate covers each half of a WITH (decision Q16), so a long
+licence name with an exception (``Creative Commons Attribution Non
 Commercial No Derivatives 2.5 Generic WITH RRDtool-FLOSS-exception-2.0``) is
-refused as a whole today.
+read.
 """
 
 import re
 from dataclasses import dataclass, field
 
 from licenseid.dropguard import code_points, dropped
-from licenseid.identifiers import is_license_ref, without_outer_brackets
+from licenseid.exprtokens import is_addition_ref, is_license_ref
+from licenseid.identifiers import without_outer_brackets
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import (
     WITH_OPERATOR,
@@ -34,7 +35,13 @@ from licenseid.looseid import (
     granted_id_text,
     loose_id,
 )
-from licenseid.resolvertypes import Category, Step, step
+from licenseid.resolvertypes import (
+    CATEGORY_ORDER,
+    LEXICAL_KINDS,
+    Category,
+    Step,
+    step,
+)
 from licenseid.versionkey import MAX_KEY_INPUT
 
 _RE_NUMBERS = re.compile(r"\d+(?:\.\d+)*")
@@ -44,6 +51,11 @@ _RE_BRACKET = re.compile(r"[()\[\]{}]")
 # Characters that end a value after its last "+": white space and "+" itself.
 # Runs only after read_leaf's MAX_KEY_INPUT gate, so its run is bounded.
 _RE_TRAILING = re.compile(r"[\s+]+\Z")
+# An ID that ends in a version number (Apache-2.0, MPL-1.1): one an "or
+# later" grant can take as the "+" operator. "BSD-3-Clause" counts clauses.
+_RE_ENDS_IN_VERSION = re.compile(r"-\d+(?:\.\d+)*\Z")
+# A step kind that is not also a category name, mapped to the one it counts as.
+_AS_CATEGORY = {kind: "lexical" for kind in LEXICAL_KINDS}
 
 
 @dataclass
@@ -59,6 +71,19 @@ class Found:
     # The weakest category a step before the leaf allows (a stray quote mark
     # makes any answer at most ``separator``), whatever its step kind is.
     floor: Category | None = None
+
+
+def category_of(found: Found) -> Category:
+    """The category of a reading: the one the lookup set, else the weakest
+    kind among its steps, its expansions and its floor (``exact`` for none)."""
+    if found.category is not None:
+        return found.category
+    kinds = {_AS_CATEGORY.get(s["kind"], s["kind"]) for s in found.steps}
+    if found.floor is not None:
+        kinds.add(found.floor)
+    kinds |= {s["kind"] for s in found.expansions}
+    ranked = [c for c in CATEGORY_ORDER if c in kinds]
+    return ranked[-1] if ranked else "exact"
 
 
 class _Dropped(Exception):
@@ -89,16 +114,31 @@ class _Dropped(Exception):
 
 def read_leaf(db: ListLookup, text: str, found: Found) -> bool:
     """Read *text* as one licence (with its exception, if any) into *found*.
-    False if it names none, or is longer than any ID (MAX_KEY_INPUT). True
-    with ``unresolved`` and a ``reason`` if a loose reading would drop a
-    character that says something (``Apache 2.0?``)."""
-    if len(text) > MAX_KEY_INPUT:
+    False if it names none, or if the licence or the exception is longer
+    than any ID (:func:`over_key_cap`). True with ``unresolved`` and a
+    ``reason`` if a loose reading would drop a character that says something
+    (``Apache 2.0?``)."""
+    if over_key_cap(text):
         return False
     try:
         return _with(db, text, found) or _one(db, text, found)
     except _Dropped as refusal:
         refusal.record(found)
         return True
+
+
+def over_key_cap(text: str) -> bool:
+    """Whether the licence or the exception of *text* (each half of a WITH,
+    else the whole) is longer than MAX_KEY_INPUT, so names no ID (decision
+    Q16). A ``LicenseRef-*`` or ``AdditionRef-*`` is exempt: SPDX sets no
+    length on one, and it is read as written, never through a key."""
+    halves = WITH_OPERATOR.split(text)
+    return any(
+        len(half) > MAX_KEY_INPUT
+        and not is_license_ref(half.strip())
+        and not is_addition_ref(half.strip())
+        for half in (halves if len(halves) == 2 else [text])
+    )
 
 
 def _one(db: ListLookup, text: str, found: Found) -> bool:
@@ -110,26 +150,59 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
     """``X WITH exception``: X read as a value of its own (a "+", a grant, a
     loose ID), the exception by its ID. False unless the exception is listed
     and X names a licence; a malformed or unresolved X makes the whole so."""
+    operator = WITH_OPERATOR.search(text)
     parts = WITH_OPERATOR.split(text)
-    if len(parts) != 2:
+    if operator is None or len(parts) != 2:
         return False
+    licence_text, exception_text = _grant_to_licence(parts[0], parts[1])
     licence, tail = Found(), Found()
-    exception = _exception(db, parts[1], tail)
-    if exception is None or not _one(db, parts[0], licence):
+    exception = _exception(db, exception_text, tail)
+    if exception is None or not _one(db, licence_text, licence):
         return False
     if licence.expression is None:
         found.category = licence.category
         return True
-    found.steps.extend(licence.steps + tail.steps)
+    found.steps.extend(_with_form(text, operator) + licence.steps + tail.steps)
     found.expansions.extend(licence.expansions + tail.expansions)
     found.expression = f"{licence.expression} WITH {exception}"
     found.candidates = [f"{c} WITH {exception}" for c in licence.candidates]
     return True
 
 
+def _grant_to_licence(licence: str, exception: str) -> tuple[str, str]:
+    """The licence and the exception of a WITH, an "or later" grant after
+    the exception moved to the licence: it qualifies the licence, not the
+    exception ("GPL-2.0 WITH Classpath-exception-2.0 or later" grants GPL-2.0
+    or later), as an SPDX tag reads it (identifiers.qualify_trailing_grant)."""
+    named = granted_id_text(exception) or declared_grant_id_text(exception)
+    if named is None:
+        return licence, exception
+    core = named.rstrip(" \t([")
+    return f"{licence} {exception[len(core) :].strip()}", core
+
+
+def _with_form(text: str, operator: re.Match[str]) -> list[Step]:
+    """The steps that give the WITH of *text* its form: an ``operator_case``
+    step for ``with`` in other case, a ``whitespace`` step for other spacing
+    around it (a tab, two spaces), so that ``exact`` means the input is the
+    expression (decision Q17)."""
+    steps = []
+    before, after = text[: operator.start()], text[operator.end() :]
+    cased = before + operator.group(0).upper() + after
+    if cased != text:
+        steps.append(step("operator_case", True, text, cased))
+    spaced = f"{before} WITH {after}"
+    if spaced != cased:
+        steps.append(step("whitespace", True, cased, spaced))
+    return steps
+
+
 def _exception(db: ListLookup, text: str, found: Found) -> str | None:
     """The listed exception *text* names, its case and its deprecation read
-    as for a licence (_deprecation), or None."""
+    as for a licence (_deprecation), or None. An ``AdditionRef-*`` names
+    itself, as written and unchecked, as a ``LicenseRef-*`` does (Q20)."""
+    if is_addition_ref(text):
+        return text
     details = db.get_exception_details(text)
     if details is None:
         return None
@@ -228,20 +301,32 @@ def _grant(
 ) -> bool:
     """An ID followed by an "or later" grant. The grant is applied where the
     List has the ``-or-later`` ID; a qualifier already stated (``X-only or
-    later``) is malformed; an ID with no ``-or-later`` form is unresolved,
-    not read without its grant."""
+    later``) is malformed. An ID with no ``-or-later`` form takes the grant
+    as the SPDX "+" operator (``Apache 2.0 or later`` is ``Apache-2.0+``,
+    decision Q14), after its deprecation, as ``X+`` is read, if its ID ends
+    in a version (P35); one with no version (``MIT``, ``BSD-3-Clause``, a
+    ``LicenseRef-*``) has no later version to grant, and is unresolved,
+    not read without the grant."""
     license_id, steps = base
     granted = loose_id(db, text)
     if license_id.endswith(("-only", "-or-later", "+")):
         found.category = "malformed"
-    elif granted is None:
+        return True
+    if granted is None and (
+        is_license_ref(license_id) or not _RE_ENDS_IN_VERSION.search(license_id)
+    ):
         found.category = "unresolved"
+        return True
+    found.steps.extend(steps)
+    if granted is None:
+        _deprecation(db, license_id, found)
+        expression = f"{found.expression}+"
     else:
-        found.steps.extend(steps)
-        found.expansions.append(
-            step("stated_qualifier", True, text, granted[1], "or later stated")
-        )
-        found.expression = granted[1]
+        expression = granted[1]
+    found.expansions.append(
+        step("stated_qualifier", True, text, expression, "or later stated")
+    )
+    found.expression = expression
     return True
 
 

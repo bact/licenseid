@@ -75,7 +75,7 @@ def test_the_guard_names_a_value_whose_pin_was_edited(
     rows[0]["expression_0_6_0"] = "Apache-2.0"
     changed = changed_answers(corpus_db, rows)
     assert list(changed) == ["MIT"]  # ISC is untouched
-    report = changes_report(changed)
+    report = changes_report(changed, {})  # no listed value: only the diff
     assert "'MIT'" in report
     assert "expression: 'Apache-2.0' -> 'MIT'" in report
     assert "category" not in report  # only the field that differs is named

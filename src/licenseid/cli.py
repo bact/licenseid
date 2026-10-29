@@ -33,7 +33,8 @@ from licenseid.errors import (
     invalid_id_error,
     one_line,
 )
-from licenseid.identifiers import is_license_ref, is_simple_expression
+from licenseid.exprtokens import is_license_ref
+from licenseid.identifiers import is_simple_expression
 from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.output import (
     EchoHelpCommand,

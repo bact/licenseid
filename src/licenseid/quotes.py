@@ -38,13 +38,15 @@ text ``MIT" or "Apache-2.0`` inside one pair. A mark on one end only
 (unbalanced) is a typo or a cut value; it is read, and says so in the step
 detail, because the author's text was not complete.
 
-Per value, not per operand. This module reads the whole value, once, before
-any other reading; ``GPL-2.0+``, ``X WITH Y`` and ``GPLv2 or later`` inside
-the quotes are then read as they are outside. A compound with a quoted
-operand (``MIT OR "Apache-2.0"``) is not read here: the quotes are in the
-middle of the value. T7, which reads each operand as a value of its own,
-should call :func:`unquote` on each operand and keep the whole-value call
-first, so that ``"MIT OR Apache-2.0"`` is unquoted once and not per operand.
+The whole value first, then each operand. ``resolve()`` calls
+:func:`unquote` on the whole value, once, before any other reading;
+``GPL-2.0+``, ``X WITH Y`` and ``GPLv2 or later`` inside the quotes are then
+read as they are outside, and ``"MIT OR Apache-2.0"`` is unquoted once. The
+compound reader (``licenseid.resolvecompound``) then calls it on each
+operand, so that ``MIT OR "Apache-2.0"`` reads as ``MIT OR Apache-2.0``. It
+takes a balanced pair only: a mark on one end of an operand may be the
+other end of a pair around several (``"MIT OR "Apache-2.0"``), and the drop
+guard refuses it.
 
 Standard library and ``licenseid.normalize`` only.
 """
@@ -66,6 +68,7 @@ class Unquoted(NamedTuple):
     text: str
     balanced: bool  # False: a mark on one end only
     detail: str  # "balanced", "balanced, N layers", "unbalanced, start|end"
+    start: int  # where ``text`` starts in the value given to unquote
 
 
 def unquote(text: str) -> Unquoted | None:
@@ -89,9 +92,9 @@ def unquote(text: str) -> Unquoted | None:
     if not core or (layers == 0 and not side) or _has_inner_mark(core):
         return None
     if side:
-        return Unquoted(core, False, f"unbalanced, {side}")
+        return Unquoted(core, False, f"unbalanced, {side}", lo)
     detail = "balanced" if layers == 1 else f"balanced, {layers} layers"
-    return Unquoted(core, True, detail)
+    return Unquoted(core, True, detail, lo)
 
 
 def _skip_space(text: str, lo: int, hi: int) -> tuple[int, int]:

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, cast
 import py_spdx_license
 
 from licenseid.classify import OR_LATER_PHRASE
+from licenseid.exprtokens import OPERATORS, RE_OPERATOR, RE_TOKEN
 from licenseid.listlookup import ListLookup
 from licenseid.plusoperator import (
     LICENSE_REF_PREFIX,
@@ -106,20 +107,6 @@ _BARE_TO_OR_LATER: dict[str, str] = {
 # AFTER the ID to avoid false positives from unrelated uses.
 _RE_ONLY = re.compile(r"\bonly\b", re.IGNORECASE)
 
-# An identifier starts and ends alphanumeric, so a trailing full stop is
-# punctuation, not part of it. A ":" joins two identifiers
-# (DocumentRef-x:LicenseRef-y is one ID) and is nothing on its own. "_" is no
-# part of an SPDX ID but is part of a word, so "and_mask" stays one token
-# instead of becoming the AND operator.
-_ID_WORD = r"[a-zA-Z0-9]+(?:[._-]+[a-zA-Z0-9]+)*"
-_OPERATOR = r"(?<![a-zA-Z0-9._:-])(?:AND|OR|WITH)(?![a-zA-Z0-9._:-])"
-_RE_OPERATOR = re.compile(_OPERATOR, re.IGNORECASE)
-_RE_TOKEN = re.compile(
-    rf"\(|\)|{_OPERATOR}|\+|{_ID_WORD}(?::{_ID_WORD})*",
-    re.IGNORECASE,
-)
-_OPERATORS = ("AND", "OR", "WITH")
-
 
 def _lookup_case_insensitive(mapping: dict[str, str], key: str) -> str | None:
     """Look up *key* in *mapping*; if the exact-case lookup misses, retry
@@ -139,7 +126,7 @@ def normalize_operator_casing(expression: str) -> str:
     """Normalize the casing of SPDX operators (AND, OR, WITH) to uppercase,
     avoiding matching them inside license identifiers (like LGPL-2.0-or-later).
     """
-    return _RE_OPERATOR.sub(lambda m: m.group(0).upper(), expression)
+    return RE_OPERATOR.sub(lambda m: m.group(0).upper(), expression)
 
 
 # The most an expression may cost the parser, as the sum of its tokens'
@@ -161,8 +148,8 @@ _RE_PARSER_TOKEN = re.compile(r"[^ \t\n\r()]+")
 # brackets with an operator in each, Python 3.14 at 500 and 335. Under both,
 # every supported version answers alike (tech-debt roadmap, item 19). Real
 # expressions hold a few dozen operators at most.
-_MAX_PARSE_OPERATORS = 150
-_MAX_PARSE_DEPTH = 150
+MAX_PARSE_OPERATORS = 150
+MAX_PARSE_DEPTH = 150
 _RE_PARSER_PART = re.compile(r"[()]|[^ \t\n\r()]+")
 
 
@@ -173,8 +160,8 @@ def parse_expression(expression: str) -> py_spdx_license.Node | None:
     _MAX_PARSE_COST.
 
     Catches broadly, not just ``ParseError``: the parser is a plain recursive
-    tree walk with no depth guard. An expression over _MAX_PARSE_OPERATORS
-    or _MAX_PARSE_DEPTH is refused before it, so the answer does not depend
+    tree walk with no depth guard. An expression over MAX_PARSE_OPERATORS
+    or MAX_PARSE_DEPTH is refused before it, so the answer does not depend
     on where the interpreter's recursion limit falls.
     """
     cost = sum(
@@ -212,7 +199,7 @@ def is_qualified_plus(value: str) -> bool:
 
 def _too_large_to_parse(expression: str) -> bool:
     """Whether *expression* holds more operators or deeper brackets than the
-    parser is given (_MAX_PARSE_OPERATORS, _MAX_PARSE_DEPTH). One pass, which
+    parser is given (MAX_PARSE_OPERATORS, MAX_PARSE_DEPTH). One pass, which
     stops at the first part over either."""
     operators = depth = 0
     for part in _RE_PARSER_PART.finditer(expression):
@@ -221,31 +208,18 @@ def _too_large_to_parse(expression: str) -> bool:
             depth += 1
         elif word == ")":
             depth -= 1
-        elif word.upper() in _OPERATORS:
+        elif word.upper() in OPERATORS:
             operators += 1
-        if operators > _MAX_PARSE_OPERATORS or depth > _MAX_PARSE_DEPTH:
+        if operators > MAX_PARSE_OPERATORS or depth > MAX_PARSE_DEPTH:
             return True
     return False
-
-
-# A whole license reference, its idstrings as SPDX defines them
-# (idstring = 1*(ALPHA / DIGIT / "-" / "."); ABNF strings ignore case).
-_RE_WHOLE_LICENSE_REF = re.compile(
-    r"(?:DocumentRef-[A-Za-z0-9.-]+:)?LicenseRef-[A-Za-z0-9.-]+", re.IGNORECASE
-)
-
-
-def is_license_ref(text: str) -> bool:
-    """Whether *text* is one ``LicenseRef-*``, with its ``DocumentRef-*:`` if
-    any, and nothing else."""
-    return _RE_WHOLE_LICENSE_REF.fullmatch(text) is not None
 
 
 def _token_kind(text: str) -> str:
     """Which part of an expression a token can be."""
     if text in ("(", ")", "+"):
         return text
-    return "OP" if text.upper() in _OPERATORS else "ID"
+    return "OP" if text.upper() in OPERATORS else "ID"
 
 
 # What may stand where an operand is expected; everything else follows one.
@@ -263,7 +237,7 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     between, so the grant is that one's, not this ID's.
     """
     # Closing brackets stand between the ID and the grant: "(GPL-2.0) or later".
-    tokens = [t for t in _RE_TOKEN.finditer(expression) if t.group(0) != ")"]
+    tokens = [t for t in RE_TOKEN.finditer(expression) if t.group(0) != ")"]
     if not tokens:
         return expression
     target = tokens[-1]
@@ -286,7 +260,7 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
 def _continues_after(value: str, end: int) -> bool:
     """Whether an expression goes on after *end*: an operator joined to what
     stands before it by white space alone."""
-    token = _RE_TOKEN.search(value, end)
+    token = RE_TOKEN.search(value, end)
     if token is None or _token_kind(token.group(0)) != "OP":
         return False
     return not value[end : token.start()].strip()
@@ -296,7 +270,7 @@ def _closing_brackets_end(value: str, pos: int, depth: int) -> int | None:
     """Where the *depth* closing brackets after *pos* end, when white space
     alone stands before each; None if they are not there."""
     for _ in range(depth):
-        token = _RE_TOKEN.search(value, pos)
+        token = RE_TOKEN.search(value, pos)
         if token is None or token.group(0) != ")" or value[pos : token.start()].strip():
             return None
         pos = token.end()
@@ -333,7 +307,7 @@ def leading_expression(value: str) -> str:
     expect_operand = True
     complete = None  # end of the longest complete, bracket-balanced prefix
     end = 0
-    for token in _RE_TOKEN.finditer(value):
+    for token in RE_TOKEN.finditer(value):
         kind = _token_kind(token.group(0))
         if expect_operand != (kind in _OPERAND_START):
             break
@@ -393,7 +367,7 @@ def is_simple_expression(value: str) -> bool:
         return False
     if plus_after_qualifier(value):
         return False  # "GPL-2.0-only+": no ID takes both
-    tokens = [token.group(0) for token in _RE_TOKEN.finditer(value)]
+    tokens = [token.group(0) for token in RE_TOKEN.finditer(value)]
     if any(
         token == "+" and LICENSE_REF_PREFIX.match(before)
         for before, token in pairwise(tokens)
@@ -616,7 +590,7 @@ def _tokenize_expression(expression: str) -> list[str]:
     name (e.g. the "-or-later" suffix, or a custom LicenseRef- name) is
     always captured whole, never split at the embedded operator word.
     """
-    return _RE_TOKEN.findall(expression)
+    return RE_TOKEN.findall(expression)
 
 
 def _is_expression(identifier: str) -> bool:
@@ -638,7 +612,7 @@ def _is_expression(identifier: str) -> bool:
     (or reduced to "") by ``_normalize_expression``.
     """
     return any(
-        token in ("(", ")", "+") or token.upper() in _OPERATORS
+        token in ("(", ")", "+") or token.upper() in OPERATORS
         for token in _tokenize_expression(identifier)
     )
 
@@ -667,7 +641,7 @@ def _normalize_expression(expression: str, db: ListLookup | None = None) -> str:
     prev_upper = ""
     for token in combined_tokens:
         upper_token = token.upper()
-        if upper_token in _OPERATORS:
+        if upper_token in OPERATORS:
             normalized_tokens.append(upper_token)
         elif token in ("(", ")"):
             normalized_tokens.append(token)
@@ -696,7 +670,7 @@ def _normalize_expression(expression: str, db: ListLookup | None = None) -> str:
     # would drop them, but it is skipped past the cap or for a "+", and the
     # parser gives up on thousands of them.
     expr = without_outer_brackets(expr)
-    operator_count = sum(1 for t in normalized_tokens if t in _OPERATORS)
+    operator_count = sum(1 for t in normalized_tokens if t in OPERATORS)
     if operator_count > _MAX_CANONICALIZE_OPERATORS:
         return expr
 
