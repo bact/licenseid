@@ -10,23 +10,23 @@ name, a loosely written ID, a ``+`` or an "or later" grant, with its
 exception if it has one) and records in a :class:`Found` the expression, the
 steps taken, the expansions it declined to apply and the candidates.
 ``resolver.resolve`` calls it once for the whole declared value; the
-compound reader will call it once for each operand. It refuses a text longer
-than ``MAX_KEY_INPUT`` (no ID is longer: that is an expression), but not a
-control character or an over-long value: the caller refuses those first, as
+compound reader calls it once for each operand. It refuses a licence or an
+exception longer than ``MAX_KEY_INPUT`` (no ID is longer), but not a control
+character or an over-long value: the caller refuses those first, as
 ``resolve`` does. It reads the list through
 :class:`licenseid.listlookup.ListLookup` alone and knows nothing of the
 database, of brackets around the whole value, or of an expression of several
-licences. Note for the compound reader: the gate covers the whole text, so a
-long licence name with an exception (``Creative Commons Attribution Non
+licences. The gate covers each half of a WITH (decision Q16), so a long
+licence name with an exception (``Creative Commons Attribution Non
 Commercial No Derivatives 2.5 Generic WITH RRDtool-FLOSS-exception-2.0``) is
-refused as a whole today.
+read.
 """
 
 import re
 from dataclasses import dataclass, field
 
 from licenseid.dropguard import code_points, dropped
-from licenseid.exprtokens import is_license_ref
+from licenseid.exprtokens import is_addition_ref, is_license_ref
 from licenseid.identifiers import without_outer_brackets
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import (
@@ -111,16 +111,31 @@ class _Dropped(Exception):
 
 def read_leaf(db: ListLookup, text: str, found: Found) -> bool:
     """Read *text* as one licence (with its exception, if any) into *found*.
-    False if it names none, or is longer than any ID (MAX_KEY_INPUT). True
-    with ``unresolved`` and a ``reason`` if a loose reading would drop a
-    character that says something (``Apache 2.0?``)."""
-    if len(text) > MAX_KEY_INPUT:
+    False if it names none, or if the licence or the exception is longer
+    than any ID (:func:`over_key_cap`). True with ``unresolved`` and a
+    ``reason`` if a loose reading would drop a character that says something
+    (``Apache 2.0?``)."""
+    if over_key_cap(text):
         return False
     try:
         return _with(db, text, found) or _one(db, text, found)
     except _Dropped as refusal:
         refusal.record(found)
         return True
+
+
+def over_key_cap(text: str) -> bool:
+    """Whether the licence or the exception of *text* (each half of a WITH,
+    else the whole) is longer than MAX_KEY_INPUT, so names no ID (decision
+    Q16). A ``LicenseRef-*`` or ``AdditionRef-*`` is exempt: SPDX sets no
+    length on one, and it is read as written, never through a key."""
+    halves = WITH_OPERATOR.split(text)
+    return any(
+        len(half) > MAX_KEY_INPUT
+        and not is_license_ref(half.strip())
+        and not is_addition_ref(half.strip())
+        for half in (halves if len(halves) == 2 else [text])
+    )
 
 
 def _one(db: ListLookup, text: str, found: Found) -> bool:

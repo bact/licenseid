@@ -32,8 +32,11 @@ _RE_GRANT_TAIL = re.compile(
     r"(?:\s+versions?)?(?:\s+of\s+(?:the|this)\s+licen[cs]e)?[\s.,;:)\]]*",
     re.IGNORECASE,
 )
-# The WITH of a simple expression ("GPL2 WITH Classpath-exception-2.0").
-WITH_OPERATOR = re.compile(r"\s+WITH\s+", re.IGNORECASE)
+# The WITH of a simple expression ("GPL2 WITH Classpath-exception-2.0"). The
+# match starts at the first white space of a run (lookbehind): without it,
+# every offset of a long run of spaces is tried and a split is quadratic
+# (1.6 s at 20,000 spaces).
+WITH_OPERATOR = re.compile(r"(?<!\s)\s+WITH\s+", re.IGNORECASE)
 
 
 def loose_id(db: ListLookup, text: str) -> tuple[ListedName, str] | None:
