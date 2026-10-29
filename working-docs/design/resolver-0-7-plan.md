@@ -9,10 +9,10 @@ SPDX-License-Identifier: Apache-2.0
 
 # Plan for the 0.7.0 resolver
 
-Status (2026-10-29): T0 to T9 built and merged (T0 to T4 #106 to #112, T4b
-#117, T5 #119, T6 #120, T6b #121, T7 #122, T9a #123, R7 fixes #125, T9 #126,
-T8 #128, T8b #131, T5b #132); T10a, T10b, T11 and T12 to T14 open; T10 is
-deferred to 0.8 (Q3).
+Status (2026-10-29): T0 to T9 built and merged (T0 to T4 #106 to #112,
+T4b #117, T5 #119, T6 #120, T6b #121, T7 #122, T9a #123, R7 fixes #125, T9
+#126, T8 #128, T8b #131, T5b #132); T10a, T10b, T11 and T12 to T14 open;
+T10 is deferred to 0.8 (Q3).
 Drafted on 2026-10-28 by an Opus planning agent from the code of both
 repositories, then edited. The maintainer confirmed every answer of section
 8 on 2026-10-28. A review of T0 to T4 against T5 to T7, and decisions Q10 to

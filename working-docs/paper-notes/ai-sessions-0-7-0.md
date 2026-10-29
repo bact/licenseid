@@ -34,9 +34,9 @@ covered: this note stops before it.
   listed reason. **[observation]**
 - The pull requests, in the order of the work: T0 to T4 #106 to #112
   (groundwork: pins, list rules, the `ListLookup` protocol, `resolveleaf`);
-  T5 #119 (packaged list, `source=`); T6 #120 (drop guard); T6b #121 (quotes);
-  T7 #122 (compounds, schema 2); T9a #123 (trove table); CI accuracy layers (#124);
-  fixes from the whole-change review (#125); T9 #126 (trove names);
+  T5 #119 (packaged list, `source=`); T6 #120 (drop guard); T6b #121
+  (quotes); T7 #122 (compounds, schema 2); T9a #123 (trove table); CI
+  accuracy layers (#124); fixes from the whole-change review (#125); T9 #126 (trove names);
   design note on `match` and `resolve` #127; T8 #128 (prose forms, dropped
   words, end marks); README split #129; sdist allowlist #130; T8b #131
   (semicolon lists, marks after `+`); T5b #132 (cache the `auto` list choice).
