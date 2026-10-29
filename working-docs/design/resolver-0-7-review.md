@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -138,3 +138,19 @@ Report with reproducers, not blocking 0.7.0 (D1 avoids all three):
    library's list sorts after every known one (F1).
 3. A bracketed group sorts before a `WITH` leaf; licenseid puts groups after
    all leaves (Q19). Propose one documented order.
+
+## 6. Provisional decisions (2026-10-29)
+
+Taken during the overnight run, where the plan and Q1 to Q24 do not answer.
+Provisional: the maintainer may reverse any of them.
+
+| # | Task | Question | Chosen | Other options | Why |
+| - | - | - | - | - | - |
+| P1 | T5 | `resolve(value, db, source="packaged")`: a database given and the packaged list asked for | Refused: `InvalidInputError`, `option: invalid: source: 'packaged' with db; pass db or source` | The database wins (`source` ignored); the packaged list wins (`db` ignored) | Either silent choice ignores something the caller wrote; refusing is the narrower choice and easy to relax |
+| P2 | T5 | How often `database: <condition>: <detail>; using packaged data v<ver>` is said | Once per process for each distinct line (a new condition is said again) | Once per call, as the `build vN outdated` warning of an opened database is; never | A consumer resolves hundreds of values; one line says the state. A changed condition still shows. The same goes for the stamp warning of the default database `resolve()` opens (`build vN outdated`, `build vN newer`), which 0.6.0 said on every call; a `db=` the caller built warns as it always did |
+| P3 | T5 | Q10's "current" build stamp, for a database built by a newer licenseid (`build vN newer`) | Not current: a tie goes to the packaged list; the stamp compares as a number (`02` is `2`) | Newer counts as current | This licenseid cannot vouch for rows built by rules it does not know; the packaged list is its own. Narrower |
+| P4 | T5 | `source="packaged"` with no bundle, or an unusable one | `DatabaseNotReadyError` `spdx-bundle.json.gz: not found` (or `invalid: <detail>`, after its warning), with `condition` and `detail` set | `LicenseIdError`; `InvalidInputError` | One `except` for "no list to read", as a caller already catches for a missing database |
+| P5 | T5 | What "usable" means for the default database under `auto` | `check_database_ready` passes, read fail-open (a lock is no verdict), and the database opens. A file with the schema and no rows falls back, with `database: empty`, and `source="database"` refuses it (P8) | Whatever `LicenseDatabase(create=False)` opens | An empty database would answer `unresolved` for every value the packaged list resolves; it is the matcher's readiness gate |
+| P6 | T5 | An account with no home directory under `auto` | Silent, like a missing file (Q11): both are `not found` | Warn | No database file to repair; the condition is the same |
+| P7 | T5 | A deprecation flag that is not a JSON boolean (`"false"`) in a bundle | Read as `bool()`, as `listrules.is_deprecated` reads it, for licences and exceptions | Mimic SQLite's `is_deprecated = 1` for the exceptions' mappings | Every SPDX release has booleans; `spdxdata` does not check the type. The two can differ only on such a flag |
+| P8 | T5 | `source="database"` on a default database that `auto` calls unusable (the tables, no rows) | Refused with the same `DatabaseNotReadyError` (`database: empty: ...`): `check_database_ready` runs first. A `db=` object is read as the caller built it. Narrows P5 | Read it as 0.6.0 did, answering `unresolved` for every value | Q11: an explicit database source raises rather than answering from a database that cannot answer; one verdict for both sources |

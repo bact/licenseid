@@ -16,6 +16,7 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | CLI blank input      | commands x blank arg / --text / --id / stdin |
 | API ``match()``      | every subset of text / license_id / file     |
 | API ``is_*()``       | PREDICATES x text / license_id / file        |
+| API ``resolve()``    | source x default database (STATES) x bundle  |
 
 Current precedence when several inputs are given (pinned below; the losing
 input is ignored without a warning):
@@ -25,6 +26,7 @@ input is ignored without a warning):
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
+import contextlib
 import itertools
 import re
 from collections.abc import Callable, Generator
@@ -34,12 +36,26 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner, Result
 from conftest import RESULT_KEYS, json_lines, make_mit_db_path
-from db_variants import MIT_TEXT
+from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from db_variants import MIT_TEXT, make_ready_file_db
 from input_payloads import PAYLOADS, Payload
+from release_fakes import release_bundle, ship
+from resolve_states import MISSING as NO_DATABASE
+from resolve_states import (
+    NO_HOME,
+    OUTDATED,
+    OUTDATED_WARNING,
+    STATES,
+    VERSION,
+    build,
+    refusal,
+)
 
+from licenseid import LicenseDatabase, resolve
 from licenseid.cli import cli
-from licenseid.errors import InvalidInputError
+from licenseid.errors import DatabaseNotReadyError, InvalidInputError
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.resolvertypes import Source
 from tools.cli_matrix.judge import PLAIN
 
 OTHER_TEXT = "The quick brown fox jumps over the lazy dog near the river bank"
@@ -325,3 +341,100 @@ def test_a_missing_file_path_raises_oserror(mit_db: str, tmp_path: Path) -> None
     """Not worded as a licenseid error: the API leaves I/O errors as they are."""
     with pytest.raises(FileNotFoundError):
         AggregatedLicenseMatcher(mit_db).match(file_path=str(tmp_path / "nope"))
+
+
+# --- API resolve(): source x the database at the default path x bundle ---
+
+RESOLVE_SOURCES = ["auto", "database", "packaged"]
+BUNDLES = ["shipped", "none", "invalid"]
+_BUNDLE_BYTES = {"shipped": release_bundle(VERSION), "none": None, "invalid": b"bad"}
+_BAD_BUNDLE = "spdx-bundle.json.gz: invalid: BadGzipFile: Not a gzipped file (b'ba')"
+# What each bundle prints when resolve() loads it: an unusable one warns once.
+_LOADED = {"shipped": "", "none": "", "invalid": f"WARNING: {_BAD_BUNDLE}\n"}
+_NO_LIST = {"none": "spdx-bundle.json.gz: not found", "invalid": _BAD_BUNDLE}
+
+
+def _resolve_outcome(source: str, state: str, bundle: str) -> tuple[str, str, str]:
+    """What resolve("MIT", source=source) does, as ``(list source or
+    "raise", what it raises, what it prints)``, the last two as regular
+    expressions. The bundle holds the database's version, so a usable
+    database wins the tie (Q4), an outdated one loses it (Q10). Only
+    ``database`` leaves the bundle unread."""
+    refused = refusal(state)
+    loaded = "" if source == "database" else _LOADED[bundle]
+    if source == "packaged":
+        if bundle != "shipped":
+            return "raise", re.escape(_NO_LIST[bundle]), re.escape(loaded)
+        return "packaged", "", ""
+    if source == "database" or bundle != "shipped":
+        if refused:
+            return "raise", refused[0] + re.escape(refused[1]), re.escape(loaded)
+        opened = OUTDATED_WARNING if state == OUTDATED else ""
+        return "database", "", re.escape(opened + loaded)
+    return _auto_with_a_bundle(state, refused)
+
+
+def _auto_with_a_bundle(
+    state: str, refused: tuple[str, str] | None
+) -> tuple[str, str, str]:
+    """``auto`` with the bundle shipped: the database, the bundle silently,
+    or the bundle after a warning."""
+    if state == OUTDATED:
+        return "packaged", "", re.escape(OUTDATED_WARNING)
+    if refused is None:
+        return "database", "", ""
+    if state in (NO_DATABASE, NO_HOME):  # no database file: silent (Q11)
+        return "packaged", "", ""
+    fallback = re.escape(f"; using packaged data v{VERSION}\n")
+    return "packaged", "", f"WARNING: {refused[0]}{fallback}"
+
+
+@pytest.mark.parametrize("bundle", BUNDLES)
+@pytest.mark.parametrize("state", STATES)
+@pytest.mark.parametrize("source", RESOLVE_SOURCES)
+def test_resolve_matrix(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    source: Source,
+    state: str,
+    bundle: str,
+) -> None:
+    """With no database given, resolve() reads the database at the default
+    path or the bundle shipped in the wheel, as *source* says; a list it
+    cannot read raises, a database's message unchanged from 0.6.0."""
+    ship(monkeypatch, _BUNDLE_BYTES[bundle])
+    build(state, monkeypatch)
+    capsys.readouterr()
+    where, raised, said = _resolve_outcome(source, state, bundle)
+    if where == "raise":
+        with pytest.raises(DatabaseNotReadyError) as error:
+            resolve("MIT", source=source)
+        assert re.fullmatch(raised, str(error.value)), str(error.value)
+    else:
+        got = resolve("MIT", source=source)
+        assert (got["expression"], got["category"]) == ("MIT", "exact")
+        assert [(e["source"], e["version"]) for e in got["lists"]] == [(where, VERSION)]
+    err = capsys.readouterr().err
+    assert re.fullmatch(said, err), err
+    # Every warning, an opened database's and the bundle's included, is said
+    # once per process.
+    with contextlib.suppress(DatabaseNotReadyError):
+        resolve("MIT", source=source)
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize("source", RESOLVE_SOURCES)
+def test_resolve_matrix_with_a_database_given(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, source: Source
+) -> None:
+    """A database given is read as source="database"; packaged contradicts
+    it, and is refused rather than one of the two ignored."""
+    ship(monkeypatch, release_bundle(VERSION))
+    db = LicenseDatabase(str(make_ready_file_db(tmp_path / "given.db")), create=False)
+    if source == "packaged":
+        message = "option: invalid: source: 'packaged' with db; pass db or source"
+        with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
+            resolve("MIT", db, source=source)
+        return
+    got = resolve("MIT", db, source=source)
+    assert [entry["source"] for entry in got["lists"]] == ["database"]

@@ -73,16 +73,33 @@ def _stamp(value: str) -> int:
     )
 
 
+def is_current_build(metadata: DatabaseMetadata) -> bool:
+    """Whether a database's rows were built by this licenseid's rules
+    (``records.BUILD_VERSION``): not older, as ``build vN outdated`` warns,
+    nor newer, as ``build vN newer`` does."""
+    return _stamp(metadata.get("build_version", "1")) == _stamp(BUILD_VERSION)
+
+
 class LicenseDatabase:
     """
     Handles SQLite database operations for storing and searching SPDX licenses.
     """
 
-    def __init__(self, db_path: str | os.PathLike[str], create: bool = True):
+    def __init__(
+        self,
+        db_path: str | os.PathLike[str],
+        create: bool = True,
+        report: Callable[[str], None] | None = None,
+    ):
         """Open the database at *db_path*. With *create* (the default) a
         missing file, or missing tables, are created; without it the file
         must be there, and only a schema of an older version is written to,
-        so a matcher never makes a database out of one that went missing."""
+        so a matcher never makes a database out of one that went missing.
+
+        Without *create*, rules older or newer than this licenseid's are
+        warned (``database: build vN outdated: ...``) through *report*, by
+        default ``licenseid.console.warn``; ``resolve()`` passes one that
+        says each line once per process."""
         db_path = os.fspath(db_path)
         self._create = create
         named = named_file(db_path)  # a URI: the file it names
@@ -101,10 +118,11 @@ class LicenseDatabase:
         self._init_db()
         self._tables = TableCache(self._connections)
         if not create:  # update, which creates, is about to fix it
+            say = report or warn
             for outdated in self._outdated_rules():
-                warn(f"database: {outdated}; run 'licenseid update'")
+                say(f"database: {outdated}; run 'licenseid update'")
             for newer in self._stamped_rules(newer=True):
-                warn(f"database: {newer}")
+                say(f"database: {newer}")
 
     def _outdated_rules(self) -> list[str]:
         """The rules this database was built with that are older than this

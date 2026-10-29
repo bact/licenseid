@@ -24,6 +24,7 @@ from seed_sql import INSERT_EXCEPTION, INSERT_INDEX, INSERT_LICENSE, SET_METADAT
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.normalize import normalize_text
+from licenseid.resolvertypes import Source
 from tools.pypi_licence_sample.answer import (
     Answer,
     answer_diff,
@@ -214,17 +215,21 @@ def pinned(row: dict[str, str]) -> Answer:
 
 
 def changed_answers(
-    db: LicenseDatabase,
+    db: LicenseDatabase | None,
     rows: Iterable[dict[str, str]] | None = None,
+    *,
+    source: Source = "auto",
 ) -> dict[str, tuple[Answer, Answer]]:
     """The values whose answer differs from the pinned one, over the parity
-    corpus and the PyPI sample (or *rows*): ``{value: (pinned, current)}``."""
+    corpus and the PyPI sample (or *rows*): ``{value: (pinned, current)}``.
+    The list is *db*, else the one *source* names (``packaged``: the bundle
+    the test ships, ``release_fakes.ship``)."""
     if rows is None:
         rows = corpus_rows()
     changed: dict[str, tuple[Answer, Answer]] = {}
     for row in rows:
         value = unescape_field(row["value"])
-        old, new = pinned(row), answer_of(value, resolve(value, db))
+        old, new = pinned(row), answer_of(value, resolve(value, db, source=source))
         if old != new:
             changed[value] = (old, new)
     return changed

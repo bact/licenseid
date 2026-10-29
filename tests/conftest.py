@@ -22,9 +22,10 @@ from unittest import mock
 import pytest
 import requests
 from click.testing import CliRunner, Result
+from packaged_list import database_of, fixture_bundle
 from resolver_corpus import corpus_db_path
 
-from licenseid import console, spdxdata
+from licenseid import console, listindex, listsource, spdxdata
 from licenseid.cli import cli
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.dbconnection import Connections
@@ -80,11 +81,13 @@ _REAL_PACKAGED_BUNDLE = spdxdata.packaged_bundle
 
 
 @pytest.fixture(autouse=True)
-def offline(monkeypatch: pytest.MonkeyPatch) -> None:
+def offline(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
     """No test reaches the network or sees the snapshot a wheel build ships.
     A test fakes ``requests.get`` itself (``fake_requests_get``,
     ``release_fakes.serve``) and ships a snapshot of its own
-    (``release_fakes.ship``)."""
+    (``release_fakes.ship``). The packaged index ``resolve()`` keeps, and
+    the fallback warnings it said, are forgotten before and after: a test
+    sees only its own snapshot (review gap G7)."""
     monkeypatch.setattr(
         requests,
         "get",
@@ -97,6 +100,14 @@ def offline(monkeypatch: pytest.MonkeyPatch) -> None:
         "packaged_bundle",
         mock.create_autospec(_REAL_PACKAGED_BUNDLE, return_value=None),
     )
+    _forget_packaged()
+    yield
+    _forget_packaged()
+
+
+def _forget_packaged() -> None:
+    listindex.reset_packaged_index()
+    listsource.reset_warnings()
 
 
 def seed_ready_metadata(db_path: str) -> None:
@@ -332,6 +343,15 @@ def corpus_db() -> Generator[LicenseDatabase, None, None]:
     session. Read only: a test must not write to it."""
     for path in corpus_db_path("corpus", make_memory_db_path):
         yield LicenseDatabase(path, create=False)
+
+
+@pytest.fixture(scope="session")
+def bundle_db(tmp_path_factory: pytest.TempPathFactory) -> LicenseDatabase:
+    """The database ``update --source packaged`` builds from
+    ``packaged_list.fixture_bundle()`` (the 3.29.0 List of the fixtures),
+    built once per session. Read only: a test must not write to it."""
+    path = tmp_path_factory.mktemp("bundle_db") / "licenses.db"
+    return database_of(fixture_bundle(), path)
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:

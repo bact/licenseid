@@ -9,6 +9,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- `resolve()` works with no database: it reads the SPDX License List shipped
+  in the wheel, in memory, with the same answers; `source=` (`auto`,
+  `database`, `packaged`) picks the list, and `lists[*].source` says which
+  ([#119])
+- `DatabaseNotReadyError.condition` and `.detail`: why a database cannot be
+  read (`not found`, `empty`, `invalid`, `unreadable`)
+  ([#119])
+
+### Changed
+
+- `resolve()` with no database given reads whichever list is newer, the
+  default database's or the shipped one (a tie: the database, if this
+  licenseid's build rules made it); an unusable default database falls back
+  to the shipped list with a warning
+  ([#119])
+
 ### Fixed
 
 - `resolve()` answers `unresolved` for a value with a lone surrogate; it
@@ -16,6 +34,7 @@ and this project adheres to
   ([#117])
 
 [#117]: https://github.com/bact/licenseid/pull/117
+[#119]: https://github.com/bact/licenseid/pull/119
 
 ## [0.6.0] - 2026-10-27
 

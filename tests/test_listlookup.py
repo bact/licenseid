@@ -220,8 +220,8 @@ def test_normalize_identifier_agrees_on_a_fake_list(
 
 def test_the_list_info_agrees_on_a_fake_list(db: LicenseDatabase) -> None:
     """The list version, and the URL made from it."""
-    assert _list_info(DictList(ROWS)) == _list_info(db)
-    assert _list_info(DictList(ROWS))["version"] == LIST_VERSION
+    assert _list_info(DictList(ROWS), "database") == _list_info(db, "database")
+    assert _list_info(DictList(ROWS), "packaged")["version"] == LIST_VERSION
 
 
 def test_a_loose_id_hit_keeps_the_flags_of_its_full_row(

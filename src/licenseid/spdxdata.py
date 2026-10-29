@@ -38,6 +38,7 @@ PACKAGED_NAME: Final = "spdx-bundle.json.gz"
 _VERSION_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 # All 826 IDs of list 3.29.0 pass.
 _ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]{0,99}")
+_NUMERIC_VERSION = re.compile(r"\d+(?:\.\d+)*")
 
 
 class BundleError(ValueError):
@@ -178,6 +179,24 @@ def _entries(
             texts[ident] = text
         entries.append(entry)
     return entries, texts
+
+
+def _numbers(version: str) -> tuple[int, ...] | None:
+    """*version* as numbers without trailing zeros (``3.29.0`` is ``3.29``),
+    or None if it is not all numbers (``3.0rc1``)."""
+    if not _NUMERIC_VERSION.fullmatch(version):
+        return None
+    parts = [int(part) for part in version.split(".")]
+    while len(parts) > 1 and parts[-1] == 0:
+        parts.pop()
+    return tuple(parts)
+
+
+def is_older(version: str, than: str) -> bool:
+    """Whether release *version* is older than *than*. Versions that are not
+    all numbers are not compared: never older."""
+    mine, theirs = _numbers(version), _numbers(than)
+    return mine is not None and theirs is not None and mine < theirs
 
 
 def to_bundle(data: SpdxData) -> bytes:
