@@ -9,8 +9,10 @@ SPDX-License-Identifier: Apache-2.0
 
 # Plan for the 0.7.0 resolver
 
-Status: T0 to T4 built (#107, #108, #110, #112); T5 to T7 built on their
-branches, not merged; T8 onwards unbuilt.
+Status (2026-10-29): T0 to T9 built and merged (T0 to T4 #106 to #112, T4b
+#117, T5 #119, T6 #120, T6b #121, T7 #122, T9a #123, R7 fixes #125, T9 #126,
+T8 #128, T8b #131, T5b #132); T10a, T10b, T11 and T12 to T14 open; T10 is
+deferred to 0.8 (Q3).
 Drafted on 2026-10-28 by an Opus planning agent from the code of both
 repositories, then edited. The maintainer confirmed every answer of section
 8 on 2026-10-28. A review of T0 to T4 against T5 to T7, and decisions Q10 to
@@ -272,29 +274,37 @@ T9) updates, in its own pull request, the `README.md` Features section (the
 description of the matching strategy) and the `resolve()` part of its Python
 API section; its reviewer checks that they match the behaviour.
 
-| # | Pull request title | Exit criteria | Author | Effort |
-| - | - | - | - | - |
-| T0 | Tests: rebuild the parity corpus and freeze a PyPI sample | Fixtures committed under 800 lines each; 0.6.0 answers pinned; `# BUG:` pins for F6 and `Apache 2.0?` | Sonnet | medium |
-| T1 | Pitloom: say a missing database at INFO when a licence is declared (0.21.1) | Tests on all surfaces; hook with no database prints no `WARNING:`; CHANGELOG | Sonnet | medium |
-| T2 | Move the list rules out of `records` | `listrules.py`; `records` output byte-identical on 3.29.0; `BUILD_VERSION` unchanged | Sonnet | medium |
-| T3 | Type the resolver on a `ListLookup` protocol | mypy strict clean; no behaviour change | Sonnet | low |
-| T4 | Move the single-value lookup to `resolveleaf` | Pure move; characterisation green; `resolver.py` at most 250 lines | Sonnet | medium |
-| T4b | Tests and types the next tasks need | Review gaps G1 to G4 and H1 to H8 and the parity corrections of `resolver-0-7-review.md`: Cs refused early, `ListLookup` return types narrowed, `spdxdata` refuses an entry with no `name`, `Answer` with `reason` and step targets, the guard tested on the sample | Sonnet | medium (Opus reviews) |
-| T5 | `resolve()` reads the packaged list when there is no database | `listindex.py`; `source=`; warning on an unusable default database; `lists[*].source`; option-matrix axes; equivalence test (with a synthetic bundle for the kept-rows rule, G8); first load under 0.5 s; G5 to G7; Q10, Q11 | **Opus** | **high** |
-| T6 | Refuse a value whose dropped characters change it | `dropguard.py`; `reason` added; F6 pins flipped; sample: changed set listed and justified (`"MIT"` included, Q12); Q13 | Sonnet | medium (Opus reviews) |
-| T6b | Read quoted values | Quotes in their different forms, balanced or not (Q12), as a rule with a correctness argument and a sample run | Sonnet | medium (Opus reviews) |
-| T7 | Read compound expressions in `resolve()` | `exprcanon.py`, `resolvecompound.py`, `operands`, `components`, `reason`, `schema: 2`, `by`, `expression` removed; Q14 to Q21 and G9 to G14; parity, adversarial and timing tests | **Opus** | **high** |
-| R7 | Review everything since T0 together, after T7 | One independent review of the whole 0.7.0 change on `main`: the database and packaged index give one answer, an operand reads as the same value alone, the README matches; release blockers listed | **Opus** | **high** |
-| T8 | Read prose forms of one id (P1 to P3), the dropped-word guard (0.8 list item 3), and end marks (maintainer, 2026-10-29: one `.`, `,`, `;` or `:` at the end is trimmed; an ellipsis, a lone dash and every leading mark are refused, a leading mark touching an ID included; `Mozilla Public License, Version 2.0` is MPL-2.0) | Sample before and after committed; regex timing tests | Sonnet | medium |
-| T9 | Read trove classifier names and paths (T1 to T3) | `trovenames.py`; `trove-classifiers` check; `lists` entry; sample before and after | Sonnet | medium |
-| T8b | A `;` inside a value names licences without an operator (maintainer, 2026-10-29): `unresolved`, no expression, reason `operator not stated: ;`, each operand read alone (`MIT ; Apache 2`) | Operands equal each part read alone; sample count; paper note; after T8, before T10a | Sonnet | medium (Opus reviews) |
-| T10 | Deferred to 0.8 (Q3): offer assumed trove readings as candidates | `assumed_usage`; Pitloom keeps them as text | **Opus** | **high** |
-| T10a | Rename: `resolve()` to `match()`, the matcher's `match()` to `detect()`, CLI `match` to `detect` (`match-resolve-0-8.md` section 2) | Pure rename after T8 and T8b; every answer unchanged (T0 pins, characterisation, sample guard); no alias; README, AGENTS.md, CHANGELOG migration line | Sonnet | medium (Opus reviews) |
-| T10b | A `licenseid match VALUE` command for one declared value (`match-resolve-0-8.md` D6) | `KEY=VALUE` lines and `--json`; exit 0, 1, 2; refuses a file or a text (`run 'licenseid detect'`); no database needed; option matrix; `cli_matrix` run | Sonnet | medium (Opus reviews) |
-| T11 | Docs: implementation note, evidence update, CHANGELOG 0.7.0, a final pass on the README Features section | Front-matter dates; a migration line for the breaking bullets; Features describes the 0.7.0 matching strategy (compounds in licenseid's own canonical order, not `py-spdx-license`'s sort; no database needed for `resolve()`) | Haiku or Sonnet | low |
-| T12 | Release licenseid 0.7.0 | `release-process.md`; the wheel ships the bundle; `resolve()` checked in a fresh venv with no database (the maintainer tags and publishes) | Sonnet | low |
-| T13 | Pitloom: read every declared value through `resolve()` (0.22.0) | Floor bump; about 250 lines deleted; drift guard; before and after sweep reviewed | Sonnet | high (Opus reviews) |
-| T14 | Pitloom: per-operand provenance and list version | `Resolution-n` per operand; no `py_spdx_license` in `src/` | Sonnet | medium |
+| # | Pull request title | Exit criteria | Author | Effort | State |
+| - | - | - | - | - | - |
+| T0 | Tests: rebuild the parity corpus and freeze a PyPI sample | Fixtures committed under 800 lines each; 0.6.0 answers pinned; `# BUG:` pins for F6 and `Apache 2.0?` | Sonnet | medium | Merged (#110) |
+| T1 | Pitloom: say a missing database at INFO when a licence is declared (0.21.1) | Tests on all surfaces; hook with no database prints no `WARNING:`; CHANGELOG | Sonnet | medium | Merged (Pitloom 0.21.1) |
+| T2 | Move the list rules out of `records` | `listrules.py`; `records` output byte-identical on 3.29.0; `BUILD_VERSION` unchanged | Sonnet | medium | Merged (#108) |
+| T3 | Type the resolver on a `ListLookup` protocol | mypy strict clean; no behaviour change | Sonnet | low | Merged (#107) |
+| T4 | Move the single-value lookup to `resolveleaf` | Pure move; characterisation green; `resolver.py` at most 250 lines | Sonnet | medium | Merged (#112) |
+| T4b | Tests and types the next tasks need | Review gaps G1 to G4 and H1 to H8 and the parity corrections of `resolver-0-7-review.md`: Cs refused early, `ListLookup` return types narrowed, `spdxdata` refuses an entry with no `name`, `Answer` with `reason` and step targets, the guard tested on the sample | Sonnet | medium (Opus reviews) | Merged (#117) |
+| T5 | `resolve()` reads the packaged list when there is no database | `listindex.py`; `source=`; warning on an unusable default database; `lists[*].source`; option-matrix axes; equivalence test (with a synthetic bundle for the kept-rows rule, G8); first load under 0.5 s; G5 to G7; Q10, Q11 | **Opus** | **high** | Merged (#119) |
+| T5b | Cache the `auto` list choice | One list choice per process, re-made when the database file changes (mtime, size, ctime); packaged fallback not kept after a transient lock; 12-15 ms to 1.2 ms per value | Opus | high | Merged (#132) |
+| T6 | Refuse a value whose dropped characters change it | `dropguard.py`; `reason` added; F6 pins flipped; sample: changed set listed and justified (`"MIT"` included, Q12); Q13 | Sonnet | medium (Opus reviews) | Merged (#120) |
+| T6b | Read quoted values | Quotes in their different forms, balanced or not (Q12), as a rule with a correctness argument and a sample run | Sonnet | medium (Opus reviews) | Merged (#121) |
+| T7 | Read compound expressions in `resolve()` | `exprcanon.py`, `resolvecompound.py`, `operands`, `components`, `reason`, `schema: 2`, `by`, `expression` removed; Q14 to Q21 and G9 to G14; parity, adversarial and timing tests | **Opus** | **high** | Merged (#122) |
+| R7 | Review everything since T0 together, after T7 | One independent review of the whole 0.7.0 change on `main`: the database and packaged index give one answer, an operand reads as the same value alone, the README matches; release blockers listed | **Opus** | **high** | Review done; fixes merged (#125) |
+| T8 | Read prose forms of one id (P1 to P3), the dropped-word guard (0.8 list item 3), and end marks (maintainer, 2026-10-29: one `.`, `,`, `;` or `:` at the end is trimmed; an ellipsis, a lone dash and every leading mark are refused, a leading mark touching an ID included; `Mozilla Public License, Version 2.0` is MPL-2.0) | Sample before and after committed; regex timing tests | Sonnet | medium | Merged (#128) |
+| T9 | Read trove classifier names and paths (T1 to T3) | `trovenames.py`; `trove-classifiers` check; `lists` entry; sample before and after | Sonnet | medium | Merged (#126; table #123) |
+| T8b | A `;` inside a value names licences without an operator (maintainer, 2026-10-29): `unresolved`, no expression, reason `operator not stated: ;`, each operand read alone (`MIT ; Apache 2`) | Operands equal each part read alone; sample count; paper note; after T8, before T10a | Sonnet | medium (Opus reviews) | Merged (#131) |
+| T10 | Deferred to 0.8 (Q3): offer assumed trove readings as candidates | `assumed_usage`; Pitloom keeps them as text | **Opus** | **high** | Deferred to 0.8 |
+| T10a | Rename: `resolve()` to `match()`, the matcher's `match()` to `detect()`, CLI `match` to `detect` (`match-resolve-0-8.md` section 2) | Pure rename after T8 and T8b; every answer unchanged (T0 pins, characterisation, sample guard); no alias; README, AGENTS.md, CHANGELOG migration line | Sonnet | medium (Opus reviews) | Open |
+| T10b | A `licenseid match VALUE` command for one declared value (`match-resolve-0-8.md` D6) | `KEY=VALUE` lines and `--json`; exit 0, 1, 2; refuses a file or a text (`run 'licenseid detect'`); no database needed; option matrix; `cli_matrix` run | Sonnet | medium (Opus reviews) | Open |
+| T11 | Docs: implementation note, evidence update, CHANGELOG 0.7.0, a final pass on the README Features section | Front-matter dates; a migration line for the breaking bullets; Features describes the 0.7.0 matching strategy (compounds in licenseid's own canonical order, not `py-spdx-license`'s sort; no database needed for `resolve()`) | Haiku or Sonnet | low | Open |
+| T12 | Release licenseid 0.7.0 | `release-process.md`; the wheel ships the bundle; `resolve()` checked in a fresh venv with no database (the maintainer tags and publishes) | Sonnet | low | Open |
+| T13 | Pitloom: read every declared value through `resolve()` (0.22.0) | Floor bump; about 250 lines deleted; drift guard; before and after sweep reviewed | Sonnet | high (Opus reviews) | Open (Pitloom) |
+| T14 | Pitloom: per-operand provenance and list version | `Resolution-n` per operand; no `py_spdx_license` in `src/` | Sonnet | medium | Open (Pitloom) |
+
+Pull requests outside the task list that landed in the same period: the
+CI accuracy layers (#124: core set on every commit, must-have licences on a
+matching-path pull request, the full set weekly), the design of the
+`match`/`resolve` rename (#127, `match-resolve-0-8.md`), the README split
+that moved the `resolve()` reference to `docs/resolve.md` (#129) and the
+sdist allowlist (#130: 1.67 MB to 1.17 MB, no internal notes or CI files).
 
 ## 11. Guide for the agent that does a task
 
