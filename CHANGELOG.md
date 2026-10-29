@@ -36,6 +36,8 @@ and this project adheres to
 - `resolve()` reads PyPI trove classifier names and paths (`License :: OSI
   Approved :: MIT License`) and `MIT License (MIT)`; category `trove_name`
   ([#126])
+- `resolve()` reads prose forms of one ID (`BSD 3-Clause License`, `Apache
+  License, Version 2.0`, `The MIT License (MIT)`); category `prose_form`
 
 ### Changed
 

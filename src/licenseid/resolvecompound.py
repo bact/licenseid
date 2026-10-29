@@ -58,6 +58,7 @@ from licenseid.listlookup import ListLookup
 from licenseid.looseid import WITH_OPERATOR, declared_grant_id_text, granted_id_text
 from licenseid.quotes import unquote
 from licenseid.resolveleaf import Found, category_of
+from licenseid.resolveprose import read_alone
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
     TRUST,
@@ -66,7 +67,6 @@ from licenseid.resolvertypes import (
     Step,
     step,
 )
-from licenseid.resolvetrove import read_alone
 
 # A mark people write between two licences that SPDX does not read as an
 # operator ("MIT/Apache-2.0", "MIT, ISC", "MIT | ISC", "MIT & ISC").

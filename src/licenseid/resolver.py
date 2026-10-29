@@ -16,8 +16,9 @@ by ``licenseid.resolveleaf``; an expression of several (``MIT OR Apache2``)
 by ``licenseid.resolvecompound``, each operand as it would be read alone,
 and written in canonical order (``licenseid.exprcanon``); a trove classifier
 (``License :: OSI Approved :: MIT License``) or a name with its short form
-(``MIT License (MIT)``) by ``licenseid.resolvetrove``. A step that rests on
-a list cites it.
+(``MIT License (MIT)``) by ``licenseid.resolvetrove``; the prose form of one
+ID (``BSD 3-Clause License``, ``Apache License, Version 2.0``) by
+``licenseid.resolveprose``. A step that rests on a list cites it.
 
 No database is needed: with none, ``resolve`` reads the SPDX License List
 shipped in the wheel, in memory, and gives the answer a database built from
@@ -39,6 +40,7 @@ from licenseid.resolvecompound import (
     read_compound,
 )
 from licenseid.resolveleaf import Found, category_of, read_leaf
+from licenseid.resolveprose import read_by_name
 from licenseid.resolverinfo import (
     list_info,
     parser_info,
@@ -56,7 +58,6 @@ from licenseid.resolvertypes import (
     Source,
     step,
 )
-from licenseid.resolvetrove import read_named
 from licenseid.textinput import has_lone_surrogate
 
 # The longest expression read; one licence is MAX_KEY_INPUT or less (versionkey).
@@ -122,11 +123,13 @@ def _read(db: ListLookup, value: str) -> tuple[Found, list[Operand], bool]:
     if compound.claimed:
         return found, compound.operands, compound.parsed
     named = Found()
-    if read_named(db, text, named):  # a trove name or path, a name and its short form
+    # A trove name or path, a name and its short form, then the prose form of
+    # one ID (T8: P1 to P3)
+    if read_by_name(db, text, named):
         absorb(found, named)
         return found, [operand_of(text, start, named)], False
-    # One leaf that names nothing (the prose rules come here, Q18), or prose
-    # in compound form, with its first refused operand's reason.
+    # One leaf that names nothing, or prose in compound form, with its first
+    # refused operand's reason.
     found.category, found.reason = "unresolved", not_an_operator(text)
     if compound.fallback is not None:
         found.reason, found.steps = compound.fallback.reason, compound.fallback.steps

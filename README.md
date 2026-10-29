@@ -88,11 +88,22 @@ generator.*
     (`License :: OSI Approved :: MIT License`) is read as its name is
     read alone, with a `trove_path` step;
   - a name followed by a parenthesis (`MIT License (MIT)`) is read as the
-    name when the name and the parenthesis are each an ID or a List name
-    and are one expression (`trailing_name` step); if they differ, or only
-    one reads, the value is not read. Where the List backs both parts this
-    is read before the table, so `Eclipse Public License 2.0 (EPL-2.0)`
-    is `listed_name`;
+    name when the name and the parenthesis are each an ID, a List name or
+    a prose form (below) and are one expression (`trailing_name` step); if
+    they differ, or only one reads, the value is not read. Where the List
+    backs both parts this is read before the table, so `Eclipse Public
+    License 2.0 (EPL-2.0)` is `listed_name`;
+  - the prose form of one ID is read last, as category `prose_form`
+    (a `prose_form` step, then the steps of what it reduces to): a final
+    `license` or `licence` after a value that reads alone (`BSD 3-Clause
+    License`, `Apache-2.0 license`), `<name> License[,] (Version|v) N` as
+    `<name> N` (`Apache License, Version 2.0`), and a leading `The` with
+    either, or with a List name (`The MIT License`; `The MIT` is not
+    read). A dot or one comma at the end is left off, as for a loose ID
+    (`MIT License.`); `;`, `:` and `…` are not (`MIT License;`). A name that
+    states no licence (`BSD License`, `W3C License`) and a bare family
+    (`BSD`) stay `unresolved`, and a prose form is no operand of a
+    compound (`BSD 3-Clause License OR MIT`: `operand of several words`);
   - a compound is all or nothing: its category is the weakest operand's,
     and one operand that names nothing leaves the whole unresolved, with a
     `reason` naming it; a mark used as an operator (`MIT/Apache-2.0`) is
@@ -614,6 +625,7 @@ SPDX entry: find the SPDX list by its `id`, not by position). The
 | `stated_qualifier` | `author_words` | states "or later" in words |
 | `separator` | `resolver_rule` | is an ID with other separators |
 | `version_spelling` | `resolver_rule` | is an ID with its version re-spelt |
+| `prose_form` | `resolver_rule` | is an ID in a prose form (`BSD 3-Clause License`, `Apache License, Version 2.0`) |
 | `trove_name` | `resolver_rule` | is a PyPI trove classifier name that states one licence |
 | `deprecated_ambiguous` | `list_data` | is deprecated, with no successor |
 | `assumed_only` | `none` | is a bare split ID (`GPL-3.0`), kept |

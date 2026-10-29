@@ -1,0 +1,24 @@
+# The answers task T8 (prose forms of one ID: a trailing licence word, a
+# version in words, a leading article) moved in the parity corpus and the PyPI
+# sample. value: Python unicode_escape; group: the rule that moved it (its
+# reason is in tests/resolver_changes_t8.py); then the answer, its fields
+# written as in the other answer fixtures.
+value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
+Apache 2 License	word	Apache-2.0	prose_form	-	prose_form,separator,version_spelling	Apache 2,Apache-2.0,Apache-2.0	-	-	resolver_rule	yes	-
+Apache 2.0 Licence	word	Apache-2.0	prose_form	-	prose_form,separator	Apache 2.0,Apache-2.0	-	-	resolver_rule	yes	-
+Apache 2.0 License	word	Apache-2.0	prose_form	-	prose_form,separator	Apache 2.0,Apache-2.0	-	-	resolver_rule	yes	-
+Apache Licence, Version 2.0	version	Apache-2.0	prose_form	-	prose_form,separator	Apache 2.0,Apache-2.0	-	-	resolver_rule	yes	-
+Apache License Version 2.0	version	Apache-2.0	prose_form	-	prose_form,separator	Apache 2.0,Apache-2.0	-	-	resolver_rule	yes	-
+Apache License v2.0	version	Apache-2.0	prose_form	-	prose_form,separator	Apache 2.0,Apache-2.0	-	-	resolver_rule	yes	-
+Apache License, Version 2.0	version	Apache-2.0	prose_form	-	prose_form,separator	Apache 2.0,Apache-2.0	-	-	resolver_rule	yes	-
+Apache License, v2.0	version	Apache-2.0	prose_form	-	prose_form,separator	Apache 2.0,Apache-2.0	-	-	resolver_rule	yes	-
+Apache-2.0 License	word	Apache-2.0	prose_form	-	prose_form	Apache-2.0	-	-	resolver_rule	yes	-
+Apache-2.0 license	word	Apache-2.0	prose_form	-	prose_form	Apache-2.0	-	-	resolver_rule	yes	-
+BSD 2-Clause License	word	BSD-2-Clause	prose_form	-	prose_form,separator	BSD 2-Clause,BSD-2-Clause	-	-	resolver_rule	yes	-
+BSD 3-Clause License	word	BSD-3-Clause	prose_form	-	prose_form,separator	BSD 3-Clause,BSD-3-Clause	-	-	resolver_rule	yes	-
+BSD 3-Clause license	word	BSD-3-Clause	prose_form	-	prose_form,separator	BSD 3-Clause,BSD-3-Clause	-	-	resolver_rule	yes	-
+MIT Licence	word	MIT	prose_form	-	prose_form	MIT	-	-	resolver_rule	yes	-
+The BSD 2-Clause License	article	BSD-2-Clause	prose_form	-	prose_form,prose_form,separator	BSD 2-Clause License,BSD 2-Clause,BSD-2-Clause	-	-	resolver_rule	yes	-
+The MIT License	article	MIT	prose_form	-	prose_form,listed_name	MIT License,MIT	-	-	resolver_rule	yes	-
+The MIT License (MIT)	trailing	MIT	prose_form	-	trailing_name,prose_form,listed_name	The MIT License,MIT License,MIT	-	-	resolver_rule	yes	-
+Unlicense license	word	Unlicense	prose_form	-	prose_form	Unlicense	-	-	resolver_rule	yes	-
