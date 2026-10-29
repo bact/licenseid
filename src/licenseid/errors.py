@@ -22,7 +22,19 @@ class LicenseIdError(RuntimeError):
 class DatabaseNotReadyError(LicenseIdError):
     """The license database is missing, empty, invalid or unreadable, so an
     answer from it could not be trusted. The CLI exits with code 2, not 1,
-    because 1 means "no" for ``match`` and every ``is-*`` command."""
+    because 1 means "no" for ``match`` and every ``is-*`` command.
+
+    ``condition`` is the CONDITION of the message (``not found``, ``empty``,
+    ``invalid``, ``unreadable``, ...) and ``detail`` its DETAIL (the path,
+    and the reason if any), so a caller can tell a database that is not
+    there from one that is there but unusable without reading the message.
+    Both are ``""`` when the raiser did not say.
+    """
+
+    def __init__(self, message: str, condition: str = "", detail: str = "") -> None:
+        super().__init__(message)
+        self.condition = condition
+        self.detail = detail
 
 
 class InvalidInputError(LicenseIdError):

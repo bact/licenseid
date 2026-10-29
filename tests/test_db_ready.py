@@ -248,6 +248,13 @@ def test_api_constructor_raises(variant: Variant) -> None:
     message = str(excinfo.value)
     assert "\n" not in message
     assert not message.startswith("ERROR: ")
+    # The condition and the detail are the message's own (G5).
+    error = excinfo.value
+    said = f"database: {error.condition}: {error.detail}"
+    assert error.condition and error.detail
+    assert message in (said, f"{said}; run 'licenseid update'")
+    if variant.kind != REFUSED:
+        assert error.condition == variant.kind
     if variant.kind in (NOT_FOUND, EMPTY, INVALID):
         head = len("ERROR: ")
         assert message == expected_refusal(variant.kind, variant.db_arg)[head:-1]
@@ -356,9 +363,13 @@ def test_match_after_database_deleted(tmp_path: Path) -> None:
     matcher = AggregatedLicenseMatcher(db_path=str(db_path))
     assert matcher.match(license_id="MIT")
     db_path.unlink()
-    with pytest.raises(DatabaseNotReadyError, match="database: unreadable"):
+    with pytest.raises(DatabaseNotReadyError, match="database: unreadable") as raised:
         matcher.match(license_id="MIT")
     assert not db_path.exists()
+    assert raised.value.condition == "unreadable"
+    assert str(raised.value) == (
+        f"database: unreadable: {raised.value.detail}; run 'licenseid update'"
+    )
 
 
 def test_two_matchers_on_one_database(tmp_path: Path) -> None:

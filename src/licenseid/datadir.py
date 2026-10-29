@@ -7,7 +7,7 @@
 
 from pathlib import Path
 
-from licenseid.errors import DatabaseNotReadyError
+from licenseid.dbcheck import refused
 
 
 def get_default_db_path() -> str:
@@ -27,5 +27,5 @@ def get_default_db_path() -> str:
     except RuntimeError:
         home = Path()
     if not home.is_absolute():
-        raise DatabaseNotReadyError("database: not found: no home directory; pass --db")
+        raise refused("not found", "no home directory", "; pass --db")
     return str(home / ".local" / "share" / "licenseid" / "licenses.db")

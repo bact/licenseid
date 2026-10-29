@@ -103,8 +103,13 @@ def test_an_empty_home_is_no_home(monkeypatch: pytest.MonkeyPatch) -> None:
     """USERPROFILE or HOME set to nothing: Path.home() is the current
     directory, and the database would be made there."""
     monkeypatch.setattr(Path, "home", staticmethod(Path))
-    with pytest.raises(DatabaseNotReadyError, match="no home directory"):
+    with pytest.raises(DatabaseNotReadyError, match="no home directory") as raised:
         get_default_db_path()
+    # No home is no database file: not found, as a missing file is (G5).
+    assert (raised.value.condition, raised.value.detail) == (
+        "not found",
+        "no home directory",
+    )
 
 
 def test_update_builds_the_default_directory(home: Path) -> None:
