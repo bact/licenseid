@@ -11,7 +11,7 @@
   (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
   `markers.py`, `plusoperator.py` (the "+" operator), `quotes.py` (quote
   marks around a whole declared value), `versionkey.py` (one key for each
-  spelling of an ID), `resolver.py` (a declared licence value
+  spelling of an ID), `trovenames.py` (the `License ::` trove names as data), `resolver.py` (a declared licence value
   to an SPDX expression and the steps taken; its types and vocabularies are
   in `resolvertypes.py`), `listlookup.py` (the list lookups the resolver
   reads through: a Protocol), `listrules.py` (which SPDX entries are kept and

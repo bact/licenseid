@@ -78,6 +78,7 @@ test = [
     "coveralls>=4.1.0",
     "hatchling>=1.32.3",
     "pytest>=9.1.1",
+    "trove-classifiers>=2026.9.21.13",
 ]
 typecheck = [
     "hatchling>=1.32.3",

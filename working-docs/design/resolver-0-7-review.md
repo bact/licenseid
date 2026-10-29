@@ -183,6 +183,19 @@ Not fixed in T6; for T8 or R7.
 - T8: marks inside the grant phrase (`GPLv2 or any *later version`) are still
   read.
 
+### T9a: the trove table
+
+Numbering starts at P45: the T7 branch takes P23 to P44.
+
+| # | Task | Question | Chosen | Other options | Why |
+| - | - | - | - | - | - |
+| P45 | T9a | `GNU Lesser General Public License v2 or later (LGPLv2+)`, the sibling of the Q23 name | `none`, no ID | `LGPL-2.0-or-later` as `stated` | Q23 says it is not a general rule: another self-contradicting name stays unresolved unless listed. "Lesser v2" is 2.1 in the List, so "or later" is not clearly 2.0 |
+| P46 | T9a | A name equal to the SPDX name of an ID that has no version (`Nokia Open Source License`, `Nethack General Public License`, `Attribution Assurance License`, `PostgreSQL License`, `Sleepycat License`, `Aladdin Free Public License (AFPL)` and more) | `stated` | `none` | The name writes the licence as the List does; there is no version to leave out |
+| P47 | T9a | A name with no version where the List holds one version only (`Common Public License`, `IBM Public License`, `Sun Public License`, `Universal Permissive License (UPL)`, `Qt Public License (QPL)`) | `none` | `stated` | The name does not write the version; "only one exists" is a fact about the List today, not about the name (Qt is also not "Q Public") |
+| P48 | T9a | Names with two readings or a short name that differs (`zlib/libpng License`, `W3C License`, `Python License (CNRI Python License)`, `Mozilla Public License 1.0 (MPL)`) | `zlib/libpng` and `W3C` are `none`; the CNRI name is `stated` (`CNRI-Python`, the licence in brackets); the MPL 1.0 name is `stated` (`MPL-1.0`, the number is written) | All `none` | `zlib/libpng` is `Zlib` or `Libpng`; the W3C name has three IDs and no date (Q22) |
+| P49 | T9a | Bare `v2`/`v3` GPL, AGPL and LGPL names | `assumed`, the deprecated bare ID | `stated` as `-only` | The existing policy and the parity rows: "v3" is not "only" |
+| P50 | T9a | `strip_trove_path` | The prefix `License ::` and `OSI Approved` are case-sensitive; white space round `::` is free; `License :: X` (no `OSI Approved`) also gives `X`; a deeper path, an empty name and `OSI Approved` alone give `None` | Case-insensitive; `OSI Approved` only | A classifier is exact syntax; the short path is the form of the classifiers outside `OSI Approved` |
+
 ## 7. T6b: reading quoted values
 
 Decision Q12 refused `"MIT"` in T6 (the drop guard names every quote mark) and
