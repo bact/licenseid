@@ -97,11 +97,13 @@ generator.*
     they differ, or only one reads, the value is not read. Where the List
     backs both parts this is read before the table, so `Eclipse Public
     License 2.0 (EPL-2.0)` is `listed_name`;
-  - the prose form of one ID is read last, as category `prose_form`
+  - the prose form of one licence is read last, as category `prose_form`
     (a `prose_form` step, then the steps of what it reduces to): a final
-    `license` or `licence` after a value that reads alone (`BSD 3-Clause
-    License`, `Apache-2.0 license`), `<name> License[,] (Version|v) N` as
-    `<name> N` (`Apache License, Version 2.0`), and a leading `The` with
+    `license` or `licence` after a value that names one licence, with a `+`
+    or a `WITH` if it has one (`BSD 3-Clause License`, `MIT+ License`), `<name>
+    License[,] (Version|v) N` as `<name> N`, or as the List name `<name>
+    License N` if both name the same licence (`Apache License, Version 2.0`,
+    `Mozilla Public License, Version 2.0`), and a leading `The` with
     either, or with a List name (`The MIT License`; `The MIT` is not
     read). A dot or one comma at the end is left off, as for a loose ID
     (`MIT License.`); `;`, `:` and `…` are not (`MIT License;`). A name that
@@ -640,7 +642,7 @@ A consumer ignores a step kind it does not know. Before 0.7.0 a compound
 was category `expression`, with no expression; that category is gone.
 
 `reason` is `None` unless the value was refused, when it is one line,
-`CONDITION[: DETAIL]`, the detail in code points: `character dropped: U+003F`
+`CONDITION[: DETAIL]`, the detail of a mark in code points: `character dropped: U+003F`
 (the value would be read as a licence only by dropping a mark that is not a
 separator, such as `?`, `!`, `*` or a quote inside the value, or a dash or
 dots alone at an end; several are space separated), `word dropped: rem 1`

@@ -83,7 +83,8 @@ def _prose(db: ListLookup, text: str, found: Found) -> bool:
     if is_no_licence(body):  # a name that states no licence stays so (Q22)
         return False
     rest = _after_article(body)
-    if rest is not None and not is_no_licence(rest):
+    # A second article (``The The MIT License``) is no prose form (P75)
+    if rest is not None and _after_article(rest) is None and not is_no_licence(rest):
         lead = step(_KIND, True, text, rest, "leading article")
         if _by_name(db, rest, lead, found) or _by_rule(db, rest, rest, [lead], found):
             return True
@@ -111,20 +112,55 @@ def read_alone(db: ListLookup, text: str, found: Found) -> bool:
 def _by_rule(
     db: ListLookup, source: str, body: str, before: list[Step], found: Found
 ) -> bool:
-    """P1 or P2 on *body* (*source* with its end marks off): its reduction
-    read as it is alone, after the steps *before*."""
-    word, detail = _licence_word(body), "licence word"
-    if word is None:
-        word, detail = _version_form(body), "version"
-    if word is None:
+    """P1 or P2 on *body* (*source* with its end marks off): its reductions
+    read as they are alone, after the steps *before*. Marks after the last
+    word (``MIT License;``) stay on the reduction, so that the drop guard
+    refuses it with its reason (P64); they never help a reading. P2 has two
+    reductions, which must agree (P68)."""
+    core = body[: _word_end(body)]
+    marks = body[len(core) :]
+    readings = []
+    for word, detail in _reductions(db, core):
+        reading = Found()
+        if not read_leaf(db, word + marks, reading):
+            continue
+        if reading.expression is None and _refused(found, reading):
+            return True
+        if reading.expression is not None:
+            readings.append((word, detail, reading))
+    if marks or len({r.expression for _, _, r in readings}) != 1:
         return False
-    reading = Found()
-    if not read_leaf(db, word, reading):
-        return False
-    if reading.expression is None:
-        return _refused(found, reading)
+    word, detail, reading = readings[0]
     _fill(found, [*before, step(_KIND, True, source, word, detail)], reading)
     return True
+
+
+def _word_end(text: str) -> int:
+    """Where the last word of *text* ends: the marks after it are not part
+    of a word or white space."""
+    end = len(text)
+    while end and not (text[end - 1].isalnum() or text[end - 1].isspace()):
+        end -= 1
+    return end
+
+
+def _reductions(db: ListLookup, core: str) -> list[tuple[str, str]]:
+    """The texts P1 or P2 reduce *core* to, each with the detail of its
+    step: P1 the head of a final licence word; P2 ``<name> N`` and, where the
+    List has a name exactly so, ``<name> License N`` (an exact name lookup,
+    never a loose key over names)."""
+    head = _licence_word(core)
+    if head is not None:
+        return [(head, "licence word")]
+    tail = _RE_VERSION_TAIL.search(core)
+    name = "" if tail is None else core[: tail.start()].rstrip()
+    if tail is None or not name:
+        return []
+    reductions = [(f"{name} {tail['number']}", "version")]
+    named = f"{name} License {tail['number']}"
+    if len(db.get_active_ids_by_name().get(named.casefold(), [])) == 1:
+        reductions.append((named, "version"))
+    return reductions
 
 
 def _by_name(db: ListLookup, rest: str, lead: Step, found: Found) -> bool:
@@ -164,20 +200,21 @@ def _fill(found: Found, steps: list[Step], reading: Found) -> None:
 
 
 def _licence_word(body: str) -> str | None:
-    """*body* without a final ``license`` or ``licence`` (P1), or None."""
-    head = body[:-7]
-    if body[-7:].casefold() not in _LICENCE_WORDS or not head[-1:].isspace():
+    """*body* without a final ``license`` or ``licence`` (P1), or None. A
+    head that ends in one itself (``MIT License License``) is no prose form
+    (P75)."""
+    head = _without_word(body)
+    if head is None or _without_word(head) is not None:
+        return None
+    return head
+
+
+def _without_word(text: str) -> str | None:
+    """*text* without a final licence word that stands alone, or None."""
+    head = text[:-7]
+    if text[-7:].casefold() not in _LICENCE_WORDS or not head[-1:].isspace():
         return None
     return head.rstrip() or None
-
-
-def _version_form(body: str) -> str | None:
-    """``<name> N`` for ``<name> License[,] (Version|v) N`` (P2), or None."""
-    tail = _RE_VERSION_TAIL.search(body)
-    if tail is None:
-        return None
-    name = body[: tail.start()].rstrip()
-    return f"{name} {tail['number']}" if name else None
 
 
 def _after_article(body: str) -> str | None:

@@ -11,6 +11,7 @@ import time
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from matcher_db import Lic, seeded_db
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
@@ -109,6 +110,16 @@ STAYS = [
     "License",
     "The License",
     "The",
+    "TheMIT License",  # the article stands alone
+    "The The Unlicense",  # P75: no second article
+    "The The MIT License",
+    "MIT License License",  # P75: no second licence word
+    "BSD 3-Clause License License",
+    "Apache License, Version 2.0 License",
+    "GNU General Public License, Version 3",  # P68: no name is reached
+    "Apache-2.0 License+",  # a mark after the word helps no reading
+    "BSD 3-Clause License+",
+    "Apache License, Version 2.0+",
     "The MIT",  # P3 needs P1, P2 or a listed name
     "The Apache-2.0",
     "Apache License",
@@ -116,7 +127,6 @@ STAYS = [
     "Apache License, Version",
     "Apache License, Version 2.0 License",
     "Apache License, Version 2.0.1",
-    "Apache License, Version 2.0?",
     "GNU Affero General Public License, Version 3",  # no List name is reached
     "GNU General Public License, Version 3.0",
     "GNU Lesser General Public License v3",  # a trove name: assumed, not P2
@@ -124,12 +134,6 @@ STAYS = [
     "MIT License ...",  # a dangling mark is not left off
     "MIT License -",
     "Apache License,Version 2.0",
-    "MIT License;",  # `MIT;` is refused (F6), so is this
-    "MIT License:",
-    "MIT License…",
-    "BSD 3-Clause License;",
-    "MIT License?",
-    "MIT License*",
     "MIT License (Apache-2.0)",  # the parts differ
     "The MIT License (Apache-2.0)",
     "The MIT License ()",
@@ -146,6 +150,45 @@ WEAKER = [
     ("The GPLv3 License", "GPL-3.0", "assumed_only"),
     ("GPL-2.0 Licence", "GPL-2.0", "assumed_only"),
 ]
+
+
+@pytest.mark.parametrize(
+    ("value", "expression"),
+    [
+        ("Net-SNMP License", "Net-SNMP"),
+        ("Nunit License", "Nunit"),
+        ("BSD 2-Clause FreeBSD License", "BSD-2-Clause-FreeBSD"),
+        ("eCos license version 2.0", "eCos-2.0"),
+    ],
+    ids=lambda v: v[:20],
+)
+def test_a_deprecated_id_is_reached_as_a_separator_spelling_is(
+    corpus_db: LicenseDatabase, value: str, expression: str
+) -> None:
+    """P74: the loose key names the right licence; the deprecation policy
+    keeps it as written, with no successor (`deprecated_ambiguous`)."""
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["category"], got["trust"]) == (
+        expression,
+        "deprecated_ambiguous",
+        "list_data",
+    )
+    assert kinds(got)[0] == "prose_form"
+
+
+def test_two_readings_of_a_version_form_must_agree() -> None:
+    """P68: ``<name> N`` (loose) and ``<name> License N`` (an exact List name)
+    that name two licences leave the value unresolved."""
+    rows = (
+        Lic("Foo-2.0", "Foo Public 2.0", search_text="foo public"),
+        Lic("Bar-1.0", "Foo License 2.0", search_text="foo license"),
+        Lic("Baz-3.0", "Baz License 3.0", search_text="baz license"),
+        Lic("Baz-3", "Baz Free 3.0", search_text="baz free"),
+    )
+    for path in seeded_db("test_resolver_prose_agree", rows):
+        db = LicenseDatabase(path, create=False)
+        assert resolve("Foo License, Version 2.0", db)["expression"] is None
+        assert resolve("Baz License, Version 3.0", db)["expression"] is not None
 
 
 def kinds(got: Resolution) -> list[str]:
@@ -370,6 +413,13 @@ def _time_the_rules(db: LicenseDatabase, size: int) -> None:
         ("1. MIT License", "word dropped: 1"),
         ("- MIT License", "character dropped: U+002D"),
         ("The REM MIT License", "word dropped: rem"),
+        ("MIT License;", "character dropped: U+003B"),
+        ("MIT License:", "character dropped: U+003A"),
+        ("MIT License\u2026", "character dropped: U+2026"),
+        ("MIT License?", "character dropped: U+003F"),
+        ("MIT License*", "character dropped: U+002A"),
+        ("BSD 3-Clause License;", "character dropped: U+003B"),
+        ("Apache License, Version 2.0?", "character dropped: U+003F"),
     ],
     ids=lambda v: v[:20],
 )
