@@ -184,7 +184,8 @@ TROVE_NAMES: Final[dict[str, TroveEntry]] = {
     "Intel Open Source License": _stated("Intel"),  # the List's name
     "Jabber Open Source License": _none(),  # not in the List
     "MITRE Collaborative Virtual Workspace License (CVW)": _none(),  # not in the List
-    "Sun Industry Standards Source License (SISSL)": _none(),  # SISSL, SISSL-1.2
+    # The ID is written in the name (P52, decided by the maintainer on 2026-10-29).
+    "Sun Industry Standards Source License (SISSL)": _stated("SISSL"),
     "X.Net License": _stated("Xnet"),  # the List's name
     # License :: ... again
     "Other/Proprietary License": _none(osi=False),  # no SPDX ID
