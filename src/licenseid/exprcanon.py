@@ -36,6 +36,7 @@ from typing import Final, NamedTuple
 
 import py_spdx_license
 
+from licenseid.errors import one_line
 from licenseid.exprtokens import OPERATOR
 from licenseid.identifiers import MAX_PARSE_DEPTH, MAX_PARSE_OPERATORS, parse_expression
 from licenseid.looseid import RE_GRANT_WORDS, grant_end
@@ -232,8 +233,11 @@ def parse(tokens: list[Token], texts: list[str]) -> Node | str:
         py_spdx_license.parse(skeleton, allow_unknown=True)
     except Exception as error:  # pylint: disable=broad-exception-caught
         message = str(error)
-    for index, text in enumerate(texts):
-        message = message.replace(f"{_PLACEHOLDER}{index}", text)
+    message = re.sub(
+        rf"{_PLACEHOLDER}(\d+)",
+        lambda m: one_line(texts[int(m[1])]) if int(m[1]) < len(texts) else m[0],
+        message,
+    )
     return f"parse failed: {message}"
 
 

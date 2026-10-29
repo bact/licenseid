@@ -75,10 +75,9 @@ SHAPES: list[tuple[str, tuple[str | None, str, list[str]]]] = [
     ),
     ("GPL-2.0-only  WITH Classpath-exception-2.0", (_WITH, "lexical", ["whitespace"])),
     ("GPL-2.0-only\tWITH\tClasspath-exception-2.0", (_WITH, "lexical", ["whitespace"])),
-    # Q14: a grant on a versioned ID with no -or-later form is "+" (was
-    # unresolved); one with no version stays unresolved (P35)
+    # Q14, P35: a grant on an ID with no -or-later form is "+"
     ("Apache 2.0 or later", ("Apache-2.0+", "separator", ["separator"])),
-    ("MIT or later", (None, "unresolved", [])),  # P35 (amended): no version
+    ("MIT or later", ("MIT+", "stated_qualifier", [])),  # P35
     # Q14: the hyphenated grant is a grant (was separator, by the version
     # key) and a qualifier stated twice is malformed (was unresolved)
     ("GPL-2.0 or-later", ("GPL-2.0-or-later", "stated_qualifier", [])),
@@ -182,8 +181,8 @@ def test_prose_with_an_operator_word_is_no_compound(
 #: but with the operators in upper case the reason is the first refused
 #: operand's (Q15, P43 amended after review); a dropped mark in any case.
 FALLBACK = [
-    ("Apache License 2.0 OR MIT", "operand not resolved: Apache License 2.0", []),
-    ("BSD 3-Clause OR Apache-2.0", "operand not resolved: BSD 3-Clause", []),
+    ("Apache License 2.0 OR MIT", "operand of several words: Apache License 2.0", []),
+    ("BSD 3-Clause OR Apache-2.0", "operand of several words: BSD 3-Clause", []),
     ("Foo OR Apache License 2.0", "operand not resolved: Foo", []),
     ("MIT OR GPLv2 or later!", "character dropped: U+0021", ["drop"]),
     ("Apache 2.0? OR MIT", "character dropped: U+003F", ["drop"]),

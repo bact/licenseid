@@ -73,7 +73,7 @@ REASONS: dict[str, str] = {
     "reason": (
         "T7 (D1, P13, Q15): refused as before; with the operators in upper"
         " case the reason names the first operand that resolves to nothing,"
-        " or is no operand (a leaf of several words)"
+        " or is no operand (a leaf of several words that resolves alone: R7, S1)"
     ),
     "grammar": (
         "T7 (Q4): every part names a licence but the expression does not"
