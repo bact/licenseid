@@ -18,10 +18,10 @@ and this project adheres to
 - `DatabaseNotReadyError.condition` and `.detail`: why a database cannot be
   read (`not found`, `empty`, `invalid`, `unreadable`)
   ([#119])
-
 - `resolve()` result has a `reason` (`None` unless refused): `character dropped:
   U+003F`, `lone surrogate`, `control or format character: U+200B`; a `drop`
   step that was not applied names the reading it stopped
+  ([#120])
 
 ### Changed
 
@@ -38,8 +38,10 @@ and this project adheres to
   ([#117])
 - `resolve()` answers `unresolved` for a value it read only by dropping a mark
   (`Apache 2.0?`, `MIT*`, `"MIT"`, U+FFFD), not the licence it did not write
+  ([#120])
 
 [#117]: https://github.com/bact/licenseid/pull/117
+[#120]: https://github.com/bact/licenseid/pull/120
 [#119]: https://github.com/bact/licenseid/pull/119
 
 ## [0.6.0] - 2026-10-27
