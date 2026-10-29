@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-29
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -36,15 +36,15 @@ pylint's actual defaults are 12 and 50.
 
 | Metric | Target (pylint default) | Interim ceiling | Current worst |
 | --- | --- | --- | --- |
-| Args | ≤5 | 5 (at target) | 5 (`similarity.py`, `matcher._rank_candidates`) |
-| Locals | ≤15 | 22 | 22 (`markers.py`) |
-| Nesting | ≤5 | 5 (no ratchet needed) | 5 |
-| Branches | ≤12 | 13 | 13 (`identifiers._normalize_expression`) |
-| Returns | ≤6 | 6 (at target) | 6 (`tests/test_option_matrix.py`) |
-| Statements | ≤50 | 50 (at target) | 38 (`shorttext.match_short_text`) |
-| McCabe | ≤10 | 12 | 12 (`identifiers.leading_expression`) |
-| Cognitive | ≤15 | 29 | 29 (`test_accuracy.py`, see note) |
-| Module lines | soft 400-500 / hard 800 | 773 | 773 (`markers.py`) |
+| Args | ≤5 | 5 (at target) | 5 (five test helpers, e.g. `tests/test_update_characterization.py::_update`; none in `src/`) |
+| Locals | ≤15 | 22 | 22 (`shorttext.match_short_text`, `markers._detect_gpl_headers`) |
+| Nesting | ≤5 | 5 (no ratchet needed) | 5 (`matcher._match_mixed_content`) |
+| Branches | ≤12 | 13 | 13 (`identifiers._normalize_expression`, alone) |
+| Returns | ≤6 | 6 (at target) | 6 (`tests/test_option_matrix.py::_source_args`; in `src/`: `resolver._read_text`, `resolveleaf._base`, `resolvecompound.read_compound`, `matcher._match_raw`) |
+| Statements | ≤50 | 50 (at target) | 37 (`shorttext.match_short_text`) |
+| McCabe | ≤10 | 12 | 12 (`identifiers.leading_expression`, alone) |
+| Cognitive | ≤15 | 29 | 29 (`tests/test_accuracy.py::run_accuracy_test`, alone; next 28) |
+| Module lines | soft 400-500 / hard 800 | 773 | 772 (`markers.py`) |
 
 Measured 2026-08-19 via `pylint --disable=all --enable=too-many-<x>
 --max-<x>=1`, `flake8 --max-complexity 1` and
@@ -88,6 +88,96 @@ program's file. Then 926→921 when `get_all_names_and_ids` reused
 connection code moved to `dbconnection.py` (roadmap item 29), 915→913
 when `_connect` was inlined, and 913→864 when the whole-table reads moved
 to `dbcache.py` (roadmap item 37).
+
+### Re-measured 2026-10-29 (after PR #132)
+
+Tree `ed9d1b1` (0.7.0 work, before the rename). Measured across `src/` and
+`tests/` with the project's own tools, each at ceiling 1 so that every
+function is listed (the method of 2026-08-19; `pylint -j4` in one pass):
+
+```shell
+pylint --disable=all --enable=too-many-arguments,too-many-locals,\
+  too-many-branches,too-many-return-statements,too-many-statements,\
+  too-many-nested-blocks,too-many-positional-arguments \
+  --max-args=1 --max-locals=1 --max-branches=1 --max-returns=1 \
+  --max-statements=1 --max-nested-blocks=1 --max-positional-arguments=1 \
+  src/ tests/
+flake8 --max-complexity 1 --select C901 src/ tests/
+flake8 --max-cognitive-complexity 1 --select CCR001 src/ tests/
+pylint --disable=all --enable=too-many-lines --max-module-lines=1 src/ tests/
+```
+
+The table above now shows these figures; no ceiling in the config changed.
+Moved since the last table: Statements 38→37, Module lines 773→772 (the
+config still says 773), and the holders of Args, Locals, Nesting and Returns,
+which are new code (the resolver modules, `matcher._match_mixed_content`).
+
+Which ceiling can drop, and what it takes:
+
+| Ceiling | Now | Could drop to | Needs |
+| --- | --- | --- | --- |
+| Module lines | 773 | 772 now | nothing: `markers.py` is 772 |
+| Branches | 13 | 12 (target) | one function: `identifiers._normalize_expression` (next highest 12) |
+| McCabe | 12 | 11 | one function: `identifiers.leading_expression` (next 11, two holders); 10 (target) needs three more |
+| Cognitive | 29 | 28 | `tests/test_accuracy.py::run_accuracy_test`; then 28 is `identifiers.leading_expression`, then 25 (`matcher._match_mixed_content`) |
+| Locals | 22 | 20 | two functions: `shorttext.match_short_text`, `markers._detect_gpl_headers`; next 20 (`matcher._rank_candidates`) |
+| Statements, Args, Returns, Nesting | at target | none | none left |
+
+`identifiers.leading_expression` holds McCabe (12) and is the second
+Cognitive holder (28): refactoring it moves two ceilings.
+
+Files over 450 lines (`wc -l` on tracked files; the four names of
+`AGENTS.md` are one file):
+
+| Lines | File |
+| --- | --- |
+| 774 | `benchmarks/bench_single.py` (not linted) |
+| 772 | `src/licenseid/markers.py` (holds the module-lines ceiling) |
+| 755 | `scripts/generate_fixtures.py` (not linted) |
+| 724 | `src/licenseid/identifiers.py` |
+| 686 | `AGENTS.md` (also `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`) |
+| 680 | `src/licenseid/matcher.py` |
+| 677 | `working-docs/paper-notes/ai-sessions-recent.md` |
+| 658 | `src/licenseid/cli.py` |
+| 651 | `README.md` (799 before the split of #129) |
+| 635 | `tests/test_lookup_database_hardening.py` |
+| 631 | `working-docs/implementation/tech-debt-resolved.md` |
+| 624 | `tests/test_cli_matrix.py` |
+| 617 | `src/licenseid/dbcheck.py` |
+| 600 | `tests/test_markers_structured.py` |
+| 585 | `tests/test_resolver_trove.py` |
+| 561 | `src/licenseid/database.py`, `tests/test_markers.py` |
+| 550 | `tests/test_spdx_source.py` |
+| 544 | `CHANGELOG.md` |
+| 537 | `src/licenseid/spdx_source.py` |
+| 535 | `working-docs/paper-notes/ai-sessions-early.md` |
+| 520 | `tests/db_variants.py` |
+| 513 | `working-docs/implementation/speed-optimizations.md` |
+| 507 | `tests/test_identifiers.py` |
+| 498 | `working-docs/paper-notes/results-and-findings.md` |
+| 491 | `working-docs/design/tech-debt-roadmap.md` |
+| 484 | `tools/pypi_licence_sample/__main__.py` |
+| 477 | `tests/test_match_ordering_adversarial.py` |
+| 474 | `working-docs/design/resolver-0-7-plan.md` |
+| 473 | `src/licenseid/resolveleaf.py`, `tests/test_hatch_build.py` |
+| 468 | `tests/test_database_update.py` |
+| 462 | `tests/test_spdxdata.py` |
+| 461 | `tests/test_dbcheck_uri.py` |
+| 458 | `tests/test_db_ready.py` |
+| 457 | `tests/test_bundle_source.py` |
+| 451 | `working-docs/design/resolver-0-7-review.md` |
+
+Data fixtures over 450 lines, none over 800:
+`tests/fixtures/license-list/spdx-license-ids.json` (747),
+`license-id/license_ids.json` (541), `license-name/license_names.json` (473),
+`pypi_values_2026-10.tsv` (469).
+
+Within 100 lines of the 800 hard limit: `bench_single.py` (774),
+`markers.py` (772), `generate_fixtures.py` (755), `identifiers.py` (724).
+The resolver work added `resolveleaf.py` (473); no file of `src/` crossed the
+limit. The next change to `markers.py` or `identifiers.py` should split
+first (the `AGENTS.md` rule). The two unlinted files are over the soft limit
+with no ceiling to stop them.
 
 ## Backlog, priority order
 
