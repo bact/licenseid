@@ -42,6 +42,9 @@ and this project adheres to
 
 ### Changed
 
+- `resolve()` keeps its choice of list while the default database file is
+  unchanged: about 2 ms per value instead of 34 ms (`auto`) or 78 ms
+  (`source="database"`); an `update` or a new file is seen at the next call
 - `resolve()` refuses a value read only by dropping a list or comment marker
   (`REM MIT`, `1. MIT`: `word dropped: rem`) or a mark at the start (`-MIT`,
   `.GPL-3.0-only`), two or more at the end (`MIT...`) or a lone dash; one

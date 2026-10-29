@@ -20,7 +20,7 @@ from unittest import mock
 import pytest
 import requests
 
-from licenseid import listindex, releasesource, spdx_source, spdxdata
+from licenseid import listindex, listsource, releasesource, spdx_source, spdxdata
 from licenseid.database import LicenseDatabase
 from licenseid.spdxdata import SpdxData, to_bundle
 from licenseid.types import SpdxLicenseEntry
@@ -178,6 +178,7 @@ def ship(monkeypatch: pytest.MonkeyPatch, raw: bytes | None) -> None:
         mock.create_autospec(_PACKAGED_BUNDLE, return_value=raw),
     )
     listindex.reset_packaged_index()
+    listsource.reset_choice()
 
 
 def stub_chain(monkeypatch: pytest.MonkeyPatch, db: LicenseDatabase) -> None:

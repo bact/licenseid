@@ -108,6 +108,7 @@ def offline(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
 def _forget_packaged() -> None:
     listindex.reset_packaged_index()
     listsource.reset_warnings()
+    listsource.reset_choice()
 
 
 def seed_ready_metadata(db_path: str) -> None:

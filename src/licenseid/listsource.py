@@ -28,12 +28,22 @@ from it); ``source="packaged"`` reads the bundle, or raises when there is
 none. A database given as ``db=`` is read as ``source="database"``, as the
 caller built it.
 
+The choice is kept per process, for the default path, the file's stamp
+(``os.stat``: modification time, size, inode, device) and the packaged
+index: a repeat on an unchanged file costs one ``stat`` and opens no
+connection, and the database it returns keeps its warm table cache. A
+changed stamp, a file that appeared or vanished, another path (the home
+directory changed) or another packaged index chooses again, and so does a
+``stat`` that fails for any reason but "not found". A choice that raised
+is not kept.
+
 Usable is what :func:`licenseid.dbcheck.check_database_ready` says, read
 fail-open, as the matcher reads it: a lock held elsewhere is no verdict.
 """
 
+import os
 import threading
-from typing import get_args
+from typing import NamedTuple, get_args
 
 from licenseid import listindex
 from licenseid.console import warn
@@ -50,6 +60,22 @@ SOURCES: tuple[Source, ...] = get_args(Source)
 # (``build vN outdated``): each is said once, not once per value resolved.
 _LOCK = threading.Lock()
 _warned: set[str] = set()
+
+
+class _Kept(NamedTuple):
+    """A list chosen, and what it was chosen for."""
+
+    path: str
+    stamp: tuple[int, ...] | None  # None: no file
+    packaged: listindex.ListIndex | None
+    lookup: ListLookup
+    source: ListSource
+
+
+# The last choice of each mode ("auto", "database"), under its own lock: the
+# choice itself warns through ``_warn_once``, which takes ``_LOCK``.
+_CHOICE_LOCK = threading.Lock()
+_kept: dict[str, _Kept] = {}
 
 
 def choose_list(
@@ -71,13 +97,9 @@ def choose_list(
                 "option: invalid: source: 'packaged' with db; pass db or source"
             )
         return db, "database"
-    if source == "database":
-        path = get_default_db_path()
-        check_database_ready(path)  # what auto calls unusable, this refuses
-        return LicenseDatabase(path, create=False, report=_warn_once), "database"
     if source == "packaged":
         return _packaged(), "packaged"
-    return _auto()
+    return _kept_choice(source)
 
 
 def _packaged() -> listindex.ListIndex:
@@ -88,6 +110,58 @@ def _packaged() -> listindex.ListIndex:
         condition, _, detail = problem.partition(": ")
         raise DatabaseNotReadyError(f"{PACKAGED_NAME}: {problem}", condition, detail)
     return index
+
+
+def _stamp(path: str) -> tuple[int, ...] | None | Exception:
+    """The stamp of the file at *path*: None when there is none, the error
+    when it cannot be told (that is no stamp to keep a choice by)."""
+    try:
+        found = os.stat(path)
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        return exc
+    return (found.st_mtime_ns, found.st_size, found.st_ino, found.st_dev)
+
+
+def _kept_choice(mode: Source) -> tuple[ListLookup, ListSource]:
+    """The choice of *mode* (``auto`` or ``database``), kept while the
+    default path, its file and the packaged index are the same."""
+    with _CHOICE_LOCK:
+        try:
+            path = get_default_db_path()
+        except DatabaseNotReadyError:
+            return _choose(mode)  # no home directory: nothing to key by
+        stamp = _stamp(path)
+        if isinstance(stamp, Exception):
+            return _choose(mode)
+        kept = _kept.get(mode)
+        if (
+            kept is not None
+            and (kept.path, kept.stamp) == (path, stamp)
+            and kept.packaged is _packaged_for(mode)
+        ):
+            return kept.lookup, kept.source
+        lookup, source = _choose(mode)  # a raise keeps nothing
+        # Read after the choice, so a warning about the bundle comes after the
+        # ones of the database, as before the choice was kept.
+        _kept[mode] = _Kept(path, stamp, _packaged_for(mode), lookup, source)
+        return lookup, source
+
+
+def _packaged_for(mode: Source) -> listindex.ListIndex | None:
+    """The packaged index a choice of *mode* depends on (``database`` reads
+    none)."""
+    return listindex.packaged_index() if mode == "auto" else None
+
+
+def _choose(mode: Source) -> tuple[ListLookup, ListSource]:
+    """Choose again: what ``resolve()`` read before it kept its choice."""
+    if mode == "database":
+        path = get_default_db_path()
+        check_database_ready(path)  # what auto calls unusable, this refuses
+        return LicenseDatabase(path, create=False, report=_warn_once), "database"
+    return _auto()
 
 
 def _auto() -> tuple[ListLookup, ListSource]:
@@ -132,3 +206,10 @@ def reset_warnings() -> None:
     """Forget the warnings said, for a test that expects one."""
     with _LOCK:
         _warned.clear()
+
+
+def reset_choice() -> None:
+    """Forget the list choices kept, for a test that swaps the home
+    directory, the packaged index or the file behind the default path."""
+    with _CHOICE_LOCK:
+        _kept.clear()

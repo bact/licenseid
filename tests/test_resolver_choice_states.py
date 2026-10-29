@@ -49,19 +49,13 @@ def _warnings(err: str, path: str) -> str:
     return err.replace(path, "{path}")
 
 
-@pytest.mark.parametrize(
-    ("state", "bundle", "source", "warning"),
-    CASES,
-    ids=[f"{s}-{b}" for s, b, _, _ in CASES],
-)
+@pytest.mark.parametrize("case", CASES, ids=[f"{c[0]}-{c[1]}" for c in CASES])
 def test_auto_reads_and_says(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
-    state: str,
-    bundle: str,
-    source: str,
-    warning: str,
+    case: tuple[str, str, str, str],
 ) -> None:
+    state, bundle, source, warning = case
     ship(monkeypatch, release_bundle(bundle))
     build(state, monkeypatch)
     for _ in range(3):

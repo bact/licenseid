@@ -537,6 +537,9 @@ The answer is the same from either, and `lists[*].source` says which was
 read. `licenseid.DatabaseNotReadyError` is raised only when the chosen
 list cannot be read: with `auto`, when there is neither (an editable install
 ships no list).
+The choice is kept while the database file is unchanged (one `stat` per
+call, no connection to choose), so a loop over many values is fast; an
+`update` or a new file is seen at the next call.
 
 ```python
 from licenseid import resolve
