@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -15,7 +15,8 @@ coding agents. These are notes, not a draft. Every claim cites a source
 (repository file and line, pull request, commit, or session transcript and
 timestamp) so that it can be checked before it is cited.
 
-Covers 2026-04-27 (first commit) to 2026-10-27 (v0.6.0, PRs #96 to #101);
+Covers 2026-04-27 (first commit) to 2026-10-29 (the 0.7.0 resolver work,
+PRs #106 to #132, before the release; v0.6.0 is PRs #96 to #101);
 the older files stop at 2026-10-07 (v0.4.3), and `ai-sessions-0-5-0.md` at
 2026-10-22 (v0.5.0).
 
@@ -24,7 +25,7 @@ the older files stop at 2026-10-07 (v0.4.3), and `ai-sessions-0-5-0.md` at
 | File | Content |
 | --- | --- |
 | [system-design.md](system-design.md) | Tiers, scoring, normalisation order, database gate, caches; rejected paths |
-| [results-and-findings.md](results-and-findings.md) | Datasets, accuracy, speed, technical findings (RapidFuzz, SQLite, SPDX, streams) |
+| [results-and-findings.md](results-and-findings.md) | Datasets, accuracy, speed, technical findings (RapidFuzz, SQLite, SPDX, streams); what real PyPI values look like and what the 0.7.0 rules read (3.5 to 3.7) |
 | [process-and-validity.md](process-and-validity.md) | Process lessons in the repo; threats to validity; open questions; future work |
 | [history.md](history.md) | Timeline, releases, metrics, complexity ratchets, SBOM chronology |
 | [ai-sessions-early.md](ai-sessions-early.md) | Human–AI sessions, July to mid-September: decisions, mistakes, patterns |
@@ -32,6 +33,7 @@ the older files stop at 2026-10-07 (v0.4.3), and `ai-sessions-0-5-0.md` at
 | [ai-sessions-0-5-0.md](ai-sessions-0-5-0.md) | Human–AI session, release 0.5.0 (20 to 22 October): sources, reviews, mistakes |
 | [ai-sessions-0-6-0.md](ai-sessions-0-6-0.md) | Human–AI session, release 0.6.0 (24 to 28 October): loose IDs, `resolve()`, review yield |
 | [ai-sessions-0-7-plan.md](ai-sessions-0-7-plan.md) | Human–AI session, Pitloom 0.21.0 and the 0.7.0 resolver plan (27 to 28 October): evidence, review yield, mistakes |
+| [ai-sessions-0-7-0.md](ai-sessions-0-7-0.md) | Human–AI work, 0.7.0 resolver (28 to 29 October): lead, authors and reviewers, review yield with numbers, maintainer decisions, incidents |
 | [dataset-licence-values.md](dataset-licence-values.md) | A dataset of declared licence values (PyPI top 10,000, parity corpus): content, uses, what publication needs |
 
 ## Method

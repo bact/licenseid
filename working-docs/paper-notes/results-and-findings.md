@@ -496,3 +496,36 @@ not on a measured share. The larger 5,000-project download was not repeated
 for this task (no network). Property test: for 676 generated `A ; B` from
 List IDs and List names (`tests/test_resolver_semicolon.py`), every operand
 equals what `resolve()` answers for its part alone.
+
+### 3.7 What the 0.7.0 rules read: 0.6.0 against main (2026-10-29)
+
+Method and the full tables: `../design/resolver-0-7-evidence.md`, section
+"Re-measure on 2026-10-29". `resolve()` run on the frozen sample (462
+distinct values, 9,353 projects, 124.5 billion downloads, top 10,000 projects
+of 2026-10) and the 141-value parity corpus, SPDX 3.29.0, once on the
+`v0.6.0` tree and once on each merge commit of the rule pull requests. The
+live 0.6.0 run equals the answers pinned in the fixtures (0 differences in
+603 values). **[observation]**
+
+| Result | 0.6.0 | main (after #132) |
+| --- | --- | --- |
+| Sample values with an expression | 137 | 241 |
+| Projects with an expression | 7,459 (79.7%) | 7,861 (84.0%) |
+| Downloads with an expression | 103.7 bn (83.3%) | 112.3 bn (90.2%) |
+| Parity values with an expression | 51 of 141 | 96 of 141 |
+| Sample values still unresolved | 258 (plus 67 compounds with no expression) | 221 |
+
+- Values that gained an expression, by rule: compounds (T7, #122) 66, of 110
+  projects and 6.6 bn downloads; trove names and trailing short names (T9,
+  PR #126) 20, 115 projects; prose forms (T8, #128) 18, 177 projects; quoted
+  values (T6b, #121) 1. The drop guard (T6, #120) refuses one value that 0.6.0
+  read and T6b reads it again. T8b (#131) and T5b (#132) change no answer on
+  either corpus. **[observation]**
+- Most of the gain by downloads is the compounds (6.6 of 8.6 bn).
+- Of the 221 unresolved values (1,492 projects), the three largest are a
+  trove name that means Apache-2.0 only by usage, the bare `BSD` and the
+  trove family `BSD License`: 950 projects, 8.3 bn downloads. They are open
+  by decision (Q3 deferred to 0.8), not by a missing rule.
+- Threats: a larger sample than section 3.5 (top 10,000, not 5,000), so
+  counts do not compare across the two sections; latest release only; the
+  measuring script was a scratch script and is not in the repository.
