@@ -45,6 +45,9 @@ and this project adheres to
 
 ### Changed
 
+- `resolve()` keeps its choice of list while the default database file is
+  unchanged: about 10 times faster per value, with no connection to choose
+  ([#132])
 - `resolve()` refuses a value read only by dropping a list or comment marker
   (`REM MIT`, `1. MIT`: `word dropped: rem`) or a mark at the start (`-MIT`,
   `.GPL-3.0-only`), two or more at the end (`MIT...`) or a lone dash; one
@@ -87,6 +90,7 @@ and this project adheres to
 [#128]: https://github.com/bact/licenseid/pull/128
 [#130]: https://github.com/bact/licenseid/pull/130
 [#131]: https://github.com/bact/licenseid/pull/131
+[#132]: https://github.com/bact/licenseid/pull/132
 
 ## [0.6.0] - 2026-10-27
 
