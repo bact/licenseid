@@ -10,7 +10,8 @@ https://spdx.github.io/spdx-spec/v3.0.1/annexes/license-matching-guidelines-and-
 """
 
 import re
-from typing import Final
+from collections.abc import Mapping
+from typing import Final, Literal
 
 # Guideline 0 (practical): HTML detection heuristic.
 # Closing tags (</p>, </div>, ...) appear only in real HTML — unlike opening
@@ -41,17 +42,24 @@ RE_DASHES: Final = re.compile(r"[‐‑‒–—―−﹘﹣－-]")
 
 # Guideline 4 (quotes): any variation of quotations is considered
 # equivalent.  Normalise to ASCII single quote before stripping punctuation.
+#
+# QUOTE_KIND is the one definition of the quote marks: each mark and its kind,
+# "double" or "single". Two marks delimit the same text if they are of one
+# kind, whichever of them opens (German writes „x“, Swedish ”x”, Danish »x«),
+# so the direction says nothing; a double mark does not close a single one
+# (``"MIT'``). The prime marks and the modifier letters stand for the mark
+# they are mis-typed for. It is read for a value written in quotes
+# (``licenseid.quotes``); RE_QUOTES is built from it.
+QUOTE_KIND: Final[Mapping[str, Literal["double", "single"]]] = {
+    **dict.fromkeys('"«»“”„‟″ʺ‴', "double"),
+    **dict.fromkeys("'`‘’‚‛‹›′ʹʻʼʽ", "single"),
+}
+
+# The marks the text normaliser folds: all of QUOTE_KIND but the ASCII
+# apostrophe (it already is the character they fold to) and the grave accent
+# (never folded).
 RE_QUOTES: Final = re.compile(
-    r'["«»'  # " « »
-    r"‘’"  # ' '
-    r"‚‛"  # ‚ ‛
-    r"“”"  # " "
-    r"„‟"  # „ ‟
-    r"‹›"  # ‹ ›
-    r"′″‴"  # ′ ″ ‴
-    r"ʹʺ"  # ʹ ʺ
-    r"ʻʼʽ"  # ʻ ʼ ʽ
-    r"]"
+    "[" + "".join(re.escape(mark) for mark in QUOTE_KIND if mark not in "'`") + "]"
 )
 
 # Guideline 5a: code comment prefixes at the start of a line.

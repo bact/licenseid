@@ -160,6 +160,14 @@ Provisional: the maintainer may reverse any of them.
 | P12 | T6 | `GPLv2 or later!` and `GPLv2? or later` | Refused (`!` and `?` are no grant tail; the tail `. , ; : ) ]` is read as before). 0.6.0 read the first as `GPL-2.0-or-later` | Leave the grant path unguarded | Same doubt as `Apache 2.0?`; only `looseid._RE_GRANT_TAIL` is exempt, as the plan says |
 | P13 | T6 | Dropped character inside an operand that no leaf reads whole (`Apache 2.0?+`, `MIT? WITH X`) | The whole value is refused through the same exception: `unresolved` with the `drop` step and reason | `malformed`, or the `+`/exception read on its own | One rule at the one place (`_base`); T7 may refine it per operand |
 | P14 | T6 | Is the minus sign U+2212 a dash for the drop guard? | Yes: the allowed dashes and the quotes are the sets `normalize_text` folds (`normalize.RE_DASHES`, `RE_QUOTES`, now public), not Unicode category Pd. So `Apache−2.0` is read; modifier letters U+02B9 to U+02BD are marks (quotes); a wave dash U+301C is a mark | Category Pd | One definition, independent of the Python Unicode version; SPDX matching guideline 4 calls the minus sign a dash |
+| P15 | T6b | Which marks pair | Two marks of one *kind* pair, whichever opens: `double` (`" « » “ ” „ ‟ ″ ʺ ‴`) or `single` (`' ‘ ’ ‚ ‛ ‹ › ′ ʹ ʻ ʼ ʽ` and the grave accent). `normalize.QUOTE_KIND` holds them and `RE_QUOTES` is built from it, minus the ASCII apostrophe and the grave accent (`normalize_text` output is unchanged: a hash over every 3.29.0 licence text is the same before and after). Whitespace inside the marks (`" MIT "`) is trimmed | Strict open and close pairs (`“”`, `„“`, `«»`); any mark closes any mark | Languages disagree on which mark opens (German `„x“`, Swedish `”x”`, Danish `»x«`), so direction says nothing; a double mark closing a single one is a typo whose stray end is unknown (P16) |
+| P16 | T6b | Mismatched marks (`"MIT'`, `“MIT’`) | Not read: the drop guard refuses them with both marks in the reason | Read as unbalanced on one end; read as a pair | Two marks and no way to say which is the stray one; refusing is narrower and easy to relax |
+| P17 | T6b | One mark on one end only (`"MIT`, `MIT"`) | Read, with the step detail `unbalanced, start` or `unbalanced, end`, and the answer counts as `separator` (`resolver_rule`), not `lexical`, because the value may be cut. Only one stray mark is taken off: `""MIT` is not read. `"MIT'"` is read (unbalanced, end) while `"MIT'` is refused (P16) | `lexical` (`identity`); refuse | The author's text was not complete (a typo or a cut value): the maintainer asked to read it, and a weaker trust is the narrowest answer. A pair, then a stray (`""MIT"`) is read the same way |
+| P18 | T6b | Nested or doubled pairs (`""MIT""`, `'"MIT"'`) | Every balanced layer comes off, one step, `balanced, N layers`; the kinds may differ between layers | One layer only (the rest then refused by the guard) | CSV and YAML escaping double the marks; each layer is a pair by the same argument |
+| P19 | T6b | A mark left inside what the pair encloses | The value is not read, unless the mark is an apostrophe between two letters or digits (`AMD's`). So `"MIT" or "Apache-2.0"` is never read as one text, and a quoted `BSD 3-Clause "New" or "Revised" License` stays unread (0 in the sample) | Take the pair off anyway and let the guard and the List decide | The outer marks are a pair only if no mark closes them earlier; ASCII marks cannot say, and the List names with marks are not at either end (a test checks) |
+| P20 | T6b | Where it runs | In `resolve()`, once per whole value: trim, `unquote`, `brackets`, and `unquote` again only if the brackets came off (`("MIT")`). `"(MIT)"` and `("MIT")` read; deeper alternation (`("(MIT)")`) does not | Only before the brackets; a loop until nothing changes | One reader of the value before the leaf, so `+`, `WITH` and grants inside compose; a loop invites a quadratic path |
+| P21 | T6b | The step kind and its category | `unquote` is in `LEXICAL_KINDS` (a change of form, like `brackets`); an unbalanced one sets `Found.floor = "separator"` (from `Unquoted.balanced`), which `_category` adds to the step kinds, so the category stays the weakest of the steps and the floor | A new category; a second step kind; matching the detail text | No new vocabulary: the closed `Category` set and the consumers stay as they are |
+| P22 | T6b | Which marks may stand alone on one end (narrows P17) | Quotation punctuation only (`STRAY_MARKS`: ASCII `"` and `'`, the grave accent, curly, low-9, guillemets). The primes U+2032 to U+2034 and the modifier letters U+02B9 to U+02BD pair but are never the stray: `GPL-2.0′`, `Apache 2.0″`, `ʻMIT` (the okina is a letter) and `MITʼ` are refused by the guard | Every mark of `QUOTE_KIND` may stray | A prime is a unit or a footnote and a modifier letter is a letter: neither is a quote left over |
 
 ### Follow-ups found in T6
 
@@ -174,3 +182,81 @@ Not fixed in T6; for T8 or R7.
   `GPLv2 or later;` is read; `MIT...` is read but `MIT…` is refused.
 - T8: marks inside the grant phrase (`GPLv2 or any *later version`) are still
   read.
+
+## 7. T6b: reading quoted values
+
+Decision Q12 refused `"MIT"` in T6 (the drop guard names every quote mark) and
+left the reading to T6b. The code is `licenseid.quotes.unquote`, called by
+`resolver._prepared`; the pairs are `normalize.QUOTE_KIND` (P15 to P21).
+
+### The rule
+
+1. Skip white space at both ends.
+2. While the first and last mark are of one kind, remove both (a layer).
+3. If one end has a quotation mark (not a prime or a modifier letter, P22)
+   and the other none, remove it (unbalanced). Two marks of different
+   kinds: stop, read nothing.
+4. The rest must be non-empty and hold no mark except an apostrophe between
+   two letters or digits. Otherwise the value is as it was.
+
+### Why it asserts nothing the author did not write
+
+A quote delimits a text; it does not qualify it. `"MIT"` and `MIT` mean the
+same in JSON, TOML and YAML strings, Markdown and prose, so taking off the
+marks that enclose the whole value drops no word, no doubt and no condition:
+the trust stays `identity` (`lexical`), as for brackets. The marks that do
+qualify are inside: `MIT "or" Apache-2.0`, `GPL "2.0"`, `Apache "2.0"` quote
+a word of a longer text, and what the writer meant by it (a term, a
+quotation, scare quotes) is unknown. Step 4 keeps them out and the drop guard
+refuses them as before. Step 4 also separates a pair that wraps the value
+from two quoted words that merely start and end it (`"MIT" or "Apache-2.0"`).
+A mark on one end only means the text was typed wrongly or cut; the inside is
+still what was written, so it is read, but the answer says so (detail) and
+counts as a rule of the resolver (`separator`).
+
+### Sample run
+
+The 10,000-project sample (`sample-2026-10.jsonl`, SPDX 3.29.0), `analyze`
+before and after: `unresolved` 1,784 to 1,783, `lexical` 10 to 11, nothing
+else moved. Of the 9,998 values, three hold a quote mark:
+
+| Project | Downloads | Value | Now |
+| - | - | - | - |
+| artifacts-keyring | 843,066 | `"MIT"` | `MIT`, `lexical`, `identity` (T6: refused; 0.6.0: `MIT`, `separator`) |
+| proxy-py | 525,301 | `'BSD'` | `unresolved`, as `BSD` is (it names no one licence) |
+| redfish | 318,109 | `BSD 3-clause "New" or "Revised License"` | `unresolved`, as before (marks inside) |
+
+The 3.29.0 names with a quote mark: `AMD's plpa_map.c License`, `Do What The
+F*ck You Want To But It's Not My Fault Public License` (apostrophes) and the
+names of `BSD-2-Clause`, `BSD-3-Clause` and `BSD-4-Clause` (double marks
+inside). None starts or ends with a mark; a test reads the List fixtures.
+`EXPECTED_CHANGES` lists one value, `"MIT"`; the parity corpus (140 values)
+and the PyPI fixture (462) move nowhere else.
+
+### For T7 (compounds)
+
+`unquote` takes the whole value. T7 reads each operand as a value of its own
+and should call `unquote` on an operand too, after the whole-value call:
+`"MIT OR Apache-2.0"` is then unquoted once, and `MIT OR "Apache-2.0"` per
+operand. A pinned gap: the parser accepts quotes around an operand, so
+`"MIT" or "Apache-2.0"` and `MIT OR "Apache-2.0"` are labelled `expression`
+today (`tests/test_resolver_quotes.py`, `BUG (T7)`); T7 must refuse a mark
+inside an expression or unquote each operand, not read two quoted words as
+one text.
+
+### Follow-ups found in T6b
+
+- T7: the quoted operand above.
+- T8: `"MIT".` and `"MIT",` are refused but `MIT,"` and `"MIT,` are read
+  (the comma ends the value, or is inside it); trailing punctuation is T8's.
+- Not read (no pair, or a mark `QUOTE_KIND` does not hold): fullwidth
+  `＂MIT＂`, CJK `「MIT」`, `['MIT']`, an escaped `\"MIT\"`, `"MIT" License`, and
+  a quoted listed name with inner marks.
+- R7: `markers.py` (lines 66 and 78) reads quotes its own way on the match
+  path; it should call `licenseid.quotes`.
+- There is no length cap before `unquote`: it is linear and `_lookup` still
+  caps the result at 2,000 characters, as before (not a regression).
+- R7: `licenseid match '"MIT"'` still answers by the Tier 0 loose ID, as for
+  T6's follow-up.
+- A quoted listed name that holds marks (`"BSD 3-Clause "New" or "Revised"
+  License"`) and deeper alternation of brackets and quotes are not read.

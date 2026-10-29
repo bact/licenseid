@@ -31,6 +31,7 @@ from licenseid.identifiers import parse_expression, without_outer_brackets
 from licenseid.listlookup import ListLookup
 from licenseid.listsource import choose_list
 from licenseid.plusoperator import plus_after_qualifier, strip_plus_operator
+from licenseid.quotes import unquote
 from licenseid.resolveleaf import Found, read_leaf
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
@@ -91,10 +92,7 @@ def _lookup(db: ListLookup, value: str) -> Found:
     """Read one declared *value* into a :class:`Found`: the leaf, else the
     category of the expression."""
     found = Found()
-    text = value.strip()
-    if text != value:
-        found.steps.append(step("trim", True, value, text))
-    text = _unbracketed(text, found)
+    text = _prepared(value, found)
     if not text or len(text) > _MAX_EXPRESSION_CHARS:
         found.category = "unresolved"
         return found
@@ -106,6 +104,30 @@ def _lookup(db: ListLookup, value: str) -> Found:
         return found
     found.category = _expression_category(db, text)
     return found
+
+
+def _prepared(value: str, found: Found) -> str:
+    """*value* trimmed, and without the quotes and brackets around the whole
+    of it (``"MIT"``, ``(MIT)``, ``("MIT")``), each as a step. The quotes are
+    taken off the whole value, once (:mod:`licenseid.quotes`)."""
+    text = value.strip()
+    if text != value:
+        found.steps.append(step("trim", True, value, text))
+    text = _unquoted(text, found)
+    inner = _unbracketed(text, found)
+    return inner if inner == text else _unquoted(inner, found)
+
+
+def _unquoted(text: str, found: Found) -> str:
+    """*text* without quote marks around the whole of it, as an ``unquote``
+    step whose detail says whether they were balanced."""
+    unquoted = unquote(text)
+    if unquoted is None:
+        return text
+    found.steps.append(step("unquote", True, text, unquoted.text, unquoted.detail))
+    if not unquoted.balanced:
+        found.floor = "separator"  # the value may be cut: a rule of the resolver
+    return unquoted.text
 
 
 def _unbracketed(text: str, found: Found) -> str:
@@ -165,6 +187,8 @@ def _category(found: Found) -> Category:
     if found.category is not None:
         return found.category
     kinds = {_AS_CATEGORY.get(s["kind"], s["kind"]) for s in found.steps}
+    if found.floor is not None:
+        kinds.add(found.floor)
     kinds |= {s["kind"] for s in found.expansions}
     ranked = [c for c in CATEGORY_ORDER if c in kinds]
     return ranked[-1] if ranked else "exact"

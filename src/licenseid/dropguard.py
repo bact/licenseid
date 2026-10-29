@@ -19,8 +19,10 @@ Unicode hyphens and dashes, and the minus sign U+2212, as SPDX matching
 guideline 4 has it): the set ``normalize_text`` folds, so there is one
 definition. Everything else that is not alphanumeric counts, and so does any
 character of ``normalize.RE_QUOTES`` (some are letters, such as the modifier
-letter U+02BC): a quoted value is the business of a later rule that reads
-quotes as a whole. Standard library and ``licenseid.normalize`` only.
+letter U+02BC). Quote marks that delimit the whole value are taken off before
+this guard sees it (:mod:`licenseid.quotes`); the ones it still sees are inside
+the value (``Apache "2.0"``) and may qualify it. Standard library and
+``licenseid.normalize`` only.
 """
 
 from typing import Final

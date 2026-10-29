@@ -139,9 +139,19 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
         _DROP.format(char="replacement character U+FFFD", licence="MIT"),
     ),
     '"MIT"': (
-        refused("character dropped: U+0022", "MIT"),
-        _DROP.format(char="quote", licence="MIT")
-        + "; Q12: quotes are refused here, a later task (T6b) reads them",
+        UNRESOLVED._replace(
+            expression="MIT",
+            category="lexical",
+            steps=("unquote",),
+            step_targets=("MIT",),
+            trust="identity",
+        ),
+        (
+            "T6b (Q12): a pair of quotes around the whole value delimits it and"
+            " says nothing; 0.6.0 dropped them as a separator (`separator`, the"
+            " rule of the resolver), T6 refused them, now the `unquote` step"
+            " takes them off: a change of form only (`lexical`, `identity`)"
+        ),
     ),
 }
 

@@ -9,8 +9,9 @@
   `shorttext.py` (Tier 0 IDs and names), `looseid.py` (a loosely written
   ID: "Apache2", "GPLv3", "GPLv2 or any later version"), `ranking.py`
   (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
-  `markers.py`, `plusoperator.py` (the "+" operator), `versionkey.py` (one
-  key for each spelling of an ID), `resolver.py` (a declared licence value
+  `markers.py`, `plusoperator.py` (the "+" operator), `quotes.py` (quote
+  marks around a whole declared value), `versionkey.py` (one key for each
+  spelling of an ID), `resolver.py` (a declared licence value
   to an SPDX expression and the steps taken; its types and vocabularies are
   in `resolvertypes.py`), `listlookup.py` (the list lookups the resolver
   reads through: a Protocol), `listrules.py` (which SPDX entries are kept and
@@ -554,7 +555,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   balanced payloads (unbalanced ones fail early). Give a timing test 10x
   headroom for CI's Python 3.10, where a deep `py_spdx_license` parse
   that fails is slowest; keep deep nesting away from the parser rather
-  than raising the limit. Details from PR #61:
+  than raising the limit. CI's 3.10 job runs under `coverage`, several
+  times slower than a laptop: a timing test that needs a large input or a
+  tight bound (a ratio of two sizes for linear time) is
+  `@pytest.mark.benchmark`, run with `--run-benchmark` before a release, and
+  keeps a small size in the every-commit run (PR #121). Details from PR #61:
   `working-docs/implementation/spdx-expression-reading.md`.
 
 ## Git and pull requests
