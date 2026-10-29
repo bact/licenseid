@@ -396,14 +396,9 @@ def test_resolve_matrix(
     assert (got["expression"], got["category"]) == ("MIT", "exact")
     assert [(e["source"], e["version"]) for e in got["lists"]] == [(where, VERSION)]
     assert capsys.readouterr().err == said
-    resolve("MIT", source=source)  # the fallback is said once per process
-    assert capsys.readouterr().err == opened_again(said)
-
-
-def opened_again(said: str) -> str:
-    """What a second call prints: opening an outdated database warns each
-    time, as 0.6.0 did; the fallback warning does not."""
-    return OUTDATED_WARNING if said == OUTDATED_WARNING else ""
+    # Every warning, an opened database's included, is said once per process.
+    resolve("MIT", source=source)
+    assert capsys.readouterr().err == ""
 
 
 @pytest.mark.parametrize("source", RESOLVE_SOURCES)

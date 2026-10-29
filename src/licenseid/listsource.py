@@ -12,7 +12,8 @@ bundle shipped in the wheel (:func:`licenseid.listindex.packaged_index`).
   version wins (:func:`licenseid.spdxdata.is_older`; a version that is not
   all numbers is never older). A tie goes to the database only if its rows
   were built by this licenseid's rules (``build vN outdated`` still warns
-  when it opens), else to the bundle: the two then give the same answer;
+  when it opens, once per process), else to the bundle: the two then give
+  the same answer;
 - no database file (``not found``, an account with no home directory
   included): the bundle, silently;
 - a database that is there but cannot answer: the bundle, after
@@ -45,8 +46,8 @@ from licenseid.resolvertypes import ListSource, Source
 from licenseid.spdxdata import PACKAGED_NAME, is_older
 
 SOURCES: tuple[Source, ...] = get_args(Source)
-# The fallback warnings this process printed: each is said once, not once per
-# value resolved.
+# The warnings this process printed, a fallback's or an opened database's
+# (``build vN outdated``): each is said once, not once per value resolved.
 _LOCK = threading.Lock()
 _warned: set[str] = set()
 
@@ -73,7 +74,7 @@ def choose_list(
     if source == "database":
         path = get_default_db_path()
         check_database_ready(path)  # what auto calls unusable, this refuses
-        return LicenseDatabase(path, create=False), "database"
+        return LicenseDatabase(path, create=False, report=_warn_once), "database"
     if source == "packaged":
         return _packaged(), "packaged"
     return _auto()
@@ -94,7 +95,7 @@ def _auto() -> tuple[ListLookup, ListSource]:
     try:
         path = get_default_db_path()
         check_database_ready(path)
-        database = LicenseDatabase(path, create=False)
+        database = LicenseDatabase(path, create=False, report=_warn_once)
         metadata = database.get_metadata()
     except DatabaseNotReadyError as exc:
         index = listindex.packaged_index()
