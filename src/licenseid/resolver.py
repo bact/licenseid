@@ -131,8 +131,9 @@ def _is_refused(text: str) -> bool:
     control or format character other than white space (a NUL, a zero-width
     space, a bidi override), which must not be dropped as a separator, since
     that would resolve text that shows other than it reads; or a lone
-    surrogate (`textinput.has_lone_surrogate`), which SQLite cannot bind. T6 names the reason
-    (``lone surrogate``, ``Resolution.reason``)."""
+    surrogate (:func:`licenseid.textinput.has_lone_surrogate`), which SQLite
+    cannot bind. T6 names the reason (``lone surrogate``,
+    ``Resolution.reason``)."""
     return has_lone_surrogate(text) or any(
         unicodedata.category(c) in ("Cc", "Cf") and not c.isspace() for c in text
     )

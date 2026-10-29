@@ -243,7 +243,7 @@ def test_a_row_lost_between_the_two_reads_is_no_match(db: LicenseDatabase) -> No
     (another process's ``update``): the answer is no match, not an error."""
     assert match_version_key(db, "Apache2")
     with mock.patch("licenseid.shorttext._full_row", autospec=True, return_value=None):
-        assert match_version_key(db, "Apache2") == []
+        assert not match_version_key(db, "Apache2")
 
 
 @pytest.mark.parametrize(
