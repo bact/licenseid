@@ -41,10 +41,10 @@ and this project adheres to
 
 ### Changed
 
-- `resolve()` refuses a value that a loose reading would read only by
-  dropping a list or comment marker (`REM MIT`, `1. MIT`) or a dash or dots
-  alone at an end (`MIT -`); `reason` `word dropped: rem` or
-  `character dropped: U+002D`
+- `resolve()` refuses a value read only by dropping a list or comment marker
+  (`REM MIT`, `1. MIT`: `word dropped: rem`) or a mark at the start (`-MIT`,
+  `.GPL-3.0-only`), two or more at the end (`MIT...`) or a lone dash; one
+  `;` or `:` at the end (`MIT;`) is left off and read
 - `resolve()` with no database reads the newer of the default database and
   the shipped list (a tie: the database, if this build made it); an unusable
   default database falls back to the shipped list with a warning

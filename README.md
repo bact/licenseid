@@ -66,9 +66,12 @@ generator.*
     `reason` and a `drop` step that was not applied; white space, `-`, `_`,
     `.`, a dash and one trailing comma are still dropped. So is no word:
     a list or comment marker (`REM MIT`, `1. MIT`, `iv. MIT`) is refused
-    with `word dropped: rem`, and a dash or dots standing alone at an end
-    (`MIT -`, `-- MIT`, `MIT ...`) with `character dropped: U+002D`
-    (dots touching the word, `MIT...`, are read);
+    with `word dropped: rem`. At the end of a value one `.`, `,`, `;` or
+    `:`, with white space around it, is an ending and is left off (`MIT;`,
+    `MIT License :`; a `separator` step); two or more marks, an ellipsis
+    and a lone dash (`MIT;;`, `MIT...`, `MIT…`, `MIT -`) are refused. At
+    the start nothing is left off: `-- MIT`, `; MIT`, `... MIT`, and an ID
+    cut from a longer one (`.GPL-3.0-only`, `-MIT`) are refused;
   - a compound expression is read operand by operand: one-word operands
     (with `WITH`, `+` or an "or later" grant), each as the same text would be
     read alone, and per operand only a balanced pair of quotes; an operand
@@ -105,8 +108,8 @@ generator.*
     License N` if both name the same licence (`Apache License, Version 2.0`,
     `Mozilla Public License, Version 2.0`), and a leading `The` with
     either, or with a List name (`The MIT License`; `The MIT` is not
-    read). A dot or one comma at the end is left off, as for a loose ID
-    (`MIT License.`); `;`, `:` and `…` are not (`MIT License;`). A name that
+    read). One mark at the end is left off, as for any value (`MIT
+    License.`, `MIT License;`). A name that
     states no licence (`BSD License`, `W3C License`) and a bare family
     (`BSD`) stay `unresolved`, and a prose form is no operand of a
     compound (`BSD 3-Clause License OR MIT`: `operand of several words`);
@@ -642,10 +645,11 @@ A consumer ignores a step kind it does not know. Before 0.7.0 a compound
 was category `expression`, with no expression; that category is gone.
 
 `reason` is `None` unless the value was refused, when it is one line,
-`CONDITION[: DETAIL]`, the detail of a mark in code points: `character dropped: U+003F`
+`CONDITION[: DETAIL]`, the detail of a mark in code points:
+`character dropped: U+003F`
 (the value would be read as a licence only by dropping a mark that is not a
-separator, such as `?`, `!`, `*` or a quote inside the value, or a dash or
-dots alone at an end; several are space separated), `word dropped: rem 1`
+separator, such as `?`, `!`, `*` or a quote inside the value, a mark at the
+start, two or more at the end, or a lone dash; several are space separated), `word dropped: rem 1`
 (a comment or list marker that the reading would drop, in lower case),
 `lone surrogate`, `control or format character: U+200B`; for a compound,
 `operand not resolved: <operand>` (or that operand's own reason),
@@ -667,7 +671,8 @@ one `drop` step with `applied` false: its `to` is the listed ID the loose
 reading named (`resolve("Apache 2.0?")` would have read `Apache-2.0`; a
 renamed ID is not followed) and its `detail` the code points. White space,
 `_`, `.`, a dash (the hyphen-minus, the Unicode hyphens and dashes and the
-minus sign) and one trailing comma are not marks.
+minus sign) and one `.` or `,` at the end are not marks; nor is one `;` or
+`:` there, which is an ending left off.
 
 Quote marks that delimit the whole value are not marks of that kind: the
 `unquote` step takes them off first. Two marks of one kind, double
