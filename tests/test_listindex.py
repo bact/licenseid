@@ -60,6 +60,9 @@ EXCEPTIONS = (
     exc_entry("K-exception", "K exception"),
 )
 RAW = synthetic_bundle(LICENSES, TEXTS, EXCEPTIONS)
+# The real one, to spec a fake on: conftest's autouse fixture replaces it
+# with a mock before each test, and Python 3.14 will not spec a mock.
+_REAL_BUNDLE = spdxdata.packaged_bundle
 
 
 @pytest.fixture(name="index")
@@ -240,7 +243,7 @@ def test_no_bundle_is_no_index() -> None:
 
 
 def test_the_bundle_is_loaded_once(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake = mock.create_autospec(spdxdata.packaged_bundle, return_value=RAW)
+    fake = mock.create_autospec(_REAL_BUNDLE, return_value=RAW)
     monkeypatch.setattr(spdxdata, "packaged_bundle", fake)
     first = packaged_index()
     assert first is not None and first.version == "9.99"
@@ -291,7 +294,7 @@ def test_threads_load_the_bundle_once(monkeypatch: pytest.MonkeyPatch) -> None:
         time.sleep(0.05)  # widen the window a second load would need
         return RAW
 
-    fake = mock.create_autospec(spdxdata.packaged_bundle, side_effect=slow_bundle)
+    fake = mock.create_autospec(_REAL_BUNDLE, side_effect=slow_bundle)
     monkeypatch.setattr(spdxdata, "packaged_bundle", fake)
     listindex.reset_packaged_index()
     got: list[ListIndex | None] = []
