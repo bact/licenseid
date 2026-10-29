@@ -108,12 +108,20 @@ class Resolver(TypedDict):
     purl: str
 
 
+#: Where ``resolve()`` read a list: the licence database, or the bundle
+#: shipped in the wheel, read into memory.
+ListSource = Literal["database", "packaged"]
+#: What ``resolve(source=...)`` takes: one of those, or ``auto`` to choose.
+Source = Literal["auto", "database", "packaged"]
+
+
 class ListInfo(TypedDict):
-    """One list the answer rests on."""
+    """One list the answer rests on, and where it was read (``source``)."""
 
     id: str
     name: str
     version: str | None
+    source: ListSource
     url: str | None
     license: str
     provides: list[str]

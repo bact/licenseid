@@ -73,6 +73,13 @@ def _stamp(value: str) -> int:
     )
 
 
+def is_current_build(metadata: DatabaseMetadata) -> bool:
+    """Whether a database's rows were built by this licenseid's rules
+    (``records.BUILD_VERSION``): not older, as ``build vN outdated`` warns,
+    nor newer, as ``build vN newer`` does."""
+    return _stamp(metadata.get("build_version", "1")) == _stamp(BUILD_VERSION)
+
+
 class LicenseDatabase:
     """
     Handles SQLite database operations for storing and searching SPDX licenses.

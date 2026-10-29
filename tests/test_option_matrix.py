@@ -16,7 +16,7 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | CLI blank input      | commands x blank arg / --text / --id / stdin |
 | API ``match()``      | every subset of text / license_id / file     |
 | API ``is_*()``       | PREDICATES x text / license_id / file        |
-| API ``resolve()``    | the database at the default path (STATES)    |
+| API ``resolve()``    | source x default database (STATES) x bundle  |
 
 Current precedence when several inputs are given (pinned below; the losing
 input is ignored without a warning):
@@ -36,14 +36,25 @@ import pytest
 from click.testing import CliRunner, Result
 from conftest import RESULT_KEYS, json_lines, make_mit_db_path
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
-from db_variants import MIT_TEXT
+from db_variants import MIT_TEXT, make_ready_file_db
 from input_payloads import PAYLOADS, Payload
-from resolve_states import OUTDATED, OUTDATED_WARNING, STATES, VERSION, build
+from release_fakes import release_bundle, ship
+from resolve_states import MISSING as NO_DATABASE
+from resolve_states import (
+    NO_HOME,
+    OUTDATED,
+    OUTDATED_WARNING,
+    STATES,
+    VERSION,
+    build,
+    refusal,
+)
 
-from licenseid import resolve
+from licenseid import LicenseDatabase, resolve
 from licenseid.cli import cli
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
 from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.resolvertypes import Source
 from tools.cli_matrix.judge import PLAIN
 
 OTHER_TEXT = "The quick brown fox jumps over the lazy dog near the river bank"
@@ -331,23 +342,82 @@ def test_a_missing_file_path_raises_oserror(mit_db: str, tmp_path: Path) -> None
         AggregatedLicenseMatcher(mit_db).match(file_path=str(tmp_path / "nope"))
 
 
-# --- API resolve(): the database at the default path ---
+# --- API resolve(): source x the database at the default path x bundle ---
+
+RESOLVE_SOURCES = ["auto", "database", "packaged"]
+BUNDLES = ["shipped", "none"]
+NO_BUNDLE = "spdx-bundle.json.gz: not found"
 
 
+def _resolve_outcome(source: str, state: str, shipped: bool) -> tuple[str, str]:
+    """What resolve("MIT", source=source) does: ``("raise", message)`` or
+    ``(list source, stderr)``. The bundle holds the database's version, so
+    a usable database wins the tie (Q4), an outdated one loses it (Q10)."""
+    refused = refusal(state)
+    opened = OUTDATED_WARNING if state == OUTDATED else ""
+    if source == "packaged":
+        return ("packaged", "") if shipped else ("raise", NO_BUNDLE)
+    if source == "database" or not shipped:
+        return ("raise", refused) if refused else ("database", opened)
+    if state == OUTDATED:
+        return "packaged", opened
+    if refused is None:
+        return "database", ""
+    if state in (NO_DATABASE, NO_HOME):  # no database file: silent (Q11)
+        return "packaged", ""
+    said = refused.split(";")[0]
+    return "packaged", f"WARNING: {said}; using packaged data v{VERSION}\n"
+
+
+@pytest.mark.parametrize("bundle", BUNDLES)
 @pytest.mark.parametrize("state", STATES)
+@pytest.mark.parametrize("source", RESOLVE_SOURCES)
 def test_resolve_matrix(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], state: str
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    source: Source,
+    state: str,
+    bundle: str,
 ) -> None:
-    """With no database given, resolve() reads the one at the default path;
-    a state it cannot read raises, its message unchanged from 0.6.0."""
-    refusal = build(state, monkeypatch)
+    """With no database given, resolve() reads the database at the default
+    path or the bundle shipped in the wheel, as *source* says; a list it
+    cannot read raises, a database's message unchanged from 0.6.0."""
+    shipped = bundle == "shipped"
+    ship(monkeypatch, release_bundle(VERSION) if shipped else None)
+    build(state, monkeypatch)
     capsys.readouterr()
-    if refusal is not None:
-        with pytest.raises(DatabaseNotReadyError, match=f"^{re.escape(refusal)}$"):
-            resolve("MIT")
+    where, said = _resolve_outcome(source, state, shipped)
+    if where == "raise":
+        with pytest.raises(DatabaseNotReadyError, match=f"^{re.escape(said)}$"):
+            resolve("MIT", source=source)
         assert capsys.readouterr().err == ""
         return
-    got = resolve("MIT")
+    got = resolve("MIT", source=source)
     assert (got["expression"], got["category"]) == ("MIT", "exact")
-    assert [entry["version"] for entry in got["lists"]] == [VERSION]
-    assert capsys.readouterr().err == (OUTDATED_WARNING if state == OUTDATED else "")
+    assert [(e["source"], e["version"]) for e in got["lists"]] == [(where, VERSION)]
+    assert capsys.readouterr().err == said
+    resolve("MIT", source=source)  # the fallback is said once per process
+    assert capsys.readouterr().err == opened_again(said)
+
+
+def opened_again(said: str) -> str:
+    """What a second call prints: opening an outdated database warns each
+    time, as 0.6.0 did; the fallback warning does not."""
+    return OUTDATED_WARNING if said == OUTDATED_WARNING else ""
+
+
+@pytest.mark.parametrize("source", RESOLVE_SOURCES)
+def test_resolve_matrix_with_a_database_given(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, source: Source
+) -> None:
+    """A database given is read as source="database"; packaged contradicts
+    it, and is refused rather than one of the two ignored."""
+    ship(monkeypatch, release_bundle(VERSION))
+    db = LicenseDatabase(str(make_ready_file_db(tmp_path / "given.db")), create=False)
+    if source == "packaged":
+        message = "option: invalid: source: 'packaged' with db; pass db or source"
+        with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
+            resolve("MIT", db, source=source)
+        return
+    got = resolve("MIT", db, source=source)
+    assert [entry["source"] for entry in got["lists"]] == ["database"]

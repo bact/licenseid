@@ -234,13 +234,13 @@ def test_no_bundle_is_no_index() -> None:
 
 
 def test_the_bundle_is_loaded_once(monkeypatch: pytest.MonkeyPatch) -> None:
-    ship(monkeypatch, RAW)
+    fake = mock.create_autospec(spdxdata.packaged_bundle, return_value=RAW)
+    monkeypatch.setattr(spdxdata, "packaged_bundle", fake)
     first = packaged_index()
     assert first is not None and first.version == "9.99"
     assert packaged_index() is first
     assert packaged_problem() == ""
-    calls = spdxdata.packaged_bundle.call_count  # type: ignore[attr-defined]
-    assert calls == 1
+    assert fake.call_count == 1
 
 
 def test_a_reset_reads_the_bundle_again(monkeypatch: pytest.MonkeyPatch) -> None:

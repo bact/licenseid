@@ -15,6 +15,11 @@ This release resolves a value that names one licence, with its exception if
 it has one. An expression of several (``MIT OR Apache2``) is reported as
 category ``expression`` with no resolution. A step that rests on a list cites
 it.
+
+No database is needed: with none, ``resolve`` reads the SPDX License List
+shipped in the wheel, in memory, and gives the answer a database built from
+that list would give (``licenseid.listsource`` chooses, ``licenseid.listindex``
+reads). ``lists[*].source`` says which was read.
 """
 
 import importlib
@@ -22,9 +27,9 @@ import re
 import unicodedata
 
 from licenseid.database import LicenseDatabase
-from licenseid.datadir import get_default_db_path
 from licenseid.identifiers import parse_expression, without_outer_brackets
 from licenseid.listlookup import ListLookup
+from licenseid.listsource import choose_list
 from licenseid.plusoperator import plus_after_qualifier, strip_plus_operator
 from licenseid.resolveleaf import Found, read_leaf
 from licenseid.resolvertypes import (
@@ -34,8 +39,10 @@ from licenseid.resolvertypes import (
     TRUST,
     Category,
     ListInfo,
+    ListSource,
     Resolution,
     Resolver,
+    Source,
     step,
 )
 from licenseid.textinput import has_lone_surrogate
@@ -53,22 +60,30 @@ _MAX_EXPRESSION_CHARS = 2000
 _AS_CATEGORY = {kind: "lexical" for kind in LEXICAL_KINDS}
 
 
-def resolve(value: str, db: LicenseDatabase | None = None) -> Resolution:
+def resolve(
+    value: str, db: LicenseDatabase | None = None, *, source: Source = "auto"
+) -> Resolution:
     """Resolve the declared licence *value*.
 
     Never raises on content: a value that names nothing is category
-    ``unresolved``. A missing or unusable database raises
-    :class:`licenseid.errors.DatabaseNotReadyError`, as ``match`` does.
-    *db* defaults to the database at the default path.
+    ``unresolved``.
+
+    The list read is *db*, else the one *source* names: ``auto`` (the
+    default) reads the database at the default path or the bundle shipped
+    in the wheel, whichever holds the newer List; with no database file, the
+    bundle; ``database`` the database at the default path; ``packaged`` the
+    bundle (:mod:`licenseid.listsource`). ``lists[*].source`` says which.
+    :class:`licenseid.errors.DatabaseNotReadyError` is raised when the list
+    cannot be read: with ``auto``, only when there is neither.
 
     A deprecated ID that the List split into ``-only`` and ``-or-later`` is
     never narrowed: ``GPL-3.0`` comes back as written, category
     ``assumed_only``, with both candidates.
     """
-    db = db or LicenseDatabase(get_default_db_path(), create=False)
-    with db.reading():
-        found = _lookup(db, value)
-        lists = [_list_info(db)]
+    lookup, where = choose_list(db, source)
+    with lookup.reading():
+        found = _lookup(lookup, value)
+        lists = [_list_info(lookup, where)]
     return _resolution(value, found, lists)
 
 
@@ -150,13 +165,15 @@ def _category(found: Found) -> Category:
     return ranked[-1] if ranked else "exact"
 
 
-def _list_info(db: ListLookup) -> ListInfo:
-    """The description of the SPDX License List the lookup reads."""
+def _list_info(db: ListLookup, source: ListSource) -> ListInfo:
+    """The description of the SPDX License List the lookup reads, and where
+    it was read."""
     version = db.get_metadata().get("license_list_version")
     return {
         "id": SPDX_LIST,
         "name": "SPDX License List",
         "version": version,
+        "source": source,
         "url": (
             None
             if version is None
