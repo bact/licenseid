@@ -18,7 +18,9 @@ and written in canonical order (``licenseid.exprcanon``); a trove classifier
 (``License :: OSI Approved :: MIT License``) or a name with its short form
 (``MIT License (MIT)``) by ``licenseid.resolvetrove``; the prose form of one
 ID (``BSD 3-Clause License``, ``Apache License, Version 2.0``) by
-``licenseid.resolveprose``. A step that rests on a list cites it.
+``licenseid.resolveprose``; licences joined by ``;``, which states no
+operator, are listed as operands and no expression
+(``licenseid.resolvesemicolon``). A step that rests on a list cites it.
 
 No database is needed: with none, ``resolve`` reads the SPDX License List
 shipped in the wheel, in memory, and gives the answer a database built from
@@ -58,6 +60,7 @@ from licenseid.resolvertypes import (
     Source,
     step,
 )
+from licenseid.resolvesemicolon import read_semicolon_list, semicolon_parts
 from licenseid.textinput import has_lone_surrogate
 
 # The longest expression read; one licence is MAX_KEY_INPUT or less (versionkey).
@@ -103,9 +106,12 @@ def resolve_with(
     return resolution
 
 
-def _read(db: ListLookup, value: str) -> tuple[Found, list[Operand], bool]:
+def _read(
+    db: ListLookup, value: str, *, lists: bool = True
+) -> tuple[Found, list[Operand], bool]:
     """Read one declared *value*: what was found for the whole, its operands,
-    and whether the expression parser ran."""
+    and whether the expression parser ran. With *lists* false a ``;`` between
+    licences is not split: a part is not read as a list again."""
     found = Found()
     text, start = _prepared(value, found)
     if not text or len(text) > _MAX_EXPRESSION_CHARS:
@@ -115,17 +121,34 @@ def _read(db: ListLookup, value: str) -> tuple[Found, list[Operand], bool]:
     if found.reason is not None:
         found.category, found.steps = "unresolved", []  # no step was taken
         return found, [], False
+    return _read_text(db, text, start, found, lists)
+
+
+def _read_text(
+    db: ListLookup, text: str, start: int, found: Found, lists: bool
+) -> tuple[Found, list[Operand], bool]:
+    """:func:`_read` on *text*, which starts at code point *start* and has
+    the steps of its preparation in *found*."""
     leaf = Found()
     if read_leaf(db, text, leaf):  # one licence first
         absorb(found, leaf)
         return found, [operand_of(text, start, leaf)], False
+    prepared = Found(steps=list(found.steps), floor=found.floor)
     compound = read_compound(db, text, start, found)
-    if compound.claimed:
+    if compound.claimed and found.expression is not None:
         return found, compound.operands, compound.parsed
     named = Found()
     # A trove name or path, a name and its short form, then the prose form of
-    # one ID (T8: P1 to P3)
-    if read_by_name(db, text, named):
+    # one ID (T8: P1 to P3). A name that reads is read before a list
+    # (``MIT; (MIT)`` is the name and its short form, P87).
+    by_name = not compound.claimed and read_by_name(db, text, named)
+    resolved = by_name and named.expression is not None
+    listed = _read_list(db, text, start, prepared) if lists and not resolved else None
+    if listed is not None:  # several licences, no operator stated (T8b)
+        return prepared, listed[0], listed[1]
+    if compound.claimed:
+        return found, compound.operands, compound.parsed
+    if by_name:
         absorb(found, named)
         return found, [operand_of(text, start, named)], False
     # One leaf that names nothing, or prose in compound form, with its first
@@ -135,6 +158,23 @@ def _read(db: ListLookup, value: str) -> tuple[Found, list[Operand], bool]:
         found.reason, found.steps = compound.fallback.reason, compound.fallback.steps
     nothing = Found(category="unresolved", reason=found.reason)
     return found, [operand_of(text, start, nothing)], False  # no parse used
+
+
+def _read_list(
+    db: ListLookup, text: str, start: int, found: Found
+) -> tuple[list[Operand], bool] | None:
+    """*text* as licences joined by ``;`` (:mod:`licenseid.resolvesemicolon`):
+    its operands and whether the parser ran, with *found* made the refusal;
+    None for any other value."""
+    parts = semicolon_parts(text)
+    if parts is None:
+        return None
+
+    def read(part: str) -> tuple[Found, bool]:
+        read_found, _, parsed = _read(db, part, lists=False)
+        return read_found, parsed
+
+    return read_semicolon_list(parts, start, read, found)
 
 
 def _prepared(value: str, found: Found) -> tuple[str, int]:

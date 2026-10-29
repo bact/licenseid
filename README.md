@@ -69,9 +69,17 @@ generator.*
     with `word dropped: rem`. At the end of a value one `.`, `,`, `;` or
     `:`, with white space around it, is an ending and is left off (`MIT;`,
     `MIT License :`; a `separator` step); two or more marks, an ellipsis
-    and a lone dash (`MIT;;`, `MIT...`, `MIT…`, `MIT -`) are refused. At
+    and a lone dash (`MIT;;`, `MIT...`, `MIT…`, `MIT -`) are refused, also
+    after a `+`, an exception, a `LicenseRef-*` or a prose form (`MIT+;` is
+    `MIT+`; `GPL-2.0+?`, `MIT License -` are refused). At
     the start nothing is left off: `-- MIT`, `; MIT`, `... MIT`, and an ID
     cut from a longer one (`.GPL-3.0-only`, `-MIT`) are refused;
+  - licences joined by a `;` (`MIT ; Apache 2`) name two licences and not how
+    they combine (`AND` or `OR`), so the value is `unresolved`, with the
+    `reason` `operator not stated: ;` and one operand for each part, each
+    read as it would be alone: a caller can still ask whether every one is
+    OSI approved. A comma or `/` is not read this way, nor is a `;` that
+    ends an operand (`MIT; OR ISC`);
   - a compound expression is read operand by operand: one-word operands
     (with `WITH`, `+` or an "or later" grant), each as the same text would be
     read alone, and per operand only a balanced pair of quotes; an operand
@@ -551,7 +559,8 @@ r["lists"][0]["source"]  # read from the "database" or the "packaged" list
 ```
 
 The whole result, its categories and their trust, the reasons for a
-refusal and how quote marks are read are in [docs/resolve.md][resolve-doc].
+refusal, licences joined by a `;` (`r["operands"]` lists each) and how quote
+marks are read are in [docs/resolve.md][resolve-doc].
 
 [resolve-doc]: https://github.com/bact/licenseid/blob/main/docs/resolve.md
 

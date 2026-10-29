@@ -130,7 +130,7 @@ REFUSED: list[tuple[str, tuple[str, str]]] = [
     ("MIT/Apache-2.0", ("unresolved", "not an SPDX operator: /")),
     ("MIT | ISC", ("unresolved", "not an SPDX operator: |")),
     ("MIT & ISC", ("unresolved", "not an SPDX operator: &")),
-    ("MIT; ISC", ("unresolved", "not an SPDX operator: ;")),
+    ("MIT; ISC", ("unresolved", "operator not stated: ;")),  # T8b: listed
     ("MIT, ISC", ("unresolved", "not an SPDX operator: ,")),
     ("MIT OR ISC]", ("malformed", "parse failed: Missing matching '('")),
     ("(MIT OR ISC]", ("malformed", "mismatched brackets")),
