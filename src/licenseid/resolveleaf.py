@@ -35,7 +35,13 @@ from licenseid.looseid import (
     granted_id_text,
     loose_id,
 )
-from licenseid.resolvertypes import Category, Step, step
+from licenseid.resolvertypes import (
+    CATEGORY_ORDER,
+    LEXICAL_KINDS,
+    Category,
+    Step,
+    step,
+)
 from licenseid.versionkey import MAX_KEY_INPUT
 
 _RE_NUMBERS = re.compile(r"\d+(?:\.\d+)*")
@@ -45,6 +51,8 @@ _RE_BRACKET = re.compile(r"[()\[\]{}]")
 # Characters that end a value after its last "+": white space and "+" itself.
 # Runs only after read_leaf's MAX_KEY_INPUT gate, so its run is bounded.
 _RE_TRAILING = re.compile(r"[\s+]+\Z")
+# A step kind that is not also a category name, mapped to the one it counts as.
+_AS_CATEGORY = {kind: "lexical" for kind in LEXICAL_KINDS}
 
 
 @dataclass
@@ -60,6 +68,19 @@ class Found:
     # The weakest category a step before the leaf allows (a stray quote mark
     # makes any answer at most ``separator``), whatever its step kind is.
     floor: Category | None = None
+
+
+def category_of(found: Found) -> Category:
+    """The category of a reading: the one the lookup set, else the weakest
+    kind among its steps, its expansions and its floor (``exact`` for none)."""
+    if found.category is not None:
+        return found.category
+    kinds = {_AS_CATEGORY.get(s["kind"], s["kind"]) for s in found.steps}
+    if found.floor is not None:
+        kinds.add(found.floor)
+    kinds |= {s["kind"] for s in found.expansions}
+    ranked = [c for c in CATEGORY_ORDER if c in kinds]
+    return ranked[-1] if ranked else "exact"
 
 
 class _Dropped(Exception):

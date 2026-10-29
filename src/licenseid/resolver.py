@@ -22,7 +22,6 @@ that list would give (``licenseid.listsource`` chooses, ``licenseid.listindex``
 reads). ``lists[*].source`` says which was read.
 """
 
-import importlib
 import re
 import unicodedata
 
@@ -32,24 +31,22 @@ from licenseid.listlookup import ListLookup
 from licenseid.listsource import choose_list
 from licenseid.plusoperator import plus_after_qualifier, strip_plus_operator
 from licenseid.quotes import unquote
-from licenseid.resolveleaf import Found, read_leaf
+from licenseid.resolvecompound import operand_of
+from licenseid.resolveleaf import Found, category_of, read_leaf
+from licenseid.resolverinfo import list_info, parser_info, resolver_info
 from licenseid.resolvertypes import (
-    CATEGORY_ORDER,
-    LEXICAL_KINDS,
-    SPDX_LIST,
+    SCHEMA,
     TRUST,
     Category,
     ListInfo,
     ListSource,
+    Operand,
     Resolution,
-    Resolver,
     Source,
     step,
 )
 from licenseid.textinput import has_lone_surrogate
 
-# The kinds of step the SPDX License List supports; see ListInfo.provides.
-_PROVIDES = ["deprecation", "ids", "names", "texts"]
 _OPERATORS = frozenset({"AND", "OR", "WITH"})
 _JOINS = frozenset({"AND", "OR"})
 _RE_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]*")
@@ -57,8 +54,6 @@ _RE_IDLIKE = re.compile(r"[\d.-]")
 _RE_SQUARE = re.compile(r"[\[\]{}]")
 # The longest expression read; one licence is MAX_KEY_INPUT or less (versionkey).
 _MAX_EXPRESSION_CHARS = 2000
-# A step kind that is not also a category name, mapped to the one it counts as.
-_AS_CATEGORY = {kind: "lexical" for kind in LEXICAL_KINDS}
 
 
 def resolve(
@@ -82,61 +77,90 @@ def resolve(
     ``assumed_only``, with both candidates.
     """
     lookup, where = choose_list(db, source)
+    return resolve_with(lookup, value, where)
+
+
+def resolve_with(
+    lookup: ListLookup, value: str, where: ListSource = "database"
+) -> Resolution:
+    """:func:`resolve` on a list the caller holds: any
+    :class:`licenseid.listlookup.ListLookup`, read as it is; *where* is what
+    ``lists[0].source`` says."""
     with lookup.reading():
-        found = _lookup(lookup, value)
-        lists = [_list_info(lookup, where)]
-    return _resolution(value, found, lists)
+        found, operands, parsed = _read(lookup, value)
+        lists = [list_info(lookup, where)]
+    return _resolution(value, (found, operands, parsed), lists)
 
 
-def _lookup(db: ListLookup, value: str) -> Found:
-    """Read one declared *value* into a :class:`Found`: the leaf, else the
-    category of the expression."""
+def _read(db: ListLookup, value: str) -> tuple[Found, list[Operand], bool]:
+    """Read one declared *value*: what was found for the whole, its operands,
+    and whether the expression parser ran."""
     found = Found()
-    text = _prepared(value, found)
+    text, start = _prepared(value, found)
     if not text or len(text) > _MAX_EXPRESSION_CHARS:
         found.category = "unresolved"
-        return found
+        return found, [], False
     found.reason = _refusal(text)
     if found.reason is not None:
         found.category, found.steps = "unresolved", []  # no step was taken
-        return found
-    if read_leaf(db, text, found):
-        return found
+        return found, [], False
+    leaf = Found()
+    if read_leaf(db, text, leaf):
+        _absorb(found, leaf)
+        return found, [operand_of(text, start, leaf)], False
     found.category = _expression_category(db, text)
-    return found
+    return found, [], False
 
 
-def _prepared(value: str, found: Found) -> str:
+def _absorb(found: Found, leaf: Found) -> None:
+    """Put the reading of the one *leaf* into *found*, after the steps taken
+    on the whole value. A leaf that resolved to nothing keeps only its own
+    steps (a refusal's ``drop``), as no step before it led anywhere."""
+    found.steps = found.steps + leaf.steps if leaf.expression else list(leaf.steps)
+    found.expansions += leaf.expansions
+    found.candidates = list(leaf.candidates)
+    found.expression, found.category = leaf.expression, leaf.category
+    found.reason = leaf.reason
+
+
+def _prepared(value: str, found: Found) -> tuple[str, int]:
     """*value* trimmed, and without the quotes and brackets around the whole
-    of it (``"MIT"``, ``(MIT)``, ``("MIT")``), each as a step. The quotes are
-    taken off the whole value, once (:mod:`licenseid.quotes`)."""
+    of it (``"MIT"``, ``(MIT)``, ``("MIT")``), each as a step, and where that
+    text starts in *value* (a code point). The quotes are taken off the
+    whole value, once (:mod:`licenseid.quotes`)."""
     text = value.strip()
+    start = len(value) - len(value.lstrip())
     if text != value:
         found.steps.append(step("trim", True, value, text))
-    text = _unquoted(text, found)
-    inner = _unbracketed(text, found)
-    return inner if inner == text else _unquoted(inner, found)
+    text, start = _unquoted(text, start, found)
+    inner, inner_start = _unbracketed(text, start, found)
+    if inner == text:
+        return text, start
+    return _unquoted(inner, inner_start, found)
 
 
-def _unquoted(text: str, found: Found) -> str:
+def _unquoted(text: str, start: int, found: Found) -> tuple[str, int]:
     """*text* without quote marks around the whole of it, as an ``unquote``
-    step whose detail says whether they were balanced."""
+    step whose detail says whether they were balanced, and where it starts
+    (*text* starts at *start*)."""
     unquoted = unquote(text)
     if unquoted is None:
-        return text
+        return text, start
     found.steps.append(step("unquote", True, text, unquoted.text, unquoted.detail))
     if not unquoted.balanced:
         found.floor = "separator"  # the value may be cut: a rule of the resolver
-    return unquoted.text
+    return unquoted.text, start + unquoted.start
 
 
-def _unbracketed(text: str, found: Found) -> str:
-    """*text* without brackets around the whole of it, as a ``brackets`` step."""
+def _unbracketed(text: str, start: int, found: Found) -> tuple[str, int]:
+    """*text* without brackets around the whole of it, as a ``brackets``
+    step, and where it starts (*text* starts at *start*)."""
     inner = without_outer_brackets(text)
     if inner == text:
-        return text
+        return text, start
     found.steps.append(step("brackets", True, text, inner))
-    return inner.strip()
+    lead = (len(text) - len(inner)) // 2 + len(inner) - len(inner.lstrip())
+    return inner.strip(), start + lead
 
 
 def _expression_category(db: ListLookup, text: str) -> Category:
@@ -181,58 +205,15 @@ def _refusal(text: str) -> str | None:
     return None
 
 
-def _category(found: Found) -> Category:
-    """The category of an answer: the one the lookup set, else the highest
-    ranked kind among its steps."""
-    if found.category is not None:
-        return found.category
-    kinds = {_AS_CATEGORY.get(s["kind"], s["kind"]) for s in found.steps}
-    if found.floor is not None:
-        kinds.add(found.floor)
-    kinds |= {s["kind"] for s in found.expansions}
-    ranked = [c for c in CATEGORY_ORDER if c in kinds]
-    return ranked[-1] if ranked else "exact"
-
-
-def _list_info(db: ListLookup, source: ListSource) -> ListInfo:
-    """The description of the SPDX License List the lookup reads, and where
-    it was read."""
-    version = db.get_metadata().get("license_list_version")
-    return {
-        "id": SPDX_LIST,
-        "name": "SPDX License List",
-        "version": version,
-        "source": source,
-        "url": (
-            None
-            if version is None
-            else f"https://github.com/spdx/license-list-data/releases/tag/v{version}"
-        ),
-        "license": "CC0-1.0",
-        "provides": list(_PROVIDES),
-        "id_authority": True,
-    }
-
-
-def _resolver_info() -> Resolver:
-    """Who resolved. The version is read at call time, as
-    ``spdx_source`` reads it (``importlib``, not an import statement): the
-    package exports this module, so a static import of the package here would
-    be a cycle."""
-    version = str(importlib.import_module("licenseid").__version__)
-    return {
-        "name": "licenseid",
-        "version": version,
-        "url": f"https://github.com/bact/licenseid/releases/tag/v{version}",
-        "purl": f"pkg:pypi/licenseid@{version}",
-    }
-
-
-def _resolution(value: str, found: Found, lists: list[ListInfo]) -> Resolution:
-    category = _category(found)
+def _resolution(
+    value: str, reading: tuple[Found, list[Operand], bool], lists: list[ListInfo]
+) -> Resolution:
+    found, operands, parsed = reading
+    category = category_of(found)
     if found.expression is None and found.reason is None:
         found.steps, found.expansions = [], []  # nothing resolved: no step taken
     return {
+        "schema": SCHEMA,
         "input": value,
         "expression": found.expression,
         "category": category,
@@ -240,7 +221,9 @@ def _resolution(value: str, found: Found, lists: list[ListInfo]) -> Resolution:
         "steps": found.steps,
         "expansions": found.expansions,
         "candidates": found.candidates,
-        "resolver": _resolver_info(),
+        "operands": operands,
+        "resolver": resolver_info(),
+        "components": [parser_info()] if parsed else [],
         "lists": lists,
         "reason": found.reason,
     }

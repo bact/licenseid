@@ -66,6 +66,7 @@ class Unquoted(NamedTuple):
     text: str
     balanced: bool  # False: a mark on one end only
     detail: str  # "balanced", "balanced, N layers", "unbalanced, start|end"
+    start: int  # where ``text`` starts in the value given to unquote
 
 
 def unquote(text: str) -> Unquoted | None:
@@ -89,9 +90,9 @@ def unquote(text: str) -> Unquoted | None:
     if not core or (layers == 0 and not side) or _has_inner_mark(core):
         return None
     if side:
-        return Unquoted(core, False, f"unbalanced, {side}")
+        return Unquoted(core, False, f"unbalanced, {side}", lo)
     detail = "balanced" if layers == 1 else f"balanced, {layers} layers"
-    return Unquoted(core, True, detail)
+    return Unquoted(core, True, detail, lo)
 
 
 def _skip_space(text: str, lo: int, hi: int) -> tuple[int, int]:

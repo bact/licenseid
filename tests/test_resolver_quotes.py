@@ -165,6 +165,7 @@ def test_the_unquote_step_is_a_change_of_form(corpus_db: LicenseDatabase) -> Non
             "to": "MIT",
             "list": "",
             "detail": "balanced",
+            "by": "",
         }
     ]
     assert got["input"] == '"MIT"'

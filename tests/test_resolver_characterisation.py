@@ -16,6 +16,11 @@ synthetic, seeded to reach a deprecated exception that has a successor. The
 ``resolver`` block moves with a release: the test builds it from
 ``licenseid.__version__``. A case may carry a ``note``.
 
+The fixture holds the keys of the first result shape; schema 2 (task T7)
+added ``by`` to every step (``""``: licenseid did it), ``schema``,
+``components`` and ``operands``, which the test checks apart: a single
+value is one operand, read as that operand's text would be alone.
+
 Lone surrogates survive the JSON file as ``\\udXXX`` escapes
 (``ensure_ascii=True``), and ``json.loads`` gives them back.
 """
@@ -83,9 +88,12 @@ def test_resolve_result_is_unchanged(
 ) -> None:
     """The whole result dict equals the pinned one, every key."""
     version = licenseid.__version__
+    pinned = case["result"]
     expected: dict[str, Any] = {
         "reason": None,  # added in T6; a case that is refused names its own
-        **case["result"],
+        **pinned,
+        "steps": [{**s, "by": ""} for s in pinned["steps"]],
+        "expansions": [{**s, "by": ""} for s in pinned["expansions"]],
         "resolver": {
             "name": "licenseid",
             "version": version,
@@ -93,7 +101,20 @@ def test_resolve_result_is_unchanged(
             "purl": f"pkg:pypi/licenseid@{version}",
         },
     }
-    assert dict(resolve(case["value"], db)) == expected
+    got: dict[str, Any] = dict(resolve(case["value"], db))
+    assert (got.pop("schema"), got.pop("components")) == (2, [])
+    operands: list[dict[str, Any]] = got.pop("operands")
+    assert got == expected
+    assert len(operands) <= 1
+    for operand in operands:
+        start, end = operand["span"]
+        assert case["value"][start:end] == operand["text"]
+        alone = resolve(operand["text"], db)
+        assert alone["operands"] == [{**operand, "span": [0, end - start]}]
+        assert (operand["expression"], operand["candidates"]) == (
+            got["expression"],
+            got["candidates"],
+        )
 
 
 def test_every_category_a_value_can_reach_is_pinned() -> None:

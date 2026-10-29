@@ -195,6 +195,7 @@ def test_a_mark_before_a_qualifier_or_exception_refuses_the_value(
             "to": stopped,
             "list": "",
             "detail": "U+003F",
+            "by": "",
         }
     ]
     assert got["expansions"] == [] and got["candidates"] == []
