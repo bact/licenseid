@@ -26,7 +26,8 @@ import re
 from dataclasses import dataclass, field
 
 from licenseid.dropguard import code_points, dropped
-from licenseid.identifiers import is_license_ref, without_outer_brackets
+from licenseid.exprtokens import is_license_ref
+from licenseid.identifiers import without_outer_brackets
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import (
     WITH_OPERATOR,
