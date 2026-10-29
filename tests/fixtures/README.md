@@ -116,7 +116,7 @@ uses the official SPDX License List as its authoritative, pristine data source.
   sample: the 462 distinct short licence values of the 10,000 most downloaded
   PyPI projects, fetched 2026-10-28 and exported by
   `python -m tools.pypi_licence_sample export`.
-- **Description:** Frozen answers of `licenseid.resolve()` 0.6.0 on SPDX 3.29.0,
+- **Description:** Frozen answers of `licenseid.match()` 0.6.0 on SPDX 3.29.0,
   so that each 0.7.0 task proves what it changed
   (`tests/test_resolver_parity.py`, `tests/test_resolver_sample.py`).
 - **Characteristics:** Tab-separated, one header row, `#` comment lines at the
@@ -149,7 +149,7 @@ uses the official SPDX License List as its authoritative, pristine data source.
 ### 8. `resolver_characterisation.json`
 
 - **Data Source:** The SPDX 3.29.0 rows each case needs, read from a real
-  3.29.0 build, and the complete `licenseid.resolve()` result of each value as
+  3.29.0 build, and the complete `licenseid.match()` result of each value as
   the code returned it before `resolver.py` was split.
 - **Description:** Pins one key of every result, so a refactor of the
   single-value reading cannot move an answer
@@ -162,7 +162,7 @@ uses the official SPDX License List as its authoritative, pristine data source.
 
 ### 9. `resolver_t7_changes.tsv` and `resolver_compounds_generated.tsv`
 
-- **Data Source:** `licenseid.resolve()` on the corpus database of section 7,
+- **Data Source:** `licenseid.match()` on the corpus database of section 7,
   once task T7 (compound expressions) was built.
 - **Description:** `resolver_t7_changes.tsv` lists every answer of the parity
   corpus and the PyPI sample that T7 moved, each with its group;
@@ -176,7 +176,7 @@ uses the official SPDX License List as its authoritative, pristine data source.
 
 ### 10. `resolver_t9_changes.tsv`
 
-- **Data Source:** `licenseid.resolve()` on the corpus database of section 7,
+- **Data Source:** `licenseid.match()` on the corpus database of section 7,
   once task T9 (trove names and paths, an agreeing trailing name) was built.
 - **Description:** every answer of the parity corpus and the PyPI sample that
   T9 moved, each with its group; `tests/resolver_changes_t9.py` gives each

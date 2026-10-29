@@ -19,7 +19,7 @@ find, and the habits that produced or caught those findings.
 `src/licenseid/dbcheck.py` answers two different questions, and they are
 not symmetric:
 
-- **Read** (`match`, the `is-*` commands, the API constructor) is
+- **Read** (`detect`, the `is-*` commands, the API constructor) is
   **fail-open**: `check_database_ready` refuses only a condition it is sure
   of. A wrong refusal costs the user an answer they could have had.
 - **Write and delete** (`update`, `--clear-cache`,
@@ -136,7 +136,7 @@ empty one, so the next matcher said `empty` instead of `not found`.
   one is read-only.
 - **One wording, at the one place every read passes.**
   `Connections.connection` words a `sqlite3.Error` of a read as
-  `DatabaseNotReadyError` through `dbcheck.lookup_error`: `match`, the `is_*`
+  `DatabaseNotReadyError` through `dbcheck.lookup_error`: `detect`, the `is_*`
   calls, a direct `LicenseDatabase` read and a standalone `MarkerDetector`
   agree (a first version wrapped three matcher methods and left the rest raw).
   Every `sqlite3.Error` is wrapped, `ProgrammingError` and `InterfaceError`

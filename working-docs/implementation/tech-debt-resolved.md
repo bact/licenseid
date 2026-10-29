@@ -21,7 +21,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   words each click error in the grammar, from the exception's attributes
   (only the extra-argument failure is read from click's English):
   - `option: not found: --bogus; did you mean --bold` (and
-    `command: not found: mat; did you mean match`), click's suggestions
+    `command: not found: detec; did you mean detect`), click's suggestions
     closest first, else `run '<command> --help'`;
   - `option: missing: --top; pass a value`,
     `option: invalid: --top: 'x' is not a valid integer`,
@@ -353,7 +353,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   is unchanged: a tag and a `license` field still carry any expression.
   Three deliberate tightenings: a tag and its value must be on one line; a
   bare CLI argument is read as an ID only when it names one license and every
-  part is recognised (`licenseid match "MIT or something"` no longer prints
+  part is recognised (`licenseid detect "MIT or something"` no longer prints
   an invented ID at similarity 1.0000); and a 400-term chain given as an ID
   is a usage error rather than a question for the parser, which is why item
   19 now bites only on a tag. Over the 1,405 fixture files the before/after
@@ -361,7 +361,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
 
 - An unknown SPDX tag reported as a certain match (item 6, Priority 15;
   2026-09-21). `SPDX-License-Identifier: NoSuchLicense-9.9` (or a typo such
-  as `Apache-2.O`, or `Copyright`, `NONE`) made `match` return that ID with
+  as `Apache-2.O`, or `Copyright`, `NONE`) made `detect` return that ID with
   score 1.0 and `is_spdx: true`, while `is-spdx` said false. The tag branch
   built a placeholder candidate for any value; the JSON, TOML and INI
   `license` fields already used a stricter rule of their own
@@ -378,7 +378,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   INI `license` fields, so they also read `+` now and give a `WITH` value its
   license's flags. The CLI's `is-*` commands used to look the top ID up in the
   database on their own, so they said false for every expression and
-  `LicenseRef-*` that `match` accepted; they now call
+  `LicenseRef-*` that `detect` accepted; they now call
   `LicenseDetector.resolve_record`, the same code as the `is_*()`
   predicates, for `--id`, a positional ID and text alike. One parser wrapper,
   `identifiers.parse_expression`, served the synthetic candidate, the `WITH`
@@ -470,9 +470,9 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   release against `tests/test_markers*.py`.
 
 - Unready database answers silently (2026-09-19 audit): after a failed first
-  `update`, `match` said "no license found" and `is-osi` printed `false`
+  `update`, `detect` said "no license found" and `is-osi` printed `false`
   (exit 1); a non-SQLite `--db` or a directory crashed with a traceback; and
-  a read command on a 0-byte file wrote tables into it. Now `match`, the
+  a read command on a 0-byte file wrote tables into it. Now `detect`, the
   `is-*` commands and `LicenseDetector()` check readiness first, read
   only, and report `database: not found`, `empty`, `invalid` (another
   program's objects beside an incomplete set of ours, or a `licenses` table
@@ -570,11 +570,11 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   20; 2026-10-22). The string met an encoder in SQLite's parameter binding,
   in the lookup by name that a tag value (or a short text) goes through. The
   CLI could send one too: Python decodes a byte of an argument that is not
-  UTF-8 to `\udcXX` (`licenseid match $'MIT\xff'` printed a traceback, exit
+  UTF-8 to `\udcXX` (`licenseid detect $'MIT\xff'` printed a traceback, exit
   1). Now `textinput.reject_lone_surrogate` raises
   `InvalidInputError` (`input: invalid: text: lone surrogate at character N`)
   at the one place the matcher takes a text (`_resolve_target_text`), so
-  `match`, `resolve_record` and the `is_*()` predicates agree, as they do for
+  `detect`, `resolve_record` and the `is_*()` predicates agree, as they do for
   a `license_id`; the CLI checks `--text` and the argument first
   (`cli.reject_unencodable`) and exits 2. Not "no match": a text that cannot
   be read is the caller's mistake, and a silent `[]` would hide it.
@@ -604,7 +604,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   `tests/test_plus_and_depth.py`, with the deepest shape the cap lets through
   parsed at a recursion limit of 1000.
 - A missing file named as an argument was matched as text (item 32,
-  Priority 24; 2026-10-27). `licenseid match LICENSE.txt` with no such file
+  Priority 24; 2026-10-27). `licenseid detect LICENSE.txt` with no such file
   answered `APL-1.0` at 1 and exited 0. Now an argument that names no file
   and is shaped like a path (one word, no URL, with `/` or `\` or a file
   name's extension such as `.txt`; `textinput.looks_like_path`) exits 2

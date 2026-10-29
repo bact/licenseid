@@ -4,7 +4,7 @@
 # the gaps of expression-resolution.md section 2 and the evidence doc, plus shapes the plan names.
 # value is Python unicode_escape (tab, newline, backslash, non-ASCII, lone surrogate as \udcff).
 # '-' is None or empty. pitloom_0_21_1: kind:value of classify_license() of pitloom==0.21.1 with
-# licenseid 0.6.0 on the 3.29.0 database. *_0_6_0: resolve() 0.6.0 on that database (steps and
+# licenseid 0.6.0 on the 3.29.0 database. *_0_6_0: match() 0.6.0 on that database (steps and
 # expansions: kinds, '!' after a step that did not apply; step_targets, expansion_targets: the 'to' of
 # each, escaped, a comma as \x2c; input_same: input equals the value; reason: '-', none before T6).
 # expected_0_7_0: '=' same as 0.6.0, 'EXPR [category]', '- [category]' (no expression) or '?'
@@ -85,7 +85,7 @@ Public Domain	Classifier	real:dist:docutils-0.21.2.dist-info	text:	-	unresolved	
 Public domain	License	real:dist:pyelftools-0.33.dist-info	text:	-	unresolved	-	-	-	-	-	none	yes	-	=	no SPDX id: stays unresolved
 Python Software Foundation License	Classifier	real:dist:defusedxml-0.7.1.dist-info	text:	-	unresolved	-	-	-	-	-	none	yes	-	=	T4/T10 deferred to 0.8 (Q3): an assumed reading is not offered in 0.7.0
 The Unlicense (Unlicense)	Classifier	real:dist:email_validator-2.3.0.dist-info	text:	-	unresolved	-	-	-	-	-	none	yes	-	Unlicense [trove_name]	T2 or T3: a trove name / agreeing parenthesis; category left to T9
-UNKNOWN	License	real:dist:isoduration-20.11.0.dist-info	noassertion:NOASSERTION	-	unresolved	-	-	-	-	-	none	yes	-	=	a consumer filters UNKNOWN before resolve(); stays unresolved
+UNKNOWN	License	real:dist:isoduration-20.11.0.dist-info	noassertion:NOASSERTION	-	unresolved	-	-	-	-	-	none	yes	-	=	a consumer filters UNKNOWN before match(); stays unresolved
 Unlicense	License	real:dist:email_validator-2.3.0.dist-info	expression:Unlicense	Unlicense	exact	-	-	-	-	-	identity	yes	-	=	a value that names one licence is read as in 0.6.0 (try one licence first)
 W3C License	Classifier	real:dist:SPARQLWrapper-2.0.0.dist-info	text:	-	unresolved	-	-	-	-	-	none	yes	-	- [unresolved]	Q22: the trove table comes first, and this name states no version
 W3C SOFTWARE NOTICE AND LICENSE	License	real:dist:SPARQLWrapper-2.0.0.dist-info	text:	-	unresolved	-	-	-	-	-	none	yes	-	- [unresolved]	no rule reads it (Q9, Q15)

@@ -115,7 +115,7 @@ the first iteration's queries.
 BeautifulSoup`). Both are needed only for uncommon paths:
 
 - `requests` — only `licenseid update` and `--clear-cache` (network
-  fetch), never `licenseid match`.
+  fetch), never `licenseid detect`.
 - `bs4` — only when `normalize_text()`'s own HTML-detection heuristic
   (`_HTML_TAG.search(text)`) actually fires.
 
@@ -332,4 +332,4 @@ change:
 | `mypy src tests` (strict) | 0 issues, 21 files |
 | `pytest tests` | 50 passed, 2 skipped |
 | Targeted 675-fixture check (20% distortion + mixed) vs `main` | within 0.18pp — noise level |
-| CLI cold-start (`licenseid match`) | ~125ms → ~31ms |
+| CLI cold-start (`licenseid detect`) | ~125ms → ~31ms |

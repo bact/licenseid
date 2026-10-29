@@ -45,7 +45,7 @@
   failed write means), `result.py` (the public result and its JSON and text
   lines), `types.py`, `usage.py` (click's usage errors in the grammar).
   Keep `detector.py` under the 800-line limit: put logic that needs no
-  matcher state in one of the others.
+  detector state in one of the others.
 - Release sources of `update`, by where the data comes from: `compact`
   (our 1 MB bundle on the `data` branch), `upstream` (SPDX's own tarball),
   `packaged` (the bundle in the wheel). "Bundle" is only the file format
@@ -139,7 +139,7 @@ Unix philosophy. Consistent, predictable, parseable.
     (`SUBJECT: CONDITION…`, no prefix); the CLI prints it after `ERROR:` and
     exits 1, or 2 for its subclass `InvalidInputError` (a usage error). The
     CLI also exits 2 for `DatabaseNotReadyError` (a database that is missing,
-    empty, invalid or unreadable) in `match` and the `is-*` commands, where
+    empty, invalid or unreadable) in `detect` and the `is-*` commands, where
     exit 1 already means "no". `update` and `--clear-cache` write or delete,
     so they refuse only an `invalid` database — one licenseid did not build
     — and accept every other condition, which is what they exist to fix.
@@ -171,7 +171,7 @@ Unix philosophy. Consistent, predictable, parseable.
   - `tests/conftest.py::check_diagnostic_grammar` fails any test that
     prints a line breaking this grammar.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
-- JSON output supported as options. `match --json` prints JSON Lines, one
+- JSON output supported as options. `detect --json` prints JSON Lines, one
   RFC 8785 (JCS) object per result, through `licenseid.result.json_line`;
   the text line comes from `text_line` beside it. Both print the public form
   `result.public_result` builds at the one exit of `detect()`: tiers rank on
@@ -365,7 +365,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   or a command-line argument of invalid UTF-8, which Python decodes to
   `\udcXX`) cannot be encoded for SQLite's parameter binding:
   `textinput.reject_lone_surrogate` raises `InvalidInputError` at the one
-  place the matcher takes a text, and `cli.reject_unencodable` exits 2 first
+  place the detector takes a text, and `cli.reject_unencodable` exits 2 first
   for `--text` and the argument.
 - `hatch_build.py` (Hatch custom hook, standard library only: the build
   environment has no `licenseid`) puts the packaged SPDX bundle in the wheel and
@@ -390,8 +390,8 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   or
   `LicenseRef-*` with at least one recognised ID, never for free text or an
   unknown ID. `is_*()` and the CLI's `is-*` commands answer from
-  `matcher.resolve_record`, so they agree with `match`; do not look a record
-  up in the database on the side.
+  `LicenseDetector.resolve_record`, so they agree with `detect`; do not look
+  a record up in the database on the side.
 - An `SPDX-License-Identifier` tag value is the rest of its line, up to the
   next tag on it (`[ \t]`, never `\s`, so a tag cannot reach across a line
   break), and
@@ -415,11 +415,12 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `LicenseRef-*`, which takes no `+`; either
   `WITH` an exception, in any brackets), and
   both entry points read it — `cli.reject_compound_id` exits 2 through
-  `errors.invalid_id_error`, `matcher._try_explicit_id_match` raises. Text
-  that is one simple expression and nothing else (`GPL-2.0+`) is read as
-  `license_id` reads it, by `matcher._try_tier0_short_text`, whatever
-  brings it (argument, `--text`, stdin, file, `detect(text=...)`); the rest,
-  and a value that resolves to no license, is matched as text. The CLI
+  `errors.invalid_id_error`, `LicenseDetector._try_explicit_id_match`
+  raises. Text that is one simple expression and nothing else (`GPL-2.0+`)
+  is read as `license_id` reads it, by
+  `LicenseDetector._try_tier0_short_text`, whatever brings it (argument,
+  `--text`, stdin, file, `detect(text=...)`); the rest, and a value that
+  resolves to no license, is matched as text. The CLI
   makes no ID guess of its own. Ask the predicate BEFORE calling
   `detect(license_id=...)`, which raises rather than returning no match.
   Do not widen `--id` to expressions
@@ -513,7 +514,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   each table's IDs once (ASCII case folded as SQLite's NOCASE folds it,
   `listlookup.fold_case`), and an unknown ID costs no query. It drops its
   reads when `last_update_datetime` changes, checked once per `reading()` block
-  and at every lookup outside one, so a long-lived matcher sees another
+  and at every lookup outside one, so a long-lived detector sees another
   process's `update`. A new write to `licenses` or `license_index` must
   call `self._tables.clear()`, as `_write_db_records` does. A read made
   while another thread cleared is not kept (`_generation`).
@@ -526,7 +527,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   single long word in a test short too: Tier 1's full-text query costs time
   in its length, 312 s for 2 MB on Windows CI (roadmap item 42).
 - A lookup never creates or writes the database. `Connections.connect` opens
-  read-only (`dbcheck.open_uri`); the matcher makes `LicenseDatabase(path,
+  read-only (`dbcheck.open_uri`); the detector makes `LicenseDatabase(path,
   create=False)`, whose writes open `mode=rw` (a missing file fails, not
   created) and happen only for an older schema (`dbschema.schema_state`)
   of licenseid's own file. A missing norm column is filled in memory

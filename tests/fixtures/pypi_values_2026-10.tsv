@@ -1,6 +1,6 @@
 # PyPI licence values of sample-2026-10.jsonl: 10000 projects, licenseid 0.6.0, SPDX 3.29.0.
 # value: the first of License-Expression, a short License or the classifiers, as Python unicode_escape.
-# field: the source most projects used. '-' is None or empty. The _0_6_0 columns are the answer of resolve() before the 0.7.0 work.
+# field: the source most projects used. '-' is None or empty. The _0_6_0 columns are the answer of match() before the 0.7.0 work.
 # distinct values: 462; kept in these files: 462. See tests/fixtures/README.md.
 # sha256 of the sorted (value, every answer column) lines: 73b5d1201f95d031a3eb45bc9269a86161691e0e91913e29451afc79ef73b9c6
 # file 1 of 1

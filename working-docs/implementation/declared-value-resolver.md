@@ -11,9 +11,9 @@ SPDX-License-Identifier: Apache-2.0
 
 `licenseid.match(value)` (`resolver.py`, types in `resolvertypes.py`)
 answers which SPDX expression a declared licence value stands for, and
-lists each step taken. `match` answers which licence a text is. The two
+lists each step taken. `detect` answers which licence a text is. The two
 differ on purpose in one place: `match` never narrows a bare deprecated ID
-(`GPL-3.0` is category `assumed_only`, both variants offered), while `match`
+(`GPL-3.0` is category `assumed_only`, both variants offered), while `detect`
 narrows it to `-only` and warns.
 
 ## Decisions from the pre-release review
@@ -27,7 +27,7 @@ seven more. What was decided:
   Only AND and OR make an `expression` of several licences. An unknown
   exception gives `unresolved`. A grant written after the exception
   (`GPL-2.0 WITH Classpath-exception-2.0 or later`) is also `unresolved`:
-  `match` gives that grant to the licence, but `match` does not move
+  `detect` gives that grant to the licence, but `match` does not move
   words.
 - **LicenseRef.** A whole `LicenseRef-*` (with `DocumentRef-*:`, idstrings
   as SPDX defines them, so no "_") names itself, as written: category
@@ -47,8 +47,8 @@ seven more. What was decided:
 - **Names** come from `TableCache.active_ids_by_name`, built once per
   database generation, not from a scan of every row on each call. The
   comparison is still the exact case-folded name, the List's own name.
-  `match` compares normalised names: a value that only normalises to a
-  name is `match`'s to guess, not a `listed_name` step.
+  `detect` compares normalised names: a value that only normalises to a
+  name is `detect`'s to guess, not a `listed_name` step.
 - **The declared "or later" reader.** `looseid.declared_grant_id_text` no
   longer has a regex of its own. It finds the last "or" after white space
   or a bracket and lets `classify.OR_LATER_PHRASE` judge the rest. That
