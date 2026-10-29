@@ -161,6 +161,10 @@ def _canonical(text: str, texts: list[str]) -> tuple[str, list[str]]:
         ("(MIT AND ISC) OR 0BSD", ("0BSD OR ISC AND MIT", ["brackets", "reorder"])),
         ("MIT OR MIT", ("MIT", ["dedupe"])),
         ("(MIT OR ISC) AND (ISC OR MIT)", ("ISC OR MIT", ["reorder", "dedupe"])),
+        (  # groups by case-folded text: "miros" before "mit"
+            "(MIT OR Zlib) AND (MirOS OR Zlib)",
+            ("(MirOS OR Zlib) AND (MIT OR Zlib)", ["reorder"]),
+        ),
     ],
 )
 def test_canonical_form_and_its_steps(

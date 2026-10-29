@@ -35,6 +35,7 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     ("[MIT OR (ISC]", (None, "malformed", "parse failed: Unexpected 'OR'")),
     ("{MIT OR ISC)", (None, "malformed", "mismatched brackets")),
     ("()", (None, "unresolved", None)),
+    ("(Foo OR Bar", (None, "unresolved", "parse failed: Unexpected '('")),  # no licence
     # mixed brackets, properly nested
     ("[MIT OR (ISC AND {0BSD})]", ("MIT OR 0BSD AND ISC", "lexical", None)),
     # WITH
@@ -66,6 +67,7 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     ),
     ("MIT OR +", (None, "unresolved", "operand not resolved: +")),
     ("(or later) OR MIT", (None, "unresolved", None)),
+    ("GPL-2.0 or later, OR MIT", (None, "unresolved", None)),  # no grant: "later,"
     # quotes per operand
     ("MIT OR 'ISC'", ("ISC OR MIT", "lexical", None)),
     ('"MIT" AND "ISC', (None, "unresolved", "character dropped: U+0022")),
