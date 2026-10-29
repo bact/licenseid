@@ -8,6 +8,7 @@ read of ``ListLookup`` as the database built from the same release does,
 and the packaged one is loaded once per process."""
 # pylint: disable=missing-function-docstring
 
+import dataclasses
 import gzip
 import threading
 import time
@@ -17,13 +18,13 @@ from unittest import mock
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from list_entries import exc_entry, lic_entry
-from packaged_list import database_of, fixture_bundle, synthetic_bundle
+from packaged_list import database_of, fixture_data, synthetic_bundle
 from release_fakes import ship
 
 from licenseid import listindex, spdxdata
 from licenseid.listindex import ListIndex, packaged_index, packaged_problem
 from licenseid.listlookup import ListLookup
-from licenseid.spdxdata import SpdxData
+from licenseid.spdxdata import SpdxData, to_bundle
 from licenseid.versionkey import version_key
 
 # Two IDs that fold to one (the first wins), a deprecated rename with its
@@ -313,11 +314,55 @@ def test_threads_load_the_bundle_once(monkeypatch: pytest.MonkeyPatch) -> None:
     assert all(index is got[0] for index in got)
 
 
+_WORDS = [
+    "permission",
+    "is",
+    "hereby",
+    "granted",
+    "free",
+    "of",
+    "charge",
+    "to",
+    "any",
+    "person",
+    "obtaining",
+    "a",
+    "copy",
+    "of",
+    "this",
+    "software",
+    "and",
+    "associated",
+    "documentation",
+    "files",
+    "to",
+    "deal",
+    "in",
+    "it",
+]
+
+
+def _sized_bundle() -> bytes:
+    """The List of the fixtures with a text of about 6.8 kB per licence:
+    about 5 MB in all, as the texts of 3.29.0 are. Generated, distinct per
+    licence, so the gzip and JSON reads cost what the real ones do."""
+    data = fixture_data()
+    texts = {
+        lic["licenseId"]: " ".join(
+            f"{_WORDS[(number + i) % len(_WORDS)]}{i % 97}" for i in range(850)
+        )
+        for number, lic in enumerate(data.licenses)
+    }
+    return to_bundle(dataclasses.replace(data, texts=texts))
+
+
 def test_the_first_load_is_fast(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A bundle of the size of 3.29.0's List (740 licences, 86 exceptions):
-    the real one loads in about 0.05 s; the budget is 0.5 s, ten times
-    over for CI's Python 3.10."""
-    ship(monkeypatch, fixture_bundle())
+    """A bundle of the size of 3.29.0's (740 licences, 86 exceptions, about
+    5 MB of text): the real one loads in about 0.05 s; the budget is 0.5 s,
+    ten times over for CI's Python 3.10."""
+    raw = _sized_bundle()
+    assert len(gzip.decompress(raw)) > 4_500_000
+    ship(monkeypatch, raw)
     start = time.monotonic()
     index = packaged_index()
     elapsed = time.monotonic() - start
