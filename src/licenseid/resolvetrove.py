@@ -62,6 +62,15 @@ def read_named(db: ListLookup, text: str, found: Found) -> bool:
     return True
 
 
+def read_alone(db: ListLookup, text: str, found: Found) -> bool:
+    """Read *text* as ``resolve`` reads a value of no operator: one licence
+    (:func:`licenseid.resolveleaf.read_leaf`), else by a name
+    (:func:`read_named`). The compound reader asks it whether a leaf of
+    several words reads alone (P43, P62), so it never judges by the leaf
+    reader only."""
+    return read_leaf(db, text, found) or read_named(db, text, found)
+
+
 def _by_name(db: ListLookup, text: str, found: Found) -> bool:
     """The rules of a name, in order: a name that states no licence is
     claimed first (Q22), however it is written; then a name and a parenthesis

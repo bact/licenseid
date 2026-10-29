@@ -537,3 +537,49 @@ def test_read_named_says_whether_a_rule_claims_the_value(
     assert found.expression == expression
     if claimed:
         assert found.reason is None
+
+
+# --- a trove name in a compound (P43, P62) ---
+
+
+@pytest.mark.parametrize(
+    ("value", "reason"),
+    [
+        (
+            "License :: OSI Approved :: MIT License OR Apache-2.0",
+            "operand of several words: License :: OSI Approved :: MIT License",
+        ),
+        (
+            "GNU Affero General Public License v3 OR MIT",
+            "operand of several words: GNU Affero General Public License v3",
+        ),
+        ("BSD License OR MIT", "operand not resolved: BSD License"),
+        (
+            "License :: OSI Approved :: BSD License OR MIT",
+            "operand not resolved: License :: OSI Approved :: BSD License",
+        ),
+        ("W3C license OR MIT", "operand not resolved: W3C license"),
+    ],
+    ids=lambda value: value[:24],
+)
+def test_a_several_word_trove_name_in_a_compound_is_refused_by_its_shape(
+    corpus_db: LicenseDatabase, value: str, reason: str
+) -> None:
+    """The value stays unresolved (an operand is one word, P43); the reason
+    says whether the leaf reads alone, trove names and paths included."""
+    got = resolve(value, corpus_db)
+    assert got["expression"] is None
+    assert got["reason"] == reason
+
+
+@pytest.mark.parametrize(
+    "leaf",
+    ["License :: OSI Approved :: MIT License", "GNU Affero General Public License v3"],
+)
+def test_the_reason_follows_whether_the_leaf_reads_alone(
+    corpus_db: LicenseDatabase, leaf: str
+) -> None:
+    assert resolve(leaf, corpus_db)["expression"] is not None
+    reason = resolve(f"{leaf} OR MIT", corpus_db)["reason"]
+    assert reason is not None
+    assert reason.startswith("operand of several words")
