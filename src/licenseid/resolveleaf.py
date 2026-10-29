@@ -51,6 +51,9 @@ _RE_BRACKET = re.compile(r"[()\[\]{}]")
 # Characters that end a value after its last "+": white space and "+" itself.
 # Runs only after read_leaf's MAX_KEY_INPUT gate, so its run is bounded.
 _RE_TRAILING = re.compile(r"[\s+]+\Z")
+# An ID that ends in a version number (Apache-2.0, MPL-1.1): one an "or
+# later" grant can take as the "+" operator. "BSD-3-Clause" counts clauses.
+_RE_ENDS_IN_VERSION = re.compile(r"-\d+(?:\.\d+)*\Z")
 # A step kind that is not also a category name, mapped to the one it counts as.
 _AS_CATEGORY = {kind: "lexical" for kind in LEXICAL_KINDS}
 
@@ -300,14 +303,18 @@ def _grant(
     List has the ``-or-later`` ID; a qualifier already stated (``X-only or
     later``) is malformed. An ID with no ``-or-later`` form takes the grant
     as the SPDX "+" operator (``Apache 2.0 or later`` is ``Apache-2.0+``,
-    decision Q14), after its deprecation, as ``X+`` is read; a
-    ``LicenseRef-*`` takes none and is unresolved, not read without it."""
+    decision Q14), after its deprecation, as ``X+`` is read, if its ID ends
+    in a version (P35); one with no version (``MIT``, ``BSD-3-Clause``, a
+    ``LicenseRef-*``) has no later version to grant, and is unresolved,
+    not read without the grant."""
     license_id, steps = base
     granted = loose_id(db, text)
     if license_id.endswith(("-only", "-or-later", "+")):
         found.category = "malformed"
         return True
-    if granted is None and is_license_ref(license_id):
+    if granted is None and (
+        is_license_ref(license_id) or not _RE_ENDS_IN_VERSION.search(license_id)
+    ):
         found.category = "unresolved"
         return True
     found.steps.extend(steps)

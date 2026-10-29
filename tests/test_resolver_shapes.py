@@ -167,16 +167,7 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         (f"GPL-2.0-only+ WITH {CP}", MALFORMED),
         ("LicenseRef-foo+ WITH LLVM-exception", MALFORMED),
         # Q14: MIT has no -or-later ID, so the grant is "+" (was unresolved)
-        (
-            "MIT or later WITH LLVM-exception",
-            (
-                "MIT+ WITH LLVM-exception",
-                "stated_qualifier",
-                [],
-                [("stated_qualifier", True)],
-                [],
-            ),
-        ),
+        ("MIT or later WITH LLVM-exception", NONE),  # P35: MIT has no version
         ("MIT WITH Foo-exception", NONE),  # no such exception: not two licences
         ("MIT WITH GCC-exception-3.1", NONE),  # an SPDX exception not in this db
         ("Foo WITH LLVM-exception", NONE),

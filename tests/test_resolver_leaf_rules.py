@@ -159,11 +159,12 @@ def test_the_hyphenated_grant_is_a_grant(
     [
         ("Apache 2.0 or later", ("Apache-2.0+", "separator", ["separator"])),
         ("Apache-2.0 or any later version", ("Apache-2.0+", "stated_qualifier", [])),
-        ("MIT (or later)", ("MIT+", "stated_qualifier", [])),
-        (
-            "StandardML-NJ or later",
-            ("SMLNJ+", "stated_qualifier", ["deprecated_equal_successor"]),
-        ),
+        ("MPL-1.1 or later", ("MPL-1.1+", "stated_qualifier", [])),
+        # P35 (amended): an ID with no version has no later version to grant
+        ("MIT (or later)", (None, "unresolved", [])),
+        ("MIT or later", (None, "unresolved", [])),
+        ("BSD-3-Clause or later", (None, "unresolved", [])),  # 3 counts clauses
+        ("StandardML-NJ or later", (None, "unresolved", [])),
         ("eCos-2.0 or later", ("eCos-2.0+", "deprecated_ambiguous", [])),
         ("GPL-2.0 or later", ("GPL-2.0-or-later", "stated_qualifier", [])),
         ("LicenseRef-x or later", (None, "unresolved", [])),
@@ -205,7 +206,7 @@ _CP = "Classpath-exception-2.0"
                 ["operator_case", "separator", "version_spelling"],
             ),
         ),
-        ("MIT WITH LLVM-exception or later", ("MIT+ WITH LLVM-exception", [])),
+        ("MIT WITH LLVM-exception or later", (None, [])),  # P35: no version
         (f"GPL-2.0-only WITH {_CP} or later", (None, [])),  # malformed
         (f"GPL-2.0 or later WITH {_CP} or later", (None, [])),  # twice
         ("LicenseRef-x WITH LLVM-exception or later", (None, [])),
