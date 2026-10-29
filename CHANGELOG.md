@@ -41,8 +41,8 @@ and this project adheres to
   ([#120])
 
 [#117]: https://github.com/bact/licenseid/pull/117
-[#120]: https://github.com/bact/licenseid/pull/120
 [#119]: https://github.com/bact/licenseid/pull/119
+[#120]: https://github.com/bact/licenseid/pull/120
 
 ## [0.6.0] - 2026-10-27
 
