@@ -121,6 +121,9 @@ STAYS = [
     "GNU General Public License, Version 3.0",
     "GNU Lesser General Public License v3",  # a trove name: assumed, not P2
     "BSD License v3",
+    "MIT License ...",  # a dangling mark is not left off
+    "MIT License -",
+    "Apache License,Version 2.0",
     "MIT License;",  # `MIT;` is refused (F6), so is this
     "MIT License:",
     "MIT License…",

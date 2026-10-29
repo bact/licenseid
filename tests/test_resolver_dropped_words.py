@@ -173,6 +173,7 @@ def test_no_id_or_name_of_the_list_drops_a_word() -> None:
         ("-- MIT", True),
         ("MIT ...", True),
         ("MIT . ", True),
+        ("MIT ...,", True),
         ("MIT", False),
         ("MIT...", False),
         ("MIT-", False),
