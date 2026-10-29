@@ -38,7 +38,7 @@ from licenseid import releasesource
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
 from licenseid.errors import InvalidInputError, LicenseIdError
-from licenseid.releasesource import is_older
+from licenseid.spdxdata import is_older
 from licenseid.types import UpdateSource
 
 # --- each source on its own ---

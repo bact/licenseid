@@ -37,7 +37,6 @@ network is not tried again: the data is the snapshot's too.
 
 import contextlib
 import functools
-import re
 import tarfile
 import zlib
 from dataclasses import dataclass
@@ -47,7 +46,7 @@ from typing import get_args
 from licenseid import spdx_source, spdxdata
 from licenseid.console import warn
 from licenseid.errors import InvalidInputError, LicenseIdError, typed
-from licenseid.spdxdata import BundleError, SpdxData
+from licenseid.spdxdata import BundleError, SpdxData, is_older
 from licenseid.types import UpdateSource
 
 SOURCES: tuple[UpdateSource, ...] = get_args(UpdateSource)
@@ -59,7 +58,6 @@ _LOOKUPS: dict[UpdateSource, tuple[str, ...]] = {
 }
 # What makes a tarball unusable when it is read (OSError: it cannot be read).
 _BAD_TARBALL = (tarfile.TarError, EOFError, zlib.error, ValueError, RecursionError)
-_NUMERIC_VERSION = re.compile(r"\d+(?:\.\d+)*")
 
 
 @dataclass(frozen=True)
@@ -293,24 +291,6 @@ def _read_tarball(path: Path, condition: str, version: str) -> SpdxData:
         with contextlib.suppress(OSError):
             path.unlink(missing_ok=True)
         raise LicenseIdError(f"{path.name}: {condition}: {typed(exc)}") from exc
-
-
-def _numbers(version: str) -> tuple[int, ...] | None:
-    """*version* as numbers without trailing zeros (``3.29.0`` is ``3.29``),
-    or None if it is not all numbers (``3.0rc1``)."""
-    if not _NUMERIC_VERSION.fullmatch(version):
-        return None
-    parts = [int(part) for part in version.split(".")]
-    while len(parts) > 1 and parts[-1] == 0:
-        parts.pop()
-    return tuple(parts)
-
-
-def is_older(version: str, than: str) -> bool:
-    """Whether release *version* is older than *than*. Versions that are not
-    all numbers are not compared: never older."""
-    mine, theirs = _numbers(version), _numbers(than)
-    return mine is not None and theirs is not None and mine < theirs
 
 
 def fetch_popularity(
