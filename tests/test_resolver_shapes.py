@@ -184,7 +184,10 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         ("MIT WITH LLVM-exception WITH LLVM-exception", NONE),
         ("MIT WITH", NONE),
         ("LLVM-exception", NONE),
-        ("MIT WITH LLVM-exception OR Apache-2.0", (None, "expression", [], [], [])),
+        (
+            "MIT WITH LLVM-exception OR Apache-2.0",
+            ("Apache-2.0 OR MIT WITH LLVM-exception", "lexical", ["reorder"], [], []),
+        ),
         # a LicenseRef names itself, as written; it takes no "+" and no grant
         ("LicenseRef-foo", ("LicenseRef-foo", "exact", [], [], [])),
         ("licenseref-Foo.2", ("licenseref-Foo.2", "exact", [], [], [])),

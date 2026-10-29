@@ -306,25 +306,51 @@ def test_quotes_and_brackets_come_off_in_either_order(
     assert [s["kind"] for s in got["steps"]] == kinds
 
 
-# BUG (T7): the SPDX parser accepts quotes around an operand, so a value of two
-# quoted words is labelled `expression` and, once T7 reads compounds, would be
-# read as two licences. T7 must refuse a quote inside an expression or unquote
-# each operand (see the note in licenseid.quotes).
-def test_two_quoted_words_are_labelled_an_expression_today(
-    corpus_db: LicenseDatabase,
+@pytest.mark.parametrize(
+    ("value", "kinds"),
+    [
+        ('"MIT" or "Apache-2.0"', ["unquote", "unquote", "operator_case", "reorder"]),
+        ('MIT OR "Apache-2.0"', ["unquote", "reorder"]),
+        ("'MIT' OR 'Apache-2.0'", ["unquote", "unquote", "reorder"]),
+        (
+            "\u201cMIT\u201d OR \u201cApache-2.0\u201d",
+            ["unquote", "unquote", "reorder"],
+        ),
+    ],
+)
+def test_the_quotes_around_each_operand_come_off(
+    corpus_db: LicenseDatabase, value: str, kinds: list[str]
 ) -> None:
-    for value in ('"MIT" or "Apache-2.0"', 'MIT OR "Apache-2.0"'):
-        assert resolve(value, corpus_db)["category"] == "expression"
+    """Fixed by T7 (was labelled ``expression``): each operand is read as it
+    would be alone, so its quotes come off, one ``unquote`` step each."""
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["category"]) == ("Apache-2.0 OR MIT", "lexical")
+    assert [s["kind"] for s in got["steps"]] == kinds
+    assert [o["expression"] for o in got["operands"]] == ["MIT", "Apache-2.0"]
+
+
+@pytest.mark.parametrize("value", ['"MIT" OR Apache-2.0"', '"MIT OR "Apache-2.0"'])
+def test_a_quote_left_over_in_a_compound_is_refused(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """A lone quote is not paired with one in another operand: the operand
+    keeps it and the drop guard refuses it."""
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["category"]) == (None, "unresolved")
+    assert got["reason"] == "character dropped: U+0022"
 
 
 def test_a_compound_in_quotes_is_still_a_compound(
     corpus_db: LicenseDatabase,
 ) -> None:
-    """T7 reads compounds: the quotes come off, the category is unchanged."""
-    for value in ('"MIT OR Apache-2.0"', "MIT OR Apache-2.0"):
+    """The quotes around the whole come off first, then the compound is read."""
+    for value, kinds in (
+        ('"MIT OR Apache-2.0"', ["unquote", "reorder"]),
+        ("MIT OR Apache-2.0", ["reorder"]),
+    ):
         got = resolve(value, corpus_db)
-        assert (got["expression"], got["category"]) == (None, "expression")
-        assert got["steps"] == []
+        assert (got["expression"], got["category"]) == ("Apache-2.0 OR MIT", "lexical")
+        assert [s["kind"] for s in got["steps"]] == kinds
 
 
 @pytest.mark.parametrize("size", [1_000, 200_000])

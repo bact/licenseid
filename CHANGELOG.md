@@ -24,8 +24,19 @@ and this project adheres to
 - `resolve()` reads a value in quotes (`"MIT"`, `'MIT'`, `“MIT”`, `"MIT`) with
   an `unquote` step; `"MIT'` and quotes inside a value are still refused
 
+- `resolve()` reads compound expressions, each operand as it reads alone, in
+  canonical order: `mit or "Apache2"` is `Apache-2.0 OR MIT`; the category is
+  the weakest operand's, and one unresolved operand leaves the whole
+  unresolved
+- `resolve()` result has `schema` (2), `operands` (text, span, answer),
+  `components` (the expression parser) and `by` on each step; new reasons
+  `operand not resolved`, `not an SPDX operator`, `parse failed`
+
 ### Changed
 
+- **Breaking:** `resolve()` drops the `expression` category: a compound now
+  has a category of its own; read `operands`. `[MIT]` and `{MIT}` read as
+  brackets, an `AdditionRef-*` as an exception, `MIT or later` as `MIT+`
 - `resolve()` with no database given reads whichever list is newer, the
   default database's or the shipped one (a tie: the database, if this
   licenseid's build rules made it); an unusable default database falls back

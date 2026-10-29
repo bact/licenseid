@@ -6,12 +6,23 @@
 """The answers task T7 (compound expressions) moved in the parity corpus
 and the PyPI sample, grouped by the decision that moved them.
 
-``resolver_corpus.EXPECTED_CHANGES`` merges :data:`T7_CHANGES`. Each group
-is a table ``{value: answer}`` and one reason; :func:`answer` builds an
-answer by keyword, its defaults the answer that resolves nothing.
+The answers are in ``fixtures/resolver_t7_changes.tsv``, one row a value
+with its group; :data:`REASONS` says why each group moved.
+``resolver_corpus.EXPECTED_CHANGES`` merges :data:`T7_CHANGES`.
+:func:`answer` builds an answer by keyword, its defaults the answer that
+resolves nothing.
 """
 
-from tools.pypi_licence_sample.answer import Answer
+from pathlib import Path
+
+from tools.pypi_licence_sample.answer import (
+    ANSWER_COLUMNS,
+    Answer,
+    answer_from_row,
+    unescape_field,
+)
+
+CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_t7_changes.tsv"
 
 
 def answer(  # pylint: disable=too-many-arguments
@@ -41,20 +52,58 @@ def answer(  # pylint: disable=too-many-arguments
     )
 
 
-_Q20 = (
-    "T7 (Q20): an AdditionRef- exception is accepted as a LicenseRef- is,"
-    " unchecked against the list; 0.6.0 refused it"
-)
+_WAS = "0.6.0 answered `expression` with no expression"
 
-_ADDITION_REF = {
-    "MIT WITH AdditionRef-x": answer(
-        "MIT WITH AdditionRef-x", "exact", trust="identity"
+#: Why each group of the changes file moved.
+REASONS: dict[str, str] = {
+    "canonical": (f"T7 (D1): a compound already in canonical order is read; {_WAS}"),
+    "canonicalised": (
+        "T7 (D1, Q19, Q24): a compound is read and written in canonical"
+        f" order, operators upper case, duplicates dropped (`lexical`); {_WAS}"
+    ),
+    "weakest": (
+        "T7 (D1): a compound takes the category of its weakest operand, each"
+        f" operand read as it is alone; {_WAS}"
+    ),
+    "operand": (
+        "T7 (D1): all or nothing, an operand that names no licence leaves the"
+        " compound unresolved (named in the reason when the operators are in"
+        f" upper case); {_WAS}"
+    ),
+    "reason": (
+        "T7 (D1, P13): refused as before; the reason now names the first"
+        " operand that resolves to nothing"
+    ),
+    "grammar": (
+        "T7 (Q4): every part names a licence but the expression does not"
+        " parse: `malformed`, the parser's message the reason; 0.6.0 said"
+        " `expression`"
+    ),
+    "mark": (
+        "T7: unresolved as before; the reason names the mark used where an"
+        " SPDX operator belongs (IDs joined by / | & ; or ,)"
+    ),
+    "brackets": (
+        "T7 (Q21): square and curly brackets read as round ones; 0.6.0 left"
+        " the value unresolved"
+    ),
+    "addition_ref": (
+        "T7 (Q20): an AdditionRef- exception is accepted as a LicenseRef- is,"
+        " unchecked against the list; 0.6.0 refused it"
     ),
 }
 
-#: ``{value: (answer, reason)}``, every group of T7.
-T7_CHANGES: dict[str, tuple[Answer, str]] = {
-    value: (got, why)
-    for table, why in ((_ADDITION_REF, _Q20),)
-    for value, got in table.items()
-}
+
+def _changes() -> dict[str, tuple[Answer, str]]:
+    """The rows of :data:`CHANGES_FILE`, each with its group's reason."""
+    changes: dict[str, tuple[Answer, str]] = {}
+    lines = CHANGES_FILE.read_text(encoding="utf-8").splitlines()
+    rows = [line.split("\t") for line in lines if not line.startswith("#")]
+    for value, group, *fields in rows[1:]:
+        row = dict(zip(ANSWER_COLUMNS, fields, strict=True))
+        changes[unescape_field(value)] = (answer_from_row(row), REASONS[group])
+    return changes
+
+
+#: ``{value: (answer, reason)}``, every value T7 moves.
+T7_CHANGES: dict[str, tuple[Answer, str]] = _changes()

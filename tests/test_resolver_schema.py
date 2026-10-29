@@ -57,6 +57,11 @@ def test_the_result_names_its_schema_and_keeps_its_key_order(
         ("GPLv2 or later", "GPLv2 or later", [0, 14]),
         ("GPL-2.0-only WITH Classpath-exception-2.0", None, [0, 41]),
         ("GPL-2.0-only+", "GPL-2.0-only+", [0, 13]),
+        ("( ( MIT ) )", "MIT", [4, 7]),
+        ("[MIT]", "MIT", [1, 4]),
+        ("{[ MIT ]}", "MIT", [3, 6]),
+        (' "[MIT]" ', "MIT", [3, 6]),
+        ("Proprietary", "Proprietary", [0, 11]),
     ],
 )
 def test_a_single_value_is_one_operand_with_its_span_in_the_input(
@@ -116,7 +121,11 @@ def test_every_step_says_licenseid_did_it(
     assert all(s["by"] == "" for s in steps)
 
 
-def test_a_single_value_names_no_component(corpus_db: LicenseDatabase) -> None:
+@pytest.mark.parametrize(
+    "value", ["GPL-2.0-only WITH Classpath-exception-2.0", "[MIT]", "Proprietary"]
+)
+def test_a_single_value_names_no_component(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
     """The expression parser did not run for one licence."""
-    got = resolve("GPL-2.0-only WITH Classpath-exception-2.0", corpus_db)
-    assert not got["components"]
+    assert not resolve(value, corpus_db)["components"]

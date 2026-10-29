@@ -63,8 +63,18 @@ generator.*
     `Apache 2.0?`, `MIT*` and `"MIT?"` are `unresolved`, with a
     `reason` and a `drop` step that was not applied; white space, `-`, `_`,
     `.`, a dash and one trailing comma are still dropped;
-  - a compound expression (`MIT OR Apache-2.0`) is recognised (category
-    `expression`) but returned without an expression;
+  - a compound expression is read operand by operand, each as the same
+    text would be read alone (quotes, "or later" and loose IDs included),
+    and written in licenseid's canonical order: operators in upper case,
+    a chain of one operator flattened, operands sorted (IDs, then
+    `LicenseRef-*`, then `WITH`, then bracketed groups), duplicates
+    dropped, and brackets only where precedence needs them
+    (`mit or "Apache2"` → `Apache-2.0 OR MIT`); `[ ]` and `{ }` count as
+    brackets;
+  - a compound is all or nothing: its category is the weakest operand's,
+    and one operand that names nothing leaves the whole unresolved, with a
+    `reason` naming it; a mark used as an operator (`MIT/Apache-2.0`) is
+    refused, with a `reason`;
   - every result names its category and trust level, each step, the list
     it rests on with its version and where it was read (`database` or
     `packaged`), and the resolver's version (see [Python API](#python-api)).
@@ -472,24 +482,32 @@ The whole result of `resolve("Apache2")`, as JSON:
 
 ```json
 {
+  "schema": 2,
   "input": "Apache2",
   "expression": "Apache-2.0",
   "category": "version_spelling",
   "trust": "resolver_rule",
   "steps": [
     {"kind": "separator", "applied": true, "from": "Apache2",
-     "to": "Apache-2.0", "list": "spdx-license-list", "detail": ""},
+     "to": "Apache-2.0", "list": "spdx-license-list", "detail": "", "by": ""},
     {"kind": "version_spelling", "applied": true, "from": "Apache2",
-     "to": "Apache-2.0", "list": "spdx-license-list", "detail": ""}
+     "to": "Apache-2.0", "list": "spdx-license-list", "detail": "", "by": ""}
   ],
   "expansions": [],
   "candidates": [],
+  "operands": [
+    {"text": "Apache2", "span": [0, 7], "expression": "Apache-2.0",
+     "category": "version_spelling", "trust": "resolver_rule",
+     "steps": ["... the two steps above ..."], "expansions": [],
+     "candidates": [], "reason": null}
+  ],
   "resolver": {
     "name": "licenseid",
-    "version": "0.6.0",
-    "url": "https://github.com/bact/licenseid/releases/tag/v0.6.0",
-    "purl": "pkg:pypi/licenseid@0.6.0"
+    "version": "0.7.0",
+    "url": "https://github.com/bact/licenseid/releases/tag/v0.7.0",
+    "purl": "pkg:pypi/licenseid@0.7.0"
   },
+  "components": [],
   "lists": [
     {
       "id": "spdx-license-list",
@@ -506,15 +524,60 @@ The whole result of `resolve("Apache2")`, as JSON:
 }
 ```
 
+`schema` is the version of this shape (2 since 0.7.0). `operands` holds each
+licence the value names, in the order written: its `text`, its `span` in the
+input (`[start, end)` in code points, after the trim and the quotes and
+brackets around the whole), and the answer the same text would get alone. A
+compound adds the steps of the whole after those of its operands, in this
+order: `operator_case`, `whitespace`, `brackets`, `reorder` and `dedupe`,
+each with the expression before and after. `components` names the tools
+besides licenseid that took part (the expression parser, `py-spdx-license`,
+for a compound), and `by` on a step names the one that took it (`""`:
+licenseid). For `resolve("GPLv2+ or MIT")`, shortened:
+
+```json
+{
+  "schema": 2,
+  "input": "GPLv2+ or MIT",
+  "expression": "GPL-2.0-or-later OR MIT",
+  "category": "version_spelling",
+  "trust": "resolver_rule",
+  "steps": [
+    {"kind": "separator", "from": "GPLv2", "to": "GPL-2.0", "...": "..."},
+    {"kind": "version_spelling", "from": "GPLv2", "to": "GPL-2.0",
+     "...": "..."},
+    {"kind": "operator_case", "from": "GPL-2.0-or-later or MIT",
+     "to": "GPL-2.0-or-later OR MIT", "list": "", "...": "..."}
+  ],
+  "expansions": [
+    {"kind": "plus_to_or_later", "from": "GPLv2+", "to": "GPL-2.0-or-later",
+     "...": "..."}
+  ],
+  "operands": [
+    {"text": "GPLv2+", "span": [0, 6], "expression": "GPL-2.0-or-later",
+     "category": "version_spelling", "...": "..."},
+    {"text": "MIT", "span": [10, 13], "expression": "MIT",
+     "category": "exact", "...": "..."}
+  ],
+  "components": [
+    {"name": "py-spdx-license", "version": "0.0.1",
+     "url": "https://pypi.org/project/py-spdx-license/0.0.1/",
+     "purl": "pkg:pypi/py-spdx-license@0.0.1"}
+  ],
+  "reason": null
+}
+```
+
 `steps` change the value; `expansions` hold a qualifier (`-only`,
 `-or-later`) added or, with `applied` false, declined. A step that rests on a
 list names it in `list`. The `category` of a result is the weakest of its
-steps, in this order (strongest first):
+steps, and of a compound the weakest of its operands, in this order
+(strongest first):
 
 | Category | Trust | The value |
 | --- | --- | --- |
 | `exact` | `identity` | is a listed ID as written |
-| `lexical` | `identity` | differs in case, spacing, brackets or quotes only |
+| `lexical` | `identity` | differs in case, spacing, brackets, quotes or order |
 | `listed_name` | `list_data` | is the List's name of a licence |
 | `deprecated_equal_successor` | `list_data` | is a renamed deprecated ID |
 | `plus_to_or_later` | `list_data` | is `X+`, read as `X-or-later` |
@@ -523,19 +586,27 @@ steps, in this order (strongest first):
 | `version_spelling` | `resolver_rule` | is an ID with its version re-spelt |
 | `deprecated_ambiguous` | `list_data` | is deprecated, with no successor |
 | `assumed_only` | `none` | is a bare split ID (`GPL-3.0`), kept |
-| `expression` | `none` | joins several licences: not resolved |
-| `malformed` | `none` | states a qualifier twice, or misplaces it |
+| `malformed` | `none` | states a qualifier twice, or breaks the grammar |
 | `unresolved` | `none` | names no licence |
 
-A consumer ignores a step kind it does not know.
+A consumer ignores a step kind it does not know. Before 0.7.0 a compound
+was category `expression`, with no expression; that category is gone.
 
 `reason` is `None` unless the value was refused, when it is one line,
 `CONDITION[: DETAIL]`, the detail in code points: `character dropped: U+003F`
 (the value would be read as a licence only by dropping a mark that is not a
 separator, such as `?`, `!`, `*` or a quote inside the value; several are
 space separated),
-`lone surrogate`, `control or format character: U+200B`. A refused value is
-category `unresolved` with no expression. For a dropped mark, `steps` holds
+`lone surrogate`, `control or format character: U+200B`; for a compound,
+`operand not resolved: <operand>` (or that operand's own reason),
+`not an SPDX operator: /` (also `|`, `&`, `;` and `,` between IDs),
+`parse failed: <the parser's message>`, `mismatched brackets`,
+`too many operators` (over 150) and `too deeply nested` (over 150). A value
+with a lower-case `or` or `and` whose words name nothing (`GPL-3.0 or
+higher`), or with a part of several words (`Apache License 2.0 OR MIT`), is
+read as prose, not as a compound: no reason. A refused value is category
+`unresolved` with no expression, or `malformed` when the compound breaks the
+grammar but names a licence (`MIT AND`). For a dropped mark, `steps` holds
 one `drop` step with `applied` false: its `to` is the listed ID the loose
 reading named (`resolve("Apache 2.0?")` would have read `Apache-2.0`; a
 renamed ID is not followed) and its `detail` the code points. White space,
@@ -551,9 +622,10 @@ layers`. A quotation mark on one end only is taken off too, with `detail`
 `unbalanced, start` or `unbalanced, end`, and the answer counts as
 `separator` (`resolver_rule`), not `lexical`, because the value may be cut:
 `"MIT'"` is read, `"MIT'` (two kinds) is not. A prime or a modifier letter
-(`GPL-2.0′`) is never taken off alone. The marks of a value that has others
-inside (`"MIT" or "Apache-2.0"`), or of two kinds (`"MIT'`), stay, and the
-value is refused as above. An apostrophe inside a word (`AMD's`) is not a
+(`GPL-2.0′`) is never taken off alone. The marks around each operand of a
+compound come off too (`"MIT" or "Apache-2.0"`), a balanced pair only. The
+marks of two kinds (`"MIT'`), or inside a word (`Apache "2.0"`), stay, and
+the value is refused as above. An apostrophe inside a word (`AMD's`) is not a
 mark.
 
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)

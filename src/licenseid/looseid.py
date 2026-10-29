@@ -159,7 +159,7 @@ def grant_end(text: str, start: int) -> int | None:
     grant = OR_LATER_PHRASE.match(text, start)  # sees "not" before it
     if grant is not None:
         return grant.end()
-    if is_negated(text[:start]):
+    if is_negated(text[max(0, start - 5) : start]):  # "xnot ": enough to judge
         return None
     probe = OR_LATER_PHRASE.match("1 " + text[start:])
     return None if probe is None else start + probe.end() - 2

@@ -63,7 +63,6 @@ Category = Literal[
     "deprecated_equal_successor",
     "deprecated_ambiguous",
     "assumed_only",
-    "expression",
     "malformed",
     "unresolved",
 ]
@@ -83,7 +82,6 @@ CATEGORY_ORDER: Final[tuple[Category, ...]] = (
     "version_spelling",
     "deprecated_ambiguous",
     "assumed_only",
-    "expression",
     "malformed",
     "unresolved",
 )
@@ -99,7 +97,6 @@ TRUST: Final[dict[Category, Trust]] = {
     "version_spelling": "resolver_rule",
     "deprecated_ambiguous": "list_data",
     "assumed_only": "none",
-    "expression": "none",
     "malformed": "none",
     "unresolved": "none",
 }
@@ -175,14 +172,19 @@ class ListInfo(TypedDict):
 class Resolution(TypedDict):
     """What ``resolve`` returns for one declared value.
 
-    ``expression`` is the SPDX expression to record, or None when the value
-    names no single licence. A bare deprecated ID (``GPL-3.0``) is returned as
-    written (category ``assumed_only``), with the licences it might be in
-    ``candidates``, sorted. ``steps`` are the applied or declined changes in order;
-    ``expansions`` hold the qualifier steps, kept apart from ``steps``.
-    ``reason`` says why a value was refused, as ``CONDITION[: DETAIL]``
-    (``character dropped: '?'``, ``lone surrogate``); None for every other
-    answer.
+    ``schema`` is the version of this shape (:data:`SCHEMA`). ``expression``
+    is the SPDX expression to record, in canonical order, or None when the
+    value names nothing, or a compound has an operand that names nothing. A
+    bare deprecated ID (``GPL-3.0``) is returned as written (category
+    ``assumed_only``), with the licences it might be in ``candidates``,
+    sorted. ``steps`` are the applied or declined changes in order: those of
+    the whole value, of each operand, then of the compound; ``expansions``
+    hold the qualifier steps, kept apart from ``steps``. ``operands`` holds
+    each licence named, as it reads alone, in the order written;
+    ``components`` the tools besides licenseid that took part (the
+    expression parser, for a compound). ``reason`` says why a value was
+    refused, as ``CONDITION[: DETAIL]`` (``character dropped: U+003F``,
+    ``operand not resolved: Foo``); None for every other answer.
     """
 
     schema: int

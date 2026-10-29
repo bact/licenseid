@@ -207,13 +207,31 @@ def _db() -> Generator[LicenseDatabase, None, None]:
             "MIT (or later)",
             ("MIT+", "stated_qualifier", [], [("stated_qualifier", True)], []),
         ),
-        # an expression over the cap is read as none; under it, as one
-        (" OR ".join(["Apache-2.0"] * 120), (None, "expression", [], [], [])),
+        # a compound under the cap of 150 operators is read, over it refused
+        (
+            " OR ".join(["Apache-2.0"] * 120),
+            ("Apache-2.0", "lexical", ["dedupe"], [], []),
+        ),
         (" OR ".join(["Apache-2.0"] * 200), (None, "unresolved", [], [], [])),
-        # an expression with a "+" operand, or longer than any one ID
-        ("GPL-2.0+ OR MIT", (None, "expression", [], [], [])),
-        ("(MIT+ AND Apache-2.0)", (None, "expression", [], [], [])),
-        (" OR ".join(["Apache-2.0"] * 12), (None, "expression", [], [], [])),
+        # a compound with a "+" operand, or longer than any one ID
+        (
+            "GPL-2.0+ OR MIT",
+            (
+                "GPL-2.0-or-later OR MIT",
+                "plus_to_or_later",
+                [],
+                [("plus_to_or_later", True)],
+                [],
+            ),
+        ),
+        (
+            "(MIT+ AND Apache-2.0)",
+            ("Apache-2.0 AND MIT+", "lexical", ["brackets", "reorder"], [], []),
+        ),
+        (
+            " OR ".join(["Apache-2.0"] * 12),
+            ("Apache-2.0", "lexical", ["dedupe"], [], []),
+        ),
         # a doubled "+" or a doubled grant is malformed, however the ID is spelt
         ("GPLv2++", (None, "malformed", [], [], [])),
         ("GPL-2.0 ++", (None, "malformed", [], [], [])),
@@ -226,9 +244,9 @@ def _db() -> Generator[LicenseDatabase, None, None]:
         # a step is not kept for a value that resolved to nothing
         ("Foo +", (None, "unresolved", [], [], [])),
         ("()", (None, "unresolved", [], [], [])),
-        # brackets are read only around the whole value
-        ("[MIT]", (None, "unresolved", [], [], [])),
-        ("MIT)", (None, "unresolved", [], [], [])),
+        # Q21: square brackets are brackets; an unbalanced one is malformed
+        ("[MIT]", ("MIT", "lexical", ["brackets"], [], [])),
+        ("MIT)", (None, "malformed", [], [], [])),
         (
             "GPL-2.0 (or later)",
             (
@@ -245,8 +263,9 @@ def _db() -> Generator[LicenseDatabase, None, None]:
             ("GPL-2.0-only", "listed_name", ["listed_name"], [], []),
         ),
         ("Dup License", (None, "unresolved", [], [], [])),
-        ("MIT OR", (None, "unresolved", [], [], [])),
-        ("(MIT OR Foo", (None, "unresolved", [], [], [])),
+        # a compound the grammar refuses, an operand naming a licence
+        ("MIT OR", (None, "malformed", [], [], [])),
+        ("(MIT OR Foo", (None, "malformed", [], [], [])),
         # D: no answer
         ("Proprietary", (None, "unresolved", [], [], [])),
         ("GPL-2.0-only+", (None, "malformed", [], [], [])),
@@ -255,8 +274,26 @@ def _db() -> Generator[LicenseDatabase, None, None]:
         ("\udc80", (None, "unresolved", [], [], [])),
         ("", (None, "unresolved", [], [], [])),
         ("   ", (None, "unresolved", [], [], [])),  # no step: nothing resolved
-        ("MIT OR Apache2", (None, "expression", [], [], [])),
-        ("(MIT OR Apache2)", (None, "expression", [], [], [])),
+        (
+            "MIT OR Apache2",
+            (
+                "Apache-2.0 OR MIT",
+                "version_spelling",
+                ["separator", "version_spelling", "reorder"],
+                [],
+                [],
+            ),
+        ),
+        (
+            "(MIT OR Apache2)",
+            (
+                "Apache-2.0 OR MIT",
+                "version_spelling",
+                ["brackets", "separator", "version_spelling", "reorder"],
+                [],
+                [],
+            ),
+        ),
         ("MIT" + "x" * 200, (None, "unresolved", [], [], [])),
     ],
     ids=lambda v: v[:30] if isinstance(v, str) else "",

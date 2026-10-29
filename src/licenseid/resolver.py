@@ -11,10 +11,11 @@ resolver do to get there". A caller that records the result needs the second
 part: a changed case is no decision, a re-spelt ID is, and a qualifier
 (``-only``) the author never wrote is a guess that must not be applied.
 
-This release resolves a value that names one licence, with its exception if
-it has one. An expression of several (``MIT OR Apache2``) is reported as
-category ``expression`` with no resolution. A step that rests on a list cites
-it.
+A value that names one licence, with its exception if it has one, is read
+by ``licenseid.resolveleaf``; an expression of several (``MIT OR Apache2``)
+by ``licenseid.resolvecompound``, each operand as it would be read alone,
+and written in canonical order (``licenseid.exprcanon``). A step that rests
+on a list cites it.
 
 No database is needed: with none, ``resolve`` reads the SPDX License List
 shipped in the wheel, in memory, and gives the answer a database built from
@@ -22,22 +23,24 @@ that list would give (``licenseid.listsource`` chooses, ``licenseid.listindex``
 reads). ``lists[*].source`` says which was read.
 """
 
-import re
 import unicodedata
 
 from licenseid.database import LicenseDatabase
-from licenseid.identifiers import parse_expression, without_outer_brackets
+from licenseid.exprcanon import unbracketed
 from licenseid.listlookup import ListLookup
 from licenseid.listsource import choose_list
-from licenseid.plusoperator import plus_after_qualifier, strip_plus_operator
 from licenseid.quotes import unquote
-from licenseid.resolvecompound import operand_of
+from licenseid.resolvecompound import (
+    absorb,
+    not_an_operator,
+    operand_of,
+    read_compound,
+)
 from licenseid.resolveleaf import Found, category_of, read_leaf
 from licenseid.resolverinfo import list_info, parser_info, resolver_info
 from licenseid.resolvertypes import (
     SCHEMA,
     TRUST,
-    Category,
     ListInfo,
     ListSource,
     Operand,
@@ -47,11 +50,6 @@ from licenseid.resolvertypes import (
 )
 from licenseid.textinput import has_lone_surrogate
 
-_OPERATORS = frozenset({"AND", "OR", "WITH"})
-_JOINS = frozenset({"AND", "OR"})
-_RE_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]*")
-_RE_IDLIKE = re.compile(r"[\d.-]")
-_RE_SQUARE = re.compile(r"[\[\]{}]")
 # The longest expression read; one licence is MAX_KEY_INPUT or less (versionkey).
 _MAX_EXPRESSION_CHARS = 2000
 
@@ -105,22 +103,16 @@ def _read(db: ListLookup, value: str) -> tuple[Found, list[Operand], bool]:
         found.category, found.steps = "unresolved", []  # no step was taken
         return found, [], False
     leaf = Found()
-    if read_leaf(db, text, leaf):
-        _absorb(found, leaf)
+    if read_leaf(db, text, leaf):  # one licence first
+        absorb(found, leaf)
         return found, [operand_of(text, start, leaf)], False
-    found.category = _expression_category(db, text)
-    return found, [], False
-
-
-def _absorb(found: Found, leaf: Found) -> None:
-    """Put the reading of the one *leaf* into *found*, after the steps taken
-    on the whole value. A leaf that resolved to nothing keeps only its own
-    steps (a refusal's ``drop``), as no step before it led anywhere."""
-    found.steps = found.steps + leaf.steps if leaf.expression else list(leaf.steps)
-    found.expansions += leaf.expansions
-    found.candidates = list(leaf.candidates)
-    found.expression, found.category = leaf.expression, leaf.category
-    found.reason = leaf.reason
+    compound = read_compound(db, text, start, found)
+    if compound.claimed:
+        return found, compound.operands, compound.parsed
+    # One leaf that names nothing (the trove and prose rules come here, Q18).
+    found.category, found.reason = "unresolved", not_an_operator(text)
+    nothing = Found(category="unresolved", reason=found.reason)
+    return found, [operand_of(text, start, nothing)], False  # no parse used
 
 
 def _prepared(value: str, found: Found) -> tuple[str, int]:
@@ -155,40 +147,12 @@ def _unquoted(text: str, start: int, found: Found) -> tuple[str, int]:
 def _unbracketed(text: str, start: int, found: Found) -> tuple[str, int]:
     """*text* without brackets around the whole of it, as a ``brackets``
     step, and where it starts (*text* starts at *start*)."""
-    inner = without_outer_brackets(text)
+    inner = unbracketed(text)
     if inner == text:
         return text, start
     found.steps.append(step("brackets", True, text, inner))
     lead = (len(text) - len(inner)) // 2 + len(inner) - len(inner.lstrip())
     return inner.strip(), start + lead
-
-
-def _expression_category(db: ListLookup, text: str) -> Category:
-    """``expression`` for an SPDX expression of several licences,
-    ``malformed`` for one with a "+" after a stated qualifier
-    (``MIT OR GPL-2.0-only+``), as on its own; else ``unresolved``."""
-    if not _is_expression(db, text):
-        return "unresolved"
-    return "malformed" if plus_after_qualifier(text) else "expression"
-
-
-def _is_expression(db: ListLookup, text: str) -> bool:
-    """Whether *text* is an SPDX expression of several licences: it parses (a
-    "+" operator aside), and every operand is a listed ID or looks like one
-    (a digit, a hyphen or a full stop in it). ``MIT OR Apache2`` is;
-    ``Proprietary or custom``, ``GPL-3.0 or higher`` and ``Licensed with love``
-    name one licence, or none, and are not."""
-    if _RE_SQUARE.search(text) or parse_expression(strip_plus_operator(text)) is None:
-        return False
-    tokens = _RE_TOKEN.findall(text)
-    operands = [
-        token.rstrip("+") for token in tokens if token.upper() not in _OPERATORS
-    ]
-    # Only AND and OR join several licences: one ID-shaped word (Foo-1.0) is
-    # one licence, and WITH qualifies one (with_exception).
-    return any(token.upper() in _JOINS for token in tokens) and all(
-        _RE_IDLIKE.search(token) or db.get_license_details(token) for token in operands
-    )
 
 
 def _refusal(text: str) -> str | None:

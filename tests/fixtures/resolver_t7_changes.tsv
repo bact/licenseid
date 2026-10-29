@@ -1,0 +1,107 @@
+# The answers task T7 (compound expressions) moved in the parity corpus
+# and the PyPI sample. value: Python unicode_escape; group: the decision
+# that moved it (its reason is in tests/resolver_changes_t7.py); then the
+# answer, its fields written as in the other answer fixtures.
+value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
+MIT WITH AdditionRef-x	addition_ref	MIT WITH AdditionRef-x	exact	-	-	-	-	-	identity	yes	-
+[MIT OR ISC]	brackets	ISC OR MIT	lexical	-	brackets,reorder	MIT OR ISC,ISC OR MIT	-	-	identity	yes	-
+0BSD OR CC0-1.0	canonical	0BSD OR CC0-1.0	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 AND BSD-2-Clause	canonical	Apache-2.0 AND BSD-2-Clause	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT	canonical	Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 AND BSD-3-Clause AND MIT	canonical	Apache-2.0 AND BSD-3-Clause AND MIT	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 AND CNRI-Python	canonical	Apache-2.0 AND CNRI-Python	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 AND GPL-3.0-only	canonical	Apache-2.0 AND GPL-3.0-only	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 AND LicenseRef-LiveKit-Model	canonical	Apache-2.0 AND LicenseRef-LiveKit-Model	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 AND MIT	canonical	Apache-2.0 AND MIT	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 AND Python-2.0	canonical	Apache-2.0 AND Python-2.0	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 OR BSD-2-Clause	canonical	Apache-2.0 OR BSD-2-Clause	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 OR BSD-3-Clause	canonical	Apache-2.0 OR BSD-3-Clause	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 OR GPL-2.0-or-later	canonical	Apache-2.0 OR GPL-2.0-or-later	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 OR LGPL-2.1-or-later	canonical	Apache-2.0 OR LGPL-2.1-or-later	exact	-	-	-	-	-	identity	yes	-
+Apache-2.0 OR MIT	canonical	Apache-2.0 OR MIT	exact	-	-	-	-	-	identity	yes	-
+BSD-2-Clause AND Apache-2.0 WITH LLVM-exception	canonical	BSD-2-Clause AND Apache-2.0 WITH LLVM-exception	exact	-	-	-	-	-	identity	yes	-
+BSD-2-Clause AND CC-BY-4.0 AND CC0-1.0	canonical	BSD-2-Clause AND CC-BY-4.0 AND CC0-1.0	exact	-	-	-	-	-	identity	yes	-
+BSD-2-Clause AND GPL-2.0-or-later	canonical	BSD-2-Clause AND GPL-2.0-or-later	exact	-	-	-	-	-	identity	yes	-
+BSD-3-Clause AND BSL-1.0	canonical	BSD-3-Clause AND BSL-1.0	exact	-	-	-	-	-	identity	yes	-
+BSD-3-Clause AND ISC	canonical	BSD-3-Clause AND ISC	exact	-	-	-	-	-	identity	yes	-
+BSD-3-Clause AND MIT	canonical	BSD-3-Clause AND MIT	exact	-	-	-	-	-	identity	yes	-
+BSD-3-Clause AND TCL	canonical	BSD-3-Clause AND TCL	exact	-	-	-	-	-	identity	yes	-
+EPL-2.0 OR GPL-2.0-or-later	canonical	EPL-2.0 OR GPL-2.0-or-later	exact	-	-	-	-	-	identity	yes	-
+GPL-3.0-or-later OR MIT	canonical	GPL-3.0-or-later OR MIT	exact	-	-	-	-	-	identity	yes	-
+LGPL-2.1-only OR MIT	canonical	LGPL-2.1-only OR MIT	exact	-	-	-	-	-	identity	yes	-
+LGPL-2.1-only OR MPL-1.1	canonical	LGPL-2.1-only OR MPL-1.1	exact	-	-	-	-	-	identity	yes	-
+LGPL-3.0-only OR MIT	canonical	LGPL-3.0-only OR MIT	exact	-	-	-	-	-	identity	yes	-
+LicenseRef-a AND LicenseRef-b	canonical	LicenseRef-a AND LicenseRef-b	exact	-	-	-	-	-	identity	yes	-
+MIT AND (Apache-2.0 OR BSD-2-Clause)	canonical	MIT AND (Apache-2.0 OR BSD-2-Clause)	exact	-	-	-	-	-	identity	yes	-
+MIT AND (BSD-2-Clause OR LGPL-2.1-or-later)	canonical	MIT AND (BSD-2-Clause OR LGPL-2.1-or-later)	exact	-	-	-	-	-	identity	yes	-
+MIT AND PSF-2.0	canonical	MIT AND PSF-2.0	exact	-	-	-	-	-	identity	yes	-
+MIT OR LicenseRef-x	canonical	MIT OR LicenseRef-x	exact	-	-	-	-	-	identity	yes	-
+MIT OR Unlicense	canonical	MIT OR Unlicense	exact	-	-	-	-	-	identity	yes	-
+MPL-2.0 AND (Apache-2.0 OR MIT)	canonical	MPL-2.0 AND (Apache-2.0 OR MIT)	exact	-	-	-	-	-	identity	yes	-
+MirOS OR MIT	canonical	MirOS OR MIT	exact	-	-	-	-	-	identity	yes	-
+(MIT AND (Apache-2.0 OR ISC))	canonicalised	MIT AND (Apache-2.0 OR ISC)	lexical	-	brackets	MIT AND (Apache-2.0 OR ISC)	-	-	identity	yes	-
+(MIT AND ISC) OR (ISC AND MIT)	canonicalised	ISC AND MIT	lexical	-	brackets,reorder,dedupe	MIT AND ISC OR ISC AND MIT,ISC AND MIT OR ISC AND MIT,ISC AND MIT	-	-	identity	yes	-
+(MIT OR Apache-2.0) AND BSD-3-Clause	canonicalised	BSD-3-Clause AND (Apache-2.0 OR MIT)	lexical	-	reorder	BSD-3-Clause AND (Apache-2.0 OR MIT)	-	-	identity	yes	-
+(MIT OR ISC) AND GPL-2.0-only WITH Classpath-exception-2.0	canonicalised	GPL-2.0-only WITH Classpath-exception-2.0 AND (ISC OR MIT)	lexical	-	reorder	GPL-2.0-only WITH Classpath-exception-2.0 AND (ISC OR MIT)	-	-	identity	yes	-
+Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND ISC AND MIT AND Zlib	canonicalised	Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND ISC AND MIT AND Zlib AND Apache-2.0 WITH LLVM-exception	lexical	-	reorder	Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND ISC AND MIT AND Zlib AND Apache-2.0 WITH LLVM-exception	-	-	identity	yes	-
+Apache-2.0 AND CC-BY-4.0 AND LicenseRef-scancode-other-permissive AND LicenseRef-scancode-other-copyleft	canonicalised	Apache-2.0 AND CC-BY-4.0 AND LicenseRef-scancode-other-copyleft AND LicenseRef-scancode-other-permissive	lexical	-	reorder	Apache-2.0 AND CC-BY-4.0 AND LicenseRef-scancode-other-copyleft AND LicenseRef-scancode-other-permissive	-	-	identity	yes	-
+Apache-2.0 AND CC0-1.0 AND CC-BY-SA-4.0 AND GPL-3.0-or-later	canonicalised	Apache-2.0 AND CC-BY-SA-4.0 AND CC0-1.0 AND GPL-3.0-or-later	lexical	-	reorder	Apache-2.0 AND CC-BY-SA-4.0 AND CC0-1.0 AND GPL-3.0-or-later	-	-	identity	yes	-
+Apache-2.0 or MIT	canonicalised	Apache-2.0 OR MIT	lexical	-	operator_case	Apache-2.0 OR MIT	-	-	identity	yes	-
+BSD-2-Clause AND Unlicense AND MIT	canonicalised	BSD-2-Clause AND MIT AND Unlicense	lexical	-	reorder	BSD-2-Clause AND MIT AND Unlicense	-	-	identity	yes	-
+BSD-2-Clause or Apache-2.0	canonicalised	Apache-2.0 OR BSD-2-Clause	lexical	-	operator_case,reorder	BSD-2-Clause OR Apache-2.0,Apache-2.0 OR BSD-2-Clause	-	-	identity	yes	-
+BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0	canonicalised	0BSD AND BSD-3-Clause AND CC0-1.0 AND MIT AND Zlib	lexical	-	reorder	0BSD AND BSD-3-Clause AND CC0-1.0 AND MIT AND Zlib	-	-	identity	yes	-
+BSD-3-Clause AND MIT AND ISC	canonicalised	BSD-3-Clause AND ISC AND MIT	lexical	-	reorder	BSD-3-Clause AND ISC AND MIT	-	-	identity	yes	-
+BSD-3-Clause OR Apache-2.0	canonicalised	Apache-2.0 OR BSD-3-Clause	lexical	-	reorder	Apache-2.0 OR BSD-3-Clause	-	-	identity	yes	-
+CC0-1.0 OR Apache-2.0	canonicalised	Apache-2.0 OR CC0-1.0	lexical	-	reorder	Apache-2.0 OR CC0-1.0	-	-	identity	yes	-
+DocumentRef-d:LicenseRef-x OR MIT	canonicalised	MIT OR DocumentRef-d:LicenseRef-x	lexical	-	reorder	MIT OR DocumentRef-d:LicenseRef-x	-	-	identity	yes	-
+EPL-2.0 OR BSD-3-Clause	canonicalised	BSD-3-Clause OR EPL-2.0	lexical	-	reorder	BSD-3-Clause OR EPL-2.0	-	-	identity	yes	-
+GPL-2.0-only OR LGPL-2.1-only OR BSD-3-Clause	canonicalised	BSD-3-Clause OR GPL-2.0-only OR LGPL-2.1-only	lexical	-	reorder	BSD-3-Clause OR GPL-2.0-only OR LGPL-2.1-only	-	-	identity	yes	-
+GPL-2.0-or-later OR Apache-2.0	canonicalised	Apache-2.0 OR GPL-2.0-or-later	lexical	-	reorder	Apache-2.0 OR GPL-2.0-or-later	-	-	identity	yes	-
+GPL-3.0-or-later AND BSD-2-Clause	canonicalised	BSD-2-Clause AND GPL-3.0-or-later	lexical	-	reorder	BSD-2-Clause AND GPL-3.0-or-later	-	-	identity	yes	-
+GPL-3.0-or-later AND BSD-2-Clause AND MIT AND PSF-2.0	canonicalised	BSD-2-Clause AND GPL-3.0-or-later AND MIT AND PSF-2.0	lexical	-	reorder	BSD-2-Clause AND GPL-3.0-or-later AND MIT AND PSF-2.0	-	-	identity	yes	-
+GPL-3.0-or-later OR Apache-2.0	canonicalised	Apache-2.0 OR GPL-3.0-or-later	lexical	-	reorder	Apache-2.0 OR GPL-3.0-or-later	-	-	identity	yes	-
+LGPL-2.1-only AND BSD-3-Clause AND MIT AND LicenseRef-Public-Domain	canonicalised	BSD-3-Clause AND LGPL-2.1-only AND MIT AND LicenseRef-Public-Domain	lexical	-	reorder	BSD-3-Clause AND LGPL-2.1-only AND MIT AND LicenseRef-Public-Domain	-	-	identity	yes	-
+LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only	canonicalised	GPL-2.0-only OR GPL-3.0-only OR LGPL-3.0-only	lexical	-	reorder	GPL-2.0-only OR GPL-3.0-only OR LGPL-3.0-only	-	-	identity	yes	-
+MIT\tOR\tISC	canonicalised	ISC OR MIT	lexical	-	whitespace,reorder	MIT OR ISC,ISC OR MIT	-	-	identity	yes	-
+MIT AND (GPL-2.0-or-later OR AFL-2.1)	canonicalised	MIT AND (AFL-2.1 OR GPL-2.0-or-later)	lexical	-	reorder	MIT AND (AFL-2.1 OR GPL-2.0-or-later)	-	-	identity	yes	-
+MIT AND Apache-2.0	canonicalised	Apache-2.0 AND MIT	lexical	-	reorder	Apache-2.0 AND MIT	-	-	identity	yes	-
+MIT AND BSD-2-Clause	canonicalised	BSD-2-Clause AND MIT	lexical	-	reorder	BSD-2-Clause AND MIT	-	-	identity	yes	-
+MIT AND BSD-3-Clause	canonicalised	BSD-3-Clause AND MIT	lexical	-	reorder	BSD-3-Clause AND MIT	-	-	identity	yes	-
+MIT AND BSD-3-Clause AND BSD-2-Clause	canonicalised	BSD-2-Clause AND BSD-3-Clause AND MIT	lexical	-	reorder	BSD-2-Clause AND BSD-3-Clause AND MIT	-	-	identity	yes	-
+MIT AND GPL-2.0-or-later	canonicalised	GPL-2.0-or-later AND MIT	lexical	-	reorder	GPL-2.0-or-later AND MIT	-	-	identity	yes	-
+MIT AND IPA	canonicalised	IPA AND MIT	lexical	-	reorder	IPA AND MIT	-	-	identity	yes	-
+MIT AND LGPL-2.1-or-later	canonicalised	LGPL-2.1-or-later AND MIT	lexical	-	reorder	LGPL-2.1-or-later AND MIT	-	-	identity	yes	-
+MIT AND LGPL-3.0-or-later	canonicalised	LGPL-3.0-or-later AND MIT	lexical	-	reorder	LGPL-3.0-or-later AND MIT	-	-	identity	yes	-
+MIT OR  ISC	canonicalised	ISC OR MIT	lexical	-	whitespace,reorder	MIT OR ISC,ISC OR MIT	-	-	identity	yes	-
+MIT OR AFL-2.1	canonicalised	AFL-2.1 OR MIT	lexical	-	reorder	AFL-2.1 OR MIT	-	-	identity	yes	-
+MIT OR Apache-2.0	canonicalised	Apache-2.0 OR MIT	lexical	-	reorder	Apache-2.0 OR MIT	-	-	identity	yes	-
+MIT OR ISC OR MIT OR ISC	canonicalised	ISC OR MIT	lexical	-	reorder,dedupe	ISC OR ISC OR MIT OR MIT,ISC OR MIT	-	-	identity	yes	-
+MIT and MPL-2.0	canonicalised	MIT AND MPL-2.0	lexical	-	operator_case	MIT AND MPL-2.0	-	-	identity	yes	-
+MIT or Apache-2.0	canonicalised	Apache-2.0 OR MIT	lexical	-	operator_case,reorder	MIT OR Apache-2.0,Apache-2.0 OR MIT	-	-	identity	yes	-
+MIT or ISC	canonicalised	ISC OR MIT	lexical	-	operator_case,reorder	MIT OR ISC,ISC OR MIT	-	-	identity	yes	-
+MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later	canonicalised	GPL-2.0-only OR LGPL-2.1-or-later OR MPL-1.1	lexical	-	reorder	GPL-2.0-only OR LGPL-2.1-or-later OR MPL-1.1	-	-	identity	yes	-
+MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later	canonicalised	GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1	lexical	-	reorder	GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1	-	-	identity	yes	-
+MPL-2.0 AND MIT	canonicalised	MIT AND MPL-2.0	lexical	-	reorder	MIT AND MPL-2.0	-	-	identity	yes	-
+MPL-2.0 and MIT and BSD-3-Clause	canonicalised	BSD-3-Clause AND MIT AND MPL-2.0	lexical	-	operator_case,reorder	MPL-2.0 AND MIT AND BSD-3-Clause,BSD-3-Clause AND MIT AND MPL-2.0	-	-	identity	yes	-
+UPL-1.0 OR Apache-2.0	canonicalised	Apache-2.0 OR UPL-1.0	lexical	-	reorder	Apache-2.0 OR UPL-1.0	-	-	identity	yes	-
+Unlicense AND MIT AND ISC	canonicalised	ISC AND MIT AND Unlicense	lexical	-	reorder	ISC AND MIT AND Unlicense	-	-	identity	yes	-
+Unlicense OR MIT	canonicalised	MIT OR Unlicense	lexical	-	reorder	MIT OR Unlicense	-	-	identity	yes	-
+Zlib AND MIT AND BSD-2-Clause AND BSD-3-Clause AND PSF-2.0	canonicalised	BSD-2-Clause AND BSD-3-Clause AND MIT AND PSF-2.0 AND Zlib	lexical	-	reorder	BSD-2-Clause AND BSD-3-Clause AND MIT AND PSF-2.0 AND Zlib	-	-	identity	yes	-
+mit or apache-2.0	canonicalised	Apache-2.0 OR MIT	lexical	-	id_case,id_case,operator_case,reorder	MIT,Apache-2.0,MIT OR Apache-2.0,Apache-2.0 OR MIT	-	-	identity	yes	-
+(MIT	grammar	-	malformed	-	-	-	-	-	none	yes	parse failed: Unexpected '('
+MIT AND	grammar	-	malformed	-	-	-	-	-	none	yes	parse failed: Unexpected 'AND'
+GPLv2 | EPLv1	mark	-	unresolved	-	-	-	-	-	none	yes	not an SPDX operator: |
+MIT, BSD	mark	-	unresolved	-	-	-	-	-	none	yes	not an SPDX operator: ,
+MIT/Apache-2.0	mark	-	unresolved	-	-	-	-	-	none	yes	not an SPDX operator: /
+zlib/libpng	mark	-	unresolved	-	-	-	-	-	none	yes	not an SPDX operator: /
+BSD-3-Clause and Public-Domain	operand	-	unresolved	-	-	-	-	-	none	yes	-
+apache-2.0 AND bsd-simplified	operand	-	unresolved	-	-	-	-	-	none	yes	operand not resolved: bsd-simplified
+apache-2.0 AND bsd-simplified-darwin AND (bsd-simplified AND public-domain AND bsd-new AND isc AND (bsd-new OR gpl-1.0-plus) AND bsd-original)	operand	-	unresolved	-	-	-	-	-	none	yes	operand not resolved: bsd-simplified-darwin
+MIT OR Foo	reason	-	unresolved	-	-	-	-	-	none	yes	operand not resolved: Foo
+MIT OR GPL-2.0-only+	reason	-	malformed	-	-	-	-	-	none	yes	operand not resolved: GPL-2.0-only+
+Apache2 OR MIT	weakest	Apache-2.0 OR MIT	version_spelling	-	separator,version_spelling	Apache-2.0,Apache-2.0	-	-	resolver_rule	yes	-
+GPL-2.0+ OR MIT	weakest	GPL-2.0-or-later OR MIT	plus_to_or_later	-	-	-	plus_to_or_later	GPL-2.0-or-later	list_data	yes	-
+GPL-3.0 OR MIT	weakest	GPL-3.0 OR MIT	assumed_only	-	-	-	assumed_only!	GPL-3.0	none	yes	-
+GPLv3+ OR MIT	weakest	GPL-3.0-or-later OR MIT	version_spelling	-	separator,version_spelling	GPL-3.0,GPL-3.0	plus_to_or_later	GPL-3.0-or-later	resolver_rule	yes	-
+StandardML-NJ OR MIT	weakest	MIT OR SMLNJ	deprecated_equal_successor	-	deprecated_equal_successor,reorder	SMLNJ,MIT OR SMLNJ	-	-	list_data	yes	-
+apache-2.0 AND lgpl-2.1 and unrar and brian-gladman-3-clause	weakest	Apache-2.0 AND Brian-Gladman-3-Clause AND LGPL-2.1 AND UnRAR	assumed_only	-	id_case,id_case,id_case,id_case,operator_case,reorder	Apache-2.0,LGPL-2.1,UnRAR,Brian-Gladman-3-Clause,Apache-2.0 AND LGPL-2.1 AND UnRAR AND Brian-Gladman-3-Clause,Apache-2.0 AND Brian-Gladman-3-Clause AND LGPL-2.1 AND UnRAR	assumed_only!	LGPL-2.1	none	yes	-
