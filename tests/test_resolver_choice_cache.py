@@ -17,7 +17,7 @@ from unittest import mock
 import pytest
 from conftest import posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
-from db_variants import make_ready_file_db, writer
+from db_variants import IS_ROOT, make_ready_file_db, writer
 from release_fakes import release_bundle, ship
 
 from licenseid import listindex, listsource, resolve, spdxdata
@@ -293,3 +293,82 @@ def test_threads_share_one_choice(monkeypatch: pytest.MonkeyPatch) -> None:
         thread.join()
     assert len(found) == 6
     assert all(item is found[0] for item in found)
+
+
+# --- review of T5b: what must not be kept, what must be seen ---
+
+
+@pytest.mark.xfail(strict=True, reason="BUG: kept after the review of T5b")
+def test_a_lock_held_during_the_first_call_is_not_kept(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``unreadable`` passes by itself: the file's stamp does not change when
+    the lock is released, so a fallback made for it must not be kept."""
+    ship(monkeypatch, release_bundle("3.29"))
+    path = _default_db()
+    locker = sqlite3.connect(path, timeout=0, isolation_level=None)
+    try:
+        locker.execute("BEGIN EXCLUSIVE")
+        locked = _source()
+        locker.execute("ROLLBACK")
+    finally:
+        locker.close()
+    assert locked == "packaged"  # the lock makes the database unreadable
+    capsys.readouterr()
+    assert _source() == "database"
+
+
+@pytest.mark.xfail(strict=True, reason="BUG: kept after the review of T5b")
+@posix_only
+def test_a_chmod_is_seen_though_the_mtime_is_restored(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if IS_ROOT:
+        pytest.skip("root reads through chmod 000")
+    ship(monkeypatch, release_bundle("3.29"))
+    path = _default_db()
+    assert _source() == "database"
+    stat = path.stat()
+    path.chmod(0)
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    try:
+        assert _source() == "packaged"
+        with pytest.raises(DatabaseNotReadyError):
+            resolve("MIT", source="database")
+    finally:
+        path.chmod(0o644)
+
+
+@pytest.mark.xfail(strict=True, reason="BUG: kept after the review of T5b")
+@posix_only
+def test_a_header_corrupted_in_place_is_seen_though_the_mtime_is_restored(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ship(monkeypatch, release_bundle("3.29"))
+    path = _default_db()
+    assert _source() == "database"
+    stat = path.stat()
+    with path.open("r+b") as handle:
+        handle.write(b"X" * 16)  # the size is the same
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    assert _source() == "packaged"
+    with pytest.raises(DatabaseNotReadyError):
+        resolve("MIT", source="database")
+
+
+def test_the_stamp_is_read_before_the_choice(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A file rewritten while the choice is made is chosen again next time."""
+    ship(monkeypatch, release_bundle("3.29"))
+    path = _default_db("3.30")
+    real = listsource._choose  # pylint: disable=protected-access
+
+    def rewrite_then_choose(*args: object) -> tuple[ListLookup, str]:
+        _set_version(path, "3.28")
+        return real(*args)  # type: ignore[arg-type]
+
+    with mock.patch.object(
+        listsource, "_choose", autospec=True, side_effect=rewrite_then_choose
+    ) as spy:
+        _source()
+        _source()
+    assert spy.call_count == 2
