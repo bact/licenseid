@@ -32,12 +32,21 @@ and this project adheres to
 - `resolve()` result has `schema` (2), `operands` (text, span, answer),
   `components` (the expression parser) and `by` on each step; new reasons
   `operand not resolved`, `not an SPDX operator`, `parse failed`
+- `resolve()` reads `[MIT]` and `{MIT}` as brackets, an `AdditionRef-*` after
+  `WITH`, and `Apache 2.0 or later` as `Apache-2.0+` (an ID with a version
+  and no `-or-later` form)
 
 ### Changed
 
-- **Breaking:** `resolve()` drops the `expression` category: a compound now
-  has a category of its own; read `operands`. `[MIT]` and `{MIT}` read as
-  brackets, an `AdditionRef-*` as an exception, `MIT or later` as `MIT+`
+- **Breaking:** `resolve()` drops the `expression` category, and an
+  unbalanced or dangling compound (`(MIT`, `MIT AND`) is `malformed`, not
+  `unresolved`. Migration: a compound now has a category of its own; read
+  `operands`
+- `resolve()` categories: `Apache-2.0 with LLVM-exception` is `lexical`, not
+  `exact` (an `operator_case` step); `GPL-2.0 or-later` is `stated_qualifier`,
+  not `separator`
+- `resolve()` caps each half of a `WITH` at 100 characters, not the whole: a
+  long licence name `WITH` an exception is now read
 - `resolve()` with no database given reads whichever list is newer, the
   default database's or the shipped one (a tie: the database, if this
   licenseid's build rules made it); an unusable default database falls back
