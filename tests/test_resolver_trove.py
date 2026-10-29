@@ -13,10 +13,13 @@ from collections.abc import Callable
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from matcher_db import Lic, seeded_db
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
 
 from licenseid import LicenseDatabase, resolve
+from licenseid.resolveleaf import Found
+from licenseid.resolvetrove import read_named
 from licenseid.resolvertypes import Resolution
 from licenseid.trovenames import TROVE_NAMES
 
@@ -372,3 +375,48 @@ def test_the_trove_rules_are_linear_on_a_long_value(size: int) -> None:
         start = time.monotonic()
         resolve(value, source="packaged")
         assert time.monotonic() - start < 5.0
+
+
+# --- the list decides ---
+
+
+def test_a_name_whose_id_the_list_lacks_names_nothing() -> None:
+    """The table states ISC; a list without it reads nothing (P54)."""
+    for path in seeded_db("trove_lacks", [Lic("MIT", "MIT License")]):
+        db = LicenseDatabase(path, create=False)
+        assert resolve("ISC License (ISCL)", db)["expression"] is None
+        assert (
+            resolve("License :: OSI Approved :: ISC License (ISCL)", db)["expression"]
+            is None
+        )
+        assert resolve("MIT License (MIT)", db)["expression"] == "MIT"
+
+
+def test_a_renamed_id_of_the_table_is_followed() -> None:
+    rows = [Lic("ISC", "ISC License", is_deprecated=True, superseded_by="ISC-New")]
+    for path in seeded_db("trove_renamed", [*rows, Lic("ISC-New", "ISC New")]):
+        got = resolve("ISC License (ISCL)", LicenseDatabase(path, create=False))
+        assert (got["expression"], got["category"]) == ("ISC-New", "trove_name")
+        assert kinds(got) == ["trove_name", "deprecated_equal_successor"]
+
+
+@pytest.mark.parametrize(
+    ("value", "claimed", "expression"),
+    [
+        ("W3C License", True, None),  # none: claimed, so no later rule guesses
+        ("OSI Approved", True, None),
+        ("License :: OSI Approved :: BSD License", True, None),
+        ("ISC License (ISCL)", True, "ISC"),
+        ("Foo License", False, None),
+        ("Apache Software License (Apache 2.0)", False, None),
+    ],
+    ids=lambda value: value if isinstance(value, str) else "",
+)
+def test_read_named_says_whether_a_rule_claims_the_value(
+    corpus_db: LicenseDatabase, value: str, claimed: bool, expression: str | None
+) -> None:
+    found = Found()
+    assert read_named(corpus_db, value, found) is claimed
+    assert found.expression == expression
+    if claimed:
+        assert found.reason is None
