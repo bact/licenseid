@@ -196,7 +196,11 @@ How a resolution becomes a `detect` result. Each point is a decision
   proposed: one line
   `EXPRESSION=<expr> CATEGORY=<category> TRUST=<trust>`, then one
   `STEP=<kind> FROM=<from> TO=<to>` line per applied step; `REASON=` for a
-  refusal; exit 0 when resolved, 1 when not, 2 for a usage error. `--json`
+  refusal; one `OPERAND=<text> EXPRESSION=<expr> CATEGORY=<category>`
+  line per operand when a value names licences without stating how they
+  combine (`MIT ; Apache 2`, T8b: unresolved, but every operand read, so a
+  caller can still ask whether each is OSI approved); exit 0 when resolved,
+  1 when not, 2 for a usage error. `--json`
   prints the resolution as one RFC 8785 object. It needs no database: the
   CLI for SBOM tools.
 - **D7 order of work.** In 0.7.0: T10a, the rename alone (pure, one PR,
