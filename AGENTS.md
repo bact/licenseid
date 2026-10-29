@@ -489,8 +489,8 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   a long word.
 - A lookup by licence ID never scans a table: `dbcache.TableCache` reads
   each table's IDs once (ASCII case folded as SQLite's NOCASE folds it,
-  `dbcache.fold_case`), and an unknown ID costs no query. It drops its reads
-  when `last_update_datetime` changes, checked once per `reading()` block
+  `listlookup.fold_case`), and an unknown ID costs no query. It drops its
+  reads when `last_update_datetime` changes, checked once per `reading()` block
   and at every lookup outside one, so a long-lived matcher sees another
   process's `update`. A new write to `licenses` or `license_index` must
   call `self._tables.clear()`, as `_write_db_records` does. A read made

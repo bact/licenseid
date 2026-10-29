@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -302,7 +302,7 @@ RapidFuzz cost data points:
 
 ### 3.2 SQLite findings
 
-- **NOCASE folds ASCII only**; the ID map uses `dbcache.fold_case` because
+- **NOCASE folds ASCII only**; the ID map uses `listlookup.fold_case` because
   `str.lower` would turn the KELVIN SIGN (U+212A) into `k` (`TDR` L64-65).
 - `license_id = ? COLLATE NOCASE` cannot seek a binary primary key; the FTS5
   `UNINDEXED` column cannot be searched by index (`TDR` L57-61).

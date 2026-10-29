@@ -14,7 +14,7 @@ import pytest
 from matcher_db import Lic, seeded_db
 from resolver_helpers import GPL2_PLUS
 
-from licenseid import LicenseDatabase, dbcache, listlookup, shorttext
+from licenseid import LicenseDatabase, shorttext
 from licenseid.identifiers import normalize_identifier
 from licenseid.listlookup import (
     ListedException,
@@ -197,11 +197,6 @@ def test_a_fake_list_resolves_as_the_database_does(
         expected = _lookup(db, value)
     with fake.reading():
         assert _lookup(fake, value) == expected
-
-
-def test_fold_case_is_one_function() -> None:
-    """The database cache re-exports the one function."""
-    assert dbcache.fold_case is listlookup.fold_case
 
 
 @pytest.mark.parametrize(
