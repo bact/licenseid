@@ -19,8 +19,8 @@ from release_fakes import ship
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.resolveleaf import Found
-from licenseid.resolvetrove import read_named
 from licenseid.resolvertypes import Resolution
+from licenseid.resolvetrove import read_named
 from licenseid.trovenames import TROVE_NAMES
 
 #: Names the List's own names already read: the answer is a listed name.
