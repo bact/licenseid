@@ -528,13 +528,13 @@ The whole result of `resolve("Apache2")`, as JSON:
 licence the value names, in the order written: its `text`, its `span`, which
 indexes the raw `input` (`[start, end)` in code points; the trim and the
 quotes and brackets around the whole fall outside it), and the answer the
-same text would get alone. A
-compound adds the steps of the whole after those of its operands, in this
-order: `operator_case`, `whitespace`, `brackets`, `reorder` and `dedupe`,
-each with the expression before and after. `components` names the tools
-besides licenseid that took part (the expression parser, `py-spdx-license`,
-whenever it parsed the value: a compound, read or refused), and `by` on a step names the one that took it (`""`:
-licenseid). For `resolve("GPLv2+ or MIT")`, shortened:
+same text would get alone. A compound adds the steps of the whole after
+those of its operands, in this order: `operator_case`, `whitespace`,
+`brackets`, `reorder` and `dedupe`, each with the expression before and
+after. `components` names the tools besides licenseid that took part (the
+expression parser, `py-spdx-license`, whenever it parsed the value: a
+compound, read or refused), and `by` on a step names the one that took it
+(`""`: licenseid). For `resolve("GPLv2+ or MIT")`, shortened:
 
 ```json
 {
