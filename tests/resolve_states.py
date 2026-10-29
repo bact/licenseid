@@ -18,15 +18,17 @@ from pathlib import Path
 import pytest
 from db_variants import LICENSE_LIST_VERSION, make_ready_file_db, writer
 
+from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
 
 USABLE = "usable"
 MISSING = "missing"
 INVALID = "invalid"
 EMPTY = "empty"
+NO_ROWS = "no_rows"
 OUTDATED = "outdated"
 NO_HOME = "no_home"
-STATES = [USABLE, MISSING, INVALID, EMPTY, OUTDATED, NO_HOME]
+STATES = [USABLE, MISSING, INVALID, EMPTY, NO_ROWS, OUTDATED, NO_HOME]
 
 #: The version of the List in every database built here.
 VERSION = LICENSE_LIST_VERSION
@@ -59,6 +61,11 @@ def _empty(_: pytest.MonkeyPatch) -> None:
     _default_path().write_bytes(b"")
 
 
+def _no_rows(_: pytest.MonkeyPatch) -> None:
+    """licenseid's tables, and nothing in them."""
+    LicenseDatabase(str(_default_path()))
+
+
 def _outdated(_: pytest.MonkeyPatch) -> None:
     path = make_ready_file_db(_default_path())
     with writer(path) as conn:
@@ -76,6 +83,7 @@ BUILDERS: dict[str, Callable[[pytest.MonkeyPatch], None]] = {
     MISSING: _missing,
     INVALID: _invalid,
     EMPTY: _empty,
+    NO_ROWS: _no_rows,
     OUTDATED: _outdated,
     NO_HOME: _no_home,
 }
@@ -91,6 +99,7 @@ def refusal(state: str) -> str | None:
         MISSING: f"database: not found: {path}; run 'licenseid update'",
         INVALID: f"database: invalid: {path}",
         EMPTY: f"database: empty: {path}; run 'licenseid update'",
+        NO_ROWS: f"database: empty: {path}; run 'licenseid update'",
     }.get(state)
 
 

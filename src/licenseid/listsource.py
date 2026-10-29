@@ -20,10 +20,12 @@ bundle shipped in the wheel (:func:`licenseid.listindex.packaged_index`).
   said once per process (not once per value);
 - no bundle either: the database's own error, as 0.6.0 raised it.
 
-``source="database"`` reads the database at the default path as 0.6.0 did
-(it raises when it is missing); ``source="packaged"`` reads the bundle, or
-raises when there is none. A database given as ``db=`` is read as
-``source="database"``.
+``source="database"`` reads the database at the default path, and raises
+for one that is missing or that ``auto`` would call unusable (a file with
+the tables and no rows is ``empty``, where 0.6.0 answered ``unresolved``
+from it); ``source="packaged"`` reads the bundle, or raises when there is
+none. A database given as ``db=`` is read as ``source="database"``, as the
+caller built it.
 
 Usable is what :func:`licenseid.dbcheck.check_database_ready` says, read
 fail-open, as the matcher reads it: a lock held elsewhere is no verdict.
@@ -69,7 +71,9 @@ def choose_list(
             )
         return db, "database"
     if source == "database":
-        return LicenseDatabase(get_default_db_path(), create=False), "database"
+        path = get_default_db_path()
+        check_database_ready(path)  # what auto calls unusable, this refuses
+        return LicenseDatabase(path, create=False), "database"
     if source == "packaged":
         return _packaged(), "packaged"
     return _auto()

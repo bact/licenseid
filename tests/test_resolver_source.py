@@ -17,7 +17,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db, writer
 from release_fakes import release_bundle, ship
 
-from licenseid import resolve
+from licenseid import LicenseDatabase, resolve
 from licenseid.datadir import get_default_db_path
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
 
@@ -202,3 +202,22 @@ def test_a_packaged_answer_reads_no_database(monkeypatch: pytest.MonkeyPatch) ->
 def _read_source(source: str) -> tuple[str, str | None]:
     lists = resolve("MIT", source=source)  # type: ignore[arg-type]
     return lists["lists"][0]["source"], lists["lists"][0]["version"]
+
+
+def test_a_database_with_no_rows_is_refused_by_source_database() -> None:
+    """P8: what auto calls empty, source="database" refuses, rather than
+    answering unresolved for every value as 0.6.0 did."""
+    path = Path(get_default_db_path())
+    path.parent.mkdir(parents=True)
+    LicenseDatabase(str(path))
+    message = f"database: empty: {path}; run 'licenseid update'"
+    with pytest.raises(DatabaseNotReadyError, match=f"^{re.escape(message)}$"):
+        resolve("MIT", source="database")
+
+
+def test_a_database_given_is_read_as_built() -> None:
+    """The caller built it: no readiness check, as 0.6.0."""
+    path = Path(get_default_db_path())
+    path.parent.mkdir(parents=True)
+    got = resolve("MIT", LicenseDatabase(str(path)), source="database")
+    assert (got["expression"], got["category"]) == (None, "unresolved")
