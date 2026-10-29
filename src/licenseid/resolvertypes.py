@@ -22,6 +22,8 @@ SPDX_LIST: Final = "spdx-license-list"
 # What a list must provide for a step of this kind to cite it. A kind that is
 # not here rests on no list (a trimmed space, brackets) and cites none. An
 # "or later" the author wrote still rests on the -or-later ID being in use.
+# ``drop`` is not here on purpose: it is a step that did not apply, and no
+# list vouched for a reading that was refused.
 LIST_PROVIDES: Final = {
     "id_case": "ids",
     "separator": "ids",
@@ -136,6 +138,9 @@ class Resolution(TypedDict):
     written (category ``assumed_only``), with the licences it might be in
     ``candidates``, sorted. ``steps`` are the applied or declined changes in order;
     ``expansions`` hold the qualifier steps, kept apart from ``steps``.
+    ``reason`` says why a value was refused, as ``CONDITION[: DETAIL]``
+    (``character dropped: '?'``, ``lone surrogate``); None for every other
+    answer.
     """
 
     input: str
@@ -147,6 +152,7 @@ class Resolution(TypedDict):
     candidates: list[str]
     resolver: Resolver
     lists: list[ListInfo]
+    reason: str | None
 
 
 def step(kind: str, applied: bool, source: str, target: str, detail: str = "") -> Step:

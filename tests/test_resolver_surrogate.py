@@ -7,8 +7,8 @@
 
 A lone surrogate (Unicode category Cs: a command-line argument of invalid
 UTF-8, or a string from an API) cannot be encoded for SQLite. The resolver
-refuses it among its early refusals; the reason ``lone surrogate`` comes with
-``Resolution.reason`` in T6.
+refuses it among its early refusals, with the reason ``lone surrogate``
+(``Resolution.reason``, T6).
 """
 
 import pytest
@@ -81,10 +81,11 @@ def test_a_lone_surrogate_is_unresolved(corpus_db: LicenseDatabase, value: str) 
 def test_a_valid_astral_character_is_no_surrogate(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    """Not refused for being a surrogate: it encodes, and is answered as
-    before (``MIT`` plus an emoji drops the emoji, which T6 refuses)."""
-    expected = (
-        ("MIT", "separator") if value == "MIT \U0001f600" else (None, "unresolved")
-    )
+    """Not refused for being a surrogate: it encodes. ``MIT`` plus an emoji
+    would drop the emoji, which the drop guard (T6) refuses, with its own
+    reason; the others name no licence."""
     result = resolve(value, corpus_db)
-    assert (result["expression"], result["category"]) == expected
+    assert (result["expression"], result["category"]) == (None, "unresolved")
+    assert result["reason"] != "lone surrogate"
+    if value == "MIT \U0001f600":
+        assert result["reason"] == "character dropped: U+1F600"

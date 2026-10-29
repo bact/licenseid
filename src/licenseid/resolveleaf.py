@@ -25,6 +25,7 @@ refused as a whole today.
 import re
 from dataclasses import dataclass, field
 
+from licenseid.dropguard import code_points, dropped
 from licenseid.identifiers import is_license_ref, without_outer_brackets
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import (
@@ -54,14 +55,47 @@ class Found:
     expansions: list[Step] = field(default_factory=list)
     candidates: list[str] = field(default_factory=list)
     category: Category | None = None  # set where the lookup knows better
+    reason: str | None = None  # why nothing was resolved, where the lookup knows
+
+
+class _Dropped(Exception):
+    """A loose reading would drop a character that says something (see
+    :mod:`licenseid.dropguard`): the whole value is refused, not read."""
+
+    def __init__(self, text: str, lost: str, license_id: str) -> None:
+        super().__init__(text)
+        self.text = text
+        self.lost = lost
+        self.license_id = license_id
+
+    def record(self, found: Found) -> None:
+        """Make *found* the refusal: ``unresolved``, a ``drop`` step that did
+        not apply (the reading it stopped), and the reason."""
+        # Reset what a half-read value may have put in *found* before the
+        # exception: a refusal answers no expression, no candidate, and no
+        # step but its own.
+        found.expression = None
+        found.category = "unresolved"
+        found.reason = f"character dropped: {code_points(self.lost)}"
+        found.steps = [
+            step("drop", False, self.text, self.license_id, code_points(self.lost))
+        ]
+        found.expansions = []
+        found.candidates = []
 
 
 def read_leaf(db: ListLookup, text: str, found: Found) -> bool:
     """Read *text* as one licence (with its exception, if any) into *found*.
-    False if it names none, or is longer than any ID (MAX_KEY_INPUT)."""
-    return len(text) <= MAX_KEY_INPUT and (
-        _with(db, text, found) or _one(db, text, found)
-    )
+    False if it names none, or is longer than any ID (MAX_KEY_INPUT). True
+    with ``unresolved`` and a ``reason`` if a loose reading would drop a
+    character that says something (``Apache 2.0?``)."""
+    if len(text) > MAX_KEY_INPUT:
+        return False
+    try:
+        return _with(db, text, found) or _one(db, text, found)
+    except _Dropped as refusal:
+        refusal.record(found)
+        return True
 
 
 def _one(db: ListLookup, text: str, found: Found) -> bool:
@@ -211,7 +245,8 @@ def _grant(
 def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
     """The listed ID *text* names, and the steps from *text* to it: its own
     ID in other case, a listed name, or a loosely written ID. A
-    ``LicenseRef-*`` names itself."""
+    ``LicenseRef-*`` names itself. Raises :class:`_Dropped` where the loose
+    reading would drop a character that says something."""
     if is_license_ref(text):
         return text, []
     details = db.get_license_details(text)
@@ -228,6 +263,9 @@ def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
     if loose is None:
         return None
     license_id = loose[0]["license_id"]
+    lost = dropped(text)
+    if lost:
+        raise _Dropped(text, lost, license_id)
     return license_id, _spelling(text, license_id)
 
 

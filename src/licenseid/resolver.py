@@ -95,8 +95,12 @@ def _lookup(db: ListLookup, value: str) -> Found:
     if text != value:
         found.steps.append(step("trim", True, value, text))
     text = _unbracketed(text, found)
-    if not text or len(text) > _MAX_EXPRESSION_CHARS or _is_refused(text):
+    if not text or len(text) > _MAX_EXPRESSION_CHARS:
         found.category = "unresolved"
+        return found
+    found.reason = _refusal(text)
+    if found.reason is not None:
+        found.category, found.steps = "unresolved", []  # no step was taken
         return found
     if read_leaf(db, text, found):
         return found
@@ -141,17 +145,18 @@ def _is_expression(db: ListLookup, text: str) -> bool:
     )
 
 
-def _is_refused(text: str) -> bool:
-    """Whether *text* holds a character that makes it no licence value: a
-    control or format character other than white space (a NUL, a zero-width
-    space, a bidi override), which must not be dropped as a separator, since
-    that would resolve text that shows other than it reads; or a lone
-    surrogate (:func:`licenseid.textinput.has_lone_surrogate`), which SQLite
-    cannot bind. T6 names the reason (``lone surrogate``,
-    ``Resolution.reason``)."""
-    return has_lone_surrogate(text) or any(
-        unicodedata.category(c) in ("Cc", "Cf") and not c.isspace() for c in text
-    )
+def _refusal(text: str) -> str | None:
+    """Why *text* is no licence value, or None. A control or format
+    character other than white space (a NUL, a zero-width space, a bidi
+    override) must not be dropped as a separator, since that would resolve
+    text that shows other than it reads; a lone surrogate
+    (:func:`licenseid.textinput.has_lone_surrogate`) SQLite cannot bind."""
+    if has_lone_surrogate(text):
+        return "lone surrogate"
+    for char in text:
+        if unicodedata.category(char) in ("Cc", "Cf") and not char.isspace():
+            return f"control or format character: U+{ord(char):04X}"
+    return None
 
 
 def _category(found: Found) -> Category:
@@ -201,8 +206,8 @@ def _resolver_info() -> Resolver:
 
 def _resolution(value: str, found: Found, lists: list[ListInfo]) -> Resolution:
     category = _category(found)
-    if found.expression is None:  # nothing was resolved: no step was taken
-        found.steps, found.expansions = [], []
+    if found.expression is None and found.reason is None:
+        found.steps, found.expansions = [], []  # nothing resolved: no step taken
     return {
         "input": value,
         "expression": found.expression,
@@ -213,4 +218,5 @@ def _resolution(value: str, found: Found, lists: list[ListInfo]) -> Resolution:
         "candidates": found.candidates,
         "resolver": _resolver_info(),
         "lists": lists,
+        "reason": found.reason,
     }

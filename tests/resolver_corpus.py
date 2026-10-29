@@ -80,6 +80,27 @@ UNRESOLVED = Answer(
     reason=None,
 )
 
+
+def refused(reason: str, stopped: str | None = None) -> Answer:
+    """The answer to a value the resolver refuses: nothing resolved, the
+    *reason* given and, for the drop guard, one ``drop`` step that did not
+    apply and *stopped* the reading of that licence."""
+    return UNRESOLVED._replace(
+        steps=() if stopped is None else ("drop!",),
+        step_targets=() if stopped is None else (stopped,),
+        reason=reason,
+    )
+
+
+_DROP = (
+    "T6 (dropguard, F6): the {char} is the author's doubt or a corruption;"
+    " 0.6.0 dropped it and answered {licence} (`separator`)"
+)
+_CONTROL = (
+    "T6: refused as before (a control or format character is no separator);"
+    " the answer now says why"
+)
+
 #: The values whose answer a rule may move, each with the answer it must give
 #: and the reason: ``{value: (answer, reason)}``. A later rule pull request
 #: adds every value it changes here, and no other; the guard fails on a value
@@ -88,12 +109,39 @@ UNRESOLVED = Answer(
 #: T4b it was empty: 0.6.0's answers are the fixtures'.
 EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
     "MIT\udcff": (
-        UNRESOLVED,  # T6: reason `lone surrogate`
+        refused("lone surrogate"),
         (
             "G1 (T4b): a lone surrogate is refused before any rule reads the"
-            " value (reason `lone surrogate` from T6); 0.6.0 dropped it as a"
-            " separator"
+            " value; 0.6.0 dropped it as a separator. T6 gives the reason"
         ),
+    ),
+    "MIT\x00": (refused("control or format character: U+0000"), _CONTROL),
+    "MIT\u200b": (refused("control or format character: U+200B"), _CONTROL),
+    "\u202eMIT": (refused("control or format character: U+202E"), _CONTROL),
+    "Apache 2.0?": (
+        refused("character dropped: U+003F", "Apache-2.0"),
+        _DROP.format(char="question mark", licence="Apache-2.0"),
+    ),
+    "Apache 2.0!": (
+        refused("character dropped: U+0021", "Apache-2.0"),
+        _DROP.format(char="exclamation mark", licence="Apache-2.0"),
+    ),
+    "MIT*": (
+        refused("character dropped: U+002A", "MIT"),
+        _DROP.format(char="asterisk", licence="MIT"),
+    ),
+    "#MIT": (
+        refused("character dropped: U+0023", "MIT"),
+        _DROP.format(char="hash", licence="MIT"),
+    ),
+    "MIT" + chr(0xFFFD): (  # not a literal: ruff reads it as the surrogate key
+        refused("character dropped: U+FFFD", "MIT"),
+        _DROP.format(char="replacement character U+FFFD", licence="MIT"),
+    ),
+    '"MIT"': (
+        refused("character dropped: U+0022", "MIT"),
+        _DROP.format(char="quote", licence="MIT")
+        + "; Q12: quotes are refused here, a later task (T6b) reads them",
     ),
 }
 
