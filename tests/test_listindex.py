@@ -44,6 +44,7 @@ LICENSES = (
     lic_entry("Clash-1.0", "Clash License", deprecated=True),
     lic_entry("Clash-2.0", "Clash License"),
     lic_entry("Plain", "Plain License", deprecated=None),
+    lic_entry("K-1.0", "K License"),
 )
 TEXTS = {
     lic["licenseId"]: f"Text of {lic['licenseId']}."
@@ -56,6 +57,7 @@ EXCEPTIONS = (
     exc_entry("Clash-1.0", "Clash exception", deprecated=True),
     exc_entry("Clash-exception", "Clash exception"),
     exc_entry("Lone-exception", "Lone exception", deprecated=True),
+    exc_entry("K-exception", "K exception"),
 )
 RAW = synthetic_bundle(LICENSES, TEXTS, EXCEPTIONS)
 
@@ -74,8 +76,10 @@ PROBES = [
     "MIT",
     "mit",
     "  MiT\t",
-    "MITK",
-    "KMIT",
+    "MIT\u212a",
+    "\u212aMIT",
+    "\u212a-1.0",  # the KELVIN SIGN is no K: str.lower would make it one
+    "k-1.0",
     "smlnj",
     "StandardML-NJ",
     "GPL-2.0",
@@ -116,7 +120,9 @@ def test_a_licence_is_found_as_in_the_database(
         "Old-exception",
         "clash-1.0",
         "Lone-exception",
-        "Classpath-exception-2.K",
+        "Classpath-exception-2.\u212a",
+        "\u212a-exception",
+        "k-EXCEPTION",
         "MIT",
         "",
     ],
