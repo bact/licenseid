@@ -134,9 +134,11 @@ class Component(TypedDict):
 
 
 class Operand(TypedDict):
-    """One leaf of the value, read as it would be alone: an ID, a reference
-    or ``X WITH Y``, with its "+" or grant. ``span`` is ``[start, end)`` in
-    code points of the raw ``input``; ``text`` is ``input[start:end]``."""
+    """One leaf of the value: one word, an ID or a reference, or ``X WITH
+    Y``, with its "+" or grant, read as that text would be alone (a loose ID
+    with a space is no operand; per operand only a balanced pair of quotes).
+    ``span`` is ``[start, end)`` in code points of the raw ``input``;
+    ``text`` is ``input[start:end]``."""
 
     text: str
     span: list[int]
@@ -184,7 +186,8 @@ class Resolution(TypedDict):
     ``components`` the tools besides licenseid that took part (the
     expression parser, for a compound). ``reason`` says why a value was
     refused, as ``CONDITION[: DETAIL]`` (``character dropped: U+003F``,
-    ``operand not resolved: Foo``); None for every other answer.
+    ``operand not resolved: Foo``, ``operand of several words: BSD
+    3-Clause``); None for every other answer.
     """
 
     schema: int

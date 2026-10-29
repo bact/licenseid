@@ -165,7 +165,7 @@ Provisional: the maintainer may reverse any of them.
 | P17 | T6b | One mark on one end only (`"MIT`, `MIT"`) | Read, with the step detail `unbalanced, start` or `unbalanced, end`, and the answer counts as `separator` (`resolver_rule`), not `lexical`, because the value may be cut. Only one stray mark is taken off: `""MIT` is not read. `"MIT'"` is read (unbalanced, end) while `"MIT'` is refused (P16) | `lexical` (`identity`); refuse | The author's text was not complete (a typo or a cut value): the maintainer asked to read it, and a weaker trust is the narrowest answer. A pair, then a stray (`""MIT"`) is read the same way |
 | P18 | T6b | Nested or doubled pairs (`""MIT""`, `'"MIT"'`) | Every balanced layer comes off, one step, `balanced, N layers`; the kinds may differ between layers | One layer only (the rest then refused by the guard) | CSV and YAML escaping double the marks; each layer is a pair by the same argument |
 | P19 | T6b | A mark left inside what the pair encloses | The value is not read, unless the mark is an apostrophe between two letters or digits (`AMD's`). So `"MIT" or "Apache-2.0"` is never read as one text, and a quoted `BSD 3-Clause "New" or "Revised" License` stays unread (0 in the sample) | Take the pair off anyway and let the guard and the List decide | The outer marks are a pair only if no mark closes them earlier; ASCII marks cannot say, and the List names with marks are not at either end (a test checks) |
-| P20 | T6b | Where it runs | In `resolve()`, once per whole value: trim, `unquote`, `brackets`, and `unquote` again only if the brackets came off (`("MIT")`). `"(MIT)"` and `("MIT")` read; deeper alternation (`("(MIT)")`) does not | Only before the brackets; a loop until nothing changes | One reader of the value before the leaf, so `+`, `WITH` and grants inside compose; a loop invites a quadratic path |
+| P20 | T6b | Where it runs | In `resolve()`, once per whole value: trim, `unquote`, `brackets`, and `unquote` again only if the brackets came off (`("MIT")`). `"(MIT)"` and `("MIT")` read; deeper alternation (`("(MIT)")`) reads too, through the compound reader, so `components` lists the parser (a value read twice by two readers; R7 found the text said "does not") | Only before the brackets; a loop until nothing changes | One reader of the value before the leaf, so `+`, `WITH` and grants inside compose; a loop invites a quadratic path |
 | P21 | T6b | The step kind and its category | `unquote` is in `LEXICAL_KINDS` (a change of form, like `brackets`); an unbalanced one sets `Found.floor = "separator"` (from `Unquoted.balanced`), which `_category` adds to the step kinds, so the category stays the weakest of the steps and the floor | A new category; a second step kind; matching the detail text | No new vocabulary: the closed `Category` set and the consumers stay as they are |
 | P22 | T6b | Which marks may stand alone on one end (narrows P17) | Quotation punctuation only (`STRAY_MARKS`: ASCII `"` and `'`, the grave accent, curly, low-9, guillemets). The primes U+2032 to U+2034 and the modifier letters U+02B9 to U+02BD pair but are never the stray: `GPL-2.0′`, `Apache 2.0″`, `ʻMIT` (the okina is a letter) and `MITʼ` are refused by the guard | Every mark of `QUOTE_KIND` may stray | A prime is a unit or a footnote and a modifier letter is a letter: neither is a quote left over |
 | P23 | T7 | Quotes around one operand (`MIT OR "Apache-2.0"`) | `unquote` on each leaf, a balanced pair only, after the whole-value call; an `unquote` step per operand | Also an unbalanced mark; no per-operand unquote | A lone mark may be one end of a pair around several operands (`"MIT OR "Apache-2.0"`); the drop guard refuses it |
@@ -176,11 +176,11 @@ Provisional: the maintainer may reverse any of them.
 | P28 | T7 | `operands` when nothing is read | `[]` for a refusal of the grammar or a cap (`too many operators`); one unresolved operand, the whole value, for a value no reader claims | Always one operand per leaf | An operand is a licence the value names; a grammar error names none |
 | P29 | T7 | The reason of a compound with an operand that names nothing | That operand's own reason and its `drop` step (P13 kept), else `operand not resolved: <operand text>`; the first such operand in input order | List every operand; no reason | One line, the grammar of `reason`; the operands say the rest |
 | P30 | T7 | `malformed` or `unresolved` for a value the grammar refuses | `malformed` when every leaf is operand-shaped (Q15), no two operands stand side by side, the operators are in upper case, and one leaf names a licence (`MIT AND`, `(MIT`); else no compound at all | Always `malformed`; always `unresolved` | `BSD (3-clause)` and `MIT License (MIT)` are prose for T8 and T9, not broken expressions |
-| P31 | T7 | A mark used as an operator | Reason `not an SPDX operator: /` (also `|`, `&`, `;`, `,`) only when every part is one ID word (`MIT/Apache-2.0`, `zlib/libpng`); still `unresolved` | Read `/` as OR; give the reason for any text with a mark | `zlib/libpng` is one licence; a URL or prose has commas and slashes |
+| P31 | T7 | A mark used as an operator | Reason `not an SPDX operator: /` (also `|`, `&`, `;`, `,`) only when every part is one ID word (`MIT/Apache-2.0`, `zlib/libpng`); still `unresolved` | Read `/` as OR; give the reason for any text with a mark | Every part is a listed ID, so the join is clear (`zlib/libpng` is two IDs, not one licence); a URL or prose has commas and slashes |
 | P32 | T7 | New reasons | `too many operators`, `too deeply nested` (the caps of `identifiers`, 150 each), `mismatched brackets`, `parse failed: <the parser's message>`, the placeholders shown as the leaf texts | A generic `not an expression` | Say what the parser said; the caps keep deep nesting away from it |
 | P33 | T7 | When `components` lists the parser | Amended after review (wording): whenever the parser parsed the value, a compound read or refused for an operand (`MIT OR Foo`), or a refusal with its `parse failed` message; never for a single value or a value no reader claims | Only for an answer with an expression; always | The answer, or its refusal, rests on the parse |
 | P34 | T7 | `GPL-2.0 +` (a `+` after a space) inside a compound | Read as it is alone (`GPL-2.0-or-later`, with a `whitespace` step) | Refused in a compound | An operand reads as the same text alone; found by the adversarial tests |
-| P35 | T7 | A grant on an ID with no `-or-later` form (`MIT or later`) | Amended after review: `X+`, `stated_qualifier`, only when the ID ends in a version (`-\d+(\.\d+)*`: `Apache 2.0 or later` is `Apache-2.0+`, `MPL-1.1 or later` is `MPL-1.1+`); an ID with no version (`MIT`, `BSD-3-Clause`, whose 3 counts clauses, `StandardML-NJ`, a `LicenseRef-*`) stays unresolved, as in 0.6.0. First built as `+` for any ID (`MIT or later` was `MIT+`) | `+` for any ID; unresolved for every ID | The `+` operator means this version or a later one: an ID with no version has no later version to grant |
+| P35 | T7 | A grant on an ID with no `-or-later` form (`MIT or later`) | Decided by the maintainer on 2026-10-29: any ID with no -or-later form takes `+` when the result is valid SPDX (`MIT+`, `BSD-3-Clause+`, `Apache-2.0+`); the version-only rule is withdrawn. A `LicenseRef-*` takes no `+` and stays unresolved; `-only`/`-or-later` IDs stay refused | `+` only for an ID with a version (the rule between T7 and R7); unresolved for every ID | Maintainer's decision. Built first as `+` for any ID, narrowed after the T7 review, widened again here (reason: P35 decided by the maintainer) |
 | P36 | T7 | The hyphenated grant after a version (`GPL-2.0 or-later`) | A grant: `stated_qualifier` (was `separator` through the version key); `-or-later` after an ID is still part of it | Leave it to the version key | One reader of the grant (`classify.OR_LATER_PHRASE`), and the step says a grant was stated |
 | P37 | T7 | Case of `LicenseRef-*` when deduplicating | Case-sensitive: `LicenseRef-a OR licenseref-a` keeps both; the sort is case-folded, then as is | Fold the case | SPDX leaves the idstring of a reference to its author; folding would assert they are one |
 | P38 | T7 | What counts as an operator | `AND` and `OR` with white space, a bracket or an end on both sides, in any case; `WITH` stays inside its leaf | Any `or` between words | `MIT"OR"ISC` and `and_mask` hold no operator |
@@ -188,8 +188,10 @@ Provisional: the maintainer may reverse any of them.
 | P40 | T7 | The component URL of the parser | `https://pypi.org/project/py-spdx-license/<version>/`, its purl `pkg:pypi/py-spdx-license@<version>`, the installed version | The repository URL | The released artefact, as the resolver names its own release |
 | P41 | T7 | A grant after `WITH` (`GPL-2.0 WITH X or later`) | Moved to the licence: `GPL-2.0-or-later WITH X`, the step `from` the moved text | Refuse; give it to the exception | An exception takes no version grant |
 | P42 | T7 | A lower-case operator and an operand that names nothing (`GPL-3.0 or higher`, `proprietary and confidential`, `MIT or Foo`) | Amended after review: no compound, unresolved with no reason and one operand, the whole value, unless some operand (any, not only the first refused) has a reason of its own or is `malformed`: then the compound is refused for the first such (`Foo or MIT?` gives `character dropped: U+003F`) | `operand not resolved: higher` | Never assert what the author did not write: a lower-case `or` between words is prose as often as an operator; a dropped mark is the author's doubt wherever it is |
-| P43 | T7 | A leaf of several words (`Apache License 2.0 OR MIT`, `W3C Software and Document Notice License`) | Amended after review: no compound, whatever the operator case (Q18: the later rules read the whole value first), judged before the operator cap. When no later rule reads it, the reason is the first refused operand's (Q15, as P29): its own reason with its `drop` step (`Apache 2.0? OR MIT`), else, with the operators in upper case, `operand not resolved: Apache License 2.0`; with a lower-case operator only an operand's own reason (P42). First built with no reason at all | Read the leaf as a name; no reason | Q15's reason, and T8 can still read such operands without undoing a split. Known: an all-capitals name (`W3C SOFTWARE NOTICE AND LICENSE`) gets `operand not resolved: W3C SOFTWARE NOTICE` |
+| P43 | T7 | A leaf of several words (`Apache License 2.0 OR MIT`, `W3C Software and Document Notice License`) | Amended after review: no compound, whatever the operator case (Q18: the later rules read the whole value first), judged before the operator cap. When no later rule reads it, the reason is the first refused operand's (Q15, as P29): its own reason with its `drop` step (`Apache 2.0? OR MIT`), else, with the operators in upper case, `operand of several words: Apache License 2.0` when the leaf resolves alone (R7 S1; `operand not resolved: X` only for a leaf that does not); with a lower-case operator only an operand's own reason (P42). First built with no reason at all | Read the leaf as a name; no reason | Q15's reason, and T8 can still read such operands without undoing a split. Known: an all-capitals name (`W3C SOFTWARE NOTICE AND LICENSE`) gets `operand not resolved: W3C SOFTWARE NOTICE` |
 | P44 | T7 | Sort order of the leaves | IDs, then `LicenseRef-*`/`DocumentRef-*`, then `X WITH Y`, each case-folded (`MirOS` before `MIT`); groups after the leaves by rendered text (Q19, Q24). Pitloom 0.21.1 sorts case-sensitively and puts groups first: 4 parity rows differ in order only | Pitloom's order | Q24; a fixed key over the resolved leaves, so the order is the same from every spelling |
+| P61 | R7 | A detail built from input in a `reason` | One helper, `errors.one_line` (already the DETAIL helper of diagnostics): white space, so any line break (LF, CR LF, NEL, U+2028, U+2029), folded to one space; `;` made `,`; cut to 60 characters with `...`. Used for `operand not resolved`, `operand of several words` and the leaf in `parse failed` | A second helper in `resolve`; `looseid.shown` (`?` for each non-printable); a cap of 80 | One helper for every detail of one grammar; other control characters never get here, `read_leaf` refuses them first |
+| P62 | R7 | A leaf of several words that resolves alone (`BSD 3-Clause OR Apache-2.0`) | Reason `operand of several words: BSD 3-Clause`; the value stays unresolved (P43) | `operand not resolved` (false); read the leaf (T8) | The reason says what is true: the leaf reads, but it is no operand (Q15) |
 
 ### Follow-ups found in T7
 
@@ -311,3 +313,60 @@ one text.
   T6's follow-up.
 - A quoted listed name that holds marks (`"BSD 3-Clause "New" or "Revised"
   License"`) and deeper alternation of brackets and quotes are not read.
+
+## 8. R7 combined review (2026-10-29)
+
+Verdict: no blocker. An independent review of `main` at a5400a7 found three
+small defects (S1 to S3) and a list for 0.8. The S fixes are made on
+`resolver-0.7-r7-fixes`.
+
+### Measured
+
+- 24,773 values, database against packaged list: 0 differ.
+- `auto` on 13 database states: answers as designed.
+- 27,767 values for the operand property: every operand span equal to its
+  text in the input; 97 operands differ from the same text alone, all with a
+  stray quote (P23, by design).
+- Time per value in ms, 0.7.0 against 0.6.0 (values of three kinds):
+
+| Source | 0.7.0 | 0.6.0 |
+| --- | --- | --- |
+| `source=database` | 0.9 / 1.0-1.2 / 2.8 | 0.9 / 0.9 / 1.3-1.5 |
+| `source=packaged` | 0.11 / 0.13 / 1.5 | |
+| `auto` | 11.6-12.3 / 20.8-23.8 / 17.0-17.8 | 9.9-10.1 / 19.1-19.4 / 10.0-10.4 |
+
+- CLI matrix: NEW=0, FIXED=0.
+
+### Fixed here
+
+- S1: `operand of several words: <leaf>` for a leaf that resolves alone but is
+  no operand (P62); `operand not resolved` only for one that does not.
+- S2: every detail built from input in a `reason` is one line, cut to 60
+  characters (P61).
+- S3: README and `Operand` say one-word operands, and per operand only a
+  balanced pair of quotes; README says `resolve()` orders operands
+  differently from `match`.
+- P35 decided by the maintainer (`MIT or later` is `MIT+`); P20 and P31
+  wording made to match the code.
+
+### For 0.8
+
+1. Cache the `auto` choice per file stamp (`listsource.py:93-121`; 6
+   connections per value).
+2. Route `match`'s tag and declared-value path through `resolve()`, and
+   `markers.py:66,78` through `licenseid.quotes`. The tag path canonicalises
+   with `identifiers._canonicalize_expression`, not `exprcanon`. Tier 0 has
+   no drop guard: 45 synthetic values are refused by `resolve` but EXACT by
+   `match` (0 in the sample); `SPDX-License-Identifier: MIT OR Apache2`
+   answers EXACT.
+3. A dropped-word guard for `normalize_text` (`REM MIT`, `1. MIT`, `MIT -`).
+4. Reasons for refusals that have none: a mark after `+`, after an
+   exception or after a `LicenseRef` (`GPL-2.0+?`; `resolveleaf.py:348`
+   returns before the guard).
+5. Decide line breaks (`MIT\nOR ISC` reads, with a whitespace step) and
+   non-string input (`resolve(None)`, bytes, int raise `AttributeError`,
+   though the docstring says it never raises on content).
+6. SISSL: `Sun Industry Standards Source License (SISSL)` is none though its
+   bracket is the exact ID. (P35 against `MIT+` being exact is decided.)
+7. Several-word operands (T8, P43).
+8. The known T6, T6b and T7 follow-ups above.

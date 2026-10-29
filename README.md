@@ -50,7 +50,9 @@ generator.*
     with both, the newer List wins, and a tie goes to the database only if
     this licenseid's build rules made its rows (`source=` picks one);
   - exact and case-folded IDs; loosely written IDs (`Apache2`, `GPLv3`,
-    `GPLv2 or any later version`); the List's own licence names;
+    `GPLv2 or any later version`); the List's own licence names; "or later"
+    on an ID with no `-or-later` form is the `+` operator (`MIT or later` is
+    `MIT+`, `Apache 2.0 or later` is `Apache-2.0+`);
   - a bare deprecated ID (`GPL-3.0`) comes back as written, category
     `assumed_only`, with both candidates, never narrowed; a renamed one
     (`StandardML-NJ`) becomes its successor (`SMLNJ`);
@@ -63,14 +65,16 @@ generator.*
     `Apache 2.0?`, `MIT*` and `"MIT?"` are `unresolved`, with a
     `reason` and a `drop` step that was not applied; white space, `-`, `_`,
     `.`, a dash and one trailing comma are still dropped;
-  - a compound expression is read operand by operand, each as the same
-    text would be read alone (quotes, "or later" and loose IDs included),
-    and written in licenseid's canonical order: operators in upper case,
-    a chain of one operator flattened, operands sorted (IDs, then
-    `LicenseRef-*`, then `WITH`, then bracketed groups), duplicates
-    dropped, and brackets only where precedence needs them
-    (`mit or "Apache2"` → `Apache-2.0 OR MIT`); `[ ]` and `{ }` count as
-    brackets;
+  - a compound expression is read operand by operand: one-word operands
+    (with `WITH`, `+` or an "or later" grant), each as the same text would be
+    read alone, and per operand only a balanced pair of quotes; an operand
+    of several words (`BSD 3-Clause OR MIT`) is refused with the reason
+    `operand of several words`. The result is written in licenseid's
+    canonical order: operators in upper case, a chain of one operator
+    flattened, operands sorted (IDs, then `LicenseRef-*`, then `WITH`, then
+    bracketed groups), duplicates dropped, and brackets only where
+    precedence needs them (`mit or "Apache2"` → `Apache-2.0 OR MIT`);
+    `[ ]` and `{ }` count as brackets;
   - a compound is all or nothing: its category is the weakest operand's,
     and one operand that names nothing leaves the whole unresolved, with a
     `reason` naming it; a mark used as an operator (`MIT/Apache-2.0`) is
@@ -82,7 +86,9 @@ generator.*
   [`py-spdx-license`][py-spdx-license]):
   - Structural normalisation of `AND`/`OR` expressions: duplicate operands
     collapse (`MIT AND MIT` → `MIT`) and operands are put in a consistent
-    order, making equivalent expressions compare equal.
+    order, making equivalent expressions compare equal. The canonical order of
+    `resolve()` differs from this one (`MirOS OR MIT` there, `MIT OR MirOS`
+    here).
   - `WITH <exception>` expressions are validated and matched against the
     SPDX exception list, not just the license list — e.g.
     `licenseid match --id "MIT WITH Font-exception-2.0"` resolves correctly
@@ -528,7 +534,8 @@ The whole result of `resolve("Apache2")`, as JSON:
 licence the value names, in the order written: its `text`, its `span`, which
 indexes the raw `input` (`[start, end)` in code points; the trim and the
 quotes and brackets around the whole fall outside it), and the answer the
-same text would get alone. A compound adds the steps of the whole after
+same text would get alone (an operand is one word, so a loose ID with a space
+is no operand). A compound adds the steps of the whole after
 those of its operands, in this order: `operator_case`, `whitespace`,
 `brackets`, `reorder` and `dedupe`, each with the expression before and
 after. `components` names the tools besides licenseid that took part (the
