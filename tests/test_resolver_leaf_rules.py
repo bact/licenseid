@@ -188,3 +188,35 @@ def test_a_grant_on_an_id_with_no_or_later_form_is_the_plus_operator(
         assert (
             resolve(got["expression"], corpus_db)["expression"] == (got["expression"])
         )
+
+
+_CP = "Classpath-exception-2.0"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (f"GPL-2.0 WITH {_CP} or later", (f"GPL-2.0-or-later WITH {_CP}", [])),
+        (f"GPL-2.0 WITH {_CP} (or later)", (f"GPL-2.0-or-later WITH {_CP}", [])),
+        (
+            f"GPLv2 with {_CP} or any later version",
+            (
+                f"GPL-2.0-or-later WITH {_CP}",
+                ["operator_case", "separator", "version_spelling"],
+            ),
+        ),
+        ("MIT WITH LLVM-exception or later", ("MIT+ WITH LLVM-exception", [])),
+        (f"GPL-2.0-only WITH {_CP} or later", (None, [])),  # malformed
+        (f"GPL-2.0 or later WITH {_CP} or later", (None, [])),  # twice
+        ("LicenseRef-x WITH LLVM-exception or later", (None, [])),
+        (f"GPL-2.0 WITH {_CP} sooner or later", (None, [])),
+    ],
+    ids=lambda v: v[:40] if isinstance(v, str) else "",
+)
+def test_a_grant_after_with_qualifies_the_licence(
+    corpus_db: LicenseDatabase, value: str, expected: tuple[object, ...]
+) -> None:
+    """As an SPDX tag reads it: the grant is the licence's, not the
+    exception's; the expansion names the licence and its grant."""
+    got = resolve(value, corpus_db)
+    assert (got["expression"], [s["kind"] for s in got["steps"]]) == expected

@@ -185,8 +185,11 @@ SHAPES: list[tuple[str, tuple[str | None, str, list[str]]]] = [
     # key) and a qualifier stated twice is malformed (was unresolved)
     ("GPL-2.0 or-later", ("GPL-2.0-or-later", "stated_qualifier", [])),
     ("GPL-2.0-only or-later", (None, "malformed", [])),
-    # the grant after a WITH is not read
-    ("GPL-2.0 WITH Classpath-exception-2.0 or later", (None, "unresolved", [])),
+    # the grant after a WITH is the licence's (was unresolved)
+    (
+        "GPL-2.0 WITH Classpath-exception-2.0 or later",
+        ("GPL-2.0-or-later WITH Classpath-exception-2.0", "stated_qualifier", []),
+    ),
     # Q20: an AdditionRef names itself, as a LicenseRef does (was unresolved)
     ("MIT WITH AdditionRef-x", ("MIT WITH AdditionRef-x", "exact", [])),
     # Q16: a LicenseRef is exempt from the key cap (was unresolved)

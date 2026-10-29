@@ -151,9 +151,10 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
     parts = WITH_OPERATOR.split(text)
     if operator is None or len(parts) != 2:
         return False
+    licence_text, exception_text = _grant_to_licence(parts[0], parts[1])
     licence, tail = Found(), Found()
-    exception = _exception(db, parts[1], tail)
-    if exception is None or not _one(db, parts[0], licence):
+    exception = _exception(db, exception_text, tail)
+    if exception is None or not _one(db, licence_text, licence):
         return False
     if licence.expression is None:
         found.category = licence.category
@@ -163,6 +164,18 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
     found.expression = f"{licence.expression} WITH {exception}"
     found.candidates = [f"{c} WITH {exception}" for c in licence.candidates]
     return True
+
+
+def _grant_to_licence(licence: str, exception: str) -> tuple[str, str]:
+    """The licence and the exception of a WITH, an "or later" grant after
+    the exception moved to the licence: it qualifies the licence, not the
+    exception ("GPL-2.0 WITH Classpath-exception-2.0 or later" grants GPL-2.0
+    or later), as an SPDX tag reads it (identifiers.qualify_trailing_grant)."""
+    named = granted_id_text(exception) or declared_grant_id_text(exception)
+    if named is None:
+        return licence, exception
+    core = named.rstrip(" \t([")
+    return f"{licence} {exception[len(core) :].strip()}", core
 
 
 def _with_form(text: str, operator: re.Match[str]) -> list[Step]:
