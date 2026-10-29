@@ -38,7 +38,8 @@ REASONS: dict[str, str] = {
         f" {_WAS}"
     ),
     "trailing": (
-        "T9 (T3): the head and the parenthesis are one expression, so the"
+        "T9 (T3, P63): the head and the parenthesis are one expression (read"
+        " before the trove table), so the"
         " parenthesis is dropped (`trailing_name`, `lexical`) and the answer"
         f" is the head's; {_WAS}"
     ),

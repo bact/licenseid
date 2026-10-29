@@ -38,6 +38,23 @@ LISTED = {
     "University of Illinois/NCSA Open Source License",
     "X.Net License",
 }
+#: Names whose bracket the List backs too (T3): `listed_name`, read before the
+#: table (P63).
+TRAILING = {
+    "CMU License (MIT-CMU)",
+    "CeCILL-B Free Software License Agreement (CECILL-B)",
+    "CeCILL-C Free Software License Agreement (CECILL-C)",
+    "Boost Software License 1.0 (BSL-1.0)",
+    "Common Development and Distribution License 1.0 (CDDL-1.0)",
+    "Eclipse Public License 1.0 (EPL-1.0)",
+    "Eclipse Public License 2.0 (EPL-2.0)",
+    "Historical Permission Notice and Disclaimer (HPND)",
+    "Mozilla Public License 1.1 (MPL 1.1)",
+    "Mozilla Public License 2.0 (MPL 2.0)",
+    "Open Software License 3.0 (OSL-3.0)",
+    "SIL Open Font License 1.1 (OFL-1.1)",
+    "The Unlicense (Unlicense)",
+}
 STATED = sorted(k for k, v in TROVE_NAMES.items() if v.reading == "stated")
 ASSUMED = sorted(k for k, v in TROVE_NAMES.items() if v.reading == "assumed")
 NONE = sorted(k for k, v in TROVE_NAMES.items() if v.reading == "none")
@@ -72,10 +89,16 @@ def test_a_name_that_states_one_licence_is_read(
 ) -> None:
     got = resolve(name, corpus_db)
     assert got["expression"] == TROVE_NAMES[name].ids[0]
-    listed = name in LISTED
+    listed = name in LISTED | TRAILING
     assert got["category"] == ("listed_name" if listed else "trove_name")
     assert got["trust"] == ("list_data" if listed else "resolver_rule")
-    assert kinds(got) == (["listed_name"] if listed else ["trove_name"])
+    expected = {True: ["listed_name"], False: ["trove_name"]}[name in LISTED]
+    if name in TRAILING:
+        expected = ["trailing_name", "listed_name"]
+    assert kinds(got) == (expected if listed else ["trove_name"])
+    assert [e["id"] for e in got["lists"]] == (
+        ["spdx-license-list"] if listed else ["spdx-license-list", TROVE]
+    )
     assert (got["candidates"], got["expansions"], got["reason"]) == ([], [], None)
 
 
@@ -112,7 +135,7 @@ def test_a_name_that_states_no_licence_is_not_read(
 
 @pytest.mark.usefixtures("shipped")
 def test_the_step_and_the_list_of_a_trove_name() -> None:
-    got = resolve("ISC License (ISCL)", source="packaged")
+    got = resolve("ISC License (ISCL)", source="packaged")  # no List name
     (the_step,) = got["steps"]
     assert (the_step["kind"], the_step["from"], the_step["to"], the_step["list"]) == (
         "trove_name",
@@ -132,6 +155,100 @@ def test_no_trove_list_when_no_step_rests_on_it(corpus_db: LicenseDatabase) -> N
         assert [e["id"] for e in resolve(value, corpus_db)["lists"]] == [
             "spdx-license-list"
         ]
+
+
+@pytest.mark.parametrize(
+    ("value", "expression"),
+    [
+        ("boost software license 1.0 (bsl-1.0)", "BSL-1.0"),
+        ("Boost Software License 1.0 (BSL-1.0)", "BSL-1.0"),
+        ("mozilla public license 2.0 (mpl-2.0)", "MPL-2.0"),
+    ],
+    ids=lambda value: value[:12],
+)
+def test_the_exact_name_reads_as_strong_as_its_lower_case_form(
+    corpus_db: LicenseDatabase, value: str, expression: str
+) -> None:
+    """P63: the List backs the head and the bracket, so the answer is
+    `listed_name` however the case is written, and no trove list is named."""
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["category"]) == (expression, "listed_name")
+    assert kinds(got)[0] == "trailing_name"
+    assert [e["id"] for e in got["lists"]] == ["spdx-license-list"]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "W3C license",
+        "w3c license",
+        "W3C  License",
+        "zlib/libpng license",
+        "python license (cnri python license)",
+        "Python   License (CNRI Python License)",
+        "gnu library or lesser general public license (lgpl)",
+        "bsd license",
+        "License :: OSI Approved :: W3C License",
+    ],
+    ids=lambda value: value[:20],
+)
+def test_a_name_that_states_no_licence_is_claimed_however_it_is_written(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """P60 as amended: no later rule may read a `none` name (Q22)."""
+    found = Found()
+    assert read_named(corpus_db, value, found) is True
+    assert (found.expression, found.category) == (None, "unresolved")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "isc license (iscl)",
+        "ISC  License (ISCL)",
+        "Isc License (ISCL)",
+    ],
+    ids=lambda value: value[:12],
+)
+def test_a_name_that_states_a_licence_is_matched_exactly(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """The looser match only refuses; the table is read as written."""
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["category"]) == (None, "unresolved")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "MIT\n(MIT)",
+        "MIT\u00a0(MIT)",
+        "MIT\u2028(MIT)",
+        "MIT (MIT)\n",
+        "MIT License\x0b(MIT)",
+    ],
+    ids=["lf", "nbsp", "ls", "trailing-lf", "vt"],
+)
+def test_only_spaces_and_tabs_stand_before_the_bracket(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """A value is one line: other white space is no separator (the trim of
+    the whole value is a step of its own)."""
+    got = resolve(value, corpus_db)
+    if value.strip() == "MIT (MIT)":
+        assert got["expression"] == "MIT"
+        return
+    assert "trailing_name" not in kinds(got)
+
+
+def test_a_head_that_holds_a_bracket_is_not_dropped(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """The leaf reads `GPL-3.0 (or later)`, but a bracket in the head is
+    refused here (P58): the parenthesis dropped is the last one only."""
+    got = resolve("GPL-3.0 (or later) (GPL-3.0+)", corpus_db)
+    assert "trailing_name" not in kinds(got)
+    assert got["expression"] is None
 
 
 @pytest.mark.parametrize(

@@ -35,6 +35,13 @@ from licenseid.resolveleaf import Found, read_leaf
 from licenseid.resolvertypes import step
 from licenseid.trovenames import TROVE_NAMES, strip_trove_path
 
+#: The names that state no licence, folded: no later rule may read one.
+_NO_LICENCE = frozenset(
+    " ".join(name.split()).casefold()
+    for name, entry in TROVE_NAMES.items()
+    if entry.reading == "none"
+)
+
 
 def read_named(db: ListLookup, text: str, found: Found) -> bool:
     """Read *text*, a value no leaf and no compound reads, by its trove path,
@@ -42,11 +49,11 @@ def read_named(db: ListLookup, text: str, found: Found) -> bool:
     for it; True with ``unresolved`` for a name the table reads as ``none``."""
     name = strip_trove_path(text)
     if name is None:
-        return _name(db, text, found) or _trailing(db, text, found)
+        return _by_name(db, text, found)
     reading = Found()
     if not read_leaf(db, name, reading):  # X, read as it is alone
         reading = Found()
-        _name(db, name, reading)
+        _by_name(db, name, reading)
     if reading.expression is None:
         _nothing(found)
         return True
@@ -55,16 +62,34 @@ def read_named(db: ListLookup, text: str, found: Found) -> bool:
     return True
 
 
+def _by_name(db: ListLookup, text: str, found: Found) -> bool:
+    """The rules of a name, in order: a name that states no licence is
+    claimed first (Q22), however it is written; then a name and a parenthesis
+    that agree (T3), since a reading the List backs is stronger than the
+    table's; then the table (T2)."""
+    if _folded(text) in _NO_LICENCE:
+        _nothing(found)
+        return True
+    return _trailing(db, text, found) or _name(db, text, found)
+
+
+def _folded(text: str) -> str:
+    """*text* in lower case with its white space collapsed: a looser match
+    than the table's, used only to refuse (a ``none`` name is never read)."""
+    return " ".join(text.split()).casefold()
+
+
 def _name(db: ListLookup, text: str, found: Found) -> bool:
     """T2: *text* is a name of the table."""
     entry = TROVE_NAMES.get(text)
     if entry is None:
         return False
     reading = Found()
-    if not entry.ids or not read_leaf(db, entry.ids[0], reading):
-        _nothing(found)
-        return True
-    if reading.expression is None:  # the list lacks the ID
+    if (
+        not entry.ids
+        or not read_leaf(db, entry.ids[0], reading)
+        or reading.expression is None  # the list lacks the ID
+    ):
         _nothing(found)
         return True
     found.steps = [step("trove_name", True, text, entry.ids[0]), *reading.steps]
@@ -77,7 +102,8 @@ def _trailing(db: ListLookup, text: str, found: Found) -> bool:
     if not text.endswith(")"):
         return False
     opening = text.rfind("(")
-    head, inside = text[:opening].rstrip(), text[opening + 1 : -1].strip()
+    # Spaces and tabs only: a value is one line, so no other white space
+    head, inside = text[:opening].rstrip(" \t"), text[opening + 1 : -1].strip(" \t")
     if (
         opening < 1
         or head == text[:opening]  # a name, white space, then the bracket
