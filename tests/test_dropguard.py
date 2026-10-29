@@ -12,7 +12,7 @@ import time
 
 import pytest
 
-from licenseid.dropguard import code_points, dropped
+from licenseid.dropguard import code_points, dropped, without_end_marks
 
 
 @pytest.mark.parametrize(
@@ -113,3 +113,31 @@ def test_it_is_linear(text: str) -> None:
     result = dropped(text)
     assert time.monotonic() - start < 2
     assert len(result) <= 1
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("MIT License", "MIT License"),
+        ("MIT License.", "MIT License"),
+        ("MIT License,", "MIT License"),
+        ("MIT License. ,", "MIT License"),
+        ("MIT License...  ", "MIT License"),
+        ("MIT License,.", "MIT License,"),  # a comma before a dot stays
+        ("MIT License;", "MIT License;"),
+        ("MIT License:", "MIT License:"),
+        ("MIT License\u2026", "MIT License\u2026"),
+        ("", ""),
+        (" . ", ""),
+    ],
+)
+def test_without_end_marks_leaves_off_what_dropped_allows(
+    text: str, expected: str
+) -> None:
+    assert without_end_marks(text) == expected
+
+
+def test_without_end_marks_is_linear() -> None:
+    start = time.monotonic()
+    without_end_marks("x" + ". " * 200_000)
+    assert time.monotonic() - start < 2

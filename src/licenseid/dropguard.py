@@ -52,6 +52,19 @@ def dropped(text: str) -> str:
     return "".join(seen)
 
 
+def without_end_marks(text: str) -> str:
+    """*text* without the marks at its end that :func:`dropped` lets pass:
+    white space, dots and one comma, so that a reading of the rest drops
+    nothing more than a loose ID drops. The prose forms of ``resolve`` use
+    it (``MIT License.``); a ``;``, ``:`` or ``\u2026`` stays and is refused
+    as ``MIT;`` is."""
+    body = text.rstrip().removesuffix(",")
+    end = len(body)
+    while end and (body[end - 1].isspace() or body[end - 1] == "."):
+        end -= 1
+    return body[:end]
+
+
 def code_points(chars: str) -> str:
     """*chars* as code points, space separated: ``U+003F U+0021``. Safe to
     show, whatever the characters are (a lone surrogate, a mark)."""
