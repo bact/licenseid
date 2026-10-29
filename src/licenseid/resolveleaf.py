@@ -306,6 +306,8 @@ def _grant(
     SPDX) and is unresolved, not read without the grant."""
     license_id, steps = base
     granted = loose_id(db, text)
+    # "+" last: `_qualified` makes `X+ or later` malformed before this, so
+    # it only guards a list that has an ID ending in "+" (`Foo+`, no `Foo`)
     if license_id.endswith(("-only", "-or-later", "+")):
         found.category = "malformed"
         return True

@@ -233,8 +233,11 @@ def parse(tokens: list[Token], texts: list[str]) -> Node | str:
         py_spdx_license.parse(skeleton, allow_unknown=True)
     except Exception as error:  # pylint: disable=broad-exception-caught
         message = str(error)
-    for index, text in enumerate(texts):
-        message = message.replace(f"{_PLACEHOLDER}{index}", one_line(text))
+    message = re.sub(
+        rf"{_PLACEHOLDER}(\d+)",
+        lambda m: one_line(texts[int(m[1])]) if int(m[1]) < len(texts) else m[0],
+        message,
+    )
     return f"parse failed: {message}"
 
 

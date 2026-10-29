@@ -39,8 +39,16 @@ def test_a_leaf_of_several_words_that_resolves_alone(
 
 @pytest.mark.parametrize(
     "value",
-    ["Foo\nBar OR MIT", "Foo Bar OR MIT", "Foo\r\nBar OR MIT", "Foo\x85Bar OR MIT"],
-    ids=["LF", "U+2028", "CRLF", "NEL"],
+    [
+        "Foo\nBar OR MIT",
+        "Foo\u2028Bar OR MIT",
+        "Foo\u2029Bar OR MIT",
+        "Foo\rBar OR MIT",
+        "Foo\r\nBar OR MIT",
+        "Foo\x85Bar OR MIT",
+        "Foo\n\n \tBar OR MIT",
+    ],
+    ids=["LF", "U+2028", "U+2029", "CR", "CRLF", "NEL", "mixed"],
 )
 def test_a_line_break_in_a_leaf_reaches_the_reason(
     corpus_db: LicenseDatabase, value: str
@@ -50,7 +58,7 @@ def test_a_line_break_in_a_leaf_reaches_the_reason(
     assert reason == "operand not resolved: Foo Bar"
 
 
-def test_a_long_leaf_reaches_the_reason_whole(corpus_db: LicenseDatabase) -> None:
+def test_a_long_leaf_is_cut_in_the_reason(corpus_db: LicenseDatabase) -> None:
     got = resolve("x\t" * 800 + "y z AND MIT", corpus_db)
     assert got["reason"] is not None
     assert len(got["reason"]) == len("operand not resolved: ") + 60 + 3
@@ -74,16 +82,16 @@ def test_a_leaf_of_sixty_characters_is_not_cut(corpus_db: LicenseDatabase) -> No
 
 
 def test_a_semicolon_in_a_reason_is_a_comma(corpus_db: LicenseDatabase) -> None:
-    """A reason may reach a diagnostic line, where ``;`` starts the ACTION."""
+    """A reason may reach a diagnostic line, where ``;`` starts the ACTION.
+    The one exception is ``not an SPDX operator: ;`` (it names the mark)."""
     reason = resolve("Foo bar;baz OR MIT", corpus_db)["reason"]
     assert reason == "operand not resolved: Foo bar,baz"
 
 
 def test_the_long_several_word_leaf_is_cut_too(corpus_db: LicenseDatabase) -> None:
-    value = "Apache License 2.0" + " " * 200 + "OR MIT"
-    assert resolve(value, corpus_db)["reason"] == (
-        "operand of several words: Apache License 2.0"
-    )
+    name = "Creative Commons Attribution Non Commercial Share Alike 4.0 International"
+    reason = resolve(f"{name} OR MIT", corpus_db)["reason"]
+    assert reason == f"operand of several words: {name[:60]}..."
 
 
 def test_the_leaf_in_a_parse_message_is_one_short_line(
@@ -102,3 +110,21 @@ def test_the_leaf_in_a_parse_message_is_one_short_line(
     tokens = [exprcanon.Token("leaf", 0, len(leaf))]
     got = exprcanon.parse(tokens, [leaf])
     assert got == f"parse failed: Unexpected 'a b {'c' * 56}...'"
+
+
+def test_each_placeholder_is_replaced_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Leaf 1 must not replace the prefix of leaf 10, and a leaf that holds
+    a placeholder is not replaced again."""
+    placeholder = exprcanon._PLACEHOLDER  # pylint: disable=protected-access
+    message = f"Unexpected '{placeholder}10' and '{placeholder}1'"
+
+    def refuse(_expression: str, **_options: object) -> None:
+        raise ValueError(message)
+
+    monkeypatch.setattr(exprcanon, "parse_expression", lambda _text: None)
+    monkeypatch.setattr(py_spdx_license, "parse", refuse)
+    texts = [f"t{i}" for i in range(11)]
+    texts[1] = f"{placeholder}0"
+    tokens = [exprcanon.Token("leaf", i, i + 1) for i in range(11)]
+    got = exprcanon.parse(tokens, texts)
+    assert got == f"parse failed: Unexpected 't10' and '{placeholder}0'"

@@ -68,8 +68,9 @@ generator.*
   - a compound expression is read operand by operand: one-word operands
     (with `WITH`, `+` or an "or later" grant), each as the same text would be
     read alone, and per operand only a balanced pair of quotes; an operand
-    of several words (`BSD 3-Clause OR MIT`) is refused with the reason
-    `operand of several words`. The result is written in licenseid's
+    of several words is refused; with the operators in upper case, the
+    `reason` is `operand of several words: BSD 3-Clause` for a leaf that
+    reads alone, else `operand not resolved: Foo Bar`. The result is written in licenseid's
     canonical order: operators in upper case, a chain of one operator
     flattened, operands sorted (IDs, then `LicenseRef-*`, then `WITH`, then
     bracketed groups), duplicates dropped, and brackets only where
@@ -607,14 +608,18 @@ separator, such as `?`, `!`, `*` or a quote inside the value; several are
 space separated),
 `lone surrogate`, `control or format character: U+200B`; for a compound,
 `operand not resolved: <operand>` (or that operand's own reason),
+`operand of several words: <leaf>` (a leaf that reads alone, as
+`BSD 3-Clause` does),
 `not an SPDX operator: /` (also `|`, `&`, `;` and `,` between IDs),
 `parse failed: <the parser's message>`, `mismatched brackets`,
 `too many operators` (over 150) and `too deeply nested` (over 150). A value
 with a part of several words (`Apache License 2.0 OR MIT`) is no compound,
-but its reason names the first operand refused, as above, when its
-operators are in upper case. One with a lower-case `or` or `and` whose words
-name nothing (`GPL-3.0 or higher`) is prose: no reason, unless an operand
-has its own (a dropped mark). A refused value is category
+but, when its operators are in upper case, its reason names the first
+operand refused: `operand of several words: <leaf>` if that leaf reads
+alone, else `operand not resolved: <leaf>`. A detail taken from the input is
+folded to one line and cut at 60 characters. One with a lower-case `or` or
+`and` whose words name nothing (`GPL-3.0 or higher`) is prose: no reason,
+unless an operand has its own (a dropped mark). A refused value is category
 `unresolved` with no expression, or `malformed` when the compound breaks the
 grammar but names a licence (`MIT AND`). For a dropped mark, `steps` holds
 one `drop` step with `applied` false: its `to` is the listed ID the loose

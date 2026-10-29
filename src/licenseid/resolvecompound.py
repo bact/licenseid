@@ -226,8 +226,10 @@ def _fallback(
     """The refusal a value of compound form with a leaf of several words
     gives when no later rule reads it (Q15, P43): the first refused leaf's
     own reason (a dropped mark), else, with the operators in upper case,
-    ``operand not resolved: <leaf>``; None for a value with no operator or
-    two operands side by side, and for a lower-case one with no reason."""
+    ``operand of several words: <leaf>`` for a leaf that reads alone, or
+    ``operand not resolved: <leaf>`` for one that does not; None for a value
+    with no operator or two operands side by side, and for a lower-case one
+    with no reason."""
     if missing_operator(tokens) or not any(t.kind in ("AND", "OR") for t in tokens):
         return None
     upper = written_upper(text, tokens)

@@ -190,7 +190,7 @@ Provisional: the maintainer may reverse any of them.
 | P42 | T7 | A lower-case operator and an operand that names nothing (`GPL-3.0 or higher`, `proprietary and confidential`, `MIT or Foo`) | Amended after review: no compound, unresolved with no reason and one operand, the whole value, unless some operand (any, not only the first refused) has a reason of its own or is `malformed`: then the compound is refused for the first such (`Foo or MIT?` gives `character dropped: U+003F`) | `operand not resolved: higher` | Never assert what the author did not write: a lower-case `or` between words is prose as often as an operator; a dropped mark is the author's doubt wherever it is |
 | P43 | T7 | A leaf of several words (`Apache License 2.0 OR MIT`, `W3C Software and Document Notice License`) | Amended after review: no compound, whatever the operator case (Q18: the later rules read the whole value first), judged before the operator cap. When no later rule reads it, the reason is the first refused operand's (Q15, as P29): its own reason with its `drop` step (`Apache 2.0? OR MIT`), else, with the operators in upper case, `operand of several words: Apache License 2.0` when the leaf resolves alone (R7 S1; `operand not resolved: X` only for a leaf that does not); with a lower-case operator only an operand's own reason (P42). First built with no reason at all | Read the leaf as a name; no reason | Q15's reason, and T8 can still read such operands without undoing a split. Known: an all-capitals name (`W3C SOFTWARE NOTICE AND LICENSE`) gets `operand not resolved: W3C SOFTWARE NOTICE` |
 | P44 | T7 | Sort order of the leaves | IDs, then `LicenseRef-*`/`DocumentRef-*`, then `X WITH Y`, each case-folded (`MirOS` before `MIT`); groups after the leaves by rendered text (Q19, Q24). Pitloom 0.21.1 sorts case-sensitively and puts groups first: 4 parity rows differ in order only | Pitloom's order | Q24; a fixed key over the resolved leaves, so the order is the same from every spelling |
-| P61 | R7 | A detail built from input in a `reason` | One helper, `errors.one_line` (already the DETAIL helper of diagnostics): white space, so any line break (LF, CR LF, NEL, U+2028, U+2029), folded to one space; `;` made `,`; cut to 60 characters with `...`. Used for `operand not resolved`, `operand of several words` and the leaf in `parse failed` | A second helper in `resolve`; `looseid.shown` (`?` for each non-printable); a cap of 80 | One helper for every detail of one grammar; other control characters never get here, `read_leaf` refuses them first |
+| P61 | R7 | A detail built from input in a `reason` | One helper, `errors.one_line` (already the DETAIL helper of diagnostics): white space, so any line break (LF, CR LF, NEL, U+2028, U+2029), folded to one space; `;` made `,`; cut to 60 characters with `...`. The one exception is `not an SPDX operator: ;`, which keeps its `;` (folding it to `,` would make the reason false). Used for `operand not resolved`, `operand of several words` and the leaf in `parse failed` | A second helper in `resolve`; `looseid.shown` (`?` for each non-printable); a cap of 80 | One helper for every detail of one grammar; other control characters never get here, `read_leaf` refuses them first |
 | P62 | R7 | A leaf of several words that resolves alone (`BSD 3-Clause OR Apache-2.0`) | Reason `operand of several words: BSD 3-Clause`; the value stays unresolved (P43) | `operand not resolved` (false); read the leaf (T8) | The reason says what is true: the leaf reads, but it is no operand (Q15) |
 
 ### Follow-ups found in T7
@@ -366,7 +366,12 @@ small defects (S1 to S3) and a list for 0.8. The S fixes are made on
 5. Decide line breaks (`MIT\nOR ISC` reads, with a whitespace step) and
    non-string input (`resolve(None)`, bytes, int raise `AttributeError`,
    though the docstring says it never raises on content).
-6. SISSL: `Sun Industry Standards Source License (SISSL)` is none though its
-   bracket is the exact ID. (P35 against `MIT+` being exact is decided.)
+6. Decided, not open: `MIT+` alone is `exact`, and `MIT or later` is `MIT+`
+   with `stated_qualifier` (P35); SISSL is decided too (stated SISSL, P52, on
+   the T9 branch).
 7. Several-word operands (T8, P43).
 8. The known T6, T6b and T7 follow-ups above.
+9. White space inside a listed name: `resolve("Apache\tLicense 2.0")` is
+   unresolved while `Apache\n2.0` resolves; folding in a reason can hide it.
+10. `match` from a tag still answers `MIT OR later` for `MIT or later`: P35
+    widens the gap between `match` and `resolve` (item 2 covers it).
