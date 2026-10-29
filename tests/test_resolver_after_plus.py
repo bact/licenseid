@@ -19,16 +19,19 @@ EXCEPTION = "GPL-2.0-only WITH Classpath-exception-2.0"
 
 #: One end mark is an ending: read without it, a ``separator`` step.
 READ = {
-    "MIT+;": "MIT+",
-    "MIT+ ;": "MIT+",
-    "MIT+:": "MIT+",
-    "MIT+,": "MIT+",
-    "GPL-2.0+.": "GPL-2.0-or-later",
-    f"{EXCEPTION};": EXCEPTION,
-    f"{EXCEPTION} .": EXCEPTION,
-    "GPL-2.0 WITH Classpath-exception-2.0:": "GPL-2.0 WITH Classpath-exception-2.0",
-    "LicenseRef-a;": "LicenseRef-a",
-    "LicenseRef-a:": "LicenseRef-a",
+    "MIT+;": ("MIT+", "separator"),
+    "MIT+ ;": ("MIT+", "separator"),
+    "MIT+:": ("MIT+", "separator"),
+    "MIT+,": ("MIT+", "separator"),
+    "GPL-2.0+.": ("GPL-2.0-or-later", "separator"),
+    f"{EXCEPTION};": (EXCEPTION, "separator"),
+    f"{EXCEPTION} .": (EXCEPTION, "separator"),
+    "GPL-2.0 WITH Classpath-exception-2.0:": (
+        "GPL-2.0 WITH Classpath-exception-2.0",
+        "assumed_only",  # the bare split ID is the weakest step
+    ),
+    "LicenseRef-a;": ("LicenseRef-a", "separator"),
+    "LicenseRef-a:": ("LicenseRef-a", "separator"),
 }
 #: A mark that says something, or two or more marks: refused with the marks.
 REFUSED = {
@@ -46,6 +49,10 @@ REFUSED = {
     "LicenseRef-a;;": "U+003B",
     "MIT License -": "U+002D",
     "MIT License --": "U+002D",
+    "MIT License &": "U+0026",  # white space is kept only for dots and dashes
+    "MIT License & ": "U+0026",
+    "BSD 3-Clause License &": "U+0026",
+    "Apache License, Version 2.0 &": "U+0026",
     "Apache License, Version 2.0 -": "U+002D",
     "MIT+ License -": "U+002D",
     "Apache-2.0 License+?": "U+003F",  # the prose form P1 reads, then the mark
@@ -58,6 +65,8 @@ SILENT = [
     "MIT WITH Foo?",  # the exception is not listed
     "LicenseRef?",
     "MIT+)",
+    "Apache-2.0++?",
+    "LicenseRef-x+?",
     "+;",
     ";",
     "?",
@@ -69,7 +78,7 @@ def test_one_end_mark_after_the_core_is_an_ending(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     got = resolve(value, corpus_db)
-    assert got["expression"] == READ[value]
+    assert (got["expression"], got["category"]) == READ[value]
     assert got["reason"] is None
     assert got["steps"][0]["kind"] == "separator"
     assert got["steps"][0]["detail"] == "end mark"

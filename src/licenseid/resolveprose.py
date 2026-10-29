@@ -43,6 +43,7 @@ import re
 
 from licenseid.dropguard import trim_end_mark
 from licenseid.listlookup import ListLookup
+from licenseid.normalize import RE_DASHES
 from licenseid.resolveleaf import Found, read_leaf
 from licenseid.resolvertypes import Step, step
 from licenseid.resolvetrove import is_no_licence, read_named, trailing_parts
@@ -119,7 +120,7 @@ def _by_rule(
     refuses it with its reason (P64); they never help a reading. P2 has two
     reductions, which must agree (P68)."""
     core = body[: _word_end(body)].rstrip()
-    marks = body[len(core) :].rstrip()  # white space kept: ``MIT -`` is dangling
+    marks = _marks_after(body[len(core) :])
     readings = []
     for word, detail in _reductions(db, core):
         reading = Found()
@@ -134,6 +135,16 @@ def _by_rule(
     word, detail, reading = readings[0]
     _fill(found, [*before, step(_KIND, True, source, word, detail)], reading)
     return True
+
+
+def _marks_after(rest: str) -> str:
+    """The marks after the last word, with the white space before them only
+    for a run of dots or dashes (``MIT -`` is dangling, ``MIT &`` is not
+    otherwise changed)."""
+    marks = rest.strip()
+    if marks and all(c == "." or RE_DASHES.match(c) for c in marks):
+        return rest.rstrip()
+    return marks
 
 
 def _word_end(text: str) -> int:

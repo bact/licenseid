@@ -140,9 +140,11 @@ The rule is narrow. The `;` must stand outside brackets, with a non-empty
 part on each side: `MIT;;Apache-2.0` and `; MIT` are refused as before, and
 one `;` at the very end is an ending (`MIT; ISC;` is two parts). At least two
 parts must name a licence, or would but for a mark they drop (`Apache
-2.0?`): `MIT; Copyright (c) 2016` stays `unresolved`. A `;` beside an
-operator word is the end of an operand and is read by the compound reader
-(`MIT; OR ISC` is `ISC OR MIT`). A comma and `/` are not separators here
+2.0?`), and one must resolve: `MIT; Copyright (c) 2016` and `-MIT ; -MIT`
+stay `unresolved`, with the reason they had. A `;` beside an operator word
+(in any case) means one was stated: `MIT; OR ISC` is `ISC OR MIT`, and
+`MIT; OR ISC; Apache-2.0` is no list. A value that reads whole as a name
+(`MIT; (MIT)`) is read as that name. A comma and `/` are not separators here
 (`not an SPDX operator: ,` and `/`). A part is not split again, so a `;` in
 brackets inside a part is not read as a list. `steps` holds only what was done
 to the whole before the split (`trim`, `unquote`, `brackets`).
@@ -192,7 +194,8 @@ separated), `word dropped: rem 1` (a comment or list marker that the reading wou
 `operand not resolved: <operand>` (or that operand's own reason),
 `operand of several words: <leaf>` (a leaf that reads alone, as
 `BSD 3-Clause` does),
-`not an SPDX operator: /` (also `|`, `&` and `,` between IDs),
+`not an SPDX operator: /` (also `|`, `&` and `,` between IDs, and `;` when
+fewer than two parts name a licence: `MIT; Foo`),
 `operator not stated: ;` (above),
 `parse failed: <the parser's message>`, `mismatched brackets`,
 `too many operators` (over 150) and `too deeply nested` (over 150). A value

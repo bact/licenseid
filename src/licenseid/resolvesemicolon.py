@@ -28,7 +28,10 @@ whatever its own category.
   that starts with an operator word names no licence besides.
 - Fewer than two parts that name a licence, or would but for a mark they
   drop (``Apache 2.0?``), is no list of licences (``MIT; Copyright (c)
-  2016``): the value stays as it was (P83).
+  2016``), and neither is one where no part resolves (``-MIT ; -MIT``): the
+  value stays as it was (P83, P88).
+- A part that starts or ends with an operator word in any case (``MIT; OR
+  ISC; Apache-2.0``) means an operator was stated: no list (P84).
 - Quote marks are not tracked: a ``;`` inside quotes splits. ``,`` and ``/``
   are never a separator here (P84).
 
@@ -75,7 +78,7 @@ def semicolon_parts(text: str) -> list[Part] | None:
     for begin, end in cuts:
         part = body[begin:end]
         stripped = part.strip()
-        if not stripped:
+        if not stripped or _operator_beside(stripped):
             return None
         parts.append(Part(stripped, begin + len(part) - len(part.lstrip())))
     return parts
@@ -101,6 +104,17 @@ def _cuts(body: str) -> list[tuple[int, int]] | None:
     return cuts if depth == 0 else None
 
 
+def _operator_beside(part: str) -> bool:
+    """Whether *part* starts or ends with an operator word in any case, so
+    that the ``;`` next to it is not the only operator stated (``MIT; OR
+    ISC; Apache-2.0``). Prose such as ``and others`` blocks a list too: the
+    narrow side (P84)."""
+    words = part.split()
+    return words[0].casefold() in _OPERATOR_WORDS or (
+        words[-1].casefold() in _OPERATOR_WORDS
+    )
+
+
 def _names_a_licence(found: Found) -> bool:
     """Whether a part's reading named a licence, or would have but for a mark
     or a word it would drop (``Apache 2.0?``: the author named one, and
@@ -123,11 +137,12 @@ def read_semicolon_list(
     for part in parts:
         if part.text not in cache:
             cache[part.text] = read(part.text)
-    if sum(_names_a_licence(cache[part.text][0]) for part in parts) < 2:
-        return None
+    readings = [cache[part.text][0] for part in parts]
+    named = sum(_names_a_licence(found) for found in readings)
+    if named < 2 or all(found.expression is None for found in readings):
+        return None  # fewer than two licences, or none that resolves (P88)
     operands = [
         operand_of(part.text, start + part.start, cache[part.text][0]) for part in parts
     ]
     found.expression, found.category, found.reason = None, "unresolved", REASON
-    found.expansions, found.candidates = [], []
     return operands, any(parsed for _, parsed in cache.values())

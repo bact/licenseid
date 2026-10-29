@@ -479,9 +479,9 @@ caller answer the first kind of question and refuse the second.
 Narrowing rules, each decided as P80 to P86 in
 `../design/resolver-0-7-review.md`: a `;` outside brackets; no empty part; at
 least two parts that name a licence (so `MIT; Copyright (c) 2016-2024 Cisco`
-is a licence and a notice, not a list); a `;` beside `AND`, `OR` or `WITH` is
-the end of an operand and stays the compound reader's; a comma and `/` are
-not separators.
+is a licence and a notice, not a list); one part must resolve; a `;` beside
+`AND`, `OR` or `WITH` (in any case, also with three parts) means an operator
+was stated, so no list; a comma and `/` are not separators.
 
 Frequency: in the frozen PyPI sample (462 distinct values from the top
 10,000 projects, `tests/fixtures/pypi_values_2026-10.tsv`) and the 141-value

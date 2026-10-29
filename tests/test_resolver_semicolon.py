@@ -190,6 +190,21 @@ NOT_A_LIST = {
     "(MIT; ISC; Apache-2.0": None,  # a bracket that does not close (P85)
     "MIT; ISC; Apache-2.0)": None,
     "MIT; ISC; (Apache-2.0": None,  # opens after the last ;
+    "MIT); (ISC; Zlib; Apache-2.0": None,  # closes before it opens
+    # an operator word on a part means one was stated (P84), in any case
+    "MIT; OR ISC; Apache-2.0": "not an SPDX operator: ;",
+    "MIT; AND; ISC": "not an SPDX operator: ;",
+    "MIT;OR;ISC": "not an SPDX operator: ;",
+    "MIT; or ISC; Apache-2.0": "not an SPDX operator: ;",
+    "ANTLR-PD-fallback ; OR ISC; GPL-2.0+": (
+        "operand of several words: ANTLR-PD-fallback ,"
+    ),
+    "MIT; ISC; and others": None,
+    "MIT; ISC OR; Zlib": None,  # at the end of a part
+    "MIT; ISC; Zlib AND": "not an SPDX operator: ;",
+    # no part resolves (P88)
+    "-MIT ; -MIT": None,
+    "MIT...; MIT -": None,
     "MIT, ISC; Apache-2.0": "not an SPDX operator: ,",  # a comma is no separator
     "MIT/ISC; Apache-2.0": "not an SPDX operator: /",
     "MIT, Apache-2.0": "not an SPDX operator: ,",
@@ -256,6 +271,39 @@ def test_a_semicolon_in_brackets_does_not_cut_a_part(
         None,
         "not an SPDX operator: ;",  # a part is not split again (P85)
     )
+
+
+def test_square_brackets_count_as_brackets(corpus_db: LicenseDatabase) -> None:
+    got = resolve("[ISC; Zlib]; MIT; Apache-2.0", corpus_db)
+    assert got["reason"] == REASON
+    assert [o["text"] for o in got["operands"]] == [
+        "[ISC; Zlib]",
+        "MIT",
+        "Apache-2.0",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("value", "expression", "category"),
+    [
+        ("MIT; (MIT)", "MIT", "separator"),  # a name and its short form (P87)
+        ("MIT ;  (MIT)", "MIT", "separator"),
+        ('"MIT; (MIT)', "MIT", "separator"),
+        ("MIT License;\t(MIT)", "MIT", "prose_form"),
+    ],
+    ids=lambda v: v[:14],
+)
+def test_a_name_that_reads_whole_is_not_a_list(
+    corpus_db: LicenseDatabase, value: str, expression: str, category: str
+) -> None:
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["category"]) == (expression, category)
+    assert got["reason"] is None
+
+
+def test_a_list_needs_one_operand_that_resolves(corpus_db: LicenseDatabase) -> None:
+    got = resolve("Apache 2.0?; MIT -", corpus_db)
+    assert got["reason"] != REASON
 
 
 def test_a_nested_list_does_not_recurse(corpus_db: LicenseDatabase) -> None:

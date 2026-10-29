@@ -137,15 +137,18 @@ def _read_text(
     compound = read_compound(db, text, start, found)
     if compound.claimed and found.expression is not None:
         return found, compound.operands, compound.parsed
-    listed = _read_list(db, text, start, prepared) if lists else None
+    named = Found()
+    # A trove name or path, a name and its short form, then the prose form of
+    # one ID (T8: P1 to P3). A name that reads is read before a list
+    # (``MIT; (MIT)`` is the name and its short form, P87).
+    by_name = not compound.claimed and read_by_name(db, text, named)
+    resolved = by_name and named.expression is not None
+    listed = _read_list(db, text, start, prepared) if lists and not resolved else None
     if listed is not None:  # several licences, no operator stated (T8b)
         return prepared, listed[0], listed[1]
     if compound.claimed:
         return found, compound.operands, compound.parsed
-    named = Found()
-    # A trove name or path, a name and its short form, then the prose form of
-    # one ID (T8: P1 to P3)
-    if read_by_name(db, text, named):
+    if by_name:
         absorb(found, named)
         return found, [operand_of(text, start, named)], False
     # One leaf that names nothing, or prose in compound form, with its first
