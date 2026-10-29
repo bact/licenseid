@@ -160,6 +160,20 @@ uses the official SPDX License List as its authoritative, pristine data source.
   escapes. The `resolver` block of a result is built from
   `licenseid.__version__`, so it moves with a release.
 
+### 9. `resolver_t7_changes.tsv` and `resolver_compounds_generated.tsv`
+
+- **Data Source:** `licenseid.resolve()` on the corpus database of section 7,
+  once task T7 (compound expressions) was built.
+- **Description:** `resolver_t7_changes.tsv` lists every answer of the parity
+  corpus and the PyPI sample that T7 moved, each with its group;
+  `tests/resolver_changes_t7.py` gives each group its reason and adds the rows
+  to `EXPECTED_CHANGES`. `resolver_compounds_generated.tsv` pins the answer to
+  each compound `tests/compound_cases.py` generates
+  (`tests/test_resolver_compounds_generated.py`).
+- **Characteristics:** Tab-separated, `#` comment lines first, the value as
+  Python `unicode_escape`, `-` for none; the answer fields are written as in
+  section 7.
+
 ## Generating Fixtures
 
 To regenerate or expand the fixture set:
