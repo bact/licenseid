@@ -29,7 +29,7 @@ from typing import Any
 import pytest
 from conftest import make_memory_db_path
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
-from resolver_corpus import _INSERT_EXCEPTION, _INSERT_INDEX, _INSERT_LICENSE
+from seed_sql import INSERT_EXCEPTION, INSERT_INDEX, INSERT_LICENSE, SET_METADATA
 
 import licenseid
 from licenseid import LicenseDatabase
@@ -49,12 +49,12 @@ def seed(db_path: str, spec: dict[str, Any]) -> None:
     """Write the fixture's rows, exceptions and list version to *db_path*."""
     with sqlite3.connect(db_path, uri=True) as conn:
         for lid, name, deprecated, successor in spec["rows"]:
-            conn.execute(_INSERT_LICENSE, (lid, name, deprecated, successor))
-            conn.execute(_INSERT_INDEX, (lid, f"stub text of {lid}"))
+            conn.execute(INSERT_LICENSE, (lid, name, 1, 0, 0, deprecated, successor))
+            conn.execute(INSERT_INDEX, (lid, f"stub text of {lid}"))
         for row in spec["exceptions"]:
-            conn.execute(_INSERT_EXCEPTION, tuple(row))
+            conn.execute(INSERT_EXCEPTION, tuple(row))
         conn.execute(
-            "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
+            SET_METADATA,
             ("license_list_version", spec["list_version"]),
         )
 

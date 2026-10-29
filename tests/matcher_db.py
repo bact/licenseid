@@ -15,6 +15,7 @@ from collections.abc import Generator, Sequence
 from typing import NamedTuple
 
 from conftest import make_memory_db_path
+from seed_sql import INSERT_EXCEPTION, INSERT_INDEX, INSERT_LICENSE, INSERT_METADATA
 
 # Prose long enough to push an input over the 30-word threshold, so
 # Tier 0.5 (marker detection) runs instead of Tier 0 (short text).
@@ -24,18 +25,6 @@ PROSE = (
     " * threads in arrival order, retrying transient failures a few times\n"
     " * before giving up and reporting an error to the caller.\n"
 )
-
-_INSERT_LICENSE = (
-    "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved,"
-    " is_fsf_libre, is_deprecated, superseded_by)"
-    " VALUES (?, ?, ?, ?, ?, ?, ?)"
-)
-_INSERT_INDEX = "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)"
-_INSERT_EXCEPTION = (
-    "INSERT INTO exceptions (exception_id, name, is_deprecated, superseded_by)"
-    " VALUES (?, ?, ?, ?)"
-)
-_INSERT_METADATA = "INSERT INTO db_metadata (key, value) VALUES (?, ?)"
 
 
 class Lic(NamedTuple):
@@ -79,15 +68,15 @@ def seeded_db(
     db_path, keep_alive = make_memory_db_path(prefix)
     with sqlite3.connect(db_path, uri=True) as conn:
         for row in rows:
-            conn.execute(_INSERT_LICENSE, tuple(row)[:7])
+            conn.execute(INSERT_LICENSE, tuple(row)[:7])
             if row.search_text:
-                conn.execute(_INSERT_INDEX, (row.license_id, row.search_text))
+                conn.execute(INSERT_INDEX, (row.license_id, row.search_text))
         if rows and not any(row.search_text for row in rows):
             # A database with an empty search index is not ready; this text
             # matches nothing the tests search for.
-            conn.execute(_INSERT_INDEX, (rows[0].license_id, "unmatchable filler"))
+            conn.execute(INSERT_INDEX, (rows[0].license_id, "unmatchable filler"))
         for exception_id in exception_ids:
-            conn.execute(_INSERT_EXCEPTION, (exception_id, exception_id, False, None))
-        conn.execute(_INSERT_METADATA, ("last_check_datetime", "2026-01-01T00:00:00"))
+            conn.execute(INSERT_EXCEPTION, (exception_id, exception_id, False, None))
+        conn.execute(INSERT_METADATA, ("last_check_datetime", "2026-01-01T00:00:00"))
     yield db_path
     keep_alive.close()
