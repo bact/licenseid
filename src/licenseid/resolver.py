@@ -31,7 +31,7 @@ from licenseid.identifiers import parse_expression, without_outer_brackets
 from licenseid.listlookup import ListLookup
 from licenseid.listsource import choose_list
 from licenseid.plusoperator import plus_after_qualifier, strip_plus_operator
-from licenseid.quotes import UNBALANCED, unquote
+from licenseid.quotes import unquote
 from licenseid.resolveleaf import Found, read_leaf
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
@@ -44,7 +44,6 @@ from licenseid.resolvertypes import (
     Resolution,
     Resolver,
     Source,
-    Step,
     step,
 )
 from licenseid.textinput import has_lone_surrogate
@@ -126,6 +125,8 @@ def _unquoted(text: str, found: Found) -> str:
     if unquoted is None:
         return text
     found.steps.append(step("unquote", True, text, unquoted.text, unquoted.detail))
+    if not unquoted.balanced:
+        found.floor = "separator"  # the value may be cut: a rule of the resolver
     return unquoted.text
 
 
@@ -180,21 +181,14 @@ def _refusal(text: str) -> str | None:
     return None
 
 
-def _step_category(applied: Step) -> str:
-    """The category a step counts as. A quote mark on one end only is a
-    typo or a cut value, so such an ``unquote`` counts as a ``separator``
-    (a rule of the resolver), not as a change of form."""
-    if applied["kind"] == "unquote" and applied["detail"].startswith(UNBALANCED):
-        return "separator"
-    return _AS_CATEGORY.get(applied["kind"], applied["kind"])
-
-
 def _category(found: Found) -> Category:
     """The category of an answer: the one the lookup set, else the highest
     ranked kind among its steps."""
     if found.category is not None:
         return found.category
-    kinds = {_step_category(s) for s in found.steps}
+    kinds = {_AS_CATEGORY.get(s["kind"], s["kind"]) for s in found.steps}
+    if found.floor is not None:
+        kinds.add(found.floor)
     kinds |= {s["kind"] for s in found.expansions}
     ranked = [c for c in CATEGORY_ORDER if c in kinds]
     return ranked[-1] if ranked else "exact"

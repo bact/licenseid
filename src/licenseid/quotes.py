@@ -15,7 +15,8 @@ apostrophe and the grave accent), the one definition; a mark is "double" or
 1. White space at either end is skipped.
 2. While the first and the last mark are of one kind, both are removed (one
    layer: ``""MIT""`` and ``'"MIT"'`` are two).
-3. If one end still has a mark and the other has none, that mark is removed
+3. If one end still has a quotation mark (``STRAY_MARKS``: not a prime or
+   a modifier letter) and the other has no mark, that mark is removed
    (``"MIT``, ``MIT"``: *unbalanced*). Marks of two kinds at the two ends
    (``"MIT'``) leave the value as it is: which of them is the stray one is
    not known.
@@ -52,15 +53,18 @@ from typing import Final, NamedTuple
 
 from licenseid.normalize import QUOTE_KIND
 
-#: The ``detail`` of a step that removed a mark on one end only starts with
-#: this; a consumer that weighs trust reads it (``resolver._category``).
-UNBALANCED: Final = "unbalanced"
+#: The marks that may stand alone on one end (unbalanced): quotation
+#: punctuation. The primes and the modifier letters (``GPL-2.0′``, ``ʻMIT``,
+#: ``MITʼ``) are marks that pair but are too often a unit, a letter or a
+#: footnote to be taken off alone.
+STRAY_MARKS: Final = frozenset(QUOTE_KIND) - frozenset("′″‴ʹʺʻʼʽ")
 
 
 class Unquoted(NamedTuple):
     """A value without the quotes around it, and how they stood."""
 
     text: str
+    balanced: bool  # False: a mark on one end only
     detail: str  # "balanced", "balanced, N layers", "unbalanced, start|end"
 
 
@@ -85,8 +89,9 @@ def unquote(text: str) -> Unquoted | None:
     if not core or (layers == 0 and not side) or _has_inner_mark(core):
         return None
     if side:
-        return Unquoted(core, f"{UNBALANCED}, {side}")
-    return Unquoted(core, "balanced" if layers == 1 else f"balanced, {layers} layers")
+        return Unquoted(core, False, f"unbalanced, {side}")
+    detail = "balanced" if layers == 1 else f"balanced, {layers} layers"
+    return Unquoted(core, True, detail)
 
 
 def _skip_space(text: str, lo: int, hi: int) -> tuple[int, int]:
@@ -105,8 +110,12 @@ def _stray_mark(text: str, lo: int, hi: int) -> str:
     the value makes :func:`_has_inner_mark` refuse it."""
     if lo >= hi:
         return ""
-    start, end = text[lo] in QUOTE_KIND, text[hi - 1] in QUOTE_KIND
-    return "start" if start > end else "end" if end > start else ""
+    start, end = text[lo] in STRAY_MARKS, text[hi - 1] in STRAY_MARKS
+    if start and not end:
+        return "start"  # a prime at the other end stays, and is refused
+    if end and not start:
+        return "end"
+    return ""
 
 
 def _has_inner_mark(core: str) -> bool:

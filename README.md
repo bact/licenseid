@@ -545,14 +545,16 @@ minus sign) and one trailing comma are not marks.
 Quote marks that delimit the whole value are not marks of that kind: the
 `unquote` step takes them off first. Two marks of one kind, double
 (`"`, `“ ”`, `„ “`, `« »`) or single (`'`, `‘ ’`, `‹ ›`, the grave accent
-and the other quotes of SPDX matching guideline 4), delimit it, whichever
-opens; nested pairs (`'"MIT"'`) all come off, with
-`detail` `balanced, 2 layers`. A mark on one end only is taken off too, with
-`detail` `unbalanced, start` or `unbalanced, end`, and the answer counts as
-`separator` (`resolver_rule`), not `lexical`. The marks of a value that has
-others inside (`"MIT" or "Apache-2.0"`), or of two kinds (`"MIT'`), stay, and
-the value is refused as above. An apostrophe inside a word (`AMD's`) is not
-a mark.
+and the other quotes `normalize_text` folds), delimit it, whichever
+opens; nested pairs (`'"MIT"'`) all come off, with `detail` `balanced, 2
+layers`. A quotation mark on one end only is taken off too, with `detail`
+`unbalanced, start` or `unbalanced, end`, and the answer counts as
+`separator` (`resolver_rule`), not `lexical`, because the value may be cut:
+`"MIT'"` is read, `"MIT'` (two kinds) is not. A prime or a modifier letter
+(`GPL-2.0′`) is never taken off alone. The marks of a value that has others
+inside (`"MIT" or "Apache-2.0"`), or of two kinds (`"MIT'`), stay, and the
+value is refused as above. An apostrophe inside a word (`AMD's`) is not a
+mark.
 
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or

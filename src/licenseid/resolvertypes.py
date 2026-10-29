@@ -8,7 +8,8 @@
 A step is something the resolver did to the input (or declined to do, with
 ``applied`` false). Its ``kind`` is one of a closed set; a consumer ignores a
 kind it does not know. Categories are ordered by how much the resolver had
-to decide: the category of a value is the weakest of its steps.
+to decide: the category of a value is the weakest of its steps, or of the
+floor a step sets (an unbalanced ``unquote`` counts as ``separator``).
 """
 
 from typing import Final, Literal, TypedDict

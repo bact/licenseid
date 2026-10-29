@@ -80,8 +80,6 @@ UNBALANCED = [
     ("MIT”", "end"),
     ("«MIT", "start"),
     ("MIT»", "end"),
-    ("ʼMIT", "start"),
-    ("MITʹ", "end"),
     ('""MIT"', "start"),  # a pair, then a stray
     ('"MIT""', "end"),
     ('" MIT', "start"),

@@ -56,6 +56,9 @@ class Found:
     candidates: list[str] = field(default_factory=list)
     category: Category | None = None  # set where the lookup knows better
     reason: str | None = None  # why nothing was resolved, where the lookup knows
+    # The weakest category a step before the leaf allows (a stray quote mark
+    # makes any answer at most ``separator``), whatever its step kind is.
+    floor: Category | None = None
 
 
 class _Dropped(Exception):
