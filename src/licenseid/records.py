@@ -17,6 +17,7 @@ from licenseid.console import status
 from licenseid.listrules import (
     active_exceptions_by_name,
     exception_successor,
+    is_deprecated,
     kept_licenses,
 )
 from licenseid.normalize import normalize_text
@@ -131,6 +132,7 @@ def _exception_records(
         (
             exc["licenseExceptionId"],
             exc["name"],
+            # The raw flag, not is_deprecated(): the row keeps what the file says.
             exc.get("isDeprecatedLicenseId", False),
             exception_successor(exc, by_name),
         )
@@ -171,7 +173,7 @@ def _prepare_license_record(
         is_osi,
         is_fsf,
         is_high_usage,
-        bool(lic.get("isDeprecatedLicenseId", False)),
+        is_deprecated(lic),
         superseded_by,
         pop_score,
         word_count,

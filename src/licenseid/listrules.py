@@ -19,9 +19,10 @@ from collections.abc import Callable, Iterable
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 
 
-def is_deprecated(lic: SpdxLicenseEntry) -> bool:
-    """Whether the entry is a deprecated ID (a missing flag means in use)."""
-    return bool(lic.get("isDeprecatedLicenseId", False))
+def is_deprecated(entry: SpdxLicenseEntry | SpdxExceptionEntry) -> bool:
+    """Whether a licence or exception entry is a deprecated ID (a missing
+    flag means in use)."""
+    return bool(entry.get("isDeprecatedLicenseId", False))
 
 
 def active_ids(licenses: Iterable[SpdxLicenseEntry]) -> set[str]:
@@ -116,7 +117,7 @@ def active_exceptions_by_name(
     return {
         exc["name"].lower(): exc["licenseExceptionId"]
         for exc in exceptions
-        if not exc.get("isDeprecatedLicenseId", False)
+        if not is_deprecated(exc)
     }
 
 
@@ -125,6 +126,6 @@ def exception_successor(
 ) -> str | None:
     """The successor of a deprecated exception: the exception in use with
     the same name; ``None`` for one in use or without such a holder."""
-    if not exc.get("isDeprecatedLicenseId", False):
+    if not is_deprecated(exc):
         return None
     return active_by_name.get(exc["name"].lower())

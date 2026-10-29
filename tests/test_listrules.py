@@ -36,6 +36,7 @@ def test_empty_inputs() -> None:
 def test_is_deprecated(deprecated: bool | None, expected: bool) -> None:
     """A missing flag means in use."""
     assert listrules.is_deprecated(lic_entry("A", deprecated=deprecated)) is expected
+    assert listrules.is_deprecated(exc_entry("A", "N", deprecated)) is expected
 
 
 def test_active_ids_skips_deprecated_and_reads_a_missing_flag_as_active() -> None:
