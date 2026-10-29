@@ -67,9 +67,9 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     ),
     ("MIT OR +", (None, "unresolved", "operand not resolved: +")),
     ("(or later) OR MIT", (None, "unresolved", None)),
-    # P35 (amended): only an ID that ends in a version takes a grant as "+"
-    ("GPL-2.0 or MIT or later", (None, "unresolved", None)),
-    ("MIT OR later OR ISC", (None, "unresolved", "operand not resolved: MIT OR later")),
+    # P35 (decided by the maintainer): an ID with no -or-later form takes "+"
+    ("GPL-2.0 or MIT or later", ("GPL-2.0 OR MIT+", "assumed_only", None)),
+    ("MIT OR later OR ISC", ("ISC OR MIT+", "stated_qualifier", None)),
     ("Apache-2.0 OR later OR ISC", ("Apache-2.0+ OR ISC", "stated_qualifier", None)),
     # a mark after a grant stays in its leaf, judged as alone
     ("GPL-2.0 or later, OR MIT", ("GPL-2.0-or-later OR MIT", "stated_qualifier", None)),

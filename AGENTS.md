@@ -567,6 +567,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `@pytest.mark.benchmark`, run with `--run-benchmark` before a release, and
   keeps a small size in the every-commit run (PR #121). Details from PR #61:
   `working-docs/implementation/spdx-expression-reading.md`.
+- Text-matching accuracy runs in layers: every commit checks the core set
+  (`test_accuracy.py::test_core_accuracy`, about 15 s); `accuracy.yml` runs
+  the must-have licences on a pull request that touches the matching code,
+  and every benchmark weekly. A new module on the text-matching path goes
+  into that workflow's `paths` list, or a change to it skips the check.
 
 ## Git and pull requests
 

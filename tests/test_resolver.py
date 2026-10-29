@@ -182,10 +182,11 @@ def _db() -> Generator[LicenseDatabase, None, None]:
         ("GPL-2.0++", (None, "malformed", [], [], [])),
         ("GPL-2.0-only or later", (None, "malformed", [], [], [])),
         ("GPL-2.0+ or later", (None, "malformed", [], [], [])),
-        # Q14: no -or-later ID, so the grant is the "+" operator (was unresolved)
+        # Q14, P35 (decided by the maintainer): no -or-later ID, so the grant
+        # is the "+" operator, whether or not the ID has a version
         (
-            "MIT or later",  # P35: no version to grant a later one of
-            (None, "unresolved", [], [], []),
+            "MIT or later",
+            ("MIT+", "stated_qualifier", [], [("stated_qualifier", True)], []),
         ),
         # an expression needs a structure and a listed ID, not just the word "or"
         ("MIT OR Foo", (None, "unresolved", [], [], [])),  # Foo is no ID
@@ -205,7 +206,7 @@ def _db() -> Generator[LicenseDatabase, None, None]:
         # Q14: no -or-later ID, so the grant is the "+" operator (was unresolved)
         (
             "MIT (or later)",
-            (None, "unresolved", [], [], []),
+            ("MIT+", "stated_qualifier", [], [("stated_qualifier", True)], []),
         ),
         # a compound under the cap of 150 operators is read, over it refused
         (

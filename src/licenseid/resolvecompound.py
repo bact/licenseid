@@ -20,7 +20,10 @@ accepts all or nothing.
   that read prose, with no reason that would split them.
 - One operand that names nothing makes the value name nothing; its reason
   (a dropped mark: ``character dropped: U+003F``) is the value's, else
-  ``operand not resolved: <operand>``. The operands still come back. With
+  ``operand not resolved: <operand>``, the operand on one line and cut to 60
+  characters (``errors.one_line``). A leaf of several words that reads alone
+  (``BSD 3-Clause``) is refused for its shape: ``operand of several words:
+  <leaf>``. The operands still come back. With
   an operator in lower case, a value refused for an operand that names
   nothing and says nothing (no dropped mark, no misplaced qualifier) is no
   compound: ``GPL-3.0 or higher`` and ``proprietary and
@@ -38,6 +41,7 @@ accepts all or nothing.
 import re
 from typing import Final, NamedTuple
 
+from licenseid.errors import one_line
 from licenseid.exprcanon import (
     Node,
     Token,
@@ -222,14 +226,17 @@ def _fallback(
     """The refusal a value of compound form with a leaf of several words
     gives when no later rule reads it (Q15, P43): the first refused leaf's
     own reason (a dropped mark), else, with the operators in upper case,
-    ``operand not resolved: <leaf>``; None for a value with no operator or
-    two operands side by side, and for a lower-case one with no reason."""
+    ``operand of several words: <leaf>`` for a leaf that reads alone, or
+    ``operand not resolved: <leaf>`` for one that does not; None for a value
+    with no operator or two operands side by side, and for a lower-case one
+    with no reason."""
     if missing_operator(tokens) or not any(t.kind in ("AND", "OR") for t in tokens):
         return None
     upper = written_upper(text, tokens)
     for part in dict.fromkeys(parts):
         leaf = _read_operand(db, part)
-        if leaf.shaped and leaf.found.expression is not None:
+        named = leaf.found.expression is not None
+        if leaf.shaped and named:
             continue
         if leaf.found.reason is not None:
             return Found(
@@ -237,8 +244,9 @@ def _fallback(
                 reason=leaf.found.reason,
                 steps=list(leaf.found.steps),
             )
-        if upper:
-            return Found(category="unresolved", reason=f"operand not resolved: {part}")
+        if upper:  # a leaf that reads alone is refused for its shape (P43)
+            what = "operand of several words" if named else "operand not resolved"
+            return Found(category="unresolved", reason=f"{what}: {one_line(part)}")
     return None
 
 
@@ -305,8 +313,7 @@ def _refuse_operands(
         (operand["category"] for operand in operands), key=CATEGORY_ORDER.index
     )
     own = read[first].found
-    _refuse(
-        found, weakest, own.reason or f"operand not resolved: {operands[first]['text']}"
-    )
+    unnamed = one_line(operands[first]["text"])
+    _refuse(found, weakest, own.reason or f"operand not resolved: {unnamed}")
     if own.reason is not None:
         found.steps = list(own.steps)
