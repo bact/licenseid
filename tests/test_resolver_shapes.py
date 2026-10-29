@@ -5,7 +5,7 @@
 
 """``match`` on the shapes around one licence: an exception after WITH, a
 ``LicenseRef-*``, a qualifier stated twice, a character that hides, and the
-"or later" readers it shares with ``match``."""
+"or later" readers it shares with ``detect``."""
 # pylint: disable=missing-function-docstring
 
 import re

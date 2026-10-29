@@ -188,7 +188,7 @@ class InstrumentedMatcher(LicenseDetector):
     """Thin subclass used only by benchmarks to record per-tier recall.
 
     Production behaviour is unchanged — this class adds `match_traced`,
-    which calls the same private methods as `match` but records at which
+    which calls the same private methods as `detect` but records at which
     tier the correct candidate first appeared.
     """
 

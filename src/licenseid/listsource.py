@@ -49,7 +49,7 @@ still refresh through ``last_update_datetime``). ``reset_choice()`` forgets
 them.
 
 Usable is what :func:`licenseid.dbcheck.check_database_ready` says, read
-fail-open, as the matcher reads it: a lock held elsewhere is no verdict.
+fail-open, as the detector reads it: a lock held elsewhere is no verdict.
 """
 
 import os

@@ -92,7 +92,7 @@ class _MatchContext:
 
 class LicenseDetector:
     """
-    Main matcher class that implements Tier 1 (FTS5) and Tier 2 (RapidFuzz)
+    Main detector class that implements Tier 1 (FTS5) and Tier 2 (RapidFuzz)
     matching.
     """
 

@@ -46,7 +46,7 @@ FACTORS: dict[str, list[Any]] = {
 }
 
 #: (description, argument string, expected exit or None) for A4. These are
-#: about the parser, not the matcher: abbreviations, repeats, ``--``, empty
+#: about the parser, not the detector: abbreviations, repeats, ``--``, empty
 #: values, and flags swallowed as the value of the option before them.
 SYNTAX: list[tuple[str, str, int | None]] = [
     ("repeat --json", "--json --json MIT", 0),

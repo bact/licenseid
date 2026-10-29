@@ -471,7 +471,7 @@ def _can_rebuild(db_path: str, exc: sqlite3.Error) -> bool:
 
 def lookup_error(db_path: str, exc: sqlite3.Error) -> DatabaseNotReadyError:
     """The refusal for a lookup that failed in a database found ready when the
-    matcher was built (deleted, truncated, overwritten since).
+    detector was built (deleted, truncated, overwritten since).
 
     Only a file ``licenseid update`` can rebuild is pointed at it (see
     ``_can_rebuild``). A lock another process holds says nothing about the
