@@ -16,6 +16,7 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | CLI blank input      | commands x blank arg / --text / --id / stdin |
 | API ``match()``      | every subset of text / license_id / file     |
 | API ``is_*()``       | PREDICATES x text / license_id / file        |
+| API ``resolve()``    | the database at the default path (STATES)    |
 
 Current precedence when several inputs are given (pinned below; the losing
 input is ignored without a warning):
@@ -34,11 +35,14 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner, Result
 from conftest import RESULT_KEYS, json_lines, make_mit_db_path
+from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import MIT_TEXT
 from input_payloads import PAYLOADS, Payload
+from resolve_states import OUTDATED, OUTDATED_WARNING, STATES, VERSION, build
 
+from licenseid import resolve
 from licenseid.cli import cli
-from licenseid.errors import InvalidInputError
+from licenseid.errors import DatabaseNotReadyError, InvalidInputError
 from licenseid.matcher import AggregatedLicenseMatcher
 from tools.cli_matrix.judge import PLAIN
 
@@ -325,3 +329,25 @@ def test_a_missing_file_path_raises_oserror(mit_db: str, tmp_path: Path) -> None
     """Not worded as a licenseid error: the API leaves I/O errors as they are."""
     with pytest.raises(FileNotFoundError):
         AggregatedLicenseMatcher(mit_db).match(file_path=str(tmp_path / "nope"))
+
+
+# --- API resolve(): the database at the default path ---
+
+
+@pytest.mark.parametrize("state", STATES)
+def test_resolve_matrix(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], state: str
+) -> None:
+    """With no database given, resolve() reads the one at the default path;
+    a state it cannot read raises, its message unchanged from 0.6.0."""
+    refusal = build(state, monkeypatch)
+    capsys.readouterr()
+    if refusal is not None:
+        with pytest.raises(DatabaseNotReadyError, match=f"^{re.escape(refusal)}$"):
+            resolve("MIT")
+        assert capsys.readouterr().err == ""
+        return
+    got = resolve("MIT")
+    assert (got["expression"], got["category"]) == ("MIT", "exact")
+    assert [entry["version"] for entry in got["lists"]] == [VERSION]
+    assert capsys.readouterr().err == (OUTDATED_WARNING if state == OUTDATED else "")
