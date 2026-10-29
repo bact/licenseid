@@ -183,7 +183,10 @@ def _with_form(text: str, operator: re.Match[str]) -> list[Step]:
 
 def _exception(db: ListLookup, text: str, found: Found) -> str | None:
     """The listed exception *text* names, its case and its deprecation read
-    as for a licence (_deprecation), or None."""
+    as for a licence (_deprecation), or None. An ``AdditionRef-*`` names
+    itself, as written and unchecked, as a ``LicenseRef-*`` does (Q20)."""
+    if is_addition_ref(text):
+        return text
     details = db.get_exception_details(text)
     if details is None:
         return None

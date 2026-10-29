@@ -186,8 +186,8 @@ SHAPES: list[tuple[str, tuple[str | None, str, list[str]]]] = [
     ("GPL-2.0-only or-later", (None, "unresolved", [])),
     # the grant after a WITH is not read
     ("GPL-2.0 WITH Classpath-exception-2.0 or later", (None, "unresolved", [])),
-    # Q20: an AdditionRef is no listed exception
-    ("MIT WITH AdditionRef-x", (None, "unresolved", [])),
+    # Q20: an AdditionRef names itself, as a LicenseRef does (was unresolved)
+    ("MIT WITH AdditionRef-x", ("MIT WITH AdditionRef-x", "exact", [])),
     # Q16: a LicenseRef is exempt from the key cap (was unresolved)
     ("LicenseRef-" + "a" * 120, ("LicenseRef-" + "a" * 120, "exact", [])),
     # Q21: square and curly brackets are no brackets

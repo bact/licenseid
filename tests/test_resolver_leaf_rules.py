@@ -98,3 +98,36 @@ def test_a_long_run_of_white_space_around_with_is_fast(
     for value in values:
         resolve(value, corpus_db)
     assert time.monotonic() - start < 1.0
+
+
+# -- Q20: AdditionRef- --------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("MIT WITH AdditionRef-x", ("MIT WITH AdditionRef-x", "exact", [])),
+        (
+            "LicenseRef-a WITH DocumentRef-d:AdditionRef-b.1",
+            ("LicenseRef-a WITH DocumentRef-d:AdditionRef-b.1", "exact", []),
+        ),
+        (
+            "mit with additionref-X",
+            ("MIT WITH additionref-X", "lexical", ["operator_case", "id_case"]),
+        ),
+        (
+            "GPL-2.0+ WITH AdditionRef-x",
+            ("GPL-2.0-or-later WITH AdditionRef-x", "plus_to_or_later", []),
+        ),
+        ("MIT WITH AdditionRef-", (None, "unresolved", [])),
+        ("MIT WITH AdditionRef-x_y", (None, "unresolved", [])),
+        ("MIT WITH AdditionRef-x+", (None, "unresolved", [])),
+        ("AdditionRef-x", (None, "unresolved", [])),  # an exception, no licence
+        ("Foo WITH AdditionRef-x", (None, "unresolved", [])),
+    ],
+    ids=lambda v: v[:32] if isinstance(v, str) else "",
+)
+def test_an_addition_ref_is_read_as_written(
+    corpus_db: LicenseDatabase, value: str, expected: tuple[object, ...]
+) -> None:
+    assert _answer(value, corpus_db) == expected
