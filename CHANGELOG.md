@@ -40,17 +40,13 @@ and this project adheres to
   raised `UnicodeEncodeError` after `WITH` and dropped the character elsewhere
   ([#117])
 - `resolve()` answers `unresolved` for a value it read only by dropping a mark
-<<<<<<< HEAD
   (`Apache 2.0?`, `MIT*`, U+FFFD), not the licence it did not write
-=======
-  (`Apache 2.0?`, `MIT*`, `"MIT"`, U+FFFD), not the licence it did not write
   ([#120])
->>>>>>> resolver-0.7-t6-dropguard
 
 [#117]: https://github.com/bact/licenseid/pull/117
-[#121]: https://github.com/bact/licenseid/pull/121
-[#120]: https://github.com/bact/licenseid/pull/120
 [#119]: https://github.com/bact/licenseid/pull/119
+[#120]: https://github.com/bact/licenseid/pull/120
+[#121]: https://github.com/bact/licenseid/pull/121
 
 ## [0.6.0] - 2026-10-27
 
