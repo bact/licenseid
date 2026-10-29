@@ -115,13 +115,20 @@ enabled = true
 path = "hatch_build.py"
 
 [tool.hatch.build.targets.sdist]
-exclude = [
-    "AGENTS.md",
-    "GEMINI.md",
-    "benchmarks/**",
-    "scripts/**",
-    "tests/fixtures/**",
-    "tools/**",
+# An allowlist, so a new file is not shipped by default: what a user or a
+# packager needs to build and read the package. Hatch adds pyproject.toml,
+# PKG-INFO and .gitignore; hatch_build.py adds the packaged bundle. Tests,
+# their fixtures, CI files and working-docs/ stay out.
+only-include = [
+    "CHANGELOG.md",
+    "CITATION.cff",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md",
+    "codemeta.json",
+    "docs",
+    "hatch_build.py",
+    "src",
 ]
 
 [tool.hatch.build.targets.wheel]

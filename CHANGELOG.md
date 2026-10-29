@@ -62,6 +62,8 @@ and this project adheres to
   ([#122])
 - `resolve()` caps each half of a `WITH` at 100 characters, not the whole
   ([#122])
+- The sdist ships only the source, docs and project metadata: no tests, CI
+  files or internal notes, and no links to files it leaves out
 
 ### Fixed
 
