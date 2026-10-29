@@ -1,0 +1,25 @@
+# The answers task T9 (trove names and paths, trailing names) moved in the
+# parity corpus and the PyPI sample. value: Python unicode_escape; group: the
+# rule that moved it (its reason is in tests/resolver_changes_t9.py); then
+# the answer, its fields written as in the other answer fixtures.
+value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
+Boost Software License 1.0 (BSL-1.0)	trailing	BSL-1.0	listed_name	-	trailing_name,listed_name	Boost Software License 1.0,BSL-1.0	-	-	list_data	yes	-
+CC0 1.0 Universal (CC0 1.0) Public Domain Dedication	stated	CC0-1.0	trove_name	-	trove_name	CC0-1.0	-	-	resolver_rule	yes	-
+Eclipse Public License 2.0 (EPL-2.0)	trailing	EPL-2.0	listed_name	-	trailing_name,listed_name	Eclipse Public License 2.0,EPL-2.0	-	-	list_data	yes	-
+GNU Affero General Public License v3	assumed	AGPL-3.0	assumed_only	AGPL-3.0-only,AGPL-3.0-or-later	trove_name	AGPL-3.0	assumed_only!	AGPL-3.0	none	yes	-
+GNU Affero General Public License v3 or later (AGPLv3+)	stated	AGPL-3.0-or-later	trove_name	-	trove_name	AGPL-3.0-or-later	-	-	resolver_rule	yes	-
+GNU General Public License v2 (GPLv2)	assumed	GPL-2.0	assumed_only	GPL-2.0-only,GPL-2.0-or-later	trove_name	GPL-2.0	assumed_only!	GPL-2.0	none	yes	-
+GNU General Public License v2 or later (GPLv2+)	stated	GPL-2.0-or-later	trove_name	-	trove_name	GPL-2.0-or-later	-	-	resolver_rule	yes	-
+GNU General Public License v3 (GPLv3)	assumed	GPL-3.0	assumed_only	GPL-3.0-only,GPL-3.0-or-later	trove_name	GPL-3.0	assumed_only!	GPL-3.0	none	yes	-
+GNU General Public License v3 or later (GPLv3+)	stated	GPL-3.0-or-later	trove_name	-	trove_name	GPL-3.0-or-later	-	-	resolver_rule	yes	-
+GNU Lesser General Public License v2 (LGPLv2)	assumed	LGPL-2.0	assumed_only	LGPL-2.0-only,LGPL-2.0-or-later	trove_name	LGPL-2.0	assumed_only!	LGPL-2.0	none	yes	-
+GNU Lesser General Public License v2 or later (LGPLv2+)	stated	LGPL-2.0-or-later	trove_name	-	trove_name	LGPL-2.0-or-later	-	-	resolver_rule	yes	-
+GNU Lesser General Public License v3 (LGPLv3)	assumed	LGPL-3.0	assumed_only	LGPL-3.0-only,LGPL-3.0-or-later	trove_name	LGPL-3.0	assumed_only!	LGPL-3.0	none	yes	-
+GNU Lesser General Public License v3 or later (LGPLv3+)	stated	LGPL-3.0-or-later	trove_name	-	trove_name	LGPL-3.0-or-later	-	-	resolver_rule	yes	-
+ISC License (ISCL)	stated	ISC	trove_name	-	trove_name	ISC	-	-	resolver_rule	yes	-
+License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication	path	CC0-1.0	trove_name	-	trove_path,trove_name	CC0 1.0 Universal (CC0 1.0) Public Domain Dedication,CC0-1.0	-	-	resolver_rule	yes	-
+License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)	path	LGPL-3.0-or-later	trove_name	-	trove_path,trove_name	GNU Lesser General Public License v3 or later (LGPLv3+),LGPL-3.0-or-later	-	-	resolver_rule	yes	-
+License :: OSI Approved :: MIT License	path	MIT	listed_name	-	trove_path,listed_name	MIT License,MIT	-	-	list_data	yes	-
+MIT License (MIT)	trailing	MIT	listed_name	-	trailing_name,listed_name	MIT License,MIT	-	-	list_data	yes	-
+Mozilla Public License 2.0 (MPL 2.0)	trailing	MPL-2.0	listed_name	-	trailing_name,listed_name	Mozilla Public License 2.0,MPL-2.0	-	-	list_data	yes	-
+The Unlicense (Unlicense)	trailing	Unlicense	listed_name	-	trailing_name,listed_name	The Unlicense,Unlicense	-	-	list_data	yes	-

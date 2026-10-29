@@ -57,7 +57,7 @@ from licenseid.exprtokens import ID_WORD
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import WITH_OPERATOR, declared_grant_id_text, granted_id_text
 from licenseid.quotes import unquote
-from licenseid.resolveleaf import Found, category_of, read_leaf
+from licenseid.resolveleaf import Found, category_of
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
     TRUST,
@@ -66,6 +66,7 @@ from licenseid.resolvertypes import (
     Step,
     step,
 )
+from licenseid.resolvetrove import read_alone
 
 # A mark people write between two licences that SPDX does not read as an
 # operator ("MIT/Apache-2.0", "MIT, ISC", "MIT | ISC", "MIT & ISC").
@@ -267,7 +268,7 @@ def _read_operand(db: ListLookup, text: str) -> _Leaf:
     inner, steps = _unquoted(text)
     found = Found(steps=steps)
     leaf = Found()
-    if read_leaf(db, inner, leaf):
+    if read_alone(db, inner, leaf):
         absorb(found, leaf)
     else:
         found.category, found.reason = "unresolved", not_an_operator(inner)

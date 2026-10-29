@@ -88,7 +88,11 @@ GOLDEN: dict[str, tuple[str, str, bool]] = {
         True,
     ),
     "GNU Lesser General Public License v2 (LGPLv2)": ("LGPL-2.0", "assumed", True),
-    "GNU Lesser General Public License v2 or later (LGPLv2+)": ("", "none", True),
+    "GNU Lesser General Public License v2 or later (LGPLv2+)": (
+        "LGPL-2.0-or-later",
+        "stated",
+        True,
+    ),
     "GNU Lesser General Public License v3 (LGPLv3)": ("LGPL-3.0", "assumed", True),
     "GNU Lesser General Public License v3 or later (LGPLv3+)": (
         "LGPL-3.0-or-later",
@@ -135,7 +139,7 @@ GOLDEN: dict[str, tuple[str, str, bool]] = {
     "Intel Open Source License": ("Intel", "stated", True),
     "Jabber Open Source License": ("", "none", True),
     "MITRE Collaborative Virtual Workspace License (CVW)": ("", "none", True),
-    "Sun Industry Standards Source License (SISSL)": ("", "none", True),
+    "Sun Industry Standards Source License (SISSL)": ("SISSL", "stated", True),
     "X.Net License": ("Xnet", "stated", True),
     "Other/Proprietary License": ("", "none", False),
     "Public Domain": ("", "none", False),

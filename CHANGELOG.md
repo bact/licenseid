@@ -33,6 +33,9 @@ and this project adheres to
   each step; it reads `[MIT]`, `AdditionRef-*` after `WITH`, and "or later"
   on an ID with no `-or-later` form as `+` (`MIT or later` is `MIT+`)
   ([#122], [#125])
+- `resolve()` reads PyPI trove classifier names and paths (`License :: OSI
+  Approved :: MIT License`) and `MIT License (MIT)`; category `trove_name`
+  ([#126])
 
 ### Changed
 
@@ -66,6 +69,7 @@ and this project adheres to
 [#121]: https://github.com/bact/licenseid/pull/121
 [#122]: https://github.com/bact/licenseid/pull/122
 [#125]: https://github.com/bact/licenseid/pull/125
+[#126]: https://github.com/bact/licenseid/pull/126
 
 ## [0.6.0] - 2026-10-27
 

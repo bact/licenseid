@@ -131,7 +131,9 @@ def test_every_category_a_value_can_reach_is_pinned() -> None:
         for case in CASES
         for step in case["result"]["steps"] + case["result"]["expansions"]
     }
-    assert categories == set(CATEGORY_ORDER)
+    # trove_name is not a single-value category of this fixture: the rows it
+    # needs are in test_resolver_trove.py
+    assert categories == set(CATEGORY_ORDER) - {"trove_name"}
     assert kinds >= {
         "brackets",
         "deprecated_ambiguous",

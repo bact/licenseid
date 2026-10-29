@@ -154,10 +154,10 @@ def test_lgplv2_special_case_is_read_as_written() -> None:
     assert entry == (("LGPL-2.0",), "assumed", True)
 
 
-def test_no_other_lesser_v2_name_is_read() -> None:
-    """P45: the Lesser v2 or later name stays unresolved."""
+def test_the_lesser_v2_or_later_name_states_its_grant() -> None:
+    """P45 (maintainer, 2026-10-29): the grant is written in the name."""
     entry = TROVE_NAMES["GNU Lesser General Public License v2 or later (LGPLv2+)"]
-    assert entry.reading == "none"
+    assert entry == (("LGPL-2.0-or-later",), "stated", True)
 
 
 @pytest.mark.parametrize(

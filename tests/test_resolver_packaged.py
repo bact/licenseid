@@ -39,8 +39,13 @@ def _differences(db: LicenseDatabase, values: list[str]) -> list[str]:
     found = []
     for value in values:
         with_db, without = resolve(value, db), resolve(value, source="packaged")
-        assert [entry["source"] for entry in with_db["lists"]] == ["database"]
-        assert [entry["source"] for entry in without["lists"]] == ["packaged"]
+        # the SPDX entry says where it was read; the trove vocabulary, when a
+        # name rests on it, is part of licenseid and always "packaged"
+        assert with_db["lists"][0]["source"] == "database"
+        assert without["lists"][0]["source"] == "packaged"
+        assert [e["id"] for e in with_db["lists"]] == [
+            e["id"] for e in without["lists"]
+        ]
         if masked(with_db) != masked(without):
             found.append(f"{value!r}: {with_db} != {without}")
     return found

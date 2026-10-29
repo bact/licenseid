@@ -174,6 +174,15 @@ uses the official SPDX License List as its authoritative, pristine data source.
   Python `unicode_escape`, `-` for none; the answer fields are written as in
   section 7.
 
+### 10. `resolver_t9_changes.tsv`
+
+- **Data Source:** `licenseid.resolve()` on the corpus database of section 7,
+  once task T9 (trove names and paths, an agreeing trailing name) was built.
+- **Description:** every answer of the parity corpus and the PyPI sample that
+  T9 moved, each with its group; `tests/resolver_changes_t9.py` gives each
+  group its reason and adds the rows to `EXPECTED_CHANGES`.
+- **Characteristics:** As section 9.
+
 ## Generating Fixtures
 
 To regenerate or expand the fixture set:
