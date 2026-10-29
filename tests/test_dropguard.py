@@ -12,7 +12,13 @@ import time
 
 import pytest
 
-from licenseid.dropguard import code_points, dropped, without_end_marks
+from licenseid.dropguard import (
+    code_points,
+    dropped,
+    end_marks,
+    lead_marks,
+    trim_end_mark,
+)
 
 
 @pytest.mark.parametrize(
@@ -62,11 +68,11 @@ def test_code_points() -> None:
     ("text", "expected"),
     [
         ("MIT.", ""),
-        ("MIT..", ""),
+        ("MIT..", "."),  # two marks at the end
         ("MIT,", ""),
         ("MIT, ", ""),  # one comma at the end, white space after it
         ("MIT,,", ","),
-        ("MIT,.", ","),  # the comma is no longer the last character
+        ("MIT,.", ",."),  # the comma is no longer the last character
         ("MIT, X", ","),
         ("A,B", ","),
         (",", ""),
@@ -118,26 +124,63 @@ def test_it_is_linear(text: str) -> None:
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
-        ("MIT License", "MIT License"),
-        ("MIT License.", "MIT License"),
-        ("MIT License,", "MIT License"),
-        ("MIT License. ,", "MIT License"),
-        ("MIT License...  ", "MIT License"),
-        ("MIT License,.", "MIT License,"),  # a comma before a dot stays
-        ("MIT License;", "MIT License;"),
-        ("MIT License:", "MIT License:"),
-        ("MIT License\u2026", "MIT License\u2026"),
-        ("", ""),
-        (" . ", ""),
+        ("MIT;", "MIT"),
+        ("MIT :", "MIT"),
+        ("MIT License ; ", "MIT License"),
+        ("MIT.", "MIT"),
+        ("MIT,", "MIT"),
+        ("MIT", None),
+        ("MIT;;", None),
+        ("MIT.;", None),
+        ("MIT. ;", None),
+        ("MIT...", None),
+        ("MIT\u2026;", None),
+        ("MIT -;", None),
+        ("MIT?;", "MIT?"),
+        (";", None),
+        (" ; ", None),
+        ("", None),
     ],
 )
-def test_without_end_marks_leaves_off_what_dropped_allows(
-    text: str, expected: str
-) -> None:
-    assert without_end_marks(text) == expected
+def test_trim_end_mark_takes_off_one_mark(text: str, expected: str | None) -> None:
+    assert trim_end_mark(text) == expected
 
 
-def test_without_end_marks_is_linear() -> None:
+def test_trim_end_mark_takes_only_the_marks_asked_for() -> None:
+    assert trim_end_mark("MIT.", ";:") is None
+    assert trim_end_mark("MIT;", ";:") == "MIT"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("MIT", ""),
+        ("MIT.", ""),
+        ("MIT;", ""),
+        ("MIT..", ".."),
+        ("MIT...", "..."),
+        ("MIT.,", ".,"),
+        ("MIT. ;", ".;"),
+        ("MIT\u2026.", "\u2026."),
+        ("MIT;;", ";;"),
+        ("M.I.T", ""),
+    ],
+)
+def test_end_marks_are_two_or_more(text: str, expected: str) -> None:
+    assert end_marks(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [("MIT", ""), ("-MIT", "-"), ("...GPL", "..."), (".-x", ".-"), ("a-b", "")],
+)
+def test_lead_marks_are_dots_and_dashes_at_the_start(text: str, expected: str) -> None:
+    assert lead_marks(text) == expected
+
+
+def test_the_end_rules_are_linear() -> None:
     start = time.monotonic()
-    without_end_marks("x" + ". " * 200_000)
+    end_marks("x" + ". " * 200_000)
+    trim_end_mark("x" + " " * 200_000 + ";")
+    lead_marks("-" * 200_000)
     assert time.monotonic() - start < 2

@@ -87,7 +87,10 @@ READ = [
         None,
     ),
     ("Apache License, Version 2.0.", "Apache-2.0", ["prose_form", "separator"], None),
-    ("The MIT License...", "MIT", ["prose_form", "listed_name"], None),
+    ("MIT License ; ", "MIT", ["trim", "prose_form"], None),
+    ("MIT License:", "MIT", ["prose_form"], None),
+    ("BSD 3-Clause License;", "BSD-3-Clause", ["prose_form", "separator"], None),
+    ("The MIT License;", "MIT", ["prose_form", "listed_name"], None),
 ]
 #: Values that stay unresolved, with the reason for each.
 STAYS = [
@@ -131,7 +134,6 @@ STAYS = [
     "GNU General Public License, Version 3.0",
     "GNU Lesser General Public License v3",  # a trove name: assumed, not P2
     "BSD License v3",
-    "MIT License ...",  # a dangling mark is not left off
     "MIT License -",
     "Apache License,Version 2.0",
     "MIT License (Apache-2.0)",  # the parts differ
@@ -413,12 +415,14 @@ def _time_the_rules(db: LicenseDatabase, size: int) -> None:
         ("1. MIT License", "word dropped: 1"),
         ("- MIT License", "character dropped: U+002D"),
         ("The REM MIT License", "word dropped: rem"),
-        ("MIT License;", "character dropped: U+003B"),
-        ("MIT License:", "character dropped: U+003A"),
+        ("MIT License;;", "character dropped: U+003B"),
+        ("MIT License...", "character dropped: U+002E"),
+        ("MIT License ...", "character dropped: U+002E"),
+        ("The MIT License...", "character dropped: U+002E"),
         ("MIT License\u2026", "character dropped: U+2026"),
         ("MIT License?", "character dropped: U+003F"),
         ("MIT License*", "character dropped: U+002A"),
-        ("BSD 3-Clause License;", "character dropped: U+003B"),
+        ("BSD 3-Clause License;;", "character dropped: U+003B"),
         ("Apache License, Version 2.0?", "character dropped: U+003F"),
     ],
     ids=lambda v: v[:20],

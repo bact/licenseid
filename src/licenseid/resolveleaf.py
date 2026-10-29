@@ -25,7 +25,7 @@ read.
 import re
 from dataclasses import dataclass, field
 
-from licenseid.dropguard import code_points, dropped, dropped_words
+from licenseid.dropguard import code_points, dropped, dropped_words, trim_end_mark
 from licenseid.errors import one_line
 from licenseid.exprtokens import is_addition_ref, is_license_ref
 from licenseid.identifiers import without_outer_brackets
@@ -117,9 +117,28 @@ def read_leaf(db: ListLookup, text: str, found: Found) -> bool:
     False if it names none, or if the licence or the exception is longer
     than any ID (:func:`over_key_cap`). True with ``unresolved`` and a
     ``reason`` if a loose reading would drop a character that says something
-    (``Apache 2.0?``)."""
+    (``Apache 2.0?``).
+
+    One ``;`` or ``:`` at the end (``MIT;``) is an ending, not a mark that
+    says something: when the value is refused for it, it is read again
+    without it, with a ``separator`` step (P77)."""
     if over_key_cap(text):
         return False
+    read = _read(db, text, found)
+    if read and found.expression is None and found.reason is not None:
+        trimmed = trim_end_mark(text, ";:")
+        again = Found()
+        if trimmed is not None and _read(db, trimmed, again) and again.expression:
+            found.expression, found.category = again.expression, again.category
+            found.steps = [step("separator", True, text, trimmed, "end mark")]
+            found.steps += again.steps
+            found.expansions, found.candidates = again.expansions, again.candidates
+            found.reason = None
+    return read
+
+
+def _read(db: ListLookup, text: str, found: Found) -> bool:
+    """:func:`read_leaf` without the cap and the ending of the value."""
     try:
         return _with(db, text, found) or _one(db, text, found)
     except _Dropped as refusal:

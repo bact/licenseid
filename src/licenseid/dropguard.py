@@ -13,10 +13,12 @@ is a decoding error. Reading them as ``Apache-2.0`` and ``MIT`` asserts what
 the author did not write. :func:`dropped` names the characters that would be
 lost, so that the caller can refuse the reading.
 
-Marks of dash or dots that stand alone at either end of a value (``MIT -``,
-``-- MIT``, ``MIT ...``) are dropped marks too: they say the value goes on or
-is a list item. Dots touching the word (``MIT...``) are the end of a sentence
-and pass.
+Marks at the ends are judged apart. At the start nothing is a separator: a
+dash or dots (``-- MIT``, ``-MIT``, ``.GPL-3.0-only``, which is the end of
+``AGPL-3.0-only``) are a list marker or a cut value. At the end one ``.`` or
+``,`` passes (``MIT.``), one ``;`` or ``:`` is trimmed by the reader
+(:func:`trim_end_mark`), and two or more marks, an ellipsis or a dash alone
+(``MIT;;``, ``MIT...``, ``MIT -``) are dropped marks.
 
 Allowed to drop: white space, ``_``, ``.``, a dash and one comma at the end.
 A dash is a character of ``normalize.RE_DASHES`` (the hyphen-minus, the
@@ -45,6 +47,8 @@ from licenseid.normalize import RE_DASHES, RE_QUOTES
 from licenseid.versionkey import version_key
 
 _ALLOWED: Final = frozenset("_.")
+_END_MARKS: Final = ".,;:"
+_ELLIPSIS: Final = "\u2026"
 
 
 def _is_separator(char: str) -> bool:
@@ -57,38 +61,70 @@ def dropped(text: str) -> str:
     """The characters of *text* a loose reading would drop that are not
     separators, each once, in the order they first appear; empty if there are
     none. One comma at the end (after white space) is allowed, a second is not.
-    A dash or dot token at either end of a text of several words (``MIT -``,
-    ``-- MIT``) is a dropped mark too.
+    Marks at the ends are judged by :func:`lead_marks`, :func:`end_marks` and
+    a dash or dots standing alone.
     """
     body = text.rstrip()
-    body = body.removesuffix(",")
     seen: dict[str, None] = {}
-    for char in body:
+    for char in body.removesuffix(","):
         if RE_QUOTES.match(char) or not (char.isalnum() or _is_separator(char)):
             seen[char] = None
-    for char in _dangling(body):
+    for char in lead_marks(body) + end_marks(body) + _dangling(body):
         seen[char] = None
     return "".join(seen)
 
 
+def lead_marks(text: str) -> str:
+    """The dots and dashes at the very start of *text* (``-MIT``,
+    ``...GPL-3.0-only``): a list marker, or a cut value (``.GPL-3.0-only``
+    is the end of ``AGPL-3.0-only``), never an ID spelt loosely."""
+    stop = 0
+    while stop < len(text) and (text[stop] == "." or RE_DASHES.match(text[stop])):
+        stop += 1
+    return text[:stop]
+
+
+def end_marks(text: str) -> str:
+    """The marks at the end of *text* when there are two or more (``MIT;;``,
+    ``MIT.,``, ``MIT...``, ``MIT ; .``), white space between them left out;
+    empty for none or one. One mark (``MIT.``) is judged by the rest of
+    :func:`dropped`, and :func:`trim_end_mark` reads ``;`` and ``:``."""
+    marks = []
+    for char in reversed(text):
+        if char in _END_MARKS or char == _ELLIPSIS:
+            marks.append(char)
+        elif not char.isspace():
+            break
+    return "".join(reversed(marks)) if len(marks) > 1 else ""
+
+
+def trim_end_mark(text: str, marks: str = _END_MARKS) -> str | None:
+    """*text* without its one *marks* mark at the end, white space around it
+    left off too, or None. None when there is no such mark, when another
+    mark, an ellipsis or a dash stands before it (``MIT;;``, ``MIT...``,
+    ``MIT -;``), or when nothing else is left."""
+    body = text.rstrip()
+    if not body or body[-1] not in marks:
+        return None
+    rest = body[:-1].rstrip()
+    if not rest or rest[-1] in _END_MARKS + _ELLIPSIS or RE_DASHES.match(rest[-1]):
+        return None
+    return rest
+
+
 def _dangling(text: str) -> str:
-    """The marks of a first or last white-space-separated token of *text* that
-    is nothing but dashes and dots, when another token stands beside it."""
+    """The marks of the last white-space-separated token of *text* when it is
+    nothing but dashes and dots and another token stands beside it (``MIT -``,
+    ``MIT ...``); a lone dot is an end mark, not a dangling one. A first token
+    of marks is a lead mark (:func:`lead_marks`)."""
     tokens = text.split()
-    if len(tokens) < 2:
-        return ""
-    ends = (tokens[0], tokens[-1])
-    return "".join(
-        token
-        for token in ends
-        if all(char == "." or RE_DASHES.match(char) for char in token)
-    )
+    last = tokens[-1] if len(tokens) > 1 else ""
+    return last if _only_marks(last) and last != "." else ""
 
 
-def has_dangling_marks(text: str) -> bool:
-    """Whether *text* has a dash or dot token at either end (``MIT ...``);
-    the prose forms, which leave dots off the end, refuse such a value."""
-    return bool(_dangling(text.rstrip().removesuffix(",")))
+def _only_marks(token: str) -> bool:
+    """Whether *token* is nothing but dots and dashes."""
+    return all(char == "." or RE_DASHES.match(char) for char in token)
 
 
 def dropped_words(text: str) -> str:
@@ -105,19 +141,6 @@ def dropped_words(text: str) -> str:
         else:
             lost[word] = None
     return " ".join(lost)
-
-
-def without_end_marks(text: str) -> str:
-    """*text* without the marks at its end that :func:`dropped` lets pass:
-    white space, dots and one comma, so that a reading of the rest drops
-    nothing more than a loose ID drops. The prose forms of ``resolve`` use
-    it (``MIT License.``); a ``;``, ``:`` or ``\u2026`` stays and is refused
-    as ``MIT;`` is."""
-    body = text.rstrip().removesuffix(",")
-    end = len(body)
-    while end and (body[end - 1].isspace() or body[end - 1] == "."):
-        end -= 1
-    return body[:end]
 
 
 def code_points(chars: str) -> str:

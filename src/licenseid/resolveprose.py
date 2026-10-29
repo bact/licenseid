@@ -27,11 +27,12 @@ v3`` is ``GNU General Public 3``, which names nothing).
 P3, a leading ``The``, only together with P1, P2 or a listed name (``The
 MIT License``). ``The MIT`` is no prose form of anything.
 
-The marks the drop guard lets pass at the end (white space, dots and one
-comma: :func:`licenseid.dropguard.without_end_marks`) are left off first;
-``MIT License;`` is refused as ``MIT;`` is. The reading is a ``prose_form``
-step from the value to the reduction, then the steps of the reduction; the
-category is the weakest of them (``prose_form`` at the least).
+One mark at the end (``.``, ``,``, ``;`` or ``:``:
+:func:`licenseid.dropguard.trim_end_mark`) is left off first, as for a leaf;
+any other mark stays on the reduction, which the drop guard refuses
+(``MIT License;;``, ``MIT License...``, ``MIT License?``). The reading is a
+``prose_form`` step from the value to the reduction, then the steps of the
+reduction; the category is the weakest of them (``prose_form`` at the least).
 
 A prose form is several words, so it is no operand of a compound (P43).
 :func:`read_alone` tells the compound reader whether a leaf of several words
@@ -40,7 +41,7 @@ reads alone, for its reason.
 
 import re
 
-from licenseid.dropguard import has_dangling_marks, without_end_marks
+from licenseid.dropguard import trim_end_mark
 from licenseid.listlookup import ListLookup
 from licenseid.resolveleaf import Found, read_leaf
 from licenseid.resolvertypes import Step, step
@@ -77,9 +78,9 @@ def read_prose(db: ListLookup, text: str, found: Found) -> bool:
 
 def _prose(db: ListLookup, text: str, found: Found) -> bool:
     """P1 to P3 on *text* with no bracket at its end."""
-    # A dash or dots standing alone at an end are a dropped mark (the drop
-    # guard refuses them when it reads the reduction); they are not left off.
-    body = text.strip() if has_dangling_marks(text) else without_end_marks(text)
+    # One mark at the end is an ending, as for a leaf (P77); other marks stay
+    # on the reduction, which the drop guard refuses.
+    body = trim_end_mark(text) or text.strip()
     if is_no_licence(body):  # a name that states no licence stays so (Q22)
         return False
     rest = _after_article(body)
@@ -117,8 +118,8 @@ def _by_rule(
     word (``MIT License;``) stay on the reduction, so that the drop guard
     refuses it with its reason (P64); they never help a reading. P2 has two
     reductions, which must agree (P68)."""
-    core = body[: _word_end(body)]
-    marks = body[len(core) :]
+    core = body[: _word_end(body)].rstrip()
+    marks = body[len(core) :].strip()
     readings = []
     for word, detail in _reductions(db, core):
         reading = Found()

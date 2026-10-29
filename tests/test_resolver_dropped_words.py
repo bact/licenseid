@@ -17,7 +17,7 @@ from release_fakes import ship
 from resolver_corpus import EXCEPTION_LIST, LICENSE_LIST
 
 from licenseid import LicenseDatabase, resolve
-from licenseid.dropguard import dropped, dropped_words, has_dangling_marks
+from licenseid.dropguard import dropped, dropped_words
 
 #: Value, the reading stopped, the reason.
 REFUSED = [
@@ -32,7 +32,15 @@ REFUSED = [
     ("MIT –", "MIT", "character dropped: U+2013"),
     ("Apache 2.0 -", "Apache-2.0", "character dropped: U+002D"),
     ("MIT ...", "MIT", "character dropped: U+002E"),
-    ("MIT .", "MIT", "character dropped: U+002E"),
+    ("MIT...", "MIT", "character dropped: U+002E"),
+    ("; MIT", "MIT", "character dropped: U+003B"),
+    ("... MIT", "MIT", "character dropped: U+002E"),
+    ("-MIT", "MIT", "character dropped: U+002D"),
+    (".GPL-3.0-only", "GPL-3.0-only", "character dropped: U+002E"),
+    ("...GPL-3.0-only", "GPL-3.0-only", "character dropped: U+002E"),
+    ("MIT;;", "MIT", "character dropped: U+003B"),
+    ("MIT.;", "MIT", "character dropped: U+003B U+002E"),
+    ("MIT\u2026", "MIT", "character dropped: U+2026"),
     (". MIT", "MIT", "character dropped: U+002E"),
     ("1. MIT License", "MIT", "word dropped: 1"),
     ("- BSD 3-Clause License", "BSD-3-Clause", "character dropped: U+002D"),
@@ -41,7 +49,8 @@ REFUSED = [
 #: Read as before: spelling, not content.
 READ = [
     ("MIT.", "MIT"),
-    ("MIT...", "MIT"),
+    ("MIT .", "MIT"),
+    ("MIT ;", "MIT"),
     ("MIT,", "MIT"),
     ("MIT License.", "MIT"),
     ("Apache 2.0.", "Apache-2.0"),
@@ -164,26 +173,6 @@ def test_no_id_or_name_of_the_list_drops_a_word() -> None:
                 text.replace(".", ""),
             ):
                 assert dropped_words(value) == "", value
-
-
-@pytest.mark.parametrize(
-    ("text", "expected"),
-    [
-        ("MIT -", True),
-        ("-- MIT", True),
-        ("MIT ...", True),
-        ("MIT . ", True),
-        ("MIT ...,", True),
-        ("MIT", False),
-        ("MIT...", False),
-        ("MIT-", False),
-        ("Apache - 2.0", False),
-        ("-", False),
-        ("", False),
-    ],
-)
-def test_has_dangling_marks(text: str, expected: bool) -> None:
-    assert has_dangling_marks(text) is expected
 
 
 def test_the_words_guard_is_fast() -> None:
