@@ -429,6 +429,34 @@ echo "MIT License..." | licenseid is-fsf && echo "FSF Libre!"
 
 ## Python API
 
+`licenseid` answers two questions, with one call each:
+
+- **What licence is in this thing?** `match()` detects a licence in a file,
+  a licence text, a source file's `SPDX-License-Identifier` tag or a short
+  value. It weighs evidence (IDs, names, full-text search, similarity),
+  needs the database, and returns ranked candidates with a score.
+- **What does this declared value mean?** `resolve()` reads one value that
+  someone wrote to declare a licence, such as a `license` field or a trove
+  classifier. It follows rules only, needs no database, and returns one SPDX
+  expression with each step taken, or refuses: it never guesses.
+
+```python
+from licenseid import resolve
+from licenseid.matcher import AggregatedLicenseMatcher
+
+# A LICENSE file: which licence is it?
+AggregatedLicenseMatcher().match(file_path="LICENSE")[0]["license_id"]
+# "Apache-2.0" for this repository's LICENSE: method "text", a score and
+# a similarity
+
+# A package's license field: what did its author declare?
+resolve("GPLv2 or later")["expression"]
+# "GPL-2.0-or-later", with category, trust and the steps that read it
+```
+
+Use `match()` to scan files; use `resolve()` to record what a package
+declares, as an SBOM tool does.
+
 You can use `licenseid` directly in your Python projects:
 
 ```python
