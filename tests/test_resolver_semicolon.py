@@ -186,6 +186,10 @@ NOT_A_LIST = {
     "(MIT; ISC); Apache-2.0": None,  # a list is not split twice (P85)
     "MIT OR; ISC": None,  # an operator beside the ; (P79)
     "MIT; OR": "parse failed: Unexpected 'OR'",
+    "Apache 2; OR MIT": "operand of several words: Apache 2,",  # (; folded)
+    "(MIT; ISC; Apache-2.0": None,  # a bracket that does not close (P85)
+    "MIT; ISC; Apache-2.0)": None,
+    "MIT; ISC; (Apache-2.0": None,  # opens after the last ;
     "MIT, ISC; Apache-2.0": "not an SPDX operator: ,",  # a comma is no separator
     "MIT/ISC; Apache-2.0": "not an SPDX operator: /",
     "MIT, Apache-2.0": "not an SPDX operator: ,",
@@ -235,6 +239,23 @@ def test_a_part_that_is_prose_is_listed_unresolved(corpus_db: LicenseDatabase) -
     got = resolve("MIT; ISC; see the file LICENSE", corpus_db)
     assert got["reason"] == REASON
     assert [o["expression"] for o in got["operands"]] == ["MIT", "ISC", None]
+
+
+def test_a_semicolon_in_brackets_does_not_cut_a_part(
+    corpus_db: LicenseDatabase,
+) -> None:
+    got = resolve("(ISC; Zlib); MIT; Apache-2.0", corpus_db)
+    assert got["reason"] == REASON
+    assert [o["text"] for o in got["operands"]] == [
+        "(ISC; Zlib)",
+        "MIT",
+        "Apache-2.0",
+    ]
+    inside = got["operands"][0]
+    assert (inside["expression"], inside["reason"]) == (
+        None,
+        "not an SPDX operator: ;",  # a part is not split again (P85)
+    )
 
 
 def test_a_nested_list_does_not_recurse(corpus_db: LicenseDatabase) -> None:

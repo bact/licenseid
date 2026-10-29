@@ -23,8 +23,9 @@ whatever its own category.
   content (``(MIT; ISC) OR GPL-2.0`` is the compound reader's).
 - An empty part (``MIT;;ISC``, ``; MIT``) is no list: the value stays as
   it was refused (P82).
-- A part that starts or ends with an operator word (``MIT; OR ISC``) is the
-  ``;`` ending an operand, which the compound reader reads (P79): no split.
+- A ``;`` beside an operator word (``MIT; OR ISC``) ends an operand, and the
+  compound reader reads it before this module is asked (P79, P84); a part
+  that starts with an operator word names no licence besides.
 - Fewer than two parts that name a licence, or would but for a mark they
   drop (``Apache 2.0?``), is no list of licences (``MIT; Copyright (c)
   2016``): the value stays as it was (P83).
@@ -60,8 +61,8 @@ class Part(NamedTuple):
 
 def semicolon_parts(text: str) -> list[Part] | None:
     """The parts of *text* between its top-level ``;``, or None when it is
-    not a list: fewer than two parts, an empty part, a bracket that does not
-    close, or an operator word beside a ``;`` (see the module docstring).
+    not a list: fewer than two parts, an empty part, or a bracket that does not
+    close (see the module docstring).
     The one ``;`` at the end, if any, is an ending and left off."""
     body = text.rstrip()
     ended = trim_end_mark(body, ";")
@@ -74,7 +75,7 @@ def semicolon_parts(text: str) -> list[Part] | None:
     for begin, end in cuts:
         part = body[begin:end]
         stripped = part.strip()
-        if not stripped or _operator_beside(stripped):
+        if not stripped:
             return None
         parts.append(Part(stripped, begin + len(part) - len(part.lstrip())))
     return parts
@@ -98,15 +99,6 @@ def _cuts(body: str) -> list[tuple[int, int]] | None:
             begin = index + 1
     cuts.append((begin, len(body)))
     return cuts if depth == 0 else None
-
-
-def _operator_beside(part: str) -> bool:
-    """Whether *part* starts or ends with an operator word, so that the ``;``
-    next to it ends an operand of an expression (``MIT; OR ISC``)."""
-    words = part.split()
-    return words[0].casefold() in _OPERATOR_WORDS or (
-        words[-1].casefold() in _OPERATOR_WORDS
-    )
 
 
 def _names_a_licence(found: Found) -> bool:
