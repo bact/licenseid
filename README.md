@@ -77,13 +77,17 @@ generator.*
     a name that writes a version but not "only" or "or later" (`... v3
     (GPLv3)`) is the bare ID, `assumed_only`; a name that names no single
     licence (`BSD License`, `W3C License`) or only by usage (`Apache
-    Software License`) stays `unresolved`; a path in its real form
+    Software License`) stays `unresolved`. The table matches case and
+    spacing exactly, except that a name it reads as no licence is refused
+    however it is written. A path in its real form
     (`License :: OSI Approved :: MIT License`) is read as its name is
     read alone, with a `trove_path` step;
   - a name followed by a parenthesis (`MIT License (MIT)`) is read as the
-    name when the name and the parenthesis, each read alone, are one
-    expression (`trailing_name` step); if they differ, or only one reads,
-    the value is not read;
+    name when the name and the parenthesis are each an ID or a List name
+    and are one expression (`trailing_name` step); if they differ, or only
+    one reads, the value is not read. Where the List backs both parts this
+    is read before the table, so `Eclipse Public License 2.0 (EPL-2.0)`
+    is `listed_name`;
   - a compound is all or nothing: its category is the weakest operand's,
     and one operand that names nothing leaves the whole unresolved, with a
     `reason` naming it; a mark used as an operator (`MIT/Apache-2.0`) is
@@ -587,8 +591,9 @@ compound, read or refused), and `by` on a step names the one that took it
 list names it in `list`: the SPDX License List, or, for `trove_name` and
 `trove_path`, `pypi-trove-classifiers` (a second entry of `lists`, naming
 the classifier vocabulary of licenseid's table: `provides` `["names"]`,
-`id_authority` false, `source` always `packaged`). The `category` of a result is the weakest of its
-steps, and of a compound the weakest of its operands, in this order
+`id_authority` false, `source` always `packaged`, even beside a `database`
+SPDX entry: find the SPDX list by its `id`, not by position). The
+`category` of a result is the weakest of its steps, and of a compound the weakest of its operands, in this order
 (strongest first):
 
 | Category | Trust | The value |

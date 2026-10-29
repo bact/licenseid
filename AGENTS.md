@@ -19,7 +19,9 @@
   what a deprecated ID points to; `records.py` builds rows from it),
   `resolveleaf.py` (the reading of one value that names one licence, called
   by `resolver.py` per value), `resolvecompound.py` (a compound, each
-  operand read by `resolveleaf`), `exprcanon.py` (its leaves and canonical
+  operand read by `resolveleaf`), `resolvetrove.py` (a trove classifier name
+  or path, and a name with its short form; the table is `trovenames.py`),
+  `exprcanon.py` (its leaves and canonical
   order), `exprtokens.py` (the words of an expression), `resolverinfo.py`
   (the resolver, parser and list blocks of a result),
   `dropguard.py` (the characters a loose reading must not drop: `Apache
