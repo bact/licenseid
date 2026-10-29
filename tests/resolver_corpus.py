@@ -20,6 +20,8 @@ import sqlite3
 from collections.abc import Callable, Generator, Iterable
 from pathlib import Path
 
+from seed_sql import INSERT_EXCEPTION, INSERT_INDEX, INSERT_LICENSE, SET_METADATA
+
 from licenseid import LicenseDatabase, resolve
 from licenseid.normalize import normalize_text
 from tools.pypi_licence_sample.answer import (
@@ -94,17 +96,6 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
     ),
 }
 
-_INSERT_LICENSE = (
-    "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved,"
-    " is_fsf_libre, is_deprecated, superseded_by) VALUES (?, ?, 1, 0, 0, ?, ?)"
-)
-_INSERT_INDEX = "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)"
-_INSERT_EXCEPTION = (
-    "INSERT INTO exceptions (exception_id, name, is_deprecated, superseded_by)"
-    " VALUES (?, ?, ?, ?)"
-)
-_SET_METADATA = "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)"
-
 
 def list_meta(path: Path) -> tuple[str, str]:
     """``(license_list_version, release_date)`` of a List fixture."""
@@ -138,21 +129,19 @@ def corpus_db_path(
     db_path, keep_alive = make_path(prefix)
     with sqlite3.connect(db_path, uri=True) as conn:
         conn.executemany(
-            _INSERT_LICENSE,
+            INSERT_LICENSE,
             [
-                (row[0], row[1], row[2], row[3])
+                (row[0], row[1], 1, 0, 0, row[2], row[3])
                 for row in list_rows(LICENSE_LIST, "licenses")
             ],
         )
         conn.executemany(
-            _INSERT_EXCEPTION,
+            INSERT_EXCEPTION,
             list_rows(EXCEPTION_LIST, "exceptions"),
         )
+        conn.executemany(INSERT_INDEX, [(lid, _search_text(lid)) for lid in NEIGHBOURS])
         conn.executemany(
-            _INSERT_INDEX, [(lid, _search_text(lid)) for lid in NEIGHBOURS]
-        )
-        conn.executemany(
-            _SET_METADATA,
+            SET_METADATA,
             [
                 ("license_list_version", version),
                 ("release_date", release_date),

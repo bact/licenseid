@@ -13,8 +13,10 @@
   key for each spelling of an ID), `resolver.py` (a declared licence value
   to an SPDX expression and the steps taken; its types and vocabularies are
   in `resolvertypes.py`), `listlookup.py` (the list lookups the resolver
-  reads through: a Protocol), `resolveleaf.py` (the reading of one value
-  that names one licence, called by `resolver.py` per value),
+  reads through: a Protocol), `listrules.py` (which SPDX entries are kept and
+  what a deprecated ID points to; `records.py` builds rows from it),
+  `resolveleaf.py` (the reading of one value that names one licence, called
+  by `resolver.py` per value),
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
   pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
@@ -489,8 +491,8 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   a long word.
 - A lookup by licence ID never scans a table: `dbcache.TableCache` reads
   each table's IDs once (ASCII case folded as SQLite's NOCASE folds it,
-  `dbcache.fold_case`), and an unknown ID costs no query. It drops its reads
-  when `last_update_datetime` changes, checked once per `reading()` block
+  `listlookup.fold_case`), and an unknown ID costs no query. It drops its
+  reads when `last_update_datetime` changes, checked once per `reading()` block
   and at every lookup outside one, so a long-lived matcher sees another
   process's `update`. A new write to `licenses` or `license_index` must
   call `self._tables.clear()`, as `_write_db_records` does. A read made

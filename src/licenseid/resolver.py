@@ -38,6 +38,7 @@ from licenseid.resolvertypes import (
     Resolver,
     step,
 )
+from licenseid.textinput import has_lone_surrogate
 
 # The kinds of step the SPDX License List supports; see ListInfo.provides.
 _PROVIDES = ["deprecation", "ids", "names", "texts"]
@@ -47,7 +48,7 @@ _RE_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]*")
 _RE_IDLIKE = re.compile(r"[\d.-]")
 _RE_SQUARE = re.compile(r"[\[\]{}]")
 # The longest expression read; one licence is MAX_KEY_INPUT or less (versionkey).
-MAX_EXPRESSION_CHARS = 2000
+_MAX_EXPRESSION_CHARS = 2000
 # A step kind that is not also a category name, mapped to the one it counts as.
 _AS_CATEGORY = {kind: "lexical" for kind in LEXICAL_KINDS}
 
@@ -72,12 +73,14 @@ def resolve(value: str, db: LicenseDatabase | None = None) -> Resolution:
 
 
 def _lookup(db: ListLookup, value: str) -> Found:
+    """Read one declared *value* into a :class:`Found`: the leaf, else the
+    category of the expression."""
     found = Found()
     text = value.strip()
     if text != value:
         found.steps.append(step("trim", True, value, text))
     text = _unbracketed(text, found)
-    if not text or len(text) > MAX_EXPRESSION_CHARS or _is_refused(text):
+    if not text or len(text) > _MAX_EXPRESSION_CHARS or _is_refused(text):
         found.category = "unresolved"
         return found
     if read_leaf(db, text, found):
@@ -128,16 +131,17 @@ def _is_refused(text: str) -> bool:
     control or format character other than white space (a NUL, a zero-width
     space, a bidi override), which must not be dropped as a separator, since
     that would resolve text that shows other than it reads; or a lone
-    surrogate (category Cs), which SQLite cannot bind. T6 names the reason
-    (``lone surrogate``, ``Resolution.reason``)."""
-    return any(
-        unicodedata.category(c) == "Cs"
-        or (unicodedata.category(c) in ("Cc", "Cf") and not c.isspace())
-        for c in text
+    surrogate (:func:`licenseid.textinput.has_lone_surrogate`), which SQLite
+    cannot bind. T6 names the reason (``lone surrogate``,
+    ``Resolution.reason``)."""
+    return has_lone_surrogate(text) or any(
+        unicodedata.category(c) in ("Cc", "Cf") and not c.isspace() for c in text
     )
 
 
 def _category(found: Found) -> Category:
+    """The category of an answer: the one the lookup set, else the highest
+    ranked kind among its steps."""
     if found.category is not None:
         return found.category
     kinds = {_AS_CATEGORY.get(s["kind"], s["kind"]) for s in found.steps}
@@ -147,6 +151,7 @@ def _category(found: Found) -> Category:
 
 
 def _list_info(db: ListLookup) -> ListInfo:
+    """The description of the SPDX License List the lookup reads."""
     version = db.get_metadata().get("license_list_version")
     return {
         "id": SPDX_LIST,

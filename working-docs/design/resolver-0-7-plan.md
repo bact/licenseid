@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -76,7 +76,7 @@ Each file stays under about 450 lines; no ceiling is raised.
 
 | File | Contents |
 | - | - |
-| `listlookup.py` (built, T3, 75 lines) | `ListLookup`, a Protocol of 7 methods (`reading`, `get_license_details`, `get_exception_details`, `get_names_by_key`, `get_active_ids_by_name`, `get_deprecated_mappings`, `get_metadata`), and `fold_case` (`dbcache` re-exports it). Typed to it: `resolver`, `resolveleaf`, `looseid`, `versionkey`, `identifiers` (`normalize_identifier`, `with_expression_details`, `flag_source`). T4b narrows the return types to the fields the chain reads; `with_expression_details` and `flag_source` go back to `LicenseDatabase` (they read the OSI and FSF flags). |
+| `listlookup.py` (built, T3, 115 lines) | `ListLookup`, a Protocol of 7 methods (`reading`, `get_license_details`, `get_exception_details`, `get_names_by_key`, `get_active_ids_by_name`, `get_deprecated_mappings`, `get_metadata`), and `fold_case`. Typed to it: `resolver`, `resolveleaf`, `looseid`, `versionkey`, `identifiers` (`normalize_identifier`, `with_expression_details`, `flag_source`). T4b narrows the return types to the fields the chain reads; `with_expression_details` and `flag_source` go back to `LicenseDatabase` (they read the OSI and FSF flags). |
 | `listrules.py` (built, T2, 130 lines) | `is_deprecated`, `active_ids`, `active_ids_by_name`, `kept`, `superseded_license`, `kept_licenses` (kept entries with successor), `active_exceptions_by_name`, `exception_successor`. `records.py` calls them; `BUILD_VERSION` stays 2. This is how F5 cannot drift. |
 | `listindex.py` (new, T5) | `ListIndex(SpdxData)` implements `ListLookup` from `listrules.kept_licenses`, `exception_successor` and `normalize_text` (IDs and names only, never the texts: `word_count` alone costs 1.2 s). `get_active_ids_by_name` from the kept rows only. `reading()` is a null context. `get_metadata()`: `license_list_version`, `release_date` (`""` if none). `packaged_index()` calls `spdxdata.packaged_bundle()` through the module, caches under a lock with a reset for tests, returns `None` with no bundle. |
 | `resolveleaf.py` (built, T4, 275 lines) | `Found`; `read_leaf(db, text, found) -> bool`: False names none; True with `found.category` set is `malformed` or `unresolved`. Gate: `MAX_KEY_INPUT` on the whole text (per `WITH` half from T7, Q16). Private `_with`, `_exception`, `_one`, `_plus`, `_single`, `_qualified`, `_grant`, `_base`, `_spelling`, `_deprecation`. T6 adds `Found.reason`; T7 adds a public `category_of(found)` (from `resolver._category`). |
@@ -283,6 +283,7 @@ API section; its reviewer checks that they match the behaviour.
 | T6 | Refuse a value whose dropped characters change it | `dropguard.py`; `reason` added; F6 pins flipped; sample: changed set listed and justified (`"MIT"` included, Q12); Q13 | Sonnet | medium (Opus reviews) |
 | T6b | Read quoted values | Quotes in their different forms, balanced or not (Q12), as a rule with a correctness argument and a sample run | Sonnet | medium (Opus reviews) |
 | T7 | Read compound expressions in `resolve()` | `exprcanon.py`, `resolvecompound.py`, `operands`, `components`, `reason`, `schema: 2`, `by`, `expression` removed; Q14 to Q21 and G9 to G14; parity, adversarial and timing tests | **Opus** | **high** |
+| R7 | Review everything since T0 together, after T7 | One independent review of the whole 0.7.0 change on `main`: the database and packaged index give one answer, an operand reads as the same value alone, the README matches; release blockers listed | **Opus** | **high** |
 | T8 | Read prose forms of one id (P1 to P3) | Sample before and after committed; regex timing tests | Sonnet | medium |
 | T9 | Read trove classifier names and paths (T1 to T3) | `trovenames.py`; `trove-classifiers` check; `lists` entry; sample before and after | Sonnet | medium |
 | T10 | Deferred to 0.8 (Q3): offer assumed trove readings as candidates | `assumed_usage`; Pitloom keeps them as text | **Opus** | **high** |

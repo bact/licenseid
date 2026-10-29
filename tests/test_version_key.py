@@ -238,6 +238,14 @@ def test_a_redirected_id_leaves_its_flags_to_the_caller(
     assert ("is_spdx" in match) is has_flags
 
 
+def test_a_row_lost_between_the_two_reads_is_no_match(db: LicenseDatabase) -> None:
+    """The cached rows can be rebuilt between loose_id and the full row
+    (another process's ``update``): the answer is no match, not an error."""
+    assert match_version_key(db, "Apache2")
+    with mock.patch("licenseid.shorttext._full_row", autospec=True, return_value=None):
+        assert not match_version_key(db, "Apache2")
+
+
 @pytest.mark.parametrize(
     ("padding", "found"),
     [(MAX_KEY_INPUT - len("Apache2"), True), (MAX_KEY_INPUT - len("Apache"), False)],

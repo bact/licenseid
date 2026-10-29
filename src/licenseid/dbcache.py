@@ -23,7 +23,7 @@ from licenseid.listlookup import fold_case
 from licenseid.normalize import normalize_text
 from licenseid.types import LicenseDetails, LicenseNameId
 
-__all__ = ["TableCache", "cast_license_details", "fold_case"]
+__all__ = ["TableCache", "cast_license_details"]
 _V = TypeVar("_V", str, int)
 
 

@@ -8,7 +8,6 @@ after it, the -only guess on every path, the warning's DETAIL, the key index,
 and the key over a whole License List."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
-import json
 import sqlite3
 import time
 from collections.abc import Generator
@@ -17,6 +16,7 @@ from unittest import mock
 
 import pytest
 from matcher_db import Lic, seeded_db
+from resolver_corpus import LICENSE_LIST, list_rows
 
 from licenseid.database import LicenseDatabase
 from licenseid.identifiers import normalize_identifier
@@ -41,7 +41,6 @@ ROWS = [
 EXCEPTIONS = ("Classpath-exception-2.0", "LLVM-exception")
 NARROWED = "WARNING: match: variant not stated: {}; using {}\n"
 
-SNAPSHOT = Path(__file__).parent / "fixtures" / "license-list" / "spdx-license-ids.json"
 # The License List of the developer's cache, read only; absent on CI.
 REAL_DB = Path.home() / ".local" / "share" / "licenseid" / "licenses.db"
 
@@ -253,10 +252,14 @@ def test_the_key_index_is_built_once_per_table_read(db: LicenseDatabase) -> None
 
 
 def _snapshot_rows() -> list[Lic]:
-    data = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     return [
-        Lic(lid, name, is_deprecated=dep, superseded_by=successor)
-        for lid, name, dep, successor in data["licenses"]
+        Lic(
+            str(lid),
+            str(name),
+            is_deprecated=bool(dep),
+            superseded_by=None if successor is None else str(successor),
+        )
+        for lid, name, dep, successor in list_rows(LICENSE_LIST, "licenses")
     ]
 
 

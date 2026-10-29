@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-29
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -61,7 +61,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   cannot seek. Now `dbcache.TableCache` reads each table's IDs once per
   `LicenseDatabase`: a lookup seeks by rowid or primary key, and an unknown
   ID costs no query (0.52 s, one query per tag instead of five).
-  - The ID map folds ASCII case only (`dbcache.fold_case`), as NOCASE does:
+  - The ID map folds ASCII case only (`listlookup.fold_case`), as NOCASE does:
     `str.lower` would turn the KELVIN SIGN into `k`.
   - `_write_db_records` clears the reads. It also clears the names and the
     deprecated IDs, which moved there too, and which stayed stale after a

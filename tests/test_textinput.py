@@ -8,6 +8,7 @@
 
 import ast
 import re
+import unicodedata
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,12 @@ from input_payloads import PAYLOADS, Payload
 
 import licenseid
 from licenseid.errors import InvalidInputError
-from licenseid.textinput import decode_input, read_text_file
+from licenseid.textinput import (
+    decode_input,
+    has_lone_surrogate,
+    read_text_file,
+    reject_lone_surrogate,
+)
 
 _TEXT = [p for p in PAYLOADS if p.text is not None]
 _BINARY = [p for p in PAYLOADS if p.text is None]
@@ -78,3 +84,28 @@ def test_only_textinput_opens_a_users_file(module: str) -> None:
                 func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
             )
     assert not called & {"open", "read_bytes", "read_text"}
+
+
+@pytest.mark.parametrize("code", range(0xD800, 0xE000), ids=hex)
+def test_every_surrogate_is_lone_and_agrees_with_unicode_category(code: int) -> None:
+    char = chr(code)
+    assert unicodedata.category(char) == "Cs"
+    for text in (char, f"MIT{char}", f"{char}MIT", f"a{char}b"):
+        assert has_lone_surrogate(text)
+        with pytest.raises(InvalidInputError, match="lone surrogate at character"):
+            reject_lone_surrogate(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["", "MIT", "caf\u00e9", "\u3042", "\U0001f600", "\U0010ffff", "\ufffd", "\ue000"],
+    ids=["empty", "ascii", "latin", "bmp", "astral", "max", "replacement", "private"],
+)
+def test_no_other_character_is_a_lone_surrogate(text: str) -> None:
+    assert not has_lone_surrogate(text)
+    reject_lone_surrogate(text)
+
+
+def test_the_position_is_the_first_lone_surrogate() -> None:
+    with pytest.raises(InvalidInputError, match="at character 4"):
+        reject_lone_surrogate("MIT\U0001f600\udcff\ud800")

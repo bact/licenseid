@@ -138,11 +138,27 @@ uses the official SPDX License List as its authoritative, pristine data source.
   source most projects used), `projects`, `downloads` and the same answer
   columns; the header records the number of distinct values and the SHA-256
   of the sorted `(value, every answer column)` lines. `pypi_sample_small.jsonl`
-  is a dozen synthetic projects for `tests/test_pypi_sample_export.py`.
+  is a dozen synthetic projects for `tests/test_pypi_sample_export.py`: one JSON
+  object per line with `name`, `downloads`, `license`, `license_expression`
+  and `classifiers`.
 - **Changing an answer:** Do not edit a pinned column. A rule that moves an
   answer adds the value, the whole new answer and the reason to
   `EXPECTED_CHANGES` in `tests/resolver_corpus.py`; the guard test lists every
   other change, and a listed value that gives another answer.
+
+### 8. `resolver_characterisation.json`
+
+- **Data Source:** The SPDX 3.29.0 rows each case needs, read from a real
+  3.29.0 build, and the complete `licenseid.resolve()` result of each value as
+  the code returned it before `resolver.py` was split.
+- **Description:** Pins one key of every result, so a refactor of the
+  single-value reading cannot move an answer
+  (`tests/test_resolver_characterisation.py`).
+- **Characteristics:** One object per case, `{"value", "result"}` and an
+  optional `note`, beside the `rows`, `exceptions` and `list_version` the test
+  seeds into an in-memory database. Lone surrogates are written as `\udXXX`
+  escapes. The `resolver` block of a result is built from
+  `licenseid.__version__`, so it moves with a release.
 
 ## Generating Fixtures
 
