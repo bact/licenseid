@@ -146,9 +146,9 @@ def test_unquote_does_not_change_its_input_beyond_the_marks() -> None:
     assert unquote('"Apache  2.0"') == Unquoted("Apache  2.0", True, "balanced", 1)
 
 
-@pytest.mark.parametrize("size", [1_000, 500_000])
-def test_a_long_run_is_linear(size: int) -> None:
-    texts = [
+def _long_runs(size: int) -> list[str]:
+    """Balanced, stray, mismatched and space-padded runs of *size* marks."""
+    return [
         '"' * size + "MIT" + '"' * size,
         '"' * size + "MIT" + '"' * (size - 1),
         '"' * size,
@@ -158,9 +158,11 @@ def test_a_long_run_is_linear(size: int) -> None:
         " " * size + '"MIT"' + " " * size,
         '"' + " " * size + "MIT",
     ]
-    start = time.monotonic()
-    got = [unquote(text) for text in texts]
-    assert time.monotonic() - start < 5
+
+
+@pytest.mark.parametrize("size", [1_000, 20_000])
+def test_a_long_run_is_read(size: int) -> None:
+    got = [unquote(text) for text in _long_runs(size)]
     assert got[0] == Unquoted("MIT", True, f"balanced, {size} layers", size)
     assert got[1] == Unquoted("MIT", False, "unbalanced, start", size)
     assert got[2:6] == [
@@ -171,6 +173,29 @@ def test_a_long_run_is_linear(size: int) -> None:
     ]
     assert got[6] == Unquoted("MIT", True, "balanced", size + 1)
     assert got[7] == Unquoted("MIT", False, "unbalanced, start", size + 1)
+
+
+def _seconds(size: int) -> float:
+    """The best of two timings of ``unquote`` over the runs of *size*."""
+    texts = _long_runs(size)
+    best = float("inf")
+    for _ in range(2):
+        start = time.monotonic()
+        for text in texts:
+            unquote(text)
+        best = min(best, time.monotonic() - start)
+    return best
+
+
+@pytest.mark.benchmark
+def test_unquote_is_linear_in_the_length() -> None:
+    """Four times the length takes about four times as long; one copy of the
+    text per layer takes ten or more. A benchmark (``--run-benchmark``), not
+    run on every commit: a fixed budget failed on a slow CI runner (5.98 s
+    for 500,000 marks against 5 s, PR #121), and a ratio cheap enough for
+    every commit can flake there."""
+    small = _seconds(50_000)
+    assert _seconds(200_000) < 8 * small
 
 
 def test_no_listed_id_or_name_starts_or_ends_with_a_mark() -> None:

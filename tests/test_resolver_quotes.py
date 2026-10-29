@@ -353,10 +353,15 @@ def test_a_compound_in_quotes_is_still_a_compound(
         assert [s["kind"] for s in got["steps"]] == kinds
 
 
-@pytest.mark.parametrize("size", [1_000, 200_000])
+@pytest.mark.parametrize(
+    "size", [1_000, 5_000, pytest.param(200_000, marks=pytest.mark.benchmark)]
+)
 def test_a_long_run_of_quotes_is_fast(corpus_db: LicenseDatabase, size: int) -> None:
-    """Linear: no slice per layer. Balanced, unbalanced and mismatched runs,
-    marks inside, and a run of apostrophes between letters."""
+    """Balanced, unbalanced and mismatched runs, marks inside, and a run of
+    apostrophes between letters, read whole through ``resolve()``. That
+    ``unquote`` is linear is ``test_quotes.test_unquote_is_linear_in_the_length``;
+    200,000 marks are a benchmark (``--run-benchmark``), too slow to
+    run on every commit (PR #121)."""
     values = [
         '"' * size + "MIT" + '"' * size,
         "“" * size + "MIT" + '"' * size,
