@@ -27,12 +27,12 @@ and this project adheres to
   ([#121])
 - `resolve()` reads compounds of one-word operands, each as it reads alone,
   in canonical order (`mit or "Apache2"` is `Apache-2.0 OR MIT`); one
-  unresolved operand leaves the whole unresolved, with a `reason`
-  ([#122])
+  unresolved operand leaves the whole unresolved, with a one-line `reason`
+  ([#122], [#125])
 - `resolve()` result has `schema` (2), `operands`, `components` and `by` on
   each step; it reads `[MIT]`, `AdditionRef-*` after `WITH`, and "or later"
   on an ID with no `-or-later` form as `+` (`MIT or later` is `MIT+`)
-  ([#122])
+  ([#122], [#125])
 
 ### Changed
 
@@ -65,6 +65,7 @@ and this project adheres to
 [#120]: https://github.com/bact/licenseid/pull/120
 [#121]: https://github.com/bact/licenseid/pull/121
 [#122]: https://github.com/bact/licenseid/pull/122
+[#125]: https://github.com/bact/licenseid/pull/125
 
 ## [0.6.0] - 2026-10-27
 
