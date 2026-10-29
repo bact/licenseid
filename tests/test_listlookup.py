@@ -7,23 +7,26 @@
 
 import contextlib
 import sqlite3
-from collections.abc import Callable, Generator, Iterator
+from collections.abc import Callable, Generator, Iterator, Mapping, Sequence
 from typing import cast
 
 import pytest
 from matcher_db import Lic, seeded_db
 from resolver_helpers import GPL2_PLUS
 
-from licenseid import LicenseDatabase, dbcache, listlookup
+from licenseid import LicenseDatabase, dbcache, listlookup, shorttext
 from licenseid.identifiers import normalize_identifier
-from licenseid.listlookup import ListLookup, fold_case
-from licenseid.resolver import _list_info, _lookup
-from licenseid.types import (
-    DatabaseMetadata,
-    ExceptionDetails,
-    LicenseDetails,
-    LicenseNameId,
+from licenseid.listlookup import (
+    ListedException,
+    ListedLicense,
+    ListedMetadata,
+    ListedName,
+    ListLookup,
+    fold_case,
 )
+from licenseid.resolver import _list_info, _lookup
+from licenseid.shorttext import match_version_key
+from licenseid.types import ExceptionDetails
 
 ROWS = (
     Lic("MIT", "MIT License"),
@@ -76,40 +79,39 @@ class DictList:
         """One block of queries."""
         return self._block()
 
-    def get_license_details(self, license_id: str) -> LicenseDetails | None:
-        """The row of an ID, ASCII case folded."""
+    def get_license_details(self, license_id: str) -> ListedLicense | None:
+        """The row of an ID, ASCII case folded: the fields the resolver
+        reads, no more (an index has no popularity or word count)."""
         row = self._rows.get(fold_case(license_id.strip()))
         if row is None:
             return None
-        return cast(
-            LicenseDetails,
-            {
-                "license_id": row.license_id,
-                "name": row.name,
-                "is_deprecated": row.is_deprecated,
-                "superseded_by": row.superseded_by,
-            },
-        )
+        found = ListedLicense(license_id=row.license_id)
+        if row.is_deprecated:
+            found["is_deprecated"] = True
+        if row.superseded_by:
+            found["superseded_by"] = row.superseded_by
+        return found
 
-    def get_exception_details(self, exception_id: str) -> ExceptionDetails | None:
-        """No exceptions in this list."""
-        return self._exceptions.get(fold_case(exception_id.strip()))
+    def get_exception_details(self, exception_id: str) -> ListedException | None:
+        """The exceptions of the list, as the resolver reads them."""
+        row = self._exceptions.get(fold_case(exception_id.strip()))
+        if row is None:
+            return None
+        found = ListedException(
+            exception_id=row["exception_id"], is_deprecated=row["is_deprecated"]
+        )
+        if row.get("superseded_by"):
+            found["superseded_by"] = str(row["superseded_by"])
+        return found
 
     def get_names_by_key(
         self, key: Callable[[str], str]
-    ) -> dict[str, list[LicenseNameId]]:
+    ) -> Mapping[str, Sequence[ListedName]]:
         """The rows by key of their IDs."""
-        index: dict[str, list[LicenseNameId]] = {}
+        index: dict[str, list[ListedName]] = {}
         for row in self._rows.values():
-            record = LicenseNameId(
-                license_id=row.license_id,
-                name=row.name,
-                is_deprecated=row.is_deprecated,
-                norm_license_id=row.license_id,
-                norm_name=row.name,
-                is_spdx=row.is_spdx,
-                is_osi_approved=row.is_osi_approved,
-                is_fsf_libre=row.is_fsf_libre,
+            record = ListedName(
+                license_id=row.license_id, is_deprecated=row.is_deprecated
             )
             index.setdefault(key(row.license_id), []).append(record)
         return index
@@ -134,9 +136,9 @@ class DictList:
                 found[exc["exception_id"]] = str(exc["superseded_by"])
         return found
 
-    def get_metadata(self) -> DatabaseMetadata:
+    def get_metadata(self) -> ListedMetadata:
         """The list version."""
-        return cast(DatabaseMetadata, {"license_list_version": self._version})
+        return ListedMetadata(license_list_version=self._version)
 
 
 @pytest.fixture(name="db")
@@ -225,3 +227,24 @@ def test_the_list_info_agrees_on_a_fake_list(db: LicenseDatabase) -> None:
     """The list version, and the URL made from it."""
     assert _list_info(DictList(ROWS)) == _list_info(db)
     assert _list_info(DictList(ROWS))["version"] == LIST_VERSION
+
+
+def test_a_loose_id_hit_keeps_the_flags_of_its_full_row(
+    db: LicenseDatabase,
+) -> None:
+    """``loose_id`` reads the narrow row; Tier 0 takes the flags from the
+    database's full one."""
+    hit = match_version_key(db, "Apache2")[0]
+    assert hit["license_id"] == "Apache-2.0"
+    assert hit["is_spdx"] is True
+    assert "is_osi_approved" in hit
+
+
+def test_a_loose_id_row_the_database_lacks_is_no_hit(
+    db: LicenseDatabase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Defensive: a narrow row whose ID the full rows do not hold gives no
+    match, not a raise."""
+    row = ListedName(license_id="Gone-1.0", is_deprecated=False)
+    monkeypatch.setattr(shorttext, "loose_id", lambda _db, _text: (row, "Gone-1.0"))
+    assert not match_version_key(db, "Apache2")

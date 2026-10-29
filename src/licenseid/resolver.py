@@ -77,7 +77,7 @@ def _lookup(db: ListLookup, value: str) -> Found:
     if text != value:
         found.steps.append(step("trim", True, value, text))
     text = _unbracketed(text, found)
-    if not text or len(text) > MAX_EXPRESSION_CHARS or _has_control(text):
+    if not text or len(text) > MAX_EXPRESSION_CHARS or _is_refused(text):
         found.category = "unresolved"
         return found
     if read_leaf(db, text, found):
@@ -123,13 +123,17 @@ def _is_expression(db: ListLookup, text: str) -> bool:
     )
 
 
-def _has_control(text: str) -> bool:
-    """Whether *text* holds a control or format character other than white
-    space (a NUL, a zero-width space, a bidi override): no licence value, and
-    not to be dropped as a separator, which would resolve text that shows
-    other than it reads."""
+def _is_refused(text: str) -> bool:
+    """Whether *text* holds a character that makes it no licence value: a
+    control or format character other than white space (a NUL, a zero-width
+    space, a bidi override), which must not be dropped as a separator, since
+    that would resolve text that shows other than it reads; or a lone
+    surrogate (category Cs), which SQLite cannot bind. T6 names the reason
+    (``lone surrogate``, ``Resolution.reason``)."""
     return any(
-        unicodedata.category(c) in ("Cc", "Cf") and not c.isspace() for c in text
+        unicodedata.category(c) == "Cs"
+        or (unicodedata.category(c) in ("Cc", "Cf") and not c.isspace())
+        for c in text
     )
 
 

@@ -24,9 +24,9 @@ from licenseid import LicenseDatabase, resolve
 from licenseid.normalize import normalize_text
 from tools.pypi_licence_sample.answer import (
     Answer,
+    answer_diff,
     answer_from_row,
     answer_of,
-    escape_field,
     unescape_field,
 )
 
@@ -63,13 +63,36 @@ NEIGHBOURS = (
     "Zlib",
 )
 
+#: The answer to a value that names nothing: no expression, nothing taken.
+UNRESOLVED = Answer(
+    expression=None,
+    category="unresolved",
+    candidates=(),
+    steps=(),
+    step_targets=(),
+    expansions=(),
+    expansion_targets=(),
+    trust="none",
+    input_same=True,
+    reason=None,
+)
+
 #: The values whose answer a rule may move, each with the answer it must give
 #: and the reason: ``{value: (answer, reason)}``. A later rule pull request
 #: adds every value it changes here, and no other; the guard fails on a value
 #: that moves without being listed, on a listed value that does not move, and
-#: on a listed value that answers anything but the listed answer. Empty on
-#: 0.6.0, whose answers the fixtures pin.
-EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {}
+#: on a listed value that answers anything but the listed answer. Before
+#: T4b it was empty: 0.6.0's answers are the fixtures'.
+EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
+    "MIT\udcff": (
+        UNRESOLVED,  # T6: reason `lone surrogate`
+        (
+            "G1 (T4b): a lone surrogate is refused before any rule reads the"
+            " value (reason `lone surrogate` from T6); 0.6.0 dropped it as a"
+            " separator"
+        ),
+    ),
+}
 
 _INSERT_LICENSE = (
     "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved,"
@@ -164,7 +187,16 @@ def read_rows(path: Path) -> list[dict[str, str]]:
     value may start or end with white space."""
     _, lines = _split(path)
     header = lines[0].split("\t")
-    return [dict(zip(header, line.split("\t"))) for line in lines[1:]]
+    rows = []
+    for number, line in enumerate(lines[1:], 2):
+        fields = line.split("\t")
+        if len(fields) != len(header):
+            raise ValueError(
+                f"{path.name}: row {number} has {len(fields)} fields,"
+                f" the header {len(header)}"
+            )
+        rows.append(dict(zip(header, fields)))
+    return rows
 
 
 def sample_files() -> list[Path]:
@@ -182,6 +214,11 @@ def sample_rows() -> list[dict[str, str]]:
     return [row for path in sample_files() for row in read_rows(path)]
 
 
+def corpus_rows() -> list[dict[str, str]]:
+    """The rows the guard reads: the parity corpus, then the PyPI sample."""
+    return [*parity_rows(), *sample_rows()]
+
+
 def pinned(row: dict[str, str]) -> Answer:
     """The 0.6.0 answer a fixture row records."""
     return answer_from_row(row)
@@ -194,7 +231,7 @@ def changed_answers(
     """The values whose answer differs from the pinned one, over the parity
     corpus and the PyPI sample (or *rows*): ``{value: (pinned, current)}``."""
     if rows is None:
-        rows = [*parity_rows(), *sample_rows()]
+        rows = corpus_rows()
     changed: dict[str, tuple[Answer, Answer]] = {}
     for row in rows:
         value = unescape_field(row["value"])
@@ -216,16 +253,17 @@ def changes_report(
         expected = EXPECTED_CHANGES
     lines = []
     for value, (old, new) in changed.items():
-        name = escape_field(value)
         if value not in expected:
-            lines.append(f"changed, not in EXPECTED_CHANGES: {name!r}: {old} -> {new}")
+            lines.append(
+                f"changed, not in EXPECTED_CHANGES: {value!r}: {answer_diff(old, new)}"
+            )
         elif new != expected[value][0]:
             lines.append(
-                f"in EXPECTED_CHANGES, wrong answer: {name!r}: got {new},"
-                f" expected {expected[value][0]}"
+                f"in EXPECTED_CHANGES, wrong answer: {value!r}: "
+                f"{answer_diff(expected[value][0], new)} (expected -> got)"
             )
     lines += [
-        f"in EXPECTED_CHANGES, answer unchanged: {escape_field(value)!r} ({why})"
+        f"in EXPECTED_CHANGES, answer unchanged: {value!r} ({why})"
         for value, (_, why) in expected.items()
         if value not in changed
     ]

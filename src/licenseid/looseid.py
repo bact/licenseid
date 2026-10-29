@@ -20,8 +20,7 @@ from licenseid.identifiers import (
     qualify_trailing_grant,
     without_outer_brackets,
 )
-from licenseid.listlookup import ListLookup
-from licenseid.types import LicenseNameId
+from licenseid.listlookup import ListedName, ListLookup
 from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_key
 
 # The word a grant starts with, where OR_LATER_PHRASE starts at the version
@@ -37,7 +36,7 @@ _RE_GRANT_TAIL = re.compile(
 WITH_OPERATOR = re.compile(r"\s+WITH\s+", re.IGNORECASE)
 
 
-def loose_id(db: ListLookup, text: str) -> tuple[LicenseNameId, str] | None:
+def loose_id(db: ListLookup, text: str) -> tuple[ListedName, str] | None:
     """The row *text* names loosely, and the ID it answers: the row's own,
     its successor if deprecated, or its -or-later form for a grant after it
     ("GPLv2 or any later version"). None for no row, or for two rows in use.
@@ -51,7 +50,7 @@ def loose_id(db: ListLookup, text: str) -> tuple[LicenseNameId, str] | None:
     return _granted(db, text)
 
 
-def resolved_id(db: ListLookup, row: LicenseNameId) -> str:
+def resolved_id(db: ListLookup, row: ListedName) -> str:
     """The ID a hit on *row* answers. A deprecated ID goes through
     normalize_identifier() for the same canonical-successor redirect the
     license_id= path gets; it can resolve to an expression."""
@@ -151,7 +150,7 @@ def declared_grant_id_text(text: str) -> str | None:
     return before.rstrip().rstrip("([").rstrip()
 
 
-def _granted(db: ListLookup, text: str) -> tuple[LicenseNameId, str] | None:
+def _granted(db: ListLookup, text: str) -> tuple[ListedName, str] | None:
     """*text* as a loose ID and an "or later" grant that ends it, read by the
     one reader of the phrase (classify.OR_LATER_PHRASE, through
     identifiers.qualify_trailing_grant): "GPLv2 or any later version" is

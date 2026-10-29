@@ -22,6 +22,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from resolver_corpus import (
     EXPECTED_CHANGES,
     PARITY_FILE,
+    UNRESOLVED,
     parity_rows,
     pinned,
     read_comments,
@@ -30,7 +31,6 @@ from resolver_corpus import (
 
 from licenseid import LicenseDatabase, resolve
 from tools.pypi_licence_sample.answer import (
-    Answer,
     answer_of,
     escape_field,
     unescape_field,
@@ -131,13 +131,13 @@ def test_the_corpus_has_the_shapes_the_plan_names() -> None:
 # BUG: F6, fixed by T6 (dropguard): the dropped character is the author's
 # doubt or a corruption, and 0.6.0 turns it into a claim. Each of these
 # answers the licence with category `separator`; 0.7.0 must answer
-# `unresolved`.
+# `unresolved`. (A lone surrogate was a sixth; G1, T4b, refuses it early:
+# tests/test_resolver_surrogate.py.)
 @pytest.mark.parametrize(
     ("value", "wrong"),
     [
         ("Apache 2.0?", "Apache-2.0"),
         ("Apache 2.0!", "Apache-2.0"),
-        ("MIT" + chr(0xDCFF), "MIT"),  # a lone surrogate (not UTF-8 encodable)
         ("MIT" + chr(0xFFFD), "MIT"),  # U+FFFD, a decoding error left in a value
         ("MIT*", "MIT"),
         ("#MIT", "MIT"),
@@ -145,7 +145,6 @@ def test_the_corpus_has_the_shapes_the_plan_names() -> None:
     ids=[
         "question-mark",
         "exclamation",
-        "lone-surrogate",
         "u-fffd",
         "asterisk",
         "hash",
@@ -187,4 +186,4 @@ def test_a_row_without_an_expression_pins_none() -> None:
     row = next(
         r for r in ROWS if unescape_field(r["value"]) == "Apache Software License"
     )
-    assert pinned(row) == Answer(None, "unresolved", (), (), (), "none", True)
+    assert pinned(row) == UNRESOLVED

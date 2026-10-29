@@ -10,7 +10,7 @@ SPDX Identifier and Expression normalization and validation.
 import bisect
 import re
 from itertools import dropwhile, pairwise
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import py_spdx_license
 
@@ -23,6 +23,9 @@ from licenseid.plusoperator import (
 )
 from licenseid.types import ExceptionDetails, LicenseDetails
 from licenseid.versionkey import named_row
+
+if TYPE_CHECKING:
+    from licenseid.database import LicenseDatabase
 
 # Defensive cap on the number of AND/OR/WITH operators an expression may
 # have before we attempt py_spdx_license's structural sort()/dedup pass.
@@ -409,7 +412,7 @@ def is_simple_expression(value: str) -> bool:
 
 
 def with_expression_details(
-    tree: py_spdx_license.Node | None, db: ListLookup
+    tree: py_spdx_license.Node | None, db: "LicenseDatabase"
 ) -> tuple[LicenseDetails, ExceptionDetails] | None:
     """The list rows of a parsed ``<license> WITH <exception>`` tree, or
     None if *tree* is not one or either half is not in *db*."""
@@ -423,7 +426,7 @@ def with_expression_details(
 
 
 def flag_source(
-    tree: py_spdx_license.Node | None, db: ListLookup
+    tree: py_spdx_license.Node | None, db: "LicenseDatabase"
 ) -> LicenseDetails | None:
     """The license row whose OSI and FSF flags an expression takes: the license
     of a ``WITH`` expression, or the ID itself for a lone (possibly ``+``) ID.

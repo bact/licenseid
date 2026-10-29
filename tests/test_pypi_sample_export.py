@@ -11,6 +11,7 @@ database."""
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
@@ -18,7 +19,7 @@ from resolver_corpus import FIXTURES, read_comments, read_rows
 
 from licenseid import LicenseDatabase
 from tools.pypi_licence_sample import __main__ as sample_tool
-from tools.pypi_licence_sample.answer import escape_field
+from tools.pypi_licence_sample.answer import ANSWER_COLUMNS, answer_of, escape_field
 
 SAMPLE = FIXTURES / "pypi_sample_small.jsonl"
 PROJECTS = [json.loads(line) for line in SAMPLE.read_text("utf-8").splitlines()]
@@ -77,9 +78,9 @@ def test_export_writes_one_file_with_escaped_values_and_the_header(
     digest = hashlib.sha256()
     for value in sorted(VALUES, key=escape_field):
         row = rows[escape_field(value)]
-        line = [row["value"], *(row[c] for c in list(row)[4:7])]
+        line = [row["value"], *(row[c] for c in ANSWER_COLUMNS)]
         digest.update(("\t".join(line) + "\n").encode())
-    assert f"candidates): {digest.hexdigest()}" in "\n".join(header)
+    assert f"answer column) lines: {digest.hexdigest()}" in "\n".join(header)
 
 
 def test_export_splits_into_files_that_share_one_header_hash(tmp_path: Path) -> None:
@@ -157,3 +158,80 @@ def test_the_command_line_refuses_max_files_zero_with_a_usage_error(
     assert stop.value.code == 2
     assert "export: need max_files >= 1" in capsys.readouterr().err
     assert not list((tmp_path / "out").iterdir())
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        ("{not json}\n", "x.jsonl:1: not JSON"),
+        ('{"name": "a"}\n[1, 2]\n', "x.jsonl:2: not a JSON object"),
+        ('"MIT"\n', "x.jsonl:1: not a JSON object"),
+    ],
+    ids=["bad-json", "array", "string"],
+)
+@pytest.mark.parametrize("command", ["export", "analyze"])
+def test_a_bad_sample_file_is_a_data_error_not_a_usage_error(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    command: str,
+    text: str,
+    message: str,
+) -> None:
+    """Exit 1 with a line on standard error and nothing written; argparse's
+    exit 2 is for a bad option."""
+    bad = tmp_path / "x.jsonl"
+    bad.write_text(text, encoding="utf-8")
+    argv = [command, str(bad)]
+    if command == "export":
+        argv += ["--out", str(tmp_path / "out")]
+    assert sample_tool.main(argv) == 1
+    err = capsys.readouterr().err
+    assert f"error: {tmp_path / message}" in err
+    assert "usage:" not in err
+    assert not list(tmp_path.glob("out*"))
+
+
+@pytest.mark.parametrize(
+    ("field", "new"),
+    [
+        ("steps", ("trim",)),
+        ("step_targets", ("x",)),
+        ("expansions", ("assumed_only!",)),
+        ("expansion_targets", ("x",)),
+        ("trust", "none"),
+        ("input_same", False),
+        ("reason", "lone surrogate"),
+    ],
+)
+def test_the_header_hash_covers_every_answer_column(
+    monkeypatch: pytest.MonkeyPatch,
+    corpus_db: LicenseDatabase,
+    field: str,
+    new: Any,
+) -> None:
+    """A change beyond expression, category and candidates moves the hash
+    (it once covered those three only)."""
+    values = sample_tool.distinct_values(PROJECTS)
+    _, before = sample_tool._export_rows(values, corpus_db)  # pylint: disable=W0212
+    real = answer_of
+    monkeypatch.setattr(
+        sample_tool, "answer_of", lambda v, r: real(v, r)._replace(**{field: new})
+    )
+    _, after = sample_tool._export_rows(values, corpus_db)  # pylint: disable=W0212
+    assert after != before
+
+
+@pytest.mark.parametrize("command", ["export", "analyze"])
+def test_a_sample_file_that_is_not_utf8_is_a_data_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], command: str
+) -> None:
+    """Exit 1, a line on standard error, nothing written."""
+    bad = tmp_path / "x.jsonl"
+    bad.write_bytes(b"\xff\xfe")
+    argv = [command, str(bad)]
+    if command == "export":
+        argv += ["--out", str(tmp_path / "out")]
+    assert sample_tool.main(argv) == 1
+    err = capsys.readouterr().err
+    assert f"error: {bad}: unreadable" in err
+    assert not list(tmp_path.glob("out*"))

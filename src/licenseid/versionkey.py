@@ -12,10 +12,9 @@ without importing looseid, which imports identifiers.
 
 import re
 
-from licenseid.listlookup import ListLookup
+from licenseid.listlookup import ListedName, ListLookup
 from licenseid.normalize import normalize_text
 from licenseid.plusoperator import replace_plus_operator
-from licenseid.types import LicenseNameId
 
 # The longest input read as a loose ID: the longest SPDX ID has 36
 # characters. A longer input names no ID, and its key would cost a second
@@ -54,7 +53,7 @@ def version_key(text: str) -> str:
     return normalize_text(text)
 
 
-def keyed_row(db: ListLookup, key: str) -> LicenseNameId | None:
+def keyed_row(db: ListLookup, key: str) -> ListedName | None:
     """The one row whose ID has *key*. A row in use wins over a deprecated
     one ("GPL2+" is GPL-2.0-or-later, not GPL-2.0+); two in use are none."""
     rows = db.get_names_by_key(version_key).get(key, []) if key else []
@@ -62,7 +61,7 @@ def keyed_row(db: ListLookup, key: str) -> LicenseNameId | None:
     return rows[0] if len(rows) == 1 else None
 
 
-def named_row(db: ListLookup, text: str) -> LicenseNameId | None:
+def named_row(db: ListLookup, text: str) -> ListedName | None:
     """The one row *text* names by its version key, or None; a text longer
     than MAX_KEY_INPUT names none."""
     text = text.strip()

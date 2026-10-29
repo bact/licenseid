@@ -12,16 +12,21 @@ show that the set of values whose answer changed is exactly the set it
 announces (``resolver_corpus.EXPECTED_CHANGES``).
 """
 
+import ast
 import hashlib
 import re
 
+import pytest
+import resolver_corpus
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from resolver_corpus import (
     EXCEPTION_LIST,
     EXPECTED_CHANGES,
     LICENSE_LIST,
+    UNRESOLVED,
     changed_answers,
     changes_report,
+    corpus_rows,
     list_meta,
     parity_rows,
     pinned,
@@ -33,6 +38,7 @@ from resolver_corpus import (
 
 from licenseid import LicenseDatabase, resolve
 from tools.pypi_licence_sample.answer import (
+    ANSWER_COLUMNS,
     NONE_FIELD,
     Answer,
     answer_of,
@@ -71,8 +77,8 @@ def test_the_guard_names_a_value_whose_pin_was_edited(
     assert list(changed) == ["MIT"]  # ISC is untouched
     report = changes_report(changed)
     assert "'MIT'" in report
-    assert "expression='Apache-2.0'" in report
-    assert "expression='MIT'" in report
+    assert "expression: 'Apache-2.0' -> 'MIT'" in report
+    assert "category" not in report  # only the field that differs is named
 
 
 def test_the_guard_names_a_value_that_should_have_changed(
@@ -113,6 +119,16 @@ def test_the_guard_refuses_a_listed_value_with_a_wrong_answer(
     wrong = now._replace(expression="ISC")
     report = changes_report(changed, {"MIT": (wrong, "test")})
     assert "in EXPECTED_CHANGES, wrong answer: 'MIT'" in report
+    assert "expression: 'ISC' -> 'MIT'" in report
+
+
+def test_a_reported_key_can_be_pasted_back() -> None:
+    """The report prints the value as a Python literal, once escaped: a tab,
+    a backslash and a lone surrogate come back as the value."""
+    value = "a\tb\\c\udcff"
+    changed = {value: (UNRESOLVED, UNRESOLVED._replace(trust="x"))}
+    key = changes_report(changed, {}).split(": ")[1]
+    assert ast.literal_eval(key) == value
 
 
 def test_the_expected_answers_are_whole_answers() -> None:
@@ -122,21 +138,51 @@ def test_the_expected_answers_are_whole_answers() -> None:
         assert reason
 
 
-def test_a_change_of_steps_only_is_seen_and_declarable(
-    corpus_db: LicenseDatabase,
-) -> None:
-    """The guard compares step kinds, expansion kinds, trust and whether
-    ``input`` is the value, not only the expression and the category."""
-    for field, new in (
+@pytest.mark.parametrize(
+    ("field", "new"),
+    [
         ("steps_0_6_0", "trim"),
+        ("steps_0_6_0", "trim!"),
+        ("step_targets_0_6_0", "MIT"),
         ("expansions_0_6_0", "plus_to_or_later"),
+        ("expansion_targets_0_6_0", "MIT"),
         ("trust_0_6_0", "none"),
         ("input_same_0_6_0", "no"),
-    ):
-        changed, now = _declared(corpus_db, field, new)
-        assert list(changed) == ["MIT"], field
-        assert changes_report(changed, {"MIT": (now, "steps only")}) == ""
-        assert changes_report(changed, {}) != ""
+        ("reason_0_6_0", "lone surrogate"),
+    ],
+)
+def test_a_change_of_steps_only_is_seen_and_declarable(
+    corpus_db: LicenseDatabase, field: str, new: str
+) -> None:
+    """The guard compares step kinds and whether they applied, the targets of
+    steps and expansions, expansion kinds, trust, the reason and whether
+    ``input`` is the value, not only the expression and the category."""
+    changed, now = _declared(corpus_db, field, new)
+    assert list(changed) == ["MIT"], field
+    assert changes_report(changed, {"MIT": (now, "steps only")}) == ""
+    assert changes_report(changed, {}) != ""
+
+
+def test_the_guard_reads_the_parity_corpus_and_the_sample() -> None:
+    """The default rows of the guard are both fixtures, and the sample holds
+    values the parity corpus does not (so dropping it is seen below)."""
+    assert corpus_rows() == [*parity_rows(), *SAMPLE]
+    parity = {row["value"] for row in parity_rows()}
+    assert {row["value"] for row in SAMPLE} - parity
+
+
+def test_the_guard_names_a_sample_only_value_whose_pin_was_edited(
+    corpus_db: LicenseDatabase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mutation check on the guard itself: a pin edited in a row that only the
+    PyPI sample holds is reported by the default call. A guard that read the
+    parity corpus alone would not see it."""
+    parity = {row["value"] for row in parity_rows()}
+    row = dict(next(r for r in SAMPLE if r["value"] not in parity))
+    row["trust_0_6_0"] = "edited"
+    monkeypatch.setattr(resolver_corpus, "sample_rows", lambda: [row])
+    changed = changed_answers(corpus_db)
+    assert unescape_field(row["value"]) in changed
 
 
 def test_the_sample_files_are_small_and_named() -> None:
@@ -184,10 +230,9 @@ def _header_numbers() -> tuple[int, int]:
 
 def test_the_sample_header_records_the_full_set() -> None:
     """Each file says how many distinct values the sample had and the SHA-256
-    of the sorted ``(value, expression, category, candidates)`` lines of all
-    of them. When every value is kept the rows must hash to exactly that; when
-    only the values that are not ``exact`` are kept, the files hold no
-    ``exact`` one."""
+    of the sorted ``(value, every answer column)`` lines of all of them. When
+    every value is kept the rows must hash to exactly that; when only the
+    values that are not ``exact`` are kept, the files hold no ``exact`` one."""
     total, kept = _header_numbers()
     assert kept == len(SAMPLE)
     if kept < total:
@@ -195,10 +240,10 @@ def test_the_sample_header_records_the_full_set() -> None:
         return
     digest = hashlib.sha256()
     for row in sorted(SAMPLE, key=lambda r: r["value"]):
-        fields = [row["value"], *(row[c] for c in list(row)[4:7])]
+        fields = [row["value"], *(row[c] for c in ANSWER_COLUMNS)]
         digest.update(("\t".join(fields) + "\n").encode())
     text = "\n".join(read_comments(sample_files()[0]))
-    assert f"candidates): {digest.hexdigest()}" in text
+    assert f"answer column) lines: {digest.hexdigest()}" in text
 
 
 def test_every_sample_file_reads_the_same_columns() -> None:

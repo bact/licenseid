@@ -251,17 +251,16 @@ def test_cli_update_unexpected_error_keeps_message_grammar(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """An exception that is not one of the worded RuntimeErrors (here a
-    KeyError from an exception entry without a name) still prints one
-    grammar line, not the bare exception text."""
+    KeyError from the record builder) still prints one grammar line, not the
+    bare exception text."""
     root = "license-list-data-9.99"
-    exceptions = {"exceptions": [{"licenseExceptionId": "E-1"}]}
-    archive = tarball(
-        {
-            f"{root}/json/licenses.json": json.dumps(_LICENSES).encode(),
-            f"{root}/json/exceptions.json": json.dumps(exceptions).encode(),
-        }
-    )
+    archive = tarball({f"{root}/json/licenses.json": json.dumps(_LICENSES).encode()})
     _serve(monkeypatch, archive)
+
+    def broken(*_args: object) -> object:
+        raise KeyError("name")
+
+    monkeypatch.setattr("licenseid.database.build_records", broken)
     result = CliRunner().invoke(cli, ["--db", str(tmp_path / "x.db"), "update"])
     assert result.exit_code == 1
     assert result.stdout == ""
@@ -365,22 +364,21 @@ def test_update_passes_no_cache_flag_to_stale_fallback(
 
 
 def test_failure_mid_progress_line_leaves_stderr_at_line_start(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A library caller that catches the exception and writes its own
     stderr text must not have it glued to the progress dots."""
     db = LicenseDatabase(str(tmp_path / "licenses.db"))
     root = "license-list-data-9.99"
-    exceptions = {"exceptions": [{"licenseExceptionId": "E-1"}]}
     tar_path = tmp_path / "spdx-data-v9.99.tar.gz"
     tar_path.write_bytes(
-        tarball(
-            {
-                f"{root}/json/licenses.json": json.dumps(_LICENSES).encode(),
-                f"{root}/json/exceptions.json": json.dumps(exceptions).encode(),
-            }
-        )
+        tarball({f"{root}/json/licenses.json": json.dumps(_LICENSES).encode()})
     )
+
+    def broken(*_args: object) -> object:
+        raise KeyError("name")
+
+    monkeypatch.setattr("licenseid.records.kept_licenses", broken)
     capsys.readouterr()
     with pytest.raises(KeyError):
         db._store(SpdxData.from_tarball(tar_path), {}, None)

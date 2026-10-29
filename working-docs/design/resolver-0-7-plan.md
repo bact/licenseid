@@ -82,7 +82,7 @@ Each file stays under about 450 lines; no ceiling is raised.
 | `resolveleaf.py` (built, T4, 275 lines) | `Found`; `read_leaf(db, text, found) -> bool`: False names none; True with `found.category` set is `malformed` or `unresolved`. Gate: `MAX_KEY_INPUT` on the whole text (per `WITH` half from T7, Q16). Private `_with`, `_exception`, `_one`, `_plus`, `_single`, `_qualified`, `_grant`, `_base`, `_spelling`, `_deprecation`. T6 adds `Found.reason`; T7 adds a public `category_of(found)` (from `resolver._category`). |
 | `dropguard.py` (new, stdlib, T6) | `dropped(text) -> str`: the characters neither alphanumeric nor allowed (white space, `-`, `_`, `.`, Unicode `Pd`, one trailing `,`). Called in `resolveleaf._base` after the loose read, before `_spelling`; a refusal makes `read_leaf` return True, `unresolved`, a `drop` step with `applied: false` (Q13) and reason `character dropped: '?'`. Not on `listed_name` (`Yahoo! Public License v1.0` keeps its `!`), not on the grant tail (`looseid._RE_GRANT_TAIL`). Quotes are refused (Q12). Surrogates are refused earlier, in `resolver` (T4b). |
 | `proseforms.py` (new, stdlib) | Rules P1 to P3 as an ordered table of `(kind, compiled regex, replacement)`. The reduced text goes back through `resolveleaf` and must resolve by id, listed name or loose id. Every regex is timed on `"x" + " " * N`. |
-| `trovenames.py` (new, data) | The `License ::` table: name to `(ids, reading)` with `reading` one of `stated`, `assumed`, `none`; `strip_trove_path`. About 90 entries, checked against the `trove-classifiers` package (a test dependency only). |
+| `trovenames.py` (new, data) | The `License ::` table: name to `(ids, reading)` with `reading` one of `stated`, `assumed`, `none`; `strip_trove_path`. About 90 entries, checked against the `trove-classifiers` package (a test dependency only). Holds the named special case Q23 (`GNU Lesser General Public License v2 (LGPLv2)` as `LGPL-2.0`). |
 | `exprcanon.py` (new) | See D1 below. |
 | `resolvecompound.py` (new) | Calls `resolveleaf` per leaf. All-or-nothing acceptance; the category is the weakest operand's; builds `operands` and `reason`; tells `malformed` (an operator or bracket and a resolved operand, but the grammar refuses it) from `unresolved`. Must handle `MIT OR GPL-2.0-only+` (`malformed` today). |
 | `resolver.py` (190 lines after T4) | Entry point: `resolve(value, db=None, *, source="auto")` chooses the list (4.5, Q4, Q10, Q11), runs the early refusals (empty, over 2000, Cc and Cf, Cs from T4b), tries one licence (`read_leaf`), then a compound, then the trove table, then prose (Q18, Q22), then `malformed`. Builds `Resolution`, `components`, `lists`. T7 removes `_expression_category`, `_is_expression`, `_RE_TOKEN`, `_RE_IDLIKE`, `_RE_SQUARE`. At most 250 lines. |
@@ -103,7 +103,8 @@ licenseid sorts and de-duplicates the parsed tree itself (about 60 lines):
    brackets. Emit the steps `operator_case`, `brackets`, `reorder`, `dedupe`.
 
 The leaf key is `(rank, text)` with ranks: listed id 0, `LicenseRef-` or
-`DocumentRef-` 1, `X WITH Y` 2. That reproduces the library's order for every
+`DocumentRef-` 1, `X WITH Y` 2; `text` compares case-folded, then ordinally
+(Q24). That reproduces the library's order for every
 shape among today's 29 agreements (`MIT OR LicenseRef-x`). The order of a
 `WITH` leaf against an `OR` group (`(A OR B) AND X WITH Y`) can differ from the
 library's; pin it in a test and list it in the parity table. Why not call
@@ -248,7 +249,7 @@ version and source.
 | Q9 | Several-word operands | **Decided: defer**; `reason: operand not resolved`. |
 | R1 | Pinned answers churn when rules change | The sample fixture's "changed set is empty" guard. |
 | R2 | Two release trains in lockstep | licenseid first; Pitloom 0.21.1 does not depend on it; 0.22.0 floors on it. |
-| Q10-Q23 | Taken after the review of T0 to T4 | **Decided**: see [`resolver-0-7-review.md`](resolver-0-7-review.md) section 4 (tie with an outdated build, silence when no database, quotes, refusal steps, "or later" as a grant token, operands, the key cap, operator case, rule order, group order, `AdditionRef-`, brackets, two trove names). |
+| Q10-Q24 | Taken after the review of T0 to T4 | **Decided**: see [`resolver-0-7-review.md`](resolver-0-7-review.md) section 4 (tie with an outdated build, silence when no database, quotes, refusal steps, "or later" as a grant token, operands, the key cap, operator case, rule order, group order, `AdditionRef-`, brackets, two trove names, the text order of the sort key). |
 
 ## 9. Risks
 
@@ -265,6 +266,11 @@ Model and effort are suggestions for the author; every task is reviewed by a
 different agent (Opus for tasks marked high). Escalate a task to the next row
 if it turns out to change the result shape, a category or the trust policy.
 
+A task that changes what `resolve()` reads or returns (T5, T6, T6b, T7, T8,
+T9) updates, in its own pull request, the `README.md` Features section (the
+description of the matching strategy) and the `resolve()` part of its Python
+API section; its reviewer checks that they match the behaviour.
+
 | # | Pull request title | Exit criteria | Author | Effort |
 | - | - | - | - | - |
 | T0 | Tests: rebuild the parity corpus and freeze a PyPI sample | Fixtures committed under 800 lines each; 0.6.0 answers pinned; `# BUG:` pins for F6 and `Apache 2.0?` | Sonnet | medium |
@@ -280,7 +286,7 @@ if it turns out to change the result shape, a category or the trust policy.
 | T8 | Read prose forms of one id (P1 to P3) | Sample before and after committed; regex timing tests | Sonnet | medium |
 | T9 | Read trove classifier names and paths (T1 to T3) | `trovenames.py`; `trove-classifiers` check; `lists` entry; sample before and after | Sonnet | medium |
 | T10 | Deferred to 0.8 (Q3): offer assumed trove readings as candidates | `assumed_usage`; Pitloom keeps them as text | **Opus** | **high** |
-| T11 | Docs: implementation note, evidence update, CHANGELOG 0.7.0 | Front-matter dates; a migration line for the breaking bullets | Haiku or Sonnet | low |
+| T11 | Docs: implementation note, evidence update, CHANGELOG 0.7.0, a final pass on the README Features section | Front-matter dates; a migration line for the breaking bullets; Features describes the 0.7.0 matching strategy (compounds in licenseid's own canonical order, not `py-spdx-license`'s sort; no database needed for `resolve()`) | Haiku or Sonnet | low |
 | T12 | Release licenseid 0.7.0 | `release-process.md`; the wheel ships the bundle; `resolve()` checked in a fresh venv with no database (the maintainer tags and publishes) | Sonnet | low |
 | T13 | Pitloom: read every declared value through `resolve()` (0.22.0) | Floor bump; about 250 lines deleted; drift guard; before and after sweep reviewed | Sonnet | high (Opus reviews) |
 | T14 | Pitloom: per-operand provenance and list version | `Resolution-n` per operand; no `py_spdx_license` in `src/` | Sonnet | medium |
@@ -330,6 +336,8 @@ deletes).
 - One reader per concept (`+`, "or later", version key): import it.
 - Output is deterministic: sort; no set or dict order; no clock.
 - A rule is promised only after a run of the sample with it (changed set empty).
+- The README says what the code does: a change to what `resolve()` reads updates
+  its Features section in the same pull request.
 
 ### 11.3 Traps
 
