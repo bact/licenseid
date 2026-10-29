@@ -181,9 +181,10 @@ SHAPES: list[tuple[str, tuple[str | None, str, list[str]]]] = [
     # Q14: a grant on an ID with no -or-later form is not read
     ("Apache 2.0 or later", (None, "unresolved", [])),
     ("MIT or later", (None, "unresolved", [])),
-    # Q14: the hyphenated grant is read by the version key, as a separator
-    ("GPL-2.0 or-later", ("GPL-2.0-or-later", "separator", ["separator"])),
-    ("GPL-2.0-only or-later", (None, "unresolved", [])),
+    # Q14: the hyphenated grant is a grant (was separator, by the version
+    # key) and a qualifier stated twice is malformed (was unresolved)
+    ("GPL-2.0 or-later", ("GPL-2.0-or-later", "stated_qualifier", [])),
+    ("GPL-2.0-only or-later", (None, "malformed", [])),
     # the grant after a WITH is not read
     ("GPL-2.0 WITH Classpath-exception-2.0 or later", (None, "unresolved", [])),
     # Q20: an AdditionRef names itself, as a LicenseRef does (was unresolved)

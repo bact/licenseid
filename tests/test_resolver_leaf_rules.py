@@ -131,3 +131,24 @@ def test_an_addition_ref_is_read_as_written(
     corpus_db: LicenseDatabase, value: str, expected: tuple[object, ...]
 ) -> None:
     assert _answer(value, corpus_db) == expected
+
+
+# -- Q14: the "or later" grant ------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("GPL-2.0 or-later", ("GPL-2.0-or-later", "stated_qualifier", [])),
+        ("LGPL-2.1 OR-LATER", ("LGPL-2.1-or-later", "stated_qualifier", [])),
+        ("GPL-2.0 (or-later)", ("GPL-2.0-or-later", "stated_qualifier", [])),
+        ("GPL-2.0-only or-later", (None, "malformed", [])),
+        ("GPL-2.0-or-later", ("GPL-2.0-or-later", "exact", [])),  # an ID
+        ("GPL-2.0 not or-later", (None, "unresolved", [])),
+    ],
+    ids=lambda v: v if isinstance(v, str) else "",
+)
+def test_the_hyphenated_grant_is_a_grant(
+    corpus_db: LicenseDatabase, value: str, expected: tuple[object, ...]
+) -> None:
+    assert _answer(value, corpus_db) == expected
