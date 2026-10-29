@@ -153,8 +153,9 @@ def _grant(text: str, part: re.Match[str]) -> int | None:
 
 def _is_trailing_mark(char: str) -> bool:
     """Whether *char* may follow a grant in its leaf: punctuation, not a
-    part of a word (``-``, ``_``), a bracket or a ``/`` between two IDs."""
-    return not (char.isalnum() or char.isspace() or char in "-_/()[]{}")
+    part of a word (``-``, ``_``) or a bracket. A ``/`` before an ID
+    (``or later/MIT``) still ends no grant: white space must follow."""
+    return not (char.isalnum() or char.isspace() or char in "-_()[]{}")
 
 
 def _after_space(text: str, pos: int) -> int:

@@ -168,6 +168,7 @@ def test_the_hyphenated_grant_is_a_grant(
         ("eCos-2.0 or later", ("eCos-2.0+", "deprecated_ambiguous", [])),
         ("GPL-2.0 or later", ("GPL-2.0-or-later", "stated_qualifier", [])),
         ("LicenseRef-x or later", (None, "unresolved", [])),
+        ("LicenseRef-x-1.0 or later", (None, "unresolved", [])),  # takes no "+"
         ("Foo or later", (None, "unresolved", [])),
         ("MIT+ or later", (None, "malformed", [])),
     ],

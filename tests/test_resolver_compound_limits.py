@@ -74,6 +74,11 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     # a mark after a grant stays in its leaf, judged as alone
     ("GPL-2.0 or later, OR MIT", ("GPL-2.0-or-later OR MIT", "stated_qualifier", None)),
     ("GPL-2.0 or later-ish OR MIT", (None, "unresolved", None)),  # no grant
+    ("GPL-2.0 or later- OR MIT", (None, "unresolved", None)),  # "-" ends no grant
+    ("GPL-2.0 or later/ OR MIT", (None, "unresolved", "character dropped: U+002F")),
+    # prose: a part of several words, and no operator or none between two
+    ("MIT License (MIT) OR ISC", (None, "unresolved", None)),
+    ("(Apache License 2.0", (None, "unresolved", None)),
     # quotes per operand
     ("MIT OR 'ISC'", ("ISC OR MIT", "lexical", None)),
     ('"MIT" AND "ISC', (None, "unresolved", "character dropped: U+0022")),
