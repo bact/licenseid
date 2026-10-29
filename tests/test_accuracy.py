@@ -189,10 +189,36 @@ def run_accuracy_test(
     return results
 
 
+# The every-commit subset: the most used licences and the pairs that are
+# easiest to confuse (-only against -or-later, two against three clauses).
+CORE_LICENSES = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "GPL-2.0-only",
+    "GPL-2.0-or-later",
+    "MPL-2.0",
+]
+
+
+def test_core_accuracy(matcher: AggregatedLicenseMatcher) -> None:
+    """Every commit: the core licences, verbatim and 1% distortion."""
+    assert_accuracy(matcher, CORE_LICENSES)
+
+
+@pytest.mark.benchmark
 def test_must_have_accuracy(matcher: AggregatedLicenseMatcher) -> None:
-    """Standard quick test: use the must-have licenses, verbatim and 1% distortion."""
+    """The must-have licences, verbatim and 1% distortion. A benchmark: CI runs
+    it on a pull request that changes the matching code, and weekly
+    (``.github/workflows/accuracy.yml``)."""
+    assert_accuracy(matcher, MUST_HAVE_LICENSES)
+
+
+def assert_accuracy(matcher: AggregatedLicenseMatcher, license_ids: list[str]) -> None:
+    """Top 1 at least 80% and top 5 all, verbatim and at 1% distortion."""
     rates = ["00", "01"]
-    results = run_accuracy_test(matcher, rates, license_ids=MUST_HAVE_LICENSES)
+    results = run_accuracy_test(matcher, rates, license_ids=license_ids)
 
     for rate in rates:
         stats = results[rate]

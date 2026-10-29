@@ -1,0 +1,102 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+# Text-matching accuracy beyond the every-commit core set (test.yml runs
+# tests/test_accuracy.py::test_core_accuracy). A pull request that changes
+# the matching code runs the must-have licences; the weekly and the manual
+# run take every benchmark except the full accuracy sweep, which the manual
+# run adds on request. See working-docs/implementation/release-process.md.
+
+name: Accuracy
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - "src/licenseid/database.py"
+      - "src/licenseid/dbcache.py"
+      - "src/licenseid/fingerprint.py"
+      - "src/licenseid/fingerprintstore.py"
+      - "src/licenseid/markers.py"
+      - "src/licenseid/matcher.py"
+      - "src/licenseid/normalize.py"
+      - "src/licenseid/ranking.py"
+      - "src/licenseid/records.py"
+      - "src/licenseid/retrieval.py"
+      - "src/licenseid/shorttext.py"
+      - "src/licenseid/similarity.py"
+      - "tests/fixtures/license-text-long/**"
+      - "tests/test_accuracy.py"
+      - "pyproject.toml"
+      - ".github/workflows/accuracy.yml"
+  push:
+    branches: [ main ]
+    paths:
+      - "src/licenseid/database.py"
+      - "src/licenseid/dbcache.py"
+      - "src/licenseid/fingerprint.py"
+      - "src/licenseid/fingerprintstore.py"
+      - "src/licenseid/markers.py"
+      - "src/licenseid/matcher.py"
+      - "src/licenseid/normalize.py"
+      - "src/licenseid/ranking.py"
+      - "src/licenseid/records.py"
+      - "src/licenseid/retrieval.py"
+      - "src/licenseid/shorttext.py"
+      - "src/licenseid/similarity.py"
+      - "tests/fixtures/license-text-long/**"
+      - "tests/test_accuracy.py"
+      - "pyproject.toml"
+      - ".github/workflows/accuracy.yml"
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Also run the full accuracy sweep (about an hour)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  accuracy:
+    name: Accuracy on Python 3.10
+    runs-on: ubuntu-latest
+    env:
+      LICENSEID_BUNDLE: skip
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install . --group test
+
+      - name: Must-have licences
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+        run: |
+          pytest tests/test_accuracy.py --run-benchmark -k must_have -v --tb=short
+
+      - name: Benchmarks without the full sweep
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        run: |
+          pytest tests/ --run-benchmark -m benchmark -k "not test_full_accuracy" -v --tb=short
+
+      - name: Full accuracy sweep
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.full }}
+        run: |
+          pytest tests/test_accuracy.py --run-benchmark -k test_full_accuracy -v --tb=short

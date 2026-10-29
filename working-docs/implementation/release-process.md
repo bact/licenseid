@@ -79,6 +79,8 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
   or retire the entry. Bump `Last-Modified` of the files you touch.
 - `pytest tests/ --run-benchmark` on the release commit: the benchmarks
   (accuracy, long inputs, linear time) do not run on every commit (PR #121).
+  Or run the `Accuracy` workflow by hand with `full` ticked: it runs every
+  benchmark, and the full accuracy sweep takes about an hour.
 - `python -m tools.cli_matrix --db <copy> --check` when the CLI, exit codes or
   input handling changed since the last run (see `AGENTS.md`).
 - Claims in the notes and the README match the code: they were checked by
