@@ -15,12 +15,9 @@ resolves nothing.
 
 from pathlib import Path
 
-from tools.pypi_licence_sample.answer import (
-    ANSWER_COLUMNS,
-    Answer,
-    answer_from_row,
-    unescape_field,
-)
+from changes_file import load_changes
+
+from tools.pypi_licence_sample.answer import Answer
 
 CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_t7_changes.tsv"
 
@@ -95,16 +92,5 @@ REASONS: dict[str, str] = {
 }
 
 
-def _changes() -> dict[str, tuple[Answer, str]]:
-    """The rows of :data:`CHANGES_FILE`, each with its group's reason."""
-    changes: dict[str, tuple[Answer, str]] = {}
-    lines = CHANGES_FILE.read_text(encoding="utf-8").splitlines()
-    rows = [line.split("\t") for line in lines if not line.startswith("#")]
-    for value, group, *fields in rows[1:]:
-        row = dict(zip(ANSWER_COLUMNS, fields, strict=True))
-        changes[unescape_field(value)] = (answer_from_row(row), REASONS[group])
-    return changes
-
-
 #: ``{value: (answer, reason)}``, every value T7 moves.
-T7_CHANGES: dict[str, tuple[Answer, str]] = _changes()
+T7_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)

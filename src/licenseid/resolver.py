@@ -14,8 +14,10 @@ part: a changed case is no decision, a re-spelt ID is, and a qualifier
 A value that names one licence, with its exception if it has one, is read
 by ``licenseid.resolveleaf``; an expression of several (``MIT OR Apache2``)
 by ``licenseid.resolvecompound``, each operand as it would be read alone,
-and written in canonical order (``licenseid.exprcanon``). A step that rests
-on a list cites it.
+and written in canonical order (``licenseid.exprcanon``); a trove classifier
+(``License :: OSI Approved :: MIT License``) or a name with its short form
+(``MIT License (MIT)``) by ``licenseid.resolvetrove``. A step that rests on
+a list cites it.
 
 No database is needed: with none, ``resolve`` reads the SPDX License List
 shipped in the wheel, in memory, and gives the answer a database built from
@@ -37,9 +39,15 @@ from licenseid.resolvecompound import (
     read_compound,
 )
 from licenseid.resolveleaf import Found, category_of, read_leaf
-from licenseid.resolverinfo import list_info, parser_info, resolver_info
+from licenseid.resolverinfo import (
+    list_info,
+    parser_info,
+    resolver_info,
+    trove_list_info,
+)
 from licenseid.resolvertypes import (
     SCHEMA,
+    TROVE_LIST,
     TRUST,
     ListInfo,
     ListSource,
@@ -48,6 +56,7 @@ from licenseid.resolvertypes import (
     Source,
     step,
 )
+from licenseid.resolvetrove import read_named
 from licenseid.textinput import has_lone_surrogate
 
 # The longest expression read; one licence is MAX_KEY_INPUT or less (versionkey).
@@ -87,7 +96,10 @@ def resolve_with(
     with lookup.reading():
         found, operands, parsed = _read(lookup, value)
         lists = [list_info(lookup, where)]
-    return _resolution(value, (found, operands, parsed), lists)
+    resolution = _resolution(value, (found, operands, parsed), lists)
+    if any(s["list"] == TROVE_LIST for s in resolution["steps"]):
+        resolution["lists"].append(trove_list_info())  # a name rests on it too
+    return resolution
 
 
 def _read(db: ListLookup, value: str) -> tuple[Found, list[Operand], bool]:
@@ -109,8 +121,12 @@ def _read(db: ListLookup, value: str) -> tuple[Found, list[Operand], bool]:
     compound = read_compound(db, text, start, found)
     if compound.claimed:
         return found, compound.operands, compound.parsed
-    # One leaf that names nothing (the trove and prose rules come here, Q18),
-    # or prose in compound form, with its first refused operand's reason.
+    named = Found()
+    if read_named(db, text, named):  # a trove name or path, a name and its short form
+        absorb(found, named)
+        return found, [operand_of(text, start, named)], False
+    # One leaf that names nothing (the prose rules come here, Q18), or prose
+    # in compound form, with its first refused operand's reason.
     found.category, found.reason = "unresolved", not_an_operator(text)
     if compound.fallback is not None:
         found.reason, found.steps = compound.fallback.reason, compound.fallback.steps

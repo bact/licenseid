@@ -27,13 +27,20 @@ LEXICAL_KINDS: Final = frozenset(
         "id_case",
         "operator_case",
         "reorder",
+        "trailing_name",
         "trim",
+        "trove_path",
         "unquote",
         "whitespace",
     }
 )
 
 SPDX_LIST: Final = "spdx-license-list"
+#: PyPA's trove classifiers (``License :: ...``), as ``licenseid.trovenames``
+#: records them: a vocabulary of names, never an authority on IDs.
+TROVE_LIST: Final = "pypi-trove-classifiers"
+#: The steps that rest on the trove list, not on the SPDX one.
+TROVE_KINDS: Final = frozenset({"trove_name", "trove_path"})
 
 # What a list must provide for a step of this kind to cite it. A kind that is
 # not here rests on no list (a trimmed space, brackets) and cites none. An
@@ -50,6 +57,8 @@ LIST_PROVIDES: Final = {
     "plus_to_or_later": "ids",
     "stated_qualifier": "ids",
     "assumed_only": "deprecation",
+    "trove_name": "names",
+    "trove_path": "names",
 }
 
 Category = Literal[
@@ -61,6 +70,7 @@ Category = Literal[
     "version_spelling",
     "listed_name",
     "deprecated_equal_successor",
+    "trove_name",
     "deprecated_ambiguous",
     "assumed_only",
     "malformed",
@@ -80,6 +90,7 @@ CATEGORY_ORDER: Final[tuple[Category, ...]] = (
     "stated_qualifier",
     "separator",
     "version_spelling",
+    "trove_name",
     "deprecated_ambiguous",
     "assumed_only",
     "malformed",
@@ -95,6 +106,7 @@ TRUST: Final[dict[Category, Trust]] = {
     "stated_qualifier": "author_words",
     "separator": "resolver_rule",
     "version_spelling": "resolver_rule",
+    "trove_name": "resolver_rule",
     "deprecated_ambiguous": "list_data",
     "assumed_only": "none",
     "malformed": "none",
@@ -202,6 +214,13 @@ class Resolution(TypedDict):
     reason: str | None
 
 
+def _list_of(kind: str) -> str:
+    """The list a step of *kind* rests on, or ``""`` if it rests on none."""
+    if kind in TROVE_KINDS:
+        return TROVE_LIST
+    return SPDX_LIST if kind in LIST_PROVIDES else ""
+
+
 def step(kind: str, applied: bool, source: str, target: str, detail: str = "") -> Step:
     """One step of the public shape, citing the list if its kind rests on one."""
     return {
@@ -209,7 +228,7 @@ def step(kind: str, applied: bool, source: str, target: str, detail: str = "") -
         "applied": applied,
         "from": source,
         "to": target,
-        "list": SPDX_LIST if kind in LIST_PROVIDES else "",
+        "list": _list_of(kind),
         "detail": detail,
         "by": "",  # licenseid did it; a step of another tool names it
     }

@@ -71,6 +71,19 @@ generator.*
     dropped, and brackets only where precedence needs them
     (`mit or "Apache2"` → `Apache-2.0 OR MIT`); `[ ]` and `{ }` count as
     brackets;
+  - the PyPI trove classifier names of the `License ::` family are read from
+    a table that records what each name states (`GNU General Public License
+    v3 or later (GPLv3+)` is `GPL-3.0-or-later`, category `trove_name`);
+    a name that writes a version but not "only" or "or later" (`... v3
+    (GPLv3)`) is the bare ID, `assumed_only`; a name that names no single
+    licence (`BSD License`, `W3C License`) or only by usage (`Apache
+    Software License`) stays `unresolved`; a path in its real form
+    (`License :: OSI Approved :: MIT License`) is read as its name is
+    read alone, with a `trove_path` step;
+  - a name followed by a parenthesis (`MIT License (MIT)`) is read as the
+    name when the name and the parenthesis, each read alone, are one
+    expression (`trailing_name` step); if they differ, or only one reads,
+    the value is not read;
   - a compound is all or nothing: its category is the weakest operand's,
     and one operand that names nothing leaves the whole unresolved, with a
     `reason` naming it; a mark used as an operator (`MIT/Apache-2.0`) is
@@ -571,20 +584,24 @@ compound, read or refused), and `by` on a step names the one that took it
 
 `steps` change the value; `expansions` hold a qualifier (`-only`,
 `-or-later`) added or, with `applied` false, declined. A step that rests on a
-list names it in `list`. The `category` of a result is the weakest of its
+list names it in `list`: the SPDX License List, or, for `trove_name` and
+`trove_path`, `pypi-trove-classifiers` (a second entry of `lists`, naming
+the classifier vocabulary of licenseid's table: `provides` `["names"]`,
+`id_authority` false, `source` always `packaged`). The `category` of a result is the weakest of its
 steps, and of a compound the weakest of its operands, in this order
 (strongest first):
 
 | Category | Trust | The value |
 | --- | --- | --- |
 | `exact` | `identity` | is a listed ID as written |
-| `lexical` | `identity` | differs in case, spacing, brackets, quotes or order |
+| `lexical` | `identity` | differs in case, spacing, brackets, quotes, order, a classifier prefix or an agreeing parenthesis |
 | `listed_name` | `list_data` | is the List's name of a licence |
 | `deprecated_equal_successor` | `list_data` | is a renamed deprecated ID |
 | `plus_to_or_later` | `list_data` | is `X+`, read as `X-or-later` |
 | `stated_qualifier` | `author_words` | states "or later" in words |
 | `separator` | `resolver_rule` | is an ID with other separators |
 | `version_spelling` | `resolver_rule` | is an ID with its version re-spelt |
+| `trove_name` | `resolver_rule` | is a PyPI trove classifier name that states one licence |
 | `deprecated_ambiguous` | `list_data` | is deprecated, with no successor |
 | `assumed_only` | `none` | is a bare split ID (`GPL-3.0`), kept |
 | `malformed` | `none` | states a qualifier twice, or breaks the grammar |

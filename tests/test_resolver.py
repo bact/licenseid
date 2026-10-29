@@ -343,6 +343,8 @@ def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> 
         "GPL-3.0",
         "GPL-2.0 or later",
         "MIT +",
+        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "MIT License (MIT)",
     )
     seen = set()
     for value in values:
@@ -355,7 +357,12 @@ def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> 
             else:
                 assert step["list"] == ""
     # every kind the table lists is exercised, and so are the ones without a list
-    assert seen == set(LIST_PROVIDES) | {"trim", "whitespace", "brackets"}
+    assert seen == set(LIST_PROVIDES) | {
+        "trim",
+        "whitespace",
+        "brackets",
+        "trailing_name",
+    }
 
 
 def test_the_result_names_the_resolver_and_the_list(db: LicenseDatabase) -> None:

@@ -38,6 +38,11 @@ and this project adheres to
   `WITH`, and `Apache 2.0 or later` as `Apache-2.0+` (an ID with a version
   and no `-or-later` form)
   ([#122])
+- `resolve()` reads PyPI trove classifier names and paths (`GNU General Public
+  License v3 or later (GPLv3+)`, `License :: OSI Approved :: MIT License`) with
+  `trove_name` and `trove_path` steps, and drops an agreeing trailing name
+  (`MIT License (MIT)`); new category `trove_name`; `lists` names the
+  classifier vocabulary
 
 ### Changed
 
