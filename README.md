@@ -678,7 +678,8 @@ Regular test suite:
 pytest
 ```
 
-Run benchmarks and accuracy tests (expensive):
+Run benchmarks and accuracy tests (expensive; CI runs them weekly and when
+the matching code changes):
 
 ```bash
 pytest --run-benchmark
