@@ -59,16 +59,31 @@ def reject_binary(data: bytes | str, source: str) -> None:
         raise InvalidInputError(f"input: binary file: {source}")
 
 
-def reject_lone_surrogate(text: str) -> None:
-    """Raise InvalidInputError if *text* has a lone surrogate (``\\ud800``, or
-    the ``\\udcXX`` an argument of invalid UTF-8 decodes to): no encoder takes
-    it, so SQLite's parameter binding would raise a raw UnicodeEncodeError."""
+def lone_surrogate_at(text: str) -> int | None:
+    """The index of the first lone surrogate in *text*, or None. A lone
+    surrogate (``\\ud800``, or the ``\\udcXX`` an argument of invalid UTF-8
+    decodes to) is the one thing no UTF-8 encoder takes, so this is where
+    the check is made, for the matcher and the resolver alike."""
     try:
         text.encode("utf-8")
     except UnicodeEncodeError as exc:
+        return exc.start
+    return None
+
+
+def has_lone_surrogate(text: str) -> bool:
+    """Whether *text* has a lone surrogate (see :func:`lone_surrogate_at`)."""
+    return lone_surrogate_at(text) is not None
+
+
+def reject_lone_surrogate(text: str) -> None:
+    """Raise InvalidInputError if *text* has a lone surrogate: SQLite's
+    parameter binding would raise a raw UnicodeEncodeError."""
+    position = lone_surrogate_at(text)
+    if position is not None:
         raise InvalidInputError(
-            f"input: invalid: text: lone surrogate at character {exc.start}"
-        ) from exc
+            f"input: invalid: text: lone surrogate at character {position}"
+        )
 
 
 def decode_input(data: bytes, source: str) -> str:
