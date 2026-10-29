@@ -52,7 +52,11 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
   (about 17 MB; 24.6 MB before XML was dropped).
 - Build the wheel and sdist as the release does, with a local bundle:
   `LICENSEID_BUNDLE=<bundle> LICENSEID_REQUIRE_BUNDLE=1 uv build`. Both must
-  hold `spdx-bundle.json.gz` (980,375 bytes for 3.29.0). Install the wheel in a
+  hold `spdx-bundle.json.gz` (980,375 bytes for 3.29.0). The sdist holds
+  only its allowlist (`only-include` in `pyproject.toml`, pinned by
+  `tests/test_sdist_contents.py`): list it with `tar -tzf` and look for
+  anything new. Build with `--python 3.10`: a local 3.14 could not resolve
+  Pitloom's build dependency `onnxruntime` (2026-10-29). Install the wheel in a
   fresh venv and run `env -i HOME=<scratch> licenseid update --source packaged`:
   it must build the database with no network.
 - The ID snapshot `tests/fixtures/license-list/spdx-license-ids.json` has the
