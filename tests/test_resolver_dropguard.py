@@ -119,10 +119,6 @@ def test_a_name_and_a_grant_are_not_read_by_dropping(
     assert (got["expression"], got["category"]) == (expression, category)
 
 
-def _ids_of(values: list[str]) -> list[str]:
-    return [ascii(v)[:36] for v in values]
-
-
 # Fixed by T6 (dropguard): 0.6.0 read the licence past the dropped character
 # (category `separator` or `version_spelling`); 0.7.0 refuses the value.
 @pytest.mark.parametrize(("value", "stopped", "lost"), DROPPED, ids=_ids(DROPPED))
@@ -144,8 +140,9 @@ def test_a_dropped_character_refuses_the_value(
         value,
         stopped,
     )
-    assert only["detail"] == lost
-    assert got["reason"] == f"character dropped: {lost!r}"
+    points = " ".join(f"U+{ord(c):04X}" for c in lost)
+    assert only["detail"] == points
+    assert got["reason"] == f"character dropped: {points}"
     assert got["expansions"] == [] and got["candidates"] == []
     assert got["input"] == value
 
@@ -162,39 +159,100 @@ def test_an_allowed_character_has_no_reason(
 
 def test_the_reason_names_each_character_once(corpus_db: LicenseDatabase) -> None:
     got = resolve("Apache??2.0!?", corpus_db)
-    assert got["reason"] == "character dropped: '?!'"
+    assert got["reason"] == "character dropped: U+003F U+0021"
 
 
 def test_a_quote_is_refused_with_its_own_repr(corpus_db: LicenseDatabase) -> None:
     """Q12: ``"MIT"`` is refused here; T6b will read quoted values."""
-    assert resolve('"MIT"', corpus_db)["reason"] == "character dropped: '\"'"
-    assert resolve("'MIT'", corpus_db)["reason"] == 'character dropped: "\'"'
+    assert resolve('"MIT"', corpus_db)["reason"] == "character dropped: U+0022"
+    assert resolve("'MIT'", corpus_db)["reason"] == "character dropped: U+0027"
 
 
 def test_a_comma_in_the_middle_is_refused(corpus_db: LicenseDatabase) -> None:
     got = resolve("Apache, 2.0", corpus_db)
     assert got["expression"] is None
-    assert got["reason"] == "character dropped: ','"
+    assert got["reason"] == "character dropped: U+002C"
+
+
+# P13: a mark before a qualifier or an exception refuses the whole value; the
+# `drop` step is the one of the leaf the mark is in.
+@pytest.mark.parametrize(
+    ("value", "seen", "stopped"),
+    [
+        ("Apache 2.0?+", "Apache 2.0?", "Apache-2.0"),
+        ("Apache2? or later", "Apache2?", "Apache-2.0"),
+        ("GPLv2? or later", "GPLv2?", "GPL-2.0"),
+        ("MIT? WITH Classpath-exception-2.0", "MIT?", "MIT"),
+        ("GPL-2.0? WITH Classpath-exception-2.0", "GPL-2.0?", "GPL-2.0"),
+    ],
+    ids=["plus", "or-later", "grant-v2", "with", "with-id"],
+)
+def test_a_mark_before_a_qualifier_or_exception_refuses_the_value(
+    corpus_db: LicenseDatabase, value: str, seen: str, stopped: str
+) -> None:
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["category"], got["trust"]) == (
+        None,
+        "unresolved",
+        "none",
+    )
+    assert got["reason"] == "character dropped: U+003F"
+    assert got["steps"] == [
+        {
+            "kind": "drop",
+            "applied": False,
+            "from": seen,
+            "to": stopped,
+            "list": "",
+            "detail": "U+003F",
+        }
+    ]
+    assert got["expansions"] == [] and got["candidates"] == []
+
+
+def test_the_step_names_the_listed_id_the_reading_named(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """A renamed ID is not followed: the step shows the listed ID read."""
+    got = resolve("StandardML NJ?", corpus_db)
+    assert got["steps"][0]["to"] == "StandardML-NJ"
+
+
+# The characters are those of normalize_text (RE_DASHES, RE_QUOTES), not a
+# Unicode category: the minus sign is a dash (SPDX guideline 4), the modifier
+# letters that normalize_text reads as quotes are marks, and a wave dash or
+# katakana hyphen (Pd) is neither.
+@pytest.mark.parametrize("char", ["\u2212", "\ufe63", "\uff0d", "\u2013", "\u2010"])
+def test_a_dash_of_normalize_is_dropped(corpus_db: LicenseDatabase, char: str) -> None:
+    got = resolve(f"Apache{char}2.0", corpus_db)
+    assert (got["expression"], got["reason"]) == ("Apache-2.0", None)
 
 
 @pytest.mark.parametrize(
-    "value",
+    ("value", "point"),
     [
-        "Apache 2.0?+",
-        "Apache2? or later",
-        "GPLv2? or later",
-        "MIT? WITH Classpath-exception-2.0",
-        "GPL-2.0? WITH Classpath-exception-2.0",
+        ("\u02bcMIT\u02bc", "U+02BC"),
+        ("MIT\u02b9", "U+02B9"),
+        ("\u02bbMIT", "U+02BB"),
+        ("\u2018MIT\u2019", "U+2018 U+2019"),
+        ("Apache\u301c2.0", "U+301C"),
+        ("Apache\u30a02.0", "U+30A0"),
+    ],
+    ids=[
+        "modifier-apostrophe",
+        "modifier-prime",
+        "turned-comma",
+        "curly",
+        "wave",
+        "kana",
     ],
 )
-def test_a_dropped_character_before_a_qualifier_or_exception_is_unresolved(
-    corpus_db: LicenseDatabase, value: str
+def test_a_quote_or_a_non_normalize_dash_is_refused(
+    corpus_db: LicenseDatabase, value: str, point: str
 ) -> None:
-    """Whatever the value goes on to say, the doubt is not read away."""
     got = resolve(value, corpus_db)
     assert got["expression"] is None
-    assert got["category"] in ("unresolved", "malformed")
-    assert got["candidates"] == []
+    assert got["reason"] == f"character dropped: {point}"
 
 
 @pytest.mark.parametrize(
@@ -208,7 +266,7 @@ def test_a_mark_that_is_no_grant_tail_is_refused(
     no tail, and the loose reading would drop it."""
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"]) == (None, "unresolved")
-    assert got["reason"] == f"character dropped: {lost!r}"
+    assert got["reason"] == f"character dropped: U+{ord(lost):04X}"
     assert [(s["kind"], s["applied"]) for s in got["steps"]] == [("drop", False)]
 
 

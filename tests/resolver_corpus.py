@@ -115,31 +115,31 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
             " value; 0.6.0 dropped it as a separator. T6 gives the reason"
         ),
     ),
-    "MIT\x00": (refused("control character: U+0000"), _CONTROL),
-    "MIT\u200b": (refused("control character: U+200B"), _CONTROL),
-    "\u202eMIT": (refused("control character: U+202E"), _CONTROL),
+    "MIT\x00": (refused("control or format character: U+0000"), _CONTROL),
+    "MIT\u200b": (refused("control or format character: U+200B"), _CONTROL),
+    "\u202eMIT": (refused("control or format character: U+202E"), _CONTROL),
     "Apache 2.0?": (
-        refused("character dropped: '?'", "Apache-2.0"),
+        refused("character dropped: U+003F", "Apache-2.0"),
         _DROP.format(char="question mark", licence="Apache-2.0"),
     ),
     "Apache 2.0!": (
-        refused("character dropped: '!'", "Apache-2.0"),
+        refused("character dropped: U+0021", "Apache-2.0"),
         _DROP.format(char="exclamation mark", licence="Apache-2.0"),
     ),
     "MIT*": (
-        refused("character dropped: '*'", "MIT"),
+        refused("character dropped: U+002A", "MIT"),
         _DROP.format(char="asterisk", licence="MIT"),
     ),
     "#MIT": (
-        refused("character dropped: '#'", "MIT"),
+        refused("character dropped: U+0023", "MIT"),
         _DROP.format(char="hash", licence="MIT"),
     ),
     "MIT" + chr(0xFFFD): (  # not a literal: ruff reads it as the surrogate key
-        refused("character dropped: '" + chr(0xFFFD) + "'", "MIT"),
+        refused("character dropped: U+FFFD", "MIT"),
         _DROP.format(char="replacement character U+FFFD", licence="MIT"),
     ),
     '"MIT"': (
-        refused("character dropped: '\"'", "MIT"),
+        refused("character dropped: U+0022", "MIT"),
         _DROP.format(char="quote", licence="MIT")
         + "; Q12: quotes are refused here, a later task (T6b) reads them",
     ),

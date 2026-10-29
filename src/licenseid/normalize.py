@@ -37,11 +37,11 @@ _RE_NON_WORD: Final = re.compile(r"[^\w\s]")
 # second call to normalize_text() to behave differently from the first
 # (non-idempotent).  Folding hyphens to spaces here, before varietal
 # matching runs, keeps normalize_text() idempotent.
-_RE_DASHES: Final = re.compile(r"[‐‑‒–—―−﹘﹣－-]")
+RE_DASHES: Final = re.compile(r"[‐‑‒–—―−﹘﹣－-]")
 
 # Guideline 4 (quotes): any variation of quotations is considered
 # equivalent.  Normalise to ASCII single quote before stripping punctuation.
-_RE_QUOTES: Final = re.compile(
+RE_QUOTES: Final = re.compile(
     r'["«»'  # " « »
     r"‘’"  # ' '
     r"‚‛"  # ‚ ‛
@@ -329,10 +329,10 @@ def normalize_text(text: str) -> str:
     text = _RE_COPYRIGHT_SYMBOL.sub("(c)", text)
 
     # 8. Dashes / hyphens
-    text = _RE_DASHES.sub(" ", text)
+    text = RE_DASHES.sub(" ", text)
 
     # 9. Quotes
-    text = _RE_QUOTES.sub("'", text)
+    text = RE_QUOTES.sub("'", text)
 
     # 10. Case
     text = text.lower()

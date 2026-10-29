@@ -25,7 +25,7 @@ refused as a whole today.
 import re
 from dataclasses import dataclass, field
 
-from licenseid.dropguard import dropped
+from licenseid.dropguard import code_points, dropped
 from licenseid.identifiers import is_license_ref, without_outer_brackets
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import (
@@ -71,10 +71,15 @@ class _Dropped(Exception):
     def record(self, found: Found) -> None:
         """Make *found* the refusal: ``unresolved``, a ``drop`` step that did
         not apply (the reading it stopped), and the reason."""
+        # Reset what a half-read value may have put in *found* before the
+        # exception: a refusal answers no expression, no candidate, and no
+        # step but its own.
         found.expression = None
         found.category = "unresolved"
-        found.reason = f"character dropped: {self.lost!r}"
-        found.steps = [step("drop", False, self.text, self.license_id, self.lost)]
+        found.reason = f"character dropped: {code_points(self.lost)}"
+        found.steps = [
+            step("drop", False, self.text, self.license_id, code_points(self.lost))
+        ]
         found.expansions = []
         found.candidates = []
 

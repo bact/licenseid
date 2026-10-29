@@ -155,7 +155,9 @@ def test_a_dropped_character_is_no_longer_read_as_a_licence(
     """Fixed by T6: unresolved, a ``drop`` step that did not apply, a reason."""
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"]) == (None, "unresolved")
-    assert got["reason"] == f"character dropped: {lost!r}"
+    assert got["reason"] == "character dropped: " + " ".join(
+        f"U+{ord(c):04X}" for c in lost
+    )
     assert [(s["kind"], s["applied"], s["to"]) for s in got["steps"]] == [
         ("drop", False, stopped)
     ]

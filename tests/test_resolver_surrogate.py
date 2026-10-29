@@ -88,4 +88,4 @@ def test_a_valid_astral_character_is_no_surrogate(
     assert (result["expression"], result["category"]) == (None, "unresolved")
     assert result["reason"] != "lone surrogate"
     if value == "MIT \U0001f600":
-        assert result["reason"] == "character dropped: '\U0001f600'"
+        assert result["reason"] == "character dropped: U+1F600"

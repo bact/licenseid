@@ -12,7 +12,7 @@ import time
 
 import pytest
 
-from licenseid.dropguard import dropped
+from licenseid.dropguard import code_points, dropped
 
 
 @pytest.mark.parametrize(
@@ -23,19 +23,39 @@ from licenseid.dropguard import dropped
         "Apache 2.0",
         "Apache_2.0",
         "Apache-2.0",
-        "Apache–2.0",  # en dash (Pd)
-        "Apache—2.0",  # em dash (Pd)
-        "Apache‐2.0",  # hyphen U+2010 (Pd)
-        "Apache−2.0",  # minus sign U+2212 is Sm, not Pd: see below
-    ][:-1],
+        "Apache\u20132.0",  # en dash
+        "Apache\u20142.0",  # em dash
+        "Apache\u20102.0",  # hyphen U+2010
+        "Apache\u22122.0",  # minus sign: a dash of normalize_text
+        "Apache\ufe632.0",  # small hyphen-minus
+        "Apache\uff0d2.0",  # fullwidth hyphen-minus
+    ],
 )
 def test_nothing_is_dropped(text: str) -> None:
     assert dropped(text) == ""
 
 
-def test_a_minus_sign_is_not_a_dash() -> None:
-    """U+2212 is a math symbol (Sm), not a dash (Pd): it is refused."""
-    assert dropped("Apache−2.0") == "−"
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Apache\u301c2.0", "\u301c"),  # wave dash: Pd, not a dash of normalize
+        ("Apache\u30a02.0", "\u30a0"),  # katakana-hiragana double hyphen: Pd
+        ("\u02bcMIT\u02bc", "\u02bc"),  # modifier letters: alphanumeric, but quotes
+        ("MIT\u02b9\u02ba", "\u02b9\u02ba"),
+        ("\u00abMIT\u00bb", "\u00ab\u00bb"),
+    ],
+)
+def test_the_sets_are_those_of_normalize_not_a_unicode_category(
+    text: str, expected: str
+) -> None:
+    assert dropped(text) == expected
+
+
+def test_code_points() -> None:
+    assert code_points("?!") == "U+003F U+0021"
+    assert code_points("\U0001f600") == "U+1F600"
+    assert code_points("\udcff") == "U+DCFF"
+    assert code_points("") == ""
 
 
 @pytest.mark.parametrize(

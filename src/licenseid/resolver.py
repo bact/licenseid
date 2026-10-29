@@ -155,7 +155,7 @@ def _refusal(text: str) -> str | None:
         return "lone surrogate"
     for char in text:
         if unicodedata.category(char) in ("Cc", "Cf") and not char.isspace():
-            return f"control character: U+{ord(char):04X}"
+            return f"control or format character: U+{ord(char):04X}"
     return None
 
 

@@ -22,6 +22,8 @@ SPDX_LIST: Final = "spdx-license-list"
 # What a list must provide for a step of this kind to cite it. A kind that is
 # not here rests on no list (a trimmed space, brackets) and cites none. An
 # "or later" the author wrote still rests on the -or-later ID being in use.
+# ``drop`` is not here on purpose: it is a step that did not apply, and no
+# list vouched for a reading that was refused.
 LIST_PROVIDES: Final = {
     "id_case": "ids",
     "separator": "ids",
