@@ -18,7 +18,7 @@ from conftest import make_memory_db_path, make_ready_db_path
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 
 
 @pytest.fixture
@@ -97,7 +97,7 @@ def test_clear_cache_keeps_a_file_that_is_not_a_database(tmp_path: Path) -> None
 @pytest.mark.parametrize(
     ("args", "target", "target_attr"),
     [
-        (["match", "--id", "MIT"], AggregatedLicenseMatcher, "match"),
+        (["match", "--id", "MIT"], LicenseDetector, "match"),
         (["is-osi", "MIT"], LicenseDatabase, "get_license_details"),
     ],
 )
@@ -119,7 +119,7 @@ def test_sqlite_failure_after_the_check_is_an_unreadable_database(
 def test_other_exceptions_are_not_worded_as_a_database_error(ready_db: str) -> None:
     """Only SQLite failures are; a bug elsewhere must still show its traceback."""
     with mock.patch.object(
-        AggregatedLicenseMatcher, "match", autospec=True, side_effect=KeyError("x")
+        LicenseDetector, "match", autospec=True, side_effect=KeyError("x")
     ):
         result = CliRunner().invoke(cli, ["--db", ready_db, "match", "--id", "MIT"])
     assert isinstance(result.exception, KeyError)
@@ -134,7 +134,7 @@ def test_sqlite_programming_errors_are_worded_as_a_database_error(
     """One policy, in the matcher and the CLI: every sqlite3.Error is a
     DatabaseNotReadyError (exit 2), and the original stays its cause."""
     with mock.patch.object(
-        AggregatedLicenseMatcher, "match", autospec=True, side_effect=failure
+        LicenseDetector, "match", autospec=True, side_effect=failure
     ):
         result = CliRunner().invoke(cli, ["--db", ready_db, "match", "--id", "MIT"])
     assert result.exit_code == 2

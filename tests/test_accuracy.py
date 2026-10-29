@@ -16,8 +16,8 @@ import pytest
 from conftest import seed_ready_metadata
 
 from licenseid.database import LicenseDatabase
+from licenseid.detector import LicenseDetector
 from licenseid.fingerprintstore import store_fingerprints
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "license-text-long"
@@ -27,7 +27,7 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures" / "license-text-long"
 
 
 @pytest.fixture(scope="module")
-def matcher() -> AggregatedLicenseMatcher:
+def matcher() -> LicenseDetector:
     """Fixture to provide a module-scoped, prepopulated in-memory matcher."""
     # Use a shared in-memory database for performance and isolation
     db_path = "file:test_benchmark?mode=memory&cache=shared"
@@ -104,7 +104,7 @@ def matcher() -> AggregatedLicenseMatcher:
 
     seed_ready_metadata(db_path)
     print("  Population complete.")
-    return AggregatedLicenseMatcher(db_path)
+    return LicenseDetector(db_path)
 
 
 MUST_HAVE_LICENSES = [
@@ -131,7 +131,7 @@ MUST_HAVE_LICENSES = [
 
 
 def run_accuracy_test(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
     rates: list[str],
     max_licenses: int | None = None,
     license_ids: list[str] | None = None,
@@ -202,20 +202,20 @@ CORE_LICENSES = [
 ]
 
 
-def test_core_accuracy(matcher: AggregatedLicenseMatcher) -> None:
+def test_core_accuracy(matcher: LicenseDetector) -> None:
     """Every commit: the core licences, verbatim and 1% distortion."""
     assert_accuracy(matcher, CORE_LICENSES)
 
 
 @pytest.mark.benchmark
-def test_must_have_accuracy(matcher: AggregatedLicenseMatcher) -> None:
+def test_must_have_accuracy(matcher: LicenseDetector) -> None:
     """The must-have licences, verbatim and 1% distortion. A benchmark: CI runs
     it on a pull request that changes the matching code, and weekly
     (``.github/workflows/accuracy.yml``)."""
     assert_accuracy(matcher, MUST_HAVE_LICENSES)
 
 
-def assert_accuracy(matcher: AggregatedLicenseMatcher, license_ids: list[str]) -> None:
+def assert_accuracy(matcher: LicenseDetector, license_ids: list[str]) -> None:
     """Top 1 at least 80% and top 5 all, verbatim and at 1% distortion."""
     rates = ["00", "01"]
     results = run_accuracy_test(matcher, rates, license_ids=license_ids)
@@ -238,7 +238,7 @@ def assert_accuracy(matcher: AggregatedLicenseMatcher, license_ids: list[str]) -
 
 
 @pytest.mark.benchmark
-def test_full_accuracy(matcher: AggregatedLicenseMatcher) -> None:
+def test_full_accuracy(matcher: LicenseDetector) -> None:
     """Run full accuracy benchmark across all distortion rates for all licenses."""
     # rates = ["00", "01", "02", "05", "10", "20"]
     rates = ["00", "02", "05"]
@@ -262,7 +262,7 @@ def test_full_accuracy(matcher: AggregatedLicenseMatcher) -> None:
     print("=" * 55 + "\n")
 
 
-def test_name_accuracy(matcher: AggregatedLicenseMatcher) -> None:
+def test_name_accuracy(matcher: LicenseDetector) -> None:
     """Test matching using exact license names (lowercase)."""
     fixtures = list(FIXTURES_DIR.glob("*.json"))
     total = 0

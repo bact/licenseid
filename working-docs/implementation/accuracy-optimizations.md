@@ -65,27 +65,27 @@ Examples:
 Returns the shortest active (non-deprecated) license whose ID starts with the
 given prefix, only when that match is unambiguous (unique shortest length).
 
-### 2. FTS5 word cap reverted to 100 (`matcher.py`)
+### 2. FTS5 word cap reverted to 100 (`detector.py`)
 
 The query truncation cap was temporarily raised to 200 words. Benchmark results
 show Recall@1 is flat beyond 100 words: the head of the license text provides
 sufficient FTS5 signal. The cap is returned to 100 words.
 
-### 3. Case-fold exact ID match in Tier 0 (`matcher.py`)
+### 3. Case-fold exact ID match in Tier 0 (`detector.py`)
 
 `_match_short_text()` now checks for an exact case-insensitive ID match in a
 single pass before entering the fuzzy loop. On a hit it returns immediately
 with `score=1.02`, which the Tier 0 caller uses as a definitive-result signal.
 This eliminates false fuzzy-near-miss rankings for inputs like `"mit"`.
 
-### 4. Prose disambiguation fast path in Tier 0 (`matcher.py`)
+### 4. Prose disambiguation fast path in Tier 0 (`detector.py`)
 
 Before the short-text fuzzy loop, `match()` calls `disambiguate_deprecated_id()`
 on the raw (un-normalised) input text. On a hit it performs a single DB lookup
 and returns directly. The raw text is used because `normalize_text()` strips
 punctuation and case that the disambiguation regexes rely on.
 
-### 5. Marker boost guard raised to ≥ 0.85 (`matcher.py`)
+### 5. Marker boost guard raised to ≥ 0.85 (`detector.py`)
 
 The marker confidence boost in `_calculate_final_score()` previously fired for
 any `marker_conf > 0`. Low-confidence markers on partial or noisy inputs caused
@@ -93,7 +93,7 @@ score distortion on Type 4 benchmark fixtures (5 %/20 % text fragments). The
 guard is now `marker_conf >= 0.85`, so only reliable markers influence the
 final score.
 
-### 6. Comment-prefix stripper (`matcher.py`)
+### 6. Comment-prefix stripper (`detector.py`)
 
 A new `_strip_comment_prefixes()` static method removes leading comment
 characters (`//`, `#`, `;`, `*`, `/*`) and trailing `*/` closers from every
@@ -106,7 +106,7 @@ line. It is called:
 This improves recall for Type 5 inputs — license notices wrapped in source-file
 comment blocks — without affecting pure-text inputs.
 
-### 7. Short-text threshold set to 30 words (`matcher.py`)
+### 7. Short-text threshold set to 30 words (`detector.py`)
 
 The Tier 0 short-text fast path triggers when the input is fewer than 30
 normalised words (~200 characters). Inputs at or above 30 words flow through
@@ -121,7 +121,7 @@ preserves the fast path for bare IDs and short names while letting
 licence-text fragments of ≥ 30 words reach the FTS5 pipeline where they
 resolve correctly.
 
-### 8. Dual FTS5 query: head + tail (`matcher.py`)
+### 8. Dual FTS5 query: head + tail (`detector.py`)
 
 For inputs longer than 200 normalised words, `_get_candidates()` now issues two
 FTS5 queries and unions the candidate sets:
@@ -165,7 +165,7 @@ clauses) narrow the match set sufficiently for the correct candidate to rank.
 scores tie and the alphabetical ID tie-break would always pick `-only`. The
 granting language around the text is the only evidence, and
 `ranking.apply_version_suffix_tiebreaker` (called from
-`AggregatedLicenseMatcher.match`) uses it.
+`LicenseDetector.match`) uses it.
 
 - **Why it moves scores.** The result is a list sorted by score and
   `results[0]` is the answer, so the only lever is the score. Two scores that

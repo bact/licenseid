@@ -26,6 +26,7 @@ from licenseid.dbcheck import (
     reject_foreign_database,
     unreadable_error,
 )
+from licenseid.detector import LicenseDetector
 from licenseid.errors import (
     DatabaseNotReadyError,
     InvalidInputError,
@@ -35,7 +36,6 @@ from licenseid.errors import (
 )
 from licenseid.exprtokens import is_license_ref
 from licenseid.identifiers import is_simple_expression
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.output import (
     EchoHelpCommand,
     OutputError,
@@ -419,7 +419,7 @@ def resolve_license_record(
 
     reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
     reject_compound_id(ctx, id_val)
-    matcher = AggregatedLicenseMatcher(db_path)
+    matcher = LicenseDetector(db_path)
     check_db_staleness(matcher.db)
 
     # 1. Explicit ID
@@ -494,7 +494,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             ctx, f"option: invalid: --threshold: {threshold}; pass a value from 0 to 1"
         )
 
-    matcher = AggregatedLicenseMatcher(db_path, enable_popularity=enable_popularity)
+    matcher = LicenseDetector(db_path, enable_popularity=enable_popularity)
     check_db_staleness(matcher.db)
 
     if id_val:

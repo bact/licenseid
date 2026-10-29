@@ -23,7 +23,7 @@ from matcher_db import Lic, seeded_db
 from rapidfuzz import fuzz
 
 from licenseid import similarity
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
 from licenseid.types import CandidateMatch
 
@@ -231,7 +231,7 @@ def licence_among_tokens() -> str:
 def test_a_blob_is_matched_quickly(long_licences_db: str, text: str) -> None:
     """A licence over a blob used to run the full scan on every candidate:
     seconds to minutes per candidate at this length (item 16)."""
-    matcher = AggregatedLicenseMatcher(long_licences_db)
+    matcher = LicenseDetector(long_licences_db)
     start = time.monotonic()
     matcher.match(text=text)
     assert time.monotonic() - start < 0.5  # 10x the time taken
@@ -260,6 +260,6 @@ def test_a_japanese_fragment_is_matched(japanese_db: str, start: int, end: int) 
     """Japanese is written without spaces, so its words are long: a slice of
     it must not be taken for a blob (review of PR #62)."""
     text = fixture_text("CC-BY-SA-2.1-JP")[start:end]
-    results = AggregatedLicenseMatcher(japanese_db).match(text=text)
+    results = LicenseDetector(japanese_db).match(text=text)
     assert results[0]["license_id"] == "CC-BY-SA-2.1-JP"
     assert results[0]["score"] >= 0.85

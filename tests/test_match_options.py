@@ -14,11 +14,11 @@ from typing import Any
 import pytest
 from conftest import MIT_SEARCH_TEXT, make_mit_db_path
 
+from licenseid.detector import _MATCH_OPTIONS, LicenseDetector
 from licenseid.errors import InvalidInputError, LicenseIdError
-from licenseid.matcher import _MATCH_OPTIONS, AggregatedLicenseMatcher
-from licenseid.types import MatchRequest
+from licenseid.types import DetectRequest
 
-# One valid value per option. Kept beside MatchRequest by the test below, so
+# One valid value per option. Kept beside DetectRequest by the test below, so
 # a new option cannot be added without deciding whether match() takes it.
 VALID_OPTIONS: dict[str, Any] = {
     "enable_popularity": True,
@@ -30,33 +30,29 @@ VALID_OPTIONS: dict[str, Any] = {
 
 
 @pytest.fixture
-def matcher() -> Generator[AggregatedLicenseMatcher, None, None]:
+def matcher() -> Generator[LicenseDetector, None, None]:
     db_path, keep_alive = make_mit_db_path(
         "test_match_options", datetime.now(timezone.utc).isoformat()
     )
-    yield AggregatedLicenseMatcher(db_path)
+    yield LicenseDetector(db_path)
     keep_alive.close()
 
 
 def test_every_match_request_option_is_covered() -> None:
     named_parameters = {"text", "license_id", "file_path"}
-    assert set(VALID_OPTIONS) == set(MatchRequest.__annotations__) - named_parameters
+    assert set(VALID_OPTIONS) == set(DetectRequest.__annotations__) - named_parameters
     assert set(VALID_OPTIONS) == _MATCH_OPTIONS
 
 
 @pytest.mark.parametrize("name", sorted(VALID_OPTIONS))
-def test_a_known_option_is_accepted(
-    matcher: AggregatedLicenseMatcher, name: str
-) -> None:
+def test_a_known_option_is_accepted(matcher: LicenseDetector, name: str) -> None:
     assert matcher.match(text=MIT_SEARCH_TEXT, **{name: VALID_OPTIONS[name]})
 
 
 @pytest.mark.parametrize(
     "name", ["enable_popularty", "enable_java", "ONLY_SPDX", "only-spdx", "", "text2"]
 )
-def test_an_unknown_option_is_rejected(
-    matcher: AggregatedLicenseMatcher, name: str
-) -> None:
+def test_an_unknown_option_is_rejected(matcher: LicenseDetector, name: str) -> None:
     options: dict[str, Any] = {name: True}
     with pytest.raises(InvalidInputError) as raised:
         matcher.match(text=MIT_SEARCH_TEXT, **options)
@@ -76,7 +72,7 @@ def test_an_unknown_option_is_rejected(
     ids=["license_id", "empty_text", "no_text", "no_input", "missing_file"],
 )
 def test_the_option_is_checked_before_any_input(
-    matcher: AggregatedLicenseMatcher, kwargs: dict[str, Any]
+    matcher: LicenseDetector, kwargs: dict[str, Any]
 ) -> None:
     """The early returns (an explicit ID, empty text) and a file that cannot
     be read must not let a bad option through, or change the error."""
@@ -85,7 +81,7 @@ def test_the_option_is_checked_before_any_input(
 
 
 def test_every_unknown_option_is_named_once_in_order(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> None:
     """Enough names that a set's arbitrary order would show (the hash seed
     varies between runs), and the known options listed in a fixed order."""
@@ -99,7 +95,7 @@ def test_every_unknown_option_is_named_once_in_order(
 
 
 def test_the_error_is_a_licenseid_error_and_a_runtime_error(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> None:
     with pytest.raises(LicenseIdError):
         matcher.match(text=MIT_SEARCH_TEXT, bogus=1)
@@ -108,7 +104,7 @@ def test_the_error_is_a_licenseid_error_and_a_runtime_error(
 
 
 def test_a_rejected_call_leaves_the_matcher_usable(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> None:
     plain = matcher.match(text=MIT_SEARCH_TEXT)
     with pytest.raises(InvalidInputError):
@@ -117,7 +113,7 @@ def test_a_rejected_call_leaves_the_matcher_usable(
 
 
 def test_a_valid_option_does_not_change_the_result_when_it_is_the_default(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> None:
     assert matcher.match(text=MIT_SEARCH_TEXT, only_spdx=True) == matcher.match(
         text=MIT_SEARCH_TEXT

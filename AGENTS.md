@@ -5,7 +5,7 @@
 - License ID detection using hybrid search (`licenseid` package).
 - Architecture: SQLite FTS5 trigram tokenization (Tier 1 recall) and RapidFuzz
   (Tier 2 precision ranking).
-- Matching modules: `matcher.py` (the pipeline), `retrieval.py` (Tier 1),
+- Matching modules: `detector.py` (the pipeline), `retrieval.py` (Tier 1),
   `shorttext.py` (Tier 0 IDs and names), `looseid.py` (a loosely written
   ID: "Apache2", "GPLv3", "GPLv2 or any later version"), `ranking.py`
   (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
@@ -44,7 +44,7 @@
   CLI's standard output and what a
   failed write means), `result.py` (the public result and its JSON and text
   lines), `types.py`, `usage.py` (click's usage errors in the grammar).
-  Keep `matcher.py` under the 800-line limit: put logic that needs no
+  Keep `detector.py` under the 800-line limit: put logic that needs no
   matcher state in one of the others.
 - Release sources of `update`, by where the data comes from: `compact`
   (our 1 MB bundle on the `data` branch), `upstream` (SPDX's own tarball),
@@ -233,7 +233,7 @@ constraint).
 
 - **The Boy Scout Rule**: leave the codebase cleaner than you found it. Refactor
   proactively during small changes.
-- **Prevent monoliths**: never let a single file (like `matcher.py` or
+- **Prevent monoliths**: never let a single file (like `detector.py` or
   `database.py`) become a dumping ground. Extract cohesive pieces into dedicated
   modules early — see the file-size limit above.
 - **Consolidate patterns**: extract duplicated logic into shared helpers
@@ -359,7 +359,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   (UTF-8 with BOM dropped, else Latin-1 with a warning, NUL means binary,
   checked by `reject_binary`, which `--text` also calls). The CLI and
   `match(file_path=...)` both use it; do not `open()` a user file
-  anywhere else (`tests/test_textinput.py` fails if `cli.py` or `matcher.py`
+  anywhere else (`tests/test_textinput.py` fails if `cli.py` or `detector.py`
   does). The SPDX data files stay strict UTF-8 on purpose: a fallback there
   would hide a corrupt download. A text with a lone surrogate (an API string,
   or a command-line argument of invalid UTF-8, which Python decodes to

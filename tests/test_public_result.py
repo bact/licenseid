@@ -23,9 +23,9 @@ from conftest import (
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 import licenseid
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 from licenseid.result import json_line, public_result, text_line
-from licenseid.types import LicenseMatch, RawMatch
+from licenseid.types import Detection, RawMatch
 
 # Long enough that a fragment of it is aligned to a window of its own.
 LONG_TEXT = " ".join(
@@ -35,7 +35,7 @@ FRAGMENT = " ".join(LONG_TEXT.split()[10:22]) + " zulu"
 
 
 def test_the_keys_are_those_of_the_public_type() -> None:
-    assert set(get_type_hints(LicenseMatch)) == RESULT_KEYS
+    assert set(get_type_hints(Detection)) == RESULT_KEYS
 
 
 @pytest.fixture(scope="module")
@@ -57,8 +57,8 @@ def db() -> Generator[str, None, None]:
     yield from seeded_db("test_public_result", rows)
 
 
-def _match(db: str, **kwargs: Any) -> list[LicenseMatch]:
-    return AggregatedLicenseMatcher(db).match(**kwargs)
+def _match(db: str, **kwargs: Any) -> list[Detection]:
+    return LicenseDetector(db).match(**kwargs)
 
 
 @pytest.mark.parametrize(
@@ -145,7 +145,7 @@ def test_a_deprecated_name_of_its_own_is_exact(db: str) -> None:
 
 
 def test_the_cap_keeps_the_ranking_order(db: str) -> None:
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     raw = matcher._match_raw("MIT License")  # pylint: disable=protected-access
     assert [r["score"] for r in raw][:2] == [1.02, 1.01]
     assert [r["license_id"] for r in raw] == [
@@ -295,7 +295,7 @@ TAGGED = "SPDX-License-Identifier: LicenseRef-x+\n" + FRAGMENT
 def test_the_diff_pair_is_what_ranking_aligned(db: str, text: str) -> None:
     """--diff recomputes the window Tier 2 aligned, for one license, against
     the input Tier 2 read. (Characterisation: reads the internal window.)"""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     raw = matcher._match_raw(text)  # pylint: disable=protected-access
     assert (raw[0]["license_id"], raw[0]["method"]) == ("Long-1.0", "text")
     window = raw[0].get("best_window")
@@ -336,4 +336,4 @@ def test_diff_is_for_the_top_result_only() -> None:
 
 
 def test_the_result_types_are_exported() -> None:
-    assert {"LicenseMatch", "Method"} <= set(licenseid.__all__)
+    assert {"Detection", "Method"} <= set(licenseid.__all__)

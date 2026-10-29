@@ -25,11 +25,11 @@ from matcher_db import PROSE
 from spdx_tag_helpers import Answers, answers, cli_match_id, source_with, tag_db
 
 from licenseid.cli import cli
+from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
 from licenseid.identifiers import is_simple_expression
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.plusoperator import strip_plus_operator
-from licenseid.types import LicenseMatch
+from licenseid.types import Detection
 
 
 @pytest.fixture
@@ -105,7 +105,7 @@ def test_an_unknown_tag_is_no_evidence_anywhere(
 
 def test_an_unknown_tag_does_not_hide_a_known_one(db: str) -> None:
     text = source_with("NoSuchLicense-9.9") + source_with("Apache-2.0")
-    results = AggregatedLicenseMatcher(db).match(text=text)
+    results = LicenseDetector(db).match(text=text)
     assert [r["license_id"] for r in results] == ["Apache-2.0"]
 
 
@@ -115,7 +115,7 @@ WITH_EXPRESSION = "GPL-2.0-only WITH Classpath-exception-2.0"
 def test_a_with_tag_has_the_flags_of_its_license(db: str, tmp_path: Path) -> None:
     """The same expression gives the same OSI and FSF answers as a tag, as
     text and as an ID, through the API and the CLI."""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     path = tmp_path / "source.c"
     path.write_text(source_with(WITH_EXPRESSION), encoding="utf-8")
     assert matcher.is_osi(text=source_with(WITH_EXPRESSION))
@@ -143,7 +143,7 @@ def test_the_flags_come_from_the_license_not_the_other_flag(
     db: str, tmp_path: Path, tag: str, osi: bool, fsf: bool
 ) -> None:
     """A license approved by only one body shows that in every entry point."""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     path = tmp_path / "source.c"
     path.write_text(source_with(tag), encoding="utf-8")
     assert matcher.is_osi(text=source_with(tag)) is osi
@@ -158,20 +158,20 @@ PLUS_WITH = "Apache-2.0+ WITH Classpath-exception-2.0"
 
 def test_a_plus_before_with_is_kept_on_every_path(db: str, tmp_path: Path) -> None:
     """`Apache-2.0+ WITH X` is one expression whether it is a tag or an ID."""
-    by_tag = AggregatedLicenseMatcher(db).match(text=source_with(PLUS_WITH))
-    by_id = AggregatedLicenseMatcher(db).match(license_id=PLUS_WITH)
+    by_tag = LicenseDetector(db).match(text=source_with(PLUS_WITH))
+    by_id = LicenseDetector(db).match(license_id=PLUS_WITH)
     assert [r["license_id"] for r in by_tag] == [PLUS_WITH]
     assert [r["license_id"] for r in by_id] == [PLUS_WITH]
     exception_plus = "Apache-2.0 WITH Classpath-exception-2.0+"
     with_plus = "Apache-2.0 with+ Classpath-exception-2.0"  # nor is the keyword's
     for value in (exception_plus, with_plus):  # not one license, so no answer
         with pytest.raises(InvalidInputError):
-            AggregatedLicenseMatcher(db).match(license_id=value)
+            LicenseDetector(db).match(license_id=value)
     assert answers(db, PLUS_WITH, tmp_path) == Answers(PLUS_WITH, True, PLUS_WITH, True)
 
 
 def test_a_plus_id_has_the_flags_of_its_license(db: str) -> None:
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     assert matcher.is_osi(text=source_with("Apache-2.0"))
     assert matcher.is_osi(text=source_with("Apache-2.0+"))
     assert matcher.is_fsf(text=source_with("Apache-2.0+"))
@@ -217,7 +217,7 @@ FILE_ONLY_VALUES = [
 ]
 
 
-def flags(result: LicenseMatch) -> tuple[object, ...]:
+def flags(result: Detection) -> tuple[object, ...]:
     """What every source of a value must agree on."""
     return (
         result["license_id"],
@@ -233,7 +233,7 @@ def test_every_source_of_a_value_gives_the_same_answer(
 ) -> None:
     """An ID, a tag and a JSON `license` field share one judge, so they cannot
     drift apart."""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     package = tmp_path / "package.json"
     package.write_text(
         json.dumps({"license": value, "description": PROSE}), encoding="utf-8"
@@ -253,7 +253,7 @@ def test_a_tag_and_a_json_field_agree_on_what_no_id_may_hold(
 ) -> None:
     """A file's two sources still share one judge; only the declaration is
     narrower, and it refuses these rather than answering differently."""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     package = tmp_path / "package.json"
     package.write_text(
         json.dumps({"license": value, "description": PROSE}), encoding="utf-8"
@@ -392,7 +392,7 @@ def test_the_api_refuses_a_license_id_that_names_more_than_one_license(
 ) -> None:
     """The CLI's rule is the matcher's: `match(license_id=...)` and the
     predicates raise rather than answer for a value that is not an ID."""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     for call in (matcher.match, matcher.is_spdx, matcher.is_osi):
         with pytest.raises(InvalidInputError, match="pass one license ID"):
             call(license_id=COMPOUND_VALUE)

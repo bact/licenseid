@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
-    from licenseid.types import MatchRequest
+    from licenseid.types import DetectRequest
 
 if len(sys.argv) < 5:
     print(
@@ -106,7 +106,7 @@ def _select_benchmark_subset(files: list[Path], n: int = 70) -> list[Path]:
 
 # pylint: disable=wrong-import-position
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
 
 
@@ -184,7 +184,7 @@ def check_match(
     return matched_ids
 
 
-class InstrumentedMatcher(AggregatedLicenseMatcher):
+class InstrumentedMatcher(LicenseDetector):
     """Thin subclass used only by benchmarks to record per-tier recall.
 
     Production behaviour is unchanged — this class adds `match_traced`,
@@ -241,7 +241,7 @@ class InstrumentedMatcher(AggregatedLicenseMatcher):
             return results, trace
 
         # Tier 1: FTS5 candidates
-        request: MatchRequest = cast("MatchRequest", {"text": text})
+        request: DetectRequest = cast("DetectRequest", {"text": text})
         tier1_candidates: list[Any] = []
         if hasattr(self, "_get_candidates"):
             tier1_candidates = self._get_candidates(request, text)

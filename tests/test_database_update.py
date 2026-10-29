@@ -33,7 +33,7 @@ from release_fakes import (
     version_json,
 )
 
-from licenseid import AggregatedLicenseMatcher, spdx_source
+from licenseid import LicenseDetector, spdx_source
 from licenseid.cli import cli
 from licenseid.console import warn
 from licenseid.database import LicenseDatabase
@@ -402,7 +402,7 @@ def test_update_builds_a_database_without_wal_and_a_lookup_leaves_no_files(
     _serve(monkeypatch, release_tarball())
     assert db.update_from_remote()
     assert _journal_mode(path) == "delete"
-    AggregatedLicenseMatcher(db_path=str(path)).match(license_id="MIT")
+    LicenseDetector(db_path=str(path)).match(license_id="MIT")
     assert sorted(p.name for p in tmp_path.glob("licenses.db*")) == ["licenses.db"]
 
 

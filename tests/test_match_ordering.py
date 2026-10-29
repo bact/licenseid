@@ -17,16 +17,16 @@ from conftest import MIT_SEARCH_TEXT
 from matcher_db import Lic, seeded_db
 from ordering_helpers import HEADER_OR_LATER, PHRASES, ids, im
 
-from licenseid import matcher as matcher_module
+from licenseid import detector as detector_module
 from licenseid.classify import has_or_later_language
+from licenseid.detector import LicenseDetector
 from licenseid.identifiers import disambiguate_deprecated_id
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.ranking import DEP_PENALTY, apply_version_suffix_tiebreaker
-from licenseid.types import CandidateMatch, InternalMatch, MatchRequest
+from licenseid.types import CandidateMatch, DetectRequest, InternalMatch
 
 
 def rank(
-    ordering_matcher: AggregatedLicenseMatcher,
+    ordering_matcher: LicenseDetector,
     monkeypatch: pytest.MonkeyPatch,
     scores: dict[str, float],
     *,
@@ -38,12 +38,12 @@ def rank(
     only the ordering rule is under test."""
     pops = pop or {}
     monkeypatch.setattr(
-        matcher_module,
+        detector_module,
         "calculate_base_similarity",
         lambda *_args: (0.0, 0.0, ""),
     )
     monkeypatch.setattr(
-        matcher_module,
+        detector_module,
         "calculate_final_score",
         lambda match, *_args: scores[match["license_id"]],
     )
@@ -57,7 +57,7 @@ def rank(
         )
         for lid in scores
     ]
-    request = MatchRequest()
+    request = DetectRequest()
     if enable_popularity is not None:
         request["enable_popularity"] = enable_popularity
     return ordering_matcher._rank_candidates(candidates, "x", request)
@@ -76,7 +76,7 @@ def rank(
     ],
 )
 def test_a_deprecated_id_loses_the_penalty_in_the_ranking(
-    ordering_matcher: AggregatedLicenseMatcher,
+    ordering_matcher: LicenseDetector,
     monkeypatch: pytest.MonkeyPatch,
     dep_score: float,
     expected: list[str],
@@ -92,7 +92,7 @@ def test_a_deprecated_id_loses_the_penalty_in_the_ranking(
 
 
 def test_ties_are_broken_by_deprecation_then_popularity_then_id(
-    ordering_matcher: AggregatedLicenseMatcher, monkeypatch: pytest.MonkeyPatch
+    ordering_matcher: LicenseDetector, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     scores = {"B-1.0": 0.8, "A-1.0": 0.8, "C-1.0": 0.8}
     off = rank(ordering_matcher, monkeypatch, scores, pop={"B-1.0": 9, "C-1.0": 1})
@@ -108,7 +108,7 @@ def test_ties_are_broken_by_deprecation_then_popularity_then_id(
 
 
 def test_popularity_is_off_unless_the_matcher_or_the_request_turns_it_on(
-    ordering_matcher: AggregatedLicenseMatcher, monkeypatch: pytest.MonkeyPatch
+    ordering_matcher: LicenseDetector, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A request that says nothing uses the matcher's own setting (off by
     default); a request that says something overrides it."""
@@ -133,7 +133,7 @@ def test_popularity_is_off_unless_the_matcher_or_the_request_turns_it_on(
 
 
 def test_match_hands_the_tiebreaker_the_text_and_the_popularity_setting(
-    ordering_matcher: AggregatedLicenseMatcher,
+    ordering_matcher: LicenseDetector,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -148,7 +148,7 @@ def test_match_hands_the_tiebreaker_the_text_and_the_popularity_setting(
         calls.append((raw_text, is_pure, enable_pop))
         return ranked
 
-    monkeypatch.setattr(matcher_module, "apply_version_suffix_tiebreaker", spy)
+    monkeypatch.setattr(detector_module, "apply_version_suffix_tiebreaker", spy)
     text = (MIT_SEARCH_TEXT + " " + MIT_SEARCH_TEXT).upper()  # not already normal
 
     ordering_matcher.match(text=text)
@@ -316,7 +316,7 @@ def twin_names_db() -> Generator[str, None, None]:
 
 
 def test_short_text_ties_are_broken_by_license_id(twin_names_db: str) -> None:
-    results = AggregatedLicenseMatcher(twin_names_db).match("Twin Name License")
+    results = LicenseDetector(twin_names_db).match("Twin Name License")
     assert [r["license_id"] for r in results] == ["A-1.0", "B-1.0"]
     assert results[0]["score"] == results[1]["score"]
 

@@ -470,10 +470,10 @@ echo "MIT License..." | licenseid is-fsf && echo "FSF Libre!"
 
 ```python
 from licenseid import resolve
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 
 # A LICENSE file: which licence is it?
-AggregatedLicenseMatcher().match(file_path="LICENSE")[0]["license_id"]
+LicenseDetector().match(file_path="LICENSE")[0]["license_id"]
 # "Apache-2.0" for this repository's LICENSE: method "text", a score and
 # a similarity
 
@@ -488,10 +488,10 @@ declares, as an SBOM tool does.
 You can use `licenseid` directly in your Python projects:
 
 ```python
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 
 # Initialize with default database
-matcher = AggregatedLicenseMatcher()
+matcher = LicenseDetector()
 
 # 1. Match by Raw Text (Positional or Keyword)
 # Programmatic API is explicit: positional 'text' is always treated as text.
@@ -584,7 +584,7 @@ mode, and SQLite then leaves `-shm` and `-wal` files beside it until the next
 `licenseid.get_default_db_path()` returns the path used when none is given
 (it raises `DatabaseNotReadyError` when the account has no home directory).
 
-Each result is a `licenseid.LicenseMatch` with the same keys, `license_id`,
+Each result is a `licenseid.Detection` with the same keys, `license_id`,
 `method` (a `licenseid.Method`), `exact`, `score`, `similarity`, `coverage`,
 `is_spdx`, `is_osi_approved` and `is_fsf_libre`, as in the CLI's output
 above; `similarity` and `coverage` are `None` where nothing was measured.

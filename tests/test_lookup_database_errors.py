@@ -32,7 +32,7 @@ from db_variants import (
 )
 
 import licenseid
-from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError, spdx_source
+from licenseid import DatabaseNotReadyError, LicenseDetector, spdx_source
 from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import lookup_error
 from licenseid.dbconnection import Connections
@@ -40,16 +40,16 @@ from licenseid.errors import InvalidInputError, LicenseIdError
 
 
 @pytest.fixture(name="matcher_db")
-def _matcher_db(tmp_path: Path) -> tuple[AggregatedLicenseMatcher, Path]:
+def _matcher_db(tmp_path: Path) -> tuple[LicenseDetector, Path]:
     path = make_ready_file_db(tmp_path / "b.db")
-    matcher = AggregatedLicenseMatcher(db_path=str(path))
+    matcher = LicenseDetector(db_path=str(path))
     assert matcher.match(license_id="MIT")
     return matcher, path
 
 
 @pytest.mark.parametrize("break_db", BREAKERS, ids=lambda f: f.__name__)
 def test_lookup_after_failure_is_database_not_ready(
-    matcher_db: tuple[AggregatedLicenseMatcher, Path],
+    matcher_db: tuple[LicenseDetector, Path],
     break_db: Callable[[Path], None],
 ) -> None:
     matcher, path = matcher_db
@@ -78,13 +78,13 @@ def test_lookup_does_not_recreate_a_deleted_database(
     tmp_path: Path, lookup: dict[str, Any]
 ) -> None:
     path = make_ready_file_db(tmp_path / "d.db")
-    matcher = AggregatedLicenseMatcher(db_path=str(path))
+    matcher = LicenseDetector(db_path=str(path))
     path.unlink()
     with pytest.raises(DatabaseNotReadyError):
         matcher.match(**lookup)
     assert not path.exists()
     with pytest.raises(DatabaseNotReadyError, match="database: not found"):
-        AggregatedLicenseMatcher(db_path=str(path))
+        LicenseDetector(db_path=str(path))
 
 
 def _null_norm_columns(path: Path) -> None:
@@ -121,7 +121,7 @@ def test_a_read_only_database_without_norm_columns_still_answers(
     path = make_ready_file_db(tmp_path / "ro.db")
     _null_norm_columns(path)
     path.chmod(0o444)
-    matcher = AggregatedLicenseMatcher(db_path=str(path))
+    matcher = LicenseDetector(db_path=str(path))
     assert matcher.match("MIT")[0]["license_id"] == "MIT"
 
 
@@ -129,7 +129,7 @@ def test_concurrent_lookups_on_rows_without_norm_columns(tmp_path: Path) -> None
     path = make_ready_file_db(tmp_path / "g.db")
     _null_norm_columns(path)
     before = _fingerprint(path)
-    matcher = AggregatedLicenseMatcher(db_path=str(path))
+    matcher = LicenseDetector(db_path=str(path))
     with ThreadPoolExecutor(4) as pool:
         results = list(pool.map(lambda _: matcher.match("MIT"), range(8)))
     assert all(r and r[0]["license_id"] == "MIT" for r in results)
@@ -218,7 +218,7 @@ def test_action_only_for_an_unreadable_file(message: str, action: bool) -> None:
 
 @pytest.mark.parametrize("method", ["is_spdx", "is_osi", "is_fsf", "is_open"])
 def test_predicates_raise_database_not_ready(
-    matcher_db: tuple[AggregatedLicenseMatcher, Path], method: str
+    matcher_db: tuple[LicenseDetector, Path], method: str
 ) -> None:
     matcher, path = matcher_db
     path.unlink()
@@ -227,7 +227,7 @@ def test_predicates_raise_database_not_ready(
 
 
 def test_diff_pair_raises_database_not_ready(
-    matcher_db: tuple[AggregatedLicenseMatcher, Path],
+    matcher_db: tuple[LicenseDetector, Path],
 ) -> None:
     matcher, path = matcher_db
     path.unlink()
@@ -250,7 +250,7 @@ def test_diff_pair_raises_database_not_ready(
     ],
 )
 def test_every_sqlite_error_is_wrapped(
-    matcher_db: tuple[AggregatedLicenseMatcher, Path], error: type[sqlite3.Error]
+    matcher_db: tuple[LicenseDetector, Path], error: type[sqlite3.Error]
 ) -> None:
     matcher, _ = matcher_db
     with (
@@ -265,7 +265,7 @@ def test_every_sqlite_error_is_wrapped(
 
 
 def test_locked_database_names_no_command(
-    matcher_db: tuple[AggregatedLicenseMatcher, Path],
+    matcher_db: tuple[LicenseDetector, Path],
 ) -> None:
     matcher, _ = matcher_db
     with (
@@ -282,7 +282,7 @@ def test_locked_database_names_no_command(
 
 
 def test_invalid_input_stays_invalid_input(
-    matcher_db: tuple[AggregatedLicenseMatcher, Path],
+    matcher_db: tuple[LicenseDetector, Path],
 ) -> None:
     matcher, _ = matcher_db
     with pytest.raises(InvalidInputError):
@@ -294,7 +294,7 @@ def test_invalid_input_stays_invalid_input(
 def test_a_normal_lookup_still_works_read_only(tmp_path: Path) -> None:
     path = make_ready_file_db(tmp_path / "ok.db")
     path.chmod(0o444)
-    matcher = AggregatedLicenseMatcher(db_path=str(path))
+    matcher = LicenseDetector(db_path=str(path))
     assert matcher.match(license_id="MIT")[0]["license_id"] == "MIT"
 
 
@@ -302,7 +302,7 @@ def test_copied_database_is_independent(tmp_path: Path) -> None:
     a = make_ready_file_db(tmp_path / "a.db")
     b = tmp_path / "b.db"
     shutil.copy(a, b)
-    matcher = AggregatedLicenseMatcher(db_path=str(b))
+    matcher = LicenseDetector(db_path=str(b))
     b.unlink()
     with pytest.raises(DatabaseNotReadyError):
         matcher.match(license_id="MIT")

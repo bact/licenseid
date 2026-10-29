@@ -148,7 +148,7 @@ def get_all_names_and_ids(self) -> list[LicenseNameId]:
     return result
 ```
 
-Confirmed the only caller (`matcher.py`'s `_match_short_text`) only reads
+Confirmed the only caller (`detector.py`'s `_match_short_text`) only reads
 the returned list, never mutates it, so returning the cached object by
 reference is safe.
 

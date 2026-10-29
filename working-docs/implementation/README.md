@@ -19,7 +19,7 @@ yet started, see [`../design/`](../design/).
   `license` field) → Tier 0 (short-text ID/name shortcut) → Tier 1 (SQLite FTS5
   recall) → Tier 2 (RapidFuzz ranking).
   The optional Tier 3 (Java `tools-java` validation) was removed on
-  2026-09-19. `matcher.py` holds the pipeline; Tier 1 is `retrieval.py`,
+  2026-09-19. `detector.py` holds the pipeline; Tier 1 is `retrieval.py`,
   Tier 0 is `shorttext.py`, and the sort order with the `-only` /
   `-or-later` tie-breaker is `ranking.py`. The split (2026-09-21) is
   in

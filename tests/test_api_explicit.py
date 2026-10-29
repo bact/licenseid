@@ -14,8 +14,8 @@ import pytest
 from conftest import seed_ready_metadata
 
 from licenseid.database import LicenseDatabase
+from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
-from licenseid.matcher import AggregatedLicenseMatcher
 
 
 @pytest.fixture
@@ -64,7 +64,7 @@ def test_db() -> Generator[str, None, None]:
 
 
 def test_match_explicit_id(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
 
     # Normal ID
     res = matcher.match(license_id="MIT")
@@ -85,7 +85,7 @@ def test_match_explicit_id(test_db: str) -> None:
 def test_match_explicit_file(test_db: str, tmp_path: Any) -> None:
     # We still need tmp_path for the actual file input test
 
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
 
     license_file = tmp_path / "LICENSE"
     license_file.write_text(
@@ -98,7 +98,7 @@ def test_match_explicit_file(test_db: str, tmp_path: Any) -> None:
 
 
 def test_match_explicit_text(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
 
     text = (
         "Permission is hereby granted, free of charge, to any person obtaining a copy"
@@ -122,7 +122,7 @@ def test_a_lone_surrogate_in_a_text_is_invalid_input(test_db: str, text: str) ->
     """No encoder takes one: it was a raw UnicodeEncodeError from SQLite's
     parameter binding. Like a license_id, it is invalid input, whatever the
     entry point."""
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     with pytest.raises(InvalidInputError, match=r"^input: invalid: text: lone"):
         matcher.match(text=text)
     with pytest.raises(InvalidInputError, match=r"^input: invalid: text: lone"):
@@ -132,7 +132,7 @@ def test_a_lone_surrogate_in_a_text_is_invalid_input(test_db: str, text: str) ->
 
 
 def test_the_error_names_the_character_of_the_first_surrogate(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     with pytest.raises(InvalidInputError) as caught:
         matcher.match(text="MIT\ud800 \udc00")
     assert str(caught.value) == "input: invalid: text: lone surrogate at character 3"
@@ -140,6 +140,6 @@ def test_the_error_names_the_character_of_the_first_surrogate(test_db: str) -> N
 
 def test_a_pair_of_surrogates_written_as_one_character_is_text(test_db: str) -> None:
     """Only a lone half is refused: U+1F600 is valid, however it was built."""
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     text = "Permission is hereby granted, free of charge, to any person \U0001f600"
     assert isinstance(matcher.match(text=text), list)

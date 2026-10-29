@@ -13,7 +13,7 @@ deprecation keys. The public form keeps what a reader can use, the same
 keys for every method.
 """
 
-from licenseid.types import InternalMatch, LicenseMatch, RawMatch
+from licenseid.types import Detection, InternalMatch, RawMatch
 
 # Digits kept in score, similarity and coverage: the text output prints
 # four, so JSON and text agree.
@@ -25,10 +25,10 @@ def _rounded(value: float | None) -> float | None:
     return None if value is None else round(value, _DIGITS) + 0.0
 
 
-def public_result(raw: RawMatch | InternalMatch) -> LicenseMatch:
+def public_result(raw: RawMatch | InternalMatch) -> Detection:
     """*raw* as match() returns it. The ranking key is capped to 0-1: above
     1 it only orders a tier's own results, and the order is in the list."""
-    return LicenseMatch(
+    return Detection(
         license_id=raw["license_id"],
         method=raw["method"],
         exact=bool(raw["exact"]),
@@ -41,7 +41,7 @@ def public_result(raw: RawMatch | InternalMatch) -> LicenseMatch:
     )
 
 
-def json_line(result: LicenseMatch) -> str:
+def json_line(result: Detection) -> str:
     """*result* as one line of JSON Lines, in the JSON Canonicalization
     Scheme (RFC 8785): sorted keys, no white space, ECMAScript numbers (1.0
     is 1), so equal results print equal bytes. Every key and value is
@@ -63,7 +63,7 @@ def json_line(result: LicenseMatch) -> str:
     return rfc8785.dumps(fields).decode("utf-8")
 
 
-def text_line(result: LicenseMatch) -> str:
+def text_line(result: Detection) -> str:
     """*result* as KEY=VALUE fields on one line; a value nothing measured
     is empty (``SIMILARITY=``), so every line has the same fields."""
 

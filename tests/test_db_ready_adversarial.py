@@ -217,7 +217,7 @@ def test_a_programming_error_is_worded_unreadable(
     def boom(*args: object, **kwargs: object) -> None:
         raise sqlite3.ProgrammingError("Incorrect number of bindings supplied")
 
-    monkeypatch.setattr(cli_module, "AggregatedLicenseMatcher", boom)
+    monkeypatch.setattr(cli_module, "LicenseDetector", boom)
     result = run("--db", str(path), "match", "--text", MIT_TEXT)
     assert result.exit_code == 2
     assert "ERROR: database: unreadable" in result.stderr
@@ -231,7 +231,7 @@ def test_an_interface_error_is_worded_unreadable(
     def boom(*args: object, **kwargs: object) -> None:
         raise sqlite3.InterfaceError("Error binding parameter 0")
 
-    monkeypatch.setattr(cli_module, "AggregatedLicenseMatcher", boom)
+    monkeypatch.setattr(cli_module, "LicenseDetector", boom)
     result = run("--db", str(path), "is-osi", "MIT")
     assert result.exit_code == 2
     assert "ERROR: database: unreadable" in result.stderr

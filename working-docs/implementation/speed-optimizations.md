@@ -119,7 +119,7 @@ for each license L:
 `FINGERPRINT_TOP_N = 20` is a tunable constant. Larger values increase
 recall (fewer misses) at cost of more rows per license.
 
-#### Query-time fingerprint check (`matcher.py`)
+#### Query-time fingerprint check (`detector.py`)
 
 In `_rank_candidates`, after computing initial RapidFuzz similarities,
 add a fingerprint boost step:
@@ -434,14 +434,14 @@ and matching logic. All existing queries remain valid.
 
 | Phase | Optimisation | File(s) | Prerequisite |
 | --- | --- | --- | --- |
-| 1 | 2b — length filter | `matcher.py` | None |
-| 1 | 2c — `score_cutoff` | `matcher.py` | None |
-| 1 | 2d — `processor=None` | `matcher.py` | None |
+| 1 | 2b — length filter | `detector.py` | None |
+| 1 | 2c — `score_cutoff` | `detector.py` | None |
+| 1 | 2d — `processor=None` | `detector.py` | None |
 | 2 | 3 — `mmap_size` pragma | `database.py` | None |
 | 2 | 3 — `char_count` generated col | `database.py` | Phase 1 (use in filter) |
-| 3 | 2e — batch `process.extract` | `matcher.py` | Phase 1 (validate cutoff) |
+| 3 | 2e — batch `process.extract` | `detector.py` | Phase 1 (validate cutoff) |
 | 4 | 1 — fingerprint table + compute | `database.py` | Phase 2 (schema stable) |
-| 4 | 1 — fingerprint boost in ranker | `matcher.py` | Phase 4 (table exists) |
+| 4 | 1 — fingerprint boost in ranker | `detector.py` | Phase 4 (table exists) |
 
 Start with Phase 1 (zero-risk, no schema changes) to establish a new
 performance baseline before moving to the fingerprint work.

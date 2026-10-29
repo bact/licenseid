@@ -172,7 +172,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   Ranking keeps the raw score (`_match_raw`). `--json` prints JSON Lines in
   RFC 8785 form through `rfc8785`, a new dependency; the text line gains
   `METHOD=`, `EXACT=` and `SCORE=`, with an empty value for null. `--diff`
-  recomputes the window (`AggregatedLicenseMatcher.diff_pair`) on the
+  recomputes the window (`LicenseDetector.diff_pair`) on the
   input Tier 2 read (a short one without its tags), since `best_window`
   stays internal. `coverage` is a length ratio and passes 1 when the input
   is longer, as it did; it is not capped.
@@ -379,7 +379,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   license's flags. The CLI's `is-*` commands used to look the top ID up in the
   database on their own, so they said false for every expression and
   `LicenseRef-*` that `match` accepted; they now call
-  `AggregatedLicenseMatcher.resolve_record`, the same code as the `is_*()`
+  `LicenseDetector.resolve_record`, the same code as the `is_*()`
   predicates, for `--id`, a positional ID and text alike. One parser wrapper,
   `identifiers.parse_expression`, served the synthetic candidate, the `WITH`
   match and `_canonicalize_expression`, and one `WITH` lookup,
@@ -414,7 +414,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   list markers) missed this; `tests/test_get_candidates.py` now pins it.
 - One ranking order, and a consistent `-only` / `-or-later` tie-breaker (item
   8, Priority 12; widened on 2026-09-20 to the whole tie-breaker). Three sorts
-  in `matcher.py` had drifted apart: the main ranking took `DEP_PENALTY` off
+  in `detector.py` had drifted apart: the main ranking took `DEP_PENALTY` off
   a deprecated ID, the tie-breaker's re-sort did not (so it could put a
   deprecated ID back above its replacement), and `match_short_text` carried
   keys its results never have. All three now use `ranking.ranking_key`, or
@@ -451,9 +451,9 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   slices of a license, so a quoted notice in one still counts as a grant.
 
 - `match()` silently ignored unknown options (item 1, Priority 20):
-  `AggregatedLicenseMatcher.match()` now raises
+  `LicenseDetector.match()` now raises
   `InvalidInputError('option: invalid: <names>; use one of ...')` for a key
-  outside `MatchRequest` (a typo, or a removed option such as `enable_java`),
+  outside `DetectRequest` (a typo, or a removed option such as `enable_java`),
   before it looks at any input, so an explicit `license_id`, empty text or an
   unreadable file cannot let one through. The names are sorted, so the message
   is stable. The `is_*` predicates already refused an unknown keyword, with the
@@ -473,7 +473,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   `update`, `match` said "no license found" and `is-osi` printed `false`
   (exit 1); a non-SQLite `--db` or a directory crashed with a traceback; and
   a read command on a 0-byte file wrote tables into it. Now `match`, the
-  `is-*` commands and `AggregatedLicenseMatcher()` check readiness first, read
+  `is-*` commands and `LicenseDetector()` check readiness first, read
   only, and report `database: not found`, `empty`, `invalid` (another
   program's objects beside an incomplete set of ours, or a `licenses` table
   without our columns; no `update` hint, as it would write into the file) or
@@ -540,7 +540,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
 - Type-1 `id_casing` and `id_deprecated` accuracy gaps — implemented; see
   the status note at the top of
   [`../design/optimization-recommendation.md`](../design/optimization-recommendation.md).
-- `matcher.py`/`database.py` complexity and file size — tracked
+- `detector.py`/`database.py` complexity and file size — tracked
   separately now in
   [`../design/complexity-and-file-size-roadmap.md`](../design/complexity-and-file-size-roadmap.md)
   rather than here, since it has its own linter-enforced ratchet.

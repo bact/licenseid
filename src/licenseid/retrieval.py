@@ -8,7 +8,7 @@ then filter them and add the hinted ones."""
 
 from licenseid.database import LicenseDatabase
 from licenseid.normalize import normalize_text, strip_comment_prefixes
-from licenseid.types import CandidateMatch, MatchRequest
+from licenseid.types import CandidateMatch, DetectRequest
 
 # Tail-only additions (candidates found only via the tail query in
 # _search_candidates_by_length(), not its head query) are capped at this many,
@@ -147,7 +147,7 @@ def _inject_hinted_candidates(
 
 def get_candidates(
     db: LicenseDatabase,
-    data: MatchRequest,
+    data: DetectRequest,
     text: str,
 ) -> list[CandidateMatch]:
     """Fetch and filter candidates from the database."""

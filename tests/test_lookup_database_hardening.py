@@ -32,7 +32,7 @@ from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
 )
 from db_variants import IS_ROOT, make_ready_file_db, writer
 
-from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError
+from licenseid import DatabaseNotReadyError, LicenseDetector
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import (
@@ -69,7 +69,7 @@ def _garbage(path: Path) -> None:
 
 DAMAGE: list[Callable[[Path], None]] = [_delete, _empty, _half, _one_page, _garbage]
 
-ENTRY_POINTS: dict[str, Callable[[AggregatedLicenseMatcher, Path], Any]] = {
+ENTRY_POINTS: dict[str, Callable[[LicenseDetector, Path], Any]] = {
     "match-id": lambda m, p: m.match(license_id="MIT"),
     "match-name": lambda m, p: m.match("MIT"),
     "match-text": lambda m, p: m.match(TEXT * 3),
@@ -93,7 +93,7 @@ def test_every_entry_point_raises_database_not_ready(
 ) -> None:
     path = make_ready_file_db(tmp_path / "m.db")
     (tmp_path / "in.txt").write_text(TEXT * 3, encoding="utf-8")
-    matcher = AggregatedLicenseMatcher(db_path=str(path))
+    matcher = LicenseDetector(db_path=str(path))
     if warm:
         matcher.match("MIT")
     damage(path)
@@ -109,7 +109,7 @@ def test_a_database_unreadable_after_the_check_is_database_not_ready(
     tmp_path: Path,
 ) -> None:
     path = make_ready_file_db(tmp_path / "p.db")
-    matcher = AggregatedLicenseMatcher(db_path=str(path))
+    matcher = LicenseDetector(db_path=str(path))
     path.chmod(0)
     with pytest.raises(DatabaseNotReadyError):
         matcher.match(license_id="MIT")
@@ -137,14 +137,14 @@ def test_cli_exits_2_not_1_for_a_database_gone_bad(
     """Exit 1 means "no": a database that fails after the check must not
     answer it."""
     path = make_ready_file_db(tmp_path / "c.db")
-    real = AggregatedLicenseMatcher._match_raw
+    real = LicenseDetector._match_raw
 
-    def broken_then_match(self: AggregatedLicenseMatcher, *a: Any, **k: Any) -> Any:
+    def broken_then_match(self: LicenseDetector, *a: Any, **k: Any) -> Any:
         damage(path)
         return real(self, *a, **k)
 
     with mock.patch.object(
-        AggregatedLicenseMatcher,
+        LicenseDetector,
         "_match_raw",
         autospec=True,
         side_effect=broken_then_match,
@@ -215,7 +215,7 @@ def test_a_matcher_never_makes_a_database_of_a_file_that_went_missing(
         mock.patch.object(LicenseDatabase, "__init__", deleted_first),
         pytest.raises(DatabaseNotReadyError),
     ):
-        AggregatedLicenseMatcher(db_path=str(path))
+        LicenseDetector(db_path=str(path))
     assert not path.exists()
 
 
@@ -271,7 +271,7 @@ def test_leave_wal_converts_a_database_of_an_earlier_version(tmp_path: Path) -> 
     LicenseDatabase(str(path))._connections.leave_wal()
     with contextlib.closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
-    AggregatedLicenseMatcher(db_path=str(path)).match(license_id="MIT")
+    LicenseDetector(db_path=str(path)).match(license_id="MIT")
     assert sorted(p.name for p in tmp_path.glob("wal.db*")) == ["wal.db"]
 
 
@@ -339,7 +339,7 @@ def test_the_label_of_a_file_uri_is_its_file(tmp_path: Path) -> None:
 def test_a_path_with_a_semicolon_keeps_one_action(tmp_path: Path) -> None:
     path = tmp_path / "a;b.db"
     with pytest.raises(DatabaseNotReadyError) as info:
-        AggregatedLicenseMatcher(db_path=str(path))
+        LicenseDetector(db_path=str(path))
     message = str(info.value)
     assert message.count(";") == 1, message
     assert "a,b.db" in message
@@ -495,7 +495,7 @@ def test_a_file_that_is_there_but_unreadable_is_not_sent_to_update(
     tmp_path: Path,
 ) -> None:
     path = make_ready_file_db(tmp_path / "p.db")
-    matcher = AggregatedLicenseMatcher(db_path=str(path))
+    matcher = LicenseDetector(db_path=str(path))
     path.chmod(0)
     with pytest.raises(DatabaseNotReadyError) as info:
         matcher.match(license_id="MIT")
@@ -522,7 +522,7 @@ def test_a_dotdot_after_a_symlink_is_not_collapsed(
     (tmp_path / "lnk").symlink_to(tmp_path / "real" / "deep")
     monkeypatch.chdir(tmp_path)
     assert LicenseDatabase("lnk/../ready.db", create=False).get_metadata()
-    assert AggregatedLicenseMatcher(db_path="lnk/../ready.db").match("MIT")
+    assert LicenseDetector(db_path="lnk/../ready.db").match("MIT")
 
 
 @posix_only  # a name that is not UTF-8

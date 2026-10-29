@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for AggregatedLicenseMatcher hybrid search flow."""
+"""Tests for LicenseDetector hybrid search flow."""
 # pylint: disable=redefined-outer-name,duplicate-code,missing-function-docstring
 # pylint: disable=protected-access
 
@@ -14,8 +14,8 @@ from typing import NamedTuple
 import pytest
 from conftest import make_memory_db_path
 
+from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.ranking import apply_version_suffix_tiebreaker
 from licenseid.types import InternalMatch
 
@@ -63,7 +63,7 @@ def test_db() -> Generator[str, None, None]:
 
 
 def test_hybrid_search_flow(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     input_text = (
         "Permission is hereby granted, free of charge, to any person"
         " obtaining a copy of this software"
@@ -75,7 +75,7 @@ def test_hybrid_search_flow(test_db: str) -> None:
 
 
 def test_short_text_rejection(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
 
     assert not matcher.match("")
     assert not matcher.match("   ")
@@ -102,7 +102,7 @@ def test_short_text_rejection(test_db: str) -> None:
 def test_match_with_expression(test_db: str) -> None:
     """A well-formed 'license WITH exception' expression is a real match,
     not just a literal DB row lookup (there is no such row)."""
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
 
     results = matcher.match(license_id="MIT WITH Font-exception-2.0")
     assert len(results) == 1
@@ -127,7 +127,7 @@ def test_match_with_expression_unknown_exception(test_db: str) -> None:
     unparseable, so it is no match. An exception it lists but this database
     lacks is a different case: see
     test_matcher_coverage.py::test_with_expression_half_missing_from_db."""
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
 
     assert not matcher.match(license_id="MIT WITH Not-A-Real-Exception")
 
@@ -140,7 +140,7 @@ def test_match_pathological_expression_does_not_crash(test_db: str) -> None:
     operators), so it is no expression on every Python: Python 3.10's
     recursion limit used to refuse it while 3.14 parsed it (item 19).
     """
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     expr = " AND ".join(f"LicenseRef-{i}" for i in range(400))
 
     with pytest.raises(InvalidInputError, match="pass one license ID"):

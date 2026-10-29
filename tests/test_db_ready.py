@@ -50,8 +50,8 @@ from db_variants import (
 )
 
 from licenseid.database import LicenseDatabase
+from licenseid.detector import LicenseDetector
 from licenseid.errors import DatabaseNotReadyError, LicenseIdError
-from licenseid.matcher import AggregatedLicenseMatcher
 
 # One per refusal message, for the full command x input matrix.
 REPRESENTATIVE_NAMES = ["missing", "both_tables_empty", "plain_text"]
@@ -145,7 +145,7 @@ def test_empty_db_option(
     default = tmp_path / "default" / "licenses.db"
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "home" / "share"))
-    for module in ("licenseid.cli", "licenseid.database", "licenseid.matcher"):
+    for module in ("licenseid.cli", "licenseid.database", "licenseid.detector"):
         monkeypatch.setattr(
             f"{module}.get_default_db_path", lambda: str(default), raising=False
         )
@@ -221,7 +221,7 @@ def test_api_refusal_has_no_side_effects(variant: Variant) -> None:
         pytest.skip("not file-backed")
     before = fs_state(variant.path)
     with pytest.raises(DatabaseNotReadyError):
-        AggregatedLicenseMatcher(db_path=variant.db_arg)
+        LicenseDetector(db_path=variant.db_arg)
     assert_untouched(variant.path, before)
 
 
@@ -244,7 +244,7 @@ def test_missing_database_is_not_created(variant: Variant) -> None:
 @pytest.mark.parametrize("variant", NOT_READY_NAMES, indirect=True)
 def test_api_constructor_raises(variant: Variant) -> None:
     with pytest.raises(DatabaseNotReadyError) as excinfo:
-        AggregatedLicenseMatcher(db_path=variant.db_arg)
+        LicenseDetector(db_path=variant.db_arg)
     message = str(excinfo.value)
     assert "\n" not in message
     assert not message.startswith("ERROR: ")
@@ -270,7 +270,7 @@ def test_api_error_is_catchable_as_runtime_error(variant: Variant) -> None:
     assert issubclass(LicenseIdError, RuntimeError)
     caught: RuntimeError | None = None
     try:
-        AggregatedLicenseMatcher(db_path=variant.db_arg)
+        LicenseDetector(db_path=variant.db_arg)
     except RuntimeError as error:  # a pre-existing caller's except clause
         caught = error
     assert isinstance(caught, DatabaseNotReadyError)
@@ -284,9 +284,9 @@ def test_api_default_path_refused(
     default = tmp_path / "default" / "licenses.db"
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "home" / "share"))
-    monkeypatch.setattr("licenseid.matcher.get_default_db_path", lambda: str(default))
+    monkeypatch.setattr("licenseid.detector.get_default_db_path", lambda: str(default))
     with pytest.raises(DatabaseNotReadyError) as excinfo:
-        AggregatedLicenseMatcher(enable_popularity=enable_popularity)
+        LicenseDetector(enable_popularity=enable_popularity)
     assert str(excinfo.value) == (
         f"database: not found: {default}; run 'licenseid update'"
     )
@@ -297,7 +297,7 @@ def test_api_default_path_refused(
 def test_api_refuses_before_any_query(variant: Variant) -> None:
     """The failure is the constructor's, not the first match()'s."""
     with pytest.raises(DatabaseNotReadyError):
-        matcher = AggregatedLicenseMatcher(db_path=variant.db_arg)
+        matcher = LicenseDetector(db_path=variant.db_arg)
         matcher.match(text=MIT_TEXT)  # must never be reached
 
 
@@ -348,7 +348,7 @@ def test_ready_database_answers_yes_and_no(variant: Variant, command: str) -> No
 
 @pytest.mark.parametrize("variant", ["ready_file", "ready_memory_uri"], indirect=True)
 def test_ready_database_api(variant: Variant) -> None:
-    matcher = AggregatedLicenseMatcher(db_path=variant.db_arg)
+    matcher = LicenseDetector(db_path=variant.db_arg)
     assert matcher.is_osi(license_id="MIT") is True
     assert [m["license_id"] for m in matcher.match(text=MIT_TEXT)] == ["MIT"]
 
@@ -360,7 +360,7 @@ def test_match_after_database_deleted(tmp_path: Path) -> None:
     """The gate runs once, at construction. A file deleted afterwards is not
     re-created by the lookup, and the failure is a licenseid error."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
-    matcher = AggregatedLicenseMatcher(db_path=str(db_path))
+    matcher = LicenseDetector(db_path=str(db_path))
     assert matcher.match(license_id="MIT")
     db_path.unlink()
     with pytest.raises(DatabaseNotReadyError, match="database: unreadable") as raised:
@@ -374,8 +374,8 @@ def test_match_after_database_deleted(tmp_path: Path) -> None:
 
 def test_two_matchers_on_one_database(tmp_path: Path) -> None:
     db_path = make_ready_file_db(tmp_path / "licenses.db")
-    first = AggregatedLicenseMatcher(db_path=str(db_path))
-    second = AggregatedLicenseMatcher(db_path=str(db_path))
+    first = LicenseDetector(db_path=str(db_path))
+    second = LicenseDetector(db_path=str(db_path))
     assert first.match(license_id="MIT")
     assert second.match(license_id="MIT")
     assert first.is_spdx(license_id="MIT") == second.is_spdx(license_id="MIT")

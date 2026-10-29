@@ -27,9 +27,9 @@ from matcher_db import Lic, seeded_db
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
 from licenseid.dbconnection import Connections
+from licenseid.detector import LicenseDetector
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
 from licenseid.identifiers import normalize_identifier
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.versionkey import version_key
 
 MIT_TEXT = (
@@ -59,11 +59,11 @@ def db_path() -> Generator[str, None, None]:
 
 
 @pytest.fixture
-def matcher(db_path: str) -> AggregatedLicenseMatcher:
-    return AggregatedLicenseMatcher(db_path)
+def matcher(db_path: str) -> LicenseDetector:
+    return LicenseDetector(db_path)
 
 
-def match_ids(matcher: AggregatedLicenseMatcher, **kwargs: str) -> list[str]:
+def match_ids(matcher: LicenseDetector, **kwargs: str) -> list[str]:
     return [r["license_id"] for r in matcher.match(**kwargs)]
 
 
@@ -131,7 +131,7 @@ REPRODUCTIONS = [
 
 @pytest.mark.parametrize(("kind", "value", "ids"), REPRODUCTIONS)
 def test_overlong_id_is_no_match(
-    matcher: AggregatedLicenseMatcher, kind: str, value: str, ids: list[str]
+    matcher: LicenseDetector, kind: str, value: str, ids: list[str]
 ) -> None:
     assert match_ids(matcher, **{kind: value}) == ids
 
@@ -156,7 +156,7 @@ NON_TRIGGERING = [
 
 @pytest.mark.parametrize(("kind", "value", "ids", "error"), NON_TRIGGERING)
 def test_non_triggering_inputs(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
     kind: str,
     value: str,
     ids: list[str] | None,
@@ -173,7 +173,7 @@ def test_non_triggering_inputs(
 
 @pytest.mark.parametrize("predicate", ["is_spdx", "is_osi", "is_fsf", "is_open"])
 def test_predicate_on_overlong_id_is_false(
-    matcher: AggregatedLicenseMatcher, predicate: str
+    matcher: LicenseDetector, predicate: str
 ) -> None:
     assert getattr(matcher, predicate)(license_id=BIG + "+") is False
 

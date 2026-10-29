@@ -16,7 +16,7 @@ import pytest
 from conftest import seed_ready_metadata
 
 from licenseid.database import LicenseDatabase
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "mixed-content"
@@ -107,7 +107,7 @@ def test_marker_detection_fixtures(test_db: str) -> None:
     """Benchmark marker detection across multiple mixed-content fixtures.
     We aim for at least 60% accuracy on these real-world-style samples.
     """
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     fixtures = get_fixtures()
     if not fixtures:
         pytest.skip("No mixed-content fixtures found.")

@@ -15,7 +15,7 @@ from click.testing import CliRunner
 from conftest import make_mit_db_path
 
 from licenseid.cli import cli
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 
 
 @pytest.fixture
@@ -80,7 +80,7 @@ def test_cli_match_input_newlines_are_normalised(
     matching; reading bytes must keep doing that."""
     raw = b"Permission is hereby granted\r\nfree of charge\rto any person\n"
     with mock.patch.object(
-        AggregatedLicenseMatcher, "match", autospec=True, return_value=[]
+        LicenseDetector, "match", autospec=True, return_value=[]
     ) as match:
         if via == "file":
             path = tmp_path / "LICENSE"

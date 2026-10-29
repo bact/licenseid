@@ -18,7 +18,7 @@ from db_variants import MIT_TEXT
 from matcher_db import PROSE, Lic, seeded_db
 
 from licenseid.cli import cli
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 
 LICENSES = [
     # MIT carries its text, so the CLI's text fallback has something to find.
@@ -91,7 +91,7 @@ def cli_match_id(db: str, *args: str) -> str | None:
 
 def answers(db: str, tag: str, tmp_path: Path) -> Answers:
     """What every entry point makes of a file carrying *tag*."""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     text = source_with(tag)
     results = matcher.match(text=text)
     path = tmp_path / "source.c"

@@ -11,24 +11,24 @@ __version__ = "0.6.0"
 
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
+from licenseid.detector import LicenseDetector
 from licenseid.errors import (
     DatabaseNotReadyError,
     InvalidInputError,
     LicenseIdError,
 )
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
 from licenseid.resolver import resolve
-from licenseid.types import LicenseMatch, MatchRequest, Method
+from licenseid.types import Detection, DetectRequest, Method
 
 __all__ = [
-    "AggregatedLicenseMatcher",
+    "LicenseDetector",
     "DatabaseNotReadyError",
     "InvalidInputError",
     "LicenseDatabase",
     "LicenseIdError",
-    "LicenseMatch",
-    "MatchRequest",
+    "Detection",
+    "DetectRequest",
     "Method",
     "get_default_db_path",
     "normalize_text",

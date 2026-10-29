@@ -22,8 +22,8 @@ from matcher_db import Lic, seeded_db
 from ordering_helpers import HEADER_OR_LATER, ids, im
 
 from licenseid.classify import OR_LATER_PHRASE, has_or_later_language
+from licenseid.detector import LicenseDetector
 from licenseid.identifiers import disambiguate_deprecated_id
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.normalize import normalize_text
 from licenseid.ranking import (
     DEP_PENALTY,
@@ -420,7 +420,7 @@ def twin_gpl_db() -> Generator[str, None, None]:
 
 
 def top_id(db_path: str, text: str, file_path: str | None = None) -> str:
-    results = AggregatedLicenseMatcher(db_path).match(text=text, file_path=file_path)
+    results = LicenseDetector(db_path).match(text=text, file_path=file_path)
     assert results, "no match at all"
     return results[0]["license_id"]
 

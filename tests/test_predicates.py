@@ -14,7 +14,7 @@ import pytest
 from conftest import seed_ready_metadata
 
 from licenseid.database import LicenseDatabase
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 
 
 @pytest.fixture
@@ -66,7 +66,7 @@ def test_db() -> Generator[str, None, None]:
 
 
 def test_is_spdx(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     assert matcher.is_spdx(license_id="MIT") is True
     assert matcher.is_spdx(license_id="Proprietary") is False
     assert matcher.is_spdx(license_id=" MIT  ") is True
@@ -74,21 +74,21 @@ def test_is_spdx(test_db: str) -> None:
 
 
 def test_is_osi(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     assert matcher.is_osi(license_id="MIT") is True
     assert matcher.is_osi(license_id="GPL-3.0-only") is False
     assert matcher.is_osi(license_id="0BSD") is True
 
 
 def test_is_fsf(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     assert matcher.is_fsf(license_id="MIT") is True
     assert matcher.is_fsf(license_id="GPL-3.0-only") is True
     assert matcher.is_fsf(license_id="0BSD") is False
 
 
 def test_is_open(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     assert matcher.is_open(license_id="MIT") is True
     assert matcher.is_open(license_id="GPL-3.0-only") is True
     assert matcher.is_open(license_id="0BSD") is True
@@ -96,7 +96,7 @@ def test_is_open(test_db: str) -> None:
 
 
 def test_predicate_with_text(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     text = (
         "Permission is hereby granted, free of charge, to any person obtaining a copy"
     )

@@ -37,10 +37,10 @@ from licenseid.similarity import (
 from licenseid.textinput import read_text_file, reject_lone_surrogate
 from licenseid.types import (
     CandidateMatch,
+    Detection,
+    DetectRequest,
     InternalMatch,
     LicenseDetails,
-    LicenseMatch,
-    MatchRequest,
     Method,
     RawMatch,
 )
@@ -55,7 +55,7 @@ _FP_BOOST: float = 0.05
 
 # The keyword options match() accepts; `text`, `license_id` and `file_path`
 # are its named parameters, so a request can carry no other key.
-_MATCH_OPTIONS: frozenset[str] = frozenset(MatchRequest.__annotations__) - {
+_MATCH_OPTIONS: frozenset[str] = frozenset(DetectRequest.__annotations__) - {
     "text",
     "license_id",
     "file_path",
@@ -83,14 +83,14 @@ class _MatchContext:
 
     target_text: str
     file_path: str | None
-    request: MatchRequest
+    request: DetectRequest
     is_pure: bool
     norm_input: str
     word_count: int
     manifest: list[list[str]]  # license_value_groups(): parsed once per call
 
 
-class AggregatedLicenseMatcher:
+class LicenseDetector:
     """
     Main matcher class that implements Tier 1 (FTS5) and Tier 2 (RapidFuzz)
     matching.
@@ -155,7 +155,7 @@ class AggregatedLicenseMatcher:
         return text or ""
 
     def _build_match_context(
-        self, target_text: str, file_path: str | None, options: MatchRequest
+        self, target_text: str, file_path: str | None, options: DetectRequest
     ) -> _MatchContext:
         """Phase 2 (cont.): classify content and build the immutable
         per-call state shared by the remaining tiers."""
@@ -362,10 +362,10 @@ class AggregatedLicenseMatcher:
         license_id: str | None = None,
         file_path: str | None = None,
         **options: Any,
-    ) -> list[LicenseMatch]:
+    ) -> list[Detection]:
         """
         Identify license text and return ranked matches, each with the same
-        keys (see licenseid.types.LicenseMatch).
+        keys (see licenseid.types.Detection).
         Must provide exactly one of text, license_id, or file_path.
         Raises licenseid.errors.InvalidInputError: unknown option, binary file,
         a text with a lone surrogate, or a license_id that names no single
@@ -402,7 +402,7 @@ class AggregatedLicenseMatcher:
             return []
 
         ctx = self._build_match_context(
-            target_text, file_path, cast(MatchRequest, options)
+            target_text, file_path, cast(DetectRequest, options)
         )
 
         # Tier 0.5: Marker Detection — SPDX-License-Identifier is
@@ -493,7 +493,7 @@ class AggregatedLicenseMatcher:
             ) or self.db.get_license_details(license_id.split(" WITH ")[0])
             if not details:
                 return "", ""
-            ctx = self._build_match_context(text, None, cast(MatchRequest, {}))
+            ctx = self._build_match_context(text, None, cast(DetectRequest, {}))
             candidate = self.detector.to_candidate(details, 0.0)
         norm_input = self._without_tags(ctx).norm_input
         words = norm_input.split()
@@ -532,7 +532,7 @@ class AggregatedLicenseMatcher:
             record.get("is_osi_approved", False) or record.get("is_fsf_libre", False)
         )
 
-    def _get_candidates(self, data: MatchRequest, text: str) -> list[CandidateMatch]:
+    def _get_candidates(self, data: DetectRequest, text: str) -> list[CandidateMatch]:
         """Tier 1 retrieval for *text* (see licenseid.retrieval)."""
         return get_candidates(self.db, data, text)
 
@@ -547,7 +547,7 @@ class AggregatedLicenseMatcher:
         self,
         candidates: list[CandidateMatch],
         norm_input: str,
-        data: MatchRequest,
+        data: DetectRequest,
         marker_boosts: dict[str, float] | None = None,
         is_pure: bool = True,
     ) -> list[InternalMatch]:
@@ -637,7 +637,7 @@ class AggregatedLicenseMatcher:
         ]
 
     def _match_mixed_content(
-        self, request: MatchRequest, target_text: str
+        self, request: DetectRequest, target_text: str
     ) -> list[CandidateMatch]:
         """Extract sections from mixed content and search them for licenses."""
         sections = self.detector.get_sections(target_text)

@@ -53,8 +53,8 @@ from resolve_states import (
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.cli import cli
+from licenseid.detector import LicenseDetector
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.resolvertypes import Source
 from tools.cli_matrix.judge import PLAIN
 
@@ -276,7 +276,7 @@ _SUBSETS = [
 def test_api_match_matrix(mit_db: str, tmp_path: Path, names: tuple[str, ...]) -> None:
     winner = _winner(names)
     kwargs = _api_kwargs(names, winner, tmp_path)
-    results = AggregatedLicenseMatcher(mit_db).match(**kwargs)
+    results = LicenseDetector(mit_db).match(**kwargs)
     if winner is None:
         assert results == []
     else:
@@ -284,9 +284,7 @@ def test_api_match_matrix(mit_db: str, tmp_path: Path, names: tuple[str, ...]) -
         assert results[0]["score"] >= 0.85
 
 
-_API_PREDICATES: dict[
-    str, Callable[[AggregatedLicenseMatcher], Callable[..., bool]]
-] = {
+_API_PREDICATES: dict[str, Callable[[LicenseDetector], Callable[..., bool]]] = {
     "is_spdx": lambda m: m.is_spdx,
     "is_osi": lambda m: m.is_osi,
     "is_fsf": lambda m: m.is_fsf,
@@ -301,7 +299,7 @@ def test_api_predicate_matrix(
     mit_db: str, tmp_path: Path, predicate: str, name: str, found: bool
 ) -> None:
     kwargs = _api_kwargs((name,), name if found else None, tmp_path)
-    check = _API_PREDICATES[predicate](AggregatedLicenseMatcher(mit_db))
+    check = _API_PREDICATES[predicate](LicenseDetector(mit_db))
     assert check(**kwargs) is found
 
 
@@ -317,7 +315,7 @@ def test_file_path_is_read_the_way_the_cli_reads_a_file(
     one function (licenseid.textinput), and this keeps it that way."""
     path = tmp_path / "LICENSE"
     path.write_bytes(payload.data)
-    matcher = AggregatedLicenseMatcher(mit_db)
+    matcher = LicenseDetector(mit_db)
 
     cli_result = _invoke(mit_db, "match", [str(path)], "")
     if payload.text is None:
@@ -340,7 +338,7 @@ def test_file_path_is_read_the_way_the_cli_reads_a_file(
 def test_a_missing_file_path_raises_oserror(mit_db: str, tmp_path: Path) -> None:
     """Not worded as a licenseid error: the API leaves I/O errors as they are."""
     with pytest.raises(FileNotFoundError):
-        AggregatedLicenseMatcher(mit_db).match(file_path=str(tmp_path / "nope"))
+        LicenseDetector(mit_db).match(file_path=str(tmp_path / "nope"))
 
 
 # --- API resolve(): source x the database at the default path x bundle ---

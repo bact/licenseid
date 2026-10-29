@@ -69,7 +69,7 @@ def test_a_missing_file_raises_oserror(tmp_path: Path) -> None:
         read_text_file(str(tmp_path / "nope"))
 
 
-@pytest.mark.parametrize("module", ["cli", "matcher"])
+@pytest.mark.parametrize("module", ["cli", "detector"])
 def test_only_textinput_opens_a_users_file(module: str) -> None:
     """The CLI and the API read a file through read_text_file, so they cannot
     decode it differently: neither module calls `open`, `io.open`,

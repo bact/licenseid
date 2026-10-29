@@ -17,7 +17,7 @@ from conftest import json_lines
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.cli import cli
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 
 
 @pytest.fixture(scope="module")
@@ -58,7 +58,7 @@ def db() -> Generator[str, None, None]:
 
 
 def _api(db: str, value: str, tmp_path: Path, channel: str) -> list[str]:
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     if channel == "file":
         path = tmp_path / "LICENSE"
         path.write_text(f"{value}\n", encoding="utf-8")
@@ -146,7 +146,7 @@ def test_a_lone_expression_is_judged_as_its_id(
 def test_any_other_value_is_read_as_text(
     db: str, value: str, expected: list[tuple[str, str, float, float | None]]
 ) -> None:
-    results = AggregatedLicenseMatcher(db).match(text=value)
+    results = LicenseDetector(db).match(text=value)
     assert [
         (r["license_id"], r["method"], r["score"], r["similarity"]) for r in results
     ] == expected
@@ -162,6 +162,6 @@ def test_a_deprecated_gfdl_id_has_the_flags_of_its_successor(db: str) -> None:
 def test_a_license_ref_with_a_plus_is_no_license(db: str) -> None:
     """SPDX gives "+" to a license ID only. It answered LicenseRef-x+ as a
     valid SPDX license; as --id it is no single license, a usage error."""
-    assert not AggregatedLicenseMatcher(db).match(text="LicenseRef-x+")
+    assert not LicenseDetector(db).match(text="LicenseRef-x+")
     result = CliRunner().invoke(cli, ["--db", db, "match", "--id", "LicenseRef-x+"])
     assert result.exit_code == 2

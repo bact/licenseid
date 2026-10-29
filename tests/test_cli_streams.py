@@ -29,7 +29,7 @@ from licenseid import console, output
 from licenseid.cli import cli
 from licenseid.cli import main as cli_main
 from licenseid.database import LicenseDatabase
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 
 
 @pytest.fixture
@@ -150,7 +150,7 @@ def test_an_update_whose_report_fails_is_not_a_failed_update(tmp_path: Path) -> 
 def test_an_interrupt_exits_130_without_a_message(db: str, command: str) -> None:
     """Exit 1 would read as "no license" or "not OSI"."""
     with mock.patch.object(
-        AggregatedLicenseMatcher, "match", autospec=True, side_effect=KeyboardInterrupt
+        LicenseDetector, "match", autospec=True, side_effect=KeyboardInterrupt
     ):
         result = CliRunner().invoke(cli, ["--db", db, command, "MIT"])
     assert (result.exit_code, result.stderr) == (130, "")
@@ -162,7 +162,7 @@ def test_an_interrupt_ends_an_open_progress_line(db: str) -> None:
         raise KeyboardInterrupt
 
     with mock.patch.object(
-        AggregatedLicenseMatcher, "match", autospec=True, side_effect=interrupt
+        LicenseDetector, "match", autospec=True, side_effect=interrupt
     ):
         result = CliRunner().invoke(cli, ["--db", db, "match", "MIT"])
     assert (result.exit_code, result.stderr) == (130, "Downloading...\n")

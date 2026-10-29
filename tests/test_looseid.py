@@ -19,9 +19,9 @@ from matcher_db import Lic, seeded_db
 from resolver_corpus import LICENSE_LIST, list_rows
 
 from licenseid.database import LicenseDatabase
+from licenseid.detector import LicenseDetector
 from licenseid.identifiers import normalize_identifier
 from licenseid.looseid import loose_id, loose_with, shown
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.shorttext import match_short_text
 from licenseid.versionkey import MAX_KEY_INPUT, version_key
 
@@ -52,9 +52,9 @@ def db() -> Generator[LicenseDatabase, None, None]:
 
 
 @pytest.fixture
-def matcher() -> Generator[AggregatedLicenseMatcher, None, None]:
+def matcher() -> Generator[LicenseDetector, None, None]:
     for path in seeded_db("test_looseid_match", ROWS, EXCEPTIONS):
-        yield AggregatedLicenseMatcher(path)
+        yield LicenseDetector(path)
 
 
 @pytest.mark.parametrize(
@@ -192,7 +192,7 @@ def test_the_warning_detail_is_one_printable_line(text: str, detail: str) -> Non
     ],
 )
 def test_a_loose_license_with_an_exception(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
     capsys: pytest.CaptureFixture[str],
     text: str,
     expected: tuple[str, bool] | None,
@@ -228,7 +228,7 @@ def test_no_loose_with_expression(db: LicenseDatabase, text: str) -> None:
 
 
 def test_a_manifest_value_read_as_a_guess_is_still_a_field(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> None:
     [result] = matcher.match(text='{"license": "GPLv2"}')
     assert (result["license_id"], result["method"], result["exact"]) == (

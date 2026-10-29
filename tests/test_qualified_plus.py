@@ -20,8 +20,8 @@ from matcher_db import Lic, seeded_db
 
 from licenseid import resolve
 from licenseid.cli import cli
+from licenseid.detector import LicenseDetector
 from licenseid.identifiers import is_qualified_plus
-from licenseid.matcher import AggregatedLicenseMatcher
 
 # Each with a short text to search, as a real row has: the wrong answers
 # came from Tiers 1 and 2, which a row with no text never reaches.
@@ -50,7 +50,7 @@ def _db_path() -> Generator[str, None, None]:
 
 
 def ids(db_path: str, text: str) -> list[str]:
-    return [r["license_id"] for r in AggregatedLicenseMatcher(db_path).match(text=text)]
+    return [r["license_id"] for r in LicenseDetector(db_path).match(text=text)]
 
 
 QUALIFIED_PLUS = [
@@ -104,7 +104,7 @@ def test_what_is_not_a_qualified_plus_is_matched(
 
 def test_no_entry_point_answers_a_near_name(db_path: str, tmp_path: Path) -> None:
     """Text, a tag, a manifest field and a file agree: no licence."""
-    matcher = AggregatedLicenseMatcher(db_path)
+    matcher = LicenseDetector(db_path)
     assert matcher.match(text="SPDX-License-Identifier: GPL-2.0-only+") == []
     assert matcher.match(text='{"license": "GPL-2.0-only+"}') == []
     path = tmp_path / "LICENSE"

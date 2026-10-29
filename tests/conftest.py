@@ -29,10 +29,10 @@ from licenseid import console, listindex, listsource, spdxdata
 from licenseid.cli import cli
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.dbconnection import Connections
+from licenseid.detector import LicenseDetector
 from licenseid.errors import LicenseIdError
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.records import BUILD_VERSION
-from licenseid.types import LicenseMatch, Method
+from licenseid.types import Detection, Method
 
 # tools/cli_matrix drives real shells and terminals (pwd, pty, termios): POSIX
 # only, so its tests are not collected on Windows.
@@ -141,7 +141,7 @@ def make_memory_db_path(name_prefix: str) -> tuple[str, sqlite3.Connection]:
     the caller ever gets a chance to use it). Opening ours first ensures
     at least one connection is alive continuously across that handoff.
     Callers here only need the bare path (not a LicenseDatabase instance)
-    to hand to AggregatedLicenseMatcher/MarkerDetector. The caller must
+    to hand to LicenseDetector/MarkerDetector. The caller must
     close the returned connection (e.g. in a fixture's teardown) once the
     test is done with the DB.
     """
@@ -194,13 +194,13 @@ def make_ready_db_path(name_prefix: str) -> tuple[str, sqlite3.Connection]:
 
 
 @pytest.fixture
-def ordering_matcher() -> Generator[AggregatedLicenseMatcher, None, None]:
+def ordering_matcher() -> Generator[LicenseDetector, None, None]:
     """A matcher over a one-license database, for tests that call its ordering
     methods directly (tests/test_match_ordering*.py)."""
     db_path, keep_alive = make_mit_db_path(
         "test_match_ordering", datetime.now(timezone.utc).isoformat()
     )
-    yield AggregatedLicenseMatcher(db_path)
+    yield LicenseDetector(db_path)
     keep_alive.close()
 
 
@@ -226,7 +226,7 @@ def assert_cached_tarball_removed(
     assert not tar_path.exists()
 
 
-# The keys of every match() result and --json line (types.LicenseMatch).
+# The keys of every match() result and --json line (types.Detection).
 RESULT_KEYS = frozenset(
     {
         "license_id",
@@ -250,9 +250,9 @@ def public_match(  # pylint: disable=too-many-arguments
     score: float = 1.0,
     similarity: float | None = None,
     coverage: float | None = None,
-) -> LicenseMatch:
+) -> Detection:
     """A result as match() returns it, for the code that prints one."""
-    return LicenseMatch(
+    return Detection(
         license_id=license_id,
         method=method,
         exact=exact,

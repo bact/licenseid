@@ -22,7 +22,7 @@ from matcher_db import PROSE
 from spdx_tag_helpers import source_with, tag_db
 
 from licenseid.database import LicenseDatabase
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 
 
 @pytest.fixture
@@ -32,7 +32,7 @@ def db() -> Generator[str, None, None]:
 
 def certain(db: str, text: str) -> str | None:
     """The ID of a certain (score 1.0) match for *text*, or None."""
-    results = AggregatedLicenseMatcher(db).match(text=text)
+    results = LicenseDetector(db).match(text=text)
     if results and results[0]["score"] == 1.0:
         return results[0]["license_id"]
     return None
@@ -129,7 +129,7 @@ def test_a_comment_closer_never_joins_the_expression(db: str, line: str) -> None
 
 def test_both_tags_on_one_line_are_read(db: str) -> None:
     line = "# SPDX-License-Identifier: MIT SPDX-License-Identifier: Apache-2.0"
-    results = AggregatedLicenseMatcher(db).match(text=line + PROSE)
+    results = LicenseDetector(db).match(text=line + PROSE)
     assert [r["license_id"] for r in results] == ["MIT", "Apache-2.0"]
 
 
@@ -142,7 +142,7 @@ def test_a_very_long_value_is_read_quickly(db: str, tag: str) -> None:
     """A minified or padded line must not make the reader quadratic: a run of
     spaces or dashes used to cost the name lookup 6 s at this length."""
     start = time.monotonic()
-    AggregatedLicenseMatcher(db).match(text=source_with(tag))
+    LicenseDetector(db).match(text=source_with(tag))
     assert time.monotonic() - start < 5.0
 
 
@@ -170,7 +170,7 @@ def test_many_tags_on_one_line_are_read_quickly(db: str) -> None:
 def test_a_repeated_license_is_indexed_once(db: str, lines: list[str]) -> None:
     """Every tag names MIT, so its search text is fetched once, not once per
     tag, and the one candidate kept still carries it."""
-    detector = AggregatedLicenseMatcher(db).detector
+    detector = LicenseDetector(db).detector
     with patch.object(
         LicenseDatabase, "get_search_text", autospec=True, return_value="text"
     ) as get_search_text:
@@ -186,7 +186,7 @@ DEEP = "(" * 40000 + "Apache-2.0+" + ")" * 40000
 def test_deep_brackets_are_read_quickly(db: str) -> None:
     """Brackets around the whole value used to go one pair per pass over the
     string, which is quadratic (15 s at 16,000 pairs)."""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     start = time.monotonic()
     assert certain(db, source_with(DEEP)) == "Apache-2.0+"
     assert [r["license_id"] for r in matcher.match(license_id=DEEP)] == ["Apache-2.0+"]
@@ -197,7 +197,7 @@ def test_a_padded_first_line_is_read_quickly(db: str) -> None:
     """The first-line name lookup drops "Version" with a regex that was
     quadratic on a run of spaces (3 s at 40,000)."""
     start = time.monotonic()
-    AggregatedLicenseMatcher(db).match(text="Foo" + " " * 40000 + "x\n" + PROSE)
+    LicenseDetector(db).match(text="Foo" + " " * 40000 + "x\n" + PROSE)
     assert time.monotonic() - start < 1.0
 
 
@@ -209,7 +209,7 @@ def test_a_long_license_field_is_read_quickly(db: str, tmp_path: Path) -> None:
         json.dumps({"license": value, "description": PROSE}), encoding="utf-8"
     )
     start = time.monotonic()
-    AggregatedLicenseMatcher(db).match(file_path=str(package))
+    LicenseDetector(db).match(file_path=str(package))
     assert time.monotonic() - start < 5.0
 
 
