@@ -63,7 +63,7 @@ and this project adheres to
 - `resolve()` caps each half of a `WITH` at 100 characters, not the whole
   ([#122])
 - The sdist ships only the source, docs and project metadata: no tests, CI
-  files or internal notes, and no links to files it leaves out
+  files or internal notes, and no links to files it leaves out ([#130])
 
 ### Fixed
 
@@ -80,6 +80,7 @@ and this project adheres to
 [#125]: https://github.com/bact/licenseid/pull/125
 [#126]: https://github.com/bact/licenseid/pull/126
 [#128]: https://github.com/bact/licenseid/pull/128
+[#130]: https://github.com/bact/licenseid/pull/130
 
 ## [0.6.0] - 2026-10-27
 
