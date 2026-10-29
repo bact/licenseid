@@ -67,18 +67,18 @@ def test_match_explicit_id(test_db: str) -> None:
     matcher = LicenseDetector(test_db)
 
     # Normal ID
-    res = matcher.match(license_id="MIT")
+    res = matcher.detect(license_id="MIT")
     assert len(res) == 1
     assert res[0]["license_id"] == "MIT"
     assert res[0]["score"] == 1.0
 
     # Case-insensitive and trimmed ID
-    res = matcher.match(license_id=" mit ")
+    res = matcher.detect(license_id=" mit ")
     assert len(res) == 1
     assert res[0]["license_id"] == "MIT"
 
     # Non-existent ID
-    res = matcher.match(license_id="NonExistent")
+    res = matcher.detect(license_id="NonExistent")
     assert len(res) == 0
 
 
@@ -92,7 +92,7 @@ def test_match_explicit_file(test_db: str, tmp_path: Any) -> None:
         "Permission is hereby granted, free of charge, to any person obtaining a copy"
     )
 
-    res = matcher.match(file_path=str(license_file))
+    res = matcher.detect(file_path=str(license_file))
     assert len(res) == 1
     assert res[0]["license_id"] == "MIT"
 
@@ -103,7 +103,7 @@ def test_match_explicit_text(test_db: str) -> None:
     text = (
         "Permission is hereby granted, free of charge, to any person obtaining a copy"
     )
-    res = matcher.match(text=text)
+    res = matcher.detect(text=text)
     assert len(res) == 1
     assert res[0]["license_id"] == "MIT"
 
@@ -124,7 +124,7 @@ def test_a_lone_surrogate_in_a_text_is_invalid_input(test_db: str, text: str) ->
     entry point."""
     matcher = LicenseDetector(test_db)
     with pytest.raises(InvalidInputError, match=r"^input: invalid: text: lone"):
-        matcher.match(text=text)
+        matcher.detect(text=text)
     with pytest.raises(InvalidInputError, match=r"^input: invalid: text: lone"):
         matcher.resolve_record(text)
     with pytest.raises(InvalidInputError, match=r"^input: invalid: text: lone"):
@@ -134,7 +134,7 @@ def test_a_lone_surrogate_in_a_text_is_invalid_input(test_db: str, text: str) ->
 def test_the_error_names_the_character_of_the_first_surrogate(test_db: str) -> None:
     matcher = LicenseDetector(test_db)
     with pytest.raises(InvalidInputError) as caught:
-        matcher.match(text="MIT\ud800 \udc00")
+        matcher.detect(text="MIT\ud800 \udc00")
     assert str(caught.value) == "input: invalid: text: lone surrogate at character 3"
 
 
@@ -142,4 +142,4 @@ def test_a_pair_of_surrogates_written_as_one_character_is_text(test_db: str) -> 
     """Only a lone half is refused: U+1F600 is valid, however it was built."""
     matcher = LicenseDetector(test_db)
     text = "Permission is hereby granted, free of charge, to any person \U0001f600"
-    assert isinstance(matcher.match(text=text), list)
+    assert isinstance(matcher.detect(text=text), list)

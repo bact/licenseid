@@ -80,7 +80,7 @@ This eliminates false fuzzy-near-miss rankings for inputs like `"mit"`.
 
 ### 4. Prose disambiguation fast path in Tier 0 (`detector.py`)
 
-Before the short-text fuzzy loop, `match()` calls `disambiguate_deprecated_id()`
+Before the short-text fuzzy loop, `detect()` calls `disambiguate_deprecated_id()`
 on the raw (un-normalised) input text. On a hit it performs a single DB lookup
 and returns directly. The raw text is used because `normalize_text()` strips
 punctuation and case that the disambiguation regexes rely on.
@@ -165,7 +165,7 @@ clauses) narrow the match set sufficiently for the correct candidate to rank.
 scores tie and the alphabetical ID tie-break would always pick `-only`. The
 granting language around the text is the only evidence, and
 `ranking.apply_version_suffix_tiebreaker` (called from
-`LicenseDetector.match`) uses it.
+`LicenseDetector.detect`) uses it.
 
 - **Why it moves scores.** The result is a list sorted by score and
   `results[0]` is the answer, so the only lever is the score. Two scores that

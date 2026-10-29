@@ -111,11 +111,11 @@ def test_a_write_in_a_block_ends_with_its_own_query(
 @pytest.mark.parametrize(
     "call",
     [
-        lambda m: m.match(text=TAGS),
-        lambda m: m.is_spdx(text=TAGS),  # match() and one more lookup
+        lambda m: m.detect(text=TAGS),
+        lambda m: m.is_spdx(text=TAGS),  # detect() and one more lookup
         lambda m: m.diff_pair("permission is hereby granted", "MIT"),
     ],
-    ids=["match", "is_spdx", "diff_pair"],
+    ids=["detect", "is_spdx", "diff_pair"],
 )
 def test_one_call_opens_one_connection(
     db_path: str,
@@ -149,7 +149,7 @@ def test_two_threads_match_on_one_matcher(db_path: str) -> None:
 
     def run(index: int) -> None:
         try:
-            answers[index] = [r["license_id"] for r in matcher.match(text=TAGS)]
+            answers[index] = [r["license_id"] for r in matcher.detect(text=TAGS)]
         except BaseException as exc:  # pylint: disable=broad-exception-caught
             errors.append(exc)
 

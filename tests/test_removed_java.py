@@ -38,13 +38,13 @@ def mit_db() -> Generator[str, None, None]:
 )
 def test_java_options_are_rejected(mit_db: str, flags: list[str]) -> None:
     """A usage error (exit 2), worded as every other diagnostic."""
-    result = CliRunner().invoke(cli, ["--db", mit_db, "match", "MIT", *flags])
+    result = CliRunner().invoke(cli, ["--db", mit_db, "detect", "MIT", *flags])
     assert result.exit_code == 2
     assert result.stdout == ""
     assert re.match(r"ERROR: option: not found: --(no-)?java;", result.stderr)
 
 
-@pytest.mark.parametrize("args", [["--help"], ["match", "--help"]])
+@pytest.mark.parametrize("args", [["--help"], ["detect", "--help"]])
 def test_help_does_not_mention_java(args: list[str]) -> None:
     result = CliRunner().invoke(cli, args)
     assert result.exit_code == 0
@@ -67,9 +67,9 @@ def tools_jar_env(
 def test_tools_jar_variable_is_ignored(mit_db: str, tools_jar_env: str) -> None:
     del tools_jar_env  # only its side effect (the environment variable) matters
     for args in (["--id", "MIT"], ["--text", MIT_SEARCH_TEXT]):
-        result = CliRunner().invoke(cli, ["--db", mit_db, "match", "--bold", *args])
+        result = CliRunner().invoke(cli, ["--db", mit_db, "detect", "--bold", *args])
         assert (result.exit_code, result.stdout, result.stderr) == (0, "MIT\n", "")
-    assert LicenseDetector(mit_db).match(text=MIT_SEARCH_TEXT)
+    assert LicenseDetector(mit_db).detect(text=MIT_SEARCH_TEXT)
 
 
 def test_matcher_has_no_java_state(mit_db: str) -> None:
@@ -97,7 +97,7 @@ def test_result_types_have_no_java_fields() -> None:
 
 
 def test_match_result_has_no_java_key(mit_db: str) -> None:
-    results = LicenseDetector(mit_db).match(text=MIT_SEARCH_TEXT)
+    results = LicenseDetector(mit_db).detect(text=MIT_SEARCH_TEXT)
     assert results
     assert all("java_verified" not in r for r in results)
 
@@ -107,4 +107,4 @@ def test_stale_enable_java_option_is_rejected(mit_db: str) -> None:
     no-op (roadmap item 1; see also tests/test_match_options.py)."""
     matcher = LicenseDetector(mit_db)
     with pytest.raises(InvalidInputError, match="option: invalid: 'enable_java'"):
-        matcher.match(text=MIT_SEARCH_TEXT, enable_java=True)
+        matcher.detect(text=MIT_SEARCH_TEXT, enable_java=True)

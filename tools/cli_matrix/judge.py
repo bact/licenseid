@@ -7,7 +7,7 @@
 
 The invariants come from ``AGENTS.md`` ("CLI output"): stdout carries only
 the result, every diagnostic goes to stderr in one grammar, a predicate
-answers ``true``/``false``/usage error, ``match`` prints one of three
+answers ``true``/``false``/usage error, ``detect`` prints one of three
 documented shapes, and nothing ever shows a traceback.
 
 Anything the documentation does not settle is ``OBSERVE``, never ``PASS``:
@@ -28,7 +28,7 @@ GRAMMAR = re.compile(r"(ERROR|WARNING): [a-z][a-z0-9._-]*: [a-z0-9].*")
 #: The help printed for a missing subcommand: stderr, exit 2, not a result.
 HELP = re.compile(r"Usage: .*\n(.*\n)*Commands:\n")
 
-#: The default one-line result of ``match``.
+#: The default one-line result of ``detect``.
 #: An expression's operators are its only spaces; a score is 0-1, and
 #: coverage passes 1 when the input is longer than the licence.
 PLAIN = re.compile(
@@ -36,7 +36,7 @@ PLAIN = re.compile(
     r" SCORE=(0\.\d{4}|1\.0000) SIMILARITY=(\d\.\d{4})? COVERAGE=(\d+\.\d{4})?"
 )
 
-#: The whole result of ``match --bold``: an identifier and nothing else.
+#: The whole result of ``detect --bold``: an identifier and nothing else.
 BOLD = re.compile(r"\S+( WITH \S+)?")
 
 CRASH = re.compile(
@@ -88,7 +88,7 @@ def _is_unspecified(cell: Cell) -> bool:
         cell.exp_exit is None
         and cell.exp_out is None
         and cell.exp_err is None
-        and cell.kind in ("other", "update", "match", "predicate", "help")
+        and cell.kind in ("other", "update", "detect", "predicate", "help")
     )
 
 
@@ -158,13 +158,13 @@ def _contract_flags(cell: Cell, result: Result) -> list[str]:
         if (rc, out) not in ((0, "true\n"), (1, "false\n"), (2, "")):
             return [f"predicate contract: exit={rc} stdout={out[:30]!r}"]
         return []
-    if cell.kind != "match":
+    if cell.kind != "detect":
         return []
     if rc == 0:
         return check_match_format(cell, out)
     if rc == 1:
         if out != "" or "ERROR: match: no license found" not in err:
-            return ["match exit 1 without empty stdout + 'no license found'"]
+            return ["detect exit 1 without empty stdout + 'no license found'"]
         return []
     if rc == 2 and out != "" and "--help" not in cell.cmd:
         return ["exit 2 with stdout output"]
@@ -172,7 +172,7 @@ def _contract_flags(cell: Cell, result: Result) -> list[str]:
 
 
 def check_match_format(cell: Cell, out: str) -> list[str]:
-    """Whether ``match`` printed the shape its flags asked for."""
+    """Whether ``detect`` printed the shape its flags asked for."""
     flags = cell.outflags
     if not out:
         return ["exit 0 but empty stdout"] if "--help" not in cell.cmd else []

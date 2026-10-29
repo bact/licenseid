@@ -5,7 +5,7 @@
 
 """The cell catalogue, one module per family group.
 
-``A`` ``match`` options, ``B`` predicates, ``C`` global options and help,
+``A`` ``detect`` options, ``B`` predicates, ``C`` global options and help,
 ``D`` ``update`` outcomes, ``E`` the environment around the process
 (``environment`` for its streams, ``process_env`` for its resources).
 """
@@ -13,9 +13,9 @@
 from __future__ import annotations
 
 from tools.cli_matrix.cells import (
+    detect,
     environment,
     global_options,
-    match,
     predicate,
     process_env,
 )
@@ -28,7 +28,7 @@ __all__ = ["build_cells"]
 def build_cells() -> CellSet:
     """The whole catalogue, in the order the families are declared."""
     cells = CellSet()
-    match.add_cells(cells)
+    detect.add_cells(cells)
     predicate.add_cells(cells)
     global_options.add_cells(cells)
     update_cells.add_cells(cells)

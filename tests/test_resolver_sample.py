@@ -7,7 +7,7 @@
 
 ``tests/fixtures/pypi_values_2026-10*.tsv`` holds the distinct short licence
 values of the most downloaded PyPI projects and the answers of
-``resolve()`` 0.6.0 on SPDX 3.29.0. Every rule pull request of 0.7.0 must
+``match()`` 0.6.0 on SPDX 3.29.0. Every rule pull request of 0.7.0 must
 show that the set of values whose answer changed is exactly the set it
 announces (``resolver_corpus.EXPECTED_CHANGES``).
 """
@@ -36,7 +36,7 @@ from resolver_corpus import (
     sample_rows,
 )
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 from tools.pypi_licence_sample.answer import (
     ANSWER_COLUMNS,
     NONE_FIELD,
@@ -99,7 +99,7 @@ def _declared(
     changed set and the answer ``MIT`` really gives."""
     rows = _parity_rows_for("MIT")
     rows[0][field] = new
-    return changed_answers(corpus_db, rows), answer_of("MIT", resolve("MIT", corpus_db))
+    return changed_answers(corpus_db, rows), answer_of("MIT", match("MIT", corpus_db))
 
 
 def test_the_guard_accepts_a_declared_change(corpus_db: LicenseDatabase) -> None:

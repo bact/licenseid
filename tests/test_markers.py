@@ -112,7 +112,7 @@ def test_db() -> Generator[str, None, None]:
 def test_spdx_identifier(test_db: str) -> None:
     matcher = LicenseDetector(test_db)
     text = "Some source code\nSPDX-License-Identifier: MIT\nMore code"
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert len(results) > 0
     assert results[0]["license_id"] == "MIT"
     assert results[0]["score"] >= 0.95
@@ -121,7 +121,7 @@ def test_spdx_identifier(test_db: str) -> None:
 def test_license_field(test_db: str) -> None:
     matcher = LicenseDetector(test_db)
     text = "Metadata:\nLicense: Apache License 2.0\nVersion: 1.0"
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert len(results) > 0
     assert results[0]["license_id"] == "Apache-2.0"
 
@@ -129,7 +129,7 @@ def test_license_field(test_db: str) -> None:
 def test_markdown_heading(test_db: str) -> None:
     matcher = LicenseDetector(test_db)
     text = "# README\n\n## License\n\nMIT"
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert len(results) > 0
     assert results[0]["license_id"] == "MIT"
 
@@ -137,7 +137,7 @@ def test_markdown_heading(test_db: str) -> None:
 def test_ascii_heading_underline(test_db: str) -> None:
     matcher = LicenseDetector(test_db)
     text = "LICENSE\n=======\n\nApache License 2.0"
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert len(results) > 0
     assert results[0]["license_id"] == "Apache-2.0"
 
@@ -145,7 +145,7 @@ def test_ascii_heading_underline(test_db: str) -> None:
 def test_ascii_heading_box(test_db: str) -> None:
     matcher = LicenseDetector(test_db)
     text = "#################\n#    LICENSE    #\n#################\n\nMIT"
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert len(results) > 0
     assert results[0]["license_id"] == "MIT"
 
@@ -161,7 +161,7 @@ def test_mixed_content_windowed_search(test_db: str) -> None:
         + "\n"
         + "More junk " * 100
     )
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert len(results) > 0
     assert results[0]["license_id"] == "MIT"
 

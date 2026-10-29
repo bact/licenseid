@@ -132,7 +132,7 @@ normalisation all still work end-to-end.
 
 **File:** `database.py`
 
-Every Tier-0 short-text `match()` call re-fetched the full ~700-row
+Every Tier-0 short-text `detect()` call re-fetched the full ~700-row
 `licenses` table (`_match_short_text` → `get_all_names_and_ids()`), even
 though the table is static for the lifetime of a `LicenseDatabase`
 instance (it only changes out-of-process, via a separate `licenseid
@@ -166,7 +166,7 @@ unaffected.
 **File:** `database.py`
 
 Every query method opens its own short-lived connection via `_connect()`
-(measured: 16 call sites, ~16 connections per `match()` call on average).
+(measured: 16 call sites, ~16 connections per `detect()` call on average).
 Memory-mapped I/O lets SQLite read the file directly instead of via
 `read()` syscalls:
 
@@ -196,7 +196,7 @@ a full `licenseid update --force`.
 
 **File:** `similarity.py`, `fragment_similarity()`
 
-`fragment_similarity()` is 85%+ of total `match()` time on realistic
+`fragment_similarity()` is 85%+ of total `detect()` time on realistic
 workloads (RapidFuzz's `partial_ratio_alignment` on the fragment-matching
 path). The function already discards any candidate scoring below 0.6:
 

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The SPDX License List in memory, for ``resolve()`` with no database.
+"""The SPDX License List in memory, for ``match()`` with no database.
 
 :class:`ListIndex` answers the reads of
 :class:`licenseid.listlookup.ListLookup` from one

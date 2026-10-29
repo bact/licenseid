@@ -98,7 +98,7 @@ class LicenseDatabase:
 
         Without *create*, rules older or newer than this licenseid's are
         warned (``database: build vN outdated: ...``) through *report*, by
-        default ``licenseid.console.warn``; ``resolve()`` passes one that
+        default ``licenseid.console.warn``; ``match()`` passes one that
         says each line once per process."""
         db_path = os.fspath(db_path)
         self._create = create

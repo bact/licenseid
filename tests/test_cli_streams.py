@@ -146,11 +146,11 @@ def test_an_update_whose_report_fails_is_not_a_failed_update(tmp_path: Path) -> 
     )
 
 
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_an_interrupt_exits_130_without_a_message(db: str, command: str) -> None:
     """Exit 1 would read as "no license" or "not OSI"."""
     with mock.patch.object(
-        LicenseDetector, "match", autospec=True, side_effect=KeyboardInterrupt
+        LicenseDetector, "detect", autospec=True, side_effect=KeyboardInterrupt
     ):
         result = CliRunner().invoke(cli, ["--db", db, command, "MIT"])
     assert (result.exit_code, result.stderr) == (130, "")
@@ -162,9 +162,9 @@ def test_an_interrupt_ends_an_open_progress_line(db: str) -> None:
         raise KeyboardInterrupt
 
     with mock.patch.object(
-        LicenseDetector, "match", autospec=True, side_effect=interrupt
+        LicenseDetector, "detect", autospec=True, side_effect=interrupt
     ):
-        result = CliRunner().invoke(cli, ["--db", db, "match", "MIT"])
+        result = CliRunner().invoke(cli, ["--db", db, "detect", "MIT"])
     assert (result.exit_code, result.stderr) == (130, "Downloading...\n")
 
 
@@ -191,23 +191,23 @@ def _environ(tmp_path: Path) -> dict[str, str]:
 @pytest.mark.parametrize(
     ("script", "exit_code", "stderr"),
     [
-        ("$L match <&-", 2, "ERROR: input: missing; pass a file, an ID,"),
-        ("$L match --bold MIT >&-", 2, "ERROR: output: write failed: closed"),
+        ("$L detect <&-", 2, "ERROR: input: missing; pass a file, an ID,"),
+        ("$L detect --bold MIT >&-", 2, "ERROR: output: write failed: closed"),
         ("$L is-osi MIT >&-", 2, "ERROR: output: write failed: closed"),
         # click writes help itself, before any command runs
         ("$L --help >&-", 2, "ERROR: output: write failed: closed"),
-        ("$L match --help 1</dev/null", 2, "ERROR: output: write failed: Bad file"),
+        ("$L detect --help 1</dev/null", 2, "ERROR: output: write failed: Bad file"),
         # stderr read-only: its text cannot be flushed at exit either, which
         # turned every status into 120
-        ("$L match --text 'zz qq' 2</dev/null", 1, ""),
-        ("$L match --text MIT 1</dev/null 2</dev/null", 2, ""),
+        ("$L detect --text 'zz qq' 2</dev/null", 1, ""),
+        ("$L detect --text MIT 1</dev/null 2</dev/null", 2, ""),
         # a usage error kept its status too; it once went round the console
-        ("$L match --bogus 2</dev/null", 2, ""),
-        ("$L match --bogus 2>&-", 2, ""),  # and stays off standard output
+        ("$L detect --bogus 2</dev/null", 2, ""),
+        ("$L detect --bogus 2>&-", 2, ""),  # and stays off standard output
         # through cli.main(), the real entry point: one line in the grammar
-        ("$L match --bogus", 2, "ERROR: option: not found: --bogus; did you mean"),
+        ("$L detect --bogus", 2, "ERROR: option: not found: --bogus; did you mean"),
         ("$L", 2, "Usage: "),  # no subcommand: the help, on standard error
-        ("$L match --bold MIT", 0, ""),
+        ("$L detect --bold MIT", 0, ""),
     ],
     ids=[
         "stdin-closed",
@@ -281,7 +281,7 @@ class Stdin:
 
 signal.signal(signal.SIGINT, signal.default_int_handler)
 sys.stdin = Stdin(sys.stdin.buffer)
-sys.argv[1:] = ["--db", sys.argv[1], "match"]
+sys.argv[1:] = ["--db", sys.argv[1], "detect"]
 c.main()
 """
 

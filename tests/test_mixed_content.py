@@ -117,7 +117,7 @@ def test_marker_detection_fixtures(test_db: str) -> None:
     failures = []
 
     for fixture_file, expected_id in fixtures:
-        results = matcher.match(file_path=str(fixture_file))
+        results = matcher.detect(file_path=str(fixture_file))
         found_ids = [r["license_id"] for r in results]
 
         if expected_id in found_ids:

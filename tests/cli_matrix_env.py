@@ -86,7 +86,7 @@ def make_cell(**kwargs: Any) -> Cell:
         "id": "X1-001",
         "fam": "X1",
         "desc": "test cell",
-        "cmd": "$L --db $DB match MIT",
+        "cmd": "$L --db $DB detect MIT",
     }
     defaults.update(kwargs)
     return Cell(**defaults)

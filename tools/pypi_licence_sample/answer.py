@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""What a fixture pins of a ``licenseid.resolve()`` answer, and how a TSV
+"""What a fixture pins of a ``licenseid.match()`` answer, and how a TSV
 file writes it. Shared by ``export`` and by ``tests/resolver_corpus.py``, so
 the fixtures and the guard read one definition.
 

@@ -8,9 +8,9 @@ retrieval in licenseid.retrieval).
 
 Characterization tests written before the detector.py complexity refactor
 (see working-docs/design/complexity-and-file-size-roadmap.md, "Done:
-`detector.py::match()` and `_get_candidates()`") to
+`detector.py::detect()` and `_get_candidates()`") to
 pin down behaviour that was previously only reachable incidentally
-through match()'s public surface: the head/tail retrieval-window word
+through detect()'s public surface: the head/tail retrieval-window word
 thresholds, the tail-only candidate cap, hint injection, and the
 only_spdx/only_common/exclude filters.
 """

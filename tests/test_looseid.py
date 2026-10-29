@@ -198,7 +198,7 @@ def test_a_loose_license_with_an_exception(
     expected: tuple[str, bool] | None,
     warned: bool,
 ) -> None:
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert ((results[0]["license_id"], results[0]["exact"]) if results else None) == (
         expected
     )
@@ -230,7 +230,7 @@ def test_no_loose_with_expression(db: LicenseDatabase, text: str) -> None:
 def test_a_manifest_value_read_as_a_guess_is_still_a_field(
     matcher: LicenseDetector,
 ) -> None:
-    [result] = matcher.match(text='{"license": "GPLv2"}')
+    [result] = matcher.detect(text='{"license": "GPLv2"}')
     assert (result["license_id"], result["method"], result["exact"]) == (
         "GPL-2.0-only",
         "field",

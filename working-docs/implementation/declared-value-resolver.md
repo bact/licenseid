@@ -9,10 +9,10 @@ SPDX-License-Identifier: Apache-2.0
 
 # Resolving a declared value (PR #97 and the 0.6.0 review)
 
-`licenseid.resolve(value)` (`resolver.py`, types in `resolvertypes.py`)
+`licenseid.match(value)` (`resolver.py`, types in `resolvertypes.py`)
 answers which SPDX expression a declared licence value stands for, and
 lists each step taken. `match` answers which licence a text is. The two
-differ on purpose in one place: `resolve` never narrows a bare deprecated ID
+differ on purpose in one place: `match` never narrows a bare deprecated ID
 (`GPL-3.0` is category `assumed_only`, both variants offered), while `match`
 narrows it to `-only` and warns.
 
@@ -27,7 +27,7 @@ seven more. What was decided:
   Only AND and OR make an `expression` of several licences. An unknown
   exception gives `unresolved`. A grant written after the exception
   (`GPL-2.0 WITH Classpath-exception-2.0 or later`) is also `unresolved`:
-  `match` gives that grant to the licence, but `resolve` does not move
+  `match` gives that grant to the licence, but `match` does not move
   words.
 - **LicenseRef.** A whole `LicenseRef-*` (with `DocumentRef-*:`, idstrings
   as SPDX defines them, so no "_") names itself, as written: category
@@ -79,7 +79,7 @@ seven more. What was decided:
   not either: the CLI asks the database. An extension is any word of
   letters and digits after a full stop, so `COPYING.LESSER` is a path; no
   SPDX ID ends in one.
-- **The second review of PR #99** (after the merge). `match(text=...)` of
+- **The second review of PR #99** (after the merge). `detect(text=...)` of
   a "+" after a qualifier fell through to Tiers 1 and 2, which answered a
   near name (`GPL-2.0-only+` gave `LGPL-3.0-only` at 0.755). Tier 0 now
   stops at a value that is wholly such an expression

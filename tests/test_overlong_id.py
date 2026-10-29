@@ -64,7 +64,7 @@ def matcher(db_path: str) -> LicenseDetector:
 
 
 def match_ids(matcher: LicenseDetector, **kwargs: str) -> list[str]:
-    return [r["license_id"] for r in matcher.match(**kwargs)]
+    return [r["license_id"] for r in matcher.detect(**kwargs)]
 
 
 @pytest.mark.parametrize(
@@ -178,7 +178,7 @@ def test_predicate_on_overlong_id_is_false(
     assert getattr(matcher, predicate)(license_id=BIG + "+") is False
 
 
-@pytest.mark.parametrize("command", ["match", "is-spdx", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-spdx", "is-osi"])
 def test_cli_overlong_id_exits_one(db_path: str, command: str) -> None:
     result = CliRunner().invoke(cli, ["--db", db_path, command, "--id", BIG + "+"])
     assert result.exit_code == 1, result.stderr

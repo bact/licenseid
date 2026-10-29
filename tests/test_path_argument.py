@@ -25,7 +25,7 @@ def _db_path() -> Generator[str, None, None]:
     yield from seeded_db("test_path_argument", ROWS)
 
 
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 @pytest.mark.parametrize(
     "argument",
     [
@@ -60,7 +60,7 @@ def test_a_missing_path_is_refused(db_path: str, command: str, argument: str) ->
     ],
 )
 def test_a_url_or_licence_ids_are_no_path(db_path: str, argument: str) -> None:
-    result = CliRunner().invoke(cli, ["--db", db_path, "match", argument])
+    result = CliRunner().invoke(cli, ["--db", db_path, "detect", argument])
     assert "not found" not in result.stderr
     assert result.exit_code in (0, 1)
 

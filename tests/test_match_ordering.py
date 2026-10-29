@@ -137,7 +137,7 @@ def test_match_hands_the_tiebreaker_the_text_and_the_popularity_setting(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """match() passes the tie-breaker the raw text, whether it is pure
+    """detect() passes the tie-breaker the raw text, whether it is pure
     license text (a LICENSE file name says so), and the popularity flag with
     the same precedence as the ranking (request over matcher over off)."""
     calls: list[tuple[str, bool, bool]] = []
@@ -151,13 +151,13 @@ def test_match_hands_the_tiebreaker_the_text_and_the_popularity_setting(
     monkeypatch.setattr(detector_module, "apply_version_suffix_tiebreaker", spy)
     text = (MIT_SEARCH_TEXT + " " + MIT_SEARCH_TEXT).upper()  # not already normal
 
-    ordering_matcher.match(text=text)
+    ordering_matcher.detect(text=text)
     ordering_matcher.enable_popularity = True
-    ordering_matcher.match(text=text)
-    ordering_matcher.match(text=text, enable_popularity=False)
+    ordering_matcher.detect(text=text)
+    ordering_matcher.detect(text=text, enable_popularity=False)
     license_file = tmp_path / "LICENSE"
     license_file.write_text(text, encoding="utf-8")
-    ordering_matcher.match(file_path=str(license_file), enable_popularity=False)
+    ordering_matcher.detect(file_path=str(license_file), enable_popularity=False)
 
     assert calls == [
         (text, False, False),
@@ -316,7 +316,7 @@ def twin_names_db() -> Generator[str, None, None]:
 
 
 def test_short_text_ties_are_broken_by_license_id(twin_names_db: str) -> None:
-    results = LicenseDetector(twin_names_db).match("Twin Name License")
+    results = LicenseDetector(twin_names_db).detect("Twin Name License")
     assert [r["license_id"] for r in results] == ["A-1.0", "B-1.0"]
     assert results[0]["score"] == results[1]["score"]
 

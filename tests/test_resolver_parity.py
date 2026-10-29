@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The parity corpus pins what ``resolve()`` 0.6.0 answers (the 0.7.0 plan,
+"""The parity corpus pins what ``match()`` 0.6.0 answers (the 0.7.0 plan,
 finding F9, task T0): ``tests/fixtures/resolver_parity.tsv`` holds real and
 synthetic declared values with their 0.6.0 answers, the answer of Pitloom
 0.21.1 and the answer the plan expects of 0.7.0.
@@ -29,7 +29,7 @@ from resolver_corpus import (
     read_rows,
 )
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 from tools.pypi_licence_sample.answer import (
     answer_of,
     escape_field,
@@ -55,7 +55,7 @@ def test_a_row_keeps_its_0_6_0_answer(
     ``EXPECTED_CHANGES`` must give the answer listed there instead."""
     value = unescape_field(row["value"])
     expected = EXPECTED_CHANGES[value][0] if value in EXPECTED_CHANGES else pinned(row)
-    assert answer_of(value, resolve(value, corpus_db)) == expected
+    assert answer_of(value, match(value, corpus_db)) == expected
 
 
 def test_the_corpus_is_well_formed() -> None:
@@ -153,7 +153,7 @@ def test_a_dropped_character_is_no_longer_read_as_a_licence(
     corpus_db: LicenseDatabase, value: str, stopped: str, lost: str
 ) -> None:
     """Fixed by T6: unresolved, a ``drop`` step that did not apply, a reason."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == (None, "unresolved")
     assert got["reason"] == "character dropped: " + " ".join(
         f"U+{ord(c):04X}" for c in lost
@@ -181,7 +181,7 @@ def test_control_what_the_drop_guard_keeps(
     corpus_db: LicenseDatabase, value: str, expected: str
 ) -> None:
     """A character the guard allows is still dropped silently."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == (expected, "separator")
 
 

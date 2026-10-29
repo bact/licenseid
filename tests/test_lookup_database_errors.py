@@ -43,7 +43,7 @@ from licenseid.errors import InvalidInputError, LicenseIdError
 def _matcher_db(tmp_path: Path) -> tuple[LicenseDetector, Path]:
     path = make_ready_file_db(tmp_path / "b.db")
     matcher = LicenseDetector(db_path=str(path))
-    assert matcher.match(license_id="MIT")
+    assert matcher.detect(license_id="MIT")
     return matcher, path
 
 
@@ -55,7 +55,7 @@ def test_lookup_after_failure_is_database_not_ready(
     matcher, path = matcher_db
     break_db(path)
     with pytest.raises(DatabaseNotReadyError) as info:
-        matcher.match(license_id="MIT")
+        matcher.detect(license_id="MIT")
     message = str(info.value)
     assert message.startswith(f"database: unreadable: {path}: "), message
     # update rebuilds a missing or empty database, not a file that is not one
@@ -81,7 +81,7 @@ def test_lookup_does_not_recreate_a_deleted_database(
     matcher = LicenseDetector(db_path=str(path))
     path.unlink()
     with pytest.raises(DatabaseNotReadyError):
-        matcher.match(**lookup)
+        matcher.detect(**lookup)
     assert not path.exists()
     with pytest.raises(DatabaseNotReadyError, match="database: not found"):
         LicenseDetector(db_path=str(path))
@@ -122,7 +122,7 @@ def test_a_read_only_database_without_norm_columns_still_answers(
     _null_norm_columns(path)
     path.chmod(0o444)
     matcher = LicenseDetector(db_path=str(path))
-    assert matcher.match("MIT")[0]["license_id"] == "MIT"
+    assert matcher.detect("MIT")[0]["license_id"] == "MIT"
 
 
 def test_concurrent_lookups_on_rows_without_norm_columns(tmp_path: Path) -> None:
@@ -131,7 +131,7 @@ def test_concurrent_lookups_on_rows_without_norm_columns(tmp_path: Path) -> None
     before = _fingerprint(path)
     matcher = LicenseDetector(db_path=str(path))
     with ThreadPoolExecutor(4) as pool:
-        results = list(pool.map(lambda _: matcher.match("MIT"), range(8)))
+        results = list(pool.map(lambda _: matcher.detect("MIT"), range(8)))
     assert all(r and r[0]["license_id"] == "MIT" for r in results)
     assert _fingerprint(path) == before
 
@@ -259,7 +259,7 @@ def test_every_sqlite_error_is_wrapped(
         ),
         pytest.raises(DatabaseNotReadyError) as info,
     ):
-        matcher.match(license_id="MIT")
+        matcher.detect(license_id="MIT")
     assert "\n" not in str(info.value)
     assert isinstance(info.value.__cause__, error)
 
@@ -276,7 +276,7 @@ def test_locked_database_names_no_command(
         ),
         pytest.raises(DatabaseNotReadyError) as info,
     ):
-        matcher.match(license_id="MIT")
+        matcher.detect(license_id="MIT")
     assert "database is locked" in str(info.value)
     assert "licenseid update" not in str(info.value)
 
@@ -286,7 +286,7 @@ def test_invalid_input_stays_invalid_input(
 ) -> None:
     matcher, _ = matcher_db
     with pytest.raises(InvalidInputError):
-        matcher.match(license_id="MIT OR Apache-2.0")
+        matcher.detect(license_id="MIT OR Apache-2.0")
 
 
 @posix_only  # chmod only sets a read-only flag on Windows
@@ -295,7 +295,7 @@ def test_a_normal_lookup_still_works_read_only(tmp_path: Path) -> None:
     path = make_ready_file_db(tmp_path / "ok.db")
     path.chmod(0o444)
     matcher = LicenseDetector(db_path=str(path))
-    assert matcher.match(license_id="MIT")[0]["license_id"] == "MIT"
+    assert matcher.detect(license_id="MIT")[0]["license_id"] == "MIT"
 
 
 def test_copied_database_is_independent(tmp_path: Path) -> None:
@@ -305,7 +305,7 @@ def test_copied_database_is_independent(tmp_path: Path) -> None:
     matcher = LicenseDetector(db_path=str(b))
     b.unlink()
     with pytest.raises(DatabaseNotReadyError):
-        matcher.match(license_id="MIT")
+        matcher.detect(license_id="MIT")
     assert not b.exists()
 
 

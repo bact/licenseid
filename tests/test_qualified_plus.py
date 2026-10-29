@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """A text that is a "+" after ``-only`` or ``-or-later`` names no licence,
-so ``match`` answers none: not the near name a fuzzy match finds for it.
+so ``detect`` answers none: not the near name a fuzzy match finds for it.
 
 A database of four rows hid this: the near neighbours below are the ones
 the 3.29.0 list gave (``GPL-2.0-only+`` answered LGPL-3.0-only at 0.755,
@@ -18,7 +18,7 @@ import pytest
 from click.testing import CliRunner
 from matcher_db import Lic, seeded_db
 
-from licenseid import resolve
+from licenseid import match
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.identifiers import is_qualified_plus
@@ -50,7 +50,7 @@ def _db_path() -> Generator[str, None, None]:
 
 
 def ids(db_path: str, text: str) -> list[str]:
-    return [r["license_id"] for r in LicenseDetector(db_path).match(text=text)]
+    return [r["license_id"] for r in LicenseDetector(db_path).detect(text=text)]
 
 
 QUALIFIED_PLUS = [
@@ -105,21 +105,21 @@ def test_what_is_not_a_qualified_plus_is_matched(
 def test_no_entry_point_answers_a_near_name(db_path: str, tmp_path: Path) -> None:
     """Text, a tag, a manifest field and a file agree: no licence."""
     matcher = LicenseDetector(db_path)
-    assert matcher.match(text="SPDX-License-Identifier: GPL-2.0-only+") == []
-    assert matcher.match(text='{"license": "GPL-2.0-only+"}') == []
+    assert matcher.detect(text="SPDX-License-Identifier: GPL-2.0-only+") == []
+    assert matcher.detect(text='{"license": "GPL-2.0-only+"}') == []
     path = tmp_path / "LICENSE"
     path.write_text("LGPL-2.1-only+\n", encoding="utf-8")
-    assert matcher.match(file_path=str(path)) == []
-    assert resolve("GPL-2.0-only+", matcher.db)["category"] == "malformed"
+    assert matcher.detect(file_path=str(path)) == []
+    assert match("GPL-2.0-only+", matcher.db)["category"] == "malformed"
 
 
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_the_cli_answers_no_with_no_threshold_to_hide_behind(
     db_path: str, command: str
 ) -> None:
     """Text that names no licence is a "no" (exit 1), as for ``Foo``; only
     ``--id`` is a declaration, refused as a usage error (exit 2)."""
-    args = ["--threshold", "0"] if command == "match" else []
+    args = ["--threshold", "0"] if command == "detect" else []
     result = CliRunner().invoke(cli, ["--db", db_path, command, *args, "GPL-2.0-only+"])
     assert result.exit_code == 1
     assert "LICENSE_ID=" not in result.stdout

@@ -537,7 +537,7 @@ def test_json_deep_nesting_does_not_crash(
 ) -> None:
     """Regression: json.loads raises RecursionError (not a ValueError) on
     nesting deeper than the recursion limit; it must degrade to "no match",
-    not crash detect()/match()."""
+    not crash detect()."""
     assert not detector._detect_structured_format(text, ext)
 
 

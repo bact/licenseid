@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve()`` and the marks at the two ends of a value (task T8; decisions
+"""``match()`` and the marks at the two ends of a value (task T8; decisions
 P77 to P79). Characterisation first: the answers before the rule, so that
 the change shows as a flip of the values marked ``MOVES``."""
 # pylint: disable=missing-function-docstring
@@ -11,7 +11,7 @@ the change shows as a flip of the values marked ``MOVES``."""
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 
 #: Refused: a mark at the start, two or more marks or an ellipsis at the end.
 REFUSED = {
@@ -50,7 +50,7 @@ READ = {
 def test_marks_that_are_not_one_ending_are_refused(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] is None
     assert got["reason"] == REFUSED[value]
     assert [s["kind"] for s in got["steps"]] == ["drop"]
@@ -60,13 +60,13 @@ def test_marks_that_are_not_one_ending_are_refused(
 def test_one_mark_at_the_end_is_an_ending(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] == READ[value]
     assert got["reason"] is None
 
 
 def test_the_ending_is_a_separator_step(corpus_db: LicenseDatabase) -> None:
-    got = resolve("MIT ; ", corpus_db)
+    got = match("MIT ; ", corpus_db)
     assert got["category"] == "separator"
     assert [(s["kind"], s["from"], s["to"]) for s in got["steps"]] == [
         ("trim", "MIT ; ", "MIT ;"),

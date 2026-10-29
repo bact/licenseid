@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""What ``resolve()`` reads, and says, for every state of the database at
+"""What ``match()`` reads, and says, for every state of the database at
 the default path, on a first call and on a repeat (characterisation of the
 list choice, before it is kept per file stamp)."""
 # pylint: disable=missing-function-docstring
@@ -24,7 +24,7 @@ from resolve_states import (
     build,
 )
 
-from licenseid import resolve
+from licenseid import match
 from licenseid.datadir import get_default_db_path
 from licenseid.errors import DatabaseNotReadyError
 
@@ -59,7 +59,7 @@ def test_auto_reads_and_says(
     ship(monkeypatch, release_bundle(bundle))
     build(state, monkeypatch)
     for _ in range(3):
-        assert resolve("MIT")["lists"][0]["source"] == source
+        assert match("MIT")["lists"][0]["source"] == source
     err = capsys.readouterr().err
     if warning.startswith("database:"):
         warning = f"WARNING: {warning}; using packaged data v{bundle}\n"
@@ -75,7 +75,7 @@ def test_auto_reads_a_directory_and_says_once(
     ship(monkeypatch, release_bundle(NEWER))
     build(UNREADABLE, monkeypatch)
     for _ in range(3):
-        assert resolve("MIT")["lists"][0]["source"] == "packaged"
+        assert match("MIT")["lists"][0]["source"] == "packaged"
     err = capsys.readouterr().err
     assert err.count("WARNING: database: unreadable: ") == 1
     assert err.endswith(f"; using packaged data v{NEWER}\n")
@@ -99,7 +99,7 @@ def test_source_database_refuses_what_auto_calls_unusable(
     build(state, monkeypatch)
     for _ in range(2):
         with pytest.raises(DatabaseNotReadyError) as raised:
-            resolve("MIT", source="database")
+            match("MIT", source="database")
         assert raised.value.condition == condition
 
 
@@ -110,7 +110,7 @@ def test_source_database_reads_a_usable_one(
     ship(monkeypatch, release_bundle(NEWER))
     build(state, monkeypatch)
     for _ in range(3):
-        assert resolve("MIT", source="database")["lists"][0]["source"] == "database"
+        assert match("MIT", source="database")["lists"][0]["source"] == "database"
     assert capsys.readouterr().err == (OUTDATED_WARNING if state == OUTDATED else "")
 
 
@@ -122,4 +122,4 @@ def test_auto_without_a_bundle_raises_the_database_error(
     build(state, monkeypatch)
     for _ in range(2):
         with pytest.raises(DatabaseNotReadyError):
-            resolve("MIT")
+            match("MIT")

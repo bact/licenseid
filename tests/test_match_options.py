@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""match() rejects an option it does not know, whatever else it was given:
+"""detect() rejects an option it does not know, whatever else it was given:
 a mistyped or removed option must not pass with no effect."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
@@ -19,7 +19,7 @@ from licenseid.errors import InvalidInputError, LicenseIdError
 from licenseid.types import DetectRequest
 
 # One valid value per option. Kept beside DetectRequest by the test below, so
-# a new option cannot be added without deciding whether match() takes it.
+# a new option cannot be added without deciding whether detect() takes it.
 VALID_OPTIONS: dict[str, Any] = {
     "enable_popularity": True,
     "exclude": ["Apache-2.0"],
@@ -46,7 +46,7 @@ def test_every_match_request_option_is_covered() -> None:
 
 @pytest.mark.parametrize("name", sorted(VALID_OPTIONS))
 def test_a_known_option_is_accepted(matcher: LicenseDetector, name: str) -> None:
-    assert matcher.match(text=MIT_SEARCH_TEXT, **{name: VALID_OPTIONS[name]})
+    assert matcher.detect(text=MIT_SEARCH_TEXT, **{name: VALID_OPTIONS[name]})
 
 
 @pytest.mark.parametrize(
@@ -55,7 +55,7 @@ def test_a_known_option_is_accepted(matcher: LicenseDetector, name: str) -> None
 def test_an_unknown_option_is_rejected(matcher: LicenseDetector, name: str) -> None:
     options: dict[str, Any] = {name: True}
     with pytest.raises(InvalidInputError) as raised:
-        matcher.match(text=MIT_SEARCH_TEXT, **options)
+        matcher.detect(text=MIT_SEARCH_TEXT, **options)
     assert str(raised.value).startswith(f"option: invalid: {name!r}; use one of ")
     assert "\n" not in str(raised.value)
 
@@ -77,7 +77,7 @@ def test_the_option_is_checked_before_any_input(
     """The early returns (an explicit ID, empty text) and a file that cannot
     be read must not let a bad option through, or change the error."""
     with pytest.raises(InvalidInputError, match="option: invalid: 'bogus'"):
-        matcher.match(bogus=1, **kwargs)
+        matcher.detect(bogus=1, **kwargs)
 
 
 def test_every_unknown_option_is_named_once_in_order(
@@ -88,7 +88,7 @@ def test_every_unknown_option_is_named_once_in_order(
     unknown = ["zed", "yak", "xor", "wax", "vim", "urn", "tab", "sun", "ark"]
     options: dict[str, Any] = {name: 1 for name in unknown}
     with pytest.raises(InvalidInputError) as raised:
-        matcher.match(text=MIT_SEARCH_TEXT, only_spdx=True, **options)
+        matcher.detect(text=MIT_SEARCH_TEXT, only_spdx=True, **options)
     named = ", ".join(repr(name) for name in sorted(unknown))
     known = ", ".join(sorted(VALID_OPTIONS))
     assert str(raised.value) == f"option: invalid: {named}; use one of {known}"
@@ -98,23 +98,23 @@ def test_the_error_is_a_licenseid_error_and_a_runtime_error(
     matcher: LicenseDetector,
 ) -> None:
     with pytest.raises(LicenseIdError):
-        matcher.match(text=MIT_SEARCH_TEXT, bogus=1)
+        matcher.detect(text=MIT_SEARCH_TEXT, bogus=1)
     with pytest.raises(RuntimeError):
-        matcher.match(text=MIT_SEARCH_TEXT, bogus=1)
+        matcher.detect(text=MIT_SEARCH_TEXT, bogus=1)
 
 
 def test_a_rejected_call_leaves_the_matcher_usable(
     matcher: LicenseDetector,
 ) -> None:
-    plain = matcher.match(text=MIT_SEARCH_TEXT)
+    plain = matcher.detect(text=MIT_SEARCH_TEXT)
     with pytest.raises(InvalidInputError):
-        matcher.match(text=MIT_SEARCH_TEXT, bogus=1)
-    assert matcher.match(text=MIT_SEARCH_TEXT) == plain
+        matcher.detect(text=MIT_SEARCH_TEXT, bogus=1)
+    assert matcher.detect(text=MIT_SEARCH_TEXT) == plain
 
 
 def test_a_valid_option_does_not_change_the_result_when_it_is_the_default(
     matcher: LicenseDetector,
 ) -> None:
-    assert matcher.match(text=MIT_SEARCH_TEXT, only_spdx=True) == matcher.match(
+    assert matcher.detect(text=MIT_SEARCH_TEXT, only_spdx=True) == matcher.detect(
         text=MIT_SEARCH_TEXT
     )

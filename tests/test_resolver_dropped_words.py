@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve()`` refuses a value whose reading needs a word or a mark to be
+"""``match()`` refuses a value whose reading needs a word or a mark to be
 dropped (task T8, R7 item 3; decisions P71 to P73)."""
 # pylint: disable=missing-function-docstring
 
@@ -16,7 +16,7 @@ from packaged_list import fixture_bundle
 from release_fakes import ship
 from resolver_corpus import EXCEPTION_LIST, LICENSE_LIST
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 from licenseid.dropguard import dropped, dropped_words
 
 #: Value, the reading stopped, the reason.
@@ -86,7 +86,7 @@ STAYS = [
 def test_a_dropped_word_or_mark_refuses_the_value(
     corpus_db: LicenseDatabase, value: str, stopped: str, reason: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["reason"] == reason
     assert got["expression"] is None
     assert got["category"] == "unresolved"
@@ -99,7 +99,7 @@ def test_a_dropped_word_or_mark_refuses_the_value(
 def test_spelling_is_not_a_dropped_word(
     corpus_db: LicenseDatabase, value: str, expression: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] == expression
     assert got["reason"] is None
 
@@ -108,12 +108,12 @@ def test_spelling_is_not_a_dropped_word(
 def test_a_negation_or_qualifier_is_not_read(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["reason"], got["steps"]) == (None, None, [])
 
 
 def test_several_words_are_listed(corpus_db: LicenseDatabase) -> None:
-    got = resolve("REM 1. MIT", corpus_db)
+    got = match("REM 1. MIT", corpus_db)
     assert got["reason"] == "word dropped: rem 1"
     assert dropped_words("a. b. 1. MIT") == "a"  # the rules read a line start
 
@@ -133,7 +133,7 @@ def test_an_operand_is_judged_as_it_would_be_alone(
     corpus_db: LicenseDatabase, value: str, stopped: str, reason: str
 ) -> None:
     """The operand's own refusal is the reason, with its ``drop`` step."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["reason"]) == (None, reason)
     assert [(s["kind"], s["to"]) for s in got["steps"]] == [("drop", stopped)]
 
@@ -147,7 +147,7 @@ def test_an_operand_is_judged_as_it_would_be_alone(
 def test_the_packaged_list_gives_the_same_answer(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    from_db, from_bundle = resolve(value, corpus_db), resolve(value, source="packaged")
+    from_db, from_bundle = match(value, corpus_db), match(value, source="packaged")
     for key in ("expression", "category", "steps", "reason"):
         assert from_bundle[key] == from_db[key], key
 

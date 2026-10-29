@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""What match() returns and the CLI prints: the same keys for every method,
+"""What detect() returns and the CLI prints: the same keys for every method,
 a 0-1 score, an exact flag, and JSON Lines in RFC 8785 form. Roadmap item
 22: --json printed each tier's own record, ranking keys and licence text
 included."""
@@ -58,7 +58,7 @@ def db() -> Generator[str, None, None]:
 
 
 def _match(db: str, **kwargs: Any) -> list[Detection]:
-    return LicenseDetector(db).match(**kwargs)
+    return LicenseDetector(db).detect(**kwargs)
 
 
 @pytest.mark.parametrize(
@@ -149,7 +149,7 @@ def test_the_cap_keeps_the_ranking_order(db: str) -> None:
     raw = matcher._match_raw("MIT License")  # pylint: disable=protected-access
     assert [r["score"] for r in raw][:2] == [1.02, 1.01]
     assert [r["license_id"] for r in raw] == [
-        r["license_id"] for r in matcher.match("MIT License")
+        r["license_id"] for r in matcher.detect("MIT License")
     ]
 
 
@@ -244,7 +244,7 @@ def test_a_text_line_has_every_field_and_empty_for_none(
 
 
 def test_json_prints_one_line_per_result(db: str) -> None:
-    """Two tags, two results, two lines, in the bytes match() results print
+    """Two tags, two results, two lines, in the bytes detect() results print
     as."""
     text = "// SPDX-License-Identifier: MIT\n// SPDX-License-Identifier: Apache-2.0"
     result = invoke_match(db, "--json", "--text", text)

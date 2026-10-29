@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve`` on the shapes around one licence: an exception after WITH, a
+"""``match`` on the shapes around one licence: an exception after WITH, a
 ``LicenseRef-*``, a qualifier stated twice, a character that hides, and the
 "or later" readers it shares with ``match``."""
 # pylint: disable=missing-function-docstring
@@ -22,7 +22,7 @@ from resolver_helpers import GPL2, summary
 from licenseid import LicenseDatabase
 from licenseid.classify import is_negated
 from licenseid.looseid import declared_grant_id_text, granted_id_text
-from licenseid.resolver import resolve
+from licenseid.resolver import match
 from licenseid.resolvertypes import CATEGORY_ORDER, TRUST
 
 ROWS = (
@@ -232,7 +232,7 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
 def test_a_shape_resolves_with_its_steps(
     db: LicenseDatabase, value: str, expected: tuple[object, ...]
 ) -> None:
-    assert summary(resolve(value, db)) == expected
+    assert summary(match(value, db)) == expected
 
 
 # -- the "or later" readers ------------------------------------------------
@@ -299,7 +299,7 @@ def test_a_name_is_looked_up_without_a_pass_over_every_row(
         LicenseDatabase, "get_all_names_and_ids", autospec=True
     ) as scan:
         for _ in range(3):
-            assert resolve("mit license", db)["expression"] == "MIT"
+            assert match("mit license", db)["expression"] == "MIT"
     scan.assert_not_called()
 
 
@@ -313,11 +313,11 @@ def test_a_name_held_by_a_deprecated_row_only_is_no_listed_name() -> None:
         assert db.get_active_ids_by_name() == {
             "standard ml of new jersey license": ["SMLNJ"]
         }
-        assert resolve("Old License", db)["category"] == "unresolved"
+        assert match("Old License", db)["category"] == "unresolved"
 
 
 def test_the_docs_list_every_category_in_order_with_its_trust() -> None:
-    doc = Path(__file__).parents[1] / "docs" / "resolve.md"
+    doc = Path(__file__).parents[1] / "docs" / "match.md"
     rows = re.findall(
         r"^\| `(\w+)` \| `(\w+)` \|", doc.read_text(encoding="utf-8"), re.MULTILINE
     )

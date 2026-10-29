@@ -26,7 +26,7 @@ def _rounded(value: float | None) -> float | None:
 
 
 def public_result(raw: RawMatch | InternalMatch) -> Detection:
-    """*raw* as match() returns it. The ranking key is capped to 0-1: above
+    """*raw* as detect() returns it. The ranking key is capped to 0-1: above
     1 it only orders a tier's own results, and the order is in the list."""
     return Detection(
         license_id=raw["license_id"],
@@ -46,7 +46,7 @@ def json_line(result: Detection) -> str:
     Scheme (RFC 8785): sorted keys, no white space, ECMAScript numbers (1.0
     is 1), so equal results print equal bytes. Every key and value is
     ASCII: an ID is, and no licence text is in a result."""
-    # Only --json needs it, so match() and the API do not import it.
+    # Only --json needs it, so detect() and the API do not import it.
     import rfc8785  # pylint: disable=import-outside-toplevel
 
     fields: dict[str, str | float | bool | None] = {

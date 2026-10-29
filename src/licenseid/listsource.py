@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Which SPDX License List ``resolve()`` reads: the licence database, or the
+"""Which SPDX License List ``match()`` reads: the licence database, or the
 bundle shipped in the wheel (:func:`licenseid.listindex.packaged_index`).
 
 ``source="auto"`` (the default), with no database given:
@@ -94,7 +94,7 @@ _kept: dict[str, _Kept] = {}
 def choose_list(
     db: LicenseDatabase | None, source: Source
 ) -> tuple[ListLookup, ListSource]:
-    """The list ``resolve(value, db, source=source)`` reads, and where it
+    """The list ``match(value, db, source=source)`` reads, and where it
     comes from. Raises :class:`licenseid.errors.InvalidInputError` for a
     *source* that is none of :data:`SOURCES`, or ``packaged`` with a *db*,
     and :class:`licenseid.errors.DatabaseNotReadyError` when the chosen

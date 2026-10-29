@@ -80,7 +80,7 @@ def test_show_diff_with_empty_window_marks_every_word_added(
     assert "\n-" not in out.replace("--- DATABASE", "")
 
 
-# --- match --diff, end to end ---
+# --- detect --diff, end to end ---
 
 
 def test_match_diff_shows_word_diff_after_the_result_line(mit_db: str) -> None:

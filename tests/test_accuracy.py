@@ -166,7 +166,7 @@ def run_accuracy_test(
                     continue
                 text = data[key]
 
-            match_res = matcher.match(text)
+            match_res = matcher.detect(text)
             matched_ids = [r["license_id"] for r in match_res]
 
             results[rate]["total"] += 1
@@ -281,7 +281,7 @@ def test_name_accuracy(matcher: LicenseDetector) -> None:
             continue
         name_input = name_val.lower()
 
-        match_res = matcher.match(name_input)
+        match_res = matcher.detect(name_input)
         matched_ids = [r["license_id"] for r in match_res]
 
         total += 1

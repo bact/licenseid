@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Which list ``resolve()`` reads when it has both a database at the
+"""Which list ``match()`` reads when it has both a database at the
 default path and a bundle in the wheel: the newer List wins (Q4); a tie goes
 to the database only when this licenseid's rules built its rows (Q10).
 ``tests/test_option_matrix.py`` holds the axes; this file the edges."""
@@ -17,7 +17,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db, writer
 from release_fakes import release_bundle, ship
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 from licenseid.datadir import get_default_db_path
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
 
@@ -44,7 +44,7 @@ def _default_db(version: str = DB_VERSION, build: str | None = None) -> Path:
 
 
 def _read(value: str = "MIT") -> tuple[str, str | None]:
-    lists = resolve(value)["lists"]
+    lists = match(value)["lists"]
     assert len(lists) == 1  # only the list read is reported
     return lists[0]["source"], lists[0]["version"]
 
@@ -156,13 +156,13 @@ def test_an_unusable_bundle_leaves_the_database_error(
 ) -> None:
     ship(monkeypatch, b"not gzip")
     with pytest.raises(DatabaseNotReadyError, match="^database: not found: "):
-        resolve("MIT")
+        match("MIT")
     detail = "BadGzipFile: Not a gzipped file (b'no')"
     with pytest.raises(
         DatabaseNotReadyError,
         match=f"^{re.escape(f'spdx-bundle.json.gz: invalid: {detail}')}$",
     ) as raised:
-        resolve("MIT", source="packaged")
+        match("MIT", source="packaged")
     assert (raised.value.condition, raised.value.detail) == ("invalid", detail)
     assert capsys.readouterr().err == (
         f"WARNING: spdx-bundle.json.gz: invalid: {detail}\n"
@@ -171,7 +171,7 @@ def test_an_unusable_bundle_leaves_the_database_error(
 
 def test_no_bundle_says_not_found() -> None:
     with pytest.raises(DatabaseNotReadyError) as raised:
-        resolve("MIT", source="packaged")
+        match("MIT", source="packaged")
     assert str(raised.value) == "spdx-bundle.json.gz: not found"
     assert (raised.value.condition, raised.value.detail) == ("not found", "")
 
@@ -180,13 +180,13 @@ def test_no_bundle_says_not_found() -> None:
 def test_an_unknown_source_is_refused(source: object) -> None:
     message = f"option: invalid: source: {source!r}; pass auto, database or packaged"
     with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
-        resolve("MIT", source=source)  # type: ignore[arg-type]
+        match("MIT", source=source)  # type: ignore[arg-type]
 
 
 def test_source_is_a_keyword() -> None:
     with pytest.raises(TypeError):
         # pylint: disable-next=too-many-function-args
-        resolve("MIT", None, "packaged")  # type: ignore[call-arg]
+        match("MIT", None, "packaged")  # type: ignore[call-arg]
 
 
 def test_a_packaged_answer_reads_no_database(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -200,7 +200,7 @@ def test_a_packaged_answer_reads_no_database(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def _read_source(source: str) -> tuple[str, str | None]:
-    lists = resolve("MIT", source=source)  # type: ignore[arg-type]
+    lists = match("MIT", source=source)  # type: ignore[arg-type]
     return lists["lists"][0]["source"], lists["lists"][0]["version"]
 
 
@@ -212,12 +212,12 @@ def test_a_database_with_no_rows_is_refused_by_source_database() -> None:
     LicenseDatabase(str(path))
     message = f"database: empty: {path}; run 'licenseid update'"
     with pytest.raises(DatabaseNotReadyError, match=f"^{re.escape(message)}$"):
-        resolve("MIT", source="database")
+        match("MIT", source="database")
 
 
 def test_a_database_given_is_read_as_built() -> None:
     """The caller built it: no readiness check, as 0.6.0."""
     path = Path(get_default_db_path())
     path.parent.mkdir(parents=True)
-    got = resolve("MIT", LicenseDatabase(str(path)), source="database")
+    got = match("MIT", LicenseDatabase(str(path)), source="database")
     assert (got["expression"], got["category"]) == (None, "unresolved")

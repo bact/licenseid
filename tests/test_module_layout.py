@@ -31,7 +31,7 @@ MATCH_PATH = [
     "identifiers",
     "textinput",
     "spdxdata",
-    # resolve(), with no database: the packaged list and the choice of list
+    # match(), with no database: the packaged list and the choice of list
     "listindex",
     "listsource",
     "resolver",
@@ -93,7 +93,7 @@ def test_the_split_modules_form_a_stack_ranking_below_shorttext() -> None:
 
 @pytest.mark.parametrize("module", MATCH_PATH)
 def test_the_match_path_never_loads_requests(module: str, tmp_path: Path) -> None:
-    """Loading `requests` costs start-up time on every `match`; only `update`
+    """Loading `requests` costs start-up time on every `detect`; only `update`
     needs it (database.py imports spdx_source lazily)."""
     loaded = imported_after(f"import licenseid.{module}", tmp_path)
     assert "requests" not in loaded

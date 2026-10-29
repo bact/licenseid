@@ -70,11 +70,11 @@ def _garbage(path: Path) -> None:
 DAMAGE: list[Callable[[Path], None]] = [_delete, _empty, _half, _one_page, _garbage]
 
 ENTRY_POINTS: dict[str, Callable[[LicenseDetector, Path], Any]] = {
-    "match-id": lambda m, p: m.match(license_id="MIT"),
-    "match-name": lambda m, p: m.match("MIT"),
-    "match-text": lambda m, p: m.match(TEXT * 3),
-    "match-tag": lambda m, p: m.match("SPDX-License-Identifier: MIT"),
-    "match-file": lambda m, p: m.match(file_path=str(p.parent / "in.txt")),
+    "match-id": lambda m, p: m.detect(license_id="MIT"),
+    "match-name": lambda m, p: m.detect("MIT"),
+    "match-text": lambda m, p: m.detect(TEXT * 3),
+    "match-tag": lambda m, p: m.detect("SPDX-License-Identifier: MIT"),
+    "match-file": lambda m, p: m.detect(file_path=str(p.parent / "in.txt")),
     "is_spdx": lambda m, p: m.is_spdx(license_id="MIT"),
     "is_osi": lambda m, p: m.is_osi("MIT"),
     "resolve_record": lambda m, p: m.resolve_record(TEXT * 3),
@@ -95,7 +95,7 @@ def test_every_entry_point_raises_database_not_ready(
     (tmp_path / "in.txt").write_text(TEXT * 3, encoding="utf-8")
     matcher = LicenseDetector(db_path=str(path))
     if warm:
-        matcher.match("MIT")
+        matcher.detect("MIT")
     damage(path)
     with pytest.raises(DatabaseNotReadyError):
         ENTRY_POINTS[entry](matcher, path)
@@ -112,14 +112,14 @@ def test_a_database_unreadable_after_the_check_is_database_not_ready(
     matcher = LicenseDetector(db_path=str(path))
     path.chmod(0)
     with pytest.raises(DatabaseNotReadyError):
-        matcher.match(license_id="MIT")
+        matcher.detect(license_id="MIT")
 
 
 @pytest.mark.parametrize(
     "args",
     [
-        ["match", "--id", "MIT"],
-        ["match", "--text", "MIT"],
+        ["detect", "--id", "MIT"],
+        ["detect", "--text", "MIT"],
         ["is-osi", "MIT"],
         ["is-fsf", "MIT"],
         ["is-open", "MIT"],
@@ -271,7 +271,7 @@ def test_leave_wal_converts_a_database_of_an_earlier_version(tmp_path: Path) -> 
     LicenseDatabase(str(path))._connections.leave_wal()
     with contextlib.closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
-    LicenseDetector(db_path=str(path)).match(license_id="MIT")
+    LicenseDetector(db_path=str(path)).detect(license_id="MIT")
     assert sorted(p.name for p in tmp_path.glob("wal.db*")) == ["wal.db"]
 
 
@@ -498,7 +498,7 @@ def test_a_file_that_is_there_but_unreadable_is_not_sent_to_update(
     matcher = LicenseDetector(db_path=str(path))
     path.chmod(0)
     with pytest.raises(DatabaseNotReadyError) as info:
-        matcher.match(license_id="MIT")
+        matcher.detect(license_id="MIT")
     assert "licenseid update" not in str(info.value), info.value
 
 
@@ -522,7 +522,7 @@ def test_a_dotdot_after_a_symlink_is_not_collapsed(
     (tmp_path / "lnk").symlink_to(tmp_path / "real" / "deep")
     monkeypatch.chdir(tmp_path)
     assert LicenseDatabase("lnk/../ready.db", create=False).get_metadata()
-    assert LicenseDetector(db_path="lnk/../ready.db").match("MIT")
+    assert LicenseDetector(db_path="lnk/../ready.db").detect("MIT")
 
 
 @posix_only  # a name that is not UTF-8

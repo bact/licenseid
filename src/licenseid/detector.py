@@ -53,7 +53,7 @@ from licenseid.types import (
 _FP_BOOST: float = 0.05
 
 
-# The keyword options match() accepts; `text`, `license_id` and `file_path`
+# The keyword options detect() accepts; `text`, `license_id` and `file_path`
 # are its named parameters, so a request can carry no other key.
 _MATCH_OPTIONS: frozenset[str] = frozenset(DetectRequest.__annotations__) - {
     "text",
@@ -63,7 +63,7 @@ _MATCH_OPTIONS: frozenset[str] = frozenset(DetectRequest.__annotations__) - {
 
 
 def _reject_unknown_options(options: dict[str, Any]) -> None:
-    """Raise InvalidInputError for an option match() does not know, so a typo
+    """Raise InvalidInputError for an option detect() does not know, so a typo
     or a removed option (`enable_java`) cannot pass with no effect."""
     unknown = sorted(options.keys() - _MATCH_OPTIONS)
     if unknown:
@@ -75,7 +75,7 @@ def _reject_unknown_options(options: dict[str, Any]) -> None:
 
 @dataclass(frozen=True)
 class _MatchContext:
-    """Immutable per-call state threaded through match()'s tiers. Built
+    """Immutable per-call state threaded through detect()'s tiers. Built
     once after file/text resolution; read-only afterward. Not part of
     the public API. marker_candidates/marker_boosts live outside this
     context as explicit parameters instead, since they're a tier's
@@ -324,7 +324,7 @@ class LicenseDetector:
         marker_boosts: dict[str, float],
     ) -> list[InternalMatch]:
         """Tier 1 (Broad Recall) retrieval + augmentation, then Tier 2
-        (Precision Ranking). Never short-circuits match()."""
+        (Precision Ranking). Never short-circuits detect()."""
         candidates = self._get_candidates(ctx.request, ctx.target_text)
 
         # For mixed content or thin FTS5 results, augment via windowed search.
@@ -355,7 +355,7 @@ class LicenseDetector:
             is_pure=ctx.is_pure,
         )
 
-    def match(
+    def detect(
         self,
         text: str | None = None,
         *,
@@ -392,7 +392,7 @@ class LicenseDetector:
         file_path: str | None = None,
         **options: Any,
     ) -> Sequence[RawMatch | InternalMatch]:
-        """match() before the public form: each tier's own records."""
+        """detect() before the public form: each tier's own records."""
         _reject_unknown_options(options)
         if license_id:
             return self._try_explicit_id_match(license_id)
@@ -451,11 +451,11 @@ class LicenseDetector:
     ) -> LicenseDetails | None:
         """Resolve the input to the record of its top match (score 0.85 or
         more), or None. The is_*() predicates and the CLI's is-* commands both
-        answer from this, so they cannot disagree with match(), and raise
+        answer from this, so they cannot disagree with detect(), and raise
         what it raises. The bar reads the public score, as --threshold does:
         rounded to 4 places, so a raw 0.84995 passes."""
         with self.db.reading():
-            results = self.match(text, license_id=license_id, file_path=file_path)
+            results = self.detect(text, license_id=license_id, file_path=file_path)
             if not results or results[0]["score"] < 0.85:
                 return None
             top = results[0]
@@ -464,7 +464,7 @@ class LicenseDetector:
             return record
 
         # An expression (a WITH, an OR, a LicenseRef) is not a single DB row:
-        # fall back to the flags match() already computed, not "unknown".
+        # fall back to the flags detect() already computed, not "unknown".
         return cast(
             LicenseDetails,
             {
@@ -505,25 +505,25 @@ class LicenseDetector:
     def is_spdx(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is in the SPDX License List.
 
-        Raises what match() raises.
+        Raises what detect() raises.
         """
         record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_spdx", False)
 
     def is_osi(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is OSI-approved. Raises what match() raises."""
+        """True if the license is OSI-approved. Raises what detect() raises."""
         record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_osi_approved", False)
 
     def is_fsf(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is FSF-libre. Raises what match() raises."""
+        """True if the license is FSF-libre. Raises what detect() raises."""
         record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_fsf_libre", False)
 
     def is_open(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is OSI-approved OR FSF-libre.
 
-        Raises what match() raises.
+        Raises what detect() raises.
         """
         record = self.resolve_record(text, **kwargs)
         if not record:
@@ -678,3 +678,23 @@ class LicenseDetector:
         if not candidates:
             candidates = self._get_candidates(request, target_text)
         return candidates
+
+
+def detect(
+    text: str | None = None,
+    *,
+    license_id: str | None = None,
+    file_path: str | None = None,
+    **options: Any,
+) -> list[Detection]:
+    """Detect the licence of a *text*, a file or a declared *license_id*.
+
+    ``LicenseDetector().detect(...)`` on the database at the default path,
+    for one call; keep a :class:`licenseid.detector.LicenseDetector` for many.
+    Raises :class:`licenseid.errors.DatabaseNotReadyError` when that database
+    is missing or unreadable, and :class:`licenseid.errors.InvalidInputError`
+    as the method does.
+    """
+    return LicenseDetector().detect(
+        text, license_id=license_id, file_path=file_path, **options
+    )

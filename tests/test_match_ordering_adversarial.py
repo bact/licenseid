@@ -311,7 +311,7 @@ def test_a_second_pass_nudges_a_pair_again_and_only_one_pass_is_ever_made(
 ) -> None:
     """Pinned, not fixed: the tie-breaker is not idempotent. When the
     preferred side starts below its peer, the 0.01 swing leaves the pair
-    inside the window, so a second pass nudges it again. match() applies it
+    inside the window, so a second pass nudges it again. detect() applies it
     exactly once, so nothing observable depends on this; the nudge stays as it
     is on purpose (roadmap item 8)."""
     once = apply_version_suffix_tiebreaker(
@@ -396,7 +396,7 @@ def test_the_phrase_regex_does_not_backtrack(name: str) -> None:
     assert elapsed < 1.0, f"{name} took {elapsed:.3f}s"
 
 
-# -- Clause E: end to end through match() ---------------------------------
+# -- Clause E: end to end through detect() ---------------------------------
 
 GPL_BODY = (
     "This program is free software; you can redistribute it and/or modify "
@@ -420,7 +420,7 @@ def twin_gpl_db() -> Generator[str, None, None]:
 
 
 def top_id(db_path: str, text: str, file_path: str | None = None) -> str:
-    results = LicenseDetector(db_path).match(text=text, file_path=file_path)
+    results = LicenseDetector(db_path).detect(text=text, file_path=file_path)
     assert results, "no match at all"
     return results[0]["license_id"]
 

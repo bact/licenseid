@@ -197,7 +197,7 @@ empty one, so the next matcher said `empty` instead of `not found`.
 
 ## Input never builds a SQL pattern
 
-An overlong licence ID ending in `+` (via `match(license_id=...)`, an
+An overlong licence ID ending in `+` (via `detect(license_id=...)`, an
 SPDX-License-Identifier tag, a `License:` line, or a JSON/TOML field)
 made a healthy database look broken: `LicenseDatabase.get_license_by_id_prefix`
 built a LIKE pattern from input, and SQLite refuses a pattern over 50,000 bytes

@@ -3,10 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve()`` gives one answer with and without a database.
+"""``match()`` gives one answer with and without a database.
 
 The database is the one ``update --source packaged`` builds from the bundle
-the test ships (``conftest.bundle_db``); without one, ``resolve()`` reads the
+the test ships (``conftest.bundle_db``); without one, ``match()`` reads the
 same bundle in memory (``licenseid.listindex``). Only ``lists[*].source``
 may differ, and it says which was read.
 """
@@ -27,7 +27,7 @@ from packaged_list import (
 from release_fakes import ship
 from resolver_corpus import changed_answers, changes_report, corpus_rows
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 from licenseid.types import SpdxLicenseEntry
 from tools.pypi_licence_sample.answer import unescape_field
 
@@ -38,7 +38,7 @@ def _differences(db: LicenseDatabase, values: list[str]) -> list[str]:
     """The values whose answer differs with and without *db*, and why."""
     found = []
     for value in values:
-        with_db, without = resolve(value, db), resolve(value, source="packaged")
+        with_db, without = match(value, db), match(value, source="packaged")
         # the SPDX entry says where it was read; the trove vocabulary, when a
         # name rests on it, is part of licenseid and always "packaged"
         assert with_db["lists"][0]["source"] == "database"
@@ -117,10 +117,10 @@ def test_the_rename_is_followed_but_its_name_is_not_read(
     """What the database answers, pinned: the deprecated ID points to its
     successor, but the name names no licence kept in use."""
     ship(monkeypatch, synthetic_bundle(_RENAMED, _RENAMED_TEXTS))
-    renamed = resolve("Old-1.0", source="packaged")
+    renamed = match("Old-1.0", source="packaged")
     assert (renamed["expression"], renamed["category"]) == (
         "Foo-1.0",
         "deprecated_equal_successor",
     )
-    named = resolve("Foo License 1.0", source="packaged")
+    named = match("Foo License 1.0", source="packaged")
     assert (named["expression"], named["category"]) == (None, "unresolved")

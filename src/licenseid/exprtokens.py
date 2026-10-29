@@ -7,7 +7,7 @@
 references, the one definition of each (review gap G11).
 
 ``licenseid.identifiers`` tokenises tags and declared expressions with
-:data:`RE_TOKEN`; the compound reader of ``resolve()``
+:data:`RE_TOKEN`; the compound reader of ``match()``
 (``licenseid.exprcanon``) finds its operators with :data:`RE_OPERATOR`.
 Standard library only, so any module can import it.
 """

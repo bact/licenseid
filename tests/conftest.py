@@ -85,7 +85,7 @@ def offline(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
     """No test reaches the network or sees the snapshot a wheel build ships.
     A test fakes ``requests.get`` itself (``fake_requests_get``,
     ``release_fakes.serve``) and ships a snapshot of its own
-    (``release_fakes.ship``). The packaged index ``resolve()`` keeps, and
+    (``release_fakes.ship``). The packaged index ``match()`` keeps, and
     the fallback warnings it said, are forgotten before and after: a test
     sees only its own snapshot (review gap G7)."""
     monkeypatch.setattr(
@@ -226,7 +226,7 @@ def assert_cached_tarball_removed(
     assert not tar_path.exists()
 
 
-# The keys of every match() result and --json line (types.Detection).
+# The keys of every detect() result and --json line (types.Detection).
 RESULT_KEYS = frozenset(
     {
         "license_id",
@@ -251,7 +251,7 @@ def public_match(  # pylint: disable=too-many-arguments
     similarity: float | None = None,
     coverage: float | None = None,
 ) -> Detection:
-    """A result as match() returns it, for the code that prints one."""
+    """A result as detect() returns it, for the code that prints one."""
     return Detection(
         license_id=license_id,
         method=method,
@@ -266,12 +266,12 @@ def public_match(  # pylint: disable=too-many-arguments
 
 
 def invoke_match(db: str, *args: str, color: bool = False) -> Result:
-    """``licenseid --db <db> match <args>`` through click's runner."""
-    return CliRunner().invoke(cli, ["--db", db, "match", *args], color=color)
+    """``licenseid --db <db> detect <args>`` through click's runner."""
+    return CliRunner().invoke(cli, ["--db", db, "detect", *args], color=color)
 
 
 def json_lines(stdout: str) -> list[dict[str, Any]]:
-    """The results `match --json` printed: one JSON object per line."""
+    """The results `detect --json` printed: one JSON object per line."""
     return [json.loads(line) for line in stdout.splitlines()]
 
 

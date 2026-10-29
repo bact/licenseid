@@ -200,14 +200,14 @@ class InstrumentedMatcher(LicenseDetector):
         """
         from licenseid.normalize import normalize_text
 
-        results = self.match(text)
+        results = self.detect(text)
         trace: dict[str, Any] = {"hit_tier": None}
 
         if not text:
             return results, trace
 
         # Reconstruct tier decisions in read-only order to find the first tier
-        # that would have surfaced true_id, mirroring the logic in match().
+        # that would have surfaced true_id, mirroring the logic in detect().
         # Guards use hasattr so this works on branches that lack certain
         # attributes (e.g. 'main' does not have self.detector).
 
@@ -245,7 +245,7 @@ class InstrumentedMatcher(LicenseDetector):
         tier1_candidates: list[Any] = []
         if hasattr(self, "_get_candidates"):
             tier1_candidates = self._get_candidates(request, text)
-        # Merge marker candidates (same as match())
+        # Merge marker candidates (same as detect())
         seen = {c["license_id"] for c in tier1_candidates}
         for c in marker_candidates:
             if c["license_id"] not in seen:
@@ -255,7 +255,7 @@ class InstrumentedMatcher(LicenseDetector):
             trace["hit_tier"] = "tier1"
             return results, trace
 
-        # Tier 2: ranked output (final results from match())
+        # Tier 2: ranked output (final results from detect())
         if any(r["license_id"] == true_id for r in results):
             trace["hit_tier"] = "tier2"
 
@@ -441,7 +441,7 @@ def main() -> None:
     )
 
     matcher = InstrumentedMatcher(db_path)
-    matcher.match("MIT License")  # warm up
+    matcher.detect("MIT License")  # warm up
 
     tracemalloc.start()
     tracemalloc.clear_traces()

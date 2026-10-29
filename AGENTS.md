@@ -28,8 +28,8 @@
   (the resolver, parser and list blocks of a result),
   `dropguard.py` (the characters and words a loose reading must not drop:
   `Apache 2.0?`, `REM MIT`), `listindex.py` (the shipped SPDX bundle in
-  memory, a `ListLookup` for `resolve()` with no database),
-  `listsource.py` (which list `resolve()` reads: database or packaged),
+  memory, a `ListLookup` for `match()` with no database),
+  `listsource.py` (which list `match()` reads: database or packaged),
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
   pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
@@ -64,14 +64,14 @@
   academic write-up (system, results, history, human–AI sessions). Add to
   it when a finding is worth publishing; start at its `README.md`.
 - Test fixtures: `tests/fixtures/README.md`
-- User docs: `README.md` (overview, CLI, Python API) and `docs/resolve.md`
-  (every field of `resolve()`'s result, its categories and trust, the
+- User docs: `README.md` (overview, CLI, Python API) and `docs/match.md`
+  (every field of `match()`'s result, its categories and trust, the
   reasons for a refusal, quote marks). A change to any of those updates
-  `docs/resolve.md`; `tests/test_resolver_shapes.py` checks its category
+  `docs/match.md`; `tests/test_resolver_shapes.py` checks its category
   table.
-- Which licence values `resolve()` should read next: measure, do not guess.
+- Which licence values `match()` should read next: measure, do not guess.
   `tools/pypi_licence_sample/README.md` samples real PyPI values and counts
-  what `resolve()` reads; findings in
+  what `match()` reads; findings in
   `working-docs/design/resolver-0-7-evidence.md`.
 - Private alpha, one developer. No backward compat needed yet.
 - `working-docs/` is internal notes only — content can change without notice.
@@ -174,7 +174,7 @@ Unix philosophy. Consistent, predictable, parseable.
 - JSON output supported as options. `match --json` prints JSON Lines, one
   RFC 8785 (JCS) object per result, through `licenseid.result.json_line`;
   the text line comes from `text_line` beside it. Both print the public form
-  `result.public_result` builds at the one exit of `match()`: tiers rank on
+  `result.public_result` builds at the one exit of `detect()`: tiers rank on
   their raw score (above 1 for a Tier 0 ID or name hit, look-alikes
   included, and for a close text with its bonuses), never on the public
   one, capped to 1. `exact`
@@ -358,7 +358,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - One reader for user input: `textinput.read_text_file` / `decode_input`
   (UTF-8 with BOM dropped, else Latin-1 with a warning, NUL means binary,
   checked by `reject_binary`, which `--text` also calls). The CLI and
-  `match(file_path=...)` both use it; do not `open()` a user file
+  `detect(file_path=...)` both use it; do not `open()` a user file
   anywhere else (`tests/test_textinput.py` fails if `cli.py` or `detector.py`
   does). The SPDX data files stay strict UTF-8 on purpose: a fallback there
   would hide a corrupt download. A text with a lone surrogate (an API string,
@@ -409,7 +409,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   one (`MIT AND GPL-2.0 or later AND Apache-2.0`) is refused rather than
   answered without the operands that follow.
 - A tag and a `license` field hold whatever their author wrote, but `--id`
-  and `match(license_id=...)` declare ONE license:
+  and `detect(license_id=...)` declare ONE license:
   `identifiers.is_simple_expression` is the one judge of that (an ID,
   optionally with `+` unless it ends in `-only` or `-or-later`, or a
   `LicenseRef-*`, which takes no `+`; either
@@ -418,10 +418,10 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `errors.invalid_id_error`, `matcher._try_explicit_id_match` raises. Text
   that is one simple expression and nothing else (`GPL-2.0+`) is read as
   `license_id` reads it, by `matcher._try_tier0_short_text`, whatever
-  brings it (argument, `--text`, stdin, file, `match(text=...)`); the rest,
+  brings it (argument, `--text`, stdin, file, `detect(text=...)`); the rest,
   and a value that resolves to no license, is matched as text. The CLI
   makes no ID guess of its own. Ask the predicate BEFORE calling
-  `match(license_id=...)`, which raises rather than returning no match.
+  `detect(license_id=...)`, which raises rather than returning no match.
   Do not widen `--id` to expressions
   again: `MIT OR Apache-2.0` declares neither license, and the flags
   (`is-osi`, `is-fsf`) have no answer for it.
@@ -490,16 +490,16 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `Refusal` tag when adding a condition, and decide both policies.
 - `Path.unlink(missing_ok=True)` swallows `FileNotFoundError` only — a
   parent that is a file still raises `NotADirectoryError`.
-- `match()` returns the public form: a score capped to 1 and rounded to 4
+- `detect()` returns the public form: a score capped to 1 and rounded to 4
   places, so an exact hit and a look-alike both show 1. Code or a test that
   ranks, orders or asks "above 1" (Tier 0's early return, the tie-breaker)
-  reads the raw records of `_match_raw`, not `match()`. `exact` is set
+  reads the raw records of `_match_raw`, not `detect()`. `exact` is set
   where a result is made, never derived from the score; an exact text is
   the whole non-empty normalised input equal to the licence's
   `search_text`. A deprecated name is not exact only when a row in use has
   the same normalised name: making every deprecated row inexact lost
   AGPL-3.0 and GFDL-1.x, which have names of their own.
-- A `match()` call shares one SQLite connection among its lookups, through
+- A `detect()` call shares one SQLite connection among its lookups, through
   `LicenseDatabase.reading()` (per thread, opened at the first query,
   closed at the end): query through `_connection()`, never
   `sqlite3.connect`, and wrap a new entry point that makes several lookups

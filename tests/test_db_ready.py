@@ -97,7 +97,7 @@ def input_args(source: str, tmp_path: Path) -> tuple[list[str], str]:
 @pytest.mark.parametrize("output", [[], ["--json"], ["--bold"], ["--diff"]])
 def test_not_ready_refused(variant: Variant, output: list[str]) -> None:
     """No output option may turn the refusal into stdout (empty JSON too)."""
-    result = run_cli(variant.db_arg, ["match", *output, "--id", "MIT"])
+    result = run_cli(variant.db_arg, ["detect", *output, "--id", "MIT"])
     assert_refused(result, variant.kind, variant.db_arg)
 
 
@@ -115,7 +115,7 @@ def test_not_ready_refused_for_every_command_and_input(
 
 
 @pytest.mark.parametrize("variant", LENIENT_NAMES, indirect=True)
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_lenient_states_never_crash(variant: Variant, command: str) -> None:
     """States the contract calls READY but the query layer may choke on."""
     result = run_cli(variant.db_arg, [command, "--id", "MIT"])
@@ -129,7 +129,7 @@ def test_lenient_states_never_crash(variant: Variant, command: str) -> None:
 
 def test_non_ascii_path_printed_intact(tmp_path: Path) -> None:
     built = build_variant("path_non_ascii", tmp_path)
-    result = run_cli(built.db_arg, ["match", "--id", "MIT"])
+    result = run_cli(built.db_arg, ["detect", "--id", "MIT"])
     assert_refused(result, built.kind, built.db_arg)
     assert "授权" in result.stderr and "ünïcödé" in result.stderr
     assert "\\u" not in result.stderr and "\\x" not in result.stderr
@@ -149,7 +149,7 @@ def test_empty_db_option(
         monkeypatch.setattr(
             f"{module}.get_default_db_path", lambda: str(default), raising=False
         )
-    result = run_cli(blank, ["match", "--id", "MIT"])
+    result = run_cli(blank, ["detect", "--id", "MIT"])
     assert_no_traceback(result)
     assert result.exit_code == 2
     assert result.stdout == ""
@@ -210,7 +210,7 @@ def test_refusal_has_no_side_effects(variant: Variant) -> None:
     if variant.path is None:
         pytest.skip("not file-backed")
     before = fs_state(variant.path)
-    result = run_cli(variant.db_arg, ["match", "--id", "MIT"])
+    result = run_cli(variant.db_arg, ["detect", "--id", "MIT"])
     assert_refused(result, variant.kind, variant.db_arg)
     assert_untouched(variant.path, before)
 
@@ -295,10 +295,10 @@ def test_api_default_path_refused(
 
 @pytest.mark.parametrize("variant", ["both_tables_empty"], indirect=True)
 def test_api_refuses_before_any_query(variant: Variant) -> None:
-    """The failure is the constructor's, not the first match()'s."""
+    """The failure is the constructor's, not the first detect()'s."""
     with pytest.raises(DatabaseNotReadyError):
         matcher = LicenseDetector(db_path=variant.db_arg)
-        matcher.match(text=MIT_TEXT)  # must never be reached
+        matcher.detect(text=MIT_TEXT)  # must never be reached
 
 
 @pytest.mark.parametrize("variant", NOT_READY_NAMES, indirect=True)
@@ -324,7 +324,7 @@ def test_license_database_stays_permissive(variant: Variant) -> None:
 
 @pytest.mark.parametrize("variant", READY_NAMES, indirect=True)
 def test_ready_database_matches(variant: Variant) -> None:
-    result = run_cli(variant.db_arg, ["match", "--bold", "--id", "MIT"])
+    result = run_cli(variant.db_arg, ["detect", "--bold", "--id", "MIT"])
     assert_no_traceback(result)
     assert result.exit_code == 0
     assert result.stdout == "MIT\n"
@@ -350,7 +350,7 @@ def test_ready_database_answers_yes_and_no(variant: Variant, command: str) -> No
 def test_ready_database_api(variant: Variant) -> None:
     matcher = LicenseDetector(db_path=variant.db_arg)
     assert matcher.is_osi(license_id="MIT") is True
-    assert [m["license_id"] for m in matcher.match(text=MIT_TEXT)] == ["MIT"]
+    assert [m["license_id"] for m in matcher.detect(text=MIT_TEXT)] == ["MIT"]
 
 
 # (e) State changes around an already-constructed matcher
@@ -361,10 +361,10 @@ def test_match_after_database_deleted(tmp_path: Path) -> None:
     re-created by the lookup, and the failure is a licenseid error."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     matcher = LicenseDetector(db_path=str(db_path))
-    assert matcher.match(license_id="MIT")
+    assert matcher.detect(license_id="MIT")
     db_path.unlink()
     with pytest.raises(DatabaseNotReadyError, match="database: unreadable") as raised:
-        matcher.match(license_id="MIT")
+        matcher.detect(license_id="MIT")
     assert not db_path.exists()
     assert raised.value.condition == "unreadable"
     assert str(raised.value) == (
@@ -376,18 +376,18 @@ def test_two_matchers_on_one_database(tmp_path: Path) -> None:
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     first = LicenseDetector(db_path=str(db_path))
     second = LicenseDetector(db_path=str(db_path))
-    assert first.match(license_id="MIT")
-    assert second.match(license_id="MIT")
+    assert first.detect(license_id="MIT")
+    assert second.detect(license_id="MIT")
     assert first.is_spdx(license_id="MIT") == second.is_spdx(license_id="MIT")
 
 
 def test_database_emptied_between_two_runs(tmp_path: Path) -> None:
     """A ready database that loses its rows is refused on the next run."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
-    assert run_cli(str(db_path), ["match", "--bold", "--id", "MIT"]).exit_code == 0
+    assert run_cli(str(db_path), ["detect", "--bold", "--id", "MIT"]).exit_code == 0
     with writer(db_path) as conn:
         conn.execute("DELETE FROM licenses")
-    result = run_cli(str(db_path), ["match", "--bold", "--id", "MIT"])
+    result = run_cli(str(db_path), ["detect", "--bold", "--id", "MIT"])
     assert_refused(result, EMPTY, str(db_path))
 
 
@@ -434,7 +434,7 @@ def test_random_corruption_sweep(tmp_path: Path) -> None:
     for iteration in range(200):
         data, what = _mutate(payload, rng, truncate=bool(iteration % 2))
         target.write_bytes(data)
-        result = run_cli(str(target), ["match", "--bold", "--id", "MIT"])
+        result = run_cli(str(target), ["detect", "--bold", "--id", "MIT"])
         context = f"iteration {iteration} ({what}): "
         assert_no_traceback(result)
         if result.exit_code == 0:

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Generated compounds (``compound_cases``), each with the answer
-``resolve()`` gives, and the shapes task T7 decided (review decisions Q14 to
+``match()`` gives, and the shapes task T7 decided (review decisions Q14 to
 Q21).
 
 Before T7 a compound was only labelled ``expression``, with no expression;
@@ -17,7 +17,7 @@ import pytest
 from compound_cases import generated_compounds
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 from tools.pypi_licence_sample.answer import NONE_FIELD, load_list, unescape_field
 
 PINS_FILE = Path(__file__).parent / "fixtures" / "resolver_compounds_generated.tsv"
@@ -58,7 +58,7 @@ def test_a_generated_compound_keeps_its_answer(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     """The expression, the category, the step kinds and the reason."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     kinds = tuple(s["kind"] for s in got["steps"])
     assert (got["expression"], got["category"], kinds, got["reason"]) == PINNED[value]
 
@@ -114,7 +114,7 @@ def test_a_shape_t7_decides_keeps_its_answer(
     corpus_db: LicenseDatabase, value: str, expected: tuple[object, ...]
 ) -> None:
     """The expression, the category and the step kinds as pinned."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     kinds = [s["kind"] for s in got["steps"]]
     assert (got["expression"], got["category"], kinds) == expected
     assert got["reason"] is None
@@ -143,7 +143,7 @@ def test_a_shape_t7_refuses_says_why(
     corpus_db: LicenseDatabase, value: str, expected: tuple[str, str]
 ) -> None:
     """No expression and no operand taken; the category and the reason."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] is None
     assert (got["category"], got["reason"]) == expected
 
@@ -170,7 +170,7 @@ def test_prose_with_an_operator_word_is_no_compound(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     """Unresolved, no reason that splits it, one operand: the whole value."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     texts = [o["text"] for o in got["operands"]]
     assert (got["category"], got["reason"], texts) == ("unresolved", None, [value])
     assert got["expression"] is None
@@ -198,7 +198,7 @@ def test_prose_in_compound_form_says_which_operand_was_refused(
     corpus_db: LicenseDatabase, value: str, reason: str, kinds: list[str]
 ) -> None:
     """Unresolved, the reason of its first refused operand, its drop step."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"], got["reason"]) == (
         None,
         "unresolved",

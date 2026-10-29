@@ -138,7 +138,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   connection code, moved out of `database.py`. Inside
   `LicenseDatabase.reading()` a thread's queries share one connection,
   opened at the first query and closed when the outermost block ends;
-  `match()`, `resolve_record()` and `diff_pair()` each run in one block.
+  `detect()`, `resolve_record()` and `diff_pair()` each run in one block.
   The same input now takes 1.85 s; the rest is two lookups that scan a
   table (item 37).
   - Rejected: a cache per value, which does not help distinct values; and
@@ -165,7 +165,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   `pop_score`, `is_deprecated`, `superseded_by` and `best_window`, keys in
   build order, and a `score` on each tier's scale (a tag 1.0, an exact ID
   or name 1.0 or 1.02, a name sharing the input's words 1.01, a text match
-  up to about 1.08). Now `match()` has one exit, which maps each raw record
+  up to about 1.08). Now `detect()` has one exit, which maps each raw record
   through `result.public_result`: the same nine keys for every result, a
   `method` (tag, field, id, name, text), an `exact` flag, the score capped
   to 0-1 and rounded to 4 places, and null where nothing was measured.
@@ -393,7 +393,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   the database, as it did for the `license` fields; a license newer than that
   list in an expression makes it `is_spdx` false.
 - API `file_path` read as strict UTF-8 (item 4, Priority 16; 2026-09-21).
-  `match(file_path=...)` raised `UnicodeDecodeError` on Latin-1 or UTF-16
+  `detect(file_path=...)` raised `UnicodeDecodeError` on Latin-1 or UTF-16
   and matched NUL bytes and a byte order mark as text, while the CLI reads
   the same file with a Latin-1 fallback, a warning and a binary check. The
   decoder moved from `cli.py` to `licenseid.textinput`, and
@@ -402,7 +402,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   test in `tests/test_option_matrix.py` keep it so). Left as they were, on
   purpose: SPDX data files (`database.py`, `spdx_source.py`) stay strict
   UTF-8, since a Latin-1 fallback there would hide a corrupt download.
-  Known gaps, not part of this item: `match(text=...)` does not check for a
+  Known gaps, not part of this item: `detect(text=...)` does not check for a
   NUL byte or normalise line ends as `--text` does, and an empty file
   returns no match instead of an error.
 - Comment prefixes stripped twice in retrieval (item 14, Priority 10;
@@ -441,7 +441,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   right top answer before and 1,948 after (30 GFDL `-only` rows lost it, 29
   `-or-later` rows gained it).
   The GPL family already behaved this way.
-  Left open: the tie-breaker is applied once per `match()` and is not
+  Left open: the tie-breaker is applied once per `detect()` and is not
   idempotent (a second pass on a pair whose preferred side started below its
   peer nudges it again); the +/-0.005 nudge is kept on purpose, so results stay
   sorted by score, at the price of moving reported scores by up to 0.005 and
@@ -450,17 +450,17 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   is a fourth regex that is not shared; `is_pure_license_text` does not flag
   slices of a license, so a quoted notice in one still counts as a grant.
 
-- `match()` silently ignored unknown options (item 1, Priority 20):
-  `LicenseDetector.match()` now raises
+- `detect()` silently ignored unknown options (item 1, Priority 20):
+  `LicenseDetector.detect()` now raises
   `InvalidInputError('option: invalid: <names>; use one of ...')` for a key
   outside `DetectRequest` (a typo, or a removed option such as `enable_java`),
   before it looks at any input, so an explicit `license_id`, empty text or an
   unreadable file cannot let one through. The names are sorted, so the message
   is stable. The `is_*` predicates already refused an unknown keyword, with the
   interpreter's `TypeError` rather than this message; that difference is left.
-  Left open: a *known* option is still ignored when `match()` returns before
+  Left open: a *known* option is still ignored when `detect()` returns before
   ranking (an explicit `license_id`, a bare ID or name, an
-  `SPDX-License-Identifier` tag), so `match(license_id="MIT", exclude=["MIT"])`
+  `SPDX-License-Identifier` tag), so `detect(license_id="MIT", exclude=["MIT"])`
   returns `MIT`. See item 5. Tests: `tests/test_match_options.py`.
 
 - `py-spdx-license` upper bound (item 3, Priority 16): the requirement is
@@ -618,7 +618,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   2026-10-27). `identifiers._normalize_single_id` resolved the ID before a
   "+" by the shortest ID it prefixed, so `GPL-2+` gave `GPL-2.0-only+` and
   `MI+` gave `MIT+`, both exact. Now the ID before a "+" is read by ID or
-  by its version key (`versionkey.named_row`, as `resolve()` reads it), and
+  by its version key (`versionkey.named_row`, as `match()` reads it), and
   the "+" becomes the -or-later ID where the List has one in use: `GPL-2+`
   is `GPL-2.0-or-later`, `Apache-2+` stays `Apache-2.0+`, and `MI+` names
   nothing. A "+" after a stated qualifier (`GPL-2.0-only+`) names no

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The states of the database at the default path that ``resolve()`` meets
+"""The states of the database at the default path that ``match()`` meets
 when it is given no database, for the option matrix.
 
 Each builder puts one state in place under the test's home directory
@@ -34,7 +34,7 @@ STATES = [USABLE, MISSING, INVALID, EMPTY, NO_ROWS, UNREADABLE, OUTDATED, NO_HOM
 
 #: The version of the List in every database built here.
 VERSION = LICENSE_LIST_VERSION
-#: What opening an outdated database prints, whatever resolve() then reads.
+#: What opening an outdated database prints, whatever match() then reads.
 OUTDATED_WARNING = (
     "WARNING: database: build v1 outdated: current v2; run 'licenseid update'\n"
 )

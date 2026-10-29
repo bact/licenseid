@@ -155,7 +155,7 @@ def grant_end(text: str, start: int) -> int | None:
     or None if no grant starts there. Read by classify.OR_LATER_PHRASE, as
     after a number (a declared value has its ID before the "or"), unless a
     negation right before it takes it back ("not or later"). The compound
-    reader of resolve() asks it at each "or" (decision Q14)."""
+    reader of match() asks it at each "or" (decision Q14)."""
     grant = OR_LATER_PHRASE.match(text, start)  # sees "not" before it
     if grant is not None:
         return grant.end()

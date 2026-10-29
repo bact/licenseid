@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Properties of the compounds ``resolve()`` reads (task T7), over the parity
+"""Properties of the compounds ``match()`` reads (task T7), over the parity
 corpus, the PyPI sample and the generated compounds: an operand reads as the
 same text alone, the answer is the same from the database and the packaged
 list, the order is deterministic, every answer parses and is a fixed point.
@@ -25,7 +25,7 @@ from packaged_list import fixture_bundle, masked
 from release_fakes import ship
 from resolver_corpus import corpus_rows
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 from licenseid.resolverinfo import parser_info
 from licenseid.resolvertypes import CATEGORY_ORDER, Operand
 from tools.pypi_licence_sample.answer import unescape_field
@@ -57,13 +57,13 @@ def _alone(operand: Operand) -> tuple[object, ...]:
 
 
 def test_an_operand_reads_as_the_same_text_alone(corpus_db: LicenseDatabase) -> None:
-    """For every value, each operand is what ``resolve`` answers for its
+    """For every value, each operand is what ``match`` answers for its
     text, and its span points at that text in the input."""
     wrong = []
     for value in VALUES:
-        for operand in resolve(value, corpus_db)["operands"]:
+        for operand in match(value, corpus_db)["operands"]:
             start, end = operand["span"]
-            alone = resolve(operand["text"], corpus_db)
+            alone = match(operand["text"], corpus_db)
             got = (
                 alone["expression"],
                 alone["category"],
@@ -84,7 +84,7 @@ def test_a_compound_is_as_weak_as_its_weakest_operand(
     """The category of a resolved compound is its weakest operand's, or
     ``lexical`` when only the form changed; never stronger than an operand."""
     for value in VALUES:
-        got = resolve(value, corpus_db)
+        got = match(value, corpus_db)
         if got["expression"] is None or len(got["operands"]) < 2:
             continue
         weakest = max(
@@ -103,16 +103,16 @@ def test_a_compound_reads_the_same_without_a_database(
     only ``lists[*].source`` differs."""
     ship(monkeypatch, fixture_bundle())
     for value in generated_compounds():
-        with_db, without = resolve(value, bundle_db), resolve(value, source="packaged")
+        with_db, without = match(value, bundle_db), match(value, source="packaged")
         assert masked(with_db) == masked(without), value
 
 
 def test_every_answer_parses_as_an_spdx_expression(corpus_db: LicenseDatabase) -> None:
-    """A drift guard: every expression ``resolve`` gives is one the SPDX
+    """A drift guard: every expression ``match`` gives is one the SPDX
     parser reads, its ``WITH`` and ``+`` taken off (the parser reads neither
     with unknown IDs allowed)."""
     for value in VALUES:
-        expression = resolve(value, corpus_db)["expression"]
+        expression = match(value, corpus_db)["expression"]
         if expression is not None:
             bare = _RE_WITH.sub("", expression).replace("+", "")
             py_spdx_license.parse(bare, allow_unknown=True)
@@ -122,10 +122,10 @@ def test_every_answer_is_a_fixed_point(corpus_db: LicenseDatabase) -> None:
     """Resolving an answer gives the answer again, with no step of form: it
     is already in canonical order."""
     for value in VALUES:
-        expression = resolve(value, corpus_db)["expression"]
+        expression = match(value, corpus_db)["expression"]
         if expression is None:
             continue
-        again = resolve(expression, corpus_db)
+        again = match(expression, corpus_db)
         assert again["expression"] == expression, value
         kinds = {s["kind"] for s in again["steps"]}
         assert not kinds & set(CANONICAL_KINDS), (value, kinds)
@@ -146,7 +146,7 @@ def test_the_order_written_does_not_change_the_answer(
 ) -> None:
     """Every permutation of the operands gives one expression."""
     answers = {
-        resolve(f" {operator} ".join(order), corpus_db)["expression"]
+        match(f" {operator} ".join(order), corpus_db)["expression"]
         for order in itertools.permutations(operands)
     }
     assert len(answers) == 1
@@ -160,10 +160,10 @@ def test_the_answer_does_not_depend_on_the_hash_seed(
     or dict order leaks into the sort)."""
     script = (
         "import json, sys\n"
-        "from licenseid import LicenseDatabase, resolve\n"
+        "from licenseid import LicenseDatabase, match\n"
         "db = LicenseDatabase(sys.argv[1], create=False)\n"
         "values = json.loads(sys.stdin.read())\n"
-        "print(json.dumps([resolve(v, db)['expression'] for v in values]))\n"
+        "print(json.dumps([match(v, db)['expression'] for v in values]))\n"
     )
     values = json.dumps(
         [
@@ -193,5 +193,5 @@ def test_a_compound_names_the_parser_as_a_component(
     corpus_db: LicenseDatabase,
 ) -> None:
     """The parser that read the expression is listed; a single value, none."""
-    assert resolve("MIT OR ISC", corpus_db)["components"] == [parser_info()]
-    assert not resolve("MIT", corpus_db)["components"]
+    assert match("MIT OR ISC", corpus_db)["components"] == [parser_info()]
+    assert not match("MIT", corpus_db)["components"]

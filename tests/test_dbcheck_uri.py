@@ -211,7 +211,7 @@ def test_symlink_to_a_wal_database_reads_the_wal(tmp_path: Path) -> None:
         variant.keep_alive.close()
 
 
-@pytest.mark.parametrize("args", [["match", "MIT"], ["is-osi", "MIT"]])
+@pytest.mark.parametrize("args", [["detect", "MIT"], ["is-osi", "MIT"]])
 def test_second_check_failing_still_exits_2(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, args: list[str]
 ) -> None:

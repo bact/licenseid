@@ -565,9 +565,9 @@ r["lists"][0]["source"]  # read from the "database" or the "packaged" list
 
 The whole result, its categories and their trust, the reasons for a
 refusal, licences joined by a `;` (`r["operands"]` lists each) and how quote
-marks are read are in [docs/resolve.md][resolve-doc].
+marks are read are in [docs/match.md][resolve-doc].
 
-[resolve-doc]: https://github.com/bact/licenseid/blob/main/docs/resolve.md
+[resolve-doc]: https://github.com/bact/licenseid/blob/main/docs/match.md
 
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or

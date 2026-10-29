@@ -407,13 +407,13 @@ def get_input_content(
     return ""
 
 
-def resolve_license_record(
+def detect_license_record(
     ctx: click.Context,
     input_val: str | None,
     text: str | None,
     id_val: str | None = None,
 ) -> LicenseDetails | None:
-    """Helper to resolve a license from CLI arguments (implements Smart Logic)."""
+    """Helper to detect a license from CLI arguments (implements Smart Logic)."""
     db_path = ctx.obj["db_path"]
     check_database_ready(db_path)  # before input handling: report the database first
 
@@ -435,7 +435,7 @@ def resolve_license_record(
     return matcher.resolve_record(content)
 
 
-@cli.command(name="match")
+@cli.command(name="detect")
 @click.argument("input_val", required=False)
 @click.option("--text", help="License text to match.")
 @click.option("--id", "id_val", help="Explicit SPDX License ID to lookup.")
@@ -468,7 +468,7 @@ def resolve_license_record(
 )
 @click.option("--bold", is_flag=True, help="Print only the top license ID.")
 @click.pass_context
-def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+def detect(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     ctx: click.Context,
     input_val: str | None,
     text: str | None,
@@ -498,7 +498,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     check_db_staleness(matcher.db)
 
     if id_val:
-        results = matcher.match(license_id=id_val)
+        results = matcher.detect(license_id=id_val)
         license_text = ""
     else:
         content = get_input_content(ctx, input_val, text, matcher.db)
@@ -507,7 +507,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
         license_text = content
         # A lone expression is read as an ID by the matcher, whatever brings it.
-        results = matcher.match(text=content)
+        results = matcher.detect(text=content)
 
     # Filter by threshold (and exactness), then limit to top N
     results = [
@@ -549,7 +549,7 @@ def is_osi(
     id_val: str | None,
 ) -> None:
     """True if the license is OSI-approved."""
-    record = resolve_license_record(ctx, input_val, text, id_val)
+    record = detect_license_record(ctx, input_val, text, id_val)
     if record and record.get("is_osi_approved"):
         echo("true")
         ctx.exit(0)
@@ -569,7 +569,7 @@ def is_fsf(
     id_val: str | None,
 ) -> None:
     """True if the license is FSF-libre."""
-    record = resolve_license_record(ctx, input_val, text, id_val)
+    record = detect_license_record(ctx, input_val, text, id_val)
     if record and record.get("is_fsf_libre"):
         echo("true")
         ctx.exit(0)
@@ -589,7 +589,7 @@ def is_open(
     id_val: str | None,
 ) -> None:
     """True if the license is OSI-approved OR FSF-libre."""
-    record = resolve_license_record(ctx, input_val, text, id_val)
+    record = detect_license_record(ctx, input_val, text, id_val)
     if record and (record.get("is_osi_approved") or record.get("is_fsf_libre")):
         echo("true")
         ctx.exit(0)
@@ -624,7 +624,7 @@ def is_spdx_cmd(
     id_val: str | None,
 ) -> None:
     """True if the license is in the SPDX License List."""
-    record = resolve_license_record(ctx, input_val, text, id_val)
+    record = detect_license_record(ctx, input_val, text, id_val)
     if record and record.get("is_spdx"):
         echo("true")
         ctx.exit(0)

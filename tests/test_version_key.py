@@ -280,9 +280,9 @@ def test_a_long_input_is_no_loose_id(
 def test_match_answers_with_the_id(
     matcher: LicenseDetector, text: str, expected: tuple[str, str, bool]
 ) -> None:
-    """Through match(), with the flags of the answer, from text and from a
+    """Through detect(), with the flags of the answer, from text and from a
     manifest's license field."""
-    top = matcher.match(text=text)[0]
+    top = matcher.detect(text=text)[0]
     assert (top["license_id"], top["method"], top["exact"]) == expected
     assert top["is_spdx"] is True
 
@@ -290,7 +290,7 @@ def test_match_answers_with_the_id(
 def test_a_plus_without_a_key_is_no_exact_answer(
     matcher: LicenseDetector,
 ) -> None:
-    results = matcher.match(text="C++")
+    results = matcher.detect(text="C++")
     assert not [r for r in results if r["exact"] or r["method"] == "id"]
 
 

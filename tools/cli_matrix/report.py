@@ -28,7 +28,7 @@ Row = dict[str, Any]
 UNIVERSE: dict[str, list[str]] = {
     "global": ["--db", "--clear-cache", "--help", "(no subcommand)"],
     "update": ["--version", "--force", "--cache", "--no-cache", "--help"],
-    "match": [
+    "detect": [
         "--text",
         "--id",
         "--json",
@@ -205,7 +205,7 @@ def _source_table(ran: set[str], cells: dict[str, Cell]) -> list[str]:
         "| command | " + " | ".join(SOURCES) + " |",
         "|---|" + "---|" * len(SOURCES),
     ]
-    for cmd in ["match"] + PREDS:
+    for cmd in ["detect"] + PREDS:
         counts = [
             str(sum(1 for c in cells.values() if _feeds(c, ran, cmd, src)))
             for src in SOURCES
@@ -224,10 +224,10 @@ def _feeds(cell: Cell, ran: set[str], cmd: str, src: str) -> bool:
 
 
 def _flag_pair_table(ran: set[str], cells: dict[str, Cell]) -> list[str]:
-    """Which pairs of ``match`` flags were ever used together."""
+    """Which pairs of ``detect`` flags were ever used together."""
     lines = [
         "",
-        "## Pairs of `match` flags exercised together",
+        "## Pairs of `detect` flags exercised together",
         "",
         "| a | b | cells |",
         "|---|---|---|",
@@ -238,8 +238,8 @@ def _flag_pair_table(ran: set[str], cells: dict[str, Cell]) -> list[str]:
             1
             for c in cells.values()
             if c.id in ran
-            and f"match:{first}" in c.tags
-            and f"match:{second}" in c.tags
+            and f"detect:{first}" in c.tags
+            and f"detect:{second}" in c.tags
         )
         lines.append(f"| {first} | {second} | {count} |")
         if count == 0:

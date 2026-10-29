@@ -402,7 +402,7 @@ def test_update_builds_a_database_without_wal_and_a_lookup_leaves_no_files(
     _serve(monkeypatch, release_tarball())
     assert db.update_from_remote()
     assert _journal_mode(path) == "delete"
-    LicenseDetector(db_path=str(path)).match(license_id="MIT")
+    LicenseDetector(db_path=str(path)).detect(license_id="MIT")
     assert sorted(p.name for p in tmp_path.glob("licenses.db*")) == ["licenses.db"]
 
 

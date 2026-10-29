@@ -76,13 +76,13 @@ def db() -> Generator[str, None, None]:
 def test_a_tag_answers_at_any_length(
     db: str, text: str, expected: str, large: bool
 ) -> None:
-    results = LicenseDetector(db).match(text=f"{FILLER}\n{text}" if large else text)
+    results = LicenseDetector(db).detect(text=f"{FILLER}\n{text}" if large else text)
     assert [(r["license_id"], r["score"]) for r in results] == [(expected, 1.0)]
     assert results[0]["is_spdx"]
 
 
 def test_a_long_license_ref_is_one_license(db: str) -> None:
-    results = LicenseDetector(db).match(license_id=_ref(300))
+    results = LicenseDetector(db).detect(license_id=_ref(300))
     assert [r["license_id"] for r in results] == [_ref(300)]
 
 
@@ -99,11 +99,11 @@ def test_a_long_license_ref_is_one_license(db: str) -> None:
 )
 def test_a_tag_naming_no_license_is_no_name_to_match(db: str, value: str) -> None:
     """The tag was read and named no license, and there is nothing else."""
-    assert not LicenseDetector(db).match(text=f"// {TAG} {value}")
+    assert not LicenseDetector(db).detect(text=f"// {TAG} {value}")
 
 
 def test_a_name_beside_a_refused_tag_still_answers(db: str) -> None:
-    results = LicenseDetector(db).match(text=f"{TAG} Proprietary\nMIT")
+    results = LicenseDetector(db).detect(text=f"{TAG} Proprietary\nMIT")
     assert [r["license_id"] for r in results][:1] == ["MIT"]
     assert results[0]["score"] >= 1.0
 
@@ -121,8 +121,8 @@ def test_a_name_beside_a_refused_tag_still_answers(db: str) -> None:
 )
 def test_a_short_input_reads_its_tag_as_a_long_one_does(db: str, text: str) -> None:
     matcher = LicenseDetector(db)
-    short = matcher.match(text=text)
-    long = matcher.match(text=f"{text}\n# {FILLER}")
+    short = matcher.detect(text=text)
+    long = matcher.detect(text=f"{text}\n# {FILLER}")
     assert short and short == long
 
 

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve()`` and a mark after a ``+``, an exception or a ``LicenseRef-``,
+"""``match()`` and a mark after a ``+``, an exception or a ``LicenseRef-``,
 and a lone dash after a prose form (task T8b; decision P80). The readers of
 those shapes returned before the drop guard, so a mark that says something
 (``GPL-2.0+?``) was unresolved with no reason, and one end mark (``MIT+;``)
@@ -13,7 +13,7 @@ was not an ending as it is after an ID."""
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 
 EXCEPTION = "GPL-2.0-only WITH Classpath-exception-2.0"
 
@@ -77,7 +77,7 @@ SILENT = [
 def test_one_end_mark_after_the_core_is_an_ending(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == READ[value]
     assert got["reason"] is None
     assert got["steps"][0]["kind"] == "separator"
@@ -88,7 +88,7 @@ def test_one_end_mark_after_the_core_is_an_ending(
 def test_a_mark_that_says_something_is_refused_with_its_reason(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] is None
     assert got["category"] == "unresolved"
     assert got["reason"] == f"character dropped: {REFUSED[value]}"
@@ -100,13 +100,13 @@ def test_a_mark_that_says_something_is_refused_with_its_reason(
 def test_a_value_whose_core_names_nothing_stays_as_it_was(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] is None
     assert not [s for s in got["steps"] if s["kind"] in ("drop", "separator")]
 
 
 def test_the_refusal_names_the_licence_it_stopped(corpus_db: LicenseDatabase) -> None:
-    step = resolve("GPL-2.0+?", corpus_db)["steps"][0]
+    step = match("GPL-2.0+?", corpus_db)["steps"][0]
     assert (step["from"], step["to"]) == ("GPL-2.0+?", "GPL-2.0-or-later")
 
 
@@ -125,19 +125,19 @@ def test_the_refusal_names_the_licence_it_stopped(corpus_db: LicenseDatabase) ->
 def test_the_neighbours_that_keep_their_answer(
     corpus_db: LicenseDatabase, value: str, expression: str
 ) -> None:
-    assert resolve(value, corpus_db)["expression"] == expression
+    assert match(value, corpus_db)["expression"] == expression
 
 
 def test_a_refused_operand_gives_its_reason_to_the_compound(
     corpus_db: LicenseDatabase,
 ) -> None:
-    got = resolve("MIT OR GPL-2.0+?", corpus_db)
+    got = match("MIT OR GPL-2.0+?", corpus_db)
     assert got["expression"] is None
     assert got["reason"] == "character dropped: U+003F"
     assert [o["expression"] for o in got["operands"]] == ["MIT", None]
 
 
 def test_an_ending_in_a_compound_operand_is_read(corpus_db: LicenseDatabase) -> None:
-    assert resolve("GPL-2.0+; OR MIT", corpus_db)["expression"] == (
+    assert match("GPL-2.0+; OR MIT", corpus_db)["expression"] == (
         "GPL-2.0-or-later OR MIT"
     )

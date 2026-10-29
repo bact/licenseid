@@ -31,33 +31,36 @@ from licenseid.usage import (
 
 # CliRunner names the program after the function, "cli".
 CASES = [
-    (["match", "--bogus"], "option: not found: --bogus; did you mean --bold"),
+    (["detect", "--bogus"], "option: not found: --bogus; did you mean --bold"),
     (["is-osi", "--bold", "MIT"], "option: not found: --bold; did you mean --id"),
     (["--nope"], "option: not found: --nope; run 'cli --help'"),
     (["-h"], "option: not found: -h; run 'cli --help'"),
     (["--version"], "option: not found: --version; run 'cli --help'"),
     (["frob"], "command: not found: frob; run 'cli --help'"),
-    (["mat", "MIT"], "command: not found: mat; did you mean match"),
-    (["match", "--top"], "option: missing: --top; pass a value"),
+    (["detec", "MIT"], "command: not found: detec; did you mean detect"),
+    (["detect", "--top"], "option: missing: --top; pass a value"),
     (
-        ["match", "--top", "x", "MIT"],
+        ["detect", "--top", "x", "MIT"],
         "option: invalid: --top: 'x' is not a valid integer",
     ),
     (
-        ["match", "--threshold", "1,5", "MIT"],
+        ["detect", "--threshold", "1,5", "MIT"],
         "option: invalid: --threshold: '1,5' is not a valid float",
     ),
-    (["match", "--json=true", "MIT"], "option: invalid: --json: does not take a value"),
     (
-        ["match", "MIT", "GPL-2.0"],
-        "input: invalid: extra argument: GPL-2.0; run 'cli match --help'",
+        ["detect", "--json=true", "MIT"],
+        "option: invalid: --json: does not take a value",
+    ),
+    (
+        ["detect", "MIT", "GPL-2.0"],
+        "input: invalid: extra argument: GPL-2.0; run 'cli detect --help'",
     ),
     # A newline or ";" in a value would split the line or start an ACTION.
     (
-        ["match", "--top", "1\n2;x", "MIT"],
+        ["detect", "--top", "1\n2;x", "MIT"],
         "option: invalid: --top: '1\\n2,x' is not a valid integer",
     ),
-    (["match", "--b\nx;y"], "option: not found: --b x,y; run 'cli match --help'"),
+    (["detect", "--b\nx;y"], "option: not found: --b x,y; run 'cli detect --help'"),
 ]
 
 
@@ -209,7 +212,7 @@ def test_no_args_is_help_shows_the_help() -> None:
 
 
 def test_a_long_value_keeps_what_is_wrong() -> None:
-    result = CliRunner().invoke(cli, ["--db", "x.db", "match", "--top", "z" * 300])
+    result = CliRunner().invoke(cli, ["--db", "x.db", "detect", "--top", "z" * 300])
     line = result.stderr
     assert line.startswith("ERROR: option: invalid: --top: 'zzz")
     assert line.endswith("...zzzzzzzzzzzzz' is not a valid integer\n")

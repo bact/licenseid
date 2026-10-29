@@ -189,7 +189,7 @@ at call time, and `_rank_candidates` re-normalizes the query in the
 `norm_input` parameter.
 
 **No change is needed for query normalization** — it is already called
-once per `match()` invocation at the top of the method and passed down.
+once per `detect()` invocation at the top of the method and passed down.
 The concern is whether `normalize_text` on the candidate side is redundant.
 It is not: `search_text` in `CandidateMatch` is fetched directly from the
 pre-normalized `license_index` column, so no re-normalization occurs.

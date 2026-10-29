@@ -42,7 +42,7 @@ def test_index_rows_but_no_license_rows_is_refused(tmp_path: Path) -> None:
     make_ready_file_db(db_path)
     with writer(db_path) as conn:
         conn.execute("DELETE FROM licenses")
-    result = run("--db", str(db_path), "match", "--text", MIT_TEXT)
+    result = run("--db", str(db_path), "detect", "--text", MIT_TEXT)
     assert_refused(result, REFUSED, str(db_path))
     assert result.stderr.startswith(f"ERROR: database: empty: {db_path};")
 
@@ -56,7 +56,7 @@ def test_license_rows_whose_ids_are_not_in_the_index_never_traceback(
     make_ready_file_db(db_path)
     with writer(db_path) as conn:
         conn.execute("UPDATE license_index SET license_id = 'NOT-A-LICENSE'")
-    result = run("--db", str(db_path), "match", "--text", MIT_TEXT)
+    result = run("--db", str(db_path), "detect", "--text", MIT_TEXT)
     assert_no_traceback(result)
     assert result.exit_code in (0, 1), result.stderr
     assert "unreadable" not in result.stderr
@@ -75,7 +75,7 @@ def test_damaged_fts_shadow_table_is_refused_not_a_traceback(
         if shadow not in names:
             pytest.skip(f"{shadow} is not a shadow table in this SQLite build")
         conn.execute(f"DROP TABLE {shadow}")
-    result = run("--db", str(db_path), "match", "--text", MIT_TEXT)
+    result = run("--db", str(db_path), "detect", "--text", MIT_TEXT)
     assert_refused(result, REFUSED, str(db_path))
 
 
@@ -98,7 +98,7 @@ def test_license_index_as_a_plain_table_is_refused(tmp_path: Path) -> None:
     """A grammar line and exit 2, not a traceback and not exit 1 ("no")."""
     db_path = tmp_path / "licenses.db"
     _foreign_lookalike(db_path)
-    result = run("--db", str(db_path), "match", "--text", MIT_TEXT)
+    result = run("--db", str(db_path), "detect", "--text", MIT_TEXT)
     assert_refused(result, REFUSED, str(db_path))
 
 
@@ -106,7 +106,7 @@ def test_a_foreign_lookalike_file_is_never_written_to(tmp_path: Path) -> None:
     db_path = tmp_path / "licenses.db"
     _foreign_lookalike(db_path)
     before = db_path.read_bytes()
-    run("--db", str(db_path), "match", "--text", MIT_TEXT)
+    run("--db", str(db_path), "detect", "--text", MIT_TEXT)
     assert db_path.read_bytes() == before, "the foreign file was written to"
 
 
@@ -187,7 +187,7 @@ def test_a_writable_file_uri_never_creates_the_database(
 ) -> None:
     missing = tmp_path / "nope.db"
     uri = f"file:{missing}{suffix}"
-    result = run("--db", uri, "match", "--text", MIT_TEXT)
+    result = run("--db", uri, "detect", "--text", MIT_TEXT)
     assert_refused(result, REFUSED, uri)
     assert not missing.exists(), "mode=rwc created the database"
     with pytest.raises(DatabaseNotReadyError):
@@ -203,7 +203,7 @@ def test_a_memory_mode_uri_naming_a_real_file_never_touches_it(
     path = make_ready_file_db(tmp_path / "real.db")
     before = (path.read_bytes(), path.stat().st_mtime_ns)
     uri = f"file:{path}?mode=memory&cache=shared"
-    result = run("--db", uri, "match", "--text", MIT_TEXT)
+    result = run("--db", uri, "detect", "--text", MIT_TEXT)
     assert_refused(result, REFUSED, uri)
     assert (path.read_bytes(), path.stat().st_mtime_ns) == before
 
@@ -218,7 +218,7 @@ def test_a_programming_error_is_worded_unreadable(
         raise sqlite3.ProgrammingError("Incorrect number of bindings supplied")
 
     monkeypatch.setattr(cli_module, "LicenseDetector", boom)
-    result = run("--db", str(path), "match", "--text", MIT_TEXT)
+    result = run("--db", str(path), "detect", "--text", MIT_TEXT)
     assert result.exit_code == 2
     assert "ERROR: database: unreadable" in result.stderr
 
@@ -374,7 +374,7 @@ def test_a_foreign_table_of_ours_is_invalid_with_no_update_hint(
     licenseid's schema into it."""
     db_path = tmp_path / "inventory.db"
     _foreign_table(db_path, *FOREIGN_TABLES[table])
-    result = run("--db", str(db_path), "match", "--text", MIT_TEXT)
+    result = run("--db", str(db_path), "detect", "--text", MIT_TEXT)
     assert_no_traceback(result)
     assert result.exit_code == 2
     assert result.stdout == ""

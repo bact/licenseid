@@ -57,7 +57,7 @@ def tag_db(prefix: str) -> Generator[str, None, None]:
 
 
 class Answers(NamedTuple):
-    """One file's answer from each entry point. The API's match counts only at
+    """One file's answer from each entry point. The API's detect counts only at
     the score (0.85) the CLI and the predicates use: a weaker top result is
     not an answer."""
 
@@ -73,13 +73,13 @@ def source_with(tag: str) -> str:
 
 
 def cli_match_id(db: str, *args: str) -> str | None:
-    """The top LICENSE_ID the CLI's match prints, or None when it finds none.
+    """The top LICENSE_ID the CLI's detect prints, or None when it finds none.
 
     A command that dies of an uncaught exception also prints nothing, and
     CliRunner reports that as exit 1 — the same code as "no license found".
     Fail loudly instead, so no test can read a traceback as an answer.
     """
-    result = CliRunner().invoke(cli, ["--db", db, "match", *args])
+    result = CliRunner().invoke(cli, ["--db", db, "detect", *args])
     assert result.exception is None or isinstance(result.exception, SystemExit), (
         result.exception
     )
@@ -93,7 +93,7 @@ def answers(db: str, tag: str, tmp_path: Path) -> Answers:
     """What every entry point makes of a file carrying *tag*."""
     matcher = LicenseDetector(db)
     text = source_with(tag)
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     path = tmp_path / "source.c"
     path.write_text(text, encoding="utf-8")
     is_spdx = CliRunner().invoke(cli, ["--db", db, "is-spdx", str(path)])

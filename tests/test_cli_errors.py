@@ -38,7 +38,7 @@ def empty_db() -> Generator[str, None, None]:
     keep_alive.close()
 
 
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_missing_database(tmp_path: Path, command: str) -> None:
     db_path = tmp_path / "absent.db"
     result = CliRunner().invoke(cli, ["--db", str(db_path), command, "MIT"])
@@ -49,10 +49,10 @@ def test_missing_database(tmp_path: Path, command: str) -> None:
     )
 
 
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_empty_database(empty_db: str, command: str) -> None:
     """A database with no licenses is refused before any input is read: it
-    would answer "no license found" (match) or false (is-osi) for everything."""
+    would answer "no license found" (detect) or false (is-osi) for everything."""
     result = CliRunner().invoke(cli, ["--db", empty_db, command, "MIT"])
     assert result.exit_code == 2
     assert result.stdout == ""
@@ -61,7 +61,7 @@ def test_empty_database(empty_db: str, command: str) -> None:
     )
 
 
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_unreadable_database(tmp_path: Path, command: str) -> None:
     db_path = tmp_path / "notes.db"
     db_path.write_text("this is not an SQLite database, " * 8)
@@ -97,7 +97,7 @@ def test_clear_cache_keeps_a_file_that_is_not_a_database(tmp_path: Path) -> None
 @pytest.mark.parametrize(
     ("args", "target", "target_attr"),
     [
-        (["match", "--id", "MIT"], LicenseDetector, "match"),
+        (["detect", "--id", "MIT"], LicenseDetector, "detect"),
         (["is-osi", "MIT"], LicenseDatabase, "get_license_details"),
     ],
 )
@@ -119,9 +119,9 @@ def test_sqlite_failure_after_the_check_is_an_unreadable_database(
 def test_other_exceptions_are_not_worded_as_a_database_error(ready_db: str) -> None:
     """Only SQLite failures are; a bug elsewhere must still show its traceback."""
     with mock.patch.object(
-        LicenseDetector, "match", autospec=True, side_effect=KeyError("x")
+        LicenseDetector, "detect", autospec=True, side_effect=KeyError("x")
     ):
-        result = CliRunner().invoke(cli, ["--db", ready_db, "match", "--id", "MIT"])
+        result = CliRunner().invoke(cli, ["--db", ready_db, "detect", "--id", "MIT"])
     assert isinstance(result.exception, KeyError)
 
 
@@ -134,14 +134,14 @@ def test_sqlite_programming_errors_are_worded_as_a_database_error(
     """One policy, in the matcher and the CLI: every sqlite3.Error is a
     DatabaseNotReadyError (exit 2), and the original stays its cause."""
     with mock.patch.object(
-        LicenseDetector, "match", autospec=True, side_effect=failure
+        LicenseDetector, "detect", autospec=True, side_effect=failure
     ):
-        result = CliRunner().invoke(cli, ["--db", ready_db, "match", "--id", "MIT"])
+        result = CliRunner().invoke(cli, ["--db", ready_db, "detect", "--id", "MIT"])
     assert result.exit_code == 2
     assert result.stderr == f"ERROR: database: unreadable: {ready_db}: bad\n"
 
 
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_missing_input(ready_db: str, command: str) -> None:
     result = CliRunner().invoke(cli, ["--db", ready_db, command], input="")
     assert result.exit_code == 2
@@ -154,7 +154,7 @@ def test_missing_input(ready_db: str, command: str) -> None:
 @pytest.mark.parametrize("extra", [[], ["--bold"]])
 def test_no_match_in_ready_database(ready_db: str, extra: list[str]) -> None:
     result = CliRunner().invoke(
-        cli, ["--db", ready_db, "match", "--id", "No-Such-License", *extra]
+        cli, ["--db", ready_db, "detect", "--id", "No-Such-License", *extra]
     )
     assert result.exit_code == 1
     assert result.stdout == ""
@@ -164,7 +164,7 @@ def test_no_match_in_ready_database(ready_db: str, extra: list[str]) -> None:
 _PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
 
 
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_binary_input_file(ready_db: str, tmp_path: Path, command: str) -> None:
     path = tmp_path / "logo.png"
     path.write_bytes(_PNG)
@@ -177,13 +177,13 @@ def test_binary_input_file(ready_db: str, tmp_path: Path, command: str) -> None:
 @pytest.mark.parametrize("text", ["MIT\\x00", "\\0"])
 def test_binary_text_option(ready_db: str, text: str) -> None:
     """A NUL from a --text escape is rejected as it is from a file or stdin."""
-    result = CliRunner().invoke(cli, ["--db", ready_db, "match", "--text", text])
+    result = CliRunner().invoke(cli, ["--db", ready_db, "detect", "--text", text])
     assert result.exit_code == 2
     assert result.stdout == ""
     assert result.stderr == "ERROR: input: binary file: --text\n"
 
 
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 @pytest.mark.parametrize(
     "args",
     [["--text", "MIT\udcff"], ["MIT\udcff"], ["SPDX-License-Identifier: \udcff+"]],
@@ -202,13 +202,13 @@ def test_an_argument_of_invalid_utf8_is_a_usage_error(
 
 
 def test_binary_stdin(ready_db: str) -> None:
-    result = CliRunner().invoke(cli, ["--db", ready_db, "match"], input=_PNG)
+    result = CliRunner().invoke(cli, ["--db", ready_db, "detect"], input=_PNG)
     assert result.exit_code == 2
     assert result.stdout == ""
     assert result.stderr == "ERROR: input: binary file: stdin\n"
 
 
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_unreadable_input_path(ready_db: str, tmp_path: Path, command: str) -> None:
     directory = tmp_path / "LICENSES"
     directory.mkdir()
@@ -221,7 +221,7 @@ def test_unreadable_input_path(ready_db: str, tmp_path: Path, command: str) -> N
 
 
 @pytest.mark.parametrize("content", [b"", b"\xef\xbb\xbf", b"  \r\n\t\n"])
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_empty_input_file(
     ready_db: str, tmp_path: Path, command: str, content: bytes
 ) -> None:
@@ -234,7 +234,7 @@ def test_empty_input_file(
     assert result.stderr == f"ERROR: input: empty: {path}\n"
 
 
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 @pytest.mark.parametrize(
     "argument",
     ["LICENSE.txt", "COPYING.md", "docs/LICENSE", "docs\\LICENSE", "x.toml"],
@@ -262,6 +262,6 @@ def test_a_missing_file_named_as_an_argument(
     ],
 )
 def test_an_argument_that_is_no_path_is_matched(ready_db: str, args: list[str]) -> None:
-    result = CliRunner().invoke(cli, ["--db", ready_db, "match", *args])
+    result = CliRunner().invoke(cli, ["--db", ready_db, "detect", *args])
     assert "not found" not in result.stderr
     assert result.exit_code in (0, 1)

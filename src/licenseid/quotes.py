@@ -38,7 +38,7 @@ text ``MIT" or "Apache-2.0`` inside one pair. A mark on one end only
 (unbalanced) is a typo or a cut value; it is read, and says so in the step
 detail, because the author's text was not complete.
 
-The whole value first, then each operand. ``resolve()`` calls
+The whole value first, then each operand. ``match()`` calls
 :func:`unquote` on the whole value, once, before any other reading;
 ``GPL-2.0+``, ``X WITH Y`` and ``GPLv2 or later`` inside the quotes are then
 read as they are outside, and ``"MIT OR Apache-2.0"`` is unquoted once. The

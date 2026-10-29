@@ -69,7 +69,7 @@ def test_hybrid_search_flow(test_db: str) -> None:
         " obtaining a copy of this software"
     )
 
-    results = matcher.match(text=input_text)
+    results = matcher.detect(text=input_text)
     assert len(results) > 0
     assert results[0]["license_id"] == "MIT"
 
@@ -77,25 +77,25 @@ def test_hybrid_search_flow(test_db: str) -> None:
 def test_short_text_rejection(test_db: str) -> None:
     matcher = LicenseDetector(test_db)
 
-    assert not matcher.match("")
-    assert not matcher.match("   ")
-    assert not matcher.match("\n\n")
+    assert not matcher.detect("")
+    assert not matcher.detect("   ")
+    assert not matcher.detect("\n\n")
     # A blank license_id declares nothing, as an empty one does.
-    assert not matcher.match(license_id="   ")
+    assert not matcher.detect(license_id="   ")
 
     # Generic short string (should fail name matching because threshold is 90/85)
-    assert not matcher.match("This")
-    assert not matcher.match("Copyright 2024.")
-    assert not matcher.match("One two three four")
+    assert not matcher.detect("This")
+    assert not matcher.detect("Copyright 2024.")
+    assert not matcher.detect("One two three four")
 
     # Exact name matches (< 12 words)
-    res_mit = matcher.match("MIT")
+    res_mit = matcher.detect("MIT")
     assert res_mit and res_mit[0]["license_id"] == "MIT"
-    res_aml = matcher.match("Apple MIT License")
+    res_aml = matcher.detect("Apple MIT License")
     assert res_aml and res_aml[0]["license_id"] == "AML"
 
     # Partial name matches (< 12 words)
-    res_apple = matcher.match("APPLE PUBLIC SOURCE LICENSE")
+    res_apple = matcher.detect("APPLE PUBLIC SOURCE LICENSE")
     assert len(res_apple) > 0 and res_apple[0]["license_id"] == "APSL-2.0"
 
 
@@ -104,7 +104,7 @@ def test_match_with_expression(test_db: str) -> None:
     not just a literal DB row lookup (there is no such row)."""
     matcher = LicenseDetector(test_db)
 
-    results = matcher.match(license_id="MIT WITH Font-exception-2.0")
+    results = matcher.detect(license_id="MIT WITH Font-exception-2.0")
     assert len(results) == 1
     assert results[0]["license_id"] == "MIT WITH Font-exception-2.0"
     assert results[0]["score"] == 1.0
@@ -113,7 +113,7 @@ def test_match_with_expression(test_db: str) -> None:
     assert matcher.is_spdx(license_id="MIT WITH Font-exception-2.0")
 
     # Mixed-cased/lowercase operators
-    results_mixed = matcher.match(license_id="MIT wiTh Font-exception-2.0")
+    results_mixed = matcher.detect(license_id="MIT wiTh Font-exception-2.0")
     assert len(results_mixed) == 1
     assert results_mixed[0]["license_id"] == "MIT WITH Font-exception-2.0"
     assert results_mixed[0]["score"] == 1.0
@@ -129,7 +129,7 @@ def test_match_with_expression_unknown_exception(test_db: str) -> None:
     test_matcher_coverage.py::test_with_expression_half_missing_from_db."""
     matcher = LicenseDetector(test_db)
 
-    assert not matcher.match(license_id="MIT WITH Not-A-Real-Exception")
+    assert not matcher.detect(license_id="MIT WITH Not-A-Real-Exception")
 
 
 def test_match_pathological_expression_does_not_crash(test_db: str) -> None:
@@ -144,9 +144,9 @@ def test_match_pathological_expression_does_not_crash(test_db: str) -> None:
     expr = " AND ".join(f"LicenseRef-{i}" for i in range(400))
 
     with pytest.raises(InvalidInputError, match="pass one license ID"):
-        matcher.match(license_id=expr)
+        matcher.detect(license_id=expr)
     tagged = f"/*\n * SPDX-License-Identifier: {expr}\n */\n" + "word " * 40
-    assert [r["license_id"] for r in matcher.match(text=tagged)] == []
+    assert [r["license_id"] for r in matcher.detect(text=tagged)] == []
 
 
 def _tied_gpl_matches(only_score: float, or_later_score: float) -> list[InternalMatch]:

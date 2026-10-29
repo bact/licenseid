@@ -24,7 +24,7 @@ UpdateSource = Literal["auto", "compact", "upstream", "packaged"]
 
 
 class Detection(TypedDict):
-    """A match as match() returns it: the same keys for every method.
+    """A match as detect() returns it: the same keys for every method.
 
     ``score`` is 0-1: each method's ranking key, capped to 1, so scores from
     different methods are not on one scale; the list is in ranking order,
@@ -110,7 +110,7 @@ class InternalMatch(TypedDict, total=False):
 
 
 class DetectRequest(TypedDict, total=False):
-    """Input to LicenseDetector.match()."""
+    """Input to LicenseDetector.detect()."""
 
     text: str
     license_id: str

@@ -4,33 +4,34 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-SPDX License ID matcher package.
+SPDX License ID detection package.
 """
 
 __version__ = "0.6.0"
 
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
-from licenseid.detector import LicenseDetector
+from licenseid.detector import LicenseDetector, detect
 from licenseid.errors import (
     DatabaseNotReadyError,
     InvalidInputError,
     LicenseIdError,
 )
 from licenseid.normalize import normalize_text
-from licenseid.resolver import resolve
+from licenseid.resolver import match
 from licenseid.types import Detection, DetectRequest, Method
 
 __all__ = [
-    "LicenseDetector",
     "DatabaseNotReadyError",
+    "DetectRequest",
+    "Detection",
     "InvalidInputError",
     "LicenseDatabase",
+    "LicenseDetector",
     "LicenseIdError",
-    "Detection",
-    "DetectRequest",
     "Method",
+    "detect",
     "get_default_db_path",
+    "match",
     "normalize_text",
-    "resolve",
 ]

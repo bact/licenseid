@@ -1,12 +1,12 @@
 # PyPI licence sample
 
-Measures how `licenseid.resolve()` fares on the licence values that real
+Measures how `licenseid.match()` fares on the licence values that real
 PyPI projects declare, and groups the ones it cannot read by what would read
 them.
 
 ## Why it exists
 
-`resolve()` was built from a short list of examples. Which cases to support
+`match()` was built from a short list of examples. Which cases to support
 next (compounds, prose such as `Apache License, Version 2.0`, trove classifier
 names, aliases) is a question of how often each occurs and how many downloads
 it carries. This tool answers it with data, so a rule is chosen by its share
@@ -16,7 +16,7 @@ and not by memory. The findings are in
 
 ## When to run it
 
-- Before deciding what the next `resolve()` release should read.
+- Before deciding what the next `match()` release should read.
 - After a change to the lexical rules, to see how many real values it newly
   reads (compare the `unresolved` count before and after).
 - Rarely otherwise: it is a research tool, not part of the tests or CI.
@@ -50,7 +50,7 @@ PyPI changes over time.
 
 - the source used (`License-Expression`, `License`, classifiers, none, or
   licence text only);
-- the category `resolve()` gives each value, with its share;
+- the category `match()` gives each value, with its share;
 - the unresolved values by group (`GROUPS` in `__main__.py`), with project
   counts and download totals;
 - the most common unresolved values.
@@ -58,7 +58,7 @@ PyPI changes over time.
 `export` writes the distinct short values (the value `analyze` picks, but not
 several classifiers joined by `AND`) to tab-separated files, sorted by value:
 `value` (Python `unicode_escape`), `field` (the source most projects used),
-`projects`, `downloads` and the answer of `resolve()`: `expression_0_6_0`,
+`projects`, `downloads` and the answer of `match()`: `expression_0_6_0`,
 `category_0_6_0`, `candidates_0_6_0`, `steps_0_6_0` (a `!` after a step that did
 not apply), `step_targets_0_6_0`, `expansions_0_6_0`, `expansion_targets_0_6_0`,
 `trust_0_6_0`, `input_same_0_6_0` and `reason_0_6_0` (`-` is none; a comma in a
@@ -90,6 +90,6 @@ delete them. `tests/test_resolver_sample.py` freezes these files (see
 - It does not compare with any consumer. Pitloom's own reading was compared by
   hand once; see the evidence document.
 - It does not cover npm, Cargo or Maven licence fields.
-- It does not time `resolve()`.
+- It does not time `match()`.
 
 Standard library and `licenseid` only.

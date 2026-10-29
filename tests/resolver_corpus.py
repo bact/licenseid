@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The 0.7.0 resolver corpus: a database of the whole 3.29.0 List, the
-fixtures that pin what ``resolve()`` 0.6.0 answers, and the guard that says
+fixtures that pin what ``match()`` 0.6.0 answers, and the guard that says
 which answers a change moved.
 
 Import as ``from resolver_corpus import ...`` (tests have no ``__init__.py``).
@@ -25,7 +25,7 @@ from resolver_changes_t8 import T8_CHANGES
 from resolver_changes_t9 import T9_CHANGES
 from seed_sql import INSERT_EXCEPTION, INSERT_INDEX, INSERT_LICENSE, SET_METADATA
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 from licenseid.normalize import normalize_text
 from licenseid.resolvertypes import Source
 from tools.pypi_licence_sample.answer import (
@@ -282,7 +282,7 @@ def changed_answers(
     changed: dict[str, tuple[Answer, Answer]] = {}
     for row in rows:
         value = unescape_field(row["value"])
-        old, new = pinned(row), answer_of(value, resolve(value, db, source=source))
+        old, new = pinned(row), answer_of(value, match(value, db, source=source))
         if old != new:
             changed[value] = (old, new)
     return changed
