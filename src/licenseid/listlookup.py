@@ -8,8 +8,8 @@
 The resolver chain (``resolver``, ``looseid``, ``versionkey`` and
 ``identifiers.normalize_identifier``) types its list as ``ListLookup``, not as
 ``licenseid.database.LicenseDatabase``. The database satisfies the protocol
-unchanged; an in-memory index will too in 0.7.0, so the resolver needs no
-database file.
+unchanged, and so does the in-memory ``licenseid.listindex.ListIndex``, so
+the resolver needs no database file.
 
 Standard library and ``licenseid.types`` only: no import of the database, so
 no import cycle.
@@ -64,9 +64,10 @@ class ListedName(TypedDict):
 
 class ListedMetadata(TypedDict, total=False):
     """The metadata the resolver reads (the database's ``DatabaseMetadata``
-    satisfies it)."""
+    satisfies it). ``release_date`` is ``""`` when the list did not say."""
 
     license_list_version: str
+    release_date: str
 
 
 class ListLookup(Protocol):
@@ -82,8 +83,8 @@ class ListLookup(Protocol):
       successor: the licences in table order, then the exceptions; on a clash
       an exception wins the key.
     - ``get_metadata`` has no ``license_list_version`` key when the list does
-      not say. (``LicenseDatabase`` also stores ``release_date``, which is
-      ``""`` when the update did not know it; the resolver does not read it.)
+      not say. Its ``release_date`` is ``""`` when the list did not say it
+      (the resolver does not read it).
     - The return types hold the fields the resolver chain reads, no more, so
       an index need not invent a popularity or a word count. A caller that
       needs the flags (``identifiers.flag_source``) takes a ``LicenseDatabase``.

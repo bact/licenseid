@@ -20,7 +20,7 @@ from unittest import mock
 import pytest
 import requests
 
-from licenseid import releasesource, spdx_source, spdxdata
+from licenseid import listindex, releasesource, spdx_source, spdxdata
 from licenseid.database import LicenseDatabase
 from licenseid.spdxdata import SpdxData, to_bundle
 from licenseid.types import SpdxLicenseEntry
@@ -170,12 +170,14 @@ def urls(fake: mock.MagicMock) -> list[str]:
 
 
 def ship(monkeypatch: pytest.MonkeyPatch, raw: bytes | None) -> None:
-    """Make *raw* the snapshot shipped in the wheel (None: none)."""
+    """Make *raw* the snapshot shipped in the wheel (None: none); the
+    packaged index of an earlier snapshot is forgotten."""
     monkeypatch.setattr(
         spdxdata,
         "packaged_bundle",
         mock.create_autospec(_PACKAGED_BUNDLE, return_value=raw),
     )
+    listindex.reset_packaged_index()
 
 
 def stub_chain(monkeypatch: pytest.MonkeyPatch, db: LicenseDatabase) -> None:
