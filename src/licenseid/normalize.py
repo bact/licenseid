@@ -54,6 +54,20 @@ RE_QUOTES: Final = re.compile(
     r"]"
 )
 
+# The kind of each quote mark, for reading a value that is written in quotes
+# (``licenseid.quotes``): "double" or "single". The marks are those of
+# RE_QUOTES, which guideline 4 treats as one, plus the ASCII apostrophe and
+# the grave accent, which RE_QUOTES leaves out (the first already is the
+# character it folds to; the second was never folded). Two marks delimit the
+# same text if they are of one kind, whichever of them opens: German writes
+# „x“, Swedish ”x”, Danish »x«, so the direction says nothing. A double mark
+# does not close a single one (``"MIT'``). The prime marks and the modifier
+# letters stand for the mark they are mis-typed for.
+QUOTE_KIND: Final[dict[str, str]] = {
+    **dict.fromkeys('"«»“”„‟″ʺ‴', "double"),
+    **dict.fromkeys("'`‘’‚‛‹›′ʹʻʼʽ", "single"),
+}
+
 # Guideline 5a: code comment prefixes at the start of a line.
 # Covers: // /* ** * # ' (VB) REM -- -} *)
 _RE_COMMENT_PREFIX: Final = re.compile(

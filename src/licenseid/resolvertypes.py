@@ -15,7 +15,9 @@ from typing import Final, Literal, TypedDict
 
 # The steps that change only the form of the text and decide nothing; the
 # others are the resolver's decisions or an expansion of a qualifier.
-LEXICAL_KINDS: Final = frozenset({"brackets", "id_case", "trim", "whitespace"})
+LEXICAL_KINDS: Final = frozenset(
+    {"brackets", "id_case", "trim", "unquote", "whitespace"}
+)
 
 SPDX_LIST: Final = "spdx-license-list"
 

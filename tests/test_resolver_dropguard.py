@@ -56,8 +56,9 @@ UNTOUCHED = [
 ]
 
 #: Characters that are dropped today and carry no separator. One per class:
-#: punctuation, symbols, quotes (straight and curly), a second comma, the
-#: replacement character.
+#: punctuation, symbols, a second comma, the replacement character. Quotes
+#: that delimit the whole value are read before the guard (T6b,
+#: ``test_resolver_quotes.py``); the ones inside a value are refused there.
 DROPPED = [
     ("Apache 2.0?", "Apache-2.0", "?"),
     ("Apache 2.0!", "Apache-2.0", "!"),
@@ -66,11 +67,6 @@ DROPPED = [
     ("mit?", "MIT", "?"),
     ("MIT*", "MIT", "*"),
     ("#MIT", "MIT", "#"),
-    ('MIT"', "MIT", '"'),
-    ('"MIT"', "MIT", '"'),
-    ("'MIT'", "MIT", "'"),
-    ("`MIT`", "MIT", "`"),
-    ("“MIT”", "MIT", "“”"),
     ("MIT,,", "MIT", ","),
     ("MIT;", "MIT", ";"),
     ("MIT:", "MIT", ":"),
@@ -162,12 +158,6 @@ def test_the_reason_names_each_character_once(corpus_db: LicenseDatabase) -> Non
     assert got["reason"] == "character dropped: U+003F U+0021"
 
 
-def test_a_quote_is_refused_with_its_own_repr(corpus_db: LicenseDatabase) -> None:
-    """Q12: ``"MIT"`` is refused here; T6b will read quoted values."""
-    assert resolve('"MIT"', corpus_db)["reason"] == "character dropped: U+0022"
-    assert resolve("'MIT'", corpus_db)["reason"] == "character dropped: U+0027"
-
-
 def test_a_comma_in_the_middle_is_refused(corpus_db: LicenseDatabase) -> None:
     got = resolve("Apache, 2.0", corpus_db)
     assert got["expression"] is None
@@ -219,9 +209,9 @@ def test_the_step_names_the_listed_id_the_reading_named(
 
 
 # The characters are those of normalize_text (RE_DASHES, RE_QUOTES), not a
-# Unicode category: the minus sign is a dash (SPDX guideline 4), the modifier
-# letters that normalize_text reads as quotes are marks, and a wave dash or
-# katakana hyphen (Pd) is neither.
+# Unicode category: the minus sign is a dash (SPDX guideline 4), and a wave
+# dash or katakana hyphen (Pd) is neither. (The modifier letters that
+# normalize_text reads as quotes are quote marks: test_resolver_quotes.py.)
 @pytest.mark.parametrize("char", ["\u2212", "\ufe63", "\uff0d", "\u2013", "\u2010"])
 def test_a_dash_of_normalize_is_dropped(corpus_db: LicenseDatabase, char: str) -> None:
     got = resolve(f"Apache{char}2.0", corpus_db)
@@ -230,24 +220,10 @@ def test_a_dash_of_normalize_is_dropped(corpus_db: LicenseDatabase, char: str) -
 
 @pytest.mark.parametrize(
     ("value", "point"),
-    [
-        ("\u02bcMIT\u02bc", "U+02BC"),
-        ("MIT\u02b9", "U+02B9"),
-        ("\u02bbMIT", "U+02BB"),
-        ("\u2018MIT\u2019", "U+2018 U+2019"),
-        ("Apache\u301c2.0", "U+301C"),
-        ("Apache\u30a02.0", "U+30A0"),
-    ],
-    ids=[
-        "modifier-apostrophe",
-        "modifier-prime",
-        "turned-comma",
-        "curly",
-        "wave",
-        "kana",
-    ],
+    [("Apache\u301c2.0", "U+301C"), ("Apache\u30a02.0", "U+30A0")],
+    ids=["wave", "kana"],
 )
-def test_a_quote_or_a_non_normalize_dash_is_refused(
+def test_a_non_normalize_dash_is_refused(
     corpus_db: LicenseDatabase, value: str, point: str
 ) -> None:
     got = resolve(value, corpus_db)

@@ -306,6 +306,7 @@ API section; its reviewer checks that they match the behaviour.
 | `resolvertypes.py` | `Category`, `Trust`, `CATEGORY_ORDER` (weakest wins), `TRUST`, `LIST_PROVIDES`, `Step`, `step()`, `SPDX_LIST`, `ListInfo`, `Resolution` | Keep the tables in step with `Category` |
 | `identifiers.py` (747 lines) | `parse_expression`, `parse_declared`, `normalize_identifier`, `_canonicalize_expression` (cap 40 operators), `leading_expression`, `is_simple_expression` | Near the limit: put new code elsewhere |
 | `classify.py` | `OR_LATER_PHRASE`, the one reader of "or later" | Import it |
+| `quotes.py` | `unquote`: the quote marks around a whole declared value (T6b); marks are `normalize.QUOTE_KIND` | `resolver._prepared` calls it once per value; T7 calls it per operand too |
 | `plusoperator.py` | `PLUS_OPERATOR`, `strip_plus_operator`, `plus_after_qualifier`, the one reader of `+` | Import it |
 | `looseid.py`, `versionkey.py` | Loose ids (`Apache2`, `GPLv3`); one key per spelling | Lexical rules extend these |
 | `spdxdata.py`, `releasesource.py` | Reads the packaged, compact or upstream bundle (stdlib only) | The no-database path builds on `spdxdata` |

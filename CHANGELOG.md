@@ -21,6 +21,9 @@ and this project adheres to
   U+003F`, `lone surrogate`, `control or format character: U+200B`; a `drop`
   step that was not applied names the reading it stopped
 
+- `resolve()` reads a value in quotes (`"MIT"`, `'MIT'`, `“MIT”`, `"MIT`) with
+  an `unquote` step; `"MIT'` and quotes inside a value are still refused
+
 ### Changed
 
 - `resolve()` with no database given reads whichever list is newer, the
@@ -34,7 +37,7 @@ and this project adheres to
   raised `UnicodeEncodeError` after `WITH` and dropped the character elsewhere
   ([#117])
 - `resolve()` answers `unresolved` for a value it read only by dropping a mark
-  (`Apache 2.0?`, `MIT*`, `"MIT"`, U+FFFD), not the licence it did not write
+  (`Apache 2.0?`, `MIT*`, U+FFFD), not the licence it did not write
 
 [#117]: https://github.com/bact/licenseid/pull/117
 

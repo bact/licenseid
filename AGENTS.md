@@ -9,8 +9,9 @@
   `shorttext.py` (Tier 0 IDs and names), `looseid.py` (a loosely written
   ID: "Apache2", "GPLv3", "GPLv2 or any later version"), `ranking.py`
   (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
-  `markers.py`, `plusoperator.py` (the "+" operator), `versionkey.py` (one
-  key for each spelling of an ID), `resolver.py` (a declared licence value
+  `markers.py`, `plusoperator.py` (the "+" operator), `quotes.py` (quote
+  marks around a whole declared value), `versionkey.py` (one key for each
+  spelling of an ID), `resolver.py` (a declared licence value
   to an SPDX expression and the steps taken; its types and vocabularies are
   in `resolvertypes.py`), `listlookup.py` (the list lookups the resolver
   reads through: a Protocol), `listrules.py` (which SPDX entries are kept and

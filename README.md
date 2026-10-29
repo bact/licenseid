@@ -54,8 +54,13 @@ generator.*
   - a bare deprecated ID (`GPL-3.0`) comes back as written, category
     `assumed_only`, with both candidates, never narrowed; a renamed one
     (`StandardML-NJ`) becomes its successor (`SMLNJ`);
+  - quote marks around the whole value are taken off (`"MIT"`, `'MIT'`,
+    `“MIT”`, `«MIT»`, one or several layers, as an `unquote` step), and the
+    inside is read as it would be alone; a mark on one end only (`"MIT`) is
+    read too, as a weaker answer (`separator`); marks of two kinds
+    (`"MIT'`) or inside the value (`Apache "2.0"`) are not read;
   - a loose reading never drops a character that says something:
-    `Apache 2.0?`, `MIT*` and a quoted `"MIT"` are `unresolved`, with a
+    `Apache 2.0?`, `MIT*` and `"MIT?"` are `unresolved`, with a
     `reason` and a `drop` step that was not applied; white space, `-`, `_`,
     `.`, a dash and one trailing comma are still dropped;
   - a compound expression (`MIT OR Apache-2.0`) is recognised (category
@@ -509,7 +514,7 @@ steps, in this order (strongest first):
 | Category | Trust | The value |
 | --- | --- | --- |
 | `exact` | `identity` | is a listed ID as written |
-| `lexical` | `identity` | differs in case, spacing or brackets only |
+| `lexical` | `identity` | differs in case, spacing, brackets or quotes only |
 | `listed_name` | `list_data` | is the List's name of a licence |
 | `deprecated_equal_successor` | `list_data` | is a renamed deprecated ID |
 | `plus_to_or_later` | `list_data` | is `X+`, read as `X-or-later` |
@@ -527,7 +532,8 @@ A consumer ignores a step kind it does not know.
 `reason` is `None` unless the value was refused, when it is one line,
 `CONDITION[: DETAIL]`, the detail in code points: `character dropped: U+003F`
 (the value would be read as a licence only by dropping a mark that is not a
-separator, such as `?`, `!`, `*` or a quote; several are space separated),
+separator, such as `?`, `!`, `*` or a quote inside the value; several are
+space separated),
 `lone surrogate`, `control or format character: U+200B`. A refused value is
 category `unresolved` with no expression. For a dropped mark, `steps` holds
 one `drop` step with `applied` false: its `to` is the listed ID the loose
@@ -535,6 +541,18 @@ reading named (`resolve("Apache 2.0?")` would have read `Apache-2.0`; a
 renamed ID is not followed) and its `detail` the code points. White space,
 `_`, `.`, a dash (the hyphen-minus, the Unicode hyphens and dashes and the
 minus sign) and one trailing comma are not marks.
+
+Quote marks that delimit the whole value are not marks of that kind: the
+`unquote` step takes them off first. Two marks of one kind, double
+(`"`, `“ ”`, `„ “`, `« »`) or single (`'`, `‘ ’`, `‹ ›`, the grave accent
+and the other quotes of SPDX matching guideline 4), delimit it, whichever
+opens; nested pairs (`'"MIT"'`) all come off, with
+`detail` `balanced, 2 layers`. A mark on one end only is taken off too, with
+`detail` `unbalanced, start` or `unbalanced, end`, and the answer counts as
+`separator` (`resolver_rule`), not `lexical`. The marks of a value that has
+others inside (`"MIT" or "Apache-2.0"`), or of two kinds (`"MIT'`), stay, and
+the value is refused as above. An apostrophe inside a word (`AMD's`) is not
+a mark.
 
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or
