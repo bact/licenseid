@@ -111,6 +111,7 @@ def _auto() -> tuple[ListLookup, ListSource]:
     if index is None:
         return database, "database"
     version = metadata.get("license_list_version", "")
+    # A version that is not all numbers is never older: then it is a tie.
     if is_older(version, index.version):
         return index, "packaged"
     if is_older(index.version, version) or is_current_build(metadata):

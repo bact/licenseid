@@ -24,6 +24,10 @@ class DatabaseNotReadyError(LicenseIdError):
     answer from it could not be trusted. The CLI exits with code 2, not 1,
     because 1 means "no" for ``match`` and every ``is-*`` command.
 
+    ``resolve(source="packaged")`` raises it too when the bundle shipped in
+    the wheel is missing or unusable (``spdx-bundle.json.gz: not found``):
+    either way there is no list to read.
+
     ``condition`` is the CONDITION of the message (``not found``, ``empty``,
     ``invalid``, ``unreadable``, ...) and ``detail`` its DETAIL (the path,
     and the reason if any), so a caller can tell a database that is not
