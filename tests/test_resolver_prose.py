@@ -134,7 +134,6 @@ STAYS = [
     "GNU General Public License, Version 3.0",
     "GNU Lesser General Public License v3",  # a trove name: assumed, not P2
     "BSD License v3",
-    "MIT License -",
     "Apache License,Version 2.0",
     "MIT License (Apache-2.0)",  # the parts differ
     "The MIT License (Apache-2.0)",

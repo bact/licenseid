@@ -119,7 +119,7 @@ def _by_rule(
     refuses it with its reason (P64); they never help a reading. P2 has two
     reductions, which must agree (P68)."""
     core = body[: _word_end(body)].rstrip()
-    marks = body[len(core) :].strip()
+    marks = body[len(core) :].rstrip()  # white space kept: ``MIT -`` is dangling
     readings = []
     for word, detail in _reductions(db, core):
         reading = Found()
