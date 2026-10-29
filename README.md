@@ -44,11 +44,11 @@ generator.*
     them as written (below).
 - **Declared-value resolution** (`resolve()`): turns one declared licence
   value (a `license` field, a model card) into an SPDX expression and the
-  steps taken, without fuzzy matching and without a database:
+  steps taken, without fuzzy matching, with or without a database:
   - with no database it reads the SPDX License List shipped in the wheel, in
     memory, and gives the answer a database built from that list gives;
-    with both, the newer List wins, and a tie goes to the database unless an
-    older licenseid built it (`source=` picks one);
+    with both, the newer List wins, and a tie goes to the database only if
+    this licenseid's build rules made its rows (`source=` picks one);
   - exact and case-folded IDs; loosely written IDs (`Apache2`, `GPLv3`,
     `GPLv2 or any later version`); the List's own licence names;
   - a bare deprecated ID (`GPL-3.0`) comes back as written, category
@@ -435,13 +435,15 @@ such as `GPL-3.0` is never narrowed to `-only`: it comes back as written
 `resolve()` needs no database. With none given (`source="auto"`, the
 default), it reads the database at the default path or the SPDX License List
 shipped in the wheel, whichever holds the newer List; a tie goes to the
-database unless an older licenseid built it. With no database file it reads
+database only if this licenseid's build rules made its rows (not those of an
+older or a newer licenseid). With no database file it reads
 the shipped list; with a database that is there but unusable, the shipped
 list after one `WARNING: database: <condition>: <detail>; using packaged data
 v<version>` on standard error. `source="database"` reads only the database
-and `source="packaged"` only the shipped list; `resolve(value, db)` reads
-`db`. The answer is the same from either, and `lists[*].source` says which
-was read. `licenseid.DatabaseNotReadyError` is raised only when the chosen
+(and raises for one that cannot answer, as `auto` would call it unusable) and
+`source="packaged"` only the shipped list; `resolve(value, db)` reads `db`.
+The answer is the same from either, and `lists[*].source` says which was
+read. `licenseid.DatabaseNotReadyError` is raised only when the chosen
 list cannot be read: with `auto`, when there is neither (an editable install
 ships no list).
 

@@ -20,9 +20,9 @@ and this project adheres to
 ### Changed
 
 - `resolve()` with no database given reads whichever list is newer, the
-  default database's or the shipped one (a tie: the database, unless an older
-  licenseid built it); an unusable default database is a warning, not an
-  error
+  default database's or the shipped one (a tie: the database, if this
+  licenseid's build rules made it); an unusable default database falls back
+  to the shipped list with a warning
 
 ### Fixed
 
