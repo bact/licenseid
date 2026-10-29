@@ -168,6 +168,41 @@ Provisional: the maintainer may reverse any of them.
 | P20 | T6b | Where it runs | In `resolve()`, once per whole value: trim, `unquote`, `brackets`, and `unquote` again only if the brackets came off (`("MIT")`). `"(MIT)"` and `("MIT")` read; deeper alternation (`("(MIT)")`) does not | Only before the brackets; a loop until nothing changes | One reader of the value before the leaf, so `+`, `WITH` and grants inside compose; a loop invites a quadratic path |
 | P21 | T6b | The step kind and its category | `unquote` is in `LEXICAL_KINDS` (a change of form, like `brackets`); an unbalanced one sets `Found.floor = "separator"` (from `Unquoted.balanced`), which `_category` adds to the step kinds, so the category stays the weakest of the steps and the floor | A new category; a second step kind; matching the detail text | No new vocabulary: the closed `Category` set and the consumers stay as they are |
 | P22 | T6b | Which marks may stand alone on one end (narrows P17) | Quotation punctuation only (`STRAY_MARKS`: ASCII `"` and `'`, the grave accent, curly, low-9, guillemets). The primes U+2032 to U+2034 and the modifier letters U+02B9 to U+02BD pair but are never the stray: `GPL-2.0′`, `Apache 2.0″`, `ʻMIT` (the okina is a letter) and `MITʼ` are refused by the guard | Every mark of `QUOTE_KIND` may stray | A prime is a unit or a footnote and a modifier letter is a letter: neither is a quote left over |
+| P23 | T7 | Quotes around one operand (`MIT OR "Apache-2.0"`) | `unquote` on each leaf, a balanced pair only, after the whole-value call; an `unquote` step per operand | Also an unbalanced mark; no per-operand unquote | A lone mark may be one end of a pair around several operands (`"MIT OR "Apache-2.0"`); the drop guard refuses it |
+| P24 | T7 | A repeated operand (`MIT OR MIT`, `(A AND B) OR (B AND A)`) | Dropped after sorting, by rendered text, as a `dedupe` step (lexical); a group left with one operand is that operand | Keep the repeat; `malformed` | Idempotence changes no meaning; the step says it happened |
+| P25 | T7 | Brackets in the canonical form | Only around an OR inside an AND; an AND inside an OR has none (`MIT OR 0BSD AND ISC`) | Brackets around every group | Precedence decides it; this is how `py-spdx-license` and the SPDX annex render it |
+| P26 | T7 | Mixed bracket kinds | Properly nested `[ ]`, `{ }` and `( )` are brackets anywhere (Q21), around the whole too (`exprcanon.unbracketed`); a pair of two kinds (`[MIT)`) is `malformed`, reason `mismatched brackets`, not parsed | Refuse any bracket but `( )` | Q21; a mismatched pair has no reading to choose |
+| P27 | T7 | Key cap and `AdditionRef-*` | Exempt from the 100-character cap, as `LicenseRef-*` is (Q16) | Cap it | Read as written, never through a key |
+| P28 | T7 | `operands` when nothing is read | `[]` for a refusal of the grammar or a cap (`too many operators`); one unresolved operand, the whole value, for a value no reader claims | Always one operand per leaf | An operand is a licence the value names; a grammar error names none |
+| P29 | T7 | The reason of a compound with an operand that names nothing | That operand's own reason and its `drop` step (P13 kept), else `operand not resolved: <operand text>`; the first such operand in input order | List every operand; no reason | One line, the grammar of `reason`; the operands say the rest |
+| P30 | T7 | `malformed` or `unresolved` for a value the grammar refuses | `malformed` when every leaf is operand-shaped (Q15), no two operands stand side by side, the operators are in upper case, and one leaf names a licence (`MIT AND`, `(MIT`); else no compound at all | Always `malformed`; always `unresolved` | `BSD (3-clause)` and `MIT License (MIT)` are prose for T8 and T9, not broken expressions |
+| P31 | T7 | A mark used as an operator | Reason `not an SPDX operator: /` (also `|`, `&`, `;`, `,`) only when every part is one ID word (`MIT/Apache-2.0`, `zlib/libpng`); still `unresolved` | Read `/` as OR; give the reason for any text with a mark | `zlib/libpng` is one licence; a URL or prose has commas and slashes |
+| P32 | T7 | New reasons | `too many operators`, `too deeply nested` (the caps of `identifiers`, 150 each), `mismatched brackets`, `parse failed: <the parser's message>`, the placeholders shown as the leaf texts | A generic `not an expression` | Say what the parser said; the caps keep deep nesting away from it |
+| P33 | T7 | When `components` lists the parser | When it read the answer: a compound, or a refusal with its `parse failed` message; never for a single value or a value no reader claims | Whenever it ran; always | The answer rests on it only then |
+| P34 | T7 | `GPL-2.0 +` (a `+` after a space) inside a compound | Read as it is alone (`GPL-2.0-or-later`, with a `whitespace` step) | Refused in a compound | An operand reads as the same text alone; found by the adversarial tests |
+| P35 | T7 | A grant on an ID with no `-or-later` form (`MIT or later`) | `MIT+`, `stated_qualifier` (Q14 as built) | Unresolved | The `+` operator is SPDX's own spelling of the grant |
+| P36 | T7 | The hyphenated grant after a version (`GPL-2.0 or-later`) | A grant: `stated_qualifier` (was `separator` through the version key); `-or-later` after an ID is still part of it | Leave it to the version key | One reader of the grant (`classify.OR_LATER_PHRASE`), and the step says a grant was stated |
+| P37 | T7 | Case of `LicenseRef-*` when deduplicating | Case-sensitive: `LicenseRef-a OR licenseref-a` keeps both; the sort is case-folded, then as is | Fold the case | SPDX leaves the idstring of a reference to its author; folding would assert they are one |
+| P38 | T7 | What counts as an operator | `AND` and `OR` with white space, a bracket or an end on both sides, in any case; `WITH` stays inside its leaf | Any `or` between words | `MIT"OR"ISC` and `and_mask` hold no operator |
+| P39 | T7 | A grant in brackets inside a compound (`GPL-2.0 (or later) OR MIT`) | Read with its licence, as alone | Refuse it | The same reader as a single value |
+| P40 | T7 | The component URL of the parser | `https://pypi.org/project/py-spdx-license/<version>/`, its purl `pkg:pypi/py-spdx-license@<version>`, the installed version | The repository URL | The released artefact, as the resolver names its own release |
+| P41 | T7 | A grant after `WITH` (`GPL-2.0 WITH X or later`) | Moved to the licence: `GPL-2.0-or-later WITH X`, the step `from` the moved text | Refuse; give it to the exception | An exception takes no version grant |
+| P42 | T7 | A lower-case operator and an operand that names nothing (`GPL-3.0 or higher`, `proprietary and confidential`, `MIT or Foo`) | No compound: unresolved with no reason and one operand, the whole value, unless the operand has a reason of its own (a dropped mark) or is `malformed` | `operand not resolved: higher` | Never assert what the author did not write: a lower-case `or` between words is prose as often as an operator |
+| P43 | T7 | A leaf of several words (`Apache License 2.0 OR MIT`, `W3C Software and Document Notice License`) | No compound, whatever the operator case; left to the prose rules of T8 and T9, which read the whole value first | `operand not resolved: Apache License 2.0` | The same reason; and T8 can then read such operands without undoing a split |
+| P44 | T7 | Sort order of the leaves | IDs, then `LicenseRef-*`/`DocumentRef-*`, then `X WITH Y`, each case-folded (`MirOS` before `MIT`); groups after the leaves by rendered text (Q19, Q24). Pitloom 0.21.1 sorts case-sensitively and puts groups first: 4 parity rows differ in order only | Pitloom's order | Q24; a fixed key over the resolved leaves, so the order is the same from every spelling |
+
+### Follow-ups found in T7
+
+Not fixed in T7.
+
+- T8: a compound of prose names (`Apache License 2.0 OR MIT`) is not split
+  (P43); once T8 reads names, it may read such operands.
+- T8: an all-capitals prose name with `AND` (`W3C SOFTWARE NOTICE AND
+  LICENSE`) would be read as a compound if its words were IDs; none are.
+- `parse failed` quotes the parser, which sees round brackets only: `[MIT`
+  gives `Unexpected '('`.
+- Upstream (`py-spdx-license`): with `allow_unknown=True` the parser refuses
+  `WITH` and `+` (the drift guard strips them first).
 
 ### Follow-ups found in T6
 
