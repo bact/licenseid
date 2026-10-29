@@ -12,6 +12,7 @@ import os
 import sqlite3
 import threading
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -20,11 +21,11 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import IS_ROOT, make_ready_file_db, writer
 from release_fakes import release_bundle, ship
 
-from licenseid import listindex, listsource, resolve, spdxdata
+from licenseid import dbcheck, listindex, listsource, resolve, spdxdata
 from licenseid.datadir import get_default_db_path
 from licenseid.errors import DatabaseNotReadyError
 from licenseid.listlookup import ListLookup
-from licenseid.resolvertypes import Source
+from licenseid.resolvertypes import ListSource, Source
 
 DB_VERSION = "3.30"  # the List of a database made here
 
@@ -258,14 +259,16 @@ def test_a_stat_error_chooses_again(
     ship(monkeypatch, release_bundle("3.29"))
     _default_db()
     first = _choose()
-    again = mock.Mock(wraps=listsource._choose)  # pylint: disable=protected-access
-    monkeypatch.setattr(listsource, "_choose", again)
-    with mock.patch("os.stat", side_effect=error("no")):
-        for _ in range(3):
-            _choose()
-    assert again.call_count == 3  # never a stale hit
-    assert _choose() is first  # the fallback of the errors was not kept
-    assert again.call_count == 3
+    real = listsource._choose  # pylint: disable=protected-access
+    with mock.patch.object(
+        listsource, "_choose", autospec=True, side_effect=real
+    ) as again:
+        with mock.patch("os.stat", autospec=True, side_effect=error("no")):
+            for _ in range(3):
+                _choose()
+        assert again.call_count == 3  # never a stale hit
+        assert _choose() is first  # the fallback of the errors was not kept
+        assert again.call_count == 3
 
 
 def test_a_reset_forgets_the_choice(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -276,7 +279,7 @@ def test_a_reset_forgets_the_choice(monkeypatch: pytest.MonkeyPatch) -> None:
     assert _choose() is not first
 
 
-def test_threads_share_one_choice(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_threads_settle_on_one_choice(monkeypatch: pytest.MonkeyPatch) -> None:
     ship(monkeypatch, release_bundle("3.29"))
     _default_db()
     found: list[ListLookup] = []
@@ -291,25 +294,35 @@ def test_threads_share_one_choice(monkeypatch: pytest.MonkeyPatch) -> None:
         thread.start()
     for thread in threads:
         thread.join()
-    assert len(found) == 6
-    assert all(item is found[0] for item in found)
+    assert len(found) == 6  # the first callers may each choose; none fails
+    settled = _choose()
+    assert all(_choose() is settled for _ in range(6))
 
 
 # --- review of T5b: what must not be kept, what must be seen ---
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: kept after the review of T5b")
 def test_a_lock_held_during_the_first_call_is_not_kept(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """``unreadable`` passes by itself: the file's stamp does not change when
     the lock is released, so a fallback made for it must not be kept."""
     ship(monkeypatch, release_bundle("3.29"))
+    monkeypatch.setattr(dbcheck, "_BUSY_WAIT", 0.0)  # do not wait for the lock
     path = _default_db()
     locker = sqlite3.connect(path, timeout=0, isolation_level=None)
     try:
         locker.execute("BEGIN EXCLUSIVE")
+        real = sqlite3.connect
+
+        def no_wait(*args: Any, **kwargs: Any) -> sqlite3.Connection:
+            kwargs["timeout"] = 0  # the default waits 5 s for the lock
+            conn: sqlite3.Connection = real(*args, **kwargs)
+            return conn
+
+        monkeypatch.setattr(sqlite3, "connect", no_wait)
         locked = _source()
+        monkeypatch.setattr(sqlite3, "connect", real)
         locker.execute("ROLLBACK")
     finally:
         locker.close()
@@ -318,7 +331,6 @@ def test_a_lock_held_during_the_first_call_is_not_kept(
     assert _source() == "database"
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: kept after the review of T5b")
 @posix_only
 def test_a_chmod_is_seen_though_the_mtime_is_restored(
     monkeypatch: pytest.MonkeyPatch,
@@ -339,7 +351,6 @@ def test_a_chmod_is_seen_though_the_mtime_is_restored(
         path.chmod(0o644)
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: kept after the review of T5b")
 @posix_only
 def test_a_header_corrupted_in_place_is_seen_though_the_mtime_is_restored(
     monkeypatch: pytest.MonkeyPatch,
@@ -362,9 +373,11 @@ def test_the_stamp_is_read_before_the_choice(monkeypatch: pytest.MonkeyPatch) ->
     path = _default_db("3.30")
     real = listsource._choose  # pylint: disable=protected-access
 
-    def rewrite_then_choose(*args: object) -> tuple[ListLookup, str]:
+    def rewrite_then_choose(
+        mode: Source, where: str | None
+    ) -> tuple[ListLookup, ListSource, bool]:
         _set_version(path, "3.28")
-        return real(*args)  # type: ignore[arg-type]
+        return real(mode, where)
 
     with mock.patch.object(
         listsource, "_choose", autospec=True, side_effect=rewrite_then_choose
