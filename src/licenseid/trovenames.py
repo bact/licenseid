@@ -133,10 +133,12 @@ TROVE_NAMES: Final[dict[str, TroveEntry]] = {
     # Q23: the maintainer's special case, because LGPL is widespread. "Lesser
     # v2" contradicts itself (LGPL-2.0 is the "Library" GPL, the "Lesser" one
     # is 2.1), but the version is plainly 2, so it is read as written: the
-    # bare deprecated ID. No other self-contradicting name is read this way:
-    # the "v2 or later" name below stays none.
+    # bare deprecated ID. The "v2 or later" name below writes its grant, so
+    # it is stated (P45, decided by the maintainer on 2026-10-29).
     "GNU Lesser General Public License v2 (LGPLv2)": _assumed("LGPL-2.0"),
-    "GNU Lesser General Public License v2 or later (LGPLv2+)": _none(),  # as Q23, P45
+    "GNU Lesser General Public License v2 or later (LGPLv2+)": _stated(
+        "LGPL-2.0-or-later"
+    ),  # P45
     "GNU Lesser General Public License v3 (LGPLv3)": _assumed("LGPL-3.0"),
     "GNU Lesser General Public License v3 or later (LGPLv3+)": _stated(
         "LGPL-3.0-or-later"

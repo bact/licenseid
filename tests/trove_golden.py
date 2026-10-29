@@ -88,7 +88,11 @@ GOLDEN: dict[str, tuple[str, str, bool]] = {
         True,
     ),
     "GNU Lesser General Public License v2 (LGPLv2)": ("LGPL-2.0", "assumed", True),
-    "GNU Lesser General Public License v2 or later (LGPLv2+)": ("", "none", True),
+    "GNU Lesser General Public License v2 or later (LGPLv2+)": (
+        "LGPL-2.0-or-later",
+        "stated",
+        True,
+    ),
     "GNU Lesser General Public License v3 (LGPLv3)": ("LGPL-3.0", "assumed", True),
     "GNU Lesser General Public License v3 or later (LGPLv3+)": (
         "LGPL-3.0-or-later",
