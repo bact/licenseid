@@ -41,6 +41,7 @@ _RE_VERSION = re.compile(r"[vV]?\d+(?:\.\d+)*")
 # Brackets other than around the whole value: "[MIT]", "MIT)" are no ID.
 _RE_BRACKET = re.compile(r"[()\[\]{}]")
 # Characters that end a value after its last "+": white space and "+" itself.
+# Runs only after read_leaf's MAX_KEY_INPUT gate, so its run is bounded.
 _RE_TRAILING = re.compile(r"[\s+]+\Z")
 
 
@@ -266,10 +267,12 @@ def _deprecation(db: ListLookup, license_id: str, found: Found) -> None:
 
 
 def _in_use(db: ListLookup, license_id: str) -> bool:
+    """Whether *license_id* is a licence of the List that is not deprecated."""
     details = db.get_license_details(license_id)
     return details is not None and not details.get("is_deprecated")
 
 
 def _canonical(db: ListLookup, license_id: str) -> str:
+    """The List's spelling of *license_id*; the argument if it is not listed."""
     details = db.get_license_details(license_id)
     return details["license_id"] if details else license_id

@@ -49,7 +49,7 @@ from tools.pypi_licence_sample.answer import (
 SAMPLE = sample_rows()
 
 
-def _rows(*values: str) -> list[dict[str, str]]:
+def _parity_rows_for(*values: str) -> list[dict[str, str]]:
     """Copies of the parity rows of single, stable ids (a later rule does not
     move them), to be edited by a test."""
     by_value = {unescape_field(row["value"]): row for row in parity_rows()}
@@ -71,7 +71,7 @@ def test_the_guard_names_a_value_whose_pin_was_edited(
 ) -> None:
     """Mutation check (a): a pinned row edited in a copy is reported with the
     old and the new answer."""
-    rows = _rows("MIT", "ISC")
+    rows = _parity_rows_for("MIT", "ISC")
     rows[0]["expression_0_6_0"] = "Apache-2.0"
     changed = changed_answers(corpus_db, rows)
     assert list(changed) == ["MIT"]  # ISC is untouched
@@ -85,8 +85,8 @@ def test_the_guard_names_a_value_that_should_have_changed(
     corpus_db: LicenseDatabase,
 ) -> None:
     """A value in ``EXPECTED_CHANGES`` whose answer did not move is reported."""
-    changed = changed_answers(corpus_db, _rows("0BSD", "MIT"))
-    listed = {"0BSD": (pinned(_rows("0BSD")[0]), "a later rule reads it")}
+    changed = changed_answers(corpus_db, _parity_rows_for("0BSD", "MIT"))
+    listed = {"0BSD": (pinned(_parity_rows_for("0BSD")[0]), "a later rule reads it")}
     report = changes_report(changed, listed)
     assert report.startswith("in EXPECTED_CHANGES, answer unchanged: '0BSD'")
     assert changes_report(changed, {}) == ""
@@ -97,7 +97,7 @@ def _declared(
 ) -> tuple[dict[str, tuple[Answer, Answer]], Answer]:
     """Pin ``MIT`` with *field* set to *new* in a copy of its row; return the
     changed set and the answer ``MIT`` really gives."""
-    rows = _rows("MIT")
+    rows = _parity_rows_for("MIT")
     rows[0][field] = new
     return changed_answers(corpus_db, rows), answer_of("MIT", resolve("MIT", corpus_db))
 
