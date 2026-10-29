@@ -283,6 +283,7 @@ API section; its reviewer checks that they match the behaviour.
 | T6 | Refuse a value whose dropped characters change it | `dropguard.py`; `reason` added; F6 pins flipped; sample: changed set listed and justified (`"MIT"` included, Q12); Q13 | Sonnet | medium (Opus reviews) |
 | T6b | Read quoted values | Quotes in their different forms, balanced or not (Q12), as a rule with a correctness argument and a sample run | Sonnet | medium (Opus reviews) |
 | T7 | Read compound expressions in `resolve()` | `exprcanon.py`, `resolvecompound.py`, `operands`, `components`, `reason`, `schema: 2`, `by`, `expression` removed; Q14 to Q21 and G9 to G14; parity, adversarial and timing tests | **Opus** | **high** |
+| R7 | Review everything since T0 together, after T7 | One independent review of the whole 0.7.0 change on `main`: the database and packaged index give one answer, an operand reads as the same value alone, the README matches; release blockers listed | **Opus** | **high** |
 | T8 | Read prose forms of one id (P1 to P3) | Sample before and after committed; regex timing tests | Sonnet | medium |
 | T9 | Read trove classifier names and paths (T1 to T3) | `trovenames.py`; `trove-classifiers` check; `lists` entry; sample before and after | Sonnet | medium |
 | T10 | Deferred to 0.8 (Q3): offer assumed trove readings as candidates | `assumed_usage`; Pitloom keeps them as text | **Opus** | **high** |
