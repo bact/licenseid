@@ -68,7 +68,32 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         (f"GPL-2.0-only WITH {CP}", (f"GPL-2.0-only WITH {CP}", "exact", [], [], [])),
         (
             f"gpl-2.0-only with {CP.lower()}",
-            (f"GPL-2.0-only WITH {CP}", "lexical", ["id_case", "id_case"], [], []),
+            (
+                f"GPL-2.0-only WITH {CP}",
+                "lexical",
+                ["operator_case", "id_case", "id_case"],
+                [],
+                [],
+            ),
+        ),
+        # Q17: the case and the spacing of WITH are steps; exact is as written
+        (
+            f"GPL-2.0-only With {CP}",
+            (f"GPL-2.0-only WITH {CP}", "lexical", ["operator_case"], [], []),
+        ),
+        (
+            f"GPL-2.0-only \tWITH  {CP}",
+            (f"GPL-2.0-only WITH {CP}", "lexical", ["whitespace"], [], []),
+        ),
+        (
+            f"GPL-2.0-only\u00a0with {CP}",
+            (
+                f"GPL-2.0-only WITH {CP}",
+                "lexical",
+                ["operator_case", "whitespace"],
+                [],
+                [],
+            ),
         ),
         (
             f"(GPL-2.0-only WITH {CP})",
@@ -141,7 +166,8 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         # WITH: a part that is broken or names nothing gives no answer
         (f"GPL-2.0-only+ WITH {CP}", MALFORMED),
         ("LicenseRef-foo+ WITH LLVM-exception", MALFORMED),
-        ("MIT or later WITH LLVM-exception", NONE),  # MIT has no -or-later
+        # Q14: MIT has no -or-later ID, so the grant is "+" (was unresolved)
+        ("MIT or later WITH LLVM-exception", NONE),  # P35: MIT has no version
         ("MIT WITH Foo-exception", NONE),  # no such exception: not two licences
         ("MIT WITH GCC-exception-3.1", NONE),  # an SPDX exception not in this db
         ("Foo WITH LLVM-exception", NONE),
@@ -149,7 +175,10 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         ("MIT WITH LLVM-exception WITH LLVM-exception", NONE),
         ("MIT WITH", NONE),
         ("LLVM-exception", NONE),
-        ("MIT WITH LLVM-exception OR Apache-2.0", (None, "expression", [], [], [])),
+        (
+            "MIT WITH LLVM-exception OR Apache-2.0",
+            ("Apache-2.0 OR MIT WITH LLVM-exception", "lexical", ["reorder"], [], []),
+        ),
         # a LicenseRef names itself, as written; it takes no "+" and no grant
         ("LicenseRef-foo", ("LicenseRef-foo", "exact", [], [], [])),
         ("licenseref-Foo.2", ("licenseref-Foo.2", "exact", [], [], [])),

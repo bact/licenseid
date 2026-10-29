@@ -28,7 +28,9 @@ import re
 #     later", "version 2 (or later)", "GPL-2.0+ or later"), or "sooner or
 #     later" would count.
 #   - "any later version" on its own, unless negated ("not any later version").
-# "or-later" inside an ID such as GPL-2.0-or-later is not a phrase.
+#   - "or-later" as a word of its own after a number ("GPL-2.0 or-later",
+#     decision Q14); "or-later" inside an ID such as GPL-2.0-or-later is not
+#     a phrase, as a hyphen or a letter stands right before it there.
 _GAP = r"[\s/*#;,-]*"
 # The words that take back a phrase right after them.
 _NEGATIONS = ("not", "no")
@@ -39,6 +41,7 @@ OR_LATER_PHRASE = re.compile(
     rf"(?:\([^)]{{0,50}}\){_GAP}|at\s+your\s+option{_GAP})?"
     rf"(?:a|any)\s{_GAP}(?:later|newer)\b"
     rf"|\d[\s,()\[\]+/*#;-]*\bor\s+later\b"
+    rf"|\d[\s,()\[\]+/*#;-]*(?<![\w-])or-later\b"
     rf"|{_NOT_NEGATED}\bor\s+newer\b"
     rf"|{_NOT_NEGATED}\bany\s+later\s+version\b",
     re.IGNORECASE,

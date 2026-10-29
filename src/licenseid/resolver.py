@@ -11,10 +11,11 @@ resolver do to get there". A caller that records the result needs the second
 part: a changed case is no decision, a re-spelt ID is, and a qualifier
 (``-only``) the author never wrote is a guess that must not be applied.
 
-This release resolves a value that names one licence, with its exception if
-it has one. An expression of several (``MIT OR Apache2``) is reported as
-category ``expression`` with no resolution. A step that rests on a list cites
-it.
+A value that names one licence, with its exception if it has one, is read
+by ``licenseid.resolveleaf``; an expression of several (``MIT OR Apache2``)
+by ``licenseid.resolvecompound``, each operand as it would be read alone,
+and written in canonical order (``licenseid.exprcanon``). A step that rests
+on a list cites it.
 
 No database is needed: with none, ``resolve`` reads the SPDX License List
 shipped in the wheel, in memory, and gives the answer a database built from
@@ -22,43 +23,35 @@ that list would give (``licenseid.listsource`` chooses, ``licenseid.listindex``
 reads). ``lists[*].source`` says which was read.
 """
 
-import importlib
-import re
 import unicodedata
 
 from licenseid.database import LicenseDatabase
-from licenseid.identifiers import parse_expression, without_outer_brackets
+from licenseid.exprcanon import unbracketed
 from licenseid.listlookup import ListLookup
 from licenseid.listsource import choose_list
-from licenseid.plusoperator import plus_after_qualifier, strip_plus_operator
 from licenseid.quotes import unquote
-from licenseid.resolveleaf import Found, read_leaf
+from licenseid.resolvecompound import (
+    absorb,
+    not_an_operator,
+    operand_of,
+    read_compound,
+)
+from licenseid.resolveleaf import Found, category_of, read_leaf
+from licenseid.resolverinfo import list_info, parser_info, resolver_info
 from licenseid.resolvertypes import (
-    CATEGORY_ORDER,
-    LEXICAL_KINDS,
-    SPDX_LIST,
+    SCHEMA,
     TRUST,
-    Category,
     ListInfo,
     ListSource,
+    Operand,
     Resolution,
-    Resolver,
     Source,
     step,
 )
 from licenseid.textinput import has_lone_surrogate
 
-# The kinds of step the SPDX License List supports; see ListInfo.provides.
-_PROVIDES = ["deprecation", "ids", "names", "texts"]
-_OPERATORS = frozenset({"AND", "OR", "WITH"})
-_JOINS = frozenset({"AND", "OR"})
-_RE_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]*")
-_RE_IDLIKE = re.compile(r"[\d.-]")
-_RE_SQUARE = re.compile(r"[\[\]{}]")
 # The longest expression read; one licence is MAX_KEY_INPUT or less (versionkey).
 _MAX_EXPRESSION_CHARS = 2000
-# A step kind that is not also a category name, mapped to the one it counts as.
-_AS_CATEGORY = {kind: "lexical" for kind in LEXICAL_KINDS}
 
 
 def resolve(
@@ -82,89 +75,87 @@ def resolve(
     ``assumed_only``, with both candidates.
     """
     lookup, where = choose_list(db, source)
+    return resolve_with(lookup, value, where)
+
+
+def resolve_with(
+    lookup: ListLookup, value: str, where: ListSource = "database"
+) -> Resolution:
+    """:func:`resolve` on a list the caller holds: any
+    :class:`licenseid.listlookup.ListLookup`, read as it is; *where* is what
+    ``lists[0].source`` says."""
     with lookup.reading():
-        found = _lookup(lookup, value)
-        lists = [_list_info(lookup, where)]
-    return _resolution(value, found, lists)
+        found, operands, parsed = _read(lookup, value)
+        lists = [list_info(lookup, where)]
+    return _resolution(value, (found, operands, parsed), lists)
 
 
-def _lookup(db: ListLookup, value: str) -> Found:
-    """Read one declared *value* into a :class:`Found`: the leaf, else the
-    category of the expression."""
+def _read(db: ListLookup, value: str) -> tuple[Found, list[Operand], bool]:
+    """Read one declared *value*: what was found for the whole, its operands,
+    and whether the expression parser ran."""
     found = Found()
-    text = _prepared(value, found)
+    text, start = _prepared(value, found)
     if not text or len(text) > _MAX_EXPRESSION_CHARS:
         found.category = "unresolved"
-        return found
+        return found, [], False
     found.reason = _refusal(text)
     if found.reason is not None:
         found.category, found.steps = "unresolved", []  # no step was taken
-        return found
-    if read_leaf(db, text, found):
-        return found
-    found.category = _expression_category(db, text)
-    return found
+        return found, [], False
+    leaf = Found()
+    if read_leaf(db, text, leaf):  # one licence first
+        absorb(found, leaf)
+        return found, [operand_of(text, start, leaf)], False
+    compound = read_compound(db, text, start, found)
+    if compound.claimed:
+        return found, compound.operands, compound.parsed
+    # One leaf that names nothing (the trove and prose rules come here, Q18),
+    # or prose in compound form, with its first refused operand's reason.
+    found.category, found.reason = "unresolved", not_an_operator(text)
+    if compound.fallback is not None:
+        found.reason, found.steps = compound.fallback.reason, compound.fallback.steps
+    nothing = Found(category="unresolved", reason=found.reason)
+    return found, [operand_of(text, start, nothing)], False  # no parse used
 
 
-def _prepared(value: str, found: Found) -> str:
+def _prepared(value: str, found: Found) -> tuple[str, int]:
     """*value* trimmed, and without the quotes and brackets around the whole
-    of it (``"MIT"``, ``(MIT)``, ``("MIT")``), each as a step. The quotes are
-    taken off the whole value, once (:mod:`licenseid.quotes`)."""
+    of it (``"MIT"``, ``(MIT)``, ``("MIT")``), each as a step, and where that
+    text starts in *value* (a code point). The quotes are taken off the
+    whole value, once (:mod:`licenseid.quotes`)."""
     text = value.strip()
+    start = len(value) - len(value.lstrip())
     if text != value:
         found.steps.append(step("trim", True, value, text))
-    text = _unquoted(text, found)
-    inner = _unbracketed(text, found)
-    return inner if inner == text else _unquoted(inner, found)
+    text, start = _unquoted(text, start, found)
+    inner, inner_start = _unbracketed(text, start, found)
+    if inner == text:
+        return text, start
+    return _unquoted(inner, inner_start, found)
 
 
-def _unquoted(text: str, found: Found) -> str:
+def _unquoted(text: str, start: int, found: Found) -> tuple[str, int]:
     """*text* without quote marks around the whole of it, as an ``unquote``
-    step whose detail says whether they were balanced."""
+    step whose detail says whether they were balanced, and where it starts
+    (*text* starts at *start*)."""
     unquoted = unquote(text)
     if unquoted is None:
-        return text
+        return text, start
     found.steps.append(step("unquote", True, text, unquoted.text, unquoted.detail))
     if not unquoted.balanced:
         found.floor = "separator"  # the value may be cut: a rule of the resolver
-    return unquoted.text
+    return unquoted.text, start + unquoted.start
 
 
-def _unbracketed(text: str, found: Found) -> str:
-    """*text* without brackets around the whole of it, as a ``brackets`` step."""
-    inner = without_outer_brackets(text)
+def _unbracketed(text: str, start: int, found: Found) -> tuple[str, int]:
+    """*text* without brackets around the whole of it, as a ``brackets``
+    step, and where it starts (*text* starts at *start*)."""
+    inner = unbracketed(text)
     if inner == text:
-        return text
+        return text, start
     found.steps.append(step("brackets", True, text, inner))
-    return inner.strip()
-
-
-def _expression_category(db: ListLookup, text: str) -> Category:
-    """``expression`` for an SPDX expression of several licences,
-    ``malformed`` for one with a "+" after a stated qualifier
-    (``MIT OR GPL-2.0-only+``), as on its own; else ``unresolved``."""
-    if not _is_expression(db, text):
-        return "unresolved"
-    return "malformed" if plus_after_qualifier(text) else "expression"
-
-
-def _is_expression(db: ListLookup, text: str) -> bool:
-    """Whether *text* is an SPDX expression of several licences: it parses (a
-    "+" operator aside), and every operand is a listed ID or looks like one
-    (a digit, a hyphen or a full stop in it). ``MIT OR Apache2`` is;
-    ``Proprietary or custom``, ``GPL-3.0 or higher`` and ``Licensed with love``
-    name one licence, or none, and are not."""
-    if _RE_SQUARE.search(text) or parse_expression(strip_plus_operator(text)) is None:
-        return False
-    tokens = _RE_TOKEN.findall(text)
-    operands = [
-        token.rstrip("+") for token in tokens if token.upper() not in _OPERATORS
-    ]
-    # Only AND and OR join several licences: one ID-shaped word (Foo-1.0) is
-    # one licence, and WITH qualifies one (with_exception).
-    return any(token.upper() in _JOINS for token in tokens) and all(
-        _RE_IDLIKE.search(token) or db.get_license_details(token) for token in operands
-    )
+    lead = (len(text) - len(inner)) // 2 + len(inner) - len(inner.lstrip())
+    return inner.strip(), start + lead
 
 
 def _refusal(text: str) -> str | None:
@@ -181,58 +172,15 @@ def _refusal(text: str) -> str | None:
     return None
 
 
-def _category(found: Found) -> Category:
-    """The category of an answer: the one the lookup set, else the highest
-    ranked kind among its steps."""
-    if found.category is not None:
-        return found.category
-    kinds = {_AS_CATEGORY.get(s["kind"], s["kind"]) for s in found.steps}
-    if found.floor is not None:
-        kinds.add(found.floor)
-    kinds |= {s["kind"] for s in found.expansions}
-    ranked = [c for c in CATEGORY_ORDER if c in kinds]
-    return ranked[-1] if ranked else "exact"
-
-
-def _list_info(db: ListLookup, source: ListSource) -> ListInfo:
-    """The description of the SPDX License List the lookup reads, and where
-    it was read."""
-    version = db.get_metadata().get("license_list_version")
-    return {
-        "id": SPDX_LIST,
-        "name": "SPDX License List",
-        "version": version,
-        "source": source,
-        "url": (
-            None
-            if version is None
-            else f"https://github.com/spdx/license-list-data/releases/tag/v{version}"
-        ),
-        "license": "CC0-1.0",
-        "provides": list(_PROVIDES),
-        "id_authority": True,
-    }
-
-
-def _resolver_info() -> Resolver:
-    """Who resolved. The version is read at call time, as
-    ``spdx_source`` reads it (``importlib``, not an import statement): the
-    package exports this module, so a static import of the package here would
-    be a cycle."""
-    version = str(importlib.import_module("licenseid").__version__)
-    return {
-        "name": "licenseid",
-        "version": version,
-        "url": f"https://github.com/bact/licenseid/releases/tag/v{version}",
-        "purl": f"pkg:pypi/licenseid@{version}",
-    }
-
-
-def _resolution(value: str, found: Found, lists: list[ListInfo]) -> Resolution:
-    category = _category(found)
+def _resolution(
+    value: str, reading: tuple[Found, list[Operand], bool], lists: list[ListInfo]
+) -> Resolution:
+    found, operands, parsed = reading
+    category = category_of(found)
     if found.expression is None and found.reason is None:
         found.steps, found.expansions = [], []  # nothing resolved: no step taken
     return {
+        "schema": SCHEMA,
         "input": value,
         "expression": found.expression,
         "category": category,
@@ -240,7 +188,9 @@ def _resolution(value: str, found: Found, lists: list[ListInfo]) -> Resolution:
         "steps": found.steps,
         "expansions": found.expansions,
         "candidates": found.candidates,
-        "resolver": _resolver_info(),
+        "operands": operands,
+        "resolver": resolver_info(),
+        "components": [parser_info()] if parsed else [],
         "lists": lists,
         "reason": found.reason,
     }

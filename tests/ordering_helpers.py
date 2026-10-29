@@ -26,6 +26,8 @@ PHRASES: dict[str, tuple[bool, bool]] = {
     "or\n# any later version": (True, True),
     "or\n * a later version": (True, True),
     "(or later)": (True, True),
+    "or-later": (True, True),
+    "(or-later)": (True, True),
     "[or later]": (True, True),
     "+ or later": (True, True),
     "\n// or later": (True, True),
@@ -37,6 +39,8 @@ PHRASES: dict[str, tuple[bool, bool]] = {
     "not or a later version": (False, False),
     "not or newer": (False, False),
     "not or later": (False, False),
+    "not or-later": (False, False),
+    "-or-later": (False, False),
 }
 
 

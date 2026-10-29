@@ -9,7 +9,8 @@ SPDX-License-Identifier: Apache-2.0
 
 # Plan for the 0.7.0 resolver
 
-Status: T0 to T4 built (#107, #108, #110, #112); T5 onwards unbuilt.
+Status: T0 to T4 built (#107, #108, #110, #112); T5 to T7 built on their
+branches, not merged; T8 onwards unbuilt.
 Drafted on 2026-10-28 by an Opus planning agent from the code of both
 repositories, then edited. The maintainer confirmed every answer of section
 8 on 2026-10-28. A review of T0 to T4 against T5 to T7, and decisions Q10 to

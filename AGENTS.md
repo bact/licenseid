@@ -17,7 +17,10 @@
   reads through: a Protocol), `listrules.py` (which SPDX entries are kept and
   what a deprecated ID points to; `records.py` builds rows from it),
   `resolveleaf.py` (the reading of one value that names one licence, called
-  by `resolver.py` per value),
+  by `resolver.py` per value), `resolvecompound.py` (a compound, each
+  operand read by `resolveleaf`), `exprcanon.py` (its leaves and canonical
+  order), `exprtokens.py` (the words of an expression), `resolverinfo.py`
+  (the resolver, parser and list blocks of a result),
   `dropguard.py` (the characters a loose reading must not drop: `Apache
   2.0?`), `listindex.py` (the shipped SPDX bundle in
   memory, a `ListLookup` for `resolve()` with no database),

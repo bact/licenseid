@@ -24,7 +24,7 @@ from licenseid.listlookup import (
     ListLookup,
     fold_case,
 )
-from licenseid.resolver import _list_info, _lookup
+from licenseid.resolver import resolve_with
 from licenseid.shorttext import match_version_key
 from licenseid.types import ExceptionDetails
 
@@ -191,12 +191,8 @@ def test_the_database_and_the_fake_satisfy_the_protocol(
 def test_a_fake_list_resolves_as_the_database_does(
     db: LicenseDatabase, value: str
 ) -> None:
-    """The fake answers each value as the database does."""
-    fake = DictList(ROWS)
-    with db.reading():
-        expected = _lookup(db, value)
-    with fake.reading():
-        assert _lookup(fake, value) == expected
+    """The fake answers each value as the database does, whole."""
+    assert resolve_with(DictList(ROWS), value) == resolve_with(db, value)
 
 
 @pytest.mark.parametrize(
@@ -220,8 +216,10 @@ def test_normalize_identifier_agrees_on_a_fake_list(
 
 def test_the_list_info_agrees_on_a_fake_list(db: LicenseDatabase) -> None:
     """The list version, and the URL made from it."""
-    assert _list_info(DictList(ROWS), "database") == _list_info(db, "database")
-    assert _list_info(DictList(ROWS), "packaged")["version"] == LIST_VERSION
+    fake = DictList(ROWS)
+    assert resolve_with(fake, "MIT")["lists"] == resolve_with(db, "MIT")["lists"]
+    packaged = resolve_with(fake, "MIT", "packaged")["lists"][0]
+    assert (packaged["version"], packaged["source"]) == (LIST_VERSION, "packaged")
 
 
 def test_a_loose_id_hit_keeps_the_flags_of_its_full_row(

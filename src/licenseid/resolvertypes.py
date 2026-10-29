@@ -14,10 +14,23 @@ floor a step sets (an unbalanced ``unquote`` counts as ``separator``).
 
 from typing import Final, Literal, TypedDict
 
+#: The version of the result's shape: 2 has ``operands``, ``components``
+#: and ``Step.by``, and no ``expression`` category.
+SCHEMA: Final = 2
+
 # The steps that change only the form of the text and decide nothing; the
 # others are the resolver's decisions or an expansion of a qualifier.
 LEXICAL_KINDS: Final = frozenset(
-    {"brackets", "id_case", "trim", "unquote", "whitespace"}
+    {
+        "brackets",
+        "dedupe",
+        "id_case",
+        "operator_case",
+        "reorder",
+        "trim",
+        "unquote",
+        "whitespace",
+    }
 )
 
 SPDX_LIST: Final = "spdx-license-list"
@@ -50,7 +63,6 @@ Category = Literal[
     "deprecated_equal_successor",
     "deprecated_ambiguous",
     "assumed_only",
-    "expression",
     "malformed",
     "unresolved",
 ]
@@ -70,7 +82,6 @@ CATEGORY_ORDER: Final[tuple[Category, ...]] = (
     "version_spelling",
     "deprecated_ambiguous",
     "assumed_only",
-    "expression",
     "malformed",
     "unresolved",
 )
@@ -86,7 +97,6 @@ TRUST: Final[dict[Category, Trust]] = {
     "version_spelling": "resolver_rule",
     "deprecated_ambiguous": "list_data",
     "assumed_only": "none",
-    "expression": "none",
     "malformed": "none",
     "unresolved": "none",
 }
@@ -100,6 +110,7 @@ Step = TypedDict(
         "to": str,
         "list": str,
         "detail": str,
+        "by": str,
     },
 )
 
@@ -111,6 +122,31 @@ class Resolver(TypedDict):
     version: str
     url: str
     purl: str
+
+
+class Component(TypedDict):
+    """A tool that took part beside the resolver (the expression parser)."""
+
+    name: str
+    version: str
+    url: str
+    purl: str
+
+
+class Operand(TypedDict):
+    """One leaf of the value, read as it would be alone: an ID, a reference
+    or ``X WITH Y``, with its "+" or grant. ``span`` is ``[start, end)`` in
+    code points of the raw ``input``; ``text`` is ``input[start:end]``."""
+
+    text: str
+    span: list[int]
+    expression: str | None
+    category: Category
+    trust: Trust
+    steps: list[Step]
+    expansions: list[Step]
+    candidates: list[str]
+    reason: str | None
 
 
 #: Where ``resolve()`` read a list: the licence database, or the bundle
@@ -136,16 +172,22 @@ class ListInfo(TypedDict):
 class Resolution(TypedDict):
     """What ``resolve`` returns for one declared value.
 
-    ``expression`` is the SPDX expression to record, or None when the value
-    names no single licence. A bare deprecated ID (``GPL-3.0``) is returned as
-    written (category ``assumed_only``), with the licences it might be in
-    ``candidates``, sorted. ``steps`` are the applied or declined changes in order;
-    ``expansions`` hold the qualifier steps, kept apart from ``steps``.
-    ``reason`` says why a value was refused, as ``CONDITION[: DETAIL]``
-    (``character dropped: '?'``, ``lone surrogate``); None for every other
-    answer.
+    ``schema`` is the version of this shape (:data:`SCHEMA`). ``expression``
+    is the SPDX expression to record, in canonical order, or None when the
+    value names nothing, or a compound has an operand that names nothing. A
+    bare deprecated ID (``GPL-3.0``) is returned as written (category
+    ``assumed_only``), with the licences it might be in ``candidates``,
+    sorted. ``steps`` are the applied or declined changes in order: those of
+    the whole value, of each operand, then of the compound; ``expansions``
+    hold the qualifier steps, kept apart from ``steps``. ``operands`` holds
+    each licence named, as it reads alone, in the order written;
+    ``components`` the tools besides licenseid that took part (the
+    expression parser, for a compound). ``reason`` says why a value was
+    refused, as ``CONDITION[: DETAIL]`` (``character dropped: U+003F``,
+    ``operand not resolved: Foo``); None for every other answer.
     """
 
+    schema: int
     input: str
     expression: str | None
     category: Category
@@ -153,7 +195,9 @@ class Resolution(TypedDict):
     steps: list[Step]
     expansions: list[Step]
     candidates: list[str]
+    operands: list[Operand]
     resolver: Resolver
+    components: list[Component]
     lists: list[ListInfo]
     reason: str | None
 
@@ -167,4 +211,5 @@ def step(kind: str, applied: bool, source: str, target: str, detail: str = "") -
         "to": target,
         "list": SPDX_LIST if kind in LIST_PROVIDES else "",
         "detail": detail,
+        "by": "",  # licenseid did it; a step of another tool names it
     }

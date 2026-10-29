@@ -20,6 +20,7 @@ import sqlite3
 from collections.abc import Callable, Generator, Iterable
 from pathlib import Path
 
+from resolver_changes_t7 import T7_CHANGES, answer
 from seed_sql import INSERT_EXCEPTION, INSERT_INDEX, INSERT_LICENSE, SET_METADATA
 
 from licenseid import LicenseDatabase, resolve
@@ -67,18 +68,7 @@ NEIGHBOURS = (
 )
 
 #: The answer to a value that names nothing: no expression, nothing taken.
-UNRESOLVED = Answer(
-    expression=None,
-    category="unresolved",
-    candidates=(),
-    steps=(),
-    step_targets=(),
-    expansions=(),
-    expansion_targets=(),
-    trust="none",
-    input_same=True,
-    reason=None,
-)
+UNRESOLVED = answer()
 
 
 def refused(reason: str, stopped: str | None = None) -> Answer:
@@ -153,6 +143,7 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
             " takes them off: a change of form only (`lexical`, `identity`)"
         ),
     ),
+    **T7_CHANGES,
 }
 
 

@@ -25,6 +25,19 @@ and this project adheres to
 - `resolve()` reads a value in quotes (`"MIT"`, `'MIT'`, `“MIT”`, `"MIT`) with
   an `unquote` step; `"MIT'` and quotes inside a value are still refused
   ([#121])
+- `resolve()` reads compound expressions, each operand as it reads alone, in
+  canonical order: `mit or "Apache2"` is `Apache-2.0 OR MIT`; the category is
+  the weakest operand's, and one unresolved operand leaves the whole
+  unresolved
+  ([#122])
+- `resolve()` result has `schema` (2), `operands` (text, span, answer),
+  `components` (the expression parser) and `by` on each step; new reasons
+  `operand not resolved`, `not an SPDX operator`, `parse failed`
+  ([#122])
+- `resolve()` reads `[MIT]` and `{MIT}` as brackets, an `AdditionRef-*` after
+  `WITH`, and `Apache 2.0 or later` as `Apache-2.0+` (an ID with a version
+  and no `-or-later` form)
+  ([#122])
 
 ### Changed
 
@@ -33,6 +46,18 @@ and this project adheres to
   licenseid's build rules made it); an unusable default database falls back
   to the shipped list with a warning
   ([#119])
+- **Breaking:** `resolve()` drops the `expression` category, and an
+  unbalanced or dangling compound (`(MIT`, `MIT AND`) is `malformed`, not
+  `unresolved`. Migration: a compound now has a category of its own; read
+  `operands`
+  ([#122])
+- `resolve()` categories: `Apache-2.0 with LLVM-exception` is `lexical`, not
+  `exact` (an `operator_case` step); `GPL-2.0 or-later` is `stated_qualifier`,
+  not `separator`
+  ([#122])
+- `resolve()` caps each half of a `WITH` at 100 characters, not the whole: a
+  long licence name `WITH` an exception is now read
+  ([#122])
 
 ### Fixed
 
@@ -47,6 +72,7 @@ and this project adheres to
 [#119]: https://github.com/bact/licenseid/pull/119
 [#120]: https://github.com/bact/licenseid/pull/120
 [#121]: https://github.com/bact/licenseid/pull/121
+[#122]: https://github.com/bact/licenseid/pull/122
 
 ## [0.6.0] - 2026-10-27
 

@@ -32,7 +32,7 @@ def test_the_kinds_cover_every_quote_of_normalize() -> None:
 @pytest.mark.parametrize("marks", [SINGLE, DOUBLE], ids=["single", "double"])
 def test_any_two_marks_of_one_kind_pair(marks: list[str]) -> None:
     for opening, closing in itertools.product(marks, repeat=2):
-        assert unquote(f"{opening}MIT{closing}") == Unquoted("MIT", True, "balanced")
+        assert unquote(f"{opening}MIT{closing}") == Unquoted("MIT", True, "balanced", 1)
 
 
 def test_marks_of_two_kinds_do_not_pair() -> None:
@@ -50,15 +50,15 @@ def test_only_primes_and_modifier_letters_pair_without_straying() -> None:
 
 @pytest.mark.parametrize("mark", sorted(STRAY_MARKS))
 def test_a_mark_on_one_end_is_the_stray(mark: str) -> None:
-    assert unquote(f"{mark}MIT") == Unquoted("MIT", False, "unbalanced, start")
-    assert unquote(f"MIT{mark}") == Unquoted("MIT", False, "unbalanced, end")
+    assert unquote(f"{mark}MIT") == Unquoted("MIT", False, "unbalanced, start", 1)
+    assert unquote(f"MIT{mark}") == Unquoted("MIT", False, "unbalanced, end", 0)
 
 
 @pytest.mark.parametrize("mark", PAIR_ONLY)
 def test_a_prime_or_modifier_letter_pairs_but_is_never_the_stray(mark: str) -> None:
     """``GPL-2.0'`` (a prime), ``ʻMIT`` (a letter, the okina) and ``MITʼ``
     are not a quote left over."""
-    assert unquote(f"{mark}MIT{mark}") == Unquoted("MIT", True, "balanced")
+    assert unquote(f"{mark}MIT{mark}") == Unquoted("MIT", True, "balanced", 1)
     assert unquote(f"{mark}MIT") is None
     assert unquote(f"MIT{mark}") is None
     assert unquote(f"GPL-2.0{mark}") is None
@@ -70,23 +70,23 @@ def test_a_prime_or_modifier_letter_pairs_but_is_never_the_stray(mark: str) -> N
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
-        ('"MIT"', Unquoted("MIT", True, "balanced")),
-        ('  "MIT"  ', Unquoted("MIT", True, "balanced")),
-        ('"  MIT  "', Unquoted("MIT", True, "balanced")),
-        ('"MIT ', Unquoted("MIT", False, "unbalanced, start")),
-        (' MIT"', Unquoted("MIT", False, "unbalanced, end")),
-        ('"\tMIT', Unquoted("MIT", False, "unbalanced, start")),
-        ('""MIT""', Unquoted("MIT", True, "balanced, 2 layers")),
-        ("\"'`MIT`'\"", Unquoted("MIT", True, "balanced, 3 layers")),
-        ('""MIT"', Unquoted("MIT", False, "unbalanced, start")),
-        ('"MIT""', Unquoted("MIT", False, "unbalanced, end")),
-        ('"GPLv2 or later"', Unquoted("GPLv2 or later", True, "balanced")),
-        ("'AMD's plpa'", Unquoted("AMD's plpa", True, "balanced")),
-        ("’Don’t’", Unquoted("Don’t", True, "balanced")),
-        ('"A B"', Unquoted("A B", True, "balanced")),
+        ('"MIT"', Unquoted("MIT", True, "balanced", 1)),
+        ('  "MIT"  ', Unquoted("MIT", True, "balanced", 3)),
+        ('"  MIT  "', Unquoted("MIT", True, "balanced", 3)),
+        ('"MIT ', Unquoted("MIT", False, "unbalanced, start", 1)),
+        (' MIT"', Unquoted("MIT", False, "unbalanced, end", 1)),
+        ('"\tMIT', Unquoted("MIT", False, "unbalanced, start", 2)),
+        ('""MIT""', Unquoted("MIT", True, "balanced, 2 layers", 2)),
+        ("\"'`MIT`'\"", Unquoted("MIT", True, "balanced, 3 layers", 3)),
+        ('""MIT"', Unquoted("MIT", False, "unbalanced, start", 2)),
+        ('"MIT""', Unquoted("MIT", False, "unbalanced, end", 1)),
+        ('"GPLv2 or later"', Unquoted("GPLv2 or later", True, "balanced", 1)),
+        ("'AMD's plpa'", Unquoted("AMD's plpa", True, "balanced", 1)),
+        ("’Don’t’", Unquoted("Don’t", True, "balanced", 1)),
+        ('"A B"', Unquoted("A B", True, "balanced", 1)),
         (
             "'a'b'",
-            Unquoted("a'b", True, "balanced"),
+            Unquoted("a'b", True, "balanced", 1),
         ),  # the middle mark is an apostrophe
     ],
 )
@@ -132,18 +132,18 @@ def test_nothing_to_take_off(text: str) -> None:
 
 
 def test_an_apostrophe_between_letters_is_not_a_mark() -> None:
-    assert unquote("'AMD's'") == Unquoted("AMD's", True, "balanced")
-    assert unquote("'AMD's") == Unquoted("AMD's", False, "unbalanced, start")
+    assert unquote("'AMD's'") == Unquoted("AMD's", True, "balanced", 1)
+    assert unquote("'AMD's") == Unquoted("AMD's", False, "unbalanced, start", 1)
     # not between two letters or digits
     assert unquote("'AMD 's'") is None
     assert unquote("'AMD' s'") is None
     # a double mark is never an apostrophe
     assert unquote('"AMD"s"') is None
-    assert unquote("'A'") == Unquoted("A", True, "balanced")
+    assert unquote("'A'") == Unquoted("A", True, "balanced", 1)
 
 
 def test_unquote_does_not_change_its_input_beyond_the_marks() -> None:
-    assert unquote('"Apache  2.0"') == Unquoted("Apache  2.0", True, "balanced")
+    assert unquote('"Apache  2.0"') == Unquoted("Apache  2.0", True, "balanced", 1)
 
 
 def _long_runs(size: int) -> list[str]:
@@ -163,16 +163,16 @@ def _long_runs(size: int) -> list[str]:
 @pytest.mark.parametrize("size", [1_000, 20_000])
 def test_a_long_run_is_read(size: int) -> None:
     got = [unquote(text) for text in _long_runs(size)]
-    assert got[0] == Unquoted("MIT", True, f"balanced, {size} layers")
-    assert got[1] == Unquoted("MIT", False, "unbalanced, start")
+    assert got[0] == Unquoted("MIT", True, f"balanced, {size} layers", size)
+    assert got[1] == Unquoted("MIT", False, "unbalanced, start", size)
     assert got[2:6] == [
         None,
         None,
-        Unquoted("a'" * (size - 1) + "a", False, "unbalanced, end"),
+        Unquoted("a'" * (size - 1) + "a", False, "unbalanced, end", 1),
         None,
     ]
-    assert got[6] == Unquoted("MIT", True, "balanced")
-    assert got[7] == Unquoted("MIT", False, "unbalanced, start")
+    assert got[6] == Unquoted("MIT", True, "balanced", size + 1)
+    assert got[7] == Unquoted("MIT", False, "unbalanced, start", size + 1)
 
 
 def _seconds(size: int) -> float:

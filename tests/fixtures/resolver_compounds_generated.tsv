@@ -1,0 +1,110 @@
+# The answer resolve() gives each generated compound (tests/compound_cases.py),
+# as task T7 reads it. value, expression and reason: Python unicode_escape,
+# - for none; steps: the step kinds, comma-joined.
+value	expression	category	steps	reason
+MIT OR isc	ISC OR MIT	lexical	id_case,reorder	-
+MIT OR "BSD-3-Clause"	BSD-3-Clause OR MIT	lexical	unquote,reorder	-
+isc OR LicenseRef-x	ISC OR LicenseRef-x	lexical	id_case	-
+Apache2 OR isc	Apache-2.0 OR ISC	version_spelling	separator,version_spelling,id_case	-
+Apache2 OR Foo	-	unresolved	-	operand not resolved: Foo
+GPL-2.0+ OR DocumentRef-d:LicenseRef-y	GPL-2.0-or-later OR DocumentRef-d:LicenseRef-y	plus_to_or_later	-	-
+GPL-3.0 OR Apache2	Apache-2.0 OR GPL-3.0	assumed_only	separator,version_spelling,reorder	-
+GPL-3.0 OR GPL-2.0-only+	-	malformed	-	operand not resolved: GPL-2.0-only+
+StandardML-NJ OR Apache-2.0 WITH LLVM-exception	SMLNJ OR Apache-2.0 WITH LLVM-exception	deprecated_equal_successor	deprecated_equal_successor	-
+LicenseRef-x OR GPL-2.0+	GPL-2.0-or-later OR LicenseRef-x	plus_to_or_later	reorder	-
+LicenseRef-x OR MIT?	-	unresolved	drop	character dropped: U+003F
+DocumentRef-d:LicenseRef-y OR GPL-2.0 or later	GPL-2.0-or-later OR DocumentRef-d:LicenseRef-y	stated_qualifier	reorder	-
+Apache-2.0 WITH LLVM-exception OR GPL-3.0	GPL-3.0 OR Apache-2.0 WITH LLVM-exception	assumed_only	reorder	-
+GPL-2.0 or later OR MIT	GPL-2.0-or-later OR MIT	stated_qualifier	-	-
+GPL-2.0 or later OR "BSD-3-Clause"	BSD-3-Clause OR GPL-2.0-or-later	stated_qualifier	unquote,reorder	-
+"BSD-3-Clause" OR StandardML-NJ	BSD-3-Clause OR SMLNJ	deprecated_equal_successor	unquote,deprecated_equal_successor	-
+Foo OR isc	-	unresolved	-	operand not resolved: Foo
+Foo OR "BSD-3-Clause"	-	unresolved	-	operand not resolved: Foo
+GPL-2.0-only+ OR LicenseRef-x	-	malformed	-	operand not resolved: GPL-2.0-only+
+MIT? OR Apache2	-	unresolved	drop	character dropped: U+003F
+MIT? OR Foo	-	unresolved	drop	character dropped: U+003F
+MIT and isc	ISC AND MIT	lexical	id_case,operator_case,reorder	-
+MIT and "BSD-3-Clause"	BSD-3-Clause AND MIT	lexical	unquote,operator_case,reorder	-
+isc and LicenseRef-x	ISC AND LicenseRef-x	lexical	id_case,operator_case	-
+Apache2 and isc	Apache-2.0 AND ISC	version_spelling	separator,version_spelling,id_case,operator_case	-
+Apache2 and Foo	-	unresolved	-	-
+GPL-2.0+ and DocumentRef-d:LicenseRef-y	GPL-2.0-or-later AND DocumentRef-d:LicenseRef-y	plus_to_or_later	operator_case	-
+GPL-3.0 and Apache2	Apache-2.0 AND GPL-3.0	assumed_only	separator,version_spelling,operator_case,reorder	-
+GPL-3.0 and GPL-2.0-only+	-	malformed	-	operand not resolved: GPL-2.0-only+
+StandardML-NJ and Apache-2.0 WITH LLVM-exception	SMLNJ AND Apache-2.0 WITH LLVM-exception	deprecated_equal_successor	deprecated_equal_successor,operator_case	-
+LicenseRef-x and GPL-2.0+	GPL-2.0-or-later AND LicenseRef-x	plus_to_or_later	operator_case,reorder	-
+LicenseRef-x and MIT?	-	unresolved	drop	character dropped: U+003F
+DocumentRef-d:LicenseRef-y and GPL-2.0 or later	GPL-2.0-or-later AND DocumentRef-d:LicenseRef-y	stated_qualifier	operator_case,reorder	-
+Apache-2.0 WITH LLVM-exception and GPL-3.0	GPL-3.0 AND Apache-2.0 WITH LLVM-exception	assumed_only	operator_case,reorder	-
+GPL-2.0 or later and MIT	GPL-2.0-or-later AND MIT	stated_qualifier	operator_case	-
+GPL-2.0 or later and "BSD-3-Clause"	BSD-3-Clause AND GPL-2.0-or-later	stated_qualifier	unquote,operator_case,reorder	-
+"BSD-3-Clause" and StandardML-NJ	BSD-3-Clause AND SMLNJ	deprecated_equal_successor	unquote,deprecated_equal_successor,operator_case	-
+Foo and isc	-	unresolved	-	-
+Foo and "BSD-3-Clause"	-	unresolved	-	-
+GPL-2.0-only+ and LicenseRef-x	-	malformed	-	operand not resolved: GPL-2.0-only+
+MIT? and Apache2	-	unresolved	drop	character dropped: U+003F
+MIT? and Foo	-	unresolved	drop	character dropped: U+003F
+(MIT OR isc) AND Apache2	Apache-2.0 AND (ISC OR MIT)	version_spelling	id_case,separator,version_spelling,reorder	-
+(isc OR Apache2) AND GPL-2.0+	GPL-2.0-or-later AND (Apache-2.0 OR ISC)	version_spelling	id_case,separator,version_spelling,reorder	-
+(Apache2 OR GPL-2.0+) AND GPL-3.0	GPL-3.0 AND (Apache-2.0 OR GPL-2.0-or-later)	assumed_only	separator,version_spelling,reorder	-
+(GPL-2.0+ OR GPL-3.0) AND StandardML-NJ	SMLNJ AND (GPL-2.0-or-later OR GPL-3.0)	assumed_only	deprecated_equal_successor,reorder	-
+(GPL-3.0 OR StandardML-NJ) AND LicenseRef-x	LicenseRef-x AND (GPL-3.0 OR SMLNJ)	assumed_only	deprecated_equal_successor,reorder	-
+(StandardML-NJ OR LicenseRef-x) AND DocumentRef-d:LicenseRef-y	DocumentRef-d:LicenseRef-y AND (SMLNJ OR LicenseRef-x)	deprecated_equal_successor	deprecated_equal_successor,reorder	-
+(LicenseRef-x OR DocumentRef-d:LicenseRef-y) AND Apache-2.0 WITH LLVM-exception	Apache-2.0 WITH LLVM-exception AND (DocumentRef-d:LicenseRef-y OR LicenseRef-x)	lexical	reorder	-
+(DocumentRef-d:LicenseRef-y OR Apache-2.0 WITH LLVM-exception) AND GPL-2.0 or later	GPL-2.0-or-later AND (DocumentRef-d:LicenseRef-y OR Apache-2.0 WITH LLVM-exception)	stated_qualifier	reorder	-
+(Apache-2.0 WITH LLVM-exception OR GPL-2.0 or later) AND "BSD-3-Clause"	BSD-3-Clause AND (GPL-2.0-or-later OR Apache-2.0 WITH LLVM-exception)	stated_qualifier	unquote,reorder	-
+(GPL-2.0 or later OR "BSD-3-Clause") AND MIT	MIT AND (BSD-3-Clause OR GPL-2.0-or-later)	stated_qualifier	unquote,reorder	-
+("BSD-3-Clause" OR MIT) AND isc	ISC AND (BSD-3-Clause OR MIT)	lexical	unquote,id_case,reorder	-
+MIT AND (isc OR Apache2)	MIT AND (Apache-2.0 OR ISC)	version_spelling	id_case,separator,version_spelling,reorder	-
+isc AND (Apache2 OR GPL-2.0+)	ISC AND (Apache-2.0 OR GPL-2.0-or-later)	version_spelling	id_case,separator,version_spelling	-
+Apache2 AND (GPL-2.0+ OR GPL-3.0)	Apache-2.0 AND (GPL-2.0-or-later OR GPL-3.0)	assumed_only	separator,version_spelling	-
+GPL-2.0+ AND (GPL-3.0 OR StandardML-NJ)	GPL-2.0-or-later AND (GPL-3.0 OR SMLNJ)	assumed_only	deprecated_equal_successor	-
+GPL-3.0 AND (StandardML-NJ OR LicenseRef-x)	GPL-3.0 AND (SMLNJ OR LicenseRef-x)	assumed_only	deprecated_equal_successor	-
+StandardML-NJ AND (LicenseRef-x OR DocumentRef-d:LicenseRef-y)	SMLNJ AND (DocumentRef-d:LicenseRef-y OR LicenseRef-x)	deprecated_equal_successor	deprecated_equal_successor,reorder	-
+LicenseRef-x AND (DocumentRef-d:LicenseRef-y OR Apache-2.0 WITH LLVM-exception)	LicenseRef-x AND (DocumentRef-d:LicenseRef-y OR Apache-2.0 WITH LLVM-exception)	exact	-	-
+DocumentRef-d:LicenseRef-y AND (Apache-2.0 WITH LLVM-exception OR GPL-2.0 or later)	DocumentRef-d:LicenseRef-y AND (GPL-2.0-or-later OR Apache-2.0 WITH LLVM-exception)	stated_qualifier	reorder	-
+Apache-2.0 WITH LLVM-exception AND (GPL-2.0 or later OR "BSD-3-Clause")	Apache-2.0 WITH LLVM-exception AND (BSD-3-Clause OR GPL-2.0-or-later)	stated_qualifier	unquote,reorder	-
+GPL-2.0 or later AND ("BSD-3-Clause" OR MIT)	GPL-2.0-or-later AND (BSD-3-Clause OR MIT)	stated_qualifier	unquote	-
+"BSD-3-Clause" AND (MIT OR isc)	BSD-3-Clause AND (ISC OR MIT)	lexical	unquote,id_case,reorder	-
+[MIT OR isc]	ISC OR MIT	lexical	brackets,id_case,reorder	-
+[MIT OR "BSD-3-Clause"]	BSD-3-Clause OR MIT	lexical	brackets,unquote,reorder	-
+[isc OR LicenseRef-x]	ISC OR LicenseRef-x	lexical	brackets,id_case	-
+[Apache2 OR isc]	Apache-2.0 OR ISC	version_spelling	brackets,separator,version_spelling,id_case	-
+[Apache2 OR Foo]	-	unresolved	-	operand not resolved: Foo
+[GPL-2.0+ OR DocumentRef-d:LicenseRef-y]	GPL-2.0-or-later OR DocumentRef-d:LicenseRef-y	plus_to_or_later	brackets	-
+[GPL-3.0 OR Apache2]	Apache-2.0 OR GPL-3.0	assumed_only	brackets,separator,version_spelling,reorder	-
+[GPL-3.0 OR GPL-2.0-only+]	-	malformed	-	operand not resolved: GPL-2.0-only+
+[StandardML-NJ OR Apache-2.0 WITH LLVM-exception]	SMLNJ OR Apache-2.0 WITH LLVM-exception	deprecated_equal_successor	brackets,deprecated_equal_successor	-
+[LicenseRef-x OR GPL-2.0+]	GPL-2.0-or-later OR LicenseRef-x	plus_to_or_later	brackets,reorder	-
+[LicenseRef-x OR MIT?]	-	unresolved	drop	character dropped: U+003F
+[DocumentRef-d:LicenseRef-y OR GPL-2.0 or later]	GPL-2.0-or-later OR DocumentRef-d:LicenseRef-y	stated_qualifier	brackets,reorder	-
+[Apache-2.0 WITH LLVM-exception OR GPL-3.0]	GPL-3.0 OR Apache-2.0 WITH LLVM-exception	assumed_only	brackets,reorder	-
+[GPL-2.0 or later OR MIT]	GPL-2.0-or-later OR MIT	stated_qualifier	brackets	-
+[GPL-2.0 or later OR "BSD-3-Clause"]	BSD-3-Clause OR GPL-2.0-or-later	stated_qualifier	brackets,unquote,reorder	-
+["BSD-3-Clause" OR StandardML-NJ]	BSD-3-Clause OR SMLNJ	deprecated_equal_successor	brackets,unquote,deprecated_equal_successor	-
+[Foo OR isc]	-	unresolved	-	operand not resolved: Foo
+[Foo OR "BSD-3-Clause"]	-	unresolved	-	operand not resolved: Foo
+[GPL-2.0-only+ OR LicenseRef-x]	-	malformed	-	operand not resolved: GPL-2.0-only+
+[MIT? OR Apache2]	-	unresolved	drop	character dropped: U+003F
+[MIT? OR Foo]	-	unresolved	drop	character dropped: U+003F
+MIT OR isc OR MIT	ISC OR MIT	lexical	id_case,reorder,dedupe	-
+MIT OR "BSD-3-Clause" OR MIT	BSD-3-Clause OR MIT	lexical	unquote,reorder,dedupe	-
+isc OR LicenseRef-x OR isc	ISC OR LicenseRef-x	lexical	id_case,id_case,reorder,dedupe	-
+Apache2 OR isc OR Apache2	Apache-2.0 OR ISC	version_spelling	separator,version_spelling,id_case,separator,version_spelling,reorder,dedupe	-
+Apache2 OR Foo OR Apache2	-	unresolved	-	operand not resolved: Foo
+GPL-2.0+ OR DocumentRef-d:LicenseRef-y OR GPL-2.0+	GPL-2.0-or-later OR DocumentRef-d:LicenseRef-y	plus_to_or_later	reorder,dedupe	-
+GPL-3.0 OR Apache2 OR GPL-3.0	Apache-2.0 OR GPL-3.0	assumed_only	separator,version_spelling,reorder,dedupe	-
+GPL-3.0 OR GPL-2.0-only+ OR GPL-3.0	-	malformed	-	operand not resolved: GPL-2.0-only+
+StandardML-NJ OR Apache-2.0 WITH LLVM-exception OR StandardML-NJ	SMLNJ OR Apache-2.0 WITH LLVM-exception	deprecated_equal_successor	deprecated_equal_successor,deprecated_equal_successor,reorder,dedupe	-
+LicenseRef-x OR GPL-2.0+ OR LicenseRef-x	GPL-2.0-or-later OR LicenseRef-x	plus_to_or_later	reorder,dedupe	-
+LicenseRef-x OR MIT? OR LicenseRef-x	-	unresolved	drop	character dropped: U+003F
+DocumentRef-d:LicenseRef-y OR GPL-2.0 or later OR DocumentRef-d:LicenseRef-y	GPL-2.0-or-later OR DocumentRef-d:LicenseRef-y	stated_qualifier	reorder,dedupe	-
+Apache-2.0 WITH LLVM-exception OR GPL-3.0 OR Apache-2.0 WITH LLVM-exception	GPL-3.0 OR Apache-2.0 WITH LLVM-exception	assumed_only	reorder,dedupe	-
+GPL-2.0 or later OR MIT OR GPL-2.0 or later	GPL-2.0-or-later OR MIT	stated_qualifier	reorder,dedupe	-
+GPL-2.0 or later OR "BSD-3-Clause" OR GPL-2.0 or later	BSD-3-Clause OR GPL-2.0-or-later	stated_qualifier	unquote,reorder,dedupe	-
+"BSD-3-Clause" OR StandardML-NJ OR "BSD-3-Clause"	BSD-3-Clause OR SMLNJ	deprecated_equal_successor	unquote,deprecated_equal_successor,unquote,reorder,dedupe	-
+Foo OR isc OR Foo	-	unresolved	-	operand not resolved: Foo
+Foo OR "BSD-3-Clause" OR Foo	-	unresolved	-	operand not resolved: Foo
+GPL-2.0-only+ OR LicenseRef-x OR GPL-2.0-only+	-	malformed	-	operand not resolved: GPL-2.0-only+
+MIT? OR Apache2 OR MIT?	-	unresolved	drop	character dropped: U+003F
+MIT? OR Foo OR MIT?	-	unresolved	drop	character dropped: U+003F
