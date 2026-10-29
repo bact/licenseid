@@ -182,7 +182,11 @@ def _db() -> Generator[LicenseDatabase, None, None]:
         ("GPL-2.0++", (None, "malformed", [], [], [])),
         ("GPL-2.0-only or later", (None, "malformed", [], [], [])),
         ("GPL-2.0+ or later", (None, "malformed", [], [], [])),
-        ("MIT or later", (None, "unresolved", [], [], [])),
+        # Q14: no -or-later ID, so the grant is the "+" operator (was unresolved)
+        (
+            "MIT or later",
+            ("MIT+", "stated_qualifier", [], [("stated_qualifier", True)], []),
+        ),
         # an expression needs a structure and a listed ID, not just the word "or"
         ("MIT OR Foo", (None, "unresolved", [], [], [])),  # Foo is no ID
         ("Proprietary or custom", (None, "unresolved", [], [], [])),
@@ -198,7 +202,11 @@ def _db() -> Generator[LicenseDatabase, None, None]:
         ("GPL-2.0+.", (None, "unresolved", [], [], [])),
         # a bracketed grant is a grant
         ("GPL-2.0-only (or later)", (None, "malformed", [], [], [])),
-        ("MIT (or later)", (None, "unresolved", [], [], [])),
+        # Q14: no -or-later ID, so the grant is the "+" operator (was unresolved)
+        (
+            "MIT (or later)",
+            ("MIT+", "stated_qualifier", [], [("stated_qualifier", True)], []),
+        ),
         # an expression over the cap is read as none; under it, as one
         (" OR ".join(["Apache-2.0"] * 120), (None, "expression", [], [], [])),
         (" OR ".join(["Apache-2.0"] * 200), (None, "unresolved", [], [], [])),

@@ -152,3 +152,39 @@ def test_the_hyphenated_grant_is_a_grant(
     corpus_db: LicenseDatabase, value: str, expected: tuple[object, ...]
 ) -> None:
     assert _answer(value, corpus_db) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("Apache 2.0 or later", ("Apache-2.0+", "separator", ["separator"])),
+        ("Apache-2.0 or any later version", ("Apache-2.0+", "stated_qualifier", [])),
+        ("MIT (or later)", ("MIT+", "stated_qualifier", [])),
+        (
+            "StandardML-NJ or later",
+            ("SMLNJ+", "stated_qualifier", ["deprecated_equal_successor"]),
+        ),
+        ("eCos-2.0 or later", ("eCos-2.0+", "deprecated_ambiguous", [])),
+        ("GPL-2.0 or later", ("GPL-2.0-or-later", "stated_qualifier", [])),
+        ("LicenseRef-x or later", (None, "unresolved", [])),
+        ("Foo or later", (None, "unresolved", [])),
+        ("MIT+ or later", (None, "malformed", [])),
+    ],
+    ids=lambda v: v if isinstance(v, str) else "",
+)
+def test_a_grant_on_an_id_with_no_or_later_form_is_the_plus_operator(
+    corpus_db: LicenseDatabase, value: str, expected: tuple[object, ...]
+) -> None:
+    """The grant is applied as SPDX writes it, "+", and stated in an
+    expansion; the answer resolves to itself (a fixed point; a deprecated ID
+    stays deprecated_ambiguous)."""
+    assert _answer(value, corpus_db) == expected
+    got = resolve(value, corpus_db)
+    if got["expression"] is not None:
+        assert [(s["kind"], s["to"]) for s in got["expansions"]][-1] == (
+            "stated_qualifier",
+            got["expression"],
+        )
+        assert (
+            resolve(got["expression"], corpus_db)["expression"] == (got["expression"])
+        )

@@ -285,20 +285,28 @@ def _grant(
 ) -> bool:
     """An ID followed by an "or later" grant. The grant is applied where the
     List has the ``-or-later`` ID; a qualifier already stated (``X-only or
-    later``) is malformed; an ID with no ``-or-later`` form is unresolved,
-    not read without its grant."""
+    later``) is malformed. An ID with no ``-or-later`` form takes the grant
+    as the SPDX "+" operator (``Apache 2.0 or later`` is ``Apache-2.0+``,
+    decision Q14), after its deprecation, as ``X+`` is read; a
+    ``LicenseRef-*`` takes none and is unresolved, not read without it."""
     license_id, steps = base
     granted = loose_id(db, text)
     if license_id.endswith(("-only", "-or-later", "+")):
         found.category = "malformed"
-    elif granted is None:
+        return True
+    if granted is None and is_license_ref(license_id):
         found.category = "unresolved"
+        return True
+    found.steps.extend(steps)
+    if granted is None:
+        _deprecation(db, license_id, found)
+        expression = f"{found.expression}+"
     else:
-        found.steps.extend(steps)
-        found.expansions.append(
-            step("stated_qualifier", True, text, granted[1], "or later stated")
-        )
-        found.expression = granted[1]
+        expression = granted[1]
+    found.expansions.append(
+        step("stated_qualifier", True, text, expression, "or later stated")
+    )
+    found.expression = expression
     return True
 
 
