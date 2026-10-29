@@ -127,7 +127,6 @@ STAYS = [
     "BSD 3-Clause License;",
     "MIT License?",
     "MIT License*",
-    '"MIT" License',
     "MIT License (Apache-2.0)",  # the parts differ
     "The MIT License (Apache-2.0)",
     "The MIT License ()",
@@ -359,3 +358,23 @@ def _time_the_rules(db: LicenseDatabase, size: int) -> None:
     for payload in payloads:
         read_prose(db, payload, Found())
     assert time.monotonic() - start < max(2.0, size / 20_000)
+
+
+@pytest.mark.parametrize(
+    ("value", "reason"),
+    [
+        ('"MIT" License', "character dropped: U+0022"),
+        ("1. MIT License", "word dropped: 1"),
+        ("- MIT License", "character dropped: U+002D"),
+        ("The REM MIT License", "word dropped: rem"),
+    ],
+    ids=lambda v: v[:20],
+)
+def test_a_reduction_that_would_drop_something_is_refused_with_a_reason(
+    corpus_db: LicenseDatabase, value: str, reason: str
+) -> None:
+    """The head of a prose form is read as it is alone, so the drop guard
+    judges it (T6, R7 item 3)."""
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["reason"]) == (None, reason)
+    assert [s["kind"] for s in got["steps"]] == ["drop"]

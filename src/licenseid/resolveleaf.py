@@ -25,7 +25,8 @@ read.
 import re
 from dataclasses import dataclass, field
 
-from licenseid.dropguard import code_points, dropped
+from licenseid.dropguard import code_points, dropped, dropped_words
+from licenseid.errors import one_line
 from licenseid.exprtokens import is_addition_ref, is_license_ref
 from licenseid.identifiers import without_outer_brackets
 from licenseid.listlookup import ListLookup
@@ -87,11 +88,14 @@ class _Dropped(Exception):
     """A loose reading would drop a character that says something (see
     :mod:`licenseid.dropguard`): the whole value is refused, not read."""
 
-    def __init__(self, text: str, lost: str, license_id: str) -> None:
+    def __init__(
+        self, text: str, lost: str, license_id: str, *, words: bool = False
+    ) -> None:
         super().__init__(text)
         self.text = text
         self.lost = lost
         self.license_id = license_id
+        self.words = words  # *lost* is words, else characters
 
     def record(self, found: Found) -> None:
         """Make *found* the refusal: ``unresolved``, a ``drop`` step that did
@@ -101,10 +105,9 @@ class _Dropped(Exception):
         # step but its own.
         found.expression = None
         found.category = "unresolved"
-        found.reason = f"character dropped: {code_points(self.lost)}"
-        found.steps = [
-            step("drop", False, self.text, self.license_id, code_points(self.lost))
-        ]
+        detail = one_line(self.lost) if self.words else code_points(self.lost)
+        found.reason = f"{'word' if self.words else 'character'} dropped: {detail}"
+        found.steps = [step("drop", False, self.text, self.license_id, detail)]
         found.expansions = []
         found.candidates = []
 
@@ -351,6 +354,9 @@ def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
     lost = dropped(text)
     if lost:
         raise _Dropped(text, lost, license_id)
+    lost = dropped_words(text)
+    if lost:
+        raise _Dropped(text, lost, license_id, words=True)
     return license_id, _spelling(text, license_id)
 
 

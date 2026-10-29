@@ -41,6 +41,9 @@ and this project adheres to
 
 ### Changed
 
+- `resolve()` refuses a value that a loose reading would read only by
+  dropping a list or comment marker (`REM MIT`, `1. MIT`) or a dash or dots
+  alone at an end (`MIT -`); `reason` `word dropped: ...`
 - `resolve()` with no database reads the newer of the default database and
   the shipped list (a tie: the database, if this build made it); an unusable
   default database falls back to the shipped list with a warning

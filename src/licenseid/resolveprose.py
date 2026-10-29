@@ -40,7 +40,7 @@ reads alone, for its reason.
 
 import re
 
-from licenseid.dropguard import without_end_marks
+from licenseid.dropguard import has_dangling_marks, without_end_marks
 from licenseid.listlookup import ListLookup
 from licenseid.resolveleaf import Found, read_leaf
 from licenseid.resolvertypes import Step, step
@@ -77,7 +77,9 @@ def read_prose(db: ListLookup, text: str, found: Found) -> bool:
 
 def _prose(db: ListLookup, text: str, found: Found) -> bool:
     """P1 to P3 on *text* with no bracket at its end."""
-    body = without_end_marks(text)
+    # A dash or dots standing alone at an end are a dropped mark (the drop
+    # guard refuses them when it reads the reduction); they are not left off.
+    body = text.strip() if has_dangling_marks(text) else without_end_marks(text)
     if is_no_licence(body):  # a name that states no licence stays so (Q22)
         return False
     rest = _after_article(body)
@@ -117,8 +119,10 @@ def _by_rule(
     if word is None:
         return False
     reading = Found()
-    if not read_leaf(db, word, reading) or reading.expression is None:
+    if not read_leaf(db, word, reading):
         return False
+    if reading.expression is None:
+        return _refused(found, reading)
     _fill(found, [*before, step(_KIND, True, source, word, detail)], reading)
     return True
 
@@ -128,11 +132,24 @@ def _by_name(db: ListLookup, rest: str, lead: Step, found: Found) -> bool:
     lists (``The Unlicense`` is read before, as an ID); an ID alone is not
     (``The MIT``)."""
     reading = Found()
-    if not read_leaf(db, rest, reading) or reading.expression is None:
+    if not read_leaf(db, rest, reading):
         return False
+    if reading.expression is None:
+        return _refused(found, reading)
     if not any(s["kind"] == "listed_name" for s in reading.steps):
         return False
     _fill(found, [lead], reading)
+    return True
+
+
+def _refused(found: Found, reading: Found) -> bool:
+    """Make *found* the refusal *reading* is, if it is one (a mark or a word
+    the reduction would drop, with its ``reason``): True. A reduction that
+    only names nothing is no refusal: False."""
+    if reading.reason is None:
+        return False
+    found.steps, found.reason = list(reading.steps), reading.reason
+    found.expression, found.category = None, "unresolved"
     return True
 
 

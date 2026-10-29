@@ -64,7 +64,11 @@ generator.*
   - a loose reading never drops a character that says something:
     `Apache 2.0?`, `MIT*` and `"MIT?"` are `unresolved`, with a
     `reason` and a `drop` step that was not applied; white space, `-`, `_`,
-    `.`, a dash and one trailing comma are still dropped;
+    `.`, a dash and one trailing comma are still dropped. So is no word:
+    a list or comment marker (`REM MIT`, `1. MIT`, `iv. MIT`) is refused
+    with `word dropped: rem`, and a dash or dots standing alone at an end
+    (`MIT -`, `-- MIT`, `MIT ...`) with `character dropped: U+002D`
+    (dots touching the word, `MIT...`, are read);
   - a compound expression is read operand by operand: one-word operands
     (with `WITH`, `+` or an "or later" grant), each as the same text would be
     read alone, and per operand only a balanced pair of quotes; an operand
@@ -638,8 +642,9 @@ was category `expression`, with no expression; that category is gone.
 `reason` is `None` unless the value was refused, when it is one line,
 `CONDITION[: DETAIL]`, the detail in code points: `character dropped: U+003F`
 (the value would be read as a licence only by dropping a mark that is not a
-separator, such as `?`, `!`, `*` or a quote inside the value; several are
-space separated),
+separator, such as `?`, `!`, `*` or a quote inside the value, or a dash or
+dots alone at an end; several are space separated), `word dropped: rem 1`
+(a comment or list marker that the reading would drop, in lower case),
 `lone surrogate`, `control or format character: U+200B`; for a compound,
 `operand not resolved: <operand>` (or that operand's own reason),
 `operand of several words: <leaf>` (a leaf that reads alone, as

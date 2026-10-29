@@ -247,7 +247,7 @@ _RE_HTTPS: Final = re.compile(r"https://")
 _STRIP_COPYRIGHT_NOTICE: Final[bool] = False
 
 
-def normalize_text(text: str) -> str:
+def normalize_text(text: str, *, line_rules: bool = True) -> str:
     """Normalise license text per SPDX License List Matching Guidelines.
 
     Transformations, in order:
@@ -302,6 +302,11 @@ def normalize_text(text: str) -> str:
     the step enabled). Every caller in this codebase normalizes fresh raw
     text exactly once (see database.py, matcher.py); if you add a new
     caller, do the same rather than chaining through the result.
+
+    With *line_rules* false, steps 2, 4 and 5 (comment prefixes, repeated
+    separators, bullets and list markers) are skipped. Their words are then
+    kept: comparing the two readings names the words a loose ID reading
+    would drop (``licenseid.dropguard.dropped_words``). Nothing else uses it.
     """
     # 1. HTML to plain text.  Newline separator preserves line structure for
     # the line-based rules below (copyright notices, comments, bullets).
@@ -316,7 +321,8 @@ def normalize_text(text: str) -> str:
 
     # 2. Code comment prefixes (per-line; must run before copyright notice
     # removal so a "# Copyright ..." header's line-start anchor is reachable)
-    text = _RE_COMMENT_PREFIX.sub("", text)
+    if line_rules:
+        text = _RE_COMMENT_PREFIX.sub("", text)
 
     # 3. Copyright notice removal (before lowercasing/punctuation strip so
     # the (c) / © / digit cues are still present).  See
@@ -325,10 +331,12 @@ def normalize_text(text: str) -> str:
         text = _RE_COPYRIGHT_NOTICE.sub("", text)
 
     # 4. Repeated separator characters
-    text = _RE_SEPARATOR.sub(" ", text)
+    if line_rules:
+        text = _RE_SEPARATOR.sub(" ", text)
 
     # 5. Bullets and list markers (per-line)
-    text = _RE_BULLETS.sub("", text)
+    if line_rules:
+        text = _RE_BULLETS.sub("", text)
 
     # 6. URL protocol
     text = _RE_HTTPS.sub("http://", text)
