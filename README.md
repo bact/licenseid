@@ -54,6 +54,10 @@ generator.*
   - a bare deprecated ID (`GPL-3.0`) comes back as written, category
     `assumed_only`, with both candidates, never narrowed; a renamed one
     (`StandardML-NJ`) becomes its successor (`SMLNJ`);
+  - a loose reading never drops a character that says something:
+    `Apache 2.0?`, `MIT*` and a quoted `"MIT"` are `unresolved`, with a
+    `reason` and a `drop` step that was not applied; white space, `-`, `_`,
+    `.`, a Unicode dash and one trailing comma are still dropped;
   - a compound expression (`MIT OR Apache-2.0`) is recognised (category
     `expression`) but returned without an expression;
   - every result names its category and trust level, each step, the list
@@ -475,6 +479,7 @@ The whole result of `resolve("Apache2")`, as JSON:
   ],
   "expansions": [],
   "candidates": [],
+  "reason": null,
   "resolver": {
     "name": "licenseid",
     "version": "0.6.0",
@@ -518,6 +523,15 @@ steps, in this order (strongest first):
 | `unresolved` | `none` | names no licence |
 
 A consumer ignores a step kind it does not know.
+
+`reason` is `None` unless the value was refused, when it is one line,
+`CONDITION[: DETAIL]`: `character dropped: '?'` (the value would be read as
+a licence only by dropping a character that is not a separator, such as `?`,
+`!`, `*` or a quote), `lone surrogate`, `control character: U+200B`. A
+refused value is category `unresolved` with no expression. For a dropped
+character, `steps` holds one `drop` step with `applied` false: its `to` is the
+licence the reading stopped (`resolve("Apache 2.0?")` would have been
+`Apache-2.0`) and its `detail` the characters.
 
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or

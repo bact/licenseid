@@ -11,7 +11,7 @@ Standard library and ``licenseid`` only.
 """
 
 from collections.abc import Mapping
-from typing import Final, NamedTuple, cast
+from typing import Final, NamedTuple
 
 from licenseid.resolvertypes import Resolution, Step
 
@@ -43,7 +43,7 @@ class Answer(NamedTuple):
     ``steps`` and ``expansions`` are the kinds in order, a ``!`` after one
     that did not apply; ``step_targets`` and ``expansion_targets`` the
     ``to`` of each. ``reason`` is ``None`` for every 0.6.0 answer (the field
-    comes with T6). ``input_same`` says whether ``input`` is the raw value.
+    came with T6). ``input_same`` says whether ``input`` is the raw value.
     """
 
     expression: str | None
@@ -100,8 +100,7 @@ def _kinds(steps: list[Step]) -> tuple[str, ...]:
 
 def answer_of(value: str, result: Resolution) -> Answer:
     """The pinned part of *result*, the answer to *value*."""
-    # Resolution has no ``reason`` before T6: read it by name until it does.
-    reason = cast(Mapping[str, object], result).get("reason")
+    reason = result["reason"]
     return Answer(
         expression=result["expression"],
         category=result["category"],
@@ -112,7 +111,7 @@ def answer_of(value: str, result: Resolution) -> Answer:
         expansion_targets=tuple(s["to"] for s in result["expansions"]),
         trust=result["trust"],
         input_same=result["input"] == value,
-        reason=None if reason is None else str(reason),
+        reason=reason,
     )
 
 

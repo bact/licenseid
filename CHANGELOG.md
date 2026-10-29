@@ -29,6 +29,9 @@ and this project adheres to
 - `resolve()` answers `unresolved` for a value with a lone surrogate; it
   raised `UnicodeEncodeError` after `WITH` and dropped the character elsewhere
   ([#117])
+- `resolve()` answers `unresolved` for a value it could read only by dropping
+  a character that says something (`Apache 2.0?`, `MIT*`, `"MIT"`, U+FFFD),
+  with a new `reason` field and a `drop` step that was not applied
 
 [#117]: https://github.com/bact/licenseid/pull/117
 

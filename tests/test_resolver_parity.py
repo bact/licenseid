@@ -9,9 +9,9 @@ synthetic declared values with their 0.6.0 answers, the answer of Pitloom
 0.21.1 and the answer the plan expects of 0.7.0.
 
 A later rule pull request changes an answer on purpose: it lists the value in
-``resolver_corpus.EXPECTED_CHANGES``, and this file skips that row. The
-``# BUG:`` pins at the end assert answers that are wrong today; the pull
-request that fixes one flips it.
+``resolver_corpus.EXPECTED_CHANGES``, and this file skips that row. A
+``# BUG:`` pin asserts an answer that is wrong today; the pull request that
+fixes it flips it.
 """
 
 import hashlib
@@ -128,19 +128,18 @@ def test_the_corpus_has_the_shapes_the_plan_names() -> None:
     assert len(kinds) >= 2
 
 
-# BUG: F6, fixed by T6 (dropguard): the dropped character is the author's
-# doubt or a corruption, and 0.6.0 turns it into a claim. Each of these
-# answers the licence with category `separator`; 0.7.0 must answer
-# `unresolved`. (A lone surrogate was a sixth; G1, T4b, refuses it early:
-# tests/test_resolver_surrogate.py.)
+# F6, fixed by T6 (dropguard): the dropped character is the author's doubt or
+# a corruption, and 0.6.0 turned it into a claim (category `separator`).
+# 0.7.0 answers `unresolved`, with the reading it stopped. (A lone surrogate
+# was a sixth; G1, T4b, refuses it early: tests/test_resolver_surrogate.py.)
 @pytest.mark.parametrize(
-    ("value", "wrong"),
+    ("value", "stopped", "lost"),
     [
-        ("Apache 2.0?", "Apache-2.0"),
-        ("Apache 2.0!", "Apache-2.0"),
-        ("MIT" + chr(0xFFFD), "MIT"),  # U+FFFD, a decoding error left in a value
-        ("MIT*", "MIT"),
-        ("#MIT", "MIT"),
+        ("Apache 2.0?", "Apache-2.0", "?"),
+        ("Apache 2.0!", "Apache-2.0", "!"),
+        ("MIT" + chr(0xFFFD), "MIT", chr(0xFFFD)),  # a decoding error
+        ("MIT*", "MIT", "*"),
+        ("#MIT", "MIT", "#"),
     ],
     ids=[
         "question-mark",
@@ -150,13 +149,16 @@ def test_the_corpus_has_the_shapes_the_plan_names() -> None:
         "hash",
     ],
 )
-def test_bug_a_dropped_character_is_read_as_a_licence(
-    corpus_db: LicenseDatabase, value: str, wrong: str
+def test_a_dropped_character_is_no_longer_read_as_a_licence(
+    corpus_db: LicenseDatabase, value: str, stopped: str, lost: str
 ) -> None:
-    """Pins today's wrong answer; the fix flips it."""
+    """Fixed by T6: unresolved, a ``drop`` step that did not apply, a reason."""
     got = resolve(value, corpus_db)
-    assert (got["expression"], got["category"]) == (wrong, "separator")
-    assert [s["kind"] for s in got["steps"]] == ["separator"]
+    assert (got["expression"], got["category"]) == (None, "unresolved")
+    assert got["reason"] == f"character dropped: {lost!r}"
+    assert [(s["kind"], s["applied"], s["to"]) for s in got["steps"]] == [
+        ("drop", False, stopped)
+    ]
 
 
 # Controls: what the drop guard of T6 must keep (the plan allows white space,

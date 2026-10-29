@@ -84,6 +84,7 @@ def test_resolve_result_is_unchanged(
     """The whole result dict equals the pinned one, every key."""
     version = licenseid.__version__
     expected: dict[str, Any] = {
+        "reason": None,  # added in T6; a case that is refused names its own
         **case["result"],
         "resolver": {
             "name": "licenseid",

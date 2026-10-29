@@ -16,7 +16,9 @@
   reads through: a Protocol), `listrules.py` (which SPDX entries are kept and
   what a deprecated ID points to; `records.py` builds rows from it),
   `resolveleaf.py` (the reading of one value that names one licence, called
-  by `resolver.py` per value), `listindex.py` (the shipped SPDX bundle in
+  by `resolver.py` per value),
+  `dropguard.py` (the characters a loose reading must not drop: `Apache
+  2.0?`), `listindex.py` (the shipped SPDX bundle in
   memory, a `ListLookup` for `resolve()` with no database),
   `listsource.py` (which list `resolve()` reads: database or packaged),
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes

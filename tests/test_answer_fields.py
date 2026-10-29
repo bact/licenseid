@@ -24,7 +24,7 @@ from tools.pypi_licence_sample.answer import (
     load_targets,
 )
 
-RESULT = {
+RESULT: dict[str, object] = {
     "input": "MIT",
     "expression": "MIT",
     "category": "exact",
@@ -32,6 +32,7 @@ RESULT = {
     "steps": [],
     "expansions": [],
     "candidates": [],
+    "reason": None,
 }
 
 PLAIN = Answer(
@@ -116,8 +117,7 @@ def test_a_well_formed_file_is_read(tmp_path: Path) -> None:
 
 
 def test_the_reason_of_a_result_is_pinned() -> None:
-    """``Resolution.reason`` comes with T6; until then a result without one is
-    ``None`` and a result with one is read."""
+    """A result without a reason answers ``None``; one with a reason, it."""
     result = cast(Resolution, {**RESULT})
     assert answer_of("MIT", result).reason is None
     assert answer_of("MIT", cast(Resolution, {**RESULT, "reason": "x"})).reason == "x"

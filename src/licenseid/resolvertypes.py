@@ -136,6 +136,9 @@ class Resolution(TypedDict):
     written (category ``assumed_only``), with the licences it might be in
     ``candidates``, sorted. ``steps`` are the applied or declined changes in order;
     ``expansions`` hold the qualifier steps, kept apart from ``steps``.
+    ``reason`` says why a value was refused, as ``CONDITION[: DETAIL]``
+    (``character dropped: '?'``, ``lone surrogate``); None for every other
+    answer.
     """
 
     input: str
@@ -147,6 +150,7 @@ class Resolution(TypedDict):
     candidates: list[str]
     resolver: Resolver
     lists: list[ListInfo]
+    reason: str | None
 
 
 def step(kind: str, applied: bool, source: str, target: str, detail: str = "") -> Step:
