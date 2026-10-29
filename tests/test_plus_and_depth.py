@@ -145,8 +145,8 @@ def test_id_refuses_a_plus_after_a_qualifier(
     [
         ("MIT OR GPL-2.0-only+", "malformed"),  # as GPL-2.0-only+ on its own
         ("(MIT AND GPL-2.0-or-later+)", "malformed"),
-        ("MIT OR GPL-2.0+", "expression"),
-        ("MIT OR GPL-2.0-only", "expression"),
+        ("MIT OR GPL-2.0+", "plus_to_or_later"),  # T7: read, was `expression`
+        ("MIT OR GPL-2.0-only", "lexical"),  # reordered
         ("MIT OR " + "GPL-2.0-only+ OR " * 8 + "MIT", "malformed"),  # a long one
         ("Proprietary or GPL-2.0-only+", "unresolved"),  # not an expression
     ],
