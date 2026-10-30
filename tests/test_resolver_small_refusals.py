@@ -13,6 +13,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
 from licenseid import LicenseDatabase, match
 from licenseid.resolver import match_with
+from licenseid.resolvertypes import Source
 
 #: Item 1: a value that is no string.
 NOT_TEXT: list[object] = [None, b"MIT", 1]
@@ -74,9 +75,26 @@ def test_an_answer_that_moves(corpus_db: LicenseDatabase, value: str) -> None:
 
 
 @pytest.mark.parametrize("value", NOT_TEXT, ids=lambda v: type(v).__name__)
-def test_a_value_that_is_no_string(corpus_db: LicenseDatabase, value: object) -> None:
-    # BUG: AttributeError from deep inside; the docstring says it never raises
-    with pytest.raises(AttributeError):
+def test_a_value_that_is_no_string_is_a_type_error(
+    corpus_db: LicenseDatabase, value: object
+) -> None:
+    message = f"value must be str, not {type(value).__name__}"
+    with pytest.raises(TypeError, match=message):
         match(value, corpus_db)  # type: ignore[arg-type]
-    with pytest.raises(AttributeError):
+    with pytest.raises(TypeError, match=message):
         match_with(corpus_db, value)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("source", ["auto", "database", "packaged"])
+def test_the_type_is_judged_before_any_list_is_read(source: Source) -> None:
+    """No database and no packaged list in this environment: reading the
+    list would raise ``DatabaseNotReadyError``; the type comes first."""
+    with pytest.raises(TypeError):
+        match(None, source=source)  # type: ignore[arg-type]
+
+
+def test_a_string_subclass_is_a_string(corpus_db: LicenseDatabase) -> None:
+    class Text(str):
+        """A caller's own string type."""
+
+    assert match(Text("MIT"), corpus_db)["expression"] == "MIT"

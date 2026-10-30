@@ -84,6 +84,8 @@ and this project adheres to
   `UnicodeEncodeError`) and for a value read only by dropping a mark
   (`Apache 2.0?`, `MIT*`, U+FFFD)
   ([#117], [#120])
+- `match()` raises `TypeError` for a value that is no `str` (`None`, `bytes`,
+  a number); it raised `AttributeError`
 - A build from the sdist needs Pitloom 0.21.2 or later: an older one accepts
   licenseid 0.7 and its build hook then fails to import
   ([#135])

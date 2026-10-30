@@ -73,7 +73,9 @@ def match(
     """Resolve the declared licence *value*.
 
     Never raises on content: a value that names nothing is category
-    ``unresolved``.
+    ``unresolved``. A *value* that is no :class:`str` (``None``,
+    :class:`bytes`, a number) is no content but a mistake of the caller:
+    :class:`TypeError`, naming the type, before anything is read.
 
     The list read is *db*, else the one *source* names: ``auto`` (the
     default) reads the database at the default path or the bundle shipped
@@ -87,6 +89,7 @@ def match(
     never narrowed: ``GPL-3.0`` comes back as written, category
     ``assumed_only``, with both candidates.
     """
+    _require_text(value)
     lookup, where = choose_list(db, source)
     return match_with(lookup, value, where)
 
@@ -96,7 +99,9 @@ def match_with(
 ) -> Resolution:
     """:func:`match` on a list the caller holds: any
     :class:`licenseid.listlookup.ListLookup`, read as it is; *where* is what
-    ``lists[0].source`` says."""
+    ``lists[0].source`` says. Raises :class:`TypeError` for a *value* that is
+    no :class:`str`, as :func:`match` does."""
+    _require_text(value)
     with lookup.reading():
         found, operands, parsed = _read(lookup, value)
         lists = [list_info(lookup, where)]
@@ -104,6 +109,13 @@ def match_with(
     if any(s["list"] == TROVE_LIST for s in resolution["steps"]):
         resolution["lists"].append(trove_list_info())  # a name rests on it too
     return resolution
+
+
+def _require_text(value: object) -> None:
+    """Raise :class:`TypeError` unless *value* is a :class:`str` (P120): a
+    call that cannot be a declared value is not an unresolved one."""
+    if not isinstance(value, str):
+        raise TypeError(f"value must be str, not {type(value).__name__}")
 
 
 def _read(

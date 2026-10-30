@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -292,6 +292,7 @@ parity corpus. Three parity rows now give their `expected_0_7_0`
 | P85 | T8b | Brackets and nesting | Only a `;` outside every bracket splits; a bracket that does not close, or closes before it opens, makes no list. A `;` inside a bracket is the compound reader's, as before (`(MIT; ISC) OR GPL-2.0` is `not an SPDX operator: ;`). The brackets around the whole come off first (`(MIT; ISC)` is a list). A part is read without the list rule, so a list inside a part is not split again: depth one, and no recursion on `(((MIT; ISC); X); Y)` | Recurse with a depth cap | Bounded cost and stack; the case is not in the sample |
 | P86 | T8b | `components` of a list | The tools that took part, as before: the parser is listed when a part needed it (`MIT OR ISC; Apache-2.0`), else `[]`. No field of "IDs found": they are the `expression` of each operand | A new field for the licences found | The brief said `components` the IDs found; the field means tools since T7, and the operands already carry the IDs |
 | P91 | T10a | Whether `licenseid.detect()` builds a detector per call | It keeps one `LicenseDetector` per default path and file stamp (`listsource.file_stamp`, the stamp of P89), looked up and stored under a lock and built outside it, never one that raised or one on a path with no file; it says each build warning once per process (`listsource.warn_once`); `keptdetector.reset()` forgets it | A detector per call; a module-level detector made at import | A detector costs 5 connections and about 59 ms against 13 ms kept, and an outdated database warned on every call, where `match()` says it once (#119) |
+| P120 | Small | Non-string input (`match(None)`, `match(b"MIT")`, `match(1)`, and `match_with`) | Maintainer-approved narrow choice: `TypeError("value must be str, not bytes")` at the one entry, in `match` before the list is chosen and in `match_with` before it is read (`resolver._require_text`); a `str` subclass passes. The docstring says so. Not an `unresolved` result | An `unresolved` result with a reason; decode `bytes`; `str(value)` | A caller's mistake is not content: `unresolved` would hide it, and decoding or `str()` would guess. It raised `AttributeError` from `strip` before |
 
 Follow-ups left for 0.8:
 
@@ -439,8 +440,8 @@ small defects (S1 to S3) and a list for 0.8. The S fixes are made on
    exception or after a `LicenseRef` (`GPL-2.0+?`; `resolveleaf.py:348`
    returns before the guard).
 5. Decide line breaks (`MIT\nOR ISC` reads, with a whitespace step) and
-   non-string input (`resolve(None)`, bytes, int raise `AttributeError`,
-   though the docstring says it never raises on content).
+   ~~non-string input (`resolve(None)`, bytes, int raise `AttributeError`,
+   though the docstring says it never raises on content)~~ (done, P120).
 6. Decided, not open: `MIT+` alone is `exact`, and `MIT or later` is `MIT+`
    with `stated_qualifier` (P35); SISSL is decided too (stated SISSL, P52, on
    the T9 branch).
