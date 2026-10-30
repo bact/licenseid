@@ -10,10 +10,11 @@
 answers "which SPDX expression does this declared value stand for". So
 ``match`` takes one value on the command line and refuses what only
 ``detect`` answers, with exit 2 and ``; run 'licenseid detect'``: ``--text``,
-an argument that names a file or directory here, standard input, a value
-with a line break, and one longer than the resolver reads. A refused value
-would otherwise come back ``unresolved``, exit 1, which says "no licence"
-where the user meant "detect this".
+standard input, a value with a line break and one longer than the resolver
+reads, before any list is read; and, once read, a value that resolves to
+nothing and names a file or directory here. Such a value would otherwise
+come back ``unresolved``, exit 1, which says "no licence" where the user
+meant "detect this".
 
 It needs no database: with no ``--db`` it reads the list ``--source`` names,
 as ``match()`` does (``auto`` falls back to the list shipped in the wheel).
@@ -41,7 +42,7 @@ from licenseid.dbcheck import check_database_ready
 from licenseid.errors import one_line
 from licenseid.output import echo
 from licenseid.resolver import MAX_EXPRESSION_CHARS, match
-from licenseid.resolvertypes import Source
+from licenseid.resolvertypes import Resolution, Source
 from licenseid.result import json_line, resolution_lines
 
 #: The ACTION of every refusal: the value is for ``detect``.
@@ -73,10 +74,16 @@ def declared_value(ctx: click.Context, value: str | None, text: str | None) -> s
         exit_bad_input(
             ctx, f"invalid: over {MAX_EXPRESSION_CHARS} characters{TO_DETECT}"
         )
-    # What detect would read as a file (os.path.exists, as detect asks).
-    if os.path.exists(value):
-        exit_bad_input(ctx, f"invalid: file: {one_line(value)}{TO_DETECT}")
     return value
+
+
+def reject_a_path(ctx: click.Context, value: str, resolution: Resolution) -> None:
+    """Exit 2 if *value* resolved to nothing and names a path that exists
+    here (os.path.exists, the test detect makes before it reads a file): a
+    file or a directory to detect, not a value. A value that resolves is
+    answered whatever is here (``MIT``, ``mit`` beside a file ``MIT``)."""
+    if resolution["expression"] is None and os.path.exists(value):
+        exit_bad_input(ctx, f"invalid: path: {one_line(value)}{TO_DETECT}")
 
 
 def given_database(ctx: click.Context, source: Source) -> LicenseDatabase | None:
@@ -132,6 +139,7 @@ def match_command(
     """
     declared = declared_value(ctx, value, text)
     resolution = match(declared, given_database(ctx, source), source=source)
+    reject_a_path(ctx, declared, resolution)
     if json_output:
         echo(json_line(resolution))
     else:

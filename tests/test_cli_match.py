@@ -13,6 +13,7 @@ are in ``test_option_matrix``; the field escape in ``test_text_field``.
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
 import json
+import os
 import sqlite3
 from pathlib import Path
 from unittest import mock
@@ -253,23 +254,73 @@ def test_the_longest_value_is_read() -> None:
     assert (result.exit_code, result.stderr) == (1, "")
 
 
-@pytest.mark.parametrize("kind", ["file", "directory"])
-def test_a_value_that_names_a_file_here_is_for_detect(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, kind: str
+@pytest.mark.parametrize(
+    ("value", "make"),
+    [
+        (".", None),
+        ("/", None),
+        ("docs", "directory"),
+        ("Foo", "file"),
+        ("LICENSE", "file"),
+    ],
+    ids=["dot", "root", "directory", "file", "license"],
+)
+def test_a_value_that_names_nothing_but_a_path_here_is_for_detect(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str, make: str | None
 ) -> None:
-    """As detect would read it: what exists by that name (os.path.exists)."""
+    """Read first: a value that resolves to nothing and names what exists
+    here (os.path.exists, as detect asks) is a file or a directory to
+    detect. Nothing goes on standard output, --json or not."""
     monkeypatch.chdir(tmp_path)
-    if kind == "file":
-        (tmp_path / "MIT").write_text("MIT License", encoding="utf-8")
-    else:
-        (tmp_path / "MIT").mkdir()
-    result = run("MIT")
-    assert (result.exit_code, result.stdout, result.stderr) == (
+    if make == "file":
+        (tmp_path / value).write_text("MIT License", encoding="utf-8")
+    elif make == "directory":
+        (tmp_path / value).mkdir()
+    expected = (2, "", f"ERROR: input: invalid: path: {value}{DETECT}\n")
+    for args in ([value], ["--json", value]):
+        result = run(*args)
+        assert (result.exit_code, result.stdout, result.stderr) == expected
+    if make is not None:  # without it here, the same value is a "no"
+        os.chdir(tmp_path.parent)
+        assert run(value).exit_code == 1
+
+
+@pytest.mark.parametrize("value", ["MIT", "mit", "Apache2"])
+def test_a_value_that_resolves_is_answered_beside_a_file_of_its_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str
+) -> None:
+    """Answer first. ``mit`` beside a file ``MIT`` names that file on a file
+    system that folds case (macOS, Windows), and is answered all the same."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "MIT").write_text("MIT License", encoding="utf-8")
+    (tmp_path / "Apache2").mkdir()
+    result = run(value)
+    assert (result.exit_code, result.stderr) == (0, "")
+    assert result.stdout.startswith("EXPRESSION=")
+
+
+def test_a_windows_device_name_that_resolves_to_nothing_is_for_detect() -> None:
+    """``NUL`` exists everywhere on Windows (os.path.exists says so)."""
+    exists = mock.create_autospec(os.path.exists, side_effect=lambda p: p == "NUL")
+    with mock.patch("licenseid.climatch.os.path.exists", exists):
+        refused, answered = run("NUL"), run("MIT")
+    assert (refused.exit_code, refused.stderr) == (
         2,
-        "",
-        f"ERROR: input: invalid: file: MIT{DETECT}\n",
+        f"ERROR: input: invalid: path: NUL{DETECT}\n",
     )
-    assert run(str(tmp_path / "nope")).exit_code == 1  # no file: a value
+    assert answered.exit_code == 0
+
+
+def test_a_path_is_judged_after_the_list(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """No list to read: the list's own error, though the value names a file."""
+    ship(monkeypatch, None)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "LICENSE").write_text("x", encoding="utf-8")
+    result = run("LICENSE")
+    assert result.exit_code == 2
+    assert result.stderr.startswith("ERROR: database: not found: ")
 
 
 def test_standard_input_with_no_value_is_for_detect() -> None:
@@ -297,7 +348,7 @@ def test_no_value_and_no_piped_input_is_missing() -> None:
     )
 
 
-@pytest.mark.parametrize("value", ["LICENSE", "MIT\nX", "--text"], ids=str)
+@pytest.mark.parametrize("value", ["MIT\nX", "--text", "M" * 2001], ids=["newline", "text", "too-long"])
 def test_a_refusal_comes_before_the_list(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str
 ) -> None:
@@ -305,7 +356,6 @@ def test_a_refusal_comes_before_the_list(
     read (here none: no bundle and no database)."""
     ship(monkeypatch, None)
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "LICENSE").write_text("x", encoding="utf-8")
     args = ["--text", "MIT"] if value == "--text" else [value]
     result = run(*args)
     assert result.exit_code == 2

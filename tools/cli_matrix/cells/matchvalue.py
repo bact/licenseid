@@ -49,8 +49,9 @@ REFUSED: list[tuple[str, str, str, str]] = [
         "",
         r"option: invalid: --text: a licence text" + _DETECT,
     ),
-    ("a file", "match $F/mit.txt", "", r"input: invalid: file: .*" + _DETECT),
-    ("a directory", "match $F/adir", "", r"input: invalid: file: .*" + _DETECT),
+    ("a file", "match $F/mit.txt", "", r"input: invalid: path: .*" + _DETECT),
+    ("a directory", "match $F/adir", "", r"input: invalid: path: .*" + _DETECT),
+    ("the current directory", "match .", "", r"input: invalid: path: \." + _DETECT),
     ("standard input", "match", "printf MIT | ", r"input: invalid: standard input"),
     ("stdin /dev/null", "match < /dev/null", "", r"input: invalid: standard input"),
     (
