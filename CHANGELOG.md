@@ -86,6 +86,7 @@ and this project adheres to
   ([#117], [#120])
 - A build from the sdist needs Pitloom 0.21.2 or later: an older one accepts
   licenseid 0.7 and its build hook then fails to import
+  ([#135])
 
 [#117]: https://github.com/bact/licenseid/pull/117
 [#119]: https://github.com/bact/licenseid/pull/119
@@ -99,6 +100,7 @@ and this project adheres to
 [#131]: https://github.com/bact/licenseid/pull/131
 [#132]: https://github.com/bact/licenseid/pull/132
 [#134]: https://github.com/bact/licenseid/pull/134
+[#135]: https://github.com/bact/licenseid/pull/135
 
 ## [0.6.0] - 2026-10-27
 
