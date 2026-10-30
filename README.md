@@ -60,7 +60,8 @@ generator.*
   - quote marks around the whole value are taken off (`"MIT"`, `'MIT'`,
     `“MIT”`, `«MIT»`, one or several layers, as an `unquote` step), and the
     inside is read as it would be alone; a mark on one end only (`"MIT`) is
-    read too, as a weaker answer (`separator`); marks of two kinds
+    read too, as a weaker answer (`separator`); one end mark after the
+    closing marks (`"MIT".`) is an ending; marks of two kinds
     (`"MIT'`) or inside the value (`Apache "2.0"`) are not read;
   - a loose reading never drops a character that says something:
     `Apache 2.0?`, `MIT*` and `"MIT?"` are `unresolved`, with a
@@ -669,6 +670,7 @@ list after one `WARNING: database: <condition>: <detail>; using packaged data
 v<version>` on standard error. `source="database"` reads only the database
 (and raises for one that cannot answer, as `auto` would call it unusable) and
 `source="packaged"` only the shipped list; `match(value, db)` reads `db`.
+A value that is not a `str` raises `TypeError`.
 The answer is the same from either, and `lists[*].source` says which was
 read. `licenseid.DatabaseNotReadyError` is raised only when the chosen
 list cannot be read: with `auto`, when there is neither (an editable install
