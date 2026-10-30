@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 import requests
-import rfc8785
 from click.testing import CliRunner, Result
 from packaged_list import database_of, fixture_bundle
 from resolver_corpus import corpus_db_path
@@ -33,7 +32,7 @@ from licenseid.dbconnection import Connections
 from licenseid.detector import LicenseDetector
 from licenseid.errors import LicenseIdError
 from licenseid.records import BUILD_VERSION
-from licenseid.result import read_text_field
+from licenseid.result import FieldValue, fields_line, read_text_field, record_json
 from licenseid.types import Detection, Method
 
 # tools/cli_matrix drives real shells and terminals (pwd, pty, termios): POSIX
@@ -283,29 +282,32 @@ PREDICATE_KEYS = {
 }
 
 
+# An expected result line is built by the writers the CLI uses
+# (result.fields_line, result.record_json), never by hand: a value with a
+# backslash (a Windows path) is escaped, and a hand-built line was not.
+# tests/test_text_field.py and test_a_backslash_in_a_value_is_doubled hold
+# the writers themselves to literal bytes.
+
+
 def predicate_line(command: str, expression: str, answer: bool) -> str:
     """The line ``licenseid <command>`` prints: the ID judged (empty for
     none) and its flag."""
-    flag = "true" if answer else "false"
-    return f"EXPRESSION={expression}\t{PREDICATE_KEYS[command]}={flag}\n"
+    record: dict[str, FieldValue] = {PREDICATE_KEYS[command]: answer}
+    return fields_line(EXPRESSION=expression, **record) + "\n"
 
 
 def predicate_json(command: str, expression: str | None, answer: bool) -> str:
     """The line ``licenseid <command> --json`` prints (RFC 8785)."""
-    flag = PREDICATE_KEYS[command].lower()
-    value = "null" if expression is None else f'"{expression}"'
-    return f'{{"expression":{value},"{flag}":{"true" if answer else "false"}}}\n'
+    record: dict[str, FieldValue] = {PREDICATE_KEYS[command]: answer}
+    return record_json(EXPRESSION=expression, **record) + "\n"
 
 
 def update_line(
     status: str, version: str, path: object, *, as_json: bool = False
 ) -> str:
-    """The line ``licenseid update`` prints, or with *as_json* its object
-    (RFC 8785, so a Windows path's backslashes are escaped)."""
-    if as_json:
-        record = {"path": str(path), "status": status, "version": version}
-        return rfc8785.dumps(record).decode("utf-8") + "\n"
-    return f"STATUS={status}\tVERSION={version}\tPATH={path}\n"
+    """The line ``licenseid update`` prints, or with *as_json* its object."""
+    write = record_json if as_json else fields_line
+    return write(STATUS=status, VERSION=version, PATH=str(path)) + "\n"
 
 
 def line_fields(line: str) -> dict[str, str]:
