@@ -42,6 +42,9 @@ and this project adheres to
 - `match()` lists the licences of a value joined by `;` (`MIT ; Apache 2`)
   as `operands`, with no expression and the reason `operator not stated: ;`
   ([#131])
+- `licenseid match VALUE` prints the resolution of one declared value as
+  `KEY=VALUE` lines or `--json`, with no database needed; exit 0 resolved, 1
+  not, 2 for a file or text (`run 'licenseid detect'`); `licenseid --version`
 
 ### Changed
 

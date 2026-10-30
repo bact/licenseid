@@ -31,11 +31,12 @@
   `Apache 2.0?`, `REM MIT`), `listindex.py` (the shipped SPDX bundle in
   memory, a `ListLookup` for `match()` with no database),
   `listsource.py` (which list `match()` reads: database or packaged),
-  `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
-  to text), `manifest.py` (the `license` field of package.json,
-  pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
-  database path), `dbconnection.py` (SQLite connections), `dbcache.py`
-  (whole-table reads kept per database),
+  `climatch.py` (the `licenseid match` command; what it shares with
+  `cli.py` is in `clicommon.py`), `identifiers.py`, `classify.py`,
+  `normalize.py`, `textinput.py` (bytes to text), `manifest.py` (the
+  `license` field of package.json, pyproject.toml, Cargo.toml, setup.cfg),
+  `datadir.py` (the default database path), `dbconnection.py` (SQLite
+  connections), `dbcache.py` (whole-table reads kept per database),
   `fingerprint.py` (the maths), `fingerprintstore.py` (its table),
   `spdxdata.py` (an SPDX release as data: reads the upstream tarball and a
   bundle, standard library only), `records.py` (the database rows built from it),
@@ -140,18 +141,19 @@ Unix philosophy. Consistent, predictable, parseable.
     (`SUBJECT: CONDITION…`, no prefix); the CLI prints it after `ERROR:` and
     exits 1, or 2 for its subclass `InvalidInputError` (a usage error). The
     CLI also exits 2 for `DatabaseNotReadyError` (a database that is missing,
-    empty, invalid or unreadable) in `detect` and the `is-*` commands, where
-    exit 1 already means "no". `update` and `--clear-cache` write or delete,
-    so they refuse only an `invalid` database — one licenseid did not build
-    — and accept every other condition, which is what they exist to fix.
+    empty, invalid or unreadable) in `detect`, `match` and the `is-*`
+    commands, where exit 1 already means "no". `update` and `--clear-cache`
+    write or delete, so they refuse only an `invalid` database — one
+    licenseid did not build — and accept every other condition, which is
+    what they exist to fix.
   - Write a result line with `output.echo`, not `click.echo`: a result
     that cannot be written (standard output closed, a full disk) exits 2
     with `output: write failed: <reason>`, never 0 or 1. A reader that
     closes the pipe (`| head -1`) ends the run quietly with 141, and Ctrl-C
-    with 130, both without a message (`DatabaseErrorGroup`). `--help` goes
-    through `echo` too (`output.EchoHelpCommand`). `cli.main()` runs click
-    outside its standalone mode, so Ctrl-C while options are parsed is 130
-    too. A closed
+    with 130, both without a message (`DatabaseErrorGroup`). `--help` and
+    `--version` go through `echo` too (`output.EchoHelpCommand`).
+    `cli.main()` runs click outside its standalone mode, so Ctrl-C while
+    options are parsed is 130 too. A closed
     standard input is no input; a failing standard error is skipped and
     pointed at the null device, or the flush at exit would turn every exit
     status into 120.

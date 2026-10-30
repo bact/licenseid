@@ -42,7 +42,8 @@ generator.*
   - Bare deprecated IDs (e.g. `GPL-2.0`) resolved conservatively to `-only`
     by `detect()` when no surrounding context is available; `match()` keeps
     them as written (below).
-- **Declared-value resolution** (`match()`): turns one declared licence
+- **Declared-value resolution** (`match()`, and `licenseid match` on the
+  command line): turns one declared licence
   value (a `license` field, a model card) into an SPDX expression and the
   steps taken, without fuzzy matching, with or without a database:
   - with no database it reads the SPDX License List shipped in the wheel, in
@@ -213,9 +214,21 @@ Advanced update options:
     newest when the package was built. `licenseid update` still works with
     no network, with data that may be older.
 
-### 2. Identify a license
+### 2. Detect a licence, or match a declared value
 
-Identify license text from a file, an ID, or a string:
+Two commands answer two questions (as `detect()` and `match()` do in the
+[Python API](#python-api)):
+
+```bash
+# Which licence is in this file? Ranked candidates, with a score.
+licenseid detect LICENSE.txt
+
+# Which SPDX expression does this declared value stand for? One answer and
+# the steps taken, or a refusal; no database needed.
+licenseid match "GPLv2 or later"
+```
+
+`detect` identifies license text from a file, an ID, or a string:
 
 ```bash
 # From a file (smart detection)
@@ -282,7 +295,54 @@ optional popularity weight + marker confidence boost) to prefer the tightest
 match. For example, it distinguishes a short permissive licence from a
 superset that shares the same preamble.
 
-### 3. Cache management
+### 3. Match a declared value
+
+`licenseid match VALUE` reads one value that someone wrote to declare a
+licence (a `license` field, a trove classifier) with `match()`, and prints
+its resolution, one data point per line:
+
+```console
+$ licenseid match "GPLv2+ or MIT"
+EXPRESSION=GPL-2.0-or-later\x20OR\x20MIT CATEGORY=version_spelling TRUST=resolver_rule
+STEP=separator FROM=GPLv2 TO=GPL-2.0
+STEP=version_spelling FROM=GPLv2 TO=GPL-2.0
+STEP=operator_case FROM=GPL-2.0-or-later\x20or\x20MIT TO=GPL-2.0-or-later\x20OR\x20MIT
+STEP=plus_to_or_later FROM=GPLv2+ TO=GPL-2.0-or-later
+```
+
+- The first line is the answer: `EXPRESSION=` is empty when the value
+  resolves to no expression. Its category and trust are those of
+  [docs/match.md][match-doc].
+- `STEP=` lines are the steps applied, in order, then the qualifiers
+  (`-or-later`) applied; a step that was declined is not printed.
+- `REASON=` says why a value was refused (`character dropped: U+003F`).
+- `OPERAND=<text> EXPRESSION=<expr> CATEGORY=<category>` lines follow for
+  licences joined by `;` (`MIT ; Apache 2`), which say no operator.
+- Every value is one word of ASCII: a backslash escape in Python's
+  `unicode_escape` (`\t`, `\xe9`, `\u201c`, `\\`) and a space written
+  `\x20`, so `awk` and `cut -d' '` split the fields on any locale. A key
+  ends at the first `=`. `--json` prints the whole result instead, as one
+  RFC 8785 object, with every value as it is:
+  `licenseid match --json "$v" | jq -r .expression`.
+
+Options:
+
+- `--json`: the whole result of `match()`, as one JSON object.
+- `--source auto|database|packaged`: the list read when `--db` is not
+  given, as `match(source=...)` reads it (default `auto`: the database at the
+  default path or the list shipped with licenseid, whichever is newer).
+- `--db <path>` (global option): read that database, as `match(value, db)`;
+  `--source packaged` with it exits 2.
+
+`match` reads a declared value, not a licence text, so it refuses what only
+`detect` answers, with exit 2 and `; run 'licenseid detect'`: `--text`, an
+argument that names a file or directory in the current directory, standard
+input with no argument, a value with a line break, and one over 2,000
+characters. An empty argument is a usage error too. Exit 0 means the value
+resolved to an expression (`GPL-3.0`, kept as `assumed_only`, included), 1
+that it did not (a list joined by `;` included).
+
+### 4. Cache management
 
 `licenseid` maintains a local cache of remote data to save bandwidth.
 
@@ -303,7 +363,7 @@ This deletes the database and the cache files beside it, so it refuses a
 `database: invalid`). A database it cannot read is still cleared: that is
 what the command is for.
 
-### 4. Output formats
+### 5. Output formats
 
 Default (Unix-friendly), one result per line, best first (the examples
 show the first two results):
@@ -392,22 +452,26 @@ WORD DIFF:
  the
 ```
 
-### 5. Exit codes
+### 6. Exit codes
 
 The CLI follows standard Unix exit code conventions,
 making it suitable for use in scripts and CI/CD pipelines.
 
 | Exit Code | Meaning | Scenarios |
 | :--- | :--- | :--- |
-| **0** | Success | Confident match found; predicate is TRUE; database updated or already up-to-date. |
-| **1** | Logic Failure | No matching license found; predicate is FALSE; network error. |
-| **2** | Usage or Setup Error | Missing subcommand (help on standard error); missing input text/file; invalid parameters; database not ready; output that cannot be written. |
+| **0** | Success | Confident match found; `match`: the value resolved to an expression; predicate is TRUE; database updated or already up-to-date. |
+| **1** | Logic Failure | No matching license found; `match`: no expression (the result is still printed); predicate is FALSE; network error. |
+| **2** | Usage or Setup Error | Missing subcommand (help on standard error); missing input text/file; invalid parameters; `match` given a file, a text or standard input; database not ready (for `match`, no list to read); output that cannot be written. |
 | **130** | Interrupted | Ctrl-C (SIGINT); no message once started. |
 | **141** | Reader gone | The reader closed the pipe (`head -1`); no message. |
 
 A database is not ready when it is missing, empty (no licenses yet), invalid
 (another program's file) or unreadable. `detect` and the `is-*` commands refuse
-to answer from one, rather than reporting "no license found" or `false`.
+to answer from one, rather than reporting "no license found" or `false`;
+`match` reads the list shipped with licenseid instead, unless `--db` or
+`--source database` asks for the database.
+
+`licenseid --version` prints `licenseid <version>`.
 
 Errors and warnings go to standard error, one per line, in a fixed format:
 
@@ -427,7 +491,7 @@ WARNING: popularity.csv: download failed: timed out; using stale cache
 `SUBJECT` is the thing affected, such as `database`, `input` or a cache file
 name, so `cut -d: -f1-3` gives the level, subject and condition.
 
-### 6. License predicates (for CI/CD)
+### 7. License predicates (for CI/CD)
 
 Predicate commands are designed for shell scripting.
 They print `true`/`false` and exit with `0` (for true) or `1` (for false).
@@ -567,6 +631,10 @@ r["lists"][0]["source"]  # read from the "database" or the "packaged" list
 The whole result, its categories and their trust, the reasons for a
 refusal, licences joined by a `;` (`r["operands"]` lists each) and how quote
 marks are read are in [docs/match.md][match-doc].
+`licenseid match VALUE` prints the same result on the command line
+([Match a declared value](#3-match-a-declared-value)), and
+`licenseid match --json VALUE` prints it as `json_line(match(VALUE))` from
+`licenseid.result` does.
 
 [match-doc]: https://github.com/bact/licenseid/blob/main/docs/match.md
 

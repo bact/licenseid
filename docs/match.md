@@ -59,6 +59,42 @@ For `match("Apache2")`, as JSON:
 }
 ```
 
+## The command line
+
+`licenseid match VALUE` prints this result for one value. `--json` prints
+it whole, as above, as one RFC 8785 object on one line (the bytes
+`licenseid.result.json_line(match(value))` gives). Without it, the result
+is a few `KEY=VALUE` lines, one data point each:
+
+```text
+EXPRESSION=<expression> CATEGORY=<category> TRUST=<trust>
+STEP=<kind> FROM=<from> TO=<to>
+REASON=<reason>
+OPERAND=<text> EXPRESSION=<expression> CATEGORY=<category>
+```
+
+The first line is always there; `EXPRESSION=` is empty for `None`. A `STEP`
+line is printed for each step of `steps` that was applied, in order, then for
+each of `expansions` that was applied (`GPL-2.0+` has only its
+`plus_to_or_later`); a step not applied is not printed, so a refusal shows
+its `reason` alone. `REASON` is printed when `reason` is not `None`, and the
+`OPERAND` lines (one per operand, in order) only for licences joined by a
+`;`, whose reason is `operator not stated: ;`. A value is written as one
+word of ASCII by Python's `unicode_escape`, with a space as `\x20`:
+`FROM=Apache\x20License,\x20Version\x202.0`, `FROM=\u201cMIT\u201d`. So
+`awk` and `cut -d' '` split a line into its fields, and
+`codecs.decode(field, "unicode_escape")`, or
+`licenseid.result.read_text_field`, gives the value back; `=` is not
+escaped, as a key ends at the first one.
+
+The exit status is 0 when `expression` is not `None`, 1 when it is (the
+lines are still printed), and 2 for a usage error, a list that cannot be read
+or a result that cannot be written. `--source` and `--db` choose the list as
+`match(value, source=...)` and `match(value, db)` do; `--db` with `--source
+packaged` exits 2. A file, a licence text, standard input with no argument,
+a value with a line break and one over 2,000 characters are refused with
+exit 2 and `; run 'licenseid detect'`: `detect` answers those.
+
 ## Operands and components
 
 `schema` is the version of this shape (2 since 0.7.0). `operands` holds each
