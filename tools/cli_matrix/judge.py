@@ -36,6 +36,13 @@ PLAIN = re.compile(
     r" SCORE=(0\.\d{4}|1\.0000) SIMILARITY=(\d\.\d{4})? COVERAGE=(\d+\.\d{4})?"
 )
 
+#: The lines of ``licenseid match``: every value one word (``result.text_field``).
+MATCH_HEAD = re.compile(r"EXPRESSION=(\S*) CATEGORY=[a-z_]+ TRUST=[a-z_]+")
+MATCH_LINE = re.compile(
+    r"STEP=[a-z_]+ FROM=\S* TO=\S*|REASON=\S+"
+    r"|OPERAND=\S+ EXPRESSION=\S* CATEGORY=[a-z_]+"
+)
+
 #: The whole result of ``detect --bold``: an identifier and nothing else.
 BOLD = re.compile(r"\S+( WITH \S+)?")
 
@@ -88,7 +95,7 @@ def _is_unspecified(cell: Cell) -> bool:
         cell.exp_exit is None
         and cell.exp_out is None
         and cell.exp_err is None
-        and cell.kind in ("other", "update", "detect", "predicate", "help")
+        and cell.kind in ("other", "update", "detect", "predicate", "match", "help")
     )
 
 
@@ -158,6 +165,8 @@ def _contract_flags(cell: Cell, result: Result) -> list[str]:
         if (rc, out) not in ((0, "true\n"), (1, "false\n"), (2, "")):
             return [f"predicate contract: exit={rc} stdout={out[:30]!r}"]
         return []
+    if cell.kind == "match":
+        return check_match_value(cell, rc, out)
     if cell.kind != "detect":
         return []
     if rc == 0:
@@ -168,6 +177,29 @@ def _contract_flags(cell: Cell, result: Result) -> list[str]:
         return []
     if rc == 2 and out != "" and "--help" not in cell.cmd:
         return ["exit 2 with stdout output"]
+    return []
+
+
+def check_match_value(cell: Cell, rc: int, out: str) -> list[str]:
+    """``licenseid match``: exit 0 with an expression, 1 without one, 2 with
+    nothing on stdout; ``--json`` one resolution object."""
+    if rc == 2:
+        return [] if out == "" or "--help" in cell.cmd else ["exit 2 with stdout"]
+    if rc not in (0, 1) or "--help" in cell.cmd:
+        return []
+    if "json" in cell.outflags or "--json" in cell.cmd:
+        parsed = _json_results(out)
+        if not parsed or len(parsed) != 1 or not isinstance(parsed[0], dict):
+            return [f"match --json not one object: {out[:40]!r}"]
+        resolved = parsed[0].get("expression") is not None
+    else:
+        lines = out.splitlines()
+        head = MATCH_HEAD.fullmatch(lines[0]) if lines else None
+        if head is None or not all(MATCH_LINE.fullmatch(x) for x in lines[1:]):
+            return [f"match output malformed: {out[:60]!r}"]
+        resolved = head.group(1) != ""
+    if resolved != (rc == 0):
+        return [f"match exit {rc} but expression {'set' if resolved else 'empty'}"]
     return []
 
 

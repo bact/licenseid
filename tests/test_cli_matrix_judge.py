@@ -389,3 +389,58 @@ def test_windows_is_refused_before_the_posix_only_imports(
     monkeypatch.undo()
     assert info.value.code == 2
     assert capsys.readouterr().err.startswith("ERROR: platform: unsupported: ")
+
+
+@pytest.mark.parametrize(
+    ("rc", "flags", "out", "ok"),
+    [
+        (0, TEXT, "EXPRESSION=MIT CATEGORY=exact TRUST=identity\n", True),
+        (
+            0,
+            TEXT,
+            (
+                "EXPRESSION=Apache-2.0 CATEGORY=separator TRUST=resolver_rule\n"
+                "STEP=separator FROM=Apache\\x202 TO=Apache-2.0\n"
+            ),
+            True,
+        ),
+        (
+            1,
+            TEXT,
+            (
+                "EXPRESSION= CATEGORY=unresolved TRUST=none\n"
+                "REASON=operator\\x20not\\x20stated:\\x20;\n"
+                "OPERAND=MIT EXPRESSION=MIT CATEGORY=exact\n"
+                "OPERAND=Foo EXPRESSION= CATEGORY=unresolved\n"
+            ),
+            True,
+        ),
+        (2, TEXT, "", True),
+        (0, JSON, '{"expression":"MIT","schema":2}\n', True),
+        (1, JSON, '{"expression":null,"schema":2}\n', True),
+        # exit and expression disagree
+        (1, TEXT, "EXPRESSION=MIT CATEGORY=exact TRUST=identity\n", False),
+        (0, TEXT, "EXPRESSION= CATEGORY=unresolved TRUST=none\n", False),
+        (0, JSON, '{"expression":null,"schema":2}\n', False),
+        # a value with a space, not written as one word
+        (0, TEXT, "EXPRESSION=MIT OR ISC CATEGORY=lexical TRUST=identity\n", False),
+        (
+            0,
+            TEXT,
+            "EXPRESSION=MIT CATEGORY=exact TRUST=identity\nSTEP=x FROM=a b\n",
+            False,
+        ),
+        (0, TEXT, "", False),
+        (2, TEXT, "EXPRESSION=MIT CATEGORY=exact TRUST=identity\n", False),
+        (0, JSON, '{"expression":"MIT"}\n{"expression":"MIT"}\n', False),
+        (0, JSON, "[]\n", False),
+    ],
+)
+def test_match_value_output_is_its_contract(
+    rc: int, flags: frozenset[str], out: str, ok: bool
+) -> None:
+    """``licenseid match``: exit 0 with an expression, 1 without, 2 with an
+    empty stdout; every value one word; ``--json`` one object."""
+    cell = make_cell(kind="match", outflags=flags)
+    notes = judge_mod.check_match_value(cell, rc, out)
+    assert (not notes) is ok, notes

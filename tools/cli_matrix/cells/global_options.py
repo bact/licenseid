@@ -185,7 +185,7 @@ def add_cells(cells: CellSet) -> None:
             # click parses every option before honouring --help, so
             # `--help --json` is a usage error on commands without --json
             # (exit 2): that combination is left unspecified.
-            strict = "--json" not in position or sub == "detect"
+            strict = "--json" not in position or sub in ("detect", "match")
             cells.add(
                 "C2",
                 f"help: {position.format(s=sub)}",
