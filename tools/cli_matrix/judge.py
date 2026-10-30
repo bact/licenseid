@@ -173,9 +173,9 @@ def _contract_flags(cell: Cell, result: Result) -> list[str]:
         return []
     if rc == 0:
         return check_match_format(cell, out)
-    if rc == 1:
-        if out != "" or "ERROR: match: no license found" not in err:
-            return ["detect exit 1 without empty stdout + 'no license found'"]
+    if rc == 1:  # "no": nothing on stdout, no ERROR line (a WARNING may be)
+        if out != "" or re.search(r"(?m)^ERROR:", err):
+            return ["detect exit 1 with stdout or an ERROR line"]
         return []
     if rc == 2 and out != "" and "--help" not in cell.cmd:
         return ["exit 2 with stdout output"]

@@ -8,8 +8,8 @@ Check that a license database is ready to answer, before anything opens it.
 
 ``LicenseDatabase`` creates its tables on open (unless made with
 ``create=False``), so an unready or foreign file opened through it could be
-written to, and a partly built database would answer "no license found" as
-if it were complete. The check here opens the file read-only and never writes
+written to, and a partly built database would answer that it knows no such
+licence as if it were complete. The check here opens the file read-only and never writes
 to it.
 
 Stdlib only, so importing it does not pull in ``requests``.

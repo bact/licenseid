@@ -499,8 +499,7 @@ def detect(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         r for r in results if r["score"] >= threshold and (r["exact"] or not exact_only)
     ][:top]
 
-    if not results:
-        error("match: no license found")
+    if not results:  # "no" is an answer, as is-* prints false: no ERROR line
         ctx.exit(1)
 
     if bold:

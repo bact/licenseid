@@ -56,10 +56,10 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
         "predicate contract",
     ),
     (
-        "detect exit 1 without the documented diagnostic",
+        "detect exit 1 with an ERROR line",
         {"kind": "detect"},
-        {"rc": 1, "err": "ERROR: match: something else\n"},
-        "detect exit 1 without empty stdout",
+        {"rc": 1, "err": "ERROR: detect: something else\n"},
+        "detect exit 1 with stdout or an ERROR line",
     ),
     (
         "expected exit not met",
@@ -103,7 +103,7 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
     ),
     (
         "required diagnostic absent",
-        {"kind": "other", "exp_err": "no license found"},
+        {"kind": "other", "exp_err": "variant not stated"},
         {"rc": 1},
         "stderr lacks",
     ),
@@ -178,7 +178,7 @@ def test_judge_ignores_streams_on_a_terminal() -> None:
 def test_judge_accepts_the_documented_diagnostic_grammar() -> None:
     """LEVEL: SUBJECT: CONDITION on stderr is exactly what is expected."""
     cell = make_cell(kind="detect", exp_exit=1)
-    result = make_result(rc=1, err="ERROR: match: no license found\n")
+    result = make_result(rc=1, err="WARNING: detect: variant not stated: x; using y\n")
     assert judge_mod.judge(cell, result)[0] == "PASS"
 
 

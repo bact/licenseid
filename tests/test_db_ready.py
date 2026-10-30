@@ -342,8 +342,8 @@ def test_ready_database_answers_yes_and_no(variant: Variant, command: str) -> No
     assert_no_traceback(no)
     assert no.exit_code == 1
     assert no.stdout in ("", "false\n")
-    # "no" is an answer, not a fault: nothing but the match's own ERROR line.
-    assert no.stderr in ("", "ERROR: match: no license found\n")
+    # "no" is an answer, not a fault: nothing on standard error.
+    assert no.stderr == ""
 
 
 @pytest.mark.parametrize("variant", ["ready_file", "ready_memory_uri"], indirect=True)

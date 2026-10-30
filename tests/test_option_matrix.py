@@ -66,7 +66,7 @@ from tools.cli_matrix.judge import PLAIN
 
 OTHER_TEXT = "The quick brown fox jumps over the lazy dog near the river bank"
 MISSING = "ERROR: input: missing; pass a file, an ID, --text, --id or stdin\n"
-NO_MATCH = "ERROR: match: no license found\n"
+NO_MATCH = ""  # "no" is an answer: nothing on standard error
 
 SOURCES = ["arg_id", "arg_file", "text", "id", "stdin", "none"]
 OUTPUTS = [
