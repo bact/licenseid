@@ -22,9 +22,11 @@ from licenseid.clicommon import (
     LicenseIdCommand,
     exit_bad_input,
     exit_usage_error,
+    piped_input,
     reject_blank_options,
     reject_unencodable,
 )
+from licenseid.climatch import match_command
 from licenseid.console import end_line, error, warn, write
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
@@ -385,8 +387,7 @@ def get_input_content(
             # a mistyped path is no text to match
             exit_bad_input(ctx, f"not found: {one_line(input_val)}; pass --text")
         return input_val
-    # A closed standard input (`<&-`) is None: no input, not a crash.
-    if sys.stdin is not None and not sys.stdin.isatty():
+    if piped_input():  # a closed one is no input, not a crash
         return read_input(ctx, None)
     return ""
 
@@ -614,6 +615,9 @@ def is_spdx_cmd(
         ctx.exit(0)
     echo("false")
     ctx.exit(1)
+
+
+cli.add_command(match_command)
 
 
 def main() -> None:

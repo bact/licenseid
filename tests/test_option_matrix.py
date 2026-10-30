@@ -17,6 +17,7 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | API ``detect()``     | method / function x text / license_id / file |
 | API ``is_*()``       | PREDICATES x text / license_id / file        |
 | API ``match()``      | source x default database (STATES) x bundle  |
+| CLI ``match``        | --source x default database x --db x --json  |
 
 Current precedence when several inputs are given (pinned below; the losing
 input is ignored without a warning):
@@ -28,7 +29,9 @@ input is ignored without a warning):
 
 import contextlib
 import itertools
+import json
 import re
+import shutil
 from collections.abc import Callable, Generator
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,6 +42,7 @@ from conftest import RESULT_KEYS, json_lines, make_mit_db_path
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import MIT_TEXT, make_ready_file_db
 from input_payloads import PAYLOADS, Payload
+from packaged_list import fixture_bundle
 from release_fakes import release_bundle, ship
 from resolve_states import MISSING as NO_DATABASE
 from resolve_states import (
@@ -54,6 +58,7 @@ from resolve_states import (
 import licenseid
 from licenseid import LicenseDatabase, match
 from licenseid.cli import cli
+from licenseid.datadir import get_default_db_path
 from licenseid.detector import LicenseDetector
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
 from licenseid.resolvertypes import Source
@@ -452,3 +457,69 @@ def test_resolve_matrix_with_a_database_given(
         return
     got = match("MIT", db, source=source)
     assert [entry["source"] for entry in got["lists"]] == ["database"]
+
+
+# --- CLI match: --source x the database at the default path x --db x --json ---
+
+DEFAULT_DATABASES = ["usable", "missing"]
+
+
+def _cli_match_outcome(source: str, default: str, given: bool) -> str | None:
+    """Where ``licenseid match`` reads the list, or None for exit 2. The
+    database and the bundle hold one List, built by this licenseid: a tie,
+    which the database wins (Q10)."""
+    if given:
+        return None if source == "packaged" else "database"
+    if source == "packaged":
+        return "packaged"
+    if default == "missing":
+        return None if source == "database" else "packaged"
+    return "database"
+
+
+@pytest.mark.parametrize("output", [(), ("--json",)], ids=["plain", "json"])
+@pytest.mark.parametrize("given", [False, True], ids=["no-db", "db"])
+@pytest.mark.parametrize("default", DEFAULT_DATABASES)
+@pytest.mark.parametrize("source", RESOLVE_SOURCES)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_cli_match_matrix(
+    monkeypatch: pytest.MonkeyPatch,
+    bundle_db: LicenseDatabase,
+    source: str,
+    default: str,
+    given: bool,
+    output: tuple[str, ...],
+) -> None:
+    """``--db`` is read as ``match(value, db)``; without it, the list
+    ``--source`` names, as match() reads it. No database is needed."""
+    ship(monkeypatch, fixture_bundle())
+    if default == "usable":
+        path = Path(get_default_db_path())
+        path.parent.mkdir(parents=True)
+        shutil.copyfile(bundle_db.db_path, path)
+    db = ["--db", str(bundle_db.db_path)] if given else []
+    result = CliRunner().invoke(
+        cli, [*db, "match", "--source", source, *output, "Apache2"]
+    )
+    where = _cli_match_outcome(source, default, given)
+    if where is None:
+        refused = (
+            "option: invalid: --source: packaged with --db; pass --db or --source"
+            if given
+            else f"database: not found: {get_default_db_path()}; run 'licenseid update'"
+        )
+        assert (result.exit_code, result.stdout, result.stderr) == (
+            2,
+            "",
+            f"ERROR: {refused}\n",
+        )
+        return
+    assert (result.exit_code, result.stderr) == (0, "")
+    if output:
+        got = json.loads(result.stdout)
+        assert got["expression"] == "Apache-2.0"
+        assert [entry["source"] for entry in got["lists"]] == [where]
+    else:
+        assert result.stdout.splitlines()[0] == (
+            "EXPRESSION=Apache-2.0 CATEGORY=version_spelling TRUST=resolver_rule"
+        )

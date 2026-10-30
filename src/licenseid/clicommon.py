@@ -11,6 +11,7 @@ error, and the checks of a value given on the command line.
 imports the other's module back.
 """
 
+import sys
 from typing import NoReturn
 
 import click
@@ -58,3 +59,9 @@ def reject_unencodable(
         reject_lone_surrogate(content)
     except InvalidInputError as e:
         exit_usage_error(ctx, str(e))
+
+
+def piped_input() -> bool:
+    """Whether standard input brings something: not a terminal, and not
+    closed (``<&-`` leaves it None)."""
+    return sys.stdin is not None and not sys.stdin.isatty()
