@@ -90,6 +90,8 @@ and this project adheres to
   (`character dropped: U+002D`); they were refused with none
 - `match()` reads one end mark after a `LicenseRef-*` that ends in a dot
   (`LicenseRef-a.;`) as an ending, as after any ID; it was refused
+- `match()` reads one end mark after closing quote marks (`"MIT".`, `"MIT",`,
+  `'MIT';`) as it reads `MIT,"`; `"MIT"..` is still refused, with a reason
 - A build from the sdist needs Pitloom 0.21.2 or later: an older one accepts
   licenseid 0.7 and its build hook then fails to import
   ([#135])

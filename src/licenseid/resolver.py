@@ -34,7 +34,7 @@ from licenseid.database import LicenseDatabase
 from licenseid.exprcanon import unbracketed
 from licenseid.listlookup import ListLookup
 from licenseid.listsource import choose_list
-from licenseid.quotes import unquote
+from licenseid.quotes import ended_quote, unquote
 from licenseid.resolvecompound import (
     absorb,
     not_an_operator,
@@ -208,7 +208,12 @@ def _prepared(value: str, found: Found) -> tuple[str, int]:
 def _unquoted(text: str, start: int, found: Found) -> tuple[str, int]:
     """*text* without quote marks around the whole of it, as an ``unquote``
     step whose detail says whether they were balanced, and where it starts
-    (*text* starts at *start*)."""
+    (*text* starts at *start*). One end mark after the closing marks
+    (``"MIT".``) comes off first, as a ``separator`` step."""
+    ended = ended_quote(text)
+    if ended is not None:
+        found.steps.append(step("separator", True, text, ended, "end mark"))
+        text = ended
     unquoted = unquote(text)
     if unquoted is None:
         return text, start

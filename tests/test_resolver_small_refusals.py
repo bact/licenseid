@@ -8,11 +8,16 @@ Characterisation first: today's answers, so that each fix shows as a flip of
 the values marked ``MOVES``."""
 # pylint: disable=missing-function-docstring
 
+import time
+
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from packaged_list import fixture_bundle, masked
+from release_fakes import ship
 
 from licenseid import LicenseDatabase, match
 from licenseid.dropguard import end_dashes
+from licenseid.quotes import ended_quote
 from licenseid.resolver import match_with
 from licenseid.resolvertypes import Source
 
@@ -82,11 +87,36 @@ REF_REFUSED: dict[str, str] = {
     "LicenseRef-a;,": "character dropped: U+003B U+002C",
 }
 
-#: MOVES (item 4): quote marks, then one end mark.
-QUOTED_END: dict[str, tuple[str | None, str | None]] = {
-    '"MIT".': (None, "character dropped: U+0022"),
-    '"MIT",': (None, "character dropped: U+0022"),
-    '"MIT";': (None, "character dropped: U+0022 U+003B"),
+#: Item 4 (P123): quote marks, then one end mark, read as the end mark then the
+#: marks come off (the order they stand in); both orders read the same.
+QUOTED_ENDED: dict[str, str] = {
+    '"MIT".': "MIT",
+    '"MIT",': "MIT",
+    '"MIT";': "MIT",
+    '"MIT":': "MIT",
+    '"MIT" .': "MIT",
+    '"MIT" ; ': "MIT",
+    "'MIT'.": "MIT",
+    "\u201cMIT\u201d,": "MIT",
+    "\u00abMIT\u00bb.": "MIT",
+    '""MIT"".': "MIT",
+    '"MIT+".': "MIT+",
+    '"GPL-2.0 or later".': "GPL-2.0-or-later",
+    '"MIT OR ISC".': "ISC OR MIT",
+    'MIT".': "MIT",
+    'MIT,"': "MIT",  # the other order, as before
+    'MIT."': "MIT",
+}
+QUOTED_REFUSED: dict[str, str] = {
+    '"MIT"..': "character dropped: U+0022 U+002E",
+    '"MIT".,': "character dropped: U+0022 U+002E U+002C",
+    '"MIT",,': "character dropped: U+0022 U+002C",
+    '"MIT"...': "character dropped: U+0022 U+002E",
+    '"MIT.".': "character dropped: U+0022",  # a mark inside and one outside
+    '"MIT;".': "character dropped: U+0022 U+003B",
+    "\"MIT'.": "character dropped: U+0022 U+0027",  # two kinds (P16)
+    '"MIT"+': "character dropped: U+0022",
+    '"MIT"."': "character dropped: U+0022",
 }
 
 
@@ -145,15 +175,46 @@ def test_an_answer_that_does_not_move(corpus_db: LicenseDatabase, value: str) ->
     assert (got["expression"], got["reason"]) == STAYS[value]
 
 
-@pytest.mark.parametrize(
-    "value",
-    sorted(QUOTED_END),
-    ids=lambda v: v[:20],
-)
-def test_an_answer_that_moves(corpus_db: LicenseDatabase, value: str) -> None:
-    today = QUOTED_END
+@pytest.mark.parametrize("value", sorted(QUOTED_ENDED), ids=lambda v: v[:20])
+def test_one_end_mark_after_quote_marks_is_an_ending(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
     got = match(value, corpus_db)
-    assert (got["expression"], got["reason"]) == today[value]
+    assert (got["expression"], got["reason"]) == (QUOTED_ENDED[value], None)
+    assert got["category"] == "separator"
+
+
+@pytest.mark.parametrize("value", ['"MIT".', '"MIT" ;', "'MIT'."])
+def test_the_steps_are_in_the_order_they_apply(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """The end mark stands outside the marks, so it comes off first."""
+    got = match(value, corpus_db)
+    assert [(s["kind"], s["detail"]) for s in got["steps"]] == [
+        ("separator", "end mark"),
+        ("unquote", "balanced"),
+    ]
+    first, second = got["steps"]
+    assert first["from"] == value.strip()
+    assert first["to"] == second["from"]
+    assert second["to"] == "MIT"
+
+
+@pytest.mark.parametrize("value", sorted(QUOTED_REFUSED), ids=lambda v: v[:20])
+def test_other_marks_after_quote_marks_are_refused_with_a_reason(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    got = match(value, corpus_db)
+    assert (got["expression"], got["reason"]) == (None, QUOTED_REFUSED[value])
+    assert [s["kind"] for s in got["steps"]] == ["drop"]
+
+
+@pytest.mark.parametrize(
+    "value", ['MIT,"', 'MIT."', '"MIT".', '"MIT",', '"MIT";', "'MIT'."]
+)
+def test_both_orders_give_one_answer(corpus_db: LicenseDatabase, value: str) -> None:
+    got = match(value, corpus_db)
+    assert (got["expression"], got["category"]) == ("MIT", "separator")
 
 
 @pytest.mark.parametrize("value", NOT_TEXT, ids=lambda v: type(v).__name__)
@@ -180,3 +241,68 @@ def test_a_string_subclass_is_a_string(corpus_db: LicenseDatabase) -> None:
         """A caller's own string type."""
 
     assert match(Text("MIT"), corpus_db)["expression"] == "MIT"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ('"MIT".', '"MIT"'),
+        ('"MIT" ; ', '"MIT"'),
+        ("“MIT”:", "“MIT”"),
+        ('MIT".', 'MIT"'),
+        ('"MIT"', None),  # no end mark
+        ('"MIT;"', None),  # the mark is inside: unquote reads it
+        ('"MIT"..', None),
+        ('"MIT".,', None),
+        ('"MIT.".', None),
+        ("MIT.", None),  # no quote mark before the end mark
+        ("MIT;", None),
+        ('"."', None),
+        ('"".', None),  # nothing between the marks
+        ("\"MIT'.", None),  # two kinds
+    ],
+)
+def test_ended_quote(text: str, expected: str | None) -> None:
+    assert ended_quote(text) == expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '"MIT" ' + "-" * 100_000,
+        '"' * 100_000 + "MIT" + '"' * 100_000 + ".",
+        '"MIT"' + " " * 100_000 + ".",
+        '"MIT"' + "." * 100_000,
+        "MIT+" + "-" * 100_000,
+        "MIT License" + "-" * 100_000,
+    ],
+    ids=["dashes", "layers", "spaces", "dots", "plus-dashes", "prose-dashes"],
+)
+def test_the_new_rules_are_linear(corpus_db: LicenseDatabase, text: str) -> None:
+    """Ten times the size would take ten times as long; 2 s for 200,000
+    characters leaves room for a slow runner and fails a quadratic path."""
+    started = time.monotonic()
+    match(text, corpus_db)
+    assert time.monotonic() - started < 2
+
+
+_MOVED = [
+    *DASHED,
+    *REF_ENDED,
+    *REF_REFUSED,
+    *QUOTED_ENDED,
+    *QUOTED_REFUSED,
+    *STAYS,
+]
+
+
+def test_packaged_and_database_answers_agree(
+    monkeypatch: pytest.MonkeyPatch, bundle_db: LicenseDatabase
+) -> None:
+    ship(monkeypatch, fixture_bundle())
+    differences = [
+        value
+        for value in _MOVED
+        if masked(match(value, bundle_db)) != masked(match(value, source="packaged"))
+    ]
+    assert not differences, differences
