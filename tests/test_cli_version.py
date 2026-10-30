@@ -55,3 +55,12 @@ def test_version_that_cannot_be_written_is_exit_2(
         2,
         "ERROR: output: write failed: No space\n",
     )
+
+
+def test_version_says_nothing_while_the_shell_completes(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Shell completion parses with resilient_parsing: no output, no exit."""
+    with cli.make_context("licenseid", ["--version"], resilient_parsing=True):
+        pass
+    assert capsys.readouterr() == ("", "")

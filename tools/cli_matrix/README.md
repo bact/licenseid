@@ -93,7 +93,8 @@ are those of `bash zsh sh dash ksh` found on `PATH`.
   diagnostic goes to stderr in the `LEVEL: SUBJECT: CONDITION` grammar
   (click's usage errors included; the help for a missing subcommand is the
   one free text allowed there), a predicate answers `true`, `false` or a
-  usage error, `detect` prints one of its three documented shapes, exit
+  usage error, `detect` prints one of its three documented shapes, `match`
+  prints its lines (exit 0 with an expression, 1 without one), exit
   statuses are 0, 1 or 2, and nothing ever shows a traceback. A cell also
   flags when its answer depends on the shell or the interpreter, when the
   five predicates contradict each other, or when `update` leaves temporary
@@ -160,8 +161,9 @@ use, so a flag that only one of them shows is recorded.
 
 Cells live in `cells/`: `detect.py` (A), `predicate.py` (B),
 `global_options.py` (C), `update.py` (D), `environment.py` (E1 to E6, the
-streams around the process) and `process_env.py` (E7 to E11, its own
-resources), with the shared command list in `core_commands.py`. Add yours
+streams around the process), `process_env.py` (E7 to E11, its own
+resources) and `matchvalue.py` (F1 to F5, `match` on one declared value),
+with the shared command list in `core_commands.py`. Add yours
 to the family it belongs to, at the end, so the identifiers of the existing
 cells do not shift. A cell is declarative:
 

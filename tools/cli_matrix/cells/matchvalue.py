@@ -8,7 +8,7 @@
 ``F1`` values read and refused, in every shell (quoting decides what the
 command sees), ``F2`` what only ``detect`` reads, refused with exit 2,
 ``F3`` the list read (``--source``, ``--db``, no database), ``F4`` the
-streams around it.
+streams around it, ``F5`` locales that cannot write every character.
 
 A value that resolves exits 0, one that does not 1, and a refusal 2 with
 ``; run 'licenseid detect'`` (``climatch``). The editable install the
@@ -53,7 +53,8 @@ REFUSED: list[tuple[str, str, str, str]] = [
     ("a directory", "match $F/adir", "", r"input: invalid: path: .*" + _DETECT),
     ("the current directory", "match .", "", r"input: invalid: path: \." + _DETECT),
     ("standard input", "match", "printf MIT | ", r"input: invalid: standard input"),
-    ("stdin /dev/null", "match < /dev/null", "", r"input: invalid: standard input"),
+    # nothing piped: no value, not one for detect
+    ("stdin /dev/null", "match < /dev/null", "", r"input: missing; pass one "),
     (
         "a line break",
         "match \"$(printf 'MIT\\nISC')\"",
@@ -62,7 +63,7 @@ REFUSED: list[tuple[str, str, str, str]] = [
     ),
     (
         "over the cap",
-        'match "$(printf "%2001s" x)"',
+        "match \"$(printf '%2001s' | tr ' ' M)\"",
         "",
         r"input: invalid: over 2000 characters" + _DETECT,
     ),
@@ -95,7 +96,7 @@ SOURCES: list[tuple[str, str, int, str | None]] = [
 
 
 def add_cells(cells: CellSet) -> None:
-    """Add families F1 to F4 to *cells*."""
+    """Add families F1 to F5 to *cells*."""
     for desc, value, exit_code in VALUES:
         for output in ("", "--json "):
             cells.add(
@@ -159,6 +160,54 @@ def _add_streams(cells: CellSet) -> None:
     cells.add(
         "F4",
         "match, reader gone",
-        licenseid("match --json 'MIT ; Apache 2'") + " | head -c 1",
+        # The reader exits at once, long before the command writes: 141
+        # (128 + SIGPIPE), quietly. The status is reported on stderr.
+        "(" + licenseid("match --json 'MIT ; Apache 2'") + '; echo "[rc=$?]" >&2)'
+        " | true",
         kind="match",
+        exp_err=r"^\[rc=141\]\n\Z",
     )
+    cells.add(
+        "F4",
+        "match, a file of the value's name here",
+        "cd $W && : > MIT && " + licenseid("match MIT"),
+        kind="match",
+        exp_exit=0,
+        exp_out=r"EXPRESSION=MIT\tCATEGORY=exact\tTRUST=identity\n",
+    )
+    _add_locales(cells)
+
+
+#: (environment prefix, description) for F5: locales that cannot write every
+#: character of a result.
+LOCALES = [
+    ("PYTHONIOENCODING=ascii", "io ascii"),
+    ("PYTHONIOENCODING=latin-1", "io latin-1"),
+    ("LC_ALL=C LANG=C", "C"),
+]
+
+
+def _add_locales(cells: CellSet) -> None:
+    """F5: a value outside ASCII on a narrow locale. Text escapes what the
+    stream cannot encode (``\\u201c``); --json is UTF-8 whatever the locale."""
+    for prefix, desc in LOCALES:
+        cells.add(
+            "F5",
+            f"match text, {desc}",
+            f"{prefix} " + licenseid("match '\u201cMIT\u201d'"),
+            kind="match",
+            exp_exit=0,
+            exp_out=(
+                r"EXPRESSION=MIT\tCATEGORY=lexical\tTRUST=identity\n"
+                r"STEP=unquote\tFROM=(\\u201cMIT\\u201d|\u201cMIT\u201d)\tTO=MIT\n"
+            ),
+        )
+        cells.add(
+            "F5",
+            f"match --json, {desc}",
+            f"{prefix} " + licenseid("match --json '\u201cMIT\u201d \U0001f600'"),
+            kind="match",
+            outflags=frozenset({"json"}),
+            exp_exit=1,
+            exp_out=r'\{.*"input":"\u201cMIT\u201d \U0001f600".*\}\n',
+        )
