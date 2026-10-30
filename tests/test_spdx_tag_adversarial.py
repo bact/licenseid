@@ -34,7 +34,7 @@ def certain(db: str, text: str) -> str | None:
     """The ID of a certain (score 1.0) match for *text*, or None."""
     results = LicenseDetector(db).detect(text=text)
     if results and results[0]["score"] == 1.0:
-        return results[0]["license_id"]
+        return results[0]["expression"]
     return None
 
 
@@ -130,7 +130,7 @@ def test_a_comment_closer_never_joins_the_expression(db: str, line: str) -> None
 def test_both_tags_on_one_line_are_read(db: str) -> None:
     line = "# SPDX-License-Identifier: MIT SPDX-License-Identifier: Apache-2.0"
     results = LicenseDetector(db).detect(text=line + PROSE)
-    assert [r["license_id"] for r in results] == ["MIT", "Apache-2.0"]
+    assert [r["expression"] for r in results] == ["MIT", "Apache-2.0"]
 
 
 @pytest.mark.parametrize(
@@ -189,7 +189,7 @@ def test_deep_brackets_are_read_quickly(db: str) -> None:
     matcher = LicenseDetector(db)
     start = time.monotonic()
     assert certain(db, source_with(DEEP)) == "Apache-2.0+"
-    assert [r["license_id"] for r in matcher.detect(license_id=DEEP)] == ["Apache-2.0+"]
+    assert [r["expression"] for r in matcher.detect(license_id=DEEP)] == ["Apache-2.0+"]
     assert time.monotonic() - start < 5.0
 
 

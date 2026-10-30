@@ -109,7 +109,7 @@ def _add_sources(cells: CellSet) -> None:
                     outflags=frozenset(out),
                     exp_exit=2 if name == "none" else (0 if found else 1),
                     group=_source_group(name, found, out),
-                    exp_err=_source_expected_stderr(name, found),
+                    exp_err=_source_expected_stderr(name),
                 )
                 cell.tags.add(f"src:{tag}")
 
@@ -123,11 +123,10 @@ def _source_group(name: str, found: bool, out: tuple[str, ...]) -> str | None:
     return None
 
 
-def _source_expected_stderr(name: str, found: bool) -> str | None:
-    """The diagnostic a source is required to produce, if any."""
-    if name == "none":
-        return MISSING
-    return None if found else r"ERROR: match: no license found"
+def _source_expected_stderr(name: str) -> str | None:
+    """The diagnostic a source is required to produce, if any: a "no" has
+    none (exit 1, nothing on stderr)."""
+    return MISSING if name == "none" else None
 
 
 def _add_top_threshold(cells: CellSet) -> None:

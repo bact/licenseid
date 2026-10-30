@@ -31,11 +31,12 @@
   `Apache 2.0?`, `REM MIT`), `listindex.py` (the shipped SPDX bundle in
   memory, a `ListLookup` for `match()` with no database),
   `listsource.py` (which list `match()` reads: database or packaged),
-  `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
-  to text), `manifest.py` (the `license` field of package.json,
-  pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
-  database path), `dbconnection.py` (SQLite connections), `dbcache.py`
-  (whole-table reads kept per database),
+  `climatch.py` (the `licenseid match` command; what it shares with
+  `cli.py` is in `clicommon.py`), `identifiers.py`, `classify.py`,
+  `normalize.py`, `textinput.py` (bytes to text), `manifest.py` (the
+  `license` field of package.json, pyproject.toml, Cargo.toml, setup.cfg),
+  `datadir.py` (the default database path), `dbconnection.py` (SQLite
+  connections), `dbcache.py` (whole-table reads kept per database),
   `fingerprint.py` (the maths), `fingerprintstore.py` (its table),
   `spdxdata.py` (an SPDX release as data: reads the upstream tarball and a
   bundle, standard library only), `records.py` (the database rows built from it),
@@ -100,25 +101,59 @@
 
 Unix philosophy. Consistent, predictable, parseable.
 
-- Default: line-delimited, one data point per line.
-- Field separator: space or tab (consistent).
-- Key-value: `KEY=VALUE` — uppercase KEY, no spaces around `=`.
+- One pattern for every result line of every command (`detect`, `match`,
+  `update`, `is-*`), written through `output.echo`:
+  - Default: line-delimited, one data point (one record) per line.
+  - Fields: `KEY=VALUE`, uppercase KEY, no spaces around `=`, one tab
+    between fields (`result.fields_line`). A key ends at the first `=`.
+  - Escaping: a value is written as it is, except a tab, CR, LF and
+    backslash (`\t`, `\r`, `\n`, `\\`), and a character the stream's
+    encoding cannot hold (`\xHH`, `\uHHHH`, `\UHHHHHHHH`, by
+    `output.echo`); `result.text_field` writes a value,
+    `result.read_text_field` reads it back.
+  - Nothing is an empty value (`SIMILARITY=`, `EXPRESSION=`); a flag is
+    `true` or `false`.
+  - `--json`: the same result, one object per line, its keys the text
+    keys in lower case (`EXPRESSION` is `expression`), nothing `null`, a
+    flag a boolean. `match --json` holds the whole resolution, of which
+    the text lines show a part.
+  - --json and any JSON output will always write with RFC 8785: JSON
+    Canonicalization Scheme (JCS). Every JSON the CLI writes goes through
+    the one writer, `result.json_line`, as UTF-8 bytes on every locale
+    (`output.echo_json`, one object per line): never `json.dumps` on an
+    output path.
+  - Exit codes: 0 an answer, yes or done; 1 no answer, no, or an action
+    that failed (`update`, a delete `--clear-cache` could not make); 2 a
+    usage error, unusable input, a database not ready, or a result that
+    could not be written. Exit 1 of `detect` and `match` prints nothing on
+    standard error.
+  - The only exceptions: `detect --bold` (the top ID alone, one line),
+    `--version` (`licenseid <version>`) and `--help`.
+  - `tests/test_output_pattern.py` runs every command, text and `--json`,
+    and holds each line to this pattern.
 - Standard output carries only a command's result. Progress, warnings and
   errors go to standard error through `licenseid.console` (`status`, `warn`,
   `error`); never `print` or `click.echo` them directly.
+- Every line licenseid writes ends in `\n` on every platform, results and
+  diagnostics alike: `console.emit` is the one writer of both streams. It
+  writes bytes under the text stream, so Windows does not turn `\n` into
+  `\r\n` (which `awk` in Git Bash keeps in the last field), in the
+  stream's encoding with backslash escapes (UTF-8 for `--json`). Tests
+  simulate Windows with a `TextIOWrapper(..., newline="\r\n")`
+  (`tests/test_output_encoding.py`).
 - Errors and warnings follow one grammar, one event per line:
   `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`.
   - `LEVEL`: `ERROR` (the command fails, non-zero exit) or `WARNING` (a
     fallback lets it continue).
   - `SUBJECT`: the thing affected, a lowercase word or cache file name:
-    `command`, `database`, `input`, `match`, `option`, `output`, `usage`,
+    `command`, `database`, `detect`, `input`, `option`, `output`, `usage`,
     `version`, `latest.json`, `licenses.json`, `popularity.csv`,
     `spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz` (the packaged bundle in
     the wheel), `spdx-data-v<ver>.tar.gz`.
   - `CONDITION`: short lowercase fragment, reused across subjects. The
     full current set (add new ones here): `not found`, `invalid`,
     `missing`, `empty`, `unreadable`, `binary file`,
-    `not UTF-8, read as Latin-1`, `no license found`, `N days old`,
+    `not UTF-8, read as Latin-1`, `N days old`,
     `normalization vN outdated`, `build vN outdated`, `build vN newer`,
     `download failed`,
     `cache read failed`,
@@ -127,7 +162,11 @@ Unix philosophy. Consistent, predictable, parseable.
     `N rows with missing or non-numeric num_pushers`, `update failed`,
     `delete failed`, `write failed`, `compact failed`,
     `older than the database`.
-  - `DETAIL`: the variable part (exception text, value, path).
+  - `DETAIL`: the variable part (exception text, value, path), on one
+    line: a path or file name through `errors.shown` (a control character
+    escaped, `;` as `,`), a value through `errors.one_line` (folded, cut to
+    60), an exception through `errors.typed`. Not the result escaping: a
+    backslash stays, so a Windows path reads as typed.
   - `ACTION`: what happens next, after a semicolon: the fallback taken
     (`using stale cache`, `using stale <file>`, `downloading`,
     `downloading <file>`, `using cached <file>`, `using packaged data v<ver>`,
@@ -140,18 +179,20 @@ Unix philosophy. Consistent, predictable, parseable.
     (`SUBJECT: CONDITION…`, no prefix); the CLI prints it after `ERROR:` and
     exits 1, or 2 for its subclass `InvalidInputError` (a usage error). The
     CLI also exits 2 for `DatabaseNotReadyError` (a database that is missing,
-    empty, invalid or unreadable) in `detect` and the `is-*` commands, where
-    exit 1 already means "no". `update` and `--clear-cache` write or delete,
-    so they refuse only an `invalid` database — one licenseid did not build
-    — and accept every other condition, which is what they exist to fix.
-  - Write a result line with `output.echo`, not `click.echo`: a result
+    empty, invalid or unreadable) in `detect`, `match` and the `is-*`
+    commands, where exit 1 already means "no". `update` and `--clear-cache`
+    write or delete, so they refuse only an `invalid` database — one
+    licenseid did not build — and accept every other condition, which is
+    what they exist to fix.
+  - Write a result line with `output.echo` (or `output.echo_json`), not
+    `click.echo` or `print`: a result
     that cannot be written (standard output closed, a full disk) exits 2
     with `output: write failed: <reason>`, never 0 or 1. A reader that
     closes the pipe (`| head -1`) ends the run quietly with 141, and Ctrl-C
-    with 130, both without a message (`DatabaseErrorGroup`). `--help` goes
-    through `echo` too (`output.EchoHelpCommand`). `cli.main()` runs click
-    outside its standalone mode, so Ctrl-C while options are parsed is 130
-    too. A closed
+    with 130, both without a message (`DatabaseErrorGroup`). `--help` and
+    `--version` go through `echo` too (`output.EchoHelpCommand`).
+    `cli.main()` runs click outside its standalone mode, so Ctrl-C while
+    options are parsed is 130 too. A closed
     standard input is no input; a failing standard error is skipped and
     pointed at the null device, or the flush at exit would turn every exit
     status into 120.
@@ -172,7 +213,7 @@ Unix philosophy. Consistent, predictable, parseable.
   - `tests/conftest.py::check_diagnostic_grammar` fails any test that
     prints a line breaking this grammar.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
-- JSON output supported as options. `detect --json` prints JSON Lines, one
+- `detect --json` prints JSON Lines, one
   RFC 8785 (JCS) object per result, through `licenseid.result.json_line`;
   the text line comes from `text_line` beside it. Both print the public form
   `result.public_result` builds at the one exit of `detect()`: tiers rank on

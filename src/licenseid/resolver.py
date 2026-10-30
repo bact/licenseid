@@ -29,6 +29,7 @@ reads). ``lists[*].source`` says which was read.
 """
 
 import unicodedata
+from typing import Final
 
 from licenseid.database import LicenseDatabase
 from licenseid.exprcanon import unbracketed
@@ -63,8 +64,10 @@ from licenseid.resolvertypes import (
 from licenseid.resolvesemicolon import read_semicolon_list, semicolon_parts
 from licenseid.textinput import has_lone_surrogate
 
-# The longest expression read; one licence is MAX_KEY_INPUT or less (versionkey).
-_MAX_EXPRESSION_CHARS = 2000
+#: The longest value read, once trimmed and unquoted; one licence is
+#: MAX_KEY_INPUT or less (versionkey). ``licenseid match`` refuses a longer
+#: argument (``climatch``).
+MAX_EXPRESSION_CHARS: Final = 2000
 
 
 def match(
@@ -106,6 +109,13 @@ def match_with(
     return resolution
 
 
+def read_length(value: str) -> int:
+    """The length of *value* as :data:`MAX_EXPRESSION_CHARS` counts it:
+    trimmed, without the quotes and brackets around the whole of it (one
+    pass over it)."""
+    return len(_prepared(value, Found())[0])
+
+
 def _read(
     db: ListLookup, value: str, *, lists: bool = True
 ) -> tuple[Found, list[Operand], bool]:
@@ -114,7 +124,7 @@ def _read(
     licences is not split: a part is not read as a list again."""
     found = Found()
     text, start = _prepared(value, found)
-    if not text or len(text) > _MAX_EXPRESSION_CHARS:
+    if not text or len(text) > MAX_EXPRESSION_CHARS:
         found.category = "unresolved"
         return found, [], False
     found.reason = _refusal(text)

@@ -122,7 +122,7 @@ def test_a_read_only_database_without_norm_columns_still_answers(
     _null_norm_columns(path)
     path.chmod(0o444)
     matcher = LicenseDetector(db_path=str(path))
-    assert matcher.detect("MIT")[0]["license_id"] == "MIT"
+    assert matcher.detect("MIT")[0]["expression"] == "MIT"
 
 
 def test_concurrent_lookups_on_rows_without_norm_columns(tmp_path: Path) -> None:
@@ -132,7 +132,7 @@ def test_concurrent_lookups_on_rows_without_norm_columns(tmp_path: Path) -> None
     matcher = LicenseDetector(db_path=str(path))
     with ThreadPoolExecutor(4) as pool:
         results = list(pool.map(lambda _: matcher.detect("MIT"), range(8)))
-    assert all(r and r[0]["license_id"] == "MIT" for r in results)
+    assert all(r and r[0]["expression"] == "MIT" for r in results)
     assert _fingerprint(path) == before
 
 
@@ -295,7 +295,7 @@ def test_a_normal_lookup_still_works_read_only(tmp_path: Path) -> None:
     path = make_ready_file_db(tmp_path / "ok.db")
     path.chmod(0o444)
     matcher = LicenseDetector(db_path=str(path))
-    assert matcher.detect(license_id="MIT")[0]["license_id"] == "MIT"
+    assert matcher.detect(license_id="MIT")[0]["expression"] == "MIT"
 
 
 def test_copied_database_is_independent(tmp_path: Path) -> None:

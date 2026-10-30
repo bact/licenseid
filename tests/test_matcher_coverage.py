@@ -95,7 +95,7 @@ def test_default_db_path_used_when_no_path_given(
 
     assert fake.call_count == 1
     results = matcher.detect("MIT")
-    assert [r["license_id"] for r in results] == ["MIT"]
+    assert [r["expression"] for r in results] == ["MIT"]
 
 
 def test_explicit_db_path_skips_default_lookup(
@@ -108,7 +108,7 @@ def test_explicit_db_path_skips_default_lookup(
     matcher = LicenseDetector(marker_db)
 
     fake.assert_not_called()
-    assert matcher.detect("MIT")[0]["license_id"] == "MIT"
+    assert matcher.detect("MIT")[0]["expression"] == "MIT"
 
 
 # -- SPDX-License-Identifier short circuit ---------------------------------
@@ -125,7 +125,7 @@ def test_spdx_tag_in_source_file_short_circuits(marker_db: str) -> None:
     results = LicenseDetector(marker_db).detect(text=text)
 
     # The result's shape for a tag: test_public_result.
-    assert [(r["license_id"], r["method"]) for r in results] == [("MIT", "tag")]
+    assert [(r["expression"], r["method"]) for r in results] == [("MIT", "tag")]
     assert results[0]["is_spdx"] is True
     assert results[0]["is_osi_approved"] is True
     assert results[0]["is_fsf_libre"] is True
@@ -141,7 +141,7 @@ def test_two_spdx_tags_return_both_matches(marker_db: str) -> None:
 
     results = LicenseDetector(marker_db).detect(text=text)
 
-    assert {r["license_id"] for r in results} == {"MIT", "Apache-2.0"}
+    assert {r["expression"] for r in results} == {"MIT", "Apache-2.0"}
     assert len(results) == 2
     assert [r["score"] for r in results] == [1.0, 1.0]
 
@@ -156,7 +156,7 @@ def test_repeated_spdx_tag_returns_one_match(marker_db: str) -> None:
 
     results = LicenseDetector(marker_db).detect(text=text)
 
-    assert [r["license_id"] for r in results] == ["MIT"]
+    assert [r["expression"] for r in results] == ["MIT"]
 
 
 def test_license_field_marker_does_not_short_circuit(marker_db: str) -> None:
@@ -166,7 +166,7 @@ def test_license_field_marker_does_not_short_circuit(marker_db: str) -> None:
 
     results = LicenseDetector(marker_db).detect(text=text)
 
-    assert results[0]["license_id"] == "MIT"
+    assert results[0]["expression"] == "MIT"
     assert results[0]["score"] < 1.0
 
 
@@ -191,7 +191,7 @@ def test_bare_deprecated_id_with_prose(gpl_db: str, text: str, license_id: str) 
     """The phrase resolves to the canonical ID, with the flags of its
     database row. (The result's shape: test_public_result.)"""
     results = LicenseDetector(gpl_db).detect(text)
-    assert [(r["license_id"], r["method"]) for r in results] == [(license_id, "id")]
+    assert [(r["expression"], r["method"]) for r in results] == [(license_id, "id")]
     assert results[0]["is_osi_approved"] is True
 
 
@@ -202,7 +202,7 @@ def test_disambiguated_id_missing_from_database(gpl_db: str) -> None:
     approval flags default to false although the real license is approved."""
     results = LicenseDetector(gpl_db).detect("Licensed under GPL-3.0 or later")
 
-    assert [r["license_id"] for r in results] == ["GPL-3.0-or-later"]
+    assert [r["expression"] for r in results] == ["GPL-3.0-or-later"]
     assert results[0]["is_spdx"] is True
     assert results[0]["is_osi_approved"] is False
     assert results[0]["is_fsf_libre"] is False
@@ -213,7 +213,7 @@ def test_canonical_id_is_not_disambiguated(gpl_db: str) -> None:
     deprecated alias with a "-only" suffix bolted on."""
     results = LicenseDetector(gpl_db).detect("GPL-2.0-or-later")
 
-    assert [r["license_id"] for r in results] == ["GPL-2.0-or-later"]
+    assert [r["expression"] for r in results] == ["GPL-2.0-or-later"]
 
 
 # -- WITH expressions ------------------------------------------------------
@@ -233,7 +233,7 @@ def with_db() -> Generator[str, None, None]:
 def test_with_expression_both_halves_known(with_db: str) -> None:
     results = LicenseDetector(with_db).detect(license_id="MIT WITH Font-exception-2.0")
 
-    assert [r["license_id"] for r in results] == ["MIT WITH Font-exception-2.0"]
+    assert [r["expression"] for r in results] == ["MIT WITH Font-exception-2.0"]
     assert results[0]["score"] == 1.0
 
 
@@ -244,7 +244,7 @@ def test_with_expression_half_missing_from_db(with_db: str, expression: str) -> 
     """One half has no row in this database: a valid SPDX expression still,
     so it matches, but neither OSI nor FSF can be claimed for it."""
     results = LicenseDetector(with_db).detect(license_id=expression)
-    assert [r["license_id"] for r in results] == [expression]
+    assert [r["expression"] for r in results] == [expression]
     assert results[0]["is_spdx"] is True
     assert results[0]["is_osi_approved"] is False
     assert results[0]["is_fsf_libre"] is False
@@ -289,7 +289,7 @@ def test_deprecated_alias_is_penalised_in_short_text(
         "GNU General Public License v2.0 only"
     )
     public = matcher.detect("GNU General Public License v2.0 only")
-    assert [r["license_id"] for r in public] == ["GPL-2.0-only", "GPL-2.0"]
+    assert [r["expression"] for r in public] == ["GPL-2.0-only", "GPL-2.0"]
 
     assert [r["license_id"] for r in results] == ["GPL-2.0-only", "GPL-2.0"]
     assert results[0]["score"] == pytest.approx(1.02)
@@ -341,7 +341,7 @@ def test_mixed_content_keyword_sections(mixed_db: str) -> None:
     matcher = LicenseDetector(mixed_db)
 
     results = matcher.detect(text=text)
-    found = [r["license_id"] for r in results]
+    found = [r["expression"] for r in results]
 
     assert found == ["Acme-1.0", "Beta-2.0"]
     assert results[0]["score"] > results[1]["score"]
@@ -384,7 +384,7 @@ def test_mixed_content_skips_id_without_a_row(broken_successor_db: str) -> None:
     matcher = LicenseDetector(broken_successor_db)
 
     assert not matcher._match_mixed_content(DetectRequest(), "Unlicense")
-    assert [r["license_id"] for r in matcher.detect("Unlicense")] == ["Unlicense-2.0"]
+    assert [r["expression"] for r in matcher.detect("Unlicense")] == ["Unlicense-2.0"]
 
 
 # -- The windowed search that augments Tier 1 --------------------------------

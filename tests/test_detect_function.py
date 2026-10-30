@@ -89,7 +89,7 @@ def test_every_argument_is_forwarded(default_db: str) -> None:
 def test_a_positional_text_is_text(default_db: str) -> None:
     """The first argument is text, as for the method."""
     assert default_db
-    assert [r["license_id"] for r in licenseid.detect("MIT")] == ["MIT"]
+    assert [r["expression"] for r in licenseid.detect("MIT")] == ["MIT"]
 
 
 def test_a_file_is_read(default_db: str, tmp_path: Path) -> None:
@@ -97,7 +97,7 @@ def test_a_file_is_read(default_db: str, tmp_path: Path) -> None:
     assert default_db
     path = tmp_path / "LICENSE"
     path.write_text("MIT", encoding="utf-8")
-    assert [r["license_id"] for r in licenseid.detect(file_path=str(path))] == ["MIT"]
+    assert [r["expression"] for r in licenseid.detect(file_path=str(path))] == ["MIT"]
 
 
 def test_an_unknown_option_is_refused(default_db: str) -> None:

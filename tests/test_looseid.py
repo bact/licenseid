@@ -39,7 +39,7 @@ ROWS = [
     Lic("GPL-2.0-with-classpath-exception", "GPL-2.0 w/Classpath", is_deprecated=True),
 ]
 EXCEPTIONS = ("Classpath-exception-2.0", "LLVM-exception")
-NARROWED = "WARNING: match: variant not stated: {}; using {}\n"
+NARROWED = "WARNING: detect: variant not stated: {}; using {}\n"
 
 # The License List of the developer's cache, read only; absent on CI.
 REAL_DB = Path.home() / ".local" / "share" / "licenseid" / "licenses.db"
@@ -199,11 +199,11 @@ def test_a_loose_license_with_an_exception(
     warned: bool,
 ) -> None:
     results = matcher.detect(text=text)
-    assert ((results[0]["license_id"], results[0]["exact"]) if results else None) == (
+    assert ((results[0]["expression"], results[0]["exact"]) if results else None) == (
         expected
     )
     err = capsys.readouterr().err
-    assert ("WARNING: match: variant not stated: GPL2;" in err) is warned
+    assert ("WARNING: detect: variant not stated: GPL2;" in err) is warned
 
 
 @pytest.mark.parametrize(
@@ -231,7 +231,7 @@ def test_a_manifest_value_read_as_a_guess_is_still_a_field(
     matcher: LicenseDetector,
 ) -> None:
     [result] = matcher.detect(text='{"license": "GPLv2"}')
-    assert (result["license_id"], result["method"], result["exact"]) == (
+    assert (result["expression"], result["method"], result["exact"]) == (
         "GPL-2.0-only",
         "field",
         False,

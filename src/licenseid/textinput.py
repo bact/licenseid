@@ -19,7 +19,7 @@ pull in ``requests``.
 import re
 
 from licenseid.console import warn
-from licenseid.errors import InvalidInputError
+from licenseid.errors import InvalidInputError, shown
 
 # A file name's extension at the end of a word: "LICENSE.txt", "COPYING.LESSER".
 # No SPDX ID ends so: each ends in a version ("Apache-2.0", "LPPL-1.3c") or
@@ -56,7 +56,7 @@ def reject_binary(data: bytes | str, source: str) -> None:
     else:
         has_nul = "\x00" in data
     if has_nul:
-        raise InvalidInputError(f"input: binary file: {source}")
+        raise InvalidInputError(f"input: binary file: {shown(source)}")
 
 
 def lone_surrogate_at(text: str) -> int | None:
@@ -99,7 +99,7 @@ def decode_input(data: bytes, source: str) -> str:
     try:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError:
-        warn(f"input: not UTF-8, read as Latin-1: {source}")
+        warn(f"input: not UTF-8, read as Latin-1: {shown(source)}")
         text = data.decode("latin-1")
     return normalize_newlines(text)
 

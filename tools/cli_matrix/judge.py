@@ -7,8 +7,9 @@
 
 The invariants come from ``AGENTS.md`` ("CLI output"): stdout carries only
 the result, every diagnostic goes to stderr in one grammar, a predicate
-answers ``true``/``false``/usage error, ``detect`` prints one of three
-documented shapes, and nothing ever shows a traceback.
+answers one record whose flag is true/false (or a usage error), ``detect``
+prints one of three documented shapes, ``update`` one record, and nothing
+ever shows a traceback.
 
 Anything the documentation does not settle is ``OBSERVE``, never ``PASS``:
 a verdict is a claim about the contract, and there is no contract to claim.
@@ -28,13 +29,33 @@ GRAMMAR = re.compile(r"(ERROR|WARNING): [a-z][a-z0-9._-]*: [a-z0-9].*")
 #: The help printed for a missing subcommand: stderr, exit 2, not a result.
 HELP = re.compile(r"Usage: .*\n(.*\n)*Commands:\n")
 
-#: The default one-line result of ``detect``.
+#: The default one-line result of ``detect``: fields joined by one tab.
 #: An expression's operators are its only spaces; a score is 0-1, and
 #: coverage passes 1 when the input is longer than the licence.
 PLAIN = re.compile(
-    r"LICENSE_ID=\S+( (AND|OR|WITH) \S+)* METHOD=[a-z]+ EXACT=(true|false)"
-    r" SCORE=(0\.\d{4}|1\.0000) SIMILARITY=(\d\.\d{4})? COVERAGE=(\d+\.\d{4})?"
+    r"EXPRESSION=\S+( (AND|OR|WITH) \S+)*\tMETHOD=[a-z]+\tEXACT=(true|false)"
+    r"\tSCORE=(0\.\d{4}|1\.0000)\tSIMILARITY=(\d\.\d{4})?"
+    r"\tCOVERAGE=(\d+\.\d{4})?"
 )
+
+#: The lines of ``licenseid match``: fields joined by one tab, no value
+#: holds one (``result.text_field``).
+MATCH_HEAD = re.compile(r"EXPRESSION=([^\t]*)\tCATEGORY=[a-z_]+\tTRUST=[a-z_]+")
+MATCH_LINE = re.compile(
+    r"STEP=[a-z_]+\tFROM=[^\t]*\tTO=[^\t]*|REASON=[^\t]+"
+    r"|OPERAND=[^\t]+\tEXPRESSION=[^\t]*\tCATEGORY=[a-z_]+"
+)
+
+#: The word diff ``detect --diff`` writes to stderr: a header, the unified
+#: diff's lines (one word each, or a ``---``/``+++``/``@@`` line), and a blank
+#: line to end it.
+WORD_DIFF = re.compile(
+    r"(?m)^\nWORD DIFF:\n(?:(?:[-+ ]\S*|@@ .*|--- \S+|\+\+\+ \S+)\n)*\n"
+)
+
+#: The one record of an ``is-*`` command, and of ``update``.
+PREDICATE_LINE = re.compile(r"EXPRESSION=[^\t]*\t(IS_[A-Z_]+)=(true|false)\n")
+UPDATE_LINE = re.compile(r"STATUS=(updated|unchanged)\tVERSION=[^\t]*\tPATH=[^\t\n]+\n")
 
 #: The whole result of ``detect --bold``: an identifier and nothing else.
 BOLD = re.compile(r"\S+( WITH \S+)?")
@@ -88,7 +109,7 @@ def _is_unspecified(cell: Cell) -> bool:
         cell.exp_exit is None
         and cell.exp_out is None
         and cell.exp_err is None
-        and cell.kind in ("other", "update", "detect", "predicate", "help")
+        and cell.kind in ("other", "update", "detect", "predicate", "match", "help")
     )
 
 
@@ -121,7 +142,10 @@ def _stream_flags(cell: Cell, result: Result) -> list[str]:
         flags.append("diagnostic on stdout")
     if result["rc"] == 2 and not result["out"] and HELP.match(result["err"]):
         return flags  # the help for a missing subcommand
-    for line in result["err"].splitlines():
+    err = result["err"]
+    if "--diff" in cell.cmd:  # detect's word diff goes to stderr (P116)
+        err = WORD_DIFF.sub("", err)
+    for line in err.splitlines():
         if cell.progress:
             # Free-text progress is allowed, but a diagnostic is not exempt.
             if re.match(r"(ERROR|WARNING):", line) and not GRAMMAR.fullmatch(line):
@@ -155,19 +179,46 @@ def _contract_flags(cell: Cell, result: Result) -> list[str]:
         return []
     rc, out, err = result["rc"], result["out"], result["err"]
     if cell.kind == "predicate":
-        if (rc, out) not in ((0, "true\n"), (1, "false\n"), (2, "")):
-            return [f"predicate contract: exit={rc} stdout={out[:30]!r}"]
-        return []
+        if (rc, out) == (2, "") or predicate_answer(out) == {0: True, 1: False}.get(rc):
+            return []
+        return [f"predicate contract: exit={rc} stdout={out[:40]!r}"]
+    if cell.kind == "match":
+        return check_match_value(cell, rc, out)
     if cell.kind != "detect":
         return []
     if rc == 0:
         return check_match_format(cell, out)
-    if rc == 1:
-        if out != "" or "ERROR: match: no license found" not in err:
-            return ["detect exit 1 without empty stdout + 'no license found'"]
+    if rc == 1:  # "no": nothing on stdout, no ERROR line (a WARNING may be)
+        if out != "" or re.search(r"(?m)^ERROR:", err):
+            return ["detect exit 1 with stdout or an ERROR line"]
         return []
     if rc == 2 and out != "" and "--help" not in cell.cmd:
         return ["exit 2 with stdout output"]
+    return []
+
+
+def check_match_value(cell: Cell, rc: int, out: str) -> list[str]:
+    """``licenseid match``: exit 0 with an expression, 1 without one, 2 with
+    nothing on stdout; ``--json`` one resolution object."""
+    if rc == 2:
+        return [] if out == "" or "--help" in cell.cmd else ["exit 2 with stdout"]
+    if rc not in (0, 1) or "--help" in cell.cmd:
+        return []
+    if "json" in cell.outflags or "--json" in cell.cmd:
+        parsed = _json_results(out)
+        if not (parsed and len(parsed) == 1 and isinstance(parsed[0], dict)):
+            return [f"match --json not one object: {out[:40]!r}"]
+        if "schema" not in parsed[0]:  # a detection, not a resolution
+            return [f"match --json not one object: {out[:40]!r}"]
+        resolved = parsed[0].get("expression") is not None
+    else:
+        lines = out.splitlines()
+        head = MATCH_HEAD.fullmatch(lines[0]) if lines else None
+        if head is None or not all(MATCH_LINE.fullmatch(x) for x in lines[1:]):
+            return [f"match output malformed: {out[:60]!r}"]
+        resolved = head.group(1) != ""
+    if resolved != (rc == 0):
+        return [f"match exit {rc} but expression {'set' if resolved else 'empty'}"]
     return []
 
 
@@ -180,7 +231,7 @@ def check_match_format(cell: Cell, out: str) -> list[str]:
     ok_bold = (
         len(lines) == 1
         and BOLD.fullmatch(lines[0]) is not None
-        and not lines[0].startswith("LICENSE_ID=")
+        and not lines[0].startswith("EXPRESSION=")
     )
     ok_json = _is_result_json(out)
     ok_plain = bool(lines) and PLAIN.fullmatch(lines[0]) is not None
@@ -207,7 +258,9 @@ def _is_result_json(out: str) -> bool:
     """True when *out* is JSON Lines of result objects, one or more."""
     parsed = _json_results(out)
     return bool(parsed) and all(
-        isinstance(item, dict) and {"license_id", "method", "score"} <= set(item)
+        isinstance(item, dict)
+        and {"expression", "method", "score"} <= set(item)
+        and "schema" not in item  # a resolution of match
         for item in parsed or ()
     )
 
@@ -218,6 +271,37 @@ def json_count(out: str) -> int | None:
     return None if parsed is None else len(parsed)
 
 
+def predicate_answer(out: str) -> bool | None:
+    """The flag of an ``is-*`` record, text or ``--json``; None when *out* is
+    not one record."""
+    line = PREDICATE_LINE.fullmatch(out)
+    if line:
+        return line.group(2) == "true"
+    parsed = _json_results(out)
+    if not (parsed and len(parsed) == 1 and isinstance(parsed[0], dict)):
+        return None
+    record: dict[str, Any] = parsed[0]
+    flags = [key for key in record if key.startswith("is_")]
+    if set(record) != {"expression", *flags} or len(flags) != 1:
+        return None
+    flag = record[flags[0]]
+    return flag if isinstance(flag, bool) else None
+
+
+def is_update_record(out: str) -> bool:
+    """Whether *out* is the one record of ``update``, text or ``--json``."""
+    if UPDATE_LINE.fullmatch(out):
+        return True
+    parsed = _json_results(out)
+    return bool(
+        parsed
+        and len(parsed) == 1
+        and isinstance(parsed[0], dict)
+        and set(parsed[0]) == {"path", "status", "version"}
+        and parsed[0]["status"] in ("updated", "unchanged")
+    )
+
+
 def _update_flags(cell: Cell, result: Result) -> list[str]:
     """``update`` prints one result line on success and nothing on failure."""
     if cell.kind != "update":
@@ -226,12 +310,9 @@ def _update_flags(cell: Cell, result: Result) -> list[str]:
     if (
         rc == 0
         and not cell.merged
-        and "\nDatabase" not in "\n" + out
         and cell.fam not in ("D5", "D4")
         and out.strip()
-        and not re.fullmatch(
-            r"Database (updated at|remains at version \S+ at) .*\n", out
-        )
+        and not is_update_record(out)
     ):
         return [f"update stdout not a single result line: {out[:60]!r}"]
     if rc != 0 and out.strip() and cell.fam not in ("D5", "D6", "D7"):

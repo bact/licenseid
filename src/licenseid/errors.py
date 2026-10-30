@@ -53,6 +53,18 @@ def fold(value: str) -> str:
     return " ".join(value.split()).replace(";", ",")
 
 
+def shown(name: str) -> str:
+    """*name* (a path, a file name) as the DETAIL of a diagnostic, whole: a
+    control character (a line break or a tab in a file name) is written as
+    an escape, so the message stays one line, and a ";" becomes ",", as it
+    would start the ACTION. Anything else is as given, a backslash too: a
+    diagnostic is for a person, and a Windows path reads as typed."""
+    return "".join(
+        char if char.isprintable() else char.encode("unicode_escape").decode()
+        for char in name.replace(";", ",")
+    )
+
+
 def typed(exc: BaseException) -> str:
     """*exc* as the DETAIL of a diagnostic: ``Type: text``, folded (``fold``)."""
     return f"{type(exc).__name__}: {fold(str(exc))}"

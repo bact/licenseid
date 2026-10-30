@@ -7,7 +7,6 @@
 Shared test configuration and fixtures for licenseid.
 """
 
-import builtins
 import json
 import re
 import sqlite3
@@ -32,6 +31,7 @@ from licenseid.dbconnection import Connections
 from licenseid.detector import LicenseDetector
 from licenseid.errors import LicenseIdError
 from licenseid.records import BUILD_VERSION
+from licenseid.result import FieldValue, fields_line, read_text_field, record_json
 from licenseid.types import Detection, Method
 
 # tools/cli_matrix drives real shells and terminals (pwd, pty, termios): POSIX
@@ -60,15 +60,17 @@ def check_diagnostic_grammar(
     a broad ``except Exception`` in the code under test cannot hide them."""
     violations: list[str] = []
 
-    def checked_print(*args: Any, **kwargs: Any) -> None:
-        text = " ".join(str(arg) for arg in args)
+    # pylint: disable-next=protected-access
+    real_write = console._write
+
+    def checked_write(text: str, end: str = "\n") -> None:
         if text.startswith(("ERROR:", "WARNING:")) and not DIAGNOSTIC_RE.fullmatch(
             text
         ):
             violations.append(text)
-        builtins.print(*args, **kwargs)
+        real_write(text, end)
 
-    monkeypatch.setattr(console, "print", checked_print, raising=False)
+    monkeypatch.setattr(console, "_write", checked_write)
     # A test that ends mid progress line must not shift the next test's output.
     # pylint: disable-next=protected-access
     monkeypatch.setitem(console._state, "line_open", False)
@@ -230,7 +232,7 @@ def assert_cached_tarball_removed(
 # The keys of every detect() result and --json line (types.Detection).
 RESULT_KEYS = frozenset(
     {
-        "license_id",
+        "expression",
         "method",
         "exact",
         "score",
@@ -254,7 +256,7 @@ def public_match(  # pylint: disable=too-many-arguments
 ) -> Detection:
     """A result as detect() returns it, for the code that prints one."""
     return Detection(
-        license_id=license_id,
+        expression=license_id,
         method=method,
         exact=exact,
         score=score,
@@ -269,6 +271,51 @@ def public_match(  # pylint: disable=too-many-arguments
 def invoke_match(db: str, *args: str, color: bool = False) -> Result:
     """``licenseid --db <db> detect <args>`` through click's runner."""
     return CliRunner().invoke(cli, ["--db", db, "detect", *args], color=color)
+
+
+# The flag each is-* command prints after EXPRESSION.
+PREDICATE_KEYS = {
+    "is-osi": "IS_OSI_APPROVED",
+    "is-fsf": "IS_FSF_LIBRE",
+    "is-open": "IS_OPEN",
+    "is-free": "IS_FREE",
+    "is-spdx": "IS_SPDX",
+}
+
+
+# An expected result line is built by the writers the CLI uses
+# (result.fields_line, result.record_json), never by hand: a value with a
+# backslash (a Windows path) is escaped, and a hand-built line was not.
+# tests/test_text_field.py and test_a_backslash_in_a_value_is_doubled hold
+# the writers themselves to literal bytes.
+
+
+def predicate_line(command: str, expression: str, answer: bool) -> str:
+    """The line ``licenseid <command>`` prints: the ID judged (empty for
+    none) and its flag."""
+    record: dict[str, FieldValue] = {PREDICATE_KEYS[command]: answer}
+    return fields_line(EXPRESSION=expression, **record) + "\n"
+
+
+def predicate_json(command: str, expression: str | None, answer: bool) -> str:
+    """The line ``licenseid <command> --json`` prints (RFC 8785)."""
+    record: dict[str, FieldValue] = {PREDICATE_KEYS[command]: answer}
+    return record_json(EXPRESSION=expression, **record) + "\n"
+
+
+def update_line(
+    status: str, version: str, path: object, *, as_json: bool = False
+) -> str:
+    """The line ``licenseid update`` prints, or with *as_json* its object."""
+    write = record_json if as_json else fields_line
+    return write(STATUS=status, VERSION=version, PATH=str(path)) + "\n"
+
+
+def line_fields(line: str) -> dict[str, str]:
+    """The ``KEY=VALUE`` fields of one result line, each value read back
+    (``result.read_text_field``)."""
+    pairs = (field.partition("=") for field in line.split("\t"))
+    return {key: read_text_field(value) for key, _, value in pairs}
 
 
 def json_lines(stdout: str) -> list[dict[str, Any]]:

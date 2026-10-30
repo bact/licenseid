@@ -6,13 +6,11 @@
 """The CLI's results and help on standard output, and what a failed write
 means: a result that was not delivered must not pass for an answer."""
 
-import contextlib
-import io
 import sys
 
 import click
 
-from licenseid.console import discard_stdout, error
+from licenseid.console import discard_stdout, emit, error
 
 
 class OutputError(Exception):
@@ -29,35 +27,36 @@ class OutputError(Exception):
 
 
 def echo(message: str = "") -> None:
-    """Write *message* and a newline to standard output.
+    """Write *message* and a line feed to standard output, in the stream's
+    encoding (``console.emit``): a character it cannot encode is written as
+    a backslash escape (``\\xHH``, ``\\uHHHH``, ``\\UHHHHHHHH``), as
+    ``result.read_text_field`` reads it back, and the line ends in ``\\n``
+    on Windows too. A result line escapes every backslash of its values, so
+    the escape cannot be mistaken.
 
-    Raises OutputError when it cannot be written: click.echo drops output
-    silently when standard output is closed (``>&-``), and raises a bare
-    OSError for a full disk, a size limit or a closed pipe.
+    Raises OutputError when it cannot be written: standard output closed
+    (``>&-``), a full disk, a size limit or a closed pipe.
     """
-    if sys.stdout is None:
+    _write_line(message, None)
+
+
+def echo_json(line: str) -> None:
+    """Write one JSON line (``result.json_line``) and a line feed to standard
+    output as UTF-8 bytes, whatever the stream's encoding: RFC 8785 is
+    UTF-8, so the same result is the same bytes on every locale."""
+    _write_line(line, "utf-8")
+
+
+def _write_line(text: str, encoding: str | None) -> None:
+    stream = sys.stdout
+    if stream is None:
         raise OutputError(None)
     try:
-        click.echo(message)
-    except (OSError, UnicodeEncodeError) as exc:
+        emit(stream, text + "\n", encoding)
+    except (OSError, UnicodeError) as exc:
         raise OutputError(exc) from exc
-
-
-def escape_unencodable_output() -> None:
-    """Write a character standard output cannot encode as a backslash escape,
-    as standard error already does, instead of failing the command.
-
-    On Windows a pipe or file takes the ANSI code page, which has no room for
-    most scripts (a Japanese word of the input in ``--diff``, an accented
-    user name in a path), and Python would raise after the result was
-    written, with exit 1: the code for "no".
-    """
-    stream = sys.stdout
-    # Only the strict default: a handler the user chose (PYTHONIOENCODING, UTF-8
-    # mode's surrogateescape) is theirs.
-    if isinstance(stream, io.TextIOWrapper) and stream.errors == "strict":
-        with contextlib.suppress(OSError, ValueError):
-            stream.reconfigure(errors="backslashreplace")
+    except ValueError as exc:  # a closed stream
+        raise OutputError(None) from exc
 
 
 def output_failed(exc: OutputError) -> int:

@@ -73,7 +73,7 @@ def narrowed(row_id: str, resolved: str, text: str) -> bool:
 
 def warn_narrowed(text: str, resolved: str) -> None:
     """Say that *text* was read as the narrower -only grant *resolved*."""
-    warn(f"match: variant not stated: {shown(text)}; using {resolved}")
+    warn(f"detect: variant not stated: {shown(text)}; using {resolved}")
 
 
 def shown(text: str) -> str:

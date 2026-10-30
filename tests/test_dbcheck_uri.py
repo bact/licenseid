@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
-from conftest import posix_only
+from conftest import posix_only, predicate_line
 from db_asserts import (
     assert_refused,
     expected_refusal,
@@ -51,7 +51,11 @@ def test_relative_path_is_ready(
     make_ready_file_db(tmp_path / "rel.db")
     monkeypatch.chdir(tmp_path)
     result = CliRunner().invoke(cli, ["--db", f"{prefix}rel.db", "is-osi", "MIT"])
-    assert (result.exit_code, result.stdout, result.stderr) == (0, "true\n", "")
+    assert (result.exit_code, result.stdout, result.stderr) == (
+        0,
+        predicate_line("is-osi", "MIT", True),
+        "",
+    )
 
 
 @pytest.mark.parametrize("prefix", ["", "./"])

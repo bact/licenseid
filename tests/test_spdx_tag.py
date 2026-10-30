@@ -106,7 +106,7 @@ def test_an_unknown_tag_is_no_evidence_anywhere(
 def test_an_unknown_tag_does_not_hide_a_known_one(db: str) -> None:
     text = source_with("NoSuchLicense-9.9") + source_with("Apache-2.0")
     results = LicenseDetector(db).detect(text=text)
-    assert [r["license_id"] for r in results] == ["Apache-2.0"]
+    assert [r["expression"] for r in results] == ["Apache-2.0"]
 
 
 WITH_EXPRESSION = "GPL-2.0-only WITH Classpath-exception-2.0"
@@ -160,8 +160,8 @@ def test_a_plus_before_with_is_kept_on_every_path(db: str, tmp_path: Path) -> No
     """`Apache-2.0+ WITH X` is one expression whether it is a tag or an ID."""
     by_tag = LicenseDetector(db).detect(text=source_with(PLUS_WITH))
     by_id = LicenseDetector(db).detect(license_id=PLUS_WITH)
-    assert [r["license_id"] for r in by_tag] == [PLUS_WITH]
-    assert [r["license_id"] for r in by_id] == [PLUS_WITH]
+    assert [r["expression"] for r in by_tag] == [PLUS_WITH]
+    assert [r["expression"] for r in by_id] == [PLUS_WITH]
     exception_plus = "Apache-2.0 WITH Classpath-exception-2.0+"
     with_plus = "Apache-2.0 with+ Classpath-exception-2.0"  # nor is the keyword's
     for value in (exception_plus, with_plus):  # not one license, so no answer
@@ -220,7 +220,7 @@ FILE_ONLY_VALUES = [
 def flags(result: Detection) -> tuple[object, ...]:
     """What every source of a value must agree on."""
     return (
-        result["license_id"],
+        result["expression"],
         result["is_spdx"],
         result["is_osi_approved"],
         result["is_fsf_libre"],

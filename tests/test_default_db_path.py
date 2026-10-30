@@ -12,6 +12,7 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
+from conftest import line_fields
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
@@ -120,7 +121,8 @@ def test_update_builds_the_default_directory(home: Path) -> None:
         result = CliRunner().invoke(cli, ["update"])
     database = home / ".local" / "share" / "licenseid" / "licenses.db"
     assert result.exit_code == 0
-    assert result.stdout == f"Database updated at {database}\n"
+    fields = line_fields(result.stdout.rstrip("\n"))
+    assert (fields["STATUS"], fields["PATH"]) == ("updated", str(database))
     assert database.is_file()
 
 

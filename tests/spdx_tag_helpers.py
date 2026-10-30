@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from click.testing import CliRunner
+from conftest import line_fields
 from db_variants import MIT_TEXT
 from matcher_db import PROSE, Lic, seeded_db
 
@@ -73,7 +74,7 @@ def source_with(tag: str) -> str:
 
 
 def cli_match_id(db: str, *args: str) -> str | None:
-    """The top LICENSE_ID the CLI's detect prints, or None when it finds none.
+    """The top EXPRESSION the CLI's detect prints, or None when it finds none.
 
     A command that dies of an uncaught exception also prints nothing, and
     CliRunner reports that as exit 1 — the same code as "no license found".
@@ -85,8 +86,8 @@ def cli_match_id(db: str, *args: str) -> str | None:
     )
     if result.exit_code != 0:
         return None
-    first_line = result.stdout.splitlines()[0]  # an ID can hold spaces
-    return first_line.removeprefix("LICENSE_ID=").rsplit(" METHOD=")[0]
+    first_line = result.stdout.splitlines()[0]
+    return line_fields(first_line)["EXPRESSION"]
 
 
 def answers(db: str, tag: str, tmp_path: Path) -> Answers:
@@ -98,7 +99,7 @@ def answers(db: str, tag: str, tmp_path: Path) -> Answers:
     path.write_text(text, encoding="utf-8")
     is_spdx = CliRunner().invoke(cli, ["--db", db, "is-spdx", str(path)])
     return Answers(
-        results[0]["license_id"] if results and results[0]["score"] >= 0.85 else None,
+        results[0]["expression"] if results and results[0]["score"] >= 0.85 else None,
         matcher.is_spdx(text=text),
         cli_match_id(db, str(path)),
         is_spdx.exit_code == 0,
