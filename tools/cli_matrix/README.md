@@ -92,9 +92,11 @@ are those of `bash zsh sh dash ksh` found on `PATH`.
   from `AGENTS.md` under "CLI output": stdout carries only results, every
   diagnostic goes to stderr in the `LEVEL: SUBJECT: CONDITION` grammar
   (click's usage errors included; the help for a missing subcommand is the
-  one free text allowed there), a predicate answers `true`, `false` or a
-  usage error, `detect` prints one of its three documented shapes, `match`
-  prints its lines (exit 0 with an expression, 1 without one), exit
+  one free text allowed there, and `detect --diff`'s word diff), a
+  predicate prints one record whose flag agrees with its exit status (or
+  exits 2 with nothing), `update` one record, `detect` one of its three
+  documented shapes, `match` its lines (exit 0 with an expression, 1
+  without one), exit
   statuses are 0, 1 or 2, and nothing ever shows a traceback. A cell also
   flags when its answer depends on the shell or the interpreter, when the
   five predicates contradict each other, or when `update` leaves temporary
