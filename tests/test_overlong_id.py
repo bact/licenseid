@@ -64,7 +64,7 @@ def matcher(db_path: str) -> LicenseDetector:
 
 
 def match_ids(matcher: LicenseDetector, **kwargs: str) -> list[str]:
-    return [r["license_id"] for r in matcher.detect(**kwargs)]
+    return [r["expression"] for r in matcher.detect(**kwargs)]
 
 
 @pytest.mark.parametrize(

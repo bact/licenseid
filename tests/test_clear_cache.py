@@ -118,7 +118,8 @@ def test_clear_cache_removes_a_corrupt_db_and_its_cache_but_no_foreign_file(
 @posix_only
 def test_clear_cache_that_cannot_delete_says_so_in_one_line(tmp_path: Path) -> None:
     """A read-only directory: the OS refuses the delete, and the user gets a
-    grammar line and exit 2, not a traceback."""
+    grammar line and exit 1 (a failed action, as for update), not a
+    traceback."""
     directory = tmp_path / "locked"
     directory.mkdir()
     db_path = make_ready_file_db(directory / "licenses.db")
@@ -128,7 +129,7 @@ def test_clear_cache_that_cannot_delete_says_so_in_one_line(tmp_path: Path) -> N
     finally:
         directory.chmod(0o755)
     assert_no_traceback(result)
-    assert result.exit_code == 2, result.stderr
+    assert result.exit_code == 1, result.stderr
     assert result.stdout == ""
     # Progress lines come first; the failure is the last line, and only one.
     last = result.stderr.splitlines()[-1]

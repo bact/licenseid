@@ -8,7 +8,7 @@
 ``B1`` every input source, ``B2`` which input wins when several are given,
 ``B3`` flags that belong to ``detect`` only, ``B4`` argument syntax,
 ``B5`` one identifier asked of all five predicates, so their answers can be
-checked against each other.
+checked against each other, ``B6`` the same record as JSON (``--json``).
 """
 
 from __future__ import annotations
@@ -42,7 +42,6 @@ PRECEDENCE = [
 
 #: Flags that only ``detect`` accepts: a predicate must reject each of them.
 MATCH_ONLY = (
-    "--json",
     "--bold",
     "--diff",
     "--pop",
@@ -73,6 +72,29 @@ def add_cells(cells: CellSet) -> None:
     _add_match_only_flags(cells)
     _add_syntax(cells)
     _add_identifier_consistency(cells)
+    _add_json(cells)
+
+
+#: The one object of ``is-* --json``.
+_PREDICATE_JSON = r'\{"expression":("[^"]+"|null),"is_[a-z_]+":(true|false)\}\n'
+
+
+def _add_json(cells: CellSet) -> None:
+    """B6: ``--json``, found and not, by argument and standard input."""
+    for cmd in PREDS:
+        for desc, pre, args, rc in (
+            ("found", "", "MIT", 0),
+            ("not-found", "", "--id Nope-1.0", 1),
+            ("stdin", "cat $F/mit.txt | ", "", 0),
+        ):
+            cells.add(
+                "B6",
+                f"{cmd} --json {desc}",
+                f"{pre}{licenseid(f'{cmd} --json {args}'.rstrip())}",
+                kind="predicate",
+                exp_exit=rc,
+                exp_out=_PREDICATE_JSON,
+            )
 
 
 def _add_sources(cells: CellSet) -> None:

@@ -31,9 +31,10 @@ KNOWN_SHELLS = ("bash", "zsh", "sh", "dash", "ksh")
 #: ``Cell.shells`` set to this means "every shell configured for the run".
 EVERY_SHELL: tuple[str, ...] | None = None
 
-#: Subcommands of the CLI, and the predicate subset of them.
-CMDS = ["update", "detect", "is-osi", "is-fsf", "is-open", "is-free", "is-spdx"]
-PREDS = CMDS[2:]
+#: Subcommands of the CLI, and the predicate subset of them. A new command
+#: goes at the end, so the cells made per command keep their identifiers.
+PREDS = ["is-osi", "is-fsf", "is-open", "is-free", "is-spdx"]
+CMDS = ["update", "detect", *PREDS, "match"]
 
 #: A fragment of the MIT licence: enough text for a confident match.
 FRAG = "Permission is hereby granted, free of charge, to any person obtaining a copy"
@@ -78,7 +79,7 @@ IDS = [
 ]
 
 _SUBCOMMAND_RE = re.compile(
-    r"\$L(?: --db \S+)? ?(update|detect|is-osi|is-fsf|is-open|is-free|is-spdx)?"
+    r"\$L(?: --db \S+)? ?(update|detect|is-osi|is-fsf|is-open|is-free|is-spdx|match)?"
 )
 _FLAG_RE = re.compile(r"(?<![\w-])(--[a-z][a-z-]*)")
 
@@ -98,7 +99,8 @@ class Cell:
     fam: str
     desc: str
     cmd: str
-    #: detect | predicate | update | help | other -- picks the contract judged.
+    #: detect | predicate | match | update | help | other -- picks the
+    #: contract judged.
     kind: str = "other"
     #: Which of json / bold / diff the command was asked for.
     outflags: frozenset[str] = frozenset()

@@ -261,5 +261,5 @@ def test_a_japanese_fragment_is_matched(japanese_db: str, start: int, end: int) 
     it must not be taken for a blob (review of PR #62)."""
     text = fixture_text("CC-BY-SA-2.1-JP")[start:end]
     results = LicenseDetector(japanese_db).detect(text=text)
-    assert results[0]["license_id"] == "CC-BY-SA-2.1-JP"
+    assert results[0]["expression"] == "CC-BY-SA-2.1-JP"
     assert results[0]["score"] >= 0.85

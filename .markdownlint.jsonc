@@ -4,5 +4,8 @@
   // only flag duplicates within the same parent section.
   "MD024": { "siblings_only": true },
   // MD013: a table row cannot be wrapped; prose and code stay within 80.
-  "MD013": { "tables": false }
+  "MD013": { "tables": false },
+  // MD010: the CLI separates result fields by a tab; an example of its
+  // output keeps them, so it reads and copies as the CLI prints it.
+  "MD010": { "code_blocks": false }
 }

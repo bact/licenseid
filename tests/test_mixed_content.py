@@ -118,7 +118,7 @@ def test_marker_detection_fixtures(test_db: str) -> None:
 
     for fixture_file, expected_id in fixtures:
         results = matcher.detect(file_path=str(fixture_file))
-        found_ids = [r["license_id"] for r in results]
+        found_ids = [r["expression"] for r in results]
 
         if expected_id in found_ids:
             passed += 1

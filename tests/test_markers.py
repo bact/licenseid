@@ -114,7 +114,7 @@ def test_spdx_identifier(test_db: str) -> None:
     text = "Some source code\nSPDX-License-Identifier: MIT\nMore code"
     results = matcher.detect(text=text)
     assert len(results) > 0
-    assert results[0]["license_id"] == "MIT"
+    assert results[0]["expression"] == "MIT"
     assert results[0]["score"] >= 0.95
 
 
@@ -123,7 +123,7 @@ def test_license_field(test_db: str) -> None:
     text = "Metadata:\nLicense: Apache License 2.0\nVersion: 1.0"
     results = matcher.detect(text=text)
     assert len(results) > 0
-    assert results[0]["license_id"] == "Apache-2.0"
+    assert results[0]["expression"] == "Apache-2.0"
 
 
 def test_markdown_heading(test_db: str) -> None:
@@ -131,7 +131,7 @@ def test_markdown_heading(test_db: str) -> None:
     text = "# README\n\n## License\n\nMIT"
     results = matcher.detect(text=text)
     assert len(results) > 0
-    assert results[0]["license_id"] == "MIT"
+    assert results[0]["expression"] == "MIT"
 
 
 def test_ascii_heading_underline(test_db: str) -> None:
@@ -139,7 +139,7 @@ def test_ascii_heading_underline(test_db: str) -> None:
     text = "LICENSE\n=======\n\nApache License 2.0"
     results = matcher.detect(text=text)
     assert len(results) > 0
-    assert results[0]["license_id"] == "Apache-2.0"
+    assert results[0]["expression"] == "Apache-2.0"
 
 
 def test_ascii_heading_box(test_db: str) -> None:
@@ -147,7 +147,7 @@ def test_ascii_heading_box(test_db: str) -> None:
     text = "#################\n#    LICENSE    #\n#################\n\nMIT"
     results = matcher.detect(text=text)
     assert len(results) > 0
-    assert results[0]["license_id"] == "MIT"
+    assert results[0]["expression"] == "MIT"
 
 
 def test_mixed_content_windowed_search(test_db: str) -> None:
@@ -163,7 +163,7 @@ def test_mixed_content_windowed_search(test_db: str) -> None:
     )
     results = matcher.detect(text=text)
     assert len(results) > 0
-    assert results[0]["license_id"] == "MIT"
+    assert results[0]["expression"] == "MIT"
 
 
 # --- _detect_gpl_headers() -----------------------------------------------

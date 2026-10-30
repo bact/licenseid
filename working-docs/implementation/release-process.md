@@ -16,6 +16,9 @@ agent prepares and checks.
 
 ## Order
 
+A release with many merged changes is reviewed as a whole first:
+[pre-release-review.md](pre-release-review.md).
+
 1. Merge every PR meant for the release. Entries for them go into the
    release's own `CHANGELOG.md` section (opened by the preparation PR), not
    into `[Unreleased]`: the tag does not exist yet.

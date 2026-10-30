@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from conftest import predicate_line
 from db_asserts import (
     assert_no_traceback,
     assert_one_diagnostic_line,
@@ -341,16 +342,18 @@ def test_ready_database_answers_yes_and_no(variant: Variant, command: str) -> No
     no = run_cli(variant.db_arg, [command, "--id", "No-Such-License-1.0"])
     assert_no_traceback(no)
     assert no.exit_code == 1
-    assert no.stdout in ("", "false\n")
-    # "no" is an answer, not a fault: nothing but the match's own ERROR line.
-    assert no.stderr in ("", "ERROR: match: no license found\n")
+    assert no.stdout == (
+        "" if command == "detect" else predicate_line(command, "", False)
+    )
+    # "no" is an answer, not a fault: nothing on standard error.
+    assert no.stderr == ""
 
 
 @pytest.mark.parametrize("variant", ["ready_file", "ready_memory_uri"], indirect=True)
 def test_ready_database_api(variant: Variant) -> None:
     matcher = LicenseDetector(db_path=variant.db_arg)
     assert matcher.is_osi(license_id="MIT") is True
-    assert [m["license_id"] for m in matcher.detect(text=MIT_TEXT)] == ["MIT"]
+    assert [m["expression"] for m in matcher.detect(text=MIT_TEXT)] == ["MIT"]
 
 
 # (e) State changes around an already-constructed matcher

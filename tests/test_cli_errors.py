@@ -52,7 +52,7 @@ def test_missing_database(tmp_path: Path, command: str) -> None:
 @pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_empty_database(empty_db: str, command: str) -> None:
     """A database with no licenses is refused before any input is read: it
-    would answer "no license found" (detect) or false (is-osi) for everything."""
+    would answer no licence (detect) or false (is-osi) for everything."""
     result = CliRunner().invoke(cli, ["--db", empty_db, command, "MIT"])
     assert result.exit_code == 2
     assert result.stdout == ""
@@ -157,8 +157,7 @@ def test_no_match_in_ready_database(ready_db: str, extra: list[str]) -> None:
         cli, ["--db", ready_db, "detect", "--id", "No-Such-License", *extra]
     )
     assert result.exit_code == 1
-    assert result.stdout == ""
-    assert result.stderr == "ERROR: match: no license found\n"
+    assert (result.stdout, result.stderr) == ("", "")
 
 
 _PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"

@@ -132,7 +132,7 @@ def _by_rule(
             readings.append((word, detail, reading))
     if len({r.expression for _, _, r in readings}) != 1:
         return False
-    if marks:  # marks never help a reading; a dash it would drop is said (P121)
+    if marks:  # marks never help a reading; a dash it would drop is said (P131)
         lost = joined_marks(marks)
         if lost:
             refuse_dropped(found, source, lost, str(readings[0][2].expression))

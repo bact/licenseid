@@ -104,7 +104,7 @@ INSIDE = [
     ('"GPL" 2.0', "U+0022"),
     ('"MIT?"', "U+003F"),  # unquoted, then refused for the mark
     ('"MIT*"', "U+002A"),
-    ('"MIT"?', "U+0022 U+003F"),  # one end mark is read (P123); this is not one
+    ('"MIT"?', "U+0022 U+003F"),  # one end mark is read (P133); this is not one
     ('"MIT" ?', "U+0022 U+003F"),
 ]
 

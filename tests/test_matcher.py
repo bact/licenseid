@@ -71,7 +71,7 @@ def test_hybrid_search_flow(test_db: str) -> None:
 
     results = matcher.detect(text=input_text)
     assert len(results) > 0
-    assert results[0]["license_id"] == "MIT"
+    assert results[0]["expression"] == "MIT"
 
 
 def test_short_text_rejection(test_db: str) -> None:
@@ -90,13 +90,13 @@ def test_short_text_rejection(test_db: str) -> None:
 
     # Exact name matches (< 12 words)
     res_mit = matcher.detect("MIT")
-    assert res_mit and res_mit[0]["license_id"] == "MIT"
+    assert res_mit and res_mit[0]["expression"] == "MIT"
     res_aml = matcher.detect("Apple MIT License")
-    assert res_aml and res_aml[0]["license_id"] == "AML"
+    assert res_aml and res_aml[0]["expression"] == "AML"
 
     # Partial name matches (< 12 words)
     res_apple = matcher.detect("APPLE PUBLIC SOURCE LICENSE")
-    assert len(res_apple) > 0 and res_apple[0]["license_id"] == "APSL-2.0"
+    assert len(res_apple) > 0 and res_apple[0]["expression"] == "APSL-2.0"
 
 
 def test_match_with_expression(test_db: str) -> None:
@@ -106,7 +106,7 @@ def test_match_with_expression(test_db: str) -> None:
 
     results = matcher.detect(license_id="MIT WITH Font-exception-2.0")
     assert len(results) == 1
-    assert results[0]["license_id"] == "MIT WITH Font-exception-2.0"
+    assert results[0]["expression"] == "MIT WITH Font-exception-2.0"
     assert results[0]["score"] == 1.0
     assert results[0]["is_spdx"] is True
 
@@ -115,7 +115,7 @@ def test_match_with_expression(test_db: str) -> None:
     # Mixed-cased/lowercase operators
     results_mixed = matcher.detect(license_id="MIT wiTh Font-exception-2.0")
     assert len(results_mixed) == 1
-    assert results_mixed[0]["license_id"] == "MIT WITH Font-exception-2.0"
+    assert results_mixed[0]["expression"] == "MIT WITH Font-exception-2.0"
     assert results_mixed[0]["score"] == 1.0
     assert results_mixed[0]["is_spdx"] is True
 
@@ -146,7 +146,7 @@ def test_match_pathological_expression_does_not_crash(test_db: str) -> None:
     with pytest.raises(InvalidInputError, match="pass one license ID"):
         matcher.detect(license_id=expr)
     tagged = f"/*\n * SPDX-License-Identifier: {expr}\n */\n" + "word " * 40
-    assert [r["license_id"] for r in matcher.detect(text=tagged)] == []
+    assert [r["expression"] for r in matcher.detect(text=tagged)] == []
 
 
 def _tied_gpl_matches(only_score: float, or_later_score: float) -> list[InternalMatch]:

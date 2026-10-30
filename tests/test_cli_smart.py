@@ -30,7 +30,7 @@ def test_cli_match_smart_id(test_db: str) -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["--db", test_db, "detect", "MIT"])
     assert result.exit_code == 0
-    assert "LICENSE_ID=MIT" in result.output
+    assert "EXPRESSION=MIT\t" in result.output
 
 
 def test_cli_match_smart_file(test_db: str, tmp_path: Any) -> None:
@@ -40,7 +40,7 @@ def test_cli_match_smart_file(test_db: str, tmp_path: Any) -> None:
 
     result = runner.invoke(cli, ["--db", test_db, "detect", str(license_file)])
     assert result.exit_code == 0
-    assert "LICENSE_ID=MIT" in result.output
+    assert "EXPRESSION=MIT\t" in result.output
 
 
 def test_cli_is_osi_smart(test_db: str) -> None:
@@ -61,8 +61,10 @@ def test_cli_explicit_id(test_db: str, tmp_path: Any) -> None:
 
     result = runner.invoke(cli, ["--db", test_db, "detect", "--id", "MIT"])
     assert result.exit_code == 0
-    assert "LICENSE_ID=MIT" in result.output
-    assert "METHOD=id EXACT=true SCORE=1.0000 SIMILARITY= COVERAGE=\n" in result.output
+    assert "EXPRESSION=MIT\t" in result.output
+    assert (
+        "METHOD=id\tEXACT=true\tSCORE=1.0000\tSIMILARITY=\tCOVERAGE=\n" in result.output
+    )
 
 
 def test_cli_stdin(test_db: str) -> None:
@@ -112,7 +114,7 @@ def test_cli_match_latin1_input_warns_and_matches(
         result = CliRunner().invoke(cli, ["--db", test_db, "detect"], input=_LATIN1_MIT)
         source = "stdin"
     assert result.exit_code == 0, result.output
-    assert "LICENSE_ID=MIT" in result.stdout
+    assert "EXPRESSION=MIT\t" in result.stdout
     assert f"WARNING: input: not UTF-8, read as Latin-1: {source}" in (
         result.stderr.splitlines()
     )

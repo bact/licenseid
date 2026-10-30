@@ -19,7 +19,7 @@ GLOBAL: list[tuple[str, str, int | None]] = [
     ("no args", "$L", 2),
     ("--help", "$L --help", 0),
     ("-h", "$L -h", 2),
-    ("--version (not an option)", "$L --version", 2),
+    ("--version", "$L --version", 0),
     ("unknown subcommand", "$L frobnicate", 2),
     ("unknown global flag", "$L --nope", 2),
     ("subcommand prefix 'mat'", "$L mat MIT", 2),
@@ -155,7 +155,7 @@ CLEAR_CACHE: list[tuple[str, str, int | None]] = [
             "prep && chmod 555 $W/x && $L --db $W/x/licenses.db --clear-cache;"
             " rc=$?; chmod 755 $W/x; exit $rc"
         ),
-        None,
+        1,  # a delete the system refuses: the action failed
     ),
     (
         "--clear-cache no --db (default path in scratch HOME)",
@@ -185,7 +185,7 @@ def add_cells(cells: CellSet) -> None:
             # click parses every option before honouring --help, so
             # `--help --json` is a usage error on commands without --json
             # (exit 2): that combination is left unspecified.
-            strict = "--json" not in position or sub == "detect"
+            strict = "--json" not in position or sub in ("detect", "match")
             cells.add(
                 "C2",
                 f"help: {position.format(s=sub)}",

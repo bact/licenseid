@@ -317,7 +317,7 @@ def twin_names_db() -> Generator[str, None, None]:
 
 def test_short_text_ties_are_broken_by_license_id(twin_names_db: str) -> None:
     results = LicenseDetector(twin_names_db).detect("Twin Name License")
-    assert [r["license_id"] for r in results] == ["A-1.0", "B-1.0"]
+    assert [r["expression"] for r in results] == ["A-1.0", "B-1.0"]
     assert results[0]["score"] == results[1]["score"]
 
 

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Four small refusals of ``match()`` (0.8 list; decisions P120 to P123).
+"""Four small refusals of ``match()`` (0.8 list; decisions P130 to P133).
 Characterisation first: today's answers, so that each fix shows as a flip of
 the values marked ``MOVES``."""
 # pylint: disable=missing-function-docstring
@@ -52,7 +52,7 @@ STAYS: dict[str, tuple[str | None, str | None]] = {
     '"MIT;"': ("MIT", None),
 }
 
-#: Item 2 (P121): a dash joined to the end of a reading no loose ID made is a
+#: Item 2 (P131): a dash joined to the end of a reading no loose ID made is a
 #: dropped character, as a lone dash is (``MIT -``).
 DASHED: dict[str, tuple[str | None, str | None]] = {
     "MIT+-": (None, DASH),
@@ -67,7 +67,7 @@ DASHED: dict[str, tuple[str | None, str | None]] = {
     "GPL-2.0+ -": (None, DASH),
 }
 
-#: Item 3 (P122): one end mark after a ``LicenseRef-*`` that ends in a dot is an
+#: Item 3 (P132): one end mark after a ``LicenseRef-*`` that ends in a dot is an
 #: ending, as after any ID; the dot is a character of the ID (P80).
 REF_ENDED: dict[str, str] = {
     "LicenseRef-a.;": "LicenseRef-a.",
@@ -86,7 +86,7 @@ REF_REFUSED: dict[str, str] = {
     "LicenseRef-a;,": "character dropped: U+003B U+002C",
 }
 
-#: Item 4 (P123): quote marks, then one end mark, read as the end mark then the
+#: Item 4 (P133): quote marks, then one end mark, read as the end mark then the
 #: marks come off (the order they stand in); both orders read the same.
 QUOTED_ENDED: dict[str, str] = {
     '"MIT".': "MIT",
@@ -373,7 +373,7 @@ def test_packaged_and_database_answers_agree(
     assert not differences, differences
 
 
-#: Review fixes (P124 to P127): ``(expression, reason)``.
+#: Review fixes (P134 to P137): ``(expression, reason)``.
 REVIEW_NOW: dict[str, tuple[str | None, str | None]] = {
     # a mark inside the quote marks, behind a bracket, is seen: two marks
     '"(MIT;)".': (None, None),
@@ -404,7 +404,7 @@ REVIEW_NOW: dict[str, tuple[str | None, str | None]] = {
     "MIT+_": (None, "character dropped: U+005F"),
     "MIT License-.": (None, DASH),
     "MIT License_": (None, "character dropped: U+005F"),
-    # unbalanced marks plus an end mark read (maintainer, P123)
+    # unbalanced marks plus an end mark read (maintainer, P133)
     "MIT'.": ("MIT", None),
     "Apache-2.0'.": ("Apache-2.0", None),
     'GPL-2.0".': ("GPL-2.0", None),

@@ -422,7 +422,7 @@ def twin_gpl_db() -> Generator[str, None, None]:
 def top_id(db_path: str, text: str, file_path: str | None = None) -> str:
     results = LicenseDetector(db_path).detect(text=text, file_path=file_path)
     assert results, "no match at all"
-    return results[0]["license_id"]
+    return results[0]["expression"]
 
 
 @pytest.mark.parametrize(

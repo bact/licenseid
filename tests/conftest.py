@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 import requests
+import rfc8785
 from click.testing import CliRunner, Result
 from packaged_list import database_of, fixture_bundle
 from resolver_corpus import corpus_db_path
@@ -32,6 +33,7 @@ from licenseid.dbconnection import Connections
 from licenseid.detector import LicenseDetector
 from licenseid.errors import LicenseIdError
 from licenseid.records import BUILD_VERSION
+from licenseid.result import read_text_field
 from licenseid.types import Detection, Method
 
 # tools/cli_matrix drives real shells and terminals (pwd, pty, termios): POSIX
@@ -230,7 +232,7 @@ def assert_cached_tarball_removed(
 # The keys of every detect() result and --json line (types.Detection).
 RESULT_KEYS = frozenset(
     {
-        "license_id",
+        "expression",
         "method",
         "exact",
         "score",
@@ -254,7 +256,7 @@ def public_match(  # pylint: disable=too-many-arguments
 ) -> Detection:
     """A result as detect() returns it, for the code that prints one."""
     return Detection(
-        license_id=license_id,
+        expression=license_id,
         method=method,
         exact=exact,
         score=score,
@@ -269,6 +271,48 @@ def public_match(  # pylint: disable=too-many-arguments
 def invoke_match(db: str, *args: str, color: bool = False) -> Result:
     """``licenseid --db <db> detect <args>`` through click's runner."""
     return CliRunner().invoke(cli, ["--db", db, "detect", *args], color=color)
+
+
+# The flag each is-* command prints after EXPRESSION.
+PREDICATE_KEYS = {
+    "is-osi": "IS_OSI_APPROVED",
+    "is-fsf": "IS_FSF_LIBRE",
+    "is-open": "IS_OPEN",
+    "is-free": "IS_FREE",
+    "is-spdx": "IS_SPDX",
+}
+
+
+def predicate_line(command: str, expression: str, answer: bool) -> str:
+    """The line ``licenseid <command>`` prints: the ID judged (empty for
+    none) and its flag."""
+    flag = "true" if answer else "false"
+    return f"EXPRESSION={expression}\t{PREDICATE_KEYS[command]}={flag}\n"
+
+
+def predicate_json(command: str, expression: str | None, answer: bool) -> str:
+    """The line ``licenseid <command> --json`` prints (RFC 8785)."""
+    flag = PREDICATE_KEYS[command].lower()
+    value = "null" if expression is None else f'"{expression}"'
+    return f'{{"expression":{value},"{flag}":{"true" if answer else "false"}}}\n'
+
+
+def update_line(
+    status: str, version: str, path: object, *, as_json: bool = False
+) -> str:
+    """The line ``licenseid update`` prints, or with *as_json* its object
+    (RFC 8785, so a Windows path's backslashes are escaped)."""
+    if as_json:
+        record = {"path": str(path), "status": status, "version": version}
+        return rfc8785.dumps(record).decode("utf-8") + "\n"
+    return f"STATUS={status}\tVERSION={version}\tPATH={path}\n"
+
+
+def line_fields(line: str) -> dict[str, str]:
+    """The ``KEY=VALUE`` fields of one result line, each value read back
+    (``result.read_text_field``)."""
+    pairs = (field.partition("=") for field in line.split("\t"))
+    return {key: read_text_field(value) for key, _, value in pairs}
 
 
 def json_lines(stdout: str) -> list[dict[str, Any]]:

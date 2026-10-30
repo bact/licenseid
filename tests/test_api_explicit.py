@@ -69,13 +69,13 @@ def test_match_explicit_id(test_db: str) -> None:
     # Normal ID
     res = matcher.detect(license_id="MIT")
     assert len(res) == 1
-    assert res[0]["license_id"] == "MIT"
+    assert res[0]["expression"] == "MIT"
     assert res[0]["score"] == 1.0
 
     # Case-insensitive and trimmed ID
     res = matcher.detect(license_id=" mit ")
     assert len(res) == 1
-    assert res[0]["license_id"] == "MIT"
+    assert res[0]["expression"] == "MIT"
 
     # Non-existent ID
     res = matcher.detect(license_id="NonExistent")
@@ -94,7 +94,7 @@ def test_match_explicit_file(test_db: str, tmp_path: Any) -> None:
 
     res = matcher.detect(file_path=str(license_file))
     assert len(res) == 1
-    assert res[0]["license_id"] == "MIT"
+    assert res[0]["expression"] == "MIT"
 
 
 def test_match_explicit_text(test_db: str) -> None:
@@ -105,7 +105,7 @@ def test_match_explicit_text(test_db: str) -> None:
     )
     res = matcher.detect(text=text)
     assert len(res) == 1
-    assert res[0]["license_id"] == "MIT"
+    assert res[0]["expression"] == "MIT"
 
 
 @pytest.mark.parametrize(
