@@ -15,8 +15,8 @@ coding agents. These are notes, not a draft. Every claim cites a source
 (repository file and line, pull request, commit, or session transcript and
 timestamp) so that it can be checked before it is cited.
 
-Covers 2026-04-27 (first commit) to 2026-10-29 (the 0.7.0 resolver work,
-PRs #106 to #132, before the release; v0.6.0 is PRs #96 to #101);
+Covers 2026-04-27 (first commit) to 2026-10-30 (the 0.7.0 work, PRs #106
+to #139, before the release; v0.6.0 is PRs #96 to #101);
 the older files stop at 2026-10-07 (v0.4.3), and `ai-sessions-0-5-0.md` at
 2026-10-22 (v0.5.0).
 
@@ -34,6 +34,7 @@ the older files stop at 2026-10-07 (v0.4.3), and `ai-sessions-0-5-0.md` at
 | [ai-sessions-0-6-0.md](ai-sessions-0-6-0.md) | Human–AI session, release 0.6.0 (24 to 28 October): loose IDs, `resolve()`, review yield |
 | [ai-sessions-0-7-plan.md](ai-sessions-0-7-plan.md) | Human–AI session, Pitloom 0.21.0 and the 0.7.0 resolver plan (27 to 28 October): evidence, review yield, mistakes |
 | [ai-sessions-0-7-0.md](ai-sessions-0-7-0.md) | Human–AI work, 0.7.0 resolver (28 to 29 October): lead, authors and reviewers, review yield with numbers, maintainer decisions, incidents |
+| [ai-sessions-0-7-0-release.md](ai-sessions-0-7-0-release.md) | Human–AI work, 0.7.0 release run-up (29 to 30 October): rename, CLI output for people and agents, a circular dependency, Windows bug class, whole-release review and API freeze; state and plan |
 | [dataset-licence-values.md](dataset-licence-values.md) | A dataset of declared licence values (PyPI top 10,000, parity corpus): content, uses, what publication needs |
 
 ## Method
