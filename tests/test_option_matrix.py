@@ -12,12 +12,14 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | Surface              | Axes                                         |
 |----------------------|----------------------------------------------|
 | CLI ``detect``       | SOURCES x OUTPUTS x found / not found        |
-| CLI ``is-*``         | PREDICATES x SOURCES x found / not found     |
+| CLI ``is-*``         | PREDICATES x SOURCES x --json x found / not  |
 | CLI blank input      | commands x blank arg / --text / --id / stdin |
 | API ``detect()``     | method / function x text / license_id / file |
 | API ``is_*()``       | PREDICATES x text / license_id / file        |
 | API ``match()``      | source x default database (STATES) x bundle  |
 | CLI ``match``        | --source x default database x --db x --json  |
+| CLI ``update``       | ``test_update_matrix.py``: --source x --cache |
+|                      | x --version x --force x --json               |
 
 Current precedence when several inputs are given (pinned below; the losing
 input is ignored without a warning):
@@ -38,7 +40,13 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner, Result
-from conftest import RESULT_KEYS, json_lines, make_mit_db_path, predicate_line
+from conftest import (
+    RESULT_KEYS,
+    json_lines,
+    make_mit_db_path,
+    predicate_json,
+    predicate_line,
+)
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import MIT_TEXT, make_ready_file_db
 from input_payloads import PAYLOADS, Payload
@@ -161,21 +169,33 @@ def _assert_match_stdout(stdout: str, output: tuple[str, ...]) -> None:
 
 
 @pytest.mark.parametrize("found", [True, False], ids=["found", "not_found"])
+@pytest.mark.parametrize("output", [(), ("--json",)], ids=["plain", "json"])
 @pytest.mark.parametrize("source", SOURCES)
 @pytest.mark.parametrize("command", PREDICATES)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def test_predicate_matrix(
-    mit_db: str, tmp_path: Path, command: str, source: str, found: bool
+    mit_db: str,
+    tmp_path: Path,
+    command: str,
+    source: str,
+    output: tuple[str, ...],
+    found: bool,
 ) -> None:
     args, stdin = _source_args(source, found, tmp_path)
-    result = _invoke(mit_db, command, args, stdin)
+    result = _invoke(mit_db, command, [*output, *args], stdin)
+
+    def record(expression: str | None, answer: bool) -> str:
+        if output:
+            return predicate_json(command, expression, answer)
+        return predicate_line(command, expression or "", answer)
 
     if source == "none":
         assert (result.exit_code, result.stdout, result.stderr) == (2, "", MISSING)
     elif found:  # MIT is SPDX, OSI- and FSF-approved: every predicate is true
-        yes = predicate_line(command, "MIT", True)
+        yes = record("MIT", True)
         assert (result.exit_code, result.stdout, result.stderr) == (0, yes, "")
     else:
-        no = predicate_line(command, "", False)
+        no = record(None, False)
         assert (result.exit_code, result.stdout, result.stderr) == (1, no, "")
 
 

@@ -477,6 +477,32 @@ WORD DIFF:
  the
 ```
 
+#### Reading the output
+
+Every command prints its result in one pattern, so one reader serves them
+all: one record per line, `KEY=VALUE` fields with an uppercase key, one tab
+between fields, an empty value for nothing, and `\t`, `\r`, `\n` and `\\`
+for a tab, a line break or a backslash inside a value. `--json` prints the
+same record as one RFC 8785 JSON object per line, its keys the text keys in
+lower case (`EXPRESSION` is `expression`), nothing `null`. The only
+exceptions are `detect --bold` (the ID alone), `--version` and `--help`.
+
+```bash
+# The second field of the line, its value after the "="
+licenseid is-osi MIT | cut -f2 | cut -d= -f2-          # true
+
+# A field by its key, whatever its place
+licenseid detect LICENSE | awk -F'\t' '{
+  for (i = 1; i <= NF; i++) if (split($i, kv, "=") && kv[1] == "EXPRESSION")
+    print substr($i, length("EXPRESSION=") + 1)
+}'
+
+# The same with jq
+licenseid detect --json LICENSE | jq -r .expression
+licenseid match --json "GPLv2+" | jq -r '.steps[] | select(.applied) | .kind'
+licenseid update --json | jq -r '"\(.status) \(.version)"'
+```
+
 ### 6. Exit codes
 
 The CLI follows standard Unix exit code conventions,

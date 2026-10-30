@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 import requests
+import rfc8785
 from click.testing import CliRunner, Result
 from packaged_list import database_of, fixture_bundle
 from resolver_corpus import corpus_db_path
@@ -289,8 +290,21 @@ def predicate_line(command: str, expression: str, answer: bool) -> str:
     return f"EXPRESSION={expression}\t{PREDICATE_KEYS[command]}={flag}\n"
 
 
-def update_line(status: str, version: str, path: object) -> str:
-    """The line ``licenseid update`` prints."""
+def predicate_json(command: str, expression: str | None, answer: bool) -> str:
+    """The line ``licenseid <command> --json`` prints (RFC 8785)."""
+    flag = PREDICATE_KEYS[command].lower()
+    value = "null" if expression is None else f'"{expression}"'
+    return f'{{"expression":{value},"{flag}":{"true" if answer else "false"}}}\n'
+
+
+def update_line(
+    status: str, version: str, path: object, *, as_json: bool = False
+) -> str:
+    """The line ``licenseid update`` prints, or with *as_json* its object
+    (RFC 8785, so a Windows path's backslashes are escaped)."""
+    if as_json:
+        record = {"path": str(path), "status": status, "version": version}
+        return rfc8785.dumps(record).decode("utf-8") + "\n"
     return f"STATUS={status}\tVERSION={version}\tPATH={path}\n"
 
 

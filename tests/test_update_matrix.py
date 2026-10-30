@@ -59,6 +59,7 @@ def _second_source(source: str, version: str | None, cache: str) -> str:
     return first
 
 
+@pytest.mark.parametrize("as_json", [False, True], ids=["text", "json"])
 @pytest.mark.parametrize("force", [False, True], ids=["plain", "force"])
 @pytest.mark.parametrize("version", VERSIONS, ids=lambda v: v or "latest")
 @pytest.mark.parametrize("cache", CACHES)
@@ -71,6 +72,7 @@ def test_update_matrix(
     cache: str,
     version: str | None,
     force: bool,
+    as_json: bool,
 ) -> None:
     fake = serve(monkeypatch, online())
     ship(monkeypatch, release_bundle(PACKAGED))
@@ -78,6 +80,7 @@ def test_update_matrix(
     args = ["--source", source, cache]
     args += ["--version", version] if version else []
     args += ["--force"] if force else []
+    args += ["--json"] if as_json else []
     installed, detail = _expected(source, version)
 
     first = _run(db, args)
@@ -88,7 +91,7 @@ def test_update_matrix(
         assert _run(db, args).exit_code == 1  # no state that hides the failure
         return
     assert first.exit_code == 0, first.output
-    assert first.stdout == update_line("updated", installed, db)
+    assert first.stdout == update_line("updated", installed, db, as_json=as_json)
     assert _data_source(first.stderr) == detail
     if source == "packaged":
         fake.assert_not_called()
@@ -97,10 +100,10 @@ def test_update_matrix(
     second = _run(db, args)
     assert second.exit_code == 0, second.output
     if force:
-        assert second.stdout == update_line("updated", installed, db)
+        assert second.stdout == update_line("updated", installed, db, as_json=as_json)
         assert _data_source(second.stderr) == _second_source(source, version, cache)
     else:
-        assert second.stdout == update_line("unchanged", installed, db)
+        assert second.stdout == update_line("unchanged", installed, db, as_json=as_json)
     if source == "packaged":
         fake.assert_not_called()
     elif cache == "--cache" and installed != PACKAGED:

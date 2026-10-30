@@ -101,13 +101,36 @@
 
 Unix philosophy. Consistent, predictable, parseable.
 
-- Default: line-delimited, one data point per line.
-- Field separator: one tab. A value is written as it is, except a tab, CR,
-  LF and backslash (`\t`, `\r`, `\n`, `\\`), and a character the stream's
-  encoding cannot hold (`\xHH`, `\uHHHH`, `\UHHHHHHHH`, by `output.echo`);
-  `result.text_field` writes a value, `result.read_text_field` reads it
-  back. `--json` is UTF-8 bytes on every locale (`output.echo_json`).
-- Key-value: `KEY=VALUE` — uppercase KEY, no spaces around `=`.
+- One pattern for every result line of every command (`detect`, `match`,
+  `update`, `is-*`), written through `output.echo`:
+  - Default: line-delimited, one data point (one record) per line.
+  - Fields: `KEY=VALUE`, uppercase KEY, no spaces around `=`, one tab
+    between fields (`result.fields_line`). A key ends at the first `=`.
+  - Escaping: a value is written as it is, except a tab, CR, LF and
+    backslash (`\t`, `\r`, `\n`, `\\`), and a character the stream's
+    encoding cannot hold (`\xHH`, `\uHHHH`, `\UHHHHHHHH`, by
+    `output.echo`); `result.text_field` writes a value,
+    `result.read_text_field` reads it back.
+  - Nothing is an empty value (`SIMILARITY=`, `EXPRESSION=`); a flag is
+    `true` or `false`.
+  - `--json`: the same result, one object per line, its keys the text
+    keys in lower case (`EXPRESSION` is `expression`), nothing `null`, a
+    flag a boolean. `match --json` holds the whole resolution, of which
+    the text lines show a part.
+  - --json and any JSON output will always write with RFC 8785: JSON
+    Canonicalization Scheme (JCS). Every JSON the CLI writes goes through
+    the one writer, `result.json_line`, as UTF-8 bytes on every locale
+    (`output.echo_json`, one object per line): never `json.dumps` on an
+    output path.
+  - Exit codes: 0 an answer, yes or done; 1 no answer, no, or an action
+    that failed (`update`, a delete `--clear-cache` could not make); 2 a
+    usage error, unusable input, a database not ready, or a result that
+    could not be written. Exit 1 of `detect` and `match` prints nothing on
+    standard error.
+  - The only exceptions: `detect --bold` (the top ID alone, one line),
+    `--version` (`licenseid <version>`) and `--help`.
+  - `tests/test_output_pattern.py` runs every command, text and `--json`,
+    and holds each line to this pattern.
 - Standard output carries only a command's result. Progress, warnings and
   errors go to standard error through `licenseid.console` (`status`, `warn`,
   `error`); never `print` or `click.echo` them directly.
@@ -146,8 +169,7 @@ Unix philosophy. Consistent, predictable, parseable.
     exits 1, or 2 for its subclass `InvalidInputError` (a usage error). The
     CLI also exits 2 for `DatabaseNotReadyError` (a database that is missing,
     empty, invalid or unreadable) in `detect`, `match` and the `is-*`
-    commands, where exit 1 already means "no". Exit 1 of `detect` and
-    `match` prints nothing on standard error. `update` and `--clear-cache`
+    commands, where exit 1 already means "no". `update` and `--clear-cache`
     write or delete, so they refuse only an `invalid` database — one
     licenseid did not build — and accept every other condition, which is
     what they exist to fix.
@@ -179,7 +201,7 @@ Unix philosophy. Consistent, predictable, parseable.
   - `tests/conftest.py::check_diagnostic_grammar` fails any test that
     prints a line breaking this grammar.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
-- JSON output supported as options. `detect --json` prints JSON Lines, one
+- `detect --json` prints JSON Lines, one
   RFC 8785 (JCS) object per result, through `licenseid.result.json_line`;
   the text line comes from `text_line` beside it. Both print the public form
   `result.public_result` builds at the one exit of `detect()`: tiers rank on
