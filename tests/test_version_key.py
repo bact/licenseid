@@ -54,7 +54,7 @@ ROWS = [
 SYNTHETIC = ("Twin-", "Dup-")
 # Where a deprecated ID is redirected, as on the license_id= path.
 SUCCESSOR = {"GPL-2.0": "GPL-2.0-only", "GPL-2.0+": "GPL-2.0-or-later"}
-NARROWED = "WARNING: match: variant not stated: {}; using {}\n"
+NARROWED = "WARNING: detect: variant not stated: {}; using {}\n"
 
 
 @pytest.fixture

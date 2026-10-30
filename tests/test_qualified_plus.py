@@ -122,4 +122,4 @@ def test_the_cli_answers_no_with_no_threshold_to_hide_behind(
     args = ["--threshold", "0"] if command == "detect" else []
     result = CliRunner().invoke(cli, ["--db", db_path, command, *args, "GPL-2.0-only+"])
     assert result.exit_code == 1
-    assert "LICENSE_ID=" not in result.stdout
+    assert "EXPRESSION=" not in result.stdout
