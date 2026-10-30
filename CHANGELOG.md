@@ -47,8 +47,9 @@ and this project adheres to
 
 - **Breaking:** `licenseid match` is now `licenseid detect`,
   `AggregatedLicenseMatcher.match()` is `LicenseDetector.detect()`, and
-  `resolve()` is `match()`; `licenseid.detect()` is new. Migration: rename
-  the call, the class (`licenseid.detector`) and the command
+  `resolve()` is `match()`; `licenseid.detect()` is new. Migration:
+  `licenseid detect`; `from licenseid import LicenseDetector, Detection,
+  DetectRequest, match`; `resolver.match_with`
 - `match()` keeps its choice of list while the default database file is
   unchanged: about 10 times faster per value, with no connection to choose
   ([#132])

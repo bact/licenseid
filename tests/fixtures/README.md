@@ -116,7 +116,8 @@ uses the official SPDX License List as its authoritative, pristine data source.
   sample: the 462 distinct short licence values of the 10,000 most downloaded
   PyPI projects, fetched 2026-10-28 and exported by
   `python -m tools.pypi_licence_sample export`.
-- **Description:** Frozen answers of `licenseid.match()` 0.6.0 on SPDX 3.29.0,
+- **Description:** Frozen answers of `resolve()` 0.6.0 (now
+  `licenseid.match()`) on SPDX 3.29.0,
   so that each 0.7.0 task proves what it changed
   (`tests/test_resolver_parity.py`, `tests/test_resolver_sample.py`).
 - **Characteristics:** Tab-separated, one header row, `#` comment lines at the

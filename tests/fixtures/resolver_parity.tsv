@@ -4,7 +4,7 @@
 # the gaps of expression-resolution.md section 2 and the evidence doc, plus shapes the plan names.
 # value is Python unicode_escape (tab, newline, backslash, non-ASCII, lone surrogate as \udcff).
 # '-' is None or empty. pitloom_0_21_1: kind:value of classify_license() of pitloom==0.21.1 with
-# licenseid 0.6.0 on the 3.29.0 database. *_0_6_0: match() 0.6.0 on that database (steps and
+# licenseid 0.6.0 on the 3.29.0 database. *_0_6_0: resolve() 0.6.0 (now match()) on that database (steps and
 # expansions: kinds, '!' after a step that did not apply; step_targets, expansion_targets: the 'to' of
 # each, escaped, a comma as \x2c; input_same: input equals the value; reason: '-', none before T6).
 # expected_0_7_0: '=' same as 0.6.0, 'EXPR [category]', '- [category]' (no expression) or '?'

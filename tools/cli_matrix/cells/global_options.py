@@ -108,7 +108,7 @@ CLEAR_CACHE: list[tuple[str, str, int | None]] = [
         0,
     ),
     (
-        "--clear-cache + match (ignored?)",
+        "--clear-cache + detect (ignored?)",
         (
             "prep && $L --db $W/x/licenses.db --clear-cache detect MIT;"
             " echo \"db-left: $(ls $W/x | tr '\\n' ' ')\""

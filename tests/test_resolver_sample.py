@@ -7,8 +7,8 @@
 
 ``tests/fixtures/pypi_values_2026-10*.tsv`` holds the distinct short licence
 values of the most downloaded PyPI projects and the answers of
-``match()`` 0.6.0 on SPDX 3.29.0. Every rule pull request of 0.7.0 must
-show that the set of values whose answer changed is exactly the set it
+``resolve()`` 0.6.0 (now ``match()``) on SPDX 3.29.0. Every rule pull request of
+0.7.0 must show that the set of values whose answer changed is exactly the set it
 announces (``resolver_corpus.EXPECTED_CHANGES``).
 """
 

@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The parity corpus pins what ``match()`` 0.6.0 answers (the 0.7.0 plan,
-finding F9, task T0): ``tests/fixtures/resolver_parity.tsv`` holds real and
+"""The parity corpus pins what ``resolve()`` 0.6.0 (now ``match()``) answers (the
+0.7.0 plan, finding F9, task T0): ``tests/fixtures/resolver_parity.tsv`` holds real and
 synthetic declared values with their 0.6.0 answers, the answer of Pitloom
 0.21.1 and the answer the plan expects of 0.7.0.
 

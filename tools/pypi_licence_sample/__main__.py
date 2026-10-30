@@ -375,7 +375,7 @@ def _export_header(
         ),
         (
             "# field: the source most projects used. '-' is None or empty. The"
-            " _0_6_0 columns are the answer of match() before the 0.7.0 work."
+            " _0_6_0 columns are the answer of resolve() (now match()) before the 0.7.0 work."
         ),
         (
             f"# distinct values: {counts[0]}; kept in these files: {counts[1]}."

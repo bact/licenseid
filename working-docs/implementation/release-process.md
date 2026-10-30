@@ -99,7 +99,7 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
   tests could not show (#101). Before the tag, probe each new input shape on
   a full database built by `update`, against the last release.
 - The release planned as 0.5.1 became 0.6.0 after its preparation PR was
-  open: a new public API (`match()`) is a minor release. Rename the
+  open: a new public API (`resolve()`, now `match()`) is a minor release. Rename the
   version in docs and comments too, not only in the three version files.
 - A fix PR after the preparation PR goes into the open release section;
   merge its entry with the related one (`[#99], [#101]`), and keep Keep a

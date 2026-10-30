@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The 0.7.0 resolver corpus: a database of the whole 3.29.0 List, the
-fixtures that pin what ``match()`` 0.6.0 answers, and the guard that says
-which answers a change moved.
+fixtures that pin what ``resolve()`` 0.6.0 (now ``match()``) answers, and
+the guard that says which answers a change moved.
 
 Import as ``from resolver_corpus import ...`` (tests have no ``__init__.py``).
 The fixtures are ``fixtures/resolver_parity.tsv`` and

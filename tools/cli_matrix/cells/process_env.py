@@ -202,7 +202,7 @@ def _add_signals(cells: CellSet) -> None:
         # cannot be told apart here: observation only, never a FLAG.
         cells.add(
             "E10",
-            f"SIG{sig} during a slow match (400 KB input)",
+            f"SIG{sig} during a slow detect (400 KB input)",
             f"{slow}({run} > $W/o 2> $W/e & p=$!; sleep 1.5; kill -{sig} $p;"
             ' wait $p; echo "rc=$?"; cat $W/e | head -5)',
             kind="other",
@@ -211,7 +211,7 @@ def _add_signals(cells: CellSet) -> None:
         )
     cells.add(
         "E10",
-        "SIGHUP during a slow match (400 KB input)",
+        "SIGHUP during a slow detect (400 KB input)",
         f"{slow}({run} > $W/o 2> $W/e & p=$!; sleep 1.5; kill -HUP $p;"
         ' wait $p; echo "rc=$?")',
         kind="other",
