@@ -25,7 +25,14 @@ read.
 import re
 from dataclasses import dataclass, field
 
-from licenseid.dropguard import code_points, dropped, dropped_words, trim_end_mark
+from licenseid.dropguard import (
+    code_points,
+    dropped,
+    dropped_words,
+    ends_in_ref,
+    joined_marks,
+    trim_end_mark,
+)
 from licenseid.errors import one_line
 from licenseid.exprtokens import is_addition_ref, is_license_ref
 from licenseid.identifiers import without_outer_brackets
@@ -112,6 +119,13 @@ class _Dropped(Exception):
         found.candidates = []
 
 
+def refuse_dropped(found: Found, text: str, lost: str, license_id: str) -> None:
+    """Make *found* the refusal of *text*, which a reading as *license_id*
+    would leave the characters *lost* off: ``unresolved`` with a ``drop``
+    step and the reason ``character dropped: U+...``."""
+    _Dropped(text, lost, license_id).record(found)
+
+
 def read_leaf(db: ListLookup, text: str, found: Found) -> bool:
     """Read *text* as one licence (with its exception, if any) into *found*.
     False if it names none, or if the licence or the exception is longer
@@ -131,15 +145,16 @@ def read_leaf(db: ListLookup, text: str, found: Found) -> bool:
     if not read:
         return _after_core(db, text, found)
     if found.expression is None and found.reason is not None:
-        _read_without_end(db, text, found, ";:")
+        _read_without_end(db, text, trim_end_mark(text, ";:"), found)
     return read
 
 
-def _read_without_end(db: ListLookup, text: str, found: Found, marks: str) -> bool:
-    """Read *text* again without its one end mark of *marks*, if that names a
-    licence: *found* is then the reading, after an ending ``separator``
-    step."""
-    trimmed = trim_end_mark(text, marks)
+def _read_without_end(
+    db: ListLookup, text: str, trimmed: str | None, found: Found
+) -> bool:
+    """Read *text* again as *trimmed*, which is *text* without its one end
+    mark (None for no such mark), if that names a licence: *found* is then
+    the reading, after an ending ``separator`` step."""
     again = Found()
     if trimmed is None or not _read(db, trimmed, again) or not again.expression:
         return False
@@ -160,10 +175,11 @@ def _after_core(db: ListLookup, text: str, found: Found) -> bool:
     body = text.rstrip()
     ended = trim_end_mark(body)
     if ended is not None and _is_core(ended):
-        return _read_without_end(db, text, found, ".,;:")
-    lost = set(dropped(body)) - set("+()[]{}")
+        return _read_without_end(db, text, ended, found)
+    lost = (set(dropped(body)) | set(joined_marks(body))) - set("+()[]{}")
     core = body
-    while core and core[-1] in lost:
+    # A ``-``, ``.`` or ``_`` that ends a ``LicenseRef-*`` belongs to the ID
+    while core and core[-1] in lost and not (core[-1] in ".-" and ends_in_ref(core)):
         core = core[:-1].rstrip()
     again = Found()
     if core == body or not _is_core(core) or not _read(db, core, again):
@@ -171,7 +187,7 @@ def _after_core(db: ListLookup, text: str, found: Found) -> bool:
     if again.expression is None:
         return False
     marks = "".join(dict.fromkeys(c for c in body[len(core) :] if c in lost))
-    _Dropped(text, marks, again.expression).record(found)
+    refuse_dropped(found, text, marks, again.expression)
     return True
 
 

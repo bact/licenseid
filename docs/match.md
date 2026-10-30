@@ -9,7 +9,8 @@ SPDX-License-Identifier: Apache-2.0
 What `licenseid.match()` returns for a declared licence value: every
 field, the categories and their trust, the reasons for a refusal, and how
 quote marks are read. The [README](../README.md#python-api) shows how to
-call it.
+call it. A value that is not a `str` (`None`, bytes, a number) raises
+`TypeError` before any list is read.
 
 ## The whole result
 
@@ -232,8 +233,11 @@ was category `expression`, with no expression; that category is gone.
 `character dropped: U+003F`
 (the value would be read as a licence only by dropping a mark that is not a
 separator, such as `?`, `!`, `*` or a quote inside the value, a mark at the
-start, two or more at the end, or a lone dash; several are space
-separated), `word dropped: rem 1` (a comment or list marker that the
+start, two or more at the end, or a lone dash, or a dash or underscore
+joined to the end of a `+`, an exception, a `LicenseRef-*` or a prose form:
+`MIT+-`, `MIT+-?`, `MIT License--`, `MIT License_`; several are space
+separated, in the order they stand, `U+002D U+003F`),
+`word dropped: rem 1` (a comment or list marker that the
 reading would drop, in lower case),
 `lone surrogate`, `control or format character: U+200B`; for a compound,
 `operand not resolved: <operand>` (or that operand's own reason),
@@ -260,6 +264,11 @@ renamed ID is not followed) and its `detail` the code points. White space,
 minus sign) and one `.` or `,` at the end are not marks; nor is one `;` or
 `:` there, which is an ending left off. The same holds after a `+`, an
 exception or a `LicenseRef-*` (`MIT+;` is `MIT+`; `GPL-2.0+?` is refused).
+A dot or dash that ends a `LicenseRef-*`, `AdditionRef-*` or `DocumentRef-*`
+is part of the ID, so `LicenseRef-a.;`, `LicenseRef-a-;` and
+`MIT WITH AdditionRef-x.;` read without the end mark; `LicenseRef-a;;` is
+refused. `(MIT)-` and a prose form in brackets followed by a dash
+(`MIT License (MIT)-`) are refused with no reason.
 
 ## Quote marks
 
@@ -275,5 +284,10 @@ layers`. A quotation mark on one end only is taken off too, with `detail`
 (`GPL-2.0′`) is never taken off alone. The marks around each operand of a
 compound come off too (`"MIT" or "Apache-2.0"`), a balanced pair only. The
 marks of two kinds (`"MIT'`), or inside a word (`Apache "2.0"`), stay, and
-the value is refused as above. An apostrophe inside a word (`AMD's`) is not a
+the value is refused as above. One `.`, `,`, `;` or `:` after the closing
+marks (`"MIT".`, `'MIT';`) is an ending: a `separator` step comes first, then
+`unquote`. The marks may be on one end only (`MIT".`, `Apache-2.0'.`). Two
+marks (`"MIT"..`), or a mark inside the quote marks as well, even behind a
+bracket (`"MIT.".`, `"(MIT;)".`), are refused.
+An apostrophe inside a word (`AMD's`) is not a
 mark.

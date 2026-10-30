@@ -35,7 +35,7 @@ from licenseid.database import LicenseDatabase
 from licenseid.exprcanon import unbracketed
 from licenseid.listlookup import ListLookup
 from licenseid.listsource import choose_list
-from licenseid.quotes import unquote
+from licenseid.quotes import ended_quote, unquote
 from licenseid.resolvecompound import (
     absorb,
     not_an_operator,
@@ -76,7 +76,9 @@ def match(
     """Resolve the declared licence *value*.
 
     Never raises on content: a value that names nothing is category
-    ``unresolved``.
+    ``unresolved``. A *value* that is no :class:`str` (``None``,
+    :class:`bytes`, a number) is no content but a mistake of the caller:
+    :class:`TypeError`, naming the type, before anything is read.
 
     The list read is *db*, else the one *source* names: ``auto`` (the
     default) reads the database at the default path or the bundle shipped
@@ -90,6 +92,7 @@ def match(
     never narrowed: ``GPL-3.0`` comes back as written, category
     ``assumed_only``, with both candidates.
     """
+    _require_text(value)
     lookup, where = choose_list(db, source)
     return match_with(lookup, value, where)
 
@@ -99,7 +102,9 @@ def match_with(
 ) -> Resolution:
     """:func:`match` on a list the caller holds: any
     :class:`licenseid.listlookup.ListLookup`, read as it is; *where* is what
-    ``lists[0].source`` says."""
+    ``lists[0].source`` says. Raises :class:`TypeError` for a *value* that is
+    no :class:`str`, as :func:`match` does."""
+    _require_text(value)
     with lookup.reading():
         found, operands, parsed = _read(lookup, value)
         lists = [list_info(lookup, where)]
@@ -107,6 +112,13 @@ def match_with(
     if any(s["list"] == TROVE_LIST for s in resolution["steps"]):
         resolution["lists"].append(trove_list_info())  # a name rests on it too
     return resolution
+
+
+def _require_text(value: object) -> None:
+    """Raise :class:`TypeError` unless *value* is a :class:`str` (P130): a
+    call that cannot be a declared value is not an unresolved one."""
+    if not isinstance(value, str):
+        raise TypeError(f"value must be str, not {type(value).__name__}")
 
 
 def read_length(value: str) -> int:
@@ -206,7 +218,12 @@ def _prepared(value: str, found: Found) -> tuple[str, int]:
 def _unquoted(text: str, start: int, found: Found) -> tuple[str, int]:
     """*text* without quote marks around the whole of it, as an ``unquote``
     step whose detail says whether they were balanced, and where it starts
-    (*text* starts at *start*)."""
+    (*text* starts at *start*). One end mark after the closing marks
+    (``"MIT".``) comes off first, as a ``separator`` step."""
+    ended = ended_quote(text)
+    if ended is not None:
+        found.steps.append(step("separator", True, text, ended, "end mark"))
+        text = ended
     unquoted = unquote(text)
     if unquoted is None:
         return text, start

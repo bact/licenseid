@@ -40,6 +40,19 @@ the slow checks only twice.
 - Performance is out of scope unless the release is about it; guards
   against hangs on hostile input are correctness and stay.
 
+## API freeze at the candidate
+
+From the candidate commit on, the public contract is frozen, so a
+downstream project (Pitloom) can adopt the release from that commit before
+the tag. Frozen: every public name (functions, classes, modules named in the
+user docs), every result key and its type, the CLI's field names, separator
+and escaping, the JSON form, and what each exit code means. Allowed: values
+for edge inputs (a refusal that gains a reason, an `unresolved` value that
+now reads), additions, and fixes that keep the contract. A finding that
+needs a frozen item changed goes to the maintainer first; the default is the
+next release. A change after the freeze that touches a field the downstream
+project reads is flagged to its session.
+
 ## Phases
 
 1. **Finish in-flight work.** Merge every change meant for the release.
@@ -83,4 +96,5 @@ the slow checks only twice.
 ## Record
 
 - 0.7.0 (2026-10-30): adopted before the tag; performance deferred to after
-  the release.
+  the release; API frozen at the candidate (maintainer, 2026-10-30), commit
+  recorded here when it is cut.

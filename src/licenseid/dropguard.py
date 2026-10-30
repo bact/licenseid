@@ -18,7 +18,9 @@ dash or dots (``-- MIT``, ``-MIT``, ``.GPL-3.0-only``, which is the end of
 ``AGPL-3.0-only``) are a list marker or a cut value. At the end one ``.`` or
 ``,`` passes (``MIT.``), one ``;`` or ``:`` is trimmed by the reader
 (:func:`trim_end_mark`), and two or more marks, an ellipsis or a dash alone
-(``MIT;;``, ``MIT...``, ``MIT -``) are dropped marks.
+(``MIT;;``, ``MIT...``, ``MIT -``) are dropped marks. A dash joined to the
+end of a reading that no loose ID made (``MIT+-``, ``MIT License--``) is
+one too (:func:`joined_marks`).
 
 Allowed to drop: white space, ``_``, ``.``, a dash and one comma at the end.
 A dash is a character of ``normalize.RE_DASHES`` (the hyphen-minus, the
@@ -43,6 +45,7 @@ and ``licenseid.versionkey`` only.
 from collections import Counter
 from typing import Final
 
+from licenseid.exprtokens import is_addition_ref, is_license_ref
 from licenseid.normalize import RE_DASHES, RE_QUOTES
 from licenseid.versionkey import version_key
 
@@ -98,17 +101,55 @@ def end_marks(text: str) -> str:
     return "".join(reversed(marks)) if len(marks) > 1 else ""
 
 
+def joined_marks(text: str) -> str:
+    """The dashes and underscores of *text*, each once, in order
+    (``MIT+-`` and ``MIT License--`` give ``-``). A loose ID reads one
+    joined to its end as a separator (``MIT-``, ``MIT_``); after a ``+``,
+    an exception, a ``LicenseRef-*`` or a prose form no loose reading ran,
+    so the mark is dropped like any other."""
+    return "".join(
+        dict.fromkeys(c for c in text if c == "_" or RE_DASHES.match(c) is not None)
+    )
+
+
+def ends_in_ref(text: str) -> bool:
+    """Whether the last word of *text* is a ``LicenseRef-*`` or an
+    ``AdditionRef-*``, whose characters include ``.``, ``-`` and ``_``
+    (``LicenseRef-a.``, ``AdditionRef-x-``): those are no marks there
+    (P80)."""
+    word = text.rstrip().rsplit(None, 1)[-1:]
+    return bool(word) and (is_license_ref(word[0]) or is_addition_ref(word[0]))
+
+
+def ends_in_mark(text: str) -> bool:
+    """Whether *text* ends in an end mark or an ellipsis, white space and
+    closing brackets after it left out (``MIT;``, ``(MIT.)``, ``[MIT,]``); a
+    dot that ends a ``LicenseRef-*`` is a character of the ID, not a mark.
+    The question :func:`trim_end_mark` answers for one mark, asked for any."""
+    stop = len(text)
+    while stop and (text[stop - 1].isspace() or text[stop - 1] in ")]}"):
+        stop -= 1
+    body = text[:stop]
+    if not body or body[-1] not in _END_MARKS + _ELLIPSIS:
+        return False
+    return not (body[-1] == "." and ends_in_ref(body))
+
+
 def trim_end_mark(text: str, marks: str = _END_MARKS) -> str | None:
     """*text* without its one *marks* mark at the end, white space around it
     left off too, or None. None when there is no such mark, when another
     mark, an ellipsis or a dash stands before it (``MIT;;``, ``MIT...``,
-    ``MIT -;``), or when nothing else is left."""
+    ``MIT -;``), or when nothing else is left. A ``.``, ``-`` or ``_`` that
+    ends a ``LicenseRef-*`` or ``AdditionRef-*`` is a character of the ID
+    (``LicenseRef-a.;`` is ``LicenseRef-a.``)."""
     body = text.rstrip()
     if not body or body[-1] not in marks:
         return None
     rest = body[:-1].rstrip()
-    if not rest or rest[-1] in _END_MARKS + _ELLIPSIS or RE_DASHES.match(rest[-1]):
+    if not rest:
         return None
+    if rest[-1] in _END_MARKS + _ELLIPSIS or RE_DASHES.match(rest[-1]):
+        return rest if ends_in_ref(rest) else None  # ``LicenseRef-a.;``
     return rest
 
 

@@ -48,11 +48,17 @@ takes a balanced pair only: a mark on one end of an operand may be the
 other end of a pair around several (``"MIT OR "Apache-2.0"``), and the drop
 guard refuses it.
 
-Standard library and ``licenseid.normalize`` only.
+One end mark (``.``, ``,``, ``;`` or ``:``) after the closing marks
+(``"MIT".``) is an ending, left off first (:func:`ended_quote`), as it is
+before the marks (``MIT,"``). A mark inside the marks as well (``"MIT.".``)
+is a second mark, and the value is refused.
+
+Standard library, ``licenseid.dropguard`` and ``licenseid.normalize`` only.
 """
 
 from typing import Final, NamedTuple
 
+from licenseid.dropguard import ends_in_mark, trim_end_mark
 from licenseid.normalize import QUOTE_KIND
 
 #: The marks that may stand alone on one end (unbalanced): quotation
@@ -95,6 +101,23 @@ def unquote(text: str) -> Unquoted | None:
         return Unquoted(core, False, f"unbalanced, {side}", lo)
     detail = "balanced" if layers == 1 else f"balanced, {layers} layers"
     return Unquoted(core, True, detail, lo)
+
+
+def ended_quote(text: str) -> str | None:
+    """*text* without the one end mark that follows its closing quote marks
+    (``"MIT".``, ``“MIT”;``, and ``MIT".`` with a mark on that end only), or
+    None. None when more than one mark ends *text* (``"MIT"..``,
+    ``"MIT".,``), when the marks are not ones to take off, or when what they
+    enclose ends in a mark too, behind a bracket or not (``"MIT.".``,
+    ``"(MIT;)".``; the dot of a ``LicenseRef-a.`` is no mark). The end mark
+    and the one inside are judged by :mod:`licenseid.dropguard`."""
+    rest = trim_end_mark(text)
+    if rest is None or rest[-1] not in QUOTE_KIND:
+        return None
+    inner = unquote(rest)
+    if inner is None or ends_in_mark(inner.text):
+        return None
+    return rest
 
 
 def _skip_space(text: str, lo: int, hi: int) -> tuple[int, int]:
