@@ -36,6 +36,7 @@ CASES = [
     (["--nope"], "option: not found: --nope; run 'cli --help'"),
     (["-h"], "option: not found: -h; run 'cli --help'"),
     (["--version"], "option: not found: --version; run 'cli --help'"),
+    (["match", "MIT"], "command: not found: match; run 'cli --help'"),
     (["frob"], "command: not found: frob; run 'cli --help'"),
     (["detec", "MIT"], "command: not found: detec; did you mean detect"),
     (["detect", "--top"], "option: missing: --top; pass a value"),
