@@ -313,8 +313,8 @@ carries the reasons for the names.
   licenseid 0.7, whose renamed API its hook cannot import, so a build from the
   sdist could fail. Pitloom 0.21.2 caps licenseid below 0.7; `build-system`
   floors Pitloom there, and `.github/requirements-release.txt` pins a pair
-  that imports. An earlier commit (9664264) also made the wheel SBOM check run
-  with a Pitloom that can import. The order and traps are in
+  that imports. The wheel's SBOM check runs in its own environment, pinned
+  the same way (#134). The order and traps are in
   [release-process.md](release-process.md).
 - **CI accuracy layers (#124).** The core set (seven licences, about 15 s,
   from 79 s) runs on every commit; the must-have licences on a matching-path
