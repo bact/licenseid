@@ -484,8 +484,8 @@ making it suitable for use in scripts and CI/CD pipelines.
 
 | Exit Code | Meaning | Scenarios |
 | :--- | :--- | :--- |
-| **0** | Success | Confident match found; `match`: the value resolved to an expression; predicate is TRUE; database updated or already up-to-date. |
-| **1** | Logic Failure | No matching license found (nothing printed); `match`: no expression (the result is still printed); predicate is FALSE; network error. |
+| **0** | Success | Confident match found; `match`: the value resolved to an expression; predicate is TRUE; database updated or already up-to-date; cache cleared. |
+| **1** | Logic Failure | No matching license found (nothing printed); `match`: no expression (the result is still printed); predicate is FALSE (its record still printed); an update or a cache clear that failed (a network error, a delete the system refuses). |
 | **2** | Usage or Setup Error | Missing subcommand (help on standard error); missing input text/file; invalid parameters; `match` given a text, standard input, or a path that resolves to nothing; database not ready (for `match`, no list to read); output that cannot be written. |
 | **130** | Interrupted | Ctrl-C (SIGINT); no message once started. |
 | **141** | Reader gone | The reader closed the pipe (`head -1`); no message. |

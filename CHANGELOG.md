@@ -89,6 +89,7 @@ and this project adheres to
   (`IS_OSI_APPROVED=true`), `update` prints `STATUS`, `VERSION` and `PATH`;
   both take `--json`; `detect --diff` writes the diff to standard error.
   Migration: test the exit code
+- `--clear-cache` exits 1, not 2, when the system refuses a delete
 
 ### Fixed
 

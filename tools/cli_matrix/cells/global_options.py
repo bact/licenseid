@@ -155,7 +155,7 @@ CLEAR_CACHE: list[tuple[str, str, int | None]] = [
             "prep && chmod 555 $W/x && $L --db $W/x/licenses.db --clear-cache;"
             " rc=$?; chmod 755 $W/x; exit $rc"
         ),
-        None,
+        1,  # a delete the system refuses: the action failed
     ),
     (
         "--clear-cache no --db (default path in scratch HOME)",

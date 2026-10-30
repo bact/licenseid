@@ -134,13 +134,15 @@ def clear_local_cache(ctx: click.Context, db_path: str) -> None:
     ``clear_cache`` refuses a file licenseid did not build (one mistyped
     ``--db`` must not destroy another program's database); the group turns
     that refusal into exit 2. A delete the system refuses is reported here,
-    naming the file that actually failed.
+    naming the file that actually failed, with exit 1: the command was
+    understood and failed, as an update that fails does.
     """
     try:
         LicenseDatabase.clear_cache(db_path)
     except OSError as exc:
         failed = exc.filename or db_path
-        exit_usage_error(ctx, str(delete_failed_error(str(failed), exc)))
+        error(str(delete_failed_error(str(failed), exc)))
+        ctx.exit(1)
 
 
 class DatabaseErrorGroup(UsageLineGroup, EchoHelpCommand):
