@@ -85,7 +85,7 @@ def _add_json(cells: CellSet) -> None:
         for desc, pre, args, rc in (
             ("found", "", "MIT", 0),
             ("not-found", "", "--id Nope-1.0", 1),
-            ("stdin", f"printf %s {shlex.quote(FRAG)} | ", "", 0),
+            ("stdin", "cat $F/mit.txt | ", "", 0),
         ):
             cells.add(
                 "B6",

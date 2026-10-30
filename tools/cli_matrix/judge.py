@@ -46,6 +46,13 @@ MATCH_LINE = re.compile(
     r"|OPERAND=[^\t]+\tEXPRESSION=[^\t]*\tCATEGORY=[a-z_]+"
 )
 
+#: The word diff ``detect --diff`` writes to stderr: a header, the unified
+#: diff's lines (one word each, or a ``---``/``+++``/``@@`` line), and a blank
+#: line to end it.
+WORD_DIFF = re.compile(
+    r"(?m)^\nWORD DIFF:\n(?:(?:[-+ ]\S*|@@ .*|--- \S+|\+\+\+ \S+)\n)*\n"
+)
+
 #: The one record of an ``is-*`` command, and of ``update``.
 PREDICATE_LINE = re.compile(r"EXPRESSION=[^\t]*\t(IS_[A-Z_]+)=(true|false)\n")
 UPDATE_LINE = re.compile(r"STATUS=(updated|unchanged)\tVERSION=[^\t]*\tPATH=[^\t\n]+\n")
@@ -135,7 +142,10 @@ def _stream_flags(cell: Cell, result: Result) -> list[str]:
         flags.append("diagnostic on stdout")
     if result["rc"] == 2 and not result["out"] and HELP.match(result["err"]):
         return flags  # the help for a missing subcommand
-    for line in result["err"].splitlines():
+    err = result["err"]
+    if "--diff" in cell.cmd:  # detect's word diff goes to stderr (P116)
+        err = WORD_DIFF.sub("", err)
+    for line in err.splitlines():
         if cell.progress:
             # Free-text progress is allowed, but a diagnostic is not exempt.
             if re.match(r"(ERROR|WARNING):", line) and not GRAMMAR.fullmatch(line):

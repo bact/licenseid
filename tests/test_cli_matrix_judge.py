@@ -509,3 +509,34 @@ def test_the_update_record(out: str, ok: bool) -> None:
         make_cell(fam="D1", kind="update", progress=True), make_result(rc=0, out=out)
     )
     assert (verdict == "FLAG") is not ok, notes
+
+
+DIFF_ERR = (
+    "\nWORD DIFF:\n--- DATABASE\n+++ INPUT\n@@ -2,9 +2,9 @@\n license\n-year\n"
+    "+jérôme\n\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("cmd", "err", "flagged"),
+    [
+        ("$L --db $DB detect --diff x", DIFF_ERR, False),
+        (
+            "$L --db $DB detect --diff x",
+            DIFF_ERR + "WARNING: database: 9 days old\n",
+            False,
+        ),
+        ("$L --db $DB detect x", DIFF_ERR, True),  # no --diff: no diff expected
+        ("$L --db $DB detect --diff x", DIFF_ERR + "stray text\n", True),
+    ],
+)
+def test_the_word_diff_on_stderr_is_no_stray_line(
+    cmd: str, err: str, flagged: bool
+) -> None:
+    """``detect --diff`` writes its diff to stderr (P116); the judge lets
+    that block through, and nothing else."""
+    verdict, notes = judge_mod.judge(
+        make_cell(kind="detect", cmd=cmd),
+        make_result(rc=0, out=PLAIN_LINE + "\n", err=err),
+    )
+    assert any("outside grammar" in note for note in notes) is flagged, (verdict, notes)
