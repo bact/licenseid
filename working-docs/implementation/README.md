@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-30
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,7 +13,14 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-10-02)
+## Current state (as of 2026-10-30)
+
+- **0.7.0** (in preparation): the declared-value resolver reads compounds,
+  quoted values, trove names, prose forms and `;` lists, and works with no
+  database from the shipped list; `resolve()` is now `match()` and the old
+  matcher is `detect()` (`detector.py`). The record is
+  [declared-value-resolver-0-7.md](declared-value-resolver-0-7.md); the
+  items below are older and still hold unless it says otherwise.
 
 - **Pipeline**: Tier 0.5 (marker detection: tags, then a manifest's
   `license` field) → Tier 0 (short-text ID/name shortcut) → Tier 1 (SQLite FTS5
@@ -102,6 +109,7 @@ yet started, see [`../design/`](../design/).
 | 2026-10-02 | [tech-debt-resolved.md](tech-debt-resolved.md) | record | The tech-debt roadmap's resolved items: what each was and what was done, moved out of the roadmap to keep it under the size limit. |
 | 2026-10-22 | [release-process.md](release-process.md) | implemented (0.5.0) | How a release is cut: order, checks before the tag, traps seen in 0.5.0 |
 | 2026-10-27 | [declared-value-resolver.md](declared-value-resolver.md) | implemented (PR #97, 0.6.0 review) | `resolve()` (now `match()`): WITH, `LicenseRef-*`, malformed qualifiers, hidden characters, the declared "or later" reader on `OR_LATER_PHRASE`, and the build stamp that makes `update` rebuild an older database. |
+| 2026-10-30 | [declared-value-resolver-0-7.md](declared-value-resolver-0-7.md) | implemented (0.7.0, PRs #106 to #135) | Compounds, quotes, drop guard, end marks, trove and prose forms, `;` lists, the packaged list and its cached choice, schema 2, the `match`/`detect` rename, sdist allowlist, Pitloom pin. The `licenseid match` command (T10b) is a placeholder. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only
