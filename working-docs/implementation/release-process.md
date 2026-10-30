@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-22
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -15,6 +15,9 @@ the way. The developer tags and publishes; an
 agent prepares and checks.
 
 ## Order
+
+A release with many merged changes is reviewed as a whole first:
+[pre-release-review.md](pre-release-review.md).
 
 1. Merge every PR meant for the release. Entries for them go into the
    release's own `CHANGELOG.md` section (opened by the preparation PR), not
@@ -44,8 +47,10 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
   is on PyPI. Before the tag: a Pitloom release that caps `licenseid` below
   the new version (or reads the new names) is on PyPI, and
   `.github/requirements-release.txt` pins Pitloom and licenseid to a pair
-  that imports. The wheel's SBOM check runs in its own environment for the
-  same reason (`build.yml`).
+  that imports, and `build-system.requires` floors Pitloom at that release,
+  so a build from the sdist without the pins cannot pick an older Pitloom
+  (0.7.0: Pitloom 0.21.2). The wheel's SBOM check runs in its own
+  environment for the same reason (`build.yml`).
 - A new `trove-classifiers` release can fail `tests/test_trovenames.py`
   (a new `License ::` classifier): decide each new entry in
   `src/licenseid/trovenames.py` and `tests/trove_golden.py`.
@@ -109,8 +114,9 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
   tests could not show (#101). Before the tag, probe each new input shape on
   a full database built by `update`, against the last release.
 - The release planned as 0.5.1 became 0.6.0 after its preparation PR was
-  open: a new public API (`resolve()`, now `match()`) is a minor release. Rename the
-  version in docs and comments too, not only in the three version files.
+  open: a new public API (`resolve()`, now `match()`) is a minor release.
+  Rename the version in docs and comments too, not only in the three
+  version files.
 - A fix PR after the preparation PR goes into the open release section;
   merge its entry with the related one (`[#99], [#101]`), and keep Keep a
   Changelog's section order (Removed before Fixed).

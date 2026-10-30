@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-30
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -47,7 +47,7 @@ encoding. Both files are UTF-8 (JSON must be, RFC 8259), and
 the en dash `–` in `Data licence Germany – attribution – version 2.0`).
 
 - **Symptom on a legacy locale**: `licenseid` cannot even start.
-  `import licenseid.matcher` imports `py_spdx_license`, and under
+  `import licenseid.detector` imports `py_spdx_license`, and under
   `LC_ALL=ja_JP.eucJP` (macOS, checked on Python 3.10) every command dies
   with `UnicodeDecodeError: 'euc_jp' codec can't decode byte 0xe2 in
   position 103585` before any output. Other multibyte locales (cp932 on
@@ -79,6 +79,11 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
   -W error::EncodingWarning`). With it, licenseid runs under `ja_JP.eucJP`.
   After a release, raise the minimum `py-spdx-license` version, drop the
   README section and close this item.
+- **Status (2026-10-30)**: the pull request is still open and only 0.0.1 is
+  on PyPI. 0.7.0 ships with the README workaround (the maintainer chose docs
+  only over an import shim that would patch `Path.open` during the import,
+  or a parser of our own); `licenseid match` and `--version` fail the same
+  way, at import.
 - Impact 2, Risk 3, Effort 2.
 
 ## 26. Relax the parser guard once the parser is linear — Priority 10

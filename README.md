@@ -172,8 +172,10 @@ uv tool install licenseid
 A dependency, `py-spdx-license` 0.0.1, reads its bundled license data with
 the locale's encoding. Under a multibyte locale that is not UTF-8, such as
 `ja_JP.eucJP`, every command then fails at start-up with a
-`UnicodeDecodeError`. Until a fixed release is out, set `PYTHONUTF8=1` to
-run Python in UTF-8 mode:
+`UnicodeDecodeError`. The fix is waiting upstream in
+[JPEWdev/py-spdx-license#5](https://github.com/JPEWdev/py-spdx-license/pull/5).
+Until a fixed release is out, set `PYTHONUTF8=1` to run Python in UTF-8
+mode:
 
 ```bash
 export PYTHONUTF8=1
