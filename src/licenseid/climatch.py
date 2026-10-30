@@ -41,7 +41,7 @@ from licenseid.clicommon import (
 from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import one_line
-from licenseid.output import echo
+from licenseid.output import echo, echo_json
 from licenseid.resolver import MAX_EXPRESSION_CHARS, match, read_length
 from licenseid.resolvertypes import Resolution, Source
 from licenseid.result import json_line, resolution_lines
@@ -156,7 +156,7 @@ def match_command(
     resolution = match(declared, given_database(ctx, source), source=source)
     reject_a_path(ctx, declared, resolution)
     if json_output:
-        echo(json_line(resolution))
+        echo_json(json_line(resolution))
     else:
         for line in resolution_lines(resolution):
             echo(line)

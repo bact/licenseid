@@ -25,7 +25,7 @@ from conftest import invoke_match, make_ready_db_path, posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db
 
-from licenseid import console, output
+from licenseid import console
 from licenseid.cli import cli
 from licenseid.cli import main as cli_main
 from licenseid.database import LicenseDatabase
@@ -72,60 +72,6 @@ def test_an_unencodable_result_is_a_failed_write_not_a_traceback(db: str) -> Non
         result = invoke_match(db, "--id", "MIT")
     assert result.exit_code == 2
     assert result.stderr.startswith("ERROR: output: write failed: 'charmap' codec")
-
-
-def test_unencodable_output_is_escaped_as_stderr_is(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    raw = io.BytesIO()
-    stream = io.TextIOWrapper(raw, encoding="cp1252", errors="strict", newline="\n")
-    monkeypatch.setattr(sys, "stdout", stream)
-    output.escape_unencodable_output()
-    click.echo("caf\u00e9 \u65e5")
-    stream.flush()
-    assert raw.getvalue() == b"caf\xe9 \\u65e5\n"
-
-
-def test_an_error_handler_the_user_chose_is_kept(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    stream = io.TextIOWrapper(io.BytesIO(), encoding="utf-8", errors="surrogateescape")
-    monkeypatch.setattr(sys, "stdout", stream)
-    output.escape_unencodable_output()
-    assert stream.errors == "surrogateescape"
-
-
-def test_a_closed_stream_is_left_alone(monkeypatch: pytest.MonkeyPatch) -> None:
-    stream = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
-    stream.close()
-    monkeypatch.setattr(sys, "stdout", stream)
-    output.escape_unencodable_output()  # reconfigure raises ValueError
-
-
-@pytest.mark.parametrize("stream", [None, io.StringIO()], ids=["closed", "no_codec"])
-def test_escaping_needs_a_text_stream(
-    monkeypatch: pytest.MonkeyPatch, stream: object
-) -> None:
-    monkeypatch.setattr(sys, "stdout", stream)
-    output.escape_unencodable_output()  # nothing to reconfigure, no exception
-
-
-def test_main_escapes_unencodable_output_before_it_runs_a_command(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    seen: list[str] = []
-    monkeypatch.setattr(
-        "licenseid.cli.escape_unencodable_output", lambda: seen.append("escaped")
-    )
-
-    def run(**_: object) -> int:
-        seen.append("ran")
-        return 0
-
-    monkeypatch.setattr(cli, "main", run)
-    with pytest.raises(SystemExit):
-        cli_main()
-    assert seen == ["escaped", "ran"]
 
 
 def test_an_update_whose_report_fails_is_not_a_failed_update(tmp_path: Path) -> None:

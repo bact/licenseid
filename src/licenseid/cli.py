@@ -50,7 +50,7 @@ from licenseid.output import (
     EchoHelpCommand,
     OutputError,
     echo,
-    escape_unencodable_output,
+    echo_json,
     output_failed,
 )
 from licenseid.result import json_line, text_line
@@ -509,7 +509,7 @@ def detect(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     if json_output:
         # JSON Lines: one canonical (RFC 8785) object per result.
         for r in results:
-            echo(json_line(r))
+            echo_json(json_line(r))
     else:
         # Standard output: line-delimited, KEY=VALUE
         for i, r in enumerate(results):
@@ -627,7 +627,6 @@ def main() -> None:
     standard error, which then turned the exit status into 120 at the flush
     on exit.
     """
-    escape_unencodable_output()
     try:
         status = cli.main(standalone_mode=False)
     except click.exceptions.Abort:  # Ctrl-C before a command runs
