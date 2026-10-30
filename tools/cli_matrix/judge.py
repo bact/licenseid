@@ -54,11 +54,20 @@ WORD_DIFF = re.compile(
 )
 
 #: The one record of an ``is-*`` command, and of ``update``.
-PREDICATE_LINE = re.compile(r"EXPRESSION=[^\t]*\t(IS_[A-Z_]+)=(true|false)\n")
-UPDATE_LINE = re.compile(r"STATUS=(updated|unchanged)\tVERSION=[^\t]*\tPATH=[^\t\n]+\n")
+#: The flag is empty when an operand of the expression cannot be judged.
+PREDICATE_LINE = re.compile(r"EXPRESSION=[^\t]*\t(IS_[A-Z_]+)=(true|false|)\n")
+UPDATE_LINE = re.compile(
+    r"LIST=[a-z-]+\tVERSION=[^\t]*\tSTATUS=(updated|unchanged)\tPATH=[^\t\n]+\n"
+)
 
-#: The whole result of ``detect --bold``: an identifier and nothing else.
-BOLD = re.compile(r"\S+( WITH \S+)?")
+#: The whole result of ``detect --id-only``: an expression and nothing else.
+ID_ONLY = re.compile(r"\S+( (WITH|AND|OR) \S+)*")
+#: What ``detect`` prints for no answer (exit 1): one record, every field
+#: empty; with ``--json`` every value null; with ``--id-only`` an empty line.
+NO_ANSWER = re.compile(r"EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n")
+
+#: What :func:`predicate_answer` gives for an output that is not one record.
+MALFORMED = "malformed"
 
 CRASH = re.compile(
     r"Traceback \(most recent call last\)|Exception ignored"
@@ -179,7 +188,8 @@ def _contract_flags(cell: Cell, result: Result) -> list[str]:
         return []
     rc, out, err = result["rc"], result["out"], result["err"]
     if cell.kind == "predicate":
-        if (rc, out) == (2, "") or predicate_answer(out) == {0: True, 1: False}.get(rc):
+        answer = predicate_answer(out)
+        if (rc, out) == (2, "") or (rc, answer) in ((0, True), (1, False), (1, None)):
             return []
         return [f"predicate contract: exit={rc} stdout={out[:40]!r}"]
     if cell.kind == "match":
@@ -188,9 +198,9 @@ def _contract_flags(cell: Cell, result: Result) -> list[str]:
         return []
     if rc == 0:
         return check_match_format(cell, out)
-    if rc == 1:  # "no": nothing on stdout, no ERROR line (a WARNING may be)
-        if out != "" or re.search(r"(?m)^ERROR:", err):
-            return ["detect exit 1 with stdout or an ERROR line"]
+    if rc == 1:  # "no": the empty record, no ERROR line (a WARNING may be)
+        if not is_no_answer(cell, out) or re.search(r"(?m)^ERROR:", err):
+            return ["detect exit 1 without its empty record, or an ERROR line"]
         return []
     if rc == 2 and out != "" and "--help" not in cell.cmd:
         return ["exit 2 with stdout output"]
@@ -228,22 +238,41 @@ def check_match_format(cell: Cell, out: str) -> list[str]:
     if not out:
         return ["exit 0 but empty stdout"] if "--help" not in cell.cmd else []
     lines = out.splitlines()
-    ok_bold = (
+    ok_id_only = (
         len(lines) == 1
-        and BOLD.fullmatch(lines[0]) is not None
+        and ID_ONLY.fullmatch(lines[0]) is not None
         and not lines[0].startswith("EXPRESSION=")
     )
     ok_json = _is_result_json(out)
     ok_plain = bool(lines) and PLAIN.fullmatch(lines[0]) is not None
-    if "bold" in flags and "json" in flags:
-        return [] if (ok_bold or ok_json) else ["--bold --json output is neither"]
-    if "bold" in flags:
-        return [] if ok_bold else [f"--bold not a single id: {out[:40]!r}"]
+    if "id-only" in flags and "json" in flags:
+        return ["--id-only --json answered: a usage error (exit 2)"]
+    if "id-only" in flags:
+        return [] if ok_id_only else [f"--id-only not one expression: {out[:40]!r}"]
     if "json" in flags:
         return [] if ok_json else [f"--json invalid: {out[:40]!r}"]
-    if not ok_plain and not ok_bold and not ok_json:
+    if not ok_plain and not ok_id_only and not ok_json:
         return [f"plain output malformed: {out[:60]!r}"]
     return []
+
+
+def is_no_answer(cell: Cell, out: str) -> bool:
+    """Whether *out* is what ``detect`` prints for no answer, by the output
+    flag the cell asked for (or, without one, any of the three shapes)."""
+    flags = cell.outflags
+    as_json = _json_results(out)
+    json_ok = bool(
+        as_json
+        and len(as_json) == 1
+        and isinstance(as_json[0], dict)
+        and as_json[0]
+        and set(as_json[0].values()) == {None}
+    )
+    if "id-only" in flags:
+        return out == "\n"
+    if "json" in flags:
+        return json_ok
+    return NO_ANSWER.fullmatch(out) is not None or json_ok or out == "\n"
 
 
 def _json_results(out: str) -> list[object] | None:
@@ -271,21 +300,22 @@ def json_count(out: str) -> int | None:
     return None if parsed is None else len(parsed)
 
 
-def predicate_answer(out: str) -> bool | None:
-    """The flag of an ``is-*`` record, text or ``--json``; None when *out* is
-    not one record."""
+def predicate_answer(out: str) -> bool | str | None:
+    """The flag of an ``is-*`` record, text or ``--json``: a bool, None when
+    the record leaves it empty (an operand that cannot be judged), or
+    ``"malformed"`` when *out* is not one record."""
     line = PREDICATE_LINE.fullmatch(out)
     if line:
-        return line.group(2) == "true"
+        return {"true": True, "false": False}.get(line.group(2))
     parsed = _json_results(out)
     if not (parsed and len(parsed) == 1 and isinstance(parsed[0], dict)):
-        return None
+        return MALFORMED
     record: dict[str, Any] = parsed[0]
     flags = [key for key in record if key.startswith("is_")]
     if set(record) != {"expression", *flags} or len(flags) != 1:
-        return None
+        return MALFORMED
     flag = record[flags[0]]
-    return flag if isinstance(flag, bool) else None
+    return flag if flag is None or isinstance(flag, bool) else MALFORMED
 
 
 def is_update_record(out: str) -> bool:
@@ -297,7 +327,7 @@ def is_update_record(out: str) -> bool:
         parsed
         and len(parsed) == 1
         and isinstance(parsed[0], dict)
-        and set(parsed[0]) == {"path", "status", "version"}
+        and set(parsed[0]) == {"list", "path", "status", "version"}
         and parsed[0]["status"] in ("updated", "unchanged")
     )
 
@@ -450,12 +480,21 @@ def _groups(
 _B5_ID = re.compile(r"--id '(.*)' \(")
 
 
-def relational(rows: list[Result], cells: dict[str, Cell]) -> None:
-    """Check the predicates against each other, and annotate the rows.
+#: Each predicate, by the flag of ``detect --json`` it must agree with.
+_PREDICATE_FLAGS = {
+    "is-osi": "is_osi_approved",
+    "is-fsf": "is_fsf_libre",
+    "is-spdx": "is_spdx",
+}
 
-    For one identifier, ``is-open`` must equal ``is-osi or is-fsf``, and
-    ``is-free`` must equal ``is-open`` (README). A single predicate can look
-    perfectly well behaved while contradicting its neighbours.
+
+def relational(rows: list[Result], cells: dict[str, Cell]) -> None:
+    """Check the predicates against ``detect``, and annotate the rows.
+
+    For one identifier, each predicate exits 0 exactly when the flag of
+    ``detect --json``'s top result is true (README: ``is-osi`` reads
+    ``is_osi_approved``). A single predicate can look perfectly well behaved
+    while contradicting ``detect``.
     """
     answers: dict[tuple[str, str, str], dict[str, Result]] = {}
     for row in rows:
@@ -469,22 +508,21 @@ def relational(rows: list[Result], cells: dict[str, Cell]) -> None:
         subcommand = cell.cmd.split("$DB ", 1)[1].split()[0]
         answers.setdefault((ident, row["shell"], row["py"]), {})[subcommand] = row
     for (ident, _shell, _py), found in answers.items():
-        if len(found) < 5:
+        if len(found) < len(_PREDICATE_FLAGS) + 1:
             continue
         _apply_relational(ident, found)
 
 
 def _apply_relational(ident: str, found: dict[str, Result]) -> None:
-    """Record the cross-predicate answer, and flag any contradiction."""
+    """Record the cross-command answer, and flag any contradiction."""
     codes = {name: row["rc"] for name, row in found.items()}
-    problems: list[str] = []
-    if (codes["is-open"] == 0) != (codes["is-osi"] == 0 or codes["is-fsf"] == 0):
-        problems.append(
-            f"is-open={codes['is-open']} but is-osi={codes['is-osi']}"
-            f" is-fsf={codes['is-fsf']}"
-        )
-    if codes["is-free"] != codes["is-open"]:
-        problems.append(f"is-free={codes['is-free']} != is-open={codes['is-open']}")
+    detected = _json_results(found["detect"]["out"]) or [{}]
+    top = detected[0] if isinstance(detected[0], dict) else {}
+    problems = [
+        f"{name}={codes[name]} but detect {flag}={top.get(flag)}"
+        for name, flag in _PREDICATE_FLAGS.items()
+        if (codes[name] == 0) != (top.get(flag) is True)
+    ]
     summary = f"answers for '{ident}': " + " ".join(
         f"{name}={code}" for name, code in sorted(codes.items())
     )

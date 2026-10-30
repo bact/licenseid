@@ -15,6 +15,7 @@ this file is the before-and-after record of every changed behaviour.
 import sqlite3
 from collections.abc import Generator
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 from click.testing import CliRunner, Result
@@ -52,98 +53,116 @@ def run(db: str, *args: str, stdin: str | None = None) -> Result:
 # --- C: commands and options ---------------------------------------------
 
 
-@pytest.mark.parametrize(
-    ("command", "line"),
-    [
-        ("is-open", "EXPRESSION=MIT\tIS_OPEN=true\n"),
-        ("is-free", "EXPRESSION=MIT\tIS_FREE=true\n"),
-    ],
-)
-def test_c1_the_union_commands(db: str, command: str, line: str) -> None:
-    """PIN (C1): ``is-open`` and ``is-free`` answer the OSI-or-FSF union."""
+@pytest.mark.parametrize("command", ["is-open", "is-free"])
+def test_c1_the_union_commands_are_gone(db: str, command: str) -> None:
+    """C1 (was: ``is-open MIT`` printed ``EXPRESSION=MIT\tIS_OPEN=true``):
+    the union is ``is-osi X || is-fsf X``."""
     result = run(db, command, "MIT")
-    assert (result.exit_code, result.stdout) == (0, line)
+    assert result.exit_code == 2
+    assert result.stderr.startswith(f"ERROR: command: not found: {command}")
 
 
-def test_c1_the_union_method(db: str) -> None:
-    """PIN (C1): ``LicenseDetector.is_open`` exists."""
-    assert LicenseDetector(db).is_open(license_id="MIT") is True
+def test_c1_the_union_method_is_gone() -> None:
+    """C1 (was: ``LicenseDetector.is_open``)."""
+    assert not hasattr(LicenseDetector, "is_open")
 
 
-def test_c2_update_takes_version() -> None:
-    """PIN (C2): ``update --version`` names the list version; no ``--list``."""
+def test_c2_update_takes_list() -> None:
+    """C2 (was: ``update --version V``): ``update --list ID[@VERSION]``."""
     help_text = CliRunner().invoke(cli, ["update", "--help"]).stdout
-    assert "--version" in help_text and "--list" not in help_text
+    assert "--list" in help_text and "--version" not in help_text
 
 
-def test_c3_clear_cache_is_a_flag() -> None:
-    """PIN (C3): ``--clear-cache`` is a global flag that prints nothing."""
-    result = CliRunner().invoke(cli, ["--clear-cache"])
-    assert (result.exit_code, result.stdout) == (0, "")
+def test_c3_clear_cache_is_a_command(tmp_path: Path) -> None:
+    """C3 (was: the global flag ``--clear-cache``, which printed nothing):
+    the command ``clear-cache`` prints its record; the flag is refused."""
+    path = str(tmp_path / "licenses.db")
+    result = CliRunner().invoke(cli, ["--db", path, "clear-cache"])
+    assert (result.exit_code, result.stdout) == (
+        0,
+        f"STATUS=nothing\tPATH={path}\n",
+    )
+    result = CliRunner().invoke(cli, ["--db", path, "--clear-cache"])
+    assert result.exit_code == 2
+    assert result.stderr.startswith("ERROR: option: not found: --clear-cache")
 
 
-def test_c4_bold(db: str) -> None:
-    """PIN (C4): ``detect --bold`` prints the top expression alone."""
-    result = run(db, "detect", "--bold", "MIT")
+def test_c4_id_only(db: str) -> None:
+    """C4 (was: ``detect --bold``): ``--id-only`` prints the top expression."""
+    result = run(db, "detect", "--id-only", "MIT")
     assert (result.exit_code, result.stdout) == (0, "MIT\n")
+    assert run(db, "detect", "--bold", "MIT").exit_code == 2
 
 
-def test_c5_a_dash_is_text(db: str) -> None:
-    """PIN (C5): ``-`` is read as the text ``-``, not standard input."""
+def test_c5_a_dash_is_standard_input(db: str) -> None:
+    """C5 (was: ``-`` read as the text ``-``, exit 1): standard input."""
     result = run(db, "detect", "-", stdin="MIT")
-    assert (result.exit_code, result.stdout) == (1, "")
-
-
-def test_c6_text_escapes_are_decoded(db: str) -> None:
-    """PIN (C6): ``--text`` decodes backslash escapes (``\\x49`` is I)."""
-    result = run(db, "detect", "--text", "M\\x49T")
     assert result.exit_code == 0
     assert result.stdout.startswith("EXPRESSION=MIT\t")
 
 
+def test_c6_text_is_taken_as_written(db: str) -> None:
+    """C6 (was: ``--text M\\x49T`` decoded to MIT): a backslash is a
+    backslash, so ``M\\x49T`` names no licence."""
+    result = run(db, "detect", "--text", "M\\x49T")
+    assert result.exit_code == 1
+    assert not result.stdout.startswith("EXPRESSION=MIT\t")
+
+
 @pytest.mark.parametrize(
-    ("args", "status", "head"),
+    ("args", "message"),
     [
-        (["detect", "--id", "MIT", "--text", "ISC"], 0, "EXPRESSION=MIT\t"),
-        (["detect", "--text", "MIT", "ISC"], 0, "EXPRESSION=MIT\t"),
-        (["detect", "--id", "MIT", "ISC"], 0, "EXPRESSION=MIT\t"),
-        (["detect", "--json", "--bold", "MIT"], 0, "MIT\n"),
-        (["detect", "--json", "--diff", "MIT"], 0, '{"coverage":null'),
-        (["detect", "--top", "0", "MIT"], 1, ""),
-        (["is-osi", "--id", "MIT", "ISC"], 0, "EXPRESSION=MIT\t"),
+        (["detect", "--id", "MIT", "--text", "ISC"], "--id: with --text"),
+        (["detect", "--text", "MIT", "ISC"], "--text: with an argument"),
+        (["detect", "--id", "MIT", "ISC"], "--id: with an argument"),
+        (["detect", "--json", "--id-only", "MIT"], "--id-only: with --json"),
+        (["detect", "--json", "--diff", "MIT"], "--diff: with --json"),
+        (["detect", "--top", "0", "MIT"], "--top: 0; pass 1 or more"),
+        (["is-osi", "--id", "MIT", "ISC"], "--id: with an argument"),
     ],
     ids=[
         "id-text",
         "text-arg",
         "id-arg",
-        "json-bold",
+        "json-id-only",
         "json-diff",
         "top0",
         "is-id-arg",
     ],
 )
-def test_c7_conflicts_pass(db: str, args: list[str], status: int, head: str) -> None:
-    """PIN (C7): two inputs, ``--json`` with ``--bold`` or ``--diff`` and a
-    ``--top`` below 1 are not refused: one input or one output wins."""
+def test_c7_conflicts_are_refused(db: str, args: list[str], message: str) -> None:
+    """C7 (was: one input or one output won, exit 0; ``--top 0`` exit 1
+    with nothing): a usage error, exit 2, nothing on standard output."""
     result = run(db, *args)
-    assert result.exit_code == status
-    assert result.stdout.startswith(head)
+    assert (result.exit_code, result.stdout) == (2, "")
+    assert result.stderr.startswith(f"ERROR: option: invalid: {message}")
 
 
-def test_c8_match_reads_standard_input() -> None:
-    """PIN (C8): ``match`` with no value reads standard input to refuse it."""
+def test_c8_match_does_not_read_standard_input() -> None:
+    """C8 (was: ``match`` read standard input to refuse it): no value is
+    missing input, whatever is piped (``test_cli_match`` runs it on a pipe
+    that never ends)."""
     result = CliRunner().invoke(cli, ["match"], input="MIT")
     assert result.exit_code == 2
     assert result.stderr == (
-        "ERROR: input: invalid: standard input; run 'licenseid detect'\n"
+        "ERROR: input: missing; pass one declared licence value\n"
     )
 
 
 @pytest.mark.parametrize("flags", [[], ["--json"]], ids=["text", "json"])
-def test_c9_detect_prints_nothing_on_exit_1(db: str, flags: list[str]) -> None:
-    """PIN (C9): ``detect`` with no answer prints nothing."""
+def test_c9_detect_prints_an_empty_record_on_exit_1(
+    db: str, flags: list[str]
+) -> None:
+    """C9 (was: nothing on exit 1): one record, every field empty."""
     result = run(db, "detect", *flags, "--id", "No-Such-1.0")
-    assert (result.exit_code, result.stdout) == (1, "")
+    line = (
+        '{"coverage":null,"exact":null,"expression":null,"is_fsf_libre":null,'
+        '"is_osi_approved":null,"is_spdx":null,"method":null,"score":null,'
+        '"similarity":null}'
+        if flags
+        else "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE="
+    )
+    assert (result.exit_code, result.stdout) == (1, line + "\n")
 
 
 @pytest.mark.parametrize("command", ["is-osi", "detect"])

@@ -5,10 +5,11 @@
 
 """Family B: the predicate subcommands (``is-osi`` and friends).
 
-``B1`` every input source, ``B2`` which input wins when several are given,
-``B3`` flags that belong to ``detect`` only, ``B4`` argument syntax,
-``B5`` one identifier asked of all five predicates, so their answers can be
-checked against each other, ``B6`` the same record as JSON (``--json``).
+``B1`` every input source, ``B2`` several inputs at once (two are refused,
+C7 of the contract batch), ``B3`` flags that belong to ``detect`` only,
+``B4`` argument syntax, ``B5`` one identifier asked of every predicate and of
+``detect --json``, so their answers can be checked against each other,
+``B6`` the same record as JSON (``--json``).
 """
 
 from __future__ import annotations
@@ -26,23 +27,25 @@ from tools.cli_matrix.model import (
     source,
 )
 
-#: (description, arguments) pairs where more than one input is supplied.
-PRECEDENCE = [
-    ("--id + --text", "--id MIT --text {o}"),
-    ("--id + arg", "--id MIT Nope-1.0"),
-    ("--text + arg", "--text {f} Nope-1.0"),
-    ("arg + stdin", "MIT"),
-    ("--text + stdin", "--text {f}"),
-    ("--id + stdin", "--id MIT"),
-    ("--id + --text + arg + stdin", "--id MIT --text {o} Nope-1.0"),
-    ("--id wrong + --text right", "--id Nope-1.0 --text {f}"),
-    ("--id twice", "--id Nope-1.0 --id MIT"),
-    ("--text twice", "--text {o} --text {f}"),
+#: (description, arguments, expected exit or None) where more than one
+#: input is supplied: two are a usage error; a pipe beside one is not read.
+PRECEDENCE: list[tuple[str, str, int | None]] = [
+    ("--id + --text", "--id MIT --text {o}", 2),
+    ("--id + arg", "--id MIT Nope-1.0", 2),
+    ("--text + arg", "--text {f} Nope-1.0", 2),
+    ("arg + stdin", "MIT", 0),
+    ("--text + stdin", "--text {f}", 0),
+    ("--id + stdin", "--id MIT", 0),
+    ("--id + --text + arg + stdin", "--id MIT --text {o} Nope-1.0", 2),
+    ("--id wrong + --text right", "--id Nope-1.0 --text {f}", 2),
+    ("--id twice", "--id Nope-1.0 --id MIT", None),
+    ("--text twice", "--text {o} --text {f}", None),
+    ("--id + dash", "--id MIT -", 2),
 ]
 
 #: Flags that only ``detect`` accepts: a predicate must reject each of them.
 MATCH_ONLY = (
-    "--bold",
+    "--id-only",
     "--diff",
     "--pop",
     "--no-pop",
@@ -122,7 +125,7 @@ def _add_sources(cells: CellSet) -> None:
 def _add_precedence(cells: CellSet) -> None:
     """B2: which input wins when several are supplied at once."""
     for cmd in PREDS:
-        for desc, template in PRECEDENCE:
+        for desc, template, exit_code in PRECEDENCE:
             args = template.format(o=shlex.quote(OTHER), f=shlex.quote(FRAG))
             pre = "printf 'The quick brown fox jumps' | " if "stdin" in desc else ""
             cells.add(
@@ -130,6 +133,7 @@ def _add_precedence(cells: CellSet) -> None:
                 f"{cmd} precedence: {desc}",
                 f"{pre}{licenseid(f'{cmd} {args}')}",
                 kind="predicate",
+                exp_exit=exit_code,
             )
 
 
@@ -160,10 +164,12 @@ def _add_syntax(cells: CellSet) -> None:
 
 
 def _add_identifier_consistency(cells: CellSet) -> None:
-    """B5: every predicate asked about the same identifier.
+    """B5: every predicate, and ``detect --json``, asked about the same
+    identifier.
 
-    Judged relationally: ``is-open`` must agree with ``is-osi or is-fsf``,
-    and ``is-free`` must agree with ``is-open``.
+    Judged relationally: each predicate says yes exactly when the flag of
+    ``detect``'s top result is true (``is-open`` and ``is-free``, the union,
+    were checked against ``is-osi`` and ``is-fsf`` until C1 removed them).
     """
     for ident in IDS:
         for cmd in PREDS:
@@ -173,3 +179,11 @@ def _add_identifier_consistency(cells: CellSet) -> None:
                 licenseid(f"{cmd} --id {shlex.quote(ident)}"),
                 kind="predicate",
             )
+        cells.add(
+            "B5",
+            f"detect --id '{ident}' (consistency group)",
+            licenseid(f"detect --json --top 1 --id {shlex.quote(ident)}"),
+            kind="detect",
+            outflags=frozenset({"json"}),
+            top=1,
+        )

@@ -22,7 +22,10 @@ from conftest import MIT_SEARCH_TEXT, invoke_match, make_mit_db_path
 
 from licenseid import LicenseDatabase
 from licenseid import cli as cli_module
-from licenseid.cli import cli, get_input_content, read_input, show_diff
+from licenseid import clidetect
+from licenseid.cli import cli
+from licenseid.clidetect import show_diff
+from licenseid.cliinput import get_input_content, read_input
 
 GREEN, RED, RESET = "\x1b[32m", "\x1b[31m", "\x1b[0m"
 
@@ -103,8 +106,8 @@ def test_match_diff_colours_added_green_and_removed_red(mit_db: str) -> None:
     ---/+++ header lines are coloured is not asserted: it is incidental, not
     a stated contract.)"""
     # pylint: disable-next=protected-access
-    terminal = mock.create_autospec(cli_module._is_terminal, return_value=True)
-    with mock.patch.object(cli_module, "_is_terminal", terminal):
+    terminal = mock.create_autospec(clidetect._is_terminal, return_value=True)
+    with mock.patch.object(clidetect, "_is_terminal", terminal):
         added = invoke_match(mit_db, "--diff", "--text", MIT_SEARCH_TEXT + " and more")
         replaced = invoke_match(
             mit_db,
@@ -135,14 +138,14 @@ def test_the_diff_is_coloured_only_on_a_terminal(
     stream: object, coloured: bool
 ) -> None:
     # pylint: disable-next=protected-access
-    assert cli_module._is_terminal(stream) is coloured
+    assert clidetect._is_terminal(stream) is coloured
 
 
 def test_a_closed_stream_is_no_terminal() -> None:
     stream = io.StringIO()
     stream.close()
     # pylint: disable-next=protected-access
-    assert cli_module._is_terminal(stream) is False
+    assert clidetect._is_terminal(stream) is False
 
 
 def test_match_diff_is_plain_text_when_not_a_terminal(mit_db: str) -> None:
@@ -180,16 +183,25 @@ def test_match_diff_prints_no_diff_without_one(
     assert f"\t{method_exact}\t" in result.stdout
 
 
-@pytest.mark.parametrize("other", ["--json", "--bold"])
-def test_match_diff_is_dropped_for_json_and_bold(mit_db: str, other: str) -> None:
-    """Current behaviour, not a documented contract: --diff has no effect with
-    --json or --bold, and nothing says so (roadmap: conflicting options are
-    resolved silently). Pinned so a change is deliberate."""
+def test_diff_with_json_is_refused(mit_db: str) -> None:
+    """C7: --diff with --json was dropped without a word; now exit 2."""
     result = invoke_match(
-        mit_db, "--diff", other, "--text", MIT_SEARCH_TEXT + " and more words"
+        mit_db, "--diff", "--json", "--text", MIT_SEARCH_TEXT + " and more words"
     )
-    assert "WORD DIFF" not in result.stdout + result.stderr
-    assert "@@" not in result.stdout + result.stderr
+    assert (result.exit_code, result.stdout) == (2, "")
+    assert result.stderr == (
+        "ERROR: option: invalid: --diff: with --json; pass one of them\n"
+    )
+
+
+def test_diff_with_id_only_shows_the_diff(mit_db: str) -> None:
+    """--diff was dropped with --bold; with --id-only the diff, on standard
+    error, sits beside the expression on standard output."""
+    result = invoke_match(
+        mit_db, "--diff", "--id-only", "--text", MIT_SEARCH_TEXT + " and more words"
+    )
+    assert (result.exit_code, result.stdout) == (0, "MIT\n")
+    assert "WORD DIFF" in result.stderr
 
 
 # --- stdin variants ---

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Explicit API tests for licenseid."""
-# pylint: disable=redefined-outer-name,duplicate-code,missing-function-docstring
+# pylint: disable=redefined-outer-name,duplicate-code,missing-function-docstring,protected-access
 
 import sqlite3
 from collections.abc import Generator
@@ -126,7 +126,7 @@ def test_a_lone_surrogate_in_a_text_is_invalid_input(test_db: str, text: str) ->
     with pytest.raises(InvalidInputError, match=r"^input: invalid: text: lone"):
         matcher.detect(text=text)
     with pytest.raises(InvalidInputError, match=r"^input: invalid: text: lone"):
-        matcher.resolve_record(text)
+        matcher._resolve_record(text)
     with pytest.raises(InvalidInputError, match=r"^input: invalid: text: lone"):
         matcher.is_osi(text)
 

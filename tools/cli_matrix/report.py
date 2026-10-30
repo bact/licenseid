@@ -26,8 +26,17 @@ Row = dict[str, Any]
 
 #: Every flag of every subcommand, so the checklist can show the gaps too.
 UNIVERSE: dict[str, list[str]] = {
-    "global": ["--db", "--clear-cache", "--help", "--version", "(no subcommand)"],
-    "update": ["--version", "--force", "--cache", "--no-cache", "--json", "--help"],
+    "global": ["--db", "--help", "--version", "(no subcommand)"],
+    "update": [
+        "--list",
+        "--force",
+        "--cache",
+        "--no-cache",
+        "--source",
+        "--json",
+        "--help",
+    ],
+    "clear-cache": ["--json", "--help"],
     "detect": [
         "--text",
         "--id",
@@ -38,7 +47,7 @@ UNIVERSE: dict[str, list[str]] = {
         "--pop",
         "--no-pop",
         "--diff",
-        "--bold",
+        "--id-only",
         "--help",
     ],
 }
@@ -46,7 +55,7 @@ for _pred in PREDS:
     UNIVERSE[_pred] = ["--text", "--id", "--json", "--help"]
 UNIVERSE["match"] = ["--json", "--source", "--text", "--help"]
 
-SOURCES = ["arg-id", "arg-file", "--text", "--id", "stdin", "none"]
+SOURCES = ["arg-id", "arg-file", "--text", "--id", "stdin", "dash", "none"]
 
 MATCH_FLAGS = [
     "--text",
@@ -58,7 +67,7 @@ MATCH_FLAGS = [
     "--pop",
     "--no-pop",
     "--diff",
-    "--bold",
+    "--id-only",
 ]
 
 ENV_AXES = (

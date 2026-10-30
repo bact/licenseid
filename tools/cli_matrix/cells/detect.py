@@ -23,6 +23,7 @@ from tools.cli_matrix.model import (
     OUTS,
     SRC,
     CellSet,
+    conflicting,
     licenseid,
     source,
 )
@@ -30,6 +31,8 @@ from tools.cli_matrix.pairwise import pairwise
 
 TOPS = ["", "1", "2", "3", "5", "0", "-1", "abc", "1.5"]
 THRS = ["", "0", "0.5", "0.85", "0.99", "1", "1.5", "-1", "abc", "nan"]
+#: Tops refused with exit 2: not a whole number, or below 1 (C7).
+BAD_TOPS = ("abc", "1.5", "0", "-1")
 #: Thresholds refused with exit 2: not a number, or outside the 0-1 score.
 BAD_THRS = ("1.5", "-1", "abc", "nan")
 
@@ -54,7 +57,8 @@ SYNTAX: list[tuple[str, str, int | None]] = [
     ("--pop --no-pop", "--pop --no-pop MIT", 0),
     ("--no-pop --pop", "--no-pop --pop MIT", 0),
     ("--top=2 --threshold=0.5", "--top=2 --threshold=0.5 MIT", None),
-    ("options before positional", "--json --bold MIT", 0),
+    ("options before positional", "--json --top 1 MIT", 0),
+    ("--json with --id-only", "--json --id-only MIT", 2),
     ("-- then id", "-- MIT", 0),
     ("-- then dash file", "-- -dash.txt", None),
     ("-- then --json as input", "-- --json", None),
@@ -64,7 +68,7 @@ SYNTAX: list[tuple[str, str, int | None]] = [
     ("--json=true", "--json=true MIT", 2),
     ("--text missing value", "--text", 2),
     ("--text takes --json as value", "--text --json", None),
-    ("--id takes --bold as value", "--id --bold", None),
+    ("--id takes --id-only as value", "--id --id-only", None),
     ("--top missing value", "MIT --top", 2),
     ("--threshold= empty", "--threshold= MIT", 2),
     ("--top '' empty", "--top '' MIT", 2),
@@ -79,7 +83,9 @@ SYNTAX: list[tuple[str, str, int | None]] = [
     ("two positionals", "MIT Apache-2.0", 2),
     ("unknown flag", "--nope MIT", 2),
     ("short flag -j", "-j MIT", 2),
-    ("--id and positional", "--id MIT Apache-2.0", None),
+    ("--id and positional", "--id MIT Apache-2.0", 2),
+    ("--text and positional", "--text MIT Apache-2.0", 2),
+    ("--id and --text", "--id MIT --text MIT", 2),
     ("--text= empty form", "--text= MIT", None),
     ("--id= empty form", "--id= MIT", None),
 ]
@@ -107,25 +113,31 @@ def _add_sources(cells: CellSet) -> None:
                     f"{pre}{licenseid(f'detect {args} {flags}')}",
                     kind="detect",
                     outflags=frozenset(out),
-                    exp_exit=2 if name == "none" else (0 if found else 1),
+                    exp_exit=(
+                        2
+                        if name == "none" or conflicting(out)
+                        else (0 if found else 1)
+                    ),
                     group=_source_group(name, found, out),
-                    exp_err=_source_expected_stderr(name),
+                    exp_err=_source_expected_stderr(name, out),
                 )
                 cell.tags.add(f"src:{tag}")
 
 
 def _source_group(name: str, found: bool, out: tuple[str, ...]) -> str | None:
     """Sources that must give the same answer belong to the same group."""
-    if name in ("arg_file", "text", "stdin"):
+    if name in ("arg_file", "text", "stdin", "dash"):
         return f"A1-text-{found}-{'+'.join(out)}"
     if name in ("arg_id", "id"):
         return f"A1-id-{found}-{'+'.join(out)}"
     return None
 
 
-def _source_expected_stderr(name: str) -> str | None:
+def _source_expected_stderr(name: str, out: tuple[str, ...]) -> str | None:
     """The diagnostic a source is required to produce, if any: a "no" has
-    none (exit 1, nothing on stderr)."""
+    none (exit 1, nothing on stderr). Two outputs are refused first."""
+    if conflicting(out):
+        return r"ERROR: option: invalid: --(id-only|diff): with --json; pass one of them"
     return MISSING if name == "none" else None
 
 
@@ -144,7 +156,7 @@ def _add_top_threshold(cells: CellSet) -> None:
                     )
                     if x
                 )
-                bad = top in ("abc", "1.5") or thr in BAD_THRS
+                bad = top in BAD_TOPS or thr in BAD_THRS
                 cells.add(
                     "A2",
                     f"detect FRAG top={top or 'default'} "
@@ -185,7 +197,7 @@ def _add_top_threshold(cells: CellSet) -> None:
         ("--exact --json --top 1 --id MIT", 0),
         (f"--exact --text {shlex.quote(FRAG)}", 1),
         (f"--exact --threshold 0 --text {shlex.quote(FRAG)}", 1),
-        ("--exact --bold --pop MIT", 0),
+        ("--exact --id-only --pop MIT", 0),
         (f"--exact --diff --no-pop --text {shlex.quote(FRAG)}", 1),
     ):
         cells.add(
@@ -193,7 +205,7 @@ def _add_top_threshold(cells: CellSet) -> None:
             f"detect {args.split(' --text')[0]}",
             licenseid(f"detect {args}"),
             kind="detect",
-            outflags=frozenset(f for f in ("json", "bold", "diff") if f"--{f}" in args),
+            outflags=frozenset(f for f in ("json", "id-only", "diff") if f"--{f}" in args),
             exp_exit=exit_code,
             top=1 if "--top 1" in args else None,
         )
@@ -232,7 +244,7 @@ def _add_pairwise(cells: CellSet) -> None:
             outflags=frozenset(out),
             exp_exit=(
                 2
-                if row["thr"] in BAD_THRS
+                if row["thr"] in BAD_THRS or row["top"] in BAD_TOPS or conflicting(out)
                 else (0 if row["found"] else 1)
                 if defaults
                 else None
@@ -248,7 +260,7 @@ def _add_syntax(cells: CellSet) -> None:
         # When the flag is consumed as a value or comes after ``--`` it is
         # input, not an output flag, so the output contract does not apply.
         real = not (
-            args.startswith("-- ") or "--text --json" in args or "--id --bold" in args
+            args.startswith("-- ") or "--text --json" in args or "--id --id-only" in args
         )
         cells.add(
             "A4",
@@ -257,6 +269,6 @@ def _add_syntax(cells: CellSet) -> None:
             kind="detect",
             exp_exit=exit_code,
             outflags=frozenset(
-                x for x in ("json", "bold") if real and f"--{x}" in args
+                x for x in ("json", "id-only") if real and f"--{x}" in args
             ),
         )

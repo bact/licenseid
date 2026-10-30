@@ -78,13 +78,15 @@ EXPIRY_POPULARITY_CSV = 75
 _CLOCK_SKEW_TOLERANCE = timedelta(minutes=5)
 
 
-def clear_cache_files(directory: Path) -> None:
+def clear_cache_files(directory: Path) -> bool:
     """Remove every download cache file in *directory*, including the
-    temporary files a killed download orphans."""
+    temporary files a killed download orphans; True if there was one."""
+    deleted = False
     for filename in (CACHE_LICENSES_JSON, CACHE_LATEST_JSON, CACHE_POPULARITY_CSV):
         path = directory / filename
         if path.exists():  # a parent that is not a directory has none
             path.unlink(missing_ok=True)
+            deleted = True
     for pattern in (
         "spdx-data-v*.tar.gz",
         f"{CACHE_LICENSES_JSON}.*.tmp",
@@ -96,6 +98,8 @@ def clear_cache_files(directory: Path) -> None:
     ):
         for path in directory.glob(pattern):
             path.unlink(missing_ok=True)
+            deleted = True
+    return deleted
 
 
 def user_agent() -> str:
@@ -279,37 +283,39 @@ def get_version_info(
     """Determine target version and fetch version info.
 
     Returns ``(version, release_date, source)`` where source is ``"cache"``,
-    ``"remote"``, ``"stale cache"`` or ``"unavailable"``.
+    ``"remote"``, ``"stale cache"`` or ``"given"`` (the *version* asked for).
 
     *urls* (not empty; ``LICENSES_JSON_URL``, ``LATEST_JSON_URL``) are the
     version files to trust, each with a cache file of its own. Only their
     caches are read: spdx.org's licenses.json can name a version our
     latest.json does not have yet. Order: the first valid cache (if
     *use_cache*), then one download of each in turn until one gives a version,
-    then (only if *use_cache*) the first stale cache. If all fail, an explicit
-    *version* is used as is; otherwise LicenseIdError is raised, worded
-    ``SUBJECT: CONDITION: DETAIL`` with no ACTION, so a caller can add the
-    fallback it takes.
+    then (only if *use_cache*) the first stale cache. If all fail,
+    LicenseIdError is raised, worded ``SUBJECT: CONDITION: DETAIL`` with no
+    ACTION, so a caller can add the fallback it takes. An explicit *version*
+    reads no version file at all.
     """
     if version is not None and not is_valid_version(version):
         raise InvalidInputError(f"version: invalid: {version!r}")
+    if version is not None:
+        # A version asked for needs no version file: none is read or fetched
+        # (the release date of the latest is not this version's either; the
+        # data's own date is stored).
+        return version, None, "given"
 
     if use_cache:
         latest_version, release_date = _fresh_version(cache_dir, urls)
         if latest_version:
-            return version or latest_version, release_date, "cache"
+            return latest_version, release_date, "cache"
     latest_version, release_date, failure = _download_version(cache_dir, urls)
     if latest_version:
-        return version or latest_version, release_date, "remote"
+        return latest_version, release_date, "remote"
 
     if use_cache:  # --no-cache means never fall back to cached data
         latest_version, release_date = _stale_version(cache_dir, urls, failure)
         if latest_version:
-            return version or latest_version, release_date, "stale cache"
-    if not version:
-        raise LicenseIdError(failure)
-    warn(f"{failure}; using version {version}")
-    return version, None, "unavailable"
+            return latest_version, release_date, "stale cache"
+    raise LicenseIdError(failure)
 
 
 def get_tarball_path(

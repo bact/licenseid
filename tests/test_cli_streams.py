@@ -49,7 +49,7 @@ def db() -> Generator[str, None, None]:
     ids=["too-large", "disk-full", "closed-pipe"],
 )
 @pytest.mark.parametrize(
-    "args", [["--bold", "MIT"], ["--json", "--id", "MIT"]], ids=["bold", "json"]
+    "args", [["--id-only", "MIT"], ["--json", "--id", "MIT"]], ids=["id_only", "json"]
 )
 def test_an_output_failure_is_no_answer(
     db: str, code: int, exit_code: int, stderr: str, args: list[str]
@@ -139,7 +139,7 @@ def _environ(tmp_path: Path) -> dict[str, str]:
     ("script", "exit_code", "stderr"),
     [
         ("$L detect <&-", 2, "ERROR: input: missing; pass a file, an ID,"),
-        ("$L detect --bold MIT >&-", 2, "ERROR: output: write failed: closed"),
+        ("$L detect --id-only MIT >&-", 2, "ERROR: output: write failed: closed"),
         ("$L is-osi MIT >&-", 2, "ERROR: output: write failed: closed"),
         # click writes help itself, before any command runs
         ("$L --help >&-", 2, "ERROR: output: write failed: closed"),
@@ -152,9 +152,9 @@ def _environ(tmp_path: Path) -> dict[str, str]:
         ("$L detect --bogus 2</dev/null", 2, ""),
         ("$L detect --bogus 2>&-", 2, ""),  # and stays off standard output
         # through cli.main(), the real entry point: one line in the grammar
-        ("$L detect --bogus", 2, "ERROR: option: not found: --bogus; did you mean"),
+        ("$L detect --jsn", 2, "ERROR: option: not found: --jsn; did you mean"),
         ("$L", 2, "Usage: "),  # no subcommand: the help, on standard error
-        ("$L detect --bold MIT", 0, ""),
+        ("$L detect --id-only MIT", 0, ""),
     ],
     ids=[
         "stdin-closed",
@@ -234,10 +234,10 @@ c.main()
 
 
 @posix_only
-@pytest.mark.parametrize("command", ["detect", "match"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_ctrl_c_exits_130(tmp_path: Path, command: str) -> None:
-    """``match`` with no value reads a byte of its piped input to tell
-    whether anything came: the signal comes there."""
+    """The signal comes while a command waits on its piped input (``match``
+    waited there too until C8: it no longer reads standard input)."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     with subprocess.Popen(
         [sys.executable, "-c", _READY, str(db_path), command],

@@ -216,7 +216,7 @@ def test_action_only_for_an_unreadable_file(message: str, action: bool) -> None:
     assert str(error).endswith("; run 'licenseid update'") is action, str(error)
 
 
-@pytest.mark.parametrize("method", ["is_spdx", "is_osi", "is_fsf", "is_open"])
+@pytest.mark.parametrize("method", ["is_spdx", "is_osi", "is_fsf"])
 def test_predicates_raise_database_not_ready(
     matcher_db: tuple[LicenseDetector, Path], method: str
 ) -> None:
@@ -232,7 +232,7 @@ def test_diff_pair_raises_database_not_ready(
     matcher, path = matcher_db
     path.unlink()
     with pytest.raises(DatabaseNotReadyError):
-        matcher.diff_pair("MIT", "MIT")
+        matcher._diff_pair("MIT", "MIT")
 
 
 @pytest.mark.parametrize(

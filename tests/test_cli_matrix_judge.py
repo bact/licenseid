@@ -12,6 +12,7 @@ look exactly like a clean tree.
 
 from __future__ import annotations
 
+import json
 import os
 import runpy
 import sys
@@ -119,14 +120,14 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
         "TIMEOUT",
     ),
     (
-        "--bold printed more than an identifier",
-        {"kind": "detect", "outflags": frozenset({"bold"}), "exp_exit": 0},
+        "--id-only printed more than an identifier",
+        {"kind": "detect", "outflags": frozenset({"id-only"}), "exp_exit": 0},
         {
             "rc": 0,
             "out": "EXPRESSION=MIT\tMETHOD=id\tEXACT=true\tSCORE=1.0000\tSIMILARITY="
             "\tCOVERAGE=\n",
         },
-        "--bold not a single id",
+        "--id-only not a single id",
     ),
 ]
 
@@ -269,7 +270,7 @@ def test_group_compares_plain_output_by_its_first_line_only() -> None:
 
 
 def test_bold_text_groups_are_not_exempt_from_the_group_check() -> None:
-    """File, text and stdin read the same bytes and must agree, ``--bold`` too."""
+    """File, text and stdin read the same bytes and must agree, ``--id-only`` too."""
     cells = {
         f"A1-00{n}": make_cell(id=f"A1-00{n}", group="A1-text-True-bold")
         for n in (1, 2, 3)
@@ -284,33 +285,62 @@ def test_bold_text_groups_are_not_exempt_from_the_group_check() -> None:
     ]
 
 
-def test_relational_flags_contradicting_predicates() -> None:
-    """is-open must agree with is-osi or is-fsf; is-free with is-open."""
-    cells, rows = _relational_fixture(is_open_rc=1)
+@pytest.mark.parametrize(
+    ("codes", "flags"),
+    [
+        ({"is-osi": 1, "is-fsf": 0, "is-spdx": 0}, (True, True, True)),
+        ({"is-osi": 0, "is-fsf": 0, "is-spdx": 0}, (True, False, True)),
+        ({"is-osi": 0, "is-fsf": 0, "is-spdx": 0}, (None, None, True)),
+        ({"is-osi": 0, "is-fsf": 0, "is-spdx": 0}, (True, True, None)),
+    ],
+    ids=["no-but-detect-yes", "yes-but-detect-no", "yes-but-unknown", "spdx"],
+)
+def test_relational_flags_predicates_that_contradict_detect(
+    codes: dict[str, int], flags: tuple[bool | None, ...]
+) -> None:
+    """Each predicate exits 0 exactly when detect's flag is true (C1: the
+    union commands it checked are gone)."""
+    cells, rows = _relational_fixture(codes, flags)
     judge_mod.relational(rows, cells)
     assert all(row["verdict"] == "FLAG" for row in rows)
     assert any("relational:" in note for note in rows[0]["notes"])
 
 
-def test_relational_passes_consistent_predicates() -> None:
+@pytest.mark.parametrize(
+    ("codes", "flags"),
+    [
+        ({"is-osi": 0, "is-fsf": 0, "is-spdx": 0}, (True, True, True)),
+        ({"is-osi": 1, "is-fsf": 0, "is-spdx": 0}, (False, True, True)),
+        ({"is-osi": 1, "is-fsf": 1, "is-spdx": 1}, (None, None, False)),
+        ({"is-osi": 1, "is-fsf": 1, "is-spdx": 1}, None),  # detect: no answer
+    ],
+    ids=["all-yes", "fsf-only", "unknown", "nothing"],
+)
+def test_relational_passes_consistent_predicates(
+    codes: dict[str, int], flags: tuple[bool | None, ...] | None
+) -> None:
     """Consistent answers are annotated but not flagged."""
-    cells, rows = _relational_fixture(is_open_rc=0)
+    cells, rows = _relational_fixture(codes, flags)
     judge_mod.relational(rows, cells)
     assert all(row["verdict"] == "OBSERVE" for row in rows)
+    assert any("answers for 'MIT'" in note for note in rows[0]["notes"])
 
 
-def _relational_fixture(is_open_rc: int) -> tuple[dict[str, Cell], list[Any]]:
-    """Five B5 cells for one identifier, with is-open set as asked."""
-    codes = {
-        "is-osi": 0,
-        "is-fsf": 0,
-        "is-open": is_open_rc,
-        "is-free": is_open_rc,
-        "is-spdx": 0,
-    }
+def _relational_fixture(
+    codes: dict[str, int], flags: tuple[bool | None, ...] | None
+) -> tuple[dict[str, Cell], list[Any]]:
+    """B5 cells for one identifier: each predicate with its exit code, and
+    detect --json with the flags of its top result (None: no answer)."""
+    keys = ("is_osi_approved", "is_fsf_libre", "is_spdx")
+    record = (
+        dict.fromkeys(("expression", "method", "score", *keys))
+        if flags is None
+        else {"expression": "MIT", "method": "id", "score": 1, **dict(zip(keys, flags))}
+    )
+    runs = {**codes, "detect": 1 if flags is None else 0}
     cells: dict[str, Cell] = {}
     rows: list[Any] = []
-    for index, (name, rc) in enumerate(codes.items()):
+    for index, (name, rc) in enumerate(runs.items()):
         cell_id = f"B5-{index:03d}"
         cells[cell_id] = make_cell(
             id=cell_id,
@@ -318,7 +348,8 @@ def _relational_fixture(is_open_rc: int) -> tuple[dict[str, Cell], list[Any]]:
             desc=f"{name} --id 'MIT' (consistency group)",
             cmd=f"$L --db $DB {name} --id MIT",
         )
-        rows.append(make_result(id=cell_id, rc=rc, verdict="OBSERVE", notes=[]))
+        out = json.dumps(record) + "\n" if name == "detect" else ""
+        rows.append(make_result(id=cell_id, rc=rc, out=out, verdict="OBSERVE", notes=[]))
     return cells, rows
 
 

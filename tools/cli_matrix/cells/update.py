@@ -58,7 +58,9 @@ STATES = {
     ),
 }
 
-VERSIONS = ["", "9.99", "9.98", "''", "../x", "abc", "3.28.0", "9.99 ", "1"]
+#: The ``--list spdx-license-list@<version>`` axis: "" is no ``--list``,
+#: "latest" the list named with no version (``update --version`` before C2).
+VERSIONS = ["", "9.99", "9.98", "''", "../x", "abc", "3.28.0", "9.99 ", "1", "latest"]
 FORCES = ["", "--force"]
 CACHES = ["", "--cache", "--no-cache"]
 
@@ -114,7 +116,9 @@ def _add_json(cells: CellSet) -> None:
             exp_out=(
                 ""
                 if out is None
-                else r'\{"path":"[^"]+",' + out + r',"version":"9\.99"\}\n'
+                else r'\{"list":"spdx-license-list","path":"[^"]+",'
+                + out
+                + r',"version":"9\.99"\}\n'
             ),
         )
 
@@ -133,9 +137,7 @@ def _add_update(
     The trailing marker lists what the cache directory holds afterwards, so
     the judge can see leftover temporary files.
     """
-    args = " ".join(
-        x for x in (f"--version {version}" if version else "", force, cache) if x
-    )
+    args = " ".join(x for x in (_list_option(version), force, cache) if x)
     cmd = (
         f"mkdir -p $W/x && {STATES[state]}FAKE_NET={net}"
         f" $LU --db $W/x/licenses.db update {args};"
@@ -150,6 +152,15 @@ def _add_update(
         kind="update",
         progress=True,
     )
+
+
+def _list_option(version: str) -> str:
+    """The ``--list`` option for one value of the version axis."""
+    if not version:
+        return ""
+    if version == "latest":
+        return "--list spdx-license-list"
+    return f"--list spdx-license-list@{version}"
 
 
 def _add_real_stack(cells: CellSet) -> None:
@@ -209,7 +220,7 @@ def _add_afterwards(cells: CellSet) -> None:
         "D7",
         "update then detect uses the new database",
         "mkdir -p $W/x && $LU --db $W/x/licenses.db update >/dev/null 2>&1"
-        " && $L --db $W/x/licenses.db detect --bold MIT",
+        " && $L --db $W/x/licenses.db detect --id-only MIT",
         kind="detect",
         exp_exit=0,
         exp_out=r"MIT\n",

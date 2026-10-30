@@ -3,11 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Family C: global options, help, and ``--clear-cache``.
+"""Family C: global options, help, and ``clear-cache``.
 
 ``C1`` the group-level options, above all the many shapes ``--db`` can take,
-``C2`` ``--help`` wherever it can appear, ``C3`` ``--clear-cache`` against a
-cache directory the launcher has just filled.
+``C2`` ``--help`` wherever it can appear, ``C3`` ``clear-cache`` against a
+cache directory the launcher has just filled (a global flag before C3 of the
+contract batch).
 """
 
 from __future__ import annotations
@@ -28,11 +29,11 @@ GLOBAL: list[tuple[str, str, int | None]] = [
     ("--db= empty", "$L --db= detect MIT", None),
     (
         "--db twice (last wins?)",
-        "$L --db /nonexistent/a.db --db $DB detect --bold MIT",
+        "$L --db /nonexistent/a.db --db $DB detect --id-only MIT",
         None,
     ),
     ("--db after subcommand", "$L detect --db $DB MIT", 2),
-    ("--db=path form", "$L --db=$DB detect --bold MIT", 0),
+    ("--db=path form", "$L --db=$DB detect --id-only MIT", 0),
     ("--db missing file", "$L --db /nonexistent/x.db detect MIT", 2),
     ("--db directory", "$L --db $F/adir detect MIT", None),
     ("--db text file", "$L --db $F/mit.txt detect MIT", None),
@@ -43,12 +44,12 @@ GLOBAL: list[tuple[str, str, int | None]] = [
         None,
     ),
     ("--db :memory:", "$L --db :memory: detect MIT", None),
-    ("--db relative", "cd $F/.. && $L --db db/licenses.db detect --bold MIT", 0),
+    ("--db relative", "cd $F/.. && $L --db db/licenses.db detect --id-only MIT", 0),
     (
         "--db with space",
         (
             'mkdir -p "$W/a b" && cp $DB "$W/a b/l.db"'
-            ' && $L --db "$W/a b/l.db" detect --bold MIT'
+            ' && $L --db "$W/a b/l.db" detect --id-only MIT'
         ),
         0,
     ),
@@ -56,30 +57,30 @@ GLOBAL: list[tuple[str, str, int | None]] = [
         "--db unicode",
         (
             'mkdir -p "$W/ü" && cp $DB "$W/ü/l.db"'
-            ' && $L --db "$W/ü/l.db" detect --bold MIT'
+            ' && $L --db "$W/ü/l.db" detect --id-only MIT'
         ),
         0,
     ),
     (
         "--db symlink",
-        "ln -s $DB $W/link.db && $L --db $W/link.db detect --bold MIT",
+        "ln -s $DB $W/link.db && $L --db $W/link.db detect --id-only MIT",
         0,
     ),
     (
         "--db read-only file",
-        ("cp $DB $W/ro.db && chmod 444 $W/ro.db && $L --db $W/ro.db detect --bold MIT"),
+        ("cp $DB $W/ro.db && chmod 444 $W/ro.db && $L --db $W/ro.db detect --id-only MIT"),
         None,
     ),
     (
         "--db unreadable file",
-        ("cp $DB $W/nr.db && chmod 000 $W/nr.db && $L --db $W/nr.db detect --bold MIT"),
+        ("cp $DB $W/nr.db && chmod 000 $W/nr.db && $L --db $W/nr.db detect --id-only MIT"),
         None,
     ),
     (
         "--db in read-only dir",
         (
             "mkdir $W/rd && cp $DB $W/rd/l.db && chmod 555 $W/rd"
-            " && $L --db $W/rd/l.db detect --bold MIT; rc=$?; chmod 755 $W/rd; exit $rc"
+            " && $L --db $W/rd/l.db detect --id-only MIT; rc=$?; chmod 755 $W/rd; exit $rc"
         ),
         None,
     ),
@@ -94,76 +95,103 @@ HELP_POSITIONS = (
     "$L --db $DB {s} --help",
 )
 
-#: (description, command, expected exit or None) for ``--clear-cache``.
+#: (description, command, expected exit or None) for ``clear-cache``.
 #: ``prep`` is replaced by a launcher run that fills a scratch cache.
 CLEAR_CACHE: list[tuple[str, str, int | None]] = [
     (
-        "--clear-cache alone (scratch DB)",
-        "prep && $L --db $W/x/licenses.db --clear-cache && ls $W/x",
+        "clear-cache alone (scratch DB)",
+        "prep && $L --db $W/x/licenses.db clear-cache && ls $W/x",
         0,
     ),
     (
-        "--clear-cache twice",
-        "prep && $L --db $W/x/licenses.db --clear-cache --clear-cache && ls $W/x",
-        0,
-    ),
-    (
-        "--clear-cache + detect (ignored?)",
+        "clear-cache twice",
         (
-            "prep && $L --db $W/x/licenses.db --clear-cache detect MIT;"
+            "prep && $L --db $W/x/licenses.db clear-cache"
+            " && $L --db $W/x/licenses.db clear-cache && ls $W/x"
+        ),
+        0,
+    ),
+    (
+        "clear-cache + detect (an extra argument)",
+        (
+            "prep && $L --db $W/x/licenses.db clear-cache detect MIT;"
             " echo \"db-left: $(ls $W/x | tr '\\n' ' ')\""
         ),
         None,
     ),
     (
-        "--clear-cache + --help",
+        "clear-cache + --help",
         (
-            "prep && $L --db $W/x/licenses.db --clear-cache --help;"
+            "prep && $L --db $W/x/licenses.db clear-cache --help;"
             " echo \"left: $(ls $W/x | tr '\\n' ' ')\""
         ),
         None,
     ),
     (
-        "--clear-cache on missing dir",
-        "$L --db $W/nodir/licenses.db --clear-cache",
-        None,
+        "clear-cache on missing dir",
+        "$L --db $W/nodir/licenses.db clear-cache",
+        0,
     ),
     (
-        "--clear-cache with foreign files kept",
+        "clear-cache with foreign files kept",
         (
             "prep && touch $W/x/keep.txt"
-            " && $L --db $W/x/licenses.db --clear-cache && ls $W/x"
+            " && $L --db $W/x/licenses.db clear-cache && ls $W/x"
         ),
         0,
     ),
     (
-        "--clear-cache with tmp orphans",
+        "clear-cache with tmp orphans",
         (
             "prep && touch $W/x/licenses.json.1.tmp $W/x/spdx-data-v1.tar.gz.9.tmp"
-            " && $L --db $W/x/licenses.db --clear-cache && ls $W/x"
+            " && $L --db $W/x/licenses.db clear-cache && ls $W/x"
         ),
         0,
     ),
     (
-        "--clear-cache stdout closed",
-        "prep && $L --db $W/x/licenses.db --clear-cache >&-",
-        None,
+        "clear-cache stdout closed",
+        "prep && $L --db $W/x/licenses.db clear-cache >&-",
+        2,  # a record that cannot be written: output: write failed
     ),
     (
-        "--clear-cache read-only dir",
+        "clear-cache read-only dir",
         (
-            "prep && chmod 555 $W/x && $L --db $W/x/licenses.db --clear-cache;"
+            "prep && chmod 555 $W/x && $L --db $W/x/licenses.db clear-cache;"
             " rc=$?; chmod 755 $W/x; exit $rc"
         ),
         1,  # a delete the system refuses: the action failed
     ),
     (
-        "--clear-cache no --db (default path in scratch HOME)",
+        "clear-cache no --db (default path in scratch HOME)",
         (
-            "mkdir -p $HOME/.local/share/licenseid && $L --clear-cache;"
+            "mkdir -p $HOME/.local/share/licenseid && $L clear-cache;"
             " ls $HOME/.local/share/licenseid"
         ),
         0,
+    ),
+    (
+        "the old global flag --clear-cache (C3)",
+        "prep && $L --db $W/x/licenses.db --clear-cache",
+        2,
+    ),
+]
+
+#: (description, command, stdout regex) for the record of ``clear-cache``.
+CLEAR_CACHE_RECORDS: list[tuple[str, str, str]] = [
+    (
+        "clear-cache record: cleared",
+        "prep && $L --db $W/x/licenses.db clear-cache",
+        r"STATUS=cleared\tPATH=\S+licenses\.db\n",
+    ),
+    (
+        "clear-cache record: nothing",
+        "$L --db $W/nodir/licenses.db clear-cache",
+        r"STATUS=nothing\tPATH=\S+licenses\.db\n",
+    ),
+    (
+        "clear-cache --json record",
+        "prep && $L --db $W/x/licenses.db clear-cache --json",
+        r'\{"path":"[^"]+licenses\.db","status":"cleared"\}\n',
     ),
 ]
 
@@ -199,5 +227,14 @@ def add_cells(cells: CellSet) -> None:
             f"clear-cache: {desc}",
             cmd.replace("prep", _PREP),
             exp_exit=exit_code,
+            progress=True,
+        )
+    for desc, cmd, record in CLEAR_CACHE_RECORDS:
+        cells.add(
+            "C3",
+            desc,
+            cmd.replace("prep", _PREP),
+            exp_exit=0,
+            exp_out=record,
             progress=True,
         )

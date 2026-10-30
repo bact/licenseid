@@ -171,7 +171,7 @@ def test_non_triggering_inputs(
         assert found == ids
 
 
-@pytest.mark.parametrize("predicate", ["is_spdx", "is_osi", "is_fsf", "is_open"])
+@pytest.mark.parametrize("predicate", ["is_spdx", "is_osi", "is_fsf"])
 def test_predicate_on_overlong_id_is_false(
     matcher: LicenseDetector, predicate: str
 ) -> None:

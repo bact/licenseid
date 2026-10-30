@@ -114,7 +114,7 @@ def test_a_write_in_a_block_ends_with_its_own_query(
         lambda m: m.detect(text=TAGS),
         # detect() and one more lookup; a LicenseRef-* is not on the List
         lambda m: m.is_spdx(text=TAGS) is False,
-        lambda m: m.diff_pair("permission is hereby granted", "MIT"),
+        lambda m: m._diff_pair("permission is hereby granted", "MIT"),
     ],
     ids=["detect", "is_spdx", "diff_pair"],
 )

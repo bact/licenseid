@@ -459,7 +459,7 @@ class LicenseDetector:
 
         return ranked
 
-    def resolve_record(
+    def _resolve_record(
         self,
         text: str | None = None,
         *,
@@ -476,7 +476,7 @@ class LicenseDetector:
             return None
         return results[0]
 
-    def diff_pair(self, text: str, license_id: str) -> tuple[str, str]:
+    def _diff_pair(self, text: str, license_id: str) -> tuple[str, str]:
         """The two sides of a word diff of *text* against *license_id*: the
         normalised input Tier 2 read (a short one without its tags) and the
         part of the license's normalised text it aligned with. ("", "") if
@@ -503,7 +503,7 @@ class LicenseDetector:
         """True if every licence and exception of the license is on the SPDX
         License List (a ``LicenseRef-*`` is not). Raises what detect()
         raises."""
-        record = self.resolve_record(text, **kwargs)
+        record = self._resolve_record(text, **kwargs)
         return record is not None and record["is_spdx"]
 
     def is_osi(self, text: str | None = None, **kwargs: Any) -> bool | None:
@@ -511,24 +511,14 @@ class LicenseDetector:
         operand of an AND, any of an OR. None when an operand cannot be
         judged (not on the List, a ``LicenseRef-*``); False when no license
         is found. Raises what detect() raises."""
-        record = self.resolve_record(text, **kwargs)
+        record = self._resolve_record(text, **kwargs)
         return False if record is None else record["is_osi_approved"]
 
     def is_fsf(self, text: str | None = None, **kwargs: Any) -> bool | None:
         """True if the license is FSF-libre, judged as :meth:`is_osi` is.
         Raises what detect() raises."""
-        record = self.resolve_record(text, **kwargs)
+        record = self._resolve_record(text, **kwargs)
         return False if record is None else record["is_fsf_libre"]
-
-    def is_open(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is OSI-approved OR FSF-libre.
-
-        Raises what detect() raises.
-        """
-        record = self.resolve_record(text, **kwargs)
-        if not record:
-            return False
-        return bool(record["is_osi_approved"] or record["is_fsf_libre"])
 
     def _get_candidates(self, data: DetectRequest, text: str) -> list[CandidateMatch]:
         """Tier 1 retrieval for *text* (see licenseid.retrieval)."""

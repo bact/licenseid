@@ -98,6 +98,25 @@ def text_line(result: Detection) -> str:
     )
 
 
+def no_detection_line() -> str:
+    """The line ``detect`` prints when nothing matches (exit 1): every field
+    of :func:`text_line`, each empty, so a reader finds the same keys."""
+    return fields_line(
+        EXPRESSION=None,
+        METHOD=None,
+        EXACT=None,
+        SCORE=None,
+        SIMILARITY=None,
+        COVERAGE=None,
+    )
+
+
+def no_detection_json() -> str:
+    """The object ``detect --json`` prints when nothing matches: every key of
+    a :class:`licenseid.types.Detection`, each ``null``."""
+    return json_line(dict.fromkeys(Detection.__annotations__))
+
+
 # What a value holds that would end its field or its line, or be read as an
 # escape: each is written as a backslash escape, and nothing else is.
 _ESCAPES = {"\\": "\\\\", "\t": "\\t", "\r": "\\r", "\n": "\\n"}

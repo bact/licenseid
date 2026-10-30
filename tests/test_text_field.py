@@ -10,7 +10,6 @@ and read back exactly (``result.text_field``, ``read_text_field``)."""
 
 import pytest
 
-from licenseid.cli import unescape_text
 from licenseid.resolvertypes import Resolution, step
 from licenseid.result import (
     fields_line,
@@ -44,13 +43,6 @@ def test_a_value_holds_no_tab_or_line_break_and_reads_back(
     assert text_field(value) == field
     assert not {"\t", "\r", "\n"} & set(field)
     assert read_text_field(field) == value
-
-
-@pytest.mark.parametrize(("value", "field"), VALUES, ids=range(len(VALUES)))
-def test_the_escapes_are_those_text_decodes(value: str, field: str) -> None:
-    """The four escapes are in the grammar ``detect --text`` decodes, a
-    rule of its own for input, which reads them alike."""
-    assert unescape_text(field) == value
 
 
 @pytest.mark.parametrize(

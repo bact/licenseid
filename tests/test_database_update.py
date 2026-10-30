@@ -232,7 +232,9 @@ def test_a_backslash_in_a_value_is_doubled(
     result = CliRunner().invoke(cli, ["--db", db_path, "update"])
     assert result.exit_code == 0, result.output
     doubled = db_path.replace("\\", "\\\\")
-    assert result.stdout == f"STATUS=updated\tVERSION=9.99\tPATH={doubled}\n"
+    assert result.stdout == (
+        f"LIST=spdx-license-list\tVERSION=9.99\tSTATUS=updated\tPATH={doubled}\n"
+    )
     assert line_fields(result.stdout.rstrip("\n"))["PATH"] == db_path
     as_json = CliRunner().invoke(cli, ["--db", db_path, "update", "--json"])
     assert json.loads(as_json.stdout)["path"] == db_path
@@ -257,7 +259,7 @@ def test_cli_update_reports_success_then_no_change(
     assert "Skipping update" in second.stderr
 
 
-def test_cli_clear_cache_prints_nothing_on_stdout(
+def test_cli_clear_cache_prints_its_record(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     db_path = tmp_path / "licenses.db"
@@ -265,9 +267,9 @@ def test_cli_clear_cache_prints_nothing_on_stdout(
     runner = CliRunner()
     assert runner.invoke(cli, ["--db", str(db_path), "update"]).exit_code == 0
 
-    result = runner.invoke(cli, ["--db", str(db_path), "--clear-cache"])
+    result = runner.invoke(cli, ["--db", str(db_path), "clear-cache"])
     assert result.exit_code == 0, result.output
-    assert result.stdout == ""
+    assert result.stdout == f"STATUS=cleared\tPATH={db_path}\n"
     assert "Clearing cache..." in result.stderr
     assert not db_path.exists()
 
@@ -373,19 +375,87 @@ def test_cli_update_failure_is_a_short_error_and_exit_1(
     assert fake.call_count == 2
 
 
-@pytest.mark.parametrize("version", ["../../evil", ""])
-def test_cli_update_rejects_unsafe_version(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, version: str
+LIST_HINT = "; pass spdx-license-list or spdx-license-list@<version>\n"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "spdx-license-list@../../evil",
+        "spdx-license-list@",  # empty: invalid too, not silently "latest"
+        "spdx-license-list@x",
+        "spdx-license-list@3",
+        "spdx-license-list@3.29.0.1",
+        "spdx-license-list@3.29.0-rc1",
+        "spdx-license-list@ 3.29",
+        "spdx-license-list@3.29\n",
+        "spdx-license-list@3.29@3.30",
+        "spdx-exceptions",
+        "SPDX-License-List",  # an ID is case-sensitive, as match() writes it
+        "",
+        "@3.29.0",
+    ],
+    ids=[
+        "traversal",
+        "empty-version",
+        "word",
+        "one-part",
+        "four-parts",
+        "suffix",
+        "space",
+        "newline",
+        "two-ats",
+        "other-list",
+        "case",
+        "empty",
+        "no-id",
+    ],
+)
+def test_cli_update_rejects_a_bad_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
-    """An empty --version is invalid too, not silently "latest"."""
+    """C2: a list update does not install, or a version that is no release,
+    is a usage error before anything is fetched or written."""
     fake = _serve(monkeypatch, release_tarball())
     result = CliRunner().invoke(
-        cli, ["--db", str(tmp_path / "x.db"), "update", "--version", version]
+        cli, ["--db", str(tmp_path / "x.db"), "update", "--list", value]
     )
-    assert result.exit_code == 2  # invalid parameter: usage error (README)
-    assert result.stderr == f"ERROR: version: invalid: {version!r}\n"
+    assert (result.exit_code, result.stdout) == (2, "")
+    assert result.stderr.startswith("ERROR: option: invalid: --list: ")
+    assert result.stderr.endswith(LIST_HINT)
+    assert result.stderr.count("\n") == 1
     fake.assert_not_called()
-    assert not list(tmp_path.glob("**/*evil*"))
+    assert not list(tmp_path.iterdir())
+
+
+def test_cli_update_refuses_a_list_given_twice(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _serve(monkeypatch, release_tarball())
+    args = ["--list", "spdx-license-list", "--list", "spdx-license-list@3.29.0"]
+    result = CliRunner().invoke(cli, ["--db", str(tmp_path / "x.db"), "update", *args])
+    assert (result.exit_code, result.stdout) == (2, "")
+    assert result.stderr == (
+        "ERROR: option: invalid: --list: spdx-license-list given twice; pass it once\n"
+    )
+    fake.assert_not_called()
+
+
+@pytest.mark.parametrize("source", ["auto", "compact", "upstream"])
+@pytest.mark.parametrize("version", ["9.99", "9.99.0", "10.1"])
+def test_cli_update_with_a_version_never_asks_for_the_latest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, version: str, source: str
+) -> None:
+    """C2: ``--list spdx-license-list@V`` fetches release V and nothing that
+    says which release is the latest (latest.json, licenses.json)."""
+    fake = _serve(monkeypatch, release_tarball())
+    listed = f"spdx-license-list@{version}"
+    args = ["update", "--source", source, "--list", listed]
+    result = CliRunner().invoke(cli, ["--db", str(tmp_path / "x.db"), *args])
+    urls = [call.args[0] for call in fake.call_args_list]
+    assert not [u for u in urls if u.endswith(("latest.json", "licenses.json"))], urls
+    assert any(f"v{version}" in u for u in urls), urls
+    assert "using version" not in result.stderr
 
 
 @pytest.mark.parametrize("use_cache", [True, False])

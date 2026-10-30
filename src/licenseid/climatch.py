@@ -10,9 +10,9 @@
 answers "which SPDX expression does this declared value stand for". So
 ``match`` takes one value on the command line and refuses what only
 ``detect`` answers, with exit 2 and ``; run 'licenseid detect'``: ``--text``,
-standard input, a value with a line break and one longer than the resolver
-reads, before any list is read; and, once read, a value that resolves to
-nothing and names a file or directory here. Such a value would otherwise
+``-`` (standard input, which is never read), a value with a line break and
+one longer than the resolver reads, before any list is read; and, once read,
+a value that resolves to nothing and names a file or directory here. Such a value would otherwise
 come back ``unresolved``, exit 1, which says "no licence" where the user
 meant "detect this".
 
@@ -25,7 +25,6 @@ written (``output.echo``).
 """
 
 import os
-import sys
 from typing import get_args
 
 import click
@@ -34,10 +33,10 @@ from licenseid.clicommon import (
     LicenseIdCommand,
     exit_bad_input,
     exit_usage_error,
-    piped_input,
     reject_blank_options,
     reject_unencodable,
 )
+from licenseid.cliinput import STDIN_ARGUMENT
 from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import one_line
@@ -57,28 +56,19 @@ def _has_line_break(value: str) -> bool:
     return value.splitlines() != [value]
 
 
-def _piped_something() -> bool:
-    """Whether standard input brings anything: one byte is read to tell
-    (``</dev/null`` and cron bring nothing: no value, not one for detect)."""
-    if not piped_input():
-        return False
-    stream = getattr(sys.stdin, "buffer", sys.stdin)
-    try:
-        return bool(stream.read(1))
-    except (OSError, ValueError):  # unreadable or closed: nothing brought
-        return False
-
-
 def declared_value(ctx: click.Context, value: str | None, text: str | None) -> str:
     """The one value to match: the argument, checked. Exit 2 for no value,
     a blank one, one the command line could not encode (a lone surrogate),
-    and for what only ``detect`` answers."""
+    and for what only ``detect`` answers. Standard input is never read, not
+    even to see whether it brings anything (C8 of the contract batch: an
+    open pipe that never ends would hang the command); ``-``, which names
+    it, is refused as ``detect``'s (C5)."""
     if text is not None:
         exit_usage_error(ctx, f"option: invalid: --text: a licence text{TO_DETECT}")
     if value is None:
-        if _piped_something():
-            exit_bad_input(ctx, f"invalid: standard input{TO_DETECT}")
         exit_bad_input(ctx, "missing; pass one declared licence value")
+    if value == STDIN_ARGUMENT:
+        exit_bad_input(ctx, f"invalid: standard input{TO_DETECT}")
     reject_blank_options(ctx, {"argument": value})
     reject_unencodable(ctx, value)
     if _has_line_break(value):

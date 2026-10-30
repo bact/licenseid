@@ -7,7 +7,9 @@
 output"): ``KEY=VALUE`` fields, an uppercase key, one tab between fields,
 a value with no tab, line break or bare backslash; ``--json`` one RFC 8785
 object per line, byte for byte, whose keys are the text keys in lower case.
-The exceptions (``detect --bold``, ``--version``, ``--help``) are not run.
+The exceptions (``detect --id-only``, ``--version``, ``--help``) are not
+run. A command with no answer prints its record too, every field empty
+(``null`` in JSON).
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
@@ -31,7 +33,7 @@ _FIELD = rf"[A-Z][A-Z0-9_]*={_VALUE}"
 TEXT_LINE = re.compile(rf"{_FIELD}(?:\t{_FIELD})*")
 JSON_KEY = re.compile(r"[a-z][a-z0-9_]*")
 
-PREDICATES = ["is-osi", "is-fsf", "is-open", "is-free", "is-spdx"]
+PREDICATES = ["is-osi", "is-fsf", "is-spdx"]
 # Each command, with the arguments it is run with (the database is added),
 # and its exit status: a run that printed nothing would prove nothing.
 RUNS: list[tuple[int, list[str]]] = [
@@ -50,8 +52,11 @@ RUNS: list[tuple[int, list[str]]] = [
     *[(1, [cmd, "--id", "No-Such-1.0"]) for cmd in PREDICATES],
     (0, ["update", "--source", "packaged"]),
     (0, ["update", "--source", "packaged", "--force"]),
+    (0, ["update", "--source", "packaged", "--list", "spdx-license-list"]),
+    (0, ["clear-cache"]),  # the text run clears, the JSON run finds nothing
 ]
-# Commands whose JSON is the text record, key for key.
+# Commands whose JSON is the text record, key for key (clear-cache too, but
+# its two runs differ: test_clear_cache checks its JSON).
 RECORDS = {"update", *PREDICATES}
 
 
@@ -106,13 +111,17 @@ def test_every_line_follows_the_pattern(
         ship(monkeypatch, fixture_bundle())
     text, as_json = _run(db, args, False), _run(db, args, True)
     assert (text.exit_code, as_json.exit_code) == (status, status), text.output
-    if status == 2 or args[0] == "detect" and status == 1:  # nothing printed
+    if status == 2:  # a usage error: nothing printed
         assert (text.stdout, as_json.stdout) == ("", "")
         return
     assert text.stdout and as_json.stdout
     lines = [text_fields(line) for line in text.stdout.splitlines()]
     records = [json_record(line) for line in as_json.stdout_bytes.splitlines()]
     assert as_json.stdout_bytes.endswith(b"\n")
+    if args[0] == "detect" and status == 1:  # no answer: one empty record
+        assert len(lines) == len(records) == 1
+        assert set(lines[0].values()) == {""}
+        assert set(records[0].values()) == {None}
     if args[0] == "match":  # the whole resolution; the head line is part of it
         assert len(records) == 1
         pairs = list(zip(lines[:1], records))

@@ -198,10 +198,11 @@ class LicenseDatabase:
             create_schema(conn)
 
     @staticmethod
-    def clear_cache(db_path: str | Path) -> None:
+    def clear_cache(db_path: str | Path) -> bool:
         """Delete the database (unopened) at *db_path* and the cache files
-        beside it. Raises :class:`licenseid.DatabaseNotReadyError` for a path
-        licenseid did not build a database at, as the CLI does."""
+        beside it; True if there was any of them to delete. Raises
+        :class:`licenseid.DatabaseNotReadyError` for a path licenseid did not
+        build a database at, as the CLI does."""
         # Local import: spdx_source pulls in `requests` (~60ms at import),
         # unused on the match path; update_from_remote() defers it too.
         from licenseid import spdx_source
@@ -210,8 +211,9 @@ class LicenseDatabase:
         status("Clearing cache...")
         named = named_file(str(db_path))
         if named is None:
-            return  # in-memory: no directory to clear
+            return False  # in-memory: no directory to clear
         db_path = Path(named)
+        deleted = False
         # The database goes first, so a refused delete leaves the cache
         # intact. Its sidecars follow, best effort: once it is gone a stale
         # -wal cannot be replayed, and reporting one would claim the delete
@@ -219,10 +221,12 @@ class LicenseDatabase:
         if db_path.is_symlink() or db_path.exists():
             status(f"Deleting database at {db_path}...")
             db_path.unlink(missing_ok=True)
+            deleted = True
         for suffix in ("-wal", "-shm", "-journal"):
             with contextlib.suppress(OSError):
                 db_path.with_name(db_path.name + suffix).unlink()
-        spdx_source.clear_cache_files(db_path.parent)
+                deleted = True
+        return spdx_source.clear_cache_files(db_path.parent) or deleted
 
     def update_from_remote(
         self,

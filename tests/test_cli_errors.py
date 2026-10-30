@@ -77,9 +77,9 @@ def test_clear_cache_removes_a_corrupt_database(tmp_path: Path) -> None:
     refused by the corruption it exists to recover from."""
     db_path = tmp_path / "licenses.db"
     db_path.write_bytes(b"SQLite format 3\x00" + b"\xff" * 4096)
-    result = CliRunner().invoke(cli, ["--db", str(db_path), "--clear-cache"])
+    result = CliRunner().invoke(cli, ["--db", str(db_path), "clear-cache"])
     assert result.exit_code == 0
-    assert result.stdout == ""
+    assert result.stdout == f"STATUS=cleared\tPATH={db_path}\n"
     assert not db_path.exists()
 
 
@@ -87,7 +87,7 @@ def test_clear_cache_keeps_a_file_that_is_not_a_database(tmp_path: Path) -> None
     """It deletes, so one mistyped --db must not destroy somebody's notes."""
     notes = tmp_path / "notes.txt"
     notes.write_text("this is not an SQLite database, " * 8)
-    result = CliRunner().invoke(cli, ["--db", str(notes), "--clear-cache"])
+    result = CliRunner().invoke(cli, ["--db", str(notes), "clear-cache"])
     assert result.exit_code == 2
     assert result.stdout == ""
     assert result.stderr == f"ERROR: database: invalid: {notes}\n"
@@ -151,13 +151,21 @@ def test_missing_input(ready_db: str, command: str) -> None:
     )
 
 
-@pytest.mark.parametrize("extra", [[], ["--bold"]])
-def test_no_match_in_ready_database(ready_db: str, extra: list[str]) -> None:
+@pytest.mark.parametrize(
+    ("extra", "line"),
+    [
+        ([], "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"),
+        (["--id-only"], "\n"),
+    ],
+    ids=["record", "id_only"],
+)
+def test_no_match_in_ready_database(ready_db: str, extra: list[str], line: str) -> None:
+    """No answer is an answer (C9): an empty record, or an empty line."""
     result = CliRunner().invoke(
         cli, ["--db", ready_db, "detect", "--id", "No-Such-License", *extra]
     )
     assert result.exit_code == 1
-    assert (result.stdout, result.stderr) == ("", "")
+    assert (result.stdout, result.stderr) == (line, "")
 
 
 _PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
@@ -173,9 +181,10 @@ def test_binary_input_file(ready_db: str, tmp_path: Path, command: str) -> None:
     assert result.stderr == f"ERROR: input: binary file: {path}\n"
 
 
-@pytest.mark.parametrize("text", ["MIT\\x00", "\\0"])
+@pytest.mark.parametrize("text", ["MIT\x00", "\x00"], ids=["inside", "alone"])
 def test_binary_text_option(ready_db: str, text: str) -> None:
-    """A NUL from a --text escape is rejected as it is from a file or stdin."""
+    """A NUL in --text (from a program: a shell cannot pass one) is rejected
+    as it is from a file or stdin."""
     result = CliRunner().invoke(cli, ["--db", ready_db, "detect", "--text", text])
     assert result.exit_code == 2
     assert result.stdout == ""

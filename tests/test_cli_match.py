@@ -15,17 +15,19 @@ are in ``test_option_matrix``; the field escape in ``test_text_field``.
 import json
 import os
 import sqlite3
+import subprocess
+import sys
 from pathlib import Path
 from unittest import mock
 
 import pytest
 from click.testing import CliRunner, Result
-from conftest import line_fields
+from conftest import line_fields, posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
-from licenseid import LicenseDatabase, climatch, console, match, output
+from licenseid import LicenseDatabase, console, match, output
 from licenseid.cli import cli
 from licenseid.result import json_line, resolution_lines
 
@@ -235,10 +237,11 @@ def test_an_empty_text_option_is_refused_too() -> None:
     assert result.stderr == f"ERROR: option: invalid: --text: a licence text{DETECT}\n"
 
 
-@pytest.mark.parametrize("stdin", ["", None], ids=["empty", "none"])
-def test_empty_piped_input_with_no_value_is_missing(stdin: str | None) -> None:
-    """Nothing was piped (</dev/null, cron): nothing is for detect, and the
-    value is missing."""
+@pytest.mark.parametrize("stdin", ["", None, "MIT"], ids=["empty", "none", "piped"])
+def test_no_value_is_missing_whatever_is_piped(stdin: str | None) -> None:
+    """C8 of the contract batch: ``match`` never reads standard input (it
+    read a byte to tell a pipe from nothing, which waits for ever on a pipe
+    that stays open)."""
     result = run(stdin=stdin)
     assert (result.exit_code, result.stdout, result.stderr) == (
         2,
@@ -247,20 +250,29 @@ def test_empty_piped_input_with_no_value_is_missing(stdin: str | None) -> None:
     )
 
 
-@pytest.mark.parametrize(
-    ("read", "brought"),
-    [(b"M", True), (b"", False), (OSError(5, "I/O error"), False)],
-    ids=["bytes", "nothing", "unreadable"],
-)
-def test_piped_input_brings_something_only_when_a_byte_comes(
-    monkeypatch: pytest.MonkeyPatch, read: bytes | OSError, brought: bool
-) -> None:
-    stdin = mock.Mock(spec=["isatty", "buffer"])
-    stdin.isatty.return_value = False
-    stdin.buffer.read.side_effect = [read]
-    monkeypatch.setattr("sys.stdin", stdin)
-    assert climatch._piped_something() is brought  # pylint: disable=protected-access
-    stdin.buffer.read.assert_called_once_with(1)
+_MAIN = "import sys; from licenseid.cli import main; sys.argv[0] = 'licenseid'; main()"
+
+
+@posix_only
+def test_no_value_does_not_wait_on_a_pipe_that_never_ends() -> None:
+    """C8: standard input an open pipe that brings nothing and never closes
+    (``sleep 1000 | licenseid match``, a CI step). It used to block in
+    read(1); now it exits 2 at once. A child process, with a timeout, so a
+    regression fails the test instead of hanging the run."""
+    read_end, write_end = os.pipe()
+    try:
+        child = subprocess.run(
+            [sys.executable, "-c", _MAIN, "match"],
+            stdin=read_end,
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+    finally:
+        os.close(read_end)
+        os.close(write_end)
+    assert child.returncode == 2
+    assert child.stderr == b"ERROR: input: missing; pass one declared licence value\n"
 
 
 @pytest.mark.parametrize(
@@ -358,8 +370,10 @@ def test_a_path_is_judged_after_the_list(
     assert result.stderr.startswith("ERROR: database: not found: ")
 
 
-def test_standard_input_with_no_value_is_for_detect() -> None:
-    result = run(stdin="MIT")
+def test_a_dash_is_refused_for_detect() -> None:
+    """C5: ``-`` names standard input for detect and is-*; match takes one
+    declared value, so ``match -`` points there, and reads nothing."""
+    result = run("-", stdin="MIT")
     assert (result.exit_code, result.stdout, result.stderr) == (
         2,
         "",
@@ -370,17 +384,6 @@ def test_standard_input_with_no_value_is_for_detect() -> None:
 def test_standard_input_beside_a_value_is_not_read() -> None:
     """A script's standard input is seldom a terminal: the value decides."""
     assert run("MIT", stdin="GPL-3.0").stdout.startswith("EXPRESSION=MIT\t")
-
-
-def test_no_value_and_no_piped_input_is_missing() -> None:
-    """Standard input a terminal, or closed (``clicommon.piped_input``)."""
-    with mock.patch("licenseid.climatch.piped_input", return_value=False):
-        result = run()
-    assert (result.exit_code, result.stdout, result.stderr) == (
-        2,
-        "",
-        "ERROR: input: missing; pass one declared licence value\n",
-    )
 
 
 @pytest.mark.parametrize(

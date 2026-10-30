@@ -59,16 +59,23 @@ def test_valid_cache_used_without_network(
     fake.assert_not_called()
 
 
-def test_explicit_version_overrides_cached_latest(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("use_cache", [True, False])
+@pytest.mark.parametrize("cached", [True, False], ids=["cached", "no-cache-file"])
+def test_an_explicit_version_reads_no_version_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, use_cache: bool, cached: bool
 ) -> None:
-    _write_cache(tmp_path, json.dumps(_LICENSES))
-    _fake_json_get(monkeypatch, _LICENSES)
-    assert spdx_source.get_version_info(tmp_path, "3.20.0", use_cache=True) == (
+    """C2 of the contract batch: a version given is the answer. It read the
+    latest's version file all the same (and took the latest's release date
+    for the version given); it now reads and fetches nothing."""
+    if cached:
+        _write_cache(tmp_path, json.dumps(_LICENSES))
+    fake = _fake_json_get(monkeypatch, _LICENSES)
+    assert spdx_source.get_version_info(tmp_path, "3.20.0", use_cache=use_cache) == (
         "3.20.0",
-        "2026-01-01",
-        "cache",
+        None,
+        "given",
     )
+    fake.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -168,23 +175,21 @@ def test_fetch_failure_without_cache_or_version_raises(
         spdx_source.get_version_info(tmp_path, None, use_cache=True)
 
 
-def test_fetch_failure_with_explicit_version_is_unavailable(
+def test_an_explicit_version_needs_no_network(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    _fake_json_get(monkeypatch, error=requests.ConnectionError("down"))
+    """Was: a fetch of the latest, a warning when it failed (``using version
+    3.20.0``), and the source ``unavailable``."""
+    fake = _fake_json_get(monkeypatch, error=requests.ConnectionError("down"))
     assert spdx_source.get_version_info(tmp_path, "3.20.0", use_cache=True) == (
         "3.20.0",
         None,
-        "unavailable",
+        "given",
     )
-    assert capsys.readouterr().err == (
-        "Fetching latest license list info from "
-        f"{spdx_source.LICENSES_JSON_URL}...\n"
-        "WARNING: licenses.json: download failed: ConnectionError: down; "
-        "using version 3.20.0\n"
-    )
+    fake.assert_not_called()
+    assert capsys.readouterr().err == ""
 
 
 def test_clear_cache_removes_orphaned_temp_files(tmp_path: Path) -> None:
@@ -297,13 +302,8 @@ def test_no_cache_flag_never_falls_back_to_stale_cache(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """use_cache=False means never use cached data, even after a failure:
-    fail loudly (or use the explicit version) instead."""
+    fail loudly instead."""
     _write_cache(tmp_path, json.dumps(_LICENSES), age_days=100)
     _fake_json_get(monkeypatch, error=requests.ConnectionError("down"))
     with pytest.raises(LicenseIdError, match="down"):
         spdx_source.get_version_info(tmp_path, None, use_cache=False)
-    assert spdx_source.get_version_info(tmp_path, "3.20.0", use_cache=False) == (
-        "3.20.0",
-        None,
-        "unavailable",
-    )

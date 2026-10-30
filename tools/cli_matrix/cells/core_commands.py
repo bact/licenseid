@@ -19,10 +19,10 @@ from tools.cli_matrix.model import FRAG, OTHER, licenseid
 #: (description, command, kind, expected exit) -- the commands every
 #: environment axis is replayed against.
 CORE: list[tuple[str, str, str, int]] = [
-    ("detect --bold file", licenseid("detect --bold $F/mit.txt"), "detect", 0),
+    ("detect --id-only file", licenseid("detect --id-only $F/mit.txt"), "detect", 0),
     (
         "detect latin1 file (warning)",
-        licenseid("detect --bold $F/mit_latin1.txt"),
+        licenseid("detect --id-only $F/mit_latin1.txt"),
         "detect",
         0,
     ),

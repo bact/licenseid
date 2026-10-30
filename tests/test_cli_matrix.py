@@ -332,7 +332,7 @@ def test_a_cell_with_a_refused_threshold_expects_a_usage_error() -> None:
 def test_a_match_cell_judges_the_flags_it_passes() -> None:
     """The judge reads a cell's outflags and top, not its command line."""
     for cell in _match_cells():
-        asked = {f for f in ("json", "bold", "diff") if f"--{f}" in cell.cmd}
+        asked = {f for f in ("json", "id-only", "diff") if f"--{f}" in cell.cmd}
         assert cell.outflags == asked, cell.id
         top = re.search(r"--top[ =](\d+)(?=\s|$)", cell.cmd)
         if top and int(top.group(1)) > 0:
@@ -543,7 +543,7 @@ def test_a_match_cell_opens_no_socket(tmp_path: Path) -> None:
     watcher = tmp_path / "watch"
     log = tmp_path / "sockets.log"
     _write_socket_watcher(watcher, log)
-    cell = make_cell(cmd="$L --db $DB detect --bold $F/mit.txt", kind="detect")
+    cell = make_cell(cmd="$L --db $DB detect --id-only $F/mit.txt", kind="detect")
     result = run_cell(
         cell,
         "bash",

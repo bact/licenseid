@@ -12,6 +12,7 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | Surface              | Axes                                         |
 |----------------------|----------------------------------------------|
 | CLI ``detect``       | SOURCES x OUTPUTS x found / not found        |
+|                      | (OUTPUTS: --json, --id-only, --diff, --exact) |
 | CLI ``is-*``         | PREDICATES x SOURCES x --json x found / not  |
 | CLI blank input      | commands x blank arg / --text / --id / stdin |
 | API ``detect()``     | method / function x text / license_id / file |
@@ -19,12 +20,14 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | API ``match()``      | source x default database (STATES) x bundle  |
 | CLI ``match``        | --source x default database x --db x --json  |
 | CLI ``update``       | ``test_update_matrix.py``: --source x --cache |
-|                      | x --version x --force x --json               |
+|                      | x --list x --force x --json                  |
+| CLI ``clear-cache``  | ``test_clear_cache.py``: state x --json      |
 
-Current precedence when several inputs are given (pinned below; the losing
-input is ignored without a warning):
+Two inputs (``--id`` or ``--text`` with another input), and ``--json`` with
+``--id-only`` or ``--diff``, are a usage error (C7 of the contract batch;
+they were resolved without a word). A piped standard input beside one input
+is not refused: a script's standard input is seldom a terminal.
 
-- CLI: ``--id`` > ``--text`` > positional argument > stdin.
 - API: ``license_id`` > ``file_path`` > ``text``.
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
@@ -41,6 +44,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner, Result
 from conftest import (
+    NO_DETECTION,
     RESULT_KEYS,
     json_lines,
     make_mit_db_path,
@@ -77,21 +81,21 @@ OTHER_TEXT = "The quick brown fox jumps over the lazy dog near the river bank"
 MISSING = "ERROR: input: missing; pass a file, an ID, --text, --id or stdin\n"
 NO_MATCH = ""  # "no" is an answer: nothing on standard error
 
-SOURCES = ["arg_id", "arg_file", "text", "id", "stdin", "none"]
+SOURCES = ["arg_id", "arg_file", "text", "id", "stdin", "dash", "none"]
 OUTPUTS = [
     (),
     ("--json",),
-    ("--bold",),
+    ("--id-only",),
     ("--diff",),
-    ("--json", "--bold"),
+    ("--json", "--id-only"),
     ("--json", "--diff"),
-    ("--bold", "--diff"),
+    ("--id-only", "--diff"),
 ]
 # Every found input is exact here (the ID, or MIT's text word for word), so
 # --exact keeps the answer: this axis checks that --exact combines with the
 # other options and inputs, not what it filters (test_public_result does).
 OUTPUTS += [(*output, "--exact") for output in OUTPUTS]
-PREDICATES = ["is-osi", "is-fsf", "is-open", "is-free", "is-spdx"]
+PREDICATES = ["is-osi", "is-fsf", "is-spdx"]
 
 
 @pytest.fixture
@@ -120,6 +124,8 @@ def _source_args(source: str, found: bool, tmp_path: Path) -> tuple[list[str], s
         return ["--id", license_id], ""
     if source == "stdin":
         return [], text
+    if source == "dash":  # C5: "-" names standard input
+        return ["-"], text
     return [], ""  # "none"
 
 
@@ -139,20 +145,41 @@ def test_match_matrix(
     args, stdin = _source_args(source, found, tmp_path)
     result = _invoke(mit_db, "detect", [*args, *output], stdin)
 
-    if source == "none":
+    conflict = next((o for o in output if "--json" in output and o in _JSON_ONLY), "")
+    if conflict:  # checked before the input is read, so for "none" too
+        expected = f"ERROR: option: invalid: {conflict}: with --json; pass one of them\n"
+        assert (result.exit_code, result.stdout, result.stderr) == (2, "", expected)
+    elif source == "none":
         assert (result.exit_code, result.stdout, result.stderr) == (2, "", MISSING)
     elif not found:
-        assert (result.exit_code, result.stdout, result.stderr) == (1, "", NO_MATCH)
+        assert (result.exit_code, result.stdout, result.stderr) == (
+            1,
+            _no_record(output),
+            NO_MATCH,
+        )
     else:
         assert (result.exit_code, result.stderr) == (0, "")
         _assert_match_stdout(result.stdout, output)
 
 
+#: The options --json refuses beside it.
+_JSON_ONLY = ("--id-only", "--diff")
+
+
+def _no_record(output: tuple[str, ...]) -> str:
+    """What detect prints for no answer, by output option."""
+    if "--id-only" in output:
+        return "\n"
+    if "--json" in output:
+        return json.dumps(dict.fromkeys(sorted(RESULT_KEYS)), separators=(",", ":")) + "\n"
+    return NO_DETECTION
+
+
 def _assert_match_stdout(stdout: str, output: tuple[str, ...]) -> None:
-    """Current behaviour, not a documented contract (roadmap: conflicting
-    options are resolved silently): --bold wins over --json and --diff, and
-    --json ignores --diff."""
-    if "--bold" in output:
+    """--id-only prints the expression alone; --diff adds nothing to
+    standard output (its diff is on standard error, and an exact answer has
+    none)."""
+    if "--id-only" in output:
         assert stdout == "MIT\n"
     elif "--json" in output:
         results = json_lines(stdout)
@@ -200,7 +227,7 @@ def test_predicate_matrix(
         assert (result.exit_code, result.stdout, result.stderr) == (1, no, "")
 
 
-# Each flag on its own, so is-open cannot pass by reading both as one.
+# Each flag on its own, so a predicate cannot pass by reading both as one.
 _FLAGGED = [
     Lic("Osi-1.0", "Osi Only", is_osi_approved=True),
     Lic("Fsf-1.0", "Fsf Only", is_fsf_libre=True),
@@ -210,8 +237,6 @@ _FLAGGED = [
 _HOLDS = {
     "is-osi": lambda lic: lic.is_osi_approved,
     "is-fsf": lambda lic: lic.is_fsf_libre,
-    "is-open": lambda lic: lic.is_osi_approved or lic.is_fsf_libre,
-    "is-free": lambda lic: lic.is_osi_approved or lic.is_fsf_libre,
     "is-spdx": lambda lic: lic.is_spdx,
 }
 
@@ -241,7 +266,7 @@ def test_each_predicate_reads_its_own_flag(command: str) -> None:
         (["--id", ""], "", "--id"),
         (["--id", "  "], "", "--id"),
         ([], " \r\n\t\n", "stdin"),
-        (["--text", "\\n\\t"], "", "--text"),  # blank once escapes are decoded
+        (["-"], " \n\t", "stdin"),  # "-" reads standard input (C5)
         ([], "\ufeff  \n", "stdin"),
         ([], "\ufeff", "stdin"),  # bytes were piped, so not "missing"
     ],
@@ -252,7 +277,7 @@ def test_each_predicate_reads_its_own_flag(command: str) -> None:
         "id",
         "id_ws",
         "stdin_ws",
-        "text_escaped_ws",
+        "dash_ws",
         "stdin_bom_ws",
         "stdin_bom",
     ],
@@ -267,26 +292,39 @@ def test_blank_input(
     assert (result.exit_code, result.stdout, result.stderr) == (2, "", expected)
 
 
-# --- CLI precedence when several inputs are given (pinned) ---
+# --- CLI: two inputs are a usage error (C7) ---
 
 
 @pytest.mark.parametrize(
-    ("args", "stdin"),
+    ("args", "message"),
     [
-        (["--id", "MIT", "--text", OTHER_TEXT], ""),  # --id beats --text
-        (["--id", "MIT", "Nope-1.0"], ""),  # --id beats positional
-        (["--text", MIT_TEXT, "Nope-1.0"], ""),  # --text beats positional
-        (["MIT"], OTHER_TEXT),  # positional beats stdin
-        (["--text", MIT_TEXT], OTHER_TEXT),  # --text beats stdin
+        (["--id", "MIT", "--text", OTHER_TEXT], "--id: with --text"),
+        (["--id", "MIT", "Nope-1.0"], "--id: with an argument"),
+        (["--id", "MIT", "-"], "--id: with an argument"),
+        (["--text", MIT_TEXT, "Nope-1.0"], "--text: with an argument"),
+        (["--text", MIT_TEXT, "-"], "--text: with an argument"),
     ],
-    ids=["id>text", "id>arg", "text>arg", "arg>stdin", "text>stdin"],
+    ids=["id+text", "id+arg", "id+dash", "text+arg", "text+dash"],
 )
 @pytest.mark.parametrize("command", ["detect", *PREDICATES])
-def test_cli_input_precedence(
-    mit_db: str, command: str, args: list[str], stdin: str
+def test_two_inputs_are_refused(
+    mit_db: str, command: str, args: list[str], message: str
 ) -> None:
+    result = _invoke(mit_db, command, args, OTHER_TEXT)
+    expected = f"ERROR: option: invalid: {message}; pass one input\n"
+    assert (result.exit_code, result.stdout, result.stderr) == (2, "", expected)
+
+
+@pytest.mark.parametrize(
+    "args", [["MIT"], ["--text", MIT_TEXT], ["--id", "MIT"]], ids=["arg", "text", "id"]
+)
+@pytest.mark.parametrize("command", ["detect", *PREDICATES])
+def test_a_pipe_beside_one_input_is_not_read(
+    mit_db: str, command: str, args: list[str]
+) -> None:
+    """Standard input is read only when no other input is given."""
     result = _invoke(
-        mit_db, command, ["--bold", *args] if command == "detect" else args, stdin
+        mit_db, command, ["--id-only", *args] if command == "detect" else args, OTHER_TEXT
     )
     expected = "MIT\n" if command == "detect" else predicate_line(command, "MIT", True)
     assert (result.exit_code, result.stdout, result.stderr) == (0, expected, "")
@@ -361,7 +399,6 @@ _API_PREDICATES: dict[str, Callable[[LicenseDetector], Callable[..., bool | None
     "is_spdx": lambda m: m.is_spdx,
     "is_osi": lambda m: m.is_osi,
     "is_fsf": lambda m: m.is_fsf,
-    "is_open": lambda m: m.is_open,
 }
 
 
@@ -397,7 +434,7 @@ def test_file_path_is_read_the_way_the_cli_reads_a_file(
         with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
             matcher.detect(file_path=str(path))
         with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
-            matcher.is_open(file_path=str(path))
+            matcher.is_osi(file_path=str(path))
         return
 
     warning = f"WARNING: input: not UTF-8, read as Latin-1: {path}\n"

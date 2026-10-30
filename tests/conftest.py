@@ -273,12 +273,14 @@ def invoke_match(db: str, *args: str, color: bool = False) -> Result:
     return CliRunner().invoke(cli, ["--db", db, "detect", *args], color=color)
 
 
+# What detect prints when it has no answer (exit 1): one record, every field
+# empty (C9 of the contract batch; it printed nothing).
+NO_DETECTION = "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"
+
 # The flag each is-* command prints after EXPRESSION.
 PREDICATE_KEYS = {
     "is-osi": "IS_OSI_APPROVED",
     "is-fsf": "IS_FSF_LIBRE",
-    "is-open": "IS_OPEN",
-    "is-free": "IS_FREE",
     "is-spdx": "IS_SPDX",
 }
 
@@ -306,9 +308,15 @@ def predicate_json(command: str, expression: str | None, answer: bool) -> str:
 def update_line(
     status: str, version: str, path: object, *, as_json: bool = False
 ) -> str:
-    """The line ``licenseid update`` prints, or with *as_json* its object."""
+    """The line ``licenseid update`` prints for the SPDX License List, or
+    with *as_json* its object (C2: the record names the list)."""
     write = record_json if as_json else fields_line
-    return write(STATUS=status, VERSION=version, PATH=str(path)) + "\n"
+    return (
+        write(
+            LIST="spdx-license-list", VERSION=version, STATUS=status, PATH=str(path)
+        )
+        + "\n"
+    )
 
 
 def line_fields(line: str) -> dict[str, str]:

@@ -7,7 +7,7 @@
 a 0-1 score, an exact flag, and JSON Lines in RFC 8785 form. Roadmap item
 22: --json printed each tier's own record, ranking keys and licence text
 included."""
-# pylint: disable=missing-function-docstring,redefined-outer-name
+# pylint: disable=missing-function-docstring,redefined-outer-name,protected-access
 
 from collections.abc import Generator
 from typing import Any, get_type_hints
@@ -264,7 +264,7 @@ def test_json_prints_one_line_per_result(db: str) -> None:
         (["--exact", "--text", "MIT License"], ["MIT"]),
         # --exact filters before --top cuts.
         (["--exact", "--top", "1", "--text", "MIT License"], ["MIT"]),
-        (["--exact", "--text", LONG_TEXT + " zulu"], []),
+        (["--exact", "--text", LONG_TEXT + " zulu"], [None]),  # the empty record
         (["--threshold", "0", "--text", "MIT"], ["MIT"]),
         (["--threshold", "1", "--text", "MIT"], ["MIT"]),
     ],
@@ -273,7 +273,7 @@ def test_exact_and_threshold_filter_the_results(
     db: str, args: list[str], expected: list[str]
 ) -> None:
     result = invoke_match(db, "--json", *args)
-    assert result.exit_code == (0 if expected else 1)
+    assert result.exit_code == (1 if expected == [None] else 0)
     assert [r["expression"] for r in json_lines(result.stdout)] == expected
 
 
@@ -302,11 +302,11 @@ def test_the_diff_pair_is_what_ranking_aligned(db: str, text: str) -> None:
     # A window of its own, not the whole text.
     assert isinstance(window, str)
     assert window and len(window.split()) < len(LONG_TEXT.split())
-    assert matcher.diff_pair(text, "Long-1.0") == (FRAGMENT, window)
-    assert matcher.diff_pair(text, "NoSuch-1.0") == ("", "")
+    assert matcher._diff_pair(text, "Long-1.0") == (FRAGMENT, window)
+    assert matcher._diff_pair(text, "NoSuch-1.0") == ("", "")
     # A "WITH Font-exception-2.0" the License List lacks was ranked on its
     # license's text (markers), and --diff showed nothing.
-    pair = matcher.diff_pair(text, "Long-1.0 WITH Font-exception-2.0")
+    pair = matcher._diff_pair(text, "Long-1.0 WITH Font-exception-2.0")
     assert pair == (FRAGMENT, window)
 
 

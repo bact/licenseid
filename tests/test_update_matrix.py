@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Combination matrix for ``licenseid update``: every ``--source`` x
-``--cache/--no-cache`` x ``--version`` x ``--force``, each run twice on one
+``--cache/--no-cache`` x ``--list`` x ``--force``, each run twice on one
 database, so an option is never only tested on its own (AGENTS.md
 "Testing"; the ``detect`` and ``is-*`` axes are in test_option_matrix.py).
 
@@ -23,13 +23,16 @@ from licenseid.cli import cli
 
 SOURCES = ["auto", "compact", "upstream", "packaged"]
 CACHES = ["--cache", "--no-cache"]
-VERSIONS = [None, "9.99", "9.98"]
+# None: no --list; "": --list spdx-license-list, at its latest; else at it.
+VERSIONS = [None, "", "9.99", "9.98"]
 PACKAGED = "9.98"
+LIST = "spdx-license-list"
 
 
 def _expected(source: str, version: str | None) -> tuple[str | None, str]:
     """``(installed version, data source)`` of a first run, or ``(None,
     error)`` when it fails."""
+    version = version or None  # the list named with no version: the latest
     if source == "packaged":
         if version in (None, PACKAGED):
             return PACKAGED, "packaged"
@@ -61,7 +64,9 @@ def _second_source(source: str, version: str | None, cache: str) -> str:
 
 @pytest.mark.parametrize("as_json", [False, True], ids=["text", "json"])
 @pytest.mark.parametrize("force", [False, True], ids=["plain", "force"])
-@pytest.mark.parametrize("version", VERSIONS, ids=lambda v: v or "latest")
+@pytest.mark.parametrize(
+    "version", VERSIONS, ids=lambda v: "no-list" if v is None else v or "latest"
+)
 @pytest.mark.parametrize("cache", CACHES)
 @pytest.mark.parametrize("source", SOURCES)
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -78,12 +83,15 @@ def test_update_matrix(
     ship(monkeypatch, release_bundle(PACKAGED))
     db = tmp_path / "licenses.db"
     args = ["--source", source, cache]
-    args += ["--version", version] if version else []
+    if version is not None:
+        args += ["--list", f"spdx-license-list@{version}" if version else LIST]
     args += ["--force"] if force else []
     args += ["--json"] if as_json else []
     installed, detail = _expected(source, version)
 
     first = _run(db, args)
+    if version:  # C2: a version given is never looked up, even on a failure
+        assert not [u for u in urls(fake) if u.endswith("latest.json")]
     if installed is None:
         assert first.exit_code == 1, first.output
         assert first.stdout == ""
