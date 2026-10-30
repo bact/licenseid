@@ -27,7 +27,7 @@ from resolver_corpus import parity_rows, sample_rows
 
 from licenseid import match
 from licenseid.cli import cli
-from licenseid.resolver import MAX_EXPRESSION_CHARS
+from licenseid.resolver import MAX_EXPRESSION_CHARS, read_length
 from licenseid.result import json_line
 from licenseid.textinput import has_lone_surrogate
 from tools.pypi_licence_sample.answer import unescape_field
@@ -42,7 +42,7 @@ def _refused_by_cli(value: str) -> bool:
     return (
         not value.strip()
         or value.splitlines() != [value]
-        or len(value) > MAX_EXPRESSION_CHARS
+        or read_length(value) > MAX_EXPRESSION_CHARS
         or has_lone_surrogate(value)
     )
 

@@ -42,7 +42,7 @@ from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import one_line
 from licenseid.output import echo
-from licenseid.resolver import MAX_EXPRESSION_CHARS, match
+from licenseid.resolver import MAX_EXPRESSION_CHARS, match, read_length
 from licenseid.resolvertypes import Resolution, Source
 from licenseid.result import json_line, resolution_lines
 
@@ -83,7 +83,9 @@ def declared_value(ctx: click.Context, value: str | None, text: str | None) -> s
     reject_unencodable(ctx, value)
     if _has_line_break(value):
         exit_bad_input(ctx, f"invalid: line break: {one_line(value)}{TO_DETECT}")
-    if len(value) > MAX_EXPRESSION_CHARS:
+    # Counted as match() counts it (read_length), so it reads what this
+    # passes; the first test is the fast one.
+    if len(value) > MAX_EXPRESSION_CHARS and read_length(value) > MAX_EXPRESSION_CHARS:
         exit_bad_input(
             ctx, f"invalid: over {MAX_EXPRESSION_CHARS} characters{TO_DETECT}"
         )

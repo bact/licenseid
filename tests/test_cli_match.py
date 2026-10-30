@@ -260,10 +260,24 @@ def test_piped_input_brings_something_only_when_a_byte_comes(
     stdin.buffer.read.assert_called_once_with(1)
 
 
-def test_the_cap_counts_the_value_as_given() -> None:
-    """Pinned: white space around the value counts towards the cap, which
-    match() applies after trimming it."""
-    assert run(" " + "M" * 2000).exit_code == 2
+@pytest.mark.parametrize(
+    ("value", "refused"),
+    [
+        (" " + "M" * 2000 + "\t", False),
+        ('"' + "M" * 2000 + '"', False),
+        ("(" + "M" * 2000 + ")", False),
+        ("M" * 2001, True),
+        (" " + "M" * 2001, True),
+        ('"' + "M" * 2001 + '"', True),
+    ],
+    ids=["padded", "quoted", "bracketed", "long", "long-padded", "long-quoted"],
+)
+def test_the_cap_counts_what_match_counts(value: str, refused: bool) -> None:
+    """Trimmed, without the quotes and brackets around the whole: the value
+    match() itself holds to its cap of 2000 characters."""
+    result = run(value)
+    assert result.exit_code == (2 if refused else 1)
+    assert ("over 2000 characters" in result.stderr) is refused
 
 
 def test_the_longest_value_is_read() -> None:

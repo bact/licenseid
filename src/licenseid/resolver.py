@@ -109,6 +109,13 @@ def match_with(
     return resolution
 
 
+def read_length(value: str) -> int:
+    """The length of *value* as :data:`MAX_EXPRESSION_CHARS` counts it:
+    trimmed, without the quotes and brackets around the whole of it (one
+    pass over it)."""
+    return len(_prepared(value, Found())[0])
+
+
 def _read(
     db: ListLookup, value: str, *, lists: bool = True
 ) -> tuple[Found, list[Operand], bool]:
