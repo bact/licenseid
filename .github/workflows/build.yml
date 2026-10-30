@@ -67,9 +67,15 @@ jobs:
       # Once, not per Python: the SBOM does not depend on the interpreter.
       - name: Check the SBOM embedded in the wheel
         if: matrix.python-version == '3.14'
+        # Its own environment, pinned as the release pins it: Pitloom imports
+        # licenseid, and must not meet the wheel this branch just installed.
         run: |
           set -euo pipefail
-          python -m pip install "pitloom[content-type]" spdx3-validate
+          python -m venv "${RUNNER_TEMP}/sbom-venv"
+          export PATH="${RUNNER_TEMP}/sbom-venv/bin:${PATH}"
+          python -m pip install --upgrade pip
+          python -m pip install -c .github/requirements-release.txt \
+            "pitloom[content-type]" spdx3-validate
           python scripts/extract_wheel_sbom.py dist "${RUNNER_TEMP}/sbom" \
             --require-magika --github-output "${RUNNER_TEMP}/sbom.out"
           wheel=$(sed -n 's/^wheel-path=//p' "${RUNNER_TEMP}/sbom.out")
