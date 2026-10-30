@@ -11,12 +11,13 @@ __version__ = "0.6.0"
 
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
-from licenseid.detector import LicenseDetector, detect
+from licenseid.detector import LicenseDetector
 from licenseid.errors import (
     DatabaseNotReadyError,
     InvalidInputError,
     LicenseIdError,
 )
+from licenseid.keptdetector import detect
 from licenseid.normalize import normalize_text
 from licenseid.resolver import match
 from licenseid.types import Detection, DetectRequest, Method

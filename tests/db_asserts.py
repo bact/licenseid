@@ -16,6 +16,7 @@ import pytest
 from click.testing import CliRunner, Result
 from db_variants import EMPTY, INVALID, NOT_FOUND, UNREADABLE, make_ready_file_db
 
+from licenseid import keptdetector
 from licenseid.cli import cli
 
 
@@ -83,6 +84,7 @@ def safe_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("USERPROFILE", str(home))  # Path.home() on Windows
     monkeypatch.setattr(Path, "home", staticmethod(lambda: home))
+    keptdetector.reset()  # one kept for another home is not this one's
 
 
 def db_in_an_unreadable_directory(tmp_path: Path) -> Path:

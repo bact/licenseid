@@ -25,7 +25,7 @@ from click.testing import CliRunner, Result
 from packaged_list import database_of, fixture_bundle
 from resolver_corpus import corpus_db_path
 
-from licenseid import console, listindex, listsource, spdxdata
+from licenseid import console, keptdetector, listindex, listsource, spdxdata
 from licenseid.cli import cli
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.dbconnection import Connections
@@ -109,6 +109,7 @@ def _forget_packaged() -> None:
     listindex.reset_packaged_index()
     listsource.reset_warnings()
     listsource.reset_choice()
+    keptdetector.reset()
 
 
 def seed_ready_metadata(db_path: str) -> None:

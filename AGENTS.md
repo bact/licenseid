@@ -14,7 +14,8 @@
   spelling of an ID), `trovenames.py` (the `License ::` trove names as
   data), `resolver.py` (a declared licence value to an SPDX expression and
   the steps taken; its types and vocabularies are in `resolvertypes.py`),
-  `listlookup.py` (the list lookups the resolver
+  `keptdetector.py` (`licenseid.detect()`: one `LicenseDetector` kept per
+  default database file), `listlookup.py` (the list lookups the resolver
   reads through: a Protocol), `listrules.py` (which SPDX entries are kept and
   what a deprecated ID points to; `records.py` builds rows from it),
   `resolveleaf.py` (the reading of one value that names one licence, called

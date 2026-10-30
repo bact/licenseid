@@ -482,9 +482,9 @@ match("GPLv2 or later")["expression"]
 ```
 
 Use `detect()` to scan files; use `match()` to record what a package
-declares, as an SBOM tool does. `licenseid.detect()` builds a
-`LicenseDetector` on the database at the default path for each call; keep
-one `LicenseDetector` to detect many.
+declares, as an SBOM tool does. `licenseid.detect()` uses a
+`LicenseDetector` on the database at the default path, kept while that file
+is unchanged; make your own `LicenseDetector(db_path)` for another database.
 
 You can use `licenseid` directly in your Python projects:
 

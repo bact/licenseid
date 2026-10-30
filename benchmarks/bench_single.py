@@ -209,15 +209,15 @@ class InstrumentedMatcher(LicenseDetector):
         # Reconstruct tier decisions in read-only order to find the first tier
         # that would have surfaced true_id, mirroring the logic in detect().
         # Guards use hasattr so this works on branches that lack certain
-        # attributes (e.g. 'main' does not have self.detector).
+        # attributes (e.g. 'main' does not have self.markers).
 
         norm_input = normalize_text(text)
         words = norm_input.split()
 
         # Tier 0.5: marker detection (license-marker branch only)
         marker_candidates: list[Any] = []
-        if hasattr(self, "detector"):
-            marker_candidates = self.detector.detect(text)
+        if hasattr(self, "markers"):
+            marker_candidates = self.markers.detect(text)
         spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
         if spdx_exact:
             if any(c["license_id"] == true_id for c in spdx_exact):

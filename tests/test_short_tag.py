@@ -128,14 +128,14 @@ def test_a_short_input_reads_its_tag_as_a_long_one_does(db: str, text: str) -> N
 
 def test_a_short_input_reads_no_loose_field(db: str) -> None:
     """Only a declaration is certain; "License:" in prose is not one."""
-    detector = LicenseDetector(db).detector
+    detector = LicenseDetector(db).markers
     assert not detector.detect_declared("License: MIT", [])
 
 
 def test_a_long_tag_value_reads_in_linear_time(db: str) -> None:
     """One 1,000,000-character token cost the expression parser 7 s: its
     tokenizer is quadratic in a token's length (roadmap item 26)."""
-    detector = LicenseDetector(db).detector
+    detector = LicenseDetector(db).markers
     text = f"{TAG} " + "x" * 1_000_000
     start = time.monotonic()
     assert not detector.detect_declared(text, [])

@@ -7,7 +7,7 @@
 Aggregated license matching logic using hybrid search.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from typing import Any, cast
 
@@ -101,14 +101,15 @@ class LicenseDetector:
         db_path: str | None = None,
         *,
         enable_popularity: bool = False,
+        report: Callable[[str], None] | None = None,
     ):
         if not db_path:
             db_path = get_default_db_path()
         # Before LicenseDatabase, which opens the file (create=False below: it
         # must be there, and a lookup never makes one).
         check_database_ready(db_path)
-        self.db = LicenseDatabase(db_path, create=False)
-        self.detector = MarkerDetector(self.db)
+        self.db = LicenseDatabase(db_path, create=False, report=report)
+        self.markers = MarkerDetector(self.db)
         self.enable_popularity = enable_popularity
 
     def _try_explicit_id_match(self, license_id: str) -> list[RawMatch]:
@@ -129,7 +130,7 @@ class LicenseDetector:
     def _resolve_declared(self, value: str) -> list[RawMatch]:
         """The answer to a declared license value: certain, or none."""
         return self._finalize_exact_markers(
-            self.detector.resolve_license_value(value, 1.0), method="id"
+            self.markers.resolve_license_value(value, 1.0), method="id"
         )
 
     def _resolve_loose_with(self, text: str) -> list[RawMatch]:
@@ -189,11 +190,11 @@ class LicenseDetector:
         otherwise be matched by name, and wrongly.
         """
         if ctx.word_count >= 30:
-            marker_candidates = self.detector.detect(
+            marker_candidates = self.markers.detect(
                 ctx.target_text, file_path=ctx.file_path, manifest=ctx.manifest
             )
         else:
-            marker_candidates = self.detector.detect_declared(
+            marker_candidates = self.markers.detect_declared(
                 ctx.target_text, ctx.manifest
             )
         spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
@@ -257,7 +258,7 @@ class LicenseDetector:
         if short_matches and short_matches[0]["score"] > 1.0:
             for m in short_matches:
                 if "is_spdx" not in m:  # an expression (see shorttext)
-                    flags = self.detector.license_flags(m["license_id"])
+                    flags = self.markers.license_flags(m["license_id"])
                     m["is_spdx"] = flags["is_spdx"]
                     m["is_osi_approved"] = flags["is_osi_approved"]
                     m["is_fsf_libre"] = flags["is_fsf_libre"]
@@ -272,7 +273,7 @@ class LicenseDetector:
         A long input keeps them: its tags are a small part of its text."""
         if ctx.word_count >= 30:
             return ctx
-        text = self.detector.without_spdx_tags(ctx.target_text)
+        text = self.markers.without_spdx_tags(ctx.target_text)
         if text == ctx.target_text:
             return ctx
         norm_input = normalize_text(text)
@@ -494,7 +495,7 @@ class LicenseDetector:
             if not details:
                 return "", ""
             ctx = self._build_match_context(text, None, cast(DetectRequest, {}))
-            candidate = self.detector.to_candidate(details, 0.0)
+            candidate = self.markers.to_candidate(details, 0.0)
         norm_input = self._without_tags(ctx).norm_input
         words = norm_input.split()
         _, _, window = calculate_base_similarity(
@@ -640,7 +641,7 @@ class LicenseDetector:
         self, request: DetectRequest, target_text: str
     ) -> list[CandidateMatch]:
         """Extract sections from mixed content and search them for licenses."""
-        sections = self.detector.get_sections(target_text)
+        sections = self.markers.get_sections(target_text)
         candidates: list[CandidateMatch] = []
         seen_ids = set()
 
@@ -656,7 +657,7 @@ class LicenseDetector:
                     details = self.db.get_license_details(m["license_id"])
                     if details:
                         candidates.append(
-                            self.detector.to_candidate(details, m["score"])
+                            self.markers.to_candidate(details, m["score"])
                         )
                         seen_ids.add(m["license_id"])
 
@@ -678,23 +679,3 @@ class LicenseDetector:
         if not candidates:
             candidates = self._get_candidates(request, target_text)
         return candidates
-
-
-def detect(
-    text: str | None = None,
-    *,
-    license_id: str | None = None,
-    file_path: str | None = None,
-    **options: Any,
-) -> list[Detection]:
-    """Detect the licence of a *text*, a file or a declared *license_id*.
-
-    ``LicenseDetector().detect(...)`` on the database at the default path,
-    for one call; keep a :class:`licenseid.detector.LicenseDetector` for many.
-    Raises :class:`licenseid.errors.DatabaseNotReadyError` when that database
-    is missing or unreadable, and :class:`licenseid.errors.InvalidInputError`
-    as the method does.
-    """
-    return LicenseDetector().detect(
-        text, license_id=license_id, file_path=file_path, **options
-    )

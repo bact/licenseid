@@ -170,7 +170,7 @@ def test_many_tags_on_one_line_are_read_quickly(db: str) -> None:
 def test_a_repeated_license_is_indexed_once(db: str, lines: list[str]) -> None:
     """Every tag names MIT, so its search text is fetched once, not once per
     tag, and the one candidate kept still carries it."""
-    detector = LicenseDetector(db).detector
+    detector = LicenseDetector(db).markers
     with patch.object(
         LicenseDatabase, "get_search_text", autospec=True, return_value="text"
     ) as get_search_text:

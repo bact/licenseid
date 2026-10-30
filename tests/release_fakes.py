@@ -20,7 +20,14 @@ from unittest import mock
 import pytest
 import requests
 
-from licenseid import listindex, listsource, releasesource, spdx_source, spdxdata
+from licenseid import (
+    keptdetector,
+    listindex,
+    listsource,
+    releasesource,
+    spdx_source,
+    spdxdata,
+)
 from licenseid.database import LicenseDatabase
 from licenseid.spdxdata import SpdxData, to_bundle
 from licenseid.types import SpdxLicenseEntry
@@ -179,6 +186,7 @@ def ship(monkeypatch: pytest.MonkeyPatch, raw: bytes | None) -> None:
     )
     listindex.reset_packaged_index()
     listsource.reset_choice()
+    keptdetector.reset()
 
 
 def stub_chain(monkeypatch: pytest.MonkeyPatch, db: LicenseDatabase) -> None:

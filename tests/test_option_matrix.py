@@ -14,7 +14,7 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | CLI ``detect``       | SOURCES x OUTPUTS x found / not found        |
 | CLI ``is-*``         | PREDICATES x SOURCES x found / not found     |
 | CLI blank input      | commands x blank arg / --text / --id / stdin |
-| API ``detect()``     | every subset of text / license_id / file     |
+| API ``detect()``     | method / function x text / license_id / file |
 | API ``is_*()``       | PREDICATES x text / license_id / file        |
 | API ``match()``      | source x default database (STATES) x bundle  |
 
@@ -51,6 +51,7 @@ from resolve_states import (
     refusal,
 )
 
+import licenseid
 from licenseid import LicenseDatabase, match
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
@@ -272,11 +273,26 @@ _SUBSETS = [
 ]
 
 
+@pytest.mark.parametrize("entry", ["method", "function"])
 @pytest.mark.parametrize("names", _SUBSETS, ids=lambda n: "+".join(n) or "none")
-def test_api_match_matrix(mit_db: str, tmp_path: Path, names: tuple[str, ...]) -> None:
+def test_api_match_matrix(
+    mit_db: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    names: tuple[str, ...],
+    entry: str,
+) -> None:
+    """``LicenseDetector.detect`` and ``licenseid.detect`` (the database at
+    the default path) take the same inputs and give the same answers."""
     winner = _winner(names)
     kwargs = _api_kwargs(names, winner, tmp_path)
-    results = LicenseDetector(mit_db).detect(**kwargs)
+    if entry == "method":
+        results = LicenseDetector(mit_db).detect(**kwargs)
+    else:
+        monkeypatch.setattr(
+            "licenseid.keptdetector.get_default_db_path", lambda: mit_db
+        )
+        results = licenseid.detect(**kwargs)
     if winner is None:
         assert results == []
     else:
