@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-30
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -521,7 +521,8 @@ Grouped by how each was caught. Timestamps are approximate to the minute.
   Apache-1.0.
 - **Upstream encoding bug.** py-spdx-license read its data with the locale
   encoding: it crashed under eucJP and garbled 7 names under cp1252
-  ("QuÃ©bec"). Fixed upstream in PR #5.
+  ("QuÃ©bec"). A fix is proposed upstream (py-spdx-license PR #5, open
+  on 2026-10-30; only 0.0.1 is released).
 
 ### Supply chain and SBOM (10-02 to 10-05)
 

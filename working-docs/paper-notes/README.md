@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -111,7 +111,8 @@ inference, not a claim made in the repository.
 - A 2,000-character token 5.0 s → 0.04 s once guards counted characters.
 - The real-shell CLI matrix (about 1,200 cells, five shells): every flag it
   raised was a defect the test suite could not reach, including a locale
-  crash in a dependency (`py-spdx-license` under eucJP), fixed upstream.
+  crash in a dependency (`py-spdx-license` under eucJP); a fix is proposed
+  upstream, not yet released (2026-10-30).
 - Characterisation tests found pre-existing bugs in 3 of 5 refactors.
 - Agent incidents worth reporting honestly: a CLI-matrix cell with `HOME`
   unset deleted the developer's real licence database (2026-09-19); in July

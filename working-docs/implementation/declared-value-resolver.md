@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-27
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-30
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -8,6 +8,11 @@ SPDX-License-Identifier: Apache-2.0
 ---
 
 # Resolving a declared value (PR #97 and the 0.6.0 review)
+
+The 0.7.0 state (compounds, prose and trove names, the packaged list, the
+rename) is in
+[declared-value-resolver-0-7.md](declared-value-resolver-0-7.md). The names
+below are those of 0.6.0.
 
 `licenseid.match(value)` (`resolver.py`, types in `resolvertypes.py`)
 answers which SPDX expression a declared licence value stands for, and
