@@ -306,3 +306,54 @@ def test_packaged_and_database_answers_agree(
         if masked(match(value, bundle_db)) != masked(match(value, source="packaged"))
     ]
     assert not differences, differences
+
+
+#: Review fixes (P124 to P127), characterisation first: today's answers
+#: ``(expression, reason)``. ``BUG`` marks an answer the fix changes.
+REVIEW_TODAY: dict[str, tuple[str | None, str | None]] = {
+    # BUG: a mark inside the quote marks, behind a bracket, is not seen
+    '"(MIT;)".': ("MIT", None),
+    '"(MIT.)".': ("MIT", None),
+    '"[MIT,]";': ("MIT", None),
+    # BUG: two marks, the first a dot of the ID, are not seen
+    '"LicenseRef-a.;".': ("LicenseRef-a.", None),
+    '"LicenseRef-a.,",': ("LicenseRef-a.", None),
+    '"LicenseRef-a.;";': ("LicenseRef-a.", None),
+    # BUG: the dot of the ID is taken for an end mark
+    '"LicenseRef-a.".': (None, None),
+    '"LicenseRef-a.";': (None, None),
+    # BUG: an ID character before the end mark makes it two marks
+    "LicenseRef-a-;": (None, "character dropped: U+003B"),
+    "LicenseRef-a-:": (None, "character dropped: U+003A"),
+    "LicenseRef-a-,": (None, None),
+    "MIT WITH AdditionRef-x.;": (None, "character dropped: U+002E U+003B"),
+    # BUG: a dash (or underscore) joined to the end, silent
+    "MIT+-?": (None, None),
+    "MIT+-!": (None, None),
+    "MIT+ -;": (None, None),
+    "MIT+_": (None, None),
+    "MIT License-.": (None, None),
+    "MIT License_": (None, None),
+    "LicenseRef-a+-": (None, None),
+    # not a bug: unbalanced marks plus an end mark read (maintainer, P123)
+    "MIT'.": ("MIT", None),
+    "Apache-2.0'.": ("Apache-2.0", None),
+    'GPL-2.0".': ("GPL-2.0", None),
+    'MIT+".': ("MIT+", None),
+    'MIT".': ("MIT", None),
+    # gaps that stay: they need a path of their own (0.8)
+    "(MIT)-": (None, None),
+    "(MIT+)-": (None, None),
+    "License :: OSI Approved :: MIT License-": (None, None),
+    "The MIT License (MIT)-": (None, None),
+    "MIT License (MIT)-": (None, None),
+    "MIT+ WITH X-": (None, None),  # X names no exception
+    '"MIT.".': (None, "character dropped: U+0022"),
+    '"MIT OR ISC.".': (None, "character dropped: U+0022"),
+}
+
+
+@pytest.mark.parametrize("value", sorted(REVIEW_TODAY), ids=lambda v: v[:24])
+def test_review_characterisation(corpus_db: LicenseDatabase, value: str) -> None:
+    got = match(value, corpus_db)
+    assert (got["expression"], got["reason"]) == REVIEW_TODAY[value]
