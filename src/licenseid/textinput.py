@@ -63,7 +63,7 @@ def lone_surrogate_at(text: str) -> int | None:
     """The index of the first lone surrogate in *text*, or None. A lone
     surrogate (``\\ud800``, or the ``\\udcXX`` an argument of invalid UTF-8
     decodes to) is the one thing no UTF-8 encoder takes, so this is where
-    the check is made, for the matcher and the resolver alike."""
+    the check is made, for the detector and the resolver alike."""
     try:
         text.encode("utf-8")
     except UnicodeEncodeError as exc:

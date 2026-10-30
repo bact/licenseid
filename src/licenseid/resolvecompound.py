@@ -285,7 +285,7 @@ def _is_operand(text: str) -> bool:
 def _one_word(text: str) -> bool:
     """Whether *text*, without an "or later" grant or a "+" that ends it,
     is one word: the grant read as ``resolveleaf`` reads it, the "+" after
-    white space too (``GPL-2.0 +``, which ``resolve`` reads alone)."""
+    white space too (``GPL-2.0 +``, which ``match`` reads alone)."""
     named = granted_id_text(text) or declared_grant_id_text(text)
     core = text if named is None else named.rstrip(" \t([")
     words = core.split()

@@ -11,7 +11,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Improvements
 
-### 1. Matching Pipeline (matcher.py)
+### 1. Matching Pipeline (detector.py)
 
 - **FTS5 Truncation**: Truncated the search query to the first 100 words for the
   Tier 1 FTS5 recall stage. This prevents performance degradation on large files

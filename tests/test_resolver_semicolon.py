@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve()`` and a ``;`` between licences (task T8b; decisions P81 to
+"""``match()`` and a ``;`` between licences (task T8b; decisions P81 to
 P86): ``MIT ; Apache 2`` names two licences and states no operator, so it
 resolves to no expression and lists each part as an operand, read as the
 same text would be read alone. The values that were refused for ``;`` before
@@ -20,7 +20,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 
 REASON = "operator not stated: ;"
 
@@ -124,7 +124,7 @@ def _shipped(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_licences_joined_by_a_semicolon_are_listed_not_combined(
     corpus_db: LicenseDatabase, value: str, parts: list[tuple[Any, ...]]
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] is None
     assert got["category"] == "unresolved"
     assert got["trust"] == "none"
@@ -141,7 +141,7 @@ def test_licences_joined_by_a_semicolon_are_listed_not_combined(
 def test_the_steps_of_the_whole_are_the_ones_taken_before_the_split(
     corpus_db: LicenseDatabase,
 ) -> None:
-    got = resolve("  (MIT; ISC) ", corpus_db)
+    got = match("  (MIT; ISC) ", corpus_db)
     assert [s["kind"] for s in got["steps"]] == ["trim", "brackets"]
     assert [tuple(o["span"]) for o in got["operands"]] == [(3, 6), (8, 11)]
 
@@ -153,13 +153,13 @@ def test_the_steps_of_the_whole_are_the_ones_taken_before_the_split(
 def test_the_parser_is_a_component_when_a_part_needed_it(
     corpus_db: LicenseDatabase, value: str, parser: bool
 ) -> None:
-    assert bool(resolve(value, corpus_db)["components"]) is parser
+    assert bool(match(value, corpus_db)["components"]) is parser
 
 
 def test_a_refused_part_keeps_its_own_reason_and_steps(
     corpus_db: LicenseDatabase,
 ) -> None:
-    got = resolve("Apache 2.0?; MIT", corpus_db)
+    got = match("Apache 2.0?; MIT", corpus_db)
     refused, named = got["operands"]
     assert got["reason"] == REASON
     assert refused["reason"] == "character dropped: U+003F"
@@ -216,7 +216,7 @@ NOT_A_LIST = {
 def test_a_value_that_is_no_list_keeps_its_refusal(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["reason"] != REASON
     assert got["expression"] is None
     assert got["reason"] == NOT_A_LIST[value]
@@ -236,13 +236,13 @@ def test_a_value_that_is_no_list_keeps_its_refusal(
 def test_the_neighbours_that_keep_their_answer(
     corpus_db: LicenseDatabase, value: str, expression: str | None
 ) -> None:
-    assert resolve(value, corpus_db)["expression"] == expression
+    assert match(value, corpus_db)["expression"] == expression
 
 
 def test_a_lower_case_operator_in_a_part_is_that_parts_reading(
     corpus_db: LicenseDatabase,
 ) -> None:
-    got = resolve("MIT or ISC; Apache-2.0 and Zlib", corpus_db)
+    got = match("MIT or ISC; Apache-2.0 and Zlib", corpus_db)
     assert got["reason"] == REASON
     assert [o["expression"] for o in got["operands"]] == [
         "ISC OR MIT",
@@ -251,7 +251,7 @@ def test_a_lower_case_operator_in_a_part_is_that_parts_reading(
 
 
 def test_a_part_that_is_prose_is_listed_unresolved(corpus_db: LicenseDatabase) -> None:
-    got = resolve("MIT; ISC; see the file LICENSE", corpus_db)
+    got = match("MIT; ISC; see the file LICENSE", corpus_db)
     assert got["reason"] == REASON
     assert [o["expression"] for o in got["operands"]] == ["MIT", "ISC", None]
 
@@ -259,7 +259,7 @@ def test_a_part_that_is_prose_is_listed_unresolved(corpus_db: LicenseDatabase) -
 def test_a_semicolon_in_brackets_does_not_cut_a_part(
     corpus_db: LicenseDatabase,
 ) -> None:
-    got = resolve("(ISC; Zlib); MIT; Apache-2.0", corpus_db)
+    got = match("(ISC; Zlib); MIT; Apache-2.0", corpus_db)
     assert got["reason"] == REASON
     assert [o["text"] for o in got["operands"]] == [
         "(ISC; Zlib)",
@@ -274,7 +274,7 @@ def test_a_semicolon_in_brackets_does_not_cut_a_part(
 
 
 def test_square_brackets_count_as_brackets(corpus_db: LicenseDatabase) -> None:
-    got = resolve("[ISC; Zlib]; MIT; Apache-2.0", corpus_db)
+    got = match("[ISC; Zlib]; MIT; Apache-2.0", corpus_db)
     assert got["reason"] == REASON
     assert [o["text"] for o in got["operands"]] == [
         "[ISC; Zlib]",
@@ -296,19 +296,19 @@ def test_square_brackets_count_as_brackets(corpus_db: LicenseDatabase) -> None:
 def test_a_name_that_reads_whole_is_not_a_list(
     corpus_db: LicenseDatabase, value: str, expression: str, category: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == (expression, category)
     assert got["reason"] is None
 
 
 def test_a_list_needs_one_operand_that_resolves(corpus_db: LicenseDatabase) -> None:
-    got = resolve("Apache 2.0?; MIT -", corpus_db)
+    got = match("Apache 2.0?; MIT -", corpus_db)
     assert got["reason"] != REASON
 
 
 def test_a_nested_list_does_not_recurse(corpus_db: LicenseDatabase) -> None:
     deep = "(" * 400 + "MIT; ISC" + ")" * 400
-    got = resolve(deep, corpus_db)
+    got = match(deep, corpus_db)
     assert got["reason"] == REASON
     assert len(got["operands"]) == 2
 
@@ -333,12 +333,12 @@ def test_every_operand_is_the_reading_of_its_part_alone(
     for first in samples:
         for second in samples[:: max(1, len(samples) // 12)]:
             value = f"{first} ; {second}"
-            got = resolve(value, corpus_db)
+            got = match(value, corpus_db)
             if got["reason"] != REASON:  # a part names nothing, or has a ;
                 continue
             for operand, part in zip(got["operands"], (first, second)):
                 kept = set(operand) - {"text", "span"}
-                alone = resolve(part, corpus_db)
+                alone = match(part, corpus_db)
                 assert answer_of(operand, kept) == answer_of(alone, kept), value
             assert [o["text"] for o in got["operands"]] == [first, second]
             checked += 1
@@ -348,7 +348,7 @@ def test_every_operand_is_the_reading_of_its_part_alone(
 @pytest.mark.usefixtures("shipped")
 def test_the_packaged_list_gives_the_same_answers(bundle_db: LicenseDatabase) -> None:
     for value in [*(v for v, _ in LISTS), *NOT_A_LIST]:
-        with_db, without = resolve(value, bundle_db), resolve(value, source="packaged")
+        with_db, without = match(value, bundle_db), match(value, source="packaged")
         assert masked(with_db) == masked(without), value
         assert bool(with_db["reason"] == REASON) == bool(without["reason"] == REASON)
 
@@ -360,7 +360,7 @@ def test_the_packaged_list_gives_the_same_answers(bundle_db: LicenseDatabase) ->
 @pytest.mark.usefixtures("shipped")
 def test_a_long_list_is_read_in_time(payload: Callable[[int], str]) -> None:
     start = time.monotonic()
-    resolve(payload(400), source="packaged")
+    match(payload(400), source="packaged")
     assert time.monotonic() - start < 3.0
 
 
@@ -375,5 +375,5 @@ def test_a_semicolon_list_is_linear_in_its_length(size: int) -> None:
         lambda n: "(" * n + "MIT;" * n + ")" * n,
     ):
         start = time.monotonic()
-        resolve(make(size), source="packaged")
+        match(make(size), source="packaged")
         assert time.monotonic() - start < 5.0

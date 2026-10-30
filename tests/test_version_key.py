@@ -15,7 +15,7 @@ import pytest
 from matcher_db import Lic, seeded_db
 
 from licenseid.database import LicenseDatabase
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 from licenseid.shorttext import match_short_text, match_version_key
 from licenseid.versionkey import MAX_KEY_INPUT, version_key
 
@@ -64,9 +64,9 @@ def db() -> Generator[LicenseDatabase, None, None]:
 
 
 @pytest.fixture
-def matcher() -> Generator[AggregatedLicenseMatcher, None, None]:
+def matcher() -> Generator[LicenseDetector, None, None]:
     for path in seeded_db("test_version_key_match", ROWS):
-        yield AggregatedLicenseMatcher(path)
+        yield LicenseDetector(path)
 
 
 @pytest.mark.parametrize(
@@ -278,19 +278,19 @@ def test_a_long_input_is_no_loose_id(
     ],
 )
 def test_match_answers_with_the_id(
-    matcher: AggregatedLicenseMatcher, text: str, expected: tuple[str, str, bool]
+    matcher: LicenseDetector, text: str, expected: tuple[str, str, bool]
 ) -> None:
-    """Through match(), with the flags of the answer, from text and from a
+    """Through detect(), with the flags of the answer, from text and from a
     manifest's license field."""
-    top = matcher.match(text=text)[0]
+    top = matcher.detect(text=text)[0]
     assert (top["license_id"], top["method"], top["exact"]) == expected
     assert top["is_spdx"] is True
 
 
 def test_a_plus_without_a_key_is_no_exact_answer(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> None:
-    results = matcher.match(text="C++")
+    results = matcher.detect(text="C++")
     assert not [r for r in results if r["exact"] or r["method"] == "id"]
 
 
@@ -310,7 +310,7 @@ def test_match_short_text_reads_the_key_of_the_raw_text(
 
 
 def test_mixed_content_gives_its_sections_raw_to_tier_0(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> None:
     """Every Tier 0 caller hands over the raw text the key reads. A section
     holds its "licens" word, so it is never a loose ID itself."""

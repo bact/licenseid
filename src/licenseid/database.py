@@ -94,11 +94,11 @@ class LicenseDatabase:
         """Open the database at *db_path*. With *create* (the default) a
         missing file, or missing tables, are created; without it the file
         must be there, and only a schema of an older version is written to,
-        so a matcher never makes a database out of one that went missing.
+        so a detector never makes a database out of one that went missing.
 
         Without *create*, rules older or newer than this licenseid's are
         warned (``database: build vN outdated: ...``) through *report*, by
-        default ``licenseid.console.warn``; ``resolve()`` passes one that
+        default ``licenseid.console.warn``; ``match()`` passes one that
         says each line once per process."""
         db_path = os.fspath(db_path)
         self._create = create

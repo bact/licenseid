@@ -26,6 +26,7 @@ from licenseid.dbcheck import (
     reject_foreign_database,
     unreadable_error,
 )
+from licenseid.detector import LicenseDetector
 from licenseid.errors import (
     DatabaseNotReadyError,
     InvalidInputError,
@@ -35,7 +36,6 @@ from licenseid.errors import (
 )
 from licenseid.exprtokens import is_license_ref
 from licenseid.identifiers import is_simple_expression
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.output import (
     EchoHelpCommand,
     OutputError,
@@ -133,11 +133,11 @@ class LicenseIdCommand(UsageLineCommand, EchoHelpCommand):
 class DatabaseErrorGroup(UsageLineGroup, EchoHelpCommand):
     """A group that never lets a failure pass for an answer.
 
-    ``match`` and the ``is-*`` commands answer "no" with exit 1, so an unready
+    ``detect`` and the ``is-*`` commands answer "no" with exit 1, so an unready
     database (``DatabaseNotReadyError``) must not share it. A file can also go
     bad after the readiness check (replaced or corrupted mid-run): a SQLite
     failure is then worded as an ``unreadable`` database, not a traceback.
-    The matcher words its own the same way (``DatabaseNotReadyError``), and
+    The detector words its own the same way (``DatabaseNotReadyError``), and
     that includes a ProgrammingError or InterfaceError: the original stays
     the ``__cause__`` for whoever debugs it.
 
@@ -407,35 +407,35 @@ def get_input_content(
     return ""
 
 
-def resolve_license_record(
+def detect_license_record(
     ctx: click.Context,
     input_val: str | None,
     text: str | None,
     id_val: str | None = None,
 ) -> LicenseDetails | None:
-    """Helper to resolve a license from CLI arguments (implements Smart Logic)."""
+    """Helper to detect a license from CLI arguments (implements Smart Logic)."""
     db_path = ctx.obj["db_path"]
     check_database_ready(db_path)  # before input handling: report the database first
 
     reject_blank_options(ctx, {"--id": id_val, "--text": text, "argument": input_val})
     reject_compound_id(ctx, id_val)
-    matcher = AggregatedLicenseMatcher(db_path)
-    check_db_staleness(matcher.db)
+    detector = LicenseDetector(db_path)
+    check_db_staleness(detector.db)
 
     # 1. Explicit ID
     if id_val:
-        return matcher.resolve_record(license_id=id_val)
+        return detector.resolve_record(license_id=id_val)
 
     # 2. Handle stdin/arguments
-    content = get_input_content(ctx, input_val, text, matcher.db)
+    content = get_input_content(ctx, input_val, text, detector.db)
     if not content:
         exit_no_input(ctx)
 
-    # A lone expression is read as an ID by the matcher, whatever brings it.
-    return matcher.resolve_record(content)
+    # A lone expression is read as an ID by the detector, whatever brings it.
+    return detector.resolve_record(content)
 
 
-@cli.command(name="match")
+@cli.command(name="detect")
 @click.argument("input_val", required=False)
 @click.option("--text", help="License text to match.")
 @click.option("--id", "id_val", help="Explicit SPDX License ID to lookup.")
@@ -468,7 +468,7 @@ def resolve_license_record(
 )
 @click.option("--bold", is_flag=True, help="Print only the top license ID.")
 @click.pass_context
-def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+def detect(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     ctx: click.Context,
     input_val: str | None,
     text: str | None,
@@ -494,20 +494,20 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             ctx, f"option: invalid: --threshold: {threshold}; pass a value from 0 to 1"
         )
 
-    matcher = AggregatedLicenseMatcher(db_path, enable_popularity=enable_popularity)
-    check_db_staleness(matcher.db)
+    detector = LicenseDetector(db_path, enable_popularity=enable_popularity)
+    check_db_staleness(detector.db)
 
     if id_val:
-        results = matcher.match(license_id=id_val)
+        results = detector.detect(license_id=id_val)
         license_text = ""
     else:
-        content = get_input_content(ctx, input_val, text, matcher.db)
+        content = get_input_content(ctx, input_val, text, detector.db)
         if not content:
             exit_no_input(ctx)
 
         license_text = content
-        # A lone expression is read as an ID by the matcher, whatever brings it.
-        results = matcher.match(text=content)
+        # A lone expression is read as an ID by the detector, whatever brings it.
+        results = detector.detect(text=content)
 
     # Filter by threshold (and exactness), then limit to top N
     results = [
@@ -532,7 +532,7 @@ def match(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             echo(text_line(r))
             # A word diff for the top match, if it is a close text match.
             if diff and i == 0 and r["method"] == "text" and not r["exact"]:
-                show_diff(*matcher.diff_pair(license_text, r["license_id"]))
+                show_diff(*detector.diff_pair(license_text, r["license_id"]))
 
     ctx.exit(0)
 
@@ -549,7 +549,7 @@ def is_osi(
     id_val: str | None,
 ) -> None:
     """True if the license is OSI-approved."""
-    record = resolve_license_record(ctx, input_val, text, id_val)
+    record = detect_license_record(ctx, input_val, text, id_val)
     if record and record.get("is_osi_approved"):
         echo("true")
         ctx.exit(0)
@@ -569,7 +569,7 @@ def is_fsf(
     id_val: str | None,
 ) -> None:
     """True if the license is FSF-libre."""
-    record = resolve_license_record(ctx, input_val, text, id_val)
+    record = detect_license_record(ctx, input_val, text, id_val)
     if record and record.get("is_fsf_libre"):
         echo("true")
         ctx.exit(0)
@@ -589,7 +589,7 @@ def is_open(
     id_val: str | None,
 ) -> None:
     """True if the license is OSI-approved OR FSF-libre."""
-    record = resolve_license_record(ctx, input_val, text, id_val)
+    record = detect_license_record(ctx, input_val, text, id_val)
     if record and (record.get("is_osi_approved") or record.get("is_fsf_libre")):
         echo("true")
         ctx.exit(0)
@@ -624,7 +624,7 @@ def is_spdx_cmd(
     id_val: str | None,
 ) -> None:
     """True if the license is in the SPDX License List."""
-    record = resolve_license_record(ctx, input_val, text, id_val)
+    record = detect_license_record(ctx, input_val, text, id_val)
     if record and record.get("is_spdx"):
         echo("true")
         ctx.exit(0)

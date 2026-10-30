@@ -48,7 +48,7 @@ from tools.cli_matrix.model import Cell
 from tools.cli_matrix.report import MATCH_FLAGS, UNIVERSE, write_coverage
 from tools.cli_matrix.runner import plan, run_cell
 
-#: Cells the smoke run covers: one per input source for ``match`` and for
+#: Cells the smoke run covers: one per input source for ``detect`` and for
 #: ``is-osi``, plus a help cell. None of them needs more than MIT.
 SMOKE_IDS = (
     "A1-001",
@@ -343,11 +343,11 @@ def test_the_checklist_lists_every_match_option() -> None:
     """A new option shows up in the coverage checklist, or this fails."""
     options = {
         o
-        for p in cli_mod.cli.commands["match"].params
+        for p in cli_mod.cli.commands["detect"].params
         for o in (*p.opts, *p.secondary_opts)
         if o.startswith("--")
     }
-    assert set(UNIVERSE["match"]) == options | {"--help"}
+    assert set(UNIVERSE["detect"]) == options | {"--help"}
     assert set(MATCH_FLAGS) == options
 
 
@@ -465,8 +465,8 @@ def test_coverage_checklist_counts_what_ran(tmp_path: Path) -> None:
     path = tmp_path / "coverage.md"
     write_coverage(path, rows, cells)
     text = path.read_text(encoding="utf-8")
-    assert "| match | --json | 1 | bash | 310 |" in text
-    assert "| match | --diff | 0 |  |  |" in text
+    assert "| detect | --json | 1 | bash | 310 |" in text
+    assert "| detect | --diff | 0 |  |  |" in text
     assert "Uncovered pairs:" in text
 
 
@@ -533,7 +533,7 @@ def test_smoke_run_has_no_flags(tmp_path: Path) -> None:
     licenseid_script() is None, reason="no licenseid script next to sys.executable"
 )
 def test_a_match_cell_opens_no_socket(tmp_path: Path) -> None:
-    """A plain match must not touch the network, however the env is set.
+    """A plain detect must not touch the network, however the env is set.
 
     A ``sitecustomize`` on the cell's path records every connection attempt
     before it can be made, so the proof does not depend on the attempt
@@ -543,7 +543,7 @@ def test_a_match_cell_opens_no_socket(tmp_path: Path) -> None:
     watcher = tmp_path / "watch"
     log = tmp_path / "sockets.log"
     _write_socket_watcher(watcher, log)
-    cell = make_cell(cmd="$L --db $DB match --bold $F/mit.txt", kind="match")
+    cell = make_cell(cmd="$L --db $DB detect --bold $F/mit.txt", kind="detect")
     result = run_cell(
         cell,
         "bash",

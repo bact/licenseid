@@ -4,16 +4,16 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0
 ---
 
-# The result of `resolve()`
+# The result of `match()`
 
-What `licenseid.resolve()` returns for a declared licence value: every
+What `licenseid.match()` returns for a declared licence value: every
 field, the categories and their trust, the reasons for a refusal, and how
 quote marks are read. The [README](../README.md#python-api) shows how to
 call it.
 
 ## The whole result
 
-For `resolve("Apache2")`, as JSON:
+For `match("Apache2")`, as JSON:
 
 ```json
 {
@@ -73,7 +73,7 @@ order: `operator_case`, `whitespace`,
 after. `components` names the tools besides licenseid that took part (the
 expression parser, `py-spdx-license`, whenever it parsed the value: a
 compound, read or refused), and `by` on a step names the one that took it
-(`""`: licenseid). For `resolve("GPLv2+ or MIT")`, shortened:
+(`""`: licenseid). For `match("GPLv2+ or MIT")`, shortened:
 
 ```json
 {
@@ -112,13 +112,13 @@ compound, read or refused), and `by` on a step names the one that took it
 
 A `;` between licences says there are several and not how they combine:
 `MIT ; Apache 2` may be `Apache-2.0 AND MIT` or `Apache-2.0 OR MIT`.
-`resolve()` does not choose. The value is `unresolved`, `expression` is
+`match()` does not choose. The value is `unresolved`, `expression` is
 `None`, `reason` is `operator not stated: ;`, and `operands` holds one entry
 for each part, in order, each read as the same text would be alone (so a part
 that is a compound, `MIT OR ISC`, is read as that compound, and a part that
 cannot be read keeps its own category and `reason`). A caller that asks only
 whether every licence is OSI approved has an answer whatever the operator.
-For `resolve("MIT ; Apache 2")`, shortened:
+For `match("MIT ; Apache 2")`, shortened:
 
 ```json
 {
@@ -209,7 +209,7 @@ unless an operand has its own (a dropped mark). A refused value is category
 `unresolved` with no expression, or `malformed` when the compound breaks the
 grammar but names a licence (`MIT AND`). For a dropped mark, `steps` holds
 one `drop` step with `applied` false: its `to` is the listed ID the loose
-reading named (`resolve("Apache 2.0?")` would have read `Apache-2.0`; a
+reading named (`match("Apache 2.0?")` would have read `Apache-2.0`; a
 renamed ID is not followed) and its `detail` the code points. White space,
 `_`, `.`, a dash (the hyphen-minus, the Unicode hyphens and dashes and the
 minus sign) and one `.` or `,` at the end are not marks; nor is one `;` or

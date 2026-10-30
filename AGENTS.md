@@ -5,7 +5,7 @@
 - License ID detection using hybrid search (`licenseid` package).
 - Architecture: SQLite FTS5 trigram tokenization (Tier 1 recall) and RapidFuzz
   (Tier 2 precision ranking).
-- Matching modules: `matcher.py` (the pipeline), `retrieval.py` (Tier 1),
+- Matching modules: `detector.py` (the pipeline), `retrieval.py` (Tier 1),
   `shorttext.py` (Tier 0 IDs and names), `looseid.py` (a loosely written
   ID: "Apache2", "GPLv3", "GPLv2 or any later version"), `ranking.py`
   (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
@@ -14,7 +14,8 @@
   spelling of an ID), `trovenames.py` (the `License ::` trove names as
   data), `resolver.py` (a declared licence value to an SPDX expression and
   the steps taken; its types and vocabularies are in `resolvertypes.py`),
-  `listlookup.py` (the list lookups the resolver
+  `keptdetector.py` (`licenseid.detect()`: one `LicenseDetector` kept per
+  default database file), `listlookup.py` (the list lookups the resolver
   reads through: a Protocol), `listrules.py` (which SPDX entries are kept and
   what a deprecated ID points to; `records.py` builds rows from it),
   `resolveleaf.py` (the reading of one value that names one licence, called
@@ -28,8 +29,8 @@
   (the resolver, parser and list blocks of a result),
   `dropguard.py` (the characters and words a loose reading must not drop:
   `Apache 2.0?`, `REM MIT`), `listindex.py` (the shipped SPDX bundle in
-  memory, a `ListLookup` for `resolve()` with no database),
-  `listsource.py` (which list `resolve()` reads: database or packaged),
+  memory, a `ListLookup` for `match()` with no database),
+  `listsource.py` (which list `match()` reads: database or packaged),
   `identifiers.py`, `classify.py`, `normalize.py`, `textinput.py` (bytes
   to text), `manifest.py` (the `license` field of package.json,
   pyproject.toml, Cargo.toml, setup.cfg), `datadir.py` (the default
@@ -44,8 +45,8 @@
   CLI's standard output and what a
   failed write means), `result.py` (the public result and its JSON and text
   lines), `types.py`, `usage.py` (click's usage errors in the grammar).
-  Keep `matcher.py` under the 800-line limit: put logic that needs no
-  matcher state in one of the others.
+  Keep `detector.py` under the 800-line limit: put logic that needs no
+  detector state in one of the others.
 - Release sources of `update`, by where the data comes from: `compact`
   (our 1 MB bundle on the `data` branch), `upstream` (SPDX's own tarball),
   `packaged` (the bundle in the wheel). "Bundle" is only the file format
@@ -64,14 +65,14 @@
   academic write-up (system, results, history, human–AI sessions). Add to
   it when a finding is worth publishing; start at its `README.md`.
 - Test fixtures: `tests/fixtures/README.md`
-- User docs: `README.md` (overview, CLI, Python API) and `docs/resolve.md`
-  (every field of `resolve()`'s result, its categories and trust, the
+- User docs: `README.md` (overview, CLI, Python API) and `docs/match.md`
+  (every field of `match()`'s result, its categories and trust, the
   reasons for a refusal, quote marks). A change to any of those updates
-  `docs/resolve.md`; `tests/test_resolver_shapes.py` checks its category
+  `docs/match.md`; `tests/test_resolver_shapes.py` checks its category
   table.
-- Which licence values `resolve()` should read next: measure, do not guess.
+- Which licence values `match()` should read next: measure, do not guess.
   `tools/pypi_licence_sample/README.md` samples real PyPI values and counts
-  what `resolve()` reads; findings in
+  what `match()` reads; findings in
   `working-docs/design/resolver-0-7-evidence.md`.
 - Private alpha, one developer. No backward compat needed yet.
 - `working-docs/` is internal notes only — content can change without notice.
@@ -139,7 +140,7 @@ Unix philosophy. Consistent, predictable, parseable.
     (`SUBJECT: CONDITION…`, no prefix); the CLI prints it after `ERROR:` and
     exits 1, or 2 for its subclass `InvalidInputError` (a usage error). The
     CLI also exits 2 for `DatabaseNotReadyError` (a database that is missing,
-    empty, invalid or unreadable) in `match` and the `is-*` commands, where
+    empty, invalid or unreadable) in `detect` and the `is-*` commands, where
     exit 1 already means "no". `update` and `--clear-cache` write or delete,
     so they refuse only an `invalid` database — one licenseid did not build
     — and accept every other condition, which is what they exist to fix.
@@ -171,10 +172,10 @@ Unix philosophy. Consistent, predictable, parseable.
   - `tests/conftest.py::check_diagnostic_grammar` fails any test that
     prints a line breaking this grammar.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
-- JSON output supported as options. `match --json` prints JSON Lines, one
+- JSON output supported as options. `detect --json` prints JSON Lines, one
   RFC 8785 (JCS) object per result, through `licenseid.result.json_line`;
   the text line comes from `text_line` beside it. Both print the public form
-  `result.public_result` builds at the one exit of `match()`: tiers rank on
+  `result.public_result` builds at the one exit of `detect()`: tiers rank on
   their raw score (above 1 for a Tier 0 ID or name hit, look-alikes
   included, and for a close text with its bonuses), never on the public
   one, capped to 1. `exact`
@@ -233,7 +234,7 @@ constraint).
 
 - **The Boy Scout Rule**: leave the codebase cleaner than you found it. Refactor
   proactively during small changes.
-- **Prevent monoliths**: never let a single file (like `matcher.py` or
+- **Prevent monoliths**: never let a single file (like `detector.py` or
   `database.py`) become a dumping ground. Extract cohesive pieces into dedicated
   modules early — see the file-size limit above.
 - **Consolidate patterns**: extract duplicated logic into shared helpers
@@ -358,14 +359,14 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - One reader for user input: `textinput.read_text_file` / `decode_input`
   (UTF-8 with BOM dropped, else Latin-1 with a warning, NUL means binary,
   checked by `reject_binary`, which `--text` also calls). The CLI and
-  `match(file_path=...)` both use it; do not `open()` a user file
-  anywhere else (`tests/test_textinput.py` fails if `cli.py` or `matcher.py`
+  `detect(file_path=...)` both use it; do not `open()` a user file
+  anywhere else (`tests/test_textinput.py` fails if `cli.py` or `detector.py`
   does). The SPDX data files stay strict UTF-8 on purpose: a fallback there
   would hide a corrupt download. A text with a lone surrogate (an API string,
   or a command-line argument of invalid UTF-8, which Python decodes to
   `\udcXX`) cannot be encoded for SQLite's parameter binding:
   `textinput.reject_lone_surrogate` raises `InvalidInputError` at the one
-  place the matcher takes a text, and `cli.reject_unencodable` exits 2 first
+  place the detector takes a text, and `cli.reject_unencodable` exits 2 first
   for `--text` and the argument.
 - `hatch_build.py` (Hatch custom hook, standard library only: the build
   environment has no `licenseid`) puts the packaged SPDX bundle in the wheel and
@@ -390,8 +391,8 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   or
   `LicenseRef-*` with at least one recognised ID, never for free text or an
   unknown ID. `is_*()` and the CLI's `is-*` commands answer from
-  `matcher.resolve_record`, so they agree with `match`; do not look a record
-  up in the database on the side.
+  `LicenseDetector.resolve_record`, so they agree with `detect`; do not look
+  a record up in the database on the side.
 - An `SPDX-License-Identifier` tag value is the rest of its line, up to the
   next tag on it (`[ \t]`, never `\s`, so a tag cannot reach across a line
   break), and
@@ -409,19 +410,20 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   one (`MIT AND GPL-2.0 or later AND Apache-2.0`) is refused rather than
   answered without the operands that follow.
 - A tag and a `license` field hold whatever their author wrote, but `--id`
-  and `match(license_id=...)` declare ONE license:
+  and `detect(license_id=...)` declare ONE license:
   `identifiers.is_simple_expression` is the one judge of that (an ID,
   optionally with `+` unless it ends in `-only` or `-or-later`, or a
   `LicenseRef-*`, which takes no `+`; either
   `WITH` an exception, in any brackets), and
   both entry points read it — `cli.reject_compound_id` exits 2 through
-  `errors.invalid_id_error`, `matcher._try_explicit_id_match` raises. Text
-  that is one simple expression and nothing else (`GPL-2.0+`) is read as
-  `license_id` reads it, by `matcher._try_tier0_short_text`, whatever
-  brings it (argument, `--text`, stdin, file, `match(text=...)`); the rest,
-  and a value that resolves to no license, is matched as text. The CLI
+  `errors.invalid_id_error`, `LicenseDetector._try_explicit_id_match`
+  raises. Text that is one simple expression and nothing else (`GPL-2.0+`)
+  is read as `license_id` reads it, by
+  `LicenseDetector._try_tier0_short_text`, whatever brings it (argument,
+  `--text`, stdin, file, `detect(text=...)`); the rest, and a value that
+  resolves to no license, is matched as text. The CLI
   makes no ID guess of its own. Ask the predicate BEFORE calling
-  `match(license_id=...)`, which raises rather than returning no match.
+  `detect(license_id=...)`, which raises rather than returning no match.
   Do not widen `--id` to expressions
   again: `MIT OR Apache-2.0` declares neither license, and the flags
   (`is-osi`, `is-fsf`) have no answer for it.
@@ -490,16 +492,16 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `Refusal` tag when adding a condition, and decide both policies.
 - `Path.unlink(missing_ok=True)` swallows `FileNotFoundError` only — a
   parent that is a file still raises `NotADirectoryError`.
-- `match()` returns the public form: a score capped to 1 and rounded to 4
+- `detect()` returns the public form: a score capped to 1 and rounded to 4
   places, so an exact hit and a look-alike both show 1. Code or a test that
   ranks, orders or asks "above 1" (Tier 0's early return, the tie-breaker)
-  reads the raw records of `_match_raw`, not `match()`. `exact` is set
+  reads the raw records of `_match_raw`, not `detect()`. `exact` is set
   where a result is made, never derived from the score; an exact text is
   the whole non-empty normalised input equal to the licence's
   `search_text`. A deprecated name is not exact only when a row in use has
   the same normalised name: making every deprecated row inexact lost
   AGPL-3.0 and GFDL-1.x, which have names of their own.
-- A `match()` call shares one SQLite connection among its lookups, through
+- A `detect()` call shares one SQLite connection among its lookups, through
   `LicenseDatabase.reading()` (per thread, opened at the first query,
   closed at the end): query through `_connection()`, never
   `sqlite3.connect`, and wrap a new entry point that makes several lookups
@@ -513,7 +515,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   each table's IDs once (ASCII case folded as SQLite's NOCASE folds it,
   `listlookup.fold_case`), and an unknown ID costs no query. It drops its
   reads when `last_update_datetime` changes, checked once per `reading()` block
-  and at every lookup outside one, so a long-lived matcher sees another
+  and at every lookup outside one, so a long-lived detector sees another
   process's `update`. A new write to `licenses` or `license_index` must
   call `self._tables.clear()`, as `_write_db_records` does. A read made
   while another thread cleared is not kept (`_generation`).
@@ -526,7 +528,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   single long word in a test short too: Tier 1's full-text query costs time
   in its length, 312 s for 2 MB on Windows CI (roadmap item 42).
 - A lookup never creates or writes the database. `Connections.connect` opens
-  read-only (`dbcheck.open_uri`); the matcher makes `LicenseDatabase(path,
+  read-only (`dbcheck.open_uri`); the detector makes `LicenseDatabase(path,
   create=False)`, whose writes open `mode=rw` (a missing file fails, not
   created) and happen only for an older schema (`dbschema.schema_state`)
   of licenseid's own file. A missing norm column is filled in memory

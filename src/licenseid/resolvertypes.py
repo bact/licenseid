@@ -168,10 +168,10 @@ class Operand(TypedDict):
     reason: str | None
 
 
-#: Where ``resolve()`` read a list: the licence database, or the bundle
+#: Where ``match()`` read a list: the licence database, or the bundle
 #: shipped in the wheel, read into memory.
 ListSource = Literal["database", "packaged"]
-#: What ``resolve(source=...)`` takes: one of those, or ``auto`` to choose.
+#: What ``match(source=...)`` takes: one of those, or ``auto`` to choose.
 Source = Literal["auto", "database", "packaged"]
 
 
@@ -189,7 +189,7 @@ class ListInfo(TypedDict):
 
 
 class Resolution(TypedDict):
-    """What ``resolve`` returns for one declared value.
+    """What ``match`` returns for one declared value.
 
     ``schema`` is the version of this shape (:data:`SCHEMA`). ``expression``
     is the SPDX expression to record, in canonical order, or None when the

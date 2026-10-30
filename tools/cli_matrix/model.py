@@ -32,7 +32,7 @@ KNOWN_SHELLS = ("bash", "zsh", "sh", "dash", "ksh")
 EVERY_SHELL: tuple[str, ...] | None = None
 
 #: Subcommands of the CLI, and the predicate subset of them.
-CMDS = ["update", "match", "is-osi", "is-fsf", "is-open", "is-free", "is-spdx"]
+CMDS = ["update", "detect", "is-osi", "is-fsf", "is-open", "is-free", "is-spdx"]
 PREDS = CMDS[2:]
 
 #: A fragment of the MIT licence: enough text for a confident match.
@@ -78,7 +78,7 @@ IDS = [
 ]
 
 _SUBCOMMAND_RE = re.compile(
-    r"\$L(?: --db \S+)? ?(update|match|is-osi|is-fsf|is-open|is-free|is-spdx)?"
+    r"\$L(?: --db \S+)? ?(update|detect|is-osi|is-fsf|is-open|is-free|is-spdx)?"
 )
 _FLAG_RE = re.compile(r"(?<![\w-])(--[a-z][a-z-]*)")
 
@@ -98,7 +98,7 @@ class Cell:
     fam: str
     desc: str
     cmd: str
-    #: match | predicate | update | help | other -- picks the contract judged.
+    #: detect | predicate | update | help | other -- picks the contract judged.
     kind: str = "other"
     #: Which of json / bold / diff the command was asked for.
     outflags: frozenset[str] = frozenset()

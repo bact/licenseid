@@ -15,8 +15,8 @@ import pytest
 from conftest import make_memory_db_path
 
 from licenseid.database import LicenseDatabase
+from licenseid.detector import LicenseDetector
 from licenseid.markers import MarkerDetector
-from licenseid.matcher import AggregatedLicenseMatcher
 
 _GPL_FAMILY_IDS = (
     "GPL-2.0-only",
@@ -110,48 +110,48 @@ def test_db() -> Generator[str, None, None]:
 
 
 def test_spdx_identifier(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     text = "Some source code\nSPDX-License-Identifier: MIT\nMore code"
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert len(results) > 0
     assert results[0]["license_id"] == "MIT"
     assert results[0]["score"] >= 0.95
 
 
 def test_license_field(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     text = "Metadata:\nLicense: Apache License 2.0\nVersion: 1.0"
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert len(results) > 0
     assert results[0]["license_id"] == "Apache-2.0"
 
 
 def test_markdown_heading(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     text = "# README\n\n## License\n\nMIT"
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert len(results) > 0
     assert results[0]["license_id"] == "MIT"
 
 
 def test_ascii_heading_underline(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     text = "LICENSE\n=======\n\nApache License 2.0"
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert len(results) > 0
     assert results[0]["license_id"] == "Apache-2.0"
 
 
 def test_ascii_heading_box(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     text = "#################\n#    LICENSE    #\n#################\n\nMIT"
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert len(results) > 0
     assert results[0]["license_id"] == "MIT"
 
 
 def test_mixed_content_windowed_search(test_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(test_db)
+    matcher = LicenseDetector(test_db)
     # A large README with license info buried
     text = (
         "Project Name\n"
@@ -161,7 +161,7 @@ def test_mixed_content_windowed_search(test_db: str) -> None:
         + "\n"
         + "More junk " * 100
     )
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     assert len(results) > 0
     assert results[0]["license_id"] == "MIT"
 
@@ -169,7 +169,7 @@ def test_mixed_content_windowed_search(test_db: str) -> None:
 # --- _detect_gpl_headers() -----------------------------------------------
 #
 # Characterization tests for MarkerDetector._detect_gpl_headers(), written
-# directly against the method (bypassing AggregatedLicenseMatcher/detect())
+# directly against the method (bypassing LicenseDetector/detect())
 # since that's the unit under test.  Written and verified against the
 # CURRENT (unrefactored) implementation before extracting helper methods
 # out of it, so a later refactor cannot silently change any of these rules.

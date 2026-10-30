@@ -40,9 +40,9 @@ generator.*
   - `GPL-2.0+` → `GPL-2.0-or-later` (SPDX `+` operator, unambiguous).
   - `Apache-2+` → `Apache-2.0+` (abbreviated base canonicalised, `+` retained).
   - Bare deprecated IDs (e.g. `GPL-2.0`) resolved conservatively to `-only`
-    by `match()` when no surrounding context is available; `resolve()` keeps
+    by `detect()` when no surrounding context is available; `match()` keeps
     them as written (below).
-- **Declared-value resolution** (`resolve()`): turns one declared licence
+- **Declared-value resolution** (`match()`): turns one declared licence
   value (a `license` field, a model card) into an SPDX expression and the
   steps taken, without fuzzy matching, with or without a database:
   - with no database it reads the SPDX License List shipped in the wheel, in
@@ -133,11 +133,11 @@ generator.*
   - Structural normalisation of `AND`/`OR` expressions: duplicate operands
     collapse (`MIT AND MIT` → `MIT`) and operands are put in a consistent
     order, making equivalent expressions compare equal. The canonical order of
-    `resolve()` differs from this one (`MirOS OR MIT` there, `MIT OR MirOS`
+    `match()` differs from this one (`MirOS OR MIT` there, `MIT OR MirOS`
     here).
   - `WITH <exception>` expressions are validated and matched against the
     SPDX exception list, not just the license list — e.g.
-    `licenseid match --id "MIT WITH Font-exception-2.0"` resolves correctly
+    `licenseid detect --id "MIT WITH Font-exception-2.0"` resolves correctly
     even though it isn't a single license row.
   - A `SPDX-License-Identifier` tag, and the `license` field of a JSON, TOML
     or INI file, are read as whole expressions, parentheses, `LicenseRef-*`
@@ -219,16 +219,16 @@ Identify license text from a file, an ID, or a string:
 
 ```bash
 # From a file (smart detection)
-licenseid match LICENSE.txt
+licenseid detect LICENSE.txt
 
 # From an ID (smart detection)
-licenseid match MIT
+licenseid detect MIT
 
 # From a string (smart detection / piped)
-echo "MIT License..." | licenseid match
+echo "MIT License..." | licenseid detect
 
 # Explicit ID lookup (fastest, skips similarity check)
-licenseid match --id MIT
+licenseid detect --id MIT
 ```
 
 An argument names a file when one exists by that name. One that does not,
@@ -262,7 +262,7 @@ Common options:
   is matched as text: `MIT but modified heavily by us` is text, not MIT.
   An argument that names no file is first checked for the shape of a path
   (see above). A value that is no license, such as `GPL-2.0-only+` (a "+"
-  after a stated qualifier), is a "no" as text (exit 1, and `match()`
+  after a stated qualifier), is a "no" as text (exit 1, and `detect()`
   returns no result) and a usage error as `--id` (exit 2).
 - `--text <text>`: Match the given text. Backslash escapes such as `\n`,
   `\t` and `\u00e9` are decoded, so write `\\` for a literal backslash
@@ -335,7 +335,7 @@ LICENSE_ID=ECL-2.0 METHOD=text EXACT=false SCORE=0.9584 SIMILARITY=0.9584 COVERA
 ID only:
 
 ```bash
-licenseid match LICENSE.txt --bold
+licenseid detect LICENSE.txt --bold
 ```
 
 Example output:
@@ -347,7 +347,7 @@ Apache-2.0
 JSON:
 
 ```bash
-licenseid match LICENSE.txt --json
+licenseid detect LICENSE.txt --json
 ```
 
 Example output, in JSON Lines: one object per result per line, in the
@@ -363,7 +363,7 @@ Diff (visual comparison), here of an Apache-2.0 file with its copyright
 line filled in:
 
 ```bash
-licenseid match LICENSE --diff --top 1
+licenseid detect LICENSE --diff --top 1
 ```
 
 Example output (a diff is shown for the top result when it was matched as
@@ -406,7 +406,7 @@ making it suitable for use in scripts and CI/CD pipelines.
 | **141** | Reader gone | The reader closed the pipe (`head -1`); no message. |
 
 A database is not ready when it is missing, empty (no licenses yet), invalid
-(another program's file) or unreadable. `match` and the `is-*` commands refuse
+(another program's file) or unreadable. `detect` and the `is-*` commands refuse
 to answer from one, rather than reporting "no license found" or `false`.
 
 Errors and warnings go to standard error, one per line, in a fixed format:
@@ -459,79 +459,80 @@ echo "MIT License..." | licenseid is-fsf && echo "FSF Libre!"
 
 `licenseid` answers two questions, with one call each:
 
-- **What licence is in this thing?** `match()` detects a licence in a file,
+- **What licence is in this thing?** `detect()` detects a licence in a file,
   a licence text, a source file's `SPDX-License-Identifier` tag or a short
   value. It weighs evidence (IDs, names, full-text search, similarity),
   needs the database, and returns ranked candidates with a score.
-- **What does this declared value mean?** `resolve()` reads one value that
+- **What does this declared value mean?** `match()` reads one value that
   someone wrote to declare a licence, such as a `license` field or a trove
   classifier. It follows rules only, needs no database, and returns one SPDX
   expression with each step taken, or refuses: it never guesses.
 
 ```python
-from licenseid import resolve
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid import detect, match
 
 # A LICENSE file: which licence is it?
-AggregatedLicenseMatcher().match(file_path="LICENSE")[0]["license_id"]
+detect(file_path="LICENSE")[0]["license_id"]
 # "Apache-2.0" for this repository's LICENSE: method "text", a score and
 # a similarity
 
 # A package's license field: what did its author declare?
-resolve("GPLv2 or later")["expression"]
+match("GPLv2 or later")["expression"]
 # "GPL-2.0-or-later", with category, trust and the steps that read it
 ```
 
-Use `match()` to scan files; use `resolve()` to record what a package
-declares, as an SBOM tool does.
+Use `detect()` to scan files; use `match()` to record what a package
+declares, as an SBOM tool does. `licenseid.detect()` uses a
+`LicenseDetector` on the database at the default path, kept while that file
+is unchanged; make your own `LicenseDetector(db_path)` for another database.
 
 You can use `licenseid` directly in your Python projects:
 
 ```python
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 
 # Initialize with default database
-matcher = AggregatedLicenseMatcher()
+detector = LicenseDetector()
 
-# 1. Match by Raw Text (Positional or Keyword)
+# 1. Detect by Raw Text (Positional or Keyword)
 # Programmatic API is explicit: positional 'text' is always treated as text.
-results = matcher.match("Permission is hereby granted...")
-results = matcher.match(text="Custom license text...")
+results = detector.detect("Permission is hereby granted...")
+results = detector.detect(text="Custom license text...")
 
-# 2. Match by SPDX License ID (Explicit)
+# 2. Detect by SPDX License ID (Explicit)
 # This performs a fast database lookup and returns full metadata.
-results = matcher.match(license_id="MIT")
+results = detector.detect(license_id="MIT")
 
-# 3. Match by File Path (Explicit)
+# 3. Detect by File Path (Explicit)
 # The file is read as the CLI reads it: UTF-8, else Latin-1 with a warning;
 # binary data raises licenseid.InvalidInputError.
-results = matcher.match(file_path="LICENSE.txt")
+results = detector.detect(file_path="LICENSE.txt")
 
 # 4. Predicates
 # Supports keyword arguments for precise control.
-if matcher.is_osi(license_id="MIT"):
+if detector.is_osi(license_id="MIT"):
     print("OSI Approved!")
 
-if matcher.is_open(file_path="LICENSE.txt"):
+if detector.is_open(file_path="LICENSE.txt"):
     print("Open Source!")
 
-if matcher.is_spdx(text="Creative Commons Zero v1.0 Universal"):
+if detector.is_spdx(text="Creative Commons Zero v1.0 Universal"):
     print("SPDX Match Found!")
 ```
 
-`match()` takes the keyword options `enable_popularity`, `exclude`, `hint`,
+`detect()` takes the keyword options `enable_popularity`, `exclude`, `hint`,
 `only_common` and `only_spdx`, and raises `licenseid.InvalidInputError` (a
 `RuntimeError`) for any other, such as a mistyped name. The options shape the
 ranking of license text; an explicit `license_id`, a bare ID or name and an
 `SPDX-License-Identifier` tag are answered before they are read.
 
 To record a licence a package *declares* (a `license` field, a model card),
-use `licenseid.resolve()`. It returns the SPDX expression and each step taken,
+use `licenseid.match()`. It returns the SPDX expression and each step taken,
 so a caller can tell a changed case from a re-spelt ID. A bare deprecated ID
 such as `GPL-3.0` is never narrowed to `-only`: it comes back as written
 (category `assumed_only`) with both candidates.
 
-`resolve()` needs no database. With none given (`source="auto"`, the
+`match()` needs no database. With none given (`source="auto"`, the
 default), it reads the database at the default path or the SPDX License List
 shipped in the wheel, whichever holds the newer List; a tie goes to the
 database only if this licenseid's build rules made its rows (not those of an
@@ -540,7 +541,7 @@ the shipped list; with a database that is there but unusable, the shipped
 list after one `WARNING: database: <condition>: <detail>; using packaged data
 v<version>` on standard error. `source="database"` reads only the database
 (and raises for one that cannot answer, as `auto` would call it unusable) and
-`source="packaged"` only the shipped list; `resolve(value, db)` reads `db`.
+`source="packaged"` only the shipped list; `match(value, db)` reads `db`.
 The answer is the same from either, and `lists[*].source` says which was
 read. `licenseid.DatabaseNotReadyError` is raised only when the chosen
 list cannot be read: with `auto`, when there is neither (an editable install
@@ -552,9 +553,9 @@ keeps coarse times (FAT, HFS+) and the update keeps the file's size within
 one tick.
 
 ```python
-from licenseid import resolve
+from licenseid import match
 
-r = resolve("Apache2")
+r = match("Apache2")
 r["expression"]  # "Apache-2.0"
 r["category"]    # "version_spelling"
 [s["kind"] for s in r["steps"]]  # ["separator", "version_spelling"]
@@ -565,16 +566,16 @@ r["lists"][0]["source"]  # read from the "database" or the "packaged" list
 
 The whole result, its categories and their trust, the reasons for a
 refusal, licences joined by a `;` (`r["operands"]` lists each) and how quote
-marks are read are in [docs/resolve.md][resolve-doc].
+marks are read are in [docs/match.md][match-doc].
 
-[resolve-doc]: https://github.com/bact/licenseid/blob/main/docs/resolve.md
+[match-doc]: https://github.com/bact/licenseid/blob/main/docs/match.md
 
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or
 unreadable, for example before the first `licenseid update`; its `condition`
 (`not found`, `empty`, `invalid`, `unreadable`) and `detail` say which, apart
 from the message. So does any later
-call, such as `match()`, if the file is deleted, truncated or damaged in the
+call, such as `detect()`, if the file is deleted, truncated or damaged in the
 meantime; then the `sqlite3` error is its `__cause__`. A lookup creates
 nothing and writes nothing, except that the constructor adds what a database of
 an earlier version lacks. A database that an earlier version built is in WAL
@@ -584,11 +585,11 @@ mode, and SQLite then leaves `-shm` and `-wal` files beside it until the next
 `licenseid.get_default_db_path()` returns the path used when none is given
 (it raises `DatabaseNotReadyError` when the account has no home directory).
 
-Each result is a `licenseid.LicenseMatch` with the same keys, `license_id`,
+Each result is a `licenseid.Detection` with the same keys, `license_id`,
 `method` (a `licenseid.Method`), `exact`, `score`, `similarity`, `coverage`,
 `is_spdx`, `is_osi_approved` and `is_fsf_libre`, as in the CLI's output
 above; `similarity` and `coverage` are `None` where nothing was measured.
-For `match(text="MIT")`:
+For `detect(text="MIT")`:
 
 ```python
 [

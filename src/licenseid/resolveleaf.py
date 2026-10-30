@@ -9,11 +9,11 @@
 name, a loosely written ID, a ``+`` or an "or later" grant, with its
 exception if it has one) and records in a :class:`Found` the expression, the
 steps taken, the expansions it declined to apply and the candidates.
-``resolver.resolve`` calls it once for the whole declared value; the
+``resolver.match`` calls it once for the whole declared value; the
 compound reader calls it once for each operand. It refuses a licence or an
 exception longer than ``MAX_KEY_INPUT`` (no ID is longer), but not a control
 character or an over-long value: the caller refuses those first, as
-``resolve`` does. It reads the list through
+``match`` does. It reads the list through
 :class:`licenseid.listlookup.ListLookup` alone and knows nothing of the
 database, of brackets around the whole value, or of an expression of several
 licences. The gate covers each half of a WITH (decision Q16), so a long

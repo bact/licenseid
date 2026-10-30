@@ -182,16 +182,16 @@ def _add_afterwards(cells: CellSet) -> None:
     """D7: the database an update leaves behind is usable."""
     cells.add(
         "D7",
-        "update then match uses the new database",
+        "update then detect uses the new database",
         "mkdir -p $W/x && $LU --db $W/x/licenses.db update >/dev/null 2>&1"
-        " && $L --db $W/x/licenses.db match --bold MIT",
-        kind="match",
+        " && $L --db $W/x/licenses.db detect --bold MIT",
+        kind="detect",
         exp_exit=0,
         exp_out=r"MIT\n",
     )
     cells.add(
         "D7",
-        "update --force rebuilds, match still works",
+        "update --force rebuilds, detect still works",
         "mkdir -p $W/x && $LU --db $W/x/licenses.db update >/dev/null 2>&1"
         " && $LU --db $W/x/licenses.db update --force >/dev/null 2>&1"
         " && $L --db $W/x/licenses.db is-osi Apache-2.0",

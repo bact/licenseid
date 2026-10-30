@@ -23,8 +23,8 @@ Method = Literal["tag", "field", "id", "name", "text"]
 UpdateSource = Literal["auto", "compact", "upstream", "packaged"]
 
 
-class LicenseMatch(TypedDict):
-    """A match as match() returns it: the same keys for every method.
+class Detection(TypedDict):
+    """A match as detect() returns it: the same keys for every method.
 
     ``score`` is 0-1: each method's ranking key, capped to 1, so scores from
     different methods are not on one scale; the list is in ranking order,
@@ -109,8 +109,8 @@ class InternalMatch(TypedDict, total=False):
     is_fsf_libre: bool
 
 
-class MatchRequest(TypedDict, total=False):
-    """Input to AggregatedLicenseMatcher.match()."""
+class DetectRequest(TypedDict, total=False):
+    """Input to LicenseDetector.detect()."""
 
     text: str
     license_id: str

@@ -6,7 +6,7 @@
 """Family B: the predicate subcommands (``is-osi`` and friends).
 
 ``B1`` every input source, ``B2`` which input wins when several are given,
-``B3`` flags that belong to ``match`` only, ``B4`` argument syntax,
+``B3`` flags that belong to ``detect`` only, ``B4`` argument syntax,
 ``B5`` one identifier asked of all five predicates, so their answers can be
 checked against each other.
 """
@@ -40,7 +40,7 @@ PRECEDENCE = [
     ("--text twice", "--text {o} --text {f}"),
 ]
 
-#: Flags that only ``match`` accepts: a predicate must reject each of them.
+#: Flags that only ``detect`` accepts: a predicate must reject each of them.
 MATCH_ONLY = (
     "--json",
     "--bold",
@@ -112,12 +112,12 @@ def _add_precedence(cells: CellSet) -> None:
 
 
 def _add_match_only_flags(cells: CellSet) -> None:
-    """B3: a predicate given a flag only ``match`` has must be a usage error."""
+    """B3: a predicate given a flag only ``detect`` has must be a usage error."""
     for cmd in PREDS:
         for flag in MATCH_ONLY:
             cells.add(
                 "B3",
-                f"{cmd} with match-only flag {flag}",
+                f"{cmd} with detect-only flag {flag}",
                 licenseid(f"{cmd} MIT {flag}"),
                 kind="predicate",
                 exp_exit=2,

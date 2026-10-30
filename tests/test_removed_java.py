@@ -17,9 +17,9 @@ from click.testing import CliRunner
 from conftest import MIT_SEARCH_TEXT, make_mit_db_path
 
 from licenseid.cli import cli
+from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
-from licenseid.matcher import AggregatedLicenseMatcher
-from licenseid.types import InternalMatch, LicenseMatch, MatchRequest
+from licenseid.types import Detection, DetectRequest, InternalMatch
 
 
 @pytest.fixture
@@ -38,13 +38,13 @@ def mit_db() -> Generator[str, None, None]:
 )
 def test_java_options_are_rejected(mit_db: str, flags: list[str]) -> None:
     """A usage error (exit 2), worded as every other diagnostic."""
-    result = CliRunner().invoke(cli, ["--db", mit_db, "match", "MIT", *flags])
+    result = CliRunner().invoke(cli, ["--db", mit_db, "detect", "MIT", *flags])
     assert result.exit_code == 2
     assert result.stdout == ""
     assert re.match(r"ERROR: option: not found: --(no-)?java;", result.stderr)
 
 
-@pytest.mark.parametrize("args", [["--help"], ["match", "--help"]])
+@pytest.mark.parametrize("args", [["--help"], ["detect", "--help"]])
 def test_help_does_not_mention_java(args: list[str]) -> None:
     result = CliRunner().invoke(cli, args)
     assert result.exit_code == 0
@@ -67,37 +67,37 @@ def tools_jar_env(
 def test_tools_jar_variable_is_ignored(mit_db: str, tools_jar_env: str) -> None:
     del tools_jar_env  # only its side effect (the environment variable) matters
     for args in (["--id", "MIT"], ["--text", MIT_SEARCH_TEXT]):
-        result = CliRunner().invoke(cli, ["--db", mit_db, "match", "--bold", *args])
+        result = CliRunner().invoke(cli, ["--db", mit_db, "detect", "--bold", *args])
         assert (result.exit_code, result.stdout, result.stderr) == (0, "MIT\n", "")
-    assert AggregatedLicenseMatcher(mit_db).match(text=MIT_SEARCH_TEXT)
+    assert LicenseDetector(mit_db).detect(text=MIT_SEARCH_TEXT)
 
 
 def test_matcher_has_no_java_state(mit_db: str) -> None:
-    matcher = AggregatedLicenseMatcher(mit_db)
+    matcher = LicenseDetector(mit_db)
     for name in ("enable_java", "jar_path", "has_java", "_consult_java", "_ensure_jvm"):
         assert not hasattr(matcher, name), name
     with pytest.raises(TypeError, match="enable_java"):
         # pylint: disable-next=unexpected-keyword-arg
-        AggregatedLicenseMatcher(mit_db, enable_java=True)  # type: ignore[call-arg]
+        LicenseDetector(mit_db, enable_java=True)  # type: ignore[call-arg]
 
 
 def test_enable_popularity_is_keyword_only(mit_db: str) -> None:
     """It took the positional slot enable_java used to hold, so a stale
-    AggregatedLicenseMatcher(db, True) must fail, not turn popularity on."""
+    LicenseDetector(db, True) must fail, not turn popularity on."""
     with pytest.raises(TypeError):
         # pylint: disable-next=too-many-function-args
-        AggregatedLicenseMatcher(mit_db, True)  # type: ignore[call-arg]
-    assert AggregatedLicenseMatcher(mit_db, enable_popularity=True).enable_popularity
+        LicenseDetector(mit_db, True)  # type: ignore[call-arg]
+    assert LicenseDetector(mit_db, enable_popularity=True).enable_popularity
 
 
 def test_result_types_have_no_java_fields() -> None:
-    assert "java_verified" not in LicenseMatch.__annotations__
+    assert "java_verified" not in Detection.__annotations__
     assert "java_verified" not in InternalMatch.__annotations__
-    assert "enable_java" not in MatchRequest.__annotations__
+    assert "enable_java" not in DetectRequest.__annotations__
 
 
 def test_match_result_has_no_java_key(mit_db: str) -> None:
-    results = AggregatedLicenseMatcher(mit_db).match(text=MIT_SEARCH_TEXT)
+    results = LicenseDetector(mit_db).detect(text=MIT_SEARCH_TEXT)
     assert results
     assert all("java_verified" not in r for r in results)
 
@@ -105,6 +105,6 @@ def test_match_result_has_no_java_key(mit_db: str) -> None:
 def test_stale_enable_java_option_is_rejected(mit_db: str) -> None:
     """A caller that still passes enable_java gets an error, not a silent
     no-op (roadmap item 1; see also tests/test_match_options.py)."""
-    matcher = AggregatedLicenseMatcher(mit_db)
+    matcher = LicenseDetector(mit_db)
     with pytest.raises(InvalidInputError, match="option: invalid: 'enable_java'"):
-        matcher.match(text=MIT_SEARCH_TEXT, enable_java=True)
+        matcher.detect(text=MIT_SEARCH_TEXT, enable_java=True)

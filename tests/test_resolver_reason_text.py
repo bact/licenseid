@@ -13,9 +13,9 @@ import py_spdx_license
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import LicenseDatabase, exprcanon, resolve
+from licenseid import LicenseDatabase, exprcanon, match
 
-#: A leaf of several words that ``resolve`` reads alone (S1).
+#: A leaf of several words that ``match`` reads alone (S1).
 SEVERAL_WORDS = [
     ("BSD 3-Clause OR Apache-2.0", "BSD 3-Clause"),
     ("MIT OR Apache 2.0", "Apache 2.0"),
@@ -31,8 +31,8 @@ SEVERAL_WORDS = [
 def test_a_leaf_of_several_words_that_resolves_alone(
     corpus_db: LicenseDatabase, value: str, leaf: str
 ) -> None:
-    got = resolve(value, corpus_db)
-    assert resolve(leaf, corpus_db)["expression"] is not None
+    got = match(value, corpus_db)
+    assert match(leaf, corpus_db)["expression"] is not None
     assert got["expression"] is None
     assert got["reason"] == f"operand of several words: {leaf}"
 
@@ -53,13 +53,13 @@ def test_a_leaf_of_several_words_that_resolves_alone(
 def test_a_line_break_in_a_leaf_reaches_the_reason(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    reason = resolve(value, corpus_db)["reason"]
+    reason = match(value, corpus_db)["reason"]
     assert reason is not None
     assert reason == "operand not resolved: Foo Bar"
 
 
 def test_a_long_leaf_is_cut_in_the_reason(corpus_db: LicenseDatabase) -> None:
-    got = resolve("x\t" * 800 + "y z AND MIT", corpus_db)
+    got = match("x\t" * 800 + "y z AND MIT", corpus_db)
     assert got["reason"] is not None
     assert len(got["reason"]) == len("operand not resolved: ") + 60 + 3
     assert got["reason"].endswith("...")
@@ -71,26 +71,26 @@ def test_a_reason_is_cut_to_sixty_characters(
 ) -> None:
     """(A value over 2,000 characters is no compound: 1,900 is the long case.)"""
     leaf = "Foo" * (size // 3 + 1)
-    reason = resolve(f"{leaf[:size]} OR MIT", corpus_db)["reason"]
+    reason = match(f"{leaf[:size]} OR MIT", corpus_db)["reason"]
     assert reason == f"operand not resolved: {leaf[:60]}..."
 
 
 def test_a_leaf_of_sixty_characters_is_not_cut(corpus_db: LicenseDatabase) -> None:
     leaf = "Foo" * 20
-    reason = resolve(f"{leaf} OR MIT", corpus_db)["reason"]
+    reason = match(f"{leaf} OR MIT", corpus_db)["reason"]
     assert reason == f"operand not resolved: {leaf}"
 
 
 def test_a_semicolon_in_a_reason_is_a_comma(corpus_db: LicenseDatabase) -> None:
     """A reason may reach a diagnostic line, where ``;`` starts the ACTION.
     The one exception is ``not an SPDX operator: ;`` (it names the mark)."""
-    reason = resolve("Foo bar;baz OR MIT", corpus_db)["reason"]
+    reason = match("Foo bar;baz OR MIT", corpus_db)["reason"]
     assert reason == "operand not resolved: Foo bar,baz"
 
 
 def test_the_long_several_word_leaf_is_cut_too(corpus_db: LicenseDatabase) -> None:
     name = "Creative Commons Attribution Non Commercial Share Alike 4.0 International"
-    reason = resolve(f"{name} OR MIT", corpus_db)["reason"]
+    reason = match(f"{name} OR MIT", corpus_db)["reason"]
     assert reason == f"operand of several words: {name[:60]}..."
 
 

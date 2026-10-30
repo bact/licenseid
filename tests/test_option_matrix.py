@@ -11,12 +11,12 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 
 | Surface              | Axes                                         |
 |----------------------|----------------------------------------------|
-| CLI ``match``        | SOURCES x OUTPUTS x found / not found        |
+| CLI ``detect``       | SOURCES x OUTPUTS x found / not found        |
 | CLI ``is-*``         | PREDICATES x SOURCES x found / not found     |
 | CLI blank input      | commands x blank arg / --text / --id / stdin |
-| API ``match()``      | every subset of text / license_id / file     |
+| API ``detect()``     | method / function x text / license_id / file |
 | API ``is_*()``       | PREDICATES x text / license_id / file        |
-| API ``resolve()``    | source x default database (STATES) x bundle  |
+| API ``match()``      | source x default database (STATES) x bundle  |
 
 Current precedence when several inputs are given (pinned below; the losing
 input is ignored without a warning):
@@ -51,10 +51,11 @@ from resolve_states import (
     refusal,
 )
 
-from licenseid import LicenseDatabase, resolve
+import licenseid
+from licenseid import LicenseDatabase, match
 from licenseid.cli import cli
+from licenseid.detector import LicenseDetector
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.resolvertypes import Source
 from tools.cli_matrix.judge import PLAIN
 
@@ -112,7 +113,7 @@ def _invoke(db: str, command: str, args: list[str], stdin: str) -> Result:
     return CliRunner().invoke(cli, ["--db", db, command, *args], input=stdin)
 
 
-# --- CLI match: SOURCES x OUTPUTS x found ---
+# --- CLI detect: SOURCES x OUTPUTS x found ---
 
 
 @pytest.mark.parametrize("found", [True, False], ids=["found", "not_found"])
@@ -122,7 +123,7 @@ def test_match_matrix(
     mit_db: str, tmp_path: Path, source: str, output: tuple[str, ...], found: bool
 ) -> None:
     args, stdin = _source_args(source, found, tmp_path)
-    result = _invoke(mit_db, "match", [*args, *output], stdin)
+    result = _invoke(mit_db, "detect", [*args, *output], stdin)
 
     if source == "none":
         assert (result.exit_code, result.stdout, result.stderr) == (2, "", MISSING)
@@ -199,7 +200,7 @@ def test_predicate_matrix(
         "stdin_bom",
     ],
 )
-@pytest.mark.parametrize("command", ["match", *PREDICATES])
+@pytest.mark.parametrize("command", ["detect", *PREDICATES])
 def test_blank_input(
     mit_db: str, command: str, args: list[str], stdin: str, name: str
 ) -> None:
@@ -223,14 +224,14 @@ def test_blank_input(
     ],
     ids=["id>text", "id>arg", "text>arg", "arg>stdin", "text>stdin"],
 )
-@pytest.mark.parametrize("command", ["match", *PREDICATES])
+@pytest.mark.parametrize("command", ["detect", *PREDICATES])
 def test_cli_input_precedence(
     mit_db: str, command: str, args: list[str], stdin: str
 ) -> None:
     result = _invoke(
-        mit_db, command, ["--bold", *args] if command == "match" else args, stdin
+        mit_db, command, ["--bold", *args] if command == "detect" else args, stdin
     )
-    expected = "MIT\n" if command == "match" else "true\n"
+    expected = "MIT\n" if command == "detect" else "true\n"
     assert (result.exit_code, result.stdout, result.stderr) == (0, expected, "")
 
 
@@ -272,11 +273,26 @@ _SUBSETS = [
 ]
 
 
+@pytest.mark.parametrize("entry", ["method", "function"])
 @pytest.mark.parametrize("names", _SUBSETS, ids=lambda n: "+".join(n) or "none")
-def test_api_match_matrix(mit_db: str, tmp_path: Path, names: tuple[str, ...]) -> None:
+def test_api_match_matrix(
+    mit_db: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    names: tuple[str, ...],
+    entry: str,
+) -> None:
+    """``LicenseDetector.detect`` and ``licenseid.detect`` (the database at
+    the default path) take the same inputs and give the same answers."""
     winner = _winner(names)
     kwargs = _api_kwargs(names, winner, tmp_path)
-    results = AggregatedLicenseMatcher(mit_db).match(**kwargs)
+    if entry == "method":
+        results = LicenseDetector(mit_db).detect(**kwargs)
+    else:
+        monkeypatch.setattr(
+            "licenseid.keptdetector.get_default_db_path", lambda: mit_db
+        )
+        results = licenseid.detect(**kwargs)
     if winner is None:
         assert results == []
     else:
@@ -284,9 +300,7 @@ def test_api_match_matrix(mit_db: str, tmp_path: Path, names: tuple[str, ...]) -
         assert results[0]["score"] >= 0.85
 
 
-_API_PREDICATES: dict[
-    str, Callable[[AggregatedLicenseMatcher], Callable[..., bool]]
-] = {
+_API_PREDICATES: dict[str, Callable[[LicenseDetector], Callable[..., bool]]] = {
     "is_spdx": lambda m: m.is_spdx,
     "is_osi": lambda m: m.is_osi,
     "is_fsf": lambda m: m.is_fsf,
@@ -301,7 +315,7 @@ def test_api_predicate_matrix(
     mit_db: str, tmp_path: Path, predicate: str, name: str, found: bool
 ) -> None:
     kwargs = _api_kwargs((name,), name if found else None, tmp_path)
-    check = _API_PREDICATES[predicate](AggregatedLicenseMatcher(mit_db))
+    check = _API_PREDICATES[predicate](LicenseDetector(mit_db))
     assert check(**kwargs) is found
 
 
@@ -313,18 +327,18 @@ def test_file_path_is_read_the_way_the_cli_reads_a_file(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """The same bytes in a file give the same answer and the same warning
-    through `licenseid match FILE` and `match(file_path=FILE)`: decoding is
+    through `licenseid detect FILE` and `detect(file_path=FILE)`: decoding is
     one function (licenseid.textinput), and this keeps it that way."""
     path = tmp_path / "LICENSE"
     path.write_bytes(payload.data)
-    matcher = AggregatedLicenseMatcher(mit_db)
+    matcher = LicenseDetector(mit_db)
 
-    cli_result = _invoke(mit_db, "match", [str(path)], "")
+    cli_result = _invoke(mit_db, "detect", [str(path)], "")
     if payload.text is None:
         message = f"input: binary file: {path}"
         assert (cli_result.exit_code, cli_result.stderr) == (2, f"ERROR: {message}\n")
         with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
-            matcher.match(file_path=str(path))
+            matcher.detect(file_path=str(path))
         with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
             matcher.is_open(file_path=str(path))
         return
@@ -333,29 +347,29 @@ def test_file_path_is_read_the_way_the_cli_reads_a_file(
     expected_stderr = warning if payload.latin1 else ""
     assert (cli_result.exit_code, cli_result.stderr) == (0, expected_stderr)
     assert cli_result.stdout.startswith("LICENSE_ID=MIT ")
-    assert matcher.match(file_path=str(path))[0]["license_id"] == "MIT"
+    assert matcher.detect(file_path=str(path))[0]["license_id"] == "MIT"
     assert capsys.readouterr().err == expected_stderr
 
 
 def test_a_missing_file_path_raises_oserror(mit_db: str, tmp_path: Path) -> None:
     """Not worded as a licenseid error: the API leaves I/O errors as they are."""
     with pytest.raises(FileNotFoundError):
-        AggregatedLicenseMatcher(mit_db).match(file_path=str(tmp_path / "nope"))
+        LicenseDetector(mit_db).detect(file_path=str(tmp_path / "nope"))
 
 
-# --- API resolve(): source x the database at the default path x bundle ---
+# --- API match(): source x the database at the default path x bundle ---
 
 RESOLVE_SOURCES = ["auto", "database", "packaged"]
 BUNDLES = ["shipped", "none", "invalid"]
 _BUNDLE_BYTES = {"shipped": release_bundle(VERSION), "none": None, "invalid": b"bad"}
 _BAD_BUNDLE = "spdx-bundle.json.gz: invalid: BadGzipFile: Not a gzipped file (b'ba')"
-# What each bundle prints when resolve() loads it: an unusable one warns once.
+# What each bundle prints when match() loads it: an unusable one warns once.
 _LOADED = {"shipped": "", "none": "", "invalid": f"WARNING: {_BAD_BUNDLE}\n"}
 _NO_LIST = {"none": "spdx-bundle.json.gz: not found", "invalid": _BAD_BUNDLE}
 
 
 def _resolve_outcome(source: str, state: str, bundle: str) -> tuple[str, str, str]:
-    """What resolve("MIT", source=source) does, as ``(list source or
+    """What match("MIT", source=source) does, as ``(list source or
     "raise", what it raises, what it prints)``, the last two as regular
     expressions. The bundle holds the database's version, so a usable
     database wins the tie (Q4), an outdated one loses it (Q10). Only
@@ -399,7 +413,7 @@ def test_resolve_matrix(
     state: str,
     bundle: str,
 ) -> None:
-    """With no database given, resolve() reads the database at the default
+    """With no database given, match() reads the database at the default
     path or the bundle shipped in the wheel, as *source* says; a list it
     cannot read raises, a database's message unchanged from 0.6.0."""
     ship(monkeypatch, _BUNDLE_BYTES[bundle])
@@ -408,10 +422,10 @@ def test_resolve_matrix(
     where, raised, said = _resolve_outcome(source, state, bundle)
     if where == "raise":
         with pytest.raises(DatabaseNotReadyError) as error:
-            resolve("MIT", source=source)
+            match("MIT", source=source)
         assert re.fullmatch(raised, str(error.value)), str(error.value)
     else:
-        got = resolve("MIT", source=source)
+        got = match("MIT", source=source)
         assert (got["expression"], got["category"]) == ("MIT", "exact")
         assert [(e["source"], e["version"]) for e in got["lists"]] == [(where, VERSION)]
     err = capsys.readouterr().err
@@ -419,7 +433,7 @@ def test_resolve_matrix(
     # Every warning, an opened database's and the bundle's included, is said
     # once per process.
     with contextlib.suppress(DatabaseNotReadyError):
-        resolve("MIT", source=source)
+        match("MIT", source=source)
     assert capsys.readouterr().err == ""
 
 
@@ -434,7 +448,7 @@ def test_resolve_matrix_with_a_database_given(
     if source == "packaged":
         message = "option: invalid: source: 'packaged' with db; pass db or source"
         with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
-            resolve("MIT", db, source=source)
+            match("MIT", db, source=source)
         return
-    got = resolve("MIT", db, source=source)
+    got = match("MIT", db, source=source)
     assert [entry["source"] for entry in got["lists"]] == ["database"]

@@ -21,7 +21,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   words each click error in the grammar, from the exception's attributes
   (only the extra-argument failure is read from click's English):
   - `option: not found: --bogus; did you mean --bold` (and
-    `command: not found: mat; did you mean match`), click's suggestions
+    `command: not found: detec; did you mean detect`), click's suggestions
     closest first, else `run '<command> --help'`;
   - `option: missing: --top; pass a value`,
     `option: invalid: --top: 'x' is not a valid integer`,
@@ -138,7 +138,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   connection code, moved out of `database.py`. Inside
   `LicenseDatabase.reading()` a thread's queries share one connection,
   opened at the first query and closed when the outermost block ends;
-  `match()`, `resolve_record()` and `diff_pair()` each run in one block.
+  `detect()`, `resolve_record()` and `diff_pair()` each run in one block.
   The same input now takes 1.85 s; the rest is two lookups that scan a
   table (item 37).
   - Rejected: a cache per value, which does not help distinct values; and
@@ -165,14 +165,14 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   `pop_score`, `is_deprecated`, `superseded_by` and `best_window`, keys in
   build order, and a `score` on each tier's scale (a tag 1.0, an exact ID
   or name 1.0 or 1.02, a name sharing the input's words 1.01, a text match
-  up to about 1.08). Now `match()` has one exit, which maps each raw record
+  up to about 1.08). Now `detect()` has one exit, which maps each raw record
   through `result.public_result`: the same nine keys for every result, a
   `method` (tag, field, id, name, text), an `exact` flag, the score capped
   to 0-1 and rounded to 4 places, and null where nothing was measured.
   Ranking keeps the raw score (`_match_raw`). `--json` prints JSON Lines in
   RFC 8785 form through `rfc8785`, a new dependency; the text line gains
   `METHOD=`, `EXACT=` and `SCORE=`, with an empty value for null. `--diff`
-  recomputes the window (`AggregatedLicenseMatcher.diff_pair`) on the
+  recomputes the window (`LicenseDetector.diff_pair`) on the
   input Tier 2 read (a short one without its tags), since `best_window`
   stays internal. `coverage` is a length ratio and passes 1 when the input
   is longer, as it did; it is not capped.
@@ -353,7 +353,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   is unchanged: a tag and a `license` field still carry any expression.
   Three deliberate tightenings: a tag and its value must be on one line; a
   bare CLI argument is read as an ID only when it names one license and every
-  part is recognised (`licenseid match "MIT or something"` no longer prints
+  part is recognised (`licenseid detect "MIT or something"` no longer prints
   an invented ID at similarity 1.0000); and a 400-term chain given as an ID
   is a usage error rather than a question for the parser, which is why item
   19 now bites only on a tag. Over the 1,405 fixture files the before/after
@@ -361,7 +361,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
 
 - An unknown SPDX tag reported as a certain match (item 6, Priority 15;
   2026-09-21). `SPDX-License-Identifier: NoSuchLicense-9.9` (or a typo such
-  as `Apache-2.O`, or `Copyright`, `NONE`) made `match` return that ID with
+  as `Apache-2.O`, or `Copyright`, `NONE`) made `detect` return that ID with
   score 1.0 and `is_spdx: true`, while `is-spdx` said false. The tag branch
   built a placeholder candidate for any value; the JSON, TOML and INI
   `license` fields already used a stricter rule of their own
@@ -378,8 +378,8 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   INI `license` fields, so they also read `+` now and give a `WITH` value its
   license's flags. The CLI's `is-*` commands used to look the top ID up in the
   database on their own, so they said false for every expression and
-  `LicenseRef-*` that `match` accepted; they now call
-  `AggregatedLicenseMatcher.resolve_record`, the same code as the `is_*()`
+  `LicenseRef-*` that `detect` accepted; they now call
+  `LicenseDetector.resolve_record`, the same code as the `is_*()`
   predicates, for `--id`, a positional ID and text alike. One parser wrapper,
   `identifiers.parse_expression`, served the synthetic candidate, the `WITH`
   match and `_canonicalize_expression`, and one `WITH` lookup,
@@ -393,7 +393,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   the database, as it did for the `license` fields; a license newer than that
   list in an expression makes it `is_spdx` false.
 - API `file_path` read as strict UTF-8 (item 4, Priority 16; 2026-09-21).
-  `match(file_path=...)` raised `UnicodeDecodeError` on Latin-1 or UTF-16
+  `detect(file_path=...)` raised `UnicodeDecodeError` on Latin-1 or UTF-16
   and matched NUL bytes and a byte order mark as text, while the CLI reads
   the same file with a Latin-1 fallback, a warning and a binary check. The
   decoder moved from `cli.py` to `licenseid.textinput`, and
@@ -402,7 +402,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   test in `tests/test_option_matrix.py` keep it so). Left as they were, on
   purpose: SPDX data files (`database.py`, `spdx_source.py`) stay strict
   UTF-8, since a Latin-1 fallback there would hide a corrupt download.
-  Known gaps, not part of this item: `match(text=...)` does not check for a
+  Known gaps, not part of this item: `detect(text=...)` does not check for a
   NUL byte or normalise line ends as `--text` does, and an empty file
   returns no match instead of an error.
 - Comment prefixes stripped twice in retrieval (item 14, Priority 10;
@@ -414,7 +414,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   list markers) missed this; `tests/test_get_candidates.py` now pins it.
 - One ranking order, and a consistent `-only` / `-or-later` tie-breaker (item
   8, Priority 12; widened on 2026-09-20 to the whole tie-breaker). Three sorts
-  in `matcher.py` had drifted apart: the main ranking took `DEP_PENALTY` off
+  in `detector.py` had drifted apart: the main ranking took `DEP_PENALTY` off
   a deprecated ID, the tie-breaker's re-sort did not (so it could put a
   deprecated ID back above its replacement), and `match_short_text` carried
   keys its results never have. All three now use `ranking.ranking_key`, or
@@ -441,7 +441,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   right top answer before and 1,948 after (30 GFDL `-only` rows lost it, 29
   `-or-later` rows gained it).
   The GPL family already behaved this way.
-  Left open: the tie-breaker is applied once per `match()` and is not
+  Left open: the tie-breaker is applied once per `detect()` and is not
   idempotent (a second pass on a pair whose preferred side started below its
   peer nudges it again); the +/-0.005 nudge is kept on purpose, so results stay
   sorted by score, at the price of moving reported scores by up to 0.005 and
@@ -450,17 +450,17 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   is a fourth regex that is not shared; `is_pure_license_text` does not flag
   slices of a license, so a quoted notice in one still counts as a grant.
 
-- `match()` silently ignored unknown options (item 1, Priority 20):
-  `AggregatedLicenseMatcher.match()` now raises
+- `detect()` silently ignored unknown options (item 1, Priority 20):
+  `LicenseDetector.detect()` now raises
   `InvalidInputError('option: invalid: <names>; use one of ...')` for a key
-  outside `MatchRequest` (a typo, or a removed option such as `enable_java`),
+  outside `DetectRequest` (a typo, or a removed option such as `enable_java`),
   before it looks at any input, so an explicit `license_id`, empty text or an
   unreadable file cannot let one through. The names are sorted, so the message
   is stable. The `is_*` predicates already refused an unknown keyword, with the
   interpreter's `TypeError` rather than this message; that difference is left.
-  Left open: a *known* option is still ignored when `match()` returns before
+  Left open: a *known* option is still ignored when `detect()` returns before
   ranking (an explicit `license_id`, a bare ID or name, an
-  `SPDX-License-Identifier` tag), so `match(license_id="MIT", exclude=["MIT"])`
+  `SPDX-License-Identifier` tag), so `detect(license_id="MIT", exclude=["MIT"])`
   returns `MIT`. See item 5. Tests: `tests/test_match_options.py`.
 
 - `py-spdx-license` upper bound (item 3, Priority 16): the requirement is
@@ -470,10 +470,10 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   release against `tests/test_markers*.py`.
 
 - Unready database answers silently (2026-09-19 audit): after a failed first
-  `update`, `match` said "no license found" and `is-osi` printed `false`
+  `update`, `detect` said "no license found" and `is-osi` printed `false`
   (exit 1); a non-SQLite `--db` or a directory crashed with a traceback; and
-  a read command on a 0-byte file wrote tables into it. Now `match`, the
-  `is-*` commands and `AggregatedLicenseMatcher()` check readiness first, read
+  a read command on a 0-byte file wrote tables into it. Now `detect`, the
+  `is-*` commands and `LicenseDetector()` check readiness first, read
   only, and report `database: not found`, `empty`, `invalid` (another
   program's objects beside an incomplete set of ours, or a `licenses` table
   without our columns; no `update` hint, as it would write into the file) or
@@ -540,7 +540,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
 - Type-1 `id_casing` and `id_deprecated` accuracy gaps — implemented; see
   the status note at the top of
   [`../design/optimization-recommendation.md`](../design/optimization-recommendation.md).
-- `matcher.py`/`database.py` complexity and file size — tracked
+- `detector.py`/`database.py` complexity and file size — tracked
   separately now in
   [`../design/complexity-and-file-size-roadmap.md`](../design/complexity-and-file-size-roadmap.md)
   rather than here, since it has its own linter-enforced ratchet.
@@ -570,11 +570,11 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   20; 2026-10-22). The string met an encoder in SQLite's parameter binding,
   in the lookup by name that a tag value (or a short text) goes through. The
   CLI could send one too: Python decodes a byte of an argument that is not
-  UTF-8 to `\udcXX` (`licenseid match $'MIT\xff'` printed a traceback, exit
+  UTF-8 to `\udcXX` (`licenseid detect $'MIT\xff'` printed a traceback, exit
   1). Now `textinput.reject_lone_surrogate` raises
   `InvalidInputError` (`input: invalid: text: lone surrogate at character N`)
   at the one place the matcher takes a text (`_resolve_target_text`), so
-  `match`, `resolve_record` and the `is_*()` predicates agree, as they do for
+  `detect`, `resolve_record` and the `is_*()` predicates agree, as they do for
   a `license_id`; the CLI checks `--text` and the argument first
   (`cli.reject_unencodable`) and exits 2. Not "no match": a text that cannot
   be read is the caller's mistake, and a silent `[]` would hide it.
@@ -604,7 +604,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   `tests/test_plus_and_depth.py`, with the deepest shape the cap lets through
   parsed at a recursion limit of 1000.
 - A missing file named as an argument was matched as text (item 32,
-  Priority 24; 2026-10-27). `licenseid match LICENSE.txt` with no such file
+  Priority 24; 2026-10-27). `licenseid detect LICENSE.txt` with no such file
   answered `APL-1.0` at 1 and exited 0. Now an argument that names no file
   and is shaped like a path (one word, no URL, with `/` or `\` or a file
   name's extension such as `.txt`; `textinput.looks_like_path`) exits 2
@@ -618,7 +618,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   2026-10-27). `identifiers._normalize_single_id` resolved the ID before a
   "+" by the shortest ID it prefixed, so `GPL-2+` gave `GPL-2.0-only+` and
   `MI+` gave `MIT+`, both exact. Now the ID before a "+" is read by ID or
-  by its version key (`versionkey.named_row`, as `resolve()` reads it), and
+  by its version key (`versionkey.named_row`, as `match()` reads it), and
   the "+" becomes the -or-later ID where the List has one in use: `GPL-2+`
   is `GPL-2.0-or-later`, `Apache-2+` stays `Apache-2.0+`, and `MI+` names
   nothing. A "+" after a stated qualifier (`GPL-2.0-only+`) names no

@@ -3,11 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Family A: the ``match`` subcommand.
+"""Family A: the ``detect`` subcommand.
 
 ``A1`` every input source against every combination of output flags,
 ``A2`` ``--top`` against ``--threshold`` against popularity,
-``A3`` an all-pairs sweep over every ``match`` factor at once,
+``A3`` an all-pairs sweep over every ``detect`` factor at once,
 ``A4`` adversarial option syntax, where ``click`` itself is under test.
 """
 
@@ -33,7 +33,7 @@ THRS = ["", "0", "0.5", "0.85", "0.99", "1", "1.5", "-1", "abc", "nan"]
 #: Thresholds refused with exit 2: not a number, or outside the 0-1 score.
 BAD_THRS = ("1.5", "-1", "abc", "nan")
 
-#: Every ``match`` factor, for the all-pairs sweep. ``pos`` is where the
+#: Every ``detect`` factor, for the all-pairs sweep. ``pos`` is where the
 #: options sit relative to the input and whether ``--opt=value`` is used.
 FACTORS: dict[str, list[Any]] = {
     "src": ["arg_file", "arg_id", "text", "id", "stdin"],
@@ -46,7 +46,7 @@ FACTORS: dict[str, list[Any]] = {
 }
 
 #: (description, argument string, expected exit or None) for A4. These are
-#: about the parser, not the matcher: abbreviations, repeats, ``--``, empty
+#: about the parser, not the detector: abbreviations, repeats, ``--``, empty
 #: values, and flags swallowed as the value of the option before them.
 SYNTAX: list[tuple[str, str, int | None]] = [
     ("repeat --json", "--json --json MIT", 0),
@@ -102,10 +102,10 @@ def _add_sources(cells: CellSet) -> None:
                 flags = " ".join(f"--{o}" for o in out)
                 cell = cells.add(
                     "A1",
-                    f"match src={name} {'found' if found else 'not-found'} "
+                    f"detect src={name} {'found' if found else 'not-found'} "
                     f"out={'+'.join(out) or 'plain'}",
-                    f"{pre}{licenseid(f'match {args} {flags}')}",
-                    kind="match",
+                    f"{pre}{licenseid(f'detect {args} {flags}')}",
+                    kind="detect",
                     outflags=frozenset(out),
                     exp_exit=2 if name == "none" else (0 if found else 1),
                     group=_source_group(name, found, out),
@@ -148,10 +148,10 @@ def _add_top_threshold(cells: CellSet) -> None:
                 bad = top in ("abc", "1.5") or thr in BAD_THRS
                 cells.add(
                     "A2",
-                    f"match FRAG top={top or 'default'} "
+                    f"detect FRAG top={top or 'default'} "
                     f"threshold={thr or 'default'} {mode or 'plain'}",
-                    licenseid(f"match {args}"),
-                    kind="match",
+                    licenseid(f"detect {args}"),
+                    kind="detect",
                     outflags=frozenset({"json"} if mode else ()),
                     exp_exit=2 if bad else None,
                     top=_top_bound(top),
@@ -172,10 +172,10 @@ def _add_top_threshold(cells: CellSet) -> None:
         )
         cells.add(
             "A2",
-            f"match FRAG top={top or 'default'} "
+            f"detect FRAG top={top or 'default'} "
             f"threshold={thr or 'default'} {pop} json",
-            licenseid(f"match {args}"),
-            kind="match",
+            licenseid(f"detect {args}"),
+            kind="detect",
             outflags=frozenset({"json"}),
             top=int(top) if top else None,
         )
@@ -191,9 +191,9 @@ def _add_top_threshold(cells: CellSet) -> None:
     ):
         cells.add(
             "A2",
-            f"match {args.split(' --text')[0]}",
-            licenseid(f"match {args}"),
-            kind="match",
+            f"detect {args.split(' --text')[0]}",
+            licenseid(f"detect {args}"),
+            kind="detect",
             outflags=frozenset(f for f in ("json", "bold", "diff") if f"--{f}" in args),
             exp_exit=exit_code,
             top=1 if "--top 1" in args else None,
@@ -208,7 +208,7 @@ def _top_bound(top: str) -> int | None:
 
 
 def _add_pairwise(cells: CellSet) -> None:
-    """A3: an all-pairs sweep over every ``match`` factor at once."""
+    """A3: an all-pairs sweep over every ``detect`` factor at once."""
     for row in pairwise(FACTORS):
         out = OUTS[row["out"]]
         pre, args, tag = source(row["src"], row["found"])
@@ -228,8 +228,8 @@ def _add_pairwise(cells: CellSet) -> None:
             f"pairwise src={row['src']} found={row['found']} "
             f"out={'+'.join(out) or 'plain'} top={row['top'] or '-'} "
             f"thr={row['thr'] or '-'} pop={row['pop'] or '-'} pos={row['pos']}",
-            f"{pre}{licenseid(f'match {body}')}",
-            kind="match",
+            f"{pre}{licenseid(f'detect {body}')}",
+            kind="detect",
             outflags=frozenset(out),
             exp_exit=(
                 2
@@ -253,9 +253,9 @@ def _add_syntax(cells: CellSet) -> None:
         )
         cells.add(
             "A4",
-            f"match syntax: {desc}",
-            f"cd $F && {licenseid(f'match {args}')}",
-            kind="match",
+            f"detect syntax: {desc}",
+            f"cd $F && {licenseid(f'detect {args}')}",
+            kind="detect",
             exp_exit=exit_code,
             outflags=frozenset(
                 x for x in ("json", "bold") if real and f"--{x}" in args

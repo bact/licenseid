@@ -17,7 +17,7 @@ from conftest import json_lines
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.cli import cli
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 
 
 @pytest.fixture(scope="module")
@@ -58,15 +58,15 @@ def db() -> Generator[str, None, None]:
 
 
 def _api(db: str, value: str, tmp_path: Path, channel: str) -> list[str]:
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     if channel == "file":
         path = tmp_path / "LICENSE"
         path.write_text(f"{value}\n", encoding="utf-8")
-        results = matcher.match(file_path=str(path))
+        results = matcher.detect(file_path=str(path))
     elif channel == "id":
-        results = matcher.match(license_id=value)
+        results = matcher.detect(license_id=value)
     else:
-        results = matcher.match(text=value)
+        results = matcher.detect(text=value)
     return [r["license_id"] for r in results if r["score"] >= 0.85]
 
 
@@ -79,7 +79,7 @@ def _cli(db: str, value: str, tmp_path: Path, channel: str) -> list[str]:
         "file": ([str(tmp_path / "LICENSE")], None),
     }[channel]
     (tmp_path / "LICENSE").write_text(f"{value}\n", encoding="utf-8")
-    result = CliRunner().invoke(cli, ["--db", db, "match", "--json", *args], stdin)
+    result = CliRunner().invoke(cli, ["--db", db, "detect", "--json", *args], stdin)
     assert result.exit_code == 0, result.output
     return [r["license_id"] for r in json_lines(result.stdout)]
 
@@ -146,7 +146,7 @@ def test_a_lone_expression_is_judged_as_its_id(
 def test_any_other_value_is_read_as_text(
     db: str, value: str, expected: list[tuple[str, str, float, float | None]]
 ) -> None:
-    results = AggregatedLicenseMatcher(db).match(text=value)
+    results = LicenseDetector(db).detect(text=value)
     assert [
         (r["license_id"], r["method"], r["score"], r["similarity"]) for r in results
     ] == expected
@@ -162,6 +162,6 @@ def test_a_deprecated_gfdl_id_has_the_flags_of_its_successor(db: str) -> None:
 def test_a_license_ref_with_a_plus_is_no_license(db: str) -> None:
     """SPDX gives "+" to a license ID only. It answered LicenseRef-x+ as a
     valid SPDX license; as --id it is no single license, a usage error."""
-    assert not AggregatedLicenseMatcher(db).match(text="LicenseRef-x+")
-    result = CliRunner().invoke(cli, ["--db", db, "match", "--id", "LicenseRef-x+"])
+    assert not LicenseDetector(db).detect(text="LicenseRef-x+")
+    result = CliRunner().invoke(cli, ["--db", db, "detect", "--id", "LicenseRef-x+"])
     assert result.exit_code == 2

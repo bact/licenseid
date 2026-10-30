@@ -20,7 +20,7 @@ from urllib.parse import quote
 import pytest
 from db_variants import make_ready_file_db
 
-from licenseid import AggregatedLicenseMatcher, dbcheck
+from licenseid import LicenseDetector, dbcheck
 from licenseid.dbcheck import (
     _drop_drive_slash,
     _path_uri_part,
@@ -116,11 +116,11 @@ def test_a_ready_database_opens_and_matches(tmp_path: Path) -> None:
     path = make_ready_file_db(tmp_path / "real.db")
     check_database_ready(str(path))
     check_database_ready(path.as_uri())
-    uri_matcher = AggregatedLicenseMatcher(db_path=path.as_uri())
-    assert uri_matcher.match(license_id="MIT")
+    uri_matcher = LicenseDetector(db_path=path.as_uri())
+    assert uri_matcher.detect(license_id="MIT")
     del uri_matcher  # Windows cannot delete a file a connection holds open
     with pytest.raises(DatabaseNotReadyError, match="database: not found: "):
         check_database_ready((tmp_path / "none.db").as_uri())
     assert open_uri(str(path)).startswith("file:///")
-    matcher = AggregatedLicenseMatcher(db_path=str(path))
-    assert matcher.match(license_id="MIT")
+    matcher = LicenseDetector(db_path=str(path))
+    assert matcher.detect(license_id="MIT")

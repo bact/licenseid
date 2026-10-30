@@ -17,15 +17,15 @@ from click.testing import CliRunner
 from matcher_db import Lic, seeded_db
 from resolver_helpers import GPL2, GPL2_PLUS
 
-from licenseid import resolve
+from licenseid import match
 from licenseid.cli import cli
+from licenseid.detector import LicenseDetector
 from licenseid.identifiers import (
     is_simple_expression,
     normalize_identifier,
     parse_declared,
     parse_expression,
 )
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.plusoperator import plus_after_qualifier, strip_plus_operator
 from licenseid.versionkey import version_key
 
@@ -38,16 +38,16 @@ ROWS = (
 
 
 @pytest.fixture(name="matcher")
-def _matcher() -> Generator[AggregatedLicenseMatcher, None, None]:
+def _matcher() -> Generator[LicenseDetector, None, None]:
     for path in seeded_db("test_plus_and_depth", ROWS):
-        yield AggregatedLicenseMatcher(path)
+        yield LicenseDetector(path)
 
 
-def ids(matcher: AggregatedLicenseMatcher, **kwargs: str) -> list[str]:
-    return [r["license_id"] for r in matcher.match(**kwargs)]
+def ids(matcher: LicenseDetector, **kwargs: str) -> list[str]:
+    return [r["license_id"] for r in matcher.detect(**kwargs)]
 
 
-# value: what match answers for it as text, as a tag, and what resolve gives
+# value: what detect answers for it as text, as a tag, and what match gives
 PLUS = [
     ("GPL-2+", "GPL-2.0-or-later", "GPL-2.0-or-later"),
     ("gpl2+", "GPL-2.0-or-later", "GPL-2.0-or-later"),
@@ -63,7 +63,7 @@ PLUS = [
 
 @pytest.mark.parametrize(("value", "answer", "resolved"), PLUS)
 def test_a_plus_after_an_id_answers_alike_everywhere(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
     value: str,
     answer: str | None,
     resolved: str | None,
@@ -72,11 +72,11 @@ def test_a_plus_after_an_id_answers_alike_everywhere(
     assert ids(matcher, text=value) == expected
     tag = f"/* SPDX-License-Identifier: {value} */"
     assert ids(matcher, text=tag) == expected
-    assert resolve(value, matcher.db)["expression"] == resolved
+    assert match(value, matcher.db)["expression"] == resolved
 
 
 def test_a_plus_after_a_qualifier_voids_the_whole_tag(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> None:
     """One operand cannot be answered without the grant it states twice."""
     assert ids(matcher, text="SPDX-License-Identifier: GPL-2.0-only+ OR MIT") == []
@@ -120,13 +120,13 @@ def test_a_plus_after_a_qualifier_declares_no_licence(value: str, simple: bool) 
 @pytest.mark.parametrize(
     ("value", "code"),
     [
-        ("GPL-2.0-only+", 2),  # malformed: a usage error, as resolve says
+        ("GPL-2.0-only+", 2),  # malformed: a usage error, as match says
         ("GPL-2.0-or-later+", 2),
         ("MI+", 1),  # well formed, names nothing: "no", as for any unknown ID
         ("Foo", 1),
     ],
 )
-@pytest.mark.parametrize("command", ["match", "is-osi"])
+@pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_id_refuses_a_plus_after_a_qualifier(
     command: str, value: str, code: int
 ) -> None:
@@ -152,9 +152,9 @@ def test_id_refuses_a_plus_after_a_qualifier(
     ],
 )
 def test_a_plus_after_a_qualifier_in_an_expression_is_malformed(
-    matcher: AggregatedLicenseMatcher, value: str, category: str
+    matcher: LicenseDetector, value: str, category: str
 ) -> None:
-    assert resolve(value, matcher.db)["category"] == category
+    assert match(value, matcher.db)["category"] == category
 
 
 def chain(operators: int) -> str:
@@ -190,7 +190,7 @@ def test_the_parser_is_given_150_operators_and_150_brackets(
 
 
 def test_under_the_cap_the_parser_fits_python_3_10s_recursion_limit(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> None:
     """The deepest shape the cap lets through parses at Python 3.10's
     recursion limit (1000), whatever this interpreter's is."""
@@ -205,7 +205,7 @@ def test_under_the_cap_the_parser_fits_python_3_10s_recursion_limit(
 
 
 def test_a_long_chain_is_no_answer_on_any_python(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> None:
     tagged = f"/*\n * SPDX-License-Identifier: {chain(399)}\n */\n" + "word " * 40
     assert ids(matcher, text=tagged) == []
@@ -220,13 +220,13 @@ def test_a_long_chain_is_no_answer_on_any_python(
     ],
 )
 def test_a_loose_id_that_states_its_qualifier_keeps_the_plus(
-    matcher: AggregatedLicenseMatcher, value: str, found: str
+    matcher: LicenseDetector, value: str, found: str
 ) -> None:
     assert normalize_identifier(value, matcher.db) == found
 
 
 def test_a_long_id_before_a_plus_costs_no_version_key(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> None:
     with mock.patch("licenseid.versionkey.version_key", wraps=version_key) as key:
         assert normalize_identifier("A" * 101 + "+", matcher.db) == "A" * 101 + "+"

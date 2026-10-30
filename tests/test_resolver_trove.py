@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve()`` reads trove classifier names and paths and an agreeing
+"""``match()`` reads trove classifier names and paths and an agreeing
 trailing name (task T9, rules T1 to T3; decisions Q3, Q18, Q22, Q23,
 P45 to P52)."""
 # pylint: disable=missing-function-docstring
@@ -17,7 +17,7 @@ from matcher_db import Lic, seeded_db
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 from licenseid.resolveleaf import Found
 from licenseid.resolvertypes import Resolution
 from licenseid.resolvetrove import read_named
@@ -87,7 +87,7 @@ def shown(name: str) -> str:
 def test_a_name_that_states_one_licence_is_read(
     corpus_db: LicenseDatabase, name: str
 ) -> None:
-    got = resolve(name, corpus_db)
+    got = match(name, corpus_db)
     assert got["expression"] == TROVE_NAMES[name].ids[0]
     listed = name in LISTED | TRAILING
     assert got["category"] == ("listed_name" if listed else "trove_name")
@@ -107,7 +107,7 @@ def test_a_name_that_writes_a_bare_deprecated_id_stays_assumed(
     corpus_db: LicenseDatabase, name: str
 ) -> None:
     bare = TROVE_NAMES[name].ids[0]
-    got = resolve(name, corpus_db)
+    got = match(name, corpus_db)
     assert (got["expression"], got["category"], got["trust"]) == (
         bare,
         "assumed_only",
@@ -124,7 +124,7 @@ def test_a_name_that_writes_a_bare_deprecated_id_stays_assumed(
 def test_a_name_that_states_no_licence_is_not_read(
     corpus_db: LicenseDatabase, name: str
 ) -> None:
-    got = resolve(name, corpus_db)
+    got = match(name, corpus_db)
     assert (got["expression"], got["category"], got["steps"]) == (
         None,
         "unresolved",
@@ -135,7 +135,7 @@ def test_a_name_that_states_no_licence_is_not_read(
 
 @pytest.mark.usefixtures("shipped")
 def test_the_step_and_the_list_of_a_trove_name() -> None:
-    got = resolve("ISC License (ISCL)", source="packaged")  # no List name
+    got = match("ISC License (ISCL)", source="packaged")  # no List name
     (the_step,) = got["steps"]
     assert (the_step["kind"], the_step["from"], the_step["to"], the_step["list"]) == (
         "trove_name",
@@ -152,7 +152,7 @@ def test_the_step_and_the_list_of_a_trove_name() -> None:
 
 def test_no_trove_list_when_no_step_rests_on_it(corpus_db: LicenseDatabase) -> None:
     for value in ("MIT", "MIT License", "Apache Software License", "GPL-3.0"):
-        assert [e["id"] for e in resolve(value, corpus_db)["lists"]] == [
+        assert [e["id"] for e in match(value, corpus_db)["lists"]] == [
             "spdx-license-list"
         ]
 
@@ -171,7 +171,7 @@ def test_the_exact_name_reads_as_strong_as_its_lower_case_form(
 ) -> None:
     """P63: the List backs the head and the bracket, so the answer is
     `listed_name` however the case is written, and no trove list is named."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == (expression, "listed_name")
     assert kinds(got)[0] == "trailing_name"
     assert [e["id"] for e in got["lists"]] == ["spdx-license-list"]
@@ -214,7 +214,7 @@ def test_a_name_that_states_a_licence_is_matched_exactly(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     """The looser match only refuses; the table is read as written."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == (None, "unresolved")
 
 
@@ -234,7 +234,7 @@ def test_only_spaces_and_tabs_stand_before_the_bracket(
 ) -> None:
     """A value is one line: other white space is no separator (the trim of
     the whole value is a step of its own)."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     if value.strip() == "MIT (MIT)":
         assert got["expression"] == "MIT"
         return
@@ -246,7 +246,7 @@ def test_a_head_that_holds_a_bracket_is_not_dropped(
 ) -> None:
     """The leaf reads `GPL-3.0 (or later)`, but a bracket in the head is
     refused here (P58): the parenthesis dropped is the last one only."""
-    got = resolve("GPL-3.0 (or later) (GPL-3.0+)", corpus_db)
+    got = match("GPL-3.0 (or later) (GPL-3.0+)", corpus_db)
     assert "trailing_name" not in kinds(got)
     assert got["expression"] is None
 
@@ -273,7 +273,7 @@ def test_a_head_that_holds_a_bracket_is_not_dropped(
 def test_a_near_miss_of_a_trove_name_is_not_read(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == (None, "unresolved")
 
 
@@ -285,7 +285,7 @@ def test_a_near_miss_of_a_trove_name_is_not_read(
 def test_a_trove_name_is_read_as_it_is_alone_inside_quotes_and_brackets(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == ("ISC", "trove_name")
     assert kinds(got)[-1] == "trove_name"
     assert len(kinds(got)) == 2
@@ -298,7 +298,7 @@ def test_a_trove_name_is_read_as_it_is_alone_inside_quotes_and_brackets(
 def test_a_path_is_read_as_its_name_is_alone(
     corpus_db: LicenseDatabase, name: str
 ) -> None:
-    bare, via = resolve(name, corpus_db), resolve(path_of(name), corpus_db)
+    bare, via = match(name, corpus_db), match(path_of(name), corpus_db)
     assert via["expression"] == bare["expression"]
     assert via["category"] == bare["category"]
     assert via["candidates"] == bare["candidates"]
@@ -337,7 +337,7 @@ def test_a_path_is_read_as_its_name_is_alone(
 def test_a_value_that_is_no_classifier_is_not_read(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     if value.strip() == "License :: OSI Approved :: MIT License":
         assert got["expression"] == "MIT"  # only the trimming differs
         return
@@ -347,7 +347,7 @@ def test_a_value_that_is_no_classifier_is_not_read(
 def test_a_path_with_free_spaces_round_the_colons_is_read(
     corpus_db: LicenseDatabase,
 ) -> None:
-    got = resolve("License::OSI Approved \t::  ISC License (ISCL)", corpus_db)
+    got = match("License::OSI Approved \t::  ISC License (ISCL)", corpus_db)
     assert (got["expression"], got["category"]) == ("ISC", "trove_name")
 
 
@@ -374,7 +374,7 @@ def test_a_parenthesis_that_agrees_with_its_head_is_dropped(
     category: str,
     steps: list[str] | None,
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == (expression, category)
     assert kinds(got)[0] == "trailing_name"
     if steps is not None:
@@ -409,7 +409,7 @@ def test_a_parenthesis_that_agrees_with_its_head_is_dropped(
 def test_a_parenthesis_that_does_not_agree_is_not_dropped(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert "trailing_name" not in kinds(got)
 
 
@@ -428,7 +428,7 @@ def test_a_parenthesis_that_does_not_agree_is_not_dropped(
 def test_a_trove_name_is_no_operand(corpus_db: LicenseDatabase, value: str) -> None:
     """An operand is one word (Q15, P43): the later rules read the whole
     value, which no table row is."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] is None
     assert "trove_name" not in kinds(got)
 
@@ -437,7 +437,7 @@ def test_the_operands_of_a_read_value_are_its_one_operand(
     corpus_db: LicenseDatabase,
 ) -> None:
     value = "  License :: OSI Approved :: GNU General Public License v3 (GPLv3)"
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     (operand,) = got["operands"]
     assert operand["text"] == value.strip()
     assert operand["span"] == [2, len(value)]
@@ -453,8 +453,8 @@ def test_every_name_and_path_is_read_the_same_without_a_database(
     values = [*TROVE_NAMES, *map(path_of, TROVE_NAMES)]
     values += ["MIT License (MIT)", "MIT License (ISC)", "ISC\t(ISC)"]
     for value in values:
-        assert masked(resolve(value, bundle_db)) == masked(
-            resolve(value, source="packaged")
+        assert masked(match(value, bundle_db)) == masked(
+            match(value, source="packaged")
         ), value
 
 
@@ -476,7 +476,7 @@ def test_every_name_and_path_is_read_the_same_without_a_database(
 @pytest.mark.usefixtures("shipped")
 def test_the_trove_rules_do_not_backtrack(payload: Callable[[int], str]) -> None:
     start = time.monotonic()
-    resolve(payload(300), source="packaged")
+    match(payload(300), source="packaged")
     assert time.monotonic() - start < 2.0
 
 
@@ -490,7 +490,7 @@ def test_the_trove_rules_are_linear_on_a_long_value(size: int) -> None:
         "MIT License" + " " * size + "(MIT)",
     ):
         start = time.monotonic()
-        resolve(value, source="packaged")
+        match(value, source="packaged")
         assert time.monotonic() - start < 5.0
 
 
@@ -501,18 +501,18 @@ def test_a_name_whose_id_the_list_lacks_names_nothing() -> None:
     """The table states ISC; a list without it reads nothing (P54)."""
     for path in seeded_db("trove_lacks", [Lic("MIT", "MIT License")]):
         db = LicenseDatabase(path, create=False)
-        assert resolve("ISC License (ISCL)", db)["expression"] is None
+        assert match("ISC License (ISCL)", db)["expression"] is None
         assert (
-            resolve("License :: OSI Approved :: ISC License (ISCL)", db)["expression"]
+            match("License :: OSI Approved :: ISC License (ISCL)", db)["expression"]
             is None
         )
-        assert resolve("MIT License (MIT)", db)["expression"] == "MIT"
+        assert match("MIT License (MIT)", db)["expression"] == "MIT"
 
 
 def test_a_renamed_id_of_the_table_is_followed() -> None:
     rows = [Lic("ISC", "ISC License", is_deprecated=True, superseded_by="ISC-New")]
     for path in seeded_db("trove_renamed", [*rows, Lic("ISC-New", "ISC New")]):
-        got = resolve("ISC License (ISCL)", LicenseDatabase(path, create=False))
+        got = match("ISC License (ISCL)", LicenseDatabase(path, create=False))
         assert (got["expression"], got["category"]) == ("ISC-New", "trove_name")
         assert kinds(got) == ["trove_name", "deprecated_equal_successor"]
 
@@ -567,7 +567,7 @@ def test_a_several_word_trove_name_in_a_compound_is_refused_by_its_shape(
 ) -> None:
     """The value stays unresolved (an operand is one word, P43); the reason
     says whether the leaf reads alone, trove names and paths included."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] is None
     assert got["reason"] == reason
 
@@ -579,7 +579,7 @@ def test_a_several_word_trove_name_in_a_compound_is_refused_by_its_shape(
 def test_the_reason_follows_whether_the_leaf_reads_alone(
     corpus_db: LicenseDatabase, leaf: str
 ) -> None:
-    assert resolve(leaf, corpus_db)["expression"] is not None
-    reason = resolve(f"{leaf} OR MIT", corpus_db)["reason"]
+    assert match(leaf, corpus_db)["expression"] is not None
+    reason = match(f"{leaf} OR MIT", corpus_db)["reason"]
     assert reason is not None
     assert reason.startswith("operand of several words")

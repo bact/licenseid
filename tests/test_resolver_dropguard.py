@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""What ``resolve()`` does with a character the loose reading drops (task T6).
+"""What ``match()`` does with a character the loose reading drops (task T6).
 
 A loose ID ("Apache 2.0", "Apache_2.0") is read by dropping the characters
 that are neither letters nor digits. Some of those carry the author's doubt
@@ -23,7 +23,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 
 #: Characters the loose reading may drop silently: white space, "-", "_",
 #: ".", a Unicode dash (Pd) and one trailing ",".
@@ -99,7 +99,7 @@ def test_an_allowed_dropped_character_is_read(
     corpus_db: LicenseDatabase, value: str, expression: str, category: str
 ) -> None:
     """White space, "-", "_", ".", a dash and a trailing comma are dropped."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == (expression, category)
 
 
@@ -111,7 +111,7 @@ def test_a_name_and_a_grant_are_not_read_by_dropping(
 ) -> None:
     """A listed name and the tail of a grant never reach the loose reading's
     dropped characters."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == (expression, category)
 
 
@@ -123,7 +123,7 @@ def test_a_dropped_character_refuses_the_value(
 ) -> None:
     """Unresolved with the reading it stopped, a step that did not apply and
     a reason that names the character; the input is kept."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"], got["trust"]) == (
         None,
         "unresolved",
@@ -148,18 +148,18 @@ def test_an_allowed_character_has_no_reason(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     """An answer has ``reason`` None, and a ``separator`` step that applied."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["reason"] is None
     assert all(s["applied"] for s in got["steps"])
 
 
 def test_the_reason_names_each_character_once(corpus_db: LicenseDatabase) -> None:
-    got = resolve("Apache??2.0!?", corpus_db)
+    got = match("Apache??2.0!?", corpus_db)
     assert got["reason"] == "character dropped: U+003F U+0021"
 
 
 def test_a_comma_in_the_middle_is_refused(corpus_db: LicenseDatabase) -> None:
-    got = resolve("Apache, 2.0", corpus_db)
+    got = match("Apache, 2.0", corpus_db)
     assert got["expression"] is None
     assert got["reason"] == "character dropped: U+002C"
 
@@ -180,7 +180,7 @@ def test_a_comma_in_the_middle_is_refused(corpus_db: LicenseDatabase) -> None:
 def test_a_mark_before_a_qualifier_or_exception_refuses_the_value(
     corpus_db: LicenseDatabase, value: str, seen: str, stopped: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"], got["trust"]) == (
         None,
         "unresolved",
@@ -205,7 +205,7 @@ def test_the_step_names_the_listed_id_the_reading_named(
     corpus_db: LicenseDatabase,
 ) -> None:
     """A renamed ID is not followed: the step shows the listed ID read."""
-    got = resolve("StandardML NJ?", corpus_db)
+    got = match("StandardML NJ?", corpus_db)
     assert got["steps"][0]["to"] == "StandardML-NJ"
 
 
@@ -215,7 +215,7 @@ def test_the_step_names_the_listed_id_the_reading_named(
 # normalize_text reads as quotes are quote marks: test_resolver_quotes.py.)
 @pytest.mark.parametrize("char", ["\u2212", "\ufe63", "\uff0d", "\u2013", "\u2010"])
 def test_a_dash_of_normalize_is_dropped(corpus_db: LicenseDatabase, char: str) -> None:
-    got = resolve(f"Apache{char}2.0", corpus_db)
+    got = match(f"Apache{char}2.0", corpus_db)
     assert (got["expression"], got["reason"]) == ("Apache-2.0", None)
 
 
@@ -227,7 +227,7 @@ def test_a_dash_of_normalize_is_dropped(corpus_db: LicenseDatabase, char: str) -
 def test_a_non_normalize_dash_is_refused(
     corpus_db: LicenseDatabase, value: str, point: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] is None
     assert got["reason"] == f"character dropped: {point}"
 
@@ -241,7 +241,7 @@ def test_a_mark_that_is_no_grant_tail_is_refused(
 ) -> None:
     """The tail of a grant may end in ``. , ; : ) ]``; a ``!`` or ``?`` is
     no tail, and the loose reading would drop it."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == (None, "unresolved")
     assert got["reason"] == f"character dropped: U+{ord(lost):04X}"
     assert [(s["kind"], s["applied"]) for s in got["steps"]] == [("drop", False)]
@@ -251,13 +251,13 @@ def test_a_mark_that_is_no_grant_tail_is_refused(
 def test_a_name_and_a_grant_have_no_reason(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    assert resolve(value, corpus_db)["reason"] is None
+    assert match(value, corpus_db)["reason"] is None
 
 
 def test_the_trim_step_is_not_kept_with_a_refusal(
     corpus_db: LicenseDatabase,
 ) -> None:
-    got = resolve("  Apache 2.0?  ", corpus_db)
+    got = match("  Apache 2.0?  ", corpus_db)
     assert [s["kind"] for s in got["steps"]] == ["drop"]
     assert got["steps"][0]["from"] == "Apache 2.0?"
     assert got["input"] == "  Apache 2.0?  "
@@ -266,7 +266,7 @@ def test_the_trim_step_is_not_kept_with_a_refusal(
 def test_brackets_around_a_refused_value_leave_only_the_drop_step(
     corpus_db: LicenseDatabase,
 ) -> None:
-    got = resolve("(Apache 2.0?)", corpus_db)
+    got = match("(Apache 2.0?)", corpus_db)
     assert got["expression"] is None
     assert [s["kind"] for s in got["steps"]] == ["drop"]
 
@@ -278,7 +278,7 @@ def test_a_long_run_of_spaces_or_marks_is_fast(
     """The guard is linear; a value over MAX_KEY_INPUT never reaches it."""
     start = time.monotonic()
     for value in ("x" + " " * size, "MIT" + "?" * size, "Apache" + " 2" * size):
-        assert resolve(value, corpus_db)["expression"] is None
+        assert match(value, corpus_db)["expression"] is None
     assert time.monotonic() - start < 5
 
 
@@ -291,6 +291,6 @@ def test_the_same_answer_without_a_database(
     values = [v for v, *_ in KEPT + UNTOUCHED + DROPPED]
     values += ["Apache 2.0?+", "Apache, 2.0", "  MIT?  ", "(MIT!)", "MIT\ud800"]
     for value in values:
-        assert masked(resolve(value, bundle_db)) == masked(
-            resolve(value, source="packaged")
+        assert masked(match(value, bundle_db)) == masked(
+            match(value, source="packaged")
         ), value

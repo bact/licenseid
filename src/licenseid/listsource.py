@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Which SPDX License List ``resolve()`` reads: the licence database, or the
+"""Which SPDX License List ``match()`` reads: the licence database, or the
 bundle shipped in the wheel (:func:`licenseid.listindex.packaged_index`).
 
 ``source="auto"`` (the default), with no database given:
@@ -49,7 +49,7 @@ still refresh through ``last_update_datetime``). ``reset_choice()`` forgets
 them.
 
 Usable is what :func:`licenseid.dbcheck.check_database_ready` says, read
-fail-open, as the matcher reads it: a lock held elsewhere is no verdict.
+fail-open, as the detector reads it: a lock held elsewhere is no verdict.
 """
 
 import os
@@ -85,7 +85,7 @@ class _Kept(NamedTuple):
 
 # The last choice of each mode ("auto", "database"), under its own lock, held
 # to look it up and to store it, never while choosing: a choice can wait on
-# SQLite, and the choice itself warns through ``_warn_once``, which takes
+# SQLite, and the choice itself warns through ``warn_once``, which takes
 # ``_LOCK``.
 _CHOICE_LOCK = threading.Lock()
 _kept: dict[str, _Kept] = {}
@@ -94,7 +94,7 @@ _kept: dict[str, _Kept] = {}
 def choose_list(
     db: LicenseDatabase | None, source: Source
 ) -> tuple[ListLookup, ListSource]:
-    """The list ``resolve(value, db, source=source)`` reads, and where it
+    """The list ``match(value, db, source=source)`` reads, and where it
     comes from. Raises :class:`licenseid.errors.InvalidInputError` for a
     *source* that is none of :data:`SOURCES`, or ``packaged`` with a *db*,
     and :class:`licenseid.errors.DatabaseNotReadyError` when the chosen
@@ -125,7 +125,7 @@ def _packaged() -> listindex.ListIndex:
     return index
 
 
-def _stamp(path: str) -> tuple[int, ...] | None | Exception:
+def file_stamp(path: str) -> tuple[int, ...] | None | Exception:
     """The stamp of the file at *path*: None when there is none, the error
     when it cannot be told (that is no stamp to keep a choice by). The change
     time moves with ``chmod``, a write and ``os.utime`` on POSIX, so a file
@@ -152,7 +152,7 @@ def _kept_choice(mode: Source) -> tuple[ListLookup, ListSource]:
         path = get_default_db_path()
     except DatabaseNotReadyError:
         return _choose(mode, None)[:2]  # no home directory: nothing to key by
-    stamp = _stamp(path)  # before the choice: a change meanwhile is seen
+    stamp = file_stamp(path)  # before the choice: a change meanwhile is seen
     if isinstance(stamp, Exception):
         return _choose(mode, path)[:2]
     with _CHOICE_LOCK:
@@ -186,7 +186,7 @@ def _choose(mode: Source, path: str | None) -> tuple[ListLookup, ListSource, boo
     if mode == "database":
         path = get_default_db_path() if path is None else path
         check_database_ready(path)  # what auto calls unusable, this refuses
-        database = LicenseDatabase(path, create=False, report=_warn_once)
+        database = LicenseDatabase(path, create=False, report=warn_once)
         return database, "database", True
     return _auto(path)
 
@@ -197,14 +197,14 @@ def _auto(path: str | None) -> tuple[ListLookup, ListSource, bool]:
     try:
         path = get_default_db_path() if path is None else path
         check_database_ready(path)
-        database = LicenseDatabase(path, create=False, report=_warn_once)
+        database = LicenseDatabase(path, create=False, report=warn_once)
         metadata = database.get_metadata()
     except DatabaseNotReadyError as exc:
         index = listindex.packaged_index()
         if index is None:
             raise
         if exc.condition != "not found":
-            _warn_once(
+            warn_once(
                 f"database: {exc.condition}: {exc.detail};"
                 f" using packaged data v{index.version}"
             )
@@ -221,7 +221,7 @@ def _auto(path: str | None) -> tuple[ListLookup, ListSource, bool]:
     return index, "packaged", True
 
 
-def _warn_once(message: str) -> None:
+def warn_once(message: str) -> None:
     """Warn *message* unless this process did already."""
     with _LOCK:
         if message in _warned:

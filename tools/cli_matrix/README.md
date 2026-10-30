@@ -93,7 +93,7 @@ are those of `bash zsh sh dash ksh` found on `PATH`.
   diagnostic goes to stderr in the `LEVEL: SUBJECT: CONDITION` grammar
   (click's usage errors included; the help for a missing subcommand is the
   one free text allowed there), a predicate answers `true`, `false` or a
-  usage error, `match` prints one of its three documented shapes, exit
+  usage error, `detect` prints one of its three documented shapes, exit
   statuses are 0, 1 or 2, and nothing ever shows a traceback. A cell also
   flags when its answer depends on the shell or the interpreter, when the
   five predicates contradict each other, or when `update` leaves temporary
@@ -116,7 +116,7 @@ Everything lands in `--out`:
 `coverage.md`
 : Not "did it pass" but "did anything try this". A row per subcommand and
   flag with the number of cells, shells and interpreters behind it, the
-  input sources each command was fed from, which pairs of `match` flags
+  input sources each command was fed from, which pairs of `detect` flags
   were ever used together, and which pairs were not.
 
 `results.json`
@@ -158,7 +158,7 @@ use, so a flag that only one of them shows is recorded.
 
 ## Adding a cell
 
-Cells live in `cells/`: `match.py` (A), `predicate.py` (B),
+Cells live in `cells/`: `detect.py` (A), `predicate.py` (B),
 `global_options.py` (C), `update.py` (D), `environment.py` (E1 to E6, the
 streams around the process) and `process_env.py` (E7 to E11, its own
 resources), with the shared command list in `core_commands.py`. Add yours
@@ -169,8 +169,8 @@ cells do not shift. A cell is declarative:
 cells.add(
     "E11",
     "env: PYTHONWARNINGS=error",
-    "PYTHONWARNINGS=error " + licenseid("match --bold $F/mit.txt"),
-    kind="match",
+    "PYTHONWARNINGS=error " + licenseid("detect --bold $F/mit.txt"),
+    kind="detect",
     exp_exit=0,
 )
 ```

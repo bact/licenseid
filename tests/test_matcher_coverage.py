@@ -22,9 +22,9 @@ import pytest
 from matcher_db import PROSE, Lic, seeded_db
 
 from licenseid.datadir import get_default_db_path
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 from licenseid.ranking import DEP_PENALTY
-from licenseid.types import CandidateMatch, MatchRequest
+from licenseid.types import CandidateMatch, DetectRequest
 
 _MIT_TEXT = "permission is hereby granted free of charge to any person obtaining a copy"
 _APACHE_TEXT = "apache license version 2.0 terms and conditions for use reproduction"
@@ -89,12 +89,12 @@ def test_default_db_path_used_when_no_path_given(
     """No usable db_path falls back to get_default_db_path(), and the
     returned path is what the matcher actually opens."""
     fake = mock.create_autospec(get_default_db_path, return_value=marker_db)
-    monkeypatch.setattr("licenseid.matcher.get_default_db_path", fake)
+    monkeypatch.setattr("licenseid.detector.get_default_db_path", fake)
 
-    matcher = AggregatedLicenseMatcher(db_path_arg)
+    matcher = LicenseDetector(db_path_arg)
 
     assert fake.call_count == 1
-    results = matcher.match("MIT")
+    results = matcher.detect("MIT")
     assert [r["license_id"] for r in results] == ["MIT"]
 
 
@@ -103,12 +103,12 @@ def test_explicit_db_path_skips_default_lookup(
 ) -> None:
     """A caller-supplied path must not consult the default location."""
     fake = mock.create_autospec(get_default_db_path, return_value=marker_db)
-    monkeypatch.setattr("licenseid.matcher.get_default_db_path", fake)
+    monkeypatch.setattr("licenseid.detector.get_default_db_path", fake)
 
-    matcher = AggregatedLicenseMatcher(marker_db)
+    matcher = LicenseDetector(marker_db)
 
     fake.assert_not_called()
-    assert matcher.match("MIT")[0]["license_id"] == "MIT"
+    assert matcher.detect("MIT")[0]["license_id"] == "MIT"
 
 
 # -- SPDX-License-Identifier short circuit ---------------------------------
@@ -122,7 +122,7 @@ def test_spdx_tag_in_source_file_short_circuits(marker_db: str) -> None:
         f" * SPDX-License-Identifier: MIT\n{PROSE} */\n"
     )
 
-    results = AggregatedLicenseMatcher(marker_db).match(text=text)
+    results = LicenseDetector(marker_db).detect(text=text)
 
     # The result's shape for a tag: test_public_result.
     assert [(r["license_id"], r["method"]) for r in results] == [("MIT", "tag")]
@@ -139,7 +139,7 @@ def test_two_spdx_tags_return_both_matches(marker_db: str) -> None:
         f"{PROSE} * SPDX-License-Identifier: Apache-2.0\n */\n"
     )
 
-    results = AggregatedLicenseMatcher(marker_db).match(text=text)
+    results = LicenseDetector(marker_db).detect(text=text)
 
     assert {r["license_id"] for r in results} == {"MIT", "Apache-2.0"}
     assert len(results) == 2
@@ -154,7 +154,7 @@ def test_repeated_spdx_tag_returns_one_match(marker_db: str) -> None:
         f"{PROSE} * SPDX-License-Identifier: MIT\n */\n"
     )
 
-    results = AggregatedLicenseMatcher(marker_db).match(text=text)
+    results = LicenseDetector(marker_db).detect(text=text)
 
     assert [r["license_id"] for r in results] == ["MIT"]
 
@@ -164,7 +164,7 @@ def test_license_field_marker_does_not_short_circuit(marker_db: str) -> None:
     signal: the result comes from Tier 2 scoring and is below 1.0."""
     text = f"/*\n * License: MIT\n{PROSE} */\n"
 
-    results = AggregatedLicenseMatcher(marker_db).match(text=text)
+    results = LicenseDetector(marker_db).detect(text=text)
 
     assert results[0]["license_id"] == "MIT"
     assert results[0]["score"] < 1.0
@@ -174,7 +174,7 @@ def test_source_file_without_any_marker_has_no_match(marker_db: str) -> None:
     """Prose with no tag and no license text matches nothing."""
     text = f"/*\n * There is no machine readable tag in this file.\n{PROSE} */\n"
 
-    assert not AggregatedLicenseMatcher(marker_db).match(text=text)
+    assert not LicenseDetector(marker_db).detect(text=text)
 
 
 # -- Bare deprecated ID disambiguation -------------------------------------
@@ -190,7 +190,7 @@ def test_source_file_without_any_marker_has_no_match(marker_db: str) -> None:
 def test_bare_deprecated_id_with_prose(gpl_db: str, text: str, license_id: str) -> None:
     """The phrase resolves to the canonical ID, with the flags of its
     database row. (The result's shape: test_public_result.)"""
-    results = AggregatedLicenseMatcher(gpl_db).match(text)
+    results = LicenseDetector(gpl_db).detect(text)
     assert [(r["license_id"], r["method"]) for r in results] == [(license_id, "id")]
     assert results[0]["is_osi_approved"] is True
 
@@ -200,7 +200,7 @@ def test_disambiguated_id_missing_from_database(gpl_db: str) -> None:
     for it. Current behaviour, not a documented contract: it comes from a
     fixed table of canonical SPDX IDs, so is_spdx is assumed true, and the
     approval flags default to false although the real license is approved."""
-    results = AggregatedLicenseMatcher(gpl_db).match("Licensed under GPL-3.0 or later")
+    results = LicenseDetector(gpl_db).detect("Licensed under GPL-3.0 or later")
 
     assert [r["license_id"] for r in results] == ["GPL-3.0-or-later"]
     assert results[0]["is_spdx"] is True
@@ -211,7 +211,7 @@ def test_disambiguated_id_missing_from_database(gpl_db: str) -> None:
 def test_canonical_id_is_not_disambiguated(gpl_db: str) -> None:
     """An already-canonical ID is matched as an ID, not treated as a bare
     deprecated alias with a "-only" suffix bolted on."""
-    results = AggregatedLicenseMatcher(gpl_db).match("GPL-2.0-or-later")
+    results = LicenseDetector(gpl_db).detect("GPL-2.0-or-later")
 
     assert [r["license_id"] for r in results] == ["GPL-2.0-or-later"]
 
@@ -231,9 +231,7 @@ def with_db() -> Generator[str, None, None]:
 
 
 def test_with_expression_both_halves_known(with_db: str) -> None:
-    results = AggregatedLicenseMatcher(with_db).match(
-        license_id="MIT WITH Font-exception-2.0"
-    )
+    results = LicenseDetector(with_db).detect(license_id="MIT WITH Font-exception-2.0")
 
     assert [r["license_id"] for r in results] == ["MIT WITH Font-exception-2.0"]
     assert results[0]["score"] == 1.0
@@ -245,7 +243,7 @@ def test_with_expression_both_halves_known(with_db: str) -> None:
 def test_with_expression_half_missing_from_db(with_db: str, expression: str) -> None:
     """One half has no row in this database: a valid SPDX expression still,
     so it matches, but neither OSI nor FSF can be claimed for it."""
-    results = AggregatedLicenseMatcher(with_db).match(license_id=expression)
+    results = LicenseDetector(with_db).detect(license_id=expression)
     assert [r["license_id"] for r in results] == [expression]
     assert results[0]["is_spdx"] is True
     assert results[0]["is_osi_approved"] is False
@@ -286,11 +284,11 @@ def test_deprecated_alias_is_penalised_in_short_text(
     deprecated = "deprecated" in request.node.callspec.id
 
     # The raw scores: the public one is capped to 1, the order kept.
-    matcher = AggregatedLicenseMatcher(alias_db)
+    matcher = LicenseDetector(alias_db)
     results = matcher._match_raw(  # pylint: disable=protected-access
         "GNU General Public License v2.0 only"
     )
-    public = matcher.match("GNU General Public License v2.0 only")
+    public = matcher.detect("GNU General Public License v2.0 only")
     assert [r["license_id"] for r in public] == ["GPL-2.0-only", "GPL-2.0"]
 
     assert [r["license_id"] for r in results] == ["GPL-2.0-only", "GPL-2.0"]
@@ -340,9 +338,9 @@ def test_mixed_content_keyword_sections(mixed_db: str) -> None:
     text = (
         "Distributed under the Acme Publik License, Version 1.0. See the LICENSE file."
     )
-    matcher = AggregatedLicenseMatcher(mixed_db)
+    matcher = LicenseDetector(mixed_db)
 
-    results = matcher.match(text=text)
+    results = matcher.detect(text=text)
     found = [r["license_id"] for r in results]
 
     assert found == ["Acme-1.0", "Beta-2.0"]
@@ -351,7 +349,7 @@ def test_mixed_content_keyword_sections(mixed_db: str) -> None:
     # Asserted on the section search itself: a duplicate candidate would be
     # swallowed by the merge in _run_tier1_and_tier2(), which deduplicates
     # again, so the public result alone cannot show that this step is clean.
-    sectioned = matcher._match_mixed_content(MatchRequest(), text)
+    sectioned = matcher._match_mixed_content(DetectRequest(), text)
     assert [c["license_id"] for c in sectioned] == ["Acme-1.0", "Beta-2.0"]
 
 
@@ -380,13 +378,13 @@ def test_mixed_content_skips_id_without_a_row(broken_successor_db: str) -> None:
     """A section resolving to a successor ID with no database row yields
     no candidate rather than a row-less phantom.
 
-    Called directly: through match() the same input is answered by Tier 0
+    Called directly: through detect() the same input is answered by Tier 0
     before mixed content runs (asserted below).
     """
-    matcher = AggregatedLicenseMatcher(broken_successor_db)
+    matcher = LicenseDetector(broken_successor_db)
 
-    assert not matcher._match_mixed_content(MatchRequest(), "Unlicense")
-    assert [r["license_id"] for r in matcher.match("Unlicense")] == ["Unlicense-2.0"]
+    assert not matcher._match_mixed_content(DetectRequest(), "Unlicense")
+    assert [r["license_id"] for r in matcher.detect("Unlicense")] == ["Unlicense-2.0"]
 
 
 # -- The windowed search that augments Tier 1 --------------------------------
@@ -402,7 +400,7 @@ def test_mixed_content_skips_id_without_a_row(broken_successor_db: str) -> None:
     ],
 )
 def test_the_windowed_search_runs_for_no_or_thin_results_on_mixed_text(
-    ordering_matcher: AggregatedLicenseMatcher,
+    ordering_matcher: LicenseDetector,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     case: tuple[int, bool, bool],
@@ -423,8 +421,8 @@ def test_the_windowed_search_runs_for_no_or_thin_results_on_mixed_text(
     if pure:
         license_file = tmp_path / "LICENSE"
         license_file.write_text(text, encoding="utf-8")
-        ordering_matcher.match(file_path=str(license_file))
+        ordering_matcher.detect(file_path=str(license_file))
     else:
-        ordering_matcher.match(text=text)
+        ordering_matcher.detect(text=text)
 
     assert windowed_search.called is windowed

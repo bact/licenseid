@@ -56,10 +56,10 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
         "predicate contract",
     ),
     (
-        "match exit 1 without the documented diagnostic",
-        {"kind": "match"},
+        "detect exit 1 without the documented diagnostic",
+        {"kind": "detect"},
         {"rc": 1, "err": "ERROR: match: something else\n"},
-        "match exit 1 without empty stdout",
+        "detect exit 1 without empty stdout",
     ),
     (
         "expected exit not met",
@@ -75,7 +75,7 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
     ),
     (
         "--top not honoured",
-        {"kind": "match", "top": 1, "outflags": frozenset({"json"})},
+        {"kind": "detect", "top": 1, "outflags": frozenset({"json"})},
         {
             "rc": 0,
             "out": '{"license_id":"MIT","method":"text","score":1}\n'
@@ -115,7 +115,7 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
     ),
     (
         "--bold printed more than an identifier",
-        {"kind": "match", "outflags": frozenset({"bold"}), "exp_exit": 0},
+        {"kind": "detect", "outflags": frozenset({"bold"}), "exp_exit": 0},
         {
             "rc": 0,
             "out": "LICENSE_ID=MIT METHOD=id EXACT=true SCORE=1.0000 SIMILARITY="
@@ -177,7 +177,7 @@ def test_judge_ignores_streams_on_a_terminal() -> None:
 
 def test_judge_accepts_the_documented_diagnostic_grammar() -> None:
     """LEVEL: SUBJECT: CONDITION on stderr is exactly what is expected."""
-    cell = make_cell(kind="match", exp_exit=1)
+    cell = make_cell(kind="detect", exp_exit=1)
     result = make_result(rc=1, err="ERROR: match: no license found\n")
     assert judge_mod.judge(cell, result)[0] == "PASS"
 
@@ -317,7 +317,7 @@ def _relational_fixture(is_open_rc: int) -> tuple[dict[str, Cell], list[Any]]:
     return cells, rows
 
 
-# What match prints, from the code that prints it.
+# What detect prints, from the code that prints it.
 # Coverage, input words over licence words, can reach two digits.
 RESULT = public_match(
     "GPL-2.0-only WITH Classpath-exception-2.0",
@@ -362,7 +362,7 @@ JSON = frozenset({"json"})
 def test_match_output_is_the_format_its_flags_ask_for(
     flags: frozenset[str], out: str, ok: bool
 ) -> None:
-    """The judge accepts what match prints, and nothing else: one KEY=VALUE
+    """The judge accepts what detect prints, and nothing else: one KEY=VALUE
     line, or one result object per JSON line (not an array, not a bare
     value)."""
     notes = judge_mod.check_match_format(make_cell(outflags=flags), out + "\n")

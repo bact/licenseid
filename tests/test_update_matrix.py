@@ -6,7 +6,7 @@
 """Combination matrix for ``licenseid update``: every ``--source`` x
 ``--cache/--no-cache`` x ``--version`` x ``--force``, each run twice on one
 database, so an option is never only tested on its own (AGENTS.md
-"Testing"; the ``match`` and ``is-*`` axes are in test_option_matrix.py).
+"Testing"; the ``detect`` and ``is-*`` axes are in test_option_matrix.py).
 
 The world: the network serves version 9.99 from every source, and the
 snapshot shipped in the wheel is 9.98."""

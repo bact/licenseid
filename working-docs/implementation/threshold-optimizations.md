@@ -50,7 +50,7 @@ yield for short inputs.
 
 ## Changes applied
 
-### 1. Tier 0 threshold lowered to 30 words (`matcher.py`)
+### 1. Tier 0 threshold lowered to 30 words (`detector.py`)
 
 The short-text fast path (Tier 0) now only applies when
 `len(words) < 30` (~200 characters).
@@ -67,7 +67,7 @@ Benchmark impact on type-3 head slices after applying this change:
 | head_500 top-1 | 93.5 % | unchanged |
 | head_700+ top-1 | 94.2–94.5 % | unchanged |
 
-### 2. Marker detection suppressed for inputs < 30 words (`matcher.py`)
+### 2. Marker detection suppressed for inputs < 30 words (`detector.py`)
 
 `detector.detect()` is now guarded by `if len(words) >= 30`. Inputs below
 the threshold skip marker scanning entirely, as they are handled by Tier 0

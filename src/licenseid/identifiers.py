@@ -535,7 +535,7 @@ def _normalize_single_id(
 
 def _plus_id(lic_id: str, db: ListLookup) -> str | None:
     """*lic_id*, an ID and a "+", with its base read by ID or as a loosely
-    written ID ("Apache-2", "GPL-2"), as resolve() reads it; never by a bare
+    written ID ("Apache-2", "GPL-2"), as match() reads it; never by a bare
     prefix, which made "MI+" MIT+. The "+" becomes the base's -or-later ID
     where the List has one in use ("GPL-2+" is GPL-2.0-or-later), and stays
     otherwise ("Apache-2+" is Apache-2.0+). None for no base, or one that

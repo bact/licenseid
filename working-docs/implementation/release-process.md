@@ -36,6 +36,16 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
 
 ## Checks before the tag
 
+- Pitloom and licenseid depend on each other: licenseid's build runs
+  Pitloom's hook, and Pitloom imports licenseid. A release that renames or
+  removes a public name (0.7.0: `resolve`, `AggregatedLicenseMatcher`,
+  `LicenseMatch`) breaks every Pitloom whose `licenseid` requirement has no
+  upper bound, and with it licenseid's own isolated build once the release
+  is on PyPI. Before the tag: a Pitloom release that caps `licenseid` below
+  the new version (or reads the new names) is on PyPI, and
+  `.github/requirements-release.txt` pins Pitloom and licenseid to a pair
+  that imports. The wheel's SBOM check runs in its own environment for the
+  same reason (`build.yml`).
 - A new `trove-classifiers` release can fail `tests/test_trovenames.py`
   (a new `License ::` classifier): decide each new entry in
   `src/licenseid/trovenames.py` and `tests/trove_golden.py`.
@@ -95,11 +105,11 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
 ## Traps seen
 
 - An outside review after the last planned merge of 0.6.0 found four bugs,
-  one a wrong licence from `match(text="GPL-2.0-only+")` that the seeded
+  one a wrong licence from `detect(text="GPL-2.0-only+")` that the seeded
   tests could not show (#101). Before the tag, probe each new input shape on
   a full database built by `update`, against the last release.
 - The release planned as 0.5.1 became 0.6.0 after its preparation PR was
-  open: a new public API (`resolve()`) is a minor release. Rename the
+  open: a new public API (`resolve()`, now `match()`) is a minor release. Rename the
   version in docs and comments too, not only in the three version files.
 - A fix PR after the preparation PR goes into the open release section;
   merge its entry with the related one (`[#99], [#101]`), and keep Keep a

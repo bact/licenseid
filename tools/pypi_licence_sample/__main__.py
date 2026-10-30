@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Measure how ``licenseid.resolve()`` fares on real PyPI licence values.
+"""Measure how ``licenseid.match()`` fares on real PyPI licence values.
 
 Three steps, run as ``python -m tools.pypi_licence_sample``:
 
@@ -17,7 +17,7 @@ Three steps, run as ``python -m tools.pypi_licence_sample``:
 ``analyze``
     Picks the value a consumer would use for each project (the first of
     ``License-Expression``, a short ``License``, the classifiers), runs
-    ``resolve()`` on it and prints: which source was used, the category of
+    ``match()`` on it and prints: which source was used, the category of
     each answer, and the unresolved values grouped by what would resolve them
     (:data:`GROUPS`, a first reading by pattern, not tested rules), each with
     its project count and download total. Needs the licence database
@@ -26,7 +26,7 @@ Three steps, run as ``python -m tools.pypi_licence_sample``:
 ``export``
     Writes the distinct short values (the value a consumer would use, as
     ``analyze`` picks it) with their project and download counts and the
-    answer of ``resolve()`` to tab-separated files of at most 790 lines, for
+    answer of ``match()`` to tab-separated files of at most 790 lines, for
     a test fixture (``tests/fixtures/pypi_values_*.tsv``). The values are
     escaped as Python ``unicode_escape``. Several classifiers (joined by
     ``AND``) are left out, as ``analyze`` counts them apart. When the values
@@ -255,7 +255,7 @@ def _open_database(path: Path | None) -> "LicenseDatabase | None":
 def analyze(path: Path, top: int, db_path: Path | None = None) -> None:
     """Print the statistics of the JSON Lines file *path*, answered from the
     database at *db_path* (the default database when ``None``)."""
-    from licenseid import resolve  # pylint: disable=import-outside-toplevel
+    from licenseid import match  # pylint: disable=import-outside-toplevel
 
     db = _open_database(db_path)
     projects = read_projects(path)
@@ -275,7 +275,7 @@ def analyze(path: Path, top: int, db_path: Path | None = None) -> None:
         if source == "Classifier" and " AND " in value:
             categories["several classifiers"] += 1
             continue
-        category = resolve(value, db)["category"]
+        category = match(value, db)["category"]
         categories[category] += 1
         if category == "unresolved":
             group = group_of(value)
@@ -298,7 +298,7 @@ def _report(
     groups, group_downloads, values, downloads = tables
     valued = sum(categories.values())
     print("\nsource used:", dict(sources))
-    print(f"\nanswer of resolve() ({valued} projects with a short value)")
+    print(f"\nanswer of match() ({valued} projects with a short value)")
     for name, count in categories.most_common():
         print(f"  {name:22} {count:5} {100 * count / valued:5.1f}%")
     unresolved = sum(groups.values())
@@ -346,12 +346,12 @@ def _export_rows(
 ) -> tuple[list[tuple[str, ...]], str]:
     """The exported rows of *values*, and the SHA-256 (hex) of the sorted
     ``value`` and answer lines (every answer column) of all of them."""
-    from licenseid import resolve  # pylint: disable=import-outside-toplevel
+    from licenseid import match  # pylint: disable=import-outside-toplevel
 
     rows: list[tuple[str, ...]] = []
     digest = hashlib.sha256()
     for value, field, count, downloads in values:
-        answer = answer_fields(answer_of(value, resolve(value, db)))
+        answer = answer_fields(answer_of(value, match(value, db)))
         digest.update(("\t".join((escape_field(value), *answer)) + "\n").encode())
         rows.append((escape_field(value), field, str(count), str(downloads), *answer))
     return rows, digest.hexdigest()
@@ -375,7 +375,7 @@ def _export_header(
         ),
         (
             "# field: the source most projects used. '-' is None or empty. The"
-            " _0_6_0 columns are the answer of resolve() before the 0.7.0 work."
+            " _0_6_0 columns are the answer of resolve() (now match()) before the 0.7.0 work."
         ),
         (
             f"# distinct values: {counts[0]}; kept in these files: {counts[1]}."
@@ -434,9 +434,9 @@ def _not_exact(rows: Sequence[tuple[str, ...]]) -> list[tuple[str, ...]]:
 def _list_version(db: "LicenseDatabase | None") -> str:
     """The SPDX License List version of *db* (the default database for
     ``None``)."""
-    from licenseid import resolve  # pylint: disable=import-outside-toplevel
+    from licenseid import match  # pylint: disable=import-outside-toplevel
 
-    version = resolve("MIT", db)["lists"][0]["version"]
+    version = match("MIT", db)["lists"][0]["version"]
     return version or "unknown"
 
 
@@ -447,7 +447,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     fetch_parser = commands.add_parser("fetch", help="download the licence fields")
     fetch_parser.add_argument("--count", type=int, default=5000)
     fetch_parser.add_argument("--out", type=Path, required=True)
-    analyze_parser = commands.add_parser("analyze", help="run resolve() and count")
+    analyze_parser = commands.add_parser("analyze", help="run match() and count")
     analyze_parser.add_argument("sample", type=Path)
     analyze_parser.add_argument("--top", type=int, default=40)
     analyze_parser.add_argument("--db", type=Path, help="database (default: cache)")

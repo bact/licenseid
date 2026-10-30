@@ -28,7 +28,7 @@ QueryConnection = contextlib.AbstractContextManager[sqlite3.Connection]
 
 class _ThreadState(threading.local):
     """One thread's share: sqlite3 refuses a connection made in another
-    thread, and two threads may match on one matcher at once."""
+    thread, and two threads may detect on one detector at once."""
 
     blocks = 0  # reading() blocks open
     block = 0  # outermost reading() blocks entered so far

@@ -7,7 +7,7 @@
 Aggregated license matching logic using hybrid search.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from typing import Any, cast
 
@@ -37,10 +37,10 @@ from licenseid.similarity import (
 from licenseid.textinput import read_text_file, reject_lone_surrogate
 from licenseid.types import (
     CandidateMatch,
+    Detection,
+    DetectRequest,
     InternalMatch,
     LicenseDetails,
-    LicenseMatch,
-    MatchRequest,
     Method,
     RawMatch,
 )
@@ -53,9 +53,9 @@ from licenseid.types import (
 _FP_BOOST: float = 0.05
 
 
-# The keyword options match() accepts; `text`, `license_id` and `file_path`
+# The keyword options detect() accepts; `text`, `license_id` and `file_path`
 # are its named parameters, so a request can carry no other key.
-_MATCH_OPTIONS: frozenset[str] = frozenset(MatchRequest.__annotations__) - {
+_MATCH_OPTIONS: frozenset[str] = frozenset(DetectRequest.__annotations__) - {
     "text",
     "license_id",
     "file_path",
@@ -63,7 +63,7 @@ _MATCH_OPTIONS: frozenset[str] = frozenset(MatchRequest.__annotations__) - {
 
 
 def _reject_unknown_options(options: dict[str, Any]) -> None:
-    """Raise InvalidInputError for an option match() does not know, so a typo
+    """Raise InvalidInputError for an option detect() does not know, so a typo
     or a removed option (`enable_java`) cannot pass with no effect."""
     unknown = sorted(options.keys() - _MATCH_OPTIONS)
     if unknown:
@@ -75,7 +75,7 @@ def _reject_unknown_options(options: dict[str, Any]) -> None:
 
 @dataclass(frozen=True)
 class _MatchContext:
-    """Immutable per-call state threaded through match()'s tiers. Built
+    """Immutable per-call state threaded through detect()'s tiers. Built
     once after file/text resolution; read-only afterward. Not part of
     the public API. marker_candidates/marker_boosts live outside this
     context as explicit parameters instead, since they're a tier's
@@ -83,16 +83,16 @@ class _MatchContext:
 
     target_text: str
     file_path: str | None
-    request: MatchRequest
+    request: DetectRequest
     is_pure: bool
     norm_input: str
     word_count: int
     manifest: list[list[str]]  # license_value_groups(): parsed once per call
 
 
-class AggregatedLicenseMatcher:
+class LicenseDetector:
     """
-    Main matcher class that implements Tier 1 (FTS5) and Tier 2 (RapidFuzz)
+    Main detector class that implements Tier 1 (FTS5) and Tier 2 (RapidFuzz)
     matching.
     """
 
@@ -101,14 +101,15 @@ class AggregatedLicenseMatcher:
         db_path: str | None = None,
         *,
         enable_popularity: bool = False,
+        report: Callable[[str], None] | None = None,
     ):
         if not db_path:
             db_path = get_default_db_path()
         # Before LicenseDatabase, which opens the file (create=False below: it
         # must be there, and a lookup never makes one).
         check_database_ready(db_path)
-        self.db = LicenseDatabase(db_path, create=False)
-        self.detector = MarkerDetector(self.db)
+        self.db = LicenseDatabase(db_path, create=False, report=report)
+        self.markers = MarkerDetector(self.db)
         self.enable_popularity = enable_popularity
 
     def _try_explicit_id_match(self, license_id: str) -> list[RawMatch]:
@@ -129,7 +130,7 @@ class AggregatedLicenseMatcher:
     def _resolve_declared(self, value: str) -> list[RawMatch]:
         """The answer to a declared license value: certain, or none."""
         return self._finalize_exact_markers(
-            self.detector.resolve_license_value(value, 1.0), method="id"
+            self.markers.resolve_license_value(value, 1.0), method="id"
         )
 
     def _resolve_loose_with(self, text: str) -> list[RawMatch]:
@@ -155,7 +156,7 @@ class AggregatedLicenseMatcher:
         return text or ""
 
     def _build_match_context(
-        self, target_text: str, file_path: str | None, options: MatchRequest
+        self, target_text: str, file_path: str | None, options: DetectRequest
     ) -> _MatchContext:
         """Phase 2 (cont.): classify content and build the immutable
         per-call state shared by the remaining tiers."""
@@ -189,11 +190,11 @@ class AggregatedLicenseMatcher:
         otherwise be matched by name, and wrongly.
         """
         if ctx.word_count >= 30:
-            marker_candidates = self.detector.detect(
+            marker_candidates = self.markers.detect(
                 ctx.target_text, file_path=ctx.file_path, manifest=ctx.manifest
             )
         else:
-            marker_candidates = self.detector.detect_declared(
+            marker_candidates = self.markers.detect_declared(
                 ctx.target_text, ctx.manifest
             )
         spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
@@ -257,7 +258,7 @@ class AggregatedLicenseMatcher:
         if short_matches and short_matches[0]["score"] > 1.0:
             for m in short_matches:
                 if "is_spdx" not in m:  # an expression (see shorttext)
-                    flags = self.detector.license_flags(m["license_id"])
+                    flags = self.markers.license_flags(m["license_id"])
                     m["is_spdx"] = flags["is_spdx"]
                     m["is_osi_approved"] = flags["is_osi_approved"]
                     m["is_fsf_libre"] = flags["is_fsf_libre"]
@@ -272,7 +273,7 @@ class AggregatedLicenseMatcher:
         A long input keeps them: its tags are a small part of its text."""
         if ctx.word_count >= 30:
             return ctx
-        text = self.detector.without_spdx_tags(ctx.target_text)
+        text = self.markers.without_spdx_tags(ctx.target_text)
         if text == ctx.target_text:
             return ctx
         norm_input = normalize_text(text)
@@ -324,7 +325,7 @@ class AggregatedLicenseMatcher:
         marker_boosts: dict[str, float],
     ) -> list[InternalMatch]:
         """Tier 1 (Broad Recall) retrieval + augmentation, then Tier 2
-        (Precision Ranking). Never short-circuits match()."""
+        (Precision Ranking). Never short-circuits detect()."""
         candidates = self._get_candidates(ctx.request, ctx.target_text)
 
         # For mixed content or thin FTS5 results, augment via windowed search.
@@ -355,17 +356,17 @@ class AggregatedLicenseMatcher:
             is_pure=ctx.is_pure,
         )
 
-    def match(
+    def detect(
         self,
         text: str | None = None,
         *,
         license_id: str | None = None,
         file_path: str | None = None,
         **options: Any,
-    ) -> list[LicenseMatch]:
+    ) -> list[Detection]:
         """
         Identify license text and return ranked matches, each with the same
-        keys (see licenseid.types.LicenseMatch).
+        keys (see licenseid.types.Detection).
         Must provide exactly one of text, license_id, or file_path.
         Raises licenseid.errors.InvalidInputError: unknown option, binary file,
         a text with a lone surrogate, or a license_id that names no single
@@ -392,7 +393,7 @@ class AggregatedLicenseMatcher:
         file_path: str | None = None,
         **options: Any,
     ) -> Sequence[RawMatch | InternalMatch]:
-        """match() before the public form: each tier's own records."""
+        """detect() before the public form: each tier's own records."""
         _reject_unknown_options(options)
         if license_id:
             return self._try_explicit_id_match(license_id)
@@ -402,7 +403,7 @@ class AggregatedLicenseMatcher:
             return []
 
         ctx = self._build_match_context(
-            target_text, file_path, cast(MatchRequest, options)
+            target_text, file_path, cast(DetectRequest, options)
         )
 
         # Tier 0.5: Marker Detection — SPDX-License-Identifier is
@@ -451,11 +452,11 @@ class AggregatedLicenseMatcher:
     ) -> LicenseDetails | None:
         """Resolve the input to the record of its top match (score 0.85 or
         more), or None. The is_*() predicates and the CLI's is-* commands both
-        answer from this, so they cannot disagree with match(), and raise
+        answer from this, so they cannot disagree with detect(), and raise
         what it raises. The bar reads the public score, as --threshold does:
         rounded to 4 places, so a raw 0.84995 passes."""
         with self.db.reading():
-            results = self.match(text, license_id=license_id, file_path=file_path)
+            results = self.detect(text, license_id=license_id, file_path=file_path)
             if not results or results[0]["score"] < 0.85:
                 return None
             top = results[0]
@@ -464,7 +465,7 @@ class AggregatedLicenseMatcher:
             return record
 
         # An expression (a WITH, an OR, a LicenseRef) is not a single DB row:
-        # fall back to the flags match() already computed, not "unknown".
+        # fall back to the flags detect() already computed, not "unknown".
         return cast(
             LicenseDetails,
             {
@@ -493,8 +494,8 @@ class AggregatedLicenseMatcher:
             ) or self.db.get_license_details(license_id.split(" WITH ")[0])
             if not details:
                 return "", ""
-            ctx = self._build_match_context(text, None, cast(MatchRequest, {}))
-            candidate = self.detector.to_candidate(details, 0.0)
+            ctx = self._build_match_context(text, None, cast(DetectRequest, {}))
+            candidate = self.markers.to_candidate(details, 0.0)
         norm_input = self._without_tags(ctx).norm_input
         words = norm_input.split()
         _, _, window = calculate_base_similarity(
@@ -505,25 +506,25 @@ class AggregatedLicenseMatcher:
     def is_spdx(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is in the SPDX License List.
 
-        Raises what match() raises.
+        Raises what detect() raises.
         """
         record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_spdx", False)
 
     def is_osi(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is OSI-approved. Raises what match() raises."""
+        """True if the license is OSI-approved. Raises what detect() raises."""
         record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_osi_approved", False)
 
     def is_fsf(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is FSF-libre. Raises what match() raises."""
+        """True if the license is FSF-libre. Raises what detect() raises."""
         record = self.resolve_record(text, **kwargs)
         return record is not None and record.get("is_fsf_libre", False)
 
     def is_open(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is OSI-approved OR FSF-libre.
 
-        Raises what match() raises.
+        Raises what detect() raises.
         """
         record = self.resolve_record(text, **kwargs)
         if not record:
@@ -532,7 +533,7 @@ class AggregatedLicenseMatcher:
             record.get("is_osi_approved", False) or record.get("is_fsf_libre", False)
         )
 
-    def _get_candidates(self, data: MatchRequest, text: str) -> list[CandidateMatch]:
+    def _get_candidates(self, data: DetectRequest, text: str) -> list[CandidateMatch]:
         """Tier 1 retrieval for *text* (see licenseid.retrieval)."""
         return get_candidates(self.db, data, text)
 
@@ -547,7 +548,7 @@ class AggregatedLicenseMatcher:
         self,
         candidates: list[CandidateMatch],
         norm_input: str,
-        data: MatchRequest,
+        data: DetectRequest,
         marker_boosts: dict[str, float] | None = None,
         is_pure: bool = True,
     ) -> list[InternalMatch]:
@@ -637,10 +638,10 @@ class AggregatedLicenseMatcher:
         ]
 
     def _match_mixed_content(
-        self, request: MatchRequest, target_text: str
+        self, request: DetectRequest, target_text: str
     ) -> list[CandidateMatch]:
         """Extract sections from mixed content and search them for licenses."""
-        sections = self.detector.get_sections(target_text)
+        sections = self.markers.get_sections(target_text)
         candidates: list[CandidateMatch] = []
         seen_ids = set()
 
@@ -656,7 +657,7 @@ class AggregatedLicenseMatcher:
                     details = self.db.get_license_details(m["license_id"])
                     if details:
                         candidates.append(
-                            self.detector.to_candidate(details, m["score"])
+                            self.markers.to_candidate(details, m["score"])
                         )
                         seen_ids.add(m["license_id"])
 

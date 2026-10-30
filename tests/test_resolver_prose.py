@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve()`` reads the prose form of one licence ID (task T8, rules P1 to
+"""``match()`` reads the prose form of one licence ID (task T8, rules P1 to
 P3; decisions Q3, Q18, Q22, P64 to P70)."""
 # pylint: disable=missing-function-docstring
 
@@ -15,7 +15,7 @@ from matcher_db import Lic, seeded_db
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 from licenseid.resolveleaf import Found
 from licenseid.resolveprose import read_alone, read_prose
 from licenseid.resolvertypes import Resolution
@@ -168,7 +168,7 @@ def test_a_deprecated_id_is_reached_as_a_separator_spelling_is(
 ) -> None:
     """P74: the loose key names the right licence; the deprecation policy
     keeps it as written, with no successor (`deprecated_ambiguous`)."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"], got["trust"]) == (
         expression,
         "deprecated_ambiguous",
@@ -188,8 +188,8 @@ def test_two_readings_of_a_version_form_must_agree() -> None:
     )
     for path in seeded_db("test_resolver_prose_agree", rows):
         db = LicenseDatabase(path, create=False)
-        assert resolve("Foo License, Version 2.0", db)["expression"] is None
-        assert resolve("Baz License, Version 3.0", db)["expression"] is not None
+        assert match("Foo License, Version 2.0", db)["expression"] is None
+        assert match("Baz License, Version 3.0", db)["expression"] is not None
 
 
 def kinds(got: Resolution) -> list[str]:
@@ -210,7 +210,7 @@ def test_a_prose_form_of_one_id_is_read(
     steps: list[str],
     category: str | None,
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] == expression
     assert kinds(got) == steps
     assert got["category"] == (category or "prose_form")
@@ -225,7 +225,7 @@ def test_a_prose_form_of_one_id_is_read(
 
 @pytest.mark.parametrize("value", STAYS, ids=lambda v: v[:24])
 def test_a_near_miss_is_not_read(corpus_db: LicenseDatabase, value: str) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"], got["steps"]) == (
         None,
         "unresolved",
@@ -238,7 +238,7 @@ def test_the_weakest_part_wins(
     corpus_db: LicenseDatabase, value: str, expression: str, category: str
 ) -> None:
     """A prose form never narrows a split ID: it keeps both candidates."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == (expression, category)
     assert got["trust"] == "none"
     assert kinds(got)[0] in ("prose_form", "trailing_name")
@@ -249,7 +249,7 @@ def test_the_weakest_part_wins(
 
 
 def test_the_steps_chain_from_the_value_to_the_id(corpus_db: LicenseDatabase) -> None:
-    got = resolve("The Apache License, Version 2.0.", corpus_db)
+    got = match("The Apache License, Version 2.0.", corpus_db)
     assert [(s["from"], s["to"], s["detail"]) for s in got["steps"]] == [
         (
             "The Apache License, Version 2.0.",
@@ -272,7 +272,7 @@ def test_no_trove_name_is_read_by_a_prose_rule(
     unresolved in every spelling (Q22)."""
     entry = TROVE_NAMES[name]
     for value in (name, f"The {name}", f"{name}.", f"the {name.upper()}"):
-        got = resolve(value, corpus_db)
+        got = match(value, corpus_db)
         if entry.reading == "none":
             assert got["expression"] is None, value
         elif value == name:
@@ -296,7 +296,7 @@ def test_a_name_that_states_no_licence_is_not_read_by_a_prose_form(
 def test_a_gnu_name_with_a_bare_version_is_never_narrowed(
     corpus_db: LicenseDatabase, family: str, number: str, form: str
 ) -> None:
-    got = resolve(form.format(family, number), corpus_db)
+    got = match(form.format(family, number), corpus_db)
     assert not (got["expression"] or "").endswith(("-only", "-or-later"))
     assert got["category"] in ("unresolved", "assumed_only", "trove_name")
 
@@ -307,7 +307,7 @@ def test_a_gnu_name_with_a_bare_version_is_never_narrowed(
 def test_a_family_with_a_bare_version_follows_the_deprecated_policy(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["category"] in ("assumed_only", "unresolved", "prose_form")
     assert not (got["expression"] or "").endswith(("-only", "-or-later"))
 
@@ -324,7 +324,7 @@ def test_a_family_with_a_bare_version_follows_the_deprecated_policy(
 def test_the_packaged_list_gives_the_same_answer(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    from_db, from_bundle = resolve(value, corpus_db), resolve(value, source="packaged")
+    from_db, from_bundle = match(value, corpus_db), match(value, source="packaged")
     for key in ("expression", "category", "trust", "steps", "reason", "candidates"):
         assert from_bundle[key] == from_db[key], key
 
@@ -345,7 +345,7 @@ def test_the_packaged_list_gives_the_same_answer(
 def test_a_prose_operand_reads_alone_but_is_no_operand(
     corpus_db: LicenseDatabase, value: str, leaf: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] is None
     assert got["reason"] == f"operand of several words: {leaf}"
 
@@ -356,7 +356,7 @@ def test_a_prose_operand_reads_alone_but_is_no_operand(
 def test_an_operand_that_does_not_read_alone_is_not_resolved(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert got["expression"] is None
     assert (got["reason"] or "").startswith("operand not resolved: ")
 
@@ -381,7 +381,7 @@ def test_the_rules_are_linear_on_a_large_input(corpus_db: LicenseDatabase) -> No
 
 
 def _time_the_rules(db: LicenseDatabase, size: int) -> None:
-    """Each rule on the shapes that can backtrack, called directly (``resolve``
+    """Each rule on the shapes that can backtrack, called directly (``match``
     refuses a value over 2,000 characters first)."""
     spaces = " " * size
     payloads = [
@@ -431,6 +431,6 @@ def test_a_reduction_that_would_drop_something_is_refused_with_a_reason(
 ) -> None:
     """The head of a prose form is read as it is alone, so the drop guard
     judges it (T6, R7 item 3)."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], got["reason"]) == (None, reason)
     assert [s["kind"] for s in got["steps"]] == ["drop"]

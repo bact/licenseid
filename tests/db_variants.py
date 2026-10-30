@@ -35,7 +35,7 @@ MIT_TEXT = (
 )
 LICENSE_LIST_VERSION = "3.30"
 
-COMMANDS = ["match", "is-osi", "is-fsf", "is-open", "is-free", "is-spdx"]
+COMMANDS = ["detect", "is-osi", "is-fsf", "is-open", "is-free", "is-spdx"]
 INPUTS = ["arg_file", "arg_id", "text", "id", "stdin", "none", "blank", "blank_text"]
 
 # Refusal kinds. REFUSED: refused, but the contract does not fix which of the

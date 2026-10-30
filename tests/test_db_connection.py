@@ -19,7 +19,7 @@ from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.database import LicenseDatabase
 from licenseid.dbconnection import Connections
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 
 ROWS = (
     *GPL2_ROWS,
@@ -111,19 +111,19 @@ def test_a_write_in_a_block_ends_with_its_own_query(
 @pytest.mark.parametrize(
     "call",
     [
-        lambda m: m.match(text=TAGS),
-        lambda m: m.is_spdx(text=TAGS),  # match() and one more lookup
+        lambda m: m.detect(text=TAGS),
+        lambda m: m.is_spdx(text=TAGS),  # detect() and one more lookup
         lambda m: m.diff_pair("permission is hereby granted", "MIT"),
     ],
-    ids=["match", "is_spdx", "diff_pair"],
+    ids=["detect", "is_spdx", "diff_pair"],
 )
 def test_one_call_opens_one_connection(
     db_path: str,
     opened: list[sqlite3.Connection],
-    call: Callable[[AggregatedLicenseMatcher], Any],
+    call: Callable[[LicenseDetector], Any],
 ) -> None:
     """Each tag value cost about five connections before."""
-    matcher = AggregatedLicenseMatcher(db_path)
+    matcher = LicenseDetector(db_path)
     opened.clear()
     assert call(matcher)
     assert len(opened) == 1 and is_closed(opened[0])
@@ -135,7 +135,7 @@ def test_two_threads_match_on_one_matcher(db_path: str) -> None:
     """sqlite3 refuses a connection made in another thread, so each thread
     needs its own, one for its whole call. The barrier holds both threads in
     their block at once."""
-    matcher = AggregatedLicenseMatcher(db_path)
+    matcher = LicenseDetector(db_path)
     barrier = threading.Barrier(2, timeout=10)
     real = Connections.connect
     answers: dict[int, list[str]] = {}
@@ -149,7 +149,7 @@ def test_two_threads_match_on_one_matcher(db_path: str) -> None:
 
     def run(index: int) -> None:
         try:
-            answers[index] = [r["license_id"] for r in matcher.match(text=TAGS)]
+            answers[index] = [r["license_id"] for r in matcher.detect(text=TAGS)]
         except BaseException as exc:  # pylint: disable=broad-exception-caught
             errors.append(exc)
 

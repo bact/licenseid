@@ -6,9 +6,9 @@
 """
 Stateless similarity scoring for Tier 2 (RapidFuzz) license matching.
 
-Pure functions of their arguments only -- no database or matcher instance
+Pure functions of their arguments only -- no database or detector instance
 state -- so they can be tested and reused independently of
-AggregatedLicenseMatcher.
+LicenseDetector.
 """
 
 import math

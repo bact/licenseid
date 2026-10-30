@@ -11,71 +11,76 @@ and this project adheres to
 
 ### Added
 
-- `resolve()` works with no database: it reads the SPDX List shipped in the
+- `match()` works with no database: it reads the SPDX List shipped in the
   wheel, with the same answers; `source=` (`auto`, `database`, `packaged`)
   picks the list, `lists[*].source` says which
   ([#119])
 - `DatabaseNotReadyError.condition` and `.detail`: why a database cannot be
   read (`not found`, `empty`, `invalid`, `unreadable`)
   ([#119])
-- `resolve()` result has a `reason` (`None` unless refused), such as
+- `match()` result has a `reason` (`None` unless refused), such as
   `character dropped: U+003F`; a `drop` step not applied names the reading it
   stopped
   ([#120])
-- `resolve()` reads a value in quotes (`"MIT"`, `“MIT”`, `"MIT`) with an
+- `match()` reads a value in quotes (`"MIT"`, `“MIT”`, `"MIT`) with an
   `unquote` step; `"MIT'` and quotes inside a value are still refused
   ([#121])
-- `resolve()` reads compounds of one-word operands, each as it reads alone,
+- `match()` reads compounds of one-word operands, each as it reads alone,
   in canonical order (`mit or "Apache2"` is `Apache-2.0 OR MIT`); one
   unresolved operand leaves the whole unresolved, with a one-line `reason`
   ([#122], [#125])
-- `resolve()` result has `schema` (2), `operands`, `components` and `by` on
+- `match()` result has `schema` (2), `operands`, `components` and `by` on
   each step; it reads `[MIT]`, `AdditionRef-*` after `WITH`, and "or later"
   on an ID with no `-or-later` form as `+` (`MIT or later` is `MIT+`)
   ([#122], [#125])
-- `resolve()` reads PyPI trove classifier names and paths (`License :: OSI
+- `match()` reads PyPI trove classifier names and paths (`License :: OSI
   Approved :: MIT License`) and `MIT License (MIT)`; category `trove_name`
   ([#126])
-- `resolve()` reads prose forms of one licence (`BSD 3-Clause License`,
+- `match()` reads prose forms of one licence (`BSD 3-Clause License`,
   `Apache License, Version 2.0`, `The MIT License (MIT)`); category
   `prose_form` ([#128])
-- `resolve()` lists the licences of a value joined by `;` (`MIT ; Apache 2`)
+- `match()` lists the licences of a value joined by `;` (`MIT ; Apache 2`)
   as `operands`, with no expression and the reason `operator not stated: ;`
   ([#131])
 
 ### Changed
 
-- `resolve()` keeps its choice of list while the default database file is
+- **Breaking:** `licenseid match` is now `licenseid detect`,
+  `AggregatedLicenseMatcher.match()` is `LicenseDetector.detect()`, and
+  `resolve()` is `match()`; `licenseid.detect()` is new. Migration:
+  `licenseid detect`; `from licenseid import LicenseDetector, Detection,
+  DetectRequest, match`; `resolver.match_with` ([#134])
+- `match()` keeps its choice of list while the default database file is
   unchanged: about 10 times faster per value, with no connection to choose
   ([#132])
-- `resolve()` refuses a value read only by dropping a list or comment marker
+- `match()` refuses a value read only by dropping a list or comment marker
   (`REM MIT`, `1. MIT`: `word dropped: rem`) or a mark at the start (`-MIT`,
   `.GPL-3.0-only`), two or more at the end (`MIT...`) or a lone dash; one
   `;` or `:` at the end (`MIT;`) is left off and read ([#128]); also after a
   `+`, an exception or a `LicenseRef-*`; `GPL-2.0+?` is refused with a reason
   ([#131])
-- `resolve()` with no database reads the newer of the default database and
+- `match()` with no database reads the newer of the default database and
   the shipped list (a tie: the database, if this build made it); an unusable
   default database falls back to the shipped list with a warning
   ([#119])
-- `resolve()` says the `build vN outdated` or `newer` warning of the default
+- `match()` says the `build vN outdated` or `newer` warning of the default
   database once per process
   ([#119])
-- **Breaking:** `resolve()` drops the `expression` category; an unbalanced
+- **Breaking:** `match()` drops the `expression` category; an unbalanced
   or dangling compound (`(MIT`, `MIT AND`) is `malformed`, not `unresolved`.
   Migration: a compound has a category of its own; read `operands`
   ([#122])
-- `resolve()` categories: `Apache-2.0 with LLVM-exception` is `lexical`, not
+- `match()` categories: `Apache-2.0 with LLVM-exception` is `lexical`, not
   `exact`; `GPL-2.0 or-later` is `stated_qualifier`, not `separator`
   ([#122])
-- `resolve()` caps each half of a `WITH` at 100 characters, not the whole
+- `match()` caps each half of a `WITH` at 100 characters, not the whole
   ([#122])
 - The sdist ships only the source, docs and project metadata: no tests, CI
   files or internal notes, and no links to files it leaves out ([#130])
 
 ### Fixed
 
-- `resolve()` answers `unresolved` for a lone surrogate (it raised
+- `match()` answers `unresolved` for a lone surrogate (it raised
   `UnicodeEncodeError`) and for a value read only by dropping a mark
   (`Apache 2.0?`, `MIT*`, U+FFFD)
   ([#117], [#120])
@@ -91,6 +96,7 @@ and this project adheres to
 [#130]: https://github.com/bact/licenseid/pull/130
 [#131]: https://github.com/bact/licenseid/pull/131
 [#132]: https://github.com/bact/licenseid/pull/132
+[#134]: https://github.com/bact/licenseid/pull/134
 
 ## [0.6.0] - 2026-10-27
 

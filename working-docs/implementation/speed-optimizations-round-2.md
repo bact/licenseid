@@ -115,7 +115,7 @@ the first iteration's queries.
 BeautifulSoup`). Both are needed only for uncommon paths:
 
 - `requests` — only `licenseid update` and `--clear-cache` (network
-  fetch), never `licenseid match`.
+  fetch), never `licenseid detect`.
 - `bs4` — only when `normalize_text()`'s own HTML-detection heuristic
   (`_HTML_TAG.search(text)`) actually fires.
 
@@ -132,7 +132,7 @@ normalisation all still work end-to-end.
 
 **File:** `database.py`
 
-Every Tier-0 short-text `match()` call re-fetched the full ~700-row
+Every Tier-0 short-text `detect()` call re-fetched the full ~700-row
 `licenses` table (`_match_short_text` → `get_all_names_and_ids()`), even
 though the table is static for the lifetime of a `LicenseDatabase`
 instance (it only changes out-of-process, via a separate `licenseid
@@ -148,7 +148,7 @@ def get_all_names_and_ids(self) -> list[LicenseNameId]:
     return result
 ```
 
-Confirmed the only caller (`matcher.py`'s `_match_short_text`) only reads
+Confirmed the only caller (`detector.py`'s `_match_short_text`) only reads
 the returned list, never mutates it, so returning the cached object by
 reference is safe.
 
@@ -166,7 +166,7 @@ unaffected.
 **File:** `database.py`
 
 Every query method opens its own short-lived connection via `_connect()`
-(measured: 16 call sites, ~16 connections per `match()` call on average).
+(measured: 16 call sites, ~16 connections per `detect()` call on average).
 Memory-mapped I/O lets SQLite read the file directly instead of via
 `read()` syscalls:
 
@@ -196,7 +196,7 @@ a full `licenseid update --force`.
 
 **File:** `similarity.py`, `fragment_similarity()`
 
-`fragment_similarity()` is 85%+ of total `match()` time on realistic
+`fragment_similarity()` is 85%+ of total `detect()` time on realistic
 workloads (RapidFuzz's `partial_ratio_alignment` on the fragment-matching
 path). The function already discards any candidate scoring below 0.6:
 
@@ -332,4 +332,4 @@ change:
 | `mypy src tests` (strict) | 0 issues, 21 files |
 | `pytest tests` | 50 passed, 2 skipped |
 | Targeted 675-fixture check (20% distortion + mixed) vs `main` | within 0.18pp — noise level |
-| CLI cold-start (`licenseid match`) | ~125ms → ~31ms |
+| CLI cold-start (`licenseid detect`) | ~125ms → ~31ms |

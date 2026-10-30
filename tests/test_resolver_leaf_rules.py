@@ -13,7 +13,7 @@ import time
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, match
 from licenseid.resolveleaf import over_key_cap
 from licenseid.versionkey import MAX_KEY_INPUT
 
@@ -21,7 +21,7 @@ _LONG = "x" * (MAX_KEY_INPUT + 1)
 
 
 def _answer(value: str, db: LicenseDatabase) -> tuple[object, ...]:
-    got = resolve(value, db)
+    got = match(value, db)
     return got["expression"], got["category"], [s["kind"] for s in got["steps"]]
 
 
@@ -96,7 +96,7 @@ def test_a_long_run_of_white_space_around_with_is_fast(
     values += ["LicenseRef-a" + " " * 1_980 + "b", " " * 1_999 + "W"]
     start = time.monotonic()
     for value in values:
-        resolve(value, corpus_db)
+        match(value, corpus_db)
     assert time.monotonic() - start < 1.0
 
 
@@ -186,15 +186,13 @@ def test_a_grant_on_an_id_with_no_or_later_form_is_the_plus_operator(
     expansion; the answer resolves to itself (a fixed point; a deprecated ID
     stays deprecated_ambiguous)."""
     assert _answer(value, corpus_db) == expected
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     if got["expression"] is not None:
         assert [(s["kind"], s["to"]) for s in got["expansions"]][-1] == (
             "stated_qualifier",
             got["expression"],
         )
-        assert (
-            resolve(got["expression"], corpus_db)["expression"] == (got["expression"])
-        )
+        assert match(got["expression"], corpus_db)["expression"] == (got["expression"])
 
 
 _CP = "Classpath-exception-2.0"
@@ -225,5 +223,5 @@ def test_a_grant_after_with_qualifies_the_licence(
 ) -> None:
     """As an SPDX tag reads it: the grant is the licence's, not the
     exception's; the expansion names the licence and its grant."""
-    got = resolve(value, corpus_db)
+    got = match(value, corpus_db)
     assert (got["expression"], [s["kind"] for s in got["steps"]]) == expected

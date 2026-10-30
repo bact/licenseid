@@ -3,14 +3,14 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Direct unit tests for AggregatedLicenseMatcher._get_candidates() (the
+"""Direct unit tests for LicenseDetector._get_candidates() (the
 retrieval in licenseid.retrieval).
 
-Characterization tests written before the matcher.py complexity refactor
+Characterization tests written before the detector.py complexity refactor
 (see working-docs/design/complexity-and-file-size-roadmap.md, "Done:
-`matcher.py::match()` and `_get_candidates()`") to
+`detector.py::detect()` and `_get_candidates()`") to
 pin down behaviour that was previously only reachable incidentally
-through match()'s public surface: the head/tail retrieval-window word
+through detect()'s public surface: the head/tail retrieval-window word
 thresholds, the tail-only candidate cap, hint injection, and the
 only_spdx/only_common/exclude filters.
 """
@@ -25,8 +25,8 @@ import pytest
 from conftest import make_memory_db_path
 
 from licenseid import retrieval
-from licenseid.matcher import AggregatedLicenseMatcher
-from licenseid.types import MatchRequest
+from licenseid.detector import LicenseDetector
+from licenseid.types import DetectRequest
 
 
 @pytest.fixture
@@ -40,8 +40,8 @@ def db_path() -> Generator[str, None, None]:
 
 
 @pytest.fixture
-def matcher(db_path: str) -> AggregatedLicenseMatcher:
-    return AggregatedLicenseMatcher(db_path)
+def matcher(db_path: str) -> LicenseDetector:
+    return LicenseDetector(db_path)
 
 
 def _seed(db_path: str, license_id: str, search_text: str, **flags: bool) -> None:
@@ -76,7 +76,7 @@ def _words(n: int, prefix: str = "term") -> str:
 
 
 def _install_search_spy(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> list[tuple[Any, ...]]:
     """Wrap matcher.db.search_candidates to record each call's args while
     still delegating to the real implementation."""
@@ -99,7 +99,7 @@ def test_the_tail_cap_is_25() -> None:
 
 @pytest.mark.parametrize("word_count", [50, 150, 250])
 def test_every_query_asks_for_fifty_normalised_candidates(
-    matcher: AggregatedLicenseMatcher, word_count: int
+    matcher: LicenseDetector, word_count: int
 ) -> None:
     """The text is normalised once up front; the database must not repeat
     the work (already_normalized) and must be asked for 50 rows."""
@@ -112,7 +112,7 @@ def test_every_query_asks_for_fifty_normalised_candidates(
 
     matcher.db.search_candidates = spy  # type: ignore[method-assign]
 
-    matcher._get_candidates(MatchRequest(), _words(word_count))
+    matcher._get_candidates(DetectRequest(), _words(word_count))
 
     assert seen
     assert all(k == {"limit": 50, "already_normalized": True} for k in seen)
@@ -120,7 +120,7 @@ def test_every_query_asks_for_fifty_normalised_candidates(
 
 @pytest.mark.parametrize("prefix", [";", ";;", "///", "**"])
 def test_comment_prefixes_are_stripped_before_normalisation(
-    matcher: AggregatedLicenseMatcher, prefix: str
+    matcher: LicenseDetector, prefix: str
 ) -> None:
     """normalize_text() does not strip these prefixes itself, so a list marker
     after one (`; 1. term`) would survive into the query: the raw-text strip
@@ -128,7 +128,7 @@ def test_comment_prefixes_are_stripped_before_normalisation(
     calls = _install_search_spy(matcher)
 
     matcher._get_candidates(
-        MatchRequest(), f"{prefix} 1. term0 term1\n{prefix} (a) term2"
+        DetectRequest(), f"{prefix} 1. term0 term1\n{prefix} (a) term2"
     )
 
     assert [args[0] for args in calls] == ["term0 term1 term2"]
@@ -138,7 +138,7 @@ def test_comment_prefixes_are_stripped_before_normalisation(
 
 
 def test_get_candidates_short_text_single_query(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     """<=100 normalized words: a single search_candidates call, and the
     matching candidate is returned."""
@@ -146,7 +146,7 @@ def test_get_candidates_short_text_single_query(
     _seed(db_path, "SHORT-1", text)
     calls = _install_search_spy(matcher)
 
-    result = matcher._get_candidates(MatchRequest(), text)
+    result = matcher._get_candidates(DetectRequest(), text)
 
     assert len(calls) == 1
     assert any(c["license_id"] == "SHORT-1" for c in result)
@@ -163,7 +163,7 @@ def test_get_candidates_short_text_single_query(
 )
 def test_get_candidates_retrieval_call_count_by_word_count(
     db_path: str,
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
     word_count: int,
     expected_call_count: int,
 ) -> None:
@@ -175,13 +175,13 @@ def test_get_candidates_retrieval_call_count_by_word_count(
     _seed(db_path, "IRRELEVANT", "unrelated filler")
     calls = _install_search_spy(matcher)
 
-    matcher._get_candidates(MatchRequest(), text)
+    matcher._get_candidates(DetectRequest(), text)
 
     assert len(calls) == expected_call_count
 
 
 def test_get_candidates_single_query_passes_full_text(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     """<=100 normalized words: the full text is passed through unchanged
     (not sliced), unlike the head/tail queries used for longer input."""
@@ -189,13 +189,13 @@ def test_get_candidates_single_query_passes_full_text(
     _seed(db_path, "IRRELEVANT", "unrelated filler")
     calls = _install_search_spy(matcher)
 
-    matcher._get_candidates(MatchRequest(), text)
+    matcher._get_candidates(DetectRequest(), text)
 
     assert calls[0][0].split() == text.split()
 
 
 def test_get_candidates_head_query_truncates_at_101_words(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     """101 normalized words: the head query passes only the first 100
     words on, dropping the 101st."""
@@ -203,7 +203,7 @@ def test_get_candidates_head_query_truncates_at_101_words(
     _seed(db_path, "IRRELEVANT", "unrelated filler")
     calls = _install_search_spy(matcher)
 
-    matcher._get_candidates(MatchRequest(), text)
+    matcher._get_candidates(DetectRequest(), text)
 
     passed_words = calls[0][0].split()
     assert passed_words == [f"term{i}" for i in range(100)]
@@ -211,7 +211,7 @@ def test_get_candidates_head_query_truncates_at_101_words(
 
 
 def test_get_candidates_tail_query_carries_last_20_words(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     """201 normalized words: the tail query carries exactly the last 20
     words."""
@@ -219,14 +219,14 @@ def test_get_candidates_tail_query_carries_last_20_words(
     _seed(db_path, "IRRELEVANT", "unrelated filler")
     calls = _install_search_spy(matcher)
 
-    matcher._get_candidates(MatchRequest(), text)
+    matcher._get_candidates(DetectRequest(), text)
 
     tail_words = calls[1][0].split()
     assert tail_words == [f"term{i}" for i in range(181, 201)]
 
 
 def test_get_candidates_tail_only_cap_enforced(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     """Tail-only additions (candidates found only via the tail query, not
     the head query) are capped at TAIL_ONLY_CAP, even when more would
@@ -241,14 +241,14 @@ def test_get_candidates_tail_only_cap_enforced(
         tail_word = f"tail{i % 20}"
         _seed(db_path, f"TAIL-ONLY-{i}", f"{tail_word} filler{i} content{i}")
 
-    result = matcher._get_candidates(MatchRequest(only_spdx=False), text)
+    result = matcher._get_candidates(DetectRequest(only_spdx=False), text)
 
     tail_only_ids = {c["license_id"] for c in result if "TAIL-ONLY" in c["license_id"]}
     assert len(tail_only_ids) == expected_cap
 
 
 def test_get_candidates_tail_query_dedup_against_head(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     """A candidate found by both the head and tail queries is not
     double-counted, and doesn't consume tail-cap budget."""
@@ -257,7 +257,7 @@ def test_get_candidates_tail_query_dedup_against_head(
     # (contains "tail0").
     _seed(db_path, "BOTH", "head0 tail0 shared content")
 
-    result = matcher._get_candidates(MatchRequest(only_spdx=False), text)
+    result = matcher._get_candidates(DetectRequest(only_spdx=False), text)
 
     matches = [c for c in result if c["license_id"] == "BOTH"]
     assert len(matches) == 1
@@ -267,29 +267,29 @@ def test_get_candidates_tail_query_dedup_against_head(
 
 
 def test_get_candidates_only_spdx_true_excludes_non_spdx(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     text = _words(30)
     _seed(db_path, "NON-SPDX", text, is_spdx=False)
 
-    result = matcher._get_candidates(MatchRequest(only_spdx=True), text)
+    result = matcher._get_candidates(DetectRequest(only_spdx=True), text)
 
     assert all(c["license_id"] != "NON-SPDX" for c in result)
 
 
 def test_get_candidates_only_spdx_false_includes_non_spdx(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     text = _words(30)
     _seed(db_path, "NON-SPDX", text, is_spdx=False)
 
-    result = matcher._get_candidates(MatchRequest(only_spdx=False), text)
+    result = matcher._get_candidates(DetectRequest(only_spdx=False), text)
 
     assert any(c["license_id"] == "NON-SPDX" for c in result)
 
 
 def test_get_candidates_only_common_excludes_low_usage_non_osi(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     text = _words(30)
     _seed(
@@ -302,27 +302,27 @@ def test_get_candidates_only_common_excludes_low_usage_non_osi(
     )
 
     result = matcher._get_candidates(
-        MatchRequest(only_spdx=False, only_common=True), text
+        DetectRequest(only_spdx=False, only_common=True), text
     )
 
     assert all(c["license_id"] != "OBSCURE" for c in result)
 
 
 def test_get_candidates_only_common_includes_high_usage(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     text = _words(30)
     _seed(db_path, "POPULAR", text, is_high_usage=True)
 
     result = matcher._get_candidates(
-        MatchRequest(only_spdx=False, only_common=True), text
+        DetectRequest(only_spdx=False, only_common=True), text
     )
 
     assert any(c["license_id"] == "POPULAR" for c in result)
 
 
 def test_get_candidates_only_common_includes_osi_approved_low_usage(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     """Boundary: is_high_usage=False but is_osi_approved=True still passes
     (the filter condition is an OR of the three flags)."""
@@ -330,20 +330,20 @@ def test_get_candidates_only_common_includes_osi_approved_low_usage(
     _seed(db_path, "OSI-NICHE", text, is_high_usage=False, is_osi_approved=True)
 
     result = matcher._get_candidates(
-        MatchRequest(only_spdx=False, only_common=True), text
+        DetectRequest(only_spdx=False, only_common=True), text
     )
 
     assert any(c["license_id"] == "OSI-NICHE" for c in result)
 
 
 def test_get_candidates_exclude_list_filters_named_id(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     text = _words(30)
     _seed(db_path, "EXCLUDE-ME", text)
 
     result = matcher._get_candidates(
-        MatchRequest(only_spdx=False, exclude=["EXCLUDE-ME"]), text
+        DetectRequest(only_spdx=False, exclude=["EXCLUDE-ME"]), text
     )
 
     assert all(c["license_id"] != "EXCLUDE-ME" for c in result)
@@ -353,7 +353,7 @@ def test_get_candidates_exclude_list_filters_named_id(
 
 
 def test_get_candidates_hint_injects_missing_id(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     """A hinted ID that's in the DB but wasn't returned by search is
     force-included as a synthetic candidate."""
@@ -361,7 +361,7 @@ def test_get_candidates_hint_injects_missing_id(
     _seed(db_path, "HINTED", "totally unrelated other text")
 
     result = matcher._get_candidates(
-        MatchRequest(only_spdx=False, hint=["HINTED"]), text
+        DetectRequest(only_spdx=False, hint=["HINTED"]), text
     )
 
     hinted = [c for c in result if c["license_id"] == "HINTED"]
@@ -370,7 +370,7 @@ def test_get_candidates_hint_injects_missing_id(
 
 
 def test_get_candidates_hint_skips_id_already_in_filtered(
-    db_path: str, matcher: AggregatedLicenseMatcher
+    db_path: str, matcher: LicenseDetector
 ) -> None:
     """A hinted ID that's already present from real search results is not
     duplicated."""
@@ -378,7 +378,7 @@ def test_get_candidates_hint_skips_id_already_in_filtered(
     _seed(db_path, "ALREADY-THERE", text)
 
     result = matcher._get_candidates(
-        MatchRequest(only_spdx=False, hint=["ALREADY-THERE"]), text
+        DetectRequest(only_spdx=False, hint=["ALREADY-THERE"]), text
     )
 
     matches = [c for c in result if c["license_id"] == "ALREADY-THERE"]
@@ -386,14 +386,14 @@ def test_get_candidates_hint_skips_id_already_in_filtered(
 
 
 def test_get_candidates_hint_skips_unknown_id(
-    matcher: AggregatedLicenseMatcher,
+    matcher: LicenseDetector,
 ) -> None:
     """A hinted ID that isn't in the DB at all is silently skipped, not an
     error."""
     text = _words(30)
 
     result = matcher._get_candidates(
-        MatchRequest(only_spdx=False, hint=["NO-SUCH-LICENSE"]), text
+        DetectRequest(only_spdx=False, hint=["NO-SUCH-LICENSE"]), text
     )
 
     assert all(c["license_id"] != "NO-SUCH-LICENSE" for c in result)

@@ -5,7 +5,7 @@
 
 """Direct tests of licenseid.shorttext.match_short_text (Tier 0).
 
-Written from a mutation audit of the matcher.py split: coverage was 100%,
+Written from a mutation audit of the detector.py split: coverage was 100%,
 but the thresholds, the definitive-hit triple and the one-word partial
 match could be changed without a test noticing.
 """

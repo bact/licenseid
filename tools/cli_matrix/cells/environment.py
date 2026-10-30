@@ -138,8 +138,8 @@ def _add_locales(cells: CellSet) -> None:
         cells.add(
             "E2",
             f"locale {name}: non-ASCII file name",
-            f"{env} " + licenseid('match --bold "$F/\u00fcn\u00ef.txt"'),
-            kind="match",
+            f"{env} " + licenseid('detect --bold "$F/\u00fcn\u00ef.txt"'),
+            kind="detect",
             exp_exit=0,
             group="E2-nonascii-name",
             needs_locale=needs,
@@ -149,10 +149,10 @@ def _add_locales(cells: CellSet) -> None:
             f"locale {name}: non-ASCII --text",
             f"{env} "
             + licenseid(
-                "match --bold --text 'Copyright \u00a9 Zo\u00eb Permission is"
+                "detect --bold --text 'Copyright \u00a9 Zo\u00eb Permission is"
                 " hereby granted, free of charge, to any person obtaining a copy'"
             ),
-            kind="match",
+            kind="detect",
             exp_exit=None,
             group="E2-nonascii-text",
             needs_locale=needs,
@@ -160,8 +160,8 @@ def _add_locales(cells: CellSet) -> None:
         cells.add(
             "E2",
             f"locale {name}: non-ASCII --id",
-            f"{env} " + licenseid("match --id 'MIT\u00e9'"),
-            kind="match",
+            f"{env} " + licenseid("detect --id 'MIT\u00e9'"),
+            kind="detect",
             group="E2-nonascii-id",
             needs_locale=needs,
         )
@@ -180,7 +180,7 @@ def _add_stdin(cells: CellSet) -> None:
                 kind=kind,
                 xenv=name not in ("closed",),
             )
-        for sub, kind in (("match", "match"), ("is-osi", "predicate")):
+        for sub, kind in (("detect", "detect"), ("is-osi", "predicate")):
             cells.add(
                 "E3",
                 f"stdin={name}: {sub} (no input given at all)",
@@ -270,15 +270,15 @@ def _add_cwd(cells: CellSet) -> None:
         cells.add(
             "E6",
             f"cwd={name}: relative file + relative db",
-            f"{pre}$L --db $DB match --bold ../mit.txt | head -c 300; true",
+            f"{pre}$L --db $DB detect --bold ../mit.txt | head -c 300; true",
             kind="other",
             xenv=False,
         )
         cells.add(
             "E6",
             f"cwd={name}: absolute file",
-            f"{pre}{licenseid('match --bold $F/mit.txt')}",
-            kind="match",
+            f"{pre}{licenseid('detect --bold $F/mit.txt')}",
+            kind="detect",
             exp_exit=0 if name != "deleted cwd" else None,
             xenv=name != "deleted cwd",
         )

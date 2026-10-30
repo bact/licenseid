@@ -103,7 +103,7 @@ def read_by_name(db: ListLookup, text: str, found: Found) -> bool:
 
 
 def read_alone(db: ListLookup, text: str, found: Found) -> bool:
-    """Read *text* as ``resolve`` reads a value of no operator: one licence
+    """Read *text* as ``match`` reads a value of no operator: one licence
     (:func:`licenseid.resolveleaf.read_leaf`), else by a name
     (:func:`read_by_name`). The compound reader asks it whether a leaf of
     several words reads alone (P43, P62), so it never judges by the leaf

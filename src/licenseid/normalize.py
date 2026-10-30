@@ -77,7 +77,7 @@ _RE_COMMENT_PREFIX: Final = re.compile(
 )
 
 # A second, narrower comment-prefix stripper for a different call site:
-# retrieval.py and matcher.py run strip_comment_prefixes() on raw (not yet
+# retrieval.py and detector.py run strip_comment_prefixes() on raw (not yet
 # normalized) text before FTS5 indexing/querying, to improve recall on Type 5 (comment-
 # wrapped) license notices — separately from _RE_COMMENT_PREFIX above, which
 # only runs inside normalize_text() itself as one step of the guideline
@@ -300,7 +300,7 @@ def normalize_text(text: str, *, line_rules: bool = True) -> str:
     instead of the just-emitted notice being gone already (confirmed:
     ~2% of fixture variants normalise differently on a second pass with
     the step enabled). Every caller in this codebase normalizes fresh raw
-    text exactly once (see database.py, matcher.py); if you add a new
+    text exactly once (see database.py, detector.py); if you add a new
     caller, do the same rather than chaining through the result.
 
     With *line_rules* false, steps 2, 4 and 5 (comment prefixes, repeated

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve()`` keeps its choice of list per file stamp (R7): a repeat on an
+"""``match()`` keeps its choice of list per file stamp (R7): a repeat on an
 unchanged file opens no connection to choose, and every change of the file,
 the path or the packaged index is seen at the next call."""
 # pylint: disable=missing-function-docstring
@@ -21,7 +21,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import IS_ROOT, make_ready_file_db, writer
 from release_fakes import release_bundle, ship
 
-from licenseid import dbcheck, listindex, listsource, resolve, spdxdata
+from licenseid import dbcheck, listindex, listsource, match, spdxdata
 from licenseid.datadir import get_default_db_path
 from licenseid.errors import DatabaseNotReadyError
 from licenseid.listlookup import ListLookup
@@ -51,7 +51,7 @@ def _set_version(path: Path, version: str) -> None:
 
 
 def _source() -> str:
-    return resolve("MIT")["lists"][0]["source"]
+    return match("MIT")["lists"][0]["source"]
 
 
 def _choose(source: Source = "auto") -> ListLookup:
@@ -69,12 +69,12 @@ def test_a_repeat_opens_only_the_connection_of_its_reading_block(
 ) -> None:
     ship(monkeypatch, release_bundle("3.29"))
     _default_db()
-    resolve("MIT", source=source)
+    match("MIT", source=source)
     first = len(opened)
     assert first >= 3  # the readiness check, the database, its metadata...
     opened.clear()
     for _ in range(5):
-        resolve("MIT", source=source)
+        match("MIT", source=source)
     assert len(opened) == 5  # one reading() block each, nothing to choose
 
 
@@ -172,9 +172,9 @@ def test_a_file_deleted_with_no_bundle_raises_not_found(
     assert _source() == "database"
     path.unlink()
     with pytest.raises(DatabaseNotReadyError, match="^database: not found: "):
-        resolve("MIT")
+        match("MIT")
     with pytest.raises(DatabaseNotReadyError, match="^database: not found: "):
-        resolve("MIT", source="database")
+        match("MIT", source="database")
 
 
 def test_a_database_that_breaks_is_seen_and_said_once(
@@ -197,11 +197,11 @@ def test_a_choice_that_raised_is_not_kept(monkeypatch: pytest.MonkeyPatch) -> No
     ship(monkeypatch, None)
     for source in ("auto", "database"):
         with pytest.raises(DatabaseNotReadyError):
-            resolve("MIT", source=source)
+            match("MIT", source=source)
     assert not listsource._kept  # pylint: disable=protected-access
     _default_db()
     assert _source() == "database"
-    assert resolve("MIT", source="database")["lists"][0]["source"] == "database"
+    assert match("MIT", source="database")["lists"][0]["source"] == "database"
 
 
 def test_another_home_picks_its_own_path(
@@ -346,7 +346,7 @@ def test_a_chmod_is_seen_though_the_mtime_is_restored(
     try:
         assert _source() == "packaged"
         with pytest.raises(DatabaseNotReadyError):
-            resolve("MIT", source="database")
+            match("MIT", source="database")
     finally:
         path.chmod(0o644)
 
@@ -364,7 +364,7 @@ def test_a_header_corrupted_in_place_is_seen_though_the_mtime_is_restored(
     os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
     assert _source() == "packaged"
     with pytest.raises(DatabaseNotReadyError):
-        resolve("MIT", source="database")
+        match("MIT", source="database")
 
 
 def test_the_stamp_is_read_before_the_choice(monkeypatch: pytest.MonkeyPatch) -> None:

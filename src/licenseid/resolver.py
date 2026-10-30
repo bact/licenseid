@@ -5,7 +5,7 @@
 
 """Resolve a declared licence value to an SPDX expression and say how.
 
-``match`` answers "which licence is this text"; ``resolve`` answers "which
+``detect`` answers "which licence is this text"; ``match`` answers "which
 SPDX expression does this *declared value* stand for, and what did the
 resolver do to get there". A caller that records the result needs the second
 part: a changed case is no decision, a re-spelt ID is, and a qualifier
@@ -22,7 +22,7 @@ ID (``BSD 3-Clause License``, ``Apache License, Version 2.0``) by
 operator, are listed as operands and no expression
 (``licenseid.resolvesemicolon``). A step that rests on a list cites it.
 
-No database is needed: with none, ``resolve`` reads the SPDX License List
+No database is needed: with none, ``match`` reads the SPDX License List
 shipped in the wheel, in memory, and gives the answer a database built from
 that list would give (``licenseid.listsource`` chooses, ``licenseid.listindex``
 reads). ``lists[*].source`` says which was read.
@@ -67,7 +67,7 @@ from licenseid.textinput import has_lone_surrogate
 _MAX_EXPRESSION_CHARS = 2000
 
 
-def resolve(
+def match(
     value: str, db: LicenseDatabase | None = None, *, source: Source = "auto"
 ) -> Resolution:
     """Resolve the declared licence *value*.
@@ -88,13 +88,13 @@ def resolve(
     ``assumed_only``, with both candidates.
     """
     lookup, where = choose_list(db, source)
-    return resolve_with(lookup, value, where)
+    return match_with(lookup, value, where)
 
 
-def resolve_with(
+def match_with(
     lookup: ListLookup, value: str, where: ListSource = "database"
 ) -> Resolution:
-    """:func:`resolve` on a list the caller holds: any
+    """:func:`match` on a list the caller holds: any
     :class:`licenseid.listlookup.ListLookup`, read as it is; *where* is what
     ``lists[0].source`` says."""
     with lookup.reading():

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Who took part in a ``resolve()`` answer and what it rests on: the
+"""Who took part in a ``match()`` answer and what it rests on: the
 resolver, the expression parser (a component) and the list read.
 
 Apart from ``licenseid.resolver`` so that the entry point stays small.

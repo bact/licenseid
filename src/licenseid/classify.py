@@ -6,12 +6,12 @@
 """
 Content classification heuristics: what kind of input is this?
 
-Pure regex-based text classification with no database or matcher instance
+Pure regex-based text classification with no database or detector instance
 dependency -- distinct from markers.py, which extracts license *identity*
 from structured markers (headings, SPDX tags, field values). These
 functions instead classify the input's *shape* (standalone license
 document vs. source file/README; explicit -or-later grant present or not),
-which AggregatedLicenseMatcher uses to choose a matching strategy.
+which LicenseDetector uses to choose a matching strategy.
 """
 
 import os

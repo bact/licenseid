@@ -38,7 +38,7 @@ def test_default_path_creates_nothing(home: Path) -> None:
     assert not list(home.iterdir())
 
 
-@pytest.mark.parametrize("args", [["match", "MIT"], ["is-osi", "MIT"]])
+@pytest.mark.parametrize("args", [["detect", "MIT"], ["is-osi", "MIT"]])
 def test_read_command_reports_a_missing_default_database(
     home: Path, args: list[str]
 ) -> None:
@@ -53,7 +53,7 @@ def test_read_command_reports_a_missing_default_database(
     assert not list(home.iterdir())
 
 
-@pytest.mark.parametrize("args", [["match", "MIT"], ["is-osi", "MIT"], ["update"]])
+@pytest.mark.parametrize("args", [["detect", "MIT"], ["is-osi", "MIT"], ["update"]])
 def test_no_home_directory_is_an_error_line_not_a_traceback(
     monkeypatch: pytest.MonkeyPatch, args: list[str]
 ) -> None:
@@ -70,7 +70,7 @@ def test_no_home_directory_is_an_error_line_not_a_traceback(
     assert result.stderr == NO_HOME
 
 
-@pytest.mark.parametrize("args", [["match", "--help"], ["is-osi", "--help"], []])
+@pytest.mark.parametrize("args", [["detect", "--help"], ["is-osi", "--help"], []])
 def test_help_and_a_bare_run_need_no_home_directory(
     monkeypatch: pytest.MonkeyPatch, args: list[str]
 ) -> None:

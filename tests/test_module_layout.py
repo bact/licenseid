@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""How the matching modules depend on each other: matcher.py is the top, the
+"""How the matching modules depend on each other: detector.py is the top, the
 modules it was split into (ranking, retrieval, shorttext) never import it back,
 they import in any order, and the match path stays off `requests`."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
@@ -16,14 +16,14 @@ from pathlib import Path
 import pytest
 
 import licenseid
-from licenseid.matcher import AggregatedLicenseMatcher
+from licenseid.detector import LicenseDetector
 from licenseid.retrieval import get_candidates
 from licenseid.shorttext import match_short_text
-from licenseid.types import MatchRequest
+from licenseid.types import DetectRequest
 
 SPLIT = ["ranking", "retrieval", "shorttext"]
 MATCH_PATH = [
-    "matcher",
+    "detector",
     "ranking",
     "retrieval",
     "shorttext",
@@ -31,7 +31,7 @@ MATCH_PATH = [
     "identifiers",
     "textinput",
     "spdxdata",
-    # resolve(), with no database: the packaged list and the choice of list
+    # match(), with no database: the packaged list and the choice of list
     "listindex",
     "listsource",
     "resolver",
@@ -76,9 +76,9 @@ def imports_of(module: str) -> set[str]:
 
 @pytest.mark.parametrize("module", SPLIT)
 def test_a_split_module_never_imports_the_matcher(module: str) -> None:
-    """matcher.py is the top of the stack; an upward import is a cycle in
+    """detector.py is the top of the stack; an upward import is a cycle in
     waiting."""
-    assert "licenseid.matcher" not in imports_of(module)
+    assert "licenseid.detector" not in imports_of(module)
 
 
 def test_the_split_modules_form_a_stack_ranking_below_shorttext() -> None:
@@ -87,13 +87,13 @@ def test_the_split_modules_form_a_stack_ranking_below_shorttext() -> None:
     assert "licenseid.retrieval" not in imports_of("shorttext")
     assert "licenseid.shorttext" not in imports_of("retrieval")
     for module in ("ranking", "retrieval", "shorttext"):
-        assert not {"licenseid.matcher", "licenseid.markers"} & imports_of(module)
+        assert not {"licenseid.detector", "licenseid.markers"} & imports_of(module)
     assert not {"licenseid.retrieval", "licenseid.shorttext"} & imports_of("ranking")
 
 
 @pytest.mark.parametrize("module", MATCH_PATH)
 def test_the_match_path_never_loads_requests(module: str, tmp_path: Path) -> None:
-    """Loading `requests` costs start-up time on every `match`; only `update`
+    """Loading `requests` costs start-up time on every `detect`; only `update`
     needs it (database.py imports spdx_source lazily)."""
     loaded = imported_after(f"import licenseid.{module}", tmp_path)
     assert "requests" not in loaded
@@ -102,7 +102,7 @@ def test_the_match_path_never_loads_requests(module: str, tmp_path: Path) -> Non
 
 @pytest.mark.parametrize("first", SPLIT)
 def test_the_modules_import_in_any_order(first: str, tmp_path: Path) -> None:
-    others = [m for m in ["matcher", *SPLIT] if m != first]
+    others = [m for m in ["detector", *SPLIT] if m != first]
     statement = "; ".join(f"import licenseid.{m}" for m in [first, *others])
     loaded = imported_after(statement, tmp_path)
     assert {f"licenseid.{m}" for m in [first, *others]} <= loaded
@@ -111,9 +111,9 @@ def test_the_modules_import_in_any_order(first: str, tmp_path: Path) -> None:
 def test_the_matcher_methods_are_thin_wrappers(ordering_matcher: object) -> None:
     """_get_candidates and _match_short_text stay as the entry points tests and
     benchmarks use; they must give the module functions' answers."""
-    assert isinstance(ordering_matcher, AggregatedLicenseMatcher)
+    assert isinstance(ordering_matcher, LicenseDetector)
     text = "permission is hereby granted free of charge to any person"
-    request = MatchRequest()
+    request = DetectRequest()
     assert ordering_matcher._get_candidates(  # pylint: disable=protected-access
         request, text
     ) == get_candidates(ordering_matcher.db, request, text)

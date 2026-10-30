@@ -10,7 +10,7 @@ SPDX expression (or LicenseRef-*) with at least one recognised ID; it is
 flagged as not SPDX if any part is unknown. The `license` field of JSON, TOML
 and INI files goes through the same function (pinned in
 `test_markers_structured.py`). The same file must get the same answer from
-the API (`match`, `is_spdx`, `is_osi`) and from the CLI (`match`, `is-spdx`).
+the API (`detect`, `is_spdx`, `is_osi`) and from the CLI (`detect`, `is-spdx`).
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
@@ -25,11 +25,11 @@ from matcher_db import PROSE
 from spdx_tag_helpers import Answers, answers, cli_match_id, source_with, tag_db
 
 from licenseid.cli import cli
+from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
 from licenseid.identifiers import is_simple_expression
-from licenseid.matcher import AggregatedLicenseMatcher
 from licenseid.plusoperator import strip_plus_operator
-from licenseid.types import LicenseMatch
+from licenseid.types import Detection
 
 
 @pytest.fixture
@@ -105,7 +105,7 @@ def test_an_unknown_tag_is_no_evidence_anywhere(
 
 def test_an_unknown_tag_does_not_hide_a_known_one(db: str) -> None:
     text = source_with("NoSuchLicense-9.9") + source_with("Apache-2.0")
-    results = AggregatedLicenseMatcher(db).match(text=text)
+    results = LicenseDetector(db).detect(text=text)
     assert [r["license_id"] for r in results] == ["Apache-2.0"]
 
 
@@ -115,7 +115,7 @@ WITH_EXPRESSION = "GPL-2.0-only WITH Classpath-exception-2.0"
 def test_a_with_tag_has_the_flags_of_its_license(db: str, tmp_path: Path) -> None:
     """The same expression gives the same OSI and FSF answers as a tag, as
     text and as an ID, through the API and the CLI."""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     path = tmp_path / "source.c"
     path.write_text(source_with(WITH_EXPRESSION), encoding="utf-8")
     assert matcher.is_osi(text=source_with(WITH_EXPRESSION))
@@ -143,7 +143,7 @@ def test_the_flags_come_from_the_license_not_the_other_flag(
     db: str, tmp_path: Path, tag: str, osi: bool, fsf: bool
 ) -> None:
     """A license approved by only one body shows that in every entry point."""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     path = tmp_path / "source.c"
     path.write_text(source_with(tag), encoding="utf-8")
     assert matcher.is_osi(text=source_with(tag)) is osi
@@ -158,26 +158,26 @@ PLUS_WITH = "Apache-2.0+ WITH Classpath-exception-2.0"
 
 def test_a_plus_before_with_is_kept_on_every_path(db: str, tmp_path: Path) -> None:
     """`Apache-2.0+ WITH X` is one expression whether it is a tag or an ID."""
-    by_tag = AggregatedLicenseMatcher(db).match(text=source_with(PLUS_WITH))
-    by_id = AggregatedLicenseMatcher(db).match(license_id=PLUS_WITH)
+    by_tag = LicenseDetector(db).detect(text=source_with(PLUS_WITH))
+    by_id = LicenseDetector(db).detect(license_id=PLUS_WITH)
     assert [r["license_id"] for r in by_tag] == [PLUS_WITH]
     assert [r["license_id"] for r in by_id] == [PLUS_WITH]
     exception_plus = "Apache-2.0 WITH Classpath-exception-2.0+"
     with_plus = "Apache-2.0 with+ Classpath-exception-2.0"  # nor is the keyword's
     for value in (exception_plus, with_plus):  # not one license, so no answer
         with pytest.raises(InvalidInputError):
-            AggregatedLicenseMatcher(db).match(license_id=value)
+            LicenseDetector(db).detect(license_id=value)
     assert answers(db, PLUS_WITH, tmp_path) == Answers(PLUS_WITH, True, PLUS_WITH, True)
 
 
 def test_a_plus_id_has_the_flags_of_its_license(db: str) -> None:
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     assert matcher.is_osi(text=source_with("Apache-2.0"))
     assert matcher.is_osi(text=source_with("Apache-2.0+"))
     assert matcher.is_fsf(text=source_with("Apache-2.0+"))
 
 
-@pytest.mark.parametrize("command", ["match", "is-spdx"])
+@pytest.mark.parametrize("command", ["detect", "is-spdx"])
 @pytest.mark.parametrize(
     "args",
     [
@@ -190,7 +190,7 @@ def test_a_plus_id_has_the_flags_of_its_license(db: str) -> None:
 def test_an_expression_given_as_an_id_is_known_to_every_command(
     db: str, command: str, args: list[str]
 ) -> None:
-    """`match` resolves an expression that is not a database row; the is-*
+    """`detect` resolves an expression that is not a database row; the is-*
     commands answer from the same code and must not say false."""
     result = CliRunner().invoke(cli, ["--db", db, command, *args])
     assert result.exit_code == 0
@@ -217,7 +217,7 @@ FILE_ONLY_VALUES = [
 ]
 
 
-def flags(result: LicenseMatch) -> tuple[object, ...]:
+def flags(result: Detection) -> tuple[object, ...]:
     """What every source of a value must agree on."""
     return (
         result["license_id"],
@@ -233,15 +233,15 @@ def test_every_source_of_a_value_gives_the_same_answer(
 ) -> None:
     """An ID, a tag and a JSON `license` field share one judge, so they cannot
     drift apart."""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     package = tmp_path / "package.json"
     package.write_text(
         json.dumps({"license": value, "description": PROSE}), encoding="utf-8"
     )
     sources = (
-        matcher.match(license_id=value),
-        matcher.match(text=source_with(value)),
-        matcher.match(file_path=str(package)),
+        matcher.detect(license_id=value),
+        matcher.detect(text=source_with(value)),
+        matcher.detect(file_path=str(package)),
     )
     by_id, by_tag, by_json = (flags(r[0]) for r in sources)
     assert by_id == by_tag == by_json
@@ -253,16 +253,16 @@ def test_a_tag_and_a_json_field_agree_on_what_no_id_may_hold(
 ) -> None:
     """A file's two sources still share one judge; only the declaration is
     narrower, and it refuses these rather than answering differently."""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     package = tmp_path / "package.json"
     package.write_text(
         json.dumps({"license": value, "description": PROSE}), encoding="utf-8"
     )
-    by_tag = flags(matcher.match(text=source_with(value))[0])
-    by_json = flags(matcher.match(file_path=str(package))[0])
+    by_tag = flags(matcher.detect(text=source_with(value))[0])
+    by_json = flags(matcher.detect(file_path=str(package))[0])
     assert by_tag == by_json
     with pytest.raises(InvalidInputError, match="pass one license ID"):
-        matcher.match(license_id=value)
+        matcher.detect(license_id=value)
 
 
 @pytest.mark.parametrize(
@@ -283,7 +283,7 @@ def test_a_bare_argument_that_names_no_license_is_matched_as_text(
     text that matches nothing is "no license found" — never the usage error
     `--id` would raise for the same value, and never a traceback."""
     assert cli_match_id(db, argument) is None
-    for command in ("match", "is-spdx"):
+    for command in ("detect", "is-spdx"):
         result = CliRunner().invoke(cli, ["--db", db, command, argument])
         assert result.exit_code == 1, command
         assert result.exception is None or isinstance(result.exception, SystemExit)
@@ -344,18 +344,18 @@ def test_an_id_that_names_more_than_one_license_is_a_usage_error(db: str) -> Non
     mistake to report, not a value to resolve. The same value as a bare
     argument is only a guess, so it falls through to text matching instead."""
     run = CliRunner()
-    for command in ("match", "is-spdx", "is-osi"):
+    for command in ("detect", "is-spdx", "is-osi"):
         result = run.invoke(cli, ["--db", db, command, "--id", COMPOUND_VALUE])
         assert result.exit_code == 2, command
         assert result.stderr.splitlines()[-1] == (
             f"ERROR: option: invalid: --id: {COMPOUND_VALUE}; pass one license ID"
         )
-    assert run.invoke(cli, ["--db", db, "match", COMPOUND_VALUE]).exit_code == 1
+    assert run.invoke(cli, ["--db", db, "detect", COMPOUND_VALUE]).exit_code == 1
 
 
 def test_a_refused_id_stays_one_line(db: str) -> None:
     """A line break in the value must not split the error into two events."""
-    result = CliRunner().invoke(cli, ["--db", db, "match", "--id", "MIT\nfoo"])
+    result = CliRunner().invoke(cli, ["--db", db, "detect", "--id", "MIT\nfoo"])
     assert result.exit_code == 2
     assert result.stderr == (
         "ERROR: option: invalid: --id: MIT foo; pass one license ID\n"
@@ -364,7 +364,7 @@ def test_a_refused_id_stays_one_line(db: str) -> None:
 
 def test_a_refused_id_cannot_forge_an_action(db: str) -> None:
     """A ";" in the value would read as the start of the ACTION."""
-    result = CliRunner().invoke(cli, ["--db", db, "match", "--id", "MIT; rm"])
+    result = CliRunner().invoke(cli, ["--db", db, "detect", "--id", "MIT; rm"])
     assert result.exit_code == 2
     assert result.stderr == (
         "ERROR: option: invalid: --id: MIT, rm; pass one license ID\n"
@@ -381,7 +381,7 @@ def test_a_bracketed_id_is_an_id(db: str) -> None:
 def test_a_refused_id_is_not_echoed_whole(db: str) -> None:
     """A minified line can be declared too: the error names the value but
     must not fill the terminal with it."""
-    result = CliRunner().invoke(cli, ["--db", db, "match", "--id", "MIT " * 500])
+    result = CliRunner().invoke(cli, ["--db", db, "detect", "--id", "MIT " * 500])
     assert result.exit_code == 2
     line = result.stderr.splitlines()[-1]
     assert len(line) < 120 and line.endswith("...; pass one license ID")
@@ -390,10 +390,10 @@ def test_a_refused_id_is_not_echoed_whole(db: str) -> None:
 def test_the_api_refuses_a_license_id_that_names_more_than_one_license(
     db: str,
 ) -> None:
-    """The CLI's rule is the matcher's: `match(license_id=...)` and the
+    """The CLI's rule is the matcher's: `detect(license_id=...)` and the
     predicates raise rather than answer for a value that is not an ID."""
-    matcher = AggregatedLicenseMatcher(db)
-    for call in (matcher.match, matcher.is_spdx, matcher.is_osi):
+    matcher = LicenseDetector(db)
+    for call in (matcher.detect, matcher.is_spdx, matcher.is_osi):
         with pytest.raises(InvalidInputError, match="pass one license ID"):
             call(license_id=COMPOUND_VALUE)
 

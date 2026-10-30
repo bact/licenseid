@@ -19,7 +19,7 @@ yet started, see [`../design/`](../design/).
   `license` field) → Tier 0 (short-text ID/name shortcut) → Tier 1 (SQLite FTS5
   recall) → Tier 2 (RapidFuzz ranking).
   The optional Tier 3 (Java `tools-java` validation) was removed on
-  2026-09-19. `matcher.py` holds the pipeline; Tier 1 is `retrieval.py`,
+  2026-09-19. `detector.py` holds the pipeline; Tier 1 is `retrieval.py`,
   Tier 0 is `shorttext.py`, and the sort order with the `-only` /
   `-or-later` tie-breaker is `ranking.py`. The split (2026-09-21) is
   in
@@ -68,13 +68,13 @@ yet started, see [`../design/`](../design/).
   (`MarkerDetector.resolve_license_value`) and one judge of what `--id` may
   hold (`identifiers.is_simple_expression`); see
   [spdx-expression-reading.md](spdx-expression-reading.md).
-- **Database lookups** (PRs #69 and #72, 2026-10-02): a `match()` shares one
+- **Database lookups** (PRs #69 and #72, 2026-10-02): a `detect()` shares one
   SQLite connection among its lookups (`dbconnection.py`), and a lookup by
   licence ID reads each table's IDs once (`dbcache.py`), dropped when a
   rebuild changes `last_update_datetime`; see items 29 and 37 in
   [tech-debt-resolved.md](tech-debt-resolved.md).
 - **Public result** (PR #68, 2026-10-02): every match has the same nine
-  keys, built once by `result.public_result` at the exit of `match()`; the
+  keys, built once by `result.public_result` at the exit of `detect()`; the
   score is capped to 0-1 and `exact` tells results at 1 apart. Ranking
   reads the raw records. `--json` prints RFC 8785 JSON Lines; see item 22
   in [tech-debt-resolved.md](tech-debt-resolved.md).
@@ -101,7 +101,7 @@ yet started, see [`../design/`](../design/).
 | 2026-10-06 | [cross-platform.md](cross-platform.md) | record | The Windows work of PR #77: the 0.4.0 URI bug, the path and URI rules, how tests handle Windows, and what a real Windows run has and has not confirmed. |
 | 2026-10-02 | [tech-debt-resolved.md](tech-debt-resolved.md) | record | The tech-debt roadmap's resolved items: what each was and what was done, moved out of the roadmap to keep it under the size limit. |
 | 2026-10-22 | [release-process.md](release-process.md) | implemented (0.5.0) | How a release is cut: order, checks before the tag, traps seen in 0.5.0 |
-| 2026-10-27 | [declared-value-resolver.md](declared-value-resolver.md) | implemented (PR #97, 0.6.0 review) | `resolve()`: WITH, `LicenseRef-*`, malformed qualifiers, hidden characters, the declared "or later" reader on `OR_LATER_PHRASE`, and the build stamp that makes `update` rebuild an older database. |
+| 2026-10-27 | [declared-value-resolver.md](declared-value-resolver.md) | implemented (PR #97, 0.6.0 review) | `resolve()` (now `match()`): WITH, `LicenseRef-*`, malformed qualifiers, hidden characters, the declared "or later" reader on `OR_LATER_PHRASE`, and the build stamp that makes `update` rebuild an older database. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

@@ -16,7 +16,7 @@ in [`../design/cross-platform-roadmap.md`](../design/cross-platform-roadmap.md).
 
 ## The bug in 0.4.0
 
-On Windows every `match` failed with `database: unreadable`. The readiness
+On Windows every `detect` failed with `database: unreadable`. The readiness
 check (`dbcheck.open_uri` (then `_read_only_uri`)) built
 `file://C%3A%5CUsers%5C…?mode=ro`.
 SQLite reads the text after `file://` up to the first `/` as the authority,

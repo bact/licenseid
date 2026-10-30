@@ -19,8 +19,8 @@ from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
+from licenseid.detector import LicenseDetector
 from licenseid.manifest import license_value_groups, toml_license_values
-from licenseid.matcher import AggregatedLicenseMatcher
 
 FILLER = (
     "A widget scheduler that keeps a queue of pending widgets and dispatches"
@@ -96,8 +96,8 @@ def test_a_manifest_expression_is_certain(
     """A small manifest used to be matched by name (Apache-1.0 at 1.01); a
     TOML or INI field scored 0.902 with no flags, so is_spdx() said False."""
     path = manifest(tmp_path, kind, "MIT OR Apache-2.0", large)
-    matcher = AggregatedLicenseMatcher(db)
-    top = matcher.match(file_path=path)[0]
+    matcher = LicenseDetector(db)
+    top = matcher.detect(file_path=path)[0]
     assert (top["license_id"], top["score"]) == ("Apache-2.0 OR MIT", 1.0)
     # OSI and FSF approval has no plain meaning for an OR (flag_source).
     assert (top["is_spdx"], top["is_osi_approved"], top["is_fsf_libre"]) == (
@@ -114,8 +114,8 @@ def test_a_manifest_license_id_carries_its_flags(
     db: str, tmp_path: Path, kind: str, large: bool
 ) -> None:
     path = manifest(tmp_path, kind, "Apache-2.0", large)
-    matcher = AggregatedLicenseMatcher(db)
-    top = matcher.match(file_path=path)[0]
+    matcher = LicenseDetector(db)
+    top = matcher.detect(file_path=path)[0]
     assert (top["license_id"], top["score"]) == ("Apache-2.0", 1.0)
     assert (top["is_spdx"], top["is_osi_approved"], top["is_fsf_libre"]) == (
         True,
@@ -139,7 +139,7 @@ FLAGS = ("is_spdx", "is_osi_approved", "is_fsf_libre")
     ids=["id", "name", "text"],
 )
 def test_every_result_carries_the_flags(db: str, text: str) -> None:
-    results = AggregatedLicenseMatcher(db).match(text=text)
+    results = LicenseDetector(db).detect(text=text)
     assert results
     for result in results:
         assert all(isinstance(result.get(flag), bool) for flag in FLAGS), result
@@ -161,8 +161,8 @@ def test_a_deprecated_id_takes_the_flags_of_its_replacement(
     """A deprecated ID answers its replacement, a license row or an
     expression: the flags are the replacement's, not the deprecated row's
     nor "unknown"."""
-    matcher = AggregatedLicenseMatcher(db)
-    top = matcher.match(text=deprecated)[0]
+    matcher = LicenseDetector(db)
+    top = matcher.detect(text=deprecated)[0]
     assert top["license_id"] == replacement
     assert (top["is_spdx"], top["is_osi_approved"], top["is_fsf_libre"]) == (
         True,
@@ -175,7 +175,7 @@ def test_a_deprecated_id_takes_the_flags_of_its_replacement(
 
 def test_match_json_shows_the_flags_of_a_manifest(db: str, tmp_path: Path) -> None:
     path = manifest(tmp_path, "pyproject-string", "MIT OR Apache-2.0", large=False)
-    result = CliRunner().invoke(cli, ["--db", db, "match", "--json", path])
+    result = CliRunner().invoke(cli, ["--db", db, "detect", "--json", path])
     assert result.exit_code == 0, result.output
     top = json_lines(result.stdout)[0]
     assert {flag: top[flag] for flag in FLAGS} == {
@@ -225,7 +225,7 @@ def test_a_loosely_named_license_is_matched_on_its_own(
     """ "Apache 2.0" is no ID or expression, but names Apache-2.0 exactly. The
     small file used to be matched by name as a whole: Apache-1.0 at 1.01."""
     path = manifest(tmp_path, kind, "Apache 2.0", large)
-    top = AggregatedLicenseMatcher(db).match(file_path=path)[0]
+    top = LicenseDetector(db).detect(file_path=path)[0]
     assert top["license_id"] == "Apache-2.0"
     assert top["is_spdx"] and top["is_osi_approved"]
 
@@ -243,7 +243,7 @@ def test_a_small_manifest_naming_no_license_has_no_answer(
     """Not a name match of the whole file, and not a fuzzy one of the value:
     "BSD" is a fuzzy match for 0BSD."""
     path = manifest(tmp_path, kind, value, large=False)
-    assert AggregatedLicenseMatcher(db).match(file_path=path) == []
+    assert LicenseDetector(db).detect(file_path=path) == []
 
 
 @pytest.mark.parametrize(
@@ -274,12 +274,12 @@ def test_a_small_manifest_with_no_license_value_has_no_answer(
 ) -> None:
     """The crate name "zlib-rs" answered Zlib at 1.01 when the field was
     missing; a manifest is never matched by name as a whole."""
-    matcher = AggregatedLicenseMatcher(db)
+    matcher = LicenseDetector(db)
     if name:
         (tmp_path / name).write_text(text, encoding="utf-8")
-        assert matcher.match(file_path=str(tmp_path / name)) == []
+        assert matcher.detect(file_path=str(tmp_path / name)) == []
     else:
-        assert matcher.match(text=text) == []
+        assert matcher.detect(text=text) == []
 
 
 @pytest.mark.parametrize(
@@ -289,7 +289,7 @@ def test_a_bracketed_name_is_no_manifest(db: str, text: str) -> None:
     """Text that starts with [x] reads as an INI section, a TOML table or a
     JSON array, but with no key in it, it is no manifest: Tier 0 still
     answers."""
-    assert AggregatedLicenseMatcher(db).match(text=text)[0]["license_id"] == "MIT"
+    assert LicenseDetector(db).detect(text=text)[0]["license_id"] == "MIT"
 
 
 @pytest.mark.parametrize(
@@ -311,7 +311,7 @@ def test_a_manifest_value_is_read_whole(
     db: str, tmp_path: Path, kind: str, value: str, expected: str
 ) -> None:
     path = manifest(tmp_path, kind, value, large=False)
-    top = AggregatedLicenseMatcher(db).match(file_path=path)[0]
+    top = LicenseDetector(db).detect(file_path=path)[0]
     assert (top["license_id"], top["score"]) == (expected, 1.0)
 
 
@@ -320,22 +320,22 @@ def test_a_slash_elsewhere_is_not_or(db: str, tmp_path: Path, kind: str) -> None
     """Only Cargo spells OR with a slash; elsewhere it is no expression, and
     answering the MIT before it would drop a license."""
     path = manifest(tmp_path, kind, "MIT/Apache-2.0", large=True)
-    results = AggregatedLicenseMatcher(db).match(file_path=path)
+    results = LicenseDetector(db).detect(file_path=path)
     assert all(r["license_id"] != "MIT" or r["score"] < 0.85 for r in results)
 
 
 def test_a_name_match_needs_no_lookup_per_result(db: str) -> None:
     """Tier 0 takes the flags from its cached name table: a broad name
     returns dozens of results, and a lookup each made it 20 times slower."""
-    matcher = AggregatedLicenseMatcher(db)
-    matcher.match(text="warm up the name cache")
+    matcher = LicenseDetector(db)
+    matcher.detect(text="warm up the name cache")
     with mock.patch.object(
         LicenseDatabase,
         "get_license_details",
         autospec=True,
         wraps=LicenseDatabase.get_license_details,
     ) as lookup:
-        results = matcher.match(text="Apache License")
+        results = matcher.detect(text="Apache License")
     assert len(results) >= 2
     assert all(isinstance(r.get("is_spdx"), bool) for r in results)
     assert lookup.call_count == 0
@@ -350,7 +350,7 @@ def test_a_small_package_json_in_npm_object_form(db: str, tmp_path: Path) -> Non
         '{"type": "Apache-2.0", "url": "https://www.apache.org/licenses/"}}',
         encoding="utf-8",
     )
-    top = AggregatedLicenseMatcher(db).match(file_path=str(path))[0]
+    top = LicenseDetector(db).detect(file_path=str(path))[0]
     assert (top["license_id"], top["score"]) == ("Apache-2.0", 1.0)
 
 
@@ -366,7 +366,7 @@ def test_a_readme_with_a_toml_example_is_not_answered_from_it(
         f"{first_line}\nSet the license in your own pyproject.toml, for example:"
         f"\n\n```toml\n[project]\n{field}\n```\n\n{FILLER}"
     )
-    results = AggregatedLicenseMatcher(db).match(text=text)
+    results = LicenseDetector(db).detect(text=text)
     assert not results or results[0]["score"] < 1.0
 
 
@@ -379,7 +379,7 @@ def test_a_small_pyproject_with_a_license_sub_table(db: str, tmp_path: Path) -> 
         '[project.license]\ntext = "MIT OR Apache-2.0"\n',
         encoding="utf-8",
     )
-    top = AggregatedLicenseMatcher(db).match(file_path=str(path))[0]
+    top = LicenseDetector(db).detect(file_path=str(path))[0]
     assert (top["license_id"], top["score"]) == ("Apache-2.0 OR MIT", 1.0)
 
 
@@ -387,7 +387,7 @@ def test_a_manifest_is_parsed_once_per_match(db: str, tmp_path: Path) -> None:
     path = manifest(tmp_path, "package-json", "Apache 2.0", large=True)
     with (
         mock.patch(
-            "licenseid.matcher.license_value_groups",
+            "licenseid.detector.license_value_groups",
             autospec=True,
             wraps=license_value_groups,
         ) as in_matcher,
@@ -397,7 +397,7 @@ def test_a_manifest_is_parsed_once_per_match(db: str, tmp_path: Path) -> None:
             wraps=license_value_groups,
         ) as in_markers,
     ):
-        AggregatedLicenseMatcher(db).match(file_path=path)
+        LicenseDetector(db).detect(file_path=path)
     assert in_matcher.call_count + in_markers.call_count == 1
 
 

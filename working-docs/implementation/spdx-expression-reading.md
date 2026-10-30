@@ -29,7 +29,7 @@ One reader, one resolver, one judge:
   whole value as a name first (`MIT No Attribution` is MIT-0, not MIT), then
   the expression.
 - **Judge**: `identifiers.is_simple_expression` decides what a declaration
-  may hold. Both `--id` and `match(license_id=...)` read it.
+  may hold. Both `--id` and `detect(license_id=...)` read it.
 
 ## Decisions
 
