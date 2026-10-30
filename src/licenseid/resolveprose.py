@@ -41,10 +41,10 @@ reads alone, for its reason.
 
 import re
 
-from licenseid.dropguard import trim_end_mark
+from licenseid.dropguard import end_dashes, trim_end_mark
 from licenseid.listlookup import ListLookup
 from licenseid.normalize import RE_DASHES
-from licenseid.resolveleaf import Found, read_leaf
+from licenseid.resolveleaf import Found, read_leaf, refuse_dropped
 from licenseid.resolvertypes import Step, step
 from licenseid.resolvetrove import is_no_licence, read_named, trailing_parts
 
@@ -130,8 +130,13 @@ def _by_rule(
             return True
         if reading.expression is not None:
             readings.append((word, detail, reading))
-    if marks or len({r.expression for _, _, r in readings}) != 1:
+    if len({r.expression for _, _, r in readings}) != 1:
         return False
+    if marks:  # marks never help a reading; a dash it would drop is said (P121)
+        lost = end_dashes(marks)
+        if lost:
+            refuse_dropped(found, source, lost, str(readings[0][2].expression))
+        return bool(lost)
     word, detail, reading = readings[0]
     _fill(found, [*before, step(_KIND, True, source, word, detail)], reading)
     return True

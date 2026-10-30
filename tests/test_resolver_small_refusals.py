@@ -12,8 +12,11 @@ import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
 from licenseid import LicenseDatabase, match
+from licenseid.dropguard import end_dashes
 from licenseid.resolver import match_with
 from licenseid.resolvertypes import Source
+
+DASH = "character dropped: U+002D"
 
 #: Item 1: a value that is no string.
 NOT_TEXT: list[object] = [None, b"MIT", 1]
@@ -28,8 +31,16 @@ STAYS: dict[str, tuple[str | None, str | None]] = {
     "LicenseRef-a;": ("LicenseRef-a", None),
     "LicenseRef-a;;": (None, "character dropped: U+003B"),
     "LicenseRef-a?": (None, "character dropped: U+003F"),
-    "MIT-": ("MIT", None),
+    "MIT-": ("MIT", None),  # a loose ID reads a dash as a separator
     "MIT--": ("MIT", None),
+    "Apache 2.0-": ("Apache-2.0", None),
+    "GPL-2.0 or later-": ("GPL-2.0-or-later", None),
+    "LicenseRef-a-": ("LicenseRef-a-", None),
+    "MIT License.": ("MIT", None),
+    "MIT License;;": (None, "character dropped: U+003B"),
+    "Apache-2.0 License+": (None, None),
+    "MIT License -": (None, DASH),
+    "MIT+-?": (None, None),  # a gap: a dash and a mark after a plus
     "MIT+": ("MIT+", None),
     '"MIT"': ("MIT", None),
     '"MIT"..': (None, "character dropped: U+0022 U+002E"),
@@ -37,11 +48,19 @@ STAYS: dict[str, tuple[str | None, str | None]] = {
     '"MIT;"': ("MIT", None),
 }
 
-#: MOVES (item 2): refused with no reason.
-SILENT_DASH: dict[str, tuple[str | None, str | None]] = {
-    "MIT+-": (None, None),
-    "MIT+--": (None, None),
-    "MIT License--": (None, None),
+#: Item 2 (P121): a dash joined to the end of a reading no loose ID made is a
+#: dropped character, as a lone dash is (``MIT -``).
+DASHED: dict[str, tuple[str | None, str | None]] = {
+    "MIT+-": (None, DASH),
+    "MIT+--": (None, DASH),
+    "MIT License--": (None, DASH),
+    "MIT License-": (None, DASH),
+    "The MIT License--": (None, DASH),
+    "Apache License, Version 2.0--": (None, DASH),
+    "Apache-2.0+\u2013": (None, "character dropped: U+2013"),
+    "MIT+\u2013-": (None, "character dropped: U+2013 U+002D"),
+    "MIT WITH Classpath-exception-2.0-": (None, DASH),
+    "GPL-2.0+ -": (None, DASH),
 }
 
 #: MOVES (item 3): refused with the reason of two marks.
@@ -57,6 +76,35 @@ QUOTED_END: dict[str, tuple[str | None, str | None]] = {
 }
 
 
+@pytest.mark.parametrize("value", sorted(DASHED), ids=lambda v: v[:20])
+def test_a_dash_after_a_plus_or_a_prose_form_is_a_dropped_character(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    got = match(value, corpus_db)
+    assert (got["expression"], got["reason"]) == DASHED[value]
+    assert got["category"] == "unresolved"
+    assert [(s["kind"], s["applied"]) for s in got["steps"]] == [("drop", False)]
+    assert got["steps"][0]["from"] in value
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("", ""),
+        ("MIT", ""),
+        ("MIT+-", "-"),
+        ("MIT+--", "-"),
+        ("MIT+-\u2013", "-\u2013"),
+        ("MIT+- \t", "-"),
+        ("-", "-"),
+        ("MIT-.", ""),
+        ("MIT+- x", ""),
+    ],
+)
+def test_end_dashes(text: str, expected: str) -> None:
+    assert end_dashes(text) == expected
+
+
 @pytest.mark.parametrize("value", sorted(STAYS), ids=lambda v: v[:20])
 def test_an_answer_that_does_not_move(corpus_db: LicenseDatabase, value: str) -> None:
     got = match(value, corpus_db)
@@ -65,11 +113,11 @@ def test_an_answer_that_does_not_move(corpus_db: LicenseDatabase, value: str) ->
 
 @pytest.mark.parametrize(
     "value",
-    sorted({**SILENT_DASH, **REF_MARK, **QUOTED_END}),
+    sorted({**REF_MARK, **QUOTED_END}),
     ids=lambda v: v[:20],
 )
 def test_an_answer_that_moves(corpus_db: LicenseDatabase, value: str) -> None:
-    today = {**SILENT_DASH, **REF_MARK, **QUOTED_END}
+    today = {**REF_MARK, **QUOTED_END}
     got = match(value, corpus_db)
     assert (got["expression"], got["reason"]) == today[value]
 

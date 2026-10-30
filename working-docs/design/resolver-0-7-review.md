@@ -293,12 +293,13 @@ parity corpus. Three parity rows now give their `expected_0_7_0`
 | P86 | T8b | `components` of a list | The tools that took part, as before: the parser is listed when a part needed it (`MIT OR ISC; Apache-2.0`), else `[]`. No field of "IDs found": they are the `expression` of each operand | A new field for the licences found | The brief said `components` the IDs found; the field means tools since T7, and the operands already carry the IDs |
 | P91 | T10a | Whether `licenseid.detect()` builds a detector per call | It keeps one `LicenseDetector` per default path and file stamp (`listsource.file_stamp`, the stamp of P89), looked up and stored under a lock and built outside it, never one that raised or one on a path with no file; it says each build warning once per process (`listsource.warn_once`); `keptdetector.reset()` forgets it | A detector per call; a module-level detector made at import | A detector costs 5 connections and about 59 ms against 13 ms kept, and an outdated database warned on every call, where `match()` says it once (#119) |
 | P120 | Small | Non-string input (`match(None)`, `match(b"MIT")`, `match(1)`, and `match_with`) | Maintainer-approved narrow choice: `TypeError("value must be str, not bytes")` at the one entry, in `match` before the list is chosen and in `match_with` before it is read (`resolver._require_text`); a `str` subclass passes. The docstring says so. Not an `unresolved` result | An `unresolved` result with a reason; decode `bytes`; `str(value)` | A caller's mistake is not content: `unresolved` would hide it, and decoding or `str()` would guess. It raised `AttributeError` from `strip` before |
+| P121 | Small | A dash joined to the end of a `+`, an exception, a `LicenseRef-*` or a prose form (`MIT+-`, `MIT+--`, `MIT License--`) | Refused with `character dropped: U+002D` (the dashes it would drop, each once, as for `MIT -`), one `drop` step. `dropguard.end_dashes` names them; `resolveleaf._after_core` adds them to the marks it refuses, and `resolveprose._by_rule` refuses a reduction whose marks end in a dash (`resolveleaf.refuse_dropped`, the one place a refusal is made). `MIT-` and `MIT--` still read (a loose ID takes a dash as a separator). `MIT+-?` and a dash then an end mark (`MIT License-.`) stay silent | Read the dash off; add dashes to `dropguard.dropped` for every reading | R7 item 4 named the cause (these readers return before the guard); `dropped` must keep a dash a separator where a loose ID read it. Nothing that resolves moved |
 
 Follow-ups left for 0.8:
 
 - T8b: a list inside a part is not split again, so its operand says `not an
-  SPDX operator: ;` (P85); `MIT+-`, `MIT+--` and `MIT License--` are silent;
-  `LicenseRef-a.;` is refused though P80 calls the dot an ID character;
+  SPDX operator: ;` (P85); ~~`MIT+-`, `MIT+--` and `MIT License--` are
+  silent~~ (done, P121); `LicenseRef-a.;` is refused though P80 calls the dot an ID character;
   quote marks after a `+` are not read; split `resolveleaf.py` (473 lines)
   on its next addition.
 

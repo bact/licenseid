@@ -18,7 +18,9 @@ dash or dots (``-- MIT``, ``-MIT``, ``.GPL-3.0-only``, which is the end of
 ``AGPL-3.0-only``) are a list marker or a cut value. At the end one ``.`` or
 ``,`` passes (``MIT.``), one ``;`` or ``:`` is trimmed by the reader
 (:func:`trim_end_mark`), and two or more marks, an ellipsis or a dash alone
-(``MIT;;``, ``MIT...``, ``MIT -``) are dropped marks.
+(``MIT;;``, ``MIT...``, ``MIT -``) are dropped marks. A dash joined to the
+end of a reading that no loose ID made (``MIT+-``, ``MIT License--``) is
+one too (:func:`end_dashes`).
 
 Allowed to drop: white space, ``_``, ``.``, a dash and one comma at the end.
 A dash is a character of ``normalize.RE_DASHES`` (the hyphen-minus, the
@@ -96,6 +98,19 @@ def end_marks(text: str) -> str:
         elif not char.isspace():
             break
     return "".join(reversed(marks)) if len(marks) > 1 else ""
+
+
+def end_dashes(text: str) -> str:
+    """The dashes at the very end of *text*, white space after them left
+    out, each once (``MIT+-`` and ``MIT License--`` give ``-``). A loose ID
+    reads a dash there as a separator (``MIT-``); after a ``+``, an
+    exception, a ``LicenseRef-*`` or a prose form no loose reading ran, so
+    the dash is a mark that is dropped like any other."""
+    body = text.rstrip()
+    stop = len(body)
+    while stop and RE_DASHES.match(body[stop - 1]):
+        stop -= 1
+    return "".join(dict.fromkeys(body[stop:]))
 
 
 def trim_end_mark(text: str, marks: str = _END_MARKS) -> str | None:

@@ -25,7 +25,13 @@ read.
 import re
 from dataclasses import dataclass, field
 
-from licenseid.dropguard import code_points, dropped, dropped_words, trim_end_mark
+from licenseid.dropguard import (
+    code_points,
+    dropped,
+    dropped_words,
+    end_dashes,
+    trim_end_mark,
+)
 from licenseid.errors import one_line
 from licenseid.exprtokens import is_addition_ref, is_license_ref
 from licenseid.identifiers import without_outer_brackets
@@ -112,6 +118,13 @@ class _Dropped(Exception):
         found.candidates = []
 
 
+def refuse_dropped(found: Found, text: str, lost: str, license_id: str) -> None:
+    """Make *found* the refusal of *text*, which a reading as *license_id*
+    would leave the characters *lost* off: ``unresolved`` with a ``drop``
+    step and the reason ``character dropped: U+...``."""
+    _Dropped(text, lost, license_id).record(found)
+
+
 def read_leaf(db: ListLookup, text: str, found: Found) -> bool:
     """Read *text* as one licence (with its exception, if any) into *found*.
     False if it names none, or if the licence or the exception is longer
@@ -161,7 +174,7 @@ def _after_core(db: ListLookup, text: str, found: Found) -> bool:
     ended = trim_end_mark(body)
     if ended is not None and _is_core(ended):
         return _read_without_end(db, text, found, ".,;:")
-    lost = set(dropped(body)) - set("+()[]{}")
+    lost = (set(dropped(body)) | set(end_dashes(body))) - set("+()[]{}")
     core = body
     while core and core[-1] in lost:
         core = core[:-1].rstrip()
@@ -171,7 +184,7 @@ def _after_core(db: ListLookup, text: str, found: Found) -> bool:
     if again.expression is None:
         return False
     marks = "".join(dict.fromkeys(c for c in body[len(core) :] if c in lost))
-    _Dropped(text, marks, again.expression).record(found)
+    refuse_dropped(found, text, marks, again.expression)
     return True
 
 

@@ -86,6 +86,8 @@ and this project adheres to
   ([#117], [#120])
 - `match()` raises `TypeError` for a value that is no `str` (`None`, `bytes`,
   a number); it raised `AttributeError`
+- `match()` gives a reason for `MIT+-`, `MIT+--` and `MIT License--`
+  (`character dropped: U+002D`); they were refused with none
 - A build from the sdist needs Pitloom 0.21.2 or later: an older one accepts
   licenseid 0.7 and its build hook then fails to import
   ([#135])
