@@ -44,7 +44,7 @@ def _matcher() -> Generator[LicenseDetector, None, None]:
 
 
 def ids(matcher: LicenseDetector, **kwargs: str) -> list[str]:
-    return [r["license_id"] for r in matcher.detect(**kwargs)]
+    return [r["expression"] for r in matcher.detect(**kwargs)]
 
 
 # value: what detect answers for it as text, as a tag, and what match gives

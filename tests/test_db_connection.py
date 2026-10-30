@@ -149,7 +149,7 @@ def test_two_threads_match_on_one_matcher(db_path: str) -> None:
 
     def run(index: int) -> None:
         try:
-            answers[index] = [r["license_id"] for r in matcher.detect(text=TAGS)]
+            answers[index] = [r["expression"] for r in matcher.detect(text=TAGS)]
         except BaseException as exc:  # pylint: disable=broad-exception-caught
             errors.append(exc)
 

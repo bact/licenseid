@@ -32,6 +32,7 @@ from licenseid.dbconnection import Connections
 from licenseid.detector import LicenseDetector
 from licenseid.errors import LicenseIdError
 from licenseid.records import BUILD_VERSION
+from licenseid.result import read_text_field
 from licenseid.types import Detection, Method
 
 # tools/cli_matrix drives real shells and terminals (pwd, pty, termios): POSIX
@@ -230,7 +231,7 @@ def assert_cached_tarball_removed(
 # The keys of every detect() result and --json line (types.Detection).
 RESULT_KEYS = frozenset(
     {
-        "license_id",
+        "expression",
         "method",
         "exact",
         "score",
@@ -254,7 +255,7 @@ def public_match(  # pylint: disable=too-many-arguments
 ) -> Detection:
     """A result as detect() returns it, for the code that prints one."""
     return Detection(
-        license_id=license_id,
+        expression=license_id,
         method=method,
         exact=exact,
         score=score,
@@ -269,6 +270,13 @@ def public_match(  # pylint: disable=too-many-arguments
 def invoke_match(db: str, *args: str, color: bool = False) -> Result:
     """``licenseid --db <db> detect <args>`` through click's runner."""
     return CliRunner().invoke(cli, ["--db", db, "detect", *args], color=color)
+
+
+def line_fields(line: str) -> dict[str, str]:
+    """The ``KEY=VALUE`` fields of one result line, each value read back
+    (``result.read_text_field``)."""
+    pairs = (field.partition("=") for field in line.split("\t"))
+    return {key: read_text_field(value) for key, _, value in pairs}
 
 
 def json_lines(stdout: str) -> list[dict[str, Any]]:

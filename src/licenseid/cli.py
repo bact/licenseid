@@ -504,7 +504,7 @@ def detect(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         ctx.exit(1)
 
     if bold:
-        echo(results[0]["license_id"])
+        echo(results[0]["expression"])
         ctx.exit(0)
 
     if json_output:
@@ -517,7 +517,7 @@ def detect(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             echo(text_line(r))
             # A word diff for the top match, if it is a close text match.
             if diff and i == 0 and r["method"] == "text" and not r["exact"]:
-                show_diff(*detector.diff_pair(license_text, r["license_id"]))
+                show_diff(*detector.diff_pair(license_text, r["expression"]))
 
     ctx.exit(0)
 

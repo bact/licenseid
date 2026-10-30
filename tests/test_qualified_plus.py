@@ -50,7 +50,7 @@ def _db_path() -> Generator[str, None, None]:
 
 
 def ids(db_path: str, text: str) -> list[str]:
-    return [r["license_id"] for r in LicenseDetector(db_path).detect(text=text)]
+    return [r["expression"] for r in LicenseDetector(db_path).detect(text=text)]
 
 
 QUALIFIED_PLUS = [

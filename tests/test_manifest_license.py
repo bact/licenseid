@@ -98,7 +98,7 @@ def test_a_manifest_expression_is_certain(
     path = manifest(tmp_path, kind, "MIT OR Apache-2.0", large)
     matcher = LicenseDetector(db)
     top = matcher.detect(file_path=path)[0]
-    assert (top["license_id"], top["score"]) == ("Apache-2.0 OR MIT", 1.0)
+    assert (top["expression"], top["score"]) == ("Apache-2.0 OR MIT", 1.0)
     # OSI and FSF approval has no plain meaning for an OR (flag_source).
     assert (top["is_spdx"], top["is_osi_approved"], top["is_fsf_libre"]) == (
         True,
@@ -116,7 +116,7 @@ def test_a_manifest_license_id_carries_its_flags(
     path = manifest(tmp_path, kind, "Apache-2.0", large)
     matcher = LicenseDetector(db)
     top = matcher.detect(file_path=path)[0]
-    assert (top["license_id"], top["score"]) == ("Apache-2.0", 1.0)
+    assert (top["expression"], top["score"]) == ("Apache-2.0", 1.0)
     assert (top["is_spdx"], top["is_osi_approved"], top["is_fsf_libre"]) == (
         True,
         True,
@@ -143,7 +143,7 @@ def test_every_result_carries_the_flags(db: str, text: str) -> None:
     assert results
     for result in results:
         assert all(isinstance(result.get(flag), bool) for flag in FLAGS), result
-    assert results[0]["license_id"] == "MIT"
+    assert results[0]["expression"] == "MIT"
     assert all(results[0].get(flag) for flag in FLAGS)
 
 
@@ -163,7 +163,7 @@ def test_a_deprecated_id_takes_the_flags_of_its_replacement(
     nor "unknown"."""
     matcher = LicenseDetector(db)
     top = matcher.detect(text=deprecated)[0]
-    assert top["license_id"] == replacement
+    assert top["expression"] == replacement
     assert (top["is_spdx"], top["is_osi_approved"], top["is_fsf_libre"]) == (
         True,
         True,
@@ -226,7 +226,7 @@ def test_a_loosely_named_license_is_matched_on_its_own(
     small file used to be matched by name as a whole: Apache-1.0 at 1.01."""
     path = manifest(tmp_path, kind, "Apache 2.0", large)
     top = LicenseDetector(db).detect(file_path=path)[0]
-    assert top["license_id"] == "Apache-2.0"
+    assert top["expression"] == "Apache-2.0"
     assert top["is_spdx"] and top["is_osi_approved"]
 
 
@@ -289,7 +289,7 @@ def test_a_bracketed_name_is_no_manifest(db: str, text: str) -> None:
     """Text that starts with [x] reads as an INI section, a TOML table or a
     JSON array, but with no key in it, it is no manifest: Tier 0 still
     answers."""
-    assert LicenseDetector(db).detect(text=text)[0]["license_id"] == "MIT"
+    assert LicenseDetector(db).detect(text=text)[0]["expression"] == "MIT"
 
 
 @pytest.mark.parametrize(
@@ -312,7 +312,7 @@ def test_a_manifest_value_is_read_whole(
 ) -> None:
     path = manifest(tmp_path, kind, value, large=False)
     top = LicenseDetector(db).detect(file_path=path)[0]
-    assert (top["license_id"], top["score"]) == (expected, 1.0)
+    assert (top["expression"], top["score"]) == (expected, 1.0)
 
 
 @pytest.mark.parametrize("kind", ["package-json", "pyproject-string"])
@@ -321,7 +321,7 @@ def test_a_slash_elsewhere_is_not_or(db: str, tmp_path: Path, kind: str) -> None
     answering the MIT before it would drop a license."""
     path = manifest(tmp_path, kind, "MIT/Apache-2.0", large=True)
     results = LicenseDetector(db).detect(file_path=path)
-    assert all(r["license_id"] != "MIT" or r["score"] < 0.85 for r in results)
+    assert all(r["expression"] != "MIT" or r["score"] < 0.85 for r in results)
 
 
 def test_a_name_match_needs_no_lookup_per_result(db: str) -> None:
@@ -351,7 +351,7 @@ def test_a_small_package_json_in_npm_object_form(db: str, tmp_path: Path) -> Non
         encoding="utf-8",
     )
     top = LicenseDetector(db).detect(file_path=str(path))[0]
-    assert (top["license_id"], top["score"]) == ("Apache-2.0", 1.0)
+    assert (top["expression"], top["score"]) == ("Apache-2.0", 1.0)
 
 
 @pytest.mark.parametrize("first_line", ["# Usage", "[![PyPI](https://x)](https://y)"])
@@ -380,7 +380,7 @@ def test_a_small_pyproject_with_a_license_sub_table(db: str, tmp_path: Path) -> 
         encoding="utf-8",
     )
     top = LicenseDetector(db).detect(file_path=str(path))[0]
-    assert (top["license_id"], top["score"]) == ("Apache-2.0 OR MIT", 1.0)
+    assert (top["expression"], top["score"]) == ("Apache-2.0 OR MIT", 1.0)
 
 
 def test_a_manifest_is_parsed_once_per_match(db: str, tmp_path: Path) -> None:

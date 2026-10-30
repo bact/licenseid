@@ -147,12 +147,12 @@ def _assert_match_stdout(stdout: str, output: tuple[str, ...]) -> None:
         assert stdout == "MIT\n"
     elif "--json" in output:
         results = json_lines(stdout)
-        assert [r["license_id"] for r in results] == ["MIT"]
+        assert [r["expression"] for r in results] == ["MIT"]
         assert all(set(r) == RESULT_KEYS for r in results)
     else:
         lines = stdout.splitlines()
         assert PLAIN.fullmatch(lines[0])
-        assert lines[0].startswith("LICENSE_ID=MIT ")
+        assert lines[0].startswith("EXPRESSION=MIT\t")
         if "--diff" not in output:
             assert len(lines) == 1
 
@@ -301,7 +301,7 @@ def test_api_match_matrix(
     if winner is None:
         assert results == []
     else:
-        assert results[0]["license_id"] == "MIT"
+        assert results[0]["expression"] == "MIT"
         assert results[0]["score"] >= 0.85
 
 
@@ -351,8 +351,8 @@ def test_file_path_is_read_the_way_the_cli_reads_a_file(
     warning = f"WARNING: input: not UTF-8, read as Latin-1: {path}\n"
     expected_stderr = warning if payload.latin1 else ""
     assert (cli_result.exit_code, cli_result.stderr) == (0, expected_stderr)
-    assert cli_result.stdout.startswith("LICENSE_ID=MIT ")
-    assert matcher.detect(file_path=str(path))[0]["license_id"] == "MIT"
+    assert cli_result.stdout.startswith("EXPRESSION=MIT\t")
+    assert matcher.detect(file_path=str(path))[0]["expression"] == "MIT"
     assert capsys.readouterr().err == expected_stderr
 
 
@@ -521,5 +521,5 @@ def test_cli_match_matrix(
         assert [entry["source"] for entry in got["lists"]] == [where]
     else:
         assert result.stdout.splitlines()[0] == (
-            "EXPRESSION=Apache-2.0 CATEGORY=version_spelling TRUST=resolver_rule"
+            "EXPRESSION=Apache-2.0\tCATEGORY=version_spelling\tTRUST=resolver_rule"
         )

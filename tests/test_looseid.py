@@ -199,7 +199,7 @@ def test_a_loose_license_with_an_exception(
     warned: bool,
 ) -> None:
     results = matcher.detect(text=text)
-    assert ((results[0]["license_id"], results[0]["exact"]) if results else None) == (
+    assert ((results[0]["expression"], results[0]["exact"]) if results else None) == (
         expected
     )
     err = capsys.readouterr().err
@@ -231,7 +231,7 @@ def test_a_manifest_value_read_as_a_guess_is_still_a_field(
     matcher: LicenseDetector,
 ) -> None:
     [result] = matcher.detect(text='{"license": "GPLv2"}')
-    assert (result["license_id"], result["method"], result["exact"]) == (
+    assert (result["expression"], result["method"], result["exact"]) == (
         "GPL-2.0-only",
         "field",
         False,

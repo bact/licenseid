@@ -35,10 +35,12 @@ class Detection(TypedDict):
     text is not. ``similarity`` and ``coverage`` are None where nothing was
     measured (a tag, a field, an ID; a name has no coverage). ``coverage``
     is the input's words over the license's, so it passes 1 when the input
-    is longer.
+    is longer. ``expression`` is the answer: one licence ID, or an SPDX
+    expression (a tag or a field may declare one), as ``match()`` names its
+    answer; the detector's own records keep ``license_id``.
     """
 
-    license_id: str
+    expression: str
     method: Method
     exact: bool
     score: float

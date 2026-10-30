@@ -350,7 +350,7 @@ def test_ready_database_answers_yes_and_no(variant: Variant, command: str) -> No
 def test_ready_database_api(variant: Variant) -> None:
     matcher = LicenseDetector(db_path=variant.db_arg)
     assert matcher.is_osi(license_id="MIT") is True
-    assert [m["license_id"] for m in matcher.detect(text=MIT_TEXT)] == ["MIT"]
+    assert [m["expression"] for m in matcher.detect(text=MIT_TEXT)] == ["MIT"]
 
 
 # (e) State changes around an already-constructed matcher

@@ -77,13 +77,13 @@ def test_a_tag_answers_at_any_length(
     db: str, text: str, expected: str, large: bool
 ) -> None:
     results = LicenseDetector(db).detect(text=f"{FILLER}\n{text}" if large else text)
-    assert [(r["license_id"], r["score"]) for r in results] == [(expected, 1.0)]
+    assert [(r["expression"], r["score"]) for r in results] == [(expected, 1.0)]
     assert results[0]["is_spdx"]
 
 
 def test_a_long_license_ref_is_one_license(db: str) -> None:
     results = LicenseDetector(db).detect(license_id=_ref(300))
-    assert [r["license_id"] for r in results] == [_ref(300)]
+    assert [r["expression"] for r in results] == [_ref(300)]
 
 
 @pytest.mark.parametrize(
@@ -104,7 +104,7 @@ def test_a_tag_naming_no_license_is_no_name_to_match(db: str, value: str) -> Non
 
 def test_a_name_beside_a_refused_tag_still_answers(db: str) -> None:
     results = LicenseDetector(db).detect(text=f"{TAG} Proprietary\nMIT")
-    assert [r["license_id"] for r in results][:1] == ["MIT"]
+    assert [r["expression"] for r in results][:1] == ["MIT"]
     assert results[0]["score"] >= 1.0
 
 

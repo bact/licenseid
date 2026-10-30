@@ -78,8 +78,8 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
         {"kind": "detect", "top": 1, "outflags": frozenset({"json"})},
         {
             "rc": 0,
-            "out": '{"license_id":"MIT","method":"text","score":1}\n'
-            '{"license_id":"X","method":"text","score":0.5}\n',
+            "out": '{"expression":"MIT","method":"text","score":1}\n'
+            '{"expression":"X","method":"text","score":0.5}\n',
         },
         "--top 1 returned 2",
     ),
@@ -118,17 +118,17 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
         {"kind": "detect", "outflags": frozenset({"bold"}), "exp_exit": 0},
         {
             "rc": 0,
-            "out": "LICENSE_ID=MIT METHOD=id EXACT=true SCORE=1.0000 SIMILARITY="
-            " COVERAGE=\n",
+            "out": "EXPRESSION=MIT\tMETHOD=id\tEXACT=true\tSCORE=1.0000\tSIMILARITY="
+            "\tCOVERAGE=\n",
         },
         "--bold not a single id",
     ),
 ]
 
 
-MIT_JSON = '{"exact":true,"license_id":"MIT","method":"id","score":1}'
-BSD_JSON = '{"exact":false,"license_id":"0BSD","method":"name","score":0.9}'
-ISC_JSON = '{"exact":false,"license_id":"ISC","method":"name","score":0.9}'
+MIT_JSON = '{"exact":true,"expression":"MIT","method":"id","score":1}'
+BSD_JSON = '{"exact":false,"expression":"0BSD","method":"name","score":0.9}'
+ISC_JSON = '{"exact":false,"expression":"ISC","method":"name","score":0.9}'
 
 
 @pytest.mark.parametrize(
@@ -339,13 +339,15 @@ JSON = frozenset({"json"})
         (TEXT, text_line(public_match()), True),
         (TEXT, PLAIN_LINE.replace("WITH", "OR"), True),  # an expression from a tag
         # The format before the method, exact and score keys.
-        (TEXT, "LICENSE_ID=MIT SIMILARITY=1.0000 COVERAGE=1.0000", False),
+        (TEXT, "EXPRESSION=MIT\tSIMILARITY=1.0000\tCOVERAGE=1.0000", False),
+        # the format before tabs
+        (TEXT, PLAIN_LINE.replace("\t", " "), False),
         (TEXT, PLAIN_LINE.replace("EXACT=false", "EXACT=no"), False),
         (TEXT, PLAIN_LINE.replace("SCORE=0.9908", "SCORE=1.02"), False),
         (TEXT, PLAIN_LINE.replace("SCORE=0.9908", "SCORE=10.9908"), False),
         (TEXT, PLAIN_LINE.replace("SCORE=0.9908", "SCORE=1.9908"), False),
         # Two results on one line.
-        (TEXT, f"{PLAIN_LINE} {text_line(public_match())}", False),
+        (TEXT, f"{PLAIN_LINE}\t{text_line(public_match())}", False),
         (TEXT, PLAIN_LINE.replace("METHOD=text", "METHOD=TEXT"), False),
         (TEXT, PLAIN_LINE.replace("METHOD=text", "METHOD="), False),
         (TEXT, PLAIN_LINE.replace("COVERAGE=13.0000", "COVERAGE=1.02"), False),
@@ -353,7 +355,8 @@ JSON = frozenset({"json"})
         (JSON, f"{MIT_JSON}\n{BSD_JSON}", True),
         # The array --json printed before JSON Lines.
         (JSON, f"[{MIT_JSON},{BSD_JSON}]", False),
-        (JSON, '{"license_id":"MIT","score":1}', False),  # no method
+        (JSON, '{"expression":"MIT","score":1}', False),  # no method
+        (JSON, '{"expression":"MIT","method":"id","schema":2,"score":1}', False),
         (JSON, f"{MIT_JSON}\nnot json", False),
         (JSON, f"{MIT_JSON}\n\n{BSD_JSON}", False),
         (JSON, "[]", False),
@@ -394,13 +397,13 @@ def test_windows_is_refused_before_the_posix_only_imports(
 @pytest.mark.parametrize(
     ("rc", "flags", "out", "ok"),
     [
-        (0, TEXT, "EXPRESSION=MIT CATEGORY=exact TRUST=identity\n", True),
+        (0, TEXT, "EXPRESSION=MIT\tCATEGORY=exact\tTRUST=identity\n", True),
         (
             0,
             TEXT,
             (
-                "EXPRESSION=Apache-2.0 CATEGORY=separator TRUST=resolver_rule\n"
-                "STEP=separator FROM=Apache\\x202 TO=Apache-2.0\n"
+                "EXPRESSION=Apache-2.0\tCATEGORY=separator\tTRUST=resolver_rule\n"
+                "STEP=separator\tFROM=Apache 2\tTO=Apache-2.0\n"
             ),
             True,
         ),
@@ -408,31 +411,33 @@ def test_windows_is_refused_before_the_posix_only_imports(
             1,
             TEXT,
             (
-                "EXPRESSION= CATEGORY=unresolved TRUST=none\n"
-                "REASON=operator\\x20not\\x20stated:\\x20;\n"
-                "OPERAND=MIT EXPRESSION=MIT CATEGORY=exact\n"
-                "OPERAND=Foo EXPRESSION= CATEGORY=unresolved\n"
+                "EXPRESSION=\tCATEGORY=unresolved\tTRUST=none\n"
+                "REASON=operator not stated: ;\n"
+                "OPERAND=MIT\tEXPRESSION=MIT\tCATEGORY=exact\n"
+                "OPERAND=Foo\tEXPRESSION=\tCATEGORY=unresolved\n"
             ),
             True,
         ),
+        (0, TEXT, "EXPRESSION=MIT OR ISC\tCATEGORY=lexical\tTRUST=identity\n", True),
         (2, TEXT, "", True),
         (0, JSON, '{"expression":"MIT","schema":2}\n', True),
         (1, JSON, '{"expression":null,"schema":2}\n', True),
         # exit and expression disagree
-        (1, TEXT, "EXPRESSION=MIT CATEGORY=exact TRUST=identity\n", False),
-        (0, TEXT, "EXPRESSION= CATEGORY=unresolved TRUST=none\n", False),
+        (1, TEXT, "EXPRESSION=MIT\tCATEGORY=exact\tTRUST=identity\n", False),
+        (0, TEXT, "EXPRESSION=\tCATEGORY=unresolved\tTRUST=none\n", False),
         (0, JSON, '{"expression":null,"schema":2}\n', False),
-        # a value with a space, not written as one word
-        (0, TEXT, "EXPRESSION=MIT OR ISC CATEGORY=lexical TRUST=identity\n", False),
+        # spaces between fields, or a field cut by a tab
+        (0, TEXT, "EXPRESSION=MIT CATEGORY=exact TRUST=identity\n", False),
         (
             0,
             TEXT,
-            "EXPRESSION=MIT CATEGORY=exact TRUST=identity\nSTEP=x FROM=a b\n",
+            "EXPRESSION=MIT\tCATEGORY=exact\tTRUST=identity\nSTEP=x\tFROM=a\tb\n",
             False,
         ),
         (0, TEXT, "", False),
-        (2, TEXT, "EXPRESSION=MIT CATEGORY=exact TRUST=identity\n", False),
-        (0, JSON, '{"expression":"MIT"}\n{"expression":"MIT"}\n', False),
+        (2, TEXT, "EXPRESSION=MIT\tCATEGORY=exact\tTRUST=identity\n", False),
+        (0, JSON, '{"expression":"MIT","schema":2}\n{"expression":"MIT"}\n', False),
+        (0, JSON, '{"expression":"MIT","method":"id","score":1}\n', False),
         (0, JSON, "[]\n", False),
     ],
 )

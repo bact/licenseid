@@ -97,7 +97,7 @@ def test_every_method_gives_the_same_keys(
 ) -> None:
     top = _match(db, **kwargs)[0]
     assert set(top) == RESULT_KEYS
-    assert (top["license_id"], top["method"], top["exact"], top["score"]) == (
+    assert (top["expression"], top["method"], top["exact"], top["score"]) == (
         license_id,
         method,
         True,
@@ -129,7 +129,7 @@ def test_only_the_exact_hit_is_exact_and_found_by_field(
     the order and ``exact`` tell them apart."""
     results = _match(db, text=text)
     assert [
-        (r["license_id"], r["method"], r["exact"], r["similarity"]) for r in results
+        (r["expression"], r["method"], r["exact"], r["similarity"]) for r in results
     ] == [first, ("MIT-Variant", "name", False, 1.0), ("MIT-Old", "name", False, 1.0)]
     assert [r["score"] for r in results][:2] == [1.0, 1.0]
 
@@ -138,7 +138,7 @@ def test_a_deprecated_name_of_its_own_is_exact(db: str) -> None:
     """Only a deprecated row that shares its name with a row in use gives
     way: --exact found nothing for "GNU Affero General Public License v3.0"."""
     results = _match(db, text="Old Unique License")
-    assert [(r["license_id"], r["exact"]) for r in results] == [
+    assert [(r["expression"], r["exact"]) for r in results] == [
         ("Old-1.0-only", False),
         ("Old-1.0", True),
     ]
@@ -149,14 +149,14 @@ def test_the_cap_keeps_the_ranking_order(db: str) -> None:
     raw = matcher._match_raw("MIT License")  # pylint: disable=protected-access
     assert [r["score"] for r in raw][:2] == [1.02, 1.01]
     assert [r["license_id"] for r in raw] == [
-        r["license_id"] for r in matcher.detect("MIT License")
+        r["expression"] for r in matcher.detect("MIT License")
     ]
 
 
 def test_a_text_match_is_exact_only_for_the_whole_text(db: str) -> None:
     assert _match(db, text=LONG_TEXT)[0]["exact"]
     near = _match(db, text=LONG_TEXT + " zulu")[0]
-    assert (near["license_id"], near["exact"]) == ("Long-1.0", False)
+    assert (near["expression"], near["exact"]) == ("Long-1.0", False)
 
 
 @pytest.mark.parametrize("text", ["...", "SPDX-License-Identifier: Foo"])
@@ -165,7 +165,7 @@ def test_an_input_with_no_words_is_no_exact_text(db: str, text: str) -> None:
     nothing (a short one whose only tag names no license, once the tag is
     dropped) equalled it: an exact match of nothing."""
     results = _match(db, text=text, hint=["Apache-2.0"])
-    assert [(r["license_id"], r["exact"]) for r in results] == [("Apache-2.0", False)]
+    assert [(r["expression"], r["exact"]) for r in results] == [("Apache-2.0", False)]
 
 
 def _raw(
@@ -201,15 +201,15 @@ def test_the_other_values_are_rounded_and_the_flags_filled() -> None:
         False,
     )
     tiny = public_result(_raw(0.5, similarity=-1e-6))
-    assert " SIMILARITY=0.0000 " in text_line(tiny)
+    assert "\tSIMILARITY=0.0000\t" in text_line(tiny)
 
 
 def test_a_json_line_is_canonical() -> None:
     """Sorted keys, no white space, 1.0 printed as 1, null and false."""
     assert json_line(public_match("GPL-2.0-only WITH Classpath-exception-2.0")) == (
-        '{"coverage":null,"exact":true,"is_fsf_libre":false,'
-        '"is_osi_approved":true,"is_spdx":true,'
-        '"license_id":"GPL-2.0-only WITH Classpath-exception-2.0",'
+        '{"coverage":null,"exact":true,'
+        '"expression":"GPL-2.0-only WITH Classpath-exception-2.0",'
+        '"is_fsf_libre":false,"is_osi_approved":true,"is_spdx":true,'
         '"method":"tag","score":1,"similarity":null}'
     )
 
@@ -231,16 +231,16 @@ def test_json_numbers_are_ecmascript_numbers(raw: RawMatch, fields: str) -> None
 @pytest.mark.parametrize(
     ("similarity", "coverage", "tail"),
     [
-        (None, None, "SIMILARITY= COVERAGE="),
-        (0.5, 1.25, "SIMILARITY=0.5000 COVERAGE=1.2500"),
-        (1.0, 13.0, "SIMILARITY=1.0000 COVERAGE=13.0000"),
+        (None, None, "SIMILARITY=\tCOVERAGE="),
+        (0.5, 1.25, "SIMILARITY=0.5000\tCOVERAGE=1.2500"),
+        (1.0, 13.0, "SIMILARITY=1.0000\tCOVERAGE=13.0000"),
     ],
 )
 def test_a_text_line_has_every_field_and_empty_for_none(
     similarity: float | None, coverage: float | None, tail: str
 ) -> None:
     line = text_line(public_match(similarity=similarity, coverage=coverage))
-    assert line == f"LICENSE_ID=MIT METHOD=tag EXACT=true SCORE=1.0000 {tail}"
+    assert line == f"EXPRESSION=MIT\tMETHOD=tag\tEXACT=true\tSCORE=1.0000\t{tail}"
 
 
 def test_json_prints_one_line_per_result(db: str) -> None:
@@ -250,7 +250,7 @@ def test_json_prints_one_line_per_result(db: str) -> None:
     result = invoke_match(db, "--json", "--text", text)
     assert result.exit_code == 0
     lines = json_lines(result.stdout)
-    assert [(r["license_id"], r["method"]) for r in lines] == [
+    assert [(r["expression"], r["method"]) for r in lines] == [
         ("MIT", "tag"),
         ("Apache-2.0", "tag"),
     ]
@@ -274,7 +274,7 @@ def test_exact_and_threshold_filter_the_results(
 ) -> None:
     result = invoke_match(db, "--json", *args)
     assert result.exit_code == (0 if expected else 1)
-    assert [r["license_id"] for r in json_lines(result.stdout)] == expected
+    assert [r["expression"] for r in json_lines(result.stdout)] == expected
 
 
 @pytest.mark.parametrize("threshold", ["1.01", "-0.1", "nan", "inf"])
@@ -332,7 +332,7 @@ def test_diff_is_for_the_top_result_only() -> None:
         out = invoke_match(
             db, "--diff", "--threshold", "0", "--top", "2", "--text", FRAGMENT
         ).stdout
-        assert (out.count("LICENSE_ID="), out.count("WORD DIFF:")) == (2, 1)
+        assert (out.count("EXPRESSION="), out.count("WORD DIFF:")) == (2, 1)
 
 
 def test_the_result_types_are_exported() -> None:

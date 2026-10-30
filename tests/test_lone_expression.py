@@ -67,7 +67,7 @@ def _api(db: str, value: str, tmp_path: Path, channel: str) -> list[str]:
         results = matcher.detect(license_id=value)
     else:
         results = matcher.detect(text=value)
-    return [r["license_id"] for r in results if r["score"] >= 0.85]
+    return [r["expression"] for r in results if r["score"] >= 0.85]
 
 
 def _cli(db: str, value: str, tmp_path: Path, channel: str) -> list[str]:
@@ -81,7 +81,7 @@ def _cli(db: str, value: str, tmp_path: Path, channel: str) -> list[str]:
     (tmp_path / "LICENSE").write_text(f"{value}\n", encoding="utf-8")
     result = CliRunner().invoke(cli, ["--db", db, "detect", "--json", *args], stdin)
     assert result.exit_code == 0, result.output
-    return [r["license_id"] for r in json_lines(result.stdout)]
+    return [r["expression"] for r in json_lines(result.stdout)]
 
 
 CHANNELS = [
@@ -148,7 +148,7 @@ def test_any_other_value_is_read_as_text(
 ) -> None:
     results = LicenseDetector(db).detect(text=value)
     assert [
-        (r["license_id"], r["method"], r["score"], r["similarity"]) for r in results
+        (r["expression"], r["method"], r["score"], r["similarity"]) for r in results
     ] == expected
     assert all(r["exact"] for r in results)
 

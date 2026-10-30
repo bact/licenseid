@@ -90,7 +90,7 @@ def test_match_diff_shows_word_diff_after_the_result_line(mit_db: str) -> None:
     assert result.exit_code == 0
     assert result.stderr == ""
     first, rest = result.stdout.split("\n", 1)
-    assert first.startswith("LICENSE_ID=MIT METHOD=text EXACT=false SCORE=0.9")
+    assert first.startswith("EXPRESSION=MIT\tMETHOD=text\tEXACT=false\tSCORE=0.9")
     assert rest.startswith("\nWORD DIFF:\n--- DATABASE\n+++ INPUT\n@@")
     assert rest.endswith(" copy\n+and\n+more\n+words\n\n")
 
@@ -125,17 +125,17 @@ def test_match_diff_is_plain_text_when_not_a_terminal(mit_db: str) -> None:
     [
         # Matched as text, but nothing to show: the whole text, or a piece
         # of it (similarity 1.0, coverage below 1.0) whose window equals it.
-        (["--text", MIT_SEARCH_TEXT], "METHOD=text EXACT=true"),
+        (["--text", MIT_SEARCH_TEXT], "METHOD=text\tEXACT=true"),
         (
             ["--text", "permission is hereby granted free of charge"],
-            "METHOD=text EXACT=false",
+            "METHOD=text\tEXACT=false",
         ),
         # Not matched as text, so aligned with no license text.
-        (["--id", "MIT"], "METHOD=id EXACT=true"),
-        (["--text", "SPDX-License-Identifier: MIT"], "METHOD=tag EXACT=true"),
-        (["--text", '{"license": "MIT"}'], "METHOD=field EXACT=true"),
-        (["--text", "MIT License"], "METHOD=name EXACT=true"),
-        (["--text", "The MIT Licence"], "METHOD=name EXACT=false"),
+        (["--id", "MIT"], "METHOD=id\tEXACT=true"),
+        (["--text", "SPDX-License-Identifier: MIT"], "METHOD=tag\tEXACT=true"),
+        (["--text", '{"license": "MIT"}'], "METHOD=field\tEXACT=true"),
+        (["--text", "MIT License"], "METHOD=name\tEXACT=true"),
+        (["--text", "The MIT Licence"], "METHOD=name\tEXACT=false"),
     ],
     ids=["exact", "fragment", "id", "tag", "field", "name", "close-name"],
 )
@@ -145,7 +145,7 @@ def test_match_diff_prints_no_diff_without_one(
     result = invoke_match(mit_db, "--diff", *args)
     assert result.exit_code == 0
     assert result.stdout.count("\n") == 1
-    assert f" {method_exact} " in result.stdout
+    assert f"\t{method_exact}\t" in result.stdout
 
 
 @pytest.mark.parametrize("other", ["--json", "--bold"])

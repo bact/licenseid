@@ -283,7 +283,7 @@ def test_match_answers_with_the_id(
     """Through detect(), with the flags of the answer, from text and from a
     manifest's license field."""
     top = matcher.detect(text=text)[0]
-    assert (top["license_id"], top["method"], top["exact"]) == expected
+    assert (top["expression"], top["method"], top["exact"]) == expected
     assert top["is_spdx"] is True
 
 

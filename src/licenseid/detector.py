@@ -460,7 +460,7 @@ class LicenseDetector:
             if not results or results[0]["score"] < 0.85:
                 return None
             top = results[0]
-            record = self.db.get_license_details(top["license_id"])
+            record = self.db.get_license_details(top["expression"])
         if record:
             return record
 
@@ -469,8 +469,8 @@ class LicenseDetector:
         return cast(
             LicenseDetails,
             {
-                "license_id": top["license_id"],
-                "name": top["license_id"],
+                "license_id": top["expression"],
+                "name": top["expression"],
                 "is_spdx": top.get("is_spdx", False),
                 "is_osi_approved": top.get("is_osi_approved", False),
                 "is_fsf_libre": top.get("is_fsf_libre", False),

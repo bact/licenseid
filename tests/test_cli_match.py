@@ -20,13 +20,14 @@ from unittest import mock
 import click
 import pytest
 from click.testing import CliRunner, Result
+from conftest import line_fields
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
 from licenseid import LicenseDatabase, match
 from licenseid.cli import cli
-from licenseid.result import json_line, read_text_field, resolution_lines
+from licenseid.result import json_line, resolution_lines
 
 DETECT = "; run 'licenseid detect'"
 
@@ -43,70 +44,73 @@ def run(*args: str, stdin: str | None = None) -> Result:
 @pytest.mark.parametrize(
     ("value", "lines", "exit_code"),
     [
-        ("MIT", ["EXPRESSION=MIT CATEGORY=exact TRUST=identity"], 0),
+        ("MIT", ["EXPRESSION=MIT\tCATEGORY=exact\tTRUST=identity"], 0),
         (
             "Apache2",
             [
-                "EXPRESSION=Apache-2.0 CATEGORY=version_spelling TRUST=resolver_rule",
-                "STEP=separator FROM=Apache2 TO=Apache-2.0",
-                "STEP=version_spelling FROM=Apache2 TO=Apache-2.0",
+                "EXPRESSION=Apache-2.0\tCATEGORY=version_spelling\tTRUST=resolver_rule",
+                "STEP=separator\tFROM=Apache2\tTO=Apache-2.0",
+                "STEP=version_spelling\tFROM=Apache2\tTO=Apache-2.0",
             ],
             0,
         ),
         (  # a qualifier is an expansion, the only step here
             "GPL-2.0+",
             [
-                "EXPRESSION=GPL-2.0-or-later CATEGORY=plus_to_or_later TRUST=list_data",
-                "STEP=plus_to_or_later FROM=GPL-2.0+ TO=GPL-2.0-or-later",
+                (
+                    "EXPRESSION=GPL-2.0-or-later\tCATEGORY=plus_to_or_later"
+                    "\tTRUST=list_data"
+                ),
+                "STEP=plus_to_or_later\tFROM=GPL-2.0+\tTO=GPL-2.0-or-later",
             ],
             0,
         ),
         (  # a declined expansion is no step: the category says it
             "GPL-3.0",
-            ["EXPRESSION=GPL-3.0 CATEGORY=assumed_only TRUST=none"],
+            ["EXPRESSION=GPL-3.0\tCATEGORY=assumed_only\tTRUST=none"],
             0,
         ),
         (
             "GPLv2+ or MIT",
             [
                 (
-                    "EXPRESSION=GPL-2.0-or-later\\x20OR\\x20MIT"
-                    " CATEGORY=version_spelling TRUST=resolver_rule"
+                    "EXPRESSION=GPL-2.0-or-later OR MIT"
+                    "\tCATEGORY=version_spelling\tTRUST=resolver_rule"
                 ),
-                "STEP=separator FROM=GPLv2 TO=GPL-2.0",
-                "STEP=version_spelling FROM=GPLv2 TO=GPL-2.0",
+                "STEP=separator\tFROM=GPLv2\tTO=GPL-2.0",
+                "STEP=version_spelling\tFROM=GPLv2\tTO=GPL-2.0",
                 (
-                    "STEP=operator_case FROM=GPL-2.0-or-later\\x20or\\x20MIT"
-                    " TO=GPL-2.0-or-later\\x20OR\\x20MIT"
+                    "STEP=operator_case\tFROM=GPL-2.0-or-later or MIT"
+                    "\tTO=GPL-2.0-or-later OR MIT"
                 ),
-                "STEP=plus_to_or_later FROM=GPLv2+ TO=GPL-2.0-or-later",
+                "STEP=plus_to_or_later\tFROM=GPLv2+\tTO=GPL-2.0-or-later",
             ],
             0,
         ),
         (  # the drop step was not applied: only the reason says it
             "Apache 2.0?",
             [
-                "EXPRESSION= CATEGORY=unresolved TRUST=none",
-                "REASON=character\\x20dropped:\\x20U+003F",
+                "EXPRESSION=\tCATEGORY=unresolved\tTRUST=none",
+                "REASON=character dropped: U+003F",
             ],
             1,
         ),
         (
             "MIT OR Foo",
             [
-                "EXPRESSION= CATEGORY=unresolved TRUST=none",
-                "REASON=operand\\x20not\\x20resolved:\\x20Foo",
+                "EXPRESSION=\tCATEGORY=unresolved\tTRUST=none",
+                "REASON=operand not resolved: Foo",
             ],
             1,
         ),
-        ("Foo", ["EXPRESSION= CATEGORY=unresolved TRUST=none"], 1),
+        ("Foo", ["EXPRESSION=\tCATEGORY=unresolved\tTRUST=none"], 1),
         (
             "MIT ; Apache 2",
             [
-                "EXPRESSION= CATEGORY=unresolved TRUST=none",
-                "REASON=operator\\x20not\\x20stated:\\x20;",
-                "OPERAND=MIT EXPRESSION=MIT CATEGORY=exact",
-                "OPERAND=Apache\\x202 EXPRESSION=Apache-2.0 CATEGORY=version_spelling",
+                "EXPRESSION=\tCATEGORY=unresolved\tTRUST=none",
+                "REASON=operator not stated: ;",
+                "OPERAND=MIT\tEXPRESSION=MIT\tCATEGORY=exact",
+                "OPERAND=Apache 2\tEXPRESSION=Apache-2.0\tCATEGORY=version_spelling",
             ],
             1,
         ),
@@ -139,19 +143,20 @@ AWKWARD = "MIT ; Apache License,\tVersion 2.0 ; é=1 “x”"
 def test_a_line_splits_into_its_fields_and_reads_back() -> None:
     result = run(AWKWARD)
     assert result.exit_code == 1
-    assert result.stdout.isascii()
     operands = [
-        dict(field.split("=", 1) for field in line.split(" "))
+        line_fields(line)
         for line in result.stdout.splitlines()
         if line.startswith("OPERAND=")
     ]
-    assert [read_text_field(o["OPERAND"]) for o in operands] == [
+    assert [o["OPERAND"] for o in operands] == [
         "MIT",
         "Apache License,\tVersion 2.0",
-        "é=1 “x”",
+        "\u00e9=1 \u201cx\u201d",
     ]
     assert [o["EXPRESSION"] for o in operands] == ["MIT", "Apache-2.0", ""]
-    assert [len(line.split()) for line in result.stdout.splitlines()] == [3, 1, 3, 3, 3]
+    assert "OPERAND=Apache License,\\tVersion 2.0\t" in result.stdout
+    widths = [len(line.split("\t")) for line in result.stdout.splitlines()]
+    assert widths == [3, 1, 3, 3, 3]
 
 
 @pytest.mark.parametrize(
@@ -278,7 +283,7 @@ def test_standard_input_with_no_value_is_for_detect() -> None:
 
 def test_standard_input_beside_a_value_is_not_read() -> None:
     """A script's standard input is seldom a terminal: the value decides."""
-    assert run("MIT", stdin="GPL-3.0").stdout.startswith("EXPRESSION=MIT ")
+    assert run("MIT", stdin="GPL-3.0").stdout.startswith("EXPRESSION=MIT\t")
 
 
 def test_no_value_and_no_piped_input_is_missing() -> None:

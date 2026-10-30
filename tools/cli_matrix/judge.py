@@ -28,19 +28,21 @@ GRAMMAR = re.compile(r"(ERROR|WARNING): [a-z][a-z0-9._-]*: [a-z0-9].*")
 #: The help printed for a missing subcommand: stderr, exit 2, not a result.
 HELP = re.compile(r"Usage: .*\n(.*\n)*Commands:\n")
 
-#: The default one-line result of ``detect``.
+#: The default one-line result of ``detect``: fields joined by one tab.
 #: An expression's operators are its only spaces; a score is 0-1, and
 #: coverage passes 1 when the input is longer than the licence.
 PLAIN = re.compile(
-    r"LICENSE_ID=\S+( (AND|OR|WITH) \S+)* METHOD=[a-z]+ EXACT=(true|false)"
-    r" SCORE=(0\.\d{4}|1\.0000) SIMILARITY=(\d\.\d{4})? COVERAGE=(\d+\.\d{4})?"
+    r"EXPRESSION=\S+( (AND|OR|WITH) \S+)*\tMETHOD=[a-z]+\tEXACT=(true|false)"
+    r"\tSCORE=(0\.\d{4}|1\.0000)\tSIMILARITY=(\d\.\d{4})?"
+    r"\tCOVERAGE=(\d+\.\d{4})?"
 )
 
-#: The lines of ``licenseid match``: every value one word (``result.text_field``).
-MATCH_HEAD = re.compile(r"EXPRESSION=(\S*) CATEGORY=[a-z_]+ TRUST=[a-z_]+")
+#: The lines of ``licenseid match``: fields joined by one tab, no value
+#: holds one (``result.text_field``).
+MATCH_HEAD = re.compile(r"EXPRESSION=([^\t]*)\tCATEGORY=[a-z_]+\tTRUST=[a-z_]+")
 MATCH_LINE = re.compile(
-    r"STEP=[a-z_]+ FROM=\S* TO=\S*|REASON=\S+"
-    r"|OPERAND=\S+ EXPRESSION=\S* CATEGORY=[a-z_]+"
+    r"STEP=[a-z_]+\tFROM=[^\t]*\tTO=[^\t]*|REASON=[^\t]+"
+    r"|OPERAND=[^\t]+\tEXPRESSION=[^\t]*\tCATEGORY=[a-z_]+"
 )
 
 #: The whole result of ``detect --bold``: an identifier and nothing else.
@@ -189,7 +191,9 @@ def check_match_value(cell: Cell, rc: int, out: str) -> list[str]:
         return []
     if "json" in cell.outflags or "--json" in cell.cmd:
         parsed = _json_results(out)
-        if not parsed or len(parsed) != 1 or not isinstance(parsed[0], dict):
+        if not (parsed and len(parsed) == 1 and isinstance(parsed[0], dict)):
+            return [f"match --json not one object: {out[:40]!r}"]
+        if "schema" not in parsed[0]:  # a detection, not a resolution
             return [f"match --json not one object: {out[:40]!r}"]
         resolved = parsed[0].get("expression") is not None
     else:
@@ -212,7 +216,7 @@ def check_match_format(cell: Cell, out: str) -> list[str]:
     ok_bold = (
         len(lines) == 1
         and BOLD.fullmatch(lines[0]) is not None
-        and not lines[0].startswith("LICENSE_ID=")
+        and not lines[0].startswith("EXPRESSION=")
     )
     ok_json = _is_result_json(out)
     ok_plain = bool(lines) and PLAIN.fullmatch(lines[0]) is not None
@@ -239,7 +243,9 @@ def _is_result_json(out: str) -> bool:
     """True when *out* is JSON Lines of result objects, one or more."""
     parsed = _json_results(out)
     return bool(parsed) and all(
-        isinstance(item, dict) and {"license_id", "method", "score"} <= set(item)
+        isinstance(item, dict)
+        and {"expression", "method", "score"} <= set(item)
+        and "schema" not in item  # a resolution of match
         for item in parsed or ()
     )
 

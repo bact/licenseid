@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+from conftest import line_fields
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
@@ -27,7 +28,7 @@ from resolver_corpus import parity_rows, sample_rows
 from licenseid import match
 from licenseid.cli import cli
 from licenseid.resolver import MAX_EXPRESSION_CHARS
-from licenseid.result import json_line, read_text_field
+from licenseid.result import json_line
 from licenseid.textinput import has_lone_surrogate
 from tools.pypi_licence_sample.answer import unescape_field
 
@@ -58,8 +59,7 @@ def _check(runner: CliRunner, value: str) -> int:
     assert as_json.stdout == json_line(expected) + "\n", value
     assert as_json.exit_code == (0 if expected["expression"] else 1), value
     text = runner.invoke(cli, ["match", value])
-    head = dict(f.split("=", 1) for f in text.stdout.splitlines()[0].split(" "))
-    assert {key: read_text_field(field) for key, field in head.items()} == {
+    assert line_fields(text.stdout.splitlines()[0]) == {
         "EXPRESSION": expected["expression"] or "",
         "CATEGORY": expected["category"],
         "TRUST": expected["trust"],

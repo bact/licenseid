@@ -17,6 +17,7 @@ lines (``licenseid match``) are :func:`resolution_lines`, each value written
 by :func:`text_field`.
 """
 
+import re
 from typing import Any
 
 from licenseid.resolvertypes import Resolution, Step
@@ -37,7 +38,7 @@ def public_result(raw: RawMatch | InternalMatch) -> Detection:
     """*raw* as detect() returns it. The ranking key is capped to 0-1: above
     1 it only orders a tier's own results, and the order is in the list."""
     return Detection(
-        license_id=raw["license_id"],
+        expression=raw["license_id"],
         method=raw["method"],
         exact=bool(raw["exact"]),
         score=round(max(0.0, min(raw["score"], 1.0)), _DIGITS),
@@ -67,46 +68,65 @@ def json_line(result: Detection | Resolution) -> str:
 
 
 def text_line(result: Detection) -> str:
-    """*result* as KEY=VALUE fields on one line; a value nothing measured
-    is empty (``SIMILARITY=``), so every line has the same fields."""
+    """*result* as one line of ``KEY=VALUE`` fields (:func:`fields_line`); a
+    value nothing measured is empty (``SIMILARITY=``), so every line has the
+    same fields."""
 
-    def number(value: float | None) -> str:
-        return "" if value is None else f"{value:.{_DIGITS}f}"
+    def number(value: float | None) -> str | None:
+        return None if value is None else f"{value:.{_DIGITS}f}"
 
-    return (
-        f"LICENSE_ID={result['license_id']} METHOD={result['method']} "
-        f"EXACT={str(result['exact']).lower()} "
-        f"SCORE={number(result['score'])} "
-        f"SIMILARITY={number(result['similarity'])} "
-        f"COVERAGE={number(result['coverage'])}"
+    return fields_line(
+        EXPRESSION=result["expression"],
+        METHOD=result["method"],
+        EXACT=str(result["exact"]).lower(),
+        SCORE=number(result["score"]),
+        SIMILARITY=number(result["similarity"]),
+        COVERAGE=number(result["coverage"]),
     )
 
 
+# What a value holds that would end its field or its line, or be read as an
+# escape: each is written as a backslash escape, and nothing else is.
+_ESCAPES = {"\\": "\\\\", "\t": "\\t", "\r": "\\r", "\n": "\\n"}
+_ESCAPED = str.maketrans(_ESCAPES)
+# What read_text_field decodes: the four above, and the escapes output.echo
+# writes for a character standard output cannot encode.
+_ESCAPE_RE = re.compile(
+    r"\\(?:(?P<char>[\\trn])"
+    r"|x(?P<x>[0-9a-f]{2})|u(?P<u>[0-9a-f]{4})|U(?P<U>[0-9a-f]{8}))"
+)
+_UNESCAPED = {"\\\\": "\\", "\\t": "\t", "\\r": "\r", "\\n": "\n"}
+
+
 def text_field(value: str | None) -> str:
-    r"""*value* as the VALUE of one ``KEY=VALUE`` field of a line whose
-    fields a space separates: Python's ``unicode_escape`` (a backslash, a
-    tab, a line break, a control and every character outside ASCII become a
-    backslash escape: ``\\``, ``\t``, ``\n``, ``\xe9``, ``\u201c``) and
-    a space ``\x20``, as the PyPI sample writes its fields
-    (``tools/pypi_licence_sample/answer.py``). A field is one word of ASCII,
-    whatever the value, so ``awk``, ``cut -d' '`` and ``read -r`` split the
-    line into its fields on any locale; ``=`` is kept, as a key ends at the
-    first one. None is empty, as is ``""``. :func:`read_text_field`
-    reverses it."""
-    if value is None:
-        return ""
-    return value.encode("unicode_escape").decode("ascii").replace(" ", "\\x20")
+    r"""*value* as the VALUE of one ``KEY=VALUE`` field: as it is, but for a
+    backslash, a tab, a carriage return and a line feed, written ``\\``,
+    ``\t``, ``\r`` and ``\n``. A field then holds no tab and a line no
+    line break, so ``cut -f`` and ``awk -F'\t'`` split a line into its
+    fields; ``=`` is kept, as a key ends at the first one. None is empty, as
+    is ``""``. A character standard output cannot encode is escaped when the
+    line is written (``output.echo``); :func:`read_text_field` reverses
+    both."""
+    return "" if value is None else value.translate(_ESCAPED)
 
 
 def read_text_field(field: str) -> str:
-    """The value :func:`text_field` wrote as *field*."""
-    return field.encode("ascii").decode("unicode_escape")
+    r"""The value :func:`text_field` wrote as *field*, with the ``\xHH``,
+    ``\uHHHH`` and ``\UHHHHHHHH`` escapes of ``output.echo`` decoded. Every
+    backslash of a value was escaped, so any other one starts an escape."""
+
+    def decoded(escape: re.Match[str]) -> str:
+        if escape.group("char"):
+            return _UNESCAPED[escape.group(0)]
+        return chr(int(escape.group("x") or escape.group("u") or escape.group("U"), 16))
+
+    return _ESCAPE_RE.sub(decoded, field)
 
 
-def _fields(**values: str | None) -> str:
-    """``KEY=VALUE`` fields, in the order given, each value by
-    :func:`text_field`."""
-    return " ".join(f"{key}={text_field(value)}" for key, value in values.items())
+def fields_line(**values: str | None) -> str:
+    """``KEY=VALUE`` fields, in the order given, one tab between them, each
+    value by :func:`text_field`: the line every command prints."""
+    return "\t".join(f"{key}={text_field(value)}" for key, value in values.items())
 
 
 def resolution_lines(resolution: Resolution) -> list[str]:
@@ -124,7 +144,7 @@ def resolution_lines(resolution: Resolution) -> list[str]:
 
     Every value is written by :func:`text_field`."""
     lines = [
-        _fields(
+        fields_line(
             EXPRESSION=resolution["expression"],
             CATEGORY=resolution["category"],
             TRUST=resolution["trust"],
@@ -136,14 +156,15 @@ def resolution_lines(resolution: Resolution) -> list[str]:
         if step["applied"]
     ]
     lines += [
-        _fields(STEP=step["kind"], FROM=step["from"], TO=step["to"]) for step in applied
+        fields_line(STEP=step["kind"], FROM=step["from"], TO=step["to"])
+        for step in applied
     ]
     reason = resolution["reason"]
     if reason is not None:
-        lines.append(_fields(REASON=reason))
+        lines.append(fields_line(REASON=reason))
     if reason == NO_OPERATOR:
         lines += [
-            _fields(
+            fields_line(
                 OPERAND=operand["text"],
                 EXPRESSION=operand["expression"],
                 CATEGORY=operand["category"],
