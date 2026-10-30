@@ -272,6 +272,28 @@ def invoke_match(db: str, *args: str, color: bool = False) -> Result:
     return CliRunner().invoke(cli, ["--db", db, "detect", *args], color=color)
 
 
+# The flag each is-* command prints after EXPRESSION.
+PREDICATE_KEYS = {
+    "is-osi": "IS_OSI_APPROVED",
+    "is-fsf": "IS_FSF_LIBRE",
+    "is-open": "IS_OPEN",
+    "is-free": "IS_FREE",
+    "is-spdx": "IS_SPDX",
+}
+
+
+def predicate_line(command: str, expression: str, answer: bool) -> str:
+    """The line ``licenseid <command>`` prints: the ID judged (empty for
+    none) and its flag."""
+    flag = "true" if answer else "false"
+    return f"EXPRESSION={expression}\t{PREDICATE_KEYS[command]}={flag}\n"
+
+
+def update_line(status: str, version: str, path: object) -> str:
+    """The line ``licenseid update`` prints."""
+    return f"STATUS={status}\tVERSION={version}\tPATH={path}\n"
+
+
 def line_fields(line: str) -> dict[str, str]:
     """The ``KEY=VALUE`` fields of one result line, each value read back
     (``result.read_text_field``)."""

@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """What the CLI's commands share: their command class, the exit for a usage
-error, and the checks of a value given on the command line.
+error, the checks of a value given on the command line, and the writer of a
+one-record result.
 
 ``cli`` holds the group and the commands that read the database;
 ``climatch`` the ``match`` command. Both import from here, so neither
@@ -18,7 +19,8 @@ import click
 
 from licenseid.console import error
 from licenseid.errors import InvalidInputError
-from licenseid.output import EchoHelpCommand
+from licenseid.output import EchoHelpCommand, echo, echo_json
+from licenseid.result import FieldValue, fields_line, record_json
 from licenseid.textinput import reject_binary, reject_lone_surrogate
 from licenseid.usage import UsageLineCommand
 
@@ -26,6 +28,25 @@ from licenseid.usage import UsageLineCommand
 class LicenseIdCommand(UsageLineCommand, EchoHelpCommand):
     """A command whose help and usage errors follow the stream and message
     rules (``output.EchoHelpCommand``, ``usage.UsageLineCommand``)."""
+
+
+# The --json flag of every command that prints a result.
+json_option = click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    help="Print the result as RFC 8785 JSON, one object per line.",
+)
+
+
+def echo_record(json_output: bool, **values: FieldValue) -> None:
+    """Print one result record: ``KEY=VALUE`` fields (``result.fields_line``)
+    or, with *json_output*, the same record as one JSON object with the keys
+    in lower case (``result.record_json``)."""
+    if json_output:
+        echo_json(record_json(**values))
+    else:
+        echo(fields_line(**values))
 
 
 def exit_usage_error(ctx: click.Context, message: str) -> NoReturn:

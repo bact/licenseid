@@ -27,7 +27,7 @@ Row = dict[str, Any]
 #: Every flag of every subcommand, so the checklist can show the gaps too.
 UNIVERSE: dict[str, list[str]] = {
     "global": ["--db", "--clear-cache", "--help", "--version", "(no subcommand)"],
-    "update": ["--version", "--force", "--cache", "--no-cache", "--help"],
+    "update": ["--version", "--force", "--cache", "--no-cache", "--json", "--help"],
     "detect": [
         "--text",
         "--id",
@@ -43,7 +43,7 @@ UNIVERSE: dict[str, list[str]] = {
     ],
 }
 for _pred in PREDS:
-    UNIVERSE[_pred] = ["--text", "--id", "--help"]
+    UNIVERSE[_pred] = ["--text", "--id", "--json", "--help"]
 UNIVERSE["match"] = ["--json", "--source", "--text", "--help"]
 
 SOURCES = ["arg-id", "arg-file", "--text", "--id", "stdin", "none"]

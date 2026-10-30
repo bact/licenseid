@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
-from conftest import json_lines
+from conftest import json_lines, predicate_line
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.cli import cli
@@ -127,7 +127,10 @@ def test_a_lone_expression_is_judged_as_its_id(
 ) -> None:
     """LGPL-2.1-or-later has neither flag here; LGPL-2.1-only has both."""
     result = CliRunner().invoke(cli, ["--db", db, command, *args, "LGPL-2.1+"])
-    assert (result.exit_code, result.stdout) == (1, "false\n")
+    assert (result.exit_code, result.stdout) == (
+        1,
+        predicate_line(command, "LGPL-2.1-or-later", False),
+    )
 
 
 @pytest.mark.parametrize(
@@ -156,7 +159,10 @@ def test_any_other_value_is_read_as_text(
 def test_a_deprecated_gfdl_id_has_the_flags_of_its_successor(db: str) -> None:
     """GFDL-1.3 answered itself, with the deprecated row's flags."""
     result = CliRunner().invoke(cli, ["--db", db, "is-fsf", "--text", "GFDL-1.3"])
-    assert (result.exit_code, result.stdout) == (0, "true\n")
+    assert (result.exit_code, result.stdout) == (
+        0,
+        predicate_line("is-fsf", "GFDL-1.3-only", True),  # the ID judged
+    )
 
 
 def test_a_license_ref_with_a_plus_is_no_license(db: str) -> None:

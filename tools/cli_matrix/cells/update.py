@@ -8,7 +8,8 @@
 ``D1`` every failure mode against every starting cache state, ``D2`` the
 option space, ``D3`` an all-pairs sweep over both, ``D4`` the real requests
 stack against a dead proxy, ``D5`` signals mid-download, ``D6`` two updates
-racing, ``D7`` what the database is like afterwards.
+racing, ``D7`` what the database is like afterwards, ``D8`` the record as
+JSON (``--json``).
 
 Every cell here runs ``$LU``, the offline launcher, except family D4, which
 deliberately uses the real stack to prove that a blocked network fails the
@@ -92,6 +93,30 @@ def add_cells(cells: CellSet) -> None:
     _add_signals(cells)
     _add_race(cells)
     _add_afterwards(cells)
+    _add_json(cells)
+
+
+def _add_json(cells: CellSet) -> None:
+    """D8: ``update --json``, updated, unchanged and failed."""
+    for desc, state, net, rc, out in (
+        ("updated", "fresh", "ok", 0, '"status":"updated"'),
+        ("unchanged", "same_version", "ok", 0, '"status":"unchanged"'),
+        ("failed", "fresh", "down", 1, None),
+    ):
+        cells.add(
+            "D8",
+            f"update --json {desc}",
+            f"mkdir -p $W/x && {STATES[state]}FAKE_NET={net}"
+            " $LU --db $W/x/licenses.db update --json",
+            kind="update",
+            progress=True,
+            exp_exit=rc,
+            exp_out=(
+                ""
+                if out is None
+                else r'\{"path":"[^"]+",' + out + r',"version":"9\.99"\}\n'
+            ),
+        )
 
 
 def _add_update(

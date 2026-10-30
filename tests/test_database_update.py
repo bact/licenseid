@@ -18,7 +18,7 @@ from unittest import mock
 import pytest
 import requests
 from click.testing import CliRunner
-from conftest import assert_cached_tarball_removed, fake_requests_get
+from conftest import assert_cached_tarball_removed, fake_requests_get, update_line
 from db_variants import make_ready_file_db
 from release_fakes import (
     POPULARITY_CSV,
@@ -204,13 +204,13 @@ def test_cli_update_reports_success_then_no_change(
 
     first = runner.invoke(cli, ["--db", db_path, "update"])
     assert first.exit_code == 0, first.output
-    assert first.stdout == f"Database updated at {db_path}\n"
+    assert first.stdout == update_line("updated", "9.99", db_path)
     assert "Data sources:" in first.stderr
     assert "Update complete." in first.stderr
 
     second = runner.invoke(cli, ["--db", db_path, "update"])
     assert second.exit_code == 0, second.output
-    assert second.stdout == f"Database remains at version 9.99 at {db_path}\n"
+    assert second.stdout == update_line("unchanged", "9.99", db_path)
     assert "Skipping update" in second.stderr
 
 
@@ -244,7 +244,8 @@ def test_cli_update_warnings_go_to_stderr(
     assert "WARNING: popularity.csv: 1 rows with missing" in result.stderr
     assert "WARNING" not in result.stdout
     assert "Warning" not in result.stdout
-    assert f"Database updated at {db_path}" in result.stdout
+    assert result.stdout.startswith("STATUS=updated\tVERSION=")
+    assert result.stdout.endswith(f"\tPATH={db_path}\n")
 
 
 def test_cli_update_unexpected_error_keeps_message_grammar(

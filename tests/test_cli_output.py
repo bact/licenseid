@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""CLI output paths the option matrix does not reach: the word diff, running
+"""CLI output paths the option matrix does not reach: the word diff (on
+standard error, so standard output holds only result lines), running
 without a subcommand, a terminal or text-only stdin, and the entry points."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
@@ -44,12 +45,12 @@ def test_show_diff_marks_added_removed_and_context_words(
     """A unified diff of DATABASE -> INPUT. The three lines of context are
     difflib's default: current behaviour, not a documented contract."""
     show_diff("one two three four five", "one two three four")
-    assert capsys.readouterr().out == (
+    assert capsys.readouterr().err == (
         "\nWORD DIFF:\n--- DATABASE\n+++ INPUT\n@@ -2,3 +2,4 @@\n"
         " two\n three\n four\n+five\n\n"
     )
     show_diff("one two four", "one two three four")
-    assert capsys.readouterr().out == (
+    assert capsys.readouterr().err == (
         "\nWORD DIFF:\n--- DATABASE\n+++ INPUT\n@@ -1,4 +1,3 @@\n"
         " one\n two\n-three\n four\n\n"
     )
@@ -68,14 +69,14 @@ def test_show_diff_prints_nothing_without_a_difference(
     capsys: pytest.CaptureFixture[str], text: str, window: str
 ) -> None:
     show_diff(text, window)
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr() == ("", "")
 
 
 def test_show_diff_with_empty_window_marks_every_word_added(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     show_diff("alpha beta", "")
-    out = capsys.readouterr().out
+    out = capsys.readouterr().err
     assert "+alpha\n+beta\n" in out
     assert "\n-" not in out.replace("--- DATABASE", "")
 
@@ -88,36 +89,66 @@ def test_match_diff_shows_word_diff_after_the_result_line(mit_db: str) -> None:
         mit_db, "--diff", "--text", MIT_SEARCH_TEXT + " and more words"
     )
     assert result.exit_code == 0
-    assert result.stderr == ""
-    first, rest = result.stdout.split("\n", 1)
-    assert first.startswith("EXPRESSION=MIT\tMETHOD=text\tEXACT=false\tSCORE=0.9")
+    assert result.stdout.count("\n") == 1
+    assert result.stdout.startswith(
+        "EXPRESSION=MIT\tMETHOD=text\tEXACT=false\tSCORE=0.9"
+    )
+    rest = result.stderr
     assert rest.startswith("\nWORD DIFF:\n--- DATABASE\n+++ INPUT\n@@")
     assert rest.endswith(" copy\n+and\n+more\n+words\n\n")
 
 
 def test_match_diff_colours_added_green_and_removed_red(mit_db: str) -> None:
-    """Added words are green, removed words red. (How the ---/+++ header lines
-    are coloured is not asserted: it is incidental, not a stated contract.)"""
-    added = invoke_match(
-        mit_db, "--diff", "--text", MIT_SEARCH_TEXT + " and more", color=True
-    )
-    assert f"{GREEN}+and{RESET}\n{GREEN}+more{RESET}\n" in added.stdout
-    replaced = invoke_match(
-        mit_db,
-        "--diff",
-        "--text",
-        "permission is hereby granted free of charge to any human obtaining a copy",
-        color=True,
-    )
+    """On a terminal, added words are green, removed words red. (How the
+    ---/+++ header lines are coloured is not asserted: it is incidental, not
+    a stated contract.)"""
+    # pylint: disable-next=protected-access
+    terminal = mock.create_autospec(cli_module._is_terminal, return_value=True)
+    with mock.patch.object(cli_module, "_is_terminal", terminal):
+        added = invoke_match(mit_db, "--diff", "--text", MIT_SEARCH_TEXT + " and more")
+        replaced = invoke_match(
+            mit_db,
+            "--diff",
+            "--text",
+            "permission is hereby granted free of charge to any human obtaining a copy",
+        )
+    assert f"{GREEN}+and{RESET}\n{GREEN}+more{RESET}\n" in added.stderr
     assert replaced.exit_code == 0
-    assert f"{RED}-person{RESET}\n{GREEN}+human{RESET}\n" in replaced.stdout
+    assert f"{RED}-person{RESET}\n{GREEN}+human{RESET}\n" in replaced.stderr
     # Words that did not change are context lines: no colour.
-    assert "\n obtaining\n" in replaced.stdout
+    assert "\n obtaining\n" in replaced.stderr
+    assert "\x1b[" not in replaced.stdout
+
+
+def _tty(answer: bool) -> io.StringIO:
+    stream = io.StringIO()
+    stream.isatty = lambda: answer  # type: ignore[method-assign]
+    return stream
+
+
+@pytest.mark.parametrize(
+    ("stream", "coloured"),
+    [(_tty(True), True), (_tty(False), False), (object(), False), (None, False)],
+    ids=["terminal", "pipe", "no-isatty", "none"],
+)
+def test_the_diff_is_coloured_only_on_a_terminal(
+    stream: object, coloured: bool
+) -> None:
+    # pylint: disable-next=protected-access
+    assert cli_module._is_terminal(stream) is coloured
+
+
+def test_a_closed_stream_is_no_terminal() -> None:
+    stream = io.StringIO()
+    stream.close()
+    # pylint: disable-next=protected-access
+    assert cli_module._is_terminal(stream) is False
 
 
 def test_match_diff_is_plain_text_when_not_a_terminal(mit_db: str) -> None:
     result = invoke_match(mit_db, "--diff", "--text", MIT_SEARCH_TEXT + " and more")
-    assert "\x1b[" not in result.stdout
+    assert "WORD DIFF" in result.stderr
+    assert "\x1b[" not in result.stdout + result.stderr
 
 
 @pytest.mark.parametrize(
@@ -145,6 +176,7 @@ def test_match_diff_prints_no_diff_without_one(
     result = invoke_match(mit_db, "--diff", *args)
     assert result.exit_code == 0
     assert result.stdout.count("\n") == 1
+    assert result.stderr == ""
     assert f"\t{method_exact}\t" in result.stdout
 
 
@@ -156,8 +188,8 @@ def test_match_diff_is_dropped_for_json_and_bold(mit_db: str, other: str) -> Non
     result = invoke_match(
         mit_db, "--diff", other, "--text", MIT_SEARCH_TEXT + " and more words"
     )
-    assert "WORD DIFF" not in result.stdout
-    assert "@@" not in result.stdout
+    assert "WORD DIFF" not in result.stdout + result.stderr
+    assert "@@" not in result.stdout + result.stderr
 
 
 # --- stdin variants ---

@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from conftest import predicate_line
 from db_asserts import (
     assert_no_traceback,
     assert_one_diagnostic_line,
@@ -341,7 +342,9 @@ def test_ready_database_answers_yes_and_no(variant: Variant, command: str) -> No
     no = run_cli(variant.db_arg, [command, "--id", "No-Such-License-1.0"])
     assert_no_traceback(no)
     assert no.exit_code == 1
-    assert no.stdout in ("", "false\n")
+    assert no.stdout == (
+        "" if command == "detect" else predicate_line(command, "", False)
+    )
     # "no" is an answer, not a fault: nothing on standard error.
     assert no.stderr == ""
 

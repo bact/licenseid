@@ -85,6 +85,10 @@ and this project adheres to
   answer `EXPRESSION` (`expression` in `--json` and `Detection`); exit 1
   prints nothing; its warnings say `detect:`. Migration: `cut -f1`, read
   `["expression"]`
+- **Breaking:** `is-*` print `EXPRESSION=<id>` and their flag
+  (`IS_OSI_APPROVED=true`), `update` prints `STATUS`, `VERSION` and `PATH`;
+  both take `--json`; `detect --diff` writes the diff to standard error.
+  Migration: test the exit code
 
 ### Fixed
 

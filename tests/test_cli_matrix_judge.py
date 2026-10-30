@@ -25,7 +25,8 @@ from licenseid.result import json_line, text_line
 from tools.cli_matrix import judge as judge_mod
 from tools.cli_matrix.model import Cell
 
-CLEAN_PREDICATE = {"rc": 0, "out": "true\n", "err": "", "files": []}
+YES = "EXPRESSION=MIT\tIS_OSI_APPROVED=true\n"
+CLEAN_PREDICATE = {"rc": 0, "out": YES, "err": "", "files": []}
 CLEAN_MATCH = {"rc": 0, "out": "MIT\n", "err": "", "files": []}
 
 # --------------------------------------------------------------- judging
@@ -86,7 +87,11 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
     (
         "temporary files left behind",
         {"fam": "D1", "kind": "update", "exp_exit": 0},
-        {"rc": 0, "out": "Database updated at x\n", "files": ["licenses.json.1.tmp"]},
+        {
+            "rc": 0,
+            "out": "STATUS=updated\tVERSION=9.99\tPATH=x\n",
+            "files": ["licenses.json.1.tmp"],
+        },
         "leftover tmp files",
     ),
     (
@@ -150,7 +155,7 @@ def test_judge_flags(
 
 def test_judge_passes_a_clean_run() -> None:
     """A documented expectation that holds is a PASS, not an OBSERVE."""
-    cell = make_cell(kind="predicate", exp_exit=0, exp_out=r"true\n")
+    cell = make_cell(kind="predicate", exp_exit=0, exp_out=r"EXPRESSION=MIT\t.*")
     verdict, notes = judge_mod.judge(cell, make_result(**CLEAN_PREDICATE))
     assert (verdict, notes) == ("PASS", [])
 
@@ -171,7 +176,7 @@ def test_judge_allows_progress_lines_when_declared() -> None:
 def test_judge_ignores_streams_on_a_terminal() -> None:
     """On a tty the two streams are one, so neither can be judged."""
     cell = make_cell(kind="predicate", tty=True)
-    result = make_result(rc=0, out="ERROR: input: missing\nfalse\n")
+    result = make_result(rc=0, out="ERROR: input: missing\nIS_OSI_APPROVED=false\n")
     assert judge_mod.judge(cell, result)[0] == "OBSERVE"
 
 
@@ -449,3 +454,58 @@ def test_match_value_output_is_its_contract(
     cell = make_cell(kind="match", outflags=flags)
     notes = judge_mod.check_match_value(cell, rc, out)
     assert (not notes) is ok, notes
+
+
+# ------------------------------------------------- the one-record commands
+
+
+@pytest.mark.parametrize(
+    ("rc", "out", "ok"),
+    [
+        (0, YES, True),
+        (1, "EXPRESSION=\tIS_OSI_APPROVED=false\n", True),
+        (1, "EXPRESSION=0BSD\tIS_FSF_LIBRE=false\n", True),
+        (0, '{"expression":"MIT","is_open":true}\n', True),
+        (1, '{"expression":null,"is_spdx":false}\n', True),
+        (2, "", True),
+        (0, "EXPRESSION=MIT\tIS_OSI_APPROVED=false\n", False),  # exit and flag
+        (1, YES, False),
+        (0, "true\n", False),  # the old shape
+        (0, YES + YES, False),  # one record only
+        (0, '{"expression":"MIT","is_open":"true"}\n', False),  # not a boolean
+        (0, '{"expression":"MIT","is_open":true,"x":1}\n', False),
+        (0, '{"expression":"MIT"}\n', False),
+        (0, "[true]\n", False),
+        (2, YES, False),
+    ],
+)
+def test_the_predicate_contract(rc: int, out: str, ok: bool) -> None:
+    """One record whose flag agrees with the exit status, or exit 2 and
+    nothing."""
+    verdict, notes = judge_mod.judge(
+        make_cell(kind="predicate"), make_result(rc=rc, out=out)
+    )
+    assert (verdict == "FLAG") is not ok, notes
+
+
+@pytest.mark.parametrize(
+    ("out", "ok"),
+    [
+        ("STATUS=updated\tVERSION=9.99\tPATH=/x/licenses.db\n", True),
+        ("STATUS=unchanged\tVERSION=\tPATH=x\n", True),
+        ('{"path":"x","status":"updated","version":"9.99"}\n', True),
+        ('{"path":"x","status":"unchanged","version":null}\n', True),
+        ("Database updated at x\n", False),  # the old shape
+        ("STATUS=done\tVERSION=9.99\tPATH=x\n", False),
+        ('{"path":"x","status":"done","version":"9.99"}\n', False),
+        ('{"path":"x","status":"updated"}\n', False),
+        ("[1]\n", False),
+    ],
+)
+def test_the_update_record(out: str, ok: bool) -> None:
+    """One STATUS/VERSION/PATH record, text or JSON, and nothing else."""
+    assert judge_mod.is_update_record(out) is ok
+    verdict, notes = judge_mod.judge(
+        make_cell(fam="D1", kind="update", progress=True), make_result(rc=0, out=out)
+    )
+    assert (verdict == "FLAG") is not ok, notes

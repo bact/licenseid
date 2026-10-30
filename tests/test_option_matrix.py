@@ -38,7 +38,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner, Result
-from conftest import RESULT_KEYS, json_lines, make_mit_db_path
+from conftest import RESULT_KEYS, json_lines, make_mit_db_path, predicate_line
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import MIT_TEXT, make_ready_file_db
 from input_payloads import PAYLOADS, Payload
@@ -172,9 +172,11 @@ def test_predicate_matrix(
     if source == "none":
         assert (result.exit_code, result.stdout, result.stderr) == (2, "", MISSING)
     elif found:  # MIT is SPDX, OSI- and FSF-approved: every predicate is true
-        assert (result.exit_code, result.stdout, result.stderr) == (0, "true\n", "")
+        yes = predicate_line(command, "MIT", True)
+        assert (result.exit_code, result.stdout, result.stderr) == (0, yes, "")
     else:
-        assert (result.exit_code, result.stdout, result.stderr) == (1, "false\n", "")
+        no = predicate_line(command, "", False)
+        assert (result.exit_code, result.stdout, result.stderr) == (1, no, "")
 
 
 # --- CLI blank input: an input given with no text is a usage error ---
@@ -236,7 +238,7 @@ def test_cli_input_precedence(
     result = _invoke(
         mit_db, command, ["--bold", *args] if command == "detect" else args, stdin
     )
-    expected = "MIT\n" if command == "detect" else "true\n"
+    expected = "MIT\n" if command == "detect" else predicate_line(command, "MIT", True)
     assert (result.exit_code, result.stdout, result.stderr) == (0, expected, "")
 
 

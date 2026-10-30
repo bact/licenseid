@@ -11,17 +11,20 @@ import os
 import re
 import sqlite3
 import sys
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, NoReturn, get_args
 
 import click
 
-from licenseid import __version__
+from licenseid import __version__, console
 from licenseid.clicommon import (
     LicenseIdCommand,
+    echo_record,
     exit_bad_input,
     exit_usage_error,
+    json_option,
     piped_input,
     reject_blank_options,
     reject_unencodable,
@@ -77,16 +80,23 @@ def show_diff(norm_input: str, best_window: str) -> None:
             window_words, input_words, fromfile="DATABASE", tofile="INPUT", lineterm=""
         )
     )
-    if diff_lines:
-        echo("\nWORD DIFF:")
-        for line in diff_lines:
-            if line.startswith("+"):
-                echo(click.style(line, fg="green"))
-            elif line.startswith("-"):
-                echo(click.style(line, fg="red"))
-            else:
-                echo(line)
-        echo("")
+    if not diff_lines:
+        return
+    # On standard error, as progress is: standard output holds only result
+    # lines. Coloured only on a terminal.
+    colour = _is_terminal(sys.stderr)
+    console.status("\nWORD DIFF:")
+    for line in diff_lines:
+        fg = {"+": "green", "-": "red"}.get(line[:1])
+        console.status(click.style(line, fg=fg) if colour and fg else line)
+    console.status("")
+
+
+def _is_terminal(stream: Any) -> bool:
+    try:
+        return stream is not None and bool(stream.isatty())
+    except (AttributeError, OSError, ValueError):  # no stream, or closed
+        return False
 
 
 def check_db_staleness(database: LicenseDatabase) -> None:
@@ -242,15 +252,21 @@ def cli(ctx: click.Context, db: str | None, clear_cache: bool) -> None:
     "(SPDX's tarball), packaged (the copy shipped with licenseid), or each in "
     "turn (auto).",
 )
+@json_option
 @click.pass_context
-def update(
+def update(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     ctx: click.Context,
     version: str | None,
     force: bool,
     use_cache: bool,
     source: UpdateSource,
+    json_output: bool,
 ) -> None:
-    """Update the license database from remote sources."""
+    """Update the license database from remote sources.
+
+    Prints one record: STATUS=updated or unchanged, the list VERSION the
+    database now has, and its PATH.
+    """
     db_path = ctx.obj["db_path"]
     # It writes the schema on open, so never into somebody else's file. Kept
     # outside the try: an unready database is a setup error (exit 2), not an
@@ -262,12 +278,8 @@ def update(
         updated = database.update_from_remote(
             version=version, force=force, use_cache=use_cache, source=source
         )
-        if updated:
-            outcome = f"Database updated at {db_path}"
-        else:
-            metadata = database.get_metadata()
-            current_version = metadata.get("license_list_version", "unknown")
-            outcome = f"Database remains at version {current_version} at {db_path}"
+        outcome = "updated" if updated else "unchanged"
+        installed = database.get_metadata().get("license_list_version")
     except InvalidInputError as e:
         exit_usage_error(ctx, str(e))
     except LicenseIdError as e:
@@ -281,7 +293,7 @@ def update(
         error(f"database: update failed: {detail}")
         ctx.exit(1)
     # Outside the try: an output failure is not a failed update.
-    echo(outcome)
+    echo_record(json_output, STATUS=outcome, VERSION=installed, PATH=db_path)
 
 
 # Python's string escapes. Octal stops at \377: \400-\777 give a
@@ -449,7 +461,8 @@ def detect_license_record(
 @click.option(
     "--diff",
     is_flag=True,
-    help="Show a word diff for the top match when it is a close text match.",
+    help="Show a word diff for the top match when it is a close text match, "
+    "on standard error.",
 )
 @click.option("--bold", is_flag=True, help="Print only the top license ID.")
 @click.pass_context
@@ -525,99 +538,61 @@ def detect(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     ctx.exit(0)
 
 
-@cli.command(name="is-osi")
-@click.argument("input_val", required=False)
-@click.option("--text", help="License text to check.")
-@click.option("--id", "id_val", help="Explicit SPDX License ID to check.")
-@click.pass_context
-def is_osi(
-    ctx: click.Context,
-    input_val: str | None,
-    text: str | None,
-    id_val: str | None,
+def _predicate_command(
+    name: str, key: str, summary: str, holds: Callable[[LicenseDetails], bool]
 ) -> None:
-    """True if the license is OSI-approved."""
-    record = detect_license_record(ctx, input_val, text, id_val)
-    if record and record.get("is_osi_approved"):
-        echo("true")
-        ctx.exit(0)
-    echo("false")
-    ctx.exit(1)
+    """Add the command *name*: one record, ``EXPRESSION=<id judged>`` and
+    ``<key>=true|false``, exit 0 for true and 1 for false. EXPRESSION is
+    empty when the input names no licence (``detector.resolve_record``)."""
+
+    @cli.command(name=name, help=summary)
+    @click.argument("input_val", required=False)
+    @click.option("--text", help="License text to check.")
+    @click.option("--id", "id_val", help="Explicit SPDX License ID to check.")
+    @json_option
+    @click.pass_context
+    def command(
+        ctx: click.Context,
+        input_val: str | None,
+        text: str | None,
+        id_val: str | None,
+        json_output: bool,
+    ) -> None:
+        record = detect_license_record(ctx, input_val, text, id_val)
+        answer = record is not None and holds(record)
+        expression = None if record is None else record["license_id"]
+        echo_record(json_output, EXPRESSION=expression, **{key: answer})
+        ctx.exit(0 if answer else 1)
 
 
-@cli.command(name="is-fsf")
-@click.argument("input_val", required=False)
-@click.option("--text", help="License text to check.")
-@click.option("--id", "id_val", help="Explicit SPDX License ID to check.")
-@click.pass_context
-def is_fsf(
-    ctx: click.Context,
-    input_val: str | None,
-    text: str | None,
-    id_val: str | None,
-) -> None:
-    """True if the license is FSF-libre."""
-    record = detect_license_record(ctx, input_val, text, id_val)
-    if record and record.get("is_fsf_libre"):
-        echo("true")
-        ctx.exit(0)
-    echo("false")
-    ctx.exit(1)
+def _is_open(record: LicenseDetails) -> bool:
+    return bool(record.get("is_osi_approved") or record.get("is_fsf_libre"))
 
 
-@cli.command(name="is-open")
-@click.argument("input_val", required=False)
-@click.option("--text", help="License text to check.")
-@click.option("--id", "id_val", help="Explicit SPDX License ID to check.")
-@click.pass_context
-def is_open(
-    ctx: click.Context,
-    input_val: str | None,
-    text: str | None,
-    id_val: str | None,
-) -> None:
-    """True if the license is OSI-approved OR FSF-libre."""
-    record = detect_license_record(ctx, input_val, text, id_val)
-    if record and (record.get("is_osi_approved") or record.get("is_fsf_libre")):
-        echo("true")
-        ctx.exit(0)
-    echo("false")
-    ctx.exit(1)
-
-
-@cli.command(name="is-free")
-@click.argument("input_val", required=False)
-@click.option("--text", help="License text to check.")
-@click.option("--id", "id_val", help="Explicit SPDX License ID to check.")
-@click.pass_context
-def is_free(  # pylint: disable=unused-argument
-    ctx: click.Context,
-    input_val: str | None,
-    text: str | None,
-    id_val: str | None,
-) -> None:
-    """Alias for is-open."""
-    ctx.forward(is_open)
-
-
-@cli.command(name="is-spdx")
-@click.argument("input_val", required=False)
-@click.option("--text", help="License text to check.")
-@click.option("--id", "id_val", help="Explicit SPDX License ID to check.")
-@click.pass_context
-def is_spdx_cmd(
-    ctx: click.Context,
-    input_val: str | None,
-    text: str | None,
-    id_val: str | None,
-) -> None:
-    """True if the license is in the SPDX License List."""
-    record = detect_license_record(ctx, input_val, text, id_val)
-    if record and record.get("is_spdx"):
-        echo("true")
-        ctx.exit(0)
-    echo("false")
-    ctx.exit(1)
+# The key of each flag is that of detect's JSON (is_osi_approved), or the
+# command's own name for a flag detect has not (is-open, is-free).
+_predicate_command(
+    "is-osi",
+    "IS_OSI_APPROVED",
+    "True if the license is OSI-approved.",
+    lambda record: bool(record.get("is_osi_approved")),
+)
+_predicate_command(
+    "is-fsf",
+    "IS_FSF_LIBRE",
+    "True if the license is FSF-libre.",
+    lambda record: bool(record.get("is_fsf_libre")),
+)
+_predicate_command(
+    "is-open", "IS_OPEN", "True if the license is OSI-approved OR FSF-libre.", _is_open
+)
+_predicate_command("is-free", "IS_FREE", "Alias for is-open.", _is_open)
+_predicate_command(
+    "is-spdx",
+    "IS_SPDX",
+    "True if the license is in the SPDX License List.",
+    lambda record: bool(record.get("is_spdx")),
+)
 
 
 cli.add_command(match_command)

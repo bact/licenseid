@@ -14,15 +14,21 @@ keys for every method.
 
 A resolution (``licenseid.match()``) is public as it is returned; its text
 lines (``licenseid match``) are :func:`resolution_lines`, each value written
-by :func:`text_field`.
+by :func:`text_field`. Every other command's result is one record
+(:func:`fields_line`, :func:`record_json`).
 """
 
 import re
+from collections.abc import Mapping
 from typing import Any
 
 from licenseid.resolvertypes import Resolution, Step
 from licenseid.resolvesemicolon import REASON as NO_OPERATOR
 from licenseid.types import Detection, InternalMatch, RawMatch
+
+# The value of one field: a text, a flag, or nothing (empty in a text line,
+# null in JSON).
+FieldValue = str | bool | None
 
 # Digits kept in score, similarity and coverage: the text output prints
 # four, so JSON and text agree.
@@ -50,8 +56,9 @@ def public_result(raw: RawMatch | InternalMatch) -> Detection:
     )
 
 
-def json_line(result: Detection | Resolution) -> str:
-    """*result*, a detection or a resolution, as one line of JSON Lines, in
+def json_line(result: Detection | Resolution | Mapping[str, object]) -> str:
+    """*result*, a detection, a resolution or a record of
+    :func:`record_json`, as one line of JSON Lines, in
     the JSON Canonicalization Scheme (RFC 8785): sorted keys, no white
     space, ECMAScript numbers (1.0 is 1), so equal results print equal
     bytes. A detection is ASCII: an ID is, and no licence text is in it. A
@@ -61,7 +68,7 @@ def json_line(result: Detection | Resolution) -> str:
     # Only --json needs it, so detect() and the API do not import it.
     import rfc8785  # pylint: disable=import-outside-toplevel
 
-    # Every value of either shape is JSON; a TypedDict is no Mapping of the
+    # Every value of each shape is JSON; a TypedDict is no Mapping of the
     # union rfc8785 declares, to a type checker.
     fields: Any = result
     return rfc8785.dumps(fields).decode("utf-8")
@@ -78,7 +85,7 @@ def text_line(result: Detection) -> str:
     return fields_line(
         EXPRESSION=result["expression"],
         METHOD=result["method"],
-        EXACT=str(result["exact"]).lower(),
+        EXACT=result["exact"],
         SCORE=number(result["score"]),
         SIMILARITY=number(result["similarity"]),
         COVERAGE=number(result["coverage"]),
@@ -123,10 +130,25 @@ def read_text_field(field: str) -> str:
     return _ESCAPE_RE.sub(decoded, field)
 
 
-def fields_line(**values: str | None) -> str:
+def fields_line(**values: FieldValue) -> str:
     """``KEY=VALUE`` fields, in the order given, one tab between them, each
-    value by :func:`text_field`: the line every command prints."""
-    return "\t".join(f"{key}={text_field(value)}" for key, value in values.items())
+    value by :func:`text_field`, a flag as ``true`` or ``false``: the line
+    every command prints."""
+    return "\t".join(
+        f"{key}={_flag(value) if isinstance(value, bool) else text_field(value)}"
+        for key, value in values.items()
+    )
+
+
+def _flag(value: bool) -> str:
+    return "true" if value else "false"
+
+
+def record_json(**values: FieldValue) -> str:
+    """The record :func:`fields_line` writes for *values*, as one line of
+    JSON (:func:`json_line`): each key in lower case, a flag a JSON
+    boolean, nothing ``null``."""
+    return json_line({key.lower(): value for key, value in values.items()})
 
 
 def resolution_lines(resolution: Resolution) -> list[str]:

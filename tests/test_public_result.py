@@ -318,9 +318,9 @@ def test_diff_shows_one_diff_of_the_text_matched(db: str, text: str) -> None:
         db, "--diff", "--threshold", "0", "--top", "2", "--text", text
     )
     assert result.exit_code == 0
-    assert result.stdout.count("WORD DIFF:") == 1
-    assert "+zulu" in result.stdout
-    assert "spdx" not in result.stdout.lower()
+    assert result.stderr.count("WORD DIFF:") == 1
+    assert "+zulu" in result.stderr
+    assert "spdx" not in result.stderr.lower()
 
 
 def test_diff_is_for_the_top_result_only() -> None:
@@ -329,10 +329,11 @@ def test_diff_is_for_the_top_result_only() -> None:
         Lic("Long-2.0", "Long License Two", search_text=LONG_TEXT + " omega"),
     ]
     for db in seeded_db("test_public_result_diff", rows):
-        out = invoke_match(
+        result = invoke_match(
             db, "--diff", "--threshold", "0", "--top", "2", "--text", FRAGMENT
-        ).stdout
-        assert (out.count("EXPRESSION="), out.count("WORD DIFF:")) == (2, 1)
+        )
+        assert result.stdout.count("EXPRESSION=") == 2
+        assert result.stderr.count("WORD DIFF:") == 1
 
 
 def test_the_result_types_are_exported() -> None:

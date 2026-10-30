@@ -194,7 +194,14 @@ licenseid update
 ```
 
 Progress and warnings go to standard error; standard output carries only the
-result line.
+result, one line (`--json`: one JSON object):
+
+```text
+STATUS=updated	VERSION=3.29.0	PATH=/home/me/.local/share/licenseid/licenses.db
+```
+
+`STATUS` is `updated`, or `unchanged` when the database already had that
+release; `VERSION` is the SPDX License List release it now holds.
 
 Advanced update options:
 
@@ -444,7 +451,8 @@ licenseid detect LICENSE --diff --top 1
 ```
 
 Example output (a diff is shown for the top result when it was matched as
-text and is not exact; any other results follow it):
+text and is not exact). The result lines go to standard output and the diff
+to standard error, so `2>/dev/null` keeps only the results:
 
 ```diff
 EXPRESSION=Apache-2.0	METHOD=text	EXACT=false	SCORE=1.0000	SIMILARITY=0.9978	COVERAGE=0.9987
@@ -511,29 +519,39 @@ name, so `cut -d: -f1-3` gives the level, subject and condition.
 ### 7. License predicates (for CI/CD)
 
 Predicate commands are designed for shell scripting.
-They print `true`/`false` and exit with `0` (for true) or `1` (for false).
+They exit with `0` (for true) or `1` (for false), and print one line: the
+licence judged and the answer (`--json`: one JSON object):
 
-| Command | Description |
-| :--- | :--- |
-| `is-spdx` | True if the license is in the SPDX License List. |
-| `is-open` | True if the license is OSI-approved **OR** FSF-libre. |
-| `is-free` | Alias for `is-open`. |
-| `is-osi` | True if the license is OSI-approved. |
-| `is-fsf` | True if the license is FSF-libre. |
+```console
+$ licenseid is-osi MIT
+EXPRESSION=MIT	IS_OSI_APPROVED=true
+$ licenseid is-osi --json MIT
+{"expression":"MIT","is_osi_approved":true}
+```
+
+`EXPRESSION` is empty (`null` in JSON) when the input names no licence.
+
+| Command | Key | Description |
+| :--- | :--- | :--- |
+| `is-spdx` | `IS_SPDX` | True if the license is in the SPDX License List. |
+| `is-open` | `IS_OPEN` | True if the license is OSI-approved **OR** FSF-libre. |
+| `is-free` | `IS_FREE` | Alias for `is-open`. |
+| `is-osi` | `IS_OSI_APPROVED` | True if the license is OSI-approved. |
+| `is-fsf` | `IS_FSF_LIBRE` | True if the license is FSF-libre. |
 
 Example usage in a script:
 
 ```bash
 # Check by ID
-if licenseid is-osi MIT; then
+if licenseid is-osi MIT >/dev/null; then
   echo "This is an OSI-approved license."
 fi
 
 # Check by File
-licenseid is-open LICENSE.txt || echo "Warning: Not an open source license"
+licenseid is-open LICENSE.txt >/dev/null || echo "Not an open source license"
 
 # Check by Text (via stdin)
-echo "MIT License..." | licenseid is-fsf && echo "FSF Libre!"
+echo "MIT License..." | licenseid is-fsf >/dev/null && echo "FSF Libre!"
 ```
 
 ## Python API

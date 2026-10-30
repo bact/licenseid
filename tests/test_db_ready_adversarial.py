@@ -16,6 +16,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from conftest import predicate_line
 from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
     assert_no_traceback,
     assert_refused,
@@ -31,6 +32,7 @@ from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import check_database_ready, reject_foreign_database
 from licenseid.errors import DatabaseNotReadyError
 
+MIT_OSI = predicate_line("is-osi", "MIT", True)
 # --------------------------------------------------------------------------
 # Readiness: shapes the existing variants do not build
 # --------------------------------------------------------------------------
@@ -132,7 +134,7 @@ def test_a_null_license_name_still_answers(tmp_path: Path) -> None:
         conn.execute("UPDATE licenses SET name = NULL")
     result = run("--db", str(db_path), "is-osi", "MIT")
     assert_no_traceback(result)
-    assert (result.exit_code, result.stdout) == (0, "true\n"), result.stderr
+    assert (result.exit_code, result.stdout) == (0, MIT_OSI), result.stderr
 
 
 # --------------------------------------------------------------------------
@@ -149,7 +151,7 @@ def test_a_relative_file_uri_is_ready(
     make_ready_file_db(work / "rel.db")
     monkeypatch.chdir(work)
     result = run("--db", uri, "is-osi", "MIT")
-    assert (result.exit_code, result.stdout, result.stderr) == (0, "true\n", "")
+    assert (result.exit_code, result.stdout, result.stderr) == (0, MIT_OSI, "")
 
 
 @pytest.mark.parametrize(
@@ -167,7 +169,7 @@ def test_absolute_file_uri_spellings_are_ready(tmp_path: Path, template: str) ->
     posix = path.as_posix()
     where = posix if posix.startswith("/") else f"/{posix}"
     result = run("--db", template.format(path=where), "is-osi", "MIT")
-    assert (result.exit_code, result.stdout, result.stderr) == (0, "true\n", "")
+    assert (result.exit_code, result.stdout, result.stderr) == (0, MIT_OSI, "")
 
 
 def test_a_percent_encoded_space_in_a_file_uri_is_ready(tmp_path: Path) -> None:
@@ -175,7 +177,7 @@ def test_a_percent_encoded_space_in_a_file_uri_is_ready(tmp_path: Path) -> None:
     posix = tmp_path.as_posix()
     uri = f"file://{posix if posix.startswith('/') else '/' + posix}/a%20licence.db"
     result = run("--db", uri, "is-osi", "MIT")
-    assert (result.exit_code, result.stdout, result.stderr) == (0, "true\n", "")
+    assert (result.exit_code, result.stdout, result.stderr) == (0, MIT_OSI, "")
     assert path.exists()
 
 
@@ -258,7 +260,7 @@ def test_a_blob_last_check_datetime_is_not_a_crash(tmp_path: Path) -> None:
         )
     result = run("--db", str(db_path), "is-osi", "MIT")
     assert_no_traceback(result)
-    assert (result.exit_code, result.stdout) == (0, "true\n"), result.stderr
+    assert (result.exit_code, result.stdout) == (0, MIT_OSI), result.stderr
 
 
 def test_a_swapped_table_page_never_crashes(tmp_path: Path) -> None:

@@ -7,8 +7,9 @@
 
 The invariants come from ``AGENTS.md`` ("CLI output"): stdout carries only
 the result, every diagnostic goes to stderr in one grammar, a predicate
-answers ``true``/``false``/usage error, ``detect`` prints one of three
-documented shapes, and nothing ever shows a traceback.
+answers one record whose flag is true/false (or a usage error), ``detect``
+prints one of three documented shapes, ``update`` one record, and nothing
+ever shows a traceback.
 
 Anything the documentation does not settle is ``OBSERVE``, never ``PASS``:
 a verdict is a claim about the contract, and there is no contract to claim.
@@ -44,6 +45,10 @@ MATCH_LINE = re.compile(
     r"STEP=[a-z_]+\tFROM=[^\t]*\tTO=[^\t]*|REASON=[^\t]+"
     r"|OPERAND=[^\t]+\tEXPRESSION=[^\t]*\tCATEGORY=[a-z_]+"
 )
+
+#: The one record of an ``is-*`` command, and of ``update``.
+PREDICATE_LINE = re.compile(r"EXPRESSION=[^\t]*\t(IS_[A-Z_]+)=(true|false)\n")
+UPDATE_LINE = re.compile(r"STATUS=(updated|unchanged)\tVERSION=[^\t]*\tPATH=[^\t\n]+\n")
 
 #: The whole result of ``detect --bold``: an identifier and nothing else.
 BOLD = re.compile(r"\S+( WITH \S+)?")
@@ -164,9 +169,9 @@ def _contract_flags(cell: Cell, result: Result) -> list[str]:
         return []
     rc, out, err = result["rc"], result["out"], result["err"]
     if cell.kind == "predicate":
-        if (rc, out) not in ((0, "true\n"), (1, "false\n"), (2, "")):
-            return [f"predicate contract: exit={rc} stdout={out[:30]!r}"]
-        return []
+        if (rc, out) == (2, "") or predicate_answer(out) == {0: True, 1: False}.get(rc):
+            return []
+        return [f"predicate contract: exit={rc} stdout={out[:40]!r}"]
     if cell.kind == "match":
         return check_match_value(cell, rc, out)
     if cell.kind != "detect":
@@ -256,6 +261,37 @@ def json_count(out: str) -> int | None:
     return None if parsed is None else len(parsed)
 
 
+def predicate_answer(out: str) -> bool | None:
+    """The flag of an ``is-*`` record, text or ``--json``; None when *out* is
+    not one record."""
+    line = PREDICATE_LINE.fullmatch(out)
+    if line:
+        return line.group(2) == "true"
+    parsed = _json_results(out)
+    if not (parsed and len(parsed) == 1 and isinstance(parsed[0], dict)):
+        return None
+    record: dict[str, Any] = parsed[0]
+    flags = [key for key in record if key.startswith("is_")]
+    if set(record) != {"expression", *flags} or len(flags) != 1:
+        return None
+    flag = record[flags[0]]
+    return flag if isinstance(flag, bool) else None
+
+
+def is_update_record(out: str) -> bool:
+    """Whether *out* is the one record of ``update``, text or ``--json``."""
+    if UPDATE_LINE.fullmatch(out):
+        return True
+    parsed = _json_results(out)
+    return bool(
+        parsed
+        and len(parsed) == 1
+        and isinstance(parsed[0], dict)
+        and set(parsed[0]) == {"path", "status", "version"}
+        and parsed[0]["status"] in ("updated", "unchanged")
+    )
+
+
 def _update_flags(cell: Cell, result: Result) -> list[str]:
     """``update`` prints one result line on success and nothing on failure."""
     if cell.kind != "update":
@@ -264,12 +300,9 @@ def _update_flags(cell: Cell, result: Result) -> list[str]:
     if (
         rc == 0
         and not cell.merged
-        and "\nDatabase" not in "\n" + out
         and cell.fam not in ("D5", "D4")
         and out.strip()
-        and not re.fullmatch(
-            r"Database (updated at|remains at version \S+ at) .*\n", out
-        )
+        and not is_update_record(out)
     ):
         return [f"update stdout not a single result line: {out[:60]!r}"]
     if rc != 0 and out.strip() and cell.fam not in ("D5", "D6", "D7"):

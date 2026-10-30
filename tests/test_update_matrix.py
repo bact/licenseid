@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner, Result
+from conftest import update_line
 from release_fakes import online, release_bundle, serve, ship, urls
 
 from licenseid.cli import cli
@@ -87,7 +88,7 @@ def test_update_matrix(
         assert _run(db, args).exit_code == 1  # no state that hides the failure
         return
     assert first.exit_code == 0, first.output
-    assert first.stdout == f"Database updated at {db}\n"
+    assert first.stdout == update_line("updated", installed, db)
     assert _data_source(first.stderr) == detail
     if source == "packaged":
         fake.assert_not_called()
@@ -96,10 +97,10 @@ def test_update_matrix(
     second = _run(db, args)
     assert second.exit_code == 0, second.output
     if force:
-        assert second.stdout == f"Database updated at {db}\n"
+        assert second.stdout == update_line("updated", installed, db)
         assert _data_source(second.stderr) == _second_source(source, version, cache)
     else:
-        assert second.stdout == f"Database remains at version {installed} at {db}\n"
+        assert second.stdout == update_line("unchanged", installed, db)
     if source == "packaged":
         fake.assert_not_called()
     elif cache == "--cache" and installed != PACKAGED:

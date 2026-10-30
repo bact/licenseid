@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+from conftest import predicate_line
 from matcher_db import Lic, seeded_db
 
 from licenseid import match
@@ -122,4 +123,6 @@ def test_the_cli_answers_no_with_no_threshold_to_hide_behind(
     args = ["--threshold", "0"] if command == "detect" else []
     result = CliRunner().invoke(cli, ["--db", db_path, command, *args, "GPL-2.0-only+"])
     assert result.exit_code == 1
-    assert "EXPRESSION=" not in result.stdout
+    assert result.stdout == (
+        "" if command == "detect" else predicate_line(command, "", False)
+    )

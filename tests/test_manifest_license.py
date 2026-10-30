@@ -14,7 +14,7 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from conftest import MIT_SEARCH_TEXT, json_lines
+from conftest import MIT_SEARCH_TEXT, json_lines, predicate_line
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.cli import cli
@@ -189,7 +189,10 @@ def test_is_spdx_answers_yes_for_a_toml_expression(db: str, tmp_path: Path) -> N
     """It answered false: the field scored 0.902, with no flags."""
     path = manifest(tmp_path, "pyproject-table", "MIT OR Apache-2.0", large=True)
     result = CliRunner().invoke(cli, ["--db", db, "is-spdx", path])
-    assert (result.exit_code, result.stdout) == (0, "true\n")
+    assert (result.exit_code, result.stdout) == (
+        0,
+        predicate_line("is-spdx", "Apache-2.0 OR MIT", True),  # canonical order
+    )
 
 
 @pytest.mark.parametrize(
