@@ -26,7 +26,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
-from licenseid import LicenseDatabase, match
+from licenseid import LicenseDatabase, climatch, match
 from licenseid.cli import cli
 from licenseid.result import json_line, resolution_lines
 
@@ -232,14 +232,32 @@ def test_an_empty_text_option_is_refused_too() -> None:
     assert result.stderr == f"ERROR: option: invalid: --text: a licence text{DETECT}\n"
 
 
-def test_empty_piped_input_with_no_value() -> None:
-    # BUG: nothing was piped (</dev/null, cron), so nothing is for detect:
-    # the value is missing.
-    result = run(stdin="")
-    assert (result.exit_code, result.stderr) == (
+@pytest.mark.parametrize("stdin", ["", None], ids=["empty", "none"])
+def test_empty_piped_input_with_no_value_is_missing(stdin: str | None) -> None:
+    """Nothing was piped (</dev/null, cron): nothing is for detect, and the
+    value is missing."""
+    result = run(stdin=stdin)
+    assert (result.exit_code, result.stdout, result.stderr) == (
         2,
-        f"ERROR: input: invalid: standard input{DETECT}\n",
+        "",
+        "ERROR: input: missing; pass one declared licence value\n",
     )
+
+
+@pytest.mark.parametrize(
+    ("read", "brought"),
+    [(b"M", True), (b"", False), (OSError(5, "I/O error"), False)],
+    ids=["bytes", "nothing", "unreadable"],
+)
+def test_piped_input_brings_something_only_when_a_byte_comes(
+    monkeypatch: pytest.MonkeyPatch, read: bytes | OSError, brought: bool
+) -> None:
+    stdin = mock.Mock(spec=["isatty", "buffer"])
+    stdin.isatty.return_value = False
+    stdin.buffer.read.side_effect = [read]
+    monkeypatch.setattr("sys.stdin", stdin)
+    assert climatch._piped_something() is brought  # pylint: disable=protected-access
+    stdin.buffer.read.assert_called_once_with(1)
 
 
 def test_the_cap_counts_the_value_as_given() -> None:
@@ -348,7 +366,9 @@ def test_no_value_and_no_piped_input_is_missing() -> None:
     )
 
 
-@pytest.mark.parametrize("value", ["MIT\nX", "--text", "M" * 2001], ids=["newline", "text", "too-long"])
+@pytest.mark.parametrize(
+    "value", ["MIT\nX", "--text", "M" * 2001], ids=["newline", "text", "too-long"]
+)
 def test_a_refusal_comes_before_the_list(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str
 ) -> None:

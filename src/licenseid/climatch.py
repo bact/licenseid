@@ -25,6 +25,7 @@ written (``output.echo``).
 """
 
 import os
+import sys
 from typing import get_args
 
 import click
@@ -56,6 +57,18 @@ def _has_line_break(value: str) -> bool:
     return value.splitlines() != [value]
 
 
+def _piped_something() -> bool:
+    """Whether standard input brings anything: one byte is read to tell
+    (``</dev/null`` and cron bring nothing: no value, not one for detect)."""
+    if not piped_input():
+        return False
+    stream = getattr(sys.stdin, "buffer", sys.stdin)
+    try:
+        return bool(stream.read(1))
+    except (OSError, ValueError):  # unreadable or closed: nothing brought
+        return False
+
+
 def declared_value(ctx: click.Context, value: str | None, text: str | None) -> str:
     """The one value to match: the argument, checked. Exit 2 for no value,
     a blank one, one the command line could not encode (a lone surrogate),
@@ -63,7 +76,7 @@ def declared_value(ctx: click.Context, value: str | None, text: str | None) -> s
     if text is not None:
         exit_usage_error(ctx, f"option: invalid: --text: a licence text{TO_DETECT}")
     if value is None:
-        if piped_input():
+        if _piped_something():
             exit_bad_input(ctx, f"invalid: standard input{TO_DETECT}")
         exit_bad_input(ctx, "missing; pass one declared licence value")
     reject_blank_options(ctx, {"argument": value})

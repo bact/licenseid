@@ -281,16 +281,19 @@ class Stdin:
 
 signal.signal(signal.SIGINT, signal.default_int_handler)
 sys.stdin = Stdin(sys.stdin.buffer)
-sys.argv[1:] = ["--db", sys.argv[1], "detect"]
+sys.argv[1:] = ["--db", sys.argv[1], sys.argv[2]]
 c.main()
 """
 
 
 @posix_only
-def test_ctrl_c_exits_130(tmp_path: Path) -> None:
+@pytest.mark.parametrize("command", ["detect", "match"])
+def test_ctrl_c_exits_130(tmp_path: Path, command: str) -> None:
+    """``match`` with no value reads a byte of its piped input to tell
+    whether anything came: the signal comes there."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     with subprocess.Popen(
-        [sys.executable, "-c", _READY, str(db_path)],
+        [sys.executable, "-c", _READY, str(db_path), command],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
