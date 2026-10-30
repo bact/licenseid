@@ -50,6 +50,7 @@ from conftest import (
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import MIT_TEXT, make_ready_file_db
 from input_payloads import PAYLOADS, Payload
+from matcher_db import Lic, seeded_db
 from packaged_list import fixture_bundle
 from release_fakes import release_bundle, ship
 from resolve_states import MISSING as NO_DATABASE
@@ -197,6 +198,35 @@ def test_predicate_matrix(
     else:
         no = record(None, False)
         assert (result.exit_code, result.stdout, result.stderr) == (1, no, "")
+
+
+# Each flag on its own, so is-open cannot pass by reading both as one.
+_FLAGGED = [
+    Lic("Osi-1.0", "Osi Only", is_osi_approved=True),
+    Lic("Fsf-1.0", "Fsf Only", is_fsf_libre=True),
+    Lic("Neither-1.0", "Neither"),
+    Lic("Both-1.0", "Both", is_osi_approved=True, is_fsf_libre=True),
+]
+_HOLDS = {
+    "is-osi": lambda lic: lic.is_osi_approved,
+    "is-fsf": lambda lic: lic.is_fsf_libre,
+    "is-open": lambda lic: lic.is_osi_approved or lic.is_fsf_libre,
+    "is-free": lambda lic: lic.is_osi_approved or lic.is_fsf_libre,
+    "is-spdx": lambda lic: lic.is_spdx,
+}
+
+
+@pytest.mark.parametrize("command", PREDICATES)
+def test_each_predicate_reads_its_own_flag(command: str) -> None:
+    for db in seeded_db("test_option_matrix_flags", _FLAGGED):
+        for lic in _FLAGGED:
+            answer = bool(_HOLDS[command](lic))
+            result = _invoke(db, command, ["--id", lic.license_id], "")
+            expected = (
+                int(not answer),
+                predicate_line(command, lic.license_id, answer),
+            )
+            assert (result.exit_code, result.stdout) == expected, lic
 
 
 # --- CLI blank input: an input given with no text is a usage error ---
