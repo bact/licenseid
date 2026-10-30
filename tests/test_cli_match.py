@@ -13,6 +13,7 @@ are in ``test_option_matrix``; the field escape in ``test_text_field``.
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
 import json
+import sqlite3
 from pathlib import Path
 from unittest import mock
 
@@ -23,7 +24,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
-from licenseid import match
+from licenseid import LicenseDatabase, match
 from licenseid.cli import cli
 from licenseid.result import json_line, read_text_field, resolution_lines
 
@@ -290,6 +291,26 @@ def test_no_list_to_read_is_exit_2(monkeypatch: pytest.MonkeyPatch) -> None:
     assert (result.exit_code, result.stdout) == (2, "")
     assert result.stderr.startswith("ERROR: database: not found: ")
     assert result.stderr.endswith("; run 'licenseid update'\n")
+
+
+@pytest.mark.parametrize("state", ["missing", "empty", "invalid", "no-rows"])
+def test_a_database_given_that_is_not_ready_is_exit_2(
+    tmp_path: Path, state: str
+) -> None:
+    """--db is read as match(value, db): never in place of the packaged list."""
+    path = tmp_path / "given.db"
+    if state == "empty":
+        path.write_bytes(b"")
+    elif state == "no-rows":  # licenseid's tables, nothing in them
+        LicenseDatabase(str(path))
+    elif state == "invalid":
+        with sqlite3.connect(path) as conn:
+            conn.execute("CREATE TABLE notes (body TEXT)")
+        conn.close()
+    result = CliRunner().invoke(cli, ["--db", str(path), "match", "MIT"])
+    condition = {"missing": "not found", "no-rows": "empty"}.get(state, state)
+    assert (result.exit_code, result.stdout) == (2, "")
+    assert result.stderr.startswith(f"ERROR: database: {condition}: {path}")
 
 
 @pytest.mark.parametrize("json_output", [False, True], ids=["text", "json"])

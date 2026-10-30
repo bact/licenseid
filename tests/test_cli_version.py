@@ -20,8 +20,13 @@ from licenseid.cli import main as cli_main
 
 @pytest.mark.parametrize(
     "argv",
-    [["--version"], ["--db", "/nonexistent/x.db", "--version"], ["--version", "match"]],
-    ids=["bare", "db", "before-command"],
+    [
+        ["--version"],
+        ["--db", "/nonexistent/x.db", "--version"],
+        ["--version", "match"],
+        ["--version", "--help"],  # eager, as click's own: first one wins
+    ],
+    ids=["bare", "db", "before-command", "before-help"],
 )
 def test_version_prints_and_opens_nothing(argv: list[str]) -> None:
     with mock.patch("licenseid.cli.get_default_db_path", autospec=True) as default:
