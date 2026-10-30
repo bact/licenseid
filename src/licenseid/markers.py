@@ -7,17 +7,15 @@
 
 import re
 
-import py_spdx_license
-
 from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
+from licenseid.exprflags import declared_flags
 from licenseid.identifiers import (
-    flag_source,
     leading_expression,
     normalize_identifier,
-    parse_declared,
     qualify_trailing_grant,
 )
+from licenseid.looseid import narrowed_ids, warn_narrowed
 from licenseid.manifest import extension, license_value_groups
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags, Method
 
@@ -242,15 +240,22 @@ class MarkerDetector:
             return []
         details = self.db.get_license_details(lic_id) if lic_id else None
         if details:
-            return [self._candidate_without_text(details, score)]
-        # A value with no recognised ID (a typo, free text) is no evidence of
-        # a license and builds no candidate.
-        return self._synthetic_candidate(lic_id, score) if lic_id else []
+            found = [self._candidate_without_text(details, score)]
+        else:
+            # A value with no recognised ID (a typo, free text) is no evidence
+            # of a license and builds no candidate.
+            found = self._synthetic_candidate(lic_id, score) if lic_id else []
+        if found and narrowed_ids(expression, found[0]["license_id"]):
+            # "GPL-2.0" read as GPL-2.0-only: a guess, said and not exact.
+            warn_narrowed(expression, found[0]["license_id"])
+            found[0]["narrowed"] = True
+        return found
 
     def license_flags(self, lic_id: str) -> LicenseFlags:
         """The SPDX, OSI and FSF flags of a license ID or expression: a
-        database row's own, else those of the expression (see
-        _expression_flags); all False for anything else."""
+        database row's own, else those of the expression
+        (``exprflags.declared_flags``); for anything else, not on the List and not
+        judged (None), never a false "no"."""
         details = self.db.get_license_details(lic_id)
         if details:
             return {
@@ -258,49 +263,19 @@ class MarkerDetector:
                 "is_osi_approved": bool(details["is_osi_approved"]),
                 "is_fsf_libre": bool(details["is_fsf_libre"]),
             }
-        flags = self._expression_flags(lic_id)
+        flags = declared_flags(lic_id, self.db)
         return flags or {
             "is_spdx": False,
-            "is_osi_approved": False,
-            "is_fsf_libre": False,
-        }
-
-    def _expression_flags(self, lic_id: str) -> LicenseFlags | None:
-        """The flags of an ID that is not in the DB, or None when it is no
-        evidence of a license.
-
-        Keeps only well-formed SPDX expressions and LicenseRef-* IDs with at
-        least one recognised ID: fabricating a candidate from arbitrary text
-        (e.g. "see LICENSE file", "Dual OR Commercial") would create a
-        phantom license_id ranked at a fixed high confidence. ``is_spdx`` is
-        False if any part is unknown; a LicenseRef-* is a valid SPDX ID, so it
-        counts as known. The OSI and FSF flags come from
-        ``identifiers.flag_source``.
-        """
-        tree = parse_declared(lic_id)
-        if tree is None:
-            return None  # not an expression (or too deep to parse)
-        leaves = self._expression_leaves(tree)
-        if not any(
-            isinstance(leaf, (py_spdx_license.LicenseId, py_spdx_license.LicenseRef))
-            for leaf in leaves
-        ):
-            return None
-        licence = flag_source(tree, self.db)
-        return {
-            "is_spdx": not any(
-                isinstance(leaf, py_spdx_license.UnknownId) for leaf in leaves
-            ),
-            "is_osi_approved": bool(licence and licence["is_osi_approved"]),
-            "is_fsf_libre": bool(licence and licence["is_fsf_libre"]),
+            "is_osi_approved": None,
+            "is_fsf_libre": None,
         }
 
     def _synthetic_candidate(self, lic_id: str, score: float) -> list[CandidateMatch]:
         """Build a candidate for an ID that is not in the DB, if its flags
-        say it is evidence of a license (see _expression_flags). Used for
+        say it is evidence of a license (``exprflags.declared_flags``). Used for
         every source of an expression (SPDX tag, JSON, TOML, INI, and an
         explicit ``license_id``), so they all decide alike."""
-        flags = self._expression_flags(lic_id)
+        flags = declared_flags(lic_id, self.db)
         if flags is None:
             return []
         return [
@@ -315,17 +290,6 @@ class MarkerDetector:
                 "is_osi_approved": flags["is_osi_approved"],
                 "is_fsf_libre": flags["is_fsf_libre"],
             }
-        ]
-
-    @classmethod
-    def _expression_leaves(
-        cls, node: py_spdx_license.Node
-    ) -> list[py_spdx_license.Node]:
-        """Identifier nodes of a parsed SPDX expression."""
-        if isinstance(node, py_spdx_license.Identifier):
-            return [node]
-        return [
-            leaf for child in node.children for leaf in cls._expression_leaves(child)
         ]
 
     def _spdx_tag_values(self, text: str) -> list[str]:
@@ -467,11 +431,14 @@ class MarkerDetector:
             "license_id": font_id,
             "search_text": self.db.get_search_text(license_id) if base_details else "",
             "score": score,
-            "is_spdx": True,
+            "is_spdx": base_details is not None,
             "word_count": base_details.get("word_count", 0) if base_details else 0,
             "is_high_usage": False,
-            "is_osi_approved": False,
-            "is_fsf_libre": False,
+            # A WITH takes the flags of its licence (licenseid.exprflags).
+            "is_osi_approved": base_details["is_osi_approved"]
+            if base_details
+            else None,
+            "is_fsf_libre": base_details["is_fsf_libre"] if base_details else None,
             "pop_score": 0,
         }
 

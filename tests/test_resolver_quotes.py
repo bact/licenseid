@@ -21,6 +21,7 @@ import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
+from resolver_helpers import no_reader_reason
 
 from licenseid import LicenseDatabase, match
 
@@ -257,11 +258,8 @@ def test_a_value_with_nothing_to_read_has_no_reason(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     got = match(value, corpus_db)
-    assert (got["expression"], got["category"], got["reason"]) == (
-        None,
-        "unresolved",
-        None,
-    )
+    assert (got["expression"], got["category"]) == (None, "unresolved")
+    assert no_reader_reason(got["reason"])  # none of a reader's own (P5)
     assert got["steps"] == []
 
 

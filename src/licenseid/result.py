@@ -51,9 +51,15 @@ def public_result(raw: RawMatch | InternalMatch) -> Detection:
         similarity=_rounded(raw["similarity"]),
         coverage=_rounded(raw["coverage"]),
         is_spdx=bool(raw.get("is_spdx", False)),
-        is_osi_approved=bool(raw.get("is_osi_approved", False)),
-        is_fsf_libre=bool(raw.get("is_fsf_libre", False)),
+        is_osi_approved=_judged(raw.get("is_osi_approved", False)),
+        is_fsf_libre=_judged(raw.get("is_fsf_libre", False)),
     )
+
+
+def _judged(flag: bool | None) -> bool | None:
+    """An OSI or FSF *flag* as a bool, None kept: an expression with an
+    operand nobody judged has no answer (``licenseid.exprflags``)."""
+    return None if flag is None else bool(flag)
 
 
 def json_line(result: Detection | Resolution | Mapping[str, object]) -> str:

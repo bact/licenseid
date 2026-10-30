@@ -64,7 +64,7 @@ from licenseid.textinput import (
     normalize_newlines,
     read_text_file,
 )
-from licenseid.types import LicenseDetails, UpdateSource
+from licenseid.types import Detection, UpdateSource
 from licenseid.usage import UsageLineError, UsageLineGroup
 
 
@@ -412,7 +412,7 @@ def detect_license_record(
     input_val: str | None,
     text: str | None,
     id_val: str | None = None,
-) -> LicenseDetails | None:
+) -> Detection | None:
     """Helper to detect a license from CLI arguments (implements Smart Logic)."""
     db_path = ctx.obj["db_path"]
     check_database_ready(db_path)  # before input handling: report the database first
@@ -542,11 +542,13 @@ def detect(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
 
 def _predicate_command(
-    name: str, key: str, summary: str, holds: Callable[[LicenseDetails], bool]
+    name: str, key: str, summary: str, holds: Callable[[Detection], bool | None]
 ) -> None:
     """Add the command *name*: one record, ``EXPRESSION=<id judged>`` and
     ``<key>=true|false``, exit 0 for true and 1 for false. EXPRESSION is
-    empty when the input names no licence (``detector.resolve_record``)."""
+    empty when the input names no licence (``detector.resolve_record``);
+    the flag is empty (``null``), exit 1, when an operand of the expression
+    cannot be judged (``licenseid.exprflags``): never a false "no"."""
 
     @cli.command(name=name, help=summary)
     @click.argument("input_val", required=False)
@@ -562,14 +564,14 @@ def _predicate_command(
         json_output: bool,
     ) -> None:
         record = detect_license_record(ctx, input_val, text, id_val)
-        answer = record is not None and holds(record)
-        expression = None if record is None else record["license_id"]
+        answer = False if record is None else holds(record)
+        expression = None if record is None else record["expression"]
         echo_record(json_output, EXPRESSION=expression, **{key: answer})
-        ctx.exit(0 if answer else 1)
+        ctx.exit(0 if answer is True else 1)
 
 
-def _is_open(record: LicenseDetails) -> bool:
-    return bool(record.get("is_osi_approved") or record.get("is_fsf_libre"))
+def _is_open(record: Detection) -> bool:
+    return bool(record["is_osi_approved"] or record["is_fsf_libre"])
 
 
 # The key of each flag is that of detect's JSON (is_osi_approved), or the
@@ -577,14 +579,15 @@ def _is_open(record: LicenseDetails) -> bool:
 _predicate_command(
     "is-osi",
     "IS_OSI_APPROVED",
-    "True if the license is OSI-approved.",
-    lambda record: bool(record.get("is_osi_approved")),
+    "True if the license is OSI-approved: every operand of an AND, any of an "
+    "OR. Empty, exit 1, when an operand cannot be judged.",
+    lambda record: record["is_osi_approved"],
 )
 _predicate_command(
     "is-fsf",
     "IS_FSF_LIBRE",
-    "True if the license is FSF-libre.",
-    lambda record: bool(record.get("is_fsf_libre")),
+    "True if the license is FSF-libre, judged as is-osi judges.",
+    lambda record: record["is_fsf_libre"],
 )
 _predicate_command(
     "is-open", "IS_OPEN", "True if the license is OSI-approved OR FSF-libre.", _is_open
@@ -593,8 +596,9 @@ _predicate_command("is-free", "IS_FREE", "Alias for is-open.", _is_open)
 _predicate_command(
     "is-spdx",
     "IS_SPDX",
-    "True if the license is in the SPDX License List.",
-    lambda record: bool(record.get("is_spdx")),
+    "True if every licence and exception ID is on the SPDX License List "
+    "(a LicenseRef-* is not).",
+    lambda record: record["is_spdx"],
 )
 
 

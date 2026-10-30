@@ -21,7 +21,7 @@ from resolver_corpus import LICENSE_LIST, list_rows
 from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
 from licenseid.identifiers import normalize_identifier
-from licenseid.looseid import loose_id, loose_with, shown
+from licenseid.looseid import loose_id, loose_with, narrowed_ids, shown
 from licenseid.shorttext import match_short_text
 from licenseid.versionkey import MAX_KEY_INPUT, version_key
 
@@ -39,7 +39,7 @@ ROWS = [
     Lic("GPL-2.0-with-classpath-exception", "GPL-2.0 w/Classpath", is_deprecated=True),
 ]
 EXCEPTIONS = ("Classpath-exception-2.0", "LLVM-exception")
-NARROWED = "WARNING: detect: variant not stated: {}; using {}\n"
+NARROWED = "WARNING: input: variant not stated: {}; using {}\n"
 
 # The License List of the developer's cache, read only; absent on CI.
 REAL_DB = Path.home() / ".local" / "share" / "licenseid" / "licenses.db"
@@ -101,9 +101,10 @@ def test_a_grant_after_a_loose_id(
         ("gpl  2 0", "GPL-2.0-only", True),
         ("GPL 2 0 +", "GPL-2.0-only", True),  # a "+" apart is no operator
         ("GPL 2.0", "GPL-2.0-only", True),  # the key's path
-        ("GPL-2.0", "GPL-2.0-only", False),  # the deprecated ID as is
-        ("gpl-2.0", "GPL-2.0-only", False),
-        (" GPL-2.0 \n", "GPL-2.0-only", False),
+        # The deprecated ID as is: a guess too (F3 of the contract batch).
+        ("GPL-2.0", "GPL-2.0-only", True),
+        ("gpl-2.0", "GPL-2.0-only", True),
+        (" GPL-2.0 \n", "GPL-2.0-only", True),
     ],
 )
 def test_every_path_narrows_alike(
@@ -203,7 +204,7 @@ def test_a_loose_license_with_an_exception(
         expected
     )
     err = capsys.readouterr().err
-    assert ("WARNING: detect: variant not stated: GPL2;" in err) is warned
+    assert ("WARNING: input: variant not stated: GPL2;" in err) is warned
 
 
 @pytest.mark.parametrize(
@@ -330,3 +331,31 @@ def test_deep_brackets_are_read_in_one_pass(
     found = loose_with(db, text)
     assert time.monotonic() - start < 2.0
     assert (found is not None) is answered
+
+
+@pytest.mark.parametrize(
+    ("text", "expression", "narrowed"),
+    [
+        ("GPL-2.0", "GPL-2.0-only", True),
+        ("gpl-2.0", "GPL-2.0-only", True),
+        ("MIT OR GPL-2.0", "GPL-2.0-only OR MIT", True),
+        ("LGPL-2.1 AND MIT", "LGPL-2.1-only AND MIT", True),
+        (
+            "GPL-2.0 WITH Classpath-exception-2.0",
+            "GPL-2.0-only WITH Classpath-exception-2.0",
+            True,
+        ),
+        ("GPL-2.0-only", "GPL-2.0-only", False),  # stated
+        ("GPL-2.0+", "GPL-2.0-or-later", False),
+        ("GPL-2.0-or-later", "GPL-2.0-or-later", False),
+        ("MIT", "MIT", False),
+        ("MIT OR GPL-2.0-only", "GPL-2.0-only OR MIT", False),
+        ("", "", False),
+    ],
+)
+def test_a_narrowed_id_is_found_in_an_expression(
+    text: str, expression: str, narrowed: bool
+) -> None:
+    """F3: a bare deprecated ID read as its -only form, alone or in a
+    compound, from the words of the value and of its reading."""
+    assert narrowed_ids(text, expression) is narrowed

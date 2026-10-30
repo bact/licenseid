@@ -357,7 +357,7 @@ def test_api_match_matrix(
         assert results[0]["score"] >= 0.85
 
 
-_API_PREDICATES: dict[str, Callable[[LicenseDetector], Callable[..., bool]]] = {
+_API_PREDICATES: dict[str, Callable[[LicenseDetector], Callable[..., bool | None]]] = {
     "is_spdx": lambda m: m.is_spdx,
     "is_osi": lambda m: m.is_osi,
     "is_fsf": lambda m: m.is_fsf,

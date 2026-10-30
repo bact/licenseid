@@ -198,14 +198,15 @@ def test_bare_deprecated_id_with_prose(gpl_db: str, text: str, license_id: str) 
 def test_disambiguated_id_missing_from_database(gpl_db: str) -> None:
     """The disambiguated ID is returned even when this database has no row
     for it. Current behaviour, not a documented contract: it comes from a
-    fixed table of canonical SPDX IDs, so is_spdx is assumed true, and the
-    approval flags default to false although the real license is approved."""
+    fixed table of canonical SPDX IDs. The database is the List, so it is
+    not on it (F2), and nobody judged it: the flags are None, not a false
+    "no" (F1)."""
     results = LicenseDetector(gpl_db).detect("Licensed under GPL-3.0 or later")
 
     assert [r["expression"] for r in results] == ["GPL-3.0-or-later"]
-    assert results[0]["is_spdx"] is True
-    assert results[0]["is_osi_approved"] is False
-    assert results[0]["is_fsf_libre"] is False
+    assert results[0]["is_spdx"] is False
+    assert results[0]["is_osi_approved"] is None
+    assert results[0]["is_fsf_libre"] is None
 
 
 def test_canonical_id_is_not_disambiguated(gpl_db: str) -> None:
@@ -238,16 +239,23 @@ def test_with_expression_both_halves_known(with_db: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "expression", ["MIT WITH GCC-exception-2.0", "Apache-2.0 WITH Font-exception-2.0"]
+    ("expression", "flag"),
+    [
+        ("MIT WITH GCC-exception-2.0", True),
+        ("Apache-2.0 WITH Font-exception-2.0", None),
+    ],
 )
-def test_with_expression_half_missing_from_db(with_db: str, expression: str) -> None:
+def test_with_expression_half_missing_from_db(
+    with_db: str, expression: str, flag: bool | None
+) -> None:
     """One half has no row in this database: a valid SPDX expression still,
-    so it matches, but neither OSI nor FSF can be claimed for it."""
+    so it matches, but not on this List (F2). A WITH takes its licence's
+    flags (F1): MIT's, and None for an Apache-2.0 nobody here judged."""
     results = LicenseDetector(with_db).detect(license_id=expression)
     assert [r["expression"] for r in results] == [expression]
-    assert results[0]["is_spdx"] is True
-    assert results[0]["is_osi_approved"] is False
-    assert results[0]["is_fsf_libre"] is False
+    assert results[0]["is_spdx"] is False
+    assert results[0]["is_osi_approved"] is flag
+    assert results[0]["is_fsf_libre"] is flag
 
 
 # -- Deprecated penalty in short-text matching -----------------------------

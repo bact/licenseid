@@ -28,7 +28,12 @@ from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
 from licenseid.result import public_result
 from licenseid.retrieval import get_candidates
-from licenseid.shorttext import EXACT_MATCH_SCORE, exact_id_match, match_short_text
+from licenseid.shorttext import (
+    EXACT_MATCH_SCORE,
+    exact_id_match,
+    match_short_text,
+    match_version_key,
+)
 from licenseid.similarity import (
     build_probe,
     calculate_base_similarity,
@@ -40,7 +45,7 @@ from licenseid.types import (
     Detection,
     DetectRequest,
     InternalMatch,
-    LicenseDetails,
+    LicenseFlags,
     Method,
     RawMatch,
 )
@@ -90,6 +95,13 @@ class _MatchContext:
     manifest: list[list[str]]  # license_value_groups(): parsed once per call
 
 
+def _set_flags(match: RawMatch, flags: LicenseFlags) -> None:
+    """Give *match* the SPDX, OSI and FSF *flags*."""
+    match["is_spdx"] = flags["is_spdx"]
+    match["is_osi_approved"] = flags["is_osi_approved"]
+    match["is_fsf_libre"] = flags["is_fsf_libre"]
+
+
 class LicenseDetector:
     """
     Main detector class that implements Tier 1 (FTS5) and Tier 2 (RapidFuzz)
@@ -125,7 +137,20 @@ class LicenseDetector:
             return []  # as for an empty license_id: nothing is declared
         if not is_simple_expression(license_id):
             raise invalid_id_error("license_id", license_id)
-        return self._resolve_declared(license_id)
+        # An ID written loosely ("GPL2") reads as it does in a text, so
+        # `--id GPL2` and the argument GPL2 answer alike (F3).
+        declared = self._resolve_declared(license_id) or self._resolve_loose_with(
+            license_id
+        )
+        return declared or self._with_flags(match_version_key(self.db, license_id))
+
+    def _with_flags(self, matches: list[RawMatch]) -> list[RawMatch]:
+        """*matches*, each given the flags of its expression if it has none
+        (an ID hit that answers another ID, see shorttext)."""
+        for match in matches:
+            if "is_spdx" not in match:
+                _set_flags(match, self.markers.license_flags(match["license_id"]))
+        return matches
 
     def _resolve_declared(self, value: str) -> list[RawMatch]:
         """The answer to a declared license value: certain, or none."""
@@ -247,22 +272,13 @@ class LicenseDetector:
         # strips punctuation/case that the regex patterns rely on.
         disambiguated = disambiguate_deprecated_id(ctx.target_text)
         if disambiguated:
-            details = self.db.get_license_details(disambiguated)
             match = exact_id_match(disambiguated)
-            match["is_spdx"] = details["is_spdx"] if details else True
-            match["is_osi_approved"] = details["is_osi_approved"] if details else False
-            match["is_fsf_libre"] = details["is_fsf_libre"] if details else False
+            _set_flags(match, self.markers.license_flags(disambiguated))
             return [match]
 
         short_matches = self._match_short_text(ctx.norm_input, ctx.target_text)
         if short_matches and short_matches[0]["score"] > 1.0:
-            for m in short_matches:
-                if "is_spdx" not in m:  # an expression (see shorttext)
-                    flags = self.markers.license_flags(m["license_id"])
-                    m["is_spdx"] = flags["is_spdx"]
-                    m["is_osi_approved"] = flags["is_osi_approved"]
-                    m["is_fsf_libre"] = flags["is_fsf_libre"]
-            return short_matches
+            return self._with_flags(short_matches)  # an expression has none
 
         return None
 
@@ -449,36 +465,16 @@ class LicenseDetector:
         *,
         license_id: str | None = None,
         file_path: str | None = None,
-    ) -> LicenseDetails | None:
-        """Resolve the input to the record of its top match (score 0.85 or
-        more), or None. The is_*() predicates and the CLI's is-* commands both
-        answer from this, so they cannot disagree with detect(), and raise
-        what it raises. The bar reads the public score, as --threshold does:
-        rounded to 4 places, so a raw 0.84995 passes."""
-        with self.db.reading():
-            results = self.detect(text, license_id=license_id, file_path=file_path)
-            if not results or results[0]["score"] < 0.85:
-                return None
-            top = results[0]
-            record = self.db.get_license_details(top["expression"])
-        if record:
-            return record
-
-        # An expression (a WITH, an OR, a LicenseRef) is not a single DB row:
-        # fall back to the flags detect() already computed, not "unknown".
-        return cast(
-            LicenseDetails,
-            {
-                "license_id": top["expression"],
-                "name": top["expression"],
-                "is_spdx": top.get("is_spdx", False),
-                "is_osi_approved": top.get("is_osi_approved", False),
-                "is_fsf_libre": top.get("is_fsf_libre", False),
-                "is_high_usage": False,
-                "pop_score": 0,
-                "word_count": 0,
-            },
-        )
+    ) -> Detection | None:
+        """The top match of the input (score 0.85 or more), or None. The
+        is_*() predicates and the CLI's is-* commands both answer from this,
+        so they cannot disagree with detect(), and raise what it raises. The
+        bar reads the public score, as --threshold does: rounded to 4 places,
+        so a raw 0.84995 passes."""
+        results = self.detect(text, license_id=license_id, file_path=file_path)
+        if not results or results[0]["score"] < 0.85:
+            return None
+        return results[0]
 
     def diff_pair(self, text: str, license_id: str) -> tuple[str, str]:
         """The two sides of a word diff of *text* against *license_id*: the
@@ -504,22 +500,25 @@ class LicenseDetector:
         return norm_input, window
 
     def is_spdx(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is in the SPDX License List.
-
-        Raises what detect() raises.
-        """
+        """True if every licence and exception of the license is on the SPDX
+        License List (a ``LicenseRef-*`` is not). Raises what detect()
+        raises."""
         record = self.resolve_record(text, **kwargs)
-        return record is not None and record.get("is_spdx", False)
+        return record is not None and record["is_spdx"]
 
-    def is_osi(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is OSI-approved. Raises what detect() raises."""
+    def is_osi(self, text: str | None = None, **kwargs: Any) -> bool | None:
+        """True if the license is OSI-approved; for an expression, every
+        operand of an AND, any of an OR. None when an operand cannot be
+        judged (not on the List, a ``LicenseRef-*``); False when no license
+        is found. Raises what detect() raises."""
         record = self.resolve_record(text, **kwargs)
-        return record is not None and record.get("is_osi_approved", False)
+        return False if record is None else record["is_osi_approved"]
 
-    def is_fsf(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is FSF-libre. Raises what detect() raises."""
+    def is_fsf(self, text: str | None = None, **kwargs: Any) -> bool | None:
+        """True if the license is FSF-libre, judged as :meth:`is_osi` is.
+        Raises what detect() raises."""
         record = self.resolve_record(text, **kwargs)
-        return record is not None and record.get("is_fsf_libre", False)
+        return False if record is None else record["is_fsf_libre"]
 
     def is_open(self, text: str | None = None, **kwargs: Any) -> bool:
         """True if the license is OSI-approved OR FSF-libre.
@@ -529,9 +528,7 @@ class LicenseDetector:
         record = self.resolve_record(text, **kwargs)
         if not record:
             return False
-        return bool(
-            record.get("is_osi_approved", False) or record.get("is_fsf_libre", False)
-        )
+        return bool(record["is_osi_approved"] or record["is_fsf_libre"])
 
     def _get_candidates(self, data: DetectRequest, text: str) -> list[CandidateMatch]:
         """Tier 1 retrieval for *text* (see licenseid.retrieval)."""
@@ -590,8 +587,9 @@ class LicenseDetector:
                     best_window=best_window,
                     score=0.0,
                     is_spdx=bool(cand.get("is_spdx", False)),
-                    is_osi_approved=bool(cand.get("is_osi_approved", False)),
-                    is_fsf_libre=bool(cand.get("is_fsf_libre", False)),
+                    # None (not judged) kept: a synthetic marker candidate.
+                    is_osi_approved=cand.get("is_osi_approved", False),
+                    is_fsf_libre=cand.get("is_fsf_libre", False),
                 )
             )
 
@@ -626,7 +624,7 @@ class LicenseDetector:
             RawMatch(
                 license_id=c["license_id"],
                 method=method or c["method"],
-                exact=True,
+                exact=not c.get("narrowed", False),
                 score=1.0,
                 similarity=None,
                 coverage=None,

@@ -22,6 +22,10 @@ added ``by`` to every step (``""``: licenseid did it), ``schema``,
 is read as its text would be alone, and the parser is a component of a
 compound.
 
+The contract batch (P5) gave every refusal a reason: a case refused with
+none in the first shape carries the one ``match()`` gives it now, and
+``MIT OR GPL-2.0-only+`` its operand's own (``qualifier stated twice``).
+
 Lone surrogates survive the JSON file as ``\\udXXX`` escapes
 (``ensure_ascii=True``), and ``json.loads`` gives them back.
 """

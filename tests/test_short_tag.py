@@ -78,7 +78,8 @@ def test_a_tag_answers_at_any_length(
 ) -> None:
     results = LicenseDetector(db).detect(text=f"{FILLER}\n{text}" if large else text)
     assert [(r["expression"], r["score"]) for r in results] == [(expected, 1.0)]
-    assert results[0]["is_spdx"]
+    # A LicenseRef-* is valid SPDX but not on the List (F2).
+    assert results[0]["is_spdx"] is ("LicenseRef-" not in expected)
 
 
 def test_a_long_license_ref_is_one_license(db: str) -> None:

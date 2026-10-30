@@ -10,7 +10,7 @@ SPDX Identifier and Expression normalization and validation.
 import bisect
 import re
 from itertools import dropwhile, pairwise
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 import py_spdx_license
 
@@ -22,11 +22,7 @@ from licenseid.plusoperator import (
     plus_after_qualifier,
     strip_plus_operator,
 )
-from licenseid.types import ExceptionDetails, LicenseDetails
 from licenseid.versionkey import named_row
-
-if TYPE_CHECKING:
-    from licenseid.database import LicenseDatabase
 
 # Defensive cap on the number of AND/OR/WITH operators an expression may
 # have before we attempt py_spdx_license's structural sort()/dedup pass.
@@ -383,34 +379,6 @@ def is_simple_expression(value: str) -> bool:
     if pairs and shape[len(shape) - pairs :] == (")",) * pairs:
         shape = shape[pairs : len(shape) - pairs]
     return shape in _SIMPLE_SHAPES
-
-
-def with_expression_details(
-    tree: py_spdx_license.Node | None, db: "LicenseDatabase"
-) -> tuple[LicenseDetails, ExceptionDetails] | None:
-    """The list rows of a parsed ``<license> WITH <exception>`` tree, or
-    None if *tree* is not one or either half is not in *db*."""
-    if not isinstance(tree, py_spdx_license.WithOp):
-        return None
-    licence = db.get_license_details(tree.license.ident)
-    exception = db.get_exception_details(tree.exception.ident)
-    if licence and exception:
-        return licence, exception
-    return None
-
-
-def flag_source(
-    tree: py_spdx_license.Node | None, db: "LicenseDatabase"
-) -> LicenseDetails | None:
-    """The license row whose OSI and FSF flags an expression takes: the license
-    of a ``WITH`` expression, or the ID itself for a lone (possibly ``+``) ID.
-    None for anything else, where "OSI-approved" has no plain meaning."""
-    with_parts = with_expression_details(tree, db)
-    if with_parts:
-        return with_parts[0]
-    if isinstance(tree, py_spdx_license.Identifier):
-        return db.get_license_details(tree.ident)  # None for a LicenseRef
-    return None
 
 
 def disambiguate_deprecated_id(text: str) -> str | None:

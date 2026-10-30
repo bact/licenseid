@@ -183,7 +183,7 @@ def test_judge_ignores_streams_on_a_terminal() -> None:
 def test_judge_accepts_the_documented_diagnostic_grammar() -> None:
     """LEVEL: SUBJECT: CONDITION on stderr is exactly what is expected."""
     cell = make_cell(kind="detect", exp_exit=1)
-    result = make_result(rc=1, err="WARNING: detect: variant not stated: x; using y\n")
+    result = make_result(rc=1, err="WARNING: input: variant not stated: x; using y\n")
     assert judge_mod.judge(cell, result)[0] == "PASS"
 
 

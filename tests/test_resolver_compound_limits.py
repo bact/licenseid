@@ -26,7 +26,10 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     ("MIT  OR   ISC", ("ISC OR MIT", "lexical", None)),
     ("MIT\tAND\nISC", ("ISC AND MIT", "lexical", None)),
     ("(MIT)OR(ISC)", ("ISC OR MIT", "lexical", None)),
-    ('MIT"OR"ISC', (None, "unresolved", None)),  # no operator in a word
+    (
+        'MIT"OR"ISC',
+        (None, "unresolved", 'not found: MIT"OR"ISC'),
+    ),  # no operator in a word
     # the grammar refused
     ("MIT OR OR ISC", (None, "malformed", "parse failed: Unexpected 'OR'")),
     ("OR MIT", (None, "malformed", "parse failed: Unexpected 'OR'")),
@@ -34,7 +37,7 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     ("((MIT OR ISC)", (None, "malformed", "parse failed: Unexpected '('")),
     ("[MIT OR (ISC]", (None, "malformed", "parse failed: Unexpected 'OR'")),
     ("{MIT OR ISC)", (None, "malformed", "mismatched brackets")),
-    ("()", (None, "unresolved", None)),
+    ("()", (None, "unresolved", "empty")),
     ("(Foo OR Bar", (None, "unresolved", "parse failed: Unexpected '('")),  # no licence
     # mixed brackets, properly nested
     ("[MIT OR (ISC AND {0BSD})]", ("MIT OR 0BSD AND ISC", "lexical", None)),
@@ -43,7 +46,10 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
         "MIT WITH LLVM-exception OR ISC WITH LLVM-exception",
         ("ISC WITH LLVM-exception OR MIT WITH LLVM-exception", "lexical", None),
     ),
-    ("MIT WITH LLVM-exception WITH LLVM-exception", (None, "unresolved", None)),
+    (
+        "MIT WITH LLVM-exception WITH LLVM-exception",
+        (None, "unresolved", "not found: MIT WITH LLVM-exception WITH LLVM-exception"),
+    ),
     # grants and "+" per operand, at every position
     ("GPL-2.0 or later OR MIT", ("GPL-2.0-or-later OR MIT", "stated_qualifier", None)),
     ("MIT OR GPL-2.0 or later", ("GPL-2.0-or-later OR MIT", "stated_qualifier", None)),
@@ -59,26 +65,35 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     ("GPL-2.0 or later OR GPL-2.0+", ("GPL-2.0-or-later", "stated_qualifier", None)),
     (
         "GPL-2.0-or-later or later OR MIT",
-        (None, "malformed", "operand not resolved: GPL-2.0-or-later or later"),
+        (None, "malformed", "qualifier stated twice: GPL-2.0-or-later or later"),
     ),
     (
         "MIT OR LicenseRef-x+",
-        (None, "malformed", "operand not resolved: LicenseRef-x+"),
+        (None, "malformed", "qualifier on a reference: LicenseRef-x+"),
     ),
     ("MIT OR +", (None, "unresolved", "operand not resolved: +")),
-    ("(or later) OR MIT", (None, "unresolved", None)),
+    ("(or later) OR MIT", (None, "unresolved", "not found: (or later) OR MIT")),
     # P35 (decided by the maintainer): an ID with no -or-later form takes "+"
     ("GPL-2.0 or MIT or later", ("GPL-2.0 OR MIT+", "assumed_only", None)),
     ("MIT OR later OR ISC", ("ISC OR MIT+", "stated_qualifier", None)),
     ("Apache-2.0 OR later OR ISC", ("Apache-2.0+ OR ISC", "stated_qualifier", None)),
     # a mark after a grant stays in its leaf, judged as alone
     ("GPL-2.0 or later, OR MIT", ("GPL-2.0-or-later OR MIT", "stated_qualifier", None)),
-    ("GPL-2.0 or later-ish OR MIT", (None, "unresolved", None)),  # no grant
-    ("GPL-2.0 or later- OR MIT", (None, "unresolved", None)),  # "-" ends no grant
+    (
+        "GPL-2.0 or later-ish OR MIT",
+        (None, "unresolved", "not found: GPL-2.0 or later-ish OR MIT"),
+    ),  # no grant
+    (
+        "GPL-2.0 or later- OR MIT",
+        (None, "unresolved", "not found: GPL-2.0 or later- OR MIT"),
+    ),  # "-" ends no grant
     ("GPL-2.0 or later/ OR MIT", (None, "unresolved", "character dropped: U+002F")),
     # prose: a part of several words, and no operator or none between two
-    ("MIT License (MIT) OR ISC", (None, "unresolved", None)),
-    ("(Apache License 2.0", (None, "unresolved", None)),
+    (
+        "MIT License (MIT) OR ISC",
+        (None, "unresolved", "not found: MIT License (MIT) OR ISC"),
+    ),
+    ("(Apache License 2.0", (None, "unresolved", "not found: (Apache License 2.0")),
     # quotes per operand
     ("MIT OR 'ISC'", ("ISC OR MIT", "lexical", None)),
     ('"MIT" AND "ISC', (None, "unresolved", "character dropped: U+0022")),
@@ -149,16 +164,17 @@ def test_a_chain_is_read_up_to_the_operator_cap(
 
 @pytest.mark.parametrize(
     ("operator", "reason"),
-    [("and", None), ("AND", "operand not resolved: foo bar")],
+    [("and", "not found: foo bar and foo"), ("AND", "operand not resolved: foo bar")],
 )
 def test_prose_over_the_operator_cap_is_still_prose(
-    corpus_db: LicenseDatabase, operator: str, reason: str | None
+    corpus_db: LicenseDatabase, operator: str, reason: str
 ) -> None:
     """The shape is judged before the cap: 160 phrases of two words are no
     compound, as 10 are, not ``too many operators``."""
     for count in (10, 160):
         got = match(f" {operator} ".join(["foo bar"] * count), corpus_db)
-        assert (got["category"], got["reason"]) == ("unresolved", reason)
+        assert got["category"] == "unresolved"
+        assert str(got["reason"]).startswith(reason)  # cut at 60 (P61)
 
 
 @pytest.mark.parametrize(

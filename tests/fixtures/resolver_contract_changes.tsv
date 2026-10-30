@@ -1,0 +1,226 @@
+# The answers the pre-freeze contract batch (P5: a reason for every
+# refusal) moved in the parity corpus and the PyPI sample: each gains a
+# reason and nothing else. value: Python unicode_escape; group: the
+# reason's condition (its why is in tests/resolver_changes_contract.py);
+# then the answer, its fields written as in the other answer fixtures.
+value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
+'BSD'	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD
+(specified using classifiers)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: specified using classifiers
+2-clause BSD	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: 2-clause BSD
+2-clause BSD License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: 2-clause BSD License
+3-Clause BSD License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: 3-Clause BSD License
+3-clause BSD	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: 3-clause BSD
+3-clause BSD <https://opensource.org/licenses/bsd-license.php>	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: 3-clause BSD <https://opensource.org/licenses/bsd-license.ph...
+ADI BSD	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: ADI BSD
+AGPL	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: AGPL
+AGPL-3.0-or-later WITH viewflow-library-exception	exception	-	unresolved	-	-	-	-	-	none	yes	exception not found: viewflow-library-exception
+AL2	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: AL2
+APACHE	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: APACHE
+APGL3	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: APGL3
+APL 2	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: APL 2
+APL 2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: APL 2.0
+AS License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: AS License
+ASL	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: ASL
+ASL 2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: ASL 2.0
+Apache	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache
+Apache 2.0 Software License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache 2.0 Software License
+Apache 2.0 license. See LICENSE.md for details.	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache 2.0 license. See LICENSE.md for details.
+Apache Licence 2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache Licence 2.0
+Apache License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache License
+Apache License (2.0)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache License (2.0)
+Apache License - Version 2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache License - Version 2.0
+Apache License 2	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache License 2
+Apache License 2.0.	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache License 2.0.
+Apache License v2.0 with LLVM Exceptions	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache License v2.0 with LLVM Exceptions
+Apache Public License 2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache Public License 2.0
+Apache Software License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache Software License
+Apache Software License (Apache 2.0)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache Software License (Apache 2.0)
+Apache Software License (Apache Software License 2.0)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache Software License (Apache Software License 2.0)
+Apache Software License (http://www.apache.org/licenses/LICENSE-2.0)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache Software License (http://www.apache.org/licenses/LICE...
+Apache Software License 2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache Software License 2.0
+Apache Software License v2	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache Software License v2
+Apache Software License, Version 2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache Software License, Version 2.0
+Apache Software License, Version 2.0, http://www.apache.org/licenses/LICENSE-2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache Software License, Version 2.0, http://www.apache.org/...
+Apache Version 2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache Version 2.0
+Apache licensed, as found in the LICENSE file	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache licensed, as found in the LICENSE file
+Apache modified	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache modified
+Apache-2.0 WITH Foo-exception	exception	-	unresolved	-	-	-	-	-	none	yes	exception not found: Foo-exception
+Apache-2.0 or BSD	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache-2.0 or BSD
+Apache-2.0 with LLVM exception	exception	-	unresolved	-	-	-	-	-	none	yes	exception not found: LLVM exception
+Apache-2.0 with LLVM exceptions	exception	-	unresolved	-	-	-	-	-	none	yes	exception not found: LLVM exceptions
+Apache-2.0, http://www.apache.org/licenses/LICENSE-2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Apache-2.0, http://www.apache.org/licenses/LICENSE-2.0
+Applitools SDK License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Applitools SDK License
+Artistic License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Artistic License
+BSD	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD
+BSD (3 clause)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD (3 clause)
+BSD (3-clause)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD (3-clause)
+BSD - See ndg/httpsclient/LICENCE file for details	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD - See ndg/httpsclient/LICENCE file for details
+BSD 3	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD 3
+BSD 3-Clause License; partially licensed under the Python Software Foundation License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD 3-Clause License, partially licensed under the Python So...
+BSD 3-clause "New" or "Revised License"	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD 3-clause "New" or "Revised License"
+BSD License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD License
+BSD license	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD license
+BSD license (see license.txt for details), Copyright (c) 2000-2025, ReportLab Inc.	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD license (see license.txt for details), Copyright (c) 200...
+BSD license, Copyright (c) 2000-2022, ReportLab Inc.	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD license, Copyright (c) 2000-2022, ReportLab Inc.
+BSD or Apache License, Version 2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD or Apache License, Version 2.0
+BSD, Public Domain	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD, Public Domain
+BSD-3	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD-3
+BSD-3-Clause and Public-Domain	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD-3-Clause and Public-Domain
+BSD-3-Clause, Apache-2.0, dependency licenses	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD-3-Clause, Apache-2.0, dependency licenses
+BSD-derived (Repoze)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD-derived (Repoze)
+BSD-derived (http://www.repoze.org/LICENSE.txt)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD-derived (http://www.repoze.org/LICENSE.txt)
+BSD-like	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD-like
+BSD-like (http://repoze.org/license.html)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD-like (http://repoze.org/license.html)
+BSD-style	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD-style
+BSD3	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BSD3
+Boost Software License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Boost Software License
+BrowserStack Software License Agreement	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: BrowserStack Software License Agreement
+Business Source License 1.1 (See LICENSE.txt)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Business Source License 1.1 (See LICENSE.txt)
+CC0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: CC0
+CC0 1.0 Universal	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: CC0 1.0 Universal
+Commercial license. See artifex.com for details.	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Commercial license. See artifex.com for details.
+Copyright	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Copyright
+Copyright (C) 2001-2005 by Vinay Sajip. All Rights Reserved. See LICENSE for license.	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Copyright (C) 2001-2005 by Vinay Sajip. All Rights Reserved....
+Copyright (C) 2004-2020 by Vinay Sajip. All Rights Reserved. See LICENSE for license.	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Copyright (C) 2004-2020 by Vinay Sajip. All Rights Reserved....
+Copyright (c) 2015 Brent Tubbs	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Copyright (c) 2015 Brent Tubbs
+Copyright 2011-2017 Jeffrey Gelens <jeffrey@noppo.pro>	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Copyright 2011-2017 Jeffrey Gelens <jeffrey@noppo.pro>
+Copyright 2016 Joshua Carp	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Copyright 2016 Joshua Carp
+Creative Commons Attribution-NonCommercial 4.0 International	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Creative Commons Attribution-NonCommercial 4.0 International
+DataRobot Tool and Utility Agreement	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: DataRobot Tool and Utility Agreement
+Databricks License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Databricks License
+Databricks Proprietary License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Databricks Proprietary License
+Dual License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Dual License
+Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial Lic...
+EPL	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: EPL
+Expat	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Expat
+Expat License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Expat License
+Expat license	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Expat license
+Free To Use But Restricted	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Free To Use But Restricted
+FreeBSD	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: FreeBSD
+FreeBSD License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: FreeBSD License
+FreeBSD and LGPLv3+	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: FreeBSD and LGPLv3+
+GNU AFFERO GPL 3.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU AFFERO GPL 3.0
+GNU Affero General Public License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU Affero General Public License
+GNU Affero General Public License (AGPL) version 3.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU Affero General Public License (AGPL) version 3.0
+GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU Affero General Public License as published by the Free S...
+GNU GENERAL PUBLIC LICENSE	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU GENERAL PUBLIC LICENSE
+GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+GNU GPL V3.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU GPL V3.0
+GNU GPL v2	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU GPL v2
+GNU GPL v2+	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU GPL v2+
+GNU GPLv2 (with FOSS License Exception)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU GPLv2 (with FOSS License Exception)
+GNU GPLv3	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU GPLv3
+GNU GPLv3+	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU GPLv3+
+GNU General Public License (GPL)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU General Public License (GPL)
+GNU General Public License Version 3	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU General Public License Version 3
+GNU General Public License v3	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU General Public License v3
+GNU LGPL	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU LGPL
+GNU LGPL 3.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU LGPL 3.0
+GNU LGPL v2.1	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU LGPL v2.1
+GNU LGPL v3+	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU LGPL v3+
+GNU Lesser General Public License (LGPL), Version 3	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU Lesser General Public License (LGPL), Version 3
+GNU Lesser General Public License v3	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU Lesser General Public License v3
+GNU Lesser General Public License v3 or later	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU Lesser General Public License v3 or later
+GNU Lesser General Public License v3+	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU Lesser General Public License v3+
+GNU Lesser General Public License v3.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU Lesser General Public License v3.0
+GNU Lesser General Public License, Version 3 (LGPLv3)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU Lesser General Public License, Version 3 (LGPLv3)
+GNU Library or Lesser General Public License (LGPL)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU Library or Lesser General Public License (LGPL)
+GNU-GPL	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GNU-GPL
+GPL	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GPL
+GPL 2.0/LGPL 2.1	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GPL 2.0/LGPL 2.1
+GPLv2 with linking exception	exception	-	unresolved	-	-	-	-	-	none	yes	exception not found: linking exception
+GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)	exception	-	unresolved	-	-	-	-	-	none	yes	exception not found: a special exception which allows to use PyInstaller to build...
+GPLv3+/BSD	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: GPLv3+/BSD
+Google Cloud Platform Terms of Service	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Google Cloud Platform Terms of Service
+ISCL	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: ISCL
+Intel End User License Agreement for Developer Tools	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Intel End User License Agreement for Developer Tools
+Intel Simplified Software License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Intel Simplified Software License
+LGPL	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: LGPL
+LGPL with exceptions	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: LGPL with exceptions
+LGPL-3.0-or-newer	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: LGPL-3.0-or-newer
+LICENCE.txt	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: LICENCE.txt
+LICENSE	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: LICENSE
+LICENSE AGREEMENT FOR NVIDIA SOFTWARE DEVELOPMENT KITS	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: LICENSE AGREEMENT FOR NVIDIA SOFTWARE DEVELOPMENT KITS
+LICENSE.BSD3	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: LICENSE.BSD3
+LICENSE.md	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: LICENSE.md
+LICENSE.txt	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: LICENSE.txt
+LangServe	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: LangServe
+License :: OSI Approved :: Apache Software License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: License :: OSI Approved :: Apache Software License
+License :: OSI Approved :: MIT License (http://opensource.org/licenses/MIT)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: License :: OSI Approved :: MIT License (http://opensource.or...
+MIT -or- Apache License 2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: MIT -or- Apache License 2.0
+MIT License, Apache License, Version 2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: MIT License, Apache License, Version 2.0
+MIT OR GPL-2.0-only+	qualifier	-	malformed	-	-	-	-	-	none	yes	qualifier stated twice: GPL-2.0-only+
+MIT X11 style	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: MIT X11 style
+MIT licensed, as found in the LICENSE file	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: MIT licensed, as found in the LICENSE file
+MIT style	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: MIT style
+MIT-LICENSE	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: MIT-LICENSE
+MIT-License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: MIT-License
+MIT; Copyright (c) 2016-2024 Cisco and/or its affiliates.	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: MIT, Copyright (c) 2016-2024 Cisco and/or its affiliates.
+MPL	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: MPL
+MPL 2.0 (Mozilla Public License)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: MPL 2.0 (Mozilla Public License)
+Moderne Source Available License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Moderne Source Available License
+Modified BSD License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Modified BSD License
+Mostly MIT, some GPL/BSD, see LICENSE-pwntools.txt	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Mostly MIT, some GPL/BSD, see LICENSE-pwntools.txt
+Mozilla	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Mozilla
+Mulan PSL v2	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Mulan PSL v2
+NVIDIA Proprietary Software	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: NVIDIA Proprietary Software
+New BSD	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: New BSD
+New BSD License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: New BSD License
+New BSD license	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: New BSD license
+OSI Approved	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: OSI Approved
+OSI Approved :: Apache Software License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: OSI Approved :: Apache Software License
+Other/Proprietary License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Other/Proprietary License
+PSF	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: PSF
+PSF License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: PSF License
+PSF license	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: PSF license
+PSF or ZPL	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: PSF or ZPL
+PSFL	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: PSFL
+PSFL (Keccak: CC0 1.0 Universal)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: PSFL (Keccak: CC0 1.0 Universal)
+PayPal SDK License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: PayPal SDK License
+Proprietary	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Proprietary
+PubNub Software Development Kit License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: PubNub Software Development Kit License
+Public Domain	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Public Domain
+Public domain	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Public domain
+Python	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Python
+Python (MIT style)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Python (MIT style)
+Python Software Foundation License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Python Software Foundation License
+Python Software Foundation License (BSD-like)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Python Software Foundation License (BSD-like)
+Python Software Foundation License Version 2	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Python Software Foundation License Version 2
+Revised BSD License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Revised BSD License
+Revised BSD License (LICENSE.txt)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Revised BSD License (LICENSE.txt)
+SAP DEVELOPER LICENSE AGREEMENT	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: SAP DEVELOPER LICENSE AGREEMENT
+SEE LICENSE IN https://livekit.io/legal/terms-of-service	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: SEE LICENSE IN https://livekit.io/legal/terms-of-service
+SIL OFL V1.1	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: SIL OFL V1.1
+See license in package description	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: See license in package description
+Simplified BSD	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Simplified BSD
+Simplified BSD license	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Simplified BSD license
+Tecton Proprietary	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Tecton Proprietary
+Tencent	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Tencent
+Teradata License Agreement	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Teradata License Agreement
+The MIT License: http://www.opensource.org/licenses/mit-license.php	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: The MIT License: http://www.opensource.org/licenses/mit-lice...
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: This Source Code Form is subject to the terms of the Mozilla...
+Two-clause BSD license	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Two-clause BSD license
+UNKNOWN	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: UNKNOWN
+Universal Permissive License (UPL)	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Universal Permissive License (UPL)
+Universal Permissive License 1.0 or Apache License 2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Universal Permissive License 1.0 or Apache License 2.0
+Various	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Various
+W3C License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: W3C License
+W3C software and Document Notice License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: W3C software and Document Notice License
+Waqef	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: Waqef
+gpl-3.0.txt	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: gpl-3.0.txt
+http://www.apache.org/licenses/LICENSE-2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: http://www.apache.org/licenses/LICENSE-2.0
+http://www.gnu.org/licenses/gpl.html	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: http://www.gnu.org/licenses/gpl.html
+http://www.opensource.org/licenses/mit-license.php	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: http://www.opensource.org/licenses/mit-license.php
+https://about.aspose.com/legal/eula/	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: https://about.aspose.com/legal/eula/
+https://aka.ms/azureml-sdk-license	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: https://aka.ms/azureml-sdk-license
+https://fontawesome.com/license/free	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: https://fontawesome.com/license/free
+https://mosek.com/products/license-agreement	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: https://mosek.com/products/license-agreement
+https://opensource.org/license/mit/	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: https://opensource.org/license/mit/
+https://opensource.org/licenses/BSD-3-Clause	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: https://opensource.org/licenses/BSD-3-Clause
+https://www.apache.org/licenses/LICENSE-2.0	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: https://www.apache.org/licenses/LICENSE-2.0
+lgpl	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: lgpl
+modified BSD	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: modified BSD
+new BSD	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: new BSD
+proprietary and confidential	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: proprietary and confidential
+wxWindows Library Licence, Version 3.1	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: wxWindows Library Licence, Version 3.1
+zlib/libpng License	not_found	-	unresolved	-	-	-	-	-	none	yes	not found: zlib/libpng License

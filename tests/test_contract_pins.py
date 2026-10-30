@@ -25,6 +25,7 @@ import licenseid
 from licenseid import LicenseDatabase, match
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
+from licenseid.result import fields_line, record_json
 
 FRESH = "UPDATE db_metadata SET value = ? WHERE key = 'last_check_datetime'"
 ROWS = (
@@ -145,11 +146,13 @@ def test_c9_detect_prints_nothing_on_exit_1(db: str, flags: list[str]) -> None:
     assert (result.exit_code, result.stdout) == (1, "")
 
 
-def test_c11_the_subject_is_detect(db: str) -> None:
-    """PIN (C11): ``is-osi`` warns with the subject ``detect``."""
-    result = run(db, "is-osi", "GPL2")
+@pytest.mark.parametrize("command", ["is-osi", "detect"])
+def test_c11_the_subject_is_input(db: str, command: str) -> None:
+    """C11 (was: ``detect:``, from ``is-osi`` too): the subject names the
+    thing affected, the input, for every command (P146)."""
+    result = run(db, command, "GPL2")
     assert result.stderr == (
-        "WARNING: detect: variant not stated: GPL2; using GPL-2.0-only\n"
+        "WARNING: input: variant not stated: GPL2; using GPL-2.0-only\n"
     )
 
 
@@ -159,47 +162,76 @@ def test_c11_the_subject_is_detect(db: str) -> None:
 @pytest.mark.parametrize(
     ("expression", "osi", "fsf"),
     [
-        ("MIT OR ISC", False, False),
-        ("ISC AND MIT", False, False),
-        ("0BSD AND MIT", False, False),
-        ("MIT OR WTFPL", False, False),
-        ("MIT AND LicenseRef-x", False, False),
+        ("MIT OR ISC", True, True),
+        ("ISC AND MIT", True, True),
+        ("0BSD AND MIT", True, False),  # 0BSD: OSI, not FSF; AND: every one
+        ("MIT OR WTFPL", True, True),  # WTFPL: FSF, not OSI; OR: any one
+        ("MIT AND WTFPL", False, True),
+        ("GPL-2.0-only WITH Classpath-exception-2.0", True, True),  # the licence's
+        ("MIT AND LicenseRef-x", None, None),  # cannot be judged
+        ("MIT OR LicenseRef-x", None, None),  # no Kleene shortcut (P140)
+        ("MIT AND Foo-1.0", None, None),  # not on the List
     ],
 )
-def test_f1_compound_flags_are_false(
-    db: str, expression: str, osi: bool, fsf: bool
+def test_f1_compound_flags_are_evaluated(
+    db: str, expression: str, osi: bool | None, fsf: bool | None
 ) -> None:
-    """PIN (F1): a compound's OSI and FSF flags are always False."""
+    """F1 (was: always False): AND every operand, OR any, WITH the licence's;
+    None when an operand cannot be judged."""
     found = LicenseDetector(db).detect(text=f"SPDX-License-Identifier: {expression}")
     assert (found[0]["is_osi_approved"], found[0]["is_fsf_libre"]) == (osi, fsf)
 
 
-def test_f2_a_reference_is_spdx(db: str) -> None:
-    """PIN (F2): a ``LicenseRef-*`` counts as on the SPDX List."""
-    assert LicenseDetector(db).detect(license_id="LicenseRef-x")[0]["is_spdx"] is True
-
-
-def test_f3_a_bare_deprecated_id_is_exact(db: str) -> None:
-    """PIN (F3): ``detect GPL-2.0`` answers GPL-2.0-only, exact, silent."""
-    result = run(db, "detect", "GPL-2.0")
-    assert result.stdout.startswith("EXPRESSION=GPL-2.0-only\tMETHOD=id\tEXACT=true\t")
-    assert result.stderr == ""
-
-
 @pytest.mark.parametrize(
-    ("args", "status", "line"),
+    ("expression", "status", "flag"),
     [
-        (["--id", "GPL2"], 1, "EXPRESSION=\tIS_OSI_APPROVED=false\n"),
-        (["GPL2"], 0, "EXPRESSION=GPL-2.0-only\tIS_OSI_APPROVED=true\n"),
+        ("MIT OR ISC", 0, "true"),
+        ("0BSD AND WTFPL", 1, "false"),
+        ("MIT AND LicenseRef-x", 1, ""),
     ],
-    ids=["id", "argument"],
 )
-def test_f3_id_and_argument_differ(
-    db: str, args: list[str], status: int, line: str
+@pytest.mark.parametrize("as_json", [False, True], ids=["text", "json"])
+def test_f1_is_osi_on_a_compound(
+    db: str, expression: str, status: int, flag: str, as_json: bool
 ) -> None:
-    """PIN (F3): ``--id GPL2`` names nothing, the argument GPL2 names GPL-2.0."""
+    """F1: exit 0 true, 1 false, 1 with the empty flag (JSON null) when it
+    cannot be judged; the record is printed every time."""
+    tag = f"SPDX-License-Identifier: {expression}"
+    result = run(db, "is-osi", *(["--json"] if as_json else []), "--text", tag)
+    canonical = LicenseDetector(db).detect(text=tag)[0]["expression"]
+    value = {"true": True, "false": False, "": None}[flag]
+    expected = (
+        record_json(EXPRESSION=canonical, IS_OSI_APPROVED=value)
+        if as_json
+        else fields_line(EXPRESSION=canonical, IS_OSI_APPROVED=value)
+    )
+    assert (result.exit_code, result.stdout) == (status, expected + "\n")
+
+
+def test_f2_a_reference_is_not_on_the_list(db: str) -> None:
+    """F2 (was: True): a ``LicenseRef-*`` is valid SPDX, not on the List."""
+    assert LicenseDetector(db).detect(license_id="LicenseRef-x")[0]["is_spdx"] is False
+    assert run(db, "is-spdx", "LicenseRef-x").exit_code == 1
+
+
+def test_f3_a_bare_deprecated_id_is_a_guess(db: str) -> None:
+    """F3 (was: exact and silent): ``detect GPL-2.0`` answers GPL-2.0-only,
+    not exact, with the warning ``GPL2`` gets."""
+    result = run(db, "detect", "GPL-2.0")
+    assert result.stdout.startswith("EXPRESSION=GPL-2.0-only\tMETHOD=id\tEXACT=false\t")
+    assert result.stderr == (
+        "WARNING: input: variant not stated: GPL-2.0; using GPL-2.0-only\n"
+    )
+
+
+@pytest.mark.parametrize("args", [["--id", "GPL2"], ["GPL2"]], ids=["id", "argument"])
+def test_f3_id_and_argument_agree(db: str, args: list[str]) -> None:
+    """F3 (was: ``--id GPL2`` false, exit 1): both read the loose ID."""
     result = run(db, "is-osi", *args)
-    assert (result.exit_code, result.stdout) == (status, line)
+    assert (result.exit_code, result.stdout) == (
+        0,
+        "EXPRESSION=GPL-2.0-only\tIS_OSI_APPROVED=true\n",
+    )
 
 
 # --- P: the Python API ---------------------------------------------------
@@ -240,17 +272,36 @@ def test_p4_empty_strings_and_by(db: str) -> None:
     assert trim["list"] == ""
 
 
-@pytest.mark.parametrize("value", ["Foo", "", "NOASSERTION", "MIT WITH Foo-exception"])
-def test_p5_a_refusal_with_no_reason(db: str, value: str) -> None:
-    """PIN (P5): some refusals carry no reason."""
+@pytest.mark.parametrize(
+    ("value", "category", "reason"),
+    [
+        ("Foo", "unresolved", "not found: Foo"),
+        ("", "unresolved", "empty"),
+        ("NOASSERTION", "unresolved", "special value: NOASSERTION"),
+        ("NONE", "unresolved", "special value: NONE"),
+        ("none", "unresolved", "not found: none"),  # case-sensitive (P147)
+        ("MIT WITH Foo-exception", "unresolved", "exception not found: Foo-exception"),
+        ("Foo WITH Bar", "unresolved", "not found: Foo WITH Bar"),
+        ("x" * 2001, "unresolved", "too long: 2001 characters"),
+        ("GPL-2.0-only+", "malformed", "qualifier stated twice: GPL-2.0-only+"),
+        ("MIT++", "malformed", "qualifier stated twice: MIT++"),
+        ("LicenseRef-x+", "malformed", "qualifier on a reference: LicenseRef-x+"),
+        ("(MIT)+", "malformed", "plus after a bracket: (MIT)+"),
+    ],
+    ids=lambda v: str(v)[:20],
+)
+def test_p5_every_refusal_has_a_reason(
+    db: str, value: str, category: str, reason: str
+) -> None:
+    """P5 (was: None for all of these): a reason for every refusal."""
     resolution = match(value, LicenseDatabase(db, create=False))
-    assert (resolution["category"], resolution["reason"]) == ("unresolved", None)
+    assert (resolution["category"], resolution["reason"]) == (category, reason)
 
 
-def test_p5_malformed_with_no_reason(db: str) -> None:
-    """PIN (P5): a qualifier stated twice is malformed with no reason."""
-    resolution = match("GPL-2.0-only+", LicenseDatabase(db, create=False))
-    assert (resolution["category"], resolution["reason"]) == ("malformed", None)
+def test_p5_an_operand_has_a_reason(db: str) -> None:
+    """P5 (was: None): a refused operand says why too."""
+    operands = match("MIT OR Foo", LicenseDatabase(db, create=False))["operands"]
+    assert [o["reason"] for o in operands] == [None, "not found: Foo"]
 
 
 @pytest.mark.parametrize(

@@ -44,6 +44,7 @@ from licenseid.resolvecompound import (
 )
 from licenseid.resolveleaf import Found, category_of, read_leaf
 from licenseid.resolveprose import read_by_name
+from licenseid.resolvereason import EMPTY, no_reading, too_long
 from licenseid.resolverinfo import (
     list_info,
     parser_info,
@@ -107,11 +108,31 @@ def match_with(
     _require_text(value)
     with lookup.reading():
         found, operands, parsed = _read(lookup, value)
+        _explain(lookup, value, found, operands)
         lists = [list_info(lookup, where)]
     resolution = _resolution(value, (found, operands, parsed), lists)
     if any(s["list"] == TROVE_LIST for s in resolution["steps"]):
         resolution["lists"].append(trove_list_info())  # a name rests on it too
     return resolution
+
+
+def _explain(
+    lookup: ListLookup, value: str, found: Found, operands: list[Operand]
+) -> None:
+    """Give a reason to the refusal of *value* and to each refused operand
+    that no reader gave one (:func:`licenseid.resolvereason.no_reading`), so
+    an answer with no expression always says why (P5). The steps of such a
+    refusal are not kept: no step led anywhere (P11)."""
+
+    def names(text: str) -> bool:
+        return read_leaf(lookup, text, leaf := Found()) and leaf.expression is not None
+
+    if found.expression is None and found.reason is None:
+        found.steps, found.expansions = [], []
+        found.reason = no_reading(lookup, _prepared(value, Found())[0], names)
+    for operand in operands:
+        if operand["expression"] is None and operand["reason"] is None:
+            operand["reason"] = no_reading(lookup, operand["text"].strip(), names)
 
 
 def _require_text(value: object) -> None:
@@ -137,7 +158,8 @@ def _read(
     found = Found()
     text, start = _prepared(value, found)
     if not text or len(text) > MAX_EXPRESSION_CHARS:
-        found.category = "unresolved"
+        found.category, found.steps = "unresolved", []  # nothing was read
+        found.reason = too_long(len(text)) if text else EMPTY
         return found, [], False
     found.reason = _refusal(text)
     if found.reason is not None:
@@ -263,8 +285,6 @@ def _resolution(
 ) -> Resolution:
     found, operands, parsed = reading
     category = category_of(found)
-    if found.expression is None and found.reason is None:
-        found.steps, found.expansions = [], []  # nothing resolved: no step taken
     return {
         "schema": SCHEMA,
         "input": value,

@@ -54,7 +54,7 @@ ROWS = [
 SYNTHETIC = ("Twin-", "Dup-")
 # Where a deprecated ID is redirected, as on the license_id= path.
 SUCCESSOR = {"GPL-2.0": "GPL-2.0-only", "GPL-2.0+": "GPL-2.0-or-later"}
-NARROWED = "WARNING: detect: variant not stated: {}; using {}\n"
+NARROWED = "WARNING: input: variant not stated: {}; using {}\n"
 
 
 @pytest.fixture
@@ -143,10 +143,6 @@ def test_version_key(text: str, key: str) -> None:
         ("VIM", "Vim"),
         ("Dup 1", "Dup-1"),
         ("Dup-1.0", "Dup-1"),
-        # A deprecated ID written as is: -only by the License List's own
-        # definition, not a guess.
-        ("GPL-2.0", "GPL-2.0-only"),
-        ("gpl-2.0", "GPL-2.0-only"),
         # No answer: no ID has the key, or two rows in use share it.
         ("Apache 2.0.1", None),
         ("Apache_2_0", None),
@@ -262,6 +258,20 @@ def test_a_long_input_is_no_loose_id(
     assert key.called is found
 
 
+@pytest.mark.parametrize("text", ["GPL-2.0", "gpl-2.0"])
+def test_a_deprecated_id_as_is_is_narrowed_aloud(
+    db: LicenseDatabase, capsys: pytest.CaptureFixture[str], text: str
+) -> None:
+    """A deprecated ID written as is: -only is the narrower guess, not what
+    was declared, so it is not exact, and said (F3 of the contract batch;
+    it was exact and silent)."""
+    results = match_version_key(db, text)
+    assert [(m["license_id"], m["method"], m["exact"]) for m in results] == [
+        ("GPL-2.0-only", "id", False)
+    ]
+    assert "variant not stated" in capsys.readouterr().err
+
+
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
@@ -270,8 +280,9 @@ def test_a_long_input_is_no_loose_id(
         ('{"license": "GPLv2"}', ("GPL-2.0-only", "field", False)),
         ("GPL 2.0+", ("GPL-2.0-or-later", "id", True)),
         ("GPL2", ("GPL-2.0-only", "id", False)),
-        # A declared ID keeps its own path, not the key's.
-        ("GPL-2.0", ("GPL-2.0-only", "id", True)),
+        # A declared ID keeps its own path, not the key's; bare, it is
+        # narrowed aloud (F3).
+        ("GPL-2.0", ("GPL-2.0-only", "id", False)),
         ("GPL-2.0+", ("GPL-2.0-or-later", "id", True)),
         # No key: the fuzzy name match answers, never as an exact ID.
         ("Apache 2+", ("Apache-2.0", "name", False)),

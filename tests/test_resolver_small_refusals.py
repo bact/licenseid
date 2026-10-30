@@ -14,12 +14,13 @@ import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
+from resolver_helpers import no_reader_reason
 
 from licenseid import LicenseDatabase, match
 from licenseid.dropguard import ends_in_mark, ends_in_ref, joined_marks
 from licenseid.quotes import ended_quote
 from licenseid.resolver import match_with
-from licenseid.resolvertypes import Source
+from licenseid.resolvertypes import Resolution, Source
 
 DASH = "character dropped: U+002D"
 
@@ -211,7 +212,7 @@ def test_two_marks_after_a_licenseref_are_refused(
 @pytest.mark.parametrize("value", sorted(STAYS), ids=lambda v: v[:20])
 def test_an_answer_that_does_not_move(corpus_db: LicenseDatabase, value: str) -> None:
     got = match(value, corpus_db)
-    assert (got["expression"], got["reason"]) == STAYS[value]
+    assert_answer(got, STAYS[value])
 
 
 @pytest.mark.parametrize("value", sorted(QUOTED_ENDED), ids=lambda v: v[:20])
@@ -410,14 +411,15 @@ REVIEW_NOW: dict[str, tuple[str | None, str | None]] = {
     'GPL-2.0".': ("GPL-2.0", None),
     'MIT+".': ("MIT+", None),
     'MIT".': ("MIT", None),
-    # still silent, each needs a path of its own (0.8 follow-ups)
+    # no reason of a reader's own, so the default one (P5: "not found");
+    # each needs a path of its own (0.8 follow-ups)
     "LicenseRef-a+-": (None, None),  # malformed: no expression to say
     "(MIT)-": (None, None),
     "(MIT+)-": (None, None),
     "License :: OSI Approved :: MIT License-": (None, None),
     "The MIT License (MIT)-": (None, None),
     "MIT License (MIT)-": (None, None),
-    "MIT+ WITH X-": (None, None),  # X names no exception
+    "MIT+ WITH X-": (None, "exception not found: X-"),
     # the guard sees the quote marks only: a single dot passes it
     '"MIT.".': (None, "character dropped: U+0022"),
     '"MIT OR ISC.".': (None, "character dropped: U+0022"),
@@ -439,4 +441,15 @@ REVIEW_NOW: dict[str, tuple[str | None, str | None]] = {
 @pytest.mark.parametrize("value", sorted(REVIEW_NOW), ids=lambda v: v[:24])
 def test_review_answers(corpus_db: LicenseDatabase, value: str) -> None:
     got = match(value, corpus_db)
-    assert (got["expression"], got["reason"]) == REVIEW_NOW[value]
+    assert_answer(got, REVIEW_NOW[value])
+
+
+def assert_answer(got: Resolution, expected: tuple[str | None, str | None]) -> None:
+    """*got* has the expression and reason *expected*; a refusal listed with
+    no reason has the one no reader gives (P5), never none."""
+    expression, reason = expected
+    assert got["expression"] == expression
+    if expression is None and reason is None:
+        assert no_reader_reason(got["reason"]), got["reason"]
+    else:
+        assert got["reason"] == reason

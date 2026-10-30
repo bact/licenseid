@@ -15,6 +15,7 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, is_negated
 from licenseid.console import warn
+from licenseid.exprtokens import RE_TOKEN
 from licenseid.identifiers import (
     normalize_identifier,
     qualify_trailing_grant,
@@ -62,18 +63,30 @@ def resolved_id(db: ListLookup, row: ListedName) -> str:
     return normalize_identifier(lid, db) if row["is_deprecated"] else lid
 
 
-def narrowed(row_id: str, resolved: str, text: str) -> bool:
+def narrowed(row_id: str, resolved: str) -> bool:
     """Whether the deprecated *row_id* was redirected to an -only form that
-    *text* did not state. A deprecated ID written as is ("GPL-2.0") is
-    -only by the License List's own definition, not by a guess."""
-    if "-only" not in resolved or "only" in row_id.lower():
-        return False
-    return text.strip().casefold() != row_id.casefold()
+    was not stated. A deprecated ID written as is ("GPL-2.0") is narrowed
+    too: the List split it into -only and -or-later, and the -only guess is
+    the narrower grant, not the declared one (decision F3 of the contract
+    batch: guess narrow, mark not exact, warn)."""
+    return "-only" in resolved and "only" not in row_id.lower()
+
+
+def narrowed_ids(text: str, expression: str) -> bool:
+    """Whether *expression*, the reading of the declared *text*, narrowed a
+    bare deprecated ID of *text* to its -only form ("MIT OR GPL-2.0" read as
+    "GPL-2.0-only OR MIT"): an ID word of *text* that states no qualifier
+    and whose -only form is an ID word of *expression*, case ignored."""
+    words = {word.casefold() for word in RE_TOKEN.findall(expression)}
+    return any(
+        "only" not in word.casefold() and f"{word}-only".casefold() in words
+        for word in RE_TOKEN.findall(text)
+    )
 
 
 def warn_narrowed(text: str, resolved: str) -> None:
     """Say that *text* was read as the narrower -only grant *resolved*."""
-    warn(f"detect: variant not stated: {shown(text)}; using {resolved}")
+    warn(f"input: variant not stated: {shown(text)}; using {resolved}")
 
 
 def shown(text: str) -> str:
@@ -102,7 +115,7 @@ def loose_with(db: ListLookup, text: str) -> tuple[str, str | None] | None:
     if found is None or " WITH " in found[1]:
         return None  # no license, or one that carries an exception already
     row, resolved = found
-    loose = parts[0] if narrowed(row["license_id"], resolved, parts[0]) else None
+    loose = parts[0] if narrowed(row["license_id"], resolved) else None
     return f"{resolved} WITH {parts[1].strip()}", loose
 
 

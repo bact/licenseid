@@ -43,6 +43,7 @@ from licenseid.looseid import (
     granted_id_text,
     loose_id,
 )
+from licenseid.resolvereason import after_bracket, on_reference, stated_twice
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
     LEXICAL_KINDS,
@@ -242,7 +243,7 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
     if exception is None or not _one(db, licence_text, licence):
         return False
     if licence.expression is None:
-        found.category = licence.category
+        found.category, found.reason = licence.category, licence.reason
         return True
     found.steps.extend(_with_form(text, operator) + licence.steps + tail.steps)
     found.expansions.extend(licence.expansions + tail.expansions)
@@ -317,15 +318,19 @@ def _plus(db: ListLookup, text: str, found: Found) -> bool:
     if stripped != text[:-1]:
         spacing.append(step("whitespace", True, text, stripped + "+"))
     if stripped.endswith(")"):  # a "+" follows a license ID, not a bracket
-        return _malformed_if_named(db, without_outer_brackets(stripped).strip(), found)
+        inner = without_outer_brackets(stripped).strip()
+        return _malformed_if_named(db, inner, found, after_bracket(text))
     base = _base(db, stripped)
     if base is None:
         doubled = text[len(core) :].count("+") > 1
-        return doubled and _malformed_if_named(db, core, found)
+        return doubled and _malformed_if_named(db, core, found, stated_twice(text))
     license_id, steps = base
     if license_id.endswith(("-only", "-or-later", "+")) or is_license_ref(license_id):
         # The qualifier is stated, and "+" adds a second; a LicenseRef takes none.
         found.category = "malformed"
+        found.reason = (on_reference if is_license_ref(license_id) else stated_twice)(
+            text
+        )
         return True
     found.steps.extend(spacing + steps)
     or_later = f"{license_id}-or-later"
@@ -338,12 +343,12 @@ def _plus(db: ListLookup, text: str, found: Found) -> bool:
     return True
 
 
-def _malformed_if_named(db: ListLookup, text: str, found: Found) -> bool:
-    """Mark *found* malformed if *text* names a licence, whose qualifier the
-    caller found broken; False if it names none."""
+def _malformed_if_named(db: ListLookup, text: str, found: Found, reason: str) -> bool:
+    """Mark *found* malformed, for *reason*, if *text* names a licence, whose
+    qualifier the caller found broken; False if it names none."""
     if _base(db, text) is None:
         return False
-    found.category = "malformed"
+    found.category, found.reason = "malformed", reason
     return True
 
 
@@ -354,7 +359,7 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
     if named is not None:
         named = named.rstrip(" \t([")  # "GPL-3.0 (or later)": the "(" is the grant's
         if _qualified(db, named):
-            found.category = "malformed"
+            found.category, found.reason = "malformed", stated_twice(text)
             return True
         base = _base(db, named.strip())
         if base is not None:
@@ -394,10 +399,10 @@ def _grant(
     # "+" last: `_qualified` makes `X+ or later` malformed before this, so
     # it only guards a list that has an ID ending in "+" (`Foo+`, no `Foo`)
     if license_id.endswith(("-only", "-or-later", "+")):
-        found.category = "malformed"
+        found.category, found.reason = "malformed", stated_twice(text)
         return True
     if granted is None and is_license_ref(license_id):
-        found.category = "unresolved"
+        found.category, found.reason = "unresolved", on_reference(text)
         return True
     found.steps.extend(steps)
     if granted is None:

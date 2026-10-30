@@ -24,6 +24,16 @@ GPL2_PLUS = Lic(
 )
 
 
+#: The start of the reason a refusal gets when no reader gave it one
+#: (``licenseid.resolvereason.no_reading``, P5 of the contract batch).
+NOT_FOUND = "not found: "
+
+
+def no_reader_reason(reason: str | None) -> bool:
+    """Whether *reason* is the one a value gets that no reader claimed."""
+    return reason is not None and reason.startswith(NOT_FOUND)
+
+
 def summary(r: Resolution) -> tuple[object, ...]:
     """What a resolve test compares: the expression, the category, the step
     kinds, each expansion and whether it applied, and the candidates."""

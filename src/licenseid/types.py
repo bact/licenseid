@@ -47,8 +47,8 @@ class Detection(TypedDict):
     similarity: float | None
     coverage: float | None
     is_spdx: bool
-    is_osi_approved: bool
-    is_fsf_libre: bool
+    is_osi_approved: bool | None
+    is_fsf_libre: bool | None
 
 
 class RawMatch(TypedDict, total=False):
@@ -63,16 +63,16 @@ class RawMatch(TypedDict, total=False):
     similarity: Required[float | None]
     coverage: Required[float | None]
     is_spdx: bool
-    is_osi_approved: bool
-    is_fsf_libre: bool
+    is_osi_approved: bool | None
+    is_fsf_libre: bool | None
 
 
 class LicenseFlags(TypedDict):
     """What SPDX, the OSI and the FSF say of a license or expression."""
 
     is_spdx: bool
-    is_osi_approved: bool
-    is_fsf_libre: bool
+    is_osi_approved: bool | None
+    is_fsf_libre: bool | None
 
 
 class CandidateMatch(TypedDict, total=False):
@@ -82,14 +82,16 @@ class CandidateMatch(TypedDict, total=False):
     search_text: Required[str]
     word_count: int
     is_spdx: bool
-    is_osi_approved: bool
-    is_fsf_libre: bool
+    is_osi_approved: bool | None
+    is_fsf_libre: bool | None
     is_deprecated: bool
     superseded_by: str
     is_high_usage: bool
     pop_score: int
     score: float
     method: Method
+    # A bare deprecated ID read as its -only form: a guess, so not exact.
+    narrowed: bool
 
 
 class InternalMatch(TypedDict, total=False):
@@ -107,8 +109,8 @@ class InternalMatch(TypedDict, total=False):
     superseded_by: str
     best_window: Required[str]
     is_spdx: bool
-    is_osi_approved: bool
-    is_fsf_libre: bool
+    is_osi_approved: bool | None
+    is_fsf_libre: bool | None
 
 
 class DetectRequest(TypedDict, total=False):

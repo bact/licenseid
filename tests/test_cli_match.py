@@ -103,7 +103,11 @@ def run(*args: str, stdin: str | None = None) -> Result:
             ],
             1,
         ),
-        ("Foo", ["EXPRESSION=\tCATEGORY=unresolved\tTRUST=none"], 1),
+        (
+            "Foo",
+            ["EXPRESSION=\tCATEGORY=unresolved\tTRUST=none", "REASON=not found: Foo"],
+            1,
+        ),
         (
             "MIT ; Apache 2",
             [
