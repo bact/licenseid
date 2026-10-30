@@ -46,6 +46,7 @@ and this project adheres to
   tab-separated `KEY=VALUE` lines or `--json`, with no database needed; exit
   0 resolved, 1 not, 2 for a text or a path that resolves to nothing
   (`run 'licenseid detect'`); `licenseid --version`
+  ([#138])
 
 ### Changed
 
@@ -85,11 +86,14 @@ and this project adheres to
   answer `EXPRESSION` (`expression` in `--json` and `Detection`); exit 1
   prints nothing; its warnings say `detect:`. Migration: `cut -f1`, read
   `["expression"]`
+  ([#138])
 - **Breaking:** `is-*` print `EXPRESSION=<id>` and their flag
   (`IS_OSI_APPROVED=true`), `update` prints `STATUS`, `VERSION` and `PATH`;
   both take `--json`; `detect --diff` writes the diff to standard error.
   Migration: test the exit code
+  ([#138])
 - `--clear-cache` exits 1, not 2, when the system refuses a delete
+  ([#138])
 
 ### Fixed
 
@@ -114,6 +118,7 @@ and this project adheres to
 [#132]: https://github.com/bact/licenseid/pull/132
 [#134]: https://github.com/bact/licenseid/pull/134
 [#135]: https://github.com/bact/licenseid/pull/135
+[#138]: https://github.com/bact/licenseid/pull/138
 
 ## [0.6.0] - 2026-10-27
 
