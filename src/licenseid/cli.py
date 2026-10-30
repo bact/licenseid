@@ -466,7 +466,11 @@ def detect(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     diff: bool,
     bold: bool,
 ) -> None:
-    """Identify license text and return the closest matched SPDX License ID."""
+    """Identify license text and return the closest matched SPDX License ID.
+
+    One tab separates the fields of a line: read them with cut -f or
+    awk -F'\\t'.
+    """
     db_path = ctx.obj["db_path"]
 
     check_database_ready(db_path)  # before input handling: report the database first

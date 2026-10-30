@@ -64,13 +64,14 @@ For `match("Apache2")`, as JSON:
 `licenseid match VALUE` prints this result for one value. `--json` prints
 it whole, as above, as one RFC 8785 object on one line (the bytes
 `licenseid.result.json_line(match(value))` gives). Without it, the result
-is a few `KEY=VALUE` lines, one data point each:
+is a few `KEY=VALUE` lines, one data point each, with one tab between
+the fields (shown here as `<TAB>`):
 
 ```text
-EXPRESSION=<expression> CATEGORY=<category> TRUST=<trust>
-STEP=<kind> FROM=<from> TO=<to>
+EXPRESSION=<expression><TAB>CATEGORY=<category><TAB>TRUST=<trust>
+STEP=<kind><TAB>FROM=<from><TAB>TO=<to>
 REASON=<reason>
-OPERAND=<text> EXPRESSION=<expression> CATEGORY=<category>
+OPERAND=<text><TAB>EXPRESSION=<expression><TAB>CATEGORY=<category>
 ```
 
 The first line is always there; `EXPRESSION=` is empty for `None`. A `STEP`
@@ -79,21 +80,28 @@ each of `expansions` that was applied (`GPL-2.0+` has only its
 `plus_to_or_later`); a step not applied is not printed, so a refusal shows
 its `reason` alone. `REASON` is printed when `reason` is not `None`, and the
 `OPERAND` lines (one per operand, in order) only for licences joined by a
-`;`, whose reason is `operator not stated: ;`. A value is written as one
-word of ASCII by Python's `unicode_escape`, with a space as `\x20`:
-`FROM=Apache\x20License,\x20Version\x202.0`, `FROM=\u201cMIT\u201d`. So
-`awk` and `cut -d' '` split a line into its fields, and
-`codecs.decode(field, "unicode_escape")`, or
-`licenseid.result.read_text_field`, gives the value back; `=` is not
-escaped, as a key ends at the first one.
+`;`, whose reason is `operator not stated: ;`. A value is written as it
+is (`FROM=Apache License, Version 2.0`), except a tab, a carriage return, a
+line feed and a backslash, written `\t`, `\r`, `\n` and `\\`, and a
+character the locale of standard output cannot encode, written `\xHH`,
+`\uHHHH` or `\UHHHHHHHH`. So `cut -f` and `awk -F'\t'` split a line into
+its fields, and `licenseid.result.read_text_field` gives a value back; `=`
+is not escaped, as a key ends at the first one. `--json` is UTF-8 on every
+locale. The lines of `licenseid detect` are written the same way.
 
 The exit status is 0 when `expression` is not `None`, 1 when it is (the
-lines are still printed), and 2 for a usage error, a list that cannot be read
-or a result that cannot be written. `--source` and `--db` choose the list as
-`match(value, source=...)` and `match(value, db)` do; `--db` with `--source
-packaged` exits 2. A file, a licence text, standard input with no argument,
-a value with a line break and one over 2,000 characters are refused with
-exit 2 and `; run 'licenseid detect'`: `detect` answers those.
+lines are still printed, and nothing goes to standard error), and 2 for a
+usage error, a list that cannot be read or a result that cannot be written.
+`--source` and `--db` choose the list as `match(value, source=...)` and
+`match(value, db)` do; `--db` with `--source packaged` exits 2. A licence
+text, standard input with no argument, a value with a line break and one
+over 2,000 characters (counted as `match()` counts them, after the
+surrounding white space is trimmed) are refused with exit 2, nothing on
+standard output and `; run 'licenseid detect'`: `detect` answers those.
+The value is read first: one that resolves is answered even when a file or
+directory of that name exists, and one that resolves to nothing and names
+one is refused the same way (`input: invalid: path: LICENSE`). No argument
+and nothing piped is `input: missing`.
 
 ## Operands and components
 
@@ -225,7 +233,8 @@ was category `expression`, with no expression; that category is gone.
 (the value would be read as a licence only by dropping a mark that is not a
 separator, such as `?`, `!`, `*` or a quote inside the value, a mark at the
 start, two or more at the end, or a lone dash; several are space
-separated), `word dropped: rem 1` (a comment or list marker that the reading would drop, in lower case),
+separated), `word dropped: rem 1` (a comment or list marker that the
+reading would drop, in lower case),
 `lone surrogate`, `control or format character: U+200B`; for a compound,
 `operand not resolved: <operand>` (or that operand's own reason),
 `operand of several words: <leaf>` (a leaf that reads alone, as

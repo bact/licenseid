@@ -43,8 +43,9 @@ and this project adheres to
   as `operands`, with no expression and the reason `operator not stated: ;`
   ([#131])
 - `licenseid match VALUE` prints the resolution of one declared value as
-  `KEY=VALUE` lines or `--json`, with no database needed; exit 0 resolved, 1
-  not, 2 for a file or text (`run 'licenseid detect'`); `licenseid --version`
+  tab-separated `KEY=VALUE` lines or `--json`, with no database needed; exit
+  0 resolved, 1 not, 2 for a text or a path that resolves to nothing
+  (`run 'licenseid detect'`); `licenseid --version`
 
 ### Changed
 
@@ -80,6 +81,10 @@ and this project adheres to
   ([#122])
 - The sdist ships only the source, docs and project metadata: no tests, CI
   files or internal notes, and no links to files it leaves out ([#130])
+- **Breaking:** `licenseid detect` separates fields by a tab and names its
+  answer `EXPRESSION` (`expression` in `--json` and `Detection`); exit 1
+  prints nothing; its warnings say `detect:`. Migration: `cut -f1`, read
+  `["expression"]`
 
 ### Fixed
 

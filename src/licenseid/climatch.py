@@ -150,7 +150,8 @@ def match_command(
     """Match one declared licence value to an SPDX expression.
 
     VALUE is what a package declares, such as a license field or a trove
-    classifier. Exit 0 when it resolves, 1 when it does not.
+    classifier. Exit 0 when it resolves, 1 when it does not. One tab
+    separates the fields of a line: read them with cut -f or awk -F'\\t'.
     """
     declared = declared_value(ctx, value, text)
     resolution = match(declared, given_database(ctx, source), source=source)

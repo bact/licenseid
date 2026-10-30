@@ -102,7 +102,11 @@
 Unix philosophy. Consistent, predictable, parseable.
 
 - Default: line-delimited, one data point per line.
-- Field separator: space or tab (consistent).
+- Field separator: one tab. A value is written as it is, except a tab, CR,
+  LF and backslash (`\t`, `\r`, `\n`, `\\`), and a character the stream's
+  encoding cannot hold (`\xHH`, `\uHHHH`, `\UHHHHHHHH`, by `output.echo`);
+  `result.text_field` writes a value, `result.read_text_field` reads it
+  back. `--json` is UTF-8 bytes on every locale (`output.echo_json`).
 - Key-value: `KEY=VALUE` — uppercase KEY, no spaces around `=`.
 - Standard output carries only a command's result. Progress, warnings and
   errors go to standard error through `licenseid.console` (`status`, `warn`,
@@ -112,14 +116,14 @@ Unix philosophy. Consistent, predictable, parseable.
   - `LEVEL`: `ERROR` (the command fails, non-zero exit) or `WARNING` (a
     fallback lets it continue).
   - `SUBJECT`: the thing affected, a lowercase word or cache file name:
-    `command`, `database`, `input`, `match`, `option`, `output`, `usage`,
+    `command`, `database`, `detect`, `input`, `option`, `output`, `usage`,
     `version`, `latest.json`, `licenses.json`, `popularity.csv`,
     `spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz` (the packaged bundle in
     the wheel), `spdx-data-v<ver>.tar.gz`.
   - `CONDITION`: short lowercase fragment, reused across subjects. The
     full current set (add new ones here): `not found`, `invalid`,
     `missing`, `empty`, `unreadable`, `binary file`,
-    `not UTF-8, read as Latin-1`, `no license found`, `N days old`,
+    `not UTF-8, read as Latin-1`, `N days old`,
     `normalization vN outdated`, `build vN outdated`, `build vN newer`,
     `download failed`,
     `cache read failed`,
@@ -142,7 +146,8 @@ Unix philosophy. Consistent, predictable, parseable.
     exits 1, or 2 for its subclass `InvalidInputError` (a usage error). The
     CLI also exits 2 for `DatabaseNotReadyError` (a database that is missing,
     empty, invalid or unreadable) in `detect`, `match` and the `is-*`
-    commands, where exit 1 already means "no". `update` and `--clear-cache`
+    commands, where exit 1 already means "no". Exit 1 of `detect` and
+    `match` prints nothing on standard error. `update` and `--clear-cache`
     write or delete, so they refuse only an `invalid` database — one
     licenseid did not build — and accept every other condition, which is
     what they exist to fix.
