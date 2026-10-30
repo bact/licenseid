@@ -41,7 +41,7 @@ reads alone, for its reason.
 
 import re
 
-from licenseid.dropguard import end_dashes, trim_end_mark
+from licenseid.dropguard import joined_marks, trim_end_mark
 from licenseid.listlookup import ListLookup
 from licenseid.normalize import RE_DASHES
 from licenseid.resolveleaf import Found, read_leaf, refuse_dropped
@@ -133,7 +133,7 @@ def _by_rule(
     if len({r.expression for _, _, r in readings}) != 1:
         return False
     if marks:  # marks never help a reading; a dash it would drop is said (P121)
-        lost = end_dashes(marks)
+        lost = joined_marks(marks)
         if lost:
             refuse_dropped(found, source, lost, str(readings[0][2].expression))
         return bool(lost)

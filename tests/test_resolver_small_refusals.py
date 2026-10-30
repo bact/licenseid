@@ -16,7 +16,7 @@ from packaged_list import fixture_bundle, masked
 from release_fakes import ship
 
 from licenseid import LicenseDatabase, match
-from licenseid.dropguard import end_dashes
+from licenseid.dropguard import ends_in_mark, ends_in_ref, joined_marks
 from licenseid.quotes import ended_quote
 from licenseid.resolver import match_with
 from licenseid.resolvertypes import Source
@@ -45,7 +45,6 @@ STAYS: dict[str, tuple[str | None, str | None]] = {
     "MIT License;;": (None, "character dropped: U+003B"),
     "Apache-2.0 License+": (None, None),
     "MIT License -": (None, DASH),
-    "MIT+-?": (None, None),  # a gap: a dash and a mark after a plus
     "MIT+": ("MIT+", None),
     '"MIT"': ("MIT", None),
     '"MIT"..': (None, "character dropped: U+0022 U+002E"),
@@ -80,8 +79,8 @@ REF_ENDED: dict[str, str] = {
     "MIT OR LicenseRef-a.;": "MIT OR LicenseRef-a.",
 }
 REF_REFUSED: dict[str, str] = {
-    "LicenseRef-a.;;": "character dropped: U+002E U+003B",
-    "LicenseRef-a.;.": "character dropped: U+002E U+003B",
+    "LicenseRef-a.;;": "character dropped: U+003B",
+    "LicenseRef-a.;.": "character dropped: U+003B U+002E",
     "LicenseRef-a.?": "character dropped: U+003F",
     "LicenseRef-a;;": "character dropped: U+003B",
     "LicenseRef-a;,": "character dropped: U+003B U+002C",
@@ -141,12 +140,52 @@ def test_a_dash_after_a_plus_or_a_prose_form_is_a_dropped_character(
         ("MIT+-\u2013", "-\u2013"),
         ("MIT+- \t", "-"),
         ("-", "-"),
-        ("MIT-.", ""),
-        ("MIT+- x", ""),
+        ("MIT-.", "-"),
+        ("MIT+_", "_"),
+        ("MIT+_-_", "_-"),
+        ("MIT+;", ""),
     ],
 )
-def test_end_dashes(text: str, expected: str) -> None:
-    assert end_dashes(text) == expected
+def test_joined_marks(text: str, expected: str) -> None:
+    assert joined_marks(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("LicenseRef-a.", True),
+        ("MIT WITH AdditionRef-x-", True),
+        ("DocumentRef-d:LicenseRef-a- ", True),
+        ("LicenseRef-a;", False),
+        ("MIT.", False),
+        ("", False),
+        ("MIT WITH LicenseRef", False),
+    ],
+)
+def test_ends_in_ref(text: str, expected: bool) -> None:
+    assert ends_in_ref(text) is expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("MIT;", True),
+        ("MIT.", True),
+        ("(MIT;)", True),
+        ("[MIT,] ", True),
+        ("{MIT:}", True),
+        ("MIT\u2026", True),
+        ("MIT", False),
+        ("(MIT)", False),
+        ("", False),
+        (")", False),
+        ("LicenseRef-a.", False),  # the dot is a character of the ID
+        ("LicenseRef-a.;", True),
+        ("(LicenseRef-a;)", True),
+    ],
+)
+def test_ends_in_mark(text: str, expected: bool) -> None:
+    assert ends_in_mark(text) is expected
 
 
 @pytest.mark.parametrize("value", sorted(REF_ENDED), ids=lambda v: v[:20])
@@ -258,6 +297,13 @@ def test_a_string_subclass_is_a_string(corpus_db: LicenseDatabase) -> None:
         ("MIT.", None),  # no quote mark before the end mark
         ("MIT;", None),
         ('"."', None),
+        ('"(MIT;)".', None),  # a mark behind a bracket, inside
+        ('"[MIT,]";', None),
+        ('"LicenseRef-a.;".', None),  # two marks inside
+        ('"LicenseRef-a.".', '"LicenseRef-a."'),  # the dot belongs to the ID
+        ('"LicenseRef-a.";', '"LicenseRef-a."'),
+        ("MIT'.", "MIT'"),
+        ('GPL-2.0".', 'GPL-2.0"'),
         ('"".', None),  # nothing between the marks
         ("\"MIT'.", None),  # two kinds
     ],
@@ -266,24 +312,43 @@ def test_ended_quote(text: str, expected: str | None) -> None:
     assert ended_quote(text) == expected
 
 
-@pytest.mark.parametrize(
-    "text",
-    [
-        '"MIT" ' + "-" * 100_000,
-        '"' * 100_000 + "MIT" + '"' * 100_000 + ".",
-        '"MIT"' + " " * 100_000 + ".",
-        '"MIT"' + "." * 100_000,
-        "MIT+" + "-" * 100_000,
-        "MIT License" + "-" * 100_000,
-    ],
-    ids=["dashes", "layers", "spaces", "dots", "plus-dashes", "prose-dashes"],
-)
-def test_the_new_rules_are_linear(corpus_db: LicenseDatabase, text: str) -> None:
-    """Ten times the size would take ten times as long; 2 s for 200,000
-    characters leaves room for a slow runner and fails a quadratic path."""
+def _shapes(size: int) -> list[str]:
+    """Inputs that give each new rule a long run to scan."""
+    return [
+        '"MIT" ' + "-" * size,
+        '"' * size + "MIT" + '"' * size + ".",
+        '"MIT"' + " " * size + ".",
+        '"MIT"' + "." * size,
+        "MIT+" + "-" * size,
+        "MIT License" + "-" * size,
+        "LicenseRef-a" + "." * size + ";",
+        "(" * size + "MIT;" + ")" * size,
+    ]
+
+
+_SHAPE_IDS = ["dashes", "layers", "spaces", "dots", "plus", "prose", "ref", "brackets"]
+
+
+def _seconds(db: LicenseDatabase, text: str) -> float:
     started = time.monotonic()
-    match(text, corpus_db)
-    assert time.monotonic() - started < 2
+    match(text, db)
+    return time.monotonic() - started
+
+
+@pytest.mark.parametrize("text", _shapes(10_000), ids=_SHAPE_IDS)
+def test_the_new_rules_are_cheap(corpus_db: LicenseDatabase, text: str) -> None:
+    """10,000 characters: a quadratic path takes seconds; under coverage a
+    linear one takes well under one (CI's Python 3.10 job runs under it)."""
+    assert _seconds(corpus_db, text) < 2
+
+
+@pytest.mark.benchmark
+@pytest.mark.parametrize("index", range(len(_SHAPE_IDS)), ids=_SHAPE_IDS)
+def test_the_new_rules_are_linear(corpus_db: LicenseDatabase, index: int) -> None:
+    """Four times the size takes about four times as long (not sixteen)."""
+    small = _seconds(corpus_db, _shapes(50_000)[index])
+    large = _seconds(corpus_db, _shapes(200_000)[index])
+    assert large < max(small, 0.05) * 8
 
 
 _MOVED = [
@@ -308,52 +373,70 @@ def test_packaged_and_database_answers_agree(
     assert not differences, differences
 
 
-#: Review fixes (P124 to P127), characterisation first: today's answers
-#: ``(expression, reason)``. ``BUG`` marks an answer the fix changes.
-REVIEW_TODAY: dict[str, tuple[str | None, str | None]] = {
-    # BUG: a mark inside the quote marks, behind a bracket, is not seen
-    '"(MIT;)".': ("MIT", None),
-    '"(MIT.)".': ("MIT", None),
-    '"[MIT,]";': ("MIT", None),
-    # BUG: two marks, the first a dot of the ID, are not seen
-    '"LicenseRef-a.;".': ("LicenseRef-a.", None),
-    '"LicenseRef-a.,",': ("LicenseRef-a.", None),
-    '"LicenseRef-a.;";': ("LicenseRef-a.", None),
-    # BUG: the dot of the ID is taken for an end mark
-    '"LicenseRef-a.".': (None, None),
-    '"LicenseRef-a.";': (None, None),
-    # BUG: an ID character before the end mark makes it two marks
-    "LicenseRef-a-;": (None, "character dropped: U+003B"),
-    "LicenseRef-a-:": (None, "character dropped: U+003A"),
-    "LicenseRef-a-,": (None, None),
-    "MIT WITH AdditionRef-x.;": (None, "character dropped: U+002E U+003B"),
-    # BUG: a dash (or underscore) joined to the end, silent
-    "MIT+-?": (None, None),
-    "MIT+-!": (None, None),
-    "MIT+ -;": (None, None),
-    "MIT+_": (None, None),
-    "MIT License-.": (None, None),
-    "MIT License_": (None, None),
-    "LicenseRef-a+-": (None, None),
-    # not a bug: unbalanced marks plus an end mark read (maintainer, P123)
+#: Review fixes (P124 to P127): ``(expression, reason)``.
+REVIEW_NOW: dict[str, tuple[str | None, str | None]] = {
+    # a mark inside the quote marks, behind a bracket, is seen: two marks
+    '"(MIT;)".': (None, None),
+    '"(MIT.)".': (None, None),
+    '"[MIT,]";': (None, None),
+    # two marks, the first a dot of the ID
+    '"LicenseRef-a.;".': (None, None),
+    '"LicenseRef-a.,",': (None, None),
+    '"LicenseRef-a.;";': (None, None),
+    # the dot of the ID is a character of it, not an end mark
+    '"LicenseRef-a.".': ("LicenseRef-a.", None),
+    '"LicenseRef-a.";': ("LicenseRef-a.", None),
+    # an ID character before the end mark is no mark
+    "LicenseRef-a-;": ("LicenseRef-a-", None),
+    "LicenseRef-a-:": ("LicenseRef-a-", None),
+    "LicenseRef-a-,": ("LicenseRef-a-", None),
+    "LicenseRef-a- ;": ("LicenseRef-a-", None),
+    "LicenseRef-a-;;": (None, "character dropped: U+003B"),
+    "LicenseRef-a-?": (None, "character dropped: U+003F"),
+    "MIT WITH AdditionRef-x.;": ("MIT WITH AdditionRef-x.", None),
+    "MIT WITH AdditionRef-x-,": ("MIT WITH AdditionRef-x-", None),
+    "MIT WITH AdditionRef-x;;": (None, "character dropped: U+003B"),
+    # a dash or underscore joined to the end, then another mark or none
+    "MIT+-?": (None, "character dropped: U+002D U+003F"),
+    "MIT+-!": (None, "character dropped: U+002D U+0021"),
+    "MIT+ -;": (None, "character dropped: U+002D U+003B"),
+    "MIT+?-": (None, "character dropped: U+003F U+002D"),
+    "MIT+_": (None, "character dropped: U+005F"),
+    "MIT License-.": (None, DASH),
+    "MIT License_": (None, "character dropped: U+005F"),
+    # unbalanced marks plus an end mark read (maintainer, P123)
     "MIT'.": ("MIT", None),
     "Apache-2.0'.": ("Apache-2.0", None),
     'GPL-2.0".': ("GPL-2.0", None),
     'MIT+".': ("MIT+", None),
     'MIT".': ("MIT", None),
-    # gaps that stay: they need a path of their own (0.8)
+    # still silent, each needs a path of its own (0.8 follow-ups)
+    "LicenseRef-a+-": (None, None),  # malformed: no expression to say
     "(MIT)-": (None, None),
     "(MIT+)-": (None, None),
     "License :: OSI Approved :: MIT License-": (None, None),
     "The MIT License (MIT)-": (None, None),
     "MIT License (MIT)-": (None, None),
     "MIT+ WITH X-": (None, None),  # X names no exception
+    # the guard sees the quote marks only: a single dot passes it
     '"MIT.".': (None, "character dropped: U+0022"),
     '"MIT OR ISC.".': (None, "character dropped: U+0022"),
+    # marks that are no dash help no prose form, and it is no operand either
+    "Apache License, Version 2.0+": (None, None),
+    "Apache License, Version 2.0+ OR MIT": (
+        None,
+        "operand not resolved: Apache License, Version 2.0+",
+    ),
+    # a loose ID reads a dash or underscore as a separator: nothing refused
+    "GPL-2.0-only-": ("GPL-2.0-only", None),
+    "Apache-2.0--": ("Apache-2.0", None),
+    "BSD-2-Clause-": ("BSD-2-Clause", None),
+    "BSD 3-Clause-": ("BSD-3-Clause", None),
+    "MIT_": ("MIT", None),
 }
 
 
-@pytest.mark.parametrize("value", sorted(REVIEW_TODAY), ids=lambda v: v[:24])
-def test_review_characterisation(corpus_db: LicenseDatabase, value: str) -> None:
+@pytest.mark.parametrize("value", sorted(REVIEW_NOW), ids=lambda v: v[:24])
+def test_review_answers(corpus_db: LicenseDatabase, value: str) -> None:
     got = match(value, corpus_db)
-    assert (got["expression"], got["reason"]) == REVIEW_TODAY[value]
+    assert (got["expression"], got["reason"]) == REVIEW_NOW[value]

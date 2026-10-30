@@ -86,12 +86,14 @@ and this project adheres to
   ([#117], [#120])
 - `match()` raises `TypeError` for a value that is no `str` (`None`, `bytes`,
   a number); it raised `AttributeError`
-- `match()` gives a reason for `MIT+-`, `MIT+--` and `MIT License--`
-  (`character dropped: U+002D`); they were refused with none
-- `match()` reads one end mark after a `LicenseRef-*` that ends in a dot
-  (`LicenseRef-a.;`) as an ending, as after any ID; it was refused
+- `match()` gives a reason (`character dropped: U+002D`) for a dash or
+  underscore joined to the end: `MIT+-`, `MIT+-?`, `MIT License--`; they were
+  refused with none
+- `match()` reads one end mark after a `LicenseRef-*` or `AdditionRef-*` that
+  ends in a dot or dash (`LicenseRef-a.;`) as an ending, as after any ID
 - `match()` reads one end mark after closing quote marks (`"MIT".`, `"MIT",`,
-  `'MIT';`) as it reads `MIT,"`; `"MIT"..` is still refused, with a reason
+  `'MIT';`), also with a mark on one end only (`MIT".`, `Apache-2.0'.`),
+  as it reads `MIT,"`; `"MIT"..` and `"MIT.".` are still refused
 - A build from the sdist needs Pitloom 0.21.2 or later: an older one accepts
   licenseid 0.7 and its build hook then fails to import
   ([#135])
