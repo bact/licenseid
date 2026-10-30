@@ -98,7 +98,7 @@ def test_every_line_ends_in_a_line_feed_on_windows(
     assert raw.getvalue() == b'A=1\tB=2\n{"a":1}\n\nC=3\n'
 
 
-@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", "ascii"])
+@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", "ascii", "cp932"])
 def test_every_diagnostic_line_ends_in_a_line_feed_on_windows(
     monkeypatch: pytest.MonkeyPatch, encoding: str
 ) -> None:
@@ -115,6 +115,7 @@ def test_every_diagnostic_line_ends_in_a_line_feed_on_windows(
         "utf-8": "caf\u00e9 \U0001f600",
         "cp1252": "caf\u00e9 \\U0001f600",
         "ascii": "caf\\xe9 \\U0001f600",
+        "cp932": "caf\\xe9 \\U0001f600",
     }[encoding]
     expected = (
         f"Fetching...\nWARNING: input: not UTF-8, read as Latin-1: {text}\ndone\nhelp\n"
@@ -260,6 +261,28 @@ def test_the_entry_point_on_a_narrow_locale(tmp_path: Path, encoding: str) -> No
     assert line_fields(text.splitlines()[-1])["OPERAND"] == OPERAND
     assert lines[True].decode("utf-8").rstrip("\n").endswith('"trust":"none"}')
     assert OPERAND.encode("utf-8") in lines[True]
+
+
+@pytest.mark.parametrize("encoding", ["ascii", "cp1252", "cp932"])
+def test_a_diagnostic_with_a_character_the_locale_lacks(
+    tmp_path: Path, encoding: str
+) -> None:
+    """The real entry point: an ERROR line that echoes the value is written
+    with an escape, never raises, and does not turn exit 2 into 120."""
+    env = {**os.environ, "PYTHONIOENCODING": encoding, "HOME": str(tmp_path)}
+    proc = subprocess.run(
+        [sys.executable, "-m", "licenseid.cli", "match", "caf\u00e9 \u65e5\nMIT"],
+        capture_output=True,
+        env=env,
+        check=False,
+        timeout=60,
+    )
+    assert (proc.returncode, proc.stdout) == (2, b""), proc.stderr
+    line = proc.stderr.decode(encoding)
+    assert line.startswith("ERROR: input: invalid: line break: caf")
+    assert "caf\u00e9 \u65e5 MIT" in read_text_field(line)  # escapes read back
+    assert line.isascii() or encoding != "ascii"
+    assert line.endswith("\n") and "\r" not in line
 
 
 def test_the_text_lines_are_those_of_the_resolution(

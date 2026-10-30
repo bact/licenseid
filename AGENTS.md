@@ -162,7 +162,11 @@ Unix philosophy. Consistent, predictable, parseable.
     `N rows with missing or non-numeric num_pushers`, `update failed`,
     `delete failed`, `write failed`, `compact failed`,
     `older than the database`.
-  - `DETAIL`: the variable part (exception text, value, path).
+  - `DETAIL`: the variable part (exception text, value, path), on one
+    line: a path or file name through `errors.shown` (a control character
+    escaped, `;` as `,`), a value through `errors.one_line` (folded, cut to
+    60), an exception through `errors.typed`. Not the result escaping: a
+    backslash stays, so a Windows path reads as typed.
   - `ACTION`: what happens next, after a semicolon: the fallback taken
     (`using stale cache`, `using stale <file>`, `downloading`,
     `downloading <file>`, `using cached <file>`, `using packaged data v<ver>`,

@@ -426,10 +426,12 @@ def _download_popularity_csv() -> tuple[str, str]:
 
 
 def _write_popularity_cache(path: Path, csv_content: str) -> None:
-    """Cache the CSV atomically; a write failure only costs a re-download."""
+    """Cache the CSV atomically; a write failure only costs a re-download.
+    Written as bytes, so Windows' text mode does not turn a served CRLF
+    into CR CR LF: the cache holds what was served."""
     try:
         with _atomic_path(path) as tmp_path:
-            tmp_path.write_text(csv_content, encoding="utf-8")
+            tmp_path.write_bytes(csv_content.encode("utf-8"))
     except OSError as e:
         warn(f"{CACHE_POPULARITY_CSV}: cache write failed: {e}")
 

@@ -102,6 +102,24 @@ def test_update_from_remote_end_to_end_then_offline(
     fake.assert_not_called()
 
 
+def test_the_popularity_cache_holds_the_bytes_served(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A CSV served with CRLF is cached byte for byte, on Windows too (no
+    text-mode translation to CR CR LF)."""
+    served = "spdx_license,num_pushers\r\nMIT,1000\r\n"
+    _serve(monkeypatch, release_tarball(), popularity_csv=served)
+    # Text mode translates only on Windows: refuse it here, on every OS.
+    text_mode = mock.create_autospec(Path.write_text, side_effect=AssertionError)
+    monkeypatch.setattr(Path, "write_text", text_mode)
+    db_path = tmp_path / "licenses.db"
+    result = CliRunner().invoke(cli, ["--db", str(db_path), "update"])
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "popularity.csv").read_bytes() == served.encode()
+    details = LicenseDatabase(str(db_path)).get_license_details("MIT")
+    assert details is not None and details["pop_score"] == 1000
+
+
 @pytest.mark.parametrize("template", ["file:{p}", "file://{p}", "file://localhost{p}"])
 def test_update_of_a_file_uri_caches_beside_the_database(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, template: str

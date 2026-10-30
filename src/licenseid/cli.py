@@ -46,6 +46,7 @@ from licenseid.errors import (
     LicenseIdError,
     invalid_id_error,
     one_line,
+    shown,
 )
 from licenseid.exprtokens import is_license_ref
 from licenseid.identifiers import is_simple_expression
@@ -345,12 +346,12 @@ def read_input(ctx: click.Context, path: str | None) -> str:
             piped_nothing = not data
             text = decode_input(data, source)
     except OSError as e:
-        exit_bad_input(ctx, f"unreadable: {source}: {e.strerror or e}")
+        exit_bad_input(ctx, f"unreadable: {shown(source)}: {e.strerror or e}")
     except InvalidInputError as e:  # binary data; already "input: ..."
         exit_usage_error(ctx, str(e))
     # No bytes at all on stdin means nothing was piped: "input: missing".
     if not piped_nothing and not text.strip():
-        exit_bad_input(ctx, f"empty: {source}")
+        exit_bad_input(ctx, f"empty: {shown(source)}")
     return text
 
 
