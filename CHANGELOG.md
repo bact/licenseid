@@ -49,7 +49,7 @@ and this project adheres to
   `AggregatedLicenseMatcher.match()` is `LicenseDetector.detect()`, and
   `resolve()` is `match()`; `licenseid.detect()` is new. Migration:
   `licenseid detect`; `from licenseid import LicenseDetector, Detection,
-  DetectRequest, match`; `resolver.match_with`
+  DetectRequest, match`; `resolver.match_with` ([#134])
 - `match()` keeps its choice of list while the default database file is
   unchanged: about 10 times faster per value, with no connection to choose
   ([#132])
@@ -96,6 +96,7 @@ and this project adheres to
 [#130]: https://github.com/bact/licenseid/pull/130
 [#131]: https://github.com/bact/licenseid/pull/131
 [#132]: https://github.com/bact/licenseid/pull/132
+[#134]: https://github.com/bact/licenseid/pull/134
 
 ## [0.6.0] - 2026-10-27
 
