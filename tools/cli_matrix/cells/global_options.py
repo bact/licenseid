@@ -19,7 +19,7 @@ GLOBAL: list[tuple[str, str, int | None]] = [
     ("no args", "$L", 2),
     ("--help", "$L --help", 0),
     ("-h", "$L -h", 2),
-    ("--version (not an option)", "$L --version", 2),
+    ("--version", "$L --version", 0),
     ("unknown subcommand", "$L frobnicate", 2),
     ("unknown global flag", "$L --nope", 2),
     ("subcommand prefix 'mat'", "$L mat MIT", 2),

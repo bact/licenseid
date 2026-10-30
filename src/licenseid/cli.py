@@ -17,6 +17,7 @@ from typing import Any, NoReturn, get_args
 
 import click
 
+from licenseid import __version__
 from licenseid.clicommon import (
     LicenseIdCommand,
     exit_bad_input,
@@ -177,7 +178,23 @@ class _WithoutDatabase(dict[str, Any]):
         raise self.cause
 
 
+def show_version(ctx: click.Context, _param: click.Parameter, value: bool) -> None:
+    """``--version``: ``licenseid <version>`` on standard output, before the
+    group's own options are read, so no database path is looked up."""
+    if value and not ctx.resilient_parsing:
+        echo(f"licenseid {__version__}")
+        ctx.exit()
+
+
 @click.group(cls=DatabaseErrorGroup, invoke_without_command=True)
+@click.option(
+    "--version",
+    is_flag=True,
+    expose_value=False,
+    is_eager=True,
+    callback=show_version,
+    help="Print the version and exit.",
+)
 @click.option("--db", help="Path to the license database.")
 @click.option("--clear-cache", is_flag=True, help="Clear local cache and exit.")
 @click.pass_context
