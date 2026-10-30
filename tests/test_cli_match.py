@@ -219,6 +219,29 @@ def test_a_usage_error(args: list[str], stderr: str) -> None:
     assert result.stderr.count("\n") == 1
 
 
+def test_an_empty_text_option_is_refused_too() -> None:
+    """``--text ""`` is a text option given, not one left out."""
+    result = run("--text", "", "MIT")
+    assert (result.exit_code, result.stdout) == (2, "")
+    assert result.stderr == f"ERROR: option: invalid: --text: a licence text{DETECT}\n"
+
+
+def test_empty_piped_input_with_no_value() -> None:
+    # BUG: nothing was piped (</dev/null, cron), so nothing is for detect:
+    # the value is missing.
+    result = run(stdin="")
+    assert (result.exit_code, result.stderr) == (
+        2,
+        f"ERROR: input: invalid: standard input{DETECT}\n",
+    )
+
+
+def test_the_cap_counts_the_value_as_given() -> None:
+    """Pinned: white space around the value counts towards the cap, which
+    match() applies after trimming it."""
+    assert run(" " + "M" * 2000).exit_code == 2
+
+
 def test_the_longest_value_is_read() -> None:
     """2000 characters is the resolver's cap; the CLI refuses only longer."""
     result = run("M" * 2000)
