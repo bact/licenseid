@@ -144,15 +144,16 @@ def read_leaf(db: ListLookup, text: str, found: Found) -> bool:
     if not read:
         return _after_core(db, text, found)
     if found.expression is None and found.reason is not None:
-        _read_without_end(db, text, found, ";:")
+        _read_without_end(db, text, trim_end_mark(text, ";:"), found)
     return read
 
 
-def _read_without_end(db: ListLookup, text: str, found: Found, marks: str) -> bool:
-    """Read *text* again without its one end mark of *marks*, if that names a
-    licence: *found* is then the reading, after an ending ``separator``
-    step."""
-    trimmed = trim_end_mark(text, marks)
+def _read_without_end(
+    db: ListLookup, text: str, trimmed: str | None, found: Found
+) -> bool:
+    """Read *text* again as *trimmed*, which is *text* without its one end
+    mark (None for no such mark), if that names a licence: *found* is then
+    the reading, after an ending ``separator`` step."""
     again = Found()
     if trimmed is None or not _read(db, trimmed, again) or not again.expression:
         return False
@@ -171,9 +172,9 @@ def _after_core(db: ListLookup, text: str, found: Found) -> bool:
     (``GPL-2.0+?``, ``MIT+;;``) refuse the value, as they do after an ID.
     False when the value is not of that shape or its core names nothing."""
     body = text.rstrip()
-    ended = trim_end_mark(body)
+    ended = trim_end_mark(body) or _ref_without_end(body)
     if ended is not None and _is_core(ended):
-        return _read_without_end(db, text, found, ".,;:")
+        return _read_without_end(db, text, ended, found)
     lost = (set(dropped(body)) | set(end_dashes(body))) - set("+()[]{}")
     core = body
     while core and core[-1] in lost:
@@ -186,6 +187,18 @@ def _after_core(db: ListLookup, text: str, found: Found) -> bool:
     marks = "".join(dict.fromkeys(c for c in body[len(core) :] if c in lost))
     refuse_dropped(found, text, marks, again.expression)
     return True
+
+
+def _ref_without_end(body: str) -> str | None:
+    """*body* without one ``,``, ``;`` or ``:`` after a ``LicenseRef-*`` that
+    ends in a dot (``LicenseRef-a.;``): the dot is a character of the ID
+    (P80), so :func:`licenseid.dropguard.trim_end_mark` takes it for a first
+    mark. None for any other value (``LicenseRef-a;;`` has no ID before its
+    last mark)."""
+    rest = body[:-1].rstrip()
+    if body[-1:] in (",", ";", ":") and rest.endswith(".") and is_license_ref(rest):
+        return rest
+    return None
 
 
 def _is_core(core: str) -> bool:

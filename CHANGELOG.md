@@ -88,6 +88,8 @@ and this project adheres to
   a number); it raised `AttributeError`
 - `match()` gives a reason for `MIT+-`, `MIT+--` and `MIT License--`
   (`character dropped: U+002D`); they were refused with none
+- `match()` reads one end mark after a `LicenseRef-*` that ends in a dot
+  (`LicenseRef-a.;`) as an ending, as after any ID; it was refused
 - A build from the sdist needs Pitloom 0.21.2 or later: an older one accepts
   licenseid 0.7 and its build hook then fails to import
   ([#135])

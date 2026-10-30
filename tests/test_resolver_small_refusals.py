@@ -63,9 +63,23 @@ DASHED: dict[str, tuple[str | None, str | None]] = {
     "GPL-2.0+ -": (None, DASH),
 }
 
-#: MOVES (item 3): refused with the reason of two marks.
-REF_MARK: dict[str, tuple[str | None, str | None]] = {
-    "LicenseRef-a.;": (None, "character dropped: U+002E U+003B"),
+#: Item 3 (P122): one end mark after a ``LicenseRef-*`` that ends in a dot is an
+#: ending, as after any ID; the dot is a character of the ID (P80).
+REF_ENDED: dict[str, str] = {
+    "LicenseRef-a.;": "LicenseRef-a.",
+    "LicenseRef-a.,": "LicenseRef-a.",
+    "LicenseRef-a.:": "LicenseRef-a.",
+    "LicenseRef-a. ;": "LicenseRef-a.",
+    "LicenseRef-a..;": "LicenseRef-a..",
+    "DocumentRef-x:LicenseRef-a.;": "DocumentRef-x:LicenseRef-a.",
+    "MIT OR LicenseRef-a.;": "MIT OR LicenseRef-a.",
+}
+REF_REFUSED: dict[str, str] = {
+    "LicenseRef-a.;;": "character dropped: U+002E U+003B",
+    "LicenseRef-a.;.": "character dropped: U+002E U+003B",
+    "LicenseRef-a.?": "character dropped: U+003F",
+    "LicenseRef-a;;": "character dropped: U+003B",
+    "LicenseRef-a;,": "character dropped: U+003B U+002C",
 }
 
 #: MOVES (item 4): quote marks, then one end mark.
@@ -105,6 +119,26 @@ def test_end_dashes(text: str, expected: str) -> None:
     assert end_dashes(text) == expected
 
 
+@pytest.mark.parametrize("value", sorted(REF_ENDED), ids=lambda v: v[:20])
+def test_one_end_mark_after_a_dotted_licenseref_is_an_ending(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    got = match(value, corpus_db)
+    assert (got["expression"], got["reason"]) == (REF_ENDED[value], None)
+    assert got["category"] == "separator"
+    kinds = [(s["kind"], s["detail"]) for s in got["steps"]]
+    assert ("separator", "end mark") in kinds
+
+
+@pytest.mark.parametrize("value", sorted(REF_REFUSED), ids=lambda v: v[:20])
+def test_two_marks_after_a_licenseref_are_refused(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    got = match(value, corpus_db)
+    assert (got["expression"], got["reason"]) == (None, REF_REFUSED[value])
+    assert [s["kind"] for s in got["steps"]] == ["drop"]
+
+
 @pytest.mark.parametrize("value", sorted(STAYS), ids=lambda v: v[:20])
 def test_an_answer_that_does_not_move(corpus_db: LicenseDatabase, value: str) -> None:
     got = match(value, corpus_db)
@@ -113,11 +147,11 @@ def test_an_answer_that_does_not_move(corpus_db: LicenseDatabase, value: str) ->
 
 @pytest.mark.parametrize(
     "value",
-    sorted({**REF_MARK, **QUOTED_END}),
+    sorted(QUOTED_END),
     ids=lambda v: v[:20],
 )
 def test_an_answer_that_moves(corpus_db: LicenseDatabase, value: str) -> None:
-    today = {**REF_MARK, **QUOTED_END}
+    today = QUOTED_END
     got = match(value, corpus_db)
     assert (got["expression"], got["reason"]) == today[value]
 
