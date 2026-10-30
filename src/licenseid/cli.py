@@ -17,6 +17,13 @@ from typing import Any, NoReturn, get_args
 
 import click
 
+from licenseid.clicommon import (
+    LicenseIdCommand,
+    exit_bad_input,
+    exit_usage_error,
+    reject_blank_options,
+    reject_unencodable,
+)
 from licenseid.console import end_line, error, warn, write
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
@@ -49,11 +56,9 @@ from licenseid.textinput import (
     looks_like_path,
     normalize_newlines,
     read_text_file,
-    reject_binary,
-    reject_lone_surrogate,
 )
 from licenseid.types import LicenseDetails, UpdateSource
-from licenseid.usage import UsageLineCommand, UsageLineError, UsageLineGroup
+from licenseid.usage import UsageLineError, UsageLineGroup
 
 
 def show_diff(norm_input: str, best_window: str) -> None:
@@ -123,11 +128,6 @@ def clear_local_cache(ctx: click.Context, db_path: str) -> None:
     except OSError as exc:
         failed = exc.filename or db_path
         exit_usage_error(ctx, str(delete_failed_error(str(failed), exc)))
-
-
-class LicenseIdCommand(UsageLineCommand, EchoHelpCommand):
-    """A command whose help and usage errors follow the stream and message
-    rules (``output.EchoHelpCommand``, ``usage.UsageLineCommand``)."""
 
 
 class DatabaseErrorGroup(UsageLineGroup, EchoHelpCommand):
@@ -290,17 +290,6 @@ def _decode_escape(escape: re.Match[str]) -> str:
         return escape.group(0)
 
 
-def exit_usage_error(ctx: click.Context, message: str) -> NoReturn:
-    """Print *message* as an ERROR line and exit with a usage error (2)."""
-    error(message)
-    ctx.exit(2)
-
-
-def exit_bad_input(ctx: click.Context, condition: str) -> NoReturn:
-    """Exit with a usage error (2) for unusable input."""
-    exit_usage_error(ctx, f"input: {condition}")
-
-
 def exit_no_input(ctx: click.Context) -> NoReturn:
     """Exit with a usage error (2) because no input was given."""
     exit_bad_input(ctx, "missing; pass a file, an ID, --text, --id or stdin")
@@ -341,28 +330,6 @@ def reject_compound_id(ctx: click.Context, id_val: str | None) -> None:
     """
     if id_val and not is_simple_expression(id_val):
         exit_usage_error(ctx, str(invalid_id_error("--id", id_val)))
-
-
-def reject_blank_options(ctx: click.Context, values: dict[str, str | None]) -> None:
-    """Exit with a usage error (2) if an input given on the command line has
-    no text, rather than skip it for the next input or match it as text."""
-    for name, value in values.items():
-        if value is not None and not value.strip():
-            exit_bad_input(ctx, f"empty: {name}")
-
-
-def reject_unencodable(
-    ctx: click.Context, content: str, binary_source: str | None = None
-) -> None:
-    """Exit with a usage error (2) if text from the command line has a lone
-    surrogate (an argument of invalid UTF-8 decodes to one) or, given
-    *binary_source*, a NUL."""
-    try:
-        if binary_source is not None:
-            reject_binary(content, binary_source)
-        reject_lone_surrogate(content)
-    except InvalidInputError as e:
-        exit_usage_error(ctx, str(e))
 
 
 def read_text_option(ctx: click.Context, text: str) -> str:
