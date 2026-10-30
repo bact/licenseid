@@ -7,7 +7,6 @@
 Shared test configuration and fixtures for licenseid.
 """
 
-import builtins
 import json
 import re
 import sqlite3
@@ -61,15 +60,17 @@ def check_diagnostic_grammar(
     a broad ``except Exception`` in the code under test cannot hide them."""
     violations: list[str] = []
 
-    def checked_print(*args: Any, **kwargs: Any) -> None:
-        text = " ".join(str(arg) for arg in args)
+    # pylint: disable-next=protected-access
+    real_write = console._write
+
+    def checked_write(text: str, end: str = "\n") -> None:
         if text.startswith(("ERROR:", "WARNING:")) and not DIAGNOSTIC_RE.fullmatch(
             text
         ):
             violations.append(text)
-        builtins.print(*args, **kwargs)
+        real_write(text, end)
 
-    monkeypatch.setattr(console, "print", checked_print, raising=False)
+    monkeypatch.setattr(console, "_write", checked_write)
     # A test that ends mid progress line must not shift the next test's output.
     # pylint: disable-next=protected-access
     monkeypatch.setitem(console._state, "line_open", False)

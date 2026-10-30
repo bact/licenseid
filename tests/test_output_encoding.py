@@ -8,7 +8,9 @@
 A text line is written in the stream's encoding, a character it cannot
 encode as ``\\xHH``, ``\\uHHHH`` or ``\\UHHHHHHHH`` (``output.echo``), which
 ``result.read_text_field`` reads back; a ``--json`` line is UTF-8 bytes on
-every locale (``output.echo_json``, RFC 8785).
+every locale (``output.echo_json``, RFC 8785). Every line ends in ``\\n``,
+on Windows too: the streams here translate a line feed to ``\\r\\n`` as
+Windows' text streams do, on every OS (P123).
 """
 # pylint: disable=missing-function-docstring
 
@@ -25,8 +27,9 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
-from licenseid import match, output
+from licenseid import console, match, output
 from licenseid.cli import cli
+from licenseid.cli import main as cli_main
 from licenseid.result import json_line, read_text_field, resolution_lines
 
 # A list whose third part names nothing: its text comes back on a line.
@@ -37,8 +40,10 @@ OPERAND = "caf\u00e9 \U0001f600 \u201cx\u201d"
 def _stream(
     encoding: str, errors: str = "strict"
 ) -> tuple[io.BytesIO, io.TextIOWrapper]:
+    """A text stream over bytes that writes a line feed as ``\\r\\n``, as
+    a Windows console, pipe or file does."""
     raw = io.BytesIO()
-    return raw, io.TextIOWrapper(raw, encoding=encoding, errors=errors, newline="\n")
+    return raw, io.TextIOWrapper(raw, encoding=encoding, errors=errors, newline="\r\n")
 
 
 @pytest.mark.parametrize(
@@ -78,6 +83,63 @@ def test_a_json_line_is_utf8_on_every_locale(
     assert raw.getvalue().startswith(b"first\n")
 
 
+@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", "ascii", "cp932"])
+def test_every_line_ends_in_a_line_feed_on_windows(
+    monkeypatch: pytest.MonkeyPatch, encoding: str
+) -> None:
+    """Text and JSON lines alike: one ending in one run (JSON Lines, and
+    ``awk`` in Git Bash keeps a ``\\r`` in the last field)."""
+    raw, stream = _stream(encoding)
+    monkeypatch.setattr(sys, "stdout", stream)
+    output.echo("A=1\tB=2")
+    output.echo_json('{"a":1}')
+    output.echo("")
+    output.echo("C=3")
+    assert raw.getvalue() == b'A=1\tB=2\n{"a":1}\n\nC=3\n'
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", "ascii"])
+def test_every_diagnostic_line_ends_in_a_line_feed_on_windows(
+    monkeypatch: pytest.MonkeyPatch, encoding: str
+) -> None:
+    """Standard error follows the same rule, and a character its encoding
+    cannot hold is escaped, never raised."""
+    raw, stream = _stream(encoding)
+    monkeypatch.setattr(sys, "stderr", stream)
+    console.status("Fetching", end="")
+    console.status("...", end="")
+    console.warn("input: not UTF-8, read as Latin-1: caf\u00e9 \U0001f600")
+    console.status("done")
+    console.write("help\n")
+    text = {
+        "utf-8": "caf\u00e9 \U0001f600",
+        "cp1252": "caf\u00e9 \\U0001f600",
+        "ascii": "caf\\xe9 \\U0001f600",
+    }[encoding]
+    expected = (
+        f"Fetching...\nWARNING: input: not UTF-8, read as Latin-1: {text}\ndone\nhelp\n"
+    )
+    assert raw.getvalue() == expected.encode(encoding)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [["--version"], ["--help"], ["is-osi", "--help"], ["match", "--help"]],
+    ids=["version", "help", "command-help", "match-help"],
+)
+def test_the_version_and_help_end_lines_in_a_line_feed_on_windows(
+    monkeypatch: pytest.MonkeyPatch, args: list[str]
+) -> None:
+    raw, stream = _stream("utf-8")
+    monkeypatch.setattr(sys, "stdout", stream)
+    with pytest.raises(SystemExit) as stopped:
+        monkeypatch.setattr(sys, "argv", ["licenseid", *args])
+        cli_main()
+    assert stopped.value.code == 0
+    assert b"\r" not in raw.getvalue()
+    assert raw.getvalue().endswith(b"\n")
+
+
 def test_a_json_line_on_a_text_only_stream_is_text(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -110,6 +172,25 @@ def test_an_encoding_python_does_not_know_is_left_to_the_stream(
     monkeypatch.setattr(sys, "stdout", stream)
     output.echo("caf\u00e9")
     assert stream.getvalue() == "caf\u00e9\n"
+
+
+def test_an_unknown_encoding_over_bytes_is_left_to_the_stream(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stream over bytes that names a codec Python does not know gets the
+    text, which it encodes its own way."""
+
+    class Odd(io.TextIOWrapper):
+        """Names an encoding Python does not know; writes UTF-8."""
+
+        @property
+        def encoding(self) -> str:  # type: ignore[override]
+            return "no-such-codec"
+
+    raw = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", Odd(raw, encoding="utf-8", newline="\n"))
+    output.echo("caf\u00e9")
+    assert raw.getvalue() == "caf\u00e9\n".encode()
 
 
 # --- the commands, through click's runner on a latin-1 stream ---

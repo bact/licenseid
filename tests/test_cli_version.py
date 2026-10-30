@@ -9,11 +9,11 @@ database is looked up."""
 
 from unittest import mock
 
-import click
 import pytest
 from click.testing import CliRunner
 
 import licenseid
+from licenseid import console, output
 from licenseid.cli import cli
 from licenseid.cli import main as cli_main
 
@@ -44,9 +44,9 @@ def test_version_that_cannot_be_written_is_exit_2(
 ) -> None:
     """Through ``cli.main()``: the option runs before any command, as
     ``--help`` does."""
-    failing = mock.create_autospec(click.echo, side_effect=OSError(28, "No space"))
+    failing = mock.create_autospec(console.emit, side_effect=OSError(28, "No space"))
     with (
-        mock.patch.object(click, "echo", failing),
+        mock.patch.object(output, "emit", failing),
         mock.patch("sys.argv", ["licenseid", "--version"]),
         pytest.raises(SystemExit) as exited,
     ):

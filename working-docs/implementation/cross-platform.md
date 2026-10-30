@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-06
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-30
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -55,10 +55,13 @@ were fine. Found in Pitloom's Windows CI.
   the handle is closed; the extraction directory is removed with
   `ignore_cleanup_errors=True`, so antivirus holding an extracted file cannot
   fail a finished update. A refused tarball write is `cache write failed`.
-- **Output.** `cli.main` writes characters stdout cannot encode as
-  backslash escapes (a cp1252 pipe), unless the user chose another handler,
-  and `echo` turns a leftover `UnicodeEncodeError` into `output: write
-  failed` (exit 2).
+- **Output.** (0.7.0, PR #138, which replaced the stream-wide handler of
+  0.6.0.) `console.emit` writes both streams as bytes under the text
+  stream: a character the encoding cannot hold (a cp1252 or cp932 pipe) is
+  a backslash escape, `--json` is UTF-8, and every line ends in `\n`, as
+  Windows' text layer would have written `\r\n` for a text line and `\n`
+  for a JSON one in the same run. A failed write is `output: write failed`
+  (exit 2).
 
 ## Tests on Windows
 

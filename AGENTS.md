@@ -134,6 +134,13 @@ Unix philosophy. Consistent, predictable, parseable.
 - Standard output carries only a command's result. Progress, warnings and
   errors go to standard error through `licenseid.console` (`status`, `warn`,
   `error`); never `print` or `click.echo` them directly.
+- Every line licenseid writes ends in `\n` on every platform, results and
+  diagnostics alike: `console.emit` is the one writer of both streams. It
+  writes bytes under the text stream, so Windows does not turn `\n` into
+  `\r\n` (which `awk` in Git Bash keeps in the last field), in the
+  stream's encoding with backslash escapes (UTF-8 for `--json`). Tests
+  simulate Windows with a `TextIOWrapper(..., newline="\r\n")`
+  (`tests/test_output_encoding.py`).
 - Errors and warnings follow one grammar, one event per line:
   `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`.
   - `LEVEL`: `ERROR` (the command fails, non-zero exit) or `WARNING` (a
@@ -173,7 +180,8 @@ Unix philosophy. Consistent, predictable, parseable.
     write or delete, so they refuse only an `invalid` database — one
     licenseid did not build — and accept every other condition, which is
     what they exist to fix.
-  - Write a result line with `output.echo`, not `click.echo`: a result
+  - Write a result line with `output.echo` (or `output.echo_json`), not
+    `click.echo` or `print`: a result
     that cannot be written (standard output closed, a full disk) exits 2
     with `output: write failed: <reason>`, never 0 or 1. A reader that
     closes the pipe (`| head -1`) ends the run quietly with 141, and Ctrl-C

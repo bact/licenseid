@@ -10,7 +10,7 @@ import sys
 
 import click
 
-from licenseid.console import discard_stdout, error
+from licenseid.console import discard_stdout, emit, error
 
 
 class OutputError(Exception):
@@ -27,58 +27,36 @@ class OutputError(Exception):
 
 
 def echo(message: str = "") -> None:
-    """Write *message* and a newline to standard output, in the stream's
-    encoding; a character it cannot encode is written as a backslash escape
-    (``\\xHH``, ``\\uHHHH``, ``\\UHHHHHHHH``), as standard error writes it,
-    and as ``result.read_text_field`` reads it back. A result line escapes
-    every backslash of its values, so the escape cannot be mistaken.
+    """Write *message* and a line feed to standard output, in the stream's
+    encoding (``console.emit``): a character it cannot encode is written as
+    a backslash escape (``\\xHH``, ``\\uHHHH``, ``\\UHHHHHHHH``), as
+    ``result.read_text_field`` reads it back, and the line ends in ``\\n``
+    on Windows too. A result line escapes every backslash of its values, so
+    the escape cannot be mistaken.
 
-    Raises OutputError when it cannot be written: click.echo drops output
-    silently when standard output is closed (``>&-``), and raises a bare
-    OSError for a full disk, a size limit or a closed pipe.
+    Raises OutputError when it cannot be written: standard output closed
+    (``>&-``), a full disk, a size limit or a closed pipe.
     """
-    stream = sys.stdout
-    if stream is None:
-        raise OutputError(None)
-    try:
-        click.echo(_encodable(message, getattr(stream, "encoding", None)))
-    except (OSError, UnicodeEncodeError) as exc:
-        raise OutputError(exc) from exc
-    except ValueError as exc:  # a closed stream
-        raise OutputError(None) from exc
+    _write_line(message, None)
 
 
 def echo_json(line: str) -> None:
-    """Write one JSON line (``result.json_line``) and a newline to standard
+    """Write one JSON line (``result.json_line``) and a line feed to standard
     output as UTF-8 bytes, whatever the stream's encoding: RFC 8785 is
-    UTF-8, so the same result is the same bytes on every locale. A stream
-    with no bytes underneath (replaced by a text-only one) gets the text."""
+    UTF-8, so the same result is the same bytes on every locale."""
+    _write_line(line, "utf-8")
+
+
+def _write_line(text: str, encoding: str | None) -> None:
     stream = sys.stdout
     if stream is None:
         raise OutputError(None)
-    if getattr(stream, "buffer", None) is None:
-        echo(line)
-        return
     try:
-        click.echo(line.encode("utf-8"))  # click writes bytes to the buffer
-    except OSError as exc:
+        emit(stream, text + "\n", encoding)
+    except (OSError, UnicodeError) as exc:
         raise OutputError(exc) from exc
     except ValueError as exc:  # a closed stream
         raise OutputError(None) from exc
-
-
-def _encodable(message: str, encoding: str | None) -> str:
-    """*message* with what *encoding* cannot encode as backslash escapes.
-    The stream's own error handler is not asked: one rule on every locale
-    (on Windows a pipe or file takes the ANSI code page, which has no room
-    for most scripts, and Python raised after the result was written, with
-    exit 1: the code for "no")."""
-    try:
-        return message.encode(encoding or "utf-8", "backslashreplace").decode(
-            encoding or "utf-8"
-        )
-    except LookupError:  # an encoding Python does not know: leave it to it
-        return message
 
 
 def output_failed(exc: OutputError) -> int:

@@ -25,7 +25,7 @@ from conftest import invoke_match, make_ready_db_path, posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db
 
-from licenseid import console
+from licenseid import console, output
 from licenseid.cli import cli
 from licenseid.cli import main as cli_main
 from licenseid.database import LicenseDatabase
@@ -55,9 +55,9 @@ def test_an_output_failure_is_no_answer(
     db: str, code: int, exit_code: int, stderr: str, args: list[str]
 ) -> None:
     failing = mock.create_autospec(
-        click.echo, side_effect=OSError(code, os.strerror(code))
+        console.emit, side_effect=OSError(code, os.strerror(code))
     )
-    with mock.patch.object(click, "echo", failing):
+    with mock.patch.object(output, "emit", failing):
         result = invoke_match(db, *args)
     assert (result.exit_code, result.stderr) == (exit_code, stderr)
 
@@ -65,10 +65,10 @@ def test_an_output_failure_is_no_answer(
 def test_an_unencodable_result_is_a_failed_write_not_a_traceback(db: str) -> None:
     """A code page without the character (Windows pipes) must not exit 1."""
     failing = mock.create_autospec(
-        click.echo,
+        console.emit,
         side_effect=UnicodeEncodeError("charmap", "\u65e5", 0, 1, "no mapping"),
     )
-    with mock.patch.object(click, "echo", failing):
+    with mock.patch.object(output, "emit", failing):
         result = invoke_match(db, "--id", "MIT")
     assert result.exit_code == 2
     assert result.stderr.startswith("ERROR: output: write failed: 'charmap' codec")
@@ -77,13 +77,13 @@ def test_an_unencodable_result_is_a_failed_write_not_a_traceback(db: str) -> Non
 def test_an_update_whose_report_fails_is_not_a_failed_update(tmp_path: Path) -> None:
     """The update itself succeeded; only its line could not be written."""
     failing = mock.create_autospec(
-        click.echo, side_effect=OSError(errno.EFBIG, "File too large")
+        console.emit, side_effect=OSError(errno.EFBIG, "File too large")
     )
     with (
         mock.patch.object(
             LicenseDatabase, "update_from_remote", autospec=True, return_value=True
         ),
-        mock.patch.object(click, "echo", failing),
+        mock.patch.object(output, "emit", failing),
     ):
         result = CliRunner().invoke(cli, ["--db", str(tmp_path / "l.db"), "update"])
     assert (result.exit_code, result.stderr) == (
@@ -120,6 +120,7 @@ def test_a_failing_stderr_does_not_crash(
 ) -> None:
     broken = mock.Mock(spec=sys.stderr)
     broken.write.side_effect = OSError(errno.EFBIG, "File too large")
+    broken.buffer.write.side_effect = OSError(errno.EFBIG, "File too large")
     broken.fileno.side_effect = io.UnsupportedOperation  # no descriptor to discard
     monkeypatch.setattr(sys, "stderr", broken)
     function("database: not found")  # nowhere to report it; no exception
