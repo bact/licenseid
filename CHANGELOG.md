@@ -84,8 +84,8 @@ and this project adheres to
   files or internal notes, and no links to files it leaves out ([#130])
 - **Breaking:** `licenseid detect` separates fields by a tab and names its
   answer `EXPRESSION` (`expression` in `--json` and `Detection`); exit 1
-  prints nothing; its warnings say `detect:`. Migration: `cut -f1`, read
-  `["expression"]`
+  prints nothing; its warnings say `detect:`; lines end in `\n` on Windows
+  too. Migration: `cut -f1`, read `["expression"]`
   ([#138])
 - **Breaking:** `is-*` print `EXPRESSION=<id>` and their flag
   (`IS_OSI_APPROVED=true`), `update` prints `STATUS`, `VERSION` and `PATH`;

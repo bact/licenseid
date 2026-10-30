@@ -18,7 +18,12 @@ from unittest import mock
 import pytest
 import requests
 from click.testing import CliRunner
-from conftest import assert_cached_tarball_removed, fake_requests_get, update_line
+from conftest import (
+    assert_cached_tarball_removed,
+    fake_requests_get,
+    line_fields,
+    update_line,
+)
 from db_variants import make_ready_file_db
 from release_fakes import (
     POPULARITY_CSV,
@@ -95,6 +100,24 @@ def test_update_from_remote_end_to_end_then_offline(
     fake.reset_mock()
     assert not db.update_from_remote()
     fake.assert_not_called()
+
+
+def test_the_popularity_cache_holds_the_bytes_served(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A CSV served with CRLF is cached byte for byte, on Windows too (no
+    text-mode translation to CR CR LF)."""
+    served = "spdx_license,num_pushers\r\nMIT,1000\r\n"
+    _serve(monkeypatch, release_tarball(), popularity_csv=served)
+    # Text mode translates only on Windows: refuse it here, on every OS.
+    text_mode = mock.create_autospec(Path.write_text, side_effect=AssertionError)
+    monkeypatch.setattr(Path, "write_text", text_mode)
+    db_path = tmp_path / "licenses.db"
+    result = CliRunner().invoke(cli, ["--db", str(db_path), "update"])
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "popularity.csv").read_bytes() == served.encode()
+    details = LicenseDatabase(str(db_path)).get_license_details("MIT")
+    assert details is not None and details["pop_score"] == 1000
 
 
 @pytest.mark.parametrize("template", ["file:{p}", "file://{p}", "file://localhost{p}"])
@@ -195,6 +218,26 @@ def test_unsafe_cached_tarball_is_removed_and_reported(
     assert_cached_tarball_removed(db, tar_path, capsys)
 
 
+def test_a_backslash_in_a_value_is_doubled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A path with a backslash: a directory name on POSIX, the separator on
+    Windows. Both print it doubled (rule A), so a test that expects it raw
+    fails here on every OS, not only on Windows CI."""
+    directory = tmp_path / "back\\slash"
+    directory.mkdir(parents=True)
+    db_path = str(directory / "licenses.db")
+    assert "\\" in db_path
+    _serve(monkeypatch, release_tarball())
+    result = CliRunner().invoke(cli, ["--db", db_path, "update"])
+    assert result.exit_code == 0, result.output
+    doubled = db_path.replace("\\", "\\\\")
+    assert result.stdout == f"STATUS=updated\tVERSION=9.99\tPATH={doubled}\n"
+    assert line_fields(result.stdout.rstrip("\n"))["PATH"] == db_path
+    as_json = CliRunner().invoke(cli, ["--db", db_path, "update", "--json"])
+    assert json.loads(as_json.stdout)["path"] == db_path
+
+
 def test_cli_update_reports_success_then_no_change(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -244,8 +287,7 @@ def test_cli_update_warnings_go_to_stderr(
     assert "WARNING: popularity.csv: 1 rows with missing" in result.stderr
     assert "WARNING" not in result.stdout
     assert "Warning" not in result.stdout
-    assert result.stdout.startswith("STATUS=updated\tVERSION=")
-    assert result.stdout.endswith(f"\tPATH={db_path}\n")
+    assert result.stdout == update_line("updated", "9.99", db_path)
 
 
 def test_cli_update_unexpected_error_keeps_message_grammar(

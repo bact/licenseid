@@ -18,7 +18,6 @@ import sqlite3
 from pathlib import Path
 from unittest import mock
 
-import click
 import pytest
 from click.testing import CliRunner, Result
 from conftest import line_fields
@@ -26,7 +25,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
-from licenseid import LicenseDatabase, climatch, match
+from licenseid import LicenseDatabase, climatch, console, match, output
 from licenseid.cli import cli
 from licenseid.result import json_line, resolution_lines
 
@@ -427,8 +426,8 @@ def test_a_database_given_that_is_not_ready_is_exit_2(
 
 @pytest.mark.parametrize("json_output", [False, True], ids=["text", "json"])
 def test_an_output_failure_is_exit_2(json_output: bool) -> None:
-    failing = mock.create_autospec(click.echo, side_effect=OSError(28, "No space"))
-    with mock.patch.object(click, "echo", failing):
+    failing = mock.create_autospec(console.emit, side_effect=OSError(28, "No space"))
+    with mock.patch.object(output, "emit", failing):
         result = run(*(["--json"] if json_output else []), "MIT")
     assert (result.exit_code, result.stderr) == (
         2,

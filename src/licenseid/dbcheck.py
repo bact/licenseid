@@ -25,7 +25,7 @@ from typing import cast
 from urllib.parse import parse_qsl, quote, unquote_to_bytes, urlencode
 
 from licenseid.dbschema import SCHEMA_OBJECTS
-from licenseid.errors import DatabaseNotReadyError, fold
+from licenseid.errors import DatabaseNotReadyError, fold, shown
 
 _IS_WINDOWS = os.name == "nt"
 
@@ -238,16 +238,6 @@ def named_file(db_path: str) -> str | None:
     return None if _has_own_vfs(db_path) else _os_file(db_path)
 
 
-def _shown(db_path: str) -> str:
-    """*db_path* for a message: a control character (a newline in a file name)
-    is written as an escape, so the message stays one line, and a ";" becomes
-    ",", as it would start the ACTION."""
-    return "".join(
-        char if char.isprintable() else char.encode("unicode_escape").decode()
-        for char in db_path.replace(";", ",")
-    )
-
-
 def _one_line(exc: Exception) -> str:
     """The error text on one line (and no ";"); some SQLite errors have none."""
     return fold(str(exc)) or type(exc).__name__
@@ -332,12 +322,12 @@ def _path_problem(db_path: str) -> Refusal | None:
 
 def unreadable_error(db_path: str, exc: Exception) -> DatabaseNotReadyError:
     """The refusal for a database that SQLite could not read."""
-    return refused("unreadable", f"{_shown(db_path)}: {_one_line(exc)}")
+    return refused("unreadable", f"{shown(db_path)}: {_one_line(exc)}")
 
 
 def empty_error(db_path: str) -> DatabaseNotReadyError:
     """The refusal for a file with none of licenseid's tables."""
-    return refused("empty", _shown(db_path), _ACTION)
+    return refused("empty", shown(db_path), _ACTION)
 
 
 def invalid_error(db_path: str) -> DatabaseNotReadyError:
@@ -345,12 +335,12 @@ def invalid_error(db_path: str) -> DatabaseNotReadyError:
 
     No action: every one licenseid could offer would change the file.
     """
-    return refused("invalid", _shown(db_path))
+    return refused("invalid", shown(db_path))
 
 
 def delete_failed_error(db_path: str, exc: OSError) -> DatabaseNotReadyError:
     """The refusal for a cache file the operating system would not remove."""
-    return refused("delete failed", f"{_shown(db_path)}: {_one_line(os_reason(exc))}")
+    return refused("delete failed", f"{shown(db_path)}: {_one_line(os_reason(exc))}")
 
 
 def _has_columns(
@@ -486,7 +476,7 @@ def lookup_error(db_path: str, exc: sqlite3.Error) -> DatabaseNotReadyError:
 
 def not_found_error(db_path: str) -> DatabaseNotReadyError:
     """The refusal for a database that is not there."""
-    return refused("not found", _shown(db_path), _ACTION)
+    return refused("not found", shown(db_path), _ACTION)
 
 
 def reject_blocking_file(db_path: str) -> None:
@@ -522,7 +512,7 @@ def _open_condition(db_path: str) -> Refusal | None:
         return None
     if condition == "invalid":
         return condition, invalid_error(db_path)
-    return condition, refused(condition, _shown(db_path), _ACTION)
+    return condition, refused(condition, shown(db_path), _ACTION)
 
 
 def _refusal(db_path: str) -> Refusal | None:

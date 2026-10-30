@@ -430,6 +430,28 @@ def test_a_sidecar_that_cannot_be_removed_does_not_fail_a_done_delete(
     assert not db_path.exists()
 
 
+def test_a_refused_delete_of_the_database_exits_1_on_every_os(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The read-only directory test above is POSIX only (chmod); the same
+    refusal, simulated, runs on Windows too: one grammar line, exit 1."""
+    db_path = make_ready_file_db(tmp_path / "licenses.db")
+    real_unlink = Path.unlink
+
+    def refusing_unlink(self: Path, missing_ok: bool = False) -> None:
+        if self == db_path:
+            raise PermissionError(13, "Permission denied", str(self))
+        real_unlink(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", refusing_unlink)
+    result = run("--db", str(db_path), "--clear-cache")
+    assert_no_traceback(result)
+    assert (result.exit_code, result.stdout) == (1, ""), result.stderr
+    last = result.stderr.splitlines()[-1]
+    assert last == f"ERROR: database: delete failed: {db_path}: Permission denied"
+    assert db_path.exists()
+
+
 @pytest.mark.parametrize("template", ["file:{p}", "file://{p}", "file://localhost{p}"])
 def test_clear_cache_through_every_local_uri_spelling(
     tmp_path: Path, template: str
