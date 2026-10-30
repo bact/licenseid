@@ -103,14 +103,18 @@ and this project adheres to
   ([#117], [#120])
 - `match()` raises `TypeError` for a value that is no `str` (`None`, `bytes`,
   a number); it raised `AttributeError`
+  ([#139])
 - `match()` gives a reason (`character dropped: U+002D`) for a dash or
   underscore joined to the end: `MIT+-`, `MIT+-?`, `MIT License--`; they were
   refused with none
+  ([#139])
 - `match()` reads one end mark after a `LicenseRef-*` or `AdditionRef-*` that
   ends in a dot or dash (`LicenseRef-a.;`) as an ending, as after any ID
+  ([#139])
 - `match()` reads one end mark after closing quote marks (`"MIT".`, `"MIT",`,
   `'MIT';`), also with a mark on one end only (`MIT".`, `Apache-2.0'.`),
   as it reads `MIT,"`; `"MIT"..` and `"MIT.".` are still refused
+  ([#139])
 - A build from the sdist needs Pitloom 0.21.2 or later: an older one accepts
   licenseid 0.7 and its build hook then fails to import
   ([#135])
@@ -129,6 +133,7 @@ and this project adheres to
 [#134]: https://github.com/bact/licenseid/pull/134
 [#135]: https://github.com/bact/licenseid/pull/135
 [#138]: https://github.com/bact/licenseid/pull/138
+[#139]: https://github.com/bact/licenseid/pull/139
 
 ## [0.6.0] - 2026-10-27
 
