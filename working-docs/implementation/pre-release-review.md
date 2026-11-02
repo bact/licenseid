@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-02
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -96,5 +96,7 @@ project reads is flagged to its session.
 ## Record
 
 - 0.7.0 (2026-10-30): adopted before the tag; performance deferred to after
-  the release; API frozen at the candidate (maintainer, 2026-10-30), commit
-  recorded here when it is cut.
+  the release; API frozen at the candidate (maintainer, 2026-10-30).
+  Candidate C0: `28fb7b3` (2026-11-02), the merge of the contract batch
+  (#141), which had two independent reviews before the merge; Pitloom
+  adopts 0.7.0 from this commit.
