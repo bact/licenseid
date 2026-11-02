@@ -7,6 +7,7 @@
 release: which licences are kept, indexed, and what a deprecated one points
 to. The full rows and the order of the lists are pinned."""
 
+import pytest
 from list_entries import exc_entry, lic_entry
 
 from licenseid.records import build_records
@@ -150,13 +151,23 @@ def test_the_exception_flag_is_stored_as_it_was_read() -> None:
     assert not isinstance(rows[0][2], bool)
 
 
-def test_a_metadata_row_drops_the_flags_of_its_entry() -> None:
-    """R3 of the contract review, BUG: a deprecated licence without a text
-    (wxWindows, eCos-2.0) got ``is_osi_approved`` and ``is_fsf_libre`` False
-    whatever the List says."""
+@pytest.mark.parametrize(("osi", "fsf"), [(True, True), (False, True), (True, False)])
+def test_a_metadata_row_keeps_the_flags_of_its_entry(osi: bool, fsf: bool) -> None:
+    """R3 of the contract review (P162; was: a deprecated licence without a
+    text, wxWindows or eCos-2.0, got ``is_osi_approved`` and
+    ``is_fsf_libre`` False whatever the List said): the row keeps the
+    flags of its entry, as a row with a text does."""
     entry = lic_entry("wxWindows", "wxWindows Library License", True)
-    entry["isOsiApproved"] = True
-    entry["isFsfLibre"] = True
+    entry["isOsiApproved"] = osi
+    entry["isFsfLibre"] = fsf
     data = SpdxData("3.99", None, (entry,), (), {})
+    (row,) = build_records(data, {}).licenses
+    assert (row[4], row[5]) == (osi, fsf)
+    assert (row[6], row[9], row[10]) == (False, 1, 0)  # no text: no rank
+
+
+def test_a_metadata_row_without_flags_is_not_approved() -> None:
+    """An entry that leaves the flags out is neither, as with a text."""
+    data = SpdxData("3.99", None, (lic_entry("Old-1.0", "Old", True),), (), {})
     (row,) = build_records(data, {}).licenses
     assert (row[4], row[5]) == (False, False)

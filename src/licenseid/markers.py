@@ -6,6 +6,7 @@
 """Logic for detecting explicit license markers and headings in text."""
 
 import re
+from typing import cast
 
 from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
@@ -245,7 +246,7 @@ class MarkerDetector:
             # A value with no recognised ID (a typo, free text) is no evidence
             # of a license and builds no candidate.
             found = self._synthetic_candidate(lic_id, score) if lic_id else []
-        if found and narrowed_ids(expression, found[0]["license_id"]):
+        if found and narrowed_ids(self.db, expression, found[0]["license_id"]):
             # "GPL-2.0" read as GPL-2.0-only: a guess, said and not exact.
             warn_narrowed(expression, found[0]["license_id"])
             found[0]["narrowed"] = True
@@ -423,24 +424,23 @@ class MarkerDetector:
         if font_details:
             return self.to_candidate(font_details, score)
 
-        # WITH expression not in DB — synthetic candidate; marker floor in
-        # _calculate_final_score ensures it ranks above plain GPL without
-        # exception (which lacks the marker boost).
+        # WITH expression not in DB — synthetic candidate; the marker floor in
+        # _calculate_final_score ranks it above plain GPL (no marker boost).
+        # A version the List does not have ("version 4") is no licence.
         base_details = self.db.get_license_details(license_id)
-        return {
+        if base_details is None:
+            return None
+        candidate: CandidateMatch = {
             "license_id": font_id,
-            "search_text": self.db.get_search_text(license_id) if base_details else "",
+            "search_text": self.db.get_search_text(license_id),
             "score": score,
-            "is_spdx": base_details is not None,
-            "word_count": base_details.get("word_count", 0) if base_details else 0,
+            "word_count": base_details.get("word_count", 0),
             "is_high_usage": False,
-            # A WITH takes the flags of its licence (licenseid.exprflags).
-            "is_osi_approved": base_details["is_osi_approved"]
-            if base_details
-            else None,
-            "is_fsf_libre": base_details["is_fsf_libre"] if base_details else None,
             "pop_score": 0,
         }
+        # A WITH takes the flags of its licence (licenseid.exprflags).
+        candidate.update(cast(CandidateMatch, self.license_flags(font_id)))
+        return candidate
 
     def _detect_gpl_headers(self, text: str) -> list[CandidateMatch]:
         """Detect GPL/LGPL/AGPL standard copyright notice headers."""

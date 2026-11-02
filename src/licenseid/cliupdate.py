@@ -163,7 +163,8 @@ def clear_cache_command(ctx: click.Context, json_output: bool) -> None:
 
     Prints one record: STATUS=cleared, or nothing when there was nothing to
     delete, and the database PATH. A file licenseid did not build is refused
-    (exit 2); a delete the system refuses exits 1.
+    (exit 2); a delete the system refuses exits 1. Cache files go only from
+    the default directory or beside a ready database.
     """
     db_path = ctx.obj["db_path"]
     # ``clear_cache`` refuses a file licenseid did not build (one mistyped

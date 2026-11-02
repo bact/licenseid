@@ -71,19 +71,26 @@ def test_detect_answers_as_the_detector_does(
     assert got == detector.LicenseDetector(default_db).detect(**kwargs)
 
 
-def test_every_argument_is_forwarded(default_db: str) -> None:
-    """A spy on the method sees text, ``license_id``, ``file_path`` and a
-    non-default option, as given."""
+@pytest.mark.parametrize(
+    ("args", "inputs"),
+    [
+        (("t",), {"license_id": None, "file_path": None}),
+        ((None,), {"license_id": "MIT", "file_path": None}),
+        ((None,), {"license_id": None, "file_path": "f"}),
+    ],
+    ids=["text", "license_id", "file_path"],
+)
+def test_every_argument_is_forwarded(
+    default_db: str, args: tuple[str | None], inputs: dict[str, str | None]
+) -> None:
+    """A spy on the method sees each input and a non-default option, as
+    given (one input per call: two are refused before the method, P165)."""
     assert default_db
     with mock.patch.object(
         detector.LicenseDetector, "detect", autospec=True, return_value=[]
     ) as spy:
-        licenseid.detect(
-            "t", license_id="MIT", file_path="f", exclude=["MIT"], hint=["x"]
-        )
-    spy.assert_called_once_with(
-        mock.ANY, "t", license_id="MIT", file_path="f", exclude=["MIT"], hint=["x"]
-    )
+        licenseid.detect(*args, **inputs, exclude=["MIT"], hint=["x"])
+    spy.assert_called_once_with(mock.ANY, *args, **inputs, exclude=["MIT"], hint=["x"])
 
 
 def test_a_positional_text_is_text(default_db: str) -> None:

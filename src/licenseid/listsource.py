@@ -61,7 +61,7 @@ from licenseid import listindex
 from licenseid.console import warn
 from licenseid.database import LicenseDatabase, is_current_build
 from licenseid.datadir import get_default_db_path
-from licenseid.dbcheck import check_database_ready
+from licenseid.dbcheck import check_database_ready, reject_blank_path
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError, one_line
 from licenseid.listlookup import ListLookup
 from licenseid.resolvertypes import ListSource, Source
@@ -155,6 +155,7 @@ def given_database(db: GivenDatabase) -> LicenseDatabase:
             "db must be a LicenseDatabase, str or os.PathLike[str],"
             f" not {type(db).__name__}"
         )
+    reject_blank_path(path, "db")
     return _opened(path)
 
 

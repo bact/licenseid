@@ -30,6 +30,7 @@ from db_asserts import (
 from db_variants import make_ready_file_db
 
 from licenseid.database import LicenseDatabase
+from licenseid.datadir import get_default_db_path
 from licenseid.errors import DatabaseNotReadyError
 from licenseid.result import json_line
 
@@ -88,7 +89,7 @@ def test_clear_cache_on_a_relative_path_clears_beside_it(
     (work / "sub").mkdir(parents=True)
     for name in CACHE_NAMES:
         (work / "sub" / name).write_text("x\n", encoding="utf-8")
-    (work / "sub" / "licenses.db").write_bytes(b"SQLite format 3\x00" + b"\xff" * 512)
+    make_ready_file_db(work / "sub" / "licenses.db")
     (work / "sub" / "keep.txt").write_text("x\n", encoding="utf-8")
     monkeypatch.chdir(work)
     result = run("--db", "sub/licenses.db", "clear-cache")
@@ -97,11 +98,10 @@ def test_clear_cache_on_a_relative_path_clears_beside_it(
     assert sorted(p.name for p in (work / "sub").iterdir()) == ["keep.txt"]
 
 
-def test_clear_cache_removes_a_corrupt_db_and_its_cache_but_no_foreign_file(
+def test_clear_cache_removes_a_ready_db_and_its_cache_but_no_foreign_file(
     tmp_path: Path,
 ) -> None:
-    db_path = tmp_path / "licenses.db"
-    db_path.write_bytes(b"SQLite format 3\x00" + b"\xff" * 4096)
+    db_path = make_ready_file_db(tmp_path / "licenses.db")
     for name in CACHE_NAMES:
         (tmp_path / name).write_text("x\n", encoding="utf-8")
     for name in ("exceptions.json", "spdx-data.tar.gz", "licenses.db.bak"):
@@ -115,6 +115,64 @@ def test_clear_cache_removes_a_corrupt_db_and_its_cache_but_no_foreign_file(
         "licenses.db.bak",
         "spdx-data.tar.gz",
     ]
+
+
+@pytest.mark.parametrize(
+    "database",
+    [
+        None,  # a mistyped --db: nothing there
+        b"",  # empty
+        b"SQLite format 3\x00" + b"\xff" * 4096,  # damaged
+    ],
+    ids=["missing", "empty", "damaged"],
+)
+def test_clear_cache_keeps_a_cache_it_cannot_show_is_its_own(
+    tmp_path: Path, database: bytes | None
+) -> None:
+    """R4 of the contract review (P163; was: ``--db proj/typo.db
+    clear-cache`` deleted ``proj/licenses.json`` and ``popularity.csv`` and
+    said ``cleared``): beside a database that is not ready, outside the
+    default directory, nothing shows the cache files are licenseid's. The
+    database named is still deleted; the files are kept and not counted."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    for name in CACHE_NAMES:
+        (proj / name).write_text("mine\n", encoding="utf-8")
+    db_path = proj / "typo.db"
+    if database is not None:
+        db_path.write_bytes(database)
+    result = run("--db", str(db_path), "clear-cache")
+    assert_no_traceback(result)
+    assert result.exit_code == 0, result.stderr
+    status = "nothing" if database is None else "cleared"
+    assert result.stdout == f"STATUS={status}\tPATH={db_path}\n"
+    assert sorted(p.name for p in proj.iterdir()) == sorted(CACHE_NAMES)
+
+
+@pytest.mark.parametrize("with_db", [False, True], ids=["missing", "ready"])
+def test_clear_cache_clears_the_default_directory(with_db: bool) -> None:
+    """The default data directory is licenseid's: its cache goes even when
+    the database is missing or broken, which is what the command is for."""
+    default = Path(get_default_db_path())
+    default.parent.mkdir(parents=True)
+    if with_db:
+        make_ready_file_db(default)
+    for name in CACHE_NAMES:
+        (default.parent / name).write_text("x\n", encoding="utf-8")
+    result = run("clear-cache")
+    assert (result.exit_code, result.stdout) == (0, f"STATUS=cleared\tPATH={default}\n")
+    assert not list(default.parent.iterdir())
+
+
+def test_clear_cache_beside_the_default_database_by_another_name() -> None:
+    """``--db`` naming another file in the default directory: still
+    licenseid's directory, so its cache goes."""
+    default = Path(get_default_db_path())
+    default.parent.mkdir(parents=True)
+    (default.parent / "licenses.json").write_text("x\n", encoding="utf-8")
+    result = run("--db", str(default.parent / "other.db"), "clear-cache")
+    assert result.stdout.startswith("STATUS=cleared\t")
+    assert not list(default.parent.iterdir())
 
 
 @posix_only
@@ -158,11 +216,15 @@ def test_clear_cache_twice_is_idempotent(tmp_path: Path) -> None:
     [
         ((), "nothing"),
         (("licenses.db",), "cleared"),
-        (("licenses.json",), "cleared"),  # a cache file alone is something
-        (("popularity.csv.99.tmp",), "cleared"),
+        (("licenses.db", "licenses.json"), "cleared"),
+        (("licenses.db", "popularity.csv.99.tmp"), "cleared"),
+        # Beside no database, outside the default directory, a cache file
+        # is not shown to be licenseid's: kept, and not counted (P163).
+        (("licenses.json",), "nothing"),
+        (("popularity.csv.99.tmp",), "nothing"),
         (("keep.txt",), "nothing"),  # not licenseid's: kept, and not counted
     ],
-    ids=["empty", "db", "cache", "tmp", "foreign"],
+    ids=["empty", "db", "db-cache", "db-tmp", "cache", "tmp", "foreign"],
 )
 @pytest.mark.parametrize("as_json", [False, True], ids=["text", "json"])
 def test_clear_cache_says_whether_it_deleted(
@@ -182,7 +244,12 @@ def test_clear_cache_says_whether_it_deleted(
         else f"STATUS={status}\tPATH={db_path}"
     )
     assert result.stdout == expected + "\n"
-    assert (tmp_path / "keep.txt").exists() is ("keep.txt" in files)
+    kept = [name for name in files if name != "licenses.db"]
+    if "licenses.db" in files:  # a ready database: its cache is licenseid's
+        kept = [name for name in kept if name not in CACHE_NAMES]
+    assert sorted(p.name for p in tmp_path.iterdir() if p.name != "home") == sorted(
+        kept
+    )
 
 
 def test_clear_cache_with_a_nonexistent_parent_succeeds(tmp_path: Path) -> None:

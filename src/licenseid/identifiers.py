@@ -100,8 +100,9 @@ _BARE_TO_OR_LATER: dict[str, str] = {
 # The or-later phrases are read by classify.OR_LATER_PHRASE, shared with the
 # -only / -or-later tie-breaker.
 # "only" is a common English word; it is checked in a narrow 50-char window
-# AFTER the ID to avoid false positives from unrelated uses.
-_RE_ONLY = re.compile(r"\bonly\b", re.IGNORECASE)
+# AFTER the ID to avoid false positives from unrelated uses. The "only" of
+# an ID ("GPL-2.0-only") is that ID's, not a word about the one before it.
+_RE_ONLY = re.compile(r"(?<![\w-])only\b", re.IGNORECASE)
 
 
 def _lookup_case_insensitive(mapping: dict[str, str], key: str) -> str | None:
@@ -411,8 +412,9 @@ def disambiguate_deprecated_id(text: str) -> str | None:
         # disambiguation checks below. "." is deliberately not excluded here:
         # both real suffixes start with "-", and excluding "." too would
         # reject a bare ID immediately followed by sentence punctuation
-        # (e.g. "...licensed under GPL-2.0. This version only.").
-        m = re.search(r"\b" + re.escape(dep_id) + r"(?![\w-])", text, re.IGNORECASE)
+        # (e.g. "...licensed under GPL-2.0. This version only."). A "+" after
+        # it states the grant ("GPL-2.0+"), so that ID is not bare either.
+        m = re.search(r"\b" + re.escape(dep_id) + r"(?![\w+-])", text, re.IGNORECASE)
         if not m:
             continue
 

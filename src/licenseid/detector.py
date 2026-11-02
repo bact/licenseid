@@ -14,7 +14,7 @@ from typing import Any, cast
 from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
-from licenseid.dbcheck import check_database_ready
+from licenseid.dbcheck import check_database_ready, reject_blank_path
 from licenseid.errors import InvalidInputError, invalid_id_error
 from licenseid.identifiers import (
     disambiguate_deprecated_id,
@@ -104,6 +104,17 @@ def _reject_unknown_options(options: dict[str, Any]) -> None:
         )
 
 
+def check_request(
+    text: object, license_id: object, file_path: object, options: dict[str, Any]
+) -> None:
+    """The checks of a detect() call that need no database: an unknown option
+    first (no input hides a typo), then the inputs. ``licenseid.detect()``
+    makes them before it opens the default database, so a wrong call is told
+    so whether a database is there or not."""
+    _reject_unknown_options(options)
+    _check_inputs(text, license_id, file_path)
+
+
 @dataclass(frozen=True)
 class _MatchContext:
     """Immutable per-call state threaded through detect()'s tiers. Built
@@ -141,8 +152,9 @@ class LicenseDetector:
         enable_popularity: bool = False,
         report: Callable[[str], None] | None = None,
     ):
-        if not db_path:
+        if db_path is None:
             db_path = get_default_db_path()
+        reject_blank_path(str(db_path), "db_path")
         # Before LicenseDatabase, which opens the file (create=False below: it
         # must be there, and a lookup never makes one).
         check_database_ready(db_path)
@@ -440,8 +452,7 @@ class LicenseDetector:
         **options: Any,
     ) -> Sequence[RawMatch | InternalMatch]:
         """detect() before the public form: each tier's own records."""
-        _reject_unknown_options(options)  # first: no input hides a typo
-        _check_inputs(text, license_id, file_path)
+        check_request(text, license_id, file_path, options)
         if license_id is not None:
             return self._try_explicit_id_match(license_id)
 

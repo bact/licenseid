@@ -20,7 +20,7 @@ from resolver_corpus import LICENSE_LIST, list_rows
 
 from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
-from licenseid.identifiers import normalize_identifier
+from licenseid.identifiers import DEPRECATED_WITH_IDS, normalize_identifier
 from licenseid.looseid import loose_id, loose_with, narrowed_ids, shown
 from licenseid.shorttext import match_short_text
 from licenseid.versionkey import MAX_KEY_INPUT, version_key
@@ -351,11 +351,37 @@ def test_deep_brackets_are_read_in_one_pass(
         ("MIT", "MIT", False),
         ("MIT OR GPL-2.0-only", "GPL-2.0-only OR MIT", False),
         ("", "", False),
+        # R2 of the contract review: the deprecated -with- IDs, judged as
+        # narrowed() judges them on every other path.
+        *(
+            (deprecated, reading, True)
+            for deprecated, reading in sorted(DEPRECATED_WITH_IDS.items())
+        ),
+        (
+            "gpl-2.0-WITH-classpath-exception",
+            "GPL-2.0-only WITH Classpath-exception-2.0",
+            True,
+        ),
+        (
+            "MIT OR GPL-3.0-with-GCC-exception",
+            "GPL-3.0-only WITH GCC-exception-3.1 OR MIT",
+            True,
+        ),
+        # R5: a "+" states the grant, so "GPL-2.0" of "GPL-2.0+" is not bare.
+        ("GPL-2.0+ OR GPL-2.0-only", "GPL-2.0-only OR GPL-2.0-or-later", False),
+        ("GPL-2.0-only OR GPL-2.0+", "GPL-2.0-only OR GPL-2.0-or-later", False),
+        ("GPL-2.0 + OR MIT", "GPL-2.0-or-later OR MIT", False),
+        ("GPL-2.0+ OR GPL-2.0", "GPL-2.0-only OR GPL-2.0-or-later", True),
+        ("(GPL-2.0)", "GPL-2.0-only", True),
+        # The narrowed licence must be in the reading.
+        ("GPL-2.0", "MIT", False),
+        # An exception word is no licence to narrow.
+        ("MIT WITH GPL-2.0", "MIT WITH GPL-2.0", False),
     ],
 )
 def test_a_narrowed_id_is_found_in_an_expression(
-    text: str, expression: str, narrowed: bool
+    corpus_db: LicenseDatabase, text: str, expression: str, narrowed: bool
 ) -> None:
-    """F3: a bare deprecated ID read as its -only form, alone or in a
-    compound, from the words of the value and of its reading."""
-    assert narrowed_ids(text, expression) is narrowed
+    """F3: a deprecated ID read as an -only form, alone or in a compound,
+    from the words of the value and of its reading."""
+    assert narrowed_ids(corpus_db, text, expression) is narrowed

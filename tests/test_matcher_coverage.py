@@ -23,6 +23,7 @@ from matcher_db import PROSE, Lic, seeded_db
 
 from licenseid.datadir import get_default_db_path
 from licenseid.detector import LicenseDetector
+from licenseid.errors import InvalidInputError
 from licenseid.ranking import DEP_PENALTY
 from licenseid.types import CandidateMatch, DetectRequest
 
@@ -82,16 +83,17 @@ def gpl_db() -> Generator[str, None, None]:
 # -- Default database path -------------------------------------------------
 
 
-@pytest.mark.parametrize("db_path_arg", [None, ""], ids=["none", "empty"])
 def test_default_db_path_used_when_no_path_given(
-    marker_db: str, monkeypatch: pytest.MonkeyPatch, db_path_arg: str | None
+    marker_db: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """No usable db_path falls back to get_default_db_path(), and the
-    returned path is what the matcher actually opens."""
+    """No db_path falls back to get_default_db_path(), and the returned path
+    is what the matcher actually opens. A blank one is refused (P166)."""
     fake = mock.create_autospec(get_default_db_path, return_value=marker_db)
     monkeypatch.setattr("licenseid.detector.get_default_db_path", fake)
 
-    matcher = LicenseDetector(db_path_arg)
+    with pytest.raises(InvalidInputError, match="database: missing: db_path"):
+        LicenseDetector("")
+    matcher = LicenseDetector(None)
 
     assert fake.call_count == 1
     results = matcher.detect("MIT")

@@ -22,6 +22,7 @@ from licenseid import LicenseDatabase, listsource, match
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
+from licenseid.records import BUILD_VERSION
 
 DB_VERSION = "3.30"
 
@@ -84,9 +85,9 @@ def test_a_database_version_that_is_no_number_is_a_tie(
 @pytest.mark.parametrize(
     ("build", "warning"),
     [
-        ("1", "build v1 outdated: current v2; run 'licenseid update'"),
-        ("x", "build vx outdated: current v2; run 'licenseid update'"),
-        ("3", "build v3 newer: current v2"),
+        ("1", f"build v1 outdated: current v{BUILD_VERSION}; run 'licenseid update'"),
+        ("x", f"build vx outdated: current v{BUILD_VERSION}; run 'licenseid update'"),
+        ("99", f"build v99 newer: current v{BUILD_VERSION}"),
     ],
 )
 def test_a_tie_goes_to_the_bundle_unless_the_build_is_current(
@@ -111,7 +112,7 @@ def test_a_newer_list_wins_whatever_its_build(
     assert _read() == ("database", DB_VERSION)
 
 
-@pytest.mark.parametrize("build", ["02", "2"])
+@pytest.mark.parametrize("build", [f"0{BUILD_VERSION}", BUILD_VERSION])
 def test_a_current_build_is_read_as_a_number(
     monkeypatch: pytest.MonkeyPatch, build: str
 ) -> None:

@@ -57,7 +57,7 @@ RELEASE_TIMEOUT: Final = (10, 60)
 
 # License list versions become part of a cache file name and a download URL, so
 # reject anything that could carry a path separator or URL syntax, whether it
-# comes from --version or from a third-party licenses.json.
+# comes from --list or from a third-party licenses.json.
 _VERSION_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 CACHE_LICENSES_JSON = "licenses.json"

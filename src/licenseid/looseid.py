@@ -15,7 +15,7 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, is_negated
 from licenseid.console import warn
-from licenseid.exprtokens import RE_TOKEN
+from licenseid.exprtokens import OPERATORS, RE_TOKEN
 from licenseid.identifiers import (
     normalize_identifier,
     qualify_trailing_grant,
@@ -72,16 +72,29 @@ def narrowed(row_id: str, resolved: str) -> bool:
     return "-only" in resolved and "only" not in row_id.lower()
 
 
-def narrowed_ids(text: str, expression: str) -> bool:
+def narrowed_ids(db: ListLookup, text: str, expression: str) -> bool:
     """Whether *expression*, the reading of the declared *text*, narrowed a
-    bare deprecated ID of *text* to its -only form ("MIT OR GPL-2.0" read as
-    "GPL-2.0-only OR MIT"): an ID word of *text* that states no qualifier
-    and whose -only form is an ID word of *expression*, case ignored."""
+    deprecated ID of *text* to an -only form it does not state ("MIT OR
+    GPL-2.0" read as "GPL-2.0-only OR MIT", "GPL-2.0-with-classpath-exception"
+    as "GPL-2.0-only WITH Classpath-exception-2.0"). Each ID word is read
+    alone, as normalize_identifier() reads it, and judged by :func:`narrowed`,
+    the judge of every other path; its licence must be in *expression*, case
+    ignored. A word with a "+" after it states its grant."""
     words = {word.casefold() for word in RE_TOKEN.findall(expression)}
-    return any(
-        "only" not in word.casefold() and f"{word}-only".casefold() in words
-        for word in RE_TOKEN.findall(text)
-    )
+    tokens = RE_TOKEN.findall(text)
+    for word, after in zip(tokens, [*tokens[1:], ""]):
+        if after == "+" or not _is_id_word(word):
+            continue
+        reading = normalize_identifier(word, db)
+        if narrowed(word, reading) and RE_TOKEN.findall(reading)[0].casefold() in words:
+            return True
+    return False
+
+
+def _is_id_word(token: str) -> bool:
+    """Whether *token*, a token of RE_TOKEN, is an ID: no bracket, "+" or
+    operator."""
+    return token not in ("(", ")", "+") and token.upper() not in OPERATORS
 
 
 def warn_narrowed(text: str, resolved: str) -> None:

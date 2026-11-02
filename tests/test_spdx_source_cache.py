@@ -19,6 +19,7 @@ from unittest import mock
 import pytest
 import requests
 from conftest import fake_requests_get, leftover_tmp_files
+from db_variants import make_ready_file_db
 
 from licenseid import spdx_source
 from licenseid.database import LicenseDatabase
@@ -195,7 +196,7 @@ def test_an_explicit_version_needs_no_network(
 def test_clear_cache_removes_orphaned_temp_files(tmp_path: Path) -> None:
     """A run killed between writing and renaming leaves a *.tmp file; clear
     the ones this package creates, and leave unrelated files alone."""
-    db = LicenseDatabase(str(tmp_path / "licenses.db"))
+    db = LicenseDatabase(str(make_ready_file_db(tmp_path / "licenses.db")))
     ours = [
         tmp_path / f"{spdx_source.CACHE_LICENSES_JSON}.1a2b3c4d.tmp",
         tmp_path / f"{spdx_source.CACHE_POPULARITY_CSV}.1a2b3c4d.tmp",

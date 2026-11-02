@@ -21,6 +21,7 @@ from db_variants import LICENSE_LIST_VERSION, make_ready_file_db, writer
 
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
+from licenseid.records import BUILD_VERSION
 
 USABLE = "usable"
 MISSING = "missing"
@@ -36,7 +37,8 @@ STATES = [USABLE, MISSING, INVALID, EMPTY, NO_ROWS, UNREADABLE, OUTDATED, NO_HOM
 VERSION = LICENSE_LIST_VERSION
 #: What opening an outdated database prints, whatever match() then reads.
 OUTDATED_WARNING = (
-    "WARNING: database: build v1 outdated: current v2; run 'licenseid update'\n"
+    f"WARNING: database: build v1 outdated: current v{BUILD_VERSION}"
+    "; run 'licenseid update'\n"
 )
 
 

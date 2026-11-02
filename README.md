@@ -298,7 +298,7 @@ refused. An empty argument, or no argument, is a usage error too
 (`input: missing`): `match` never reads standard input, so a pipe that stays
 open cannot hold it. Exit 0 means the value resolved to an
 expression (`GPL-3.0`, kept as `assumed_only`, included), 1 that it did not
-(a list joined by `;` included), with nothing on standard error.
+(a list joined by `;` included), with no `ERROR` line.
 
 `detect` and `match` answer different questions, so their answers to one
 value can differ:
@@ -327,7 +327,10 @@ STATUS=cleared	PATH=/home/me/.local/share/licenseid/licenses.db
 
 This deletes the database and the cache files beside it, and prints one
 record (`--json`: one object): `STATUS=cleared`, or `nothing` when there was
-nothing of licenseid's to delete, and the database `PATH`. It refuses a
+nothing of licenseid's to delete, and the database `PATH`. Cache files are
+deleted only where they are licenseid's: in the default directory, or
+beside a database `update` built. Beside a `--db` path with no ready
+database, they are kept. It refuses a
 `--db` path holding a file licenseid did not build (exit 2,
 `database: invalid`); a delete the system refuses exits 1. A database it
 cannot read is still cleared: that is what the command is for.
@@ -439,7 +442,8 @@ all:
   between fields, and `\t`, `\r`, `\n` and `\\` for a tab, a line break
   or a backslash inside a value.
 - The first key of a line names its kind: `EXPRESSION` the answer, `STEP` a
-  step of `match`, `REASON` a refusal, `OPERAND` a licence of a list.
+  step of `match`, `REASON` a refusal, `OPERAND` a licence of a list,
+  `LIST` the list `update` read, `STATUS` what `clear-cache` did.
 - The answer is the first line. A command with no answer still prints its
   record, every field empty: `detect` on exit 1 prints
   `EXPRESSION=` and the other keys with nothing after the `=`.
@@ -481,6 +485,11 @@ making it suitable for use in scripts and CI/CD pipelines.
 | **2** | Usage or Setup Error | Missing subcommand (help on standard error); missing input text/file; two inputs; `--json` with `--id-only` or `--diff`; invalid parameters; `match` given a text, `-`, or a path that resolves to nothing; database not ready (for `match`, no list to read); output that cannot be written. |
 | **130** | Interrupted | Ctrl-C (SIGINT); no message once started. |
 | **141** | Reader gone | The reader closed the pipe (`head -1`); no message. |
+
+Exit 1 of `detect`, `match` and the `is-*` commands prints no `ERROR` line.
+A `WARNING` about the input or the database can still come with it, as with
+an answer: `detect --exact GPL-2.0` says `variant not stated` and finds no
+exact match.
 
 A database is not ready when it is missing, empty (no licenses yet), invalid
 (another program's file) or unreadable. `detect` and the `is-*` commands refuse

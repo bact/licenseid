@@ -9,12 +9,13 @@ SPDX-License-Identifier: Apache-2.0
 What `licenseid.match()` reads in a declared licence value and what it
 returns: every field, the categories and their trust, the reasons for a
 refusal, and how quote marks are read. The
-[README](../README.md#python-api) shows how to call it. A value that is not a `str` (`None`, bytes, a number) raises
-`TypeError` before any list is read, as does a `db` that is neither a
-`LicenseDatabase` nor the path of one (a `str` or `os.PathLike`). A path is
-opened read-only, and every database is checked ready before it is read: a
-missing file raises `DatabaseNotReadyError` (`not found`) and is never
-created.
+[README](../README.md#python-api) shows how to call it. A value that is not
+a `str` (`None`, bytes, a number) raises `TypeError` before any list is
+read, as does a `db` that is neither a `LicenseDatabase` nor the path of
+one (a `str` or `os.PathLike`); a blank path raises `InvalidInputError`
+(`database: missing: db`). A path is opened read-only, and every database
+is checked ready before it is read: a missing file raises
+`DatabaseNotReadyError` (`not found`) and is never created.
 
 ## What `match()` reads
 
@@ -63,8 +64,8 @@ steps taken, without fuzzy matching:
   of several words is refused; with the operators in upper case, the
   `reason` is `operand of several words: BSD 3-Clause` for a leaf that
   reads alone, else `operand not resolved: Foo Bar`. The result is written
-  in licenseid's canonical order: operators in upper case, a chain of one operator
-  flattened, operands sorted (IDs, then `LicenseRef-*`, then `WITH`, then
+  in licenseid's canonical order: operators in upper case, a chain of one
+  operator flattened, operands sorted (IDs, then `LicenseRef-*`, then `WITH`, then
   bracketed groups), duplicates dropped, and brackets only where
   precedence needs them (`mit or "Apache2"` → `Apache-2.0 OR MIT`);
   `[ ]` and `{ }` count as brackets;

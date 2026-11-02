@@ -124,9 +124,11 @@ and this project adheres to
   all, `OR` any, `WITH` the licence's; `None` (an empty flag, exit 1) when
   no licence is found or an operand cannot be judged; `is_spdx` is false
   for a `LicenseRef-*`. Migration: treat `None` as "unknown", not "no"
-- **Breaking:** a bare deprecated ID (`GPL-2.0`) given to `detect` or `--id`
-  is `GPL-2.0-only` with `EXACT=false` and `WARNING: input: variant not
-  stated`, as `GPL2` is. Migration: write `GPL-2.0-only` or `-or-later`
+- **Breaking:** a deprecated ID that states no variant (`GPL-2.0`,
+  `GPL-2.0-with-classpath-exception`), as an argument, `--id`, a tag or a
+  manifest field, is read as its `-only` form with `EXACT=false` and
+  `WARNING: input: variant not stated`, as `GPL2` is. Migration: write
+  `GPL-2.0-only` or `-or-later`
 - **Breaking:** every `match()` refusal has a `reason` (`not found: Foo`,
   `empty`, `special value: NONE`, `exception not found: Y`). Migration:
   none; `reason is None` no longer means "refused without one"
@@ -137,10 +139,13 @@ and this project adheres to
   `from licenseid.normalize import normalize_text`
 - **Breaking:** `detect()` raises `InvalidInputError` for no input or two of
   `text`, `license_id`, `file_path` (it returned `[]`, or let one win), and
-  `TypeError` for a text or ID that is no `str`; `is_osi()`, `is_fsf()` and
-  `is_spdx()` take only those named inputs. Migration: pass exactly one
+  `TypeError` for a text or ID that is no `str`, before it opens a database;
+  `is_osi()`, `is_fsf()` and `is_spdx()` take only those named inputs.
+  Migration: pass exactly one
 - **Breaking:** `match(db=...)` checks a database is ready before reading
-  it. Migration: build it with `licenseid update`
+  it; a blank `db` (and `LicenseDetector("")`) is `InvalidInputError`, not
+  the default database. Migration: build it with `licenseid update`; pass
+  a path or none
 
 ### Fixed
 
@@ -162,6 +167,16 @@ and this project adheres to
   `'MIT';`), also with a mark on one end only (`MIT".`, `Apache-2.0'.`),
   as it reads `MIT,"`; `"MIT"..` and `"MIT.".` are still refused
   ([#139])
+- `detect` keeps both operands of `GPL-2.0+ OR GPL-2.0-only` in a tag; it
+  read the `GPL-2.0` of `GPL-2.0+` as bare and answered `GPL-2.0-only`
+- A deprecated ID without a text (`wxWindows`, `eCos-2.0`, `GPL-2.0+` in an
+  expression) has the OSI and FSF flags the List gives it, not false; a
+  database built before warns `build v2 outdated`: run `licenseid update`
+- `clear-cache` deletes cache files only in the default directory or beside
+  a ready database: `--db proj/typo.db` deleted `proj/licenses.json` and
+  `popularity.csv`
+- `detect` gives no `GPL-4.0-only WITH Font-exception-2.0` for a font
+  exception under a GPL version the List does not have
 - A build from the sdist needs Pitloom 0.21.2 or later: an older one accepts
   licenseid 0.7 and its build hook then fails to import
   ([#135])

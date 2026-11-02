@@ -16,11 +16,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from licenseid.console import end_line, status, warn
+from licenseid.datadir import get_default_db_path
 from licenseid.dbcache import TableCache, cast_license_details
 from licenseid.dbcheck import (
     absolute_path,
     empty_error,
     is_memory_database,
+    is_ready,
     named_file,
     needs_writing,
     not_found_error,
@@ -78,6 +80,22 @@ def is_current_build(metadata: DatabaseMetadata) -> bool:
     (``records.BUILD_VERSION``): not older, as ``build vN outdated`` warns,
     nor newer, as ``build vN newer`` does."""
     return _stamp(metadata.get("build_version", "1")) == _stamp(BUILD_VERSION)
+
+
+def _holds_own_cache(db_path: Path) -> bool:
+    """Whether the directory of *db_path* holds licenseid's download cache,
+    so ``clear-cache`` may delete the cache files in it: the default data
+    directory, or the directory of a ready database (``update`` writes its
+    cache beside the database it builds). Fail-closed, as a delete is
+    (``reject_foreign_database``): a mistyped ``--db`` names a database that
+    is not there, and the ``licenses.json`` beside it is somebody else's."""
+    if is_ready(str(db_path)):
+        return True
+    try:
+        default = Path(get_default_db_path()).parent
+        return os.path.samefile(db_path.parent, default)
+    except (DatabaseNotReadyError, OSError):
+        return False  # no home, or no such directory: none of licenseid's
 
 
 class LicenseDatabase:
@@ -205,8 +223,9 @@ class LicenseDatabase:
 
     @staticmethod
     def clear_cache(db_path: str | Path) -> bool:
-        """Delete the database (unopened) at *db_path* and the cache files
-        beside it; True if there was any of them to delete. Raises
+        """Delete the database (unopened) at *db_path* and, where they are
+        licenseid's (:func:`_holds_own_cache`), the cache files beside it;
+        True if there was any of them to delete. Raises
         :class:`licenseid.DatabaseNotReadyError` for a path licenseid did not
         build a database at, as the CLI does."""
         # Local import: spdx_source pulls in `requests` (~60ms at import),
@@ -219,6 +238,8 @@ class LicenseDatabase:
         if named is None:
             return False  # in-memory: no directory to clear
         db_path = Path(named)
+        # Asked before the database goes: then nothing would show it.
+        own_cache = _holds_own_cache(db_path)
         deleted = False
         # The database goes first, so a refused delete leaves the cache
         # intact. Its sidecars follow, best effort: once it is gone a stale
@@ -232,7 +253,9 @@ class LicenseDatabase:
             with contextlib.suppress(OSError):
                 db_path.with_name(db_path.name + suffix).unlink()
                 deleted = True
-        return spdx_source.clear_cache_files(db_path.parent) or deleted
+        if own_cache and spdx_source.clear_cache_files(db_path.parent):
+            return True
+        return deleted
 
     def update_from_remote(
         self,

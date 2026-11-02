@@ -29,7 +29,7 @@ a failure prints one warning, its ACTION naming the next source
 v<version>``); the last failure is the error.
 
 The snapshot is shipped, not cached, so ``--no-cache`` allows it. ``auto``
-falls back to it only if it holds the ``--version`` asked for and is not
+falls back to it only if it holds the version ``--list`` asks for and is not
 older than the database: a failed download must not downgrade the database.
 When the version itself comes from the snapshot (every lookup failed), the
 network is not tried again: the data is the snapshot's too.
@@ -62,8 +62,8 @@ _BAD_TARBALL = (tarfile.TarError, EOFError, zlib.error, ValueError, RecursionErr
 
 @dataclass(frozen=True)
 class UpdateRequest:
-    """What ``update`` was asked for: ``--version``, ``--cache/--no-cache``,
-    ``--source`` and ``--force``."""
+    """What ``update`` was asked for: the version of ``--list``,
+    ``--cache/--no-cache``, ``--source`` and ``--force``."""
 
     version: str | None = None
     use_cache: bool = True
@@ -135,7 +135,8 @@ class ReleaseChain:
 
     def _refuse_downgrade(self, version: str) -> None:
         """Refuse a snapshot older than the database unless ``--force``, or
-        ``--version`` names it: a database is not made older by default."""
+        ``--list`` names its version: a database is not made older by
+        default."""
         current, request = self.current, self.request
         if request.force or request.version is not None or current is None:
             return
@@ -256,7 +257,7 @@ class ReleaseChain:
     @functools.cached_property
     def _fallback(self) -> SpdxData | None:
         """The snapshot, if ``auto`` may fall back to it: absent, of another
-        version than ``--version``, or older than the database, it may not.
+        version than ``--list`` names, or older than the database, it may not.
         An unreadable one is reported, once."""
         snapshot = self._snapshot
         if isinstance(snapshot, str):

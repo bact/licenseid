@@ -141,8 +141,10 @@ Unix philosophy. Consistent, predictable, parseable.
     that failed (`update`, a delete `clear-cache` could not make); 2 a
     usage error (two inputs, `--json` with `--id-only` or `--diff`),
     unusable input, a database not ready, or a result that could not be
-    written. Exit 1 of `detect` and `match` prints nothing on standard
-    error.
+    written. Exit 1 of `detect` and `match` prints no `ERROR` line: "no"
+    is an answer. A `WARNING` about the input or the database
+    (`variant not stated`, `N days old`) can still come with it, as with
+    an answer.
   - The only exceptions: `detect --id-only` (the top expression alone, one
     line; an empty line for none), `--version` (`licenseid <version>`) and
     `--help`.
