@@ -17,8 +17,10 @@ import re
 # (WITH, AND, OR), is not one. The ID must start at a token start (lookbehind):
 # without it every offset of a long token is tried and the scan is quadratic
 # (8 s at 32,000 characters).
+# The operator words ignore case in ASCII only ("(?a:"), as in exprtokens:
+# "WİTH" is no WITH. White space stays Unicode's.
 PLUS_OPERATOR = re.compile(
-    r"(?P<with>\bWITH\s+)?(?<![^\s(])(?!(?:with|and|or)\+)"
+    r"(?P<with>\b(?a:WITH)\s+)?(?<![^\s(])(?!(?a:with|and|or)\+)"
     r"(?P<id>[^\s()+]+)\+(?=\s|\)|$)",
     re.IGNORECASE,
 )

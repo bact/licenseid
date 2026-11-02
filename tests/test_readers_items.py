@@ -104,10 +104,11 @@ def test_a_spaced_plus_in_a_tag(
 
 
 def test_a_dotted_capital_i_in_with(corpus_db: LicenseDatabase) -> None:
-    # BUG: U+0130 folds to "i", so "WİTH" was the operator.
-    assert _answer(corpus_db, "MIT WİTH Classpath-exception-2.0") == (
-        "MIT WITH Classpath-exception-2.0",
+    """U+0130 folded to "i", so "W\u0130TH" was the operator; it is no
+    word of an expression (tests/test_readers_case.py)."""
+    assert _answer(corpus_db, "MIT W\u0130TH Classpath-exception-2.0") == (
         None,
+        "not found: MIT W\u0130TH Classpath-exception-2.0",
     )
 
 

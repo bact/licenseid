@@ -48,8 +48,11 @@ __all__ = [
 # The word a grant starts with, where OR_LATER_PHRASE starts at the version
 # before it ("2 or later").
 _RE_GRANT_WORD = re.compile(r"\bor\b", re.IGNORECASE)
-# The words that may follow a grant: "version", "of the License".
-_GRANT_WORDS = r"(?:\s+versions?)?(?:\s+of\s+(?:the|this)\s+licen[cs]e)?"
+# The words that may follow a grant: "version", "of the License". A word
+# ignores case in ASCII only ("(?a:"), as every keyword here does: Python's
+# IGNORECASE alone folds "\u0130", "\u0131", "\u017f" and the Kelvin sign
+# into "i", "s" and "k"; the white space between them stays Unicode's.
+_GRANT_WORDS = r"(?:\s+(?a:versions?))?(?:\s+of\s+(?a:the|this)\s+(?a:licen[cs]e))?"
 #: The words that may end a grant, as a pattern to match where it ends.
 RE_GRANT_WORDS = re.compile(_GRANT_WORDS, re.IGNORECASE)
 # What may follow the grant at the end of the text: those words, then
@@ -59,7 +62,7 @@ _RE_GRANT_TAIL = re.compile(_GRANT_WORDS + r"[\s.,;:)\]]*", re.IGNORECASE)
 # match starts at the first white space of a run (lookbehind): without it,
 # every offset of a long run of spaces is tried and a split is quadratic
 # (1.6 s at 20,000 spaces).
-WITH_OPERATOR = re.compile(r"(?<!\s)\s+WITH\s+", re.IGNORECASE)
+WITH_OPERATOR = re.compile(r"(?<!\s)\s+(?a:WITH)\s+", re.IGNORECASE)
 
 
 def loose_id(db: ListLookup, text: str) -> tuple[ListedName, str] | None:

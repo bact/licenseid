@@ -35,6 +35,10 @@ import re
 #   - "or-later" as a word of its own after a number ("GPL-2.0 or-later",
 #     decision Q14); "or-later" inside an ID such as GPL-2.0-or-later is not
 #     a phrase, as a hyphen or a letter stands right before it there.
+# A word with an "i", "s" or "k" ignores case in ASCII only ("(?a:"):
+# Python's IGNORECASE alone folds "\u0130", "\u0131", "\u017f" and the
+# Kelvin sign into them (tests/test_readers_case.py). White space stays
+# Unicode's.
 _GAP = r"[\s/*#;,-]*"
 # The words that take back a phrase right after them.
 _NEGATIONS = ("not", "no")
@@ -42,12 +46,12 @@ _NOT_NEGATED = "".join(rf"(?<!\b{word} )" for word in _NEGATIONS)
 _RE_NEGATED_END = re.compile(rf"\b(?:{'|'.join(_NEGATIONS)}) \Z", re.IGNORECASE)
 OR_LATER_PHRASE = re.compile(
     rf"{_NOT_NEGATED}\bor{_GAP}"
-    rf"(?:\([^)]{{0,50}}\){_GAP}|at\s+your\s+option{_GAP})?"
+    rf"(?:\([^)]{{0,50}}\){_GAP}|at\s+your\s+(?a:option){_GAP})?"
     rf"(?:a|any)\s{_GAP}(?:later|newer)\b"
     rf"|\d[\s,()\[\]+/*#;-]*\bor\s+later\b"
     rf"|\d[\s,()\[\]+/*#;-]*(?<![\w-])or-later\b"
     rf"|{_NOT_NEGATED}\bor\s+newer\b"
-    rf"|{_NOT_NEGATED}\bany\s+later\s+version\b",
+    rf"|{_NOT_NEGATED}\bany\s+later\s+(?a:version)\b",
     re.IGNORECASE,
 )
 
@@ -150,10 +154,11 @@ _RE_OR_LATER_SHORTHAND = re.compile(
 # README/project file, not a standalone license document.
 _RE_NON_LICENSE_SECTION = re.compile(
     r"^#{1,6}\s*"
-    r"(installation|usage|getting\s+started|contributing|"
-    r"prerequisites|requirements|setup|build|deploy|example|"
-    r"quick\s+start|table\s+of\s+contents|overview|features|"
-    r"changelog|roadmap|faq|support|credits|acknowledgements?)",
+    r"((?a:installation|usage|contributing|"
+    r"prerequisites|requirements|setup|build|deploy|example|overview|features|"
+    r"changelog|roadmap|faq|support|credits|acknowledgements?)|"
+    r"(?a:getting)\s+(?a:started)|(?a:quick)\s+(?a:start)|"
+    r"table\s+of\s+(?a:contents))",
     re.IGNORECASE,
 )
 # Openers that appear at the START of a full license document
@@ -168,7 +173,7 @@ _RE_LICENSE_OPENER = re.compile(
     r"common development and distribution license|"
     r"creative commons attribution|redistribution and use in source|"
     r"everyone is permitted to copy)",
-    re.IGNORECASE,
+    re.IGNORECASE | re.ASCII,
 )
 # Positive signals that a file is SOURCE CODE, not a license document.
 _RE_CODE_SIGNAL = re.compile(
