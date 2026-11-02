@@ -46,12 +46,17 @@ from collections import Counter
 from typing import Final
 
 from licenseid.exprtokens import is_addition_ref, is_license_ref
-from licenseid.normalize import RE_DASHES, RE_QUOTES
+from licenseid.normalize import QUOTE_KIND, RE_DASHES, RE_QUOTES
 from licenseid.versionkey import version_key
 
 _ALLOWED: Final = frozenset("_.")
 _END_MARKS: Final = ".,;:"
 _ELLIPSIS: Final = "\u2026"
+# What a mark at the end may stand inside of, which stays: white space,
+# closing brackets and quote marks (``"(MIT;)".``).
+_AROUND: Final = ")]}"
+# Where the marks at the end stop: a word, a "+" or an opening bracket.
+_BEFORE_MARKS: Final = "+([{"
 
 
 def _is_separator(char: str) -> bool:
@@ -151,6 +156,42 @@ def trim_end_mark(text: str, marks: str = _END_MARKS) -> str | None:
     if rest[-1] in _END_MARKS + _ELLIPSIS or RE_DASHES.match(rest[-1]):
         return rest if ends_in_ref(rest) else None  # ``LicenseRef-a.;``
     return rest
+
+
+def marks_at_end(text: str) -> tuple[str, str] | None:
+    """*text* without the marks at its end, and those marks in the order
+    they stand, or None for none. The marks may stand inside the closing
+    brackets and quote marks of the value, which stay (``"(MIT;)".`` gives
+    ``"(MIT)"`` and ``;.``); they stop at a letter, a digit, a ``+`` or an
+    opening bracket. A ``.`` or ``-`` that ends a ``LicenseRef-*`` or an
+    ``AdditionRef-*`` is a character of the ID, not a mark
+    (``"LicenseRef-a.;".`` gives ``"LicenseRef-a."``). One pass back from
+    the end; a reference is tested at each dot or dash of the marks."""
+    kept: list[str] = []
+    marks: list[str] = []
+    stop = len(text)
+    while stop:
+        char = text[stop - 1]
+        if char.isalnum() or char in _BEFORE_MARKS:
+            break
+        if char in ".-" and _ends_in_ref_word(text[:stop]):
+            break
+        if char.isspace() or char in _AROUND or char in QUOTE_KIND:
+            kept.append(char)
+        else:
+            marks.append(char)
+        stop -= 1
+    if not marks:
+        return None
+    return text[:stop] + "".join(reversed(kept)), "".join(reversed(marks))
+
+
+def _ends_in_ref_word(text: str) -> bool:
+    """Whether the last word of *text*, without the brackets and quote marks
+    that open it, is a ``LicenseRef-*`` or an ``AdditionRef-*``."""
+    word = text.rsplit(None, 1)[-1:]
+    core = word[0].lstrip("([{" + "".join(QUOTE_KIND)) if word else ""
+    return is_license_ref(core) or is_addition_ref(core)
 
 
 def _dangling(text: str) -> str:

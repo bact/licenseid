@@ -81,11 +81,12 @@ def test_a_leaf_of_sixty_characters_is_not_cut(corpus_db: LicenseDatabase) -> No
     assert reason == f"operand not resolved: {leaf}"
 
 
-def test_a_semicolon_in_a_reason_is_a_comma(corpus_db: LicenseDatabase) -> None:
-    """A reason may reach a diagnostic line, where ``;`` starts the ACTION.
-    The one exception is ``not an SPDX operator: ;`` (it names the mark)."""
+def test_a_semicolon_in_a_reason_is_kept(corpus_db: LicenseDatabase) -> None:
+    """A reason is a field of the result, never a diagnostic line, where a
+    ``;`` would start the ACTION: it keeps the value's ``;`` (resolverfix
+    item 2; it was made ``,``)."""
     reason = match("Foo bar;baz OR MIT", corpus_db)["reason"]
-    assert reason == "operand not resolved: Foo bar,baz"
+    assert reason == "operand not resolved: Foo bar;baz"
 
 
 def test_the_long_several_word_leaf_is_cut_too(corpus_db: LicenseDatabase) -> None:

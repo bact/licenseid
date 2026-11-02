@@ -29,12 +29,19 @@ LICENSE_REF_PREFIX = re.compile(
 )
 
 
+def states_qualifier(license_id: str) -> bool:
+    """Whether *license_id* states its qualifier ("GPL-2.0-only",
+    "GPL-2.0-or-later"), in any case: a "+" or an "or later" grant after it
+    would state a second."""
+    return license_id.lower().endswith(("-only", "-or-later"))
+
+
 def plus_after_qualifier(expression: str) -> bool:
     """Whether a "+" operator in *expression* follows an ID that states its
     qualifier already ("GPL-2.0-only+", "GPL-2.0-or-later+"): no SPDX ID
     takes both, so the value names no license."""
     return any(
-        match.group("id").lower().endswith(("-only", "-or-later"))
+        states_qualifier(match.group("id"))
         for match in PLUS_OPERATOR.finditer(expression)
         if not match.group("with") and not LICENSE_REF_PREFIX.match(match.group("id"))
     )

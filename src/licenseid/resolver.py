@@ -28,10 +28,13 @@ that list would give (``licenseid.listsource`` chooses, ``licenseid.listindex``
 reads). ``lists[*].source`` says which was read.
 """
 
+import re
 import unicodedata
 from typing import Final
 
+from licenseid.dropguard import marks_at_end
 from licenseid.exprcanon import unbracketed
+from licenseid.exprtokens import WHITE_SPACE, is_white_space
 from licenseid.listlookup import ListLookup
 from licenseid.listsource import GivenDatabase, choose_list
 from licenseid.quotes import ended_quote, unquote
@@ -41,9 +44,9 @@ from licenseid.resolvecompound import (
     operand_of,
     read_compound,
 )
-from licenseid.resolveleaf import Found, category_of, read_leaf
+from licenseid.resolveleaf import Found, category_of, read_leaf, refuse_dropped
 from licenseid.resolveprose import read_by_name
-from licenseid.resolvereason import EMPTY, no_reading, too_long
+from licenseid.resolvereason import EMPTY, is_empty, no_reading, too_long
 from licenseid.resolverinfo import (
     list_info,
     parser_info,
@@ -68,6 +71,10 @@ from licenseid.textinput import has_lone_surrogate
 #: MAX_KEY_INPUT or less (versionkey). ``licenseid match`` refuses a longer
 #: argument (``climatch``).
 MAX_EXPRESSION_CHARS: Final = 2000
+# A surrogate code point: alone, no UTF-8 encoder takes it.
+_RE_SURROGATE = re.compile("[\ud800-\udfff]")
+# One end mark: an ending, which a value is not refused for (dropguard).
+_END_MARKS = frozenset(".,;:")
 
 
 def match(
@@ -134,10 +141,40 @@ def _explain(
 
     if found.expression is None and found.reason is None:
         found.steps, found.expansions = [], []
-        found.reason = no_reading(lookup, _prepared(value, Found())[0], names)
-    for operand in operands:
+        text = _prepared(value, Found())[0]
+        if not _marks_refusal(lookup, text, found):
+            found.reason = no_reading(lookup, text, names)
+    for index, operand in enumerate(operands):
         if operand["expression"] is None and operand["reason"] is None:
-            operand["reason"] = no_reading(lookup, operand["text"].strip(), names)
+            text, refused = operand["text"], Found()
+            if _marks_refusal(lookup, text.strip(), refused):
+                operands[index] = operand_of(text, operand["span"][0], refused)
+            else:
+                operand["reason"] = no_reading(lookup, text.strip(), names)
+
+
+def _marks_refusal(lookup: ListLookup, text: str, found: Found) -> bool:
+    """Make *found* the refusal of *text*, a value no reader read, that names
+    a licence once the marks at its end are left off, inside closing
+    brackets and quote marks too (``(MIT)-``, ``"(MIT;)".``): a ``drop`` and
+    ``character dropped: U+...``, as for a mark after an ID (P137). Where
+    what is left is malformed (``LicenseRef-a+-``), its reason is the
+    value's. One end mark alone (``(MIT).``) is an ending, not a dropped
+    mark: no reason here. False when nothing is made."""
+    ended = marks_at_end(text)
+    if ended is None:
+        return False
+    core, marks = ended
+    again = _read(lookup, core, lists=False)[0]
+    if again.expression is None:
+        if again.category != "malformed":
+            return False
+        found.category, found.reason = again.category, again.reason
+        return True
+    if len(marks) == 1 and marks in _END_MARKS:
+        return False
+    refuse_dropped(found, text, "".join(dict.fromkeys(marks)), again.expression)
+    return True
 
 
 def _require_text(value: object) -> None:
@@ -162,11 +199,12 @@ def _read(
     licences is not split: a part is not read as a list again."""
     found = Found()
     text, start = _prepared(value, found)
-    if not text or len(text) > MAX_EXPRESSION_CHARS:
+    empty = is_empty(text)
+    if empty or len(text) > MAX_EXPRESSION_CHARS:
         found.category, found.steps = "unresolved", []  # nothing was read
-        found.reason = too_long(len(text)) if text else EMPTY
+        found.reason = EMPTY if empty else too_long(len(text))
         return found, [], False
-    found.reason = _refusal(text)
+    found.reason = _refusal(value)  # the raw value: a trim must not hide one
     if found.reason is not None:
         found.category, found.steps = "unresolved", []  # no step was taken
         return found, [], False
@@ -231,8 +269,8 @@ def _prepared(value: str, found: Found) -> tuple[str, int]:
     of it (``"MIT"``, ``(MIT)``, ``("MIT")``), each as a step, and where that
     text starts in *value* (a code point). The quotes are taken off the
     whole value, once (:mod:`licenseid.quotes`)."""
-    text = value.strip()
-    start = len(value) - len(value.lstrip())
+    text = value.strip(WHITE_SPACE)
+    start = len(value) - len(value.lstrip(WHITE_SPACE))
     if text != value:
         found.steps.append(step("trim", True, value, text))
     text, start = _unquoted(text, start, found)
@@ -267,22 +305,33 @@ def _unbracketed(text: str, start: int, found: Found) -> tuple[str, int]:
     if inner == text:
         return text, start
     found.steps.append(step("brackets", True, text, inner))
-    lead = (len(text) - len(inner)) // 2 + len(inner) - len(inner.lstrip())
-    return inner.strip(), start + lead
+    inside = inner.lstrip(WHITE_SPACE)
+    lead = (len(text) - len(inner)) // 2 + len(inner) - len(inside)
+    return inside.rstrip(WHITE_SPACE), start + lead
 
 
 def _refusal(text: str) -> str | None:
     """Why *text* is no licence value, or None. A control or format
     character other than white space (a NUL, a zero-width space, a bidi
-    override) must not be dropped as a separator, since that would resolve
-    text that shows other than it reads; a lone surrogate
+    override, the information separators U+001C to U+001F, which
+    ``str.isspace()`` takes for white space) must not be dropped as a
+    separator, since that would resolve text that shows other than it
+    reads; a lone surrogate
     (:func:`licenseid.textinput.has_lone_surrogate`) SQLite cannot bind."""
     if has_lone_surrogate(text):
         return "lone surrogate"
     for char in text:
-        if unicodedata.category(char) in ("Cc", "Cf") and not char.isspace():
+        if unicodedata.category(char) in ("Cc", "Cf") and not is_white_space(char):
             return f"control or format character: U+{ord(char):04X}"
     return None
+
+
+def _encodable(text: str) -> str:
+    """*text* with each surrogate code point made U+FFFD, one code point for
+    one, so a span still indexes it: the result is written as UTF-8 (RFC
+    8785), which no surrogate is. Only a value :func:`_refusal` refused
+    holds one."""
+    return _RE_SURROGATE.sub("\ufffd", text)
 
 
 def _resolution(
@@ -292,7 +341,7 @@ def _resolution(
     category = category_of(found)
     return {
         "schema": SCHEMA,
-        "input": value,
+        "input": _encodable(value),
         "expression": found.expression,
         "category": category,
         "trust": TRUST[category],

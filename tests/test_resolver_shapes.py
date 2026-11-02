@@ -188,9 +188,11 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
             "MIT WITH LLVM-exception OR Apache-2.0",
             ("Apache-2.0 OR MIT WITH LLVM-exception", "lexical", ["reorder"], [], []),
         ),
-        # a LicenseRef names itself, as written; it takes no "+" and no grant
+        # a LicenseRef names itself, as written but its prefix in SPDX's case
+        # (resolverfix item 4; was licenseref-Foo.2, exact); it takes no "+"
+        # and no grant
         ("LicenseRef-foo", ("LicenseRef-foo", "exact", [], [], [])),
-        ("licenseref-Foo.2", ("licenseref-Foo.2", "exact", [], [], [])),
+        ("licenseref-Foo.2", ("LicenseRef-Foo.2", "lexical", ["id_case"], [], [])),
         (
             "DocumentRef-spdx-tool-1.2:LicenseRef-MIT-Style-2",
             ("DocumentRef-spdx-tool-1.2:LicenseRef-MIT-Style-2", "exact", [], [], []),

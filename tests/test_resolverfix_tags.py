@@ -7,9 +7,9 @@
 item 8): an "or later" grant after an ID that states its qualifier already,
 and an ID cut at a character the SPDX idstring has not (``LicenseRef-café``).
 
-Characterisation first: every entry point's answer today (API, ``is_spdx``,
-CLI ``detect`` and ``is-spdx``); an entry marked ``# BUG:`` is what the fix
-moves."""
+Every entry point's answer (API, ``is_spdx``, CLI ``detect`` and
+``is-spdx``): no licence for (a), as the maintainer decided on 2026-11-02,
+and for (b), the narrowest rule that never answers a cut ID."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
 from collections.abc import Generator
@@ -36,46 +36,38 @@ def reference(expression: str) -> Answers:
     return Answers(expression, False, expression, False)
 
 
-#: (a) An "or later" grant after ``-only`` or ``-or-later``: a qualifier
-#: stated twice, which ``match()`` refuses.
-TWICE: dict[str, Answers] = {
-    "GPL-2.0-only or (at your option) any later version": named(
-        "GPL-2.0-only"  # BUG: refused
-    ),
-    "GPL-2.0-or-later or any later version": named("GPL-2.0-or-later"),  # BUG
-    "GPL-2.0-only or later": Answers(
-        "GPL-2.0-only OR later",
-        False,
-        "GPL-2.0-only OR later",
-        False,  # BUG
-    ),
-    "GPL-2.0-or-later or later": Answers(
-        "GPL-2.0-or-later OR later",  # BUG
-        False,
-        "GPL-2.0-or-later OR later",
-        False,
-    ),
-    "(GPL-2.0-only) or later": Answers(
-        "GPL-2.0-only OR later",
-        False,
-        "GPL-2.0-only OR later",
-        False,  # BUG
-    ),
-    "GPL-2.0-only WITH Classpath-exception-2.0 or later": named(
-        "GPL-2.0-only WITH Classpath-exception-2.0"  # BUG: refused
-    ),
-}
+#: No entry point answers.
+NOTHING = Answers(None, None, None, False)
 
-#: (b) An ID cut at a character outside the idstring grammar.
-CUT: dict[str, Answers] = {
-    "LicenseRef-caf\u00e9": reference("LicenseRef-caf"),  # BUG: refused
-    "MIT OR LicenseRef-caf\u00e9": reference("MIT OR LicenseRef-caf"),  # BUG
-    "LicenseRef-caf\u00e9-x OR MIT": reference("LicenseRef-caf"),  # BUG
-    "LicenseRef-a-\u00e4": reference("LicenseRef-a"),  # BUG: refused
-    "LicenseRef-cafe\u0301": reference("LicenseRef-cafe"),  # BUG: refused
-    "MIT\u00e9": named("MIT"),  # BUG: refused
-    "LicenseRef-\u00e4": Answers(None, None, None, False),
-}
+#: (a) An "or later" grant after ``-only`` or ``-or-later``: a qualifier
+#: stated twice, which ``match()`` refuses. Each was read before: as the ID
+#: alone, or as the OR of the ID and a licence ``later``.
+TWICE = [
+    "GPL-2.0-only or (at your option) any later version",
+    "GPL-2.0-or-later or any later version",
+    "GPL-2.0-only or later",
+    "GPL-2.0-or-later or later",
+    "gpl-2.0-ONLY or later",
+    "(GPL-2.0-only) or later",
+    "GPL-2.0-only WITH Classpath-exception-2.0 or later",
+    "MIT OR GPL-2.0-only or later",
+    "GPL-2.0-only or, at your option, any later version",
+]
+
+#: (b) An ID cut at a character outside the idstring grammar (ASCII
+#: letters, digits, ``.`` and ``-``). Each answered the ID as cut before.
+CUT = [
+    "LicenseRef-caf\u00e9",
+    "MIT OR LicenseRef-caf\u00e9",
+    "LicenseRef-caf\u00e9-x OR MIT",
+    "LicenseRef-a-\u00e4",
+    "LicenseRef-cafe\u0301",  # a combining mark
+    "MIT\u00e9",
+    "MIT.\u00e9",
+    "LicenseRef-\u00e4",  # no answer before either
+    "MIT WITH Classpath-exception-2.0\u00e9",
+    "MIT\u0661",  # a digit of another script
+]
 
 #: Tag answers that stay as they are.
 STAYS: dict[str, Answers] = {
@@ -84,18 +76,26 @@ STAYS: dict[str, Answers] = {
     "GPL-2.0-or-later": named("GPL-2.0-or-later"),
     "GPL-2.0-only OR MIT": named("GPL-2.0-only OR MIT"),
     "GPL-2.0-only OR LGPL-2.1 or later": named("GPL-2.0-only OR LGPL-2.1-or-later"),
+    "GPL-2.0-only OR GPL-2.0 or later": named("GPL-2.0-only OR GPL-2.0-or-later"),
+    "GPL-2.0-only, see COPYING for any later version": named("GPL-2.0-only"),
     # A word after a space, or a mark that is no letter, ends the expression,
     # as prose and code after a tag do (``MIT, with additions``).
     "LicenseRef-a b": reference("LicenseRef-a"),
+    "LicenseRef-caf \u00e9": reference("LicenseRef-caf"),
     "MIT\u20ac": named("MIT"),
     "MIT_": named("MIT"),
     "MIT*": named("MIT"),
+    "(MIT)\u00e9": named("MIT"),
+    "MIT+\u00e9": named("MIT+"),
     "Apache-2.0: see NOTICE": named("Apache-2.0"),
 }
 
-TABLES = {**TWICE, **CUT, **STAYS}
+
+@pytest.mark.parametrize("tag", TWICE + CUT, ids=ascii)
+def test_tag_names_nothing(db: str, tag: str, tmp_path: Path) -> None:
+    assert answers(db, tag, tmp_path) == NOTHING
 
 
-@pytest.mark.parametrize("tag", list(TABLES), ids=ascii)
+@pytest.mark.parametrize("tag", list(STAYS), ids=ascii)
 def test_tag(db: str, tag: str, tmp_path: Path) -> None:
-    assert answers(db, tag, tmp_path) == TABLES[tag]
+    assert answers(db, tag, tmp_path) == STAYS[tag]

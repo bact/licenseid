@@ -33,8 +33,8 @@ from licenseid.dropguard import (
     joined_marks,
     trim_end_mark,
 )
-from licenseid.errors import one_line
-from licenseid.exprtokens import is_addition_ref, is_license_ref
+from licenseid.errors import reason_detail
+from licenseid.exprtokens import canonical_ref, is_addition_ref, is_license_ref
 from licenseid.identifiers import without_outer_brackets
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import (
@@ -113,7 +113,7 @@ class _Dropped(Exception):
         # step but its own.
         found.expression = None
         found.category = "unresolved"
-        detail = one_line(self.lost) if self.words else code_points(self.lost)
+        detail = reason_detail(self.lost) if self.words else code_points(self.lost)
         found.reason = f"{'word' if self.words else 'character'} dropped: {detail}"
         found.steps = [step("drop", False, self.text, self.license_id, detail)]
         found.expansions = []
@@ -283,9 +283,10 @@ def _with_form(text: str, operator: re.Match[str]) -> list[Step]:
 def _exception(db: ListLookup, text: str, found: Found) -> str | None:
     """The listed exception *text* names, its case and its deprecation read
     as for a licence (_deprecation), or None. An ``AdditionRef-*`` names
-    itself, as written and unchecked, as a ``LicenseRef-*`` does (Q20)."""
+    itself, as written and unchecked, as a ``LicenseRef-*`` does (Q20), its
+    prefix in SPDX's case (an ``id_case`` step)."""
     if is_addition_ref(text):
-        return text
+        return _reference(text, found.steps)
     details = db.get_exception_details(text)
     if details is None:
         return None
@@ -420,10 +421,12 @@ def _grant(
 def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
     """The listed ID *text* names, and the steps from *text* to it: its own
     ID in other case, a listed name, or a loosely written ID. A
-    ``LicenseRef-*`` names itself. Raises :class:`_Dropped` where the loose
-    reading would drop a character that says something."""
+    ``LicenseRef-*`` names itself, its prefix in SPDX's case. Raises
+    :class:`_Dropped` where the loose reading would drop a character that
+    says something."""
     if is_license_ref(text):
-        return text, []
+        steps: list[Step] = []
+        return _reference(text, steps), steps
     details = db.get_license_details(text)
     if details is not None:
         license_id = details["license_id"]
@@ -445,6 +448,17 @@ def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
     if lost:
         raise _Dropped(text, lost, license_id, words=True)
     return license_id, _spelling(text, license_id)
+
+
+def _reference(text: str, steps: list[Step]) -> str:
+    """*text*, a whole ``LicenseRef-*`` or ``AdditionRef-*``, with its prefixes
+    in SPDX's case (:func:`licenseid.exprtokens.canonical_ref`), an
+    ``id_case`` step in *steps* if that changed it: a change of case, as for
+    an ID of the List. Its idstring is kept as written."""
+    canonical = canonical_ref(text)
+    if canonical != text:
+        steps.append(step("id_case", True, text, canonical))
+    return canonical
 
 
 def _spelling(text: str, license_id: str) -> list[Step]:

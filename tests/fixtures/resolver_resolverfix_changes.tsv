@@ -1,0 +1,8 @@
+# The answers task resolverfix (0.7.0 review: edge values of match()) moved
+# in the parity corpus and the PyPI sample. value: Python unicode_escape;
+# group: why it moved (in tests/resolver_changes_resolverfix.py); then the
+# answer, its fields written as in the other answer fixtures.
+value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
+MIT\udcff	surrogate	-	unresolved	-	-	-	-	-	none	no	lone surrogate
+BSD 3-Clause License; partially licensed under the Python Software Foundation License	semicolon	-	unresolved	-	-	-	-	-	none	yes	not found: BSD 3-Clause License; partially licensed under the Python So...
+MIT; Copyright (c) 2016-2024 Cisco and/or its affiliates.	semicolon	-	unresolved	-	-	-	-	-	none	yes	not found: MIT; Copyright (c) 2016-2024 Cisco and/or its affiliates.

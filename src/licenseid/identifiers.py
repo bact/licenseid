@@ -7,20 +7,30 @@
 SPDX Identifier and Expression normalization and validation.
 """
 
-import bisect
 import re
 from itertools import dropwhile, pairwise
 from typing import cast
 
 import py_spdx_license
 
-from licenseid.classify import OR_LATER_PHRASE
+from licenseid.classify import OR_LATER_PHRASE, grant_at, grant_spans
 from licenseid.dropguard import trim_end_mark
-from licenseid.exprtokens import OPERATORS, RE_OPERATOR, RE_TOKEN
+from licenseid.exprtokens import (
+    OPERAND_START,
+    OPERATORS,
+    RE_OPERATOR,
+    RE_TOKEN,
+    closing_brackets_end,
+    continues_after,
+    cut_inside_word,
+    licence_after,
+    token_kind,
+)
 from licenseid.listlookup import ListLookup
 from licenseid.plusoperator import (
     LICENSE_REF_PREFIX,
     plus_after_qualifier,
+    states_qualifier,
     strip_plus_operator,
 )
 from licenseid.versionkey import named_row
@@ -214,17 +224,6 @@ def _too_large_to_parse(expression: str) -> bool:
     return False
 
 
-def _token_kind(text: str) -> str:
-    """Which part of an expression a token can be."""
-    if text in ("(", ")", "+"):
-        return text
-    return "OP" if text.upper() in OPERATORS else "ID"
-
-
-# What may stand where an operand is expected; everything else follows one.
-_OPERAND_START = ("ID", "(")
-
-
 def qualify_trailing_grant(expression: str, value: str) -> str:
     """*expression* with the bare deprecated ID it ends in replaced by its
     ``-or-later`` form, when the prose right after it in *value* grants it.
@@ -256,33 +255,27 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     return expression[: target.start()] + or_later + expression[target.end() :]
 
 
-def _continues_after(value: str, end: int) -> bool:
-    """Whether an expression goes on after *end*: an operator joined to what
-    stands before it by white space alone."""
-    token = RE_TOKEN.search(value, end)
-    if token is None or _token_kind(token.group(0)) != "OP":
-        return False
-    return not value[end : token.start()].strip()
+def _qualified(licence: str, before: str) -> bool:
+    """Whether *licence* states its qualifier, with no "+" after it (*before*
+    is the token before the grant): "GPL-2.0-only+ or later" is read as
+    ``OR later`` and refused for its "+" (``is_qualified_plus``)."""
+    return before != "+" and states_qualifier(licence)
 
 
-def _closing_brackets_end(value: str, pos: int, depth: int) -> int | None:
-    """Where the *depth* closing brackets after *pos* end, when white space
-    alone stands before each; None if they are not there."""
-    for _ in range(depth):
-        token = RE_TOKEN.search(value, pos)
-        if token is None or token.group(0) != ")" or value[pos : token.start()].strip():
-            return None
-        pos = token.end()
-    return pos
-
-
-def _grant_covering(starts: list[int], ends: list[int], pos: int) -> int | None:
-    """The end of the "or later" grant *pos* falls in, if one does. A binary
-    search, not a scan: a minified line can hold thousands of each."""
-    index = bisect.bisect_right(starts, pos) - 1
-    if index < 0 or pos >= ends[index]:
-        return None
-    return ends[index]
+def _ended_by_grant(value: str, ends: tuple[int, int], depth: int, licence: str) -> str:
+    """:func:`leading_expression` of *value* that ends at ``ends[0]``, before
+    a grant that ends at ``ends[1]``, in *depth* brackets, after *licence*.
+    The grant qualifies the ID before it (qualify_trailing_grant), so it
+    ends the expression; a value that goes on past it (operands would be
+    lost), or a grant after a stated qualifier, is no evidence at all."""
+    close_end = closing_brackets_end(value, ends[1], depth)
+    if (
+        close_end is None
+        or continues_after(value, close_end)
+        or states_qualifier(licence)
+    ):
+        return ""
+    return value[: ends[0]] + ")" * depth
 
 
 def leading_expression(value: str) -> str:
@@ -296,19 +289,22 @@ def leading_expression(value: str) -> str:
 
     An "or later" grant ends the expression, but not the brackets it stands
     in: "(GPL-2.0 or later)" gives "(GPL-2.0)", for qualify_trailing_grant.
+    After an ID that states its qualifier (``GPL-2.0-only or later``) the
+    grant states a second: no expression, as ``match()`` refuses it. An ID
+    cut inside a word (``LicenseRef-café``) is no expression either
+    (:func:`licenseid.exprtokens.cut_inside_word`).
     """
     # "or any later version" is a grant, not the OR operator, and the phrase
     # can start before the "or" ("GPL-2.0 or later" needs the version).
-    grants = [m.span() for m in OR_LATER_PHRASE.finditer(value)]
-    starts = [a for a, _ in grants]
-    ends = [b for _, b in grants]
+    grants = grant_spans(value)
     depth = 0
     expect_operand = True
     complete = None  # end of the longest complete, bracket-balanced prefix
     end = 0
+    licence = before = ""  # the last licence (no exception), the last token
     for token in RE_TOKEN.finditer(value):
-        kind = _token_kind(token.group(0))
-        if expect_operand != (kind in _OPERAND_START):
+        kind = token_kind(token.group(0))
+        if expect_operand != (kind in OPERAND_START):
             break
         gap = value[end : token.start()]
         if gap.strip() or (kind == "+" and gap):
@@ -316,16 +312,14 @@ def leading_expression(value: str) -> str:
             # "+" touches the ID it follows. Anything else is prose.
             break
         grant_end = (
-            _grant_covering(starts, ends, token.start()) if kind == "OP" else None
+            grant_at(value, token, grants, _qualified(licence, before))
+            if kind == "OP"
+            else None
         )
         if grant_end is not None:
-            # The grant qualifies the ID before it (qualify_trailing_grant),
-            # so it ends the expression. Operands after it would be lost, so
-            # a value that goes on past the grant is no evidence at all.
-            close_end = _closing_brackets_end(value, grant_end, depth)
-            if close_end is None or _continues_after(value, close_end):
-                return ""
-            return value[:end] + ")" * depth
+            return _ended_by_grant(value, (end, grant_end), depth, licence)
+        licence = licence_after(licence, before, token)
+        before = token[0]
         end = token.end()
         if kind == "(":
             depth += 1
@@ -339,7 +333,7 @@ def leading_expression(value: str) -> str:
             complete = token.end()
     if expect_operand or depth or complete is None:
         return ""
-    return value[:complete]
+    return "" if cut_inside_word(value, complete) else value[:complete]
 
 
 # An ID, then at most one "+", then at most one WITH an exception.
@@ -373,7 +367,7 @@ def is_simple_expression(value: str) -> bool:
     ):
         return False  # a LicenseRef takes no "+"
     shape = tuple(
-        "WITH" if token.upper() == "WITH" else _token_kind(token) for token in tokens
+        "WITH" if token.upper() == "WITH" else token_kind(token) for token in tokens
     )
     # SPDX allows brackets around any expression: "(MIT)" is MIT. The value
     # is balanced (leading_expression), and a simple shape holds no bracket,

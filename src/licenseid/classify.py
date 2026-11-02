@@ -11,9 +11,11 @@ dependency -- distinct from markers.py, which extracts license *identity*
 from structured markers (headings, SPDX tags, field values). These
 functions instead classify the input's *shape* (standalone license
 document vs. source file/README; explicit -or-later grant present or not),
-which LicenseDetector uses to choose a matching strategy.
+which LicenseDetector uses to choose a matching strategy. Where a grant
+stands in an expression (:func:`grant_at`) is read here too.
 """
 
+import bisect
 import os
 import re
 
@@ -46,6 +48,44 @@ OR_LATER_PHRASE = re.compile(
     rf"|{_NOT_NEGATED}\bany\s+later\s+version\b",
     re.IGNORECASE,
 )
+
+
+# The longest grant read after an ID that states its qualifier (grant_at).
+_GRANT_WINDOW = 200
+
+
+def grant_spans(text: str) -> tuple[list[int], list[int]]:
+    """The starts and the ends of the "or later" phrases of *text*, for
+    :func:`grant_at`."""
+    spans = [m.span() for m in OR_LATER_PHRASE.finditer(text)]
+    return [a for a, _ in spans], [b for _, b in spans]
+
+
+def grant_at(
+    text: str,
+    operator: re.Match[str],
+    spans: tuple[list[int], list[int]],
+    qualified: bool,
+) -> int | None:
+    """The end of the "or later" grant the *operator* of an expression in
+    *text* stands in, if it stands in one: a phrase of *spans*
+    (:func:`grant_spans`), found by a binary search, not a scan, as a
+    minified line can hold thousands of each. After a licence that states
+    its qualifier (*qualified*), an "or" is read as after a number, as
+    ``match()`` reads a declared value (``looseid.grant_end``, held to the
+    same answers by ``tests/test_resolverfix_helpers.py``), so "GPL-2.0-only
+    or later" is a grant too, and a qualifier stated twice."""
+    start = operator.start()
+    index = bisect.bisect_right(spans[0], start) - 1
+    if index >= 0 and start < spans[1][index]:
+        return spans[1][index]
+    if not qualified or operator[0].lower() != "or":
+        return None
+    # The phrases that need no number were in *spans*. A window, not the
+    # rest of the line: one probe per "or" must not copy the line
+    # ("A-only OR B-only OR ..." would be quadratic).
+    probe = OR_LATER_PHRASE.match("1 " + text[start : start + _GRANT_WINDOW])
+    return None if probe is None else start + probe.end() - 2
 
 
 def is_negated(before: str) -> bool:
