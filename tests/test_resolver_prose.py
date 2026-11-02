@@ -77,20 +77,31 @@ READ = [
         ["trailing_name", "prose_form", "separator"],
         None,
     ),
-    # P64: the end marks the drop guard lets pass
-    ("MIT License.", "MIT", ["prose_form"], None),
-    ("MIT Licence,", "MIT", ["prose_form"], None),
+    # P64: the end marks the drop guard lets pass, each an ending with a
+    # separator step first (resolverfix item 3; there was none)
+    ("MIT License.", "MIT", ["separator", "prose_form"], None),
+    ("MIT Licence,", "MIT", ["separator", "prose_form"], None),
     (
         "BSD 3-Clause License. ",
         "BSD-3-Clause",
-        ["trim", "prose_form", "separator"],
+        ["trim", "separator", "prose_form", "separator"],
         None,
     ),
-    ("Apache License, Version 2.0.", "Apache-2.0", ["prose_form", "separator"], None),
-    ("MIT License ; ", "MIT", ["trim", "prose_form"], None),
-    ("MIT License:", "MIT", ["prose_form"], None),
-    ("BSD 3-Clause License;", "BSD-3-Clause", ["prose_form", "separator"], None),
-    ("The MIT License;", "MIT", ["prose_form", "listed_name"], None),
+    (
+        "Apache License, Version 2.0.",
+        "Apache-2.0",
+        ["separator", "prose_form", "separator"],
+        None,
+    ),
+    ("MIT License ; ", "MIT", ["trim", "separator", "prose_form"], None),
+    ("MIT License:", "MIT", ["separator", "prose_form"], None),
+    (
+        "BSD 3-Clause License;",
+        "BSD-3-Clause",
+        ["separator", "prose_form", "separator"],
+        None,
+    ),
+    ("The MIT License;", "MIT", ["separator", "prose_form", "listed_name"], None),
 ]
 #: Values that stay unresolved, with the reason for each.
 STAYS = [
@@ -241,7 +252,7 @@ def test_the_weakest_part_wins(
     got = match(value, corpus_db)
     assert (got["expression"], got["category"]) == (expression, category)
     assert got["trust"] == "none"
-    assert kinds(got)[0] in ("prose_form", "trailing_name")
+    assert kinds(got)[0] in ("prose_form", "trailing_name", "separator")
     assert got["candidates"] == [f"{expression}-only", f"{expression}-or-later"]
     assert [(e["kind"], e["applied"]) for e in got["expansions"]] == [
         ("assumed_only", False)
@@ -253,13 +264,19 @@ def test_the_steps_chain_from_the_value_to_the_id(corpus_db: LicenseDatabase) ->
     assert [(s["from"], s["to"], s["detail"]) for s in got["steps"]] == [
         (
             "The Apache License, Version 2.0.",
+            "The Apache License, Version 2.0",
+            "end mark",
+        ),
+        (
+            "The Apache License, Version 2.0",
             "Apache License, Version 2.0",
             "leading article",
         ),
         ("Apache License, Version 2.0", "Apache 2.0", "version"),
         ("Apache 2.0", "Apache-2.0", None),
     ]
-    assert [s["list"] for s in got["steps"]] == [None, None, "spdx-license-list"]
+    lists = ["spdx-license-list", None, None, "spdx-license-list"]
+    assert [s["list"] for s in got["steps"]] == lists
     assert got["input"] == "The Apache License, Version 2.0."
 
 

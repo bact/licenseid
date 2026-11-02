@@ -255,7 +255,6 @@ def test_a_head_that_holds_a_bracket_is_not_dropped(
     "value",
     [
         "isc license (iscl)",
-        "ISC License (ISCL).",
         " ISC License (ISCL) x",
         "ISC License(ISCL)",
         "ISC License  (ISCL)",

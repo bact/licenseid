@@ -187,7 +187,7 @@ NOT_A_LIST = {
     "(MIT; ISC); Apache-2.0": None,  # a list is not split twice (P85)
     "MIT OR; ISC": None,  # an operator beside the ; (P79)
     "MIT; OR": "parse failed: Unexpected 'OR'",
-    "Apache 2; OR MIT": "operand of several words: Apache 2,",  # (; folded)
+    "Apache 2; OR MIT": "operand of several words: Apache 2;",  # (; kept)
     "(MIT; ISC; Apache-2.0": None,  # a bracket that does not close (P85)
     "MIT; ISC; Apache-2.0)": None,
     "MIT; ISC; (Apache-2.0": None,  # opens after the last ;
@@ -198,7 +198,7 @@ NOT_A_LIST = {
     "MIT;OR;ISC": "not an SPDX operator: ;",
     "MIT; or ISC; Apache-2.0": "not an SPDX operator: ;",
     "ANTLR-PD-fallback ; OR ISC; GPL-2.0+": (
-        "operand of several words: ANTLR-PD-fallback ,"
+        "operand of several words: ANTLR-PD-fallback ;"
     ),
     "MIT; ISC; and others": None,
     "MIT; ISC OR; Zlib": None,  # at the end of a part

@@ -28,11 +28,12 @@ P3, a leading ``The``, only together with P1, P2 or a listed name (``The
 MIT License``). ``The MIT`` is no prose form of anything.
 
 One mark at the end (``.``, ``,``, ``;`` or ``:``:
-:func:`licenseid.dropguard.trim_end_mark`) is left off first, as for a leaf;
-any other mark stays on the reduction, which the drop guard refuses
-(``MIT License;;``, ``MIT License...``, ``MIT License?``). The reading is a
-``prose_form`` step from the value to the reduction, then the steps of the
-reduction; the category is the weakest of them (``prose_form`` at the least).
+:func:`licenseid.dropguard.trim_end_mark`) is left off first, as for a leaf,
+as a ``separator`` step; any other mark stays on the reduction, which the
+drop guard refuses (``MIT License;;``, ``MIT License...``, ``MIT License?``).
+The reading is a ``prose_form`` step from the value to the reduction, then
+the steps of the reduction; the category is the weakest of them
+(``prose_form`` at the least).
 
 A prose form is several words, so it is no operand of a compound (P43).
 :func:`read_alone` tells the compound reader whether a leaf of several words
@@ -55,7 +56,7 @@ _LICENCE_WORDS = frozenset({"license", "licence"})
 # its cost is linear (tests/test_resolver_prose.py times it).
 _RE_VERSION_TAIL = re.compile(
     r"[ \t]licen[cs]e,?[ \t]+(?:version[ \t]*|v[ \t]?)(?P<number>\d+(?:\.\d+)*)\Z",
-    re.IGNORECASE,
+    re.IGNORECASE | re.ASCII,
 )
 
 
@@ -78,10 +79,22 @@ def read_prose(db: ListLookup, text: str, found: Found) -> bool:
 
 
 def _prose(db: ListLookup, text: str, found: Found) -> bool:
-    """P1 to P3 on *text* with no bracket at its end."""
-    # One mark at the end is an ending, as for a leaf (P77); other marks stay
-    # on the reduction, which the drop guard refuses.
-    body = trim_end_mark(text) or text.strip()
+    """P1 to P3 on *text* with no bracket at its end. One mark at the end is
+    an ending, as for a leaf (P77): it comes off first, as a ``separator``
+    step before the reading (``MIT License :``); other marks stay on the
+    reduction, which the drop guard refuses."""
+    ended = trim_end_mark(text)
+    if ended is None:
+        return _prose_body(db, text, text.strip(), found)
+    if not _prose_body(db, ended, ended, found):
+        return False
+    if found.expression is not None:
+        found.steps.insert(0, step("separator", True, text, ended, "end mark"))
+    return True
+
+
+def _prose_body(db: ListLookup, text: str, body: str, found: Found) -> bool:
+    """P1 to P3 on *body*, which is *text* with its ending off."""
     if is_no_licence(body):  # a name that states no licence stays so (Q22)
         return False
     rest = _after_article(body)

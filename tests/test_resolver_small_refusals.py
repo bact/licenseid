@@ -376,14 +376,15 @@ def test_packaged_and_database_answers_agree(
 
 #: Review fixes (P134 to P137): ``(expression, reason)``.
 REVIEW_NOW: dict[str, tuple[str | None, str | None]] = {
-    # a mark inside the quote marks, behind a bracket, is seen: two marks
-    '"(MIT;)".': (None, None),
-    '"(MIT.)".': (None, None),
-    '"[MIT,]";': (None, None),
-    # two marks, the first a dot of the ID
-    '"LicenseRef-a.;".': (None, None),
-    '"LicenseRef-a.,",': (None, None),
-    '"LicenseRef-a.;";': (None, None),
+    # a mark inside the quote marks, behind a bracket, is seen: two marks,
+    # named, each once (resolverfix item 7; the reason was "not found")
+    '"(MIT;)".': (None, "character dropped: U+003B U+002E"),
+    '"(MIT.)".': (None, "character dropped: U+002E"),
+    '"[MIT,]";': (None, "character dropped: U+002C U+003B"),
+    # two marks after the dot of the ID
+    '"LicenseRef-a.;".': (None, "character dropped: U+003B U+002E"),
+    '"LicenseRef-a.,",': (None, "character dropped: U+002C"),
+    '"LicenseRef-a.;";': (None, "character dropped: U+003B"),
     # the dot of the ID is a character of it, not an end mark
     '"LicenseRef-a.".': ("LicenseRef-a.", None),
     '"LicenseRef-a.";': ("LicenseRef-a.", None),
@@ -411,14 +412,15 @@ REVIEW_NOW: dict[str, tuple[str | None, str | None]] = {
     'GPL-2.0".': ("GPL-2.0", None),
     'MIT+".': ("MIT+", None),
     'MIT".': ("MIT", None),
-    # no reason of a reader's own, so the default one (P5: "not found");
-    # each needs a path of its own (0.8 follow-ups)
-    "LicenseRef-a+-": (None, None),  # malformed: no expression to say
-    "(MIT)-": (None, None),
-    "(MIT+)-": (None, None),
-    "License :: OSI Approved :: MIT License-": (None, None),
-    "The MIT License (MIT)-": (None, None),
-    "MIT License (MIT)-": (None, None),
+    # the marks at the end left off, the value names a licence: the dash is
+    # dropped (resolverfix item 7, P137; the reason was "not found"); a
+    # malformed core gives its own reason
+    "LicenseRef-a+-": (None, "qualifier on a reference: LicenseRef-a+"),
+    "(MIT)-": (None, DASH),
+    "(MIT+)-": (None, DASH),
+    "License :: OSI Approved :: MIT License-": (None, DASH),
+    "The MIT License (MIT)-": (None, DASH),
+    "MIT License (MIT)-": (None, DASH),
     "MIT+ WITH X-": (None, "exception not found: X-"),
     # the guard sees the quote marks only: a single dot passes it
     '"MIT.".': (None, "character dropped: U+0022"),

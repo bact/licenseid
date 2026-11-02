@@ -50,7 +50,18 @@ def fold(value: str) -> str:
     """*value* on one line of a diagnostic: white space (a line break
     included) folded to single spaces, and a ";" made ",", as it would
     otherwise read as the start of the ACTION."""
-    return " ".join(value.split()).replace(";", ",")
+    return _spaced(value).replace(";", ",")
+
+
+def _spaced(value: str) -> str:
+    """*value* with its white space (a line break included) folded to single
+    spaces."""
+    return " ".join(value.split())
+
+
+def _cut(value: str) -> str:
+    """*value* cut to 60 characters, as one detail must not fill a line."""
+    return value[:60] + "..." if len(value) > 60 else value
 
 
 def shown(name: str) -> str:
@@ -73,8 +84,15 @@ def typed(exc: BaseException) -> str:
 def one_line(value: str) -> str:
     """*value* as one DETAIL of a diagnostic: folded (``fold``), and cut to
     60 characters, as one error must not fill the terminal."""
-    value = fold(value)
-    return value[:60] + "..." if len(value) > 60 else value
+    return _cut(fold(value))
+
+
+def reason_detail(value: str) -> str:
+    """*value* as the DETAIL of a ``reason`` of ``match()``: on one line and
+    cut as :func:`one_line` makes it, but with its ";" kept. A reason is a
+    field of a result, not a diagnostic: it has no ACTION for a ";" to start,
+    and the result's own writer escapes what a field cannot hold."""
+    return _cut(_spaced(value))
 
 
 def invalid_id_error(option: str, value: str) -> InvalidInputError:

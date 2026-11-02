@@ -11,9 +11,11 @@ dependency -- distinct from markers.py, which extracts license *identity*
 from structured markers (headings, SPDX tags, field values). These
 functions instead classify the input's *shape* (standalone license
 document vs. source file/README; explicit -or-later grant present or not),
-which LicenseDetector uses to choose a matching strategy.
+which LicenseDetector uses to choose a matching strategy. Where a grant
+stands in an expression (:func:`grant_at`) is read here too.
 """
 
+import bisect
 import os
 import re
 
@@ -46,6 +48,67 @@ OR_LATER_PHRASE = re.compile(
     rf"|{_NOT_NEGATED}\bany\s+later\s+version\b",
     re.IGNORECASE,
 )
+
+
+# How far past the white space after its "or" a grant read after an ID that
+# states its qualifier may go (grant_at). Read as after a number, the phrase
+# is "or", white space, then "later": a few characters past that run.
+_GRANT_WINDOW = 200
+# The qualifier an ID states at its end (plusoperator.states_qualifier).
+_RE_STATED_QUALIFIER = re.compile(r"-(?:only|or-later)\Z", re.IGNORECASE | re.ASCII)
+
+
+def grant_spans(text: str) -> tuple[list[int], list[int]]:
+    """The starts and the ends of the "or later" phrases of *text*, for
+    :func:`grant_at`."""
+    spans = [m.span() for m in OR_LATER_PHRASE.finditer(text)]
+    return [a for a, _ in spans], [b for _, b in spans]
+
+
+def grant_at(
+    text: str,
+    operator: re.Match[str],
+    spans: tuple[list[int], list[int]],
+    qualified: bool,
+) -> int | None:
+    """The end of the "or later" grant the *operator* of an expression in
+    *text* stands in, if it stands in one: a phrase of *spans*
+    (:func:`grant_spans`), found by a binary search, not a scan, as a
+    minified line can hold thousands of each. After a licence that states
+    its qualifier (*qualified*), the operator is read as after a number, as
+    ``match()`` reads a declared value (``looseid.grant_end``, held to the
+    same answers by ``tests/test_resolverfix_helpers.py``), so "GPL-2.0-only
+    or later" is a grant too, and a qualifier stated twice."""
+    start = operator.start()
+    index = bisect.bisect_right(spans[0], start) - 1
+    if index >= 0 and start < spans[1][index]:
+        return spans[1][index]
+    if not qualified:
+        return None
+    # The phrases that need no number were in *spans*. The white space after
+    # the "or" and a window past it, not the rest of the line: one probe per
+    # "or" must not copy the line ("A-only OR B-only OR ..." would be
+    # quadratic), and the runs after two "or"s do not overlap.
+    run_end = operator.end()
+    while run_end < len(text) and text[run_end].isspace():
+        run_end += 1
+    probe = OR_LATER_PHRASE.match("1 " + text[start : run_end + _GRANT_WINDOW])
+    return None if probe is None else start + probe.end() - 2
+
+
+def grant_follows(tail: str, rest: str) -> bool:
+    """Whether *rest*, the text after the last ID *tail* of an expression (a
+    licence or its exception), grants "or later": the phrase in it with no
+    number between the ID and the phrase, which would be another licence's.
+    The phrase can start inside the ID ("or later" needs the version), so it
+    is read on both together; a qualifier the ID states is left off first,
+    so "GPL-2.0-only (or later)" reads as "GPL-2.0 (or later)" does."""
+    stem = _RE_STATED_QUALIFIER.sub("", tail)
+    text = stem + rest
+    grant = OR_LATER_PHRASE.search(text)
+    return grant is not None and not any(
+        char.isdigit() for char in text[len(stem) : grant.start()]
+    )
 
 
 def is_negated(before: str) -> bool:

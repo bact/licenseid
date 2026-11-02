@@ -279,7 +279,7 @@ def test_a_diagnostic_with_a_character_the_locale_lacks(
     )
     assert (proc.returncode, proc.stdout) == (2, b""), proc.stderr
     line = proc.stderr.decode(encoding)
-    assert line.startswith("ERROR: input: invalid: line break: caf")
+    assert line.startswith("ERROR: input: invalid: line break U+000A: caf")
     assert "caf\u00e9 \u65e5 MIT" in read_text_field(line)  # escapes read back
     assert line.isascii() or encoding != "ascii"
     assert line.endswith("\n") and "\r" not in line

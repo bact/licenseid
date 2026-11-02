@@ -111,14 +111,13 @@ INSIDE = [
 
 #: Not read, no reason: nothing the guard saw (nothing to unquote or an
 #: unquoted value that names nothing).
+#: Quote marks around nothing: an empty value (resolverfix item 1; the
+#: reason was ``not found: ""``).
+EMPTY = ['""', "' '", '" "', "''", "\u201c\u201d"]
+
 UNREAD = [
-    '""',
     '"',
     '"""',
-    "' '",
-    '" "',
-    "''",
-    "“”",
     'MIT "or" Apache-2.0',
     '"BSD 3-Clause "New" or "Revised" License"',  # inner marks: not unquoted
     '"BSD"',  # unquoted, but BSD names no one licence
@@ -250,6 +249,15 @@ def test_a_dropped_mark_after_unquoting_names_only_that_mark(
     got = match('"MIT?"', corpus_db)
     assert got["steps"][0]["from"] == "MIT?"
     assert got["steps"][0]["detail"] == "U+003F"
+
+
+@pytest.mark.parametrize("value", EMPTY, ids=_ids(EMPTY))
+def test_quote_marks_around_nothing_are_empty(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    got = match(value, corpus_db)
+    assert (got["expression"], got["category"]) == (None, "unresolved")
+    assert (got["reason"], got["steps"]) == ("empty", [])
 
 
 @pytest.mark.parametrize("value", UNREAD, ids=_ids(UNREAD))
