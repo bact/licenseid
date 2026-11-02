@@ -471,3 +471,39 @@ def test_the_opener_stops_at_a_redirect_to_http(
                 hatch_build.open_url(f"http://127.0.0.1:{server.server_port}/a")
         finally:
             thread.join(timeout=10)
+
+
+def test_pin_the_build_ships_what_latest_json_names_that_day(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """BUG: the same tree ships whichever list ``latest.json`` names."""
+    newer = gz({"format": 1, "licenseListVersion": "10.0"})
+    shipped: list[bytes] = []
+    for raw, version in ((BUNDLE, "9.99"), (newer, "10.0")):
+        serve(
+            monkeypatch,
+            {
+                "latest.json": pointer(
+                    raw, file=f"v{version}.json.gz", licenseListVersion=version
+                ),
+                f"v{version}.json.gz": raw,
+            },
+        )
+        instance, _ = hook(tmp_path)
+        build_data: dict[str, Any] = {"force_include": {}}
+        instance.initialize("standard", build_data)
+        shipped.append(Path(next(iter(build_data["force_include"]))).read_bytes())
+        instance.finalize("standard", build_data, "")
+    assert shipped == [BUNDLE, newer]
+
+
+def test_pin_skip_ships_nothing_even_when_a_snapshot_is_required(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """BUG: ``skip`` beats ``LICENSEID_REQUIRE_BUNDLE=1`` without a word."""
+    serve(monkeypatch, {})
+    monkeypatch.setenv("LICENSEID_BUNDLE", "skip")
+    monkeypatch.setenv("LICENSEID_REQUIRE_BUNDLE", "1")
+    build_data, app = run(tmp_path)
+    assert build_data == {"force_include": {}}
+    app.display_warning.assert_not_called()
