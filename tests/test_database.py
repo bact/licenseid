@@ -16,7 +16,7 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from conftest import assert_cached_tarball_removed, is_closed
+from conftest import GivenWarnings, assert_cached_tarball_removed, is_closed
 
 from licenseid.cli import cli
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
@@ -78,6 +78,7 @@ def _write_tarball(path: Path, truncate_to: int | None = None) -> None:
     [b"not a tarball at all", None],
     ids=["not_gzip", "truncated_gzip"],
 )
+@pytest.mark.usefixtures("printed")  # update's lines, as the command prints them
 def test_corrupt_cached_tarball_is_removed(
     db: LicenseDatabase,
     tmp_path: Path,
@@ -186,9 +187,10 @@ def outdated(rules: str, stamp: str, current: str) -> str:
         "older-and-newer",
     ],
 )
-def test_older_build_rules_warn_on_stderr(
+def test_older_build_rules_warn(
     db: LicenseDatabase,
     capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     stamps: dict[str, str],
     expected: list[str],
 ) -> None:
@@ -205,21 +207,20 @@ def test_older_build_rules_warn_on_stderr(
     capsys.readouterr()
 
     LicenseDatabase(str(db.db_path), create=False)
-    captured = capsys.readouterr()
-    assert captured.err.splitlines() == expected
-    assert captured.out == ""
+    assert given.lines().splitlines() == expected
+    assert capsys.readouterr() == ("", "")  # given, never printed
 
     # Opened to build, as update does: it is about to fix what it would say.
     LicenseDatabase(str(db.db_path))
-    assert capsys.readouterr().err == ""
+    assert given.take() == []
 
 
 def test_an_empty_database_has_no_build_rules_to_warn_about(
-    db: LicenseDatabase, capsys: pytest.CaptureFixture[str]
+    db: LicenseDatabase, capsys: pytest.CaptureFixture[str], given: GivenWarnings
 ) -> None:
     capsys.readouterr()
     LicenseDatabase(str(db.db_path), create=False)
-    assert capsys.readouterr().err == ""
+    assert (capsys.readouterr().err, given.take()) == ("", [])
 
 
 def test_update_does_not_warn_about_the_database_it_is_rebuilding(

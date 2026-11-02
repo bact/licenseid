@@ -7,7 +7,7 @@
 Aggregated license matching logic using hybrid search.
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Any, cast
 
@@ -151,7 +151,6 @@ class LicenseDetector:
         db_path: str | None = None,
         *,
         enable_popularity: bool = False,
-        report: Callable[[str], None] | None = None,
     ):
         if db_path is None:
             db_path = get_default_db_path()
@@ -159,7 +158,7 @@ class LicenseDetector:
         # Before LicenseDatabase, which opens the file (create=False below: it
         # must be there, and a lookup never makes one).
         check_database_ready(db_path)
-        self.db = LicenseDatabase(db_path, create=False, report=report)
+        self.db = LicenseDatabase(db_path, create=False)
         self.markers = MarkerDetector(self.db)
         self.enable_popularity = enable_popularity
 

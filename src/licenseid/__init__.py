@@ -31,6 +31,7 @@ from licenseid.resolvertypes import (
 )
 from licenseid.result import json_line
 from licenseid.types import Detection, Method
+from licenseid.warning import LicenseIdWarning
 
 # LicenseDatabase is exported as an opaque handle: open one to pass to
 # match(db=...) or LicenseDetector, never to query (P2 of the contract batch).
@@ -42,6 +43,7 @@ __all__ = [
     "LicenseDatabase",
     "LicenseDetector",
     "LicenseIdError",
+    "LicenseIdWarning",
     "ListInfo",
     "ListSource",
     "Method",

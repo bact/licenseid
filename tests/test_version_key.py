@@ -12,6 +12,7 @@ from collections.abc import Generator
 from unittest import mock
 
 import pytest
+from conftest import GivenWarnings
 from matcher_db import Lic, seeded_db
 
 from licenseid.database import LicenseDatabase
@@ -164,7 +165,7 @@ def test_version_key(text: str, key: str) -> None:
 )
 def test_match_version_key(
     db: LicenseDatabase,
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     text: str,
     license_id: str | None,
 ) -> None:
@@ -173,7 +174,7 @@ def test_match_version_key(
         [] if license_id is None else [(license_id, "id", True)]
     )
     assert all(m["score"] > 1.0 for m in results)
-    assert not capsys.readouterr().err
+    assert not given.lines()
 
 
 @pytest.mark.parametrize(
@@ -188,7 +189,7 @@ def test_match_version_key(
 )
 def test_a_family_alone_is_narrowed_to_only_with_a_warning(
     db: LicenseDatabase,
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     text: str,
     license_id: str,
 ) -> None:
@@ -201,7 +202,7 @@ def test_a_family_alone_is_narrowed_to_only_with_a_warning(
         1.02,
     )
     detail = " ".join(text.split())
-    assert capsys.readouterr().err == NARROWED.format(detail, license_id)
+    assert given.lines() == NARROWED.format(detail, license_id)
 
 
 @pytest.mark.parametrize(
@@ -260,7 +261,7 @@ def test_a_long_input_is_no_loose_id(
 
 @pytest.mark.parametrize("text", ["GPL-2.0", "gpl-2.0"])
 def test_a_deprecated_id_as_is_is_narrowed_aloud(
-    db: LicenseDatabase, capsys: pytest.CaptureFixture[str], text: str
+    db: LicenseDatabase, given: GivenWarnings, text: str
 ) -> None:
     """A deprecated ID written as is: -only is the narrower guess, not what
     was declared, so it is not exact, and said (F3 of the contract batch;
@@ -269,7 +270,7 @@ def test_a_deprecated_id_as_is_is_narrowed_aloud(
     assert [(m["license_id"], m["method"], m["exact"]) for m in results] == [
         ("GPL-2.0-only", "id", False)
     ]
-    assert "variant not stated" in capsys.readouterr().err
+    assert "variant not stated" in given.lines()
 
 
 @pytest.mark.parametrize(

@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+from conftest import GivenWarnings
 from matcher_db import Lic, seeded_db
 from resolver_corpus import LICENSE_LIST, list_rows
 
@@ -85,13 +86,13 @@ def matcher() -> Generator[LicenseDetector, None, None]:
 )
 def test_a_grant_after_a_loose_id(
     db: LicenseDatabase,
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     text: str,
     license_id: str | None,
 ) -> None:
     found = loose_id(db, text)
     assert (None if found is None else found[1]) == license_id
-    assert not capsys.readouterr().err
+    assert not given.lines()
 
 
 @pytest.mark.parametrize(
@@ -109,7 +110,7 @@ def test_a_grant_after_a_loose_id(
 )
 def test_every_path_narrows_alike(
     db: LicenseDatabase,
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     raw: str,
     license_id: str,
     warned: bool,
@@ -119,7 +120,7 @@ def test_every_path_narrows_alike(
     [match] = match_short_text(db, "gpl 2 0", raw)
     assert (match["license_id"], match["exact"]) == (license_id, not warned)
     expected = NARROWED.format(" ".join(raw.split()), license_id) if warned else ""
-    assert capsys.readouterr().err == expected
+    assert given.lines() == expected
 
 
 def test_the_exact_id_match_keeps_a_plus_operator(db: LicenseDatabase) -> None:
@@ -194,7 +195,7 @@ def test_the_warning_detail_is_one_printable_line(text: str, detail: str) -> Non
 )
 def test_a_loose_license_with_an_exception(
     matcher: LicenseDetector,
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     text: str,
     expected: tuple[str, bool] | None,
     warned: bool,
@@ -203,7 +204,7 @@ def test_a_loose_license_with_an_exception(
     assert ((results[0]["expression"], results[0]["exact"]) if results else None) == (
         expected
     )
-    err = capsys.readouterr().err
+    err = given.lines()
     assert ("WARNING: input: variant not stated: GPL2;" in err) is warned
 
 

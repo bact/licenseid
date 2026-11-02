@@ -9,9 +9,10 @@ A :class:`licenseid.detector.LicenseDetector` costs a handful of connections
 to build, and an outdated database warns when it is opened. So the function
 keeps one detector while the default path and its file are the same (the
 stamp ``licenseid.listsource.file_stamp`` reads), as ``listsource`` keeps
-its choice of list, and says each build warning once per process, as
-``match()`` does. A detector that could not be built is never kept, and
-neither is one on a path with no file to stamp (an in-memory URI).
+its choice of list, and gives each build warning once per process
+(``licenseid.warning.once``), as ``match()`` does. A detector that could
+not be built is never kept, and neither is one on a path with no file to
+stamp (an in-memory URI).
 ``reset()`` forgets the detector, for a test that swaps the home directory
 or the file behind the default path.
 """
@@ -21,12 +22,13 @@ from typing import Any
 
 from licenseid.datadir import get_default_db_path
 from licenseid.detector import LicenseDetector, check_request
-from licenseid.listsource import file_stamp, warn_once
+from licenseid.listsource import file_stamp
 from licenseid.types import Detection
+from licenseid.warning import once
 
 # Held to look the detector up and to store it, never while building one: a
-# build waits on SQLite and warns through ``warn_once``, which takes its own
-# lock.
+# build waits on SQLite and warns through ``licenseid.warning``, which takes
+# its own lock.
 _LOCK = threading.Lock()
 _kept: tuple[str, tuple[int, ...], LicenseDetector] | None = None
 
@@ -60,12 +62,14 @@ def _detector() -> LicenseDetector:
     path = get_default_db_path()
     stamp = file_stamp(path)  # before the build: a change meanwhile is seen
     if isinstance(stamp, Exception) or stamp is None:
-        return LicenseDetector(path, report=warn_once)  # nothing to key by
+        with once():
+            return LicenseDetector(path)  # nothing to key by
     with _LOCK:
         kept = _kept
     if kept is not None and kept[:2] == (path, stamp):
         return kept[2]
-    built = LicenseDetector(path, report=warn_once)  # a raise keeps nothing
+    with once():
+        built = LicenseDetector(path)  # a raise keeps nothing
     with _LOCK:
         _kept = (path, stamp, built)
     return built

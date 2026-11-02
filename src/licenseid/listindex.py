@@ -34,7 +34,6 @@ import threading
 from collections.abc import Callable
 
 from licenseid import spdxdata
-from licenseid.console import warn
 from licenseid.listlookup import (
     ListedException,
     ListedLicense,
@@ -49,6 +48,7 @@ from licenseid.listrules import (
     kept_licenses,
 )
 from licenseid.spdxdata import SpdxData
+from licenseid.warning import warn
 
 __all__ = ["ListIndex", "packaged_index", "packaged_problem", "reset_packaged_index"]
 
@@ -195,6 +195,6 @@ def _load_packaged() -> ListIndex | str:
         data = SpdxData.from_bundle(raw, None)
     except spdxdata.BundleError as exc:
         problem = f"invalid: {exc}"
-        warn(f"{spdxdata.PACKAGED_NAME}: {problem}")
+        warn(spdxdata.PACKAGED_NAME, "invalid", str(exc))
         return problem
     return ListIndex(data)

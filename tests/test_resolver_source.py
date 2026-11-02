@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db, writer
 from release_fakes import release_bundle, ship
@@ -92,7 +93,7 @@ def test_a_database_version_that_is_no_number_is_a_tie(
 )
 def test_a_tie_goes_to_the_bundle_unless_the_build_is_current(
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     build: str,
     warning: str,
 ) -> None:
@@ -100,7 +101,7 @@ def test_a_tie_goes_to_the_bundle_unless_the_build_is_current(
     ship(monkeypatch, release_bundle(DB_VERSION))
     _default_db(build=build)
     assert _read() == ("packaged", DB_VERSION)
-    assert capsys.readouterr().err == f"WARNING: database: {warning}\n"
+    assert given.lines() == f"WARNING: database: {warning}\n"
 
 
 @pytest.mark.parametrize("build", ["1", "3"])
@@ -122,20 +123,20 @@ def test_a_current_build_is_read_as_a_number(
 
 
 def test_a_directory_at_the_default_path_warns(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, given: GivenWarnings
 ) -> None:
     """There, but not a database: unusable, so said, then the bundle."""
     ship(monkeypatch, release_bundle("9.99"))
     path = Path(get_default_db_path())
     path.mkdir(parents=True)
     assert _read() == ("packaged", "9.99")
-    err = capsys.readouterr().err
+    err = given.lines()
     assert err.startswith(f"WARNING: database: unreadable: {path}: ")
     assert err.endswith("; using packaged data v9.99\n")
 
 
 def test_each_fallback_is_said_once(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, given: GivenWarnings
 ) -> None:
     """A second condition is a second warning; a repeat is none."""
     ship(monkeypatch, release_bundle("9.99"))
@@ -148,14 +149,14 @@ def test_each_fallback_is_said_once(
         conn.execute("CREATE TABLE notes (body TEXT)")
     _read()
     _read()
-    assert capsys.readouterr().err == (
+    assert given.lines() == (
         f"WARNING: database: empty: {path}; using packaged data v9.99\n"
         f"WARNING: database: invalid: {path}; using packaged data v9.99\n"
     )
 
 
 def test_an_unusable_bundle_leaves_the_database_error(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, given: GivenWarnings
 ) -> None:
     ship(monkeypatch, b"not gzip")
     with pytest.raises(DatabaseNotReadyError, match="^database: not found: "):
@@ -167,9 +168,7 @@ def test_an_unusable_bundle_leaves_the_database_error(
     ) as raised:
         match("MIT", source="packaged")
     assert (raised.value.condition, raised.value.detail) == ("invalid", detail)
-    assert capsys.readouterr().err == (
-        f"WARNING: spdx-bundle.json.gz: invalid: {detail}\n"
-    )
+    assert given.lines() == (f"WARNING: spdx-bundle.json.gz: invalid: {detail}\n")
 
 
 def test_no_bundle_says_not_found() -> None:

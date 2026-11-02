@@ -12,6 +12,7 @@ import re
 import sqlite3
 import sys
 import uuid
+import warnings
 from collections.abc import Generator
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,8 +25,9 @@ from click.testing import CliRunner, Result
 from packaged_list import database_of, fixture_bundle
 from resolver_corpus import corpus_db_path
 
-from licenseid import console, keptdetector, listindex, listsource, spdxdata
+from licenseid import console, keptdetector, listindex, listsource, spdxdata, warning
 from licenseid.cli import cli
+from licenseid.clicommon import printed_warnings
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
 from licenseid.dbconnection import Connections
 from licenseid.detector import LicenseDetector
@@ -51,6 +53,46 @@ posix_only = pytest.mark.skipif(
 DIAGNOSTIC_RE = re.compile(r"(ERROR|WARNING): [a-z][a-z0-9._-]*: [a-z0-9].*")
 
 
+class GivenWarnings:
+    """The :class:`licenseid.LicenseIdWarning` s a test's code gave."""
+
+    def __init__(self, record: list[warnings.WarningMessage]) -> None:
+        self._record = record
+
+    def take(self) -> list[warning.LicenseIdWarning]:
+        """The warnings given since the last take, in order; then forget
+        them, as ``capsys.readouterr()`` does."""
+        taken = [
+            w.message
+            for w in self._record
+            if isinstance(w.message, warning.LicenseIdWarning)
+        ]
+        self._record.clear()
+        return taken
+
+    def lines(self) -> str:
+        """:meth:`take`, each warning as the CLI prints it: one ``WARNING:``
+        line."""
+        return "".join(f"WARNING: {w}\n" for w in self.take())
+
+
+@pytest.fixture
+def given() -> Generator[GivenWarnings, None, None]:
+    """Record every LicenseIdWarning the test gives, a repeat included."""
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always", warning.LicenseIdWarning)
+        yield GivenWarnings(record)
+
+
+@pytest.fixture
+def printed() -> Generator[None, None, None]:
+    """Print each LicenseIdWarning as the CLI does, in order with the
+    progress lines: for a test of a step of ``update`` called on its own,
+    whose standard error is the command's."""
+    with printed_warnings():
+        yield
+
+
 @pytest.fixture(autouse=True)
 def check_diagnostic_grammar(
     monkeypatch: pytest.MonkeyPatch,
@@ -71,6 +113,16 @@ def check_diagnostic_grammar(
         real_write(text, end)
 
     monkeypatch.setattr(console, "_write", checked_write)
+
+    # A library warning is no console line, but is worded as one.
+    real_init = warning.LicenseIdWarning.__init__
+
+    def checked_init(self: warning.LicenseIdWarning, *args: Any, **kwargs: Any) -> None:
+        real_init(self, *args, **kwargs)
+        if not DIAGNOSTIC_RE.fullmatch(f"WARNING: {self}"):
+            violations.append(f"WARNING: {self}")
+
+    monkeypatch.setattr(warning.LicenseIdWarning, "__init__", checked_init)
     # A test that ends mid progress line must not shift the next test's output.
     # pylint: disable-next=protected-access
     monkeypatch.setitem(console._state, "line_open", False)
@@ -109,7 +161,7 @@ def offline(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
 
 def _forget_packaged() -> None:
     listindex.reset_packaged_index()
-    listsource.reset_warnings()
+    warning.reset_once()
     listsource.reset_choice()
     keptdetector.reset()
 
@@ -219,13 +271,9 @@ def assert_cached_tarball_removed(
     version = tar_path.name.removeprefix("spdx-data-v").removesuffix(".tar.gz")
     with pytest.raises(LicenseIdError, match=rf"^{name}: download failed: "):
         db.update_from_remote(version=version, source="upstream")
-    warnings = [
-        line for line in capsys.readouterr().err.splitlines() if "WARNING" in line
-    ]
-    assert [w for w in warnings if w.startswith(f"WARNING: {tar_path.name}")]
-    assert re.fullmatch(
-        rf"WARNING: {name}: cache unusable: .+; downloading", warnings[-1]
-    )
+    said = [line for line in capsys.readouterr().err.splitlines() if "WARNING" in line]
+    assert [w for w in said if w.startswith(f"WARNING: {tar_path.name}")]
+    assert re.fullmatch(rf"WARNING: {name}: cache unusable: .+; downloading", said[-1])
     assert not tar_path.exists()
 
 

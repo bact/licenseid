@@ -28,9 +28,10 @@ from typing import Any, Final
 
 import requests
 
-from licenseid.console import status, warn
+from licenseid.console import status
 from licenseid.errors import InvalidInputError, LicenseIdError, typed
 from licenseid.spdxdata import BundleError, SpdxData
+from licenseid.warning import parts, warn
 
 LICENSES_JSON_URL = "https://spdx.org/licenses/licenses.json"
 POPULARITY_DATA_URL = (
@@ -215,7 +216,7 @@ def _download_version_file(url: str, path: Path) -> tuple[str | None, str | None
         with _atomic_path(path) as tmp_path, open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(data, f)
     except OSError as e:
-        warn(f"{path.name}: cache write failed: {typed(e)}")
+        warn(path.name, "cache write failed", typed(e))
     return version, release_date
 
 
@@ -232,7 +233,7 @@ def _fresh_version(
         version, release_date = _read_version_file(path)
         if version:
             return version, release_date
-        warn(f"{name}: cache unusable; downloading")
+        warn(name, "cache unusable", None, "downloading")
     return None, None
 
 
@@ -247,7 +248,7 @@ def _download_version(
     for url in urls:
         name = _VERSION_CACHES[url][0]
         if failure:
-            warn(f"{failure}; downloading {name}")
+            warn(*parts(failure), f"downloading {name}")
         try:
             version, release_date = _download_version_file(url, cache_dir / name)
         except requests.RequestException as e:
@@ -269,7 +270,7 @@ def _stale_version(
         version, release_date = _read_version_file(cache_dir / name)
         if version:
             own = failure.startswith(f"{name}:")
-            warn(f"{failure}; using stale {'cache' if own else name}")
+            warn(*parts(failure), f"using stale {'cache' if own else name}")
             return version, release_date
     return None, None
 
@@ -370,7 +371,7 @@ def get_bundle(cache_dir: Path, version: str, use_cache: bool) -> tuple[SpdxData
             with contextlib.suppress(OSError):
                 path.unlink(missing_ok=True)
             detail = str(e) if isinstance(e, BundleError) else typed(e)
-            warn(f"{name}: cache unusable: {detail}; downloading")
+            warn(name, "cache unusable", detail, "downloading")
     raw = _download_bundle(name, BUNDLE_URL_TEMPLATE.format(version=version))
     try:
         data = SpdxData.from_bundle(raw, version)
@@ -380,7 +381,7 @@ def get_bundle(cache_dir: Path, version: str, use_cache: bool) -> tuple[SpdxData
         with _atomic_path(path) as tmp_path:
             tmp_path.write_bytes(raw)
     except OSError as e:
-        warn(f"{name}: cache write failed: {typed(e)}")
+        warn(name, "cache write failed", typed(e))
     return data, "remote"
 
 
@@ -415,7 +416,7 @@ def _read_local_csv(path: Path) -> str | None:
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
     except (OSError, UnicodeDecodeError) as e:
-        warn(f"{CACHE_POPULARITY_CSV}: cache read failed: {e}")
+        warn(CACHE_POPULARITY_CSV, "cache read failed", str(e))
         return None
 
 
@@ -439,7 +440,7 @@ def _write_popularity_cache(path: Path, csv_content: str) -> None:
         with _atomic_path(path) as tmp_path:
             tmp_path.write_bytes(csv_content.encode("utf-8"))
     except OSError as e:
-        warn(f"{CACHE_POPULARITY_CSV}: cache write failed: {e}")
+        warn(CACHE_POPULARITY_CSV, "cache write failed", str(e))
 
 
 def _parse_count(value: str | None) -> int | None:
@@ -470,13 +471,15 @@ def _aggregate_popularity(csv_content: str) -> dict[str, int]:
                 count = 0
             popularity_map[spdx_id] = popularity_map.get(spdx_id, 0) + count
     except (csv.Error, ValueError) as e:
-        warn(f"{CACHE_POPULARITY_CSV}: parse failed: {e}")
+        warn(CACHE_POPULARITY_CSV, "parse failed", str(e))
         return {}
 
     if bad_counts:
         warn(
-            f"{CACHE_POPULARITY_CSV}: {bad_counts} rows with missing or non-numeric "
-            "num_pushers; counted as 0"
+            CACHE_POPULARITY_CSV,
+            f"{bad_counts} rows with missing or non-numeric num_pushers",
+            None,
+            "counted as 0",
         )
     if popularity_map:
         status(f"Aggregated popularity data for {len(popularity_map)} licenses.")
@@ -498,7 +501,7 @@ def fetch_popularity_data(
     if popularity_map:
         return popularity_map, "cache"
     if local_csv is not None:  # read, even if empty; a read failure has warned
-        warn(f"{CACHE_POPULARITY_CSV}: cache unusable; downloading")
+        warn(CACHE_POPULARITY_CSV, "cache unusable", None, "downloading")
 
     cache_path = cache_dir / CACHE_POPULARITY_CSV
     downloaded, failure = _download_popularity_csv()
@@ -513,11 +516,11 @@ def fetch_popularity_data(
     if try_stale:
         popularity_map = _aggregate_popularity(_read_local_csv(cache_path) or "")
         if popularity_map:
-            warn(f"{CACHE_POPULARITY_CSV}: {failure}; using stale cache")
+            warn(*parts(f"{CACHE_POPULARITY_CSV}: {failure}"), "using stale cache")
             return popularity_map, "stale cache"
-    warn(f"{CACHE_POPULARITY_CSV}: {failure}")
+    warn(*parts(f"{CACHE_POPULARITY_CSV}: {failure}"))
     if try_stale:
-        warn(f"{CACHE_POPULARITY_CSV}: stale cache unusable")
+        warn(CACHE_POPULARITY_CSV, "stale cache unusable")
     return {}, "unavailable"
 
 
@@ -531,15 +534,15 @@ def cached_popularity_data(
     ``(popularity_map, source)`` as fetch_popularity_data does."""
     path = cache_dir / CACHE_POPULARITY_CSV
     if not (use_cache and path.exists()):
-        warn(f"{CACHE_POPULARITY_CSV}: missing")
+        warn(CACHE_POPULARITY_CSV, "missing")
         return {}, "unavailable"
     popularity_map = _aggregate_popularity(_read_local_csv(path) or "")
     if not popularity_map:
-        warn(f"{CACHE_POPULARITY_CSV}: cache unusable")
+        warn(CACHE_POPULARITY_CSV, "cache unusable")
         return {}, "unavailable"
     if is_cache_valid(path, EXPIRY_POPULARITY_CSV):
         return popularity_map, "cache"
     mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
     days = max((datetime.now(timezone.utc) - mtime).days, 0)
-    warn(f"{CACHE_POPULARITY_CSV}: {days} days old; using stale cache")
+    warn(CACHE_POPULARITY_CSV, f"{days} days old", None, "using stale cache")
     return popularity_map, "stale cache"
