@@ -61,7 +61,7 @@ REFUSED: list[tuple[str, str, str, str]] = [
         "a line break",
         "match \"$(printf 'MIT\\nISC')\"",
         "",
-        r"input: invalid: line break: MIT ISC" + _DETECT,
+        r"input: invalid: line break U\+000A: MIT ISC" + _DETECT,
     ),
     (
         "over the cap",
