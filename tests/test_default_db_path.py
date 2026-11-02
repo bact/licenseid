@@ -12,7 +12,7 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from conftest import line_fields
+from conftest import clear_cache_line, line_fields
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
@@ -149,7 +149,7 @@ def test_clear_cache_on_a_fresh_home_works(home: Path) -> None:
     assert result.exit_code == 0
     assert result.exception is None or isinstance(result.exception, SystemExit)
     database = home / ".local" / "share" / "licenseid" / "licenses.db"
-    assert result.stdout == f"STATUS=nothing\tPATH={database}\n"
+    assert result.stdout == clear_cache_line("nothing", database)
     assert not database.parent.exists()
 
 
@@ -162,5 +162,5 @@ def test_clear_cache_with_a_file_where_the_default_directory_would_be(
     blocker.write_text("not a directory")
     result = CliRunner().invoke(cli, ["clear-cache"])
     assert result.exit_code == 0
-    assert result.stdout == f"STATUS=nothing\tPATH={blocker / 'licenses.db'}\n"
+    assert result.stdout == clear_cache_line("nothing", blocker / "licenses.db")
     assert blocker.read_text() == "not a directory"

@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner, Result
-from conftest import predicate_json, predicate_line
+from conftest import clear_cache_line, predicate_json, predicate_line
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db
 from matcher_db import GPL2_ROWS, Lic, seeded_db
@@ -260,7 +260,7 @@ def test_r4_clear_cache_keeps_the_files_beside_a_missing_database(
         (proj / name).write_text("mine\n", encoding="utf-8")
     result = CliRunner().invoke(cli, ["--db", str(proj / "typo.db"), "clear-cache"])
     assert result.exit_code == 0
-    assert result.stdout == f"STATUS=nothing\tPATH={proj / 'typo.db'}\n"
+    assert result.stdout == clear_cache_line("nothing", proj / "typo.db")
     assert sorted(path.name for path in proj.iterdir()) == [
         "licenses.json",
         "notes.txt",

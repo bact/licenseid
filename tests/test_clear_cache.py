@@ -18,7 +18,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from conftest import posix_only
+from conftest import clear_cache_line, line_fields, posix_only
 from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
     assert_no_traceback,
     db_in_an_unreadable_directory,
@@ -32,7 +32,6 @@ from db_variants import make_ready_file_db
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
 from licenseid.errors import DatabaseNotReadyError
-from licenseid.result import json_line
 
 CACHE_NAMES = (
     "licenses.json",
@@ -109,7 +108,7 @@ def test_clear_cache_removes_a_ready_db_and_its_cache_but_no_foreign_file(
     result = run("--db", str(db_path), "clear-cache")
     assert_no_traceback(result)
     assert result.exit_code == 0, result.stderr
-    assert result.stdout == f"STATUS=cleared\tPATH={db_path}\n", result.stdout
+    assert result.stdout == clear_cache_line("cleared", db_path), result.stdout
     assert sorted(p.name for p in tmp_path.iterdir() if p.name != "home") == [
         "exceptions.json",
         "licenses.db.bak",
@@ -145,7 +144,7 @@ def test_clear_cache_keeps_a_cache_it_cannot_show_is_its_own(
     assert_no_traceback(result)
     assert result.exit_code == 0, result.stderr
     status = "nothing" if database is None else "cleared"
-    assert result.stdout == f"STATUS={status}\tPATH={db_path}\n"
+    assert result.stdout == clear_cache_line(status, db_path)
     assert sorted(p.name for p in proj.iterdir()) == sorted(CACHE_NAMES)
 
 
@@ -160,7 +159,10 @@ def test_clear_cache_clears_the_default_directory(with_db: bool) -> None:
     for name in CACHE_NAMES:
         (default.parent / name).write_text("x\n", encoding="utf-8")
     result = run("clear-cache")
-    assert (result.exit_code, result.stdout) == (0, f"STATUS=cleared\tPATH={default}\n")
+    assert (result.exit_code, result.stdout) == (
+        0,
+        clear_cache_line("cleared", default),
+    )
     assert not list(default.parent.iterdir())
 
 
@@ -207,7 +209,29 @@ def test_clear_cache_twice_is_idempotent(tmp_path: Path) -> None:
     for result, status in ((first, "cleared"), (second, "nothing")):
         assert_no_traceback(result)
         assert result.exit_code == 0, result.stderr
-        assert result.stdout == f"STATUS={status}\tPATH={db_path}\n", result.stdout
+        assert result.stdout == clear_cache_line(status, db_path), result.stdout
+    assert not db_path.exists()
+
+
+@pytest.mark.parametrize("as_json", [False, True], ids=["text", "json"])
+def test_clear_cache_writes_a_backslash_in_its_path_doubled(
+    tmp_path: Path, as_json: bool
+) -> None:
+    """A path holding a backslash, as every Windows path does, is written
+    as a field (a backslash doubled) and as JSON, and reads back as given:
+    a test that builds the line by hand fails here on every OS."""
+    directory = tmp_path / "back\\slash"
+    directory.mkdir()
+    db_path = make_ready_file_db(directory / "licenses.db")
+    assert "\\" in str(db_path)
+    result = run("--db", str(db_path), "clear-cache", *(["--json"] * as_json))
+    assert result.exit_code == 0, result.stderr
+    doubled = str(db_path).replace("\\", "\\\\")
+    expected = clear_cache_line("cleared", db_path, as_json=as_json)
+    assert result.stdout == expected
+    if not as_json:
+        assert result.stdout == f"STATUS=cleared\tPATH={doubled}\n"
+        assert line_fields(result.stdout.rstrip("\n"))["PATH"] == str(db_path)
     assert not db_path.exists()
 
 
@@ -238,12 +262,7 @@ def test_clear_cache_says_whether_it_deleted(
             (tmp_path / name).write_text("x\n", encoding="utf-8")
     result = run("--db", str(db_path), "clear-cache", *(["--json"] if as_json else []))
     assert result.exit_code == 0, result.stderr
-    expected = (
-        json_line({"path": str(db_path), "status": status})
-        if as_json
-        else f"STATUS={status}\tPATH={db_path}"
-    )
-    assert result.stdout == expected + "\n"
+    assert result.stdout == clear_cache_line(status, db_path, as_json=as_json)
     kept = [name for name in files if name != "licenses.db"]
     if "licenses.db" in files:  # a ready database: its cache is licenseid's
         kept = [name for name in kept if name not in CACHE_NAMES]

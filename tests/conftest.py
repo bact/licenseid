@@ -305,6 +305,13 @@ def predicate_json(command: str, expression: str | None, answer: bool | None) ->
     return record_json(EXPRESSION=expression, **record) + "\n"
 
 
+def clear_cache_line(status: str, path: object, *, as_json: bool = False) -> str:
+    """The line ``licenseid clear-cache`` prints, or with *as_json* its
+    object: the path written as a field (a backslash doubled)."""
+    write = record_json if as_json else fields_line
+    return write(STATUS=status, PATH=str(path)) + "\n"
+
+
 def update_line(
     status: str, version: str, path: object, *, as_json: bool = False
 ) -> str:

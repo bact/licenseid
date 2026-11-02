@@ -20,6 +20,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner, Result
+from conftest import clear_cache_line
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db
 from matcher_db import GPL2_ROWS, Lic, seeded_db
@@ -80,10 +81,7 @@ def test_c3_clear_cache_is_a_command(tmp_path: Path) -> None:
     the command ``clear-cache`` prints its record; the flag is refused."""
     path = str(tmp_path / "licenses.db")
     result = CliRunner().invoke(cli, ["--db", path, "clear-cache"])
-    assert (result.exit_code, result.stdout) == (
-        0,
-        f"STATUS=nothing\tPATH={path}\n",
-    )
+    assert (result.exit_code, result.stdout) == (0, clear_cache_line("nothing", path))
     result = CliRunner().invoke(cli, ["--db", path, "--clear-cache"])
     assert result.exit_code == 2
     assert result.stderr.startswith("ERROR: option: not found: --clear-cache")

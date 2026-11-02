@@ -20,6 +20,7 @@ import requests
 from click.testing import CliRunner
 from conftest import (
     assert_cached_tarball_removed,
+    clear_cache_line,
     fake_requests_get,
     line_fields,
     update_line,
@@ -269,7 +270,7 @@ def test_cli_clear_cache_prints_its_record(
 
     result = runner.invoke(cli, ["--db", str(db_path), "clear-cache"])
     assert result.exit_code == 0, result.output
-    assert result.stdout == f"STATUS=cleared\tPATH={db_path}\n"
+    assert result.stdout == clear_cache_line("cleared", db_path)
     assert "Clearing cache..." in result.stderr
     assert not db_path.exists()
 

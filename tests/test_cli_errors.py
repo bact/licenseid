@@ -14,7 +14,7 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from conftest import make_memory_db_path, make_ready_db_path
+from conftest import clear_cache_line, make_memory_db_path, make_ready_db_path
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
@@ -79,7 +79,7 @@ def test_clear_cache_removes_a_corrupt_database(tmp_path: Path) -> None:
     db_path.write_bytes(b"SQLite format 3\x00" + b"\xff" * 4096)
     result = CliRunner().invoke(cli, ["--db", str(db_path), "clear-cache"])
     assert result.exit_code == 0
-    assert result.stdout == f"STATUS=cleared\tPATH={db_path}\n"
+    assert result.stdout == clear_cache_line("cleared", db_path)
     assert not db_path.exists()
 
 
