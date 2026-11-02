@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-10-27
+Last-Modified: 2026-11-02
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -223,26 +223,42 @@ download failed: ...; using packaged data v3.28.0`.
   sdist finds the file in the tree and makes no request. It uses
   `force_include`: `artifacts` does not reach the sdist, because hatchling
   ships `.gitignore` in it and the file is ignored.
+- The list is pinned: `BUNDLE_VERSION` and `BUNDLE_SHA256` in
+  `hatch_build.py` (3.29.0 for 0.7.0). Until 0.7.0 the hook shipped whatever
+  `latest.json` named on the day of the build, so one tag could build
+  different wheels; `latest.json` is no longer read.
 - Source: `LICENSEID_BUNDLE=<path>`, else the file in the tree of an
   unpacked sdist (it has `PKG-INFO`; a file left in a checkout is ignored, as
-  it would ship stale), else `latest.json` and the bundle it names from the
-  `data` branch, checked for size, SHA-256, gzip, format and version. A
-  redirect to http is refused. `skip` ships nothing. An editable
-  install (`version == "editable"`; hatchling has no `dev_mode`) ships
-  nothing either.
-- A failed download is a warning and a package without a snapshot, unless
-  `LICENSEID_REQUIRE_BUNDLE=1`: `build.yml` and `pypi-publish.yml` set it, so
-  a pull request build and a release fail if the `data` branch cannot be
-  read. The jobs that only install the package set `LICENSEID_BUNDLE=skip`.
+  it would ship stale), else `v<BUNDLE_VERSION>.json.gz` from the `data`
+  branch (capped in size). Every source must be gzip, format 1, of
+  `BUNDLE_VERSION` and of `BUNDLE_SHA256`, or it is not shipped. A redirect
+  to http is refused. `skip` ships nothing. An editable install
+  (`version == "editable"`; hatchling has no `dev_mode`) ships nothing
+  either.
+- After the build, `finalize` reads the bundle back from the wheel or the
+  sdist and checks it against the pin; an artefact that fails is deleted, so
+  a later `twine upload dist/*` cannot take it, and the build fails.
+- A failed download, or a source that is not the pin, is a warning and a
+  package without a snapshot, unless `LICENSEID_REQUIRE_BUNDLE=1`, which
+  fails the build, and also fails `skip`. `build.yml` and `pypi-publish.yml`
+  set it, so a pull request build and a release fail if the pinned bundle
+  cannot be had. The jobs that only install the package set
+  `LICENSEID_BUNDLE=skip` without it.
+- Both workflows then run `scripts/check_dist_bundle.py dist`, apart from
+  the hook: exactly one wheel and one sdist, each holding the bundle as a
+  regular file of the pinned version and SHA-256, the pin read from
+  `hatch_build.py` as data (`tests/test_releasebuild_dist.py`).
+- Raising the pin: `release-process.md`, "The SPDX list a release ships".
 - The build runs in an isolated environment with hatchling and Pitloom only,
-  so the hook is standard library only and repeats two constants of the
+  so the hook is standard library only and repeats constants of the
   package; `tests/test_hatch_build.py` checks they agree.
 - Not in the SBOM: Pitloom reads the source tree, so the snapshot (third-party
   licence texts) is missing from the wheel's SBOM. Undecided.
-- Checked by hand: `uv build` with `LICENSEID_BUNDLE=<3.28.0 bundle>` gives an
-  sdist and a wheel that carry the same bytes; the wheel in a clean venv ran
-  `update --source packaged` and matched MIT with no network; `skip` ships
-  nothing; an unreachable host warns, or fails with the require flag.
+- Checked by hand, before the pin: `uv build` with
+  `LICENSEID_BUNDLE=<3.28.0 bundle>` gives an sdist and a wheel that carry
+  the same bytes; the wheel in a clean venv ran `update --source packaged`
+  and matched MIT with no network; `skip` ships nothing; an unreachable host
+  warns, or fails with the require flag.
 
 ## Traps and surprises
 
