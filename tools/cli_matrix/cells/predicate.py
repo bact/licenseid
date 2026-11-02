@@ -78,17 +78,19 @@ def add_cells(cells: CellSet) -> None:
     _add_json(cells)
 
 
-#: The one object of ``is-* --json``.
-_PREDICATE_JSON = r'\{"expression":("[^"]+"|null),"is_[a-z_]+":(true|false)\}\n'
+#: The one object of ``is-* --json`` for a licence found.
+_PREDICATE_JSON = r'\{"expression":"[^"]+","is_[a-z_]+":(true|false)\}\n'
+#: ... and for none: no licence, so no flag (P159), never a false "no".
+_PREDICATE_NONE = r'\{"expression":null,"is_[a-z_]+":null\}\n'
 
 
 def _add_json(cells: CellSet) -> None:
     """B6: ``--json``, found and not, by argument and standard input."""
     for cmd in PREDS:
-        for desc, pre, args, rc in (
-            ("found", "", "MIT", 0),
-            ("not-found", "", "--id Nope-1.0", 1),
-            ("stdin", "cat $F/mit.txt | ", "", 0),
+        for desc, pre, args, rc, out in (
+            ("found", "", "MIT", 0, _PREDICATE_JSON),
+            ("not-found", "", "--id Nope-1.0", 1, _PREDICATE_NONE),
+            ("stdin", "cat $F/mit.txt | ", "", 0, _PREDICATE_JSON),
         ):
             cells.add(
                 "B6",
@@ -96,7 +98,7 @@ def _add_json(cells: CellSet) -> None:
                 f"{pre}{licenseid(f'{cmd} --json {args}'.rstrip())}",
                 kind="predicate",
                 exp_exit=rc,
-                exp_out=_PREDICATE_JSON,
+                exp_out=out,
             )
 
 
