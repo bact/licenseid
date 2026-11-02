@@ -9,6 +9,7 @@ tie-breaker that runs after ranking."""
 from collections.abc import Callable
 
 from licenseid.classify import has_or_later_language
+from licenseid.plusoperator import strip_plus_operator
 from licenseid.types import InternalMatch
 
 # Effective score penalty applied to deprecated licenses during ranking.
@@ -26,6 +27,19 @@ DEP_PENALTY: float = 0.03
 # way (together, the whole window). See apply_version_suffix_tiebreaker.
 TIE_WINDOW: float = 0.01
 TIE_NUDGE: float = 0.005
+
+# The grant an SPDX ID can end in: GPL-2.0-only, GPL-2.0-or-later, GPL-2.0+.
+_GRANT_SUFFIXES = ("-only", "-or-later")
+
+
+def grant_stem(license_id: str) -> str:
+    """*license_id* without the grant it ends in: GPL-2.0 for GPL-2.0-only,
+    GPL-2.0-or-later and the deprecated GPL-2.0+, one licence each way."""
+    stem = strip_plus_operator(license_id)
+    for suffix in _GRANT_SUFFIXES:
+        if stem.endswith(suffix):
+            return stem[: -len(suffix)]
+    return stem
 
 
 def ranking_key(
@@ -88,7 +102,7 @@ def apply_version_suffix_tiebreaker(
         lid = match["license_id"]
         if not lid.endswith("-only"):
             continue
-        base = lid[: -len("-only")]
+        base = grant_stem(lid)
         peer = base + "-or-later"
         if peer not in id_to_score:
             continue

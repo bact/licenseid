@@ -11,7 +11,7 @@ from rapidfuzz import fuzz
 from licenseid.database import LicenseDatabase
 from licenseid.looseid import loose_id, narrowed, resolved_id, warn_narrowed
 from licenseid.plusoperator import strip_plus_operator
-from licenseid.ranking import DEP_PENALTY
+from licenseid.ranking import DEP_PENALTY, grant_stem
 from licenseid.types import LicenseNameId, RawMatch
 from licenseid.versionkey import version_key
 
@@ -155,33 +155,37 @@ def _name_scores(
 
 def _partial_names(rows: list[LicenseNameId], words: list[str]) -> set[str]:
     """The names that hold every one of *words* and more, unless they name
-    one licence: the words are no name in use, only one name holds them,
-    and they are at least half its words ("GNU Public License v2.0 only").
-    Token set scores such a name 100, as if it were the input: "the" is in
-    six names, "license" in most, "GNU General Public License" in every
-    GPL, and "MIT License" in 17 besides MIT's own. The words of a
-    deprecated name of its own ("GNU Affero General Public License v3.0")
-    are held by the names that replaced it (its -only and -or-later): those
-    are kept, as before."""
+    one licence. Token set scores such a name 100, as if it were the input:
+    "the" is in six names, "license" in most, "GNU General Public License"
+    in every GPL, so each answered a licence at 1.0. The words name one
+    licence when they are no name in use ("MIT License" is MIT's, and only
+    held by 17 more) and every row in use that holds them is that licence
+    or a variant of it (_one_licence): "New BSD" (BSD-3-Clause), "GNU
+    Lesser General Public License v2.1" (LGPL-2.1-only and -or-later),
+    "BSD 3-Clause License" (BSD-3-Clause and BSD-3-Clause-Clear). A
+    deprecated row counts only when no row in use holds them: "GNU Affero
+    General Public License v3.0" is AGPL-3.0's own name."""
     query = set(words)
     names = [set(row["norm_name"].split()) for row in rows]
-    named = {
-        bool(row["is_deprecated"])
-        for row, name in zip(rows, names, strict=True)
-        if name == query
-    }
-    if named == {True}:
-        return set()  # a deprecated name, and no name in use
-    holders = {
-        row["norm_name"] for row, name in zip(rows, names, strict=True) if query < name
-    }
-    if (
-        len(holders) == 1
-        and not named
-        and 2 * len(query) >= len(set(next(iter(holders)).split()))
-    ):
+    pairs = list(zip(rows, names, strict=True))
+    held = [row for row, name in pairs if query < name]
+    is_a_name = any(name == query and not row["is_deprecated"] for row, name in pairs)
+    in_use = [row for row in held if not row["is_deprecated"]] or held
+    if not is_a_name and _one_licence({row["license_id"] for row in in_use}):
         return set()
-    return holders
+    return {row["norm_name"] for row in held}
+
+
+def _one_licence(license_ids: set[str]) -> bool:
+    """Whether *license_ids* are one licence: once the grant is dropped
+    (ranking.grant_stem), one of them, the shortest, begins each of the
+    others as BSD-3-Clause begins BSD-3-Clause-Clear. Apache-1.0, Apache-1.1
+    and Apache-2.0 are three."""
+    stems = {grant_stem(license_id) for license_id in license_ids}
+    if not stems:
+        return False
+    base = min(stems, key=len)
+    return all(stem == base or stem.startswith(f"{base}-") for stem in stems)
 
 
 def _exact_id_row(
