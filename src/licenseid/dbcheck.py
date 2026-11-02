@@ -584,15 +584,15 @@ def reject_foreign_database(db_path: str | os.PathLike[str]) -> None:
         raise refusal[1]
 
 
-def reject_blank_path(db_path: str, name: str) -> None:
+def reject_blank_path(db_path: str, name: str, *, optional: bool = True) -> None:
     """Raise :class:`InvalidInputError` if *db_path*, the argument *name*,
     is blank: as the CLI's ``--db ""``, a blank path is a mistake, not the
     default database (which answers from a file nobody asked for) and not
-    a path (SQLite opens a temporary database for "")."""
+    a path (SQLite opens a temporary database for ""). An *optional*
+    argument may be left out instead."""
     if not db_path.strip():
-        raise InvalidInputError(
-            f"database: missing: {name}; pass a path or drop {name}"
-        )
+        action = f"pass a path or drop {name}" if optional else "pass a path"
+        raise InvalidInputError(f"database: missing: {name}; {action}")
 
 
 def is_ready(db_path: str) -> bool:

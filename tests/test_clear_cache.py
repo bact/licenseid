@@ -31,6 +31,7 @@ from db_variants import make_ready_file_db
 
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
+from licenseid.dbcheck import is_ready
 from licenseid.errors import DatabaseNotReadyError
 
 CACHE_NAMES = (
@@ -175,6 +176,55 @@ def test_clear_cache_beside_the_default_database_by_another_name() -> None:
     result = run("--db", str(default.parent / "other.db"), "clear-cache")
     assert result.stdout.startswith("STATUS=cleared\t")
     assert not list(default.parent.iterdir())
+
+
+def _default_cache() -> Path:
+    """The default directory with a cache file and no database."""
+    directory = Path(get_default_db_path()).parent
+    directory.mkdir(parents=True)
+    (directory / "licenses.json").write_text("x\n", encoding="utf-8")
+    return directory
+
+
+def test_clear_cache_knows_the_default_directory_by_another_spelling() -> None:
+    """P175: the directory is compared as a file (``os.path.samefile``), not
+    as a spelling: ``<default>/../licenseid`` is the default directory."""
+    directory = _default_cache()
+    spelled = directory / ".." / directory.name / "other.db"
+    result = run("--db", str(spelled), "clear-cache")
+    assert result.stdout.startswith("STATUS=cleared\t"), result.stdout
+    assert not list(directory.iterdir())
+
+
+@posix_only
+def test_clear_cache_knows_the_default_directory_through_a_link(
+    tmp_path: Path,
+) -> None:
+    """P175: a link to the default directory reaches it too."""
+    directory = _default_cache()
+    link = tmp_path / "link"
+    link.symlink_to(directory, target_is_directory=True)
+    result = run("--db", str(link / "other.db"), "clear-cache")
+    assert result.stdout.startswith("STATUS=cleared\t"), result.stdout
+    assert not list(directory.iterdir())
+
+
+def test_a_locked_database_is_not_ready_to_delete_beside(tmp_path: Path) -> None:
+    """P175: ``dbcheck.is_ready`` is fail-closed: a database another process
+    holds locked (``unknown`` to the readiness check) does not show that the
+    cache beside it is licenseid's. ``clear-cache`` refuses such a database
+    before it asks (``reject_foreign_database``), so this is the judge alone."""
+    db_path = make_ready_file_db(tmp_path / "licenses.db")
+    assert is_ready(str(db_path))
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute("PRAGMA locking_mode=EXCLUSIVE")
+        conn.execute("BEGIN EXCLUSIVE")
+        conn.execute("UPDATE db_metadata SET value = value")
+        assert not is_ready(str(db_path))
+    finally:
+        conn.rollback()
+        conn.close()
 
 
 @posix_only

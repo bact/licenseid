@@ -16,7 +16,7 @@ from licenseid.identifiers import (
     normalize_identifier,
     qualify_trailing_grant,
 )
-from licenseid.looseid import narrowed_ids, warn_narrowed
+from licenseid.looseid import drops_words, narrowed_ids, warn_narrowed
 from licenseid.manifest import extension, license_value_groups
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags, Method
 
@@ -223,9 +223,9 @@ class MarkerDetector:
         # is a name, not an expression).
         leading = leading_expression(val)
         expression = qualify_trailing_grant(leading, val)
-        # A grant after the expression qualifies it (leading_expression
-        # refuses anything after a grant), so only a grant may be left over.
-        partial = leading != val and expression == leading
+        # Words the reading would drop: refused in a field, which holds
+        # nothing else, and after a "+" they contradict (looseid).
+        refused = drops_words(leading, expression, val, whole=whole)
         lic_id = normalize_identifier(expression, self.db)
         # The name comes first: the expression can be a prefix of the value,
         # and "MIT No Attribution" is MIT-0, not MIT.
@@ -237,7 +237,7 @@ class MarkerDetector:
             # the name answers as that ID does: the name of
             # GPL-2.0-with-GCC-exception is GPL-2.0-only WITH GCC-exception-2.0.
             lic_id = normalize_identifier(named["license_id"], self.db)
-        elif whole and partial:
+        elif refused:
             return []
         details = self.db.get_license_details(lic_id) if lic_id else None
         if details:

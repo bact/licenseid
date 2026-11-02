@@ -20,6 +20,7 @@ from licenseid.identifiers import (
     disambiguate_deprecated_id,
     is_qualified_plus,
     is_simple_expression,
+    simple_value,
 )
 from licenseid.looseid import loose_with, warn_narrowed
 from licenseid.manifest import extension, license_value_groups
@@ -296,10 +297,10 @@ class LicenseDetector:
         # goes on to the name match.
         # So is a license written loosely WITH an exception ("GPL2 WITH
         # Classpath-exception-2.0"), simple-shaped or not ("Apache 2 WITH").
+        # One end mark after it ends it ("GPL-2.0+,"), as for a tag.
+        value = simple_value(ctx.target_text)
         declared = (
-            self._resolve_declared(ctx.target_text)
-            if is_simple_expression(ctx.target_text)
-            else []
+            self._resolve_declared(value) if value else []
         ) or self._resolve_loose_with(ctx.target_text)
         if declared:
             return declared
@@ -359,8 +360,11 @@ class LicenseDetector:
                     word_count=len(norm_value.split()),
                 )
             )
-            # Only an exact ID or name: "BSD" is a fuzzy match for 0BSD.
-            if result and result[0]["score"] >= EXACT_MATCH_SCORE:
+            # Only an exact ID or name, or a declared reading ("GPL-2.0+,"):
+            # "BSD" is a fuzzy match for 0BSD.
+            if result and (
+                result[0]["score"] >= EXACT_MATCH_SCORE or result[0]["method"] == "id"
+            ):
                 # The field declares the exact hit, or the ID it names
                 # loosely, so nothing is measured (as for a field Tier 0.5
                 # resolved); a look-alike name after it was only found by

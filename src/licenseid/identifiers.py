@@ -15,6 +15,7 @@ from typing import cast
 import py_spdx_license
 
 from licenseid.classify import OR_LATER_PHRASE
+from licenseid.dropguard import trim_end_mark
 from licenseid.exprtokens import OPERATORS, RE_OPERATOR, RE_TOKEN
 from licenseid.listlookup import ListLookup
 from licenseid.plusoperator import (
@@ -102,7 +103,8 @@ _BARE_TO_OR_LATER: dict[str, str] = {
 # "only" is a common English word; it is checked in a narrow 50-char window
 # AFTER the ID to avoid false positives from unrelated uses. The "only" of
 # an ID ("GPL-2.0-only") is that ID's, not a word about the one before it.
-_RE_ONLY = re.compile(r"(?<![\w-])only\b", re.IGNORECASE)
+#: The prose word "only", never the end of an ID.
+ONLY_WORD = re.compile(r"(?<![\w-])only\b", re.IGNORECASE)
 
 
 def _lookup_case_insensitive(mapping: dict[str, str], key: str) -> str | None:
@@ -382,6 +384,17 @@ def is_simple_expression(value: str) -> bool:
     return shape in _SIMPLE_SHAPES
 
 
+def simple_value(text: str) -> str | None:
+    """*text* as one simple expression, or without the one end mark after it
+    ("GPL-2.0+," is GPL-2.0+, as a tag and ``match()`` read it), or None.
+    The mark goes, not the "+" before it: the version key would read
+    "GPL-2.0+," as GPL-2.0."""
+    if is_simple_expression(text):
+        return text
+    trimmed = trim_end_mark(text)
+    return trimmed if trimmed is not None and is_simple_expression(trimmed) else None
+
+
 def disambiguate_deprecated_id(text: str) -> str | None:
     """
     Scan *text* for a bare deprecated SPDX ID and a surrounding prose phrase
@@ -414,7 +427,9 @@ def disambiguate_deprecated_id(text: str) -> str | None:
         # reject a bare ID immediately followed by sentence punctuation
         # (e.g. "...licensed under GPL-2.0. This version only."). A "+" after
         # it states the grant ("GPL-2.0+"), so that ID is not bare either.
-        m = re.search(r"\b" + re.escape(dep_id) + r"(?![\w+-])", text, re.IGNORECASE)
+        m = re.search(
+            r"(?<![\w.:-])" + re.escape(dep_id) + r"(?![\w+-])", text, re.IGNORECASE
+        )
         if not m:
             continue
 
@@ -423,19 +438,35 @@ def disambiguate_deprecated_id(text: str) -> str | None:
         start = max(0, m.start() - 150)
         end = min(len(text), m.end() + 150)
         window = text[start:end]
-        if OR_LATER_PHRASE.search(window):
-            return _BARE_TO_OR_LATER.get(dep_id)
+        grant = OR_LATER_PHRASE.search(window)
+        if grant:
+            phrase = (start + grant.start(), start + grant.end())
+            return (
+                None if _joins_another(text, phrase) else _BARE_TO_OR_LATER.get(dep_id)
+            )
 
         # Narrow window (50 chars after the ID) for "only" to reduce false
         # positives from common uses like "only if", "not only", etc.
-        after = text[m.end() : m.end() + 50]
-        if _RE_ONLY.search(after):
+        only = ONLY_WORD.search(text, m.end(), m.end() + 50)
+        if only:
+            if _joins_another(text, only.span()):
+                return None
             return DEPRECATED_BARE_LICENSE_IDS[dep_id]
 
         # ID found but no disambiguating phrase — caller applies fallback.
         return None
 
     return None
+
+
+def _joins_another(text: str, phrase: tuple[int, int]) -> bool:
+    """Whether an operator outside *phrase* (the span of the qualifier
+    read) joins another licence to the ID: then the phrase qualifies one
+    operand, and answering it alone would drop the others ("MIT AND GPL-2.0
+    only" is not GPL-2.0-only). The "or" of "or later" is the phrase's own."""
+    return any(
+        not phrase[0] <= op.start() < phrase[1] for op in RE_OPERATOR.finditer(text)
+    )
 
 
 def normalize_identifier(identifier: str, db: ListLookup | None = None) -> str:
@@ -509,8 +540,16 @@ def _plus_id(lic_id: str, db: ListLookup) -> str | None:
     prefix, which made "MI+" MIT+. The "+" becomes the base's -or-later ID
     where the List has one in use ("GPL-2+" is GPL-2.0-or-later), and stays
     otherwise ("Apache-2+" is Apache-2.0+). None for no base, or one that
-    states its qualifier already ("GPL-2.0-only+"): no valid ID takes it."""
+    states its qualifier already ("GPL-2.0-only+"): no valid ID takes it. A
+    deprecated ID with an exception in it gives the "+" to its licence
+    ("GPL-2.0-with-classpath-exception+" is GPL-2.0-or-later WITH
+    Classpath-exception-2.0)."""
     base = lic_id[:-1]
+    redirect = _lookup_case_insensitive(DEPRECATED_WITH_IDS, base)
+    if redirect is not None:
+        licence, exception = redirect.split(" WITH ")
+        granted = _plus_id(licence.removesuffix("-only") + "+", db)
+        return None if granted is None else f"{granted} WITH {exception}"
     details = db.get_license_details(base)
     if details is None:
         row = named_row(db, base)

@@ -370,7 +370,12 @@ def test_deep_brackets_are_read_in_one_pass(
         # R5: a "+" states the grant, so "GPL-2.0" of "GPL-2.0+" is not bare.
         ("GPL-2.0+ OR GPL-2.0-only", "GPL-2.0-only OR GPL-2.0-or-later", False),
         ("GPL-2.0-only OR GPL-2.0+", "GPL-2.0-only OR GPL-2.0-or-later", False),
+        # A "+" after a space is no operator (plusoperator.PLUS_OPERATOR, P171):
+        # GPL-2.0 is bare, narrowed where the reading has its -only form.
         ("GPL-2.0 + OR MIT", "GPL-2.0-or-later OR MIT", False),
+        ("GPL-2.0 +", "GPL-2.0-only", True),
+        ("GPL-2.0+,", "GPL-2.0-only", True),  # "+," is prose, no operator
+        ("(GPL-2.0+)", "GPL-2.0-or-later", False),
         ("GPL-2.0+ OR GPL-2.0", "GPL-2.0-only OR GPL-2.0-or-later", True),
         ("(GPL-2.0)", "GPL-2.0-only", True),
         # The narrowed licence must be in the reading.

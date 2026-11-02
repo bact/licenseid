@@ -145,9 +145,9 @@ and this project adheres to
   `is_osi()`, `is_fsf()` and `is_spdx()` take only those named inputs.
   Migration: pass exactly one ([#141])
 - **Breaking:** `match(db=...)` checks a database is ready before reading
-  it; a blank `db` (and `LicenseDetector("")`) is `InvalidInputError`, not
-  the default database. Migration: build it with `licenseid update`; pass
-  a path or none ([#141])
+  it; a blank `db`, or a blank path to `LicenseDetector` or
+  `LicenseDatabase`, is `InvalidInputError`, not the default database.
+  Migration: build it with `licenseid update`; pass a path or none ([#141])
 
 ### Fixed
 
@@ -172,8 +172,18 @@ and this project adheres to
 - A build from the sdist needs Pitloom 0.21.2 or later: an older one accepts
   licenseid 0.7 and its build hook then fails to import
   ([#135])
-- `detect` keeps both operands of `GPL-2.0+ OR GPL-2.0-only` in a tag; it
-  read the `GPL-2.0` of `GPL-2.0+` as bare and answered `GPL-2.0-only` ([#141])
+- `detect` keeps every operand of `GPL-2.0+ OR GPL-2.0-only`,
+  `GPL-2.0 OR GPL-3.0-only` and `GPL-2.0 OR LGPL-2.1-only` in a tag (it read
+  the `+` or `-only` of one ID as prose about another); as an argument,
+  `GPL-2.0+ or later` and `LGPL-2.1+ only` now find nothing, as in `match()`
+  ([#141])
+- `detect` and `is-*` give no answer for a compound with a prose qualifier
+  (`MIT AND GPL-2.0 only`, `Apache-2.0 OR GPL-2.0 or later` as an argument,
+  `LicenseRef-GPL-2.0 or later`); one operand answered alone, exact ([#141])
+- `GPL-2.0-with-classpath-exception+` is `GPL-2.0-or-later WITH
+  Classpath-exception-2.0`; `GPL-2.0+,` as an argument or manifest field is
+  `GPL-2.0-or-later` (it lost the `+`); a tag `LGPL-2.1+ only` finds nothing,
+  as in `match()` ([#141])
 - A deprecated ID without a text (`wxWindows`, `eCos-2.0`, `GPL-2.0+` in an
   expression) has the OSI and FSF flags the List gives it, not false; a
   database built before warns `build v2 outdated`: run `licenseid update`

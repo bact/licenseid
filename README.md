@@ -329,7 +329,7 @@ This deletes the database and the cache files beside it, and prints one
 record (`--json`: one object): `STATUS=cleared`, or `nothing` when there was
 nothing of licenseid's to delete, and the database `PATH`. Cache files are
 deleted only where they are licenseid's: in the default directory, or
-beside a database `update` built. Beside a `--db` path with no ready
+beside any ready database. Beside a `--db` path with no ready
 database, they are kept. It refuses a
 `--db` path holding a file licenseid did not build (exit 2,
 `database: invalid`); a delete the system refuses exits 1. A database it

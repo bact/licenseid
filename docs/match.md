@@ -65,8 +65,8 @@ steps taken, without fuzzy matching:
   `reason` is `operand of several words: BSD 3-Clause` for a leaf that
   reads alone, else `operand not resolved: Foo Bar`. The result is written
   in licenseid's canonical order: operators in upper case, a chain of one
-  operator flattened, operands sorted (IDs, then `LicenseRef-*`, then `WITH`, then
-  bracketed groups), duplicates dropped, and brackets only where
+  operator flattened, operands sorted (IDs, then `LicenseRef-*`, then
+  `WITH`, then bracketed groups), duplicates dropped, and brackets only where
   precedence needs them (`mit or "Apache2"` → `Apache-2.0 OR MIT`);
   `[ ]` and `{ }` count as brackets;
 - the PyPI trove classifier names of the `License ::` family are read from

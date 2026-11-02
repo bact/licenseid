@@ -26,6 +26,7 @@ from licenseid.dbcheck import (
     named_file,
     needs_writing,
     not_found_error,
+    reject_blank_path,
     reject_foreign_database,
 )
 from licenseid.dbconnection import Connections, QueryConnection
@@ -117,8 +118,10 @@ class LicenseDatabase:
         Without *create*, rules older or newer than this licenseid's are
         warned (``database: build vN outdated: ...``) through *report*, by
         default ``licenseid.console.warn``; ``match()`` passes one that
-        says each line once per process."""
+        says each line once per process. A blank *db_path* is
+        :class:`licenseid.InvalidInputError`, as for ``LicenseDetector``."""
         db_path = os.fspath(db_path)
+        reject_blank_path(db_path, "db_path", optional=False)
         self._create = create
         named = named_file(db_path)  # a URI: the file it names
         self.db_path = Path(absolute_path(named) if named else db_path)

@@ -15,13 +15,15 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, is_negated
 from licenseid.console import warn
-from licenseid.exprtokens import OPERATORS, RE_TOKEN
+from licenseid.exprtokens import RE_TOKEN
 from licenseid.identifiers import (
+    ONLY_WORD,
     normalize_identifier,
     qualify_trailing_grant,
     without_outer_brackets,
 )
 from licenseid.listlookup import ListedName, ListLookup
+from licenseid.plusoperator import PLUS_OPERATOR
 from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_key
 
 # The word a grant starts with, where OR_LATER_PHRASE starts at the version
@@ -79,22 +81,54 @@ def narrowed_ids(db: ListLookup, text: str, expression: str) -> bool:
     as "GPL-2.0-only WITH Classpath-exception-2.0"). Each ID word is read
     alone, as normalize_identifier() reads it, and judged by :func:`narrowed`,
     the judge of every other path; its licence must be in *expression*, case
-    ignored. A word with a "+" after it states its grant."""
+    ignored. An ID with the "+" operator after it states its grant, as the
+    one reader of that operator (plusoperator.PLUS_OPERATOR) says: a "+"
+    after a space or before a comma is none."""
     words = {word.casefold() for word in RE_TOKEN.findall(expression)}
-    tokens = RE_TOKEN.findall(text)
-    for word, after in zip(tokens, [*tokens[1:], ""]):
-        if after == "+" or not _is_id_word(word):
+    granted = {
+        plus.end("id") for plus in PLUS_OPERATOR.finditer(text) if not plus["with"]
+    }
+    for token in RE_TOKEN.finditer(text):
+        # A bracket, a "+" or an operator is never narrowed; reading each
+        # alone cost seconds on 40,000 brackets around one ID.
+        if token.end() in granted or not token.group(0)[0].isalnum():
             continue
-        reading = normalize_identifier(word, db)
-        if narrowed(word, reading) and RE_TOKEN.findall(reading)[0].casefold() in words:
+        reading = normalize_identifier(token.group(0), db)
+        if narrowed(token.group(0), reading) and (
+            RE_TOKEN.findall(reading)[0].casefold() in words
+        ):
             return True
     return False
 
 
-def _is_id_word(token: str) -> bool:
-    """Whether *token*, a token of RE_TOKEN, is an ID: no bracket, "+" or
-    operator."""
-    return token not in ("(", ")", "+") and token.upper() not in OPERATORS
+def drops_words(leading: str, expression: str, value: str, *, whole: bool) -> bool:
+    """Whether reading the declared *value* as *expression* (its *leading*
+    expression, with a grant that follows it applied) would drop words that
+    must not go: any words left over when the value is *whole* (a manifest
+    field holds nothing else, so "MIT/Apache-2.0" is not MIT, and "GPL-2.0
+    or later, and also MIT" is not GPL-2.0-or-later), or words that state
+    the qualifier of a "+" again (:func:`restates_qualifier`). Only a grant
+    that ends the value is no word left over (:func:`granted_id_text`)."""
+    if leading == value:
+        return False
+    left = expression == leading or granted_id_text(value) is None
+    return left and (whole or restates_qualifier(leading, value))
+
+
+def restates_qualifier(expression: str, value: str) -> bool:
+    """Whether *value* states again, after its leading *expression* that ends
+    in the "+" operator, the qualifier the "+" states ("LGPL-2.1+ only",
+    "GPL-2.0+ or later"). ``match()`` refuses such a value (``qualifier
+    stated twice``), so no reading may answer it without the words that
+    contradict it. An ID that ends in ``-only`` keeps its reading
+    ("GPL-2.0-only or (at your option) any later version" is GPL-2.0-only
+    in a tag, test_spdx_tag_adversarial)."""
+    if (RE_TOKEN.findall(expression) or [""])[-1] != "+":
+        return False
+    rest = value[len(expression) :].lstrip()
+    if ONLY_WORD.match(rest):
+        return True
+    return declared_grant_id_text(value) == expression.rstrip()
 
 
 def warn_narrowed(text: str, resolved: str) -> None:
