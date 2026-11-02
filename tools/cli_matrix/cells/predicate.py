@@ -34,7 +34,7 @@ PRECEDENCE: list[tuple[str, str, int | None]] = [
     ("--id + arg", "--id MIT Nope-1.0", 2),
     ("--text + arg", "--text {f} Nope-1.0", 2),
     ("arg + stdin", "MIT", 0),
-    ("--text + stdin", "--text {f}", 0),
+    ("--text + stdin", "--text {f}", None),  # a fragment: the answer varies
     ("--id + stdin", "--id MIT", 0),
     ("--id + --text + arg + stdin", "--id MIT --text {o} Nope-1.0", 2),
     ("--id wrong + --text right", "--id Nope-1.0 --text {f}", 2),

@@ -76,7 +76,10 @@ CRASH = re.compile(
     r"|Segmentation fault|Bus error|core dumped"
 )
 
-_SHELL_MESSAGE = re.compile(r"(sh|bash|zsh|dash|ksh)[:0-9 ]")
+#: A line the shell writes itself: ``bash: line 1: ...``, and bash's
+#: ``shell-init: error retrieving current directory`` on start-up in a
+#: deleted working directory (bash 5, E6).
+_SHELL_MESSAGE = re.compile(r"(sh|bash|zsh|dash|ksh)[:0-9 ]|shell-init: ")
 
 #: A command whose stdout ends in a pipeline or an echo is reporting on
 #: itself, so neither the exit status nor the stream contract is the CLI's.

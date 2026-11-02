@@ -599,3 +599,29 @@ def test_the_word_diff_on_stderr_is_no_stray_line(
         make_result(rc=0, out=PLAIN_LINE + "\n", err=err),
     )
     assert any("outside grammar" in note for note in notes) is flagged, (verdict, notes)
+
+
+@pytest.mark.parametrize(
+    ("err", "flagged"),
+    [
+        (
+            (
+                "shell-init: error retrieving current directory: getcwd: cannot"
+                " access parent directories: No such file or directory\n"
+            ),
+            False,
+        ),
+        ("bash: line 1: x: command not found\n", False),
+        ("shell-initial text\n", True),  # not the shell's message
+        ("init: something\n", True),
+    ],
+    ids=["shell-init", "bash-line", "near-miss", "other"],
+)
+def test_the_shells_own_lines_are_not_the_clis(err: str, flagged: bool) -> None:
+    """bash 5 says ``shell-init:`` when it starts in a deleted working
+    directory (E6): the shell's line, not one licenseid broke the grammar
+    with."""
+    verdict, notes = judge_mod.judge(
+        make_cell(kind="other"), make_result(rc=0, out="", err=err)
+    )
+    assert any("outside grammar" in note for note in notes) is flagged, (verdict, notes)
