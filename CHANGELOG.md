@@ -49,11 +49,12 @@ and this project adheres to
   ([#138])
 - `licenseid` exports the types of a result (`Resolution`, `Category`,
   `Trust`, `Step`, `Operand`, `ListInfo`, `ListSource`, `Source`) and
-  `json_line`
+  `json_line` ([#141])
 - `match(value, db)` takes the path of a database as well as a
-  `LicenseDatabase`, opened read-only; a missing file is never created
+  `LicenseDatabase`, opened read-only; a missing file is never created ([#141])
 - `licenseid clear-cache` prints `STATUS=cleared` or `nothing`, and `PATH`
-- `detect -` and `is-* -` read standard input
+  ([#141])
+- `detect -` and `is-* -` read standard input ([#141])
 
 ### Changed
 
@@ -102,50 +103,51 @@ and this project adheres to
   ([#138])
 - **Breaking:** `is-open`, `is-free` and `LicenseDetector.is_open()` are
   removed. Migration:
-  `licenseid is-osi X >/dev/null || licenseid is-fsf X >/dev/null`
+  `licenseid is-osi X >/dev/null || licenseid is-fsf X >/dev/null` ([#141])
 - **Breaking:** `update --version V` is `update --list
   spdx-license-list@V`, repeatable; the record starts with `LIST=`.
-  Migration: `--list spdx-license-list@3.29.0`; read fields by key
+  Migration: `--list spdx-license-list@3.29.0`; read fields by key ([#141])
 - **Breaking:** the global flag `--clear-cache` is the command
   `clear-cache`, which prints its record. Migration: `licenseid clear-cache`
+  ([#141])
 - **Breaking:** `detect --bold` is `detect --id-only`. Migration: rename
-  the flag
+  the flag ([#141])
 - **Breaking:** `--text` is taken as written: `\n`, `\t` and `\u00e9` are no
-  longer decoded. Migration: pass a real line break, or pipe the text
+  longer decoded. Migration: pass a real line break, or pipe the text ([#141])
 - **Breaking:** two inputs (`--text` or `--id` with another), `--json` with
   `--id-only` or `--diff`, and `--top` below 1 exit 2; one used to win
-  unsaid. Migration: pass one input, one output
+  unsaid. Migration: pass one input, one output ([#141])
 - **Breaking:** `match` with no value never reads standard input, and
-  `match -` exits 2. Migration: `licenseid match "$value"`
+  `match -` exits 2. Migration: `licenseid match "$value"` ([#141])
 - **Breaking:** `detect` with no answer prints one record with every field
   empty (`null` in JSON), exit 1; `--id-only` an empty line. Migration: test
-  the exit code, or an empty `EXPRESSION`
+  the exit code, or an empty `EXPRESSION` ([#141])
 - **Breaking:** the flags of an expression are judged per operand: `AND`
   all, `OR` any, `WITH` the licence's; `None` (an empty flag, exit 1) when
   no licence is found or an operand cannot be judged; `is_spdx` is false
-  for a `LicenseRef-*`. Migration: treat `None` as "unknown", not "no"
+  for a `LicenseRef-*`. Migration: treat `None` as "unknown", not "no" ([#141])
 - **Breaking:** a deprecated ID that states no variant (`GPL-2.0`,
   `GPL-2.0-with-classpath-exception`), as an argument, `--id`, a tag or a
   manifest field, is read as its `-only` form with `EXACT=false` and
   `WARNING: input: variant not stated`, as `GPL2` is. Migration: write
-  `GPL-2.0-only` or `-or-later`
+  `GPL-2.0-only` or `-or-later` ([#141])
 - **Breaking:** every `match()` refusal has a `reason` (`not found: Foo`,
   `empty`, `special value: NONE`, `exception not found: Y`). Migration:
-  none; `reason is None` no longer means "refused without one"
+  none; `reason is None` no longer means "refused without one" ([#141])
 - **Breaking:** a step's `list` and `detail` are `None` when empty (they
-  were `""`), and `by` is gone. Migration: test `is None`
+  were `""`), and `by` is gone. Migration: test `is None` ([#141])
 - **Breaking:** `normalize_text` and `DetectRequest` are no longer
   exported; `resolve_record()` and `diff_pair()` are private. Migration:
-  `from licenseid.normalize import normalize_text`
+  `from licenseid.normalize import normalize_text` ([#141])
 - **Breaking:** `detect()` raises `InvalidInputError` for no input or two of
   `text`, `license_id`, `file_path` (it returned `[]`, or let one win), and
   `TypeError` for a text or ID that is no `str`, before it opens a database;
   `is_osi()`, `is_fsf()` and `is_spdx()` take only those named inputs.
-  Migration: pass exactly one
+  Migration: pass exactly one ([#141])
 - **Breaking:** `match(db=...)` checks a database is ready before reading
   it; a blank `db` (and `LicenseDetector("")`) is `InvalidInputError`, not
   the default database. Migration: build it with `licenseid update`; pass
-  a path or none
+  a path or none ([#141])
 
 ### Fixed
 
@@ -167,19 +169,20 @@ and this project adheres to
   `'MIT';`), also with a mark on one end only (`MIT".`, `Apache-2.0'.`),
   as it reads `MIT,"`; `"MIT"..` and `"MIT.".` are still refused
   ([#139])
-- `detect` keeps both operands of `GPL-2.0+ OR GPL-2.0-only` in a tag; it
-  read the `GPL-2.0` of `GPL-2.0+` as bare and answered `GPL-2.0-only`
-- A deprecated ID without a text (`wxWindows`, `eCos-2.0`, `GPL-2.0+` in an
-  expression) has the OSI and FSF flags the List gives it, not false; a
-  database built before warns `build v2 outdated`: run `licenseid update`
-- `clear-cache` deletes cache files only in the default directory or beside
-  a ready database: `--db proj/typo.db` deleted `proj/licenses.json` and
-  `popularity.csv`
-- `detect` gives no `GPL-4.0-only WITH Font-exception-2.0` for a font
-  exception under a GPL version the List does not have
 - A build from the sdist needs Pitloom 0.21.2 or later: an older one accepts
   licenseid 0.7 and its build hook then fails to import
   ([#135])
+- `detect` keeps both operands of `GPL-2.0+ OR GPL-2.0-only` in a tag; it
+  read the `GPL-2.0` of `GPL-2.0+` as bare and answered `GPL-2.0-only` ([#141])
+- A deprecated ID without a text (`wxWindows`, `eCos-2.0`, `GPL-2.0+` in an
+  expression) has the OSI and FSF flags the List gives it, not false; a
+  database built before warns `build v2 outdated`: run `licenseid update`
+  ([#141])
+- `clear-cache` deletes cache files only in the default directory or beside
+  a ready database: `--db proj/typo.db` deleted `proj/licenses.json` and
+  `popularity.csv` ([#141])
+- `detect` gives no `GPL-4.0-only WITH Font-exception-2.0` for a font
+  exception under a GPL version the List does not have ([#141])
 
 [#117]: https://github.com/bact/licenseid/pull/117
 [#119]: https://github.com/bact/licenseid/pull/119
@@ -196,6 +199,7 @@ and this project adheres to
 [#135]: https://github.com/bact/licenseid/pull/135
 [#138]: https://github.com/bact/licenseid/pull/138
 [#139]: https://github.com/bact/licenseid/pull/139
+[#141]: https://github.com/bact/licenseid/pull/141
 
 ## [0.6.0] - 2026-10-27
 
