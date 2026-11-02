@@ -237,7 +237,8 @@ def _granted(db: ListLookup, text: str) -> tuple[ListedName, str] | None:
     one reader of the phrase (classify.OR_LATER_PHRASE, through
     identifiers.qualify_trailing_grant): "GPLv2 or any later version" is
     GPL-2.0-or-later. None if the ID has no -or-later form: the grant is not
-    dropped in silence."""
+    dropped in silence, and the "+" it takes is the caller's to give (the
+    leaf reader of match() gives it after the ID's deprecation)."""
     named = granted_id_text(text)
     if named is None:
         return None
@@ -246,4 +247,4 @@ def _granted(db: ListLookup, text: str) -> tuple[ListedName, str] | None:
         return None
     lid = row["license_id"]
     or_later = qualify_trailing_grant(lid, f"{lid} {text[len(named) :]}")
-    return None if or_later == lid else (row, or_later)
+    return None if or_later in (lid, f"{lid}+") else (row, or_later)

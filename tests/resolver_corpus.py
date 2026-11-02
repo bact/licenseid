@@ -21,6 +21,7 @@ from collections.abc import Callable, Generator, Iterable
 from pathlib import Path
 
 from resolver_changes_contract import CONTRACT_CHANGES
+from resolver_changes_readers import READERS_CHANGES
 from resolver_changes_resolverfix import RESOLVERFIX_CHANGES
 from resolver_changes_t7 import T7_CHANGES, answer
 from resolver_changes_t8 import T8_CHANGES
@@ -151,7 +152,8 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
     **T8_CHANGES,
     **T9_CHANGES,
     **CONTRACT_CHANGES,  # a value it moves again has its answer now
-    **RESOLVERFIX_CHANGES,  # last, for the same reason
+    **RESOLVERFIX_CHANGES,  # after the contract, for the same reason
+    **READERS_CHANGES,  # last, for the same reason
 }
 
 

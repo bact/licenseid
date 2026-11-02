@@ -240,16 +240,17 @@ def test_a_name_whose_first_word_is_no_id_resolves(db: str) -> None:
 @pytest.mark.parametrize(
     ("tag", "certain_id"),
     [
-        ("Apache-2.0 + MIT", "Apache-2.0"),
-        ("Apache-2.0 +", "Apache-2.0"),
+        ("Apache-2.0 + MIT", None),
+        ("Apache-2.0 +", None),
         ("Apache-2.0+", "Apache-2.0+"),
     ],
 )
 def test_a_detached_plus_is_not_the_or_later_operator(
-    db: str, tag: str, certain_id: str
+    db: str, tag: str, certain_id: str | None
 ) -> None:
     """SPDX allows no space before `+`, so `A + B` must not widen the grant
-    to `A+`."""
+    to `A+`; nor is it read as `A` without the rest (task readers): no
+    expression, as match() refuses it."""
     assert certain(db, source_with(tag)) == certain_id
 
 

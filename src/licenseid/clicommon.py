@@ -22,6 +22,7 @@ import click
 
 from licenseid.console import error, warn
 from licenseid.errors import InvalidInputError
+from licenseid.exprtokens import WHITE_SPACE
 from licenseid.output import EchoHelpCommand, echo, echo_json
 from licenseid.result import FieldValue, fields_line, record_json
 from licenseid.textinput import reject_binary, reject_lone_surrogate
@@ -66,9 +67,12 @@ def exit_bad_input(ctx: click.Context, condition: str) -> NoReturn:
 
 def reject_blank_options(ctx: click.Context, values: dict[str, str | None]) -> None:
     """Exit with a usage error (2) if an input given on the command line has
-    no text, rather than skip it for the next input or match it as text."""
+    no text, rather than skip it for the next input or match it as text.
+    White space is :data:`licenseid.exprtokens.WHITE_SPACE`, as ``match()``
+    reads it: U+001C to U+001F, which ``str.strip`` takes, are control
+    characters, a text the command reads (and refuses)."""
     for name, value in values.items():
-        if value is not None and not value.strip():
+        if value is not None and not value.strip(WHITE_SPACE):
             exit_bad_input(ctx, f"empty: {name}")
 
 

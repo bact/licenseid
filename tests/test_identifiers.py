@@ -449,10 +449,11 @@ def test_canonicalize_reads_operators_in_any_case() -> None:
         ("See the LICENSE file", "See"),
         ("MIT++", "MIT++"),  # left to the parser to reject
         # SPDX allows no space before "+", so a detached one is not the
-        # operator and ends the expression.
-        ("LGPL-2.1 + MIT", "LGPL-2.1"),
-        ("MIT +", "MIT"),
-        ("MIT+ +", "MIT+"),
+        # operator: no expression, as match() refuses it, rather than one
+        # without it (task readers; it ended the expression).
+        ("LGPL-2.1 + MIT", ""),
+        ("MIT +", ""),
+        ("MIT+ +", ""),
         # Only white space separates the parts of an expression.
         ("MIT */ and_mask = 1", "MIT"),
         ("MIT */ or(x);", "MIT"),

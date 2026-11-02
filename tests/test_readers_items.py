@@ -28,6 +28,7 @@ from licenseid import LicenseDatabase, classify, looseid, match
 from licenseid.classify import grant_at, grant_end, grant_spans, is_pure_license_text
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
+from licenseid.identifiers import qualify_trailing_grant
 from licenseid.resolverinfo import trove_list_info
 from licenseid.trovenames import TROVE_CLASSIFIERS_VERSION
 
@@ -41,11 +42,12 @@ def _tag(corpus_db: LicenseDatabase, value: str) -> tuple[str, bool] | None:
 
 
 def _field(corpus_db: LicenseDatabase, tmp_path: Path, value: str) -> str | None:
-    """The exact answer of ``detect()`` for a package.json ``license`` field."""
-    path = tmp_path / "package.json"
-    path.write_text(json.dumps({"license": value}), encoding="utf-8")
-    found = LicenseDetector(corpus_db.location).detect(file_path=str(path))
-    return found[0]["expression"] if found and found[0]["exact"] else None
+    """The answer of ``detect()`` for a package.json ``license`` field, when
+    it is exact (the field declares it)."""
+    manifest = tmp_path / "package.json"
+    manifest.write_text(json.dumps({"name": "x", "license": value}), "utf-8")
+    top = LicenseDetector(corpus_db.location).detect(file_path=str(manifest))[:1]
+    return next((r["expression"] for r in top if r["exact"]), None)
 
 
 def _answer(corpus_db: LicenseDatabase, value: str) -> tuple[str | None, str | None]:
@@ -78,26 +80,75 @@ def test_a_trove_answer_names_the_version(corpus_db: LicenseDatabase) -> None:
 
 
 @pytest.mark.parametrize(
-    ("value", "expression"),
+    ("value", "reason"),
     [
-        ("GPL-2.0 +", "GPL-2.0-or-later"),
-        ("GPL-2.0 + OR MIT", "GPL-2.0-or-later OR MIT"),
-        ("MIT +", "MIT+"),
+        ("GPL-2.0 +", "plus after a space: GPL-2.0 +"),
+        ("GPL-2.0  +", "plus after a space: GPL-2.0 +"),
+        ("GPL-2.0\t+", "plus after a space: GPL-2.0 +"),
+        ("MIT +", "plus after a space: MIT +"),
+        ("Apache 2.0 +", "plus after a space: Apache 2.0 +"),
+        ("GPL-2.0 +,", "plus after a space: GPL-2.0 +"),  # the core's reason
+        ("GPL-2.0 + OR MIT", "plus after a space: GPL-2.0 +"),
+        ("MIT OR GPL-2.0 +", "plus after a space: GPL-2.0 +"),
+        ("GPL-2.0 + WITH Classpath-exception-2.0", "plus after a space: GPL-2.0 +"),
+        # Unchanged: a "+" after a bracket, and two "+".
+        ("(MIT) +", "plus after a bracket: (MIT) +"),
+        ("GPL-2.0 + +", "qualifier stated twice: GPL-2.0 + +"),
+        ("MIT+ +", "qualifier stated twice: MIT+ +"),
     ],
 )
 def test_a_spaced_plus_in_match(
+    corpus_db: LicenseDatabase, value: str, reason: str
+) -> None:
+    """A "+" after a space is no operator (plusoperator.PLUS_OPERATOR; it
+    may say "and" too): refused where it qualifies a licence. It was read
+    as the operator, with a ``whitespace`` step (P34)."""
+    got = match(value, corpus_db)
+    assert (got["expression"], got["category"], got["reason"]) == (
+        None,
+        "malformed",
+        reason,
+    )
+
+
+@pytest.mark.parametrize(
+    ("value", "expression"),
+    [
+        ("GPL-2.0+", "GPL-2.0-or-later"),
+        ("MIT+", "MIT+"),
+        ("GPL-2.0+ OR MIT", "GPL-2.0-or-later OR MIT"),
+    ],
+)
+def test_a_plus_that_touches_its_id_reads(
     corpus_db: LicenseDatabase, value: str, expression: str
 ) -> None:
-    # BUG: read as the operator, which never follows a space.
     assert _answer(corpus_db, value) == (expression, None)
 
 
-def test_a_spaced_plus_in_a_tag(
+def test_a_spaced_plus_after_nothing_is_not_found(corpus_db: LicenseDatabase) -> None:
+    assert _answer(corpus_db, "Foo +") == (None, "not found: Foo +")
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["GPL-2.0 + OR MIT", "Apache-2.0 +", "Apache-2.0 + MIT", "MIT+ +", "(MIT) +"],
+)
+def test_a_spaced_plus_in_a_tag(corpus_db: LicenseDatabase, value: str) -> None:
+    """The tag read the licence before the "+" and dropped the rest:
+    GPL-2.0-only (narrowed) for "GPL-2.0 + OR MIT", Apache-2.0 exact for
+    "Apache-2.0 + MIT". Now no expression, as ``match()`` refuses it."""
+    assert _tag(corpus_db, value) is None
+
+
+def test_a_spaced_plus_as_an_argument(
     corpus_db: LicenseDatabase, given: GivenWarnings
 ) -> None:
-    assert _tag(corpus_db, "GPL-2.0 + OR MIT") == ("GPL-2.0-only", False)
+    """Not changed: the loose reading of Tier 0 (versionkey, detector) drops a
+    "+" apart from its ID and guesses the narrow grant, not exact, with a
+    warning (F3)."""
+    found = LicenseDetector(corpus_db.location).detect("GPL-2.0 +")
+    assert (found[0]["expression"], found[0]["exact"]) == ("GPL-2.0-only", False)
     assert given.conditions() == {"variant not stated"}
-    assert _tag(corpus_db, "Apache-2.0 +") == ("Apache-2.0", True)
 
 
 # --- item 3: a keyword ignores case in ASCII only -----------------------------
@@ -178,10 +229,22 @@ def test_detect_reads_a_run_of_blank_lines_quickly(corpus_db: LicenseDatabase) -
 @pytest.mark.parametrize(
     ("value", "answer"),
     [
-        ("licenseref-foo", None),  # BUG: nothing
-        ("MIT OR licenseref-foo", ("MIT OR licenseref-foo", True)),  # BUG
+        # A reference in another case answered nothing alone, and stayed in
+        # its case in an expression. Its prefix is SPDX's case now, its
+        # idstring the author's; exact, as a case-folded ID is ("mit").
+        ("licenseref-foo", ("LicenseRef-foo", True)),
+        ("LICENSEREF-Foo", ("LicenseRef-Foo", True)),
+        ("MIT OR licenseref-foo", ("MIT OR LicenseRef-foo", True)),
+        ("mit OR licenseref-foo", ("MIT OR LicenseRef-foo", True)),
+        ("documentref-x:licenseref-foo", ("DocumentRef-x:LicenseRef-foo", True)),
+        (
+            "MIT AND documentref-x:licenseref-foo",
+            ("MIT AND DocumentRef-x:LicenseRef-foo", True),
+        ),
         ("LicenseRef-foo", ("LicenseRef-foo", True)),
         ("mit", ("MIT", True)),
+        # Still no reference: a "+" is none's.
+        ("licenseref-foo+", None),
     ],
 )
 def test_a_reference_in_another_case_in_a_tag(
@@ -193,9 +256,9 @@ def test_a_reference_in_another_case_in_a_tag(
 def test_a_reference_in_another_case_in_a_field(
     corpus_db: LicenseDatabase, tmp_path: Path
 ) -> None:
-    assert _field(corpus_db, tmp_path, "licenseref-foo") is None  # BUG
+    assert _field(corpus_db, tmp_path, "licenseref-foo") == "LicenseRef-foo"
     assert _field(corpus_db, tmp_path, "MIT OR licenseref-foo") == (
-        "MIT OR licenseref-foo"  # BUG
+        "MIT OR LicenseRef-foo"
     )
 
 
@@ -203,49 +266,229 @@ def test_a_reference_in_another_case_in_a_field(
 
 
 @pytest.mark.parametrize(
-    ("value", "answer"),
+    "value",
     [
-        # BUG: the grant is version 3's, not GPL-2.0's.
-        ("GPL-2.0, version 3 or later", ("GPL-2.0-or-later", True)),
-        ("GPL-2.0, 3 or later", ("GPL-2.0-or-later", True)),
-        # BUG: the grant is dropped in silence.
-        ("MIT, or any later version", ("MIT", True)),
-        ("Apache-2.0 or later", ("Apache-2.0", True)),
-        ("GPL-2.0, or any later version", ("GPL-2.0-or-later", True)),
+        "GPL-2.0, version 3 or later",
+        "GPL-2.0, 3 or later",
+        "GPL-2.0 version 3.0 or later",
+        "GPL-2.0 (version 3 or later)",
+        "GPL-2.0, LGPL-2.0 or later",  # a number joined to another word
+        "GPL-2.0, v2 or later",
     ],
 )
-def test_whose_grant_in_a_tag(
-    corpus_db: LicenseDatabase, value: str, answer: tuple[str, bool] | None
+def test_a_grant_after_another_version_is_not_the_ids(
+    corpus_db: LicenseDatabase, given: GivenWarnings, value: str
 ) -> None:
-    assert _tag(corpus_db, value) == answer
+    """The grant is version 3's (the number between the ID and the phrase is
+    another licence's), not GPL-2.0's: GPL-2.0 alone is read, as the narrow
+    guess with a warning. It was GPL-2.0-or-later, exact."""
+    assert _tag(corpus_db, value) == ("GPL-2.0-only", False)
+    assert given.conditions() == {"variant not stated"}
+
+
+@pytest.mark.parametrize(
+    ("value", "answer"),
+    [
+        # The grant was dropped in silence: MIT, exact. match() reads it as
+        # the "+" of an ID with no -or-later form (P35).
+        ("MIT, or any later version", "MIT+"),
+        ("MIT or any later version", "MIT+"),
+        ("Apache-2.0 or later", "Apache-2.0+"),
+        ("MPL-2.0 (or later)", "MPL-2.0+"),
+        ("MIT OR Apache-2.0 or later", "MIT OR Apache-2.0+"),
+        (
+            "MIT WITH Classpath-exception-2.0 or later",
+            "MIT+ WITH Classpath-exception-2.0",
+        ),
+        # Unchanged: the -or-later form where the List has one.
+        ("GPL-2.0, or any later version", "GPL-2.0-or-later"),
+        ("GPL-2.0 or later", "GPL-2.0-or-later"),
+        ("GPL-2 or later", "GPL-2.0-or-later"),
+        ("(GPL-2.0) or later", "GPL-2.0-or-later"),
+    ],
+)
+def test_a_grant_is_kept_in_a_tag(
+    corpus_db: LicenseDatabase, value: str, answer: str
+) -> None:
+    assert _tag(corpus_db, value) == (answer, True)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "MIT, or any later version",
+        "Apache-2.0 or later",
+        "MPL-2.0 (or later)",
+        "MIT WITH Classpath-exception-2.0 or later",
+        "GPL-2.0, or any later version",
+    ],
+)
+def test_the_tag_reads_a_grant_as_match_does(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    tag = _tag(corpus_db, value)
+    assert tag is not None
+    assert tag[0] == match(value, corpus_db)["expression"]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "GPL-2.0-only, or any later version",  # stated twice
+        "LicenseRef-a or later",  # a reference takes none
+        "GPL-2.0+ or later",  # stated twice
+    ],
+)
+def test_a_grant_no_licence_takes_is_refused_in_a_tag(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    assert _tag(corpus_db, value) is None
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "GPL-2.0, version 2 or later",  # its own version, restated
+        "GPL-2.0, version 2.0 or later",
+        "GPL-2.0 (version 2.0 or later)",
+    ],
+)
+def test_a_grant_after_the_ids_own_version_is_the_ids(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    assert _tag(corpus_db, value) == ("GPL-2.0-or-later", True)
+
+
+@pytest.mark.parametrize(
+    ("expression", "value"),
+    [
+        ("GPL-2.0-only", "GPL-2.0-only or later"),
+        ("LicenseRef-a", "LicenseRef-a or later"),
+        ("GPL-2.0-only WITH Classpath-exception-2.0", "GPL-2.0-only WITH x or later"),
+    ],
+)
+def test_no_qualifier_is_added_to_one_that_takes_none(
+    expression: str, value: str
+) -> None:
+    """A tag refuses these before (leading_expression); the reader of the
+    grant itself adds no "+" either."""
+    assert qualify_trailing_grant(expression, value) == expression
+
+
+def test_a_grant_is_kept_in_a_field(corpus_db: LicenseDatabase, tmp_path: Path) -> None:
+    assert _field(corpus_db, tmp_path, "MIT, or any later version") == "MIT+"
+    assert _field(corpus_db, tmp_path, "GPL-2.0, version 3 or later") is None
 
 
 # --- item 8: an information separator on the command line ---------------------
 
 
 @pytest.mark.parametrize(
-    "value", ["\x1f", "\x1c", " \x1e "], ids=["x1f", "x1c", "x1e-in-spaces"]
+    ("value", "code"),
+    [("\x1f", "U+001F"), (" \x1f ", "U+001F"), ("\x1fMIT", "U+001F")],
+    ids=["alone", "in-spaces", "before-an-id"],
 )
-def test_an_information_separator_alone_on_the_command_line(
+def test_a_unit_separator_is_a_character_on_the_command_line(
+    monkeypatch: pytest.MonkeyPatch, value: str, code: str
+) -> None:
+    """It was blank (``str.strip`` takes U+001C to U+001F), exit 2; match()
+    refuses it as a control character, exit 1, as for ``MIT\x1f``."""
+    ship(monkeypatch, fixture_bundle())
+    result = CliRunner().invoke(cli, ["match", value])
+    assert (result.exit_code, result.stderr) == (1, "")
+    assert result.stdout == (
+        "EXPRESSION=\tCATEGORY=unresolved\tTRUST=none\n"
+        f"REASON=control or format character: {code}\n"
+    )
+
+
+@pytest.mark.parametrize(
+    ("value", "code"),
+    [("\x1c", "U+001C"), (" \x1e ", "U+001E"), ("\x1d", "U+001D")],
+    ids=["x1c", "x1e-in-spaces", "x1d"],
+)
+def test_a_separator_that_breaks_a_line_on_the_command_line(
+    monkeypatch: pytest.MonkeyPatch, value: str, code: str
+) -> None:
+    """It was blank; it breaks a line (``str.splitlines``), as in ``MIT\x1c``."""
+    ship(monkeypatch, fixture_bundle())
+    result = CliRunner().invoke(cli, ["match", value])
+    assert (result.exit_code, result.stdout) == (2, "")
+    assert result.stderr == (
+        f"ERROR: input: invalid: line break {code}; run 'licenseid detect'\n"
+    )
+
+
+@pytest.mark.parametrize("value", ["", " ", "\t \u3000", "\x85"])
+def test_white_space_alone_is_still_empty(
     monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
     ship(monkeypatch, fixture_bundle())
     result = CliRunner().invoke(cli, ["match", value])
-    # BUG: blank, where match() reads a character it refuses.
-    assert (result.exit_code, result.stderr) == (2, "ERROR: input: empty: argument\n")
+    assert (result.exit_code, result.stdout) == (2, "")
+    assert result.stderr == "ERROR: input: empty: argument\n"
+
+
+@pytest.mark.parametrize(
+    ("args", "code", "stderr"),
+    [
+        # The argument was blank, exit 2; detect reads it as the library
+        # does: no licence, exit 1.
+        (["\x1f"], 1, ""),
+        # Not changed here: cliinput strips --text itself, and --id refuses
+        # a value that is no ID (its DETAIL folds to nothing).
+        (["--text", "\x1f"], 2, "ERROR: input: empty: --text\n"),
+        (["--id", "\x1f"], 2, "ERROR: option: invalid: --id: ; pass one license ID\n"),
+    ],
+    ids=["argument", "text", "id"],
+)
+def test_a_unit_separator_given_to_detect(
+    corpus_db: LicenseDatabase, args: list[str], code: int, stderr: str
+) -> None:
+    result = CliRunner().invoke(cli, ["--db", corpus_db.location, "detect", *args])
+    assert (result.exit_code, result.stderr) == (code, stderr)
 
 
 # --- item 9: quote marks around nothing, a reference before a comma -----------
 
 
-def test_empty_quotes_joined_by_an_operator(corpus_db: LicenseDatabase) -> None:
-    # BUG: the outer marks pair as one layer around `" OR "`.
-    assert _answer(corpus_db, '"" OR ""') == (None, "not found: OR")
+@pytest.mark.parametrize(
+    "value", ['"" OR ""', '"" AND ""', "'' OR ''", "\"\" OR ''"], ids=str
+)
+def test_empty_quotes_joined_by_an_operator(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """The outer marks paired as two layers around the operator, which was
+    then the value (``not found: OR``); each pair is an operand's."""
+    quotes = value[0] * 2
+    assert _answer(corpus_db, value) == (None, f"operand not resolved: {quotes}")
 
 
-def test_a_reference_and_a_comma_before_a_grant(corpus_db: LicenseDatabase) -> None:
-    # BUG: the reference is not found for its comma.
-    assert _answer(corpus_db, "LicenseRef-a, or any later version") == (
+@pytest.mark.parametrize(
+    ("value", "expression"),
+    [('""MIT""', "MIT"), ('"OR"', None), ('" MIT "', "MIT")],
+)
+def test_quotes_around_a_value_still_go(
+    corpus_db: LicenseDatabase, value: str, expression: str | None
+) -> None:
+    assert match(value, corpus_db)["expression"] == expression
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "LicenseRef-a, or any later version",  # was not found, for its comma
+        "LicenseRef-a; or any later version",
+        "licenseref-a, or later",
+        "LicenseRef-a or any later version",
+    ],
+)
+def test_a_reference_and_an_end_mark_before_a_grant(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    got = match(value, corpus_db)
+    assert (got["expression"], got["category"], got["reason"]) == (
         None,
-        "not found: LicenseRef-a, or any later version",
+        "unresolved",
+        f"qualifier on a reference: {value}",
     )

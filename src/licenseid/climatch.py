@@ -77,7 +77,8 @@ def declared_value(ctx: click.Context, value: str | None, text: str | None) -> s
     reject_unencodable(ctx, value)
     char = _line_break(value)
     if char is not None:
-        shown = f"U+{ord(char):04X}: {one_line(value)}"
+        # One information separator alone folds to nothing: no DETAIL then.
+        shown = ": ".join(filter(None, (f"U+{ord(char):04X}", one_line(value))))
         exit_bad_input(ctx, f"invalid: line break {shown}{TO_DETECT}")
     # Counted as match() counts it (read_length), so it reads what this
     # passes; the first test is the fast one.

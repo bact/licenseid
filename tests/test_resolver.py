@@ -176,7 +176,8 @@ def _db() -> Generator[LicenseDatabase, None, None]:
                 [],
             ),
         ),
-        ("MIT +", ("MIT+", "lexical", ["whitespace"], [], [])),
+        # A "+" after a space is no operator (task readers; was MIT+)
+        ("MIT +", (None, "malformed", [], [], [])),
         ("(GPL-2.0)+", (None, "malformed", [], [], [])),  # "+" follows an ID only
         # a qualifier twice is malformed; a grant that cannot apply is not dropped
         ("GPL-2.0++", (None, "malformed", [], [], [])),
@@ -325,7 +326,7 @@ def test_a_value_resolves_with_its_steps(
         "StandardML-NJ",
         "GPLv2 or later",
         "(mit)",
-        " MIT +",
+        " MIT+",
         "Apache License 2.0",
         "StandardML-NJ+",
     ],
@@ -353,7 +354,7 @@ def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> 
         "GPL-2.0+",
         "GPL-3.0",
         "GPL-2.0 or later",
-        "MIT +",
+        "Apache-2.0  OR MIT",  # a "+" after a space is refused now
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "MIT License (MIT)",
     )

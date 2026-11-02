@@ -13,16 +13,24 @@ from typing import cast
 
 import py_spdx_license
 
-from licenseid.classify import OR_LATER_PHRASE, grant_at, grant_follows, grant_spans
+from licenseid.classify import (
+    OR_LATER_PHRASE,
+    another_version,
+    grant_at,
+    grant_follows,
+    grant_spans,
+)
 from licenseid.dropguard import trim_end_mark
 from licenseid.exprtokens import (
     OPERAND_START,
     OPERATORS,
     RE_OPERATOR,
     RE_TOKEN,
+    canonical_ref,
     closing_brackets_end,
     continues_after,
     cut_inside_word,
+    is_license_ref,
     licence_after,
     token_kind,
 )
@@ -225,15 +233,17 @@ def _too_large_to_parse(expression: str) -> bool:
 
 
 def qualify_trailing_grant(expression: str, value: str) -> str:
-    """*expression* with the bare deprecated ID it ends in replaced by its
-    ``-or-later`` form, when the prose right after it in *value* grants it.
+    """*expression* with the ID it ends in qualified "or later", when the
+    prose right after it in *value* grants it: a bare deprecated ID by its
+    ``-or-later`` form, any other by the "+" operator ("MIT or later" is
+    MIT+, as ``match()`` reads it, P35). One that takes no grant (``-only``,
+    a reference) is left as it is; a tag refused it (leading_expression).
 
     "or later" is a grant, not the OR operator, and it qualifies the ID
     beside it: "MIT OR GPL-2.0 or later" is "MIT OR GPL-2.0-or-later". The
     grant of a WITH belongs to its license, not to its exception. A version
     number between the ID and the grant means another license stands in
-    between, so the grant is that one's, not this ID's.
-    """
+    between, so the grant is that one's (classify.grant_follows)."""
     # Closing brackets stand between the ID and the grant: "(GPL-2.0) or later".
     tokens = [t for t in RE_TOKEN.finditer(expression) if t.group(0) != ")"]
     if not tokens:
@@ -241,13 +251,14 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     target = tokens[-1]
     if len(tokens) >= 3 and tokens[-2].group(0).upper() == "WITH":
         target = tokens[-3]
-    or_later = _lookup_case_insensitive(_BARE_TO_OR_LATER, target.group(0))
-    if not or_later:
-        return expression
+    licence = target.group(0)
+    if token_kind(licence) != "ID" or _takes_no_grant(licence):
+        return expression  # a "+" before the grant, or no licence takes one
     # The expression is a prefix of the value up to its last ID, whatever
     # closing brackets follow it.
     if not grant_follows(tokens[-1].group(0), value[tokens[-1].end() :]):
         return expression
+    or_later = _lookup_case_insensitive(_BARE_TO_OR_LATER, licence) or f"{licence}+"
     return expression[: target.start()] + or_later + expression[target.end() :]
 
 
@@ -309,10 +320,13 @@ def leading_expression(value: str) -> str:
         if expect_operand != (kind in OPERAND_START):
             break
         gap = value[end : token.start()]
-        if gap.strip() or (kind == "+" and gap):
-            # Only white space separates the parts of an expression, and a
-            # "+" touches the ID it follows. Anything else is prose.
-            break
+        if gap.strip():
+            break  # only white space separates the parts of an expression
+        if kind == "+" and gap:
+            # A "+" touches the ID it follows (plusoperator.PLUS_OPERATOR);
+            # after a space it is none, and may say "and": no expression,
+            # as match() refuses it, rather than one without it.
+            return ""
         grant_end = (
             grant_at(value, token, grants, _qualified(licence, before))
             if kind == "OP"
@@ -445,11 +459,12 @@ def disambiguate_deprecated_id(text: str) -> str | None:
         end = min(len(text), m.end() + 150)
         window = text[start:end]
         grant = OR_LATER_PHRASE.search(window)
-        if grant:
+        if grant:  # a phrase after another version is another licence's
             phrase = (start + grant.start(), start + grant.end())
-            return (
-                None if _joins_another(text, phrase) else _BARE_TO_OR_LATER.get(dep_id)
-            )
+            other = phrase[0] >= m.end() and another_version(dep_id, text, phrase[0])
+            if other or _joins_another(text, phrase):
+                return None
+            return _BARE_TO_OR_LATER.get(dep_id)
 
         # Narrow window (50 chars after the ID) for "only" to reduce false
         # positives from common uses like "only if", "not only", etc.
@@ -505,7 +520,11 @@ def _normalize_single_id(
     lic_id: str,
     db: ListLookup | None = None,
 ) -> str:
-    """Normalises a single license or exception ID."""
+    """Normalises a single license or exception ID. A reference names
+    itself, its prefixes in SPDX's case (``licenseref-x`` is
+    ``LicenseRef-x``), as ``match()`` reads it."""
+    if is_license_ref(lic_id):
+        return canonical_ref(lic_id)
     # 1. List lookup (most accurate/up-to-date)
     if db is not None:
         normalized = _lookup_case_insensitive(db.get_deprecated_mappings(), lic_id)
@@ -594,47 +613,25 @@ def _normalize_exception_id(exc_id: str, db: ListLookup | None = None) -> str:
     return exc_id
 
 
-def _tokenize_expression(expression: str) -> list[str]:
-    """Tokenize an SPDX license expression into reserved tokens
-    (``(``, ``)``, ``AND``, ``OR``, ``WITH``, ``+``) and identifiers.
-
-    Identifiers can contain letters, numbers, dots, and hyphens; the
-    identifier alternative's greedy ``+`` quantifier always consumes a full
-    contiguous run of those characters starting from its first character,
-    so a real ID that contains "and"/"or"/"with" as a substring of its own
-    name (e.g. the "-or-later" suffix, or a custom LicenseRef- name) is
-    always captured whole, never split at the embedded operator word.
-    """
-    return RE_TOKEN.findall(expression)
-
-
 def _is_expression(identifier: str) -> bool:
     """True if *identifier* is a real SPDX expression — contains AND/OR/WITH
     as a genuine operator, ``+``, or parentheses — rather than a single
-    plain ID or unrecognised garbage.
-
-    A plain substring check (e.g. ``"OR" in identifier.upper()``) misfires
-    on single IDs that happen to contain "and"/"or"/"with" inside their own
-    name (``GPL-2.0-or-later``, or a LicenseRef name like
-    ``LicenseRef-BRANDing-1.0``). Tokenizing first avoids that: such names
-    always come back as a single token.
-
-    Checking for *any* reserved token — not just "more than one token" —
-    also keeps malformed multi-word input with no real operator (e.g.
-    ``"n M z"``, or whitespace-/symbol-only garbage, which tokenizes to
-    zero tokens) on the single-ID passthrough path, matching the previous
-    substring-check behaviour, rather than having it silently reformatted
-    (or reduced to "") by ``_normalize_expression``.
-    """
+    plain ID or unrecognised garbage. Tokens, not substrings: "or" inside
+    ``GPL-2.0-or-later`` or ``LicenseRef-BRANDing-1.0`` is no operator. Any
+    reserved token, not "more than one token": multi-word input with no
+    operator (``"n M z"``) passes through as a single ID, rather than being
+    reformatted (or reduced to "") by ``_normalize_expression``."""
     return any(
         token in ("(", ")", "+") or token.upper() in OPERATORS
-        for token in _tokenize_expression(identifier)
+        for token in RE_TOKEN.findall(identifier)
     )
 
 
 def _normalize_expression(expression: str, db: ListLookup | None = None) -> str:
     """Parses and normalises an SPDX License Expression."""
-    tokens = _tokenize_expression(expression)
+    # RE_TOKEN takes an ID whole, so "or" inside GPL-2.0-or-later or a
+    # LicenseRef-* name is never an operator.
+    tokens = RE_TOKEN.findall(expression)
 
     # 1. Pre-process to attach "+" to identifiers
     # This ensures "GPL-2.0" "+" becomes "GPL-2.0+" before normalization

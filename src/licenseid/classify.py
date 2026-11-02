@@ -124,13 +124,58 @@ def grant_follows(tail: str, rest: str) -> bool:
     number between the ID and the phrase, which would be another licence's.
     The phrase can start inside the ID ("or later" needs the version), so it
     is read on both together; a qualifier the ID states is left off first,
-    so "GPL-2.0-only (or later)" reads as "GPL-2.0 (or later)" does."""
+    so "GPL-2.0-only (or later)" reads as "GPL-2.0 (or later)" does. A
+    number the phrase starts with after the ID must be the ID's version
+    (:func:`another_version`): in "GPL-2.0, version 3 or later" the grant is
+    version 3's."""
     stem = _RE_STATED_QUALIFIER.sub("", tail)
     text = stem + rest
     grant = OR_LATER_PHRASE.search(text)
-    return grant is not None and not any(
-        char.isdigit() for char in text[len(stem) : grant.start()]
+    if grant is None:
+        return False
+    start = grant.start()
+    if start < len(stem):
+        return True  # the phrase starts at the ID's own version
+    end = _number_start(text, start) if text[start].isdigit() else start
+    return not any(char.isdigit() for char in text[len(stem) : end]) and not (
+        another_version(stem, text, start)
     )
+
+
+def another_version(licence: str, text: str, start: int) -> bool:
+    """Whether the "or later" phrase at *start* of *text*, after *licence*,
+    starts at a number that is no version of *licence*, so the grant is
+    another licence's: "GPL-2.0, version 3 or later" grants version 3, and
+    in "GPL-2.0, LGPL-2.0 or later" the number is joined to another word.
+    "GPL-2.0, version 2.0 or later" restates its own. The phrase starts at a
+    number when it reads "3 or later", at its last digit."""
+    if not text[start].isdigit():
+        return False
+    begin = _number_start(text, start)
+    if begin and (text[begin - 1].isalnum() or text[begin - 1] in "-_"):
+        return True
+    own = _RE_VERSION_NUMBER.findall(licence)
+    return not own or _version(own[-1]) != _version(text[begin : start + 1])
+
+
+_RE_VERSION_NUMBER = re.compile(r"\d+(?:\.\d+)*")
+
+
+def _number_start(text: str, end: int) -> int:
+    """Where the number whose last digit is at *end* of *text* starts."""
+    begin = end
+    while begin and (text[begin - 1].isdigit() or text[begin - 1] == "."):
+        begin -= 1
+    return begin
+
+
+def _version(number: str) -> tuple[int, ...]:
+    """*number* ("2.0", "2") as the parts of a version, with no zeros at the
+    end: "2.0" and "2" are one version."""
+    parts = [int(part) for part in number.split(".") if part]
+    while len(parts) > 1 and not parts[-1]:
+        parts.pop()
+    return tuple(parts)
 
 
 def is_negated(before: str) -> bool:

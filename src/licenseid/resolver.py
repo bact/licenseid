@@ -34,7 +34,7 @@ from typing import Final
 
 from licenseid.dropguard import marks_at_end, trim_end_mark
 from licenseid.exprcanon import unbracketed
-from licenseid.exprtokens import WHITE_SPACE, is_white_space
+from licenseid.exprtokens import RE_OPERATOR, WHITE_SPACE, is_white_space
 from licenseid.listlookup import ListLookup
 from licenseid.listsource import GivenDatabase, choose_list
 from licenseid.quotes import ended_quote, unquote
@@ -306,13 +306,15 @@ def _unquoted(text: str, start: int, found: Found) -> tuple[str, int]:
     """*text* without quote marks around the whole of it, as an ``unquote``
     step whose detail says whether they were balanced, and where it starts
     (*text* starts at *start*). One end mark after the closing marks
-    (``"MIT".``) comes off first, as a ``separator`` step."""
+    (``"MIT".``) comes off first, as a ``separator`` step. Marks around an
+    operator alone (``"" OR ""``) are the operands' quotes, not the value's:
+    they pair as layers, but no value is an operator."""
     ended = ended_quote(text)
     if ended is not None:
         found.steps.append(step("separator", True, text, ended, "end mark"))
         text = ended
     unquoted = unquote(text)
-    if unquoted is None:
+    if unquoted is None or RE_OPERATOR.fullmatch(unquoted.text):
         return text, start
     found.steps.append(step("unquote", True, text, unquoted.text, unquoted.detail))
     if not unquoted.balanced:
