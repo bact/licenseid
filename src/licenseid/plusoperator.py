@@ -25,7 +25,7 @@ PLUS_OPERATOR = re.compile(
 # A license reference: SPDX gives "+" to a license ID only
 # (simple-expression = license-id / license-id "+" / license-ref).
 LICENSE_REF_PREFIX = re.compile(
-    r"(?:DocumentRef-[^\s():]+:)?LicenseRef-", re.IGNORECASE
+    r"(?:DocumentRef-[^\s():]+:)?LicenseRef-", re.IGNORECASE | re.ASCII
 )
 
 

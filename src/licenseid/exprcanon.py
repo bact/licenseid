@@ -43,7 +43,7 @@ from licenseid.looseid import RE_GRANT_WORDS, grant_end
 from licenseid.resolvertypes import Step, step
 
 # A bracket of any kind, or an operator word (WITH stays in its leaf).
-_RE_PART: Final = re.compile(rf"[()\[\]{{}}]|{OPERATOR}", re.IGNORECASE)
+_RE_PART: Final = re.compile(rf"[()\[\]{{}}]|{OPERATOR}", re.IGNORECASE | re.ASCII)
 _OPENS: Final = {"(": ")", "[": "]", "{": "}"}
 _CLOSES: Final = frozenset(_OPENS.values())
 _PLACEHOLDER: Final = "LicenseRef-licenseid-leaf-"

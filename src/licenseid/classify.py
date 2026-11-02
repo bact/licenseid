@@ -50,8 +50,12 @@ OR_LATER_PHRASE = re.compile(
 )
 
 
-# The longest grant read after an ID that states its qualifier (grant_at).
+# How far past the white space after its "or" a grant read after an ID that
+# states its qualifier may go (grant_at). Read as after a number, the phrase
+# is "or", white space, then "later": a few characters past that run.
 _GRANT_WINDOW = 200
+# The qualifier an ID states at its end (plusoperator.states_qualifier).
+_RE_STATED_QUALIFIER = re.compile(r"-(?:only|or-later)\Z", re.IGNORECASE | re.ASCII)
 
 
 def grant_spans(text: str) -> tuple[list[int], list[int]]:
@@ -81,11 +85,30 @@ def grant_at(
         return spans[1][index]
     if not qualified:
         return None
-    # The phrases that need no number were in *spans*. A window, not the
-    # rest of the line: one probe per "or" must not copy the line
-    # ("A-only OR B-only OR ..." would be quadratic).
-    probe = OR_LATER_PHRASE.match("1 " + text[start : start + _GRANT_WINDOW])
+    # The phrases that need no number were in *spans*. The white space after
+    # the "or" and a window past it, not the rest of the line: one probe per
+    # "or" must not copy the line ("A-only OR B-only OR ..." would be
+    # quadratic), and the runs after two "or"s do not overlap.
+    run_end = operator.end()
+    while run_end < len(text) and text[run_end].isspace():
+        run_end += 1
+    probe = OR_LATER_PHRASE.match("1 " + text[start : run_end + _GRANT_WINDOW])
     return None if probe is None else start + probe.end() - 2
+
+
+def grant_follows(tail: str, rest: str) -> bool:
+    """Whether *rest*, the text after the last ID *tail* of an expression (a
+    licence or its exception), grants "or later": the phrase in it with no
+    number between the ID and the phrase, which would be another licence's.
+    The phrase can start inside the ID ("or later" needs the version), so it
+    is read on both together; a qualifier the ID states is left off first,
+    so "GPL-2.0-only (or later)" reads as "GPL-2.0 (or later)" does."""
+    stem = _RE_STATED_QUALIFIER.sub("", tail)
+    text = stem + rest
+    grant = OR_LATER_PHRASE.search(text)
+    return grant is not None and not any(
+        char.isdigit() for char in text[len(stem) : grant.start()]
+    )
 
 
 def is_negated(before: str) -> bool:

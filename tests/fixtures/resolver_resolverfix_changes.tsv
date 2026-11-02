@@ -6,3 +6,4 @@ value	group	expression	category	candidates	steps	step_targets	expansions	expansi
 MIT\udcff	surrogate	-	unresolved	-	-	-	-	-	none	no	lone surrogate
 BSD 3-Clause License; partially licensed under the Python Software Foundation License	semicolon	-	unresolved	-	-	-	-	-	none	yes	not found: BSD 3-Clause License; partially licensed under the Python So...
 MIT; Copyright (c) 2016-2024 Cisco and/or its affiliates.	semicolon	-	unresolved	-	-	-	-	-	none	yes	not found: MIT; Copyright (c) 2016-2024 Cisco and/or its affiliates.
+Apache License 2.0.	ending	Apache-2.0	separator	-	separator,listed_name	Apache License 2.0,Apache-2.0	-	-	resolver_rule	yes	-

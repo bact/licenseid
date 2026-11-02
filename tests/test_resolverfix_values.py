@@ -58,7 +58,8 @@ SEMICOLON_REASONS: dict[str, Answer] = {
         "operand not resolved: Foo;Bar baz",
     ),
     "GPL-2.0-only+ ;x": (None, "unresolved", [], "not found: GPL-2.0-only+ ;x"),
-    "(MIT);": (None, "unresolved", [], "not found: (MIT);"),
+    # An end mark after brackets is an ending (review item 6).
+    "(MIT);": ("MIT", "separator", ["separator", "brackets"], None),
     # Still one line: white space folded.
     "Foo;\nBar baz": (None, "unresolved", [], "not found: Foo; Bar baz"),
 }
@@ -210,9 +211,9 @@ MARKS_AFTER: dict[str, Answer] = {
     '"LicenseRef-a-"-': (None, "unresolved", ["drop!"], DASH),
     "MIT++-": (None, "malformed", [], "qualifier stated twice: MIT++"),
     "GPL-2.0-only+;": (None, "malformed", [], "qualifier stated twice: GPL-2.0-only+"),
-    # Not moved: one end mark after a bracket is not read, and a value whose
-    # marks off name nothing still names nothing.
-    "(MIT).": (None, "unresolved", [], "not found: (MIT)."),
+    # One end mark after a bracket is an ending (review item 6); a value
+    # whose marks off name nothing still names nothing.
+    "(MIT).": ("MIT", "separator", ["separator", "brackets"], None),
     "(Foo)-": (None, "unresolved", [], "not found: (Foo)-"),
     "Foo-": (None, "unresolved", [], "not found: Foo-"),
     "MIT+-": (None, "unresolved", ["drop!"], DASH),

@@ -164,7 +164,7 @@ def test_s4_a_tag_refuses_a_plus_stated_twice(
     ("value", "answer"),
     [
         ("GPL-2.0+ some comment", "GPL-2.0-or-later"),  # prose after a tag
-        ("GPL-2.0-only, see COPYING for any later version", "GPL-2.0-only"),
+        ("GPL-2.0-only, see COPYING", "GPL-2.0-only"),
         ("GPL-2.0+", "GPL-2.0-or-later"),
     ],
 )

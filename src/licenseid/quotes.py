@@ -98,8 +98,8 @@ def encloses_nothing(text: str) -> bool:
     ``' '``, two layers of them): the marks :func:`unquote` would take off,
     with no value left inside. A lone mark (``"``) pairs with nothing, so it
     is no such value."""
-    lo, hi, layers, side = _bounds(text)
-    return lo == hi and bool(layers or side)
+    lo, hi, layers, _ = _bounds(text)
+    return lo == hi and layers > 0
 
 
 def _bounds(text: str) -> tuple[int, int, int, str]:

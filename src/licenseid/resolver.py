@@ -32,7 +32,7 @@ import re
 import unicodedata
 from typing import Final
 
-from licenseid.dropguard import marks_at_end
+from licenseid.dropguard import marks_at_end, trim_end_mark
 from licenseid.exprcanon import unbracketed
 from licenseid.exprtokens import WHITE_SPACE, is_white_space
 from licenseid.listlookup import ListLookup
@@ -203,11 +203,15 @@ def _read(
         found.category, found.steps = "unresolved", []  # nothing was read
         found.reason = too_long(len(text)) if text else EMPTY
         return found, [], False
-    found.reason = _refusal(text)
+    found.reason = _refusal(value)  # before any reader drops a character
     if found.reason is not None:
         found.category, found.steps = "unresolved", []  # no step was taken
         return found, [], False
-    return _read_text(db, text, start, found, lists)
+    ending = Found(steps=list(found.steps), floor=found.floor)
+    read = _read_text(db, text, start, found, lists)
+    if read[0].expression is None and read[0].reason is None:
+        return _ended(db, text, start, ending, lists) or read
+    return read
 
 
 def _read_text(
@@ -244,6 +248,25 @@ def _read_text(
         found.reason, found.steps = compound.fallback.reason, compound.fallback.steps
     nothing = Found(category="unresolved", reason=found.reason)
     return found, [operand_of(text, start, nothing)], False  # no parse used
+
+
+def _ended(
+    db: ListLookup, text: str, start: int, found: Found, lists: bool
+) -> tuple[Found, list[Operand], bool] | None:
+    """*text*, which no reader read and none gave a reason, read without the
+    one end mark that ends it, as an ending ``separator`` step after the
+    steps in *found* (``(MIT).``, ``The Unlicense.``): the readers that take
+    one off themselves read an ID or a prose form, not brackets or a name.
+    Read once: what is left is not read for an ending again. None when that
+    names nothing, or when a mark is left at the end inside the brackets or
+    quote marks (``(MIT.).``: two marks, refused for them)."""
+    trimmed = trim_end_mark(text)
+    if trimmed is None or marks_at_end(trimmed) is not None:
+        return None
+    found.steps.append(step("separator", True, text, trimmed, "end mark"))
+    inner, offset = _prepared(trimmed, found)
+    read = _read_text(db, inner, start + offset, found, lists)
+    return read if read[0].expression is not None else None
 
 
 def _read_list(

@@ -34,6 +34,11 @@ REASONS: dict[str, str] = {
         " (`errors.reason_detail`); it was made `,`, as on a diagnostic line,"
         " where a `;` would start the ACTION"
     ),
+    "ending": (
+        "resolverfix review item 6: one end mark after a value no reader read"
+        " with it (brackets, a trove name or path, a listed name) is an"
+        " ending, read without it as a `separator` step, as after an ID"
+    ),
 }
 
 #: ``{value: (answer, reason)}``, every value the task moves.

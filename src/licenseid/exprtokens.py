@@ -24,12 +24,15 @@ from typing import Final
 # instead of becoming the AND operator.
 ID_WORD: Final = r"[a-zA-Z0-9]+(?:[._-]+[a-zA-Z0-9]+)*"
 OPERATOR: Final = r"(?<![a-zA-Z0-9._:-])(?:AND|OR|WITH)(?![a-zA-Z0-9._:-])"
+# Every pattern here ignores case in ASCII only (re.ASCII): Python's
+# IGNORECASE alone folds "\u0130", "\u0131", "\u017f" and the Kelvin sign
+# into "i", "s" and "k", so "[A-Za-z]" would take letters no ID has.
 #: An operator word in any case, never inside an ID ("GPL-2.0-or-later").
-RE_OPERATOR: Final = re.compile(OPERATOR, re.IGNORECASE)
+RE_OPERATOR: Final = re.compile(OPERATOR, re.IGNORECASE | re.ASCII)
 #: A token of an expression: a bracket, an operator, a "+" or an ID.
 RE_TOKEN: Final = re.compile(
     rf"\(|\)|{OPERATOR}|\+|{ID_WORD}(?::{ID_WORD})*",
-    re.IGNORECASE,
+    re.IGNORECASE | re.ASCII,
 )
 OPERATORS: Final = ("AND", "OR", "WITH")
 #: What may stand where an operand is expected; everything else follows one.
@@ -104,17 +107,43 @@ def cut_inside_word(text: str, end: int) -> bool:
     if index == len(text):
         return False
     char = text[index]
+    if unicodedata.name(char, "").startswith(_NO_SPACE_SCRIPTS):
+        return False  # ``MIT许可证``, ``Apache-2.0ライセンス``: a word starts
     return char.isalnum() or unicodedata.category(char).startswith("M")
+
+
+# Scripts written with no white space between words, by the prefix of the
+# Unicode names of their letters and marks: Han, kana, Hangul (whose
+# particles and loan words join a Latin word: ``MIT라이선스``), Thai, Lao,
+# Khmer, Myanmar, Tibetan, Yi, and the ideographic marks. One of them after
+# an ID starts the next word, which no idstring continues; a letter of a
+# script that spaces its words (``LicenseRef-café``, a Cyrillic ``а`` after
+# ``MIT``) continues it.
+_NO_SPACE_SCRIPTS: Final = (
+    "CJK ",
+    "HIRAGANA ",
+    "KATAKANA",
+    "HALFWIDTH KATAKANA ",
+    "HANGUL ",
+    "HALFWIDTH HANGUL ",
+    "THAI ",
+    "LAO ",
+    "KHMER ",
+    "MYANMAR ",
+    "TIBETAN ",
+    "YI ",
+    "IDEOGRAPHIC ",
+)
 
 
 # A whole reference, its idstrings as SPDX defines them
 # (idstring = 1*(ALPHA / DIGIT / "-" / "."); ABNF strings ignore case).
 _DOCUMENT_REF = r"(?:DocumentRef-[A-Za-z0-9.-]+:)?"
 _RE_WHOLE_LICENSE_REF = re.compile(
-    rf"{_DOCUMENT_REF}LicenseRef-[A-Za-z0-9.-]+", re.IGNORECASE
+    rf"{_DOCUMENT_REF}LicenseRef-[A-Za-z0-9.-]+", re.IGNORECASE | re.ASCII
 )
 _RE_WHOLE_ADDITION_REF = re.compile(
-    rf"{_DOCUMENT_REF}AdditionRef-[A-Za-z0-9.-]+", re.IGNORECASE
+    rf"{_DOCUMENT_REF}AdditionRef-[A-Za-z0-9.-]+", re.IGNORECASE | re.ASCII
 )
 
 
@@ -141,6 +170,17 @@ def _canonical_prefix(part: str) -> str:
     case; as given if the prefix is none of :data:`_REF_PREFIXES`."""
     cut = part.find("-") + 1
     return _REF_PREFIXES.get(part[:cut].casefold(), part[:cut]) + part[cut:]
+
+
+def ref_end(text: str, start: int) -> int:
+    """Where the longest reference (``LicenseRef-*`` or ``AdditionRef-*``,
+    with its ``DocumentRef-*:``) that starts at *start* of *text* ends; *start*
+    for none. Each prefix of it from its first idstring character on is a
+    reference too: the idstring takes ``.`` and ``-`` at its end."""
+    found = _RE_WHOLE_LICENSE_REF.match(text, start) or _RE_WHOLE_ADDITION_REF.match(
+        text, start
+    )
+    return start if found is None else found.end()
 
 
 def is_license_ref(text: str) -> bool:

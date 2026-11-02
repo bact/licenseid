@@ -203,6 +203,8 @@ def test_a_grant_probe_reads_a_window_not_the_line() -> None:
     [
         ("GPL-2.0-only or later", ""),
         ("GPL-2.0-only or" + " " * 150 + "later", ""),
+        ("GPL-2.0-only or" + " " * 195 + "later", ""),
+        ("GPL-2.0-only or" + " " * 5000 + "later", ""),
         ("GPL-2.0-only OR MIT", "GPL-2.0-only OR MIT"),
         ("GPL-2.0 or later", "GPL-2.0"),
         ("LicenseRef-caf\u00e9", ""),
@@ -230,6 +232,12 @@ AFTER_QUALIFIER = [
     "or laterx",
     "or sooner",
     "or",
+    # Past the window: the white space after "or" is read whole, as
+    # match() reads it (review item 8).
+    "or" + " " * 195 + "later",
+    "or" + " " * 400 + "later",
+    "or" + "\n" * 300 + "later",
+    "or" + " " * 400 + "MIT",
 ]
 
 
@@ -263,7 +271,7 @@ def test_a_probe_reads_a_window(monkeypatch: pytest.MonkeyPatch) -> None:
     operator = re.compile("or").search(text)
     assert operator is not None
     assert grant_at(text, operator, ([], []), True) is None
-    assert probed and max(probed) <= 202
+    assert probed and max(probed) <= len("1 or ") + 200
 
 
 def test_no_probe_without_a_stated_qualifier() -> None:

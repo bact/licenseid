@@ -77,7 +77,7 @@ STAYS: dict[str, Answers] = {
     "GPL-2.0-only OR MIT": named("GPL-2.0-only OR MIT"),
     "GPL-2.0-only OR LGPL-2.1 or later": named("GPL-2.0-only OR LGPL-2.1-or-later"),
     "GPL-2.0-only OR GPL-2.0 or later": named("GPL-2.0-only OR GPL-2.0-or-later"),
-    "GPL-2.0-only, see COPYING for any later version": named("GPL-2.0-only"),
+    "GPL-2.0-only, see COPYING": named("GPL-2.0-only"),
     # A word after a space, or a mark that is no letter, ends the expression,
     # as prose and code after a tag do (``MIT, with additions``).
     "LicenseRef-a b": reference("LicenseRef-a"),

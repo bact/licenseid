@@ -13,7 +13,7 @@ from typing import cast
 
 import py_spdx_license
 
-from licenseid.classify import OR_LATER_PHRASE, grant_at, grant_spans
+from licenseid.classify import OR_LATER_PHRASE, grant_at, grant_follows, grant_spans
 from licenseid.dropguard import trim_end_mark
 from licenseid.exprtokens import (
     OPERAND_START,
@@ -244,22 +244,24 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     or_later = _lookup_case_insensitive(_BARE_TO_OR_LATER, target.group(0))
     if not or_later:
         return expression
-    # The phrase can start inside the last ID: "or later" needs the version.
-    # The expression is a prefix of the value up to that ID, whatever
+    # The expression is a prefix of the value up to its last ID, whatever
     # closing brackets follow it.
-    tail = tokens[-1].group(0)
-    text = value[tokens[-1].start() :]
-    grant = OR_LATER_PHRASE.search(text)
-    if not grant or any(c.isdigit() for c in text[len(tail) : grant.start()]):
+    if not grant_follows(tokens[-1].group(0), value[tokens[-1].end() :]):
         return expression
     return expression[: target.start()] + or_later + expression[target.end() :]
 
 
 def _qualified(licence: str, before: str) -> bool:
-    """Whether *licence* states its qualifier, with no "+" after it (*before*
-    is the token before the grant): "GPL-2.0-only+ or later" is read as
-    ``OR later`` and refused for its "+" (``is_qualified_plus``)."""
-    return before != "+" and states_qualifier(licence)
+    """Whether *licence* takes no grant, with no "+" after it (*before* is
+    the token before the grant): it states its qualifier, or it is a
+    ``LicenseRef-*``, which SPDX gives none. "GPL-2.0-only+ or later" is
+    read as ``OR later`` and refused for its "+" (``is_qualified_plus``)."""
+    return before != "+" and _takes_no_grant(licence)
+
+
+def _takes_no_grant(licence: str) -> bool:
+    """Whether *licence* states its qualifier or is a reference."""
+    return states_qualifier(licence) or LICENSE_REF_PREFIX.match(licence) is not None
 
 
 def _ended_by_grant(value: str, ends: tuple[int, int], depth: int, licence: str) -> str:
@@ -272,7 +274,7 @@ def _ended_by_grant(value: str, ends: tuple[int, int], depth: int, licence: str)
     if (
         close_end is None
         or continues_after(value, close_end)
-        or states_qualifier(licence)
+        or _takes_no_grant(licence)
     ):
         return ""
     return value[: ends[0]] + ")" * depth
@@ -331,9 +333,19 @@ def leading_expression(value: str) -> str:
             expect_operand = kind == "OP"
         if not depth and not expect_operand:
             complete = token.end()
-    if expect_operand or depth or complete is None:
+    if expect_operand or depth or complete is None or cut_inside_word(value, complete):
         return ""
-    return "" if cut_inside_word(value, complete) else value[:complete]
+    return "" if _granted_twice(value[:complete], value, licence) else value[:complete]
+
+
+def _granted_twice(expression: str, value: str, licence: str) -> bool:
+    """Whether the prose after *expression*, a prefix of *value* whose last
+    licence is *licence*, grants "or later" to a licence that takes none
+    (``GPL-2.0-only, or any later version``, ``LicenseRef-a (or later)``)."""
+    if not _takes_no_grant(licence):
+        return False
+    tail = [t for t in RE_TOKEN.finditer(expression) if t.group(0) != ")"][-1]
+    return grant_follows(tail[0], value[tail.end() :])
 
 
 # An ID, then at most one "+", then at most one WITH an exception.

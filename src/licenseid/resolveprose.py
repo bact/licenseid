@@ -56,7 +56,7 @@ _LICENCE_WORDS = frozenset({"license", "licence"})
 # its cost is linear (tests/test_resolver_prose.py times it).
 _RE_VERSION_TAIL = re.compile(
     r"[ \t]licen[cs]e,?[ \t]+(?:version[ \t]*|v[ \t]?)(?P<number>\d+(?:\.\d+)*)\Z",
-    re.IGNORECASE,
+    re.IGNORECASE | re.ASCII,
 )
 
 

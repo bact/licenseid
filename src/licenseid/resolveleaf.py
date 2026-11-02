@@ -171,12 +171,17 @@ def _after_core(db: ListLookup, text: str, found: Found) -> bool:
     """A value no reader read, that ends in marks after a ``+``, an exception
     or a ``LicenseRef-*`` (P80): those readers return before the drop guard.
     One end mark is an ending, read without it; marks that say something
-    (``GPL-2.0+?``, ``MIT+;;``) refuse the value, as they do after an ID.
-    False when the value is not of that shape or its core names nothing."""
+    (``GPL-2.0+?``, ``MIT+;;``) refuse the value, as they do after an ID,
+    and a malformed core is the value's reason, after one end mark too
+    (``LicenseRef-a+.``, ``MIT++-``). False when the value is not of that
+    shape or its core names nothing and is not malformed."""
     body = text.rstrip()
     ended = trim_end_mark(body)
     if ended is not None and _is_core(ended):
-        return _read_without_end(db, text, ended, found)
+        again = Found()
+        return _read_without_end(db, text, ended, found) or (
+            _read(db, ended, again) and _malformed(again, found)
+        )
     lost = (set(dropped(body)) | set(joined_marks(body))) - set("+()[]{}")
     core = body
     # A ``-``, ``.`` or ``_`` that ends a ``LicenseRef-*`` belongs to the ID
@@ -185,10 +190,21 @@ def _after_core(db: ListLookup, text: str, found: Found) -> bool:
     again = Found()
     if core == body or not _is_core(core) or not _read(db, core, again):
         return False
-    if again.expression is None:
-        return False
+    if again.expression is None:  # a malformed core is the value's reason
+        return _malformed(again, found)
     marks = "".join(dict.fromkeys(c for c in body[len(core) :] if c in lost))
     refuse_dropped(found, text, marks, again.expression)
+    return True
+
+
+def _malformed(core: Found, found: Found) -> bool:
+    """Make *found* the refusal of its *core* when that is malformed
+    (``LicenseRef-a+-`` is ``qualifier on a reference: LicenseRef-a+``): the
+    same reason for the value alone and for it as an operand. False when the
+    core is not malformed."""
+    if core.category != "malformed":
+        return False
+    found.category, found.reason = core.category, core.reason
     return True
 
 
@@ -397,13 +413,15 @@ def _grant(
     SPDX) and is unresolved, not read without the grant."""
     license_id, steps = base
     granted = loose_id(db, text)
+    # A reference first: it takes no grant, whatever it ends in
+    # (``LicenseRef-x-only or later``), as ``LicenseRef-x-only+`` reads.
+    if granted is None and is_license_ref(license_id):
+        found.category, found.reason = "unresolved", on_reference(text)
+        return True
     # "+" last: `_qualified` makes `X+ or later` malformed before this, so
     # it only guards a list that has an ID ending in "+" (`Foo+`, no `Foo`)
     if license_id.endswith(("-only", "-or-later", "+")):
         found.category, found.reason = "malformed", stated_twice(text)
-        return True
-    if granted is None and is_license_ref(license_id):
-        found.category, found.reason = "unresolved", on_reference(text)
         return True
     found.steps.extend(steps)
     if granted is None:

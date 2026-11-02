@@ -17,6 +17,7 @@ and cut, its ";" kept (:func:`licenseid.errors.reason_detail`, P61).
 from collections.abc import Callable
 from typing import Final
 
+from licenseid.dropguard import trim_end_mark
 from licenseid.errors import reason_detail
 from licenseid.exprtokens import WHITE_SPACE
 from licenseid.listlookup import ListLookup
@@ -32,8 +33,11 @@ EMPTY: Final = "empty"
 
 def is_empty(text: str) -> bool:
     """Whether *text*, trimmed, holds nothing, or quote marks around nothing
-    (``""``): :data:`EMPTY`, not ``not found``."""
-    return not text.strip(WHITE_SPACE) or encloses_nothing(text)
+    (``""``), with one end mark or a "+" after them too (``"".``, ``""+``):
+    :data:`EMPTY`, not ``not found``."""
+    core = text.strip(WHITE_SPACE)
+    ended = trim_end_mark(core) or core.removesuffix("+")
+    return not core or encloses_nothing(core) or encloses_nothing(ended)
 
 
 def too_long(length: int) -> str:
