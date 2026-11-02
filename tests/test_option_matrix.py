@@ -26,9 +26,8 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 Two inputs (``--id`` or ``--text`` with another input), and ``--json`` with
 ``--id-only`` or ``--diff``, are a usage error (C7 of the contract batch;
 they were resolved without a word). A piped standard input beside one input
-is not refused: a script's standard input is seldom a terminal.
-
-- API: ``license_id`` > ``file_path`` > ``text``.
+is not refused: a script's standard input is seldom a terminal. The API
+takes one of ``text``, ``license_id`` and ``file_path`` exactly (P6).
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
@@ -360,10 +359,8 @@ def _api_kwargs(
 
 
 def _winner(names: tuple[str, ...]) -> str | None:
-    for name in ("license_id", "file_path", "text"):  # current precedence
-        if name in names:
-            return name
-    return None
+    """The one input given, or None for none or several (P6)."""
+    return names[0] if len(names) == 1 else None
 
 
 _SUBSETS = [
@@ -383,21 +380,28 @@ def test_api_match_matrix(
     entry: str,
 ) -> None:
     """``LicenseDetector.detect`` and ``licenseid.detect`` (the database at
-    the default path) take the same inputs and give the same answers."""
+    the default path) take the same inputs and give the same answers. One
+    input exactly: none or two raise (P6 of the contract batch; none answered
+    ``[]``, and of two ``license_id`` > ``file_path`` > ``text`` won)."""
     winner = _winner(names)
     kwargs = _api_kwargs(names, winner, tmp_path)
-    if entry == "method":
-        results = LicenseDetector(mit_db).detect(**kwargs)
-    else:
+    if entry == "function":
         monkeypatch.setattr(
             "licenseid.keptdetector.get_default_db_path", lambda: mit_db
         )
-        results = licenseid.detect(**kwargs)
+    call = LicenseDetector(mit_db).detect if entry == "method" else licenseid.detect
     if winner is None:
-        assert results == []
-    else:
-        assert results[0]["expression"] == "MIT"
-        assert results[0]["score"] >= 0.85
+        message = (
+            f"^input: invalid: {names[0]}: with {names[1]}; pass one input$"
+            if names
+            else "^input: missing; pass text, license_id or file_path$"
+        )
+        with pytest.raises(InvalidInputError, match=message):
+            call(**kwargs)
+        return
+    results = call(**kwargs)
+    assert results[0]["expression"] == "MIT"
+    assert results[0]["score"] >= 0.85
 
 
 _API_PREDICATES: dict[str, Callable[[LicenseDetector], Callable[..., bool | None]]] = {
@@ -536,21 +540,58 @@ def test_resolve_matrix(
     assert capsys.readouterr().err == ""
 
 
+#: How a database is given to match(db=...) (P3 of the contract batch).
+_DB_FORMS: dict[str, Callable[[Path], object]] = {
+    "handle": lambda p: LicenseDatabase(str(p), create=False),
+    "str": str,
+    "path": lambda p: p,
+}
+
+
+@pytest.mark.parametrize("state", ["ready", "missing", "foreign"])
+@pytest.mark.parametrize("form", sorted(_DB_FORMS))
 @pytest.mark.parametrize("source", RESOLVE_SOURCES)
 def test_resolve_matrix_with_a_database_given(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, source: Source
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    source: Source,
+    form: str,
+    state: str,
 ) -> None:
-    """A database given is read as source="database"; packaged contradicts
-    it, and is refused rather than one of the two ignored."""
+    """A database given, as a handle or a path, is read as
+    source="database", checked ready first; packaged contradicts it, and is
+    refused rather than one of the two ignored. A missing path is never
+    created."""
     ship(monkeypatch, release_bundle(VERSION))
-    db = LicenseDatabase(str(make_ready_file_db(tmp_path / "given.db")), create=False)
+    path = tmp_path / "given.db"
+    if state == "ready":
+        make_ready_file_db(path)
+    elif state == "foreign":
+        path.write_text("not a database, " * 8, encoding="utf-8")
+    if form == "handle" and state != "ready":
+        return  # no handle to give: LicenseDatabase() itself fails on the file
+    db = _DB_FORMS[form](path)
     if source == "packaged":
         message = "option: invalid: source: 'packaged' with db; pass db or source"
         with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
-            match("MIT", db, source=source)
-        return
-    got = match("MIT", db, source=source)
-    assert [entry["source"] for entry in got["lists"]] == ["database"]
+            match("MIT", db, source=source)  # type: ignore[arg-type]
+    elif state == "ready":
+        got = match("MIT", db, source=source)  # type: ignore[arg-type]
+        assert [entry["source"] for entry in got["lists"]] == ["database"]
+    else:
+        condition = "not found" if state == "missing" else "(invalid|unreadable)"
+        with pytest.raises(DatabaseNotReadyError, match=f"^database: {condition}: "):
+            match("MIT", db, source=source)  # type: ignore[arg-type]
+    assert path.exists() is (state != "missing")
+
+
+@pytest.mark.parametrize(
+    "db", [b"licenses.db", 3, object()], ids=["bytes", "int", "object"]
+)
+def test_resolve_refuses_a_db_that_is_no_database(db: object) -> None:
+    """P3: neither a database nor a path is a mistake of the caller."""
+    with pytest.raises(TypeError, match="^db must be a LicenseDatabase, str or "):
+        match("MIT", db)  # type: ignore[arg-type]
 
 
 # --- CLI match: --source x the database at the default path x --db x --json ---

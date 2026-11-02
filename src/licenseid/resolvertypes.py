@@ -123,9 +123,8 @@ Step = TypedDict(
         "applied": bool,
         "from": str,
         "to": str,
-        "list": str,
-        "detail": str,
-        "by": str,
+        "list": str | None,
+        "detail": str | None,
     },
 )
 
@@ -222,21 +221,25 @@ class Resolution(TypedDict):
     reason: str | None
 
 
-def _list_of(kind: str) -> str:
-    """The list a step of *kind* rests on, or ``""`` if it rests on none."""
+def _list_of(kind: str) -> str | None:
+    """The list a step of *kind* rests on, or None if it rests on none."""
     if kind in TROVE_KINDS:
         return TROVE_LIST
-    return SPDX_LIST if kind in LIST_PROVIDES else ""
+    return SPDX_LIST if kind in LIST_PROVIDES else None
 
 
-def step(kind: str, applied: bool, source: str, target: str, detail: str = "") -> Step:
-    """One step of the public shape, citing the list if its kind rests on one."""
+def step(
+    kind: str, applied: bool, source: str, target: str, detail: str | None = None
+) -> Step:
+    """One step of the public shape, citing the list if its kind rests on
+    one. None means nothing, in ``list`` and ``detail`` alike (P4 of the
+    contract batch: they were ``""``); the step is licenseid's own, so it
+    names no tool (``by`` is gone)."""
     return {
         "kind": kind,
         "applied": applied,
         "from": source,
         "to": target,
         "list": _list_of(kind),
-        "detail": detail,
-        "by": "",  # licenseid did it; a step of another tool names it
+        "detail": detail or None,
     }

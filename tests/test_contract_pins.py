@@ -12,18 +12,20 @@ this file is the before-and-after record of every changed behaviour.
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
+import inspect
 import sqlite3
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 from click.testing import CliRunner, Result
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from db_variants import make_ready_file_db
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 import licenseid
-from licenseid import LicenseDatabase, match
+from licenseid import DatabaseNotReadyError, InvalidInputError, LicenseDatabase, match
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.result import fields_line, record_json
@@ -253,11 +255,25 @@ def test_f3_id_and_argument_agree(db: str, args: list[str]) -> None:
 
 
 @pytest.mark.parametrize(
-    "name", ["Resolution", "Category", "Trust", "Step", "Operand", "json_line"]
+    "name",
+    [
+        "Resolution",
+        "Category",
+        "Trust",
+        "Step",
+        "Operand",
+        "ListInfo",
+        "ListSource",
+        "Source",
+        "Detection",
+        "Method",
+        "json_line",
+    ],
 )
-def test_p1_result_types_are_not_exported(name: str) -> None:
-    """PIN (P1): the types of a result are not exported from ``licenseid``."""
-    assert not hasattr(licenseid, name)
+def test_p1_result_types_are_exported(name: str) -> None:
+    """P1 (was: only ``Detection`` and ``Method``): the types of a result,
+    and ``json_line``, are exported from ``licenseid``."""
+    assert hasattr(licenseid, name) and name in licenseid.__all__
 
 
 def test_p2_the_cli_helpers_are_private() -> None:
@@ -270,27 +286,36 @@ def test_p2_the_cli_helpers_are_private() -> None:
 
 
 def test_p2_the_public_surface() -> None:
-    """PIN (P2): ``normalize_text`` and ``DetectRequest`` are exported."""
-    assert {"normalize_text", "DetectRequest", "LicenseDatabase"} <= set(
-        licenseid.__all__
-    )
+    """P2 (was: ``normalize_text`` and ``DetectRequest`` exported):
+    ``LicenseDatabase`` stays, as an opaque handle (P154)."""
+    assert not {"normalize_text", "DetectRequest"} & set(licenseid.__all__)
+    assert not hasattr(licenseid, "normalize_text")
+    assert "LicenseDatabase" in licenseid.__all__
 
 
-def test_p3_a_path_is_no_database(db: str) -> None:
-    """PIN (P3): ``match(value, db=<path>)`` fails on the path."""
-    with pytest.raises(AttributeError):
-        match("MIT", db)  # type: ignore[arg-type]
+def test_p3_a_path_is_a_database(db: str, tmp_path: Path) -> None:
+    """P3 (was: ``AttributeError`` on a path): a path opens read-only; a
+    missing one is ``not found`` and stays missing."""
+    assert match("MIT", db)["expression"] == "MIT"  # a file: URI
+    on_disk = make_ready_file_db(tmp_path / "licenses.db")
+    assert match("MIT", on_disk)["expression"] == "MIT"  # a Path
+    assert match("MIT", str(on_disk))["expression"] == "MIT"
+    missing = tmp_path / "no" / "licenses.db"
+    with pytest.raises(DatabaseNotReadyError, match="^database: not found: "):
+        match("MIT", missing)
+    assert not missing.exists() and not missing.parent.exists()
 
 
-def test_p4_empty_strings_and_by(db: str) -> None:
-    """PIN (P4): a step says nothing with ``""`` and has ``by``."""
+def test_p4_none_means_nothing(db: str) -> None:
+    """P4 (was: ``detail`` and ``list`` ``""``, and ``by`` ``""``): None
+    means nothing; ``by`` is gone."""
     steps = match("Apache2", LicenseDatabase(db, create=False))["steps"]
     assert steps == []  # Apache-2.0 is not in this database
     step = match("mit", LicenseDatabase(db, create=False))["steps"][0]
-    assert (step["detail"], step["by"]) == ("", "")
+    assert step["detail"] is None and "by" not in step
     assert step["list"] == "spdx-license-list"
     trim = match(" MIT", LicenseDatabase(db, create=False))["steps"][0]
-    assert trim["list"] == ""
+    assert trim["list"] is None
 
 
 @pytest.mark.parametrize(
@@ -326,22 +351,44 @@ def test_p5_an_operand_has_a_reason(db: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("call", "error"),
+    ("call", "message"),
     [
-        (lambda d: d.detect(text=1), AttributeError),
-        (lambda d: d.detect(license_id=1), AttributeError),
-        (lambda d: d.is_osi(text="MIT", enable_popularity=True), TypeError),
+        (lambda d: d.detect(text=1), "^text must be str, not int$"),
+        (lambda d: d.detect(license_id=1), "^license_id must be str, not int$"),
+        (lambda d: d.detect(text=b"MIT"), "^text must be str, not bytes$"),
+        (lambda d: d.is_osi(license_id=["MIT"]), "^license_id must be str, not list$"),
     ],
-    ids=["text-int", "id-int", "is-kwarg"],
+    ids=["text-int", "id-int", "text-bytes", "is-id-list"],
 )
-def test_p6_input_errors(db: str, call: object, error: type[Exception]) -> None:
-    """PIN (P6): a non-str input fails inside the detector."""
-    with pytest.raises(error):
-        call(LicenseDetector(db))  # type: ignore[operator]
+def test_p6_a_non_str_input_is_a_type_error(
+    db: str, call: Callable[[LicenseDetector], object], message: str
+) -> None:
+    """P6 (was: ``AttributeError`` from deep inside): ``TypeError``, naming
+    the parameter and the type."""
+    with pytest.raises(TypeError, match=message):
+        call(LicenseDetector(db))
+
+
+@pytest.mark.parametrize("predicate", ["is_osi", "is_fsf", "is_spdx"])
+def test_p6_a_predicate_takes_named_inputs_only(db: str, predicate: str) -> None:
+    """P6 (was: ``**kwargs`` passed on): an option of detect() is a
+    ``TypeError`` of the signature, and the inputs are named parameters."""
+    check = getattr(LicenseDetector(db), predicate)
+    params = inspect.signature(check).parameters
+    assert list(params) == ["text", "license_id", "file_path"]
+    with pytest.raises(TypeError):
+        check(text="MIT", enable_popularity=True)
 
 
 def test_p6_no_input_and_two_inputs(db: str) -> None:
-    """PIN (P6): no input answers nothing; of two, ``license_id`` wins."""
+    """P6 (was: no input answered ``[]``; of two, ``license_id`` won):
+    ``InvalidInputError`` for both."""
     detector = LicenseDetector(db)
-    assert detector.detect() == []
-    assert detector.detect(text="ISC", license_id="MIT")[0]["expression"] == "MIT"
+    with pytest.raises(InvalidInputError, match="^input: missing; "):
+        detector.detect()
+    with pytest.raises(
+        InvalidInputError, match="^input: invalid: text: with license_id; pass one"
+    ):
+        detector.detect(text="ISC", license_id="MIT")
+    with pytest.raises(InvalidInputError, match="^input: missing; "):
+        detector.is_osi()

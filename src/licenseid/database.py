@@ -124,6 +124,12 @@ class LicenseDatabase:
             for newer in self._stamped_rules(newer=True):
                 say(f"database: {newer}")
 
+    @property
+    def location(self) -> str:
+        """The path or ``file:`` URI this database was opened with, as
+        :func:`licenseid.dbcheck.check_database_ready` reads it."""
+        return self._source
+
     def _outdated_rules(self) -> list[str]:
         """The rules this database was built with that are older than this
         licenseid's, each as a condition and its detail ("normalization v1

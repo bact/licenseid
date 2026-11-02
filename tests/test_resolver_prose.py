@@ -257,9 +257,9 @@ def test_the_steps_chain_from_the_value_to_the_id(corpus_db: LicenseDatabase) ->
             "leading article",
         ),
         ("Apache License, Version 2.0", "Apache 2.0", "version"),
-        ("Apache 2.0", "Apache-2.0", ""),
+        ("Apache 2.0", "Apache-2.0", None),
     ]
-    assert [s["list"] for s in got["steps"]] == ["", "", "spdx-license-list"]
+    assert [s["list"] for s in got["steps"]] == [None, None, "spdx-license-list"]
     assert got["input"] == "The Apache License, Version 2.0."
 
 

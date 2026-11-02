@@ -107,11 +107,14 @@ def test_an_unknown_option_is_refused(default_db: str) -> None:
         licenseid.detect("MIT", bogus=True)
 
 
-def test_no_input_gives_no_result(default_db: str) -> None:
-    """Called with nothing, the method answers no result (it does not raise),
-    and so does the function."""
-    assert detector.LicenseDetector(default_db).detect() == []
-    assert licenseid.detect() == []
+def test_no_input_is_invalid_input(default_db: str) -> None:
+    """P6 of the contract batch (was: no result, ``[]``): called with
+    nothing, the method raises, and so does the function."""
+    message = "^input: missing; pass text, license_id or file_path$"
+    with pytest.raises(InvalidInputError, match=message):
+        detector.LicenseDetector(default_db).detect()
+    with pytest.raises(InvalidInputError, match=message):
+        licenseid.detect()
 
 
 def test_a_missing_default_database_is_not_ready(

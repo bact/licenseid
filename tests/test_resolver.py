@@ -364,9 +364,10 @@ def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> 
         for step in r["steps"] + r["expansions"]:
             seen.add(step["kind"])
             if step["kind"] in LIST_PROVIDES:
+                assert step["list"] is not None
                 assert LIST_PROVIDES[step["kind"]] in lists[step["list"]]["provides"]
             else:
-                assert step["list"] == ""
+                assert step["list"] is None  # P4: None means nothing
     # every kind the table lists is exercised, and so are the ones without a list
     assert seen == set(LIST_PROVIDES) | {
         "trim",

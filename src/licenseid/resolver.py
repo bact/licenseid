@@ -31,10 +31,9 @@ reads). ``lists[*].source`` says which was read.
 import unicodedata
 from typing import Final
 
-from licenseid.database import LicenseDatabase
 from licenseid.exprcanon import unbracketed
 from licenseid.listlookup import ListLookup
-from licenseid.listsource import choose_list
+from licenseid.listsource import GivenDatabase, choose_list
 from licenseid.quotes import ended_quote, unquote
 from licenseid.resolvecompound import (
     absorb,
@@ -72,7 +71,7 @@ MAX_EXPRESSION_CHARS: Final = 2000
 
 
 def match(
-    value: str, db: LicenseDatabase | None = None, *, source: Source = "auto"
+    value: str, db: GivenDatabase | None = None, *, source: Source = "auto"
 ) -> Resolution:
     """Resolve the declared licence *value*.
 
@@ -80,6 +79,12 @@ def match(
     ``unresolved``. A *value* that is no :class:`str` (``None``,
     :class:`bytes`, a number) is no content but a mistake of the caller:
     :class:`TypeError`, naming the type, before anything is read.
+
+    *db* is a :class:`licenseid.database.LicenseDatabase` or the path of
+    one (:class:`str` or :class:`os.PathLike`), opened read-only: a missing
+    file is :class:`licenseid.errors.DatabaseNotReadyError` (``not found``),
+    never created; any other *db* is :class:`TypeError`. Every database is
+    checked ready before it is read.
 
     The list read is *db*, else the one *source* names: ``auto`` (the
     default) reads the database at the default path or the bundle shipped

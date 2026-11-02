@@ -67,6 +67,32 @@ _MATCH_OPTIONS: frozenset[str] = frozenset(DetectRequest.__annotations__) - {
 }
 
 
+def _check_inputs(text: object, license_id: object, file_path: object) -> None:
+    """The input rules of :meth:`LicenseDetector.detect` (P6 of the contract
+    batch): :class:`TypeError` for a *text* or *license_id* that is no
+    :class:`str` (it failed deep inside with an ``AttributeError``), and
+    :class:`licenseid.errors.InvalidInputError` unless exactly one of the
+    three is given (none answered nothing; of two, one won unsaid)."""
+    for name, value in (("text", text), ("license_id", license_id)):
+        if value is not None and not isinstance(value, str):
+            raise TypeError(f"{name} must be str, not {type(value).__name__}")
+    given = [
+        name
+        for name, value in (
+            ("text", text),
+            ("license_id", license_id),
+            ("file_path", file_path),
+        )
+        if value is not None
+    ]
+    if not given:
+        raise InvalidInputError("input: missing; pass text, license_id or file_path")
+    if len(given) > 1:
+        raise InvalidInputError(
+            f"input: invalid: {given[0]}: with {given[1]}; pass one input"
+        )
+
+
 def _reject_unknown_options(options: dict[str, Any]) -> None:
     """Raise InvalidInputError for an option detect() does not know, so a typo
     or a removed option (`enable_java`) cannot pass with no effect."""
@@ -175,7 +201,7 @@ class LicenseDetector:
 
     def _resolve_target_text(self, text: str | None, file_path: str | None) -> str:
         """Phase 2: read file_path as the CLI reads a file, or use the text."""
-        if file_path:
+        if file_path is not None:
             return read_text_file(file_path)
         reject_lone_surrogate(text or "")
         return text or ""
@@ -383,10 +409,14 @@ class LicenseDetector:
         """
         Identify license text and return ranked matches, each with the same
         keys (see licenseid.types.Detection).
-        Must provide exactly one of text, license_id, or file_path.
-        Raises licenseid.errors.InvalidInputError: unknown option, binary file,
-        a text with a lone surrogate, or a license_id that names no single
-        license (an AND/OR expression, a license name, an SPDX URL, prose).
+
+        Give exactly one of text, license_id or file_path. Raises
+        :class:`TypeError` for a text or license_id that is no str;
+        licenseid.errors.InvalidInputError for none or two of the three, an
+        unknown option, a binary file, a text with a lone surrogate, or a
+        license_id that names no single license (an AND/OR expression, a
+        license name, an SPDX URL, prose); :class:`OSError` (such as
+        :class:`FileNotFoundError`) for a file_path that cannot be read.
         An overlong licence ID, as license_id or in a text, is no match, not
         DatabaseNotReadyError, which means only that the database itself
         cannot be read.
@@ -410,8 +440,9 @@ class LicenseDetector:
         **options: Any,
     ) -> Sequence[RawMatch | InternalMatch]:
         """detect() before the public form: each tier's own records."""
-        _reject_unknown_options(options)
-        if license_id:
+        _reject_unknown_options(options)  # first: no input hides a typo
+        _check_inputs(text, license_id, file_path)
+        if license_id is not None:
             return self._try_explicit_id_match(license_id)
 
         target_text = self._resolve_target_text(text, file_path)
@@ -499,25 +530,43 @@ class LicenseDetector:
         )
         return norm_input, window
 
-    def is_spdx(self, text: str | None = None, **kwargs: Any) -> bool:
+    def is_spdx(
+        self,
+        text: str | None = None,
+        *,
+        license_id: str | None = None,
+        file_path: str | None = None,
+    ) -> bool:
         """True if every licence and exception of the license is on the SPDX
-        License List (a ``LicenseRef-*`` is not). Raises what detect()
-        raises."""
-        record = self._resolve_record(text, **kwargs)
+        License List (a ``LicenseRef-*`` is not). Takes and raises what
+        detect() takes and raises, without its options."""
+        record = self._resolve_record(text, license_id=license_id, file_path=file_path)
         return record is not None and record["is_spdx"]
 
-    def is_osi(self, text: str | None = None, **kwargs: Any) -> bool | None:
+    def is_osi(
+        self,
+        text: str | None = None,
+        *,
+        license_id: str | None = None,
+        file_path: str | None = None,
+    ) -> bool | None:
         """True if the license is OSI-approved; for an expression, every
         operand of an AND, any of an OR. None when an operand cannot be
         judged (not on the List, a ``LicenseRef-*``); False when no license
-        is found. Raises what detect() raises."""
-        record = self._resolve_record(text, **kwargs)
+        is found. Takes and raises what :meth:`is_spdx` does."""
+        record = self._resolve_record(text, license_id=license_id, file_path=file_path)
         return False if record is None else record["is_osi_approved"]
 
-    def is_fsf(self, text: str | None = None, **kwargs: Any) -> bool | None:
+    def is_fsf(
+        self,
+        text: str | None = None,
+        *,
+        license_id: str | None = None,
+        file_path: str | None = None,
+    ) -> bool | None:
         """True if the license is FSF-libre, judged as :meth:`is_osi` is.
-        Raises what detect() raises."""
-        record = self._resolve_record(text, **kwargs)
+        Takes and raises what :meth:`is_spdx` does."""
+        record = self._resolve_record(text, license_id=license_id, file_path=file_path)
         return False if record is None else record["is_fsf_libre"]
 
     def _get_candidates(self, data: DetectRequest, text: str) -> list[CandidateMatch]:

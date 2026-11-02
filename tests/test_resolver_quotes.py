@@ -130,7 +130,7 @@ def _ids(rows: Sequence[object]) -> list[str]:
     return [ascii(row[0] if isinstance(row, tuple) else row)[:30] for row in rows]
 
 
-def _steps(value: str, db: LicenseDatabase) -> list[tuple[str, str, str]]:
+def _steps(value: str, db: LicenseDatabase) -> list[tuple[str, str, str | None]]:
     return [(s["kind"], s["to"], s["detail"]) for s in match(value, db)["steps"]]
 
 
@@ -164,9 +164,8 @@ def test_the_unquote_step_is_a_change_of_form(corpus_db: LicenseDatabase) -> Non
             "applied": True,
             "from": '"MIT"',
             "to": "MIT",
-            "list": "",
+            "list": None,
             "detail": "balanced",
-            "by": "",
         }
     ]
     assert got["input"] == '"MIT"'

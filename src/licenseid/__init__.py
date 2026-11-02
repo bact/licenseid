@@ -18,21 +18,40 @@ from licenseid.errors import (
     LicenseIdError,
 )
 from licenseid.keptdetector import detect
-from licenseid.normalize import normalize_text
 from licenseid.resolver import match
-from licenseid.types import Detection, DetectRequest, Method
+from licenseid.resolvertypes import (
+    Category,
+    ListInfo,
+    ListSource,
+    Operand,
+    Resolution,
+    Source,
+    Step,
+    Trust,
+)
+from licenseid.result import json_line
+from licenseid.types import Detection, Method
 
+# LicenseDatabase is exported as an opaque handle: open one to pass to
+# match(db=...) or LicenseDetector, never to query (P2 of the contract batch).
 __all__ = [
+    "Category",
     "DatabaseNotReadyError",
-    "DetectRequest",
     "Detection",
     "InvalidInputError",
     "LicenseDatabase",
     "LicenseDetector",
     "LicenseIdError",
+    "ListInfo",
+    "ListSource",
     "Method",
+    "Operand",
+    "Resolution",
+    "Source",
+    "Step",
+    "Trust",
     "detect",
     "get_default_db_path",
+    "json_line",
     "match",
-    "normalize_text",
 ]

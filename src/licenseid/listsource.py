@@ -54,6 +54,7 @@ fail-open, as the detector reads it: a lock held elsewhere is no verdict.
 
 import os
 import threading
+import weakref
 from typing import NamedTuple, get_args
 
 from licenseid import listindex
@@ -89,14 +90,27 @@ class _Kept(NamedTuple):
 # ``_LOCK``.
 _CHOICE_LOCK = threading.Lock()
 _kept: dict[str, _Kept] = {}
+# The databases given to match(db=...) found ready, by the stamp of their
+# file then: a handle, and the last few paths with the database each opened.
+_UNSEEN = object()
+_checked: "weakref.WeakKeyDictionary[LicenseDatabase, tuple[int, ...] | None]" = (
+    weakref.WeakKeyDictionary()
+)
+_KEPT_PATHS = 8
+_paths: dict[str, tuple[tuple[int, ...] | None, LicenseDatabase]] = {}
+
+
+#: What ``match(db=...)`` takes: a database, or the path of one.
+GivenDatabase = str | os.PathLike[str] | LicenseDatabase
 
 
 def choose_list(
-    db: LicenseDatabase | None, source: Source
+    db: GivenDatabase | None, source: Source
 ) -> tuple[ListLookup, ListSource]:
     """The list ``match(value, db, source=source)`` reads, and where it
     comes from. Raises :class:`licenseid.errors.InvalidInputError` for a
     *source* that is none of :data:`SOURCES`, or ``packaged`` with a *db*,
+    :class:`TypeError` for a *db* that is neither a database nor a path,
     and :class:`licenseid.errors.DatabaseNotReadyError` when the chosen
     list cannot be read."""
     if source not in SOURCES:
@@ -109,10 +123,57 @@ def choose_list(
             raise InvalidInputError(
                 "option: invalid: source: 'packaged' with db; pass db or source"
             )
-        return db, "database"
+        return given_database(db), "database"
     if source == "packaged":
         return _packaged(), "packaged"
     return _kept_choice(source)
+
+
+def given_database(db: GivenDatabase) -> LicenseDatabase:
+    """The database *db* is or names, ready to read (P3 of the contract
+    batch: a path raised ``AttributeError``, and a database was read
+    unchecked). A path opens without ``create``, after the check, so a
+    missing file is ``not found`` and none is made; every database, given
+    or opened, passes :func:`licenseid.dbcheck.check_database_ready`.
+
+    The check costs more than a lookup, so a verdict is kept while the file
+    keeps its stamp (:func:`file_stamp`), per handle and per path, as the
+    choice of ``auto`` is: a value resolved in a loop is checked once."""
+    if isinstance(db, LicenseDatabase):
+        stamp = file_stamp(str(db.db_path))
+        with _CHOICE_LOCK:
+            known = _checked.get(db, _UNSEEN) == stamp
+        if not known:
+            check_database_ready(db.location)
+            if not isinstance(stamp, Exception):
+                with _CHOICE_LOCK:
+                    _checked[db] = stamp
+        return db
+    path: object = os.fspath(db) if isinstance(db, os.PathLike) else db
+    if not isinstance(path, str):  # None is no db; bytes, a number: a mistake
+        raise TypeError(
+            "db must be a LicenseDatabase, str or os.PathLike[str],"
+            f" not {type(db).__name__}"
+        )
+    return _opened(path)
+
+
+def _opened(path: str) -> LicenseDatabase:
+    """The database at *path*, checked and opened, kept while its file keeps
+    its stamp (the last few paths only)."""
+    stamp = file_stamp(path)
+    with _CHOICE_LOCK:
+        kept = _paths.get(path)
+    if kept is not None and kept[0] == stamp:
+        return kept[1]
+    check_database_ready(path)
+    database = LicenseDatabase(path, create=False, report=warn_once)
+    if not isinstance(stamp, Exception):
+        with _CHOICE_LOCK:
+            _paths[path] = (stamp, database)
+            while len(_paths) > _KEPT_PATHS:
+                del _paths[next(iter(_paths))]
+    return database
 
 
 def _packaged() -> listindex.ListIndex:
@@ -241,3 +302,5 @@ def reset_choice() -> None:
     directory, the packaged index or the file behind the default path."""
     with _CHOICE_LOCK:
         _kept.clear()
+        _checked.clear()
+        _paths.clear()
