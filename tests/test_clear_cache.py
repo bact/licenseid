@@ -221,7 +221,7 @@ def test_clear_cache_writes_a_backslash_in_its_path_doubled(
     as a field (a backslash doubled) and as JSON, and reads back as given:
     a test that builds the line by hand fails here on every OS."""
     directory = tmp_path / "back\\slash"
-    directory.mkdir()
+    directory.mkdir(parents=True)  # on Windows, two directories
     db_path = make_ready_file_db(directory / "licenses.db")
     assert "\\" in str(db_path)
     result = run("--db", str(db_path), "clear-cache", *(["--json"] * as_json))
