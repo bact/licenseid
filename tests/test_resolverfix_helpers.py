@@ -14,6 +14,7 @@ import time
 
 import pytest
 
+from licenseid import classify
 from licenseid.classify import grant_at, grant_spans
 from licenseid.dropguard import marks_at_end
 from licenseid.errors import one_line, reason_detail
@@ -241,6 +242,28 @@ def test_the_tag_reads_a_grant_as_match_reads_it(tail: str) -> None:
     assert operator is not None
     ours = grant_at(text, operator, grant_spans(text), True)
     assert ours == grant_end(text, operator.start())
+
+
+def test_a_probe_reads_a_window(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The probe after a stated qualifier reads a bounded window of the line,
+    never the rest of it: one per "or" would make a long line quadratic."""
+    probed: list[int] = []
+    phrase = classify.OR_LATER_PHRASE
+
+    class Spy:  # pylint: disable=too-few-public-methods
+        """Records the length of each text the phrase is matched on."""
+
+        @staticmethod
+        def match(text: str) -> re.Match[str] | None:
+            probed.append(len(text))
+            return phrase.match(text)
+
+    monkeypatch.setattr(classify, "OR_LATER_PHRASE", Spy)
+    text = "GPL-2.0-only or " + "x " * 5000
+    operator = re.compile("or").search(text)
+    assert operator is not None
+    assert grant_at(text, operator, ([], []), True) is None
+    assert probed and max(probed) <= 202
 
 
 def test_no_probe_without_a_stated_qualifier() -> None:

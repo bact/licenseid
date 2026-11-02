@@ -71,7 +71,7 @@ def grant_at(
     *text* stands in, if it stands in one: a phrase of *spans*
     (:func:`grant_spans`), found by a binary search, not a scan, as a
     minified line can hold thousands of each. After a licence that states
-    its qualifier (*qualified*), an "or" is read as after a number, as
+    its qualifier (*qualified*), the operator is read as after a number, as
     ``match()`` reads a declared value (``looseid.grant_end``, held to the
     same answers by ``tests/test_resolverfix_helpers.py``), so "GPL-2.0-only
     or later" is a grant too, and a qualifier stated twice."""
@@ -79,7 +79,7 @@ def grant_at(
     index = bisect.bisect_right(spans[0], start) - 1
     if index >= 0 and start < spans[1][index]:
         return spans[1][index]
-    if not qualified or operator[0].lower() != "or":
+    if not qualified:
         return None
     # The phrases that need no number were in *spans*. A window, not the
     # rest of the line: one probe per "or" must not copy the line

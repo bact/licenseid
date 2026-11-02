@@ -46,7 +46,7 @@ from licenseid.resolvecompound import (
 )
 from licenseid.resolveleaf import Found, category_of, read_leaf, refuse_dropped
 from licenseid.resolveprose import read_by_name
-from licenseid.resolvereason import EMPTY, is_empty, no_reading, too_long
+from licenseid.resolvereason import EMPTY, no_reading, too_long
 from licenseid.resolverinfo import (
     list_info,
     parser_info,
@@ -199,12 +199,11 @@ def _read(
     licences is not split: a part is not read as a list again."""
     found = Found()
     text, start = _prepared(value, found)
-    empty = is_empty(text)
-    if empty or len(text) > MAX_EXPRESSION_CHARS:
+    if not text or len(text) > MAX_EXPRESSION_CHARS:
         found.category, found.steps = "unresolved", []  # nothing was read
-        found.reason = EMPTY if empty else too_long(len(text))
+        found.reason = too_long(len(text)) if text else EMPTY
         return found, [], False
-    found.reason = _refusal(value)  # the raw value: a trim must not hide one
+    found.reason = _refusal(text)
     if found.reason is not None:
         found.category, found.steps = "unresolved", []  # no step was taken
         return found, [], False
