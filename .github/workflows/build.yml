@@ -59,10 +59,18 @@ jobs:
       - name: Build wheel
         id: build
         env:
-          # As the release: a build without the SPDX snapshot fails.
+          # As the release: a build without the SPDX snapshot pinned in
+          # hatch_build.py fails.
           LICENSEID_REQUIRE_BUNDLE: "1"
         run: |
           python -m build
+
+      - name: Check the wheel and sdist ship the pinned SPDX list
+        # Apart from the hook, which checks it too: a build that lost the
+        # hook would ship no snapshot without a word. The pin is
+        # BUNDLE_VERSION and BUNDLE_SHA256 in hatch_build.py.
+        run: |
+          python scripts/check_dist_bundle.py dist
 
       # The same checks the release runs (pypi-publish.yml), so a missing or
       # invalid SBOM shows on a pull request, not first at release time.

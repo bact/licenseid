@@ -42,10 +42,19 @@ jobs:
 
       - name: Build sdist and wheel
         env:
-          # A release ships the SPDX snapshot, or the build fails.
+          # A release ships the SPDX snapshot, or the build fails. Its list
+          # is pinned in hatch_build.py (BUNDLE_VERSION, BUNDLE_SHA256), not
+          # taken from that day's latest.json: one tag, one wheel.
           LICENSEID_REQUIRE_BUNDLE: "1"
         run: |
           python -m build
+
+      - name: Check the wheel and sdist ship the pinned SPDX list
+        # Apart from the hook, which checks it too: a build that lost the
+        # hook would ship no snapshot without a word. The pin is
+        # BUNDLE_VERSION and BUNDLE_SHA256 in hatch_build.py.
+        run: |
+          python scripts/check_dist_bundle.py dist
 
       # The pitloom build hook ([tool.hatch.build.hooks.pitloom]) embedded
       # the SBOM while the wheel was built. Re-embedding with the pitloom
