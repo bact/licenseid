@@ -205,12 +205,12 @@ max-bool-expr = 5
 max-branches = 13             # target: 12
 max-locals = 22               # target: 15 (currently 22, markers.py)
 max-nested-blocks = 5         # target: 5
-max-parents = 7
+max-parents = 5
 max-positional-arguments = 5  # target: 5 (already at target)
-max-public-methods = 20
+max-public-methods = 15
 min-public-methods = 1
 max-returns = 6                # target: 6 (already at target)
-max-statements = 50            # target: 50 (already at target)
+max-statements = 37            # target: 50 (below target)
 
 [tool.pylint.format]
 max-line-length = 88
