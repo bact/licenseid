@@ -53,12 +53,14 @@ One end mark (``.``, ``,``, ``;`` or ``:``) after the closing marks
 before the marks (``MIT,"``). A mark inside the marks as well (``"MIT.".``)
 is a second mark, and the value is refused.
 
-Standard library, ``licenseid.dropguard`` and ``licenseid.normalize`` only.
+Standard library, ``licenseid.dropguard``, ``licenseid.exprtokens`` and
+``licenseid.normalize`` only.
 """
 
 from typing import Final, NamedTuple
 
 from licenseid.dropguard import ends_in_mark, trim_end_mark
+from licenseid.exprtokens import is_white_space
 from licenseid.normalize import QUOTE_KIND
 
 #: The marks that may stand alone on one end (unbalanced): quotation
@@ -81,6 +83,29 @@ def unquote(text: str) -> Unquoted | None:
     """*text* without the quote marks that delimit all of it (see the module
     docstring), or None if there are none to remove or it is not safe to.
     Linear in the length of *text*: it moves two indices and slices once."""
+    lo, hi, layers, side = _bounds(text)
+    core = text[lo:hi]
+    if not core or (layers == 0 and not side) or _has_inner_mark(core):
+        return None
+    if side:
+        return Unquoted(core, False, f"unbalanced, {side}", lo)
+    detail = "balanced" if layers == 1 else f"balanced, {layers} layers"
+    return Unquoted(core, True, detail, lo)
+
+
+def encloses_nothing(text: str) -> bool:
+    """Whether *text* is quote marks around nothing but white space (``""``,
+    ``' '``, two layers of them): the marks :func:`unquote` would take off,
+    with no value left inside. A lone mark (``"``) pairs with nothing, so it
+    is no such value."""
+    lo, hi, layers, _ = _bounds(text)
+    return lo == hi and layers > 0
+
+
+def _bounds(text: str) -> tuple[int, int, int, str]:
+    """Where the value inside the quote marks of *text* starts and ends, how
+    many balanced layers enclose it, and which end alone had a mark
+    (``start``, ``end`` or empty): steps 1 to 3 of the module docstring."""
     lo, hi = _skip_space(text, 0, len(text))
     layers = 0
     while hi - lo > 1:
@@ -94,13 +119,7 @@ def unquote(text: str) -> Unquoted | None:
         lo = _skip_space(text, lo + 1, hi)[0]
     elif side == "end":
         hi = _skip_space(text, lo, hi - 1)[1]
-    core = text[lo:hi]
-    if not core or (layers == 0 and not side) or _has_inner_mark(core):
-        return None
-    if side:
-        return Unquoted(core, False, f"unbalanced, {side}", lo)
-    detail = "balanced" if layers == 1 else f"balanced, {layers} layers"
-    return Unquoted(core, True, detail, lo)
+    return lo, hi, layers, side
 
 
 def ended_quote(text: str) -> str | None:
@@ -122,9 +141,9 @@ def ended_quote(text: str) -> str | None:
 
 def _skip_space(text: str, lo: int, hi: int) -> tuple[int, int]:
     """*lo* and *hi* moved in over white space."""
-    while lo < hi and text[lo].isspace():
+    while lo < hi and is_white_space(text[lo]):
         lo += 1
-    while hi > lo and text[hi - 1].isspace():
+    while hi > lo and is_white_space(text[hi - 1]):
         hi -= 1
     return lo, hi
 
