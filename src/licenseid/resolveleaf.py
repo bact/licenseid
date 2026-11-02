@@ -43,7 +43,12 @@ from licenseid.looseid import (
     granted_id_text,
     loose_id,
 )
-from licenseid.resolvereason import after_bracket, on_reference, stated_twice
+from licenseid.resolvereason import (
+    after_bracket,
+    after_space,
+    on_reference,
+    stated_twice,
+)
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
     LEXICAL_KINDS,
@@ -337,7 +342,7 @@ def _plus(db: ListLookup, text: str, found: Found) -> bool:
         inner = without_outer_brackets(stripped).strip()
         return _malformed_if_named(db, inner, found, after_bracket(text))
     if stripped != text[:-1] and text[len(core) :].count("+") == 1:
-        return _malformed_if_named(db, stripped, found, _after_space(text))
+        return _malformed_if_named(db, stripped, found, after_space(text))
     base = _base(db, stripped)
     if base is None:
         doubled = text[len(core) :].count("+") > 1
@@ -359,12 +364,6 @@ def _plus(db: ListLookup, text: str, found: Found) -> bool:
     _deprecation(db, license_id, found)
     found.expression = f"{found.expression}+"
     return True
-
-
-def _after_space(text: str) -> str:
-    """The reason of a "+" after white space (``GPL-2.0 +``), as
-    ``resolvereason.after_bracket`` words one after a bracket."""
-    return f"plus after a space: {reason_detail(text)}"
 
 
 def _malformed_if_named(db: ListLookup, text: str, found: Found, reason: str) -> bool:

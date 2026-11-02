@@ -63,6 +63,13 @@ def after_bracket(text: str) -> str:
     return f"plus after a bracket: {reason_detail(text)}"
 
 
+def after_space(text: str) -> str:
+    """The reason of a "+" after white space (``GPL-2.0 +``): the operator
+    touches its ID (``plusoperator.PLUS_OPERATOR``), and a "+" apart may
+    say "and"."""
+    return f"plus after a space: {reason_detail(text)}"
+
+
 def no_reading(db: ListLookup, text: str, names: Callable[[str], bool]) -> str:
     """Why *text*, the value as the readers saw it (trimmed, unquoted), names
     nothing, when no reader said: an SPDX special value, an exception not on
