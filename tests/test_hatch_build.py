@@ -12,9 +12,11 @@ import http.client
 import http.server
 import io
 import json
+import tarfile
 import tempfile
 import threading
 import urllib.request
+import zipfile
 from http.client import HTTPMessage
 from pathlib import Path
 from typing import Any
@@ -27,18 +29,10 @@ import hatch_build
 from hatch_build import SnapshotError, SpdxSnapshotHook
 from licenseid import spdx_source, spdxdata
 
+# The real pin, read before the autouse fixture pins the fake release.
+PIN = (hatch_build.BUNDLE_VERSION, hatch_build.BUNDLE_SHA256)
 BUNDLE = release_bundle()
 NAME = "v9.99.json.gz"
-
-
-def pointer(raw: bytes = BUNDLE, **changes: Any) -> bytes:
-    doc = {
-        "file": NAME,
-        "licenseListVersion": "9.99",
-        "sha256": hashlib.sha256(raw).hexdigest(),
-        "size": len(raw),
-    }
-    return json.dumps({**doc, **changes}).encode()
 
 
 def serve(monkeypatch: pytest.MonkeyPatch, files: dict[str, bytes]) -> list[str]:
@@ -58,7 +52,15 @@ def serve(monkeypatch: pytest.MonkeyPatch, files: dict[str, bytes]) -> list[str]
 
 
 def online(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    return serve(monkeypatch, {"latest.json": pointer(), NAME: BUNDLE})
+    return serve(monkeypatch, {NAME: BUNDLE})
+
+
+def gz(doc: object) -> bytes:
+    return gzip.compress(json.dumps(doc).encode())
+
+
+def names(calls: list[str]) -> list[str]:
+    return [url.rsplit("/", 1)[1] for url in calls]
 
 
 def unpacked_sdist(root: Path, content: bytes) -> Path:
@@ -78,27 +80,59 @@ def hook(root: Path, target: str = "wheel") -> tuple[SpdxSnapshotHook, mock.Mock
     ), app
 
 
+def build_artifact(root: Path, target: str, build_data: dict[str, Any]) -> str:
+    """A wheel or sdist holding what ``force_include`` asks for, as hatchling
+    builds it; ``""`` for another target."""
+    dist = root / "dist"
+    dist.mkdir(exist_ok=True)
+    if target == "wheel":
+        wheel = dist / "licenseid-0-py3-none-any.whl"
+        with zipfile.ZipFile(wheel, "w") as archive:
+            archive.writestr("licenseid/__init__.py", "")
+            for source, path in build_data["force_include"].items():
+                archive.write(source, path)
+        return str(wheel)
+    if target == "sdist":
+        sdist = dist / "licenseid-0.tar.gz"
+        with tarfile.open(sdist, "w:gz") as archive:
+            for source, path in build_data["force_include"].items():
+                archive.add(source, f"licenseid-0/{path}")
+        return str(sdist)
+    return ""
+
+
 def run(
     root: Path, target: str = "wheel", version: str = "standard"
 ) -> tuple[dict[str, Any], mock.Mock]:
-    """Run ``initialize`` and ``finalize``; return ``build_data`` and the app."""
+    """Run ``initialize``, build and ``finalize``; return ``build_data`` and
+    the app."""
     instance, app = hook(root, target)
     build_data: dict[str, Any] = {"force_include": {}}
+    artifact = ""
     try:
         instance.initialize(version, build_data)
+        artifact = build_artifact(root, target, build_data)
     finally:
-        instance.finalize(version, build_data, "")
+        instance.finalize(version, build_data, artifact)
     return build_data, app
 
 
 @pytest.fixture(autouse=True)
 def clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No variable set, and the fake release is the pin."""
     for name in ("LICENSEID_BUNDLE", "LICENSEID_REQUIRE_BUNDLE"):
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(hatch_build, "BUNDLE_VERSION", "9.99")
+    monkeypatch.setattr(
+        hatch_build, "BUNDLE_SHA256", hashlib.sha256(BUNDLE).hexdigest()
+    )
 
 
 def test_the_hook_and_the_package_agree_on_names() -> None:
     assert hatch_build.BASE_URL == spdx_source.BUNDLE_BASE_URL
+    assert hatch_build.BASE_URL + NAME == spdx_source.BUNDLE_URL_TEMPLATE.format(
+        version="9.99"
+    )
     assert hatch_build.ARCHIVE_PATH == {
         "wheel": f"licenseid/data/{spdxdata.PACKAGED_NAME}",
         "sdist": f"src/licenseid/data/{spdxdata.PACKAGED_NAME}",
@@ -115,7 +149,7 @@ def test_a_build_ships_the_downloaded_bundle(
     build_data, app = run(tmp_path, target)
     source, archive = next(iter(build_data["force_include"].items()))
     assert archive == hatch_build.ARCHIVE_PATH[target]
-    assert [url.rsplit("/", 1)[1] for url in calls] == ["latest.json", NAME]
+    assert names(calls) == [NAME]
     app.display_warning.assert_not_called()
     # The scratch directory is gone with the build.
     assert not Path(source).exists()
@@ -130,7 +164,9 @@ def test_the_bundle_is_read_before_the_scratch_directory_goes(
     instance.initialize("standard", build_data)
     source = next(iter(build_data["force_include"]))
     assert Path(source).read_bytes() == BUNDLE
-    instance.finalize("standard", build_data, "")
+    instance.finalize(
+        "standard", build_data, build_artifact(tmp_path, "wheel", build_data)
+    )
     assert not Path(source).exists()
 
 
@@ -181,22 +217,13 @@ def test_another_target_ships_nothing(
     assert not calls
 
 
+OTHER_BUILD = gz({"format": 1, "licenseListVersion": "9.99", "other": "bytes"})
 FAILURES = {
     "offline": {},
-    "no pointer": {NAME: BUNDLE},
-    "pointer not json": {"latest.json": b"<html>", NAME: BUNDLE},
-    "pointer not an object": {"latest.json": b"[]", NAME: BUNDLE},
-    "pointer without a key": {"latest.json": b"{}", NAME: BUNDLE},
-    "file escapes": {
-        "latest.json": pointer(file="../../x.json.gz"),
-        NAME: BUNDLE,
-    },
-    "file not a name": {"latest.json": pointer(file=7), NAME: BUNDLE},
-    "digest not a digest": {"latest.json": pointer(sha256="abc"), NAME: BUNDLE},
-    "digest wrong": {"latest.json": pointer(sha256="0" * 64), NAME: BUNDLE},
-    "size wrong": {"latest.json": pointer(size=1), NAME: BUNDLE},
-    "bundle missing": {"latest.json": pointer()},
-    "version differs": {"latest.json": pointer(licenseListVersion="1.0"), NAME: BUNDLE},
+    "pinned version not published": {"v10.0.json.gz": BUNDLE},
+    "not gzip": {NAME: b"<html>"},
+    "another version": {NAME: gz({"format": 1, "licenseListVersion": "10.0"})},
+    "other bytes of the version": {NAME: OTHER_BUILD},
 }
 
 
@@ -221,19 +248,6 @@ def test_a_failure_fails_the_build_when_a_snapshot_is_required(
     monkeypatch.setenv("LICENSEID_REQUIRE_BUNDLE", "1")
     with pytest.raises((OSError, SnapshotError)):
         run(tmp_path)
-
-
-@pytest.mark.parametrize(
-    "bad",
-    [pointer(file="../../x.json.gz"), pointer(file=7), pointer(sha256="abc")],
-    ids=["file escapes", "file not a name", "digest not a digest"],
-)
-def test_a_bad_pointer_fetches_no_bundle(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bad: bytes
-) -> None:
-    calls = serve(monkeypatch, {"latest.json": bad, "x.json.gz": BUNDLE, NAME: BUNDLE})
-    run(tmp_path)
-    assert [url.rsplit("/", 1)[1] for url in calls] == ["latest.json"]
 
 
 class CutResponse(FakeResponse):
@@ -265,7 +279,7 @@ def test_a_broken_http_exchange_is_a_snapshot_failure(
     if required:
         monkeypatch.setenv("LICENSEID_REQUIRE_BUNDLE", "1")
         with pytest.raises(
-            SnapshotError, match=r"latest\.json: (BadStatusLine|Incomp)"
+            SnapshotError, match=r"v9\.99\.json\.gz: (BadStatusLine|Incomp)"
         ):
             run(tmp_path)
         return
@@ -323,36 +337,32 @@ def test_an_unusable_file_in_the_tree_is_a_failure(
     assert not calls
 
 
-def gz(doc: object) -> bytes:
-    return gzip.compress(json.dumps(doc).encode())
-
-
 @pytest.mark.parametrize(
     ("raw", "version", "reason"),
     [
-        (b"plain", None, "not gzip"),
-        (gzip.compress(b"{"), None, "not a bundle"),
-        (gz([]), None, "not a bundle"),
-        (gz({"format": 1}), None, "not a bundle"),
-        (gz({"format": 2, "licenseListVersion": "1"}), None, "format 2"),
+        (b"plain", "1", "not gzip"),
+        (gzip.compress(b"{"), "1", "not a bundle"),
+        (gz([]), "1", "not a bundle"),
+        (gz({"format": 1}), "1", "not a bundle"),
+        (gz({"format": 2, "licenseListVersion": "1"}), "1", "format 2"),
         (gz({"format": 1, "licenseListVersion": "1"}), "2", "version '1'"),
     ],
     ids=["plain", "truncated", "list", "no version", "format", "version"],
 )
-def test_check_bundle_refuses(raw: bytes, version: str | None, reason: str) -> None:
+def test_check_bundle_refuses(raw: bytes, version: str, reason: str) -> None:
     with pytest.raises(SnapshotError, match=reason):
         hatch_build.check_bundle(raw, version)
 
 
-def test_check_bundle_accepts_a_bundle_of_any_or_the_named_version() -> None:
-    hatch_build.check_bundle(BUNDLE, None)
+def test_check_bundle_accepts_a_bundle_of_the_named_version() -> None:
+    hatch_build.check_bundle(BUNDLE, "9.99")
     hatch_build.check_bundle(BUNDLE, "9.99")
 
 
 def test_check_bundle_refuses_a_bomb(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(hatch_build, "MAX_UNZIPPED", 10)
     with pytest.raises(SnapshotError, match="unzipped"):
-        hatch_build.check_bundle(BUNDLE, None)
+        hatch_build.check_bundle(BUNDLE, "9.99")
 
 
 def test_a_download_over_the_cap_fails(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -384,8 +394,10 @@ def test_a_checkout_ignores_a_file_left_in_the_tree(
     source = next(iter(build_data["force_include"]))
     assert source != str(stale)
     assert Path(source).read_bytes() == BUNDLE
-    assert len(calls) == 2
-    instance.finalize("standard", build_data, "")
+    assert names(calls) == [NAME]
+    instance.finalize(
+        "standard", build_data, build_artifact(tmp_path, "wheel", build_data)
+    )
 
 
 def test_an_sdist_without_a_snapshot_downloads_one(
@@ -398,8 +410,10 @@ def test_an_sdist_without_a_snapshot_downloads_one(
     build_data: dict[str, Any] = {"force_include": {}}
     instance.initialize("standard", build_data)
     assert len(build_data["force_include"]) == 1
-    assert len(calls) == 2
-    instance.finalize("standard", build_data, "")
+    assert names(calls) == [NAME]
+    instance.finalize(
+        "standard", build_data, build_artifact(tmp_path, "wheel", build_data)
+    )
 
 
 def test_open_url_has_a_timeout_and_refuses_http_redirects(
@@ -471,39 +485,3 @@ def test_the_opener_stops_at_a_redirect_to_http(
                 hatch_build.open_url(f"http://127.0.0.1:{server.server_port}/a")
         finally:
             thread.join(timeout=10)
-
-
-def test_pin_the_build_ships_what_latest_json_names_that_day(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """BUG: the same tree ships whichever list ``latest.json`` names."""
-    newer = gz({"format": 1, "licenseListVersion": "10.0"})
-    shipped: list[bytes] = []
-    for raw, version in ((BUNDLE, "9.99"), (newer, "10.0")):
-        serve(
-            monkeypatch,
-            {
-                "latest.json": pointer(
-                    raw, file=f"v{version}.json.gz", licenseListVersion=version
-                ),
-                f"v{version}.json.gz": raw,
-            },
-        )
-        instance, _ = hook(tmp_path)
-        build_data: dict[str, Any] = {"force_include": {}}
-        instance.initialize("standard", build_data)
-        shipped.append(Path(next(iter(build_data["force_include"]))).read_bytes())
-        instance.finalize("standard", build_data, "")
-    assert shipped == [BUNDLE, newer]
-
-
-def test_pin_skip_ships_nothing_even_when_a_snapshot_is_required(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """BUG: ``skip`` beats ``LICENSEID_REQUIRE_BUNDLE=1`` without a word."""
-    serve(monkeypatch, {})
-    monkeypatch.setenv("LICENSEID_BUNDLE", "skip")
-    monkeypatch.setenv("LICENSEID_REQUIRE_BUNDLE", "1")
-    build_data, app = run(tmp_path)
-    assert build_data == {"force_include": {}}
-    app.display_warning.assert_not_called()

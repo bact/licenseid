@@ -59,10 +59,40 @@ jobs:
       - name: Build wheel
         id: build
         env:
-          # As the release: a build without the SPDX snapshot fails.
+          # As the release: a build without the SPDX snapshot pinned in
+          # hatch_build.py fails.
           LICENSEID_REQUIRE_BUNDLE: "1"
         run: |
           python -m build
+
+      - name: Check the wheel and sdist ship the pinned SPDX list
+        # Apart from the hook, which checks it too: a build that lost the
+        # hook would ship no snapshot without a word. The pin is
+        # BUNDLE_VERSION in hatch_build.py.
+        run: |
+          set -euo pipefail
+          python - <<'EOF'
+          import gzip, json, re, sys, tarfile, zipfile
+          from pathlib import Path
+          hook = Path("hatch_build.py").read_text(encoding="utf-8")
+          pin = re.search(r'^BUNDLE_VERSION: Final = "([^"]+)"$', hook, re.M)
+          inner = "licenseid/data/spdx-bundle.json.gz"
+          found = {}
+          for wheel in Path("dist").glob("*.whl"):
+              with zipfile.ZipFile(wheel) as archive:
+                  found[wheel.name] = archive.read(inner)
+          for sdist in Path("dist").glob("*.tar.gz"):
+              with tarfile.open(sdist) as archive:
+                  (member,) = [m for m in archive if m.name.endswith("/src/" + inner)]
+                  found[sdist.name] = archive.extractfile(member).read()
+          for name, raw in sorted(found.items()):
+              version = json.loads(gzip.decompress(raw))["licenseListVersion"]
+              print(f"{name}: SPDX License List {version}")
+              if pin is None or version != pin[1]:
+                  sys.exit(f"{name}: not the pinned list {pin and pin[1]}")
+          if len(found) != 2:
+              sys.exit(f"dist: {len(found)} artifacts, not a wheel and an sdist")
+          EOF
 
       # The same checks the release runs (pypi-publish.yml), so a missing or
       # invalid SBOM shows on a pull request, not first at release time.
