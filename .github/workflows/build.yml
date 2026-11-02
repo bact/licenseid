@@ -52,7 +52,9 @@ jobs:
           LICENSEID_BUNDLE: skip
         run: |
           python -m pip install --upgrade build pip
-          python -m pip install .
+          # Not under the release pins: they hold the licenseid that Pitloom
+          # imports, never the version of this checkout.
+          env -u PIP_CONSTRAINT python -m pip install .
 
       - name: Build wheel
         id: build
