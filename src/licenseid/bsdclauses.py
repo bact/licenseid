@@ -14,8 +14,10 @@ from typing import Final
 
 # A numbered condition of a BSD licence: "2. Redistributions in binary
 # form...", "3. Neither the name...", "3. All advertising materials...".
+# The indent is white space other than a line break: `\s*` after `^` reaches
+# across line breaks, so a run of blank lines was scanned once per line.
 _RE_CONDITION: Final = re.compile(
-    r"^\s*(\d+)\.\s+(?:Redistribution|Neither\b|"
+    r"^[^\S\r\n]*(\d+)\.\s+(?:Redistribution|Neither\b|"
     r"All\s+advertising|The\s+(?:name|author))",
     re.MULTILINE | re.IGNORECASE,
 )

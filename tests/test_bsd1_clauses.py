@@ -7,6 +7,8 @@
 name its BSD-N-Clause. The marker built on it is in `test_bsd1_marker`."""
 # pylint: disable=missing-function-docstring
 
+import time
+
 import pytest
 
 from licenseid.bsdclauses import bsd_clause_id
@@ -65,3 +67,17 @@ PREAMBLE = (
 )
 def test_bsd_clause_id(body: str, expected: str | None) -> None:
     assert bsd_clause_id(PREAMBLE + body + DISCLAIMER) == expected
+
+
+@pytest.mark.parametrize(
+    "line_break",
+    ["\n", "\r\n", "\r", " \n"],
+    ids=["LF", "CRLF", "CR", "space LF"],
+)
+def test_a_run_of_blank_lines_is_read_in_linear_time(line_break: str) -> None:
+    # 20,000 blank lines took 3 s (6 s with CRLF) when the indent was `\s*`.
+    payload = SOURCE + line_break * 20_000 + "x"
+    start = time.monotonic()
+    assert bsd_clause_id(payload) is None
+    elapsed = time.monotonic() - start
+    assert elapsed < 0.5, f"took {elapsed:.3f}s"
