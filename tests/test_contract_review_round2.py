@@ -143,13 +143,21 @@ def test_s2_a_doubled_qualifier_is_still_refused(corpus_db: LicenseDatabase) -> 
 
 
 @pytest.mark.parametrize(
-    "value", ["LGPL-2.1+ only", "GPL-2.0+ or later", "GPL-2.0+ or any later version"]
+    "value",
+    [
+        "LGPL-2.1+ only",
+        "GPL-2.0+ or later",
+        "GPL-2.0+ or any later version",
+        # A grant after -only (maintainer, 2026-11-02; was GPL-2.0-only).
+        "GPL-2.0-only or (at your option) any later version",
+    ],
 )
 def test_s4_a_tag_refuses_a_plus_stated_twice(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     """S4 (was: the tag answered LGPL-2.1-or-later, exact, where ``match()``
-    refuses, ``qualifier stated twice``, and the argument finds none)."""
+    refuses, ``qualifier stated twice``, and the argument finds none). A
+    grant after an ID that states its qualifier is refused the same way."""
     assert _top(corpus_db, f"SPDX-License-Identifier: {value}") is None
 
 
@@ -157,14 +165,14 @@ def test_s4_a_tag_refuses_a_plus_stated_twice(
     ("value", "answer"),
     [
         ("GPL-2.0+ some comment", "GPL-2.0-or-later"),  # prose after a tag
-        ("GPL-2.0-only or (at your option) any later version", "GPL-2.0-only"),
+        ("GPL-2.0-only, see COPYING", "GPL-2.0-only"),
         ("GPL-2.0+", "GPL-2.0-or-later"),
     ],
 )
 def test_s4_other_words_after_a_tag_still_read(
     corpus_db: LicenseDatabase, value: str, answer: str
 ) -> None:
-    """S4, adversarial: only a qualifier after a "+" is refused."""
+    """S4, adversarial: only a qualifier stated again is refused."""
     assert _top(corpus_db, f"SPDX-License-Identifier: {value}") == (answer, True)
 
 

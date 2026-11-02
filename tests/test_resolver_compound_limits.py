@@ -99,7 +99,8 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     ('"MIT" AND "ISC', (None, "unresolved", "character dropped: U+0022")),
     # references
     ("LicenseRef-a OR LicenseRef-a", ("LicenseRef-a", "lexical", None)),
-    ("LicenseRef-a OR licenseref-a", ("LicenseRef-a OR licenseref-a", "exact", None)),
+    # the prefix in SPDX's case, so one ID (resolverfix item 4; was both, exact)
+    ("LicenseRef-a OR licenseref-a", ("LicenseRef-a", "lexical", None)),
     (
         "LicenseRef-a OR DocumentRef-x:LicenseRef-a",
         ("DocumentRef-x:LicenseRef-a OR LicenseRef-a", "lexical", None),

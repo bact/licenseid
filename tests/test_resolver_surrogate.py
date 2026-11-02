@@ -11,10 +11,12 @@ refuses it among its early refusals, with the reason ``lone surrogate``
 (``Resolution.reason``, T6).
 """
 
+import re
+
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import LicenseDatabase, match
+from licenseid import LicenseDatabase, json_line, match
 
 LONE = "\udcff"
 WITH = "MIT WITH Classpath-exception-2.0"
@@ -67,14 +69,18 @@ def _ids(values: list[str]) -> list[str]:
 
 @pytest.mark.parametrize("value", REFUSED, ids=_ids(REFUSED))
 def test_a_lone_surrogate_is_unresolved(corpus_db: LicenseDatabase, value: str) -> None:
-    """No raise, no expression, no step and no candidate; the input is kept."""
+    """No raise, no expression, no step and no candidate; the input is kept,
+    each surrogate made U+FFFD, so that JCS can write the result (task
+    resolverfix item 6; it was the raw value)."""
     result = match(value, corpus_db)
     assert result["expression"] is None
     assert result["category"] == "unresolved"
     assert result["trust"] == "none"
     assert result["steps"] == []
     assert result["candidates"] == []
-    assert result["input"] == value
+    assert result["input"] == re.sub("[\ud800-\udfff]", "\ufffd", value)
+    assert len(result["input"]) == len(value)
+    assert json_line(result)
 
 
 @pytest.mark.parametrize("value", VALID, ids=_ids(VALID))

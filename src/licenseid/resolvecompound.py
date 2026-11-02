@@ -21,7 +21,7 @@ accepts all or nothing.
 - One operand that names nothing makes the value name nothing; its reason
   (a dropped mark: ``character dropped: U+003F``) is the value's, else
   ``operand not resolved: <operand>``, the operand on one line and cut to 60
-  characters (``errors.one_line``). A leaf of several words that reads alone
+  characters (``errors.reason_detail``). A leaf of several words that reads alone
   (``BSD 3-Clause``) is refused for its shape: ``operand of several words:
   <leaf>``. The operands still come back. With
   an operator in lower case, a value refused for an operand that names
@@ -41,7 +41,7 @@ accepts all or nothing.
 import re
 from typing import Final, NamedTuple
 
-from licenseid.errors import one_line
+from licenseid.errors import reason_detail
 from licenseid.exprcanon import (
     Node,
     Token,
@@ -247,7 +247,7 @@ def _fallback(
             )
         if upper:  # a leaf that reads alone is refused for its shape (P43)
             what = "operand of several words" if named else "operand not resolved"
-            return Found(category="unresolved", reason=f"{what}: {one_line(part)}")
+            return Found(category="unresolved", reason=f"{what}: {reason_detail(part)}")
     return None
 
 
@@ -314,7 +314,7 @@ def _refuse_operands(
         (operand["category"] for operand in operands), key=CATEGORY_ORDER.index
     )
     own = read[first].found
-    unnamed = one_line(operands[first]["text"])
+    unnamed = reason_detail(operands[first]["text"])
     _refuse(found, weakest, own.reason or f"operand not resolved: {unnamed}")
     if own.reason is not None:
         found.steps = list(own.steps)

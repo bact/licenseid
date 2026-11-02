@@ -36,14 +36,14 @@ from typing import Final, NamedTuple
 
 import py_spdx_license
 
-from licenseid.errors import one_line
+from licenseid.errors import reason_detail
 from licenseid.exprtokens import OPERATOR
 from licenseid.identifiers import MAX_PARSE_DEPTH, MAX_PARSE_OPERATORS, parse_expression
 from licenseid.looseid import RE_GRANT_WORDS, grant_end
 from licenseid.resolvertypes import Step, step
 
 # A bracket of any kind, or an operator word (WITH stays in its leaf).
-_RE_PART: Final = re.compile(rf"[()\[\]{{}}]|{OPERATOR}", re.IGNORECASE)
+_RE_PART: Final = re.compile(rf"[()\[\]{{}}]|{OPERATOR}", re.IGNORECASE | re.ASCII)
 _OPENS: Final = {"(": ")", "[": "]", "{": "}"}
 _CLOSES: Final = frozenset(_OPENS.values())
 _PLACEHOLDER: Final = "LicenseRef-licenseid-leaf-"
@@ -235,7 +235,7 @@ def parse(tokens: list[Token], texts: list[str]) -> Node | str:
         message = str(error)
     message = re.sub(
         rf"{_PLACEHOLDER}(\d+)",
-        lambda m: one_line(texts[int(m[1])]) if int(m[1]) < len(texts) else m[0],
+        lambda m: reason_detail(texts[int(m[1])]) if int(m[1]) < len(texts) else m[0],
         message,
     )
     return f"parse failed: {message}"

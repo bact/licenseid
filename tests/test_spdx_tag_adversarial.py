@@ -289,9 +289,6 @@ def test_only_white_space_joins_the_parts_of_an_expression(
         # A grant belonging to another ID on the line decides nothing.
         ("GPL-2.0 only (see GPL-3.0 or later for the tools)", "GPL-2.0-only"),
         ("MIT OR GPL only. See GPL-3.0 or later elsewhere", "MIT OR GPL"),
-        # An explicit -only ID says what the author chose; the phrase after
-        # it resolves nothing.
-        ("GPL-2.0-only or (at your option) any later version", "GPL-2.0-only"),
         # A grant qualifies the ID beside it, not another one on the line.
         ("GPL-2.0 AND LGPL-2.1 or later", "GPL-2.0-only AND LGPL-2.1-or-later"),
         ("MIT OR GPL-2.0 or later", "GPL-2.0-or-later OR MIT"),
@@ -339,12 +336,17 @@ def test_or_later_prose_is_read_before_the_expression(
         "MPL-1.1 OR GPL-2.0 or later OR LGPL-2.1 or later",
         "(GPL-2.0 or later AND MIT)",
         "(GPL-2.0 or later) AND MIT",
+        # A grant after an explicit -only or -or-later ID states the qualifier
+        # twice, as match() says (maintainer, 2026-11-02; was GPL-2.0-only).
+        "GPL-2.0-only or (at your option) any later version",
+        "GPL-2.0-or-later or later",
     ],
 )
 def test_a_grant_inside_an_expression_is_no_evidence(db: str, tag: str) -> None:
     """A grant ends the expression, so operands after it would be dropped:
     answering "MIT AND GPL-2.0-or-later" for a value that also names
-    Apache-2.0 understates the obligations. The value is refused instead."""
+    Apache-2.0 understates the obligations. The value is refused instead, as
+    is a grant that states a qualifier the ID states already."""
     assert certain(db, source_with(tag)) is None
 
 

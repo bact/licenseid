@@ -33,8 +33,8 @@ from licenseid.dropguard import (
     joined_marks,
     trim_end_mark,
 )
-from licenseid.errors import one_line
-from licenseid.exprtokens import is_addition_ref, is_license_ref
+from licenseid.errors import reason_detail
+from licenseid.exprtokens import canonical_ref, is_addition_ref, is_license_ref
 from licenseid.identifiers import without_outer_brackets
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import (
@@ -113,7 +113,7 @@ class _Dropped(Exception):
         # step but its own.
         found.expression = None
         found.category = "unresolved"
-        detail = one_line(self.lost) if self.words else code_points(self.lost)
+        detail = reason_detail(self.lost) if self.words else code_points(self.lost)
         found.reason = f"{'word' if self.words else 'character'} dropped: {detail}"
         found.steps = [step("drop", False, self.text, self.license_id, detail)]
         found.expansions = []
@@ -171,12 +171,17 @@ def _after_core(db: ListLookup, text: str, found: Found) -> bool:
     """A value no reader read, that ends in marks after a ``+``, an exception
     or a ``LicenseRef-*`` (P80): those readers return before the drop guard.
     One end mark is an ending, read without it; marks that say something
-    (``GPL-2.0+?``, ``MIT+;;``) refuse the value, as they do after an ID.
-    False when the value is not of that shape or its core names nothing."""
+    (``GPL-2.0+?``, ``MIT+;;``) refuse the value, as they do after an ID,
+    and a malformed core is the value's reason, after one end mark too
+    (``LicenseRef-a+.``, ``MIT++-``). False when the value is not of that
+    shape or its core names nothing and is not malformed."""
     body = text.rstrip()
     ended = trim_end_mark(body)
     if ended is not None and _is_core(ended):
-        return _read_without_end(db, text, ended, found)
+        again = Found()
+        return _read_without_end(db, text, ended, found) or (
+            _read(db, ended, again) and _malformed(again, found)
+        )
     lost = (set(dropped(body)) | set(joined_marks(body))) - set("+()[]{}")
     core = body
     # A ``-``, ``.`` or ``_`` that ends a ``LicenseRef-*`` belongs to the ID
@@ -185,10 +190,21 @@ def _after_core(db: ListLookup, text: str, found: Found) -> bool:
     again = Found()
     if core == body or not _is_core(core) or not _read(db, core, again):
         return False
-    if again.expression is None:
-        return False
+    if again.expression is None:  # a malformed core is the value's reason
+        return _malformed(again, found)
     marks = "".join(dict.fromkeys(c for c in body[len(core) :] if c in lost))
     refuse_dropped(found, text, marks, again.expression)
+    return True
+
+
+def _malformed(core: Found, found: Found) -> bool:
+    """Make *found* the refusal of its *core* when that is malformed
+    (``LicenseRef-a+-`` is ``qualifier on a reference: LicenseRef-a+``): the
+    same reason for the value alone and for it as an operand. False when the
+    core is not malformed."""
+    if core.category != "malformed":
+        return False
+    found.category, found.reason = core.category, core.reason
     return True
 
 
@@ -283,9 +299,10 @@ def _with_form(text: str, operator: re.Match[str]) -> list[Step]:
 def _exception(db: ListLookup, text: str, found: Found) -> str | None:
     """The listed exception *text* names, its case and its deprecation read
     as for a licence (_deprecation), or None. An ``AdditionRef-*`` names
-    itself, as written and unchecked, as a ``LicenseRef-*`` does (Q20)."""
+    itself, as written and unchecked, as a ``LicenseRef-*`` does (Q20), its
+    prefix in SPDX's case (an ``id_case`` step)."""
     if is_addition_ref(text):
-        return text
+        return _reference(text, found.steps)
     details = db.get_exception_details(text)
     if details is None:
         return None
@@ -396,13 +413,15 @@ def _grant(
     SPDX) and is unresolved, not read without the grant."""
     license_id, steps = base
     granted = loose_id(db, text)
+    # A reference first: it takes no grant, whatever it ends in
+    # (``LicenseRef-x-only or later``), as ``LicenseRef-x-only+`` reads.
+    if granted is None and is_license_ref(license_id):
+        found.category, found.reason = "unresolved", on_reference(text)
+        return True
     # "+" last: `_qualified` makes `X+ or later` malformed before this, so
     # it only guards a list that has an ID ending in "+" (`Foo+`, no `Foo`)
     if license_id.endswith(("-only", "-or-later", "+")):
         found.category, found.reason = "malformed", stated_twice(text)
-        return True
-    if granted is None and is_license_ref(license_id):
-        found.category, found.reason = "unresolved", on_reference(text)
         return True
     found.steps.extend(steps)
     if granted is None:
@@ -420,10 +439,12 @@ def _grant(
 def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
     """The listed ID *text* names, and the steps from *text* to it: its own
     ID in other case, a listed name, or a loosely written ID. A
-    ``LicenseRef-*`` names itself. Raises :class:`_Dropped` where the loose
-    reading would drop a character that says something."""
+    ``LicenseRef-*`` names itself, its prefix in SPDX's case. Raises
+    :class:`_Dropped` where the loose reading would drop a character that
+    says something."""
     if is_license_ref(text):
-        return text, []
+        steps: list[Step] = []
+        return _reference(text, steps), steps
     details = db.get_license_details(text)
     if details is not None:
         license_id = details["license_id"]
@@ -445,6 +466,17 @@ def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
     if lost:
         raise _Dropped(text, lost, license_id, words=True)
     return license_id, _spelling(text, license_id)
+
+
+def _reference(text: str, steps: list[Step]) -> str:
+    """*text*, a whole ``LicenseRef-*`` or ``AdditionRef-*``, with its prefixes
+    in SPDX's case (:func:`licenseid.exprtokens.canonical_ref`), an
+    ``id_case`` step in *steps* if that changed it: a change of case, as for
+    an ID of the List. Its idstring is kept as written."""
+    canonical = canonical_ref(text)
+    if canonical != text:
+        steps.append(step("id_case", True, text, canonical))
+    return canonical
 
 
 def _spelling(text: str, license_id: str) -> list[Step]:

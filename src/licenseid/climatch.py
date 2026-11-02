@@ -49,11 +49,15 @@ from licenseid.result import json_line, resolution_lines
 TO_DETECT = "; run 'licenseid detect'"
 
 
-def _has_line_break(value: str) -> bool:
-    """Whether *value* breaks a line where Python's ``str.splitlines`` does
-    (``\\n``, ``\\r``, ``\\v``, ``\\f``, ``\\x1c`` to ``\\x1e``, ``\\x85``,
-    U+2028, U+2029), at its end included."""
-    return value.splitlines() != [value]
+def _line_break(value: str) -> str | None:
+    """The first character of *value* that breaks a line where Python's
+    ``str.splitlines`` does (``\\n``, ``\\r``, ``\\v``, ``\\f``, ``\\x1c`` to
+    ``\\x1e``, ``\\x85``, U+2028, U+2029), at its end included, or None. Named
+    in the refusal as a code point: the value shown is folded to one line,
+    which an information separator would leave no trace in."""
+    lines = value.splitlines()
+    head = lines[0] if lines else ""
+    return None if len(head) == len(value) else value[len(head)]
 
 
 def declared_value(ctx: click.Context, value: str | None, text: str | None) -> str:
@@ -71,8 +75,10 @@ def declared_value(ctx: click.Context, value: str | None, text: str | None) -> s
         exit_bad_input(ctx, f"invalid: standard input{TO_DETECT}")
     reject_blank_options(ctx, {"argument": value})
     reject_unencodable(ctx, value)
-    if _has_line_break(value):
-        exit_bad_input(ctx, f"invalid: line break: {one_line(value)}{TO_DETECT}")
+    char = _line_break(value)
+    if char is not None:
+        shown = f"U+{ord(char):04X}: {one_line(value)}"
+        exit_bad_input(ctx, f"invalid: line break {shown}{TO_DETECT}")
     # Counted as match() counts it (read_length), so it reads what this
     # passes; the first test is the fast one.
     if len(value) > MAX_EXPRESSION_CHARS and read_length(value) > MAX_EXPRESSION_CHARS:
