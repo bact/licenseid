@@ -314,6 +314,11 @@ def names_db() -> Generator[LicenseDatabase, None, None]:
         Lic("Old-1.0", "Old Name", is_deprecated=True),
         Lic("Old-1.0-only", "Old Name only"),
         Lic("Old-1.0-or-later", "Old Name or later"),
+        # A name in use that a deprecated row shares, as GPL-2.0 shares
+        # GPL-2.0-only's, and a name that holds it.
+        Lic("Same-1.0", "Same Name"),
+        Lic("Same-0.9", "Same Name", is_deprecated=True),
+        Lic("Same-Plus-1.0", "Same Name Plus"),
     ]
     for path in seeded_db("test_shorttext_evidence_names", rows):
         yield LicenseDatabase(path)
@@ -338,6 +343,9 @@ def names_db() -> Generator[LicenseDatabase, None, None]:
         ("old name", [("Old-1.0-only", 1.01), ("Old-1.0-or-later", 1.01)]),
         # Not so for a word of it.
         ("old", []),
+        # A name in use, though a deprecated row has it too: the name that
+        # holds it is not named.
+        ("same name", [("Same-1.0", 1.02)]),
     ],
 )
 def test_a_name_with_words_left_out(
