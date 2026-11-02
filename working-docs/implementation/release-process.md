@@ -120,8 +120,9 @@ downloads `v<BUNDLE_VERSION>.json.gz` from the `data` branch, and ships it
 version and SHA-256 are the pin's. Before the pin, the hook shipped whatever
 `latest.json` named on the day of the build, so one tag could build
 different wheels. After the build, the hook reads the bundle back from the
-wheel and the sdist (`finalize`), and `build.yml` and `pypi-publish.yml`
-check both again apart from the hook. `LICENSEID_REQUIRE_BUNDLE=1`, set in
+wheel and the sdist (`finalize`, which deletes an artefact that fails), and
+`build.yml` and `pypi-publish.yml` check both again apart from the hook
+(`scripts/check_dist_bundle.py dist`). `LICENSEID_REQUIRE_BUNDLE=1`, set in
 both, fails a build that would ship no snapshot, `LICENSEID_BUNDLE=skip`
 included; without it a developer build warns and ships none.
 
