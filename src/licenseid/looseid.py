@@ -14,6 +14,7 @@ exact and fuzzy matches.
 import re
 
 from licenseid.classify import OR_LATER_PHRASE, grant_end
+from licenseid.deprecatedids import DEPRECATED_WITH_IDS
 from licenseid.exprtokens import RE_TOKEN
 from licenseid.identifiers import (
     ONLY_WORD,
@@ -23,6 +24,7 @@ from licenseid.identifiers import (
 )
 from licenseid.listlookup import ListedName, ListLookup
 from licenseid.plusoperator import PLUS_OPERATOR
+from licenseid.types import CandidateMatch
 from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_key
 from licenseid.warning import warn
 
@@ -121,6 +123,30 @@ def narrowed_ids(db: ListLookup, text: str, expression: str) -> bool:
         ):
             return True
     return False
+
+
+# The deprecated IDs with an exception in them, case folded.
+_WITH_IDS = frozenset(deprecated.casefold() for deprecated in DEPRECATED_WITH_IDS)
+
+
+def read_inexactly(
+    db: ListLookup, text: str, found: list[CandidateMatch]
+) -> str | None:
+    """How the first of *found*, the reading of the declared *text*, is not
+    what *text* states, so is not exact, or None: ``"narrowed"`` for a
+    deprecated ID narrowed to -only (:func:`narrowed_ids`, a guess to say),
+    ``"ambiguous"`` for a "+" given to the licence of a deprecated ID with
+    an exception in it ("GPL-2.0-with-classpath-exception+" read as
+    GPL-2.0-or-later WITH Classpath-exception-2.0), which ``match()`` calls
+    ambiguous (``deprecated_ambiguous``)."""
+    if not found:
+        return None
+    if narrowed_ids(db, text, found[0]["license_id"]):
+        return "narrowed"
+    for plus in PLUS_OPERATOR.finditer(text):
+        if not plus["with"] and plus["id"].casefold() in _WITH_IDS:
+            return "ambiguous"
+    return None
 
 
 def drops_words(leading: str, expression: str, value: str, *, whole: bool) -> bool:

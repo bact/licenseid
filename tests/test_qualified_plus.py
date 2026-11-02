@@ -71,6 +71,10 @@ QUALIFIED_PLUS = [
     "MIT OR " * 151 + "GPL-2.0-only+",  # too large to parse, not to read
     "Foo-only+",  # names nothing either way
     "GPL-2.0-only+ or later",  # no number before it: "or later" is OR later
+    # It was GPL-2.0-only, exact: the "+" dropped before an end mark, which
+    # match() trims (readers, round 3).
+    "GPL-2.0-only+,",
+    "GPL-2.0-or-later+.",
 ]
 
 
@@ -85,14 +89,15 @@ def test_a_plus_after_a_qualifier_answers_no_licence(db_path: str, text: str) ->
     [
         ("GPL-2.0+", ["GPL-2.0-or-later"]),  # an ID that states no qualifier
         ("GPL-2.0-only", ["GPL-2.0-only"]),
-        ("GPL-2.0-only +", ["GPL-2.0-only"]),  # a detached "+" is no operator
+        # A detached "+" is no operator, and the value names no licence, as
+        # match() reads it: it was GPL-2.0-only, exact (readers, round 3).
+        ("GPL-2.0-only +", []),
         ("LicenseRef-x-only+", None),  # a LicenseRef takes no "+": no operator
         ("GPL-2.0-only+ licensed code", None),  # prose: matched as text
         ("MIT OR", None),  # dangling: no expression
-        # BUG: a "+" that is no operator is dropped as punctuation, and the
-        # answer is exact (as in 0.5.0; tech-debt roadmap, item 44).
-        ("GPL-2.0-only++", ["GPL-2.0-only"]),
-        ("GPL-2.0-only+,", ["GPL-2.0-only"]),
+        # A "+" that is no operator was dropped as punctuation, the answer
+        # exact (as in 0.5.0; tech-debt roadmap, item 44): "++" names none.
+        ("GPL-2.0-only++", []),
     ],
 )
 def test_what_is_not_a_qualified_plus_is_matched(

@@ -17,7 +17,7 @@ from importlib.resources import files
 
 import pytest
 
-from licenseid.identifiers import (
+from licenseid.deprecatedids import (
     DEPRECATED_BARE_LICENSE_IDS,
     DEPRECATED_SPDX_LICENSE_IDS,
     DEPRECATED_WITH_IDS,

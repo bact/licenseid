@@ -143,12 +143,11 @@ def test_a_spaced_plus_in_a_tag(corpus_db: LicenseDatabase, value: str) -> None:
 def test_a_spaced_plus_as_an_argument(
     corpus_db: LicenseDatabase, given: GivenWarnings
 ) -> None:
-    """Not changed: the loose reading of Tier 0 (versionkey, detector) drops a
-    "+" apart from its ID and guesses the narrow grant, not exact, with a
-    warning (F3)."""
-    found = LicenseDetector(corpus_db.location).detect("GPL-2.0 +")
-    assert (found[0]["expression"], found[0]["exact"]) == ("GPL-2.0-only", False)
-    assert given.conditions() == {"variant not stated"}
+    """It was GPL-2.0-only, not exact, with a warning (F3): the loose reading
+    of Tier 0 dropped the "+" apart from its ID. It names no licence, as
+    match() and the tag read it (readers, round 3)."""
+    assert not LicenseDetector(corpus_db.location).detect("GPL-2.0 +")
+    assert not given.conditions()
 
 
 # --- item 3: a keyword ignores case in ASCII only -----------------------------

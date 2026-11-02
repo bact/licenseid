@@ -49,6 +49,22 @@ def plus_after_qualifier(expression: str) -> bool:
     )
 
 
+def plus_apart(text: str, at: int) -> str | None:
+    """How the "+" at *at* of *text* stands apart from the ID before it, so
+    is no operator, which touches its ID: ``"bracket"`` after a closing
+    bracket (``(MIT)+``, ``(MIT) +``), ``"space"`` after white space
+    (``MIT +``), or None (``MIT+``, and ``MIT++``, whose second "+" states
+    the qualifier twice). The one judge of the tag (``leading_expression``),
+    the leaf of ``match()`` and the text, field and ``is-*`` paths
+    (``identifiers.is_stray_plus``)."""
+    before = at
+    while before and text[before - 1].isspace():
+        before -= 1
+    if before and text[before - 1] == ")":
+        return "bracket"
+    return "space" if before < at else None
+
+
 def strip_plus_operator(expression: str) -> str:
     """Drop the "+" operators of *expression* so ``py_spdx_license`` can parse
     it (``Apache-2.0+ OR MIT`` becomes ``Apache-2.0 OR MIT``). A "+" that is

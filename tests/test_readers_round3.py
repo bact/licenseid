@@ -58,107 +58,168 @@ def _pyproject(corpus_db: LicenseDatabase, tmp_path: Path, value: str) -> Answer
 
 # --- 1: a "+" apart from its ID, on every path --------------------------------
 
-SPACED_PLUS = {
-    # value: what the text, a package.json and a pyproject.toml field gave
-    "MIT +": ("MIT", True),  # BUG: the "+" dropped in silence
-    "MIT ++": ("MIT", True),  # BUG
-    "Apache-2.0 +": ("Apache-2.0", True),  # BUG
-    "(MIT) +": ("MIT", True),  # BUG
-    "(MIT)+": ("MIT", True),  # BUG
-    "GPL-2.0-only +": ("GPL-2.0-only", True),  # BUG
-    "MIT +,": ("MIT", True),  # BUG
-    "GPL-2.0 +": ("GPL-2.0-only", False),  # BUG: "variant not stated"
-}
+# Each was read without its "+" (MIT, exact; GPL-2.0 +: GPL-2.0-only with
+# "variant not stated") by the text, a package.json and a pyproject.toml
+# field, and is-spdx said yes. match() and the tag refuse them (malformed):
+# so does every path now (identifiers.is_stray_plus, plusoperator.plus_apart).
+SPACED_PLUS = [
+    "MIT +",
+    "MIT ++",
+    "MIT+ +",
+    "Apache-2.0 +",
+    "(MIT) +",
+    "(MIT)+",
+    "GPL-2.0-only +",
+    "MIT +,",
+    "GPL-2.0 +",
+]
 
 
-@pytest.mark.parametrize("value", sorted(SPACED_PLUS))
+@pytest.mark.parametrize("value", SPACED_PLUS)
 def test_a_spaced_plus_on_every_path(
-    corpus_db: LicenseDatabase, tmp_path: Path, value: str, given: GivenWarnings
+    corpus_db: LicenseDatabase, tmp_path: Path, value: str
 ) -> None:
-    answer = SPACED_PLUS[value]
     got = (
         _text(corpus_db, value),
         _field(corpus_db, tmp_path, value),
         _pyproject(corpus_db, tmp_path, value),
+        _tag(corpus_db, value),
     )
-    assert got == (answer, answer, answer)
-    assert _tag(corpus_db, value) is None
+    assert got == (None, None, None, None)
     assert match(value, corpus_db)["category"] == "malformed"
-    assert given.conditions() <= {"variant not stated"}
 
 
-@pytest.mark.parametrize("value", ["MIT +", "(MIT)+", "MIT ++"])
-def test_a_spaced_plus_is_spdx(corpus_db: LicenseDatabase, value: str) -> None:
+@pytest.mark.parametrize("value", ["MIT+", "(MIT+)", "MIT+,", "GPL-2.0+"])
+def test_a_plus_that_touches_its_id_still_answers(
+    corpus_db: LicenseDatabase, tmp_path: Path, value: str
+) -> None:
+    expression = match(value, corpus_db)["expression"]
+    assert expression is not None
+    got = (_text(corpus_db, value), _field(corpus_db, tmp_path, value))
+    assert got == ((expression, True), (expression, True))
+
+
+@pytest.mark.parametrize(
+    ("value", "code"),
+    [("MIT +", 1), ("(MIT)+", 1), ("MIT ++", 1), ("MIT+", 0)],
+)
+def test_a_spaced_plus_is_no_spdx_licence(
+    corpus_db: LicenseDatabase, value: str, code: int
+) -> None:
     result = CliRunner().invoke(
         cli, ["--db", corpus_db.location, "is-spdx", "--text", value]
     )
-    assert result.exit_code == 0  # BUG: it names no licence
+    assert (result.exit_code, result.stderr) == (code, "")
 
 
 # --- 2: what stands between an ID and its "or later" --------------------------
 
-GAPS = {
-    # value: the tag, the package.json field; match() in the comment
-    "MIT; or later": (("MIT+", True), ("MIT+", True)),  # BUG: match refuses
-    "MIT: or later": (("MIT+", True), ("MIT+", True)),  # BUG
-    "MIT) or later": (("MIT+", True), ("MIT+", True)),  # BUG
-    "MIT] or later": (("MIT+", True), ("MIT+", True)),  # BUG
-    "MIT,, or later": (("MIT+", True), ("MIT+", True)),  # BUG
-    "MIT ;, or later": (("MIT+", True), ("MIT+", True)),  # BUG
-    "MIT,or later": (("MIT+", True), None),  # BUG: the tag
-    "MIT - or later": (("MIT", True), None),  # BUG: the grant dropped
-    "MIT / or later": (("MIT", True), None),  # BUG
-    "MIT * or later": (("MIT", True), None),  # BUG
-    "MIT # or later": (("MIT", True), None),  # BUG
-    "MIT. or later": (("MIT", True), None),  # BUG: match gives MIT+
-    "GPL-2.0. or later": (  # BUG: the tag; match gives GPL-2.0-or-later
-        ("GPL-2.0-only", False),
-        ("GPL-2.0-or-later", True),
-    ),
-    "GPL-2.0; or later": (  # BUG: match refuses
-        ("GPL-2.0-or-later", True),
-        ("GPL-2.0-or-later", True),
-    ),
-    "GPL-2.0 - or later": (  # BUG
-        ("GPL-2.0-or-later", True),
-        ("GPL-2.0-or-later", True),
-    ),
-    # match() reads these, and so does everything else.
-    "MIT or later": (("MIT+", True), ("MIT+", True)),
-    "MIT, or later": (("MIT+", True), ("MIT+", True)),
-    "MIT , or later": (("MIT+", True), ("MIT+", True)),
-    "MIT (or later)": (("MIT+", True), ("MIT+", True)),
-    "MIT [or later]": (("MIT+", True), ("MIT+", True)),
-    "GPL-2.0, or later": (("GPL-2.0-or-later", True), ("GPL-2.0-or-later", True)),
-}
+# match() refuses each ("character dropped: U+003B", "not found"). The tag
+# and the field gave MIT+ for the marks a grant crossed (";", ":", ")"...),
+# and MIT for the ones that stopped it ("-", "/", "*", "#"): the grant
+# dropped. Every reader now refuses them (classify.grant_follows).
+REFUSED_GAPS = [
+    "MIT; or later",
+    "MIT: or later",
+    "MIT) or later",
+    "MIT] or later",
+    "MIT,, or later",
+    "MIT ;, or later",
+    "MIT,or later",
+    "MIT - or later",
+    "MIT / or later",
+    "MIT * or later",
+    "MIT # or later",
+    "GPL-2.0; or later",
+    "GPL-2.0: or later",
+    "GPL-2.0) or later",
+    "GPL-2.0,, or later",
+    "GPL-2.0 - or later",
+    "GPL-2.0 / or later",
+    # A grant after an ID that takes none is refused anyway; after a mark
+    # too, not read as the ID alone (identifiers._granted_twice).
+    "GPL-2.0-only; or later",
+    "LicenseRef-a: or later",
+]
 
 
-@pytest.mark.parametrize("value", sorted(GAPS))
-def test_the_gap_before_a_grant(
-    corpus_db: LicenseDatabase, tmp_path: Path, value: str, given: GivenWarnings
+@pytest.mark.parametrize("value", REFUSED_GAPS)
+def test_a_mark_before_a_grant_is_refused(
+    corpus_db: LicenseDatabase, tmp_path: Path, value: str
 ) -> None:
-    tag, field = GAPS[value]
-    assert _tag(corpus_db, value) == tag
-    assert _field(corpus_db, tmp_path, value) == field
-    assert given.conditions() <= {"variant not stated"}
+    assert match(value, corpus_db)["expression"] is None
+    assert (_tag(corpus_db, value), _field(corpus_db, tmp_path, value)) == (
+        None,
+        None,
+    )
+
+
+# match() reads these, and so does everything else. "MIT. or later" was MIT
+# in the tag and nothing in the field; "GPL-2.0. or later" was GPL-2.0-only
+# in the tag ("variant not stated").
+READ_GAPS = [
+    "MIT or later",
+    "MIT. or later",
+    "MIT, or later",
+    "MIT , or later",
+    "MIT (or later)",
+    "MIT [or later]",
+    "MIT, (or later)",
+    "GPL-2.0. or later",
+    "GPL-2.0, or later",
+    "GPL-2.0 (or later)",
+]
+
+
+@pytest.mark.parametrize("value", READ_GAPS)
+def test_a_grant_match_reads_is_read_everywhere(
+    corpus_db: LicenseDatabase, tmp_path: Path, value: str
+) -> None:
+    expression = match(value, corpus_db)["expression"]
+    assert expression is not None
+    got = (_tag(corpus_db, value), _field(corpus_db, tmp_path, value))
+    assert got == ((expression, True), (expression, True))
+
+
+@pytest.mark.parametrize(
+    ("value", "answer"),
+    [
+        # The brackets of the expression are no mark (tag only: match()
+        # refuses both, "not found").
+        ("(MIT) or later", ("MIT+", True)),
+        ("(GPL-2.0) or later", ("GPL-2.0-or-later", True)),
+        ("((MIT)) or later", ("MIT+", True)),
+        ("(MIT)) or later", None),  # one bracket more than it opened
+    ],
+)
+def test_the_brackets_of_the_tag_before_a_grant(
+    corpus_db: LicenseDatabase, value: str, answer: Answer
+) -> None:
+    assert _tag(corpus_db, value) == answer
 
 
 # --- 3: a grant after a deprecated ID ------------------------------------------
 
 DEPRECATED = {
-    # value: the tag and the package.json field (match() in the comment)
-    "StandardML-NJ, or any later version": ("StandardML-NJ+", True),  # BUG: SMLNJ+
-    "StandardML-NJ or later": ("StandardML-NJ+", True),  # BUG
-    "StandardML-NJ+": ("StandardML-NJ+", True),  # BUG
-    "MIT OR StandardML-NJ or later": ("MIT OR StandardML-NJ+", True),  # BUG
-    # BUG: match() calls it ambiguous (deprecated_ambiguous): not exact.
+    # Each was StandardML-NJ+: the rename is followed, then the "+", as in
+    # match() (deprecated_equal_successor).
+    "StandardML-NJ, or any later version": ("SMLNJ+", True),
+    "StandardML-NJ or later": ("SMLNJ+", True),
+    "StandardML-NJ+": ("SMLNJ+", True),
+    "standardml-nj+": ("SMLNJ+", True),
+    "MIT OR StandardML-NJ or later": ("MIT OR SMLNJ+", True),
+    # It was exact; match() calls it ambiguous (deprecated_ambiguous).
     "GPL-2.0-with-classpath-exception or later": (
         "GPL-2.0-or-later WITH Classpath-exception-2.0",
-        True,
+        False,
     ),
     "GPL-2.0-with-classpath-exception+": (
         "GPL-2.0-or-later WITH Classpath-exception-2.0",
-        True,
+        False,
+    ),
+    "MIT OR GPL-2.0-with-GCC-exception+": (
+        "MIT OR GPL-2.0-or-later WITH GCC-exception-2.0",
+        False,
     ),
 }
 
@@ -174,24 +235,48 @@ def test_a_grant_after_a_deprecated_id(
     )
 
 
+def test_a_plus_on_a_deprecated_with_id_as_text(corpus_db: LicenseDatabase) -> None:
+    """Not exact, and nothing said: it is no -only guess."""
+    assert _text(corpus_db, "GPL-2.0-with-classpath-exception+") == (
+        "GPL-2.0-or-later WITH Classpath-exception-2.0",
+        False,
+    )
+
+
 # --- 4: an operand dropped beside a granted deprecated ID ----------------------
 
-DROPPED = {
-    "GPL-3.0, LGPL-2.1 or later": ("LGPL-2.1-or-later", True),  # BUG
-    "GPL-2.0 / LGPL-2.1 or later": ("LGPL-2.1-or-later", True),  # BUG
-    "GPL-2.0, LGPL-2.0 or later": ("LGPL-2.0-or-later", True),  # BUG
-    "LGPL-2.1 or later, GPL-3.0": ("LGPL-2.1-or-later", True),  # BUG
-    "GPL-2.0 or later": ("GPL-2.0-or-later", True),
-}
+# Each was the granted ID alone, exact, as a field and as a text; match()
+# refuses them (not found).
+DROPPED = [
+    "GPL-3.0, LGPL-2.1 or later",
+    "GPL-2.0 / LGPL-2.1 or later",
+    "GPL-2.0, LGPL-2.0 or later",
+    "LGPL-2.1 or later, GPL-3.0",
+    "MIT, GPL-2.0 or later",
+]
 
 
-@pytest.mark.parametrize("value", sorted(DROPPED))
+@pytest.mark.parametrize("value", DROPPED)
 def test_no_operand_dropped_beside_a_grant(
     corpus_db: LicenseDatabase, tmp_path: Path, value: str
 ) -> None:
-    answer = DROPPED[value]
+    assert match(value, corpus_db)["expression"] is None
     got = (_field(corpus_db, tmp_path, value), _text(corpus_db, value))
-    assert got == (answer, answer)
+    assert got == (None, None)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "GPL-2.0 or later",
+        "GPL-2.0 or later (GPL-2.0-or-later)",  # its own ID again
+        "Licensed under GPL-2.0 or any later version",
+    ],
+)
+def test_a_granted_deprecated_id_alone_still_answers(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    assert _text(corpus_db, value) == ("GPL-2.0-or-later", True)
 
 
 # --- 5: an "or later" after an ID that has no -or-later form, in match() -------
@@ -212,31 +297,27 @@ def test_a_grant_after_an_ambiguous_deprecated_id(corpus_db: LicenseDatabase) ->
 # --- 6: "or" is a word -----------------------------------------------------------
 
 ORA = {
-    # value: match(), the tag, the field
-    "MIT ora later": ("MIT+", ("MIT+", True), ("MIT+", True)),  # BUG
-    "MIT orany later": ("MIT+", ("MIT+", True), ("MIT+", True)),  # BUG
-    "GPL-2.0 ora later": (  # BUG
-        "GPL-2.0-or-later",
-        ("GPL-2.0-or-later", True),
-        ("GPL-2.0-or-later", True),
-    ),
-    "GPL-2.0 orany later version": (  # BUG
-        "GPL-2.0-or-later",
-        ("GPL-2.0-or-later", True),
-        ("GPL-2.0-or-later", True),
-    ),
+    # They were grants on every path, match() included (MIT+,
+    # GPL-2.0-or-later): "or" ran into the next word. Now match() refuses
+    # them, the field too, and the tag reads its leading ID and no grant.
+    "MIT ora later": ("MIT", True),
+    "MIT orany later": ("MIT", True),
+    "GPL-2.0 ora later": ("GPL-2.0-only", False),
+    "GPL-2.0 orany later version": ("GPL-2.0-only", False),
 }
 
 
 @pytest.mark.parametrize("value", sorted(ORA))
-def test_or_is_a_word(corpus_db: LicenseDatabase, tmp_path: Path, value: str) -> None:
-    answer = ORA[value]
+def test_or_is_a_word(
+    corpus_db: LicenseDatabase, tmp_path: Path, value: str, given: GivenWarnings
+) -> None:
     got = (
         match(value, corpus_db)["expression"],
         _tag(corpus_db, value),
         _field(corpus_db, tmp_path, value),
     )
-    assert got == answer
+    assert got == (None, ORA[value], None)
+    assert given.conditions() <= {"variant not stated"}
 
 
 # --- 7: a refused --id with no visible character --------------------------------
@@ -245,13 +326,27 @@ def test_or_is_a_word(corpus_db: LicenseDatabase, tmp_path: Path, value: str) ->
 @pytest.mark.parametrize(
     ("value", "detail"),
     [
-        ("\u200b", "\u200b"),  # BUG: invisible
-        ("\ufeff", "\ufeff"),  # BUG
-        ("\u200b\ufeff\u200b", "\u200b\ufeff\u200b"),  # BUG
+        # It was the value itself, which shows nothing.
+        ("\u200b", "U+200B"),
+        ("\ufeff", "U+FEFF"),
+        ("\u200b\ufeff\u200b", "U+200B U+FEFF"),
+        ("\u00a0\u200b", "U+00A0 U+200B"),
+        ("\u200b \u200b", "U+200B U+0020"),  # a space shows nothing either
+        ("a\u200b", "a\u200b"),  # a visible character: the value as written
     ],
-    ids=["zwsp", "bom", "several"],
+    ids=["zwsp", "bom", "several", "nbsp", "space", "visible"],
 )
 def test_an_invisible_id_is_named(value: str, detail: str) -> None:
     assert str(invalid_id_error("--id", value)) == (
         f"option: invalid: --id: {detail}; pass one license ID"
+    )
+
+
+def test_an_invisible_id_on_the_command_line(corpus_db: LicenseDatabase) -> None:
+    result = CliRunner().invoke(
+        cli, ["--db", corpus_db.location, "detect", "--id", "\ufeff"]
+    )
+    assert (result.exit_code, result.stderr) == (
+        2,
+        "ERROR: option: invalid: --id: U+FEFF; pass one license ID\n",
     )

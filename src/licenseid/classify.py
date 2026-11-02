@@ -21,11 +21,14 @@ import bisect
 import os
 import re
 
+from licenseid.dropguard import dropped
+
 # The phrases that grant "or any later version", the one detector for prose:
 # the -only / -or-later tie-breaker (ranking), the bare-ID disambiguation
 # (identifiers) and the GPL header marker (markers) all use it, so a header
 # reads the same on every path.
-#   - "or [(at your option)] a|any later": the words stand alone. Comment
+#   - "or [(at your option)] a|any later": the words stand alone ("ora
+#     later" is none, "or\b"). Comment
 #     characters and commas may sit between them, so a header wrapped over
 #     "// ", " * " or "# " lines is read.
 #   - "or newer" on its own; "or later" only after a number ("version 2 or
@@ -45,7 +48,7 @@ _NEGATIONS = ("not", "no")
 _NOT_NEGATED = "".join(rf"(?<!\b{word} )" for word in _NEGATIONS)
 _RE_NEGATED_END = re.compile(rf"\b(?:{'|'.join(_NEGATIONS)}) \Z", re.IGNORECASE)
 OR_LATER_PHRASE = re.compile(
-    rf"{_NOT_NEGATED}\bor{_GAP}"
+    rf"{_NOT_NEGATED}\bor\b{_GAP}"
     rf"(?:\([^)]{{0,50}}\){_GAP}|at\s+your\s+(?a:option){_GAP})?"
     rf"(?:a|any)\s{_GAP}(?:later|newer)\b"
     rf"|\d[\s,()\[\]+/*#;-]*\bor\s+later\b"
@@ -118,36 +121,48 @@ def grant_end(text: str, start: int) -> int | None:
     return None if probe is None else start + probe.end() - 2
 
 
-def grant_follows(tail: str, rest: str) -> bool:
+def grant_follows(tail: str, rest: str) -> bool | None:
     """Whether *rest*, the text after the last ID *tail* of an expression (a
     licence or its exception), grants "or later": the phrase in it with no
     number between the ID and the phrase, which would be another licence's.
-    The phrase can start inside the ID ("or later" needs the version), so it
-    is read on both together; a qualifier the ID states is left off first,
-    so "GPL-2.0-only (or later)" reads as "GPL-2.0 (or later)" does. An
-    "or" right after the ID (white space, brackets and marks between) is
-    read as after a number, by :func:`grant_end`: "MIT or later". A
-    number the phrase starts with after the ID must be the ID's version
-    (:func:`another_version`): in "GPL-2.0, version 3 or later" the grant is
-    version 3's."""
+    A qualifier the ID states is left off first, so "GPL-2.0-only (or
+    later)" reads as "GPL-2.0 (or later)" does.
+
+    An "or" after the ID, past white space and marks only, is read as after
+    a number, by :func:`grant_end` ("MIT or later", "GPL-2.0, or later"),
+    and what stands between is judged as ``match()`` judges it: white space,
+    one "." or "," and a "(" or "[" before the "or" pass, and a mark it
+    would drop (``MIT; or later``, ``MIT - or later``, ``MIT,or later``)
+    makes the value no reading at all: None. Elsewhere a number the phrase
+    starts with must be the ID's version (:func:`another_version`): in
+    "GPL-2.0, version 3 or later" the grant is version 3's."""
     stem = _RE_STATED_QUALIFIER.sub("", tail)
     text = stem + rest
-    bare = len(stem)  # past white space, brackets and marks, never a word
-    while bare < len(text) and (text[bare].isspace() or text[bare] in ",;:()[]"):
+    bare = len(stem)  # past white space and marks, never a word
+    while bare < len(text) and not text[bare].isalnum():
         bare += 1
     at_or = bare > len(stem) and text[bare : bare + 2].lower() == "or"
     if at_or and grant_end(text, bare) is not None:
-        return True  # "MIT or later", "(MIT) or later": read after a number
+        return _kept(text[len(stem) : bare])
     grant = OR_LATER_PHRASE.search(text)
     if grant is None:
         return False
     start = grant.start()
-    if start < len(stem):
-        return True  # the phrase starts at the ID's own version
     end = _number_start(text, start) if text[start].isdigit() else start
     return not any(char.isdigit() for char in text[len(stem) : end]) and not (
         another_version(stem, text, start)
     )
+
+
+def _kept(gap: str) -> bool | None:
+    """True if ``match()`` reads past *gap*, what stands between an ID and
+    the "or" of its grant, as ``looseid.declared_grant_id_text`` finds it
+    (white space or a "(" or "[" before the "or") and ``dropguard`` judges
+    the rest; None if it would drop a mark of it."""
+    if not (gap[-1].isspace() or gap[-1] in "(["):
+        return None  # "MIT,or later": no word "or"
+    marks = gap.rstrip().rstrip("([").rstrip()
+    return None if dropped(f"x{marks}") else True
 
 
 def another_version(licence: str, text: str, start: int) -> bool:
