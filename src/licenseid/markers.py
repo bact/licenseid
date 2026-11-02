@@ -8,6 +8,7 @@
 import re
 from typing import cast
 
+from licenseid.bsdclauses import bsd_clause_id
 from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
 from licenseid.exprflags import declared_flags
@@ -511,33 +512,16 @@ class MarkerDetector:
         return candidates
 
     def _detect_bsd_headers(self, text: str) -> list[CandidateMatch]:
-        """Detect BSD-style licenses by counting numbered redistribution conditions.
+        """Detect BSD-style licenses by their numbered conditions
+        (`licenseid.bsdclauses.bsd_clause_id`).
 
         Score 0.95 (structural, high-confidence) so it triggers the marker
         floor even on is_pure files, overriding wrong candidates like
         BSD-2-Clause-Darwin whose FTS5 similarity may be higher.
         """
-        conditions = re.findall(
-            r"^\s*(\d+)\.\s+(?:Redistribution|Neither\b|"
-            r"All\s+advertising|The\s+(?:name|author))",
-            text,
-            re.MULTILINE | re.IGNORECASE,
-        )
-        if not conditions:
-            return []
-        max_cond = max(int(c) for c in conditions)
-        if max_cond == 2:
-            lic_id = "BSD-2-Clause"
-        elif max_cond == 3:
-            lic_id = "BSD-3-Clause"
-        elif max_cond == 4:
-            lic_id = "BSD-4-Clause"
-        else:
-            return []
-        details = self.db.get_license_details(lic_id)
-        if details:
-            return [self.to_candidate(details, 0.95)]
-        return []
+        lic_id = bsd_clause_id(text)
+        details = self.db.get_license_details(lic_id) if lic_id else None
+        return [self.to_candidate(details, 0.95)] if details else []
 
     def _detect_headings(self, text: str) -> list[CandidateMatch]:
         """Detect license headings and extract the license name from nearby lines."""
