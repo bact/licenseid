@@ -72,6 +72,11 @@ class GivenWarnings:
         self._record.clear()
         return taken
 
+    def conditions(self) -> set[str]:
+        """:meth:`take`, as the set of their conditions: what a test that
+        is about something else states of the warnings it gives."""
+        return {w.condition for w in self.take()}
+
     def lines(self) -> str:
         """:meth:`take`, each warning as the CLI prints it: one ``WARNING:``
         line."""

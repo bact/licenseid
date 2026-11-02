@@ -208,7 +208,9 @@ def test_a_family_alone_is_narrowed_to_only_with_a_warning(
 @pytest.mark.parametrize(
     "row", [r for r in ROWS if not r.license_id.startswith(SYNTHETIC)]
 )
-def test_every_id_is_found_by_its_own_spelling(db: LicenseDatabase, row: Lic) -> None:
+def test_every_id_is_found_by_its_own_spelling(
+    db: LicenseDatabase, row: Lic, given: GivenWarnings
+) -> None:
     """Drift guard: the key of an ID finds that ID (or its successor), never
     a neighbour of it: as is, without a trailing ".0", and with spaces or
     underscores for dashes."""
@@ -223,16 +225,21 @@ def test_every_id_is_found_by_its_own_spelling(db: LicenseDatabase, row: Lic) ->
     for spelling in spellings:
         found = match_version_key(db, spelling)
         assert [m["license_id"] for m in found] == [expected], spelling
+    assert given.conditions() <= {"variant not stated"}
 
 
 @pytest.mark.parametrize(("text", "has_flags"), [("Apache2", True), ("GPL2", False)])
 def test_a_redirected_id_leaves_its_flags_to_the_caller(
-    db: LicenseDatabase, text: str, has_flags: bool
+    db: LicenseDatabase,
+    text: str,
+    has_flags: bool,
+    given: GivenWarnings,
 ) -> None:
     """The flags of GPL-2.0 are not those of GPL-2.0-only: the matcher looks
     them up (see shorttext._id_hit)."""
     [match] = match_version_key(db, text)
     assert ("is_spdx" in match) is has_flags
+    assert given.conditions() <= {"variant not stated"}
 
 
 def test_a_row_lost_between_the_two_reads_is_no_match(db: LicenseDatabase) -> None:
@@ -290,13 +297,17 @@ def test_a_deprecated_id_as_is_is_narrowed_aloud(
     ],
 )
 def test_match_answers_with_the_id(
-    matcher: LicenseDetector, text: str, expected: tuple[str, str, bool]
+    matcher: LicenseDetector,
+    text: str,
+    expected: tuple[str, str, bool],
+    given: GivenWarnings,
 ) -> None:
     """Through detect(), with the flags of the answer, from text and from a
     manifest's license field."""
     top = matcher.detect(text=text)[0]
     assert (top["expression"], top["method"], top["exact"]) == expected
     assert top["is_spdx"] is True
+    assert given.conditions() <= {"variant not stated"}
 
 
 def test_a_plus_without_a_key_is_no_exact_answer(

@@ -106,11 +106,14 @@ def test_a_tie_goes_to_the_bundle_unless_the_build_is_current(
 
 @pytest.mark.parametrize("build", ["1", "3"])
 def test_a_newer_list_wins_whatever_its_build(
-    monkeypatch: pytest.MonkeyPatch, build: str
+    monkeypatch: pytest.MonkeyPatch,
+    build: str,
+    given: GivenWarnings,
 ) -> None:
     ship(monkeypatch, release_bundle("3.29"))
     _default_db(build=build)
     assert _read() == ("database", DB_VERSION)
+    assert given.conditions() <= {f"build v{build} outdated"}
 
 
 @pytest.mark.parametrize("build", [f"0{BUILD_VERSION}", BUILD_VERSION])

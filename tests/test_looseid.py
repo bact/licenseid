@@ -231,6 +231,7 @@ def test_no_loose_with_expression(db: LicenseDatabase, text: str) -> None:
 
 def test_a_manifest_value_read_as_a_guess_is_still_a_field(
     matcher: LicenseDetector,
+    given: GivenWarnings,
 ) -> None:
     [result] = matcher.detect(text='{"license": "GPLv2"}')
     assert (result["expression"], result["method"], result["exact"]) == (
@@ -238,6 +239,7 @@ def test_a_manifest_value_read_as_a_guess_is_still_a_field(
         "field",
         False,
     )
+    assert given.conditions() == {"variant not stated"}
 
 
 def test_the_key_index_is_built_once_per_table_read(db: LicenseDatabase) -> None:

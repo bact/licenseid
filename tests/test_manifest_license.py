@@ -156,7 +156,10 @@ def test_every_result_carries_the_flags(db: str, text: str) -> None:
     ids=["to-id", "to-expression"],
 )
 def test_a_deprecated_id_takes_the_flags_of_its_replacement(
-    db: str, deprecated: str, replacement: str
+    db: str,
+    deprecated: str,
+    replacement: str,
+    given: GivenWarnings,
 ) -> None:
     """A deprecated ID answers its replacement, a license row or an
     expression: the flags are the replacement's, not the deprecated row's
@@ -171,6 +174,7 @@ def test_a_deprecated_id_takes_the_flags_of_its_replacement(
     )
     assert matcher.is_spdx(deprecated)
     assert matcher.is_osi(deprecated)
+    assert given.conditions() == {"variant not stated"}
 
 
 def test_match_json_shows_the_flags_of_a_manifest(db: str, tmp_path: Path) -> None:
