@@ -7,125 +7,41 @@
 # pylint: disable=missing-function-docstring,protected-access
 
 import gzip
-import hashlib
 import http.client
 import http.server
 import io
-import json
-import tarfile
 import tempfile
 import threading
 import urllib.request
-import zipfile
 from http.client import HTTPMessage
 from pathlib import Path
 from typing import Any
-from unittest import mock
 
 import pytest
-from release_fakes import FakeResponse, release_bundle
+from hatch_helpers import (
+    BUNDLE,
+    NAME,
+    OTHER_BUILD,
+    build_artifact,
+    clean_environment,
+    gz,
+    hook,
+    names,
+    online,
+    run,
+    serve,
+    unpacked_sdist,
+)
+from release_fakes import FakeResponse
 
 import hatch_build
-from hatch_build import SnapshotError, SpdxSnapshotHook
+from hatch_build import SnapshotError
 from licenseid import spdx_source, spdxdata
-
-# The real pin, read before the autouse fixture pins the fake release.
-PIN = (hatch_build.BUNDLE_VERSION, hatch_build.BUNDLE_SHA256)
-BUNDLE = release_bundle()
-NAME = "v9.99.json.gz"
-
-
-def serve(monkeypatch: pytest.MonkeyPatch, files: dict[str, bytes]) -> list[str]:
-    """Answer the URLs of *files* (by name under the base); anything else is an
-    error. Return the URLs asked for."""
-    calls: list[str] = []
-
-    def open_url(url: str) -> FakeResponse:
-        calls.append(url)
-        name = url.removeprefix(hatch_build.BASE_URL)
-        if url == name or name not in files:
-            raise OSError(f"404: {url}")
-        return FakeResponse(files[name])
-
-    monkeypatch.setattr(hatch_build, "open_url", open_url)
-    return calls
-
-
-def online(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    return serve(monkeypatch, {NAME: BUNDLE})
-
-
-def gz(doc: object) -> bytes:
-    return gzip.compress(json.dumps(doc).encode())
-
-
-def names(calls: list[str]) -> list[str]:
-    return [url.rsplit("/", 1)[1] for url in calls]
-
-
-def unpacked_sdist(root: Path, content: bytes) -> Path:
-    """Put *content* where an sdist keeps the snapshot; return the file. An
-    sdist has a ``PKG-INFO``, a checkout does not."""
-    (root / "PKG-INFO").write_text("Metadata-Version: 2.4\n", encoding="utf-8")
-    in_tree = root / hatch_build.IN_TREE
-    in_tree.parent.mkdir(parents=True)
-    in_tree.write_bytes(content)
-    return in_tree
-
-
-def hook(root: Path, target: str = "wheel") -> tuple[SpdxSnapshotHook, mock.Mock]:
-    app = mock.Mock(spec=["display_warning"])
-    return SpdxSnapshotHook(
-        str(root), {}, mock.Mock(), mock.Mock(), str(root / "dist"), target, app
-    ), app
-
-
-def build_artifact(root: Path, target: str, build_data: dict[str, Any]) -> str:
-    """A wheel or sdist holding what ``force_include`` asks for, as hatchling
-    builds it; ``""`` for another target."""
-    dist = root / "dist"
-    dist.mkdir(exist_ok=True)
-    if target == "wheel":
-        wheel = dist / "licenseid-0-py3-none-any.whl"
-        with zipfile.ZipFile(wheel, "w") as archive:
-            archive.writestr("licenseid/__init__.py", "")
-            for source, path in build_data["force_include"].items():
-                archive.write(source, path)
-        return str(wheel)
-    if target == "sdist":
-        sdist = dist / "licenseid-0.tar.gz"
-        with tarfile.open(sdist, "w:gz") as archive:
-            for source, path in build_data["force_include"].items():
-                archive.add(source, f"licenseid-0/{path}")
-        return str(sdist)
-    return ""
-
-
-def run(
-    root: Path, target: str = "wheel", version: str = "standard"
-) -> tuple[dict[str, Any], mock.Mock]:
-    """Run ``initialize``, build and ``finalize``; return ``build_data`` and
-    the app."""
-    instance, app = hook(root, target)
-    build_data: dict[str, Any] = {"force_include": {}}
-    artifact = ""
-    try:
-        instance.initialize(version, build_data)
-        artifact = build_artifact(root, target, build_data)
-    finally:
-        instance.finalize(version, build_data, artifact)
-    return build_data, app
 
 
 @pytest.fixture(autouse=True)
-def clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    """No variable set, and the fake release is the pin."""
-    for name in ("LICENSEID_BUNDLE", "LICENSEID_REQUIRE_BUNDLE"):
-        monkeypatch.delenv(name, raising=False)
-    monkeypatch.setattr(hatch_build, "BUNDLE_VERSION", "9.99")
-    monkeypatch.setattr(
-        hatch_build, "BUNDLE_SHA256", hashlib.sha256(BUNDLE).hexdigest()
-    )
+def pinned_fake_release(monkeypatch: pytest.MonkeyPatch) -> None:
+    clean_environment(monkeypatch)
 
 
 def test_the_hook_and_the_package_agree_on_names() -> None:
@@ -217,7 +133,6 @@ def test_another_target_ships_nothing(
     assert not calls
 
 
-OTHER_BUILD = gz({"format": 1, "licenseListVersion": "9.99", "other": "bytes"})
 FAILURES = {
     "offline": {},
     "pinned version not published": {"v10.0.json.gz": BUNDLE},
@@ -355,7 +270,6 @@ def test_check_bundle_refuses(raw: bytes, version: str, reason: str) -> None:
 
 
 def test_check_bundle_accepts_a_bundle_of_the_named_version() -> None:
-    hatch_build.check_bundle(BUNDLE, "9.99")
     hatch_build.check_bundle(BUNDLE, "9.99")
 
 

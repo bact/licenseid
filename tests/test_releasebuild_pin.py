@@ -7,20 +7,19 @@
 fetched, the only one shipped, and what the built wheel and sdist hold."""
 # pylint: disable=missing-function-docstring,protected-access
 
-import io
 import json
 import re
-import tarfile
-import zipfile
 from pathlib import Path
 from typing import Any
 
 import pytest
-from test_hatch_build import (  # noqa: F401  # pylint: disable=unused-import
+from hatch_helpers import (
     BUNDLE,
     NAME,
     OTHER_BUILD,
     PIN,
+    SDIST_PATH,
+    WHEEL_PATH,
     build_artifact,
     clean_environment,
     gz,
@@ -28,12 +27,21 @@ from test_hatch_build import (  # noqa: F401  # pylint: disable=unused-import
     names,
     online,
     run,
+    sdist_with,
+    sdist_with_link,
     serve,
     unpacked_sdist,
+    wheel_with,
 )
 
 import hatch_build
 from hatch_build import SnapshotError
+
+
+@pytest.fixture(autouse=True)
+def pinned_fake_release(monkeypatch: pytest.MonkeyPatch) -> None:
+    clean_environment(monkeypatch)
+
 
 FIXTURES = Path(__file__).parent / "fixtures" / "license-list"
 
@@ -135,26 +143,6 @@ def test_the_pin_names_a_published_bundle() -> None:
         assert doc["license_list_version"] == version, name
 
 
-def wheel_with(path: Path, members: dict[str, bytes]) -> Path:
-    with zipfile.ZipFile(path, "w") as archive:
-        for name, raw in members.items():
-            archive.writestr(name, raw)
-    return path
-
-
-def sdist_with(path: Path, members: dict[str, bytes]) -> Path:
-    with tarfile.open(path, "w:gz") as archive:
-        for name, raw in members.items():
-            info = tarfile.TarInfo(name)
-            info.size = len(raw)
-            archive.addfile(info, io.BytesIO(raw))
-    return path
-
-
-WHEEL_PATH = hatch_build.ARCHIVE_PATH["wheel"]
-SDIST_PATH = f"licenseid-0/{hatch_build.IN_TREE}"
-
-
 @pytest.mark.parametrize(
     ("target", "make", "member"),
     [("wheel", wheel_with, WHEEL_PATH), ("sdist", sdist_with, SDIST_PATH)],
@@ -215,6 +203,8 @@ def test_finalize_fails_when_the_built_artifact_holds_another_bundle(
     artifact = make(tmp_path / "built", {member: OTHER_BUILD})
     with pytest.raises(SnapshotError, match="^built: SHA-256 differs"):
         instance.finalize("standard", build_data, str(artifact))
+    # Deleted: a later upload of dist/* cannot take it.
+    assert not artifact.exists()
     assert instance._scratch is None
     # The check is made once: a second finalize has nothing to check.
     instance.finalize("standard", build_data, str(artifact))
@@ -234,18 +224,14 @@ def test_finalize_checks_nothing_when_nothing_was_shipped(
 
 
 WORKFLOWS = Path(__file__).parent.parent / ".github" / "workflows"
-# How the workflows' check after the build reads the pin.
-PIN_PATTERN = """r'^BUNDLE_VERSION: Final = "([^"]+)"$'"""
 
 
 @pytest.mark.parametrize("workflow", ["build.yml", "pypi-publish.yml"])
-def test_the_workflows_read_the_pin_the_hook_holds(workflow: str) -> None:
+def test_the_workflows_require_and_check_the_pinned_bundle(workflow: str) -> None:
     text = (WORKFLOWS / workflow).read_text(encoding="utf-8")
-    assert PIN_PATTERN in text
     assert 'LICENSEID_REQUIRE_BUNDLE: "1"' in text
-    source = Path(hatch_build.__file__).read_text(encoding="utf-8")
-    found = re.findall(PIN_PATTERN[2:-1], source, re.MULTILINE)
-    assert found == [PIN[0]]
+    assert "python scripts/check_dist_bundle.py dist\n" in text
+    assert text.index("python -m build") < text.index("check_dist_bundle.py")
 
 
 @pytest.mark.parametrize("target", ["wheel", "sdist"])
@@ -261,14 +247,33 @@ def test_read_shipped_takes_a_snapshot_of_the_largest_size(
 
 def test_read_shipped_takes_no_link_in_an_sdist(tmp_path: Path) -> None:
     """Only a file is the snapshot, not a link to another member."""
-    artifact = tmp_path / "a"
-    with tarfile.open(artifact, "w:gz") as archive:
-        info = tarfile.TarInfo("licenseid-0/other")
-        info.size = len(BUNDLE)
-        archive.addfile(info, io.BytesIO(BUNDLE))
-        link = tarfile.TarInfo(SDIST_PATH)
-        link.type = tarfile.SYMTYPE
-        link.linkname = "../../../other"
-        archive.addfile(link)
+    artifact = sdist_with_link(tmp_path / "a")
     with pytest.raises(SnapshotError, match="^a: no snapshot in it$"):
         hatch_build.read_shipped(artifact, "sdist")
+
+
+@pytest.mark.parametrize("target", ["wheel", "sdist"])
+def test_finalize_deletes_an_artifact_it_cannot_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str
+) -> None:
+    online(monkeypatch)
+    instance, _ = hook(tmp_path, target)
+    build_data: dict[str, Any] = {"force_include": {}}
+    instance.initialize("standard", build_data)
+    artifact = tmp_path / "built"
+    artifact.write_bytes(b"cut short")
+    with pytest.raises(SnapshotError, match="^built: "):
+        instance.finalize("standard", build_data, str(artifact))
+    assert not artifact.exists()
+
+
+def test_finalize_keeps_a_good_artifact_and_raises_when_one_is_gone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    online(monkeypatch)
+    build_data, _ = run(tmp_path, "wheel")
+    assert (tmp_path / "dist" / "licenseid-0-py3-none-any.whl").is_file()
+    instance, _ = hook(tmp_path)
+    instance.initialize("standard", build_data)
+    with pytest.raises(SnapshotError, match="^absent.whl: "):
+        instance.finalize("standard", build_data, str(tmp_path / "absent.whl"))

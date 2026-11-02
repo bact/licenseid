@@ -30,6 +30,7 @@ Environment:
     download or a file that is missing or not the pin, or ``skip``.
 """
 
+import contextlib
 import gzip
 import hashlib
 import http.client
@@ -251,12 +252,19 @@ class SpdxSnapshotHook(BuildHookInterface):  # type: ignore[type-arg]
     def finalize(
         self, version: str, build_data: dict[str, Any], artifact_path: str
     ) -> None:
-        """Drop the scratch directory; check the bundle the artifact holds."""
+        """Drop the scratch directory; check the bundle the artifact holds,
+        and delete an artifact that fails, so no later upload can take it."""
         self._remove_scratch()
         shipped, self._shipped = self._shipped, None
-        if shipped is not None:
-            artifact = Path(artifact_path)
+        if shipped is None:
+            return
+        artifact = Path(artifact_path)
+        try:
             check_pinned(read_shipped(artifact, shipped), artifact.name)
+        except SnapshotError:
+            with contextlib.suppress(OSError):
+                artifact.unlink(missing_ok=True)
+            raise
 
     def _remove_scratch(self) -> None:
         if self._scratch is not None:
