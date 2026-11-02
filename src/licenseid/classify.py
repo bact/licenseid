@@ -12,7 +12,9 @@ from structured markers (headings, SPDX tags, field values). These
 functions instead classify the input's *shape* (standalone license
 document vs. source file/README; explicit -or-later grant present or not),
 which LicenseDetector uses to choose a matching strategy. Where a grant
-stands in an expression (:func:`grant_at`) is read here too.
+stands in an expression (:func:`grant_at`) and where one after an ID ends
+(:func:`grant_end`, the one probe of both ``detect()`` and ``match()``) are
+read here too.
 """
 
 import bisect
@@ -50,8 +52,8 @@ OR_LATER_PHRASE = re.compile(
 )
 
 
-# How far past the white space after its "or" a grant read after an ID that
-# states its qualifier may go (grant_at). Read as after a number, the phrase
+# How far past the white space after its "or" a grant read after an ID may
+# go (grant_end). Read as after a number, the phrase
 # is "or", white space, then "later": a few characters past that run.
 _GRANT_WINDOW = 200
 # The qualifier an ID states at its end (plusoperator.states_qualifier).
@@ -76,20 +78,36 @@ def grant_at(
     (:func:`grant_spans`), found by a binary search, not a scan, as a
     minified line can hold thousands of each. After a licence that states
     its qualifier (*qualified*), the operator is read as after a number, as
-    ``match()`` reads a declared value (``looseid.grant_end``, held to the
-    same answers by ``tests/test_resolverfix_helpers.py``), so "GPL-2.0-only
+    ``match()`` reads a declared value (:func:`grant_end`), so "GPL-2.0-only
     or later" is a grant too, and a qualifier stated twice."""
     start = operator.start()
     index = bisect.bisect_right(spans[0], start) - 1
     if index >= 0 and start < spans[1][index]:
         return spans[1][index]
-    if not qualified:
+    return grant_end(text, start) if qualified else None
+
+
+def grant_end(text: str, start: int) -> int | None:
+    """Where the "or later" grant whose "or" is at *start* of *text* ends,
+    or None if no grant starts there: the one reading of a grant after an
+    ID, as after a number (a declared value has its ID before the "or";
+    OR_LATER_PHRASE wants a number before a bare "or later", as prose also
+    says "sooner or later"), unless a negation right before it takes it
+    back ("not or later"). The compound reader of ``match()`` asks it at
+    each "or" (decision Q14, through ``looseid``), the tag at an "or" after
+    a licence that states its qualifier (:func:`grant_at`).
+
+    The probe reads the white space after the "or" and a window past it,
+    not the rest of the text: one probe per "or" must not copy the line
+    ("A-only OR B-only OR ..." would be quadratic), and the runs after two
+    "or"s do not overlap. The phrases that need no number are matched where
+    they stand."""
+    grant = OR_LATER_PHRASE.match(text, start)  # sees "not" before it
+    if grant is not None:
+        return grant.end()
+    if is_negated(text[max(0, start - 5) : start]):  # "xnot ": enough to judge
         return None
-    # The phrases that need no number were in *spans*. The white space after
-    # the "or" and a window past it, not the rest of the line: one probe per
-    # "or" must not copy the line ("A-only OR B-only OR ..." would be
-    # quadratic), and the runs after two "or"s do not overlap.
-    run_end = operator.end()
+    run_end = start + 2  # after the "or"
     while run_end < len(text) and text[run_end].isspace():
         run_end += 1
     probe = OR_LATER_PHRASE.match("1 " + text[start : run_end + _GRANT_WINDOW])
@@ -159,7 +177,11 @@ _RE_CODE_SIGNAL = re.compile(
     r"def\s+\w+\s*\(|function\s+\w+\s*\()",
     re.MULTILINE,
 )
-_RE_NUMBERED_SECTION = re.compile(r"^\s*\d+\.\s+\w", re.MULTILINE)
+# A numbered section: "1. Definitions". The indent is white space other
+# than a line break: `\s*` after `^` reaches across line breaks, so a run of
+# blank lines was scanned once per line (6 s of detect() at 20,000), as in
+# licenseid.bsdclauses.
+_RE_NUMBERED_SECTION = re.compile(r"^[^\S\r\n]*\d+\.\s+\w", re.MULTILINE)
 _RE_MD_HEADER = re.compile(r"^#{1,6}\s+\S")
 
 

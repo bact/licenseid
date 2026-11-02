@@ -21,6 +21,7 @@ from licenseid.resolvertypes import (
     ListSource,
     Resolver,
 )
+from licenseid.trovenames import TROVE_CLASSIFIERS_VERSION
 
 # The kinds of step the SPDX License List supports; see ListInfo.provides.
 _PROVIDES = ["deprecation", "ids", "names", "texts"]
@@ -51,11 +52,12 @@ def trove_list_info() -> ListInfo:
     """The trove classifier vocabulary (:mod:`licenseid.trovenames`), named in
     an answer with a ``trove_name`` or ``trove_path`` step. It gives names,
     never IDs (``id_authority`` false), and is part of licenseid, so it is
-    always ``packaged`` and has no version of its own."""
+    always ``packaged``; its version is the ``trove-classifiers`` release the
+    table was decided from (``trovenames.TROVE_CLASSIFIERS_VERSION``)."""
     return {
         "id": TROVE_LIST,
         "name": "PyPI trove classifiers",
-        "version": None,
+        "version": TROVE_CLASSIFIERS_VERSION,
         "source": "packaged",
         "url": "https://pypi.org/classifiers/",
         "license": "Apache-2.0",

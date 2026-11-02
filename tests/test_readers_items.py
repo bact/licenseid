@@ -24,12 +24,12 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
-from licenseid import LicenseDatabase, match
-from licenseid.classify import grant_at, grant_spans, is_pure_license_text
+from licenseid import LicenseDatabase, classify, looseid, match
+from licenseid.classify import grant_at, grant_end, grant_spans, is_pure_license_text
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
-from licenseid.looseid import grant_end
 from licenseid.resolverinfo import trove_list_info
+from licenseid.trovenames import TROVE_CLASSIFIERS_VERSION
 
 
 def _tag(corpus_db: LicenseDatabase, value: str) -> tuple[str, bool] | None:
@@ -57,8 +57,21 @@ def _answer(corpus_db: LicenseDatabase, value: str) -> tuple[str | None, str | N
 
 
 def test_the_trove_list_has_a_version() -> None:
-    # BUG: no version for a list licenseid ships.
-    assert trove_list_info()["version"] is None
+    """The release the table was decided from (it had none: ``null`` for a
+    list licenseid ships), the lower bound of the test dependency that
+    test_trovenames checks every classifier against."""
+    pyproject = (Path(__file__).parent.parent / "pyproject.toml").read_text("utf-8")
+    pinned = re.findall(r'"trove-classifiers>=([0-9.]+)"', pyproject)
+    assert pinned == [TROVE_CLASSIFIERS_VERSION]
+    assert trove_list_info()["version"] == TROVE_CLASSIFIERS_VERSION
+
+
+def test_a_trove_answer_names_the_version(corpus_db: LicenseDatabase) -> None:
+    lists = match("License :: OSI Approved :: MIT License", corpus_db)["lists"]
+    assert [(e["id"], e["version"]) for e in lists] == [
+        ("spdx-license-list", "3.29.0"),
+        ("pypi-trove-classifiers", "2026.9.21.13"),
+    ]
 
 
 # --- item 2: a "+" after a space ----------------------------------------------
@@ -101,13 +114,27 @@ def test_a_dotted_capital_i_in_with(corpus_db: LicenseDatabase) -> None:
 # --- item 4: one probe of "or later" ------------------------------------------
 
 
-def test_the_tag_and_match_disagree_on_a_negated_grant() -> None:
-    text = "GPL-2.0-only not or later"
-    operator = re.compile("or").search(text, 17)
+def test_one_probe_reads_a_grant_after_an_id() -> None:
+    """``looseid`` (``match()``) reads with the probe the tag reads with."""
+    assert looseid.grant_end is classify.grant_end
+
+
+@pytest.mark.parametrize(
+    ("text", "grant"),
+    [
+        ("GPL-2.0-only not or later", False),  # the tag's own probe read one
+        ("GPL-2.0-only No or later", False),
+        ("GPL-2.0-only or later", True),
+        ("GPL-2.0-only cannot or later", True),  # a word that ends in "not"
+        ("GPL-2.0-only OR not later", False),
+    ],
+)
+def test_the_tag_and_match_agree_on_a_negated_grant(text: str, grant: bool) -> None:
+    operator = re.compile("or", re.IGNORECASE).search(text, 13)
     assert operator is not None
-    # BUG: two probes; the tag's took no negation.
-    assert grant_at(text, operator, grant_spans(text), True) == len(text)
-    assert grant_end(text, operator.start()) is None
+    tag = grant_at(text, operator, grant_spans(text), True)
+    assert tag == grant_end(text, operator.start())
+    assert tag == (len(text) if grant else None)
 
 
 # --- item 5: numbered sections after blank lines ------------------------------
@@ -123,11 +150,25 @@ def test_numbered_sections_are_counted_as_before(line_break: str) -> None:
     assert not is_pure_license_text(None, text.replace("5. Section", "5 Section"))
 
 
-def test_a_run_of_blank_lines_before_a_section() -> None:
-    payload = _WORDS + "\n" * 2_000 + "x"
+@pytest.mark.parametrize(
+    "line_break", ["\n", "\r\n", " \n"], ids=["LF", "CRLF", "space LF"]
+)
+def test_a_run_of_blank_lines_is_read_in_linear_time(line_break: str) -> None:
+    # 20,000 blank lines took 6 s (13 s with CRLF) when the indent was `\s*`.
+    payload = _WORDS + line_break * 20_000 + "x"
     start = time.monotonic()
     assert not is_pure_license_text(None, payload)
-    assert time.monotonic() - start < 5
+    elapsed = time.monotonic() - start
+    assert elapsed < 0.5, f"took {elapsed:.3f}s"
+
+
+@pytest.mark.benchmark
+def test_detect_reads_a_run_of_blank_lines_quickly(corpus_db: LicenseDatabase) -> None:
+    payload = _WORDS + "\n" * 20_000 + "x"
+    start = time.monotonic()
+    LicenseDetector(corpus_db.location).detect(payload)
+    elapsed = time.monotonic() - start
+    assert elapsed < 2, f"took {elapsed:.3f}s"  # 7 s before
 
 
 # --- item 6: a reference in another case --------------------------------------

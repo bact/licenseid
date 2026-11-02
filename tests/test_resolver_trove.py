@@ -21,7 +21,7 @@ from licenseid import LicenseDatabase, match
 from licenseid.resolveleaf import Found
 from licenseid.resolvertypes import Resolution
 from licenseid.resolvetrove import read_named
-from licenseid.trovenames import TROVE_NAMES
+from licenseid.trovenames import TROVE_CLASSIFIERS_VERSION, TROVE_NAMES
 
 #: Names the List's own names already read: the answer is a listed name.
 LISTED = {
@@ -145,7 +145,8 @@ def test_the_step_and_the_list_of_a_trove_name() -> None:
     )
     spdx, trove = got["lists"]
     assert spdx["id"] == "spdx-license-list"
-    assert (trove["id"], trove["version"], trove["source"]) == (TROVE, None, "packaged")
+    assert (trove["id"], trove["source"]) == (TROVE, "packaged")
+    assert trove["version"] == TROVE_CLASSIFIERS_VERSION
     assert (trove["provides"], trove["id_authority"]) == (["names"], False)
     assert got["operands"][0]["steps"] == got["steps"]
 

@@ -253,18 +253,20 @@ def test_the_tag_reads_a_grant_as_match_reads_it(tail: str) -> None:
 
 
 def test_a_probe_reads_a_window(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The probe after a stated qualifier reads a bounded window of the line,
-    never the rest of it: one per "or" would make a long line quadratic."""
+    """The probe after a stated qualifier copies a bounded window of the
+    line, never the rest of it: one per "or" would make a long line
+    quadratic. A match where the "or" stands copies nothing."""
     probed: list[int] = []
     phrase = classify.OR_LATER_PHRASE
 
     class Spy:  # pylint: disable=too-few-public-methods
-        """Records the length of each text the phrase is matched on."""
+        """Records the length of each copy the phrase is matched on."""
 
         @staticmethod
-        def match(text: str) -> re.Match[str] | None:
-            probed.append(len(text))
-            return phrase.match(text)
+        def match(text: str, pos: int = 0) -> re.Match[str] | None:
+            if not pos:
+                probed.append(len(text))
+            return phrase.match(text, pos)
 
     monkeypatch.setattr(classify, "OR_LATER_PHRASE", Spy)
     text = "GPL-2.0-only or " + "x " * 5000

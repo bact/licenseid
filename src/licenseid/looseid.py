@@ -13,7 +13,7 @@ exact and fuzzy matches.
 
 import re
 
-from licenseid.classify import OR_LATER_PHRASE, is_negated
+from licenseid.classify import OR_LATER_PHRASE, grant_end
 from licenseid.exprtokens import RE_TOKEN
 from licenseid.identifiers import (
     ONLY_WORD,
@@ -25,6 +25,25 @@ from licenseid.listlookup import ListedName, ListLookup
 from licenseid.plusoperator import PLUS_OPERATOR
 from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_key
 from licenseid.warning import warn
+
+# grant_end is classify's, the one probe of a grant after an ID; the
+# compound reader (exprcanon) imports it from here.
+__all__ = [
+    "RE_GRANT_WORDS",
+    "WITH_OPERATOR",
+    "declared_grant_id_text",
+    "drops_words",
+    "grant_end",
+    "granted_id_text",
+    "loose_id",
+    "loose_with",
+    "narrowed",
+    "narrowed_ids",
+    "resolved_id",
+    "restates_qualifier",
+    "shown",
+    "warn_narrowed",
+]
 
 # The word a grant starts with, where OR_LATER_PHRASE starts at the version
 # before it ("2 or later").
@@ -208,21 +227,6 @@ def declared_grant_id_text(text: str) -> str | None:
     if end is None or not _RE_GRANT_TAIL.fullmatch(text, end):
         return None
     return before.rstrip().rstrip("([").rstrip()
-
-
-def grant_end(text: str, start: int) -> int | None:
-    """Where the "or later" grant whose "or" is at *start* of *text* ends,
-    or None if no grant starts there. Read by classify.OR_LATER_PHRASE, as
-    after a number (a declared value has its ID before the "or"), unless a
-    negation right before it takes it back ("not or later"). The compound
-    reader of match() asks it at each "or" (decision Q14)."""
-    grant = OR_LATER_PHRASE.match(text, start)  # sees "not" before it
-    if grant is not None:
-        return grant.end()
-    if is_negated(text[max(0, start - 5) : start]):  # "xnot ": enough to judge
-        return None
-    probe = OR_LATER_PHRASE.match("1 " + text[start:])
-    return None if probe is None else start + probe.end() - 2
 
 
 def _granted(db: ListLookup, text: str) -> tuple[ListedName, str] | None:
