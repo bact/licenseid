@@ -17,8 +17,9 @@ bundle shipped in the wheel (:func:`licenseid.listindex.packaged_index`).
 - no database file (``not found``, an account with no home directory
   included): the bundle, silently;
 - a database that is there but cannot answer: the bundle, after
-  ``WARNING: database: <condition>: <detail>; using packaged data v<ver>``,
-  said once per process (not once per value);
+  the warning ``database: <condition>: <detail>; using packaged data
+  v<ver>`` (a :class:`licenseid.LicenseIdWarning`), given once per process
+  (not once per value);
 - no bundle either: the database's own error, as 0.6.0 raised it.
 
 ``source="database"`` reads the database at the default path, and raises
@@ -58,7 +59,6 @@ import weakref
 from typing import NamedTuple, get_args
 
 from licenseid import listindex
-from licenseid.console import warn
 from licenseid.database import LicenseDatabase, is_current_build
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path
@@ -66,12 +66,9 @@ from licenseid.errors import DatabaseNotReadyError, InvalidInputError, one_line
 from licenseid.listlookup import ListLookup
 from licenseid.resolvertypes import ListSource, Source
 from licenseid.spdxdata import PACKAGED_NAME, is_older
+from licenseid.warning import once, parts, warn
 
 SOURCES: tuple[Source, ...] = get_args(Source)
-# The warnings this process printed, a fallback's or an opened database's
-# (``build vN outdated``): each is said once, not once per value resolved.
-_LOCK = threading.Lock()
-_warned: set[str] = set()
 
 
 class _Kept(NamedTuple):
@@ -86,8 +83,10 @@ class _Kept(NamedTuple):
 
 # The last choice of each mode ("auto", "database"), under its own lock, held
 # to look it up and to store it, never while choosing: a choice can wait on
-# SQLite, and the choice itself warns through ``warn_once``, which takes
-# ``_LOCK``.
+# SQLite, and the choice itself warns (``licenseid.warning.once``: a
+# fallback's warning or an opened database's, ``build vN outdated``, is
+# given once per process, not once per value resolved), which takes a lock
+# of its own.
 _CHOICE_LOCK = threading.Lock()
 _kept: dict[str, _Kept] = {}
 # The databases given to match(db=...) found ready, by the stamp of their
@@ -168,7 +167,8 @@ def _opened(path: str) -> LicenseDatabase:
     if kept is not None and kept[0] == stamp:
         return kept[1]
     check_database_ready(path)
-    database = LicenseDatabase(path, create=False, report=warn_once)
+    with once():
+        database = LicenseDatabase(path, create=False)
     if not isinstance(stamp, Exception):
         with _CHOICE_LOCK:
             _paths[path] = (stamp, database)
@@ -181,9 +181,9 @@ def _packaged() -> listindex.ListIndex:
     """The packaged index, or the error that there is none."""
     index = listindex.packaged_index()
     if index is None:
-        problem = listindex.packaged_problem()
-        condition, _, detail = problem.partition(": ")
-        raise DatabaseNotReadyError(f"{PACKAGED_NAME}: {problem}", condition, detail)
+        message = f"{PACKAGED_NAME}: {listindex.packaged_problem()}"
+        _, condition, detail = parts(message)
+        raise DatabaseNotReadyError(message, condition, detail or "")
     return index
 
 
@@ -248,7 +248,8 @@ def _choose(mode: Source, path: str | None) -> tuple[ListLookup, ListSource, boo
     if mode == "database":
         path = get_default_db_path() if path is None else path
         check_database_ready(path)  # what auto calls unusable, this refuses
-        database = LicenseDatabase(path, create=False, report=warn_once)
+        with once():
+            database = LicenseDatabase(path, create=False)
         return database, "database", True
     return _auto(path)
 
@@ -259,17 +260,21 @@ def _auto(path: str | None) -> tuple[ListLookup, ListSource, bool]:
     try:
         path = get_default_db_path() if path is None else path
         check_database_ready(path)
-        database = LicenseDatabase(path, create=False, report=warn_once)
+        with once():
+            database = LicenseDatabase(path, create=False)
         metadata = database.get_metadata()
     except DatabaseNotReadyError as exc:
         index = listindex.packaged_index()
         if index is None:
             raise
         if exc.condition != "not found":
-            warn_once(
-                f"database: {exc.condition}: {exc.detail};"
-                f" using packaged data v{index.version}"
-            )
+            with once():
+                warn(
+                    "database",
+                    exc.condition,
+                    exc.detail,
+                    f"using packaged data v{index.version}",
+                )
         return index, "packaged", exc.condition != "unreadable"
     index = listindex.packaged_index()
     if index is None:
@@ -281,21 +286,6 @@ def _auto(path: str | None) -> tuple[ListLookup, ListSource, bool]:
     if is_older(index.version, version) or is_current_build(metadata):
         return database, "database", True
     return index, "packaged", True
-
-
-def warn_once(message: str) -> None:
-    """Warn *message* unless this process did already."""
-    with _LOCK:
-        if message in _warned:
-            return
-        _warned.add(message)
-    warn(message)
-
-
-def reset_warnings() -> None:
-    """Forget the warnings said, for a test that expects one."""
-    with _LOCK:
-        _warned.clear()
 
 
 def reset_choice() -> None:

@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from licenseid.console import end_line, status, warn
+from licenseid.console import end_line, status
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcache import TableCache, cast_license_details
 from licenseid.dbcheck import (
@@ -50,6 +50,7 @@ from licenseid.types import (
     LicenseNameId,
     UpdateSource,
 )
+from licenseid.warning import warn
 
 if TYPE_CHECKING:
     from licenseid.releasesource import UpdateRequest
@@ -108,7 +109,6 @@ class LicenseDatabase:
         self,
         db_path: str | os.PathLike[str],
         create: bool = True,
-        report: Callable[[str], None] | None = None,
     ):
         """Open the database at *db_path*. With *create* (the default) a
         missing file, or missing tables, are created; without it the file
@@ -116,9 +116,8 @@ class LicenseDatabase:
         so a detector never makes a database out of one that went missing.
 
         Without *create*, rules older or newer than this licenseid's are
-        warned (``database: build vN outdated: ...``) through *report*, by
-        default ``licenseid.console.warn``; ``match()`` passes one that
-        says each line once per process. A blank *db_path* is
+        warned (``database: build vN outdated: ...``, a
+        :class:`licenseid.LicenseIdWarning`). A blank *db_path* is
         :class:`licenseid.InvalidInputError`, as for ``LicenseDetector``."""
         db_path = os.fspath(db_path)
         reject_blank_path(db_path, "db_path", optional=False)
@@ -139,11 +138,10 @@ class LicenseDatabase:
         self._init_db()
         self._tables = TableCache(self._connections)
         if not create:  # update, which creates, is about to fix it
-            say = report or warn
-            for outdated in self._outdated_rules():
-                say(f"database: {outdated}; run 'licenseid update'")
-            for newer in self._stamped_rules(newer=True):
-                say(f"database: {newer}")
+            for condition, detail in self._outdated_rules():
+                warn("database", condition, detail, "run 'licenseid update'")
+            for condition, detail in self._stamped_rules(newer=True):
+                warn("database", condition, detail)
 
     @property
     def location(self) -> str:
@@ -151,16 +149,16 @@ class LicenseDatabase:
         :func:`licenseid.dbcheck.check_database_ready` reads it."""
         return self._source
 
-    def _outdated_rules(self) -> list[str]:
+    def _outdated_rules(self) -> list[tuple[str, str]]:
         """The rules this database was built with that are older than this
         licenseid's, each as a condition and its detail ("normalization v1
-        outdated: current v2"). ``update`` rebuilds such a database."""
+        outdated", "current v2"). ``update`` rebuilds such a database."""
         return self._stamped_rules(newer=False)
 
-    def _stamped_rules(self, newer: bool) -> list[str]:
+    def _stamped_rules(self, newer: bool) -> list[tuple[str, str]]:
         """The rules this database was built with that are older than this
         licenseid's (a stamp that is no number counts as older), or with
-        *newer*, the newer ones ("build v3 newer: current v2"): a later
+        *newer*, the newer ones ("build v3 newer", "current v2"): a later
         licenseid built it, and rebuilding would downgrade it.
 
         Stored search_text and fingerprints are normalised at build time; if
@@ -186,7 +184,7 @@ class LicenseDatabase:
         ]
         condition = "newer" if newer else "outdated"
         return [
-            f"{rules} v{stored} {condition}: current v{current}"
+            (f"{rules} v{stored} {condition}", f"current v{current}")
             for rules, stored, current, diff in ahead
             if (diff > 0 if newer else diff < 0)
         ]
@@ -369,7 +367,7 @@ class LicenseDatabase:
             with self._connection(write=True) as conn:
                 conn.execute("VACUUM")  # no transaction: nothing was written on conn
         except sqlite3.Error as exc:
-            warn(f"database: compact failed: {typed(exc)}")
+            warn("database", "compact failed", typed(exc))
 
     def _write_db_records(
         self,

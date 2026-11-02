@@ -12,6 +12,7 @@ import unicodedata
 from pathlib import Path
 
 import pytest
+from conftest import GivenWarnings
 from input_payloads import PAYLOADS, Payload
 
 import licenseid
@@ -30,11 +31,11 @@ _WARNING = "WARNING: input: not UTF-8, read as Latin-1: {}\n"
 
 @pytest.mark.parametrize("payload", _TEXT, ids=lambda p: p.name)
 def test_text_decodes_with_the_warning_only_for_latin1(
-    payload: Payload, capsys: pytest.CaptureFixture[str]
+    payload: Payload, given: GivenWarnings
 ) -> None:
     assert decode_input(payload.data, "LICENSE") == payload.text
     expected = _WARNING.format("LICENSE") if payload.latin1 else ""
-    assert capsys.readouterr().err == expected
+    assert given.lines() == expected
 
 
 @pytest.mark.parametrize("payload", _BINARY, ids=lambda p: p.name)
@@ -47,7 +48,7 @@ def test_any_nul_byte_is_binary(payload: Payload) -> None:
 
 @pytest.mark.parametrize("payload", PAYLOADS, ids=lambda p: p.name)
 def test_a_file_is_read_as_its_bytes_are_decoded(
-    payload: Payload, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    payload: Payload, tmp_path: Path, given: GivenWarnings
 ) -> None:
     """read_text_file is decode_input over the file's bytes, named by its path."""
     path = tmp_path / "LICENSE"
@@ -60,7 +61,7 @@ def test_a_file_is_read_as_its_bytes_are_decoded(
     else:
         assert read_text_file(str(path)) == payload.text
         expected = _WARNING.format(path) if payload.latin1 else ""
-        assert capsys.readouterr().err == expected
+        assert given.lines() == expected
 
 
 def test_a_missing_file_raises_oserror(tmp_path: Path) -> None:

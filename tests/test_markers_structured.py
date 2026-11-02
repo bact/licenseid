@@ -19,7 +19,7 @@ import sys
 from collections.abc import Generator
 
 import pytest
-from conftest import make_memory_db_path
+from conftest import GivenWarnings, make_memory_db_path
 
 from licenseid.database import LicenseDatabase
 from licenseid.markers import MarkerDetector
@@ -583,7 +583,11 @@ def test_resolve_unrecognised_value_returns_nothing(
     ],
 )
 def test_resolve_valid_expression_or_licenseref_yields_synthetic_candidate(
-    detector: MarkerDetector, value: str, expected_id: str, is_spdx: bool
+    detector: MarkerDetector,
+    value: str,
+    expected_id: str,
+    is_spdx: bool,
+    given: GivenWarnings,
 ) -> None:
     """Well-formed values with no DB row are kept as synthetic candidates;
     is_spdx is False if any part of the expression is not on the List."""
@@ -593,6 +597,7 @@ def test_resolve_valid_expression_or_licenseref_yields_synthetic_candidate(
     assert result[0]["is_spdx"] is is_spdx
     assert result[0]["search_text"] == ""
     assert result[0]["score"] == 0.95
+    assert given.conditions() <= {"variant not stated"}
 
 
 @pytest.mark.parametrize("value", ["", "   "])

@@ -14,7 +14,7 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from conftest import MIT_SEARCH_TEXT, json_lines, predicate_line
+from conftest import MIT_SEARCH_TEXT, GivenWarnings, json_lines, predicate_line
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.cli import cli
@@ -156,7 +156,10 @@ def test_every_result_carries_the_flags(db: str, text: str) -> None:
     ids=["to-id", "to-expression"],
 )
 def test_a_deprecated_id_takes_the_flags_of_its_replacement(
-    db: str, deprecated: str, replacement: str
+    db: str,
+    deprecated: str,
+    replacement: str,
+    given: GivenWarnings,
 ) -> None:
     """A deprecated ID answers its replacement, a license row or an
     expression: the flags are the replacement's, not the deprecated row's
@@ -171,6 +174,7 @@ def test_a_deprecated_id_takes_the_flags_of_its_replacement(
     )
     assert matcher.is_spdx(deprecated)
     assert matcher.is_osi(deprecated)
+    assert given.conditions() == {"variant not stated"}
 
 
 def test_match_json_shows_the_flags_of_a_manifest(db: str, tmp_path: Path) -> None:
@@ -449,7 +453,7 @@ def test_a_long_run_reads_in_linear_time(text: str) -> None:
 def test_a_bare_deprecated_field_is_narrowed_aloud(
     db: str,
     tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     kind: str,
     large: bool,
 ) -> None:
@@ -459,6 +463,6 @@ def test_a_bare_deprecated_field_is_narrowed_aloud(
     path = manifest(tmp_path, kind, "GPL-2.0", large)
     top = LicenseDetector(db).detect(file_path=path)[0]
     assert (top["expression"], top["exact"]) == ("GPL-2.0-only", False)
-    assert capsys.readouterr().err == (
+    assert given.lines() == (
         "WARNING: input: variant not stated: GPL-2.0; using GPL-2.0-only\n"
     )

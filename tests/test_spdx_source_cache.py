@@ -25,6 +25,10 @@ from licenseid import spdx_source
 from licenseid.database import LicenseDatabase
 from licenseid.errors import InvalidInputError, LicenseIdError
 
+# The steps of `update`, called on their own: their warnings are printed as
+# the command prints them, in order with its progress lines.
+pytestmark = pytest.mark.usefixtures("printed")
+
 _LICENSES = {"licenseListVersion": "3.28.0", "releaseDate": "2026-01-01"}
 
 

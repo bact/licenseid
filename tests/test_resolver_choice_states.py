@@ -9,6 +9,7 @@ list choice, before it is kept per file stamp)."""
 # pylint: disable=missing-function-docstring
 
 import pytest
+from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from release_fakes import release_bundle, ship
 from resolve_states import (
@@ -52,7 +53,7 @@ def _warnings(err: str, path: str) -> str:
 @pytest.mark.parametrize("case", CASES, ids=[f"{c[0]}-{c[1]}" for c in CASES])
 def test_auto_reads_and_says(
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     case: tuple[str, str, str, str],
 ) -> None:
     state, bundle, source, warning = case
@@ -60,7 +61,7 @@ def test_auto_reads_and_says(
     build(state, monkeypatch)
     for _ in range(3):
         assert match("MIT")["lists"][0]["source"] == source
-    err = capsys.readouterr().err
+    err = given.lines()
     if warning.startswith("database:"):
         warning = f"WARNING: {warning}; using packaged data v{bundle}\n"
     if state == NO_HOME:
@@ -70,13 +71,13 @@ def test_auto_reads_and_says(
 
 
 def test_auto_reads_a_directory_and_says_once(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, given: GivenWarnings
 ) -> None:
     ship(monkeypatch, release_bundle(NEWER))
     build(UNREADABLE, monkeypatch)
     for _ in range(3):
         assert match("MIT")["lists"][0]["source"] == "packaged"
-    err = capsys.readouterr().err
+    err = given.lines()
     assert err.count("WARNING: database: unreadable: ") == 1
     assert err.endswith(f"; using packaged data v{NEWER}\n")
 
@@ -105,13 +106,13 @@ def test_source_database_refuses_what_auto_calls_unusable(
 
 @pytest.mark.parametrize("state", [USABLE, OUTDATED])
 def test_source_database_reads_a_usable_one(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], state: str
+    monkeypatch: pytest.MonkeyPatch, given: GivenWarnings, state: str
 ) -> None:
     ship(monkeypatch, release_bundle(NEWER))
     build(state, monkeypatch)
     for _ in range(3):
         assert match("MIT", source="database")["lists"][0]["source"] == "database"
-    assert capsys.readouterr().err == (OUTDATED_WARNING if state == OUTDATED else "")
+    assert given.lines() == (OUTDATED_WARNING if state == OUTDATED else "")
 
 
 @pytest.mark.parametrize("state", [MISSING, INVALID, EMPTY, UNREADABLE, NO_HOME])
