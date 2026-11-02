@@ -63,7 +63,7 @@ class Answers(NamedTuple):
     not an answer."""
 
     api_match: str | None
-    api_is_spdx: bool
+    api_is_spdx: bool | None
     cli_match: str | None
     cli_is_spdx: bool
 

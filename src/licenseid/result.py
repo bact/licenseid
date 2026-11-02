@@ -51,9 +51,15 @@ def public_result(raw: RawMatch | InternalMatch) -> Detection:
         similarity=_rounded(raw["similarity"]),
         coverage=_rounded(raw["coverage"]),
         is_spdx=bool(raw.get("is_spdx", False)),
-        is_osi_approved=bool(raw.get("is_osi_approved", False)),
-        is_fsf_libre=bool(raw.get("is_fsf_libre", False)),
+        is_osi_approved=_judged(raw.get("is_osi_approved", False)),
+        is_fsf_libre=_judged(raw.get("is_fsf_libre", False)),
     )
+
+
+def _judged(flag: bool | None) -> bool | None:
+    """An OSI or FSF *flag* as a bool, None kept: an expression with an
+    operand nobody judged has no answer (``licenseid.exprflags``)."""
+    return None if flag is None else bool(flag)
 
 
 def json_line(result: Detection | Resolution | Mapping[str, object]) -> str:
@@ -90,6 +96,25 @@ def text_line(result: Detection) -> str:
         SIMILARITY=number(result["similarity"]),
         COVERAGE=number(result["coverage"]),
     )
+
+
+def no_detection_line() -> str:
+    """The line ``detect`` prints when nothing matches (exit 1): every field
+    of :func:`text_line`, each empty, so a reader finds the same keys."""
+    return fields_line(
+        EXPRESSION=None,
+        METHOD=None,
+        EXACT=None,
+        SCORE=None,
+        SIMILARITY=None,
+        COVERAGE=None,
+    )
+
+
+def no_detection_json() -> str:
+    """The object ``detect --json`` prints when nothing matches: every key of
+    a :class:`licenseid.types.Detection`, each ``null``."""
+    return json_line(dict.fromkeys(Detection.__annotations__))
 
 
 # What a value holds that would end its field or its line, or be read as an

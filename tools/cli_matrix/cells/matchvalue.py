@@ -52,7 +52,9 @@ REFUSED: list[tuple[str, str, str, str]] = [
     ("a file", "match $F/mit.txt", "", r"input: invalid: path: .*" + _DETECT),
     ("a directory", "match $F/adir", "", r"input: invalid: path: .*" + _DETECT),
     ("the current directory", "match .", "", r"input: invalid: path: \." + _DETECT),
-    ("standard input", "match", "printf MIT | ", r"input: invalid: standard input"),
+    # C8 of the contract batch: no value is missing, whatever is piped (it
+    # read the pipe to say "for detect"); "-" names standard input (below)
+    ("a pipe and no value", "match", "printf MIT | ", r"input: missing; pass one "),
     # nothing piped: no value, not one for detect
     ("stdin /dev/null", "match < /dev/null", "", r"input: missing; pass one "),
     (
@@ -75,6 +77,12 @@ REFUSED: list[tuple[str, str, str, str]] = [
         r"input: invalid: text: lone surrogate",
     ),
     ("two values", "match MIT ISC", "", r"input: invalid: extra argument: ISC"),
+    (
+        "- (standard input, C5)",
+        "match -",
+        "printf MIT | ",
+        r"input: invalid: standard input" + _DETECT,
+    ),
 ]
 
 #: (description, command, expected exit, stderr regex or None) for F3.

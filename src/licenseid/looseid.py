@@ -15,12 +15,15 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, is_negated
 from licenseid.console import warn
+from licenseid.exprtokens import RE_TOKEN
 from licenseid.identifiers import (
+    ONLY_WORD,
     normalize_identifier,
     qualify_trailing_grant,
     without_outer_brackets,
 )
 from licenseid.listlookup import ListedName, ListLookup
+from licenseid.plusoperator import PLUS_OPERATOR
 from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_key
 
 # The word a grant starts with, where OR_LATER_PHRASE starts at the version
@@ -62,18 +65,75 @@ def resolved_id(db: ListLookup, row: ListedName) -> str:
     return normalize_identifier(lid, db) if row["is_deprecated"] else lid
 
 
-def narrowed(row_id: str, resolved: str, text: str) -> bool:
+def narrowed(row_id: str, resolved: str) -> bool:
     """Whether the deprecated *row_id* was redirected to an -only form that
-    *text* did not state. A deprecated ID written as is ("GPL-2.0") is
-    -only by the License List's own definition, not by a guess."""
-    if "-only" not in resolved or "only" in row_id.lower():
+    was not stated. A deprecated ID written as is ("GPL-2.0") is narrowed
+    too: the List split it into -only and -or-later, and the -only guess is
+    the narrower grant, not the declared one (decision F3 of the contract
+    batch: guess narrow, mark not exact, warn)."""
+    return "-only" in resolved and "only" not in row_id.lower()
+
+
+def narrowed_ids(db: ListLookup, text: str, expression: str) -> bool:
+    """Whether *expression*, the reading of the declared *text*, narrowed a
+    deprecated ID of *text* to an -only form it does not state ("MIT OR
+    GPL-2.0" read as "GPL-2.0-only OR MIT", "GPL-2.0-with-classpath-exception"
+    as "GPL-2.0-only WITH Classpath-exception-2.0"). Each ID word is read
+    alone, as normalize_identifier() reads it, and judged by :func:`narrowed`,
+    the judge of every other path; its licence must be in *expression*, case
+    ignored. An ID with the "+" operator after it states its grant, as the
+    one reader of that operator (plusoperator.PLUS_OPERATOR) says: a "+"
+    after a space or before a comma is none."""
+    words = {word.casefold() for word in RE_TOKEN.findall(expression)}
+    granted = {
+        plus.end("id") for plus in PLUS_OPERATOR.finditer(text) if not plus["with"]
+    }
+    for token in RE_TOKEN.finditer(text):
+        # A bracket, a "+" or an operator is never narrowed; reading each
+        # alone cost seconds on 40,000 brackets around one ID.
+        if token.end() in granted or not token.group(0)[0].isalnum():
+            continue
+        reading = normalize_identifier(token.group(0), db)
+        if narrowed(token.group(0), reading) and (
+            RE_TOKEN.findall(reading)[0].casefold() in words
+        ):
+            return True
+    return False
+
+
+def drops_words(leading: str, expression: str, value: str, *, whole: bool) -> bool:
+    """Whether reading the declared *value* as *expression* (its *leading*
+    expression, with a grant that follows it applied) would drop words that
+    must not go: any words left over when the value is *whole* (a manifest
+    field holds nothing else, so "MIT/Apache-2.0" is not MIT, and "GPL-2.0
+    or later, and also MIT" is not GPL-2.0-or-later), or words that state
+    the qualifier of a "+" again (:func:`restates_qualifier`). Only a grant
+    that ends the value is no word left over (:func:`granted_id_text`)."""
+    if leading == value:
         return False
-    return text.strip().casefold() != row_id.casefold()
+    left = expression == leading or granted_id_text(value) is None
+    return left and (whole or restates_qualifier(leading, value))
+
+
+def restates_qualifier(expression: str, value: str) -> bool:
+    """Whether *value* states again, after its leading *expression* that ends
+    in the "+" operator, the qualifier the "+" states ("LGPL-2.1+ only",
+    "GPL-2.0+ or later"). ``match()`` refuses such a value (``qualifier
+    stated twice``), so no reading may answer it without the words that
+    contradict it. An ID that ends in ``-only`` keeps its reading
+    ("GPL-2.0-only or (at your option) any later version" is GPL-2.0-only
+    in a tag, test_spdx_tag_adversarial)."""
+    if (RE_TOKEN.findall(expression) or [""])[-1] != "+":
+        return False
+    rest = value[len(expression) :].lstrip()
+    if ONLY_WORD.match(rest):
+        return True
+    return declared_grant_id_text(value) == expression.rstrip()
 
 
 def warn_narrowed(text: str, resolved: str) -> None:
     """Say that *text* was read as the narrower -only grant *resolved*."""
-    warn(f"detect: variant not stated: {shown(text)}; using {resolved}")
+    warn(f"input: variant not stated: {shown(text)}; using {resolved}")
 
 
 def shown(text: str) -> str:
@@ -102,7 +162,7 @@ def loose_with(db: ListLookup, text: str) -> tuple[str, str | None] | None:
     if found is None or " WITH " in found[1]:
         return None  # no license, or one that carries an exception already
     row, resolved = found
-    loose = parts[0] if narrowed(row["license_id"], resolved, parts[0]) else None
+    loose = parts[0] if narrowed(row["license_id"], resolved) else None
     return f"{resolved} WITH {parts[1].strip()}", loose
 
 

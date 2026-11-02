@@ -33,8 +33,8 @@ def mit_db() -> Generator[str, None, None]:
 
 @pytest.mark.parametrize(
     "flags",
-    [["--java"], ["--no-java"], ["--java", "--bold"], ["--pop", "--java"]],
-    ids=["java", "no_java", "java_bold", "pop_java"],
+    [["--java"], ["--no-java"], ["--java", "--id-only"], ["--pop", "--java"]],
+    ids=["java", "no_java", "java_id_only", "pop_java"],
 )
 def test_java_options_are_rejected(mit_db: str, flags: list[str]) -> None:
     """A usage error (exit 2), worded as every other diagnostic."""
@@ -67,7 +67,7 @@ def tools_jar_env(
 def test_tools_jar_variable_is_ignored(mit_db: str, tools_jar_env: str) -> None:
     del tools_jar_env  # only its side effect (the environment variable) matters
     for args in (["--id", "MIT"], ["--text", MIT_SEARCH_TEXT]):
-        result = CliRunner().invoke(cli, ["--db", mit_db, "detect", "--bold", *args])
+        result = CliRunner().invoke(cli, ["--db", mit_db, "detect", "--id-only", *args])
         assert (result.exit_code, result.stdout, result.stderr) == (0, "MIT\n", "")
     assert LicenseDetector(mit_db).detect(text=MIT_SEARCH_TEXT)
 

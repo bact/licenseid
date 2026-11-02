@@ -15,6 +15,7 @@ import random
 import time
 from collections.abc import Callable, Generator
 from functools import cmp_to_key, partial
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -419,8 +420,15 @@ def twin_gpl_db() -> Generator[str, None, None]:
     )
 
 
-def top_id(db_path: str, text: str, file_path: str | None = None) -> str:
-    results = LicenseDetector(db_path).detect(text=text, file_path=file_path)
+def top_id(db_path: str, text: str, file_path: Path | None = None) -> str:
+    """The top answer for *text*, or, with *file_path*, for *text* written
+    there (detect() reads one input: it took the file and dropped the text
+    unsaid, here the checkout's own LICENSE, before P6 refused two)."""
+    if file_path is None:
+        results = LicenseDetector(db_path).detect(text=text)
+    else:
+        file_path.write_text(text, encoding="utf-8")
+        results = LicenseDetector(db_path).detect(file_path=str(file_path))
     assert results, "no match at all"
     return results[0]["expression"]
 
@@ -446,13 +454,14 @@ def test_a_source_header_with_granting_language_resolves_to_or_later(
 
 
 @pytest.mark.parametrize(
-    ("text", "file_path"),
+    ("text", "name"),
     [(f"{GPL_BODY}, version 2 only.", None), (f"{GPL_BODY}.", "LICENSE")],
     ids=["version-2-only", "pure-license-text"],
 )
 def test_text_without_a_grant_resolves_to_only(
-    twin_gpl_db: str, text: str, file_path: str | None
+    twin_gpl_db: str, tmp_path: Path, text: str, name: str | None
 ) -> None:
+    file_path = None if name is None else tmp_path / name
     assert top_id(twin_gpl_db, text, file_path) == ONLY
 
 

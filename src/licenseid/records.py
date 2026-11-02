@@ -27,7 +27,9 @@ from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 # Version of the rules that turn a release into rows. A database stores the
 # version it was built with; `update` rebuilds one built with older rules.
 # Version 2: a renamed deprecated ID records its successor (StandardML-NJ).
-BUILD_VERSION = "2"
+# Version 3: a deprecated ID without a text keeps the OSI and FSF flags the
+# List gives it (wxWindows, eCos-2.0); they were both False.
+BUILD_VERSION = "3"
 
 # (license_id, name, xml_template, is_spdx, is_osi, is_fsf,
 #  is_high_usage, is_deprecated, superseded_by, pop_score, word_count,
@@ -102,15 +104,17 @@ def _license_records(
 def _metadata_only_record(
     lic: SpdxLicenseEntry, superseded_by: str | None
 ) -> LicenseInsertRecord:
-    """The row of a deprecated licence that has no text."""
+    """The row of a deprecated licence that has no text: its flags as the
+    List gives them, as for a row with a text, with no text to count or
+    rank by."""
     dep_name = lic.get("name", lic["licenseId"])
     return (
         lic["licenseId"],
         dep_name,
         None,  # xml_template
         True,  # is_spdx
-        False,  # is_osi_approved
-        False,  # is_fsf_libre
+        lic.get("isOsiApproved", False),
+        lic.get("isFsfLibre", False),
         False,  # is_high_usage
         True,  # is_deprecated
         superseded_by,

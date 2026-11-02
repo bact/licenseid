@@ -17,10 +17,16 @@ synthetic, seeded to reach a deprecated exception that has a successor. The
 ``licenseid.__version__``. A case may carry a ``note``.
 
 The fixture holds the keys of the first result shape; schema 2 (task T7)
-added ``by`` to every step (``""``: licenseid did it), ``schema``,
-``components`` and ``operands``, which the test checks apart: each operand
-is read as its text would be alone, and the parser is a component of a
-compound.
+added ``schema``, ``components`` and ``operands``, which the test checks
+apart: each operand is read as its text would be alone, and the parser is a
+component of a compound.
+
+The contract batch gave every refusal a reason (P5): a case refused with
+none in the first shape carries the one ``match()`` gives it now, and
+``MIT OR GPL-2.0-only+`` its operand's own (``qualifier stated twice``).
+It made None mean nothing (P4): a step's empty ``list`` and ``detail`` are
+``null`` in the fixture (they were ``""``), and the ``by`` that T7 added to
+every step is gone.
 
 Lone surrogates survive the JSON file as ``\\udXXX`` escapes
 (``ensure_ascii=True``), and ``json.loads`` gives them back.
@@ -94,8 +100,6 @@ def test_resolve_result_is_unchanged(
     expected: dict[str, Any] = {
         "reason": None,  # added in T6; a case that is refused names its own
         **pinned,
-        "steps": [{**s, "by": ""} for s in pinned["steps"]],
-        "expansions": [{**s, "by": ""} for s in pinned["expansions"]],
         "resolver": {
             "name": "licenseid",
             "version": version,

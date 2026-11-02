@@ -14,12 +14,13 @@ from typing import Any, cast
 from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
-from licenseid.dbcheck import check_database_ready
+from licenseid.dbcheck import check_database_ready, reject_blank_path
 from licenseid.errors import InvalidInputError, invalid_id_error
 from licenseid.identifiers import (
     disambiguate_deprecated_id,
     is_qualified_plus,
     is_simple_expression,
+    simple_value,
 )
 from licenseid.looseid import loose_with, warn_narrowed
 from licenseid.manifest import extension, license_value_groups
@@ -28,7 +29,12 @@ from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
 from licenseid.result import public_result
 from licenseid.retrieval import get_candidates
-from licenseid.shorttext import EXACT_MATCH_SCORE, exact_id_match, match_short_text
+from licenseid.shorttext import (
+    EXACT_MATCH_SCORE,
+    exact_id_match,
+    match_short_text,
+    match_version_key,
+)
 from licenseid.similarity import (
     build_probe,
     calculate_base_similarity,
@@ -40,7 +46,7 @@ from licenseid.types import (
     Detection,
     DetectRequest,
     InternalMatch,
-    LicenseDetails,
+    LicenseFlags,
     Method,
     RawMatch,
 )
@@ -62,6 +68,32 @@ _MATCH_OPTIONS: frozenset[str] = frozenset(DetectRequest.__annotations__) - {
 }
 
 
+def _check_inputs(text: object, license_id: object, file_path: object) -> None:
+    """The input rules of :meth:`LicenseDetector.detect` (P6 of the contract
+    batch): :class:`TypeError` for a *text* or *license_id* that is no
+    :class:`str` (it failed deep inside with an ``AttributeError``), and
+    :class:`licenseid.errors.InvalidInputError` unless exactly one of the
+    three is given (none answered nothing; of two, one won unsaid)."""
+    for name, value in (("text", text), ("license_id", license_id)):
+        if value is not None and not isinstance(value, str):
+            raise TypeError(f"{name} must be str, not {type(value).__name__}")
+    given = [
+        name
+        for name, value in (
+            ("text", text),
+            ("license_id", license_id),
+            ("file_path", file_path),
+        )
+        if value is not None
+    ]
+    if not given:
+        raise InvalidInputError("input: missing; pass text, license_id or file_path")
+    if len(given) > 1:
+        raise InvalidInputError(
+            f"input: invalid: {given[0]}: with {given[1]}; pass one input"
+        )
+
+
 def _reject_unknown_options(options: dict[str, Any]) -> None:
     """Raise InvalidInputError for an option detect() does not know, so a typo
     or a removed option (`enable_java`) cannot pass with no effect."""
@@ -71,6 +103,17 @@ def _reject_unknown_options(options: dict[str, Any]) -> None:
             f"option: invalid: {', '.join(map(repr, unknown))}"
             f"; use one of {', '.join(sorted(_MATCH_OPTIONS))}"
         )
+
+
+def check_request(
+    text: object, license_id: object, file_path: object, options: dict[str, Any]
+) -> None:
+    """The checks of a detect() call that need no database: an unknown option
+    first (no input hides a typo), then the inputs. ``licenseid.detect()``
+    makes them before it opens the default database, so a wrong call is told
+    so whether a database is there or not."""
+    _reject_unknown_options(options)
+    _check_inputs(text, license_id, file_path)
 
 
 @dataclass(frozen=True)
@@ -90,6 +133,13 @@ class _MatchContext:
     manifest: list[list[str]]  # license_value_groups(): parsed once per call
 
 
+def _set_flags(match: RawMatch, flags: LicenseFlags) -> None:
+    """Give *match* the SPDX, OSI and FSF *flags*."""
+    match["is_spdx"] = flags["is_spdx"]
+    match["is_osi_approved"] = flags["is_osi_approved"]
+    match["is_fsf_libre"] = flags["is_fsf_libre"]
+
+
 class LicenseDetector:
     """
     Main detector class that implements Tier 1 (FTS5) and Tier 2 (RapidFuzz)
@@ -103,8 +153,9 @@ class LicenseDetector:
         enable_popularity: bool = False,
         report: Callable[[str], None] | None = None,
     ):
-        if not db_path:
+        if db_path is None:
             db_path = get_default_db_path()
+        reject_blank_path(str(db_path), "db_path")
         # Before LicenseDatabase, which opens the file (create=False below: it
         # must be there, and a lookup never makes one).
         check_database_ready(db_path)
@@ -125,7 +176,20 @@ class LicenseDetector:
             return []  # as for an empty license_id: nothing is declared
         if not is_simple_expression(license_id):
             raise invalid_id_error("license_id", license_id)
-        return self._resolve_declared(license_id)
+        # An ID written loosely ("GPL2") reads as it does in a text, so
+        # `--id GPL2` and the argument GPL2 answer alike (F3).
+        declared = self._resolve_declared(license_id) or self._resolve_loose_with(
+            license_id
+        )
+        return declared or self._with_flags(match_version_key(self.db, license_id))
+
+    def _with_flags(self, matches: list[RawMatch]) -> list[RawMatch]:
+        """*matches*, each given the flags of its expression if it has none
+        (an ID hit that answers another ID, see shorttext)."""
+        for match in matches:
+            if "is_spdx" not in match:
+                _set_flags(match, self.markers.license_flags(match["license_id"]))
+        return matches
 
     def _resolve_declared(self, value: str) -> list[RawMatch]:
         """The answer to a declared license value: certain, or none."""
@@ -150,7 +214,7 @@ class LicenseDetector:
 
     def _resolve_target_text(self, text: str | None, file_path: str | None) -> str:
         """Phase 2: read file_path as the CLI reads a file, or use the text."""
-        if file_path:
+        if file_path is not None:
             return read_text_file(file_path)
         reject_lone_surrogate(text or "")
         return text or ""
@@ -233,10 +297,10 @@ class LicenseDetector:
         # goes on to the name match.
         # So is a license written loosely WITH an exception ("GPL2 WITH
         # Classpath-exception-2.0"), simple-shaped or not ("Apache 2 WITH").
+        # One end mark after it ends it ("GPL-2.0+,"), as for a tag.
+        value = simple_value(ctx.target_text)
         declared = (
-            self._resolve_declared(ctx.target_text)
-            if is_simple_expression(ctx.target_text)
-            else []
+            self._resolve_declared(value) if value else []
         ) or self._resolve_loose_with(ctx.target_text)
         if declared:
             return declared
@@ -247,22 +311,13 @@ class LicenseDetector:
         # strips punctuation/case that the regex patterns rely on.
         disambiguated = disambiguate_deprecated_id(ctx.target_text)
         if disambiguated:
-            details = self.db.get_license_details(disambiguated)
             match = exact_id_match(disambiguated)
-            match["is_spdx"] = details["is_spdx"] if details else True
-            match["is_osi_approved"] = details["is_osi_approved"] if details else False
-            match["is_fsf_libre"] = details["is_fsf_libre"] if details else False
+            _set_flags(match, self.markers.license_flags(disambiguated))
             return [match]
 
         short_matches = self._match_short_text(ctx.norm_input, ctx.target_text)
         if short_matches and short_matches[0]["score"] > 1.0:
-            for m in short_matches:
-                if "is_spdx" not in m:  # an expression (see shorttext)
-                    flags = self.markers.license_flags(m["license_id"])
-                    m["is_spdx"] = flags["is_spdx"]
-                    m["is_osi_approved"] = flags["is_osi_approved"]
-                    m["is_fsf_libre"] = flags["is_fsf_libre"]
-            return short_matches
+            return self._with_flags(short_matches)  # an expression has none
 
         return None
 
@@ -305,8 +360,11 @@ class LicenseDetector:
                     word_count=len(norm_value.split()),
                 )
             )
-            # Only an exact ID or name: "BSD" is a fuzzy match for 0BSD.
-            if result and result[0]["score"] >= EXACT_MATCH_SCORE:
+            # Only an exact ID or name, or a declared reading ("GPL-2.0+,"):
+            # "BSD" is a fuzzy match for 0BSD.
+            if result and (
+                result[0]["score"] >= EXACT_MATCH_SCORE or result[0]["method"] == "id"
+            ):
                 # The field declares the exact hit, or the ID it names
                 # loosely, so nothing is measured (as for a field Tier 0.5
                 # resolved); a look-alike name after it was only found by
@@ -367,10 +425,14 @@ class LicenseDetector:
         """
         Identify license text and return ranked matches, each with the same
         keys (see licenseid.types.Detection).
-        Must provide exactly one of text, license_id, or file_path.
-        Raises licenseid.errors.InvalidInputError: unknown option, binary file,
-        a text with a lone surrogate, or a license_id that names no single
-        license (an AND/OR expression, a license name, an SPDX URL, prose).
+
+        Give exactly one of text, license_id or file_path. Raises
+        :class:`TypeError` for a text or license_id that is no str;
+        licenseid.errors.InvalidInputError for none or two of the three, an
+        unknown option, a binary file, a text with a lone surrogate, or a
+        license_id that names no single license (an AND/OR expression, a
+        license name, an SPDX URL, prose); :class:`OSError` (such as
+        :class:`FileNotFoundError`) for a file_path that cannot be read.
         An overlong licence ID, as license_id or in a text, is no match, not
         DatabaseNotReadyError, which means only that the database itself
         cannot be read.
@@ -394,8 +456,8 @@ class LicenseDetector:
         **options: Any,
     ) -> Sequence[RawMatch | InternalMatch]:
         """detect() before the public form: each tier's own records."""
-        _reject_unknown_options(options)
-        if license_id:
+        check_request(text, license_id, file_path, options)
+        if license_id is not None:
             return self._try_explicit_id_match(license_id)
 
         target_text = self._resolve_target_text(text, file_path)
@@ -443,44 +505,24 @@ class LicenseDetector:
 
         return ranked
 
-    def resolve_record(
+    def _resolve_record(
         self,
         text: str | None = None,
         *,
         license_id: str | None = None,
         file_path: str | None = None,
-    ) -> LicenseDetails | None:
-        """Resolve the input to the record of its top match (score 0.85 or
-        more), or None. The is_*() predicates and the CLI's is-* commands both
-        answer from this, so they cannot disagree with detect(), and raise
-        what it raises. The bar reads the public score, as --threshold does:
-        rounded to 4 places, so a raw 0.84995 passes."""
-        with self.db.reading():
-            results = self.detect(text, license_id=license_id, file_path=file_path)
-            if not results or results[0]["score"] < 0.85:
-                return None
-            top = results[0]
-            record = self.db.get_license_details(top["expression"])
-        if record:
-            return record
+    ) -> Detection | None:
+        """The top match of the input (score 0.85 or more), or None. The
+        is_*() predicates and the CLI's is-* commands both answer from this,
+        so they cannot disagree with detect(), and raise what it raises. The
+        bar reads the public score, as --threshold does: rounded to 4 places,
+        so a raw 0.84995 passes."""
+        results = self.detect(text, license_id=license_id, file_path=file_path)
+        if not results or results[0]["score"] < 0.85:
+            return None
+        return results[0]
 
-        # An expression (a WITH, an OR, a LicenseRef) is not a single DB row:
-        # fall back to the flags detect() already computed, not "unknown".
-        return cast(
-            LicenseDetails,
-            {
-                "license_id": top["expression"],
-                "name": top["expression"],
-                "is_spdx": top.get("is_spdx", False),
-                "is_osi_approved": top.get("is_osi_approved", False),
-                "is_fsf_libre": top.get("is_fsf_libre", False),
-                "is_high_usage": False,
-                "pop_score": 0,
-                "word_count": 0,
-            },
-        )
-
-    def diff_pair(self, text: str, license_id: str) -> tuple[str, str]:
+    def _diff_pair(self, text: str, license_id: str) -> tuple[str, str]:
         """The two sides of a word diff of *text* against *license_id*: the
         normalised input Tier 2 read (a short one without its tags) and the
         part of the license's normalised text it aligned with. ("", "") if
@@ -503,35 +545,45 @@ class LicenseDetector:
         )
         return norm_input, window
 
-    def is_spdx(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is in the SPDX License List.
+    def is_spdx(
+        self,
+        text: str | None = None,
+        *,
+        license_id: str | None = None,
+        file_path: str | None = None,
+    ) -> bool | None:
+        """True if every licence and exception of the license is on the SPDX
+        License List (a ``LicenseRef-*`` is not); None when no license is
+        found, as for every flag: not found is no "no". Takes and raises what
+        detect() takes and raises, without its options."""
+        record = self._resolve_record(text, license_id=license_id, file_path=file_path)
+        return None if record is None else record["is_spdx"]
 
-        Raises what detect() raises.
-        """
-        record = self.resolve_record(text, **kwargs)
-        return record is not None and record.get("is_spdx", False)
+    def is_osi(
+        self,
+        text: str | None = None,
+        *,
+        license_id: str | None = None,
+        file_path: str | None = None,
+    ) -> bool | None:
+        """True if the license is OSI-approved; for an expression, every
+        operand of an AND, any of an OR. None when no license is found, or
+        when an operand cannot be judged (not on the List, a
+        ``LicenseRef-*``). Takes and raises what :meth:`is_spdx` does."""
+        record = self._resolve_record(text, license_id=license_id, file_path=file_path)
+        return None if record is None else record["is_osi_approved"]
 
-    def is_osi(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is OSI-approved. Raises what detect() raises."""
-        record = self.resolve_record(text, **kwargs)
-        return record is not None and record.get("is_osi_approved", False)
-
-    def is_fsf(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is FSF-libre. Raises what detect() raises."""
-        record = self.resolve_record(text, **kwargs)
-        return record is not None and record.get("is_fsf_libre", False)
-
-    def is_open(self, text: str | None = None, **kwargs: Any) -> bool:
-        """True if the license is OSI-approved OR FSF-libre.
-
-        Raises what detect() raises.
-        """
-        record = self.resolve_record(text, **kwargs)
-        if not record:
-            return False
-        return bool(
-            record.get("is_osi_approved", False) or record.get("is_fsf_libre", False)
-        )
+    def is_fsf(
+        self,
+        text: str | None = None,
+        *,
+        license_id: str | None = None,
+        file_path: str | None = None,
+    ) -> bool | None:
+        """True if the license is FSF-libre, judged as :meth:`is_osi` is.
+        Takes and raises what :meth:`is_spdx` does."""
+        record = self._resolve_record(text, license_id=license_id, file_path=file_path)
+        return None if record is None else record["is_fsf_libre"]
 
     def _get_candidates(self, data: DetectRequest, text: str) -> list[CandidateMatch]:
         """Tier 1 retrieval for *text* (see licenseid.retrieval)."""
@@ -590,8 +642,9 @@ class LicenseDetector:
                     best_window=best_window,
                     score=0.0,
                     is_spdx=bool(cand.get("is_spdx", False)),
-                    is_osi_approved=bool(cand.get("is_osi_approved", False)),
-                    is_fsf_libre=bool(cand.get("is_fsf_libre", False)),
+                    # None (not judged) kept: a synthetic marker candidate.
+                    is_osi_approved=cand.get("is_osi_approved", False),
+                    is_fsf_libre=cand.get("is_fsf_libre", False),
                 )
             )
 
@@ -626,7 +679,7 @@ class LicenseDetector:
             RawMatch(
                 license_id=c["license_id"],
                 method=method or c["method"],
-                exact=True,
+                exact=not c.get("narrowed", False),
                 score=1.0,
                 similarity=None,
                 coverage=None,

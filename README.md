@@ -40,96 +40,19 @@ generator.*
   - `GPL-2.0+` → `GPL-2.0-or-later` (SPDX `+` operator, unambiguous).
   - `Apache-2+` → `Apache-2.0+` (abbreviated base canonicalised, `+` retained).
   - Bare deprecated IDs (e.g. `GPL-2.0`) resolved conservatively to `-only`
-    by `detect()` when no surrounding context is available; `match()` keeps
-    them as written (below).
+    by `detect()` when no surrounding context is available, as a guess said
+    aloud: not exact, with `WARNING: input: variant not stated: GPL-2.0;
+    using GPL-2.0-only`, whether the ID is an argument, `--id`, a tag or a
+    manifest field; `match()` keeps them as written (below).
 - **Declared-value resolution** (`match()`, and `licenseid match` on the
-  command line): turns one declared licence
-  value (a `license` field, a model card) into an SPDX expression and the
-  steps taken, without fuzzy matching, with or without a database:
-  - with no database it reads the SPDX License List shipped in the wheel, in
-    memory, and gives the answer a database built from that list gives;
-    with both, the newer List wins, and a tie goes to the database only if
-    this licenseid's build rules made its rows (`source=` picks one);
-  - exact and case-folded IDs; loosely written IDs (`Apache2`, `GPLv3`,
-    `GPLv2 or any later version`); the List's own licence names; "or later"
-    on an ID with no `-or-later` form is the `+` operator (`MIT or later` is
-    `MIT+`, `Apache 2.0 or later` is `Apache-2.0+`);
-  - a bare deprecated ID (`GPL-3.0`) comes back as written, category
-    `assumed_only`, with both candidates, never narrowed; a renamed one
-    (`StandardML-NJ`) becomes its successor (`SMLNJ`);
-  - quote marks around the whole value are taken off (`"MIT"`, `'MIT'`,
-    `“MIT”`, `«MIT»`, one or several layers, as an `unquote` step), and the
-    inside is read as it would be alone; a mark on one end only (`"MIT`) is
-    read too, as a weaker answer (`separator`); one end mark after the
-    closing marks (`"MIT".`) is an ending; marks of two kinds
-    (`"MIT'`) or inside the value (`Apache "2.0"`) are not read;
-  - a loose reading never drops a character that says something:
-    `Apache 2.0?`, `MIT*` and `"MIT?"` are `unresolved`, with a
-    `reason` and a `drop` step that was not applied; white space, `-`, `_`,
-    `.`, a dash and one trailing comma are still dropped. So is no word:
-    a list or comment marker (`REM MIT`, `1. MIT`, `iv. MIT`) is refused
-    with `word dropped: rem`. At the end of a value one `.`, `,`, `;` or
-    `:`, with white space around it, is an ending and is left off (`MIT;`,
-    `MIT License :`; a `separator` step); two or more marks, an ellipsis
-    and a lone dash (`MIT;;`, `MIT...`, `MIT…`, `MIT -`) are refused, also
-    after a `+`, an exception, a `LicenseRef-*` or a prose form (`MIT+;` is
-    `MIT+`; `GPL-2.0+?`, `MIT License -` are refused). At
-    the start nothing is left off: `-- MIT`, `; MIT`, `... MIT`, and an ID
-    cut from a longer one (`.GPL-3.0-only`, `-MIT`) are refused;
-  - licences joined by a `;` (`MIT ; Apache 2`) name two licences and not how
-    they combine (`AND` or `OR`), so the value is `unresolved`, with the
-    `reason` `operator not stated: ;` and one operand for each part, each
-    read as it would be alone: a caller can still ask whether every one is
-    OSI approved. A comma or `/` is not read this way, nor is a `;` that
-    ends an operand (`MIT; OR ISC`);
-  - a compound expression is read operand by operand: one-word operands
-    (with `WITH`, `+` or an "or later" grant), each as the same text would be
-    read alone, and per operand only a balanced pair of quotes; an operand
-    of several words is refused; with the operators in upper case, the
-    `reason` is `operand of several words: BSD 3-Clause` for a leaf that
-    reads alone, else `operand not resolved: Foo Bar`. The result is written
-    in licenseid's canonical order: operators in upper case, a chain of one operator
-    flattened, operands sorted (IDs, then `LicenseRef-*`, then `WITH`, then
-    bracketed groups), duplicates dropped, and brackets only where
-    precedence needs them (`mit or "Apache2"` → `Apache-2.0 OR MIT`);
-    `[ ]` and `{ }` count as brackets;
-  - the PyPI trove classifier names of the `License ::` family are read from
-    a table that records what each name states (`GNU General Public License
-    v3 or later (GPLv3+)` is `GPL-3.0-or-later`, category `trove_name`);
-    a name that writes a version but not "only" or "or later" (`... v3
-    (GPLv3)`) is the bare ID, `assumed_only`; a name that names no single
-    licence (`BSD License`, `W3C License`) or only by usage (`Apache
-    Software License`) stays `unresolved`. The table matches case and
-    spacing exactly, except that a name it reads as no licence is refused
-    however it is written. A path in its real form
-    (`License :: OSI Approved :: MIT License`) is read as its name is
-    read alone, with a `trove_path` step;
-  - a name followed by a parenthesis (`MIT License (MIT)`) is read as the
-    name when the name and the parenthesis are each an ID, a List name or
-    a prose form (below) and are one expression (`trailing_name` step); if
-    they differ, or only one reads, the value is not read. Where the List
-    backs both parts this is read before the table, so `Eclipse Public
-    License 2.0 (EPL-2.0)` is `listed_name`;
-  - the prose form of one licence is read last, as category `prose_form`
-    (a `prose_form` step, then the steps of what it reduces to): a final
-    `license` or `licence` after a value that names one licence, with a `+`
-    or a `WITH` if it has one (`BSD 3-Clause License`, `MIT+ License`), `<name>
-    License[,] (Version|v) N` as `<name> N`, or as the List name `<name>
-    License N` if both name the same licence (`Apache License, Version 2.0`,
-    `Mozilla Public License, Version 2.0`), and a leading `The` with
-    either, or with a List name (`The MIT License`; `The MIT` is not
-    read). One mark at the end is left off, as for any value (`MIT
-    License.`, `MIT License;`). A name that
-    states no licence (`BSD License`, `W3C License`) and a bare family
-    (`BSD`) stay `unresolved`, and a prose form is no operand of a
-    compound (`BSD 3-Clause License OR MIT`: `operand of several words`);
-  - a compound is all or nothing: its category is the weakest operand's,
-    and one operand that names nothing leaves the whole unresolved, with a
-    `reason` naming it; a mark used as an operator (`MIT/Apache-2.0`) is
-    refused, with a `reason`;
-  - every result names its category and trust level, each step, the list
-    it rests on with its version and where it was read (`database` or
-    `packaged`), and the resolver's version (see [Python API](#python-api)).
+  command line): turns one declared licence value (a `license` field, a
+  model card, a trove classifier) into an SPDX expression and the steps
+  taken, without fuzzy matching, with or without a database. It reads loose
+  IDs (`Apache2`, `GPLv3`), the List's names, prose forms (`BSD 3-Clause
+  License`), quote marks, trove classifiers and compounds of one-word
+  operands, and refuses, with a reason, what it would read only by dropping
+  a mark or a word. What it reads, rule by rule, is in
+  [docs/match.md][match-doc-reads].
 - **SPDX License Expression support** (via
   [`py-spdx-license`][py-spdx-license]):
   - Structural normalisation of `AND`/`OR` expressions: duplicate operands
@@ -137,6 +60,12 @@ generator.*
     order, making equivalent expressions compare equal. The canonical order of
     `match()` differs from this one (`MirOS OR MIT` there, `MIT OR MirOS`
     here).
+  - The flags of an expression are judged operand by operand: `AND` is
+    OSI-approved (or FSF-libre) when every operand is, `OR` when any is,
+    `X WITH Y` when `X` is. An operand that cannot be judged (a
+    `LicenseRef-*`, an ID not on the List) leaves the flag empty (`null`),
+    never a false "no". `is_spdx` is true only when every licence and
+    exception ID is on the List: a `LicenseRef-*` makes it false.
   - `WITH <exception>` expressions are validated and matched against the
     SPDX exception list, not just the license list — e.g.
     `licenseid detect --id "MIT WITH Font-exception-2.0"` resolves correctly
@@ -197,19 +126,25 @@ licenseid update
 ```
 
 Progress and warnings go to standard error; standard output carries only the
-result, one line (`--json`: one JSON object):
+result, one line per list (`--json`: one JSON object per list):
 
 ```text
-STATUS=updated	VERSION=3.29.0	PATH=/home/me/.local/share/licenseid/licenses.db
+LIST=spdx-license-list	VERSION=3.29.0	STATUS=updated	PATH=/home/me/.local/share/licenseid/licenses.db
 ```
 
-`STATUS` is `updated`, or `unchanged` when the database already had that
-release; `VERSION` is the SPDX License List release it now holds.
+`LIST` is the list, by the ID `match()` gives it in `lists[*].id`;
+`VERSION` is the release the database now holds; `STATUS` is `updated`, or
+`unchanged` when the database already had that release.
 
 Advanced update options:
 
-- `--version <version>`: Download a specific SPDX License List version
-  (e.g., `3.28.0`).
+- `--list <id>[@<version>]`: The list to install, and its release
+  (`--list spdx-license-list@3.28.0`); without a version, the latest.
+  Repeatable; with none, every list licenseid installs, at its latest
+  release (today one: `spdx-license-list`). A release given is fetched
+  without asking which release is the latest. An ID licenseid does not
+  install, a version that is no release (`3.28.0` or `3.28`) and a list
+  named twice exit 2.
 - `--force`: Force update even if the local database is already at
   the target version.
 - `--no-cache`: Bypass the local cache for downloads.
@@ -247,12 +182,19 @@ licenseid detect LICENSE.txt
 # From an ID (smart detection)
 licenseid detect MIT
 
-# From a string (smart detection / piped)
+# From a string (smart detection / piped); "-" names standard input
 echo "MIT License..." | licenseid detect
+echo "MIT License..." | licenseid detect -
 
 # Explicit ID lookup (fastest, skips similarity check)
 licenseid detect --id MIT
 ```
+
+One input at a time: `--text` or `--id` with an argument (a file, a value
+or `-`), or `--id` with `--text`, exits 2 with
+`ERROR: option: invalid: --id: with --text; pass one input`. Standard input
+is read only when nothing else is given, so a pipe beside an argument is not
+read.
 
 An argument names a file when one exists by that name. One that does not,
 but is shaped like a path (one word with `/`, `\` or a file extension, such
@@ -287,16 +229,19 @@ Common options:
   (see above). A value that is no license, such as `GPL-2.0-only+` (a "+"
   after a stated qualifier), is a "no" as text (exit 1, and `detect()`
   returns no result) and a usage error as `--id` (exit 2).
-- `--text <text>`: Match the given text. Backslash escapes such as `\n`,
-  `\t` and `\u00e9` are decoded, so write `\\` for a literal backslash
-  (for example in a Windows path).
-- `--bold`: Print only the top license ID (no other info).
+- `--text <text>`: Match the given text, taken as written: a backslash is
+  a backslash (`C:\temp\new` is that path), and `\n` is two characters.
+  For a line break, pass one (`--text "$(printf 'a\nb')"`) or pipe the
+  text.
+- `--id-only`: Print only the top expression, or an empty line when there
+  is none (exit 1).
 - `--diff`: Show a word-by-word diff between the input and the top
-  result, when it was matched as text and is not exact.
-- `--json`: Output results as JSON Lines (see below).
+  result, when it was matched as text and is not exact, on standard error.
+- `--json`: Output results as JSON Lines (see below). It takes neither
+  `--id-only` nor `--diff`: either with it exits 2.
 - `--threshold <score>`: Keep results that score at least this, from 0 to
   1 (default 0.85). A value outside 0 to 1 exits 2.
-- `--top <n>`: Keep at most this many results (default 3).
+- `--top <n>`: Keep at most this many results (default 3); below 1 exits 2.
 - `--exact`: Keep only exact results (`EXACT=true`, see below).
 - `--pop/--no-pop`: Weigh results by popularity, or not (default off).
 
@@ -344,22 +289,23 @@ Options:
 
 `match` reads a declared value, not a licence text, so it refuses what only
 `detect` answers, with exit 2, nothing on standard output and
-`; run 'licenseid detect'`: `--text`, standard input with no argument, a
+`; run 'licenseid detect'`: `--text`, `-` (standard input), a
 value with a line break, and one over 2,000 characters once its surrounding
 white space is trimmed. A value that resolves is answered even when a file
 of that name exists (`match MIT` beside a file `MIT`); one that resolves to
 nothing and names an existing file or directory (`match LICENSE`) is
-refused. An empty argument, or no argument and nothing piped, is a usage
-error too (`input: missing`). Exit 0 means the value resolved to an
+refused. An empty argument, or no argument, is a usage error too
+(`input: missing`): `match` never reads standard input, so a pipe that stays
+open cannot hold it. Exit 0 means the value resolved to an
 expression (`GPL-3.0`, kept as `assumed_only`, included), 1 that it did not
-(a list joined by `;` included), with nothing on standard error.
+(a list joined by `;` included), with no `ERROR` line.
 
 `detect` and `match` answer different questions, so their answers to one
 value can differ:
 
 | Command | Prints | Means |
 | :--- | :--- | :--- |
-| `detect GPL2` | `EXPRESSION=GPL-2.0-only`, with `WARNING: detect: variant not stated` | the closest licence on the list, a guess said aloud |
+| `detect GPL2` | `EXPRESSION=GPL-2.0-only`, `EXACT=false`, with `WARNING: input: variant not stated` | the closest licence on the list, a guess said aloud |
 | `match GPL2` | `EXPRESSION=GPL-2.0`, `CATEGORY=assumed_only` | what was declared, kept as written: no guess |
 
 ### 4. Cache management
@@ -374,14 +320,20 @@ value can differ:
 
 To clear the cache manually:
 
-```bash
-licenseid --clear-cache
+```console
+$ licenseid clear-cache
+STATUS=cleared	PATH=/home/me/.local/share/licenseid/licenses.db
 ```
 
-This deletes the database and the cache files beside it, so it refuses a
+This deletes the database and the cache files beside it, and prints one
+record (`--json`: one object): `STATUS=cleared`, or `nothing` when there was
+nothing of licenseid's to delete, and the database `PATH`. Cache files are
+deleted only where they are licenseid's: in the default directory, or
+beside any ready database. Beside a `--db` path with no ready
+database, they are kept. It refuses a
 `--db` path holding a file licenseid did not build (exit 2,
-`database: invalid`). A database it cannot read is still cleared: that is
-what the command is for.
+`database: invalid`); a delete the system refuses exits 1. A database it
+cannot read is still cleared: that is what the command is for.
 
 ### 5. Output formats
 
@@ -419,10 +371,10 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   a field or an ID has neither, a name has no coverage. `COVERAGE` is the
   input's words over the license's, so it passes 1 when the input is longer.
 
-ID only:
+The top expression only:
 
 ```bash
-licenseid detect LICENSE.txt --bold
+licenseid detect LICENSE.txt --id-only
 ```
 
 Example output:
@@ -454,8 +406,9 @@ licenseid detect LICENSE --diff --top 1
 ```
 
 Example output (a diff is shown for the top result when it was matched as
-text and is not exact). The result lines go to standard output and the diff
-to standard error, so `2>/dev/null` keeps only the results:
+text and is not exact; with `--id-only` too, not with `--json`). The result
+lines go to standard output and the diff to standard error, so
+`2>/dev/null` keeps only the results:
 
 ```diff
 EXPRESSION=Apache-2.0	METHOD=text	EXACT=false	SCORE=1.0000	SIMILARITY=0.9978	COVERAGE=0.9987
@@ -483,22 +436,36 @@ WORD DIFF:
 #### Reading the output
 
 Every command prints its result in one pattern, so one reader serves them
-all: one record per line, `KEY=VALUE` fields with an uppercase key, one tab
-between fields, an empty value for nothing, and `\t`, `\r`, `\n` and `\\`
-for a tab, a line break or a backslash inside a value. `--json` prints the
-same record as one RFC 8785 JSON object per line, its keys the text keys in
-lower case (`EXPRESSION` is `expression`), nothing `null`. The only
-exceptions are `detect --bold` (the ID alone), `--version` and `--help`.
+all:
+
+- One record per line, `KEY=VALUE` fields with an uppercase key, one tab
+  between fields, and `\t`, `\r`, `\n` and `\\` for a tab, a line break
+  or a backslash inside a value.
+- The first key of a line names its kind: `EXPRESSION` the answer, `STEP` a
+  step of `match`, `REASON` a refusal, `OPERAND` a licence of a list,
+  `LIST` the list `update` read, `STATUS` what `clear-cache` did.
+- The answer is the first line. A command with no answer still prints its
+  record, every field empty: `detect` on exit 1 prints
+  `EXPRESSION=` and the other keys with nothing after the `=`.
+- Fields are only ever appended to a line in a later release, never
+  removed, renamed or moved: read a field by its key, not its place.
+- `--json` prints the same record as one RFC 8785 JSON object per line,
+  its keys the text keys in lower case (`EXPRESSION` is `expression`).
+  `null` means nothing, where the text line has an empty value. The keys of
+  `match --json`, which prints the whole result as one object, are mapped
+  to its text lines in [docs/match.md][match-doc].
+
+The only exceptions are `detect --id-only` (the expression alone),
+`--version` and `--help`.
 
 ```bash
 # The second field of the line, its value after the "="
 licenseid is-osi MIT | cut -f2 | cut -d= -f2-          # true
 
-# A field by its key, whatever its place
-licenseid detect LICENSE | awk -F'\t' '{
-  for (i = 1; i <= NF; i++) if (split($i, kv, "=") && kv[1] == "EXPRESSION")
-    print substr($i, length("EXPRESSION=") + 1)
-}'
+# The answer: the first field of the line whose first key is EXPRESSION
+# (match also prints EXPRESSION= after OPERAND= on a line of its own kind)
+licenseid match "MIT ; Apache 2" | awk -F'\t' '
+  $1 ~ /^EXPRESSION=/ { print substr($1, length("EXPRESSION=") + 1); exit }'
 
 # The same with jq
 licenseid detect --json LICENSE | jq -r .expression
@@ -513,11 +480,16 @@ making it suitable for use in scripts and CI/CD pipelines.
 
 | Exit Code | Meaning | Scenarios |
 | :--- | :--- | :--- |
-| **0** | Success | Confident match found; `match`: the value resolved to an expression; predicate is TRUE; database updated or already up-to-date; cache cleared. |
-| **1** | Logic Failure | No matching license found (nothing printed); `match`: no expression (the result is still printed); predicate is FALSE (its record still printed); an update or a cache clear that failed (a network error, a delete the system refuses). |
-| **2** | Usage or Setup Error | Missing subcommand (help on standard error); missing input text/file; invalid parameters; `match` given a text, standard input, or a path that resolves to nothing; database not ready (for `match`, no list to read); output that cannot be written. |
+| **0** | Success | Confident match found; `match`: the value resolved to an expression; predicate is TRUE; database updated or already up-to-date; cache cleared or nothing to clear. |
+| **1** | Logic Failure | No matching license found (one record, every field empty); `match`: no expression (the result is still printed); predicate is FALSE, or cannot be judged (its record still printed); an update or a cache clear that failed (a network error, a delete the system refuses). |
+| **2** | Usage or Setup Error | Missing subcommand (help on standard error); missing input text/file; two inputs; `--json` with `--id-only` or `--diff`; invalid parameters; `match` given a text, `-`, or a path that resolves to nothing; database not ready (for `match`, no list to read); output that cannot be written. |
 | **130** | Interrupted | Ctrl-C (SIGINT); no message once started. |
 | **141** | Reader gone | The reader closed the pipe (`head -1`); no message. |
+
+Exit 1 of `detect`, `match` and the `is-*` commands prints no `ERROR` line.
+A `WARNING` about the input or the database can still come with it, as with
+an answer: `detect --exact GPL-2.0` says `variant not stated` and finds no
+exact match.
 
 A database is not ready when it is missing, empty (no licenses yet), invalid
 (another program's file) or unreadable. `detect` and the `is-*` commands refuse
@@ -548,8 +520,8 @@ name, so `cut -d: -f1-3` gives the level, subject and condition.
 ### 7. License predicates (for CI/CD)
 
 Predicate commands are designed for shell scripting.
-They exit with `0` (for true) or `1` (for false), and print one line: the
-licence judged and the answer (`--json`: one JSON object):
+They exit with `0` (for true) or `1` (for false, or no answer), and print
+one line: the licence judged and the answer (`--json`: one JSON object):
 
 ```console
 $ licenseid is-osi MIT
@@ -558,15 +530,20 @@ $ licenseid is-osi --json MIT
 {"expression":"MIT","is_osi_approved":true}
 ```
 
-`EXPRESSION` is empty (`null` in JSON) when the input names no licence.
+For an expression, `AND` is true when every operand is, `OR` when any is,
+and `X WITH Y` as `X` is. The flag is empty (`null` in JSON), exit 1, when
+there is nothing to judge: never a false "no". That is when the input names
+no licence (`EXPRESSION` is empty too), or when an operand cannot be judged
+(`MIT OR LicenseRef-x`).
 
 | Command | Key | Description |
 | :--- | :--- | :--- |
-| `is-spdx` | `IS_SPDX` | True if the license is in the SPDX License List. |
-| `is-open` | `IS_OPEN` | True if the license is OSI-approved **OR** FSF-libre. |
-| `is-free` | `IS_FREE` | Alias for `is-open`. |
+| `is-spdx` | `IS_SPDX` | True if every licence and exception ID is on the SPDX License List (a `LicenseRef-*` is not). |
 | `is-osi` | `IS_OSI_APPROVED` | True if the license is OSI-approved. |
 | `is-fsf` | `IS_FSF_LIBRE` | True if the license is FSF-libre. |
+
+OSI-approved or FSF-libre is the two joined:
+`licenseid is-osi X >/dev/null || licenseid is-fsf X >/dev/null`.
 
 Example usage in a script:
 
@@ -576,8 +553,10 @@ if licenseid is-osi MIT >/dev/null; then
   echo "This is an OSI-approved license."
 fi
 
-# Check by File
-licenseid is-open LICENSE.txt >/dev/null || echo "Not an open source license"
+# Check by File: OSI-approved or FSF-libre
+licenseid is-osi LICENSE.txt >/dev/null ||
+  licenseid is-fsf LICENSE.txt >/dev/null ||
+  echo "Neither OSI-approved nor FSF-libre"
 
 # Check by Text (via stdin)
 echo "MIT License..." | licenseid is-fsf >/dev/null && echo "FSF Libre!"
@@ -617,7 +596,7 @@ is unchanged; make your own `LicenseDetector(db_path)` for another database.
 You can use `licenseid` directly in your Python projects:
 
 ```python
-from licenseid.detector import LicenseDetector
+from licenseid import LicenseDetector
 
 # Initialize with default database
 detector = LicenseDetector()
@@ -636,21 +615,31 @@ results = detector.detect(license_id="MIT")
 # binary data raises licenseid.InvalidInputError.
 results = detector.detect(file_path="LICENSE.txt")
 
-# 4. Predicates
-# Supports keyword arguments for precise control.
+# 4. Predicates: the same one input, named as for detect()
 if detector.is_osi(license_id="MIT"):
     print("OSI Approved!")
 
-if detector.is_open(file_path="LICENSE.txt"):
+# OSI-approved or FSF-libre; None means an operand could not be judged
+if detector.is_osi(file_path="LICENSE.txt") or detector.is_fsf(
+    file_path="LICENSE.txt"
+):
     print("Open Source!")
 
 if detector.is_spdx(text="Creative Commons Zero v1.0 Universal"):
     print("SPDX Match Found!")
 ```
 
+`detect()` takes exactly one input, `text`, `license_id` or `file_path`:
+none, or two, raise `licenseid.InvalidInputError` (a `RuntimeError`); a
+`text` or `license_id` that is not a `str` raises `TypeError`, and a
+`file_path` that cannot be read raises `OSError` (such as
+`FileNotFoundError`). `is_osi()`, `is_fsf()` and `is_spdx()` take the same
+inputs and no options; `is_osi()` and `is_fsf()` return `None` when an
+operand of the expression cannot be judged.
+
 `detect()` takes the keyword options `enable_popularity`, `exclude`, `hint`,
-`only_common` and `only_spdx`, and raises `licenseid.InvalidInputError` (a
-`RuntimeError`) for any other, such as a mistyped name. The options shape the
+`only_common` and `only_spdx`, and raises `licenseid.InvalidInputError`
+for any other, such as a mistyped name. The options shape the
 ranking of license text; an explicit `license_id`, a bare ID or name and an
 `SPDX-License-Identifier` tag are answered before they are read.
 
@@ -669,8 +658,12 @@ the shipped list; with a database that is there but unusable, the shipped
 list after one `WARNING: database: <condition>: <detail>; using packaged data
 v<version>` on standard error. `source="database"` reads only the database
 (and raises for one that cannot answer, as `auto` would call it unusable) and
-`source="packaged"` only the shipped list; `match(value, db)` reads `db`.
-A value that is not a `str` raises `TypeError`.
+`source="packaged"` only the shipped list; `match(value, db)` reads `db`,
+a `LicenseDatabase` or the path of one (a `str` or `os.PathLike`), opened
+read-only: a missing file raises `DatabaseNotReadyError` (`not found`) and
+is not created. Every database is checked ready before it is read, once
+while its file is unchanged. A value that is not a `str`, and a `db` that
+is neither, raise `TypeError`.
 The answer is the same from either, and `lists[*].source` says which was
 read. `licenseid.DatabaseNotReadyError` is raised only when the chosen
 list cannot be read: with `auto`, when there is neither (an editable install
@@ -699,9 +692,23 @@ marks are read are in [docs/match.md][match-doc].
 `licenseid match VALUE` prints the same result on the command line
 ([Match a declared value](#3-match-a-declared-value)), and
 `licenseid match --json VALUE` prints the line that
-`licenseid.result.json_line(match(VALUE))` returns.
+`licenseid.json_line(match(VALUE))` returns. The types of a result are
+exported too: `licenseid.Resolution`, `Category`, `Trust`, `Step`,
+`Operand`, `ListInfo`, `ListSource`, `Source`, `Detection` and `Method`.
+`licenseid.LicenseDatabase` is an opaque handle, to open once and pass to
+`match(db=...)` or `LicenseDetector`.
+
+`detect()` and `match()` both say `exact`, and the two can differ:
+`detect()`'s `exact` is per result, true when that answer was found
+exactly (declared, a name in full, or the whole text); `match()`'s `exact`
+is a category, the value written as the ID itself, with no step at all.
+`detect GPL-2.0` is `GPL-2.0-only`, not exact (a guess); `match("GPL-2.0")`
+is `GPL-2.0`, `assumed_only`. Routing `detect()`'s declared values through
+`match()` is planned for 0.8. A compound (`MIT OR Apache-2.0`) has empty
+top-level `candidates`; each operand's are in `operands[*].candidates`.
 
 [match-doc]: https://github.com/bact/licenseid/blob/main/docs/match.md
+[match-doc-reads]: https://github.com/bact/licenseid/blob/main/docs/match.md#what-match-reads
 
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or

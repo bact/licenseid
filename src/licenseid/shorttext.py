@@ -158,14 +158,14 @@ def _exact_id_row(
 
 def _id_hit(row: LicenseNameId, resolved: str, text: str) -> RawMatch:
     """An ID match on *row*, answering *resolved*. A deprecated ID narrowed
-    to -only that *text* did not state ("GPL3", "GPL 2 0") is a guess: the
-    narrower grant is the safer one, and a guess is not exact, nor silent."""
+    to -only ("GPL3", "GPL 2 0", "GPL-2.0" itself) is a guess: the narrower
+    grant is the safer one, and a guess is not exact, nor silent."""
     match = exact_id_match(resolved)
     if resolved == row["license_id"]:
         _copy_flags(row, match)
     # A deprecated ID can resolve to an expression, whose flags are not this
     # row's: the caller works them out.
-    if narrowed(row["license_id"], resolved, text):
+    if narrowed(row["license_id"], resolved):
         match["exact"] = False
         warn_narrowed(text, resolved)
     return match

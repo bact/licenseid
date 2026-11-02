@@ -10,16 +10,20 @@ operator; strip_plus_operator and Tier 0's version key use it. Two others
 read the same grammar in their own way and must agree with it: the
 expression tokenizer (is_simple_expression, normalize_identifier), and the
 prose shorthand of classify (has_or_later_language, "GPLv2+" in a source
-file), which also takes a comma or a full stop after the "+".
+file), which also takes a comma or a full stop after the "+". The check of a
+narrowed ID (looseid.narrowed_ids) asks PLUS_OPERATOR itself.
 """
 
 import itertools
+import re
 import time
 
 import pytest
 
 from licenseid.classify import has_or_later_language
+from licenseid.database import LicenseDatabase
 from licenseid.identifiers import is_simple_expression, normalize_identifier
+from licenseid.looseid import narrowed_ids
 from licenseid.plusoperator import strip_plus_operator
 from licenseid.versionkey import version_key
 
@@ -72,6 +76,24 @@ def test_the_plus_readers_agree(text: str, operator: bool, grant: bool) -> None:
         assert ("+" in text) is operator, "is_simple_expression"
         normalized = normalize_identifier(text.strip("()"))
         assert ("+" in normalized or "-or-later" in normalized) is operator
+
+
+@pytest.mark.parametrize(
+    ("text", "operator"),
+    [
+        (text, operator)
+        for text, operator, _ in _cases()
+        if re.match(r"(?:L?GPL|gpl)-2\.0(?![.\d])", text.strip("("))
+    ],
+)
+def test_narrowed_ids_reads_the_operator(
+    corpus_db: LicenseDatabase, text: str, operator: bool
+) -> None:
+    """looseid.narrowed_ids: a bare deprecated ID with the operator after it
+    states its grant, so it is not narrowed; with any other "+" it is (the
+    reading given has the -only form, so only the "+" decides)."""
+    only = text.strip("(").split("-2.0")[0] + "-2.0-only"
+    assert narrowed_ids(corpus_db, text, only) is not operator
 
 
 @pytest.mark.parametrize(

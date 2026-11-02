@@ -49,9 +49,10 @@ def test_cli_is_osi_smart(test_db: str) -> None:
     assert result.exit_code == 0
     assert "true" in result.output
 
+    # No licence found is no answer: the flag is empty, never a false "no".
     result = runner.invoke(cli, ["--db", test_db, "is-osi", "NonExistent"])
     assert result.exit_code == 1
-    assert "false" in result.output
+    assert result.stdout == "EXPRESSION=\tIS_OSI_APPROVED=\n"
 
 
 def test_cli_explicit_id(test_db: str, tmp_path: Any) -> None:

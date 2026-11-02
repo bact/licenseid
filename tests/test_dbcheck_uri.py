@@ -30,7 +30,7 @@ from db_asserts import (
 )
 from db_variants import NOT_FOUND, build_ready_wal_with_wal, make_ready_file_db
 
-from licenseid import cli as cli_module
+from licenseid import clidetect
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import (
@@ -221,7 +221,7 @@ def test_second_check_failing_still_exits_2(
 ) -> None:
     """The file changes between the command's check and the matcher's: the
     refusal is an exit 2 with one line, not a traceback and exit 1."""
-    monkeypatch.setattr(cli_module, "check_database_ready", lambda _path: None)
+    monkeypatch.setattr(clidetect, "check_database_ready", lambda _path: None)
     missing = tmp_path / "gone.db"
     result = run_cli(str(missing), args)
     assert_refused(result, NOT_FOUND, str(missing))

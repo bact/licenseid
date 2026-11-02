@@ -99,11 +99,11 @@ def test_a_manifest_expression_is_certain(
     matcher = LicenseDetector(db)
     top = matcher.detect(file_path=path)[0]
     assert (top["expression"], top["score"]) == ("Apache-2.0 OR MIT", 1.0)
-    # OSI and FSF approval has no plain meaning for an OR (flag_source).
+    # An OR holds when any operand does (licenseid.exprflags, F1).
     assert (top["is_spdx"], top["is_osi_approved"], top["is_fsf_libre"]) == (
         True,
-        False,
-        False,
+        True,
+        True,
     )
     assert matcher.is_spdx(file_path=path)
 
@@ -180,8 +180,8 @@ def test_match_json_shows_the_flags_of_a_manifest(db: str, tmp_path: Path) -> No
     top = json_lines(result.stdout)[0]
     assert {flag: top[flag] for flag in FLAGS} == {
         "is_spdx": True,
-        "is_osi_approved": False,
-        "is_fsf_libre": False,
+        "is_osi_approved": True,  # an OR: any operand (F1)
+        "is_fsf_libre": True,
     }
 
 
@@ -442,3 +442,23 @@ def test_a_long_run_reads_in_linear_time(text: str) -> None:
     start = time.monotonic()
     license_value_groups(text, "")
     assert time.monotonic() - start < 0.5
+
+
+@pytest.mark.parametrize("large", [False, True], ids=["small", "large"])
+@pytest.mark.parametrize("kind", list(MANIFESTS))
+def test_a_bare_deprecated_field_is_narrowed_aloud(
+    db: str,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    kind: str,
+    large: bool,
+) -> None:
+    """A field of ``GPL-2.0`` answers GPL-2.0-only, not exact, with the one
+    warning every source of a declared value gives (F3 of the contract batch;
+    it was exact and silent)."""
+    path = manifest(tmp_path, kind, "GPL-2.0", large)
+    top = LicenseDetector(db).detect(file_path=path)[0]
+    assert (top["expression"], top["exact"]) == ("GPL-2.0-only", False)
+    assert capsys.readouterr().err == (
+        "WARNING: input: variant not stated: GPL-2.0; using GPL-2.0-only\n"
+    )

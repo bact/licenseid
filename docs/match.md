@@ -6,11 +6,107 @@ SPDX-License-Identifier: Apache-2.0
 
 # The result of `match()`
 
-What `licenseid.match()` returns for a declared licence value: every
-field, the categories and their trust, the reasons for a refusal, and how
-quote marks are read. The [README](../README.md#python-api) shows how to
-call it. A value that is not a `str` (`None`, bytes, a number) raises
-`TypeError` before any list is read.
+What `licenseid.match()` reads in a declared licence value and what it
+returns: every field, the categories and their trust, the reasons for a
+refusal, and how quote marks are read. The
+[README](../README.md#python-api) shows how to call it. A value that is not
+a `str` (`None`, bytes, a number) raises `TypeError` before any list is
+read, as does a `db` that is neither a `LicenseDatabase` nor the path of
+one (a `str` or `os.PathLike`); a blank path raises `InvalidInputError`
+(`database: missing: db`). A path is opened read-only, and every database
+is checked ready before it is read: a missing file raises
+`DatabaseNotReadyError` (`not found`) and is never created.
+
+## What `match()` reads
+
+`match()` turns one declared licence value into an SPDX expression and the
+steps taken, without fuzzy matching:
+
+- with no database it reads the SPDX License List shipped in the wheel, in
+  memory, and gives the answer a database built from that list gives;
+  with both, the newer List wins, and a tie goes to the database only if
+  this licenseid's build rules made its rows (`source=` picks one);
+- exact and case-folded IDs; loosely written IDs (`Apache2`, `GPLv3`,
+  `GPLv2 or any later version`); the List's own licence names; "or later"
+  on an ID with no `-or-later` form is the `+` operator (`MIT or later` is
+  `MIT+`, `Apache 2.0 or later` is `Apache-2.0+`);
+- a bare deprecated ID (`GPL-3.0`) comes back as written, category
+  `assumed_only`, with both candidates, never narrowed; a renamed one
+  (`StandardML-NJ`) becomes its successor (`SMLNJ`);
+- quote marks around the whole value are taken off (`"MIT"`, `'MIT'`,
+  `“MIT”`, `«MIT»`, one or several layers, as an `unquote` step), and the
+  inside is read as it would be alone; a mark on one end only (`"MIT`) is
+  read too, as a weaker answer (`separator`); one end mark after the
+  closing marks (`"MIT".`) is an ending; marks of two kinds
+  (`"MIT'`) or inside the value (`Apache "2.0"`) are not read;
+- a loose reading never drops a character that says something:
+  `Apache 2.0?`, `MIT*` and `"MIT?"` are `unresolved`, with a
+  `reason` and a `drop` step that was not applied; white space, `-`, `_`,
+  `.`, a dash and one trailing comma are still dropped. So is no word:
+  a list or comment marker (`REM MIT`, `1. MIT`, `iv. MIT`) is refused
+  with `word dropped: rem`. At the end of a value one `.`, `,`, `;` or
+  `:`, with white space around it, is an ending and is left off (`MIT;`,
+  `MIT License :`; a `separator` step); two or more marks, an ellipsis
+  and a lone dash (`MIT;;`, `MIT...`, `MIT…`, `MIT -`) are refused, also
+  after a `+`, an exception, a `LicenseRef-*` or a prose form (`MIT+;` is
+  `MIT+`; `GPL-2.0+?`, `MIT License -` are refused). At
+  the start nothing is left off: `-- MIT`, `; MIT`, `... MIT`, and an ID
+  cut from a longer one (`.GPL-3.0-only`, `-MIT`) are refused;
+- licences joined by a `;` (`MIT ; Apache 2`) name two licences and not how
+  they combine (`AND` or `OR`), so the value is `unresolved`, with the
+  `reason` `operator not stated: ;` and one operand for each part, each
+  read as it would be alone: a caller can still ask whether every one is
+  OSI approved. A comma or `/` is not read this way, nor is a `;` that
+  ends an operand (`MIT; OR ISC`);
+- a compound expression is read operand by operand: one-word operands
+  (with `WITH`, `+` or an "or later" grant), each as the same text would be
+  read alone, and per operand only a balanced pair of quotes; an operand
+  of several words is refused; with the operators in upper case, the
+  `reason` is `operand of several words: BSD 3-Clause` for a leaf that
+  reads alone, else `operand not resolved: Foo Bar`. The result is written
+  in licenseid's canonical order: operators in upper case, a chain of one
+  operator flattened, operands sorted (IDs, then `LicenseRef-*`, then
+  `WITH`, then bracketed groups), duplicates dropped, and brackets only where
+  precedence needs them (`mit or "Apache2"` → `Apache-2.0 OR MIT`);
+  `[ ]` and `{ }` count as brackets;
+- the PyPI trove classifier names of the `License ::` family are read from
+  a table that records what each name states (`GNU General Public License
+  v3 or later (GPLv3+)` is `GPL-3.0-or-later`, category `trove_name`);
+  a name that writes a version but not "only" or "or later" (`... v3
+  (GPLv3)`) is the bare ID, `assumed_only`; a name that names no single
+  licence (`BSD License`, `W3C License`) or only by usage (`Apache
+  Software License`) stays `unresolved`. The table matches case and
+  spacing exactly, except that a name it reads as no licence is refused
+  however it is written. A path in its real form
+  (`License :: OSI Approved :: MIT License`) is read as its name is
+  read alone, with a `trove_path` step;
+- a name followed by a parenthesis (`MIT License (MIT)`) is read as the
+  name when the name and the parenthesis are each an ID, a List name or
+  a prose form (below) and are one expression (`trailing_name` step); if
+  they differ, or only one reads, the value is not read. Where the List
+  backs both parts this is read before the table, so `Eclipse Public
+  License 2.0 (EPL-2.0)` is `listed_name`;
+- the prose form of one licence is read last, as category `prose_form`
+  (a `prose_form` step, then the steps of what it reduces to): a final
+  `license` or `licence` after a value that names one licence, with a `+`
+  or a `WITH` if it has one (`BSD 3-Clause License`, `MIT+ License`), `<name>
+  License[,] (Version|v) N` as `<name> N`, or as the List name `<name>
+  License N` if both name the same licence (`Apache License, Version 2.0`,
+  `Mozilla Public License, Version 2.0`), and a leading `The` with
+  either, or with a List name (`The MIT License`; `The MIT` is not
+  read). One mark at the end is left off, as for any value (`MIT
+  License.`, `MIT License;`). A name that
+  states no licence (`BSD License`, `W3C License`) and a bare family
+  (`BSD`) stay `unresolved`, and a prose form is no operand of a
+  compound (`BSD 3-Clause License OR MIT`: `operand of several words`);
+- a compound is all or nothing: its category is the weakest operand's,
+  and one operand that names nothing leaves the whole unresolved, with a
+  `reason` naming it; a mark used as an operator (`MIT/Apache-2.0`) is
+  refused, with a `reason`;
+- every result names its category and trust level, each step, the list
+  it rests on with its version and where it was read (`database` or
+  `packaged`), and the resolver's version (see
+  [The whole result](#the-whole-result)).
 
 ## The whole result
 
@@ -25,9 +121,9 @@ For `match("Apache2")`, as JSON:
   "trust": "resolver_rule",
   "steps": [
     {"kind": "separator", "applied": true, "from": "Apache2",
-     "to": "Apache-2.0", "list": "spdx-license-list", "detail": "", "by": ""},
+     "to": "Apache-2.0", "list": "spdx-license-list", "detail": null},
     {"kind": "version_spelling", "applied": true, "from": "Apache2",
-     "to": "Apache-2.0", "list": "spdx-license-list", "detail": "", "by": ""}
+     "to": "Apache-2.0", "list": "spdx-license-list", "detail": null}
   ],
   "expansions": [],
   "candidates": [],
@@ -64,7 +160,7 @@ For `match("Apache2")`, as JSON:
 
 `licenseid match VALUE` prints this result for one value. `--json` prints
 it whole, as above, as one RFC 8785 object on one line (the bytes
-`licenseid.result.json_line(match(value))` gives). Without it, the result
+`licenseid.json_line(match(value))` gives). Without it, the result
 is a few `KEY=VALUE` lines, one data point each, with one tab between
 the fields (shown here as `<TAB>`):
 
@@ -90,19 +186,32 @@ its fields, and `licenseid.result.read_text_field` gives a value back; `=`
 is not escaped, as a key ends at the first one. `--json` is UTF-8 on every
 locale. The lines of `licenseid detect` are written the same way.
 
+The first key of a line names its kind, and each maps to the JSON result:
+
+| Text line | Its fields | In the JSON result |
+| --- | --- | --- |
+| the answer | `EXPRESSION`, `CATEGORY`, `TRUST` | `expression`, `category`, `trust` |
+| a step | `STEP`, `FROM`, `TO` | `steps[].kind`, `.from`, `.to`, then `expansions[].kind`, `.from`, `.to` (applied ones only) |
+| a refusal | `REASON` | `reason` |
+| an operand | `OPERAND`, `EXPRESSION`, `CATEGORY` | `operands[].text`, `.expression`, `.category` |
+
+An empty text value is `null` in JSON. A later release only appends fields
+to a line, so read a field by its key; an `EXPRESSION` that is not the first
+key of its line is an operand's.
+
 The exit status is 0 when `expression` is not `None`, 1 when it is (the
 lines are still printed, and nothing goes to standard error), and 2 for a
 usage error, a list that cannot be read or a result that cannot be written.
 `--source` and `--db` choose the list as `match(value, source=...)` and
 `match(value, db)` do; `--db` with `--source packaged` exits 2. A licence
-text, standard input with no argument, a value with a line break and one
+text, `-` (standard input), a value with a line break and one
 over 2,000 characters (counted as `match()` counts them, after the
 surrounding white space is trimmed) are refused with exit 2, nothing on
 standard output and `; run 'licenseid detect'`: `detect` answers those.
 The value is read first: one that resolves is answered even when a file or
 directory of that name exists, and one that resolves to nothing and names
 one is refused the same way (`input: invalid: path: LICENSE`). No argument
-and nothing piped is `input: missing`.
+is `input: missing`: `match` never reads standard input.
 
 ## Operands and components
 
@@ -117,8 +226,11 @@ order: `operator_case`, `whitespace`,
 `brackets`, `reorder` and `dedupe`, each with the expression before and
 after. `components` names the tools besides licenseid that took part (the
 expression parser, `py-spdx-license`, whenever it parsed the value: a
-compound, read or refused), and `by` on a step names the one that took it
-(`""`: licenseid). For `match("GPLv2+ or MIT")`, shortened:
+compound, read or refused); every step is licenseid's own. A compound's
+top-level `candidates` is empty: the candidates of a bare deprecated ID
+inside it are its operand's, in `operands[*].candidates` (`GPL-2.0 OR MIT`:
+`GPL-2.0-only` and `GPL-2.0-or-later` on its first operand). For
+`match("GPLv2+ or MIT")`, shortened:
 
 ```json
 {
@@ -132,7 +244,7 @@ compound, read or refused), and `by` on a step names the one that took it
     {"kind": "version_spelling", "from": "GPLv2", "to": "GPL-2.0",
      "...": "..."},
     {"kind": "operator_case", "from": "GPL-2.0-or-later or MIT",
-     "to": "GPL-2.0-or-later OR MIT", "list": "", "...": "..."}
+     "to": "GPL-2.0-or-later OR MIT", "list": null, "...": "..."}
   ],
   "expansions": [
     {"kind": "plus_to_or_later", "from": "GPLv2+", "to": "GPL-2.0-or-later",
@@ -197,12 +309,14 @@ to the whole before the split (`trim`, `unquote`, `brackets`).
 ## Steps and categories
 
 `steps` change the value; `expansions` hold a qualifier (`-only`,
-`-or-later`) added or, with `applied` false, declined. A step that rests on a
-list names it in `list`: the SPDX License List, or, for `trove_name` and
-`trove_path`, `pypi-trove-classifiers` (a second entry of `lists`, naming
-the classifier vocabulary of licenseid's table: `provides` `["names"]`,
-`id_authority` false, `source` always `packaged`, even beside a `database`
-SPDX entry: find the SPDX list by its `id`, not by position). The
+`-or-later`) added or, with `applied` false, declined. `null` means nothing
+in a step as anywhere: a `list` or `detail` with nothing to say is `null`,
+never `""`. A step that rests on a list names it in `list`: the SPDX
+License List, or, for `trove_name` and `trove_path`,
+`pypi-trove-classifiers` (a second entry of `lists`, naming the classifier
+vocabulary of licenseid's table: `provides` `["names"]`, `id_authority`
+false, `source` always `packaged`, even beside a `database` SPDX entry:
+find the SPDX list by its `id`, not by position). The
 `category` of a result is the weakest of its steps, and of a compound the
 weakest of its operands, in this order (strongest first):
 
@@ -226,10 +340,27 @@ weakest of its operands, in this order (strongest first):
 A consumer ignores a step kind it does not know. Before 0.7.0 a compound
 was category `expression`, with no expression; that category is gone.
 
+The category `exact` is not the `exact` of `detect()`. Here it says the
+value was the listed ID as written, with no step; `detect()`'s `exact` says
+of one result that it was found exactly (declared, a name in full, or the
+whole licence text). The two can differ for one value: `detect("GPL-2.0")`
+answers `GPL-2.0-only`, not exact, a guess said aloud with a warning, where
+`match("GPL-2.0")` keeps `GPL-2.0` as `assumed_only`. Reading `detect()`'s
+declared values through `match()` is planned for 0.8.
+
 ## Reasons for a refusal
 
-`reason` is `None` unless the value was refused, when it is one line,
-`CONDITION[: DETAIL]`, the detail of a mark in code points:
+`reason` is `None` unless the value was refused; every refusal has one,
+the whole value's and each refused operand's. It is one line,
+`CONDITION[: DETAIL]`. Once no reader has a reason of its own, it is
+`empty` (nothing once trimmed and unquoted), `too long: <N> characters`
+(over 2,000), `special value: NONE` or `special value: NOASSERTION` (as the
+SPDX specification writes them; `none` is not one), `exception not found:
+<exception>` (the licence before `WITH` reads, the exception is not on the
+List), else `not found: <value>`. A qualifier the grammar refuses says
+which: `qualifier stated twice: GPL-2.0-only+` (also `MIT++`),
+`qualifier on a reference: LicenseRef-x+` and `plus after a bracket:
+(MIT)+`. The readers' own reasons, the detail of a mark in code points:
 `character dropped: U+003F`
 (the value would be read as a licence only by dropping a mark that is not a
 separator, such as `?`, `!`, `*` or a quote inside the value, a mark at the
@@ -253,8 +384,9 @@ but, when its operators are in upper case, its reason names the first
 operand refused: `operand of several words: <leaf>` if that leaf reads
 alone, else `operand not resolved: <leaf>`. A detail taken from the input is
 folded to one line and cut at 60 characters. One with a lower-case `or` or
-`and` whose words name nothing (`GPL-3.0 or higher`) is prose: no reason,
-unless an operand has its own (a dropped mark). A refused value is category
+`and` whose words name nothing (`GPL-3.0 or higher`) is prose:
+`not found: GPL-3.0 or higher`, unless an operand has its own (a dropped
+mark). A refused value is category
 `unresolved` with no expression, or `malformed` when the compound breaks the
 grammar but names a licence (`MIT AND`). For a dropped mark, `steps` holds
 one `drop` step with `applied` false: its `to` is the listed ID the loose
@@ -268,7 +400,7 @@ A dot or dash that ends a `LicenseRef-*`, `AdditionRef-*` or `DocumentRef-*`
 is part of the ID, so `LicenseRef-a.;`, `LicenseRef-a-;` and
 `MIT WITH AdditionRef-x.;` read without the end mark; `LicenseRef-a;;` is
 refused. `(MIT)-` and a prose form in brackets followed by a dash
-(`MIT License (MIT)-`) are refused with no reason.
+(`MIT License (MIT)-`) are refused with `not found: (MIT)-`.
 
 ## Quote marks
 

@@ -16,14 +16,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from licenseid.console import end_line, status, warn
+from licenseid.datadir import get_default_db_path
 from licenseid.dbcache import TableCache, cast_license_details
 from licenseid.dbcheck import (
     absolute_path,
     empty_error,
     is_memory_database,
+    is_ready,
     named_file,
     needs_writing,
     not_found_error,
+    reject_blank_path,
     reject_foreign_database,
 )
 from licenseid.dbconnection import Connections, QueryConnection
@@ -80,6 +83,22 @@ def is_current_build(metadata: DatabaseMetadata) -> bool:
     return _stamp(metadata.get("build_version", "1")) == _stamp(BUILD_VERSION)
 
 
+def _holds_own_cache(db_path: Path) -> bool:
+    """Whether the directory of *db_path* holds licenseid's download cache,
+    so ``clear-cache`` may delete the cache files in it: the default data
+    directory, or the directory of a ready database (``update`` writes its
+    cache beside the database it builds). Fail-closed, as a delete is
+    (``reject_foreign_database``): a mistyped ``--db`` names a database that
+    is not there, and the ``licenses.json`` beside it is somebody else's."""
+    if is_ready(str(db_path)):
+        return True
+    try:
+        default = Path(get_default_db_path()).parent
+        return os.path.samefile(db_path.parent, default)
+    except (DatabaseNotReadyError, OSError):
+        return False  # no home, or no such directory: none of licenseid's
+
+
 class LicenseDatabase:
     """
     Handles SQLite database operations for storing and searching SPDX licenses.
@@ -99,8 +118,10 @@ class LicenseDatabase:
         Without *create*, rules older or newer than this licenseid's are
         warned (``database: build vN outdated: ...``) through *report*, by
         default ``licenseid.console.warn``; ``match()`` passes one that
-        says each line once per process."""
+        says each line once per process. A blank *db_path* is
+        :class:`licenseid.InvalidInputError`, as for ``LicenseDetector``."""
         db_path = os.fspath(db_path)
+        reject_blank_path(db_path, "db_path", optional=False)
         self._create = create
         named = named_file(db_path)  # a URI: the file it names
         self.db_path = Path(absolute_path(named) if named else db_path)
@@ -123,6 +144,12 @@ class LicenseDatabase:
                 say(f"database: {outdated}; run 'licenseid update'")
             for newer in self._stamped_rules(newer=True):
                 say(f"database: {newer}")
+
+    @property
+    def location(self) -> str:
+        """The path or ``file:`` URI this database was opened with, as
+        :func:`licenseid.dbcheck.check_database_ready` reads it."""
+        return self._source
 
     def _outdated_rules(self) -> list[str]:
         """The rules this database was built with that are older than this
@@ -198,10 +225,12 @@ class LicenseDatabase:
             create_schema(conn)
 
     @staticmethod
-    def clear_cache(db_path: str | Path) -> None:
-        """Delete the database (unopened) at *db_path* and the cache files
-        beside it. Raises :class:`licenseid.DatabaseNotReadyError` for a path
-        licenseid did not build a database at, as the CLI does."""
+    def clear_cache(db_path: str | Path) -> bool:
+        """Delete the database (unopened) at *db_path* and, where they are
+        licenseid's (:func:`_holds_own_cache`), the cache files beside it;
+        True if there was any of them to delete. Raises
+        :class:`licenseid.DatabaseNotReadyError` for a path licenseid did not
+        build a database at, as the CLI does."""
         # Local import: spdx_source pulls in `requests` (~60ms at import),
         # unused on the match path; update_from_remote() defers it too.
         from licenseid import spdx_source
@@ -210,8 +239,11 @@ class LicenseDatabase:
         status("Clearing cache...")
         named = named_file(str(db_path))
         if named is None:
-            return  # in-memory: no directory to clear
+            return False  # in-memory: no directory to clear
         db_path = Path(named)
+        # Asked before the database goes: then nothing would show it.
+        own_cache = _holds_own_cache(db_path)
+        deleted = False
         # The database goes first, so a refused delete leaves the cache
         # intact. Its sidecars follow, best effort: once it is gone a stale
         # -wal cannot be replayed, and reporting one would claim the delete
@@ -219,10 +251,14 @@ class LicenseDatabase:
         if db_path.is_symlink() or db_path.exists():
             status(f"Deleting database at {db_path}...")
             db_path.unlink(missing_ok=True)
+            deleted = True
         for suffix in ("-wal", "-shm", "-journal"):
             with contextlib.suppress(OSError):
                 db_path.with_name(db_path.name + suffix).unlink()
-        spdx_source.clear_cache_files(db_path.parent)
+                deleted = True
+        if own_cache and spdx_source.clear_cache_files(db_path.parent):
+            return True
+        return deleted
 
     def update_from_remote(
         self,

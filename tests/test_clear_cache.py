@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``--clear-cache`` from the path alone.
+"""``clear-cache`` from the path alone (C3 of the contract batch: it was
+the global flag ``--clear-cache``, which printed nothing).
 
 Written from the contract, not the code: clearing never opens the database,
 so it still removes one SQLite cannot read; it refuses a file licenseid did
@@ -17,7 +18,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from conftest import posix_only
+from conftest import clear_cache_line, line_fields, posix_only
 from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
     assert_no_traceback,
     db_in_an_unreadable_directory,
@@ -29,6 +30,8 @@ from db_asserts import (
 from db_variants import make_ready_file_db
 
 from licenseid.database import LicenseDatabase
+from licenseid.datadir import get_default_db_path
+from licenseid.dbcheck import is_ready
 from licenseid.errors import DatabaseNotReadyError
 
 CACHE_NAMES = (
@@ -42,7 +45,7 @@ CACHE_NAMES = (
 
 
 # --------------------------------------------------------------------------
-# --clear-cache: it works from the path alone
+# clear-cache: it works from the path alone
 # --------------------------------------------------------------------------
 
 
@@ -52,7 +55,7 @@ def test_clear_cache_on_a_directory_gives_no_traceback(tmp_path: Path) -> None:
     db_dir = tmp_path / "licenses.db"
     db_dir.mkdir()
     (db_dir / "inside.txt").write_text("x\n", encoding="utf-8")
-    result = run("--db", str(db_dir), "--clear-cache")
+    result = run("--db", str(db_dir), "clear-cache")
     assert_no_traceback(result)
     assert db_dir.is_dir(), "the directory was removed"
 
@@ -64,7 +67,7 @@ def test_clear_cache_on_a_directory_gives_no_traceback(tmp_path: Path) -> None:
 def test_clear_cache_with_a_memory_db_keeps_cwd_cache_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, db_arg: str
 ) -> None:
-    """An in-memory database has no directory, so --clear-cache has nothing to
+    """An in-memory database has no directory, so clear-cache has nothing to
     clear. It must not fall back to the working directory and delete the cache
     files (or a stray tarball) that happen to sit there."""
     work = tmp_path / "work"
@@ -72,7 +75,7 @@ def test_clear_cache_with_a_memory_db_keeps_cwd_cache_files(
     for name in CACHE_NAMES:
         (work / name).write_text("keep me\n", encoding="utf-8")
     monkeypatch.chdir(work)
-    result = run("--db", db_arg, "--clear-cache")
+    result = run("--db", db_arg, "clear-cache")
     assert_no_traceback(result)
     assert result.exit_code == 0 and result.stderr == "Clearing cache...\n"
     survivors = sorted(p.name for p in work.iterdir())
@@ -86,33 +89,142 @@ def test_clear_cache_on_a_relative_path_clears_beside_it(
     (work / "sub").mkdir(parents=True)
     for name in CACHE_NAMES:
         (work / "sub" / name).write_text("x\n", encoding="utf-8")
-    (work / "sub" / "licenses.db").write_bytes(b"SQLite format 3\x00" + b"\xff" * 512)
+    make_ready_file_db(work / "sub" / "licenses.db")
     (work / "sub" / "keep.txt").write_text("x\n", encoding="utf-8")
     monkeypatch.chdir(work)
-    result = run("--db", "sub/licenses.db", "--clear-cache")
+    result = run("--db", "sub/licenses.db", "clear-cache")
     assert_no_traceback(result)
     assert result.exit_code == 0, result.stderr
     assert sorted(p.name for p in (work / "sub").iterdir()) == ["keep.txt"]
 
 
-def test_clear_cache_removes_a_corrupt_db_and_its_cache_but_no_foreign_file(
+def test_clear_cache_removes_a_ready_db_and_its_cache_but_no_foreign_file(
     tmp_path: Path,
 ) -> None:
-    db_path = tmp_path / "licenses.db"
-    db_path.write_bytes(b"SQLite format 3\x00" + b"\xff" * 4096)
+    db_path = make_ready_file_db(tmp_path / "licenses.db")
     for name in CACHE_NAMES:
         (tmp_path / name).write_text("x\n", encoding="utf-8")
     for name in ("exceptions.json", "spdx-data.tar.gz", "licenses.db.bak"):
         (tmp_path / name).write_text("x\n", encoding="utf-8")
-    result = run("--db", str(db_path), "--clear-cache")
+    result = run("--db", str(db_path), "clear-cache")
     assert_no_traceback(result)
     assert result.exit_code == 0, result.stderr
-    assert result.stdout == "", result.stdout
+    assert result.stdout == clear_cache_line("cleared", db_path), result.stdout
     assert sorted(p.name for p in tmp_path.iterdir() if p.name != "home") == [
         "exceptions.json",
         "licenses.db.bak",
         "spdx-data.tar.gz",
     ]
+
+
+@pytest.mark.parametrize(
+    "database",
+    [
+        None,  # a mistyped --db: nothing there
+        b"",  # empty
+        b"SQLite format 3\x00" + b"\xff" * 4096,  # damaged
+    ],
+    ids=["missing", "empty", "damaged"],
+)
+def test_clear_cache_keeps_a_cache_it_cannot_show_is_its_own(
+    tmp_path: Path, database: bytes | None
+) -> None:
+    """R4 of the contract review (P163; was: ``--db proj/typo.db
+    clear-cache`` deleted ``proj/licenses.json`` and ``popularity.csv`` and
+    said ``cleared``): beside a database that is not ready, outside the
+    default directory, nothing shows the cache files are licenseid's. The
+    database named is still deleted; the files are kept and not counted."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    for name in CACHE_NAMES:
+        (proj / name).write_text("mine\n", encoding="utf-8")
+    db_path = proj / "typo.db"
+    if database is not None:
+        db_path.write_bytes(database)
+    result = run("--db", str(db_path), "clear-cache")
+    assert_no_traceback(result)
+    assert result.exit_code == 0, result.stderr
+    status = "nothing" if database is None else "cleared"
+    assert result.stdout == clear_cache_line(status, db_path)
+    assert sorted(p.name for p in proj.iterdir()) == sorted(CACHE_NAMES)
+
+
+@pytest.mark.parametrize("with_db", [False, True], ids=["missing", "ready"])
+def test_clear_cache_clears_the_default_directory(with_db: bool) -> None:
+    """The default data directory is licenseid's: its cache goes even when
+    the database is missing or broken, which is what the command is for."""
+    default = Path(get_default_db_path())
+    default.parent.mkdir(parents=True)
+    if with_db:
+        make_ready_file_db(default)
+    for name in CACHE_NAMES:
+        (default.parent / name).write_text("x\n", encoding="utf-8")
+    result = run("clear-cache")
+    assert (result.exit_code, result.stdout) == (
+        0,
+        clear_cache_line("cleared", default),
+    )
+    assert not list(default.parent.iterdir())
+
+
+def test_clear_cache_beside_the_default_database_by_another_name() -> None:
+    """``--db`` naming another file in the default directory: still
+    licenseid's directory, so its cache goes."""
+    default = Path(get_default_db_path())
+    default.parent.mkdir(parents=True)
+    (default.parent / "licenses.json").write_text("x\n", encoding="utf-8")
+    result = run("--db", str(default.parent / "other.db"), "clear-cache")
+    assert result.stdout.startswith("STATUS=cleared\t")
+    assert not list(default.parent.iterdir())
+
+
+def _default_cache() -> Path:
+    """The default directory with a cache file and no database."""
+    directory = Path(get_default_db_path()).parent
+    directory.mkdir(parents=True)
+    (directory / "licenses.json").write_text("x\n", encoding="utf-8")
+    return directory
+
+
+def test_clear_cache_knows_the_default_directory_by_another_spelling() -> None:
+    """P175: the directory is compared as a file (``os.path.samefile``), not
+    as a spelling: ``<default>/../licenseid`` is the default directory."""
+    directory = _default_cache()
+    spelled = directory / ".." / directory.name / "other.db"
+    result = run("--db", str(spelled), "clear-cache")
+    assert result.stdout.startswith("STATUS=cleared\t"), result.stdout
+    assert not list(directory.iterdir())
+
+
+@posix_only
+def test_clear_cache_knows_the_default_directory_through_a_link(
+    tmp_path: Path,
+) -> None:
+    """P175: a link to the default directory reaches it too."""
+    directory = _default_cache()
+    link = tmp_path / "link"
+    link.symlink_to(directory, target_is_directory=True)
+    result = run("--db", str(link / "other.db"), "clear-cache")
+    assert result.stdout.startswith("STATUS=cleared\t"), result.stdout
+    assert not list(directory.iterdir())
+
+
+def test_a_locked_database_is_not_ready_to_delete_beside(tmp_path: Path) -> None:
+    """P175: ``dbcheck.is_ready`` is fail-closed: a database another process
+    holds locked (``unknown`` to the readiness check) does not show that the
+    cache beside it is licenseid's. ``clear-cache`` refuses such a database
+    before it asks (``reject_foreign_database``), so this is the judge alone."""
+    db_path = make_ready_file_db(tmp_path / "licenses.db")
+    assert is_ready(str(db_path))
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute("PRAGMA locking_mode=EXCLUSIVE")
+        conn.execute("BEGIN EXCLUSIVE")
+        conn.execute("UPDATE db_metadata SET value = value")
+        assert not is_ready(str(db_path))
+    finally:
+        conn.rollback()
+        conn.close()
 
 
 @posix_only
@@ -125,7 +237,7 @@ def test_clear_cache_that_cannot_delete_says_so_in_one_line(tmp_path: Path) -> N
     db_path = make_ready_file_db(directory / "licenses.db")
     directory.chmod(0o555)
     try:
-        result = run("--db", str(db_path), "--clear-cache")
+        result = run("--db", str(db_path), "clear-cache")
     finally:
         directory.chmod(0o755)
     assert_no_traceback(result)
@@ -142,18 +254,76 @@ def test_clear_cache_that_cannot_delete_says_so_in_one_line(tmp_path: Path) -> N
 def test_clear_cache_twice_is_idempotent(tmp_path: Path) -> None:
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     (tmp_path / "licenses.json").write_text("{}\n", encoding="utf-8")
-    first = run("--db", str(db_path), "--clear-cache")
-    second = run("--db", str(db_path), "--clear-cache")
-    for result in (first, second):
+    first = run("--db", str(db_path), "clear-cache")
+    second = run("--db", str(db_path), "clear-cache")
+    for result, status in ((first, "cleared"), (second, "nothing")):
         assert_no_traceback(result)
         assert result.exit_code == 0, result.stderr
-        assert result.stdout == "", result.stdout
+        assert result.stdout == clear_cache_line(status, db_path), result.stdout
     assert not db_path.exists()
+
+
+@pytest.mark.parametrize("as_json", [False, True], ids=["text", "json"])
+def test_clear_cache_writes_a_backslash_in_its_path_doubled(
+    tmp_path: Path, as_json: bool
+) -> None:
+    """A path holding a backslash, as every Windows path does, is written
+    as a field (a backslash doubled) and as JSON, and reads back as given:
+    a test that builds the line by hand fails here on every OS."""
+    directory = tmp_path / "back\\slash"
+    directory.mkdir(parents=True)  # on Windows, two directories
+    db_path = make_ready_file_db(directory / "licenses.db")
+    assert "\\" in str(db_path)
+    result = run("--db", str(db_path), "clear-cache", *(["--json"] * as_json))
+    assert result.exit_code == 0, result.stderr
+    doubled = str(db_path).replace("\\", "\\\\")
+    expected = clear_cache_line("cleared", db_path, as_json=as_json)
+    assert result.stdout == expected
+    if not as_json:
+        assert result.stdout == f"STATUS=cleared\tPATH={doubled}\n"
+        assert line_fields(result.stdout.rstrip("\n"))["PATH"] == str(db_path)
+    assert not db_path.exists()
+
+
+@pytest.mark.parametrize(
+    ("files", "status"),
+    [
+        ((), "nothing"),
+        (("licenses.db",), "cleared"),
+        (("licenses.db", "licenses.json"), "cleared"),
+        (("licenses.db", "popularity.csv.99.tmp"), "cleared"),
+        # Beside no database, outside the default directory, a cache file
+        # is not shown to be licenseid's: kept, and not counted (P163).
+        (("licenses.json",), "nothing"),
+        (("popularity.csv.99.tmp",), "nothing"),
+        (("keep.txt",), "nothing"),  # not licenseid's: kept, and not counted
+    ],
+    ids=["empty", "db", "db-cache", "db-tmp", "cache", "tmp", "foreign"],
+)
+@pytest.mark.parametrize("as_json", [False, True], ids=["text", "json"])
+def test_clear_cache_says_whether_it_deleted(
+    tmp_path: Path, files: tuple[str, ...], status: str, as_json: bool
+) -> None:
+    db_path = tmp_path / "licenses.db"
+    for name in files:
+        if name == "licenses.db":
+            make_ready_file_db(db_path)
+        else:
+            (tmp_path / name).write_text("x\n", encoding="utf-8")
+    result = run("--db", str(db_path), "clear-cache", *(["--json"] if as_json else []))
+    assert result.exit_code == 0, result.stderr
+    assert result.stdout == clear_cache_line(status, db_path, as_json=as_json)
+    kept = [name for name in files if name != "licenses.db"]
+    if "licenses.db" in files:  # a ready database: its cache is licenseid's
+        kept = [name for name in kept if name not in CACHE_NAMES]
+    assert sorted(p.name for p in tmp_path.iterdir() if p.name != "home") == sorted(
+        kept
+    )
 
 
 def test_clear_cache_with_a_nonexistent_parent_succeeds(tmp_path: Path) -> None:
     db_path = tmp_path / "nodir" / "deeper" / "licenses.db"
-    result = run("--db", str(db_path), "--clear-cache")
+    result = run("--db", str(db_path), "clear-cache")
     assert_no_traceback(result)
     assert result.exit_code == 0, result.stderr
     assert not db_path.parent.exists(), "clear-cache created the directory"
@@ -164,7 +334,7 @@ def test_clear_cache_with_an_explicit_db_does_not_create_the_default_dir(
 ) -> None:
     db_path = tmp_path / "elsewhere" / "licenses.db"
     db_path.parent.mkdir()
-    result = run("--db", str(db_path), "--clear-cache")
+    result = run("--db", str(db_path), "clear-cache")
     assert_no_traceback(result)
     assert not (tmp_path / "home" / ".local").exists(), "default dir was created"
 
@@ -178,7 +348,7 @@ def test_clear_cache_on_a_symlink_does_not_leave_a_live_database(
     target = make_ready_file_db(tmp_path / "real.db")
     link = tmp_path / "licenses.db"
     link.symlink_to(target)
-    result = run("--db", str(link), "--clear-cache")
+    result = run("--db", str(link), "clear-cache")
     assert_no_traceback(result)
     assert not link.exists(), "a readable database is still at the --db path"
     assert target.exists(), "the link's target was deleted, not the link"
@@ -190,13 +360,13 @@ def test_clear_cache_on_a_dangling_symlink_leaves_nothing_behind(
 ) -> None:
     link = tmp_path / "licenses.db"
     link.symlink_to(tmp_path / "gone.db")
-    result = run("--db", str(link), "--clear-cache")
+    result = run("--db", str(link), "clear-cache")
     assert_no_traceback(result)
     assert not link.is_symlink(), "the dangling link survived clear-cache"
 
 
 # --------------------------------------------------------------------------
-# --clear-cache deletes, so it refuses what licenseid did not build
+# clear-cache deletes, so it refuses what licenseid did not build
 # --------------------------------------------------------------------------
 
 
@@ -214,7 +384,7 @@ def test_clear_cache_refuses_another_programs_database(tmp_path: Path) -> None:
     before = _foreign_database(db_path)
     for name in CACHE_NAMES:
         (tmp_path / name).write_text("x\n", encoding="utf-8")
-    result = run("--db", str(db_path), "--clear-cache")
+    result = run("--db", str(db_path), "clear-cache")
     assert_no_traceback(result)
     assert result.exit_code == 2
     assert result.stdout == ""
@@ -230,7 +400,7 @@ def test_clear_cache_refuses_a_file_that_is_not_a_database(tmp_path: Path) -> No
     """No SQLite header: notes, a spreadsheet, anything reached by a typo."""
     notes = tmp_path / "notes.txt"
     notes.write_text("shopping list\n", encoding="utf-8")
-    result = run("--db", str(notes), "--clear-cache")
+    result = run("--db", str(notes), "clear-cache")
     assert result.exit_code == 2
     assert result.stderr == f"ERROR: database: invalid: {notes}\n"
     assert notes.exists()
@@ -241,7 +411,7 @@ def test_clear_cache_still_removes_a_damaged_database(tmp_path: Path) -> None:
     recovery command must not be refused by the damage it exists to clear."""
     db_path = tmp_path / "licenses.db"
     db_path.write_bytes(b"SQLite format 3\x00" + b"\xff" * 4096)
-    result = run("--db", str(db_path), "--clear-cache")
+    result = run("--db", str(db_path), "clear-cache")
     assert result.exit_code == 0, result.stderr
     assert not db_path.exists()
 
@@ -251,7 +421,7 @@ def test_clear_cache_through_a_file_uri_clears_the_directory(tmp_path: Path) -> 
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     for name in CACHE_NAMES:
         (tmp_path / name).write_text("x\n", encoding="utf-8")
-    result = run("--db", f"file:{db_path}", "--clear-cache")
+    result = run("--db", f"file:{db_path}", "clear-cache")
     assert result.exit_code == 0, result.stderr
     assert [p.name for p in tmp_path.iterdir() if p.is_file()] == []
 
@@ -261,7 +431,7 @@ def test_clear_cache_removes_the_sqlite_sidecars(tmp_path: Path) -> None:
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     for suffix in ("-wal", "-shm", "-journal"):
         db_path.with_name(db_path.name + suffix).write_bytes(b"stale")
-    result = run("--db", str(db_path), "--clear-cache")
+    result = run("--db", str(db_path), "clear-cache")
     assert result.exit_code == 0, result.stderr
     assert [p.name for p in tmp_path.iterdir() if p.is_file()] == []
 
@@ -269,7 +439,7 @@ def test_clear_cache_removes_the_sqlite_sidecars(tmp_path: Path) -> None:
 def test_a_sidecar_that_vanishes_between_check_and_unlink_is_not_an_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Another process (a second --clear-cache, a temp reaper) removes the
+    """Another process (a second clear-cache, a temp reaper) removes the
     -wal after the check sees it: a race, not a failure to report."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     wal = db_path.with_name(db_path.name + "-wal")
@@ -282,7 +452,7 @@ def test_a_sidecar_that_vanishes_between_check_and_unlink_is_not_an_error(
         real_unlink(self, missing_ok=missing_ok)
 
     monkeypatch.setattr(Path, "unlink", racing_unlink)
-    result = run("--db", str(db_path), "--clear-cache")
+    result = run("--db", str(db_path), "clear-cache")
     assert_no_traceback(result)
     assert result.exit_code == 0, result.stderr
     assert not wal.exists()
@@ -299,7 +469,7 @@ def test_clear_cache_refuses_a_path_that_names_no_file(
     for name in CACHE_NAMES:
         (work / name).write_text("x\n", encoding="utf-8")
     monkeypatch.chdir(work)
-    result = run("--db", arg, "--clear-cache")
+    result = run("--db", arg, "clear-cache")
     assert_no_traceback(result)
     assert result.exit_code == 2
     assert result.stderr == f"ERROR: database: invalid: {arg}\n"
@@ -316,7 +486,7 @@ def test_clear_cache_refuses_a_file_it_may_not_read(tmp_path: Path) -> None:
     try:
         if os.access(str(notes), os.R_OK):
             pytest.skip("this user can read a 000 file (root?)")
-        result = run("--db", str(notes), "--clear-cache")
+        result = run("--db", str(notes), "clear-cache")
     finally:
         notes.chmod(0o644)
     assert result.exit_code == 2, result.stderr
@@ -335,7 +505,7 @@ def test_a_file_that_vanishes_before_its_header_is_read_is_not_claimed(
         raise OSError(5, "Input/output error")
 
     monkeypatch.setattr("licenseid.dbcheck.open", failing_open, raising=False)
-    result = run("--db", str(db_path), "--clear-cache")
+    result = run("--db", str(db_path), "clear-cache")
     assert result.exit_code == 2, result.stderr
     assert result.stderr == f"ERROR: database: invalid: {db_path}\n"
     assert db_path.exists()
@@ -346,7 +516,7 @@ def test_clear_cache_refuses_a_path_it_may_not_look_at(tmp_path: Path) -> None:
     file: it may be anybody's, and deleting it is not licenseid's call."""
     db_path = db_in_an_unreadable_directory(tmp_path)
     try:
-        result = run("--db", str(db_path), "--clear-cache")
+        result = run("--db", str(db_path), "clear-cache")
     finally:
         db_path.parent.chmod(0o755)
     assert result.exit_code == 2, result.stderr
@@ -366,7 +536,7 @@ def test_every_spelling_of_one_path_decides_the_same_way(
         conn.execute("CREATE TABLE notes (a TEXT)")
         conn.execute("INSERT INTO notes VALUES ('precious')")
     before = foreign.read_bytes()
-    result = run("--db", spelling.format(p=foreign), "--clear-cache")
+    result = run("--db", spelling.format(p=foreign), "clear-cache")
     assert_no_traceback(result)
     assert result.exit_code == 2, result.stderr
     assert "database: invalid" in result.stderr
@@ -379,7 +549,7 @@ def test_every_spelling_clears_licenseids_own_database(
 ) -> None:
     """The other half: the spellings must not refuse a database either."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
-    result = run("--db", spelling.format(p=db_path), "--clear-cache")
+    result = run("--db", spelling.format(p=db_path), "clear-cache")
     assert result.exit_code == 0, result.stderr
     assert not db_path.exists()
 
@@ -393,7 +563,7 @@ def test_clear_cache_refuses_a_uri_whose_file_it_cannot_identify(
     still there; deleting a guess would be worse."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     (tmp_path / "licenses.json").write_text("x\n", encoding="utf-8")
-    result = run("--db", db_arg.format(p=db_path), "--clear-cache")
+    result = run("--db", db_arg.format(p=db_path), "clear-cache")
     assert_no_traceback(result)
     assert result.exit_code == 2, result.stderr
     assert "database: invalid" in result.stderr
@@ -424,7 +594,7 @@ def test_a_sidecar_that_cannot_be_removed_does_not_fail_a_done_delete(
         real_unlink(self, missing_ok=missing_ok)
 
     monkeypatch.setattr(Path, "unlink", refusing_unlink)
-    result = run("--db", str(db_path), "--clear-cache")
+    result = run("--db", str(db_path), "clear-cache")
     assert_no_traceback(result)
     assert result.exit_code == 0, result.stderr
     assert not db_path.exists()
@@ -444,7 +614,7 @@ def test_a_refused_delete_of_the_database_exits_1_on_every_os(
         real_unlink(self, missing_ok=missing_ok)
 
     monkeypatch.setattr(Path, "unlink", refusing_unlink)
-    result = run("--db", str(db_path), "--clear-cache")
+    result = run("--db", str(db_path), "clear-cache")
     assert_no_traceback(result)
     assert (result.exit_code, result.stdout) == (1, ""), result.stderr
     last = result.stderr.splitlines()[-1]
@@ -462,6 +632,6 @@ def test_clear_cache_through_every_local_uri_spelling(
     (tmp_path / "licenses.json").write_text("x\n", encoding="utf-8")
     posix = db_path.as_posix()
     where = posix if posix.startswith("/") else f"/{posix}"
-    result = run("--db", template.format(p=where), "--clear-cache")
+    result = run("--db", template.format(p=where), "clear-cache")
     assert result.exit_code == 0, result.stderr
     assert [p.name for p in tmp_path.iterdir() if p.is_file()] == []

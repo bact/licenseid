@@ -49,15 +49,18 @@ KNOWN = {
     "GPL-2.0-only WITH Classpath-exception-2.0": (
         "GPL-2.0-only WITH Classpath-exception-2.0"
     ),
-    # A LicenseRef-* is a valid SPDX ID, so it counts as known (as it does for
-    # the `license` field of JSON, TOML and INI).
+}
+# A valid expression with one part nobody knows: still a match, but not SPDX.
+# A LicenseRef-* is a valid SPDX ID, so it matches as a known one does (as it
+# does for the `license` field of JSON, TOML and INI), but it is not on the
+# List (F2 of the contract batch).
+PARTLY_KNOWN = {
+    "MIT OR NoSuch-1.0": "MIT OR NoSuch-1.0",
     "LicenseRef-Foo": "LicenseRef-Foo",
     "LicenseRef-Foo WITH Classpath-exception-2.0": (
         "LicenseRef-Foo WITH Classpath-exception-2.0"
     ),
 }
-# A valid expression with one part nobody knows: still a match, but not SPDX.
-PARTLY_KNOWN = {"MIT OR NoSuch-1.0": "MIT OR NoSuch-1.0"}
 # No recognised ID at all: no evidence of a license.
 UNKNOWN = [
     "NoSuchLicense-9.9",
@@ -99,8 +102,9 @@ def test_an_unknown_tag_is_no_evidence_anywhere(
 ) -> None:
     """It used to be reported verbatim as a certain, SPDX-flagged match, and
     the CLI's is-spdx disagreed. Now matching falls through to the text tiers,
-    as it does for an unresolved `License:` field, and all four agree."""
-    assert answers(db, tag, tmp_path) == Answers(None, False, None, False)
+    as it does for an unresolved `License:` field, and all four agree: no
+    licence, so no flag (``is_spdx`` None, ``is-spdx`` exit 1)."""
+    assert answers(db, tag, tmp_path) == Answers(None, None, None, False)
 
 
 def test_an_unknown_tag_does_not_hide_a_known_one(db: str) -> None:

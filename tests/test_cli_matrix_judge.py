@@ -12,6 +12,7 @@ look exactly like a clean tree.
 
 from __future__ import annotations
 
+import json
 import os
 import runpy
 import sys
@@ -30,6 +31,10 @@ CLEAN_PREDICATE = {"rc": 0, "out": YES, "err": "", "files": []}
 CLEAN_MATCH = {"rc": 0, "out": "MIT\n", "err": "", "files": []}
 
 # --------------------------------------------------------------- judging
+
+#: What detect prints for no answer (C9), and the list update installs.
+NO_ANSWER = "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"
+L = "spdx-license-list"
 
 FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
     (
@@ -59,8 +64,26 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
     (
         "detect exit 1 with an ERROR line",
         {"kind": "detect"},
-        {"rc": 1, "err": "ERROR: detect: something else\n"},
-        "detect exit 1 with stdout or an ERROR line",
+        {"rc": 1, "out": NO_ANSWER, "err": "ERROR: detect: something else\n"},
+        "detect exit 1 without its empty record, or an ERROR line",
+    ),
+    (
+        "detect exit 1 with nothing on stdout (C9: an empty record)",
+        {"kind": "detect"},
+        {"rc": 1, "out": ""},
+        "detect exit 1 without its empty record, or an ERROR line",
+    ),
+    (
+        "detect --json exit 1 with the text record",
+        {"kind": "detect", "outflags": frozenset({"json"})},
+        {"rc": 1, "out": NO_ANSWER},
+        "detect exit 1 without its empty record, or an ERROR line",
+    ),
+    (
+        "detect --id-only exit 1 with the text record",
+        {"kind": "detect", "outflags": frozenset({"id-only"})},
+        {"rc": 1, "out": NO_ANSWER},
+        "detect exit 1 without its empty record, or an ERROR line",
     ),
     (
         "expected exit not met",
@@ -119,14 +142,14 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
         "TIMEOUT",
     ),
     (
-        "--bold printed more than an identifier",
-        {"kind": "detect", "outflags": frozenset({"bold"}), "exp_exit": 0},
+        "--id-only printed more than an identifier",
+        {"kind": "detect", "outflags": frozenset({"id-only"}), "exp_exit": 0},
         {
             "rc": 0,
             "out": "EXPRESSION=MIT\tMETHOD=id\tEXACT=true\tSCORE=1.0000\tSIMILARITY="
             "\tCOVERAGE=\n",
         },
-        "--bold not a single id",
+        "--id-only not one expression",
     ),
 ]
 
@@ -183,7 +206,9 @@ def test_judge_ignores_streams_on_a_terminal() -> None:
 def test_judge_accepts_the_documented_diagnostic_grammar() -> None:
     """LEVEL: SUBJECT: CONDITION on stderr is exactly what is expected."""
     cell = make_cell(kind="detect", exp_exit=1)
-    result = make_result(rc=1, err="WARNING: detect: variant not stated: x; using y\n")
+    result = make_result(
+        rc=1, out=NO_ANSWER, err="WARNING: input: variant not stated: x; using y\n"
+    )
     assert judge_mod.judge(cell, result)[0] == "PASS"
 
 
@@ -269,7 +294,7 @@ def test_group_compares_plain_output_by_its_first_line_only() -> None:
 
 
 def test_bold_text_groups_are_not_exempt_from_the_group_check() -> None:
-    """File, text and stdin read the same bytes and must agree, ``--bold`` too."""
+    """File, text and stdin read the same bytes and must agree, ``--id-only`` too."""
     cells = {
         f"A1-00{n}": make_cell(id=f"A1-00{n}", group="A1-text-True-bold")
         for n in (1, 2, 3)
@@ -284,33 +309,62 @@ def test_bold_text_groups_are_not_exempt_from_the_group_check() -> None:
     ]
 
 
-def test_relational_flags_contradicting_predicates() -> None:
-    """is-open must agree with is-osi or is-fsf; is-free with is-open."""
-    cells, rows = _relational_fixture(is_open_rc=1)
+@pytest.mark.parametrize(
+    ("codes", "flags"),
+    [
+        ({"is-osi": 1, "is-fsf": 0, "is-spdx": 0}, (True, True, True)),
+        ({"is-osi": 0, "is-fsf": 0, "is-spdx": 0}, (True, False, True)),
+        ({"is-osi": 0, "is-fsf": 0, "is-spdx": 0}, (None, None, True)),
+        ({"is-osi": 0, "is-fsf": 0, "is-spdx": 0}, (True, True, None)),
+    ],
+    ids=["no-but-detect-yes", "yes-but-detect-no", "yes-but-unknown", "spdx"],
+)
+def test_relational_flags_predicates_that_contradict_detect(
+    codes: dict[str, int], flags: tuple[bool | None, ...]
+) -> None:
+    """Each predicate exits 0 exactly when detect's flag is true (C1: the
+    union commands it checked are gone)."""
+    cells, rows = _relational_fixture(codes, flags)
     judge_mod.relational(rows, cells)
     assert all(row["verdict"] == "FLAG" for row in rows)
     assert any("relational:" in note for note in rows[0]["notes"])
 
 
-def test_relational_passes_consistent_predicates() -> None:
+@pytest.mark.parametrize(
+    ("codes", "flags"),
+    [
+        ({"is-osi": 0, "is-fsf": 0, "is-spdx": 0}, (True, True, True)),
+        ({"is-osi": 1, "is-fsf": 0, "is-spdx": 0}, (False, True, True)),
+        ({"is-osi": 1, "is-fsf": 1, "is-spdx": 1}, (None, None, False)),
+        ({"is-osi": 1, "is-fsf": 1, "is-spdx": 1}, None),  # detect: no answer
+    ],
+    ids=["all-yes", "fsf-only", "unknown", "nothing"],
+)
+def test_relational_passes_consistent_predicates(
+    codes: dict[str, int], flags: tuple[bool | None, ...] | None
+) -> None:
     """Consistent answers are annotated but not flagged."""
-    cells, rows = _relational_fixture(is_open_rc=0)
+    cells, rows = _relational_fixture(codes, flags)
     judge_mod.relational(rows, cells)
     assert all(row["verdict"] == "OBSERVE" for row in rows)
+    assert any("answers for 'MIT'" in note for note in rows[0]["notes"])
 
 
-def _relational_fixture(is_open_rc: int) -> tuple[dict[str, Cell], list[Any]]:
-    """Five B5 cells for one identifier, with is-open set as asked."""
-    codes = {
-        "is-osi": 0,
-        "is-fsf": 0,
-        "is-open": is_open_rc,
-        "is-free": is_open_rc,
-        "is-spdx": 0,
-    }
+def _relational_fixture(
+    codes: dict[str, int], flags: tuple[bool | None, ...] | None
+) -> tuple[dict[str, Cell], list[Any]]:
+    """B5 cells for one identifier: each predicate with its exit code, and
+    detect --json with the flags of its top result (None: no answer)."""
+    keys = ("is_osi_approved", "is_fsf_libre", "is_spdx")
+    record = (
+        dict.fromkeys(("expression", "method", "score", *keys))
+        if flags is None
+        else {"expression": "MIT", "method": "id", "score": 1, **dict(zip(keys, flags))}
+    )
+    runs = {**codes, "detect": 1 if flags is None else 0}
     cells: dict[str, Cell] = {}
     rows: list[Any] = []
-    for index, (name, rc) in enumerate(codes.items()):
+    for index, (name, rc) in enumerate(runs.items()):
         cell_id = f"B5-{index:03d}"
         cells[cell_id] = make_cell(
             id=cell_id,
@@ -318,7 +372,10 @@ def _relational_fixture(is_open_rc: int) -> tuple[dict[str, Cell], list[Any]]:
             desc=f"{name} --id 'MIT' (consistency group)",
             cmd=f"$L --db $DB {name} --id MIT",
         )
-        rows.append(make_result(id=cell_id, rc=rc, verdict="OBSERVE", notes=[]))
+        out = json.dumps(record) + "\n" if name == "detect" else ""
+        rows.append(
+            make_result(id=cell_id, rc=rc, out=out, verdict="OBSERVE", notes=[])
+        )
     return cells, rows
 
 
@@ -491,10 +548,12 @@ def test_the_predicate_contract(rc: int, out: str, ok: bool) -> None:
 @pytest.mark.parametrize(
     ("out", "ok"),
     [
-        ("STATUS=updated\tVERSION=9.99\tPATH=/x/licenses.db\n", True),
-        ("STATUS=unchanged\tVERSION=\tPATH=x\n", True),
-        ('{"path":"x","status":"updated","version":"9.99"}\n', True),
-        ('{"path":"x","status":"unchanged","version":null}\n', True),
+        (f"LIST={L}\tVERSION=9.99\tSTATUS=updated\tPATH=/x/licenses.db\n", True),
+        (f"LIST={L}\tVERSION=\tSTATUS=unchanged\tPATH=x\n", True),
+        (f'{{"list":"{L}","path":"x","status":"updated","version":"9.99"}}\n', True),
+        (f'{{"list":"{L}","path":"x","status":"unchanged","version":null}}\n', True),
+        ("STATUS=updated\tVERSION=9.99\tPATH=/x/licenses.db\n", False),  # pre-C2
+        ('{"path":"x","status":"updated","version":"9.99"}\n', False),  # pre-C2
         ("Database updated at x\n", False),  # the old shape
         ("STATUS=done\tVERSION=9.99\tPATH=x\n", False),
         ('{"path":"x","status":"done","version":"9.99"}\n', False),
@@ -503,7 +562,7 @@ def test_the_predicate_contract(rc: int, out: str, ok: bool) -> None:
     ],
 )
 def test_the_update_record(out: str, ok: bool) -> None:
-    """One STATUS/VERSION/PATH record, text or JSON, and nothing else."""
+    """One LIST/VERSION/STATUS/PATH record, text or JSON, and nothing else."""
     assert judge_mod.is_update_record(out) is ok
     verdict, notes = judge_mod.judge(
         make_cell(fam="D1", kind="update", progress=True), make_result(rc=0, out=out)
@@ -538,5 +597,31 @@ def test_the_word_diff_on_stderr_is_no_stray_line(
     verdict, notes = judge_mod.judge(
         make_cell(kind="detect", cmd=cmd),
         make_result(rc=0, out=PLAIN_LINE + "\n", err=err),
+    )
+    assert any("outside grammar" in note for note in notes) is flagged, (verdict, notes)
+
+
+@pytest.mark.parametrize(
+    ("err", "flagged"),
+    [
+        (
+            (
+                "shell-init: error retrieving current directory: getcwd: cannot"
+                " access parent directories: No such file or directory\n"
+            ),
+            False,
+        ),
+        ("bash: line 1: x: command not found\n", False),
+        ("shell-initial text\n", True),  # not the shell's message
+        ("init: something\n", True),
+    ],
+    ids=["shell-init", "bash-line", "near-miss", "other"],
+)
+def test_the_shells_own_lines_are_not_the_clis(err: str, flagged: bool) -> None:
+    """bash 5 says ``shell-init:`` when it starts in a deleted working
+    directory (E6): the shell's line, not one licenseid broke the grammar
+    with."""
+    verdict, notes = judge_mod.judge(
+        make_cell(kind="other"), make_result(rc=0, out="", err=err)
     )
     assert any("outside grammar" in note for note in notes) is flagged, (verdict, notes)

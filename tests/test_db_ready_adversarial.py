@@ -27,7 +27,7 @@ from db_asserts import (
 )
 from db_variants import MIT_TEXT, REFUSED, make_ready_file_db, writer
 
-from licenseid import cli as cli_module
+from licenseid import clidetect
 from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import check_database_ready, reject_foreign_database
 from licenseid.errors import DatabaseNotReadyError
@@ -219,7 +219,7 @@ def test_a_programming_error_is_worded_unreadable(
     def boom(*args: object, **kwargs: object) -> None:
         raise sqlite3.ProgrammingError("Incorrect number of bindings supplied")
 
-    monkeypatch.setattr(cli_module, "LicenseDetector", boom)
+    monkeypatch.setattr(clidetect, "LicenseDetector", boom)
     result = run("--db", str(path), "detect", "--text", MIT_TEXT)
     assert result.exit_code == 2
     assert "ERROR: database: unreadable" in result.stderr
@@ -233,7 +233,7 @@ def test_an_interface_error_is_worded_unreadable(
     def boom(*args: object, **kwargs: object) -> None:
         raise sqlite3.InterfaceError("Error binding parameter 0")
 
-    monkeypatch.setattr(cli_module, "LicenseDetector", boom)
+    monkeypatch.setattr(clidetect, "LicenseDetector", boom)
     result = run("--db", str(path), "is-osi", "MIT")
     assert result.exit_code == 2
     assert "ERROR: database: unreadable" in result.stderr

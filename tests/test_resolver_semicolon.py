@@ -19,6 +19,7 @@ import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
+from resolver_helpers import no_reader_reason
 
 from licenseid import LicenseDatabase, match
 
@@ -219,7 +220,10 @@ def test_a_value_that_is_no_list_keeps_its_refusal(
     got = match(value, corpus_db)
     assert got["reason"] != REASON
     assert got["expression"] is None
-    assert got["reason"] == NOT_A_LIST[value]
+    if NOT_A_LIST[value] is None:  # no reader's own: the default (P5)
+        assert no_reader_reason(got["reason"])
+    else:
+        assert got["reason"] == NOT_A_LIST[value]
 
 
 @pytest.mark.parametrize(

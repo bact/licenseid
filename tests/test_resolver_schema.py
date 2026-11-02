@@ -107,18 +107,20 @@ def test_a_value_refused_before_it_is_read_has_no_operand(
 
 @pytest.mark.parametrize(
     "value",
-    ["MIT", "Apache2", "GPL-2.0+", "GPL-3.0", "Apache 2.0?", "MIT WITH LLVM-exception"],
+    ["mit", "Apache2", "GPL-2.0+", "GPL-3.0", "Apache 2.0?", "(MIT) OR apache2"],
 )
-def test_every_step_says_licenseid_did_it(
-    corpus_db: LicenseDatabase, value: str
-) -> None:
-    """``by`` is ``""`` on every step and expansion, of the whole and of each
-    operand: no step of 0.7.0 is another tool's."""
+def test_a_step_has_no_empty_string(corpus_db: LicenseDatabase, value: str) -> None:
+    """P4 of the contract batch: no step has ``by`` (every step of 0.7.0 is
+    licenseid's own), and a ``list`` or ``detail`` that says nothing is
+    None, never ``""``; of the whole and of each operand."""
     got = match(value, corpus_db)
     steps = got["steps"] + got["expansions"]
     for operand in got["operands"]:
         steps += operand["steps"] + operand["expansions"]
-    assert all(s["by"] == "" for s in steps)
+    assert steps
+    for s in steps:
+        assert set(s) == {"kind", "applied", "from", "to", "list", "detail"}
+        assert s["list"] != "" and s["detail"] != ""
 
 
 @pytest.mark.parametrize(

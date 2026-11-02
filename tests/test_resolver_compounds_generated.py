@@ -117,7 +117,8 @@ def test_a_shape_t7_decides_keeps_its_answer(
     got = match(value, corpus_db)
     kinds = [s["kind"] for s in got["steps"]]
     assert (got["expression"], got["category"], kinds) == expected
-    assert got["reason"] is None
+    # An answer has no reason; a refusal always has one (P5).
+    assert (got["reason"] is None) is (got["expression"] is not None)
 
 
 #: Shapes task T7 refuses, with the answer: ``(category, reason)``. Before
@@ -126,7 +127,9 @@ REFUSED: list[tuple[str, tuple[str, str]]] = [
     ("MIT)", ("malformed", "parse failed: Missing matching '('")),
     ("(MIT", ("malformed", "parse failed: Unexpected '('")),
     ("MIT AND", ("malformed", "parse failed: Unexpected 'AND'")),
-    ("MIT OR GPL-2.0-only+", ("malformed", "operand not resolved: GPL-2.0-only+")),
+    # The operand's own reason (P5, as P29 has it): it said "operand not
+    # resolved" while that operand had none.
+    ("MIT OR GPL-2.0-only+", ("malformed", "qualifier stated twice: GPL-2.0-only+")),
     ("MIT/Apache-2.0", ("unresolved", "not an SPDX operator: /")),
     ("MIT | ISC", ("unresolved", "not an SPDX operator: |")),
     ("MIT & ISC", ("unresolved", "not an SPDX operator: &")),
@@ -151,7 +154,8 @@ def test_a_shape_t7_refuses_says_why(
 #: Values with an operator word that T7 does not read as a compound: a leaf
 #: of several words with a lower-case operator, or a lower-case operator and
 #: an operand that names nothing. Before T7 they were unresolved, with no
-#: reason, as now.
+#: reason; since the contract batch (P5) the reason is ``not found``, for the
+#: whole value, not one that splits it.
 PROSE = [
     "Proprietary or custom",
     "proprietary and confidential",
@@ -172,7 +176,11 @@ def test_prose_with_an_operator_word_is_no_compound(
     """Unresolved, no reason that splits it, one operand: the whole value."""
     got = match(value, corpus_db)
     texts = [o["text"] for o in got["operands"]]
-    assert (got["category"], got["reason"], texts) == ("unresolved", None, [value])
+    assert (got["category"], got["reason"], texts) == (
+        "unresolved",
+        f"not found: {value}",
+        [value],
+    )
     assert got["expression"] is None
     assert not got["components"]
 

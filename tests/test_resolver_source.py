@@ -11,15 +11,18 @@ to the database only when this licenseid's rules built its rows (Q10).
 
 import re
 from pathlib import Path
+from unittest import mock
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db, writer
 from release_fakes import release_bundle, ship
 
-from licenseid import LicenseDatabase, match
+from licenseid import LicenseDatabase, listsource, match
 from licenseid.datadir import get_default_db_path
+from licenseid.dbcheck import check_database_ready
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
+from licenseid.records import BUILD_VERSION
 
 DB_VERSION = "3.30"
 
@@ -82,9 +85,9 @@ def test_a_database_version_that_is_no_number_is_a_tie(
 @pytest.mark.parametrize(
     ("build", "warning"),
     [
-        ("1", "build v1 outdated: current v2; run 'licenseid update'"),
-        ("x", "build vx outdated: current v2; run 'licenseid update'"),
-        ("3", "build v3 newer: current v2"),
+        ("1", f"build v1 outdated: current v{BUILD_VERSION}; run 'licenseid update'"),
+        ("x", f"build vx outdated: current v{BUILD_VERSION}; run 'licenseid update'"),
+        ("99", f"build v99 newer: current v{BUILD_VERSION}"),
     ],
 )
 def test_a_tie_goes_to_the_bundle_unless_the_build_is_current(
@@ -109,7 +112,7 @@ def test_a_newer_list_wins_whatever_its_build(
     assert _read() == ("database", DB_VERSION)
 
 
-@pytest.mark.parametrize("build", ["02", "2"])
+@pytest.mark.parametrize("build", [f"0{BUILD_VERSION}", BUILD_VERSION])
 def test_a_current_build_is_read_as_a_number(
     monkeypatch: pytest.MonkeyPatch, build: str
 ) -> None:
@@ -215,9 +218,51 @@ def test_a_database_with_no_rows_is_refused_by_source_database() -> None:
         match("MIT", source="database")
 
 
-def test_a_database_given_is_read_as_built() -> None:
-    """The caller built it: no readiness check, as 0.6.0."""
+def test_a_database_given_is_checked_ready() -> None:
+    """P3 of the contract batch: a database the caller opened is checked as
+    one ``match()`` opens is (it was read unchecked, so an empty one
+    answered ``unresolved`` for MIT)."""
     path = Path(get_default_db_path())
     path.parent.mkdir(parents=True)
-    got = match("MIT", LicenseDatabase(str(path)), source="database")
-    assert (got["expression"], got["category"]) == (None, "unresolved")
+    message = f"database: empty: {path}; run 'licenseid update'"
+    with pytest.raises(DatabaseNotReadyError, match=f"^{re.escape(message)}$"):
+        match("MIT", LicenseDatabase(str(path)), source="database")
+
+
+@pytest.mark.parametrize("form", ["handle", "str", "path"])
+def test_a_database_given_is_checked_once_while_its_file_stays(
+    tmp_path: Path, form: str
+) -> None:
+    """P3: the readiness check costs more than a lookup, so a database given
+    is checked once while its file keeps its stamp, and again when it
+    changes: an emptied file is refused, not read."""
+    path = make_ready_file_db(tmp_path / "given.db")
+    db: LicenseDatabase | str | Path = path
+    if form == "handle":
+        db = LicenseDatabase(str(path), create=False)
+    elif form == "str":
+        db = str(path)
+    checks = mock.create_autospec(
+        check_database_ready, side_effect=check_database_ready
+    )
+    with mock.patch("licenseid.listsource.check_database_ready", checks):
+        for _ in range(3):
+            assert match("MIT", db)["expression"] == "MIT"
+        assert checks.call_count == 1
+        with writer(path) as conn:
+            conn.execute("DELETE FROM licenses")
+        with pytest.raises(DatabaseNotReadyError, match="^database: empty: "):
+            match("MIT", db)
+        assert checks.call_count == 2
+
+
+def test_reset_choice_forgets_the_databases_given(tmp_path: Path) -> None:
+    path = str(make_ready_file_db(tmp_path / "given.db"))
+    checks = mock.create_autospec(
+        check_database_ready, side_effect=check_database_ready
+    )
+    with mock.patch("licenseid.listsource.check_database_ready", checks):
+        match("MIT", path)
+        listsource.reset_choice()
+        match("MIT", path)
+    assert checks.call_count == 2

@@ -31,8 +31,13 @@
   `Apache 2.0?`, `REM MIT`), `listindex.py` (the shipped SPDX bundle in
   memory, a `ListLookup` for `match()` with no database),
   `listsource.py` (which list `match()` reads: database or packaged),
-  `climatch.py` (the `licenseid match` command; what it shares with
-  `cli.py` is in `clicommon.py`), `identifiers.py`, `classify.py`,
+  `cli.py` (the group and `main`), `cliinput.py` (the input of `detect`
+  and `is-*`: one of a file, a value, `--text`, `--id`, `-`),
+  `clidetect.py` (`detect` and `is-*`), `cliupdate.py` (`update` and
+  `clear-cache`), `climatch.py` (the `licenseid match` command; what the
+  commands share is in `clicommon.py`), `exprflags.py` (the OSI, FSF and
+  List flags of an expression), `resolvereason.py` (the reason of a
+  refusal no reader explained), `identifiers.py`, `classify.py`,
   `normalize.py`, `textinput.py` (bytes to text), `manifest.py` (the
   `license` field of package.json, pyproject.toml, Cargo.toml, setup.cfg),
   `datadir.py` (the default database path), `dbconnection.py` (SQLite
@@ -102,8 +107,14 @@
 Unix philosophy. Consistent, predictable, parseable.
 
 - One pattern for every result line of every command (`detect`, `match`,
-  `update`, `is-*`), written through `output.echo`:
+  `update`, `clear-cache`, `is-*`), written through `output.echo`:
   - Default: line-delimited, one data point (one record) per line.
+  - A line's first key names its kind (`EXPRESSION` the answer, `STEP`,
+    `REASON`, `OPERAND`, `LIST`, `STATUS`); the answer is the first line.
+  - A command with no answer still prints its record, every field empty
+    (`detect` exit 1: `EXPRESSION=` and the rest; JSON every value `null`).
+  - Fields are only ever appended, never removed, renamed or reordered: a
+    reader finds a field by its key. A new field goes at the end.
   - Fields: `KEY=VALUE`, uppercase KEY, no spaces around `=`, one tab
     between fields (`result.fields_line`). A key ends at the first `=`.
   - Escaping: a value is written as it is, except a tab, CR, LF and
@@ -112,23 +123,31 @@ Unix philosophy. Consistent, predictable, parseable.
     `output.echo`); `result.text_field` writes a value,
     `result.read_text_field` reads it back.
   - Nothing is an empty value (`SIMILARITY=`, `EXPRESSION=`); a flag is
-    `true` or `false`.
+    `true`, `false`, or empty when there is nothing to judge (no licence
+    found, an operand not judged): never a false `false`.
   - `--json`: the same result, one object per line, its keys the text
-    keys in lower case (`EXPRESSION` is `expression`), nothing `null`, a
-    flag a boolean. `match --json` holds the whole resolution, of which
-    the text lines show a part.
+    keys in lower case (`EXPRESSION` is `expression`), `null` means nothing
+    (the text's empty value), a flag a boolean. `match --json` holds the
+    whole resolution, of which the text lines show a part; the mapping of
+    its text keys to JSON keys (`STEP` to `steps[].kind` and
+    `expansions[].kind`, `OPERAND` to `operands[].text`) is in
+    `docs/match.md`. In the API too, None means nothing: never `""`.
   - --json and any JSON output will always write with RFC 8785: JSON
     Canonicalization Scheme (JCS). Every JSON the CLI writes goes through
     the one writer, `result.json_line`, as UTF-8 bytes on every locale
     (`output.echo_json`, one object per line): never `json.dumps` on an
     output path.
   - Exit codes: 0 an answer, yes or done; 1 no answer, no, or an action
-    that failed (`update`, a delete `--clear-cache` could not make); 2 a
-    usage error, unusable input, a database not ready, or a result that
-    could not be written. Exit 1 of `detect` and `match` prints nothing on
-    standard error.
-  - The only exceptions: `detect --bold` (the top ID alone, one line),
-    `--version` (`licenseid <version>`) and `--help`.
+    that failed (`update`, a delete `clear-cache` could not make); 2 a
+    usage error (two inputs, `--json` with `--id-only` or `--diff`),
+    unusable input, a database not ready, or a result that could not be
+    written. Exit 1 of `detect` and `match` prints no `ERROR` line: "no"
+    is an answer. A `WARNING` about the input or the database
+    (`variant not stated`, `N days old`) can still come with it, as with
+    an answer.
+  - The only exceptions: `detect --id-only` (the top expression alone, one
+    line; an empty line for none), `--version` (`licenseid <version>`) and
+    `--help`.
   - `tests/test_output_pattern.py` runs every command, text and `--json`,
     and holds each line to this pattern.
 - Standard output carries only a command's result. Progress, warnings and
@@ -146,7 +165,7 @@ Unix philosophy. Consistent, predictable, parseable.
   - `LEVEL`: `ERROR` (the command fails, non-zero exit) or `WARNING` (a
     fallback lets it continue).
   - `SUBJECT`: the thing affected, a lowercase word or cache file name:
-    `command`, `database`, `detect`, `input`, `option`, `output`, `usage`,
+    `command`, `database`, `input`, `option`, `output`, `usage`,
     `version`, `latest.json`, `licenses.json`, `popularity.csv`,
     `spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz` (the packaged bundle in
     the wheel), `spdx-data-v<ver>.tar.gz`.
@@ -180,7 +199,7 @@ Unix philosophy. Consistent, predictable, parseable.
     exits 1, or 2 for its subclass `InvalidInputError` (a usage error). The
     CLI also exits 2 for `DatabaseNotReadyError` (a database that is missing,
     empty, invalid or unreadable) in `detect`, `match` and the `is-*`
-    commands, where exit 1 already means "no". `update` and `--clear-cache`
+    commands, where exit 1 already means "no". `update` and `clear-cache`
     write or delete, so they refuse only an `invalid` database — one
     licenseid did not build — and accept every other condition, which is
     what they exist to fix.
@@ -197,7 +216,7 @@ Unix philosophy. Consistent, predictable, parseable.
     pointed at the null device, or the flush at exit would turn every exit
     status into 120.
   - click's usage errors are worded in the grammar too
-    (`ERROR: option: not found: --bogus; did you mean --bold`): `usage.py`
+    (`ERROR: option: not found: --jsn; did you mean --json`): `usage.py`
     re-raises them as `UsageLineError` in `parse_args` (option callbacks
     included) and in the group's `invoke` (an unknown command, and a
     command's own `BadParameter`), so click's standalone mode (every
@@ -301,7 +320,7 @@ ruff format
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=22`, McCabe=12, Cognitive=29, module
-  lines=773) — see
+  lines=739) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't
@@ -401,14 +420,15 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   (UTF-8 with BOM dropped, else Latin-1 with a warning, NUL means binary,
   checked by `reject_binary`, which `--text` also calls). The CLI and
   `detect(file_path=...)` both use it; do not `open()` a user file
-  anywhere else (`tests/test_textinput.py` fails if `cli.py` or `detector.py`
-  does). The SPDX data files stay strict UTF-8 on purpose: a fallback there
-  would hide a corrupt download. A text with a lone surrogate (an API string,
-  or a command-line argument of invalid UTF-8, which Python decodes to
-  `\udcXX`) cannot be encoded for SQLite's parameter binding:
+  anywhere else (`tests/test_textinput.py` fails if a `cli*.py` module or
+  `detector.py` does). `--text` is taken as written: no escape is
+  decoded. The SPDX data files stay strict UTF-8 on purpose: a fallback
+  there would hide a corrupt download. A text with a lone surrogate (an API
+  string, or a command-line argument of invalid UTF-8, which Python decodes
+  to `\udcXX`) cannot be encoded for SQLite's parameter binding:
   `textinput.reject_lone_surrogate` raises `InvalidInputError` at the one
-  place the detector takes a text, and `cli.reject_unencodable` exits 2 first
-  for `--text` and the argument.
+  place the detector takes a text, and `clicommon.reject_unencodable`
+  exits 2 first for `--text` and the argument.
 - `hatch_build.py` (Hatch custom hook, standard library only: the build
   environment has no `licenseid`) puts the packaged SPDX bundle in the wheel and
   the sdist (`src/licenseid/data/`, gitignored). `LICENSEID_BUNDLE=skip|<path>`
@@ -432,7 +452,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   or
   `LicenseRef-*` with at least one recognised ID, never for free text or an
   unknown ID. `is_*()` and the CLI's `is-*` commands answer from
-  `LicenseDetector.resolve_record`, so they agree with `detect`; do not look
+  `LicenseDetector._resolve_record`, so they agree with `detect`; do not look
   a record up in the database on the side.
 - An `SPDX-License-Identifier` tag value is the rest of its line, up to the
   next tag on it (`[ \t]`, never `\s`, so a tag cannot reach across a line
@@ -456,7 +476,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   optionally with `+` unless it ends in `-only` or `-or-later`, or a
   `LicenseRef-*`, which takes no `+`; either
   `WITH` an exception, in any brackets), and
-  both entry points read it — `cli.reject_compound_id` exits 2 through
+  both entry points read it — `cliinput.reject_compound_id` exits 2 through
   `errors.invalid_id_error`, `LicenseDetector._try_explicit_id_match`
   raises. Text that is one simple expression and nothing else (`GPL-2.0+`)
   is read as `license_id` reads it, by

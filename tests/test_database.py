@@ -148,12 +148,12 @@ def outdated(rules: str, stamp: str, current: str) -> str:
         ({}, [NORM_OLD, BUILD_OLD]),  # a database from before either stamp
         ({"normalization_version": "1", "build_version": "1"}, [NORM_OLD, BUILD_OLD]),
         # a later licenseid built it: newer, not outdated, and nothing to run
-        ({**CURRENT, "build_version": "3"}, [newer("build", "3", BUILD_VERSION)]),
+        ({**CURRENT, "build_version": "4"}, [newer("build", "4", BUILD_VERSION)]),
         (
             {**CURRENT, "normalization_version": "10"},  # 10 > 2, not "10" < "2"
             [newer("normalization", "10", NORMALIZATION_VERSION)],
         ),
-        ({**CURRENT, "build_version": "02"}, []),  # the same number
+        ({**CURRENT, "build_version": "03"}, []),  # the same number
         # a stamp that is no number: no licenseid wrote it, so it is older
         ({**CURRENT, "build_version": "x"}, [outdated("build", "x", BUILD_VERSION)]),
         ({**CURRENT, "build_version": "-3"}, [outdated("build", "-3", BUILD_VERSION)]),
@@ -166,8 +166,8 @@ def outdated(rules: str, stamp: str, current: str) -> str:
             [outdated("build", "9" * 5000, BUILD_VERSION)],
         ),
         (
-            {"normalization_version": "1", "build_version": "3"},
-            [NORM_OLD, newer("build", "3", BUILD_VERSION)],
+            {"normalization_version": "1", "build_version": "4"},
+            [NORM_OLD, newer("build", "4", BUILD_VERSION)],
         ),
     ],
     ids=[

@@ -15,6 +15,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
 from resolver_corpus import EXCEPTION_LIST, LICENSE_LIST
+from resolver_helpers import no_reader_reason
 
 from licenseid import LicenseDatabase, match
 from licenseid.dropguard import dropped, dropped_words
@@ -109,7 +110,8 @@ def test_a_negation_or_qualifier_is_not_read(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     got = match(value, corpus_db)
-    assert (got["expression"], got["reason"], got["steps"]) == (None, None, [])
+    assert (got["expression"], got["steps"]) == (None, [])
+    assert no_reader_reason(got["reason"])  # no word was dropped
 
 
 def test_several_words_are_listed(corpus_db: LicenseDatabase) -> None:

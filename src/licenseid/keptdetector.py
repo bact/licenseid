@@ -20,7 +20,7 @@ import threading
 from typing import Any
 
 from licenseid.datadir import get_default_db_path
-from licenseid.detector import LicenseDetector
+from licenseid.detector import LicenseDetector, check_request
 from licenseid.listsource import file_stamp, warn_once
 from licenseid.types import Detection
 
@@ -44,8 +44,11 @@ def detect(
     path, with one detector kept while that file is unchanged. Raises
     :class:`licenseid.errors.DatabaseNotReadyError` when that database is
     not ready (missing, empty, invalid or unreadable), and
-    :class:`licenseid.errors.InvalidInputError` as the method does.
+    :class:`licenseid.errors.InvalidInputError` as the method does. The
+    inputs are checked first: a wrong call is a :class:`TypeError` or an
+    InvalidInputError, with a database or without one.
     """
+    check_request(text, license_id, file_path, options)
     return _detector().detect(
         text, license_id=license_id, file_path=file_path, **options
     )

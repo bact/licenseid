@@ -12,7 +12,7 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from conftest import line_fields
+from conftest import clear_cache_line, line_fields
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
@@ -96,7 +96,7 @@ def test_clear_cache_without_a_home_directory_is_an_error_line(
         raise RuntimeError("Could not determine home directory.")
 
     monkeypatch.setattr(Path, "home", staticmethod(no_home))
-    result = CliRunner().invoke(cli, ["--clear-cache"])
+    result = CliRunner().invoke(cli, ["clear-cache"])
     assert (result.exit_code, result.stderr) == (2, NO_HOME)
 
 
@@ -145,11 +145,12 @@ def test_update_does_not_build_the_directory_of_an_explicit_path(
 
 def test_clear_cache_on_a_fresh_home_works(home: Path) -> None:
     """Nothing to clear: it succeeds and does not make the directory."""
-    result = CliRunner().invoke(cli, ["--clear-cache"])
+    result = CliRunner().invoke(cli, ["clear-cache"])
     assert result.exit_code == 0
     assert result.exception is None or isinstance(result.exception, SystemExit)
-    assert result.stdout == ""
-    assert not (home / ".local" / "share" / "licenseid").exists()
+    database = home / ".local" / "share" / "licenseid" / "licenses.db"
+    assert result.stdout == clear_cache_line("nothing", database)
+    assert not database.parent.exists()
 
 
 def test_clear_cache_with_a_file_where_the_default_directory_would_be(
@@ -159,7 +160,7 @@ def test_clear_cache_with_a_file_where_the_default_directory_would_be(
     blocker = home / ".local" / "share" / "licenseid"
     blocker.parent.mkdir(parents=True)
     blocker.write_text("not a directory")
-    result = CliRunner().invoke(cli, ["--clear-cache"])
+    result = CliRunner().invoke(cli, ["clear-cache"])
     assert result.exit_code == 0
-    assert result.stdout == ""
+    assert result.stdout == clear_cache_line("nothing", blocker / "licenses.db")
     assert blocker.read_text() == "not a directory"

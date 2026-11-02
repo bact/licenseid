@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from licenseid.cli import check_db_staleness
+from licenseid.cliinput import check_db_staleness
 from licenseid.database import LicenseDatabase
 
 # 200 days, or 199/201 when the run straddles midnight or a DST change.

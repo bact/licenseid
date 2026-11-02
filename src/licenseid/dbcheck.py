@@ -25,7 +25,7 @@ from typing import cast
 from urllib.parse import parse_qsl, quote, unquote_to_bytes, urlencode
 
 from licenseid.dbschema import SCHEMA_OBJECTS
-from licenseid.errors import DatabaseNotReadyError, fold, shown
+from licenseid.errors import DatabaseNotReadyError, InvalidInputError, fold, shown
 
 _IS_WINDOWS = os.name == "nt"
 
@@ -582,6 +582,24 @@ def reject_foreign_database(db_path: str | os.PathLike[str]) -> None:
     refusal = _refusal(db_path)
     if refusal and refusal[0] in ("invalid", "unknown"):
         raise refusal[1]
+
+
+def reject_blank_path(db_path: str, name: str, *, optional: bool = True) -> None:
+    """Raise :class:`InvalidInputError` if *db_path*, the argument *name*,
+    is blank: as the CLI's ``--db ""``, a blank path is a mistake, not the
+    default database (which answers from a file nobody asked for) and not
+    a path (SQLite opens a temporary database for ""). An *optional*
+    argument may be left out instead."""
+    if not db_path.strip():
+        action = f"pass a path or drop {name}" if optional else "pass a path"
+        raise InvalidInputError(f"database: missing: {name}; {action}")
+
+
+def is_ready(db_path: str) -> bool:
+    """Whether *db_path* is a ready database, judged fail-closed: a file the
+    check could not read (``unknown``) is not, where
+    :func:`check_database_ready` lets a read go ahead."""
+    return _refusal(db_path) is None
 
 
 def check_database_ready(db_path: str | os.PathLike[str]) -> None:

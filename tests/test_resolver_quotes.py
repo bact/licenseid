@@ -21,6 +21,7 @@ import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
+from resolver_helpers import no_reader_reason
 
 from licenseid import LicenseDatabase, match
 
@@ -129,7 +130,7 @@ def _ids(rows: Sequence[object]) -> list[str]:
     return [ascii(row[0] if isinstance(row, tuple) else row)[:30] for row in rows]
 
 
-def _steps(value: str, db: LicenseDatabase) -> list[tuple[str, str, str]]:
+def _steps(value: str, db: LicenseDatabase) -> list[tuple[str, str, str | None]]:
     return [(s["kind"], s["to"], s["detail"]) for s in match(value, db)["steps"]]
 
 
@@ -163,9 +164,8 @@ def test_the_unquote_step_is_a_change_of_form(corpus_db: LicenseDatabase) -> Non
             "applied": True,
             "from": '"MIT"',
             "to": "MIT",
-            "list": "",
+            "list": None,
             "detail": "balanced",
-            "by": "",
         }
     ]
     assert got["input"] == '"MIT"'
@@ -257,11 +257,8 @@ def test_a_value_with_nothing_to_read_has_no_reason(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     got = match(value, corpus_db)
-    assert (got["expression"], got["category"], got["reason"]) == (
-        None,
-        "unresolved",
-        None,
-    )
+    assert (got["expression"], got["category"]) == (None, "unresolved")
+    assert no_reader_reason(got["reason"])  # none of a reader's own (P5)
     assert got["steps"] == []
 
 

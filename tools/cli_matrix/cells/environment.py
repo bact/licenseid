@@ -115,8 +115,8 @@ def _out_flags(cmd: str) -> frozenset[str]:
     """The output flag a core command carries, if any."""
     if "--json" in cmd:
         return frozenset({"json"})
-    if "--bold" in cmd:
-        return frozenset({"bold"})
+    if "--id-only" in cmd:
+        return frozenset({"id-only"})
     return frozenset()
 
 
@@ -138,7 +138,7 @@ def _add_locales(cells: CellSet) -> None:
         cells.add(
             "E2",
             f"locale {name}: non-ASCII file name",
-            f"{env} " + licenseid('detect --bold "$F/\u00fcn\u00ef.txt"'),
+            f"{env} " + licenseid('detect --id-only "$F/\u00fcn\u00ef.txt"'),
             kind="detect",
             exp_exit=0,
             group="E2-nonascii-name",
@@ -149,7 +149,7 @@ def _add_locales(cells: CellSet) -> None:
             f"locale {name}: non-ASCII --text",
             f"{env} "
             + licenseid(
-                "detect --bold --text 'Copyright \u00a9 Zo\u00eb Permission is"
+                "detect --id-only --text 'Copyright \u00a9 Zo\u00eb Permission is"
                 " hereby granted, free of charge, to any person obtaining a copy'"
             ),
             kind="detect",
@@ -270,14 +270,14 @@ def _add_cwd(cells: CellSet) -> None:
         cells.add(
             "E6",
             f"cwd={name}: relative file + relative db",
-            f"{pre}$L --db $DB detect --bold ../mit.txt | head -c 300; true",
+            f"{pre}$L --db $DB detect --id-only ../mit.txt | head -c 300; true",
             kind="other",
             xenv=False,
         )
         cells.add(
             "E6",
             f"cwd={name}: absolute file",
-            f"{pre}{licenseid('detect --bold $F/mit.txt')}",
+            f"{pre}{licenseid('detect --id-only $F/mit.txt')}",
             kind="detect",
             exp_exit=0 if name != "deleted cwd" else None,
             xenv=name != "deleted cwd",

@@ -33,8 +33,8 @@ EVERY_SHELL: tuple[str, ...] | None = None
 
 #: Subcommands of the CLI, and the predicate subset of them. A new command
 #: goes at the end, so the cells made per command keep their identifiers.
-PREDS = ["is-osi", "is-fsf", "is-open", "is-free", "is-spdx"]
-CMDS = ["update", "detect", *PREDS, "match"]
+PREDS = ["is-osi", "is-fsf", "is-spdx"]
+CMDS = ["update", "detect", *PREDS, "match", "clear-cache"]
 
 #: A fragment of the MIT licence: enough text for a confident match.
 FRAG = "Permission is hereby granted, free of charge, to any person obtaining a copy"
@@ -45,19 +45,20 @@ OTHER = "The quick brown fox jumps over the lazy dog near the river bank"
 #: The diagnostic a command must print when no input reaches it at all.
 MISSING = r"ERROR: input: missing; pass a file, an ID, --text, --id or stdin"
 
-#: Input sources a command can be fed from.
-SRC = ["arg_id", "arg_file", "text", "id", "stdin", "none"]
+#: Input sources a command can be fed from (``dash``: ``-``, C5).
+SRC = ["arg_id", "arg_file", "text", "id", "stdin", "none", "dash"]
 
-#: Every combination of the three output-shaping flags.
+#: Every combination of the three output-shaping flags; ``--json`` refuses
+#: ``--id-only`` and ``--diff`` (exit 2, C7).
 OUTS: list[tuple[str, ...]] = [
     (),
     ("json",),
-    ("bold",),
+    ("id-only",),
     ("diff",),
-    ("json", "bold"),
+    ("json", "id-only"),
     ("json", "diff"),
-    ("bold", "diff"),
-    ("json", "bold", "diff"),
+    ("id-only", "diff"),
+    ("json", "id-only", "diff"),
 ]
 
 #: Licence identifiers the predicate consistency family asks about.
@@ -79,7 +80,7 @@ IDS = [
 ]
 
 _SUBCOMMAND_RE = re.compile(
-    r"\$L(?: --db \S+)? ?(update|detect|is-osi|is-fsf|is-open|is-free|is-spdx|match)?"
+    r"\$L(?: --db \S+)? ?(update|detect|is-osi|is-fsf|is-spdx|match|clear-cache)?"
 )
 _FLAG_RE = re.compile(r"(?<![\w-])(--[a-z][a-z-]*)")
 
@@ -102,7 +103,7 @@ class Cell:
     #: detect | predicate | match | update | help | other -- picks the
     #: contract judged.
     kind: str = "other"
-    #: Which of json / bold / diff the command was asked for.
+    #: Which of json / id-only / diff the command was asked for.
     outflags: frozenset[str] = frozenset()
     #: Exit status required, or None when the behaviour is unspecified.
     exp_exit: int | frozenset[int] | None = None
@@ -175,6 +176,11 @@ RESET_SIGINT = (
 )
 
 
+def conflicting(out: tuple[str, ...]) -> bool:
+    """Whether output flags *out* include two that cannot both be printed."""
+    return "json" in out and ("id-only" in out or "diff" in out)
+
+
 def licenseid(args: str, db: str = "$DB") -> str:
     """A ``licenseid`` command line against the database copy."""
     return f"$L --db {db} {args}".strip()
@@ -199,6 +205,7 @@ def source(name: str, found: bool) -> tuple[str, str, str]:
         ),
         "id": ("", f"--id {ident}", "--id"),
         "stdin": (f"cat {file_} | ", "", "stdin"),
+        "dash": (f"cat {file_} | ", "-", "dash"),
         "none": ("", "", "none"),
     }
     return sources[name]
