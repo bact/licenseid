@@ -171,6 +171,8 @@ Unix philosophy. Consistent, predictable, parseable.
   old`) call `console.warn`. A test of a library call asserts with the
   `given` fixture or `pytest.warns`; a test of a step of `update` called
   alone, whose standard error is the command's, uses the `printed` fixture.
+  pytest makes a `LicenseIdWarning` no test records an error
+  (`filterwarnings` in `pyproject.toml`): a test states what it gives.
   The progress of `update` and `clear-cache` (`console.status`) still goes
   to standard error from the library (`LicenseDatabase.update_from_remote`,
   `clear_cache`).
@@ -253,16 +255,15 @@ Unix philosophy. Consistent, predictable, parseable.
   - `tests/conftest.py::check_diagnostic_grammar` fails any test that
     prints a line, or gives a `LicenseIdWarning`, breaking this grammar.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
-- `detect --json` prints JSON Lines, one
-  RFC 8785 (JCS) object per result, through `licenseid.result.json_line`;
-  the text line comes from `text_line` beside it. Each result carries
-  `lists` (`Detection.lists`), built by `resolverinfo.list_info`, the
-  builder of `match()`'s `lists`: never a second copy. Both print the public form
-  `result.public_result` builds at the one exit of `detect()`: tiers rank on
-  their raw score (above 1 for a Tier 0 ID or name hit, look-alikes
-  included, and for a close text with its bonuses), never on the public
-  one, capped to 1. `exact`
-  is what tells results at 1 apart; set it where a result is made.
+- `detect --json` prints JSON Lines, one RFC 8785 (JCS) object per result,
+  through `licenseid.result.json_line`; the text line comes from `text_line`
+  beside it. Each result carries `lists` (`Detection.lists`), built by
+  `resolverinfo.list_info`, the builder of `match()`'s `lists`: never a second
+  copy. Both print the public form `result.public_result` builds at the one
+  exit of `detect()`: tiers rank on their raw score (above 1 for a Tier 0 ID
+  or name hit, look-alikes included, and for a close text with its bonuses),
+  never on the public one, capped to 1. `exact` is what tells results at 1
+  apart; set it where a result is made.
 
 ## Python
 

@@ -648,11 +648,10 @@ so a caller can tell a changed case from a re-spelt ID. A bare deprecated ID
 such as `GPL-3.0` is never narrowed to `-only`: it comes back as written
 (category `assumed_only`) with both candidates.
 
-`match()` needs no database. With none given (`source="auto"`), it reads
-the database at the default path or the SPDX License List shipped in the
-wheel, whichever holds the newer List; `source=` picks one, and
-`match(value, db)` reads `db`, a `LicenseDatabase` or its path. How the
-choice is made and kept is in [docs/match.md][match-doc-reads].
+`match()` needs no database. With none given (`source="auto"`), it reads the
+database at the default path or the List shipped in the wheel, whichever is
+newer; `source=` picks one, and `match(value, db)` reads `db`, a
+`LicenseDatabase` or its path ([how it chooses][match-doc-list]).
 
 ```python
 from licenseid import match
@@ -689,6 +688,7 @@ top-level `candidates`; each operand's are in `operands[*].candidates`.
 
 [match-doc]: https://github.com/bact/licenseid/blob/main/docs/match.md
 [match-doc-reads]: https://github.com/bact/licenseid/blob/main/docs/match.md#what-match-reads
+[match-doc-list]: https://github.com/bact/licenseid/blob/main/docs/match.md#which-list-and-its-warnings
 
 The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
 when the database is missing, empty, invalid (another program's file) or
