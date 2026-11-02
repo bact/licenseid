@@ -172,10 +172,10 @@ def test_non_triggering_inputs(
 
 
 @pytest.mark.parametrize("predicate", ["is_spdx", "is_osi", "is_fsf"])
-def test_predicate_on_overlong_id_is_false(
+def test_predicate_on_overlong_id_is_no_answer(
     matcher: LicenseDetector, predicate: str
 ) -> None:
-    assert getattr(matcher, predicate)(license_id=BIG + "+") is False
+    assert getattr(matcher, predicate)(license_id=BIG + "+") is None
 
 
 @pytest.mark.parametrize("command", ["detect", "is-spdx", "is-osi"])

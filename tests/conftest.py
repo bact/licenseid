@@ -292,14 +292,14 @@ PREDICATE_KEYS = {
 # the writers themselves to literal bytes.
 
 
-def predicate_line(command: str, expression: str, answer: bool) -> str:
+def predicate_line(command: str, expression: str, answer: bool | None) -> str:
     """The line ``licenseid <command>`` prints: the ID judged (empty for
     none) and its flag."""
     record: dict[str, FieldValue] = {PREDICATE_KEYS[command]: answer}
     return fields_line(EXPRESSION=expression, **record) + "\n"
 
 
-def predicate_json(command: str, expression: str | None, answer: bool) -> str:
+def predicate_json(command: str, expression: str | None, answer: bool | None) -> str:
     """The line ``licenseid <command> --json`` prints (RFC 8785)."""
     record: dict[str, FieldValue] = {PREDICATE_KEYS[command]: answer}
     return record_json(EXPRESSION=expression, **record) + "\n"

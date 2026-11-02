@@ -124,5 +124,5 @@ def test_the_cli_answers_no_with_no_threshold_to_hide_behind(
     result = CliRunner().invoke(cli, ["--db", db_path, command, *args, "GPL-2.0-only+"])
     assert result.exit_code == 1
     assert result.stdout == (
-        NO_DETECTION if command == "detect" else predicate_line(command, "", False)
+        NO_DETECTION if command == "detect" else predicate_line(command, "", None)
     )

@@ -521,10 +521,11 @@ $ licenseid is-osi --json MIT
 {"expression":"MIT","is_osi_approved":true}
 ```
 
-`EXPRESSION` is empty (`null` in JSON) when the input names no licence.
 For an expression, `AND` is true when every operand is, `OR` when any is,
-and `X WITH Y` as `X` is. The flag is empty (`null`), exit 1, when an
-operand cannot be judged (`MIT OR LicenseRef-x`): never a false "no".
+and `X WITH Y` as `X` is. The flag is empty (`null` in JSON), exit 1, when
+there is nothing to judge: never a false "no". That is when the input names
+no licence (`EXPRESSION` is empty too), or when an operand cannot be judged
+(`MIT OR LicenseRef-x`).
 
 | Command | Key | Description |
 | :--- | :--- | :--- |

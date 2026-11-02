@@ -123,7 +123,8 @@ Unix philosophy. Consistent, predictable, parseable.
     `output.echo`); `result.text_field` writes a value,
     `result.read_text_field` reads it back.
   - Nothing is an empty value (`SIMILARITY=`, `EXPRESSION=`); a flag is
-    `true` or `false`.
+    `true`, `false`, or empty when there is nothing to judge (no licence
+    found, an operand not judged): never a false `false`.
   - `--json`: the same result, one object per line, its keys the text
     keys in lower case (`EXPRESSION` is `expression`), `null` means nothing
     (the text's empty value), a flag a boolean. `match --json` holds the

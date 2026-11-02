@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner, Result
-from conftest import predicate_line
+from conftest import predicate_json, predicate_line
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
@@ -62,14 +62,16 @@ def run(db: str, *args: str, stdin: str | None = None) -> Result:
     return CliRunner().invoke(cli, ["--db", db, *args], input=stdin)
 
 
-# --- R1: no record is no answer --------------------------------------------
+# --- R1: no record is no answer (P159) ---------------------------------------
 
 
-def _inputs(tmp_path: Path, value: str) -> list[list[str]]:
-    """*value* as an argument, ``--text`` and a file."""
+def _inputs(tmp_path: Path, value: str) -> list[tuple[list[str], str | None]]:
+    """*value* as an argument, ``--text``, a file and standard input."""
     path = tmp_path / "LICENSE"
     path.write_text(value + "\n", encoding="utf-8")
-    return [[value], ["--text", value], [str(path)]]
+    return [([value], None), (["--text", value], None), ([str(path)], None)] + [
+        (["-"], value),
+    ]
 
 
 @pytest.mark.parametrize("command", COMMANDS)
@@ -81,34 +83,70 @@ def _inputs(tmp_path: Path, value: str) -> list[list[str]]:
         "Not a licence at all",
     ],
 )
-def test_r1_no_record_answers_false(
+def test_r1_no_record_is_no_answer(
     db: str, tmp_path: Path, command: str, value: str
 ) -> None:
-    """R1, BUG: no record printed ``false``, a false "no"."""
-    for args in _inputs(tmp_path, value):
-        result = run(db, command, *args)
-        assert (result.exit_code, result.stdout) == (
+    """R1 (was: ``EXPRESSION=\tIS_OSI_APPROVED=false``, a false "no"): no
+    licence found leaves the flag empty, ``null`` in JSON, exit 1."""
+    for args, stdin in _inputs(tmp_path, value):
+        result = run(db, command, *args, stdin=stdin)
+        assert (result.exit_code, result.stdout, result.stderr) == (
             1,
-            predicate_line(command, "", False),
+            predicate_line(command, "", None),
+            "",
         ), args
+        result = run(db, command, "--json", *args, stdin=stdin)
+        assert result.stdout == predicate_json(command, None, None), args
 
 
 @pytest.mark.parametrize("command", COMMANDS)
-def test_r1_an_unknown_id_answers_false(db: str, command: str) -> None:
-    """R1, BUG: ``--id Zzz-Unknown-1.0`` said ``false``."""
+def test_r1_an_unknown_id_is_no_answer(db: str, command: str) -> None:
+    """R1 (was: ``--id Zzz-Unknown-1.0`` said ``false``)."""
     result = run(db, command, "--id", "Zzz-Unknown-1.0")
-    assert (result.exit_code, result.stdout) == (1, predicate_line(command, "", False))
+    assert (result.exit_code, result.stdout) == (1, predicate_line(command, "", None))
+
+
+@pytest.mark.parametrize(
+    ("command", "args", "line"),
+    [
+        # A licence found keeps its "no".
+        ("is-fsf", ["--id", "GPL-3.0-or-later"], ("GPL-3.0-or-later", False)),
+        ("is-osi", ["--id", "MIT"], ("MIT", True)),
+        # An operand that cannot be judged: the expression, an empty flag.
+        (
+            "is-osi",
+            ["--text", "SPDX-License-Identifier: MIT AND LicenseRef-x"],
+            ("MIT AND LicenseRef-x", None),
+        ),
+        (
+            "is-spdx",
+            ["--text", "SPDX-License-Identifier: MIT AND LicenseRef-x"],
+            ("MIT AND LicenseRef-x", False),
+        ),
+    ],
+)
+def test_r1_a_licence_found_keeps_its_answer(
+    db: str, command: str, args: list[str], line: tuple[str, bool | None]
+) -> None:
+    """R1, adversarial: only "not found" moved; a found licence says ``false``
+    where the List says no."""
+    result = run(db, command, *args)
+    assert result.stdout == predicate_line(command, *line)
+    assert result.exit_code == (0 if line[1] is True else 1)
 
 
 @pytest.mark.parametrize("method", ["is_osi", "is_fsf", "is_spdx"])
-def test_r1_the_api_answers_false(db: str, tmp_path: Path, method: str) -> None:
-    """R1, BUG: the methods said False for no record."""
+def test_r1_the_api_says_none_for_no_licence(
+    db: str, tmp_path: Path, method: str
+) -> None:
+    """R1 (was: False for no record): None, as the CLI's empty flag."""
     path = tmp_path / "LICENSE"
     path.write_text("MIT OR ISC\n", encoding="utf-8")
     detector = LicenseDetector(db)
-    assert getattr(detector, method)("MIT OR ISC") is False
-    assert getattr(detector, method)(file_path=str(path)) is False
-    assert getattr(detector, method)(license_id="Zzz-Unknown-1.0") is False
+    assert getattr(detector, method)("MIT OR ISC") is None
+    assert getattr(detector, method)(file_path=str(path)) is None
+    assert getattr(detector, method)(license_id="Zzz-Unknown-1.0") is None
+    assert getattr(detector, method)(license_id="MIT") is True
 
 
 # --- R2: the deprecated -with- IDs are narrowed unsaid -----------------------

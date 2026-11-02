@@ -536,12 +536,13 @@ class LicenseDetector:
         *,
         license_id: str | None = None,
         file_path: str | None = None,
-    ) -> bool:
+    ) -> bool | None:
         """True if every licence and exception of the license is on the SPDX
-        License List (a ``LicenseRef-*`` is not). Takes and raises what
+        License List (a ``LicenseRef-*`` is not); None when no license is
+        found, as for every flag: not found is no "no". Takes and raises what
         detect() takes and raises, without its options."""
         record = self._resolve_record(text, license_id=license_id, file_path=file_path)
-        return record is not None and record["is_spdx"]
+        return None if record is None else record["is_spdx"]
 
     def is_osi(
         self,
@@ -551,11 +552,11 @@ class LicenseDetector:
         file_path: str | None = None,
     ) -> bool | None:
         """True if the license is OSI-approved; for an expression, every
-        operand of an AND, any of an OR. None when an operand cannot be
-        judged (not on the List, a ``LicenseRef-*``); False when no license
-        is found. Takes and raises what :meth:`is_spdx` does."""
+        operand of an AND, any of an OR. None when no license is found, or
+        when an operand cannot be judged (not on the List, a
+        ``LicenseRef-*``). Takes and raises what :meth:`is_spdx` does."""
         record = self._resolve_record(text, license_id=license_id, file_path=file_path)
-        return False if record is None else record["is_osi_approved"]
+        return None if record is None else record["is_osi_approved"]
 
     def is_fsf(
         self,
@@ -567,7 +568,7 @@ class LicenseDetector:
         """True if the license is FSF-libre, judged as :meth:`is_osi` is.
         Takes and raises what :meth:`is_spdx` does."""
         record = self._resolve_record(text, license_id=license_id, file_path=file_path)
-        return False if record is None else record["is_fsf_libre"]
+        return None if record is None else record["is_fsf_libre"]
 
     def _get_candidates(self, data: DetectRequest, text: str) -> list[CandidateMatch]:
         """Tier 1 retrieval for *text* (see licenseid.retrieval)."""

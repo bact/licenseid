@@ -101,7 +101,8 @@ and this project adheres to
 - `clear-cache` exits 1, not 2, when the system refuses a delete
   ([#138])
 - **Breaking:** `is-open`, `is-free` and `LicenseDetector.is_open()` are
-  removed. Migration: `licenseid is-osi X || licenseid is-fsf X`
+  removed. Migration:
+  `licenseid is-osi X >/dev/null || licenseid is-fsf X >/dev/null`
 - **Breaking:** `update --version V` is `update --list
   spdx-license-list@V`, repeatable; the record starts with `LIST=`.
   Migration: `--list spdx-license-list@3.29.0`; read fields by key
@@ -121,8 +122,8 @@ and this project adheres to
   the exit code, or an empty `EXPRESSION`
 - **Breaking:** the flags of an expression are judged per operand: `AND`
   all, `OR` any, `WITH` the licence's; `None` (an empty flag, exit 1) when
-  an operand cannot be judged; `is_spdx` is false for a `LicenseRef-*`.
-  Migration: treat `None` as "unknown", not "no"
+  no licence is found or an operand cannot be judged; `is_spdx` is false
+  for a `LicenseRef-*`. Migration: treat `None` as "unknown", not "no"
 - **Breaking:** a bare deprecated ID (`GPL-2.0`) given to `detect` or `--id`
   is `GPL-2.0-only` with `EXACT=false` and `WARNING: input: variant not
   stated`, as `GPL2` is. Migration: write `GPL-2.0-only` or `-or-later`

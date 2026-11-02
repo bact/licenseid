@@ -102,8 +102,9 @@ def test_an_unknown_tag_is_no_evidence_anywhere(
 ) -> None:
     """It used to be reported verbatim as a certain, SPDX-flagged match, and
     the CLI's is-spdx disagreed. Now matching falls through to the text tiers,
-    as it does for an unresolved `License:` field, and all four agree."""
-    assert answers(db, tag, tmp_path) == Answers(None, False, None, False)
+    as it does for an unresolved `License:` field, and all four agree: no
+    licence, so no flag (``is_spdx`` None, ``is-spdx`` exit 1)."""
+    assert answers(db, tag, tmp_path) == Answers(None, None, None, False)
 
 
 def test_an_unknown_tag_does_not_hide_a_known_one(db: str) -> None:

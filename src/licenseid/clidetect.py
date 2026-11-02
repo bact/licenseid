@@ -233,12 +233,17 @@ def _predicate_command(
     name: str, key: str, summary: str, holds: Callable[[Detection], bool | None]
 ) -> click.Command:
     """The command *name*: one record, ``EXPRESSION=<id judged>`` and
-    ``<key>=true|false``, exit 0 for true and 1 for false. EXPRESSION is
-    empty when the input names no licence (``detector._resolve_record``);
-    the flag is empty (``null``), exit 1, when an operand of the expression
-    cannot be judged (``licenseid.exprflags``): never a false "no"."""
+    ``<key>=true|false``, exit 0 for true and 1 for false. The flag is
+    empty (``null``), exit 1, when there is nothing to judge: no licence
+    found (EXPRESSION is empty too, ``detector._resolve_record``), or an
+    operand of the expression that cannot be judged
+    (``licenseid.exprflags``). Never a false "no"."""
 
-    @click.command(name=name, help=summary, cls=LicenseIdCommand)
+    @click.command(
+        name=name,
+        help=f"{summary}\n\nINPUT_VAL is a file, a value, or - for standard input.",
+        cls=LicenseIdCommand,
+    )
     @click.argument("input_val", required=False)
     @click.option("--text", help="License text to check, taken as written.")
     @click.option("--id", "id_val", help="Explicit SPDX License ID to check.")
@@ -252,7 +257,7 @@ def _predicate_command(
         json_output: bool,
     ) -> None:
         record = detect_license_record(ctx, input_val, text, id_val)
-        answer = False if record is None else holds(record)
+        answer = None if record is None else holds(record)
         expression = None if record is None else record["expression"]
         echo_record(json_output, EXPRESSION=expression, **{key: answer})
         ctx.exit(0 if answer is True else 1)
@@ -267,7 +272,8 @@ PREDICATE_COMMANDS: tuple[click.Command, ...] = (
         "is-osi",
         "IS_OSI_APPROVED",
         "True if the license is OSI-approved: every operand of an AND, any of "
-        "an OR. Empty, exit 1, when an operand cannot be judged.",
+        "an OR. Empty, exit 1, when no license is found or an operand cannot "
+        "be judged.",
         lambda record: record["is_osi_approved"],
     ),
     _predicate_command(

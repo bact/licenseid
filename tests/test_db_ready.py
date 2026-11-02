@@ -343,7 +343,7 @@ def test_ready_database_answers_yes_and_no(variant: Variant, command: str) -> No
     assert_no_traceback(no)
     assert no.exit_code == 1
     assert no.stdout == (
-        NO_DETECTION if command == "detect" else predicate_line(command, "", False)
+        NO_DETECTION if command == "detect" else predicate_line(command, "", None)
     )
     # "no" is an answer, not a fault: nothing on standard error.
     assert no.stderr == ""

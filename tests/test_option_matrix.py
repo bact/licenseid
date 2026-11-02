@@ -213,7 +213,7 @@ def test_predicate_matrix(
     args, stdin = _source_args(source, found, tmp_path)
     result = _invoke(mit_db, command, [*output, *args], stdin)
 
-    def record(expression: str | None, answer: bool) -> str:
+    def record(expression: str | None, answer: bool | None) -> str:
         if output:
             return predicate_json(command, expression, answer)
         return predicate_line(command, expression or "", answer)
@@ -224,7 +224,7 @@ def test_predicate_matrix(
         yes = record("MIT", True)
         assert (result.exit_code, result.stdout, result.stderr) == (0, yes, "")
     else:
-        no = record(None, False)
+        no = record(None, None)  # not found is no answer (P159)
         assert (result.exit_code, result.stdout, result.stderr) == (1, no, "")
 
 
@@ -419,7 +419,7 @@ def test_api_predicate_matrix(
 ) -> None:
     kwargs = _api_kwargs((name,), name if found else None, tmp_path)
     check = _API_PREDICATES[predicate](LicenseDetector(mit_db))
-    assert check(**kwargs) is found
+    assert check(**kwargs) is (True if found else None)  # P159: never a false no
 
 
 @pytest.mark.parametrize("payload", PAYLOADS, ids=lambda p: p.name)
