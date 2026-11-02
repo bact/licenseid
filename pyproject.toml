@@ -222,6 +222,9 @@ pythonpath = ["."]
 markers = [
     "benchmark: marks tests as slow benchmark (deselect with '-m \"not benchmark\"')",
 ]
+# A test states the warnings licenseid gives (the `given` fixture,
+# pytest.warns, or a filterwarnings mark): one it does not is an error.
+filterwarnings = ["error::licenseid.LicenseIdWarning"]
 
 [tool.ruff]
 extend-exclude = ["tests/fixtures/"]

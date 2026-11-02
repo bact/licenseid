@@ -25,6 +25,10 @@ from licenseid.database import LicenseDatabase
 from licenseid.errors import LicenseIdError
 from licenseid.spdx_source import is_cache_valid
 
+# The steps of `update`, called on their own: their warnings are printed as
+# the command prints them, in order with its progress lines.
+pytestmark = pytest.mark.usefixtures("printed")
+
 
 def test_missing_file_is_invalid(tmp_path: Path) -> None:
     """A cache file that doesn't exist is never valid."""

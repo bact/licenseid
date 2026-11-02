@@ -32,6 +32,10 @@ from release_fakes import (
 from licenseid import spdx_source
 from licenseid.errors import InvalidInputError, LicenseIdError
 
+# The steps of `update`, called on their own: their warnings are printed as
+# the command prints them, in order with its progress lines.
+pytestmark = pytest.mark.usefixtures("printed")
+
 NAME = "spdx-bundle-v9.99.json.gz"
 NOT_FOUND = f"HTTPError: 404 Client Error: Not Found for url: {bundle_url()}"
 BOTH = (spdx_source.LATEST_JSON_URL, spdx_source.LICENSES_JSON_URL)

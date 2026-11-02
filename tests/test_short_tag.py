@@ -11,7 +11,7 @@ import time
 from collections.abc import Generator
 
 import pytest
-from conftest import MIT_SEARCH_TEXT
+from conftest import MIT_SEARCH_TEXT, GivenWarnings
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.detector import LicenseDetector
@@ -74,12 +74,17 @@ def db() -> Generator[str, None, None]:
 )
 @pytest.mark.parametrize("large", [False, True], ids=["header-line", "long"])
 def test_a_tag_answers_at_any_length(
-    db: str, text: str, expected: str, large: bool
+    db: str,
+    text: str,
+    expected: str,
+    large: bool,
+    given: GivenWarnings,
 ) -> None:
     results = LicenseDetector(db).detect(text=f"{FILLER}\n{text}" if large else text)
     assert [(r["expression"], r["score"]) for r in results] == [(expected, 1.0)]
     # A LicenseRef-* is valid SPDX but not on the List (F2).
     assert results[0]["is_spdx"] is ("LicenseRef-" not in expected)
+    assert given.conditions() <= {"variant not stated"}
 
 
 def test_a_long_license_ref_is_one_license(db: str) -> None:

@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+from conftest import GivenWarnings
 from matcher_db import PROSE
 from spdx_tag_helpers import Answers, answers, cli_match_id, source_with, tag_db
 
@@ -82,10 +83,14 @@ UNKNOWN = [
 
 @pytest.mark.parametrize("tag", KNOWN)
 def test_a_known_tag_is_a_certain_match_everywhere(
-    db: str, tmp_path: Path, tag: str
+    db: str,
+    tmp_path: Path,
+    tag: str,
+    given: GivenWarnings,
 ) -> None:
     expected = KNOWN[tag]
     assert answers(db, tag, tmp_path) == Answers(expected, True, expected, True)
+    assert given.conditions() <= {"variant not stated"}
 
 
 @pytest.mark.parametrize("tag", PARTLY_KNOWN)

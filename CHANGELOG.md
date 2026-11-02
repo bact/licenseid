@@ -55,6 +55,10 @@ and this project adheres to
 - `licenseid clear-cache` prints `STATUS=cleared` or `nothing`, and `PATH`
   ([#141])
 - `detect -` and `is-* -` read standard input ([#141])
+- `licenseid.LicenseIdWarning`, a `UserWarning`: every library warning, its
+  `subject`, `condition`, `detail` and `action` as attributes ([#146])
+- `Detection.lists` and `lists` in `detect --json`: the list a result rests
+  on, as `match()` describes it; `null` in the no-answer record ([#146])
 
 ### Changed
 
@@ -148,6 +152,11 @@ and this project adheres to
   it; a blank `db`, or a blank path to `LicenseDetector` or
   `LicenseDatabase`, is `InvalidInputError`, not the default database.
   Migration: build it with `licenseid update`; pass a path or none ([#141])
+- **Breaking:** library warnings go through Python's `warnings`, no longer
+  to standard error; the CLI prints them as before. Migration: record them
+  with `warnings.catch_warnings(record=True)` ([#146])
+- **Breaking:** `report=` of `LicenseDatabase` and `LicenseDetector` is
+  removed. Migration: a `warnings` filter or `catch_warnings` ([#146])
 
 ### Fixed
 
@@ -210,6 +219,7 @@ and this project adheres to
 [#138]: https://github.com/bact/licenseid/pull/138
 [#139]: https://github.com/bact/licenseid/pull/139
 [#141]: https://github.com/bact/licenseid/pull/141
+[#146]: https://github.com/bact/licenseid/pull/146
 
 ## [0.6.0] - 2026-10-27
 

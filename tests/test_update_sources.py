@@ -41,6 +41,10 @@ from licenseid.errors import InvalidInputError, LicenseIdError
 from licenseid.spdxdata import is_older
 from licenseid.types import UpdateSource
 
+# The steps of `update`, called on their own: their warnings are printed as
+# the command prints them, in order with its progress lines.
+pytestmark = pytest.mark.usefixtures("printed")
+
 # --- each source on its own ---
 
 
