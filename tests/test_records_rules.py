@@ -148,3 +148,15 @@ def test_the_exception_flag_is_stored_as_it_was_read() -> None:
     rows = build_records(SpdxData("3.99", None, (), (entry,), {}), {}).exceptions
     assert rows == [("Old-exc", "Nm", 1, None)]
     assert not isinstance(rows[0][2], bool)
+
+
+def test_a_metadata_row_drops_the_flags_of_its_entry() -> None:
+    """R3 of the contract review, BUG: a deprecated licence without a text
+    (wxWindows, eCos-2.0) got ``is_osi_approved`` and ``is_fsf_libre`` False
+    whatever the List says."""
+    entry = lic_entry("wxWindows", "wxWindows Library License", True)
+    entry["isOsiApproved"] = True
+    entry["isFsfLibre"] = True
+    data = SpdxData("3.99", None, (entry,), (), {})
+    (row,) = build_records(data, {}).licenses
+    assert (row[4], row[5]) == (False, False)
