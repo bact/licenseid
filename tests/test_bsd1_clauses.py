@@ -81,3 +81,43 @@ def test_a_run_of_blank_lines_is_read_in_linear_time(line_break: str) -> None:
     assert bsd_clause_id(payload) is None
     elapsed = time.monotonic() - start
     assert elapsed < 0.5, f"took {elapsed:.3f}s"
+
+
+# BSD-1-Clause: condition 1 alone, followed by the disclaimer.
+ONE_CLAUSE = {
+    "as written": SOURCE + DISCLAIMER,
+    "indented": "  " + SOURCE + DISCLAIMER,
+    "lower case": SOURCE.lower() + DISCLAIMER.lower(),
+    "singular": SOURCE.replace("Redistributions", "Redistribution") + DISCLAIMER,
+    "CRLF": (SOURCE + DISCLAIMER).replace("\n", "\r\n"),
+    "wrapped": SOURCE.replace(" of source", "\nof\n   source") + DISCLAIMER,
+}
+
+
+@pytest.mark.parametrize("body", ONE_CLAUSE.values(), ids=ONE_CLAUSE.keys())
+def test_condition_1_alone_with_the_disclaimer_is_bsd_1(body: str) -> None:
+    assert bsd_clause_id(PREAMBLE + body) == "BSD-1-Clause"
+
+
+# Condition 1 alone, but not the whole of BSD-1-Clause: a truncated BSD-2, 3
+# or 4 text, or another condition 1.
+NOT_ONE_CLAUSE = {
+    "no disclaimer": SOURCE,
+    "disclaimer first": DISCLAIMER + "\n" + SOURCE,
+    "binary form unnumbered": SOURCE + BINARY[3:] + DISCLAIMER,
+    "endorse unnumbered": SOURCE + ENDORSE[3:] + DISCLAIMER,
+    "advertising unnumbered": SOURCE + ADVERTISING[3:] + DISCLAIMER,
+    "binary form after the disclaimer": SOURCE + DISCLAIMER + BINARY[3:],
+    "other condition 1": SOURCE.replace("source code", "documentation") + DISCLAIMER,
+    "may retain": SOURCE.replace("must retain", "may retain") + DISCLAIMER,
+    "retaining": SOURCE.replace("must retain", "must retainer") + DISCLAIMER,
+    "not at a line start": "See 1. Redistributions of source code must retain"
+    " the notice.\n" + DISCLAIMER,
+    "other disclaimer": SOURCE + "THE SOFTWARE IS PROVIDED AS IS.\n",
+    "condition 2 too": SOURCE + BINARY.replace("binary form", "any form") + DISCLAIMER,
+}
+
+
+@pytest.mark.parametrize("body", NOT_ONE_CLAUSE.values(), ids=NOT_ONE_CLAUSE.keys())
+def test_condition_1_alone_without_the_rest_is_not_bsd_1(body: str) -> None:
+    assert bsd_clause_id(PREAMBLE + body) != "BSD-1-Clause"

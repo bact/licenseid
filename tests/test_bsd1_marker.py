@@ -9,8 +9,9 @@ BSD-1-Clause with its copyright line filled in ("Copyright (c) 2024 Jane
 Doe") is not among Tier 1's candidates on the full 3.29.0 list: the
 copyright words take a quarter of the query, and it was answered as a
 BSD-2-Clause variant. BSD-2, 3 and 4 survive the same fill through the
-marker; one numbered condition gave none. A text cut short after condition
-1 of BSD-2 or 3 holds the same condition, and must not get BSD-1-Clause.
+marker; one numbered condition gave none, and now gives BSD-1-Clause. A
+text cut short after condition 1 of BSD-2 or 3 holds the same condition,
+and must not get BSD-1-Clause.
 
 The database holds the BSD family and its near neighbours, each with its
 text, so Tiers 1 and 2 retrieve them: a negative test is not trivially true.
@@ -119,17 +120,15 @@ DISCLAIMER = BSD1.index("THIS SOFTWARE")
 
 
 @pytest.mark.parametrize(("year", "owner"), FILLS, ids=FILL_IDS)
-def test_a_filled_bsd_1_clause_gets_no_marker(
+def test_a_filled_bsd_1_clause_gets_its_marker(
     db_path: str, year: str, owner: str
 ) -> None:
-    # BUG: one numbered condition gives no marker, so on the full list the
-    # filled BSD-1-Clause is answered as a BSD-2-Clause variant.
-    assert not marker_ids(db_path, filled("BSD-1-Clause", year, owner))
+    # Was none: on the full list a BSD-2-Clause variant answered it.
+    assert marker_ids(db_path, filled("BSD-1-Clause", year, owner)) == ["BSD-1-Clause"]
 
 
-def test_the_plain_bsd_1_clause_gets_no_marker(db_path: str) -> None:
-    # BUG: as above; the plain text is matched exactly all the same.
-    assert not marker_ids(db_path, text("BSD-1-Clause"))
+def test_the_plain_bsd_1_clause_gets_its_marker(db_path: str) -> None:
+    assert marker_ids(db_path, text("BSD-1-Clause")) == ["BSD-1-Clause"]
 
 
 @pytest.mark.parametrize("lic_id", ["BSD-2-Clause", "BSD-3-Clause", "BSD-4-Clause"])
@@ -202,11 +201,11 @@ def _tier1_misses_bsd_1(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.usefixtures("tier1_misses_bsd_1")
 @pytest.mark.parametrize(("year", "owner"), FILLS, ids=FILL_IDS)
-def test_a_filled_bsd_1_clause_missed_by_tier_1(
+def test_a_filled_bsd_1_clause_missed_by_tier_1_is_answered(
     db_path: str, year: str, owner: str
 ) -> None:
-    # BUG: without a marker, a BSD-2-Clause variant answers it.
-    assert top(db_path, filled("BSD-1-Clause", year, owner)) != "BSD-1-Clause"
+    # Was a BSD-2-Clause variant, with no marker to bring BSD-1-Clause back.
+    assert top(db_path, filled("BSD-1-Clause", year, owner)) == "BSD-1-Clause"
 
 
 @pytest.mark.usefixtures("tier1_misses_bsd_1")
