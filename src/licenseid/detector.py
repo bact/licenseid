@@ -40,6 +40,7 @@ from licenseid.similarity import (
     build_probe,
     calculate_base_similarity,
     calculate_final_score,
+    text_evidence,
 )
 from licenseid.textinput import read_text_file, reject_lone_surrogate
 from licenseid.types import (
@@ -617,8 +618,9 @@ class LicenseDetector:
         boosts = marker_boosts or {}
         ranked: list[InternalMatch] = []
 
-        # Precompute the probe sample once per query (see similarity.PROBE_WORDS).
-        probe = build_probe(query_words)
+        # Once per query: the probe sample (see similarity.PROBE_WORDS), and how
+        # far a short query's similarity counts in the score (text_evidence).
+        probe, evidence = build_probe(query_words), text_evidence(norm_input)
 
         for cand in candidates:
             sim, coverage, best_window = calculate_base_similarity(
@@ -634,7 +636,7 @@ class LicenseDetector:
                     # normalises to nothing equals no text: a hinted
                     # candidate has none.
                     exact=bool(norm_input) and norm_input == cand.get("search_text"),
-                    base_score=sim,
+                    base_score=sim * evidence,
                     similarity=sim,
                     coverage=coverage,
                     pop_score=cand.get("pop_score", 0),

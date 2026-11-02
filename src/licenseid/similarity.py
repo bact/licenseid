@@ -12,6 +12,7 @@ LicenseDetector.
 """
 
 import math
+from unicodedata import east_asian_width
 
 from rapidfuzz import fuzz
 
@@ -48,6 +49,19 @@ ALIGN_MAX_CHARS: int = 6000
 ALIGN_UNPROBED_MAX_CHARS: int = 1500
 PROBE_MAX_CHARS: int = 500
 
+# How long an input must be for its text similarity to count in full. The
+# alignment scores a fragment against the best window of a licence, so a
+# word that occurs anywhere in a long licence ("foo", "copyright notice")
+# is a perfect match. Below this length the score is scaled down in
+# proportion (text_evidence). Measured in columns, where a wide East Asian
+# character takes two: Japanese and Chinese say in one character what
+# English says in several. 40 lets a fragment of 34 columns or more pass the
+# 0.85 threshold: GPL-3.0's two title lines (49) and the Japanese title line
+# of CC-BY-SA-2.1-JP (35) still answer; "this program is free software"
+# (29) and "the software is provided as is" (30), which open many licences,
+# do not. No licence text is this short (the shortest, diffmark, is 81).
+EVIDENCE_COLUMNS: int = 40
+
 
 def _center(text: str, size: int) -> str:
     """The middle *size* characters of *text* (all of it if shorter)."""
@@ -77,6 +91,15 @@ def build_probe(query_words: list[str]) -> str | None:
     if len(text) < ALIGN_UNPROBED_MAX_CHARS:
         return None
     return _center(text, PROBE_MAX_CHARS)
+
+
+def text_evidence(norm_input: str) -> float:
+    """How far a text similarity of *norm_input* counts, from 0 to 1: its
+    length in columns over EVIDENCE_COLUMNS, at most 1."""
+    if len(norm_input) >= EVIDENCE_COLUMNS:
+        return 1.0  # a column count is never below the character count
+    columns = sum(2 if east_asian_width(ch) in ("W", "F") else 1 for ch in norm_input)
+    return min(1.0, columns / EVIDENCE_COLUMNS)
 
 
 def alignment_affordable(norm_input: str, q_len: int) -> bool:

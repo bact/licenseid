@@ -73,34 +73,13 @@ def match_short_text(
     # The names of rows in use: a deprecated row that shares one is not the
     # exact answer, the row that replaced it is.
     live_names = {m["norm_name"] for m in all_metadata if not m["is_deprecated"]}
+    partial = _partial_names(all_metadata, words)
 
     for meta in all_metadata:
-        lid = meta["license_id"]
-        id_norm = meta["norm_license_id"]
         name_norm = meta["norm_name"]
-
-        if norm_input == name_norm:
-            # Exact name match: id_norm was already ruled out above, so
-            # the RapidFuzz scores are known without computing them.
-            score_id = 0.0
-            score_id_partial = 0.0
-            score_name_exact = 100.0
-            score_name_flex = 100.0
-        else:
-            # A score under the threshold is dropped below, so the cutoff
-            # changes no result; it lets RapidFuzz stop early, where a long
-            # word against every row cost seconds (roadmap item 27).
-            score_id = fuzz.ratio(norm_input, id_norm, score_cutoff=threshold)
-            score_id_partial = (
-                fuzz.partial_ratio(norm_input, id_norm, score_cutoff=threshold)
-                if len(words) == 1
-                else 0
-            )
-            score_name_exact = fuzz.ratio(norm_input, name_norm, score_cutoff=threshold)
-            score_name_flex = fuzz.token_set_ratio(
-                norm_input, name_norm, score_cutoff=threshold
-            )
-
+        score_id, score_id_partial, score_name_exact, score_name_flex = _name_scores(
+            norm_input, meta, threshold, len(words) == 1, partial
+        )
         best_raw = max(score_id, score_name_exact, score_name_flex, score_id_partial)
         if best_raw >= threshold:
             score = best_raw / 100.0
@@ -118,7 +97,7 @@ def match_short_text(
             # A name match measures how alike the names are, not how much of
             # a license text the input covers.
             match = RawMatch(
-                license_id=lid,
+                license_id=meta["license_id"],
                 method="name",
                 exact=score_name_exact == 100
                 and not (meta["is_deprecated"] and name_norm in live_names),
@@ -133,6 +112,76 @@ def match_short_text(
     # carry no is_deprecated or pop_score.
     ranked.sort(key=lambda x: (-x["score"], x["license_id"]))
     return ranked
+
+
+def _name_scores(
+    norm_input: str,
+    meta: LicenseNameId,
+    threshold: float,
+    one_word: bool,
+    partial: set[str],
+) -> tuple[float, float, float, float]:
+    """The ID, partial ID (*one_word* only), exact name and flex name scores
+    of *norm_input* against *meta*, 0 to 100; 0 below *threshold*."""
+    name_norm = meta["norm_name"]
+    if norm_input == name_norm:
+        # Exact name match: an exact ID was already ruled out, so the
+        # RapidFuzz scores are known without computing them.
+        return 0.0, 0.0, 100.0, 100.0
+    # A score under the threshold is dropped by the caller, so the cutoff
+    # changes no result; it lets RapidFuzz stop early, where a long word
+    # against every row cost seconds (roadmap item 27).
+    id_norm = meta["norm_license_id"]
+    score_id_partial = (
+        fuzz.partial_ratio(norm_input, id_norm, score_cutoff=threshold)
+        if one_word
+        else 0.0
+    )
+    # Token set: the same words in any order, or a name with words left
+    # out. A name that only holds the input's words is not the input's name
+    # (_partial_names): the plain ratio judges it.
+    score_name_flex = (
+        0.0
+        if name_norm in partial
+        else fuzz.token_set_ratio(norm_input, name_norm, score_cutoff=threshold)
+    )
+    return (
+        fuzz.ratio(norm_input, id_norm, score_cutoff=threshold),
+        score_id_partial,
+        fuzz.ratio(norm_input, name_norm, score_cutoff=threshold),
+        score_name_flex,
+    )
+
+
+def _partial_names(rows: list[LicenseNameId], words: list[str]) -> set[str]:
+    """The names that hold every one of *words* and more, unless they name
+    one licence: the words are no name in use, only one name holds them,
+    and they are at least half its words ("GNU Public License v2.0 only").
+    Token set scores such a name 100, as if it were the input: "the" is in
+    six names, "license" in most, "GNU General Public License" in every
+    GPL, and "MIT License" in 17 besides MIT's own. The words of a
+    deprecated name of its own ("GNU Affero General Public License v3.0")
+    are held by the names that replaced it (its -only and -or-later): those
+    are kept, as before."""
+    query = set(words)
+    names = [set(row["norm_name"].split()) for row in rows]
+    named = {
+        bool(row["is_deprecated"])
+        for row, name in zip(rows, names, strict=True)
+        if name == query
+    }
+    if named == {True}:
+        return set()  # a deprecated name, and no name in use
+    holders = {
+        row["norm_name"] for row, name in zip(rows, names, strict=True) if query < name
+    }
+    if (
+        len(holders) == 1
+        and not named
+        and 2 * len(query) >= len(set(next(iter(holders)).split()))
+    ):
+        return set()
+    return holders
 
 
 def _exact_id_row(

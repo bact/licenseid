@@ -36,7 +36,10 @@ def test_cli_match_smart_id(test_db: str) -> None:
 def test_cli_match_smart_file(test_db: str, tmp_path: Any) -> None:
     runner = CliRunner()
     license_file = tmp_path / "LICENSE"
-    license_file.write_text("Permission is hereby granted...")
+    # A sentence of MIT, not its first four words, which open many licences.
+    license_file.write_text(
+        "Permission is hereby granted, free of charge, to any person obtaining a copy"
+    )
 
     result = runner.invoke(cli, ["--db", test_db, "detect", str(license_file)])
     assert result.exit_code == 0
