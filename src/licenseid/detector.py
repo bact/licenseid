@@ -27,6 +27,7 @@ from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
+from licenseid.resolverinfo import list_info
 from licenseid.result import public_result
 from licenseid.retrieval import get_candidates
 from licenseid.shorttext import (
@@ -444,7 +445,8 @@ class LicenseDetector:
             raw = self._match_raw(
                 text, license_id=license_id, file_path=file_path, **options
             )
-        return [public_result(r) for r in raw]
+            lists = [list_info(self.db, "database")]  # match()'s builder
+        return [public_result(r, lists) for r in raw]
 
     def _match_raw(
         self,

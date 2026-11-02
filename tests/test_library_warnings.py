@@ -47,17 +47,6 @@ TWO_TAGS = (
 )
 STALE = re.compile(r"WARNING: database: \d+ days old; run 'licenseid update'")
 NARROWED = "WARNING: input: variant not stated: {}; using {}\n"
-DETECTION_KEYS = {
-    "coverage",
-    "exact",
-    "expression",
-    "is_fsf_libre",
-    "is_osi_approved",
-    "is_spdx",
-    "method",
-    "score",
-    "similarity",
-}
 
 
 Parts = tuple[str, str, str | None, str | None]
@@ -139,14 +128,6 @@ def test_cli_prints_latin1_input(memory_db: str, tmp_path: Path) -> None:
     stale, rest = result.stderr.split("\n", 1)
     assert STALE.fullmatch(stale)
     assert rest == f"WARNING: input: not UTF-8, read as Latin-1: {source}\n"
-
-
-def test_cli_detect_json_keys(memory_db: str) -> None:
-    result = invoke_match(memory_db, "--json", "--id", "MIT")
-    assert set(json.loads(result.stdout)) == DETECTION_KEYS
-    result = invoke_match(memory_db, "--json", "--text", "nothing at all here")
-    assert result.exit_code == 1
-    assert json.loads(result.stdout) == dict.fromkeys(DETECTION_KEYS)
 
 
 # --- The warning and its parts ---------------------------------------------

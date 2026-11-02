@@ -18,11 +18,12 @@ by :func:`text_field`. Every other command's result is one record
 (:func:`fields_line`, :func:`record_json`).
 """
 
+import copy
 import re
 from collections.abc import Mapping
 from typing import Any
 
-from licenseid.resolvertypes import Resolution, Step
+from licenseid.resolvertypes import ListInfo, Resolution, Step
 from licenseid.resolvesemicolon import REASON as NO_OPERATOR
 from licenseid.types import Detection, InternalMatch, RawMatch
 
@@ -40,9 +41,10 @@ def _rounded(value: float | None) -> float | None:
     return None if value is None else round(value, _DIGITS) + 0.0
 
 
-def public_result(raw: RawMatch | InternalMatch) -> Detection:
-    """*raw* as detect() returns it. The ranking key is capped to 0-1: above
-    1 it only orders a tier's own results, and the order is in the list."""
+def public_result(raw: RawMatch | InternalMatch, lists: list[ListInfo]) -> Detection:
+    """*raw* as detect() returns it, resting on *lists* (each result its own
+    copy). The ranking key is capped to 0-1: above 1 it only orders a tier's
+    own results, and the order is in the list."""
     return Detection(
         expression=raw["license_id"],
         method=raw["method"],
@@ -53,6 +55,7 @@ def public_result(raw: RawMatch | InternalMatch) -> Detection:
         is_spdx=bool(raw.get("is_spdx", False)),
         is_osi_approved=_judged(raw.get("is_osi_approved", False)),
         is_fsf_libre=_judged(raw.get("is_fsf_libre", False)),
+        lists=copy.deepcopy(lists),
     )
 
 
@@ -113,7 +116,8 @@ def no_detection_line() -> str:
 
 def no_detection_json() -> str:
     """The object ``detect --json`` prints when nothing matches: every key of
-    a :class:`licenseid.types.Detection`, each ``null``."""
+    a :class:`licenseid.types.Detection`, each ``null``, ``lists`` too: no
+    answer rests on a list."""
     return json_line(dict.fromkeys(Detection.__annotations__))
 
 

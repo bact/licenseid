@@ -187,29 +187,35 @@ def _raw(
     [(1.08, 1.0), (1.02, 1.0), (1.0, 1.0), (0.98765, 0.9877), (-0.01, 0.0)],
 )
 def test_the_score_is_capped_to_0_1_and_rounded(raw: float, score: float) -> None:
-    assert public_result(_raw(raw))["score"] == score
+    assert public_result(_raw(raw), [])["score"] == score
 
 
 def test_the_other_values_are_rounded_and_the_flags_filled() -> None:
     """Similarity and coverage are rounded, not capped; a flag a tier did
     not set is False; and -0.0 is 0.0, which text printed as "-0.0000"."""
-    result = public_result(_raw(0.5))
+    result = public_result(_raw(0.5), [])
     assert (result["similarity"], result["coverage"]) == (0.9877, 1.2346)
     assert (result["is_spdx"], result["is_osi_approved"], result["is_fsf_libre"]) == (
         False,
         False,
         False,
     )
-    tiny = public_result(_raw(0.5, similarity=-1e-6))
+    tiny = public_result(_raw(0.5, similarity=-1e-6), [])
     assert "\tSIMILARITY=0.0000\t" in text_line(tiny)
 
 
 def test_a_json_line_is_canonical() -> None:
-    """Sorted keys, no white space, 1.0 printed as 1, null and false."""
+    """Sorted keys, at every depth, no white space, 1.0 printed as 1, null
+    and false."""
     assert json_line(public_match("GPL-2.0-only WITH Classpath-exception-2.0")) == (
         '{"coverage":null,"exact":true,'
         '"expression":"GPL-2.0-only WITH Classpath-exception-2.0",'
         '"is_fsf_libre":false,"is_osi_approved":true,"is_spdx":true,'
+        '"lists":[{"id":"spdx-license-list","id_authority":true,'
+        '"license":"CC0-1.0","name":"SPDX License List",'
+        '"provides":["deprecation","ids","names","texts"],"source":"database",'
+        '"url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0",'
+        '"version":"3.29.0"}],'
         '"method":"tag","score":1,"similarity":null}'
     )
 
@@ -225,7 +231,7 @@ def test_a_json_line_is_canonical() -> None:
 )
 def test_json_numbers_are_ecmascript_numbers(raw: RawMatch, fields: str) -> None:
     """Never an exponent or a trailing ".0", whatever the value."""
-    assert fields in json_line(public_result(raw))
+    assert fields in json_line(public_result(raw, []))
 
 
 @pytest.mark.parametrize(

@@ -33,6 +33,8 @@ from licenseid.dbconnection import Connections
 from licenseid.detector import LicenseDetector
 from licenseid.errors import LicenseIdError
 from licenseid.records import BUILD_VERSION
+from licenseid.resolverinfo import list_info
+from licenseid.resolvertypes import ListInfo
 from licenseid.result import FieldValue, fields_line, read_text_field, record_json
 from licenseid.types import Detection, Method
 
@@ -289,8 +291,20 @@ RESULT_KEYS = frozenset(
         "is_spdx",
         "is_osi_approved",
         "is_fsf_libre",
+        "lists",
     }
 )
+
+
+def _database_list() -> ListInfo:
+    """The list a detection on a 3.29.0 database rests on, by match()'s
+    builder."""
+    lookup = mock.create_autospec(LicenseDatabase, instance=True)
+    lookup.get_metadata.return_value = {"license_list_version": "3.29.0"}
+    return list_info(lookup, "database")
+
+
+DATABASE_LIST = _database_list()
 
 
 def public_match(  # pylint: disable=too-many-arguments
@@ -313,6 +327,7 @@ def public_match(  # pylint: disable=too-many-arguments
         is_spdx=True,
         is_osi_approved=True,
         is_fsf_libre=False,
+        lists=[DATABASE_LIST],
     )
 
 
