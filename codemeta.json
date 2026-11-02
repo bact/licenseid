@@ -63,5 +63,5 @@
   "readme": "https://github.com/bact/licenseid/blob/main/README.md",
   "runtimePlatform": "Python 3.10+",
   "url": "https://pypi.org/project/licenseid/",
-  "version": "0.7.0"
+  "version": "0.6.0"
 }
