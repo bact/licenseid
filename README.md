@@ -450,10 +450,12 @@ all:
 - Fields are only ever appended to a line in a later release, never
   removed, renamed or moved: read a field by its key, not its place.
 - `--json` prints the same record as one RFC 8785 JSON object per line,
-  its keys the text keys in lower case (`EXPRESSION` is `expression`).
-  `null` means nothing, where the text line has an empty value. The keys of
-  `match --json`, which prints the whole result as one object, are mapped
-  to its text lines in [docs/match.md][match-doc].
+  with every text key in lower case (`EXPRESSION` is `expression`).
+  `null` means nothing: where the text line has an empty value, and in a
+  key JSON adds that holds nothing. JSON may hold more than the text line:
+  `detect --json` adds the flags and the `lists` of each result, and
+  `match --json` prints the whole result as one object, its keys mapped to
+  its text lines in [docs/match.md][match-doc].
 
 The only exceptions are `detect --id-only` (the expression alone),
 `--version` and `--help`.
@@ -591,15 +593,12 @@ match("GPLv2 or later")["expression"]
 Use `detect()` to scan files; use `match()` to record what a package
 declares, as an SBOM tool does. `licenseid.detect()` uses a
 `LicenseDetector` on the database at the default path, kept while that file
-is unchanged; make your own `LicenseDetector(db_path)` for another database.
-
-You can use `licenseid` directly in your Python projects:
+is unchanged; make your own `LicenseDetector(db_path)` for another database:
 
 ```python
 from licenseid import LicenseDetector
 
-# Initialize with default database
-detector = LicenseDetector()
+detector = LicenseDetector()  # on the database at the default path
 
 # 1. Detect by Raw Text (Positional or Keyword)
 # Programmatic API is explicit: positional 'text' is always treated as text.
@@ -649,30 +648,11 @@ so a caller can tell a changed case from a re-spelt ID. A bare deprecated ID
 such as `GPL-3.0` is never narrowed to `-only`: it comes back as written
 (category `assumed_only`) with both candidates.
 
-`match()` needs no database. With none given (`source="auto"`, the
-default), it reads the database at the default path or the SPDX License List
-shipped in the wheel, whichever holds the newer List; a tie goes to the
-database only if this licenseid's build rules made its rows (not those of an
-older or a newer licenseid). With no database file it reads
-the shipped list; with a database that is there but unusable, the shipped
-list after one `WARNING: database: <condition>: <detail>; using packaged data
-v<version>` on standard error. `source="database"` reads only the database
-(and raises for one that cannot answer, as `auto` would call it unusable) and
-`source="packaged"` only the shipped list; `match(value, db)` reads `db`,
-a `LicenseDatabase` or the path of one (a `str` or `os.PathLike`), opened
-read-only: a missing file raises `DatabaseNotReadyError` (`not found`) and
-is not created. Every database is checked ready before it is read, once
-while its file is unchanged. A value that is not a `str`, and a `db` that
-is neither, raise `TypeError`.
-The answer is the same from either, and `lists[*].source` says which was
-read. `licenseid.DatabaseNotReadyError` is raised only when the chosen
-list cannot be read: with `auto`, when there is neither (an editable install
-ships no list).
-The choice is kept while the database file is unchanged (one `stat` per
-call, no connection to choose), so a loop over many values is fast. A new,
-deleted or updated file is seen at the next call, unless the file system
-keeps coarse times (FAT, HFS+) and the update keeps the file's size within
-one tick.
+`match()` needs no database. With none given (`source="auto"`), it reads
+the database at the default path or the SPDX License List shipped in the
+wheel, whichever holds the newer List; `source=` picks one, and
+`match(value, db)` reads `db`, a `LicenseDatabase` or its path. How the
+choice is made and kept is in [docs/match.md][match-doc-reads].
 
 ```python
 from licenseid import match
@@ -723,13 +703,15 @@ mode, and SQLite then leaves `-shm` and `-wal` files beside it until the next
 `licenseid update`.
 
 `licenseid.get_default_db_path()` returns the path used when none is given
-(it raises `DatabaseNotReadyError` when the account has no home directory).
+(or raises `DatabaseNotReadyError` for an account with no home directory).
 
 Each result is a `licenseid.Detection` with the same keys, `expression`,
 `method` (a `licenseid.Method`), `exact`, `score`, `similarity`, `coverage`,
-`is_spdx`, `is_osi_approved` and `is_fsf_libre`, as in the CLI's output
-above; `similarity` and `coverage` are `None` where nothing was measured.
-For `detect(text="MIT")`:
+`is_spdx`, `is_osi_approved`, `is_fsf_libre` and `lists`, as in the CLI's
+output above; `similarity` and `coverage` are `None` where nothing was
+measured. `lists` names the list the answer rests on, in the shape of
+`match()`'s `lists` (a `licenseid.ListInfo`): the database's SPDX License
+List, its `version`, `source` `"database"`. For `detect(text="MIT")`:
 
 ```python
 [
@@ -743,9 +725,35 @@ For `detect(text="MIT")`:
         "is_spdx": True,
         "is_osi_approved": True,
         "is_fsf_libre": True,
+        "lists": [...],  # one ListInfo: the database's SPDX License List
     }
 ]
 ```
+
+### Warnings
+
+licenseid warns through Python's `warnings` module, never by writing to
+standard error: a guess said aloud (`input: variant not stated: GPL-2.0;
+using GPL-2.0-only`), an outdated database, Latin-1 input, a fallback to the
+shipped list or a cached file. Each is a `licenseid.LicenseIdWarning` (a
+`UserWarning`), its text the line the CLI prints after `WARNING:`, its
+parts the attributes `subject`, `condition`, `detail` and `action` (`None`
+when not stated). Record, silence or raise them as any warning:
+
+```python
+import warnings
+from licenseid import LicenseIdWarning, detect
+
+with warnings.catch_warnings(record=True) as given:
+    warnings.simplefilter("always", LicenseIdWarning)
+    detect(text="SPDX-License-Identifier: GPL-2.0")
+[(w.message.condition, w.message.action) for w in given]
+# [("variant not stated", "using GPL-2.0-only")]
+
+warnings.simplefilter("ignore", LicenseIdWarning)  # or "error" to raise
+```
+
+The command line prints each one as a `WARNING:` line on standard error.
 
 ## Development
 
