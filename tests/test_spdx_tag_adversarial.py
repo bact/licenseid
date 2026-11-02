@@ -18,6 +18,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from conftest import GivenWarnings
 from matcher_db import PROSE
 from spdx_tag_helpers import source_with, tag_db
 
@@ -97,8 +98,11 @@ def test_parentheses_and_colons(db: str, tag: str, certain_id: str | None) -> No
         ("MIT OR GPL only. See GPL-3.0 or later elsewhere", "MIT OR GPL"),
     ],
 )
-def test_prose_after_the_expression(db: str, tag: str, certain_id: str | None) -> None:
+def test_prose_after_the_expression(
+    db: str, tag: str, certain_id: str | None, given: GivenWarnings
+) -> None:
     assert certain(db, source_with(tag)) == certain_id
+    assert given.conditions() <= {"variant not stated"}
 
 
 def test_a_value_on_the_next_line_is_not_the_tag(db: str) -> None:
@@ -313,11 +317,15 @@ def test_only_white_space_joins_the_parts_of_an_expression(
     ],
 )
 def test_or_later_prose_is_read_before_the_expression(
-    db: str, tag: str, certain_id: str
+    db: str,
+    tag: str,
+    certain_id: str,
+    given: GivenWarnings,
 ) -> None:
     """ "or later" is prose, not the OR operator: `classify.OR_LATER_PHRASE`
     stays the one reader of it, on the tag path too."""
     assert certain(db, source_with(tag)) == certain_id
+    assert given.conditions() <= {"variant not stated"}
 
 
 @pytest.mark.parametrize(
@@ -362,12 +370,15 @@ def test_a_name_shared_with_a_deprecated_id_answers_with_the_current_one(
     assert certain(db, source_with("GNU GPL v2.0 only")) == "GPL-2.0-only"
 
 
-def test_a_deprecated_name_answers_as_its_id_does(db: str) -> None:
+def test_a_deprecated_name_answers_as_its_id_does(
+    db: str, given: GivenWarnings
+) -> None:
     """A deprecated ID replaced by an expression must not come back under
     its name: the name and the ID give one answer."""
     expected = "GPL-2.0-only WITH GCC-exception-2.0"
     assert certain(db, source_with("GPL-2.0-with-GCC-exception")) == expected
     assert certain(db, source_with("GNU GPL v2.0 w/GCC exception")) == expected
+    assert given.conditions() == {"variant not stated"}
 
 
 def test_a_plus_is_not_stripped_as_punctuation(db: str) -> None:

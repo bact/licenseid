@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
 from licenseid import InvalidInputError, LicenseDatabase
@@ -204,7 +205,11 @@ def test_s6_a_blank_database_path_is_refused(create: bool, blank: str) -> None:
     ],
 )
 def test_s7_one_end_mark_ends_a_lone_expression(
-    corpus_db: LicenseDatabase, tmp_path: Path, value: str, answer: tuple[str, bool]
+    corpus_db: LicenseDatabase,
+    tmp_path: Path,
+    value: str,
+    answer: tuple[str, bool],
+    given: GivenWarnings,
 ) -> None:
     """S7 (was: the argument and the field lost the "+" before a comma or
     full stop, ``GPL-2.0+,`` as GPL-2.0-only with a warning, and
@@ -212,6 +217,7 @@ def test_s7_one_end_mark_ends_a_lone_expression(
     as for a tag and ``match()``."""
     assert _top(corpus_db, value) == answer
     assert _field(corpus_db, tmp_path, value) == (answer[0] if answer[1] else None)
+    assert given.conditions() <= {"variant not stated"}
 
 
 @pytest.mark.parametrize(

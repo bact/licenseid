@@ -216,6 +216,7 @@ def test_read_input_from_text_only_stdin(monkeypatch: pytest.MonkeyPatch) -> Non
     assert read_input(_ctx(), None) == "Permission is\nhereby granted\n"
 
 
+@pytest.mark.usefixtures("printed")  # read_input is the CLI's, called alone
 def test_read_input_from_text_only_stdin_with_lone_surrogate(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

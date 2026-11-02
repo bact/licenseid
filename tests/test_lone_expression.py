@@ -8,6 +8,7 @@ item 21: as text, Tier 0 read the normalised value, which has lost its "+",
 so --text GPL-2.0+ answered GPL-2.0-only."""
 # pylint: disable=missing-function-docstring,redefined-outer-name
 
+import warnings
 from collections.abc import Generator
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
+from licenseid.warning import LicenseIdWarning
 
 
 @pytest.fixture(scope="module")
@@ -113,11 +115,20 @@ CHANNELS = [
 )
 @pytest.mark.parametrize("channel", CHANNELS)
 def test_a_lone_expression_answers_alike_in_every_channel(
-    db: str, tmp_path: Path, value: str, expected: str, channel: str
+    db: str,
+    tmp_path: Path,
+    value: str,
+    expected: str,
+    channel: str,
 ) -> None:
     source, how = channel.split("-")
     read = _api if source == "api" else _cli
-    assert read(db, value, tmp_path, how) == [expected]
+    with warnings.catch_warnings(record=True) as given:
+        warnings.simplefilter("always", LicenseIdWarning)
+        assert read(db, value, tmp_path, how) == [expected]
+    # The API gives the guess's warning (the CLI prints it, on its stderr).
+    said = {w.message for w in given if isinstance(w.message, LicenseIdWarning)}
+    assert {w.condition for w in said} <= {"variant not stated"}
 
 
 @pytest.mark.parametrize("command", ["is-osi", "is-fsf"])

@@ -16,7 +16,7 @@ from typing import Any
 from unittest import mock
 
 import pytest
-from conftest import posix_only
+from conftest import GivenWarnings, posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import IS_ROOT, make_ready_file_db, writer
 from release_fakes import release_bundle, ship
@@ -154,14 +154,14 @@ def test_a_file_created_after_not_found_is_seen(
 
 
 def test_a_file_deleted_after_a_database_choice_falls_back(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, given: GivenWarnings
 ) -> None:
     ship(monkeypatch, release_bundle("3.29"))
     path = _default_db()
     assert _source() == "database"
     path.unlink()
     assert _source() == "packaged"
-    assert capsys.readouterr().err == ""  # not found is silent, as it was
+    assert given.lines() == ""  # not found is silent, as it was
 
 
 def test_a_file_deleted_with_no_bundle_raises_not_found(
@@ -178,14 +178,14 @@ def test_a_file_deleted_with_no_bundle_raises_not_found(
 
 
 def test_a_database_that_breaks_is_seen_and_said_once(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, given: GivenWarnings
 ) -> None:
     ship(monkeypatch, release_bundle("3.29"))
     path = _default_db()
     assert _source() == "database"
     path.write_bytes(b"")
     assert [_source(), _source()] == ["packaged", "packaged"]
-    assert capsys.readouterr().err == (
+    assert given.lines() == (
         f"WARNING: database: empty: {path}; using packaged data v3.29\n"
     )
 
@@ -254,7 +254,9 @@ def test_another_packaged_index_is_seen(monkeypatch: pytest.MonkeyPatch) -> None
 
 @pytest.mark.parametrize("error", [PermissionError, NotADirectoryError, OSError])
 def test_a_stat_error_chooses_again(
-    monkeypatch: pytest.MonkeyPatch, error: type[OSError]
+    monkeypatch: pytest.MonkeyPatch,
+    error: type[OSError],
+    given: GivenWarnings,
 ) -> None:
     ship(monkeypatch, release_bundle("3.29"))
     _default_db()
@@ -269,6 +271,8 @@ def test_a_stat_error_chooses_again(
         assert again.call_count == 3  # never a stale hit
         assert _choose() is first  # the fallback of the errors was not kept
         assert again.call_count == 3
+    # The fallback; a NotADirectoryError is "not found": silent.
+    assert given.conditions() <= {"unreadable"}
 
 
 def test_a_reset_forgets_the_choice(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -303,7 +307,7 @@ def test_threads_settle_on_one_choice(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_a_lock_held_during_the_first_call_is_not_kept(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, given: GivenWarnings
 ) -> None:
     """``unreadable`` passes by itself: the file's stamp does not change when
     the lock is released, so a fallback made for it must not be kept."""
@@ -327,13 +331,14 @@ def test_a_lock_held_during_the_first_call_is_not_kept(
     finally:
         locker.close()
     assert locked == "packaged"  # the lock makes the database unreadable
-    capsys.readouterr()
+    given.take()
     assert _source() == "database"
 
 
 @posix_only
 def test_a_chmod_is_seen_though_the_mtime_is_restored(
     monkeypatch: pytest.MonkeyPatch,
+    given: GivenWarnings,
 ) -> None:
     if IS_ROOT:
         pytest.skip("root reads through chmod 000")
@@ -349,11 +354,13 @@ def test_a_chmod_is_seen_though_the_mtime_is_restored(
             match("MIT", source="database")
     finally:
         path.chmod(0o644)
+    assert given.conditions() == {"unreadable"}  # the fallback
 
 
 @posix_only
 def test_a_header_corrupted_in_place_is_seen_though_the_mtime_is_restored(
     monkeypatch: pytest.MonkeyPatch,
+    given: GivenWarnings,
 ) -> None:
     ship(monkeypatch, release_bundle("3.29"))
     path = _default_db()
@@ -365,6 +372,7 @@ def test_a_header_corrupted_in_place_is_seen_though_the_mtime_is_restored(
     assert _source() == "packaged"
     with pytest.raises(DatabaseNotReadyError):
         match("MIT", source="database")
+    assert given.conditions() == {"unreadable"}  # the fallback
 
 
 def test_the_stamp_is_read_before_the_choice(monkeypatch: pytest.MonkeyPatch) -> None:

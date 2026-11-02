@@ -45,6 +45,7 @@ from click.testing import CliRunner, Result
 from conftest import (
     NO_DETECTION,
     RESULT_KEYS,
+    GivenWarnings,
     json_lines,
     make_mit_db_path,
     predicate_json,
@@ -428,6 +429,7 @@ def test_file_path_is_read_the_way_the_cli_reads_a_file(
     tmp_path: Path,
     payload: Payload,
     capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
 ) -> None:
     """The same bytes in a file give the same answer and the same warning
     through `licenseid detect FILE` and `detect(file_path=FILE)`: decoding is
@@ -451,7 +453,7 @@ def test_file_path_is_read_the_way_the_cli_reads_a_file(
     assert (cli_result.exit_code, cli_result.stderr) == (0, expected_stderr)
     assert cli_result.stdout.startswith("EXPRESSION=MIT\t")
     assert matcher.detect(file_path=str(path))[0]["expression"] == "MIT"
-    assert capsys.readouterr().err == expected_stderr
+    assert (given.lines(), capsys.readouterr().err) == (expected_stderr, "")
 
 
 def test_a_missing_file_path_raises_oserror(mit_db: str, tmp_path: Path) -> None:
@@ -511,7 +513,7 @@ def _auto_with_a_bundle(
 @pytest.mark.parametrize("source", RESOLVE_SOURCES)
 def test_resolve_matrix(
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     source: Source,
     state: str,
     bundle: str,
@@ -521,7 +523,7 @@ def test_resolve_matrix(
     cannot read raises, a database's message unchanged from 0.6.0."""
     ship(monkeypatch, _BUNDLE_BYTES[bundle])
     build(state, monkeypatch)
-    capsys.readouterr()
+    given.take()
     where, raised, said = _resolve_outcome(source, state, bundle)
     if where == "raise":
         with pytest.raises(DatabaseNotReadyError) as error:
@@ -531,13 +533,13 @@ def test_resolve_matrix(
         got = match("MIT", source=source)
         assert (got["expression"], got["category"]) == ("MIT", "exact")
         assert [(e["source"], e["version"]) for e in got["lists"]] == [(where, VERSION)]
-    err = capsys.readouterr().err
+    err = given.lines()
     assert re.fullmatch(said, err), err
-    # Every warning, an opened database's and the bundle's included, is said
-    # once per process.
+    # Every warning, an opened database's and the bundle's included, is given
+    # once per process (and never printed: test_library_warnings).
     with contextlib.suppress(DatabaseNotReadyError):
         match("MIT", source=source)
-    assert capsys.readouterr().err == ""
+    assert given.lines() == ""
 
 
 #: How a database is given to match(db=...) (P3 of the contract batch).
