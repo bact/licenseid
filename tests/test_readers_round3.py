@@ -140,6 +140,9 @@ REFUSED_GAPS = [
     # too, not read as the ID alone (identifiers._granted_twice).
     "GPL-2.0-only; or later",
     "LicenseRef-a: or later",
+    # A phrase with no "or" after a mark (it was MIT+, GPL-2.0-or-later).
+    "MIT; any later version",
+    "GPL-2.0; any later version",
 ]
 
 
@@ -165,6 +168,8 @@ READ_GAPS = [
     "MIT (or later)",
     "MIT [or later]",
     "MIT, (or later)",
+    "MIT any later version",
+    "MIT, any later version",
     "GPL-2.0. or later",
     "GPL-2.0, or later",
     "GPL-2.0 (or later)",

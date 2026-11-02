@@ -129,8 +129,9 @@ def grant_follows(tail: str, rest: str) -> bool | None:
     later)" reads as "GPL-2.0 (or later)" does.
 
     An "or" after the ID, past white space and marks only, is read as after
-    a number, by :func:`grant_end` ("MIT or later", "GPL-2.0, or later"),
-    and what stands between is judged as ``match()`` judges it: white space,
+    a number, by :func:`grant_end` ("MIT or later", "GPL-2.0, or later"), a
+    phrase with no "or" where it stands ("MIT, any later version"), and what
+    stands between is judged as ``match()`` judges it: white space,
     one "." or "," and a "(" or "[" before the "or" pass, and a mark it
     would drop (``MIT; or later``, ``MIT - or later``, ``MIT,or later``)
     makes the value no reading at all: None. Elsewhere a number the phrase
@@ -141,9 +142,12 @@ def grant_follows(tail: str, rest: str) -> bool | None:
     bare = len(stem)  # past white space and marks, never a word
     while bare < len(text) and not text[bare].isalnum():
         bare += 1
-    at_or = bare > len(stem) and text[bare : bare + 2].lower() == "or"
-    if at_or and grant_end(text, bare) is not None:
-        return _kept(text[len(stem) : bare])
+    # A phrase with no "or" too ("MIT; any later version"), not a number's.
+    if bare > len(stem) and not text[bare : bare + 1].isdigit():
+        at_or = text[bare : bare + 2].lower() == "or"
+        found = grant_end(text, bare) if at_or else OR_LATER_PHRASE.match(text, bare)
+        if found is not None:
+            return _kept(text[len(stem) : bare])
     grant = OR_LATER_PHRASE.search(text)
     if grant is None:
         return False
