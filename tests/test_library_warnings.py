@@ -26,7 +26,15 @@ from conftest import fake_requests_get, invoke_match
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db, writer
 from matcher_db import seeded_db
-from release_fakes import release_bundle, ship
+from release_fakes import (
+    bundle_url,
+    online,
+    release_bundle,
+    serve,
+    ship,
+    tarball_url,
+    without,
+)
 from resolve_states import EMPTY, OUTDATED_WARNING, VERSION, build
 from test_looseid import ROWS as LOOSE_ROWS
 
@@ -347,6 +355,108 @@ def test_once_gives_a_text_once_per_process() -> None:
         with once():
             _give_twice()
     assert len(parts_of(given)) == 3
+
+
+def _outdated_at_default_path() -> Path:
+    path = Path(get_default_db_path())
+    path.parent.mkdir(parents=True, exist_ok=True)
+    make_ready_file_db(path)
+    with writer(path) as conn:
+        conn.execute("UPDATE db_metadata SET value = '1' WHERE key = 'build_version'")
+    return path
+
+
+def _by_path(outdated_db: Path, _: pytest.MonkeyPatch) -> Callable[[], object]:
+    return lambda: licenseid.match("MIT", db=str(outdated_db))
+
+
+def _by_detect(_db: Path, _: pytest.MonkeyPatch) -> Callable[[], object]:
+    _outdated_at_default_path()
+    return lambda: licenseid.detect(license_id="MIT")
+
+
+def _by_fallback(_db: Path, monkeypatch: pytest.MonkeyPatch) -> Callable[[], object]:
+    ship(monkeypatch, release_bundle(VERSION))
+    build(EMPTY, monkeypatch)
+    return lambda: licenseid.match("MIT")
+
+
+def _reopen() -> None:
+    """Forget what was kept, as a change to the file would."""
+    keptdetector.reset()
+    listsource.reset_choice()
+
+
+@pytest.mark.parametrize("path", [_by_path, _by_detect, _by_fallback])
+def test_a_raised_or_ignored_warning_is_not_counted_as_given(
+    outdated_db: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    path: Callable[[Path, pytest.MonkeyPatch], Callable[[], object]],
+) -> None:
+    """P188: within once(), only a warning given counts. One a filter raised
+    raises again at the next call; one a filter ignored is given at the next
+    call that is not ignored, and then no more."""
+    call = path(outdated_db, monkeypatch)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", LicenseIdWarning)
+        for _ in range(3):
+            with pytest.raises(LicenseIdWarning):
+                call()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", LicenseIdWarning)
+        call()
+    with warnings.catch_warnings(record=True) as given:
+        warnings.simplefilter("always", LicenseIdWarning)
+        for _ in range(3):
+            _reopen()
+            call()
+    assert len(parts_of(given)) == 1
+
+
+def test_an_ignore_filter_for_something_else_still_counts_as_given() -> None:
+    """A filter for another line, or another category, does not apply: the
+    warning is shown, so once() gives it once."""
+    with warnings.catch_warnings(record=True) as given:
+        warnings.simplefilter("always")
+        warnings.filterwarnings("ignore", category=LicenseIdWarning, lineno=1)
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        with once():
+            _give_twice()
+    assert len(parts_of(given)) == 1
+
+
+def test_match_with_a_path_warns_once_when_it_opens_again(outdated_db: Path) -> None:
+    """match(db=path) opens the file again when it changes; its stamp warning
+    is still given once per process (listsource._opened, within once())."""
+    with pytest.warns(LicenseIdWarning) as first:
+        licenseid.match("MIT", db=str(outdated_db))
+    # pylint: disable-next=protected-access
+    opened = listsource._paths[str(outdated_db)][1]
+    with writer(outdated_db) as conn:
+        conn.execute("INSERT OR REPLACE INTO db_metadata VALUES ('k', 'v')")
+    with warnings.catch_warnings(record=True) as again:
+        warnings.simplefilter("always")
+        assert licenseid.match("MIT", db=str(outdated_db))["expression"] == "MIT"
+    # pylint: disable-next=protected-access
+    assert listsource._paths[str(outdated_db)][1] is not opened  # opened again
+    assert (parts_of(first.list), parts_of(again)) == ([OUTDATED], [])
+
+
+def test_a_warning_behind_a_cached_property_names_the_caller(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """P177: an unusable snapshot is said in ReleaseChain._fallback, a
+    functools.cached_property, whose frame stands between licenseid's: the
+    warning still names this file, not functools."""
+    serve(monkeypatch, without(online(), bundle_url(), tarball_url()))
+    ship(monkeypatch, b"garbage")
+    with warnings.catch_warnings(record=True) as given:
+        warnings.simplefilter("always", LicenseIdWarning)
+        with pytest.raises(licenseid.LicenseIdError):
+            LicenseDatabase(str(tmp_path / "licenses.db")).update_from_remote()
+    snapshot = [w for w in given if "spdx-bundle.json.gz" in str(w.message)]
+    assert len(snapshot) == 1
+    assert {w.filename for w in given} == {__file__}
 
 
 # --- The CLI's printer --------------------------------------------------------

@@ -17,10 +17,11 @@ Standard library only, so any module can import it.
 import contextlib
 import contextvars
 import inspect
-import os
+import re
 import threading
 import warnings
 from collections.abc import Iterator
+from types import FrameType
 
 
 class LicenseIdWarning(UserWarning):
@@ -83,15 +84,21 @@ _ONCE: contextvars.ContextVar[bool] = contextvars.ContextVar(
 _LOCK = threading.Lock()
 _given: set[str] = set()
 
-_PACKAGE = os.path.normcase(os.path.dirname(os.path.abspath(__file__))) + os.sep
+# A frame of licenseid's own code, by the name of its module: a file name
+# would not match in a frozen or sourceless install, where co_filename is
+# the path the bytecode was compiled at.
+_PACKAGE = "licenseid"
 
 
 @contextlib.contextmanager
 def once() -> Iterator[None]:
     """Within the block, a warning this process gave in such a block before
     (the same text) is not given again: what ``match()`` and ``detect()``
-    say about the database at the default path, which they open again when
-    its file changes."""
+    say about a database they open (the one at the default path, or a path
+    given as ``db``), which they open again when its file changes, and
+    ``match()``'s fallback to the packaged list. A warning the caller's
+    filter turned into an error, or ignored, was not given: it is given at
+    the next call, as Python's own registry marks only a warning shown."""
     token = _ONCE.set(True)
     try:
         yield
@@ -112,29 +119,71 @@ def warn(
     action: str | None = None,
 ) -> None:
     """Give the :class:`LicenseIdWarning` of these parts, attributed to the
-    code that called into licenseid (its file and line, which Python's
-    default filter shows once per place)."""
+    code that called into licenseid. Python's default filter shows a
+    warning once per text and place (file and line): a warning with another
+    detail, from the same line, is shown again."""
     warning = LicenseIdWarning(subject, condition, detail, action)
+    text = str(warning)
+    level, caller = _caller()
     if _ONCE.get():
         with _LOCK:
-            if str(warning) in _given:
+            if text in _given:
                 return
-            _given.add(str(warning))
-    warnings.warn(warning, stacklevel=_caller_level())
+    warnings.warn(warning, stacklevel=level)  # raises under an "error" filter
+    if _ONCE.get() and not _ignored(warning, caller):
+        with _LOCK:
+            _given.add(text)
 
 
-def _caller_level() -> int:
+def _ignored(warning: LicenseIdWarning, caller: FrameType | None) -> bool:
+    """Whether the filters in force ignore *warning* given at *caller*: the
+    first filter that matches decides, as ``warnings.warn_explicit`` reads
+    the list (message from the start, case folded; category a subclass;
+    module name from the start; line 0 for any), else the default
+    action."""
+    module = "sys" if caller is None else caller.f_globals.get("__name__", "")
+    lineno = 0 if caller is None else caller.f_lineno
+    for action, message, category, name, line in warnings.filters:
+        if all(
+            (
+                _matches(message, str(warning)),
+                issubclass(LicenseIdWarning, category),
+                _matches(name, module),
+                line in (0, lineno),
+            )
+        ):
+            return action == "ignore"
+    # Not in typeshed; "default" in CPython, where nothing changed it.
+    return getattr(warnings, "defaultaction", "default") == "ignore"
+
+
+def _matches(pattern: re.Pattern[str] | None, value: str) -> bool:
+    """Whether a filter's *pattern* (None: any) matches *value* from its
+    start."""
+    return pattern is None or pattern.match(value) is not None
+
+
+def _ours(frame: FrameType) -> bool:
+    name = frame.f_globals.get("__name__", "")
+    return isinstance(name, str) and (
+        name == _PACKAGE or name.startswith(f"{_PACKAGE}.")
+    )
+
+
+def _caller() -> tuple[int, FrameType | None]:
     """The ``stacklevel`` of the frame that called the outermost licenseid
-    frame: the caller's code, not licenseid's. ``warnings.warn`` counts the
-    frame that calls it (:func:`warn`) as 1."""
+    frame (the caller's code, not licenseid's), and that frame.
+    ``warnings.warn`` counts the frame that calls it (:func:`warn`) as 1. A
+    frame between two of licenseid's (``functools.cached_property``) does
+    not end the walk."""
     frame = inspect.currentframe()
-    if frame is None:  # an interpreter without frames
-        return 2
-    level, outermost = 1, 1
-    frame = frame.f_back  # warn()
+    if frame is None or frame.f_back is None:  # an interpreter without frames
+        return 2, None
+    frames: list[FrameType] = []
+    frame = frame.f_back.f_back  # warn()'s caller: level 2
     while frame is not None:
-        if os.path.normcase(frame.f_code.co_filename).startswith(_PACKAGE):
-            outermost = level
+        frames.append(frame)
         frame = frame.f_back
-        level += 1
-    return outermost + 1
+    outermost = max((i for i, f in enumerate(frames) if _ours(f)), default=-1)
+    index = outermost + 1  # the frame after the outermost of ours
+    return index + 2, frames[index] if index < len(frames) else None
