@@ -29,9 +29,9 @@ and this project adheres to
   in canonical order (`mit or "Apache2"` is `Apache-2.0 OR MIT`); one
   unresolved operand leaves the whole unresolved, with a one-line `reason`
   ([#122], [#125])
-- `match()` result has `schema` (2), `operands`, `components` and `by` on
-  each step; it reads `[MIT]`, `AdditionRef-*` after `WITH`, and "or later"
-  on an ID with no `-or-later` form as `+` (`MIT or later` is `MIT+`)
+- `match()` result has `schema` (2), `operands` and `components`; it reads
+  `[MIT]`, `AdditionRef-*` after `WITH`, and "or later" on an ID with no
+  `-or-later` form as `+` (`MIT or later` is `MIT+`)
   ([#122], [#125])
 - `match()` reads PyPI trove classifier names and paths (`License :: OSI
   Approved :: MIT License`) and `MIT License (MIT)`; category `trove_name`
@@ -47,6 +47,13 @@ and this project adheres to
   0 resolved, 1 not, 2 for a text or a path that resolves to nothing
   (`run 'licenseid detect'`); `licenseid --version`
   ([#138])
+- `licenseid` exports the types of a result (`Resolution`, `Category`,
+  `Trust`, `Step`, `Operand`, `ListInfo`, `ListSource`, `Source`) and
+  `json_line`
+- `match(value, db)` takes the path of a database as well as a
+  `LicenseDatabase`, opened read-only; a missing file is never created
+- `licenseid clear-cache` prints `STATUS=cleared` or `nothing`, and `PATH`
+- `detect -` and `is-* -` read standard input
 
 ### Changed
 
@@ -54,7 +61,7 @@ and this project adheres to
   `AggregatedLicenseMatcher.match()` is `LicenseDetector.detect()`, and
   `resolve()` is `match()`; `licenseid.detect()` is new. Migration:
   `licenseid detect`; `from licenseid import LicenseDetector, Detection,
-  DetectRequest, match`; `resolver.match_with` ([#134])
+  match` ([#134])
 - `match()` keeps its choice of list while the default database file is
   unchanged: about 10 times faster per value, with no connection to choose
   ([#132])
@@ -83,17 +90,56 @@ and this project adheres to
 - The sdist ships only the source, docs and project metadata: no tests, CI
   files or internal notes, and no links to files it leaves out ([#130])
 - **Breaking:** `licenseid detect` separates fields by a tab and names its
-  answer `EXPRESSION` (`expression` in `--json` and `Detection`); exit 1
-  prints nothing; its warnings say `detect:`; lines end in `\n` on Windows
-  too. Migration: `cut -f1`, read `["expression"]`
+  answer `EXPRESSION` (`expression` in `--json` and `Detection`); lines
+  end in `\n` on Windows too. Migration: `cut -f1`, read `["expression"]`
   ([#138])
 - **Breaking:** `is-*` print `EXPRESSION=<id>` and their flag
   (`IS_OSI_APPROVED=true`), `update` prints `STATUS`, `VERSION` and `PATH`;
   both take `--json`; `detect --diff` writes the diff to standard error.
   Migration: test the exit code
   ([#138])
-- `--clear-cache` exits 1, not 2, when the system refuses a delete
+- `clear-cache` exits 1, not 2, when the system refuses a delete
   ([#138])
+- **Breaking:** `is-open`, `is-free` and `LicenseDetector.is_open()` are
+  removed. Migration: `licenseid is-osi X || licenseid is-fsf X`
+- **Breaking:** `update --version V` is `update --list
+  spdx-license-list@V`, repeatable; the record starts with `LIST=`.
+  Migration: `--list spdx-license-list@3.29.0`; read fields by key
+- **Breaking:** the global flag `--clear-cache` is the command
+  `clear-cache`, which prints its record. Migration: `licenseid clear-cache`
+- **Breaking:** `detect --bold` is `detect --id-only`. Migration: rename
+  the flag
+- **Breaking:** `--text` is taken as written: `\n`, `\t` and `\u00e9` are no
+  longer decoded. Migration: pass a real line break, or pipe the text
+- **Breaking:** two inputs (`--text` or `--id` with another), `--json` with
+  `--id-only` or `--diff`, and `--top` below 1 exit 2; one used to win
+  unsaid. Migration: pass one input, one output
+- **Breaking:** `match` with no value never reads standard input, and
+  `match -` exits 2. Migration: `licenseid match "$value"`
+- **Breaking:** `detect` with no answer prints one record with every field
+  empty (`null` in JSON), exit 1; `--id-only` an empty line. Migration: test
+  the exit code, or an empty `EXPRESSION`
+- **Breaking:** the flags of an expression are judged per operand: `AND`
+  all, `OR` any, `WITH` the licence's; `None` (an empty flag, exit 1) when
+  an operand cannot be judged; `is_spdx` is false for a `LicenseRef-*`.
+  Migration: treat `None` as "unknown", not "no"
+- **Breaking:** a bare deprecated ID (`GPL-2.0`) given to `detect` or `--id`
+  is `GPL-2.0-only` with `EXACT=false` and `WARNING: input: variant not
+  stated`, as `GPL2` is. Migration: write `GPL-2.0-only` or `-or-later`
+- **Breaking:** every `match()` refusal has a `reason` (`not found: Foo`,
+  `empty`, `special value: NONE`, `exception not found: Y`). Migration:
+  none; `reason is None` no longer means "refused without one"
+- **Breaking:** a step's `list` and `detail` are `None` when empty (they
+  were `""`), and `by` is gone. Migration: test `is None`
+- **Breaking:** `normalize_text` and `DetectRequest` are no longer
+  exported; `resolve_record()` and `diff_pair()` are private. Migration:
+  `from licenseid.normalize import normalize_text`
+- **Breaking:** `detect()` raises `InvalidInputError` for no input or two of
+  `text`, `license_id`, `file_path` (it returned `[]`, or let one win), and
+  `TypeError` for a text or ID that is no `str`; `is_osi()`, `is_fsf()` and
+  `is_spdx()` take only those named inputs. Migration: pass exactly one
+- **Breaking:** `match(db=...)` checks a database is ready before reading
+  it. Migration: build it with `licenseid update`
 
 ### Fixed
 

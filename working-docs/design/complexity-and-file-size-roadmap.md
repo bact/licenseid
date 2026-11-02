@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-02
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -40,11 +40,11 @@ pylint's actual defaults are 12 and 50.
 | Locals | ≤15 | 22 | 22 (`shorttext.match_short_text`, `markers._detect_gpl_headers`) |
 | Nesting | ≤5 | 5 (no ratchet needed) | 5 (`matcher._match_mixed_content`) |
 | Branches | ≤12 | 13 | 13 (`identifiers._normalize_expression`, alone) |
-| Returns | ≤6 | 6 (at target) | 6 (`tests/test_option_matrix.py::_source_args`; in `src/`: `resolver._read_text`, `resolveleaf._base`, `resolvecompound.read_compound`, `matcher._match_raw`) |
+| Returns | ≤6 | 6 (at target) | 6 (in `src/`: `resolver._read_text`, `resolveleaf._base`, `resolvecompound.read_compound`, `matcher._match_raw`) |
 | Statements | ≤50 | 50 (at target) | 37 (`shorttext.match_short_text`) |
 | McCabe | ≤10 | 12 | 12 (`identifiers.leading_expression`, alone) |
 | Cognitive | ≤15 | 29 | 29 (`tests/test_accuracy.py::run_accuracy_test`, alone; next 28) |
-| Module lines | soft 400-500 / hard 800 | 773 | 772 (`markers.py`) |
+| Module lines | soft 400-500 / hard 800 | 739 | 739 (`markers.py`) |
 
 Measured 2026-08-19 via `pylint --disable=all --enable=too-many-<x>
 --max-<x>=1`, `flake8 --max-complexity 1` and
@@ -112,11 +112,17 @@ Moved since the last table: Statements 38→37, Module lines 773→772 (the
 config still says 773), and the holders of Args, Locals, Nesting and Returns,
 which are new code (the resolver modules, `matcher._match_mixed_content`).
 
+2026-11-02 (the 0.7.0 contract batch): `markers.py` went 772→774 with
+the compound flags and back to 739 when they moved to `exprflags.py`; the
+module-lines ceiling dropped from 773 to 739 to match. The CLI split
+`cli.py` (658) into `cli.py`, `cliinput.py`, `clidetect.py` and
+`cliupdate.py`, each under 300 lines.
+
 Which ceiling can drop, and what it takes:
 
 | Ceiling | Now | Could drop to | Needs |
 | --- | --- | --- | --- |
-| Module lines | 773 | 772 now | nothing: `markers.py` is 772 |
+| Module lines | 739 | 718 | `markers.py` (739, after the contract batch moved the flags of an expression to `exprflags.py`); next `detector.py` (718) |
 | Branches | 13 | 12 (target) | one function: `identifiers._normalize_expression` (next highest 12) |
 | McCabe | 12 | 11 | one function: `identifiers.leading_expression` (next 11, two holders); 10 (target) needs three more |
 | Cognitive | 29 | 28 | `tests/test_accuracy.py::run_accuracy_test`; then 28 is `identifiers.leading_expression`, then 25 (`matcher._match_mixed_content`) |
