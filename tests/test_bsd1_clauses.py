@@ -111,8 +111,10 @@ NOT_ONE_CLAUSE = {
     "other condition 1": SOURCE.replace("source code", "documentation") + DISCLAIMER,
     "may retain": SOURCE.replace("must retain", "may retain") + DISCLAIMER,
     "retaining": SOURCE.replace("must retain", "must retainer") + DISCLAIMER,
-    "not at a line start": "See 1. Redistributions of source code must retain"
-    " the notice.\n" + DISCLAIMER,
+    "not at a line start": "1. The author is not responsible.\n\nSee 1."
+    " Redistributions of source code must retain the notice.\n" + DISCLAIMER,
+    "numbered 0": "0. Redistributions of source code must retain the"
+    " notice.\n1. The author is not responsible.\n" + DISCLAIMER,
     "other disclaimer": SOURCE + "THE SOFTWARE IS PROVIDED AS IS.\n",
     "condition 2 too": SOURCE + BINARY.replace("binary form", "any form") + DISCLAIMER,
 }

@@ -131,6 +131,14 @@ def test_the_plain_bsd_1_clause_gets_its_marker(db_path: str) -> None:
     assert marker_ids(db_path, text("BSD-1-Clause")) == ["BSD-1-Clause"]
 
 
+@pytest.mark.parametrize("lic_id", ["BSD-1-Clause", "BSD-2-Clause"])
+def test_the_marker_scores_as_the_other_bsd_markers(db_path: str, lic_id: str) -> None:
+    # 0.95 sets the marker floor above the BSD-2-Clause variants' text scores.
+    markers = MarkerDetector(LicenseDatabase(db_path, create=False))
+    found = markers._detect_bsd_headers(filled(lic_id))
+    assert [c["score"] for c in found] == [0.95]
+
+
 @pytest.mark.parametrize("lic_id", ["BSD-2-Clause", "BSD-3-Clause", "BSD-4-Clause"])
 @pytest.mark.parametrize(("year", "owner"), FILLS, ids=FILL_IDS)
 def test_bsd_n_clause_gets_its_marker(
