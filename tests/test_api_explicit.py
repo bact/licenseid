@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Explicit API tests for licenseid."""
-# pylint: disable=redefined-outer-name,duplicate-code,missing-function-docstring,protected-access
+# pylint: disable=redefined-outer-name,duplicate-code,missing-function-docstring
+# pylint: disable=protected-access
 
 import sqlite3
 from collections.abc import Generator

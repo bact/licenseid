@@ -114,9 +114,7 @@ def _add_sources(cells: CellSet) -> None:
                     kind="detect",
                     outflags=frozenset(out),
                     exp_exit=(
-                        2
-                        if name == "none" or conflicting(out)
-                        else (0 if found else 1)
+                        2 if name == "none" or conflicting(out) else (0 if found else 1)
                     ),
                     group=_source_group(name, found, out),
                     exp_err=_source_expected_stderr(name, out),
@@ -137,7 +135,9 @@ def _source_expected_stderr(name: str, out: tuple[str, ...]) -> str | None:
     """The diagnostic a source is required to produce, if any: a "no" has
     none (exit 1, nothing on stderr). Two outputs are refused first."""
     if conflicting(out):
-        return r"ERROR: option: invalid: --(id-only|diff): with --json; pass one of them"
+        return (
+            r"ERROR: option: invalid: --(id-only|diff): with --json; pass one of them"
+        )
     return MISSING if name == "none" else None
 
 
@@ -205,7 +205,9 @@ def _add_top_threshold(cells: CellSet) -> None:
             f"detect {args.split(' --text')[0]}",
             licenseid(f"detect {args}"),
             kind="detect",
-            outflags=frozenset(f for f in ("json", "id-only", "diff") if f"--{f}" in args),
+            outflags=frozenset(
+                f for f in ("json", "id-only", "diff") if f"--{f}" in args
+            ),
             exp_exit=exit_code,
             top=1 if "--top 1" in args else None,
         )
@@ -233,7 +235,6 @@ def _add_pairwise(cells: CellSet) -> None:
             opts.append(row["pop"])
         joined = " ".join(opts)
         body = f"{joined} {args}" if row["pos"] == "before" else f"{args} {joined}"
-        defaults = not row["top"] and not row["thr"]
         cell = cells.add(
             "A3",
             f"pairwise src={row['src']} found={row['found']} "
@@ -242,16 +243,20 @@ def _add_pairwise(cells: CellSet) -> None:
             f"{pre}{licenseid(f'detect {body}')}",
             kind="detect",
             outflags=frozenset(out),
-            exp_exit=(
-                2
-                if row["thr"] in BAD_THRS or row["top"] in BAD_TOPS or conflicting(out)
-                else (0 if row["found"] else 1)
-                if defaults
-                else None
-            ),
+            exp_exit=_pairwise_exit(row, out),
             top=int(row["top"]) if row["top"] not in ("", "0", "-1") else None,
         )
         cell.tags.add(f"src:{tag}")
+
+
+def _pairwise_exit(row: dict[str, Any], out: tuple[str, ...]) -> int | None:
+    """The exit an A3 row must give: 2 for a value or flags refused, else
+    0 or 1 when every value is a default, else unspecified."""
+    if row["thr"] in BAD_THRS or row["top"] in BAD_TOPS or conflicting(out):
+        return 2
+    if not row["top"] and not row["thr"]:
+        return 0 if row["found"] else 1
+    return None
 
 
 def _add_syntax(cells: CellSet) -> None:
@@ -260,7 +265,9 @@ def _add_syntax(cells: CellSet) -> None:
         # When the flag is consumed as a value or comes after ``--`` it is
         # input, not an output flag, so the output contract does not apply.
         real = not (
-            args.startswith("-- ") or "--text --json" in args or "--id --id-only" in args
+            args.startswith("-- ")
+            or "--text --json" in args
+            or "--id --id-only" in args
         )
         cells.add(
             "A4",

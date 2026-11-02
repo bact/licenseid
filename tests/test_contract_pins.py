@@ -144,15 +144,11 @@ def test_c8_match_does_not_read_standard_input() -> None:
     that never ends)."""
     result = CliRunner().invoke(cli, ["match"], input="MIT")
     assert result.exit_code == 2
-    assert result.stderr == (
-        "ERROR: input: missing; pass one declared licence value\n"
-    )
+    assert result.stderr == ("ERROR: input: missing; pass one declared licence value\n")
 
 
 @pytest.mark.parametrize("flags", [[], ["--json"]], ids=["text", "json"])
-def test_c9_detect_prints_an_empty_record_on_exit_1(
-    db: str, flags: list[str]
-) -> None:
+def test_c9_detect_prints_an_empty_record_on_exit_1(db: str, flags: list[str]) -> None:
     """C9 (was: nothing on exit 1): one record, every field empty."""
     result = run(db, "detect", *flags, "--id", "No-Such-1.0")
     line = (
@@ -264,11 +260,17 @@ def test_p1_result_types_are_not_exported(name: str) -> None:
     assert not hasattr(licenseid, name)
 
 
+def test_p2_the_cli_helpers_are_private() -> None:
+    """P2 (was: ``resolve_record`` and ``diff_pair`` public): the helpers
+    the CLI reads are ``_resolve_record`` and ``_diff_pair``."""
+    assert not hasattr(LicenseDetector, "resolve_record")
+    assert not hasattr(LicenseDetector, "diff_pair")
+    assert hasattr(LicenseDetector, "_resolve_record")
+    assert hasattr(LicenseDetector, "_diff_pair")
+
+
 def test_p2_the_public_surface() -> None:
-    """PIN (P2): ``resolve_record`` and ``diff_pair`` are public;
-    ``normalize_text`` and ``DetectRequest`` are exported."""
-    assert hasattr(LicenseDetector, "resolve_record")
-    assert hasattr(LicenseDetector, "diff_pair")
+    """PIN (P2): ``normalize_text`` and ``DetectRequest`` are exported."""
     assert {"normalize_text", "DetectRequest", "LicenseDatabase"} <= set(
         licenseid.__all__
     )

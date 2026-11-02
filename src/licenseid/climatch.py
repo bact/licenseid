@@ -12,9 +12,9 @@ answers "which SPDX expression does this declared value stand for". So
 ``detect`` answers, with exit 2 and ``; run 'licenseid detect'``: ``--text``,
 ``-`` (standard input, which is never read), a value with a line break and
 one longer than the resolver reads, before any list is read; and, once read,
-a value that resolves to nothing and names a file or directory here. Such a value would otherwise
-come back ``unresolved``, exit 1, which says "no licence" where the user
-meant "detect this".
+a value that resolves to nothing and names a file or directory here. Such a
+value would otherwise come back ``unresolved``, exit 1, which says "no
+licence" where the user meant "detect this".
 
 It needs no database: with no ``--db`` it reads the list ``--source`` names,
 as ``match()`` does (``auto`` falls back to the list shipped in the wheel).

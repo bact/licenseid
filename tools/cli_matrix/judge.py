@@ -64,7 +64,9 @@ UPDATE_LINE = re.compile(
 ID_ONLY = re.compile(r"\S+( (WITH|AND|OR) \S+)*")
 #: What ``detect`` prints for no answer (exit 1): one record, every field
 #: empty; with ``--json`` every value null; with ``--id-only`` an empty line.
-NO_ANSWER = re.compile(r"EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n")
+NO_ANSWER = re.compile(
+    r"EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"
+)
 
 #: What :func:`predicate_answer` gives for an output that is not one record.
 MALFORMED = "malformed"

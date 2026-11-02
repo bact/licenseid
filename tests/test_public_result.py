@@ -270,7 +270,7 @@ def test_json_prints_one_line_per_result(db: str) -> None:
     ],
 )
 def test_exact_and_threshold_filter_the_results(
-    db: str, args: list[str], expected: list[str]
+    db: str, args: list[str], expected: list[str | None]
 ) -> None:
     result = invoke_match(db, "--json", *args)
     assert result.exit_code == (1 if expected == [None] else 0)

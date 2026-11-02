@@ -312,9 +312,7 @@ def update_line(
     with *as_json* its object (C2: the record names the list)."""
     write = record_json if as_json else fields_line
     return (
-        write(
-            LIST="spdx-license-list", VERSION=version, STATUS=status, PATH=str(path)
-        )
+        write(LIST="spdx-license-list", VERSION=version, STATUS=status, PATH=str(path))
         + "\n"
     )
 

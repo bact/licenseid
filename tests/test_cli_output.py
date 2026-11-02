@@ -20,9 +20,8 @@ import click
 import pytest
 from conftest import MIT_SEARCH_TEXT, invoke_match, make_mit_db_path
 
-from licenseid import LicenseDatabase
+from licenseid import LicenseDatabase, clidetect
 from licenseid import cli as cli_module
-from licenseid import clidetect
 from licenseid.cli import cli
 from licenseid.clidetect import show_diff
 from licenseid.cliinput import get_input_content, read_input

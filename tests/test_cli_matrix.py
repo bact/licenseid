@@ -460,7 +460,7 @@ def test_coverage_checklist_counts_what_ran(tmp_path: Path) -> None:
     """The checklist reports the flags the run touched, and the gaps."""
     cells = build_cells().by_id()
     rows = [
-        make_result(id="A1-007", fam="A1", verdict="PASS"),
+        make_result(id="A1-008", fam="A1", verdict="PASS"),  # src=arg_id, --json
     ]
     path = tmp_path / "coverage.md"
     write_coverage(path, rows, cells)

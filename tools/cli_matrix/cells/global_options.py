@@ -68,19 +68,26 @@ GLOBAL: list[tuple[str, str, int | None]] = [
     ),
     (
         "--db read-only file",
-        ("cp $DB $W/ro.db && chmod 444 $W/ro.db && $L --db $W/ro.db detect --id-only MIT"),
+        (
+            "cp $DB $W/ro.db && chmod 444 $W/ro.db"
+            " && $L --db $W/ro.db detect --id-only MIT"
+        ),
         None,
     ),
     (
         "--db unreadable file",
-        ("cp $DB $W/nr.db && chmod 000 $W/nr.db && $L --db $W/nr.db detect --id-only MIT"),
+        (
+            "cp $DB $W/nr.db && chmod 000 $W/nr.db"
+            " && $L --db $W/nr.db detect --id-only MIT"
+        ),
         None,
     ),
     (
         "--db in read-only dir",
         (
             "mkdir $W/rd && cp $DB $W/rd/l.db && chmod 555 $W/rd"
-            " && $L --db $W/rd/l.db detect --id-only MIT; rc=$?; chmod 755 $W/rd; exit $rc"
+            " && $L --db $W/rd/l.db detect --id-only MIT;"
+            " rc=$?; chmod 755 $W/rd; exit $rc"
         ),
         None,
     ),

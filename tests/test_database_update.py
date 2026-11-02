@@ -452,9 +452,9 @@ def test_cli_update_with_a_version_never_asks_for_the_latest(
     listed = f"spdx-license-list@{version}"
     args = ["update", "--source", source, "--list", listed]
     result = CliRunner().invoke(cli, ["--db", str(tmp_path / "x.db"), *args])
-    urls = [call.args[0] for call in fake.call_args_list]
-    assert not [u for u in urls if u.endswith(("latest.json", "licenses.json"))], urls
-    assert any(f"v{version}" in u for u in urls), urls
+    asked = [call.args[0] for call in fake.call_args_list]
+    assert not [u for u in asked if u.endswith(("latest.json", "licenses.json"))]
+    assert any(f"v{version}" in u for u in asked), asked
     assert "using version" not in result.stderr
 
 

@@ -24,7 +24,14 @@ from licenseid.cliinput import read_text_option
         "C:\\temp\\new",  # a Windows path reads as typed
         "Copyright \u00a9 Zo\u00eb \u20ac\\n",
     ],
-    ids=["newline_tab", "hex_unicode", "backslashes", "named", "windows_path", "non_ascii"],
+    ids=[
+        "newline_tab",
+        "hex_unicode",
+        "backslashes",
+        "named",
+        "windows_path",
+        "non_ascii",
+    ],
 )
 def test_text_is_taken_as_written(text: str) -> None:
     """A backslash is a backslash: no escape is decoded."""

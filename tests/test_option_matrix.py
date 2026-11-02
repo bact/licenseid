@@ -112,21 +112,19 @@ def _source_args(source: str, found: bool, tmp_path: Path) -> tuple[list[str], s
     """CLI arguments and stdin for one input *source*."""
     text = MIT_TEXT if found else OTHER_TEXT
     license_id = "MIT" if found else "Nope-1.0"
-    if source == "arg_id":
-        return [license_id], ""
+    path = tmp_path / "LICENSE"
     if source == "arg_file":
-        path = tmp_path / "LICENSE"
         path.write_text(text, encoding="utf-8")
-        return [str(path)], ""
-    if source == "text":
-        return ["--text", text], ""
-    if source == "id":
-        return ["--id", license_id], ""
-    if source == "stdin":
-        return [], text
-    if source == "dash":  # C5: "-" names standard input
-        return ["-"], text
-    return [], ""  # "none"
+    sources = {
+        "arg_id": ([license_id], ""),
+        "arg_file": ([str(path)], ""),
+        "text": (["--text", text], ""),
+        "id": (["--id", license_id], ""),
+        "stdin": ([], text),
+        "dash": (["-"], text),  # C5: "-" names standard input
+        "none": ([], ""),
+    }
+    return sources[source]
 
 
 def _invoke(db: str, command: str, args: list[str], stdin: str) -> Result:
@@ -147,7 +145,9 @@ def test_match_matrix(
 
     conflict = next((o for o in output if "--json" in output and o in _JSON_ONLY), "")
     if conflict:  # checked before the input is read, so for "none" too
-        expected = f"ERROR: option: invalid: {conflict}: with --json; pass one of them\n"
+        expected = (
+            f"ERROR: option: invalid: {conflict}: with --json; pass one of them\n"
+        )
         assert (result.exit_code, result.stdout, result.stderr) == (2, "", expected)
     elif source == "none":
         assert (result.exit_code, result.stdout, result.stderr) == (2, "", MISSING)
@@ -171,7 +171,9 @@ def _no_record(output: tuple[str, ...]) -> str:
     if "--id-only" in output:
         return "\n"
     if "--json" in output:
-        return json.dumps(dict.fromkeys(sorted(RESULT_KEYS)), separators=(",", ":")) + "\n"
+        return (
+            json.dumps(dict.fromkeys(sorted(RESULT_KEYS)), separators=(",", ":")) + "\n"
+        )
     return NO_DETECTION
 
 
@@ -324,7 +326,10 @@ def test_a_pipe_beside_one_input_is_not_read(
 ) -> None:
     """Standard input is read only when no other input is given."""
     result = _invoke(
-        mit_db, command, ["--id-only", *args] if command == "detect" else args, OTHER_TEXT
+        mit_db,
+        command,
+        ["--id-only", *args] if command == "detect" else args,
+        OTHER_TEXT,
     )
     expected = "MIT\n" if command == "detect" else predicate_line(command, "MIT", True)
     assert (result.exit_code, result.stdout, result.stderr) == (0, expected, "")

@@ -32,6 +32,10 @@ CLEAN_MATCH = {"rc": 0, "out": "MIT\n", "err": "", "files": []}
 
 # --------------------------------------------------------------- judging
 
+#: What detect prints for no answer (C9), and the list update installs.
+NO_ANSWER = "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"
+L = "spdx-license-list"
+
 FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
     (
         "traceback on stderr",
@@ -60,8 +64,26 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
     (
         "detect exit 1 with an ERROR line",
         {"kind": "detect"},
-        {"rc": 1, "err": "ERROR: detect: something else\n"},
-        "detect exit 1 with stdout or an ERROR line",
+        {"rc": 1, "out": NO_ANSWER, "err": "ERROR: detect: something else\n"},
+        "detect exit 1 without its empty record, or an ERROR line",
+    ),
+    (
+        "detect exit 1 with nothing on stdout (C9: an empty record)",
+        {"kind": "detect"},
+        {"rc": 1, "out": ""},
+        "detect exit 1 without its empty record, or an ERROR line",
+    ),
+    (
+        "detect --json exit 1 with the text record",
+        {"kind": "detect", "outflags": frozenset({"json"})},
+        {"rc": 1, "out": NO_ANSWER},
+        "detect exit 1 without its empty record, or an ERROR line",
+    ),
+    (
+        "detect --id-only exit 1 with the text record",
+        {"kind": "detect", "outflags": frozenset({"id-only"})},
+        {"rc": 1, "out": NO_ANSWER},
+        "detect exit 1 without its empty record, or an ERROR line",
     ),
     (
         "expected exit not met",
@@ -127,7 +149,7 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
             "out": "EXPRESSION=MIT\tMETHOD=id\tEXACT=true\tSCORE=1.0000\tSIMILARITY="
             "\tCOVERAGE=\n",
         },
-        "--id-only not a single id",
+        "--id-only not one expression",
     ),
 ]
 
@@ -184,7 +206,9 @@ def test_judge_ignores_streams_on_a_terminal() -> None:
 def test_judge_accepts_the_documented_diagnostic_grammar() -> None:
     """LEVEL: SUBJECT: CONDITION on stderr is exactly what is expected."""
     cell = make_cell(kind="detect", exp_exit=1)
-    result = make_result(rc=1, err="WARNING: input: variant not stated: x; using y\n")
+    result = make_result(
+        rc=1, out=NO_ANSWER, err="WARNING: input: variant not stated: x; using y\n"
+    )
     assert judge_mod.judge(cell, result)[0] == "PASS"
 
 
@@ -349,7 +373,9 @@ def _relational_fixture(
             cmd=f"$L --db $DB {name} --id MIT",
         )
         out = json.dumps(record) + "\n" if name == "detect" else ""
-        rows.append(make_result(id=cell_id, rc=rc, out=out, verdict="OBSERVE", notes=[]))
+        rows.append(
+            make_result(id=cell_id, rc=rc, out=out, verdict="OBSERVE", notes=[])
+        )
     return cells, rows
 
 
@@ -522,10 +548,12 @@ def test_the_predicate_contract(rc: int, out: str, ok: bool) -> None:
 @pytest.mark.parametrize(
     ("out", "ok"),
     [
-        ("STATUS=updated\tVERSION=9.99\tPATH=/x/licenses.db\n", True),
-        ("STATUS=unchanged\tVERSION=\tPATH=x\n", True),
-        ('{"path":"x","status":"updated","version":"9.99"}\n', True),
-        ('{"path":"x","status":"unchanged","version":null}\n', True),
+        (f"LIST={L}\tVERSION=9.99\tSTATUS=updated\tPATH=/x/licenses.db\n", True),
+        (f"LIST={L}\tVERSION=\tSTATUS=unchanged\tPATH=x\n", True),
+        (f'{{"list":"{L}","path":"x","status":"updated","version":"9.99"}}\n', True),
+        (f'{{"list":"{L}","path":"x","status":"unchanged","version":null}}\n', True),
+        ("STATUS=updated\tVERSION=9.99\tPATH=/x/licenses.db\n", False),  # pre-C2
+        ('{"path":"x","status":"updated","version":"9.99"}\n', False),  # pre-C2
         ("Database updated at x\n", False),  # the old shape
         ("STATUS=done\tVERSION=9.99\tPATH=x\n", False),
         ('{"path":"x","status":"done","version":"9.99"}\n', False),
@@ -534,7 +562,7 @@ def test_the_predicate_contract(rc: int, out: str, ok: bool) -> None:
     ],
 )
 def test_the_update_record(out: str, ok: bool) -> None:
-    """One STATUS/VERSION/PATH record, text or JSON, and nothing else."""
+    """One LIST/VERSION/STATUS/PATH record, text or JSON, and nothing else."""
     assert judge_mod.is_update_record(out) is ok
     verdict, notes = judge_mod.judge(
         make_cell(fam="D1", kind="update", progress=True), make_result(rc=0, out=out)
