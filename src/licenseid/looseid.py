@@ -14,7 +14,6 @@ exact and fuzzy matches.
 import re
 
 from licenseid.classify import OR_LATER_PHRASE, is_negated
-from licenseid.console import warn
 from licenseid.exprtokens import RE_TOKEN
 from licenseid.identifiers import (
     ONLY_WORD,
@@ -25,6 +24,7 @@ from licenseid.identifiers import (
 from licenseid.listlookup import ListedName, ListLookup
 from licenseid.plusoperator import PLUS_OPERATOR
 from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_key
+from licenseid.warning import warn
 
 # The word a grant starts with, where OR_LATER_PHRASE starts at the version
 # before it ("2 or later").
@@ -133,7 +133,7 @@ def restates_qualifier(expression: str, value: str) -> bool:
 
 def warn_narrowed(text: str, resolved: str) -> None:
     """Say that *text* was read as the narrower -only grant *resolved*."""
-    warn(f"input: variant not stated: {shown(text)}; using {resolved}")
+    warn("input", "variant not stated", shown(text), f"using {resolved}")
 
 
 def shown(text: str) -> str:

@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from list_entries import exc_entry, lic_entry
 from packaged_list import database_of, fixture_data, synthetic_bundle
@@ -274,7 +275,7 @@ def test_a_reset_reads_the_bundle_again(monkeypatch: pytest.MonkeyPatch) -> None
 )
 def test_an_unusable_bundle_warns_once_and_is_no_index(
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     raw: bytes,
     detail: str,
 ) -> None:
@@ -282,9 +283,7 @@ def test_an_unusable_bundle_warns_once_and_is_no_index(
     assert packaged_index() is None
     assert packaged_index() is None
     assert packaged_problem() == f"invalid: {detail}"
-    assert capsys.readouterr().err == (
-        f"WARNING: spdx-bundle.json.gz: invalid: {detail}\n"
-    )
+    assert given.lines() == (f"WARNING: spdx-bundle.json.gz: invalid: {detail}\n")
 
 
 def test_threads_load_the_bundle_once(monkeypatch: pytest.MonkeyPatch) -> None:

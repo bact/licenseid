@@ -44,10 +44,10 @@ from pathlib import Path
 from typing import get_args
 
 from licenseid import spdx_source, spdxdata
-from licenseid.console import warn
 from licenseid.errors import InvalidInputError, LicenseIdError, typed
 from licenseid.spdxdata import BundleError, SpdxData, is_older
 from licenseid.types import UpdateSource
+from licenseid.warning import parts, warn
 
 SOURCES: tuple[UpdateSource, ...] = get_args(UpdateSource)
 # The version files each source trusts; the packaged source reads none.
@@ -129,7 +129,7 @@ class ReleaseChain:
             fallback = self._fallback if request.source == "auto" else None
             if fallback is None:
                 raise
-            warn(f"{exc}; using packaged data v{fallback.version}")
+            warn(*parts(str(exc)), f"using packaged data v{fallback.version}")
             self.offline = True
             return fallback.version, fallback.release_date, "packaged"
 
@@ -164,7 +164,7 @@ class ReleaseChain:
                     if isinstance(exc, _StepError):
                         raise LicenseIdError(f"{exc}; {exc.final_action}") from exc
                     raise
-                warn(f"{exc}; {self._action(following, target)}")
+                warn(*parts(str(exc)), self._action(following, target))
                 kind = following
 
     def _steps(self, target: str) -> list[UpdateSource]:
@@ -223,7 +223,7 @@ class ReleaseChain:
                     raise _StepError(
                         str(exc), "remove it and run 'licenseid update' again"
                     ) from exc
-                warn(f"{exc}; downloading")
+                warn(*parts(str(exc)), "downloading")
             path, origin = spdx_source.get_tarball_path(self.cache_dir, target, False)
         data = _read_tarball(path, "download unusable", target)
         return data, f"upstream ({origin})"
@@ -262,7 +262,7 @@ class ReleaseChain:
         snapshot = self._snapshot
         if isinstance(snapshot, str):
             if snapshot != "not found":
-                warn(f"{spdxdata.PACKAGED_NAME}: {snapshot}")
+                warn(*parts(f"{spdxdata.PACKAGED_NAME}: {snapshot}"))
             return None
         wanted, current = self.request.version, self.current
         if wanted is not None and snapshot.version != wanted:

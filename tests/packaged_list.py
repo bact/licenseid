@@ -26,6 +26,7 @@ from resolver_corpus import EXCEPTION_LIST, LICENSE_LIST, list_meta, list_rows
 from licenseid.database import LicenseDatabase
 from licenseid.spdxdata import SpdxData, to_bundle
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
+from licenseid.warning import LicenseIdWarning
 
 
 def fixture_data() -> SpdxData:
@@ -88,9 +89,11 @@ def database_of(raw: bytes, path: Path) -> LicenseDatabase:
     with pytest.MonkeyPatch.context() as patch:
         ship(patch, raw)
         patch.setattr(requests, "get", _no_network)
-        LicenseDatabase(str(path)).update_from_remote(
-            source="packaged", use_cache=False
-        )
+        # The one warning of an update with no cache: no popularity data.
+        with pytest.warns(LicenseIdWarning, match="^popularity.csv: missing$"):
+            LicenseDatabase(str(path)).update_from_remote(
+                source="packaged", use_cache=False
+            )
     return LicenseDatabase(str(path), create=False)
 
 

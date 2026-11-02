@@ -39,6 +39,10 @@ from release_fakes import (
 from licenseid.database import LicenseDatabase
 from licenseid.errors import LicenseIdError
 
+# The steps of `update`, called on their own: their warnings are printed as
+# the command prints them, in order with its progress lines.
+pytestmark = pytest.mark.usefixtures("printed")
+
 # --- auto: each fallback is one warning naming the next source ---
 
 

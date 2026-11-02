@@ -14,7 +14,7 @@ from typing import Any
 import click
 
 from licenseid import __version__
-from licenseid.clicommon import LicenseIdCommand, exit_usage_error
+from licenseid.clicommon import LicenseIdCommand, exit_usage_error, printed_warnings
 from licenseid.clidetect import PREDICATE_COMMANDS, detect_command
 from licenseid.climatch import match_command
 from licenseid.cliupdate import clear_cache_command, update_command
@@ -45,6 +45,13 @@ class DatabaseErrorGroup(UsageLineGroup, EchoHelpCommand):
     """
 
     command_class = LicenseIdCommand
+
+    def main(self, *args: Any, **kwargs: Any) -> Any:
+        """Run the command with the library's warnings printed as
+        ``WARNING:`` lines (``clicommon.printed_warnings``): in click's
+        standalone mode (``CliRunner``) and in :func:`main` alike."""
+        with printed_warnings():
+            return super().main(*args, **kwargs)
 
     def invoke(self, ctx: click.Context) -> Any:
         try:

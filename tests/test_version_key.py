@@ -12,6 +12,7 @@ from collections.abc import Generator
 from unittest import mock
 
 import pytest
+from conftest import GivenWarnings
 from matcher_db import Lic, seeded_db
 
 from licenseid.database import LicenseDatabase
@@ -164,7 +165,7 @@ def test_version_key(text: str, key: str) -> None:
 )
 def test_match_version_key(
     db: LicenseDatabase,
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     text: str,
     license_id: str | None,
 ) -> None:
@@ -173,7 +174,7 @@ def test_match_version_key(
         [] if license_id is None else [(license_id, "id", True)]
     )
     assert all(m["score"] > 1.0 for m in results)
-    assert not capsys.readouterr().err
+    assert not given.lines()
 
 
 @pytest.mark.parametrize(
@@ -188,7 +189,7 @@ def test_match_version_key(
 )
 def test_a_family_alone_is_narrowed_to_only_with_a_warning(
     db: LicenseDatabase,
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
     text: str,
     license_id: str,
 ) -> None:
@@ -201,13 +202,15 @@ def test_a_family_alone_is_narrowed_to_only_with_a_warning(
         1.02,
     )
     detail = " ".join(text.split())
-    assert capsys.readouterr().err == NARROWED.format(detail, license_id)
+    assert given.lines() == NARROWED.format(detail, license_id)
 
 
 @pytest.mark.parametrize(
     "row", [r for r in ROWS if not r.license_id.startswith(SYNTHETIC)]
 )
-def test_every_id_is_found_by_its_own_spelling(db: LicenseDatabase, row: Lic) -> None:
+def test_every_id_is_found_by_its_own_spelling(
+    db: LicenseDatabase, row: Lic, given: GivenWarnings
+) -> None:
     """Drift guard: the key of an ID finds that ID (or its successor), never
     a neighbour of it: as is, without a trailing ".0", and with spaces or
     underscores for dashes."""
@@ -222,16 +225,21 @@ def test_every_id_is_found_by_its_own_spelling(db: LicenseDatabase, row: Lic) ->
     for spelling in spellings:
         found = match_version_key(db, spelling)
         assert [m["license_id"] for m in found] == [expected], spelling
+    assert given.conditions() <= {"variant not stated"}
 
 
 @pytest.mark.parametrize(("text", "has_flags"), [("Apache2", True), ("GPL2", False)])
 def test_a_redirected_id_leaves_its_flags_to_the_caller(
-    db: LicenseDatabase, text: str, has_flags: bool
+    db: LicenseDatabase,
+    text: str,
+    has_flags: bool,
+    given: GivenWarnings,
 ) -> None:
     """The flags of GPL-2.0 are not those of GPL-2.0-only: the matcher looks
     them up (see shorttext._id_hit)."""
     [match] = match_version_key(db, text)
     assert ("is_spdx" in match) is has_flags
+    assert given.conditions() <= {"variant not stated"}
 
 
 def test_a_row_lost_between_the_two_reads_is_no_match(db: LicenseDatabase) -> None:
@@ -260,7 +268,7 @@ def test_a_long_input_is_no_loose_id(
 
 @pytest.mark.parametrize("text", ["GPL-2.0", "gpl-2.0"])
 def test_a_deprecated_id_as_is_is_narrowed_aloud(
-    db: LicenseDatabase, capsys: pytest.CaptureFixture[str], text: str
+    db: LicenseDatabase, given: GivenWarnings, text: str
 ) -> None:
     """A deprecated ID written as is: -only is the narrower guess, not what
     was declared, so it is not exact, and said (F3 of the contract batch;
@@ -269,7 +277,7 @@ def test_a_deprecated_id_as_is_is_narrowed_aloud(
     assert [(m["license_id"], m["method"], m["exact"]) for m in results] == [
         ("GPL-2.0-only", "id", False)
     ]
-    assert "variant not stated" in capsys.readouterr().err
+    assert "variant not stated" in given.lines()
 
 
 @pytest.mark.parametrize(
@@ -289,13 +297,17 @@ def test_a_deprecated_id_as_is_is_narrowed_aloud(
     ],
 )
 def test_match_answers_with_the_id(
-    matcher: LicenseDetector, text: str, expected: tuple[str, str, bool]
+    matcher: LicenseDetector,
+    text: str,
+    expected: tuple[str, str, bool],
+    given: GivenWarnings,
 ) -> None:
     """Through detect(), with the flags of the answer, from text and from a
     manifest's license field."""
     top = matcher.detect(text=text)[0]
     assert (top["expression"], top["method"], top["exact"]) == expected
     assert top["is_spdx"] is True
+    assert given.conditions() <= {"variant not stated"}
 
 
 def test_a_plus_without_a_key_is_no_exact_answer(

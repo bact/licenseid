@@ -6,7 +6,9 @@
 """Every command's standard output follows one pattern (AGENTS.md, "CLI
 output"): ``KEY=VALUE`` fields, an uppercase key, one tab between fields,
 a value with no tab, line break or bare backslash; ``--json`` one RFC 8785
-object per line, byte for byte, whose keys are the text keys in lower case.
+object per line, byte for byte, whose keys include the text keys in lower
+case (it may hold more: ``match``'s whole resolution, ``detect``'s flags and
+``lists``), a value that is empty in text ``null`` in JSON and no other.
 The exceptions (``detect --id-only``, ``--version``, ``--help``) are not
 run. A command with no answer prints its record too, every field empty
 (``null`` in JSON).
@@ -131,6 +133,9 @@ def test_every_line_follows_the_pattern(
     for fields, record in pairs:
         keys = {key.lower() for key in fields}
         assert keys <= set(record), (fields, record)
+        # Nothing is empty in text and null in JSON, and only that.
+        empty = {key.lower() for key, value in fields.items() if value == ""}
+        assert empty == {key for key in keys if record[key] is None}, record
         if args[0] in RECORDS:
             assert keys == set(record)
             assert {k.lower(): v for k, v in fields.items()} == {

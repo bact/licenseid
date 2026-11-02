@@ -11,6 +11,8 @@ from typing import Literal, TypedDict
 
 from typing_extensions import Required
 
+from licenseid.resolvertypes import ListInfo
+
 # How a match was found: an SPDX-License-Identifier tag, a manifest's license
 # field, a license ID (given, the whole input, or a deprecated ID in a few
 # words), a license name (or an ID it is only like), or the license text.
@@ -37,7 +39,10 @@ class Detection(TypedDict):
     is the input's words over the license's, so it passes 1 when the input
     is longer. ``expression`` is the answer: one licence ID, or an SPDX
     expression (a tag or a field may declare one), as ``match()`` names its
-    answer; the detector's own records keep ``license_id``.
+    answer; the detector's own records keep ``license_id``. ``lists`` are
+    the lists the answer rests on, as ``match()`` gives them
+    (:class:`licenseid.resolvertypes.ListInfo`): the SPDX License List of
+    the database read, its ``source`` ``database``.
     """
 
     expression: str
@@ -49,6 +54,7 @@ class Detection(TypedDict):
     is_spdx: bool
     is_osi_approved: bool | None
     is_fsf_libre: bool | None
+    lists: list[ListInfo]
 
 
 class RawMatch(TypedDict, total=False):

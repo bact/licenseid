@@ -24,6 +24,10 @@ from test_database_update import _serve
 from licenseid.database import LicenseDatabase
 from licenseid.errors import LicenseIdError
 
+# The steps of `update`, called on their own: their warnings are printed as
+# the command prints them, in order with its progress lines.
+pytestmark = pytest.mark.usefixtures("printed")
+
 _ROOT = "license-list-data-9.99"
 _TEXT = "Permission is hereby granted, free of charge, to any person."
 _XML = '<?xml version="1.0"?><SPDXLicenseCollection><license/></SPDXLicenseCollection>'
