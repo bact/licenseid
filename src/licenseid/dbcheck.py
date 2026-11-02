@@ -567,7 +567,7 @@ def reject_foreign_database(db_path: str | os.PathLike[str]) -> None:
     """Raise :class:`DatabaseNotReadyError` unless *db_path* is licenseid's to
     write to and delete.
 
-    ``update`` and ``--clear-cache`` change the file, so they call this
+    ``update`` and ``clear-cache`` change the file, so they call this
     first: one mistyped ``--db`` must not write licenseid's schema over
     another program's database, or delete somebody's notes. A missing, empty
     or damaged database is fine — that is what those two commands are for.

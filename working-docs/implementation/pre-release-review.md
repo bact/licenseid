@@ -100,3 +100,7 @@ project reads is flagged to its session.
   Candidate C0: `28fb7b3` (2026-11-02), the merge of the contract batch
   (#141), which had two independent reviews before the merge; Pitloom
   adopts 0.7.0 from this commit.
+  Candidate C1: `cbdb75f` (2026-11-02), the merge of #146: library
+  warnings through Python's `warnings` (`LicenseIdWarning`; `report=`
+  removed) and `Detection.lists`, decided by the maintainer after C0;
+  Pitloom moves its pin here.

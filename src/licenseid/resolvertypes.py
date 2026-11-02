@@ -14,8 +14,8 @@ floor a step sets (an unbalanced ``unquote`` counts as ``separator``).
 
 from typing import Final, Literal, TypedDict
 
-#: The version of the result's shape: 2 has ``operands``, ``components``
-#: and ``Step.by``, and no ``expression`` category.
+#: The version of the result's shape: 2 has ``operands`` and ``components``,
+#: and no ``expression`` category.
 SCHEMA: Final = 2
 
 # The steps that change only the form of the text and decide nothing; the
