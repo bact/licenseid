@@ -14,6 +14,7 @@ from licenseid.database import LicenseDatabase
 from licenseid.exprflags import declared_flags
 from licenseid.identifiers import (
     leading_expression,
+    names_only_listed,
     normalize_identifier,
     qualify_trailing_grant,
 )
@@ -260,10 +261,13 @@ class MarkerDetector:
         details = self.db.get_license_details(lic_id) if lic_id else None
         if details:
             found = [self._candidate_without_text(details, score)]
-        else:
+        elif lic_id and names_only_listed(lic_id, self.db):
             # A value with no recognised ID (a typo, free text) is no evidence
-            # of a license and builds no candidate.
-            found = self._synthetic_candidate(lic_id, score) if lic_id else []
+            # of a license, and a word that is no ID ("later", the "Apache" of
+            # "Apache 2.0") no operand: neither builds a candidate.
+            found = self._synthetic_candidate(lic_id, score)
+        else:
+            found = []
         if found and narrowed_ids(self.db, expression, found[0]["license_id"]):
             # "GPL-2.0" read as GPL-2.0-only: a guess, said and not exact.
             warn_narrowed(expression, found[0]["license_id"])

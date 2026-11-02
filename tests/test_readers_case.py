@@ -51,6 +51,7 @@ READERS = [
     "licenseid.classify",
     "licenseid.identifiers",
     "licenseid.looseid",
+    "licenseid.manifest",
     "licenseid.markers",
     "licenseid.plusoperator",
     "licenseid.exprcanon",

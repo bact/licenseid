@@ -56,7 +56,6 @@ KNOWN = {
 # does for the `license` field of JSON, TOML and INI), but it is not on the
 # List (F2 of the contract batch).
 PARTLY_KNOWN = {
-    "MIT OR NoSuch-1.0": "MIT OR NoSuch-1.0",
     "LicenseRef-Foo": "LicenseRef-Foo",
     "LicenseRef-Foo WITH Classpath-exception-2.0": (
         "LicenseRef-Foo WITH Classpath-exception-2.0"
@@ -64,6 +63,9 @@ PARTLY_KNOWN = {
 }
 # No recognised ID at all: no evidence of a license.
 UNKNOWN = [
+    # It was a match not on the List, exact; an ID the List does not have is
+    # no operand, as match() reads it (operand not resolved).
+    "MIT OR NoSuch-1.0",
     "NoSuchLicense-9.9",
     "Apache-2.O",
     "Apache-2",

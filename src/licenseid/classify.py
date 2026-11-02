@@ -124,12 +124,20 @@ def grant_follows(tail: str, rest: str) -> bool:
     number between the ID and the phrase, which would be another licence's.
     The phrase can start inside the ID ("or later" needs the version), so it
     is read on both together; a qualifier the ID states is left off first,
-    so "GPL-2.0-only (or later)" reads as "GPL-2.0 (or later)" does. A
+    so "GPL-2.0-only (or later)" reads as "GPL-2.0 (or later)" does. An
+    "or" right after the ID (white space, brackets and marks between) is
+    read as after a number, by :func:`grant_end`: "MIT or later". A
     number the phrase starts with after the ID must be the ID's version
     (:func:`another_version`): in "GPL-2.0, version 3 or later" the grant is
     version 3's."""
     stem = _RE_STATED_QUALIFIER.sub("", tail)
     text = stem + rest
+    bare = len(stem)  # past white space, brackets and marks, never a word
+    while bare < len(text) and (text[bare].isspace() or text[bare] in ",;:()[]"):
+        bare += 1
+    at_or = bare > len(stem) and text[bare : bare + 2].lower() == "or"
+    if at_or and grant_end(text, bare) is not None:
+        return True  # "MIT or later", "(MIT) or later": read after a number
     grant = OR_LATER_PHRASE.search(text)
     if grant is None:
         return False

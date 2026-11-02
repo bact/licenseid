@@ -557,6 +557,11 @@ def test_resolve_spdx_url(detector: MarkerDetector) -> None:
         '{text = "MIT"}',
         "(MIT",
         "Dual OR Commercial",
+        # An ID with no row is no operand (they were candidates, F2): this
+        # database has no exception rows, and Commercial is on no List.
+        "MIT WITH Font-exception-2.0",
+        "GPL-3.0 or Commercial",
+        "LicenseRef-foo AND Commercial",
         "NOASSERTION",
         "NONE",
         "UNLICENSED",
@@ -574,12 +579,9 @@ def test_resolve_unrecognised_value_returns_nothing(
     ("value", "expected_id", "is_spdx"),
     [
         ("MIT OR Apache-2.0", "Apache-2.0 OR MIT", True),
-        # This database has no exception rows: not on its List (F2).
-        ("MIT WITH Font-exception-2.0", "MIT WITH Font-exception-2.0", False),
         # A LicenseRef-* is valid SPDX, but not on the List (F2).
         ("LicenseRef-foo", "LicenseRef-foo", False),
-        ("GPL-3.0 or Commercial", "GPL-3.0-only OR Commercial", False),
-        ("LicenseRef-foo AND Commercial", "LicenseRef-foo AND Commercial", False),
+        ("LicenseRef-foo AND MIT", "MIT AND LicenseRef-foo", False),
     ],
 )
 def test_resolve_valid_expression_or_licenseref_yields_synthetic_candidate(

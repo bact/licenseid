@@ -130,10 +130,13 @@ def drops_words(leading: str, expression: str, value: str, *, whole: bool) -> bo
     field holds nothing else, so "MIT/Apache-2.0" is not MIT, and "GPL-2.0
     or later, and also MIT" is not GPL-2.0-or-later), or words that state
     the qualifier of a "+" again (:func:`restates_qualifier`). Only a grant
-    that ends the value is no word left over (:func:`granted_id_text`)."""
+    that ends the value is no word left over (:func:`granted_id_text`, or
+    :func:`declared_grant_id_text` for a bare "MIT or later")."""
     if leading == value:
         return False
-    left = expression == leading or granted_id_text(value) is None
+    left = expression == leading or (
+        granted_id_text(value) is None and declared_grant_id_text(value) is None
+    )
     return left and (whole or restates_qualifier(leading, value))
 
 

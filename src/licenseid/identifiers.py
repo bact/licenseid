@@ -29,6 +29,7 @@ from licenseid.exprtokens import (
     canonical_ref,
     closing_brackets_end,
     continues_after,
+    continues_word,
     cut_inside_word,
     is_license_ref,
     licence_after,
@@ -262,14 +263,6 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     return expression[: target.start()] + or_later + expression[target.end() :]
 
 
-def _qualified(licence: str, before: str) -> bool:
-    """Whether *licence* takes no grant, with no "+" after it (*before* is
-    the token before the grant): it states its qualifier, or it is a
-    ``LicenseRef-*``, which SPDX gives none. "GPL-2.0-only+ or later" is
-    read as ``OR later`` and refused for its "+" (``is_qualified_plus``)."""
-    return before != "+" and _takes_no_grant(licence)
-
-
 def _takes_no_grant(licence: str) -> bool:
     """Whether *licence* states its qualifier or is a reference."""
     return states_qualifier(licence) or LICENSE_REF_PREFIX.match(licence) is not None
@@ -302,6 +295,9 @@ def leading_expression(value: str) -> str:
 
     An "or later" grant ends the expression, but not the brackets it stands
     in: "(GPL-2.0 or later)" gives "(GPL-2.0)", for qualify_trailing_grant.
+    An "or" is read as after a number (``MIT or later`` is a grant, as
+    ``match()`` reads it, not MIT OR a licence "later"), but after a "+":
+    "GPL-2.0-only+ or later" is refused for its "+" (``is_qualified_plus``).
     After an ID that states its qualifier (``GPL-2.0-only or later``) the
     grant states a second: no expression, as ``match()`` refuses it. An ID
     cut inside a word (``LicenseRef-café``) is no expression either
@@ -328,11 +324,9 @@ def leading_expression(value: str) -> str:
             # as match() refuses it, rather than one without it.
             return ""
         grant_end = (
-            grant_at(value, token, grants, _qualified(licence, before))
-            if kind == "OP"
-            else None
+            grant_at(value, token, grants, before != "+") if kind == "OP" else None
         )
-        if grant_end is not None:
+        if grant_end is not None and not continues_word(value, grant_end):
             return _ended_by_grant(value, (end, grant_end), depth, licence)
         licence = licence_after(licence, before, token)
         before = token[0]
@@ -487,6 +481,20 @@ def _joins_another(text: str, phrase: tuple[int, int]) -> bool:
     only" is not GPL-2.0-only). The "or" of "or later" is the phrase's own."""
     return any(
         not phrase[0] <= op.start() < phrase[1] for op in RE_OPERATOR.finditer(text)
+    )
+
+
+def names_only_listed(expression: str, db: ListLookup) -> bool:
+    """Whether each ID of *expression* is a licence or an exception of the
+    List, or a reference: a word that is none ("later", the "Apache" of
+    "Apache 2.0", a typo) is no operand to answer, as ``match()`` refuses
+    it, not an unknown licence to keep."""
+    return all(
+        token_kind(token) != "ID"
+        or is_license_ref(token)
+        or db.get_license_details(token) is not None
+        or db.get_exception_details(token) is not None
+        for token in RE_TOKEN.findall(expression)
     )
 
 
@@ -690,24 +698,12 @@ def _normalize_expression(expression: str, db: ListLookup | None = None) -> str:
 
 
 def _canonicalize_expression(expr: str) -> str:
-    """Best-effort structural canonicalization via ``py_spdx_license``.
-
-    Builds a real AST from the (already ID-normalized) expression and uses
-    its ``sort()`` to de-duplicate identical AND/OR operands and produce a
-    consistent operand ordering (e.g. ``MIT AND MIT`` -> ``MIT``).
-
-    ``py_spdx_license`` doesn't support every string ``_normalize_expression``
-    can produce — notably the legacy ``license-id"+"`` form (e.g.
-    ``CDDL-1.0+``) that has no ``-or-later`` equivalent — and its bundled
-    license/exception list is a point-in-time snapshot that can lag behind
-    this project's live-downloaded database. Any failure here just means the
-    string keeps its original (non-deduplicated, non-reordered) form.
-
-    The ``"+"`` limitation is tracked upstream at
-    https://github.com/JPEWdev/py-spdx-license/issues/1 — once it's natively
-    supported there, this fallback (and CDDL-1.0-style test cases) can be
-    revisited.
-    """
+    """Best-effort structural canonicalization via ``py_spdx_license``: its
+    ``sort()`` de-duplicates identical AND/OR operands and orders them
+    (``MIT AND MIT`` -> ``MIT``). Any failure keeps the string as it is:
+    the parser cannot read the legacy ``license-id"+"`` form (``CDDL-1.0+``;
+    https://github.com/JPEWdev/py-spdx-license/issues/1), and its bundled
+    list can lag behind the database."""
     ast = parse_expression(expr)
     if ast is None:
         return expr

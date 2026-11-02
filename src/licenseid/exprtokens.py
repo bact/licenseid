@@ -72,6 +72,12 @@ def continues_after(value: str, end: int) -> bool:
     return not value[end : token.start()].strip()
 
 
+def continues_word(text: str, end: int) -> bool:
+    """Whether a word goes on at *end* of *text*, joined as the parts of an
+    ID join: a letter, a digit or ``-`` (``or later-1.0`` is no grant)."""
+    return end < len(text) and (text[end].isalnum() or text[end] == "-")
+
+
 def closing_brackets_end(value: str, pos: int, depth: int) -> int | None:
     """Where the *depth* closing brackets after *pos* end, when white space
     alone stands before each; None if they are not there."""

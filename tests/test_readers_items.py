@@ -429,24 +429,11 @@ def test_white_space_alone_is_still_empty(
     assert result.stderr == "ERROR: input: empty: argument\n"
 
 
-@pytest.mark.parametrize(
-    ("args", "code", "stderr"),
-    [
-        # The argument was blank, exit 2; detect reads it as the library
-        # does: no licence, exit 1.
-        (["\x1f"], 1, ""),
-        # Not changed here: cliinput strips --text itself, and --id refuses
-        # a value that is no ID (its DETAIL folds to nothing).
-        (["--text", "\x1f"], 2, "ERROR: input: empty: --text\n"),
-        (["--id", "\x1f"], 2, "ERROR: option: invalid: --id: ; pass one license ID\n"),
-    ],
-    ids=["argument", "text", "id"],
-)
-def test_a_unit_separator_given_to_detect(
-    corpus_db: LicenseDatabase, args: list[str], code: int, stderr: str
-) -> None:
-    result = CliRunner().invoke(cli, ["--db", corpus_db.location, "detect", *args])
-    assert (result.exit_code, result.stderr) == (code, stderr)
+def test_a_unit_separator_as_the_argument_of_detect(corpus_db: LicenseDatabase) -> None:
+    """It was blank, exit 2; detect reads it as the library does: no
+    licence, exit 1 (--text and --id: tests/test_readers_tags.py)."""
+    result = CliRunner().invoke(cli, ["--db", corpus_db.location, "detect", "\x1f"])
+    assert (result.exit_code, result.stderr) == (1, "")
 
 
 # --- item 9: quote marks around nothing, a reference before a comma -----------

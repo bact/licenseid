@@ -78,7 +78,9 @@ def test_parentheses_and_colons(db: str, tag: str, certain_id: str | None) -> No
 @pytest.mark.parametrize(
     ("tag", "certain_id"),
     [
-        ("CAL-1.0 Licensed under the Cryptographic Autonomy License", "CAL-1.0"),
+        # CAL-1.0 has no row in this database: an ID not on the List is no
+        # operand (it was answered, exact, on a word nobody listed).
+        ("CAL-1.0 Licensed under the Cryptographic Autonomy License", None),
         ("MIT license text follows", "MIT"),
         ("MIT (see LICENSE)", "MIT"),
         ("MIT, Apache-2.0", "MIT"),
@@ -93,9 +95,9 @@ def test_parentheses_and_colons(db: str, tag: str, certain_id: str | None) -> No
         ("Apache-2.0 - GPL-2.0 users only", "Apache-2.0"),
         # A grant belonging to another ID on the line decides nothing.
         ("GPL-2.0 only (see GPL-3.0 or later for the tools)", "GPL-2.0-only"),
-        # An unrecognised operand keeps its spelling; the prose after the full
-        # stop is no part of the expression.
-        ("MIT OR GPL only. See GPL-3.0 or later elsewhere", "MIT OR GPL"),
+        # "GPL" is no listed ID: the tag is refused, as match() refuses it
+        # (it was "MIT OR GPL", exact).
+        ("MIT OR GPL only. See GPL-3.0 or later elsewhere", None),
     ],
 )
 def test_prose_after_the_expression(
@@ -289,7 +291,7 @@ def test_only_white_space_joins_the_parts_of_an_expression(
         ("Apache-2.0 - GPL-2.0 users only", "Apache-2.0"),
         # A grant belonging to another ID on the line decides nothing.
         ("GPL-2.0 only (see GPL-3.0 or later for the tools)", "GPL-2.0-only"),
-        ("MIT OR GPL only. See GPL-3.0 or later elsewhere", "MIT OR GPL"),
+        ("MIT OR GPL only. See GPL-3.0 or later elsewhere", None),  # GPL: no ID
         # A grant qualifies the ID beside it, not another one on the line.
         ("GPL-2.0 AND LGPL-2.1 or later", "GPL-2.0-only AND LGPL-2.1-or-later"),
         ("MIT OR GPL-2.0 or later", "GPL-2.0-or-later OR MIT"),
@@ -320,7 +322,7 @@ def test_only_white_space_joins_the_parts_of_an_expression(
 def test_or_later_prose_is_read_before_the_expression(
     db: str,
     tag: str,
-    certain_id: str,
+    certain_id: str | None,
     given: GivenWarnings,
 ) -> None:
     """ "or later" is prose, not the OR operator: `classify.OR_LATER_PHRASE`
