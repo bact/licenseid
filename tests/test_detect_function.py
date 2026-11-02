@@ -14,14 +14,14 @@ from typing import Any
 from unittest import mock
 
 import pytest
-from conftest import posix_only
+from conftest import GivenWarnings, posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db, writer
 from matcher_db import Lic, seeded_db
 from resolve_states import OUTDATED_WARNING
 
 import licenseid
-from licenseid import detector, keptdetector, listsource
+from licenseid import detector, keptdetector, warning
 from licenseid.datadir import get_default_db_path
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
 
@@ -159,7 +159,7 @@ def _built(monkeypatch: pytest.MonkeyPatch) -> _Built:
         return made
 
     monkeypatch.setattr("licenseid.keptdetector.LicenseDetector", make)
-    listsource.reset_warnings()
+    warning.reset_once()
     return seen
 
 
@@ -247,21 +247,21 @@ def test_a_failed_build_is_never_kept(
 def test_an_outdated_database_warns_once(
     built: _Built,
     file_db: Callable[[str], Path],
-    capsys: pytest.CaptureFixture[str],
+    given: GivenWarnings,
 ) -> None:
     """``build vN outdated`` is said once per process, as ``match()`` says it,
     also when the file changes and a detector is built again."""
     path = file_db("a.db")
     with writer(path) as conn:
         conn.execute("UPDATE db_metadata SET value = '1' WHERE key = 'build_version'")
-    capsys.readouterr()
+    given.take()
     licenseid.detect(license_id="MIT")
     licenseid.detect(license_id="MIT")
     with writer(path) as conn:
         conn.execute("INSERT OR REPLACE INTO db_metadata VALUES ('k', 'v')")
     licenseid.detect(license_id="MIT")
     assert len(built.made) == 2
-    assert capsys.readouterr().err == OUTDATED_WARNING
+    assert given.lines() == OUTDATED_WARNING
 
 
 @pytest.mark.parametrize(

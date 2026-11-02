@@ -26,7 +26,9 @@
   `resolvesemicolon.py` (licences joined by `;`: listed, no operator),
   `exprcanon.py` (its leaves and canonical
   order), `exprtokens.py` (the words of an expression), `resolverinfo.py`
-  (the resolver, parser and list blocks of a result),
+  (the resolver, parser and list blocks of a result, and the `lists` of a
+  detection), `warning.py` (`LicenseIdWarning` and `warn`, the one emitter
+  of a library warning),
   `dropguard.py` (the characters and words a loose reading must not drop:
   `Apache 2.0?`, `REM MIT`), `listindex.py` (the shipped SPDX bundle in
   memory, a `ListLookup` for `match()` with no database),
@@ -125,13 +127,17 @@ Unix philosophy. Consistent, predictable, parseable.
   - Nothing is an empty value (`SIMILARITY=`, `EXPRESSION=`); a flag is
     `true`, `false`, or empty when there is nothing to judge (no licence
     found, an operand not judged): never a false `false`.
-  - `--json`: the same result, one object per line, its keys the text
-    keys in lower case (`EXPRESSION` is `expression`), `null` means nothing
-    (the text's empty value), a flag a boolean. `match --json` holds the
-    whole resolution, of which the text lines show a part; the mapping of
-    its text keys to JSON keys (`STEP` to `steps[].kind` and
-    `expansions[].kind`, `OPERAND` to `operands[].text`) is in
-    `docs/match.md`. In the API too, None means nothing: never `""`.
+  - `--json`: the same result, one object per line. Every text key is
+    there in lower case (`EXPRESSION` is `expression`), a flag a boolean,
+    and `null` means nothing: a value empty in text is `null` in JSON, and
+    no other. JSON may hold more than the text line: `match --json` the
+    whole resolution, of which the text lines show a part, and `detect
+    --json` the flags and the `lists` of each result; a key it adds is
+    `null` when it holds nothing (`reason`, `detail`, the `lists` of the
+    no-answer record). The mapping of `match`'s text keys to JSON keys
+    (`STEP` to `steps[].kind` and `expansions[].kind`, `OPERAND` to
+    `operands[].text`) is in `docs/match.md`. In the API too, None means
+    nothing: never `""`.
   - --json and any JSON output will always write with RFC 8785: JSON
     Canonicalization Scheme (JCS). Every JSON the CLI writes goes through
     the one writer, `result.json_line`, as UTF-8 bytes on every locale
@@ -153,6 +159,23 @@ Unix philosophy. Consistent, predictable, parseable.
 - Standard output carries only a command's result. Progress, warnings and
   errors go to standard error through `licenseid.console` (`status`, `warn`,
   `error`); never `print` or `click.echo` them directly.
+- Library code never writes a warning itself: it gives a
+  `licenseid.LicenseIdWarning` through `licenseid.warning.warn` (Python's
+  `warnings`, attributed to the caller's line; `warning.once()` where a
+  warning is given once per process), and the caller records, silences or
+  raises it. The CLI prints each one as its `WARNING:` line through
+  `console.warn` (`clicommon.printed_warnings`, entered in
+  `DatabaseErrorGroup.main`, so `CliRunner` and `cli.main()` alike), in
+  order with its other lines and never deduplicated (filter `always`);
+  other warnings are left to Python. Only the CLI's own warnings (`N days
+  old`) call `console.warn`. A test of a library call asserts with the
+  `given` fixture or `pytest.warns`; a test of a step of `update` called
+  alone, whose standard error is the command's, uses the `printed` fixture.
+  pytest makes a `LicenseIdWarning` no test records an error
+  (`filterwarnings` in `pyproject.toml`): a test states what it gives.
+  The progress of `update` and `clear-cache` (`console.status`) still goes
+  to standard error from the library (`LicenseDatabase.update_from_remote`,
+  `clear_cache`).
 - Every line licenseid writes ends in `\n` on every platform, results and
   diagnostics alike: `console.emit` is the one writer of both streams. It
   writes bytes under the text stream, so Windows does not turn `\n` into
@@ -230,16 +253,17 @@ Unix philosophy. Consistent, predictable, parseable.
     Any other exception, including RuntimeError subclasses such as
     RecursionError, is wrapped as `SUBJECT: update failed: <Type>: <text>`.
   - `tests/conftest.py::check_diagnostic_grammar` fails any test that
-    prints a line breaking this grammar.
+    prints a line, or gives a `LicenseIdWarning`, breaking this grammar.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
-- `detect --json` prints JSON Lines, one
-  RFC 8785 (JCS) object per result, through `licenseid.result.json_line`;
-  the text line comes from `text_line` beside it. Both print the public form
-  `result.public_result` builds at the one exit of `detect()`: tiers rank on
-  their raw score (above 1 for a Tier 0 ID or name hit, look-alikes
-  included, and for a close text with its bonuses), never on the public
-  one, capped to 1. `exact`
-  is what tells results at 1 apart; set it where a result is made.
+- `detect --json` prints JSON Lines, one RFC 8785 (JCS) object per result,
+  through `licenseid.result.json_line`; the text line comes from `text_line`
+  beside it. Each result carries `lists` (`Detection.lists`), built by
+  `resolverinfo.list_info`, the builder of `match()`'s `lists`: never a second
+  copy. Both print the public form `result.public_result` builds at the one
+  exit of `detect()`: tiers rank on their raw score (above 1 for a Tier 0 ID
+  or name hit, look-alikes included, and for a close text with its bonuses),
+  never on the public one, capped to 1. `exact` is what tells results at 1
+  apart; set it where a result is made.
 
 ## Python
 

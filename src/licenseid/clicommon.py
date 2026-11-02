@@ -4,25 +4,29 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """What the CLI's commands share: their command class, the exit for a usage
-error, the checks of a value given on the command line, and the writer of a
-one-record result.
+error, the checks of a value given on the command line, the writer of a
+one-record result, and the printer of the library's warnings.
 
 ``cli`` holds the group and the commands that read the database;
 ``climatch`` the ``match`` command. Both import from here, so neither
 imports the other's module back.
 """
 
+import contextlib
 import sys
-from typing import NoReturn
+import warnings
+from collections.abc import Iterator
+from typing import NoReturn, TextIO
 
 import click
 
-from licenseid.console import error
+from licenseid.console import error, warn
 from licenseid.errors import InvalidInputError
 from licenseid.output import EchoHelpCommand, echo, echo_json
 from licenseid.result import FieldValue, fields_line, record_json
 from licenseid.textinput import reject_binary, reject_lone_surrogate
 from licenseid.usage import UsageLineCommand
+from licenseid.warning import LicenseIdWarning
 
 
 class LicenseIdCommand(UsageLineCommand, EchoHelpCommand):
@@ -86,3 +90,32 @@ def piped_input() -> bool:
     """Whether standard input brings something: not a terminal, and not
     closed (``<&-`` leaves it None)."""
     return sys.stdin is not None and not sys.stdin.isatty()
+
+
+@contextlib.contextmanager
+def printed_warnings() -> Iterator[None]:
+    """Within the block, print each :class:`licenseid.LicenseIdWarning` as
+    its ``WARNING:`` line (``console.warn``), when it is given, so it stands
+    in order with the other lines on standard error. Every one is printed:
+    the filter is "always", as each is an event of this run (two values, two
+    lines), not a place in the code to warn about once. Any other warning
+    is left to Python, as it was."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("always", LicenseIdWarning)
+        shown = warnings.showwarning
+
+        def show(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+            message: Warning | str,
+            category: type[Warning],
+            filename: str,
+            lineno: int,
+            file: TextIO | None = None,
+            line: str | None = None,
+        ) -> None:
+            if isinstance(message, LicenseIdWarning):
+                warn(str(message))
+            else:
+                shown(message, category, filename, lineno, file, line)
+
+        warnings.showwarning = show
+        yield

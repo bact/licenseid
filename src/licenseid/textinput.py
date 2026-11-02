@@ -12,14 +12,14 @@ package opens (SPDX release data in ``database.py`` and ``spdx_source.py``)
 are trusted and stay strict UTF-8: a Latin-1 fallback there would hide a
 corrupt download.
 
-Stdlib and ``licenseid.console``/``errors`` only, so importing it does not
+Stdlib and ``licenseid.errors``/``warning`` only, so importing it does not
 pull in ``requests``.
 """
 
 import re
 
-from licenseid.console import warn
 from licenseid.errors import InvalidInputError, shown
+from licenseid.warning import warn
 
 # A file name's extension at the end of a word: "LICENSE.txt", "COPYING.LESSER".
 # No SPDX ID ends so: each ends in a version ("Apache-2.0", "LPPL-1.3c") or
@@ -99,7 +99,7 @@ def decode_input(data: bytes, source: str) -> str:
     try:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError:
-        warn(f"input: not UTF-8, read as Latin-1: {shown(source)}")
+        warn("input", "not UTF-8, read as Latin-1", shown(source))
         text = data.decode("latin-1")
     return normalize_newlines(text)
 

@@ -153,8 +153,8 @@ def test_c9_detect_prints_an_empty_record_on_exit_1(db: str, flags: list[str]) -
     result = run(db, "detect", *flags, "--id", "No-Such-1.0")
     line = (
         '{"coverage":null,"exact":null,"expression":null,"is_fsf_libre":null,'
-        '"is_osi_approved":null,"is_spdx":null,"method":null,"score":null,'
-        '"similarity":null}'
+        '"is_osi_approved":null,"is_spdx":null,"lists":null,"method":null,'
+        '"score":null,"similarity":null}'
         if flags
         else "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE="
     )

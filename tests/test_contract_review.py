@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner, Result
-from conftest import clear_cache_line, predicate_json, predicate_line
+from conftest import GivenWarnings, clear_cache_line, predicate_json, predicate_line
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db
 from matcher_db import GPL2_ROWS, Lic, seeded_db
@@ -193,13 +193,14 @@ def test_r2_a_with_id_is_a_narrowed_guess_on_every_path(
     )
 
 
-def test_r2_the_api_reads_a_with_id_as_not_exact(db: str) -> None:
+def test_r2_the_api_reads_a_with_id_as_not_exact(db: str, given: GivenWarnings) -> None:
     """R2: ``detect(license_id=...)`` says the guess too."""
     (top,) = LicenseDetector(db).detect(license_id="GPL-2.0-with-GCC-exception")
     assert (top["expression"], top["exact"]) == (
         "GPL-2.0-only WITH GCC-exception-2.0",
         False,
     )
+    assert given.conditions() == {"variant not stated"}
 
 
 # --- R3: a deprecated row without text keeps its flags (P162) -----------------

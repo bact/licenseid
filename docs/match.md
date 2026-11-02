@@ -108,6 +108,36 @@ steps taken, without fuzzy matching:
   `packaged`), and the resolver's version (see
   [The whole result](#the-whole-result)).
 
+### Which list, and its warnings
+
+With no database given (`source="auto"`, the default), `match()` reads the
+database at the default path or the SPDX License List shipped in the wheel,
+whichever holds the newer List; a tie goes to the database only if this
+licenseid's build rules made its rows (not those of an older or a newer
+licenseid). With no database file it reads the shipped list; with a
+database that is there but unusable, the shipped list after one warning,
+`database: <condition>: <detail>; using packaged data v<version>`.
+`source="database"` reads only the database (and raises for one that
+cannot answer, as `auto` would call it unusable) and `source="packaged"`
+only the shipped list. The answer is the same from either, and
+`lists[*].source` says which was read. `licenseid.DatabaseNotReadyError` is
+raised only when the chosen list cannot be read: with `auto`, when there is
+neither (an editable install ships no list).
+
+The choice is kept while the database file is unchanged (one `stat` per
+call, no connection to choose), so a loop over many values is fast. A new,
+deleted or updated file is seen at the next call, unless the file system
+keeps coarse times (FAT, HFS+) and the update keeps the file's size within
+one tick.
+
+A warning is a `licenseid.LicenseIdWarning` given through Python's
+`warnings` (see the [README](../README.md#warnings)), never a line written
+to standard error: the fallback above, a database built by an older or a
+newer licenseid (`database: build v2 outdated: current v3; run 'licenseid
+update'`) and an unusable shipped list (`spdx-bundle.json.gz: invalid:
+...`). Each is given once per process, not once per value; `licenseid
+match` prints each as a `WARNING:` line.
+
 ## The whole result
 
 For `match("Apache2")`, as JSON:
@@ -155,6 +185,10 @@ For `match("Apache2")`, as JSON:
   "reason": null
 }
 ```
+
+`detect()` gives each of its results `lists` in this same shape, built the
+same way: the SPDX License List of the database it read, `source`
+`database`.
 
 ## The command line
 
