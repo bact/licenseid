@@ -6,12 +6,12 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/bact/licenseid/badge)](https://scorecard.dev/viewer/?uri=github.com/bact/licenseid)
 [![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.19881009-blue)](https://doi.org/10.5281/zenodo.19881009)
 
-Get the [SPDX License ID][spdx-license-id] from license text.
+Get the [SPDX License ID][spdx-license-id] from licence text.
 
-A portable license ID matcher with command line interface and Python API.
+A portable licence ID matcher with command line interface and Python API.
 No database daemon or server needed.
 
-*Used as a license detection engine for [Pitloom] software bill of materials
+*Used as a licence detection engine for [Pitloom] software bill of materials
 generator.*
 
 [spdx-license-id]: https://spdx.org/licenses/
@@ -55,25 +55,31 @@ generator.*
   [docs/match.md][match-doc-reads].
 - **SPDX License Expression support** (via
   [`py-spdx-license`][py-spdx-license]):
-  - Structural normalisation of `AND`/`OR` expressions: duplicate operands
-    collapse (`MIT AND MIT` → `MIT`) and operands are put in a consistent
-    order, making equivalent expressions compare equal. The canonical order of
-    `match()` differs from this one (`MirOS OR MIT` there, `MIT OR MirOS`
-    here).
+  - Structural normalisation of `AND`/`OR` expressions, in a tag or a
+    manifest field (an argument or `--text` is not an expression; `--id`
+    takes one licence): duplicate operands collapse (`MIT AND MIT` → `MIT`)
+    and operands are put in a consistent order, making equivalent expressions
+    compare equal. `match()` does the same in its own canonical order
+    (`MirOS OR MIT` there, `MIT OR MirOS` here).
   - The flags of an expression are judged operand by operand: `AND` is
     OSI-approved (or FSF-libre) when every operand is, `OR` when any is,
     `X WITH Y` when `X` is. An operand that cannot be judged (a
-    `LicenseRef-*`, an ID not on the List) leaves the flag empty (`null`),
+    `LicenseRef-*`) leaves the flag of an `AND` or an `OR` empty (`null`),
     never a false "no". `is_spdx` is true only when every licence and
     exception ID is on the List: a `LicenseRef-*` makes it false.
   - `WITH <exception>` expressions are validated and matched against the
-    SPDX exception list, not just the license list — e.g.
+    SPDX exception list, not just the licence list — e.g.
     `licenseid detect --id "MIT WITH Font-exception-2.0"` resolves correctly
-    even though it isn't a single license row.
+    even though it isn't a single licence row.
   - A `SPDX-License-Identifier` tag, and the `license` field of a JSON, TOML
     or INI file, are read as whole expressions, parentheses, `LicenseRef-*`
     and all: `MIT OR (Apache-2.0 AND BSD-3-Clause)` in a file resolves to
-    one answer. `--id` is narrower on purpose — see below.
+    one answer. `--id` is narrower on purpose — see below. A tag or field
+    names only IDs on the List, or `LicenseRef-*`: a word that is none
+    (`MIT OR Apache 2.0`, `Apache2`) gives no answer, as `match()` refuses
+    it. A bare "or later" after an ID is the grant (`MIT or later`, `MIT, or
+    any later version` are `MIT+`); a "+" apart from its ID (`MIT +`) names no
+    licence.
   - Package manifests are read for their `license` field, however small:
     `package.json` (with npm's old `license` object and `licenses` array),
     `pyproject.toml` (`license = "..."` or `license = {text = "..."}`, and
@@ -99,7 +105,7 @@ uv tool install licenseid
 
 ### Non-UTF-8 locales
 
-A dependency, `py-spdx-license` 0.0.1, reads its bundled license data with
+A dependency, `py-spdx-license` 0.0.1, reads its bundled licence data with
 the locale's encoding. Under a multibyte locale that is not UTF-8, such as
 `ja_JP.eucJP`, every command then fails at start-up with a
 `UnicodeDecodeError`. The fix is waiting upstream in
@@ -117,9 +123,9 @@ later need no setting.
 
 ## Usage
 
-### 1. Update the license database
+### 1. Update the licence database
 
-Before matching, you need to build the local license index:
+Before matching, you need to build the local licence index:
 
 ```bash
 licenseid update
@@ -148,16 +154,16 @@ Advanced update options:
 - `--force`: Force update even if the local database is already at
   the target version.
 - `--no-cache`: Bypass the local cache for downloads.
-- `--source auto|compact|upstream|packaged`: Where the license data comes
+- `--source auto|compact|upstream|packaged`: Where the licence data comes
   from. `auto` (default) tries `compact`, then `upstream`, then `packaged`;
   the other values use that one source only.
-  - `compact`: our bundle of about 1 MB (JSON and license texts, no XML), from
+  - `compact`: our bundle of about 1 MB (JSON and licence texts, no XML), from
     `raw.githubusercontent.com`, so `licenseid update` works where only that
     host is reachable.
   - `upstream`: SPDX's own release tarball on GitHub (about 49 MB).
-  - `packaged`: the bundle shipped in the package, of the release that was
-    newest when the package was built. `licenseid update` still works with
-    no network, with data that may be older.
+  - `packaged`: the bundle shipped in the package: the SPDX License List
+    pinned for that release (3.29.0 for 0.7.0). `licenseid update` still
+    works with no network, with data that may be older.
 
 ### 2. Detect a licence, or match a declared value
 
@@ -173,7 +179,7 @@ licenseid detect LICENSE.txt
 licenseid match "GPLv2 or later"
 ```
 
-`detect` identifies license text from a file, an ID, or a string:
+`detect` identifies licence text from a file, an ID, or a string:
 
 ```bash
 # From a file (smart detection)
@@ -200,7 +206,7 @@ An argument names a file when one exists by that name. One that does not,
 but is shaped like a path (one word with `/`, `\` or a file extension, such
 as `LICENSE.txt` or `docs/LICENSE`), exits 2 with
 `ERROR: input: not found: <value>; pass --text`, rather than be matched as
-text. A URL, with or without its scheme, and license IDs joined by `/`
+text. A URL, with or without its scheme, and licence IDs joined by `/`
 (`MIT/Apache-2.0`) are not paths. Use `--text` to match any value as text.
 
 Input is read as UTF-8. Text that is not valid UTF-8 is read as Latin-1,
@@ -212,21 +218,21 @@ Common options:
   Supports SQLite URIs for in-memory databases
   (e.g., `file:test?mode=memory&cache=shared`).
 - `--id <id>`: Explicitly treat input as one SPDX License ID (bypasses
-  file/text matching). It declares a single license, so it takes an ID, a
+  file/text matching). It declares a single licence, so it takes an ID, a
   `LicenseRef-*`, an ID with `+` (a `LicenseRef-*` takes none, nor does an
   ID that ends in `-only` or `-or-later`), and either
   `WITH <exception>`, in
   brackets or not: `MIT`, `(MIT)`, `Apache-2.0+`,
   `MIT WITH Font-exception-2.0`. It does not take an
-  `AND`/`OR` expression, a license name, an SPDX URL or prose — those name
-  no single license, so they exit 2 with
+  `AND`/`OR` expression, a licence name, an SPDX URL or prose — those name
+  no single licence, so they exit 2 with
   `ERROR: option: invalid: --id: <value>; pass one license ID`. A file's tag
   may still hold any expression. Input that is one such value and nothing
   else, whether an argument, `--text`, standard input or a file, is read as
   `--id` reads it (`--text GPL-2.0+` is `GPL-2.0-or-later`); anything else
   is matched as text: `MIT but modified heavily by us` is text, not MIT.
   An argument that names no file is first checked for the shape of a path
-  (see above). A value that is no license, such as `GPL-2.0-only+` (a "+"
+  (see above). A value that is no licence, such as `GPL-2.0-only+` (a "+"
   after a stated qualifier), is a "no" as text (exit 1, and `detect()`
   returns no result) and a usage error as `--id` (exit 2).
 - `--text <text>`: Match the given text, taken as written: a backslash is
@@ -294,11 +300,12 @@ value with a line break, and one over 2,000 characters once its surrounding
 white space is trimmed. A value that resolves is answered even when a file
 of that name exists (`match MIT` beside a file `MIT`); one that resolves to
 nothing and names an existing file or directory (`match LICENSE`) is
-refused. An empty argument, or no argument, is a usage error too
-(`input: missing`): `match` never reads standard input, so a pipe that stays
-open cannot hold it. Exit 0 means the value resolved to an
-expression (`GPL-3.0`, kept as `assumed_only`, included), 1 that it did not
-(a list joined by `;` included), with no `ERROR` line.
+refused. An empty argument is a usage error too (`input: empty: argument`),
+as is no argument (`input: missing; pass one declared licence value`):
+`match` never reads standard input, so a pipe that stays open cannot hold
+it. Exit 0 means the value resolved to an expression (`GPL-3.0`, kept as
+`assumed_only`, included), 1 that it did not (a list joined by `;` included),
+with no `ERROR` line.
 
 `detect` and `match` answer different questions, so their answers to one
 value can differ:
@@ -353,12 +360,12 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   locale.
 - `EXPRESSION` is the answer: one licence ID for `detect`.
 - `METHOD` is how the answer was found: `tag` (an `SPDX-License-Identifier`
-  tag), `field` (a manifest's `license` field), `id` (a license ID), `name`
-  (a license name) or `text` (the license text).
+  tag), `field` (a manifest's `license` field), `id` (a licence ID), `name`
+  (a licence name) or `text` (the licence text).
 - `EXACT` is `true` when the answer was found exactly: declared (a tag, a
-  field or an ID), a license name spelt out in full (for a name a
-  deprecated license shares with its successor, only the successor), or the
-  whole input equal to the license text as the SPDX License List writes
+  field or an ID), a licence name spelt out in full (for a name a
+  deprecated licence shares with its successor, only the successor), or the
+  whole input equal to the licence text as the SPDX License List writes
   it, after case, punctuation and white space are normalised.
   A filled-in copyright line or an added title makes a text not exact, as
   does a name that only shares the words of the input. Licenses with the
@@ -369,7 +376,7 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   one.
 - `SIMILARITY` and `COVERAGE` are empty where nothing was measured: a tag,
   a field or an ID has neither, a name has no coverage. `COVERAGE` is the
-  input's words over the license's, so it passes 1 when the input is longer.
+  input's words over the licence's, so it passes 1 when the input is longer.
 
 The top expression only:
 
@@ -393,10 +400,14 @@ Example output, in JSON Lines: one object per result per line, in the
 JSON Canonicalization Scheme (RFC 8785), so equal results print equal bytes
 (`jq -s .` makes an array of them):
 
+<!-- markdownlint-disable MD013 -->
+
 ```json
-{"coverage":1,"exact":true,"expression":"Apache-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"method":"text","score":1,"similarity":1}
-{"coverage":0.9236,"exact":false,"expression":"ECL-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"method":"text","score":0.9584,"similarity":0.9584}
+{"coverage":1,"exact":true,"expression":"Apache-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"lists":[{"id":"spdx-license-list","id_authority":true,"license":"CC0-1.0","name":"SPDX License List","provides":["deprecation","ids","names","texts"],"source":"database","url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0","version":"3.29.0"}],"method":"text","score":1,"similarity":1}
+{"coverage":0.9236,"exact":false,"expression":"ECL-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"lists":[{"id":"spdx-license-list","id_authority":true,"license":"CC0-1.0","name":"SPDX License List","provides":["deprecation","ids","names","texts"],"source":"database","url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0","version":"3.29.0"}],"method":"text","score":0.9584,"similarity":0.9584}
 ```
+
+<!-- markdownlint-enable MD013 -->
 
 Diff (visual comparison), here of an Apache-2.0 file with its copyright
 line filled in:
@@ -483,7 +494,7 @@ making it suitable for use in scripts and CI/CD pipelines.
 | Exit Code | Meaning | Scenarios |
 | :--- | :--- | :--- |
 | **0** | Success | Confident match found; `match`: the value resolved to an expression; predicate is TRUE; database updated or already up-to-date; cache cleared or nothing to clear. |
-| **1** | Logic Failure | No matching license found (one record, every field empty); `match`: no expression (the result is still printed); predicate is FALSE, or cannot be judged (its record still printed); an update or a cache clear that failed (a network error, a delete the system refuses). |
+| **1** | Logic Failure | No matching licence found (one record, every field empty); `match`: no expression (the result is still printed); predicate is FALSE, or cannot be judged (its record still printed); an update or a cache clear that failed (a network error, a delete the system refuses). |
 | **2** | Usage or Setup Error | Missing subcommand (help on standard error); missing input text/file; two inputs; `--json` with `--id-only` or `--diff`; invalid parameters; `match` given a text, `-`, or a path that resolves to nothing; database not ready (for `match`, no list to read); output that cannot be written. |
 | **130** | Interrupted | Ctrl-C (SIGINT); no message once started. |
 | **141** | Reader gone | The reader closed the pipe (`head -1`); no message. |
@@ -493,7 +504,7 @@ A `WARNING` about the input or the database can still come with it, as with
 an answer: `detect --exact GPL-2.0` says `variant not stated` and finds no
 exact match.
 
-A database is not ready when it is missing, empty (no licenses yet), invalid
+A database is not ready when it is missing, empty (no licences yet), invalid
 (another program's file) or unreadable. `detect` and the `is-*` commands refuse
 to answer from one, rather than exiting 1 for no licence or `false`;
 `match` reads the list shipped with licenseid instead, unless `--db` or
@@ -533,16 +544,22 @@ $ licenseid is-osi --json MIT
 ```
 
 For an expression, `AND` is true when every operand is, `OR` when any is,
-and `X WITH Y` as `X` is. The flag is empty (`null` in JSON), exit 1, when
-there is nothing to judge: never a false "no". That is when the input names
-no licence (`EXPRESSION` is empty too), or when an operand cannot be judged
-(`MIT OR LicenseRef-x`).
+and `X WITH Y` as `X` is, with one condition: the flag is empty (`null` in
+JSON), exit 1, when there is nothing to judge, never a false "no". That is
+when the input names no licence (`EXPRESSION` is empty too), or when an
+operand cannot be judged, for `AND` and for `OR` alike (a tag
+`MIT OR LicenseRef-x`):
+
+```console
+$ licenseid is-osi --text "SPDX-License-Identifier: MIT OR LicenseRef-x"
+EXPRESSION=MIT OR LicenseRef-x	IS_OSI_APPROVED=
+```
 
 | Command | Key | Description |
 | :--- | :--- | :--- |
 | `is-spdx` | `IS_SPDX` | True if every licence and exception ID is on the SPDX License List (a `LicenseRef-*` is not). |
-| `is-osi` | `IS_OSI_APPROVED` | True if the license is OSI-approved. |
-| `is-fsf` | `IS_FSF_LIBRE` | True if the license is FSF-libre. |
+| `is-osi` | `IS_OSI_APPROVED` | True if the licence is OSI-approved. |
+| `is-fsf` | `IS_FSF_LIBRE` | True if the licence is FSF-libre. |
 
 OSI-approved or FSF-libre is the two joined:
 `licenseid is-osi X >/dev/null || licenseid is-fsf X >/dev/null`.
@@ -636,10 +653,14 @@ none, or two, raise `licenseid.InvalidInputError` (a `RuntimeError`); a
 inputs and no options; `is_osi()` and `is_fsf()` return `None` when an
 operand of the expression cannot be judged.
 
+`detect()` applies no threshold and no top: it returns every candidate it
+ranks (dozens for a LICENSE file), best first. Filter on `score` and
+`exact` yourself; the `is_*()` predicates use a bar of 0.85.
+
 `detect()` takes the keyword options `enable_popularity`, `exclude`, `hint`,
 `only_common` and `only_spdx`, and raises `licenseid.InvalidInputError`
 for any other, such as a mistyped name. The options shape the
-ranking of license text; an explicit `license_id`, a bare ID or name and an
+ranking of licence text; an explicit `license_id`, a bare ID or name and an
 `SPDX-License-Identifier` tag are answered before they are read.
 
 To record a licence a package *declares* (a `license` field, a model card),
@@ -648,7 +669,8 @@ so a caller can tell a changed case from a re-spelt ID. A bare deprecated ID
 such as `GPL-3.0` is never narrowed to `-only`: it comes back as written
 (category `assumed_only`) with both candidates.
 
-`match()` needs no database. With none given (`source="auto"`), it reads the
+`match()` needs no database, with an installed wheel (an editable install
+ships no list). With none given (`source="auto"`), it reads the
 database at the default path or the List shipped in the wheel, whichever is
 newer; `source=` picks one, and `match(value, db)` reads `db`, a
 `LicenseDatabase` or its path ([how it chooses][match-doc-list]).
@@ -674,8 +696,11 @@ marks are read are in [docs/match.md][match-doc].
 `licenseid.json_line(match(VALUE))` returns. The types of a result are
 exported too: `licenseid.Resolution`, `Category`, `Trust`, `Step`,
 `Operand`, `ListInfo`, `ListSource`, `Source`, `Detection` and `Method`.
-`licenseid.LicenseDatabase` is an opaque handle, to open once and pass to
-`match(db=...)` or `LicenseDetector`.
+`licenseid.LicenseDatabase(path)` is an opaque handle, to open once and pass
+to `match(db=...)` or `LicenseDetector`. It refuses a file licenseid did not
+build (`DatabaseNotReadyError`, condition `invalid`), whatever `create` is. A
+missing file is made by the first write (`update`), not by opening or
+reading it: `match(value, handle)` on a missing file raises `not found`.
 
 `detect()` and `match()` both say `exact`, and the two can differ:
 `detect()`'s `exact` is per result, true when that answer was found
@@ -690,17 +715,20 @@ top-level `candidates`; each operand's are in `operands[*].candidates`.
 [match-doc-reads]: https://github.com/bact/licenseid/blob/main/docs/match.md#what-match-reads
 [match-doc-list]: https://github.com/bact/licenseid/blob/main/docs/match.md#which-list-and-its-warnings
 
-The constructor raises `licenseid.DatabaseNotReadyError` (a `RuntimeError`)
-when the database is missing, empty, invalid (another program's file) or
-unreadable, for example before the first `licenseid update`; its `condition`
-(`not found`, `empty`, `invalid`, `unreadable`) and `detail` say which, apart
-from the message. So does any later
-call, such as `detect()`, if the file is deleted, truncated or damaged in the
-meantime; then the `sqlite3` error is its `__cause__`. A lookup creates
-nothing and writes nothing, except that the constructor adds what a database of
-an earlier version lacks. A database that an earlier version built is in WAL
-mode, and SQLite then leaves `-shm` and `-wal` files beside it until the next
-`licenseid update`.
+`licenseid.LicenseIdError` (a `RuntimeError`) is the base of
+`licenseid.InvalidInputError` and `licenseid.DatabaseNotReadyError`. The
+`LicenseDetector` constructor raises `DatabaseNotReadyError` when the
+database is missing, empty, invalid (another program's file) or unreadable,
+for example before the first `licenseid update`; its `condition` (`not found`,
+`empty`, `invalid`, `unreadable`) and `detail` say which, apart from the
+message, and are `None` when nothing was said. A `file_path` or `db_path`
+takes a `str` or an `os.PathLike[str]`; any other type raises `TypeError`.
+Any later call, such as `detect()`, raises `DatabaseNotReadyError` too if the
+file is deleted, truncated or damaged in the meantime; then the `sqlite3`
+error is its `__cause__`. A lookup creates nothing and writes nothing, except
+that the constructor adds what a database of an earlier version lacks. A
+database that an earlier version built is in WAL mode, and SQLite then leaves
+`-shm` and `-wal` files beside it until the next `licenseid update`.
 
 `licenseid.get_default_db_path()` returns the path used when none is given
 (or raises `DatabaseNotReadyError` for an account with no home directory).
