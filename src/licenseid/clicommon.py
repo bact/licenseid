@@ -8,7 +8,7 @@ error, the checks of a value given on the command line, the writer of a
 one-record result, and the printer of the library's warnings.
 
 ``cli`` holds the group and the commands that read the database;
-``climatch`` the ``match`` command. Both import from here, so neither
+``cliresolve`` the ``resolve`` command. Both import from here, so neither
 imports the other's module back.
 """
 
@@ -68,7 +68,7 @@ def exit_bad_input(ctx: click.Context, condition: str) -> NoReturn:
 def reject_blank_options(ctx: click.Context, values: dict[str, str | None]) -> None:
     """Exit with a usage error (2) if an input given on the command line has
     no text, rather than skip it for the next input or match it as text.
-    White space is :data:`licenseid.exprtokens.WHITE_SPACE`, as ``match()``
+    White space is :data:`licenseid.exprtokens.WHITE_SPACE`, as ``resolve()``
     reads it: U+001C to U+001F, which ``str.strip`` takes, are control
     characters, a text the command reads (and refuses)."""
     for name, value in values.items():

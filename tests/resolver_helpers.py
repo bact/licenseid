@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Shared by the ``match`` tests."""
+"""Shared by the ``resolve`` tests."""
 
 from matcher_db import Lic
 

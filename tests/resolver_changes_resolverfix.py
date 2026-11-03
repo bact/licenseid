@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The answers task ``resolverfix`` (edge values of ``match()`` found in the
+"""The answers task ``resolverfix`` (edge values of ``resolve()`` found in the
 0.7.0 review) moved in the parity corpus and the PyPI sample, grouped by
 the rule.
 

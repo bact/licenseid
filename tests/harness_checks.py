@@ -15,7 +15,7 @@ from typing import Any
 import rfc8785
 from resolver_corpus import corpus_rows
 
-from licenseid import InvalidInputError, match
+from licenseid import InvalidInputError, resolve
 from licenseid.detector import LicenseDetector
 from licenseid.result import json_line, read_text_field, resolution_lines, text_line
 from licenseid.types import Detection
@@ -44,13 +44,13 @@ def failures(values: Iterable[str], check: Callable[[str], str | None]) -> list[
 
 
 def never_raises_match(value: str) -> str | None:
-    """``match()`` returns for any str, or raises InvalidInputError."""
+    """``resolve()`` returns for any str, or raises InvalidInputError."""
     try:
-        match(value, source="packaged")
+        resolve(value, source="packaged")
     except InvalidInputError:
         return None
     except Exception as error:  # pylint: disable=broad-exception-caught
-        return f"match raised {type(error).__name__}: {str(error)[:80]}"
+        return f"resolve raised {type(error).__name__}: {str(error)[:80]}"
     return None
 
 
@@ -111,7 +111,7 @@ def line_matches_json(line: str, record: dict[str, object]) -> str | None:
 
 
 def match_lines_agree(lines: list[str], record: dict[str, Any]) -> str | None:
-    """The lines ``licenseid match`` prints read back to the JSON *record*:
+    """The lines ``licenseid resolve`` prints read back to the JSON *record*:
     the head, each applied step (steps, then qualifiers), the reason and the
     operands. The expected lines are built from the record, not from
     ``resolution_lines``."""
@@ -146,10 +146,10 @@ def canonical(line: str) -> str | None:
 
 
 def match_output_agrees(value: str) -> str | None:
-    """The text line, the JSON line and the canonical form of a ``match()``
+    """The text line, the JSON line and the canonical form of a ``resolve()``
     result agree."""
     try:
-        found = match(value, source="packaged")
+        found = resolve(value, source="packaged")
     except InvalidInputError:
         return None
     line = json_line(found)
@@ -178,11 +178,11 @@ def detect_output_agrees(outcome: list[Detection] | Exception) -> str | None:
 def answer_is_stable(value: str) -> str | None:
     """Reading an answer again gives the answer."""
     try:
-        first = match(value, source="packaged")
+        first = resolve(value, source="packaged")
     except InvalidInputError:
         return None
     expression = first["expression"]
     if expression is None:
         return None
-    again = match(expression, source="packaged")["expression"]
+    again = resolve(expression, source="packaged")["expression"]
     return None if again == expression else f"{expression!r} read again: {again!r}"

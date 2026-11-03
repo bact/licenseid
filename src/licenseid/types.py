@@ -38,9 +38,9 @@ class Detection(TypedDict):
     measured (a tag, a field, an ID; a name has no coverage). ``coverage``
     is the input's words over the license's, so it passes 1 when the input
     is longer. ``expression`` is the answer: one licence ID, or an SPDX
-    expression (a tag or a field may declare one), as ``match()`` names its
+    expression (a tag or a field may declare one), as ``resolve()`` names its
     answer; the detector's own records keep ``license_id``. ``lists`` are
-    the lists the answer rests on, as ``match()`` gives them
+    the lists the answer rests on, as ``resolve()`` gives them
     (:class:`licenseid.resolvertypes.ListInfo`): the SPDX License List of
     the database read, its ``source`` ``database``.
     """
@@ -96,7 +96,7 @@ class CandidateMatch(TypedDict, total=False):
     pop_score: int
     score: float
     method: Method
-    # A reading match() does not make (a bare deprecated ID read as its
+    # A reading resolve() does not make (a bare deprecated ID read as its
     # -only form, a "+" on a deprecated -with- ID): a guess, so not exact.
     narrowed: bool
 

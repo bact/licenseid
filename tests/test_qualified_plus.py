@@ -19,7 +19,7 @@ from click.testing import CliRunner
 from conftest import NO_DETECTION, predicate_line
 from matcher_db import Lic, seeded_db
 
-from licenseid import match
+from licenseid import resolve
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.identifiers import is_qualified_plus
@@ -72,7 +72,7 @@ QUALIFIED_PLUS = [
     "Foo-only+",  # names nothing either way
     "GPL-2.0-only+ or later",  # no number before it: "or later" is OR later
     # It was GPL-2.0-only, exact: the "+" dropped before an end mark, which
-    # match() trims (readers, round 3).
+    # resolve() trims (readers, round 3).
     "GPL-2.0-only+,",
     "GPL-2.0-or-later+.",
 ]
@@ -90,7 +90,7 @@ def test_a_plus_after_a_qualifier_answers_no_licence(db_path: str, text: str) ->
         ("GPL-2.0+", ["GPL-2.0-or-later"]),  # an ID that states no qualifier
         ("GPL-2.0-only", ["GPL-2.0-only"]),
         # A detached "+" is no operator, and the value names no licence, as
-        # match() reads it: it was GPL-2.0-only, exact (readers, round 3).
+        # resolve() reads it: it was GPL-2.0-only, exact (readers, round 3).
         ("GPL-2.0-only +", []),
         ("LicenseRef-x-only+", None),  # a LicenseRef takes no "+": no operator
         ("GPL-2.0-only+ licensed code", None),  # prose: matched as text
@@ -116,7 +116,7 @@ def test_no_entry_point_answers_a_near_name(db_path: str, tmp_path: Path) -> Non
     path = tmp_path / "LICENSE"
     path.write_text("LGPL-2.1-only+\n", encoding="utf-8")
     assert matcher.detect(file_path=str(path)) == []
-    assert match("GPL-2.0-only+", matcher.db)["category"] == "malformed"
+    assert resolve("GPL-2.0-only+", matcher.db)["category"] == "malformed"
 
 
 @pytest.mark.parametrize("command", ["detect", "is-osi"])

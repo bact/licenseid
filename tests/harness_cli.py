@@ -32,7 +32,7 @@ class Case(NamedTuple):
     """One command line. ``db`` is ``list`` (a ready database of the fixtures'
     List), ``release`` (a ready database of the one-licence release), ``fresh``
     (a path with no file), ``cache`` (a ``list`` database with a cache file
-    beside it) or ``none`` (no ``--db``: ``match`` reads the
+    beside it) or ``none`` (no ``--db``: ``resolve`` reads the
     shipped List). ``wheel`` is the bundle the wheel ships: ``list``,
     ``release`` (one licence) or ``none``."""
 
@@ -70,22 +70,22 @@ DETECT = [
     _c("detect-unreadable-text", "list", "detect", "--text", "café \U0001f600"),
 ]
 MATCH = [
-    _c("match-id", "none", "match", "MIT"),
-    _c("match-plus-or", "none", "match", "GPLv2+ or MIT"),
-    _c("match-prose", "none", "match", "BSD 3-Clause License"),
-    _c("match-trove", "none", "match", "License :: OSI Approved :: MIT License"),
-    _c("match-deprecated", "none", "match", "GPL-3.0"),
-    _c("match-semicolon", "none", "match", "MIT ; Apache 2"),
-    _c("match-end-mark", "none", "match", "Apache 2.0?"),
-    _c("match-quotes", "none", "match", "“MIT”"),
-    _c("match-tab", "none", "match", "MIT\tOR ISC"),
-    _c("match-unicode", "none", "match", "“MIT” \\ café \U0001f600"),
-    _c("match-unknown", "none", "match", "No-Such-1.0"),
-    _c("match-empty", "none", "match", ""),
-    _c("match-line-break", "none", "match", "line\nbreak"),
-    _c("match-stdin", "none", "match", "-", stdin="Apache-2.0\n"),
-    _c("match-no-input", "none", "match"),
-    _c("match-no-list", "none", "match", "MIT", wheel="none"),
+    _c("resolve-id", "none", "resolve", "MIT"),
+    _c("resolve-plus-or", "none", "resolve", "GPLv2+ or MIT"),
+    _c("resolve-prose", "none", "resolve", "BSD 3-Clause License"),
+    _c("resolve-trove", "none", "resolve", "License :: OSI Approved :: MIT License"),
+    _c("resolve-deprecated", "none", "resolve", "GPL-3.0"),
+    _c("resolve-semicolon", "none", "resolve", "MIT ; Apache 2"),
+    _c("resolve-end-mark", "none", "resolve", "Apache 2.0?"),
+    _c("resolve-quotes", "none", "resolve", "“MIT”"),
+    _c("resolve-tab", "none", "resolve", "MIT\tOR ISC"),
+    _c("resolve-unicode", "none", "resolve", "“MIT” \\ café \U0001f600"),
+    _c("resolve-unknown", "none", "resolve", "No-Such-1.0"),
+    _c("resolve-empty", "none", "resolve", ""),
+    _c("resolve-line-break", "none", "resolve", "line\nbreak"),
+    _c("resolve-stdin", "none", "resolve", "-", stdin="Apache-2.0\n"),
+    _c("resolve-no-input", "none", "resolve"),
+    _c("resolve-no-list", "none", "resolve", "MIT", wheel="none"),
 ]
 FLAGS = [
     _c(f"{cmd}-{name}", "list", cmd, *args)

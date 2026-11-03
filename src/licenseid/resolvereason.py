@@ -5,7 +5,7 @@
 
 """The reason of a refusal no reader gave one (P5 of the contract batch).
 
-Every ``unresolved`` or ``malformed`` answer of ``match()`` carries a
+Every ``unresolved`` or ``malformed`` answer of ``resolve()`` carries a
 ``reason``, one line, ``CONDITION[: DETAIL]``. A reader that knows why it
 refused says so (``character dropped``, ``operand not resolved``); for the
 rest, :func:`no_reading` says what is left to say once every reader has

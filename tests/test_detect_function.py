@@ -249,7 +249,7 @@ def test_an_outdated_database_warns_once(
     file_db: Callable[[str], Path],
     given: GivenWarnings,
 ) -> None:
-    """``build vN outdated`` is said once per process, as ``match()`` says it,
+    """``build vN outdated`` is said once per process, as ``resolve()`` says it,
     also when the file changes and a detector is built again."""
     path = file_db("a.db")
     with writer(path) as conn:
@@ -266,7 +266,7 @@ def test_an_outdated_database_warns_once(
 
 @pytest.mark.parametrize(
     "name",
-    ["resolve", "AggregatedLicenseMatcher", "LicenseMatch", "MatchRequest"],
+    ["match", "AggregatedLicenseMatcher", "LicenseMatch", "MatchRequest"],
 )
 def test_the_old_names_are_gone(name: str) -> None:
     """No alias is left for the names 0.6.0 had."""

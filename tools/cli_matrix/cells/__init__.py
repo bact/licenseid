@@ -8,7 +8,7 @@
 ``A`` ``detect`` options, ``B`` predicates, ``C`` global options and help,
 ``D`` ``update`` outcomes, ``E`` the environment around the process
 (``environment`` for its streams, ``process_env`` for its resources), ``F``
-``match``, one declared value (``matchvalue``).
+``resolve``, one declared value (``resolvevalue``).
 """
 
 from __future__ import annotations
@@ -17,9 +17,9 @@ from tools.cli_matrix.cells import (
     detect,
     environment,
     global_options,
-    matchvalue,
     predicate,
     process_env,
+    resolvevalue,
 )
 from tools.cli_matrix.cells import update as update_cells
 from tools.cli_matrix.model import CellSet
@@ -36,5 +36,5 @@ def build_cells() -> CellSet:
     update_cells.add_cells(cells)
     environment.add_cells(cells)
     process_env.add_cells(cells)
-    matchvalue.add_cells(cells)
+    resolvevalue.add_cells(cells)
     return cells

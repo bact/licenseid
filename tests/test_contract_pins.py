@@ -26,7 +26,7 @@ from db_variants import make_ready_file_db
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 import licenseid
-from licenseid import DatabaseNotReadyError, InvalidInputError, LicenseDatabase, match
+from licenseid import DatabaseNotReadyError, InvalidInputError, LicenseDatabase, resolve
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.result import fields_line, record_json
@@ -139,10 +139,10 @@ def test_c7_conflicts_are_refused(db: str, args: list[str], message: str) -> Non
 
 
 def test_c8_match_does_not_read_standard_input() -> None:
-    """C8 (was: ``match`` read standard input to refuse it): no value is
-    missing input, whatever is piped (``test_cli_match`` runs it on a pipe
+    """C8 (was: ``resolve`` read standard input to refuse it): no value is
+    missing input, whatever is piped (``test_cli_resolve`` runs it on a pipe
     that never ends)."""
-    result = CliRunner().invoke(cli, ["match"], input="MIT")
+    result = CliRunner().invoke(cli, ["resolve"], input="MIT")
     assert result.exit_code == 2
     assert result.stderr == ("ERROR: input: missing; pass one declared licence value\n")
 
@@ -293,25 +293,25 @@ def test_p2_the_public_surface() -> None:
 def test_p3_a_path_is_a_database(db: str, tmp_path: Path) -> None:
     """P3 (was: ``AttributeError`` on a path): a path opens read-only; a
     missing one is ``not found`` and stays missing."""
-    assert match("MIT", db)["expression"] == "MIT"  # a file: URI
+    assert resolve("MIT", db)["expression"] == "MIT"  # a file: URI
     on_disk = make_ready_file_db(tmp_path / "licenses.db")
-    assert match("MIT", on_disk)["expression"] == "MIT"  # a Path
-    assert match("MIT", str(on_disk))["expression"] == "MIT"
+    assert resolve("MIT", on_disk)["expression"] == "MIT"  # a Path
+    assert resolve("MIT", str(on_disk))["expression"] == "MIT"
     missing = tmp_path / "no" / "licenses.db"
     with pytest.raises(DatabaseNotReadyError, match="^database: not found: "):
-        match("MIT", missing)
+        resolve("MIT", missing)
     assert not missing.exists() and not missing.parent.exists()
 
 
 def test_p4_none_means_nothing(db: str) -> None:
     """P4 (was: ``detail`` and ``list`` ``""``, and ``by`` ``""``): None
     means nothing; ``by`` is gone."""
-    steps = match("Apache2", LicenseDatabase(db, create=False))["steps"]
+    steps = resolve("Apache2", LicenseDatabase(db, create=False))["steps"]
     assert steps == []  # Apache-2.0 is not in this database
-    step = match("mit", LicenseDatabase(db, create=False))["steps"][0]
+    step = resolve("mit", LicenseDatabase(db, create=False))["steps"][0]
     assert step["detail"] is None and "by" not in step
     assert step["list"] == "spdx-license-list"
-    trim = match(" MIT", LicenseDatabase(db, create=False))["steps"][0]
+    trim = resolve(" MIT", LicenseDatabase(db, create=False))["steps"][0]
     assert trim["list"] is None
 
 
@@ -337,13 +337,13 @@ def test_p5_every_refusal_has_a_reason(
     db: str, value: str, category: str, reason: str
 ) -> None:
     """P5 (was: None for all of these): a reason for every refusal."""
-    resolution = match(value, LicenseDatabase(db, create=False))
+    resolution = resolve(value, LicenseDatabase(db, create=False))
     assert (resolution["category"], resolution["reason"]) == (category, reason)
 
 
 def test_p5_an_operand_has_a_reason(db: str) -> None:
     """P5 (was: None): a refused operand says why too."""
-    operands = match("MIT OR Foo", LicenseDatabase(db, create=False))["operands"]
+    operands = resolve("MIT OR Foo", LicenseDatabase(db, create=False))["operands"]
     assert [o["reason"] for o in operands] == [None, "not found: Foo"]
 
 

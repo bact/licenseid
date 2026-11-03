@@ -90,7 +90,7 @@ Each file stays under about 450 lines; no ceiling is raised.
 | `resolvecompound.py` (new) | Calls `resolveleaf` per leaf. All-or-nothing acceptance; the category is the weakest operand's; builds `operands` and `reason`; tells `malformed` (an operator or bracket and a resolved operand, but the grammar refuses it) from `unresolved`. Must handle `MIT OR GPL-2.0-only+` (`malformed` today). |
 | `resolver.py` (190 lines after T4) | Entry point: `resolve(value, db=None, *, source="auto")` chooses the list (4.5, Q4, Q10, Q11), runs the early refusals (empty, over 2000, Cc and Cf, Cs from T4b), tries one licence (`read_leaf`), then a compound, then the trove table, then prose (Q18, Q22), then `malformed`. Builds `Resolution`, `components`, `lists`. T7 removes `_expression_category`, `_is_expression`, `_RE_TOKEN`, `_RE_IDLIKE`, `_RE_SQUARE`. At most 250 lines. |
 | `resolvertypes.py` (changed) | New keys, categories, kinds, trust levels (section 4). |
-| `identifiers.py` (747 lines) | Type hints only. Do not add to it. `normalize_identifier` keeps its narrowing for `match()`. |
+| `identifiers.py` (747 lines) | Type hints only. Do not add to it. `normalize_identifier` keeps its narrowing for `detect()`. |
 | `tools/pypi_licence_sample/` | `analyze --source packaged` (no database), `--json out` and `--compare base.json` for before and after per rule. |
 
 **D1, the canonical order.** `py-spdx-license` parses (grammar, precedence);

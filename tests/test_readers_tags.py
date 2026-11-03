@@ -40,11 +40,11 @@ def _tag(corpus_db: LicenseDatabase, value: str) -> tuple[str, bool] | None:
     [
         # "later" was an ID ("MIT OR later", exact), or the grant dropped
         # ("MIT or-later" was MIT): the "or" is read as after a number, by
-        # the one probe (classify.grant_end), as match() reads it (P35).
+        # the one probe (classify.grant_end), as resolve() reads it (P35).
         ("MIT or later", "MIT+"),
         ("MIT OR LATER", "MIT+"),
         ("MIT, or later", "MIT+"),
-        ("(MIT) or later", "MIT+"),  # match() refuses it; the tag reads
+        ("(MIT) or later", "MIT+"),  # resolve() refuses it; the tag reads
         ("MIT or later version", "MIT+"),  # the grant past brackets
         ("MIT or-later", "MIT+"),
         ("Apache-2.0 or later", "Apache-2.0+"),
@@ -95,7 +95,7 @@ def test_a_bare_grant_in_a_field(
 @pytest.mark.parametrize(
     "value",
     [
-        # Each was its first word, exact ("MIT OR Apache"); match() refuses
+        # Each was its first word, exact ("MIT OR Apache"); resolve() refuses
         # them (operand of several words), so the tag answers nothing.
         "MIT OR Apache 2.0",
         "MIT OR BSD 3-Clause",

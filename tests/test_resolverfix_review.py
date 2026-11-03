@@ -28,8 +28,8 @@ from licenseid import (
     LicenseDetector,
     exprcanon,
     exprtokens,
-    match,
     plusoperator,
+    resolve,
     resolveprose,
 )
 from licenseid.dropguard import ends_in_mark, ends_in_ref, marks_at_end, trim_end_mark
@@ -181,8 +181,8 @@ MATCHED: dict[str, Answer] = {
 
 
 @pytest.mark.parametrize("value", list(MATCHED), ids=ascii)
-def test_match(corpus_db: LicenseDatabase, value: str) -> None:
-    assert answer(match(value, corpus_db)) == MATCHED[value]
+def test_resolve(corpus_db: LicenseDatabase, value: str) -> None:
+    assert answer(resolve(value, corpus_db)) == MATCHED[value]
 
 
 TAGS: dict[str, Answers] = {
@@ -197,7 +197,7 @@ TAGS: dict[str, Answers] = {
     "GPL-2.0-only WITH Classpath-exception-2.0, or any later version": NOTHING,
     "GPL-2.0, see COPYING for any later version": named("GPL-2.0-or-later"),
     "GPL-2.0-only, see COPYING": named("GPL-2.0-only"),
-    # Task readers: the grant is MIT's, its "+" (P35), as match() reads it;
+    # Task readers: the grant is MIT's, its "+" (P35), as resolve() reads it;
     # it was dropped in silence
     "GPL-2.0-only OR MIT, or any later version": named("GPL-2.0-only OR MIT+"),
     # 3: a script written without spaces after the ID starts a word
@@ -254,11 +254,11 @@ def test_each_operand_says_what_it_says_alone(
 ) -> None:
     """A refused operand gives the reason the same text gives alone, and the
     value gives its first refused operand's."""
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     refused = [o for o in got["operands"] if o["expression"] is None]
     assert refused
     for operand in refused:
-        alone = match(operand["text"], corpus_db)
+        alone = resolve(operand["text"], corpus_db)
         assert (operand["category"], operand["reason"]) == (
             alone["category"],
             alone["reason"],
@@ -281,7 +281,7 @@ def test_each_operand_says_what_it_says_alone(
 def test_an_end_mark_is_trimmed_at_white_space_only(
     text: str, trimmed: str | None
 ) -> None:
-    """``trim_end_mark`` runs before ``match()``'s gate: an information
+    """``trim_end_mark`` runs before ``resolve()``'s gate: an information
     separator (U+001C to U+001F) is no white space to it, so it stays for
     the gate to refuse."""
     assert trim_end_mark(text) == trimmed
@@ -348,7 +348,7 @@ def test_the_marks_at_the_end_are_read_in_linear_time(text: str) -> None:
 def test_an_ending_keeps_the_spans(
     corpus_db: LicenseDatabase, value: str, spans: list[list[int]]
 ) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert [operand["span"] for operand in got["operands"]] == spans
     for operand in got["operands"]:
         start, end = operand["span"]

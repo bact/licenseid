@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Task ``readers`` of the 0.7.0 review: the readers of a declared value
-that ``detect()`` and ``match()`` share, held to one answer, on the whole
+that ``detect()`` and ``resolve()`` share, held to one answer, on the whole
 3.29.0 List.
 
 Each test was first a pin of what ``main`` did (``# BUG:``); it now holds
@@ -24,7 +24,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
-from licenseid import LicenseDatabase, classify, looseid, match
+from licenseid import LicenseDatabase, classify, looseid, resolve
 from licenseid.classify import grant_at, grant_end, grant_spans, is_pure_license_text
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
@@ -51,7 +51,7 @@ def _field(corpus_db: LicenseDatabase, tmp_path: Path, value: str) -> str | None
 
 
 def _answer(corpus_db: LicenseDatabase, value: str) -> tuple[str | None, str | None]:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     return got["expression"], got["reason"]
 
 
@@ -69,7 +69,7 @@ def test_the_trove_list_has_a_version() -> None:
 
 
 def test_a_trove_answer_names_the_version(corpus_db: LicenseDatabase) -> None:
-    lists = match("License :: OSI Approved :: MIT License", corpus_db)["lists"]
+    lists = resolve("License :: OSI Approved :: MIT License", corpus_db)["lists"]
     assert [(e["id"], e["version"]) for e in lists] == [
         ("spdx-license-list", "3.29.0"),
         ("pypi-trove-classifiers", "2026.9.21.13"),
@@ -97,13 +97,13 @@ def test_a_trove_answer_names_the_version(corpus_db: LicenseDatabase) -> None:
         ("MIT+ +", "qualifier stated twice: MIT+ +"),
     ],
 )
-def test_a_spaced_plus_in_match(
+def test_a_spaced_plus_in_resolve(
     corpus_db: LicenseDatabase, value: str, reason: str
 ) -> None:
     """A "+" after a space is no operator (plusoperator.PLUS_OPERATOR; it
     may say "and" too): refused where it qualifies a licence. It was read
     as the operator, with a ``whitespace`` step (P34)."""
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert (got["expression"], got["category"], got["reason"]) == (
         None,
         "malformed",
@@ -136,7 +136,7 @@ def test_a_spaced_plus_after_nothing_is_not_found(corpus_db: LicenseDatabase) ->
 def test_a_spaced_plus_in_a_tag(corpus_db: LicenseDatabase, value: str) -> None:
     """The tag read the licence before the "+" and dropped the rest:
     GPL-2.0-only (narrowed) for "GPL-2.0 + OR MIT", Apache-2.0 exact for
-    "Apache-2.0 + MIT". Now no expression, as ``match()`` refuses it."""
+    "Apache-2.0 + MIT". Now no expression, as ``resolve()`` refuses it."""
     assert _tag(corpus_db, value) is None
 
 
@@ -145,7 +145,7 @@ def test_a_spaced_plus_as_an_argument(
 ) -> None:
     """It was GPL-2.0-only, not exact, with a warning (F3): the loose reading
     of Tier 0 dropped the "+" apart from its ID. It names no licence, as
-    match() and the tag read it (readers, round 3)."""
+    resolve() and the tag read it (readers, round 3)."""
     assert not LicenseDetector(corpus_db.location).detect("GPL-2.0 +")
     assert not given.conditions()
 
@@ -166,7 +166,7 @@ def test_a_dotted_capital_i_in_with(corpus_db: LicenseDatabase) -> None:
 
 
 def test_one_probe_reads_a_grant_after_an_id() -> None:
-    """``looseid`` (``match()``) reads with the probe the tag reads with."""
+    """``looseid`` (``resolve()``) reads with the probe the tag reads with."""
     assert looseid.grant_end is classify.grant_end
 
 
@@ -180,7 +180,7 @@ def test_one_probe_reads_a_grant_after_an_id() -> None:
         ("GPL-2.0-only OR not later", False),
     ],
 )
-def test_the_tag_and_match_agree_on_a_negated_grant(text: str, grant: bool) -> None:
+def test_the_tag_and_resolve_agree_on_a_negated_grant(text: str, grant: bool) -> None:
     operator = re.compile("or", re.IGNORECASE).search(text, 13)
     assert operator is not None
     tag = grant_at(text, operator, grant_spans(text), True)
@@ -288,7 +288,7 @@ def test_a_grant_after_another_version_is_not_the_ids(
 @pytest.mark.parametrize(
     ("value", "answer"),
     [
-        # The grant was dropped in silence: MIT, exact. match() reads it as
+        # The grant was dropped in silence: MIT, exact. resolve() reads it as
         # the "+" of an ID with no -or-later form (P35).
         ("MIT, or any later version", "MIT+"),
         ("MIT or any later version", "MIT+"),
@@ -322,12 +322,12 @@ def test_a_grant_is_kept_in_a_tag(
         "GPL-2.0, or any later version",
     ],
 )
-def test_the_tag_reads_a_grant_as_match_does(
+def test_the_tag_reads_a_grant_as_resolve_does(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     tag = _tag(corpus_db, value)
     assert tag is not None
-    assert tag[0] == match(value, corpus_db)["expression"]
+    assert tag[0] == resolve(value, corpus_db)["expression"]
 
 
 @pytest.mark.parametrize(
@@ -390,10 +390,10 @@ def test_a_grant_is_kept_in_a_field(corpus_db: LicenseDatabase, tmp_path: Path) 
 def test_a_unit_separator_is_a_character_on_the_command_line(
     monkeypatch: pytest.MonkeyPatch, value: str, code: str
 ) -> None:
-    """It was blank (``str.strip`` takes U+001C to U+001F), exit 2; match()
+    """It was blank (``str.strip`` takes U+001C to U+001F), exit 2; resolve()
     refuses it as a control character, exit 1, as for ``MIT\x1f``."""
     ship(monkeypatch, fixture_bundle())
-    result = CliRunner().invoke(cli, ["match", value])
+    result = CliRunner().invoke(cli, ["resolve", value])
     assert (result.exit_code, result.stderr) == (1, "")
     assert result.stdout == (
         "EXPRESSION=\tCATEGORY=unresolved\tTRUST=none\n"
@@ -411,7 +411,7 @@ def test_a_separator_that_breaks_a_line_on_the_command_line(
 ) -> None:
     """It was blank; it breaks a line (``str.splitlines``), as in ``MIT\x1c``."""
     ship(monkeypatch, fixture_bundle())
-    result = CliRunner().invoke(cli, ["match", value])
+    result = CliRunner().invoke(cli, ["resolve", value])
     assert (result.exit_code, result.stdout) == (2, "")
     assert result.stderr == (
         f"ERROR: input: invalid: line break {code}; run 'licenseid detect'\n"
@@ -423,7 +423,7 @@ def test_white_space_alone_is_still_empty(
     monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
     ship(monkeypatch, fixture_bundle())
-    result = CliRunner().invoke(cli, ["match", value])
+    result = CliRunner().invoke(cli, ["resolve", value])
     assert (result.exit_code, result.stdout) == (2, "")
     assert result.stderr == "ERROR: input: empty: argument\n"
 
@@ -457,7 +457,7 @@ def test_empty_quotes_joined_by_an_operator(
 def test_quotes_around_a_value_still_go(
     corpus_db: LicenseDatabase, value: str, expression: str | None
 ) -> None:
-    assert match(value, corpus_db)["expression"] == expression
+    assert resolve(value, corpus_db)["expression"] == expression
 
 
 @pytest.mark.parametrize(
@@ -472,7 +472,7 @@ def test_quotes_around_a_value_still_go(
 def test_a_reference_and_an_end_mark_before_a_grant(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert (got["expression"], got["category"], got["reason"]) == (
         None,
         "malformed",  # fixr item 5: as ``LicenseRef-a+`` (was unresolved)

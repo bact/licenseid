@@ -59,7 +59,7 @@ def test_every_command_and_every_kind_of_outcome_is_run(
     commands = {case.args[0] for case in hcli.CASES}
     assert commands == {
         "detect",
-        "match",
+        "resolve",
         "update",
         "clear-cache",
         "is-osi",
@@ -119,7 +119,7 @@ def test_every_text_line_reads_back_to_its_json(
         assert text_lines and json_lines, key
         for line in text_lines:
             assert TEXT_LINE.fullmatch(line), (key, line)
-        if key.startswith("match"):  # one record; the lines are parts of it
+        if key.startswith("resolve"):  # one record; the lines are parts of it
             assert len(json_lines) == 1, key
             assert canonical(json_lines[0]) is None, key
             why = match_lines_agree(text_lines, json.loads(json_lines[0]))

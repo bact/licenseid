@@ -16,7 +16,7 @@ import click
 from licenseid import __version__
 from licenseid.clicommon import LicenseIdCommand, exit_usage_error, printed_warnings
 from licenseid.clidetect import PREDICATE_COMMANDS, detect_command
-from licenseid.climatch import match_command
+from licenseid.cliresolve import resolve_command
 from licenseid.cliupdate import clear_cache_command, update_command
 from licenseid.console import end_line, write
 from licenseid.datadir import get_default_db_path
@@ -100,7 +100,7 @@ def show_version(ctx: click.Context, _param: click.Parameter, value: bool) -> No
 @click.option("--db", help="Path to the license database.")
 @click.pass_context
 def cli(ctx: click.Context, db: str | None) -> None:
-    """SPDX License ID matcher tool."""
+    """A portable SPDX licence identification tool."""
     if db is not None and not db.strip():
         # Silently falling back to the default database would answer from a
         # file the user did not ask for. Every other blank option is a usage
@@ -119,7 +119,7 @@ def cli(ctx: click.Context, db: str | None) -> None:
         ctx.exit(2)
 
 
-for _command in (detect_command, match_command, *PREDICATE_COMMANDS):
+for _command in (detect_command, resolve_command, *PREDICATE_COMMANDS):
     cli.add_command(_command)
 cli.add_command(update_command)
 cli.add_command(clear_cache_command)

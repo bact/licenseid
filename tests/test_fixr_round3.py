@@ -15,11 +15,11 @@ the answer of ``main``.
 
 import pytest
 
-from licenseid import LicenseDatabase, match
+from licenseid import LicenseDatabase, resolve
 
 
 def _answer(db: LicenseDatabase, value: str) -> tuple[str | None, str, str | None]:
-    got = match(value, db)
+    got = resolve(value, db)
     return got["expression"], got["category"], got["reason"]
 
 

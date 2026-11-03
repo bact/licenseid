@@ -24,7 +24,7 @@ class DatabaseNotReadyError(LicenseIdError):
     answer from it could not be trusted. The CLI exits with code 2, not 1,
     because 1 means "no" for ``detect`` and every ``is-*`` command.
 
-    ``match(source="packaged")`` raises it too when the bundle shipped in
+    ``resolve(source="packaged")`` raises it too when the bundle shipped in
     the wheel is missing or unusable (``spdx-bundle.json.gz: not found``):
     either way there is no list to read.
 
@@ -96,7 +96,7 @@ def one_line(value: str) -> str:
 
 
 def reason_detail(value: str) -> str:
-    """*value* as the DETAIL of a ``reason`` of ``match()``: on one line and
+    """*value* as the DETAIL of a ``reason`` of ``resolve()``: on one line and
     cut as :func:`one_line` makes it, but with its ";" kept. A reason is a
     field of a result, not a diagnostic: it has no ACTION for a ";" to start,
     and the result's own writer escapes what a field cannot hold."""

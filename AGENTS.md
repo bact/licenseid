@@ -35,12 +35,12 @@
   of a library warning),
   `dropguard.py` (the characters and words a loose reading must not drop:
   `Apache 2.0?`, `REM MIT`), `listindex.py` (the shipped SPDX bundle in
-  memory, a `ListLookup` for `match()` with no database),
-  `listsource.py` (which list `match()` reads: database or packaged),
+  memory, a `ListLookup` for `resolve()` with no database),
+  `listsource.py` (which list `resolve()` reads: database or packaged),
   `cli.py` (the group and `main`), `cliinput.py` (the input of `detect`
   and `is-*`: one of a file, a value, `--text`, `--id`, `-`),
   `clidetect.py` (`detect` and `is-*`), `cliupdate.py` (`update` and
-  `clear-cache`), `climatch.py` (the `licenseid match` command; what the
+  `clear-cache`), `cliresolve.py` (the `licenseid resolve` command; what the
   commands share is in `clicommon.py`), `exprflags.py` (the OSI, FSF and
   List flags of an expression), `resolvereason.py` (the reason of a
   refusal no reader explained), `identifiers.py`, `classify.py` (prose
@@ -79,13 +79,13 @@
   it when a finding is worth publishing; start at its `README.md`.
 - Test fixtures: `tests/fixtures/README.md`
 - User docs: `README.md` (overview, CLI), `docs/python-api.md` (the
-  Python API) and `docs/match.md` (every field of `match()`'s result, its
+  Python API) and `docs/resolve.md` (every field of `resolve()`'s result, its
   categories and trust, the reasons for a refusal, quote marks). A change
-  to any of those updates `docs/match.md`; `tests/test_resolver_shapes.py`
+  to any of those updates `docs/resolve.md`; `tests/test_resolver_shapes.py`
   checks its category table.
-- Which licence values `match()` should read next: measure, do not guess.
+- Which licence values `resolve()` should read next: measure, do not guess.
   `tools/pypi_licence_sample/README.md` samples real PyPI values and counts
-  what `match()` reads; findings in
+  what `resolve()` reads; findings in
   `working-docs/design/resolver-0-7-evidence.md`.
 - Private alpha, one developer. No backward compat needed yet.
 - `working-docs/` is internal notes only — content can change without notice.
@@ -113,7 +113,7 @@
 
 Unix philosophy. Consistent, predictable, parseable.
 
-- One pattern for every result line of every command (`detect`, `match`,
+- One pattern for every result line of every command (`detect`, `resolve`,
   `update`, `clear-cache`, `is-*`), written through `output.echo`:
   - Default: line-delimited, one data point (one record) per line.
   - A line's first key names its kind (`EXPRESSION` the answer, `STEP`,
@@ -135,13 +135,13 @@ Unix philosophy. Consistent, predictable, parseable.
   - `--json`: the same result, one object per line. Every text key is
     there in lower case (`EXPRESSION` is `expression`), a flag a boolean,
     and `null` means nothing: a value empty in text is `null` in JSON, and
-    no other. JSON may hold more than the text line: `match --json` the
+    no other. JSON may hold more than the text line: `resolve --json` the
     whole resolution, of which the text lines show a part, and `detect
     --json` the flags and the `lists` of each result; a key it adds is
     `null` when it holds nothing (`reason`, `detail`, the `lists` of the
-    no-answer record). The mapping of `match`'s text keys to JSON keys
+    no-answer record). The mapping of `resolve`'s text keys to JSON keys
     (`STEP` to `steps[].kind` and `expansions[].kind`, `OPERAND` to
-    `operands[].text`) is in `docs/match.md`. In the API too, None means
+    `operands[].text`) is in `docs/resolve.md`. In the API too, None means
     nothing: never `""`.
   - --json and any JSON output will always write with RFC 8785: JSON
     Canonicalization Scheme (JCS). Every JSON the CLI writes goes through
@@ -152,7 +152,7 @@ Unix philosophy. Consistent, predictable, parseable.
     that failed (`update`, a delete `clear-cache` could not make); 2 a
     usage error (two inputs, `--json` with `--id-only` or `--diff`),
     unusable input, a database not ready, or a result that could not be
-    written. Exit 1 of `detect` and `match` prints no `ERROR` line: "no"
+    written. Exit 1 of `detect` and `resolve` prints no `ERROR` line: "no"
     is an answer. `update` and `clear-cache` print no record on exit 1,
     only their `ERROR` line. A `WARNING` about the input or the database
     (`variant not stated`, `N days old`) can still come with it, as with
@@ -228,7 +228,7 @@ Unix philosophy. Consistent, predictable, parseable.
     (`SUBJECT: CONDITION…`, no prefix); the CLI prints it after `ERROR:` and
     exits 1, or 2 for its subclass `InvalidInputError` (a usage error). The
     CLI also exits 2 for `DatabaseNotReadyError` (a database that is missing,
-    empty, invalid or unreadable) in `detect`, `match` and the `is-*`
+    empty, invalid or unreadable) in `detect`, `resolve` and the `is-*`
     commands, where exit 1 already means "no". `update` and `clear-cache`
     write or delete, so they refuse only an `invalid` database — one
     licenseid did not build — and accept every other condition, which is
@@ -265,7 +265,7 @@ Unix philosophy. Consistent, predictable, parseable.
 - `detect --json` prints JSON Lines, one RFC 8785 (JCS) object per result,
   through `licenseid.result.json_line`; the text line comes from `text_line`
   beside it. Each result carries `lists` (`Detection.lists`), built by
-  `resolverinfo.list_info`, the builder of `match()`'s `lists`: never a second
+  `resolverinfo.list_info`, the builder of `resolve()`'s `lists`: never a second
   copy. Both print the public form `result.public_result` builds at the one
   exit of `detect()`: tiers rank on their raw score (above 1 for a Tier 0 ID
   or name hit, look-alikes included, and for a close text with its bonuses),
@@ -529,9 +529,9 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   again: `MIT OR Apache-2.0` declares neither license, and the flags
   (`is-osi`, `is-fsf`) have no answer for it.
 - A tag and a `license` field answer only with operands on the List or
-  `LicenseRef-*` (`MIT OR Apache 2.0`: no answer, as in `match()`), and read
+  `LicenseRef-*` (`MIT OR Apache 2.0`: no answer, as in `resolve()`), and read
   a bare "or later" after an ID as the grant (`MIT or later` is `MIT+`). A
-  "+" apart from its ID, or a mark `match()` drops before "or later"
+  "+" apart from its ID, or a mark `resolve()` drops before "or later"
   (`MIT; or later`), names no licence. Keywords match in ASCII case only
   (`(?a:...)` or `re.ASCII`; `tests/test_readers_case.py`).
 - The "+" operator has ONE reader, `plusoperator.PLUS_OPERATOR`
@@ -545,7 +545,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   table. Change one, run it.
 - One probe finds a grant and where it ends, `classify.grant_end` (with
   `grant_head` for the gap between ID and grant); `looseid` and `markers`
-  call it, so `detect()` and `match()` agree.
+  call it, so `detect()` and `resolve()` agree.
 - "or any later version" has ONE reader, `classify.OR_LATER_PHRASE`; the
   tie-breaker (`ranking`), `identifiers.disambiguate_deprecated_id`,
   `markers` and `looseid` import it. `looseid.declared_grant_id_text` only

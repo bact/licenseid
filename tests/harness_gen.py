@@ -13,7 +13,7 @@ loose spelling) with the things a human adds around it (quote marks, end
 marks, a ``+``, an "or later" phrasing, operators between atoms, brackets, a
 tag prefix, odd white space, Unicode), then a few slips (a cut, a case flip,
 a doubled or dropped character). Any ``str`` it makes is a valid input of
-``match()`` and ``detect(text=...)``."""
+``resolve()`` and ``detect(text=...)``."""
 
 import random
 from collections.abc import Callable, Iterator

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Which SPDX License List ``match()`` reads: the licence database, or the
+"""Which SPDX License List ``resolve()`` reads: the licence database, or the
 bundle shipped in the wheel (:func:`licenseid.listindex.packaged_index`).
 
 ``source="auto"`` (the default), with no database given:
@@ -89,7 +89,7 @@ class _Kept(NamedTuple):
 # of its own.
 _CHOICE_LOCK = threading.Lock()
 _kept: dict[str, _Kept] = {}
-# The databases given to match(db=...) found ready, by the stamp of their
+# The databases given to resolve(db=...) found ready, by the stamp of their
 # file then: a handle, and the last few paths with the database each opened.
 _UNSEEN = object()
 _checked: "weakref.WeakKeyDictionary[LicenseDatabase, tuple[int, ...] | None]" = (
@@ -99,14 +99,14 @@ _KEPT_PATHS = 8
 _paths: dict[str, tuple[tuple[int, ...] | None, LicenseDatabase]] = {}
 
 
-#: What ``match(db=...)`` takes: a database, or the path of one.
+#: What ``resolve(db=...)`` takes: a database, or the path of one.
 GivenDatabase = str | os.PathLike[str] | LicenseDatabase
 
 
 def choose_list(
     db: GivenDatabase | None, source: Source
 ) -> tuple[ListLookup, ListSource]:
-    """The list ``match(value, db, source=source)`` reads, and where it
+    """The list ``resolve(value, db, source=source)`` reads, and where it
     comes from. Raises :class:`licenseid.errors.InvalidInputError` for a
     *source* that is none of :data:`SOURCES`, or ``packaged`` with a *db*,
     :class:`TypeError` for a *db* that is neither a database nor a path,

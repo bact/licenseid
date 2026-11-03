@@ -63,7 +63,7 @@ def test_continues_word(text: str, end: int, goes_on: bool) -> None:
         ("MIT", " OR LATER", True),
         ("MIT", ", or later", True),
         ("MIT", ") or later", None),  # a bracket the expression did not open
-        ("MIT", "; or later", None),  # a mark match() would drop
+        ("MIT", "; or later", None),  # a mark resolve() would drop
         ("MIT", " - or later", None),
         ("MIT", ",or later", None),  # no "or" word after the mark
         ("MIT", ". or later", True),

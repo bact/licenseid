@@ -128,7 +128,7 @@ def ends_in_ref(text: str) -> bool:
     ``AdditionRef-*``, whose characters include ``.``, ``-`` and ``_``
     (``LicenseRef-a.``, ``AdditionRef-x-``): those are no marks there
     (P80). Words are split at :data:`licenseid.exprtokens.WHITE_SPACE`: a
-    reader before ``match()``'s gate calls this, and an information separator
+    reader before ``resolve()``'s gate calls this, and an information separator
     (U+001C) is no white space to it."""
     word = _last_word(text.rstrip(WHITE_SPACE))
     return is_license_ref(word) or is_addition_ref(word)
@@ -163,7 +163,7 @@ def trim_end_mark(text: str, marks: str = _END_MARKS) -> str | None:
     ``MIT -;``), or when nothing else is left. A ``.``, ``-`` or ``_`` that
     ends a ``LicenseRef-*`` or ``AdditionRef-*`` is a character of the ID
     (``LicenseRef-a.;`` is ``LicenseRef-a.``). White space is
-    :data:`licenseid.exprtokens.WHITE_SPACE`: ``match()`` calls this before
+    :data:`licenseid.exprtokens.WHITE_SPACE`: ``resolve()`` calls this before
     its gate, which must still see a U+001C before the mark."""
     body = text.rstrip(WHITE_SPACE)
     if not body or body[-1] not in marks:

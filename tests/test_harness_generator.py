@@ -76,7 +76,7 @@ def test_match_exits_0_for_an_answer_1_for_none_2_for_unusable_input(
     ship(monkeypatch, fixture_bundle())
     seen = set()
     for value in CLI_SAMPLE:
-        result = CliRunner().invoke(cli, ["match", value])
+        result = CliRunner().invoke(cli, ["resolve", value])
         seen.add(result.exit_code)
         if result.exit_code == 2:
             assert result.stdout == "" and result.stderr.startswith("ERROR: ")

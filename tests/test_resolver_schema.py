@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The schema-2 result of ``match()`` (task T7): ``schema``, ``operands``,
+"""The schema-2 result of ``resolve()`` (task T7): ``schema``, ``operands``,
 ``components`` and ``Step.by``, for a value that names one licence."""
 
 import json
@@ -11,7 +11,7 @@ import json
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import LicenseDatabase, match
+from licenseid import LicenseDatabase, resolve
 from licenseid.resolvertypes import Resolution
 
 
@@ -23,7 +23,7 @@ def test_the_result_names_its_schema_and_keeps_its_key_order(
     corpus_db: LicenseDatabase,
 ) -> None:
     """Schema 2; the keys in a fixed order, which JSON output keeps."""
-    got = match("MIT", corpus_db)
+    got = resolve("MIT", corpus_db)
     assert got["schema"] == 2
     assert _keys(got) == [
         "schema",
@@ -69,7 +69,7 @@ def test_a_single_value_is_one_operand_with_its_span_in_the_input(
 ) -> None:
     """The span is ``[start, end)`` of the raw input, after the trim, the
     quotes and the brackets around the whole; the text is that slice."""
-    (operand,) = match(value, corpus_db)["operands"]
+    (operand,) = resolve(value, corpus_db)["operands"]
     assert operand["span"] == span
     assert operand["text"] == value[span[0] : span[1]]
     if text is not None:
@@ -81,12 +81,12 @@ def test_an_operand_repeats_the_leaf_and_the_whole_adds_its_own_steps(
 ) -> None:
     """The trim and the brackets are steps of the whole value; the operand
     holds the steps of the leaf alone, so its category can be stronger."""
-    got = match(" (mit) ", corpus_db)
+    got = resolve(" (mit) ", corpus_db)
     (operand,) = got["operands"]
     assert [s["kind"] for s in got["steps"]] == ["trim", "brackets", "id_case"]
     assert [s["kind"] for s in operand["steps"]] == ["id_case"]
     assert (got["category"], operand["category"]) == ("lexical", "lexical")
-    quoted = match('"MIT', corpus_db)
+    quoted = resolve('"MIT', corpus_db)
     assert (quoted["category"], quoted["operands"][0]["category"]) == (
         "separator",
         "exact",
@@ -102,7 +102,7 @@ def test_a_value_refused_before_it_is_read_has_no_operand(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     """Empty, a control character, a lone surrogate, over 2,000 characters."""
-    assert not match(value, corpus_db)["operands"]
+    assert not resolve(value, corpus_db)["operands"]
 
 
 @pytest.mark.parametrize(
@@ -113,7 +113,7 @@ def test_a_step_has_no_empty_string(corpus_db: LicenseDatabase, value: str) -> N
     """P4 of the contract batch: no step has ``by`` (every step of 0.7.0 is
     licenseid's own), and a ``list`` or ``detail`` that says nothing is
     None, never ``""``; of the whole and of each operand."""
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     steps = got["steps"] + got["expansions"]
     for operand in got["operands"]:
         steps += operand["steps"] + operand["expansions"]
@@ -130,4 +130,4 @@ def test_a_single_value_names_no_component(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     """The expression parser did not run for one licence."""
-    assert not match(value, corpus_db)["components"]
+    assert not resolve(value, corpus_db)["components"]

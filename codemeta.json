@@ -57,7 +57,7 @@
       "givenName": "Arthit"
     }
   ],
-  "name": "LicenseID - A Portable SPDX License ID Matcher",
+  "name": "LicenseID - A portable SPDX licence identification tool",
   "operatingSystem": "OS Independent",
   "programmingLanguage": "Python 3",
   "readme": "https://github.com/bact/licenseid/blob/main/README.md",

@@ -139,7 +139,7 @@ def read_inexactly(
     deprecated ID narrowed to -only (:func:`narrowed_ids`, a guess to say),
     ``"ambiguous"`` for a "+" given to the licence of a deprecated ID with
     an exception in it ("GPL-2.0-with-classpath-exception+" read as
-    GPL-2.0-or-later WITH Classpath-exception-2.0), which ``match()`` calls
+    GPL-2.0-or-later WITH Classpath-exception-2.0), which ``resolve()`` calls
     ambiguous (``deprecated_ambiguous``)."""
     if not found:
         return None
@@ -157,7 +157,7 @@ _LIST_MARKS = frozenset(",;/&")
 
 def disambiguate_whole(text: str, db: ListLookup) -> str | None:
     """:func:`disambiguate_deprecated_id` of *text*, a whole value (a field,
-    a short text): None for no reading, ``""`` where ``match()`` refuses it,
+    a short text): None for no reading, ``""`` where ``resolve()`` refuses it,
     so no other reading answers: a mark before the grant (grant_follows:
     ``GPL-2.0; or later``), or another licence the value lists, which the
     answer would drop ("GPL-3.0, LGPL-2.1 or later", :func:`_lists_another`)."""
@@ -220,7 +220,7 @@ def drops_words(leading: str, expression: str, value: str, *, whole: bool) -> bo
 def restates_qualifier(expression: str, value: str) -> bool:
     """Whether *value* states again, after its leading *expression* that ends
     in the "+" operator, the qualifier the "+" states ("LGPL-2.1+ only",
-    "GPL-2.0+ or later"). ``match()`` refuses such a value (``qualifier
+    "GPL-2.0+ or later"). ``resolve()`` refuses such a value (``qualifier
     stated twice``), so no reading may answer it without the words that
     contradict it. An ID that ends in ``-only`` keeps its reading
     ("GPL-2.0-only or (at your option) any later version" is GPL-2.0-only
@@ -316,7 +316,7 @@ def _granted(db: ListLookup, text: str) -> tuple[ListedName, str] | None:
     identifiers.qualify_trailing_grant): "GPLv2 or any later version" is
     GPL-2.0-or-later. None if the ID has no -or-later form: the grant is not
     dropped in silence, and the "+" it takes is the caller's to give (the
-    leaf reader of match() gives it after the ID's deprecation)."""
+    leaf reader of resolve() gives it after the ID's deprecation)."""
     named = granted_id_text(text)
     if named is None:
         return None

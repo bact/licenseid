@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The answers task ``readers`` (the readers ``detect()`` and ``match()``
+"""The answers task ``readers`` (the readers ``detect()`` and ``resolve()``
 share, 0.7.0 review) moved in the parity corpus and the PyPI sample, grouped
 by the rule.
 

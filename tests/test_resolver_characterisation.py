@@ -3,11 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``match`` pinned whole: the full result of each single-value case.
+"""``resolve`` pinned whole: the full result of each single-value case.
 
 ``tests/fixtures/resolver_characterisation.json`` holds the SPDX 3.29.0 rows
 the cases need (read from a real 3.29.0 build, each with a stub search text)
-and, for each value, the complete ``match()`` result as the code before the
+and, for each value, the complete ``resolve()`` result as the code before the
 split of ``resolver.py`` returned it. A refactor of the single-value reading
 must not change one key of any of them. Every case gives the same answer on
 a real 3.29.0 database, except ``MIT WITH Old-exception-1.0``: 3.29.0 has no
@@ -22,7 +22,7 @@ apart: each operand is read as its text would be alone, and the parser is a
 component of a compound.
 
 The contract batch gave every refusal a reason (P5): a case refused with
-none in the first shape carries the one ``match()`` gives it now, and
+none in the first shape carries the one ``resolve()`` gives it now, and
 ``MIT OR GPL-2.0-only+`` its operand's own (``qualifier stated twice``).
 It made None mean nothing (P4): a step's empty ``list`` and ``detail`` are
 ``null`` in the fixture (they were ``""``), and the ``by`` that T7 added to
@@ -47,7 +47,7 @@ from seed_sql import INSERT_EXCEPTION, INSERT_INDEX, INSERT_LICENSE, SET_METADAT
 
 import licenseid
 from licenseid import LicenseDatabase
-from licenseid.resolver import match
+from licenseid.resolver import resolve
 from licenseid.resolverinfo import parser_info
 from licenseid.resolvertypes import CATEGORY_ORDER
 
@@ -109,7 +109,7 @@ def test_resolve_result_is_unchanged(
             "purl": f"pkg:pypi/licenseid@{version}",
         },
     }
-    got: dict[str, Any] = dict(match(case["value"], db))
+    got: dict[str, Any] = dict(resolve(case["value"], db))
     operands: list[dict[str, Any]] = got.pop("operands")
     parsed = len(operands) > 1 or str(got["reason"]).startswith("parse failed")
     assert (got.pop("schema"), got.pop("components")) == (
@@ -120,7 +120,7 @@ def test_resolve_result_is_unchanged(
     for operand in operands:
         start, end = operand["span"]
         assert case["value"][start:end] == operand["text"]
-        alone = match(operand["text"], db)
+        alone = resolve(operand["text"], db)
         assert alone["operands"] == [{**operand, "span": [0, end - start]}]
     if len(operands) == 1:
         assert (operands[0]["expression"], operands[0]["candidates"]) == (

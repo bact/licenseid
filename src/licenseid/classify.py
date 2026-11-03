@@ -13,7 +13,7 @@ functions instead classify the input's *shape* (standalone license
 document vs. source file/README; explicit -or-later grant present or not),
 which LicenseDetector uses to choose a matching strategy. Where a grant
 stands in an expression (:func:`grant_at`) and where one after an ID ends
-(:func:`grant_end`, the one probe of both ``detect()`` and ``match()``) are
+(:func:`grant_end`, the one probe of both ``detect()`` and ``resolve()``) are
 read here too.
 """
 
@@ -86,7 +86,7 @@ def grant_at(
     (:func:`grant_spans`), found by a binary search, not a scan, as a
     minified line can hold thousands of each. After a licence that states
     its qualifier (*qualified*), the operator is read as after a number, as
-    ``match()`` reads a declared value (:func:`grant_end`), so "GPL-2.0-only
+    ``resolve()`` reads a declared value (:func:`grant_end`), so "GPL-2.0-only
     or later" is a grant too, and a qualifier stated twice."""
     start = operator.start()
     index = bisect.bisect_right(spans[0], start) - 1
@@ -101,7 +101,7 @@ def grant_end(text: str, start: int) -> int | None:
     ID, as after a number (a declared value has its ID before the "or";
     OR_LATER_PHRASE wants a number before a bare "or later", as prose also
     says "sooner or later"), unless a negation right before it takes it
-    back ("not or later"). The compound reader of ``match()`` asks it at
+    back ("not or later"). The compound reader of ``resolve()`` asks it at
     each "or" (decision Q14, through ``looseid``), the tag at an "or" after
     a licence that states its qualifier (:func:`grant_at`).
 
@@ -132,7 +132,7 @@ def grant_follows(tail: str, rest: str) -> bool | None:
     An "or" after the ID, past white space and marks only, is read as after
     a number, by :func:`grant_end` ("MIT or later", "GPL-2.0, or later"), a
     phrase with no "or" where it stands ("MIT, any later version"), and what
-    stands between is judged as ``match()`` judges it: white space,
+    stands between is judged as ``resolve()`` judges it: white space,
     one "." or "," and a "(" or "[" before the "or" pass, and a mark it
     would drop (``MIT; or later``, ``MIT - or later``, ``MIT,or later``)
     makes the value no reading at all: None. Elsewhere a number the phrase
@@ -174,11 +174,11 @@ _RE_LINE_BREAK = re.compile(r"\r\n?|\n")
 
 
 def _kept(gap: str) -> bool | None:
-    """True if ``match()`` reads past *gap*, what stands between an ID and
+    """True if ``resolve()`` reads past *gap*, what stands between an ID and
     the "or" of its grant (:func:`grant_head`, then ``dropguard`` judges
     the marks); None if it would drop one. A grant wrapped onto a comment
     line ("GPL-2.0\n * or later") is judged after the last line break, its
-    comment prefix taken off: ``match()`` never sees a line break."""
+    comment prefix taken off: ``resolve()`` never sees a line break."""
     marks = grant_head(gap)
     lines = _RE_LINE_BREAK.split(gap)
     if marks is not None and len(lines) > 1:

@@ -1,4 +1,4 @@
-# The answers task resolverfix (0.7.0 review: edge values of match()) moved
+# The answers task resolverfix (0.7.0 review: edge values of resolve()) moved
 # in the parity corpus and the PyPI sample. value: Python unicode_escape;
 # group: why it moved (in tests/resolver_changes_resolverfix.py); then the
 # answer, its fields written as in the other answer fixtures.

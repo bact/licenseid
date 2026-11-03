@@ -397,7 +397,7 @@ LIST_HINT = "; pass spdx-license-list or spdx-license-list@<version>\n"
         "spdx-license-list@3.29\n",
         "spdx-license-list@3.29@3.30",
         "spdx-exceptions",
-        "SPDX-License-List",  # an ID is case-sensitive, as match() writes it
+        "SPDX-License-List",  # an ID is case-sensitive, as resolve() writes it
         "",
         "@3.29.0",
     ],

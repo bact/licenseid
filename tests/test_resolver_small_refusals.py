@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Four small refusals of ``match()`` (0.8 list; decisions P130 to P133).
+"""Four small refusals of ``resolve()`` (0.8 list; decisions P130 to P133).
 Characterisation first: today's answers, so that each fix shows as a flip of
 the values marked ``MOVES``."""
 # pylint: disable=missing-function-docstring
@@ -16,10 +16,10 @@ from packaged_list import fixture_bundle, masked
 from release_fakes import ship
 from resolver_helpers import no_reader_reason
 
-from licenseid import LicenseDatabase, match
+from licenseid import LicenseDatabase, resolve
 from licenseid.dropguard import ends_in_mark, ends_in_ref, joined_marks
 from licenseid.quotes import ended_quote
-from licenseid.resolver import match_with
+from licenseid.resolver import resolve_with
 from licenseid.resolvertypes import Resolution, Source
 
 DASH = "character dropped: U+002D"
@@ -124,7 +124,7 @@ QUOTED_REFUSED: dict[str, str] = {
 def test_a_dash_after_a_plus_or_a_prose_form_is_a_dropped_character(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert (got["expression"], got["reason"]) == DASHED[value]
     assert got["category"] == "unresolved"
     assert [(s["kind"], s["applied"]) for s in got["steps"]] == [("drop", False)]
@@ -193,7 +193,7 @@ def test_ends_in_mark(text: str, expected: bool) -> None:
 def test_one_end_mark_after_a_dotted_licenseref_is_an_ending(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert (got["expression"], got["reason"]) == (REF_ENDED[value], None)
     assert got["category"] == "separator"
     kinds = [(s["kind"], s["detail"]) for s in got["steps"]]
@@ -204,14 +204,14 @@ def test_one_end_mark_after_a_dotted_licenseref_is_an_ending(
 def test_two_marks_after_a_licenseref_are_refused(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert (got["expression"], got["reason"]) == (None, REF_REFUSED[value])
     assert [s["kind"] for s in got["steps"]] == ["drop"]
 
 
 @pytest.mark.parametrize("value", sorted(STAYS), ids=lambda v: v[:20])
 def test_an_answer_that_does_not_move(corpus_db: LicenseDatabase, value: str) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert_answer(got, STAYS[value])
 
 
@@ -219,7 +219,7 @@ def test_an_answer_that_does_not_move(corpus_db: LicenseDatabase, value: str) ->
 def test_one_end_mark_after_quote_marks_is_an_ending(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert (got["expression"], got["reason"]) == (QUOTED_ENDED[value], None)
     assert got["category"] == "separator"
 
@@ -229,7 +229,7 @@ def test_the_steps_are_in_the_order_they_apply(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     """The end mark stands outside the marks, so it comes off first."""
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert [(s["kind"], s["detail"]) for s in got["steps"]] == [
         ("separator", "end mark"),
         ("unquote", "balanced"),
@@ -244,7 +244,7 @@ def test_the_steps_are_in_the_order_they_apply(
 def test_other_marks_after_quote_marks_are_refused_with_a_reason(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert (got["expression"], got["reason"]) == (None, QUOTED_REFUSED[value])
     assert [s["kind"] for s in got["steps"]] == ["drop"]
 
@@ -253,7 +253,7 @@ def test_other_marks_after_quote_marks_are_refused_with_a_reason(
     "value", ['MIT,"', 'MIT."', '"MIT".', '"MIT",', '"MIT";', "'MIT'."]
 )
 def test_both_orders_give_one_answer(corpus_db: LicenseDatabase, value: str) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert (got["expression"], got["category"]) == ("MIT", "separator")
 
 
@@ -263,9 +263,9 @@ def test_a_value_that_is_no_string_is_a_type_error(
 ) -> None:
     message = f"value must be str, not {type(value).__name__}"
     with pytest.raises(TypeError, match=message):
-        match(value, corpus_db)  # type: ignore[arg-type]
+        resolve(value, corpus_db)  # type: ignore[arg-type]
     with pytest.raises(TypeError, match=message):
-        match_with(corpus_db, value)  # type: ignore[arg-type]
+        resolve_with(corpus_db, value)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("source", ["auto", "database", "packaged"])
@@ -273,14 +273,14 @@ def test_the_type_is_judged_before_any_list_is_read(source: Source) -> None:
     """No database and no packaged list in this environment: reading the
     list would raise ``DatabaseNotReadyError``; the type comes first."""
     with pytest.raises(TypeError):
-        match(None, source=source)  # type: ignore[arg-type]
+        resolve(None, source=source)  # type: ignore[arg-type]
 
 
 def test_a_string_subclass_is_a_string(corpus_db: LicenseDatabase) -> None:
     class Text(str):
         """A caller's own string type."""
 
-    assert match(Text("MIT"), corpus_db)["expression"] == "MIT"
+    assert resolve(Text("MIT"), corpus_db)["expression"] == "MIT"
 
 
 @pytest.mark.parametrize(
@@ -332,7 +332,7 @@ _SHAPE_IDS = ["dashes", "layers", "spaces", "dots", "plus", "prose", "ref", "bra
 
 def _seconds(db: LicenseDatabase, text: str) -> float:
     started = time.monotonic()
-    match(text, db)
+    resolve(text, db)
     return time.monotonic() - started
 
 
@@ -369,7 +369,8 @@ def test_packaged_and_database_answers_agree(
     differences = [
         value
         for value in _MOVED
-        if masked(match(value, bundle_db)) != masked(match(value, source="packaged"))
+        if masked(resolve(value, bundle_db))
+        != masked(resolve(value, source="packaged"))
     ]
     assert not differences, differences
 
@@ -442,7 +443,7 @@ REVIEW_NOW: dict[str, tuple[str | None, str | None]] = {
 
 @pytest.mark.parametrize("value", sorted(REVIEW_NOW), ids=lambda v: v[:24])
 def test_review_answers(corpus_db: LicenseDatabase, value: str) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert_answer(got, REVIEW_NOW[value])
 
 
