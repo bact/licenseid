@@ -4,17 +4,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The flags of an expression (``licenseid.exprflags``, F1 and F2 of the
-contract batch): AND every operand, OR any, WITH the licence's; None when an
-operand cannot be judged; on the List only when every ID is."""
+contract batch): AND every operand, OR any, WITH the licence's, in
+three-valued logic (D8): an operand that cannot be judged is None, an OR with
+a true operand is true and an AND with a false one false; on the List only
+when every ID is."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
 from collections.abc import Generator
 
 import pytest
+from click.testing import CliRunner
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from matcher_db import Lic, seeded_db
 
+from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
+from licenseid.detector import LicenseDetector
 from licenseid.exprflags import expression_flags
 from licenseid.identifiers import parse_declared
 
@@ -28,9 +33,13 @@ ROWS = (
 
 
 @pytest.fixture
-def db() -> Generator[LicenseDatabase, None, None]:
-    for path in seeded_db("exprflags", ROWS, ["Classpath-exception-2.0"]):
-        yield LicenseDatabase(path, create=False)
+def db_path() -> Generator[str, None, None]:
+    yield from seeded_db("exprflags", ROWS, ["Classpath-exception-2.0"])
+
+
+@pytest.fixture
+def db(db_path: str) -> LicenseDatabase:
+    return LicenseDatabase(db_path, create=False)
 
 
 @pytest.mark.parametrize(
@@ -47,14 +56,26 @@ def db() -> Generator[LicenseDatabase, None, None]:
         # an exception not in this database: not on its List, the licence's
         # flags still
         ("MIT WITH Font-exception-2.0", False, True, True),
-        # cannot be judged: None, whatever the other operands say
+        # an operand that cannot be judged: None, unless a judged operand
+        # decides it (a true one for OR, a false one for AND: D8)
         ("LicenseRef-x", False, None, None),
-        ("MIT OR LicenseRef-x", False, None, None),  # BUG: D8
-        ("Proprietary-1.0 AND LicenseRef-x", False, None, None),  # BUG: D8
+        ("MIT OR LicenseRef-x", False, True, True),
+        ("Proprietary-1.0 AND LicenseRef-x", False, False, False),
         ("MIT AND Apache-2.0", False, None, None),  # Apache-2.0: no row here
-        ("DocumentRef-d:LicenseRef-x OR MIT", False, None, None),  # BUG: D8
+        ("DocumentRef-d:LicenseRef-x OR MIT", False, True, True),
         ("LicenseRef-x WITH Classpath-exception-2.0", False, None, None),
-        ("(MIT OR 0BSD) AND (WTFPL OR LicenseRef-x)", False, None, None),  # BUG: D8
+        ("LicenseRef-x OR MIT", False, True, True),  # either order
+        ("LicenseRef-x OR LicenseRef-y", False, None, None),
+        ("Proprietary-1.0 OR LicenseRef-x", False, None, None),  # no true one
+        ("MIT AND LicenseRef-x", False, None, None),  # no false one
+        ("0BSD AND LicenseRef-x", False, None, False),  # FSF: 0BSD is not
+        ("WTFPL OR LicenseRef-x", False, None, True),  # OSI: WTFPL is not
+        ("LicenseRef-x AND Proprietary-1.0 AND MIT", False, False, False),
+        ("LicenseRef-x OR (MIT AND Proprietary-1.0)", False, None, None),
+        ("LicenseRef-x OR (MIT AND GPL-2.0-only)", False, True, True),
+        ("(LicenseRef-x OR MIT) AND (LicenseRef-y OR 0BSD)", False, True, None),
+        ("LicenseRef-x WITH Classpath-exception-2.0 OR MIT", False, True, True),
+        ("(MIT OR 0BSD) AND (WTFPL OR LicenseRef-x)", False, None, True),
     ],
 )
 def test_the_flags_of_an_expression(
@@ -75,3 +96,52 @@ def test_a_flag_is_a_bool_or_none(db: LicenseDatabase) -> None:
     assert tree is not None
     flags = expression_flags(tree, db)
     assert flags["is_osi_approved"] is True and flags["is_fsf_libre"] is False
+
+
+# (tag value, is-osi line value and exit, is-fsf line value and exit)
+DECIDED = [
+    ("MIT OR LicenseRef-x", ("true", 0), ("true", 0)),
+    ("LicenseRef-x OR MIT", ("true", 0), ("true", 0)),
+    ("Proprietary-1.0 AND LicenseRef-x", ("false", 1), ("false", 1)),
+    ("MIT AND LicenseRef-x", ("", 1), ("", 1)),
+    ("0BSD AND LicenseRef-x", ("", 1), ("false", 1)),
+    ("LicenseRef-x OR LicenseRef-y", ("", 1), ("", 1)),
+]
+
+
+@pytest.mark.parametrize(("value", "osi", "fsf"), DECIDED)
+@pytest.mark.parametrize("as_json", [False, True])
+def test_the_predicate_commands_follow_the_operand_that_decides(
+    db_path: str,
+    value: str,
+    osi: tuple[str, int],
+    fsf: tuple[str, int],
+    as_json: bool,
+) -> None:
+    """D8: ``is-osi`` and ``is-fsf`` answer, and exit 0 for true, when one
+    judged operand decides the compound; empty, exit 1, when it does not."""
+    for command, key, (flag, code) in (
+        ("is-osi", "is_osi_approved", osi),
+        ("is-fsf", "is_fsf_libre", fsf),
+    ):
+        args = ["--db", db_path, command, *(["--json"] if as_json else [])]
+        args += ["--text", f"SPDX-License-Identifier: {value}"]
+        result = CliRunner().invoke(cli, args)
+        assert result.exit_code == code, (command, result.output)
+        if as_json:
+            shown = {"true": "true", "false": "false", "": "null"}[flag]
+            assert f'"{key}":{shown}' in result.stdout
+        else:
+            assert result.stdout.endswith(f"\t{key.upper()}={flag}\n")
+
+
+@pytest.mark.parametrize(("value", "osi", "fsf"), DECIDED)
+def test_the_api_predicates_agree(
+    db_path: str, value: str, osi: tuple[str, int], fsf: tuple[str, int]
+) -> None:
+    """``is_osi()`` and ``is_fsf()`` give what the commands print."""
+    flags = {"true": True, "false": False, "": None}
+    detector = LicenseDetector(db_path)
+    text = f"SPDX-License-Identifier: {value}"
+    assert detector.is_osi(text) is flags[osi[0]]
+    assert detector.is_fsf(text) is flags[fsf[0]]

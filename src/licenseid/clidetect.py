@@ -236,7 +236,7 @@ def _predicate_command(
     ``<key>=true|false``, exit 0 for true and 1 for false. The flag is
     empty (``null``), exit 1, when there is nothing to judge: no licence
     found (EXPRESSION is empty too, ``detector._resolve_record``), or an
-    operand of the expression that cannot be judged
+    operand of the expression that cannot be judged and decides the answer
     (``licenseid.exprflags``). Never a false "no"."""
 
     @click.command(

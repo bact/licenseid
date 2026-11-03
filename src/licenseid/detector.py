@@ -571,9 +571,9 @@ class LicenseDetector:
         file_path: str | None = None,
     ) -> bool | None:
         """True if the license is OSI-approved; for an expression, every
-        operand of an AND, any of an OR. None when no license is found, or
-        when an operand cannot be judged (not on the List, a
-        ``LicenseRef-*``). Takes and raises what :meth:`is_spdx` does."""
+        operand of an AND, any of an OR. None for no license, or when an
+        operand not judged decides it (``MIT AND LicenseRef-x``, not ``MIT
+        OR LicenseRef-x``). Takes and raises what :meth:`is_spdx` does."""
         record = self._resolve_record(text, license_id=license_id, file_path=file_path)
         return None if record is None else record["is_osi_approved"]
 

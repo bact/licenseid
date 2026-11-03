@@ -8,15 +8,17 @@
 The OSI and FSF flags of a compound are evaluated from its operands: an
 ``AND`` holds when every operand does, an ``OR`` when any does, and a
 ``WITH`` takes the flag of its licence (an exception is approved by
-neither). A flag is None, "cannot be judged", when any operand cannot be
-judged: an ID not on the list, a ``LicenseRef-*``. So a compound is never
+neither). An operand that cannot be judged (an ID not on the list, a
+``LicenseRef-*``) is None, and the logic has three values: an ``OR`` with a
+true operand is true and an ``AND`` with a false one is false, whatever the
+others are; otherwise one None makes the whole None. So a compound is never
 answered "no" for a licence nobody judged (decision F1 of the contract
-batch). ``is_spdx`` holds only when every licence and exception ID is on
-the SPDX License List: a ``LicenseRef-*`` is a valid SPDX expression, but
-not on the List (F2).
+batch), and one judged operand that decides it is enough (D8 of
+``match-resolve-0-8.md``). ``is_spdx`` holds only when every licence and
+exception ID is on the SPDX License List: a ``LicenseRef-*`` is a valid
+SPDX expression, but not on the List (F2).
 """
 
-from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING
 
 import py_spdx_license
@@ -75,10 +77,11 @@ def _flags(node: py_spdx_license.Node, db: "LicenseDatabase") -> Flags:
         return _flags(node.license, db)
     if isinstance(node, (py_spdx_license.AndOp, py_spdx_license.OrOp)):
         operands = [_flags(child, db) for child in node.children]
-        combine = all if isinstance(node, py_spdx_license.AndOp) else any
+        # AND is decided by a False, OR by a True.
+        decisive = not isinstance(node, py_spdx_license.AndOp)
         return (
-            _combined([osi for osi, _ in operands], combine),
-            _combined([fsf for _, fsf in operands], combine),
+            _combined([osi for osi, _ in operands], decisive),
+            _combined([fsf for _, fsf in operands], decisive),
         )
     if isinstance(node, py_spdx_license.LicenseRef):
         return _UNJUDGED
@@ -90,13 +93,15 @@ def _flags(node: py_spdx_license.Node, db: "LicenseDatabase") -> Flags:
     return _UNJUDGED
 
 
-def _combined(
-    values: list[bool | None], combine: Callable[[Iterable[object]], bool]
-) -> bool | None:
-    """*values* joined by *combine*, or None if one of them is None."""
-    if any(value is None for value in values):
+def _combined(values: list[bool | None], decisive: bool) -> bool | None:
+    """*values* joined in three-valued logic: *decisive* (True for an OR,
+    False for an AND) if one of them is, else None if one is None, else the
+    other truth value."""
+    if decisive in values:
+        return decisive
+    if None in values:
         return None
-    return combine(values)
+    return not decisive
 
 
 def _on_the_list(node: py_spdx_license.Node, db: "LicenseDatabase") -> bool:
