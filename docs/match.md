@@ -430,7 +430,8 @@ own reason), `operand of several words: <leaf>` (a leaf that reads alone, as
 `BSD 3-Clause` does), `not an SPDX operator: /` (also `|`, `&` and `,` between
 IDs, and `;` when fewer than two parts name a licence: `MIT; Foo`), `operator
 not stated: ;` (above), `parse failed: <the parser's message>`, `mismatched
-brackets` (a bracket pairs only with the same kind: `(MIT]`), `too many operators` (over 150) and `too deeply nested` (over 150). A
+brackets` (a bracket pairs only with the same kind: `(MIT]`), `too many
+operators` (over 150) and `too deeply nested` (over 150). A
 value with a part of several words (`Apache License 2.0 OR MIT`) is no compound,
 but, when its operators are in upper case, its reason names the first operand
 refused: `operand of several words: <leaf>` if that leaf reads alone, else
