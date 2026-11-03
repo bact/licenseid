@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -104,3 +104,28 @@ project reads is flagged to its session.
   warnings through Python's `warnings` (`LicenseIdWarning`; `report=`
   removed) and `Detection.lists`, decided by the maintainer after C0;
   Pitloom moves its pin here.
+  After C1 (2026-11-02 to 11-03): #147 and #148 merged; the readers
+  branch (#149) took four rounds, each with its own Opus review, and
+  retired F2 (a tag naming an ID the List lacks now gives no answer, as
+  `match()` refuses it). The short-text fix (`detect("Foo")`) made real
+  answers worse on review and went to 0.8: accuracy waits unless severely
+  worse; flow and contract block (maintainer, 2026-11-02).
+  Harness (#150): golden files of `detect()` and every CLI command,
+  invariants, a seeded generator; it found no defect, and its own Windows
+  failure (a case-insensitive `Path` sort, a backslash path tail) was
+  fixed before the merge. Review: four read-only reviewers instead of
+  seven areas (API and CLI contract, resolver rules, packaging and caches,
+  docs with a downstream trial); none found a blocker. Triage gave two
+  fix batches, #151 (database handle writes and creation, input types,
+  error attributes, tag = version check in publish) and #152 (refusal
+  reasons and categories), each re-reviewed (R8), then the docs sweep
+  (#153) and the preparation PR (#154).
+  Final gate on #153's tip: full suite, `--run-benchmark` with every
+  accuracy layer, the CLI matrix, a build with the release pins and the
+  pinned bundle, and a wheel smoke test all passed; a local Python 3.14
+  run failed the same 24 tests on `main`, an environment issue (CI's
+  3.14 is the judge).
+  Lessons: four reviewers were enough; a golden file must not hold the
+  package version or a platform-dependent order; a plain word that is also
+  an SPDX ID (`Intel`) is not another licence in prose; build an
+  environment by install for Python 3.14 tests, not by `PYTHONPATH`.
