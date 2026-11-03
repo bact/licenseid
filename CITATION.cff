@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: LicenseID - A Portable SPDX License ID Matcher
+title: LicenseID - A portable SPDX licence identification tool
 authors:
   - family-names: Suriyawongkul
     given-names: Arthit
