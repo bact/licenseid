@@ -10,6 +10,8 @@ A value that moved must be listed in ``harness_changes.DETECT_CHANGES``
 with its new value and the reason; a value that did not move must not be."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
+import os
+
 import harness_golden as hg
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
@@ -96,3 +98,17 @@ def test_the_diff_accepts_only_listed_changes(
     """Mutation check of the diff itself: each way a golden can drift."""
     report = hg.diff_report(GOLD, current, expected, complete=complete)
     assert (mentions in report) if mentions else (report == "")
+
+
+@pytest.mark.parametrize("kind", ["long", "short"])
+def test_the_cases_follow_the_file_names_as_strings(kind: str) -> None:
+    """In the order of the names as text, not as ``Path``s, which Windows
+    compares without regard to case (``AdaCore-doc`` before ``ADSL``)."""
+    names = sorted(os.listdir(hg.FIXTURES / f"license-text-{kind}"))
+    stems = [name.removesuffix(".json") for name in names]
+    order = {f"{kind}/{stem}": place for place, stem in enumerate(stems)}
+    places = [
+        order[case.split("/")[0] + "/" + case.split("/")[1]]
+        for case, _ in hg.detect_cases(kind)
+    ]
+    assert places == sorted(places)

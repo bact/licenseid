@@ -37,7 +37,7 @@ def harness_detector() -> LicenseDetector:
     manager = LicenseDatabase(_DB_PATH)  # opened first: it keeps the DB alive
     _KEEP_ALIVE.append(manager)
     licenses, index = [], []
-    for path in sorted(LONG_TEXTS.glob("*.json")):
+    for path in sorted(LONG_TEXTS.glob("*.json"), key=lambda p: p.name):
         data = json.loads(path.read_text(encoding="utf-8"))
         normalized = normalize_text(data["license_text"])
         licenses.append(
