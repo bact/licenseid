@@ -183,7 +183,7 @@ def _packaged() -> listindex.ListIndex:
     if index is None:
         message = f"{PACKAGED_NAME}: {listindex.packaged_problem()}"
         _, condition, detail = parts(message)
-        raise DatabaseNotReadyError(message, condition, detail or "")
+        raise DatabaseNotReadyError(message, condition, detail)
     return index
 
 
@@ -267,15 +267,19 @@ def _auto(path: str | None) -> tuple[ListLookup, ListSource, bool]:
         index = listindex.packaged_index()
         if index is None:
             raise
-        if exc.condition != "not found":
+        # An error that kept no condition and detail is read from its message.
+        condition, detail = (exc.condition, exc.detail)
+        if condition is None:
+            _, condition, detail = parts(str(exc))
+        if condition != "not found":
             with once():
                 warn(
                     "database",
-                    exc.condition,
-                    exc.detail,
+                    condition,
+                    detail,
                     f"using packaged data v{index.version}",
                 )
-        return index, "packaged", exc.condition != "unreadable"
+        return index, "packaged", condition != "unreadable"
     index = listindex.packaged_index()
     if index is None:
         return database, "database", True

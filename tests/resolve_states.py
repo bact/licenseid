@@ -17,9 +17,13 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from db_variants import LICENSE_LIST_VERSION, make_ready_file_db, writer
+from db_variants import (
+    LICENSE_LIST_VERSION,
+    create_database,
+    make_ready_file_db,
+    writer,
+)
 
-from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
 from licenseid.records import BUILD_VERSION
 
@@ -67,7 +71,7 @@ def _empty(_: pytest.MonkeyPatch) -> None:
 
 def _no_rows(_: pytest.MonkeyPatch) -> None:
     """licenseid's tables, and nothing in them."""
-    LicenseDatabase(str(_default_path()))
+    create_database(_default_path())
 
 
 def _unreadable(_: pytest.MonkeyPatch) -> None:

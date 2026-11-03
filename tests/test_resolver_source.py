@@ -16,7 +16,7 @@ from unittest import mock
 import pytest
 from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
-from db_variants import make_ready_file_db, writer
+from db_variants import create_database, make_ready_file_db, writer
 from release_fakes import release_bundle, ship
 
 from licenseid import LicenseDatabase, listsource, match
@@ -178,7 +178,7 @@ def test_no_bundle_says_not_found() -> None:
     with pytest.raises(DatabaseNotReadyError) as raised:
         match("MIT", source="packaged")
     assert str(raised.value) == "spdx-bundle.json.gz: not found"
-    assert (raised.value.condition, raised.value.detail) == ("not found", "")
+    assert (raised.value.condition, raised.value.detail) == ("not found", None)
 
 
 @pytest.mark.parametrize("source", ["Auto", "db", "", None, 1])
@@ -214,7 +214,7 @@ def test_a_database_with_no_rows_is_refused_by_source_database() -> None:
     answering unresolved for every value as 0.6.0 did."""
     path = Path(get_default_db_path())
     path.parent.mkdir(parents=True)
-    LicenseDatabase(str(path))
+    create_database(path)
     message = f"database: empty: {path}; run 'licenseid update'"
     with pytest.raises(DatabaseNotReadyError, match=f"^{re.escape(message)}$"):
         match("MIT", source="database")
@@ -226,6 +226,7 @@ def test_a_database_given_is_checked_ready() -> None:
     answered ``unresolved`` for MIT)."""
     path = Path(get_default_db_path())
     path.parent.mkdir(parents=True)
+    create_database(path)
     message = f"database: empty: {path}; run 'licenseid update'"
     with pytest.raises(DatabaseNotReadyError, match=f"^{re.escape(message)}$"):
         match("MIT", LicenseDatabase(str(path)), source="database")

@@ -27,7 +27,9 @@ from licenseid.records import BUILD_VERSION
 @pytest.fixture()
 def db(tmp_path: Path) -> Generator[LicenseDatabase, None, None]:
     db_path = str(tmp_path / f"test_{uuid.uuid4().hex[:8]}.db")
-    yield LicenseDatabase(db_path)
+    database = LicenseDatabase(db_path)
+    database._ensure_schema()  # pylint: disable=protected-access
+    yield database
 
 
 def test_connection_closes_after_successful_query(

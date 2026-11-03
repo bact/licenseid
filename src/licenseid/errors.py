@@ -32,10 +32,18 @@ class DatabaseNotReadyError(LicenseIdError):
     ``invalid``, ``unreadable``, ...) and ``detail`` its DETAIL (the path,
     and the reason if any), so a caller can tell a database that is not
     there from one that is there but unusable without reading the message.
-    Both are ``""`` when the raiser did not say.
+    Each is None when the raiser did not say (nothing is never ``""``).
     """
 
-    def __init__(self, message: str, condition: str = "", detail: str = "") -> None:
+    condition: str | None
+    detail: str | None
+
+    def __init__(
+        self,
+        message: str,
+        condition: str | None = None,
+        detail: str | None = None,
+    ) -> None:
         super().__init__(message)
         self.condition = condition
         self.detail = detail

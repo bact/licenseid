@@ -28,11 +28,15 @@ from db_asserts import (
     probe_check_does_not_hang,
     run_cli,
 )
-from db_variants import NOT_FOUND, build_ready_wal_with_wal, make_ready_file_db
+from db_variants import (
+    NOT_FOUND,
+    build_ready_wal_with_wal,
+    create_database,
+    make_ready_file_db,
+)
 
 from licenseid import clidetect
 from licenseid.cli import cli
-from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import (
     _REQUIRED_COLUMNS,
     _open_condition,
@@ -232,8 +236,7 @@ def test_required_columns_exist_in_the_schema_licenseid_writes(
 ) -> None:
     """A column named in the readiness probe but missing from the schema would
     make every database look unreadable."""
-    path = tmp_path / "schema.db"
-    LicenseDatabase(str(path))
+    path = create_database(tmp_path / "schema.db")
     with sqlite3.connect(str(path)) as conn:
         columns = {row[1] for row in conn.execute("PRAGMA table_info(licenses)")}
     assert set(_REQUIRED_COLUMNS) <= columns

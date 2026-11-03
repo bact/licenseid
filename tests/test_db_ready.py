@@ -304,7 +304,9 @@ def test_api_refuses_before_any_query(variant: Variant) -> None:
 
 @pytest.mark.parametrize("variant", NOT_READY_NAMES, indirect=True)
 def test_license_database_stays_permissive(variant: Variant) -> None:
-    """LicenseDatabase stays permissive; only the matcher and the CLI gate."""
+    """LicenseDatabase stays permissive about a file that is empty or damaged,
+    and refuses what is not licenseid's to write to (P1 of fix batch D):
+    only the matcher and the CLI gate a read."""
     if variant.kind in (UNREADABLE, REFUSED):
         pytest.skip("not a database SQLite can open, so nothing to build on")
     if variant.name in (
@@ -317,6 +319,11 @@ def test_license_database_stays_permissive(variant: Variant) -> None:
         pytest.skip("mode=ro cannot create the missing file")
     if variant.name in ("wrong_columns", "column_name_case_flipped"):
         pytest.skip("the table has other columns than LicenseDatabase adds to")
+    if variant.kind == INVALID or variant.name == "truncated_1":
+        # Another program's tables, or a first byte that is not SQLite's.
+        with pytest.raises(DatabaseNotReadyError, match="^database: invalid: "):
+            LicenseDatabase(variant.db_arg)
+        return
     LicenseDatabase(variant.db_arg)
 
 

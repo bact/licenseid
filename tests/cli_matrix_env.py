@@ -42,7 +42,8 @@ def make_file_db(path: Path) -> Path:
     normalisation rules are out of date.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    LicenseDatabase(str(path))
+    # A handle makes the file at its first write: make it, then seed it.
+    LicenseDatabase(str(path))._ensure_schema()  # pylint: disable=protected-access
     with sqlite3.connect(path) as conn:
         conn.execute(_INSERT_LICENSE, ("MIT", "MIT License", True, True, True))
         conn.execute(_INSERT_INDEX, ("MIT", normalize_text(MIT)))

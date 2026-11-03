@@ -333,6 +333,7 @@ def test_a_plain_path_with_mode_memory_in_a_directory_name_is_a_file(
     directory = tmp_path / "mode=memory"
     directory.mkdir()
     database = LicenseDatabase(str(directory / "x.db"))
+    database._ensure_schema()  # pylint: disable=protected-access
     assert database.use_uri is False
     assert (directory / "x.db").exists()
 
