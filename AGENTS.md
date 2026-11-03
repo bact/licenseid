@@ -78,11 +78,11 @@
   academic write-up (system, results, history, human–AI sessions). Add to
   it when a finding is worth publishing; start at its `README.md`.
 - Test fixtures: `tests/fixtures/README.md`
-- User docs: `README.md` (overview, CLI, Python API) and `docs/match.md`
-  (every field of `match()`'s result, its categories and trust, the
-  reasons for a refusal, quote marks). A change to any of those updates
-  `docs/match.md`; `tests/test_resolver_shapes.py` checks its category
-  table.
+- User docs: `README.md` (overview, CLI), `docs/python-api.md` (the
+  Python API) and `docs/match.md` (every field of `match()`'s result, its
+  categories and trust, the reasons for a refusal, quote marks). A change
+  to any of those updates `docs/match.md`; `tests/test_resolver_shapes.py`
+  checks its category table.
 - Which licence values `match()` should read next: measure, do not guess.
   `tools/pypi_licence_sample/README.md` samples real PyPI values and counts
   what `match()` reads; findings in
