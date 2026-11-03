@@ -418,16 +418,13 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
 
 def _loose_grant(db: ListLookup, text: str, found: Found) -> bool:
     """*text* that a loose reading takes as an ``-or-later`` ID, the "or
-    later" in words apart from the ID (``GPL-2.0 or_later``, ``GPL-2.0 or
-    later-``): read as a grant on the licence before them, as ``GPL-2.0 or
-    later`` is (_grant), not as a separator spelling. False when those words
-    are no such grant, or the licence before them names nothing
-    (``GFDL-1.3-invariants or later``, as ``GFDL-1.3-invariants+``)."""
+    later" in words apart from the ID, after a licence that names one
+    (``GPL-2.0 or_later``, ``GPL-2.0 or later-``): read as a grant on that
+    licence, as ``GPL-2.0 or later`` is (_grant), not as a separator
+    spelling. False when those words are no such grant."""
     loose = loose_id(db, text)
     head = None if loose is None else _grant_head(text, loose[0]["license_id"])
-    if head is None:
-        return False
-    base = _base(db, head)
+    base = None if head is None else _base(db, head)
     return base is not None and _grant(db, text, base, found)
 
 
@@ -520,9 +517,12 @@ def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
     lost = dropped_words(text)
     if lost:
         raise _Dropped(text, lost, license_id, words=True)
-    # A grant, not a spelling of the ID: _loose_grant reads it
-    spelt = _grant_head(text, license_id) is None
-    return (license_id, _spelling(text, license_id)) if spelt else None
+    # A grant on a licence the head names, not a spelling of the ID:
+    # _loose_grant reads it. A head that names none (``GFDL-1.3-invariants
+    # or later``) leaves the separator spelling of the listed ID.
+    head = _grant_head(text, license_id)
+    granted = head is not None and _base(db, head) is not None
+    return None if granted else (license_id, _spelling(text, license_id))
 
 
 def _grant_head(text: str, license_id: str) -> str | None:

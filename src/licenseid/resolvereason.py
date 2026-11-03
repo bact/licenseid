@@ -19,7 +19,7 @@ from typing import Final
 
 from licenseid.dropguard import trim_end_mark
 from licenseid.errors import reason_detail
-from licenseid.exprtokens import WHITE_SPACE, is_white_space
+from licenseid.exprtokens import RE_OPERATOR, WHITE_SPACE
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import WITH_OPERATOR
 from licenseid.quotes import encloses_nothing
@@ -80,10 +80,12 @@ def after_exception(text: str) -> str:
 def no_reading(db: ListLookup, text: str, names: Callable[[str], bool]) -> str:
     """Why *text*, the value as the readers saw it (trimmed, unquoted), names
     nothing, when no reader said: an SPDX special value, an exception not on
-    the List after a licence that *names* reads, else ``not found``. The
-    exception is one word: words after it (``MIT WITH
-    Classpath-exception-2.0 or something``) make the value ``not found``,
-    not the exception."""
+    the List after a licence that *names* reads, else ``not found``. What
+    follows WITH is the exception unless it goes on past one: an operator
+    in upper case in it (``Autoconf-exception-macro OR Zlib``) or a listed
+    exception and more words (``Classpath-exception-2.0 or something``)
+    make the value ``not found``; a name (``LLVM exception``) is the
+    exception not found."""
     if is_empty(text):
         return EMPTY
     if text in SPECIAL_VALUES:
@@ -91,17 +93,21 @@ def no_reading(db: ListLookup, text: str, names: Callable[[str], bool]) -> str:
     parts = WITH_OPERATOR.split(text)
     if (
         len(parts) == 2
-        and _one_word(exception := parts[1].strip(WHITE_SPACE))
-        and not _listed_exception(db, exception)
+        and _exception_alone(db, exception := parts[1].strip(WHITE_SPACE))
         and names(parts[0])
     ):
         return f"exception not found: {reason_detail(exception)}"
     return f"not found: {reason_detail(text)}"
 
 
-def _one_word(text: str) -> bool:
-    """Whether *text*, trimmed, is one word: not empty, no white space."""
-    return bool(text) and not any(map(is_white_space, text))
+def _exception_alone(db: ListLookup, text: str) -> bool:
+    """Whether *text*, the trimmed words after WITH, is one exception the
+    List does not have: not empty, no operator in upper case (as SPDX
+    spells one; a lower-case "and" may be prose), and not starting with a
+    listed exception, alone or with more words after it."""
+    words = text.split()
+    upper = any(op.group().isupper() for op in RE_OPERATOR.finditer(text))
+    return bool(words) and not upper and not _listed_exception(db, words[0])
 
 
 def _listed_exception(db: ListLookup, text: str) -> bool:

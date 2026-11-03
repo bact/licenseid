@@ -101,12 +101,29 @@ def test_every_list_a_step_cites_is_in_lists(corpus_db: LicenseDatabase) -> None
                 " Autoconf-exception-macro OR..."
             ),
         ),
-        ("Apache-2.0 with LLVM exception", "not found: Apache-2.0 with LLVM exception"),
         # one word that is no listed exception
         ("MIT WITH Foo-exception", "exception not found: Foo-exception"),
         ("MIT WITH  Foo-exception\t", "exception not found: Foo-exception"),
         ("Foo WITH Foo-exception", "not found: Foo WITH Foo-exception"),
         ("MIT WITH Foo-exception+", "exception not found: Foo-exception+"),
+        # a name of an exception, prose with a lower-case "and" or "or"
+        ("Apache-2.0 with LLVM exception", "exception not found: LLVM exception"),
+        ("GPLv2 with linking exception", "exception not found: linking exception"),
+        (
+            "MIT WITH a special exception to build and distribute",
+            "exception not found: a special exception to build and distribute",
+        ),
+        ("MIT WITH Foo-exception or ISC", "exception not found: Foo-exception or ISC"),
+        # an operator in upper case after WITH: no exception ID
+        (
+            "Artistic License 1.0 (dist) WITH Foo-exception OR Zlib",
+            "not found: Artistic License 1.0 (dist) WITH Foo-exception OR Zlib",
+        ),
+        # one listed exception then more words, which may say "or"
+        (
+            "MIT WITH Classpath-exception-2.0 and more",
+            "not found: MIT WITH Classpath-exception-2.0 and more",
+        ),
         # a listed exception and a mark that is no "+"
         (
             "MIT WITH Classpath-exception-2.0x",
@@ -116,7 +133,7 @@ def test_every_list_a_step_cites_is_in_lists(corpus_db: LicenseDatabase) -> None
         ("MIT WITH ", "not found: MIT WITH"),
     ],
 )
-def test_an_exception_not_found_is_one_word(
+def test_an_exception_not_found_is_what_follows_with(
     corpus_db: LicenseDatabase, value: str, expected: str
 ) -> None:
     assert _answer(corpus_db, value) == (None, "unresolved", expected)
@@ -302,22 +319,27 @@ def test_a_spaced_or_later_is_a_stated_qualifier(
     assert [s["kind"] for s in got["expansions"]] == ["stated_qualifier"]
 
 
+@pytest.mark.parametrize("base", ["1.1", "1.2", "1.3"])
+@pytest.mark.parametrize("variant", ["invariants", "no-invariants"])
+@pytest.mark.parametrize("grant", [" or later", " or-later", " or_later", "_or_later"])
+def test_an_or_later_on_no_listed_base_is_a_separator_spelling(
+    corpus_db: LicenseDatabase, base: str, variant: str, grant: str
+) -> None:
+    """``GFDL-1.3-invariants`` is no licence of the List, but
+    ``GFDL-1.3-invariants-or-later`` is: the words, joined, spell that ID,
+    as before."""
+    value = f"GFDL-{base}-{variant}{grant}"
+    expression = f"GFDL-{base}-{variant}-or-later"
+    assert _answer(corpus_db, value) == (expression, "separator", None)
+
+
 @pytest.mark.parametrize(
-    "value",
-    [
-        "GFDL-1.3-invariants or later",
-        "GFDL-1.3-invariants or-later",
-        "GFDL-1.3-invariants or_later",
-        "GFDL-1.3-invariants or any later version",
-        "GFDL-1.3-invariants+",
-    ],
+    "value", ["GFDL-1.3-invariants or any later version", "GFDL-1.3-invariants+"]
 )
-def test_an_or_later_on_no_licence_is_refused(
+def test_a_grant_on_no_listed_base_is_not_found(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    """``GFDL-1.3-invariants`` is no licence of the List (only its
-    ``-only`` and ``-or-later`` are): every spelling of a grant on it is
-    refused alike."""
+    # 0.8: these spell no ID; the grant has no licence to qualify
     assert _answer(corpus_db, value) == (None, "unresolved", f"not found: {value}")
 
 
@@ -327,10 +349,6 @@ def test_an_or_later_on_no_licence_is_refused(
         # the suffix joined to the ID: a spelling of the ID
         ("GPL-2.0_or_later", ("GPL-2.0-or-later", "separator", None)),
         ("GPL 2.0-or-later", ("GPL-2.0-or-later", "separator", None)),
-        (
-            "GFDL-1.3-invariants_or_later",
-            ("GFDL-1.3-invariants-or-later", "separator", None),
-        ),
         (
             "GFDL-1.3-invariants-or-later",
             ("GFDL-1.3-invariants-or-later", "exact", None),
@@ -348,6 +366,9 @@ def test_an_or_later_on_no_licence_is_refused(
             (None, "malformed", "qualifier stated twice: GPL-2.0-only or later"),
         ),
         ("GPL-2.0 orlater", (None, "unresolved", "not found: GPL-2.0 orlater")),
+        # 0.8: "or_later" on an ID with no "-or-later" form is no grant
+        ("MIT or_later", (None, "unresolved", "not found: MIT or_later")),
+        ("MIT or later", ("MIT+", "stated_qualifier", None)),
         ("GPL-2.0 or sooner", (None, "unresolved", "not found: GPL-2.0 or sooner")),
     ],
 )
@@ -395,22 +416,3 @@ def test_a_qualifier_on_a_reference_is_malformed(
         "malformed",
         f"qualifier on a reference: {value}",
     )
-
-
-# --- review round 2: pins ------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "value",
-    [
-        "Apache-2.0 with LLVM exception",
-        "GPLv2 with linking exception",
-        "GFDL-1.3-invariants or later",
-        "GFDL-1.3-invariants or-later",
-        "GFDL-1.1-no-invariants or later",
-    ],
-)
-def test_round_two_pins(corpus_db: LicenseDatabase, value: str) -> None:
-    # BUG: a name of an exception lost its reason; a separator spelling of
-    # a listed ``-or-later`` ID with no listed base is refused
-    assert _answer(corpus_db, value) == (None, "unresolved", f"not found: {value}")
