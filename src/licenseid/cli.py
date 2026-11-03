@@ -100,7 +100,7 @@ def show_version(ctx: click.Context, _param: click.Parameter, value: bool) -> No
 @click.option("--db", help="Path to the license database.")
 @click.pass_context
 def cli(ctx: click.Context, db: str | None) -> None:
-    """SPDX License ID matcher tool."""
+    """A portable SPDX licence identification tool."""
     if db is not None and not db.strip():
         # Silently falling back to the default database would answer from a
         # file the user did not ask for. Every other blank option is a usage
