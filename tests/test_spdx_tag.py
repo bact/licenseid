@@ -64,7 +64,7 @@ PARTLY_KNOWN = {
 # No recognised ID at all: no evidence of a license.
 UNKNOWN = [
     # It was a match not on the List, exact; an ID the List does not have is
-    # no operand, as match() reads it (operand not resolved).
+    # no operand, as resolve() reads it (operand not resolved).
     "MIT OR NoSuch-1.0",
     "NoSuchLicense-9.9",
     "Apache-2.O",

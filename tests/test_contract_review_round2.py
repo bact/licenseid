@@ -128,7 +128,7 @@ def test_s2_a_with_id_and_a_plus_reads_as_or_later(
     """S2 (was: ``GPL-2.0-with-classpath-exception+`` answered itself, a
     deprecated ID, exact, and ``is-osi`` said a judged false): the "+" is
     the grant of its licence, and no warning. Not exact (readers, round 3):
-    ``match()`` calls it ambiguous (``deprecated_ambiguous``)."""
+    ``resolve()`` calls it ambiguous (``deprecated_ambiguous``)."""
     for text in (value, f"SPDX-License-Identifier: {value}"):
         assert _top(corpus_db, text) == (reading, False)
     (found,) = LicenseDetector(corpus_db.location).detect(license_id=value)
@@ -156,7 +156,7 @@ def test_s2_a_doubled_qualifier_is_still_refused(corpus_db: LicenseDatabase) -> 
 def test_s4_a_tag_refuses_a_plus_stated_twice(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    """S4 (was: the tag answered LGPL-2.1-or-later, exact, where ``match()``
+    """S4 (was: the tag answered LGPL-2.1-or-later, exact, where ``resolve()``
     refuses, ``qualifier stated twice``, and the argument finds none). A
     grant after an ID that states its qualifier is refused the same way."""
     assert _top(corpus_db, f"SPDX-License-Identifier: {value}") is None
@@ -215,7 +215,7 @@ def test_s7_one_end_mark_ends_a_lone_expression(
     """S7 (was: the argument and the field lost the "+" before a comma or
     full stop, ``GPL-2.0+,`` as GPL-2.0-only with a warning, and
     ``Apache-2.0+,`` as Apache-2.0, exact): one end mark ends the value,
-    as for a tag and ``match()``."""
+    as for a tag and ``resolve()``."""
     assert _top(corpus_db, value) == answer
     assert _field(corpus_db, tmp_path, value) == (answer[0] if answer[1] else None)
     assert given.conditions() <= {"variant not stated"}

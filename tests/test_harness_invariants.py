@@ -20,7 +20,7 @@ from harness_gen import generate
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
 
-from licenseid import InvalidInputError, LicenseDatabase, match
+from licenseid import InvalidInputError, LicenseDatabase, resolve
 from licenseid.types import Detection
 
 # A warning is not a failure here: the checks ask what a call returns.
@@ -53,7 +53,7 @@ def assert_none_break(batch: list[str], check: Callable[[str], str | None]) -> N
     assert not broken, "\n" + "\n".join(broken)
 
 
-def test_match_never_raises(sample: list[str]) -> None:
+def test_resolve_never_raises(sample: list[str]) -> None:
     assert_none_break(sample, hc.never_raises_match)
 
 
@@ -87,7 +87,7 @@ def test_an_answer_read_again_gives_itself(sample: list[str]) -> None:
     assert_none_break(sample, hc.answer_is_stable)
 
 
-def test_match_text_json_and_canonical_form_agree(sample: list[str]) -> None:
+def test_resolve_text_json_and_canonical_form_agree(sample: list[str]) -> None:
     assert_none_break(sample, hc.match_output_agrees)
 
 
@@ -96,11 +96,11 @@ def test_the_packaged_list_and_the_database_agree(
 ) -> None:
     def check(value: str) -> str | None:
         try:
-            packaged = match(value, source="packaged")
+            packaged = resolve(value, source="packaged")
         except InvalidInputError:
             packaged = None
         try:
-            stored = match(value, bundle_db)
+            stored = resolve(value, bundle_db)
         except InvalidInputError:
             stored = None
         if (packaged is None) != (stored is None):

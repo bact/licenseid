@@ -6,7 +6,7 @@
 """``licenseid update`` and ``licenseid clear-cache``: the commands that
 write or delete the database.
 
-``update --list ID[@VERSION]`` names a list by the ID ``match()`` gives it in
+``update --list ID[@VERSION]`` names a list by the ID ``resolve()`` gives it in
 ``lists[*].id``; with none, every list licenseid installs, at its latest
 version. Each list prints one record, ``LIST``, ``VERSION``, ``STATUS`` and
 ``PATH``. ``clear-cache`` prints one, ``STATUS=cleared`` or ``nothing`` and
@@ -32,7 +32,7 @@ from licenseid.errors import InvalidInputError, LicenseIdError, one_line
 from licenseid.resolvertypes import SPDX_LIST
 from licenseid.types import UpdateSource
 
-#: The lists ``update`` installs, by their ``lists[*].id`` in ``match()``.
+#: The lists ``update`` installs, by their ``lists[*].id`` in ``resolve()``.
 UPDATED_LISTS = (SPDX_LIST,)
 #: A release version of the SPDX License List (``3.29.0``, ``3.6``), stricter
 #: than the file-name-safe check of ``spdx_source.is_valid_version``.
@@ -86,7 +86,7 @@ def make_default_db_dir(ctx: click.Context) -> None:
     "lists",
     multiple=True,
     metavar="ID[@VERSION]",
-    help=f"A list to install, as match() names it ({SPDX_LIST}), at a version "
+    help=f"A list to install, as resolve() names it ({SPDX_LIST}), at a version "
     "(default: the latest). Repeatable; default: every list.",
 )
 @click.option("--force", is_flag=True, help="Force update even if version matches.")

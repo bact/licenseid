@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The lists a detection rests on (``Detection.lists``): the database's SPDX
-License List, described by the builder ``match()`` uses
+License List, described by the builder ``resolve()`` uses
 (``licenseid.resolverinfo.list_info``), in the API and in ``detect --json``.
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
@@ -61,8 +61,8 @@ def test_a_detection_rests_on_the_database_list(file_db: Path) -> None:
     (result,) = LicenseDetector(str(file_db)).detect(license_id="MIT")
     assert set(result) == RESULT_KEYS
     assert result["lists"] == [SPDX_LIST]
-    # The same description as match() gives of the same database.
-    assert result["lists"] == licenseid.match("MIT", db=str(file_db))["lists"]
+    # The same description as resolve() gives of the same database.
+    assert result["lists"] == licenseid.resolve("MIT", db=str(file_db))["lists"]
 
 
 @pytest.mark.parametrize(

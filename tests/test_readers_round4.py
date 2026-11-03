@@ -91,7 +91,7 @@ def test_an_id_word_in_prose_is_spdx(corpus_db: LicenseDatabase, value: str) -> 
     assert (result.exit_code, result.stderr) == (0, "")
 
 
-# A licence listed beside the granted one is still refused, as match() does:
+# A licence listed beside the granted one is still refused, as resolve() does:
 # no exact answer (one with "and" goes on to the text tiers, not exact).
 LISTED = [
     "GPL-3.0, LGPL-2.1 or later",

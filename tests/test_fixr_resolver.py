@@ -16,13 +16,13 @@ the new answer.
 import pytest
 from resolver_corpus import corpus_rows
 
-from licenseid import LicenseDatabase, match
+from licenseid import LicenseDatabase, resolve
 from licenseid.resolvertypes import TROVE_LIST
 from tools.pypi_licence_sample.answer import unescape_field
 
 
 def _answer(db: LicenseDatabase, value: str) -> tuple[str | None, str, str | None]:
-    got = match(value, db)
+    got = resolve(value, db)
     return got["expression"], got["category"], got["reason"]
 
 
@@ -42,7 +42,7 @@ def _answer(db: LicenseDatabase, value: str) -> tuple[str | None, str, str | Non
 def test_lists_names_the_list_an_operand_cites(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     cited = {s["list"] for o in got["operands"] for s in o["steps"]}
     assert TROVE_LIST in cited
     assert got["steps"] == []  # only an operand cites it
@@ -61,7 +61,7 @@ def test_lists_names_the_list_an_operand_cites(
 def test_lists_names_the_trove_list_once_or_not_at_all(
     corpus_db: LicenseDatabase, value: str, trove: bool
 ) -> None:
-    ids = [entry["id"] for entry in match(value, corpus_db)["lists"]]
+    ids = [entry["id"] for entry in resolve(value, corpus_db)["lists"]]
     assert ids == ["spdx-license-list", *([TROVE_LIST] if trove else [])]
 
 
@@ -71,7 +71,7 @@ def test_every_list_a_step_cites_is_in_lists(corpus_db: LicenseDatabase) -> None
     missing = {}
     for row in corpus_rows():
         value = unescape_field(row["value"])
-        got = match(value, corpus_db)
+        got = resolve(value, corpus_db)
         steps = [*got["steps"], *got["expansions"]]
         for operand in got["operands"]:
             steps += [*operand["steps"], *operand["expansions"]]
@@ -242,7 +242,7 @@ def test_quotes_around_a_bracket_in_a_compound(
 ) -> None:
     """Quote marks come off an operand, not a bracketed group: refused as a
     quote mark in an operand is (``"MIT OR ISC" OR Zlib``), not read."""
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert (got["expression"], got["category"], got["reason"]) == (
         None,
         "unresolved",
@@ -304,7 +304,7 @@ def test_a_compound_beside_the_misplaced_marks(
 def test_a_spaced_or_later_is_a_stated_qualifier(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert (got["expression"], got["category"]) == (
         "GPL-2.0-or-later",
         "stated_qualifier",

@@ -233,7 +233,7 @@ AFTER_QUALIFIER = [
     "or sooner",
     "or",
     # Past the window: the white space after "or" is read whole, as
-    # match() reads it (review item 8).
+    # resolve() reads it (review item 8).
     "or" + " " * 195 + "later",
     "or" + " " * 400 + "later",
     "or" + "\n" * 300 + "later",
@@ -242,9 +242,9 @@ AFTER_QUALIFIER = [
 
 
 @pytest.mark.parametrize("tail", AFTER_QUALIFIER)
-def test_the_tag_reads_a_grant_as_match_reads_it(tail: str) -> None:
+def test_the_tag_reads_a_grant_as_resolve_reads_it(tail: str) -> None:
     """``classify.grant_at`` and ``looseid.grant_end`` (the reader of
-    ``match()``) find the same grant after "GPL-2.0-only ", or none."""
+    ``resolve()``) find the same grant after "GPL-2.0-only ", or none."""
     text = f"GPL-2.0-only {tail}"
     operator = re.compile("or", re.IGNORECASE).search(text, 12)
     assert operator is not None

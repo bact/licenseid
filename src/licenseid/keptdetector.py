@@ -10,7 +10,7 @@ to build, and an outdated database warns when it is opened. So the function
 keeps one detector while the default path and its file are the same (the
 stamp ``licenseid.listsource.file_stamp`` reads), as ``listsource`` keeps
 its choice of list, and gives each build warning once per process
-(``licenseid.warning.once``), as ``match()`` does. A detector that could
+(``licenseid.warning.once``), as ``resolve()`` does. A detector that could
 not be built is never kept, and neither is one on a path with no file to
 stamp (an in-memory URI).
 ``reset()`` forgets the detector, for a test that swaps the home directory

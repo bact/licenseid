@@ -16,7 +16,7 @@ import click
 from licenseid import __version__
 from licenseid.clicommon import LicenseIdCommand, exit_usage_error, printed_warnings
 from licenseid.clidetect import PREDICATE_COMMANDS, detect_command
-from licenseid.climatch import match_command
+from licenseid.cliresolve import resolve_command
 from licenseid.cliupdate import clear_cache_command, update_command
 from licenseid.console import end_line, write
 from licenseid.datadir import get_default_db_path
@@ -119,7 +119,7 @@ def cli(ctx: click.Context, db: str | None) -> None:
         ctx.exit(2)
 
 
-for _command in (detect_command, match_command, *PREDICATE_COMMANDS):
+for _command in (detect_command, resolve_command, *PREDICATE_COMMANDS):
     cli.add_command(_command)
 cli.add_command(update_command)
 cli.add_command(clear_cache_command)

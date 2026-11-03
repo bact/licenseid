@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Task ``readers``, third round: a declared value read the same way by the
-tag, a manifest field, a short text, the ``is-*`` answers and ``match()``,
+tag, a manifest field, a short text, the ``is-*`` answers and ``resolve()``,
 on the whole 3.29.0 List.
 
 Each test was first a pin of what the branch did (``# BUG:``); it now holds
@@ -20,7 +20,7 @@ from click.testing import CliRunner
 from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import LicenseDatabase, match
+from licenseid import LicenseDatabase, resolve
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.errors import invalid_id_error
@@ -60,7 +60,7 @@ def _pyproject(corpus_db: LicenseDatabase, tmp_path: Path, value: str) -> Answer
 
 # Each was read without its "+" (MIT, exact; GPL-2.0 +: GPL-2.0-only with
 # "variant not stated") by the text, a package.json and a pyproject.toml
-# field, and is-spdx said yes. match() and the tag refuse them (malformed):
+# field, and is-spdx said yes. resolve() and the tag refuse them (malformed):
 # so does every path now (identifiers.is_stray_plus, plusoperator.plus_apart).
 SPACED_PLUS = [
     "MIT +",
@@ -86,14 +86,14 @@ def test_a_spaced_plus_on_every_path(
         _tag(corpus_db, value),
     )
     assert got == (None, None, None, None)
-    assert match(value, corpus_db)["category"] == "malformed"
+    assert resolve(value, corpus_db)["category"] == "malformed"
 
 
 @pytest.mark.parametrize("value", ["MIT+", "(MIT+)", "MIT+,", "GPL-2.0+"])
 def test_a_plus_that_touches_its_id_still_answers(
     corpus_db: LicenseDatabase, tmp_path: Path, value: str
 ) -> None:
-    expression = match(value, corpus_db)["expression"]
+    expression = resolve(value, corpus_db)["expression"]
     assert expression is not None
     got = (_text(corpus_db, value), _field(corpus_db, tmp_path, value))
     assert got == ((expression, True), (expression, True))
@@ -114,7 +114,7 @@ def test_a_spaced_plus_is_no_spdx_licence(
 
 # --- 2: what stands between an ID and its "or later" --------------------------
 
-# match() refuses each ("character dropped: U+003B", "not found"). The tag
+# resolve() refuses each ("character dropped: U+003B", "not found"). The tag
 # and the field gave MIT+ for the marks a grant crossed (";", ":", ")"...),
 # and MIT for the ones that stopped it ("-", "/", "*", "#"): the grant
 # dropped. Every reader now refuses them (classify.grant_follows).
@@ -150,14 +150,14 @@ REFUSED_GAPS = [
 def test_a_mark_before_a_grant_is_refused(
     corpus_db: LicenseDatabase, tmp_path: Path, value: str
 ) -> None:
-    assert match(value, corpus_db)["expression"] is None
+    assert resolve(value, corpus_db)["expression"] is None
     assert (_tag(corpus_db, value), _field(corpus_db, tmp_path, value)) == (
         None,
         None,
     )
 
 
-# match() reads these, and so does everything else. "MIT. or later" was MIT
+# resolve() reads these, and so does everything else. "MIT. or later" was MIT
 # in the tag and nothing in the field; "GPL-2.0. or later" was GPL-2.0-only
 # in the tag ("variant not stated").
 READ_GAPS = [
@@ -180,7 +180,7 @@ READ_GAPS = [
 def test_a_grant_match_reads_is_read_everywhere(
     corpus_db: LicenseDatabase, tmp_path: Path, value: str
 ) -> None:
-    expression = match(value, corpus_db)["expression"]
+    expression = resolve(value, corpus_db)["expression"]
     assert expression is not None
     got = (_tag(corpus_db, value), _field(corpus_db, tmp_path, value))
     assert got == ((expression, True), (expression, True))
@@ -189,7 +189,7 @@ def test_a_grant_match_reads_is_read_everywhere(
 @pytest.mark.parametrize(
     ("value", "answer"),
     [
-        # The brackets of the expression are no mark (tag only: match()
+        # The brackets of the expression are no mark (tag only: resolve()
         # refuses both, "not found").
         ("(MIT) or later", ("MIT+", True)),
         ("(GPL-2.0) or later", ("GPL-2.0-or-later", True)),
@@ -207,13 +207,13 @@ def test_the_brackets_of_the_tag_before_a_grant(
 
 DEPRECATED = {
     # Each was StandardML-NJ+: the rename is followed, then the "+", as in
-    # match() (deprecated_equal_successor).
+    # resolve() (deprecated_equal_successor).
     "StandardML-NJ, or any later version": ("SMLNJ+", True),
     "StandardML-NJ or later": ("SMLNJ+", True),
     "StandardML-NJ+": ("SMLNJ+", True),
     "standardml-nj+": ("SMLNJ+", True),
     "MIT OR StandardML-NJ or later": ("MIT OR SMLNJ+", True),
-    # It was exact; match() calls it ambiguous (deprecated_ambiguous).
+    # It was exact; resolve() calls it ambiguous (deprecated_ambiguous).
     "GPL-2.0-with-classpath-exception or later": (
         "GPL-2.0-or-later WITH Classpath-exception-2.0",
         False,
@@ -250,7 +250,7 @@ def test_a_plus_on_a_deprecated_with_id_as_text(corpus_db: LicenseDatabase) -> N
 
 # --- 4: an operand dropped beside a granted deprecated ID ----------------------
 
-# Each was the granted ID alone, exact, as a field and as a text; match()
+# Each was the granted ID alone, exact, as a field and as a text; resolve()
 # refuses them (not found).
 DROPPED = [
     "GPL-3.0, LGPL-2.1 or later",
@@ -265,7 +265,7 @@ DROPPED = [
 def test_no_operand_dropped_beside_a_grant(
     corpus_db: LicenseDatabase, tmp_path: Path, value: str
 ) -> None:
-    assert match(value, corpus_db)["expression"] is None
+    assert resolve(value, corpus_db)["expression"] is None
     got = (_field(corpus_db, tmp_path, value), _text(corpus_db, value))
     assert got == (None, None)
 
@@ -284,13 +284,13 @@ def test_a_granted_deprecated_id_alone_still_answers(
     assert _text(corpus_db, value) == ("GPL-2.0-or-later", True)
 
 
-# --- 5: an "or later" after an ID that has no -or-later form, in match() -------
+# --- 5: an "or later" after an ID that has no -or-later form, in resolve() -------
 
 
 def test_a_grant_after_an_ambiguous_deprecated_id(corpus_db: LicenseDatabase) -> None:
     """The grant is given after the deprecation: looseid._granted declines an
     ID with no -or-later form, "+" included."""
-    got = match("eCos-2.0 or later", corpus_db)
+    got = resolve("eCos-2.0 or later", corpus_db)
     kinds = [s["kind"] for s in got["steps"] + got["expansions"]]
     assert (got["expression"], got["category"], kinds) == (
         "eCos-2.0+",
@@ -302,8 +302,8 @@ def test_a_grant_after_an_ambiguous_deprecated_id(corpus_db: LicenseDatabase) ->
 # --- 6: "or" is a word -----------------------------------------------------------
 
 ORA = {
-    # They were grants on every path, match() included (MIT+,
-    # GPL-2.0-or-later): "or" ran into the next word. Now match() refuses
+    # They were grants on every path, resolve() included (MIT+,
+    # GPL-2.0-or-later): "or" ran into the next word. Now resolve() refuses
     # them, the field too, and the tag reads its leading ID and no grant.
     "MIT ora later": ("MIT", True),
     "MIT orany later": ("MIT", True),
@@ -317,7 +317,7 @@ def test_or_is_a_word(
     corpus_db: LicenseDatabase, tmp_path: Path, value: str, given: GivenWarnings
 ) -> None:
     got = (
-        match(value, corpus_db)["expression"],
+        resolve(value, corpus_db)["expression"],
         _tag(corpus_db, value),
         _field(corpus_db, tmp_path, value),
     )

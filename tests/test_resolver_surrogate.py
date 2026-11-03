@@ -16,7 +16,7 @@ import re
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import LicenseDatabase, json_line, match
+from licenseid import LicenseDatabase, json_line, resolve
 
 LONE = "\udcff"
 WITH = "MIT WITH Classpath-exception-2.0"
@@ -72,7 +72,7 @@ def test_a_lone_surrogate_is_unresolved(corpus_db: LicenseDatabase, value: str) 
     """No raise, no expression, no step and no candidate; the input is kept,
     each surrogate made U+FFFD, so that JCS can write the result (task
     resolverfix item 6; it was the raw value)."""
-    result = match(value, corpus_db)
+    result = resolve(value, corpus_db)
     assert result["expression"] is None
     assert result["category"] == "unresolved"
     assert result["trust"] == "none"
@@ -90,7 +90,7 @@ def test_a_valid_astral_character_is_no_surrogate(
     """Not refused for being a surrogate: it encodes. ``MIT`` plus an emoji
     would drop the emoji, which the drop guard (T6) refuses, with its own
     reason; the others name no licence."""
-    result = match(value, corpus_db)
+    result = resolve(value, corpus_db)
     assert (result["expression"], result["category"]) == (None, "unresolved")
     assert result["reason"] != "lone surrogate"
     if value == "MIT \U0001f600":

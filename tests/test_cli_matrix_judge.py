@@ -503,13 +503,13 @@ def test_windows_is_refused_before_the_posix_only_imports(
         (0, JSON, "[]\n", False),
     ],
 )
-def test_match_value_output_is_its_contract(
+def test_resolve_value_output_is_its_contract(
     rc: int, flags: frozenset[str], out: str, ok: bool
 ) -> None:
-    """``licenseid match``: exit 0 with an expression, 1 without, 2 with an
+    """``licenseid resolve``: exit 0 with an expression, 1 without, 2 with an
     empty stdout; every value one word; ``--json`` one object."""
-    cell = make_cell(kind="match", outflags=flags)
-    notes = judge_mod.check_match_value(cell, rc, out)
+    cell = make_cell(kind="resolve", outflags=flags)
+    notes = judge_mod.check_resolve_value(cell, rc, out)
     assert (not notes) is ok, notes
 
 

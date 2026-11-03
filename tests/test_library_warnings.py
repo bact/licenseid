@@ -123,7 +123,7 @@ def test_cli_prints_two_tag_warnings_in_one_run(memory_db: str, tmp_path: Path) 
 
 
 def test_cli_prints_the_outdated_database(outdated_db: Path) -> None:
-    for command in (["detect", "--id", "MIT"], ["match", "MIT"]):
+    for command in (["detect", "--id", "MIT"], ["resolve", "MIT"]):
         result = CliRunner().invoke(cli, ["--db", str(outdated_db), *command])
         assert result.exit_code == 0, result.output
         assert result.stderr == OUTDATED_WARNING
@@ -294,7 +294,7 @@ def test_the_packaged_list_fallback_is_a_warning_once(
     ship(monkeypatch, release_bundle(VERSION))
     build(EMPTY, monkeypatch)
     with pytest.warns(LicenseIdWarning) as given:
-        assert licenseid.match("MIT")["lists"][0]["source"] == "packaged"
+        assert licenseid.resolve("MIT")["lists"][0]["source"] == "packaged"
     assert parts_of(given.list) == [
         (
             "database",
@@ -305,7 +305,7 @@ def test_the_packaged_list_fallback_is_a_warning_once(
     ]
     with warnings.catch_warnings(record=True) as again:
         warnings.simplefilter("always")
-        licenseid.match("MIT")
+        licenseid.resolve("MIT")
     assert parts_of(again) == []  # once per process, as before
     assert capsys.readouterr() == ("", "")
 
@@ -367,7 +367,7 @@ def _outdated_at_default_path() -> Path:
 
 
 def _by_path(outdated_db: Path, _: pytest.MonkeyPatch) -> Callable[[], object]:
-    return lambda: licenseid.match("MIT", db=str(outdated_db))
+    return lambda: licenseid.resolve("MIT", db=str(outdated_db))
 
 
 def _by_detect(_db: Path, _: pytest.MonkeyPatch) -> Callable[[], object]:
@@ -378,7 +378,7 @@ def _by_detect(_db: Path, _: pytest.MonkeyPatch) -> Callable[[], object]:
 def _by_fallback(_db: Path, monkeypatch: pytest.MonkeyPatch) -> Callable[[], object]:
     ship(monkeypatch, release_bundle(VERSION))
     build(EMPTY, monkeypatch)
-    return lambda: licenseid.match("MIT")
+    return lambda: licenseid.resolve("MIT")
 
 
 def _reopen() -> None:
@@ -425,18 +425,18 @@ def test_an_ignore_filter_for_something_else_still_counts_as_given() -> None:
     assert len(parts_of(given)) == 1
 
 
-def test_match_with_a_path_warns_once_when_it_opens_again(outdated_db: Path) -> None:
-    """match(db=path) opens the file again when it changes; its stamp warning
+def test_resolve_with_a_path_warns_once_when_it_opens_again(outdated_db: Path) -> None:
+    """resolve(db=path) opens the file again when it changes; its stamp warning
     is still given once per process (listsource._opened, within once())."""
     with pytest.warns(LicenseIdWarning) as first:
-        licenseid.match("MIT", db=str(outdated_db))
+        licenseid.resolve("MIT", db=str(outdated_db))
     # pylint: disable-next=protected-access
     opened = listsource._paths[str(outdated_db)][1]
     with writer(outdated_db) as conn:
         conn.execute("INSERT OR REPLACE INTO db_metadata VALUES ('k', 'v')")
     with warnings.catch_warnings(record=True) as again:
         warnings.simplefilter("always")
-        assert licenseid.match("MIT", db=str(outdated_db))["expression"] == "MIT"
+        assert licenseid.resolve("MIT", db=str(outdated_db))["expression"] == "MIT"
     # pylint: disable-next=protected-access
     assert listsource._paths[str(outdated_db)][1] is not opened  # opened again
     assert (parts_of(first.list), parts_of(again)) == ([OUTDATED], [])

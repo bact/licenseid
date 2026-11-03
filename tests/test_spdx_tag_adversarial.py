@@ -95,7 +95,7 @@ def test_parentheses_and_colons(db: str, tag: str, certain_id: str | None) -> No
         ("Apache-2.0 - GPL-2.0 users only", "Apache-2.0"),
         # A grant belonging to another ID on the line decides nothing.
         ("GPL-2.0 only (see GPL-3.0 or later for the tools)", "GPL-2.0-only"),
-        # "GPL" is no listed ID: the tag is refused, as match() refuses it
+        # "GPL" is no listed ID: the tag is refused, as resolve() refuses it
         # (it was "MIT OR GPL", exact).
         ("MIT OR GPL only. See GPL-3.0 or later elsewhere", None),
     ],
@@ -252,7 +252,7 @@ def test_a_detached_plus_is_not_the_or_later_operator(
 ) -> None:
     """SPDX allows no space before `+`, so `A + B` must not widen the grant
     to `A+`; nor is it read as `A` without the rest (task readers): no
-    expression, as match() refuses it."""
+    expression, as resolve() refuses it."""
     assert certain(db, source_with(tag)) == certain_id
 
 
@@ -340,7 +340,7 @@ def test_or_later_prose_is_read_before_the_expression(
         "(GPL-2.0 or later AND MIT)",
         "(GPL-2.0 or later) AND MIT",
         # A grant after an explicit -only or -or-later ID states the qualifier
-        # twice, as match() says (maintainer, 2026-11-02; was GPL-2.0-only).
+        # twice, as resolve() says (maintainer, 2026-11-02; was GPL-2.0-only).
         "GPL-2.0-only or (at your option) any later version",
         "GPL-2.0-or-later or later",
     ],

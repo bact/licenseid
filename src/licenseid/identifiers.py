@@ -151,7 +151,7 @@ def parse_declared(value: str) -> py_spdx_license.Node | None:
 
 
 def is_qualified_plus(value: str) -> bool:
-    """Whether *value*, whole (one end mark after it aside, as ``match()``
+    """Whether *value*, whole (one end mark after it aside, as ``resolve()``
     reads ``GPL-2.0-only+,``), is shaped as an SPDX expression but for a "+"
     after a stated qualifier ("GPL-2.0-only+", "MIT OR GPL-2.0-or-later+").
     It names no license, so no license may answer in its place: a near name
@@ -167,7 +167,7 @@ def is_stray_plus(value: str) -> bool:
     one simple expression but for the "+" signs that end it, none of which
     is the operator: one apart from its ID (plusoperator.plus_apart:
     ``MIT +``, ``(MIT)+``) or more than one (``MIT++``, ``MIT + +``). It
-    names no license, as ``match()`` refuses it (``malformed``): read
+    names no license, as ``resolve()`` refuses it (``malformed``): read
     without them, it would drop them in silence."""
     value = value.strip()
     value = trim_end_mark(value) or value
@@ -203,7 +203,7 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     """*expression* with the ID it ends in qualified "or later", when the
     prose right after it in *value* grants it: a bare deprecated ID by its
     ``-or-later`` form, any other by the "+" operator ("MIT or later" is
-    MIT+, as ``match()`` reads it, P35). One that takes no grant (``-only``,
+    MIT+, as ``resolve()`` reads it, P35). One that takes no grant (``-only``,
     a reference) is left as it is; a tag refused it (leading_expression).
 
     "or later" is a grant, not the OR operator, and it qualifies the ID
@@ -211,7 +211,7 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     grant of a WITH belongs to its license, not to its exception. A version
     number between the ID and the grant means another license stands in
     between, so the grant is that one's (classify.grant_follows). A mark
-    between the ID and its grant that ``match()`` would drop (``MIT; or
+    between the ID and its grant that ``resolve()`` would drop (``MIT; or
     later``) leaves no expression: ``""``."""
     # Closing brackets stand between the ID and the grant: "(GPL-2.0) or later".
     tokens = [t for t in RE_TOKEN.finditer(expression) if t.group(0) != ")"]
@@ -229,7 +229,7 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     closed = closing_brackets_end(rest, 0, expression.count(")", tokens[-1].end()))
     follows = grant_follows(tokens[-1].group(0), rest[closed or 0 :])
     if follows is None:
-        return ""  # a mark match() would drop: no reading at all
+        return ""  # a mark resolve() would drop: no reading at all
     if not follows:
         return expression
     or_later = _lookup_case_insensitive(BARE_TO_OR_LATER, licence) or f"{licence}+"
@@ -269,10 +269,10 @@ def leading_expression(value: str) -> str:
     An "or later" grant ends the expression, but not the brackets it stands
     in: "(GPL-2.0 or later)" gives "(GPL-2.0)", for qualify_trailing_grant.
     An "or" is read as after a number (``MIT or later`` is a grant, as
-    ``match()`` reads it, not MIT OR a licence "later"), but after a "+":
+    ``resolve()`` reads it, not MIT OR a licence "later"), but after a "+":
     "GPL-2.0-only+ or later" is refused for its "+" (``is_qualified_plus``).
     After an ID that states its qualifier (``GPL-2.0-only or later``) the
-    grant states a second: no expression, as ``match()`` refuses it. An ID
+    grant states a second: no expression, as ``resolve()`` refuses it. An ID
     cut inside a word (``LicenseRef-café``) is no expression either
     (:func:`licenseid.exprtokens.cut_inside_word`).
     """
@@ -294,7 +294,7 @@ def leading_expression(value: str) -> str:
         if kind == "+" and plus_apart(value, token.start()):
             # A "+" touches the ID it follows (plusoperator.PLUS_OPERATOR);
             # after a space or a bracket it is none, and may say "and": no
-            # expression, as match() refuses it, rather than one without it.
+            # expression, as resolve() refuses it, rather than one without it.
             return ""
         grant_end = (
             grant_at(value, token, grants, before != "+") if kind == "OP" else None
@@ -373,7 +373,7 @@ def is_simple_expression(value: str) -> bool:
 
 def simple_value(text: str) -> str | None:
     """*text* as one simple expression, or without the one end mark after it
-    ("GPL-2.0+," is GPL-2.0+, as a tag and ``match()`` read it), or None.
+    ("GPL-2.0+," is GPL-2.0+, as a tag and ``resolve()`` read it), or None.
     The mark goes, not the "+" before it: the version key would read
     "GPL-2.0+," as GPL-2.0."""
     if is_simple_expression(text):
@@ -459,7 +459,7 @@ def _joins_another(text: str, phrase: tuple[int, int]) -> bool:
 def names_only_listed(expression: str, db: ListLookup) -> bool:
     """Whether each ID of *expression* is a licence or an exception of the
     List, or a reference: a word that is none ("later", the "Apache" of
-    "Apache 2.0", a typo) is no operand to answer, as ``match()`` refuses
+    "Apache 2.0", a typo) is no operand to answer, as ``resolve()`` refuses
     it, not an unknown licence to keep."""
     return all(
         token_kind(token) != "ID"
@@ -502,7 +502,7 @@ def _normalize_single_id(
 ) -> str:
     """Normalises a single license or exception ID. A reference names
     itself, its prefixes in SPDX's case (``licenseref-x`` is
-    ``LicenseRef-x``), as ``match()`` reads it."""
+    ``LicenseRef-x``), as ``resolve()`` reads it."""
     if is_license_ref(lic_id):
         return canonical_ref(lic_id)
     # 1. List lookup (most accurate/up-to-date)
@@ -541,15 +541,15 @@ def _normalize_single_id(
 
 def _plus_id(lic_id: str, db: ListLookup) -> str | None:
     """*lic_id*, an ID and a "+", with its base read by ID or as a loosely
-    written ID ("Apache-2", "GPL-2"), as match() reads it; never by a bare
+    written ID ("Apache-2", "GPL-2"), as resolve() reads it; never by a bare
     prefix, which made "MI+" MIT+. The "+" becomes the base's -or-later ID
     where the List has one in use ("GPL-2+" is GPL-2.0-or-later), and stays
     otherwise ("Apache-2+" is Apache-2.0+), after the rename of a deprecated
-    base, as match() follows it ("StandardML-NJ+" is SMLNJ+). None for no
+    base, as resolve() follows it ("StandardML-NJ+" is SMLNJ+). None for no
     base, or one that states its qualifier already ("GPL-2.0-only+"): no
     valid ID takes it. A deprecated ID with an exception in it gives the "+"
     to its licence ("GPL-2.0-with-classpath-exception+" is GPL-2.0-or-later
-    WITH Classpath-exception-2.0), a reading match() does not make
+    WITH Classpath-exception-2.0), a reading resolve() does not make
     (``looseid.read_inexactly``)."""
     base = lic_id[:-1]
     redirect = _lookup_case_insensitive(DEPRECATED_WITH_IDS, base)

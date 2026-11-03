@@ -93,10 +93,10 @@ _PACKAGE = "licenseid"
 @contextlib.contextmanager
 def once() -> Iterator[None]:
     """Within the block, a warning this process gave in such a block before
-    (the same text) is not given again: what ``match()`` and ``detect()``
+    (the same text) is not given again: what ``resolve()`` and ``detect()``
     say about a database they open (the one at the default path, or a path
     given as ``db``), which they open again when its file changes, and
-    ``match()``'s fallback to the packaged list. A warning the caller's
+    ``resolve()``'s fallback to the packaged list. A warning the caller's
     filter turned into an error, or ignored, was not given: it is given at
     the next call, as Python's own registry marks only a warning shown."""
     token = _ONCE.set(True)

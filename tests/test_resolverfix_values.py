@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Edge values of ``match()`` the 0.7.0 review found (task ``resolverfix``,
+"""Edge values of ``resolve()`` the 0.7.0 review found (task ``resolverfix``,
 items 1 to 7): quote marks around nothing, a ``;`` in a reason, an end mark
 after a prose form, the case of a ``LicenseRef-`` prefix, the information
 separators U+001C to U+001F, a lone surrogate in the result, and marks after
@@ -17,7 +17,7 @@ before the fix (the characterisation pins of the first commit)."""
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import LicenseDatabase, match
+from licenseid import LicenseDatabase, resolve
 from licenseid.resolvertypes import Resolution
 from licenseid.result import json_line
 
@@ -232,7 +232,7 @@ TABLES = {
 
 @pytest.mark.parametrize("value", list(TABLES), ids=ascii)
 def test_answer(corpus_db: LicenseDatabase, value: str) -> None:
-    assert answer(match(value, corpus_db)) == TABLES[value]
+    assert answer(resolve(value, corpus_db)) == TABLES[value]
 
 
 @pytest.mark.parametrize("value", list(MARKS_AFTER), ids=ascii)
@@ -240,7 +240,7 @@ def test_an_operand_says_what_the_value_says(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     """The one operand of a refused value carries the value's reason."""
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     if got["reason"] is not None and len(got["operands"]) == 1:
         assert got["operands"][0]["reason"] == got["reason"]
         assert got["operands"][0]["category"] == got["category"]
@@ -252,20 +252,20 @@ def test_an_operand_says_what_the_value_says(
 def test_a_dropped_mark_names_what_it_stopped(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    (drop,) = match(value, corpus_db)["steps"]
+    (drop,) = resolve(value, corpus_db)["steps"]
     assert (drop["kind"], drop["applied"], drop["from"]) == ("drop", False, value)
     assert drop["to"] in ("MIT", "GPL-3.0")
 
 
 def test_an_empty_operand(corpus_db: LicenseDatabase) -> None:
-    operands = match('"" OR MIT', corpus_db)["operands"]
+    operands = resolve('"" OR MIT', corpus_db)["operands"]
     assert [o["reason"] for o in operands] == ["empty", None]
 
 
 def test_a_long_detail_keeps_its_semicolons_and_is_cut(
     corpus_db: LicenseDatabase,
 ) -> None:
-    reason = match("Foo;Bar " + "x" * 80, corpus_db)["reason"]
+    reason = resolve("Foo;Bar " + "x" * 80, corpus_db)["reason"]
     assert reason == "not found: Foo;Bar " + "x" * 52 + "..."
 
 
@@ -287,7 +287,7 @@ SURROGATES = [
 
 @pytest.mark.parametrize("value", SURROGATES, ids=lambda v: ascii(v)[:30])
 def test_a_lone_surrogate_in_the_result(corpus_db: LicenseDatabase, value: str) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert got["expression"] is None
     assert got["reason"] in ("lone surrogate", "too long: 3000 characters")
     shown = "".join("\ufffd" if 0xD800 <= ord(c) <= 0xDFFF else c for c in value)
@@ -303,4 +303,4 @@ def test_a_lone_surrogate_in_the_result(corpus_db: LicenseDatabase, value: str) 
 def test_input_is_the_raw_value_without_a_surrogate(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    assert match(value, corpus_db)["input"] == value
+    assert resolve(value, corpus_db)["input"] == value

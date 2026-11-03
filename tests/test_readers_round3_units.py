@@ -13,7 +13,7 @@ import time
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import LicenseDatabase, match
+from licenseid import LicenseDatabase, resolve
 from licenseid.classify import (
     OR_LATER_PHRASE,
     grant_end,
@@ -52,7 +52,7 @@ def test_plus_apart(text: str, apart: str | None) -> None:
     assert plus_apart(text, len(text) - 1) == apart
 
 
-# One judge, three readers: the leaf of match(), the tag and the whole value.
+# One judge, three readers: the leaf of resolve(), the tag and the whole value.
 @pytest.mark.parametrize(
     ("value", "reason"),
     [
@@ -68,7 +68,7 @@ def test_plus_apart(text: str, apart: str | None) -> None:
 def test_the_plus_readers_agree(
     corpus_db: LicenseDatabase, value: str, reason: str | None
 ) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert got["reason"] == reason
     assert (leading_expression(value) == "") is (reason is not None)
     assert is_stray_plus(value) is (reason is not None)
@@ -112,7 +112,7 @@ def test_is_stray_plus_is_linear() -> None:
         ("MIT", None),  # no bare deprecated ID
         ("GPL-2.0 or later (GPL-2.0-or-later)", "GPL-2.0-or-later"),
         ("GPL-2.0+, GPL-2.0 or later", "GPL-2.0-or-later"),  # its own
-        ("GPL-2.0; or later", ""),  # match() refuses the mark
+        ("GPL-2.0; or later", ""),  # resolve() refuses the mark
         ("GPL-2.0: or later", ""),  # which no phrase reads, but the ID
         ("GPL-2.0 // or later", ""),
         ("GPL-3.0, LGPL-2.1 or later", ""),  # another licence before it

@@ -38,7 +38,7 @@ from licenseid import (
     LicenseDatabase,
     LicenseDetector,
     detect,
-    match,
+    resolve,
 )
 from licenseid.dbcheck import check_database_ready, is_ready
 
@@ -161,16 +161,16 @@ def test_a_handle_on_a_missing_file_makes_no_file(
 
 
 @pytest.mark.parametrize("spelling", ["str", "path", "uri"])
-def test_match_on_a_handle_on_a_missing_file_says_not_found_as_a_path_does(
+def test_resolve_on_a_handle_on_a_missing_file_says_not_found_as_a_path_does(
     tmp_path: Path, spelling: str
 ) -> None:
     """P1 (was: ``database: empty``, after making the file)."""
     path = tmp_path / "typo.db"
     handle = LicenseDatabase(spellings(path)[spelling])  # type: ignore[arg-type]
     with pytest.raises(DatabaseNotReadyError) as by_handle:
-        match("MIT", handle)
+        resolve("MIT", handle)
     with pytest.raises(DatabaseNotReadyError) as by_path:
-        match("MIT", str(path))
+        resolve("MIT", str(path))
     assert by_handle.value.condition == by_path.value.condition == "not found"
     assert str(by_handle.value).startswith("database: not found: ")
     assert str(by_handle.value).endswith("; run 'licenseid update'")
@@ -213,7 +213,7 @@ def test_a_missing_directory_is_no_file_to_make(tmp_path: Path) -> None:
     path = tmp_path / "nodir" / "x.db"
     handle = LicenseDatabase(str(path))
     with pytest.raises(DatabaseNotReadyError, match="^database: not found: "):
-        match("MIT", handle)
+        resolve("MIT", handle)
     assert not path.parent.exists()
 
 
@@ -333,7 +333,7 @@ def test_the_attributes_are_none_when_the_raiser_said_nothing() -> None:
 
 def test_a_refusal_keeps_its_condition_and_detail(tmp_path: Path) -> None:
     with pytest.raises(DatabaseNotReadyError) as raised:
-        match("MIT", str(tmp_path / "nope.db"))
+        resolve("MIT", str(tmp_path / "nope.db"))
     assert raised.value.condition == "not found"
     assert raised.value.detail == str(tmp_path / "nope.db")
 
@@ -343,7 +343,7 @@ def test_a_packaged_list_with_no_detail_has_none(
 ) -> None:
     ship(monkeypatch, None)
     with pytest.raises(DatabaseNotReadyError) as raised:
-        match("MIT", source="packaged")
+        resolve("MIT", source="packaged")
     error = raised.value
     assert str(error) == "spdx-bundle.json.gz: not found"
     assert (error.condition, error.detail) == ("not found", None)
@@ -360,7 +360,7 @@ def test_a_refusal_that_kept_no_condition_is_read_from_its_message(
         "licenseid.listsource.check_database_ready",
         mock.create_autospec(check_database_ready, side_effect=refusal),
     )
-    assert match("MIT")["lists"][0]["source"] == "packaged"
+    assert resolve("MIT")["lists"][0]["source"] == "packaged"
     (warned,) = given.take()
     assert (warned.condition, warned.detail) == ("unreadable", "x.db: boom")
 
