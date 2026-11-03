@@ -7,7 +7,11 @@
   (Tier 2 precision ranking).
 - Matching modules: `detector.py` (the pipeline), `retrieval.py` (Tier 1),
   `shorttext.py` (Tier 0 IDs and names), `looseid.py` (a loosely written
-  ID: "Apache2", "GPLv3", "GPLv2 or any later version"), `ranking.py`
+  ID: "Apache2", "GPLv3", "GPLv2 or any later version"; also
+  `disambiguate_whole`, a whole value naming one deprecated ID),
+  `bsdclauses.py` (which BSD-N-Clause a text is, by its numbered
+  conditions), `deprecatedids.py` (deprecated IDs read by a table of our
+  own: a "+" form, a bare ID, a "-with-" ID), `ranking.py`
   (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
   `markers.py`, `plusoperator.py` (the "+" operator), `quotes.py` (quote
   marks around a whole declared value), `versionkey.py` (one key for each
@@ -39,7 +43,8 @@
   `clear-cache`), `climatch.py` (the `licenseid match` command; what the
   commands share is in `clicommon.py`), `exprflags.py` (the OSI, FSF and
   List flags of an expression), `resolvereason.py` (the reason of a
-  refusal no reader explained), `identifiers.py`, `classify.py`,
+  refusal no reader explained), `identifiers.py`, `classify.py` (prose
+  "or later"; `grant_head` is the one helper for the ID-to-grant gap),
   `normalize.py`, `textinput.py` (bytes to text), `manifest.py` (the
   `license` field of package.json, pyproject.toml, Cargo.toml, setup.cfg),
   `datadir.py` (the default database path), `dbconnection.py` (SQLite
@@ -148,7 +153,8 @@ Unix philosophy. Consistent, predictable, parseable.
     usage error (two inputs, `--json` with `--id-only` or `--diff`),
     unusable input, a database not ready, or a result that could not be
     written. Exit 1 of `detect` and `match` prints no `ERROR` line: "no"
-    is an answer. A `WARNING` about the input or the database
+    is an answer. `update` and `clear-cache` print no record on exit 1,
+    only their `ERROR` line. A `WARNING` about the input or the database
     (`variant not stated`, `N days old`) can still come with it, as with
     an answer.
   - The only exceptions: `detect --id-only` (the top expression alone, one
@@ -189,7 +195,8 @@ Unix philosophy. Consistent, predictable, parseable.
     fallback lets it continue).
   - `SUBJECT`: the thing affected, a lowercase word or cache file name:
     `command`, `database`, `input`, `option`, `output`, `usage`,
-    `version`, `latest.json`, `licenses.json`, `popularity.csv`,
+    `version`, `cache` (a cache file with no plain lowercase name),
+    `latest.json`, `licenses.json`, `popularity.csv`,
     `spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz` (the packaged bundle in
     the wheel), `spdx-data-v<ver>.tar.gz`.
   - `CONDITION`: short lowercase fragment, reused across subjects. The
@@ -344,7 +351,7 @@ ruff format
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
   ratchets set to the exact current repo max (`max-args=5`,
   `max-branches=13`, `max-locals=22`, McCabe=12, Cognitive=29, module
-  lines=739) — see
+  lines=738, markers.py) — see
   `working-docs/design/complexity-and-file-size-roadmap.md` for the
   backlog that has to shrink before each ceiling can drop to its target.
   These are maximally tight — any regression trips CI immediately. Don't
@@ -432,6 +439,10 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   signals, `/bin/sh`), read `working-docs/implementation/cross-platform.md`.
   Mark such a test `posix_only` (`tests/conftest.py`); build a `file://` URI
   with `Path.as_posix()`, not `f"file://{path}"`. CI runs Windows on 3.11.
+- `python -m tools.golden` lists each golden `detect()` and CLI answer that
+  moved; a pull request that moves one lists it, with the reason, in
+  `tests/harness_changes.py` (regenerate only when the release is frozen;
+  `tools/golden/README.md`).
 - Pytest cannot see the shell, locale, stdio, `HOME`, signal and input-size
   interactions between the OS and the CLI. Run the manual matrix,
   `python -m tools.cli_matrix --db <copy of a real database> --check`, before
@@ -464,7 +475,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   unpacked sdist (it has `PKG-INFO`) uses a file in `src/licenseid/data/`; a
   checkout ignores one left there and downloads. The
   hook repeats the URL and file names of `spdx_source` and `spdxdata`;
-  `tests/test_hatch_build.py` checks they agree.
+  `tests/test_hatch_build.py` checks they agree. The list it ships is
+  pinned (`BUNDLE_VERSION`, `BUNDLE_SHA256`); raise the pin together with the
+  ID snapshots in `tests/fixtures/license-list/`
+  (`tests/test_releasebuild_pin.py` holds them to one version);
+  `scripts/check_dist_bundle.py` checks `dist/` after the build.
 - `database.py` imports `spdx_source` lazily (keeps `requests` off the match
   path and avoids an import cycle). Do not import `licenseid.__version__`
   at module level in `spdx_source.py`.
@@ -491,9 +506,10 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `MIT OR GPL-2.0 or later` is `GPL-2.0-or-later OR MIT` and the grant of a
   WITH belongs to its license, not its exception. A version number between
   the ID and the phrase means another license stands in between, so the grant
-  is that one's. A grant ends the expression, so a value that goes on after
-  one (`MIT AND GPL-2.0 or later AND Apache-2.0`) is refused rather than
-  answered without the operands that follow.
+  is that one's (the number the phrase itself starts with counts, unless it
+  is the ID's own version). A grant ends the expression, so a value that
+  goes on after one (`MIT AND GPL-2.0 or later AND Apache-2.0`) is refused
+  rather than answered without the operands that follow.
 - A tag and a `license` field hold whatever their author wrote, but `--id`
   and `detect(license_id=...)` declare ONE license:
   `identifiers.is_simple_expression` is the one judge of that (an ID,
@@ -512,6 +528,12 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   Do not widen `--id` to expressions
   again: `MIT OR Apache-2.0` declares neither license, and the flags
   (`is-osi`, `is-fsf`) have no answer for it.
+- A tag and a `license` field answer only with operands on the List or
+  `LicenseRef-*` (`MIT OR Apache 2.0`: no answer, as in `match()`), and read
+  a bare "or later" after an ID as the grant (`MIT or later` is `MIT+`). A
+  "+" apart from its ID, or a mark `match()` drops before "or later"
+  (`MIT; or later`), names no licence. Keywords match in ASCII case only
+  (`(?a:...)` or `re.ASCII`; `tests/test_readers_case.py`).
 - The "+" operator has ONE reader, `plusoperator.PLUS_OPERATOR`
   (`strip_plus_operator`, `replace_plus_operator`, `plus_after_qualifier`;
   standard library only, so any module can import it): a "+" right after an
@@ -521,6 +543,9 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   ("GPLv2+", which also takes a comma or full stop after it) read the same
   grammar their own way: `tests/test_plus_readers.py` holds all four to one
   table. Change one, run it.
+- One probe finds a grant and where it ends, `classify.grant_end` (with
+  `grant_head` for the gap between ID and grant); `looseid` and `markers`
+  call it, so `detect()` and `match()` agree.
 - "or any later version" has ONE reader, `classify.OR_LATER_PHRASE`; the
   tie-breaker (`ranking`), `identifiers.disambiguate_deprecated_id`,
   `markers` and `looseid` import it. `looseid.declared_grant_id_text` only
@@ -616,9 +641,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   read-only (`dbcheck.open_uri`); the detector makes `LicenseDatabase(path,
   create=False)`, whose writes open `mode=rw` (a missing file fails, not
   created) and happen only for an older schema (`dbschema.schema_state`)
-  of licenseid's own file. A missing norm column is filled in memory
-  (`dbcache.TableCache.names_and_ids`), never written back. Any `sqlite3.Error`
-  of a read becomes `DatabaseNotReadyError` in `Connections.connection`
+  of licenseid's own file. `LicenseDatabase(path)` makes no file on opening:
+  `_ensure_schema` creates it at the first write, and it refuses a file
+  licenseid did not build whatever `create` is. A missing norm column is
+  filled in memory (`dbcache.TableCache.names_and_ids`), never written back.
+  Any `sqlite3.Error` of a read becomes `DatabaseNotReadyError` in `Connections.connection`
   (`dbcheck.lookup_error`): do not wrap per method, and do not swallow a
   `sqlite3.Error` in a query (`search_candidates` quotes its words so its text
   cannot fail). The action `run 'licenseid update'` is only for a file update
