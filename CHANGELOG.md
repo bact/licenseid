@@ -162,7 +162,7 @@ and this project adheres to
   removed. Migration: a `warnings` filter or `catch_warnings` ([#146])
 - **Breaking:** an SPDX tag or `license` field answers only with IDs on the
   List or `LicenseRef-*`: `MIT OR Apache 2.0` and `Apache2 OR isc` give no
-  answer, as in `match()`. Migration: write SPDX IDs ([#147], [#149])
+  answer, as in `match()`. Migration: write SPDX IDs ([#149])
 - `match()` writes a `LicenseRef-`, `DocumentRef-` or `AdditionRef-` prefix in
   SPDX's case (`licenseref-foo` is `LicenseRef-foo`); a tag or field too
   ([#147], [#149])
