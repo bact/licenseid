@@ -10,6 +10,7 @@ No network: the SPDX bundle shipped in the wheel is a fake, ``requests.get``
 fails."""
 
 import json
+import re
 import shutil
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -205,7 +206,16 @@ class CliEnv:
         for path, name in ((db, "<DB>"), (str(self.base), "<TMP>")):
             for form in (path, path.replace("\\", "\\\\")):
                 text = text.replace(form, name)
-        return text
+        return slash_the_tails(text)
+
+
+_PATH_TAIL = re.compile(r"<(?:DB|TMP)>[^\s;'\"]*")
+
+
+def slash_the_tails(text: str) -> str:
+    """*text* with the rest of each named path (``<TMP>\\home\\x``) written
+    with ``/``, the escaped backslash too: one form on every platform."""
+    return _PATH_TAIL.sub(lambda m: re.sub(r"\\+", "/", m.group()), text)
 
 
 def record_line(record: Record) -> str:
