@@ -556,8 +556,10 @@ it was given and made a missing file from a mistyped name.
   `TypeError`: an `int` had been read, and closed, as a file descriptor.
 - **A cache file with an odd name** gets the subject `cache`; `clear-cache`
   names the file it could not delete (`licenses.json: delete failed: ...`).
-  An `update` to a path in a missing folder fails after the download with
-  `<cache file>: cache write failed` and creates nothing.
+  An `update` into a missing folder fails at once with `database: update
+  failed: OperationalError: unable to open database file` and creates
+  nothing (round 3 of #151; every write of the handle also refuses a file
+  licenseid did not build, a locked one included).
 - **The publish workflow** checks that the tag equals the built version.
 
 Left for 0.8: readers see `database: empty` while `update` rebuilds the file
@@ -578,7 +580,8 @@ or the golden files; edge inputs got the right words.
   (`plus after an exception`, `plus after a bracket`); a grant on a
   `LicenseRef-*` is `malformed` in every spelling (rejected: `unresolved` for
   some, which differed with the spelling).
-- `GPL-2.0 or_later` and the like are `stated_qualifier`, not `separator`.
+- `GPL-2.0 or_later` stays `separator` (an earlier round of #152 made it
+  `stated_qualifier`; reverted in round 3).
   `GFDL-1.3-invariants or later` keeps its reading as the listed ID; only a
   base that spells no listed ID is refused (`... or any later version` and
   `MIT or_later` wait for 0.8).
