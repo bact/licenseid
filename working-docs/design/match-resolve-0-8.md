@@ -208,6 +208,14 @@ How a resolution becomes a `detect` result. Each point is a decision
   command. In 0.8: the delegation, which changes answers: a
   characterisation corpus of `detect` on every declared form first, as T0
   did for `resolve()`, with an `EXPECTED_CHANGES` guard.
+- **D8 flags of a compound with an unjudged operand.** 0.7.0 gives no flag
+  (empty, `null`, exit 1) for `MIT OR LicenseRef-x` whenever an operand
+  cannot be judged (review P140). Open: Kleene logic, where `MIT OR
+  LicenseRef-x` is OSI approved and `0BSD AND LicenseRef-x` is not.
+- **D9 the word "matcher".** After the rename to `detect` and `match`, the
+  README title, `licenseid --help` ("SPDX License ID matcher tool"),
+  `codemeta.json`, the keywords and the `tests/test_matcher*.py` names
+  still say "matcher". Open: keep it as the product word, or reword.
 
 ## 5. Documentation
 
@@ -254,6 +262,9 @@ Readers (#149, #147):
   `IGNORECASE` without `ASCII`.
 - `classify.grant_at` repeats `looseid.grant_end`; unify them.
 - `Apache2` is refused in a tag, though `match()` reads it loosely.
+- `detect --text 'MIT or later'` answers nothing, while `match()` answers
+  `MIT+`; a field `Licensed under the GPL-2.0 or later, see COPYING`
+  answers, while `match()` refuses it.
 
 Resolver values and fixes (#147, fix batch R):
 
@@ -265,6 +276,10 @@ Resolver values and fixes (#147, fix batch R):
 - `GFDL-1.3-invariants or any later version` and `GFDL-1.3-invariants+`;
   `MIT or_later` against `MIT or later`; `(Foo)+ OR ISC` has a vague reason;
   the detect field reading of `GPL-2.0 or_later` (a tag gives `-only`).
+- `GPL-2.0 - or - later` is `separator`, but `GPL-2.0 - or later` is
+  `character dropped: U+002D`. `MIT WITH Classpath-exception-2.0++` says
+  `exception not found` of a listed exception; with a space before `++` the
+  reason is the whole value (#152).
 - Smaller reason gaps, the 2,000-character limit counting the inner value,
   and `MIT; MIT` (review findings B7 to B9).
 - `licenseid match` refuses an argument with U+001C to U+001E as a line
