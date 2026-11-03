@@ -23,6 +23,7 @@ from click.testing import CliRunner
 from packaged_list import database_of, fixture_bundle
 from release_fakes import release_bundle, ship
 
+from licenseid import __version__
 from licenseid.cli import cli
 from licenseid.result import json_line
 
@@ -202,11 +203,12 @@ class CliEnv:
 
     def _scrub(self, text: str, db: str) -> str:
         """*text* with the database and scratch paths named, as typed and as
-        the output escapes a backslash."""
+        the output escapes a backslash, and the package version named, so a
+        version bump moves no golden record."""
         for path, name in ((db, "<DB>"), (str(self.base), "<TMP>")):
             for form in (path, path.replace("\\", "\\\\")):
                 text = text.replace(form, name)
-        return slash_the_tails(text)
+        return slash_the_tails(text).replace(__version__, "<VERSION>")
 
 
 _PATH_TAIL = re.compile(r"<(?:DB|TMP)>[^\s;'\"]*")

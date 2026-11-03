@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -44,7 +44,7 @@ pylint's actual defaults are 12 and 50.
 | Statements | ≤50 | 50 (at target) | 37 (`shorttext.match_short_text`) |
 | McCabe | ≤10 | 12 | 12 (`identifiers.leading_expression`, alone) |
 | Cognitive | ≤15 | 29 | 29 (`tests/test_accuracy.py::run_accuracy_test`, alone; next 28) |
-| Module lines | soft 400-500 / hard 800 | 739 | 739 (`markers.py`) |
+| Module lines | soft 400-500 / hard 800 | 738 | 738 (`markers.py`, `detector.py`) |
 
 Measured 2026-08-19 via `pylint --disable=all --enable=too-many-<x>
 --max-<x>=1`, `flake8 --max-complexity 1` and
@@ -118,11 +118,16 @@ module-lines ceiling dropped from 773 to 739 to match. The CLI split
 `cli.py` (658) into `cli.py`, `cliinput.py`, `clidetect.py` and
 `cliupdate.py`, each under 300 lines.
 
+2026-11-03 (the 0.7.0 review): `bsdclauses.py` (85 lines) took the BSD
+clause reading out of `markers.py` (739→723, PR #148); the readers (PR #149)
+brought it back to 738, level with `detector.py`, and the module-lines
+ceiling went 739→738. `markers.py` still holds it.
+
 Which ceiling can drop, and what it takes:
 
 | Ceiling | Now | Could drop to | Needs |
 | --- | --- | --- | --- |
-| Module lines | 739 | 718 | `markers.py` (739, after the contract batch moved the flags of an expression to `exprflags.py`); next `detector.py` (718) |
+| Module lines | 738 | 709 | `markers.py` and `detector.py` (738 each); next `identifiers.py` (709) |
 | Branches | 13 | 12 (target) | one function: `identifiers._normalize_expression` (next highest 12) |
 | McCabe | 12 | 11 | one function: `identifiers.leading_expression` (next 11, two holders); 10 (target) needs three more |
 | Cognitive | 29 | 28 | `tests/test_accuracy.py::run_accuracy_test`; then 28 is `identifiers.leading_expression`, then 25 (`matcher._match_mixed_content`) |
@@ -138,7 +143,7 @@ Files over 450 lines (`wc -l` on tracked files; the four names of
 | Lines | File |
 | --- | --- |
 | 774 | `benchmarks/bench_single.py` (not linted) |
-| 772 | `src/licenseid/markers.py` (holds the module-lines ceiling) |
+| 738 | `src/licenseid/markers.py` (holds the module-lines ceiling), `src/licenseid/detector.py` |
 | 755 | `scripts/generate_fixtures.py` (not linted) |
 | 724 | `src/licenseid/identifiers.py` |
 | 686 | `AGENTS.md` (also `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`) |

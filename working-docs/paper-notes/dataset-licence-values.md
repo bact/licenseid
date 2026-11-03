@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-10-28
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -115,6 +115,41 @@ This section is an **[observation]**, not a measured claim.
 Possible venues: a data or tool showcase track of a software engineering
 conference (for example the MSR Data and Tool Showcase Track), a data
 journal, or a section of the licenseid paper with the data deposited.
+
+## Plan: a licence expression corpus (maintainer, 2026-11-03)
+
+Target: the Data and Tool Showcase Track of the International Conference
+on Mining Software Repositories, MSR 2027 (dates and page limit to be
+checked on the call for papers). The idea is the maintainer's; the
+foundation is the 0.7.0 measurement on the committed PyPI sample
+(`../design/resolver-0-7-evidence.md`, "Measured on 0.7.0", #153): of 462
+distinct values (9,353 projects), `match()` gives an expression for 242
+(84.1% of projects, 90.2% of downloads; 0.6.0: 137, 79.7%, 83.3%), and
+every one of the 220 it refuses carries a reason.
+
+- **Shape.** One row per distinct declared value, as found: the
+  *question* (the original licence string, byte for byte, with the field it
+  came from), the *answer* (a canonical SPDX expression, or none) and the
+  *reason* (why that answer, or why none: `not found`, `operator not
+  stated: ;`, `character dropped: U+003F`, ...), plus how often the value
+  occurs (projects, downloads) and the fetch date.
+- **Sources.** Package metadata of popular package managers: PyPI (done for
+  the top 10,000), then npm (`license`), Cargo (`license`), Maven
+  (`<licenses>`), and others to decide; the fetch tool generalises
+  `tools/pypi_licence_sample/` (`fetch`, `analyze`, `export`).
+- **Answers.** licenseid's `match()` gives a first answer with its steps;
+  the gold answer is a careful reader's (two annotators, agreement
+  measured, disagreements kept), not the tool's, so the corpus can judge
+  licenseid too.
+- **Benchmark.** Run other licence resolvers on the questions and score
+  them against the gold answers: exact expression, refusal when the gold
+  answer is none, and the reason class. Candidates to compare are to be
+  surveyed (resolvers in SBOM generators, scanners and package-metadata
+  tools); none is assessed yet.
+- **Open work.** The items of "Before it can be published" above
+  (gold standard, raw fetch, rights, datasheet, versioning), a fetch per
+  ecosystem with its own "value used" rule, and the threats below for each
+  ecosystem.
 
 ## Threats to validity
 

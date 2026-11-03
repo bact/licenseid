@@ -257,7 +257,7 @@ def make_ready_db_path(name_prefix: str) -> tuple[str, sqlite3.Connection]:
 
 @pytest.fixture
 def ordering_matcher() -> Generator[LicenseDetector, None, None]:
-    """A matcher over a one-license database, for tests that call its ordering
+    """A detector over a one-license database, for tests that call its ordering
     methods directly (tests/test_match_ordering*.py)."""
     db_path, keep_alive = make_mit_db_path(
         "test_match_ordering", datetime.now(timezone.utc).isoformat()

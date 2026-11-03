@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -27,7 +27,8 @@ the review of PR #66, items 30 and 31 from the work on item 21, and items
 32 to 35 from the review of item 22, item 36 from the docs audit
 after it, item 37 from the work on item 29, item 38 from the
 review of PR #80, items 39 to 42 from the review of PR #82, and items 43
-to 45 from the reviews of PR #99.
+to 45 from the reviews of PR #99, and item 46 from the 0.7.0 whole-release
+review.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -488,6 +489,35 @@ statistics; no fix has been designed yet, only the problem is documented.
 
 - Impact 2, Risk 2, Effort 4 (needs a design pass before an effort
   estimate is meaningful — treat this as provisional).
+
+## 46. Leftovers of the 0.7.0 whole-release review — Priority 12
+
+Found in the review of 2026-11-02 to 11-03. The resolver, readers, BSD and
+short-text leftovers are in `match-resolve-0-8.md`, section 7.
+
+- **Readers see `database: empty` during `update`** (1,074 errors over a
+  13 s update with four reader threads; 0.6.0 does the same): the plan is a
+  single transaction, a busy timeout and an OS lock; the atomic swap needs
+  Windows care (`os.replace` fails on an open file). Design:
+  [`concurrent-update.md`](concurrent-update.md).
+- `exclude`, `hint` and `only_spdx` of `detect()` are applied in part, are
+  untyped and are not axes of `tests/test_option_matrix.py` (review A-F5).
+- A tag `MIT/Apache-2.0` or `MIT, Apache-2.0` is `MIT`, exact, and drops the
+  rest (0.6.0 does the same): a silent deviation (A-F6).
+- `is-*` on a file with several tags judges the top one only; the condition
+  words for empty input; a garbage `--db` is `unreadable` or `invalid`
+  depending on the path; `Resolver` and `Component` are not exported (A-F7).
+- The publish workflow checks the tag against the built version since 0.7.0
+  (C3); the METADATA of a dev build keeps `0.7.0-dev.0` as written (C4).
+- `test_db_ready.py` (`wal_copy_without_wal`) fails 6 cases under uv's
+  Python 3.14 (SQLite 3.43.2) on macOS, on `main` too (`unreadable` against
+  `empty`); CI's 3.14 passes. It depends on the SQLite version.
+- Plain `ruff format --check` with no path flags `README.md` and
+  `resolver-0-7-plan.md`; CI checks `src/ tests/` only.
+- `update --source packaged` sample outputs in the README are unverified
+  against a built wheel: check them at the final release gate.
+
+- Impact 2, Risk 2, Effort 3.
 
 ## Already resolved
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -292,10 +292,13 @@ API section; its reviewer checks that they match the behaviour.
 | T9 | Read trove classifier names and paths (T1 to T3) | `trovenames.py`; `trove-classifiers` check; `lists` entry; sample before and after | Sonnet | medium | Merged (#126; table #123) |
 | T8b | A `;` inside a value names licences without an operator (maintainer, 2026-10-29): `unresolved`, no expression, reason `operator not stated: ;`, each operand read alone (`MIT ; Apache 2`) | Operands equal each part read alone; sample count; paper note; after T8, before T10a | Sonnet | medium (Opus reviews) | Merged (#131) |
 | T10 | Deferred to 0.8 (Q3): offer assumed trove readings as candidates | `assumed_usage`; Pitloom keeps them as text | **Opus** | **high** | Deferred to 0.8 |
-| T10a | Rename: `resolve()` to `match()`, the matcher's `match()` to `detect()`, CLI `match` to `detect` (`match-resolve-0-8.md` section 2) | Pure rename after T8 and T8b; every answer unchanged (T0 pins, characterisation, sample guard); no alias; README, AGENTS.md, CHANGELOG migration line | Sonnet | medium (Opus reviews) | Open |
-| T10b | A `licenseid match VALUE` command for one declared value (`match-resolve-0-8.md` D6) | `KEY=VALUE` lines and `--json`; exit 0, 1, 2; refuses a file or a text (`run 'licenseid detect'`); no database needed; option matrix; `cli_matrix` run | Sonnet | medium (Opus reviews) | Open |
-| T11 | Docs: implementation note, evidence update, CHANGELOG 0.7.0, a final pass on the README Features section | Front-matter dates; a migration line for the breaking bullets; Features describes the 0.7.0 matching strategy (compounds in licenseid's own canonical order, not `py-spdx-license`'s sort; no database needed for `resolve()`) | Haiku or Sonnet | low | Open |
-| T12 | Release licenseid 0.7.0 | `release-process.md`; the wheel ships the bundle; `resolve()` checked in a fresh venv with no database (the maintainer tags and publishes) | Sonnet | low | Open |
+| T10a | Rename: `resolve()` to `match()`, the matcher's `match()` to `detect()`, CLI `match` to `detect` (`match-resolve-0-8.md` section 2) | Pure rename after T8 and T8b; every answer unchanged (T0 pins, characterisation, sample guard); no alias; README, AGENTS.md, CHANGELOG migration line | Sonnet | medium (Opus reviews) | Merged (#134) |
+| T10b | A `licenseid match VALUE` command for one declared value (`match-resolve-0-8.md` D6) | `KEY=VALUE` lines and `--json`; exit 0, 1, 2; refuses a file or a text (`run 'licenseid detect'`); no database needed; option matrix; `cli_matrix` run | Sonnet | medium (Opus reviews) | Merged (#135) |
+| T11 | Docs: implementation note, evidence update, CHANGELOG 0.7.0, a final pass on the README Features section | Front-matter dates; a migration line for the breaking bullets; Features describes the 0.7.0 matching strategy (compounds in licenseid's own canonical order, not `py-spdx-license`'s sort; no database needed for `resolve()`) | Haiku or Sonnet | low | Done (#153) |
+| T11b | Close the 0.7.0 records before the tag (maintainer, 2026-11-03) | Evidence: `match()` on the committed PyPI sample, 0.6.0 against 0.7.0 counts per category, in `resolver-0-7-evidence.md`; `declared-value-resolver-0-7.md` brought up to #141 to #152; the `pre-release-review.md` record after C1 | Sonnet; the lead for the record | low to medium | Done (#153) |
+| R8 | Review the last fixes again before the tag (maintainer, 2026-11-03) | One Opus pass each on the round-2 diff of #151 (database handle, lazy creation) and on #152 (refusal reasons and categories); a Sonnet check that every README, `docs/match.md` and `docs/python-api.md` example matches the final behaviour | **Opus**; Sonnet for the docs | **high**; low | Done (#151, #152; examples run in T11c) |
+| T11c | Make every doc and comment current before the tag (maintainer, 2026-11-03) | After R8: code comments and docstrings in `src/` and `tests/`, the user docs, `working-docs/` (index, dates, links) checked against the final code; then this table updated with every final state | Sonnet | medium | Done (#153) |
+| T12 | Release licenseid 0.7.0 | `release-process.md`; the wheel ships the bundle; `resolve()` checked in a fresh venv with no database (the maintainer tags and publishes) | Sonnet | low | Prepared (#154); tag after #152 to #154 merge |
 | T13 | Pitloom: read every declared value through `resolve()` (0.22.0) | Floor bump; about 250 lines deleted; drift guard; before and after sweep reviewed | Sonnet | high (Opus reviews) | Open (Pitloom) |
 | T14 | Pitloom: per-operand provenance and list version | `Resolution-n` per operand; no `py_spdx_license` in `src/` | Sonnet | medium | Open (Pitloom) |
 

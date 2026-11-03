@@ -152,11 +152,32 @@ and this project adheres to
   it; a blank `db`, or a blank path to `LicenseDetector` or
   `LicenseDatabase`, is `InvalidInputError`, not the default database.
   Migration: build it with `licenseid update`; pass a path or none ([#141])
+- The wheel and sdist ship the SPDX list pinned for the release (3.29.0), not
+  the newest on the build day; `LICENSEID_BUNDLE=skip` with
+  `LICENSEID_REQUIRE_BUNDLE=1` now fails the build ([#144])
 - **Breaking:** library warnings go through Python's `warnings`, no longer
   to standard error; the CLI prints them as before. Migration: record them
   with `warnings.catch_warnings(record=True)` ([#146])
 - **Breaking:** `report=` of `LicenseDatabase` and `LicenseDetector` is
   removed. Migration: a `warnings` filter or `catch_warnings` ([#146])
+- **Breaking:** an SPDX tag or `license` field answers only with IDs on the
+  List or `LicenseRef-*`: `MIT OR Apache 2.0` and `Apache2 OR isc` give no
+  answer, as in `match()`. Migration: write SPDX IDs ([#149])
+- `match()` writes a `LicenseRef-`, `DocumentRef-` or `AdditionRef-` prefix in
+  SPDX's case (`licenseref-foo` is `LicenseRef-foo`); a tag or field too
+  ([#147], [#149])
+- A tag or field reads a bare "or later" after an ID as the grant (`MIT or
+  later` is `MIT+`, not `MIT OR later`); a grant after a renamed ID follows the
+  rename (`StandardML-NJ or later` is `SMLNJ+`) ([#149])
+- `detect --text`, standard input and a file read U+001C to U+001F as white
+  space, as `match` does; a refused `--id` names its code points ([#149])
+- **Breaking:** `LicenseDatabase(path)` refuses a file licenseid did not build
+  (`invalid`), whatever `create` is, and makes a missing file only at its first
+  write ([#151]). Migration: run `licenseid update` to make one
+- **Breaking:** `DatabaseNotReadyError.condition` and `.detail` are `None`
+  when nothing was said, not `""` ([#151]). Migration: test `is None`
+- `clear-cache` names the cache file it could not delete as the subject
+  (`licenses.json: delete failed: ...`) ([#151])
 
 ### Fixed
 
@@ -202,6 +223,58 @@ and this project adheres to
   `popularity.csv` ([#141])
 - `detect` gives no `GPL-4.0-only WITH Font-exception-2.0` for a font
   exception under a GPL version the List does not have ([#141])
+- `HOME=` (empty) on Python 3.10 no longer puts the default database in
+  `/.local`; a blank `HOME` (Windows: `USERPROFILE`) is no home directory
+  (exit 2) ([#145])
+- `match()` gives the reason `empty` to quote marks around nothing (`""`,
+  `"".`); a `reason` keeps the `;` of its value; an operand and its value get
+  the same reason ([#147])
+- `match()` reads one end mark after brackets, a trove name or path, a prose
+  form or a listed name as an ending (`(MIT).`, `MIT License :`); marks after
+  a bracket or in a malformed core (`(MIT)-`, `LicenseRef-a+-`) get a
+  `character dropped` or `malformed` reason ([#147])
+- `match()` refuses U+001C to U+001F anywhere in a value, and `licenseid
+  match` names the line break it refuses (`invalid: line break U+001C: MIT`);
+  a refused value with a lone surrogate no longer breaks `json_line` ([#147])
+- A tag refuses an "or later" grant after `-only`, `-or-later` or a
+  `LicenseRef-*` however it is written (`GPL-2.0-only, or any later version`);
+  an ID cut by a non-ASCII letter (`LicenseRef-café`) names no licence; an ID
+  followed by Han, kana, Hangul or Thai is read again ([#147])
+- A BSD-1-Clause text with its copyright line filled in (year and owner) is
+  answered as BSD-1-Clause, not a BSD-2-Clause variant; a truncated BSD-2 or
+  BSD-3 text keeps its answer ([#148])
+- Detection no longer slows down quadratically in the BSD marker on a text
+  with a long run of blank lines (20,000 lines took about 3 s) ([#148])
+- `match()` names the version of the trove classifier list it read; it was
+  `null` ([#149])
+- A "+" after a space is no operator: `match()` refuses it (`plus after a
+  space`) and a tag with one names no licence ([#149])
+- A "+" apart from its ID (`MIT +`, `(MIT)+`, `MIT ++`) gets no answer from
+  text, a field or `is-*`, as from `match()`; a mark before "or later" that
+  `match()` drops (`MIT; or later`) gets none from a tag or field ([#149])
+- Keywords ignore case in ASCII only (`MIT WİTH X` is refused); "or" in a
+  grant must be a word (`MIT ora later` is no grant) ([#149])
+- A tag or field keeps an "or later" grant on an ID with no `-or-later` form
+  as `+` (`MIT, or any later version` is `MIT+`); a field naming another
+  licence beside a granted deprecated ID (`GPL-3.0, LGPL-2.1 or later`) gets no
+  answer ([#149])
+- `detect` reads a run of blank lines in linear time; 20,000 took 7 s ([#149])
+- `match()` names `pypi-trove-classifiers` in `lists` when only an operand
+  cites it ([#152])
+- `match()` gives a "+" after a listed exception (`MIT WITH
+  Classpath-exception-2.0+`) or a bracket in a compound (`(MIT)+ OR ISC`) its
+  own `malformed` reason; a grant on a `LicenseRef-*` is `malformed` always
+  ([#152])
+- `exception not found` no longer names an AND/OR or words after a listed
+  exception as the exception ([#152])
+- `detect(file_path=...)` and `LicenseDetector(db_path)` raise `TypeError`
+  unless given a `str` or path (an `int` was read and closed as a file
+  descriptor) ([#151])
+- Every write of a `LicenseDatabase` handle refuses a file licenseid did not
+  build, a locked one included; a file made after the handle opened is judged
+  again ([#151])
+- An `update` into a missing folder fails at once (`database: update failed:
+  OperationalError: unable to open database file`) and makes nothing ([#151])
 
 [#117]: https://github.com/bact/licenseid/pull/117
 [#119]: https://github.com/bact/licenseid/pull/119
@@ -219,7 +292,14 @@ and this project adheres to
 [#138]: https://github.com/bact/licenseid/pull/138
 [#139]: https://github.com/bact/licenseid/pull/139
 [#141]: https://github.com/bact/licenseid/pull/141
+[#144]: https://github.com/bact/licenseid/pull/144
+[#145]: https://github.com/bact/licenseid/pull/145
 [#146]: https://github.com/bact/licenseid/pull/146
+[#147]: https://github.com/bact/licenseid/pull/147
+[#148]: https://github.com/bact/licenseid/pull/148
+[#149]: https://github.com/bact/licenseid/pull/149
+[#151]: https://github.com/bact/licenseid/pull/151
+[#152]: https://github.com/bact/licenseid/pull/152
 
 ## [0.6.0] - 2026-10-27
 
