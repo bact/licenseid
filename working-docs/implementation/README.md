@@ -17,10 +17,11 @@ yet started, see [`../design/`](../design/).
 
 - **0.7.0** (in preparation): the declared-value resolver reads compounds,
   quoted values, trove names, prose forms and `;` lists, and works with no
-  database from the shipped list; `resolve()` is now `match()` and the old
-  matcher is `detect()` (`detector.py`). The `LicenseDatabase` handle
-  refuses a file licenseid did not build on every write (PR #151). The
-  release is reviewed whole before the tag:
+  database from the shipped list; `resolve()` keeps its 0.6.0 name and the old
+  matcher is now `detect()` (`detector.py`); the CLI command is
+  `licenseid resolve`, and `licenseid match` is gone (T10c). The
+  `LicenseDatabase` handle refuses a file licenseid did not build on every
+  write (PR #151). The release is reviewed whole before the tag:
   [pre-release-review.md](pre-release-review.md). The record is
   [declared-value-resolver-0-7.md](declared-value-resolver-0-7.md); the
   items below are older and still hold unless it says otherwise.
@@ -112,8 +113,8 @@ yet started, see [`../design/`](../design/).
 | 2026-10-02 | [tech-debt-resolved.md](tech-debt-resolved.md) | record | The tech-debt roadmap's resolved items: what each was and what was done, moved out of the roadmap to keep it under the size limit. |
 | 2026-10-22 | [release-process.md](release-process.md) | implemented (0.5.0) | How a release is cut: order, checks before the tag, traps seen in 0.5.0 |
 | 2026-10-30 | [pre-release-review.md](pre-release-review.md) | adopted (0.7.0) | Whole-release review before the tag: freeze, harness, read-only review, batched fixes, two gates |
-| 2026-10-27 | [declared-value-resolver.md](declared-value-resolver.md) | implemented (PR #97, 0.6.0 review) | `resolve()` (now `match()`): WITH, `LicenseRef-*`, malformed qualifiers, hidden characters, the declared "or later" reader on `OR_LATER_PHRASE`, and the build stamp that makes `update` rebuild an older database. |
-| 2026-10-30 | [declared-value-resolver-0-7.md](declared-value-resolver-0-7.md) | implemented (0.7.0, PRs #106 to #152) | Compounds, quotes, drop guard, end marks, trove and prose forms, `;` lists, the packaged list and its cached choice, schema 2, the `match`/`detect` rename, sdist allowlist, Pitloom pin. The `licenseid match` command (T10b) is a placeholder. |
+| 2026-10-27 | [declared-value-resolver.md](declared-value-resolver.md) | implemented (PR #97, 0.6.0 review) | `resolve()`: WITH, `LicenseRef-*`, malformed qualifiers, hidden characters, the declared "or later" reader on `OR_LATER_PHRASE`, and the build stamp that makes `update` rebuild an older database. |
+| 2026-10-30 | [declared-value-resolver-0-7.md](declared-value-resolver-0-7.md) | implemented (0.7.0, PRs #106 to #152) | Compounds, quotes, drop guard, end marks, trove and prose forms, `;` lists, the packaged list and its cached choice, schema 2, the matcher to `detect` rename, sdist allowlist, Pitloom pin. The command is `licenseid resolve` (T10c). |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

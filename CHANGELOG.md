@@ -11,38 +11,38 @@ and this project adheres to
 
 ### Added
 
-- `match()` works with no database: it reads the SPDX List shipped in the
+- `resolve()` works with no database: it reads the SPDX List shipped in the
   wheel, with the same answers; `source=` (`auto`, `database`, `packaged`)
   picks the list, `lists[*].source` says which
   ([#119])
 - `DatabaseNotReadyError.condition` and `.detail`: why a database cannot be
   read (`not found`, `empty`, `invalid`, `unreadable`)
   ([#119])
-- `match()` result has a `reason` (`None` unless refused), such as
+- `resolve()` result has a `reason` (`None` unless refused), such as
   `character dropped: U+003F`; a `drop` step not applied names the reading it
   stopped
   ([#120])
-- `match()` reads a value in quotes (`"MIT"`, `“MIT”`, `"MIT`) with an
+- `resolve()` reads a value in quotes (`"MIT"`, `“MIT”`, `"MIT`) with an
   `unquote` step; `"MIT'` and quotes inside a value are still refused
   ([#121])
-- `match()` reads compounds of one-word operands, each as it reads alone,
+- `resolve()` reads compounds of one-word operands, each as it reads alone,
   in canonical order (`mit or "Apache2"` is `Apache-2.0 OR MIT`); one
   unresolved operand leaves the whole unresolved, with a one-line `reason`
   ([#122], [#125])
-- `match()` result has `schema` (2), `operands` and `components`; it reads
+- `resolve()` result has `schema` (2), `operands` and `components`; it reads
   `[MIT]`, `AdditionRef-*` after `WITH`, and "or later" on an ID with no
   `-or-later` form as `+` (`MIT or later` is `MIT+`)
   ([#122], [#125])
-- `match()` reads PyPI trove classifier names and paths (`License :: OSI
+- `resolve()` reads PyPI trove classifier names and paths (`License :: OSI
   Approved :: MIT License`) and `MIT License (MIT)`; category `trove_name`
   ([#126])
-- `match()` reads prose forms of one licence (`BSD 3-Clause License`,
+- `resolve()` reads prose forms of one licence (`BSD 3-Clause License`,
   `Apache License, Version 2.0`, `The MIT License (MIT)`); category
   `prose_form` ([#128])
-- `match()` lists the licences of a value joined by `;` (`MIT ; Apache 2`)
+- `resolve()` lists the licences of a value joined by `;` (`MIT ; Apache 2`)
   as `operands`, with no expression and the reason `operator not stated: ;`
   ([#131])
-- `licenseid match VALUE` prints the resolution of one declared value as
+- `licenseid resolve VALUE` prints the resolution of one declared value as
   tab-separated `KEY=VALUE` lines or `--json`, with no database needed; exit
   0 resolved, 1 not, 2 for a text or a path that resolves to nothing
   (`run 'licenseid detect'`); `licenseid --version`
@@ -50,7 +50,7 @@ and this project adheres to
 - `licenseid` exports the types of a result (`Resolution`, `Category`,
   `Trust`, `Step`, `Operand`, `ListInfo`, `ListSource`, `Source`) and
   `json_line` ([#141])
-- `match(value, db)` takes the path of a database as well as a
+- `resolve(value, db)` takes the path of a database as well as a
   `LicenseDatabase`, opened read-only; a missing file is never created ([#141])
 - `licenseid clear-cache` prints `STATUS=cleared` or `nothing`, and `PATH`
   ([#141])
@@ -58,39 +58,39 @@ and this project adheres to
 - `licenseid.LicenseIdWarning`, a `UserWarning`: every library warning, its
   `subject`, `condition`, `detail` and `action` as attributes ([#146])
 - `Detection.lists` and `lists` in `detect --json`: the list a result rests
-  on, as `match()` describes it; `null` in the no-answer record ([#146])
+  on, as `resolve()` describes it; `null` in the no-answer record ([#146])
 
 ### Changed
 
-- **Breaking:** `licenseid match` is now `licenseid detect`,
-  `AggregatedLicenseMatcher.match()` is `LicenseDetector.detect()`, and
-  `resolve()` is `match()`; `licenseid.detect()` is new. Migration:
-  `licenseid detect`; `from licenseid import LicenseDetector, Detection,
-  match` ([#134])
-- `match()` keeps its choice of list while the default database file is
+- **Breaking:** `licenseid match` no longer exists; its job is
+  `licenseid detect`. `AggregatedLicenseMatcher.match()` is
+  `LicenseDetector.detect()`; `licenseid.detect()` is new. Migration:
+  `licenseid detect`; `from licenseid import LicenseDetector, Detection`
+  ([#134])
+- `resolve()` keeps its choice of list while the default database file is
   unchanged: about 10 times faster per value, with no connection to choose
   ([#132])
-- `match()` refuses a value read only by dropping a list or comment marker
+- `resolve()` refuses a value read only by dropping a list or comment marker
   (`REM MIT`, `1. MIT`: `word dropped: rem`) or a mark at the start (`-MIT`,
   `.GPL-3.0-only`), two or more at the end (`MIT...`) or a lone dash; one
   `;` or `:` at the end (`MIT;`) is left off and read ([#128]); also after a
   `+`, an exception or a `LicenseRef-*`; `GPL-2.0+?` is refused with a reason
   ([#131])
-- `match()` with no database reads the newer of the default database and
+- `resolve()` with no database reads the newer of the default database and
   the shipped list (a tie: the database, if this build made it); an unusable
   default database falls back to the shipped list with a warning
   ([#119])
-- `match()` says the `build vN outdated` or `newer` warning of the default
+- `resolve()` says the `build vN outdated` or `newer` warning of the default
   database once per process
   ([#119])
-- **Breaking:** `match()` drops the `expression` category; an unbalanced
+- **Breaking:** `resolve()` drops the `expression` category; an unbalanced
   or dangling compound (`(MIT`, `MIT AND`) is `malformed`, not `unresolved`.
   Migration: a compound has a category of its own; read `operands`
   ([#122])
-- `match()` categories: `Apache-2.0 with LLVM-exception` is `lexical`, not
+- `resolve()` categories: `Apache-2.0 with LLVM-exception` is `lexical`, not
   `exact`; `GPL-2.0 or-later` is `stated_qualifier`, not `separator`
   ([#122])
-- `match()` caps each half of a `WITH` at 100 characters, not the whole
+- `resolve()` caps each half of a `WITH` at 100 characters, not the whole
   ([#122])
 - The sdist ships only the source, docs and project metadata: no tests, CI
   files or internal notes, and no links to files it leaves out ([#130])
@@ -121,8 +121,8 @@ and this project adheres to
 - **Breaking:** two inputs (`--text` or `--id` with another), `--json` with
   `--id-only` or `--diff`, and `--top` below 1 exit 2; one used to win
   unsaid. Migration: pass one input, one output ([#141])
-- **Breaking:** `match` with no value never reads standard input, and
-  `match -` exits 2. Migration: `licenseid match "$value"` ([#141])
+- **Breaking:** `resolve` with no value never reads standard input, and
+  `resolve -` exits 2. Migration: `licenseid resolve "$value"` ([#141])
 - **Breaking:** `detect` with no answer prints one record with every field
   empty (`null` in JSON), exit 1; `--id-only` an empty line. Migration: test
   the exit code, or an empty `EXPRESSION` ([#141])
@@ -135,7 +135,7 @@ and this project adheres to
   manifest field, is read as its `-only` form with `EXACT=false` and
   `WARNING: input: variant not stated`, as `GPL2` is. Migration: write
   `GPL-2.0-only` or `-or-later` ([#141])
-- **Breaking:** every `match()` refusal has a `reason` (`not found: Foo`,
+- **Breaking:** every `resolve()` refusal has a `reason` (`not found: Foo`,
   `empty`, `special value: NONE`, `exception not found: Y`). Migration:
   none; `reason is None` no longer means "refused without one" ([#141])
 - **Breaking:** a step's `list` and `detail` are `None` when empty (they
@@ -148,7 +148,7 @@ and this project adheres to
   `TypeError` for a text or ID that is no `str`, before it opens a database;
   `is_osi()`, `is_fsf()` and `is_spdx()` take only those named inputs.
   Migration: pass exactly one ([#141])
-- **Breaking:** `match(db=...)` checks a database is ready before reading
+- **Breaking:** `resolve(db=...)` checks a database is ready before reading
   it; a blank `db`, or a blank path to `LicenseDetector` or
   `LicenseDatabase`, is `InvalidInputError`, not the default database.
   Migration: build it with `licenseid update`; pass a path or none ([#141])
@@ -162,15 +162,15 @@ and this project adheres to
   removed. Migration: a `warnings` filter or `catch_warnings` ([#146])
 - **Breaking:** an SPDX tag or `license` field answers only with IDs on the
   List or `LicenseRef-*`: `MIT OR Apache 2.0` and `Apache2 OR isc` give no
-  answer, as in `match()`. Migration: write SPDX IDs ([#149])
-- `match()` writes a `LicenseRef-`, `DocumentRef-` or `AdditionRef-` prefix in
+  answer, as in `resolve()`. Migration: write SPDX IDs ([#149])
+- `resolve()` writes a `LicenseRef-`, `DocumentRef-` or `AdditionRef-` prefix in
   SPDX's case (`licenseref-foo` is `LicenseRef-foo`); a tag or field too
   ([#147], [#149])
 - A tag or field reads a bare "or later" after an ID as the grant (`MIT or
   later` is `MIT+`, not `MIT OR later`); a grant after a renamed ID follows the
   rename (`StandardML-NJ or later` is `SMLNJ+`) ([#149])
 - `detect --text`, standard input and a file read U+001C to U+001F as white
-  space, as `match` does; a refused `--id` names its code points ([#149])
+  space, as `resolve` does; a refused `--id` names its code points ([#149])
 - **Breaking:** `LicenseDatabase(path)` refuses a file licenseid did not build
   (`invalid`), whatever `create` is, and makes a missing file only at its first
   write ([#151]). Migration: run `licenseid update` to make one
@@ -181,21 +181,21 @@ and this project adheres to
 
 ### Fixed
 
-- `match()` answers `unresolved` for a lone surrogate (it raised
+- `resolve()` answers `unresolved` for a lone surrogate (it raised
   `UnicodeEncodeError`) and for a value read only by dropping a mark
   (`Apache 2.0?`, `MIT*`, U+FFFD)
   ([#117], [#120])
-- `match()` raises `TypeError` for a value that is no `str` (`None`, `bytes`,
+- `resolve()` raises `TypeError` for a value that is no `str` (`None`, `bytes`,
   a number); it raised `AttributeError`
   ([#139])
-- `match()` gives a reason (`character dropped: U+002D`) for a dash or
+- `resolve()` gives a reason (`character dropped: U+002D`) for a dash or
   underscore joined to the end: `MIT+-`, `MIT+-?`, `MIT License--`; they were
   refused with none
   ([#139])
-- `match()` reads one end mark after a `LicenseRef-*` or `AdditionRef-*` that
+- `resolve()` reads one end mark after a `LicenseRef-*` or `AdditionRef-*` that
   ends in a dot or dash (`LicenseRef-a.;`) as an ending, as after any ID
   ([#139])
-- `match()` reads one end mark after closing quote marks (`"MIT".`, `"MIT",`,
+- `resolve()` reads one end mark after closing quote marks (`"MIT".`, `"MIT",`,
   `'MIT';`), also with a mark on one end only (`MIT".`, `Apache-2.0'.`),
   as it reads `MIT,"`; `"MIT"..` and `"MIT.".` are still refused
   ([#139])
@@ -205,7 +205,7 @@ and this project adheres to
 - `detect` keeps every operand of `GPL-2.0+ OR GPL-2.0-only`,
   `GPL-2.0 OR GPL-3.0-only` and `GPL-2.0 OR LGPL-2.1-only` in a tag (it read
   the `+` or `-only` of one ID as prose about another); as an argument,
-  `GPL-2.0+ or later` and `LGPL-2.1+ only` now find nothing, as in `match()`
+  `GPL-2.0+ or later` and `LGPL-2.1+ only` now find nothing, as in `resolve()`
   ([#141])
 - `detect` and `is-*` give no answer for a compound with a prose qualifier
   (`MIT AND GPL-2.0 only`, `Apache-2.0 OR GPL-2.0 or later` as an argument,
@@ -213,7 +213,7 @@ and this project adheres to
 - `GPL-2.0-with-classpath-exception+` is `GPL-2.0-or-later WITH
   Classpath-exception-2.0`; `GPL-2.0+,` as an argument or manifest field is
   `GPL-2.0-or-later` (it lost the `+`); a tag `LGPL-2.1+ only` finds nothing,
-  as in `match()` ([#141])
+  as in `resolve()` ([#141])
 - A deprecated ID without a text (`wxWindows`, `eCos-2.0`, `GPL-2.0+` in an
   expression) has the OSI and FSF flags the List gives it, not false; a
   database built before warns `build v2 outdated`: run `licenseid update`
@@ -226,15 +226,15 @@ and this project adheres to
 - `HOME=` (empty) on Python 3.10 no longer puts the default database in
   `/.local`; a blank `HOME` (Windows: `USERPROFILE`) is no home directory
   (exit 2) ([#145])
-- `match()` gives the reason `empty` to quote marks around nothing (`""`,
+- `resolve()` gives the reason `empty` to quote marks around nothing (`""`,
   `"".`); a `reason` keeps the `;` of its value; an operand and its value get
   the same reason ([#147])
-- `match()` reads one end mark after brackets, a trove name or path, a prose
+- `resolve()` reads one end mark after brackets, a trove name or path, a prose
   form or a listed name as an ending (`(MIT).`, `MIT License :`); marks after
   a bracket or in a malformed core (`(MIT)-`, `LicenseRef-a+-`) get a
   `character dropped` or `malformed` reason ([#147])
-- `match()` refuses U+001C to U+001F anywhere in a value, and `licenseid
-  match` names the line break it refuses (`invalid: line break U+001C: MIT`);
+- `resolve()` refuses U+001C to U+001F anywhere in a value, and `licenseid
+  resolve` names the line break it refuses (`invalid: line break U+001C: MIT`);
   a refused value with a lone surrogate no longer breaks `json_line` ([#147])
 - A tag refuses an "or later" grant after `-only`, `-or-later` or a
   `LicenseRef-*` however it is written (`GPL-2.0-only, or any later version`);
@@ -245,13 +245,13 @@ and this project adheres to
   BSD-3 text keeps its answer ([#148])
 - Detection no longer slows down quadratically in the BSD marker on a text
   with a long run of blank lines (20,000 lines took about 3 s) ([#148])
-- `match()` names the version of the trove classifier list it read; it was
+- `resolve()` names the version of the trove classifier list it read; it was
   `null` ([#149])
-- A "+" after a space is no operator: `match()` refuses it (`plus after a
+- A "+" after a space is no operator: `resolve()` refuses it (`plus after a
   space`) and a tag with one names no licence ([#149])
 - A "+" apart from its ID (`MIT +`, `(MIT)+`, `MIT ++`) gets no answer from
-  text, a field or `is-*`, as from `match()`; a mark before "or later" that
-  `match()` drops (`MIT; or later`) gets none from a tag or field ([#149])
+  text, a field or `is-*`, as from `resolve()`; a mark before "or later" that
+  `resolve()` drops (`MIT; or later`) gets none from a tag or field ([#149])
 - Keywords ignore case in ASCII only (`MIT WİTH X` is refused); "or" in a
   grant must be a word (`MIT ora later` is no grant) ([#149])
 - A tag or field keeps an "or later" grant on an ID with no `-or-later` form
@@ -259,9 +259,9 @@ and this project adheres to
   licence beside a granted deprecated ID (`GPL-3.0, LGPL-2.1 or later`) gets no
   answer ([#149])
 - `detect` reads a run of blank lines in linear time; 20,000 took 7 s ([#149])
-- `match()` names `pypi-trove-classifiers` in `lists` when only an operand
+- `resolve()` names `pypi-trove-classifiers` in `lists` when only an operand
   cites it ([#152])
-- `match()` gives a "+" after a listed exception (`MIT WITH
+- `resolve()` gives a "+" after a listed exception (`MIT WITH
   Classpath-exception-2.0+`) or a bracket in a compound (`(MIT)+ OR ISC`) its
   own `malformed` reason; a grant on a `LicenseRef-*` is `malformed` always
   ([#152])
