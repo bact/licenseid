@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``match``: the SPDX expression a declared value stands for, and how."""
+"""``resolve``: the SPDX expression a declared value stands for, and how."""
 
 import subprocess
 import sys
@@ -17,7 +17,7 @@ from resolver_helpers import GPL2, GPL2_PLUS, summary
 import licenseid
 from licenseid import LicenseDatabase
 from licenseid.looseid import declared_grant_id_text
-from licenseid.resolver import match
+from licenseid.resolver import resolve
 from licenseid.resolvertypes import CATEGORY_ORDER, LIST_PROVIDES, TRUST
 
 ROWS = (
@@ -314,7 +314,7 @@ def test_a_value_resolves_with_its_steps(
     db: LicenseDatabase, value: str, expected: tuple[object, ...]
 ) -> None:
     """Each value gives its expression, category, steps and offers."""
-    assert summary(match(value, db)) == expected
+    assert summary(resolve(value, db)) == expected
 
 
 @pytest.mark.parametrize(
@@ -335,10 +335,10 @@ def test_an_accepted_expression_resolves_to_itself(
     db: LicenseDatabase, value: str
 ) -> None:
     """Idempotence: the expression of an accepted value is exact."""
-    first = match(value, db)
+    first = resolve(value, db)
     assert first["expression"] is not None
     assert first["expression"] != value  # the input did change
-    assert match(first["expression"], db)["category"] == "exact"
+    assert resolve(first["expression"], db)["category"] == "exact"
 
 
 def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> None:
@@ -360,7 +360,7 @@ def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> 
     )
     seen = set()
     for value in values:
-        r = match(value, db)
+        r = resolve(value, db)
         lists = {entry["id"]: entry for entry in r["lists"]}
         for step in r["steps"] + r["expansions"]:
             seen.add(step["kind"])
@@ -380,7 +380,7 @@ def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> 
 
 def test_the_result_names_the_resolver_and_the_list(db: LicenseDatabase) -> None:
     """Who resolved, and from which list version."""
-    r = match("MIT", db)
+    r = resolve("MIT", db)
     assert r["resolver"]["version"] == licenseid.__version__
     assert r["resolver"]["purl"] == f"pkg:pypi/licenseid@{licenseid.__version__}"
     (spdx,) = r["lists"]
@@ -395,7 +395,7 @@ def test_the_result_names_the_resolver_and_the_list(db: LicenseDatabase) -> None
 
 def test_the_same_input_gives_the_same_result(db: LicenseDatabase) -> None:
     """No clock, no randomness."""
-    assert match("Apache2", db) == match("Apache2", db)
+    assert resolve("Apache2", db) == resolve("Apache2", db)
 
 
 def test_the_category_vocabulary_is_closed() -> None:
@@ -426,7 +426,7 @@ def test_the_declared_grant_regex_does_not_backtrack(
     [
         "import licenseid.resolver",
         "import licenseid.resolvertypes, licenseid.resolver",
-        "from licenseid.resolver import match",
+        "from licenseid.resolver import resolve",
         "import licenseid.resolver, licenseid",
     ],
     ids=["resolver", "types-first", "function", "resolver-before-package"],
@@ -443,10 +443,10 @@ def test_the_module_imports_cleanly_in_any_order(statement: str) -> None:
     assert done.returncode == 0, done.stderr.decode("utf-8", "replace")
 
 
-def test_the_package_exports_match_and_keeps_the_module_reachable() -> None:
-    """``licenseid.match`` is the function, ``licenseid.resolver`` the
+def test_the_package_exports_resolve_and_keeps_the_module_reachable() -> None:
+    """``licenseid.resolve`` is the function, ``licenseid.resolver`` the
     module: neither hides the other."""
-    assert callable(licenseid.match)
-    assert licenseid.match is match
-    assert licenseid.match.__module__ == "licenseid.resolver"
-    assert "match" in licenseid.__all__
+    assert callable(licenseid.resolve)
+    assert licenseid.resolve is resolve
+    assert licenseid.resolve.__module__ == "licenseid.resolver"
+    assert "resolve" in licenseid.__all__

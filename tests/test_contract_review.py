@@ -32,7 +32,7 @@ from licenseid import (
     InvalidInputError,
     LicenseDatabase,
     keptdetector,
-    match,
+    resolve,
 )
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
@@ -335,7 +335,7 @@ def test_r5_the_prose_reader_skips_what_an_id_states(
         ),
         (["detect", "Not a licence at all"], ""),
         (["is-osi", "Not a licence at all"], ""),
-        (["match", "Foo"], ""),
+        (["resolve", "Foo"], ""),
     ],
 )
 def test_r6_exit_1_carries_no_error_line(db: str, args: list[str], stderr: str) -> None:
@@ -370,7 +370,7 @@ def test_r7_detect_checks_the_call_first(
 ) -> None:
     """R7 (was: with no default database, a wrong call raised
     DatabaseNotReadyError, not its own error): the call is checked as
-    ``match()`` checks its value, before any database is opened."""
+    ``resolve()`` checks its value, before any database is opened."""
     path = tmp_path / "licenses.db"
     if database:
         make_ready_file_db(path)
@@ -397,13 +397,13 @@ def test_r7_a_good_call_still_needs_the_database(
 
 
 @pytest.mark.parametrize("blank", ["", "  ", "\t\n"], ids=["empty", "spaces", "ws"])
-def test_r9_match_refuses_a_blank_db(blank: str) -> None:
-    """R9 (was: ``match(value, db="")`` said ``database: unreadable: :
+def test_r9_resolve_refuses_a_blank_db(blank: str) -> None:
+    """R9 (was: ``resolve(value, db="")`` said ``database: unreadable: :
     disk I/O error``): a usage error, worded as the CLI's ``--db ""``."""
     with pytest.raises(
         InvalidInputError, match="^database: missing: db; pass a path or drop db$"
     ):
-        match("MIT", db=blank)
+        resolve("MIT", db=blank)
 
 
 def test_r9_the_detector_refuses_a_blank_path(
@@ -419,7 +419,7 @@ def test_r9_the_detector_refuses_a_blank_path(
 
 
 def test_r9_the_cli_refuses_a_blank_db_as_before() -> None:
-    result = CliRunner().invoke(cli, ["--db", "", "match", "MIT"])
+    result = CliRunner().invoke(cli, ["--db", "", "resolve", "MIT"])
     assert (result.exit_code, result.stderr) == (
         2,
         "ERROR: database: missing: --db; pass a path or drop --db\n",

@@ -313,7 +313,7 @@ class LicenseDetector:
         # the raw text: normalize_text() drops the marks the readers judge.
         disambiguated = disambiguate_whole(ctx.target_text, self.db)
         if disambiguated == "":
-            return []  # match() refuses it ("GPL-2.0; or later"): no reading
+            return []  # resolve() refuses it ("GPL-2.0; or later"): no reading
         if disambiguated:
             match = exact_id_match(disambiguated)
             _set_flags(match, self.markers.license_flags(disambiguated))
@@ -448,7 +448,7 @@ class LicenseDetector:
             raw = self._match_raw(
                 text, license_id=license_id, file_path=file_path, **options
             )
-            lists = [list_info(self.db, "database")]  # match()'s builder
+            lists = [list_info(self.db, "database")]  # resolve()'s builder
         return [public_result(r, lists) for r in raw]
 
     def _match_raw(

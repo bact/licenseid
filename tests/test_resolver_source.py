@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Which list ``match()`` reads when it has both a database at the
+"""Which list ``resolve()`` reads when it has both a database at the
 default path and a bundle in the wheel: the newer List wins (Q4); a tie goes
 to the database only when this licenseid's rules built its rows (Q10).
 ``tests/test_option_matrix.py`` holds the axes; this file the edges."""
@@ -19,7 +19,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import create_database, make_ready_file_db, writer
 from release_fakes import release_bundle, ship
 
-from licenseid import LicenseDatabase, listsource, match
+from licenseid import LicenseDatabase, listsource, resolve
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
@@ -48,7 +48,7 @@ def _default_db(version: str = DB_VERSION, build: str | None = None) -> Path:
 
 
 def _read(value: str = "MIT") -> tuple[str, str | None]:
-    lists = match(value)["lists"]
+    lists = resolve(value)["lists"]
     assert len(lists) == 1  # only the list read is reported
     return lists[0]["source"], lists[0]["version"]
 
@@ -163,20 +163,20 @@ def test_an_unusable_bundle_leaves_the_database_error(
 ) -> None:
     ship(monkeypatch, b"not gzip")
     with pytest.raises(DatabaseNotReadyError, match="^database: not found: "):
-        match("MIT")
+        resolve("MIT")
     detail = "BadGzipFile: Not a gzipped file (b'no')"
     with pytest.raises(
         DatabaseNotReadyError,
         match=f"^{re.escape(f'spdx-bundle.json.gz: invalid: {detail}')}$",
     ) as raised:
-        match("MIT", source="packaged")
+        resolve("MIT", source="packaged")
     assert (raised.value.condition, raised.value.detail) == ("invalid", detail)
     assert given.lines() == (f"WARNING: spdx-bundle.json.gz: invalid: {detail}\n")
 
 
 def test_no_bundle_says_not_found() -> None:
     with pytest.raises(DatabaseNotReadyError) as raised:
-        match("MIT", source="packaged")
+        resolve("MIT", source="packaged")
     assert str(raised.value) == "spdx-bundle.json.gz: not found"
     assert (raised.value.condition, raised.value.detail) == ("not found", None)
 
@@ -185,13 +185,13 @@ def test_no_bundle_says_not_found() -> None:
 def test_an_unknown_source_is_refused(source: object) -> None:
     message = f"option: invalid: source: {source!r}; pass auto, database or packaged"
     with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
-        match("MIT", source=source)  # type: ignore[arg-type]
+        resolve("MIT", source=source)  # type: ignore[arg-type]
 
 
 def test_source_is_a_keyword() -> None:
     with pytest.raises(TypeError):
         # pylint: disable-next=too-many-function-args
-        match("MIT", None, "packaged")  # type: ignore[call-arg]
+        resolve("MIT", None, "packaged")  # type: ignore[call-arg]
 
 
 def test_a_packaged_answer_reads_no_database(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -205,7 +205,7 @@ def test_a_packaged_answer_reads_no_database(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def _read_source(source: str) -> tuple[str, str | None]:
-    lists = match("MIT", source=source)  # type: ignore[arg-type]
+    lists = resolve("MIT", source=source)  # type: ignore[arg-type]
     return lists["lists"][0]["source"], lists["lists"][0]["version"]
 
 
@@ -217,19 +217,19 @@ def test_a_database_with_no_rows_is_refused_by_source_database() -> None:
     create_database(path)
     message = f"database: empty: {path}; run 'licenseid update'"
     with pytest.raises(DatabaseNotReadyError, match=f"^{re.escape(message)}$"):
-        match("MIT", source="database")
+        resolve("MIT", source="database")
 
 
 def test_a_database_given_is_checked_ready() -> None:
     """P3 of the contract batch: a database the caller opened is checked as
-    one ``match()`` opens is (it was read unchecked, so an empty one
+    one ``resolve()`` opens is (it was read unchecked, so an empty one
     answered ``unresolved`` for MIT)."""
     path = Path(get_default_db_path())
     path.parent.mkdir(parents=True)
     create_database(path)
     message = f"database: empty: {path}; run 'licenseid update'"
     with pytest.raises(DatabaseNotReadyError, match=f"^{re.escape(message)}$"):
-        match("MIT", LicenseDatabase(str(path)), source="database")
+        resolve("MIT", LicenseDatabase(str(path)), source="database")
 
 
 @pytest.mark.parametrize("form", ["handle", "str", "path"])
@@ -250,12 +250,12 @@ def test_a_database_given_is_checked_once_while_its_file_stays(
     )
     with mock.patch("licenseid.listsource.check_database_ready", checks):
         for _ in range(3):
-            assert match("MIT", db)["expression"] == "MIT"
+            assert resolve("MIT", db)["expression"] == "MIT"
         assert checks.call_count == 1
         with writer(path) as conn:
             conn.execute("DELETE FROM licenses")
         with pytest.raises(DatabaseNotReadyError, match="^database: empty: "):
-            match("MIT", db)
+            resolve("MIT", db)
         assert checks.call_count == 2
 
 
@@ -265,7 +265,7 @@ def test_reset_choice_forgets_the_databases_given(tmp_path: Path) -> None:
         check_database_ready, side_effect=check_database_ready
     )
     with mock.patch("licenseid.listsource.check_database_ready", checks):
-        match("MIT", path)
+        resolve("MIT", path)
         listsource.reset_choice()
-        match("MIT", path)
+        resolve("MIT", path)
     assert checks.call_count == 2

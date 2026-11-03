@@ -31,7 +31,7 @@ MATCH_PATH = [
     "identifiers",
     "textinput",
     "spdxdata",
-    # match(), with no database: the packaged list and the choice of list
+    # resolve(), with no database: the packaged list and the choice of list
     "listindex",
     "listsource",
     "resolver",

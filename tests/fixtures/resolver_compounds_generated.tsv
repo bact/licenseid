@@ -1,4 +1,4 @@
-# The answer match() gives each generated compound (tests/compound_cases.py),
+# The answer resolve() gives each generated compound (tests/compound_cases.py),
 # as task T7 reads it. value, expression and reason: Python unicode_escape,
 # - for none; steps: the step kinds, comma-joined. Every refusal has a reason
 # since the contract batch (P5).

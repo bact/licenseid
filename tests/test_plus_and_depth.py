@@ -17,7 +17,7 @@ from click.testing import CliRunner
 from matcher_db import Lic, seeded_db
 from resolver_helpers import GPL2, GPL2_PLUS
 
-from licenseid import match
+from licenseid import resolve
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.identifiers import (
@@ -47,7 +47,7 @@ def ids(matcher: LicenseDetector, **kwargs: str) -> list[str]:
     return [r["expression"] for r in matcher.detect(**kwargs)]
 
 
-# value: what detect answers for it as text, as a tag, and what match gives
+# value: what detect answers for it as text, as a tag, and what resolve gives
 PLUS = [
     ("GPL-2+", "GPL-2.0-or-later", "GPL-2.0-or-later"),
     ("gpl2+", "GPL-2.0-or-later", "GPL-2.0-or-later"),
@@ -72,7 +72,7 @@ def test_a_plus_after_an_id_answers_alike_everywhere(
     assert ids(matcher, text=value) == expected
     tag = f"/* SPDX-License-Identifier: {value} */"
     assert ids(matcher, text=tag) == expected
-    assert match(value, matcher.db)["expression"] == resolved
+    assert resolve(value, matcher.db)["expression"] == resolved
 
 
 def test_a_plus_after_a_qualifier_voids_the_whole_tag(
@@ -109,7 +109,7 @@ def test_plus_after_qualifier(expression: str, twice: bool) -> None:
         ("(gpl-2.0-OR-LATER+)", False),
         ("GPL-2.0-only+ WITH Classpath-exception-2.0", False),
         ("GPL-2.0+", True),
-        ("MI+", True),  # shaped as one ID; that it names none is match's answer
+        ("MI+", True),  # shaped as one ID; that it names none is resolve's answer
         ("GPL-2.0-only", True),
     ],
 )
@@ -120,7 +120,7 @@ def test_a_plus_after_a_qualifier_declares_no_licence(value: str, simple: bool) 
 @pytest.mark.parametrize(
     ("value", "code"),
     [
-        ("GPL-2.0-only+", 2),  # malformed: a usage error, as match says
+        ("GPL-2.0-only+", 2),  # malformed: a usage error, as resolve says
         ("GPL-2.0-or-later+", 2),
         ("MI+", 1),  # well formed, names nothing: "no", as for any unknown ID
         ("Foo", 1),
@@ -154,7 +154,7 @@ def test_id_refuses_a_plus_after_a_qualifier(
 def test_a_plus_after_a_qualifier_in_an_expression_is_malformed(
     matcher: LicenseDetector, value: str, category: str
 ) -> None:
-    assert match(value, matcher.db)["category"] == category
+    assert resolve(value, matcher.db)["category"] == category
 
 
 def chain(operators: int) -> str:

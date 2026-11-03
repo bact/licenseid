@@ -24,7 +24,7 @@ from typing import Any
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import LicenseDatabase, bsdclauses, classify, looseid, match
+from licenseid import LicenseDatabase, bsdclauses, classify, looseid, resolve
 from licenseid.detector import LicenseDetector
 from licenseid.markers import MarkerDetector
 from licenseid.plusoperator import PLUS_OPERATOR, strip_plus_operator
@@ -146,7 +146,7 @@ def _spelt(text: str, letter: str) -> str:
 @pytest.mark.parametrize("look_alike", ["\u0130", "\u0131"])
 def test_with_takes_no_look_alike(corpus_db: LicenseDatabase, look_alike: str) -> None:
     value = f"MIT W{look_alike}TH Classpath-exception-2.0"
-    assert match(value, corpus_db)["expression"] is None
+    assert resolve(value, corpus_db)["expression"] is None
     assert looseid.WITH_OPERATOR.search(value) is None
     assert looseid.WITH_OPERATOR.search("MIT WITH X")
     found = LicenseDetector(corpus_db.location).detect(

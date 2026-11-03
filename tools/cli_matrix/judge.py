@@ -38,10 +38,10 @@ PLAIN = re.compile(
     r"\tCOVERAGE=(\d+\.\d{4})?"
 )
 
-#: The lines of ``licenseid match``: fields joined by one tab, no value
+#: The lines of ``licenseid resolve``: fields joined by one tab, no value
 #: holds one (``result.text_field``).
-MATCH_HEAD = re.compile(r"EXPRESSION=([^\t]*)\tCATEGORY=[a-z_]+\tTRUST=[a-z_]+")
-MATCH_LINE = re.compile(
+RESOLVE_HEAD = re.compile(r"EXPRESSION=([^\t]*)\tCATEGORY=[a-z_]+\tTRUST=[a-z_]+")
+RESOLVE_LINE = re.compile(
     r"STEP=[a-z_]+\tFROM=[^\t]*\tTO=[^\t]*|REASON=[^\t]+"
     r"|OPERAND=[^\t]+\tEXPRESSION=[^\t]*\tCATEGORY=[a-z_]+"
 )
@@ -123,7 +123,7 @@ def _is_unspecified(cell: Cell) -> bool:
         cell.exp_exit is None
         and cell.exp_out is None
         and cell.exp_err is None
-        and cell.kind in ("other", "update", "detect", "predicate", "match", "help")
+        and cell.kind in ("other", "update", "detect", "predicate", "resolve", "help")
     )
 
 
@@ -197,8 +197,8 @@ def _contract_flags(cell: Cell, result: Result) -> list[str]:
         if (rc, out) == (2, "") or (rc, answer) in ((0, True), (1, False), (1, None)):
             return []
         return [f"predicate contract: exit={rc} stdout={out[:40]!r}"]
-    if cell.kind == "match":
-        return check_match_value(cell, rc, out)
+    if cell.kind == "resolve":
+        return check_resolve_value(cell, rc, out)
     if cell.kind != "detect":
         return []
     if rc == 0:
@@ -212,8 +212,8 @@ def _contract_flags(cell: Cell, result: Result) -> list[str]:
     return []
 
 
-def check_match_value(cell: Cell, rc: int, out: str) -> list[str]:
-    """``licenseid match``: exit 0 with an expression, 1 without one, 2 with
+def check_resolve_value(cell: Cell, rc: int, out: str) -> list[str]:
+    """``licenseid resolve``: exit 0 with an expression, 1 without one, 2 with
     nothing on stdout; ``--json`` one resolution object."""
     if rc == 2:
         return [] if out == "" or "--help" in cell.cmd else ["exit 2 with stdout"]
@@ -222,18 +222,18 @@ def check_match_value(cell: Cell, rc: int, out: str) -> list[str]:
     if "json" in cell.outflags or "--json" in cell.cmd:
         parsed = _json_results(out)
         if not (parsed and len(parsed) == 1 and isinstance(parsed[0], dict)):
-            return [f"match --json not one object: {out[:40]!r}"]
+            return [f"resolve --json not one object: {out[:40]!r}"]
         if "schema" not in parsed[0]:  # a detection, not a resolution
-            return [f"match --json not one object: {out[:40]!r}"]
+            return [f"resolve --json not one object: {out[:40]!r}"]
         resolved = parsed[0].get("expression") is not None
     else:
         lines = out.splitlines()
-        head = MATCH_HEAD.fullmatch(lines[0]) if lines else None
-        if head is None or not all(MATCH_LINE.fullmatch(x) for x in lines[1:]):
-            return [f"match output malformed: {out[:60]!r}"]
+        head = RESOLVE_HEAD.fullmatch(lines[0]) if lines else None
+        if head is None or not all(RESOLVE_LINE.fullmatch(x) for x in lines[1:]):
+            return [f"resolve output malformed: {out[:60]!r}"]
         resolved = head.group(1) != ""
     if resolved != (rc == 0):
-        return [f"match exit {rc} but expression {'set' if resolved else 'empty'}"]
+        return [f"resolve exit {rc} but expression {'set' if resolved else 'empty'}"]
     return []
 
 
@@ -294,7 +294,7 @@ def _is_result_json(out: str) -> bool:
     return bool(parsed) and all(
         isinstance(item, dict)
         and {"expression", "method", "score"} <= set(item)
-        and "schema" not in item  # a resolution of match
+        and "schema" not in item  # a resolution of resolve
         for item in parsed or ()
     )
 

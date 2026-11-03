@@ -5,7 +5,7 @@
 
 """Resolve a declared licence value to an SPDX expression and say how.
 
-``detect`` answers "which licence is this text"; ``match`` answers "which
+``detect`` answers "which licence is this text"; ``resolve`` answers "which
 SPDX expression does this *declared value* stand for, and what did the
 resolver do to get there". A caller that records the result needs the second
 part: a changed case is no decision, a re-spelt ID is, and a qualifier
@@ -22,7 +22,7 @@ ID (``BSD 3-Clause License``, ``Apache License, Version 2.0``) by
 operator, are listed as operands and no expression
 (``licenseid.resolvesemicolon``). A step that rests on a list cites it.
 
-No database is needed: with none, ``match`` reads the SPDX License List
+No database is needed: with none, ``resolve`` reads the SPDX License List
 shipped in the wheel, in memory, and gives the answer a database built from
 that list would give (``licenseid.listsource`` chooses, ``licenseid.listindex``
 reads). ``lists[*].source`` says which was read.
@@ -68,8 +68,8 @@ from licenseid.resolvesemicolon import read_semicolon_list, semicolon_parts
 from licenseid.textinput import has_lone_surrogate
 
 #: The longest value read, once trimmed and unquoted; one licence is
-#: MAX_KEY_INPUT or less (versionkey). ``licenseid match`` refuses a longer
-#: argument (``climatch``).
+#: MAX_KEY_INPUT or less (versionkey). ``licenseid resolve`` refuses a longer
+#: argument (``cliresolve``).
 MAX_EXPRESSION_CHARS: Final = 2000
 # A surrogate code point: alone, no UTF-8 encoder takes it.
 _RE_SURROGATE = re.compile("[\ud800-\udfff]")
@@ -77,7 +77,7 @@ _RE_SURROGATE = re.compile("[\ud800-\udfff]")
 _END_MARKS = frozenset(".,;:")
 
 
-def match(
+def resolve(
     value: str, db: GivenDatabase | None = None, *, source: Source = "auto"
 ) -> Resolution:
     """Resolve the declared licence *value*.
@@ -107,16 +107,16 @@ def match(
     """
     _require_text(value)
     lookup, where = choose_list(db, source)
-    return match_with(lookup, value, where)
+    return resolve_with(lookup, value, where)
 
 
-def match_with(
+def resolve_with(
     lookup: ListLookup, value: str, where: ListSource = "database"
 ) -> Resolution:
-    """:func:`match` on a list the caller holds: any
+    """:func:`resolve` on a list the caller holds: any
     :class:`licenseid.listlookup.ListLookup`, read as it is; *where* is what
     ``lists[0].source`` says. Raises :class:`TypeError` for a *value* that is
-    no :class:`str`, as :func:`match` does."""
+    no :class:`str`, as :func:`resolve` does."""
     _require_text(value)
     with lookup.reading():
         found, operands, parsed = _read(lookup, value)

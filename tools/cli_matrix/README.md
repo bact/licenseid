@@ -95,7 +95,7 @@ are those of `bash zsh sh dash ksh` found on `PATH`.
   one free text allowed there, and `detect --diff`'s word diff), a
   predicate prints one record whose flag agrees with its exit status (or
   exits 2 with nothing), `update` one record, `detect` one of its three
-  documented shapes, `match` its lines (exit 0 with an expression, 1
+  documented shapes, `resolve` its lines (exit 0 with an expression, 1
   without one), exit
   statuses are 0, 1 or 2, and nothing ever shows a traceback. A cell also
   flags when its answer depends on the shell or the interpreter, when the
@@ -132,13 +132,14 @@ Everything lands in `--out`:
 
 ## The baseline
 
-Around ninety cells flag on a healthy tree. They are real, open findings,
-and reprinting them on every run would bury the one new flag that a change
-just introduced. `baseline.txt` records the known set, one
-`<cell-id> <shell>` per line, sorted, so a version-control diff of it reads
-as "this was fixed" or "this appeared". The interpreter label is not part
-of the key (a cell that flags on any interpreter is a known flag), so the
-baseline works with whatever `--python` labels you choose.
+A few cells flag on a healthy tree (nine in 2026-11, the E2 locale cells of
+tech-debt item 2). They are real, open findings, and reprinting them on every
+run would bury the one new flag that a change just introduced.
+`baseline.txt` records the known set, one `<cell-id> <shell>` per line,
+sorted, so a version-control diff of it reads as "this was fixed" or "this
+appeared". The interpreter label is not part of the key (a cell that
+flags on any interpreter is a known flag), so the baseline works with
+whatever `--python` labels you choose.
 
 ```shell
 python -m tools.cli_matrix --db /tmp/matrix.db --check
@@ -164,7 +165,7 @@ use, so a flag that only one of them shows is recorded.
 Cells live in `cells/`: `detect.py` (A), `predicate.py` (B),
 `global_options.py` (C), `update.py` (D), `environment.py` (E1 to E6, the
 streams around the process), `process_env.py` (E7 to E11, its own
-resources) and `matchvalue.py` (F1 to F5, `match` on one declared value),
+resources) and `resolvevalue.py` (F1 to F5, `resolve` on one declared value),
 with the shared command list in `core_commands.py`. Add yours
 to the family it belongs to, at the end, so the identifiers of the existing
 cells do not shift. A cell is declarative:

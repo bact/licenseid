@@ -27,7 +27,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
-from licenseid import console, match, output
+from licenseid import console, output, resolve
 from licenseid.cli import cli
 from licenseid.cli import main as cli_main
 from licenseid.result import json_line, read_text_field, resolution_lines
@@ -125,8 +125,8 @@ def test_every_diagnostic_line_ends_in_a_line_feed_on_windows(
 
 @pytest.mark.parametrize(
     "args",
-    [["--version"], ["--help"], ["is-osi", "--help"], ["match", "--help"]],
-    ids=["version", "help", "command-help", "match-help"],
+    [["--version"], ["--help"], ["is-osi", "--help"], ["resolve", "--help"]],
+    ids=["version", "help", "command-help", "resolve-help"],
 )
 def test_the_version_and_help_end_lines_in_a_line_feed_on_windows(
     monkeypatch: pytest.MonkeyPatch, args: list[str]
@@ -197,18 +197,18 @@ def test_an_unknown_encoding_over_bytes_is_left_to_the_stream(
 # --- the commands, through click's runner on a latin-1 stream ---
 
 
-def test_match_on_a_latin1_stream(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_on_a_latin1_stream(monkeypatch: pytest.MonkeyPatch) -> None:
     ship(monkeypatch, fixture_bundle())
     runner = CliRunner(charset="latin-1")
-    text = runner.invoke(cli, ["match", VALUE])
-    as_json = runner.invoke(cli, ["match", "--json", VALUE])
+    text = runner.invoke(cli, ["resolve", VALUE])
+    as_json = runner.invoke(cli, ["resolve", "--json", VALUE])
     assert (text.exit_code, as_json.exit_code) == (1, 1)
     last = text.stdout_bytes.splitlines()[-1]
     assert last == (
         b"OPERAND=caf\xe9 \\U0001f600 \\u201cx\\u201d\tEXPRESSION=\tCATEGORY=unresolved"
     )
     assert line_fields(last.decode("latin-1"))["OPERAND"] == OPERAND
-    assert as_json.stdout_bytes == (json_line(match(VALUE)) + "\n").encode("utf-8")
+    assert as_json.stdout_bytes == (json_line(resolve(VALUE)) + "\n").encode("utf-8")
 
 
 def test_detect_json_on_a_latin1_stream_is_unchanged() -> None:
@@ -248,7 +248,7 @@ def test_the_entry_point_on_a_narrow_locale(tmp_path: Path, encoding: str) -> No
     lines = {}
     for flag in ([], ["--json"]):
         proc = subprocess.run(
-            [sys.executable, "-c", script, str(bundle), "match", *flag, VALUE],
+            [sys.executable, "-c", script, str(bundle), "resolve", *flag, VALUE],
             capture_output=True,
             env=env,
             check=False,
@@ -271,7 +271,7 @@ def test_a_diagnostic_with_a_character_the_locale_lacks(
     with an escape, never raises, and does not turn exit 2 into 120."""
     env = {**os.environ, "PYTHONIOENCODING": encoding, "HOME": str(tmp_path)}
     proc = subprocess.run(
-        [sys.executable, "-m", "licenseid.cli", "match", "caf\u00e9 \u65e5\nMIT"],
+        [sys.executable, "-m", "licenseid.cli", "resolve", "caf\u00e9 \u65e5\nMIT"],
         capture_output=True,
         env=env,
         check=False,
@@ -289,5 +289,5 @@ def test_the_text_lines_are_those_of_the_resolution(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     ship(monkeypatch, fixture_bundle())
-    result = CliRunner().invoke(cli, ["match", VALUE])
-    assert result.stdout.splitlines() == resolution_lines(match(VALUE))
+    result = CliRunner().invoke(cli, ["resolve", VALUE])
+    assert result.stdout.splitlines() == resolution_lines(resolve(VALUE))

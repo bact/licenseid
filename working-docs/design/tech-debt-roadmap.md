@@ -85,6 +85,8 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
   only over an import shim that would patch `Path.open` during the import,
   or a parser of our own); `licenseid match` and `--version` fail the same
   way, at import.
+- The CLI matrix flags of this item are `E2-082` to `E2-090` (bash) in
+  `tools/cli_matrix/baseline.txt`.
 - Impact 2, Risk 3, Effort 2.
 
 ## 26. Relax the parser guard once the parser is linear — Priority 10
@@ -516,6 +518,13 @@ short-text leftovers are in `match-resolve-0-8.md`, section 7.
   `resolver-0-7-plan.md`; CI checks `src/ tests/` only.
 - `update --source packaged` sample outputs in the README are unverified
   against a built wheel: check them at the final release gate.
+- A database or cache path that is a symlink loop is refused only after the
+  download: `os.path.exists` is False on `ELOOP`, so it reads as missing
+  (R8 review of #151).
+- The lock-wait test of `LicenseDatabase` holds the lock 2 s and asserts the
+  open waited at least 1 s: a thin margin on a slow CI runner (#151).
+- `tests/harness_db.py` repeats the database build of
+  `test_accuracy.matcher`; fold the two into one helper (#150).
 
 - Impact 2, Risk 2, Effort 3.
 

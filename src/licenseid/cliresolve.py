@@ -3,12 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``licenseid match VALUE``: one declared licence value, read by
-:func:`licenseid.match`.
+"""``licenseid resolve VALUE``: one declared licence value, read by
+:func:`licenseid.resolve`.
 
-``detect`` answers "which licence is in this file or text"; ``match``
+``detect`` answers "which licence is in this file or text"; ``resolve``
 answers "which SPDX expression does this declared value stand for". So
-``match`` takes one value on the command line and refuses what only
+``resolve`` takes one value on the command line and refuses what only
 ``detect`` answers, with exit 2 and ``; run 'licenseid detect'``: ``--text``,
 ``-`` (standard input, which is never read), a value with a line break and
 one longer than the resolver reads, before any list is read; and, once read,
@@ -17,7 +17,7 @@ value would otherwise come back ``unresolved``, exit 1, which says "no
 licence" where the user meant "detect this".
 
 It needs no database: with no ``--db`` it reads the list ``--source`` names,
-as ``match()`` does (``auto`` falls back to the list shipped in the wheel).
+as ``resolve()`` does (``auto`` falls back to the list shipped in the wheel).
 Exit 0 when the value resolves to an expression, 1 when it does not (a list
 joined by ``;`` included), 2 for a usage error, a list that cannot be read
 (``DatabaseNotReadyError``, through the group) or a result that cannot be
@@ -41,7 +41,7 @@ from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import one_line
 from licenseid.output import echo, echo_json
-from licenseid.resolver import MAX_EXPRESSION_CHARS, match, read_length
+from licenseid.resolver import MAX_EXPRESSION_CHARS, read_length, resolve
 from licenseid.resolvertypes import Resolution, Source
 from licenseid.result import json_line, resolution_lines
 
@@ -61,7 +61,7 @@ def _line_break(value: str) -> str | None:
 
 
 def declared_value(ctx: click.Context, value: str | None, text: str | None) -> str:
-    """The one value to match: the argument, checked. Exit 2 for no value,
+    """The one value to resolve: the argument, checked. Exit 2 for no value,
     a blank one, one the command line could not encode (a lone surrogate),
     and for what only ``detect`` answers. Standard input is never read, not
     even to see whether it brings anything (C8 of the contract batch: an
@@ -80,7 +80,7 @@ def declared_value(ctx: click.Context, value: str | None, text: str | None) -> s
         # One information separator alone folds to nothing: no DETAIL then.
         shown = ": ".join(filter(None, (f"U+{ord(char):04X}", one_line(value))))
         exit_bad_input(ctx, f"invalid: line break {shown}{TO_DETECT}")
-    # Counted as match() counts it (read_length), so it reads what this
+    # Counted as resolve() counts it (read_length), so it reads what this
     # passes; the first test is the fast one.
     if len(value) > MAX_EXPRESSION_CHARS and read_length(value) > MAX_EXPRESSION_CHARS:
         exit_bad_input(
@@ -99,7 +99,7 @@ def reject_a_path(ctx: click.Context, value: str, resolution: Resolution) -> Non
 
 
 def given_database(ctx: click.Context, source: Source) -> LicenseDatabase | None:
-    """The database ``--db`` names, opened as ``match(value, db)`` reads it,
+    """The database ``--db`` names, opened as ``resolve(value, db)`` reads it,
     or None when it names none (the list ``--source`` names is read). An
     unready one raises ``DatabaseNotReadyError``, which the group words."""
     if ctx.obj["db_is_default"]:
@@ -114,7 +114,7 @@ def given_database(ctx: click.Context, source: Source) -> LicenseDatabase | None
     return LicenseDatabase(db_path, create=False)
 
 
-@click.command(name="match", cls=LicenseIdCommand)
+@click.command(name="resolve", cls=LicenseIdCommand)
 @click.argument("value", required=False)
 @click.option(
     "--json",
@@ -137,21 +137,21 @@ def given_database(ctx: click.Context, source: Source) -> LicenseDatabase | None
     help="Refused: a licence text is for 'licenseid detect'.",
 )
 @click.pass_context
-def match_command(
+def resolve_command(
     ctx: click.Context,
     value: str | None,
     json_output: bool,
     source: Source,
     text: str | None,
 ) -> None:
-    """Match one declared licence value to an SPDX expression.
+    """Resolve one declared licence value to an SPDX expression.
 
     VALUE is what a package declares, such as a license field or a trove
     classifier. Exit 0 when it resolves, 1 when it does not. One tab
     separates the fields of a line: read them with cut -f or awk -F'\\t'.
     """
     declared = declared_value(ctx, value, text)
-    resolution = match(declared, given_database(ctx, source), source=source)
+    resolution = resolve(declared, given_database(ctx, source), source=source)
     reject_a_path(ctx, declared, resolution)
     if json_output:
         echo_json(json_line(resolution))

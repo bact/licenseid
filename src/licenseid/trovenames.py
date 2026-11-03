@@ -40,7 +40,7 @@ Reading = Literal["stated", "assumed", "none"]
 
 #: The release of PyPA's ``trove-classifiers`` whose ``License ::``
 #: classifiers the table decides, and the ``version`` of the
-#: ``pypi-trove-classifiers`` list in a ``match()`` answer. It is the lower
+#: ``pypi-trove-classifiers`` list in a ``resolve()`` answer. It is the lower
 #: bound of that test dependency in pyproject.toml, which
 #: tests/test_trovenames.py checks every classifier against: raise both
 #: when the table takes a newer release.

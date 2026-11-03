@@ -4,9 +4,9 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0
 ---
 
-# The result of `match()`
+# The result of `resolve()`
 
-What `licenseid.match()` reads in a declared licence value and what it
+What `licenseid.resolve()` reads in a declared licence value and what it
 returns: every field, the categories and their trust, the reasons for a
 refusal, and how quote marks are read. The
 [README](../README.md#python-api) shows how to call it. A value that is not
@@ -17,9 +17,9 @@ one (a `str` or `os.PathLike`); a blank path raises `InvalidInputError`
 is checked ready before it is read: a missing file raises
 `DatabaseNotReadyError` (`not found`) and is never created.
 
-## What `match()` reads
+## What `resolve()` reads
 
-`match()` turns one declared licence value into an SPDX expression and the
+`resolve()` turns one declared licence value into an SPDX expression and the
 steps taken, without fuzzy matching:
 
 - with no database it reads the SPDX License List shipped in the wheel, in
@@ -123,7 +123,7 @@ steps taken, without fuzzy matching:
 
 ### Which list, and its warnings
 
-With no database given (`source="auto"`, the default), `match()` reads the
+With no database given (`source="auto"`, the default), `resolve()` reads the
 database at the default path or the SPDX License List shipped in the wheel,
 whichever holds the newer List; a tie goes to the database only if this
 licenseid's build rules made its rows (not those of an older or a newer
@@ -149,11 +149,11 @@ to standard error: the fallback above, a database built by an older or a
 newer licenseid (`database: build v2 outdated: current v3; run 'licenseid
 update'`) and an unusable shipped list (`spdx-bundle.json.gz: invalid:
 ...`). Each is given once per process, not once per value; `licenseid
-match` prints each as a `WARNING:` line.
+resolve` prints each as a `WARNING:` line.
 
 ## The whole result
 
-For `match("Apache2")`, as JSON:
+For `resolve("Apache2")`, as JSON:
 
 ```json
 {
@@ -205,9 +205,9 @@ same way: the SPDX License List of the database it read, `source`
 
 ## The command line
 
-`licenseid match VALUE` prints this result for one value. `--json` prints
+`licenseid resolve VALUE` prints this result for one value. `--json` prints
 it whole, as above, as one RFC 8785 object on one line (the bytes
-`licenseid.json_line(match(value))` gives). Without it, the result
+`licenseid.json_line(resolve(value))` gives). Without it, the result
 is a few `KEY=VALUE` lines, one data point each, with one tab between
 the fields (shown here as `<TAB>`):
 
@@ -250,17 +250,17 @@ The exit status is 0 when `expression` is not `None`, 1 when it is `None`
 (the lines are still printed, with no `ERROR` line; a `WARNING` about the
 database can still come with it), and 2 for a
 usage error, a list that cannot be read or a result that cannot be written.
-`--source` and `--db` choose the list as `match(value, source=...)` and
-`match(value, db)` do; `--db` with `--source packaged` exits 2. A licence
+`--source` and `--db` choose the list as `resolve(value, source=...)` and
+`resolve(value, db)` do; `--db` with `--source packaged` exits 2. A licence
 text, `-` (standard input), a value with a line break and one
-over 2,000 characters (counted as `match()` counts them, after the
+over 2,000 characters (counted as `resolve()` counts them, after the
 surrounding white space is trimmed) are refused with exit 2, nothing on
 standard output and `; run 'licenseid detect'`: `detect` answers those.
 The value is read first: one that resolves is answered even when a file or
 directory of that name exists, and one that resolves to nothing and names
 one is refused the same way (`input: invalid: path: LICENSE`). An empty
 argument is `input: empty: argument` and no argument `input: missing; pass
-one declared licence value`: `match` never reads standard input. An argument
+one declared licence value`: `resolve` never reads standard input. An argument
 with U+001C to U+001F is refused as a line break and names it (`invalid:
 line break U+001C: MIT`; `--text` of `detect` reads them as white space).
 
@@ -281,7 +281,7 @@ compound, read or refused); every step is licenseid's own. A compound's
 top-level `candidates` is empty: the candidates of a bare deprecated ID
 inside it are its operand's, in `operands[*].candidates` (`GPL-2.0 OR MIT`:
 `GPL-2.0-only` and `GPL-2.0-or-later` on its first operand). For
-`match("GPLv2+ or MIT")`, shortened:
+`resolve("GPLv2+ or MIT")`, shortened:
 
 ```json
 {
@@ -320,13 +320,13 @@ inside it are its operand's, in `operands[*].candidates` (`GPL-2.0 OR MIT`:
 
 A `;` between licences says there are several and not how they combine:
 `MIT ; Apache 2` may be `Apache-2.0 AND MIT` or `Apache-2.0 OR MIT`.
-`match()` does not choose. The value is `unresolved`, `expression` is
+`resolve()` does not choose. The value is `unresolved`, `expression` is
 `None`, `reason` is `operator not stated: ;`, and `operands` holds one entry
 for each part, in order, each read as the same text would be alone (so a part
 that is a compound, `MIT OR ISC`, is read as that compound, and a part that
 cannot be read keeps its own category and `reason`). A caller that asks only
 whether every licence is OSI approved has an answer whatever the operator.
-For `match("MIT ; Apache 2")`, shortened:
+For `resolve("MIT ; Apache 2")`, shortened:
 
 ```json
 {
@@ -397,8 +397,8 @@ value was the listed ID as written, with no step; `detect()`'s `exact` says
 of one result that it was found exactly (declared, a name in full, or the
 whole licence text). The two can differ for one value: `detect("GPL-2.0")`
 answers `GPL-2.0-only`, not exact, a guess said aloud with a warning, where
-`match("GPL-2.0")` keeps `GPL-2.0` as `assumed_only`. Reading `detect()`'s
-declared values through `match()` is planned for 0.8.
+`resolve("GPL-2.0")` keeps `GPL-2.0` as `assumed_only`. Reading `detect()`'s
+declared values through `resolve()` is planned for 0.8.
 
 ## Reasons for a refusal
 
@@ -442,7 +442,7 @@ unless an operand has its own (a dropped mark). A refused value is category
 `unresolved` with no expression, or `malformed` when the compound breaks the
 grammar but names a licence (`MIT AND`). For a dropped mark, `steps` holds one
 `drop` step with `applied` false: its `to` is the listed ID the loose reading
-named (`match("Apache 2.0?")` would have read `Apache-2.0`; a renamed ID is not
+named (`resolve("Apache 2.0?")` would have read `Apache-2.0`; a renamed ID is not
 followed) and its `detail` the code points. White space, `_`, `.`, a dash (the
 hyphen-minus, the Unicode hyphens and dashes and the minus sign) and one `.` or
 `,` at the end are not marks; nor is one `;` or `:` there, which is an ending

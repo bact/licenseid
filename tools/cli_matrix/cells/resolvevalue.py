@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Family F: ``licenseid match``, one declared value.
+"""Family F: ``licenseid resolve``, one declared value.
 
 ``F1`` values read and refused, in every shell (quoting decides what the
 command sees), ``F2`` what only ``detect`` reads, refused with exit 2,
@@ -11,7 +11,7 @@ command sees), ``F2`` what only ``detect`` reads, refused with exit 2,
 streams around it, ``F5`` locales that cannot write every character.
 
 A value that resolves exits 0, one that does not 1, and a refusal 2 with
-``; run 'licenseid detect'`` (``climatch``). The editable install the
+``; run 'licenseid detect'`` (``cliresolve``). The editable install the
 matrix usually runs ships no bundle, so a cell with no ``--db`` reads the
 database at the default path: there is none in the cell's own ``HOME``.
 """
@@ -45,41 +45,41 @@ _DETECT = r"; run 'licenseid detect'\n"
 REFUSED: list[tuple[str, str, str, str]] = [
     (
         "--text",
-        "match --text MIT",
+        "resolve --text MIT",
         "",
         r"option: invalid: --text: a licence text" + _DETECT,
     ),
-    ("a file", "match $F/mit.txt", "", r"input: invalid: path: .*" + _DETECT),
-    ("a directory", "match $F/adir", "", r"input: invalid: path: .*" + _DETECT),
-    ("the current directory", "match .", "", r"input: invalid: path: \." + _DETECT),
+    ("a file", "resolve $F/mit.txt", "", r"input: invalid: path: .*" + _DETECT),
+    ("a directory", "resolve $F/adir", "", r"input: invalid: path: .*" + _DETECT),
+    ("the current directory", "resolve .", "", r"input: invalid: path: \." + _DETECT),
     # C8 of the contract batch: no value is missing, whatever is piped (it
     # read the pipe to say "for detect"); "-" names standard input (below)
-    ("a pipe and no value", "match", "printf MIT | ", r"input: missing; pass one "),
+    ("a pipe and no value", "resolve", "printf MIT | ", r"input: missing; pass one "),
     # nothing piped: no value, not one for detect
-    ("stdin /dev/null", "match < /dev/null", "", r"input: missing; pass one "),
+    ("stdin /dev/null", "resolve < /dev/null", "", r"input: missing; pass one "),
     (
         "a line break",
-        "match \"$(printf 'MIT\\nISC')\"",
+        "resolve \"$(printf 'MIT\\nISC')\"",
         "",
         r"input: invalid: line break U\+000A: MIT ISC" + _DETECT,
     ),
     (
         "over the cap",
-        "match \"$(printf '%2001s' | tr ' ' M)\"",
+        "resolve \"$(printf '%2001s' | tr ' ' M)\"",
         "",
         r"input: invalid: over 2000 characters" + _DETECT,
     ),
-    ("empty argument", "match ''", "", r"input: empty: argument\n"),
+    ("empty argument", "resolve ''", "", r"input: empty: argument\n"),
     (
         "invalid UTF-8",
-        "match \"$(printf 'MIT\\377')\"",
+        "resolve \"$(printf 'MIT\\377')\"",
         "",
         r"input: invalid: text: lone surrogate",
     ),
-    ("two values", "match MIT ISC", "", r"input: invalid: extra argument: ISC"),
+    ("two values", "resolve MIT ISC", "", r"input: invalid: extra argument: ISC"),
     (
         "- (standard input, C5)",
-        "match -",
+        "resolve -",
         "printf MIT | ",
         r"input: invalid: standard input" + _DETECT,
     ),
@@ -87,19 +87,19 @@ REFUSED: list[tuple[str, str, str, str]] = [
 
 #: (description, command, expected exit, stderr regex or None) for F3.
 SOURCES: list[tuple[str, str, int, str | None]] = [
-    ("--db, auto", licenseid("match --json MIT"), 0, None),
-    ("--db, database", licenseid("match --source database MIT"), 0, None),
+    ("--db, auto", licenseid("resolve --json MIT"), 0, None),
+    ("--db, database", licenseid("resolve --source database MIT"), 0, None),
     (
         "--db, packaged",
-        licenseid("match --source packaged MIT"),
+        licenseid("resolve --source packaged MIT"),
         2,
         r"option: invalid: --source: packaged with --db",
     ),
-    ("--db missing", licenseid("match MIT", db="/nonexistent/x.db"), 2, "not found"),
-    ("no --db, database", "$L match --source database MIT", 2, "database: not found"),
-    ("--db=path form", "$L --db=$DB match MIT", 0, None),
+    ("--db missing", licenseid("resolve MIT", db="/nonexistent/x.db"), 2, "not found"),
+    ("no --db, database", "$L resolve --source database MIT", 2, "database: not found"),
+    ("--db=path form", "$L --db=$DB resolve MIT", 0, None),
     # 0 from a wheel (its bundle), 2 from an editable install (none)
-    ("no --db, auto", "$L match MIT", -1, None),
+    ("no --db, auto", "$L resolve MIT", -1, None),
 ]
 
 
@@ -109,9 +109,9 @@ def add_cells(cells: CellSet) -> None:
         for output in ("", "--json "):
             cells.add(
                 "F1",
-                f"match {output}{desc}",
-                licenseid(f"match {output}{shlex.quote(value)}"),
-                kind="match",
+                f"resolve {output}{desc}",
+                licenseid(f"resolve {output}{shlex.quote(value)}"),
+                kind="resolve",
                 outflags=frozenset({"json"} if output else ()),
                 exp_exit=exit_code,
                 shells=EVERY_SHELL,
@@ -119,9 +119,9 @@ def add_cells(cells: CellSet) -> None:
     for desc, args, pre, err in REFUSED:
         cells.add(
             "F2",
-            f"match refuses {desc}",
+            f"resolve refuses {desc}",
             pre + licenseid(args),
-            kind="match",
+            kind="resolve",
             exp_exit=2,
             exp_out="",
             exp_err=f"^ERROR: {err}",
@@ -129,9 +129,9 @@ def add_cells(cells: CellSet) -> None:
     for desc, cmd, exit_code, said in SOURCES:
         cells.add(
             "F3",
-            f"match list: {desc}",
+            f"resolve list: {desc}",
             cmd,
-            kind="match",
+            kind="resolve",
             outflags=frozenset({"json"} if "--json" in cmd else ()),
             exp_exit=None if exit_code < 0 else exit_code,
             exp_err=said,
@@ -144,42 +144,42 @@ def _add_streams(cells: CellSet) -> None:
     """F4: the streams around one value."""
     cells.add(
         "F4",
-        "match, stdout closed",
-        licenseid("match MIT") + " >&-",
-        kind="match",
+        "resolve, stdout closed",
+        licenseid("resolve MIT") + " >&-",
+        kind="resolve",
         exp_exit=2,
         exp_err=r"^ERROR: output: write failed: ",
     )
     cells.add(
         "F4",
-        "match, no value from a terminal",
-        licenseid("match"),
-        kind="match",
+        "resolve, no value from a terminal",
+        licenseid("resolve"),
+        kind="resolve",
         tty=True,
     )
     cells.add(
         "F4",
-        "match, stdin closed",
-        licenseid("match") + " <&-",
-        kind="match",
+        "resolve, stdin closed",
+        licenseid("resolve") + " <&-",
+        kind="resolve",
         exp_exit=2,
         exp_err=r"^ERROR: input: missing; pass one declared licence value\n",
     )
     cells.add(
         "F4",
-        "match, reader gone",
+        "resolve, reader gone",
         # The reader exits at once, long before the command writes: 141
         # (128 + SIGPIPE), quietly. The status is reported on stderr.
-        "(" + licenseid("match --json 'MIT ; Apache 2'") + '; echo "[rc=$?]" >&2)'
+        "(" + licenseid("resolve --json 'MIT ; Apache 2'") + '; echo "[rc=$?]" >&2)'
         " | true",
-        kind="match",
+        kind="resolve",
         exp_err=r"^\[rc=141\]\n\Z",
     )
     cells.add(
         "F4",
-        "match, a file of the value's name here",
-        "cd $W && : > MIT && " + licenseid("match MIT"),
-        kind="match",
+        "resolve, a file of the value's name here",
+        "cd $W && : > MIT && " + licenseid("resolve MIT"),
+        kind="resolve",
         exp_exit=0,
         exp_out=r"EXPRESSION=MIT\tCATEGORY=exact\tTRUST=identity\n",
     )
@@ -201,9 +201,9 @@ def _add_locales(cells: CellSet) -> None:
     for prefix, desc in LOCALES:
         cells.add(
             "F5",
-            f"match text, {desc}",
-            f"{prefix} " + licenseid("match '\u201cMIT\u201d'"),
-            kind="match",
+            f"resolve text, {desc}",
+            f"{prefix} " + licenseid("resolve '\u201cMIT\u201d'"),
+            kind="resolve",
             exp_exit=0,
             exp_out=(
                 r"EXPRESSION=MIT\tCATEGORY=lexical\tTRUST=identity\n"
@@ -212,9 +212,9 @@ def _add_locales(cells: CellSet) -> None:
         )
         cells.add(
             "F5",
-            f"match --json, {desc}",
-            f"{prefix} " + licenseid("match --json '\u201cMIT\u201d \U0001f600'"),
-            kind="match",
+            f"resolve --json, {desc}",
+            f"{prefix} " + licenseid("resolve --json '\u201cMIT\u201d \U0001f600'"),
+            kind="resolve",
             outflags=frozenset({"json"}),
             exp_exit=1,
             exp_out=r'\{.*"input":"\u201cMIT\u201d \U0001f600".*\}\n',

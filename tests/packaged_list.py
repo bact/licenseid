@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The SPDX 3.29.0 List of the fixtures as a bundle, for the tests that read
-``match()`` with and without a database.
+``resolve()`` with and without a database.
 
 Every licence of ``fixtures/license-list`` gets a short text, so the build
 keeps it as the real 3.29.0 does (each ID in use has a text there), and the
@@ -84,7 +84,7 @@ def synthetic_bundle(
 
 def database_of(raw: bytes, path: Path) -> LicenseDatabase:
     """The database ``update --source packaged`` builds at *path* from the
-    bundle *raw*, opened as ``match()`` opens one. No network: the source
+    bundle *raw*, opened as ``resolve()`` opens one. No network: the source
     makes no call, and ``requests.get`` fails if one is made."""
     with pytest.MonkeyPatch.context() as patch:
         ship(patch, raw)

@@ -131,7 +131,7 @@ def read_text_option(ctx: click.Context, text: str) -> str:
     backslash: ``\\n`` is two characters, not a line break (C6)."""
     content = normalize_newlines(text)
     reject_unencodable(ctx, content, binary_source="--text")
-    if not content.strip(WHITE_SPACE):  # U+001C to U+001F are text, as for match
+    if not content.strip(WHITE_SPACE):  # U+001C to U+001F are text, as for resolve
         exit_bad_input(ctx, "empty: --text")
     return content
 

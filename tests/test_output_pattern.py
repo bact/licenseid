@@ -7,7 +7,7 @@
 output"): ``KEY=VALUE`` fields, an uppercase key, one tab between fields,
 a value with no tab, line break or bare backslash; ``--json`` one RFC 8785
 object per line, byte for byte, whose keys include the text keys in lower
-case (it may hold more: ``match``'s whole resolution, ``detect``'s flags and
+case (it may hold more: ``resolve``'s whole resolution, ``detect``'s flags and
 ``lists``), a value that is empty in text ``null`` in JSON and no other.
 The exceptions (``detect --id-only``, ``--version``, ``--help``) are not
 run. A command with no answer prints its record too, every field empty
@@ -43,13 +43,13 @@ RUNS: list[tuple[int, list[str]]] = [
     (0, ["detect", "--text", MIT_TEXT]),
     (0, ["detect", "--top", "3", "--threshold", "0", "--text", "permission"]),
     (1, ["detect", "--id", "No-Such-1.0"]),
-    (0, ["match", "MIT"]),
-    (0, ["match", "GPLv2+ or MIT"]),
-    (1, ["match", "MIT ; Apache 2"]),
-    (1, ["match", "Apache 2.0?"]),
-    (1, ["match", "\u201cMIT\u201d \\ caf\u00e9 \U0001f600"]),
-    (0, ["match", "MIT\tOR ISC"]),
-    (2, ["match", "line\nbreak"]),
+    (0, ["resolve", "MIT"]),
+    (0, ["resolve", "GPLv2+ or MIT"]),
+    (1, ["resolve", "MIT ; Apache 2"]),
+    (1, ["resolve", "Apache 2.0?"]),
+    (1, ["resolve", "\u201cMIT\u201d \\ caf\u00e9 \U0001f600"]),
+    (0, ["resolve", "MIT\tOR ISC"]),
+    (2, ["resolve", "line\nbreak"]),
     *[(0, [cmd, "MIT"]) for cmd in PREDICATES],
     *[(1, [cmd, "--id", "No-Such-1.0"]) for cmd in PREDICATES],
     (0, ["update", "--source", "packaged"]),
@@ -75,7 +75,7 @@ def db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> str:
 def _run(db: str, args: list[str], as_json: bool) -> Result:
     command, *rest = args
     flags = ["--json"] if as_json else []
-    where = [] if command == "match" else ["--db", db]  # match: the shipped list
+    where = [] if command == "resolve" else ["--db", db]  # resolve: the shipped list
     return CliRunner().invoke(cli, [*where, command, *flags, *rest])
 
 
@@ -109,7 +109,7 @@ def _as_text(value: object) -> str:
 def test_every_line_follows_the_pattern(
     monkeypatch: pytest.MonkeyPatch, db: str, status: int, args: list[str]
 ) -> None:
-    if args[0] == "match":  # the fixtures' list: more IDs than the database
+    if args[0] == "resolve":  # the fixtures' list: more IDs than the database
         ship(monkeypatch, fixture_bundle())
     text, as_json = _run(db, args, False), _run(db, args, True)
     assert (text.exit_code, as_json.exit_code) == (status, status), text.output
@@ -124,7 +124,7 @@ def test_every_line_follows_the_pattern(
         assert len(lines) == len(records) == 1
         assert set(lines[0].values()) == {""}
         assert set(records[0].values()) == {None}
-    if args[0] == "match":  # the whole resolution; the head line is part of it
+    if args[0] == "resolve":  # the whole resolution; the head line is part of it
         assert len(records) == 1
         pairs = list(zip(lines[:1], records))
     else:  # one object per line

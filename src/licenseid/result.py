@@ -12,8 +12,8 @@ and, for a text match, the aligned window and the popularity and
 deprecation keys. The public form keeps what a reader can use, the same
 keys for every method.
 
-A resolution (``licenseid.match()``) is public as it is returned; its text
-lines (``licenseid match``) are :func:`resolution_lines`, each value written
+A resolution (``licenseid.resolve()``) is public as it is returned; its text
+lines (``licenseid resolve``) are :func:`resolution_lines`, each value written
 by :func:`text_field`. Every other command's result is one record
 (:func:`fields_line`, :func:`record_json`).
 """
@@ -181,7 +181,7 @@ def record_json(**values: FieldValue) -> str:
 
 
 def resolution_lines(resolution: Resolution) -> list[str]:
-    """*resolution* as ``licenseid match`` prints it, one data point per line:
+    """*resolution* as ``licenseid resolve`` prints it, one data point per line:
 
     - ``EXPRESSION=<expr> CATEGORY=<category> TRUST=<trust>`` (an empty
       ``EXPRESSION=`` when there is none);

@@ -7,9 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 # The Python API
 
 How to call `licenseid` from Python: `detect()` and `LicenseDetector`, the
-predicates, `match()`, the results, errors and warnings. The
-[README](../README.md#python-api) gives the overview; [match.md](match.md)
-describes every field of `match()`'s result.
+predicates, `resolve()`, the results, errors and warnings. The
+[README](../README.md#python-api) gives the overview; [resolve.md](resolve.md)
+describes every field of `resolve()`'s result.
 
 `licenseid.detect()` uses a
 `LicenseDetector` on the database at the default path, kept while that file
@@ -67,21 +67,21 @@ ranking of licence text; an explicit `license_id`, a bare ID or name and an
 `SPDX-License-Identifier` tag are answered before they are read.
 
 To record a licence a package *declares* (a `license` field, a model card),
-use `licenseid.match()`. It returns the SPDX expression and each step taken,
+use `licenseid.resolve()`. It returns the SPDX expression and each step taken,
 so a caller can tell a changed case from a re-spelt ID. A bare deprecated ID
 such as `GPL-3.0` is never narrowed to `-only`: it comes back as written
 (category `assumed_only`) with both candidates.
 
-`match()` needs no database, with an installed wheel (an editable install
+`resolve()` needs no database, with an installed wheel (an editable install
 ships no list). With none given (`source="auto"`), it reads the
 database at the default path or the List shipped in the wheel, whichever is
-newer; `source=` picks one, and `match(value, db)` reads `db`, a
-`LicenseDatabase` or its path ([how it chooses][match-doc-list]).
+newer; `source=` picks one, and `resolve(value, db)` reads `db`, a
+`LicenseDatabase` or its path ([how it chooses][resolve-doc-list]).
 
 ```python
-from licenseid import match
+from licenseid import resolve
 
-r = match("Apache2")
+r = resolve("Apache2")
 r["expression"]  # "Apache-2.0"
 r["category"]    # "version_spelling"
 [s["kind"] for s in r["steps"]]  # ["separator", "version_spelling"]
@@ -92,30 +92,30 @@ r["lists"][0]["source"]  # read from the "database" or the "packaged" list
 
 The whole result, its categories and their trust, the reasons for a
 refusal, licences joined by a `;` (`r["operands"]` lists each) and how quote
-marks are read are in [docs/match.md][match-doc].
-`licenseid match VALUE` prints the same result on the command line
-([Match a declared value](../README.md#3-match-a-declared-value)), and
-`licenseid match --json VALUE` prints the line that
-`licenseid.json_line(match(VALUE))` returns. The types of a result are
+marks are read are in [docs/resolve.md][resolve-doc].
+`licenseid resolve VALUE` prints the same result on the command line
+([Resolve a declared value](../README.md#3-resolve-a-declared-value)), and
+`licenseid resolve --json VALUE` prints the line that
+`licenseid.json_line(resolve(VALUE))` returns. The types of a result are
 exported too: `licenseid.Resolution`, `Category`, `Trust`, `Step`,
 `Operand`, `ListInfo`, `ListSource`, `Source`, `Detection` and `Method`.
 `licenseid.LicenseDatabase(path)` is an opaque handle, to open once and pass
-to `match(db=...)` or `LicenseDetector`. It refuses a file licenseid did not
+to `resolve(db=...)` or `LicenseDetector`. It refuses a file licenseid did not
 build (`DatabaseNotReadyError`, condition `invalid`), whatever `create` is. A
 missing file is made by the first write (`update`), not by opening or
-reading it: `match(value, handle)` on a missing file raises `not found`.
+reading it: `resolve(value, handle)` on a missing file raises `not found`.
 
-`detect()` and `match()` both say `exact`, and the two can differ:
+`detect()` and `resolve()` both say `exact`, and the two can differ:
 `detect()`'s `exact` is per result, true when that answer was found
-exactly (declared, a name in full, or the whole text); `match()`'s `exact`
+exactly (declared, a name in full, or the whole text); `resolve()`'s `exact`
 is a category, the value written as the ID itself, with no step at all.
-`detect GPL-2.0` is `GPL-2.0-only`, not exact (a guess); `match("GPL-2.0")`
+`detect GPL-2.0` is `GPL-2.0-only`, not exact (a guess); `resolve("GPL-2.0")`
 is `GPL-2.0`, `assumed_only`. Routing `detect()`'s declared values through
-`match()` is planned for 0.8. A compound (`MIT OR Apache-2.0`) has empty
+`resolve()` is planned for 0.8. A compound (`MIT OR Apache-2.0`) has empty
 top-level `candidates`; each operand's are in `operands[*].candidates`.
 
-[match-doc]: https://github.com/bact/licenseid/blob/main/docs/match.md
-[match-doc-list]: https://github.com/bact/licenseid/blob/main/docs/match.md#which-list-and-its-warnings
+[resolve-doc]: https://github.com/bact/licenseid/blob/main/docs/resolve.md
+[resolve-doc-list]: https://github.com/bact/licenseid/blob/main/docs/resolve.md#which-list-and-its-warnings
 
 `licenseid.LicenseIdError` (a `RuntimeError`) is the base of
 `licenseid.InvalidInputError` and `licenseid.DatabaseNotReadyError`. The
@@ -140,7 +140,7 @@ Each result is a `licenseid.Detection` with the same keys, `expression`,
 `is_spdx`, `is_osi_approved`, `is_fsf_libre` and `lists`, as in the CLI's
 output above; `similarity` and `coverage` are `None` where nothing was
 measured. `lists` names the list the answer rests on, in the shape of
-`match()`'s `lists` (a `licenseid.ListInfo`): the database's SPDX License
+`resolve()`'s `lists` (a `licenseid.ListInfo`): the database's SPDX License
 List, its `version`, `source` `"database"`. For `detect(text="MIT")`:
 
 ```python

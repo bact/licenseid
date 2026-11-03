@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``licenseid match VALUE``: one declared value, its lines and its exits.
+"""``licenseid resolve VALUE``: one declared value, its lines and its exits.
 
 The list is the 3.29.0 List of the fixtures, shipped as the packaged bundle
 (``release_fakes.ship``); no database is at the default path unless a test
@@ -28,7 +28,7 @@ from db_variants import create_database
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
-from licenseid import console, match, output
+from licenseid import console, output, resolve
 from licenseid.cli import cli
 from licenseid.result import json_line, resolution_lines
 
@@ -41,7 +41,7 @@ def packaged(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def run(*args: str, stdin: str | None = None) -> Result:
-    return CliRunner().invoke(cli, ["match", *args], input=stdin)
+    return CliRunner().invoke(cli, ["resolve", *args], input=stdin)
 
 
 @pytest.mark.parametrize(
@@ -172,9 +172,9 @@ def test_a_line_splits_into_its_fields_and_reads_back() -> None:
     ids=["exact", "steps", "expansion", "semicolon", "reason", "awkward", "quote"],
 )
 def test_the_output_is_the_resolution(value: str) -> None:
-    """Text: resolution_lines of match(); JSON: json_line of match(), the
+    """Text: resolution_lines of resolve(); JSON: json_line of resolve(), the
     same bytes, one line."""
-    expected = match(value)
+    expected = resolve(value)
     text, as_json = run(value), run("--json", value)
     assert text.stdout == "".join(f"{line}\n" for line in resolution_lines(expected))
     assert as_json.stdout == json_line(expected) + "\n"
@@ -207,7 +207,10 @@ def test_the_output_is_the_resolution(value: str) -> None:
         ([""], "input: empty: argument"),
         (["  \t"], "input: empty: argument"),
         (["MIT\udcff"], "input: invalid: text: lone surrogate at character 3"),
-        (["MIT", "ISC"], "input: invalid: extra argument: ISC; run 'cli match --help'"),
+        (
+            ["MIT", "ISC"],
+            "input: invalid: extra argument: ISC; run 'cli resolve --help'",
+        ),
         (
             ["--source", "nope", "MIT"],
             "option: invalid: --source: 'nope' is not one of",
@@ -247,7 +250,7 @@ def test_an_empty_text_option_is_refused_too() -> None:
 
 @pytest.mark.parametrize("stdin", ["", None, "MIT"], ids=["empty", "none", "piped"])
 def test_no_value_is_missing_whatever_is_piped(stdin: str | None) -> None:
-    """C8 of the contract batch: ``match`` never reads standard input (it
+    """C8 of the contract batch: ``resolve`` never reads standard input (it
     read a byte to tell a pipe from nothing, which waits for ever on a pipe
     that stays open)."""
     result = run(stdin=stdin)
@@ -264,13 +267,13 @@ _MAIN = "import sys; from licenseid.cli import main; sys.argv[0] = 'licenseid'; 
 @posix_only
 def test_no_value_does_not_wait_on_a_pipe_that_never_ends() -> None:
     """C8: standard input an open pipe that brings nothing and never closes
-    (``sleep 1000 | licenseid match``, a CI step). It used to block in
+    (``sleep 1000 | licenseid resolve``, a CI step). It used to block in
     read(1); now it exits 2 at once. A child process, with a timeout, so a
     regression fails the test instead of hanging the run."""
     read_end, write_end = os.pipe()
     try:
         child = subprocess.run(
-            [sys.executable, "-c", _MAIN, "match"],
+            [sys.executable, "-c", _MAIN, "resolve"],
             stdin=read_end,
             capture_output=True,
             timeout=30,
@@ -297,7 +300,7 @@ def test_no_value_does_not_wait_on_a_pipe_that_never_ends() -> None:
 )
 def test_the_cap_counts_what_match_counts(value: str, refused: bool) -> None:
     """Trimmed, without the quotes and brackets around the whole: the value
-    match() itself holds to its cap of 2000 characters."""
+    resolve() itself holds to its cap of 2000 characters."""
     result = run(value)
     assert result.exit_code == (2 if refused else 1)
     assert ("over 2000 characters" in result.stderr) is refused
@@ -357,7 +360,7 @@ def test_a_value_that_resolves_is_answered_beside_a_file_of_its_name(
 def test_a_windows_device_name_that_resolves_to_nothing_is_for_detect() -> None:
     """``NUL`` exists everywhere on Windows (os.path.exists says so)."""
     exists = mock.create_autospec(os.path.exists, side_effect=lambda p: p == "NUL")
-    with mock.patch("licenseid.climatch.os.path.exists", exists):
+    with mock.patch("licenseid.cliresolve.os.path.exists", exists):
         refused, answered = run("NUL"), run("MIT")
     assert (refused.exit_code, refused.stderr) == (
         2,
@@ -379,8 +382,8 @@ def test_a_path_is_judged_after_the_list(
 
 
 def test_a_dash_is_refused_for_detect() -> None:
-    """C5: ``-`` names standard input for detect and is-*; match takes one
-    declared value, so ``match -`` points there, and reads nothing."""
+    """C5: ``-`` names standard input for detect and is-*; resolve takes one
+    declared value, so ``resolve -`` points there, and reads nothing."""
     result = run("-", stdin="MIT")
     assert (result.exit_code, result.stdout, result.stderr) == (
         2,
@@ -411,7 +414,7 @@ def test_a_refusal_comes_before_the_list(
 
 
 def test_no_list_to_read_is_exit_2(monkeypatch: pytest.MonkeyPatch) -> None:
-    """No bundle and no database: the database's error, as match() raises."""
+    """No bundle and no database: the database's error, as resolve() raises."""
     ship(monkeypatch, None)
     result = run("MIT")
     assert (result.exit_code, result.stdout) == (2, "")
@@ -423,7 +426,7 @@ def test_no_list_to_read_is_exit_2(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_a_database_given_that_is_not_ready_is_exit_2(
     tmp_path: Path, state: str
 ) -> None:
-    """--db is read as match(value, db): never in place of the packaged list."""
+    """--db is read as resolve(value, db): never in place of the packaged list."""
     path = tmp_path / "given.db"
     if state == "empty":
         path.write_bytes(b"")
@@ -433,7 +436,7 @@ def test_a_database_given_that_is_not_ready_is_exit_2(
         with sqlite3.connect(path) as conn:
             conn.execute("CREATE TABLE notes (body TEXT)")
         conn.close()
-    result = CliRunner().invoke(cli, ["--db", str(path), "match", "MIT"])
+    result = CliRunner().invoke(cli, ["--db", str(path), "resolve", "MIT"])
     condition = {"missing": "not found", "no-rows": "empty"}.get(state, state)
     assert (result.exit_code, result.stdout) == (2, "")
     assert result.stderr.startswith(f"ERROR: database: {condition}: {path}")

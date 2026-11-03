@@ -146,7 +146,7 @@ def offline(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
     """No test reaches the network or sees the snapshot a wheel build ships.
     A test fakes ``requests.get`` itself (``fake_requests_get``,
     ``release_fakes.serve``) and ships a snapshot of its own
-    (``release_fakes.ship``). The packaged index ``match()`` keeps, and
+    (``release_fakes.ship``). The packaged index ``resolve()`` keeps, and
     the fallback warnings it said, are forgotten before and after: a test
     sees only its own snapshot (review gap G7)."""
     monkeypatch.setattr(
@@ -302,7 +302,7 @@ RESULT_KEYS = frozenset(
 
 
 def _database_list() -> ListInfo:
-    """The list a detection on a 3.29.0 database rests on, by match()'s
+    """The list a detection on a 3.29.0 database rests on, by resolve()'s
     builder."""
     lookup = mock.create_autospec(LicenseDatabase, instance=True)
     lookup.get_metadata.return_value = {"license_list_version": "3.29.0"}

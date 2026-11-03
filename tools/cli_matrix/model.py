@@ -34,7 +34,7 @@ EVERY_SHELL: tuple[str, ...] | None = None
 #: Subcommands of the CLI, and the predicate subset of them. A new command
 #: goes at the end, so the cells made per command keep their identifiers.
 PREDS = ["is-osi", "is-fsf", "is-spdx"]
-CMDS = ["update", "detect", *PREDS, "match", "clear-cache"]
+CMDS = ["update", "detect", *PREDS, "resolve", "clear-cache"]
 
 #: A fragment of the MIT licence: enough text for a confident match.
 FRAG = "Permission is hereby granted, free of charge, to any person obtaining a copy"
@@ -80,7 +80,7 @@ IDS = [
 ]
 
 _SUBCOMMAND_RE = re.compile(
-    r"\$L(?: --db \S+)? ?(update|detect|is-osi|is-fsf|is-spdx|match|clear-cache)?"
+    r"\$L(?: --db \S+)? ?(update|detect|is-osi|is-fsf|is-spdx|resolve|clear-cache)?"
 )
 _FLAG_RE = re.compile(r"(?<![\w-])(--[a-z][a-z-]*)")
 
@@ -100,7 +100,7 @@ class Cell:
     fam: str
     desc: str
     cmd: str
-    #: detect | predicate | match | update | help | other -- picks the
+    #: detect | predicate | resolve | update | help | other -- picks the
     #: contract judged.
     kind: str = "other"
     #: Which of json / id-only / diff the command was asked for.

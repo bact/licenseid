@@ -53,7 +53,7 @@ UNIVERSE: dict[str, list[str]] = {
 }
 for _pred in PREDS:
     UNIVERSE[_pred] = ["--text", "--id", "--json", "--help"]
-UNIVERSE["match"] = ["--json", "--source", "--text", "--help"]
+UNIVERSE["resolve"] = ["--json", "--source", "--text", "--help"]
 
 SOURCES = ["arg-id", "arg-file", "--text", "--id", "stdin", "dash", "none"]
 

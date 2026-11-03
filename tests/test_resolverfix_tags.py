@@ -40,7 +40,7 @@ def reference(expression: str) -> Answers:
 NOTHING = Answers(None, None, None, False)
 
 #: (a) An "or later" grant after ``-only`` or ``-or-later``: a qualifier
-#: stated twice, which ``match()`` refuses. Each was read before: as the ID
+#: stated twice, which ``resolve()`` refuses. Each was read before: as the ID
 #: alone, or as the OR of the ID and a licence ``later``.
 TWICE = [
     "GPL-2.0-only or (at your option) any later version",

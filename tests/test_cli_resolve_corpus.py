@@ -3,9 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``licenseid match`` says what ``match()`` says, for every value of the
+"""``licenseid resolve`` says what ``resolve()`` says, for every value of the
 parity corpus and the PyPI sample, on the packaged 3.29.0 List of the
-fixtures: ``--json`` prints ``json_line(match(value))``, the first text line
+fixtures: ``--json`` prints ``json_line(resolve(value))``, the first text line
 the result's expression, category and trust, and the exit is 0 for an
 expression, 1 for none. A value the CLI refuses (exit 2) is one only
 ``detect`` reads (a line break, more than the resolver reads), a blank one,
@@ -25,7 +25,7 @@ from packaged_list import fixture_bundle
 from release_fakes import ship
 from resolver_corpus import parity_rows, sample_rows
 
-from licenseid import match
+from licenseid import resolve
 from licenseid.cli import cli
 from licenseid.resolver import MAX_EXPRESSION_CHARS, read_length
 from licenseid.result import json_line
@@ -38,7 +38,7 @@ def _values(rows: list[dict[str, str]]) -> list[str]:
 
 
 def _refused_by_cli(value: str) -> bool:
-    """What ``licenseid match`` refuses before reading (``climatch``)."""
+    """What ``licenseid resolve`` refuses before reading (``cliresolve``)."""
     return (
         not value.strip()
         or value.splitlines() != [value]
@@ -48,17 +48,17 @@ def _refused_by_cli(value: str) -> bool:
 
 
 def _check(runner: CliRunner, value: str) -> int:
-    """The exit of ``licenseid match --json VALUE``, once its output agrees
-    with match() (and the text output's first line with it)."""
-    as_json = runner.invoke(cli, ["match", "--json", value])
+    """The exit of ``licenseid resolve --json VALUE``, once its output agrees
+    with resolve() (and the text output's first line with it)."""
+    as_json = runner.invoke(cli, ["resolve", "--json", value])
     if _refused_by_cli(value):
         assert (as_json.exit_code, as_json.stdout) == (2, ""), value
         assert as_json.stderr.startswith("ERROR: input: "), value
         return 2
-    expected = match(value)
+    expected = resolve(value)
     assert as_json.stdout == json_line(expected) + "\n", value
     assert as_json.exit_code == (0 if expected["expression"] else 1), value
-    text = runner.invoke(cli, ["match", value])
+    text = runner.invoke(cli, ["resolve", value])
     assert line_fields(text.stdout.splitlines()[0]) == {
         "EXPRESSION": expected["expression"] or "",
         "CATEGORY": expected["category"],
@@ -77,7 +77,7 @@ def _check(runner: CliRunner, value: str) -> int:
     ],
     ids=["parity", "pypi-sample-part", "pypi-sample"],
 )
-def test_the_cli_says_what_match_says(
+def test_the_cli_says_what_resolve_says(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     rows: Callable[[], list[dict[str, str]]],

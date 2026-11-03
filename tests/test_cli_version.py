@@ -23,7 +23,7 @@ from licenseid.cli import main as cli_main
     [
         ["--version"],
         ["--db", "/nonexistent/x.db", "--version"],
-        ["--version", "match"],
+        ["--version", "resolve"],
         ["--version", "--help"],  # eager, as click's own: first one wins
     ],
     ids=["bare", "db", "before-command", "before-help"],

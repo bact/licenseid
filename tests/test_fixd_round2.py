@@ -100,14 +100,14 @@ def test_a_failed_update_leaves_no_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """R2-2 (was: ``typo.db`` made before the release was read, and
-    ``match`` then said ``empty``)."""
+    ``resolve`` then said ``empty``)."""
     ship(monkeypatch, None)  # no packaged list: the update fails
     path = tmp_path / "typo.db"
     result = run("--db", str(path), "update", "--source", "packaged")
     assert result.exit_code == 1
     assert not path.exists()
     assert not path.with_name("typo.db-journal").exists()
-    after = run("--db", str(path), "match", "MIT")
+    after = run("--db", str(path), "resolve", "MIT")
     assert after.stderr.startswith(f"ERROR: database: not found: {path}")
 
 

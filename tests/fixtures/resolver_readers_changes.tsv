@@ -1,4 +1,4 @@
-# The answers task readers (0.7.0 review: the readers detect() and match()
+# The answers task readers (0.7.0 review: the readers detect() and resolve()
 # share) moved in the parity corpus and the PyPI sample. value: Python
 # unicode_escape; group: why it moved (in tests/resolver_changes_readers.py);
 # then the answer, its fields written as in the other answer fixtures.

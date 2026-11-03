@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Adversarial compounds for ``match()`` (task T7): operator case and
+"""Adversarial compounds for ``resolve()`` (task T7): operator case and
 spacing, unbalanced and mixed brackets, grants and quotes per operand,
 references, duplicates, controls, and the limits that keep deep nesting and
 long chains away from the parser, each timed with distinct payloads.
@@ -16,7 +16,7 @@ import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from resolver_corpus import LICENSE_LIST, list_rows
 
-from licenseid import LicenseDatabase, match
+from licenseid import LicenseDatabase, resolve
 from licenseid.identifiers import MAX_PARSE_DEPTH, MAX_PARSE_OPERATORS
 
 #: ``(value, (expression, category, reason))``
@@ -131,7 +131,7 @@ def test_an_adversarial_compound_gets_its_answer(
     value: str,
     expected: tuple[str | None, str, str | None],
 ) -> None:
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert (got["expression"], got["category"], got["reason"]) == expected
 
 
@@ -156,7 +156,7 @@ def test_a_chain_is_read_up_to_the_operator_cap(
 ) -> None:
     value = _chain(operators + 1)
     assert len(value) <= 2000
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     if read:
         assert got["expression"] is not None
         assert len(got["operands"]) == operators + 1
@@ -174,7 +174,7 @@ def test_prose_over_the_operator_cap_is_still_prose(
     """The shape is judged before the cap: 160 phrases of two words are no
     compound, as 10 are, not ``too many operators``."""
     for count in (10, 160):
-        got = match(f" {operator} ".join(["foo bar"] * count), corpus_db)
+        got = resolve(f" {operator} ".join(["foo bar"] * count), corpus_db)
         assert got["category"] == "unresolved"
         assert str(got["reason"]).startswith(reason)  # cut at 60 (P61)
 
@@ -189,7 +189,7 @@ def test_nesting_is_read_up_to_the_depth_cap(
 ) -> None:
     """Brackets around one operand of two, so that the whole is no pair."""
     value = "MIT OR " + "(" * depth + "ISC" + ")" * depth
-    got = match(value, corpus_db)
+    got = resolve(value, corpus_db)
     assert got["reason"] == reason
     assert (got["expression"] is None) == (reason is not None)
 
@@ -221,5 +221,5 @@ def test_a_long_or_deep_compound_is_fast(corpus_db: LicenseDatabase, name: str) 
     value = PAYLOADS[name]
     assert len(value) <= 2000
     start = time.monotonic()
-    match(value, corpus_db)
+    resolve(value, corpus_db)
     assert time.monotonic() - start < 2.0

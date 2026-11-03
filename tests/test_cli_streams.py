@@ -239,7 +239,7 @@ c.main()
 @posix_only
 @pytest.mark.parametrize("command", ["detect", "is-osi"])
 def test_ctrl_c_exits_130(tmp_path: Path, command: str) -> None:
-    """The signal comes while a command waits on its piped input (``match``
+    """The signal comes while a command waits on its piped input (``resolve``
     waited there too until C8: it no longer reads standard input)."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     with subprocess.Popen(

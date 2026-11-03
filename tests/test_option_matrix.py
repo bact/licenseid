@@ -17,8 +17,8 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | CLI blank input      | commands x blank arg / --text / --id / stdin |
 | API ``detect()``     | method / function x text / license_id / file |
 | API ``is_*()``       | PREDICATES x text / license_id / file        |
-| API ``match()``      | source x default database (STATES) x bundle  |
-| CLI ``match``        | --source x default database x --db x --json  |
+| API ``resolve()``      | source x default database (STATES) x bundle  |
+| CLI ``resolve``        | --source x default database x --db x --json  |
 | CLI ``update``       | ``test_update_matrix.py``: --source x --cache |
 |                      | x --list x --force x --json                  |
 | CLI ``clear-cache``  | ``test_clear_cache.py``: state x --json      |
@@ -69,7 +69,7 @@ from resolve_states import (
 )
 
 import licenseid
-from licenseid import LicenseDatabase, match
+from licenseid import LicenseDatabase, resolve
 from licenseid.cli import cli
 from licenseid.datadir import get_default_db_path
 from licenseid.detector import LicenseDetector
@@ -489,19 +489,19 @@ def test_a_missing_file_path_raises_oserror(mit_db: str, tmp_path: Path) -> None
         LicenseDetector(mit_db).detect(file_path=str(tmp_path / "nope"))
 
 
-# --- API match(): source x the database at the default path x bundle ---
+# --- API resolve(): source x the database at the default path x bundle ---
 
 RESOLVE_SOURCES = ["auto", "database", "packaged"]
 BUNDLES = ["shipped", "none", "invalid"]
 _BUNDLE_BYTES = {"shipped": release_bundle(VERSION), "none": None, "invalid": b"bad"}
 _BAD_BUNDLE = "spdx-bundle.json.gz: invalid: BadGzipFile: Not a gzipped file (b'ba')"
-# What each bundle prints when match() loads it: an unusable one warns once.
+# What each bundle prints when resolve() loads it: an unusable one warns once.
 _LOADED = {"shipped": "", "none": "", "invalid": f"WARNING: {_BAD_BUNDLE}\n"}
 _NO_LIST = {"none": "spdx-bundle.json.gz: not found", "invalid": _BAD_BUNDLE}
 
 
 def _resolve_outcome(source: str, state: str, bundle: str) -> tuple[str, str, str]:
-    """What match("MIT", source=source) does, as ``(list source or
+    """What resolve("MIT", source=source) does, as ``(list source or
     "raise", what it raises, what it prints)``, the last two as regular
     expressions. The bundle holds the database's version, so a usable
     database wins the tie (Q4), an outdated one loses it (Q10). Only
@@ -545,7 +545,7 @@ def test_resolve_matrix(
     state: str,
     bundle: str,
 ) -> None:
-    """With no database given, match() reads the database at the default
+    """With no database given, resolve() reads the database at the default
     path or the bundle shipped in the wheel, as *source* says; a list it
     cannot read raises, a database's message unchanged from 0.6.0."""
     ship(monkeypatch, _BUNDLE_BYTES[bundle])
@@ -554,10 +554,10 @@ def test_resolve_matrix(
     where, raised, said = _resolve_outcome(source, state, bundle)
     if where == "raise":
         with pytest.raises(DatabaseNotReadyError) as error:
-            match("MIT", source=source)
+            resolve("MIT", source=source)
         assert re.fullmatch(raised, str(error.value)), str(error.value)
     else:
-        got = match("MIT", source=source)
+        got = resolve("MIT", source=source)
         assert (got["expression"], got["category"]) == ("MIT", "exact")
         assert [(e["source"], e["version"]) for e in got["lists"]] == [(where, VERSION)]
     err = given.lines()
@@ -565,11 +565,11 @@ def test_resolve_matrix(
     # Every warning, an opened database's and the bundle's included, is given
     # once per process (and never printed: test_library_warnings).
     with contextlib.suppress(DatabaseNotReadyError):
-        match("MIT", source=source)
+        resolve("MIT", source=source)
     assert given.lines() == ""
 
 
-#: How a database is given to match(db=...) (P3 of the contract batch).
+#: How a database is given to resolve(db=...) (P3 of the contract batch).
 _DB_FORMS: dict[str, Callable[[Path], object]] = {
     "handle": lambda p: LicenseDatabase(str(p), create=False),
     "new-handle": lambda p: LicenseDatabase(str(p)),  # create: the default
@@ -613,14 +613,14 @@ def test_resolve_matrix_with_a_database_given(
     if source == "packaged":
         message = "option: invalid: source: 'packaged' with db; pass db or source"
         with pytest.raises(InvalidInputError, match=f"^{re.escape(message)}$"):
-            match("MIT", db, source=source)  # type: ignore[arg-type]
+            resolve("MIT", db, source=source)  # type: ignore[arg-type]
     elif state == "ready":
-        got = match("MIT", db, source=source)  # type: ignore[arg-type]
+        got = resolve("MIT", db, source=source)  # type: ignore[arg-type]
         assert [entry["source"] for entry in got["lists"]] == ["database"]
     else:
         condition = "not found" if state == "missing" else "(invalid|unreadable)"
         with pytest.raises(DatabaseNotReadyError, match=f"^database: {condition}: "):
-            match("MIT", db, source=source)  # type: ignore[arg-type]
+            resolve("MIT", db, source=source)  # type: ignore[arg-type]
     assert path.exists() is (state != "missing")
 
 
@@ -630,7 +630,7 @@ def test_resolve_matrix_with_a_database_given(
 def test_resolve_refuses_a_db_that_is_no_database(db: object) -> None:
     """P3: neither a database nor a path is a mistake of the caller."""
     with pytest.raises(TypeError, match="^db must be a LicenseDatabase, str or "):
-        match("MIT", db)  # type: ignore[arg-type]
+        resolve("MIT", db)  # type: ignore[arg-type]
 
 
 # --- CLI match: --source x the database at the default path x --db x --json ---
@@ -639,7 +639,7 @@ DEFAULT_DATABASES = ["usable", "missing"]
 
 
 def _cli_match_outcome(source: str, default: str, given: bool) -> str | None:
-    """Where ``licenseid match`` reads the list, or None for exit 2. The
+    """Where ``licenseid resolve`` reads the list, or None for exit 2. The
     database and the bundle hold one List, built by this licenseid: a tie,
     which the database wins (Q10)."""
     if given:
@@ -656,7 +656,7 @@ def _cli_match_outcome(source: str, default: str, given: bool) -> str | None:
 @pytest.mark.parametrize("default", DEFAULT_DATABASES)
 @pytest.mark.parametrize("source", RESOLVE_SOURCES)
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-def test_cli_match_matrix(
+def test_cli_resolve_matrix(
     monkeypatch: pytest.MonkeyPatch,
     bundle_db: LicenseDatabase,
     source: str,
@@ -664,8 +664,8 @@ def test_cli_match_matrix(
     given: bool,
     output: tuple[str, ...],
 ) -> None:
-    """``--db`` is read as ``match(value, db)``; without it, the list
-    ``--source`` names, as match() reads it. No database is needed."""
+    """``--db`` is read as ``resolve(value, db)``; without it, the list
+    ``--source`` names, as resolve() reads it. No database is needed."""
     ship(monkeypatch, fixture_bundle())
     if default == "usable":
         path = Path(get_default_db_path())
@@ -673,7 +673,7 @@ def test_cli_match_matrix(
         shutil.copyfile(bundle_db.db_path, path)
     db = ["--db", str(bundle_db.db_path)] if given else []
     result = CliRunner().invoke(
-        cli, [*db, "match", "--source", source, *output, "Apache2"]
+        cli, [*db, "resolve", "--source", source, *output, "Apache2"]
     )
     where = _cli_match_outcome(source, default, given)
     if where is None:

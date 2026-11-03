@@ -8,7 +8,7 @@ references, the one definition of each (review gap G11).
 
 ``licenseid.identifiers`` tokenises tags and declared expressions with
 :data:`RE_TOKEN` (the kind of each token: :func:`token_kind`); the compound
-reader of ``match()`` (``licenseid.exprcanon``) finds its operators with
+reader of ``resolve()`` (``licenseid.exprcanon``) finds its operators with
 :data:`RE_OPERATOR`. White space is :data:`WHITE_SPACE`. Standard library
 only, so any module can import it.
 """
@@ -41,7 +41,7 @@ OPERAND_START: Final = ("ID", "(")
 #: White space as Unicode's White_Space property has it: the characters
 #: ``str.isspace()`` takes (``str.split()`` and ``str.strip()`` with no
 #: argument read the same set) but U+001C to U+001F, the information
-#: separators, which are control characters. ``match()`` refuses those
+#: separators, which are control characters. ``resolve()`` refuses those
 #: before any reader sees the value (``resolver._refusal``), so a reader
 #: after that gate may use the ``str`` methods.
 WHITE_SPACE: Final = (
