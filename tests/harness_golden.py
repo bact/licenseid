@@ -64,7 +64,9 @@ def detect_cases(kind: str) -> list[tuple[str, str]]:
 
 def _text_cases(kind: str) -> list[tuple[str, str]]:
     cases = []
-    files = sorted((FIXTURES / f"license-text-{kind}").glob("*.json"))
+    folder = FIXTURES / f"license-text-{kind}"
+    # By name: sorting Paths compares case-insensitively on Windows.
+    files = sorted(folder.glob("*.json"), key=lambda path: path.name)
     for place, path in enumerate(files):
         data = _json(path)
         assert isinstance(data, dict)
@@ -84,8 +86,11 @@ def _mixed_cases() -> list[tuple[str, str]]:
     cases = []
     for folder in ("mixed-content", "mixed-content-curated"):
         root = FIXTURES / folder
-        for path in sorted(p for p in root.rglob("*") if p.is_file()):
-            relative = path.relative_to(root).as_posix()
+        relatives = sorted(
+            p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()
+        )
+        for relative in relatives:
+            path = root / relative
             text = path.read_text(encoding="utf-8", errors="replace")
             cases.append((f"mixed/{folder}/{relative}", text))
     return cases

@@ -141,3 +141,16 @@ def test_the_streams_follow_the_grammar(records: dict[str, hcli.Record]) -> None
 
 def test_the_golden_path_is_inside_the_fixtures() -> None:
     assert CLI_FILE == Path(hg.GOLDEN) / "cli.jsonl"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "a <TMP>/home/x/y.db; run",
+        "a <TMP>\\home\\x\\y.db; run",
+        "a <TMP>\\\\home\\\\x\\\\y.db; run",
+    ],
+    ids=["posix", "windows", "windows escaped"],
+)
+def test_the_rest_of_a_scratch_path_has_one_separator(raw: str) -> None:
+    assert hcli.slash_the_tails(raw) == "a <TMP>/home/x/y.db; run"
