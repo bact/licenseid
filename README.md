@@ -65,9 +65,11 @@ generator.*
   - The flags of an expression are judged operand by operand: `AND` is
     OSI-approved (or FSF-libre) when every operand is, `OR` when any is,
     `X WITH Y` when `X` is. An operand that cannot be judged (a
-    `LicenseRef-*`) leaves the flag of an `AND` or an `OR` empty (`null`),
-    never a false "no". `is_spdx` is true only when every licence and
-    exception ID is on the List: a `LicenseRef-*` makes it false.
+    `LicenseRef-*`) leaves the flag empty (`null`), never a false "no",
+    unless a judged operand decides it: `MIT OR LicenseRef-x` is
+    OSI-approved, `CC-BY-4.0 AND LicenseRef-x` is not. `is_spdx` is true
+    only when every licence and exception ID is on the List: a
+    `LicenseRef-*` makes it false.
   - `WITH <exception>` expressions are validated and matched against the
     SPDX exception list, not just the licence list — e.g.
     `licenseid detect --id "MIT WITH Font-exception-2.0"` resolves correctly
@@ -545,15 +547,18 @@ $ licenseid is-osi --json MIT
 ```
 
 For an expression, `AND` is true when every operand is, `OR` when any is,
-and `X WITH Y` as `X` is, with one condition: the flag is empty (`null` in
-JSON), exit 1, when there is nothing to judge, never a false "no". That is
-when the input names no licence (`EXPRESSION` is empty too), or when an
-operand cannot be judged, for `AND` and for `OR` alike (a tag
-`MIT OR LicenseRef-x`):
+and `X WITH Y` as `X` is. An operand that cannot be judged (a
+`LicenseRef-*`, an ID not on the List) counts as unknown: an `OR` with a
+true operand is still true, and an `AND` with a false one still false. The
+flag is empty (`null` in JSON), exit 1, when there is nothing to judge,
+never a false "no": the input names no licence (`EXPRESSION` is empty too),
+or the unknown operand decides the answer:
 
 ```console
 $ licenseid is-osi --text "SPDX-License-Identifier: MIT OR LicenseRef-x"
-EXPRESSION=MIT OR LicenseRef-x	IS_OSI_APPROVED=
+EXPRESSION=MIT OR LicenseRef-x	IS_OSI_APPROVED=true
+$ licenseid is-osi --text "SPDX-License-Identifier: MIT AND LicenseRef-x"
+EXPRESSION=MIT AND LicenseRef-x	IS_OSI_APPROVED=
 ```
 
 | Command | Key | Description |

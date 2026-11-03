@@ -54,7 +54,8 @@ none, or two, raise `licenseid.InvalidInputError` (a `RuntimeError`); a
 `file_path` that cannot be read raises `OSError` (such as
 `FileNotFoundError`). `is_osi()`, `is_fsf()` and `is_spdx()` take the same
 inputs and no options; `is_osi()` and `is_fsf()` return `None` when an
-operand of the expression cannot be judged.
+operand of the expression cannot be judged and the others do not decide it
+(`MIT OR LicenseRef-x` is `True`, `MIT AND LicenseRef-x` is `None`).
 
 `detect()` applies no threshold and no top: it returns every candidate it
 ranks (dozens for a LICENSE file), best first. Filter on `score` and

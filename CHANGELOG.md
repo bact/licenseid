@@ -7,6 +7,14 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- `is-osi`, `is-fsf`, `is_osi()` and `is_fsf()` answer a compound that one
+  judged operand decides: `MIT OR LicenseRef-x` is OSI-approved,
+  `CC-BY-4.0 AND LicenseRef-x` is not; it was empty
+
 ## [0.7.0] - 2026-11-03
 
 ### Added
