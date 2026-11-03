@@ -14,7 +14,7 @@ from typing import Any, cast
 from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
-from licenseid.dbcheck import check_database_ready, reject_blank_path
+from licenseid.dbcheck import check_database_ready, reject_blank_path, require_path
 from licenseid.errors import InvalidInputError, invalid_id_error
 from licenseid.identifiers import (
     is_qualified_plus,
@@ -72,12 +72,14 @@ _MATCH_OPTIONS: frozenset[str] = frozenset(DetectRequest.__annotations__) - {
 def _check_inputs(text: object, license_id: object, file_path: object) -> None:
     """The input rules of :meth:`LicenseDetector.detect` (P6 of the contract
     batch): :class:`TypeError` for a *text* or *license_id* that is no
-    :class:`str` (it failed deep inside with an ``AttributeError``), and
+    :class:`str` (it failed deep inside), or a *file_path* that is no path;
     :class:`licenseid.errors.InvalidInputError` unless exactly one of the
     three is given (none answered nothing; of two, one won unsaid)."""
     for name, value in (("text", text), ("license_id", license_id)):
         if value is not None and not isinstance(value, str):
             raise TypeError(f"{name} must be str, not {type(value).__name__}")
+    if file_path is not None:
+        require_path(file_path, "file_path")
     given = [
         name
         for name, value in (
@@ -153,7 +155,9 @@ class LicenseDetector:
         *,
         enable_popularity: bool = False,
     ):
-        if db_path is None:
+        if db_path is not None:
+            require_path(db_path, "db_path")
+        else:
             db_path = get_default_db_path()
         reject_blank_path(str(db_path), "db_path")
         # Before LicenseDatabase, which opens the file (create=False below: it
@@ -425,7 +429,8 @@ class LicenseDetector:
         keys (see licenseid.types.Detection).
 
         Give exactly one of text, license_id or file_path. Raises
-        :class:`TypeError` for a text or license_id that is no str;
+        :class:`TypeError` for a text or license_id that is no str, or a
+        file_path that is neither a str nor an os.PathLike of one;
         licenseid.errors.InvalidInputError for none or two of the three, an
         unknown option, a binary file, a text with a lone surrogate, or a
         license_id that names no single license (an AND/OR expression, a

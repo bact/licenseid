@@ -456,6 +456,33 @@ def test_file_path_is_read_the_way_the_cli_reads_a_file(
     assert (given.lines(), capsys.readouterr().err) == (expected_stderr, "")
 
 
+#: Values that are no path: neither a str nor an os.PathLike of one. An int
+#: would be opened as a file descriptor of the caller's, and closed.
+_NOT_PATHS = [b"LICENSE", 1.5, True, ["LICENSE"]]
+
+
+@pytest.mark.parametrize("entry", ["method", "function"])
+@pytest.mark.parametrize("value", _NOT_PATHS, ids=lambda v: type(v).__name__)
+def test_api_file_path_must_be_a_path(
+    mit_db: str,
+    monkeypatch: pytest.MonkeyPatch,
+    entry: str,
+    value: object,
+) -> None:
+    """P2 of fix batch D: ``TypeError`` before any file is opened, as for a
+    ``text`` or ``license_id`` that is no ``str``."""
+    monkeypatch.setattr("licenseid.keptdetector.get_default_db_path", lambda: mit_db)
+    call = LicenseDetector(mit_db).detect if entry == "method" else licenseid.detect
+    with pytest.raises(TypeError, match="^file_path must be str or os.PathLike"):
+        call(file_path=value)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("value", [5, *_NOT_PATHS], ids=lambda v: type(v).__name__)
+def test_api_db_path_must_be_a_path(value: object) -> None:
+    with pytest.raises(TypeError, match="^db_path must be str or os.PathLike"):
+        LicenseDetector(value)  # type: ignore[arg-type]
+
+
 def test_a_missing_file_path_raises_oserror(mit_db: str, tmp_path: Path) -> None:
     """Not worded as a licenseid error: the API leaves I/O errors as they are."""
     with pytest.raises(FileNotFoundError):
@@ -545,6 +572,7 @@ def test_resolve_matrix(
 #: How a database is given to match(db=...) (P3 of the contract batch).
 _DB_FORMS: dict[str, Callable[[Path], object]] = {
     "handle": lambda p: LicenseDatabase(str(p), create=False),
+    "new-handle": lambda p: LicenseDatabase(str(p)),  # create: the default
     "str": str,
     "path": lambda p: p,
 }
@@ -572,6 +600,15 @@ def test_resolve_matrix_with_a_database_given(
         path.write_text("not a database, " * 8, encoding="utf-8")
     if form == "handle" and state != "ready":
         return  # no handle to give: LicenseDatabase() itself fails on the file
+    if form == "new-handle" and state == "foreign":
+        # Neither is a handle to give: it refuses another program's file, and
+        # leaves it as it was (P1 of fix batch D).
+        with pytest.raises(
+            DatabaseNotReadyError, match="^database: (invalid|unreadable)"
+        ):
+            _DB_FORMS[form](path)
+        assert path.read_text(encoding="utf-8") == "not a database, " * 8
+        return
     db = _DB_FORMS[form](path)
     if source == "packaged":
         message = "option: invalid: source: 'packaged' with db; pass db or source"

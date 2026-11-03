@@ -49,6 +49,40 @@ jobs:
         run: |
           python -m build
 
+      - name: Check the wheel and sdist have the version of the release tag
+        # One tag, one version: a release published from a tag that does not
+        # name the built version (v0.7.0 on a 0.7.0-dev.0 tree) must not
+        # reach PyPI. Compares normalised versions (packaging.version), so
+        # v0.7.0 equals 0.7.0 and 0.7.0rc1 equals 0.7.0-rc.1.
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          python -m pip install packaging
+          python - "${RELEASE_TAG#v}" dist <<'PY'
+          import sys
+          from pathlib import Path
+
+          from packaging.utils import parse_sdist_filename, parse_wheel_filename
+          from packaging.version import Version
+
+          tag, dist = Version(sys.argv[1]), Path(sys.argv[2])
+          versions = {
+              path.name: (
+                  parse_wheel_filename(path.name)[1]
+                  if path.suffix == ".whl"
+                  else parse_sdist_filename(path.name)[1]
+              )
+              for path in sorted([*dist.glob("*.whl"), *dist.glob("*.tar.gz")])
+          }
+          if len(versions) != 2:
+              sys.exit(f"expected one wheel and one sdist in {dist}: {sorted(versions)}")
+          bad = {name: str(v) for name, v in versions.items() if v != tag}
+          if bad:
+              sys.exit(f"release tag is {tag}, but the build is {bad}")
+          print(f"release tag {tag} matches {sorted(versions)}")
+          PY
+
       - name: Check the wheel and sdist ship the pinned SPDX list
         # Apart from the hook, which checks it too: a build that lost the
         # hook would ship no snapshot without a word. The pin is

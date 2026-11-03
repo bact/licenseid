@@ -22,6 +22,7 @@ from conftest import clear_cache_line, line_fields, posix_only
 from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
     assert_no_traceback,
     db_in_an_unreadable_directory,
+    refuse_unlink,
     safe_home,  # an autouse fixture: imported to apply it here
 )
 from db_asserts import (
@@ -606,14 +607,7 @@ def test_a_refused_delete_of_the_database_exits_1_on_every_os(
     """The read-only directory test above is POSIX only (chmod); the same
     refusal, simulated, runs on Windows too: one grammar line, exit 1."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
-    real_unlink = Path.unlink
-
-    def refusing_unlink(self: Path, missing_ok: bool = False) -> None:
-        if self == db_path:
-            raise PermissionError(13, "Permission denied", str(self))
-        real_unlink(self, missing_ok=missing_ok)
-
-    monkeypatch.setattr(Path, "unlink", refusing_unlink)
+    refuse_unlink(monkeypatch, db_path)
     result = run("--db", str(db_path), "clear-cache")
     assert_no_traceback(result)
     assert (result.exit_code, result.stdout) == (1, ""), result.stderr

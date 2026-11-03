@@ -13,6 +13,7 @@ from unittest import mock
 import pytest
 from click.testing import CliRunner
 from conftest import clear_cache_line, line_fields
+from db_variants import creating_update
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
@@ -116,7 +117,10 @@ def test_an_empty_home_is_no_home(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_update_builds_the_default_directory(home: Path) -> None:
     """Building is where the directory is created."""
     with mock.patch.object(
-        LicenseDatabase, "update_from_remote", autospec=True, return_value=True
+        LicenseDatabase,
+        "update_from_remote",
+        autospec=True,
+        side_effect=creating_update,
     ):
         result = CliRunner().invoke(cli, ["update"])
     database = home / ".local" / "share" / "licenseid" / "licenses.db"
@@ -135,7 +139,10 @@ def test_update_does_not_build_the_directory_of_an_explicit_path(
     generic ``update failed`` line (roadmap item 10 covers rewording it)."""
     missing = tmp_path / "typo" / "licenses.db"
     with mock.patch.object(
-        LicenseDatabase, "update_from_remote", autospec=True, return_value=True
+        LicenseDatabase,
+        "update_from_remote",
+        autospec=True,
+        side_effect=creating_update,
     ):
         result = CliRunner().invoke(cli, ["--db", str(missing), "update"])
     assert result.exit_code == 1

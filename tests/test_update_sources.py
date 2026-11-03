@@ -187,7 +187,7 @@ def test_the_packaged_source_without_the_data_is_an_error(
         db.update_from_remote(version=version, source="packaged")
     assert str(info.value).startswith(error)
     fake.assert_not_called()
-    assert db_version(db) is None
+    assert not db.db_path.exists()  # a failed update makes no file
 
 
 @pytest.mark.parametrize("source", ["compact", "upstream"])

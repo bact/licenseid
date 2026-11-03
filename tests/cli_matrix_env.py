@@ -18,7 +18,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
+from db_variants import create_database
+
+from licenseid.database import NORMALIZATION_VERSION
 from licenseid.normalize import normalize_text
 from licenseid.records import BUILD_VERSION
 from tools.cli_matrix.config import RunConfig, build_parser, configure_args
@@ -42,7 +44,8 @@ def make_file_db(path: Path) -> Path:
     normalisation rules are out of date.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    LicenseDatabase(str(path))
+    # A handle makes the file at its first write: make it, then seed it.
+    create_database(path)
     with sqlite3.connect(path) as conn:
         conn.execute(_INSERT_LICENSE, ("MIT", "MIT License", True, True, True))
         conn.execute(_INSERT_INDEX, ("MIT", normalize_text(MIT)))

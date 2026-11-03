@@ -6,11 +6,12 @@
 """
 Check that a license database is ready to answer, before anything opens it.
 
-``LicenseDatabase`` creates its tables on open (unless made with
-``create=False``), so an unready or foreign file opened through it could be
-written to, and a partly built database would answer that it knows no such
-licence as if it were complete. The check here opens the file read-only and never writes
-to it.
+``LicenseDatabase`` creates the tables a file lacks (unless made with
+``create=False``), so an unready file opened through it could be written to,
+and a partly built database would answer that it knows no such licence as if
+it were complete. The check here opens the file read-only and never writes to
+it. Another program's file is refused by :func:`reject_foreign_database`,
+which the handle itself calls before it writes.
 
 Stdlib only, so importing it does not pull in ``requests``.
 """
@@ -320,9 +321,14 @@ def _path_problem(db_path: str) -> Refusal | None:
     return None
 
 
+def _unreadable_detail(db_path: str, exc: Exception) -> str:
+    """The DETAIL of ``unreadable``: the path, and why."""
+    return f"{shown(db_path)}: {_one_line(exc)}"
+
+
 def unreadable_error(db_path: str, exc: Exception) -> DatabaseNotReadyError:
     """The refusal for a database that SQLite could not read."""
-    return refused("unreadable", f"{shown(db_path)}: {_one_line(exc)}")
+    return refused("unreadable", _unreadable_detail(db_path, exc))
 
 
 def empty_error(db_path: str) -> DatabaseNotReadyError:
@@ -338,9 +344,16 @@ def invalid_error(db_path: str) -> DatabaseNotReadyError:
     return refused("invalid", shown(db_path))
 
 
-def delete_failed_error(db_path: str, exc: OSError) -> DatabaseNotReadyError:
-    """The refusal for a cache file the operating system would not remove."""
-    return refused("delete failed", f"{shown(db_path)}: {_one_line(os_reason(exc))}")
+def delete_failed_error(
+    path: str, exc: OSError, subject: str = "database"
+) -> DatabaseNotReadyError:
+    """The line for a file the operating system would not remove: the
+    database, or with its file name as *subject* a cache file beside it
+    (``licenses.json: delete failed: <path>: <reason>``)."""
+    detail = f"{shown(path)}: {_one_line(os_reason(exc))}"
+    return DatabaseNotReadyError(
+        f"{subject}: delete failed: {detail}", "delete failed", detail
+    )
 
 
 def _has_columns(
@@ -468,10 +481,10 @@ def lookup_error(db_path: str, exc: sqlite3.Error) -> DatabaseNotReadyError:
     file, and a read-only database that needs its -shm (``_NEEDS_WRITING``)
     cannot be helped by it.
     """
-    error = unreadable_error(db_path, exc)
+    detail = _unreadable_detail(db_path, exc)
     if _open_failure(exc) != "unreadable" or not _can_rebuild(db_path, exc):
-        return error
-    return refused(error.condition, error.detail, _ACTION)
+        return refused("unreadable", detail)
+    return refused("unreadable", detail, _ACTION)
 
 
 def not_found_error(db_path: str) -> DatabaseNotReadyError:
@@ -582,6 +595,20 @@ def reject_foreign_database(db_path: str | os.PathLike[str]) -> None:
     refusal = _refusal(db_path)
     if refusal and refusal[0] in ("invalid", "unknown"):
         raise refusal[1]
+
+
+def require_path(value: object, name: str) -> None:
+    """Raise :class:`TypeError` unless *value*, the argument *name*, is a
+    :class:`str` or an :class:`os.PathLike` of one. An ``int`` is no path:
+    ``open`` would take it for a file descriptor of the caller's, read it and
+    close it; bytes are a path that fails late, with an odd message."""
+    if isinstance(value, str) or (
+        isinstance(value, os.PathLike) and isinstance(os.fspath(value), str)
+    ):
+        return
+    raise TypeError(
+        f"{name} must be str or os.PathLike[str], not {type(value).__name__}"
+    )
 
 
 def reject_blank_path(db_path: str, name: str, *, optional: bool = True) -> None:

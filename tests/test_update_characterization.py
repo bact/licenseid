@@ -18,6 +18,7 @@ from unittest import mock
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from db_variants import create_database
 from release_fakes import tarball
 from test_database_update import _serve
 
@@ -204,6 +205,7 @@ def test_update_vacuums_the_xml_of_an_older_database_away(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = tmp_path / "licenses.db"
+    create_database(path)
     db = LicenseDatabase(str(path))
     big = "x" * 2_000_000
     with db._connection(write=True) as conn:  # pylint: disable=protected-access
@@ -277,7 +279,7 @@ def test_a_failed_insert_rolls_back_and_names_the_database(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = tmp_path / "licenses.db"
-    LicenseDatabase(str(path))  # creates the schema
+    create_database(path)
     with contextlib.closing(sqlite3.connect(path)) as conn:
         conn.execute(
             "CREATE TRIGGER no_exceptions BEFORE INSERT ON exceptions "

@@ -110,9 +110,25 @@ def _seed_ready(conn: sqlite3.Connection) -> None:
     _seed_metadata(conn)
 
 
+def create_database(path: Path) -> Path:
+    """The file at *path* with licenseid's tables, empty, for a test that
+    seeds it directly. A handle makes the file at its first write, not when
+    it is opened (a mistyped name leaves nothing behind)."""
+    LicenseDatabase(str(path))._ensure_schema()  # pylint: disable=protected-access
+    return path
+
+
+def creating_update(self: LicenseDatabase, *_: object, **__: object) -> bool:
+    """A stand-in for ``update_from_remote`` that only makes the file, as the
+    first write of the real one does, and says it updated. Patch it in with
+    ``autospec=True`` for a test of what the command does around an update."""
+    create_database(self.db_path)
+    return True
+
+
 def make_ready_file_db(path: Path) -> Path:
     """A ready on-disk database: real schema, one row, metadata."""
-    LicenseDatabase(str(path))
+    create_database(path)
     with writer(path) as conn:
         _seed_ready(conn)
     return path
@@ -287,7 +303,7 @@ def build_wal_copy_without_wal(name: str, db_dir: Path) -> Variant:
     source = db_dir / "wal-source.db"
     holder = sqlite3.connect(str(source))
     holder.execute("PRAGMA journal_mode=WAL")
-    LicenseDatabase(str(source))
+    create_database(source)
     wal_writer = sqlite3.connect(str(source))
     with wal_writer:
         _seed_ready(wal_writer)
@@ -328,7 +344,7 @@ def build_ready_wal_with_wal(name: str, db_dir: Path) -> Variant:
     metadata but no license row; the row was committed in WAL mode and is not
     checkpointed. Reading only the main file would call it empty."""
     path = _db_path(db_dir)
-    LicenseDatabase(str(path))
+    create_database(path)
     with writer(path) as conn:
         _seed_metadata(conn)
     keep_alive = sqlite3.connect(str(path))

@@ -25,7 +25,13 @@ from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
 from db_asserts import (
     run_args as run,
 )
-from db_variants import MIT_TEXT, REFUSED, make_ready_file_db, writer
+from db_variants import (
+    MIT_TEXT,
+    REFUSED,
+    create_database,
+    make_ready_file_db,
+    writer,
+)
 
 from licenseid import clidetect
 from licenseid.database import LicenseDatabase
@@ -332,7 +338,7 @@ def test_a_plain_path_with_mode_memory_in_a_directory_name_is_a_file(
     """SQLite reads a name as a URI only when it starts with ``file:``."""
     directory = tmp_path / "mode=memory"
     directory.mkdir()
-    database = LicenseDatabase(str(directory / "x.db"))
+    database = LicenseDatabase(str(create_database(directory / "x.db")))
     assert database.use_uri is False
     assert (directory / "x.db").exists()
 

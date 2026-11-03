@@ -27,7 +27,7 @@ from licenseid.clicommon import (
 )
 from licenseid.console import error
 from licenseid.database import LicenseDatabase
-from licenseid.dbcheck import delete_failed_error, reject_foreign_database
+from licenseid.dbcheck import delete_failed_error, named_file, reject_foreign_database
 from licenseid.errors import InvalidInputError, LicenseIdError, one_line
 from licenseid.resolvertypes import SPDX_LIST
 from licenseid.types import UpdateSource
@@ -37,6 +37,8 @@ UPDATED_LISTS = (SPDX_LIST,)
 #: A release version of the SPDX License List (``3.29.0``, ``3.6``), stricter
 #: than the file-name-safe check of ``spdx_source.is_valid_version``.
 _RE_RELEASE = re.compile(r"[0-9]+(?:\.[0-9]+){1,2}")
+#: A cache file name that can be the SUBJECT of a diagnostic (a lowercase word).
+_RE_SUBJECT = re.compile(r"[a-z][a-z0-9._-]*")
 
 
 class ListRequest(NamedTuple):
@@ -120,7 +122,7 @@ def update_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
     """
     db_path = ctx.obj["db_path"]
     requests = parse_lists(ctx, lists)
-    # It writes the schema on open, so never into somebody else's file. Kept
+    # It writes the schema, so never into somebody else's file. Kept
     # outside the try: an unready database is a setup error (exit 2), not an
     # update that failed (exit 1).
     reject_foreign_database(db_path)
@@ -155,6 +157,18 @@ def update_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
         )
 
 
+def _failed_subject(failed: object, db_path: str) -> str:
+    """The SUBJECT of a delete that failed on the file *failed* (None: the
+    error named none): ``database`` for the database itself, else the name
+    of the cache file beside it, or ``cache`` where the name (a ``*`` of a
+    cache pattern can be any text) is not a word a SUBJECT can be."""
+    database = named_file(db_path)
+    if not failed or database is None or Path(str(failed)) == Path(database):
+        return "database"
+    name = Path(str(failed)).name
+    return name if _RE_SUBJECT.fullmatch(name) else "cache"
+
+
 @click.command(name="clear-cache", cls=LicenseIdCommand)
 @json_option
 @click.pass_context
@@ -175,7 +189,8 @@ def clear_cache_command(ctx: click.Context, json_output: bool) -> None:
     try:
         cleared = LicenseDatabase.clear_cache(db_path)
     except OSError as exc:
-        failed = exc.filename or db_path
-        error(str(delete_failed_error(str(failed), exc)))
+        failed = str(exc.filename or db_path)
+        subject = _failed_subject(exc.filename, db_path)
+        error(str(delete_failed_error(failed, exc, subject)))
         ctx.exit(1)
     echo_record(json_output, STATUS="cleared" if cleared else "nothing", PATH=db_path)
