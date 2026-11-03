@@ -118,6 +118,14 @@ def create_database(path: Path) -> Path:
     return path
 
 
+def creating_update(self: LicenseDatabase, *_: object, **__: object) -> bool:
+    """A stand-in for ``update_from_remote`` that only makes the file, as the
+    first write of the real one does, and says it updated. Patch it in with
+    ``autospec=True`` for a test of what the command does around an update."""
+    create_database(self.db_path)
+    return True
+
+
 def make_ready_file_db(path: Path) -> Path:
     """A ready on-disk database: real schema, one row, metadata."""
     create_database(path)

@@ -205,8 +205,8 @@ def test_update_vacuums_the_xml_of_an_older_database_away(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = tmp_path / "licenses.db"
+    create_database(path)
     db = LicenseDatabase(str(path))
-    db._ensure_schema()  # pylint: disable=protected-access
     big = "x" * 2_000_000
     with db._connection(write=True) as conn:  # pylint: disable=protected-access
         conn.execute(

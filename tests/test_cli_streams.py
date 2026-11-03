@@ -23,8 +23,7 @@ import pytest
 from click.testing import CliRunner
 from conftest import invoke_match, make_ready_db_path, posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
-from db_variants import make_ready_file_db
-from release_fakes import creating_update
+from db_variants import creating_update, make_ready_file_db
 
 from licenseid import console, output
 from licenseid.cli import cli

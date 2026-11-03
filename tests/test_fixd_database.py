@@ -119,7 +119,7 @@ def test_a_foreign_file_appearing_before_the_first_write_is_refused(
     handle = LicenseDatabase(str(path))
     foreign_plain(path)
     with pytest.raises(DatabaseNotReadyError, match="^database: invalid: "):
-        handle.update_from_remote()
+        handle._write_db_records([], [], [], None)  # pylint: disable=protected-access
     assert names_in(path) == {"foo"}
 
 

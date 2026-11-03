@@ -17,6 +17,7 @@ from unittest import mock
 import pytest
 from click.testing import CliRunner
 from conftest import GivenWarnings, assert_cached_tarball_removed, is_closed
+from db_variants import create_database
 
 from licenseid.cli import cli
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
@@ -27,9 +28,8 @@ from licenseid.records import BUILD_VERSION
 @pytest.fixture()
 def db(tmp_path: Path) -> Generator[LicenseDatabase, None, None]:
     db_path = str(tmp_path / f"test_{uuid.uuid4().hex[:8]}.db")
-    database = LicenseDatabase(db_path)
-    database._ensure_schema()  # pylint: disable=protected-access
-    yield database
+    create_database(Path(db_path))
+    yield LicenseDatabase(db_path)
 
 
 def test_connection_closes_after_successful_query(

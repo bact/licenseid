@@ -12,6 +12,7 @@ read-only ``vfs=`` URI), because it judged the file at every open; a failed
 
 # pylint: disable=missing-function-docstring,redefined-outer-name
 
+import sqlite3
 import subprocess
 import sys
 import time
@@ -24,8 +25,8 @@ from db_asserts import run_args as run
 from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
     safe_home,  # an autouse fixture: imported to apply it here
 )
-from db_variants import make_ready_file_db
-from release_fakes import ship
+from db_variants import create_database, make_ready_file_db
+from release_fakes import VERSION, release_bundle, ship
 
 from licenseid import DatabaseNotReadyError, LicenseDatabase
 
@@ -44,50 +45,94 @@ time.sleep(float(sys.argv[2]))
 def locked_db(tmp_path: Path) -> Iterator[Path]:
     """A ready database that another process holds locked for ``HOLD`` s."""
     path = make_ready_file_db(tmp_path / "licenses.db")
-    proc = subprocess.Popen(
+    with subprocess.Popen(
         [sys.executable, "-c", _HOLDER, str(path), str(HOLD)],
         stdout=subprocess.PIPE,
         text=True,
-    )
-    try:
-        assert proc.stdout is not None
-        assert proc.stdout.readline().strip() == "locked"
-        yield path
-    finally:
-        proc.kill()
-        proc.wait()
-        if proc.stdout:
-            proc.stdout.close()
+    ) as proc:
+        try:
+            assert proc.stdout is not None
+            assert proc.stdout.readline().strip() == "locked"
+            yield path
+        finally:
+            proc.kill()
 
 
-def test_pin_a_handle_on_a_locked_ready_database_is_refused(locked_db: Path) -> None:
+def test_a_handle_on_a_locked_ready_database_waits_for_the_lock(
+    locked_db: Path,
+) -> None:
+    """R2-1 (was: refused after the 1 s probe with ``database is locked``): a
+    current schema needs no write, so opening is as fail-open as a read, and
+    SQLite's own wait applies."""
     started = time.monotonic()
-    with pytest.raises(DatabaseNotReadyError, match="database is locked"):  # BUG
-        LicenseDatabase(str(locked_db))
-    assert time.monotonic() - started < HOLD  # refused, not waited for
+    handle = LicenseDatabase(str(locked_db))
+    assert time.monotonic() - started >= HOLD / 2  # it did wait
+    assert handle.get_metadata()["license_list_version"]
+
+
+def test_a_handle_that_must_write_to_a_locked_database_is_still_refused(
+    tmp_path: Path,
+) -> None:
+    """Writing into a file that cannot be judged is not done: an older
+    schema of a database somebody holds locked is refused, not written."""
+    path = make_ready_file_db(tmp_path / "licenses.db")
+    with sqlite3.connect(path) as conn:
+        conn.execute("DROP INDEX idx_licenses_name")  # an older schema
+    holder = sqlite3.connect(path, isolation_level=None)
+    holder.execute("BEGIN EXCLUSIVE")
+    try:
+        with pytest.raises(DatabaseNotReadyError, match="database is locked"):
+            LicenseDatabase(str(path))
+    finally:
+        holder.close()
 
 
 @posix_only
-def test_pin_a_ready_database_by_vfs_uri_is_refused(tmp_path: Path) -> None:
+def test_a_ready_database_by_vfs_uri_opens(tmp_path: Path) -> None:
+    """R2-1 (was ``database: invalid``): a name only SQLite can resolve is
+    not written to by a handle that finds the schema current."""
     path = make_ready_file_db(tmp_path / "licenses.db")
-    with pytest.raises(DatabaseNotReadyError, match="^database: invalid: "):  # BUG
-        LicenseDatabase(f"{path.as_uri()}?mode=ro&vfs=unix")
+    handle = LicenseDatabase(f"{path.as_uri()}?mode=ro&vfs=unix")
+    assert handle.get_metadata()["license_list_version"]
 
 
-def test_pin_a_failed_update_leaves_the_mistyped_file(
+def test_a_failed_update_leaves_no_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """R2-2 (was: ``typo.db`` made before the release was read, and
+    ``match`` then said ``empty``)."""
     ship(monkeypatch, None)  # no packaged list: the update fails
     path = tmp_path / "typo.db"
     result = run("--db", str(path), "update", "--source", "packaged")
     assert result.exit_code == 1
-    assert path.exists()  # BUG: made before the release was read
+    assert not path.exists()
+    assert not path.with_name("typo.db-journal").exists()
+    after = run("--db", str(path), "match", "MIT")
+    assert after.stderr.startswith(f"ERROR: database: not found: {path}")
+
+
+def test_an_update_into_a_missing_directory_fails_after_the_download(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The cost of making the file at the first write, accepted: nothing is
+    made, and the error is the SQLite one, as before."""
+    ship(monkeypatch, release_bundle(VERSION))
+    path = tmp_path / "nodir" / "licenses.db"
+    result = run("--db", str(path), "update", "--source", "packaged")
+    assert result.exit_code == 1
+    assert "database: update failed: unable to open database file" in result.stderr
+    assert not path.parent.exists()
 
 
 @posix_only
-def test_pin_a_dangling_symlink_is_made_at_open(tmp_path: Path) -> None:
+def test_a_dangling_symlink_is_not_made_at_open(tmp_path: Path) -> None:
+    """R2-3 (was: the target made at open)."""
     target = tmp_path / "target.db"
     link = tmp_path / "link.db"
     link.symlink_to(target)
-    LicenseDatabase(str(link))
-    assert target.exists()  # BUG: opening made the target
+    handle = LicenseDatabase(str(link))
+    assert not target.exists()
+    with pytest.raises(DatabaseNotReadyError):
+        handle.get_metadata()
+    create_database(link)  # the first write makes it, through the link
+    assert target.exists()

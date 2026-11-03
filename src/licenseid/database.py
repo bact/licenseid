@@ -142,11 +142,6 @@ class LicenseDatabase:
         if is_memory_database(self._source):
             # An in-memory database goes when its last connection closes.
             self._keep_alive = self._connections.connect(write=True)
-        elif create:
-            # Without create the schema check below does it, only when it
-            # must write; with it nothing else stands between a foreign file
-            # and the tables created next.
-            reject_foreign_database(self._source)
 
         self._init_db()
         self._tables = TableCache(self._connections)
@@ -179,6 +174,8 @@ class LicenseDatabase:
         longer matches the index and recall degrades silently. Rows built by
         older records rules miss what those rules now record.
         """
+        if self._schema_pending:
+            return []  # no file yet
         metadata = self.get_metadata()
         # Empty/new databases have no version yet — nothing to warn about.
         if not metadata.get("license_list_version"):
@@ -231,10 +228,9 @@ class LicenseDatabase:
                 raise
         if state == "current":
             return  # nothing to write: a read-only open needs no more
-        if not self._create:
-            reject_foreign_database(self._source)  # never write to another's file
-            if state == "none":
-                raise empty_error(str(self.db_path))
+        reject_foreign_database(self._source)  # never write to another's file
+        if not self._create and state == "none":
+            raise empty_error(str(self.db_path))
         with self._connection(write=True) as conn:
             create_schema(conn)
 
@@ -244,7 +240,7 @@ class LicenseDatabase:
         return (
             not is_memory_database(self._source)
             and named_file(self._source) is not None
-            and not os.path.lexists(self.db_path)
+            and not os.path.exists(self.db_path)
         )
 
     def _ensure_schema(self) -> None:
@@ -311,8 +307,8 @@ class LicenseDatabase:
 
         request = UpdateRequest(version, use_cache, source, force)
         try:
-            self._ensure_schema()
-            self._connections.leave_wal()  # a database of an earlier version used WAL
+            if not self._schema_pending:  # else there is no file to convert
+                self._connections.leave_wal()  # an earlier version used WAL
             return self._update_from_remote(request)
         except DatabaseNotReadyError as e:
             # A read of this database failed: update words it as its own.
@@ -326,7 +322,8 @@ class LicenseDatabase:
         """``update_from_remote`` without the wording of a failed read."""
         from licenseid import releasesource  # see update_from_remote
 
-        current = self.get_metadata().get("license_list_version")
+        pending = self._schema_pending  # no file yet: nothing to read or skip
+        current = None if pending else self.get_metadata().get("license_list_version")
         chain = releasesource.ReleaseChain(self.db_path.parent, request, current)
         target_version, release_date, ds_licenses = chain.target()
         status(f"Target SPDX License List version: {target_version}")

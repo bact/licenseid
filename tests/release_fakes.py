@@ -257,11 +257,3 @@ class FakeResponse:
     def read(self, size: int) -> bytes:
         """The next *size* bytes."""
         return self._stream.read(size)
-
-
-def creating_update(self: LicenseDatabase, *_: object, **__: object) -> bool:
-    """A stand-in for ``update_from_remote`` that only makes the file, as the
-    first write of the real one does, and says it updated. Patch it in with
-    ``autospec=True`` for a test of what the command does around an update."""
-    self._ensure_schema()  # pylint: disable=protected-access
-    return True

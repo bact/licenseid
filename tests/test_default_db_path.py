@@ -13,7 +13,7 @@ from unittest import mock
 import pytest
 from click.testing import CliRunner
 from conftest import clear_cache_line, line_fields
-from release_fakes import creating_update
+from db_variants import creating_update
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
