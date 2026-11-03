@@ -144,7 +144,7 @@ keeps coarse times (FAT, HFS+) and the update keeps the file's size within
 one tick.
 
 A warning is a `licenseid.LicenseIdWarning` given through Python's
-`warnings` (see the [README](../README.md#warnings)), never a line written
+`warnings` (see [the Python API](python-api.md#warnings)), never a line written
 to standard error: the fallback above, a database built by an older or a
 newer licenseid (`database: build v2 outdated: current v3; run 'licenseid
 update'`) and an unusable shipped list (`spdx-bundle.json.gz: invalid:
