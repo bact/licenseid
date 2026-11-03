@@ -399,7 +399,7 @@ def disambiguate_deprecated_id(text: str) -> str | None:
     applies the conservative ``DEPRECATED_BARE_LICENSE_IDS`` fallback. Call
     it *before* SPDX expression tokenisation: "or later" is prose, not OR.
     """
-    bare = _bare_deprecated(text)
+    bare = bare_deprecated(text)
     if bare is None:
         return None
     dep_id, m = bare
@@ -428,7 +428,7 @@ def disambiguate_deprecated_id(text: str) -> str | None:
     return None
 
 
-def _bare_deprecated(text: str) -> tuple[str, re.Match[str]] | None:
+def bare_deprecated(text: str) -> tuple[str, re.Match[str]] | None:
     """The first bare deprecated ID of *text* (DEPRECATED_BARE_LICENSE_IDS),
     the longest tried first, and where it is."""
     for dep_id in sorted(DEPRECATED_BARE_LICENSE_IDS, key=len, reverse=True):
@@ -444,33 +444,6 @@ def _bare_id(dep_id: str) -> re.Pattern[str]:
     phrase; a "." may follow ("GPL-2.0. This version only."), not a "+"."""
     pattern = r"(?<![\w.:-])" + re.escape(dep_id) + r"(?![\w+-])"
     return re.compile(pattern, re.IGNORECASE)
-
-
-# A word that can be an ID: "GPL-3.0" of "GPL-3.0,", "GPL-2.0" of "GPL-2.0/".
-_RE_ID_WORD = re.compile(r"[\w.+-]+")
-
-
-def disambiguate_whole(text: str, db: ListLookup) -> str | None:
-    """:func:`disambiguate_deprecated_id` of *text*, a whole value (a field,
-    a short text): None for no reading, ``""`` where ``match()`` refuses it,
-    so no other reading answers: a mark before the grant (grant_follows:
-    ``GPL-2.0; or later``), or another licence of the List, which the answer
-    would drop ("GPL-3.0, LGPL-2.1 or later" is not LGPL-2.1-or-later)."""
-    first = _bare_deprecated(text)
-    if first is None:
-        return None
-    base, bare = first
-    if grant_follows(base, text[bare.end() :]) is None:
-        return ""  # "GPL-2.0: or later", which no phrase reads but the ID
-    found = disambiguate_deprecated_id(text)
-    if found is None:
-        return None
-    own = {base.casefold(), found.casefold()}
-    others = _RE_ID_WORD.findall(text[: bare.start()] + " " + text[bare.end() :])
-    for word in (other.rstrip(".+") for other in others):
-        if word.casefold() not in own and db.get_license_details(word) is not None:
-            return ""
-    return found
 
 
 def _joins_another(text: str, phrase: tuple[int, int]) -> bool:

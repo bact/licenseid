@@ -17,13 +17,12 @@ from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path
 from licenseid.errors import InvalidInputError, invalid_id_error
 from licenseid.identifiers import (
-    disambiguate_whole,
     is_qualified_plus,
     is_simple_expression,
     is_stray_plus,
     simple_value,
 )
-from licenseid.looseid import loose_with, warn_narrowed
+from licenseid.looseid import disambiguate_whole, loose_with, warn_narrowed
 from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes

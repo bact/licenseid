@@ -13,11 +13,13 @@ exact and fuzzy matches.
 
 import re
 
-from licenseid.classify import OR_LATER_PHRASE, grant_end
+from licenseid.classify import OR_LATER_PHRASE, grant_end, grant_follows, grant_head
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
-from licenseid.exprtokens import RE_TOKEN
+from licenseid.exprtokens import RE_TOKEN, token_kind
 from licenseid.identifiers import (
     ONLY_WORD,
+    bare_deprecated,
+    disambiguate_deprecated_id,
     normalize_identifier,
     qualify_trailing_grant,
     without_outer_brackets,
@@ -149,6 +151,55 @@ def read_inexactly(
     return None
 
 
+# What joins the items of a list, beside "and" and "or".
+_LIST_MARKS = frozenset(",;/&")
+
+
+def disambiguate_whole(text: str, db: ListLookup) -> str | None:
+    """:func:`disambiguate_deprecated_id` of *text*, a whole value (a field,
+    a short text): None for no reading, ``""`` where ``match()`` refuses it,
+    so no other reading answers: a mark before the grant (grant_follows:
+    ``GPL-2.0; or later``), or another licence the value lists, which the
+    answer would drop ("GPL-3.0, LGPL-2.1 or later", :func:`_lists_another`)."""
+    first = bare_deprecated(text)
+    if first is None:
+        return None
+    base, bare = first
+    if grant_follows(base, text[bare.end() :]) is None:
+        return ""  # "GPL-2.0: or later", which no phrase reads but the ID
+    found = disambiguate_deprecated_id(text)
+    if found is None:
+        return None
+    return (
+        "" if _lists_another(text, {base.casefold(), found.casefold()}, db) else found
+    )
+
+
+def _lists_another(text: str, own: set[str], db: ListLookup) -> bool:
+    """Whether *text* lists a licence of the List that is not *own*: an ID
+    that is an item of its own, joined to the rest by marks (",", ";", "/",
+    "&") or "and"/"or" alone ("MIT, GPL-2.0 or later"), or one with a version
+    in it, wherever it stands ("...; docs under the GFDL-1.3"). About 200 IDs
+    are plain words too ("Copyright Intel Corp.", "the same as Ruby"): in
+    prose they name no licence. The words are the expression's (RE_TOKEN)."""
+    items: list[list[str]] = [[]]
+    end = 0
+    for token in RE_TOKEN.finditer(text):
+        kind = token_kind(token[0])
+        if kind == "OP" or not _LIST_MARKS.isdisjoint(text[end : token.start()]):
+            items.append([])
+        end = token.end()
+        if kind == "ID":
+            items[-1].append(token[0])
+    return any(
+        word.casefold() not in own
+        and (len(item) == 1 or any(char.isdigit() for char in word))
+        and db.get_license_details(word) is not None
+        for item in items
+        for word in item
+    )
+
+
 def drops_words(leading: str, expression: str, value: str, *, whole: bool) -> bool:
     """Whether reading the declared *value* as *expression* (its *leading*
     expression, with a grant that follows it applied) would drop words that
@@ -252,13 +303,11 @@ def declared_grant_id_text(text: str) -> str | None:
         pass
     if last is None:
         return None
-    before = text[: last.start()]
-    if not before or not (before[-1].isspace() or before[-1] in "(["):
+    named = grant_head(text[: last.start()])
+    if named is None:
         return None
     end = grant_end(text, last.start())
-    if end is None or not _RE_GRANT_TAIL.fullmatch(text, end):
-        return None
-    return before.rstrip().rstrip("([").rstrip()
+    return named if end is not None and _RE_GRANT_TAIL.fullmatch(text, end) else None
 
 
 def _granted(db: ListLookup, text: str) -> tuple[ListedName, str] | None:

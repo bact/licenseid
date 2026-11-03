@@ -22,12 +22,15 @@ from licenseid.classify import (
 )
 from licenseid.identifiers import (
     disambiguate_deprecated_id,
-    disambiguate_whole,
     is_stray_plus,
     leading_expression,
     normalize_identifier,
 )
-from licenseid.looseid import declared_grant_id_text, granted_id_text
+from licenseid.looseid import (
+    declared_grant_id_text,
+    disambiguate_whole,
+    granted_id_text,
+)
 from licenseid.plusoperator import plus_apart
 
 

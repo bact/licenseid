@@ -22,6 +22,7 @@ import os
 import re
 
 from licenseid.dropguard import dropped
+from licenseid.normalize import strip_comment_prefixes
 
 # The phrases that grant "or any later version", the one detector for prose:
 # the -only / -or-later tie-breaker (ranking), the bare-ID disambiguation
@@ -158,15 +159,31 @@ def grant_follows(tail: str, rest: str) -> bool | None:
     )
 
 
+def grant_head(before: str) -> str | None:
+    """*before*, the text before the "or" of a declared grant, without the
+    white space and the "(" or "[" that stand right before the "or"; None
+    if neither does ("MIT,or later": no word "or"). The one rule of
+    ``looseid.declared_grant_id_text`` and of the gap a tag's grant crosses
+    (:func:`grant_follows`)."""
+    if not before or not (before[-1].isspace() or before[-1] in "(["):
+        return None
+    return before.rstrip().rstrip("([").rstrip()
+
+
+_RE_LINE_BREAK = re.compile(r"\r\n?|\n")
+
+
 def _kept(gap: str) -> bool | None:
     """True if ``match()`` reads past *gap*, what stands between an ID and
-    the "or" of its grant, as ``looseid.declared_grant_id_text`` finds it
-    (white space or a "(" or "[" before the "or") and ``dropguard`` judges
-    the rest; None if it would drop a mark of it."""
-    if not (gap[-1].isspace() or gap[-1] in "(["):
-        return None  # "MIT,or later": no word "or"
-    marks = gap.rstrip().rstrip("([").rstrip()
-    return None if dropped(f"x{marks}") else True
+    the "or" of its grant (:func:`grant_head`, then ``dropguard`` judges
+    the marks); None if it would drop one. A grant wrapped onto a comment
+    line ("GPL-2.0\n * or later") is judged after the last line break, its
+    comment prefix taken off: ``match()`` never sees a line break."""
+    marks = grant_head(gap)
+    lines = _RE_LINE_BREAK.split(gap)
+    if marks is not None and len(lines) > 1:
+        marks = grant_head(f" {strip_comment_prefixes(lines[-1])} ")  # a break
+    return None if marks is None or dropped(f"x{marks}") else True
 
 
 def another_version(licence: str, text: str, start: int) -> bool:
