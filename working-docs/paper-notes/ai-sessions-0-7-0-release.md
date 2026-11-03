@@ -256,9 +256,11 @@ Recorded from the lead's decision notes and the review findings of the run.
   showed `Copyright Intel Corp. GPL-2.0 or later` lost its answer, since
   `Intel` is an SPDX ID. Round 4 counted another ID only as a list item, or
   an ID with a digit anywhere.
-- **A reviewer's tested fix taken over.** For one finding the lead took the
-  fix the reviewer had already tested, not a new one (the finding is in the
-  lead's notes of the run, not named here).
+- **A reviewer's tested fix taken over.** The review of the database-handle
+  fix (#151) found that it refused a locked database it used to wait for
+  (`database is locked` after 1 s; 3 s wait on `main`). The reviewer moved
+  the foreign-file check from the constructor to the point of the first
+  write on a copy, ran 945 tests on it, and the author applied that fix.
 - **A maintainer decision mid-run.** On 2026-11-02 a tag or field with an
   operand the List lacks was set to give no answer, as `match()` refuses it
   (retiring finding F2), and the short-text branch was deferred to 0.8 with
