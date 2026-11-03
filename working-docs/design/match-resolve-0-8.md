@@ -62,6 +62,13 @@ Tier 0, the manifest path). That is the duplication to remove.
 
 ## 2. Names
 
+Revised 2026-11-03, before the 0.7.0 tag (maintainer): the declared-value
+call and command are `resolve()` and `licenseid resolve`, not `match`. The
+result is a `Resolution` whose category can be `unresolved`, the modules are
+`resolve*.py`, and the SPDX matching guidelines use "matching" for licence
+texts, which is `detect`'s job. `detect` stays. The rest of this section is
+the 2026-10-29 decision as it was taken; read `match` as `resolve`.
+
 The names below are the maintainer's (decided 2026-10-29): `resolve` is
 hard to type and remember, and `match` says how, not what. They land in
 0.7.0, before the tag. No backward compatibility is owed (private alpha):
