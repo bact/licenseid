@@ -68,14 +68,17 @@ def main(argv: list[str] | None = None) -> int:
     """Print the differences, or with ``--write`` rewrite the files."""
     parser = argparse.ArgumentParser(prog="python -m tools.golden", description=__doc__)
     parser.add_argument("--write", action="store_true", help="rewrite the files")
+    kinds = [*hg.KINDS, "cli"]
+    # No ``choices``: before Python 3.12, argparse checks an empty ``nargs="*"``
+    # list against them and refuses the default of every kind.
     parser.add_argument(
-        "what",
-        nargs="*",
-        choices=[*hg.KINDS, "cli"],
-        help="a detect kind or cli (default: all)",
+        "what", nargs="*", help=f"one of {', '.join(kinds)} (default: all)"
     )
     args = parser.parse_args(argv)
-    what = args.what or [*hg.KINDS, "cli"]
+    unknown = [name for name in args.what if name not in kinds]
+    if unknown:
+        parser.error(f"invalid choice: {unknown[0]!r}")
+    what = args.what or kinds
     status = 0
     for name in what:
         if name == "cli":

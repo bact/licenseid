@@ -123,9 +123,21 @@ def match_with(
         _explain(lookup, value, found, operands)
         lists = [list_info(lookup, where)]
     resolution = _resolution(value, (found, operands, parsed), lists)
-    if any(s["list"] == TROVE_LIST for s in resolution["steps"]):
+    if TROVE_LIST in _cited(resolution):
         resolution["lists"].append(trove_list_info())  # a name rests on it too
     return resolution
+
+
+def _cited(resolution: Resolution) -> set[str | None]:
+    """The lists the steps of *resolution* rest on: those of the value and
+    those of each operand, which a refused list of licences (``MIT; ISC
+    License (ISCL)``) does not repeat at the top."""
+    readings = [resolution, *resolution["operands"]]
+    return {
+        entry["list"]
+        for reading in readings
+        for entry in [*reading["steps"], *reading["expansions"]]
+    }
 
 
 def _explain(

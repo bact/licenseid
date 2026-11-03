@@ -46,6 +46,7 @@ from licenseid.looseid import (
 from licenseid.plusoperator import plus_apart
 from licenseid.resolvereason import (
     after_bracket,
+    after_exception,
     after_space,
     on_reference,
     stated_twice,
@@ -262,8 +263,12 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
     licence_text, exception_text = _grant_to_licence(parts[0], parts[1])
     licence, tail = Found(), Found()
     exception = _exception(db, exception_text, tail)
-    if exception is None or not _one(db, licence_text, licence):
+    plus = exception is None and _plus_on_exception(db, exception_text)
+    if (exception is None and not plus) or not _one(db, licence_text, licence):
         return False
+    if plus and licence.expression is not None:
+        found.category, found.reason = "malformed", after_exception(text)
+        return True
     if licence.expression is None:
         found.category, found.reason = licence.category, licence.reason
         return True
@@ -272,6 +277,16 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
     found.expression = f"{licence.expression} WITH {exception}"
     found.candidates = [f"{c} WITH {exception}" for c in licence.candidates]
     return True
+
+
+def _plus_on_exception(db: ListLookup, text: str) -> bool:
+    """Whether *text* is a listed exception and a "+" (``X+``, ``X +``): the
+    operator qualifies a licence ID, not an exception, so the WITH is
+    malformed rather than its exception not found."""
+    stem = text.strip()
+    if not stem.endswith("+"):
+        return False
+    return _exception(db, stem[:-1].rstrip(), Found()) is not None
 
 
 def _grant_to_licence(licence: str, exception: str) -> tuple[str, str]:
@@ -430,13 +445,14 @@ def _grant(
     decision Q14), after its deprecation, as ``X+`` is read, whether or not
     its ID has a version (``MIT or later`` is ``MIT+``; P35, decided by the
     maintainer on 2026-10-29). A ``LicenseRef-*`` takes no "+" (invalid
-    SPDX) and is unresolved, not read without the grant."""
+    SPDX) and is malformed, as ``LicenseRef-x+`` is, not read without the
+    grant."""
     license_id, steps = base
     granted = loose_id(db, text)
     # A reference first: it takes no grant, whatever it ends in
     # (``LicenseRef-x-only or later``), as ``LicenseRef-x-only+`` reads.
     if granted is None and is_license_ref(license_id):
-        found.category, found.reason = "unresolved", on_reference(text)
+        found.category, found.reason = "malformed", on_reference(text)
         return True
     # "+" last: `_qualified` makes `X+ or later` malformed before this, so
     # it only guards a list that has an ID ending in "+" (`Foo+`, no `Foo`)
