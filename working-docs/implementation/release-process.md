@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-22
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -24,13 +24,16 @@ A release with many merged changes is reviewed as a whole first:
    into `[Unreleased]`: the tag does not exist yet.
 2. Preparation PR: bump `__version__` in `src/licenseid/__init__.py`;
    `version`, `dateModified` and `datePublished` in `codemeta.json`; the
-   section heading and date in `CHANGELOG.md`. `CITATION.cff` follows from
-   `codemeta.json` by workflow.
+   section heading and date in `CHANGELOG.md`; the version in the Citation
+   block and the BibTeX of `README.md` (they are not generated).
+   `CITATION.cff` follows from `codemeta.json` by workflow.
 3. Wait for CI on the merge commit on `main` (unit tests, build wheels, lint,
    type checking). Tag `v<version>` on that commit and publish the GitHub
    release; publishing starts `pypi-publish.yml`, which builds with
    `LICENSEID_REQUIRE_BUNDLE=1` and checks that the wheel and the sdist hold
-   the pinned SPDX list (see "The SPDX list a release ships").
+   the pinned SPDX list (see "The SPDX list a release ships"). The same run
+   fails when the wheel or the sdist has another version than the tag: one
+   tag, one version.
 4. Watch the publish run. Then install from PyPI in a clean environment
    and run `licenseid update` (see below).
 5. Check that the PyPI page and the release list the wheel and the sdist.

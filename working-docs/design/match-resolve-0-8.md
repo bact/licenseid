@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -222,3 +222,70 @@ names.
 - Changing the ranking of Tiers 1 and 2.
 - Several-word operands of a compound (P43): a resolver rule, which `detect`
   then gets for free.
+
+## 7. Leftovers of the 0.7.0 resolver and readers reviews
+
+Seen in the whole-release review (2026-11-02 to 11-03), not fixed in 0.7.0.
+One line each, with the pull request that found it.
+
+Readers (#149, #147):
+
+- A tag or field reads `(MIT) or later` as `MIT+`; `match()` refuses it.
+- A tag or field reads prose `GPL-2.0 (at your option) any later version`;
+  `match()` refuses it. Tag `Intel, GPL-2.0 or later` is `Intel`, exact (the
+  leading ID).
+- Field or text `Apache 2.0 or later` is not `Apache-2.0+` as in `match()`.
+- U+001C to U+001F inside a value: `--id $'\x1fMIT'` is exact, `match()`
+  refuses it; `detect(license_id='\x1f')` raises nothing in the API; a lone
+  `$'\x1f'` gives `empty: argument` (`clicommon`).
+- `AdditionRef-*` after `WITH`: tag, field and `--id` refuse it, `match()`
+  answers it exact. A grant before `WITH` is refused by a tag, answered by a
+  field and `match()`. `(MIT OR GPL-2.0) or later` is exact in a tag,
+  refused in `match()`.
+- A quoted TOML `EUPL 1.1+` drops the "+". The inline grant regex in
+  `markers._name_variants` is a second reader of "or later".
+- Tag `licenseref-foo` alone names nothing, while `MIT OR licenseref-foo` is
+  exact (`markers`, `detector`). A tag `GPL-2.0, version 3 or later` is
+  `GPL-2.0-or-later` (the grant belongs to version 3); `GPL-2.0-only or not
+  later` reads `GPL-2.0-only OR not`; `MIT, see LICENSE or later` is `MIT`.
+- `detect` argument or field `GPL-2.0 +` is `GPL-2.0-only`, not exact, with
+  a warning (`versionkey`, `shorttext`); `match("GPL-2.0\xa0or\xa0later")`
+  says `qualifier stated twice`; `normalize._RE_COPYRIGHT_NOTICE` has
+  `IGNORECASE` without `ASCII`.
+- `classify.grant_at` repeats `looseid.grant_end`; unify them.
+- `Apache2` is refused in a tag, though `match()` reads it loosely.
+
+Resolver values and fixes (#147, fix batch R):
+
+- Trove name plus one end mark, `"" OR MIT` (whole reason), `"" OR ""` and
+  `OR` (`not found: OR`; AGPL by name goes to short text), `LicenseRef-a, or
+  any later version` (`not found`), `MIT WITH Foo` reasons.
+- `MIT WİTH Classpath-exception-2.0` is read as `WITH` by
+  `looseid.WITH_OPERATOR` (no `re.ASCII`).
+- `GFDL-1.3-invariants or any later version` and `GFDL-1.3-invariants+`;
+  `MIT or_later` against `MIT or later`; `(Foo)+ OR ISC` has a vague reason;
+  the detect field reading of `GPL-2.0 or_later` (a tag gives `-only`).
+- Smaller reason gaps, the 2,000-character limit counting the inner value,
+  and `MIT; MIT` (review findings B7 to B9).
+- `licenseid match` refuses an argument with U+001C to U+001E as a line
+  break (`climatch`, `splitlines`); exit 2 kept.
+
+BSD-1-Clause (#148):
+
+- A BSD-1 text that is bulleted, unnumbered, `1)`, reflowed or
+  comment-wrapped is still missed (a Tier 1 fix); the ISC fixture text reads
+  as `Python-2.0` at 0.73 (the Tier 1 query spends its words on copyright
+  lines).
+- `classify._RE_NUMBERED_SECTION` (`^\s*\d+\.\s+\w`) has the same
+  quadratic blank-line pattern the BSD marker had: about 6 s at 20,000 blank
+  lines.
+- BSD-2-Clause-Patent text distorted 5%: AMPAS reads as BSD-1-Clause (wrong
+  before and after).
+
+Short text (maintainer, 2026-11-02): the branch `release-0.7-short-text`
+(d9bbc23) and its review are kept. On `main`, `detect("Foo")` is
+`3D-Slicer-1.0` at 1.0; one or two words of a name (`the`, `GPL`, `Apache
+License`) answer by name at 1.0; `detect("OR")` is AGPL by name; phrases of
+40 or more characters that several licences share still answer 1.0. An
+0.8 fix must avoid what the review found on the branch: LGPL names to
+`LiLiQ-R-1.1`, `New BSD`, unique title lines, an exact short text scaled.
