@@ -210,8 +210,11 @@ How a resolution becomes a `detect` result. Each point is a decision
   did for `resolve()`, with an `EXPECTED_CHANGES` guard.
 - **D8 flags of a compound with an unjudged operand.** 0.7.0 gives no flag
   (empty, `null`, exit 1) for `MIT OR LicenseRef-x` whenever an operand
-  cannot be judged (review P140). Open: Kleene logic, where `MIT OR
-  LicenseRef-x` is OSI approved and `0BSD AND LicenseRef-x` is not.
+  cannot be judged (review P140). Decided 2026-11-03 (maintainer): normal
+  logic, "`OR` requires only one operand to be true". `MIT OR LicenseRef-x`
+  is OSI approved; an `OR` is false only when every operand is false; an
+  `AND` is true only when every operand is true and false when one is false
+  (`0BSD AND LicenseRef-x` is not OSI approved). Anything else stays empty.
 - **D9 the word "matcher".** After the rename to `detect` and `match`, the
   README title, `licenseid --help` ("SPDX License ID matcher tool"),
   `codemeta.json`, the keywords and the `tests/test_matcher*.py` names
