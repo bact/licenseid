@@ -49,12 +49,12 @@ def db() -> Generator[LicenseDatabase, None, None]:
         ("MIT WITH Font-exception-2.0", False, True, True),
         # cannot be judged: None, whatever the other operands say
         ("LicenseRef-x", False, None, None),
-        ("MIT OR LicenseRef-x", False, None, None),
-        ("Proprietary-1.0 AND LicenseRef-x", False, None, None),
+        ("MIT OR LicenseRef-x", False, None, None),  # BUG: D8
+        ("Proprietary-1.0 AND LicenseRef-x", False, None, None),  # BUG: D8
         ("MIT AND Apache-2.0", False, None, None),  # Apache-2.0: no row here
-        ("DocumentRef-d:LicenseRef-x OR MIT", False, None, None),
+        ("DocumentRef-d:LicenseRef-x OR MIT", False, None, None),  # BUG: D8
         ("LicenseRef-x WITH Classpath-exception-2.0", False, None, None),
-        ("(MIT OR 0BSD) AND (WTFPL OR LicenseRef-x)", False, None, None),
+        ("(MIT OR 0BSD) AND (WTFPL OR LicenseRef-x)", False, None, None),  # BUG: D8
     ],
 )
 def test_the_flags_of_an_expression(
