@@ -17,7 +17,6 @@ import pytest
 from resolver_corpus import corpus_rows
 
 from licenseid import LicenseDatabase, match
-from licenseid.resolveleaf import _grant_head
 from licenseid.resolvertypes import TROVE_LIST
 from tools.pypi_licence_sample.answer import unescape_field
 
@@ -291,7 +290,7 @@ def test_a_compound_beside_the_misplaced_marks(
     assert _answer(corpus_db, value) == expected
 
 
-# --- item 4: one reader of "or later" -----------------------------------------
+# --- item 4: "or later" (withdrawn in review round 3; records for 0.8) ------
 
 
 @pytest.mark.parametrize(
@@ -300,11 +299,6 @@ def test_a_compound_beside_the_misplaced_marks(
         "GPL-2.0 or later",
         "GPL-2.0 or-later",
         "GPL-2.0 or any later version",
-        "GPL-2.0 or_later",
-        "GPL-2.0 or.later",
-        "GPL-2.0 or _later",
-        "GPL-2.0 or later-",
-        "GPL-2.0 or later_",
     ],
 )
 def test_a_spaced_or_later_is_a_stated_qualifier(
@@ -317,6 +311,25 @@ def test_a_spaced_or_later_is_a_stated_qualifier(
     )
     assert [s["kind"] for s in got["steps"]] == []
     assert [s["kind"] for s in got["expansions"]] == ["stated_qualifier"]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "GPL-2.0 or_later",
+        "GPL-2.0 or.later",
+        "GPL-2.0 or _later",
+        "GPL-2.0 or later-",
+        "GPL-2.0 or later_",
+    ],
+)
+def test_an_or_later_in_other_separators_is_a_separator_spelling(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    # 0.8: the loose reader reads these as a spelling of the ID, while
+    # ``GPL-2.0 or later`` is a stated qualifier; one reader of the grant
+    # would make them agree (a loose grant past the drop guard was withdrawn)
+    assert _answer(corpus_db, value) == ("GPL-2.0-or-later", "separator", None)
 
 
 @pytest.mark.parametrize("base", ["1.1", "1.2", "1.3"])
@@ -376,23 +389,6 @@ def test_beside_a_spaced_or_later(
     corpus_db: LicenseDatabase, value: str, expected: tuple[object, ...]
 ) -> None:
     assert _answer(corpus_db, value) == expected
-
-
-@pytest.mark.parametrize(
-    ("text", "license_id", "head"),
-    [
-        ("GPL-2.0 or later", "GPL-2.0-or-later", "GPL-2.0"),
-        ("GPL v2 or _ later", "GPL-2.0-or-later", "GPL v2"),
-        ("GPL-2.0 or later", "GPL-2.0-only", None),  # no "-or-later" ID
-        ("GPL-2.0 or later", "GPL-2.0", None),
-        ("GPL 2.0-or-later", "GPL-2.0-or-later", None),  # joined to the ID
-        ("GPL-2.0 x or later", "GPL-2.0-or-later", "GPL-2.0 x"),
-        ("GPL-2.0 later", "GPL-2.0-or-later", None),  # only part of it
-        ("or later", "GPL-2.0-or-later", None),  # no licence before it
-    ],
-)
-def test_grant_head(text: str, license_id: str, head: str | None) -> None:
-    assert _grant_head(text, license_id) == head
 
 
 # --- item 5: a qualifier on a reference is malformed --------------------------
