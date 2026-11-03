@@ -43,6 +43,7 @@ from licenseid.looseid import (
     granted_id_text,
     loose_id,
 )
+from licenseid.plusoperator import plus_apart
 from licenseid.resolvereason import (
     after_bracket,
     after_space,
@@ -338,10 +339,11 @@ def _plus(db: ListLookup, text: str, found: Found) -> bool:
     value names a licence."""
     core = _RE_TRAILING.sub("", text)
     stripped = text[:-1].rstrip()
-    if stripped.endswith(")"):  # a "+" follows a license ID, not a bracket
+    apart = plus_apart(text, len(text) - 1)
+    if apart == "bracket":  # a "+" follows a license ID, not a bracket
         inner = without_outer_brackets(stripped).strip()
         return _malformed_if_named(db, inner, found, after_bracket(text))
-    if stripped != text[:-1] and text[len(core) :].count("+") == 1:
+    if apart and text[len(core) :].count("+") == 1:  # after a space
         return _malformed_if_named(db, stripped, found, after_space(text))
     base = _base(db, stripped)
     if base is None:

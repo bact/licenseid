@@ -20,6 +20,12 @@ from licenseid.classify import (
     grant_follows,
     grant_spans,
 )
+from licenseid.deprecatedids import (
+    BARE_TO_OR_LATER,
+    DEPRECATED_BARE_LICENSE_IDS,
+    DEPRECATED_SPDX_LICENSE_IDS,
+    DEPRECATED_WITH_IDS,
+)
 from licenseid.dropguard import trim_end_mark
 from licenseid.exprtokens import (
     OPERAND_START,
@@ -39,6 +45,7 @@ from licenseid.listlookup import ListLookup
 from licenseid.plusoperator import (
     LICENSE_REF_PREFIX,
     plus_after_qualifier,
+    plus_apart,
     states_qualifier,
     strip_plus_operator,
 )
@@ -53,68 +60,6 @@ from licenseid.versionkey import named_row
 # cap just skip canonicalization rather than risking a slow/blocking call
 # on a pathological or adversarial one.
 _MAX_CANONICALIZE_OPERATORS = 40
-
-# Deprecated SPDX License IDs using the '+' expression token.
-# The SPDX '+' operator means "or any later version" (SPDX Spec §10.1).
-# These can be resolved to canonical form with certainty because the '+'
-# unambiguously indicates the -or-later variant.
-#
-# Reference: SPDX Specification v3.0, Annex D — SPDX License Expressions
-#   https://spdx.github.io/spdx-spec/v3.0/annexes/spdx-license-expressions/
-DEPRECATED_SPDX_LICENSE_IDS: dict[str, str] = {
-    "GPL-1.0+": "GPL-1.0-or-later",
-    "GPL-2.0+": "GPL-2.0-or-later",
-    "GPL-3.0+": "GPL-3.0-or-later",
-    "LGPL-2.0+": "LGPL-2.0-or-later",
-    "LGPL-2.1+": "LGPL-2.1-or-later",
-    "LGPL-3.0+": "LGPL-3.0-or-later",
-    "AGPL-1.0+": "AGPL-1.0-or-later",
-    "AGPL-3.0+": "AGPL-3.0-or-later",
-    "GFDL-1.1+": "GFDL-1.1-or-later",
-    "GFDL-1.2+": "GFDL-1.2-or-later",
-    "GFDL-1.3+": "GFDL-1.3-or-later",
-}
-
-# Conservative last-resort fallback for bare deprecated IDs (no '+' suffix).
-# These IDs are technically ambiguous: GPL-2.0 could be either GPL-2.0-only
-# or GPL-2.0-or-later, as both share the same license text.  Strict resolution
-# requires the granting declaration in the source file (e.g. "version 2 only"
-# or "any later version").
-#
-# When no granting context is available this tool maps bare IDs to '-only'
-# as the conservative interpretation, consistent with common practice in the
-# FOSS ecosystem where an unqualified GPL-2.0 reference is usually treated as
-# version-only.  This fallback is applied last, after DB and '+'-form checks.
-DEPRECATED_BARE_LICENSE_IDS: dict[str, str] = {
-    "GPL-1.0": "GPL-1.0-only",
-    "GPL-2.0": "GPL-2.0-only",
-    "GPL-3.0": "GPL-3.0-only",
-    "LGPL-2.0": "LGPL-2.0-only",
-    "LGPL-2.1": "LGPL-2.1-only",
-    "LGPL-3.0": "LGPL-3.0-only",
-    "AGPL-1.0": "AGPL-1.0-only",
-    "AGPL-3.0": "AGPL-3.0-only",
-    "GFDL-1.1": "GFDL-1.1-only",
-    "GFDL-1.2": "GFDL-1.2-only",
-    "GFDL-1.3": "GFDL-1.3-only",
-}
-
-# Mapping of deprecated "-with-" IDs to their modern counterparts
-DEPRECATED_WITH_IDS: dict[str, str] = {
-    "GPL-2.0-with-font-exception": "GPL-2.0-only WITH Font-exception-2.0",
-    "GPL-2.0-with-GCC-exception": "GPL-2.0-only WITH GCC-exception-2.0",
-    "GPL-2.0-with-autoconf-exception": "GPL-2.0-only WITH Autoconf-exception-2.0",
-    "GPL-2.0-with-bison-exception": "GPL-2.0-only WITH Bison-exception-2.2",
-    "GPL-3.0-with-autoconf-exception": "GPL-3.0-only WITH Autoconf-exception-3.0",
-    "GPL-3.0-with-GCC-exception": "GPL-3.0-only WITH GCC-exception-3.1",
-    "GPL-2.0-with-classpath-exception": "GPL-2.0-only WITH Classpath-exception-2.0",
-}
-
-# Lookup: bare deprecated ID → canonical or-later form.
-# Derived from DEPRECATED_SPDX_LICENSE_IDS by stripping the trailing "+".
-_BARE_TO_OR_LATER: dict[str, str] = {
-    k[:-1]: v for k, v in DEPRECATED_SPDX_LICENSE_IDS.items()
-}
 
 # Compiled regexes for prose disambiguation of bare deprecated IDs.
 # The or-later phrases are read by classify.OR_LATER_PHRASE, shared with the
@@ -206,13 +151,34 @@ def parse_declared(value: str) -> py_spdx_license.Node | None:
 
 
 def is_qualified_plus(value: str) -> bool:
-    """Whether *value*, whole, is shaped as an SPDX expression but for a "+"
+    """Whether *value*, whole (one end mark after it aside, as ``match()``
+    reads ``GPL-2.0-only+,``), is shaped as an SPDX expression but for a "+"
     after a stated qualifier ("GPL-2.0-only+", "MIT OR GPL-2.0-or-later+").
     It names no license, so no license may answer in its place: a near name
     ("LGPL-3.0-only") is not what the value says either. Not parsed, so an
     expression too large to parse is one too."""
     value = value.strip()
+    value = trim_end_mark(value) or value
     return plus_after_qualifier(value) and leading_expression(value) == value
+
+
+def is_stray_plus(value: str) -> bool:
+    """Whether *value*, whole (one end mark after it aside: ``MIT +,``), is
+    one simple expression but for the "+" signs that end it, none of which
+    is the operator: one apart from its ID (plusoperator.plus_apart:
+    ``MIT +``, ``(MIT)+``) or more than one (``MIT++``, ``MIT + +``). It
+    names no license, as ``match()`` refuses it (``malformed``): read
+    without them, it would drop them in silence."""
+    value = value.strip()
+    value = trim_end_mark(value) or value
+    end = len(value)  # past the "+" and white space at the end: no regex,
+    while end and (value[end - 1].isspace() or value[end - 1] == "+"):
+        end -= 1  # which a long run of spaces would make quadratic
+    core = value[:end]
+    if core == value:
+        return False
+    stray = plus_apart(value, len(value) - 1) or value[len(core) :].count("+") > 1
+    return stray and is_simple_expression(core)
 
 
 def _too_large_to_parse(expression: str) -> bool:
@@ -244,7 +210,9 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     beside it: "MIT OR GPL-2.0 or later" is "MIT OR GPL-2.0-or-later". The
     grant of a WITH belongs to its license, not to its exception. A version
     number between the ID and the grant means another license stands in
-    between, so the grant is that one's (classify.grant_follows)."""
+    between, so the grant is that one's (classify.grant_follows). A mark
+    between the ID and its grant that ``match()`` would drop (``MIT; or
+    later``) leaves no expression: ``""``."""
     # Closing brackets stand between the ID and the grant: "(GPL-2.0) or later".
     tokens = [t for t in RE_TOKEN.finditer(expression) if t.group(0) != ")"]
     if not tokens:
@@ -255,11 +223,16 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     licence = target.group(0)
     if token_kind(licence) != "ID" or _takes_no_grant(licence):
         return expression  # a "+" before the grant, or no licence takes one
-    # The expression is a prefix of the value up to its last ID, whatever
-    # closing brackets follow it.
-    if not grant_follows(tokens[-1].group(0), value[tokens[-1].end() :]):
+    # The expression is a prefix of the value up to its last ID; the closing
+    # brackets it has come next, and any other one is a mark ("MIT) or").
+    rest = value[tokens[-1].end() :]
+    closed = closing_brackets_end(rest, 0, expression.count(")", tokens[-1].end()))
+    follows = grant_follows(tokens[-1].group(0), rest[closed or 0 :])
+    if follows is None:
+        return ""  # a mark match() would drop: no reading at all
+    if not follows:
         return expression
-    or_later = _lookup_case_insensitive(_BARE_TO_OR_LATER, licence) or f"{licence}+"
+    or_later = _lookup_case_insensitive(BARE_TO_OR_LATER, licence) or f"{licence}+"
     return expression[: target.start()] + or_later + expression[target.end() :]
 
 
@@ -318,10 +291,10 @@ def leading_expression(value: str) -> str:
         gap = value[end : token.start()]
         if gap.strip():
             break  # only white space separates the parts of an expression
-        if kind == "+" and gap:
+        if kind == "+" and plus_apart(value, token.start()):
             # A "+" touches the ID it follows (plusoperator.PLUS_OPERATOR);
-            # after a space it is none, and may say "and": no expression,
-            # as match() refuses it, rather than one without it.
+            # after a space or a bracket it is none, and may say "and": no
+            # expression, as match() refuses it, rather than one without it.
             return ""
         grant_end = (
             grant_at(value, token, grants, before != "+") if kind == "OP" else None
@@ -353,7 +326,7 @@ def _granted_twice(expression: str, value: str, licence: str) -> bool:
     if not _takes_no_grant(licence):
         return False
     tail = [t for t in RE_TOKEN.finditer(expression) if t.group(0) != ")"][-1]
-    return grant_follows(tail[0], value[tail.end() :])
+    return grant_follows(tail[0], value[tail.end() :]) is not False
 
 
 # An ID, then at most one "+", then at most one WITH an exception.
@@ -422,56 +395,55 @@ def disambiguate_deprecated_id(text: str) -> str | None:
         disambiguate_deprecated_id("GPL-2.0 only")
         # → "GPL-2.0-only"
 
-    Returns ``None`` when no bare deprecated ID is present or when the ID is
-    found but no disambiguating phrase exists in the surrounding text.  Callers
-    should then apply the conservative ``DEPRECATED_BARE_LICENSE_IDS`` fallback.
-
-    This function must be called *before* SPDX expression tokenisation because
-    ``"or"`` in ``"or later"`` is prose, not an SPDX OR operator.
+    ``None`` for no bare deprecated ID, or no phrase about it: the caller
+    applies the conservative ``DEPRECATED_BARE_LICENSE_IDS`` fallback. Call
+    it *before* SPDX expression tokenisation: "or later" is prose, not OR.
     """
-    # Sort longest IDs first so e.g. "LGPL-2.1" is tried before "LGPL-2".
-    for dep_id in sorted(DEPRECATED_BARE_LICENSE_IDS, key=len, reverse=True):
-        # (?![\w-]) (not just \b) so a bare ID isn't matched as a prefix of
-        # an already-canonical suffixed ID it's contained in, e.g. "GPL-2.0"
-        # inside "GPL-2.0-only" or "GPL-2.0-or-later" — "\b" alone treats
-        # the boundary before "-" as a word boundary and would match, then
-        # the "-only"/"-or-later" suffix itself falsely satisfies the prose
-        # disambiguation checks below. "." is deliberately not excluded here:
-        # both real suffixes start with "-", and excluding "." too would
-        # reject a bare ID immediately followed by sentence punctuation
-        # (e.g. "...licensed under GPL-2.0. This version only."). A "+" after
-        # it states the grant ("GPL-2.0+"), so that ID is not bare either.
-        m = re.search(
-            r"(?<![\w.:-])" + re.escape(dep_id) + r"(?![\w+-])", text, re.IGNORECASE
-        )
-        if not m:
-            continue
-
-        # Wide window (±150 chars) for or-later phrases, which can appear
-        # several words before or after the ID.
-        start = max(0, m.start() - 150)
-        end = min(len(text), m.end() + 150)
-        window = text[start:end]
-        grant = OR_LATER_PHRASE.search(window)
-        if grant:  # a phrase after another version is another licence's
-            phrase = (start + grant.start(), start + grant.end())
-            other = phrase[0] >= m.end() and another_version(dep_id, text, phrase[0])
-            if other or _joins_another(text, phrase):
-                return None
-            return _BARE_TO_OR_LATER.get(dep_id)
-
-        # Narrow window (50 chars after the ID) for "only" to reduce false
-        # positives from common uses like "only if", "not only", etc.
-        only = ONLY_WORD.search(text, m.end(), m.end() + 50)
-        if only:
-            if _joins_another(text, only.span()):
-                return None
-            return DEPRECATED_BARE_LICENSE_IDS[dep_id]
-
-        # ID found but no disambiguating phrase — caller applies fallback.
+    bare = bare_deprecated(text)
+    if bare is None:
         return None
+    dep_id, m = bare
+    # Wide window (±150 chars) for or-later phrases, which can appear
+    # several words before or after the ID.
+    start = max(0, m.start() - 150)
+    end = min(len(text), m.end() + 150)
+    window = text[start:end]
+    grant = OR_LATER_PHRASE.search(window)
+    if grant:  # a phrase after another version is another licence's
+        phrase = (start + grant.start(), start + grant.end())
+        other = phrase[0] >= m.end() and another_version(dep_id, text, phrase[0])
+        if other or _joins_another(text, phrase):
+            return None
+        return BARE_TO_OR_LATER.get(dep_id)
 
+    # Narrow window (50 chars after the ID) for "only" to reduce false
+    # positives from common uses like "only if", "not only", etc.
+    only = ONLY_WORD.search(text, m.end(), m.end() + 50)
+    if only:
+        if _joins_another(text, only.span()):
+            return None
+        return DEPRECATED_BARE_LICENSE_IDS[dep_id]
+
+    # ID found but no disambiguating phrase — caller applies fallback.
     return None
+
+
+def bare_deprecated(text: str) -> tuple[str, re.Match[str]] | None:
+    """The first bare deprecated ID of *text* (DEPRECATED_BARE_LICENSE_IDS),
+    the longest tried first, and where it is."""
+    for dep_id in sorted(DEPRECATED_BARE_LICENSE_IDS, key=len, reverse=True):
+        m = _bare_id(dep_id).search(text)
+        if m:
+            return dep_id, m
+    return None
+
+
+def _bare_id(dep_id: str) -> re.Pattern[str]:
+    """*dep_id* as a word of its own: no word character or "-" after it, so
+    "GPL-2.0" is not found in "GPL-2.0-only", whose suffix would read as the
+    phrase; a "." may follow ("GPL-2.0. This version only."), not a "+"."""
+    pattern = r"(?<![\w.:-])" + re.escape(dep_id) + r"(?![\w+-])"
+    return re.compile(pattern, re.IGNORECASE)
 
 
 def _joins_another(text: str, phrase: tuple[int, int]) -> bool:
@@ -572,11 +544,13 @@ def _plus_id(lic_id: str, db: ListLookup) -> str | None:
     written ID ("Apache-2", "GPL-2"), as match() reads it; never by a bare
     prefix, which made "MI+" MIT+. The "+" becomes the base's -or-later ID
     where the List has one in use ("GPL-2+" is GPL-2.0-or-later), and stays
-    otherwise ("Apache-2+" is Apache-2.0+). None for no base, or one that
-    states its qualifier already ("GPL-2.0-only+"): no valid ID takes it. A
-    deprecated ID with an exception in it gives the "+" to its licence
-    ("GPL-2.0-with-classpath-exception+" is GPL-2.0-or-later WITH
-    Classpath-exception-2.0)."""
+    otherwise ("Apache-2+" is Apache-2.0+), after the rename of a deprecated
+    base, as match() follows it ("StandardML-NJ+" is SMLNJ+). None for no
+    base, or one that states its qualifier already ("GPL-2.0-only+"): no
+    valid ID takes it. A deprecated ID with an exception in it gives the "+"
+    to its licence ("GPL-2.0-with-classpath-exception+" is GPL-2.0-or-later
+    WITH Classpath-exception-2.0), a reading match() does not make
+    (``looseid.read_inexactly``)."""
     base = lic_id[:-1]
     redirect = _lookup_case_insensitive(DEPRECATED_WITH_IDS, base)
     if redirect is not None:
@@ -594,7 +568,10 @@ def _plus_id(lic_id: str, db: ListLookup) -> str | None:
     if found.endswith(("-only", "-or-later", "+")):
         return None
     or_later = db.get_license_details(f"{found}-or-later")
-    return f"{found}+" if or_later is None else or_later["license_id"]
+    if or_later is not None:
+        return or_later["license_id"]
+    renamed = _lookup_case_insensitive(db.get_deprecated_mappings(), found)
+    return f"{renamed or found}+"
 
 
 def _normalize_exception_id(exc_id: str, db: ListLookup | None = None) -> str:

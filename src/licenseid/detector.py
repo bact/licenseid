@@ -17,12 +17,12 @@ from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path
 from licenseid.errors import InvalidInputError, invalid_id_error
 from licenseid.identifiers import (
-    disambiguate_deprecated_id,
     is_qualified_plus,
     is_simple_expression,
+    is_stray_plus,
     simple_value,
 )
-from licenseid.looseid import loose_with, warn_narrowed
+from licenseid.looseid import disambiguate_whole, loose_with, warn_narrowed
 from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
@@ -286,8 +286,8 @@ class LicenseDetector:
         Returns None (fall through to Tier 1) for inputs at or above the
         threshold, or below it with no confident match.
         """
-        if is_qualified_plus(ctx.target_text):
-            return []  # "GPL-2.0-only+" names no license, nor a near one
+        if is_qualified_plus(ctx.target_text) or is_stray_plus(ctx.target_text):
+            return []  # "GPL-2.0-only+", "MIT +": no license, nor a near one
         if ctx.word_count >= 30:
             return None
 
@@ -305,21 +305,19 @@ class LicenseDetector:
         if declared:
             return declared
 
-        # Fast path: bare deprecated ID + prose disambiguation context in
-        # the raw (un-normalised) text, e.g. "GPL-2.0 or later version".
-        # Must use target_text, not norm_input, because normalize_text()
-        # strips punctuation/case that the regex patterns rely on.
-        disambiguated = disambiguate_deprecated_id(ctx.target_text)
+        # A bare deprecated ID and its prose ("GPL-2.0 or later version"), in
+        # the raw text: normalize_text() drops the marks the readers judge.
+        disambiguated = disambiguate_whole(ctx.target_text, self.db)
+        if disambiguated == "":
+            return []  # match() refuses it ("GPL-2.0; or later"): no reading
         if disambiguated:
             match = exact_id_match(disambiguated)
             _set_flags(match, self.markers.license_flags(disambiguated))
             return [match]
 
-        short_matches = self._match_short_text(ctx.norm_input, ctx.target_text)
-        if short_matches and short_matches[0]["score"] > 1.0:
-            return self._with_flags(short_matches)  # an expression has none
-
-        return None
+        found = self._match_short_text(ctx.norm_input, ctx.target_text)
+        # A confident ID or name hit scores above 1; an expression has no flags.
+        return self._with_flags(found) if found and found[0]["score"] > 1.0 else None
 
     def _without_tags(self, ctx: _MatchContext) -> _MatchContext:
         """A short *ctx* without its SPDX-License-Identifier tags. Tier 0.5

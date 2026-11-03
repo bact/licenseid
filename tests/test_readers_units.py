@@ -62,7 +62,12 @@ def test_continues_word(text: str, end: int, goes_on: bool) -> None:
         ("MIT", " or later", True),
         ("MIT", " OR LATER", True),
         ("MIT", ", or later", True),
-        ("MIT", ") or later", True),
+        ("MIT", ") or later", None),  # a bracket the expression did not open
+        ("MIT", "; or later", None),  # a mark match() would drop
+        ("MIT", " - or later", None),
+        ("MIT", ",or later", None),  # no "or" word after the mark
+        ("MIT", ". or later", True),
+        ("MIT", ", (or later)", True),
         ("MIT", " or latex", False),
         ("MIT", "or later", False),  # "MITor later": no space, no "or"
         ("MIT", " OR Apache-2.0", False),
@@ -70,7 +75,7 @@ def test_continues_word(text: str, end: int, goes_on: bool) -> None:
         ("GPL-2.0", " or any later version", True),
     ],
 )
-def test_grant_follows_a_bare_or(tail: str, rest: str, granted: bool) -> None:
+def test_grant_follows_a_bare_or(tail: str, rest: str, granted: bool | None) -> None:
     assert grant_follows(tail, rest) is granted
 
 

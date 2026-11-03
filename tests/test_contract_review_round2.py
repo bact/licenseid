@@ -127,11 +127,12 @@ def test_s2_a_with_id_and_a_plus_reads_as_or_later(
 ) -> None:
     """S2 (was: ``GPL-2.0-with-classpath-exception+`` answered itself, a
     deprecated ID, exact, and ``is-osi`` said a judged false): the "+" is
-    the grant of its licence, stated, so exact and no warning."""
+    the grant of its licence, and no warning. Not exact (readers, round 3):
+    ``match()`` calls it ambiguous (``deprecated_ambiguous``)."""
     for text in (value, f"SPDX-License-Identifier: {value}"):
-        assert _top(corpus_db, text) == (reading, True)
+        assert _top(corpus_db, text) == (reading, False)
     (found,) = LicenseDetector(corpus_db.location).detect(license_id=value)
-    assert (found["expression"], found["exact"]) == (reading, True)
+    assert (found["expression"], found["exact"]) == (reading, False)
 
 
 def test_s2_a_doubled_qualifier_is_still_refused(corpus_db: LicenseDatabase) -> None:

@@ -18,7 +18,7 @@ from licenseid.identifiers import (
     normalize_identifier,
     qualify_trailing_grant,
 )
-from licenseid.looseid import drops_words, narrowed_ids, warn_narrowed
+from licenseid.looseid import drops_words, read_inexactly, warn_narrowed
 from licenseid.manifest import extension, license_value_groups
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags, Method
 
@@ -262,15 +262,15 @@ class MarkerDetector:
         if details:
             found = [self._candidate_without_text(details, score)]
         elif lic_id and names_only_listed(lic_id, self.db):
-            # A value with no recognised ID (a typo, free text) is no evidence
-            # of a license, and a word that is no ID ("later", the "Apache" of
-            # "Apache 2.0") no operand: neither builds a candidate.
+            # A word that is no listed ID (a typo, "later", the "Apache" of
+            # "Apache 2.0") is no operand: it builds no candidate.
             found = self._synthetic_candidate(lic_id, score)
         else:
             found = []
-        if found and narrowed_ids(self.db, expression, found[0]["license_id"]):
-            # "GPL-2.0" read as GPL-2.0-only: a guess, said and not exact.
-            warn_narrowed(expression, found[0]["license_id"])
+        inexact = read_inexactly(self.db, expression, found)
+        if inexact:  # "GPL-2.0" read as GPL-2.0-only: said, and not exact
+            if inexact == "narrowed":
+                warn_narrowed(expression, found[0]["license_id"])
             found[0]["narrowed"] = True
         return found
 

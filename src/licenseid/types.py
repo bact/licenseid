@@ -96,7 +96,8 @@ class CandidateMatch(TypedDict, total=False):
     pop_score: int
     score: float
     method: Method
-    # A bare deprecated ID read as its -only form: a guess, so not exact.
+    # A reading match() does not make (a bare deprecated ID read as its
+    # -only form, a "+" on a deprecated -with- ID): a guess, so not exact.
     narrowed: bool
 
 
