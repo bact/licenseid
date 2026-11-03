@@ -379,7 +379,7 @@ weakest of its operands, in this order (strongest first):
 | `listed_name` | `list_data` | is the List's name of a licence |
 | `deprecated_equal_successor` | `list_data` | is a renamed deprecated ID |
 | `plus_to_or_later` | `list_data` | is `X+`, read as `X-or-later` |
-| `stated_qualifier` | `author_words` | states "or later" in words (`GPL-2.0 or_later` too) |
+| `stated_qualifier` | `author_words` | states "or later" in words |
 | `separator` | `resolver_rule` | is an ID with other separators |
 | `version_spelling` | `resolver_rule` | is an ID with its version re-spelt |
 | `prose_form` | `resolver_rule` | is an ID in a prose form (`BSD 3-Clause License`, `Apache License, Version 2.0`) |
@@ -430,7 +430,7 @@ own reason), `operand of several words: <leaf>` (a leaf that reads alone, as
 `BSD 3-Clause` does), `not an SPDX operator: /` (also `|`, `&` and `,` between
 IDs, and `;` when fewer than two parts name a licence: `MIT; Foo`), `operator
 not stated: ;` (above), `parse failed: <the parser's message>`, `mismatched
-brackets`, `too many operators` (over 150) and `too deeply nested` (over 150). A
+brackets` (a bracket pairs only with the same kind: `(MIT]`), `too many operators` (over 150) and `too deeply nested` (over 150). A
 value with a part of several words (`Apache License 2.0 OR MIT`) is no compound,
 but, when its operators are in upper case, its reason names the first operand
 refused: `operand of several words: <leaf>` if that leaf reads alone, else

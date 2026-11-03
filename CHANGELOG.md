@@ -265,14 +265,16 @@ and this project adheres to
   Classpath-exception-2.0+`) or a bracket in a compound (`(MIT)+ OR ISC`) its
   own `malformed` reason; a grant on a `LicenseRef-*` is `malformed` always
   ([#152])
-- An "or later" apart from a listed ID in other separators (`GPL-2.0
-  or_later`) is `stated_qualifier`; `exception not found` no longer names an
-  AND/OR or words after a listed exception as the exception ([#152])
+- `exception not found` no longer names an AND/OR or words after a listed
+  exception as the exception ([#152])
 - `detect(file_path=...)` and `LicenseDetector(db_path)` raise `TypeError`
   unless given a `str` or path (an `int` was read and closed as a file
   descriptor) ([#151])
-- An `update` to a path in a missing folder fails after the download
-  (`<cache file>: cache write failed`) and creates nothing ([#151])
+- Every write of a `LicenseDatabase` handle refuses a file licenseid did not
+  build, a locked one included; a file made after the handle opened is judged
+  again ([#151])
+- An `update` into a missing folder fails at once (`database: update failed:
+  OperationalError: unable to open database file`) and makes nothing ([#151])
 
 [#117]: https://github.com/bact/licenseid/pull/117
 [#119]: https://github.com/bact/licenseid/pull/119
