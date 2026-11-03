@@ -24,6 +24,7 @@ read.
 
 import re
 from dataclasses import dataclass, field
+from typing import Final
 
 from licenseid.dropguard import (
     code_points,
@@ -46,6 +47,7 @@ from licenseid.looseid import (
 from licenseid.plusoperator import plus_apart
 from licenseid.resolvereason import (
     after_bracket,
+    after_exception,
     after_space,
     on_reference,
     stated_twice,
@@ -66,6 +68,9 @@ _RE_BRACKET = re.compile(r"[()\[\]{}]")
 # Characters that end a value after its last "+": white space and "+" itself.
 # Runs only after read_leaf's MAX_KEY_INPUT gate, so its run is bounded.
 _RE_TRAILING = re.compile(r"[\s+]+\Z")
+# The qualifier an ``-or-later`` ID ends in, as the List spells it.
+_OR_LATER: Final = "-or-later"
+_RE_WORD = re.compile(r"\S+")
 # A step kind that is not also a category name, mapped to the one it counts as.
 _AS_CATEGORY = {kind: "lexical" for kind in LEXICAL_KINDS}
 
@@ -262,8 +267,12 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
     licence_text, exception_text = _grant_to_licence(parts[0], parts[1])
     licence, tail = Found(), Found()
     exception = _exception(db, exception_text, tail)
-    if exception is None or not _one(db, licence_text, licence):
+    plus = exception is None and _plus_on_exception(db, exception_text)
+    if (exception is None and not plus) or not _one(db, licence_text, licence):
         return False
+    if plus and licence.expression is not None:
+        found.category, found.reason = "malformed", after_exception(text)
+        return True
     if licence.expression is None:
         found.category, found.reason = licence.category, licence.reason
         return True
@@ -272,6 +281,16 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
     found.expression = f"{licence.expression} WITH {exception}"
     found.candidates = [f"{c} WITH {exception}" for c in licence.candidates]
     return True
+
+
+def _plus_on_exception(db: ListLookup, text: str) -> bool:
+    """Whether *text* is a listed exception and a "+" (``X+``, ``X +``): the
+    operator qualifies a licence ID, not an exception, so the WITH is
+    malformed rather than its exception not found."""
+    stem = text.strip()
+    if not stem.endswith("+"):
+        return False
+    return _exception(db, stem[:-1].rstrip(), Found()) is not None
 
 
 def _grant_to_licence(licence: str, exception: str) -> tuple[str, str]:
@@ -391,10 +410,22 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
             return _grant(db, text, base, found)
     base = _base(db, text)
     if base is None:
-        return False
+        return _loose_grant(db, text, found)
     found.steps.extend(base[1])
     _deprecation(db, base[0], found)
     return True
+
+
+def _loose_grant(db: ListLookup, text: str, found: Found) -> bool:
+    """*text* that a loose reading takes as an ``-or-later`` ID, the "or
+    later" in words apart from the ID, after a licence that names one
+    (``GPL-2.0 or_later``, ``GPL-2.0 or later-``): read as a grant on that
+    licence, as ``GPL-2.0 or later`` is (_grant), not as a separator
+    spelling. False when those words are no such grant."""
+    loose = loose_id(db, text)
+    head = None if loose is None else _grant_head(text, loose[0]["license_id"])
+    base = None if head is None else _base(db, head)
+    return base is not None and _grant(db, text, base, found)
 
 
 def _reference_before_mark(text: str) -> tuple[str, list[Step]] | None:
@@ -430,13 +461,14 @@ def _grant(
     decision Q14), after its deprecation, as ``X+`` is read, whether or not
     its ID has a version (``MIT or later`` is ``MIT+``; P35, decided by the
     maintainer on 2026-10-29). A ``LicenseRef-*`` takes no "+" (invalid
-    SPDX) and is unresolved, not read without the grant."""
+    SPDX) and is malformed, as ``LicenseRef-x+`` is, not read without the
+    grant."""
     license_id, steps = base
     granted = loose_id(db, text)
     # A reference first: it takes no grant, whatever it ends in
     # (``LicenseRef-x-only or later``), as ``LicenseRef-x-only+`` reads.
     if granted is None and is_license_ref(license_id):
-        found.category, found.reason = "unresolved", on_reference(text)
+        found.category, found.reason = "malformed", on_reference(text)
         return True
     # "+" last: `_qualified` makes `X+ or later` malformed before this, so
     # it only guards a list that has an ID ending in "+" (`Foo+`, no `Foo`)
@@ -485,7 +517,36 @@ def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
     lost = dropped_words(text)
     if lost:
         raise _Dropped(text, lost, license_id, words=True)
-    return license_id, _spelling(text, license_id)
+    # A grant on a licence the head names, not a spelling of the ID:
+    # _loose_grant reads it. A head that names none (``GFDL-1.3-invariants
+    # or later``) leaves the separator spelling of the listed ID.
+    head = _grant_head(text, license_id)
+    granted = head is not None and _base(db, head) is not None
+    return None if granted else (license_id, _spelling(text, license_id))
+
+
+def _grant_head(text: str, license_id: str) -> str | None:
+    """The text before the words that give *license_id*, an ``-or-later``
+    ID a loose reading took *text* as, its "or later", when those words
+    stand apart from the ID (``GPL-2.0`` of ``GPL-2.0 or_later``); else None
+    (``GPL 2.0-or-later``, the suffix joined to its ID, is an ID). The words
+    are compared by their letters with the ID's own suffix: no second reader
+    of the phrase (``classify.OR_LATER_PHRASE``) is written here."""
+    if not license_id.casefold().endswith(_OR_LATER):
+        return None
+    suffix, joined = _letters(_OR_LATER), ""
+    for word in reversed(list(_RE_WORD.finditer(text))[1:]):  # after the first
+        joined = _letters(word.group()) + joined
+        if not suffix.endswith(joined):
+            return None
+        if joined == suffix:
+            return text[: word.start()].strip()
+    return None
+
+
+def _letters(text: str) -> str:
+    """The letters and digits of *text*, case folded."""
+    return "".join(char for char in text if char.isalnum()).casefold()
 
 
 def _reference(text: str, steps: list[Step]) -> str:

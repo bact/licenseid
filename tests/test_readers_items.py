@@ -475,6 +475,6 @@ def test_a_reference_and_an_end_mark_before_a_grant(
     got = match(value, corpus_db)
     assert (got["expression"], got["category"], got["reason"]) == (
         None,
-        "unresolved",
+        "malformed",  # fixr item 5: as ``LicenseRef-a+`` (was unresolved)
         f"qualifier on a reference: {value}",
     )

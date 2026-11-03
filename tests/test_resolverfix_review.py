@@ -138,19 +138,19 @@ MATCHED: dict[str, Answer] = {
     # 9: a reference takes no grant, whatever it ends in
     "LicenseRef-x-only or later": (
         None,
-        "unresolved",
+        "malformed",  # fixr item 5
         [],
         "qualifier on a reference: LicenseRef-x-only or later",
     ),
     "LicenseRef-x-or-later or any later version": (
         None,
-        "unresolved",
+        "malformed",  # fixr item 5
         [],
         "qualifier on a reference: LicenseRef-x-or-later or any later version",
     ),
     "LicenseRef-a or later": (
         None,
-        "unresolved",
+        "malformed",  # fixr item 5
         [],
         "qualifier on a reference: LicenseRef-a or later",
     ),
@@ -162,7 +162,7 @@ MATCHED: dict[str, Answer] = {
     # reference's (was the general reason, "not found")
     "LicenseRef-a, or any later version": (
         None,
-        "unresolved",
+        "malformed",  # fixr item 5
         [],
         "qualifier on a reference: LicenseRef-a, or any later version",
     ),

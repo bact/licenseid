@@ -125,7 +125,7 @@ def test_a_long_run_of_white_space_around_with_is_fast(
         ),
         ("MIT WITH AdditionRef-", (None, "unresolved", [])),
         ("MIT WITH AdditionRef-x_y", (None, "unresolved", [])),
-        ("MIT WITH AdditionRef-x+", (None, "unresolved", [])),
+        ("MIT WITH AdditionRef-x+", (None, "malformed", [])),  # fixr item 2
         ("AdditionRef-x", (None, "unresolved", [])),  # an exception, no licence
         ("Foo WITH AdditionRef-x", (None, "unresolved", [])),
     ],
@@ -174,10 +174,11 @@ def test_the_hyphenated_grant_is_a_grant(
         ),
         ("eCos-2.0 or later", ("eCos-2.0+", "deprecated_ambiguous", [])),
         ("GPL-2.0 or later", ("GPL-2.0-or-later", "stated_qualifier", [])),
-        ("LicenseRef-x or later", (None, "unresolved", [])),
-        ("DocumentRef-d:LicenseRef-x or later", (None, "unresolved", [])),
+        # fixr item 5: a grant on a reference is malformed, as its "+" is
+        ("LicenseRef-x or later", (None, "malformed", [])),
+        ("DocumentRef-d:LicenseRef-x or later", (None, "malformed", [])),
         ("MIT-only or later", (None, "unresolved", [])),
-        ("LicenseRef-x-1.0 or later", (None, "unresolved", [])),  # takes no "+"
+        ("LicenseRef-x-1.0 or later", (None, "malformed", [])),  # takes no "+"
         ("Foo or later", (None, "unresolved", [])),
         ("MIT+ or later", (None, "malformed", [])),
     ],
