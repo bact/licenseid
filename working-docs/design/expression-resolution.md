@@ -9,7 +9,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Expression resolution: one entry point for a declared value
 
-Status: built in 0.7.0 (`match()`; the record is
+Status: built in 0.7.0 (`resolve()`; the record is
 [`../implementation/declared-value-resolver-0-7.md`](../implementation/declared-value-resolver-0-7.md)).
 Kept as the proposal. Proposed by the maintainer on 2026-10-28; input to a
 0.7.0 release and to Pitloom's adoption of it (Pitloom #359 is the interim
@@ -69,7 +69,7 @@ Goals:
 4. A consumer needs no second implementation of the grammar.
 
 Non-goals: fuzzy matching in an expression; reading licence text; a new
-grammar. Text detection stays in `match()`.
+grammar. Text detection stays in `detect()`.
 
 ## 4. Design
 
@@ -200,4 +200,4 @@ value); a 50,000-character payload stays under 0.2 s (the 200-character cap).
 5. `StandardML-NJ` to `SMLNJ` follows decision Q7 (replace, keep the old id in
    provenance); confirm it for compounds.
 6. Whether a consumer may still ask for the old `normalize_identifier()`
-   narrowing (`GPL-3.0-only`): it stays for `match()`, not for `resolve()`.
+   narrowing (`GPL-3.0-only`): it stays for `detect()`, not for `resolve()`.

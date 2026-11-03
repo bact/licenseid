@@ -83,7 +83,7 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
 - **Status (2026-10-30)**: the pull request is still open and only 0.0.1 is
   on PyPI. 0.7.0 ships with the README workaround (the maintainer chose docs
   only over an import shim that would patch `Path.open` during the import,
-  or a parser of our own); `licenseid match` and `--version` fail the same
+  or a parser of our own); `licenseid detect` and `--version` fail the same
   way, at import.
 - The CLI matrix flags of this item are `E2-082` to `E2-090` (bash) in
   `tools/cli_matrix/baseline.txt`.
@@ -241,7 +241,7 @@ Found in review of item 22 (2026-10-02); `main` does the same:
 
 - `exclude` is read only by Tier 1 retrieval, so a verbatim licence text
   still answers an excluded licence (item 5 covers the other options).
-- `match(file_path=<missing>)` raises a bare `FileNotFoundError`, not a
+- `detect(file_path=<missing>)` raises a bare `FileNotFoundError`, not a
   `LicenseIdError` worded `input: not found: <path>`.
 - A licence text repeated three times answers a licence it barely
   resembles: `LICENSE` (Apache-2.0) three times over gives `BSD-4-Clause`
@@ -266,7 +266,7 @@ warning. All of it is pinned as "current behaviour" in
   `hint` and `enable_popularity` are read only by ranking, so an explicit
   `license_id`, a bare ID or name, and an `SPDX-License-Identifier` tag
   ignore them. Unknown option names are already rejected.
-- An explicit `license_id` wins over `text` in `match()`, and the text is
+- An explicit `license_id` wins over `text` in `detect()`, and the text is
   dropped unread.
 - Values are not checked (review of item 22, 2026-10-02): `--top -1` drops
   the last result (a slice), and `--top 0` keeps none, so both say
@@ -292,14 +292,14 @@ licenseid's own. Likely cause: `PRAGMA mmap_size=268435456` in
 
 Found in review of PR #99 (2026-10-27). Cargo once wrote OR as `/`, and
 crates still declare `MIT/Apache-2.0`. Given as an argument, the CLI no
-longer calls it a missing file (`cli.names_licences`), but `match` reads
+longer calls it a missing file (`cli.names_licences`), but `detect` reads
 it as text and answers `ECL-2.0` at 0.86, and `resolve` gives
 `unresolved`. Reading `/` as OR is a rule to decide (only between listed
 IDs, in a declared value only, with a step of its own), not a fix: see
 [`matching-rules-redesign.md`](matching-rules-redesign.md).
 
 Reading "/" as OR alone gains nothing: a lone compound expression given as
-text is matched as text too. `match(text="MIT OR Apache-2.0")` answers
+text is matched as text too. `detect(text="MIT OR Apache-2.0")` answers
 `ECL-2.0` at 0.76, while the same value in a tag answers
 `Apache-2.0 OR MIT`, exact. Read a lone, valid expression as its tag is
 read first; "/" can then be one more spelling of OR.
@@ -424,7 +424,7 @@ Ctrl-C) were fixed on 2026-10-02; see `tech-debt-resolved.md`.
   `database: unreadable`. Pinned as an xfail in
   `tests/test_db_ready_adversarial.py`.
 - **Lock contention** (`database is locked`, for example the first `update`
-  that switches a database to WAL, during a `match`): the readiness check
+  that switches a database to WAL, during a `detect`): the readiness check
   cannot tell a busy database from a hot rollback journal it may not replay,
   so it returns the condition `unknown`. A reader goes on and whatever opens
   the file next reports the failure, still worded `database: unreadable`;

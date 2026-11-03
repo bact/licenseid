@@ -348,7 +348,7 @@ code (#141 to #152).
   opened with `LicenseDatabase(path, create=False)` (read only).
 - Tool: a scratch script, not in the repository (about 20 lines): it reads
   the TSV, decodes `value` (`unicode_escape`), calls
-  `licenseid.match(value, db)` and keeps `category`, whether `expression` is
+  `licenseid.resolve(value, db)` and keeps `category`, whether `expression` is
   set, and `reason`, weighted by the `projects` and `downloads` columns. The
   0.6.0 columns are the ones pinned in the same file. The check that
   `licenseid.__file__` lies under the worktree came first.
