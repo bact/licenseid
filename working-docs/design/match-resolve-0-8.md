@@ -219,7 +219,9 @@ How a resolution becomes a `detect` result. Each point is a decision
 - **D9 the word "matcher".** After the rename to `detect` and `match`, the
   README title, `licenseid --help` ("SPDX License ID matcher tool"),
   `codemeta.json`, the keywords and the `tests/test_matcher*.py` names
-  still say "matcher". Open: keep it as the product word, or reword.
+  still say "matcher". Decided 2026-11-03 (maintainer): reword the
+  user-facing text to "A portable SPDX licence identification tool"; the
+  keywords may keep "license matcher" for search.
 
 ## 5. Documentation
 
