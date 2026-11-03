@@ -122,7 +122,7 @@ def update_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
     """
     db_path = ctx.obj["db_path"]
     requests = parse_lists(ctx, lists)
-    # It writes the schema, so never into somebody else's file. Kept
+    # It writes the database, so never into somebody else's file. Kept
     # outside the try: an unready database is a setup error (exit 2), not an
     # update that failed (exit 1).
     reject_foreign_database(db_path)
