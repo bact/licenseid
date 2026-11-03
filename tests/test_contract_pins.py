@@ -184,14 +184,15 @@ def test_c11_the_subject_is_input(db: str, command: str) -> None:
         ("MIT AND WTFPL", False, True),
         ("GPL-2.0-only WITH Classpath-exception-2.0", True, True),  # the licence's
         ("MIT AND LicenseRef-x", None, None),  # cannot be judged
-        ("MIT OR LicenseRef-x", None, None),  # no Kleene shortcut (P140)
+        ("MIT OR LicenseRef-x", True, True),  # one true operand decides (D8)
     ],
 )
 def test_f1_compound_flags_are_evaluated(
     db: str, expression: str, osi: bool | None, fsf: bool | None
 ) -> None:
     """F1 (was: always False): AND every operand, OR any, WITH the licence's;
-    None when an operand cannot be judged."""
+    None when an operand cannot be judged and the others do not decide it
+    (D8; was: None for any such operand, P140)."""
     found = LicenseDetector(db).detect(text=f"SPDX-License-Identifier: {expression}")
     assert (found[0]["is_osi_approved"], found[0]["is_fsf_libre"]) == (osi, fsf)
 
