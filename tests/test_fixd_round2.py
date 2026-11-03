@@ -111,16 +111,18 @@ def test_a_failed_update_leaves_no_file(
     assert after.stderr.startswith(f"ERROR: database: not found: {path}")
 
 
-def test_an_update_into_a_missing_directory_fails_after_the_download(
+def test_an_update_into_a_missing_directory_fails_before_the_download(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The cost of making the file at the first write, accepted: nothing is
-    made, and the error is the SQLite one, as before."""
+    """Nothing is made, and the error is the one main gave (R3-2)."""
     ship(monkeypatch, release_bundle(VERSION))
     path = tmp_path / "nodir" / "licenses.db"
     result = run("--db", str(path), "update", "--source", "packaged")
     assert result.exit_code == 1
-    assert "database: update failed: unable to open database file" in result.stderr
+    assert result.stderr == (
+        "ERROR: database: update failed: OperationalError: "
+        "unable to open database file\n"
+    )
     assert not path.parent.exists()
 
 
