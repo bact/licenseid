@@ -79,6 +79,8 @@ _RE_MARK: Final = re.compile(r"\s*([/|&;,]+)\s*")
 _RE_ID_WORD: Final = re.compile(ID_WORD)
 _OPEN: Final = ("(", "[", "{")  # the bracket kinds of exprcanon.split
 _CLOSE: Final = (")", "]", "}")
+# Each bracket kind: the opening and the closing bracket of its pair.
+_PAIRS: Final = {b: pair for pair in zip(_OPEN, _CLOSE) for b in pair}
 
 
 class Compound(NamedTuple):
@@ -196,7 +198,8 @@ def _refuse_grammar(
     beside a bracketed group that makes two operands of it is that group's
     refusal (:func:`_misplaced`)."""
     tokens = reading.tokens
-    misplaced = _misplaced(reading)
+    # After ``mismatched brackets`` (not *parsed*), no group to blame
+    misplaced = _misplaced(reading) if parsed else None
     if misplaced is not None:
         _refuse(found, category_of(misplaced), str(misplaced.reason))
         found.steps = list(misplaced.steps)
@@ -280,12 +283,14 @@ def _touch(tokens: list[Token], index: int) -> bool:
 
 
 def _partner(tokens: list[Token], index: int, direction: int) -> int | None:
-    """The index of the bracket that pairs with the one at *index* of the
-    tokens, looking forward (*direction* 1) or back (-1); None if none."""
+    """The index of the bracket of the same kind that pairs with the one at
+    *index* of the tokens, looking forward (*direction* 1) or back (-1);
+    None if none."""
+    pair = _PAIRS[tokens[index].kind]
     depth = 0
     while 0 <= index < len(tokens):
         kind = tokens[index].kind
-        depth += (kind in _OPEN) - (kind in _CLOSE)
+        depth += (kind == pair[0]) - (kind == pair[1])
         if depth == 0:
             return index
         index += direction
