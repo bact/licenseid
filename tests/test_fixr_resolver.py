@@ -395,3 +395,22 @@ def test_a_qualifier_on_a_reference_is_malformed(
         "malformed",
         f"qualifier on a reference: {value}",
     )
+
+
+# --- review round 2: pins ------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Apache-2.0 with LLVM exception",
+        "GPLv2 with linking exception",
+        "GFDL-1.3-invariants or later",
+        "GFDL-1.3-invariants or-later",
+        "GFDL-1.1-no-invariants or later",
+    ],
+)
+def test_round_two_pins(corpus_db: LicenseDatabase, value: str) -> None:
+    # BUG: a name of an exception lost its reason; a separator spelling of
+    # a listed ``-or-later`` ID with no listed base is refused
+    assert _answer(corpus_db, value) == (None, "unresolved", f"not found: {value}")
