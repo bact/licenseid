@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -334,3 +334,101 @@ version.
 - The semicolon rule (T8b) on real values with an operator: the sample has
   none that resolve.
 - Timing: T5b's speed figures are in the review, not repeated here.
+
+## Measured on 0.7.0
+
+Created 2026-11-03. The same corpus as the 2026-10-29 section (462 distinct
+values, 9,353 projects with a short value, 124.5 billion downloads), read
+again by the tree of the `release-0.7-docs` branch, which holds the 0.7.0
+code (#141 to #152).
+
+### Method
+
+- List: SPDX 3.29.0, a copy of the fresh database the 2026-10-29 run used,
+  opened with `LicenseDatabase(path, create=False)` (read only).
+- Tool: a scratch script, not in the repository (about 20 lines): it reads
+  the TSV, decodes `value` (`unicode_escape`), calls
+  `licenseid.match(value, db)` and keeps `category`, whether `expression` is
+  set, and `reason`, weighted by the `projects` and `downloads` columns. The
+  0.6.0 columns are the ones pinned in the same file. The check that
+  `licenseid.__file__` lies under the worktree came first.
+
+  ```shell
+  HOME="$SCRATCH/home" python measure.py \
+      tests/fixtures/pypi_values_2026-10.tsv licenses-3.29.0.db out.json
+  ```
+
+- The shorter rerun that needs no script is `pytest
+  tests/test_resolver_sample.py`.
+
+### Result by category
+
+Values are distinct values; projects and downloads (billions) are summed over
+them. "Main 10-29" is the table of the previous section.
+
+| Category | Values 0.6.0 | Projects 0.6.0 | Values 0.7.0 | Projects 0.7.0 | Downloads 0.7.0 | Projects main 10-29 |
+| - | - | - | - | - | - | - |
+| `exact` | 64 | 5,639 | 95 | 5,682 | 95.66 | 5,681 |
+| `listed_name` | 8 | 1,305 | 14 | 1,337 | 8.80 | 1,337 |
+| `separator` | 15 | 305 | 15 | 305 | 3.64 | 304 |
+| `version_spelling` | 15 | 70 | 15 | 70 | 0.32 | 70 |
+| `assumed_only` | 25 | 124 | 30 | 166 | 0.28 | 166 |
+| `lexical` | 7 | 10 | 43 | 78 | 2.25 | 79 |
+| `plus_to_or_later` | 3 | 6 | 3 | 6 | 0.01 | 6 |
+| `prose_form` | 0 | 0 | 18 | 177 | 1.16 | 177 |
+| `trove_name` | 0 | 0 | 9 | 41 | 0.21 | 41 |
+| `expression` (a compound) | 67 | 111 | 0 | 0 | 0.00 | 0 |
+| `unresolved` | 258 | 1,783 | 220 | 1,491 | 12.14 | 1,492 |
+| With an expression | 137 | 7,459 | 242 | 7,862 | 112.32 | 7,861 |
+| No expression | 325 | 1,894 | 220 | 1,491 | 12.14 | 1,492 |
+
+With an expression: 79.7% of projects in 0.6.0, 84.1% in 0.7.0 (by
+downloads, 83.3% and 90.2%). Net since 0.6.0: 105 values (all of them
+unresolved or compound before) gained an expression; none lost one. Since the
+2026-10-29 snapshot one value moved from `unresolved` to an expression, and
+one from `lexical` to another category. The gain of #149 and #152 on this
+sample is therefore one value; the work in them is in the shared reading of a
+tag, a field, a text and `--id`, in the reasons, and in what is refused, not
+in the PyPI counts.
+
+### The unresolved values by reason
+
+220 values, 1,491 projects (15.9%), 12.1 billion downloads.
+
+| Reason | Values | Projects | Downloads (billions) |
+| - | - | - | - |
+| `not found` (the value names no List entry) | 209 | 1,477 | 11.98 |
+| `exception not found` | 5 | 6 | 0.02 |
+| `not an SPDX operator` (`/`, `,`, `\|`) | 4 | 6 | 0.01 |
+| `operand of several words` | 1 | 1 | 0.13 |
+| `operand not resolved` | 1 | 1 | 0.00 |
+
+In 0.6.0 no value carried a reason. Now every refusal carries one; 209 of
+220 are the plain `not found`, a value that names no List entry. The top
+twelve by projects are the same as in the 2026-10-29 list, in the same order
+(`Apache Software License` 354, `BSD` 325, `BSD License` 271, `Apache` 37,
+`Apache Software License 2.0` 24, `Other/Proprietary License` 22, `Python
+Software Foundation License` 21, `LGPL` 16, `NVIDIA Proprietary Software`
+14, `Proprietary` 14, `Public Domain` 14, `LICENSE.txt` 10).
+
+### What moved since 0.6.0
+
+| Change | Values | Projects | Downloads (billions) | Where |
+| - | - | - | - | - |
+| Compounds read (`expression` no longer a category) | 66 | 110 | 6.60 | #122 (T7) |
+| Trove names and a listed name with a short name | 20 | 115 | 0.87 | #126 (T9) |
+| Prose forms | 18 | 177 | 1.16 | #128 (T8) |
+| Quoted whole value | 1 | 1 | 0.00 | #121 (T6b) |
+| Everything after 2026-10-29 (#141 to #152) | 1 | 1 | 0.00 | #149 |
+
+The first four rows are the 2026-10-29 table, unchanged by the later work.
+The last row is the net difference to the 2026-10-29 snapshot, by category
+counts (one value from `unresolved`, one from `lexical`); the script does not
+name the values, since it ran once, on the new tree only.
+
+### Not measured here
+
+- Frequency beyond the top 10,000 projects, and across releases.
+- The effect of #149 on tags, fields and `--id`: the sample holds licence
+  values only; the guard for those is the golden harness and the reader
+  agreement tests.
