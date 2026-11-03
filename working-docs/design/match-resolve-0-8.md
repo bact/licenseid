@@ -128,7 +128,7 @@ note removes.
   a declared value                              licence text
   (tag, field, --id, short value)               (no declared value)
        |                                             |
-  match(value, db) ----- adapter -----+     Tiers 1 and 2: full-text
+  resolve(value, db) --- adapter -----+     Tiers 1 and 2: full-text
        |                              |     search and similarity
   refused: no result,                 |              |
   with the reason (D3)                +------+-------+
@@ -137,7 +137,7 @@ note removes.
 ```
 
 - `detect` finds the declared value (where it is, which field, which tag)
-  and hands each one to `match`, with its own database, so both read one
+  and hands each one to `resolve`, with its own database, so both read one
   list. It no longer reads IDs, `+`, "or later", quotes or expressions
   itself.
 - Tier 0's ID and name reading, `MarkerDetector.resolve_license_value`,
@@ -152,7 +152,7 @@ note removes.
 This closes the gaps R7 found, without a rule of its own for each (items 2
 and 10 of the 0.8 list in `resolver-0-7-review.md`):
 
-- `licenseid match "Apache 2.0?"`, `"MIT*"` and `'"MIT"'` answer `METHOD=id
+- `licenseid resolve "Apache 2.0?"`, `"MIT*"` and `'"MIT"'` answer `METHOD=id
   EXACT=true` today, while `resolve()` refuses them or reads them with a
   step (45 synthetic values).
 - `SPDX-License-Identifier: MIT OR Apache2` answers `EXACT=true`.
@@ -188,9 +188,9 @@ How a resolution becomes a `detect` result. Each point is a decision
   exact detection? Proposed: no. `exact` is true only for category `exact`,
   so `--exact` keeps only values read as written. Today every declared value
   answers `EXACT=true`.
-- **D3 a refused declared value.** `match` refuses `Apache 2.0?`. Proposed:
+- **D3 a refused declared value.** `resolve` refuses `Apache 2.0?`. Proposed:
   `detect` answers nothing for that value, with the reason on a
-  `WARNING: match: no license found: <reason>` line, rather than turning the
+  `WARNING: resolve: no license found: <reason>` line, rather than turning the
   refusal into a text guess. A file with no declared value at all still goes
   to Tiers 1 and 2.
 - **D4 the `resolution` key.** Add it to every `detect` result that came
@@ -199,8 +199,8 @@ How a resolution becomes a `detect` result. Each point is a decision
 - **D5 flags of a compound.** `MIT OR GPL-2.0-only` is neither one licence
   nor the other. Proposed: the flags are false and the `is-*` commands exit
   2 for a compound, as `--id` refuses one now.
-- **D6 the `licenseid match` command.** Decided for 0.7.0 (T10b), output
-  proposed: one line
+- **D6 the `licenseid resolve` command.** Decided for 0.7.0 (T10b, as
+  `match`), output proposed: one line
   `EXPRESSION=<expr> CATEGORY=<category> TRUST=<trust>`, then one
   `STEP=<kind> FROM=<from> TO=<to>` line per applied step; `REASON=` for a
   refusal; one `OPERAND=<text> EXPRESSION=<expr> CATEGORY=<category>`
@@ -223,7 +223,7 @@ How a resolution becomes a `detect` result. Each point is a decision
   `AND` is true only when every operand is true and false when one is false
   (`CC-BY-4.0 AND LicenseRef-x` is not OSI approved). Anything else stays
   empty (`0BSD AND LicenseRef-x`).
-- **D9 the word "matcher".** After the rename to `detect` and `match`, the
+- **D9 the word "matcher".** After the rename to `detect` and `resolve`, the
   README title, `licenseid --help` ("SPDX License ID matcher tool"),
   `codemeta.json`, the keywords and the `tests/test_matcher*.py` names
   still say "matcher". Decided 2026-11-03 (maintainer): reword the
@@ -251,18 +251,18 @@ One line each, with the pull request that found it.
 
 Readers (#149, #147):
 
-- A tag or field reads `(MIT) or later` as `MIT+`; `match()` refuses it.
+- A tag or field reads `(MIT) or later` as `MIT+`; `resolve()` refuses it.
 - A tag or field reads prose `GPL-2.0 (at your option) any later version`;
-  `match()` refuses it. Tag `Intel, GPL-2.0 or later` is `Intel`, exact (the
+  `resolve()` refuses it. Tag `Intel, GPL-2.0 or later` is `Intel`, exact (the
   leading ID).
-- Field or text `Apache 2.0 or later` is not `Apache-2.0+` as in `match()`.
-- U+001C to U+001F inside a value: `--id $'\x1fMIT'` is exact, `match()`
+- Field or text `Apache 2.0 or later` is not `Apache-2.0+` as in `resolve()`.
+- U+001C to U+001F inside a value: `--id $'\x1fMIT'` is exact, `resolve()`
   refuses it; `detect(license_id='\x1f')` raises nothing in the API; a lone
   `$'\x1f'` gives `empty: argument` (`clicommon`).
-- `AdditionRef-*` after `WITH`: tag, field and `--id` refuse it, `match()`
+- `AdditionRef-*` after `WITH`: tag, field and `--id` refuse it, `resolve()`
   answers it exact. A grant before `WITH` is refused by a tag, answered by a
-  field and `match()`. `(MIT OR GPL-2.0) or later` is exact in a tag,
-  refused in `match()`.
+  field and `resolve()`. `(MIT OR GPL-2.0) or later` is exact in a tag,
+  refused in `resolve()`.
 - A quoted TOML `EUPL 1.1+` drops the "+". The inline grant regex in
   `markers._name_variants` is a second reader of "or later".
 - Tag `licenseref-foo` alone names nothing, while `MIT OR licenseref-foo` is
@@ -270,14 +270,14 @@ Readers (#149, #147):
   `GPL-2.0-or-later` (the grant belongs to version 3); `GPL-2.0-only or not
   later` reads `GPL-2.0-only OR not`; `MIT, see LICENSE or later` is `MIT`.
 - `detect` argument or field `GPL-2.0 +` is `GPL-2.0-only`, not exact, with
-  a warning (`versionkey`, `shorttext`); `match("GPL-2.0\xa0or\xa0later")`
+  a warning (`versionkey`, `shorttext`); `resolve("GPL-2.0\xa0or\xa0later")`
   says `qualifier stated twice`; `normalize._RE_COPYRIGHT_NOTICE` has
   `IGNORECASE` without `ASCII`.
 - `classify.grant_at` repeats `looseid.grant_end`; unify them.
-- `Apache2` is refused in a tag, though `match()` reads it loosely.
-- `detect --text 'MIT or later'` answers nothing, while `match()` answers
+- `Apache2` is refused in a tag, though `resolve()` reads it loosely.
+- `detect --text 'MIT or later'` answers nothing, while `resolve()` answers
   `MIT+`; a field `Licensed under the GPL-2.0 or later, see COPYING`
-  answers, while `match()` refuses it.
+  answers, while `resolve()` refuses it.
 
 Resolver values and fixes (#147, fix batch R):
 
@@ -295,8 +295,8 @@ Resolver values and fixes (#147, fix batch R):
   reason is the whole value (#152).
 - Smaller reason gaps, the 2,000-character limit counting the inner value,
   and `MIT; MIT` (review findings B7 to B9).
-- `licenseid match` refuses an argument with U+001C to U+001E as a line
-  break (`climatch`, `splitlines`); exit 2 kept.
+- `licenseid resolve` refuses an argument with U+001C to U+001E as a line
+  break (`cliresolve`, `splitlines`); exit 2 kept.
 
 BSD-1-Clause (#148):
 

@@ -24,7 +24,7 @@ Status: design, for 0.8. Not built.
 
 Between the end of step 1 and step 3 the file has no
 `license_list_version`, so `dbcheck` calls it `empty`. A reader in that
-window (`detect`, `match`, `is-*`, or a long-lived `licenseid.detect()`)
+window (`detect`, `resolve`, `is-*`, or a long-lived `licenseid.detect()`)
 fails with `database: empty: <path>; run 'licenseid update'`: it is told to
 run the update that is already running. The 0.7.0 review measured 1,074
 such errors against 634 answers from four reader threads during one 13 s

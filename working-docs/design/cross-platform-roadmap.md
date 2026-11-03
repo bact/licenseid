@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-06
-Last-Modified: 2026-10-07
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -41,7 +41,7 @@ Order within a section is by value, highest first.
   %USERNAME%'` changes, and `20[0-9][0-9]*` can become a file name, so the
   same command gives other input than on POSIX (confirmed from click's
   source). Turning it off (`windows_expand_args=False`) would also stop
-  `licenseid match *.txt`, which Windows users may expect. Options: keep it,
+  `licenseid detect *.txt`, which Windows users may expect. Options: keep it,
   turn it off, or turn it off for `--text` and `--id` only (click cannot do
   that per option, so the values would need a different path).
 - **UTF-16 input.** A file with a UTF-16 byte order mark (PowerShell 5.1's
@@ -53,13 +53,13 @@ Order within a section is by value, highest first.
 
 - **A closed pipe reader** (plausible). Windows reports a write to a pipe
   whose reader left as `OSError(EINVAL)` (or WinError 232), not
-  `BrokenPipeError`, so `licenseid match … | more` would print
+  `BrokenPipeError`, so `licenseid detect … | more` would print
   `ERROR: output: write failed: Invalid argument` and exit 2 instead of
   ending quietly. Check on a real pipe before changing `output.py`.
 - **Escape codes on the legacy console** (plausible, low). `--diff` colour
   prints `←[32m` in the old console host; Windows Terminal is fine. Enable
   escape processing on `win32`, or leave `--diff` plain there.
-- **Windows device names** (plausible). `licenseid match CON` finds that
+- **Windows device names** (plausible). `licenseid detect CON` finds that
   `os.path.exists("CON")` is true and reads the console.
 - **Ctrl-C while modules load** (plausible, low). It exits with
   `0xC000013A`, not 130, because it comes before `main()`'s `try`.
@@ -74,7 +74,7 @@ Order within a section is by value, highest first.
 ## Wording and small inconsistencies
 
 - **Invalid UTF-8 in the text argument** (confirmed, found on POSIX, older
-  than #77). `licenseid match $'…\xff…'` exits 1 with a traceback: a lone
+  than #77). `licenseid detect $'…\xff…'` exits 1 with a traceback: a lone
   surrogate reaches `database.get_license_by_name`, and `sqlite3` raises
   `UnicodeEncodeError`. Exit 1 reads as "no". Decode or refuse the argument
   at the CLI input boundary.

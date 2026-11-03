@@ -12,7 +12,7 @@ SPDX-License-Identifier: Apache-2.0
 What 0.7.0 built on the 0.6.0 resolver described in
 [declared-value-resolver.md](declared-value-resolver.md). A record of what
 was built and why, not a user manual: the fields and categories for users are
-in `docs/match.md`. Decision numbers (Q for the questions of 2026-10-28, P for
+in `docs/resolve.md`. Decision numbers (Q for the questions of 2026-10-28, P for
 the provisional decisions of 2026-10-29) are in
 [`../design/resolver-0-7-review.md`](../design/resolver-0-7-review.md); the
 plan and the task list (T0 to T14) are in
@@ -107,7 +107,7 @@ is not read by a prose rule.
 The category of a result is the weakest of its steps, and of a compound the
 weakest of its operands. Trust follows from the category: `identity`,
 `list_data`, `author_words`, `resolver_rule`, `none`. The table is in
-`docs/match.md`; `tests/test_resolver_shapes.py` checks it. 0.7.0 added
+`docs/resolve.md`; `tests/test_resolver_shapes.py` checks it. 0.7.0 added
 `prose_form` and `trove_name` (both `resolver_rule`) and made three moves of
 category, each listed in the CHANGELOG (Q17, P36). A prose or trove rule maps
 a step kind to its category and never sets the category itself, or

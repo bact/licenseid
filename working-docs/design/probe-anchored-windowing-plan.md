@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-10-07
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -32,7 +32,7 @@ cycle.
 
 ## Current bottleneck
 
-`fragment_similarity()` (`similarity.py`) is 85%+ of total `match()` time
+`fragment_similarity()` (`similarity.py`) is 85%+ of total `detect()` time
 on realistic workloads. Measured directly: its cost scales with **query
 length**, not candidate length —
 
