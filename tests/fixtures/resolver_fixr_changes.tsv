@@ -1,0 +1,9 @@
+# The answers task fixr (0.7.0 review: the reasons and readings of match())
+# moved in the parity corpus and the PyPI sample. value: Python
+# unicode_escape; group: why it moved (in tests/resolver_changes_fixr.py);
+# then the answer, its fields written as in the other answer fixtures.
+value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
+Apache-2.0 with LLVM exception	with-words	-	unresolved	-	-	-	-	-	none	yes	not found: Apache-2.0 with LLVM exception
+Apache-2.0 with LLVM exceptions	with-words	-	unresolved	-	-	-	-	-	none	yes	not found: Apache-2.0 with LLVM exceptions
+GPLv2 with linking exception	with-words	-	unresolved	-	-	-	-	-	none	yes	not found: GPLv2 with linking exception
+GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)	with-words	-	unresolved	-	-	-	-	-	none	yes	not found: GPLv2-or-later with a special exception which allows to use ...

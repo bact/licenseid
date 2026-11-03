@@ -35,10 +35,14 @@ accepts all or nothing.
   ``unresolved``; with an operator in lower case it is no compound. One with two
   operands and no operator between them (``MIT License (MIT)``,
   ``BSD (3-clause)``) is no compound at all: the later rules read it
-  (decision Q18).
+  (decision Q18). A mark beside a bracketed group that reads as such two
+  operands is the group's refusal (task fixr): a "+" after it (``(MIT)+ OR
+  ISC``, ``plus after a bracket``), quote marks around it (``"(MIT)" OR
+  Zlib``, ``character dropped``).
 """
 
 import re
+from collections.abc import Callable, Iterable
 from typing import Final, NamedTuple
 
 from licenseid.errors import reason_detail
@@ -57,8 +61,9 @@ from licenseid.exprtokens import ID_WORD
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import WITH_OPERATOR, declared_grant_id_text, granted_id_text
 from licenseid.quotes import unquote
-from licenseid.resolveleaf import Found, category_of
+from licenseid.resolveleaf import Found, category_of, refuse_dropped
 from licenseid.resolveprose import read_alone
+from licenseid.resolvereason import after_bracket
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
     TRUST,
@@ -72,6 +77,8 @@ from licenseid.resolvertypes import (
 # operator ("MIT/Apache-2.0", "MIT, ISC", "MIT | ISC", "MIT & ISC").
 _RE_MARK: Final = re.compile(r"\s*([/|&;,]+)\s*")
 _RE_ID_WORD: Final = re.compile(ID_WORD)
+_OPEN: Final = ("(", "[", "{")  # the bracket kinds of exprcanon.split
+_CLOSE: Final = (")", "]", "}")
 
 
 class Compound(NamedTuple):
@@ -185,13 +192,118 @@ def _refuse_grammar(
 ) -> Compound:
     """A value of operand-shaped leaves the grammar refuses, for *reason*:
     ``malformed`` when a leaf names a licence; no compound when two operands
-    have no operator between them, or an operator is in lower case."""
+    have no operator between them, or an operator is in lower case. A mark
+    beside a bracketed group that makes two operands of it is that group's
+    refusal (:func:`_misplaced`)."""
     tokens = reading.tokens
+    misplaced = _misplaced(reading)
+    if misplaced is not None:
+        _refuse(found, category_of(misplaced), str(misplaced.reason))
+        found.steps = list(misplaced.steps)
+        return Compound([], parsed, True)
     if missing_operator(tokens) or not written_upper(reading.text, tokens):
         return Compound([], parsed, False)  # prose: "BSD (3-clause)"
     named = any(leaf.found.expression is not None for leaf in reading.read)
     _refuse(found, "malformed" if named else "unresolved", reason)
     return Compound([], parsed, True)
+
+
+def _misplaced(reading: _Reading) -> Found | None:
+    """The refusal of a value whose operators are in upper case and which
+    holds a bracketed group with a mark the grammar does not take beside it,
+    the same refusal as that group alone, or None. A "+" after the group
+    (``(MIT)+ OR ISC``) qualifies an ID, not a bracket: ``malformed``, ``plus
+    after a bracket: (MIT)+``, when a licence in it is named. Quote marks
+    around the group (``"(MIT)" OR Zlib``) come off an operand, not off a
+    group: ``character dropped``, as for a quote mark in an operand (``"MIT
+    OR ISC" OR Zlib``), when every licence in it is named. Read otherwise,
+    as two operands side by side, the value was "not found"."""
+    tokens, text = reading.tokens, reading.text
+    if not written_upper(text, tokens) or not any(
+        token.kind in ("AND", "OR") for token in tokens
+    ):
+        return None
+    for index, token in enumerate(tokens):
+        if token.kind != "leaf":
+            continue
+        refusal = _plus_after_group(reading, index) or _quoted_group(reading, index)
+        if refusal is not None:
+            return refusal
+    return None
+
+
+def _plus_after_group(reading: _Reading, index: int) -> Found | None:
+    """The refusal of the "+" that the leaf at *index* of the tokens is,
+    right after a closing bracket, a licence in its group named; or None."""
+    tokens, text = reading.tokens, reading.text
+    plus = tokens[index]
+    if text[plus.start : plus.end] != "+" or not _touch(tokens, index - 1):
+        return None
+    if tokens[index - 1].kind not in _CLOSE:
+        return None
+    opening = _partner(tokens, index - 1, -1)
+    if opening is None or not _named(reading, opening, index, any):
+        return None
+    group = text[tokens[opening].start : plus.end]
+    return Found(category="malformed", reason=after_bracket(group))
+
+
+def _quoted_group(reading: _Reading, index: int) -> Found | None:
+    """The refusal of the quote marks that the leaf at *index* of the tokens
+    opens, right before a bracketed group closed by the same marks, every
+    licence in it named; or None."""
+    tokens, text = reading.tokens, reading.text
+    if not _touch(tokens, index) or tokens[index + 1].kind not in _OPEN:
+        return None
+    closing = _partner(tokens, index + 1, 1)
+    if closing is None or not _touch(tokens, closing):
+        return None
+    group = text[tokens[index].start : tokens[closing + 1].end]
+    unquoted = unquote(group)
+    if unquoted is None or not unquoted.balanced:  # quote marks, no other
+        return None
+    if not _named(reading, index + 1, closing, all):
+        return None
+    inner = unquoted.text
+    lost = group[: unquoted.start] + group[unquoted.start + len(inner) :]
+    refusal = Found()
+    refuse_dropped(refusal, group, "".join(dict.fromkeys(lost)), inner)
+    return refusal
+
+
+def _touch(tokens: list[Token], index: int) -> bool:
+    """Whether a token follows the one at *index* of *tokens* with nothing
+    between them."""
+    return 0 <= index < len(tokens) - 1 and (
+        tokens[index].end == tokens[index + 1].start
+    )
+
+
+def _partner(tokens: list[Token], index: int, direction: int) -> int | None:
+    """The index of the bracket that pairs with the one at *index* of the
+    tokens, looking forward (*direction* 1) or back (-1); None if none."""
+    depth = 0
+    while 0 <= index < len(tokens):
+        kind = tokens[index].kind
+        depth += (kind in _OPEN) - (kind in _CLOSE)
+        if depth == 0:
+            return index
+        index += direction
+    return None
+
+
+def _named(
+    reading: _Reading, first: int, last: int, judge: Callable[[Iterable[bool]], bool]
+) -> bool:
+    """Whether the leaves between the tokens at *first* and *last* name
+    licences, as *judge* (``any`` or ``all``) holds them."""
+    low, high = reading.tokens[first].end, reading.tokens[last].start
+    inside = [
+        leaf.found.expression is not None
+        for span, leaf in zip(reading.spans, reading.read)
+        if low <= span.start and span.end <= high
+    ]
+    return bool(inside) and judge(inside)
 
 
 def _combine(found: Found, reading: _Reading, tree: Node) -> Compound:

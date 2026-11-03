@@ -203,7 +203,7 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         ),
         ("LicenseRef-foo+", MALFORMED),
         ("LicenseRef-foo +", MALFORMED),
-        ("LicenseRef-foo or later", NONE),
+        ("LicenseRef-foo or later", MALFORMED),  # fixr item 5
         ("LicenseRef-", NONE),
         ("LicenseRef-foo_bar", NONE),  # "_" is no idstring character
         ("LicenseRef-foo bar", NONE),
@@ -220,7 +220,7 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         ("((GPL-2.0))+", MALFORMED),
         ("(GPL-2.0) +", MALFORMED),
         ("(Foo)+", NONE),
-        ("(MIT OR Apache-2.0)+", NONE),
+        ("(MIT OR Apache-2.0)+", MALFORMED),  # fixr item 3
         # a character that hides or reorders text is no part of a value
         ("MIT\u200b", NONE),
         ("\u202eMIT", NONE),

@@ -19,7 +19,7 @@ from typing import Final
 
 from licenseid.dropguard import trim_end_mark
 from licenseid.errors import reason_detail
-from licenseid.exprtokens import WHITE_SPACE
+from licenseid.exprtokens import WHITE_SPACE, is_white_space
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import WITH_OPERATOR
 from licenseid.quotes import encloses_nothing
@@ -70,10 +70,20 @@ def after_space(text: str) -> str:
     return f"plus after a space: {reason_detail(text)}"
 
 
+def after_exception(text: str) -> str:
+    """The reason of a "+" after an exception (``MIT WITH
+    Classpath-exception-2.0+``): it qualifies a licence ID, and an
+    exception takes no qualifier."""
+    return f"plus after an exception: {reason_detail(text)}"
+
+
 def no_reading(db: ListLookup, text: str, names: Callable[[str], bool]) -> str:
     """Why *text*, the value as the readers saw it (trimmed, unquoted), names
     nothing, when no reader said: an SPDX special value, an exception not on
-    the List after a licence that *names* reads, else ``not found``."""
+    the List after a licence that *names* reads, else ``not found``. The
+    exception is one word: words after it (``MIT WITH
+    Classpath-exception-2.0 or something``) make the value ``not found``,
+    not the exception."""
     if is_empty(text):
         return EMPTY
     if text in SPECIAL_VALUES:
@@ -81,12 +91,17 @@ def no_reading(db: ListLookup, text: str, names: Callable[[str], bool]) -> str:
     parts = WITH_OPERATOR.split(text)
     if (
         len(parts) == 2
-        and parts[1].strip()
-        and not _listed_exception(db, parts[1])
+        and _one_word(exception := parts[1].strip(WHITE_SPACE))
+        and not _listed_exception(db, exception)
         and names(parts[0])
     ):
-        return f"exception not found: {reason_detail(parts[1].strip())}"
+        return f"exception not found: {reason_detail(exception)}"
     return f"not found: {reason_detail(text)}"
+
+
+def _one_word(text: str) -> bool:
+    """Whether *text*, trimmed, is one word: not empty, no white space."""
+    return bool(text) and not any(map(is_white_space, text))
 
 
 def _listed_exception(db: ListLookup, text: str) -> bool:
