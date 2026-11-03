@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -19,7 +19,10 @@ plan and the task list (T0 to T14) are in
 [`../design/resolver-0-7-plan.md`](../design/resolver-0-7-plan.md); the
 evidence is in
 [`../design/resolver-0-7-evidence.md`](../design/resolver-0-7-evidence.md).
-Pull requests #102 to #135 landed since the `v0.6.0` tag.
+Pull requests #102 to #152 landed since the `v0.6.0` tag. The sections up
+to "Release hygiene" were written on 2026-10-30; the sections from "The
+CLI and the contract" on record what the closing weeks added (2026-10-31
+to 2026-11-03).
 
 ## Shape of the release
 
@@ -323,13 +326,320 @@ carries the reasons for the names.
   moved to `@pytest.mark.benchmark`, with a small size kept in the
   every-commit run (#121).
 
-## T10b: `licenseid match` and the CLI output pattern
+## The CLI and the contract (T10b, #138; #141)
 
-To be written when it is merged. Not described here: it is not built on
-`main` at the time of this note.
+`licenseid match` (#138) prints the resolution as `KEY=VALUE` lines or
+`--json`, needs no database, and exits 0 for an answer, 1 for none and 2 for
+a text or path that resolves to nothing. #141 then held every command to one
+pattern before the freeze (`tests/test_output_pattern.py`). The pattern
+itself is in AGENTS.md ("CLI output"); the decisions are P130 to P175 of the
+review. What changed, and what was rejected:
+
+- **No answer is a record (P150).** `detect` with no answer prints one
+  record, every field empty (`null` in JSON), exit 1; `--id-only` an empty
+  line. Rejected: printing nothing, because `$(...)` then reads a different
+  number of lines for an answer and for none.
+- **Conflicts are refused (P151).** Two inputs, or `--json` with `--id-only`
+  or `--diff`, exit 2 with `option: invalid: ...; pass one input`. Before, one
+  won unsaid.
+- **`-` is standard input (P152)** for `detect` and `is-*`, even from a
+  terminal; `match` reads no standard input and `match -` exits 2.
+- **`--text` is taken as written.** No escape is decoded (`\n` stays two
+  characters).
+- **`is-open`, `is-free` and `LicenseDetector.is_open()` are removed.**
+  `is-osi` or `is-fsf` do the same work. The CLI matrix relation B5 now holds
+  each predicate to the flag of `detect --json --id X` (P153).
+- **The flag of an expression (P140 to P144, P159).** `AND` is true when all
+  operands are, `OR` when any is, `WITH` takes the licence's. A compound with
+  an operand that cannot be judged (`MIT OR LicenseRef-x`) gives `None`,
+  even for an `OR` with a true operand (P140; the maintainer kept it, and a
+  three-valued `OR` stayed an open choice). No licence found is `None` too
+  (P159), not `False`, so a flag is never a false "no". `is-*` still takes
+  no compound through `--id` (P141): a compound is judged from a tag, a field
+  or a file.
+- **A deprecated ID that states no variant (P145, P160).** `GPL-2.0`, and the
+  `-with-` IDs, are read as the `-only` form, `EXACT=false` and `WARNING:
+  input: variant not stated` in an argument, `--id`, a tag and a field alike,
+  one check (`looseid.narrowed_ids`) in the one reader of a declared value
+  (`markers.resolve_license_value`). Rejected: a second guess in the CLI.
+- **Every refusal has a reason (P147).** `resolvereason.no_reading` is called
+  once every reader has declined: `empty`, `too long: N characters`,
+  `special value: NONE` (case-sensitive, as SPDX writes it), `not found:
+  <value>`. `reason is None` now means the value was read.
+- **`update --list ID[@VERSION]` (P148).** `ID` is the one `lists[*].id`
+  shows; the record starts with `LIST=`. Replaces `--version V`.
+- **`clear-cache` prints a record (P149):** `STATUS=cleared` or `nothing`,
+  and `PATH`. The cache files it deletes are only those beside a database
+  licenseid built (P163).
+- **The API (P154 to P157, P165, P166, P174).** `licenseid` exports the
+  result types and `json_line`; `match(db=)` takes a `LicenseDatabase` or a
+  path (`str` or `os.PathLike[str]`), checked ready and opened with
+  `create=False`; `detect()` raises `InvalidInputError` for none or two of
+  `text`, `license_id`, `file_path`, and `TypeError` for a non-`str` text,
+  both before it opens a database (`detector.check_request`); a blank path
+  is `InvalidInputError`, not the default database. A step's `list` and
+  `detail` are `None` when empty (they were `""`) and `by` is gone. `schema`
+  stays 2: schema 2 is new in this release.
+- **`variant not stated` has the subject `input` (P146)**, for every command
+  and the API; a subject names the thing affected, never a command.
+- **Exit 1 may warn (P164).** The rule is "no `ERROR` line" on exit 1 of
+  `detect`, `match` and `is-*`; a `WARNING` about the input or database can
+  still come.
+- **Two reviews of the contract (R1 to R10, S1 to S7; P159 to P175).** The
+  second review found a regression of the first: the "+" of a deprecated
+  `-with-` ID answered itself, exact (S2, P170). P199 reversed it, below.
+
+## Library warnings and `Detection.lists` (#146; P176 to P191)
+
+- **One emitter.** `licenseid/warning.py`: `LicenseIdWarning(UserWarning)`
+  with `subject`, `condition`, `detail` and `action` (None when not stated),
+  and `warn(subject, condition, detail, action)` as the one emitter, and
+  `parts()` the one reader of `SUBJECT: CONDITION[: DETAIL]` where a fallback
+  follows an error. The library never writes a warning to a stream itself; it
+  gives one through Python's `warnings`. The `report=` parameter of
+  `LicenseDatabase` and `LicenseDetector` is gone. Rejected: parsing the
+  grammar text in the emitter, and the class in `errors.py`; the action is
+  passed apart, so a `;` in a raw detail cannot move it.
+- **The CLI prints them.** `clicommon.printed_warnings()` is entered in
+  `DatabaseErrorGroup.main` (so `CliRunner` and `cli.main()` alike): filter
+  `always`, so none is deduplicated, and a `showwarning` that prints ours
+  through `console.warn` in order with the other lines. Other warnings are
+  left to Python.
+- **`stacklevel` (P177, P189).** The warning is attributed to the caller of
+  the outermost licenseid frame. `warning._caller` walks the stack and
+  judges a frame by its module name, not its file path: the first version
+  compared `co_filename` with the package path, and in a frozen or sourceless
+  install no frame matched. Rejected: 3.12's `skip_file_prefixes` (the floor
+  is 3.10) and a fixed level per call site (a stdlib frame between two
+  licenseid frames breaks it).
+- **"Once per process" (P178, P188).** `warning.once()` (a `ContextVar`)
+  keeps a text given inside its block from being given again. Review found
+  it counted a warning as given before `warnings.warn` ran, so one the
+  caller's filter had raised or ignored was never given again in the process.
+- **Tests (P182, P190).** `pyproject.toml` sets `filterwarnings =
+  ["error::licenseid.LicenseIdWarning"]`: a test states each warning it
+  gives, with the `given` fixture, `pytest.warns`, or `printed` for a step of
+  `update` called alone.
+  Two mutants survived the suite and got tests (P191). The progress of
+  `update` and `clear-cache` still goes to standard error from the library
+  (P181).
+- **`Detection.lists` (P183 to P186).** Built once per `detect()` call, inside
+  its `reading()` block, by `resolverinfo.list_info`, the builder of
+  `match()`'s `lists`; each result carries a deep copy. The no-answer record
+  of `detect --json` has `lists` as `null`, like every other key. No text
+  field: the text line did not change (the maintainer's decision), so `lists`
+  is in JSON and the API only.
+- **The `--json` rule (P185).** Reworded: every text key is there in lower
+  case, a value empty in text is `null` in JSON and no other, and JSON may
+  hold more than the text line.
+
+## Resolver values (#147; P192 to P194)
+
+A review of values at the edges (an empty quote, control characters, a
+surrogate, marks after a bracket) turned into fixes that move no PyPI value:
+
+- Quote marks around nothing give the reason `empty`; a reason keeps the `;`
+  of the value it quotes (only a diagnostic line turns it into `,`).
+- A prefix is written in SPDX's case (`licenseref-foo` is `LicenseRef-foo`,
+  step `id_case`), the idstring as written. The case fold is ASCII only
+  (`LicenseRef-ſ` is no reference).
+- U+001C to U+001F are control characters, refused; they had read as white
+  space. A refused value with a lone surrogate shows U+FFFD in `input`, so
+  `json_line` does not fail.
+- One end mark after a bracket, a trove name or path, a listed name or a
+  prose form is an ending, with its `separator` step; marks that would be
+  dropped after them are named `character dropped`, and a malformed core
+  (`LicenseRef-a+-`) gives its own reason (P131 to P137). P137 lists the dash
+  endings left silent (`(MIT)-`), each needing a path of its own, for 0.8.
+- **Letters that cut an ID (P194).** An ID followed by a letter of a script
+  written without spaces (CJK, Hiragana, Katakana, Hangul, Thai, Lao, Khmer,
+  Myanmar, Tibetan, Yi) is read again, as the letter cannot be a word
+  boundary. A compound passes up only a malformed core's reason; an operand
+  and its value get the same reason. `licenseid match` names the line-break
+  character it refuses (`invalid: line break U+001C: MIT`); it keeps exit 2.
+
+## One value, read alike everywhere (#149; P195 to P199, P198)
+
+Until #149 a tag, a `license` field, a text, `--id` and `match()` read the
+same value in different ways. The maintainer's rule: they agree, and where
+`match()` refuses, the others give no answer. Four rounds of work and review:
+
+- **F2 retired (P198; maintainer, 2026-11-02).** A tag or field with an
+  operand the List lacks (not `LicenseRef-*`) gives no answer: `MIT OR Apache
+  2.0` and `Apache2 OR isc` are refused, as `match()` refuses them. F2 had
+  been a partly known tag answered as a non-SPDX match, often `EXACT=true`.
+  This is a breaking change (migration: write SPDX IDs).
+- **A bare "or later" is the grant (P197).** `MIT or later` in a tag is
+  `MIT+`, not `MIT OR later`. `classify.grant_end` is the one probe for "is
+  there a grant here", read by `looseid` and `markers`. On an ID with no
+  `-or-later` form the grant is `+` (P35); a grant after another version
+  number is not the ID's, and "another version number" includes the one the
+  phrase starts with unless it is the ID's own.
+- **S2 / P170 reversed (P199).** A grant after a renamed ID follows the
+  rename (`StandardML-NJ or later` is `SMLNJ+`), and a "+" on a deprecated
+  `-with-` ID is no longer exact (`match()` calls it
+  `deprecated_ambiguous`). The deprecated-ID tables moved to
+  `deprecatedids.py` to stay under the module-lines ceiling.
+- **Spaced "+" refused (P195; reverses P34).** `GPL-2.0 +` is no operator:
+  `match()` gives `plus after a space`, and a tag with one names no licence;
+  the "+" used to be read as or-later, or the rest dropped. Likewise a "+"
+  apart from its ID (`MIT +`, `(MIT)+`, `MIT ++`). The operator has one
+  reader (`plusoperator`), which `tests/test_plus_readers.py` holds to one
+  table.
+- **Keywords ignore case in ASCII only (P196).** `(?a:...)` on the keyword,
+  not `re.ASCII` on the whole pattern: a dotted capital I, a dotless i, a
+  long s and the Kelvin sign no longer read as i, s or k (`MIT WİTH X` is
+  refused), while NBSP stays white space. `tests/test_readers_case.py` guards
+  it.
+- **The grant gap.** Between an ID and its grant only white space, one `.` or
+  `,`, and a `(` or `[` before the "or" may stand; "or" must be a word
+  (`MIT ora later` is no grant, in `match()` too: the only `match()` answers
+  that moved in round 3). A mark `match()` would drop (`MIT; or later`) gives
+  no answer from a tag or field. `classify.grant_head` is the one helper of
+  that gap.
+- **List items, not every ID (round 4).** Round 3 refused a field or short
+  text naming another listed ID beside a granted deprecated ID. That broke
+  prose: `Copyright Intel Corp. GPL-2.0 or later` lost its answer, because
+  `Intel` is an SPDX ID. The re-review of round 3 found it. Round 4 counts
+  another ID only as a list item (joined by `,` `;` `/` or and/or, no prose
+  word between), plus any listed ID that holds a digit wherever it stands
+  (`GPL-2.0 or later; docs under the GFDL-1.3` is refused); plain-word IDs
+  (`Intel`, `Ruby`) count only as list items. It also fixed comment-wrapped
+  grants (`#`, ` * `) round 3 had refused. No further review round for
+  round 4: small, covered by the suite, the CLI matrix and 3.14 runs.
+- **Other readers.** `detect` reads a run of blank lines in linear time
+  (20,000 took 7 s); `detect --text`, standard input and a file read U+001C
+  to U+001F as white space, as `match` does; a refused `--id` that shows no
+  character names its code points. `match()` names the trove list version
+  (`2026.9.21.13`) in `lists`.
+- **Recorded, not fixed (0.8).** The text path still disagrees with
+  `match()` on short grants (`MIT or later` as a text gets no CLI answer);
+  a field `Licensed under the GPL-2.0 or later, see COPYING` answers where
+  `match()` does not; `(MIT) or later` in a tag reads as `MIT+`; a tag
+  `MIT/Apache-2.0` or `MIT, Apache-2.0` answers `MIT` (as 0.6.0 did);
+  `AdditionRef-*` after WITH is refused by a tag and exact in `match()`; the
+  inline grant regex in `markers._name_variants` is a second reader.
+
+## The golden harness (#150)
+
+`python -m tools.golden` records the CLI and API answers for a fixed set of
+inputs; a change that moves one lists the value in
+`tests/harness_changes.py`. It is the guard for the readers above, which the
+PyPI sample cannot be (it holds licence values only). Windows CI found two
+platform differences (`8c27c60`): the long and short cases were picked from
+fixture files sorted as `Path`s, which Windows compares without regard to
+case, so the every-n-th pick named other licences (now sorted by name); and
+the CLI golden kept backslashes in the scratch path of a database error (now
+written with `/`). The golden file held the package version, so the release bump
+would have moved 11 records; it now writes `<VERSION>`.
+`python -m tools.golden` with no kind failed on Python below 3.12
+(`argparse` choices with `nargs="*"`).
+
+## The database handle (#151; P201)
+
+A review of packaging and files found that `LicenseDatabase(path)`, public
+with `create=True` by default, wrote licenseid's tables into any SQLite file
+it was given and made a missing file from a mistyped name.
+
+- **Refuse a foreign file, whatever `create` is** (`invalid`), as `update`
+  already did; the write rule stays fail-closed. **Create a missing file at
+  its first write**, in `_ensure_schema`, not on opening or reading: a
+  mistyped name is `not found`. The signature is unchanged and no
+  public method was added for creation.
+- **A locked licenseid database** now fails a `create=True` open, as `update`
+  already did.
+- **`DatabaseNotReadyError.condition` and `.detail`** are `str | None`, `None`
+  when nothing was said, not `""`: new in 0.7, and the API never uses `""` for
+  nothing. A type change after the freeze; the alternative, keeping `""` and
+  documenting it, was rejected. Pitloom may need to know.
+- **`file_path` and `db_path`** take a `str` or `os.PathLike[str]`, else
+  `TypeError`: an `int` had been read, and closed, as a file descriptor.
+- **A cache file with an odd name** gets the subject `cache`; `clear-cache`
+  names the file it could not delete (`licenses.json: delete failed: ...`).
+  An `update` into a missing folder fails at once with `database: update
+  failed: OperationalError: unable to open database file` and creates
+  nothing (round 3 of #151; every write of the handle also refuses a file
+  licenseid did not build, a locked one included).
+- **The publish workflow** checks that the tag equals the built version.
+
+Left for 0.8: readers see `database: empty` while `update` rebuilds the file
+(1,074 errors over a 13 s update with four reader threads; since 0.6.0). The
+fix is to build beside the file and swap it in, which needs care on Windows,
+where `os.replace` fails on an open file. The sketch is
+[`../design/concurrent-update.md`](../design/concurrent-update.md).
+
+## Refusal reasons and categories (#152; P202)
+
+From the resolver review of the whole release. No answer moved on the sample
+or the golden files; edge inputs got the right words.
+
+- `lists` names `pypi-trove-classifiers` when only an operand cites it
+  (`MIT; ISC License (ISCL)`).
+- A "+" after a listed exception (`MIT WITH Classpath-exception-2.0+`) or a
+  bracket in a compound (`(MIT)+ OR ISC`) has its own `malformed` reason
+  (`plus after an exception`, `plus after a bracket`); a grant on a
+  `LicenseRef-*` is `malformed` in every spelling (rejected: `unresolved` for
+  some, which differed with the spelling).
+- `GPL-2.0 or_later` stays `separator` (an earlier round of #152 made it
+  `stated_qualifier`; reverted in round 3).
+  `GFDL-1.3-invariants or later` keeps its reading as the listed ID; only a
+  base that spells no listed ID is refused (`... or any later version` and
+  `MIT or_later` wait for 0.8).
+- `exception not found` is kept for the words after `WITH`
+  (`Apache-2.0 with LLVM exception` keeps its informative reason). It is
+  `not found: <value>` only when the words hold AND/OR in capitals or a
+  listed exception plus more. Rejected: one word only, which would move four
+  PyPI values to a vaguer reason. A prose "and" in `... to build and
+  distribute ...` keeps `exception not found`.
+- Quote marks around a bracketed operand (`"(MIT)" OR Zlib`) are refused as
+  `character dropped: U+0022`: reading them would widen the grammar.
+- Pushed without a second review round: no corpus or golden answer moved,
+  guards and mutants passed, and the findings came from an independent review.
+
+## Other changes of the closing weeks
+
+- **Pinned list in the wheel (#144; P200).** The wheel and sdist ship the one
+  SPDX list pinned for the release (`BUNDLE_VERSION`, `BUNDLE_SHA256`), not
+  the newest on the build day; `LICENSEID_BUNDLE=skip` with
+  `LICENSEID_REQUIRE_BUNDLE=1` fails the build. Rejected: the newest at build
+  time, which made a release depend on the day it was built.
+- **Blank `HOME` (#145; P192).** `HOME=` on Python 3.10 put the default
+  database in `/.local`; a blank home variable (Windows: `USERPROFILE`) is
+  now "no home directory", exit 2. Rejected: treating `Path.home() == "/"` as
+  none, and an unset variable as blank.
+- **BSD-1-Clause (#148; P193).** A text with its copyright line filled in
+  read as a BSD-2-Clause variant. It is BSD-1 only with the source-code
+  wording, the disclaimer after it and no wording of a later condition, at
+  score 0.95; the new module is `bsdclauses.py`. The same change removed a
+  quadratic scan on a long run of blank lines (20,000 lines took about 3 s).
+  Rejected: a lower score, a rule on how the text ends, and a Tier 1 fix
+  (0.8).
+- **Short text deferred (P203; maintainer, 2026-11-02).** A branch that
+  scaled the score of a text under 40 characters (so `Foo` or `copyright
+  notice` is no answer) and required a name holding the input's words to be
+  the only one was kept for 0.8, with its review: 0.7.0 ships on program-flow
+  correctness, accuracy later unless severely worse. Known on `main`:
+  `detect("Foo")` answers 3D-Slicer-1.0 at 1.0, and one or two words of a
+  name answer by name at 1.0.
+- **Module count and ceilings.** The module-lines ceiling is 738 (`markers.py`
+  is the largest); README went over 800 lines, so the Python API reference
+  moved to `docs/python-api.md`.
+
+## Measured effect on 0.7.0
+
+See "Measured on 0.7.0" in
+[`../design/resolver-0-7-evidence.md`](../design/resolver-0-7-evidence.md):
+242 of 462 sample values (84.1% of projects, 90.2% of downloads) carry an
+expression; every refusal has a reason. The later pull requests moved one
+sample value.
 
 ## Traps
 
+- A widened rule needs the prose cases that share its words: refusing any
+  second ID beside a grant broke `Intel` (round 3 of #149).
+- A fix made in several readers needs the agreement table first: "or later"
+  and the "+" each had three readers.
+- A golden file must not hold what a release changes (the version).
 - A cache key is a claim about what can change. T5b's first key missed a
   `chmod` and an in-place edit, and its fallback outlived its cause.
 - Run a proposed rule against the List, not only the code: the end-mark rule

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-10-28
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -9,7 +9,9 @@ SPDX-License-Identifier: Apache-2.0
 
 # Expression resolution: one entry point for a declared value
 
-Status: design, unbuilt. Proposed by the maintainer on 2026-10-28; input to a
+Status: built in 0.7.0 (`match()`; the record is
+[`../implementation/declared-value-resolver-0-7.md`](../implementation/declared-value-resolver-0-7.md)).
+Kept as the proposal. Proposed by the maintainer on 2026-10-28; input to a
 0.7.0 release and to Pitloom's adoption of it (Pitloom #359 is the interim
 state).
 

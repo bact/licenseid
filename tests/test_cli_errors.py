@@ -131,7 +131,7 @@ def test_other_exceptions_are_not_worded_as_a_database_error(ready_db: str) -> N
 def test_sqlite_programming_errors_are_worded_as_a_database_error(
     ready_db: str, failure: sqlite3.Error
 ) -> None:
-    """One policy, in the matcher and the CLI: every sqlite3.Error is a
+    """One policy, in the detector and the CLI: every sqlite3.Error is a
     DatabaseNotReadyError (exit 2), and the original stays its cause."""
     with mock.patch.object(
         LicenseDetector, "detect", autospec=True, side_effect=failure
