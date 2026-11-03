@@ -132,13 +132,14 @@ Everything lands in `--out`:
 
 ## The baseline
 
-Around ninety cells flag on a healthy tree. They are real, open findings,
-and reprinting them on every run would bury the one new flag that a change
-just introduced. `baseline.txt` records the known set, one
-`<cell-id> <shell>` per line, sorted, so a version-control diff of it reads
-as "this was fixed" or "this appeared". The interpreter label is not part
-of the key (a cell that flags on any interpreter is a known flag), so the
-baseline works with whatever `--python` labels you choose.
+A few cells flag on a healthy tree (nine in 2026-11, the E2 locale cells of
+tech-debt item 2). They are real, open findings, and reprinting them on every
+run would bury the one new flag that a change just introduced.
+`baseline.txt` records the known set, one `<cell-id> <shell>` per line,
+sorted, so a version-control diff of it reads as "this was fixed" or "this
+appeared". The interpreter label is not part of the key (a cell that
+flags on any interpreter is a known flag), so the baseline works with
+whatever `--python` labels you choose.
 
 ```shell
 python -m tools.cli_matrix --db /tmp/matrix.db --check
