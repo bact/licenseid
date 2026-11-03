@@ -234,6 +234,12 @@ class LicenseDatabase:
         with self._connection(write=True) as conn:
             create_schema(conn)
 
+    def _reject_foreign(self) -> None:
+        """Refuse a file that is not licenseid's to write to (an in-memory
+        database has none)."""
+        if not is_memory_database(self._source):
+            reject_foreign_database(self._source)
+
     def _is_missing(self) -> bool:
         """Whether the file this database names is not there (an in-memory
         database, and a name only SQLite can resolve, are never missing)."""
@@ -244,12 +250,16 @@ class LicenseDatabase:
         )
 
     def _ensure_schema(self) -> None:
-        """Make the file and its tables if opening left that to the first
-        write. The file may have appeared since, so it is judged again: it
-        could be another program's."""
+        """Judge the file before a write, and make it and its tables if
+        opening left that to the first write.
+
+        Every write path is fail-closed (a file licenseid did not build, or
+        one that cannot be judged, such as a lock, is refused); a read stays
+        fail-open. The file may have appeared since opening, and could be
+        another program's."""
+        self._reject_foreign()
         if not self._schema_pending:
             return
-        reject_foreign_database(self._source)
         with self._connection(write=True) as conn:
             create_schema(conn)
         self._schema_pending = False
@@ -307,6 +317,7 @@ class LicenseDatabase:
 
         request = UpdateRequest(version, use_cache, source, force)
         try:
+            self._judge_before_update()
             if not self._schema_pending:  # else there is no file to convert
                 self._connections.leave_wal()  # an earlier version used WAL
             return self._update_from_remote(request)
@@ -317,6 +328,25 @@ class LicenseDatabase:
             raise LicenseIdError(
                 f"database: update failed: {typed(e.__cause__)}"
             ) from e
+
+    def _judge_before_update(self) -> None:
+        """What ``update_from_remote`` settles before it writes or downloads.
+
+        A file made since opening (another process's update) is judged as at
+        opening: refused, completed, or found current, with the rules it was
+        built by (never rebuilt over a newer build). A file that is not
+        licenseid's is refused before ``leave_wal`` writes its journal mode.
+        A name in a directory that is not there fails now, as it does when
+        the file is made, not after a download."""
+        if self._schema_pending and not self._is_missing():
+            self._schema_pending = False
+            self._init_db()
+        self._reject_foreign()
+        if self._schema_pending and not self.db_path.parent.is_dir():
+            raise LicenseIdError(
+                "database: update failed: OperationalError: "
+                "unable to open database file"
+            )
 
     def _update_from_remote(self, request: "UpdateRequest") -> bool:
         """``update_from_remote`` without the wording of a failed read."""

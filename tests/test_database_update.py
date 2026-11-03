@@ -343,13 +343,12 @@ def test_cli_update_unopenable_database_path_is_an_error_line(
     result = CliRunner().invoke(cli, ["--db", str(db_path), "update"])
     assert result.exit_code == 1
     assert result.stdout == ""
-    # The file is made at the first write, so the missing directory is found
-    # when the download is cached (R2-2 of fix batch D), and nothing is made.
-    assert result.stderr.splitlines()[-1].startswith(
-        "ERROR: spdx-data-v9.99.tar.gz: cache write failed: FileNotFoundError: "
+    assert result.stderr == (
+        "ERROR: database: update failed: OperationalError: "
+        "unable to open database file\n"
     )
-    assert fake.called
-    assert not db_path.parent.exists()
+    fake.assert_not_called()
+    assert not db_path.parent.exists()  # the file is made at the first write
 
 
 def test_cli_update_exception_without_message_has_no_dangling_colon(

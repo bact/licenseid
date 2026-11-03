@@ -111,13 +111,17 @@ def test_a_foreign_file_is_refused_when_named_by_uri(tmp_path: Path) -> None:
 
 
 def test_a_foreign_file_appearing_before_the_first_write_is_refused(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A handle on a name with no file waits for its first write; if another
     program has made the file by then, that write must not go into it."""
     path = tmp_path / "late.db"
     handle = LicenseDatabase(str(path))
     foreign_plain(path)
+    ship(monkeypatch, release_bundle(VERSION))
+    with pytest.raises(DatabaseNotReadyError, match="^database: invalid: "):
+        handle.update_from_remote(source="packaged")
+    assert names_in(path) == {"foo"}
     with pytest.raises(DatabaseNotReadyError, match="^database: invalid: "):
         handle._write_db_records([], [], [], None)  # pylint: disable=protected-access
     assert names_in(path) == {"foo"}
