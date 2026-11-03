@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-03
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -235,6 +235,42 @@ covered: this note stops before the tag (state on 2026-10-30, below).
 - Known bugs held for the whole-release review: `detect Foo` answers
   `3D-Slicer-1.0` with score 1.0; a `LicenseRef-café` tag reads as
   `LicenseRef-caf` and exact; `json_line` raises on a lone surrogate.
+
+## The overnight run, 2026-11-02 to 2026-11-03
+
+Recorded from the lead's decision notes and the review findings of the run.
+
+- **Fewer reviewers than planned.** The plan had seven review areas; the run
+  used four to save tokens: API and CLI contract, resolver rules, packaging
+  and files (Opus, high and medium), and user docs with a downstream trial
+  (Sonnet, medium). They read the harness tip and were told that flow and
+  contract defects block the release and accuracy does not unless severe.
+  Findings: no blocker from the contract and resolver reviewers; the
+  packaging reviewer found a window in which readers see `database: empty`
+  during `update` (1,074 errors over a 13 s update with four reader threads;
+  held for 0.8) and a public `LicenseDatabase(path)` that wrote into a
+  foreign SQLite file (fixed before the tag).
+- **A widened rule that broke prose.** Round 3 of the readers work refused a
+  field or short text that named another listed ID beside a granted
+  deprecated ID. The lead accepted the cost; a re-review of that round alone
+  showed `Copyright Intel Corp. GPL-2.0 or later` lost its answer, since
+  `Intel` is an SPDX ID. Round 4 counted another ID only as a list item, or
+  an ID with a digit anywhere.
+- **A reviewer's tested fix taken over.** For one finding the lead took the
+  fix the reviewer had already tested, not a new one (the finding is in the
+  lead's notes of the run, not named here).
+- **A maintainer decision mid-run.** On 2026-11-02 a tag or field with an
+  operand the List lacks was set to give no answer, as `match()` refuses it
+  (retiring finding F2), and the short-text branch was deferred to 0.8 with
+  its review: 0.7.0 ships on program-flow correctness.
+- **CI found what the laptop could not.** The golden harness picked cases
+  from fixture files sorted as `Path`s, which Windows compares without regard
+  to case, so the same run named other licences; and its CLI golden kept
+  backslashes in a scratch path. The golden file also held the package
+  version, so the release bump would have moved 11 records.
+- **Stacked branches.** The lead could not open or merge pull requests, so
+  each later step was branched from the previous one's tip (readers, harness,
+  fixes, docs sweep, release preparation) and merged in that order.
 
 ## Before citing
 
