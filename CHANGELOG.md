@@ -173,11 +173,11 @@ and this project adheres to
   space, as `match` does; a refused `--id` names its code points ([#149])
 - **Breaking:** `LicenseDatabase(path)` refuses a file licenseid did not build
   (`invalid`), whatever `create` is, and makes a missing file only at its first
-  write. Migration: run `licenseid update` to make one
+  write ([#151]). Migration: run `licenseid update` to make one
 - **Breaking:** `DatabaseNotReadyError.condition` and `.detail` are `None`
-  when nothing was said, not `""`. Migration: test `is None`
+  when nothing was said, not `""` ([#151]). Migration: test `is None`
 - `clear-cache` names the cache file it could not delete as the subject
-  (`licenses.json: delete failed: ...`)
+  (`licenses.json: delete failed: ...`) ([#151])
 
 ### Fixed
 
@@ -260,18 +260,19 @@ and this project adheres to
   answer ([#149])
 - `detect` reads a run of blank lines in linear time; 20,000 took 7 s ([#149])
 - `match()` names `pypi-trove-classifiers` in `lists` when only an operand
-  cites it
+  cites it ([#152])
 - `match()` gives a "+" after a listed exception (`MIT WITH
   Classpath-exception-2.0+`) or a bracket in a compound (`(MIT)+ OR ISC`) its
   own `malformed` reason; a grant on a `LicenseRef-*` is `malformed` always
+  ([#152])
 - An "or later" apart from a listed ID in other separators (`GPL-2.0
   or_later`) is `stated_qualifier`; `exception not found` no longer names an
-  AND/OR or words after a listed exception as the exception
+  AND/OR or words after a listed exception as the exception ([#152])
 - `detect(file_path=...)` and `LicenseDetector(db_path)` raise `TypeError`
   unless given a `str` or path (an `int` was read and closed as a file
-  descriptor)
+  descriptor) ([#151])
 - An `update` to a path in a missing folder fails after the download
-  (`<cache file>: cache write failed`) and creates nothing
+  (`<cache file>: cache write failed`) and creates nothing ([#151])
 
 [#117]: https://github.com/bact/licenseid/pull/117
 [#119]: https://github.com/bact/licenseid/pull/119
@@ -295,6 +296,8 @@ and this project adheres to
 [#147]: https://github.com/bact/licenseid/pull/147
 [#148]: https://github.com/bact/licenseid/pull/148
 [#149]: https://github.com/bact/licenseid/pull/149
+[#151]: https://github.com/bact/licenseid/pull/151
+[#152]: https://github.com/bact/licenseid/pull/152
 
 ## [0.6.0] - 2026-10-27
 
