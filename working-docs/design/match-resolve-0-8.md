@@ -214,7 +214,8 @@ How a resolution becomes a `detect` result. Each point is a decision
   logic, "`OR` requires only one operand to be true". `MIT OR LicenseRef-x`
   is OSI approved; an `OR` is false only when every operand is false; an
   `AND` is true only when every operand is true and false when one is false
-  (`0BSD AND LicenseRef-x` is not OSI approved). Anything else stays empty.
+  (`CC-BY-4.0 AND LicenseRef-x` is not OSI approved). Anything else stays
+  empty (`0BSD AND LicenseRef-x`).
 - **D9 the word "matcher".** After the rename to `detect` and `match`, the
   README title, `licenseid --help` ("SPDX License ID matcher tool"),
   `codemeta.json`, the keywords and the `tests/test_matcher*.py` names
