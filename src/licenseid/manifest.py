@@ -17,9 +17,10 @@ import os
 import re
 from collections.abc import Iterator
 
-# PEP 621 table form, in any table: license = {text = "MIT"}
+# PEP 621 table form, in any table: license = {text = "MIT"}. The key ignores
+# case in ASCII only: "lİcense" (U+0130) is no "license".
 _RE_TOML_LICENSE_TABLE = re.compile(
-    r'license\s*=\s*\{[^}]*\btext\s*=\s*["\']([^"\']+)["\']', re.IGNORECASE
+    r'(?a:license)\s*=\s*\{[^}]*\btext\s*=\s*["\']([^"\']+)["\']', re.IGNORECASE
 )
 # Any key, bare or quoted: a TOML file has at least one.
 _RE_TOML_KEY = re.compile(r"""[ \t]*[\w."'-]+[ \t]*=""")

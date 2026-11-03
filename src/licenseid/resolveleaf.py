@@ -43,7 +43,13 @@ from licenseid.looseid import (
     granted_id_text,
     loose_id,
 )
-from licenseid.resolvereason import after_bracket, on_reference, stated_twice
+from licenseid.plusoperator import plus_apart
+from licenseid.resolvereason import (
+    after_bracket,
+    after_space,
+    on_reference,
+    stated_twice,
+)
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
     LEXICAL_KINDS,
@@ -327,16 +333,18 @@ def _plus(db: ListLookup, text: str, found: Found) -> bool:
     """``X+`` as ``X-or-later`` where the List has that ID. Otherwise ``X+`` as
     written, after the deprecation of ``X`` (a rename is followed, an ID with
     no known successor is offered, not changed). A qualifier already stated
-    (``X-only+``, ``X++``, ``X + +``) is malformed. Nothing is recorded in
-    *found* unless the value names a licence."""
+    (``X-only+``, ``X++``, ``X + +``) is malformed, and so is a "+" after a
+    space (``X +``): the operator touches its ID (plusoperator.PLUS_OPERATOR)
+    and a "+" apart may say "and". Nothing is recorded in *found* unless the
+    value names a licence."""
     core = _RE_TRAILING.sub("", text)
-    spacing = []
     stripped = text[:-1].rstrip()
-    if stripped != text[:-1]:
-        spacing.append(step("whitespace", True, text, stripped + "+"))
-    if stripped.endswith(")"):  # a "+" follows a license ID, not a bracket
+    apart = plus_apart(text, len(text) - 1)
+    if apart == "bracket":  # a "+" follows a license ID, not a bracket
         inner = without_outer_brackets(stripped).strip()
         return _malformed_if_named(db, inner, found, after_bracket(text))
+    if apart and text[len(core) :].count("+") == 1:  # after a space
+        return _malformed_if_named(db, stripped, found, after_space(text))
     base = _base(db, stripped)
     if base is None:
         doubled = text[len(core) :].count("+") > 1
@@ -349,7 +357,7 @@ def _plus(db: ListLookup, text: str, found: Found) -> bool:
             text
         )
         return True
-    found.steps.extend(spacing + steps)
+    found.steps.extend(steps)
     or_later = f"{license_id}-or-later"
     if _in_use(db, or_later):
         found.expansions.append(step("plus_to_or_later", True, text, or_later))
@@ -378,7 +386,7 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
         if _qualified(db, named):
             found.category, found.reason = "malformed", stated_twice(text)
             return True
-        base = _base(db, named.strip())
+        base = _base(db, named.strip()) or _reference_before_mark(named.strip())
         if base is not None:
             return _grant(db, text, base, found)
     base = _base(db, text)
@@ -387,6 +395,18 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
     found.steps.extend(base[1])
     _deprecation(db, base[0], found)
     return True
+
+
+def _reference_before_mark(text: str) -> tuple[str, list[Step]] | None:
+    """*text*, a ``LicenseRef-*`` and one end mark (``LicenseRef-a,`` before
+    "or any later version"), as :func:`_base` reads the reference, or None:
+    the mark is an ending, so the grant is the reference's and refused for
+    it, not "not found" for the mark."""
+    ref = trim_end_mark(text)
+    if ref is None or not is_license_ref(ref):
+        return None
+    steps = [step("separator", True, text, ref, "end mark")]
+    return _reference(ref, steps), steps
 
 
 def _qualified(db: ListLookup, named: str) -> bool:

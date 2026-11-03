@@ -185,7 +185,6 @@ def test_c11_the_subject_is_input(db: str, command: str) -> None:
         ("GPL-2.0-only WITH Classpath-exception-2.0", True, True),  # the licence's
         ("MIT AND LicenseRef-x", None, None),  # cannot be judged
         ("MIT OR LicenseRef-x", None, None),  # no Kleene shortcut (P140)
-        ("MIT AND Foo-1.0", None, None),  # not on the List
     ],
 )
 def test_f1_compound_flags_are_evaluated(

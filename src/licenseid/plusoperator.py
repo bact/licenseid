@@ -17,8 +17,10 @@ import re
 # (WITH, AND, OR), is not one. The ID must start at a token start (lookbehind):
 # without it every offset of a long token is tried and the scan is quadratic
 # (8 s at 32,000 characters).
+# The operator words ignore case in ASCII only ("(?a:"), as in exprtokens:
+# "WİTH" is no WITH. White space stays Unicode's.
 PLUS_OPERATOR = re.compile(
-    r"(?P<with>\bWITH\s+)?(?<![^\s(])(?!(?:with|and|or)\+)"
+    r"(?P<with>\b(?a:WITH)\s+)?(?<![^\s(])(?!(?a:with|and|or)\+)"
     r"(?P<id>[^\s()+]+)\+(?=\s|\)|$)",
     re.IGNORECASE,
 )
@@ -45,6 +47,22 @@ def plus_after_qualifier(expression: str) -> bool:
         for match in PLUS_OPERATOR.finditer(expression)
         if not match.group("with") and not LICENSE_REF_PREFIX.match(match.group("id"))
     )
+
+
+def plus_apart(text: str, at: int) -> str | None:
+    """How the "+" at *at* of *text* stands apart from the ID before it, so
+    is no operator, which touches its ID: ``"bracket"`` after a closing
+    bracket (``(MIT)+``, ``(MIT) +``), ``"space"`` after white space
+    (``MIT +``), or None (``MIT+``, and ``MIT++``, whose second "+" states
+    the qualifier twice). The one judge of the tag (``leading_expression``),
+    the leaf of ``match()`` and the text, field and ``is-*`` paths
+    (``identifiers.is_stray_plus``)."""
+    before = at
+    while before and text[before - 1].isspace():
+        before -= 1
+    if before and text[before - 1] == ")":
+        return "bracket"
+    return "space" if before < at else None
 
 
 def strip_plus_operator(expression: str) -> str:

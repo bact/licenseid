@@ -14,10 +14,11 @@ from licenseid.database import LicenseDatabase
 from licenseid.exprflags import declared_flags
 from licenseid.identifiers import (
     leading_expression,
+    names_only_listed,
     normalize_identifier,
     qualify_trailing_grant,
 )
-from licenseid.looseid import drops_words, narrowed_ids, warn_narrowed
+from licenseid.looseid import drops_words, read_inexactly, warn_narrowed
 from licenseid.manifest import extension, license_value_groups
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags, Method
 
@@ -62,55 +63,63 @@ class MarkerDetector:
     # never "\s", so a tag cannot reach across a line break), up to the next
     # tag on it (_spdx_tag_values); identifiers.leading_expression decides
     # where the expression in it ends.
+    # Every keyword here ignores case in ASCII only: re.ASCII where the
+    # pattern has no \s or \w, "(?a:" around the word where it has (white
+    # space and words stay Unicode's). Python's IGNORECASE alone folds
+    # "\u0130", "\u0131", "\u017f" and the Kelvin sign into "i", "s", "k".
     _RE_SPDX = re.compile(
-        r"SPDX-License-Identifier[ \t]*[:=][ \t]*['\"]?", re.IGNORECASE
+        r"SPDX-License-Identifier[ \t]*[:=][ \t]*['\"]?", re.IGNORECASE | re.ASCII
     )
     _RE_LINE_BREAK = re.compile(r"[\r\n]")
 
     # "Apache License, Version 2.0" → "Apache License 2.0". A run of white
     # space is tried from its first character only: ",?\s*Version" retries
     # it from every one and is quadratic (3 s at 40,000 spaces).
-    _RE_VERSION_WORD = re.compile(r"(?:,\s*|(?<![\s,])\s+)?Version\s+", re.IGNORECASE)
+    _RE_VERSION_WORD = re.compile(
+        r"(?:,\s*|(?<![\s,])\s+)?(?a:Version)\s+", re.IGNORECASE
+    )
 
     # Include + to handle SPDX-legacy notation like GPL-2.0+
     # Use [ \t]* (not \s*) to prevent matching across line breaks.
     _RE_LICENSE_FIELD = re.compile(
-        r"license[ \t]*[:=][ \t]*['\"]?([a-zA-Z0-9.+, \t-]+)['\"]?", re.IGNORECASE
+        r"license[ \t]*[:=][ \t]*['\"]?([a-zA-Z0-9.+, \t-]+)['\"]?",
+        re.IGNORECASE | re.ASCII,
     )
 
     # Heading patterns — allow optional words after "License/Licensing"
     # so "## License Agreement" and "## Licensing Information" both match.
     _RE_MD_HEADING = re.compile(
-        r"^#+\s*Licens(?:e|ing)(?:\s+\w+)*\s*$", re.MULTILINE | re.IGNORECASE
+        r"^#+\s*(?a:Licens(?:e|ing))(?:\s+\w+)*\s*$", re.MULTILINE | re.IGNORECASE
     )
     _RE_UNDERLINE_HEADING = re.compile(
-        r"^\s*Licens(?:e|ing)(?:\s+\w+)*\s*\n\s*[=\-*#]{3,}\s*$",
+        r"^\s*(?a:Licens(?:e|ing))(?:\s+\w+)*\s*\n\s*[=\-*#]{3,}\s*$",
         re.MULTILINE | re.IGNORECASE,
     )
     _RE_BOX_HEADING = re.compile(
-        r"^\s*[=\-*#]{3,}\s*\n\s*Licens(?:e|ing)(?:\s+\w+)*\s*\n\s*[=\-*#]{3,}\s*$",
+        r"^\s*[=\-*#]{3,}\s*\n\s*(?a:Licens(?:e|ing))(?:\s+\w+)*\s*\n"
+        r"\s*[=\-*#]{3,}\s*$",
         re.MULTILINE | re.IGNORECASE,
     )
     _RE_LINE_HEADING = re.compile(
-        r"^\s*Licens(?:e|ing)(?:\s+\w+)*\s*$", re.MULTILINE | re.IGNORECASE
+        r"^\s*(?a:Licens(?:e|ing))(?:\s+\w+)*\s*$", re.MULTILINE | re.IGNORECASE
     )
 
     # Font-exception-2.0: "As a special exception...embed this font..."
     _RE_FONT_EXCEPTION = re.compile(
-        r"as\s+a\s+special\s+exception.{0,400}embed\s+this\s+font",
+        r"(?a:as)\s+a\s+(?a:special)\s+(?a:exception).{0,400}embed\s+(?a:this)\s+font",
         re.IGNORECASE | re.DOTALL,
     )
 
     # GPL/LGPL/AGPL copyright notice header detection.
     # Matches "GNU [Lesser|Library|Affero] General Public License".
     _RE_GPL_FAMILY = re.compile(
-        r"GNU\s+((?:Lesser|Library|Affero)\s+)?General\s+Public\s+License",
+        r"GNU\s+((?a:Lesser|Library|Affero)\s+)?General\s+(?a:Public)\s+(?a:License)",
         re.IGNORECASE,
     )
     # Version number appearing in or near the license grant.
     # "either version 2" / "version 2.1" / "v3" etc.
     _RE_GPL_VERSION = re.compile(
-        r"(?:either\s+)?v(?:ersion)?\s*(\d+(?:\.\d+)?)",
+        r"(?:(?a:either)\s+)?v(?a:ersion)?\s*(\d+(?:\.\d+)?)",
         re.IGNORECASE,
     )
     # "or later" signals within the license grant window: the phrases every
@@ -118,7 +127,7 @@ class MarkerDetector:
     # here as in the tie-breaker. "either version" alone implies "or any later
     # version" in GPL boilerplate.
     _RE_GPL_OR_LATER = re.compile(
-        OR_LATER_PHRASE.pattern + r"|\beither\s+version\b", re.IGNORECASE
+        OR_LATER_PHRASE.pattern + r"|\b(?a:either)\s+(?a:version)\b", re.IGNORECASE
     )
 
     # License mention patterns: "licensed under the MIT License",
@@ -126,9 +135,18 @@ class MarkerDetector:
     # `\s+` (not `[ \t]+`) intentionally spans newlines so "licensed \nunder" matches.
     # Capture stops at end-of-line, opening paren, or sentence-terminating punctuation.
     _RE_LICENSE_MENTION = re.compile(
-        r"(?:licens(?:ed?|ing)|released?|distributed?)\s+under"
-        r"(?:\s+the)?(?:\s+project'?s?)?"
+        r"(?a:licens(?:ed?|ing)|released?|distributed?)\s+under"
+        r"(?:\s+the)?(?:\s+(?a:project'?s?))?"
         r"\s+([^\n;(]{2,100})",
+        re.IGNORECASE,
+    )
+    # What is cut from a mentioned name: "project's", a trailing "License".
+    _RE_PROJECT_WORD = re.compile(r"\b(?a:project'?s?)\s+", re.IGNORECASE)
+    _RE_LICENSE_TAIL = re.compile(r"\s+(?a:Licen[sc]e[s]?)\s*$", re.IGNORECASE)
+    # "GPL License version 3.0 or any version later" is GPL-3.0-or-later.
+    _RE_GPL_NAME = re.compile(
+        r"\b(GPL|LGPL|AGPL)\s+(?:(?a:License)\s+)?(?:(?a:version)\s+)?"
+        r"v?(\d+(?:\.\d+)?)",
         re.IGNORECASE,
     )
 
@@ -243,13 +261,16 @@ class MarkerDetector:
         details = self.db.get_license_details(lic_id) if lic_id else None
         if details:
             found = [self._candidate_without_text(details, score)]
+        elif lic_id and names_only_listed(lic_id, self.db):
+            # A word that is no listed ID (a typo, "later", the "Apache" of
+            # "Apache 2.0") is no operand: it builds no candidate.
+            found = self._synthetic_candidate(lic_id, score)
         else:
-            # A value with no recognised ID (a typo, free text) is no evidence
-            # of a license and builds no candidate.
-            found = self._synthetic_candidate(lic_id, score) if lic_id else []
-        if found and narrowed_ids(self.db, expression, found[0]["license_id"]):
-            # "GPL-2.0" read as GPL-2.0-only: a guess, said and not exact.
-            warn_narrowed(expression, found[0]["license_id"])
+            found = []
+        inexact = read_inexactly(self.db, expression, found)
+        if inexact:  # "GPL-2.0" read as GPL-2.0-only: said, and not exact
+            if inexact == "narrowed":
+                warn_narrowed(expression, found[0]["license_id"])
             found[0]["narrowed"] = True
         return found
 
@@ -578,8 +599,8 @@ class MarkerDetector:
             return None
         # Truncate at sentence boundary then clean
         candidate = re.split(r"\.\s", m.group(1), maxsplit=1)[0].strip().rstrip(".,; ")
-        candidate = re.sub(r"\bproject'?s?\s+", "", candidate, flags=re.IGNORECASE)
-        candidate = re.sub(r"\s+Licen[sc]e[s]?\s*$", "", candidate, flags=re.IGNORECASE)
+        candidate = self._RE_PROJECT_WORD.sub("", candidate)
+        candidate = self._RE_LICENSE_TAIL.sub("", candidate)
         return candidate.strip() if candidate.strip() else None
 
     def _try_license_lookup(self, name: str) -> LicenseDetails | None:
@@ -615,11 +636,7 @@ class MarkerDetector:
         if name.lower().endswith(" license"):
             variants.append(name[:-8].strip())
         # "GPL License version 3.0 or any version later" → "GPL-3.0-or-later"
-        gpl_m = re.search(
-            r"\b(GPL|LGPL|AGPL)\s+(?:License\s+)?(?:version\s+)?v?(\d+(?:\.\d+)?)",
-            name,
-            re.IGNORECASE,
-        )
+        gpl_m = self._RE_GPL_NAME.search(name)
         if gpl_m:
             family = gpl_m.group(1).upper()
             ver = gpl_m.group(2)
@@ -645,11 +662,9 @@ class MarkerDetector:
         for m in self._RE_LICENSE_MENTION.finditer(joined):
             # Truncate at sentence boundary (". " ends the license name phrase)
             raw = re.split(r"\.\s", m.group(1), maxsplit=1)[0].strip().rstrip(".,; ")
-            raw = re.sub(r"\bproject'?s?\s+", "", raw, flags=re.IGNORECASE)
+            raw = self._RE_PROJECT_WORD.sub("", raw)
             # Try with and without trailing "License" word
-            core = re.sub(
-                r"\s+Licen[sc]e[s]?\s*$", "", raw, flags=re.IGNORECASE
-            ).strip()
+            core = self._RE_LICENSE_TAIL.sub("", raw).strip()
             details = self._try_license_lookup(core) or self._try_license_lookup(raw)
             if details and details["license_id"] not in seen:
                 candidates.append(self.to_candidate(details, 0.92))

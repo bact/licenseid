@@ -20,8 +20,9 @@ from matcher_db import Lic, seeded_db
 from resolver_corpus import LICENSE_LIST, list_rows
 
 from licenseid.database import LicenseDatabase
+from licenseid.deprecatedids import DEPRECATED_WITH_IDS
 from licenseid.detector import LicenseDetector
-from licenseid.identifiers import DEPRECATED_WITH_IDS, normalize_identifier
+from licenseid.identifiers import normalize_identifier
 from licenseid.looseid import loose_id, loose_with, narrowed_ids, shown
 from licenseid.shorttext import match_short_text
 from licenseid.versionkey import MAX_KEY_INPUT, version_key

@@ -29,7 +29,7 @@ from licenseid.clicommon import (
 from licenseid.console import warn
 from licenseid.database import LicenseDatabase
 from licenseid.errors import InvalidInputError, invalid_id_error, one_line, shown
-from licenseid.exprtokens import is_license_ref
+from licenseid.exprtokens import WHITE_SPACE, is_license_ref
 from licenseid.identifiers import is_simple_expression
 from licenseid.textinput import (
     decode_input,
@@ -109,7 +109,7 @@ def read_input(ctx: click.Context, path: str | None) -> str:
     except InvalidInputError as e:  # binary data; already "input: ..."
         exit_usage_error(ctx, str(e))
     # No bytes at all on stdin means nothing was piped: "input: missing".
-    if not piped_nothing and not text.strip():
+    if not piped_nothing and not text.strip(WHITE_SPACE):
         exit_bad_input(ctx, f"empty: {shown(source)}")
     return text
 
@@ -131,7 +131,7 @@ def read_text_option(ctx: click.Context, text: str) -> str:
     backslash: ``\\n`` is two characters, not a line break (C6)."""
     content = normalize_newlines(text)
     reject_unencodable(ctx, content, binary_source="--text")
-    if not content.strip():
+    if not content.strip(WHITE_SPACE):  # U+001C to U+001F are text, as for match
         exit_bad_input(ctx, "empty: --text")
     return content
 

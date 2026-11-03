@@ -99,8 +99,15 @@ def invalid_id_error(option: str, value: str) -> InvalidInputError:
     """The one wording for a value declared as a license ID that names no
     single license. *option* is what the caller spells it: ``--id`` on the
     command line, ``license_id`` in the API. A minified line can be declared
-    too, so the value goes through ``one_line``.
+    too, so the value goes through ``one_line``; one that folds to nothing
+    (``\\x1f``), or that shows no character (U+200B, U+FEFF), is named by
+    its code points, and an empty one as ``""``: a DETAIL is never empty or
+    invisible.
     """
+    detail = one_line(value)
+    if not any(char.isprintable() and not char.isspace() for char in detail):
+        points = " ".join(f"U+{ord(char):04X}" for char in dict.fromkeys(value))
+        detail = _cut(points) or '""'
     return InvalidInputError(
-        f"option: invalid: {option}: {one_line(value)}; pass one license ID"
+        f"option: invalid: {option}: {detail}; pass one license ID"
     )

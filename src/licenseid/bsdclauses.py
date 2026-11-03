@@ -12,32 +12,37 @@ into a structural marker candidate.
 import re
 from typing import Final
 
+# Each word with an "i", "s" or "k" ignores case in ASCII only ("(?a:"):
+# Python's IGNORECASE alone folds "\u0130", "\u0131", "\u017f" and the
+# Kelvin sign into them. White space stays Unicode's.
+
 # A numbered condition of a BSD licence: "2. Redistributions in binary
 # form...", "3. Neither the name...", "3. All advertising materials...".
 # The indent is white space other than a line break: `\s*` after `^` reaches
 # across line breaks, so a run of blank lines was scanned once per line.
 _RE_CONDITION: Final = re.compile(
-    r"^[^\S\r\n]*(\d+)\.\s+(?:Redistribution|Neither\b|"
-    r"All\s+advertising|The\s+(?:name|author))",
+    r"^[^\S\r\n]*(\d+)\.\s+(?:(?a:Redistribution)|(?a:Neither)\b|"
+    r"All\s+(?a:advertising)|The\s+(?:name|author))",
     re.MULTILINE | re.IGNORECASE,
 )
 
 # BSD-1-Clause's one condition: the first condition of BSD-2, 3 and 4 too.
 _RE_SOURCE_CONDITION: Final = re.compile(
-    r"^[^\S\r\n]*1\.\s+Redistributions?\s+of\s+source\s+code\s+must\s+retain\b",
+    r"^[^\S\r\n]*1\.\s+(?a:Redistributions?)\s+of\s+(?a:source)\s+code\s+"
+    r"(?a:must)\s+(?a:retain)\b",
     re.MULTILINE | re.IGNORECASE,
 )
 
 # The BSD disclaimer, which in BSD-1-Clause follows its one condition.
 _RE_DISCLAIMER: Final = re.compile(
-    r"\bTHIS\s+SOFTWARE\s+IS\s+PROVIDED\b", re.IGNORECASE
+    r"\b(?a:THIS)\s+(?a:SOFTWARE)\s+(?a:IS)\s+(?a:PROVIDED)\b", re.IGNORECASE
 )
 
 # The words of the conditions BSD-1-Clause lacks (the binary-form,
 # advertising and endorsement conditions of BSD-2, 3 and 4), numbered or not.
 _RE_LATER_CONDITION: Final = re.compile(
-    r"\bRedistributions?\s+in\s+binary\s+form\b|\badvertising\s+materials\b|"
-    r"\bendorse\s+or\s+promote\b",
+    r"\b(?a:Redistributions?)\s+(?a:in)\s+(?a:binary)\s+form\b|"
+    r"\b(?a:advertising)\s+(?a:materials)\b|\b(?a:endorse)\s+or\s+promote\b",
     re.IGNORECASE,
 )
 

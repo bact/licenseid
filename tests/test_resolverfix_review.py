@@ -158,13 +158,13 @@ MATCHED: dict[str, Answer] = {
     # is not (the "-" would go unnamed): the general reason
     "MIT;;+-": (None, "unresolved", [], "not found: MIT;;+-"),
     "MIT++-": ref("MIT++", "qualifier stated twice"),
-    # Recorded, not moved: a grant after a comma is not read after a
-    # reference, so the reason is the general one
+    # Task readers: the comma is an ending, so the grant is the
+    # reference's (was the general reason, "not found")
     "LicenseRef-a, or any later version": (
         None,
         "unresolved",
         [],
-        "not found: LicenseRef-a, or any later version",
+        "qualifier on a reference: LicenseRef-a, or any later version",
     ),
     # 11: quote marks around nothing, then a mark
     '"".': (None, "unresolved", [], "empty"),
@@ -174,8 +174,9 @@ MATCHED: dict[str, Answer] = {
     '"".;': (None, "unresolved", [], 'not found: "".;'),
     '""++': (None, "unresolved", [], 'not found: ""++'),
     '"+"': (None, "unresolved", [], "not found: +"),
-    # Recorded, not moved: the outer marks pair as one layer of quotes
-    '"" OR ""': (None, "unresolved", [], "not found: OR"),
+    # Task readers: the marks around an operator alone are the operands'
+    # (they paired as two layers around "OR": "not found: OR")
+    '"" OR ""': (None, "unresolved", [], 'operand not resolved: ""'),
 }
 
 
@@ -196,7 +197,9 @@ TAGS: dict[str, Answers] = {
     "GPL-2.0-only WITH Classpath-exception-2.0, or any later version": NOTHING,
     "GPL-2.0, see COPYING for any later version": named("GPL-2.0-or-later"),
     "GPL-2.0-only, see COPYING": named("GPL-2.0-only"),
-    "GPL-2.0-only OR MIT, or any later version": named("GPL-2.0-only OR MIT"),
+    # Task readers: the grant is MIT's, its "+" (P35), as match() reads it;
+    # it was dropped in silence
+    "GPL-2.0-only OR MIT, or any later version": named("GPL-2.0-only OR MIT+"),
     # 3: a script written without spaces after the ID starts a word
     "MIT\u8bb8\u53ef\u8bc1": named("MIT"),
     "Apache-2.0\u30e9\u30a4\u30bb\u30f3\u30b9": named("Apache-2.0"),
@@ -217,7 +220,7 @@ TAGS: dict[str, Answers] = {
     "LicenseRef-x-only or later": NOTHING,
     "(GPL-2.0-only) or-later": NOTHING,  # read on the ID before the ")"
     "(LicenseRef-1) or-later": NOTHING,
-    "LicenseRef-a OR MIT, or any later version": named("MIT OR LicenseRef-a", False),
+    "LicenseRef-a OR MIT, or any later version": named("LicenseRef-a OR MIT+", False),
     # 13: a "+" after a qualifier, then a grant
     "GPL-2.0-only+ or later": NOTHING,
 }

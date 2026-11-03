@@ -241,23 +241,14 @@ def test_with_expression_both_halves_known(with_db: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("expression", "flag"),
-    [
-        ("MIT WITH GCC-exception-2.0", True),
-        ("Apache-2.0 WITH Font-exception-2.0", None),
-    ],
+    "expression",
+    ["MIT WITH GCC-exception-2.0", "Apache-2.0 WITH Font-exception-2.0"],
 )
-def test_with_expression_half_missing_from_db(
-    with_db: str, expression: str, flag: bool | None
-) -> None:
-    """One half has no row in this database: a valid SPDX expression still,
-    so it matches, but not on this List (F2). A WITH takes its licence's
-    flags (F1): MIT's, and None for an Apache-2.0 nobody here judged."""
-    results = LicenseDetector(with_db).detect(license_id=expression)
-    assert [r["expression"] for r in results] == [expression]
-    assert results[0]["is_spdx"] is False
-    assert results[0]["is_osi_approved"] is flag
-    assert results[0]["is_fsf_libre"] is flag
+def test_with_expression_half_missing_from_db(with_db: str, expression: str) -> None:
+    """One half has no row in this database. It was a match not on this List
+    (F2); an ID the List does not have is no operand, as match() reads it,
+    so the declared ID matches nothing."""
+    assert not LicenseDetector(with_db).detect(license_id=expression)
 
 
 # -- Deprecated penalty in short-text matching -----------------------------
