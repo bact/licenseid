@@ -30,7 +30,7 @@ from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
     probe_does_not_hang,
     safe_home,
 )
-from db_variants import IS_ROOT, make_ready_file_db, writer
+from db_variants import IS_ROOT, create_database, make_ready_file_db, writer
 
 from licenseid import DatabaseNotReadyError, LicenseDetector
 from licenseid.cli import cli
@@ -218,11 +218,15 @@ def test_a_matcher_never_makes_a_database_of_a_file_that_went_missing(
 
 
 def test_create_false_does_not_create_and_create_true_does(tmp_path: Path) -> None:
+    """Neither makes the file on opening; create=True makes it at its first
+    write (a mistyped name leaves nothing behind, P1 of fix batch D)."""
     path = tmp_path / "n.db"
     with pytest.raises(DatabaseNotReadyError):
         LicenseDatabase(str(path), create=False)
     assert not path.exists()
     LicenseDatabase(str(path))
+    assert not path.exists()
+    create_database(path)
     assert path.exists()
 
 

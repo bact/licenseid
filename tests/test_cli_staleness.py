@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from db_variants import create_database
 
 from licenseid.cliinput import check_db_staleness
 from licenseid.database import LicenseDatabase
@@ -106,5 +107,5 @@ def test_missing_timestamp_is_ignored(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """A database that never recorded a check time has nothing to compare."""
-    check_db_staleness(LicenseDatabase(str(tmp_path / "licenses.db")))
+    check_db_staleness(LicenseDatabase(str(create_database(tmp_path / "licenses.db"))))
     assert capsys.readouterr().err == ""

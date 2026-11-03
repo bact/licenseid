@@ -110,10 +110,17 @@ class LicenseDatabase:
         db_path: str | os.PathLike[str],
         create: bool = True,
     ):
-        """Open the database at *db_path*. With *create* (the default) a
-        missing file, or missing tables, are created; without it the file
-        must be there, and only a schema of an older version is written to,
-        so a detector never makes a database out of one that went missing.
+        """Open the database at *db_path*. With *create* (the default) the
+        tables a file lacks are created, and a file that is not there is
+        made by the first write (``update_from_remote``), never by opening
+        the handle or by a read, so a mistyped name leaves nothing behind;
+        without it the file must be there, and only a schema of an older
+        version is written to, so a detector never makes a database out of
+        one that went missing.
+
+        Either way a file that licenseid did not build, and that is not
+        empty, is :class:`licenseid.DatabaseNotReadyError` (``invalid``):
+        another program's tables are never written to.
 
         Without *create*, rules older or newer than this licenseid's are
         warned (``database: build vN outdated: ...``, a
@@ -122,6 +129,7 @@ class LicenseDatabase:
         db_path = os.fspath(db_path)
         reject_blank_path(db_path, "db_path", optional=False)
         self._create = create
+        self._schema_pending = False  # a file to make by the first write
         named = named_file(db_path)  # a URI: the file it names
         self.db_path = Path(absolute_path(named) if named else db_path)
         self.use_uri = db_path.startswith("file:")  # Path() rewrites a URI
@@ -166,6 +174,8 @@ class LicenseDatabase:
         longer matches the index and recall degrades silently. Rows built by
         older records rules miss what those rules now record.
         """
+        if self._schema_pending:
+            return []  # no file yet
         metadata = self.get_metadata()
         # Empty/new databases have no version yet — nothing to warn about.
         if not metadata.get("license_list_version"):
@@ -204,8 +214,11 @@ class LicenseDatabase:
         try:
             state = schema_state(self._connections)
         except DatabaseNotReadyError as exc:
+            if self._create and self._is_missing():
+                self._schema_pending = True  # made by the first write
+                return
             if self._create:
-                state = "none"  # no file yet, or no tables: made below
+                state = "none"  # no tables: made below
             elif needs_writing(exc.__cause__):  # a hot journal, or a WAL's -shm
                 self._connections.recover()
                 state = schema_state(self._connections)
@@ -215,12 +228,41 @@ class LicenseDatabase:
                 raise
         if state == "current":
             return  # nothing to write: a read-only open needs no more
-        if not self._create:
-            reject_foreign_database(self._source)  # never write to another's file
-            if state == "none":
-                raise empty_error(str(self.db_path))
+        reject_foreign_database(self._source)  # never write to another's file
+        if not self._create and state == "none":
+            raise empty_error(str(self.db_path))
         with self._connection(write=True) as conn:
             create_schema(conn)
+
+    def _reject_foreign(self) -> None:
+        """Refuse a file that is not licenseid's to write to (an in-memory
+        database has none)."""
+        if not is_memory_database(self._source):
+            reject_foreign_database(self._source)
+
+    def _is_missing(self) -> bool:
+        """Whether the file this database names is not there (an in-memory
+        database, and a name only SQLite can resolve, are never missing)."""
+        return (
+            not is_memory_database(self._source)
+            and named_file(self._source) is not None
+            and not os.path.exists(self.db_path)
+        )
+
+    def _ensure_schema(self) -> None:
+        """Judge the file before a write, and make it and its tables if
+        opening left that to the first write.
+
+        Every write path is fail-closed (a file licenseid did not build, or
+        one that cannot be judged, such as a lock, is refused); a read stays
+        fail-open. The file may have appeared since opening, and could be
+        another program's."""
+        self._reject_foreign()
+        if not self._schema_pending:
+            return
+        with self._connection(write=True) as conn:
+            create_schema(conn)
+        self._schema_pending = False
 
     @staticmethod
     def clear_cache(db_path: str | Path) -> bool:
@@ -275,7 +317,9 @@ class LicenseDatabase:
 
         request = UpdateRequest(version, use_cache, source, force)
         try:
-            self._connections.leave_wal()  # a database of an earlier version used WAL
+            self._judge_before_update()
+            if not self._schema_pending:  # else there is no file to convert
+                self._connections.leave_wal()  # an earlier version used WAL
             return self._update_from_remote(request)
         except DatabaseNotReadyError as e:
             # A read of this database failed: update words it as its own.
@@ -285,11 +329,31 @@ class LicenseDatabase:
                 f"database: update failed: {typed(e.__cause__)}"
             ) from e
 
+    def _judge_before_update(self) -> None:
+        """What ``update_from_remote`` settles before it writes or downloads.
+
+        A file made since opening (another process's update) is judged as at
+        opening: refused, completed, or found current, with the rules it was
+        built by (never rebuilt over a newer build). A file that is not
+        licenseid's is refused before ``leave_wal`` writes its journal mode.
+        A name in a directory that is not there fails now, as it does when
+        the file is made, not after a download."""
+        if self._schema_pending and not self._is_missing():
+            self._schema_pending = False
+            self._init_db()
+        self._reject_foreign()
+        if self._schema_pending and not self.db_path.parent.is_dir():
+            raise LicenseIdError(
+                "database: update failed: OperationalError: "
+                "unable to open database file"
+            )
+
     def _update_from_remote(self, request: "UpdateRequest") -> bool:
         """``update_from_remote`` without the wording of a failed read."""
         from licenseid import releasesource  # see update_from_remote
 
-        current = self.get_metadata().get("license_list_version")
+        pending = self._schema_pending  # no file yet: nothing to read or skip
+        current = None if pending else self.get_metadata().get("license_list_version")
         chain = releasesource.ReleaseChain(self.db_path.parent, request, current)
         target_version, release_date, ds_licenses = chain.target()
         status(f"Target SPDX License List version: {target_version}")
@@ -381,6 +445,7 @@ class LicenseDatabase:
         ``update`` stamps ``license_list_version`` after the fingerprints: a
         run that fails before leaves a database it does not skip."""
         status(f"\nInserting {len(license_records)} records into database...")
+        self._ensure_schema()
         with self._connection(write=True) as conn:
             conn.execute("BEGIN TRANSACTION")
             try:

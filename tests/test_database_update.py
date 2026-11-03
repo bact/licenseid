@@ -348,6 +348,7 @@ def test_cli_update_unopenable_database_path_is_an_error_line(
         "unable to open database file\n"
     )
     fake.assert_not_called()
+    assert not db_path.parent.exists()  # the file is made at the first write
 
 
 def test_cli_update_exception_without_message_has_no_dangling_colon(

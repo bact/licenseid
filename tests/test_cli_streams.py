@@ -23,7 +23,7 @@ import pytest
 from click.testing import CliRunner
 from conftest import invoke_match, make_ready_db_path, posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
-from db_variants import make_ready_file_db
+from db_variants import creating_update, make_ready_file_db
 
 from licenseid import console, output
 from licenseid.cli import cli
@@ -81,7 +81,10 @@ def test_an_update_whose_report_fails_is_not_a_failed_update(tmp_path: Path) -> 
     )
     with (
         mock.patch.object(
-            LicenseDatabase, "update_from_remote", autospec=True, return_value=True
+            LicenseDatabase,
+            "update_from_remote",
+            autospec=True,
+            side_effect=creating_update,
         ),
         mock.patch.object(output, "emit", failing),
     ):

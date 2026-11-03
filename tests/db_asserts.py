@@ -71,6 +71,19 @@ def assert_refused(result: Result, kind: str, db_arg: str) -> None:
         ), result.stderr
 
 
+def refuse_unlink(monkeypatch: pytest.MonkeyPatch, target: Path) -> None:
+    """Make deleting *target* fail with "Permission denied" on every OS
+    (chmod does not stop a delete on Windows); any other file goes."""
+    real_unlink = Path.unlink
+
+    def refusing_unlink(self: Path, missing_ok: bool = False) -> None:
+        if self == target:
+            raise PermissionError(13, "Permission denied", str(self))
+        real_unlink(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", refusing_unlink)
+
+
 def run_args(*args: str, stdin: str = "") -> Result:
     """Invoke the CLI with the arguments exactly as given."""
     return CliRunner().invoke(cli, list(args), input=stdin)

@@ -24,10 +24,11 @@ import pytest
 from click.testing import CliRunner, Result
 from conftest import line_fields, posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from db_variants import create_database
 from packaged_list import fixture_bundle
 from release_fakes import ship
 
-from licenseid import LicenseDatabase, console, match, output
+from licenseid import console, match, output
 from licenseid.cli import cli
 from licenseid.result import json_line, resolution_lines
 
@@ -427,7 +428,7 @@ def test_a_database_given_that_is_not_ready_is_exit_2(
     if state == "empty":
         path.write_bytes(b"")
     elif state == "no-rows":  # licenseid's tables, nothing in them
-        LicenseDatabase(str(path))
+        create_database(path)
     elif state == "invalid":
         with sqlite3.connect(path) as conn:
             conn.execute("CREATE TABLE notes (body TEXT)")
