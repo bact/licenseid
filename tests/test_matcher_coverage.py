@@ -246,7 +246,7 @@ def test_with_expression_both_halves_known(with_db: str) -> None:
 )
 def test_with_expression_half_missing_from_db(with_db: str, expression: str) -> None:
     """One half has no row in this database. It was a match not on this List
-    (F2); an ID the List does not have is no operand, as match() reads it,
+    (F2); an ID the List does not have is no operand, as resolve() reads it,
     so the declared ID matches nothing."""
     assert not LicenseDetector(with_db).detect(license_id=expression)
 
