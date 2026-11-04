@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,9 +13,13 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-11-03)
+## Current state (as of 2026-11-04)
 
-- **0.7.0** (in preparation): the declared-value resolver reads compounds,
+- **0.7.1** (in preparation): `is-osi` and `is-fsf` answer a compound one
+  operand decides (D8, PR #157); a dash between words beside a grant is a
+  separator in every reader (D10), and a tag with a licence right after a
+  mark gives no answer (PR #158).
+- **0.7.0** (released 2026-11-03): the declared-value resolver reads compounds,
   quoted values, trove names, prose forms and `;` lists, and works with no
   database from the shipped list; `resolve()` keeps its 0.6.0 name and the old
   matcher is now `detect()` (`detector.py`); the CLI command is

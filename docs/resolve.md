@@ -182,9 +182,9 @@ For `resolve("Apache2")`, as JSON:
   ],
   "resolver": {
     "name": "licenseid",
-    "version": "0.7.0",
-    "url": "https://github.com/bact/licenseid/releases/tag/v0.7.0",
-    "purl": "pkg:pypi/licenseid@0.7.0"
+    "version": "0.7.1",
+    "url": "https://github.com/bact/licenseid/releases/tag/v0.7.1",
+    "purl": "pkg:pypi/licenseid@0.7.1"
   },
   "components": [],
   "lists": [
