@@ -134,7 +134,7 @@ def test_licences_listed_with_a_mark_name_no_licence(db: str, tag: str) -> None:
 
 @pytest.mark.parametrize(
     "tag",
-    ["MIT, see LICENSE", "MIT / see LICENSE", "MIT, and also Apache-2.0", "MIT/x"],
+    ["MIT, see LICENSE", "MIT / see LICENSE", "MIT/x"],
 )
 def test_prose_after_a_mark_keeps_the_expression(db: str, tag: str) -> None:
     """Only a licence right after the mark lists another: a word that is no

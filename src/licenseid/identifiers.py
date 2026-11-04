@@ -16,6 +16,7 @@ import py_spdx_license
 from licenseid.classify import (
     OR_LATER_PHRASE,
     another_version,
+    dash_gap,
     grant_at,
     grant_follows,
     grant_spans,
@@ -288,17 +289,19 @@ def leading_expression(value: str) -> str:
         kind = token_kind(token.group(0))
         if expect_operand != (kind in OPERAND_START):
             break
+        grant_end = (
+            grant_at(value, token, grants, before != "+") if kind == "OP" else None
+        )
         gap = value[end : token.start()]
-        if gap.strip():
-            break  # only white space separates the parts of an expression
+        if gap.strip() and (grant_end is None or not dash_gap(gap)):
+            # Only white space separates the parts of an expression; before
+            # a grant, a dash between words too (D10).
+            break
         if kind == "+" and plus_apart(value, token.start()):
             # A "+" touches the ID it follows (plusoperator.PLUS_OPERATOR);
             # after a space or a bracket it is none, and may say "and": no
             # expression, as resolve() refuses it, rather than one without it.
             return ""
-        grant_end = (
-            grant_at(value, token, grants, before != "+") if kind == "OP" else None
-        )
         if grant_end is not None and not continues_word(value, grant_end):
             return _ended_by_grant(value, (end, grant_end), depth, licence)
         licence = licence_after(licence, before, token)

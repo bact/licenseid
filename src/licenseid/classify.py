@@ -45,8 +45,8 @@ from licenseid.normalize import DASHES, strip_comment_prefixes
 # Kelvin sign into them (tests/test_readers_case.py). White space stays
 # Unicode's.
 _GAP = r"[\s/*#;,-]*"
-# White space between "or" and "later", dashes in it too ("or - later"), but
-# at least one white space: "or-later" is a word of its own (below).
+# White space between "or" and "later", with dashes too ("or - later", D10);
+# at least one white space, as "or-later" is a word of its own (below).
 _SPACED = rf"(?=[\s{DASHES}]*\s)[\s{DASHES}]+"
 # The words that take back a phrase right after them.
 _NEGATIONS = ("not", "no")
@@ -166,18 +166,25 @@ def grant_follows(tail: str, rest: str) -> bool | None:
 
 def grant_head(before: str) -> str | None:
     """*before*, the text before the "or" of a declared grant, without the
-    white space, the "(" or "[" and the dashes that stand right before the
-    "or"; None if none does ("MIT,or later": no word "or"). A dash with
-    white space before it stands between words, a separator ("GPL-2.0 - or
-    later", maintainer, 2026-11-04); one that joins two (``GPL-2.0-or``)
-    is part of a word. The one rule of ``looseid.declared_grant_id_text`` and of
-    the gap a tag's grant crosses (:func:`grant_follows`)."""
+    white space, "(" or "[" and dashes right before the "or"; None if none
+    stands there ("MIT,or later") or a dash joins two words ("GPL-2.0-or
+    later"). A dash between words is a separator (D10). The one rule of
+    this gap: ``looseid.declared_grant_id_text``, ``looseid.before_grant``
+    and a tag's grant (:func:`grant_follows`, :func:`dash_gap`)."""
     if not before or not (before[-1].isspace() or before[-1] in "([" + DASHES):
         return None
     word = before.rstrip(DASHES)
     if word != before and not word[-1:].isspace():
         return None  # "GPL-2.0-or later": a dash inside a word
     return before.rstrip().rstrip("([").rstrip().rstrip(DASHES).rstrip()
+
+
+def dash_gap(gap: str) -> bool:
+    """Whether *gap*, between an ID and its grant, is one run of dashes,
+    white space around it ("GPL-2.0 - or later"): the tag reads on, and
+    :func:`grant_head` judges it (D10; a joined dash is none)."""
+    core = gap.strip()
+    return bool(core) and not core.strip(DASHES)
 
 
 _RE_LINE_BREAK = re.compile(r"\r\n?|\n")

@@ -14,10 +14,12 @@ on:
     branches: [ main, develop ]
     paths:
       - "src/licenseid/bsdclauses.py"
+      - "src/licenseid/classify.py"
       - "src/licenseid/database.py"
       - "src/licenseid/dbcache.py"
       - "src/licenseid/fingerprint.py"
       - "src/licenseid/fingerprintstore.py"
+      - "src/licenseid/looseid.py"
       - "src/licenseid/markers.py"
       - "src/licenseid/detector.py"
       - "src/licenseid/normalize.py"
@@ -34,10 +36,12 @@ on:
     branches: [ main ]
     paths:
       - "src/licenseid/bsdclauses.py"
+      - "src/licenseid/classify.py"
       - "src/licenseid/database.py"
       - "src/licenseid/dbcache.py"
       - "src/licenseid/fingerprint.py"
       - "src/licenseid/fingerprintstore.py"
+      - "src/licenseid/looseid.py"
       - "src/licenseid/markers.py"
       - "src/licenseid/detector.py"
       - "src/licenseid/normalize.py"

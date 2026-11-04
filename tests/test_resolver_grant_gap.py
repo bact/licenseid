@@ -45,7 +45,28 @@ def test_a_dash_between_words_reads_as_a_space(
 ) -> None:
     want = resolve(spaced, corpus_db)["expression"]
     assert want is not None
-    assert resolve(dashed, corpus_db)["expression"] == want
+    got = resolve(dashed, corpus_db)
+    assert got["expression"] == want
+    # A dropped dash is a step, trusted as a dropped comma is (#158 review).
+    assert got["category"] == "separator"
+    assert "separator" in [s["kind"] for s in got["steps"]]
+
+
+@pytest.mark.parametrize(
+    ("value", "answer"),
+    [
+        ("GPL-2.0-or later", "GPL-2.0-or-later"),
+        ("Apache-2.0-or later", "Apache-2.0+"),
+    ],
+)
+def test_a_dash_that_joins_the_id_to_the_grant_is_spelling(
+    corpus_db: LicenseDatabase, value: str, answer: str
+) -> None:
+    """A dash with no white space beside it is part of a word, read by the
+    loose reading with a step (as before #158), not dropped in silence."""
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["category"]) == (answer, "separator")
+    assert got["steps"]
 
 
 @pytest.mark.parametrize(

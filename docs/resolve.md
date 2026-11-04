@@ -33,8 +33,8 @@ steps taken, without fuzzy matching:
   of its own (`MIT ora later` is not found). Between an ID and its grant
   only white space (any, a no-break space too), one `.` or `,`, a `(` or
   `[` before the "or", and a dash between words may stand (`GPL-2.0 - or -
-  later` is `GPL-2.0-or-later`); any other mark is refused (`MIT; or
-  later`: `character dropped`).
+  later` is `GPL-2.0-or-later`, category `separator`); any other mark is
+  refused (`MIT; or later`: `character dropped`).
   A "+" after a space is no operator (`GPL-2.0 +`: `plus after a space`).
   Keywords ignore case in ASCII only (`MIT WİTH X` is not found). A
   `LicenseRef-`, `DocumentRef-` or `AdditionRef-` prefix is written in SPDX's
@@ -116,9 +116,10 @@ steps taken, without fuzzy matching:
   refused, with a `reason`;
 - `detect()` holds a tag or a `license` field to the same List: it names only
   IDs on the List or `LicenseRef-*`, so `MIT OR Apache 2.0` gives no answer
-  there, as here, nor does a tag that lists licences with a mark
-  (`MIT/Apache-2.0`, `MIT, ISC`), and a bare "or later" after an ID is the
-  grant (`MIT or later` is `MIT+`);
+  there, as here, nor does a tag with a licence right after a mark
+  (`MIT/Apache-2.0`, `MIT, ISC`; prose such as `MIT, see LICENSE` keeps
+  `MIT`), and a bare "or later" after an ID is the grant (`MIT or later` is
+  `MIT+`);
 - every result names its category and trust level, each step, the list
   it rests on with its version and where it was read (`database` or
   `packaged`), and the resolver's version (see
@@ -417,9 +418,9 @@ in capitals after them, or a listed exception and more words, it is `not found:
 which: `qualifier stated twice: GPL-2.0-only+` (also `MIT++`), `qualifier on a
 reference: LicenseRef-x+` (also `LicenseRef-x or later`, and `LicenseRef-a+-`: a
 malformed core has its own reason), `plus after a space: GPL-2.0 +`, `plus after
-an exception: MIT WITH Classpath-exception-2.0+` (also `++`) and `plus after a bracket:
-(MIT)+` (also in a compound, `(MIT)+ OR ISC`). The readers' own reasons, the
-detail of a mark in code points: `character dropped: U+003F` (the value would be
+an exception: MIT WITH Classpath-exception-2.0+` (also `++`) and `plus after a
+bracket: (MIT)+` (also in a compound, `(MIT)+ OR ISC`). The readers' own
+reasons, the detail of a mark in code points: `character dropped: U+003F` (the value would be
 read as a licence only by dropping a mark that is not a separator, such as `?`,
 `!`, `*` or a quote inside the value, a mark at the start, two or more at the
 end, or a lone dash, or a dash or underscore joined to the end of a `+`, an

@@ -233,8 +233,9 @@ How a resolution becomes a `detect` result. Each point is a decision
   `GPL-2.0-or-later` in `resolve()` and `GPL-2.0-only` in a tag, and
   `GPL-2.0 - or later` was refused in both. Decided 2026-11-04
   (maintainer): a dash between words is a separator, and every channel
-  gives the same form (`GPL-2.0-or-later`; `MIT - or later` is `MIT+`).
-  Built for 0.7.1 (`classify.grant_head`, `looseid.before_grant`).
+  gives the same form (`GPL-2.0-or-later`; `MIT - or later` is `MIT+`),
+  category `separator`. Built for 0.7.1 (#158): `classify.grant_head` is
+  the one rule of the gap.
 
 ## 5. Documentation
 
@@ -282,6 +283,14 @@ Readers (#149, #147):
   has `IGNORECASE` without `ASCII`.
 - `classify.grant_at` repeats `looseid.grant_end`; unify them.
 - `Apache2` is refused in a tag, though `resolve()` reads it loosely.
+- A tag `GPL-2.0 or-later OR MIT` (and `-or-later`, `, or later`, `(or
+  later)`) is `GPL-2.0-or-later`, exact, and drops MIT: the word `or-later`
+  is read as an ID, and the comma and the bracket spellings take the
+  `qualify_trailing_grant` path, which does not check what follows (review
+  of #158). A tag or field `GPL-2.0 or later -` or `GPL-2.0 or later ISC`
+  answers too, while `resolve()` refuses it.
+- `or-later` is ASCII and takes one dash before it: `GPL-2.0 or–later`
+  (U+2013) is no grant, while `or – later` is.
 - `detect --text 'MIT or later'` is `CERN-OHL-W-2.0`, not exact (short
   text, below), while `resolve()` answers `MIT+`; a field `Licensed under
   the GPL-2.0 or later, see COPYING` answers, while `resolve()` refuses it.

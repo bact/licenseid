@@ -532,11 +532,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `LicenseRef-*` (`MIT OR Apache 2.0`: no answer, as in `resolve()`), and read
   a bare "or later" after an ID as the grant (`MIT or later` is `MIT+`). A
   "+" apart from its ID, a mark `resolve()` drops before "or later"
-  (`MIT; or later`), or another licence listed after a mark
-  (`MIT/Apache-2.0`, `looseid.lists_another`) names no licence. A dash
-  between words beside a grant is a separator in every reader
-  (`GPL-2.0 - or - later`: `classify.grant_head`, `looseid.before_grant`,
-  the `or later` of `OR_LATER_PHRASE`). Keywords match in ASCII case only
+  (`MIT; or later`), or a licence right after a mark (`MIT/Apache-2.0`,
+  `looseid.lists_another`, whose item rule `_lists_another` shares) names no
+  licence. A dash between words beside a grant is a separator (D10):
+  `classify.grant_head` is the one rule of that gap, which `before_grant`
+  and the tag (`dash_gap`) follow. Keywords match in ASCII case only
   (`(?a:...)` or `re.ASCII`; `tests/test_readers_case.py`).
 - The "+" operator has ONE reader, `plusoperator.PLUS_OPERATOR`
   (`strip_plus_operator`, `replace_plus_operator`, `plus_after_qualifier`;

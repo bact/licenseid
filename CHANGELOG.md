@@ -20,7 +20,7 @@ and this project adheres to
 
 ### Fixed
 
-- A tag that lists licences with a mark (`MIT/Apache-2.0`, `MIT, ISC`)
+- A tag with a licence right after a mark (`MIT/Apache-2.0`, `MIT, ISC`)
   gives no answer; it was the first licence alone, exact ([#158])
 - `resolve()` reads any white space before "or later" as a space (a
   no-break space was `qualifier stated twice`), and says `plus after an

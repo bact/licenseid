@@ -15,7 +15,14 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, grant_end, grant_follows, grant_head
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
-from licenseid.exprtokens import ID_WORD, LIST_MARK, RE_TOKEN, WHITE_SPACE, token_kind
+from licenseid.exprtokens import (
+    ID_WORD,
+    LIST_MARK,
+    RE_TOKEN,
+    WHITE_SPACE,
+    is_license_ref,
+    token_kind,
+)
 from licenseid.identifiers import (
     ONLY_WORD,
     bare_deprecated,
@@ -38,6 +45,7 @@ __all__ = [
     "RE_GRANT_WORDS",
     "WITH_OPERATOR",
     "before_grant",
+    "dash_dropped",
     "declared_grant_id_text",
     "drops_words",
     "grant_end",
@@ -61,6 +69,8 @@ _RE_GRANT_WORD = re.compile(r"\bor\b", re.IGNORECASE)
 # IGNORECASE alone folds "\u0130", "\u0131", "\u017f" and the Kelvin sign
 # into "i", "s" and "k"; the white space between them stays Unicode's.
 _GRANT_WORDS = r"(?:\s+(?a:versions?))?(?:\s+of\s+(?a:the|this)\s+(?a:licen[cs]e))?"
+# A dash with white space beside it: between words (D10).
+_RE_DASH_BETWEEN = re.compile(f"\\s[{DASHES}]|[{DASHES}]\\s")
 # A listing mark and the word after it, which may be another licence.
 _RE_LISTED = re.compile(f"{LIST_MARK}({ID_WORD})")
 #: The words that may end a grant, as a pattern to match where it ends.
@@ -199,20 +209,50 @@ def _lists_another(text: str, own: set[str], db: ListLookup) -> bool:
             items[-1].append(token[0])
     return any(
         word.casefold() not in own
-        and (len(item) == 1 or any(char.isdigit() for char in word))
+        and _names_a_licence(word, item)
         and db.get_license_details(word) is not None
         for item in items
         for word in item
     )
 
 
+def _names_a_licence(word: str, item: list[str]) -> bool:
+    """Whether *word*, of the list *item*, can name a licence there: it is
+    the item alone, or it has a version in it. An ID that is a plain word
+    too ("Intel", "Zlib", "DOC") in prose names none."""
+    return len(item) == 1 or any(char.isdigit() for char in word)
+
+
+def _item_after(text: str, start: int) -> list[str]:
+    """The words of the list item of *text* that starts at *start*: up to
+    a mark, "and" or "or" (the items of :func:`_lists_another`)."""
+    words: list[str] = []
+    end = start
+    for token in RE_TOKEN.finditer(text, start):
+        if token_kind(token[0]) == "OP" or not _LIST_MARKS.isdisjoint(
+            text[end : token.start()]
+        ):
+            break
+        words.append(token[0])
+        end = token.end()
+    return words
+
+
 def before_grant(named: str) -> str:
     """*named*, the text of :func:`granted_id_text` or
-    :func:`declared_grant_id_text`, without what opens its grant: any white
-    space (a no-break space too, as ``resolve()`` trims), a "(" or "["
-    ("GPL-3.0 (or later)") and a dash, which stands between words there
-    (``classify.grant_head``)."""
-    return named.rstrip(WHITE_SPACE + "([" + DASHES)
+    :func:`declared_grant_id_text`, without what opens its grant, by
+    ``classify.grant_head``: white space (a no-break space too), "(" or "["
+    and a dash between words. A dash joined to the ID (``GPL-2.0-or
+    later``) stays, for the loose reading to judge."""
+    head = grant_head(named)
+    return named.rstrip(WHITE_SPACE) if head is None else head
+
+
+def dash_dropped(value: str, head: str) -> bool:
+    """Whether a dash between words follows *head* (:func:`before_grant`)
+    in *value*, before its grant or inside it ("GPL-2.0 - or later",
+    "GPL-2.0 or - later"): a separator, recorded as a step (D10)."""
+    return _RE_DASH_BETWEEN.search(value, len(head)) is not None
 
 
 def drops_words(
@@ -241,14 +281,22 @@ def lists_another(db: ListLookup, leading: str, value: str) -> bool:
     """Whether *value* goes on after its *leading* expression with a mark
     SPDX has no operator for and a licence of *db* (``MIT/Apache-2.0``,
     ``MIT, LicenseRef-x``): the value lists both, and an answer of the
-    first alone would drop the other, as ``resolve()`` refuses it (``not an
-    SPDX operator``). A word that is no ID starts prose (``MIT, see
-    LICENSE``)."""
+    first alone would drop the other (``resolve()``: ``not an SPDX
+    operator``). The word after the mark is a reference, or an ID by the
+    item rule of :func:`_lists_another`; prose keeps the reading (``MIT, see
+    LICENSE``, ``Apache-2.0, Intel copyright``)."""
     listed = _RE_LISTED.match(value, len(leading))
     if listed is None:
         return False
-    word = listed.group(2)
-    return token_kind(word) == "ID" and names_only_listed(word, db)
+    item = _item_after(value, listed.start(2))
+    word = item[0] if item else ""
+    if is_license_ref(word):
+        return True
+    return (
+        token_kind(word) == "ID"
+        and _names_a_licence(word, item)
+        and names_only_listed(word, db)
+    )
 
 
 def restates_qualifier(expression: str, value: str) -> bool:
