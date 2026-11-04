@@ -79,6 +79,7 @@ DASHED = [
     ("GPL-2.0 or -later", "GPL-2.0 or later"),
     ("GPL-2.0 -or-later", "GPL-2.0 or-later"),
     ("GPL-2.0 - (or later)", "GPL-2.0 (or later)"),
+    ("GPL-2.0 (or - later)", "GPL-2.0 (or later)"),
     ("GPL-2.0 - or any later version", "GPL-2.0 or any later version"),
     ("MIT - or later", "MIT or later"),
     ("MIT - or - later", "MIT or later"),

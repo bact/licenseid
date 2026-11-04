@@ -40,10 +40,10 @@ from licenseid.listlookup import ListLookup
 from licenseid.looseid import (
     WITH_OPERATOR,
     before_grant,
-    dash_dropped,
     declared_grant_id_text,
     granted_id_text,
     loose_id,
+    undashed_grant,
 )
 from licenseid.plusoperator import plus_apart
 from licenseid.resolvereason import (
@@ -401,8 +401,9 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
     named = granted_id_text(text) or declared_grant_id_text(text)
     if named is not None:
         head = before_grant(named)  # "GPL-3.0 (or later)": the "(" is the grant's
-        if dash_dropped(text, head):  # "GPL-2.0 - or later" (D10)
-            found.steps.append(step("separator", True, text, head))
+        undashed = undashed_grant(text, head)  # "GPL-2.0 - or later" (D10)
+        if undashed is not None:
+            found.steps.append(step("separator", True, text, undashed))
         named = head
         if _qualified(db, named):
             found.category, found.reason = "malformed", stated_twice(text)

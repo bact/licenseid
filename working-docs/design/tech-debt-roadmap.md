@@ -508,7 +508,9 @@ short-text leftovers are in `match-resolve-0-8.md`, section 7.
   the first licence, exact: after a grant (`GPL-2.0 or later, ISC`), with
   "or"/"and" (`MIT, or ISC`), in brackets or quotes (`MIT, (ISC)`), after a
   full-width comma or a dash (`MIT - ISC`), or later in prose (`MIT, and
-  also Apache-2.0`). #158 refuses a licence right after a mark (A-F6).
+  also Apache-2.0`), or before an operator (`MIT - OR ISC`). #158 refuses a
+  licence right after a mark (A-F6); it also refuses `MIT, Intel and
+  others`, as the field reader does (the item ends at "and").
 - `is-*` on a file with several tags judges the top one only; the condition
   words for empty input; a garbage `--db` is `unreadable` or `invalid`
   depending on the path; `Resolver` and `Component` are not exported (A-F7).

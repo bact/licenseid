@@ -289,6 +289,10 @@ Readers (#149, #147):
   `qualify_trailing_grant` path, which does not check what follows (review
   of #158). A tag or field `GPL-2.0 or later -` or `GPL-2.0 or later ISC`
   answers too, while `resolve()` refuses it.
+- A tag or field answers where `resolve()` refuses, in the plain spelling
+  and so, under D10, the dashed one: `GPL-2.0 or later+`, `(GPL-2.0) or
+  later`, `GPL-2.0 or later-ish`; a field `(GPL-2.0 or later` and
+  `GPL-2.0+- or later` (second review of #158).
 - `or-later` is ASCII and takes one dash before it: `GPL-2.0 or–later`
   (U+2013) is no grant, while `or – later` is.
 - `detect --text 'MIT or later'` is `CERN-OHL-W-2.0`, not exact (short

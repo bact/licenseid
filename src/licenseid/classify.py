@@ -180,9 +180,9 @@ def grant_head(before: str) -> str | None:
 
 
 def dash_gap(gap: str) -> bool:
-    """Whether *gap*, between an ID and its grant, is one run of dashes,
-    white space around it ("GPL-2.0 - or later"): the tag reads on, and
-    :func:`grant_head` judges it (D10; a joined dash is none)."""
+    """Whether *gap*, between an ID and its grant, is one run of dashes and
+    any white space ("GPL-2.0 - or later"): the tag reads on to the grant,
+    and :func:`grant_head` judges the gap (D10), refusing a joined dash."""
     core = gap.strip()
     return bool(core) and not core.strip(DASHES)
 

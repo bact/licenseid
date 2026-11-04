@@ -38,6 +38,9 @@ def _field(db: LicenseDatabase, tmp_path: Path, value: str) -> str | None:
         "MIT, X11 style",  # an ID with a version in it, as _lists_another reads
         "MIT, Classpath-exception-2.0",
         "MIT, LicenseRef-x see notes",  # a reference is never prose
+        "MIT/ISC License",  # a last "License" leaves the ID alone in its item
+        "Apache-2.0, MIT license",
+        "MIT, Intel, ISC",  # an item ends at the next mark
     ],
 )
 def test_a_listed_licence_after_a_mark_is_refused(
@@ -79,6 +82,17 @@ def test_a_dashed_grant_ends_the_expression_of_a_tag(
     assert _tag(corpus_db, plain) is None
     assert _tag(corpus_db, value) is None
     assert resolve(value, corpus_db)["expression"] is not None
+
+
+@pytest.mark.parametrize("value", ["MIT - OR ISC", "MIT -- AND ISC"])
+def test_a_dash_before_an_operator_is_no_gap_of_the_expression(
+    corpus_db: LicenseDatabase, tmp_path: Path, value: str
+) -> None:
+    """A dash is crossed only before a grant (D10), never before AND or OR."""
+    # BUG: the tag drops the operator and what follows (tech-debt-roadmap.md
+    # item 46); it must not read them as an expression either.
+    assert _tag(corpus_db, value) == ("MIT", True)
+    assert _field(corpus_db, tmp_path, value) is None
 
 
 @pytest.mark.parametrize(

@@ -45,7 +45,6 @@ __all__ = [
     "RE_GRANT_WORDS",
     "WITH_OPERATOR",
     "before_grant",
-    "dash_dropped",
     "declared_grant_id_text",
     "drops_words",
     "grant_end",
@@ -58,6 +57,7 @@ __all__ = [
     "resolved_id",
     "restates_qualifier",
     "shown",
+    "undashed_grant",
     "warn_narrowed",
 ]
 
@@ -69,8 +69,13 @@ _RE_GRANT_WORD = re.compile(r"\bor\b", re.IGNORECASE)
 # IGNORECASE alone folds "\u0130", "\u0131", "\u017f" and the Kelvin sign
 # into "i", "s" and "k"; the white space between them stays Unicode's.
 _GRANT_WORDS = r"(?:\s+(?a:versions?))?(?:\s+of\s+(?a:the|this)\s+(?a:licen[cs]e))?"
-# A dash with white space beside it: between words (D10).
-_RE_DASH_BETWEEN = re.compile(f"\\s[{DASHES}]|[{DASHES}]\\s")
+# The gaps around the "or" of a grant after the ID: where a dash between
+# words may stand (classify.grant_head, OR_LATER_PHRASE).
+_RE_GRANT_GAPS = re.compile(
+    f"([\\s,(\\[{DASHES}]*)((?a:or))([\\s{DASHES}]*)", re.IGNORECASE
+)
+_NO_DASHES = str.maketrans("", "", DASHES)
+_RE_WHITE_RUN = re.compile(r"\s+")
 # A listing mark and the word after it, which may be another licence.
 _RE_LISTED = re.compile(f"{LIST_MARK}({ID_WORD})")
 #: The words that may end a grant, as a pattern to match where it ends.
@@ -167,6 +172,8 @@ def read_inexactly(
     return None
 
 
+# The word a licence's name may end in: "ISC License" is still one item.
+_LICENCE_WORDS = frozenset(("license", "licence"))
 # What joins the items of a list, beside "and" and "or".
 _LIST_MARKS = frozenset(",;/&")
 
@@ -218,9 +225,11 @@ def _lists_another(text: str, own: set[str], db: ListLookup) -> bool:
 
 def _names_a_licence(word: str, item: list[str]) -> bool:
     """Whether *word*, of the list *item*, can name a licence there: it is
-    the item alone, or it has a version in it. An ID that is a plain word
-    too ("Intel", "Zlib", "DOC") in prose names none."""
-    return len(item) == 1 or any(char.isdigit() for char in word)
+    the item alone (a last "License" aside: "ISC License"), or it has a
+    version in it. An ID that is a plain word too ("Intel", "Zlib", "DOC")
+    in prose names none."""
+    words = [w for w in item if w.casefold() not in _LICENCE_WORDS] or item
+    return len(words) == 1 or any(char.isdigit() for char in word)
 
 
 def _item_after(text: str, start: int) -> list[str]:
@@ -248,11 +257,35 @@ def before_grant(named: str) -> str:
     return named.rstrip(WHITE_SPACE) if head is None else head
 
 
-def dash_dropped(value: str, head: str) -> bool:
-    """Whether a dash between words follows *head* (:func:`before_grant`)
-    in *value*, before its grant or inside it ("GPL-2.0 - or later",
-    "GPL-2.0 or - later"): a separator, recorded as a step (D10)."""
-    return _RE_DASH_BETWEEN.search(value, len(head)) is not None
+def undashed_grant(value: str, head: str) -> str | None:
+    """*value* without the dashes between words around the "or" of its
+    grant, after *head* (:func:`before_grant`): "GPL-2.0 - or - later" is
+    "GPL-2.0 or later". None if no dash stands there. A separator, which
+    the reading records as a step (D10); "or-later" is a word of its own."""
+    gaps = _RE_GRANT_GAPS.match(value, len(head))
+    if gaps is None:
+        return None
+    before, word, after = gaps.groups()
+    spaced = _without_dashes(before), _without_dashes(after.strip(DASHES) and after)
+    if spaced == ("", ""):
+        return None
+    return "".join(
+        (
+            value[: len(head)],
+            spaced[0] or before,
+            word,
+            spaced[1] or after,  # "or-later" keeps its dash: a word of its own
+            value[gaps.end() :],
+        )
+    )
+
+
+def _without_dashes(gap: str) -> str:
+    """*gap* without its dashes, each run of white space one space (at
+    least one); "" if it has no dash, which leaves it as it is."""
+    if gap == gap.translate(_NO_DASHES):
+        return ""
+    return _RE_WHITE_RUN.sub(" ", gap.translate(_NO_DASHES)) or " "
 
 
 def drops_words(

@@ -47,9 +47,29 @@ def test_a_dash_between_words_reads_as_a_space(
     assert want is not None
     got = resolve(dashed, corpus_db)
     assert got["expression"] == want
-    # A dropped dash is a step, trusted as a dropped comma is (#158 review).
+    # A dropped dash is a step to the spaced form, trusted as a dropped
+    # comma is (#158 review).
     assert got["category"] == "separator"
-    assert "separator" in [s["kind"] for s in got["steps"]]
+    assert any(
+        s["kind"] == "separator" and spaced.endswith(s["to"]) for s in got["steps"]
+    )
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["GPL-2.0 or (in - short) any later version", "GPL-2.0 or-later"],
+)
+def test_a_dash_elsewhere_in_the_grant_is_no_separator(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """Only a dash around the "or" is D10's; one in an aside, or in the
+    word "or-later", is the grant's own."""
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["category"]) == (
+        "GPL-2.0-or-later",
+        "stated_qualifier",
+    )
+    assert not got["steps"]
 
 
 @pytest.mark.parametrize(
