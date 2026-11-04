@@ -31,8 +31,10 @@ steps taken, without fuzzy matching:
   on an ID with no `-or-later` form is the `+` operator (`MIT or later` is
   `MIT+`, `Apache 2.0 or later` is `Apache-2.0+`). "or" in a grant is a word
   of its own (`MIT ora later` is not found). Between an ID and its grant
-  only white space, one `.` or `,`, and a `(` or `[` before the "or" may
-  stand; any other mark is refused (`MIT; or later`: `character dropped`).
+  only white space (any, a no-break space too), one `.` or `,`, a `(` or
+  `[` before the "or", and a dash between words may stand (`GPL-2.0 - or -
+  later` is `GPL-2.0-or-later`, category `separator`); any other mark is
+  refused (`MIT; or later`: `character dropped`).
   A "+" after a space is no operator (`GPL-2.0 +`: `plus after a space`).
   Keywords ignore case in ASCII only (`MIT WİTH X` is not found). A
   `LicenseRef-`, `DocumentRef-` or `AdditionRef-` prefix is written in SPDX's
@@ -114,8 +116,10 @@ steps taken, without fuzzy matching:
   refused, with a `reason`;
 - `detect()` holds a tag or a `license` field to the same List: it names only
   IDs on the List or `LicenseRef-*`, so `MIT OR Apache 2.0` gives no answer
-  there, as here, and a bare "or later" after an ID is the grant (`MIT or
-  later` is `MIT+`);
+  there, as here, nor does a tag with a licence right after a mark
+  (`MIT/Apache-2.0`, `MIT, ISC`; prose such as `MIT, see LICENSE` keeps
+  `MIT`), and a bare "or later" after an ID is the grant (`MIT or later` is
+  `MIT+`);
 - every result names its category and trust level, each step, the list
   it rests on with its version and where it was read (`database` or
   `packaged`), and the resolver's version (see
@@ -414,51 +418,52 @@ in capitals after them, or a listed exception and more words, it is `not found:
 which: `qualifier stated twice: GPL-2.0-only+` (also `MIT++`), `qualifier on a
 reference: LicenseRef-x+` (also `LicenseRef-x or later`, and `LicenseRef-a+-`: a
 malformed core has its own reason), `plus after a space: GPL-2.0 +`, `plus after
-an exception: MIT WITH Classpath-exception-2.0+` and `plus after a bracket:
-(MIT)+` (also in a compound, `(MIT)+ OR ISC`). The readers' own reasons, the
-detail of a mark in code points: `character dropped: U+003F` (the value would be
-read as a licence only by dropping a mark that is not a separator, such as `?`,
-`!`, `*` or a quote inside the value, a mark at the start, two or more at the
-end, or a lone dash, or a dash or underscore joined to the end of a `+`, an
-exception, a `LicenseRef-*` or a prose form: `MIT+-`, `MIT+-?`, `MIT License--`,
-`MIT License_`; several are space separated, in the order they stand, `U+002D
-U+003F`), `word dropped: rem 1` (a comment or list marker that the reading would
-drop, in lower case), `lone surrogate`, `control or format character: U+200B`
-(U+001C to U+001F too: they are not white space; `input` shows a lone surrogate
-as U+FFFD); for a compound, `operand not resolved: <operand>` (or that operand's
-own reason), `operand of several words: <leaf>` (a leaf that reads alone, as
-`BSD 3-Clause` does), `not an SPDX operator: /` (also `|`, `&` and `,` between
-IDs, and `;` when fewer than two parts name a licence: `MIT; Foo`), `operator
-not stated: ;` (above), `parse failed: <the parser's message>`, `mismatched
-brackets` (a bracket pairs only with the same kind: `(MIT]`), `too many
-operators` (over 150) and `too deeply nested` (over 150). A
-value with a part of several words (`Apache License 2.0 OR MIT`) is no compound,
-but, when its operators are in upper case, its reason names the first operand
-refused: `operand of several words: <leaf>` if that leaf reads alone, else
-`operand not resolved: <leaf>`. A detail taken from the input is folded to one
-line and cut at 60 characters. One with a lower-case `or` or `and` whose words
-name nothing (`GPL-3.0 or higher`) is prose: `not found: GPL-3.0 or higher`,
-unless an operand has its own (a dropped mark). A refused value is category
-`unresolved` with no expression, or `malformed` when the compound breaks the
-grammar but names a licence (`MIT AND`). For a dropped mark, `steps` holds one
-`drop` step with `applied` false: its `to` is the listed ID the loose reading
-named (`resolve("Apache 2.0?")` would have read `Apache-2.0`; a renamed ID is not
-followed) and its `detail` the code points. White space, `_`, `.`, a dash (the
-hyphen-minus, the Unicode hyphens and dashes and the minus sign) and one `.` or
-`,` at the end are not marks; nor is one `;` or `:` there, which is an ending
-left off. The same holds after a `+`, an exception or a `LicenseRef-*` (`MIT+;`
-is `MIT+`; `GPL-2.0+?` is refused). A dot or dash that ends a `LicenseRef-*`,
-`AdditionRef-*` or `DocumentRef-*` is part of the ID, so `LicenseRef-a.;`,
-`LicenseRef-a-;` and `MIT WITH AdditionRef-x.;` read without the end mark;
-`LicenseRef-a;;` is refused. A mark after a bracket, a trove name or path, or a
-prose form in brackets that is not one ending is named: `(MIT)-` and `MIT
-License (MIT)-` are `character dropped: U+002D`, `"(MIT;)".` is `character
-dropped: U+003B U+002E`, and quote marks around a bracketed operand (`"(MIT)" OR
-Zlib`) are `character dropped: U+0022`. One end mark after brackets, a trove
-name or path or a listed name is an ending (`(MIT).`, `Apache License 2.0.`). A
-`reason` keeps the `;` of the value it names (`not found: Foo;Bar`); only the
-diagnostic lines of the CLI turn it into `,`. A value that is only quote marks,
-with or without an ending or a `+` (`"".`, `""+`), is `empty`.
+an exception: MIT WITH Classpath-exception-2.0+` (also `++`) and `plus after a
+bracket: (MIT)+` (also in a compound, `(MIT)+ OR ISC`). The readers' own
+reasons, the detail of a mark in code points: `character dropped: U+003F` (the
+value would be read as a licence only by dropping a mark that is not a
+separator, such as `?`, `!`, `*` or a quote inside the value, a mark at the
+start, two or more at the end, or a lone dash, or a dash or underscore joined to
+the end of a `+`, an exception, a `LicenseRef-*` or a prose form: `MIT+-`,
+`MIT+-?`, `MIT License--`, `MIT License_`; several are space separated, in the
+order they stand, `U+002D U+003F`), `word dropped: rem 1` (a comment or list
+marker that the reading would drop, in lower case), `lone surrogate`, `control
+or format character: U+200B` (U+001C to U+001F too: they are not white space;
+`input` shows a lone surrogate as U+FFFD); for a compound, `operand not
+resolved: <operand>` (or that operand's own reason), `operand of several words:
+<leaf>` (a leaf that reads alone, as `BSD 3-Clause` does), `not an SPDX
+operator: /` (also `|`, `&` and `,` between IDs, and `;` when fewer than two
+parts name a licence: `MIT; Foo`), `operator not stated: ;` (above), `parse
+failed: <the parser's message>`, `mismatched brackets` (a bracket pairs only
+with the same kind: `(MIT]`), `too many operators` (over 150) and `too deeply
+nested` (over 150). A value with a part of several words (`Apache License 2.0 OR
+MIT`) is no compound, but, when its operators are in upper case, its reason
+names the first operand refused: `operand of several words: <leaf>` if that leaf
+reads alone, else `operand not resolved: <leaf>`. A detail taken from the input
+is folded to one line and cut at 60 characters. One with a lower-case `or` or
+`and` whose words name nothing (`GPL-3.0 or higher`) is prose: `not found:
+GPL-3.0 or higher`, unless an operand has its own (a dropped mark). A refused
+value is category `unresolved` with no expression, or `malformed` when the
+compound breaks the grammar but names a licence (`MIT AND`). For a dropped mark,
+`steps` holds one `drop` step with `applied` false: its `to` is the listed ID
+the loose reading named (`resolve("Apache 2.0?")` would have read `Apache-2.0`;
+a renamed ID is not followed) and its `detail` the code points. White space,
+`_`, `.`, a dash (the hyphen-minus, the Unicode hyphens and dashes and the minus
+sign) and one `.` or `,` at the end are not marks; nor is one `;` or `:` there,
+which is an ending left off. The same holds after a `+`, an exception or a
+`LicenseRef-*` (`MIT+;` is `MIT+`; `GPL-2.0+?` is refused). A dot or dash that
+ends a `LicenseRef-*`, `AdditionRef-*` or `DocumentRef-*` is part of the ID, so
+`LicenseRef-a.;`, `LicenseRef-a-;` and `MIT WITH AdditionRef-x.;` read without
+the end mark; `LicenseRef-a;;` is refused. A mark after a bracket, a trove name
+or path, or a prose form in brackets that is not one ending is named: `(MIT)-`
+and `MIT License (MIT)-` are `character dropped: U+002D`, `"(MIT;)".` is
+`character dropped: U+003B U+002E`, and quote marks around a bracketed operand
+(`"(MIT)" OR Zlib`) are `character dropped: U+0022`. One end mark after
+brackets, a trove name or path or a listed name is an ending (`(MIT).`, `Apache
+License 2.0.`). A `reason` keeps the `;` of the value it names (`not found:
+Foo;Bar`); only the diagnostic lines of the CLI turn it into `,`. A value that
+is only quote marks, with or without an ending or a `+` (`"".`, `""+`), is
+`empty`.
 
 ## Quote marks
 

@@ -57,9 +57,14 @@ from licenseid.exprcanon import (
     split,
     written_upper,
 )
-from licenseid.exprtokens import ID_WORD
+from licenseid.exprtokens import ID_WORD, LIST_MARK
 from licenseid.listlookup import ListLookup
-from licenseid.looseid import WITH_OPERATOR, declared_grant_id_text, granted_id_text
+from licenseid.looseid import (
+    WITH_OPERATOR,
+    before_grant,
+    declared_grant_id_text,
+    granted_id_text,
+)
 from licenseid.quotes import unquote
 from licenseid.resolveleaf import Found, category_of, refuse_dropped
 from licenseid.resolveprose import read_alone
@@ -73,9 +78,7 @@ from licenseid.resolvertypes import (
     step,
 )
 
-# A mark people write between two licences that SPDX does not read as an
-# operator ("MIT/Apache-2.0", "MIT, ISC", "MIT | ISC", "MIT & ISC").
-_RE_MARK: Final = re.compile(r"\s*([/|&;,]+)\s*")
+_RE_MARK: Final = re.compile(LIST_MARK)
 _RE_ID_WORD: Final = re.compile(ID_WORD)
 _OPEN: Final = ("(", "[", "{")  # the bracket kinds of exprcanon.split
 _CLOSE: Final = (")", "]", "}")
@@ -404,7 +407,7 @@ def _one_word(text: str) -> bool:
     is one word: the grant read as ``resolveleaf`` reads it, the "+" after
     white space too (``GPL-2.0 +``, which ``resolve`` reads alone)."""
     named = granted_id_text(text) or declared_grant_id_text(text)
-    core = text if named is None else named.rstrip(" \t([")
+    core = text if named is None else before_grant(named)
     words = core.split()
     return len(words) == 1 or (len(words) == 2 and words[1] == "+")
 

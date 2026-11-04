@@ -126,7 +126,6 @@ REFUSED_GAPS = [
     "MIT,, or later",
     "MIT ;, or later",
     "MIT,or later",
-    "MIT - or later",
     "MIT / or later",
     "MIT * or later",
     "MIT # or later",
@@ -134,8 +133,8 @@ REFUSED_GAPS = [
     "GPL-2.0: or later",
     "GPL-2.0) or later",
     "GPL-2.0,, or later",
-    "GPL-2.0 - or later",
     "GPL-2.0 / or later",
+    # A dash between words is no such mark (D10): tests/test_resolver_grant_gap.py
     # A grant after an ID that takes none is refused anyway; after a mark
     # too, not read as the ID alone (identifiers._granted_twice).
     "GPL-2.0-only; or later",

@@ -244,7 +244,7 @@ class MarkerDetector:
         expression = qualify_trailing_grant(leading, val)
         # Words the reading would drop: refused in a field, which holds
         # nothing else, and after a "+" they contradict (looseid).
-        refused = drops_words(leading, expression, val, whole=whole)
+        refused = drops_words(leading, expression, val, whole=whole, db=self.db)
         lic_id = normalize_identifier(expression, self.db)
         # The name comes first: the expression can be a prefix of the value,
         # and "MIT No Attribution" is MIT-0, not MIT.

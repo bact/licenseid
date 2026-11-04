@@ -20,6 +20,7 @@ from unittest.mock import patch
 import pytest
 from conftest import GivenWarnings
 from matcher_db import PROSE
+from ordering_helpers import DASHED
 from spdx_tag_helpers import source_with, tag_db
 
 from licenseid.database import LicenseDatabase
@@ -83,7 +84,7 @@ def test_parentheses_and_colons(db: str, tag: str, certain_id: str | None) -> No
         ("CAL-1.0 Licensed under the Cryptographic Autonomy License", None),
         ("MIT license text follows", "MIT"),
         ("MIT (see LICENSE)", "MIT"),
-        ("MIT, Apache-2.0", "MIT"),
+        ("MIT, Apache-2.0", None),  # two licences listed (LISTED below)
         (
             "Apache-2.0 WITH Classpath-exception-2.0 as published",
             "Apache-2.0 WITH Classpath-exception-2.0",
@@ -104,6 +105,52 @@ def test_prose_after_the_expression(
     db: str, tag: str, certain_id: str | None, given: GivenWarnings
 ) -> None:
     assert certain(db, source_with(tag)) == certain_id
+    assert given.conditions() <= {"variant not stated"}
+
+
+#: Licences joined by a mark SPDX does not have (roadmap item 46, A-F6):
+#: the tag names each, so an answer of the first alone drops the rest.
+LISTED = [
+    "MIT/Apache-2.0",
+    "MIT / Apache-2.0",
+    "MIT,Apache-2.0",
+    "MIT, Apache-2.0",
+    "MIT; Apache-2.0",
+    "MIT | BSD-3-Clause",
+    "MIT & Apache-2.0",
+    "MIT, mit",
+    "MIT/GPL-2.0",  # deprecated, still on the List
+    "MIT, LicenseRef-x",
+    "MIT OR Apache-2.0, BSD-3-Clause",
+]
+
+
+@pytest.mark.parametrize("tag", LISTED)
+def test_licences_listed_with_a_mark_name_no_licence(db: str, tag: str) -> None:
+    """It was its leading expression, exact."""
+    assert certain(db, source_with(tag)) is None
+    assert not LicenseDetector(db).is_spdx(text=source_with(tag))
+
+
+@pytest.mark.parametrize(
+    "tag",
+    ["MIT, see LICENSE", "MIT / see LICENSE", "MIT/x"],
+)
+def test_prose_after_a_mark_keeps_the_expression(db: str, tag: str) -> None:
+    """Only a licence right after the mark lists another: a word that is no
+    ID (``see``, ``and``, ``x``) starts prose."""
+    assert certain(db, source_with(tag)) == "MIT"
+
+
+@pytest.mark.parametrize(("dashed", "spaced"), DASHED, ids=[d for d, _ in DASHED])
+def test_a_dash_before_a_grant_reads_as_in_resolve(
+    db: str, dashed: str, spaced: str, given: GivenWarnings
+) -> None:
+    """A dash between words is a separator in a tag too (maintainer,
+    2026-11-04): "GPL-2.0 - or - later" was GPL-2.0-only, not exact."""
+    want = certain(db, source_with(spaced))
+    assert want is not None
+    assert certain(db, source_with(dashed)) == want
     assert given.conditions() <= {"variant not stated"}
 
 

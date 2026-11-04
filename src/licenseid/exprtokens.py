@@ -23,6 +23,9 @@ from typing import Final
 # part of an SPDX ID but is part of a word, so "and_mask" stays one token
 # instead of becoming the AND operator.
 ID_WORD: Final = r"[a-zA-Z0-9]+(?:[._-]+[a-zA-Z0-9]+)*"
+#: A mark people write between two licences that SPDX does not read as an
+#: operator ("MIT/Apache-2.0", "MIT, ISC", "MIT | ISC", "MIT & ISC").
+LIST_MARK: Final = r"\s*([/|&;,]+)\s*"
 OPERATOR: Final = r"(?<![a-zA-Z0-9._:-])(?:AND|OR|WITH)(?![a-zA-Z0-9._:-])"
 # Every pattern here ignores case in ASCII only (re.ASCII): Python's
 # IGNORECASE alone folds "\u0130", "\u0131", "\u017f" and the Kelvin sign

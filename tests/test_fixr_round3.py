@@ -30,10 +30,9 @@ def _answer(db: LicenseDatabase, value: str) -> tuple[str | None, str, str | Non
         ("GPL-2.0 (or later)!", (None, "unresolved", "character dropped: U+0021")),
         ("AGPL-3.0 (or later) / ", (None, "unresolved", "character dropped: U+002F")),
         ("GPL-3.0 (or-later)\u2026", (None, "unresolved", "character dropped: U+2026")),
-        (
-            "AGPL-3.0\n(or-later)!",
-            (None, "malformed", "qualifier stated twice: AGPL-3.0 (or-later)"),
-        ),
+        # a line break before the grant is white space, as a space is (it
+        # was "qualifier stated twice")
+        ("AGPL-3.0\n(or-later)!", (None, "unresolved", "character dropped: U+0021")),
         # brackets inside the words: no grant, no ID
         ("GPL-2.0 or_later)?", (None, "unresolved", "not found: GPL-2.0 or_later)?")),
         ("GPL-2.0 )or_later(", (None, "unresolved", "not found: GPL-2.0 )or_later(")),

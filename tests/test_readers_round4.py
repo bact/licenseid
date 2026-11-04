@@ -121,10 +121,13 @@ WRAPPED = [
     "# This file is GPL-2.0\n# or any later version\n",
     "// GPL-2.0\n// or later\n",
     "/* GPL-2.0\r\n * or later */\r\n",
+    "# GPL-2.0\n# - or later\n",  # a dash between words (D10); it was none
 ]
 
 
-@pytest.mark.parametrize("content", WRAPPED, ids=["block", "hash", "slash", "crlf"])
+@pytest.mark.parametrize(
+    "content", WRAPPED, ids=["block", "hash", "slash", "crlf", "dash"]
+)
 def test_a_grant_wrapped_onto_a_comment_line(
     corpus_db: LicenseDatabase, tmp_path: Path, content: str
 ) -> None:
@@ -135,9 +138,9 @@ def test_a_grant_wrapped_onto_a_comment_line(
     "content",
     [
         "// GPL-2.0;\n// ; or later\n",  # a mark on the line of the "or"
-        "# GPL-2.0\n# - or later\n",
+        "# GPL-2.0\n# ? or later\n",
     ],
-    ids=["semicolon", "dash"],
+    ids=["semicolon", "question mark"],
 )
 def test_a_mark_on_the_line_of_a_wrapped_grant(
     corpus_db: LicenseDatabase, tmp_path: Path, content: str
@@ -210,7 +213,8 @@ def test_grant_head_is_one_rule(before: str, head: str | None) -> None:
         ("\r * or later", True),  # a carriage return alone breaks a line too
         (";\n * or later", True),  # only the last line is judged
         ("\n * ; or later", None),
-        ("\n# - or later", None),
+        ("\n# - or later", True),  # a dash between words (D10)
+        ("\n# ? or later", None),
         ("\n *or later", None),  # no word "or"
     ],
 )

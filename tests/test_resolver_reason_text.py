@@ -129,3 +129,24 @@ def test_each_placeholder_is_replaced_once(monkeypatch: pytest.MonkeyPatch) -> N
     tokens = [exprcanon.Token("leaf", i, i + 1) for i in range(11)]
     got = exprcanon.parse(tokens, texts)
     assert got == f"parse failed: Unexpected 't10' and '{placeholder}0'"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "MIT WITH Classpath-exception-2.0+",
+        "MIT WITH Classpath-exception-2.0 +",
+        "MIT WITH Classpath-exception-2.0++",
+        "MIT WITH Classpath-exception-2.0 ++",
+        "MIT WITH Classpath-exception-2.0+ +",
+    ],
+)
+def test_every_plus_after_a_listed_exception_says_so(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """An exception takes no "+", however many follow it (#152's leftover:
+    it was ``exception not found`` of a listed exception)."""
+    got = resolve(value, corpus_db)
+    assert got["expression"] is None
+    assert got["category"] == "malformed"
+    assert got["reason"] == f"plus after an exception: {value}"
