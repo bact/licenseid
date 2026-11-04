@@ -107,6 +107,39 @@ def test_prose_after_the_expression(
     assert given.conditions() <= {"variant not stated"}
 
 
+#: Licences joined by a mark SPDX does not have (roadmap item 46, A-F6):
+#: the tag names each, so an answer of the first alone drops the rest.
+LISTED = [
+    "MIT/Apache-2.0",
+    "MIT / Apache-2.0",
+    "MIT,Apache-2.0",
+    "MIT, Apache-2.0",
+    "MIT; Apache-2.0",
+    "MIT | BSD-3-Clause",
+    "MIT & Apache-2.0",
+    "MIT, mit",
+    "MIT/GPL-2.0",  # deprecated, still on the List
+    "MIT, LicenseRef-x",
+    "MIT OR Apache-2.0, BSD-3-Clause",
+]
+
+
+@pytest.mark.parametrize("tag", LISTED)
+def test_licences_listed_with_a_mark_name_no_licence(db: str, tag: str) -> None:
+    # BUG: answered by its leading expression, exact; fixed in the next commit.
+    assert certain(db, source_with(tag)) in ("MIT", "Apache-2.0 OR MIT")
+
+
+@pytest.mark.parametrize(
+    "tag",
+    ["MIT, see LICENSE", "MIT / see LICENSE", "MIT, and also Apache-2.0", "MIT/x"],
+)
+def test_prose_after_a_mark_keeps_the_expression(db: str, tag: str) -> None:
+    """Only a licence right after the mark lists another: a word that is no
+    ID (``see``, ``and``, ``x``) starts prose."""
+    assert certain(db, source_with(tag)) == "MIT"
+
+
 def test_a_value_on_the_next_line_is_not_the_tag(db: str) -> None:
     """A tag and its value are one line: "[ \\t]", never "\\s"."""
     assert certain(db, f"SPDX-License-Identifier:\nMIT\n{PROSE}") is None
