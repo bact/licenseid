@@ -15,16 +15,18 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, grant_end, grant_follows, grant_head
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
-from licenseid.exprtokens import RE_TOKEN, token_kind
+from licenseid.exprtokens import ID_WORD, LIST_MARK, RE_TOKEN, WHITE_SPACE, token_kind
 from licenseid.identifiers import (
     ONLY_WORD,
     bare_deprecated,
     disambiguate_deprecated_id,
+    names_only_listed,
     normalize_identifier,
     qualify_trailing_grant,
     without_outer_brackets,
 )
 from licenseid.listlookup import ListedName, ListLookup
+from licenseid.normalize import DASHES
 from licenseid.plusoperator import PLUS_OPERATOR
 from licenseid.types import CandidateMatch
 from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_key
@@ -35,10 +37,12 @@ from licenseid.warning import warn
 __all__ = [
     "RE_GRANT_WORDS",
     "WITH_OPERATOR",
+    "before_grant",
     "declared_grant_id_text",
     "drops_words",
     "grant_end",
     "granted_id_text",
+    "lists_another",
     "loose_id",
     "loose_with",
     "narrowed",
@@ -57,6 +61,8 @@ _RE_GRANT_WORD = re.compile(r"\bor\b", re.IGNORECASE)
 # IGNORECASE alone folds "\u0130", "\u0131", "\u017f" and the Kelvin sign
 # into "i", "s" and "k"; the white space between them stays Unicode's.
 _GRANT_WORDS = r"(?:\s+(?a:versions?))?(?:\s+of\s+(?a:the|this)\s+(?a:licen[cs]e))?"
+# A listing mark and the word after it, which may be another licence.
+_RE_LISTED = re.compile(f"{LIST_MARK}({ID_WORD})")
 #: The words that may end a grant, as a pattern to match where it ends.
 RE_GRANT_WORDS = re.compile(_GRANT_WORDS, re.IGNORECASE)
 # What may follow the grant at the end of the text: those words, then
@@ -200,21 +206,49 @@ def _lists_another(text: str, own: set[str], db: ListLookup) -> bool:
     )
 
 
-def drops_words(leading: str, expression: str, value: str, *, whole: bool) -> bool:
+def before_grant(named: str) -> str:
+    """*named*, the text of :func:`granted_id_text` or
+    :func:`declared_grant_id_text`, without what opens its grant: any white
+    space (a no-break space too, as ``resolve()`` trims), a "(" or "["
+    ("GPL-3.0 (or later)") and a dash, which stands between words there
+    (``classify.grant_head``)."""
+    return named.rstrip(WHITE_SPACE + "([" + DASHES)
+
+
+def drops_words(
+    leading: str, expression: str, value: str, *, whole: bool, db: ListLookup
+) -> bool:
     """Whether reading the declared *value* as *expression* (its *leading*
     expression, with a grant that follows it applied) would drop words that
     must not go: any words left over when the value is *whole* (a manifest
     field holds nothing else, so "MIT/Apache-2.0" is not MIT, and "GPL-2.0
-    or later, and also MIT" is not GPL-2.0-or-later), or words that state
-    the qualifier of a "+" again (:func:`restates_qualifier`). Only a grant
-    that ends the value is no word left over (:func:`granted_id_text`, or
-    :func:`declared_grant_id_text` for a bare "MIT or later")."""
+    or later, and also MIT" is not GPL-2.0-or-later), words that state the
+    qualifier of a "+" again (:func:`restates_qualifier`), or another
+    licence of *db* listed after a mark (:func:`lists_another`). Only a
+    grant that ends the value is no word left over (:func:`granted_id_text`,
+    or :func:`declared_grant_id_text` for a bare "MIT or later")."""
     if leading == value:
         return False
     left = expression == leading or (
         granted_id_text(value) is None and declared_grant_id_text(value) is None
     )
-    return left and (whole or restates_qualifier(leading, value))
+    return left and (
+        whole or restates_qualifier(leading, value) or lists_another(db, leading, value)
+    )
+
+
+def lists_another(db: ListLookup, leading: str, value: str) -> bool:
+    """Whether *value* goes on after its *leading* expression with a mark
+    SPDX has no operator for and a licence of *db* (``MIT/Apache-2.0``,
+    ``MIT, LicenseRef-x``): the value lists both, and an answer of the
+    first alone would drop the other, as ``resolve()`` refuses it (``not an
+    SPDX operator``). A word that is no ID starts prose (``MIT, see
+    LICENSE``)."""
+    listed = _RE_LISTED.match(value, len(leading))
+    if listed is None:
+        return False
+    word = listed.group(2)
+    return token_kind(word) == "ID" and names_only_listed(word, db)
 
 
 def restates_qualifier(expression: str, value: str) -> bool:

@@ -148,14 +148,5 @@ def test_every_plus_after_a_listed_exception_says_so(
     it was ``exception not found`` of a listed exception)."""
     got = resolve(value, corpus_db)
     assert got["expression"] is None
-    if value.count("+") == 1:
-        assert got["category"] == "malformed"
-        assert got["reason"] == f"plus after an exception: {value}"
-    else:
-        # BUG: read as an exception not on the List, or as the whole value
-        # not found; fixed in the next commit.
-        assert got["category"] == "unresolved"
-        assert got["reason"] in (
-            f"exception not found: {value.split(' WITH ')[1]}",
-            f"not found: {value}",
-        )
+    assert got["category"] == "malformed"
+    assert got["reason"] == f"plus after an exception: {value}"

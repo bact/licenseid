@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -504,8 +504,6 @@ short-text leftovers are in `match-resolve-0-8.md`, section 7.
   [`concurrent-update.md`](concurrent-update.md).
 - `exclude`, `hint` and `only_spdx` of `detect()` are applied in part, are
   untyped and are not axes of `tests/test_option_matrix.py` (review A-F5).
-- A tag `MIT/Apache-2.0` or `MIT, Apache-2.0` is `MIT`, exact, and drops the
-  rest (0.6.0 does the same): a silent deviation (A-F6).
 - `is-*` on a file with several tags judges the top one only; the condition
   words for empty input; a garbage `--db` is `unreadable` or `invalid`
   depending on the path; `Resolver` and `Component` are not exported (A-F7).
@@ -514,8 +512,6 @@ short-text leftovers are in `match-resolve-0-8.md`, section 7.
 - `test_db_ready.py` (`wal_copy_without_wal`) fails 6 cases under uv's
   Python 3.14 (SQLite 3.43.2) on macOS, on `main` too (`unreadable` against
   `empty`); CI's 3.14 passes. It depends on the SQLite version.
-- Plain `ruff format --check` with no path flags `README.md` and
-  `resolver-0-7-plan.md`; CI checks `src/ tests/` only.
 - `update --source packaged` sample outputs in the README are unverified
   against a built wheel: check them at the final release gate.
 - A database or cache path that is a symlink loop is refused only after the

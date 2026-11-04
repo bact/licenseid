@@ -180,10 +180,15 @@ def test_a_plus_after_an_exception_is_malformed(
                 "plus after an exception: MIT WITH Classpath-exception-2.0+",
             ),
         ),
-        # two "+": no listed exception and one "+"
+        # two "+": a "+" after an exception, as for one (it was "exception
+        # not found" of a listed exception)
         (
             "MIT WITH Classpath-exception-2.0++",
-            (None, "unresolved", "exception not found: Classpath-exception-2.0++"),
+            (
+                None,
+                "malformed",
+                "plus after an exception: MIT WITH Classpath-exception-2.0++",
+            ),
         ),
         # still read
         (

@@ -14,6 +14,17 @@ and this project adheres to
 - `is-osi`, `is-fsf`, `is_osi()` and `is_fsf()` answer a compound that one
   judged operand decides: `MIT OR LicenseRef-x` is OSI-approved,
   `CC-BY-4.0 AND LicenseRef-x` is not; it was empty
+- A dash between words beside a grant is a separator everywhere:
+  `GPL-2.0 - or later` and `GPL-2.0 - or - later` are `GPL-2.0-or-later`
+  in `resolve()`, a tag and a field
+
+### Fixed
+
+- A tag that lists licences with a mark (`MIT/Apache-2.0`, `MIT, ISC`)
+  gives no answer; it was the first licence alone, exact
+- `resolve()` reads any white space before "or later" as a space (a
+  no-break space was `qualifier stated twice`), and says `plus after an
+  exception` for `++` too
 
 ## [0.7.0] - 2026-11-03
 

@@ -271,7 +271,6 @@ def test_a_reference_in_another_case_in_a_field(
         "GPL-2.0, 3 or later",
         "GPL-2.0 version 3.0 or later",
         "GPL-2.0 (version 3 or later)",
-        "GPL-2.0, LGPL-2.0 or later",  # a number joined to another word
         "GPL-2.0, v2 or later",
     ],
 )
@@ -283,6 +282,14 @@ def test_a_grant_after_another_version_is_not_the_ids(
     guess with a warning. It was GPL-2.0-or-later, exact."""
     assert _tag(corpus_db, value) == ("GPL-2.0-only", False)
     assert given.conditions() == {"variant not stated"}
+
+
+def test_a_licence_listed_after_a_comma_is_no_grant_of_the_first(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """The tag lists two licences (``looseid.lists_another``): no answer.
+    It was GPL-2.0-only, not exact, and LGPL-2.0 was dropped."""
+    assert _tag(corpus_db, "GPL-2.0, LGPL-2.0 or later") is None
 
 
 @pytest.mark.parametrize(

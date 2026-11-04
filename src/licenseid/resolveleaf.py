@@ -39,6 +39,7 @@ from licenseid.identifiers import without_outer_brackets
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import (
     WITH_OPERATOR,
+    before_grant,
     declared_grant_id_text,
     granted_id_text,
     loose_id,
@@ -280,13 +281,14 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
 
 
 def _plus_on_exception(db: ListLookup, text: str) -> bool:
-    """Whether *text* is a listed exception and a "+" (``X+``, ``X +``): the
-    operator qualifies a licence ID, not an exception, so the WITH is
-    malformed rather than its exception not found."""
-    stem = text.strip()
-    if not stem.endswith("+"):
+    """Whether *text* is a listed exception and one or more "+" (``X+``,
+    ``X +``, ``X++``): the operator qualifies a licence ID, not an
+    exception, so the WITH is malformed rather than its exception not
+    found."""
+    stem = _RE_TRAILING.sub("", text)
+    if stem == text.rstrip():
         return False
-    return _exception(db, stem[:-1].rstrip(), Found()) is not None
+    return _exception(db, stem.strip(), Found()) is not None
 
 
 def _grant_to_licence(licence: str, exception: str) -> tuple[str, str]:
@@ -297,7 +299,7 @@ def _grant_to_licence(licence: str, exception: str) -> tuple[str, str]:
     named = granted_id_text(exception) or declared_grant_id_text(exception)
     if named is None:
         return licence, exception
-    core = named.rstrip(" \t([")
+    core = before_grant(named)
     return f"{licence} {exception[len(core) :].strip()}", core
 
 
@@ -397,7 +399,7 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
     or an ID, a name or a loose ID, then its deprecation."""
     named = granted_id_text(text) or declared_grant_id_text(text)
     if named is not None:
-        named = named.rstrip(" \t([")  # "GPL-3.0 (or later)": the "(" is the grant's
+        named = before_grant(named)  # "GPL-3.0 (or later)": the "(" is the grant's
         if _qualified(db, named):
             found.category, found.reason = "malformed", stated_twice(text)
             return True
@@ -430,7 +432,7 @@ def _qualified(db: ListLookup, named: str) -> bool:
     later"). A stated "-only" or "-or-later" is _grant's to refuse."""
     twice = declared_grant_id_text(named) or granted_id_text(named)
     if twice is not None:
-        return _base(db, twice.rstrip(" \t([")) is not None
+        return _base(db, before_grant(twice)) is not None
     core = _RE_TRAILING.sub("", named)
     return core != named and _base(db, core) is not None
 

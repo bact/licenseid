@@ -40,7 +40,7 @@ PHRASES: dict[str, tuple[bool, bool]] = {
     "not or newer": (False, False),
     "not or later": (False, False),
     "not or-later": (False, False),
-    "-or-later": (False, False),
+    "-or-later": (True, True),  # a dash between words (D10); it was neither
 }
 
 
@@ -64,3 +64,24 @@ def im(
 
 def ids(ranked: list[InternalMatch]) -> list[str]:
     return [r["license_id"] for r in ranked]
+
+
+#: A dash between words, next to a grant (maintainer, 2026-11-04): a
+#: separator, so each value reads as its spelling with spaces does.
+DASHED = [
+    ("GPL-2.0 - or later", "GPL-2.0 or later"),
+    ("GPL-2.0 -or later", "GPL-2.0 or later"),
+    ("GPL-2.0- or later", "GPL-2.0 or later"),
+    ("GPL-2.0 -- or later", "GPL-2.0 or later"),
+    ("GPL-2.0 – or later", "GPL-2.0 or later"),
+    ("GPL-2.0 - or - later", "GPL-2.0 or later"),
+    ("GPL-2.0 or - later", "GPL-2.0 or later"),
+    ("GPL-2.0 or -later", "GPL-2.0 or later"),
+    ("GPL-2.0 -or-later", "GPL-2.0 or-later"),
+    ("GPL-2.0 - (or later)", "GPL-2.0 (or later)"),
+    ("GPL-2.0 - or any later version", "GPL-2.0 or any later version"),
+    ("MIT - or later", "MIT or later"),
+    ("MIT - or - later", "MIT or later"),
+    ("Apache-2.0 - or later", "Apache-2.0 or later"),
+    ("MIT OR GPL-2.0 - or later", "MIT OR GPL-2.0 or later"),
+]

@@ -38,7 +38,9 @@ _RE_NON_WORD: Final = re.compile(r"[^\w\s]")
 # second call to normalize_text() to behave differently from the first
 # (non-idempotent).  Folding hyphens to spaces here, before varietal
 # matching runs, keeps normalize_text() idempotent.
-RE_DASHES: Final = re.compile(r"[‐‑‒–—―−﹘﹣－-]")
+#: The dashes of guideline 4, the hyphen-minus last (a literal in a class).
+DASHES: Final = "‐‑‒–—―−﹘﹣－-"
+RE_DASHES: Final = re.compile(f"[{DASHES}]")
 
 # Guideline 4 (quotes): any variation of quotations is considered
 # equivalent.  Normalise to ASCII single quote before stripping punctuation.
