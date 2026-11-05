@@ -16,7 +16,7 @@ import harness_golden as hg
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from harness_changes import DETECT_CHANGES
-from harness_db import harness_detector
+from harness_db import detector_for
 
 
 def expected_for(kind: str) -> dict[str, tuple[str, str]]:
@@ -26,7 +26,7 @@ def expected_for(kind: str) -> dict[str, tuple[str, str]]:
 @pytest.mark.parametrize("kind", hg.KINDS)
 def test_the_slice_of_detect_is_the_golden(kind: str) -> None:
     golden = hg.read_golden(hg.GOLDEN / hg.FILES[kind])
-    current = hg.snapshot(harness_detector(), kind, short=True)
+    current = hg.snapshot(detector_for(kind), kind, short=True)
     assert current, kind
     report = hg.diff_report(golden, current, expected_for(kind))
     assert not report, "\n" + report
@@ -36,7 +36,7 @@ def test_the_slice_of_detect_is_the_golden(kind: str) -> None:
 @pytest.mark.parametrize("kind", hg.KINDS)
 def test_all_of_detect_is_the_golden(kind: str) -> None:
     golden = hg.read_golden(hg.GOLDEN / hg.FILES[kind])
-    current = hg.snapshot(harness_detector(), kind)
+    current = hg.snapshot(detector_for(kind), kind)
     report = hg.diff_report(golden, current, expected_for(kind), complete=True)
     assert not report, "\n" + report
 

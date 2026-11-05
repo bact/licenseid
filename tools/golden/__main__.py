@@ -18,7 +18,7 @@ from tools.golden import paths  # first: it puts tests/ on sys.path
 import harness_changes
 import harness_cli
 import harness_golden as hg
-from harness_db import harness_detector
+from harness_db import detector_for
 
 # isort: on
 
@@ -27,7 +27,7 @@ TESTS = paths.TESTS
 CLI_FILE = hg.GOLDEN / "cli.jsonl"
 COMMENT = (
     "Golden snapshot of detect(): the top result of each case, on the database",
-    "of the long-text fixtures (tests/harness_db.py). Regenerate with",
+    "of tests/harness_db.py (detector_for). Regenerate with",
     "python -m tools.golden --write {kind}; never edit by hand.",
 )
 
@@ -91,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
             old = read_cli_golden()
             view = digest
         else:
-            current = hg.snapshot(harness_detector(), name)
+            current = hg.snapshot(detector_for(name), name)
             path = hg.GOLDEN / hg.FILES[name]
             if args.write:
                 comment = [line.format(kind=name) for line in COMMENT]

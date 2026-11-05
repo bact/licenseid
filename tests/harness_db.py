@@ -12,7 +12,9 @@ import sqlite3
 from functools import lru_cache
 from pathlib import Path
 
-from conftest import seed_ready_metadata
+from conftest import make_memory_db_path, seed_ready_metadata
+from resolver_corpus import NEIGHBOURS, corpus_db_path
+from seed_sql import INSERT_INDEX
 
 from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
@@ -21,7 +23,7 @@ from licenseid.normalize import normalize_text
 
 LONG_TEXTS = Path(__file__).parent / "fixtures" / "license-text-long"
 _DB_PATH = "file:harness_detector?mode=memory&cache=shared"
-_KEEP_ALIVE: list[LicenseDatabase] = []
+_KEEP_ALIVE: list[object] = []
 
 _LICENSE_SQL = (
     "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved, "
@@ -63,3 +65,29 @@ def harness_detector() -> LicenseDetector:
     store_fingerprints(manager._connections)  # pylint: disable=protected-access
     seed_ready_metadata(_DB_PATH)
     return LicenseDetector(_DB_PATH)
+
+
+@lru_cache(maxsize=1)
+def value_detector() -> LicenseDetector:
+    """A detector over the database of the resolver corpus (every licence and
+    exception of the List) with the text of every long-text fixture, so the
+    text tiers have what the real List gives them (read only)."""
+    paths = corpus_db_path("harness_value", make_memory_db_path)
+    path = next(paths)
+    _KEEP_ALIVE.append(paths)  # its keep-alive connection closes at the end
+    manager = LicenseDatabase(path)
+    _KEEP_ALIVE.append(manager)
+    texts = []
+    for text_file in sorted(LONG_TEXTS.glob("*.json"), key=lambda p: p.name):
+        if text_file.stem not in NEIGHBOURS:
+            data = json.loads(text_file.read_text(encoding="utf-8"))
+            texts.append((data["license_id"], normalize_text(data["license_text"])))
+    with sqlite3.connect(path, uri=True) as conn:
+        conn.executemany(INSERT_INDEX, texts)
+    store_fingerprints(manager._connections)  # pylint: disable=protected-access
+    return LicenseDetector(path)
+
+
+def detector_for(kind: str) -> LicenseDetector:
+    """The detector a golden *kind* runs on."""
+    return value_detector() if kind == "value" else harness_detector()
