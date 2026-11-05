@@ -292,8 +292,9 @@ def test_a_deprecated_id_as_is_is_narrowed_aloud(
         # narrowed aloud (F3).
         ("GPL-2.0", ("GPL-2.0-only", "id", False)),
         ("GPL-2.0+", ("GPL-2.0-or-later", "id", True)),
-        # No key: the fuzzy name match answers, never as an exact ID.
-        ("Apache 2+", ("Apache-2.0", "name", False)),
+        # resolve() reads the whole value, its "+" kept (was: the fuzzy name
+        # match, Apache-2.0, the "+" lost).
+        ("Apache 2+", ("Apache-2.0+", "id", True)),
     ],
 )
 def test_match_answers_with_the_id(

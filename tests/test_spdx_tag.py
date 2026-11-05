@@ -353,7 +353,7 @@ COMPOUND_VALUE = "MIT OR Apache-2.0"
 def test_an_id_that_names_more_than_one_license_is_a_usage_error(db: str) -> None:
     """`--id` is a declaration of one license, so a compound expression is a
     mistake to report, not a value to resolve. The same value as a bare
-    argument is only a guess, so it falls through to text matching instead."""
+    argument is a whole input, which resolve() reads first."""
     run = CliRunner()
     for command in ("detect", "is-spdx", "is-osi"):
         result = run.invoke(cli, ["--db", db, command, "--id", COMPOUND_VALUE])
@@ -361,7 +361,8 @@ def test_an_id_that_names_more_than_one_license_is_a_usage_error(db: str) -> Non
         assert result.stderr.splitlines()[-1] == (
             f"ERROR: option: invalid: --id: {COMPOUND_VALUE}; pass one license ID"
         )
-    assert run.invoke(cli, ["--db", db, "detect", COMPOUND_VALUE]).exit_code == 1
+    result = run.invoke(cli, ["--db", db, "detect", COMPOUND_VALUE])
+    assert result.stdout.startswith("EXPRESSION=Apache-2.0 OR MIT\t")
 
 
 def test_a_refused_id_stays_one_line(db: str) -> None:

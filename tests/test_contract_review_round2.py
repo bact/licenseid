@@ -20,7 +20,7 @@ from click.testing import CliRunner
 from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
-from licenseid import InvalidInputError, LicenseDatabase
+from licenseid import InvalidInputError, LicenseDatabase, resolve
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.identifiers import disambiguate_deprecated_id, simple_value
@@ -58,18 +58,28 @@ def _field(corpus_db: LicenseDatabase, tmp_path: Path, value: str) -> str | None
     ],
 )
 def test_s1_a_qualifier_never_answers_a_compound_alone(
-    corpus_db: LicenseDatabase, tmp_path: Path, value: str, field: str | None
+    corpus_db: LicenseDatabase,
+    tmp_path: Path,
+    value: str,
+    field: str | None,
+    given: GivenWarnings,
 ) -> None:
     """S1 (was: the prose reader read the whole value, so one qualified ID
     answered the compound, exact, from an argument and a manifest field;
     ``LicenseRef-GPL-2.0 or later`` was GPL-2.0-or-later): the reader
     declines when an operator outside its phrase joins another licence, so
     no answer drops an operand. A field's own reader still reads the whole
-    expression where it can."""
+    expression where it can. The whole value as text is resolve()'s."""
     assert disambiguate_deprecated_id(value) is None
     top = _top(corpus_db, value)
-    assert top is None or not top[1], top
+    expression = resolve(value, corpus_db)["expression"]
+    if expression is None:
+        assert top is None or not top[1], top
+    else:
+        assert top == (expression, True)
     assert _field(corpus_db, tmp_path, value) == field
+    # A refused value is too short to match as text, and says why.
+    assert given.conditions() <= {"too few words for text"}
 
 
 def test_s1_the_predicate_says_nothing(corpus_db: LicenseDatabase) -> None:

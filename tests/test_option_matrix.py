@@ -80,6 +80,14 @@ from tools.cli_matrix.judge import PLAIN
 OTHER_TEXT = "The quick brown fox jumps over the lazy dog near the river bank"
 MISSING = "ERROR: input: missing; pass a file, an ID, --text, --id or stdin\n"
 NO_MATCH = ""  # "no" is an answer: nothing on standard error
+# A short argument resolve() refuses is not matched as text, and says why.
+TOO_SHORT = "WARNING: input: too few words for text: not found: Nope-1.0\n"
+
+
+def _no_match(source: str) -> str:
+    """Standard error of no answer from *source*."""
+    return TOO_SHORT if source == "arg_id" else NO_MATCH
+
 
 SOURCES = ["arg_id", "arg_file", "text", "id", "stdin", "dash", "none"]
 OUTPUTS = [
@@ -155,7 +163,7 @@ def test_match_matrix(
         assert (result.exit_code, result.stdout, result.stderr) == (
             1,
             _no_record(output),
-            NO_MATCH,
+            _no_match(source),
         )
     else:
         assert (result.exit_code, result.stderr) == (0, "")
@@ -226,7 +234,11 @@ def test_predicate_matrix(
         assert (result.exit_code, result.stdout, result.stderr) == (0, yes, "")
     else:
         no = record(None, None)  # not found is no answer (P159)
-        assert (result.exit_code, result.stdout, result.stderr) == (1, no, "")
+        assert (result.exit_code, result.stdout, result.stderr) == (
+            1,
+            no,
+            _no_match(source),
+        )
 
 
 # Each flag on its own, so a predicate cannot pass by reading both as one.

@@ -221,14 +221,14 @@ class MarkerDetector:
         return []
 
     def resolve_license_value(
-        self, val: str, score: float, *, whole: bool = False
+        self, val: str, score: float, *, whole: bool = False, shown: str | None = None
     ) -> list[CandidateMatch]:
         """Resolve a license string (ID, name, or SPDX URL) to candidates.
 
         With *whole*, the expression must be the entire value, as in a
         manifest field, which holds nothing else: "MIT/Apache-2.0" there is
         not MIT with trailing prose, and answering MIT would drop a license.
-        """
+        A narrowed guess is said of *shown*, the value as written, if given."""
         # SPDX license URL: https://spdx.org/licenses/Apache-2.0, or the
         # License List's own page for it, .../Apache-2.0.html
         if val.startswith("http") and "/licenses/" in val:
@@ -270,7 +270,7 @@ class MarkerDetector:
         inexact = read_inexactly(self.db, expression, found)
         if inexact:  # "GPL-2.0" read as GPL-2.0-only: said, and not exact
             if inexact == "narrowed":
-                warn_narrowed(expression, found[0]["license_id"])
+                warn_narrowed(shown or expression, found[0]["license_id"])
             found[0]["narrowed"] = True
         return found
 

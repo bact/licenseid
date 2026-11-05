@@ -9,6 +9,7 @@ from the parser, and the canonical form, on resolved leaf texts."""
 
 import pytest
 
+from licenseid import exprcanon
 from licenseid.exprcanon import (
     Group,
     canonical,
@@ -183,3 +184,25 @@ def test_canonical_form_and_its_steps(
     inside an AND; one step for each change, in that order."""
     texts = [text[t.start : t.end] for t in leaves(split(text))]
     assert _canonical(text, texts) == expected
+
+
+class _CountingOpens(dict[str, str]):
+    """``exprcanon._OPENS`` that counts each membership test."""
+
+    tests = 0
+
+    def __contains__(self, key: object) -> bool:
+        type(self).tests += 1
+        return super().__contains__(key)
+
+
+@pytest.mark.parametrize("text", ["x" * 1000, "(" + "x" * 1000, "x" * 1000 + ")"])
+def test_a_text_with_no_pair_is_not_scanned(
+    monkeypatch: pytest.MonkeyPatch, text: str
+) -> None:
+    """A bracket at one end only can pair with nothing: a 2 MB licence text
+    took 0.17 s to refuse."""
+    opens = _CountingOpens(exprcanon._OPENS)  # pylint: disable=protected-access
+    monkeypatch.setattr(exprcanon, "_OPENS", opens)
+    assert exprcanon.unbracketed(text) == text
+    assert _CountingOpens.tests == 0

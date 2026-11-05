@@ -73,7 +73,10 @@ def _match(db: str, **kwargs: Any) -> list[Detection]:
         # The deprecated-ID fast path.
         ({"text": "GPL-2.0 or later"}, "GPL-2.0-or-later", "id", (0, 0)),
         ({"text": "GPL-2.0 only"}, "GPL-2.0-only", "id", (0, 0)),
-        ({"text": "MIT License"}, "MIT", "name", (1, 0)),
+        # resolve() reads a listed name: nothing measured.
+        ({"text": "MIT License"}, "MIT", "name", (0, 0)),
+        # The name tier measures one resolve() does not read.
+        ({"text": "MIT-License"}, "MIT", "name", (1, 0)),
         ({"text": MIT_SEARCH_TEXT}, "MIT", "text", (1, 1)),
     ],
     ids=[
@@ -84,6 +87,7 @@ def _match(db: str, **kwargs: Any) -> list[Detection]:
         "lone-id",
         "or-later",
         "only",
+        "listed-name",
         "name",
         "text",
     ],
@@ -117,7 +121,7 @@ def test_every_method_gives_the_same_keys(
     [
         # A value spelt exactly as a name resolves before the name match.
         ('{"license": "MIT-License"}', ("MIT", "field", True, None)),
-        ("MIT License", ("MIT", "name", True, 1.0)),
+        ("MIT-License", ("MIT", "name", True, 1.0)),
     ],
     ids=["field", "name"],
 )
@@ -146,11 +150,20 @@ def test_a_deprecated_name_of_its_own_is_exact(db: str) -> None:
 
 def test_the_cap_keeps_the_ranking_order(db: str) -> None:
     matcher = LicenseDetector(db)
-    raw = matcher._match_raw("MIT License")  # pylint: disable=protected-access
+    raw = matcher._match_raw("MIT-License")  # pylint: disable=protected-access
     assert [r["score"] for r in raw][:2] == [1.02, 1.01]
     assert [r["license_id"] for r in raw] == [
-        r["expression"] for r in matcher.detect("MIT License")
+        r["expression"] for r in matcher.detect("MIT-License")
     ]
+
+
+def test_a_listed_name_is_read_by_resolve_alone(db: str) -> None:
+    """resolve() reads the whole input first: the name it lists is the
+    answer, and the name tier's look-alikes do not follow it."""
+    assert [
+        (r["expression"], r["method"], r["exact"])
+        for r in _match(db, text="MIT License")
+    ] == [("MIT", "name", True)]
 
 
 def test_a_text_match_is_exact_only_for_the_whole_text(db: str) -> None:
@@ -163,9 +176,9 @@ def test_a_text_match_is_exact_only_for_the_whole_text(db: str) -> None:
 def test_an_input_with_no_words_is_no_exact_text(db: str, text: str) -> None:
     """A hinted candidate has no text, and an input that normalises to
     nothing (a short one whose only tag names no license, once the tag is
-    dropped) equalled it: an exact match of nothing."""
-    results = _match(db, text=text, hint=["Apache-2.0"])
-    assert [(r["expression"], r["exact"]) for r in results] == [("Apache-2.0", False)]
+    dropped) equalled it: an exact match of nothing. It was the hint, not
+    exact; now no text tier matches an input of no words."""
+    assert _match(db, text=text, hint=["Apache-2.0"]) == []
 
 
 def _raw(
@@ -266,10 +279,10 @@ def test_json_prints_one_line_per_result(db: str) -> None:
 @pytest.mark.parametrize(
     ("args", "expected"),
     [
-        (["--text", "MIT License"], ["MIT", "MIT-Variant", "MIT-Old"]),
-        (["--exact", "--text", "MIT License"], ["MIT"]),
+        (["--text", "MIT-License"], ["MIT", "MIT-Variant", "MIT-Old"]),
+        (["--exact", "--text", "MIT-License"], ["MIT"]),
         # --exact filters before --top cuts.
-        (["--exact", "--top", "1", "--text", "MIT License"], ["MIT"]),
+        (["--exact", "--top", "1", "--text", "MIT-License"], ["MIT"]),
         (["--exact", "--text", LONG_TEXT + " zulu"], [None]),  # the empty record
         (["--threshold", "0", "--text", "MIT"], ["MIT"]),
         (["--threshold", "1", "--text", "MIT"], ["MIT"]),

@@ -331,21 +331,23 @@ def test_a_slash_elsewhere_is_not_or(db: str, tmp_path: Path, kind: str) -> None
     assert all(r["expression"] != "MIT" or r["score"] < 0.85 for r in results)
 
 
-def test_a_name_match_needs_no_lookup_per_result(db: str) -> None:
+def test_a_name_match_needs_no_lookup_per_result(db: str, given: GivenWarnings) -> None:
     """Tier 0 takes the flags from its cached name table: a broad name
-    returns dozens of results, and a lookup each made it 20 times slower."""
+    returns dozens of results, and a lookup each made it 20 times slower.
+    resolve() reads the whole value first, with lookups of its own."""
     matcher = LicenseDetector(db)
     matcher.detect(text="warm up the name cache")
     with mock.patch.object(
         LicenseDatabase,
         "get_license_details",
         autospec=True,
-        wraps=LicenseDatabase.get_license_details,
+        side_effect=LicenseDatabase.get_license_details,
     ) as lookup:
         results = matcher.detect(text="Apache License")
     assert len(results) >= 2
     assert all(isinstance(r.get("is_spdx"), bool) for r in results)
-    assert lookup.call_count == 0
+    assert lookup.call_count <= 3  # resolve()'s own, none for a result
+    assert given.conditions() == {"too few words for text"}  # the warm-up
 
 
 def test_a_small_package_json_in_npm_object_form(db: str, tmp_path: Path) -> None:

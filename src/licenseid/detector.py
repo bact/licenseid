@@ -28,7 +28,10 @@ from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
+from licenseid.resolvefirst import as_resolved, too_short
+from licenseid.resolver import resolve_with
 from licenseid.resolverinfo import list_info
+from licenseid.resolvertypes import Resolution
 from licenseid.result import public_result
 from licenseid.retrieval import get_candidates
 from licenseid.shorttext import (
@@ -137,10 +140,11 @@ class LicenseDetector:
                 _set_flags(match, self.markers.license_flags(match["license_id"]))
         return matches
 
-    def _resolve_declared(self, value: str) -> list[RawMatch]:
-        """The answer to a declared license value: certain, or none."""
+    def _resolve_declared(self, value: str, shown: str | None = None) -> list[RawMatch]:
+        """The answer to a declared license value: certain, or none. A
+        narrowed guess is said of *shown*, the value as written, if given."""
         return self._finalize_exact_markers(
-            self.markers.resolve_license_value(value, 1.0), method="id"
+            self.markers.resolve_license_value(value, 1.0, shown=shown), method="id"
         )
 
     def _resolve_loose_with(self, text: str) -> list[RawMatch]:
@@ -409,10 +413,26 @@ class LicenseDetector:
         target_text = self._resolve_target_text(text, file_path)
         if not target_text:
             return []
-
-        ctx = self._build_match_context(
-            target_text, file_path, cast(DetectRequest, options)
+        # The whole input as one declared value first, so detect() and
+        # resolve() answer it alike (resolvefirst).
+        whole = resolve_with(self.db, target_text)
+        if whole["expression"] is not None:
+            found = self._resolve_declared(whole["expression"], target_text)
+            if found:
+                return as_resolved(whole, found)
+        return self._match_text(
+            self._build_match_context(
+                target_text, file_path, cast(DetectRequest, options)
+            ),
+            whole,
         )
+
+    def _match_text(
+        self, ctx: _MatchContext, whole: Resolution
+    ) -> Sequence[RawMatch | InternalMatch]:
+        """The tiers of an input resolve() did not read as a whole (*whole*):
+        its markers, a manifest's field, Tier 0's names, then Tiers 1 and 2."""
+        target_text = ctx.target_text
 
         # Tier 0.5: Marker Detection — SPDX-License-Identifier is
         # unambiguous and short-circuits; other markers feed the
@@ -435,7 +455,10 @@ class LicenseDetector:
         if short_text_result is not None:
             return short_text_result
 
-        # Tier 1: Broad Recall, then Tier 2: Precision Ranking.
+        # Tier 1: Broad Recall, then Tier 2: Precision Ranking; not for a
+        # short input resolve() refused (resolvefirst).
+        if too_short(whole, ctx.word_count, whole=ctx.target_text == target_text):
+            return []
         ranked = self._run_tier1_and_tier2(ctx, marker_candidates, marker_boosts)
 
         # Tiebreaker: -only vs -or-later when scores are identical

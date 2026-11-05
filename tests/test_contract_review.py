@@ -60,6 +60,9 @@ ROWS = (
     *(Lic(lid, lid, True, is_deprecated=True) for lid in WITH_IDS),
 )
 COMMANDS = ("is-osi", "is-fsf", "is-spdx")
+NOT_A_LICENCE = (
+    "WARNING: input: too few words for text: not found: Not a licence at all\n"
+)
 
 
 @pytest.fixture
@@ -90,7 +93,6 @@ def _inputs(tmp_path: Path, value: str) -> list[tuple[list[str], str | None]]:
 @pytest.mark.parametrize(
     "value",
     [
-        "MIT OR ISC",  # a bare compound: matched as text, no licence found
         "SPDX-License-Identifier: MIT WITH AdditionRef-x",  # no reader takes it
         "Not a licence at all",
     ],
@@ -99,16 +101,39 @@ def test_r1_no_record_is_no_answer(
     db: str, tmp_path: Path, command: str, value: str
 ) -> None:
     """R1 (was: ``EXPRESSION=\tIS_OSI_APPROVED=false``, a false "no"): no
-    licence found leaves the flag empty, ``null`` in JSON, exit 1."""
+    licence found leaves the flag empty, ``null`` in JSON, exit 1. A short
+    value resolve() refuses says why; a tag was judged by its reader."""
+    stderr = "" if value.startswith("SPDX-") else NOT_A_LICENCE
     for args, stdin in _inputs(tmp_path, value):
         result = run(db, command, *args, stdin=stdin)
         assert (result.exit_code, result.stdout, result.stderr) == (
             1,
             predicate_line(command, "", None),
-            "",
+            stderr,
         ), args
         result = run(db, command, "--json", *args, stdin=stdin)
         assert result.stdout == predicate_json(command, None, None), args
+
+
+@pytest.mark.parametrize("command", COMMANDS)
+def test_r1_a_bare_compound_answers_as_its_tag(
+    db: str, tmp_path: Path, command: str
+) -> None:
+    """A compound that is the whole input (was: matched as text, no licence)
+    is read by resolve() first, so it answers as its tag does: an OR of two
+    approved licences is approved (D8)."""
+    tag = run(db, command, "--text", "SPDX-License-Identifier: MIT OR ISC")
+    assert (tag.exit_code, tag.stdout) == (
+        0,
+        predicate_line(command, "ISC OR MIT", True),
+    )
+    for args, stdin in _inputs(tmp_path, "MIT OR ISC"):
+        result = run(db, command, *args, stdin=stdin)
+        assert (result.exit_code, result.stdout, result.stderr) == (
+            0,
+            tag.stdout,
+            "",
+        ), args
 
 
 @pytest.mark.parametrize("command", COMMANDS)
@@ -149,15 +174,16 @@ def test_r1_a_licence_found_keeps_its_answer(
 
 @pytest.mark.parametrize("method", ["is_osi", "is_fsf", "is_spdx"])
 def test_r1_the_api_says_none_for_no_licence(
-    db: str, tmp_path: Path, method: str
+    db: str, tmp_path: Path, method: str, given: GivenWarnings
 ) -> None:
     """R1 (was: False for no record): None, as the CLI's empty flag."""
     path = tmp_path / "LICENSE"
-    path.write_text("MIT OR ISC\n", encoding="utf-8")
+    path.write_text("Not a licence at all\n", encoding="utf-8")
     detector = LicenseDetector(db)
-    assert getattr(detector, method)("MIT OR ISC") is None
+    assert getattr(detector, method)("Not a licence at all") is None
     assert getattr(detector, method)(file_path=str(path)) is None
     assert getattr(detector, method)(license_id="Zzz-Unknown-1.0") is None
+    assert given.conditions() == {"too few words for text"}
     assert getattr(detector, method)(license_id="MIT") is True
 
 
@@ -295,12 +321,13 @@ def test_r5_a_plus_keeps_its_operand(
     assert ("variant not stated" in result.stderr) is warned
 
 
-def test_r5_a_bare_compound_argument_is_no_id(db: str) -> None:
+def test_r5_a_bare_compound_argument_keeps_every_operand(db: str) -> None:
     """R5 (was: the argument ``GPL-2.0+ OR GPL-2.0-only`` answered
-    ``GPL-2.0-only``, METHOD=id, exact): a compound given as text is no
-    declaration (P141), so no licence is found."""
+    ``GPL-2.0-only``, METHOD=id, exact; then no licence, P141): resolve()
+    reads a whole input first, so the compound is its expression."""
     result = run(db, "detect", "GPL-2.0+ OR GPL-2.0-only")
-    assert result.exit_code == 1
+    assert result.exit_code == 0
+    assert result.stdout.startswith("EXPRESSION=GPL-2.0-only OR GPL-2.0-or-later\t")
 
 
 @pytest.mark.parametrize(
@@ -333,15 +360,16 @@ def test_r5_the_prose_reader_skips_what_an_id_states(
             ["detect", "--exact", "GPL-2.0"],
             "WARNING: input: variant not stated: GPL-2.0; using GPL-2.0-only\n",
         ),
-        (["detect", "Not a licence at all"], ""),
-        (["is-osi", "Not a licence at all"], ""),
+        # A short value resolve() refuses is matched as no text, and says why.
+        (["detect", "Not a licence at all"], NOT_A_LICENCE),
+        (["is-osi", "Not a licence at all"], NOT_A_LICENCE),
         (["resolve", "Foo"], ""),
     ],
 )
 def test_r6_exit_1_carries_no_error_line(db: str, args: list[str], stderr: str) -> None:
     """R6: "no" is an answer, so exit 1 prints no ERROR line; the warning
-    of a guess (``GPL-2.0`` read as ``GPL-2.0-only``) is said as with an
-    answer."""
+    of a guess (``GPL-2.0`` read as ``GPL-2.0-only``), or of a value too
+    short to match as text, is said as with an answer."""
     result = run(db, *args)
     assert (result.exit_code, result.stderr) == (1, stderr)
 

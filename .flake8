@@ -8,6 +8,9 @@ exclude =
     dist,
     tests/fixtures/,
     benchmarks/
+# Written by a script: its case names are the golden's, whole.
+per-file-ignores =
+    tests/harness_changes_resolvefirst.py: E501
 
 # Interim ratchets set to the exact current repo max (tightest ceiling
 # that still passes) — see working-docs/design/complexity-and-file-size-roadmap.md

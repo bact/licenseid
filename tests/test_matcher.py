@@ -12,7 +12,7 @@ from collections.abc import Generator
 from typing import NamedTuple
 
 import pytest
-from conftest import make_memory_db_path
+from conftest import GivenWarnings, make_memory_db_path
 
 from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
@@ -74,7 +74,7 @@ def test_hybrid_search_flow(test_db: str) -> None:
     assert results[0]["expression"] == "MIT"
 
 
-def test_short_text_rejection(test_db: str) -> None:
+def test_short_text_rejection(test_db: str, given: GivenWarnings) -> None:
     matcher = LicenseDetector(test_db)
 
     assert not matcher.detect("")
@@ -87,6 +87,7 @@ def test_short_text_rejection(test_db: str) -> None:
     assert not matcher.detect("This")
     assert not matcher.detect("Copyright 2024.")
     assert not matcher.detect("One two three four")
+    assert given.conditions() == {"too few words for text"}
 
     # Exact name matches (< 12 words)
     res_mit = matcher.detect("MIT")

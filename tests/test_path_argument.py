@@ -61,7 +61,7 @@ def test_a_missing_path_is_refused(db_path: str, command: str, argument: str) ->
 )
 def test_a_url_or_licence_ids_are_no_path(db_path: str, argument: str) -> None:
     result = CliRunner().invoke(cli, ["--db", db_path, "detect", argument])
-    assert "not found" not in result.stderr
+    assert "ERROR: input: not found" not in result.stderr  # read, not a path
     assert result.exit_code in (0, 1)
 
 

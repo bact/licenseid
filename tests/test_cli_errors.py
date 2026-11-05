@@ -271,5 +271,5 @@ def test_a_missing_file_named_as_an_argument(
 )
 def test_an_argument_that_is_no_path_is_matched(ready_db: str, args: list[str]) -> None:
     result = CliRunner().invoke(cli, ["--db", ready_db, "detect", *args])
-    assert "not found" not in result.stderr
+    assert "ERROR: input: not found" not in result.stderr  # read, not a path
     assert result.exit_code in (0, 1)
