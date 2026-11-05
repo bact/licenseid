@@ -1,0 +1,9 @@
+# The answers the title reader (the title a licence's own text gives itself,
+# licenseid.resolvetitle) moved in the parity corpus and the PyPI sample.
+# value: Python unicode_escape; group: why it moved (in
+# tests/resolver_changes_titles.py); then the answer, its fields written as
+# in the other answer fixtures.
+value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
+CC0 1.0 Universal	title	CC0-1.0	text_title	-	text_title	CC0-1.0	-	-	resolver_rule	yes	-
+GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007	bare	GPL-3.0	assumed_only	GPL-3.0-only,GPL-3.0-or-later	text_title	GPL-3.0	assumed_only!	GPL-3.0	none	yes	-
+Mulan PSL v2	title	MulanPSL-2.0	text_title	-	text_title	MulanPSL-2.0	-	-	resolver_rule	yes	-

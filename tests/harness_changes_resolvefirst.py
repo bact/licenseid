@@ -14,6 +14,8 @@ _NONE = "resolve() reads the whole value (was no answer)"
 _NAME = "resolve() reads the listed name or prose form: exact"
 _SHORT = "too few words for text: under 10 words, resolve() refused it"
 _LOST = "too few words for text: a right answer lost, for resolve() to learn"
+_TITLE = "resolve() reads the title the licence's own text gives itself"
+_TITLE_BARE = _TITLE + ": the bare GPL-3.0, narrowed aloud (was a text guess)"
 
 RESOLVE_FIRST_CHANGES: dict[str, tuple[str, str]] = {
     "id/AFL-1.2/id_distorted": ("-\t-\t-\t-", _SHORT),
@@ -261,7 +263,7 @@ RESOLVE_FIRST_CHANGES: dict[str, tuple[str, str]] = {
     "value/Boost Software License 1.0 (BSL-1.0)": ("BSL-1.0\tname\tyes\t1.0000", _NAME),
     "value/BrowserStack Software License Agreement": ("-\t-\t-\t-", _SHORT),
     "value/CC0": ("-\t-\t-\t-", _LOST),
-    "value/CC0 1.0 Universal": ("-\t-\t-\t-", _LOST),
+    "value/CC0 1.0 Universal": ("CC0-1.0\tname\tyes\t1.0000", _TITLE),
     "value/CC0 1.0 Universal (CC0 1.0) Public Domain Dedication": (
         "CC0-1.0\tname\tyes\t1.0000",
         _TEXT,
@@ -307,7 +309,10 @@ RESOLVE_FIRST_CHANGES: dict[str, tuple[str, str]] = {
         "AGPL-3.0-or-later\tname\tyes\t1.0000",
         _TEXT,
     ),
-    "value/GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007": ("-\t-\t-\t-", _LOST),
+    "value/GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007": (
+        "GPL-3.0-only\tname\tno\t1.0000",
+        _TITLE_BARE,
+    ),
     "value/GNU GPL V3.0": ("-\t-\t-\t-", _SHORT),
     "value/GNU GPL v2": ("-\t-\t-\t-", _SHORT),
     "value/GNU GPL v2+": ("-\t-\t-\t-", _SHORT),
@@ -512,7 +517,7 @@ RESOLVE_FIRST_CHANGES: dict[str, tuple[str, str]] = {
     "value/Moderne Source Available License": ("-\t-\t-\t-", _SHORT),
     "value/Modified BSD License": ("-\t-\t-\t-", _SHORT),
     "value/Mozilla Public License 2.0 (MPL 2.0)": ("MPL-2.0\tname\tyes\t1.0000", _NAME),
-    "value/Mulan PSL v2": ("-\t-\t-\t-", _LOST),
+    "value/Mulan PSL v2": ("MulanPSL-2.0\tname\tyes\t1.0000", _TITLE),
     "value/NVIDIA Proprietary Software": ("-\t-\t-\t-", _SHORT),
     "value/OSI Approved": ("-\t-\t-\t-", _SHORT),
     "value/OSI Approved :: Apache Software License": ("-\t-\t-\t-", _SHORT),

@@ -357,6 +357,7 @@ def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> 
         "Apache-2.0  OR MIT",  # a "+" after a space is refused now
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "MIT License (MIT)",
+        "GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007",  # a text title
     )
     seen = set()
     for value in values:

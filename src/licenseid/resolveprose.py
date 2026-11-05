@@ -47,6 +47,7 @@ from licenseid.listlookup import ListLookup
 from licenseid.normalize import RE_DASHES
 from licenseid.resolveleaf import Found, read_leaf, refuse_dropped
 from licenseid.resolvertypes import Step, step
+from licenseid.resolvetitle import read_title
 from licenseid.resolvetrove import is_no_licence, read_named, trailing_parts
 
 _KIND = "prose_form"
@@ -109,10 +110,15 @@ def _prose_body(db: ListLookup, text: str, body: str, found: Found) -> bool:
 def read_by_name(db: ListLookup, text: str, found: Found) -> bool:
     """Read *text*, a value no leaf and no compound reads, by the name it
     carries: a trove name, path or agreeing short form
-    (:func:`licenseid.resolvetrove.read_named`), else as a prose form
+    (:func:`licenseid.resolvetrove.read_named`), the title of a licence text
+    (:func:`licenseid.resolvetitle.read_title`), else as a prose form
     (:func:`read_prose`). A name that states no licence is claimed first, so
-    no prose rule reads it (Q22)."""
-    return read_named(db, text, found) or read_prose(db, text, found)
+    no later rule reads it (Q22)."""
+    return (
+        read_named(db, text, found)
+        or read_title(db, text, found)
+        or read_prose(db, text, found)
+    )
 
 
 def read_alone(db: ListLookup, text: str, found: Found) -> bool:
