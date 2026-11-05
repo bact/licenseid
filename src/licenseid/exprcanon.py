@@ -78,6 +78,8 @@ def unbracketed(text: str) -> str:
     compound reader to refuse."""
     lead = len(text) - len(text.lstrip("([{"))
     trail = len(text) - len(text.rstrip(")]}"))
+    if not lead or not trail:
+        return text  # no pair: a long text costs no scan
     depth = shallowest = lead
     for char in text[lead : len(text) - trail]:
         if char in _OPENS:
