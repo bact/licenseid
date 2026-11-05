@@ -17,6 +17,13 @@ one (a `str` or `os.PathLike`); a blank path raises `InvalidInputError`
 is checked ready before it is read: a missing file raises
 `DatabaseNotReadyError` (`not found`) and is never created.
 
+`detect()` asks `resolve()` first for the whole input: when it names an
+expression, that is `detect()`'s answer (method `name` when a step read a
+name, else `id`; exact unless the reading is a guess), so the two calls
+agree. A refused input under 10 words is not matched as text; its `reason`
+is the detail of `detect()`'s warning (`input: too few words for text:
+not found: GNU GPL v2`).
+
 ## What `resolve()` reads
 
 `resolve()` turns one declared licence value into an SPDX expression and the

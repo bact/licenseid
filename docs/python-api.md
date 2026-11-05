@@ -111,8 +111,11 @@ reading it: `resolve(value, handle)` on a missing file raises `not found`.
 exactly (declared, a name in full, or the whole text); `resolve()`'s `exact`
 is a category, the value written as the ID itself, with no step at all.
 `detect GPL-2.0` is `GPL-2.0-only`, not exact (a guess); `resolve("GPL-2.0")`
-is `GPL-2.0`, `assumed_only`. Routing `detect()`'s declared values through
-`resolve()` is planned for 0.8. A compound (`MIT OR Apache-2.0`) has empty
+is `GPL-2.0`, `assumed_only`. `detect()` reads a whole input with
+`resolve()` first and answers its expression (exact unless it is a guess);
+a tag or a manifest field still has its own reader, until 0.8. An input
+under 10 words that `resolve()` refuses has no result, with the warning
+`input: too few words for text: <reason>`. A compound (`MIT OR Apache-2.0`) has empty
 top-level `candidates`; each operand's are in `operands[*].candidates`.
 
 [resolve-doc]: https://github.com/bact/licenseid/blob/main/docs/resolve.md

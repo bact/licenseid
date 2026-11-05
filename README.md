@@ -21,6 +21,12 @@ generator.*
 ## Features
 
 - **Hybrid matching pipeline**:
+  - **A whole value first**: an input that is, as a whole, one declared
+    value (`MIT OR Apache-2.0`, `Apache License, Version 2.0`, `GPLv3+`) is
+    read by `resolve()`, so `detect` and `resolve` give one expression for
+    it. An input under 10 words that `resolve()` refuses is not matched as
+    text: no answer, with `WARNING: input: too few words for text:
+    <reason>` (`not found: GNU GPL v2`).
   - **Tier 0.5 (Marker detection)**: Detects `SPDX-License-Identifier` tags and
     structured markers (name fields, headings). An exact SPDX tag returns
     immediately with full confidence.
@@ -57,8 +63,8 @@ generator.*
 - **SPDX License Expression support** (via
   [`py-spdx-license`][py-spdx-license]):
   - Structural normalisation of `AND`/`OR` expressions, in a tag or a
-    manifest field (an argument or `--text` is not an expression; `--id`
-    takes one licence): duplicate operands collapse (`MIT AND MIT` → `MIT`)
+    manifest field, and in a whole input `resolve()` reads (`--id` takes one
+    licence): duplicate operands collapse (`MIT AND MIT` → `MIT`)
     and operands are put in a consistent order, making equivalent expressions
     compare equal. `resolve()` does the same in its own canonical order
     (`MirOS OR MIT` there, `MIT OR MirOS` here).
@@ -230,10 +236,11 @@ Common options:
   `AND`/`OR` expression, a licence name, an SPDX URL or prose — those name
   no single licence, so they exit 2 with
   `ERROR: option: invalid: --id: <value>; pass one license ID`. A file's tag
-  may still hold any expression. Input that is one such value and nothing
-  else, whether an argument, `--text`, standard input or a file, is read as
-  `--id` reads it (`--text GPL-2.0+` is `GPL-2.0-or-later`); anything else
-  is matched as text: `MIT but modified heavily by us` is text, not MIT.
+  may still hold any expression. Input that is, as a whole, one declared
+  value, whether an argument, `--text`, standard input or a file, is read
+  by `resolve()` (`--text GPL-2.0+` is `GPL-2.0-or-later`, `MIT OR ISC` is
+  `ISC OR MIT`); anything else is matched as text, from 10 words on: `MIT
+  but modified heavily by us` is text, not MIT.
   An argument that names no file is first checked for the shape of a path
   (see above). A value that is no licence, such as `GPL-2.0-only+` (a "+"
   after a stated qualifier), is a "no" as text (exit 1, and `detect()`

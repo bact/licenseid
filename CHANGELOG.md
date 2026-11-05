@@ -7,6 +7,21 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- `detect` reads a whole input with `resolve()` first, so both give one
+  expression: `MIT OR Apache-2.0` is `Apache-2.0 OR MIT` (was `ECL-2.0`,
+  a text guess), `Apache 2+` is `Apache-2.0+`
+- An input under 10 words that `resolve()` refuses is not matched as text:
+  no answer, with `WARNING: input: too few words for text: <reason>`
+  (`GNU GPL v2` was `LiLiQ-R-1.1`)
+
+### Fixed
+
+- `resolve()` refuses a 20 MB value as too long in 0.1 s (was 1.4 s)
+
 ## [0.7.1] - 2026-11-05
 
 ### Changed
