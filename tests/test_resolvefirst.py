@@ -54,12 +54,12 @@ def test_a_narrowed_match_stays_inexact(corpus_db: LicenseDatabase) -> None:
 
 
 @pytest.mark.parametrize(
-    ("words", "whole", "cut", "warned"),
+    ("words", "whole", "outcome"),
     [
-        (MIN_TEXT_WORDS - 1, True, True, True),
-        (MIN_TEXT_WORDS, True, False, False),
-        (MIN_TEXT_WORDS - 1, False, True, False),  # a tag was taken out
-        (0, True, True, False),  # nothing left to say it of
+        (MIN_TEXT_WORDS - 1, True, (True, True)),  # (cut, warned)
+        (MIN_TEXT_WORDS, True, (False, False)),
+        (MIN_TEXT_WORDS - 1, False, (True, False)),  # a tag was taken out
+        (0, True, (True, False)),  # nothing left to say it of
     ],
 )
 def test_the_cut_and_its_warning(
@@ -67,13 +67,12 @@ def test_the_cut_and_its_warning(
     given: GivenWarnings,
     words: int,
     whole: bool,
-    cut: bool,
-    warned: bool,
+    outcome: tuple[bool, bool],
 ) -> None:
     resolution = resolve("GNU GPL v2", corpus_db)
-    assert too_short(resolution, words, whole=whole) is cut
+    assert too_short(resolution, words, whole=whole) is outcome[0]
     expected = "WARNING: input: too few words for text: not found: GNU GPL v2\n"
-    assert given.lines() == (expected if warned else "")
+    assert given.lines() == (expected if outcome[1] else "")
 
 
 def test_a_resolved_value_is_never_cut(corpus_db: LicenseDatabase) -> None:
@@ -111,6 +110,9 @@ def test_a_short_rest_after_a_tag_is_cut_silently(
     [
         ("MIT OR Apache-2.0", "Apache-2.0 OR MIT"),  # was ECL-2.0, by text
         ("Apache 2+", "Apache-2.0+"),  # was Apache-2.0, the "+" lost
+        ("MirOS OR MIT", "MirOS OR MIT"),  # resolve()'s order, not the tag's
+        ("MIT WITH AdditionRef-x", "MIT WITH AdditionRef-x"),  # was CC0-1.0
+        ("MIT WITH AdditionRef-x OR ISC", "ISC OR MIT WITH AdditionRef-x"),
     ],
 )
 def test_detect_and_resolve_give_one_expression(
@@ -119,3 +121,19 @@ def test_detect_and_resolve_give_one_expression(
     assert resolve(text, corpus_db)["expression"] == expression
     found = LicenseDetector(corpus_db.location).detect(text)
     assert [r["expression"] for r in found] == [expression]
+
+
+@pytest.mark.parametrize(
+    ("text", "detail"),
+    [
+        ("MIT; Apache 2", "operator not stated: semicolon"),
+        ("MIT; Foo", "not an SPDX operator: semicolon"),
+        ("Copyright Foo; all rights", "not found: Copyright Foo, all rights"),
+    ],
+)
+def test_a_semicolon_in_the_reason_starts_no_action(
+    corpus_db: LicenseDatabase, given: GivenWarnings, text: str, detail: str
+) -> None:
+    """A ";" in the DETAIL would start the ACTION of the warning."""
+    assert LicenseDetector(corpus_db.location).detect(text) == []
+    assert given.lines() == f"WARNING: input: too few words for text: {detail}\n"

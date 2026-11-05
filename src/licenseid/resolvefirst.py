@@ -25,7 +25,7 @@ from typing import Final
 
 from licenseid.errors import shown
 from licenseid.resolvertypes import Category, Resolution
-from licenseid.types import Method, RawMatch
+from licenseid.types import LicenseFlags, Method, RawMatch
 from licenseid.warning import warn
 
 #: The fewest normalised words Tiers 1 and 2 match, of an input resolve()
@@ -41,15 +41,37 @@ _BY_NAME: Final[frozenset[Category]] = frozenset(
 def as_resolved(resolution: Resolution, matches: list[RawMatch]) -> list[RawMatch]:
     """*matches*, the results of the expression of *resolution*, made what
     the resolution says: inexact for a guess (a narrowed ``-only`` already
-    is), found by ``name`` when a step read a name, else by ``id``."""
+    is), found by ``name`` when a step read a name, else by ``id``. A
+    result not narrowed is written as resolve() writes it (``MirOS OR
+    MIT``, the order of ``exprcanon``)."""
+    expression = resolution["expression"] or ""
     exact = resolution["trust"] != "none"
     kinds = {entry["kind"] for entry in resolution["steps"]}
     by_name = resolution["category"] in _BY_NAME or not kinds.isdisjoint(_BY_NAME)
     method: Method = "name" if by_name else "id"
+    if len(matches) == 1 and matches[0]["exact"]:
+        matches[0]["license_id"] = expression
     for match in matches:
         match["exact"] = match["exact"] and exact
         match["method"] = method
     return matches
+
+
+def match_of(expression: str, flags: LicenseFlags) -> RawMatch:
+    """A result of *expression*, found exactly, with its *flags*: for one
+    resolve() reads and no marker reader takes (``MIT WITH
+    AdditionRef-x``)."""
+    return RawMatch(
+        license_id=expression,
+        method="id",
+        exact=True,
+        score=1.0,
+        similarity=None,
+        coverage=None,
+        is_spdx=flags["is_spdx"],
+        is_osi_approved=flags["is_osi_approved"],
+        is_fsf_libre=flags["is_fsf_libre"],
+    )
 
 
 def too_short(resolution: Resolution, words: int, *, whole: bool) -> bool:
@@ -61,5 +83,14 @@ def too_short(resolution: Resolution, words: int, *, whole: bool) -> bool:
     if words >= MIN_TEXT_WORDS or resolution["expression"] is not None:
         return False
     if whole and words:
-        warn("input", "too few words for text", shown(resolution["reason"] or ""))
+        warn("input", "too few words for text", _detail(resolution["reason"] or ""))
     return True
+
+
+def _detail(reason: str) -> str:
+    """*reason* as the DETAIL of a warning: a ";" would start its ACTION, so
+    the mark a reason names is spelt out (``operator not stated: semicolon``)
+    and any other is a ",", as :func:`licenseid.errors.shown` writes it."""
+    if reason.endswith(": ;"):
+        reason = reason[:-1] + "semicolon"
+    return shown(reason)

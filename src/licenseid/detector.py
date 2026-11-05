@@ -28,7 +28,7 @@ from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
-from licenseid.resolvefirst import as_resolved, too_short
+from licenseid.resolvefirst import as_resolved, match_of, too_short
 from licenseid.resolver import resolve_with
 from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import Resolution
@@ -417,9 +417,11 @@ class LicenseDetector:
         # resolve() answer it alike (resolvefirst).
         whole = resolve_with(self.db, target_text)
         if whole["expression"] is not None:
-            found = self._resolve_declared(whole["expression"], target_text)
-            if found:
-                return as_resolved(whole, found)
+            expression = whole["expression"]
+            found = self._resolve_declared(expression, target_text) or [
+                match_of(expression, self.markers.license_flags(expression))
+            ]
+            return as_resolved(whole, found)
         return self._match_text(
             self._build_match_context(
                 target_text, file_path, cast(DetectRequest, options)
