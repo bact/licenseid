@@ -21,7 +21,8 @@ import threading
 from typing import Any
 
 from licenseid.datadir import get_default_db_path
-from licenseid.detector import LicenseDetector, check_request
+from licenseid.detector import LicenseDetector
+from licenseid.detectrequest import check_request
 from licenseid.listsource import file_stamp
 from licenseid.types import Detection
 from licenseid.warning import once

@@ -14,7 +14,8 @@ from typing import Any
 import pytest
 from conftest import MIT_SEARCH_TEXT, make_mit_db_path
 
-from licenseid.detector import _MATCH_OPTIONS, LicenseDetector
+from licenseid.detector import LicenseDetector
+from licenseid.detectrequest import MATCH_OPTIONS
 from licenseid.errors import InvalidInputError, LicenseIdError
 from licenseid.types import DetectRequest
 
@@ -41,7 +42,7 @@ def matcher() -> Generator[LicenseDetector, None, None]:
 def test_every_match_request_option_is_covered() -> None:
     named_parameters = {"text", "license_id", "file_path"}
     assert set(VALID_OPTIONS) == set(DetectRequest.__annotations__) - named_parameters
-    assert set(VALID_OPTIONS) == _MATCH_OPTIONS
+    assert set(VALID_OPTIONS) == MATCH_OPTIONS
 
 
 @pytest.mark.parametrize("name", sorted(VALID_OPTIONS))

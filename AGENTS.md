@@ -19,7 +19,8 @@
   data), `resolver.py` (a declared licence value to an SPDX expression and
   the steps taken; its types and vocabularies are in `resolvertypes.py`),
   `keptdetector.py` (`licenseid.detect()`: one `LicenseDetector` kept per
-  default database file), `listlookup.py` (the list lookups the resolver
+  default database file), `detectrequest.py` (the checks of a `detect()`
+  call that need no database), `listlookup.py` (the list lookups the resolver
   reads through: a Protocol), `listrules.py` (which SPDX entries are kept and
   what a deprecated ID points to; `records.py` builds rows from it),
   `resolveleaf.py` (the reading of one value that names one licence, called
