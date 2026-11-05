@@ -368,17 +368,20 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   `\\`, and a character the locale of standard output cannot encode,
   written `\xHH`, `\uHHHH` or `\UHHHHHHHH`. `--json` is UTF-8 on every
   locale.
-- `EXPRESSION` is the answer: one licence ID for `detect`.
+- `EXPRESSION` is the answer: a licence ID or an expression for `detect`
+  (a tag, a field, or a whole input `resolve()` reads, in its order).
 - `METHOD` is how the answer was found: `tag` (an `SPDX-License-Identifier`
   tag), `field` (a manifest's `license` field), `id` (a licence ID), `name`
   (a licence name) or `text` (the licence text).
 - `EXACT` is `true` when the answer was found exactly: declared (a tag, a
-  field or an ID), a licence name spelt out in full (for a name a
-  deprecated licence shares with its successor, only the successor), or the
-  whole input equal to the licence text as the SPDX License List writes
-  it, after case, punctuation and white space are normalised.
-  A filled-in copyright line or an added title makes a text not exact, as
-  does a name that only shares the words of the input. Licenses with the
+  field or an ID), a whole input `resolve()` reads without a guess (a name,
+  `The MIT License`, a trove classifier, a loose ID, `Apache2`), a licence
+  name spelt out in full (for a name a deprecated licence shares with its
+  successor, only the successor), or the whole input equal to the licence
+  text as the SPDX License List writes it, after case, punctuation and
+  white space are normalised. A guess (`GPL-2.0` read as `GPL-2.0-only`)
+  is not exact. A filled-in copyright line or an added title makes a text
+  not exact, as does a name that only shares the words of the input. Licenses with the
   same text (`GPL-2.0-only` and `GPL-2.0-or-later`) are all exact for it.
   `--exact` keeps only the exact results.
 - `SCORE` is 0 to 1; `--threshold` reads it. Several results can score 1:

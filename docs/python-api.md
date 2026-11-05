@@ -115,8 +115,9 @@ is `GPL-2.0`, `assumed_only`. `detect()` reads a whole input with
 `resolve()` first and answers its expression (exact unless it is a guess);
 a tag or a manifest field still has its own reader, until 0.8. An input
 under 10 words that `resolve()` refuses has no result, with the warning
-`input: too few words for text: <reason>`. A compound (`MIT OR Apache-2.0`) has empty
-top-level `candidates`; each operand's are in `operands[*].candidates`.
+`input: too few words for text: <reason>`. A compound (`MIT OR Apache-2.0`)
+has empty top-level `candidates`; each operand's are in
+`operands[*].candidates`.
 
 [resolve-doc]: https://github.com/bact/licenseid/blob/main/docs/resolve.md
 [resolve-doc-list]: https://github.com/bact/licenseid/blob/main/docs/resolve.md#which-list-and-its-warnings

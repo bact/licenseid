@@ -11,9 +11,9 @@ and this project adheres to
 
 ### Changed
 
-- `detect` reads a whole input with `resolve()` first, so both give one
-  expression: `MIT OR Apache-2.0` is `Apache-2.0 OR MIT` (was `ECL-2.0`,
-  a text guess), `Apache 2+` is `Apache-2.0+`
+- `detect` reads a whole input with `resolve()` first and answers its
+  expression: `MIT OR Apache-2.0` is `Apache-2.0 OR MIT` (was `ECL-2.0`, a
+  text guess), `Apache 2+` is `Apache-2.0+`; a guess stays not exact
 - An input under 10 words that `resolve()` refuses is not matched as text:
   no answer, with `WARNING: input: too few words for text: <reason>`
   (`GNU GPL v2` was `LiLiQ-R-1.1`)

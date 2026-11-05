@@ -196,6 +196,11 @@ field keep their readers, so the rest of this section is still to do.
   10 words on, every short text was right. The losses (`CC0 1.0
   Universal`, `Mulan PSL v2`, the UPL name, the GPL-3.0 title line) are
   names for `resolve()` to learn.
+- A whole input takes `resolve()`'s order (`MirOS OR MIT`); a tag and a
+  field keep `detect`'s (`MIT OR MirOS`) until they go through `resolve()`
+  too. So does an SPDX URL: a tag or a field reads
+  `https://spdx.org/licenses/MIT.html` as MIT, `resolve()` does not, and a
+  whole input of it gets no answer (it was `Parity-7.0.0`).
 
 ## 4. Decisions needed
 
