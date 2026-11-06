@@ -35,12 +35,13 @@ class Detection(TypedDict):
     name, or an input equal to the license text after normalisation (a
     filled-in copyright line is a difference); a look-alike name or a close
     text is not. ``similarity`` and ``coverage`` are None where nothing was
-    measured (a tag, a field, an ID; a name has no coverage). ``coverage``
+    measured (a tag, a field, an ID, a name ``resolve()`` reads; a name the
+    name tier matches has no coverage). ``coverage``
     is the input's words over the license's, so it passes 1 when the input
     is longer. ``expression`` is the answer: one licence ID, or an SPDX
     expression (a tag or a field may declare one), as ``resolve()`` names its
     answer; the detector's own records keep ``license_id``. ``lists`` are
-    the lists the answer rests on, as ``resolve()`` gives them
+    the lists the answer rests on, in the shape of ``resolve()``'s
     (:class:`licenseid.resolvertypes.ListInfo`): the SPDX License List of
     the database read, its ``source`` ``database``.
     """

@@ -24,9 +24,10 @@ generator.*
   - **A whole value first**: an input that is, as a whole, one declared
     value (`MIT OR Apache-2.0`, `Apache License, Version 2.0`, `GPLv3+`) is
     read by `resolve()`, so `detect` and `resolve` give one expression for
-    it. An input under 10 words that `resolve()` refuses is not matched as
-    text: no answer, with `WARNING: input: too few words for text:
-    <reason>` (`not found: GNU GPL v2`).
+    it. An input under 10 words that `resolve()` refuses and no licence
+    name matches is not matched as text: no answer, with `WARNING: input:
+    too few words for text: <reason>` (`not found: GNU GPL v2`). Chinese
+    and Japanese, written without spaces, are matched at any length.
   - **Tier 0.5 (Marker detection)**: Detects `SPDX-License-Identifier` tags and
     structured markers (name fields, headings). An exact SPDX tag returns
     immediately with full confidence.
@@ -66,8 +67,9 @@ generator.*
     manifest field, and in a whole input `resolve()` reads (`--id` takes one
     licence): duplicate operands collapse (`MIT AND MIT` → `MIT`)
     and operands are put in a consistent order, making equivalent expressions
-    compare equal. `resolve()` does the same in its own canonical order
-    (`MirOS OR MIT` there, `MIT OR MirOS` here).
+    compare equal. A whole input takes `resolve()`'s canonical order
+    (`MirOS OR MIT`); a tag or a field keeps the detector's own until 0.8
+    (`MIT OR MirOS`).
   - The flags of an expression are judged operand by operand: `AND` is
     OSI-approved (or FSF-libre) when every operand is, `OR` when any is,
     `X WITH Y` when `X` is. An operand that cannot be judged (a
@@ -239,8 +241,9 @@ Common options:
   may still hold any expression. Input that is, as a whole, one declared
   value, whether an argument, `--text`, standard input or a file, is read
   by `resolve()` (`--text GPL-2.0+` is `GPL-2.0-or-later`, `MIT OR ISC` is
-  `ISC OR MIT`); anything else is matched as text, from 10 words on: `MIT
-  but modified heavily by us` is text, not MIT.
+  `ISC OR MIT`); anything else is matched as text from 10 words on
+  (Chinese and Japanese at any length), unless a licence name matches it:
+  `MIT but modified heavily by us` has no answer, not MIT.
   An argument that names no file is first checked for the shape of a path
   (see above). A value that is no licence, such as `GPL-2.0-only+` (a "+"
   after a stated qualifier), is a "no" as text (exit 1, and `detect()`
@@ -388,7 +391,8 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   the order tells them apart, and `EXACT` tells an exact one from a close
   one.
 - `SIMILARITY` and `COVERAGE` are empty where nothing was measured: a tag,
-  a field or an ID has neither, a name has no coverage. `COVERAGE` is the
+  a field, an ID or a name `resolve()` reads has neither, and a name the
+  name tier matches has no coverage. `COVERAGE` is the
   input's words over the licence's, so it passes 1 when the input is longer.
 
 The top expression only:

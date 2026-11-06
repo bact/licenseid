@@ -20,7 +20,7 @@ from matcher_db import Lic, seeded_db
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
-from licenseid.exprflags import expression_flags
+from licenseid.exprflags import declared_flags, expression_flags, judged_flags
 from licenseid.identifiers import parse_declared
 
 ROWS = (
@@ -145,3 +145,45 @@ def test_the_api_predicates_agree(
     text = f"SPDX-License-Identifier: {value}"
     assert detector.is_osi(text) is flags[osi[0]]
     assert detector.is_fsf(text) is flags[fsf[0]]
+
+
+@pytest.mark.parametrize(
+    ("value", "osi", "fsf"),
+    [
+        ("MIT WITH AdditionRef-x", True, True),  # a WITH takes its licence's
+        ("MIT WITH AdditionRef-x OR 0BSD", True, True),
+        ("0BSD WITH AdditionRef-x AND WTFPL", False, False),
+        ("WTFPL WITH DocumentRef-d:AdditionRef-x OR LicenseRef-y", None, True),
+        ("MIT with additionref-x", True, True),  # keywords in any case
+    ],
+)
+def test_an_addition_ref_takes_its_licences_flags(
+    db: LicenseDatabase, value: str, osi: bool | None, fsf: bool | None
+) -> None:
+    """The parser reads no ``AdditionRef-*``; the flags are judged without
+    it, and the value is not on the List."""
+    assert judged_flags(value, db) == {
+        "is_spdx": False,
+        "is_osi_approved": osi,
+        "is_fsf_libre": fsf,
+    }
+
+
+@pytest.mark.parametrize(
+    "value", ["MIT OR 0BSD", "MIT WITH Classpath-exception-2.0", "MIT WITH AdditionRef"]
+)
+def test_judged_flags_are_declared_flags_without_an_addition_ref(
+    db: LicenseDatabase, value: str
+) -> None:
+    assert judged_flags(value, db) == declared_flags(value, db)
+
+
+def test_a_whole_input_with_an_addition_ref_carries_its_flags(db_path: str) -> None:
+    """``detect()`` answers what resolve() reads with the expression's flags
+    (``resolvefirst.match_of``)."""
+    (found,) = LicenseDetector(db_path).detect("MIT WITH AdditionRef-x OR 0BSD")
+    assert (found["expression"], found["is_spdx"]) == (
+        "0BSD OR MIT WITH AdditionRef-x",
+        False,
+    )
+    assert (found["is_osi_approved"], found["is_fsf_libre"]) == (True, True)

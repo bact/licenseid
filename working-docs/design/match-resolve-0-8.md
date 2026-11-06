@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -196,6 +196,14 @@ field keep their readers, so the rest of this section is still to do.
   10 words on, every short text was right. The losses (`CC0 1.0
   Universal`, `Mulan PSL v2`, the UPL name, the GPL-3.0 title line) are
   names for `resolve()` to learn.
+- Han and kana are not cut (review of PR #161): a word count is no measure
+  without spaces. On `main`, slices of the four CJK texts of the List at 4
+  to 13 characters were the licence or its other version 592 times in 593
+  (1 no answer); 28 of 30 short phrases that are no licence got no answer
+  (`版权所有` gave MulanPSL-1.0). An input counts as written without spaces
+  when nine letters in ten are Han or kana, so clause letters (`第7条b`)
+  stay in and Latin words (`GPL 第三版`, was `AGPL-1.0-only`) are cut.
+  90-character slices of CC-BY-SA-2.1-JP: 49 of 50 answered (`main` 50).
 - A whole input takes `resolve()`'s order (`MirOS OR MIT`); a tag and a
   field keep `detect`'s (`MIT OR MirOS`) until they go through `resolve()`
   too. So does an SPDX URL: a tag or a field reads

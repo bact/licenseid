@@ -19,8 +19,17 @@ gets no text match either: on the fixtures and the PyPI sample, Tiers 1 and
 2 answered such inputs wrongly four times in five (``GNU GPL v2`` as
 ``LiLiQ-R-1.1``, ``Proprietary`` as ``AGPL-1.0-only``), and every input from
 ten words on rightly. The name tier still answers before that.
+
+A word count is no measure of Chinese or Japanese, written without spaces:
+an input whose letters are nine in ten Han or kana is not cut. Sliced from the
+four such texts of the List at 4 to 13 characters, Tiers 1 and 2 answered
+the licence or its other version 592 times in 593 (1 no answer), and
+28 of 30 short phrases that are no licence got no answer; an input that
+mixes in Latin words (``GPL 第三版``, was ``AGPL-1.0-only``) is cut by its
+words. Korean is written with spaces, and its words are counted.
 """
 
+import re
 from typing import Final
 
 from licenseid.errors import shown
@@ -31,6 +40,16 @@ from licenseid.warning import warn
 #: The fewest normalised words Tiers 1 and 2 match, of an input resolve()
 #: refused.
 MIN_TEXT_WORDS: Final = 10
+
+#: A Han or kana letter: of a script written without spaces between words.
+_NO_SPACES: Final = re.compile(
+    "[\u3005-\u3007\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff"
+    "\uf900-\ufaff\uff66-\uff9f\U00020000-\U0003134f]"
+)
+
+#: The share of an input's letters that are Han or kana for it to be read
+#: as written without spaces.
+_MIN_NO_SPACES_SHARE: Final = 0.9
 
 #: The readings of a licence's name, not of its ID.
 _BY_NAME: Final[frozenset[Category]] = frozenset(
@@ -74,17 +93,30 @@ def match_of(expression: str, flags: LicenseFlags) -> RawMatch:
     )
 
 
-def too_short(resolution: Resolution, words: int, *, whole: bool) -> bool:
-    """Whether an input of *words* normalised words, which *resolution*
-    refused, is too short to match as text. If so, and the text is the
-    *whole* input (no tag was taken out, which its reader judged), say why
-    it is no licence value (``input: too few words for text: not found: GNU GPL
+def too_short(resolution: Resolution, text: str, *, whole: bool) -> bool:
+    """Whether *text*, a normalised input *resolution* refused, is too short
+    to match as text: fewer than :data:`MIN_TEXT_WORDS` words, unless its
+    letters are mostly Han or kana. If so, and the text is the *whole* input
+    (no tag was taken out, which its reader judged), say why it is no
+    licence value (``input: too few words for text: not found: GNU GPL
     v2``)."""
+    words = len(text.split())
     if words >= MIN_TEXT_WORDS or resolution["expression"] is not None:
+        return False
+    if _written_without_spaces(text):
         return False
     if whole and words:
         warn("input", "too few words for text", _detail(resolution["reason"] or ""))
     return True
+
+
+def _written_without_spaces(text: str) -> bool:
+    """Whether *text* has a letter, and :data:`_MIN_NO_SPACES_SHARE` of its
+    letters are Han or kana (a clause letter, ``第7条b``, may stand among
+    them)."""
+    letters = [ch for ch in text if ch.isalpha()]
+    han_kana = sum(1 for ch in letters if _NO_SPACES.match(ch))
+    return bool(letters) and han_kana >= _MIN_NO_SPACES_SHARE * len(letters)
 
 
 def _detail(reason: str) -> str:
