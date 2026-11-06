@@ -20,7 +20,7 @@ and this project adheres to
   Japanese are matched at any length ([#161])
 - `resolve()` reads a licence's own title (`CC0 1.0 Universal`, `Mulan PSL
   v2`, the GPL v3 title line), a bare `CC0` and the UPL trove name; `detect`
-  finds them by name ([#163])
+  finds them by name ([#163], [#165])
 - Builds the wheel's SBOM with Pitloom 0.23.0 (`build-system.requires`
   `pitloom>=0.23.0`), which reads a dependency's licence name as its ID
   (`MIT License` is `MIT`) ([#164])
@@ -38,6 +38,7 @@ and this project adheres to
 [#162]: https://github.com/bact/licenseid/pull/162
 [#163]: https://github.com/bact/licenseid/pull/163
 [#164]: https://github.com/bact/licenseid/pull/164
+[#165]: https://github.com/bact/licenseid/pull/165
 
 ## [0.7.1] - 2026-11-05
 
