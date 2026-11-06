@@ -32,6 +32,8 @@
   `resolveprose.py` (the prose form of one ID: `BSD 3-Clause License`),
   `resolvetitle.py` (the title a licence's own text gives itself: `CC0 1.0
   Universal`, as data),
+  `resolvealias.py` (another name of a BSD licence: `New BSD`, `BSD-3`,
+  as data),
   `resolvesemicolon.py` (licences joined by `;`: listed, no operator),
   `exprcanon.py` (its leaves and canonical
   order), `exprtokens.py` (the words of an expression), `resolverinfo.py`

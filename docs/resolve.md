@@ -116,6 +116,16 @@ steps taken, without fuzzy matching:
   line `GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007` is the bare
   `GPL-3.0`, `assumed_only`, and `CC0` is `CC0-1.0`, the only CC0. Case
   does not matter, in ASCII only; spacing does;
+- another name a BSD licence is known by is read as that licence, from a
+  table (category `alias_name`, an `alias_name` step): `New BSD`, `Revised
+  BSD`, `Modified BSD`, `3-clause BSD`, `BSD-3`, `BSD 3` and `BSD3` are
+  `BSD-3-Clause`; `Simplified BSD`, `2-clause BSD` and `Two-clause BSD` are
+  `BSD-2-Clause`. Each word is the List's (`BSD 3-Clause "New" or "Revised"
+  License`) or the OSI's, or the clause count of the ID. A final `License`
+  is read as a prose form (below): `New BSD License` is `New BSD`. A name
+  with no clause count (`BSD`, `BSD License`), `FreeBSD` (the List's
+  `FreeBSD-DOC` too) and a spelling no project declares (`BSD 4`) are not
+  read. Case does not matter, in ASCII only; spacing does;
 - the prose form of one licence is read last, as category `prose_form`
   (a `prose_form` step, then the steps of what it reduces to): a final
   `license` or `licence` after a value that names one licence (not after a
@@ -408,6 +418,7 @@ weakest of its operands, in this order (strongest first):
 | `version_spelling` | `resolver_rule` | is an ID with its version re-spelt |
 | `prose_form` | `resolver_rule` | is an ID in a prose form (`BSD 3-Clause License`, `Apache License, Version 2.0`) |
 | `text_title` | `resolver_rule` | is the title a licence's text gives itself (`CC0 1.0 Universal`) |
+| `alias_name` | `resolver_rule` | is another name of a BSD licence (`New BSD`, `BSD-3`) |
 | `trove_name` | `resolver_rule` | is a PyPI trove classifier name that states one licence |
 | `deprecated_ambiguous` | `list_data` | is deprecated, with no successor |
 | `assumed_only` | `none` | is a bare split ID (`GPL-3.0`), kept |

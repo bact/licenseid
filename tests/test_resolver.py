@@ -37,6 +37,7 @@ ROWS = (
         superseded_by="SMLNJ",
     ),
     Lic("BSD-2-Clause-FreeBSD", "BSD 2-Clause FreeBSD", is_deprecated=True),
+    Lic("BSD-3-Clause", 'BSD 3-Clause "New" or "Revised" License'),
     Lic("Dup-1.0", "Dup License"),
     Lic("Dup-2.0", "Dup License"),
 )
@@ -358,6 +359,7 @@ def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> 
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "MIT License (MIT)",
         "GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007",  # a text title
+        "New BSD",  # another name of a licence
     )
     seen = set()
     for value in values:

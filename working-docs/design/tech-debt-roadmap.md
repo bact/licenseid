@@ -545,15 +545,13 @@ the PyPI sample (9,353 projects): 15 values (642 projects) lost a wrong
 answer, 8 (48) a guessed version, and 13 (34) a right answer. Its golden
 moves are in `tests/harness_changes_nametier.py`.
 
-- **BSD aliases, lost**: `BSD-3` (9 projects), `New BSD` (8), `BSD 3` (3),
-  `2-clause BSD` (3), `3-clause BSD` (2), and one each for `New BSD
-  License`, `New BSD license`, `new BSD`, `Revised BSD License`,
-  `Simplified BSD`, `2-clause BSD License` and `3-Clause BSD License`.
-  Before #168 they answered by name at 1.0: some held by one name, some
-  first by the ID sort among several. `resolve()` should read them as a
-  measured table or from the List's own name parts (`"New" or "Revised"`,
-  `"Simplified"`), refusing bare `BSD` and `BSD License`. `Open Database
-  License` (`ODbL-1.0`) was lost the same way.
+- **BSD aliases, lost**: done (2026-11-06, not yet merged): `resolve()`
+  reads them from a table, `resolvealias.ALIASES` (category `alias_name`),
+  each word the List's (`"New" or "Revised"`, `"Simplified"`), the OSI's
+  (`Modified`, `3-clause`) or the ID's clause count (`BSD-3`); `detect`
+  answers them by name, exact. Bare `BSD`, `BSD License` and `FreeBSD`
+  stay refused. `Open Database License` (`ODbL-1.0`), lost the same way,
+  is not read yet.
 - **A grant left out, another version spelling**: `GNU General Public
   License v2`, `GNU General Public License v3` and `GNU Lesser General
   Public License v3` (2 projects) get no answer: only the List name less

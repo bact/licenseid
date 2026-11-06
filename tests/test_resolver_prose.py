@@ -119,8 +119,6 @@ STAYS = [
     "Artistic License",  # a family, no number
     "Dual License",
     "Expat license",
-    "Modified BSD License",
-    "3-Clause BSD License",
     "License",
     "The License",
     "The",
@@ -144,7 +142,8 @@ STAYS = [
     "GNU Affero General Public License, Version 3",  # no List name is reached
     "GNU General Public License, Version 3.0",
     "GNU Lesser General Public License v3",  # a trove name: assumed, not P2
-    "BSD License v3",
+    "BSD License v3",  # a version, not the alias BSD 3
+    "BSD License, Version 3",
     "Apache License,Version 2.0",
     "MIT License (Apache-2.0)",  # the parts differ
     "The MIT License (Apache-2.0)",

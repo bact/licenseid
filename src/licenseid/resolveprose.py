@@ -45,6 +45,7 @@ import re
 from licenseid.dropguard import joined_marks, trim_end_mark
 from licenseid.listlookup import ListLookup
 from licenseid.normalize import RE_DASHES
+from licenseid.resolvealias import read_alias
 from licenseid.resolveleaf import Found, read_leaf, refuse_dropped
 from licenseid.resolvertypes import Step, step
 from licenseid.resolvetitle import read_title
@@ -52,6 +53,7 @@ from licenseid.resolvetrove import is_no_licence, read_named, trailing_parts
 
 _KIND = "prose_form"
 _LICENCE_WORDS = frozenset({"license", "licence"})
+_P1 = "licence word"  # the detail of a P1 step
 # From the white space before "License" to the end. A run of white space is
 # tried one character at a time, and fails at the first that is no "l", so
 # its cost is linear (tests/test_resolver_prose.py times it).
@@ -111,12 +113,14 @@ def read_by_name(db: ListLookup, text: str, found: Found) -> bool:
     """Read *text*, a value no leaf and no compound reads, by the name it
     carries: a trove name, path or agreeing short form
     (:func:`licenseid.resolvetrove.read_named`), the title of a licence text
-    (:func:`licenseid.resolvetitle.read_title`), else as a prose form
+    (:func:`licenseid.resolvetitle.read_title`), another name of a licence
+    (:func:`licenseid.resolvealias.read_alias`), else as a prose form
     (:func:`read_prose`). A name that states no licence is claimed first, so
     no later rule reads it (Q22)."""
     return (
         read_named(db, text, found)
         or read_title(db, text, found)
+        or read_alias(db, text, found)
         or read_prose(db, text, found)
     )
 
@@ -143,7 +147,7 @@ def _by_rule(
     readings = []
     for word, detail in _reductions(db, core):
         reading = Found()
-        if not read_leaf(db, word + marks, reading):
+        if not _read_reduction(db, word, marks, detail == _P1, reading):
             continue
         if reading.expression is None and _refused(found, reading):
             return True
@@ -159,6 +163,20 @@ def _by_rule(
     word, detail, reading = readings[0]
     _fill(found, [*before, step(_KIND, True, source, word, detail)], reading)
     return True
+
+
+def _read_reduction(
+    db: ListLookup, word: str, marks: str, by_p1: bool, reading: Found
+) -> bool:
+    """Read the reduction *word*, with the *marks* after it, as it is read
+    alone: one licence, else, for P1 (*by_p1*), another name of one (``New
+    BSD License`` is ``New BSD``, :func:`licenseid.resolvealias.read_alias`).
+    The leaf reader refuses any marks first, with the reason of the drop
+    guard. P2's reduction is never an alias: its number is a version, not a
+    clause count (``BSD License v3`` is no ``BSD 3``)."""
+    if read_leaf(db, word + marks, reading):
+        return True
+    return by_p1 and read_alias(db, word, reading)
 
 
 def _marks_after(rest: str) -> str:
@@ -187,7 +205,7 @@ def _reductions(db: ListLookup, core: str) -> list[tuple[str, str]]:
     never a loose key over names)."""
     head = _licence_word(core)
     if head is not None:
-        return [(head, "licence word")]
+        return [(head, _P1)]
     tail = _RE_VERSION_TAIL.search(core)
     name = "" if tail is None else core[: tail.start()].rstrip()
     if tail is None or not name:

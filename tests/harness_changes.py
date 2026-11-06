@@ -14,6 +14,7 @@ reason)}`` for the ``detect()`` golden. ``CLI_CHANGES``:
 ``{"case#mode": (digest, reason)}``, the digest from ``tools.golden``
 (``python -m tools.golden`` prints it)."""
 
+from harness_changes_aliases import ALIAS_CHANGES
 from harness_changes_nametier import NAME_TIER_CHANGES
 from harness_changes_resolvefirst import RESOLVE_FIRST_CHANGES
 
@@ -23,6 +24,7 @@ _SHORT = "still no answer, now with resolve()'s reason: input: too few words for
 DETECT_CHANGES: dict[str, tuple[str, str]] = {
     **RESOLVE_FIRST_CHANGES,
     **NAME_TIER_CHANGES,
+    **ALIAS_CHANGES,  # last: a value it moves again has its answer now
 }
 CLI_CHANGES: dict[str, tuple[str, str]] = {
     "detect-name#text": ("bea927311e33", _FIRST),

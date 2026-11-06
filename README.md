@@ -60,7 +60,8 @@ generator.*
   model card, a trove classifier) into an SPDX expression and the steps
   taken, without fuzzy matching, with or without a database. It reads loose
   IDs (`Apache2`, `GPLv3`), the List's names, a licence's own title (`CC0
-  1.0 Universal`, `Mulan PSL v2`), prose forms (`BSD 3-Clause License`),
+  1.0 Universal`, `Mulan PSL v2`), the BSD aliases (`New BSD`, `BSD-3`),
+  prose forms (`BSD 3-Clause License`),
   quote marks, trove classifiers and compounds of one-word
   operands, and refuses, with a reason, what it would read only by dropping
   a mark or a word. What it reads, rule by rule, is in

@@ -1,0 +1,23 @@
+# The answers the BSD alias reader (another name a BSD licence is known by,
+# licenseid.resolvealias) moved in the parity corpus and the PyPI sample.
+# value: Python unicode_escape; group: why it moved (in
+# tests/resolver_changes_aliases.py); then the answer, its fields written as
+# in the other answer fixtures.
+value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
+BSD 3	id	BSD-3-Clause	alias_name	-	alias_name	BSD-3-Clause	-	-	resolver_rule	yes	-
+BSD-3	id	BSD-3-Clause	alias_name	-	alias_name	BSD-3-Clause	-	-	resolver_rule	yes	-
+BSD3	id	BSD-3-Clause	alias_name	-	alias_name	BSD-3-Clause	-	-	resolver_rule	yes	-
+New BSD	list	BSD-3-Clause	alias_name	-	alias_name	BSD-3-Clause	-	-	resolver_rule	yes	-
+New BSD License	list	BSD-3-Clause	alias_name	-	prose_form,alias_name	New BSD,BSD-3-Clause	-	-	resolver_rule	yes	-
+New BSD license	list	BSD-3-Clause	alias_name	-	prose_form,alias_name	New BSD,BSD-3-Clause	-	-	resolver_rule	yes	-
+Revised BSD License	list	BSD-3-Clause	alias_name	-	prose_form,alias_name	Revised BSD,BSD-3-Clause	-	-	resolver_rule	yes	-
+Simplified BSD	list	BSD-2-Clause	alias_name	-	alias_name	BSD-2-Clause	-	-	resolver_rule	yes	-
+Simplified BSD license	list	BSD-2-Clause	alias_name	-	prose_form,alias_name	Simplified BSD,BSD-2-Clause	-	-	resolver_rule	yes	-
+new BSD	list	BSD-3-Clause	alias_name	-	alias_name	BSD-3-Clause	-	-	resolver_rule	yes	-
+2-clause BSD	osi	BSD-2-Clause	alias_name	-	alias_name	BSD-2-Clause	-	-	resolver_rule	yes	-
+2-clause BSD License	osi	BSD-2-Clause	alias_name	-	prose_form,alias_name	2-clause BSD,BSD-2-Clause	-	-	resolver_rule	yes	-
+3-Clause BSD License	osi	BSD-3-Clause	alias_name	-	prose_form,alias_name	3-Clause BSD,BSD-3-Clause	-	-	resolver_rule	yes	-
+3-clause BSD	osi	BSD-3-Clause	alias_name	-	alias_name	BSD-3-Clause	-	-	resolver_rule	yes	-
+Modified BSD License	osi	BSD-3-Clause	alias_name	-	prose_form,alias_name	Modified BSD,BSD-3-Clause	-	-	resolver_rule	yes	-
+Two-clause BSD license	osi	BSD-2-Clause	alias_name	-	prose_form,alias_name	Two-clause BSD,BSD-2-Clause	-	-	resolver_rule	yes	-
+modified BSD	osi	BSD-3-Clause	alias_name	-	alias_name	BSD-3-Clause	-	-	resolver_rule	yes	-
