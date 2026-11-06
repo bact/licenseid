@@ -71,17 +71,19 @@ def foreign_wal(path: Path) -> None:
 
 
 def foreign_plain(path: Path) -> None:
-    with closing(sqlite3.connect(path)) as conn, conn:
+    with closing(sqlite3.connect(path)) as conn:
         conn.execute("CREATE TABLE foo (x)")
         conn.execute("INSERT INTO foo VALUES (1)")
+        conn.commit()
 
 
 def foreign_licenses_table(path: Path) -> None:
     """A table of licenseid's name with another schema: not a half-built
     database, so not one to complete."""
-    with closing(sqlite3.connect(path)) as conn, conn:
+    with closing(sqlite3.connect(path)) as conn:
         conn.execute("CREATE TABLE licenses (spdx_id TEXT, title TEXT)")
         conn.execute("INSERT INTO licenses VALUES ('MIT', 'MIT License')")
+        conn.commit()
 
 
 def not_sqlite(path: Path) -> None:
