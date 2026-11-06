@@ -252,6 +252,21 @@ exception or a `LicenseRef-*` (P80) and to a lone dash after a prose form.
   the one-word title too (`--id CC0`); a tag and a field do not, until they
   go through `resolve()` in 0.8. A title followed by `License` is no prose
   form (`CC0 License`), and the two-line GPL title is not read.
+- **BSD aliases (#170).** `resolvealias.py` holds, as data, the other names
+  of BSD-3-Clause and BSD-2-Clause that the PyPI sample declares: `New BSD`,
+  `Revised BSD` and `Simplified BSD` (words the List's own names quote),
+  `Modified BSD`, `3-clause BSD`, `2-clause BSD` (the OSI's names),
+  `BSD-3`, `BSD 3`, `BSD3` (the ID less `Clause`) and `Two-clause BSD`.
+  Category and step `alias_name`, trust `resolver_rule`, found by `name` in
+  `detect()`; it and the title table share one reader,
+  `resolvetable.read_by_table`. Only P1 hands a reduction to the table, so
+  `New BSD License` reads and `BSD License v3` (P2, a version) does not.
+  The aliases came back after #168 stopped the name tier from answering
+  them by luck: 17 sample values, 39 projects. Refused on purpose: bare
+  `BSD` and `BSD License` (Q3), `FreeBSD` (the OSI's BSD-2-Clause, the
+  List's `FreeBSD-DOC`), and spellings no project declares (`BSD 2`,
+  `BSD 4`). A tag and a field read no alias, as no title, until 0.8. Each
+  alias with its sources and projects: `paper-notes/licence-aliases.md`.
 
 ## Semicolon lists as an unstated operator (T8b, #131; P81 to P88)
 

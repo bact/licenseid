@@ -359,6 +359,6 @@ Short text (maintainer, 2026-11-02): the branch `release-0.7-short-text`
 `detect("Foo")` and one or two words of a name (`the`, `GPL`, `Apache
 License`) now have no answer, and the LGPL names are the `-only` guess,
 said aloud. `New BSD` and the other BSD aliases were lost, for `resolve()`
-to read; they and the rest are item 47 of
-[`tech-debt-roadmap.md`](tech-debt-roadmap.md). Phrases of ten words or
-more that several licences share still answer 1.0 (item 28 there).
+to read; it reads them since PR #170, from a table (`alias_name`). The rest
+are item 47 of [`tech-debt-roadmap.md`](tech-debt-roadmap.md). Phrases of
+ten words or more that several licences share still answer 1.0 (item 28 there).

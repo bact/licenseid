@@ -32,10 +32,9 @@ space does.
 
 from typing import Final
 
-from licenseid.listlookup import ListLookup, fold_case
-from licenseid.resolveleaf import Found, read_leaf
-from licenseid.resolvertypes import step
-from licenseid.resolvetrove import copy_reading
+from licenseid.listlookup import ListLookup
+from licenseid.resolveleaf import Found
+from licenseid.resolvetable import read_by_table
 
 _KIND: Final = "text_title"
 
@@ -54,12 +53,4 @@ def read_title(db: ListLookup, text: str, found: Found) -> bool:
     title of a licence text into *found*: a ``text_title`` step to the ID of
     the table, then the steps of that ID read alone. False if *text* is no
     title of the table or the list lacks its ID."""
-    license_id = TITLES.get(fold_case(text))
-    if license_id is None:
-        return False
-    reading = Found()
-    if not read_leaf(db, license_id, reading):
-        return False  # the list read lacks the ID
-    found.steps = [step(_KIND, True, text, license_id), *reading.steps]
-    copy_reading(found, reading)
-    return True
+    return read_by_table(db, text, TITLES, _KIND, found)

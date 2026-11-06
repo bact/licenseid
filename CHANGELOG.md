@@ -1,5 +1,7 @@
 # Changelog
 
+<!-- pyml disable md024 -->
+
 All notable changes to this project will be documented in this file.
 
 The format is based on
@@ -26,6 +28,9 @@ and this project adheres to
 - A List name without its grant (`GNU General Public License v3.0`, was
   `AGPL-3.0-only`) is the `-only` guess, not exact, with
   `WARNING: input: variant not stated` ([#168])
+- `resolve()` reads the BSD aliases (`New BSD`, `Simplified BSD`, `3-clause
+  BSD`, `BSD-3`), category `alias_name`; `detect` finds them by name; bare
+  `BSD` stays unresolved ([#170])
 
 ### Fixed
 
@@ -41,8 +46,8 @@ and this project adheres to
 - A warning that a `catch_warnings` block ignored is given again later under
   Python 3.14's context-aware warnings ([#167])
 - `detect` gives no answer for words a licence name only holds: `BSD` and
-  `BSD License` were `0BSD` at 1.0, `GPL` was `BSD-Source-alt-GPL`; so do
-  `New BSD` and `Simplified BSD`, for now ([#168])
+  `BSD License` were `0BSD` at 1.0, `GPL` was `BSD-Source-alt-GPL`
+  ([#168])
 - An input under 40 columns (20 Han letters) counts less in a text match:
   `著作権` (copyright) was `CC-BY-SA-2.1-JP` at 1.0; the Chinese title
   line of MulanPSL now scores 0.5 too, below the CLI's 0.85 ([#168])
@@ -54,6 +59,7 @@ and this project adheres to
 [#165]: https://github.com/bact/licenseid/pull/165
 [#167]: https://github.com/bact/licenseid/pull/167
 [#168]: https://github.com/bact/licenseid/pull/168
+[#170]: https://github.com/bact/licenseid/pull/170
 
 ## [0.7.1] - 2026-11-05
 

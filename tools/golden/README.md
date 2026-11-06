@@ -3,7 +3,7 @@
 The pre-release harness records what `detect()` and every CLI command answer
 on a fixed set of inputs, and fails when an answer moves that no pull request
 listed. The files are in `tests/fixtures/golden/` (see the section
-"14. `golden`" of `tests/fixtures/README.md`).
+"15. `golden`" of `tests/fixtures/README.md`).
 
 ## Commands
 

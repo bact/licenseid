@@ -545,15 +545,13 @@ the PyPI sample (9,353 projects): 15 values (642 projects) lost a wrong
 answer, 8 (48) a guessed version, and 13 (34) a right answer. Its golden
 moves are in `tests/harness_changes_nametier.py`.
 
-- **BSD aliases, lost**: `BSD-3` (9 projects), `New BSD` (8), `BSD 3` (3),
-  `2-clause BSD` (3), `3-clause BSD` (2), and one each for `New BSD
-  License`, `New BSD license`, `new BSD`, `Revised BSD License`,
-  `Simplified BSD`, `2-clause BSD License` and `3-Clause BSD License`.
-  Before #168 they answered by name at 1.0: some held by one name, some
-  first by the ID sort among several. `resolve()` should read them as a
-  measured table or from the List's own name parts (`"New" or "Revised"`,
-  `"Simplified"`), refusing bare `BSD` and `BSD License`. `Open Database
-  License` (`ODbL-1.0`) was lost the same way.
+- **BSD aliases, lost**: done in PR #170 (2026-11-06): `resolve()`
+  reads them from a table, `resolvealias.ALIASES` (category `alias_name`),
+  each word the List's (`"New" or "Revised"`, `"Simplified"`), the OSI's
+  (`Modified`, `3-clause`) or the ID's clause count (`BSD-3`); `detect`
+  answers them by name, exact. Bare `BSD`, `BSD License` and `FreeBSD`
+  stay refused. `Open Database License` (`ODbL-1.0`), lost the same way,
+  is not read yet.
 - **A grant left out, another version spelling**: `GNU General Public
   License v2`, `GNU General Public License v3` and `GNU Lesser General
   Public License v3` (2 projects) get no answer: only the List name less
@@ -569,7 +567,12 @@ moves are in `tests/harness_changes_nametier.py`.
   would settle it.
 - **The other direction**: an input that holds a whole name and more words
   answers that name (token set scores 100): `MIT Future License` answers
-  `MIT`. `Licensed under the MIT License` relies on it.
+  `MIT`. `Licensed under the MIT License` relies on it. Measured 2026-11-06
+  (0.7.1 against `main` 253690f, `detect()` and `resolve()` on 520 corpus
+  values, the golden changes, 50 probes and every List name with a word
+  added or dropped, 2,220): the only wrong answer `main` gives that 0.7.1
+  did not. 0.7.1 was wrong too (`FSL-1.1-MIT`, whose name ends `MIT Future
+  License`).
 - **GPL-3.0's two title lines** with a line break get no answer:
   `resolvetitle.TITLES` has the title on one line
   (`test_the_two_title_lines_of_gpl_3_are_lost`).

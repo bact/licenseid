@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-06
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -327,6 +327,10 @@ version.
    aliases and abbreviations (`BSD-3`, `CC0 1.0 Universal`, `New BSD`,
    `APL 2`) and the trove family names plus a version
    (`Apache Software License 2.0`); each is 3 to 24 projects.
+   Update 2026-11-06: `CC0 1.0 Universal` is read since #163 (a title) and
+   `BSD-3` and `New BSD` since #170 (aliases). `New BSD` is not ambiguous
+   after all: the List's own name of BSD-3-Clause quotes "New", and the
+   OSI says BSD-3-Clause "has also been called" the New BSD License.
 
 ### Not measured here
 

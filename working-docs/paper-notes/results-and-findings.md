@@ -564,6 +564,18 @@ Threats: four CJK licences only; the slices are of licence text, not of
 declared values; the phrases that are no licence were written by the
 agent, not sampled.
 
+What the name tier lost (#168) and `resolve()` read back (#170,
+2026-11-06): the BSD aliases. 17 PyPI values, 39 projects, now resolve
+from a table whose every word is the List's (`"New" or "Revised"`,
+`"Simplified"`), the OSI's (`Modified`, `3-clause`) or the ID's clause
+count (`BSD-3`), category `alias_name`. Before, 13 of them answered by
+name at 1.0 only because the name tier took a word a longer name holds;
+the same rule made `BSD` and `BSD License` (596 projects) `0BSD`. A
+comparison of 0.7.1 and `main` on 520 corpus values and 2,220 List names
+with a word added or dropped found one wrong answer `main` gives that
+0.7.1 did not (`MIT Future License` as `MIT`; 0.7.1 gave `FSL-1.1-MIT`):
+every other answer that moved went to the right licence or to none.
+
 A pilot of the licence-value sample (PR #160, top 50 per channel, frame of
 2026-11-05) is in `collection-criteria.md`: URL values are common in Maven
 (48 of 50 packages) and NuGet (50 of 50, 41 of them
