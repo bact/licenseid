@@ -573,6 +573,16 @@ moves are in `tests/harness_changes_nametier.py`.
 - **GPL-3.0's two title lines** with a line break get no answer:
   `resolvetitle.TITLES` has the title on one line
   (`test_the_two_title_lines_of_gpl_3_are_lost`).
+- **MulanPSL's Chinese title line** (`木兰宽松许可证, 第2版`, 21 columns)
+  scores 0.5 by text, under the 40-column scale; it was 1.0. No PyPI value
+  declares it, so `resolvetitle.TITLES` lacks it
+  (`test_the_chinese_title_line_of_mulan_psl_is_lost`).
+- **A whole name and more, wrong**: `SIL Open Font License 1.1 with
+  Reserved Font` answers `OFL-1.1` by name (was `OFL-1.0-RFN`, also
+  wrong); `Apache License 2.0 with LLVM exception` answers `Apache-2.0`.
+- **A fullwidth "+"**: `GNU General Public License v2.0 ＋` is the `-only`
+  guess: `shorttext` tests for an ASCII "+" of its own, apart from
+  `plusoperator`, the one reader.
 
 - Impact 2, Risk 2, Effort 2.
 

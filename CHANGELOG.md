@@ -44,7 +44,8 @@ and this project adheres to
   `BSD License` were `0BSD` at 1.0, `GPL` was `BSD-Source-alt-GPL`; so do
   `New BSD` and `Simplified BSD`, for now ([#168])
 - An input under 40 columns (20 Han letters) counts less in a text match:
-  `著作権` (copyright) was `CC-BY-SA-2.1-JP` at 1.0 ([#168])
+  `著作権` (copyright) was `CC-BY-SA-2.1-JP` at 1.0; the Chinese title
+  line of MulanPSL now scores 0.5 too, below the CLI's 0.85 ([#168])
 
 [#161]: https://github.com/bact/licenseid/pull/161
 [#162]: https://github.com/bact/licenseid/pull/162

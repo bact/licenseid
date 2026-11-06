@@ -381,6 +381,20 @@ def test_the_two_title_lines_of_gpl_3_are_lost(
     assert given.conditions() == {"variant not stated"}
 
 
+@pytest.mark.parametrize("license_id", ["MulanPSL-1.0", "MulanPSL-2.0"])
+def test_the_chinese_title_line_of_mulan_psl_is_lost(
+    db_path: str, license_id: str
+) -> None:
+    """A known loss, open for 0.8 (roadmap item 47): the title line
+    (``木兰宽松许可证, 第2版``, 21 columns) answered its licence at 1.0;
+    under 40 columns it counts less, and is ranked first at 0.5, below the
+    CLI's 0.85. ``resolve()``'s title table does not hold it: no value of
+    the PyPI sample declares it."""
+    results = detect(db_path, head(license_id, 1))
+    assert results[0]["expression"] == license_id
+    assert results[0]["score"] < 0.85
+
+
 @pytest.mark.parametrize(
     "license_id", ["ISC", "0BSD", "MIT-0", "Unlicense", "WTFPL", "FSFAP"]
 )
