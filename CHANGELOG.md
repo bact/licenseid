@@ -7,6 +7,14 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Builds the wheel's SBOM with Pitloom 0.23.0 (`build-system.requires`
+  `pitloom>=0.23.0`), which reads a dependency's licence name as its ID
+  (`MIT License` is `MIT`)
+
 ## [0.7.1] - 2026-11-05
 
 ### Changed
