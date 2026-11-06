@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-06
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -529,3 +529,44 @@ live 0.6.0 run equals the answers pinned in the fixtures (0 differences in
 - Threats: a larger sample than section 3.5 (top 10,000, not 5,000), so
   counts do not compare across the two sections; latest release only; the
   measuring script was a scratch script and is not in the repository.
+
+### 3.8 One answer for a whole input, and where text matching stops (2026-11-05)
+
+`detect()` asks `resolve()` first for the whole input (PR #161;
+`match-resolve-0-8.md` §3, "Built"). Measured on the golden harness, its new
+`value` kind (520 declared values, `tests/fixtures/golden/detect_value.tsv`):
+
+- 328 answers moved, each listed with its reason in
+  `tests/harness_changes_resolvefirst.py`; no ID answer moved, and the long,
+  short and mixed goldens did not move.
+- A refused input under 10 normalised words: Tiers 1 and 2 were right 19
+  times in 94 at a score of 0.85 or more (`GNU GPL v2` as `LiLiQ-R-1.1`,
+  `Proprietary` as `AGPL-1.0-only`); from 10 words on, every short text was
+  right. So such an input gets no text match and a warning. The cut lost 25
+  right answers; 5 came back as titles in #163, 20 stay refused as guesses.
+A word count is no measure without spaces (review of #161). Sliced from
+the four Chinese and Japanese texts of the List (CC-BY-SA-2.1-JP,
+MulanPSL-1.0 and 2.0, OGDL-Taiwan-1.0), on `main` with no cut:
+
+| Input | Right | Other version | Other licence | None |
+| --- | --- | --- | --- | --- |
+| Pure Han or kana, 4 to 13 characters (593) | 565 | 27 | 0 | 1 |
+| Phrases that are no licence (30) | | | 2 | 28 |
+
+The two wrong phrases are `版权所有` ("all rights reserved") and its long
+form, both in the MulanPSL text. Mixed inputs fail far more often
+(`Apache 许可证 2.0` as `Pixar`, `GPL 第三版` as `AGPL-1.0-only`). Rule
+kept: an input whose letters are nine in ten Han or kana is not cut, which
+keeps clause letters (`第7条b`) and cuts Latin words. 90-character slices of
+CC-BY-SA-2.1-JP: 49 of 50 answered (`main` 50, the first cut 8).
+
+Threats: four CJK licences only; the slices are of licence text, not of
+declared values; the phrases that are no licence were written by the
+agent, not sampled.
+
+A pilot of the licence-value sample (PR #160, top 50 per channel, frame of
+2026-11-05) is in `collection-criteria.md`: URL values are common in Maven
+(48 of 50 packages) and NuGet (50 of 50, 41 of them
+`licenses.nuget.org/<expression>`), absent from PyPI and crates.io; 22 of
+Maven's 50 URLs are `apache.org/licenses/LICENSE-2.0.txt`, which the List's
+`seeAlso` has only without `.txt`.
