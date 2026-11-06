@@ -53,7 +53,7 @@ _MIN_NO_SPACES_SHARE: Final = 0.9
 
 #: The readings of a licence's name, not of its ID.
 _BY_NAME: Final[frozenset[Category]] = frozenset(
-    ("listed_name", "prose_form", "trove_name")
+    ("listed_name", "prose_form", "text_title", "trove_name")
 )
 
 

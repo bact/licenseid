@@ -116,15 +116,26 @@ def test_the_table_is_the_golden_answer() -> None:
     assert actual == GOLDEN
 
 
+#: The stated names that write no version: an exception to P47.
+NO_VERSION = {"Universal Permissive License (UPL)"}
+
+
 @pytest.mark.parametrize("name", sorted(STATED))
 def test_stated_names_say_their_licence(name: str) -> None:
     """A stated name writes the version and the grant of its ID."""
     (spdx_id,) = STATED[name].ids
     assert spdx_id in IDS
     assert not IDS[spdx_id], "a deprecated ID is an assumed reading"
-    assert version_in_name(spdx_id, name)
+    assert version_in_name(spdx_id, name) or name in NO_VERSION
     assert spdx_id.endswith("-or-later") == ("or later" in name)
     assert not spdx_id.endswith("-only")
+
+
+def test_only_the_upl_name_is_stated_without_its_version() -> None:
+    """P47 holds for every other name with no version (the maintainer,
+    2026-11-05)."""
+    unwritten = {n for n, e in STATED.items() if not version_in_name(e.ids[0], n)}
+    assert unwritten == NO_VERSION
 
 
 @pytest.mark.parametrize("name", sorted(ASSUMED))

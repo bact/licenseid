@@ -28,6 +28,8 @@ usually means:
 
 A name with no version stays ``none`` even where the List holds one version
 only (``Common Public License``): the List today is not what the name says.
+The one exception is ``Universal Permissive License (UPL)``, which reads as
+``UPL-1.0`` (the maintainer, 2026-11-05).
 
 ``Apache Software License`` and ``Python Software Foundation License`` are
 ``none`` here: they imply ``Apache-2.0`` and ``PSF-2.0`` by usage, not by
@@ -179,7 +181,9 @@ TROVE_NAMES: Final[dict[str, TroveEntry]] = {
     "Sleepycat License": _stated("Sleepycat"),  # the List's name
     "Sun Public License": _none(),  # no version, though only SPL-1.0 exists
     "The Unlicense (Unlicense)": _stated("Unlicense"),
-    "Universal Permissive License (UPL)": _none(),  # no version; UPL-1.0 only
+    # No version, but UPL-1.0 is the only UPL: read as it, an exception to P47
+    # (decided by the maintainer on 2026-11-05).
+    "Universal Permissive License (UPL)": _stated("UPL-1.0"),
     "University of Illinois/NCSA Open Source License": _stated("NCSA"),
     "Vovida Software License 1.0": _stated("VSL-1.0"),
     "W3C License": _none(),  # no version; W3C, W3C-19980720, W3C-20150513 (Q22)

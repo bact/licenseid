@@ -58,7 +58,7 @@ def read_named(db: ListLookup, text: str, found: Found) -> bool:
         _nothing(found)
         return True
     found.steps = [step("trove_path", True, text, name), *reading.steps]
-    _copy(found, reading)
+    copy_reading(found, reading)
     return True
 
 
@@ -99,7 +99,7 @@ def _name(db: ListLookup, text: str, found: Found) -> bool:
         _nothing(found)
         return True
     found.steps = [step("trove_name", True, text, entry.ids[0]), *reading.steps]
-    _copy(found, reading)
+    copy_reading(found, reading)
     return True
 
 
@@ -115,7 +115,7 @@ def _trailing(db: ListLookup, text: str, found: Found) -> bool:
     if named.expression is None or named.expression != alone.expression:
         return False
     found.steps = [step("trailing_name", True, text, head), *named.steps]
-    _copy(found, named)
+    copy_reading(found, named)
     return True
 
 
@@ -140,9 +140,10 @@ def trailing_parts(text: str) -> tuple[str, str] | None:
     return head, inside
 
 
-def _copy(found: Found, reading: Found) -> None:
+def copy_reading(found: Found, reading: Found) -> None:
     """Put the expansions, candidates and expression of *reading* in *found*;
-    its steps are set by the caller."""
+    its steps are set by the caller. The title reader
+    (:mod:`licenseid.resolvetitle`) takes a reading the same way."""
     found.expression = reading.expression
     found.expansions = list(reading.expansions)
     found.candidates = list(reading.candidates)
