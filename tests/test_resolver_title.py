@@ -9,6 +9,7 @@
 # pylint: disable=missing-function-docstring
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -32,7 +33,6 @@ def _folded_text(license_id: str) -> str:
 @pytest.mark.parametrize(
     ("title", "texts"),
     [
-        ("cc0", ["CC0-1.0"]),
         ("cc0 1.0 universal", ["CC0-1.0"]),
         (
             "gnu general public license version 3, 29 june 2007",
@@ -46,6 +46,14 @@ def test_the_text_of_each_id_writes_its_title(title: str, texts: list[str]) -> N
     assert TITLES[title] == texts[0].removesuffix("-only")
     for license_id in texts:
         assert title in _folded_text(license_id), license_id
+
+
+def test_the_cc0_text_names_itself_without_its_version() -> None:
+    """``CC0`` alone is a title too: the text calls itself so ("apply CC0 to
+    the Work"), not only within ``CC0 1.0 Universal``."""
+    alone = re.findall(r"\bcc0\b(?! 1\.0)", _folded_text("CC0-1.0"))
+    assert len(alone) >= 3
+    assert TITLES["cc0"] == "CC0-1.0"
 
 
 def test_every_title_is_checked_against_a_text() -> None:
@@ -224,3 +232,52 @@ def test_detect_narrows_the_gpl_title_line_aloud(
     assert given.lines() == (
         f"WARNING: input: variant not stated: {text}; using GPL-3.0-only\n"
     )
+
+
+@pytest.mark.parametrize("value", ["Mulan P\u017fl v2", "\u212a"])
+def test_case_folds_in_ascii_only(corpus_db: LicenseDatabase, value: str) -> None:
+    """A long s or a KELVIN SIGN folds to no ASCII letter of a title."""
+    found = Found()
+    assert read_title(corpus_db, value, found) is False
+
+
+@pytest.mark.parametrize("value", ["CC0", "cc0"])
+def test_an_explicit_id_reads_the_one_word_title(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """``--id CC0`` answers as the argument ``CC0`` does."""
+    detector = LicenseDetector(corpus_db.location)
+    (by_id,) = detector.detect(license_id=value)
+    (by_text,) = detector.detect(value)
+    assert by_id == by_text
+    assert (by_id["expression"], by_id["method"], by_id["exact"]) == (
+        "CC0-1.0",
+        "name",
+        True,
+    )
+    assert detector.is_fsf(license_id=value) is by_id["is_fsf_libre"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "SPDX-License-Identifier: CC0\nint main(void);\n",
+        '{"name": "x", "license": "CC0"}',
+    ],
+    ids=["tag", "field"],
+)
+def test_a_tag_or_a_field_does_not_read_a_title_until_0_8(
+    corpus_db: LicenseDatabase, text: str
+) -> None:
+    """A tag and a manifest field keep their own reader, which reads no
+    title: documented in docs/python-api.md, to change when they go through
+    resolve()."""
+    found = LicenseDetector(corpus_db.location).detect(text)
+    assert "CC0-1.0" not in [result["expression"] for result in found]
+
+
+@pytest.mark.parametrize("value", ["Foo-9", "CC0x", "GPL-9.0"])
+def test_an_explicit_id_resolve_refuses_has_no_answer(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    assert LicenseDetector(corpus_db.location).detect(license_id=value) == []

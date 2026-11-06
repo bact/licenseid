@@ -56,8 +56,9 @@ generator.*
   command line): turns one declared licence value (a `license` field, a
   model card, a trove classifier) into an SPDX expression and the steps
   taken, without fuzzy matching, with or without a database. It reads loose
-  IDs (`Apache2`, `GPLv3`), the List's names, prose forms (`BSD 3-Clause
-  License`), quote marks, trove classifiers and compounds of one-word
+  IDs (`Apache2`, `GPLv3`), the List's names, a licence's own title (`CC0
+  1.0 Universal`, `Mulan PSL v2`), prose forms (`BSD 3-Clause License`),
+  quote marks, trove classifiers and compounds of one-word
   operands, and refuses, with a reason, what it would read only by dropping
   a mark or a word. What it reads, rule by rule, is in
   [docs/resolve.md][resolve-doc-reads].
@@ -86,9 +87,9 @@ generator.*
     or INI file, are read as whole expressions, parentheses, `LicenseRef-*`
     and all: `MIT OR (Apache-2.0 AND BSD-3-Clause)` in a file resolves to
     one answer. `--id` is narrower on purpose — see below. A tag or field
-    names only IDs on the List, or `LicenseRef-*`: a word that is none
-    (`MIT OR Apache 2.0`, `Apache2`) gives no answer, as `resolve()` refuses
-    it. A bare "or later" after an ID is the grant (`MIT or later`, `MIT, or
+    names only IDs on the List, or `LicenseRef-*`: an operand that is none
+    (`MIT OR Apache 2.0`) gives no answer, as `resolve()` refuses it. A
+    bare "or later" after an ID is the grant (`MIT or later`, `MIT, or
     any later version` are `MIT+`); a "+" apart from its ID (`MIT +`) names no
     licence.
   - Package manifests are read for their `license` field, however small:
