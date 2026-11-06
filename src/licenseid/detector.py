@@ -44,6 +44,7 @@ from licenseid.similarity import (
     build_probe,
     calculate_base_similarity,
     calculate_final_score,
+    weigh_short_input,
 )
 from licenseid.textinput import read_text_file, reject_lone_surrogate
 from licenseid.types import (
@@ -619,6 +620,7 @@ class LicenseDetector:
                 )
             )
 
+        weigh_short_input(norm_input, candidates, ranked)  # a short one counts less
         for r in ranked:
             r["score"] = calculate_final_score(
                 r, boosts, is_pure, enable_popularity, q_len

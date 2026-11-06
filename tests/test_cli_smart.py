@@ -36,9 +36,10 @@ def test_cli_match_smart_id(test_db: str) -> None:
 def test_cli_match_smart_file(test_db: str, tmp_path: Any) -> None:
     runner = CliRunner()
     license_file = tmp_path / "LICENSE"
-    # Ten words or more: a shorter text is not matched as text.
+    # A sentence of MIT, ten words or more: a shorter text is not matched
+    # as text, and the first four words open many licences.
     license_file.write_text(
-        "Permission is hereby granted, free of charge, to any person..."
+        "Permission is hereby granted, free of charge, to any person obtaining a copy"
     )
 
     result = runner.invoke(cli, ["--db", test_db, "detect", str(license_file)])

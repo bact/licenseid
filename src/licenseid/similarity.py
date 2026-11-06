@@ -12,9 +12,11 @@ LicenseDetector.
 """
 
 import math
+from unicodedata import east_asian_width
 
 from rapidfuzz import fuzz
 
+from licenseid.ranking import TIE_WINDOW
 from licenseid.types import CandidateMatch, InternalMatch
 
 # Probe-gate settings for fragment ranking (query shorter than candidate).
@@ -48,6 +50,27 @@ ALIGN_MAX_CHARS: int = 6000
 ALIGN_UNPROBED_MAX_CHARS: int = 1500
 PROBE_MAX_CHARS: int = 500
 
+# How long an input must be for its text similarity to count in full. The
+# alignment scores a fragment against the best window of a licence, so a
+# word that occurs anywhere in a long licence ("foo", "copyright notice")
+# is a perfect match. Below this length the score is scaled down in
+# proportion (weigh_short_input), unless the input singles out one licence.
+# Measured in columns, where a wide East Asian character takes two: Japanese
+# and Chinese say in one character what English says in several. 40 lets a
+# fragment of 34 columns or more pass the 0.85 threshold: GPL-3.0's two
+# title lines (49) still answer; "this program is free software" (29) and
+# "the software is provided as is" (30), which open many licences, do not.
+# No licence text is this short (the shortest, diffmark, is 81).
+EVIDENCE_COLUMNS: int = 40
+
+# Where a licence states its title: the first characters of its normalised
+# text. A short input that one licence text holds best, alone, and there is
+# that licence's title ("The Clear BSD License", "CC0 1.0 Universal" after
+# "Creative Commons Legal Code", 28, "Universal Permissive License (UPL)",
+# 39); a title that another licence mentions further on is not
+# ("Two-clause BSD license" at 1,992 of Parity-7.0.0's).
+TITLE_CHARS: int = 100
+
 
 def _center(text: str, size: int) -> str:
     """The middle *size* characters of *text* (all of it if shorter)."""
@@ -77,6 +100,51 @@ def build_probe(query_words: list[str]) -> str | None:
     if len(text) < ALIGN_UNPROBED_MAX_CHARS:
         return None
     return _center(text, PROBE_MAX_CHARS)
+
+
+def text_evidence(norm_input: str) -> float:
+    """How far a text similarity of *norm_input* counts, from 0 to 1: its
+    length in columns over EVIDENCE_COLUMNS, at most 1."""
+    if len(norm_input) >= EVIDENCE_COLUMNS:
+        return 1.0  # a column count is never below the character count
+    columns = sum(2 if east_asian_width(ch) in ("W", "F") else 1 for ch in norm_input)
+    return min(1.0, columns / EVIDENCE_COLUMNS)
+
+
+def weigh_short_input(
+    norm_input: str, candidates: list[CandidateMatch], ranked: list[InternalMatch]
+) -> None:
+    """Scale the base score of each inexact result in *ranked* (one per
+    entry of *candidates*) by text_evidence, unless *norm_input* is long
+    enough to count in full or names one licence by its title
+    (_singles_out). An exact text is never scaled: it is the whole text."""
+    evidence = text_evidence(norm_input)
+    if evidence == 1.0 or _singles_out(candidates, ranked):
+        return
+    for match in ranked:
+        if not match["exact"]:
+            match["base_score"] *= evidence
+
+
+def _singles_out(candidates: list[CandidateMatch], ranked: list[InternalMatch]) -> bool:
+    """Whether one licence text holds the input best, by TIE_WINDOW over any
+    other text (two IDs of one text, GPL-2.0-only and -or-later, are one),
+    and holds it within its first TITLE_CHARS characters. "Foo" is in three
+    texts, "this program is free software" in six (and at the start of
+    XSkat's)."""
+    best: dict[str, tuple[float, int]] = {}
+    for cand, match in zip(candidates, ranked, strict=True):
+        text = cand.get("search_text") or ""
+        window = match["best_window"]
+        start = 0 if window == text else text.find(window)
+        held = (match["similarity"], -start)
+        if text and held > best.get(text, (-1.0, 0)):
+            best[text] = held
+    ordered = sorted(best.values(), reverse=True)
+    if not ordered:
+        return False
+    (top, neg_start), runner_up = ordered[0], ordered[1][0] if len(ordered) > 1 else 0.0
+    return top - runner_up >= TIE_WINDOW and -neg_start < TITLE_CHARS
 
 
 def alignment_affordable(norm_input: str, q_len: int) -> bool:
