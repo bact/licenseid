@@ -13,18 +13,21 @@ and this project adheres to
 
 - `detect` reads a whole input with `resolve()` first and answers its
   expression: `MIT OR Apache-2.0` is `Apache-2.0 OR MIT` (was `ECL-2.0`, a
-  text guess), `Apache 2+` is `Apache-2.0+`; a guess stays not exact
+  text guess), `Apache 2+` is `Apache-2.0+`; a guess stays not exact ([#161])
 - An input under 10 words that `resolve()` refuses is not matched as text:
   no answer, with `WARNING: input: too few words for text: <reason>`
-  (`GNU GPL v2` was `LiLiQ-R-1.1`)
+  (`GNU GPL v2` was `LiLiQ-R-1.1`) ([#161])
 - `resolve()` reads the title a licence's own text gives itself, category
   `text_title`: `CC0`, `CC0 1.0 Universal`, `Mulan PSL v2`, and the GPL v3
   title line as the bare `GPL-3.0`; the UPL trove name is `UPL-1.0`;
-  `detect` answers them again
+  `detect` answers them again ([#163])
 
 ### Fixed
 
-- `resolve()` refuses a 20 MB value as too long in 0.1 s (was 1.4 s)
+- `resolve()` refuses a 20 MB value as too long in 0.1 s (was 1.4 s) ([#161])
+
+[#161]: https://github.com/bact/licenseid/pull/161
+[#163]: https://github.com/bact/licenseid/pull/163
 
 ## [0.7.1] - 2026-11-05
 
