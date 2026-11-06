@@ -16,6 +16,8 @@ import pytest
 from matcher_db import Lic, seeded_db
 
 from licenseid.database import LicenseDatabase
+from licenseid.normalize import normalize_text
+from licenseid.plusoperator import grant_stem, states_qualifier, strip_plus_operator
 from licenseid.shorttext import match_short_text, narrowed_name
 from licenseid.types import RawMatch
 
@@ -80,6 +82,21 @@ def names_db() -> Generator[LicenseDatabase, None, None]:
         # A licence whose name holds a pair's name without its grant, and
         # a word more.
         Lic("Solo-3.0-extra", "Solo Name v3 extra plus"),
+        # As GFDL-1.3: a deprecated name of its own, its two grants, and
+        # variants of them that hold its words.
+        Lic("Doc-13", "Doc Name v13", is_deprecated=True),
+        Lic("Doc-13-only", "Doc Name v13 only"),
+        Lic("Doc-13-or-later", "Doc Name v13 or later"),
+        Lic("Doc-13-invariants-only", "Doc Name v13 only invariants"),
+        Lic("Doc-13-invariants-or-later", "Doc Name v13 or later invariants"),
+        # A pair, and a name its words hold: the three tie.
+        Lic("Trio-1.0-only", "Trio Name v1 only"),
+        Lic("Trio-1.0-or-later", "Trio Name v1 or later"),
+        Lic("Trio-Base", "Trio Name"),
+        # A deprecated name of its own, held by two names that are no pair.
+        Lic("Lone-1.0", "Lone Name", is_deprecated=True),
+        Lic("Lone-1.0-a", "Lone Name a"),
+        Lic("Lone-1.0-b", "Lone Name b"),
     ]
     for path in seeded_db("test_shorttext_evidence_names", rows):
         yield LicenseDatabase(path)
@@ -118,6 +135,13 @@ def names_db() -> Generator[LicenseDatabase, None, None]:
         # Two versions hold them: neither is named.
         ("pair name", []),
         ("solo name v3", [("Solo-3.0-only", 1.01), ("Solo-3.0-or-later", 1.01)]),
+        # A deprecated name of its own: the two grants of its licence, not
+        # their variants (GFDL-1.3-invariants-only came first by ID).
+        ("doc name v13", [("Doc-13-only", 1.01), ("Doc-13-or-later", 1.01)]),
+        # The names that hold a deprecated name of its own, as before.
+        ("lone name", [("Lone-1.0-a", 1.01), ("Lone-1.0-b", 1.01)]),
+        # A third result ties with the pair: no guess at all.
+        ("trio name v1", []),
         # A word of two rows, one deprecated: neither, as for bzip2.
         ("ver name", []),
         # Without the grant of two licences' names: neither.
@@ -208,3 +232,39 @@ def test_every_result_of_a_partial_name(
         for m in match_short_text(names_db, text)
     ]
     assert found == expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Pair Name v1+",  # the "+" states the wider grant
+        "Pair Name v1 +",
+        "Pair Name v1 or later only",  # both grants: neither
+        "only Pair Name v1 or later",
+    ],
+)
+def test_a_stated_grant_is_never_guessed_away(
+    names_db: LicenseDatabase, text: str
+) -> None:
+    """normalize_text() drops the "+", and a text that holds both names
+    ties them as a name without its grant does: no answer, not -only."""
+    found = match_short_text(names_db, normalize_text(text), text)
+    assert narrowed_name(found) is None
+    assert all(m["score"] <= 1.0 for m in found)
+
+
+@pytest.mark.parametrize(
+    ("license_id", "stem"),
+    [
+        ("GPL-2.0-only", "GPL-2.0"),
+        ("GPL-2.0-or-later", "GPL-2.0"),
+        ("GPL-2.0+", "GPL-2.0"),
+        ("GPL-2.0", "GPL-2.0"),
+        ("gpl-2.0-ONLY", "gpl-2.0"),  # any case, as states_qualifier
+        ("GFDL-1.3-invariants-only", "GFDL-1.3-invariants"),
+        ("MIT", "MIT"),
+    ],
+)
+def test_grant_stem(license_id: str, stem: str) -> None:
+    assert grant_stem(license_id) == stem
+    assert states_qualifier(license_id) == (stem != strip_plus_operator(license_id))

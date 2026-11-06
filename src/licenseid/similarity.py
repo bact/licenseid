@@ -56,10 +56,12 @@ PROBE_MAX_CHARS: int = 500
 # proportion (text_evidence). Measured in columns, where a wide East Asian
 # character takes two: Japanese and Chinese say in one character what
 # English says in several. 40 lets a fragment of 34 columns or more pass the
-# 0.85 threshold: GPL-3.0's two title lines (49) and the Japanese title line
-# of CC-BY-SA-2.1-JP (35) still answer; "this program is free software"
-# (29) and "the software is provided as is" (30), which open many licences,
-# do not. No licence text is this short (the shortest, diffmark, is 81).
+# 0.85 threshold: the Japanese title line of CC-BY-SA-2.1-JP (35) still
+# answers; "著作権" (6) and "版权所有" (8), which a licence text holds, do
+# not. No licence text is this short (the shortest, diffmark, is 81).
+# detect() matches no Latin input of under ten words as text unless
+# resolve() reads it (licenseid.resolvefirst), so for one this scale only
+# touches ten words or more in under 40 columns; Han and kana are not cut.
 EVIDENCE_COLUMNS: int = 40
 
 

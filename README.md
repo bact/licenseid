@@ -51,7 +51,10 @@ generator.*
     by `detect()` when no surrounding context is available, as a guess said
     aloud: not exact, with `WARNING: input: variant not stated: GPL-2.0;
     using GPL-2.0-only`, whether the ID is an argument, `--id`, a tag or a
-    manifest field; `resolve()` keeps them as written (below).
+    manifest field; `resolve()` keeps them as written (below). A List name
+    without its grant (`GNU General Public License v2.0`) is the same guess,
+    said the same way; a name with a "+" (`v2.0+`), or without its version
+    too, is no answer.
 - **Declared-value resolution** (`resolve()`, and `licenseid resolve` on the
   command line): turns one declared licence value (a `license` field, a
   model card, a trove classifier) into an SPDX expression and the steps

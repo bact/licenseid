@@ -36,9 +36,10 @@ and this project adheres to
   Python process when the database warns (`build vN outdated`,
   `N days old`): Python's built-in default warning filter crashed them
   ([#162])
-- `detect` gives no answer for words a licence name only holds: `BSD License`
-  was `0BSD` at 1.0, `PL` was `ESA-PL-strong-copyleft-2.4`
-- A Han or kana input under 20 letters counts less in a text match:
+- `detect` gives no answer for words a licence name only holds: `BSD` and
+  `BSD License` were `0BSD` at 1.0, `GPL` was `BSD-Source-alt-GPL`; so do
+  `New BSD` and `Simplified BSD`, for now
+- An input under 40 columns (20 Han letters) counts less in a text match:
   `著作権` (copyright) was `CC-BY-SA-2.1-JP` at 1.0
 
 [#161]: https://github.com/bact/licenseid/pull/161

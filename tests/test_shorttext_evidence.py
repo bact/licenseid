@@ -210,7 +210,7 @@ NAME_WORDS = [
     ("Creative Commons", "CC-BY-SA-2.1-JP"),
     ("GNU Lesser General Public License", "LGPL-2.1-only"),
     ("BSD License", "0BSD"),
-    # 13 projects of the PyPI sample declare "PL", "PL-" or "PL v2.".
+    # A word only the ESA-PL names hold.
     ("PL", "ESA-PL-strong-copyleft-2.4"),
     ("PL v2.", "ESA-PL-strong-copyleft-2.4"),
     # The names of one licence's two grants, without its version.
@@ -242,6 +242,7 @@ def test_a_deprecated_name_is_still_answered(
 GRANT_LEFT_OUT = [
     ("GNU General Public License v2.0", "GPL-2.0"),
     ("GNU General Public License v1.0", "GPL-1.0"),
+    ("GNU General Public License v3.0", "GPL-3.0"),  # was AGPL-3.0-only
     ("GNU Lesser General Public License v2.1", "LGPL-2.1"),
     ("GNU Lesser General Public Licence v2.1", "LGPL-2.1"),  # British spelling
     ("gnu lesser general public license v2.1", "LGPL-2.1"),
@@ -263,6 +264,24 @@ def test_a_name_without_its_grant_is_the_narrower_guess(
     assert given.lines() == (
         f"WARNING: input: variant not stated: {text}; using {stem}-only\n"
     )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "GNU General Public License v2.0+",
+        "GNU General Public License v2.0 +",
+        "GNU Lesser General Public License v2.1+",
+        "GNU General Public License v2.0 or later only",
+        "only GNU General Public License v2.0 or later",
+    ],
+)
+def test_a_name_with_a_grant_stated_twice_or_by_plus_is_no_guess(
+    db_path: str, given: GivenWarnings, text: str
+) -> None:
+    """Never the -only guess for a grant the input states: none at all."""
+    assert not detect(db_path, text)
+    assert given.conditions() == {"too few words for text"}
 
 
 @pytest.mark.parametrize(

@@ -10,8 +10,8 @@ from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase
 from licenseid.looseid import loose_id, narrowed, resolved_id, warn_narrowed
-from licenseid.plusoperator import strip_plus_operator
-from licenseid.ranking import DEP_PENALTY, grant_stem
+from licenseid.plusoperator import grant_stem, strip_plus_operator
+from licenseid.ranking import DEP_PENALTY
 from licenseid.types import LicenseNameId, RawMatch
 from licenseid.versionkey import version_key
 
@@ -76,7 +76,8 @@ def match_short_text(
     # The names of rows in use: a deprecated row that shares one is not the
     # exact answer, the row that replaced it is.
     live_names = {m["norm_name"] for m in all_metadata if not m["is_deprecated"]}
-    partial = _partial_names(all_metadata, words)
+    stems = _grant_left_out(all_metadata, set(words))
+    partial = _partial_names(all_metadata, words, stems)
 
     for meta in all_metadata:
         name_norm = meta["norm_name"]
@@ -114,6 +115,10 @@ def match_short_text(
     # The deprecated penalty is already in each score, and these results
     # carry no is_deprecated or pop_score.
     ranked.sort(key=lambda x: (-x["score"], x["license_id"]))
+    if narrowed_name(ranked) is not None and not _grant_left_out_alone(
+        ranked, stems, raw
+    ):
+        return []  # both grants tie, and the input is no name without its grant
     return ranked
 
 
@@ -156,32 +161,36 @@ def _name_scores(
     )
 
 
-def _partial_names(rows: list[LicenseNameId], words: list[str]) -> set[str]:
+def _partial_names(
+    rows: list[LicenseNameId], words: list[str], stems: set[str]
+) -> set[str]:
     """The names that hold every one of *words* and more, unless they name
     one licence: the words are no name in use, only one name holds them,
     and they are at least half its words ("GNU Public License v2.0 only").
     Token set scores such a name 100, as if it were the input: "the" is in
     six names, "license" in most, "GNU General Public License" in every
-    GPL, "PL" in ESA-PL's, and "MIT License" in 17 besides MIT's own. The
+    GPL (22 names), and "MIT License" in six besides MIT's own. The
     words of a deprecated name of its own ("GNU Affero General Public
     License v3.0") are held by the names that replaced it (its -only and
-    -or-later): those are kept, as before. So are the names of one licence
-    whose name the words are without its grant (_grant_left_out), and only
-    those: GPL-2.0-with-GCC-exception also holds "GNU General Public
-    License v2.0"."""
+    -or-later): those are kept, as before. So are the names of the
+    licences of *stems* (_grant_left_out), whose name the words are without
+    its grant, and only those: GPL-2.0-with-GCC-exception also holds "GNU
+    General Public License v2.0", and the GFDL-1.3 names with invariants
+    hold "GNU Free Documentation License v1.3", the name of the deprecated
+    GFDL-1.3."""
     query = set(words)
     pairs = [(row, set(row["norm_name"].split())) for row in rows]
     named = {bool(row["is_deprecated"]) for row, name in pairs if name == query}
-    if named == {True}:
-        return set()  # a deprecated name, and no name in use
     held = [row for row, name in pairs if query < name]
-    stems = set() if named else _grant_left_out(rows, query)
-    if len(stems) == 1:
+    # More than one licence of *stems* gets no answer (_grant_left_out_alone).
+    if False not in named and stems:
         return {
             row["norm_name"]
             for row in held
             if grant_stem(row["license_id"]) not in stems
         }
+    if named == {True}:
+        return set()  # a deprecated name, and no name in use
     holders = {row["norm_name"] for row in held}
     if (
         len(holders) == 1
@@ -193,7 +202,7 @@ def _partial_names(rows: list[LicenseNameId], words: list[str]) -> set[str]:
 
 
 def _grant_left_out(rows: list[LicenseNameId], query: set[str]) -> set[str]:
-    """The licences (ranking.grant_stem) that have both an -only and an
+    """The licences (plusoperator.grant_stem) that have both an -only and an
     -or-later row in use whose name is the words of *query* and its grant:
     "GNU General Public License v2.0" is GPL-2.0-only's name without
     "only", and GPL-2.0-or-later's without "or later". Every other word
@@ -209,6 +218,17 @@ def _grant_left_out(rows: list[LicenseNameId], query: set[str]) -> set[str]:
             if name.endswith(grant) and set(name[: -len(grant)].split()) == query:
                 grants.setdefault(stem, set()).add(grant)
     return {stem for stem, found in grants.items() if len(found) == len(_GRANT_WORDS)}
+
+
+def _grant_left_out_alone(ranked: list[RawMatch], stems: set[str], text: str) -> bool:
+    """Whether *ranked*, whose first two results are one licence's -only and
+    -or-later tied, may stand: *text* is the name of the one licence of
+    *stems* without its grant, it has no "+" (normalize_text dropped it,
+    and "v2.0+" states the wider grant), and no third result ties. An
+    input that holds both names ("v2.0 or later only") is none."""
+    first, third = ranked[0], ranked[2] if len(ranked) > 2 else None
+    alone = third is None or third["score"] < first["score"]
+    return len(stems) == 1 and "+" not in text and alone
 
 
 def narrowed_name(found: list[RawMatch]) -> str | None:
