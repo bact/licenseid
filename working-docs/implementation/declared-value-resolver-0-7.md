@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-05
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -236,7 +236,8 @@ exception or a `LicenseRef-*` (P80) and to a lone dash after a prose form.
   reads as `none` stays unresolved: `BSD License`, the bare `BSD` and
   `Apache Software License` are open by decision (Q3, deferred to 0.8), not
   by a missing rule. A name with no version where the List holds one version
-  only (`Common Public License`) is `none` (P47). One special case,
+  only (`Common Public License`) is `none` (P47), except `Universal
+  Permissive License (UPL)`, `UPL-1.0` (the maintainer, 2026-11-05). One special case,
   `GNU Lesser General Public License v2 (LGPLv2)`, reads as `LGPL-2.0`,
   `assumed_only` (Q23, the maintainer, 2026-10-28). A trove step lists
   `pypi-trove-classifiers` as a second entry of `lists`, always `packaged`.

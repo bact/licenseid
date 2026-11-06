@@ -20,9 +20,11 @@ but no grant (the GPL title line) is the bare deprecated ID, read as the
 author's own ID would be (decision P49 of the 0.7.0 review): ``GPL-3.0``,
 ``assumed_only``, with both candidates.
 
-A title that writes no version (``CC0``, ``Universal Permissive License``)
-is not here, even where the List holds one version only (decision P47): the
-List today is not what the value says.
+A title that writes no version is not here (decision P47: the List today is
+not what the value says), with one exception: ``CC0``, the name the CC0 text
+gives itself apart from its version, is ``CC0-1.0``, the only CC0 (the
+maintainer, 2026-11-05). The UPL trove name is the other exception, in
+:mod:`licenseid.trovenames`.
 
 Case does not matter, as for a List name; white space does.
 """
@@ -38,6 +40,7 @@ _KIND: Final = "text_title"
 
 #: The titles, folded (``str.casefold``), and the ID each names.
 TITLES: Final[dict[str, str]] = {
+    "cc0": "CC0-1.0",  # no version: an exception to P47
     "cc0 1.0 universal": "CC0-1.0",
     "gnu general public license version 3, 29 june 2007": "GPL-3.0",
     "mulan psl v2": "MulanPSL-2.0",

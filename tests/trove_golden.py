@@ -129,7 +129,7 @@ GOLDEN: dict[str, tuple[str, str, bool]] = {
     "Sleepycat License": ("Sleepycat", "stated", True),
     "Sun Public License": ("", "none", True),
     "The Unlicense (Unlicense)": ("Unlicense", "stated", True),
-    "Universal Permissive License (UPL)": ("", "none", True),
+    "Universal Permissive License (UPL)": ("UPL-1.0", "stated", True),
     "University of Illinois/NCSA Open Source License": ("NCSA", "stated", True),
     "Vovida Software License 1.0": ("VSL-1.0", "stated", True),
     "W3C License": ("", "none", True),

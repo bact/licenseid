@@ -94,7 +94,10 @@ steps taken, without fuzzy matching:
   a name that writes a version but not "only" or "or later" (`... v3
   (GPLv3)`) is the bare ID, `assumed_only`; a name that names no single
   licence (`BSD License`, `W3C License`) or only by usage (`Apache
-  Software License`) stays `unresolved`. The table matches case and
+  Software License`) stays `unresolved`; a name with no version is
+  `unresolved` too, even where the List holds one version (`Common Public
+  License`), except `Universal Permissive License (UPL)`, which is
+  `UPL-1.0`. The table matches case and
   spacing exactly, except that a name it reads as no licence is refused
   however it is written. A path in its real form
   (`License :: OSI Approved :: MIT License`) is read as its name is
@@ -109,9 +112,8 @@ steps taken, without fuzzy matching:
   from a table (category `text_title`, a `text_title` step): `CC0 1.0
   Universal` is `CC0-1.0`, `Mulan PSL v2` is `MulanPSL-2.0`, and the title
   line `GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007` is the bare
-  `GPL-3.0`, `assumed_only`. Case does not matter; spacing does. A title
-  with no version (`CC0`, `Universal Permissive License`) is not read,
-  even where the List holds one version only;
+  `GPL-3.0`, `assumed_only`, and `CC0` is `CC0-1.0`, the only CC0. Case
+  does not matter; spacing does;
 - the prose form of one licence is read last, as category `prose_form`
   (a `prose_form` step, then the steps of what it reduces to): a final
   `license` or `licence` after a value that names one licence, with a `+`

@@ -14,8 +14,8 @@ _NONE = "resolve() reads the whole value (was no answer)"
 _NAME = "resolve() reads the listed name or prose form: exact"
 _SHORT = "too few words for text: under 10 words, resolve() refused it"
 _LOST = "too few words for text: a right answer lost, for resolve() to learn"
-_TITLE = "resolve() reads the title the licence's own text gives itself"
-_TITLE_BARE = _TITLE + ": the bare GPL-3.0, narrowed aloud (was a text guess)"
+_TITLE = "resolve() reads the licence's own title, or the UPL trove name"
+_TITLE_BARE = "resolve() reads the GPL v3 title line: the bare GPL-3.0, narrowed aloud"
 
 RESOLVE_FIRST_CHANGES: dict[str, tuple[str, str]] = {
     "id/AFL-1.2/id_distorted": ("-\t-\t-\t-", _SHORT),
@@ -262,7 +262,7 @@ RESOLVE_FIRST_CHANGES: dict[str, tuple[str, str]] = {
     "value/BSD-style": ("-\t-\t-\t-", _SHORT),
     "value/Boost Software License 1.0 (BSL-1.0)": ("BSL-1.0\tname\tyes\t1.0000", _NAME),
     "value/BrowserStack Software License Agreement": ("-\t-\t-\t-", _SHORT),
-    "value/CC0": ("-\t-\t-\t-", _LOST),
+    "value/CC0": ("CC0-1.0\tname\tyes\t1.0000", _TITLE),
     "value/CC0 1.0 Universal": ("CC0-1.0\tname\tyes\t1.0000", _TITLE),
     "value/CC0 1.0 Universal (CC0 1.0) Public Domain Dedication": (
         "CC0-1.0\tname\tyes\t1.0000",
@@ -547,7 +547,7 @@ RESOLVE_FIRST_CHANGES: dict[str, tuple[str, str]] = {
     "value/Two-clause BSD license": ("-\t-\t-\t-", _SHORT),
     "value/UNKNOWN": ("-\t-\t-\t-", _SHORT),
     "value/UPL-1.0 OR Apache-2.0": ("Apache-2.0 OR UPL-1.0\tid\tyes\t1.0000", _TEXT),
-    "value/Universal Permissive License (UPL)": ("-\t-\t-\t-", _LOST),
+    "value/Universal Permissive License (UPL)": ("UPL-1.0\tname\tyes\t1.0000", _TITLE),
     "value/Unlicense AND MIT AND ISC": (
         "ISC AND MIT AND Unlicense\tid\tyes\t1.0000",
         _TEXT,

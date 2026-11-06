@@ -7,3 +7,5 @@ value	group	expression	category	candidates	steps	step_targets	expansions	expansi
 CC0 1.0 Universal	title	CC0-1.0	text_title	-	text_title	CC0-1.0	-	-	resolver_rule	yes	-
 GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007	bare	GPL-3.0	assumed_only	GPL-3.0-only,GPL-3.0-or-later	text_title	GPL-3.0	assumed_only!	GPL-3.0	none	yes	-
 Mulan PSL v2	title	MulanPSL-2.0	text_title	-	text_title	MulanPSL-2.0	-	-	resolver_rule	yes	-
+CC0	title	CC0-1.0	text_title	-	text_title	CC0-1.0	-	-	resolver_rule	yes	-
+Universal Permissive License (UPL)	upl	UPL-1.0	trove_name	-	trove_name	UPL-1.0	-	-	resolver_rule	yes	-

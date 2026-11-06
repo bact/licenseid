@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The answers the title reader (``licenseid.resolvetitle``: the title a
-licence's own text gives itself) moved in the parity corpus and the PyPI
-sample, grouped by the rule.
+licence's own text gives itself) and the UPL trove name moved in the parity
+corpus and the PyPI sample, grouped by the rule.
 
 The answers are in ``fixtures/resolver_titles_changes.tsv``;
 :data:`REASONS` says why each group moved. ``resolver_corpus`` merges
@@ -32,6 +32,11 @@ REASONS: dict[str, str] = {
         "the GPL v3 title line writes a version and no grant: the bare"
         " deprecated ID, `assumed_only` with both candidates, never narrowed"
         f" (P49), after a `text_title` step; {_WAS}"
+    ),
+    "upl": (
+        "the UPL trove name writes no version, but UPL-1.0 is the only UPL:"
+        " read as it (`trove_name`), an exception to P47 the maintainer made"
+        f" on 2026-11-05; {_WAS}"
     ),
 }
 

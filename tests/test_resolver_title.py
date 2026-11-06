@@ -32,6 +32,7 @@ def _folded_text(license_id: str) -> str:
 @pytest.mark.parametrize(
     ("title", "texts"),
     [
+        ("cc0", ["CC0-1.0"]),
         ("cc0 1.0 universal", ["CC0-1.0"]),
         (
             "gnu general public license version 3, 29 june 2007",
@@ -49,6 +50,7 @@ def test_the_text_of_each_id_writes_its_title(title: str, texts: list[str]) -> N
 
 def test_every_title_is_checked_against_a_text() -> None:
     assert sorted(TITLES) == [
+        "cc0",
         "cc0 1.0 universal",
         "gnu general public license version 3, 29 june 2007",
         "mulan psl v2",
@@ -67,6 +69,8 @@ def test_the_v2_title_is_not_in_the_v1_text() -> None:
     [
         ("CC0 1.0 Universal", "CC0-1.0"),
         ("cc0 1.0 universal", "CC0-1.0"),
+        ("CC0", "CC0-1.0"),  # no version: an exception to P47
+        ("cc0", "CC0-1.0"),
         ("Mulan PSL v2", "MulanPSL-2.0"),
         ("MULAN PSL V2", "MulanPSL-2.0"),
     ],
@@ -123,9 +127,9 @@ def test_a_title_takes_one_end_mark(corpus_db: LicenseDatabase) -> None:
 @pytest.mark.parametrize(
     "value",
     [
-        "CC0",  # no version (P47)
-        "Universal Permissive License (UPL)",  # a trove name of no version
-        "Universal Permissive License",
+        "Universal Permissive License",  # no title, no trove name
+        "CC0 2.0 Universal",
+        "CC 0",
         "CC0  1.0 Universal",  # spacing matters, as for a List name
         "The CC0 1.0 Universal",
         "CC0 1.0 Universal License",
@@ -159,6 +163,13 @@ def test_a_title_is_no_operand(corpus_db: LicenseDatabase) -> None:
     assert got["reason"] == "operand of several words: CC0 1.0 Universal"
 
 
+def test_a_one_word_title_is_an_operand(corpus_db: LicenseDatabase) -> None:
+    """An operand reads as it would alone: ``CC0`` is one word."""
+    got = resolve("CC0 OR MIT", corpus_db)
+    assert (got["expression"], got["category"]) == ("CC0-1.0 OR MIT", "text_title")
+    assert resolve("CC0+", corpus_db)["expression"] is None  # no grant on a title
+
+
 def test_a_title_whose_id_the_list_lacks_names_nothing() -> None:
     for path in seeded_db("title_lacks", [Lic("MIT", "MIT License")]):
         db = LicenseDatabase(path, create=False)
@@ -184,7 +195,9 @@ def test_read_title_says_whether_the_value_is_a_title(
     ("text", "expression", "exact"),
     [
         ("CC0 1.0 Universal", "CC0-1.0", True),
+        ("CC0", "CC0-1.0", True),
         ("Mulan PSL v2", "MulanPSL-2.0", True),
+        ("Universal Permissive License (UPL)", "UPL-1.0", True),  # trove name
     ],
 )
 def test_detect_answers_a_title_through_resolve(
