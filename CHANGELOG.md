@@ -7,7 +7,13 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.7.2] - Unreleased
+## [Unreleased]
+
+### Changed
+
+- Builds the wheel's SBOM with Pitloom 0.23.0 (`build-system.requires`
+  `pitloom>=0.23.0`), which reads a dependency's licence name as its ID
+  (`MIT License` is `MIT`) ([#164])
 
 ### Fixed
 
@@ -17,6 +23,7 @@ and this project adheres to
   ([#162])
 
 [#162]: https://github.com/bact/licenseid/pull/162
+[#164]: https://github.com/bact/licenseid/pull/164
 
 ## [0.7.1] - 2026-11-05
 
