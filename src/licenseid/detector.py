@@ -23,7 +23,12 @@ from licenseid.identifiers import (
     is_stray_plus,
     simple_value,
 )
-from licenseid.looseid import disambiguate_whole, loose_with, warn_narrowed
+from licenseid.looseid import (
+    disambiguate_whole,
+    loose_with,
+    narrow_ids,
+    warn_narrowed,
+)
 from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
@@ -442,9 +447,13 @@ class LicenseDetector:
         """The results of *resolution*'s expression, read from *value*, made
         what the resolution says (resolvefirst)."""
         expression = resolution["expression"] or ""
-        found = self._resolve_declared(expression, value) or [
-            match_of(expression, self.markers.license_flags(expression))
-        ]
+        found = self._resolve_declared(expression, value)
+        if not found:  # no marker reader takes it: "MIT WITH AdditionRef-x"
+            narrow = narrow_ids(self.db, expression)
+            found = [match_of(narrow, self.markers.license_flags(narrow))]
+            if narrow != expression:  # a guess, said and not exact
+                warn_narrowed(value, narrow)
+                found[0]["exact"] = False
         return as_resolved(resolution, found)
 
     def _match_text(

@@ -181,3 +181,49 @@ def test_resolve_on_an_outdated_database_in_a_plain_process(tmp_path: Path) -> N
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip() == "MIT"
     assert "database: build v2 outdated" in done.stderr
+
+
+# once() under context-aware warnings: an ignored warning is not marked given.
+_CONTEXT = """
+import sys, warnings
+sys.path.insert(0, sys.argv[1])
+from licenseid import warning
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    with warning.once():
+        warning.warn("input", "x", "1")
+with warnings.catch_warnings(record=True) as given:
+    warnings.simplefilter("always")
+    with warning.once():
+        warning.warn("input", "x", "1")
+print(len(given))
+"""
+
+
+def test_once_reads_the_filters_of_the_context() -> None:
+    """With ``-X context_aware_warnings`` (3.14; a free-threaded build's
+    default) ``catch_warnings`` keeps its filters in the context, apart
+    from ``warnings.filters``: an ignored warning is still given later.
+    Earlier versions take the option and ignore it."""
+    source = str(Path(warning.__file__).resolve().parents[1])
+    done = subprocess.run(
+        [sys.executable, "-I", "-X", "context_aware_warnings=1", "-c", _CONTEXT]
+        + [source],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    )
+    assert done.stdout.strip() == "1", done.stderr
+
+
+def test_once_takes_the_filters_python_says_are_in_force(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Where ``warnings._get_filters`` exists, it says which filters are in
+    force, not ``warnings.filters``; elsewhere ``warnings.filters`` does."""
+    in_force: list[tuple[object, ...]] = []
+    monkeypatch.setattr(warnings, "_get_filters", lambda: in_force, raising=False)
+    assert warning._filters() is in_force  # pylint: disable=protected-access
+    monkeypatch.delattr(warnings, "_get_filters")
+    assert warning._filters() is warnings.filters  # pylint: disable=protected-access

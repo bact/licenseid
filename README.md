@@ -52,9 +52,9 @@ generator.*
     aloud: not exact, with `WARNING: input: variant not stated: GPL-2.0;
     using GPL-2.0-only`, whether the ID is an argument, `--id`, a tag or a
     manifest field; `resolve()` keeps them as written (below). A List name
-    without its grant (`GNU General Public License v2.0`) is the same guess,
-    said the same way; a name with a "+" (`v2.0+`), or without its version
-    too, is no answer.
+    without its grant (`GNU General Public License v2.0`), as a whole input
+    but not yet a manifest field, is the same guess, said the same way; a
+    name with a "+" (`v2.0+`), or without its version too, is no answer.
 - **Declared-value resolution** (`resolve()`, and `licenseid resolve` on the
   command line): turns one declared licence value (a `license` field, a
   model card, a trove classifier) into an SPDX expression and the steps
@@ -72,8 +72,9 @@ generator.*
     licence): duplicate operands collapse (`MIT AND MIT` → `MIT`)
     and operands are put in a consistent order, making equivalent expressions
     compare equal. A whole input takes `resolve()`'s canonical order
-    (`MirOS OR MIT`); a tag or a field keeps the detector's own until 0.8
-    (`MIT OR MirOS`).
+    (`MirOS OR MIT`); a tag, a field and a narrowed guess keep the
+    detector's own until 0.8 (`MIT OR MirOS`; `MirOS OR GPL-2.0` is
+    `GPL-2.0-only OR MirOS`).
   - The flags of an expression are judged operand by operand: `AND` is
     OSI-approved (or FSF-libre) when every operand is, `OR` when any is,
     `X WITH Y` when `X` is. An operand that cannot be judged (a
@@ -177,7 +178,7 @@ Advanced update options:
     host is reachable.
   - `upstream`: SPDX's own release tarball on GitHub (about 49 MB).
   - `packaged`: the bundle shipped in the package: the SPDX License List
-    pinned for that release (3.29.0 for 0.7.1). `licenseid update` still
+    pinned for that release (3.29.0 for 0.7.2). `licenseid update` still
     works with no network, with data that may be older.
 
 ### 2. Detect a licence, or resolve a declared value
@@ -376,7 +377,8 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   written `\xHH`, `\uHHHH` or `\UHHHHHHHH`. `--json` is UTF-8 on every
   locale.
 - `EXPRESSION` is the answer: a licence ID or an expression for `detect`
-  (a tag, a field, or a whole input `resolve()` reads, in its order).
+  (a tag, a field, or a whole input `resolve()` reads, in its order; a
+  narrowed guess in the detector's).
 - `METHOD` is how the answer was found: `tag` (an `SPDX-License-Identifier`
   tag), `field` (a manifest's `license` field), `id` (a licence ID), `name`
   (a licence name) or `text` (the licence text).
@@ -665,7 +667,7 @@ Apache-2.0
 If you use this software, please cite it as follows:
 
 > Suriyawongkul, A. (2026). LicenseID - A portable SPDX licence identification
-> tool (Version 0.7.1) [Computer software].
+> tool (Version 0.7.2) [Computer software].
 > <https://doi.org/10.5281/zenodo.19881009>
 
 BibTeX:
@@ -678,7 +680,7 @@ BibTeX:
     month = nov,
     title = {{LicenseID - A portable SPDX licence identification tool}},
     url = {https://github.com/bact/licenseid.git},
-    version = {0.7.1},
+    version = {0.7.2},
     year = {2026}
 }
 ```
