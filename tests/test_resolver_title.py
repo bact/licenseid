@@ -138,7 +138,6 @@ def test_a_title_takes_one_end_mark(corpus_db: LicenseDatabase) -> None:
         "Universal Permissive License",  # no title, no trove name
         "CC0 2.0 Universal",
         "CC 0",
-        "CC0  1.0 Universal",  # spacing matters, as for a List name
         "The CC0 1.0 Universal",
         "CC0 1.0 Universal License",
         "CC0 1.0 Universe",
@@ -281,3 +280,22 @@ def test_an_explicit_id_resolve_refuses_has_no_answer(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     assert LicenseDetector(corpus_db.location).detect(license_id=value) == []
+
+
+@pytest.mark.parametrize(
+    ("value", "expression"),
+    [
+        ("CC0  1.0 Universal", "CC0-1.0"),
+        ("Mulan\tPSL v2", "MulanPSL-2.0"),
+        ("CC0 1.0\u00a0Universal", "CC0-1.0"),  # a no-break space
+        # the heading as the GPL v3 text writes it, on two lines
+        ("GNU GENERAL PUBLIC LICENSE\n   Version 3, 29 June 2007", "GPL-3.0"),
+    ],
+    ids=["two-spaces", "tab", "no-break", "two-lines"],
+)
+def test_a_run_of_white_space_in_a_title_is_one_space(
+    corpus_db: LicenseDatabase, value: str, expression: str
+) -> None:
+    got = resolve(value, corpus_db)
+    assert got["expression"] == expression
+    assert got["steps"][0]["kind"] == "text_title"

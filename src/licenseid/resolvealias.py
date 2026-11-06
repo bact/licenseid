@@ -42,7 +42,8 @@ License``, ``BSD-style``), which the trove table reads as no licence;
 ``FreeBSD-DOC`` and the deprecated ``BSD-2-Clause-FreeBSD``; and any
 spelling no project declares (``BSD 2``, ``BSD 4``).
 
-Case does not matter, in ASCII only; white space does, as in a List name.
+Case does not matter, in ASCII only, and a run of white space reads as one
+space (``New  BSD``), as in a List name.
 """
 
 from typing import Final

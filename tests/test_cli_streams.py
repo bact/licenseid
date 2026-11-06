@@ -142,6 +142,9 @@ def _environ(tmp_path: Path) -> dict[str, str]:
     ("script", "exit_code", "stderr"),
     [
         ("$L detect <&-", 2, "ERROR: input: missing; pass a file, an ID,"),
+        # "-" names the closed stream: no input too (was a traceback, exit 1)
+        ("$L detect - <&-", 2, "ERROR: input: missing; pass a file, an ID,"),
+        ("$L is-osi - <&-", 2, "ERROR: input: missing; pass a file, an ID,"),
         ("$L detect --id-only MIT >&-", 2, "ERROR: output: write failed: closed"),
         ("$L is-osi MIT >&-", 2, "ERROR: output: write failed: closed"),
         # click writes help itself, before any command runs
@@ -161,6 +164,8 @@ def _environ(tmp_path: Path) -> dict[str, str]:
     ],
     ids=[
         "stdin-closed",
+        "dash-stdin-closed",
+        "is-osi-dash-stdin-closed",
         "stdout-closed",
         "is-osi-stdout-closed",
         "help-stdout-closed",

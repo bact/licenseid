@@ -18,12 +18,13 @@ from licenseid.resolvetrove import copy_reading
 def read_by_table(
     db: ListLookup, text: str, table: Mapping[str, str], kind: str, found: Found
 ) -> bool:
-    """Read *text* as the ID *table* gives its folded form
-    (:func:`licenseid.listlookup.fold_case`, ASCII only) into *found*: a step
+    """Read *text* as the ID *table* gives its folded form (each run of white
+    space one space, a line break too, and
+    :func:`licenseid.listlookup.fold_case`, ASCII only) into *found*: a step
     of *kind* to that ID, then the steps of the ID read alone (a bare
     deprecated ID stays ``assumed_only``). False if *table* lacks *text* or
     the list lacks its ID."""
-    license_id = table.get(fold_case(text))
+    license_id = table.get(fold_case(" ".join(text.split())))
     if license_id is None:
         return False
     reading = Found()

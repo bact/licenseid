@@ -366,19 +366,17 @@ def test_a_short_licence_input_keeps_its_answer(
     assert given.take() == []
 
 
-def test_the_two_title_lines_of_gpl_3_are_lost(
+def test_the_two_title_lines_of_gpl_3_are_its_title(
     db_path: str, given: GivenWarnings
 ) -> None:
-    """A known loss, open for 0.8: the two title lines of GPL-3.0 (49
-    characters) answered it by text; under ten words, they are now left to
-    resolve(), whose title table has them on one line only."""
+    """The two title lines of GPL-3.0 (under ten words) are left to
+    resolve(), whose title table reads a run of white space as one space:
+    on two lines as on one, the -only guess, said aloud."""
     text = head("GPL-3.0-only", 2)
     assert "\n" in text
-    assert not detect(db_path, text)
-    assert given.conditions() == {"too few words for text"}
-    one_line = " ".join(text.split())
-    assert detect(db_path, one_line)[0]["expression"] == "GPL-3.0-only"
-    assert given.conditions() == {"variant not stated"}
+    for value in (text, " ".join(text.split())):
+        assert detect(db_path, value)[0]["expression"] == "GPL-3.0-only"
+        assert given.conditions() == {"variant not stated"}
 
 
 @pytest.mark.parametrize("license_id", ["MulanPSL-1.0", "MulanPSL-2.0"])

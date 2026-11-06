@@ -98,7 +98,9 @@ def read_input(ctx: click.Context, path: str | None) -> str:
         if path is not None:
             text = read_text_file(path)
         else:
-            if (buffer := getattr(sys.stdin, "buffer", None)) is not None:
+            if sys.stdin is None:  # closed (<&-): no input, as with no "-"
+                data = b""
+            elif (buffer := getattr(sys.stdin, "buffer", None)) is not None:
                 data = buffer.read()
             else:  # stdin replaced by a text-only stream
                 data = sys.stdin.read().encode("utf-8", "surrogatepass")
