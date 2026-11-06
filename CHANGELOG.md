@@ -7,17 +7,16 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.2] - 2026-11-06
 
 ### Changed
 
 - `detect` reads a whole input with `resolve()` first and answers its
-  expression: `MIT OR Apache-2.0` is `Apache-2.0 OR MIT` (was `ECL-2.0`, a
-  text guess), `Apache 2+` is `Apache-2.0+`; a guess stays not exact ([#161])
-- An input under 10 words that `resolve()` refuses and no licence name
-  matches is not matched as text: no answer, with `WARNING: input: too few
-  words for text: <reason>` (`GNU GPL v2` was `LiLiQ-R-1.1`); Chinese and
-  Japanese are matched at any length ([#161])
+  expression: `MIT OR Apache-2.0` is `Apache-2.0 OR MIT` (`detect()` gave
+  `ECL-2.0`), `Apache 2+` is `Apache-2.0+`; a guess is not exact ([#161])
+- An input under 10 words that `resolve()` refuses and no name matches
+  gets no text match and warns `too few words for text` (`GNU GPL v2` was
+  `LiLiQ-R-1.1`); Chinese and Japanese are exempt ([#161])
 - `resolve()` reads a licence's own title (`CC0 1.0 Universal`, `Mulan PSL
   v2`, the GPL v3 title line), a bare `CC0` and the UPL trove name; `detect`
   finds them by name ([#163], [#165])
@@ -29,9 +28,8 @@ and this project adheres to
 
 - `resolve()` refuses a 20 MB value with no outer brackets as too long in
   0.1 s (was 1.4 s) ([#161])
-- `resolve()` and `detect()` no longer raise `AttributeError` in a plain
-  Python process when the database warns (`build vN outdated`,
-  `N days old`): Python's built-in default warning filter crashed them
+- `resolve()` and `detect()` no longer raise `AttributeError` under
+  Python's default warning filters when they warn (`build vN outdated`)
   ([#162])
 
 [#161]: https://github.com/bact/licenseid/pull/161
@@ -787,6 +785,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[0.7.2]: https://github.com/bact/licenseid/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/bact/licenseid/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/bact/licenseid/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/bact/licenseid/compare/v0.5.0...v0.6.0
