@@ -43,8 +43,9 @@ def db() -> Generator[str, None, None]:
     rows = [
         Lic("MIT", "MIT License", True, True, True, search_text=MIT_SEARCH_TEXT),
         Lic("Apache-2.0", "Apache License 2.0", True, True, True),
-        # Shares every word of "MIT License": a look-alike, not exact.
-        Lic("MIT-Variant", "MIT License Variant"),
+        # The words of "MIT License" in another order: a look-alike, not
+        # exact. (A name that holds them and more is no match at all.)
+        Lic("MIT-Variant", "License MIT"),
         # Shares MIT's name, but deprecated: MIT is the exact answer.
         Lic("MIT-Old", "MIT License", is_deprecated=True),
         # Deprecated, with a name of its own, and a look-alike in use (as
