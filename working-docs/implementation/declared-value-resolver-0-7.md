@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -237,10 +237,21 @@ exception or a `LicenseRef-*` (P80) and to a lone dash after a prose form.
   `Apache Software License` are open by decision (Q3, deferred to 0.8), not
   by a missing rule. A name with no version where the List holds one version
   only (`Common Public License`) is `none` (P47), except `Universal
-  Permissive License (UPL)`, `UPL-1.0` (the maintainer, 2026-11-05). One special case,
-  `GNU Lesser General Public License v2 (LGPLv2)`, reads as `LGPL-2.0`,
-  `assumed_only` (Q23, the maintainer, 2026-10-28). A trove step lists
-  `pypi-trove-classifiers` as a second entry of `lists`, always `packaged`.
+  Permissive License (UPL)`, `UPL-1.0` (the maintainer, 2026-11-05). One
+  special case, `GNU Lesser General Public License v2 (LGPLv2)`, reads as
+  `LGPL-2.0`, `assumed_only` (Q23, the maintainer, 2026-10-28). A trove step
+  lists `pypi-trove-classifiers` as a second entry of `lists`, always
+  `packaged`.
+- **Titles (#163).** `resolvetitle.py` holds, as data, the titles a
+  licence's own text gives itself (`CC0 1.0 Universal`, `Mulan PSL v2`, the
+  GPL v3 title line, read as the bare `GPL-3.0`, P49), category
+  `text_title`, trust `resolver_rule`, found by `name` in `detect()`. A test
+  checks that each ID's text writes its title. A bare `CC0` is the other
+  exception to P47 (the maintainer, 2026-11-05): the CC0 text calls itself
+  so. Case folds in ASCII only (`listlookup.fold_case`). `license_id` reads
+  the one-word title too (`--id CC0`); a tag and a field do not, until they
+  go through `resolve()` in 0.8. A title followed by `License` is no prose
+  form (`CC0 License`), and the two-line GPL title is not read.
 
 ## Semicolon lists as an unstated operator (T8b, #131; P81 to P88)
 
