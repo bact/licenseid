@@ -23,11 +23,12 @@ generator.*
 - **Hybrid matching pipeline**:
   - **A whole value first**: an input that is, as a whole, one declared
     value (`MIT OR Apache-2.0`, `Apache License, Version 2.0`, `GPLv3+`) is
-    read by `resolve()`, so `detect` and `resolve` give one expression for
-    it. An input under 10 words that `resolve()` refuses and no licence
-    name matches is not matched as text: no answer, with `WARNING: input:
-    too few words for text: <reason>` (`not found: GNU GPL v2`). Chinese
-    and Japanese, written without spaces, are matched at any length.
+    read by `resolve()`, so `detect` answers its expression, or, for a bare
+    split ID, the `-only` guess (below). An input under 10 words that
+    `resolve()` refuses and no licence name matches is not matched as text: no
+    answer, with `WARNING: input: too few words for text: <reason>` (`not found:
+    GNU GPL v2`). Chinese and Japanese, written without spaces, are matched at
+    any length.
   - **Tier 0.5 (Marker detection)**: Detects `SPDX-License-Identifier` tags and
     structured markers (name fields, headings). An exact SPDX tag returns
     immediately with full confidence.
@@ -391,8 +392,9 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   text as the SPDX License List writes it, after case, punctuation and
   white space are normalised. A guess (`GPL-2.0` read as `GPL-2.0-only`)
   is not exact. A filled-in copyright line or an added title makes a text
-  not exact, as does a name that only shares the words of the input. Licenses with the
-  same text (`GPL-2.0-only` and `GPL-2.0-or-later`) are all exact for it.
+  not exact, as does a name that only shares the words of the input.
+  Licences with the same text (`GPL-2.0-only` and `GPL-2.0-or-later`) are
+  all exact for it.
   `--exact` keeps only the exact results.
 - `SCORE` is 0 to 1; `--threshold` reads it. Several results can score 1:
   the order tells them apart, and `EXACT` tells an exact one from a close
