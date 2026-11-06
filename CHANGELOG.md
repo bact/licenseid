@@ -15,6 +15,14 @@ and this project adheres to
   `pitloom>=0.23.0`), which reads a dependency's licence name as its ID
   (`MIT License` is `MIT`) ([#164])
 
+### Fixed
+
+- `resolve()` and `detect()` no longer raise `AttributeError` in a plain
+  Python process when the database warns (`build vN outdated`,
+  `N days old`): Python's built-in default warning filter crashed them
+  ([#162])
+
+[#162]: https://github.com/bact/licenseid/pull/162
 [#164]: https://github.com/bact/licenseid/pull/164
 
 ## [0.7.1] - 2026-11-05
