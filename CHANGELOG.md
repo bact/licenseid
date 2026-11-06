@@ -14,18 +14,17 @@ and this project adheres to
 - `detect` reads a whole input with `resolve()` first and answers its
   expression: `MIT OR Apache-2.0` is `Apache-2.0 OR MIT` (was `ECL-2.0`, a
   text guess), `Apache 2+` is `Apache-2.0+`; a guess stays not exact ([#161])
-- An input under 10 words that `resolve()` refuses is not matched as text:
-  no answer, with `WARNING: input: too few words for text: <reason>`
-  (`GNU GPL v2` was `LiLiQ-R-1.1`) ([#161])
-- `resolve()` reads the title a licence's own text gives itself, category
-  `text_title`: `CC0`, `CC0 1.0 Universal`, `Mulan PSL v2`, and the GPL v3
-  title line as the bare `GPL-3.0`; the UPL trove name is `UPL-1.0`;
-  `detect` answers them again ([#163])
+- An input under 10 words that `resolve()` refuses and no licence name
+  matches is not matched as text: no answer, with `WARNING: input: too few
+  words for text: <reason>` (`GNU GPL v2` was `LiLiQ-R-1.1`); Chinese and
+  Japanese are matched at any length ([#161])
+- `resolve()` reads a licence's own title (`CC0 1.0 Universal`, `Mulan PSL
+  v2`, the GPL v3 title line), a bare `CC0` and the UPL trove name; `detect`
+  finds them by name ([#163])
 - Builds the wheel's SBOM with Pitloom 0.23.0 (`build-system.requires`
   `pitloom>=0.23.0`), which reads a dependency's licence name as its ID
   (`MIT License` is `MIT`) ([#164])
-  
-  
+
 ### Fixed
 
 - `resolve()` refuses a 20 MB value with no outer brackets as too long in
