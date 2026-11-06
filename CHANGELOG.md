@@ -50,7 +50,7 @@ and this project adheres to
   (copyright) was `CC-BY-SA-2.1-JP` at 1.0; MulanPSL's Chinese title line
   now scores 0.5 ([#168])
 - `detect -` with standard input closed exits 2 with `input: missing`; it
-  was a traceback and exit 1
+  was a traceback and exit 1 ([#171])
 
 [#161]: https://github.com/bact/licenseid/pull/161
 [#162]: https://github.com/bact/licenseid/pull/162
@@ -60,6 +60,7 @@ and this project adheres to
 [#167]: https://github.com/bact/licenseid/pull/167
 [#168]: https://github.com/bact/licenseid/pull/168
 [#170]: https://github.com/bact/licenseid/pull/170
+[#171]: https://github.com/bact/licenseid/pull/171
 
 ## [0.7.1] - 2026-11-05
 
