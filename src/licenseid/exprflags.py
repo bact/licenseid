@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 import py_spdx_license
 
+from licenseid.exprtokens import without_addition_refs
 from licenseid.identifiers import parse_declared
 from licenseid.types import LicenseFlags
 
@@ -50,6 +51,18 @@ def declared_flags(value: str, db: "LicenseDatabase") -> LicenseFlags | None:
     if not any(isinstance(leaf, known) for leaf in _leaves(tree)):
         return None
     return expression_flags(tree, db)
+
+
+def judged_flags(value: str, db: "LicenseDatabase") -> LicenseFlags | None:
+    """:func:`declared_flags` of *value*, a ``WITH AdditionRef-*`` read as
+    its licence (a ``WITH`` takes its licence's flags): ``MIT WITH
+    AdditionRef-x OR ISC`` is OSI-approved. An ``AdditionRef-*`` is not on
+    the List, so such a value is not ``is_spdx``."""
+    stripped, dropped = without_addition_refs(value)
+    flags = declared_flags(stripped, db)
+    if flags is not None and dropped:
+        flags["is_spdx"] = False
+    return flags
 
 
 def _leaves(node: py_spdx_license.Node) -> list[py_spdx_license.Node]:

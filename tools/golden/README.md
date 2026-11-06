@@ -12,7 +12,7 @@ listed. The files are in `tests/fixtures/golden/` (see the section
 python -m tools.golden
 # Rewrite the files from the tree you are on:
 python -m tools.golden --write
-# One part only: id, name, short, long, mixed, cli
+# One part only: id, name, value, short, long, mixed, cli
 python -m tools.golden --write cli
 ```
 
@@ -37,14 +37,15 @@ Never edit a golden file by hand.
 | File | Rows | One row is |
 | --- | --- | --- |
 | `detect_id.tsv`, `detect_name.tsv` | one per spelling | the top result for an ID or a name, as the fixture spells it |
+| `detect_value.tsv` | one per value | the top result for a declared value of the resolver corpus (parity and PyPI sample) |
 | `detect_short.tsv` | one per licence | a head or tail slice of its text (300 to 2,000 characters) |
 | `detect_long.tsv` | every third licence | its verbatim text |
 | `detect_mixed.tsv` | one per file | a file of `mixed-content` or `mixed-content-curated` |
 | `cli.jsonl` | one per case and mode | exit status, standard output and standard error of a command, as text and with `--json` |
 
 The detect rows hold the expression, the method, `exact` and the score to four
-places. The `detect()` database is the one of the long-text fixtures
-(`tests/harness_db.py`). The CLI cases are in `tests/harness_cli.py`; they run
+places. The `detect()` database is the one of the long-text fixtures; for
+`value`, the whole List with those texts (`tests/harness_db.py`). The CLI cases are in `tests/harness_cli.py`; they run
 on a database and a shipped list built from the fixtures, a network that is
 down and a scratch home, and name the scratch paths `<DB>` and `<TMP>`.
 

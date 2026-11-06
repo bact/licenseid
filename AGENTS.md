@@ -19,8 +19,11 @@
   data), `resolver.py` (a declared licence value to an SPDX expression and
   the steps taken; its types and vocabularies are in `resolvertypes.py`),
   `keptdetector.py` (`licenseid.detect()`: one `LicenseDetector` kept per
-  default database file), `listlookup.py` (the list lookups the resolver
-  reads through: a Protocol), `listrules.py` (which SPDX entries are kept and
+  default database file), `detectrequest.py` (the checks of a `detect()`
+  call that need no database), `resolvefirst.py` (`detect()` on an input
+  `resolve()` reads as a whole, and the cut of a short refused one),
+  `listlookup.py` (the list lookups the resolver reads through: a
+  Protocol), `listrules.py` (which SPDX entries are kept and
   what a deprecated ID points to; `records.py` builds rows from it),
   `resolveleaf.py` (the reading of one value that names one licence, called
   by `resolver.py` per value), `resolvecompound.py` (a compound, each
@@ -210,7 +213,7 @@ Unix philosophy. Consistent, predictable, parseable.
     `stale cache unusable`, `parse failed`, `variant not stated`,
     `N rows with missing or non-numeric num_pushers`, `update failed`,
     `delete failed`, `write failed`, `compact failed`,
-    `older than the database`.
+    `older than the database`, `too few words for text`.
   - `DETAIL`: the variable part (exception text, value, path), on one
     line: a path or file name through `errors.shown` (a control character
     escaped, `;` as `,`), a value through `errors.one_line` (folded, cut to
@@ -518,12 +521,16 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   `WITH` an exception, in any brackets), and
   both entry points read it — `cliinput.reject_compound_id` exits 2 through
   `errors.invalid_id_error`, `LicenseDetector._try_explicit_id_match`
-  raises. Text that is one simple expression and nothing else (`GPL-2.0+`)
-  is read as `license_id` reads it, by
-  `LicenseDetector._try_tier0_short_text`, whatever brings it (argument,
-  `--text`, stdin, file, `detect(text=...)`); the rest, and a value that
-  resolves to no license, is matched as text. The CLI
-  makes no ID guess of its own. Ask the predicate BEFORE calling
+  raises. A whole input, whatever brings it (argument, `--text`, stdin,
+  file, `detect(text=...)`), is read by `resolve()` first
+  (`resolvefirst.as_resolved`): its expression is the answer, a compound
+  too (`MIT OR ISC`). The rest goes through the tiers; one under
+  `resolvefirst.MIN_TEXT_WORDS` (10, measured on the goldens) that the name
+  tier does not answer gets no text match and warns `too few words for
+  text` (not after a tag was taken out). Han and kana text is not cut: a
+  word count is no measure without spaces (the CJK trap below). The CLI
+  makes no ID guess of its
+  own. Ask the predicate BEFORE calling
   `detect(license_id=...)`, which raises rather than returning no match.
   Do not widen `--id` to expressions
   again: `MIT OR Apache-2.0` declares neither license, and the flags

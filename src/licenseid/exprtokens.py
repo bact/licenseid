@@ -198,6 +198,19 @@ def is_license_ref(text: str) -> bool:
     return _RE_WHOLE_LICENSE_REF.fullmatch(text) is not None
 
 
+_RE_WITH_ADDITION_REF = re.compile(
+    rf"\sWITH\s+{_RE_WHOLE_ADDITION_REF.pattern}",
+    re.IGNORECASE | re.ASCII,
+)
+
+
+def without_addition_refs(text: str) -> tuple[str, int]:
+    """*text* with each ``WITH AdditionRef-*`` taken out, and how many: the
+    licence it adds to is what the OSI and the FSF judged, and the parser
+    reads no ``AdditionRef-*``."""
+    return _RE_WITH_ADDITION_REF.subn("", text)
+
+
 def is_addition_ref(text: str) -> bool:
     """Whether *text* is one ``AdditionRef-*`` (SPDX 3: an exception of the
     author's own, beside ``LicenseRef-*``), with its ``DocumentRef-*:`` if

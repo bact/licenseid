@@ -11,7 +11,7 @@ from typing import cast
 from licenseid.bsdclauses import bsd_clause_id
 from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
-from licenseid.exprflags import declared_flags
+from licenseid.exprflags import declared_flags, judged_flags
 from licenseid.identifiers import (
     leading_expression,
     names_only_listed,
@@ -221,14 +221,14 @@ class MarkerDetector:
         return []
 
     def resolve_license_value(
-        self, val: str, score: float, *, whole: bool = False
+        self, val: str, score: float, *, whole: bool = False, shown: str | None = None
     ) -> list[CandidateMatch]:
         """Resolve a license string (ID, name, or SPDX URL) to candidates.
 
         With *whole*, the expression must be the entire value, as in a
         manifest field, which holds nothing else: "MIT/Apache-2.0" there is
         not MIT with trailing prose, and answering MIT would drop a license.
-        """
+        A narrowed guess is said of *shown*, the value as written, if given."""
         # SPDX license URL: https://spdx.org/licenses/Apache-2.0, or the
         # License List's own page for it, .../Apache-2.0.html
         if val.startswith("http") and "/licenses/" in val:
@@ -270,14 +270,14 @@ class MarkerDetector:
         inexact = read_inexactly(self.db, expression, found)
         if inexact:  # "GPL-2.0" read as GPL-2.0-only: said, and not exact
             if inexact == "narrowed":
-                warn_narrowed(expression, found[0]["license_id"])
+                warn_narrowed(shown or expression, found[0]["license_id"])
             found[0]["narrowed"] = True
         return found
 
     def license_flags(self, lic_id: str) -> LicenseFlags:
         """The SPDX, OSI and FSF flags of a license ID or expression: a
         database row's own, else those of the expression
-        (``exprflags.declared_flags``); for anything else, not on the List and not
+        (``exprflags.judged_flags``); for anything else, not on the List and not
         judged (None), never a false "no"."""
         details = self.db.get_license_details(lic_id)
         if details:
@@ -286,7 +286,7 @@ class MarkerDetector:
                 "is_osi_approved": bool(details["is_osi_approved"]),
                 "is_fsf_libre": bool(details["is_fsf_libre"]),
             }
-        flags = declared_flags(lic_id, self.db)
+        flags = judged_flags(lic_id, self.db)
         return flags or {
             "is_spdx": False,
             "is_osi_approved": None,

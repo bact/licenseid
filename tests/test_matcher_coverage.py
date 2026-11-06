@@ -24,6 +24,7 @@ from matcher_db import PROSE, Lic, seeded_db
 from licenseid.datadir import get_default_db_path
 from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
+from licenseid.normalize import normalize_text
 from licenseid.ranking import DEP_PENALTY
 from licenseid.types import CandidateMatch, DetectRequest
 
@@ -281,16 +282,21 @@ def test_deprecated_alias_is_penalised_in_short_text(
 ) -> None:
     """The alias matches the input name by token set (1.00 + 0.01 flex
     bonus). Deprecated, it loses DEP_PENALTY from that 1.01; current, it
-    keeps it. Either way the exact-name match leads."""
+    keeps it. Either way the exact-name match leads. resolve() reads the
+    listed name first, so detect() answers it alone; the name tier still
+    ranks both for a name it is given."""
     deprecated = "deprecated" in request.node.callspec.id
+    text = "GNU General Public License v2.0 only"
 
-    # The raw scores: the public one is capped to 1, the order kept.
+    # The raw scores of the name tier.
     matcher = LicenseDetector(alias_db)
-    results = matcher._match_raw(  # pylint: disable=protected-access
-        "GNU General Public License v2.0 only"
+    results = matcher._match_short_text(  # pylint: disable=protected-access
+        normalize_text(text), text
     )
-    public = matcher.detect("GNU General Public License v2.0 only")
-    assert [r["expression"] for r in public] == ["GPL-2.0-only", "GPL-2.0"]
+    public = matcher.detect(text)
+    assert [(r["expression"], r["method"]) for r in public] == [
+        ("GPL-2.0-only", "name")
+    ]
 
     assert [r["license_id"] for r in results] == ["GPL-2.0-only", "GPL-2.0"]
     assert results[0]["score"] == pytest.approx(1.02)

@@ -15,7 +15,8 @@ from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path, require_path
-from licenseid.errors import InvalidInputError, invalid_id_error
+from licenseid.detectrequest import check_request
+from licenseid.errors import invalid_id_error
 from licenseid.identifiers import (
     is_qualified_plus,
     is_simple_expression,
@@ -27,7 +28,10 @@ from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
+from licenseid.resolvefirst import as_resolved, match_of, too_short
+from licenseid.resolver import resolve_with
 from licenseid.resolverinfo import list_info
+from licenseid.resolvertypes import Resolution
 from licenseid.result import public_result
 from licenseid.retrieval import get_candidates
 from licenseid.shorttext import (
@@ -58,65 +62,6 @@ from licenseid.types import (
 # fingerprint matches can break ties between near-equal similarity scores
 # without overriding genuine similarity differences.
 _FP_BOOST: float = 0.05
-
-
-# The keyword options detect() accepts; `text`, `license_id` and `file_path`
-# are its named parameters, so a request can carry no other key.
-_MATCH_OPTIONS: frozenset[str] = frozenset(DetectRequest.__annotations__) - {
-    "text",
-    "license_id",
-    "file_path",
-}
-
-
-def _check_inputs(text: object, license_id: object, file_path: object) -> None:
-    """The input rules of :meth:`LicenseDetector.detect` (P6 of the contract
-    batch): :class:`TypeError` for a *text* or *license_id* that is no
-    :class:`str` (it failed deep inside), or a *file_path* that is no path;
-    :class:`licenseid.errors.InvalidInputError` unless exactly one of the
-    three is given (none answered nothing; of two, one won unsaid)."""
-    for name, value in (("text", text), ("license_id", license_id)):
-        if value is not None and not isinstance(value, str):
-            raise TypeError(f"{name} must be str, not {type(value).__name__}")
-    if file_path is not None:
-        require_path(file_path, "file_path")
-    given = [
-        name
-        for name, value in (
-            ("text", text),
-            ("license_id", license_id),
-            ("file_path", file_path),
-        )
-        if value is not None
-    ]
-    if not given:
-        raise InvalidInputError("input: missing; pass text, license_id or file_path")
-    if len(given) > 1:
-        raise InvalidInputError(
-            f"input: invalid: {given[0]}: with {given[1]}; pass one input"
-        )
-
-
-def _reject_unknown_options(options: dict[str, Any]) -> None:
-    """Raise InvalidInputError for an option detect() does not know, so a typo
-    or a removed option (`enable_java`) cannot pass with no effect."""
-    unknown = sorted(options.keys() - _MATCH_OPTIONS)
-    if unknown:
-        raise InvalidInputError(
-            f"option: invalid: {', '.join(map(repr, unknown))}"
-            f"; use one of {', '.join(sorted(_MATCH_OPTIONS))}"
-        )
-
-
-def check_request(
-    text: object, license_id: object, file_path: object, options: dict[str, Any]
-) -> None:
-    """The checks of a detect() call that need no database: an unknown option
-    first (no input hides a typo), then the inputs. ``licenseid.detect()``
-    makes them before it opens the default database, so a wrong call is told
-    so whether a database is there or not."""
-    _reject_unknown_options(options)
-    _check_inputs(text, license_id, file_path)
 
 
 @dataclass(frozen=True)
@@ -195,10 +140,11 @@ class LicenseDetector:
                 _set_flags(match, self.markers.license_flags(match["license_id"]))
         return matches
 
-    def _resolve_declared(self, value: str) -> list[RawMatch]:
-        """The answer to a declared license value: certain, or none."""
+    def _resolve_declared(self, value: str, shown: str | None = None) -> list[RawMatch]:
+        """The answer to a declared license value: certain, or none. A
+        narrowed guess is said of *shown*, the value as written, if given."""
         return self._finalize_exact_markers(
-            self.markers.resolve_license_value(value, 1.0), method="id"
+            self.markers.resolve_license_value(value, 1.0, shown=shown), method="id"
         )
 
     def _resolve_loose_with(self, text: str) -> list[RawMatch]:
@@ -467,10 +413,28 @@ class LicenseDetector:
         target_text = self._resolve_target_text(text, file_path)
         if not target_text:
             return []
-
-        ctx = self._build_match_context(
-            target_text, file_path, cast(DetectRequest, options)
+        # The whole input as one declared value first, so detect() and
+        # resolve() answer it alike (resolvefirst).
+        whole = resolve_with(self.db, target_text)
+        if whole["expression"] is not None:
+            expression = whole["expression"]
+            found = self._resolve_declared(expression, target_text) or [
+                match_of(expression, self.markers.license_flags(expression))
+            ]
+            return as_resolved(whole, found)
+        return self._match_text(
+            self._build_match_context(
+                target_text, file_path, cast(DetectRequest, options)
+            ),
+            whole,
         )
+
+    def _match_text(
+        self, ctx: _MatchContext, whole: Resolution
+    ) -> Sequence[RawMatch | InternalMatch]:
+        """The tiers of an input resolve() did not read as a whole (*whole*):
+        its markers, a manifest's field, Tier 0's names, then Tiers 1 and 2."""
+        target_text = ctx.target_text
 
         # Tier 0.5: Marker Detection — SPDX-License-Identifier is
         # unambiguous and short-circuits; other markers feed the
@@ -493,7 +457,10 @@ class LicenseDetector:
         if short_text_result is not None:
             return short_text_result
 
-        # Tier 1: Broad Recall, then Tier 2: Precision Ranking.
+        # Tier 1: Broad Recall, then Tier 2: Precision Ranking; not for a
+        # short input resolve() refused (resolvefirst).
+        if too_short(whole, ctx.norm_input, whole=ctx.target_text == target_text):
+            return []
         ranked = self._run_tier1_and_tier2(ctx, marker_candidates, marker_boosts)
 
         # Tiebreaker: -only vs -or-later when scores are identical

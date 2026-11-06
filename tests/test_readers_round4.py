@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
 from licenseid import LicenseDatabase
@@ -92,15 +93,24 @@ def test_an_id_word_in_prose_is_spdx(corpus_db: LicenseDatabase, value: str) -> 
 
 
 # A licence listed beside the granted one is still refused, as resolve() does:
-# no exact answer (one with "and" goes on to the text tiers, not exact).
+# no exact answer. One joined by "and" is resolve()'s compound (was: the text
+# tiers, not exact).
 LISTED = [
     "GPL-3.0, LGPL-2.1 or later",
     "LGPL-2.1 or later, GPL-3.0",
     "MIT, GPL-2.0 or later",
     "GPL-2.0 or later; docs under the GFDL-1.3",
     "GPL-2.0 / LGPL-2.1 or later",
-    "ISC and GPL-2.0 or later",
 ]
+
+
+def test_a_licence_joined_by_and_beside_a_grant_is_a_compound(
+    corpus_db: LicenseDatabase, tmp_path: Path, given: GivenWarnings
+) -> None:
+    value = "ISC and GPL-2.0 or later"
+    answer = ("GPL-2.0-or-later AND ISC", True)
+    assert _text(corpus_db, value) == _file(corpus_db, tmp_path, value) == answer
+    assert not given.conditions()
 
 
 @pytest.mark.parametrize("value", LISTED)

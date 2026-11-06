@@ -42,7 +42,11 @@ def test_a_name_is_shown_on_one_line(value: str, written: str) -> None:
     ("content", "condition"),
     [
         (b"\x00\x01", "binary file"),
-        (b"caf\xe9 MIT", "not UTF-8, read as Latin-1"),
+        # Ten words or more, so the only warning is the encoding's.
+        (
+            b"caf\xe9: permission is hereby granted, free of charge, to any person",
+            "not UTF-8, read as Latin-1",
+        ),
         (b"   \n", "empty"),
     ],
     ids=["binary", "latin-1", "empty"],

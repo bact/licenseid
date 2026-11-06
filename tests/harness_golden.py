@@ -16,7 +16,10 @@ import warnings
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
+from resolver_corpus import corpus_rows
+
 from licenseid.detector import LicenseDetector
+from licenseid.textinput import has_lone_surrogate
 from tools.pypi_licence_sample.answer import escape_field, unescape_field
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -26,7 +29,7 @@ NONE = "-"
 #: Every n-th long text and the variant of each short text, see :func:`detect_cases`.
 LONG_STRIDE = 3
 #: The every-commit slice of each kind: every n-th case of its golden file.
-SLICE_STRIDE = {"long": 90, "short": 80, "mixed": 8, "id": 2, "name": 2}
+SLICE_STRIDE = {"long": 90, "short": 80, "mixed": 8, "id": 2, "name": 2, "value": 4}
 KINDS = tuple(SLICE_STRIDE)
 FILES = {
     "long": "detect_long.tsv",
@@ -34,6 +37,7 @@ FILES = {
     "mixed": "detect_mixed.tsv",
     "id": "detect_id.tsv",
     "name": "detect_name.tsv",
+    "value": "detect_value.tsv",
 }
 
 
@@ -46,7 +50,12 @@ def detect_cases(kind: str) -> list[tuple[str, str]]:
     of every third licence; ``short``: one slice of each text, head or tail
     of 300 to 2,000 characters, by the licence's place in the list; ``mixed``:
     every file of ``mixed-content`` and ``mixed-content-curated``; ``id`` and
-    ``name``: every spelling of the ID and name fixtures."""
+    ``name``: every spelling of the ID and name fixtures; ``value``: every
+    distinct declared value of the resolver corpus (parity and PyPI sample)."""
+    if kind == "value":
+        values = dict.fromkeys(unescape_field(row["value"]) for row in corpus_rows())
+        # detect() refuses a lone surrogate (InvalidInputError): no answer.
+        return [(f"value/{v}", v) for v in values if not has_lone_surrogate(v)]
     if kind in ("long", "short"):
         return _text_cases(kind)
     if kind == "mixed":

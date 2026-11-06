@@ -1,0 +1,524 @@
+# Golden snapshot of detect(): the top result of each case, on the database
+# of tests/harness_db.py (detector_for). Regenerate with
+# python -m tools.golden --write value; never edit by hand.
+case	expression	method	exact	score
+value/ MIT\n	MIT	id	yes	1.0000
+value/"MIT"	MIT	id	yes	1.0000
+value/#MIT	MIT	id	yes	1.0000
+value/'BSD'	0BSD	name	no	1.0000
+value/(MIT	MIT	id	yes	1.0000
+value/(MIT AND (Apache-2.0 OR ISC))	UCL-1.0	text	no	0.6400
+value/(MIT AND ISC) OR (ISC AND MIT)	CC-BY-4.0	text	no	0.6154
+value/(MIT OR Apache-2.0) AND BSD-3-Clause	BSD-4-Clause-Shortened	text	no	0.5926
+value/(MIT OR ISC) AND GPL-2.0-only WITH Classpath-exception-2.0	OLFL-1.3	text	no	0.5893
+value/(specified using classifiers)	OFL-1.1	text	no	0.6415
+value/0BSD	0BSD	id	yes	1.0000
+value/0BSD OR CC0-1.0	CC0-1.0	text	no	0.6207
+value/2-clause BSD	BSD-2-Clause	name	no	1.0000
+value/2-clause BSD License	BSD-2-Clause	name	no	1.0000
+value/3-Clause BSD License	BSD-3-Clause	name	no	1.0000
+value/3-clause BSD	BSD-3-Clause	name	no	1.0000
+value/3-clause BSD <https://opensource.org/licenses/bsd-license.php>	Parity-7.0.0	text	no	0.7611
+value/ADI BSD	AGPL-3.0-only	text	no	0.7193
+value/AGPL	AGPL-3.0-only	text	no	1.0000
+value/AGPL-3	AGPL-3.0-only	id	no	1.0000
+value/AGPL-3.0	AGPL-3.0-only	id	no	1.0000
+value/AGPL-3.0-only	AGPL-3.0-only	id	yes	1.0000
+value/AGPL-3.0-or-later	AGPL-3.0-or-later	id	yes	1.0000
+value/AGPL-3.0-or-later WITH viewflow-library-exception	LGPL-2.0-only	text	no	0.5764
+value/AGPLv3	AGPL-3.0-only	id	no	1.0000
+value/AGPLv3+	AGPL-3.0-or-later	id	yes	1.0000
+value/AL2	-	-	-	-
+value/APACHE	Apache-1.0	name	no	1.0000
+value/APACHE 2.0	Apache-2.0	id	yes	1.0000
+value/APGL3	-	-	-	-
+value/APL 2	CUA-OPL-1.0	text	no	0.6667
+value/APL 2.0	Interbase-1.0	text	no	0.5714
+value/AS License	NPL-1.1	text	no	1.0000
+value/ASL	-	-	-	-
+value/ASL 2.0	-	-	-	-
+value/Apache	Apache-1.0	name	no	1.0000
+value/Apache 2	Apache-2.0	id	yes	1.0000
+value/Apache 2 License	Apache-2.0	name	no	1.0000
+value/Apache 2.0	Apache-2.0	id	yes	1.0000
+value/Apache 2.0 Licence	Apache-2.0	name	no	1.0000
+value/Apache 2.0 License	Apache-2.0	name	no	1.0000
+value/Apache 2.0 Software License	Apache-2.0	name	no	1.0000
+value/Apache 2.0 license. See LICENSE.md for details.	Apache-2.0	name	no	1.0000
+value/Apache 2.0!	Apache-2.0	id	yes	1.0000
+value/Apache 2.0+	Apache-2.0	name	no	1.0000
+value/Apache 2.0?	Apache-2.0	id	yes	1.0000
+value/Apache LICENSE 2.0	Apache-2.0	name	yes	1.0000
+value/Apache Licence 2.0	Apache-2.0	name	yes	1.0000
+value/Apache Licence, Version 2.0	Apache-2.0	name	no	1.0000
+value/Apache License	Apache-1.0	name	no	1.0000
+value/Apache License (2.0)	Apache-2.0	name	yes	1.0000
+value/Apache License - Version 2.0	Apache-2.0	name	no	1.0000
+value/Apache License 2	Apache-2.0	name	no	1.0000
+value/Apache License 2.0	Apache-2.0	name	yes	1.0000
+value/Apache License 2.0 OR MIT	Apache-2.0	name	no	1.0000
+value/Apache License 2.0.	Apache-2.0	name	yes	1.0000
+value/Apache License Version 2.0	Apache-2.0	name	no	1.0000
+value/Apache License v2.0	ECL-2.0	text	no	0.8649
+value/Apache License v2.0 with LLVM Exceptions	SHL-0.5	text	no	0.6750
+value/Apache License, Version 2.0	Apache-2.0	name	no	1.0000
+value/Apache License, v2.0	ECL-2.0	text	no	0.8649
+value/Apache Public License 2.0	Apache-2.0	name	no	1.0000
+value/Apache Software License	Apache-1.1	text	no	1.0000
+value/Apache Software License (Apache 2.0)	Apache-2.0	name	no	1.0000
+value/Apache Software License (Apache Software License 2.0)	Apache-2.0	name	no	1.0000
+value/Apache Software License (http://www.apache.org/licenses/LICENSE-2.0)	Apache-2.0	name	no	1.0000
+value/Apache Software License 2.0	Apache-2.0	name	no	1.0000
+value/Apache Software License v2	Apache-1.1	text	no	0.9135
+value/Apache Software License, Version 2.0	Apache-2.0	name	no	1.0000
+value/Apache Software License, Version 2.0, http://www.apache.org/licenses/LICENSE-2.0	Apache-2.0	name	no	1.0000
+value/Apache V2.0	Apache-2.0	id	yes	1.0000
+value/Apache Version 2.0	BUSL-1.1	text	no	0.8333
+value/Apache licensed, as found in the LICENSE file	LGPL-2.0-only	text	no	0.6414
+value/Apache modified	Vim	text	no	0.8276
+value/Apache v2	Apache-2.0	id	yes	1.0000
+value/Apache-2	Apache-2.0	id	yes	1.0000
+value/Apache-2.0	Apache-2.0	id	yes	1.0000
+value/Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND ISC AND MIT AND Zlib	NASA-1.3	text	no	0.4828
+value/Apache-2.0 AND BSD-2-Clause	ECL-2.0	text	no	0.6296
+value/Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT	CC-BY-3.0-AU	text	no	0.5333
+value/Apache-2.0 AND BSD-3-Clause AND MIT	Apache-2.0	text	no	0.5714
+value/Apache-2.0 AND CC-BY-4.0 AND LicenseRef-scancode-other-permissive AND LicenseRef-scancode-other-copyleft	AGPL-3.0-only	text	no	0.5338
+value/Apache-2.0 AND CC0-1.0 AND CC-BY-SA-4.0 AND GPL-3.0-or-later	ECL-2.0	text	no	0.5167
+value/Apache-2.0 AND CNRI-Python	ECL-2.0	text	no	0.5882
+value/Apache-2.0 AND GPL-3.0-only	Apache-1.0	text	no	0.5556
+value/Apache-2.0 AND LicenseRef-LiveKit-Model	Apache-2.0	text	no	0.6333
+value/Apache-2.0 AND MIT	CC-BY-4.0	text	no	0.7222
+value/Apache-2.0 AND Python-2.0	Python-2.0	text	no	0.6122
+value/Apache-2.0 License	Apache-2.0	name	no	1.0000
+value/Apache-2.0 OR BSD-2-Clause	UCL-1.0	text	no	0.6923
+value/Apache-2.0 OR BSD-3-Clause	UCL-1.0	text	no	0.6923
+value/Apache-2.0 OR GPL-2.0-or-later	BUSL-1.1	text	no	0.7119
+value/Apache-2.0 OR LGPL-2.1-or-later	UCL-1.0	text	no	0.7541
+value/Apache-2.0 OR MIT	ECL-2.0	text	no	0.7059
+value/Apache-2.0 WITH Foo-exception	OLFL-1.3	text	no	0.6552
+value/Apache-2.0 WITH LLVM-exception	Apache-2.0 WITH LLVM-exception	id	yes	1.0000
+value/Apache-2.0 license	Apache-2.0	name	no	1.0000
+value/Apache-2.0 or BSD	ECL-2.0	text	no	0.7059
+value/Apache-2.0 or MIT	ECL-2.0	text	no	0.7059
+value/Apache-2.0 with LLVM exception	CDLA-Permissive-2.0	text	no	0.6102
+value/Apache-2.0 with LLVM exceptions	Aladdin	text	no	0.6129
+value/Apache-2.0+	Apache-2.0+	id	yes	1.0000
+value/Apache-2.0, http://www.apache.org/licenses/LICENSE-2.0	Apache-2.0	name	no	1.0000
+value/Apache2	Apache-2.0	id	yes	1.0000
+value/Apache2 OR MIT	ECL-2.0	text	no	0.8148
+value/Apache2.0	Apache-2.0	id	yes	1.0000
+value/Apache\u20132.0	Apache-2.0	id	yes	1.0000
+value/Applitools SDK License	CERN-OHL-1.1	text	no	0.6977
+value/Artistic License	Artistic-1.0	name	no	1.0000
+value/BSD	0BSD	name	no	1.0000
+value/BSD (3 clause)	BSD-3-Clause	id	yes	1.0000
+value/BSD (3-clause)	BSD-3-Clause	id	yes	1.0000
+value/BSD - See ndg/httpsclient/LICENCE file for details	CERN-OHL-1.2	text	no	0.5833
+value/BSD 2-Clause License	BSD-2-Clause	name	no	1.0000
+value/BSD 2-clause	BSD-2-Clause	id	yes	1.0000
+value/BSD 3	BSD-3-Clause	name	no	1.0000
+value/BSD 3 clause	BSD-3-Clause	id	yes	1.0000
+value/BSD 3-Clause	BSD-3-Clause	id	yes	1.0000
+value/BSD 3-Clause License	BSD-3-Clause	name	no	1.0000
+value/BSD 3-Clause License; partially licensed under the Python Software Foundation License	RPSL-1.0	text	no	0.6826
+value/BSD 3-Clause OR Apache-2.0	BSD-4-Clause-UC	text	no	0.5789
+value/BSD 3-Clause license	BSD-3-Clause	name	no	1.0000
+value/BSD 3-clause	BSD-3-Clause	id	yes	1.0000
+value/BSD 3-clause "New" or "Revised License"	BSD-3-Clause	name	yes	1.0000
+value/BSD License	0BSD	name	no	1.0000
+value/BSD license	0BSD	name	no	1.0000
+value/BSD license (see license.txt for details), Copyright (c) 2000-2025, ReportLab Inc.	ESA-PL-strong-copyleft-2.4	text	no	0.5867
+value/BSD license, Copyright (c) 2000-2022, ReportLab Inc.	Xnet	text	no	0.7312
+value/BSD or Apache License, Version 2.0	Apache-2.0	name	no	1.0000
+value/BSD, Public Domain	LZMA-SDK-9.22	text	no	0.8824
+value/BSD-2-Clause	BSD-2-Clause	id	yes	1.0000
+value/BSD-2-Clause AND Apache-2.0 WITH LLVM-exception	ESA-PL-strong-copyleft-2.4	text	no	0.5745
+value/BSD-2-Clause AND CC-BY-4.0 AND CC0-1.0	CC-BY-3.0-AU	text	no	0.5789
+value/BSD-2-Clause AND GPL-2.0-or-later	BSD-4-Clause-UC	text	no	0.5769
+value/BSD-2-Clause AND Unlicense AND MIT	BSD-4-Clause-UC	text	no	0.6071
+value/BSD-2-Clause or Apache-2.0	BSD-4-Clause-UC	text	no	0.5789
+value/BSD-2-Clause-Views	BSD-2-Clause-Views	id	yes	1.0000
+value/BSD-2-clause	BSD-2-Clause	id	yes	1.0000
+value/BSD-3	BSD-3-Clause	name	no	1.0000
+value/BSD-3-Clause	BSD-3-Clause	id	yes	1.0000
+value/BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0	CC-BY-3.0-AU	text	no	0.5600
+value/BSD-3-Clause AND BSL-1.0	CC-BY-3.0-AU	text	no	0.6383
+value/BSD-3-Clause AND ISC	BSD-4-Clause-UC	text	no	0.7222
+value/BSD-3-Clause AND MIT	BSD-4-Clause-UC	text	no	0.7222
+value/BSD-3-Clause AND MIT AND ISC	LPPL-1.3c	text	no	0.6786
+value/BSD-3-Clause AND TCL	Parity-7.0.0	text	no	0.7179
+value/BSD-3-Clause OR Apache-2.0	BSD-4-Clause-UC	text	no	0.5789
+value/BSD-3-Clause and Public-Domain	BOLA-1.1	text	no	0.6441
+value/BSD-3-Clause, Apache-2.0, dependency licenses	ECL-2.0	text	no	0.5814
+value/BSD-3-Clause-LBNL	BSD-3-Clause-LBNL	id	yes	1.0000
+value/BSD-3-clause	BSD-3-Clause	id	yes	1.0000
+value/BSD-4-Clause	BSD-4-Clause	id	yes	1.0000
+value/BSD-derived (Repoze)	IEC-Code-Components-EULA	text	no	0.7222
+value/BSD-derived (http://www.repoze.org/LICENSE.txt)	LPPL-1.3a	text	no	0.6279
+value/BSD-like	AAL	text	no	0.8750
+value/BSD-like (http://repoze.org/license.html)	Parity-7.0.0	text	no	0.7027
+value/BSD-style	hdparm	text	no	1.0000
+value/BSD3	-	-	-	-
+value/BSL-1.0	BSL-1.0	id	yes	1.0000
+value/BUSL-1.1	BUSL-1.1	id	yes	1.0000
+value/BlueOak-1.0.0	BlueOak-1.0.0	id	yes	1.0000
+value/Boost Software License	BSL-1.0	name	no	1.0000
+value/Boost Software License 1.0 (BSL-1.0)	BSL-1.0	name	no	1.0000
+value/BrowserStack Software License Agreement	CECILL-1.1	text	no	0.7778
+value/Business Source License 1.1 (See LICENSE.txt)	BUSL-1.1	name	no	1.0000
+value/CC-BY-3.0	CC-BY-3.0	id	yes	1.0000
+value/CC-BY-4.0	CC-BY-4.0	id	yes	1.0000
+value/CC-BY-SA-4.0	CC-BY-SA-4.0	id	yes	1.0000
+value/CC0	CC0-1.0	text	no	1.0000
+value/CC0 1.0 Universal	CC0-1.0	text	no	1.0000
+value/CC0 1.0 Universal (CC0 1.0) Public Domain Dedication	CC0-1.0	text	no	0.6061
+value/CC0-1.0	CC0-1.0	id	yes	1.0000
+value/CC0-1.0 OR Apache-2.0	ECL-2.0	text	no	0.6667
+value/Commercial license. See artifex.com for details.	Aladdin	text	no	0.6813
+value/Copyright	ASWF-Digital-Assets-1.0	text	no	1.0000
+value/Copyright (C) 2001-2005 by Vinay Sajip. All Rights Reserved. See LICENSE for license.	BSD-3-Clause-No-Nuclear-Warranty	text	no	0.6887
+value/Copyright (C) 2004-2020 by Vinay Sajip. All Rights Reserved. See LICENSE for license.	WordNet	text	no	0.6792
+value/Copyright (c) 2015 Brent Tubbs	Latex2e-translated-notice	text	no	0.6909
+value/Copyright 2011-2017 Jeffrey Gelens <jeffrey@noppo.pro>	BSD-3-Clause-No-Nuclear-License-2014	text	no	0.5581
+value/Copyright 2016 Joshua Carp	libpng-2.0	text	no	0.6923
+value/Creative Commons Attribution-NonCommercial 4.0 International	CC-BY-NC-4.0	name	yes	1.0000
+value/Creative Commons Zero v1.0 Universal	CC0-1.0	name	yes	1.0000
+value/DataRobot Tool and Utility Agreement	YPL-1.1	text	no	0.6197
+value/Databricks License	RPSL-1.0	text	no	0.7222
+value/Databricks Proprietary License	checkmk	text	no	0.7458
+value/DocumentRef-d:LicenseRef-x OR MIT	Apache-2.0	text	no	0.6154
+value/Dual License	CC-BY-NC-SA-3.0	text	no	0.8333
+value/Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License	BUSL-1.1	text	no	0.5968
+value/EPL	GFDL-1.1-invariants-only	text	no	1.0000
+value/EPL-2.0	EPL-2.0	id	yes	1.0000
+value/EPL-2.0 OR BSD-3-Clause	BSD-4-Clause-UC	text	no	0.6286
+value/EPL-2.0 OR GPL-2.0-or-later	BUSL-1.1	text	no	0.7170
+value/EUPL 1.1+	EUPL-1.0	text	no	0.7500
+value/Eclipse Public License 2.0 (EPL-2.0)	EPL-2.0	name	no	1.0000
+value/Elastic-2.0	Elastic-2.0	id	yes	1.0000
+value/Expat	-	-	-	-
+value/Expat License	BitTorrent-1.0	text	no	0.8182
+value/Expat license	BitTorrent-1.0	text	no	0.8182
+value/FSL-1.1-MIT	FSL-1.1-MIT	id	yes	1.0000
+value/Free To Use But Restricted	CECILL-2.0	text	no	0.7308
+value/FreeBSD	FreeBSD-DOC	name	no	1.0000
+value/FreeBSD License	FreeBSD-DOC	name	no	1.0000
+value/FreeBSD and LGPLv3+	Frameworx-1.0	text	no	0.6111
+value/GNU AFFERO GPL 3.0	CECILL-2.1	text	no	0.8000
+value/GNU Affero General Public License	AGPL-3.0-only	name	no	1.0000
+value/GNU Affero General Public License (AGPL) version 3.0	MVT-1.1	text	no	0.9000
+value/GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.	AGPL-3.0-or-later	text	no	1.0000
+value/GNU Affero General Public License v3	AGPL-3.0-only	name	no	1.0000
+value/GNU Affero General Public License v3 or later (AGPLv3+)	AGPL-3.0-or-later	text	no	0.8896
+value/GNU GENERAL PUBLIC LICENSE	AGPL-3.0-only	name	no	1.0000
+value/GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007	GPL-3.0-only	text	no	1.0000
+value/GNU GPL V3.0	LiLiQ-R-1.1	text	no	0.9167
+value/GNU GPL v2	LiLiQ-R-1.1	text	no	0.9474
+value/GNU GPL v2+	LiLiQ-R-1.1	text	no	0.9474
+value/GNU GPLv2 (with FOSS License Exception)	LGPL-3.0-only	text	no	0.6266
+value/GNU GPLv3	LiLiQ-R-1.1	text	no	1.0000
+value/GNU GPLv3+	LiLiQ-R-1.1	text	no	1.0000
+value/GNU General Public License (GPL)	CNRI-Python-GPL-Compatible	text	no	1.0000
+value/GNU General Public License Version 3	AGPL-1.0-only	text	no	1.0000
+value/GNU General Public License v2 (GPLv2)	Vim	text	no	0.8986
+value/GNU General Public License v2 or later (GPLv2+)	GPL-3.0-or-later	text	no	0.8556
+value/GNU General Public License v3	AGPL-3.0-only	name	no	1.0000
+value/GNU General Public License v3 (GPLv3)	Vim	text	no	0.8986
+value/GNU General Public License v3 or later (GPLv3+)	GPL-3.0-or-later	text	no	0.8556
+value/GNU LGPL	LZMA-SDK-9.22	text	no	1.0000
+value/GNU LGPL 3.0	LiLiQ-Rplus-1.1	text	no	0.7826
+value/GNU LGPL v2.1	LiLiQ-R-1.1	text	no	0.9600
+value/GNU LGPL v3+	LiLiQ-R-1.1	text	no	0.9524
+value/GNU Lesser General Public License (LGPL), Version 3	LiLiQ-R-1.1	text	no	0.8958
+value/GNU Lesser General Public License v2 (LGPLv2)	LGPL-2.1-only	text	no	0.9024
+value/GNU Lesser General Public License v2 or later (LGPLv2+)	LGPL-3.0-or-later	text	no	0.8512
+value/GNU Lesser General Public License v3	LGPL-3.0-only	name	no	1.0000
+value/GNU Lesser General Public License v3 (LGPLv3)	LGPL-2.1-only	text	no	0.9024
+value/GNU Lesser General Public License v3 or later	LGPL-3.0-or-later	name	no	1.0000
+value/GNU Lesser General Public License v3 or later (LGPLv3+)	LGPL-3.0-or-later	text	no	0.8512
+value/GNU Lesser General Public License v3+	LGPL-3.0-only	name	no	1.0000
+value/GNU Lesser General Public License v3.0	LGPL-3.0-only	name	no	1.0000
+value/GNU Lesser General Public License, Version 3 (LGPLv3)	LiLiQ-R-1.1	text	no	0.9600
+value/GNU Library or Lesser General Public License (LGPL)	RPSL-1.0	text	no	1.0000
+value/GNU-GPL	AGPL-1.0-only	text	no	1.0000
+value/GPL	BSD-Source-alt-GPL	name	no	1.0000
+value/GPL 2	GPL-2.0-only	id	no	1.0000
+value/GPL 2+	GPL-2.0-or-later	id	yes	1.0000
+value/GPL 2.0/LGPL 2.1	SimPL-2.0	text	no	0.6667
+value/GPL 3.0	GPL-3.0-only	id	no	1.0000
+value/GPL V3.0	GPL-3.0-only	id	no	1.0000
+value/GPL v2	GPL-2.0-only	id	no	1.0000
+value/GPL v3	GPL-3.0-only	id	no	1.0000
+value/GPL-2+	GPL-2.0-or-later	id	yes	1.0000
+value/GPL-2.0	GPL-2.0-only	id	no	1.0000
+value/GPL-2.0+	GPL-2.0-or-later	id	yes	1.0000
+value/GPL-2.0+ OR MIT	SimPL-2.0	text	no	0.7143
+value/GPL-2.0-only	GPL-2.0-only	id	yes	1.0000
+value/GPL-2.0-only OR LGPL-2.1-only OR BSD-3-Clause	CECILL-1.1	text	no	0.5111
+value/GPL-2.0-or-later	GPL-2.0-or-later	id	yes	1.0000
+value/GPL-2.0-or-later OR Apache-2.0	Parity-7.0.0	text	no	0.6207
+value/GPL-2.0-or-later WITH Classpath-exception-2.0	GPL-2.0-or-later WITH Classpath-exception-2.0	id	yes	1.0000
+value/GPL-3	GPL-3.0-only	id	no	1.0000
+value/GPL-3.0	GPL-3.0-only	id	no	1.0000
+value/GPL-3.0 OR MIT	SimPL-2.0	text	no	0.6429
+value/GPL-3.0+	GPL-3.0-or-later	id	yes	1.0000
+value/GPL-3.0-only	GPL-3.0-only	id	yes	1.0000
+value/GPL-3.0-or-later	GPL-3.0-or-later	id	yes	1.0000
+value/GPL-3.0-or-later AND BSD-2-Clause	EUPL-1.0	text	no	0.5758
+value/GPL-3.0-or-later AND BSD-2-Clause AND MIT AND PSF-2.0	Parity-7.0.0	text	no	0.5472
+value/GPL-3.0-or-later OR Apache-2.0	BUSL-1.1	text	no	0.5862
+value/GPL-3.0-or-later OR MIT	BUSL-1.1	text	no	0.6522
+value/GPL2	GPL-2.0-only	id	no	1.0000
+value/GPL2+	GPL-2.0-or-later	id	yes	1.0000
+value/GPL3	GPL-3.0-only	id	no	1.0000
+value/GPLv2	GPL-2.0-only	id	no	1.0000
+value/GPLv2 or later	GPL-2.0-or-later	id	yes	1.0000
+value/GPLv2 with linking exception	Kazlib	text	no	0.7143
+value/GPLv2 | EPLv1	LiLiQ-R-1.1	text	no	0.6667
+value/GPLv2+	GPL-2.0-or-later	id	yes	1.0000
+value/GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)	LGPL-2.1-only	text	no	0.5662
+value/GPLv3	GPL-3.0-only	id	no	1.0000
+value/GPLv3 +	-	-	-	-
+value/GPLv3+	GPL-3.0-or-later	id	yes	1.0000
+value/GPLv3+ OR MIT	LiLiQ-R-1.1	text	no	0.6667
+value/GPLv3+/BSD	AAL	text	no	0.6667
+value/Google Cloud Platform Terms of Service	CC-BY-2.5-AU	text	no	0.5867
+value/ISC	ISC	id	yes	1.0000
+value/ISC License	ISC	name	yes	1.0000
+value/ISC License (ISCL)	ISC	name	no	1.0000
+value/ISC license	ISC	name	yes	1.0000
+value/ISCL	AMPAS	text	no	1.0000
+value/Intel End User License Agreement for Developer Tools	CPAL-1.0	text	no	0.6538
+value/Intel Simplified Software License	RPL-1.5	text	no	0.7385
+value/LGPL	GPL-3.0-only	text	no	1.0000
+value/LGPL 2.1	LGPL-2.1-only	id	no	1.0000
+value/LGPL 3	LGPL-3.0-only	id	no	1.0000
+value/LGPL v2.1	LGPL-2.1-only	id	no	1.0000
+value/LGPL v3	LGPL-3.0-only	id	no	1.0000
+value/LGPL with exceptions	Kazlib	text	no	0.7500
+value/LGPL-2.0-only	LGPL-2.0-only	id	yes	1.0000
+value/LGPL-2.0-or-later	LGPL-2.0-or-later	id	yes	1.0000
+value/LGPL-2.0-or-later WITH WxWindows-exception-3.1	LGPL-2.0-or-later WITH WxWindows-exception-3.1	id	yes	1.0000
+value/LGPL-2.1	LGPL-2.1-only	id	no	1.0000
+value/LGPL-2.1+	LGPL-2.1-or-later	id	yes	1.0000
+value/LGPL-2.1-only	LGPL-2.1-only	id	yes	1.0000
+value/LGPL-2.1-only AND BSD-3-Clause AND MIT AND LicenseRef-Public-Domain	LZMA-SDK-9.11-to-9.20	text	no	0.5714
+value/LGPL-2.1-only OR MIT	EUPL-1.2	text	no	0.6500
+value/LGPL-2.1-only OR MPL-1.1	CECILL-1.1	text	no	0.5833
+value/LGPL-2.1-or-later	LGPL-2.1-or-later	id	yes	1.0000
+value/LGPL-3.0	LGPL-3.0-only	id	no	1.0000
+value/LGPL-3.0-only	LGPL-3.0-only	id	yes	1.0000
+value/LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only	CECILL-2.1	text	no	0.5111
+value/LGPL-3.0-only OR MIT	LGPL-3.0-only	text	no	0.5691
+value/LGPL-3.0-or-later	LGPL-3.0-or-later	id	yes	1.0000
+value/LGPL-3.0-or-newer	GPL-3.0-only	text	no	0.5932
+value/LGPL-v2.0-or-later	LGPL-2.0-or-later	id	yes	1.0000
+value/LGPL3	LGPL-3.0-only	id	no	1.0000
+value/LGPLv2	LGPL-2.0-only	id	no	1.0000
+value/LGPLv2+	LGPL-2.0-or-later	id	yes	1.0000
+value/LGPLv2.1+	LGPL-2.1-or-later	id	yes	1.0000
+value/LGPLv3	LGPL-3.0-only	id	no	1.0000
+value/LGPLv3+	LGPL-3.0-or-later	id	yes	1.0000
+value/LICENCE.txt	APL-1.0	text	no	1.0000
+value/LICENSE	0BSD	name	no	1.0000
+value/LICENSE AGREEMENT FOR NVIDIA SOFTWARE DEVELOPMENT KITS	Watcom-1.0	text	no	0.6481
+value/LICENSE.BSD3	Parity-7.0.0	text	no	0.9167
+value/LICENSE.md	CC-BY-4.0	text	no	0.9000
+value/LICENSE.txt	APL-1.0	text	no	1.0000
+value/LangServe	-	-	-	-
+value/License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication	CC0-1.0	text	no	0.6207
+value/License :: OSI Approved :: Apache Software License	CERN-OHL-1.2	text	no	0.7356
+value/License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)	EUPL-1.2	text	no	0.7172
+value/License :: OSI Approved :: MIT License	MIT	name	no	1.0000
+value/License :: OSI Approved :: MIT License (http://opensource.org/licenses/MIT)	MIT	name	no	1.0000
+value/LicenseRef-All-Rights-Reserved	LicenseRef-All-Rights-Reserved	id	yes	1.0000
+value/LicenseRef-Biopython-License-Agreement	LicenseRef-Biopython-License-Agreement	id	yes	1.0000
+value/LicenseRef-Esri-MLA	LicenseRef-Esri-MLA	id	yes	1.0000
+value/LicenseRef-InterSystems-External-Repository	LicenseRef-InterSystems-External-Repository	id	yes	1.0000
+value/LicenseRef-Matrice-Proprietary	LicenseRef-Matrice-Proprietary	id	yes	1.0000
+value/LicenseRef-Mergify-Proprietary	LicenseRef-Mergify-Proprietary	id	yes	1.0000
+value/LicenseRef-NVIDIA-Proprietary	LicenseRef-NVIDIA-Proprietary	id	yes	1.0000
+value/LicenseRef-NvidiaProprietary	LicenseRef-NvidiaProprietary	id	yes	1.0000
+value/LicenseRef-Proprietary	LicenseRef-Proprietary	id	yes	1.0000
+value/LicenseRef-Repoze-BSD-derived	LicenseRef-Repoze-BSD-derived	id	yes	1.0000
+value/LicenseRef-TOST-1.0	LicenseRef-TOST-1.0	id	yes	1.0000
+value/LicenseRef-a AND LicenseRef-b	CECILL-B	text	no	0.8276
+value/MIT	MIT	id	yes	1.0000
+value/MIT\x00	MIT	id	yes	1.0000
+value/MIT\tOR\tISC	XFree86-1.1	text	no	0.7368
+value/MIT -or- Apache License 2.0	Apache-2.0	name	no	1.0000
+value/MIT AND	HPND-MIT-disclaimer	name	no	1.0000
+value/MIT AND (Apache-2.0 OR BSD-2-Clause)	UCL-1.0	text	no	0.6567
+value/MIT AND (BSD-2-Clause OR LGPL-2.1-or-later)	LPPL-1.3a	text	no	0.5854
+value/MIT AND (GPL-2.0-or-later OR AFL-2.1)	BUSL-1.1	text	no	0.5797
+value/MIT AND Apache-2.0	UCL-1.0	text	no	0.7429
+value/MIT AND BSD-2-Clause	CATOSL-1.1	text	no	0.7000
+value/MIT AND BSD-3-Clause	CATOSL-1.1	text	no	0.7000
+value/MIT AND BSD-3-Clause AND BSD-2-Clause	Parity-7.0.0	text	no	0.5946
+value/MIT AND GPL-2.0-or-later	BUSL-1.1	text	no	0.6250
+value/MIT AND IPA	IJG	text	no	0.7619
+value/MIT AND LGPL-2.1-or-later	LPPL-1.2	text	no	0.6939
+value/MIT AND LGPL-3.0-or-later	LPPL-1.3a	text	no	0.6531
+value/MIT AND PSF-2.0	Python-2.0	text	no	0.6897
+value/MIT Licence	MIT	name	yes	1.0000
+value/MIT License	MIT	name	yes	1.0000
+value/MIT License (MIT)	AML	name	no	1.0000
+value/MIT License, Apache License, Version 2.0	Apache-2.0	name	no	1.0000
+value/MIT OR  ISC	XFree86-1.1	text	no	0.7368
+value/MIT OR AFL-2.1	OSET-PL-2.1	text	no	0.6667
+value/MIT OR Apache-2.0	ECL-2.0	text	no	0.7647
+value/MIT OR Foo	AFL-1.2	text	no	0.7000
+value/MIT OR GPL-2.0-only+	-	-	-	-
+value/MIT OR ISC OR MIT OR ISC	ALGLIB-Documentation	text	no	0.5833
+value/MIT OR LicenseRef-x	Artistic-2.0	text	no	0.7368
+value/MIT OR Unlicense	Unlicense	text	no	0.7500
+value/MIT WITH AdditionRef-x	CC0-1.0	text	no	0.6977
+value/MIT X11 style	MIT	text	no	0.5714
+value/MIT and MPL-2.0	OSET-PL-2.1	text	no	0.8276
+value/MIT license	MIT	name	yes	1.0000
+value/MIT licensed, as found in the LICENSE file	MIT	name	no	1.0000
+value/MIT or Apache-2.0	ECL-2.0	text	no	0.7647
+value/MIT or ISC	XFree86-1.1	text	no	0.7368
+value/MIT style	Info-ZIP	text	no	0.7778
+value/MIT*	MIT	id	yes	1.0000
+value/MIT+	MIT+	id	yes	1.0000
+value/MIT,	MIT	id	yes	1.0000
+value/MIT, BSD	CC-BY-SA-3.0-AT	text	no	0.8571
+value/MIT-0	MIT-0	id	yes	1.0000
+value/MIT-CMU	MIT-CMU	id	yes	1.0000
+value/MIT-LICENSE	MIT	name	yes	1.0000
+value/MIT-License	MIT	name	yes	1.0000
+value/MIT.	MIT	id	yes	1.0000
+value/MIT/Apache-2.0	ECL-2.0	text	no	0.8571
+value/MIT; Copyright (c) 2016-2024 Cisco and/or its affiliates.	BSD-3-Clause-No-Nuclear-License-2014	text	no	0.7961
+value/MITNFA	MITNFA	id	yes	1.0000
+value/MIT\xa0	MIT	id	yes	1.0000
+value/MIT\u200b	MIT	id	yes	1.0000
+value/MIT\ufffd	MIT	id	yes	1.0000
+value/MPL	AAL	text	no	1.0000
+value/MPL 2.0	MPL-2.0	id	yes	1.0000
+value/MPL 2.0 (Mozilla Public License)	MPL-2.0	name	no	1.0000
+value/MPL v2.0	MPL-2.0	id	yes	1.0000
+value/MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later	BUSL-1.1	text	no	0.5227
+value/MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later	BUSL-1.1	text	no	0.5417
+value/MPL-2.0	MPL-2.0	id	yes	1.0000
+value/MPL-2.0 AND (Apache-2.0 OR MIT)	Apache-1.0	text	no	0.5862
+value/MPL-2.0 AND MIT	MPL-2.0-no-copyleft-exception	text	no	0.7333
+value/MPL-2.0 and MIT and BSD-3-Clause	BSD-4-Clause-Shortened	text	no	0.5769
+value/MPL2	MPL-2.0	id	yes	1.0000
+value/MPLv2	MPL-2.0	id	yes	1.0000
+value/MPLv2.0	MPL-2.0	id	yes	1.0000
+value/MirOS OR MIT	OSET-PL-2.1	text	no	0.7826
+value/Moderne Source Available License	APL-1.0	text	no	0.7812
+value/Modified BSD License	checkmk	text	no	1.0000
+value/Mostly MIT, some GPL/BSD, see LICENSE-pwntools.txt	MIT	name	no	1.0000
+value/Mozilla	MPL-1.0	name	no	1.0000
+value/Mozilla Public License 2.0 (MPL 2.0)	MPL-2.0	name	no	1.0000
+value/Mulan PSL v2	MulanPSL-2.0	text	no	1.0000
+value/NCSA	NCSA	id	yes	1.0000
+value/NVIDIA Proprietary Software	Kazlib	text	no	0.8519
+value/New BSD	BSD-3-Clause	name	no	1.0000
+value/New BSD License	BSD-3-Clause	name	no	1.0000
+value/New BSD license	BSD-3-Clause	name	no	1.0000
+value/OFL-1.1	OFL-1.1	id	yes	1.0000
+value/OLDAP-2.8	OLDAP-2.8	id	yes	1.0000
+value/OSI Approved	ANTLR-PD-fallback	text	no	1.0000
+value/OSI Approved :: Apache Software License	ANTLR-PD-fallback	text	no	0.7353
+value/Other/Proprietary License	checkmk	text	no	0.8980
+value/PSF	Info-ZIP	text	no	1.0000
+value/PSF License	TGPPL-1.0	text	no	0.9000
+value/PSF license	TGPPL-1.0	text	no	0.9000
+value/PSF or ZPL	ZPL-1.1	text	no	0.7000
+value/PSF-2.0	PSF-2.0	id	yes	1.0000
+value/PSFL	-	-	-	-
+value/PSFL (Keccak: CC0 1.0 Universal)	CC0-1.0	text	no	0.7241
+value/PayPal SDK License	BUSL-1.1	text	no	0.7429
+value/PolyForm-Noncommercial-1.0.0	PolyForm-Noncommercial-1.0.0	id	yes	1.0000
+value/PostgreSQL	PostgreSQL	id	yes	1.0000
+value/Proprietary	AGPL-1.0-only	text	no	1.0000
+value/PubNub Software Development Kit License	APSL-1.1	text	no	0.6494
+value/Public Domain	CC-PDDC	name	no	1.0000
+value/Public domain	CC-PDDC	name	no	1.0000
+value/Python	CNRI-Python	name	no	1.0000
+value/Python (MIT style)	Python-2.0	text	no	0.6875
+value/Python Software Foundation License	PSF-2.0	name	no	1.0000
+value/Python Software Foundation License (BSD-like)	Python-2.0	text	no	0.8500
+value/Python Software Foundation License Version 2	Python-2.0	text	no	1.0000
+value/Python-2.0	Python-2.0	id	yes	1.0000
+value/Revised BSD License	BSD-3-Clause	name	no	1.0000
+value/Revised BSD License (LICENSE.txt)	Catharon	text	no	0.7419
+value/SAP DEVELOPER LICENSE AGREEMENT	CPAL-1.0	text	no	0.7213
+value/SEE LICENSE IN https://livekit.io/legal/terms-of-service	Hippocratic-2.1	text	no	0.5849
+value/SIL OFL V1.1	EUPL-1.0	text	no	0.6667
+value/SSPLv1	SSPL-1.0	id	yes	1.0000
+value/See license in package description	FreeImage	text	no	0.7164
+value/Simplified BSD	BSD-2-Clause	name	no	1.0000
+value/Simplified BSD license	BSD-2-Clause	name	no	1.0000
+value/StandardML-NJ	SMLNJ	id	yes	1.0000
+value/StandardML-NJ OR MIT	CC-BY-NC-3.0-DE	text	no	0.6000
+value/Tecton Proprietary	copyleft-next-0.3.0	text	no	0.8000
+value/Tencent	-	-	-	-
+value/Teradata License Agreement	CECILL-2.1	text	no	0.8462
+value/The BSD 2-Clause License	BSD-3-Clause-Clear	text	no	0.8444
+value/The MIT License	MIT	name	no	1.0000
+value/The MIT License (MIT)	MIT	name	no	1.0000
+value/The MIT License: http://www.opensource.org/licenses/mit-license.php	MIT	name	no	1.0000
+value/The Unlicense	Unlicense	name	yes	1.0000
+value/The Unlicense (Unlicense)	Unlicense	name	no	1.0000
+value/This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.	MPL-2.0-no-copyleft-exception	text	no	1.0000
+value/Two-clause BSD license	Parity-7.0.0	text	no	1.0000
+value/UNKNOWN	CC0-1.0	text	no	1.0000
+value/UNLICENSE	Unlicense	id	yes	1.0000
+value/UPL-1.0	UPL-1.0	id	yes	1.0000
+value/UPL-1.0 OR Apache-2.0	Parity-7.0.0	text	no	0.7143
+value/Universal Permissive License (UPL)	UPL-1.0	text	no	1.0000
+value/Universal Permissive License 1.0 or Apache License 2.0	Apache-1.0	name	no	1.0000
+value/Unlicense	Unlicense	id	yes	1.0000
+value/Unlicense AND MIT AND ISC	XFree86-1.1	text	no	0.7200
+value/Unlicense OR MIT	Unlicense	text	no	0.8276
+value/Unlicense license	Parity-7.0.0	text	no	0.9091
+value/Various	GFDL-1.1-invariants-only	text	no	1.0000
+value/W3C License	W3C	name	no	1.0000
+value/W3C SOFTWARE NOTICE AND LICENSE	W3C	name	no	1.0000
+value/W3C software and Document Notice License	W3C-20150513	name	no	1.0000
+value/W3C-20150513	W3C-20150513	id	yes	1.0000
+value/WTFPL	WTFPL	id	yes	1.0000
+value/Waqef	-	-	-	-
+value/X11	X11	id	yes	1.0000
+value/ZPL 2.1	ZPL-2.1	id	yes	1.0000
+value/ZPL-2.1	ZPL-2.1	id	yes	1.0000
+value/Zlib	Zlib	id	yes	1.0000
+value/Zlib AND MIT AND BSD-2-Clause AND BSD-3-Clause AND PSF-2.0	MIT-Click	text	no	0.5517
+value/[MIT OR ISC]	XFree86-1.1	text	no	0.7368
+value/any-OSI	any-OSI	id	yes	1.0000
+value/apache-2.0	Apache-2.0	id	yes	1.0000
+value/apache-2.0 AND bsd-simplified	ECL-2.0	text	no	0.6552
+value/apache-2.0 AND bsd-simplified-darwin AND (bsd-simplified AND public-domain AND bsd-new AND isc AND (bsd-new OR gpl-1.0-plus) AND bsd-original)	LZMA-SDK-9.22	text	no	0.5000
+value/apache-2.0 AND lgpl-2.1 and unrar and brian-gladman-3-clause	Brian-Gladman-3-Clause-no-conversion	text	no	0.5347
+value/bsd-3-clause	BSD-3-Clause	id	yes	1.0000
+value/gpl v3	GPL-3.0-only	id	no	1.0000
+value/gpl-3.0.txt	SimPL-2.0	text	no	0.7619
+value/http://www.apache.org/licenses/LICENSE-2.0	Apache-2.0	name	no	1.0000
+value/http://www.gnu.org/licenses/gpl.html	AGPL-3.0-only	text	no	0.8525
+value/http://www.opensource.org/licenses/mit-license.php	MIT	name	no	1.0000
+value/https://about.aspose.com/legal/eula/	TORQUE-1.1	text	no	0.5625
+value/https://aka.ms/azureml-sdk-license	Apache-1.1	text	no	0.5862
+value/https://fontawesome.com/license/free	Unlicense	text	no	0.5882
+value/https://mosek.com/products/license-agreement	iMatix	text	no	0.7317
+value/https://opensource.org/license/mit/	MIT	name	no	1.0000
+value/https://opensource.org/licenses/BSD-3-Clause	any-OSI	text	no	0.7722
+value/https://www.apache.org/licenses/LICENSE-2.0	Apache-2.0	name	no	1.0000
+value/lgpl	GPL-3.0-only	text	no	1.0000
+value/lgplv3+	LGPL-3.0-or-later	id	yes	1.0000
+value/mit	MIT	id	yes	1.0000
+value/mit or apache-2.0	ECL-2.0	text	no	0.7647
+value/modified BSD	checkmk	text	no	1.0000
+value/new BSD	BSD-3-Clause	name	no	1.0000
+value/proprietary and confidential	APSL-1.0	text	no	0.7143
+value/python-ldap	python-ldap	id	yes	1.0000
+value/wxWindows Library Licence, Version 3.1	libpng-1.6.35	text	no	0.7027
+value/zlib	Zlib	id	yes	1.0000
+value/zlib/libpng	zlib-acknowledgement	name	no	1.0000
+value/zlib/libpng License	Libpng	name	no	1.0000
+value/\u202eMIT	MIT	id	yes	1.0000

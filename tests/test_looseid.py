@@ -169,13 +169,13 @@ def test_the_warning_detail_is_one_printable_line(text: str, detail: str) -> Non
             False,
         ),
         # No answer, and no warning for it: an unknown exception, an
-        # unknown license, two WITHs, or a compound expression, which text
-        # never declares (the CLI's rule for `Apache-2.0 OR MIT`).
+        # unknown license, two WITHs.
         ("GPL2 WITH Bogus-exception", None, False),
         ("Bogus2 WITH LLVM-exception", None, False),
         ("Apache2 WITH LLVM-exception WITH LLVM-exception", None, False),
-        ("Apache2 OR MIT", None, False),
-        ("Apache2 AND MIT", None, False),
+        # A compound that is the whole text is resolve()'s (was: none).
+        ("Apache2 OR MIT", ("Apache-2.0 OR MIT", True), False),
+        ("Apache2 AND MIT", ("Apache-2.0 AND MIT", True), False),
         # Brackets around the whole are no part of it, at any depth.
         (
             "(GPL2 WITH Classpath-exception-2.0)",
@@ -206,7 +206,8 @@ def test_a_loose_license_with_an_exception(
         expected
     )
     err = given.lines()
-    assert ("WARNING: input: variant not stated: GPL2;" in err) is warned
+    # The value as written is named (resolve() reads the whole of it).
+    assert (f"WARNING: input: variant not stated: {text};" in err) is warned
 
 
 @pytest.mark.parametrize(

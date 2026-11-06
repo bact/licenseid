@@ -14,6 +14,7 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
+from conftest import GivenWarnings
 from matcher_db import Lic, seeded_db
 from resolver_helpers import GPL2, GPL2_PLUS
 
@@ -67,12 +68,15 @@ def test_a_plus_after_an_id_answers_alike_everywhere(
     value: str,
     answer: str | None,
     resolved: str | None,
+    given: GivenWarnings,
 ) -> None:
     expected = [answer] if answer else []
     assert ids(matcher, text=value) == expected
     tag = f"/* SPDX-License-Identifier: {value} */"
     assert ids(matcher, text=tag) == expected
     assert resolve(value, matcher.db)["expression"] == resolved
+    # A refused value is too short to match as text, and says why.
+    assert given.conditions() <= {"too few words for text"}
 
 
 def test_a_plus_after_a_qualifier_voids_the_whole_tag(

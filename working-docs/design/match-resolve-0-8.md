@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-06
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -176,6 +176,39 @@ How a resolution becomes a `detect` result. Each point is a decision
 - `method` stays `tag`, `field` or `id`.
 - `is_spdx`, `is_osi_approved` and `is_fsf_libre` come from the record of a
   single ID; for a compound, each is false (D5).
+
+### Built: the whole input first
+
+Built 2026-11-05 (`resolvefirst.py`), for a whole input only; a tag and a
+field keep their readers, so the rest of this section is still to do.
+
+- `detect` asks `resolve()` for the whole input first and answers its
+  expression. On the goldens this fixed 107 text guesses (`MIT OR
+  Apache-2.0` was `ECL-2.0`) and moved no ID answer.
+- `exact` keeps `detect`'s meaning, false only for a guess (trust `none`, a
+  narrowed `-only`), so a whole input, a tag and a field agree. D2's
+  stricter rule moved 71 ID answers and split the channels (`MIT,` exact
+  as a field, not as text): it stays open, for every channel at once.
+- `method` is `name` when a step read a name, else `id`.
+- A refused input under 10 normalised words gets no text match and warns
+  `input: too few words for text: <reason>` (D3, for a whole input). Under
+  10 words the text tiers were right 19 times in 94 at 0.85 or more; from
+  10 words on, every short text was right. The losses (`CC0 1.0
+  Universal`, `Mulan PSL v2`, the UPL name, the GPL-3.0 title line) are
+  names for `resolve()` to learn.
+- Han and kana are not cut (review of PR #161): a word count is no measure
+  without spaces. On `main`, slices of the four CJK texts of the List at 4
+  to 13 characters were the licence or its other version 592 times in 593
+  (1 no answer); 28 of 30 short phrases that are no licence got no answer
+  (`版权所有` gave MulanPSL-1.0). An input counts as written without spaces
+  when nine letters in ten are Han or kana, so clause letters (`第7条b`)
+  stay in and Latin words (`GPL 第三版`, was `AGPL-1.0-only`) are cut.
+  90-character slices of CC-BY-SA-2.1-JP: 49 of 50 answered (`main` 50).
+- A whole input takes `resolve()`'s order (`MirOS OR MIT`); a tag and a
+  field keep `detect`'s (`MIT OR MirOS`) until they go through `resolve()`
+  too. So does an SPDX URL: a tag or a field reads
+  `https://spdx.org/licenses/MIT.html` as MIT, `resolve()` does not, and a
+  whole input of it gets no answer (it was `Parity-7.0.0`).
 
 ## 4. Decisions needed
 

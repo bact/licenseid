@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
-from conftest import json_lines, predicate_line
+from conftest import GivenWarnings, json_lines, predicate_line
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.cli import cli
@@ -176,9 +176,13 @@ def test_a_deprecated_gfdl_id_has_the_flags_of_its_successor(db: str) -> None:
     )
 
 
-def test_a_license_ref_with_a_plus_is_no_license(db: str) -> None:
+def test_a_license_ref_with_a_plus_is_no_license(db: str, given: GivenWarnings) -> None:
     """SPDX gives "+" to a license ID only. It answered LicenseRef-x+ as a
     valid SPDX license; as --id it is no single license, a usage error."""
     assert not LicenseDetector(db).detect(text="LicenseRef-x+")
+    assert given.lines() == (
+        "WARNING: input: too few words for text: qualifier on a reference:"
+        " LicenseRef-x+\n"
+    )
     result = CliRunner().invoke(cli, ["--db", db, "detect", "--id", "LicenseRef-x+"])
     assert result.exit_code == 2

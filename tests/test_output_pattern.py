@@ -38,10 +38,12 @@ JSON_KEY = re.compile(r"[a-z][a-z0-9_]*")
 PREDICATES = ["is-osi", "is-fsf", "is-spdx"]
 # Each command, with the arguments it is run with (the database is added),
 # and its exit status: a run that printed nothing would prove nothing.
+TEN_WORDS = "permission is hereby granted free of charge to any person"
 RUNS: list[tuple[int, list[str]]] = [
     (0, ["detect", "MIT"]),
     (0, ["detect", "--text", MIT_TEXT]),
-    (0, ["detect", "--top", "3", "--threshold", "0", "--text", "permission"]),
+    # Ten words: a shorter text resolve() refuses is not matched as text.
+    (0, ["detect", "--top", "3", "--threshold", "0", "--text", TEN_WORDS]),
     (1, ["detect", "--id", "No-Such-1.0"]),
     (0, ["resolve", "MIT"]),
     (0, ["resolve", "GPLv2+ or MIT"]),

@@ -129,9 +129,13 @@ def test_cli_prints_the_outdated_database(outdated_db: Path) -> None:
         assert result.stderr == OUTDATED_WARNING
 
 
+# Ten words or more: a shorter one would also say it is too short to match.
+LATIN1_TEXT = b"Permission is hereby granted, free of charge, to any person: caf\xe9\n"
+
+
 def test_cli_prints_latin1_input(memory_db: str, tmp_path: Path) -> None:
     source = tmp_path / "latin.txt"
-    source.write_bytes(b"MIT caf\xe9\n")
+    source.write_bytes(LATIN1_TEXT)
     result = invoke_match(memory_db, str(source))
     stale, rest = result.stderr.split("\n", 1)
     assert STALE.fullmatch(stale)
@@ -249,7 +253,7 @@ def test_latin1_input_is_a_warning(
     memory_db: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     source = tmp_path / "LICENSE"
-    source.write_bytes(b"MIT caf\xe9\n")
+    source.write_bytes(LATIN1_TEXT)
     with pytest.warns(LicenseIdWarning) as given:
         decoded = decode_input(b"caf\xe9", "stdin")
     with pytest.warns(LicenseIdWarning) as read:

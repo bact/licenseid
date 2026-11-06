@@ -14,6 +14,7 @@ reproduce the old failure, pin what must not change, and guard the fix.
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
 import sqlite3
+import warnings
 from collections.abc import Callable, Generator
 from pathlib import Path
 from unittest import mock
@@ -31,6 +32,7 @@ from licenseid.detector import LicenseDetector
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
 from licenseid.identifiers import normalize_identifier
 from licenseid.versionkey import version_key
+from licenseid.warning import LicenseIdWarning
 
 MIT_TEXT = (
     "permission is hereby granted free of charge to any person obtaining a copy"
@@ -166,9 +168,13 @@ def test_non_triggering_inputs(
         with pytest.raises(InvalidInputError):
             match_ids(matcher, **{kind: value})
         return
-    found = match_ids(matcher, **{kind: value})
+    with warnings.catch_warnings(record=True) as given:
+        warnings.simplefilter("always", LicenseIdWarning)
+        found = match_ids(matcher, **{kind: value})
     if ids is not None:
         assert found == ids
+    # One long word resolve() refused has too few words to match as text.
+    assert all("too few words for text" in str(w.message) for w in given)
 
 
 @pytest.mark.parametrize("predicate", ["is_spdx", "is_osi", "is_fsf"])

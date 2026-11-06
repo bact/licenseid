@@ -160,7 +160,7 @@ def test_match_diff_is_plain_text_when_not_a_terminal(mit_db: str) -> None:
         # of it (similarity 1.0, coverage below 1.0) whose window equals it.
         (["--text", MIT_SEARCH_TEXT], "METHOD=text\tEXACT=true"),
         (
-            ["--text", "permission is hereby granted free of charge"],
+            ["--text", "permission is hereby granted free of charge to any person"],
             "METHOD=text\tEXACT=false",
         ),
         # Not matched as text, so aligned with no license text.
@@ -168,7 +168,7 @@ def test_match_diff_is_plain_text_when_not_a_terminal(mit_db: str) -> None:
         (["--text", "SPDX-License-Identifier: MIT"], "METHOD=tag\tEXACT=true"),
         (["--text", '{"license": "MIT"}'], "METHOD=field\tEXACT=true"),
         (["--text", "MIT License"], "METHOD=name\tEXACT=true"),
-        (["--text", "The MIT Licence"], "METHOD=name\tEXACT=false"),
+        (["--text", "Licence MIT"], "METHOD=name\tEXACT=false"),
     ],
     ids=["exact", "fragment", "id", "tag", "field", "name", "close-name"],
 )

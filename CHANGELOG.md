@@ -11,17 +11,27 @@ and this project adheres to
 
 ### Changed
 
+- `detect` reads a whole input with `resolve()` first and answers its
+  expression: `MIT OR Apache-2.0` is `Apache-2.0 OR MIT` (was `ECL-2.0`, a
+  text guess), `Apache 2+` is `Apache-2.0+`; a guess stays not exact ([#161])
+- An input under 10 words that `resolve()` refuses and no licence name
+  matches is not matched as text: no answer, with `WARNING: input: too few
+  words for text: <reason>` (`GNU GPL v2` was `LiLiQ-R-1.1`); Chinese and
+  Japanese are matched at any length ([#161])
 - Builds the wheel's SBOM with Pitloom 0.23.0 (`build-system.requires`
   `pitloom>=0.23.0`), which reads a dependency's licence name as its ID
   (`MIT License` is `MIT`) ([#164])
 
 ### Fixed
 
+- `resolve()` refuses a 20 MB value with no outer brackets as too long in
+  0.1 s (was 1.4 s) ([#161])
 - `resolve()` and `detect()` no longer raise `AttributeError` in a plain
   Python process when the database warns (`build vN outdated`,
   `N days old`): Python's built-in default warning filter crashed them
   ([#162])
 
+[#161]: https://github.com/bact/licenseid/pull/161
 [#162]: https://github.com/bact/licenseid/pull/162
 [#164]: https://github.com/bact/licenseid/pull/164
 
@@ -772,6 +782,9 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[0.7.1]: https://github.com/bact/licenseid/compare/v0.7.0...v0.7.1
+[0.7.0]: https://github.com/bact/licenseid/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/bact/licenseid/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/bact/licenseid/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/bact/licenseid/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/bact/licenseid/compare/v0.4.1...v0.4.2
