@@ -23,6 +23,9 @@ and this project adheres to
 - Builds the wheel's SBOM with Pitloom 0.23.0 (`build-system.requires`
   `pitloom>=0.23.0`), which reads a dependency's licence name as its ID
   (`MIT License` is `MIT`) ([#164])
+- A List name without its grant (`GNU General Public License v3.0`, was
+  `AGPL-3.0-only`) is the `-only` guess, not exact, with
+  `WARNING: input: variant not stated` ([#168])
 
 ### Fixed
 
@@ -37,6 +40,11 @@ and this project adheres to
 - The DETAIL of `variant not stated` is cut to 60 characters ([#167])
 - A warning that a `catch_warnings` block ignored is given again later under
   Python 3.14's context-aware warnings ([#167])
+- `detect` gives no answer for words a licence name only holds: `BSD` and
+  `BSD License` were `0BSD` at 1.0, `GPL` was `BSD-Source-alt-GPL`; so do
+  `New BSD` and `Simplified BSD`, for now ([#168])
+- An input under 40 columns (20 Han letters) counts less in a text match:
+  `著作権` (copyright) was `CC-BY-SA-2.1-JP` at 1.0 ([#168])
 
 [#161]: https://github.com/bact/licenseid/pull/161
 [#162]: https://github.com/bact/licenseid/pull/162
@@ -44,6 +52,7 @@ and this project adheres to
 [#164]: https://github.com/bact/licenseid/pull/164
 [#165]: https://github.com/bact/licenseid/pull/165
 [#167]: https://github.com/bact/licenseid/pull/167
+[#168]: https://github.com/bact/licenseid/pull/168
 
 ## [0.7.1] - 2026-11-05
 

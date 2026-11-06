@@ -14,12 +14,16 @@ reason)}`` for the ``detect()`` golden. ``CLI_CHANGES``:
 ``{"case#mode": (digest, reason)}``, the digest from ``tools.golden``
 (``python -m tools.golden`` prints it)."""
 
+from harness_changes_nametier import NAME_TIER_CHANGES
 from harness_changes_resolvefirst import RESOLVE_FIRST_CHANGES
 
 _FIRST = "resolve() reads the whole value: Apache-2.0 alone, nothing measured"
 _SHORT = "still no answer, now with resolve()'s reason: input: too few words for text"
 
-DETECT_CHANGES: dict[str, tuple[str, str]] = {**RESOLVE_FIRST_CHANGES}
+DETECT_CHANGES: dict[str, tuple[str, str]] = {
+    **RESOLVE_FIRST_CHANGES,
+    **NAME_TIER_CHANGES,
+}
 CLI_CHANGES: dict[str, tuple[str, str]] = {
     "detect-name#text": ("bea927311e33", _FIRST),
     "detect-name#json": ("486cff182afc", _FIRST),

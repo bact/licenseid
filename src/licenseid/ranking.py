@@ -9,6 +9,7 @@ tie-breaker that runs after ranking."""
 from collections.abc import Callable
 
 from licenseid.classify import has_or_later_language
+from licenseid.plusoperator import grant_stem
 from licenseid.types import InternalMatch
 
 # Effective score penalty applied to deprecated licenses during ranking.
@@ -88,7 +89,7 @@ def apply_version_suffix_tiebreaker(
         lid = match["license_id"]
         if not lid.endswith("-only"):
             continue
-        base = lid[: -len("-only")]
+        base = grant_stem(lid)
         peer = base + "-or-later"
         if peer not in id_to_score:
             continue

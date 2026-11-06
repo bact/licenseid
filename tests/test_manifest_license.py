@@ -332,8 +332,9 @@ def test_a_slash_elsewhere_is_not_or(db: str, tmp_path: Path, kind: str) -> None
 
 
 def test_a_name_match_needs_no_lookup_per_result(db: str, given: GivenWarnings) -> None:
-    """Tier 0 takes the flags from its cached name table: a broad name
-    returns dozens of results, and a lookup each made it 20 times slower.
+    """Tier 0 takes the flags from its cached name table: a name with
+    look-alikes returns dozens of results, and a lookup each made it 20
+    times slower.
     resolve() reads the whole value first, with lookups of its own."""
     matcher = LicenseDetector(db)
     matcher.detect(text="warm up the name cache")
@@ -343,7 +344,8 @@ def test_a_name_match_needs_no_lookup_per_result(db: str, given: GivenWarnings) 
         autospec=True,
         side_effect=LicenseDatabase.get_license_details,
     ) as lookup:
-        results = matcher.detect(text="Apache License")
+        # A name with a word left out: resolve() refuses it, Tier 0 reads it.
+        results = matcher.detect(text="GNU Public License v2.0 only")
     assert len(results) >= 2
     assert all(isinstance(r.get("is_spdx"), bool) for r in results)
     assert lookup.call_count <= 3  # resolve()'s own, none for a result

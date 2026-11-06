@@ -31,11 +31,26 @@ LICENSE_REF_PREFIX = re.compile(
 )
 
 
+# The qualifiers an SPDX ID can end in.
+_QUALIFIERS = ("-only", "-or-later")
+
+
 def states_qualifier(license_id: str) -> bool:
     """Whether *license_id* states its qualifier ("GPL-2.0-only",
     "GPL-2.0-or-later"), in any case: a "+" or an "or later" grant after it
     would state a second."""
-    return license_id.lower().endswith(("-only", "-or-later"))
+    return license_id.lower().endswith(_QUALIFIERS)
+
+
+def grant_stem(license_id: str) -> str:
+    """*license_id* without the grant it ends in, in any case: GPL-2.0 for
+    GPL-2.0-only, GPL-2.0-or-later and the deprecated GPL-2.0+, one licence
+    each way."""
+    stem = strip_plus_operator(license_id)
+    for suffix in _QUALIFIERS:
+        if stem.lower().endswith(suffix):
+            return stem[: -len(suffix)]
+    return stem
 
 
 def plus_after_qualifier(expression: str) -> bool:

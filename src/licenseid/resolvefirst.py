@@ -26,7 +26,10 @@ four such texts of the List at 4 to 13 characters, Tiers 1 and 2 answered
 the licence or its other version 592 times in 593 (1 no answer), and
 28 of 30 short phrases that are no licence got no answer; an input that
 mixes in Latin words (``GPL 第三版``, was ``AGPL-1.0-only``) is cut by its
-words. Korean is written with spaces, and its words are counted.
+words. Korean is written with spaces, and its words are counted. Such an
+input is weighed by its length instead (:func:`licenseid.similarity.text_evidence`,
+40 columns, about the width of ten words): a few Han letters that a licence
+holds (``著作権``, ``版权所有``) answered it at 1.0 for a word they share.
 """
 
 import re
