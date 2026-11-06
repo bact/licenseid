@@ -24,6 +24,17 @@ and this project adheres to
 
 [#161]: https://github.com/bact/licenseid/pull/161
 
+## [0.7.2] - Unreleased
+
+### Fixed
+
+- `resolve()` and `detect()` no longer raise `AttributeError` in a plain
+  Python process when the database warns (`build vN outdated`,
+  `N days old`): Python's built-in default warning filter crashed them
+  ([#162])
+
+[#162]: https://github.com/bact/licenseid/pull/162
+
 ## [0.7.1] - 2026-11-05
 
 ### Changed

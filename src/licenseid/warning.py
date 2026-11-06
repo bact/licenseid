@@ -138,29 +138,36 @@ def warn(
 def _ignored(warning: LicenseIdWarning, caller: FrameType | None) -> bool:
     """Whether the filters in force ignore *warning* given at *caller*: the
     first filter that matches decides, as ``warnings.warn_explicit`` reads
-    the list (message from the start, case folded; category a subclass;
+    the list (category a subclass; message from the start, case folded;
     module name from the start; line 0 for any), else the default
-    action."""
+    action. The category is tested first, and a field only when the ones
+    before it matched, as CPython does."""
     module = "sys" if caller is None else caller.f_globals.get("__name__", "")
     lineno = 0 if caller is None else caller.f_lineno
+    text = str(warning)
     for action, message, category, name, line in warnings.filters:
-        if all(
-            (
-                _matches(message, str(warning)),
-                issubclass(LicenseIdWarning, category),
-                _matches(name, module),
-                line in (0, lineno),
-            )
+        if (
+            issubclass(LicenseIdWarning, category)
+            and _matches(message, text)
+            and _matches(name, module)
+            and line in (0, lineno)
         ):
             return action == "ignore"
     # Not in typeshed; "default" in CPython, where nothing changed it.
     return getattr(warnings, "defaultaction", "default") == "ignore"
 
 
-def _matches(pattern: re.Pattern[str] | None, value: str) -> bool:
-    """Whether a filter's *pattern* (None: any) matches *value* from its
-    start."""
-    return pattern is None or pattern.match(value) is not None
+def _matches(pattern: re.Pattern[str] | str | None, value: str) -> bool:
+    """Whether a filter's message or module field *pattern* matches *value*,
+    as CPython's ``check_matched`` reads it: None matches any value, a plain
+    ``str`` only an equal one (the module of the built-in default filter,
+    ``('default', None, DeprecationWarning, '__main__', 0)``), and a
+    compiled pattern (``filterwarnings``, ``-W``) from the start."""
+    if pattern is None:
+        return True
+    if isinstance(pattern, str):
+        return pattern == value
+    return pattern.match(value) is not None
 
 
 def _ours(frame: FrameType) -> bool:

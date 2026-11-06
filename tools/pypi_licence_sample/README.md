@@ -89,7 +89,7 @@ delete them. `tests/test_resolver_sample.py` freezes these files (see
 
 - It does not compare with any consumer. Pitloom's own reading was compared by
   hand once; see the evidence document.
-- It does not cover npm, Cargo or Maven licence fields.
+- It covers PyPI only; `tools/licence_sample/` samples six channels.
 - It does not time `resolve()`.
 
 Standard library and `licenseid` only.
