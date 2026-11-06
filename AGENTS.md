@@ -33,7 +33,8 @@
   `resolvetitle.py` (the title a licence's own text gives itself: `CC0 1.0
   Universal`, as data),
   `resolvealias.py` (another name of a BSD licence: `New BSD`, `BSD-3`,
-  as data),
+  as data; it and `resolvetitle` read their table through
+  `resolvetable.py`),
   `resolvesemicolon.py` (licences joined by `;`: listed, no operator),
   `exprcanon.py` (its leaves and canonical
   order), `exprtokens.py` (the words of an expression), `resolverinfo.py`

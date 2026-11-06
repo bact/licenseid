@@ -122,10 +122,13 @@ steps taken, without fuzzy matching:
   `BSD-3-Clause`; `Simplified BSD`, `2-clause BSD` and `Two-clause BSD` are
   `BSD-2-Clause`. Each word is the List's (`BSD 3-Clause "New" or "Revised"
   License`) or the OSI's, or the clause count of the ID. A final `License`
-  is read as a prose form (below): `New BSD License` is `New BSD`. A name
-  with no clause count (`BSD`, `BSD License`), `FreeBSD` (the List's
-  `FreeBSD-DOC` too) and a spelling no project declares (`BSD 4`) are not
-  read. Case does not matter, in ASCII only; spacing does;
+  is read as a prose form (below): `New BSD License` is `New BSD`, and
+  `New BSD License (BSD-3-Clause)` is read as a prose form with its short
+  form, while `New BSD (BSD-3-Clause)` is not. A name with no clause count
+  (`BSD`, `BSD License`), `FreeBSD` (the List's `FreeBSD-DOC` too) and a
+  spelling no project declares (`BSD 2`, `BSD 4`) are not read; nor is a
+  version (`BSD License v3`). Case does not matter, in ASCII only; spacing
+  does;
 - the prose form of one licence is read last, as category `prose_form`
   (a `prose_form` step, then the steps of what it reduces to): a final
   `license` or `licence` after a value that names one licence (not after a

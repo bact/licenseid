@@ -80,6 +80,19 @@ def test_each_alias_names_its_id_by_the_list_or_the_osi(alias: str) -> None:
         assert word in _OSI_WORDS
 
 
+@pytest.mark.parametrize("word", sorted(_OSI_WORDS))
+def test_no_list_name_has_an_osi_word(word: str) -> None:
+    """A word only the OSI gives names no other licence of the List: no name
+    holds it as a word. ``BSD 3-Clause Modification`` and ``BSD Mark
+    Modifications License`` are near, and other licences."""
+    holders = [
+        license_id
+        for license_id, (name, _) in _LISTED.items()
+        if word in re.findall(r"[a-z]+", name.casefold())
+    ]
+    assert holders == []
+
+
 def test_the_list_quotes_each_word_for_one_licence_only() -> None:
     """``New``, ``Revised`` and ``Simplified`` are quoted in one List name
     each, so the word names one licence."""
@@ -149,6 +162,27 @@ def test_an_alias_with_a_licence_word_is_its_prose_form(
     ]
 
 
+@pytest.mark.parametrize(
+    ("value", "expression"),
+    [
+        ("New BSD License (BSD-3-Clause)", "BSD-3-Clause"),
+        ("Simplified BSD License (BSD-2-Clause)", "BSD-2-Clause"),
+    ],
+)
+def test_a_prose_form_of_an_alias_takes_an_agreeing_short_form(
+    corpus_db: LicenseDatabase, value: str, expression: str
+) -> None:
+    """A prose form and its short form in brackets read as one licence (as
+    ``The MIT License (MIT)``); the bare alias does not (T3 reads a leaf)."""
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["category"]) == (expression, "alias_name")
+    assert [s["kind"] for s in got["steps"]] == [
+        "trailing_name",
+        "prose_form",
+        "alias_name",
+    ]
+
+
 def test_an_alias_takes_an_article_and_an_end_mark(corpus_db: LicenseDatabase) -> None:
     got = resolve("The New BSD License.", corpus_db)
     assert got["expression"] == "BSD-3-Clause"
@@ -189,7 +223,9 @@ def test_an_alias_takes_an_article_and_an_end_mark(corpus_db: LicenseDatabase) -
         "BSD-3+",  # no grant on an alias
         "New BSD+",
         "New BSD or later",
-        "New BSD (BSD-3-Clause)",  # no agreeing short form read
+        "New BSD (BSD-3-Clause)",  # T3 reads its head as a leaf only
+        "New BSD License (BSD-2-Clause)",  # the parts differ
+        "BSD-3 (BSD-3-Clause)",
         "Revised BSD License (LICENSE.txt)",
         "Néw BSD",
         "BSD-3 Clause Licence Foo",

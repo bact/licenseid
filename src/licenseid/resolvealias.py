@@ -19,7 +19,14 @@ Each word of such a name comes from the List or the Open Source Initiative
   BSD License`` (https://opensource.org/license/bsd-3-clause,
   https://opensource.org/license/bsd-2-clause, read 2026-11-06);
 - ``BSD-3`` and ``BSD3`` are the ID with ``Clause`` left out: the number of
-  a BSD ID counts its clauses.
+  a BSD ID counts its clauses; ``Two-clause BSD`` spells the OSI's number
+  out, as a project in the sample does.
+
+``Modified`` is the OSI's word only: no List name has it. The List's ``BSD
+3-Clause Modification`` and ``BSD Mark Modifications License`` are other
+licences, which ``Modified BSD`` does not name. An ``alias_name`` step cites
+the SPDX List for the ID it reads, not for the alias, which the List does
+not record.
 
 The names are data, decided once here, as the titles are
 (:mod:`licenseid.resolvetitle`): a name is read only if this table holds it,
@@ -42,7 +49,7 @@ from typing import Final
 
 from licenseid.listlookup import ListLookup
 from licenseid.resolveleaf import Found
-from licenseid.resolvetitle import read_by_table
+from licenseid.resolvetable import read_by_table
 
 _KIND: Final = "alias_name"
 
@@ -58,7 +65,7 @@ ALIASES: Final[dict[str, str]] = {
     "new bsd": "BSD-3-Clause",  # the List and the OSI
     "revised bsd": "BSD-3-Clause",  # the List
     "simplified bsd": "BSD-2-Clause",  # the List and the OSI
-    "two-clause bsd": "BSD-2-Clause",  # OSI, its number in words
+    "two-clause bsd": "BSD-2-Clause",  # the sample: the OSI's, spelt out
 }
 
 

@@ -25,6 +25,7 @@ maintainer made every push and merge.
 | #162 | `resolve()` crashed in a plain Python process when the database warned | side session |
 | #163 | `resolve()` reads a licence's own title (`text_title`), `CC0` and the UPL trove name | side session |
 | #164 | The wheel's SBOM built with Pitloom 0.23.0 | side session |
+| #170 | `resolve()` reads the BSD aliases (`alias_name`): `New BSD`, `BSD-3` | side session |
 
 Results of #161 and #160 are in `results-and-findings.md` §3.8.
 
@@ -57,6 +58,16 @@ conclusions, and every finding was reproduced before it was reported.
   as the parser reads no `AdditionRef`. Seven doc or wording findings.
   13 mutants of 16 died; of the three left, two were equivalent and one
   showed the untested flags.
+- **#170, 6 points, no wrong answer.** The reviewer reran the PyPI
+  sample on the branch and on `main` (the same 17 values moved) and probed
+  about 80 near neighbours, all refused. Its points: a bracketed form read
+  with a final `License` but not without one, untested; a test check that
+  was circular (a set the test itself defined); one entry's evidence
+  overstated (`Two-clause BSD` is the sample's, not the OSI's); the cited
+  list vouches for the ID, not the alias; a doc gap (`BSD 2`); a shared
+  helper in the wrong module. All six fixed. Before it, the author's own
+  probe found `BSD License v3` read as BSD-3-Clause through P2 (a version
+  taken for a clause count) and fixed it.
 - **#163, 6 findings.** The title table was read by `resolve()` only, so
   `detect CC0` answered `CC0-1.0` and `detect --id CC0` nothing; the
   titles folded case beyond ASCII (`Mulan Pſl v2` read as MulanPSL-2.0);
