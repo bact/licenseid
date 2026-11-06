@@ -18,6 +18,7 @@ the subject of a cache file it could not delete.
 import os
 import sqlite3
 from collections.abc import Callable, Generator
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -45,21 +46,32 @@ from licenseid.dbcheck import check_database_ready, is_ready
 # --- 1. LicenseDatabase(path): another program's file, and a missing one ---
 
 
+# Each helper closes its connection: "with sqlite3.connect()" only commits,
+# and a connection left open keeps a WAL file's rows out of the main file.
+
+
 def names_in(path: Path) -> set[str]:
-    with sqlite3.connect(path) as conn:
+    with closing(sqlite3.connect(path)) as conn:
         return {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
 
 
 def foreign_wal(path: Path) -> None:
-    with sqlite3.connect(path) as conn:
+    """A file in WAL mode with every row in the main file: checkpointed, not
+    left to the last close, which a connection still open or a SQLite that
+    keeps its WAL (macOS) skips. Else the file under test changed when the
+    next reader checkpointed it (a CI run on Python 3.14)."""
+    with closing(sqlite3.connect(path)) as conn:
         conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("CREATE TABLE foo (x)")
-        conn.execute("INSERT INTO foo VALUES (1)")
-    sqlite3.connect(path).close()  # the last connection removes -wal
+        with conn:
+            conn.execute("CREATE TABLE foo (x)")
+            conn.execute("INSERT INTO foo VALUES (1)")
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    wal = path.with_name(f"{path.name}-wal")
+    assert not wal.exists() or wal.stat().st_size == 0
 
 
 def foreign_plain(path: Path) -> None:
-    with sqlite3.connect(path) as conn:
+    with closing(sqlite3.connect(path)) as conn, conn:
         conn.execute("CREATE TABLE foo (x)")
         conn.execute("INSERT INTO foo VALUES (1)")
 
@@ -67,7 +79,7 @@ def foreign_plain(path: Path) -> None:
 def foreign_licenses_table(path: Path) -> None:
     """A table of licenseid's name with another schema: not a half-built
     database, so not one to complete."""
-    with sqlite3.connect(path) as conn:
+    with closing(sqlite3.connect(path)) as conn, conn:
         conn.execute("CREATE TABLE licenses (spdx_id TEXT, title TEXT)")
         conn.execute("INSERT INTO licenses VALUES ('MIT', 'MIT License')")
 
