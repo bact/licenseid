@@ -66,11 +66,16 @@ OUTDATED: Parts = (
 )
 
 
+def ours(given: list[warnings.WarningMessage]) -> list[warnings.WarningMessage]:
+    """The LicenseIdWarnings of *given*, in order."""
+    return [w for w in given if isinstance(w.message, LicenseIdWarning)]
+
+
 def parts_of(given: list[warnings.WarningMessage]) -> list[Parts]:
     """The parts of each LicenseIdWarning *given*, in order."""
     return [
         (w.message.subject, w.message.condition, w.message.detail, w.message.action)
-        for w in given
+        for w in ours(given)
         if isinstance(w.message, LicenseIdWarning)
     ]
 
@@ -220,8 +225,11 @@ def test_a_narrowed_tag_is_a_warning(
         narrowed("GPL-2.0", "GPL-2.0-only"),
         narrowed("LGPL-2.1", "LGPL-2.1-only"),
     ]
-    # Attributed to the caller's line, not to licenseid's.
-    assert {w.filename for w in given.list} == {__file__}
+    # Attributed to the caller's line, not to licenseid's. Only licenseid's
+    # own warnings: pytest.warns records every class, and a collection here
+    # can close an earlier test's in-memory database (a ResourceWarning,
+    # Python 3.13+, filed under whatever frame the collector ran in).
+    assert {w.filename for w in ours(given.list)} == {__file__}
     assert capsys.readouterr() == ("", "")
 
 
@@ -460,7 +468,7 @@ def test_a_warning_behind_a_cached_property_names_the_caller(
             LicenseDatabase(str(tmp_path / "licenses.db")).update_from_remote()
     snapshot = [w for w in given if "spdx-bundle.json.gz" in str(w.message)]
     assert len(snapshot) == 1
-    assert {w.filename for w in given} == {__file__}
+    assert {w.filename for w in ours(given)} == {__file__}
 
 
 # --- The CLI's printer --------------------------------------------------------
