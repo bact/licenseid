@@ -13,7 +13,9 @@ and this project adheres to
 
 - Builds the wheel's SBOM with Pitloom 0.23.0 (`build-system.requires`
   `pitloom>=0.23.0`), which reads a dependency's licence name as its ID
-  (`MIT License` is `MIT`)
+  (`MIT License` is `MIT`) ([#164])
+
+[#164]: https://github.com/bact/licenseid/pull/164
 
 ## [0.7.1] - 2026-11-05
 
