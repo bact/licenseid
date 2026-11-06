@@ -24,6 +24,8 @@ def read_by_table(
     of *kind* to that ID, then the steps of the ID read alone (a bare
     deprecated ID stays ``assumed_only``). False if *table* lacks *text* or
     the list lacks its ID."""
+    # str.split() splits on exprtokens.WHITE_SPACE and on U+001C to U+001F,
+    # which resolve() refused before any reader.
     license_id = table.get(fold_case(" ".join(text.split())))
     if license_id is None:
         return False
