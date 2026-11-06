@@ -129,8 +129,12 @@ class LicenseDetector:
             raise invalid_id_error("license_id", license_id)
         # An ID written loosely ("GPL2") reads as it does in a text, so
         # `--id GPL2` and the argument GPL2 answer alike (F3).
-        declared = self._resolve_declared(license_id) or self._resolve_loose_with(
-            license_id
+        # Then what resolve() reads that they do not (the title ``CC0``), so
+        # `--id CC0` and the argument CC0 answer alike.
+        declared = (
+            self._resolve_declared(license_id)
+            or self._resolve_loose_with(license_id)
+            or self._as_resolve_reads(license_id)
         )
         return declared or self._with_flags(match_version_key(self.db, license_id))
 
@@ -419,17 +423,29 @@ class LicenseDetector:
         # resolve() answer it alike (resolvefirst).
         whole = resolve_with(self.db, target_text)
         if whole["expression"] is not None:
-            expression = whole["expression"]
-            found = self._resolve_declared(expression, target_text) or [
-                match_of(expression, self.markers.license_flags(expression))
-            ]
-            return as_resolved(whole, found)
+            return self._answer_of(whole, target_text)
         return self._match_text(
             self._build_match_context(
                 target_text, file_path, cast(DetectRequest, options)
             ),
             whole,
         )
+
+    def _as_resolve_reads(self, value: str) -> list[RawMatch]:
+        """*value* as resolve() reads it, or nothing if it refuses it."""
+        resolution = resolve_with(self.db, value)
+        if resolution["expression"] is None:
+            return []
+        return self._answer_of(resolution, value)
+
+    def _answer_of(self, resolution: Resolution, value: str) -> list[RawMatch]:
+        """The results of *resolution*'s expression, read from *value*, made
+        what the resolution says (resolvefirst)."""
+        expression = resolution["expression"] or ""
+        found = self._resolve_declared(expression, value) or [
+            match_of(expression, self.markers.license_flags(expression))
+        ]
+        return as_resolved(resolution, found)
 
     def _match_text(
         self, ctx: _MatchContext, whole: Resolution

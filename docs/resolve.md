@@ -114,10 +114,11 @@ steps taken, without fuzzy matching:
   Universal` is `CC0-1.0`, `Mulan PSL v2` is `MulanPSL-2.0`, and the title
   line `GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007` is the bare
   `GPL-3.0`, `assumed_only`, and `CC0` is `CC0-1.0`, the only CC0. Case
-  does not matter; spacing does;
+  does not matter, in ASCII only; spacing does;
 - the prose form of one licence is read last, as category `prose_form`
   (a `prose_form` step, then the steps of what it reduces to): a final
-  `license` or `licence` after a value that names one licence, with a `+`
+  `license` or `licence` after a value that names one licence (not after a
+  title: `CC0 License` is refused), with a `+`
   or a `WITH` if it has one (`BSD 3-Clause License`, `MIT+ License`), `<name>
   License[,] (Version|v) N` as `<name> N`, or as the List name `<name>
   License N` if both name the same licence (`Apache License, Version 2.0`,

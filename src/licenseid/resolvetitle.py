@@ -26,19 +26,21 @@ gives itself apart from its version, is ``CC0-1.0``, the only CC0 (the
 maintainer, 2026-11-05). The UPL trove name is the other exception, in
 :mod:`licenseid.trovenames`.
 
-Case does not matter, as for a List name; white space does.
+Case does not matter, in ASCII only (``Mulan Pſl v2`` is no title); white
+space does.
 """
 
 from typing import Final
 
-from licenseid.listlookup import ListLookup
+from licenseid.listlookup import ListLookup, fold_case
 from licenseid.resolveleaf import Found, read_leaf
 from licenseid.resolvertypes import step
 from licenseid.resolvetrove import copy_reading
 
 _KIND: Final = "text_title"
 
-#: The titles, folded (``str.casefold``), and the ID each names.
+#: The titles, folded (:func:`licenseid.listlookup.fold_case`), and the ID
+#: each names.
 TITLES: Final[dict[str, str]] = {
     "cc0": "CC0-1.0",  # no version: an exception to P47
     "cc0 1.0 universal": "CC0-1.0",
@@ -52,7 +54,7 @@ def read_title(db: ListLookup, text: str, found: Found) -> bool:
     title of a licence text into *found*: a ``text_title`` step to the ID of
     the table, then the steps of that ID read alone. False if *text* is no
     title of the table or the list lacks its ID."""
-    license_id = TITLES.get(text.casefold())
+    license_id = TITLES.get(fold_case(text))
     if license_id is None:
         return False
     reading = Found()
