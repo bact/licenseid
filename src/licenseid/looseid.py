@@ -380,9 +380,7 @@ def shown(text: str) -> str:
     (which starts the ACTION), each other character as "?", and cut to 60
     characters as :func:`licenseid.errors.one_line` cuts a value."""
     line = " ".join(text.split())
-    return one_line(
-        "".join(c if c.isprintable() and c != ";" else "?" for c in line)
-    )
+    return one_line("".join(c if c.isprintable() and c != ";" else "?" for c in line))
 
 
 def loose_with(db: ListLookup, text: str) -> tuple[str, str | None] | None:

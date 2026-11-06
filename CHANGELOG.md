@@ -31,12 +31,19 @@ and this project adheres to
 - `resolve()` and `detect()` no longer raise `AttributeError` under
   Python's default warning filters when they warn (`build vN outdated`)
   ([#162])
+- `detect()` narrows a split ID before `WITH AdditionRef-*` and says so:
+  `GPL-3.0 WITH AdditionRef-x` is `GPL-3.0-only WITH AdditionRef-x`, not
+  exact ([#167])
+- The DETAIL of `variant not stated` is cut to 60 characters ([#167])
+- A warning that a `catch_warnings` block ignored is given again later under
+  Python 3.14's context-aware warnings ([#167])
 
 [#161]: https://github.com/bact/licenseid/pull/161
 [#162]: https://github.com/bact/licenseid/pull/162
 [#163]: https://github.com/bact/licenseid/pull/163
 [#164]: https://github.com/bact/licenseid/pull/164
 [#165]: https://github.com/bact/licenseid/pull/165
+[#167]: https://github.com/bact/licenseid/pull/167
 
 ## [0.7.1] - 2026-11-05
 

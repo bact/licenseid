@@ -409,6 +409,7 @@ def test_a_narrowed_id_is_found_in_an_expression(
         ("GPL-2.0+ WITH AdditionRef-x", "GPL-2.0+ WITH AdditionRef-x"),  # "+"
         ("GPL-2.0-only OR LGPL-2.1", "GPL-2.0-only OR LGPL-2.1-only"),
         ("MIT WITH AdditionRef-x", "MIT WITH AdditionRef-x"),
+        ("mit WITH AdditionRef-x", "mit WITH AdditionRef-x"),  # no narrowing
     ],
 )
 def test_narrow_ids_narrows_each_bare_split_id(
