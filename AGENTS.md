@@ -529,7 +529,9 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   too (`MIT OR ISC`). The rest goes through the tiers; one under
   `resolvefirst.MIN_TEXT_WORDS` (10, measured on the goldens) that the name
   tier does not answer gets no text match and warns `too few words for
-  text` (not after a tag was taken out). The CLI makes no ID guess of its
+  text` (not after a tag was taken out). Han and kana text is not cut: a
+  word count is no measure without spaces (the CJK trap below). The CLI
+  makes no ID guess of its
   own. Ask the predicate BEFORE calling
   `detect(license_id=...)`, which raises rather than returning no match.
   Do not widen `--id` to expressions

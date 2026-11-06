@@ -459,7 +459,7 @@ class LicenseDetector:
 
         # Tier 1: Broad Recall, then Tier 2: Precision Ranking; not for a
         # short input resolve() refused (resolvefirst).
-        if too_short(whole, ctx.word_count, whole=ctx.target_text == target_text):
+        if too_short(whole, ctx.norm_input, whole=ctx.target_text == target_text):
             return []
         ranked = self._run_tier1_and_tier2(ctx, marker_candidates, marker_boosts)
 

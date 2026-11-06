@@ -53,30 +53,56 @@ def test_a_narrowed_match_stays_inexact(corpus_db: LicenseDatabase) -> None:
     assert match["exact"] is False
 
 
+_NINE = " ".join(["word"] * (MIN_TEXT_WORDS - 1))
+
+
 @pytest.mark.parametrize(
-    ("words", "whole", "outcome"),
+    ("text", "whole", "outcome"),
     [
-        (MIN_TEXT_WORDS - 1, True, (True, True)),  # (cut, warned)
-        (MIN_TEXT_WORDS, True, (False, False)),
-        (MIN_TEXT_WORDS - 1, False, (True, False)),  # a tag was taken out
-        (0, True, (True, False)),  # nothing left to say it of
+        (_NINE, True, (True, True)),  # (cut, warned)
+        (_NINE + " word", True, (False, False)),
+        (_NINE, False, (True, False)),  # a tag was taken out
+        ("", True, (True, False)),  # nothing left to say it of
     ],
+    ids=["short", "long-enough", "tag-taken-out", "empty"],
 )
 def test_the_cut_and_its_warning(
     corpus_db: LicenseDatabase,
     given: GivenWarnings,
-    words: int,
+    text: str,
     whole: bool,
     outcome: tuple[bool, bool],
 ) -> None:
     resolution = resolve("GNU GPL v2", corpus_db)
-    assert too_short(resolution, words, whole=whole) is outcome[0]
+    assert too_short(resolution, text, whole=whole) is outcome[0]
     expected = "WARNING: input: too few words for text: not found: GNU GPL v2\n"
     assert given.lines() == (expected if outcome[1] else "")
 
 
 def test_a_resolved_value_is_never_cut(corpus_db: LicenseDatabase) -> None:
-    assert too_short(resolve("MIT", corpus_db), 1, whole=True) is False
+    assert too_short(resolve("MIT", corpus_db), "mit", whole=True) is False
+
+
+@pytest.mark.parametrize(
+    ("text", "cut"),
+    [
+        ("版权所有", False),  # Han: no spaces between its words
+        ("すべての権利は 留保される", False),  # kana and Han
+        ("を行使する 第7条bに定める期間", False),  # a clause letter among them
+        ("木兰宽松许可证 第2版", False),  # a digit is no letter
+        ("gpl 第三版", True),  # half Latin: counted by its words
+        ("gnu 通用公共许可证 v3", True),
+        ("专有 许可证 v2", True),  # 5 in 6: below nine in ten
+        ("저작권 보호", True),  # Korean is written with spaces
+        ("１２３", True),  # no letter at all
+    ],
+)
+def test_a_text_written_without_spaces_is_not_cut(
+    corpus_db: LicenseDatabase, given: GivenWarnings, text: str, cut: bool
+) -> None:
+    resolution = resolve("GNU GPL v2", corpus_db)
+    assert too_short(resolution, text, whole=False) is cut
+    assert given.lines() == ""
 
 
 @pytest.mark.parametrize(
