@@ -265,7 +265,8 @@ exception or a `LicenseRef-*` (P80) and to a lone dash after a prose form.
   them by luck: 17 sample values, 39 projects. Refused on purpose: bare
   `BSD` and `BSD License` (Q3), `FreeBSD` (the OSI's BSD-2-Clause, the
   List's `FreeBSD-DOC`), and spellings no project declares (`BSD 2`,
-  `BSD 4`). A tag and a field read no alias, as no title, until 0.8.
+  `BSD 4`). A tag and a field read no alias, as no title, until 0.8. Each
+  alias with its sources and projects: `paper-notes/licence-aliases.md`.
 
 ## Semicolon lists as an unstated operator (T8b, #131; P81 to P88)
 
