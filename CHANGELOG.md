@@ -28,7 +28,7 @@ and this project adheres to
   `WARNING: input: variant not stated` ([#168])
 - `resolve()` reads the BSD aliases (`New BSD`, `Simplified BSD`, `3-clause
   BSD`, `BSD-3`), category `alias_name`; `detect` finds them by name; bare
-  `BSD` stays unresolved
+  `BSD` stays unresolved ([#170])
 
 ### Fixed
 
@@ -57,6 +57,7 @@ and this project adheres to
 [#165]: https://github.com/bact/licenseid/pull/165
 [#167]: https://github.com/bact/licenseid/pull/167
 [#168]: https://github.com/bact/licenseid/pull/168
+[#170]: https://github.com/bact/licenseid/pull/170
 
 ## [0.7.1] - 2026-11-05
 
