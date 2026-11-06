@@ -87,6 +87,7 @@ def test_a_resolved_value_is_never_cut(corpus_db: LicenseDatabase) -> None:
     ("text", "cut"),
     [
         ("版权所有", False),  # Han: no spaces between its words
+        ("クリエイティブ・コモンズ", False),  # katakana alone
         ("すべての権利は 留保される", False),  # kana and Han
         ("を行使する 第7条bに定める期間", False),  # a clause letter among them
         ("木兰宽松许可证 第2版", False),  # a digit is no letter
@@ -163,3 +164,51 @@ def test_a_semicolon_in_the_reason_starts_no_action(
     """A ";" in the DETAIL would start the ACTION of the warning."""
     assert LicenseDetector(corpus_db.location).detect(text) == []
     assert given.lines() == f"WARNING: input: too few words for text: {detail}\n"
+
+
+@pytest.mark.parametrize(
+    ("text", "expression"),
+    [
+        ("GPL-3.0 WITH AdditionRef-x", "GPL-3.0-only WITH AdditionRef-x"),
+        ("LGPL-2.1 WITH AdditionRef-a", "LGPL-2.1-only WITH AdditionRef-a"),
+        (
+            "GPL-2.0 WITH AdditionRef-x OR MIT",
+            "MIT OR GPL-2.0-only WITH AdditionRef-x",
+        ),
+    ],
+)
+def test_a_split_id_before_an_addition_ref_is_narrowed(
+    corpus_db: LicenseDatabase, given: GivenWarnings, text: str, expression: str
+) -> None:
+    """No marker reader takes a ``WITH AdditionRef-*``: the -only guess is
+    still made, said and not exact, as for a tag (was the ID as written,
+    exact=false and no warning)."""
+    (found,) = LicenseDetector(corpus_db.location).detect(text)
+    assert (found["expression"], found["exact"]) == (expression, False)
+    assert given.lines() == (
+        f"WARNING: input: variant not stated: {text}; using {expression}\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "text", ["GPL-2.0+ WITH AdditionRef-x", "GPL-2.0-only WITH AdditionRef-x"]
+)
+def test_a_stated_grant_before_an_addition_ref_is_kept(
+    corpus_db: LicenseDatabase, given: GivenWarnings, text: str
+) -> None:
+    (found,) = LicenseDetector(corpus_db.location).detect(text)
+    assert found["exact"] is True
+    assert given.lines() == ""
+
+
+def test_the_narrowed_warning_of_a_long_value_is_cut(
+    corpus_db: LicenseDatabase, given: GivenWarnings
+) -> None:
+    """The DETAIL is the value as written, cut to 60 as every DETAIL is."""
+    text = "GPL-2.0 OR " + " OR ".join(["MIT"] * 40)
+    (found,) = LicenseDetector(corpus_db.location).detect(text)
+    assert found["expression"] == "GPL-2.0-only OR MIT"
+    assert given.lines() == (
+        f"WARNING: input: variant not stated: {text[:60]}...; "
+        "using GPL-2.0-only OR MIT\n"
+    )

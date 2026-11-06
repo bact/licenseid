@@ -23,7 +23,7 @@ from licenseid.database import LicenseDatabase
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
 from licenseid.detector import LicenseDetector
 from licenseid.identifiers import normalize_identifier
-from licenseid.looseid import loose_id, loose_with, narrowed_ids, shown
+from licenseid.looseid import loose_id, loose_with, narrow_ids, narrowed_ids, shown
 from licenseid.shorttext import match_short_text
 from licenseid.versionkey import MAX_KEY_INPUT, version_key
 
@@ -139,7 +139,11 @@ def test_the_exact_id_match_keeps_a_plus_operator(db: LicenseDatabase) -> None:
         ("\u200bGPL2", "?GPL2"),  # nor an invisible format character
         (" GPL\t 2\n", "GPL 2"),  # one line
         ("GPL: 2", "GPL: 2"),  # a DETAIL may hold a ":"
+        ("G" * 60, "G" * 60),  # 60 characters are kept whole
+        ("G" * 61, "G" * 60 + "..."),  # a longer one is cut
+        ("GPL-2.0 OR " * 40, ("GPL-2.0 OR " * 6)[:60] + "..."),
     ],
+    ids=["semicolon", "escape", "bell", "zwsp", "lines", "colon", "60", "61", "or"],
 )
 def test_the_warning_detail_is_one_printable_line(text: str, detail: str) -> None:
     assert shown(text) == detail
@@ -395,3 +399,19 @@ def test_a_narrowed_id_is_found_in_an_expression(
     """F3: a deprecated ID read as an -only form, alone or in a compound,
     from the words of the value and of its reading."""
     assert narrowed_ids(corpus_db, text, expression) is narrowed
+
+
+@pytest.mark.parametrize(
+    ("expression", "narrow"),
+    [
+        ("GPL-3.0 WITH AdditionRef-x", "GPL-3.0-only WITH AdditionRef-x"),
+        ("(GPL-2.0 OR MIT)", "(GPL-2.0-only OR MIT)"),  # brackets kept
+        ("GPL-2.0+ WITH AdditionRef-x", "GPL-2.0+ WITH AdditionRef-x"),  # "+"
+        ("GPL-2.0-only OR LGPL-2.1", "GPL-2.0-only OR LGPL-2.1-only"),
+        ("MIT WITH AdditionRef-x", "MIT WITH AdditionRef-x"),
+    ],
+)
+def test_narrow_ids_narrows_each_bare_split_id(
+    db: LicenseDatabase, expression: str, narrow: str
+) -> None:
+    assert narrow_ids(db, expression) == narrow

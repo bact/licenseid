@@ -22,6 +22,7 @@ import threading
 import warnings
 from collections.abc import Iterator
 from types import FrameType
+from typing import Any
 
 
 class LicenseIdWarning(UserWarning):
@@ -145,7 +146,7 @@ def _ignored(warning: LicenseIdWarning, caller: FrameType | None) -> bool:
     module = "sys" if caller is None else caller.f_globals.get("__name__", "")
     lineno = 0 if caller is None else caller.f_lineno
     text = str(warning)
-    for action, message, category, name, line in warnings.filters:
+    for action, message, category, name, line in _filters():
         if (
             issubclass(LicenseIdWarning, category)
             and _matches(message, text)
@@ -155,6 +156,17 @@ def _ignored(warning: LicenseIdWarning, caller: FrameType | None) -> bool:
             return action == "ignore"
     # Not in typeshed; "default" in CPython, where nothing changed it.
     return getattr(warnings, "defaultaction", "default") == "ignore"
+
+
+def _filters() -> list[tuple[str, Any, type[Warning], Any, int]]:
+    """The filters in force here: under context-aware warnings (3.14, the
+    default of a free-threaded build) ``catch_warnings`` keeps them in the
+    context, and ``warnings.filters`` is only the global list. Python 3.14
+    reads them with ``warnings._get_filters``, which 3.10 to 3.13 lack."""
+    get = getattr(warnings, "_get_filters", None)
+    filters: list[tuple[str, Any, type[Warning], Any, int]]
+    filters = get() if callable(get) else warnings.filters
+    return filters
 
 
 def _matches(pattern: re.Pattern[str] | str | None, value: str) -> bool:

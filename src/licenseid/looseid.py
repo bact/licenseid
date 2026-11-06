@@ -15,6 +15,7 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, grant_end, grant_follows, grant_head
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
+from licenseid.errors import one_line
 from licenseid.exprtokens import (
     ID_WORD,
     LIST_MARK,
@@ -146,6 +147,27 @@ def narrowed_ids(db: ListLookup, text: str, expression: str) -> bool:
         ):
             return True
     return False
+
+
+def narrow_ids(db: ListLookup, expression: str) -> str:
+    """*expression* with each deprecated ID it states with no grant narrowed
+    to its -only form, as :func:`narrowed_ids` judges one: for an expression
+    no marker reader takes ("GPL-3.0 WITH AdditionRef-x" is GPL-3.0-only
+    WITH AdditionRef-x). An ID with the "+" operator after it is kept."""
+    granted = {
+        plus.end("id")
+        for plus in PLUS_OPERATOR.finditer(expression)
+        if not plus["with"]
+    }
+
+    def one(token: re.Match[str]) -> str:
+        word = token.group(0)
+        if token.end() in granted or not word[0].isalnum():
+            return word
+        reading = normalize_identifier(word, db)
+        return reading if narrowed(word, reading) else word
+
+    return RE_TOKEN.sub(one, expression)
 
 
 # The deprecated IDs with an exception in them, case folded.
@@ -355,9 +377,12 @@ def warn_narrowed(text: str, resolved: str) -> None:
 
 def shown(text: str) -> str:
     """*text* fit for a diagnostic's DETAIL: one line, printable, and no ";"
-    (which starts the ACTION), each other character as "?"."""
+    (which starts the ACTION), each other character as "?", and cut to 60
+    characters as :func:`licenseid.errors.one_line` cuts a value."""
     line = " ".join(text.split())
-    return "".join(c if c.isprintable() and c != ";" else "?" for c in line)
+    return one_line(
+        "".join(c if c.isprintable() and c != ";" else "?" for c in line)
+    )
 
 
 def loose_with(db: ListLookup, text: str) -> tuple[str, str | None] | None:
