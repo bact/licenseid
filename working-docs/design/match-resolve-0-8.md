@@ -355,9 +355,10 @@ BSD-1-Clause (#148):
   before and after).
 
 Short text (maintainer, 2026-11-02): the branch `release-0.7-short-text`
-(d9bbc23) and its review are kept. On `main`, `detect("Foo")` is
-`3D-Slicer-1.0` at 1.0; one or two words of a name (`the`, `GPL`, `Apache
-License`) answer by name at 1.0; `detect("OR")` is AGPL by name; phrases of
-40 or more characters that several licences share still answer 1.0. An
-0.8 fix must avoid what the review found on the branch: LGPL names to
-`LiLiQ-R-1.1`, `New BSD`, unique title lines, an exact short text scaled.
+(d9bbc23) and its review were kept, and merged in PR #168 (2026-11-06):
+`detect("Foo")` and one or two words of a name (`the`, `GPL`, `Apache
+License`) now have no answer, and the LGPL names are the `-only` guess,
+said aloud. `New BSD` and the other BSD aliases were lost, for `resolve()`
+to read; they and the rest are item 47 of
+[`tech-debt-roadmap.md`](tech-debt-roadmap.md). Phrases of ten words or
+more that several licences share still answer 1.0 (item 28 there).

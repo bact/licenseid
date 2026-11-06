@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-06
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -27,8 +27,8 @@ the review of PR #66, items 30 and 31 from the work on item 21, and items
 32 to 35 from the review of item 22, item 36 from the docs audit
 after it, item 37 from the work on item 29, item 38 from the
 review of PR #80, items 39 to 42 from the review of PR #82, and items 43
-to 45 from the reviews of PR #99, and item 46 from the 0.7.0 whole-release
-review.
+to 45 from the reviews of PR #99, item 46 from the 0.7.0 whole-release
+review, and item 47 from PR #168.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -136,12 +136,15 @@ Fixed in PR #67, where refusing `LicenseRef-MIT+` made its tag answer MIT
 too: Tier 0 now matches the input without its tags, which Tier 0.5 has
 read (`MarkerDetector.without_spdx_tags`).
 
-A single word that is part of a licence's name answers it at 1.0 the same
-way, through the token-set name match (`main` too; review of item 22,
-2026-10-02): `BSD` answers `0BSD`, `the` answers `MirOS`, and a README
-whose short text holds a "json" code fence answers the `JSON` licence.
-Since item 22 these are `exact` false, but they still score 1 and pass
-`is-*`.
+A single word that is part of a licence's name answered it at 1.0 the same
+way, through the token-set name match (review of item 22, 2026-10-02):
+`BSD` answered `0BSD`, `the` answered `MirOS`. Fixed in PR #168: words a
+longer name only holds are no name. Under ten words, PR #161 already gives
+no text match to an input `resolve()` refuses, so what is left here is a
+phrase of ten words or more that several licences share
+(`Redistribution and use in source and binary forms, with or without
+modification, are permitted` answers BSD-2-Clause at 1.0). The leftovers of
+PR #168 are item 47.
 
 - **Direction**: a verbatim hit on a few words is evidence, not an answer.
   Cap the score of a Tier 0 text hit below 1.0 when the phrase is shorter
@@ -532,6 +535,46 @@ short-text leftovers are in `match-resolve-0-8.md`, section 7.
   `test_accuracy.matcher`; fold the two into one helper (#150).
 
 - Impact 2, Risk 2, Effort 3.
+
+## 47. Leftovers of the name tier on a few words — Priority 16
+
+PR #168 (2026-11-06) stopped the name tier (`shorttext._partial_names`)
+from reading words a longer licence name only holds as that name, and reads
+a List name without its grant as the `-only` guess, said aloud. Measured on
+the PyPI sample (9,353 projects): 15 values (642 projects) lost a wrong
+answer, 8 (48) a guessed version, and 13 (34) a right answer. Its golden
+moves are in `tests/harness_changes_nametier.py`.
+
+- **BSD aliases, lost**: `BSD-3` (9 projects), `New BSD` (8), `BSD 3` (3),
+  `2-clause BSD` (3), `3-clause BSD` (2), and one each for `New BSD
+  License`, `New BSD license`, `new BSD`, `Revised BSD License`,
+  `Simplified BSD`, `2-clause BSD License` and `3-Clause BSD License`.
+  Before #168 they answered by name at 1.0: some held by one name, some
+  first by the ID sort among several. `resolve()` should read them as a
+  measured table or from the List's own name parts (`"New" or "Revised"`,
+  `"Simplified"`), refusing bare `BSD` and `BSD License`. `Open Database
+  License` (`ODbL-1.0`) was lost the same way.
+- **A grant left out, another version spelling**: `GNU General Public
+  License v2`, `GNU General Public License v3` and `GNU Lesser General
+  Public License v3` (2 projects) get no answer: only the List name less
+  `only` or `or later`, word for word, is the `-only` guess, and `v3` is not
+  `v3.0`.
+- **A name with "+"**: `GNU General Public License v2.0+` gets no answer
+  (`normalize_text` drops the "+"). It could be `GPL-2.0-or-later`, as
+  `resolve()` reads `Apache License 2.0+` as `Apache-2.0+`.
+- **A manifest field**: `license = "GNU General Public License v2.0"`
+  gets no answer and no warning (`_try_manifest_value` takes a name hit of
+  1.02 only; the guess is 1.01), while the same text answers `GPL-2.0-only`
+  with `variant not stated`. Tags and fields through `resolve()` (0.8)
+  would settle it.
+- **The other direction**: an input that holds a whole name and more words
+  answers that name (token set scores 100): `MIT Future License` answers
+  `MIT`. `Licensed under the MIT License` relies on it.
+- **GPL-3.0's two title lines** with a line break get no answer:
+  `resolvetitle.TITLES` has the title on one line
+  (`test_the_two_title_lines_of_gpl_3_are_lost`).
+
+- Impact 2, Risk 2, Effort 2.
 
 ## Already resolved
 
