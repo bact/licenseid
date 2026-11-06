@@ -39,12 +39,13 @@ from licenseid.shorttext import (
     exact_id_match,
     match_short_text,
     match_version_key,
+    narrowed_name,
 )
 from licenseid.similarity import (
     build_probe,
     calculate_base_similarity,
     calculate_final_score,
-    weigh_short_input,
+    text_evidence,
 )
 from licenseid.textinput import read_text_file, reject_lone_surrogate
 from licenseid.types import (
@@ -456,6 +457,9 @@ class LicenseDetector:
         ctx = self._without_tags(ctx)
         short_text_result = self._try_tier0_short_text(ctx)
         if short_text_result is not None:
+            guess = narrowed_name(short_text_result)
+            if guess is not None:  # "GNU General Public License v2.0"
+                warn_narrowed(ctx.target_text, guess)
             return short_text_result
 
         # Tier 1: Broad Recall, then Tier 2: Precision Ranking; not for a
@@ -588,8 +592,9 @@ class LicenseDetector:
         boosts = marker_boosts or {}
         ranked: list[InternalMatch] = []
 
-        # Precompute the probe sample once per query (see similarity.PROBE_WORDS).
-        probe = build_probe(query_words)
+        # Once per query: the probe sample (see similarity.PROBE_WORDS), and how
+        # far a short query's similarity counts in the score (text_evidence).
+        probe, evidence = build_probe(query_words), text_evidence(norm_input)
 
         for cand in candidates:
             sim, coverage, best_window = calculate_base_similarity(
@@ -605,7 +610,7 @@ class LicenseDetector:
                     # normalises to nothing equals no text: a hinted
                     # candidate has none.
                     exact=bool(norm_input) and norm_input == cand.get("search_text"),
-                    base_score=sim,
+                    base_score=sim * evidence,
                     similarity=sim,
                     coverage=coverage,
                     pop_score=cand.get("pop_score", 0),
@@ -620,7 +625,6 @@ class LicenseDetector:
                 )
             )
 
-        weigh_short_input(norm_input, candidates, ranked)  # a short one counts less
         for r in ranked:
             r["score"] = calculate_final_score(
                 r, boosts, is_pure, enable_popularity, q_len

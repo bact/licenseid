@@ -344,7 +344,8 @@ def test_a_name_match_needs_no_lookup_per_result(db: str, given: GivenWarnings) 
         autospec=True,
         side_effect=LicenseDatabase.get_license_details,
     ) as lookup:
-        results = matcher.detect(text="Apache License 2.0")
+        # A name with a word left out: resolve() refuses it, Tier 0 reads it.
+        results = matcher.detect(text="GNU Public License v2.0 only")
     assert len(results) >= 2
     assert all(isinstance(r.get("is_spdx"), bool) for r in results)
     assert lookup.call_count <= 3  # resolve()'s own, none for a result

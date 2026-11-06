@@ -18,6 +18,9 @@ from licenseid.versionkey import version_key
 # The score of an exact ID or name match; a fuzzy one scores less.
 EXACT_MATCH_SCORE = 1.02
 
+# The words that end a List name with its grant, normalised.
+_GRANT_WORDS = (" only", " or later")
+
 
 def exact_id_match(license_id: str) -> RawMatch:
     """A result found by its ID: certain, with nothing measured. The caller
@@ -155,37 +158,75 @@ def _name_scores(
 
 def _partial_names(rows: list[LicenseNameId], words: list[str]) -> set[str]:
     """The names that hold every one of *words* and more, unless they name
-    one licence. Token set scores such a name 100, as if it were the input:
-    "the" is in six names, "license" in most, "GNU General Public License"
-    in every GPL, so each answered a licence at 1.0. The words name one
-    licence when they are no name in use ("MIT License" is MIT's, and only
-    held by 17 more) and every row in use that holds them is that licence
-    or a variant of it (_one_licence): "New BSD" (BSD-3-Clause), "GNU
-    Lesser General Public License v2.1" (LGPL-2.1-only and -or-later),
-    "BSD 3-Clause License" (BSD-3-Clause and BSD-3-Clause-Clear). A
-    deprecated row counts only when no row in use holds them: "GNU Affero
-    General Public License v3.0" is AGPL-3.0's own name."""
+    one licence: the words are no name in use, only one name holds them,
+    and they are at least half its words ("GNU Public License v2.0 only").
+    Token set scores such a name 100, as if it were the input: "the" is in
+    six names, "license" in most, "GNU General Public License" in every
+    GPL, "PL" in ESA-PL's, and "MIT License" in 17 besides MIT's own. The
+    words of a deprecated name of its own ("GNU Affero General Public
+    License v3.0") are held by the names that replaced it (its -only and
+    -or-later): those are kept, as before. So are the names of one licence
+    whose name the words are without its grant (_grant_left_out), and only
+    those: GPL-2.0-with-GCC-exception also holds "GNU General Public
+    License v2.0"."""
     query = set(words)
-    names = [set(row["norm_name"].split()) for row in rows]
-    pairs = list(zip(rows, names, strict=True))
+    pairs = [(row, set(row["norm_name"].split())) for row in rows]
+    named = {bool(row["is_deprecated"]) for row, name in pairs if name == query}
+    if named == {True}:
+        return set()  # a deprecated name, and no name in use
     held = [row for row, name in pairs if query < name]
-    is_a_name = any(name == query and not row["is_deprecated"] for row, name in pairs)
-    in_use = [row for row in held if not row["is_deprecated"]] or held
-    if not is_a_name and _one_licence({row["license_id"] for row in in_use}):
+    stems = set() if named else _grant_left_out(rows, query)
+    if len(stems) == 1:
+        return {
+            row["norm_name"]
+            for row in held
+            if grant_stem(row["license_id"]) not in stems
+        }
+    holders = {row["norm_name"] for row in held}
+    if (
+        len(holders) == 1
+        and not named
+        and 2 * len(query) >= len(set(next(iter(holders)).split()))
+    ):
         return set()
-    return {row["norm_name"] for row in held}
+    return holders
 
 
-def _one_licence(license_ids: set[str]) -> bool:
-    """Whether *license_ids* are one licence: once the grant is dropped
-    (ranking.grant_stem), one of them, the shortest, begins each of the
-    others as BSD-3-Clause begins BSD-3-Clause-Clear. Apache-1.0, Apache-1.1
-    and Apache-2.0 are three."""
-    stems = {grant_stem(license_id) for license_id in license_ids}
-    if not stems:
-        return False
-    base = min(stems, key=len)
-    return all(stem == base or stem.startswith(f"{base}-") for stem in stems)
+def _grant_left_out(rows: list[LicenseNameId], query: set[str]) -> set[str]:
+    """The licences (ranking.grant_stem) that have both an -only and an
+    -or-later row in use whose name is the words of *query* and its grant:
+    "GNU General Public License v2.0" is GPL-2.0-only's name without
+    "only", and GPL-2.0-or-later's without "or later". Every other word
+    must be there ("GNU Affero General Public License" states no version),
+    and both grants, or the guess could not be the narrower."""
+    grants: dict[str, set[str]] = {}
+    for row in rows:
+        name = row["norm_name"]
+        stem = grant_stem(row["license_id"])
+        if row["is_deprecated"] or stem == row["license_id"]:
+            continue
+        for grant in _GRANT_WORDS:
+            if name.endswith(grant) and set(name[: -len(grant)].split()) == query:
+                grants.setdefault(stem, set()).add(grant)
+    return {stem for stem, found in grants.items() if len(found) == len(_GRANT_WORDS)}
+
+
+def narrowed_name(found: list[RawMatch]) -> str | None:
+    """The -only ID *found* answers for a name that states no grant: its
+    first two results tie, found by name and neither exact, and are one
+    licence's -only and -or-later ("GNU General Public License v2.0").
+    Sorted by ID, the narrower comes first. None for any other *found*."""
+    if len(found) < 2:
+        return None
+    first, second = found[0], found[1]
+    license_id = first["license_id"]
+    paired = second["license_id"] == f"{grant_stem(license_id)}-or-later"
+    if not (license_id.endswith("-only") and paired):
+        return None
+    tied = first["score"] == second["score"]
+    by_name = {first["method"], second["method"]} == {"name"}
+    guessed = not (first["exact"] or second["exact"])
+    return license_id if tied and by_name and guessed else None
 
 
 def _exact_id_row(

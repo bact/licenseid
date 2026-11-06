@@ -24,6 +24,9 @@ and this project adheres to
 - Builds the wheel's SBOM with Pitloom 0.23.0 (`build-system.requires`
   `pitloom>=0.23.0`), which reads a dependency's licence name as its ID
   (`MIT License` is `MIT`) ([#164])
+- A List name without its grant (`GNU General Public License v3.0`, was
+  `AGPL-3.0-only`) is the `-only` guess, not exact, with
+  `WARNING: input: variant not stated`
   
   
 ### Fixed
@@ -34,6 +37,10 @@ and this project adheres to
   Python process when the database warns (`build vN outdated`,
   `N days old`): Python's built-in default warning filter crashed them
   ([#162])
+- `detect` gives no answer for words a licence name only holds: `BSD License`
+  was `0BSD` at 1.0, `PL` was `ESA-PL-strong-copyleft-2.4`
+- A Han or kana input under 20 letters counts less in a text match:
+  `著作権` (copyright) was `CC-BY-SA-2.1-JP` at 1.0
 
 [#161]: https://github.com/bact/licenseid/pull/161
 [#162]: https://github.com/bact/licenseid/pull/162
