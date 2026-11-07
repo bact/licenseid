@@ -102,7 +102,7 @@ Advanced update options:
     host is reachable.
   - `upstream`: SPDX's own release tarball on GitHub (about 49 MB).
   - `packaged`: the bundle shipped in the package: the SPDX License List
-    pinned for that release (3.29.0 for 0.7.2). `licenseid update` still
+    pinned for that release (3.29.0 for 0.7.3). `licenseid update` still
     works with no network, with data that may be older.
 
 ### 2. Detect a licence, or resolve a declared value
@@ -681,7 +681,7 @@ Apache-2.0
 If you use this software, please cite it as follows:
 
 > Suriyawongkul, A. (2026). LicenseID - A portable SPDX licence identification
-> tool (Version 0.7.2) [Computer software].
+> tool (Version 0.7.3) [Computer software].
 > <https://doi.org/10.5281/zenodo.19881009>
 
 BibTeX:
@@ -694,7 +694,7 @@ BibTeX:
     month = nov,
     title = {{LicenseID - A portable SPDX licence identification tool}},
     url = {https://github.com/bact/licenseid.git},
-    version = {0.7.2},
+    version = {0.7.3},
     year = {2026}
 }
 ```
