@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-08
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,11 +13,18 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-11-04)
+## Current state (as of 2026-11-08)
 
-- **0.7.1** (in preparation): `is-osi` and `is-fsf` answer a compound one
-  operand decides (D8, PR #157); a dash between words beside a grant is a
-  separator in every reader (D10), and a tag with a licence right after a
+- **0.7.3** (in preparation): `resolve()` reads one rule for a name and a
+  version (`Apache Version 2.0`, `Apache License (2.0)`, `Apache Software
+  License 2.0`; `ASL 2.0` stays unresolved), PR #172.
+- **0.7.2** (released 2026-11-06): `detect` reads a whole input with
+  `resolve()` first (`resolvefirst.py`), and gives no text match for an
+  input under 10 words that nothing reads (PR #161); `resolve()` reads a
+  licence's own title and the BSD aliases (PRs #163, #165, #170).
+- **0.7.1** (released 2026-11-05): `is-osi` and `is-fsf` answer a compound
+  one operand decides (D8, PR #157); a dash between words beside a grant is
+  a separator in every reader (D10), and a tag with a licence right after a
   mark gives no answer (PR #158).
 - **0.7.0** (released 2026-11-03): the declared-value resolver reads compounds,
   quoted values, trove names, prose forms and `;` lists, and works with no
@@ -30,9 +37,10 @@ yet started, see [`../design/`](../design/).
   [declared-value-resolver-0-7.md](declared-value-resolver-0-7.md); the
   items below are older and still hold unless it says otherwise.
 
-- **Pipeline**: Tier 0.5 (marker detection: tags, then a manifest's
-  `license` field) → Tier 0 (short-text ID/name shortcut) → Tier 1 (SQLite FTS5
-  recall) → Tier 2 (RapidFuzz ranking).
+- **Pipeline**: a whole input `resolve()` reads (0.7.2) → Tier 0.5 (marker
+  detection: tags, then a manifest's `license` field) → Tier 0 (short-text
+  ID/name shortcut) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz
+  ranking).
   The optional Tier 3 (Java `tools-java` validation) was removed on
   2026-09-19. `detector.py` holds the pipeline; Tier 1 is `retrieval.py`,
   Tier 0 is `shorttext.py`, and the sort order with the `-only` /
@@ -74,7 +82,7 @@ yet started, see [`../design/`](../design/).
   `ruff` is kept clean on it by hand.
 - **Database readiness gate** (`dbcheck.py`, added 2026-09-20, PR #55):
   read commands refuse a database that is not ready with exit 2, and
-  `update`/`--clear-cache` refuse one licenseid did not build. The traps
+  `update` and `clear-cache` refuse one licenseid did not build. The traps
   behind it (blocking named pipes, path and URI spellings, `mode=ro` and
   WAL, foreign table names) are in
   [database-readiness-gate.md](database-readiness-gate.md).
@@ -88,11 +96,11 @@ yet started, see [`../design/`](../design/).
   licence ID reads each table's IDs once (`dbcache.py`), dropped when a
   rebuild changes `last_update_datetime`; see items 29 and 37 in
   [tech-debt-resolved.md](tech-debt-resolved.md).
-- **Public result** (PR #68, 2026-10-02): every match has the same nine
-  keys, built once by `result.public_result` at the exit of `detect()`; the
-  score is capped to 0-1 and `exact` tells results at 1 apart. Ranking
-  reads the raw records. `--json` prints RFC 8785 JSON Lines; see item 22
-  in [tech-debt-resolved.md](tech-debt-resolved.md).
+- **Public result** (PR #68, 2026-10-02): every match has the same ten
+  keys (`lists` since 0.7.0), built once by `result.public_result` at the
+  exit of `detect()`; the score is capped to 0-1 and `exact` tells results
+  at 1 apart. Ranking reads the raw records. `--json` prints RFC 8785 JSON
+  Lines; see item 22 in [tech-debt-resolved.md](tech-debt-resolved.md).
 - **Known deferred work**: probe-anchored windowing (reusing the existing
   probe's match location instead of a full realignment scan) — flagged
   but deliberately not attempted; see

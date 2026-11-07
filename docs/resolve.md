@@ -503,7 +503,7 @@ and `MIT License (MIT)-` are `character dropped: U+002D`, `"(MIT;)".` is
 (`"(MIT)" OR Zlib`) are `character dropped: U+0022`. One end mark after
 brackets, a trove name or path or a listed name is an ending (`(MIT).`, `Apache
 License 2.0.`). A `reason` keeps the `;` of the value it names (`not found:
-Foo;Bar`); only the diagnostic lines of the CLI turn it into `,`. A value that
+Foo;Bar baz`); only the diagnostic lines of the CLI turn it into `,`. A value that
 is only quote marks, with or without an ending or a `+` (`"".`, `""+`), is
 `empty`.
 
