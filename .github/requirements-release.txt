@@ -3,8 +3,8 @@
 # constraint (PIP_CONSTRAINT), which reaches the isolated build too. The
 # `>=` floor in pyproject.toml stays, for users who build from the sdist.
 # Pitloom and licenseid are raised together: Pitloom imports licenseid,
-# and 0.23.0 requires `licenseid>=0.7.1,<0.8`.
-licenseid==0.7.1
+# and 0.23.1 requires `licenseid>=0.7.2,<0.8`.
+licenseid==0.7.2
 magika==1.0.3
-pitloom==0.23.0
+pitloom==0.23.1
 spdx3-validate==0.0.7
