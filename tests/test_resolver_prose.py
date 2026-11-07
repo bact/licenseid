@@ -514,6 +514,8 @@ def test_other_trove_names_with_a_version_read_as_list_names(
         "Apache Software Licenses 2.0",
         "Foo Software License 2.0",  # not in the table
         "Academic Free License 9.0",
+        "Mozilla Public Version 2.0",  # a List name needs the word License
+        "Eclipse Public, Version 2.0",
         "Apache Software Foundation License 2.0",
     ],
 )

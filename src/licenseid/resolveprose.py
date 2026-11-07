@@ -274,7 +274,11 @@ def _reductions(db: ListLookup, core: str) -> list[tuple[str, str]]:
         return []
     reductions = [(f"{name} {tail['number']}", "version")]
     named = f"{name} License {tail['number']}"
-    if len(db.get_active_ids_by_name().get(named.casefold(), [])) == 1:
+    # The List name is for a value that writes the word itself: "Mozilla Public
+    # Version 2.0" is no title of anything, so it is not read as that name
+    if "licen" in tail[0].casefold() and (
+        len(db.get_active_ids_by_name().get(named.casefold(), [])) == 1
+    ):
         reductions.append((named, "version"))
     return reductions
 
