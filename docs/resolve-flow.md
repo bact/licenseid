@@ -11,8 +11,9 @@ This page traces what `licenseid.resolve()` does to one declared licence
 value, reader by reader, in the order the readers run. It is written for a
 reviewer who wants to check the design, and as source material for a paper.
 It describes the code at release 0.7.2 plus PR #172 (`main` at commit
-`7276ee4`). Line links point at the files of that commit; they move when the code
-does.
+`7276ee4`), and the licence URL reader (issue #14), which the line links
+below do not follow: the links point at the files of that commit and move
+when the code does.
 
 Every example below was run against that code (`resolve(value)`, with the
 SPDX License List in the shipped bundle or the database). The result fields
@@ -52,7 +53,9 @@ flowchart TD
   COMP -- claimed and named --> CANON[canonical order<br/>exprcanon]
   COMP -- not claimed --> NAME[3 read_by_name]
   COMP -- claimed, refused --> SEMI
-  NAME --> TROVE[trove path, name,<br/>head and short form]
+  NAME --> URL[licence URL<br/>resolveurl]
+  URL -- no --> TROVE[trove path, name,<br/>head and short form]
+  URL -- reads or refuses --> NAMED
   TROVE -- no --> TITLE[text title]
   TITLE -- no --> ALIAS[alias name]
   ALIAS -- no --> PROSE[prose form P1 to P3]
@@ -155,7 +158,10 @@ reads the value, or when it refuses it with a reason.
       value is a compound, read or refused.
    3. *By name*
       ([`read_by_name`](../src/licenseid/resolveprose.py#L169)), only if the
-      compound reader did not claim the value: trove path, trove name or
+      compound reader did not claim the value: first a licence URL
+      ([`read_url`](../src/licenseid/resolveurl.py): an ID page, a page of
+      the List's `seeAlso`, a table of aliases; a URL it refuses is claimed,
+      so no later rule guesses at it); then trove path, trove name or
       `head (short form)`; then the title of a licence text; then another
       name of a BSD licence; then the prose form.
    4. *List* ([`_read_list`](../src/licenseid/resolver.py#L284)), unless a
@@ -217,6 +223,7 @@ operand for the case nothing else reads it.
 | Brackets ([`exprcanon.py:72`](../src/licenseid/exprcanon.py#L72)) | `()`, `[]`, `{}` round the whole value | a pair of two kinds (`[MIT)`) |
 | Leaf ([`resolveleaf.py`](../src/licenseid/resolveleaf.py)) | ID in any case, listed name, loose ID, `X+`, "or later", `X WITH Y` | `X +`, `X++`, `X-only+`, a reference with `+`, a dropped mark or word (`Apache 2.0?`, `REM MIT`), a half over the key cap |
 | Compound ([`resolvecompound.py`](../src/licenseid/resolvecompound.py)) | operands of one word (with `WITH`, `+`, grant), `AND`, `OR`, any bracket kind | an operand of several words (left to name readers); one unnamed operand; `NONE`; grammar errors |
+| URL ([`resolveurl.py`](../src/licenseid/resolveurl.py), key by [`urlkey.py`](../src/licenseid/urlkey.py)) | an `http(s)` URL, a host and path without a scheme, or `spdx:ID`, keyed alike; an ID page, a page the List gives one licence (or a GNU family, or a rename), a table of aliases | a page of several licences; a page of exceptions; a List URL with a fragment; a non-ASCII host, other scheme, user information, IP address; a URL inside prose |
 | Trove ([`resolvetrove.py`](../src/licenseid/resolvetrove.py)) | `License :: OSI Approved :: X`, a table name, `head (short form)` when both agree | names the table reads as `none` (`BSD License`); disagreeing short forms |
 | Title ([`resolvetitle.py`](../src/licenseid/resolvetitle.py)) | a table of titles the licence text gives itself (`CC0 1.0 Universal`) | any title not in the table; no looser match |
 | Alias ([`resolvealias.py`](../src/licenseid/resolvealias.py)) | a table of BSD names (`New BSD`, `BSD-3`) | `BSD`, `FreeBSD`, `BSD 2`, `BSD 4` |
@@ -252,6 +259,7 @@ stronger). Ten step kinds change only form and count as `lexical`.
 | `prose_form` | resolver_rule | `BSD 3-Clause License` |
 | `text_title` | resolver_rule | `CC0 1.0 Universal` |
 | `alias_name` | resolver_rule | `New BSD` |
+| `license_url` | resolver_rule | `https://spdx.org/licenses/MIT` |
 | `trove_name` | resolver_rule | a trove classifier name |
 | `deprecated_ambiguous` | list_data | a deprecated ID with no known successor |
 | `assumed_only` | none | a deprecated ID the List split (`GPL-3.0`) |
@@ -290,6 +298,11 @@ step kinds in order, `expansions` after them.
 | `MIT License (MIT)` | `MIT` | listed_name | `trailing_name`, `listed_name` | trove |
 | `CC0 1.0 Universal` | `CC0-1.0` | text_title | `text_title` | title |
 | `New BSD` | `BSD-3-Clause` | alias_name | `alias_name` | alias |
+| `https://www.apache.org/licenses/LICENSE-2.0` | `Apache-2.0` | license_url | `license_url` (detail `see also`) | URL |
+| `spdx:MIT` | `MIT` | license_url | `license_url` (detail `list page`) | URL |
+| `https://www.gnu.org/licenses/gpl-3.0.html` | `GPL-3.0` | assumed_only | `license_url` (detail `see also`); candidates `GPL-3.0-only`, `GPL-3.0-or-later` | URL |
+| `https://www.unicode.org/license.txt` | none | unresolved | reason `url names several licences: Unicode-3.0, Unicode-DFS-2016` | URL |
+| `https://exämple.com/MIT` | none | unresolved | reason `not found: https://exämple.com/MIT` (a non-ASCII host is no URL) | URL fails, none read |
 | `Apache License, Version 2.0` | `Apache-2.0` | prose_form | `prose_form`, `separator` | prose (P2) |
 | `The MIT License` | `MIT` | prose_form | `prose_form`, `listed_name` | prose (P3) |
 | `MIT; Apache 2` | none | unresolved | reason `operator not stated: ;`; two operands | semicolon |
@@ -304,7 +317,7 @@ is a property a reviewer should know.
 
 - **The precedence is in the code, not in the docstring.** The module
   docstring of `resolver.py` names the readers but not their precedence.
-  The code puts the name readers (trove, title, alias, prose) before the
+  The code puts the name readers (URL, trove, title, alias, prose) before the
   list reader, and the list reader before a compound's refusal
   (`MIT; (MIT)` is the name and its short form, `MIT`; `MIT; ISC License
   (ISCL)` is a list, `operator not stated: ;`).
@@ -313,6 +326,13 @@ is a property a reviewer should know.
   both give `not found: <value>`: the trove reader claims them so that no
   prose rule guesses, and the reason comes from the general explainer. The
   reason does not say the table knows the name.
+- **A URL is claimed even when refused.** `https://www.unicode.org/license.txt`
+  names two licences and `https://spdx.org/licenses/Classpath-exception-2.0`
+  an exception: the URL reader gives its own reason and no later reader
+  guesses at the value. A URL that names nothing is not claimed and falls
+  to the others, then to `not found`. The URL reader runs for a whole value
+  and for an operand of a compound; a tag and a manifest field call it
+  through `url_license_id`, for each word of the value.
 - **`NONE` and `NOASSERTION` are refused as licences.** Alone the reason is
   `special value: NONE`; as an operand (`MIT OR NONE`) it is `operand not
   resolved: NONE`. The compound reason does not say the word is special.
@@ -334,6 +354,7 @@ is a property a reviewer should know.
 | Leaf, end marks, dropped marks | `tests/test_resolver_leaf_rules.py`, `tests/test_resolver_end_marks.py`, `tests/test_resolver_dropguard.py`, `tests/test_resolver_dropped_words.py` |
 | Quotes | `tests/test_resolver_quotes.py` |
 | Compound | `tests/test_resolver_compounds.py`, `tests/test_exprcanon.py` |
+| URL | `tests/test_urlkey.py`, `tests/test_resolver_url_smoke.py`, `tests/test_license_urls_db.py` |
 | Trove, title, alias | `tests/test_resolver_trove.py`, `tests/test_resolver_title.py`, `tests/test_resolver_alias.py` |
 | Prose | `tests/test_resolver_prose.py` |
 | Semicolon | `tests/test_resolver_semicolon.py` |

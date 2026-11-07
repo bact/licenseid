@@ -15,6 +15,10 @@ yet started, see [`../design/`](../design/).
 
 ## Current state (as of 2026-11-08)
 
+- **Unreleased** (in preparation, planned 0.8.0): `resolve()`, `detect()`, a
+  tag and a field read a licence URL as its licence (`urlkey.py`,
+  `resolveurl.py`, category `license_url`; build v4 adds the `license_urls`
+  table), issue #14: [licence-urls.md](licence-urls.md).
 - **0.7.3** (in preparation): `resolve()` reads one rule for a name and a
   version (`Apache Version 2.0`, `Apache License (2.0)`, `Apache Software
   License 2.0`; `ASL 2.0` stays unresolved), PR #172.

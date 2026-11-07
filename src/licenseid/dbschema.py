@@ -16,7 +16,8 @@ if TYPE_CHECKING:
     from licenseid.dbconnection import Connections
 
 # Every table and index licenseid creates, but not the shadow tables of the
-# FTS5 index (``license_index_*``) or SQLite's own.
+# FTS5 index (``license_index_*``) or SQLite's own: ``dbcheck`` calls any
+# other object foreign.
 SCHEMA_OBJECTS = (
     "licenses",
     "exceptions",
@@ -25,7 +26,15 @@ SCHEMA_OBJECTS = (
     "license_fingerprints",
     "idx_fp_ngram",
     "idx_licenses_name",
+    "license_urls",
 )
+
+# The objects a read does without: a database built before one (build 3 has
+# no ``license_urls``) is still current, so opening it writes nothing, even
+# read-only. A lookup reads no rows from a missing one (dbcache), and
+# ``update`` makes it (create_url_table) when it rebuilds the database.
+OPTIONAL_OBJECTS = frozenset({"license_urls"})
+_REQUIRED_OBJECTS = frozenset(SCHEMA_OBJECTS) - OPTIONAL_OBJECTS
 
 # Columns that databases of an earlier version lack; ``create_schema`` adds
 # them.
@@ -35,8 +44,9 @@ SchemaState = Literal["current", "older", "none"]
 
 
 def schema_state(connections: "Connections") -> SchemaState:
-    """``current`` when every object of ``SCHEMA_OBJECTS`` and every added
-    column is there (opening the database needs no write), ``older`` when the
+    """``current`` when every object of ``SCHEMA_OBJECTS`` but the
+    ``OPTIONAL_OBJECTS`` and every added column is there (opening the
+    database needs no write), ``older`` when the
     ``licenses`` table is there but something is missing, ``none`` when it is
     not. Read-only: it raises ``DatabaseNotReadyError`` for a file it cannot
     open."""
@@ -50,7 +60,7 @@ def schema_state(connections: "Connections") -> SchemaState:
             )
         }
         columns = {row[1] for row in conn.execute("PRAGMA table_info(licenses)")}
-    if found == set(SCHEMA_OBJECTS) and set(_ADDED_COLUMNS) <= columns:
+    if _REQUIRED_OBJECTS <= found and set(_ADDED_COLUMNS) <= columns:
         return "current"
     return "older" if "licenses" in found else "none"
 
@@ -141,6 +151,7 @@ def _create_objects(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_licenses_name
         ON licenses(name COLLATE NOCASE)
     """)
+    create_url_table(conn)
 
     # Migration: databases created before norm_license_id/norm_name
     # existed have a "licenses" table without them (CREATE TABLE IF
@@ -151,3 +162,20 @@ def _create_objects(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE licenses ADD COLUMN norm_license_id TEXT")
     if "norm_name" not in existing_cols:
         conn.execute("ALTER TABLE licenses ADD COLUMN norm_name TEXT")
+
+
+def create_url_table(conn: sqlite3.Connection) -> None:
+    """Make ``license_urls`` if it is missing: the pages (seeAlso) of each
+    kept licence and every exception, as the List writes them, in List order
+    (rowid): the licences, then the exceptions. No index: the table is read
+    whole, once per rebuild (dbcache.TableCache.ids_by_url), and keyed in
+    memory. A database built before it (build 3) is read without it, warns
+    ``build v3 outdated``, and gets it from ``update``, inside the
+    transaction that fills it."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS license_urls (
+            owner_id     TEXT NOT NULL,
+            is_exception BOOLEAN NOT NULL,
+            url          TEXT NOT NULL
+        )
+    """)

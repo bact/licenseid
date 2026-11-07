@@ -21,7 +21,13 @@ from typing import Any
 import pytest
 import requests
 from release_fakes import ship
-from resolver_corpus import EXCEPTION_LIST, LICENSE_LIST, list_meta, list_rows
+from resolver_corpus import (
+    EXCEPTION_LIST,
+    LICENSE_LIST,
+    SEE_ALSO_LIST,
+    list_meta,
+    list_rows,
+)
 
 from licenseid.database import LicenseDatabase
 from licenseid.spdxdata import SpdxData, to_bundle
@@ -30,8 +36,10 @@ from licenseid.warning import LicenseIdWarning
 
 
 def fixture_data() -> SpdxData:
-    """The List of the fixtures, each licence with a text."""
+    """The List of the fixtures, each licence with a text and each licence
+    and exception with its pages (``seeAlso``) where the List gives some."""
     version, release_date = list_meta(LICENSE_LIST)
+    pages = see_also()
     licenses: list[SpdxLicenseEntry] = [
         {
             "licenseId": str(row[0]),
@@ -48,6 +56,14 @@ def fixture_data() -> SpdxData:
         }
         for row in list_rows(EXCEPTION_LIST, "exceptions")
     ]
+    for lic in licenses:
+        lic_pages = pages.get((lic["licenseId"], False))
+        if lic_pages:
+            lic["seeAlso"] = lic_pages
+    for exc in exceptions:
+        exc_pages = pages.get((exc["licenseExceptionId"], True))
+        if exc_pages:
+            exc["seeAlso"] = exc_pages
     return SpdxData(
         version=version,
         release_date=release_date,
@@ -57,6 +73,15 @@ def fixture_data() -> SpdxData:
             {lic["licenseId"]: f"The text of {lic['name']}." for lic in licenses}
         ),
     )
+
+
+def see_also() -> dict[tuple[str, bool], list[str]]:
+    """The pages of ``spdx-see-also.json`` by ``(ID, is_exception)``, each
+    in List order."""
+    pages: dict[tuple[str, bool], list[str]] = {}
+    for owner, is_exception, url in list_rows(SEE_ALSO_LIST, "urls"):
+        pages.setdefault((str(owner), bool(is_exception)), []).append(str(url))
+    return pages
 
 
 def fixture_bundle() -> bytes:

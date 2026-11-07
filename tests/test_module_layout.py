@@ -35,6 +35,9 @@ MATCH_PATH = [
     "listindex",
     "listsource",
     "resolver",
+    # a licence URL read as its licence (issue #14)
+    "urlkey",
+    "resolveurl",
 ]
 
 

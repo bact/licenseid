@@ -70,8 +70,13 @@ def _parse_json(stripped: str) -> object:
 def json_license_values(data: dict[str, object]) -> list[str]:
     """The license field of a JSON object."""
     val = data.get("license") or data.get("License") or data.get("LICENSE")
-    if isinstance(val, dict):  # npm's old object form: {"type": "MIT", ...}
-        val = val.get("type")
+    if isinstance(val, dict):  # npm's old object form: {"type": T, "url": U}
+        # The type first; the URL only if the type is absent or names nothing.
+        named = [val.get("type"), val.get("url")]
+        values = [v for v in named if isinstance(v, str) and v]
+        if values:
+            return values
+        val = None
     if isinstance(val, str) and val:
         return [val]
     # npm's old array form, one entry per license the user may choose. Each

@@ -20,6 +20,11 @@ gets no text match either: on the fixtures and the PyPI sample, Tiers 1 and
 ``LiLiQ-R-1.1``, ``Proprietary`` as ``AGPL-1.0-only``), and every input from
 ten words on rightly. The name tier still answers before that.
 
+An input that is one URL, which ``resolve()`` refused or did not read, gets
+no match at all, by name or text: ``.``, ``/`` and ``-`` make words of it
+that Tiers 0 to 2 read as a licence the page is not
+(``https://www.gnu.org/licenses/gpl-3.0.en.html`` as ``AGPL-3.0-only``).
+
 A word count is no measure of Chinese or Japanese, written without spaces:
 an input whose letters are nine in ten Han or kana is not cut. Sliced from the
 four such texts of the List at 4 to 13 characters, Tiers 1 and 2 answered
@@ -38,6 +43,7 @@ from typing import Final
 from licenseid.errors import shown
 from licenseid.resolvertypes import Category, Resolution
 from licenseid.types import LicenseFlags, Method, RawMatch
+from licenseid.urlkey import is_url
 from licenseid.warning import warn
 
 #: The fewest normalised words Tiers 1 and 2 match, of an input resolve()
@@ -56,7 +62,14 @@ _MIN_NO_SPACES_SHARE: Final = 0.9
 
 #: The readings of a licence's name, not of its ID.
 _BY_NAME: Final[frozenset[Category]] = frozenset(
-    ("alias_name", "listed_name", "prose_form", "text_title", "trove_name")
+    (
+        "alias_name",
+        "license_url",
+        "listed_name",
+        "prose_form",
+        "text_title",
+        "trove_name",
+    )
 )
 
 
@@ -110,6 +123,20 @@ def too_short(resolution: Resolution, text: str, *, whole: bool) -> bool:
         return False
     if whole and words:
         warn("input", "too few words for text", _detail(resolution["reason"] or ""))
+    return True
+
+
+def unread_url(resolution: Resolution, text: str) -> bool:
+    """Whether *text*, the whole input, is one URL (in one pair of angle
+    brackets or none) that *resolution* gave no expression. If so, say why it
+    is no licence value, as :func:`too_short` does (``input: too few words
+    for text: url names several licences: ...``)."""
+    url = text.strip()
+    if len(url) > 2 and url[0] == "<" and url[-1] == ">":
+        url = url[1:-1]
+    if resolution["expression"] is not None or not is_url(url):
+        return False
+    warn("input", "too few words for text", _detail(resolution["reason"] or ""))
     return True
 
 

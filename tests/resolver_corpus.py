@@ -28,8 +28,15 @@ from resolver_changes_t7 import T7_CHANGES, answer
 from resolver_changes_t8 import T8_CHANGES
 from resolver_changes_t9 import T9_CHANGES
 from resolver_changes_titles import TITLES_CHANGES
+from resolver_changes_urls import URLS_CHANGES
 from resolver_changes_versioned import VERSIONED_CHANGES
-from seed_sql import INSERT_EXCEPTION, INSERT_INDEX, INSERT_LICENSE, SET_METADATA
+from seed_sql import (
+    INSERT_EXCEPTION,
+    INSERT_INDEX,
+    INSERT_LICENSE,
+    INSERT_URL,
+    SET_METADATA,
+)
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.normalize import normalize_text
@@ -45,6 +52,8 @@ from tools.pypi_licence_sample.answer import (
 FIXTURES = Path(__file__).parent / "fixtures"
 LICENSE_LIST = FIXTURES / "license-list" / "spdx-license-ids.json"
 EXCEPTION_LIST = FIXTURES / "license-list" / "spdx-exception-ids.json"
+#: The ``seeAlso`` pages of the same List: ``[id, is_exception, url]`` rows.
+SEE_ALSO_LIST = FIXTURES / "license-list" / "spdx-see-also.json"
 LICENSE_TEXTS = FIXTURES / "license-text-long"
 PARITY_FILE = FIXTURES / "resolver_parity.tsv"
 SAMPLE_GLOB = "pypi_values_2026-10*.tsv"
@@ -159,6 +168,7 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
     **READERS_CHANGES,  # after the fix, for the same reason
     **TITLES_CHANGES,  # after the readers, for the same reason
     **VERSIONED_CHANGES,
+    **URLS_CHANGES,  # last: a value it moves again has its answer now
     **ALIASES_CHANGES,  # last, for the same reason
 }
 
@@ -187,8 +197,9 @@ def corpus_db_path(
     prefix: str, make_path: Callable[[str], tuple[str, sqlite3.Connection]]
 ) -> Generator[str, None, None]:
     """Yield the path of an in-memory database that holds every licence and
-    exception of the List fixtures (ids, names, deprecation, successors, the
-    version and release date) and the text of the :data:`NEIGHBOURS`.
+    exception of the List fixtures (ids, names, deprecation, successors,
+    their pages, the version and release date) and the text of the
+    :data:`NEIGHBOURS`.
     *make_path* is ``conftest.make_memory_db_path``; its keep-alive connection
     is closed after."""
     version, release_date = list_meta(LICENSE_LIST)
@@ -205,6 +216,7 @@ def corpus_db_path(
             INSERT_EXCEPTION,
             list_rows(EXCEPTION_LIST, "exceptions"),
         )
+        conn.executemany(INSERT_URL, list_rows(SEE_ALSO_LIST, "urls"))
         conn.executemany(INSERT_INDEX, [(lid, _search_text(lid)) for lid in NEIGHBOURS])
         conn.executemany(
             SET_METADATA,

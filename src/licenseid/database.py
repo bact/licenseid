@@ -30,17 +30,12 @@ from licenseid.dbcheck import (
     reject_foreign_database,
 )
 from licenseid.dbconnection import Connections, QueryConnection
-from licenseid.dbschema import create_schema, schema_state
+from licenseid.dbschema import create_schema, create_url_table, schema_state
 from licenseid.errors import DatabaseNotReadyError, LicenseIdError, fold, typed
 from licenseid.fingerprintstore import fingerprint_hits, store_fingerprints
+from licenseid.listlookup import ListedUrl
 from licenseid.normalize import normalize_text
-from licenseid.records import (
-    BUILD_VERSION,
-    ExceptionInsertRecord,
-    IndexInsertRecord,
-    LicenseInsertRecord,
-    build_records,
-)
+from licenseid.records import BUILD_VERSION, Records, build_records
 from licenseid.spdxdata import SpdxData
 from licenseid.types import (
     CandidateMatch,
@@ -134,6 +129,9 @@ class LicenseDatabase:
         self.db_path = Path(absolute_path(named) if named else db_path)
         self.use_uri = db_path.startswith("file:")  # Path() rewrites a URI
         self._source = db_path if self.use_uri else str(self.db_path)
+        #: The path or ``file:`` URI this database was opened with, as
+        #: :func:`licenseid.dbcheck.check_database_ready` reads it.
+        self.location: str = self._source
         self._connections = Connections(
             self._source, self.use_uri, str(self.db_path), create
         )
@@ -150,12 +148,6 @@ class LicenseDatabase:
                 warn("database", condition, detail, "run 'licenseid update'")
             for condition, detail in self._stamped_rules(newer=True):
                 warn("database", condition, detail)
-
-    @property
-    def location(self) -> str:
-        """The path or ``file:`` URI this database was opened with, as
-        :func:`licenseid.dbcheck.check_database_ready` reads it."""
-        return self._source
 
     def _outdated_rules(self) -> list[tuple[str, str]]:
         """The rules this database was built with that are older than this
@@ -408,10 +400,7 @@ class LicenseDatabase:
         release_date: str | None,
     ) -> None:
         """Execute database delete and insert operations."""
-        records = build_records(data, popularity_map)
-        self._write_db_records(
-            records.licenses, records.index_entries, records.exceptions, release_date
-        )
+        self._write_db_records(build_records(data, popularity_map), release_date)
 
         # Compute fingerprints in a separate transaction so that the FTS5
         # virtual table is fully committed and readable before we scan it.
@@ -433,27 +422,24 @@ class LicenseDatabase:
         except sqlite3.Error as exc:
             warn("database", "compact failed", typed(exc))
 
-    def _write_db_records(
-        self,
-        license_records: list[LicenseInsertRecord],
-        index_records: list[IndexInsertRecord],
-        exception_records: list[ExceptionInsertRecord],
-        release_date: str | None,
-    ) -> None:
-        """Replace all license/exception/metadata rows in a single transaction.
+    def _write_db_records(self, records: Records, release_date: str | None) -> None:
+        """Replace all licence, exception, URL and metadata rows in a single
+        transaction.
 
         ``update`` stamps ``license_list_version`` after the fingerprints: a
         run that fails before leaves a database it does not skip."""
-        status(f"\nInserting {len(license_records)} records into database...")
+        status(f"\nInserting {len(records.licenses)} records into database...")
         self._ensure_schema()
         with self._connection(write=True) as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
+                create_url_table(conn)  # a database of build 3 lacks it
                 conn.execute("DELETE FROM license_index")
                 conn.execute("DELETE FROM licenses")
                 conn.execute("DELETE FROM exceptions")
                 conn.execute("DELETE FROM db_metadata")
                 conn.execute("DELETE FROM license_fingerprints")
+                conn.execute("DELETE FROM license_urls")
 
                 now = datetime.now(timezone.utc).isoformat()
                 metadata_items: list[tuple[str, str]] = [
@@ -478,17 +464,22 @@ class LicenseDatabase:
                         norm_license_id, norm_name
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                    license_records,
+                    records.licenses,
                 )
                 conn.executemany(
                     "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
-                    index_records,
+                    records.index_entries,
                 )
                 conn.executemany(
                     "INSERT INTO exceptions "
                     "(exception_id, name, is_deprecated, superseded_by) "
                     "VALUES (?, ?, ?, ?)",
-                    exception_records,
+                    records.exceptions,
+                )
+                conn.executemany(
+                    "INSERT INTO license_urls (owner_id, is_exception, url)"
+                    " VALUES (?, ?, ?)",
+                    records.urls,
                 )
                 conn.execute("COMMIT")
             except Exception:
@@ -636,6 +627,13 @@ class LicenseDatabase:
         """get_all_names_and_ids() by *key* of each ID (see
         dbcache.TableCache.names_by_key)."""
         return self._tables.names_by_key(key)
+
+    def get_ids_by_url(
+        self, key: Callable[[str], str | None]
+    ) -> dict[str, list[ListedUrl]]:
+        """The licences, then the exceptions, that list a page, by *key* of
+        its URL (see dbcache.TableCache.ids_by_url)."""
+        return self._tables.ids_by_url(key)
 
     def get_active_ids_by_name(self) -> dict[str, list[str]]:
         """The licence IDs in use by case-folded name (see

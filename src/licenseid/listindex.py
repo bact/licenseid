@@ -19,9 +19,13 @@ from the rows ``licenseid.records`` builds of the same release:
   the first row does;
 - ``get_active_ids_by_name`` is built from the kept licences only, as the
   database's is from its rows: an ID in use with no text is not kept, even
-  where it is the successor of a rename (``listrules.kept_licenses``).
+  where it is the successor of a rename (``listrules.kept_licenses``);
+- ``get_ids_by_url`` holds the pages (``seeAlso``) of the kept licences,
+  then of every exception, as ``license_urls`` does
+  (:func:`licenseid.listrules.listed_urls`), keyed the same way
+  (:func:`licenseid.listlookup.index_urls`).
 
-IDs and names only: no texts (dropped once the index is built, about 5 MiB),
+IDs, names and pages only: no texts (dropped once the index is built, about 5 MiB),
 no popularity and no word count (normalising every text costs about 1.2 s).
 
 :func:`packaged_index` loads the bundle shipped in the wheel once per
@@ -39,13 +43,17 @@ from licenseid.listlookup import (
     ListedLicense,
     ListedMetadata,
     ListedName,
+    ListedUrl,
+    UrlRow,
     fold_case,
+    index_urls,
 )
 from licenseid.listrules import (
     active_exceptions_by_name,
     exception_successor,
     is_deprecated,
     kept_licenses,
+    listed_urls,
 )
 from licenseid.spdxdata import SpdxData
 from licenseid.warning import warn
@@ -66,6 +74,12 @@ class ListIndex:
         self._deprecated: dict[str, str] = {}
         self._keyed: tuple[Callable[[str], str], dict[str, list[ListedName]]] | None
         self._keyed = None
+        # The pages of the kept licences, then the exceptions, in list order;
+        # with their index by a key of each URL, and its key.
+        self._urls: list[UrlRow] = []
+        self._url_keyed: (
+            tuple[Callable[[str], str | None], dict[str, list[ListedUrl]]] | None
+        ) = None
         self._add_licenses(data)
         self._exceptions: dict[str, ListedException] = {}  # by folded ID
         self._add_exceptions(data)
@@ -87,6 +101,7 @@ class ListIndex:
                 self._deprecated.setdefault(license_id, successor)
             self._licenses.setdefault(fold_case(license_id), row)
             self._rows.append({"license_id": license_id, "is_deprecated": deprecated})
+            self._urls.extend((license_id, False, url) for url in listed_urls(lic))
             if not deprecated:
                 by_name = self._active_by_name.setdefault(lic["name"].casefold(), [])
                 by_name.append(license_id)
@@ -107,6 +122,7 @@ class ListIndex:
                 row["superseded_by"] = successor
                 self._deprecated[exception_id] = successor
             self._exceptions.setdefault(fold_case(exception_id), row)
+            self._urls.extend((exception_id, True, url) for url in listed_urls(exc))
 
     def reading(self) -> contextlib.AbstractContextManager[None]:
         """One block of reads: nothing to open or close in memory."""
@@ -133,6 +149,17 @@ class ListIndex:
             for row in self._rows:
                 index.setdefault(key(row["license_id"]), []).append(row)
             keyed = self._keyed = (key, index)
+        return keyed[1]
+
+    def get_ids_by_url(
+        self, key: Callable[[str], str | None]
+    ) -> dict[str, list[ListedUrl]]:
+        """The kept licences, then the exceptions, that list a page, by *key*
+        of its URL, in list order. One key is kept; a call with another
+        builds it again."""
+        keyed = self._url_keyed
+        if keyed is None or keyed[0] is not key:
+            keyed = self._url_keyed = (key, index_urls(self._urls, key))
         return keyed[1]
 
     def get_active_ids_by_name(self) -> dict[str, list[str]]:

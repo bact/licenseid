@@ -214,7 +214,7 @@ def test_a_database_built_with_older_rules_is_rebuilt_at_its_version(
 
 
 @pytest.mark.parametrize("key", ["normalization_version", "build_version"])
-@pytest.mark.parametrize("stamp", ["3", "10", "999999999"])
+@pytest.mark.parametrize("stamp", ["5", "10", "999999999"])
 def test_a_database_built_by_newer_rules_is_not_downgraded(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str, stamp: str
 ) -> None:

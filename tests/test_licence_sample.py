@@ -153,7 +153,7 @@ def test_a_crate_reads_the_listed_value() -> None:
     [
         ("https://opensource.org/licenses/MIT", True),
         ("www.apache.org/licenses/LICENSE-2.0", True),
-        ("<http://x.org/l>", True),
+        ("<http://x.org/l>", False),  # angle brackets: not read
         ("MIT (https://opensource.org/licenses/MIT)", False),  # in prose
         ("MIT", False),
     ],
@@ -168,11 +168,16 @@ def test_a_url_is_the_whole_value(value: str, url: bool) -> None:
         "https://www.apache.org/licenses/LICENSE-2.0",
         "http://apache.org/licenses/LICENSE-2.0/",
         "HTTPS://WWW.APACHE.ORG/licenses/LICENSE-2.0/index.html#x",
-        "www.apache.org/licenses/LICENSE-2.0?y=1",
     ],
 )
 def test_spellings_of_one_page_have_one_key(spelling: str) -> None:
     assert url_key(spelling) == "apache.org/licenses/license-2.0"
+
+
+def test_the_query_is_part_of_the_key() -> None:
+    page = "www.apache.org/licenses/LICENSE-2.0"
+    assert url_key(page + "?y=1") != url_key(page)
+    assert url_key(page + "?y=1") == url_key("https://" + page + "?y=1")
 
 
 def test_see_also_maps_each_url_to_its_licences(tmp_path: Path) -> None:
@@ -191,8 +196,19 @@ def test_see_also_maps_each_url_to_its_licences(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     table = see_also(path)
-    assert table[url_key(page)] == {"GPL-2.0-only", "GPL-2.0-or-later"}
-    assert table["spdx.org/licenses/mit.html"] == {"MIT"}
+    assert table[url_key(page) or ""] == {"GPL-2.0-only", "GPL-2.0-or-later"}
+    assert table["spdx.org/licenses/mit"] == {"MIT"}
+
+
+def test_see_also_skips_a_url_with_a_fragment(tmp_path: Path) -> None:
+    path = tmp_path / "licenses.json"
+    path.write_text(
+        json.dumps(
+            {"licenses": [{"licenseId": "MIT", "seeAlso": ["https://x.org/faq#MIT"]}]}
+        ),
+        encoding="utf-8",
+    )
+    assert not any(key.startswith("x.org") for key in see_also(path))
 
 
 def test_tally_counts_values_and_urls(corpus_db: LicenseDatabase) -> None:

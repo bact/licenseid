@@ -104,6 +104,60 @@ uses the official SPDX License List as its authoritative, pristine data source.
   the snapshots from a database of build v2 or later (`StandardML-NJ` names
   `SMLNJ`; an older build leaves it null). The licence file's `StandardML-NJ`
   row names its successor `SMLNJ` for that reason.
+- **See also:** `spdx-see-also.json` holds the `seeAlso` links of the same
+  release, one row per link as `[id, is_exception, url]`: 997 links of the
+  740 kept licences, in list order, then 128 links of the 86 exceptions. It
+  carries the same `license_list_version` and `release_date`. Regenerate it
+  from the upstream tarball with the script below (it reads the tarball,
+  writes nothing else, and needs the `licenseid` package on the path):
+
+```python
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+"""Write tests/fixtures/license-list/spdx-see-also.json from the 3.29.0 tarball."""
+
+import json
+import sys
+from pathlib import Path
+
+from licenseid.listrules import kept_licenses
+from licenseid.spdxdata import SpdxData
+
+REPO = Path(sys.argv[1])
+TARBALL = Path(sys.argv[2])
+OUT = REPO / "tests" / "fixtures" / "license-list" / "spdx-see-also.json"
+
+data = SpdxData.from_tarball(TARBALL, "3.29.0")
+has_text = lambda i: i in data.texts  # noqa: E731
+kept = [lic for lic, _ in kept_licenses(data.licenses, has_text)]
+lic_rows = [
+    [lic["licenseId"], False, url]
+    for lic in kept
+    for url in lic.get("seeAlso", [])
+]
+exc_rows = [
+    [exc["licenseExceptionId"], True, url]
+    for exc in data.exceptions
+    for url in exc.get("seeAlso", [])
+]
+print("kept licences", len(kept), "of", len(data.licenses))
+print("licence rows", len(lic_rows), "exception rows", len(exc_rows))
+rows = lic_rows + exc_rows
+lines = [json.dumps(r, ensure_ascii=False) for r in rows]
+body = ",\n".join("  " + line for line in lines)
+text = (
+    "{\n"
+    f'  "license_list_version": {json.dumps(data.version)},\n'
+    f'  "release_date": {json.dumps(data.release_date)},\n'
+    '  "columns": ["id", "is_exception", "url"],\n'
+    '  "urls": [\n' + body + "\n  ]\n}\n"
+)
+OUT.write_text(text, encoding="utf-8")
+```
+
+  Run it as `PYTHONPATH=src python3 -I <script> <repo> <tarball>`, with
+  `<tarball>` the `spdx-data-v3.29.0.tar.gz` of the user cache.
 
 ### 7. `resolver_parity.tsv` and `pypi_values_2026-10*.tsv`
 

@@ -12,22 +12,20 @@ package opens (SPDX release data in ``database.py`` and ``spdx_source.py``)
 are trusted and stay strict UTF-8: a Latin-1 fallback there would hide a
 corrupt download.
 
-Stdlib and ``licenseid.errors``/``warning`` only, so importing it does not
-pull in ``requests``.
+Stdlib and ``licenseid.errors``/``urlkey``/``warning`` only, so importing it
+does not pull in ``requests``.
 """
 
 import re
 
 from licenseid.errors import InvalidInputError, shown
+from licenseid.urlkey import SCHEMELESS_HOST
 from licenseid.warning import warn
 
 # A file name's extension at the end of a word: "LICENSE.txt", "COPYING.LESSER".
 # No SPDX ID ends so: each ends in a version ("Apache-2.0", "LPPL-1.3c") or
 # a word after a hyphen.
 _RE_FILE_EXTENSION = re.compile(r"\.[A-Za-z][A-Za-z0-9]*\Z")
-# A host name before the first "/": a URL written without its scheme
-# ("www.apache.org/licenses/LICENSE-2.0"), not a directory.
-_RE_HOST = re.compile(r"(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?::\d+)?/")
 
 
 def looks_like_path(value: str) -> bool:
@@ -38,7 +36,7 @@ def looks_like_path(value: str) -> bool:
     so the CLI refuses it; ``--text`` matches such a value as text."""
     if not value or "://" in value or any(c.isspace() for c in value):
         return False
-    if _RE_HOST.match(value):
+    if SCHEMELESS_HOST.match(value):
         return False
     return "/" in value or "\\" in value or bool(_RE_FILE_EXTENSION.search(value))
 

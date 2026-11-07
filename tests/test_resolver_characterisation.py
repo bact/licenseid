@@ -137,12 +137,13 @@ def test_every_category_a_value_can_reach_is_pinned() -> None:
         for case in CASES
         for step in case["result"]["steps"] + case["result"]["expansions"]
     }
-    # trove_name, prose_form, text_title and alias_name are not single-value
-    # categories of this fixture: the rows they need are in
-    # test_resolver_trove.py, test_resolver_prose.py, test_resolver_title.py
-    # and test_resolver_alias.py
+    # trove_name, prose_form, text_title, alias_name and license_url are not
+    # single-value categories of this fixture: the rows they need are in
+    # test_resolver_trove.py, test_resolver_prose.py, test_resolver_title.py,
+    # test_resolver_alias.py and test_resolver_url.py
     assert categories == set(CATEGORY_ORDER) - {
         "alias_name",
+        "license_url",
         "prose_form",
         "text_title",
         "trove_name",

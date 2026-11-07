@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-08
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -629,3 +629,16 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   path against long input. To read the version key without an import cycle,
   the "+" reader moved to `plusoperator.py` (standard library only) and the
   version key to `versionkey.py`.
+- A licence URL was matched as text (item 45, Priority 12; 2026-11-08).
+  `opensource.org/licenses/MIT` answered `any-OSI-perl-modules` at 0.87 and
+  `spdx.org/licenses/MIT.html` `Parity-7.0.0`; a tag read the second as
+  `MIT` and `resolve()` did not. Now `resolve()` reads a licence URL first
+  of the name readers (`resolveurl.py`, category `license_url`), `detect()`
+  answers a whole URL through it, and a tag and a field read it with the
+  same reader (`url_license_id`). The key of a URL is `urlkey.url_key`; the pages
+  are the List's own (`spdx.org/licenses/<ID>`, `spdx:<ID>`), the pages of
+  hosts that end in an ID, the `seeAlso` of the List (new `license_urls`
+  table, `records.BUILD_VERSION` 4) and a short table of aliases. A page of
+  several licences or of an exception is refused with a reason; no host
+  outside the table is read by its path. Details:
+  `licence-urls.md`. PR for #14 (no number yet).

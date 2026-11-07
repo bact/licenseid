@@ -24,7 +24,7 @@ from release_fakes import ship
 
 from licenseid import listindex, spdxdata
 from licenseid.listindex import ListIndex, packaged_index, packaged_problem
-from licenseid.listlookup import ListLookup
+from licenseid.listlookup import ListedUrl, ListLookup
 from licenseid.spdxdata import SpdxData, to_bundle
 from licenseid.versionkey import version_key
 
@@ -32,34 +32,71 @@ from licenseid.versionkey import version_key
 # successor, a split ID, one in use with no text (not kept), and a
 # deprecated one with no text (kept); exceptions with a rename, and one whose
 # ID is also a deprecated licence's (the exception wins the mapping).
+# Their pages (seeAlso): one listed twice, one two licences share by key, the
+# page of a GNU family, one of a licence that is not kept, one a licence and an
+# exception share, one the key reads as no key, one that is not a list, and
+# items that are no string.
+OSI_MIT = "https://opensource.org/license/mit/"
+GNU_GPL2 = "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html"
+GONE = "https://example.org/gone"
 LICENSES = (
-    lic_entry("MIT", "MIT License"),
-    lic_entry("mit", "Lower MIT"),
-    lic_entry("SMLNJ", "Standard ML of New Jersey License"),
+    lic_entry("MIT", "MIT License", see_also=[OSI_MIT, OSI_MIT]),
+    lic_entry("mit", "Lower MIT", see_also=[OSI_MIT.upper()]),
+    lic_entry(
+        "SMLNJ",
+        "Standard ML of New Jersey License",
+        see_also="https://www.smlnj.org/license.html",
+    ),
     lic_entry("StandardML-NJ", "Standard ML of New Jersey License", deprecated=True),
-    lic_entry("GPL-2.0-only", "GNU General Public License v2.0 only"),
-    lic_entry("GPL-2.0-or-later", "GNU General Public License v2.0 or later"),
-    lic_entry("GPL-2.0", "GNU General Public License v2.0 only", deprecated=True),
-    lic_entry("GPL-2.0+", "GNU General Public License v2.0 or later", deprecated=True),
-    lic_entry("NoText-1.0", "No Text License"),
-    lic_entry("Gone-1.0", "Gone License", deprecated=True),
+    lic_entry(
+        "GPL-2.0-only", "GNU General Public License v2.0 only", see_also=[GNU_GPL2]
+    ),
+    lic_entry(
+        "GPL-2.0-or-later",
+        "GNU General Public License v2.0 or later",
+        see_also=[GNU_GPL2],
+    ),
+    lic_entry(
+        "GPL-2.0",
+        "GNU General Public License v2.0 only",
+        deprecated=True,
+        see_also=[GNU_GPL2],
+    ),
+    lic_entry(
+        "GPL-2.0+",
+        "GNU General Public License v2.0 or later",
+        deprecated=True,
+        see_also=[GNU_GPL2],
+    ),
+    lic_entry("NoText-1.0", "No Text License", see_also=["https://example.org/nt"]),
+    lic_entry("Gone-1.0", "Gone License", deprecated=True, see_also=[GONE]),
     lic_entry("Clash-1.0", "Clash License", deprecated=True),
     lic_entry("Clash-2.0", "Clash License"),
-    lic_entry("Plain", "Plain License", deprecated=None),
-    lic_entry("K-1.0", "K License"),
+    lic_entry(
+        "Plain", "Plain License", deprecated=None, see_also=["https://skip.example/"]
+    ),
+    lic_entry("K-1.0", "K License", see_also=[7, None, ["x"], "https://k.example/"]),
 )
 TEXTS = {
     lic["licenseId"]: f"Text of {lic['licenseId']}."
     for lic in LICENSES
     if lic["licenseId"] not in ("NoText-1.0", "Gone-1.0")
 }
+CLASSPATH = "https://www.gnu.org/software/classpath/license.html"
 EXCEPTIONS = (
-    exc_entry("Classpath-exception-2.0", "Classpath exception 2.0"),
+    exc_entry(
+        "Classpath-exception-2.0", "Classpath exception 2.0", see_also=[CLASSPATH]
+    ),
     exc_entry("Old-exception", "Classpath exception 2.0", deprecated=True),
     exc_entry("Clash-1.0", "Clash exception", deprecated=True),
-    exc_entry("Clash-exception", "Clash exception"),
-    exc_entry("Lone-exception", "Lone exception", deprecated=True),
-    exc_entry("K-exception", "K exception"),
+    exc_entry("Clash-exception", "Clash exception", see_also=[GONE]),
+    exc_entry(
+        "Lone-exception",
+        "Lone exception",
+        deprecated=True,
+        see_also=["https://example.org/lone"],
+    ),
+    exc_entry("K-exception", "K exception", see_also={"url": "https://k.example/"}),
 )
 RAW = synthetic_bundle(LICENSES, TEXTS, EXCEPTIONS)
 # The real one, to spec a fake on: conftest's autouse fixture replaces it
@@ -198,6 +235,60 @@ def test_the_names_by_key_follow_the_key(index: ListIndex) -> None:
 
     assert set(index.get_names_by_key(upper)) >= {"MIT", "SMLNJ"}
     assert index.get_names_by_key(version_key) is not first  # one key kept
+
+
+def url_key(url: str) -> str | None:
+    """A key of a URL for these tests: no key for the ``skip.`` host."""
+    return None if "//skip." in url else url.lower()
+
+
+def lic_url(owner: str) -> ListedUrl:
+    return {"id": owner, "is_exception": False}
+
+
+def exc_url(owner: str) -> ListedUrl:
+    return {"id": owner, "is_exception": True}
+
+
+# The kept licences' pages in list order, then the exceptions': each owner once
+# per key, a page a licence and an exception share under both.
+BY_URL = {
+    OSI_MIT: [lic_url("MIT"), lic_url("mit")],
+    GNU_GPL2.lower(): [
+        lic_url("GPL-2.0-only"),
+        lic_url("GPL-2.0-or-later"),
+        lic_url("GPL-2.0"),
+        lic_url("GPL-2.0+"),
+    ],
+    GONE: [lic_url("Gone-1.0"), exc_url("Clash-exception")],
+    "https://k.example/": [lic_url("K-1.0")],
+    CLASSPATH: [exc_url("Classpath-exception-2.0")],
+    "https://example.org/lone": [exc_url("Lone-exception")],
+}
+
+
+def test_the_pages_are_the_databases(index: ListIndex, db: ListLookup) -> None:
+    """Licences first, then exceptions, in list order, each owner once per
+    key; no page of a licence that is not kept, of a ``seeAlso`` that is not
+    a list, or that the key reads as no key."""
+    from_db = db.get_ids_by_url(url_key)
+    assert index.get_ids_by_url(url_key) == from_db == BY_URL
+    assert list(index.get_ids_by_url(url_key)) == list(from_db) == list(BY_URL)
+
+
+def test_the_pages_by_key_follow_the_key(index: ListIndex) -> None:
+    first = index.get_ids_by_url(url_key)
+    assert index.get_ids_by_url(url_key) is first  # built once
+
+    def host(url: str) -> str | None:
+        return url.split("/")[2].lower()
+
+    assert index.get_ids_by_url(host)["opensource.org"] == [
+        lic_url("MIT"),
+        lic_url("mit"),
+    ]
+    assert index.get_ids_by_url(url_key) is not first  # one key kept
+    assert index.get_ids_by_url(url_key) == first
 
 
 def test_a_returned_row_is_a_copy(index: ListIndex) -> None:

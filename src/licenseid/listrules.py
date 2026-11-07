@@ -25,6 +25,16 @@ def is_deprecated(entry: SpdxLicenseEntry | SpdxExceptionEntry) -> bool:
     return bool(entry.get("isDeprecatedLicenseId", False))
 
 
+def listed_urls(entry: SpdxLicenseEntry | SpdxExceptionEntry) -> list[str]:
+    """The pages the List gives a licence or exception (``seeAlso``), as
+    written and in its order: the items that are strings; none when the
+    field is missing or is not a list."""
+    urls: object = entry.get("seeAlso")
+    if not isinstance(urls, list):
+        return []
+    return [url for url in urls if isinstance(url, str)]
+
+
 def active_ids(licenses: Iterable[SpdxLicenseEntry]) -> set[str]:
     """The IDs in use."""
     return {lic["licenseId"] for lic in licenses if not is_deprecated(lic)}

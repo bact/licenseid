@@ -30,7 +30,7 @@ from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
     safe_home,  # an autouse fixture: imported to apply it here
 )
 from db_asserts import run_args as run
-from db_variants import make_ready_file_db
+from db_variants import NO_RECORDS, make_ready_file_db
 from packaged_list import database_of
 from release_fakes import VERSION, release_bundle, ship
 
@@ -137,7 +137,7 @@ def test_a_foreign_file_appearing_before_the_first_write_is_refused(
         handle.update_from_remote(source="packaged")
     assert names_in(path) == {"foo"}
     with pytest.raises(DatabaseNotReadyError, match="^database: invalid: "):
-        handle._write_db_records([], [], [], None)  # pylint: disable=protected-access
+        handle._write_db_records(NO_RECORDS, None)  # pylint: disable=protected-access
     assert names_in(path) == {"foo"}
 
 
@@ -208,7 +208,7 @@ def test_the_first_write_makes_the_file_and_its_tables(tmp_path: Path) -> None:
     path = tmp_path / "licenses.db"
     handle = LicenseDatabase(str(path))
     assert not path.exists()
-    handle._write_db_records([], [], [], None)  # pylint: disable=protected-access
+    handle._write_db_records(NO_RECORDS, None)  # pylint: disable=protected-access
     assert {"licenses", "license_index", "db_metadata"} <= names_in(path)
     assert "release_date" in handle.get_metadata()
 

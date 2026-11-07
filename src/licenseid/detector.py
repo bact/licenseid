@@ -33,7 +33,7 @@ from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
-from licenseid.resolvefirst import as_resolved, match_of, too_short
+from licenseid.resolvefirst import as_resolved, match_of, too_short, unread_url
 from licenseid.resolver import resolve_with
 from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import Resolution
@@ -429,6 +429,8 @@ class LicenseDetector:
         whole = resolve_with(self.db, target_text)
         if whole["expression"] is not None:
             return self._answer_of(whole, target_text)
+        if unread_url(whole, target_text):  # a page is no text to match
+            return []
         return self._match_text(
             self._build_match_context(
                 target_text, file_path, cast(DetectRequest, options)

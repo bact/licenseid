@@ -20,6 +20,7 @@ from matcher_db import Lic, seeded_db
 from licenseid.database import LicenseDatabase
 from licenseid.dbcache import TableCache
 from licenseid.dbconnection import Connections
+from licenseid.records import Records
 
 ROWS = (
     Lic("MIT", "MIT License", True, True, True, search_text="permission is hereby"),
@@ -135,10 +136,13 @@ def test_a_rebuild_clears_what_was_read(db: LicenseDatabase) -> None:
     assert db.get_all_names_and_ids()
     assert db.get_active_ids_by_name()
     db._write_db_records(
-        [("Zlib", "zlib License", None, True, True, True, True, False, None, 1, 3,
-          "zlib", "zlib license")],
-        [("Zlib", "the origin of this software")],
-        [],
+        Records(
+            [("Zlib", "zlib License", None, True, True, True, True, False, None, 1,
+              3, "zlib", "zlib license")],
+            [("Zlib", "the origin of this software")],
+            [],
+            [],
+        ),
         None,
     )  # fmt: skip
     assert db.get_license_details("MIT") is None
@@ -197,17 +201,21 @@ def test_a_row_with_no_id_is_skipped() -> None:
 @pytest.mark.parametrize(
     ("read", "kept"),
     [
-        (lambda t: t.license_id("MIT"), "_license_ids"),
-        (lambda t: t.index_row("MIT"), "_index_rows"),
-        (lambda t: t.names_and_ids(), "_names_and_ids"),
-        (lambda t: t.deprecated(), "_deprecated"),
-        (lambda t: t.names_by_key(str.lower), "_keyed"),
-        (lambda t: t.active_ids_by_name(), "_active_by_name"),
+        (lambda t: t.license_id("MIT"), lambda t: t._license_ids),
+        (lambda t: t.index_row("MIT"), lambda t: t._index_rows),
+        (lambda t: t.names_and_ids(), lambda t: t._names_and_ids),
+        (lambda t: t.deprecated(), lambda t: t._deprecated),
+        (lambda t: t.names_by_key(str.lower), lambda t: t._keyed.names),
+        (lambda t: t.ids_by_url(str.lower), lambda t: t._keyed.url_rows),
+        (lambda t: t.ids_by_url(str.lower), lambda t: t._keyed.urls),
+        (lambda t: t.active_ids_by_name(), lambda t: t._active_by_name),
     ],
-    ids=["ids", "index", "names", "deprecated", "keyed", "by-name"],
+    ids=["ids", "index", "names", "deprecated", "keyed", "url-rows", "urls", "by-name"],
 )
 def test_a_read_made_during_a_clear_is_not_kept(
-    db: LicenseDatabase, read: Callable[[TableCache], object], kept: str
+    db: LicenseDatabase,
+    read: Callable[[TableCache], object],
+    kept: Callable[[TableCache], object],
 ) -> None:
     """Another thread saw a rebuild while this one read the old rows."""
     tables = db._tables
@@ -221,6 +229,6 @@ def test_a_read_made_during_a_clear_is_not_kept(
         Connections, "connection", autospec=True, side_effect=connection_then_clear
     ):
         read(tables)
-    assert getattr(tables, kept) is None
+    assert kept(tables) is None
     read(tables)
-    assert getattr(tables, kept) is not None
+    assert kept(tables) is not None
