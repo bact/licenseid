@@ -16,14 +16,16 @@ describes every field of `resolve()`'s result.
 is unchanged; make your own `LicenseDetector(db_path)` for another database:
 
 ```python
+from pathlib import Path
+
 from licenseid import LicenseDetector
 
 detector = LicenseDetector()  # on the database at the default path
 
 # 1. Detect by Raw Text (Positional or Keyword)
 # Programmatic API is explicit: positional 'text' is always treated as text.
-results = detector.detect("Permission is hereby granted...")
-results = detector.detect(text="Custom license text...")
+results = detector.detect(Path("LICENSE.txt").read_text())  # a whole text
+results = detector.detect(text="Licensed under the MIT license")  # a name
 
 # 2. Detect by SPDX License ID (Explicit)
 # This performs a fast database lookup and returns full metadata.

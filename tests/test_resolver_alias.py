@@ -17,6 +17,7 @@ from resolver_corpus import LICENSE_LIST, list_rows
 
 from licenseid import LicenseDatabase, LicenseIdWarning, resolve
 from licenseid.detector import LicenseDetector
+from licenseid.exprtokens import WHITE_SPACE
 from licenseid.resolvealias import ALIASES, read_alias
 from licenseid.resolveleaf import Found
 
@@ -214,7 +215,6 @@ def test_an_alias_takes_an_article_and_an_end_mark(corpus_db: LicenseDatabase) -
         "FreeBSD",  # the OSI's BSD-2-Clause, the List's FreeBSD-DOC
         "FreeBSD License",
         "Original BSD",
-        "New  BSD",  # spacing matters, as for a List name
         "NewBSD",
         "New-BSD",
         "New BSD License License",
@@ -325,3 +325,26 @@ def test_detect_answers_no_near_neighbour(
     something to retrieve: the refusal is not trivially true."""
     with pytest.warns(LicenseIdWarning, match="too few words for text"):
         assert LicenseDetector(corpus_db.location).detect(text) == []
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["New  BSD", "New\tBSD", "New\nBSD", "New\u00a0BSD"],
+    ids=["two-spaces", "tab", "line-break", "no-break"],
+)
+def test_a_run_of_white_space_in_an_alias_is_one_space(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    got = resolve(value, corpus_db)
+    assert (got["expression"], got["category"]) == ("BSD-3-Clause", "alias_name")
+
+
+def test_the_table_fold_splits_on_white_space_alone() -> None:
+    """``resolvetable`` folds with ``str.split()``: it must split on
+    ``exprtokens.WHITE_SPACE`` and on nothing ``resolve()`` lets through
+    (U+001C to U+001F it refuses first)."""
+    splits = {
+        chr(code) for code in range(0x110000) if len(f"a{chr(code)}b".split()) == 2
+    }
+    assert splits - set(WHITE_SPACE) == {"\x1c", "\x1d", "\x1e", "\x1f"}
+    assert set(WHITE_SPACE) <= splits

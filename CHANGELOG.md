@@ -13,44 +13,44 @@ and this project adheres to
 
 ### Changed
 
-- `detect` reads a whole input with `resolve()` first and answers its
-  expression: `MIT OR Apache-2.0` is `Apache-2.0 OR MIT` (`detect()` gave
-  `ECL-2.0`), `Apache 2+` is `Apache-2.0+`; a guess is not exact ([#161])
-- An input under 10 words that `resolve()` refuses and no name matches
-  gets no text match and warns `too few words for text` (`GNU GPL v2` was
-  `LiLiQ-R-1.1`); Chinese and Japanese are exempt ([#161])
+- `detect` reads a whole input with `resolve()` first: `MIT OR Apache-2.0`
+  is `Apache-2.0 OR MIT` (was `ECL-2.0`), `Apache 2+` is `Apache-2.0+`
+  ([#161])
+- A short input (under 10 words) that `resolve()` refuses and no name
+  matches gets no text match and warns `too few words for text`; Chinese
+  and Japanese are exempt ([#161])
 - `resolve()` reads a licence's own title (`CC0 1.0 Universal`, `Mulan PSL
-  v2`, the GPL v3 title line), a bare `CC0` and the UPL trove name; `detect`
-  finds them by name ([#163], [#165])
-- Builds the wheel's SBOM with Pitloom 0.23.0 (`build-system.requires`
-  `pitloom>=0.23.0`), which reads a dependency's licence name as its ID
-  (`MIT License` is `MIT`) ([#164])
+  v2`), a bare `CC0` and the UPL trove name; `detect` reads them as a whole
+  input ([#163], [#165])
+- Builds the wheel's SBOM with Pitloom 0.23.0 (`pitloom>=0.23.0` in
+  `build-system.requires`) ([#164])
 - A List name without its grant (`GNU General Public License v3.0`, was
-  `AGPL-3.0-only`) is the `-only` guess, not exact, with
-  `WARNING: input: variant not stated` ([#168])
-- `resolve()` reads the BSD aliases (`New BSD`, `Simplified BSD`, `3-clause
-  BSD`, `BSD-3`), category `alias_name`; `detect` finds them by name; bare
-  `BSD` stays unresolved ([#170])
+  `AGPL-3.0-only`) is the `-only` guess, not exact, and warns `variant not
+  stated` ([#168])
+- `resolve()` reads the BSD aliases (`New BSD`, `Simplified BSD`, `BSD-3`)
+  as category `alias_name`; `detect` reads them as a whole input, not yet
+  in a tag or field ([#170])
 
 ### Fixed
 
 - `resolve()` refuses a 20 MB value with no outer brackets as too long in
   0.1 s (was 1.4 s) ([#161])
 - `resolve()` and `detect()` no longer raise `AttributeError` under
-  Python's default warning filters when they warn (`build vN outdated`)
-  ([#162])
-- `detect()` narrows a split ID before `WITH AdditionRef-*` and says so:
-  `GPL-3.0 WITH AdditionRef-x` is `GPL-3.0-only WITH AdditionRef-x`, not
-  exact ([#167])
+  Python's default warning filters when they warn ([#162])
+- `detect()` narrows a split ID before `WITH AdditionRef-*` and warns:
+  `GPL-3.0 WITH AdditionRef-x` is `GPL-3.0-only WITH AdditionRef-x`
+  ([#167])
 - The DETAIL of `variant not stated` is cut to 60 characters ([#167])
-- A warning that a `catch_warnings` block ignored is given again later under
-  Python 3.14's context-aware warnings ([#167])
+- Python 3.14's context-aware warnings: a warning ignored in a
+  `catch_warnings` block is given again by the next detector to open the
+  database ([#167])
 - `detect` gives no answer for words a licence name only holds: `BSD` and
-  `BSD License` were `0BSD` at 1.0, `GPL` was `BSD-Source-alt-GPL`
-  ([#168])
-- An input under 40 columns (20 Han letters) counts less in a text match:
-  `著作権` (copyright) was `CC-BY-SA-2.1-JP` at 1.0; the Chinese title
-  line of MulanPSL now scores 0.5 too, below the CLI's 0.85 ([#168])
+  `BSD License` were `0BSD` at 1.0 ([#168])
+- An input under 40 columns counts less in a text match: `著作権`
+  (copyright) was `CC-BY-SA-2.1-JP` at 1.0; MulanPSL's Chinese title line
+  now scores 0.5 ([#168])
+- `detect -` with standard input closed exits 2 with `input: missing`; it
+  was a traceback and exit 1 ([#171])
 
 [#161]: https://github.com/bact/licenseid/pull/161
 [#162]: https://github.com/bact/licenseid/pull/162
@@ -60,6 +60,7 @@ and this project adheres to
 [#167]: https://github.com/bact/licenseid/pull/167
 [#168]: https://github.com/bact/licenseid/pull/168
 [#170]: https://github.com/bact/licenseid/pull/170
+[#171]: https://github.com/bact/licenseid/pull/171
 
 ## [0.7.1] - 2026-11-05
 

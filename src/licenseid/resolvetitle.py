@@ -26,8 +26,9 @@ gives itself apart from its version, is ``CC0-1.0``, the only CC0 (the
 maintainer, 2026-11-05). The UPL trove name is the other exception, in
 :mod:`licenseid.trovenames`.
 
-Case does not matter, in ASCII only (``Mulan Pſl v2`` is no title); white
-space does.
+Case does not matter, in ASCII only (``Mulan Pſl v2`` is no title), and a
+run of white space reads as one space: the GPL v3 heading as its file
+writes it, on two lines, is the title.
 """
 
 from typing import Final

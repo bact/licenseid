@@ -114,8 +114,9 @@ steps taken, without fuzzy matching:
   from a table (category `text_title`, a `text_title` step): `CC0 1.0
   Universal` is `CC0-1.0`, `Mulan PSL v2` is `MulanPSL-2.0`, and the title
   line `GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007` is the bare
-  `GPL-3.0`, `assumed_only`, and `CC0` is `CC0-1.0`, the only CC0. Case
-  does not matter, in ASCII only; spacing does;
+  `GPL-3.0`, `assumed_only`, on one line or on two as the text writes it,
+  and `CC0` is `CC0-1.0`, the only CC0. Case does not matter, in ASCII
+  only, and a run of white space reads as one space;
 - another name a BSD licence is known by is read as that licence, from a
   table (category `alias_name`, an `alias_name` step): `New BSD`, `Revised
   BSD`, `Modified BSD`, `3-clause BSD`, `BSD-3`, `BSD 3` and `BSD3` are
@@ -127,8 +128,8 @@ steps taken, without fuzzy matching:
   form, while `New BSD (BSD-3-Clause)` is not. A name with no clause count
   (`BSD`, `BSD License`), `FreeBSD` (the List's `FreeBSD-DOC` too) and a
   spelling no project declares (`BSD 2`, `BSD 4`) are not read; nor is a
-  version (`BSD License v3`). Case does not matter, in ASCII only; spacing
-  does;
+  version (`BSD License v3`). Case does not matter, in ASCII only, and a
+  run of white space reads as one space (`New  BSD`);
 - the prose form of one licence is read last, as category `prose_form`
   (a `prose_form` step, then the steps of what it reduces to): a final
   `license` or `licence` after a value that names one licence (not after a
@@ -436,8 +437,9 @@ value was the listed ID as written, with no step; `detect()`'s `exact` says
 of one result that it was found exactly (declared, a name in full, or the
 whole licence text). The two can differ for one value: `detect("GPL-2.0")`
 answers `GPL-2.0-only`, not exact, a guess said aloud with a warning, where
-`resolve("GPL-2.0")` keeps `GPL-2.0` as `assumed_only`. Reading `detect()`'s
-declared values through `resolve()` is planned for 0.8.
+`resolve("GPL-2.0")` keeps `GPL-2.0` as `assumed_only`. A whole input is
+already read through `resolve()` (above); reading a tag's or a manifest
+field's value through it is planned for 0.8.
 
 ## Reasons for a refusal
 

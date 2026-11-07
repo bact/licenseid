@@ -573,9 +573,6 @@ moves are in `tests/harness_changes_nametier.py`.
   added or dropped, 2,220): the only wrong answer `main` gives that 0.7.1
   did not. 0.7.1 was wrong too (`FSL-1.1-MIT`, whose name ends `MIT Future
   License`).
-- **GPL-3.0's two title lines** with a line break get no answer:
-  `resolvetitle.TITLES` has the title on one line
-  (`test_the_two_title_lines_of_gpl_3_are_lost`).
 - **MulanPSL's Chinese title line** (`木兰宽松许可证, 第2版`, 21 columns)
   scores 0.5 by text, under the 40-column scale; it was 1.0. No PyPI value
   declares it, so `resolvetitle.TITLES` lacks it
