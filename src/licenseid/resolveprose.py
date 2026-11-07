@@ -24,6 +24,14 @@ reduction is read as it would be alone, through the loose key; it never
 becomes a List name the author did not write (``GNU General Public License
 v3`` is ``GNU General Public 3``, which names nothing).
 
+P2 also reads the name with no ``License`` (``Apache Version 2.0``,
+``Apache, Version 2.0``) and the trove name ``Apache Software License`` with
+a version (``Apache Software License 2.0``, ``Apache Software License,
+Version 2.0``), which is ``Apache 2.0``. A version in brackets
+(``Apache License (2.0)``) reads as the same with ``, Version`` for the
+brackets. ``ASL 2.0`` stays unresolved: ``ASL`` is no name of the Apache
+licence alone, and a guess could be another licence.
+
 P3, a leading ``The``, only together with P1, P2 or a listed name (``The
 MIT License``). ``The MIT`` is no prose form of anything.
 
@@ -41,9 +49,10 @@ reads alone, for its reason.
 """
 
 import re
+from typing import Final
 
 from licenseid.dropguard import joined_marks, trim_end_mark
-from licenseid.listlookup import ListLookup
+from licenseid.listlookup import ListLookup, fold_case
 from licenseid.normalize import RE_DASHES
 from licenseid.resolvealias import read_alias
 from licenseid.resolveleaf import Found, read_leaf, refuse_dropped
@@ -57,9 +66,37 @@ _P1 = "licence word"  # the detail of a P1 step
 # From the white space before "License" to the end. A run of white space is
 # tried one character at a time, and fails at the first that is no "l", so
 # its cost is linear (tests/test_resolver_prose.py times it).
+#
+# The tail is `` License[,] Version N`` or, with no licence word, `` Version N``
+# or ``, Version N``. The second form needs one space before its word, so a
+# run of spaces is tried one character at a time here too.
 _RE_VERSION_TAIL = re.compile(
-    r"[ \t]licen[cs]e,?[ \t]+(?:version[ \t]*|v[ \t]?)(?P<number>\d+(?:\.\d+)*)\Z",
+    r"(?:[ \t]licen[cs]e,?[ \t]+|,?[ \t])(?:version[ \t]*|v[ \t]?)"
+    r"(?P<number>\d+(?:\.\d+)*)\Z",
     re.IGNORECASE | re.ASCII,
+)
+# ``<name> License[,] [Version|v] N``, for a name of :data:`VERSIONED_NAMES`.
+# One space before the licence word, so a run of spaces is tried one
+# character at a time.
+_RE_NAMED_NUMBER = re.compile(
+    r"(?P<name>.+?)[ \t]licen[cs]e,?[ \t]*(?:version[ \t]*|v[ \t]?)?"
+    r"(?P<number>\d+(?:\.\d+)*)",
+    re.IGNORECASE | re.ASCII,
+)
+#: Names that state no version (the trove table reads ``Apache Software
+#: License`` as none) and the ID prefix each takes its version from:
+#: ``Apache Software License 2.0`` is ``Apache 2.0``. A fixed table, never a
+#: guess: the reduction must still read as a listed ID, so an unlisted
+#: version stays unresolved. A name whose List name carries the version
+#: (``Artistic License 2.0``, ``Apple Public Source License 2.0``) needs no
+#: entry: P2 reads it as an exact List name.
+VERSIONED_NAMES: Final[dict[str, str]] = {
+    "academic free": "AFL",  # AFL-1.1 to AFL-3.0; the List writes "v3.0"
+    "apache software": "Apache",  # Apache-1.0, Apache-1.1, Apache-2.0
+}
+# The inside of the brackets of ``Apache License (2.0)``: a version alone.
+_RE_BRACKET_VERSION = re.compile(
+    r"(?:(?:version|v)[ \t]*)?(?P<number>\d+(?:\.\d+)*)", re.IGNORECASE | re.ASCII
 )
 
 
@@ -72,12 +109,32 @@ def read_prose(db: ListLookup, text: str, found: Found) -> bool:
     if parts is None:
         return _prose(db, text, found)
     head, inside = parts
+    version = _RE_BRACKET_VERSION.fullmatch(inside)
+    if (
+        version is not None
+    ):  # ``Apache License (2.0)`` is ``Apache License, Version 2.0``
+        return _bracketed_version(db, text, head, version["number"], found)
     named, alone = Found(), Found()
     if not _prose(db, head, named) or not read_leaf(db, inside, alone):
         return False
     if named.expression is None or named.expression != alone.expression:
         return False
     _fill(found, [step("trailing_name", True, text, head)], named)
+    return True
+
+
+def _bracketed_version(
+    db: ListLookup, text: str, head: str, number: str, found: Found
+) -> bool:
+    """P2 for a version in brackets: *head* ``(`` *number* ``)`` reads as
+    *head*``, Version`` *number*, as the licence text titles itself. The
+    reduction is proved as any P2 reduction is, so the brackets help no
+    reading that ``<head>, Version N`` would not."""
+    plain = f"{head}, Version {number}"
+    reading = Found()
+    if not _prose(db, plain, reading) or reading.expression is None:
+        return False
+    _fill(found, [step("separator", True, text, plain, "version brackets")], reading)
     return True
 
 
@@ -206,6 +263,11 @@ def _reductions(db: ListLookup, core: str) -> list[tuple[str, str]]:
     head = _licence_word(core)
     if head is not None:
         return [(head, _P1)]
+    versioned = _RE_NAMED_NUMBER.fullmatch(core)
+    if versioned is not None:
+        key = fold_case(" ".join(versioned["name"].split()))
+        if key in VERSIONED_NAMES:
+            return [(f"{VERSIONED_NAMES[key]} {versioned['number']}", "version")]
     tail = _RE_VERSION_TAIL.search(core)
     name = "" if tail is None else core[: tail.start()].rstrip()
     if tail is None or not name:

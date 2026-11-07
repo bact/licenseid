@@ -28,6 +28,7 @@ from resolver_changes_t7 import T7_CHANGES, answer
 from resolver_changes_t8 import T8_CHANGES
 from resolver_changes_t9 import T9_CHANGES
 from resolver_changes_titles import TITLES_CHANGES
+from resolver_changes_versioned import VERSIONED_CHANGES
 from seed_sql import INSERT_EXCEPTION, INSERT_INDEX, INSERT_LICENSE, SET_METADATA
 
 from licenseid import LicenseDatabase, resolve
@@ -157,6 +158,7 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
     **RESOLVERFIX_CHANGES,  # after the contract, for the same reason
     **READERS_CHANGES,  # after the fix, for the same reason
     **TITLES_CHANGES,  # after the readers, for the same reason
+    **VERSIONED_CHANGES,
     **ALIASES_CHANGES,  # last, for the same reason
 }
 

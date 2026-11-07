@@ -9,6 +9,14 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- `resolve()` reads one rule for a name and a version: `Apache Version 2.0`,
+  `Apache, Version 2.0`, `Apache License (2.0)` and `Apache Software License
+  2.0` are `Apache-2.0`; `ASL 2.0` stays unresolved
+
 ## [0.7.2] - 2026-11-06
 
 ### Changed
