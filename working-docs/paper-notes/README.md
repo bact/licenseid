@@ -40,6 +40,7 @@ the older files stop at 2026-10-07 (v0.4.3), and `ai-sessions-0-5-0.md` at
 | [dataset-licence-values.md](dataset-licence-values.md) | A dataset of declared licence values (PyPI top 10,000, parity corpus): content, uses, what publication needs; plan for a question, answer and reason corpus across package managers (MSR 2027 Data and Tool Showcase) |
 | [licence-aliases.md](licence-aliases.md) | The other names of licences `resolve()` reads, from its three tables: BSD aliases (#170), titles of a licence text, trove classifier names; the source of each, the PyPI projects that declare it (by name), what is refused and why; references |
 | [collection-criteria.md](collection-criteria.md) | Which packages of six channels the corpus samples, from where and why; frames, pinned versions, what is recorded; open choices |
+| [resolver-flow-and-canonicalisation.md](resolver-flow-and-canonicalisation.md) | Pointer to `docs/resolve-flow.md` and `docs/expression-canonicalisation.md`: reader order, canonical form, differences from SPDX Annex D, two canonical orders |
 
 ## Method
 
