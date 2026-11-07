@@ -17,6 +17,7 @@ reason)}`` for the ``detect()`` golden. ``CLI_CHANGES``:
 from harness_changes_aliases import ALIAS_CHANGES
 from harness_changes_nametier import NAME_TIER_CHANGES
 from harness_changes_resolvefirst import RESOLVE_FIRST_CHANGES
+from harness_changes_versioned import VERSIONED_CHANGES
 
 _FIRST = "resolve() reads the whole value: Apache-2.0 alone, nothing measured"
 _SHORT = "still no answer, now with resolve()'s reason: input: too few words for text"
@@ -25,6 +26,7 @@ DETECT_CHANGES: dict[str, tuple[str, str]] = {
     **RESOLVE_FIRST_CHANGES,
     **NAME_TIER_CHANGES,
     **ALIAS_CHANGES,  # last: a value it moves again has its answer now
+    **VERSIONED_CHANGES,
 }
 CLI_CHANGES: dict[str, tuple[str, str]] = {
     "detect-name#text": ("bea927311e33", _FIRST),
