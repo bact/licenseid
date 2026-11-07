@@ -89,7 +89,7 @@ Advanced update options:
   Repeatable; with none, every list licenseid installs, at its latest
   release (today one: `spdx-license-list`). A release given is fetched
   without asking which release is the latest. An ID licenseid does not
-  install, a version that is no release (`3.28.0` or `3.28`) and a list
+  install, a version that is not a release number (`3`, `v3.28.0`) and a list
   named twice exit 2.
 - `--force`: Force update even if the local database is already at
   the target version.
@@ -582,6 +582,7 @@ the matching code changes):
 ```bash
 pytest --run-benchmark
 ```
+
 ## How it works internally
 
 - **Deprecated ID normalisation**:
@@ -591,7 +592,8 @@ pytest --run-benchmark
     by `detect()` when no surrounding context is available, as a guess said
     aloud: not exact, with `WARNING: input: variant not stated: GPL-2.0;
     using GPL-2.0-only`, whether the ID is an argument, `--id`, a tag or a
-    manifest field; `resolve()` keeps them as written (below). A List name
+    manifest field; `resolve()` keeps them as written
+    ([Resolve a declared value](#3-resolve-a-declared-value)). A List name
     without its grant (`GNU General Public License v2.0`), as a whole input
     but not yet a manifest field, is the same guess, said the same way; a
     name with a "+" (`v2.0+`), or without its version too, is no answer.
@@ -631,7 +633,8 @@ pytest --run-benchmark
   - A `SPDX-License-Identifier` tag, and the `license` field of a JSON, TOML
     or INI file, are read as whole expressions, parentheses, `LicenseRef-*`
     and all: `MIT OR (Apache-2.0 AND BSD-3-Clause)` in a file resolves to
-    one answer. `--id` is narrower on purpose — see below. A tag or field
+    one answer. `--id` is narrower on purpose (see `--id` under
+    [Detect a licence][detect-opts]). A tag or field
     names only IDs on the List, or `LicenseRef-*`: an operand that is none
     (`MIT OR Apache 2.0`) gives no answer, as `resolve()` refuses it. A
     bare "or later" after an ID is the grant (`MIT or later`, `MIT, or
@@ -645,10 +648,10 @@ pytest --run-benchmark
   - **A whole value first**: an input that is, as a whole, one declared
     value (`MIT OR Apache-2.0`, `Apache License, Version 2.0`, `GPLv3+`) is
     read by `resolve()`, so `detect` answers its expression, or, for a bare
-    split ID, the `-only` guess (below). An input under 10 words that
-    `resolve()` refuses and no licence name matches is not matched as text: no
-    answer, with `WARNING: input: too few words for text: <reason>` (`not found:
-    GNU GPL v2`).
+    split ID, the `-only` guess (see the deprecated ID item above). An
+    input under 10 words that `resolve()` refuses and no licence name
+    matches is not matched as text: no answer, with `WARNING: input: too
+    few words for text: <reason>` (`not found: GNU GPL v2`).
   - **Tier 0 (Shortcut)**: Fast path for short inputs (names, IDs, brief
     expressions). Includes:
     - Case-insensitive exact ID match.
@@ -667,6 +670,7 @@ pytest --run-benchmark
     match. Marker confidence boosts applied only when confidence ≥ 0.85.
 
 [py-spdx-license]: https://github.com/JPEWdev/py-spdx-license
+[detect-opts]: #2-detect-a-licence-or-resolve-a-declared-value
 
 ## License
 

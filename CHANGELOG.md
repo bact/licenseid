@@ -15,7 +15,9 @@ and this project adheres to
 
 - `resolve()` reads one rule for a name and a version: `Apache Version 2.0`,
   `Apache, Version 2.0`, `Apache License (2.0)` and `Apache Software License
-  2.0` are `Apache-2.0`; `ASL 2.0` stays unresolved
+  2.0` are `Apache-2.0`; `ASL 2.0` stays unresolved ([#172])
+
+[#172]: https://github.com/bact/licenseid/pull/172
 
 ## [0.7.2] - 2026-11-06
 
