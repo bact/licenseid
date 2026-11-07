@@ -9,15 +9,18 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.3] - 2026-11-08
 
 ### Changed
 
 - `resolve()` reads one rule for a name and a version: `Apache Version 2.0`,
   `Apache, Version 2.0`, `Apache License (2.0)` and `Apache Software License
   2.0` are `Apache-2.0`; `ASL 2.0` stays unresolved ([#172])
+- Builds the wheel's SBOM with Pitloom 0.23.1 (`pitloom>=0.23.1` in
+  `build-system.requires`) ([#173])
 
 [#172]: https://github.com/bact/licenseid/pull/172
+[#173]: https://github.com/bact/licenseid/pull/173
 
 ## [0.7.2] - 2026-11-06
 
@@ -819,6 +822,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[0.7.3]: https://github.com/bact/licenseid/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/bact/licenseid/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/bact/licenseid/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/bact/licenseid/compare/v0.6.0...v0.7.0
