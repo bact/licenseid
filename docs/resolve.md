@@ -137,7 +137,12 @@ steps taken, without fuzzy matching:
   or a `WITH` if it has one (`BSD 3-Clause License`, `MIT+ License`), `<name>
   License[,] (Version|v) N` as `<name> N`, or as the List name `<name>
   License N` if both name the same licence (`Apache License, Version 2.0`,
-  `Mozilla Public License, Version 2.0`), and a leading `The` with
+  `Mozilla Public License, Version 2.0`); the word `License` may be left
+  out (`Apache Version 2.0`, `Apache, Version 2.0`) and the version put in
+  brackets (`Apache License (2.0)`); `Apache Software License` and
+  `Academic Free License` with a version are `Apache N` and `AFL-N` (a
+  fixed table, and the ID must be listed); `ASL 2.0` stays `unresolved`.
+  A leading `The` goes with
   either, or with a List name (`The MIT License`; `The MIT` is not
   read). One mark at the end is left off, as for any value (`MIT
   License.`, `MIT License;`). A name that

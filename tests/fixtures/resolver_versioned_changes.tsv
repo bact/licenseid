@@ -1,0 +1,12 @@
+# The answers the versioned-name rule (P2 without the word License, a version
+# in brackets, and the names of resolveprose.VERSIONED_NAMES) moved in the
+# parity corpus and the PyPI sample.
+# value: Python unicode_escape; group: why it moved (in
+# tests/resolver_changes_versioned.py); then the answer, its fields written as
+# in the other answer fixtures.
+value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
+Apache License (2.0)	versioned	Apache-2.0	prose_form	-	separator,prose_form,separator	Apache License\x2c Version 2.0,Apache 2.0,Apache-2.0	-	-	resolver_rule	yes	-
+Apache Software License 2.0	versioned	Apache-2.0	prose_form	-	prose_form,separator	Apache 2.0,Apache-2.0	-	-	resolver_rule	yes	-
+Apache Software License v2	versioned	Apache-2.0	prose_form	-	prose_form,separator,version_spelling	Apache 2,Apache-2.0,Apache-2.0	-	-	resolver_rule	yes	-
+Apache Software License, Version 2.0	versioned	Apache-2.0	prose_form	-	prose_form,separator	Apache 2.0,Apache-2.0	-	-	resolver_rule	yes	-
+Apache Version 2.0	versioned	Apache-2.0	prose_form	-	prose_form,separator	Apache 2.0,Apache-2.0	-	-	resolver_rule	yes	-

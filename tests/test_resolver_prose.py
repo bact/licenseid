@@ -50,6 +50,40 @@ READ = [
     ("Apache License v2.0", "Apache-2.0", ["prose_form", "separator"], None),
     ("Apache License, v 2.0", "Apache-2.0", ["prose_form", "separator"], None),
     ("Apache  License,  VERSION 2.0", "Apache-2.0", ["prose_form", "separator"], None),
+    ("Apache Version 2.0", "Apache-2.0", ["prose_form", "separator"], None),
+    ("Apache, Version 2.0", "Apache-2.0", ["prose_form", "separator"], None),
+    (
+        "Apache  version 2",
+        "Apache-2.0",
+        ["prose_form", "separator", "version_spelling"],
+        None,
+    ),
+    (
+        "Apache Software License, Version 2.0",
+        "Apache-2.0",
+        ["prose_form", "separator"],
+        None,
+    ),
+    ("Apache Software License 2.0", "Apache-2.0", ["prose_form", "separator"], None),
+    ("Academic Free License Version 3.0", "AFL-3.0", ["prose_form", "separator"], None),
+    (
+        "Apache Software License v2",
+        "Apache-2.0",
+        ["prose_form", "separator", "version_spelling"],
+        None,
+    ),
+    (
+        "Apache License (2.0)",
+        "Apache-2.0",
+        ["separator", "prose_form", "separator"],
+        None,
+    ),
+    (
+        "Apache Software License (v2.0)",
+        "Apache-2.0",
+        ["separator", "prose_form", "separator"],
+        None,
+    ),
     ("The MIT License", "MIT", ["prose_form", "listed_name"], "prose_form"),
     ("the mit license", "MIT", ["prose_form", "listed_name"], None),
     (
@@ -108,7 +142,11 @@ STAYS = [
     "BSD License",  # a trove name that states no licence (Q3)
     "bsd license",
     "Apache Software License",
-    "Apache Software License, Version 2.0",
+    "Apache Software License, Version 2.0.1",
+    "Apache License (3.0)",  # no such ID
+    "Apache License (2.0.1)",
+    "Apache License (2.0) (MIT)",
+    "ASL 2.0",  # an abbreviation no table holds
     "Python Software Foundation License",
     "W3C license",  # Q22
     "W3C License.",
@@ -450,3 +488,44 @@ def test_a_reduction_that_would_drop_something_is_refused_with_a_reason(
     got = resolve(value, corpus_db)
     assert (got["expression"], got["reason"]) == (None, reason)
     assert [s["kind"] for s in got["steps"]] == ["drop"]
+
+
+@pytest.mark.parametrize(
+    ("value", "expression"),
+    [
+        ("Artistic License, Version 2.0", "Artistic-2.0"),
+        ("Apple Public Source License, Version 2.0", "APSL-2.0"),
+        ("Python Software Foundation License, Version 2.0", "PSF-2.0"),
+    ],
+)
+def test_other_trove_names_with_a_version_read_as_list_names(
+    corpus_db: LicenseDatabase, value: str, expression: str
+) -> None:
+    """These need no table entry: the List names carry the version."""
+    assert resolve(value, corpus_db)["expression"] == expression
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Apache Software License 3.0",  # no such ID
+        "Apache Software License 2.0.1",
+        "Apache Software License 2.0 License",
+        "Apache Software Licenses 2.0",
+        "Foo Software License 2.0",  # not in the table
+        "Academic Free License 9.0",
+        "Mozilla Public Version 2.0",  # a List name needs the word License
+        "Eclipse Public, Version 2.0",
+        "Apache Software Foundation License 2.0",
+    ],
+)
+def test_a_versioned_name_reads_only_a_listed_id(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    assert resolve(value, corpus_db)["expression"] is None
+
+
+def test_the_versioned_names_are_few_and_fixed() -> None:
+    from licenseid.resolveprose import VERSIONED_NAMES
+
+    assert VERSIONED_NAMES == {"academic free": "AFL", "apache software": "Apache"}
