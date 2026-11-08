@@ -15,13 +15,15 @@ yet started, see [`../design/`](../design/).
 
 ## Current state (as of 2026-11-08)
 
-- **0.8.0** (released 2026-11-06): `resolve()`, `detect()`, a
+- **0.8.1** (released 2026-11-09): Trim control characters in licence ID,
+  PR #181.
+- **0.8.0** (released 2026-11-08): `resolve()`, `detect()`, a
   tag and a field read a licence URL as its licence (`urlkey.py`,
   `resolveurl.py`, category `license_url`; build v4 adds the `license_urls`
-  table), issue #14: [licence-urls.md](licence-urls.md).
+  table), PR #177: [licence-urls.md](licence-urls.md).
 - **0.7.3** (released 2026-11-08): `resolve()` reads one rule for a name and a
-  version (`Apache Version 2.0`, `Apache License (2.0)`, `Apache Software
-  License 2.0`; `ASL 2.0` stays unresolved), PR #172.
+  version (`Apache Version 2.0`, `Apache License (2.0)`,
+  `Apache Software License 2.0`; `ASL 2.0` stays unresolved), PR #172.
 - **0.7.2** (released 2026-11-06): `detect` reads a whole input with
   `resolve()` first (`resolvefirst.py`), and gives no text match for an
   input under 10 words that nothing reads (PR #161); `resolve()` reads a
@@ -35,7 +37,7 @@ yet started, see [`../design/`](../design/).
   database from the shipped list; `resolve()` keeps its 0.6.0 name and the old
   matcher is now `detect()` (`detector.py`); the CLI command is
   `licenseid resolve`, and `licenseid match` is gone (T10c). The
-  `LicenseDatabase` handle refuses a file licenseid did not build on every
+  `LicenseDatabase` handle refuses a file LicenseID did not build on every
   write (PR #151). The release is reviewed whole before the tag:
   [pre-release-review.md](pre-release-review.md). The record is
   [declared-value-resolver-0-7.md](declared-value-resolver-0-7.md); the
@@ -86,7 +88,7 @@ yet started, see [`../design/`](../design/).
   `ruff` is kept clean on it by hand.
 - **Database readiness gate** (`dbcheck.py`, added 2026-09-20, PR #55):
   read commands refuse a database that is not ready with exit 2, and
-  `update` and `clear-cache` refuse one licenseid did not build. The traps
+  `update` and `clear-cache` refuse one LicenseID did not build. The traps
   behind it (blocking named pipes, path and URI spellings, `mode=ro` and
   WAL, foreign table names) are in
   [database-readiness-gate.md](database-readiness-gate.md).
