@@ -9,14 +9,14 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.1] - 2026-11-09
 
 ### Changed
 
 - `resolve()`, SPDX tags and manifest fields leave a control or format character
   off either end of a value, and read one beside a space as that space
   (`MIT\u200b`, `\ufeffMIT`, `MIT OR\u200b ISC`); a bidi control first, or a
-  hidden character between two others, is still refused ([#181)
+  hidden character between two others, is still refused ([#181])
 
 [#181]: https://github.com/bact/licenseid/pull/181
 
@@ -843,6 +843,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[0.8.1]: https://github.com/bact/licenseid/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/bact/licenseid/compare/v0.7.3...v0.8.0
 [0.7.3]: https://github.com/bact/licenseid/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/bact/licenseid/compare/v0.7.1...v0.7.2

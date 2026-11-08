@@ -20,7 +20,8 @@ generator.*
 
 ## Features
 
-- Normalises license expression: `(MIT OR MIT) AND Apache-2.0` -> `Apache-2.0 AND MIT`
+- Normalises license expression:
+  `(MIT OR MIT) AND Apache-2.0` -> `Apache-2.0 AND MIT`
 - Normalises deprecated ID: `GPL-2.0+` → `GPL-2.0-or-later`
 - Reads a licence URL as its licence:
   `https://www.apache.org/licenses/LICENSE-2.0` -> `Apache-2.0`
@@ -87,11 +88,11 @@ LIST=spdx-license-list	VERSION=3.29.0	STATUS=updated	PATH=/home/me/.local/share/
 Advanced update options:
 
 - `--list <id>[@<version>]`: The list to install, and its release
-  (`--list spdx-license-list@3.28.0`); without a version, the latest.
+  (`--list spdx-license-list@3.29.0`); without a version, the latest.
   Repeatable; with none, every list licenseid installs, at its latest
   release (today one: `spdx-license-list`). A release given is fetched
   without asking which release is the latest. An ID licenseid does not
-  install, a version that is not a release number (`3`, `v3.28.0`) and a list
+  install, a version that is not a release number (`3`, `v3.29.0`) and a list
   named twice exit 2.
 - `--force`: Force update even if the local database is already at
   the target version.
@@ -104,7 +105,7 @@ Advanced update options:
     host is reachable.
   - `upstream`: SPDX's own release tarball on GitHub (about 49 MB).
   - `packaged`: the bundle shipped in the package: the SPDX License List
-    pinned for that release (3.29.0 for 0.8.0). `licenseid update` still
+    pinned for that release (3.29.0 for 0.8.1). `licenseid update` still
     works with no network, with data that may be older.
 
 ### 2. Detect a licence, or resolve a declared value
@@ -686,7 +687,7 @@ Apache-2.0
 If you use this software, please cite it as follows:
 
 > Suriyawongkul, A. (2026). LicenseID - A portable SPDX licence identification
-> tool (Version 0.8.0) [Computer software].
+> tool (Version 0.8.1) [Computer software].
 > <https://doi.org/10.5281/zenodo.19881009>
 
 BibTeX:
@@ -699,7 +700,7 @@ BibTeX:
     month = nov,
     title = {{LicenseID - A portable SPDX licence identification tool}},
     url = {https://github.com/bact/licenseid.git},
-    version = {0.8.0},
+    version = {0.8.1},
     year = {2026}
 }
 ```
