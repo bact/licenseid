@@ -395,10 +395,9 @@ class LicenseDetector:
         :class:`TypeError` for a text or license_id that is no str, or a
         file_path that is neither a str nor an os.PathLike of one;
         licenseid.errors.InvalidInputError for none or two of the three, an
-        unknown option, a binary file, a text with a lone surrogate, or a
-        license_id that names no single license (an AND/OR expression, a
-        license name, an SPDX URL, prose); :class:`OSError` (such as
-        :class:`FileNotFoundError`) for a file_path that cannot be read.
+        unknown option, a text with a lone surrogate, a license_id that names
+        no single license (an AND/OR expression, a license name, an SPDX URL,
+        prose), or a file_path that is binary, missing or no readable file.
         An overlong licence ID, as license_id or in a text, is no match, not
         DatabaseNotReadyError, which means only that the database itself
         cannot be read.

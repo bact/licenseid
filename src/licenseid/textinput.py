@@ -16,9 +16,11 @@ Stdlib and ``licenseid.errors``/``urlkey``/``warning`` only, so importing it
 does not pull in ``requests``.
 """
 
+import os
 import re
+import stat
 
-from licenseid.errors import InvalidInputError, shown
+from licenseid.errors import InvalidInputError, one_line, shown
 from licenseid.urlkey import SCHEMELESS_HOST
 from licenseid.warning import warn
 
@@ -102,11 +104,49 @@ def decode_input(data: bytes, source: str) -> str:
     return normalize_newlines(text)
 
 
+def _check_file_path(path: str) -> None:
+    """Raise InvalidInputError unless *path* names a regular file: a missing
+    path, a directory, a named pipe (opening one blocks for ever) or a device
+    is no text to read. The CLI exits 2 for all of them."""
+    if not path:
+        raise InvalidInputError("input: invalid: file path: empty")
+    try:
+        mode = os.stat(path).st_mode
+    except FileNotFoundError:
+        if has_lone_surrogate(path):  # Windows takes it and finds nothing
+            raise InvalidInputError(
+                "input: invalid: file path: lone surrogate"
+            ) from None
+        raise InvalidInputError(f"input: not found: {shown(path)}") from None
+    except ValueError as exc:  # an embedded NUL, a lone surrogate
+        raise InvalidInputError(
+            f"input: invalid: file path: {one_line(str(exc))}"
+        ) from None
+    except OSError as exc:
+        raise _unreadable(path, exc) from None
+    if not stat.S_ISREG(mode):
+        raise InvalidInputError(f"input: unreadable: {shown(path)}: not a regular file")
+
+
+def _unreadable(path: str, exc: OSError) -> InvalidInputError:
+    """The error for *path* that the OS refused, with its reason."""
+    return InvalidInputError(
+        f"input: unreadable: {shown(path)}: {one_line(exc.strerror or str(exc))}"
+    )
+
+
 def read_text_file(path: str) -> str:
     """Read the file at *path* as text (see decode_input).
 
-    Raises OSError if it cannot be read and InvalidInputError if it is binary.
+    Raises InvalidInputError (``input: not found``, ``input: unreadable``,
+    ``input: invalid``, ``input: binary file``) if it is no readable text
+    file; never a bare OSError. A path the OS cannot encode (an embedded NUL,
+    a lone surrogate) is ``invalid``.
     """
-    with open(path, "rb") as f:
-        data = f.read()
+    _check_file_path(path)
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+    except OSError as exc:  # permission denied, or a change since the stat
+        raise _unreadable(path, exc) from None
     return decode_input(data, path)

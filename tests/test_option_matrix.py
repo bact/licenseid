@@ -73,7 +73,7 @@ from licenseid import LicenseDatabase, resolve
 from licenseid.cli import cli
 from licenseid.datadir import get_default_db_path
 from licenseid.detector import LicenseDetector
-from licenseid.errors import DatabaseNotReadyError, InvalidInputError
+from licenseid.errors import DatabaseNotReadyError, InvalidInputError, LicenseIdError
 from licenseid.resolvertypes import Source
 from tools.cli_matrix.judge import PLAIN
 
@@ -489,10 +489,31 @@ def test_api_db_path_must_be_a_path(value: object) -> None:
         LicenseDetector(value)  # type: ignore[arg-type]
 
 
-def test_a_missing_file_path_raises_oserror(mit_db: str, tmp_path: Path) -> None:
-    """Not worded as a licenseid error: the API leaves I/O errors as they are."""
-    with pytest.raises(FileNotFoundError):
-        LicenseDetector(mit_db).detect(file_path=str(tmp_path / "nope"))
+@pytest.mark.parametrize("kind", ["missing", "directory"])
+@pytest.mark.parametrize("entry", ["method", "function", "is_osi"])
+def test_an_unreadable_file_path_is_a_worded_error(
+    mit_db: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    entry: str,
+    kind: str,
+) -> None:
+    """Every entry point words it, `LicenseIdError` and not a bare OSError."""
+    monkeypatch.setattr("licenseid.keptdetector.get_default_db_path", lambda: mit_db)
+    path = tmp_path / "nope" if kind == "missing" else tmp_path
+    expected = (
+        f"^input: not found: {re.escape(str(path))}$"
+        if kind == "missing"
+        else f"^input: unreadable: {re.escape(str(path))}: not a regular file$"
+    )
+    detector = LicenseDetector(mit_db)
+    calls: dict[str, Callable[..., object]] = {
+        "method": detector.detect,
+        "function": licenseid.detect,
+        "is_osi": detector.is_osi,
+    }
+    with pytest.raises(LicenseIdError, match=expected):
+        calls[entry](file_path=str(path))
 
 
 # --- API resolve(): source x the database at the default path x bundle ---

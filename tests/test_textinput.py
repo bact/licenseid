@@ -7,12 +7,14 @@
 # pylint: disable=missing-function-docstring
 
 import ast
+import os
 import re
 import unicodedata
 from pathlib import Path
 
 import pytest
-from conftest import GivenWarnings
+from conftest import GivenWarnings, posix_only
+from db_asserts import probe_read_does_not_hang
 from input_payloads import PAYLOADS, Payload
 
 import licenseid
@@ -64,10 +66,57 @@ def test_a_file_is_read_as_its_bytes_are_decoded(
         assert given.lines() == expected
 
 
-def test_a_missing_file_raises_oserror(tmp_path: Path) -> None:
-    """Not wrapped: callers word an unreadable file themselves."""
-    with pytest.raises(FileNotFoundError):
-        read_text_file(str(tmp_path / "nope"))
+def test_a_missing_file_is_not_found(tmp_path: Path) -> None:
+    path = tmp_path / "nope"
+    with pytest.raises(
+        InvalidInputError, match=f"^input: not found: {re.escape(str(path))}$"
+    ):
+        read_text_file(str(path))
+
+
+@pytest.mark.parametrize(
+    ("name", "message"),
+    [
+        ("", "^input: invalid: file path: empty$"),
+        ("a\x00b", "^input: invalid: file path: "),
+        ("a\ud800b", "^input: invalid: file path: "),
+    ],
+    ids=["empty", "nul", "lone-surrogate"],
+)
+def test_a_path_the_os_cannot_take_is_invalid(name: str, message: str) -> None:
+    with pytest.raises(InvalidInputError, match=message):
+        read_text_file(name)
+
+
+def test_a_directory_is_not_a_regular_file(tmp_path: Path) -> None:
+    with pytest.raises(
+        InvalidInputError,
+        match=f"^input: unreadable: {re.escape(str(tmp_path))}: not a regular file$",
+    ):
+        read_text_file(str(tmp_path))
+
+
+@posix_only
+def test_a_file_without_permission_is_unreadable(tmp_path: Path) -> None:
+    path = tmp_path / "LICENSE"
+    path.write_text("MIT")
+    path.chmod(0)
+    if os.access(path, os.R_OK):  # root reads anything
+        pytest.skip("permission bits not enforced")
+    with pytest.raises(
+        InvalidInputError,
+        match=f"^input: unreadable: {re.escape(str(path))}: Permission denied$",
+    ):
+        read_text_file(str(path))
+
+
+@posix_only
+def test_a_named_pipe_is_refused_not_opened(tmp_path: Path) -> None:
+    fifo = tmp_path / "pipe"
+    os.mkfifo(fifo)
+    assert probe_read_does_not_hang(fifo) == (
+        f"InvalidInputError input: unreadable: {fifo}: not a regular file\n"
+    )
 
 
 @pytest.mark.parametrize(

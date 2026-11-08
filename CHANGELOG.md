@@ -11,22 +11,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- `-V` is short for `--version` ([#183])
+
 ### Changed
 
 - **Breaking:** `detect` and `resolve` print the SPDX expression alone (an
   empty line for none); `-v`/`--verbose` prints the old record. `--id-only` is
   removed. Use `-v`, or `--json` ([#183])
 
-### Added
-
-- `-V` is short for `--version` ([#183])
-
 ### Fixed
 
+- `detect(file_path=...)` raises `InvalidInputError` (`input: not found:
+  <path>`), not `OSError`, for a missing or non-regular file ([#184])
 - `detect` no longer answers a licence, exact, for a short text with a "+" that
   is no operator (`"MIT++"`, `MIT License++`, `Apache 2.0 +`) ([#186])
 
 [#183]: https://github.com/bact/licenseid/pull/183
+[#184]: https://github.com/bact/licenseid/pull/184
 [#186]: https://github.com/bact/licenseid/pull/186
 
 ## [0.8.1] - 2026-11-09
