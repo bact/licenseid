@@ -6,5 +6,5 @@
 # and 0.23.1 requires `licenseid>=0.7.2,<0.8`.
 licenseid==0.7.2
 magika==1.0.3
-pitloom==0.23.1
+pitloom==0.23.2
 spdx3-validate==0.0.7
