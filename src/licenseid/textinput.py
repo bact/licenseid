@@ -113,6 +113,10 @@ def _check_file_path(path: str) -> None:
     try:
         mode = os.stat(path).st_mode
     except FileNotFoundError:
+        if has_lone_surrogate(path):  # Windows takes it and finds nothing
+            raise InvalidInputError(
+                "input: invalid: file path: lone surrogate"
+            ) from None
         raise InvalidInputError(f"input: not found: {shown(path)}") from None
     except ValueError as exc:  # an embedded NUL, a lone surrogate
         raise InvalidInputError(
