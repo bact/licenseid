@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-09
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -27,8 +27,9 @@ the review of PR #66, items 30 and 31 from the work on item 21, and items
 32 to 35 from the review of item 22, item 36 from the docs audit
 after it, item 37 from the work on item 29, item 38 from the
 review of PR #80, items 39 to 42 from the review of PR #82, and items 43
-to 45 from the reviews of PR #99 (item 45 resolved 2026-11-08), item 46 from
-the 0.7.0 whole-release review, and item 47 from PR #168.
+to 45 from the reviews of PR #99 (items 44 and 45 resolved 2026-11-09 and
+2026-11-08), item 46 from the 0.7.0 whole-release review, item 47 from
+PR #168, and item 48 from the work on item 44.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -309,17 +310,6 @@ read first; "/" can then be one more spelling of OR.
 
 - Impact 2, Risk 2, Effort 2.
 
-## 44. A "+" that is no operator is dropped and the answer is exact — Priority 12
-
-Found in the second review of PR #99 (2026-10-27); 0.5.0 does the same.
-`GPL-2.0-only++`, `GPL-2.0-only+,` and `MIT++` answer `GPL-2.0-only` (or
-`MIT`) exact at 1.0: `normalize_text` drops the stray "+" as punctuation,
-so the ID matches as if it were not there. Pinned as `# BUG:` in
-`tests/test_qualified_plus.py`. A detached "+" (`GPL-2.0-only +`) is the
-same case, decided as no operator; the answer may stand, but not as exact.
-
-- Impact 2, Risk 2, Effort 3.
-
 ## 42. A very long word costs seconds in the full-text search — Priority 16
 
 Found by PR #82's Windows CI, on `main` too. One word of 2,000,000
@@ -569,11 +559,29 @@ moves are in `tests/harness_changes_nametier.py`.
 - **A whole name and more, wrong**: `SIL Open Font License 1.1 with
   Reserved Font` answers `OFL-1.1` by name (was `OFL-1.0-RFN`, also
   wrong); `Apache License 2.0 with LLVM exception` answers `Apache-2.0`.
+- **A "+" in a sentence**: `Licensed under the MIT++ license` answers `MIT`
+  by name, inexact (pinned as `# BUG:` in `tests/test_stray_plus_paths.py`).
+  `resolve()` reads no prose, so nothing refuses it; the fix of item 44 asks
+  `resolve()` about a value of under 30 words only.
 - **A fullwidth "+"**: `GNU General Public License v2.0 ＋` is the `-only`
   guess: `shorttext` tests for an ASCII "+" of its own, apart from
   `plusoperator`, the one reader.
 
 - Impact 2, Risk 2, Effort 2.
+
+## 48. Tier 0 and wrappers `resolve()` does not read — Priority 12
+
+Left over from item 44 (2026-11-09). A short value is judged by
+`resolve()` for its "+" only; two cases stay with Tier 0:
+
+- A wrapper `resolve()` does not read, such as `「MIT++」`, still answers
+  `MIT` exact.
+- An INI-quoted `GPL-2.0+` (`license = "GPL-2.0+"`) read by the CLI with no
+  extension keeps the quotes, so the operator is lost.
+
+Read both through `resolve()` as one value, or refuse them with a reason.
+
+- Impact 2, Risk 2, Effort 3.
 
 ## Already resolved
 

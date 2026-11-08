@@ -96,7 +96,8 @@ def test_a_plus_after_a_qualifier_answers_no_licence(db_path: str, text: str) ->
         ("GPL-2.0-only+ licensed code", None),  # prose: matched as text
         ("MIT OR", None),  # dangling: no expression
         # A "+" that is no operator was dropped as punctuation, the answer
-        # exact (as in 0.5.0; tech-debt roadmap, item 44): "++" names none.
+        # exact (as in 0.5.0): "++" names none. Quoted, bracketed or after a
+        # name it is refused too (tests/test_stray_plus_paths.py).
         ("GPL-2.0-only++", []),
     ],
 )

@@ -576,7 +576,10 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   tokenizer (`is_simple_expression`) and the prose shorthand of `classify`
   ("GPLv2+", which also takes a comma or full stop after it) read the same
   grammar their own way: `tests/test_plus_readers.py` holds all four to one
-  table. Change one, run it.
+  table. Change one, run it. `normalize_text` drops a "+" that is no operator,
+  so `detector._try_tier0_short_text` returns None for a value under 30 words
+  that `resolve()` refuses with a "+" reason (`resolvereason.is_plus_refusal`):
+  a new reason of that family goes into its constants.
 - One probe finds a grant and where it ends, `classify.grant_end` (with
   `grant_head` for the gap between ID and grant); `looseid` and `markers`
   call it, so `detect()` and `resolve()` agree.

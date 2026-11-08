@@ -189,7 +189,8 @@ Common options:
   An argument that names no file is first checked for the shape of a path
   (see above). A value that is no licence, such as `GPL-2.0-only+` (a "+"
   after a stated qualifier), is a "no" as text (exit 1, and `detect()`
-  returns no result) and a usage error as `--id` (exit 2).
+  returns no result; so is a short text with a "+" that is no operator, such
+  as `"MIT++"` or `MIT License++`) and a usage error as `--id` (exit 2).
 - `--text <text>`: Match the given text, taken as written: a backslash is
   a backslash (`C:\temp\new` is that path), and `\n` is two characters.
   For a line break, pass one (`--text "$(printf 'a\nb')"`) or pipe the

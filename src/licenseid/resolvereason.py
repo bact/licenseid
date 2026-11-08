@@ -30,6 +30,27 @@ SPECIAL_VALUES: Final = ("NONE", "NOASSERTION")
 #: The reason of a value with nothing in it once trimmed and unquoted.
 EMPTY: Final = "empty"
 
+#: The conditions of a refusal for a "+" that is no operator, which a text
+#: match must not answer round (``detect()``: ``normalize_text`` drops the "+").
+STATED_TWICE: Final = "qualifier stated twice"
+ON_REFERENCE: Final = "qualifier on a reference"
+AFTER_BRACKET: Final = "plus after a bracket"
+AFTER_SPACE: Final = "plus after a space"
+AFTER_EXCEPTION: Final = "plus after an exception"
+_PLUS_CONDITIONS: Final = (
+    STATED_TWICE,
+    ON_REFERENCE,
+    AFTER_BRACKET,
+    AFTER_SPACE,
+    AFTER_EXCEPTION,
+)
+
+
+def is_plus_refusal(reason: str | None) -> bool:
+    """Whether *reason*, the reason of a refusal, is of the "+" family: the
+    value has a "+" that is no operator, so no text match may answer it."""
+    return reason is not None and reason.partition(":")[0] in _PLUS_CONDITIONS
+
 
 def is_empty(text: str) -> bool:
     """Whether *text*, trimmed, holds nothing, or quote marks around nothing
@@ -48,33 +69,33 @@ def too_long(length: int) -> str:
 def stated_twice(text: str) -> str:
     """The reason of a licence whose qualifier is stated twice
     (``GPL-2.0-only+``, ``MIT++``, ``GPL-2.0-only or later``)."""
-    return f"qualifier stated twice: {reason_detail(text)}"
+    return f"{STATED_TWICE}: {reason_detail(text)}"
 
 
 def on_reference(text: str) -> str:
     """The reason of a ``LicenseRef-*`` with a "+" or an "or later": SPDX
     gives a reference no qualifier."""
-    return f"qualifier on a reference: {reason_detail(text)}"
+    return f"{ON_REFERENCE}: {reason_detail(text)}"
 
 
 def after_bracket(text: str) -> str:
     """The reason of a "+" after a bracket (``(MIT)+``): it qualifies an
     ID, not a bracketed expression."""
-    return f"plus after a bracket: {reason_detail(text)}"
+    return f"{AFTER_BRACKET}: {reason_detail(text)}"
 
 
 def after_space(text: str) -> str:
     """The reason of a "+" after white space (``GPL-2.0 +``): the operator
     touches its ID (``plusoperator.PLUS_OPERATOR``), and a "+" apart may
     say "and"."""
-    return f"plus after a space: {reason_detail(text)}"
+    return f"{AFTER_SPACE}: {reason_detail(text)}"
 
 
 def after_exception(text: str) -> str:
     """The reason of a "+" after an exception (``MIT WITH
     Classpath-exception-2.0+``): it qualifies a licence ID, and an
     exception takes no qualifier."""
-    return f"plus after an exception: {reason_detail(text)}"
+    return f"{AFTER_EXCEPTION}: {reason_detail(text)}"
 
 
 def no_reading(db: ListLookup, text: str, names: Callable[[str], bool]) -> str:

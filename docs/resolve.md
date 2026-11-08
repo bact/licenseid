@@ -514,7 +514,9 @@ answers `GPL-2.0-only`, not exact, a guess said aloud with a warning, where
 `resolve("GPL-2.0")` keeps `GPL-2.0` as `assumed_only`. A whole input is
 already read through `resolve()` (above); a whole input that is a URL
 `resolve()` does not read is no text to match: `detect()` answers nothing
-and warns `too few words for text`. A tag and a manifest field read a
+and warns `too few words for text`. So is a text of under 30 words that
+`resolve()` refuses for a "+" (`"MIT++"`, `MIT License++`): the match would
+drop the "+" and answer the licence, exact. A tag and a manifest field read a
 licence URL with the same reader, in any word of the value
 (`SPDX-License-Identifier: https://spdx.org/licenses/MIT` is `MIT`), but
 the rest of their value still goes through the marker readers, not

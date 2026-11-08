@@ -21,6 +21,12 @@ and this project adheres to
 
 - `-V` is short for `--version` ([#183])
 
+### Fixed
+
+- `detect` no longer answers a licence, exact, for a short text with a "+" that
+  is no operator (`"MIT++"`, `MIT License++`, `Apache 2.0 +`)
+  <!-- PR link once it has a number -->
+
 [#183]: https://github.com/bact/licenseid/pull/183
 
 ## [0.8.1] - 2026-11-09

@@ -9,6 +9,7 @@ agree with."""
 # pylint: disable=missing-function-docstring
 
 import time
+from collections.abc import Callable
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
@@ -32,6 +33,14 @@ from licenseid.looseid import (
     granted_id_text,
 )
 from licenseid.plusoperator import plus_apart
+from licenseid.resolvereason import (
+    after_bracket,
+    after_exception,
+    after_space,
+    is_plus_refusal,
+    on_reference,
+    stated_twice,
+)
 
 
 @pytest.mark.parametrize(
@@ -185,3 +194,36 @@ def test_every_or_later_reader_reads_or_as_a_word(phrase: str) -> None:
     assert (disambiguate_deprecated_id(text) == "GPL-2.0-or-later") is reads
     assert (granted_id_text(text) is not None) is reads
     assert (declared_grant_id_text(f"GPL-2.0-only {phrase}") is not None) is reads
+
+
+@pytest.mark.parametrize(
+    ("builder", "wording"),
+    [
+        (stated_twice, "qualifier stated twice: MIT++"),
+        (on_reference, "qualifier on a reference: MIT++"),
+        (after_bracket, "plus after a bracket: MIT++"),
+        (after_space, "plus after a space: MIT++"),
+        (after_exception, "plus after an exception: MIT++"),
+    ],
+)
+def test_a_plus_reason_keeps_its_wording_and_is_a_plus_refusal(
+    builder: Callable[[str], str], wording: str
+) -> None:
+    assert builder("MIT++") == wording  # a contract pin: docs/resolve.md
+    assert is_plus_refusal(wording)
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        None,
+        "",
+        "not found: MIT++",
+        "character dropped: x",
+        "operand not resolved: plus after a space",
+        "plus after a spaceship",
+        "empty",
+    ],
+)
+def test_other_reasons_are_no_plus_refusal(reason: str | None) -> None:
+    assert not is_plus_refusal(reason)

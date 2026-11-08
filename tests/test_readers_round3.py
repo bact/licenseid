@@ -62,6 +62,8 @@ def _pyproject(corpus_db: LicenseDatabase, tmp_path: Path, value: str) -> Answer
 # "variant not stated") by the text, a package.json and a pyproject.toml
 # field, and is-spdx said yes. resolve() and the tag refuse them (malformed):
 # so does every path now (identifiers.is_stray_plus, plusoperator.plus_apart).
+# A quoted or named one too: detector._try_tier0_short_text asks resolve()
+# (tests/test_stray_plus_paths.py).
 SPACED_PLUS = [
     "MIT +",
     "MIT ++",
