@@ -98,8 +98,9 @@ r["lists"][0]["source"]  # read from the "database" or the "packaged" list
 The whole result, its categories and their trust, the reasons for a
 refusal, licences joined by a `;` (`r["operands"]` lists each) and how quote
 marks are read are in [docs/resolve.md][resolve-doc].
-`licenseid resolve VALUE` prints the same result on the command line
-([Resolve a declared value](../README.md#3-resolve-a-declared-value)), and
+`licenseid resolve -v VALUE` prints the same result on the command line
+([Resolve a declared value](../README.md#3-resolve-a-declared-value);
+without `-v` only `r["expression"]`), and
 `licenseid resolve --json VALUE` prints the line that
 `licenseid.json_line(resolve(VALUE))` returns. The types of a result are
 exported too: `licenseid.Resolution`, `Category`, `Trust`, `Step`,

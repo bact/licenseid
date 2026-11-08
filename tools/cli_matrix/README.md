@@ -174,7 +174,7 @@ cells do not shift. A cell is declarative:
 cells.add(
     "E11",
     "env: PYTHONWARNINGS=error",
-    "PYTHONWARNINGS=error " + licenseid("detect --id-only $F/mit.txt"),
+    "PYTHONWARNINGS=error " + licenseid("detect $F/mit.txt"),
     kind="detect",
     exp_exit=0,
 )

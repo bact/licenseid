@@ -80,9 +80,15 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
         "detect exit 1 without its empty record, or an ERROR line",
     ),
     (
-        "detect --id-only exit 1 with the text record",
-        {"kind": "detect", "outflags": frozenset({"id-only"})},
+        "detect exit 1 with the empty record but no --verbose",
+        {"kind": "detect", "outflags": frozenset()},
         {"rc": 1, "out": NO_ANSWER},
+        "detect exit 1 without its empty record, or an ERROR line",
+    ),
+    (
+        "detect --verbose exit 1 with an empty line",
+        {"kind": "detect", "outflags": frozenset({"verbose"})},
+        {"rc": 1, "out": "\n"},
         "detect exit 1 without its empty record, or an ERROR line",
     ),
     (
@@ -142,14 +148,14 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
         "TIMEOUT",
     ),
     (
-        "--id-only printed more than an identifier",
-        {"kind": "detect", "outflags": frozenset({"id-only"}), "exp_exit": 0},
+        "no --verbose printed more than an identifier",
+        {"kind": "detect", "outflags": frozenset(), "exp_exit": 0},
         {
             "rc": 0,
             "out": "EXPRESSION=MIT\tMETHOD=id\tEXACT=true\tSCORE=1.0000\tSIMILARITY="
             "\tCOVERAGE=\n",
         },
-        "--id-only not one expression",
+        "not one expression a line",
     ),
 ]
 
@@ -205,7 +211,7 @@ def test_judge_ignores_streams_on_a_terminal() -> None:
 
 def test_judge_accepts_the_documented_diagnostic_grammar() -> None:
     """LEVEL: SUBJECT: CONDITION on stderr is exactly what is expected."""
-    cell = make_cell(kind="detect", exp_exit=1)
+    cell = make_cell(kind="detect", exp_exit=1, outflags=frozenset({"verbose"}))
     result = make_result(
         rc=1, out=NO_ANSWER, err="WARNING: input: variant not stated: x; using y\n"
     )
@@ -294,7 +300,7 @@ def test_group_compares_plain_output_by_its_first_line_only() -> None:
 
 
 def test_bold_text_groups_are_not_exempt_from_the_group_check() -> None:
-    """File, text and stdin read the same bytes and must agree, ``--id-only`` too."""
+    """File, text and stdin read the same bytes and must agree, the terse output too."""
     cells = {
         f"A1-00{n}": make_cell(id=f"A1-00{n}", group="A1-text-True-bold")
         for n in (1, 2, 3)
@@ -390,7 +396,8 @@ RESULT = public_match(
     coverage=13.0,
 )
 PLAIN_LINE = text_line(RESULT)
-TEXT: frozenset[str] = frozenset()
+TEXT = frozenset({"verbose"})  # the full record
+TERSE: frozenset[str] = frozenset()  # the expression alone
 JSON = frozenset({"json"})
 
 
@@ -413,6 +420,10 @@ JSON = frozenset({"json"})
         (TEXT, PLAIN_LINE.replace("METHOD=text", "METHOD=TEXT"), False),
         (TEXT, PLAIN_LINE.replace("METHOD=text", "METHOD="), False),
         (TEXT, PLAIN_LINE.replace("COVERAGE=13.0000", "COVERAGE=1.02"), False),
+        (TERSE, "MIT", True),
+        (TERSE, "MIT OR ISC\nGPL-2.0-only WITH Classpath-exception-2.0", True),
+        (TERSE, PLAIN_LINE, False),  # the record without --verbose
+        (TEXT, "MIT", False),  # --verbose printed the expression alone
         (JSON, json_line(RESULT), True),
         (JSON, f"{MIT_JSON}\n{BSD_JSON}", True),
         # The array --json printed before JSON Lines.

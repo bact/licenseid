@@ -154,11 +154,12 @@ def test_missing_input(ready_db: str, command: str) -> None:
 @pytest.mark.parametrize(
     ("extra", "line"),
     [
-        ([], "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"),
-        (["--id-only"], "\n"),
+        (["-v"], "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"),
+        ([], "\n"),
     ],
-    ids=["record", "id_only"],
+    ids=["verbose", "terse"],
 )
+@pytest.mark.terse_cli
 def test_no_match_in_ready_database(ready_db: str, extra: list[str], line: str) -> None:
     """No answer is an answer (C9): an empty record, or an empty line."""
     result = CliRunner().invoke(

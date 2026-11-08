@@ -361,7 +361,7 @@ def test_an_argument_over_the_limit_before_the_trim_is_read(
 
 @pytest.mark.parametrize(
     "args",
-    [["detect"], ["detect", "--text"], ["detect", "--id-only"], ["is-osi"]],
+    [["detect"], ["detect", "--text"], ["detect", "-v"], ["is-osi"]],
     ids=" ".join,
 )
 def test_detect_and_the_flags_agree_with_resolve(

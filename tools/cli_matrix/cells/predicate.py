@@ -45,7 +45,7 @@ PRECEDENCE: list[tuple[str, str, int | None]] = [
 
 #: Flags that only ``detect`` accepts: a predicate must reject each of them.
 MATCH_ONLY = (
-    "--id-only",
+    "--verbose",
     "--diff",
     "--pop",
     "--no-pop",

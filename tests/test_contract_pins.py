@@ -87,10 +87,12 @@ def test_c3_clear_cache_is_a_command(tmp_path: Path) -> None:
     assert result.stderr.startswith("ERROR: option: not found: --clear-cache")
 
 
-def test_c4_id_only(db: str) -> None:
-    """C4 (was: ``detect --bold``): ``--id-only`` prints the top expression."""
+def test_c4_id_only_is_gone(db: str) -> None:
+    """C4 (was: ``detect --bold``): ``--id-only`` was the terse output, now
+    the default of ``detect``; the option is gone."""
     result = run(db, "detect", "--id-only", "MIT")
-    assert (result.exit_code, result.stdout) == (0, "MIT\n")
+    assert result.exit_code == 2
+    assert result.stderr.startswith("ERROR: option: not found: --id-only")
     assert run(db, "detect", "--bold", "MIT").exit_code == 2
 
 
@@ -115,7 +117,6 @@ def test_c6_text_is_taken_as_written(db: str) -> None:
         (["detect", "--id", "MIT", "--text", "ISC"], "--id: with --text"),
         (["detect", "--text", "MIT", "ISC"], "--text: with an argument"),
         (["detect", "--id", "MIT", "ISC"], "--id: with an argument"),
-        (["detect", "--json", "--id-only", "MIT"], "--id-only: with --json"),
         (["detect", "--json", "--diff", "MIT"], "--diff: with --json"),
         (["detect", "--top", "0", "MIT"], "--top: 0; pass 1 or more"),
         (["is-osi", "--id", "MIT", "ISC"], "--id: with an argument"),
@@ -124,7 +125,6 @@ def test_c6_text_is_taken_as_written(db: str) -> None:
         "id-text",
         "text-arg",
         "id-arg",
-        "json-id-only",
         "json-diff",
         "top0",
         "is-id-arg",

@@ -193,11 +193,12 @@ def test_diff_with_json_is_refused(mit_db: str) -> None:
     )
 
 
-def test_diff_with_id_only_shows_the_diff(mit_db: str) -> None:
-    """--diff was dropped with --bold; with --id-only the diff, on standard
-    error, sits beside the expression on standard output."""
+@pytest.mark.terse_cli
+def test_diff_beside_the_terse_output_shows_the_diff(mit_db: str) -> None:
+    """The diff, on standard error, sits beside the expression alone on
+    standard output."""
     result = invoke_match(
-        mit_db, "--diff", "--id-only", "--text", MIT_SEARCH_TEXT + " and more words"
+        mit_db, "--diff", "--text", MIT_SEARCH_TEXT + " and more words"
     )
     assert (result.exit_code, result.stdout) == (0, "MIT\n")
     assert "WORD DIFF" in result.stderr

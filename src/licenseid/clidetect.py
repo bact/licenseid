@@ -7,10 +7,11 @@
 ``is-spdx``: the commands that read the database through
 :class:`licenseid.detector.LicenseDetector`.
 
-Each prints one record per line, the answer first: ``detect`` a line per
+``detect --verbose`` prints one record per line, the answer first: a line per
 result, or one line with every field empty when there is none (exit 1, C9
 of the contract batch); a predicate the licence it judged and the flag.
-``detect --id-only`` is the one exception: the top expression alone.
+Without ``--verbose`` ``detect`` prints the expression alone, a line per
+result (an empty line for none).
 """
 
 import sys
@@ -25,6 +26,7 @@ from licenseid.clicommon import (
     echo_record,
     exit_usage_error,
     json_option,
+    verbose_option,
 )
 from licenseid.cliinput import (
     check_db_staleness,
@@ -102,7 +104,7 @@ def _reject_conflicts(
     ctx: click.Context, threshold: float, top: int, outputs: dict[str, bool]
 ) -> None:
     """Exit 2 for an option out of range or two outputs that cannot both be
-    printed (``--json`` with ``--id-only`` or ``--diff``)."""
+    printed (``--json`` with ``--diff``)."""
     # A score is 0-1: a threshold outside it means nothing (above 1, or
     # nan, would keep nothing).
     if not 0.0 <= threshold <= 1.0:
@@ -111,11 +113,8 @@ def _reject_conflicts(
         )
     if top < 1:
         exit_usage_error(ctx, f"option: invalid: --top: {top}; pass 1 or more")
-    for other in ("--id-only", "--diff"):
-        if outputs["--json"] and outputs[other]:
-            exit_usage_error(
-                ctx, f"option: invalid: {other}: with --json; pass one of them"
-            )
+    if outputs["--json"] and outputs["--diff"]:
+        exit_usage_error(ctx, "option: invalid: --diff: with --json; pass one of them")
 
 
 @click.command(name="detect", cls=LicenseIdCommand)
@@ -155,7 +154,7 @@ def _reject_conflicts(
     help="Show a word diff for the top match when it is a close text match, "
     "on standard error.",
 )
-@click.option("--id-only", is_flag=True, help="Print only the top expression.")
+@verbose_option
 @click.pass_context
 def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     ctx: click.Context,
@@ -168,12 +167,14 @@ def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
     top: int,
     enable_popularity: bool,
     diff: bool,
-    id_only: bool,
+    verbose: bool,
 ) -> None:
     """Identify license text and return the closest matched SPDX License ID.
 
-    INPUT_VAL is a file, a value, or - for standard input. One tab separates
-    the fields of a line: read them with cut -f or awk -F'\\t'.
+    INPUT_VAL is a file, a value, or - for standard input. Prints the
+    expression of each result, one per line (an empty line for none); with
+    --verbose, the full record of each. One tab separates the fields of a
+    verbose line: read them with cut -f or awk -F'\\t'.
     """
     db_path = ctx.obj["db_path"]
 
@@ -183,7 +184,7 @@ def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
         ctx,
         threshold,
         top,
-        {"--json": json_output, "--id-only": id_only, "--diff": diff},
+        {"--json": json_output, "--diff": diff},
     )
 
     detector = LicenseDetector(db_path, enable_popularity=enable_popularity)
@@ -206,22 +207,21 @@ def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
         r for r in results if r["score"] >= threshold and (r["exact"] or not exact_only)
     ][:top]
 
-    if id_only:  # the exception to the record pattern: the expression alone
-        echo(results[0]["expression"] if results else "")
-    elif not results and json_output:  # "no" is an answer: an empty record
+    if not results and json_output:  # "no" is an answer: an empty record
         echo_json(no_detection_json())
-    elif not results:
-        echo(no_detection_line())
     elif json_output:
         # JSON Lines: one canonical (RFC 8785) object per result.
         for r in results:
             echo_json(json_line(r))
+    elif not results:  # the expression alone: an empty line for none
+        echo(no_detection_line() if verbose else "")
     else:
-        # Standard output: line-delimited, KEY=VALUE
+        # Standard output: the expression of each result, or with --verbose
+        # the line-delimited KEY=VALUE record.
         for r in results:
-            echo(text_line(r))
+            echo(text_line(r) if verbose else r["expression"])
     # A word diff for the top match, if it is a close text match: on
-    # standard error, so beside --id-only too (--json refuses it).
+    # standard error, so beside the terse output too (--json refuses it).
     if diff and results and results[0]["method"] == "text" and not results[0]["exact"]:
         # pylint: disable-next=protected-access
         show_diff(*detector._diff_pair(license_text, results[0]["expression"]))

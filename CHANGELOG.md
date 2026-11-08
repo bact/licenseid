@@ -11,10 +11,23 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- `-V` is short for `--version` ([#183])
+
+### Changed
+
+- **Breaking:** `detect` and `resolve` print the SPDX expression alone (an
+  empty line for none); `-v`/`--verbose` prints the old record. `--id-only` is
+  removed. Use `-v`, or `--json` ([#183])
+
 ### Fixed
 
 - `detect(file_path=...)` raises `InvalidInputError` (`input: not found:
-  <path>`), not `OSError`, for a missing or non-regular file
+  <path>`), not `OSError`, for a missing or non-regular file ([#184])
+
+[#183]: https://github.com/bact/licenseid/pull/183
+[#184]: https://github.com/bact/licenseid/pull/184
 
 ## [0.8.1] - 2026-11-09
 

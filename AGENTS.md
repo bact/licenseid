@@ -128,11 +128,18 @@ Unix philosophy. Consistent, predictable, parseable.
 
 - One pattern for every result line of every command (`detect`, `resolve`,
   `update`, `clear-cache`, `is-*`), written through `output.echo`:
-  - Default: line-delimited, one data point (one record) per line.
+  - `detect` and `resolve` print the expression alone by default: one line
+    per result (`detect --top N`: in rank order), an empty line for none,
+    exit 0 or 1 as before; `-v`/`--verbose` prints the record described
+    here. `--json` always prints the full object: `-v` is a no-op beside
+    it. The `is-*`, `update` and `clear-cache` commands take no `-v`, and
+    `--id-only` is gone (its output is the default). `-V` is `--version`.
+  - The record: line-delimited, one data point (one record) per line.
   - A line's first key names its kind (`EXPRESSION` the answer, `STEP`,
     `REASON`, `OPERAND`, `LIST`, `STATUS`); the answer is the first line.
   - A command with no answer still prints its record, every field empty
-    (`detect` exit 1: `EXPRESSION=` and the rest; JSON every value `null`).
+    (`detect -v` exit 1: `EXPRESSION=` and the rest; JSON every value
+    `null`).
   - Fields are only ever appended, never removed, renamed or reordered: a
     reader finds a field by its key. A new field goes at the end.
   - Fields: `KEY=VALUE`, uppercase KEY, no spaces around `=`, one tab
@@ -163,18 +170,18 @@ Unix philosophy. Consistent, predictable, parseable.
     output path.
   - Exit codes: 0 an answer, yes or done; 1 no answer, no, or an action
     that failed (`update`, a delete `clear-cache` could not make); 2 a
-    usage error (two inputs, `--json` with `--id-only` or `--diff`),
+    usage error (two inputs, `--json` with `--diff`),
     unusable input, a database not ready, or a result that could not be
     written. Exit 1 of `detect` and `resolve` prints no `ERROR` line: "no"
     is an answer. `update` and `clear-cache` print no record on exit 1,
     only their `ERROR` line. A `WARNING` about the input or the database
     (`variant not stated`, `N days old`) can still come with it, as with
     an answer.
-  - The only exceptions: `detect --id-only` (the top expression alone, one
-    line; an empty line for none), `--version` (`licenseid <version>`) and
-    `--help`.
-  - `tests/test_output_pattern.py` runs every command, text and `--json`,
-    and holds each line to this pattern.
+  - The only exceptions: the default output of `detect` and `resolve` (the
+    expression alone), `--version` (`licenseid <version>`) and `--help`.
+  - `tests/test_output_pattern.py` runs every command, text (with `-v`) and
+    `--json`, and holds each line to this pattern; it checks the default
+    output of `detect` and `resolve` against the `-v` record.
 - Standard output carries only a command's result. Progress, warnings and
   errors go to standard error through `licenseid.console` (`status`, `warn`,
   `error`); never `print` or `click.echo` them directly.
@@ -403,6 +410,12 @@ Sort SPDX metadata keys alphabetically.
 
 Things that cost time in earlier sessions; details in `working-docs/`.
 
+- Tests see `detect` and `resolve` with `-v` added (the autouse
+  `verbose_cli` fixture in `tests/conftest.py`, `tests/cli_verbose.py`; it
+  covers `CliRunner` only, not a subprocess): most read the record. A test
+  of the default output, or of the exact command line, carries
+  `@pytest.mark.terse_cli`. The CLI golden and `tools/cli_matrix` name
+  `--verbose` themselves.
 - `CLAUDE.md` is a symlink to this file. Edit `AGENTS.md`. `.claude/` is
   gitignored.
 - `flake8 src/ tests/` lints tests too: a test helper can set a complexity

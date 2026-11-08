@@ -60,10 +60,10 @@ UPDATE_LINE = re.compile(
     r"LIST=[a-z-]+\tVERSION=[^\t]*\tSTATUS=(updated|unchanged)\tPATH=[^\t\n]+\n"
 )
 
-#: The whole result of ``detect --id-only``: an expression and nothing else.
+#: The whole result of ``detect`` without ``--verbose``: an expression per line.
 ID_ONLY = re.compile(r"\S+( (WITH|AND|OR) \S+)*")
 #: What ``detect`` prints for no answer (exit 1): one record, every field
-#: empty; with ``--json`` every value null; with ``--id-only`` an empty line.
+#: empty; with ``--json`` every value null; without ``--verbose`` an empty line.
 NO_ANSWER = re.compile(
     r"EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"
 )
@@ -226,6 +226,12 @@ def check_resolve_value(cell: Cell, rc: int, out: str) -> list[str]:
         if "schema" not in parsed[0]:  # a detection, not a resolution
             return [f"resolve --json not one object: {out[:40]!r}"]
         resolved = parsed[0].get("expression") is not None
+    elif "verbose" not in cell.outflags:
+        # The expression alone, or an empty line for none.
+        lines = out.splitlines()
+        if len(lines) != 1 or ID_ONLY.fullmatch(lines[0] or "x") is None:
+            return [f"resolve output not one expression: {out[:60]!r}"]
+        resolved = lines[0] != ""
     else:
         lines = out.splitlines()
         head = RESOLVE_HEAD.fullmatch(lines[0]) if lines else None
@@ -243,22 +249,18 @@ def check_match_format(cell: Cell, out: str) -> list[str]:
     if not out:
         return ["exit 0 but empty stdout"] if "--help" not in cell.cmd else []
     lines = out.splitlines()
-    ok_id_only = (
-        len(lines) == 1
-        and ID_ONLY.fullmatch(lines[0]) is not None
-        and not lines[0].startswith("EXPRESSION=")
-    )
-    ok_json = _is_result_json(out)
-    ok_plain = bool(lines) and PLAIN.fullmatch(lines[0]) is not None
-    if "id-only" in flags and "json" in flags:
-        return ["--id-only --json answered: a usage error (exit 2)"]
-    if "id-only" in flags:
-        return [] if ok_id_only else [f"--id-only not one expression: {out[:40]!r}"]
+    if "json" in flags and "diff" in flags:
+        return ["--json --diff answered: a usage error (exit 2)"]
     if "json" in flags:
-        return [] if ok_json else [f"--json invalid: {out[:40]!r}"]
-    if not ok_plain and not ok_id_only and not ok_json:
-        return [f"plain output malformed: {out[:60]!r}"]
-    return []
+        return [] if _is_result_json(out) else [f"--json invalid: {out[:40]!r}"]
+    if "verbose" in flags:
+        ok = bool(lines) and all(PLAIN.fullmatch(x) for x in lines)
+        return [] if ok else [f"--verbose output malformed: {out[:60]!r}"]
+    ok_terse = all(
+        ID_ONLY.fullmatch(x) is not None and not x.startswith("EXPRESSION=")
+        for x in lines
+    )
+    return [] if ok_terse else [f"not one expression a line: {out[:60]!r}"]
 
 
 def is_no_answer(cell: Cell, out: str) -> bool:
@@ -273,11 +275,11 @@ def is_no_answer(cell: Cell, out: str) -> bool:
         and as_json[0]
         and set(as_json[0].values()) == {None}
     )
-    if "id-only" in flags:
-        return out == "\n"
     if "json" in flags:
         return json_ok
-    return NO_ANSWER.fullmatch(out) is not None or json_ok or out == "\n"
+    if "verbose" in flags:
+        return NO_ANSWER.fullmatch(out) is not None
+    return out == "\n"
 
 
 def _json_results(out: str) -> list[object] | None:
@@ -369,7 +371,13 @@ def _expectation_flags(cell: Cell, result: Result) -> list[str]:
     if cell.exp_err is not None and not re.search(cell.exp_err, err):
         flags.append(f"stderr lacks {cell.exp_err!r}")
     if cell.top and rc == 0 and not cell.tty:
-        count = json_count(out) if "json" in cell.outflags else len(PLAIN.findall(out))
+        count = (
+            json_count(out)
+            if "json" in cell.outflags
+            else len(
+                PLAIN.findall(out) if "verbose" in cell.outflags else out.splitlines()
+            )
+        )
         if count is not None and count > cell.top:
             flags.append(f"--top {cell.top} returned {count}")
     return flags

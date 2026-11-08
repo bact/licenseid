@@ -31,12 +31,9 @@ from licenseid.usage import (
 
 # CliRunner names the program after the function, "cli".
 CASES = [
-    (["detect", "--bogus"], "option: not found: --bogus; run 'cli detect --help'"),
-    (
-        ["detect", "--id-onl"],
-        "option: not found: --id-onl; did you mean --id-only or --id",
-    ),
-    (["is-osi", "--id-only", "MIT"], "option: not found: --id-only; did you mean --id"),
+    (["detect", "--bogus"], "option: not found: --bogus; did you mean --verbose"),
+    (["detect", "--id-only", "MIT"], "option: not found: --id-only; did you mean --id"),
+    (["is-osi", "-v", "MIT"], "option: not found: -v; run 'cli is-osi --help'"),
     (["detect", "--bold"], "option: not found: --bold; did you mean --id"),  # C4
     (["--clear-cache"], "option: not found: --clear-cache; run 'cli --help'"),  # C3
     (  # C2

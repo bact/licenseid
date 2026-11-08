@@ -49,7 +49,12 @@ def db() -> Generator[str, None, None]:
     ids=["too-large", "disk-full", "closed-pipe"],
 )
 @pytest.mark.parametrize(
-    "args", [["--id-only", "MIT"], ["--json", "--id", "MIT"]], ids=["id_only", "json"]
+    "args",
+    [
+        pytest.param(["MIT"], marks=pytest.mark.terse_cli, id="terse"),
+        pytest.param(["-v", "MIT"], id="verbose"),
+        pytest.param(["--json", "--id", "MIT"], id="json"),
+    ],
 )
 def test_an_output_failure_is_no_answer(
     db: str, code: int, exit_code: int, stderr: str, args: list[str]
@@ -145,7 +150,7 @@ def _environ(tmp_path: Path) -> dict[str, str]:
         # "-" names the closed stream: no input too (was a traceback, exit 1)
         ("$L detect - <&-", 2, "ERROR: input: missing; pass a file, an ID,"),
         ("$L is-osi - <&-", 2, "ERROR: input: missing; pass a file, an ID,"),
-        ("$L detect --id-only MIT >&-", 2, "ERROR: output: write failed: closed"),
+        ("$L detect MIT >&-", 2, "ERROR: output: write failed: closed"),
         ("$L is-osi MIT >&-", 2, "ERROR: output: write failed: closed"),
         # click writes help itself, before any command runs
         ("$L --help >&-", 2, "ERROR: output: write failed: closed"),
@@ -160,7 +165,7 @@ def _environ(tmp_path: Path) -> dict[str, str]:
         # through cli.main(), the real entry point: one line in the grammar
         ("$L detect --jsn", 2, "ERROR: option: not found: --jsn; did you mean"),
         ("$L", 2, "Usage: "),  # no subcommand: the help, on standard error
-        ("$L detect --id-only MIT", 0, ""),
+        ("$L detect MIT", 0, ""),
     ],
     ids=[
         "stdin-closed",
