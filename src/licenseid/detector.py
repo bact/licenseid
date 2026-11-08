@@ -35,6 +35,7 @@ from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
 from licenseid.resolvefirst import as_resolved, match_of, too_short, unread_url
 from licenseid.resolver import resolve_with
+from licenseid.resolvereason import is_plus_refusal
 from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import Resolution
 from licenseid.result import public_result
@@ -249,7 +250,13 @@ class LicenseDetector:
         """
         if is_qualified_plus(ctx.target_text) or is_stray_plus(ctx.target_text):
             return []  # "GPL-2.0-only+", "MIT +": no license, nor a near one
-        if ctx.word_count >= 30:
+        # normalize_text() drops a "+", so a text match would answer the licence
+        # round a "+" that is no operator, exact: resolve() judges it (item 44).
+        # From 10 words on, the rest is matched as text (Tier 1), as before;
+        # a long text is matched as text whatever its "+" (C++).
+        if ctx.word_count >= 30 or is_plus_refusal(
+            resolve_with(self.db, ctx.target_text)["reason"]
+        ):
             return None
 
         # A lone expression ("GPL-2.0+") is read as license_id reads it, so
@@ -495,17 +502,10 @@ class LicenseDetector:
         ranked = self._run_tier1_and_tier2(ctx, marker_candidates, marker_boosts)
 
         # Tiebreaker: -only vs -or-later when scores are identical
-        ranked = apply_version_suffix_tiebreaker(
-            ranked,
-            ctx.target_text,
-            ctx.is_pure,
-            enable_pop=ctx.request.get(
-                "enable_popularity",
-                self.enable_popularity,
-            ),
+        pop = ctx.request.get("enable_popularity", self.enable_popularity)
+        return apply_version_suffix_tiebreaker(
+            ranked, ctx.target_text, ctx.is_pure, enable_pop=pop
         )
-
-        return ranked
 
     def _resolve_record(
         self,
@@ -608,10 +608,7 @@ class LicenseDetector:
     ) -> list[InternalMatch]:
         """Rank candidates using dynamic sliding window and
         marker-boosted scoring."""
-        enable_popularity = data.get(
-            "enable_popularity",
-            self.enable_popularity,
-        )
+        enable_popularity = data.get("enable_popularity", self.enable_popularity)
         query_words = norm_input.split()
         q_len = len(query_words)
         q_tokens = set(query_words)

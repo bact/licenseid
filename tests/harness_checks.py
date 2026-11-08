@@ -13,10 +13,14 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 import rfc8785
+from harness_db import harness_detector
 from resolver_corpus import corpus_rows
 
 from licenseid import InvalidInputError, resolve
 from licenseid.detector import LicenseDetector
+from licenseid.normalize import normalize_text
+from licenseid.resolvefirst import MIN_TEXT_WORDS
+from licenseid.resolvereason import is_plus_refusal
 from licenseid.result import json_line, read_text_field, resolution_lines, text_line
 from licenseid.types import Detection
 from tools.pypi_licence_sample.answer import unescape_field
@@ -186,3 +190,23 @@ def answer_is_stable(value: str) -> str | None:
         return None
     again = resolve(expression, source="packaged")["expression"]
     return None if again == expression else f"{expression!r} read again: {again!r}"
+
+
+def plus_refusal_has_no_answer(
+    value: str, outcome: list[Detection] | Exception
+) -> str | None:
+    """A short value ``resolve()`` refuses for a "+" that is no operator gets
+    no ``detect()`` answer: ``normalize_text`` drops the "+", so a text match
+    would answer the licence round it, exact (roadmap item 44). A value of
+    ``MIN_TEXT_WORDS`` words or more is a text, matched as one, whatever its
+    "+"."""
+    words = len(normalize_text(value).split())
+    if isinstance(outcome, Exception) or words >= MIN_TEXT_WORDS:
+        return None
+    try:
+        reason = resolve(value, harness_detector().db)["reason"]
+    except InvalidInputError:
+        return None
+    if not is_plus_refusal(reason) or not outcome:
+        return None
+    return f"{reason!r} but detect answers {outcome[0]['expression']!r}"

@@ -189,7 +189,8 @@ Common options:
   An argument that names no file is first checked for the shape of a path
   (see above). A value that is no licence, such as `GPL-2.0-only+` (a "+"
   after a stated qualifier), is a "no" as text (exit 1, and `detect()`
-  returns no result) and a usage error as `--id` (exit 2).
+  returns no result; so is a short text with a "+" that is no operator, such
+  as `"MIT++"` or `MIT License++`) and a usage error as `--id` (exit 2).
 - `--text <text>`: Match the given text, taken as written: a backslash is
   a backslash (`C:\temp\new` is that path), and `\n` is two characters.
   For a line break, pass one (`--text "$(printf 'a\nb')"`) or pipe the
@@ -674,7 +675,10 @@ pytest --run-benchmark
     split ID, the `-only` guess (see the deprecated ID item above). An
     input under 10 words that `resolve()` refuses and no licence name
     matches is not matched as text: no answer, with `WARNING: input: too
-    few words for text: <reason>` (`not found: GNU GPL v2`).
+    few words for text: <reason>` (`not found: GNU GPL v2`). So is a text
+    of under 30 words that `resolve()` refuses for a "+" that is no operator
+    (`"MIT++"`, `MIT License++`, `Apache 2.0 +`), with the "+" reason: Tier 0
+    would drop the "+" and answer the licence, exact.
   - **Tier 0 (Shortcut)**: Fast path for short inputs (names, IDs, brief
     expressions). Includes:
     - Case-insensitive exact ID match.

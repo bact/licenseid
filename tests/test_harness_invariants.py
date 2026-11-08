@@ -65,9 +65,16 @@ def detected(sample: list[str]) -> dict[str, list[Detection] | Exception]:
 
 def assert_none_break_outcomes(
     detected: dict[str, list[Detection] | Exception],
-    check: Callable[[list[Detection] | Exception], str | None],
+    check: Callable[..., str | None],
+    with_value: bool = False,
 ) -> None:
-    broken = hc.failures(detected, lambda value: check(detected[value]))
+    """*check* of each outcome (of the value and its outcome, *with_value*)."""
+    broken = hc.failures(
+        detected,
+        lambda value: (
+            check(value, detected[value]) if with_value else check(detected[value])
+        ),
+    )
     assert not broken, "\n" + "\n".join(broken)
 
 
@@ -81,6 +88,16 @@ def test_detect_text_json_and_canonical_form_agree(
     detected: dict[str, list[Detection] | Exception],
 ) -> None:
     assert_none_break_outcomes(detected, hc.detect_output_agrees)
+
+
+def test_a_plus_that_is_no_operator_gets_no_detect_answer(
+    sample: list[str],
+) -> None:
+    """Every short value with a "+" (the step-14 sample holds few)."""
+    pluses = [v for v in sample if "+" in v and len(v) < 200][:400]
+    outcomes = hc.detect_all(harness_detector(), pluses)
+    assert pluses
+    assert_none_break_outcomes(outcomes, hc.plus_refusal_has_no_answer, True)
 
 
 def test_an_answer_read_again_gives_itself(sample: list[str]) -> None:
@@ -138,3 +155,6 @@ def test_a_long_run_breaks_nothing() -> None:
     outcomes = hc.detect_all(harness_detector(), batch[::40])
     for outcome_check in (hc.detect_never_raises, hc.detect_output_agrees):
         assert_none_break_outcomes(outcomes, outcome_check)
+    pluses = [v for v in batch if "+" in v and len(v) < 200][:2000]
+    plus_outcomes = hc.detect_all(harness_detector(), pluses)
+    assert_none_break_outcomes(plus_outcomes, hc.plus_refusal_has_no_answer, True)

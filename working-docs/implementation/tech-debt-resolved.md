@@ -651,3 +651,21 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   for an empty path, a NUL or a lone surrogate. The CLI already exited 2 for
   these; only the reason for a directory changed (`not a regular file`).
   PR (no number yet).
+- A "+" that is no operator was dropped and the answer was exact (item 44,
+  Priority 12; 2026-11-09). #149 fixed bare values, tags and fields; three
+  paths still answered `MIT` exact at 1.0 while `resolve()` refused the
+  value: quoted or bracketed text (`"MIT++"`, `[MIT++]`, `"MIT +"`), a name
+  (`MIT License++`, `Apache License 2.0++`, `GPL-2.0 or later+`,
+  `Apache 2.0 +`) and a quoted manifest read by the CLI with no extension.
+  `normalize_text` drops a "+", so the text match found the licence round
+  it. Now `detector._try_tier0_short_text` returns None for a value under 30
+  words that `resolve()` refuses with a reason of the "+" family
+  (`resolvereason.is_plus_refusal`; the reason, not the category, because
+  some are `unresolved`): a whole input gets no answer and the warning
+  `too few words for text`, a field is skipped silently. `normalize_text`
+  is unchanged (no `NORMALIZATION_VERSION` bump). A long text (a `C++`
+  line) never reaches the check; a value of 10 words or more that is a
+  compound with such an operand still goes to Tier 1 (a text, by
+  `MIN_TEXT_WORDS`). Left: a "+" in prose (item 47), wrappers `resolve()`
+  does not read (item 48). Test: `tests/test_stray_plus_paths.py`, the
+  invariant `plus_refusal_has_no_answer` of the harness.
