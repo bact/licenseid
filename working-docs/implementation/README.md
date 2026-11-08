@@ -15,6 +15,10 @@ yet started, see [`../design/`](../design/).
 
 ## Current state (as of 2026-11-08)
 
+- **0.8.2** (prepared 2026-11-09): `detect` and `resolve` print the expression
+  alone, `-v` for the record, `-V` for the version (breaking), PR #183;
+  `detect(file_path=...)` words a missing file, PR #184; no exact answer for a
+  "+" that is no operator in short texts, PR #186.
 - **0.8.1** (released 2026-11-09): Trim control characters in licence ID,
   PR #181.
 - **0.8.0** (released 2026-11-08): `resolve()`, `detect()`, a
