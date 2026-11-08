@@ -35,6 +35,9 @@
   `resolvealias.py` (another name of a BSD licence: `New BSD`, `BSD-3`,
   as data; it and `resolvetitle` read their table through
   `resolvetable.py`),
+  `urlkey.py` (one key for each spelling of a licence URL; standard
+  library and `listlookup.fold_case` only), `resolveurl.py` (a licence URL
+  read as that licence; `url_license_id` does it for a tag and a field),
   `resolvesemicolon.py` (licences joined by `;`: listed, no operator),
   `exprcanon.py` (its leaves and canonical
   order), `exprtokens.py` (the words of an expression), `resolverinfo.py`
@@ -419,7 +422,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   to read it to validate a parser against real data.
 - CI tests on Python 3.10 and 3.14 (Ubuntu) and 3.11 (Windows); it builds
   on 3.10-3.14 (Ubuntu). The local environment is the pyenv virtualenv
-  named in `.python-version` (`license310`, Python 3.10, an editable
+  named in `.python-version` (`licenseid310`, Python 3.10, an editable
   install); there is no `.venv`. It can lag `pyproject.toml` (it lacked
   `rfc8785` and `hatchling`): then build a scratch one,
   `UV_PROJECT_ENVIRONMENT=<scratch> uv sync --python 3.10 --all-groups`.
@@ -580,6 +583,18 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   than `"2"`); a newer one warns `build vN newer` and is never rebuilt, and
   one that is no number is older. Only a database opened without `create`
   warns: `update`, which creates, is about to fix it.
+- A licence URL has ONE key, `urlkey.url_key` (a fixed point: ASCII only,
+  scheme, `www.`, fragment, trailing `/` and one page suffix dropped, query
+  kept): key a declared URL and the List's with it, nothing of your own.
+  The List's pages (`seeAlso`) are in the `license_urls` table
+  (`records.BUILD_VERSION` 4), indexed by `resolveurl.list_url_key`, which
+  skips a URL with a fragment (`gpl-faq.html#FontException` is no page of
+  a licence). A page that names several unrelated licences or only an
+  exception is refused, not guessed; a page of `URL_ALIASES` or an ID of
+  `SCANCODE_NOT_SPDX` is added only with a measured count of the packages
+  that declare it (`working-docs/paper-notes/licence-urls.md`). Never take
+  an ID from a URL's path on a host that is not in `ID_PAGES`:
+  `https://evil.com/licenses/MIT` names no licence.
 - A regex with `\s+` directly followed by a class that also matches
   whitespace (`\s+[\s/*#]*`) is quadratic on a long run of spaces (5 s at
   32,000): write `\s[\s/*#]*`. Time every new prose regex on `"x" + " " * N`

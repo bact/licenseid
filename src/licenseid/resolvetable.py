@@ -5,13 +5,14 @@
 
 """A value read as the ID a table of names gives it: the one reader of the
 title table (:mod:`licenseid.resolvetitle`) and the alias table
-(:mod:`licenseid.resolvealias`)."""
+(:mod:`licenseid.resolvealias`), and of an ID another reader chose
+(:func:`read_as`)."""
 
 from collections.abc import Mapping
 
 from licenseid.listlookup import ListLookup, fold_case
 from licenseid.resolveleaf import Found, read_leaf
-from licenseid.resolvertypes import step
+from licenseid.resolvertypes import Step, step
 from licenseid.resolvetrove import copy_reading
 
 
@@ -29,9 +30,18 @@ def read_by_table(
     license_id = table.get(fold_case(" ".join(text.split())))
     if license_id is None:
         return False
+    return read_as(db, step(kind, True, text, license_id), found)
+
+
+def read_as(db: ListLookup, lead: Step, found: Found) -> bool:
+    """Read the value of *lead*, a step from the value to an ID (its
+    ``from`` and ``to``), as that ID into *found*: *lead*, then the steps of
+    the ID read alone, so a rename is followed and a bare deprecated ID
+    stays ``assumed_only``. False if the list lacks the ID. The URL reader
+    (:mod:`licenseid.resolveurl`) reads through it too."""
     reading = Found()
-    if not read_leaf(db, license_id, reading):
+    if not read_leaf(db, lead["to"], reading):
         return False  # the list read lacks the ID
-    found.steps = [step(kind, True, text, license_id), *reading.steps]
+    found.steps = [lead, *reading.steps]
     copy_reading(found, reading)
     return True

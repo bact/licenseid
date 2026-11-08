@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-06
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-08
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -11,7 +11,8 @@ SPDX-License-Identifier: Apache-2.0
 
 `resolve()` reads a declared value as an SPDX ID, a List name, a loose
 spelling of an ID (rules, not a list: `looseid.py`), or a name from one of
-three tables written by hand. This note lists the three tables, each entry
+three tables written by hand (a fourth, the URL aliases, is in
+[licence-urls.md](licence-urls.md)). This note lists the three tables, each entry
 with its source and the PyPI projects that declare it, so that each can be
 cited. Nothing in them is generated from the SPDX data.
 
@@ -20,6 +21,7 @@ cited. Nothing in them is generated from the SPDX data.
 | BSD aliases | `alias_name` | `src/licenseid/resolvealias.py` (`ALIASES`) | 10 | PR #170 |
 | Titles of a licence text | `text_title` | `src/licenseid/resolvetitle.py` (`TITLES`) | 4 | PRs #163, #165 |
 | Trove classifier names | `trove_name` | `src/licenseid/trovenames.py` (`TROVE_NAMES`) | 89 (54 read) | 0.7.0 |
+| Licence URLs (aliases) | `license_url`, detail `alias` | `src/licenseid/resolveurl.py` (`URL_ALIASES`) | 11 | issue #14 |
 
 The SPDX License List has no field for other names: `licenses.json` gives
 one `name` per ID. The table of deprecated IDs (`deprecatedids.py`) maps

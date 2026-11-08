@@ -21,6 +21,7 @@ from licenseid.listlookup import (
     ListedLicense,
     ListedMetadata,
     ListedName,
+    ListedUrl,
     ListLookup,
     fold_case,
 )
@@ -116,6 +117,13 @@ class DictList:
             index.setdefault(key(row.license_id), []).append(record)
         return index
 
+    def get_ids_by_url(
+        self, key: Callable[[str], str | None]
+    ) -> Mapping[str, Sequence[ListedUrl]]:
+        """No pages: the rows hold none, whatever the key."""
+        del key
+        return {}
+
     def get_active_ids_by_name(self) -> dict[str, list[str]]:
         """The IDs in use by case-folded name."""
         found: dict[str, list[str]] = {}
@@ -163,6 +171,7 @@ def _accepts(lookup: ListLookup) -> None:
     """Mypy checks that each argument below satisfies the protocol."""
     with lookup.reading():
         lookup.get_metadata()
+        assert lookup.get_ids_by_url(str.lower) == {}  # no row has a page
 
 
 def test_the_database_and_the_fake_satisfy_the_protocol(

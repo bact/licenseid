@@ -138,7 +138,11 @@ def test_the_pin_names_a_published_bundle() -> None:
     version, digest = PIN
     assert re.fullmatch(r"[0-9]+(\.[0-9]+)*", version)
     assert re.fullmatch(r"[0-9a-f]{64}", digest)
-    for name in ("spdx-license-ids.json", "spdx-exception-ids.json"):
+    for name in (
+        "spdx-license-ids.json",
+        "spdx-exception-ids.json",
+        "spdx-see-also.json",
+    ):
         doc = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
         assert doc["license_list_version"] == version, name
 

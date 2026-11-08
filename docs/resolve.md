@@ -130,6 +130,54 @@ steps taken, without fuzzy matching:
   spelling no project declares (`BSD 2`, `BSD 4`) are not read; nor is a
   version (`BSD License v3`). Case does not matter, in ASCII only, and a
   run of white space reads as one space (`New  BSD`);
+- a licence URL is read as the licence it names, first of the name readers
+  (category `license_url`, a `license_url` step, then the steps of the ID
+  read alone, so a rename reads as it does for the ID). A URL is compared by
+  a key, not as written: `http` or `https` (or neither, `www.apache.org/...`),
+  `www.`, a port, a `#fragment`, a trailing `/`, `index.html` and one `.html`,
+  `.htm`, `.txt` or `.php` are dropped, and case is folded; a query is kept.
+  What it reads:
+  - the List's own page of an ID (`https://spdx.org/licenses/MIT`, with
+    `.html` or `.json`) and `spdx:MIT`; the pages of NuGet
+    (`licenses.nuget.org/MIT`), choosealicense.com and ScanCode LicenseDB,
+    which end in an ID (the `detail` of the step is `list page`, or `id in
+    path`). On the List's own page only, an ID and a `+` is read as the ID
+    with the `+` is (`spdx:MIT+` is `MIT+`); a `+` the ID cannot take
+    (`GPL-2.0-only+`) names nothing;
+  - a page the List gives a licence in `seeAlso`
+    (`https://www.apache.org/licenses/LICENSE-2.0`, detail `see also`):
+    one licence, or a licence and the ID it was renamed to. The GNU pages
+    of a family (`X`, `X-only`, `X-or-later`) are the bare deprecated `X`,
+    `assumed_only` with both candidates, as the bare ID is read
+    (`https://www.gnu.org/licenses/gpl-3.0.html` is `GPL-3.0`);
+  - a small table of pages the List lacks or gives a licence with its
+    variants (`https://opensource.org/license/mit-license` is `MIT`,
+    `https://www.mozilla.org/MPL/2.0/` is `MPL-2.0`; detail `alias`);
+  - one pair of angle brackets round the URL comes off (a `brackets` step),
+    and a URL is an operand of a compound (`https://spdx.org/licenses/MIT OR
+    ISC`).
+
+  A fragment is dropped from a declared URL: it names a place on a page,
+  so a URL with one reads as its page. A List URL with a fragment adds its
+  licence to the owners of its page: `Licensing/MIT#enna` and the bare
+  `Licensing/MIT` page are both refused, as the List gives that page to
+  `mpich2` and its places to three other licences. A page the List gives
+  only with a fragment names nothing (`gpl-faq.html`). A page of several
+  licences is refused (`url names several licences: Unicode-3.0,
+  Unicode-DFS-2016`), and so is a page the List gives one licence that
+  offers a choice of several (the GlassFish pages: CDDL-1.1 or GPL 2 with
+  the Classpath exception). A page of exceptions is refused
+  (`url names an exception: Classpath-exception-2.0`), and so is a page of
+  a licence and an exception (`url names a licence with an exception:
+  wxWindows, WxWindows-exception-3.1`), unless the licence is one of the
+  List's old IDs of both, which is read as it is
+  (`https://www.gnu.org/software/classpath/license.html` is the deprecated
+  `GPL-2.0-with-classpath-exception`). A URL that names nothing is `not
+  found`, and so is a host that is not ASCII, any other scheme, user
+  information, an IP address or a port above 65535:
+  `https://evil.com/licenses/MIT` names no licence, whatever its path ends
+  in, and nor does `https://opensource.org/licenses/<ID>` for an ID the OSI
+  does not publish. A URL inside prose is not read;
 - the prose form of one licence is read last, as category `prose_form`
   (a `prose_form` step, then the steps of what it reduces to): a final
   `license` or `licence` after a value that names one licence (not after a
@@ -189,10 +237,13 @@ one tick.
 A warning is a `licenseid.LicenseIdWarning` given through Python's
 `warnings` (see [the Python API](python-api.md#warnings)), never a line written
 to standard error: the fallback above, a database built by an older or a
-newer licenseid (`database: build v2 outdated: current v3; run 'licenseid
+newer licenseid (`database: build v2 outdated: current v4; run 'licenseid
 update'`) and an unusable shipped list (`spdx-bundle.json.gz: invalid:
 ...`). Each is given once per process, not once per value; `licenseid
-resolve` prints each as a `WARNING:` line.
+resolve` prints each as a `WARNING:` line. A database of build 3 or older
+has no pages of the List: it still reads an ID page (`spdx:MIT`), but no
+other licence URL until `licenseid update` rebuilds it; opening it writes
+nothing.
 
 ## The whole result
 
@@ -428,6 +479,7 @@ weakest of its operands, in this order (strongest first):
 | `prose_form` | `resolver_rule` | is an ID in a prose form (`BSD 3-Clause License`, `Apache License, Version 2.0`) |
 | `text_title` | `resolver_rule` | is the title a licence's text gives itself (`CC0 1.0 Universal`) |
 | `alias_name` | `resolver_rule` | is another name of a BSD licence (`New BSD`, `BSD-3`) |
+| `license_url` | `resolver_rule` | is the URL of a licence (`https://spdx.org/licenses/MIT`, `spdx:MIT`, a page the List gives it) |
 | `trove_name` | `resolver_rule` | is a PyPI trove classifier name that states one licence |
 | `deprecated_ambiguous` | `list_data` | is deprecated, with no successor |
 | `assumed_only` | `none` | is a bare split ID (`GPL-3.0`), kept |
@@ -443,8 +495,14 @@ of one result that it was found exactly (declared, a name in full, or the
 whole licence text). The two can differ for one value: `detect("GPL-2.0")`
 answers `GPL-2.0-only`, not exact, a guess said aloud with a warning, where
 `resolve("GPL-2.0")` keeps `GPL-2.0` as `assumed_only`. A whole input is
-already read through `resolve()` (above); reading a tag's or a manifest
-field's value through it is planned for 0.8.
+already read through `resolve()` (above); a whole input that is a URL
+`resolve()` does not read is no text to match: `detect()` answers nothing
+and warns `too few words for text`. A tag and a manifest field read a
+licence URL with the same reader, in any word of the value
+(`SPDX-License-Identifier: https://spdx.org/licenses/MIT` is `MIT`), but
+the rest of their value still goes through the marker readers, not
+`resolve()` (planned for 0.8). Not read yet: a URL inside prose, and
+NuGet's compound paths.
 
 ## Reasons for a refusal
 
@@ -475,7 +533,11 @@ or format character: U+200B` (U+001C to U+001F too: they are not white space;
 resolved: <operand>` (or that operand's own reason), `operand of several words:
 <leaf>` (a leaf that reads alone, as `BSD 3-Clause` does), `not an SPDX
 operator: /` (also `|`, `&` and `,` between IDs, and `;` when fewer than two
-parts name a licence: `MIT; Foo`), `operator not stated: ;` (above), `parse
+parts name a licence: `MIT; Foo`), `operator not stated: ;` (above), `url
+names several licences: <IDs>` (sorted; a page the List gives to unrelated
+licences, or one that offers a choice), `url names an exception: <IDs>` (a
+page of exceptions only), `url names a licence with an exception: <licence
+IDs>, <exception IDs>` (each sorted; a page of both), `parse
 failed: <the parser's message>`, `mismatched brackets` (a bracket pairs only
 with the same kind: `(MIT]`), `too many operators` (over 150) and `too deeply
 nested` (over 150). A value with a part of several words (`Apache License 2.0 OR

@@ -1,0 +1,11 @@
+# The answers the licence URL reader (licenseid.resolveurl) moved in the
+# parity corpus and the PyPI sample.
+# value: Python unicode_escape; group: why it moved (in
+# tests/resolver_changes_urls.py); then the answer, its fields written as
+# in the other answer fixtures.
+value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
+http://www.apache.org/licenses/LICENSE-2.0	urls	Apache-2.0	license_url	-	license_url	Apache-2.0	-	-	resolver_rule	yes	-
+https://www.apache.org/licenses/LICENSE-2.0	urls	Apache-2.0	license_url	-	license_url	Apache-2.0	-	-	resolver_rule	yes	-
+http://www.opensource.org/licenses/mit-license.php	urls	MIT	license_url	-	license_url	MIT	-	-	resolver_rule	yes	-
+https://opensource.org/license/mit/	urls	MIT	license_url	-	license_url	MIT	-	-	resolver_rule	yes	-
+https://opensource.org/licenses/BSD-3-Clause	urls	BSD-3-Clause	license_url	-	license_url	BSD-3-Clause	-	-	resolver_rule	yes	-

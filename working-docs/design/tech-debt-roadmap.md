@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-08
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -27,8 +27,8 @@ the review of PR #66, items 30 and 31 from the work on item 21, and items
 32 to 35 from the review of item 22, item 36 from the docs audit
 after it, item 37 from the work on item 29, item 38 from the
 review of PR #80, items 39 to 42 from the review of PR #82, and items 43
-to 45 from the reviews of PR #99, item 46 from the 0.7.0 whole-release
-review, and item 47 from PR #168.
+to 45 from the reviews of PR #99 (item 45 resolved 2026-11-08), item 46 from
+the 0.7.0 whole-release review, and item 47 from PR #168.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -317,17 +317,6 @@ Found in the second review of PR #99 (2026-10-27); 0.5.0 does the same.
 so the ID matches as if it were not there. Pinned as `# BUG:` in
 `tests/test_qualified_plus.py`. A detached "+" (`GPL-2.0-only +`) is the
 same case, decided as no operator; the answer may stand, but not as exact.
-
-- Impact 2, Risk 2, Effort 3.
-
-## 45. A licence URL is matched as text — Priority 12
-
-Found in the second review of PR #99 (2026-10-27); 0.5.0 does the same.
-`opensource.org/licenses/MIT` answers `any-OSI-perl-modules` at 0.87 and
-`spdx.org/licenses/MIT.html` `Parity-7.0.0`, with or without the scheme.
-An SPDX or OSI licence URL names its ID in the path: read it as that ID,
-with a step of its own in `resolve`, and only for the hosts that publish
-licences by ID (spdx.org, opensource.org).
 
 - Impact 2, Risk 2, Effort 3.
 

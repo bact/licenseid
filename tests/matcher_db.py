@@ -15,7 +15,13 @@ from collections.abc import Generator, Sequence
 from typing import NamedTuple
 
 from conftest import make_memory_db_path
-from seed_sql import INSERT_EXCEPTION, INSERT_INDEX, INSERT_LICENSE, INSERT_METADATA
+from seed_sql import (
+    INSERT_EXCEPTION,
+    INSERT_INDEX,
+    INSERT_LICENSE,
+    INSERT_METADATA,
+    INSERT_URL,
+)
 
 # Prose long enough to push an input over the 30-word threshold, so
 # Tier 0.5 (marker detection) runs instead of Tier 0 (short text).
@@ -59,8 +65,11 @@ def seeded_db(
     prefix: str,
     rows: Sequence[Lic],
     exception_ids: Sequence[str] = (),
+    urls: Sequence[tuple[str, bool, str]] = (),
 ) -> Generator[str, None, None]:
-    """Yield the path of an in-memory database seeded with *rows*.
+    """Yield the path of an in-memory database seeded with *rows*, the
+    exceptions *exception_ids* and the pages *urls* (``(owner ID,
+    is_exception, URL)``, as ``license_urls`` holds them).
 
     Closes the keep-alive connection afterwards, which drops the
     shared-cache database.
@@ -77,6 +86,7 @@ def seeded_db(
             conn.execute(INSERT_INDEX, (rows[0].license_id, "unmatchable filler"))
         for exception_id in exception_ids:
             conn.execute(INSERT_EXCEPTION, (exception_id, exception_id, False, None))
+        conn.executemany(INSERT_URL, urls)
         conn.execute(INSERT_METADATA, ("last_check_datetime", "2026-01-01T00:00:00"))
     yield db_path
     keep_alive.close()

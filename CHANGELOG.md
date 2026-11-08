@@ -9,6 +9,22 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `resolve()` and `detect()` read a licence URL as its licence (category
+  `license_url`): `https://www.apache.org/licenses/LICENSE-2.0` is
+  `Apache-2.0`, `spdx:MIT+` is `MIT+`; a page of several licences, or of a
+  licence and an exception, is refused ([#177])
+
+### Changed
+
+- The database build is v4 (a `license_urls` table): `update` rebuilds an
+  older database, which until then reads only ID pages (`spdx:MIT`) ([#177])
+
+[#177]: https://github.com/bact/licenseid/pull/177
+
 ## [0.7.3] - 2026-11-08
 
 ### Changed
@@ -822,6 +838,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[Unreleased]: https://github.com/bact/licenseid/compare/v0.7.3...HEAD
 [0.7.3]: https://github.com/bact/licenseid/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/bact/licenseid/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/bact/licenseid/compare/v0.7.0...v0.7.1

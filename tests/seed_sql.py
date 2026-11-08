@@ -21,5 +21,6 @@ INSERT_EXCEPTION = (
     "INSERT INTO exceptions (exception_id, name, is_deprecated, superseded_by)"
     " VALUES (?, ?, ?, ?)"
 )
+INSERT_URL = "INSERT INTO license_urls (owner_id, is_exception, url) VALUES (?, ?, ?)"
 INSERT_METADATA = "INSERT INTO db_metadata (key, value) VALUES (?, ?)"
 SET_METADATA = "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)"

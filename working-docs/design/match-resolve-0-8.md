@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-08
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -206,9 +206,11 @@ field keep their readers, so the rest of this section is still to do.
   90-character slices of CC-BY-SA-2.1-JP: 49 of 50 answered (`main` 50).
 - A whole input takes `resolve()`'s order (`MirOS OR MIT`); a tag and a
   field keep `detect`'s (`MIT OR MirOS`) until they go through `resolve()`
-  too. So does an SPDX URL: a tag or a field reads
-  `https://spdx.org/licenses/MIT.html` as MIT, `resolve()` does not, and a
-  whole input of it gets no answer (it was `Parity-7.0.0`).
+  too. A licence URL no longer differs: a tag, a field and a whole input
+  read `https://spdx.org/licenses/MIT.html` as MIT with one reader
+  (`resolveurl`, issue #14, 2026-11-08; see
+  [`licence-urls.md`](../implementation/licence-urls.md)). What is still
+  open for URLs: one inside prose, and NuGet's compound paths.
 
 ## 4. Decisions needed
 

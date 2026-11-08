@@ -28,8 +28,11 @@ import pytest
 from conftest import insert_mit_license, make_ready_db_path
 
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
-from licenseid.records import BUILD_VERSION
+from licenseid.records import BUILD_VERSION, Records
 
+# The rows of a release with nothing in it, for a test that writes them
+# (``LicenseDatabase._write_db_records``) to reach a write path.
+NO_RECORDS = Records([], [], [], [])
 MIT_TEXT = (
     "Permission is hereby granted, free of charge, to any person obtaining a copy"
 )

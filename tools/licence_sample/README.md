@@ -61,6 +61,9 @@ naming this repository, 8 at a time, retrying a failure three times.
 the fields, the category `resolve()` gives each value that is no URL, and
 for each URL whether the List's `seeAlso` (with SPDX's own page of each ID)
 names one licence, several or none, with the hosts and URLs of the rest.
+URLs are compared by `licenseid.urlkey` (scheme, `www.`, case, fragment,
+trailing slash and index page do not count; a query does); a `seeAlso` URL
+with a fragment is skipped.
 
 Standard library and `licenseid` only. `tests/test_licence_sample.py` runs
 every reader on fake replies.

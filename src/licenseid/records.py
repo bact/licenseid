@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The rows of the ``licenses``, ``license_index`` and ``exceptions`` tables,
-built in memory from one :class:`licenseid.spdxdata.SpdxData`.
+"""The rows of the ``licenses``, ``license_index``, ``exceptions`` and
+``license_urls`` tables, built in memory from one :class:`licenseid.spdxdata.SpdxData`.
 
 No database access and no network: whatever the source of the data (an
 upstream tarball, a bundle), the same input gives the same rows. The text of
@@ -19,6 +19,7 @@ from licenseid.listrules import (
     exception_successor,
     is_deprecated,
     kept_licenses,
+    listed_urls,
 )
 from licenseid.normalize import normalize_text
 from licenseid.spdxdata import SpdxData
@@ -29,7 +30,9 @@ from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 # Version 2: a renamed deprecated ID records its successor (StandardML-NJ).
 # Version 3: a deprecated ID without a text keeps the OSI and FSF flags the
 # List gives it (wxWindows, eCos-2.0); they were both False.
-BUILD_VERSION = "3"
+# Version 4: the pages of each kept licence and every exception (``seeAlso``)
+# go to ``license_urls``, so that a licence URL can be read as its licence.
+BUILD_VERSION = "4"
 
 # (license_id, name, xml_template, is_spdx, is_osi, is_fsf,
 #  is_high_usage, is_deprecated, superseded_by, pop_score, word_count,
@@ -53,37 +56,64 @@ LicenseInsertRecord = tuple[
 IndexInsertRecord = tuple[str, str]
 # (exception_id, name, is_deprecated, superseded_by)
 ExceptionInsertRecord = tuple[str, str, bool, str | None]
+# (owner_id, is_exception, url): one page of a licence or an exception, the
+# URL as the List writes it (a key of it is made at lookup, so a change of
+# the key needs no rebuild).
+UrlInsertRecord = tuple[str, bool, str]
+# A kept licence with its successor (listrules.kept_licenses).
+_Kept = list[tuple[SpdxLicenseEntry, str | None]]
 
 
 class Records(NamedTuple):
-    """The three record lists of one release, ready to insert."""
+    """The four record lists of one release, ready to insert."""
 
     licenses: list[LicenseInsertRecord]
     index_entries: list[IndexInsertRecord]
     exceptions: list[ExceptionInsertRecord]
+    urls: list[UrlInsertRecord]
 
 
 def build_records(data: SpdxData, popularity_map: dict[str, int]) -> Records:
     """Build the record lists for insertion (no DB access)."""
-    licenses, index = _license_records(data, popularity_map)
-    return Records(licenses, index, _exception_records(data.exceptions))
-
-
-def _license_records(
-    data: SpdxData, popularity_map: dict[str, int]
-) -> tuple[list[LicenseInsertRecord], list[IndexInsertRecord]]:
-    """Licence rows and index rows. A licence without a text is dropped, unless
-    it is deprecated: that one keeps a metadata row (no index entry), so that
-    a lookup of its ID can still be redirected."""
-    license_records: list[LicenseInsertRecord] = []
-    index_records: list[IndexInsertRecord] = []
-
     status("\nPreparing license data...", end="")
     # The superseded_by mapping is built at DB build time so runtime
     # lookups are O(1).
     kept = kept_licenses(
         data.licenses, lambda license_id: data.texts.get(license_id) is not None
     )
+    licenses, index = _license_records(data, kept, popularity_map)
+    return Records(
+        licenses,
+        index,
+        _exception_records(data.exceptions),
+        _url_records(kept, data.exceptions),
+    )
+
+
+def _url_records(
+    kept: _Kept, exceptions: tuple[SpdxExceptionEntry, ...]
+) -> list[UrlInsertRecord]:
+    """The pages of the kept licences in List order, then those of every
+    exception: the licences that the database keeps, and no other."""
+    records: list[UrlInsertRecord] = [
+        (lic["licenseId"], False, url) for lic, _ in kept for url in listed_urls(lic)
+    ]
+    records.extend(
+        (exc["licenseExceptionId"], True, url)
+        for exc in exceptions
+        for url in listed_urls(exc)
+    )
+    return records
+
+
+def _license_records(
+    data: SpdxData, kept: _Kept, popularity_map: dict[str, int]
+) -> tuple[list[LicenseInsertRecord], list[IndexInsertRecord]]:
+    """Licence rows and index rows of the *kept* licences. A licence without
+    a text is dropped, unless it is deprecated: that one keeps a metadata row
+    (no index entry), so that a lookup of its ID can still be redirected."""
+    license_records: list[LicenseInsertRecord] = []
+    index_records: list[IndexInsertRecord] = []
     for i, (lic, superseded_by) in enumerate(kept):
         res = _prepare_license_record(
             lic, data.texts.get(lic["licenseId"]), popularity_map, superseded_by

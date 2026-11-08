@@ -176,18 +176,17 @@ def tally(
                 if category == "unresolved":
                     counts["unresolved values"][value] += 1
                 continue
-            listed = table.get(url_key(value), set())
+            key = url_key(value) or ""
+            listed = table.get(key, set())
             kind = (
                 "one licence" if len(listed) == 1 else "several" if listed else "none"
             )
             counts["urls"][kind] += 1
             if not listed:
                 counts["unlisted hosts"][host_of(value)] += 1
-                counts["unlisted urls"][url_key(value)] += 1
+                counts["unlisted urls"][key] += 1
             elif len(listed) > 1:
-                counts["shared urls"][
-                    url_key(value) + " " + ",".join(sorted(listed))
-                ] += 1
+                counts["shared urls"][key + " " + ",".join(sorted(listed))] += 1
     return counts
 
 

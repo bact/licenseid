@@ -360,6 +360,7 @@ def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> 
         "MIT License (MIT)",
         "GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007",  # a text title
         "New BSD",  # another name of a licence
+        "https://spdx.org/licenses/MIT",  # a licence URL
     )
     seen = set()
     for value in values:

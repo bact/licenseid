@@ -77,6 +77,7 @@ from licenseid.resolvertypes import (
     Step,
     step,
 )
+from licenseid.urlkey import is_url
 
 _RE_MARK: Final = re.compile(LIST_MARK)
 _RE_ID_WORD: Final = re.compile(ID_WORD)
@@ -142,7 +143,10 @@ def absorb(found: Found, leaf: Found) -> None:
 def not_an_operator(text: str) -> str | None:
     """``not an SPDX operator: /`` when *text* is IDs joined by a mark that
     people use to join licences and SPDX does not (``MIT/Apache-2.0``,
-    ``MIT, ISC``), else None: a URL or prose with a comma is no such list."""
+    ``MIT, ISC``), else None: a URL (:func:`licenseid.urlkey.is_url`, with
+    or without its scheme) or prose with a comma is no such list."""
+    if is_url(text):
+        return None
     mark = _RE_MARK.search(text)
     parts = _RE_MARK.split(text)[::2]  # split keeps the marks: every 2nd
     if mark is None or not all(_RE_ID_WORD.fullmatch(part) for part in parts):

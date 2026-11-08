@@ -21,7 +21,7 @@ from conftest import GivenWarnings, posix_only
 from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
     safe_home,  # an autouse fixture: imported to apply it here
 )
-from db_variants import create_database, make_ready_file_db, writer
+from db_variants import NO_RECORDS, create_database, make_ready_file_db, writer
 from release_fakes import VERSION, online, release_bundle, serve, ship
 
 from licenseid import DatabaseNotReadyError, LicenseDatabase, LicenseIdError
@@ -70,7 +70,7 @@ def test_every_write_path_refuses_a_foreign_file(tmp_path: Path) -> None:
     foreign_license_index(path)
     handle = LicenseDatabase(str(path))
     with pytest.raises(DatabaseNotReadyError, match="^database: invalid: "):
-        handle._write_db_records([], [], [], None)  # pylint: disable=protected-access
+        handle._write_db_records(NO_RECORDS, None)  # pylint: disable=protected-access
     with pytest.raises(DatabaseNotReadyError, match="^database: invalid: "):
         handle._ensure_schema()  # pylint: disable=protected-access
     assert snapshot(path) == [("X", "mine")]
@@ -88,7 +88,7 @@ def test_a_write_to_a_ready_database_is_refused_while_it_is_locked(
     holder.execute("BEGIN EXCLUSIVE")
     try:
         with pytest.raises(DatabaseNotReadyError, match="database is locked"):
-            write([], [], [], None)
+            write(NO_RECORDS, None)
     finally:
         holder.close()
 

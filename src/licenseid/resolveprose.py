@@ -59,6 +59,7 @@ from licenseid.resolveleaf import Found, read_leaf, refuse_dropped
 from licenseid.resolvertypes import Step, step
 from licenseid.resolvetitle import read_title
 from licenseid.resolvetrove import is_no_licence, read_named, trailing_parts
+from licenseid.resolveurl import read_url
 
 _KIND = "prose_form"
 _LICENCE_WORDS = frozenset({"license", "licence"})
@@ -168,14 +169,16 @@ def _prose_body(db: ListLookup, text: str, body: str, found: Found) -> bool:
 
 def read_by_name(db: ListLookup, text: str, found: Found) -> bool:
     """Read *text*, a value no leaf and no compound reads, by the name it
-    carries: a trove name, path or agreeing short form
+    carries: a licence URL (:func:`licenseid.resolveurl.read_url`), a trove
+    name, path or agreeing short form
     (:func:`licenseid.resolvetrove.read_named`), the title of a licence text
     (:func:`licenseid.resolvetitle.read_title`), another name of a licence
     (:func:`licenseid.resolvealias.read_alias`), else as a prose form
     (:func:`read_prose`). A name that states no licence is claimed first, so
     no later rule reads it (Q22)."""
     return (
-        read_named(db, text, found)
+        read_url(db, text, found)
+        or read_named(db, text, found)
         or read_title(db, text, found)
         or read_alias(db, text, found)
         or read_prose(db, text, found)

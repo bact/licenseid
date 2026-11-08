@@ -173,6 +173,7 @@ class SpdxLicenseEntry(TypedDict, total=False):
     isOsiApproved: bool
     isFsfLibre: bool
     isDeprecatedLicenseId: bool
+    seeAlso: list[str]  # the licence's pages; read by listrules.listed_urls
 
 
 class ExceptionDetails(TypedDict, total=False):
@@ -190,6 +191,7 @@ class SpdxExceptionEntry(TypedDict, total=False):
     licenseExceptionId: Required[str]
     name: str
     isDeprecatedLicenseId: bool
+    seeAlso: list[str]  # the exception's pages; read by listrules.listed_urls
 
 
 class DatabaseMetadata(TypedDict, total=False):

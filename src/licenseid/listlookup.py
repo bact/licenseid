@@ -17,7 +17,7 @@ no import cycle.
 
 import contextlib
 import string
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Protocol, TypedDict
 
 from typing_extensions import Required
@@ -62,6 +62,43 @@ class ListedName(TypedDict):
     is_deprecated: bool
 
 
+class ListedUrl(TypedDict):
+    """A licence or exception that names a URL among its pages (``seeAlso``)."""
+
+    id: str
+    is_exception: bool
+
+
+# One row of a licence's or an exception's page: (owner ID, is_exception,
+# URL). Typed as read from a table, which a script may have filled with
+# anything.
+UrlRow = tuple[object, object, object]
+
+
+def index_urls(
+    rows: Iterable[UrlRow], key: Callable[[str], str | None]
+) -> dict[str, list[ListedUrl]]:
+    """The owners of *rows* by *key* of each URL, in row order: the
+    licences, then the exceptions, each in List order.
+
+    A row whose owner or URL is not a string, or whose URL *key* gives no
+    key (``None``), is skipped; so is an owner already named under the same
+    key (one licence that lists a page twice, or two spellings of one page).
+    """
+    index: dict[str, list[ListedUrl]] = {}
+    for owner, flag, url in rows:
+        if not isinstance(owner, str) or not isinstance(url, str):
+            continue
+        found = key(url)
+        if found is None:
+            continue
+        owners = index.setdefault(found, [])
+        listed = ListedUrl(id=owner, is_exception=bool(flag))
+        if listed not in owners:
+            owners.append(listed)
+    return index
+
+
 class ListedMetadata(TypedDict, total=False):
     """The metadata the resolver reads (the database's ``DatabaseMetadata``
     satisfies it). ``release_date`` is ``""`` when the list did not say."""
@@ -89,6 +126,10 @@ class ListLookup(Protocol):
       an index need not invent a popularity or a word count. A caller that
       needs the flags (``identifiers.flag_source``) takes a ``LicenseDatabase``.
     - ``get_active_ids_by_name`` is keyed by ``str.casefold()`` of the name.
+    - ``get_ids_by_url`` holds the ``seeAlso`` pages of the kept licences,
+      then of every exception, in List order, grouped by *key* of each URL
+      as :func:`index_urls` groups them: the raw URLs are kept, so a change
+      of *key* needs no rebuild.
     """
 
     def reading(self) -> contextlib.AbstractContextManager[None]:
@@ -104,6 +145,12 @@ class ListLookup(Protocol):
         self, key: Callable[[str], str]
     ) -> Mapping[str, Sequence[ListedName]]:
         """The licence rows grouped by *key* of each ID."""
+
+    def get_ids_by_url(
+        self, key: Callable[[str], str | None]
+    ) -> Mapping[str, Sequence[ListedUrl]]:
+        """The licences, then the exceptions, that list a page, by *key* of
+        its URL (:func:`index_urls`)."""
 
     def get_active_ids_by_name(self) -> dict[str, list[str]]:
         """The licence IDs in use by case-folded name."""

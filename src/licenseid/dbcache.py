@@ -19,7 +19,7 @@ from collections.abc import Callable
 from typing import TypeVar, cast
 
 from licenseid.dbconnection import Connections
-from licenseid.listlookup import fold_case
+from licenseid.listlookup import ListedUrl, UrlRow, fold_case, index_urls
 from licenseid.normalize import normalize_text
 from licenseid.types import LicenseDetails, LicenseNameId
 
@@ -42,6 +42,23 @@ def cast_license_details(row: sqlite3.Row) -> LicenseDetails:
     return cast(LicenseDetails, details)
 
 
+class _Keyed:
+    """The reads a caller keys its own way, for one generation of the
+    tables: names_and_ids() by a key of each ID, and the rows of
+    ``license_urls`` with their index by a key of each URL. One key of each
+    is kept; a call with another builds its index again."""
+
+    __slots__ = ("names", "url_rows", "urls")
+
+    def __init__(self) -> None:
+        self.names: tuple[Callable[[str], str], dict[str, list[LicenseNameId]]] | None
+        self.names = None
+        self.url_rows: list[UrlRow] | None = None
+        self.urls: (
+            tuple[Callable[[str], str | None], dict[str, list[ListedUrl]]] | None
+        ) = None
+
+
 class TableCache:
     """Reads of whole tables, each made at its first use.
 
@@ -60,9 +77,7 @@ class TableCache:
         self._names_and_ids: list[LicenseNameId] | None = None
         self._active_by_name: dict[str, list[str]] | None = None
         self._deprecated: dict[str, str] | None = None
-        # One index of names_and_ids() by a key of each ID, and its key.
-        self._keyed: tuple[Callable[[str], str], dict[str, list[LicenseNameId]]] | None
-        self._keyed = None
+        self._keyed = _Keyed()  # replaced, never emptied, by clear()
 
     def clear(self) -> None:
         """Forget every read, after the tables were rewritten."""
@@ -70,7 +85,7 @@ class TableCache:
         self._license_ids = self._index_rows = None
         self._names_and_ids = self._active_by_name = None
         self._deprecated = None
-        self._keyed = None
+        self._keyed = _Keyed()
 
     def _check_stamp(self) -> None:
         """Drop every read if the tables were rebuilt since they were made."""
@@ -163,8 +178,9 @@ class TableCache:
         """names_and_ids() by *key* of each ID, in table order: built once,
         so a lookup by key costs no pass over every row. One key is kept; a
         call with another rebuilds it."""
-        generation, keyed = self._generation, self._keyed
+        generation, holder = self._generation, self._keyed
         names = self.names_and_ids()  # checks the stamp, which may clear
+        keyed = holder.names
         if keyed is None or keyed[0] is not key or generation != self._generation:
             index: dict[str, list[LicenseNameId]] = {}
             for record in names:
@@ -172,8 +188,43 @@ class TableCache:
                     index.setdefault(key(record["license_id"]), []).append(record)
             keyed = (key, index)
             if generation == self._generation:
-                self._keyed = keyed
+                holder.names = keyed
         return keyed[1]
+
+    def ids_by_url(
+        self, key: Callable[[str], str | None]
+    ) -> dict[str, list[ListedUrl]]:
+        """The owners of each page in ``license_urls`` by *key* of its URL
+        (:func:`licenseid.listlookup.index_urls`), in table order: the
+        licences, then the exceptions. The table is read once per rebuild;
+        one key is kept, and a call with another keys the same rows again."""
+        self._check_stamp()
+        generation, holder = self._generation, self._keyed
+        keyed = holder.urls
+        if keyed is None or keyed[0] is not key:
+            rows = holder.url_rows
+            if rows is None:
+                rows = self._url_rows()
+            keyed = (key, index_urls(rows, key))
+            if generation == self._generation:
+                holder.url_rows, holder.urls = rows, keyed
+        return keyed[1]
+
+    def _url_rows(self) -> list[UrlRow]:
+        """The rows of ``license_urls`` in table order, or none when the
+        table is missing: a database built before it (build 3) is read as
+        it is, as a missing norm column is filled in memory, never written
+        (a lookup never writes; ``update`` makes the table)."""
+        with self._connections.connection() as conn:
+            if not conn.execute(
+                "SELECT 1 FROM sqlite_master"
+                " WHERE type = 'table' AND name = 'license_urls'"
+            ).fetchone():
+                return []
+            rows: list[UrlRow] = conn.execute(
+                "SELECT owner_id, is_exception, url FROM license_urls ORDER BY rowid"
+            ).fetchall()
+        return rows
 
     def active_ids_by_name(self) -> dict[str, list[str]]:
         """The IDs in use by case-folded name, built once: a lookup by name

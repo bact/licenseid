@@ -163,9 +163,10 @@ Common options:
   ID that ends in `-only` or `-or-later`), and either
   `WITH <exception>`, in
   brackets or not: `MIT`, `(MIT)`, `Apache-2.0+`,
-  `MIT WITH Font-exception-2.0`. It does not take an
-  `AND`/`OR` expression, a licence name, an SPDX URL or prose — those name
-  no single licence, so they exit 2 with
+  `MIT WITH Font-exception-2.0`, `spdx:MIT` (the SPDX prefix). It does not take
+  an `AND`/`OR` expression, a licence name, a URL
+  (`https://spdx.org/licenses/MIT`) or prose — those name no single
+  licence, so they exit 2 with
   `ERROR: option: invalid: --id: <value>; pass one license ID`. A file's tag
   may still hold any expression. Input that is, as a whole, one declared
   value, whether an argument, `--text`, standard input or a file, is read
@@ -603,7 +604,9 @@ pytest --run-benchmark
   taken, without fuzzy matching, with or without a database. It reads loose
   IDs (`Apache2`, `GPLv3`), the List's names, a licence's own title (`CC0
   1.0 Universal`, `Mulan PSL v2`), the BSD aliases (`New BSD`, `BSD-3`),
-  prose forms (`BSD 3-Clause License`),
+  prose forms (`BSD 3-Clause License`), licence URLs
+  (`https://www.apache.org/licenses/LICENSE-2.0`, `spdx:MIT`; a URL of
+  several licences is refused),
   quote marks, trove classifiers and compounds of one-word
   operands, and refuses, with a reason, what it would read only by dropping
   a mark or a word. What it reads, rule by rule, is in
