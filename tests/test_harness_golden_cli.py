@@ -24,6 +24,8 @@ from test_output_pattern import TEXT_LINE
 from licenseid.result import read_text_field
 from tools.golden.__main__ import CLI_FILE, digest, read_cli_golden
 
+pytestmark = pytest.mark.terse_cli  # the harness names --verbose itself
+
 
 @pytest.fixture(scope="module")
 def records(tmp_path_factory: pytest.TempPathFactory) -> dict[str, hcli.Record]:
@@ -96,8 +98,8 @@ def test_the_exit_status_agrees_with_the_answer(
             assert record.exit == records[key.replace("#json", "#text")].exit, key
         elif key.startswith(("update", "clear-cache")):
             assert record.exit == 0, key
-        elif "id-only" in key:
-            assert (record.exit, record.stdout.endswith("\n")) == (0, True), key
+        elif "terse" in key:  # the expression alone: an empty line for none
+            assert record.exit == (0 if record.stdout != "\n" else 1), key
         else:
             head = _head(record)
             flag = next((v for k, v in head.items() if k.startswith("IS_")), None)
@@ -111,7 +113,7 @@ def test_every_text_line_reads_back_to_its_json(
     records: dict[str, hcli.Record],
 ) -> None:
     for key, record in records.items():
-        if not key.endswith("#text") or record.exit == 2 or "id-only" in key:
+        if not key.endswith("#text") or record.exit == 2 or "terse" in key:
             continue
         other = records[key.replace("#text", "#json")]
         text_lines = record.stdout.split("\n")[:-1]

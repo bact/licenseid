@@ -49,16 +49,17 @@ MISSING = r"ERROR: input: missing; pass a file, an ID, --text, --id or stdin"
 SRC = ["arg_id", "arg_file", "text", "id", "stdin", "none", "dash"]
 
 #: Every combination of the three output-shaping flags; ``--json`` refuses
-#: ``--id-only`` and ``--diff`` (exit 2, C7).
+#: ``--diff`` (exit 2, C7). Without ``--verbose`` or ``--json``: the
+#: expression alone.
 OUTS: list[tuple[str, ...]] = [
     (),
     ("json",),
-    ("id-only",),
+    ("verbose",),
     ("diff",),
-    ("json", "id-only"),
+    ("json", "verbose"),
     ("json", "diff"),
-    ("id-only", "diff"),
-    ("json", "id-only", "diff"),
+    ("verbose", "diff"),
+    ("json", "verbose", "diff"),
 ]
 
 #: Licence identifiers the predicate consistency family asks about.
@@ -103,7 +104,7 @@ class Cell:
     #: detect | predicate | resolve | update | help | other -- picks the
     #: contract judged.
     kind: str = "other"
-    #: Which of json / id-only / diff the command was asked for.
+    #: Which of json / verbose / diff the command was asked for.
     outflags: frozenset[str] = frozenset()
     #: Exit status required, or None when the behaviour is unspecified.
     exp_exit: int | frozenset[int] | None = None
@@ -146,6 +147,8 @@ class CellSet:
         cell keeps its identifier as long as nothing is inserted before it.
         """
         seq = sum(1 for c in self.cells if c.fam == fam) + 1
+        if "outflags" not in kw and kw.get("kind") in ("detect", "resolve"):
+            kw["outflags"] = _out_flags(cmd)
         cell = Cell(id=f"{fam}-{seq:03d}", fam=fam, desc=desc, cmd=cmd, **kw)
         cell.tags.update(_command_tags(cmd))
         self.cells.append(cell)
@@ -154,6 +157,20 @@ class CellSet:
     def by_id(self) -> dict[str, Cell]:
         """The catalogue keyed by cell identifier."""
         return {c.id: c for c in self.cells}
+
+
+def _out_flags(cmd: str) -> frozenset[str]:
+    """The output flags *cmd* passes to ``detect`` or ``resolve``: no flag
+    means the expression alone. A cell that passes a flag as a value, or
+    after ``--``, gives its ``outflags`` itself."""
+    try:
+        words = shlex.split(cmd)  # a flag inside a quoted argument is no flag
+    except ValueError:  # an unbalanced quote: read it by white space
+        words = cmd.split()
+    flags = {"json"} if "--json" in words else set()
+    if "-v" in words or "--verbose" in words:
+        flags.add("verbose")
+    return frozenset(flags)
 
 
 def _command_tags(cmd: str) -> set[str]:
@@ -178,7 +195,7 @@ RESET_SIGINT = (
 
 def conflicting(out: tuple[str, ...]) -> bool:
     """Whether output flags *out* include two that cannot both be printed."""
-    return "json" in out and ("id-only" in out or "diff" in out)
+    return "json" in out and "diff" in out
 
 
 def licenseid(args: str, db: str = "$DB") -> str:

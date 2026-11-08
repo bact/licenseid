@@ -9,8 +9,11 @@ a value with no tab, line break or bare backslash; ``--json`` one RFC 8785
 object per line, byte for byte, whose keys include the text keys in lower
 case (it may hold more: ``resolve``'s whole resolution, ``detect``'s flags and
 ``lists``), a value that is empty in text ``null`` in JSON and no other.
-The exceptions (``detect --id-only``, ``--version``, ``--help``) are not
-run. A command with no answer prints its record too, every field empty
+The exceptions (``--version``, ``--help``, and ``detect`` and ``resolve``
+without ``--verbose``, which print the expression alone) are not held to it:
+the pattern is checked with ``-v`` (the autouse ``verbose_cli`` fixture adds
+it), and the expression alone by ``test_the_default_is_the_expression_alone``.
+A command with no answer prints its record too, every field empty
 (``null`` in JSON).
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
@@ -143,6 +146,43 @@ def test_every_line_follows_the_pattern(
             assert {k.lower(): v for k, v in fields.items()} == {
                 key: _as_text(value) for key, value in record.items()
             }
+
+
+TERSE_RUNS = [(s, a) for s, a in RUNS if a[0] in ("detect", "resolve")]
+
+
+@pytest.mark.terse_cli
+@pytest.mark.parametrize(
+    ("status", "args"), TERSE_RUNS, ids=[" ".join(a)[:40] for _, a in TERSE_RUNS]
+)
+def test_the_default_is_the_expression_alone(
+    monkeypatch: pytest.MonkeyPatch, db: str, status: int, args: list[str]
+) -> None:
+    """Without ``--verbose``: the expression of each result on a line of its
+    own, an empty line for none; the verbose record's first fields give the
+    same expressions, and ``--json`` is the same with or without it."""
+    if args[0] == "resolve":
+        ship(monkeypatch, fixture_bundle())
+    terse = _run(db, args, False)
+    full = _run(db, [args[0], "-v", *args[1:]], False)
+    assert (terse.exit_code, full.exit_code) == (status, status), terse.output
+    assert terse.stderr == full.stderr
+    if status == 2:
+        assert terse.stdout == ""
+        return
+    assert terse.stdout.endswith("\n")
+    shown = terse.stdout.splitlines()
+    heads = [
+        text_fields(line)["EXPRESSION"]
+        for line in full.stdout.splitlines()
+        if line.startswith("EXPRESSION=")
+    ]
+    assert shown == heads  # one line per result: resolve has one head line
+    assert all("\t" not in line and "=" not in line.split(" ")[0] for line in shown)
+    assert shown != [""] or status == 1
+    assert (
+        _run(db, args, True).stdout == _run(db, [args[0], "-v", *args[1:]], True).stdout
+    )
 
 
 def test_every_command_is_run() -> None:

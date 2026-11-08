@@ -47,13 +47,13 @@ UNIVERSE: dict[str, list[str]] = {
         "--pop",
         "--no-pop",
         "--diff",
-        "--id-only",
+        "--verbose",
         "--help",
     ],
 }
 for _pred in PREDS:
     UNIVERSE[_pred] = ["--text", "--id", "--json", "--help"]
-UNIVERSE["resolve"] = ["--json", "--source", "--text", "--help"]
+UNIVERSE["resolve"] = ["--json", "--source", "--text", "--verbose", "--help"]
 
 SOURCES = ["arg-id", "arg-file", "--text", "--id", "stdin", "dash", "none"]
 
@@ -67,7 +67,7 @@ MATCH_FLAGS = [
     "--pop",
     "--no-pop",
     "--diff",
-    "--id-only",
+    "--verbose",
 ]
 
 ENV_AXES = (

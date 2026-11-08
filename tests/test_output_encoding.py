@@ -248,7 +248,7 @@ def test_the_entry_point_on_a_narrow_locale(tmp_path: Path, encoding: str) -> No
     lines = {}
     for flag in ([], ["--json"]):
         proc = subprocess.run(
-            [sys.executable, "-c", script, str(bundle), "resolve", *flag, VALUE],
+            [sys.executable, "-c", script, str(bundle), "resolve", "-v", *flag, VALUE],
             capture_output=True,
             env=env,
             check=False,

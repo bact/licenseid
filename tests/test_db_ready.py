@@ -95,7 +95,7 @@ def input_args(source: str, tmp_path: Path) -> tuple[list[str], str]:
 
 
 @pytest.mark.parametrize("variant", NOT_READY_NAMES, indirect=True)
-@pytest.mark.parametrize("output", [[], ["--json"], ["--id-only"], ["--diff"]])
+@pytest.mark.parametrize("output", [[], ["--json"], ["--verbose"], ["--diff"]])
 def test_not_ready_refused(variant: Variant, output: list[str]) -> None:
     """No output option may turn the refusal into stdout (empty JSON too)."""
     result = run_cli(variant.db_arg, ["detect", *output, "--id", "MIT"])
@@ -331,8 +331,9 @@ def test_license_database_stays_permissive(variant: Variant) -> None:
 
 
 @pytest.mark.parametrize("variant", READY_NAMES, indirect=True)
+@pytest.mark.terse_cli
 def test_ready_database_matches(variant: Variant) -> None:
-    result = run_cli(variant.db_arg, ["detect", "--id-only", "--id", "MIT"])
+    result = run_cli(variant.db_arg, ["detect", "--id", "MIT"])
     assert_no_traceback(result)
     assert result.exit_code == 0
     assert result.stdout == "MIT\n"
@@ -394,10 +395,10 @@ def test_two_matchers_on_one_database(tmp_path: Path) -> None:
 def test_database_emptied_between_two_runs(tmp_path: Path) -> None:
     """A ready database that loses its rows is refused on the next run."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
-    assert run_cli(str(db_path), ["detect", "--id-only", "--id", "MIT"]).exit_code == 0
+    assert run_cli(str(db_path), ["detect", "--id", "MIT"]).exit_code == 0
     with writer(db_path) as conn:
         conn.execute("DELETE FROM licenses")
-    result = run_cli(str(db_path), ["detect", "--id-only", "--id", "MIT"])
+    result = run_cli(str(db_path), ["detect", "--id", "MIT"])
     assert_refused(result, EMPTY, str(db_path))
 
 
@@ -430,6 +431,7 @@ def _mutate(payload: bytes, rng: random.Random, truncate: bool) -> tuple[bytes, 
     return bytes(data), f"flip@{offsets}"
 
 
+@pytest.mark.terse_cli
 def test_random_corruption_sweep(tmp_path: Path) -> None:
     """200 deterministic mutations of a ready database: the CLI may only give
     the right answer or a single-line refusal with exit 2. Exit 1 is tolerated
@@ -444,7 +446,7 @@ def test_random_corruption_sweep(tmp_path: Path) -> None:
     for iteration in range(200):
         data, what = _mutate(payload, rng, truncate=bool(iteration % 2))
         target.write_bytes(data)
-        result = run_cli(str(target), ["detect", "--id-only", "--id", "MIT"])
+        result = run_cli(str(target), ["detect", "--id", "MIT"])
         context = f"iteration {iteration} ({what}): "
         assert_no_traceback(result)
         if result.exit_code == 0:
@@ -454,7 +456,7 @@ def test_random_corruption_sweep(tmp_path: Path) -> None:
             assert not _mit_row_readable(target), (
                 context + "exit 1 although the MIT row is intact"
             )
-            assert result.stdout == "", context + repr(result.stdout)
+            assert result.stdout == "\n", context + repr(result.stdout)
             continue
         assert result.exit_code == 2, context + f"exit {result.exit_code}"
         assert result.stdout == "", context + repr(result.stdout)
