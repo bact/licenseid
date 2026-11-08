@@ -11,14 +11,14 @@ and this project adheres to
 
 ## [Unreleased]
 
-<!-- add the PR link once it exists -->
-
 ### Changed
 
 - `resolve()`, SPDX tags and manifest fields leave a control or format character
   off either end of a value, and read one beside a space as that space
   (`MIT\u200b`, `\ufeffMIT`, `MIT OR\u200b ISC`); a bidi control first, or a
-  hidden character between two others, is still refused
+  hidden character between two others, is still refused ([#181)
+
+[#181]: https://github.com/bact/licenseid/pull/181
 
 ## [0.8.0] - 2026-11-08
 
