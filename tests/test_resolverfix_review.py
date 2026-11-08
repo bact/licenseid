@@ -65,7 +65,8 @@ MATCHED: dict[str, Answer] = {
     '"MIT" \x1d ;': (None, "unresolved", [], "control or format character: U+001D"),
     '"MIT"\x1f,': (None, "unresolved", [], "control or format character: U+001F"),
     '"MIT"\x1c\x1c.': (None, "unresolved", [], "control or format character: U+001C"),
-    '"MIT"\x1e': (None, "unresolved", [], "control or format character: U+001E"),
+    # at the end it is left off (`hiddenchars`, 0.8.1), then the quotes
+    '"MIT"\x1e': ("MIT", "separator", ["trim", "unquote"], None),
     # 4: case folded in ASCII only: no letter outside it is an "i", "s", "k"
     "LicenseRef-\u017f": (None, "unresolved", [], "not found: LicenseRef-\u017f"),
     "LicenseRef-\u0131": (None, "unresolved", [], "not found: LicenseRef-\u0131"),

@@ -35,6 +35,7 @@ from typing import Final
 from licenseid.dropguard import marks_at_end, trim_end_mark
 from licenseid.exprcanon import unbracketed
 from licenseid.exprtokens import RE_OPERATOR, WHITE_SPACE, is_white_space
+from licenseid.hiddenchars import space_out_hidden, strip_hidden
 from licenseid.listlookup import ListLookup
 from licenseid.listsource import GivenDatabase, choose_list
 from licenseid.quotes import ended_quote, unquote
@@ -198,9 +199,9 @@ def _require_text(value: object) -> None:
 
 def read_length(value: str) -> int:
     """The length of *value* as :data:`MAX_EXPRESSION_CHARS` counts it:
-    trimmed, without the quotes and brackets around the whole of it (one
-    pass over it)."""
-    return len(_prepared(value, Found())[0])
+    trimmed, without the hidden characters at its ends and without the
+    quotes and brackets around the whole of it (one pass over it)."""
+    return len(_prepared(strip_hidden(value)[0], Found())[0])
 
 
 def _read(
@@ -210,12 +211,22 @@ def _read(
     and whether the expression parser ran. With *lists* false a ``;`` between
     licences is not split: a part is not read as a list again."""
     found = Found()
-    text, start = _prepared(value, found)
+    shown, lead = strip_hidden(value)
+    if shown is not value:
+        found.steps.append(step("trim", True, value, shown, "invisible characters"))
+        found.floor = "separator"  # characters were dropped: a rule of the resolver
+    spaced = space_out_hidden(shown)
+    if spaced != shown:
+        found.steps.append(step("trim", True, shown, spaced, "invisible characters"))
+        found.floor = "separator"
+        shown = spaced
+    text, start = _prepared(shown, found)
+    start += lead
     if not text or len(text) > MAX_EXPRESSION_CHARS:
         found.category, found.steps = "unresolved", []  # nothing was read
         found.reason = too_long(len(text)) if text else EMPTY
         return found, [], False
-    found.reason = _refusal(value)  # before any reader drops a character
+    found.reason = _refusal(shown)  # before any reader drops a character
     if found.reason is not None:
         found.category, found.steps = "unresolved", []  # no step was taken
         return found, [], False

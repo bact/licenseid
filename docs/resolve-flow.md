@@ -128,14 +128,19 @@ reads the value, or when it refuses it with a reason.
    ([`resolve_with`](../src/licenseid/resolver.py#L113)).
 3. **Prepare the text** ([`_prepared`](../src/licenseid/resolver.py#L301)),
    with one step for each change:
-   1. trim white space (`trim`);
-   2. one end mark after closing quotes (`"MIT".`) comes off (`separator`),
+   1. control and format characters at either end come off with the white
+      space beside them ([`strip_hidden`](../src/licenseid/hiddenchars.py);
+      `trim`, detail `invisible characters`; sets the `separator` floor);
+      a bidi control at the start, a NUL or a value of nothing else is left
+      for the refusal in step 5;
+   2. trim white space (`trim`);
+   3. one end mark after closing quotes (`"MIT".`) comes off (`separator`),
       then quote marks round the whole value
       ([`quotes.unquote`](../src/licenseid/quotes.py#L82), `unquote`; an
       unbalanced pair sets the `separator` floor);
-   3. brackets round the whole value (`brackets`,
+   4. brackets round the whole value (`brackets`,
       [`exprcanon.unbracketed`](../src/licenseid/exprcanon.py#L72));
-   4. quotes again, if brackets came off (`("MIT")`).
+   5. quotes again, if brackets came off (`("MIT")`).
 4. **Empty or too long.** Nothing left is `unresolved` with reason `empty`;
    more than 2,000 characters
    ([`MAX_EXPRESSION_CHARS`](../src/licenseid/resolver.py#L73)) is
@@ -143,8 +148,9 @@ reads the value, or when it refuses it with a reason.
 5. **Character gate** ([`_refusal`](../src/licenseid/resolver.py#L349)). A
    lone surrogate, or a control or format character that is not white space
    (NUL, a zero-width space, a bidi override), refuses the whole value
-   before any reader runs, with no step. The check runs on the raw value,
-   so no reader can drop such a character as a separator.
+   before any reader runs, with no step. The check runs on the value with
+   the hidden characters at its ends left off (step 3.1), before any other
+   reader, so no reader can drop such a character as a separator.
 6. **The readers**
    ([`_read_text`](../src/licenseid/resolver.py#L229)), first match wins:
    1. *One licence*
@@ -254,7 +260,7 @@ stronger). Ten step kinds change only form and count as `lexical`.
 | `deprecated_equal_successor` | list_data | the List says what replaced a deprecated ID |
 | `plus_to_or_later` | list_data | `X+` read as `X-or-later` |
 | `stated_qualifier` | author_words | the author wrote "or later" |
-| `separator` | resolver_rule | a loose ID, an end mark, an unbalanced quote |
+| `separator` | resolver_rule | a loose ID, an end mark, an unbalanced quote, a hidden character at an end |
 | `version_spelling` | resolver_rule | `Apache2`, `GPLv3` |
 | `prose_form` | resolver_rule | `BSD 3-Clause License` |
 | `text_title` | resolver_rule | `CC0 1.0 Universal` |

@@ -66,6 +66,25 @@ five passes; each pass that changes the text records one step, in this order:
 
 ### Stage A: prepare the whole value
 
+**A0. Leave off hidden characters at the ends.** A control or format character
+(categories `Cc` and `Cf`, not white space, not NUL) at the start or end of
+the value comes off, with the white space beside it (step `trim`, detail
+`invisible characters`; the answer is `separator`, `resolver_rule`). *Reason:*
+nothing that shows is lost at an end, since no text stands beyond it for a bidi
+control to reorder. A bidi control at the start (`U+202E`, which shows as
+`TIM`) is not left off but refused by rule A4. *Source:*
+[`hiddenchars.strip_hidden`](../src/licenseid/hiddenchars.py).
+*Example:* `MIT\u200b` and `\ufeffMIT` give `MIT`.
+Inside the value, a format character (`Cf`, not a bidi control) in a run that
+touches white space is made a space, one code point for one
+([`hiddenchars.space_out_hidden`](../src/licenseid/hiddenchars.py)): `MIT
+OR\u200b ISC` gives `ISC OR MIT`. *Reason:* the run joins no words, since a
+space stands beside it. A run between two other characters (`M\u200bIT`), a
+control character and a bidi control (`MIT OR\u202e ISC` shows the rest
+reversed) are refused by rule A4.
+*Test:* [`test_hiddenchars.py`](../tests/test_hiddenchars.py).
+*Spec:* not addressed.
+
 **A1. Trim white space.** White space at both ends comes off (step `trim`).
 White space is Unicode's `White_Space` property, less U+001C to U+001F
 ([`WHITE_SPACE`](../src/licenseid/exprtokens.py#L50)).
@@ -97,12 +116,14 @@ depth between the leading and trailing runs says how many pairs go, so
 *Spec:* **differs.** Annex D has parentheses only; the code also reads `[]`
 and `{}` (decision Q21).
 
-**A4. Refuse control and format characters.** A NUL, a zero-width space or a
-bidi override anywhere in the value refuses it, with no step (`unresolved`,
-`control or format character: U+200B`). *Reason:* dropping such a character as
-a separator would resolve text that shows other than it reads. *Source:*
+**A4. Refuse control and format characters.** What rule A0 left in the value
+refuses it, with no step (`unresolved`, `control or format character: U+200B`):
+a NUL, a bidi control at the start, and a zero-width space or another such
+character anywhere inside, or a value of nothing else. *Reason:* dropping such
+a character as a separator would resolve text that shows other than it
+reads. *Source:*
 [`resolver.py:349`](../src/licenseid/resolver.py#L349).
-*Test:* [`test_resolver_compound_limits.py:122`](../tests/test_resolver_compound_limits.py#L122).
+*Test:* [`test_hiddenchars.py`](../tests/test_hiddenchars.py) (`REFUSED`).
 *Spec:* not addressed.
 
 ### Stage B: cut into leaves and read each leaf

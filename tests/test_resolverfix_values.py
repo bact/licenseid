@@ -145,7 +145,8 @@ REF_CASE: dict[str, Answer] = {
 }
 
 #: Item 5: the information separators are control characters, refused
-#: (was: white space, read through).
+#: (was: white space, read through). At an end one is left off (`hiddenchars`,
+#: 0.8.1); inside, or alone, it is still refused.
 SEPARATORS: dict[str, Answer] = {
     "MIT\x1cAND\x1fApache-2.0": (
         None,
@@ -153,11 +154,11 @@ SEPARATORS: dict[str, Answer] = {
         [],
         "control or format character: U+001C",
     ),
-    "MIT\x1c": (None, "unresolved", [], "control or format character: U+001C"),
-    "\x1dMIT": (None, "unresolved", [], "control or format character: U+001D"),
-    "MIT\x1e": (None, "unresolved", [], "control or format character: U+001E"),
-    "MIT\x1f": (None, "unresolved", [], "control or format character: U+001F"),
-    '"MIT"\x1c': (None, "unresolved", [], "control or format character: U+001C"),
+    "MIT\x1c": ("MIT", "separator", ["trim"], None),
+    "\x1dMIT": ("MIT", "separator", ["trim"], None),
+    "MIT\x1e": ("MIT", "separator", ["trim"], None),
+    "MIT\x1f": ("MIT", "separator", ["trim"], None),
+    '"MIT"\x1c': ("MIT", "separator", ["trim", "unquote"], None),
     "MIT \x1c OR ISC": (
         None,
         "unresolved",

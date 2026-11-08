@@ -221,11 +221,12 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         ("(GPL-2.0) +", MALFORMED),
         ("(Foo)+", NONE),
         ("(MIT OR Apache-2.0)+", MALFORMED),  # fixr item 3
-        # a character that hides or reorders text is no part of a value
-        ("MIT\u200b", NONE),
-        ("\u202eMIT", NONE),
+        # a character that hides or reorders text is no part of a value:
+        # left off at an end (`hiddenchars`), a refusal anywhere else
+        ("MIT\u200b", ("MIT", "separator", ["trim"], [], [])),
+        ("\ufeffMIT", ("MIT", "separator", ["trim"], [], [])),
+        ("\u202eMIT", NONE),  # a bidi control first shows other than it reads
         ("M\u2060IT", NONE),
-        ("\ufeffMIT", NONE),
         ("Apache\u00ad2", NONE),  # a soft hyphen is a format character too
         ("MIT\u00a0", ("MIT", "lexical", ["trim"], [], [])),  # white space is not
     ],

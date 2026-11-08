@@ -391,14 +391,14 @@ def test_a_grant_is_kept_in_a_field(corpus_db: LicenseDatabase, tmp_path: Path) 
 
 @pytest.mark.parametrize(
     ("value", "code"),
-    [("\x1f", "U+001F"), (" \x1f ", "U+001F"), ("\x1fMIT", "U+001F")],
-    ids=["alone", "in-spaces", "before-an-id"],
+    [("\x1f", "U+001F"), (" \x1f ", "U+001F")],
+    ids=["alone", "in-spaces"],
 )
 def test_a_unit_separator_is_a_character_on_the_command_line(
     monkeypatch: pytest.MonkeyPatch, value: str, code: str
 ) -> None:
     """It was blank (``str.strip`` takes U+001C to U+001F), exit 2; resolve()
-    refuses it as a control character, exit 1, as for ``MIT\x1f``."""
+    refuses it as a control character, exit 1, when nothing else is there."""
     ship(monkeypatch, fixture_bundle())
     result = CliRunner().invoke(cli, ["resolve", value])
     assert (result.exit_code, result.stderr) == (1, "")
@@ -433,6 +433,20 @@ def test_white_space_alone_is_still_empty(
     result = CliRunner().invoke(cli, ["resolve", value])
     assert (result.exit_code, result.stdout) == (2, "")
     assert result.stderr == "ERROR: input: empty: argument\n"
+
+
+def test_a_unit_separator_beside_an_id_is_left_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``\\x1fMIT`` was refused as a control character; one at an end is left
+    off now (`hiddenchars`), as for ``MIT\\x1f``."""
+    ship(monkeypatch, fixture_bundle())
+    result = CliRunner().invoke(cli, ["resolve", "\x1fMIT"])
+    assert (result.exit_code, result.stderr) == (0, "")
+    assert result.stdout == (
+        "EXPRESSION=MIT\tCATEGORY=separator\tTRUST=resolver_rule\n"
+        "STEP=trim\tFROM=\x1fMIT\tTO=MIT\n"
+    )
 
 
 def test_a_unit_separator_as_the_argument_of_detect(corpus_db: LicenseDatabase) -> None:

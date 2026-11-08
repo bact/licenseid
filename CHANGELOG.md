@@ -9,6 +9,17 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+<!-- add the PR link once it exists -->
+
+### Changed
+
+- `resolve()`, SPDX tags and manifest fields leave a control or format character
+  off either end of a value, and read one beside a space as that space
+  (`MIT\u200b`, `\ufeffMIT`, `MIT OR\u200b ISC`); a bidi control first, or a
+  hidden character between two others, is still refused
+
 ## [0.8.0] - 2026-11-08
 
 ### Added
