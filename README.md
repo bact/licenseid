@@ -21,7 +21,7 @@ generator.*
 ## Features
 
 - Normalises license expression:
-  `(MIT OR MIT) AND Apache-2.0` -> `Apache-2.0 AND MIT`
+  `(MIT OR MIT) and Apache-2.0` -> `Apache-2.0 AND MIT`
 - Normalises deprecated ID: `GPL-2.0+` → `GPL-2.0-or-later`
 - Reads a licence URL as its licence:
   `https://www.apache.org/licenses/LICENSE-2.0` -> `Apache-2.0`
