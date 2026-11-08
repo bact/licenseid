@@ -423,12 +423,15 @@ def test_a_url_that_names_nothing_reads_as_nothing(
     ("value", "reason"),
     [
         ("https://spdx.org/licenses/MIT\x00", "control or format character: U+0000"),
-        ("https://spdx.org/licenses/MIT\u200b", "control or format character: U+200B"),
+        (
+            "https://spdx.org/licenses/M\u200bIT",
+            "control or format character: U+200B",
+        ),
         ("https://spdx.org/licenses/MIT\udcff", "lone surrogate"),
         ("https://x.org/" + "a" * 2000, "too long: 2014 characters"),
         ("https://spdx.org/licenses/" + "M" * 2000, "too long: 2026 characters"),
     ],
-    ids=["nul", "zero-width-space", "surrogate", "long", "long-id"],
+    ids=["nul", "inner-zero-width-space", "surrogate", "long", "long-id"],
 )
 def test_the_gates_of_resolve_come_first(
     corpus_db: LicenseDatabase, value: str, reason: str

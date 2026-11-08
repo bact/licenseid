@@ -28,6 +28,10 @@ It made None mean nothing (P4): a step's empty ``list`` and ``detail`` are
 ``null`` in the fixture (they were ``""``), and the ``by`` that T7 added to
 every step is gone.
 
+Two cases moved with `hiddenchars` (0.8.1): ``MIT\\u200b`` and
+``MIT\\x07`` read as ``MIT`` (a control or format character at an end is
+left off) and were refused before.
+
 Lone surrogates survive the JSON file as ``\\udXXX`` escapes
 (``ensure_ascii=True``), and ``json.loads`` gives them back.
 The result's ``input`` shows each as U+FFFD (task resolverfix), so that

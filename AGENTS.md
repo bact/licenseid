@@ -45,8 +45,10 @@
   detection), `warning.py` (`LicenseIdWarning` and `warn`, the one emitter
   of a library warning),
   `dropguard.py` (the characters and words a loose reading must not drop:
-  `Apache 2.0?`, `REM MIT`), `listindex.py` (the shipped SPDX bundle in
-  memory, a `ListLookup` for `resolve()` with no database),
+  `Apache 2.0?`, `REM MIT`), `hiddenchars.py` (control and format characters
+  left off the ends of a declared value: `MIT\u200b`), `listindex.py` (the
+  shipped SPDX bundle in memory, a `ListLookup` for `resolve()` with no
+  database),
   `listsource.py` (which list `resolve()` reads: database or packaged),
   `cli.py` (the group and `main`), `cliinput.py` (the input of `detect`
   and `is-*`: one of a file, a value, `--text`, `--id`, `-`),

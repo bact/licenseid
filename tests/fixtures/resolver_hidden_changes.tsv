@@ -1,0 +1,7 @@
+# The answers the hidden-character rule (licenseid.hiddenchars) moved in the
+# parity corpus and the PyPI sample.
+# value: Python unicode_escape; group: why it moved (in
+# tests/resolver_changes_hidden.py); then the answer, its fields written as
+# in the other answer fixtures.
+value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
+MIT\u200b	hidden	MIT	separator	-	trim	MIT	-	-	resolver_rule	yes	-

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-27
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-08
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -44,11 +44,33 @@ seven more. What was decided:
   `unresolved`.
 - **"+" after a bracket.** SPDX gives "+" to a licence ID only, so
   `(GPL-2.0)+` is `malformed`. PR #97 had pinned it as accepted.
-- **Hidden characters.** A format character (category Cf: a zero-width
-  space, a bidi override, a soft hyphen, a BOM) makes a value `unresolved`,
-  as a control character does. The loose-ID key used to fold one away as a
-  separator, so `MIT​` resolved to MIT. White space such as a
-  no-break space is still trimmed.
+- **Hidden characters.** A format character (category Cf: a zero-width space, a
+  bidi override, a soft hyphen, a BOM) makes a value `unresolved`, as a control
+  character does. The loose-ID key used to fold one away as a separator, so
+  `MIT<U+200B>` resolved to MIT. White space such as a no-break space is still
+  trimmed. *Changed in 0.8.1* (`hiddenchars.py`): at the START or END of the
+  value a control or format character is left off, as white space is (one `trim`
+  step, detail `invisible characters`, floor `separator`, so the answer is
+  `resolver_rule`, never `identity`). Why ends only: nothing that shows is lost
+  at an end, and no text stands beyond it for a bidi control to reorder; inside,
+  a character joins or splits words (`M`, U+200B, `IT`; `MIT`, U+200B, `OR ISC`)
+  and the value would read other than it shows. Why not a bidi control at the
+  start: U+202E before `MIT` shows as `TIM`, so the text reads other than it
+  shows; a trailing one is trimmed. NUL is never trimmed: it is the sign of
+  binary data. Inside, a format character (not a bidi control, not a control
+  character) in a run that touches white space is made a space, one code point
+  for one (`space_out_hidden`, a second `trim` step), so `MIT OR<ZWSP> ISC`
+  reads and the spans still index the raw input. A value of hidden characters
+  alone stays refused (nothing is left
+  to read). The refusal runs on the value after the trim, and `operands[].span`
+  adds the characters left off at the start, so it still indexes the raw
+  `input`. The length limit and `resolver.read_length` (the CLI's check) count
+  the value after the trim; a first version of the change left `read_length`
+  out, so the CLI refused `MIT` and 5,000 zero-width spaces as too long, which
+  the library read. `detect(license_id=...)` and `--id` still refuse such a
+  value (`is_simple_expression` is exact on purpose). A tag already took a
+  trailing one; a leading one, and a trailing one on a compound `license` field,
+  still give no answer (`markers.py`).
 - **Names** come from `TableCache.active_ids_by_name`, built once per
   database generation, not from a scan of every row on each call. The
   comparison is still the exact case-folded name, the List's own name.

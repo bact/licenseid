@@ -73,6 +73,21 @@ steps taken, without fuzzy matching:
   `MIT+`; `GPL-2.0+?`, `MIT License -` are refused). At
   the start nothing is left off: `-- MIT`, `; MIT`, `... MIT`, and an ID
   cut from a longer one (`.GPL-3.0-only`, `-MIT`) are refused;
+- a control or format character at either end of the value is left off, as
+  white space is (`MIT\u200b`, `\ufeffMIT`, `MIT\u202e`, `MIT\x07`, `"MIT"\u200b`,
+  `MIT OR ISC\u200b`): one `trim` step with the detail `invisible characters`,
+  and the answer is `separator` (`resolver_rule`), since a character was
+  dropped. Nothing that shows is lost at an end: no text stands beyond it for
+  a bidirectional control to reorder. A bidi control at the *start*
+  (`\u202eMIT`, which shows as `TIM`), a hidden character anywhere inside
+  (`M\u200bIT`, `MIT\u200bOR ISC`), a NUL (a sign of binary data) and a value
+  of nothing else are still refused (`control or format character`). Inside,
+  a format character that is no bidi control and touches white space is that
+  white space (`MIT OR\u200b ISC`, `MIT\u200b OR ISC`): a second `trim` step
+  makes it a space, one code point for one, so the spans still index the raw
+  value;
+  `operands[].span` indexes the raw value, so it counts the characters left
+  off at the start. The 2,000 character limit counts the value after that;
 - licences joined by a `;` (`MIT ; Apache 2`) name two licences and not how
   they combine (`AND` or `OR`), so the value is `unresolved`, with the
   `reason` `operator not stated: ;` and one operand for each part, each
@@ -529,34 +544,35 @@ the end of a `+`, an exception, a `LicenseRef-*` or a prose form: `MIT+-`,
 order they stand, `U+002D U+003F`), `word dropped: rem 1` (a comment or list
 marker that the reading would drop, in lower case), `lone surrogate`, `control
 or format character: U+200B` (U+001C to U+001F too: they are not white space;
-`input` shows a lone surrogate as U+FFFD); for a compound, `operand not
-resolved: <operand>` (or that operand's own reason), `operand of several words:
-<leaf>` (a leaf that reads alone, as `BSD 3-Clause` does), `not an SPDX
-operator: /` (also `|`, `&` and `,` between IDs, and `;` when fewer than two
-parts name a licence: `MIT; Foo`), `operator not stated: ;` (above), `url
+refused inside the value, as a first bidi control, as a NUL and alone, but left
+off at an end, above; `input` shows a lone surrogate as U+FFFD); for a compound,
+`operand not resolved: <operand>` (or that operand's own reason), `operand of
+several words: <leaf>` (a leaf that reads alone, as `BSD 3-Clause` does), `not
+an SPDX operator: /` (also `|`, `&` and `,` between IDs, and `;` when fewer than
+two parts name a licence: `MIT; Foo`), `operator not stated: ;` (above), `url
 names several licences: <IDs>` (sorted; a page the List gives to unrelated
-licences, or one that offers a choice), `url names an exception: <IDs>` (a
-page of exceptions only), `url names a licence with an exception: <licence
-IDs>, <exception IDs>` (each sorted; a page of both), `parse
-failed: <the parser's message>`, `mismatched brackets` (a bracket pairs only
-with the same kind: `(MIT]`), `too many operators` (over 150) and `too deeply
-nested` (over 150). A value with a part of several words (`Apache License 2.0 OR
-MIT`) is no compound, but, when its operators are in upper case, its reason
-names the first operand refused: `operand of several words: <leaf>` if that leaf
-reads alone, else `operand not resolved: <leaf>`. A detail taken from the input
-is folded to one line and cut at 60 characters. One with a lower-case `or` or
-`and` whose words name nothing (`GPL-3.0 or higher`) is prose: `not found:
-GPL-3.0 or higher`, unless an operand has its own (a dropped mark). A refused
-value is category `unresolved` with no expression, or `malformed` when the
-compound breaks the grammar but names a licence (`MIT AND`). For a dropped mark,
-`steps` holds one `drop` step with `applied` false: its `to` is the listed ID
-the loose reading named (`resolve("Apache 2.0?")` would have read `Apache-2.0`;
-a renamed ID is not followed) and its `detail` the code points. White space,
-`_`, `.`, a dash (the hyphen-minus, the Unicode hyphens and dashes and the minus
-sign) and one `.` or `,` at the end are not marks; nor is one `;` or `:` there,
-which is an ending left off. The same holds after a `+`, an exception or a
-`LicenseRef-*` (`MIT+;` is `MIT+`; `GPL-2.0+?` is refused). A dot or dash that
-ends a `LicenseRef-*`, `AdditionRef-*` or `DocumentRef-*` is part of the ID, so
+licences, or one that offers a choice), `url names an exception: <IDs>` (a page
+of exceptions only), `url names a licence with an exception: <licence IDs>,
+<exception IDs>` (each sorted; a page of both), `parse failed: <the parser's
+message>`, `mismatched brackets` (a bracket pairs only with the same kind:
+`(MIT]`), `too many operators` (over 150) and `too deeply nested` (over 150). A
+value with a part of several words (`Apache License 2.0 OR MIT`) is no compound,
+but, when its operators are in upper case, its reason names the first operand
+refused: `operand of several words: <leaf>` if that leaf reads alone, else
+`operand not resolved: <leaf>`. A detail taken from the input is folded to one
+line and cut at 60 characters. One with a lower-case `or` or `and` whose words
+name nothing (`GPL-3.0 or higher`) is prose: `not found: GPL-3.0 or higher`,
+unless an operand has its own (a dropped mark). A refused value is category
+`unresolved` with no expression, or `malformed` when the compound breaks the
+grammar but names a licence (`MIT AND`). For a dropped mark, `steps` holds one
+`drop` step with `applied` false: its `to` is the listed ID the loose reading
+named (`resolve("Apache 2.0?")` would have read `Apache-2.0`; a renamed ID is
+not followed) and its `detail` the code points. White space, `_`, `.`, a dash
+(the hyphen-minus, the Unicode hyphens and dashes and the minus sign) and one
+`.` or `,` at the end are not marks; nor is one `;` or `:` there, which is an
+ending left off. The same holds after a `+`, an exception or a `LicenseRef-*`
+(`MIT+;` is `MIT+`; `GPL-2.0+?` is refused). A dot or dash that ends a
+`LicenseRef-*`, `AdditionRef-*` or `DocumentRef-*` is part of the ID, so
 `LicenseRef-a.;`, `LicenseRef-a-;` and `MIT WITH AdditionRef-x.;` read without
 the end mark; `LicenseRef-a;;` is refused. A mark after a bracket, a trove name
 or path, or a prose form in brackets that is not one ending is named: `(MIT)-`
@@ -565,8 +581,8 @@ and `MIT License (MIT)-` are `character dropped: U+002D`, `"(MIT;)".` is
 (`"(MIT)" OR Zlib`) are `character dropped: U+0022`. One end mark after
 brackets, a trove name or path or a listed name is an ending (`(MIT).`, `Apache
 License 2.0.`). A `reason` keeps the `;` of the value it names (`not found:
-Foo;Bar baz`); only the diagnostic lines of the CLI turn it into `,`. A value that
-is only quote marks, with or without an ending or a `+` (`"".`, `""+`), is
+Foo;Bar baz`); only the diagnostic lines of the CLI turn it into `,`. A value
+that is only quote marks, with or without an ending or a `+` (`"".`, `""+`), is
 `empty`.
 
 ## Quote marks

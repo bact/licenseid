@@ -12,6 +12,7 @@ from licenseid.bsdclauses import bsd_clause_id
 from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
 from licenseid.exprflags import declared_flags, judged_flags
+from licenseid.hiddenchars import space_out_hidden, strip_hidden
 from licenseid.identifiers import (
     leading_expression,
     names_only_listed,
@@ -231,6 +232,7 @@ class MarkerDetector:
         not MIT with trailing prose, and answering MIT would drop a license.
         A narrowed guess is said of *shown*, the value as written, if given."""
         # Each word that is a licence URL becomes the ID it names.
+        val = space_out_hidden(strip_hidden(val)[0])  # as resolve() does
         words = [url_license_id(self.db, word) or word for word in val.split()]
         val = " ".join(words) if words != val.split() else val.strip()
         # A value runs to the end of its line and can trail off into prose, so

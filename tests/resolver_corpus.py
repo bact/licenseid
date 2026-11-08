@@ -22,6 +22,7 @@ from pathlib import Path
 
 from resolver_changes_aliases import ALIASES_CHANGES
 from resolver_changes_contract import CONTRACT_CHANGES
+from resolver_changes_hidden import HIDDEN_CHANGES
 from resolver_changes_readers import READERS_CHANGES
 from resolver_changes_resolverfix import RESOLVERFIX_CHANGES
 from resolver_changes_t7 import T7_CHANGES, answer
@@ -123,7 +124,6 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
         ),
     ),
     "MIT\x00": (refused("control or format character: U+0000"), _CONTROL),
-    "MIT\u200b": (refused("control or format character: U+200B"), _CONTROL),
     "\u202eMIT": (refused("control or format character: U+202E"), _CONTROL),
     "Apache 2.0?": (
         refused("character dropped: U+003F", "Apache-2.0"),
@@ -170,6 +170,7 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
     **VERSIONED_CHANGES,
     **URLS_CHANGES,  # last: a value it moves again has its answer now
     **ALIASES_CHANGES,  # last, for the same reason
+    **HIDDEN_CHANGES,  # last: `MIT\u200b` was refused, now read
 }
 
 
