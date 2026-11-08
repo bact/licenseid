@@ -561,6 +561,9 @@ moves are in `tests/harness_changes_nametier.py`.
   by name, inexact (pinned as `# BUG:` in `tests/test_stray_plus_paths.py`).
   `resolve()` reads no prose, so nothing refuses it; the fix of item 44 asks
   `resolve()` about a value of under 30 words only.
+- **A refused "+" at 10 to 29 words**: `MIT OR Apache-2.0 OR … +` (a compound
+  of ten licences) is refused by `resolve()` for its "+" and still gets a
+  Tier 1 text match (`LPPL-1.3a`, inexact), as before the fix of item 44.
 - **A fullwidth "+"**: `GNU General Public License v2.0 ＋` is the `-only`
   guess: `shorttext` tests for an ASCII "+" of its own, apart from
   `plusoperator`, the one reader.

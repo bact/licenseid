@@ -675,7 +675,10 @@ pytest --run-benchmark
     split ID, the `-only` guess (see the deprecated ID item above). An
     input under 10 words that `resolve()` refuses and no licence name
     matches is not matched as text: no answer, with `WARNING: input: too
-    few words for text: <reason>` (`not found: GNU GPL v2`).
+    few words for text: <reason>` (`not found: GNU GPL v2`). So is a text
+    of under 30 words that `resolve()` refuses for a "+" that is no operator
+    (`"MIT++"`, `MIT License++`, `Apache 2.0 +`), with the "+" reason: Tier 0
+    would drop the "+" and answer the licence, exact.
   - **Tier 0 (Shortcut)**: Fast path for short inputs (names, IDs, brief
     expressions). Includes:
     - Case-insensitive exact ID match.

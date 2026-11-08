@@ -208,7 +208,7 @@ def test_a_long_text_with_a_c_plus_plus_line_is_matched_as_text(
     )
     plain = text.replace("Written in C++\n", "")
     detector = LicenseDetector(corpus_db.location)
-    assert _top(detector.detect(text=text)[:1])
+    assert detector.detect(text=text)
     assert (
         detector.detect(text=text)[0]["expression"]
         == (detector.detect(text=plain)[0]["expression"])

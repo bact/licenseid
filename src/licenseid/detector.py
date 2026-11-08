@@ -252,7 +252,8 @@ class LicenseDetector:
             return []  # "GPL-2.0-only+", "MIT +": no license, nor a near one
         # normalize_text() drops a "+", so a text match would answer the licence
         # round a "+" that is no operator, exact: resolve() judges it (item 44).
-        # A long text is matched as text whatever its "+" (C++).
+        # From 10 words on, the rest is matched as text (Tier 1), as before;
+        # a long text is matched as text whatever its "+" (C++).
         if ctx.word_count >= 30 or is_plus_refusal(
             resolve_with(self.db, ctx.target_text)["reason"]
         ):
