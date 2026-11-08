@@ -27,6 +27,7 @@ from licenseid.resolvertypes import Resolution
 from licenseid.resolveurl import URL_ALIASES
 
 SEE, PAGE, PATH = "see also", "list page", "id in path"
+EXPR = "expression in path"  # test_resolver_nuget.py has the rest
 APACHE_URL = "https://www.apache.org/licenses/LICENSE-2.0"
 
 
@@ -74,6 +75,7 @@ POSITIVE: dict[str, Case] = {
     "opensource.org/licenses/MIT": _mit(SEE),
     "opensource.org/license/mit/": _mit(SEE),
     "licenses.nuget.org/MIT": _mit(PATH),
+    "https://licenses.nuget.org/MIT+": Case("MIT+", "MIT+", EXPR),
     "choosealicense.com/licenses/mit/": _mit(PATH),
     "https://SPDX.ORG/LICENSES/MIT": _mit(PAGE),
     "https://spdx.org/licenses/mit": _mit(PAGE),
@@ -379,7 +381,6 @@ NOT_FOUND = [
     "https://spdx.org/licenses/MIT?x=1",
     "https://spdx.org/licenses%2FMIT",
     "https://spdx.org%2Flicenses/MIT",
-    "https://licenses.nuget.org/MIT%20OR%20Apache-2.0",
     "spdx:NotAnId",
     "spdx:MIT/x",
     "https://scancode-licensedb.aboutcode.org/mit/extra.html",
@@ -396,7 +397,6 @@ NOT_FOUND = [
     "https://spdx.org/licenses/NotAnId+",
     "spdx:MIT+x",
     # and on no other host
-    "https://licenses.nuget.org/MIT+",
     "https://choosealicense.com/licenses/mit+/",
     "https://scancode-licensedb.aboutcode.org/mit+.html",
     "https://opensource.org/licenses/MIT+",

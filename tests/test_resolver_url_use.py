@@ -225,6 +225,7 @@ def _detect(db: LicenseDatabase, text: str) -> list[dict[str, object]]:
         ("https://spdx.org/licenses/MIT OR " + APACHE_URL, "Apache-2.0 OR MIT"),
         ("spdx:MIT", "MIT"),
         ("https://opensource.org/license/GPL-3.0-only", "GPL-3.0-only"),
+        ("https://licenses.nuget.org/MS-PL%20OR%20Apache-2.0", "Apache-2.0 OR MS-PL"),
     ],
 )
 def test_detect_answers_a_url_by_name_without_a_warning(
@@ -269,7 +270,7 @@ OVERRIDDEN = [
     "http://www.libpng.org/pub/png/src/libpng-LICENSE.txt",  # Libpng
     "https://www.gnu.org/licenses/gpl-3.0.en.html",  # AGPL-3.0-only
     "https://www.apache.org/licenses/LICENSE-2.0?x=1",  # Apache-1.0
-    "https://licenses.nuget.org/MS-PL%20OR%20Apache-2.0",  # ECL-2.0
+    "https://licenses.nuget.org/MS-PL%20or%20Apache-2.0",  # ECL-2.0
     "<https://www.gnu.org/licenses/gpl-3.0.en.html>",
     "  https://www.apache.org/licenses/LICENSE-2.0?x=1\n",
 ]
@@ -420,6 +421,7 @@ def test_id_declares_one_licence_not_a_url(corpus_db: LicenseDatabase) -> None:
 # --- time ---
 
 _PAGE = "https://spdx.org/licenses/MIT"
+_NUGET = "https://licenses.nuget.org/"
 
 # Each shape that can backtrack, as a function of its number of repeats.
 _SHAPES: tuple[Callable[[int], str], ...] = (
@@ -435,6 +437,13 @@ _SHAPES: tuple[Callable[[int], str], ...] = (
     lambda n: "x" + " " * n,
     lambda n: (_PAGE + " OR ") * n + _PAGE,
     lambda n: (_PAGE + "; ") * n + _PAGE,
+    lambda n: _NUGET + "%20" * n,
+    lambda n: _NUGET + "(" * n,
+    lambda n: _NUGET + "(" * n + "MIT" + ")" * n,
+    lambda n: _NUGET + "MIT%20OR%20" * n + "ISC",
+    lambda n: _NUGET + "(MIT%20OR%20" * n + "ISC" + ")" * n,
+    lambda n: _NUGET + "MIT" + "%00" * n,
+    lambda n: _NUGET + "%41" * n,
 )
 
 

@@ -21,6 +21,7 @@ from licenseid.detector import LicenseDetector
 from licenseid.resolveurl import url_license_id
 
 MIT = "https://spdx.org/licenses/MIT"
+NUGET_OR = "https://licenses.nuget.org/MIT%20OR%20Apache-2.0"
 OSI_MIT = "https://opensource.org/licenses/MIT"
 APACHE = "https://www.apache.org/licenses/LICENSE-2.0"
 GNU = "https://www.gnu.org/licenses/gpl-3.0.html"
@@ -73,6 +74,61 @@ def test_a_gnu_url_is_the_bare_id(
     assert conditions_url == given.conditions()
     assert by_url is not None
     assert "variant not stated" in conditions_url
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (NUGET_OR, "Apache-2.0 OR MIT"),
+        ("https://licenses.nuget.org/(MIT)%20OR%20ISC", "ISC OR MIT"),
+        (NUGET_OR + ".", "Apache-2.0 OR MIT"),  # one end mark
+        # a compound is one word of a tag: it keeps its brackets beside AND
+        (f"ISC AND {NUGET_OR}", "ISC AND (Apache-2.0 OR MIT)"),
+        (f"{NUGET_OR} AND ISC", "ISC AND (Apache-2.0 OR MIT)"),
+        (f"{NUGET_OR} OR ISC", "Apache-2.0 OR ISC OR MIT"),
+        ("ISC AND https://licenses.nuget.org/MIT", "ISC AND MIT"),
+    ],
+    ids=["or", "bracket", "end-mark", "and-before", "and-after", "or-or", "single"],
+)
+def test_a_tag_reads_an_expression_url(
+    corpus_db: LicenseDatabase, value: str, expected: str
+) -> None:
+    assert tag_answer(corpus_db, value) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expression"),
+    [
+        (NUGET_OR, "(Apache-2.0 OR MIT)"),
+        ("https://licenses.nuget.org/(MIT)", "MIT"),  # one licence: no brackets
+        ("https://licenses.nuget.org/MIT%20or%20ISC", None),
+    ],
+)
+def test_the_word_of_a_tag_is_bracketed_when_it_joins_licences(
+    corpus_db: LicenseDatabase, text: str, expression: str | None
+) -> None:
+    with corpus_db.reading():
+        assert url_license_id(corpus_db, text) == expression
+
+
+def test_resolve_refuses_the_operand_the_tag_reads(corpus_db: LicenseDatabase) -> None:
+    """Pinned: a tag takes a URL of an expression as a word of its own;
+    resolve() has leaves of one licence only, and refuses it."""
+    value = f"ISC AND {NUGET_OR}"
+    got = resolve(value, corpus_db)
+    assert got["expression"] is None
+    assert got["reason"] == f"operand names an expression: {NUGET_OR}"
+    assert tag_answer(corpus_db, value) == "ISC AND (Apache-2.0 OR MIT)"
+
+
+def test_a_field_reads_an_expression_url(
+    corpus_db: LicenseDatabase, tmp_path: Path
+) -> None:
+    assert field_answer(corpus_db, tmp_path, {"license": NUGET_OR}) == (
+        "Apache-2.0 OR MIT"
+    )
+    data = {"license": {"url": NUGET_OR}}
+    assert field_answer(corpus_db, tmp_path, data) == "Apache-2.0 OR MIT"
 
 
 @pytest.mark.parametrize(

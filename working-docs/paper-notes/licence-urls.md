@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-08
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-09
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -174,7 +174,9 @@ licence page the List lacks (the alias candidates below).
 ```
 
 No bracket form occurs. 182 of 183 are one ID; the compound form (0.5% of
-the NuGet URLs) is deferred in v1 and gives `not found`.
+the NuGet URLs) was deferred in v1 and gave `not found`. Issue #187 asked
+for it; it is read since 0.8.3 (1 of 183 read), with the page's
+URL-encoded expression (`%20`, `( ) +` literal) decoded for that host only.
 
 ## ScanCode LicenseDB
 

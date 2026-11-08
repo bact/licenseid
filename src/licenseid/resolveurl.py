@@ -17,6 +17,8 @@ string, and read in this order:
    that is an SPDX ID of another licence (:data:`SCANCODE_NOT_SPDX`) is not
    read as that ID. On the List's own pages only, ``<ID>+`` is the licence
    with the "+" operator, as ``MIT+`` is read.
+   On ``licenses.nuget.org`` the path may be a whole licence expression,
+   URL-encoded (:mod:`licenseid.nugetpath`), read after the ID page.
 2. A page of :data:`DUAL_PAGES`, reviewed by hand: a page the List gives one
    licence that offers a choice of several. Refused.
 3. A page the List gives a licence in ``seeAlso``
@@ -46,12 +48,15 @@ its page found by one lookup in an index the list keeps per key function:
 no scan, no ``LIKE``. Standard library and ``licenseid`` only.
 """
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Final, NamedTuple
 
 from licenseid.dropguard import trim_end_mark
 from licenseid.errors import reason_detail
+from licenseid.exprcanon import is_compound
 from licenseid.listlookup import ListedUrl, ListLookup
+from licenseid.nugetpath import DETAIL as _EXPRESSION
+from licenseid.nugetpath import decoded_path, read_expression
 from licenseid.plusoperator import plus_after_qualifier, strip_plus_operator
 from licenseid.resolveleaf import Found
 from licenseid.resolvertypes import Step, step
@@ -178,10 +183,12 @@ DUAL_PAGES: Final[dict[str, tuple[str, ...]]] = {
 
 
 class _Named(NamedTuple):
-    """The ID a page names, and the detail of the step to it."""
+    """The text a page names (an ID, or an expression), the detail of the
+    step to it, and the reader of that text (:func:`read_as` for an ID)."""
 
     license_id: str
     detail: str
+    read: Callable[[ListLookup, Step, Found], bool] = read_as
 
 
 class _Refusal(NamedTuple):
@@ -200,7 +207,7 @@ def read_url(db: ListLookup, text: str, found: Found) -> bool:
     key = url_key(url)
     if key is None:
         return False
-    named = _named(db, key)
+    named = _named(db, key, url)
     if named is None:
         return False
     if isinstance(named, _Refusal):
@@ -209,21 +216,31 @@ def read_url(db: ListLookup, text: str, found: Found) -> bool:
         found.reason = named.reason
         return True
     lead = step(_KIND, True, url, named.license_id, named.detail)
-    if not read_as(db, lead, found):
+    if not named.read(db, lead, found):
         return False  # the list read lacks the ID
-    found.steps[:0] = steps
+    if found.expression is not None or found.steps:  # not a bare refusal
+        found.steps[:0] = steps
     return True
 
 
 def url_license_id(db: ListLookup, text: str) -> str | None:
     """The expression the URL *text* names, read as :func:`read_url` reads
     it, or None; if none, *text* is read once more without one end mark
-    (``https://spdx.org/licenses/MIT.``)."""
+    (``https://spdx.org/licenses/MIT.``). A compound is in brackets
+    (``(ISC OR MIT)``), so a word of a tag that stands for it keeps its
+    precedence beside ``AND``."""
     for candidate in (text, trim_end_mark(text)):
         found = Found()
         if candidate is not None and read_url(db, candidate, found):
-            return found.expression
+            return _bracketed(found.expression)
     return None
+
+
+def _bracketed(expression: str | None) -> str | None:
+    """*expression* in brackets if it joins licences, else as it is."""
+    if expression is not None and is_compound(expression):
+        return f"({expression})"
+    return expression
 
 
 def without_angle_brackets(text: str) -> tuple[str, list[Step]]:
@@ -259,12 +276,16 @@ def page_index_key(url: str) -> str | None:
     return list_url_key(url) if page is None else _PLACE + page
 
 
-def _named(db: ListLookup, key: str) -> _Named | _Refusal | None:
-    """What the page of *key* names: an ID page first, then the pages that
-    offer a choice, the List's pages and the aliases; None for nothing."""
+def _named(db: ListLookup, key: str, url: str) -> _Named | _Refusal | None:
+    """What the page of *key* (the key of *url*) names: an ID page first,
+    then an expression in a NuGet path, the pages that offer a choice, the
+    List's pages and the aliases; None for nothing."""
     by_id = _id_page(db, key)
     if by_id is not None:
         return by_id
+    expression = decoded_path(url, key)
+    if expression is not None:
+        return _Named(expression, _EXPRESSION, read_expression)
     offered = DUAL_PAGES.get(key)
     if offered is not None:
         return _Refusal(f"url names several licences: {_listed(list(offered))}")

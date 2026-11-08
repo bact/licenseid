@@ -177,6 +177,11 @@ def _add_leaf(text: str, start: int, end: int, tokens: list[Token]) -> None:
         tokens.append(Token(_LEAF, start + lead, end - trail))
 
 
+def is_compound(expression: str) -> bool:
+    """Whether *expression*, as licenseid writes one, joins licences."""
+    return " AND " in expression or " OR " in expression
+
+
 def leaves(tokens: list[Token]) -> list[Token]:
     """The leaf tokens, in input order."""
     return [token for token in tokens if token.kind == _LEAF]

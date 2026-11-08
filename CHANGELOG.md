@@ -9,6 +9,13 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `resolve()` reads a `licenses.nuget.org` URL whose path is a licence
+  expression (`(MIT)`, `(Apache-2.0+)`, `MIT%20OR%20Apache-2.0`) <!-- ([#187]) -->
+
 ## [0.8.2] - 2026-11-09
 
 ### Added

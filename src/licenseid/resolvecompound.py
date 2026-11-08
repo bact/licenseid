@@ -50,6 +50,7 @@ from licenseid.exprcanon import (
     Node,
     Token,
     canonical,
+    is_compound,
     leaves,
     missing_operator,
     oversize,
@@ -68,7 +69,7 @@ from licenseid.looseid import (
 from licenseid.quotes import unquote
 from licenseid.resolveleaf import Found, category_of, refuse_dropped
 from licenseid.resolveprose import read_alone
-from licenseid.resolvereason import after_bracket
+from licenseid.resolvereason import after_bracket, names_expression
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
     TRUST,
@@ -392,7 +393,10 @@ def _read_operand(db: ListLookup, text: str) -> _Leaf:
     inner, steps = _unquoted(text)
     found = Found(steps=steps)
     leaf = Found()
-    if read_alone(db, inner, leaf):
+    read = read_alone(db, inner, leaf)
+    if read and leaf.expression is not None and is_compound(leaf.expression):
+        found.category, found.reason = "unresolved", names_expression(inner)
+    elif read:
         absorb(found, leaf)
     else:
         found.category, found.reason = "unresolved", not_an_operator(inner)

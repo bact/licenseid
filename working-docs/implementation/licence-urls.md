@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-08
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-09
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -46,7 +46,7 @@ on any host could be read as that ID.
   deprecated ID, `assumed_only` with both candidates; MPL-2.0 and OFL-1.1
   pages that also list variants get an alias, and every other shared URL is
   refused; the database build goes from 3 to 4; planned for 0.8.0. Deferred:
-  a URL inside prose, NuGet's compound paths.
+  a URL inside prose. NuGet's compound paths came later (issue #187, below).
 - **Not a regex of URLs found in prose.** A URL inside a sentence is out of
   scope here; the reader takes a whole value or one operand.
 - **One key, one reader.** `urlkey.url_key` writes each spelling of a URL as
@@ -201,11 +201,53 @@ Maven: 962 of 1,000 packages state a URL and the List reads 83% of them
 `licenses.nuget.org/<ID>`. npm, PyPI and crates.io top 300: no URL as a
 licence value. Details and the unread keys are in the survey note.
 
+## NuGet expression paths (issue #187, 2026-11-09)
+
+`licenseUrl` of a NuGet package that declares a licence expression is
+`https://licenses.nuget.org/` and the expression as the path. Source:
+<https://learn.microsoft.com/en-ie/nuget/nuget-org/licenses.nuget.org>
+(a space is `%20`; `(`, `)` and `+` stay as written; the service is case
+sensitive). The survey had 1 of 183 such URLs as a compound
+(`MS-PL OR Apache-2.0`); a package on the live service has
+`(MIT)%20OR%20ISC`. `nugetpath.py` reads it:
+
+- **The path is another licence expression, URL-encoded.** It is decoded
+  for the host `licenses.nuget.org` only, every `%XX` once, in one pass.
+  The decoded text must then match the expression character set,
+  `[A-Za-z0-9.+()-]`, words one space apart. That set, not a list of
+  allowed escapes, refuses `%2F`, `%3F`, `%23`, `%3B`, `%00`, `%0A`,
+  `%7F`, `%C2%A0` and a doubled `%2520` (it decodes to `%20`, and `%` is
+  outside the set). `%4D` is an `M` and is read, which is harmless.
+  `urlkey.url_key` still decodes nothing (`tests/test_urlkey.py` pins it).
+- **Rejected: an allow-list of escapes** (`%20`, `%28`, `%29`, `%2B`): it
+  needs a second list to keep in step with the first.
+- **Operators are upper case**, as the service is case sensitive; IDs are
+  read case-folded as the ID alone is (`/mit` reads). A word is a List
+  licence or, after `WITH`, an exception. A phrase (`or later`), a
+  `LicenseRef-*`, `UNLICENSED` and an unknown ID name nothing here
+  (`not found`); a qualifier the grammar refuses (`GPL-2.0-only+`,
+  `MIT++`) and a broken expression (`(MIT`, `MIT%20OR`) are refused with the
+  reason `resolve()` gives the decoded text.
+- **The ID page comes first.** `/MIT`, `/mit`, `/GPL-2.0+` and
+  `/FLTK-exception` keep their answers; `/MIT+` was `not found` and is
+  `MIT+` now (detail `expression in path`).
+- **One operand per URL**, text and span the URL's, expression the whole
+  result (as one part of a `;` list is). A URL of an expression as an
+  operand of a compound is refused, `operand names an expression`, since
+  the leaf reader gives one licence. Two URLs of one licence each join
+  (`.../MIT OR .../ISC`).
+- **The reader is in `nugetpath.py`, not in `resolvecompound`**, which
+  imports `resolveurl`: a static cycle fails pylint R0401. It uses
+  `resolveleaf.read_leaf` and `exprcanon`, as the compound reader does.
+- **A tag word keeps its precedence**: `url_license_id` returns
+  `(A OR B)` for a compound, so `ISC AND <url>` is `ISC AND (A OR B)`. This
+  is a new, pinned difference from `resolve()`, which refuses that value.
+- Not read: a bracketed path with raw spaces
+  (`.../(MIT) OR ISC`) and a URL over 2,048 characters.
+
 ## Deferred
 
 - A URL inside prose (`see https://...`).
-- NuGet's compound paths (`licenses.nuget.org/MS-PL OR Apache-2.0`, 1 of 183):
-  `not found` for now.
 - GNU pages that could not be fetched during the survey (no alias without a
   check of the page); project statement pages (`asm.ow2.io/license`, ...)
   until a body check shows one licence.

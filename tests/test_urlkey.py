@@ -55,6 +55,11 @@ KEYS = [
     ("https://x.org?q=1", "x.org/?q=1"),
     ("https://x.org/lzma%20SDK", "x.org/lzma%20sdk"),
     ("https://x.org/a%2Fb", "x.org/a%2fb"),
+    # nugetpath decodes the path of licenses.nuget.org; the key does not
+    (
+        "https://licenses.nuget.org/(MIT)%20OR%20ISC",
+        "licenses.nuget.org/(mit)%20or%20isc",
+    ),
     ("https://x.org/a@b/(c)!$&'*+,;=~_", "x.org/a@b/(c)!$&'*+,;=~_"),
     # spdx:<ID> and the List's own pages.
     ("spdx:MIT", "spdx.org/licenses/mit"),
