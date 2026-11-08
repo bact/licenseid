@@ -20,8 +20,10 @@ generator.*
 
 ## Features
 
-- SPDX License Expression support
-- Deprecated ID normalisation: `GPL-2.0+` → `GPL-2.0-or-later`
+- Normalises license expression: `(MIT OR MIT) AND Apache-2.0` -> `Apache-2.0 AND MIT`
+- Normalises deprecated ID: `GPL-2.0+` → `GPL-2.0-or-later`
+- Reads a licence URL as its licence:
+  `https://www.apache.org/licenses/LICENSE-2.0` -> `Apache-2.0`
 - Reads loose IDs (`Apache2`, `GPLv3`),
   a licence's own title (`CC0 1.0 Universal`),
   the BSD aliases (`New BSD`, `BSD-3`),
