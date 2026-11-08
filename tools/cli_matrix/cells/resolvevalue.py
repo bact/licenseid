@@ -106,13 +106,13 @@ SOURCES: list[tuple[str, str, int, str | None]] = [
 def add_cells(cells: CellSet) -> None:
     """Add families F1 to F5 to *cells*."""
     for desc, value, exit_code in VALUES:
-        for output in ("", "--json "):
+        for output in ("", "--verbose ", "--json "):
             cells.add(
                 "F1",
                 f"resolve {output}{desc}",
                 licenseid(f"resolve {output}{shlex.quote(value)}"),
                 kind="resolve",
-                outflags=frozenset({"json"} if output else ()),
+                outflags=frozenset({output.strip("- ")} if output else ()),
                 exp_exit=exit_code,
                 shells=EVERY_SHELL,
             )
@@ -181,7 +181,7 @@ def _add_streams(cells: CellSet) -> None:
         "cd $W && : > MIT && " + licenseid("resolve MIT"),
         kind="resolve",
         exp_exit=0,
-        exp_out=r"EXPRESSION=MIT\tCATEGORY=exact\tTRUST=identity\n",
+        exp_out=r"MIT\n",
     )
     _add_locales(cells)
 
@@ -202,8 +202,9 @@ def _add_locales(cells: CellSet) -> None:
         cells.add(
             "F5",
             f"resolve text, {desc}",
-            f"{prefix} " + licenseid("resolve '\u201cMIT\u201d'"),
+            f"{prefix} " + licenseid("resolve -v '\u201cMIT\u201d'"),
             kind="resolve",
+            outflags=frozenset({"verbose"}),
             exp_exit=0,
             exp_out=(
                 r"EXPRESSION=MIT\tCATEGORY=lexical\tTRUST=identity\n"

@@ -314,11 +314,13 @@ same way: the SPDX License List of the database it read, `source`
 
 ## The command line
 
-`licenseid resolve VALUE` prints this result for one value. `--json` prints
-it whole, as above, as one RFC 8785 object on one line (the bytes
-`licenseid.json_line(resolve(value))` gives). Without it, the result
-is a few `KEY=VALUE` lines, one data point each, with one tab between
-the fields (shown here as `<TAB>`):
+`licenseid resolve VALUE` prints the expression alone, or an empty line
+when `expression` is `None` (exit 1); why it is `None` (`reason`) is not
+printed. `--json` prints the result whole, as above, as one RFC 8785 object
+on one line (the bytes `licenseid.json_line(resolve(value))` gives), with or
+without `-v`. With `-v` (`--verbose`), the result is a few `KEY=VALUE` lines,
+one data point each, with one tab between the fields (shown here as
+`<TAB>`):
 
 ```text
 EXPRESSION=<expression><TAB>CATEGORY=<category><TAB>TRUST=<trust>

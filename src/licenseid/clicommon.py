@@ -44,6 +44,17 @@ json_option = click.option(
 )
 
 
+# The --verbose flag of the commands that print a result: the full record
+# (``detect``, ``resolve``). Without it they print the expression alone.
+verbose_option = click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    help="Print the full record of each result, not the expression alone. "
+    "No effect with --json, which always prints it.",
+)
+
+
 def echo_record(json_output: bool, **values: FieldValue) -> None:
     """Print one result record: ``KEY=VALUE`` fields (``result.fields_line``)
     or, with *json_output*, the same record as one JSON object with the keys

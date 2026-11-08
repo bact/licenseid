@@ -133,6 +133,7 @@ yet started, see [`../design/`](../design/).
 | 2026-10-30 | [pre-release-review.md](pre-release-review.md) | adopted (0.7.0) | Whole-release review before the tag: freeze, harness, read-only review, batched fixes, two gates |
 | 2026-10-27 | [declared-value-resolver.md](declared-value-resolver.md) | implemented (PR #97, 0.6.0 review) | `resolve()`: WITH, `LicenseRef-*`, malformed qualifiers, hidden characters, the declared "or later" reader on `OR_LATER_PHRASE`, and the build stamp that makes `update` rebuild an older database. |
 | 2026-10-30 | [declared-value-resolver-0-7.md](declared-value-resolver-0-7.md) | implemented (0.7.0, PRs #106 to #152) | Compounds, quotes, drop guard, end marks, trove and prose forms, `;` lists, the packaged list and its cached choice, schema 2, the matcher to `detect` rename, sdist allowlist, Pitloom pin. The command is `licenseid resolve` (T10c). |
+| 2026-11-09 | [terse-cli-output.md](terse-cli-output.md) | implemented (unreleased) | `detect` and `resolve` print the expression alone, `-v` the record, `-V` the version; `--id-only` removed; `--json` unchanged; how goldens, the option matrix, the CLI matrix and the tests kept the record. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

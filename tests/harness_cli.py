@@ -41,10 +41,17 @@ class Case(NamedTuple):
     args: tuple[str, ...]
     stdin: str = ""
     wheel: str = "list"
+    terse: bool = False
 
 
 def _c(name: str, db: str, *args: str, stdin: str = "", wheel: str = "list") -> Case:
     return Case(name, db, args, stdin, wheel)
+
+
+def _terse(name: str, db: str, *args: str) -> Case:
+    """A case run as written: ``detect`` and ``resolve`` print the expression
+    alone. The other cases run with ``-v`` (the record the golden pins)."""
+    return Case(name, db, args, terse=True)
 
 
 DETECT = [
@@ -60,7 +67,10 @@ DETECT = [
     _c("detect-tag", "list", "detect", "--text", "SPDX-License-Identifier: MIT OR ISC"),
     _c("detect-tag-or-later", "list", "detect", "--text", "GPL-2.0 or later"),
     _c("detect-top-three", "list", "detect", "--top", "3", "--threshold", "0", "MIT"),
-    _c("detect-id-only", "list", "detect", "--id-only", "MIT"),
+    _terse("detect-terse", "list", "detect", "MIT"),
+    _terse("detect-terse-no-answer", "list", "detect", "--id", "No-Such-1.0"),
+    _terse("detect-terse-top-three", "list", "detect", "--threshold", "0", "MIT"),
+    _c("detect-id-only-gone", "list", "detect", "--id-only", "MIT"),
     _c("detect-stdin", "list", "detect", "-", stdin="Apache-2.0\n"),
     _c("detect-no-input", "list", "detect"),
     _c("detect-two-inputs", "list", "detect", "MIT", "--text", "x"),
@@ -86,6 +96,8 @@ MATCH = [
     _c("resolve-stdin", "none", "resolve", "-", stdin="Apache-2.0\n"),
     _c("resolve-no-input", "none", "resolve"),
     _c("resolve-no-list", "none", "resolve", "MIT", wheel="none"),
+    _terse("resolve-terse", "none", "resolve", "GPLv2+ or MIT"),
+    _terse("resolve-terse-unknown", "none", "resolve", "No-Such-1.0"),
 ]
 FLAGS = [
     _c(f"{cmd}-{name}", "list", cmd, *args)
@@ -187,6 +199,8 @@ class CliEnv:
             ship(self.patch, bundle() if bundle else None)
             where = ["--db", db] if case.db != "none" else []
             flags = ["--json"] if mode == "json" else []
+            if command in ("detect", "resolve") and not case.terse:
+                flags.append("--verbose")
             result = CliRunner().invoke(
                 cli, [*where, command, *flags, *rest], input=case.stdin or None
             )

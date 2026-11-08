@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 import requests
+from cli_verbose import with_verbose
 from click.testing import CliRunner, Result
 from packaged_list import database_of, fixture_bundle
 from resolver_corpus import corpus_db_path
@@ -497,6 +498,32 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def pytest_configure(config: pytest.Config) -> None:
     """Register custom markers."""
     config.addinivalue_line("markers", "benchmark: mark test as a benchmark")
+    config.addinivalue_line(
+        "markers",
+        "terse_cli: the test sees detect/resolve with the command line as "
+        "written (the default prints the expression alone), not with -v added",
+    )
+
+
+@pytest.fixture(autouse=True)
+def verbose_cli(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Add ``-v`` to every ``detect`` and ``resolve`` run through click's
+    ``CliRunner`` (``cli_verbose``): most tests read the full record. A test
+    marked ``terse_cli`` runs the command line as written."""
+    if request.node.get_closest_marker("terse_cli"):
+        return
+    invoke = CliRunner.invoke
+
+    def verbose_invoke(
+        self: CliRunner, cli_obj: Any, *args: Any, **kwargs: Any
+    ) -> Result:
+        if args and isinstance(args[0], (list, tuple)):
+            args = (with_verbose(args[0]), *args[1:])
+        return invoke(self, cli_obj, *args, **kwargs)
+
+    monkeypatch.setattr(CliRunner, "invoke", verbose_invoke)
 
 
 # pytest puts the running test's ID in PYTEST_CURRENT_TEST, and Windows

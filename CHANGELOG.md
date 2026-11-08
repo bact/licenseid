@@ -9,6 +9,18 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking:** `detect` and `resolve` print the SPDX expression alone (an
+  empty line for none); `-v`/`--verbose` prints the old record. `--id-only` is
+  removed. Use `-v`, or `--json`
+
+### Added
+
+- `-V` is short for `--version`
+
 ## [0.8.1] - 2026-11-09
 
 ### Changed

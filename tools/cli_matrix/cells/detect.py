@@ -58,7 +58,7 @@ SYNTAX: list[tuple[str, str, int | None]] = [
     ("--no-pop --pop", "--no-pop --pop MIT", 0),
     ("--top=2 --threshold=0.5", "--top=2 --threshold=0.5 MIT", None),
     ("options before positional", "--json --top 1 MIT", 0),
-    ("--json with --id-only", "--json --id-only MIT", 2),
+    ("--id-only is gone", "--id-only MIT", 2),
     ("-- then id", "-- MIT", 0),
     ("-- then dash file", "-- -dash.txt", None),
     ("-- then --json as input", "-- --json", None),
@@ -68,7 +68,7 @@ SYNTAX: list[tuple[str, str, int | None]] = [
     ("--json=true", "--json=true MIT", 2),
     ("--text missing value", "--text", 2),
     ("--text takes --json as value", "--text --json", None),
-    ("--id takes --id-only as value", "--id --id-only", None),
+    ("--id takes --verbose as value", "--id --verbose", None),
     ("--top missing value", "MIT --top", 2),
     ("--threshold= empty", "--threshold= MIT", 2),
     ("--top '' empty", "--top '' MIT", 2),
@@ -135,9 +135,7 @@ def _source_expected_stderr(name: str, out: tuple[str, ...]) -> str | None:
     """The diagnostic a source is required to produce, if any: a "no" has
     none (exit 1, nothing on stderr). Two outputs are refused first."""
     if conflicting(out):
-        return (
-            r"ERROR: option: invalid: --(id-only|diff): with --json; pass one of them"
-        )
+        return r"ERROR: option: invalid: --diff: with --json; pass one of them"
     return MISSING if name == "none" else None
 
 
@@ -197,7 +195,7 @@ def _add_top_threshold(cells: CellSet) -> None:
         ("--exact --json --top 1 --id MIT", 0),
         (f"--exact --text {shlex.quote(FRAG)}", 1),
         (f"--exact --threshold 0 --text {shlex.quote(FRAG)}", 1),
-        ("--exact --id-only --pop MIT", 0),
+        ("--exact --verbose --pop MIT", 0),
         (f"--exact --diff --no-pop --text {shlex.quote(FRAG)}", 1),
     ):
         cells.add(
@@ -206,7 +204,7 @@ def _add_top_threshold(cells: CellSet) -> None:
             licenseid(f"detect {args}"),
             kind="detect",
             outflags=frozenset(
-                f for f in ("json", "id-only", "diff") if f"--{f}" in args
+                f for f in ("json", "verbose", "diff") if f"--{f}" in args
             ),
             exp_exit=exit_code,
             top=1 if "--top 1" in args else None,
@@ -267,7 +265,7 @@ def _add_syntax(cells: CellSet) -> None:
         real = not (
             args.startswith("-- ")
             or "--text --json" in args
-            or "--id --id-only" in args
+            or "--id --verbose" in args
         )
         cells.add(
             "A4",
@@ -276,6 +274,6 @@ def _add_syntax(cells: CellSet) -> None:
             kind="detect",
             exp_exit=exit_code,
             outflags=frozenset(
-                x for x in ("json", "id-only") if real and f"--{x}" in args
+                x for x in ("json", "verbose") if real and f"--{x}" in args
             ),
         )

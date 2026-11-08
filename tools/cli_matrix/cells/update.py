@@ -220,7 +220,7 @@ def _add_afterwards(cells: CellSet) -> None:
         "D7",
         "update then detect uses the new database",
         "mkdir -p $W/x && $LU --db $W/x/licenses.db update >/dev/null 2>&1"
-        " && $L --db $W/x/licenses.db detect --id-only MIT",
+        " && $L --db $W/x/licenses.db detect MIT",
         kind="detect",
         exp_exit=0,
         exp_out=r"MIT\n",

@@ -114,13 +114,22 @@ Two commands answer two questions (as `detect()` and `resolve()` do in the
 [Python API](#python-api)):
 
 ```bash
-# Which licence is in this file? Ranked candidates, with a score.
+# Which licence is in this file? The SPDX expression, e.g. Apache-2.0.
 licenseid detect LICENSE.txt
 
-# Which SPDX expression does this declared value stand for? One answer and
-# the steps taken, or a refusal; no database needed.
+# Which SPDX expression does this declared value stand for? The expression,
+# or an empty line for a refusal; no database needed.
 licenseid resolve "GPLv2 or later"
+
+# The detail behind either answer (score, steps, reason): add -v.
+licenseid detect -v LICENSE.txt
+licenseid resolve -v "GPLv2 or later"
 ```
+
+By default both print the SPDX expression alone, one line (an empty line
+when there is no answer; exit 1). `-v` / `--verbose` prints the full
+record, as [Output formats](#5-output-formats) describes. `-V` prints the
+version.
 
 `detect` identifies licence text from a file, an ID, or a string:
 
@@ -185,12 +194,13 @@ Common options:
   a backslash (`C:\temp\new` is that path), and `\n` is two characters.
   For a line break, pass one (`--text "$(printf 'a\nb')"`) or pipe the
   text.
-- `--id-only`: Print only the top expression, or an empty line when there
-  is none (exit 1).
+- `-v`, `--verbose`: Print the full record of each result (see below),
+  not the expression alone. It changes nothing with `--json`, which always
+  prints the full record.
 - `--diff`: Show a word-by-word diff between the input and the top
   result, when it was matched as text and is not exact, on standard error.
-- `--json`: Output results as JSON Lines (see below). It takes neither
-  `--id-only` nor `--diff`: either with it exits 2.
+- `--json`: Output results as JSON Lines (see below). It does not take
+  `--diff`: both exit 2.
 - `--threshold <score>`: Keep results that score at least this, from 0 to
   1 (default 0.85). A value outside 0 to 1 exits 2.
 - `--top <n>`: Keep at most this many results (default 3); below 1 exits 2.
@@ -206,10 +216,13 @@ superset that shares the same preamble.
 
 `licenseid resolve VALUE` reads one value that someone wrote to declare a
 licence (a `license` field, a trove classifier) with `resolve()`, and prints
-its resolution, one data point per line:
+the expression, or an empty line (exit 1) when the value resolves to none.
+With `-v` it prints the whole resolution, one data point per line:
 
 ```console
 $ licenseid resolve "GPLv2+ or MIT"
+GPL-2.0-or-later OR MIT
+$ licenseid resolve -v "GPLv2+ or MIT"
 EXPRESSION=GPL-2.0-or-later OR MIT	CATEGORY=version_spelling	TRUST=resolver_rule
 STEP=separator	FROM=GPLv2	TO=GPL-2.0
 STEP=version_spelling	FROM=GPLv2	TO=GPL-2.0
@@ -218,7 +231,8 @@ STEP=plus_to_or_later	FROM=GPLv2+	TO=GPL-2.0-or-later
 ```
 
 - The first line is the answer: `EXPRESSION=` is empty when the value
-  resolves to no expression. Its category and trust are those of
+  resolves to no expression. Why it did not (`REASON=`) is only in the
+  verbose lines. Its category and trust are those of
   [docs/resolve.md][resolve-doc].
 - `STEP=` lines are the steps applied, in order, then the qualifiers
   (`-or-later`) applied; a step that was declined is not printed.
@@ -232,6 +246,8 @@ STEP=plus_to_or_later	FROM=GPLv2+	TO=GPL-2.0-or-later
 
 Options:
 
+- `-v`, `--verbose`: the full resolution as the lines above, not the
+  expression alone. No effect with `--json`.
 - `--json`: the whole result of `resolve()`, as one JSON object.
 - `--source auto|database|packaged`: the list read when `--db` is not
   given, as `resolve(source=...)` reads it (default `auto`: the database at the
@@ -258,8 +274,8 @@ value can differ:
 
 | Command | Prints | Means |
 | :--- | :--- | :--- |
-| `detect GPL2` | `EXPRESSION=GPL-2.0-only`, `EXACT=false`, with `WARNING: input: variant not stated` | the closest licence on the list, a guess said aloud |
-| `resolve GPL2` | `EXPRESSION=GPL-2.0`, `CATEGORY=assumed_only` | what was declared, kept as written: no guess |
+| `detect -v GPL2` | `EXPRESSION=GPL-2.0-only`, `EXACT=false`, with `WARNING: input: variant not stated` | the closest licence on the list, a guess said aloud |
+| `resolve -v GPL2` | `EXPRESSION=GPL-2.0`, `CATEGORY=assumed_only` | what was declared, kept as written: no guess |
 
 ### 4. Cache management
 
@@ -290,8 +306,17 @@ cannot read is still cleared: that is what the command is for.
 
 ### 5. Output formats
 
-Default (Unix-friendly), one result per line, best first (the examples
-show the first two results):
+Default (Unix-friendly): `detect` and `resolve` print the SPDX expression
+alone, one line per result, best first, and an empty line when there is
+none:
+
+```console
+$ licenseid detect LICENSE
+Apache-2.0
+```
+
+With `-v` (`--verbose`), one record per result per line, best first (the
+examples show the first two results):
 
 ```text
 EXPRESSION=Apache-2.0	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVERAGE=1.0000
@@ -330,19 +355,7 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   name tier matches has no coverage. `COVERAGE` is the
   input's words over the licence's, so it passes 1 when the input is longer.
 
-The top expression only:
-
-```bash
-licenseid detect LICENSE.txt --id-only
-```
-
-Example output:
-
-```text
-Apache-2.0
-```
-
-JSON:
+JSON (the full record, with or without `-v`):
 
 ```bash
 licenseid detect LICENSE.txt --json
@@ -365,13 +378,13 @@ Diff (visual comparison), here of an Apache-2.0 file with its copyright
 line filled in:
 
 ```bash
-licenseid detect LICENSE --diff --top 1
+licenseid detect -v LICENSE --diff --top 1
 ```
 
 Example output (a diff is shown for the top result when it was matched as
-text and is not exact; with `--id-only` too, not with `--json`). The result
-lines go to standard output and the diff to standard error, so
-`2>/dev/null` keeps only the results:
+text and is not exact, with or without `-v`, not with `--json`). The
+results go to standard output and the diff to standard error, so
+`2>/dev/null` keeps only the results. Here with `-v`:
 
 ```diff
 EXPRESSION=Apache-2.0	METHOD=text	EXACT=false	SCORE=1.0000	SIMILARITY=0.9978	COVERAGE=0.9987
@@ -420,16 +433,20 @@ all:
   `resolve --json` prints the whole result as one object, its keys mapped to
   its text lines in [docs/resolve.md][resolve-doc].
 
-The only exceptions are `detect --id-only` (the expression alone),
-`--version` and `--help`.
+This is the output of `-v` and `--json`. The only exceptions are the
+default output of `detect` and `resolve` (the expression alone, one per
+line), `--version` (`-V`) and `--help`.
 
 ```bash
+# The answer alone, by default
+licenseid detect LICENSE.txt                           # Apache-2.0
+
 # The second field of the line, its value after the "="
 licenseid is-osi MIT | cut -f2 | cut -d= -f2-          # true
 
 # The answer: the first field of the line whose first key is EXPRESSION
 # (resolve also prints EXPRESSION= after OPERAND= on a line of its own kind)
-licenseid resolve "MIT ; Apache 2" | awk -F'\t' '
+licenseid resolve -v "MIT ; Apache 2" | awk -F'\t' '
   $1 ~ /^EXPRESSION=/ { print substr($1, length("EXPRESSION=") + 1); exit }'
 
 # The same with jq
@@ -446,8 +463,8 @@ making it suitable for use in scripts and CI/CD pipelines.
 | Exit Code | Meaning | Scenarios |
 | :--- | :--- | :--- |
 | **0** | Success | Confident match found; `resolve`: the value resolved to an expression; predicate is TRUE; database updated or already up-to-date; cache cleared or nothing to clear. |
-| **1** | Logic Failure | No matching licence found (one record, every field empty); `resolve`: no expression (the result is still printed); predicate is FALSE, or cannot be judged (its record still printed); an update or a cache clear that failed (a network error, a delete the system refuses). |
-| **2** | Usage or Setup Error | Missing subcommand (help on standard error); missing input text/file; two inputs; `--json` with `--id-only` or `--diff`; invalid parameters; `resolve` given a text, `-`, or a path that resolves to nothing; database not ready (for `resolve`, no list to read); output that cannot be written. |
+| **1** | Logic Failure | No matching licence found (an empty line; with `-v` one record, every field empty); `resolve`: no expression (an empty line; `-v` prints the resolution); predicate is FALSE, or cannot be judged (its record still printed); an update or a cache clear that failed (a network error, a delete the system refuses). |
+| **2** | Usage or Setup Error | Missing subcommand (help on standard error); missing input text/file; two inputs; `--json` with `--diff`; invalid parameters; `resolve` given a text, `-`, or a path that resolves to nothing; database not ready (for `resolve`, no list to read); output that cannot be written. |
 | **130** | Interrupted | Ctrl-C (SIGINT); no message once started. |
 | **141** | Reader gone | The reader closed the pipe (`head -1`); no message. |
 

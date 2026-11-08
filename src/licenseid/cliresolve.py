@@ -35,6 +35,7 @@ from licenseid.clicommon import (
     exit_usage_error,
     reject_blank_options,
     reject_unencodable,
+    verbose_option,
 )
 from licenseid.cliinput import STDIN_ARGUMENT
 from licenseid.database import LicenseDatabase
@@ -122,6 +123,7 @@ def given_database(ctx: click.Context, source: Source) -> LicenseDatabase | None
     is_flag=True,
     help="Print the whole resolution as one RFC 8785 JSON object.",
 )
+@verbose_option
 @click.option(
     "--source",
     type=click.Choice(get_args(Source)),
@@ -137,25 +139,30 @@ def given_database(ctx: click.Context, source: Source) -> LicenseDatabase | None
     help="Refused: a licence text is for 'licenseid detect'.",
 )
 @click.pass_context
-def resolve_command(
+def resolve_command(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     ctx: click.Context,
     value: str | None,
     json_output: bool,
+    verbose: bool,
     source: Source,
     text: str | None,
 ) -> None:
     """Resolve one declared licence value to an SPDX expression.
 
     VALUE is what a package declares, such as a license field or a trove
-    classifier. Exit 0 when it resolves, 1 when it does not. One tab
-    separates the fields of a line: read them with cut -f or awk -F'\\t'.
+    classifier. Prints the expression alone (an empty line when it does not
+    resolve); with --verbose, the whole resolution as lines. Exit 0 when it
+    resolves, 1 when it does not. One tab separates the fields of a verbose
+    line: read them with cut -f or awk -F'\\t'.
     """
     declared = declared_value(ctx, value, text)
     resolution = resolve(declared, given_database(ctx, source), source=source)
     reject_a_path(ctx, declared, resolution)
     if json_output:
         echo_json(json_line(resolution))
-    else:
+    elif verbose:
         for line in resolution_lines(resolution):
             echo(line)
+    else:  # the expression alone; an empty line for none
+        echo(resolution["expression"] or "")
     ctx.exit(0 if resolution["expression"] is not None else 1)

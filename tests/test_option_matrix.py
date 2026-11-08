@@ -12,7 +12,7 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | Surface              | Axes                                         |
 |----------------------|----------------------------------------------|
 | CLI ``detect``       | SOURCES x OUTPUTS x found / not found        |
-|                      | (OUTPUTS: --json, --id-only, --diff, --exact) |
+|                      | (OUTPUTS: --json, --verbose, --diff, --exact) |
 | CLI ``is-*``         | PREDICATES x SOURCES x --json x found / not  |
 | CLI blank input      | commands x blank arg / --text / --id / stdin |
 | API ``detect()``     | method / function x text / license_id / file |
@@ -24,7 +24,7 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | CLI ``clear-cache``  | ``test_clear_cache.py``: state x --json      |
 
 Two inputs (``--id`` or ``--text`` with another input), and ``--json`` with
-``--id-only`` or ``--diff``, are a usage error (C7 of the contract batch;
+``--diff``, are a usage error (C7 of the contract batch;
 they were resolved without a word). A piped standard input beside one input
 is not refused: a script's standard input is seldom a terminal. The API
 takes one of ``text``, ``license_id`` and ``file_path`` exactly (P6).
@@ -93,17 +93,20 @@ SOURCES = ["arg_id", "arg_file", "text", "id", "stdin", "dash", "none"]
 OUTPUTS = [
     (),
     ("--json",),
-    ("--id-only",),
+    ("--verbose",),
     ("--diff",),
-    ("--json", "--id-only"),
+    ("--json", "--verbose"),
     ("--json", "--diff"),
-    ("--id-only", "--diff"),
+    ("--verbose", "--diff"),
 ]
 # Every found input is exact here (the ID, or MIT's text word for word), so
 # --exact keeps the answer: this axis checks that --exact combines with the
 # other options and inputs, not what it filters (test_public_result does).
 OUTPUTS += [(*output, "--exact") for output in OUTPUTS]
 PREDICATES = ["is-osi", "is-fsf", "is-spdx"]
+
+
+pytestmark = pytest.mark.terse_cli  # the matrix names --verbose itself
 
 
 @pytest.fixture
@@ -151,11 +154,8 @@ def test_match_matrix(
     args, stdin = _source_args(source, found, tmp_path)
     result = _invoke(mit_db, "detect", [*args, *output], stdin)
 
-    conflict = next((o for o in output if "--json" in output and o in _JSON_ONLY), "")
-    if conflict:  # checked before the input is read, so for "none" too
-        expected = (
-            f"ERROR: option: invalid: {conflict}: with --json; pass one of them\n"
-        )
+    if "--json" in output and "--diff" in output:  # checked before the input
+        expected = "ERROR: option: invalid: --diff: with --json; pass one of them\n"
         assert (result.exit_code, result.stdout, result.stderr) == (2, "", expected)
     elif source == "none":
         assert (result.exit_code, result.stdout, result.stderr) == (2, "", MISSING)
@@ -170,31 +170,25 @@ def test_match_matrix(
         _assert_match_stdout(result.stdout, output)
 
 
-#: The options --json refuses beside it.
-_JSON_ONLY = ("--id-only", "--diff")
-
-
 def _no_record(output: tuple[str, ...]) -> str:
     """What detect prints for no answer, by output option."""
-    if "--id-only" in output:
-        return "\n"
     if "--json" in output:
         return (
             json.dumps(dict.fromkeys(sorted(RESULT_KEYS)), separators=(",", ":")) + "\n"
         )
-    return NO_DETECTION
+    return NO_DETECTION if "--verbose" in output else "\n"
 
 
 def _assert_match_stdout(stdout: str, output: tuple[str, ...]) -> None:
-    """--id-only prints the expression alone; --diff adds nothing to
-    standard output (its diff is on standard error, and an exact answer has
-    none)."""
-    if "--id-only" in output:
-        assert stdout == "MIT\n"
-    elif "--json" in output:
+    """Without --verbose, detect prints the expression alone; --diff adds
+    nothing to standard output (its diff is on standard error, and an exact
+    answer has none)."""
+    if "--json" in output:
         results = json_lines(stdout)
         assert [r["expression"] for r in results] == ["MIT"]
         assert all(set(r) == RESULT_KEYS for r in results)
+    elif "--verbose" not in output:
+        assert stdout == "MIT\n"
     else:
         lines = stdout.splitlines()
         assert PLAIN.fullmatch(lines[0])
@@ -340,7 +334,7 @@ def test_a_pipe_beside_one_input_is_not_read(
     result = _invoke(
         mit_db,
         command,
-        ["--id-only", *args] if command == "detect" else args,
+        args,
         OTHER_TEXT,
     )
     expected = "MIT\n" if command == "detect" else predicate_line(command, "MIT", True)
@@ -450,7 +444,7 @@ def test_file_path_is_read_the_way_the_cli_reads_a_file(
     path.write_bytes(payload.data)
     matcher = LicenseDetector(mit_db)
 
-    cli_result = _invoke(mit_db, "detect", [str(path)], "")
+    cli_result = _invoke(mit_db, "detect", ["-v", str(path)], "")
     if payload.text is None:
         message = f"input: binary file: {path}"
         assert (cli_result.exit_code, cli_result.stderr) == (2, f"ERROR: {message}\n")
@@ -663,7 +657,11 @@ def _cli_match_outcome(source: str, default: str, given: bool) -> str | None:
     return "database"
 
 
-@pytest.mark.parametrize("output", [(), ("--json",)], ids=["plain", "json"])
+@pytest.mark.parametrize(
+    "output",
+    [(), ("--verbose",), ("--json",), ("--json", "--verbose")],
+    ids=["terse", "verbose", "json", "json-verbose"],
+)
 @pytest.mark.parametrize("given", [False, True], ids=["no-db", "db"])
 @pytest.mark.parametrize("default", DEFAULT_DATABASES)
 @pytest.mark.parametrize("source", RESOLVE_SOURCES)
@@ -701,10 +699,12 @@ def test_cli_resolve_matrix(
         )
         return
     assert (result.exit_code, result.stderr) == (0, "")
-    if output:
+    if "--json" in output:
         got = json.loads(result.stdout)
         assert got["expression"] == "Apache-2.0"
         assert [entry["source"] for entry in got["lists"]] == [where]
+    elif "--verbose" not in output:
+        assert result.stdout == "Apache-2.0\n"
     else:
         assert result.stdout.splitlines()[0] == (
             "EXPRESSION=Apache-2.0\tCATEGORY=version_spelling\tTRUST=resolver_rule"

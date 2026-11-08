@@ -29,11 +29,11 @@ GLOBAL: list[tuple[str, str, int | None]] = [
     ("--db= empty", "$L --db= detect MIT", None),
     (
         "--db twice (last wins?)",
-        "$L --db /nonexistent/a.db --db $DB detect --id-only MIT",
+        "$L --db /nonexistent/a.db --db $DB detect MIT",
         None,
     ),
     ("--db after subcommand", "$L detect --db $DB MIT", 2),
-    ("--db=path form", "$L --db=$DB detect --id-only MIT", 0),
+    ("--db=path form", "$L --db=$DB detect MIT", 0),
     ("--db missing file", "$L --db /nonexistent/x.db detect MIT", 2),
     ("--db directory", "$L --db $F/adir detect MIT", None),
     ("--db text file", "$L --db $F/mit.txt detect MIT", None),
@@ -44,49 +44,40 @@ GLOBAL: list[tuple[str, str, int | None]] = [
         None,
     ),
     ("--db :memory:", "$L --db :memory: detect MIT", None),
-    ("--db relative", "cd $F/.. && $L --db db/licenses.db detect --id-only MIT", 0),
+    ("--db relative", "cd $F/.. && $L --db db/licenses.db detect MIT", 0),
     (
         "--db with space",
         (
             'mkdir -p "$W/a b" && cp $DB "$W/a b/l.db"'
-            ' && $L --db "$W/a b/l.db" detect --id-only MIT'
+            ' && $L --db "$W/a b/l.db" detect MIT'
         ),
         0,
     ),
     (
         "--db unicode",
-        (
-            'mkdir -p "$W/ü" && cp $DB "$W/ü/l.db"'
-            ' && $L --db "$W/ü/l.db" detect --id-only MIT'
-        ),
+        ('mkdir -p "$W/ü" && cp $DB "$W/ü/l.db" && $L --db "$W/ü/l.db" detect MIT'),
         0,
     ),
     (
         "--db symlink",
-        "ln -s $DB $W/link.db && $L --db $W/link.db detect --id-only MIT",
+        "ln -s $DB $W/link.db && $L --db $W/link.db detect MIT",
         0,
     ),
     (
         "--db read-only file",
-        (
-            "cp $DB $W/ro.db && chmod 444 $W/ro.db"
-            " && $L --db $W/ro.db detect --id-only MIT"
-        ),
+        ("cp $DB $W/ro.db && chmod 444 $W/ro.db && $L --db $W/ro.db detect MIT"),
         None,
     ),
     (
         "--db unreadable file",
-        (
-            "cp $DB $W/nr.db && chmod 000 $W/nr.db"
-            " && $L --db $W/nr.db detect --id-only MIT"
-        ),
+        ("cp $DB $W/nr.db && chmod 000 $W/nr.db && $L --db $W/nr.db detect MIT"),
         None,
     ),
     (
         "--db in read-only dir",
         (
             "mkdir $W/rd && cp $DB $W/rd/l.db && chmod 555 $W/rd"
-            " && $L --db $W/rd/l.db detect --id-only MIT;"
+            " && $L --db $W/rd/l.db detect MIT;"
             " rc=$?; chmod 755 $W/rd; exit $rc"
         ),
         None,

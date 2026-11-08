@@ -72,7 +72,7 @@ def _add_input_size(cells: CellSet) -> None:
     cells.add(
         "E8",
         "300 KB --text argument",
-        licenseid('detect --id-only --text "$(' + big + ')"'),
+        licenseid('detect --text "$(' + big + ')"'),
         kind="detect",
     )
     cells.add(
@@ -94,7 +94,7 @@ def _add_input_size(cells: CellSet) -> None:
         (
             "3 MB file of license text repeated",
             "for i in $(seq 1 30); do cat $F/mit.txt; done > $W/rep.txt; ",
-            licenseid("detect --id-only $W/rep.txt"),
+            licenseid("detect $W/rep.txt"),
             None,
         ),
         (
@@ -168,7 +168,7 @@ def _add_input_size(cells: CellSet) -> None:
 
 def _add_concurrency(cells: CellSet) -> None:
     """E9: several processes on one database file at once."""
-    match_bold = licenseid("detect --id-only $F/mit.txt")
+    match_bold = licenseid("detect $F/mit.txt")
     cells.add(
         "E9",
         "4 concurrent matches on one DB",
@@ -186,7 +186,7 @@ def _add_concurrency(cells: CellSet) -> None:
     cells.add(
         "E9",
         "detect while db replaced by cp",
-        f"cp $DB $W/c.db; {licenseid('detect --id-only $F/mit.txt', db='$W/c.db')} &"
+        f"cp $DB $W/c.db; {licenseid('detect $F/mit.txt', db='$W/c.db')} &"
         " p=$!; cp $DB $W/c.db; wait $p",
         kind="other",
         xenv=False,
@@ -220,8 +220,7 @@ def _add_signals(cells: CellSet) -> None:
     cells.add(
         "E10",
         "nohup / background with closed stdio",
-        f"nohup {licenseid('detect --id-only $F/mit.txt')}"
-        " < /dev/null > $W/o 2>&1; cat $W/o",
+        f"nohup {licenseid('detect $F/mit.txt')} < /dev/null > $W/o 2>&1; cat $W/o",
         kind="other",
         xenv=False,
     )
@@ -229,7 +228,7 @@ def _add_signals(cells: CellSet) -> None:
 
 def _add_process_env(cells: CellSet) -> None:
     """E11: interpreter and resource settings inherited from the parent."""
-    match_bold = licenseid("detect --id-only $F/mit.txt")
+    match_bold = licenseid("detect $F/mit.txt")
     for desc, prefix in (
         ("env: PYTHONWARNINGS=error", "PYTHONWARNINGS=error "),
         ("env: PYTHONDEVMODE=1", "PYTHONDEVMODE=1 "),
@@ -264,7 +263,7 @@ def _add_process_env(cells: CellSet) -> None:
     cells.add(
         "E11",
         "env: empty PATH after start (binary by abs path)",
-        "env -i $L --db $DB detect --id-only $F/mit.txt",
+        "env -i $L --db $DB detect $F/mit.txt",
         kind="detect",
         exp_exit=0,
     )

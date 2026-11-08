@@ -90,6 +90,7 @@ def show_version(ctx: click.Context, _param: click.Parameter, value: bool) -> No
 
 @click.group(cls=DatabaseErrorGroup, invoke_without_command=True)
 @click.option(
+    "-V",
     "--version",
     is_flag=True,
     expose_value=False,
