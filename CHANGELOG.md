@@ -11,26 +11,19 @@ and this project adheres to
 
 ## [Unreleased]
 
-<!-- add the PR link once it exists -->
-
 ### Added
 
 - `resolve()` and `detect()` read a licence URL as its licence (category
   `license_url`): `https://www.apache.org/licenses/LICENSE-2.0` is
   `Apache-2.0`, `spdx:MIT+` is `MIT+`; a page of several licences, or of a
-  licence and an exception, is refused ([#14])
+  licence and an exception, is refused ([#177])
 
 ### Changed
 
-- A tag and a `license` field read a licence URL, in any word, through
-  `resolve()`'s reader: `https://evil.com/licenses/MIT` names no licence,
-  nor does a URL on a host that does not publish that ID ([#14])
-- `detect()` answers nothing for a whole input that is a URL `resolve()`
-  does not read, and warns `too few words for text` ([#14])
 - The database build is v4 (a `license_urls` table): `update` rebuilds an
-  older database, which until then reads only ID pages (`spdx:MIT`) ([#14])
+  older database, which until then reads only ID pages (`spdx:MIT`) ([#177])
 
-[#14]: https://github.com/bact/licenseid/issues/14
+[#177]: https://github.com/bact/licenseid/pull/177
 
 ## [0.7.3] - 2026-11-08
 
