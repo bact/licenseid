@@ -39,7 +39,7 @@ from typing import Final
 
 from licenseid.exprcanon import (
     Token,
-    canonical,
+    join_leaves,
     leaves,
     missing_operator,
     oversize,
@@ -50,7 +50,7 @@ from licenseid.exprcanon import (
 )
 from licenseid.exprtokens import is_addition_ref, is_license_ref
 from licenseid.listlookup import ListLookup, fold_case
-from licenseid.resolveleaf import Found, read_leaf
+from licenseid.resolveleaf import Found, read_leaf, refuse
 from licenseid.resolvertypes import Category, Step, step
 from licenseid.resolvetrove import copy_reading
 
@@ -134,13 +134,14 @@ def _read_several(
     tree = parse(tokens, words)
     if isinstance(tree, str):
         return _refuse(found, "malformed", tree)
-    names = [str(read[word].expression) for word in words]
-    expression, changes = canonical(text, tokens, tree, names)
-    found.steps = steps
-    for word in words:
-        found.steps += read[word].steps
-        found.expansions += read[word].expansions
-    found.steps += changes
+    expression, moves, expansions = join_leaves(
+        text,
+        tokens,
+        tree,
+        [(str(read[w].expression), read[w].steps, read[w].expansions) for w in words],
+    )
+    found.steps = [*steps, *moves]
+    found.expansions += expansions
     found.expression = expression
     return True
 
@@ -177,7 +178,5 @@ def _refuse_leaf(found: Found, reading: Found) -> bool:
 
 def _refuse(found: Found, category: Category, reason: str) -> bool:
     """Make *found* a claim that names no licence, for *reason*; True."""
-    found.expression, found.reason = None, reason
-    found.category = category
-    found.steps, found.expansions, found.candidates = [], [], []
+    refuse(found, category, reason)
     return True

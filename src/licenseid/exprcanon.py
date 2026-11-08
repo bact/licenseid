@@ -31,7 +31,7 @@ OR keep the meaning (SPDX 3, Annex D: AND binds tighter than OR).
 """
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Final, NamedTuple
 
 import py_spdx_license
@@ -304,6 +304,23 @@ def canonical(
         if before != after
     ]
     return forms[-1], steps
+
+
+def join_leaves(
+    text: str,
+    tokens: list[Token],
+    tree: Node,
+    read: Sequence[tuple[str, list[Step], list[Step]]],
+) -> tuple[str, list[Step], list[Step]]:
+    """The one assembly of a compound whose leaves are read, for every reader
+    of one (:mod:`licenseid.resolvecompound`, :mod:`licenseid.nugetpath`):
+    *read* holds, per leaf in input order, its expression, steps and
+    expansions. Returns the canonical expression, the steps (those of each
+    leaf, then those that bring the compound to its canonical form) and the
+    expansions of the leaves."""
+    expression, changes = canonical(text, tokens, tree, [r[0] for r in read])
+    steps = [s for r in read for s in r[1]]
+    return expression, steps + changes, [e for r in read for e in r[2]]
 
 
 def _written(text: str, tokens: list[Token], texts: list[str], upper: bool) -> str:
