@@ -141,6 +141,22 @@ def probe_does_not_hang(path: Path | str) -> str:
     return _run_probe(_FIFO_PROBE, path)
 
 
+_READ_PROBE = """
+import sys
+from licenseid.textinput import read_text_file
+try:
+    read_text_file(sys.argv[1])
+except Exception as exc:
+    print(type(exc).__name__, exc)
+"""
+
+
+def probe_read_does_not_hang(path: Path | str) -> str:
+    """``read_text_file(path)`` in a child process: opening a named pipe would
+    hang it, and not the suite."""
+    return _run_probe(_READ_PROBE, path)
+
+
 def probe_check_does_not_hang(path: Path | str) -> str:
     """``check_database_ready(path)`` in a child process, for the same reason;
     returns ``<exception type> <message>``, or nothing if it raised nothing."""

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-09
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -244,8 +244,6 @@ Found in review of item 22 (2026-10-02); `main` does the same:
 
 - `exclude` is read only by Tier 1 retrieval, so a verbatim licence text
   still answers an excluded licence (item 5 covers the other options).
-- `detect(file_path=<missing>)` raises a bare `FileNotFoundError`, not a
-  `LicenseIdError` worded `input: not found: <path>`.
 - A licence text repeated three times answers a licence it barely
   resembles: `LICENSE` (Apache-2.0) three times over gives `BSD-4-Clause`
   at 0.9025, with similarity 0.0968 and coverage 20.08 (review of PR #68).

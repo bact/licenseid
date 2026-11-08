@@ -224,9 +224,9 @@ def test_unreadable_input_path(ready_db: str, tmp_path: Path, command: str) -> N
     result = CliRunner().invoke(cli, ["--db", ready_db, command, str(directory)])
     assert result.exit_code == 2
     assert result.stdout == ""
-    # The reason is the OS's strerror text, which varies by platform/locale.
-    assert result.stderr.startswith(f"ERROR: input: unreadable: {directory}: ")
-    assert result.stderr.count("\n") == 1
+    assert (
+        result.stderr == f"ERROR: input: unreadable: {directory}: not a regular file\n"
+    )
 
 
 @pytest.mark.parametrize("content", [b"", b"\xef\xbb\xbf", b"  \r\n\t\n"])

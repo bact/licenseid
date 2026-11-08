@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-09
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -642,3 +642,12 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   several licences or of an exception is refused with a reason; no host
   outside the table is read by its path. Details:
   `licence-urls.md`. PR for #14 (no number yet).
+- `detect(file_path=<missing>)` raised a bare `FileNotFoundError` (item 35,
+  second bullet; 2026-11-09). `textinput.read_text_file`, the one reader of
+  user input, now raises `InvalidInputError` (exit 2, as `binary file` and
+  `empty`): `input: not found: <path>`, `input: unreadable: <path>: <reason>`
+  for a permission error or a path that is no regular file (a directory, a
+  named pipe, which is never opened), `input: invalid: file path: <reason>`
+  for an empty path, a NUL or a lone surrogate. The CLI already exited 2 for
+  these; only the reason for a directory changed (`not a regular file`).
+  PR (no number yet).
