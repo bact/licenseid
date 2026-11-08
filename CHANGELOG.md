@@ -9,6 +9,13 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `detect(file_path=...)` raises `InvalidInputError` (`input: not found:
+  <path>`), not `OSError`, for a missing or non-regular file
+
 ## [0.8.1] - 2026-11-09
 
 ### Changed
