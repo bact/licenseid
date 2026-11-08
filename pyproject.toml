@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.33.0", "pitloom[content-type]>=0.23.2"]
+requires = ["hatchling>=1.33.0", "pitloom[content-type]>=0.23.3"]
 build-backend = "hatchling.build"
 
 [project]
