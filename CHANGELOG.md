@@ -14,7 +14,9 @@ and this project adheres to
 ### Added
 
 - `resolve()` reads a `licenses.nuget.org` URL whose path is a licence
-  expression (`(MIT)`, `(Apache-2.0+)`, `MIT%20OR%20Apache-2.0`) <!-- ([#187]) -->
+  expression (`(MIT)`, `(Apache-2.0+)`, `MIT%20OR%20Apache-2.0`) ([#188])
+
+[#188]: https://github.com/bact/licenseid/pull/188
 
 ## [0.8.2] - 2026-11-09
 
