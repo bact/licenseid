@@ -9,7 +9,7 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.0] - 2026-11-08
 
 ### Added
 
@@ -32,11 +32,8 @@ and this project adheres to
 - `resolve()` reads one rule for a name and a version: `Apache Version 2.0`,
   `Apache, Version 2.0`, `Apache License (2.0)` and `Apache Software License
   2.0` are `Apache-2.0`; `ASL 2.0` stays unresolved ([#172])
-- Builds the wheel's SBOM with Pitloom 0.23.1 (`pitloom>=0.23.1` in
-  `build-system.requires`) ([#173])
 
 [#172]: https://github.com/bact/licenseid/pull/172
-[#173]: https://github.com/bact/licenseid/pull/173
 
 ## [0.7.2] - 2026-11-06
 
@@ -51,8 +48,6 @@ and this project adheres to
 - `resolve()` reads a licence's own title (`CC0 1.0 Universal`, `Mulan PSL
   v2`), a bare `CC0` and the UPL trove name; `detect` reads them as a whole
   input ([#163], [#165])
-- Builds the wheel's SBOM with Pitloom 0.23.0 (`pitloom>=0.23.0` in
-  `build-system.requires`) ([#164])
 - A List name without its grant (`GNU General Public License v3.0`, was
   `AGPL-3.0-only`) is the `-only` guess, not exact, and warns `variant not
   stated` ([#168])
@@ -84,7 +79,6 @@ and this project adheres to
 [#161]: https://github.com/bact/licenseid/pull/161
 [#162]: https://github.com/bact/licenseid/pull/162
 [#163]: https://github.com/bact/licenseid/pull/163
-[#164]: https://github.com/bact/licenseid/pull/164
 [#165]: https://github.com/bact/licenseid/pull/165
 [#167]: https://github.com/bact/licenseid/pull/167
 [#168]: https://github.com/bact/licenseid/pull/168
@@ -838,7 +832,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
-[Unreleased]: https://github.com/bact/licenseid/compare/v0.7.3...HEAD
+[0.8.0]: https://github.com/bact/licenseid/compare/v0.7.3...v0.8.0
 [0.7.3]: https://github.com/bact/licenseid/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/bact/licenseid/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/bact/licenseid/compare/v0.7.0...v0.7.1
