@@ -15,11 +15,13 @@ and this project adheres to
 
 - **Breaking:** `detect` and `resolve` print the SPDX expression alone (an
   empty line for none); `-v`/`--verbose` prints the old record. `--id-only` is
-  removed. Use `-v`, or `--json`
+  removed. Use `-v`, or `--json` ([#183])
 
 ### Added
 
-- `-V` is short for `--version`
+- `-V` is short for `--version` ([#183])
+
+[#183]: https://github.com/bact/licenseid/pull/183
 
 ## [0.8.1] - 2026-11-09
 

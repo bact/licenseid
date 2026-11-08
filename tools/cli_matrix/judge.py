@@ -226,9 +226,7 @@ def check_resolve_value(cell: Cell, rc: int, out: str) -> list[str]:
         if "schema" not in parsed[0]:  # a detection, not a resolution
             return [f"resolve --json not one object: {out[:40]!r}"]
         resolved = parsed[0].get("expression") is not None
-    elif "verbose" not in cell.outflags and not re.search(
-        r" (-v|--verbose)\b", cell.cmd
-    ):
+    elif "verbose" not in cell.outflags:
         # The expression alone, or an empty line for none.
         lines = out.splitlines()
         if len(lines) != 1 or ID_ONLY.fullmatch(lines[0] or "x") is None:

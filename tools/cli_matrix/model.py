@@ -163,7 +163,10 @@ def _out_flags(cmd: str) -> frozenset[str]:
     """The output flags *cmd* passes to ``detect`` or ``resolve``: no flag
     means the expression alone. A cell that passes a flag as a value, or
     after ``--``, gives its ``outflags`` itself."""
-    words = cmd.split()
+    try:
+        words = shlex.split(cmd)  # a flag inside a quoted argument is no flag
+    except ValueError:  # an unbalanced quote: read it by white space
+        words = cmd.split()
     flags = {"json"} if "--json" in words else set()
     if "-v" in words or "--verbose" in words:
         flags.add("verbose")
