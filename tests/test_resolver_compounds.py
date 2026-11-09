@@ -82,7 +82,8 @@ def test_a_compound_is_as_weak_as_its_weakest_operand(
     corpus_db: LicenseDatabase,
 ) -> None:
     """The category of a resolved compound is its weakest operand's, or
-    ``lexical`` when only the form changed; never stronger than an operand."""
+    ``lexical`` when only the form changed; never stronger than an operand.
+    A value of IDs joined by ``/`` is at most ``separator`` too."""
     for value in VALUES:
         got = resolve(value, corpus_db)
         if got["expression"] is None or len(got["operands"]) < 2:
@@ -90,6 +91,9 @@ def test_a_compound_is_as_weak_as_its_weakest_operand(
         weakest = max(
             (o["category"] for o in got["operands"]), key=CATEGORY_ORDER.index
         )
+        if any(s["detail"] == "slash as OR" for s in got["steps"]):
+            # the "/" rule adds a ``separator`` step (item 43)
+            weakest = max(weakest, "separator", key=CATEGORY_ORDER.index)
         if weakest == "exact":
             assert got["category"] in ("exact", "lexical"), value
             continue

@@ -133,7 +133,8 @@ would drop. With no match it has no result, with the warning `input: too few
 words for text: <reason>` (none for an input with no word).
 Chinese and Japanese, written without spaces, are
 matched at any length. A compound (`MIT OR Apache-2.0`)
-has empty top-level `candidates`; each operand's are in
+has empty top-level `candidates`; IDs joined by `/` (`MIT/Apache-2.0`) are
+read as `OR`, as `resolve()` does; each operand's are in
 `operands[*].candidates`.
 
 [resolve-doc-list]: https://github.com/bact/licenseid/blob/main/docs/resolve.md#which-list-and-its-warnings

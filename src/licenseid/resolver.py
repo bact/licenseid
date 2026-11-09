@@ -66,6 +66,7 @@ from licenseid.resolvertypes import (
     step,
 )
 from licenseid.resolvesemicolon import read_semicolon_list, semicolon_parts
+from licenseid.resolveslash import read_slash_list
 from licenseid.textinput import has_lone_surrogate
 
 #: The longest value read, once trimmed and unquoted; one licence is
@@ -256,8 +257,8 @@ def _read_text(
     # (``MIT; (MIT)`` is the name and its short form, P87).
     by_name = not compound.claimed and read_by_name(db, text, named)
     resolved = by_name and named.expression is not None
-    listed = _read_list(db, text, start, prepared) if lists and not resolved else None
-    if listed is not None:  # several licences, no operator stated (T8b)
+    listed = _read_joined(db, text, start, prepared) if lists and not resolved else None
+    if listed is not None:  # IDs joined by "/" (item 43), or no operator stated (T8b)
         return prepared, listed[0], listed[1]
     if compound.claimed:
         return found, compound.operands, compound.parsed
@@ -292,12 +293,17 @@ def _ended(
     return read if read[0].expression is not None else None
 
 
-def _read_list(
+def _read_joined(
     db: ListLookup, text: str, start: int, found: Found
 ) -> tuple[list[Operand], bool] | None:
-    """*text* as licences joined by ``;`` (:mod:`licenseid.resolvesemicolon`):
-    its operands and whether the parser ran, with *found* made the refusal;
-    None for any other value."""
+    """*text* as IDs joined by ``/``, read as ``OR``
+    (:mod:`licenseid.resolveslash`), else as licences joined by ``;``
+    (:mod:`licenseid.resolvesemicolon`, made the refusal): its operands and
+    whether the parser ran, with *found* made the reading; None for any other
+    value."""
+    slashed = read_slash_list(db, text, start, found)
+    if slashed is not None:
+        return slashed
     parts = semicolon_parts(text)
     if parts is None:
         return None

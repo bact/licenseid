@@ -105,6 +105,9 @@ as `LICENSE.txt` or `docs/LICENSE`), exits 2 with
 `ERROR: input: not found: <value>; pass --text`, rather than be matched as
 text. A URL, with or without its scheme, and licence IDs joined by `/`
 (`MIT/Apache-2.0`) are not paths. Use `--text` to match any value as text.
+`detect`, `resolve` and `is-*` read IDs spelt as listed and joined by `/`
+as `OR` (`MIT/Apache-2.0` is `Apache-2.0 OR MIT`); `--id` still takes one
+licence only.
 
 Input is read as UTF-8. Text that is not valid UTF-8 is read as Latin-1,
 with a warning on standard error; binary data is rejected (exit code 2).

@@ -1,0 +1,530 @@
+{
+"full": {
+"\"MIT\"/ISC": [],
+"(MIT)/ISC": [],
+"(MIT/ISC) AND Zlib": [],
+"./MIT/ISC": [],
+"/": [],
+"//": [],
+"/MIT": [],
+"Apache 2.0/MIT": [],
+"Apache-2.0/MIT/": [],
+"Apache2/MIT": [],
+"BSD/MIT": [],
+"DocumentRef-d:LicenseRef-x/MIT": [],
+"GPL-2.0-only WITH Classpath-exception-2.0/MIT": [
+[
+"GPL-3.0-only",
+"text",
+false,
+0.5606
+],
+[
+"LGPL-2.1-only",
+"text",
+false,
+0.5606
+],
+[
+"LGPL-3.0-only",
+"text",
+false,
+0.5606
+],
+[
+"GPL-3.0-or-later",
+"text",
+false,
+0.5506
+],
+[
+"LGPL-2.1-or-later",
+"text",
+false,
+0.5506
+],
+[
+"LGPL-3.0-or-later",
+"text",
+false,
+0.5506
+],
+[
+"GPL-2.0-only",
+"text",
+false,
+0.5383
+],
+[
+"MPL-1.1",
+"text",
+false,
+0.5333
+],
+[
+"GPL-2.0-or-later",
+"text",
+false,
+0.5283
+],
+[
+"MPL-2.0-no-copyleft-exception",
+"text",
+false,
+0.5111
+],
+[
+"Apache-1.1",
+"text",
+false,
+0.4889
+],
+[
+"Apache-2.0",
+"text",
+false,
+0.4889
+],
+[
+"Unlicense",
+"text",
+false,
+0.4667
+],
+[
+"BSD-2-Clause",
+"text",
+false,
+0.4444
+],
+[
+"BSD-3-Clause",
+"text",
+false,
+0.4444
+],
+[
+"MIT",
+"text",
+false,
+0.4444
+],
+[
+"0BSD",
+"text",
+false,
+0.4222
+],
+[
+"ISC",
+"text",
+false,
+0.4222
+],
+[
+"Zlib",
+"text",
+false,
+0.4222
+]
+],
+"GPL-2.0-only+/MIT": [],
+"GPL-2.0-or-later+/MIT": [],
+"GPLv3+/BSD": [],
+"LICENSE/MIT": [
+[
+"MIT",
+"name",
+false,
+1.0
+]
+],
+"Libpng/Zlib": [],
+"License: MIT/Apache-2.0": [
+[
+"Apache-2.0",
+"name",
+false,
+1.0
+],
+[
+"MIT",
+"name",
+false,
+1.0
+],
+[
+"Apache-1.0",
+"name",
+false,
+0.9412
+],
+[
+"Apache-1.1",
+"name",
+false,
+0.9333
+]
+],
+"License: MIT/ISC": [
+[
+"ISC",
+"name",
+false,
+1.0
+],
+[
+"MIT",
+"name",
+false,
+1.0
+],
+[
+"MIT-Click",
+"name",
+false,
+0.875
+],
+[
+"MIT-STK",
+"name",
+false,
+0.8667
+]
+],
+"LicenseRef-a/LicenseRef-b": [],
+"LicenseRef-x+/MIT": [],
+"M/IT": [],
+"MIT\n/\nISC": [],
+"MIT /\nISC": [],
+"MIT / / ISC": [],
+"MIT%2FISC": [],
+"MIT+/X11": [],
+"MIT, ISC/Zlib": [],
+"MIT/": [],
+"MIT/ ISC/": [],
+"MIT/(ISC)": [],
+"MIT//ISC": [],
+"MIT/Apache": [],
+"MIT/Apache-2.0 or later": [],
+"MIT/Classpath-exception-2.0": [],
+"MIT/GPL-2.0-only+": [],
+"MIT/ISC AND Zlib": [],
+"MIT/ISC OR Zlib": [],
+"MIT/ISC WITH x": [],
+"MIT/ISC/?": [],
+"MIT/ISC/X11": [],
+"MIT/ISC; Apache-2.0": [],
+"MIT/ISC?": [],
+"MIT/ISC\u2215Zlib": [],
+"MIT/ISC\uff0fZlib": [],
+"MIT/NONE": [],
+"MIT/X11": [],
+"MIT/X11+": [],
+"MIT/X11/ISC": [],
+"MIT/X11/MIT": [],
+"MIT/apache-2.0": [],
+"MIT/\u041cIT": [],
+"MIT\\ISC": [],
+"MIT\u00a0/\u00a0ISC": [],
+"MIT\u2044ISC": [],
+"MIT\u2215ISC": [],
+"MIT\u2215ISC/Zlib": [],
+"MIT\u29f8ISC": [],
+"MIT\uff0fISC": [],
+"NCSA": [
+[
+"NCSA",
+"id",
+true,
+1.0
+]
+],
+"See MIT/Apache-2.0 for the terms": [],
+"TCL/TK": [
+[
+"TCL",
+"name",
+false,
+1.0
+]
+],
+"TCL/TK ": [
+[
+"TCL",
+"name",
+false,
+1.0
+]
+],
+"University of Illinois/NCSA": [
+[
+"NCSA",
+"name",
+false,
+1.0
+]
+],
+"X11/MIT": [],
+"Zlib/Libpng": [],
+"docs/licenses/MIT": [],
+"https://example.com/MIT/ISC": [],
+"https://licenses.nuget.org/MIT": [
+[
+"MIT",
+"name",
+true,
+1.0
+]
+],
+"https://opensource.org/licenses/MIT": [
+[
+"MIT",
+"name",
+true,
+1.0
+]
+],
+"licenseref-x/MIT": [],
+"licenses.nuget.org/MIT": [
+[
+"MIT",
+"name",
+true,
+1.0
+]
+],
+"mit/apache-2.0": [],
+"opensource.org/licenses/MIT": [
+[
+"MIT",
+"name",
+true,
+1.0
+]
+],
+"spdx:MIT/ISC": [],
+"zlib/libpng": []
+},
+"seeded": {
+"\"MIT\"/ISC": [],
+"(MIT)/ISC": [],
+"(MIT/ISC) AND Zlib": [],
+"./MIT/ISC": [],
+"/": [],
+"//": [],
+"/MIT": [],
+"Apache 2.0/MIT": [],
+"Apache-2.0/MIT/": [],
+"Apache2/MIT": [],
+"BSD/MIT": [],
+"DocumentRef-d:LicenseRef-x/MIT": [],
+"GPL-2.0-only WITH Classpath-exception-2.0/MIT": [
+[
+"GPL-2.0-only",
+"text",
+false,
+0.5383
+],
+[
+"GPL-2.0-or-later",
+"text",
+false,
+0.5283
+],
+[
+"Apache-2.0",
+"text",
+false,
+0.4889
+],
+[
+"ECL-2.0",
+"text",
+false,
+0.4889
+],
+[
+"NCSA",
+"text",
+false,
+0.4667
+],
+[
+"X11",
+"text",
+false,
+0.4667
+],
+[
+"Libpng",
+"text",
+false,
+0.4444
+],
+[
+"MIT",
+"text",
+false,
+0.4444
+],
+[
+"TCL",
+"text",
+false,
+0.4444
+],
+[
+"ISC",
+"text",
+false,
+0.4222
+],
+[
+"Zlib",
+"text",
+false,
+0.4222
+]
+],
+"GPL-2.0-only+/MIT": [],
+"GPL-2.0-or-later+/MIT": [],
+"GPLv3+/BSD": [],
+"LICENSE/MIT": [
+[
+"MIT",
+"name",
+false,
+1.0
+]
+],
+"Libpng/Zlib": [],
+"License: MIT/Apache-2.0": [
+[
+"Apache-2.0",
+"name",
+false,
+1.0
+],
+[
+"MIT",
+"name",
+false,
+1.0
+]
+],
+"License: MIT/ISC": [
+[
+"ISC",
+"name",
+false,
+1.0
+],
+[
+"MIT",
+"name",
+false,
+1.0
+]
+],
+"LicenseRef-a/LicenseRef-b": [],
+"LicenseRef-x+/MIT": [],
+"M/IT": [],
+"MIT\n/\nISC": [],
+"MIT /\nISC": [],
+"MIT / / ISC": [],
+"MIT%2FISC": [],
+"MIT+/X11": [],
+"MIT, ISC/Zlib": [],
+"MIT/": [],
+"MIT/ ISC/": [],
+"MIT/(ISC)": [],
+"MIT//ISC": [],
+"MIT/Apache": [],
+"MIT/Apache-2.0 or later": [],
+"MIT/Classpath-exception-2.0": [],
+"MIT/GPL-2.0-only+": [],
+"MIT/ISC AND Zlib": [],
+"MIT/ISC OR Zlib": [],
+"MIT/ISC WITH x": [],
+"MIT/ISC/?": [],
+"MIT/ISC/X11": [],
+"MIT/ISC; Apache-2.0": [],
+"MIT/ISC?": [],
+"MIT/ISC\u2215Zlib": [],
+"MIT/ISC\uff0fZlib": [],
+"MIT/NONE": [],
+"MIT/X11": [],
+"MIT/X11+": [],
+"MIT/X11/ISC": [],
+"MIT/X11/MIT": [],
+"MIT/apache-2.0": [],
+"MIT/\u041cIT": [],
+"MIT\\ISC": [],
+"MIT\u00a0/\u00a0ISC": [],
+"MIT\u2044ISC": [],
+"MIT\u2215ISC": [],
+"MIT\u2215ISC/Zlib": [],
+"MIT\u29f8ISC": [],
+"MIT\uff0fISC": [],
+"NCSA": [
+[
+"NCSA",
+"id",
+true,
+1.0
+]
+],
+"See MIT/Apache-2.0 for the terms": [],
+"TCL/TK": [
+[
+"TCL",
+"name",
+false,
+1.0
+]
+],
+"TCL/TK ": [
+[
+"TCL",
+"name",
+false,
+1.0
+]
+],
+"University of Illinois/NCSA": [
+[
+"NCSA",
+"name",
+false,
+1.0
+]
+],
+"X11/MIT": [],
+"Zlib/Libpng": [],
+"docs/licenses/MIT": [],
+"https://example.com/MIT/ISC": [],
+"https://licenses.nuget.org/MIT": [
+[
+"MIT",
+"name",
+true,
+1.0
+]
+],
+"https://opensource.org/licenses/MIT": [],
+"licenseref-x/MIT": [],
+"licenses.nuget.org/MIT": [
+[
+"MIT",
+"name",
+true,
+1.0
+]
+],
+"mit/apache-2.0": [],
+"opensource.org/licenses/MIT": [],
+"spdx:MIT/ISC": [],
+"zlib/libpng": []
+}
+}

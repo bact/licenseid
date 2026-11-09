@@ -13,8 +13,17 @@ and this project adheres to
 
 ### Added
 
+- `resolve()`, `detect()`, the CLI and a `license` field read List IDs spelt as
+  listed and joined by `/` as `OR` (`MIT/Apache-2.0` is `Apache-2.0 OR MIT`);
+  a name or path with a `/`, `zlib/libpng` and `MIT/X11` stay refused ([#194])
 - `resolve()` reads `「MIT」` and `『MIT』` (corner brackets) as quote marks, and
   `BSD (3 clause)` and `BSD (3-clause)` as `BSD-3-Clause` ([#195])
+
+### Changed
+
+- `detect()` answers `MIT/Apache-2.0` as `Apache-2.0 OR MIT` (0.8.3: no
+  answer); a `Cargo.toml` `license` in lower case (`mit/apache-2.0`) is no
+  longer read as `OR`; a tag never reads a `/` ([#194])
 
 ### Fixed
 
@@ -51,6 +60,7 @@ and this project adheres to
 [#188]: https://github.com/bact/licenseid/pull/188
 [#190]: https://github.com/bact/licenseid/pull/190
 [#191]: https://github.com/bact/licenseid/pull/191
+[#194]: https://github.com/bact/licenseid/pull/194
 [#195]: https://github.com/bact/licenseid/pull/195
 [#197]: https://github.com/bact/licenseid/pull/197
 

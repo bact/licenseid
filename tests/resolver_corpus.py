@@ -25,6 +25,7 @@ from resolver_changes_contract import CONTRACT_CHANGES
 from resolver_changes_hidden import HIDDEN_CHANGES
 from resolver_changes_readers import READERS_CHANGES
 from resolver_changes_resolverfix import RESOLVERFIX_CHANGES
+from resolver_changes_slash import SLASH_CHANGES
 from resolver_changes_t7 import T7_CHANGES, answer
 from resolver_changes_t8 import T8_CHANGES
 from resolver_changes_t9 import T9_CHANGES
@@ -171,6 +172,7 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
     **URLS_CHANGES,  # last: a value it moves again has its answer now
     **ALIASES_CHANGES,  # last, for the same reason
     **HIDDEN_CHANGES,  # last: `MIT\u200b` was refused, now read
+    **SLASH_CHANGES,  # over the T7 row: `MIT/Apache-2.0` was refused
 }
 
 

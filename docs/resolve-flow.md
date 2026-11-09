@@ -152,7 +152,7 @@ reads the value, or when it refuses it with a reason.
    the hidden characters at its ends left off (step 3.1), before any other
    reader, so no reader can drop such a character as a separator.
 6. **The readers**
-   ([`_read_text`](../src/licenseid/resolver.py#L229)), first match wins:
+   ([`_read_text`](../src/licenseid/resolver.py#L241)), first match wins:
    1. *One licence*
       ([`read_leaf`](../src/licenseid/resolveleaf.py#L139)): `X`, `X+`,
       `X WITH Y`, a listed name, a loosely written ID, an "or later" grant.
@@ -172,15 +172,18 @@ reads the value, or when it refuses it with a reason.
       so no later rule guesses at it); then trove path, trove name or
       `head (short form)`; then the title of a licence text; then another
       name of a BSD licence; then the prose form.
-   4. *List* ([`_read_list`](../src/licenseid/resolver.py#L284)), unless a
-      name read: licences joined by `;`.
+   4. *List* ([`_read_joined`](../src/licenseid/resolver.py#L296)), unless a
+      name read: IDs joined by `/`, read as `OR`
+      ([`resolveslash`](../src/licenseid/resolveslash.py)), else licences
+      joined by `;`. Both only for a whole value, not for a part of a `;`.
    5. *Compound refusal*, if the compound reader claimed the value.
    6. *The name*, if a name read.
    7. *Nothing read*: `unresolved`, with the reason of the first refused
       operand of a compound-shaped value, else `not an SPDX operator: /`
-      for IDs joined by `/ | & , ;`.
+      for IDs joined by `/ | & , ;` (a `/` is read at step 4 when every piece
+      is an exact ID).
 7. **One more try without an end mark**
-   ([`_ended`](../src/licenseid/resolver.py#L265)). If no reader read the
+   ([`_ended`](../src/licenseid/resolver.py#L277)). If no reader read the
    value and none gave a reason, one `. , ; :` at the end comes off (a
    `separator` step) and the readers run once more (`The Unlicense.`).
 8. **Explain a refusal**
@@ -199,7 +202,7 @@ reads the value, or when it refuses it with a reason.
 ### The order inside `_read_text`
 
 The order matters and is not the order the module docstring suggests. The
-code ([`resolver.py:229`](../src/licenseid/resolver.py#L229)) runs the
+code ([`resolver.py:241`](../src/licenseid/resolver.py#L241)) runs the
 list reader *before* it returns a compound's refusal, but only when no name
 read:
 
@@ -209,8 +212,8 @@ compound = read_compound(...)
 if compound.claimed and found.expression: return compound
 by_name  = not compound.claimed and read_by_name(...)
 resolved = by_name and named.expression is not None
-listed   = _read_list(...) if lists and not resolved else None
-if listed is not None: return list refusal
+listed   = _read_joined(...) if lists and not resolved else None
+if listed is not None: return the "/" reading or the ";" refusal
 if compound.claimed: return compound refusal
 if by_name: return the name
 # else: unresolved, reason from not_an_operator or the compound fallback
@@ -316,7 +319,8 @@ step kinds in order, `expansions` after them.
 | `Apache License, Version 2.0` | `Apache-2.0` | prose_form | `prose_form`, `separator` | prose (P2) |
 | `The MIT License` | `MIT` | prose_form | `prose_form`, `listed_name` | prose (P3) |
 | `MIT; Apache 2` | none | unresolved | reason `operator not stated: ;`; two operands | semicolon |
-| `MIT/Apache-2.0` | none | unresolved | reason `not an SPDX operator: /` | none read |
+| `MIT/Apache-2.0` | `Apache-2.0 OR MIT` | separator | `separator` (detail `slash as OR`), `reorder` | slash list (item 43) |
+| `MIT/Apache` | none | unresolved | reason `not an SPDX operator: /` | none read |
 | `BSD License` | none | unresolved | reason `not found: BSD License` | trove claims, no reading |
 | `NONE` | none | unresolved | reason `special value: NONE` | explain |
 

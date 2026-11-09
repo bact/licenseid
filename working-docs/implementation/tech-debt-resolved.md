@@ -724,3 +724,31 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   readers of Tier 0. `looseid.loose_with` stays (`license_id=`). Left:
   item 50. Tests: `tests/test_tier0_wrappers.py`, `tests/test_stray_plus_paths.py`,
   the goldens of `tests/harness_changes_wrappers.py`.
+- Cargo's `MIT/Apache-2.0` was matched as text (item 43, Priority 16;
+  2026-11-09). The roadmap text was stale by then: `detect(text="MIT OR
+  Apache-2.0")` already answered `Apache-2.0 OR MIT` (`resolvefirst`), and
+  `MIT/Apache-2.0` answered nothing, with `too few words for text`, not
+  `ECL-2.0`; the golden file still recorded the old guess. Cargo fields read
+  `/` through a second, looser reader (`manifest._cargo_or`, any word,
+  case folded). Now `resolveslash.py` is the one reader: a whole value of
+  two or more pieces cut at `/`, each a List ID spelt exactly as listed
+  (a "+" as `plusoperator` reads it) or `LicenseRef-*`, at least one a List
+  ID, is `A OR B` with a `separator` step (detail `slash as OR`). Decided:
+  - no case fold (`zlib/libpng` would be `Libpng OR Zlib`; the author means
+    `zlib-acknowledgement`), so a lower-case Cargo value is lost
+    (`_cargo_or` deleted);
+  - a table of refused pairs, `MIT/X11` only (Debian's name of one licence);
+  - a tag does not read `/` (its value runs on into prose); a field does;
+  - the step kind `separator` is reused: a new kind that is no category
+    would leave the value `exact` (`resolveleaf.category_of`).
+  Names with a `/` on the List (12 licences, 2 exceptions) stay refused.
+  Tests: `tests/test_resolver_slash.py` (accepted and refused tables, the
+  refused ones pinned to 0.8.3's full answers in `tests/slash_pins.py`),
+  `test_resolver_slash_props.py` (every ID beside `MIT`, random pairs,
+  perturbed operands, names with a `/`), `test_slash_detect.py` (two
+  databases, pinned to `main`), `test_slash_fields.py`, `test_slash_cli.py`,
+  `test_slash_timing.py`, `test_slash_corpus.py`. Moved: `MIT/Apache-2.0`
+  in the parity corpus, the PyPI sample and the `detect()` golden. Out of
+  scope and still wrong: `License: MIT/Apache-2.0` answers `Apache-2.0` by
+  name, not exact; a tag `MIT/x` answers `MIT`. (`/MIT` answered `MIT` exact
+  through Tier 0 while `resolve()` refused it; PR #195 made `detect()` agree.)
