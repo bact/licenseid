@@ -669,6 +669,25 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   `MIN_TEXT_WORDS`). Left: a "+" in prose (item 47), wrappers `resolve()`
   does not read (item 48). Test: `tests/test_stray_plus_paths.py`, the
   invariant `plus_refusal_has_no_answer` of the harness.
+- A tag value with a non-ASCII letter was cut short (item 33, Priority 12;
+  2026-11-09). `LicenseRef-café` was read as `LicenseRef-caf`. The refusal
+  was already in place (`exprtokens.cut_inside_word` in
+  `identifiers.leading_expression`: an ID cut inside a word is no
+  expression, as an idstring holds ASCII only, SPDX 3.0.1), so every entry
+  point answered nothing, and `resolve()` refuses with `not found: …` or
+  `operand not resolved: …`. What was missing was a word: the tag path of
+  `detect()` now warns `input: invalid: <value>` (`markers._cut_by_non_ascii`, on
+  `identifiers.read_leading`), once per distinct tag value; a valid ID with no match, prose
+  after an expression (`MIT ü`) and a mark that is no letter (`MIT€`) stay
+  quiet. Test: `tests/test_tag_invalid_warning.py`,
+  `tests/test_resolverfix_tags.py`.
+- Expressions and references carried the wrong flags (item 34, Priority 12;
+  found done 2026-11-09). `exprflags.py` judges them: a `LicenseRef-*` is
+  `is_spdx` false with both approval flags null; for an expression `OR` is
+  true if any operand is, `AND` only if all are, `WITH` takes its licence;
+  the text record keeps a value's spaces in `EXPRESSION=` with tab-separated
+  fields. Checked by `detect --json --id LicenseRef-x` and a tag with
+  `MIT OR Apache-2.0`.
 - Conflicting options and inputs were resolved silently (item 5, Priority
   15; 2026-11-09). By the time of this pass most was done: two inputs (CLI
   `--id`/`--text`/argument, API `license_id`/`file_path`/`text`) exit 2 or

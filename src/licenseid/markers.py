@@ -11,18 +11,23 @@ from typing import cast
 from licenseid.bsdclauses import bsd_clause_id
 from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
+from licenseid.dropguard import without_name_tail
+from licenseid.errors import one_line
 from licenseid.exprflags import declared_flags, judged_flags
+from licenseid.exprtokens import cut_inside_word
 from licenseid.hiddenchars import space_out_hidden, strip_hidden
 from licenseid.identifiers import (
     leading_expression,
     names_only_listed,
     normalize_identifier,
     qualify_trailing_grant,
+    read_leading,
 )
 from licenseid.looseid import drops_words, read_inexactly, warn_narrowed
 from licenseid.manifest import extension, license_value_groups
 from licenseid.resolveurl import url_license_id
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags, Method
+from licenseid.warning import warn
 
 
 def _first_per_license(*groups: list[CandidateMatch]) -> list[CandidateMatch]:
@@ -32,6 +37,12 @@ def _first_per_license(*groups: list[CandidateMatch]) -> list[CandidateMatch]:
         for candidate in group:
             found.setdefault(candidate["license_id"], candidate)
     return list(found.values())
+
+
+def _cut_by_non_ascii(value: str) -> bool:
+    """Whether *value* was refused for an ID cut at a non-ASCII letter."""
+    expression, end = read_leading(value)
+    return not expression and not value.isascii() and cut_inside_word(value, end)
 
 
 def _found_by(method: Method, candidates: list[CandidateMatch]) -> list[CandidateMatch]:
@@ -46,20 +57,6 @@ class MarkerDetector:
     Detector for license markers like SPDX-License-Identifier,
     License metadata fields, and headings.
     """
-
-    @staticmethod
-    def _without_name_tail(value: str) -> str:
-        """*value* without its comment closer or full stop, for the name lookup.
-
-        No license name ends in anything but a word character or ")", and a
-        "+" is part of the expression, not punctuation. A backward scan, not
-        the regex "[^\\w)+]+$": that retries a long run of spaces or dashes
-        from every start and is quadratic (6 s at 40,000 characters).
-        """
-        end = len(value)
-        while end and not (value[end - 1].isalnum() or value[end - 1] in "_)+"):
-            end -= 1
-        return value[:end]
 
     # SPDX-License-Identifier tag. Its value is the rest of the line ("[ \t]",
     # never "\s", so a tag cannot reach across a line break), up to the next
@@ -248,7 +245,7 @@ class MarkerDetector:
         lic_id = normalize_identifier(expression, self.db)
         # The name comes first: the expression can be a prefix of the value,
         # and "MIT No Attribution" is MIT-0, not MIT.
-        named = self.db.get_license_by_name(self._without_name_tail(val))
+        named = self.db.get_license_by_name(without_name_tail(val))
         if named and not named["is_deprecated"]:
             return [self._candidate_without_text(named, score)]
         if named:
@@ -356,6 +353,9 @@ class MarkerDetector:
         # 1. SPDX-License-Identifier
         # A bundle can repeat one tag thousands of times; one lookup does.
         for value in dict.fromkeys(self._spdx_tag_values(text)):
+            if _cut_by_non_ascii(value):
+                # Refused whole (no guess), but said: no match is not silence.
+                warn("input", "invalid", one_line(value))
             candidates.extend(_found_by("tag", self.resolve_license_value(value, 1.0)))
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)

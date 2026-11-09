@@ -211,34 +211,6 @@ is not exact, though the same file is.
   parses "+" (upstream issue #1) in linear time (item 26).
 - Impact 2, Risk 2, Effort 3.
 
-## 33. A tag value with a non-ASCII letter is cut short — Priority 12
-
-The tag reader stops a value at the first non-ASCII character, so
-`LicenseRef-café` is read as `LicenseRef-caf`, `MIT-ü` as `MIT`, and
-`MIT AND LicenseRef-ß` as `MIT AND LicenseRef`: a different licence, or a
-reference that is no reference, answered with certainty. SPDX IDs are
-ASCII, so such a value is invalid, but it should be refused whole, not
-answered in part. `main` does the same; found in review of item 22
-(2026-10-02).
-
-- **Direction**: read the tag value up to white space or the next tag,
-  as the expression reader does, and let the grammar refuse it (item 31).
-- Impact 2, Risk 2, Effort 3.
-
-## 34. Expressions and references carry the wrong flags — Priority 12
-
-`is_spdx` is true for any `LicenseRef-*`, which is by definition not on
-the SPDX License List, and a compound expression (`MIT OR Apache-2.0`)
-reports `is_osi_approved` and `is_fsf_libre` false, though both its
-licences are approved. The text output also puts an expression's spaces
-inside `LICENSE_ID=`, so `awk` splits one value into several fields. `main`
-does the same; found in review of item 22 (2026-10-02).
-
-- **Direction**: decide what each flag means for an expression (all of its
-  licences, any of them, or null) and for a reference (false), and how the
-  text output writes a value with spaces (quoted, or spaces replaced).
-- Impact 2, Risk 2, Effort 3.
-
 ## 35. Small gaps in the API and in Tier 2 — Priority 9
 
 Found in review of item 22 (2026-10-02); `main` does the same:
