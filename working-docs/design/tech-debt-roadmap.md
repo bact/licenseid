@@ -563,6 +563,30 @@ and the parity corpus: the whole input moved 6 times, a quoted INI field
 
 - Impact 2, Risk 2, Effort 3.
 
+## 49. Hand a non-standard value from `resolve()` to `detect()` — Priority 12
+
+Noted 2026-11-09, while planning item 43. Some declared values name no
+licence on purpose, and the package supplies the text elsewhere:
+
+- Cargo writes `license = "non-standard"` (crates.io field of
+  `ring@0.16.20`) when a crate has a `license-file`. `resolve()` rightly
+  refuses it; the answer is in that file, which `detect()` can read.
+- A licence URL that is not from a licence steward, SPDX or the OSI
+  (`ID_PAGES`, `URL_ALIASES`) names no licence either. The page behind it is
+  text `detect()` could match. A guess from the URL is not allowed
+  (`https://evil.com/licenses/MIT` names nothing), so the text is the only
+  source.
+
+Both want the same step: when `resolve()` refuses, say that the value points
+at a text (a file or a page), so a caller can run `detect()` on it. Open
+questions to design first: who fetches (never the library on its own: no
+network in a lookup); how a refusal carries "the text is elsewhere" (a
+`reason`, or a field); how the manifest reader (`manifest.py`) passes a
+`license-file` or `license_files` entry on; what the CLI does with a path
+beside a value.
+
+- Impact 2, Risk 2, Effort 3 (a design item; no code yet).
+
 ## Already resolved
 
 Moved to
