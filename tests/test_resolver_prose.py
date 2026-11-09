@@ -14,6 +14,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from matcher_db import Lic, seeded_db
 from packaged_list import fixture_bundle
 from release_fakes import ship
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.resolveleaf import Found
@@ -458,7 +459,7 @@ def _time_the_rules(db: LicenseDatabase, size: int) -> None:
     start = time.monotonic()
     for payload in payloads:
         read_prose(db, payload, Found())
-    assert time.monotonic() - start < max(2.0, size / 20_000)
+    assert time.monotonic() - start < slack(max(2.0, size / 20_000))
 
 
 @pytest.mark.parametrize(

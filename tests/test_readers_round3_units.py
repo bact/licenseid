@@ -13,6 +13,7 @@ from collections.abc import Callable
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.classify import (
@@ -109,7 +110,7 @@ def test_is_stray_plus_is_linear() -> None:
     start = time.monotonic()
     assert not is_stray_plus("x" + " " * 40_000 + "x")
     assert not is_stray_plus("x" + " +" * 20_000 + " x")
-    assert time.monotonic() - start < 1.0
+    assert time.monotonic() - start < slack(1.0)
 
 
 @pytest.mark.parametrize(

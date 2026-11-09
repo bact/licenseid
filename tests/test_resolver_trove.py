@@ -16,6 +16,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from matcher_db import Lic, seeded_db
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.resolveleaf import Found
@@ -477,7 +478,7 @@ def test_every_name_and_path_is_read_the_same_without_a_database(
 def test_the_trove_rules_do_not_backtrack(payload: Callable[[int], str]) -> None:
     start = time.monotonic()
     resolve(payload(300), source="packaged")
-    assert time.monotonic() - start < 2.0
+    assert time.monotonic() - start < slack(2.0)
 
 
 @pytest.mark.benchmark
@@ -491,7 +492,7 @@ def test_the_trove_rules_are_linear_on_a_long_value(size: int) -> None:
     ):
         start = time.monotonic()
         resolve(value, source="packaged")
-        assert time.monotonic() - start < 5.0
+        assert time.monotonic() - start < slack(5.0)
 
 
 # --- the list decides ---

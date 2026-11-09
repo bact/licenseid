@@ -13,6 +13,7 @@ from collections.abc import Callable, Generator
 import pytest
 from matcher_db import Lic, seeded_db
 from resolver_helpers import GPL2, GPL2_PLUS, summary
+from timing import slack
 
 import licenseid
 from licenseid import LicenseDatabase
@@ -422,7 +423,7 @@ def test_the_declared_grant_regex_does_not_backtrack(
     """Time on long runs of white space (CLAUDE.md: every new prose regex)."""
     start = time.monotonic()
     assert declared_grant_id_text(payload(30_000)) is None
-    assert time.monotonic() - start < 3  # linear: about 0.01 s; quadratic: 20 s
+    assert time.monotonic() - start < slack(3)  # linear: about 0.01 s; quadratic: 20 s
 
 
 @pytest.mark.parametrize(

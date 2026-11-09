@@ -444,6 +444,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - No test may touch the network: patch `requests.get` (autospec). Never
   modify or clear the real cache in `~/.local/share/licenseid/`; it is fine
   to read it to validate a parser against real data.
+- Windows CI runs only `pytest -m platform` on a pull request (every test on
+  a push to `main`): the files listed in
+  `tests/platform_files.py` (file system, streams, signals, processes,
+  encodings, packaging). Linux runs every test. A file that uses one of
+  those goes in the list; `tests/test_platform_files.py` fails if not.
 - CI tests on Python 3.10 and 3.14 (Ubuntu) and 3.11 (Windows); it builds
   on 3.10-3.14 (Ubuntu). The local environment is the pyenv virtualenv
   named in `.python-version` (`licenseid310`, Python 3.10, an editable
@@ -764,7 +769,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   times slower than a laptop: a timing test that needs a large input or a
   tight bound (a ratio of two sizes for linear time) is
   `@pytest.mark.benchmark`, run with `--run-benchmark` before a release, and
-  keeps a small size in the every-commit run (PR #121). Details from PR #61:
+  keeps a small size in the every-commit run (PR #121). A time bound is
+  written `slack(seconds)` (`tests/timing.py`): it scales the bound for
+  `coverage` tracing and `pytest -n` workers, which CI's 3.10 job runs
+  together (two 1 s bounds failed there in PR #202); never use it for a ratio
+  of two sizes. Details from PR #61:
   `working-docs/implementation/spdx-expression-reading.md`. Run the full
   suite alone: beside mutants and `tools.golden`, a 1 s bound
   (`test_leading_expression_does_not_backtrack`) failed at 2.5 s; rerun a

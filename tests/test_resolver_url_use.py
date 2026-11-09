@@ -19,6 +19,7 @@ from click.testing import CliRunner
 from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from matcher_db import Lic, seeded_db
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.cli import cli
@@ -472,7 +473,7 @@ def _time_the_reader(db: LicenseDatabase, size: int) -> None:
     for payload in _payloads(size):
         read_url(db, payload, Found())
         _key(payload)
-    assert time.monotonic() - start < max(2.0, size / 20_000)
+    assert time.monotonic() - start < slack(max(2.0, size / 20_000))
 
 
 def test_resolve_and_a_tag_are_fast_just_under_the_gate(
@@ -489,4 +490,4 @@ def test_resolve_and_a_tag_are_fast_just_under_the_gate(
         for payload in payloads:
             resolve(payload, corpus_db)
             markers.resolve_license_value(payload, 1.0)
-    assert time.monotonic() - start < 2.0
+    assert time.monotonic() - start < slack(2.0)

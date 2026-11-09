@@ -12,6 +12,7 @@ import time
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.resolveleaf import over_key_cap
@@ -97,7 +98,7 @@ def test_a_long_run_of_white_space_around_with_is_fast(
     start = time.monotonic()
     for value in values:
         resolve(value, corpus_db)
-    assert time.monotonic() - start < 1.0
+    assert time.monotonic() - start < slack(1.0)
 
 
 # -- Q20: AdditionRef- --------------------------------------------------------

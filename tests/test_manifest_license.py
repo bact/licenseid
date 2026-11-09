@@ -16,6 +16,7 @@ import pytest
 from click.testing import CliRunner
 from conftest import MIT_SEARCH_TEXT, GivenWarnings, json_lines, predicate_line
 from matcher_db import GPL2_ROWS, Lic, seeded_db
+from timing import slack
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
@@ -449,7 +450,7 @@ def test_a_long_run_reads_in_linear_time(text: str) -> None:
     Each takes a few milliseconds; the limit leaves CI headroom."""
     start = time.monotonic()
     license_value_groups(text, "")
-    assert time.monotonic() - start < 0.5
+    assert time.monotonic() - start < slack(0.5)
 
 
 @pytest.mark.parametrize("large", [False, True], ids=["small", "large"])

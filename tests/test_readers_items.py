@@ -23,6 +23,7 @@ from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
+from timing import slack
 
 from licenseid import LicenseDatabase, classify, looseid, resolve
 from licenseid.classify import grant_at, grant_end, grant_spans, is_pure_license_text
@@ -210,7 +211,7 @@ def test_a_run_of_blank_lines_is_read_in_linear_time(line_break: str) -> None:
     start = time.monotonic()
     assert not is_pure_license_text(None, payload)
     elapsed = time.monotonic() - start
-    assert elapsed < 0.5, f"took {elapsed:.3f}s"
+    assert elapsed < slack(0.5), f"took {elapsed:.3f}s"
 
 
 @pytest.mark.benchmark
@@ -219,7 +220,7 @@ def test_detect_reads_a_run_of_blank_lines_quickly(corpus_db: LicenseDatabase) -
     start = time.monotonic()
     LicenseDetector(corpus_db.location).detect(payload)
     elapsed = time.monotonic() - start
-    assert elapsed < 2, f"took {elapsed:.3f}s"  # 7 s before
+    assert elapsed < slack(2), f"took {elapsed:.3f}s"  # 7 s before
 
 
 # --- item 6: a reference in another case --------------------------------------

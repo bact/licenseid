@@ -24,6 +24,7 @@ from click.testing import CliRunner
 from conftest import GivenWarnings
 from matcher_db import PROSE
 from spdx_tag_helpers import Answers, answers, cli_match_id, source_with, tag_db
+from timing import slack
 
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
@@ -452,4 +453,4 @@ def test_strip_plus_operator(expression: str, stripped: str) -> None:
 def test_strip_plus_operator_does_not_backtrack(payload: str) -> None:
     start = time.monotonic()
     strip_plus_operator(payload)
-    assert time.monotonic() - start < 1.0
+    assert time.monotonic() - start < slack(1.0)

@@ -13,6 +13,7 @@ from collections.abc import Generator
 import pytest
 from conftest import MIT_SEARCH_TEXT, GivenWarnings
 from matcher_db import GPL2_ROWS, Lic, seeded_db
+from timing import slack
 
 from licenseid.detector import LicenseDetector
 from licenseid.identifiers import parse_expression
@@ -146,7 +147,7 @@ def test_a_long_tag_value_reads_in_linear_time(db: str) -> None:
     start = time.monotonic()
     assert not detector.detect_declared(text, [])
     # 10x the time on a quiet machine; the quadratic tokenizer took 7 s.
-    assert time.monotonic() - start < 5
+    assert time.monotonic() - start < slack(5)
 
 
 @pytest.mark.parametrize(
@@ -193,4 +194,4 @@ def test_a_long_tag_value_reads_in_linear_time(db: str) -> None:
 def test_the_parser_refuses_an_overlong_token(expression: str, parsed: bool) -> None:
     start = time.monotonic()
     assert (parse_expression(expression) is not None) is parsed
-    assert time.monotonic() - start < 0.5
+    assert time.monotonic() - start < slack(0.5)
