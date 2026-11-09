@@ -55,19 +55,26 @@ def _full_row(db: LicenseDatabase, license_id: str) -> LicenseNameId | None:
 
 
 def match_short_text(
-    db: LicenseDatabase, norm_input: str, text: str | None = None
+    db: LicenseDatabase,
+    norm_input: str,
+    text: str | None = None,
+    *,
+    ids: bool = True,
 ) -> list[RawMatch]:
     """Tier 0 for very short inputs: the ID of the version key of *text* (the
     raw input; *norm_input* when not given, which has lost its full stops),
-    else an exact or fuzzy ID or name match on *norm_input*."""
+    else an exact or fuzzy ID or name match on *norm_input*. Not the IDs if
+    not *ids*: a value ``resolve()`` refused is no ID, and the normalised
+    text has lost the marks it refused it for."""
     raw = norm_input if text is None else text
-    loose = match_version_key(db, raw)
-    if loose:
-        return loose
+    if ids:
+        loose = match_version_key(db, raw)
+        if loose:
+            return loose
     all_metadata = db.get_all_names_and_ids()
     # Case-fold exact ID match: a score > 1.0, so the Tier 0 caller
     # recognises it as a definitive hit.
-    exact = _exact_id_row(all_metadata, norm_input, raw)
+    exact = _exact_id_row(all_metadata, norm_input, raw) if ids else None
     if exact is not None:
         return [_id_hit(exact, resolved_id(db, exact), raw)]
     ranked: list[RawMatch] = []
