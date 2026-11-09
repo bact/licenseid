@@ -200,6 +200,7 @@ Common options:
   prints the full record.
 - `--diff`: Show a word-by-word diff between the input and the top
   result, when it was matched as text and is not exact, on standard error.
+  An exact result has no diff, so `--diff --exact` prints none.
 - `--json`: Output results as JSON Lines (see below). It does not take
   `--diff`: both exit 2.
 - `--threshold <score>`: Keep results that score at least this, from 0 to

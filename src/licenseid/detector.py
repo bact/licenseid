@@ -393,8 +393,10 @@ class LicenseDetector:
         keys (see licenseid.types.Detection).
 
         Give exactly one of text, license_id or file_path. Raises
-        :class:`TypeError` for a text or license_id that is no str, or a
-        file_path that is neither a str nor an os.PathLike of one;
+        :class:`TypeError` for a text or license_id that is no str, a
+        file_path that is neither a str nor an os.PathLike of one, or an
+        option of the wrong type (a flag that is no bool, an exclude or hint
+        that is no list of str);
         licenseid.errors.InvalidInputError for none or two of the three, an
         unknown option, a text with a lone surrogate, a license_id that names
         no single license (an AND/OR expression, a license name, an SPDX URL,

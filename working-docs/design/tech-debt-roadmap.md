@@ -244,7 +244,7 @@ does the same; found in review of item 22 (2026-10-02).
 Found in review of item 22 (2026-10-02); `main` does the same:
 
 - `exclude` is read only by Tier 1 retrieval, so a verbatim licence text
-  still answers an excluded licence (item 5 covers the other options).
+  still answers an excluded licence (the other options are documented as read by ranking only).
 - A licence text repeated three times answers a licence it barely
   resembles: `LICENSE` (Apache-2.0) three times over gives `BSD-4-Clause`
   at 0.9025, with similarity 0.0968 and coverage 20.08 (review of PR #68).
@@ -253,29 +253,6 @@ Found in review of item 22 (2026-10-02); `main` does the same:
   markers: the README of a GPL-2.0-only project answers the deprecated
   `GPL-2.0` at 0.855.
 - Impact 1, Risk 2, Effort 3.
-
-## 5. Conflicting options and inputs are resolved silently — Priority 15
-
-When several inputs are given, the CLI uses `--id`, then `--text`, then the
-positional argument, then stdin; the API uses `license_id`, then `file_path`,
-then `text`. `--bold` wins over `--json`, and `--diff` has no effect with
-`--json`, `--bold` or `--exact` (an exact result has no diff). The README
-documents none of this, and the losing option or input is dropped without a
-warning. All of it is pinned as "current behaviour" in
-`tests/test_option_matrix.py` and `tests/test_cli_output.py`.
-
-- The same holds for the API options: `exclude`, `only_spdx`, `only_common`,
-  `hint` and `enable_popularity` are read only by ranking, so an explicit
-  `license_id`, a bare ID or name, and an `SPDX-License-Identifier` tag
-  ignore them. Unknown option names are already rejected.
-- An explicit `license_id` wins over `text` in `detect()`, and the text is
-  dropped unread.
-- Values are not checked (review of item 22, 2026-10-02): `--top -1` drops
-  the last result (a slice), and `--top 0` keeps none, so both say
-  `no license found`. (`--threshold` outside 0-1 exits 2 since item 22.)
-- **Fix**: decide per pair whether to reject it (usage error, exit 2) or
-  document it, then flip the pins.
-- Impact 2, Risk 3, Effort 3.
 
 ## 40. A database truncated during a block crashes with SIGBUS — Priority 20
 

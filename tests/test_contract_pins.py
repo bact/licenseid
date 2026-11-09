@@ -119,6 +119,7 @@ def test_c6_text_is_taken_as_written(db: str) -> None:
         (["detect", "--id", "MIT", "ISC"], "--id: with an argument"),
         (["detect", "--json", "--diff", "MIT"], "--diff: with --json"),
         (["detect", "--top", "0", "MIT"], "--top: 0; pass 1 or more"),
+        (["detect", "--top", "-1", "MIT"], "--top: -1; pass 1 or more"),
         (["is-osi", "--id", "MIT", "ISC"], "--id: with an argument"),
     ],
     ids=[
@@ -127,6 +128,7 @@ def test_c6_text_is_taken_as_written(db: str) -> None:
         "id-arg",
         "json-diff",
         "top0",
+        "top-negative",
         "is-id-arg",
     ],
 )
