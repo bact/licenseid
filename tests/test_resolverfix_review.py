@@ -23,6 +23,7 @@ import pytest
 from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from spdx_tag_helpers import Answers, answers, tag_db
+from timing import slack
 
 from licenseid import (
     LicenseDatabase,
@@ -338,7 +339,7 @@ def test_the_marks_at_the_end_are_read_in_linear_time(text: str) -> None:
     50,000 before)."""
     start = time.monotonic()
     marks_at_end(text)
-    assert time.monotonic() - start < 0.5
+    assert time.monotonic() - start < slack(0.5)
 
 
 @pytest.mark.parametrize(

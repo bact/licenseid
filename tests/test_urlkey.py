@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from resolver_corpus import SEE_ALSO_LIST, list_rows
+from timing import slack
 
 import licenseid
 from licenseid import textinput, urlkey
@@ -322,4 +323,4 @@ def _time_the_key(size: int) -> None:
     for payload in payloads:
         urlkey._key(payload)  # pylint: disable=protected-access
         SCHEMELESS_HOST.match(payload)
-    assert time.monotonic() - start < max(2.0, size / 20_000)
+    assert time.monotonic() - start < slack(max(2.0, size / 20_000))

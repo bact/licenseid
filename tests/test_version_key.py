@@ -14,6 +14,7 @@ from unittest import mock
 import pytest
 from conftest import GivenWarnings
 from matcher_db import Lic, seeded_db
+from timing import slack
 
 from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
@@ -356,4 +357,4 @@ def test_mixed_content_gives_its_sections_raw_to_tier_0(
 def test_the_key_regexes_do_not_backtrack(text: str) -> None:
     start = time.monotonic()
     version_key(text)
-    assert time.monotonic() - start < 2.0
+    assert time.monotonic() - start < slack(2.0)

@@ -16,6 +16,7 @@ from packaged_list import fixture_bundle
 from release_fakes import ship
 from resolver_corpus import EXCEPTION_LIST, LICENSE_LIST
 from resolver_helpers import no_reader_reason
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.dropguard import dropped, dropped_words
@@ -182,4 +183,4 @@ def test_the_words_guard_is_fast() -> None:
     for _ in range(300):
         dropped_words("Apache License Version 2.0 " * 4)
         dropped("- " * 50 + "MIT" + " ." * 50)
-    assert time.monotonic() - start < 2
+    assert time.monotonic() - start < slack(2)

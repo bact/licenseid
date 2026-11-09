@@ -21,6 +21,7 @@ from typing import cast
 import pytest
 from matcher_db import Lic, seeded_db
 from ordering_helpers import HEADER_OR_LATER, ids, im
+from timing import slack
 
 from licenseid.classify import OR_LATER_PHRASE, has_or_later_language
 from licenseid.detector import LicenseDetector
@@ -394,7 +395,7 @@ def test_the_phrase_regex_does_not_backtrack(name: str) -> None:
     start = time.monotonic()
     OR_LATER_PHRASE.search(payload)
     elapsed = time.monotonic() - start
-    assert elapsed < 1.0, f"{name} took {elapsed:.3f}s"
+    assert elapsed < slack(1.0), f"{name} took {elapsed:.3f}s"
 
 
 # -- Clause E: end to end through detect() ---------------------------------

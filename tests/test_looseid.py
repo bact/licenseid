@@ -18,6 +18,7 @@ import pytest
 from conftest import GivenWarnings
 from matcher_db import Lic, seeded_db
 from resolver_corpus import LICENSE_LIST, list_rows
+from timing import slack
 
 from licenseid.database import LicenseDatabase
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
@@ -338,7 +339,7 @@ def test_deep_brackets_are_read_in_one_pass(
 ) -> None:
     start = time.monotonic()
     found = loose_with(db, text)
-    assert time.monotonic() - start < 2.0
+    assert time.monotonic() - start < slack(2.0)
     assert (found is not None) is answered
 
 

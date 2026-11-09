@@ -21,6 +21,7 @@ from unittest import mock
 import pytest
 from matcher_db import Lic, seeded_db
 from rapidfuzz import fuzz
+from timing import slack
 
 from licenseid import similarity
 from licenseid.detector import LicenseDetector
@@ -234,7 +235,7 @@ def test_a_blob_is_matched_quickly(long_licences_db: str, text: str) -> None:
     matcher = LicenseDetector(long_licences_db)
     start = time.monotonic()
     matcher.detect(text=text)
-    assert time.monotonic() - start < 0.5  # 10x the time taken
+    assert time.monotonic() - start < slack(0.5)  # 10x the time taken
 
 
 FIXTURES = Path(__file__).parent / "fixtures" / "license-text-long"

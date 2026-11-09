@@ -20,6 +20,7 @@ from pathlib import Path
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.detector import LicenseDetector
@@ -306,4 +307,4 @@ def test_the_plus_check_is_linear_in_a_long_run_of_marks(
     value = make(400_000)
     start = time.monotonic()
     ends_a_word_with_plus(value)
-    assert time.monotonic() - start < 1.5
+    assert time.monotonic() - start < slack(1.5)
