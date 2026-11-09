@@ -15,6 +15,9 @@ yet started, see [`../design/`](../design/).
 
 ## Current state (as of 2026-11-09)
 
+- **0.8.4** (prepared 2026-11-09): "/" between List IDs reads as OR
+  (`MIT/Apache-2.0`), `resolve()` reads corner brackets and two BSD aliases,
+  and Tier 0 asks `resolve()` first, PRs #194, #195, #197.
 - **0.8.3** (prepared 2026-11-09): `resolve()` reads a `licenses.nuget.org`
   expression URL, PR #188; `detect()` raises `TypeError` for an option of the
   wrong type, PR #190; a tag ID with a non-ASCII letter warns
