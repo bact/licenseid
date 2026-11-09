@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 
 How to call `licenseid` from Python: `detect()` and `LicenseDetector`, the
 predicates, `resolve()`, the results, errors and warnings. The
-[README](../README.md#python-api) gives the overview; [resolve.md](resolve.md)
+[README](../README.md) gives the overview; [resolve.md](resolve.md)
 describes every field of `resolve()`'s result.
 
 `licenseid.detect()` uses a
@@ -98,9 +98,9 @@ r["lists"][0]["source"]  # read from the "database" or the "packaged" list
 
 The whole result, its categories and their trust, the reasons for a
 refusal, licences joined by a `;` (`r["operands"]` lists each) and how quote
-marks are read are in [docs/resolve.md][resolve-doc].
+marks are read are in [resolve.md](resolve.md).
 `licenseid resolve -v VALUE` prints the same result on the command line
-([Resolve a declared value](../README.md#3-resolve-a-declared-value);
+([Resolve a declared value](cli.md#resolve-a-declared-value);
 without `-v` only `r["expression"]`), and
 `licenseid resolve --json VALUE` prints the line that
 `licenseid.json_line(resolve(VALUE))` returns. The types of a result are
@@ -133,7 +133,6 @@ compound (`MIT OR Apache-2.0`)
 has empty top-level `candidates`; each operand's are in
 `operands[*].candidates`.
 
-[resolve-doc]: https://github.com/bact/licenseid/blob/main/docs/resolve.md
 [resolve-doc-list]: https://github.com/bact/licenseid/blob/main/docs/resolve.md#which-list-and-its-warnings
 
 `licenseid.LicenseIdError` (a `RuntimeError`) is the base of

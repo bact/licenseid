@@ -9,7 +9,7 @@ SPDX-License-Identifier: Apache-2.0
 What `licenseid.resolve()` reads in a declared licence value and what it
 returns: every field, the categories and their trust, the reasons for a
 refusal, and how quote marks are read. The
-[README](../README.md#python-api) shows how to call it. A value that is not
+[Python API](python-api.md) shows how to call it. A value that is not
 a `str` (`None`, bytes, a number) raises `TypeError` before any list is
 read, as does a `db` that is neither a `LicenseDatabase` nor the path of
 one (a `str` or `os.PathLike`); a blank path raises `InvalidInputError`

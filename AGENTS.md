@@ -92,11 +92,15 @@
   academic write-up (system, results, history, human–AI sessions). Add to
   it when a finding is worth publishing; start at its `README.md`.
 - Test fixtures: `tests/fixtures/README.md`
-- User docs: `README.md` (overview, CLI), `docs/python-api.md` (the
-  Python API) and `docs/resolve.md` (every field of `resolve()`'s result, its
-  categories and trust, the reasons for a refusal, quote marks). A change
-  to any of those updates `docs/resolve.md`; `tests/test_resolver_shapes.py`
-  checks its category table.
+- User docs: `README.md` (short overview and quick start; the PyPI long
+  description and the Citation block, so links in it are absolute) and
+  `docs/`: `installation.md`, `cli.md` (commands, options, exit codes,
+  predicates), `output.md` (text record, JSON, escaping, error lines),
+  `python-api.md`, `resolve.md` (every field of `resolve()`'s result, its
+  categories and trust, the reasons for a refusal, quote marks),
+  `how-it-works.md` and `development.md`. Put detail on a docs page, not in
+  the README. A change to any of those updates `docs/resolve.md`;
+  `tests/test_resolver_shapes.py` checks its category table.
 - Which licence values `resolve()` should read next: measure, do not guess.
   `tools/pypi_licence_sample/README.md` samples real PyPI values and counts
   what `resolve()` reads; findings in
