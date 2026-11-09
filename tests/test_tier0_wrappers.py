@@ -13,6 +13,7 @@ answer of ``detect()`` whatever brings it; one it refuses is matched by name
 only. A database of the whole List (``corpus_db``)."""
 # pylint: disable=missing-function-docstring
 
+import time
 import warnings
 from collections.abc import Callable
 from pathlib import Path
@@ -22,6 +23,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.detector import LicenseDetector
+from licenseid.resolvereason import ends_a_word_with_plus, refuses_text_match
 from licenseid.types import Detection
 
 Answer = tuple[str, str, bool] | None
@@ -144,3 +146,164 @@ def test_a_value_resolve_reads_gives_one_expression_by_every_route(
     found = _detect(detector, tmp_path, route, value)
     assert found is not None
     assert found[0] == resolve(value, corpus_db)["expression"]
+
+
+# --- corner brackets: quote marks that pair by direction ----------------------
+
+CORNERS = [
+    ("「MIT」", "MIT"),
+    ("『MIT』", "MIT"),
+    ("「MIT」.", "MIT"),  # an end mark after the closing bracket
+    ("「MIT」;", "MIT"),
+    ("「 MIT 」", "MIT"),
+    ("「「MIT」」", "MIT"),  # two layers
+    ("“「MIT」”", "MIT"),  # mixed kinds, one layer each
+    ("「MIT OR ISC」", "ISC OR MIT"),
+    ("「MIT」 OR 「ISC」", "ISC OR MIT"),  # a pair round each operand
+    ("『MIT』 or 『ISC』", "ISC OR MIT"),
+    ("「Apache-2.0」 AND 「MIT」", "Apache-2.0 AND MIT"),
+    ("「」", None),
+    ("「MIT』", None),  # not a pair
+    ("『MIT」", None),
+    ("」MIT「", None),  # closer first
+    ("「MIT", None),  # one end only
+    ("MIT」", None),
+    ("「MIT「」", None),  # a mark inside
+    ("「MIT」」", None),
+]
+
+
+@pytest.mark.parametrize(("value", "expression"), CORNERS)
+def test_corner_brackets_quote_a_value_as_a_pair(
+    corpus_db: LicenseDatabase, value: str, expression: str | None
+) -> None:
+    assert resolve(value, corpus_db)["expression"] == expression
+
+
+# --- the "+" that ends a word, and the one that does not ----------------------
+
+
+@pytest.mark.parametrize(
+    ("value", "answer"),
+    [
+        ("This C++ library is released under the MIT License; see LICENSE.", "MIT"),
+        ("MIT License (C++ wrapper)", "MIT"),
+        ("Copyright (c) Foo, MIT License, C++", "MIT"),
+        ("MIT + file LICENSE", "MIT"),
+    ],
+)
+def test_a_sentence_with_a_plus_that_ends_no_licence_word_is_matched_by_name(
+    corpus_db: LicenseDatabase, tmp_path: Path, value: str, answer: str
+) -> None:
+    found = _detect(LicenseDetector(corpus_db.location), tmp_path, "whole", value)
+    assert found is not None
+    assert found[0] == answer
+
+
+def test_a_sentence_of_ten_words_with_a_stray_plus_is_matched_by_name_still(
+    corpus_db: LicenseDatabase, tmp_path: Path
+) -> None:
+    """# BUG: ``MIT++`` is dropped and the name matched (inexact), as before
+    item 48; under 10 words it has no answer. Roadmap item 50."""
+    value = "This library is licensed under the MIT++ license, see the LICENSE file."
+    found = _detect(LicenseDetector(corpus_db.location), tmp_path, "whole", value)
+    assert found == ("MIT", "name", False)
+
+
+@pytest.mark.parametrize(
+    ("reason", "text", "refused"),
+    [
+        ("character dropped: U+002A", "MIT*", True),
+        ("word dropped: x", "MIT x", True),
+        ("control or format character: U+200B", "MIT\u200b", True),
+        ("lone surrogate", "MIT\udc80", True),
+        ("parse failed: Unexpected '('", "(MIT", True),
+        ("plus after a space: MIT +", "MIT +", True),
+        ("not found: MIT", "MIT++", True),
+        ("not found: MIT", "MIT＋", True),  # the fullwidth plus
+        ("not found: MIT", "MIT+++ and more", True),
+        ("not found: MIT", "MIT + file LICENSE", False),
+        ("not found: MIT", "GPL-2.0 (+)", True),  # a plus alone in marks
+        ("not found: MIT", "GPL-2.0 (+) licensed", True),  # not the last word
+        ("not found: MIT", "c+++ MIT", True),  # only ++ is a language
+        ("not found: MIT", 'GPL-2.0 "+"', True),
+        ("not found: MIT", "GPL-2.0 「+」", True),
+        ("not found: MIT", "+GPL-2.0", True),  # a plus that starts a word
+        ("not found: MIT", "MIT License (C/C++)", False),
+        ("not found: MIT", "MIT License, for g++ users", False),
+        ("not found: MIT", "MIT License (Objective-C++)", False),
+        ("not found: MIT", "Notepad++ MIT", True),
+        ("not found: MIT", "C++ MIT", False),
+        ("not found: MIT", "(c++) MIT", False),
+        ("not found: MIT", '"MIT +"', True),  # a plus apart, last
+        ("not found: MIT", "MIT", False),
+        (None, "MIT", False),
+        ("not found: MIT", "MIT" + "+" * 20_000, True),
+    ],
+    ids=lambda v: ascii(v)[:30],
+)
+def test_what_refuses_a_text_match(
+    reason: str | None, text: str, refused: bool
+) -> None:
+    assert refuses_text_match(reason, text) is refused
+
+
+def test_a_sentence_of_ten_words_is_not_refused_for_a_plus() -> None:
+    text = "This library is licensed under the MIT++ license, see the LICENSE file."
+    assert not refuses_text_match("not found: x", text)
+    assert refuses_text_match("character dropped: U+002A", text)
+
+
+# --- what the field reader keeps ------------------------------------------------
+
+
+@pytest.mark.parametrize("route", ["whole", "ini", "ini file"])
+@pytest.mark.parametrize(
+    ("value", "answer"),
+    [
+        ("GNU General Public License v3 (GPLv3)", ("GPL-3.0-only", "name", False)),
+        ("OSL-3 0", ("OSL-3.0", "id", True)),  # the version key is still read
+    ],
+)
+def test_a_value_read_by_name_or_version_key_answers_by_every_route(
+    corpus_db: LicenseDatabase,
+    tmp_path: Path,
+    route: str,
+    value: str,
+    answer: tuple[str, str, bool],
+) -> None:
+    found = _detect(LicenseDetector(corpus_db.location), tmp_path, route, value)
+    assert found is not None
+    assert found[0] == answer[0]
+    assert found[2] == answer[2]
+
+
+@pytest.mark.parametrize(
+    ("words", "refused"),
+    [(8, True), (9, True), (10, False), (11, False)],
+)
+def test_a_plus_ending_a_word_refuses_under_ten_words_only(
+    words: int, refused: bool
+) -> None:
+    text = " ".join(["MIT++"] + ["word"] * (words - 1))
+    assert refuses_text_match("not found: x", text) is refused
+
+
+@pytest.mark.parametrize(
+    "make",
+    [
+        lambda n: "a" + "." * n + "," * n,
+        lambda n: "MIT" + "(" * n + "+",
+        lambda n: "+" * n,
+    ],
+    ids=["marks", "brackets", "pluses"],
+)
+def test_the_plus_check_is_linear_in_a_long_run_of_marks(
+    make: Callable[[int], str],
+) -> None:
+    """The first version stripped with a run of marks as the strip set, which
+    costs the square of its length (5 s at 320,000 marks)."""
+    value = make(400_000)
+    start = time.monotonic()
+    ends_a_word_with_plus(value)
+    assert time.monotonic() - start < 1.5

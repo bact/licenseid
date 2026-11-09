@@ -11,13 +11,28 @@ a "+" that is no operator did since item 44."""
 _NONE = "-\t-\t-\t-"
 _DROPPED = (
     "resolve() refuses it for a mark it would drop (character dropped): "
-    "no ID read from the normalised text, so too few words for text"
+    "no text match after a dropped mark or an unpaired bracket, "
+    "so too few words for text"
+)
+
+_PARTIAL = (
+    "the long-text fixture database holds no row for the deprecated ID, which "
+    "resolve() needs and the full List has (a harness artefact, not a loss)"
 )
 
 WRAPPER_CHANGES: dict[str, tuple[str, str]] = {
-    "id/CC-BY-NC-SA-2.0-DE/id_punct": (_NONE, _DROPPED),
-    "id/OSL-3.0/id_punct": (_NONE, _DROPPED),
     "value/#MIT": (_NONE, _DROPPED),
     "value/Apache 2.0?": (_NONE, _DROPPED),
     "value/MIT�": (_NONE, _DROPPED),
+    "value/(MIT": (_NONE, _DROPPED),  # an unbalanced bracket
+    "value/Apache 2.0!": (_NONE, _DROPPED),
+    "value/MIT*": (_NONE, _DROPPED),
+    "value/MIT\x00": (_NONE, _DROPPED),
+    "value/\u202eMIT": (_NONE, _DROPPED),
+    "id/GPL-2.0-only/id_deprecated": (_NONE, _PARTIAL),
+    "id/GPL-2.0-or-later/id_deprecated": (_NONE, _PARTIAL),
+    "id/LGPL-2.0-or-later/id_deprecated": (_NONE, _PARTIAL),
+    "id/LGPL-3.0-only/id_deprecated": (_NONE, _PARTIAL),
+    "id/AGPL-1.0-only/id_deprecated": (_NONE, _PARTIAL),
+    "id/GPL-3.0-or-later/id_deprecated": (_NONE, _PARTIAL),
 }

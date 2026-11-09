@@ -188,7 +188,7 @@ def _has_inner_mark(core: str) -> bool:
         kind = QUOTE_KIND.get(char)
         if kind is None:
             if char in CORNER_PAIRS or char in _CORNER_CLOSERS:
-                return True
+                return True  # "「MIT」 OR 「ISC」" is no pair round "MIT」 OR 「ISC"
             continue
         inside_word = (
             kind == "single"

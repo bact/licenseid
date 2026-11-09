@@ -126,11 +126,12 @@ which reads no title and no BSD alias (`SPDX-License-Identifier: CC0` and
 not take (a quoted INI value, a title, a name) is read by `resolve()`. Both
 read a licence URL with the reader of `resolve()`
 (`SPDX-License-Identifier: https://spdx.org/licenses/MIT` is `MIT`). An input
-under 10 words that `resolve()` refuses is not matched as text, and is
-matched by name only (not as an ID, nor at all when it dropped a mark or has
-a stray "+"): unless a licence name matches it, it has no result, with the
-warning `input: too few words for text: <reason>` (none for an
-input with no word). Chinese and Japanese, written without spaces, are
+under 10 words that `resolve()` refuses is not matched as text. A name or an ID
+can still match it, except after a dropped mark, an unpaired bracket or a "+"
+that is no operator (`MIT++`, `GPL-2.0 (+)`, not `C++`), which `normalize_text`
+would drop. With no match it has no result, with the warning `input: too few
+words for text: <reason>` (none for an input with no word).
+Chinese and Japanese, written without spaces, are
 matched at any length. A compound (`MIT OR Apache-2.0`)
 has empty top-level `candidates`; each operand's are in
 `operands[*].candidates`.

@@ -702,3 +702,25 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   `str`: `exclude="MIT"` was read as a string and kept every ID that is a
   substring of it. Tests: `tests/test_match_options.py`,
   `tests/test_contract_pins.py`.
+- Tier 0 and wrappers `resolve()` does not read (item 48, Priority 12;
+  2026-11-09). Tier 0 read the normalised text of a short value that
+  `resolve()` refuses, so the wrapper and the "+" were gone: `「MIT++」` was
+  `MIT`, `「GPL-2.0+」` `GPL-2.0-only`, `<MIT>` and `*MIT*` `MIT`, and a
+  quoted INI `GPL-2.0+` lost its operator. Now
+  `detector._try_tier0_short_text` asks `resolve()` first (what it reads is
+  the answer, for a field too: a title, a name, a compound), and a value it
+  refuses gets no text match after a dropped mark, an unpaired bracket
+  (`parse failed`) or a "+" that ends a word, under 10 words
+  (`resolvereason.refuses_text_match`; `C++`, `g++` and a "+" apart in the
+  middle are no such word). `MIT)` and `GPL-2.0/+` lose their answer too.
+  The first version of the fix refused any "+" and dropped the ID reader;
+  the review (a README line with `C++`, `OSL-3 0`) showed both lost right
+  answers.
+  Decided with the user: `<>` and `*` are refused as `resolve()` refuses
+  them; `「」` and `『』` become quote marks (`quotes.CORNER_PAIRS`), not
+  folded by `normalize_text`, so no `NORMALIZATION_VERSION` bump; `BSD (3
+  clause)` and `BSD (3-clause)` (2 projects of the fixture) join
+  `resolvealias.ALIASES`. Removed: the lone-expression and loose-`WITH`
+  readers of Tier 0. `looseid.loose_with` stays (`license_id=`). Left:
+  item 50. Tests: `tests/test_tier0_wrappers.py`, `tests/test_stray_plus_paths.py`,
+  the goldens of `tests/harness_changes_wrappers.py`.

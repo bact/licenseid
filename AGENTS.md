@@ -587,9 +587,10 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   a new reason of that family goes into its constants. Tier 0 asks
   `resolve()` first for a value under 30 words (a field the marker readers
   did not take too): what it reads is the answer, and what it refuses is
-  matched by name only (`match_short_text(ids=False)`), never by an ID read
-  from the normalised text, and not at all after a dropped mark or a "+"
-  (`resolvereason.refuses_text_match`).
+  matched as before, except after a dropped mark, an unpaired bracket or a
+  "+" that ends or starts a word or stands alone in marks (`MIT++`,
+  `GPL-2.0 (+)`; not `C++`; under 10 words only), which `normalize_text`
+  drops (`resolvereason.refuses_text_match`).
 - One probe finds a grant and where it ends, `classify.grant_end` (with
   `grant_head` for the gap between ID and grant); `looseid` and `markers`
   call it, so `detect()` and `resolve()` agree.

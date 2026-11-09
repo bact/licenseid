@@ -266,9 +266,9 @@ class LicenseDetector:
         so one would answer the licence round it, exact (item 44; from 10
         words on, Tier 1 matches the rest). A bare deprecated ID and its
         prose ("GPL-2.0 or later version") is read in the raw text, whose
-        marks the readers judge. The rest is matched by name only (item
-        48): the normalised text has lost a wrapper, a mark or a "+" it was
-        refused for, so no ID is read from it."""
+        marks the readers judge. The rest is matched as ID or name unless
+        normalize_text() would drop what it was refused for: a mark, an
+        unpaired bracket, or a "+" ending a word (item 48)."""
         if is_plus_refusal(reason):
             return None
         disambiguated = disambiguate_whole(ctx.target_text, self.db)
@@ -280,7 +280,7 @@ class LicenseDetector:
             return [match]
         if refuses_text_match(reason, ctx.target_text):
             return None
-        found = self._match_short_text(ctx.norm_input, ctx.target_text, ids=False)
+        found = self._match_short_text(ctx.norm_input, ctx.target_text)
         # A confident ID or name hit scores above 1; an expression has no flags.
         return self._with_flags(found) if found and found[0]["score"] > 1.0 else None
 
@@ -328,7 +328,7 @@ class LicenseDetector:
             if result and (
                 result[0]["score"] >= EXACT_MATCH_SCORE
                 or result[0]["method"] == "id"
-                or (result[0]["exact"] and result[0]["similarity"] is None)
+                or result[0]["similarity"] is None  # resolve() read it
             ):
                 # The field declares the exact hit, or the ID it names
                 # loosely, so nothing is measured (as for a field Tier 0.5
@@ -593,11 +593,11 @@ class LicenseDetector:
         return get_candidates(self.db, data, text)
 
     def _match_short_text(
-        self, norm_input: str, text: str | None = None, *, ids: bool = True
+        self, norm_input: str, text: str | None = None
     ) -> list[RawMatch]:
         """Tier 0 ID and name matching for a short input, *text* raw (see
-        licenseid.shorttext); names only if not *ids*."""
-        return match_short_text(self.db, norm_input, text, ids=ids)
+        licenseid.shorttext)."""
+        return match_short_text(self.db, norm_input, text)
 
     def _rank_candidates(
         self,
