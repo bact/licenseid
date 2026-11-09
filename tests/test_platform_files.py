@@ -14,7 +14,9 @@ TESTS = Path(__file__).parent
 # What ties a test to the operating system, not to the matching logic.
 _OS_USE = re.compile(
     r"posix_only|subprocess|Path\.home|TextIOWrapper|tarfile|signal\.|"
-    r"os\.(?:chmod|symlink|mkfifo|getuid)|monkeypatch\.setenv\(\"HOME\""
+    r"os\.(?:chmod|symlink|mkfifo|getuid|utime)|\.chmod\(|"
+    r"monkeypatch\.setenv\(\"HOME\"|get_default_db_path|"
+    r"\bresolve_states\b"
 )
 
 

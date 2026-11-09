@@ -444,7 +444,8 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - No test may touch the network: patch `requests.get` (autospec). Never
   modify or clear the real cache in `~/.local/share/licenseid/`; it is fine
   to read it to validate a parser against real data.
-- Windows CI runs only `pytest -m platform`: the files listed in
+- Windows CI runs only `pytest -m platform` on a pull request (every test on
+  a push to `main`): the files listed in
   `tests/platform_files.py` (file system, streams, signals, processes,
   encodings, packaging). Linux runs every test. A file that uses one of
   those goes in the list; `tests/test_platform_files.py` fails if not.

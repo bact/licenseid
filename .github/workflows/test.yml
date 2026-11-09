@@ -71,24 +71,31 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install . --group test
 
-      # Windows runs only the files that depend on the operating system
-      # (tests/platform_files.py); Linux runs all of them.
+      # A pull request runs only the files that depend on the operating
+      # system on Windows (tests/platform_files.py); a push runs them all, so
+      # a gap in that list shows after the merge. Linux always runs all.
       - name: Run tests (w/o code coverage)
         if: ${{ matrix.python-version != env.MAIN_SUPPORT_VERSION && runner.os != 'Windows' }}
         run: |
           pytest tests/ -n auto -v --tb=short
 
-      - name: Run platform tests (Windows)
-        if: ${{ runner.os == 'Windows' }}
+      - name: Run platform tests (Windows, pull request)
+        if: ${{ runner.os == 'Windows' && github.event_name == 'pull_request' }}
         run: |
           pytest tests/ -m platform -n auto -v --tb=short
+
+      - name: Run tests (Windows, push)
+        if: ${{ runner.os == 'Windows' && github.event_name != 'pull_request' }}
+        run: |
+          pytest tests/ -n auto -v --tb=short
 
       - name: Run tests (w/ code coverage)
         if: ${{ matrix.python-version == env.MAIN_SUPPORT_VERSION }}
         env:
           PYTHONPATH: src
         run: |
-          pytest tests/ -n auto --cov=licenseid -v --tb=short
+          coverage run -m pytest tests/ -n auto -v --tb=short
+          coverage combine
 
       - name: Upload coverage reports
         if: ${{ matrix.python-version == env.MAIN_SUPPORT_VERSION }}
