@@ -353,7 +353,10 @@ is a property a reviewer should know.
 - **`detect()` asks `resolve()` first** for the whole input
   ([`resolvefirst.py`](../src/licenseid/resolvefirst.py)): the expression of
   the resolution is `detect()`'s answer. A tag in a file goes the other way,
-  through the marker readers, which put a compound in another order.
+  through the marker readers, which put a compound in another order. A short
+  value, a field the marker readers did not take included (a quoted INI
+  `GPL-2.0+`), goes through `resolve()` in Tier 0 too; one it refuses is
+  matched by name only, never as an ID read from the normalised text.
   [The canonicalisation page](expression-canonicalisation.md#two-canonical-orders-in-one-package)
   shows the two.
 

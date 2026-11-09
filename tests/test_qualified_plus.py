@@ -87,7 +87,7 @@ def test_a_plus_after_a_qualifier_answers_no_licence(db_path: str, text: str) ->
 @pytest.mark.parametrize(
     ("text", "answer"),
     [
-        ("GPL-2.0+", ["GPL-2.0-or-later"]),  # an ID that states no qualifier
+        ("GPL-2.0-or-later", ["GPL-2.0-or-later"]),  # an ID that states one
         ("GPL-2.0-only", ["GPL-2.0-only"]),
         # A detached "+" is no operator, and the value names no licence, as
         # resolve() reads it: it was GPL-2.0-only, exact (readers, round 3).

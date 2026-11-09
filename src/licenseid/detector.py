@@ -34,7 +34,7 @@ from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
 from licenseid.resolvefirst import as_resolved, match_of, too_short, unread_url
 from licenseid.resolver import resolve_with
-from licenseid.resolvereason import refuses_text_match
+from licenseid.resolvereason import is_plus_refusal, refuses_text_match
 from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import Resolution
 from licenseid.result import public_result
@@ -249,23 +249,28 @@ class LicenseDetector:
         """
         if is_qualified_plus(ctx.target_text) or is_stray_plus(ctx.target_text):
             return []  # "GPL-2.0-only+", "MIT +": no license, nor a near one
-        # A long text is matched as text whatever its "+" (C++).
-        if ctx.word_count >= 30:
+        if ctx.word_count >= 30:  # a long text is matched whatever its "+" (C++)
             return None
         # What resolve() reads is the answer, whatever wraps it ("GPL-2.0+,",
         # a quoted field, a license written loosely WITH an exception).
         resolution = resolve_with(self.db, ctx.target_text)
         if resolution["expression"] is not None:
             return self._answer_of(resolution, ctx.target_text)
-        # What it refuses is matched by name only: normalize_text() drops a
-        # "+" and a wrapper, so a text match would answer the licence round
-        # a mark resolve() will not drop (item 44, item 48). From 10 words
-        # on, the rest is matched as text (Tier 1), as before.
-        if refuses_text_match(resolution["reason"], ctx.target_text):
-            return None
+        return self._short_text_refused(ctx, resolution["reason"])
 
-        # A bare deprecated ID and its prose ("GPL-2.0 or later version"), in
-        # the raw text: normalize_text() drops the marks the readers judge.
+    def _short_text_refused(
+        self, ctx: _MatchContext, reason: str | None
+    ) -> list[RawMatch] | None:
+        """Tier 0 for a short value resolve() refused, for *reason*. A "+"
+        that is no operator gets no text match: normalize_text() drops it,
+        so one would answer the licence round it, exact (item 44; from 10
+        words on, Tier 1 matches the rest). A bare deprecated ID and its
+        prose ("GPL-2.0 or later version") is read in the raw text, whose
+        marks the readers judge. The rest is matched by name only (item
+        48): the normalised text has lost a wrapper, a mark or a "+" it was
+        refused for, so no ID is read from it."""
+        if is_plus_refusal(reason):
+            return None
         disambiguated = disambiguate_whole(ctx.target_text, self.db)
         if disambiguated == "":
             return []  # resolve() refuses it ("GPL-2.0; or later"): no reading
@@ -273,10 +278,9 @@ class LicenseDetector:
             match = exact_id_match(disambiguated)
             _set_flags(match, self.markers.license_flags(disambiguated))
             return [match]
-
-        found = self._match_short_text(
-            ctx.norm_input, ctx.target_text, ids=False
-        )
+        if refuses_text_match(reason, ctx.target_text):
+            return None
+        found = self._match_short_text(ctx.norm_input, ctx.target_text, ids=False)
         # A confident ID or name hit scores above 1; an expression has no flags.
         return self._with_flags(found) if found and found[0]["score"] > 1.0 else None
 

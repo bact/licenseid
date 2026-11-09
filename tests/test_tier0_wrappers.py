@@ -111,6 +111,8 @@ ADVERSARIAL = [
     "「MIT」 +",
     "MIT (C++)",
     "C++ MIT",
+    "(MIT",  # resolve() refuses an unbalanced bracket; no ID from the text
+    "MIT)",
 ]
 
 

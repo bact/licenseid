@@ -215,16 +215,17 @@ def test_a_long_text_with_a_c_plus_plus_line_is_matched_as_text(
     )
 
 
-def test_a_name_in_a_sentence_is_matched_as_text_still(
-    corpus_db: LicenseDatabase,
+def test_a_name_in_a_sentence_with_a_plus_answers_no_licence(
+    corpus_db: LicenseDatabase, given: GivenWarnings
 ) -> None:
-    """# BUG: a "+" in the middle of prose is dropped and the name matched
-    (inexact): ``resolve()`` reads no prose, so nothing refuses it. Roadmap
-    item 47; flip this pin when it is fixed."""
+    """A "+" left in a short value ``resolve()`` refuses is not dropped to
+    match the name (was: ``MIT``, inexact; roadmap item 47, fixed by item
+    48)."""
     found = LicenseDetector(corpus_db.location).detect(
         text="Licensed under the MIT++ license"
     )
-    assert _top(found) == ("MIT", False)
+    assert found == []
+    assert TOO_FEW in given.conditions()
 
 
 @pytest.mark.parametrize(
@@ -237,10 +238,11 @@ def test_a_name_in_a_sentence_is_matched_as_text_still(
     ids=["quoted", "name", "spaced"],
 )
 def test_a_long_run_of_pluses_is_read_in_linear_time(
-    corpus_db: LicenseDatabase, make: Callable[[int], str]
+    corpus_db: LicenseDatabase, given: GivenWarnings, make: Callable[[int], str]
 ) -> None:
     detector = LicenseDetector(corpus_db.location)
     value = make(20_000)
     start = time.monotonic()
     detector.detect(text=value)
     assert time.monotonic() - start < 3
+    given.take()  # a refused value says why

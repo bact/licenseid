@@ -67,16 +67,11 @@ def match_short_text(
     not *ids*: a value ``resolve()`` refused is no ID, and the normalised
     text has lost the marks it refused it for."""
     raw = norm_input if text is None else text
-    if ids:
-        loose = match_version_key(db, raw)
-        if loose:
-            return loose
     all_metadata = db.get_all_names_and_ids()
-    # Case-fold exact ID match: a score > 1.0, so the Tier 0 caller
-    # recognises it as a definitive hit.
-    exact = _exact_id_row(all_metadata, norm_input, raw) if ids else None
-    if exact is not None:
-        return [_id_hit(exact, resolved_id(db, exact), raw)]
+    if ids:
+        found = _id_answer(db, all_metadata, norm_input, raw)
+        if found:
+            return found
     ranked: list[RawMatch] = []
     words = norm_input.split()
     threshold = 90.0 if len(words) <= 2 else 85.0
@@ -127,6 +122,19 @@ def match_short_text(
     ):
         return []  # both grants tie, and the input is no name without its grant
     return ranked
+
+
+def _id_answer(
+    db: LicenseDatabase, rows: list[LicenseNameId], norm_input: str, raw: str
+) -> list[RawMatch]:
+    """The ID of the version key of *raw*, else the row whose normalised ID
+    is *norm_input*: a score above 1.0, so the Tier 0 caller recognises it
+    as a definitive hit. Empty if *raw* is no ID."""
+    loose = match_version_key(db, raw)
+    if loose:
+        return loose
+    exact = _exact_id_row(rows, norm_input, raw)
+    return [] if exact is None else [_id_hit(exact, resolved_id(db, exact), raw)]
 
 
 def _name_scores(
