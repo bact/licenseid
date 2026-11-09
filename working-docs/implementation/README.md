@@ -13,8 +13,12 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-11-08)
+## Current state (as of 2026-11-09)
 
+- **0.8.3** (prepared 2026-11-09): `resolve()` reads a `licenses.nuget.org`
+  expression URL, PR #188; `detect()` raises `TypeError` for an option of the
+  wrong type, PR #190; a tag ID with a non-ASCII letter warns
+  `input: invalid`, PR #191.
 - **0.8.2** (prepared 2026-11-09): `detect` and `resolve` print the expression
   alone, `-v` for the record, `-V` for the version (breaking), PR #183;
   `detect(file_path=...)` words a missing file, PR #184; no exact answer for a

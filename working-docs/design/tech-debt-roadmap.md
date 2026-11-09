@@ -216,7 +216,8 @@ is not exact, though the same file is.
 Found in review of item 22 (2026-10-02); `main` does the same:
 
 - `exclude` is read only by Tier 1 retrieval, so a verbatim licence text
-  still answers an excluded licence (the other options are documented as read by ranking only).
+  still answers an excluded licence (the other options are documented as
+  read by ranking only).
 - A licence text repeated three times answers a licence it barely
   resembles: `LICENSE` (Apache-2.0) three times over gives `BSD-4-Clause`
   at 0.9025, with similarity 0.0968 and coverage 20.08 (review of PR #68).
