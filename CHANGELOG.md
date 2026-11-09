@@ -14,15 +14,17 @@ and this project adheres to
 ### Added
 
 - `resolve()` reads `「MIT」` and `『MIT』` (corner brackets) as quote marks, and
-  `BSD (3 clause)` and `BSD (3-clause)` as `BSD-3-Clause`
+  `BSD (3 clause)` and `BSD (3-clause)` as `BSD-3-Clause` ([#195])
 
 ### Fixed
 
-- A short value `resolve()` refuses is matched by name only: `「MIT++」`,
-  `<MIT>`, `*MIT*` and `Licensed under the MIT++ license` no longer answer
-  `MIT`, nor `<GPL-2.0+>` `GPL-2.0-only`
+- A short value `resolve()` refuses gets no text match after a dropped mark
+  or a "+" ending a word: `「MIT++」`, `<MIT>`, `*MIT*` and `Licensed under
+  the MIT++ license` no longer answer `MIT`, nor `<GPL-2.0+>`
+  `GPL-2.0-only` ([#195])
 - A quoted INI field `GPL-2.0+` is `GPL-2.0-or-later` (was `GPL-2.0-only`);
   a field `resolve()` reads (`MIT OR ISC`, a title, a name) answers as it does
+  ([#195])
 
 ## [0.8.3] - 2026-11-09
 
@@ -49,6 +51,7 @@ and this project adheres to
 [#188]: https://github.com/bact/licenseid/pull/188
 [#190]: https://github.com/bact/licenseid/pull/190
 [#191]: https://github.com/bact/licenseid/pull/191
+[#195]: https://github.com/bact/licenseid/pull/195
 
 ## [0.8.2] - 2026-11-09
 
