@@ -24,6 +24,7 @@ import requests
 from cli_verbose import with_verbose
 from click.testing import CliRunner, Result
 from packaged_list import database_of, fixture_bundle
+from platform_files import PLATFORM_FILES
 from resolver_corpus import corpus_db_path
 
 from licenseid import console, keptdetector, listindex, listsource, spdxdata, warning
@@ -500,6 +501,11 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "benchmark: mark test as a benchmark")
     config.addinivalue_line(
         "markers",
+        "platform: the test file depends on the operating system "
+        "(tests/platform_files.py); CI runs only these on Windows",
+    )
+    config.addinivalue_line(
+        "markers",
         "terse_cli: the test sees detect/resolve with the command line as "
         "written (the default prints the expression alone), not with -v added",
     )
@@ -542,6 +548,9 @@ def pytest_collection_modifyitems(
             f"test IDs over {MAX_TEST_ID} characters; give the parameter an id: "
             + ", ".join(long_ids)
         )
+    for item in items:
+        if item.path.name in PLATFORM_FILES:
+            item.add_marker(pytest.mark.platform)
     if config.getoption("--run-benchmark"):
         # --run-benchmark given in cli: do not skip benchmark tests
         return

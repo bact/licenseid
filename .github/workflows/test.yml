@@ -71,17 +71,24 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install . --group test
 
+      # Windows runs only the files that depend on the operating system
+      # (tests/platform_files.py); Linux runs all of them.
       - name: Run tests (w/o code coverage)
-        if: ${{ matrix.python-version != env.MAIN_SUPPORT_VERSION }}
+        if: ${{ matrix.python-version != env.MAIN_SUPPORT_VERSION && runner.os != 'Windows' }}
         run: |
-          pytest tests/ -v --tb=short
+          pytest tests/ -n auto -v --tb=short
+
+      - name: Run platform tests (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: |
+          pytest tests/ -m platform -n auto -v --tb=short
 
       - name: Run tests (w/ code coverage)
         if: ${{ matrix.python-version == env.MAIN_SUPPORT_VERSION }}
         env:
           PYTHONPATH: src
         run: |
-          coverage run -m pytest tests/ -v --tb=short
+          pytest tests/ -n auto --cov=licenseid -v --tb=short
 
       - name: Upload coverage reports
         if: ${{ matrix.python-version == env.MAIN_SUPPORT_VERSION }}
