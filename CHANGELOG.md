@@ -22,11 +22,15 @@ and this project adheres to
 
 ### Fixed
 
+- `detect()` raises `TypeError` for an option of the wrong type (`exclude="MIT"`
+  was read as a string, not a list of IDs); the README and API guide say which
+  options an exact answer ignores ([#190])
 - A tag or field with "or later" right after a bracketed group of several
   licences (`(MIT OR ISC) or later`) gives no answer, as `resolve()` does,
   not the last licence with a "+" ([#188])
 
 [#188]: https://github.com/bact/licenseid/pull/188
+[#190]: https://github.com/bact/licenseid/pull/190
 
 ## [0.8.2] - 2026-11-09
 

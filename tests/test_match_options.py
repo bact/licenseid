@@ -62,6 +62,37 @@ def test_an_unknown_option_is_rejected(matcher: LicenseDetector, name: str) -> N
 
 
 @pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("only_spdx", "yes"),
+        ("only_common", 1),
+        ("enable_popularity", None),
+        ("exclude", "MIT"),  # a bare string was read as its characters
+        ("hint", "MIT"),
+        ("exclude", [1]),
+        ("hint", None),
+    ],
+)
+@pytest.mark.parametrize("kwargs", [{"text": MIT_SEARCH_TEXT}, {"license_id": "MIT"}])
+def test_an_option_of_the_wrong_type_is_rejected(
+    matcher: LicenseDetector, name: str, value: object, kwargs: dict[str, str]
+) -> None:
+    """Checked for an explicit ID too, which ignores the options: a wrong
+    value is a mistake whether or not it has an effect."""
+    options: dict[str, Any] = {name: value}
+    with pytest.raises(TypeError, match=f"^{name} must be "):
+        matcher.detect(**kwargs, **options)
+
+
+@pytest.mark.parametrize("value", [["MIT"], ("MIT",), {"MIT"}, []])
+def test_exclude_and_hint_take_any_collection_of_ids(
+    matcher: LicenseDetector, value: Any
+) -> None:
+    result = matcher.detect(text=MIT_SEARCH_TEXT, exclude=value, hint=value)
+    assert isinstance(result, list)
+
+
+@pytest.mark.parametrize(
     "kwargs",
     [
         {"license_id": "MIT"},

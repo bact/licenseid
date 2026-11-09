@@ -67,9 +67,12 @@ ranks (dozens for a LICENSE file), best first. Filter on `score` and
 
 `detect()` takes the keyword options `enable_popularity`, `exclude`, `hint`,
 `only_common` and `only_spdx`, and raises `licenseid.InvalidInputError`
-for any other, such as a mistyped name. The options shape the
+for any other, such as a mistyped name. A flag must be a `bool`, and
+`exclude` and `hint` a list (or tuple or set) of `str`: any other value
+raises `TypeError` (a bare `"MIT"` is no list of IDs). The options shape the
 ranking of licence text; an explicit `license_id`, a bare ID or name and an
-`SPDX-License-Identifier` tag are answered before they are read.
+`SPDX-License-Identifier` tag are answered before they are read, so the
+options have no effect on them (they are still checked).
 
 To record a licence a package *declares* (a `license` field, a model card),
 use `licenseid.resolve()`. It returns the SPDX expression and each step taken,

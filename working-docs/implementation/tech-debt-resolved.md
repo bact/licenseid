@@ -669,3 +669,18 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   `MIN_TEXT_WORDS`). Left: a "+" in prose (item 47), wrappers `resolve()`
   does not read (item 48). Test: `tests/test_stray_plus_paths.py`, the
   invariant `plus_refusal_has_no_answer` of the harness.
+- Conflicting options and inputs were resolved silently (item 5, Priority
+  15; 2026-11-09). By the time of this pass most was done: two inputs (CLI
+  `--id`/`--text`/argument, API `license_id`/`file_path`/`text`) exit 2 or
+  raise `InvalidInputError`; `--json` with `--diff` exits 2; `--top` and
+  `--threshold` out of range exit 2; `--bold` never existed. Decided: an
+  option with no effect on an exact answer is documented, not rejected
+  (`--diff` with `--exact`: an exact result has no diff; `exclude`,
+  `only_spdx`, `only_common`, `hint`, `enable_popularity` with an explicit
+  `license_id`, a bare ID or name, or a tag). Added: `detect()` raises
+  `TypeError` for an option of the wrong type (`in
+  detectrequest._check_option_values`), as it does for a `text` that is no
+  `str`: `exclude="MIT"` was read as a string and kept every ID that is a
+  substring of it. Tests: `tests/test_match_options.py`,
+  `tests/test_contract_pins.py`.
+
