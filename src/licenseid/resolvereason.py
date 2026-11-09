@@ -46,6 +46,29 @@ _PLUS_CONDITIONS: Final = (
 )
 
 
+#: The conditions of a refusal for a character or a word a loose reading
+#: would drop, which a text match would drop in silence too.
+_DROP_CONDITIONS: Final = (
+    "character dropped",
+    "word dropped",
+    "control or format character",
+    "lone surrogate",
+)
+
+
+def refuses_text_match(reason: str | None, text: str) -> bool:
+    """Whether a text match must not answer *text*, a short value that
+    ``resolve()`` refused for *reason*: a "+" that is no operator (the
+    refusal of its family, or any "+" left in a value no reader took), or a
+    mark or word dropped. ``normalize_text`` drops all of these."""
+    condition = None if reason is None else reason.partition(":")[0]
+    return (
+        is_plus_refusal(reason)
+        or condition in _DROP_CONDITIONS
+        or any(char in text for char in "+＋")
+    )
+
+
 def is_plus_refusal(reason: str | None) -> bool:
     """Whether *reason*, the reason of a refusal, is of the "+" family: the
     value has a "+" that is no operator, so no text match may answer it."""

@@ -120,16 +120,18 @@ is a category, the value written as the ID itself, with no step at all.
 is `GPL-2.0`, `assumed_only`. `detect()` reads a whole input with
 `resolve()` first and answers its expression (exact unless it is a guess);
 `license_id` reads its one ID as `resolve()` does too (`CC0` is
-`CC0-1.0`). A tag or a manifest field still has its own reader, until 0.8,
+`CC0-1.0`). A tag still has its own reader, until 0.8,
 which reads no title and no BSD alias (`SPDX-License-Identifier: CC0` and
-`SPDX-License-Identifier: BSD-3` have no answer), but reads a licence URL
-with the reader of `resolve()` (`SPDX-License-Identifier:
-https://spdx.org/licenses/MIT` is `MIT`). An input
-under 10 words that `resolve()` refuses is not matched as text: unless a
-licence name matches it, it has no result, with the warning `input: too
-few words for text: <reason>` (none for an input with no word). Chinese
-and Japanese, written without spaces, are matched at any length. A
-compound (`MIT OR Apache-2.0`)
+`SPDX-License-Identifier: BSD-3` have no answer); a manifest field it does
+not take (a quoted INI value, a title, a name) is read by `resolve()`. Both
+read a licence URL with the reader of `resolve()`
+(`SPDX-License-Identifier: https://spdx.org/licenses/MIT` is `MIT`). An input
+under 10 words that `resolve()` refuses is not matched as text, and is
+matched by name only (not as an ID, nor at all when it dropped a mark or has
+a stray "+"): unless a licence name matches it, it has no result, with the
+warning `input: too few words for text: <reason>` (none for an
+input with no word). Chinese and Japanese, written without spaces, are
+matched at any length. A compound (`MIT OR Apache-2.0`)
 has empty top-level `candidates`; each operand's are in
 `operands[*].candidates`.
 

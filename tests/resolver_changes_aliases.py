@@ -33,6 +33,10 @@ REASONS: dict[str, str] = {
         "the OSI's other name of the licence (`Modified BSD License`, `3-clause"
         f" BSD License`) names it (`alias_name`, `resolver_rule`); {_WAS}"
     ),
+    "count": (
+        "the ID with `Clause` left out, its clause count in brackets (2 projects"
+        f" in the sample), names it (`alias_name`, `resolver_rule`); {_WAS}"
+    ),
     "id": (
         "the ID with `Clause` left out, its number the clause count, names it"
         f" (`alias_name`, `resolver_rule`); {_WAS}"
