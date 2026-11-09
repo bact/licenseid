@@ -21,10 +21,10 @@ and this project adheres to
 - A short value `resolve()` refuses gets no text match after a dropped mark
   or a "+" ending a word: `「MIT++」`, `<MIT>`, `*MIT*` and `Licensed under
   the MIT++ license` no longer answer `MIT`, nor `<GPL-2.0+>`
-  `GPL-2.0-only` ([#195])
+  `GPL-2.0-only` ([#195], [#197])
 - A quoted INI field `GPL-2.0+` is `GPL-2.0-or-later` (was `GPL-2.0-only`);
   a field `resolve()` reads (`MIT OR ISC`, a title, a name) answers as it does
-  ([#195])
+  ([#195], [#197])
 
 ## [0.8.3] - 2026-11-09
 
@@ -52,6 +52,7 @@ and this project adheres to
 [#190]: https://github.com/bact/licenseid/pull/190
 [#191]: https://github.com/bact/licenseid/pull/191
 [#195]: https://github.com/bact/licenseid/pull/195
+[#197]: https://github.com/bact/licenseid/pull/197
 
 ## [0.8.2] - 2026-11-09
 
