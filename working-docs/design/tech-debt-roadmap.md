@@ -29,7 +29,8 @@ after it, item 37 from the work on item 29, item 38 from the
 review of PR #80, items 39 to 42 from the review of PR #82, and items 43
 to 45 from the reviews of PR #99 (items 43 to 45 resolved 2026-11-09,
 2026-11-09 and 2026-11-08), item 46 from the 0.7.0 whole-release review,
-item 47 from PR #168, and item 50 from the work on item 44.
+item 47 from PR #168, item 50 from the work on item 44, and item 51
+from the work on item 43.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -544,6 +545,20 @@ and the parity corpus: the whole input moved 6 times, a quoted INI field
   full List.
 
 - Impact 2, Risk 2, Effort 3.
+
+## 51. A lone ID with a stray slash or bracket gives no answer — Priority 10
+
+Before PRs #195 and #197 (item 48), `detect(text=...)` answered an ID with
+one stray mark through Tier 0: `/MIT`, `MIT/`, `(MIT` and `MIT)` gave `MIT`,
+and `GPL-2.0+)` gave `GPL-2.0-or-later`, all exact. Now `resolve()` refuses
+each (`character dropped: U+002F`, `parse failed: Unexpected '('`, `Missing
+matching '('`) and `detect()` follows it with no answer. The refusals are
+deliberate (a dropped mark may be the author's doubt, `dropguard`), and the
+"/" rule of item 43 keeps `/MIT` and `MIT/` refused (an empty piece). Decide
+whether a lone mark of this kind is read, which marks, and with what category
+and step; measure it on the PyPI sample and the manifests before choosing.
+
+- Impact 2, Risk 2, Effort 2.
 
 ## Already resolved
 
