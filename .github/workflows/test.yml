@@ -19,6 +19,9 @@ on:
       - "!working-docs/**"
       - "docs/resolve.md"
   pull_request:
+    # "labeled": the label `test-all-os` starts a run with every test on
+    # Windows. Any other label starts no tests (see "if" and "concurrency").
+    types: [ opened, synchronize, reopened, labeled ]
     branches: [ main, develop ]
     paths:
       - "**"
@@ -31,13 +34,19 @@ on:
       - "!working-docs/**"
       - "docs/resolve.md"
 
+# A label other than `test-all-os` runs in a group of its own, so it neither
+# cancels a run in progress nor replaces its result with a skipped one.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: >-
+    ${{ github.workflow }}-${{ github.ref }}-${{
+    (github.event.action == 'labeled' && github.event.label.name != 'test-all-os')
+    && github.run_id || '' }}
   cancel-in-progress: true
 
 jobs:
   test:
     name: Test on Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    if: ${{ github.event.action != 'labeled' || github.event.label.name == 'test-all-os' }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -72,20 +81,25 @@ jobs:
           python -m pip install . --group test
 
       # A pull request runs only the files that depend on the operating
-      # system on Windows (tests/platform_files.py); a push runs them all, so
-      # a gap in that list shows after the merge. Linux always runs all.
+      # system on Windows (tests/platform_files.py), unless it has the label
+      # `test-all-os`; a push runs them all, so a gap in that list shows after
+      # the merge. Linux always runs all.
       - name: Run tests (w/o code coverage)
         if: ${{ matrix.python-version != env.MAIN_SUPPORT_VERSION && runner.os != 'Windows' }}
         run: |
           pytest tests/ -n auto -v --tb=short
 
       - name: Run platform tests (Windows, pull request)
-        if: ${{ runner.os == 'Windows' && github.event_name == 'pull_request' }}
+        if: >-
+          ${{ runner.os == 'Windows' && github.event_name == 'pull_request'
+          && !contains(github.event.pull_request.labels.*.name, 'test-all-os') }}
         run: |
           pytest tests/ -m platform -n auto -v --tb=short
 
-      - name: Run tests (Windows, push)
-        if: ${{ runner.os == 'Windows' && github.event_name != 'pull_request' }}
+      - name: Run all tests (Windows, push or label)
+        if: >-
+          ${{ runner.os == 'Windows' && (github.event_name != 'pull_request'
+          || contains(github.event.pull_request.labels.*.name, 'test-all-os')) }}
         run: |
           pytest tests/ -n auto -v --tb=short
 

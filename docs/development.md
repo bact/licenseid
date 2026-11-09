@@ -24,12 +24,15 @@ pytest -n auto
 ```
 
 Run only the files that depend on the operating system, as CI does on
-Windows (the list is `tests/platform_files.py`; a plain `pytest` runs every
-file on every system):
+Windows for a pull request (the list is `tests/platform_files.py`; a plain
+`pytest` runs every file):
 
 ```bash
 pytest -m platform
 ```
+
+To make CI run every test on Windows for a pull request, give it the label
+`test-all-os`.
 
 Run benchmarks and accuracy tests (expensive; CI runs them weekly and when
 the matching code changes):
