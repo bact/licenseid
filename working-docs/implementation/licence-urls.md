@@ -221,13 +221,17 @@ sensitive). The survey had 1 of 183 such URLs as a compound
   `urlkey.url_key` still decodes nothing (`tests/test_urlkey.py` pins it).
 - **Rejected: an allow-list of escapes** (`%20`, `%28`, `%29`, `%2B`): it
   needs a second list to keep in step with the first.
-- **Operators are upper case**, as the service is case sensitive; IDs are
-  read case-folded as the ID alone is (`/mit` reads). A word is a List
-  licence or, after `WITH`, an exception. A phrase (`or later`), a
-  `LicenseRef-*`, `UNLICENSED` and an unknown ID name nothing here
-  (`not found`); a qualifier the grammar refuses (`GPL-2.0-only+`,
-  `MIT++`) and a broken expression (`(MIT`, `MIT%20OR`) are refused with the
-  reason `resolve()` gives the decoded text.
+- **Operators are upper case**, as the service is case sensitive; IDs are   read
+  case-folded as the ID alone is (`/mit` reads). A word is an exact   List
+  licence ID or, after `WITH`, an exception ID (checked against the   List, then
+  read by the leaf reader). A loose spelling (`Apache2`,   `GPLv3`, `MIT.` as a
+  word of the path), a phrase (`or later`), a   `LicenseRef-*`, `UNLICENSED`,
+  `MIT++` and an unknown ID name nothing here (`not found`), as the   single-ID
+  page: the first version read every word loosely, as `resolve()`   does, and
+  answered pages NuGet never serves (found in review). A   qualifier the grammar
+  refuses (`GPL-2.0-only+`) and a broken expression   (`(MIT`, `MIT%20OR`) are
+  refused with the reason `resolve()` gives the   decoded text, and with no
+  step.
 - **The ID page comes first.** `/MIT`, `/mit`, `/GPL-2.0+` and
   `/FLTK-exception` keep their answers; `/MIT+` was `not found` and is
   `MIT+` now (detail `expression in path`).

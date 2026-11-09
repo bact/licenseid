@@ -58,7 +58,7 @@ from licenseid.listlookup import ListedUrl, ListLookup
 from licenseid.nugetpath import DETAIL as _EXPRESSION
 from licenseid.nugetpath import decoded_path, read_expression
 from licenseid.plusoperator import plus_after_qualifier, strip_plus_operator
-from licenseid.resolveleaf import Found
+from licenseid.resolveleaf import Found, refuse
 from licenseid.resolvertypes import Step, step
 from licenseid.resolvetable import read_as
 from licenseid.urlkey import url_key
@@ -211,9 +211,7 @@ def read_url(db: ListLookup, text: str, found: Found) -> bool:
     if named is None:
         return False
     if isinstance(named, _Refusal):
-        found.steps, found.expansions, found.candidates = [], [], []
-        found.expression, found.category = None, "unresolved"
-        found.reason = named.reason
+        refuse(found, "unresolved", named.reason)
         return True
     lead = step(_KIND, True, url, named.license_id, named.detail)
     if not named.read(db, lead, found):

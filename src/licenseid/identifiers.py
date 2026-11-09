@@ -233,8 +233,25 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
         return ""  # a mark resolve() would drop: no reading at all
     if not follows:
         return expression
+    if closed and _group_joins(expression, tokens[-1].end()):
+        return ""  # "(A OR B) or later": whose grant? resolve() has no reading
     or_later = _lookup_case_insensitive(BARE_TO_OR_LATER, licence) or f"{licence}+"
     return expression[: target.start()] + or_later + expression[target.end() :]
+
+
+def _group_joins(expression: str, end: int) -> bool:
+    """Whether the bracket group that the last closing bracket after *end* of
+    *expression* closes holds an operator (``AND`` or ``OR``). The caller
+    knows a closing bracket stands between the last ID and the grant."""
+    close = [i for i in range(end, len(expression)) if expression[i] == ")"]
+    depth, index = 0, close[-1] if close else -1
+    while index >= 0:
+        depth += (expression[index] == ")") - (expression[index] == "(")
+        if depth == 0:
+            break
+        index -= 1
+    inside = expression[max(index, 0) : end]
+    return any(t.group(0).upper() in ("AND", "OR") for t in RE_TOKEN.finditer(inside))
 
 
 def _takes_no_grant(licence: str) -> bool:

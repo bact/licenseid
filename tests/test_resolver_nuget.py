@@ -22,6 +22,7 @@ from licenseid.cli import cli
 from licenseid.errors import reason_detail
 from licenseid.nugetpath import decode, decoded_path
 from licenseid.resolvereason import names_expression
+from licenseid.resolveurl import url_license_id
 from licenseid.urlkey import url_key
 
 NUGET = "https://licenses.nuget.org/"
@@ -30,7 +31,7 @@ DEPTH = 151  # one over identifiers.MAX_PARSE_DEPTH and MAX_PARSE_OPERATORS
 
 
 def _reads(db: LicenseDatabase) -> None:
-    """The control: the databases reads a compound URL (not a vacuous test)."""
+    """The control: the database reads a compound URL (not a vacuous test)."""
     assert resolve(CONTROL, db)["expression"] == "ISC OR MIT"
 
 
@@ -110,6 +111,8 @@ POSITIVE = {
     ),
     NUGET + "GPL-3.0%20OR%20MIT": "GPL-3.0 OR MIT",  # assumed_only
     NUGET + "MIT.": "MIT",
+    NUGET + "MIT?": "MIT",  # an empty query is no query, as the key has it
+    NUGET + "(MIT)%20OR%20ISC?": "ISC OR MIT",
     # What a value is wrapped in, and spellings of one page.
     f"<{CONTROL}>": "ISC OR MIT",
     f"({CONTROL})": "ISC OR MIT",
@@ -217,8 +220,6 @@ REFUSED = {
     NUGET + "MIT%20OR%20(ISC": ("malformed", "MIT OR (ISC"),
     NUGET + "GPL-2.0-only+": ("malformed", "GPL-2.0-only+"),
     NUGET + "GPL-2.0-only+%20OR%20MIT": ("malformed", "GPL-2.0-only+ OR MIT"),
-    NUGET + "MIT++": ("malformed", "MIT++"),
-    NUGET + "MIT++%20OR%20ISC": ("malformed", "MIT++ OR ISC"),
     NUGET + "(" * DEPTH + "MIT%20OR%20ISC" + ")" * DEPTH + "%20OR%20Zlib": (
         "unresolved",
         "(" * DEPTH + "MIT OR ISC" + ")" * DEPTH + " OR Zlib",
@@ -243,6 +244,9 @@ def test_a_refused_expression_gives_the_reason_it_has_alone(
     assert got["reason"] == alone["reason"]
     assert got["reason"] is not None
     assert not got["reason"].startswith("not found")
+    assert got["steps"] == []  # as a refusal of any other page has none
+    wrapped = resolve(f"<{value}>", corpus_db)
+    assert (wrapped["reason"], wrapped["steps"]) == (got["reason"], [])
 
 
 # --- not found: nothing in it is an answer ---
@@ -263,6 +267,17 @@ NOT_FOUND = [
     "LicenseRef-x%20OR%20MIT",
     "MIT%20WITH%20AdditionRef-x",
     "Foo",
+    # a loose spelling resolve() reads alone: NuGet serves SPDX IDs only
+    "Apache2",
+    "GPLv3",
+    "GPL2%20OR%20MIT",
+    "LGPLv2.1+%20OR%20MIT",
+    "MIT-%20OR%20ISC",
+    "MIT.%20OR%20ISC.",
+    "MIT%20OR%20ISC%2E",
+    "Classpath-exception-2.0%20OR%20MIT",
+    "MIT%20WITH%20Foo",
+    "Foo%20WITH%20Classpath-exception-2.0",
     "MIT%20OR%20Foo",
     "Apache-2.0%20or%20later",
     "MIT%20+",
@@ -396,3 +411,82 @@ def test_a_refusal_has_no_step_of_its_wrapper(corpus_db: LicenseDatabase) -> Non
     got = resolve(f"<{NUGET}MIT%20OR>", corpus_db)
     assert (got["category"], got["steps"]) == ("malformed", [])
     assert resolve(f"<{CONTROL}>", corpus_db)["steps"][0]["kind"] == "brackets"
+
+
+@pytest.mark.parametrize(
+    ("path", "candidates"),
+    [
+        ("(GPL-3.0)", ["GPL-3.0-only", "GPL-3.0-or-later"]),
+        ("(AGPL-1.0)", ["AGPL-1.0-only", "AGPL-1.0-or-later"]),
+        (
+            "GPL-2.0%20WITH%20Classpath-exception-2.0",
+            [
+                "GPL-2.0-only WITH Classpath-exception-2.0",
+                "GPL-2.0-or-later WITH Classpath-exception-2.0",
+            ],
+        ),
+        ("MIT", []),
+    ],
+)
+def test_one_licence_keeps_what_it_has_alone(
+    corpus_db: LicenseDatabase, path: str, candidates: list[str]
+) -> None:
+    got = resolve(NUGET + path, corpus_db)
+    alone = resolve(got["steps"][0]["to"], corpus_db)
+    assert got["candidates"] == candidates == alone["candidates"]
+    assert got["category"] != "unresolved"
+
+
+def test_an_and_expression_is_no_operand_either(corpus_db: LicenseDatabase) -> None:
+    url = NUGET + "MIT%20AND%20ISC"
+    got = resolve("Zlib OR " + url, corpus_db)
+    assert (got["expression"], got["reason"]) == (None, names_expression(url))
+    with corpus_db.reading():
+        assert url_license_id(corpus_db, url) == "(ISC AND MIT)"
+
+
+def test_a_leaf_the_reader_cannot_read_is_not_found(
+    corpus_db: LicenseDatabase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Defence in depth: the check of the IDs and the leaf reader agree."""
+    _reads(corpus_db)
+    monkeypatch.setattr("licenseid.nugetpath.read_leaf", lambda *_: False)
+    got = resolve(CONTROL, corpus_db)
+    assert got["reason"] == f"not found: {reason_detail(CONTROL)}"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        CONTROL + " or later",
+        "(MIT OR ISC) or later",
+        "(MIT AND ISC) or later",
+        "((MIT) OR ISC) or later",
+        "(MIT OR (ISC)) or later",
+        "(GPL-2.0+ OR MIT) or later",
+    ],
+)
+def test_a_tag_gives_no_answer_to_an_or_later_after_a_compound_group(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """A grant after a bracketed group of several licences is whose? Like
+    resolve(), the tag answers nothing, not the last leaf's "+"."""
+    assert resolve(value, corpus_db)["expression"] is None
+    assert tag_answer(corpus_db, value) is None
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("(GPL-2.0) or later", "GPL-2.0-or-later"),
+        ("MIT OR (GPL-2.0) or later", "GPL-2.0-or-later OR MIT"),
+        ("(MIT OR ISC or later)", "MIT OR ISC+"),
+        ("MIT OR GPL-2.0 or later", "GPL-2.0-or-later OR MIT"),
+    ],
+)
+def test_a_tag_keeps_an_or_later_that_has_one_licence(
+    corpus_db: LicenseDatabase, value: str, expected: str
+) -> None:
+    """Positive controls: a grant beside one licence (in brackets or not)
+    still qualifies it."""
+    assert tag_answer(corpus_db, value) == expected

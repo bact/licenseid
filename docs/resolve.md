@@ -166,8 +166,9 @@ steps taken, without fuzzy matching:
     decoded text must hold only letters, digits, `.`, `+`, `-`, brackets and
     single spaces: `%2F`, `%3F`, `%00`, `%C2%A0` and a doubled `%2520` name
     nothing. `AND`, `OR` and `WITH` are in upper case, and each word is a
-    licence of the List (a `LicenseRef-*` is not). The expression is read
-    and written as `resolve()` reads it alone
+    licence ID of the List, or an exception ID after `WITH` (a `LicenseRef-*`
+    or a loose spelling such as `Apache2` is not). The expression is written
+    as `resolve()` writes it
     (`https://licenses.nuget.org/(MIT)%20OR%20ISC` is `ISC OR MIT`). The
     URL is one operand. As an operand of a compound it is refused when it
     names an expression (`ISC AND https://licenses.nuget.org/MIT%20OR%20ISC`:

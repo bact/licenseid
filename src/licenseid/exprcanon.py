@@ -182,6 +182,23 @@ def is_compound(expression: str) -> bool:
     return " AND " in expression or " OR " in expression
 
 
+class Cut(NamedTuple):
+    """A value cut into tokens: the tokens, the leaf tokens among them, and
+    the text of each leaf, in input order."""
+
+    tokens: list[Token]
+    spans: list[Token]
+    parts: list[str]
+
+
+def cut(text: str) -> Cut:
+    """:func:`split` *text* and take its leaves: the first step of every
+    reader of a compound."""
+    tokens = split(text)
+    spans = leaves(tokens)
+    return Cut(tokens, spans, [text[leaf.start : leaf.end] for leaf in spans])
+
+
 def leaves(tokens: list[Token]) -> list[Token]:
     """The leaf tokens, in input order."""
     return [token for token in tokens if token.kind == _LEAF]

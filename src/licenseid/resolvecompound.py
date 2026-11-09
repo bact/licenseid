@@ -49,13 +49,12 @@ from licenseid.errors import reason_detail
 from licenseid.exprcanon import (
     Node,
     Token,
+    cut,
     is_compound,
     join_leaves,
-    leaves,
     missing_operator,
     oversize,
     parse,
-    split,
     written_upper,
 )
 from licenseid.exprtokens import ID_WORD, LIST_MARK
@@ -160,11 +159,9 @@ def read_compound(db: ListLookup, text: str, start: int, found: Found) -> Compou
     holds no operator and no bracket, has a leaf of several words, or two
     operands with no operator between them: then *found* is left as it
     was."""
-    tokens = split(text)
+    tokens, spans, parts = cut(text)
     if len(tokens) == 1:
         return Compound([], False, False)
-    spans = leaves(tokens)
-    parts = [text[leaf.start : leaf.end] for leaf in spans]
     if not all(_is_operand(_unquoted(part)[0]) for part in parts):  # first:
         # prose ("Apache License 2.0 OR MIT") is no compound, however long
         return Compound([], False, False, _fallback(db, text, tokens, parts))

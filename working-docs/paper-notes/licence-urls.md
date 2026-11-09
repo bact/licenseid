@@ -175,7 +175,7 @@ licence page the List lacks (the alias candidates below).
 
 No bracket form occurs. 182 of 183 are one ID; the compound form (0.5% of
 the NuGet URLs) was deferred in v1 and gave `not found`. Issue #187 asked
-for it; it is read since 0.8.3 (1 of 183 read), with the page's
+for it; it is read since issue #187 (1 of 183 read), with the page's
 URL-encoded expression (`%20`, `( ) +` literal) decoded for that host only.
 
 ## ScanCode LicenseDB
