@@ -676,10 +676,10 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   expression, as an idstring holds ASCII only, SPDX 3.0.1), so every entry
   point answered nothing, and `resolve()` refuses with `not found: …` or
   `operand not resolved: …`. What was missing was a word: the tag path of
-  `detect()` now warns `input: invalid: <value>` (`markers._cut_by_non_ascii`, on
-  `identifiers.read_leading`), once per distinct tag value; a valid ID with no match, prose
-  after an expression (`MIT ü`) and a mark that is no letter (`MIT€`) stay
-  quiet. Test: `tests/test_tag_invalid_warning.py`,
+  `detect()` now warns `input: invalid: <value>` (`markers._cut_by_non_ascii`,
+  on `identifiers.read_leading`), once per distinct tag value; a valid ID with
+  no match, prose after an expression (`MIT ü`) and a mark that is no
+  letter (`MIT€`) stay quiet. Test: `tests/test_tag_invalid_warning.py`,
   `tests/test_resolverfix_tags.py`.
 - Expressions and references carried the wrong flags (item 34, Priority 12;
   found done 2026-11-09). `exprflags.py` judges them: a `LicenseRef-*` is
@@ -702,4 +702,3 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   `str`: `exclude="MIT"` was read as a string and kept every ID that is a
   substring of it. Tests: `tests/test_match_options.py`,
   `tests/test_contract_pins.py`.
-

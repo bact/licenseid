@@ -41,9 +41,7 @@ if detector.is_osi(license_id="MIT"):
     print("OSI Approved!")
 
 # OSI-approved or FSF-libre; None means an operand could not be judged
-if detector.is_osi(file_path="LICENSE.txt") or detector.is_fsf(
-    file_path="LICENSE.txt"
-):
+if detector.is_osi(file_path="LICENSE.txt") or detector.is_fsf(file_path="LICENSE.txt"):
     print("Open Source!")
 
 if detector.is_spdx(text="Creative Commons Zero v1.0 Universal"):
@@ -91,7 +89,7 @@ from licenseid import resolve
 
 r = resolve("Apache2")
 r["expression"]  # "Apache-2.0"
-r["category"]    # "version_spelling"
+r["category"]  # "version_spelling"
 [s["kind"] for s in r["steps"]]  # ["separator", "version_spelling"]
 r["resolver"]["purl"]  # who resolved it
 r["lists"][0]["version"]  # from which list version

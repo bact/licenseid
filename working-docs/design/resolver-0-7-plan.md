@@ -405,9 +405,13 @@ A lexical rule is a table row plus a test pair, not a new branch:
 # lookup, so the existing id / name / loose-id proof applies unchanged.
 _RULES: Final = (
     ("prose_words", re.compile(r"(?P<head>.+?) licen[cs]e\Z", re.I), r"\g<head>"),
-    ("prose_words", re.compile(r"(?P<n>Apache) License,? (?:Version|v) ?(?P<v>\d[\d.]*)\Z"),
-     r"\g<n> \g<v>"),
+    (
+        "prose_words",
+        re.compile(r"(?P<n>Apache) License,? (?:Version|v) ?(?P<v>\d[\d.]*)\Z"),
+        r"\g<n> \g<v>",
+    ),
 )
+
 
 # The kind maps to the category prose_form; never set found.category, or
 # weakest-wins is lost (GPL-3.0 License must stay assumed_only).
@@ -430,10 +434,19 @@ def test_a_prose_form_of_one_id_is_read(value, db):
     got = resolve(value, db)
     assert (got["expression"], got["category"]) == ("Apache-2.0", "prose_form")
 
-@pytest.mark.parametrize("value", ["Apache License, Version 3.0", "BSD License",
-                                   "Apache License, Version 2.0?", "MIT license\nx"])
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Apache License, Version 3.0",
+        "BSD License",
+        "Apache License, Version 2.0?",
+        "MIT license\nx",
+    ],
+)
 def test_a_near_miss_is_not_read(value, db):
     assert resolve(value, db)["expression"] is None
+
 
 def test_the_prose_regexes_do_not_backtrack(db):
     start = time.monotonic()
@@ -444,16 +457,17 @@ def test_the_prose_regexes_do_not_backtrack(db):
 Compound: resolve the operands first, canonicalise second (D1):
 
 ```python
-leaves = split_leaves(value)       # [(text, start, end)], raw offsets (Q8);
-                                   # a grant phrase is part of its leaf (Q14)
+leaves = split_leaves(value)  # [(text, start, end)], raw offsets (Q8);
+# a grant phrase is part of its leaf (Q14)
 founds = [Found() for _ in leaves]
 read = [read_leaf(lookup, t, f) for (t, _, _), f in zip(leaves, founds)]
 if not all(read) or any(f.expression is None for f in founds):
-    return unresolved(value, operands(leaves, founds),
-                      reason="operand not resolved: ...")
-categories = [category_of(f) for f in founds]   # weakest wins
+    return unresolved(
+        value, operands(leaves, founds), reason="operand not resolved: ..."
+    )
+categories = [category_of(f) for f in founds]  # weakest wins
 skeleton = render_skeleton(value, leaves, placeholders(founds))
-tree = identifiers.parse_expression(skeleton)   # only AND, OR, (), LicenseRef-
+tree = identifiers.parse_expression(skeleton)  # only AND, OR, (), LicenseRef-
 canonical = render(dedupe(sort_chains(flatten(tree))), placeholders(founds))
 ```
 
@@ -464,7 +478,7 @@ With and without a database, and the sample as acceptance:
 def test_the_answer_is_the_same_with_and_without_a_database(value, memory_db):
     with_db = resolve(value, memory_db)
     without = resolve(value, source="packaged")
-    assert _masked(with_db) == _masked(without)    # drop lists[*].source only
+    assert _masked(with_db) == _masked(without)  # drop lists[*].source only
 ```
 
 ```shell
