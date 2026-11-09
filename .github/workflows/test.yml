@@ -3,11 +3,33 @@
 
 name: Unit tests
 
+# A change to notes and docs alone starts no run. The order of "paths"
+# matters: a later pattern overrides an earlier one.
 on:
   push:
     branches: [ main, develop ]
+    paths:
+      - "**"
+      - "!AGENTS.md"
+      - "!CHANGELOG.md"
+      - "!CLAUDE.md"
+      - "!SECURITY.md"
+      - "!README.md"
+      - "!docs/**"
+      - "!working-docs/**"
+      - "docs/resolve.md"
   pull_request:
     branches: [ main, develop ]
+    paths:
+      - "**"
+      - "!AGENTS.md"
+      - "!CHANGELOG.md"
+      - "!CLAUDE.md"
+      - "!SECURITY.md"
+      - "!README.md"
+      - "!docs/**"
+      - "!working-docs/**"
+      - "docs/resolve.md"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
