@@ -16,12 +16,24 @@ and this project adheres to
 - `resolve()`, `detect()`, the CLI and a `license` field read List IDs spelt as
   listed and joined by `/` as `OR` (`MIT/Apache-2.0` is `Apache-2.0 OR MIT`);
   a name or path with a `/`, `zlib/libpng` and `MIT/X11` stay refused ([#194])
+- `resolve()` reads `「MIT」` and `『MIT』` (corner brackets) as quote marks, and
+  `BSD (3 clause)` and `BSD (3-clause)` as `BSD-3-Clause` ([#195])
 
 ### Changed
 
 - `detect()` answers `MIT/Apache-2.0` as `Apache-2.0 OR MIT` (0.8.3: no
   answer); a `Cargo.toml` `license` in lower case (`mit/apache-2.0`) is no
   longer read as `OR`; a tag never reads a `/` ([#194])
+
+### Fixed
+
+- A short value `resolve()` refuses gets no text match after a dropped mark
+  or a "+" ending a word: `「MIT++」`, `<MIT>`, `*MIT*` and `Licensed under
+  the MIT++ license` no longer answer `MIT`, nor `<GPL-2.0+>`
+  `GPL-2.0-only` ([#195], [#197])
+- A quoted INI field `GPL-2.0+` is `GPL-2.0-or-later` (was `GPL-2.0-only`);
+  a field `resolve()` reads (`MIT OR ISC`, a title, a name) answers as it does
+  ([#195], [#197])
 
 ## [0.8.3] - 2026-11-09
 
@@ -49,6 +61,8 @@ and this project adheres to
 [#190]: https://github.com/bact/licenseid/pull/190
 [#191]: https://github.com/bact/licenseid/pull/191
 [#194]: https://github.com/bact/licenseid/pull/194
+[#195]: https://github.com/bact/licenseid/pull/195
+[#197]: https://github.com/bact/licenseid/pull/197
 
 ## [0.8.2] - 2026-11-09
 

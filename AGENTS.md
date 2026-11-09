@@ -14,8 +14,8 @@
   own: a "+" form, a bare ID, a "-with-" ID), `ranking.py`
   (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
   `markers.py`, `plusoperator.py` (the "+" operator), `quotes.py` (quote
-  marks around a whole declared value), `versionkey.py` (one key for each
-  spelling of an ID), `trovenames.py` (the `License ::` trove names as
+  marks around a whole declared value; `「」` too), `versionkey.py` (one key
+  for each spelling of an ID), `trovenames.py` (the `License ::` trove names as
   data), `resolver.py` (a declared licence value to an SPDX expression and
   the steps taken; its types and vocabularies are in `resolvertypes.py`),
   `keptdetector.py` (`licenseid.detect()`: one `LicenseDetector` kept per
@@ -588,7 +588,13 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   table. Change one, run it. `normalize_text` drops a "+" that is no operator,
   so `detector._try_tier0_short_text` returns None for a value under 30 words
   that `resolve()` refuses with a "+" reason (`resolvereason.is_plus_refusal`):
-  a new reason of that family goes into its constants.
+  a new reason of that family goes into its constants. Tier 0 asks
+  `resolve()` first for a value under 30 words (a field the marker readers
+  did not take too): what it reads is the answer, and what it refuses is
+  matched as before, except after a dropped mark, an unpaired bracket or a
+  "+" that ends or starts a word or stands alone in marks (`MIT++`,
+  `GPL-2.0 (+)`; not `C++`; under 10 words only), which `normalize_text`
+  drops (`resolvereason.refuses_text_match`).
 - A "/" between IDs is OR only in a whole value (`resolveslash.slash_parts`,
   the one gate): each piece an exact-case List ID (a "+" by `plusoperator`)
   or `LicenseRef-*`, one of them a List ID, never a tag, never inside a `;`

@@ -54,7 +54,7 @@ steps taken, without fuzzy matching:
   `assumed_only`, with both candidates, never narrowed; a renamed one
   (`StandardML-NJ`) becomes its successor (`SMLNJ`);
 - quote marks around the whole value are taken off (`"MIT"`, `'MIT'`,
-  `“MIT”`, `«MIT»`, one or several layers, as an `unquote` step), and the
+  `“MIT”`, `«MIT»`, `「MIT」`, one or several layers, as an `unquote` step), and the
   inside is read as it would be alone; a mark on one end only (`"MIT`) is
   read too, as a weaker answer (`separator`); one end mark after the
   closing marks (`"MIT".`) is an ending; marks of two kinds
@@ -139,10 +139,11 @@ steps taken, without fuzzy matching:
   only, and a run of white space reads as one space;
 - another name a BSD licence is known by is read as that licence, from a
   table (category `alias_name`, an `alias_name` step): `New BSD`, `Revised
-  BSD`, `Modified BSD`, `3-clause BSD`, `BSD-3`, `BSD 3` and `BSD3` are
-  `BSD-3-Clause`; `Simplified BSD`, `2-clause BSD` and `Two-clause BSD` are
-  `BSD-2-Clause`. Each word is the List's (`BSD 3-Clause "New" or "Revised"
-  License`) or the OSI's, or the clause count of the ID. A final `License`
+  BSD`, `Modified BSD`, `3-clause BSD`, `BSD-3`, `BSD 3`, `BSD3`,
+  `BSD (3 clause)` and `BSD (3-clause)` are `BSD-3-Clause`;
+  `Simplified BSD`, `2-clause BSD` and `Two-clause BSD` are
+  `BSD-2-Clause`. Each word is the List's (`BSD 3-Clause "New" or
+  "Revised" License`) or the OSI's, or the clause count of the ID. A final `License`
   is read as a prose form (below): `New BSD License` is `New BSD`, and
   `New BSD License (BSD-3-Clause)` is read as a prose form with its short
   form, while `New BSD (BSD-3-Clause)` is not. A name with no clause count
@@ -521,8 +522,7 @@ not ASCII (U+2215, U+FF0F), a URL or a path (`LICENSE/MIT`,
 `;` (`MIT/ISC OR Zlib`, `MIT/ISC; Apache-2.0`). A text that holds the value
 (a licence text, a sentence) is not a whole value. A tag never reads a `/`
 (its value can run on into prose); a `license` field of `package.json`,
-`pyproject.toml`, `Cargo.toml` and `setup.cfg` reads the plain form (no quotes,
-brackets or end mark around the pieces) as `resolve()` does,
+`pyproject.toml`, `Cargo.toml` and `setup.cfg` answers as `resolve()` does,
 and lower case in a `Cargo.toml` (`mit/apache-2.0`) is refused. `--id` still
 declares one licence.
 
@@ -663,7 +663,8 @@ that is only quote marks, with or without an ending or a `+` (`"".`, `""+`), is
 
 Quote marks that delimit the whole value are not marks of that kind: the
 `unquote` step takes them off first. Two marks of one kind, double
-(`"`, `“ ”`, `„ “`, `« »`) or single (`'`, `‘ ’`, `‹ ›`, the grave accent
+(`"`, `“ ”`, `„ “`, `« »`; the corner brackets `「」` and `『』` quote too, but
+only as a pair, opener first) or single (`'`, `‘ ’`, `‹ ›`, the grave accent
 and the other quotes `normalize_text` folds), delimit it, whichever
 opens; nested pairs (`'"MIT"'`) all come off, with `detail` `balanced, 2
 layers`. A quotation mark on one end only is taken off too, with `detail`

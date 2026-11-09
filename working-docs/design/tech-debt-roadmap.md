@@ -29,7 +29,7 @@ after it, item 37 from the work on item 29, item 38 from the
 review of PR #80, items 39 to 42 from the review of PR #82, and items 43
 to 45 from the reviews of PR #99 (items 43 to 45 resolved 2026-11-09,
 2026-11-09 and 2026-11-08), item 46 from the 0.7.0 whole-release review,
-item 47 from PR #168, and item 48 from the work on item 44.
+item 47 from PR #168, and item 50 from the work on item 44.
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -502,17 +502,46 @@ moves are in `tests/harness_changes_nametier.py`.
 
 - Impact 2, Risk 2, Effort 2.
 
-## 48. Tier 0 and wrappers `resolve()` does not read — Priority 12
+## 50. Leftovers of item 48 (Tier 0 through `resolve()`) — Priority 10
 
-Left over from item 44 (2026-11-09). A short value is judged by
-`resolve()` for its "+" only; two cases stay with Tier 0:
+Left over from the fix of item 48 (2026-11-09, resolved: Tier 0 asks
+`resolve()` first). Measured on the 519 distinct values of the PyPI fixture
+and the parity corpus: the whole input moved 6 times, a quoted INI field
+190 times (all but 7 gained an answer).
 
-- A wrapper `resolve()` does not read, such as `「MIT++」`, still answers
-  `MIT` exact.
-- An INI-quoted `GPL-2.0+` (`license = "GPL-2.0+"`) read by the CLI with no
-  extension keeps the quotes, so the operator is lost.
-
-Read both through `resolve()` as one value, or refuse them with a reason.
+- **A file with no section** (`license = "MIT OR ISC"`, no `[metadata]`)
+  is no manifest, so the whole text goes to the name tier, which answers
+  `ISC`, inexact. `resolve()` refuses it (an `=`); a text that is a
+  `key = value` line could be read as that value.
+- **`markers.resolve_license_value` and `_first_resolved`** still hold a
+  reader of their own for a tag and a field (`MIT OR MirOS` order, a title
+  and an alias are not read by a tag); route them through `resolve()` once
+  item 43 has landed in `markers.py`.
+- **`identifiers.is_qualified_plus` / `is_stray_plus`** (the first guard of
+  `_try_tier0_short_text`) repeat the "+" refusals of `resolve()`; they
+  return no result where the `resolve()` guard returns None (a warning), so
+  removing them adds a `too few words for text` warning. Decide, then drop.
+- **`looseid.disambiguate_whole`** reads a bare deprecated ID and its prose
+  in the raw text for a value `resolve()` refuses (comment-wrapped grants,
+  `tests/test_readers_round4.py`); no corpus value needs it otherwise.
+  Measure it on fields, then fold it into `resolve()`.
+- **A wrapped name answers exact**: `*Apache License 2.0*` is `not found`
+  for `resolve()` and still `Apache-2.0` by name; apply `dropguard.dropped`
+  to name hits.
+- **A sentence of 10 to 29 words with `MIT++`** is matched by name still
+  (`MIT`, inexact; under 10 words it has no answer): only a word ending in
+  "+" under 10 words is refused, so a README line with `C++` keeps its
+  answer.
+- **Hidden characters and escapes inside a quoted field**: a quoted INI
+  `"MIT\u200b"` and a TOML `"\"MIT\""` (backslashes kept by the manifest
+  reader) answered `MIT` by name before item 48 and have no answer now,
+  because `resolve()` refuses them (`control or format character`, dropped
+  backslash). Trim a hidden character inside quotes in `resolve()`, and
+  unescape the TOML string in `manifest`.
+- **The harness database is partial**: the long-text fixtures hold no
+  deprecated rows, so `GPL-2.0` (`id_deprecated`) has no answer there
+  (`tests/harness_changes_wrappers.py`); build the golden database from the
+  full List.
 
 - Impact 2, Risk 2, Effort 3.
 

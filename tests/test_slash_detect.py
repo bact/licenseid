@@ -84,6 +84,6 @@ def test_every_other_value_answers_as_on_0_8_3(
 def test_the_pinned_names_stay_names(detector: LicenseDetector) -> None:
     assert answers(detector, "TCL/TK")[0][:2] == ["TCL", "name"]
     assert answers(detector, "LICENSE/MIT")[0][:2] == ["MIT", "name"]
-    assert answers(detector, "/MIT")[0][:2] == ["MIT", "id"]
+    assert answers(detector, "/MIT") == []  # 0.8.3: MIT; #195 made it consistent
     assert answers(detector, "MIT/X11") == []
     assert answers(detector, "zlib/libpng") == []
