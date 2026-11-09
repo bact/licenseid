@@ -15,6 +15,7 @@ import time
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from resolver_corpus import LICENSE_LIST, list_rows
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.identifiers import MAX_PARSE_DEPTH, MAX_PARSE_OPERATORS
@@ -228,4 +229,4 @@ def test_a_long_or_deep_compound_is_fast(corpus_db: LicenseDatabase, name: str) 
     assert len(value) <= 2000
     start = time.monotonic()
     resolve(value, corpus_db)
-    assert time.monotonic() - start < 2.0
+    assert time.monotonic() - start < slack(2.0)

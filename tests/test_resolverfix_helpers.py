@@ -13,6 +13,7 @@ import re
 import time
 
 import pytest
+from timing import slack
 
 from licenseid import classify
 from licenseid.classify import grant_at, grant_spans
@@ -102,7 +103,7 @@ def test_marks_at_end(text: str, expected: tuple[str, str] | None) -> None:
 def test_marks_at_end_is_fast(text: str) -> None:
     start = time.monotonic()
     marks_at_end(text)
-    assert time.monotonic() - start < 1
+    assert time.monotonic() - start < slack(1)
 
 
 @pytest.mark.parametrize(
@@ -195,7 +196,7 @@ def test_a_grant_probe_reads_a_window_not_the_line() -> None:
     value = "GPL-2.0-only or " * 20000 + "MIT"
     start = time.monotonic()
     assert leading_expression(value) == value
-    assert time.monotonic() - start < 5
+    assert time.monotonic() - start < slack(5)
 
 
 @pytest.mark.parametrize(

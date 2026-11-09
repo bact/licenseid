@@ -769,7 +769,11 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   times slower than a laptop: a timing test that needs a large input or a
   tight bound (a ratio of two sizes for linear time) is
   `@pytest.mark.benchmark`, run with `--run-benchmark` before a release, and
-  keeps a small size in the every-commit run (PR #121). Details from PR #61:
+  keeps a small size in the every-commit run (PR #121). A time bound is
+  written `slack(seconds)` (`tests/timing.py`): it scales the bound for
+  `coverage` tracing and `pytest -n` workers, which CI's 3.10 job runs
+  together (two 1 s bounds failed there in PR #202); never use it for a ratio
+  of two sizes. Details from PR #61:
   `working-docs/implementation/spdx-expression-reading.md`. Run the full
   suite alone: beside mutants and `tools.golden`, a 1 s bound
   (`test_leading_expression_does_not_backtrack`) failed at 2.5 s; rerun a

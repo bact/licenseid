@@ -25,6 +25,7 @@ import pytest
 from click.testing import CliRunner
 from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.cli import cli
@@ -244,5 +245,5 @@ def test_a_long_run_of_pluses_is_read_in_linear_time(
     value = make(20_000)
     start = time.monotonic()
     detector.detect(text=value)
-    assert time.monotonic() - start < 3
+    assert time.monotonic() - start < slack(3)
     given.take()  # a refused value says why

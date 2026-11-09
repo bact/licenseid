@@ -13,6 +13,7 @@ from collections.abc import Generator
 import pytest
 from click.testing import CliRunner
 from matcher_db import Lic, seeded_db
+from timing import slack
 
 from licenseid.cli import cli
 from licenseid.textinput import looks_like_path
@@ -95,4 +96,4 @@ def test_the_shape_of_a_path(value: str, path: bool) -> None:
 def test_the_host_regex_does_not_backtrack(payload: str) -> None:
     start = time.monotonic()
     looks_like_path(payload)
-    assert time.monotonic() - start < 1.0
+    assert time.monotonic() - start < slack(1.0)
