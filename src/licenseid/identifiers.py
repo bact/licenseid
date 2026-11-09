@@ -294,6 +294,11 @@ def leading_expression(value: str) -> str:
     cut inside a word (``LicenseRef-café``) is no expression either
     (:func:`licenseid.exprtokens.cut_inside_word`).
     """
+    return read_leading(value)[0]
+
+
+def read_leading(value: str) -> tuple[str, int]:
+    """:func:`leading_expression` of *value*, and where its last token ends."""
     # "or any later version" is a grant, not the OR operator, and the phrase
     # can start before the "or" ("GPL-2.0 or later" needs the version).
     grants = grant_spans(value)
@@ -318,9 +323,9 @@ def leading_expression(value: str) -> str:
             # A "+" touches the ID it follows (plusoperator.PLUS_OPERATOR);
             # after a space or a bracket it is none, and may say "and": no
             # expression, as resolve() refuses it, rather than one without it.
-            return ""
+            return "", 0
         if grant_end is not None and not continues_word(value, grant_end):
-            return _ended_by_grant(value, (end, grant_end), depth, licence)
+            return _ended_by_grant(value, (end, grant_end), depth, licence), 0
         licence = licence_after(licence, before, token)
         before = token[0]
         end = token.end()
@@ -335,8 +340,9 @@ def leading_expression(value: str) -> str:
         if not depth and not expect_operand:
             complete = token.end()
     if expect_operand or depth or complete is None or cut_inside_word(value, complete):
-        return ""
-    return "" if _granted_twice(value[:complete], value, licence) else value[:complete]
+        return "", end
+    twice = _granted_twice(value[:complete], value, licence)
+    return ("", 0) if twice else (value[:complete], 0)
 
 
 def _granted_twice(expression: str, value: str, licence: str) -> bool:

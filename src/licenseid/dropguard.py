@@ -258,3 +258,17 @@ def code_points(chars: str) -> str:
     """*chars* as code points, space separated: ``U+003F U+0021``. Safe to
     show, whatever the characters are (a lone surrogate, a mark)."""
     return " ".join(f"U+{ord(char):04X}" for char in chars)
+
+
+def without_name_tail(value: str) -> str:
+    """*value* without its comment closer or full stop, for the name lookup.
+
+    No license name ends in anything but a word character or ")", and a
+    "+" is part of the expression, not punctuation. A backward scan, not
+    the regex "[^\\w)+]+$": that retries a long run of spaces or dashes
+    from every start and is quadratic (6 s at 40,000 characters).
+    """
+    end = len(value)
+    while end and not (value[end - 1].isalnum() or value[end - 1] in "_)+"):
+        end -= 1
+    return value[:end]

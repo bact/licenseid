@@ -20,6 +20,7 @@ from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from spdx_tag_helpers import Answers, answers, tag_db
 
@@ -228,8 +229,10 @@ TAGS: dict[str, Answers] = {
 
 
 @pytest.mark.parametrize("tag", list(TAGS), ids=lambda t: ascii(t)[:40])
-def test_tag(db: str, tag: str, tmp_path: Path) -> None:
+def test_tag(db: str, tag: str, tmp_path: Path, given: GivenWarnings) -> None:
     assert answers(db, tag, tmp_path) == TAGS[tag]
+    # An ID cut at a non-ASCII letter is said to be invalid (item 33).
+    assert given.conditions() <= {"invalid"}
 
 
 def test_a_plus_after_a_qualifier_then_a_grant_names_nothing(db: str) -> None:

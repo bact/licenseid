@@ -16,6 +16,7 @@ from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from spdx_tag_helpers import Answers, answers, tag_db
 
@@ -92,8 +93,12 @@ STAYS: dict[str, Answers] = {
 
 
 @pytest.mark.parametrize("tag", TWICE + CUT, ids=ascii)
-def test_tag_names_nothing(db: str, tag: str, tmp_path: Path) -> None:
+def test_tag_names_nothing(
+    db: str, tag: str, tmp_path: Path, given: GivenWarnings
+) -> None:
     assert answers(db, tag, tmp_path) == NOTHING
+    # A cut ID is said to be invalid (item 33); a grant twice is not.
+    assert given.conditions() == ({"invalid"} if tag in CUT else set())
 
 
 @pytest.mark.parametrize("tag", list(STAYS), ids=ascii)

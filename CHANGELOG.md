@@ -25,6 +25,8 @@ and this project adheres to
 - A tag or field with "or later" right after a bracketed group of several
   licences (`(MIT OR ISC) or later`) gives no answer, as `resolve()` does,
   not the last licence with a "+" ([#188])
+- A tag with a non-ASCII letter in an ID (`LicenseRef-café`, `MIT-ü`) warns
+  `input: invalid: <value>`; it was refused in silence
 
 [#188]: https://github.com/bact/licenseid/pull/188
 
