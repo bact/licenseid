@@ -9,7 +9,7 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.4] - 2026-11-09
 
 ### Added
 
@@ -34,6 +34,10 @@ and this project adheres to
 - A quoted INI field `GPL-2.0+` is `GPL-2.0-or-later` (was `GPL-2.0-only`);
   a field `resolve()` reads (`MIT OR ISC`, a title, a name) answers as it does
   ([#195], [#197])
+
+[#194]: https://github.com/bact/licenseid/pull/194
+[#195]: https://github.com/bact/licenseid/pull/195
+[#197]: https://github.com/bact/licenseid/pull/197
 
 ## [0.8.3] - 2026-11-09
 
@@ -60,9 +64,6 @@ and this project adheres to
 [#188]: https://github.com/bact/licenseid/pull/188
 [#190]: https://github.com/bact/licenseid/pull/190
 [#191]: https://github.com/bact/licenseid/pull/191
-[#194]: https://github.com/bact/licenseid/pull/194
-[#195]: https://github.com/bact/licenseid/pull/195
-[#197]: https://github.com/bact/licenseid/pull/197
 
 ## [0.8.2] - 2026-11-09
 
@@ -921,6 +922,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[0.8.4]: https://github.com/bact/licenseid/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/bact/licenseid/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/bact/licenseid/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/bact/licenseid/compare/v0.8.0...v0.8.1
