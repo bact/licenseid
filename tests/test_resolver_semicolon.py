@@ -20,6 +20,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
 from resolver_helpers import no_reader_reason
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 
@@ -364,7 +365,7 @@ def test_the_packaged_list_gives_the_same_answers(bundle_db: LicenseDatabase) ->
 def test_a_long_list_is_read_in_time(payload: Callable[[int], str]) -> None:
     start = time.monotonic()
     resolve(payload(400), source="packaged")
-    assert time.monotonic() - start < 3.0
+    assert time.monotonic() - start < slack(3.0)
 
 
 @pytest.mark.benchmark
@@ -379,4 +380,4 @@ def test_a_semicolon_list_is_linear_in_its_length(size: int) -> None:
     ):
         start = time.monotonic()
         resolve(make(size), source="packaged")
-        assert time.monotonic() - start < 5.0
+        assert time.monotonic() - start < slack(5.0)

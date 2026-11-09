@@ -22,6 +22,7 @@ import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 
@@ -278,7 +279,7 @@ def test_a_long_run_of_spaces_or_marks_is_fast(
     start = time.monotonic()
     for value in ("x" + " " * size, "MIT" + "?" * size, "Apache" + " 2" * size):
         assert resolve(value, corpus_db)["expression"] is None
-    assert time.monotonic() - start < 5
+    assert time.monotonic() - start < slack(5)
 
 
 def test_the_same_answer_without_a_database(

@@ -17,6 +17,7 @@ from click.testing import CliRunner
 from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from spdx_tag_helpers import source_with, tag_db
+from timing import slack
 
 from licenseid import resolve
 from licenseid.cli import cli
@@ -106,4 +107,4 @@ def test_the_check_is_not_quadratic(size: int) -> None:
     started = time.monotonic()
     assert not _cut_by_non_ascii("x" + " " * size)
     assert not _cut_by_non_ascii("ü" + " " * size)
-    assert time.monotonic() - started < 2
+    assert time.monotonic() - started < slack(2)

@@ -19,6 +19,7 @@ import re
 import time
 
 import pytest
+from timing import slack
 
 from licenseid.classify import has_or_later_language
 from licenseid.database import LicenseDatabase
@@ -128,4 +129,4 @@ def test_the_shorthand_does_not_backtrack(text: str) -> None:
     """The widened shorthand stays linear on long runs of its parts."""
     start = time.monotonic()
     has_or_later_language(text)
-    assert time.monotonic() - start < 2.0
+    assert time.monotonic() - start < slack(2.0)

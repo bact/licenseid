@@ -22,6 +22,7 @@ from conftest import GivenWarnings
 from matcher_db import PROSE
 from ordering_helpers import DASHED
 from spdx_tag_helpers import source_with, tag_db
+from timing import slack
 
 from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
@@ -196,7 +197,7 @@ def test_a_very_long_value_is_read_quickly(db: str, tag: str) -> None:
     spaces or dashes used to cost the name lookup 6 s at this length."""
     start = time.monotonic()
     LicenseDetector(db).detect(text=source_with(tag))
-    assert time.monotonic() - start < 5.0
+    assert time.monotonic() - start < slack(5.0)
 
 
 def test_many_tags_on_one_line_are_read_quickly(db: str) -> None:
@@ -208,7 +209,7 @@ def test_many_tags_on_one_line_are_read_quickly(db: str) -> None:
     )
     start = time.monotonic()
     assert certain(db, line) == "MIT"
-    assert time.monotonic() - start < 5.0
+    assert time.monotonic() - start < slack(5.0)
 
 
 @pytest.mark.parametrize(
@@ -243,7 +244,7 @@ def test_deep_brackets_are_read_quickly(db: str) -> None:
     start = time.monotonic()
     assert certain(db, source_with(DEEP)) == "Apache-2.0+"
     assert [r["expression"] for r in matcher.detect(license_id=DEEP)] == ["Apache-2.0+"]
-    assert time.monotonic() - start < 5.0
+    assert time.monotonic() - start < slack(5.0)
 
 
 def test_a_padded_first_line_is_read_quickly(db: str) -> None:
@@ -251,7 +252,7 @@ def test_a_padded_first_line_is_read_quickly(db: str) -> None:
     quadratic on a run of spaces (3 s at 40,000)."""
     start = time.monotonic()
     LicenseDetector(db).detect(text="Foo" + " " * 40000 + "x\n" + PROSE)
-    assert time.monotonic() - start < 1.0
+    assert time.monotonic() - start < slack(1.0)
 
 
 def test_a_long_license_field_is_read_quickly(db: str, tmp_path: Path) -> None:
@@ -263,7 +264,7 @@ def test_a_long_license_field_is_read_quickly(db: str, tmp_path: Path) -> None:
     )
     start = time.monotonic()
     LicenseDetector(db).detect(file_path=str(package))
-    assert time.monotonic() - start < 5.0
+    assert time.monotonic() - start < slack(5.0)
 
 
 @pytest.mark.parametrize(

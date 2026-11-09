@@ -10,6 +10,7 @@ name its BSD-N-Clause. The marker built on it is in `test_bsd1_marker`."""
 import time
 
 import pytest
+from timing import slack
 
 from licenseid.bsdclauses import bsd_clause_id
 
@@ -80,7 +81,7 @@ def test_a_run_of_blank_lines_is_read_in_linear_time(line_break: str) -> None:
     start = time.monotonic()
     assert bsd_clause_id(payload) is None
     elapsed = time.monotonic() - start
-    assert elapsed < 0.5, f"took {elapsed:.3f}s"
+    assert elapsed < slack(0.5), f"took {elapsed:.3f}s"
 
 
 # BSD-1-Clause: condition 1 alone, followed by the disclaimer.

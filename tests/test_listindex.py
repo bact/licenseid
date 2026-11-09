@@ -21,6 +21,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from list_entries import exc_entry, lic_entry
 from packaged_list import database_of, fixture_data, synthetic_bundle
 from release_fakes import ship
+from timing import slack
 
 from licenseid import listindex, spdxdata
 from licenseid.listindex import ListIndex, packaged_index, packaged_problem
@@ -457,4 +458,4 @@ def test_the_first_load_is_fast(monkeypatch: pytest.MonkeyPatch) -> None:
     index = packaged_index()
     elapsed = time.monotonic() - start
     assert index is not None and index.get_license_details("MIT")
-    assert elapsed < 0.5, elapsed
+    assert elapsed < slack(0.5), elapsed

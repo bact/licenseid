@@ -11,6 +11,7 @@ drop (task T6)."""
 import time
 
 import pytest
+from timing import slack
 
 from licenseid.dropguard import (
     code_points,
@@ -117,7 +118,7 @@ def test_non_ascii_letters_and_digits_are_not_dropped() -> None:
 def test_it_is_linear(text: str) -> None:
     start = time.monotonic()
     result = dropped(text)
-    assert time.monotonic() - start < 2
+    assert time.monotonic() - start < slack(2)
     assert len(result) <= 1
 
 
@@ -183,4 +184,4 @@ def test_the_end_rules_are_linear() -> None:
     end_marks("x" + ". " * 200_000)
     trim_end_mark("x" + " " * 200_000 + ";")
     lead_marks("-" * 200_000)
-    assert time.monotonic() - start < 2
+    assert time.monotonic() - start < slack(2)

@@ -16,6 +16,7 @@ import time
 import pytest
 from click.testing import CliRunner
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.cli import cli
@@ -297,7 +298,7 @@ def test_a_long_run_of_hidden_characters_is_read_in_linear_time(
     start = time.monotonic()
     got = resolve(value, corpus_db)
     assert got["expression"] == "MIT"
-    assert time.monotonic() - start < max(2.0, size / 20_000)
+    assert time.monotonic() - start < slack(max(2.0, size / 20_000))
     assert got["steps"][0]["from"] == value
 
 

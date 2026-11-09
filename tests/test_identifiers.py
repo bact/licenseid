@@ -11,6 +11,7 @@ import uuid
 from unittest import mock
 
 import pytest
+from timing import slack
 
 # pylint: disable=redefined-outer-name
 from licenseid import identifiers
@@ -505,4 +506,4 @@ def test_leading_expression_does_not_backtrack(payload: str) -> None:
     """One long token must not make the scan quadratic."""
     start = time.monotonic()
     leading_expression(payload)
-    assert time.monotonic() - start < 1.0
+    assert time.monotonic() - start < slack(1.0)

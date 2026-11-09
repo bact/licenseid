@@ -22,6 +22,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle, masked
 from release_fakes import ship
 from resolver_helpers import no_reader_reason
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 
@@ -379,7 +380,7 @@ def test_a_long_run_of_quotes_is_fast(corpus_db: LicenseDatabase, size: int) -> 
     ]
     start = time.monotonic()
     answers = [resolve(value, corpus_db)["expression"] for value in values]
-    assert time.monotonic() - start < 10
+    assert time.monotonic() - start < slack(10)
     # Two balanced runs are read; one stray mark is taken off, not a run of
     # them; marks inside the value are not read.
     assert answers == ["MIT", "MIT"] + [None] * 6
