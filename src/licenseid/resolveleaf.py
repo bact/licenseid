@@ -129,6 +129,13 @@ class _Dropped(Exception):
         found.candidates = []
 
 
+def refuse(found: Found, category: Category, reason: str) -> None:
+    """Make *found* a value that names nothing, for *reason*: no expression,
+    step, expansion or candidate."""
+    found.expression, found.category, found.reason = None, category, reason
+    found.steps, found.expansions, found.candidates = [], [], []
+
+
 def refuse_dropped(found: Found, text: str, lost: str, license_id: str) -> None:
     """Make *found* the refusal of *text*, which a reading as *license_id*
     would leave the characters *lost* off: ``unresolved`` with a ``drop``

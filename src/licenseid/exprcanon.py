@@ -31,7 +31,7 @@ OR keep the meaning (SPDX 3, Annex D: AND binds tighter than OR).
 """
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Final, NamedTuple
 
 import py_spdx_license
@@ -177,6 +177,28 @@ def _add_leaf(text: str, start: int, end: int, tokens: list[Token]) -> None:
         tokens.append(Token(_LEAF, start + lead, end - trail))
 
 
+def is_compound(expression: str) -> bool:
+    """Whether *expression*, as licenseid writes one, joins licences."""
+    return " AND " in expression or " OR " in expression
+
+
+class Cut(NamedTuple):
+    """A value cut into tokens: the tokens, the leaf tokens among them, and
+    the text of each leaf, in input order."""
+
+    tokens: list[Token]
+    spans: list[Token]
+    parts: list[str]
+
+
+def cut(text: str) -> Cut:
+    """:func:`split` *text* and take its leaves: the first step of every
+    reader of a compound."""
+    tokens = split(text)
+    spans = leaves(tokens)
+    return Cut(tokens, spans, [text[leaf.start : leaf.end] for leaf in spans])
+
+
 def leaves(tokens: list[Token]) -> list[Token]:
     """The leaf tokens, in input order."""
     return [token for token in tokens if token.kind == _LEAF]
@@ -299,6 +321,23 @@ def canonical(
         if before != after
     ]
     return forms[-1], steps
+
+
+def join_leaves(
+    text: str,
+    tokens: list[Token],
+    tree: Node,
+    read: Sequence[tuple[str, list[Step], list[Step]]],
+) -> tuple[str, list[Step], list[Step]]:
+    """The one assembly of a compound whose leaves are read, for every reader
+    of one (:mod:`licenseid.resolvecompound`, :mod:`licenseid.nugetpath`):
+    *read* holds, per leaf in input order, its expression, steps and
+    expansions. Returns the canonical expression, the steps (those of each
+    leaf, then those that bring the compound to its canonical form) and the
+    expansions of the leaves."""
+    expression, changes = canonical(text, tokens, tree, [r[0] for r in read])
+    steps = [s for r in read for s in r[1]]
+    return expression, steps + changes, [e for r in read for e in r[2]]
 
 
 def _written(text: str, tokens: list[Token], texts: list[str], upper: bool) -> str:

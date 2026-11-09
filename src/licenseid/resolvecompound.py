@@ -49,12 +49,12 @@ from licenseid.errors import reason_detail
 from licenseid.exprcanon import (
     Node,
     Token,
-    canonical,
-    leaves,
+    cut,
+    is_compound,
+    join_leaves,
     missing_operator,
     oversize,
     parse,
-    split,
     written_upper,
 )
 from licenseid.exprtokens import ID_WORD, LIST_MARK
@@ -66,13 +66,12 @@ from licenseid.looseid import (
     granted_id_text,
 )
 from licenseid.quotes import unquote
-from licenseid.resolveleaf import Found, category_of, refuse_dropped
+from licenseid.resolveleaf import Found, category_of, refuse, refuse_dropped
 from licenseid.resolveprose import read_alone
-from licenseid.resolvereason import after_bracket
+from licenseid.resolvereason import after_bracket, names_expression
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
     TRUST,
-    Category,
     Operand,
     Step,
     step,
@@ -160,17 +159,15 @@ def read_compound(db: ListLookup, text: str, start: int, found: Found) -> Compou
     holds no operator and no bracket, has a leaf of several words, or two
     operands with no operator between them: then *found* is left as it
     was."""
-    tokens = split(text)
+    tokens, spans, parts = cut(text)
     if len(tokens) == 1:
         return Compound([], False, False)
-    spans = leaves(tokens)
-    parts = [text[leaf.start : leaf.end] for leaf in spans]
     if not all(_is_operand(_unquoted(part)[0]) for part in parts):  # first:
         # prose ("Apache License 2.0 OR MIT") is no compound, however long
         return Compound([], False, False, _fallback(db, text, tokens, parts))
     refusal = oversize(tokens)
     if refusal in ("too many operators", "too deeply nested"):
-        _refuse(found, "unresolved", refusal)
+        refuse(found, "unresolved", refusal)
         return Compound([], False, True)
     cache: dict[str, _Leaf] = {}
     reading = _Reading(text, start, tokens, spans, [])
@@ -208,13 +205,13 @@ def _refuse_grammar(
     # After ``mismatched brackets`` (not *parsed*), no group to blame
     misplaced = _misplaced(reading) if parsed else None
     if misplaced is not None:
-        _refuse(found, category_of(misplaced), str(misplaced.reason))
+        refuse(found, category_of(misplaced), str(misplaced.reason))
         found.steps = list(misplaced.steps)
         return Compound([], parsed, True)
     if missing_operator(tokens) or not written_upper(reading.text, tokens):
         return Compound([], parsed, False)  # prose: "BSD (3-clause)"
     named = any(leaf.found.expression is not None for leaf in reading.read)
-    _refuse(found, "malformed" if named else "unresolved", reason)
+    refuse(found, "malformed" if named else "unresolved", reason)
     return Compound([], parsed, True)
 
 
@@ -335,12 +332,14 @@ def _combine(found: Found, reading: _Reading, tree: Node) -> Compound:
                 return Compound([], True, False)
         _refuse_operands(found, operands, read, refused[0])
         return Compound(operands, True, True)
-    named = [str(expression) for expression in expressions]
-    expression, steps = canonical(text, reading.tokens, tree, named)
-    for leaf in read:
-        found.steps = found.steps + leaf.found.steps
-        found.expansions = found.expansions + leaf.found.expansions
+    expression, steps, expansions = join_leaves(
+        text,
+        reading.tokens,
+        tree,
+        [(str(r.found.expression), r.found.steps, r.found.expansions) for r in read],
+    )
     found.steps += steps
+    found.expansions += expansions
     found.expression = expression
     return Compound(operands, True, True)
 
@@ -392,7 +391,10 @@ def _read_operand(db: ListLookup, text: str) -> _Leaf:
     inner, steps = _unquoted(text)
     found = Found(steps=steps)
     leaf = Found()
-    if read_alone(db, inner, leaf):
+    read = read_alone(db, inner, leaf)
+    if read and leaf.expression is not None and is_compound(leaf.expression):
+        found.category, found.reason = "unresolved", names_expression(inner)
+    elif read:
         absorb(found, leaf)
     else:
         found.category, found.reason = "unresolved", not_an_operator(inner)
@@ -422,12 +424,6 @@ def _is_nothing(operand: Operand) -> bool:
     return operand["category"] == "unresolved" and operand["reason"] is None
 
 
-def _refuse(found: Found, category: Category, reason: str) -> None:
-    """Make *found* a value that names nothing, for *reason*."""
-    found.expression, found.category, found.reason = None, category, reason
-    found.steps, found.expansions, found.candidates = [], [], []
-
-
 def _refuse_operands(
     found: Found, operands: list[Operand], read: list[_Leaf], first: int
 ) -> None:
@@ -439,6 +435,6 @@ def _refuse_operands(
     )
     own = read[first].found
     unnamed = reason_detail(operands[first]["text"])
-    _refuse(found, weakest, own.reason or f"operand not resolved: {unnamed}")
+    refuse(found, weakest, own.reason or f"operand not resolved: {unnamed}")
     if own.reason is not None:
         found.steps = list(own.steps)

@@ -38,6 +38,7 @@
   `urlkey.py` (one key for each spelling of a licence URL; standard
   library and `listlookup.fold_case` only), `resolveurl.py` (a licence URL
   read as that licence; `url_license_id` does it for a tag and a field),
+  `nugetpath.py` (the expression in the path of a `licenses.nuget.org` URL),
   `resolvesemicolon.py` (licences joined by `;`: listed, no operator),
   `exprcanon.py` (its leaves and canonical
   order), `exprtokens.py` (the words of an expression), `resolverinfo.py`
@@ -613,6 +614,14 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   that declare it (`working-docs/paper-notes/licence-urls.md`). Never take
   an ID from a URL's path on a host that is not in `ID_PAGES`:
   `https://evil.com/licenses/MIT` names no licence.
+  The path of `licenses.nuget.org` is another licence expression,
+  URL-encoded (`nugetpath.py`): it is decoded for that host only, every
+  `%XX` once in one pass, and the decoded text must fit the expression
+  character set (`[A-Za-z0-9.+()-]`, words one space apart), which refuses
+  `%2F`, `%00`, `%C2%A0` and a doubled `%2520` without a list of escapes;
+  `url_key` still decodes nothing. Operators are upper case; a compound is
+  no operand of a compound (`operand names an expression`), and
+  `url_license_id` brackets one (`(A OR B)`) so a tag keeps precedence.
 - A regex with `\s+` directly followed by a class that also matches
   whitespace (`\s+[\s/*#]*`) is quadratic on a long run of spaces (5 s at
   32,000): write `\s[\s/*#]*`. Time every new prose regex on `"x" + " " * N`

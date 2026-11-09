@@ -84,6 +84,13 @@ def after_bracket(text: str) -> str:
     return f"{AFTER_BRACKET}: {reason_detail(text)}"
 
 
+def names_expression(text: str) -> str:
+    """The reason of an operand that is itself an expression (a NuGet
+    ``licenses.nuget.org`` URL of ``MIT OR ISC``): an operand names one
+    licence."""
+    return f"operand names an expression: {reason_detail(text)}"
+
+
 def after_space(text: str) -> str:
     """The reason of a "+" after white space (``GPL-2.0 +``): the operator
     touches its ID (``plusoperator.PLUS_OPERATOR``), and a "+" apart may

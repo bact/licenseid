@@ -159,6 +159,20 @@ steps taken, without fuzzy matching:
     path`). On the List's own page only, an ID and a `+` is read as the ID
     with the `+` is (`spdx:MIT+` is `MIT+`); a `+` the ID cannot take
     (`GPL-2.0-only+`) names nothing;
+  - on `licenses.nuget.org`, a path that is a licence expression,
+    URL-encoded (NuGet's `licenseUrl` of an expression: `(MIT)`,
+    `(Apache-2.0+)`, `MIT%20OR%20Apache-2.0`; detail `expression in path`).
+    The path is decoded for that host only, every `%XX` once, and the
+    decoded text must hold only letters, digits, `.`, `+`, `-`, brackets and
+    single spaces: `%2F`, `%3F`, `%00`, `%C2%A0` and a doubled `%2520` name
+    nothing. `AND`, `OR` and `WITH` are in upper case, and each word is a
+    licence ID of the List, or an exception ID after `WITH` (a `LicenseRef-*`
+    or a loose spelling such as `Apache2` is not). The expression is written
+    as `resolve()` writes it
+    (`https://licenses.nuget.org/(MIT)%20OR%20ISC` is `ISC OR MIT`). The
+    URL is one operand. As an operand of a compound it is refused when it
+    names an expression (`ISC AND https://licenses.nuget.org/MIT%20OR%20ISC`:
+    `operand names an expression`); a tag reads it as one bracketed word;
   - a page the List gives a licence in `seeAlso`
     (`https://www.apache.org/licenses/LICENSE-2.0`, detail `see also`):
     one licence, or a licence and the ID it was renamed to. The GNU pages
@@ -520,8 +534,7 @@ drop the "+" and answer the licence, exact. A tag and a manifest field read a
 licence URL with the same reader, in any word of the value
 (`SPDX-License-Identifier: https://spdx.org/licenses/MIT` is `MIT`), but
 the rest of their value still goes through the marker readers, not
-`resolve()` (planned for 0.8). Not read yet: a URL inside prose, and
-NuGet's compound paths.
+`resolve()` (planned for 0.8). Not read yet: a URL inside prose.
 
 ## Reasons for a refusal
 
@@ -563,18 +576,20 @@ message>`, `mismatched brackets` (a bracket pairs only with the same kind:
 value with a part of several words (`Apache License 2.0 OR MIT`) is no compound,
 but, when its operators are in upper case, its reason names the first operand
 refused: `operand of several words: <leaf>` if that leaf reads alone, else
-`operand not resolved: <leaf>`. A detail taken from the input is folded to one
-line and cut at 60 characters. One with a lower-case `or` or `and` whose words
-name nothing (`GPL-3.0 or higher`) is prose: `not found: GPL-3.0 or higher`,
-unless an operand has its own (a dropped mark). A refused value is category
-`unresolved` with no expression, or `malformed` when the compound breaks the
-grammar but names a licence (`MIT AND`). For a dropped mark, `steps` holds one
-`drop` step with `applied` false: its `to` is the listed ID the loose reading
-named (`resolve("Apache 2.0?")` would have read `Apache-2.0`; a renamed ID is
-not followed) and its `detail` the code points. White space, `_`, `.`, a dash
-(the hyphen-minus, the Unicode hyphens and dashes and the minus sign) and one
-`.` or `,` at the end are not marks; nor is one `;` or `:` there, which is an
-ending left off. The same holds after a `+`, an exception or a `LicenseRef-*`
+`operand not resolved: <leaf>`. An operand that reads as an expression of
+several licences (a `licenses.nuget.org` URL of `MIT OR ISC`) is refused,
+`operand names an expression: <operand>`. A detail taken from the input is
+folded to one line and cut at 60 characters. One with a lower-case `or` or `and`
+whose words name nothing (`GPL-3.0 or higher`) is prose: `not found: GPL-3.0 or
+higher`, unless an operand has its own (a dropped mark). A refused value is
+category `unresolved` with no expression, or `malformed` when the compound
+breaks the grammar but names a licence (`MIT AND`). For a dropped mark, `steps`
+holds one `drop` step with `applied` false: its `to` is the listed ID the loose
+reading named (`resolve("Apache 2.0?")` would have read `Apache-2.0`; a renamed
+ID is not followed) and its `detail` the code points. White space, `_`, `.`, a
+dash (the hyphen-minus, the Unicode hyphens and dashes and the minus sign) and
+one `.` or `,` at the end are not marks; nor is one `;` or `:` there, which is
+an ending left off. The same holds after a `+`, an exception or a `LicenseRef-*`
 (`MIT+;` is `MIT+`; `GPL-2.0+?` is refused). A dot or dash that ends a
 `LicenseRef-*`, `AdditionRef-*` or `DocumentRef-*` is part of the ID, so
 `LicenseRef-a.;`, `LicenseRef-a-;` and `MIT WITH AdditionRef-x.;` read without

@@ -165,7 +165,9 @@ reads the value, or when it refuses it with a reason.
    3. *By name*
       ([`read_by_name`](../src/licenseid/resolveprose.py#L169)), only if the
       compound reader did not claim the value: first a licence URL
-      ([`read_url`](../src/licenseid/resolveurl.py): an ID page, a page of
+      ([`read_url`](../src/licenseid/resolveurl.py): an ID page, the
+      expression in the path of a `licenses.nuget.org` URL
+      ([`nugetpath`](../src/licenseid/nugetpath.py)), a page of
       the List's `seeAlso`, a table of aliases; a URL it refuses is claimed,
       so no later rule guesses at it); then trove path, trove name or
       `head (short form)`; then the title of a licence text; then another
@@ -229,7 +231,7 @@ operand for the case nothing else reads it.
 | Brackets ([`exprcanon.py:72`](../src/licenseid/exprcanon.py#L72)) | `()`, `[]`, `{}` round the whole value | a pair of two kinds (`[MIT)`) |
 | Leaf ([`resolveleaf.py`](../src/licenseid/resolveleaf.py)) | ID in any case, listed name, loose ID, `X+`, "or later", `X WITH Y` | `X +`, `X++`, `X-only+`, a reference with `+`, a dropped mark or word (`Apache 2.0?`, `REM MIT`), a half over the key cap |
 | Compound ([`resolvecompound.py`](../src/licenseid/resolvecompound.py)) | operands of one word (with `WITH`, `+`, grant), `AND`, `OR`, any bracket kind | an operand of several words (left to name readers); one unnamed operand; `NONE`; grammar errors |
-| URL ([`resolveurl.py`](../src/licenseid/resolveurl.py), key by [`urlkey.py`](../src/licenseid/urlkey.py)) | an `http(s)` URL, a host and path without a scheme, or `spdx:ID`, keyed alike; an ID page, a page the List gives one licence (or a GNU family, or a rename), a table of aliases | a page of several licences; a page of exceptions; a List URL with a fragment; a non-ASCII host, other scheme, user information, IP address; a URL inside prose |
+| URL ([`resolveurl.py`](../src/licenseid/resolveurl.py), key by [`urlkey.py`](../src/licenseid/urlkey.py)) | an `http(s)` URL, a host and path without a scheme, or `spdx:ID`, keyed alike; an ID page, the expression in the path of a `licenses.nuget.org` URL, a page the List gives one licence (or a GNU family, or a rename), a table of aliases | a page of several licences; a page of exceptions; a List URL with a fragment; a non-ASCII host, other scheme, user information, IP address; a URL inside prose |
 | Trove ([`resolvetrove.py`](../src/licenseid/resolvetrove.py)) | `License :: OSI Approved :: X`, a table name, `head (short form)` when both agree | names the table reads as `none` (`BSD License`); disagreeing short forms |
 | Title ([`resolvetitle.py`](../src/licenseid/resolvetitle.py)) | a table of titles the licence text gives itself (`CC0 1.0 Universal`) | any title not in the table; no looser match |
 | Alias ([`resolvealias.py`](../src/licenseid/resolvealias.py)) | a table of BSD names (`New BSD`, `BSD-3`) | `BSD`, `FreeBSD`, `BSD 2`, `BSD 4` |
@@ -306,6 +308,8 @@ step kinds in order, `expansions` after them.
 | `New BSD` | `BSD-3-Clause` | alias_name | `alias_name` | alias |
 | `https://www.apache.org/licenses/LICENSE-2.0` | `Apache-2.0` | license_url | `license_url` (detail `see also`) | URL |
 | `spdx:MIT` | `MIT` | license_url | `license_url` (detail `list page`) | URL |
+| `https://licenses.nuget.org/(MIT)%20OR%20ISC` | `ISC OR MIT` | license_url | `license_url` (detail `expression in path`), `brackets`, `reorder` | URL |
+| `Zlib AND https://licenses.nuget.org/MIT%20OR%20ISC` | none | unresolved | reason `operand names an expression: https://licenses.nuget.org/MIT%20OR%20ISC` (a tag reads it as `Zlib AND (ISC OR MIT)`) | compound |
 | `https://www.gnu.org/licenses/gpl-3.0.html` | `GPL-3.0` | assumed_only | `license_url` (detail `see also`); candidates `GPL-3.0-only`, `GPL-3.0-or-later` | URL |
 | `https://www.unicode.org/license.txt` | none | unresolved | reason `url names several licences: Unicode-3.0, Unicode-DFS-2016` | URL |
 | `https://exämple.com/MIT` | none | unresolved | reason `not found: https://exämple.com/MIT` (a non-ASCII host is no URL) | URL fails, none read |

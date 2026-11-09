@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-09
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -210,7 +210,8 @@ field keep their readers, so the rest of this section is still to do.
   read `https://spdx.org/licenses/MIT.html` as MIT with one reader
   (`resolveurl`, issue #14, 2026-11-08; see
   [`licence-urls.md`](../implementation/licence-urls.md)). What is still
-  open for URLs: one inside prose, and NuGet's compound paths.
+  open for URLs: one inside prose (NuGet's expression paths are read since
+  issue #187).
 
 ## 4. Decisions needed
 

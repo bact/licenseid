@@ -9,6 +9,25 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `resolve()` reads a `licenses.nuget.org` URL whose path is a licence
+  expression (`(MIT)`, `(Apache-2.0+)`, `MIT%20OR%20Apache-2.0`); so is
+  `licenses.nuget.org/MIT+` (`MIT+`, was `not found`) ([#188])
+- A tag or field word that is such a URL of a compound is one bracketed word:
+  `ISC AND <url of A OR B>` is `ISC AND (A OR B)`; `resolve()` refuses it
+  ([#188])
+
+### Fixed
+
+- A tag or field with "or later" right after a bracketed group of several
+  licences (`(MIT OR ISC) or later`) gives no answer, as `resolve()` does,
+  not the last licence with a "+" ([#188])
+
+[#188]: https://github.com/bact/licenseid/pull/188
+
 ## [0.8.2] - 2026-11-09
 
 ### Added
