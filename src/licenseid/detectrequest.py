@@ -60,6 +60,27 @@ def _reject_unknown_options(options: dict[str, Any]) -> None:
         )
 
 
+_FLAG_OPTIONS: tuple[str, ...] = ("enable_popularity", "only_common", "only_spdx")
+_LIST_OPTIONS: tuple[str, ...] = ("exclude", "hint")
+
+
+def _check_option_values(options: dict[str, Any]) -> None:
+    """:class:`TypeError` for an option of the wrong type: a flag that is no
+    :class:`bool`, or an ``exclude``/``hint`` that is no list of IDs. A bare
+    string was read as a list of its characters (``exclude="MIT"`` kept
+    every ID that is a substring of it), so the call failed unsaid."""
+    for name in _FLAG_OPTIONS:
+        if name in options and not isinstance(options[name], bool):
+            raise TypeError(f"{name} must be bool, not {type(options[name]).__name__}")
+    for name in _LIST_OPTIONS:
+        value = options.get(name)
+        if name in options and (
+            not isinstance(value, (list, tuple, set, frozenset))
+            or not all(isinstance(item, str) for item in value)
+        ):
+            raise TypeError(f"{name} must be a list of str")
+
+
 def check_request(
     text: object, license_id: object, file_path: object, options: dict[str, Any]
 ) -> None:
@@ -68,4 +89,5 @@ def check_request(
     makes them before it opens the default database, so a wrong call is told
     so whether a database is there or not."""
     _reject_unknown_options(options)
+    _check_option_values(options)
     _check_inputs(text, license_id, file_path)

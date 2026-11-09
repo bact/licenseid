@@ -676,8 +676,8 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   expression, as an idstring holds ASCII only, SPDX 3.0.1), so every entry
   point answered nothing, and `resolve()` refuses with `not found: …` or
   `operand not resolved: …`. What was missing was a word: the tag path of
-  `detect()` now warns `input: invalid: <value>` (`identifiers.cut_by_non_ascii`,
-  in `markers`), once per distinct tag value; a valid ID with no match, prose
+  `detect()` now warns `input: invalid: <value>` (`markers._cut_by_non_ascii`, on
+  `identifiers.read_leading`), once per distinct tag value; a valid ID with no match, prose
   after an expression (`MIT ü`) and a mark that is no letter (`MIT€`) stay
   quiet. Test: `tests/test_tag_invalid_warning.py`,
   `tests/test_resolverfix_tags.py`.
@@ -688,3 +688,18 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   the text record keeps a value's spaces in `EXPRESSION=` with tab-separated
   fields. Checked by `detect --json --id LicenseRef-x` and a tag with
   `MIT OR Apache-2.0`.
+- Conflicting options and inputs were resolved silently (item 5, Priority
+  15; 2026-11-09). By the time of this pass most was done: two inputs (CLI
+  `--id`/`--text`/argument, API `license_id`/`file_path`/`text`) exit 2 or
+  raise `InvalidInputError`; `--json` with `--diff` exits 2; `--top` and
+  `--threshold` out of range exit 2; `--bold` never existed. Decided: an
+  option with no effect on an exact answer is documented, not rejected
+  (`--diff` with `--exact`: an exact result has no diff; `exclude`,
+  `only_spdx`, `only_common`, `hint`, `enable_popularity` with an explicit
+  `license_id`, a bare ID or name, or a tag). Added: `detect()` raises
+  `TypeError` for an option of the wrong type (`in
+  detectrequest._check_option_values`), as it does for a `text` that is no
+  `str`: `exclude="MIT"` was read as a string and kept every ID that is a
+  substring of it. Tests: `tests/test_match_options.py`,
+  `tests/test_contract_pins.py`.
+
