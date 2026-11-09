@@ -19,7 +19,6 @@ from harness_changes_nametier import NAME_TIER_CHANGES
 from harness_changes_resolvefirst import RESOLVE_FIRST_CHANGES
 from harness_changes_urls import URL_CHANGES
 from harness_changes_versioned import VERSIONED_CHANGES
-from harness_changes_wrappers import WRAPPER_CHANGES
 
 _FIRST = "resolve() reads the whole value: Apache-2.0 alone, nothing measured"
 _SHORT = "still no answer, now with resolve()'s reason: input: too few words for text"
@@ -27,7 +26,6 @@ _SHORT = "still no answer, now with resolve()'s reason: input: too few words for
 DETECT_CHANGES: dict[str, tuple[str, str]] = {
     **RESOLVE_FIRST_CHANGES,
     **NAME_TIER_CHANGES,
-    **WRAPPER_CHANGES,
     **ALIAS_CHANGES,  # last: a value it moves again has its answer now
     **VERSIONED_CHANGES,
     **URL_CHANGES,  # last: a value it moves again has its answer now

@@ -53,10 +53,6 @@ One end mark (``.``, ``,``, ``;`` or ``:``) after the closing marks
 before the marks (``MIT,"``). A mark inside the marks as well (``"MIT.".``)
 is a second mark, and the value is refused.
 
-The corner brackets ``「」`` and ``『』`` quote too (item 48): they pair by
-direction, and are not in ``normalize.QUOTE_KIND``, which the text
-normaliser folds.
-
 Standard library, ``licenseid.dropguard``, ``licenseid.exprtokens`` and
 ``licenseid.normalize`` only.
 """
@@ -72,21 +68,6 @@ from licenseid.normalize import QUOTE_KIND
 #: ``MITʼ``) are marks that pair but are too often a unit, a letter or a
 #: footnote to be taken off alone.
 STRAY_MARKS: Final = frozenset(QUOTE_KIND) - frozenset("′″‴ʹʺʻʼʽ")
-
-
-#: The corner brackets of Chinese and Japanese, which quote as the ASCII
-#: marks do, but pair by direction (opening mark to closing mark).
-CORNER_PAIRS: Final = {"「": "」", "『": "』"}
-_CORNER_CLOSERS: Final = frozenset(CORNER_PAIRS.values())
-
-
-def _pairs(first: str, last: str) -> bool:
-    """Whether *first* and *last* delimit a text: two marks of one kind, or
-    a corner bracket and its closer."""
-    kind = QUOTE_KIND.get(first)
-    return (kind is not None and kind == QUOTE_KIND.get(last)) or (
-        CORNER_PAIRS.get(first) == last
-    )
 
 
 class Unquoted(NamedTuple):
@@ -128,7 +109,8 @@ def _bounds(text: str) -> tuple[int, int, int, str]:
     lo, hi = _skip_space(text, 0, len(text))
     layers = 0
     while hi - lo > 1:
-        if not _pairs(text[lo], text[hi - 1]):
+        kind = QUOTE_KIND.get(text[lo])
+        if kind is None or kind != QUOTE_KIND.get(text[hi - 1]):
             break
         lo, hi = _skip_space(text, lo + 1, hi - 1)
         layers += 1
@@ -149,7 +131,7 @@ def ended_quote(text: str) -> str | None:
     ``"(MIT;)".``; the dot of a ``LicenseRef-a.`` is no mark). The end mark
     and the one inside are judged by :mod:`licenseid.dropguard`."""
     rest = trim_end_mark(text)
-    if rest is None or not (rest[-1] in QUOTE_KIND or rest[-1] in _CORNER_CLOSERS):
+    if rest is None or rest[-1] not in QUOTE_KIND:
         return None
     inner = unquote(rest)
     if inner is None or ends_in_mark(inner.text):
@@ -187,8 +169,6 @@ def _has_inner_mark(core: str) -> bool:
     for index, char in enumerate(core):
         kind = QUOTE_KIND.get(char)
         if kind is None:
-            if char in CORNER_PAIRS or char in _CORNER_CLOSERS:
-                return True
             continue
         inside_word = (
             kind == "single"

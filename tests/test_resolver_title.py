@@ -257,21 +257,22 @@ def test_an_explicit_id_reads_the_one_word_title(
     assert detector.is_fsf(license_id=value) is by_id["is_fsf_libre"]
 
 
-def test_a_tag_does_not_read_a_title_until_0_8(corpus_db: LicenseDatabase) -> None:
-    """A tag keeps its own reader, which reads no title: documented in
-    docs/python-api.md, to change when it goes through resolve()."""
-    text = "SPDX-License-Identifier: CC0\nint main(void);\n"
+@pytest.mark.parametrize(
+    "text",
+    [
+        "SPDX-License-Identifier: CC0\nint main(void);\n",
+        '{"name": "x", "license": "CC0"}',
+    ],
+    ids=["tag", "field"],
+)
+def test_a_tag_or_a_field_does_not_read_a_title_until_0_8(
+    corpus_db: LicenseDatabase, text: str
+) -> None:
+    """A tag and a manifest field keep their own reader, which reads no
+    title: documented in docs/python-api.md, to change when they go through
+    resolve()."""
     found = LicenseDetector(corpus_db.location).detect(text)
     assert "CC0-1.0" not in [result["expression"] for result in found]
-
-
-def test_a_manifest_field_reads_a_title_through_resolve(
-    corpus_db: LicenseDatabase,
-) -> None:
-    """A field no marker reader takes is read by resolve() (item 48)."""
-    text = '{"name": "x", "license": "CC0"}'
-    found = LicenseDetector(corpus_db.location).detect(text)
-    assert [result["expression"] for result in found][:1] == ["CC0-1.0"]
 
 
 @pytest.mark.parametrize("value", ["Foo-9", "CC0x", "GPL-9.0"])

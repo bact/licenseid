@@ -4,8 +4,6 @@
 # tests/resolver_changes_aliases.py); then the answer, its fields written as
 # in the other answer fixtures.
 value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
-BSD (3 clause)	count	BSD-3-Clause	alias_name	-	alias_name	BSD-3-Clause	-	-	resolver_rule	yes	-
-BSD (3-clause)	count	BSD-3-Clause	alias_name	-	alias_name	BSD-3-Clause	-	-	resolver_rule	yes	-
 BSD 3	id	BSD-3-Clause	alias_name	-	alias_name	BSD-3-Clause	-	-	resolver_rule	yes	-
 BSD-3	id	BSD-3-Clause	alias_name	-	alias_name	BSD-3-Clause	-	-	resolver_rule	yes	-
 BSD3	id	BSD-3-Clause	alias_name	-	alias_name	BSD-3-Clause	-	-	resolver_rule	yes	-

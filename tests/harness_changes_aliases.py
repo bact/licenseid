@@ -19,8 +19,6 @@ _CASES: dict[str, tuple[str, str]] = {
     "value/2-clause BSD License": (_TWO, _ALIAS),
     "value/3-Clause BSD License": (_THREE, _ALIAS),
     "value/3-clause BSD": (_THREE, _ALIAS),
-    "value/BSD (3 clause)": (_THREE, _ALIAS),
-    "value/BSD (3-clause)": (_THREE, _ALIAS),
     "value/BSD 3": (_THREE, _ALIAS),
     "value/BSD-3": (_THREE, _ALIAS),
     "value/BSD3": (_THREE, _ALIAS),  # no answer in the golden

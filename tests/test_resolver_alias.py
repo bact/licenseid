@@ -49,8 +49,6 @@ def test_every_alias_is_checked() -> None:
     assert sorted(ALIASES) == [
         "2-clause bsd",
         "3-clause bsd",
-        "bsd (3 clause)",
-        "bsd (3-clause)",
         "bsd 3",
         "bsd-3",
         "bsd3",

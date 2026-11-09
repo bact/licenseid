@@ -60,8 +60,6 @@ _KIND: Final = "alias_name"
 ALIASES: Final[dict[str, str]] = {
     "2-clause bsd": "BSD-2-Clause",  # OSI
     "3-clause bsd": "BSD-3-Clause",  # OSI
-    "bsd (3 clause)": "BSD-3-Clause",  # a count in brackets
-    "bsd (3-clause)": "BSD-3-Clause",
     "bsd 3": "BSD-3-Clause",  # the ID, "Clause" left out
     "bsd-3": "BSD-3-Clause",
     "bsd3": "BSD-3-Clause",

@@ -14,8 +14,8 @@
   own: a "+" form, a bare ID, a "-with-" ID), `ranking.py`
   (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
   `markers.py`, `plusoperator.py` (the "+" operator), `quotes.py` (quote
-  marks around a whole declared value; `「」` too), `versionkey.py` (one key
-  for each spelling of an ID), `trovenames.py` (the `License ::` trove names as
+  marks around a whole declared value), `versionkey.py` (one key for each
+  spelling of an ID), `trovenames.py` (the `License ::` trove names as
   data), `resolver.py` (a declared licence value to an SPDX expression and
   the steps taken; its types and vocabularies are in `resolvertypes.py`),
   `keptdetector.py` (`licenseid.detect()`: one `LicenseDetector` kept per
@@ -584,12 +584,7 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   table. Change one, run it. `normalize_text` drops a "+" that is no operator,
   so `detector._try_tier0_short_text` returns None for a value under 30 words
   that `resolve()` refuses with a "+" reason (`resolvereason.is_plus_refusal`):
-  a new reason of that family goes into its constants. Tier 0 asks
-  `resolve()` first for a value under 30 words (a field the marker readers
-  did not take too): what it reads is the answer, and what it refuses is
-  matched by name only (`match_short_text(ids=False)`), never by an ID read
-  from the normalised text, and not at all after a dropped mark or a "+"
-  (`resolvereason.refuses_text_match`).
+  a new reason of that family goes into its constants.
 - One probe finds a grant and where it ends, `classify.grant_end` (with
   `grant_head` for the gap between ID and grant); `looseid` and `markers`
   call it, so `detect()` and `resolve()` agree.

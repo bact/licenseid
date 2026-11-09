@@ -21,6 +21,7 @@ from licenseid.identifiers import (
     is_qualified_plus,
     is_simple_expression,
     is_stray_plus,
+    simple_value,
 )
 from licenseid.looseid import (
     disambiguate_whole,
@@ -34,7 +35,7 @@ from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
 from licenseid.resolvefirst import as_resolved, match_of, too_short, unread_url
 from licenseid.resolver import resolve_with
-from licenseid.resolvereason import is_plus_refusal, refuses_text_match
+from licenseid.resolvereason import is_plus_refusal
 from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import Resolution
 from licenseid.result import public_result
@@ -249,28 +250,31 @@ class LicenseDetector:
         """
         if is_qualified_plus(ctx.target_text) or is_stray_plus(ctx.target_text):
             return []  # "GPL-2.0-only+", "MIT +": no license, nor a near one
-        if ctx.word_count >= 30:  # a long text is matched whatever its "+" (C++)
+        # normalize_text() drops a "+", so a text match would answer the licence
+        # round a "+" that is no operator, exact: resolve() judges it (item 44).
+        # From 10 words on, the rest is matched as text (Tier 1), as before;
+        # a long text is matched as text whatever its "+" (C++).
+        if ctx.word_count >= 30 or is_plus_refusal(
+            resolve_with(self.db, ctx.target_text)["reason"]
+        ):
             return None
-        # What resolve() reads is the answer, whatever wraps it ("GPL-2.0+,",
-        # a quoted field, a license written loosely WITH an exception).
-        resolution = resolve_with(self.db, ctx.target_text)
-        if resolution["expression"] is not None:
-            return self._answer_of(resolution, ctx.target_text)
-        return self._short_text_refused(ctx, resolution["reason"])
 
-    def _short_text_refused(
-        self, ctx: _MatchContext, reason: str | None
-    ) -> list[RawMatch] | None:
-        """Tier 0 for a short value resolve() refused, for *reason*. A "+"
-        that is no operator gets no text match: normalize_text() drops it,
-        so one would answer the licence round it, exact (item 44; from 10
-        words on, Tier 1 matches the rest). A bare deprecated ID and its
-        prose ("GPL-2.0 or later version") is read in the raw text, whose
-        marks the readers judge. The rest is matched by name only (item
-        48): the normalised text has lost a wrapper, a mark or a "+" it was
-        refused for, so no ID is read from it."""
-        if is_plus_refusal(reason):
-            return None
+        # A lone expression ("GPL-2.0+") is read as license_id reads it, so
+        # text and ID answer alike: the normalised text has lost the "+",
+        # and GPL-2.0 alone is GPL-2.0-only. A value that names no license
+        # goes on to the name match.
+        # So is a license written loosely WITH an exception ("GPL2 WITH
+        # Classpath-exception-2.0"), simple-shaped or not ("Apache 2 WITH").
+        # One end mark after it ends it ("GPL-2.0+,"), as for a tag.
+        value = simple_value(ctx.target_text)
+        declared = (
+            self._resolve_declared(value) if value else []
+        ) or self._resolve_loose_with(ctx.target_text)
+        if declared:
+            return declared
+
+        # A bare deprecated ID and its prose ("GPL-2.0 or later version"), in
+        # the raw text: normalize_text() drops the marks the readers judge.
         disambiguated = disambiguate_whole(ctx.target_text, self.db)
         if disambiguated == "":
             return []  # resolve() refuses it ("GPL-2.0; or later"): no reading
@@ -278,9 +282,8 @@ class LicenseDetector:
             match = exact_id_match(disambiguated)
             _set_flags(match, self.markers.license_flags(disambiguated))
             return [match]
-        if refuses_text_match(reason, ctx.target_text):
-            return None
-        found = self._match_short_text(ctx.norm_input, ctx.target_text, ids=False)
+
+        found = self._match_short_text(ctx.norm_input, ctx.target_text)
         # A confident ID or name hit scores above 1; an expression has no flags.
         return self._with_flags(found) if found and found[0]["score"] > 1.0 else None
 
@@ -323,12 +326,10 @@ class LicenseDetector:
                     word_count=len(norm_value.split()),
                 )
             )
-            # Only an exact ID or name, or a declared reading ("GPL-2.0+,",
-            # a name resolve() reads): "BSD" is a fuzzy match for 0BSD.
+            # Only an exact ID or name, or a declared reading ("GPL-2.0+,"):
+            # "BSD" is a fuzzy match for 0BSD.
             if result and (
-                result[0]["score"] >= EXACT_MATCH_SCORE
-                or result[0]["method"] == "id"
-                or (result[0]["exact"] and result[0]["similarity"] is None)
+                result[0]["score"] >= EXACT_MATCH_SCORE or result[0]["method"] == "id"
             ):
                 # The field declares the exact hit, or the ID it names
                 # loosely, so nothing is measured (as for a field Tier 0.5
@@ -593,11 +594,11 @@ class LicenseDetector:
         return get_candidates(self.db, data, text)
 
     def _match_short_text(
-        self, norm_input: str, text: str | None = None, *, ids: bool = True
+        self, norm_input: str, text: str | None = None
     ) -> list[RawMatch]:
         """Tier 0 ID and name matching for a short input, *text* raw (see
-        licenseid.shorttext); names only if not *ids*."""
-        return match_short_text(self.db, norm_input, text, ids=ids)
+        licenseid.shorttext)."""
+        return match_short_text(self.db, norm_input, text)
 
     def _rank_candidates(
         self,

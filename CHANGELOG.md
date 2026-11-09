@@ -9,21 +9,6 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
-
-- `resolve()` reads `「MIT」` and `『MIT』` (corner brackets) as quote marks, and
-  `BSD (3 clause)` and `BSD (3-clause)` as `BSD-3-Clause`
-
-### Fixed
-
-- A short value `resolve()` refuses is matched by name only: `「MIT++」`,
-  `<MIT>`, `*MIT*` and `Licensed under the MIT++ license` no longer answer
-  `MIT`, nor `<GPL-2.0+>` `GPL-2.0-only`
-- A quoted INI field `GPL-2.0+` is `GPL-2.0-or-later` (was `GPL-2.0-only`);
-  a field `resolve()` reads (`MIT OR ISC`, a title, a name) answers as it does
-
 ## [0.8.3] - 2026-11-09
 
 ### Added

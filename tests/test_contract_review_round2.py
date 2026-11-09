@@ -50,7 +50,7 @@ def _field(corpus_db: LicenseDatabase, tmp_path: Path, value: str) -> str | None
         ("Apache-2.0 OR GPL-2.0 or later", "Apache-2.0 OR GPL-2.0-or-later"),
         ("BSD-3-Clause AND LGPL-2.1 or later", "BSD-3-Clause AND LGPL-2.1-or-later"),
         ("LGPL-2.1+ AND GPL-2.0 only", None),
-        ("GPL-2.0 or later OR MIT", "GPL-2.0-or-later OR MIT"),  # resolve() reads it
+        ("GPL-2.0 or later OR MIT", None),
         ("GPL-2.0 or later, and also MIT", None),
         # A deprecated ID inside another ID is no ID: "-" before it.
         ("LicenseRef-GPL-2.0 or later", None),
