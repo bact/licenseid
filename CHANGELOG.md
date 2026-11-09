@@ -9,6 +9,20 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `resolve()`, `detect()`, the CLI and a `license` field read List IDs spelt as
+  listed and joined by `/` as `OR` (`MIT/Apache-2.0` is `Apache-2.0 OR MIT`);
+  a name or path with a `/`, `zlib/libpng` and `MIT/X11` stay refused
+
+### Changed
+
+- `detect()` answers `MIT/Apache-2.0` as `Apache-2.0 OR MIT` (0.8.3: no
+  answer); a `Cargo.toml` `license` in lower case (`mit/apache-2.0`) is no
+  longer read as `OR`; a tag never reads a `/`
+
 ## [0.8.3] - 2026-11-09
 
 ### Added

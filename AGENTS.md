@@ -40,6 +40,10 @@
   read as that licence; `url_license_id` does it for a tag and a field),
   `nugetpath.py` (the expression in the path of a `licenses.nuget.org` URL),
   `resolvesemicolon.py` (licences joined by `;`: listed, no operator),
+  `resolveslash.py` (List IDs spelt as listed and joined by `/`, read as
+  `OR`; a refused-pair table; `MarkerDetector` reads it for a field, never a
+  tag), `candidates.py` (two helpers `markers.py` gave up for its line
+  ceiling),
   `exprcanon.py` (its leaves and canonical
   order), `exprtokens.py` (the words of an expression), `resolverinfo.py`
   (the resolver, parser and list blocks of a result, and the `lists` of a
@@ -585,6 +589,12 @@ Things that cost time in earlier sessions; details in `working-docs/`.
   so `detector._try_tier0_short_text` returns None for a value under 30 words
   that `resolve()` refuses with a "+" reason (`resolvereason.is_plus_refusal`):
   a new reason of that family goes into its constants.
+- A "/" between IDs is OR only in a whole value (`resolveslash.slash_parts`,
+  the one gate): each piece an exact-case List ID (a "+" by `plusoperator`)
+  or `LicenseRef-*`, one of them a List ID, never a tag, never inside a `;`
+  part. Folding case reads `zlib/libpng` as `Libpng OR Zlib`; `MIT/X11` is in
+  `REFUSED_PAIRS`. `tests/slash_pins.py` holds 0.8.3's answer to each refused
+  value: a change that moves one is a loosening.
 - One probe finds a grant and where it ends, `classify.grant_end` (with
   `grant_head` for the gap between ID and grant); `looseid` and `markers`
   call it, so `detect()` and `resolve()` agree.

@@ -211,7 +211,7 @@ def test_is_spdx_answers_yes_for_a_toml_expression(db: str, tmp_path: Path) -> N
         ),
         ('[a]\nlicense = {text = "A"}\n[b]\nlicense = {text = "B"}\n', ["A"]),
         ('[project]\nlicense = "MIT/Apache-2.0"\n', ["MIT/Apache-2.0"]),
-        ('[package]\nlicense = "MIT/Apache-2.0"\n', ["MIT OR Apache-2.0"]),
+        ('[package]\nlicense = "MIT/Apache-2.0"\n', ["MIT/Apache-2.0"]),
     ],
     ids=["string-forms", "table-forms", "slash-elsewhere", "slash-in-cargo"],
 )

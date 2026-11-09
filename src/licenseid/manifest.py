@@ -42,9 +42,8 @@ _RE_TOML_STRING = re.compile(
 # spaces after "license" took 9 s. Leading white space marks a continuation
 # line, so it stays.
 _RE_INNER_SPACE_RUN = re.compile(r"(?<=\S)[^\S\n]{2,}")
-# Cargo's old spelling of OR, "MIT/Apache-2.0", still common in crates.
-_RE_CARGO_SLASH_OR = re.compile(r"[\w.+-]+(?:[ \t]*/[ \t]*[\w.+-]+)+")
 # Cargo's tables: a crate's, and a workspace's, which its members inherit.
+# Their "MIT/Apache-2.0" is read as OR by licenseid.resolveslash.
 _CARGO_TABLES = ("package", "workspace.package")
 # The table and keys of each string that holds a license: PEP 639
 # ([project]), Poetry and Cargo (an SPDX expression in each), and PEP 621's
@@ -116,7 +115,7 @@ def toml_license_values(text: str) -> list[str] | None:
         table_form = inline.group(1) if inline else table_form
         value = "" if table in by_table else _license_string(line, table)
         if value:
-            by_table[table] = _cargo_or(value) if table in _CARGO_TABLES else value
+            by_table[table] = value
     values = [table_form, *by_table.values()]
     return [value for value in values if value.strip()] if has_key else None
 
@@ -180,13 +179,6 @@ def _license_string(line: str, table: str) -> str:
     if field and field.group(1) in _TOML_LICENSE_KEYS.get(table, ()):
         return field.group(2) or field.group(3) or ""
     return ""
-
-
-def _cargo_or(value: str) -> str:
-    """Cargo's "MIT/Apache-2.0" as "MIT OR Apache-2.0"."""
-    if _RE_CARGO_SLASH_OR.fullmatch(value):
-        return " OR ".join(part.strip() for part in value.split("/"))
-    return value
 
 
 def ini_license_values(text: str) -> list[str] | None:

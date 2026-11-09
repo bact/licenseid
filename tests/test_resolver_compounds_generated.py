@@ -130,7 +130,7 @@ REFUSED: list[tuple[str, tuple[str, str]]] = [
     # The operand's own reason (P5, as P29 has it): it said "operand not
     # resolved" while that operand had none.
     ("MIT OR GPL-2.0-only+", ("malformed", "qualifier stated twice: GPL-2.0-only+")),
-    ("MIT/Apache-2.0", ("unresolved", "not an SPDX operator: /")),
+    ("MIT/Apache", ("unresolved", "not an SPDX operator: /")),
     ("MIT | ISC", ("unresolved", "not an SPDX operator: |")),
     ("MIT & ISC", ("unresolved", "not an SPDX operator: &")),
     ("MIT; ISC", ("unresolved", "operator not stated: ;")),  # T8b: listed

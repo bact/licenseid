@@ -14,6 +14,7 @@ on:
     branches: [ main, develop ]
     paths:
       - "src/licenseid/bsdclauses.py"
+      - "src/licenseid/candidates.py"
       - "src/licenseid/classify.py"
       - "src/licenseid/database.py"
       - "src/licenseid/dbcache.py"
@@ -39,6 +40,8 @@ on:
       - "src/licenseid/resolveprose.py"
       - "src/licenseid/resolver.py"
       - "src/licenseid/resolvereason.py"
+      - "src/licenseid/resolvesemicolon.py"
+      - "src/licenseid/resolveslash.py"
       - "src/licenseid/resolvetable.py"
       - "src/licenseid/resolvetitle.py"
       - "src/licenseid/resolvetrove.py"
@@ -56,6 +59,7 @@ on:
     branches: [ main ]
     paths:
       - "src/licenseid/bsdclauses.py"
+      - "src/licenseid/candidates.py"
       - "src/licenseid/classify.py"
       - "src/licenseid/database.py"
       - "src/licenseid/dbcache.py"
@@ -81,6 +85,8 @@ on:
       - "src/licenseid/resolveprose.py"
       - "src/licenseid/resolver.py"
       - "src/licenseid/resolvereason.py"
+      - "src/licenseid/resolvesemicolon.py"
+      - "src/licenseid/resolveslash.py"
       - "src/licenseid/resolvetable.py"
       - "src/licenseid/resolvetitle.py"
       - "src/licenseid/resolvetrove.py"

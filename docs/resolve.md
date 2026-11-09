@@ -94,6 +94,11 @@ steps taken, without fuzzy matching:
   read as it would be alone: a caller can still ask whether every one is
   OSI approved. A comma or `/` is not read this way, nor is a `;` that
   ends an operand (`MIT; OR ISC`);
+- list IDs joined by a `/` (`MIT/Apache-2.0`, Cargo's way to write `OR`)
+  are read as `OR`: `Apache-2.0 OR MIT`, category `separator` at best, with a
+  `separator` step (detail `slash as OR`). Every piece must be an ID spelt as
+  listed, so a name or a path with a `/` is not read (see
+  [IDs joined by a slash](#ids-joined-by-a-slash));
 - a compound expression is read operand by operand: one-word operands
   (with `WITH`, `+` or an "or later" grant), each as the same text would be
   read alone, and per operand only a balanced pair of quotes; an operand
@@ -228,12 +233,13 @@ steps taken, without fuzzy matching:
   compound (`BSD 3-Clause License OR MIT`: `operand of several words`);
 - a compound is all or nothing: its category is the weakest operand's,
   and one operand that names nothing leaves the whole unresolved, with a
-  `reason` naming it; a mark used as an operator (`MIT/Apache-2.0`) is
+  `reason` naming it; a mark used as an operator (`MIT | ISC`) is
   refused, with a `reason`;
 - `detect()` holds a tag or a `license` field to the same List: it names only
   IDs on the List or `LicenseRef-*`, so `MIT OR Apache 2.0` gives no answer
   there, as here, nor does a tag with a licence right after a mark
-  (`MIT/Apache-2.0`, `MIT, ISC`; prose such as `MIT, see LICENSE` keeps
+  (`MIT/Apache-2.0`, `MIT, ISC`; a `license` field reads the `/` of IDs, as
+  `resolve()` does, and a tag never does; prose such as `MIT, see LICENSE` keeps
   `MIT`), and a bare "or later" after an ID is the grant (`MIT or later` is
   `MIT+`);
 - every result names its category and trust level, each step, the list
@@ -478,9 +484,57 @@ stay `unresolved`, with the reason they had. A `;` beside an operator word
 (in any case) means one was stated: `MIT; OR ISC` is `ISC OR MIT`, and
 `MIT; OR ISC; Apache-2.0` is no list. A value that reads whole as a name
 (`MIT; (MIT)`) is read as that name. A comma and `/` are not separators here
-(`not an SPDX operator: ,` and `/`). A part is not split again, so a `;` in
-brackets inside a part is not read as a list. `steps` holds only what was done
-to the whole before the split (`trim`, `unquote`, `brackets`).
+(`not an SPDX operator: ,`; a `/` between IDs is read first, below). A part
+is not split again, so a `;` in brackets inside a part is not read as a list.
+`steps` holds only what was done to the whole before the split (`trim`,
+`unquote`, `brackets`).
+
+## IDs joined by a slash
+
+`MIT/Apache-2.0` and `Apache-2.0/MIT` are `Apache-2.0 OR MIT`: Cargo documents
+the form, and the crates that declare it are many (`winapi`,
+`filetime_creation`, `sourcefile`). The rule is narrow, as a `/` is also in
+names and paths.
+
+The whole value must be two or more pieces cut at `/`, with spaces and tabs
+around each piece dropped (`MIT / Apache-2.0`), and every piece one of:
+
+- a List licence ID spelt exactly as listed, with a `+` if the "+" rule takes
+  one (not after `-only` or `-or-later`): `zlib/libpng` is not read, as case
+  would make it `Libpng OR Zlib` and the author means the one licence
+  `zlib-acknowledgement`;
+- `LicenseRef-` and letters, digits, `.` and `-`, with no `+`.
+
+At least one piece is a List ID, there are at most 150, and no piece is empty
+(`MIT//ISC`, `/MIT`, `MIT/`). The value is then read as `A OR B` is: canonical
+order, a repeat dropped (`MIT/MIT` is `MIT`), a deprecated ID kept as
+`assumed_only`. One `separator` step comes first (`from` the value, `to` the
+`OR` form, detail `slash as OR`), then the compound's own; the category is the
+weaker of `separator` and the compound's. Each operand is one piece, at its
+span in the value.
+
+Anything else keeps its answer. Not read: an operand that is no exact ID
+(`MIT/Apache`, `Apache2/MIT`, `BSD/MIT`, `MIT/NONE`), an exception
+(`MIT/Classpath-exception-2.0`), only `LicenseRef-*` operands, a `/` that is
+not ASCII (U+2215, U+FF0F), a URL or a path (`LICENSE/MIT`,
+`opensource.org/licenses/MIT`), and a `/` mixed with another operator or
+`;` (`MIT/ISC OR Zlib`, `MIT/ISC; Apache-2.0`). A text that holds the value
+(a licence text, a sentence) is not a whole value. A tag never reads a `/`
+(its value can run on into prose); a `license` field of `package.json`,
+`pyproject.toml`, `Cargo.toml` and `setup.cfg` reads the plain form (no quotes,
+brackets or end mark around the pieces) as `resolve()` does,
+and lower case in a `Cargo.toml` (`mit/apache-2.0`) is refused. `--id` still
+declares one licence.
+
+A value with both IDs of a pair that is one licence under a name with a `/`
+is refused, in any order and place (`MIT/X11/ISC`, `X11/MIT`), by a table
+(`resolveslash.REFUSED_PAIRS`); another pair needs a measured count. The
+value is also refused when its `OR` form is over 2,000 characters.
+
+| Pair | Why |
+| --- | --- |
+| `MIT`, `X11` | Debian's name of the one X11 licence, not two |
+| `Libpng`, `Zlib` | OSI's name of Zlib is "the zlib/libpng license" |
 
 ## Steps and categories
 
@@ -565,7 +619,8 @@ refused inside the value, as a first bidi control, as a NUL and alone, but left
 off at an end, above; `input` shows a lone surrogate as U+FFFD); for a compound,
 `operand not resolved: <operand>` (or that operand's own reason), `operand of
 several words: <leaf>` (a leaf that reads alone, as `BSD 3-Clause` does), `not
-an SPDX operator: /` (also `|`, `&` and `,` between IDs, and `;` when fewer than
+an SPDX operator: /` (also `|`, `&` and `,` between IDs, a `/` between pieces
+that are not all exact IDs, and `;` when fewer than
 two parts name a licence: `MIT; Foo`), `operator not stated: ;` (above), `url
 names several licences: <IDs>` (sorted; a page the List gives to unrelated
 licences, or one that offers a choice), `url names an exception: <IDs>` (a page

@@ -209,7 +209,6 @@ NOT_A_LIST = {
     "MIT, ISC; Apache-2.0": "not an SPDX operator: ,",  # a comma is no separator
     "MIT/ISC; Apache-2.0": "not an SPDX operator: /",
     "MIT, Apache-2.0": "not an SPDX operator: ,",
-    "MIT/Apache-2.0": "not an SPDX operator: /",
 }
 
 

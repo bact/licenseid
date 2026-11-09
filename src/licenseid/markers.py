@@ -9,6 +9,7 @@ import re
 from typing import cast
 
 from licenseid.bsdclauses import bsd_clause_id
+from licenseid.candidates import first_per_license, found_by
 from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
 from licenseid.dropguard import without_name_tail
@@ -25,31 +26,16 @@ from licenseid.identifiers import (
 )
 from licenseid.looseid import drops_words, read_inexactly, warn_narrowed
 from licenseid.manifest import extension, license_value_groups
+from licenseid.resolveslash import slash_expression
 from licenseid.resolveurl import url_license_id
-from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags, Method
+from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags
 from licenseid.warning import warn
-
-
-def _first_per_license(*groups: list[CandidateMatch]) -> list[CandidateMatch]:
-    """The candidates of *groups* in order, the first of each license only."""
-    found: dict[str, CandidateMatch] = {}
-    for group in groups:
-        for candidate in group:
-            found.setdefault(candidate["license_id"], candidate)
-    return list(found.values())
 
 
 def _cut_by_non_ascii(value: str) -> bool:
     """Whether *value* was refused for an ID cut at a non-ASCII letter."""
     expression, end = read_leading(value)
     return not expression and not value.isascii() and cut_inside_word(value, end)
-
-
-def _found_by(method: Method, candidates: list[CandidateMatch]) -> list[CandidateMatch]:
-    """*candidates*, each marked as found by *method*."""
-    for candidate in candidates:
-        candidate["method"] = method
-    return candidates
 
 
 class MarkerDetector:
@@ -163,7 +149,7 @@ class MarkerDetector:
         caller has it already."""
         if manifest is None:
             manifest = license_value_groups(text, extension(file_path))
-        result = _first_per_license(
+        result = first_per_license(
             self._structured_candidates(manifest),
             # A manifest's own license field is read whole, above; the loose
             # field reader would read it again, and in part: the MIT of
@@ -193,7 +179,7 @@ class MarkerDetector:
         enough to run on every input, however short: a small package.json or
         a header line is still a declaration. The loose License: reader stays
         out; it reads prose."""
-        return _first_per_license(
+        return first_per_license(
             self._structured_candidates(manifest),
             self._detect_explicit_identifiers(text, read_fields=False),
         )
@@ -207,7 +193,7 @@ class MarkerDetector:
     def _structured_candidates(self, groups: list[list[str]]) -> list[CandidateMatch]:
         """The first value of each format that resolves, one candidate per
         license."""
-        return _first_per_license(*(self._first_resolved(group) for group in groups))
+        return first_per_license(*(self._first_resolved(group) for group in groups))
 
     def _first_resolved(self, values: list[str]) -> list[CandidateMatch]:
         """The candidates of the first manifest value that resolves. A field
@@ -216,7 +202,7 @@ class MarkerDetector:
         for value in values:
             resolved = self.resolve_license_value(value, 1.0, whole=True)
             if resolved:
-                return _found_by("field", resolved)
+                return found_by("field", resolved)
         return []
 
     def resolve_license_value(
@@ -230,6 +216,8 @@ class MarkerDetector:
         A narrowed guess is said of *shown*, the value as written, if given."""
         # Each word that is a licence URL becomes the ID it names.
         val = space_out_hidden(strip_hidden(val)[0])  # as resolve() does
+        if whole:  # "MIT/Apache-2.0" is "MIT OR Apache-2.0" (resolveslash)
+            val = slash_expression(val.strip(), self.db) or val
         words = [url_license_id(self.db, word) or word for word in val.split()]
         val = " ".join(words) if words != val.split() else val.strip()
         # A value runs to the end of its line and can trail off into prose, so
@@ -356,7 +344,7 @@ class MarkerDetector:
             if _cut_by_non_ascii(value):
                 # Refused whole (no guess), but said: no match is not silence.
                 warn("input", "invalid", one_line(value))
-            candidates.extend(_found_by("tag", self.resolve_license_value(value, 1.0)))
+            candidates.extend(found_by("tag", self.resolve_license_value(value, 1.0)))
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)
         for match in self._RE_LICENSE_FIELD.finditer(text) if read_fields else ():

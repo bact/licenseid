@@ -17,6 +17,7 @@ reason)}`` for the ``detect()`` golden. ``CLI_CHANGES``:
 from harness_changes_aliases import ALIAS_CHANGES
 from harness_changes_nametier import NAME_TIER_CHANGES
 from harness_changes_resolvefirst import RESOLVE_FIRST_CHANGES
+from harness_changes_slash import SLASH_CHANGES
 from harness_changes_urls import URL_CHANGES
 from harness_changes_versioned import VERSIONED_CHANGES
 
@@ -29,6 +30,7 @@ DETECT_CHANGES: dict[str, tuple[str, str]] = {
     **ALIAS_CHANGES,  # last: a value it moves again has its answer now
     **VERSIONED_CHANGES,
     **URL_CHANGES,  # last: a value it moves again has its answer now
+    **SLASH_CHANGES,  # over the resolve-first row: `MIT/Apache-2.0` is read
 }
 CLI_CHANGES: dict[str, tuple[str, str]] = {
     "detect-name#text": ("bea927311e33", _FIRST),

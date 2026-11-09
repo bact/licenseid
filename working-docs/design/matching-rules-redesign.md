@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-27
+Last-Modified: 2026-11-09
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -46,6 +46,10 @@ Decide:
   and 150 brackets, `identifiers.parse_expression`);
 - whether to delegate to `py_spdx_license` once it parses "+" in linear
   time (item 26).
+
+A "/" between List IDs is one more spelling of OR in a whole declared value
+(item 43, done: `resolveslash.py`, exact case, a table of refused pairs, no
+tag). The grammar itself has no "/" and takes none.
 
 Test with a conformance table written from the grammar (SPDX Annex D), not
 from the bugs.
