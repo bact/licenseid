@@ -444,11 +444,12 @@ Things that cost time in earlier sessions; details in `working-docs/`.
 - No test may touch the network: patch `requests.get` (autospec). Never
   modify or clear the real cache in `~/.local/share/licenseid/`; it is fine
   to read it to validate a parser against real data.
-- Windows CI runs only `pytest -m platform` on a pull request (every test on
-  a push to `main`): the files listed in
-  `tests/platform_files.py` (file system, streams, signals, processes,
-  encodings, packaging). Linux runs every test. A file that uses one of
-  those goes in the list; `tests/test_platform_files.py` fails if not.
+- Windows CI runs only `pytest -m platform` on a pull request: the files
+  listed in `tests/platform_files.py` (file system, streams, signals,
+  processes, encodings, packaging). It runs every test on a push to `main`
+  and on a pull request with the label `test-all-os` (the label must exist:
+  `gh label create test-all-os`). Linux runs every test. A file that uses
+  one of those goes in the list; `tests/test_platform_files.py` fails if not.
 - CI tests on Python 3.10 and 3.14 (Ubuntu) and 3.11 (Windows); it builds
   on 3.10-3.14 (Ubuntu). The local environment is the pyenv virtualenv
   named in `.python-version` (`licenseid310`, Python 3.10, an editable
