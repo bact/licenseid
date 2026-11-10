@@ -1,397 +1,467 @@
 # Agent instructions
 
-## Project context
+Each rule is binding. Rationale and history live in `working-docs/`
+(internal notes; user-facing docs never link into it: cite a PR or issue).
+`CLAUDE.md` is a symlink to this file: edit `AGENTS.md`.
 
-- License ID detection using hybrid search (`licenseid` package).
-- Architecture: SQLite FTS5 trigram tokenization (Tier 1 recall) and RapidFuzz
-  (Tier 2 precision ranking).
-- Matching modules: `detector.py` (the pipeline), `retrieval.py` (Tier 1),
-  `shorttext.py` (Tier 0 IDs and names), `looseid.py` (a loosely written
-  ID: "Apache2", "GPLv3", "GPLv2 or any later version"; also
-  `disambiguate_whole`, a whole value naming one deprecated ID),
-  `bsdclauses.py` (which BSD-N-Clause a text is, by its numbered
-  conditions), `deprecatedids.py` (deprecated IDs read by a table of our
-  own: a "+" form, a bare ID, a "-with-" ID), `ranking.py`
-  (sort order and the `-only`/`-or-later` tie-breaker), `similarity.py`,
-  `markers.py`, `plusoperator.py` (the "+" operator), `quotes.py` (quote
-  marks around a whole declared value; `「」` too), `versionkey.py` (one key
-  for each spelling of an ID), `trovenames.py` (the `License ::` trove names as
-  data), `resolver.py` (a declared licence value to an SPDX expression and
-  the steps taken; its types and vocabularies are in `resolvertypes.py`),
-  `keptdetector.py` (`licenseid.detect()`: one `LicenseDetector` kept per
-  default database file), `detectrequest.py` (the checks of a `detect()`
-  call that need no database), `resolvefirst.py` (`detect()` on an input
-  `resolve()` reads as a whole, and the cut of a short refused one),
-  `listlookup.py` (the list lookups the resolver reads through: a
-  Protocol), `listrules.py` (which SPDX entries are kept and
-  what a deprecated ID points to; `records.py` builds rows from it),
-  `resolveleaf.py` (the reading of one value that names one licence, called
-  by `resolver.py` per value), `resolvecompound.py` (a compound, each
-  operand read by `resolveleaf`), `resolvetrove.py` (a trove classifier name
-  or path, and a name with its short form; the table is `trovenames.py`),
-  `resolveprose.py` (the prose form of one ID: `BSD 3-Clause License`),
-  `resolvetitle.py` (the title a licence's own text gives itself: `CC0 1.0
-  Universal`, as data),
-  `resolvealias.py` (another name of a BSD licence: `New BSD`, `BSD-3`,
-  as data; it and `resolvetitle` read their table through
-  `resolvetable.py`),
-  `urlkey.py` (one key for each spelling of a licence URL; standard
-  library and `listlookup.fold_case` only), `resolveurl.py` (a licence URL
-  read as that licence; `url_license_id` does it for a tag and a field),
-  `nugetpath.py` (the expression in the path of a `licenses.nuget.org` URL),
-  `resolvesemicolon.py` (licences joined by `;`: listed, no operator),
-  `resolveslash.py` (List IDs spelt as listed and joined by `/`, read as
-  `OR`; a refused-pair table; `MarkerDetector` reads it for a field, never a
-  tag), `candidates.py` (two helpers `markers.py` gave up for its line
-  ceiling),
-  `exprcanon.py` (its leaves and canonical
-  order), `exprtokens.py` (the words of an expression), `resolverinfo.py`
-  (the resolver, parser and list blocks of a result, and the `lists` of a
-  detection), `warning.py` (`LicenseIdWarning` and `warn`, the one emitter
-  of a library warning),
-  `dropguard.py` (the characters and words a loose reading must not drop:
-  `Apache 2.0?`, `REM MIT`), `hiddenchars.py` (control and format characters
-  left off the ends of a declared value: `MIT\u200b`), `listindex.py` (the
-  shipped SPDX bundle in memory, a `ListLookup` for `resolve()` with no
-  database),
-  `listsource.py` (which list `resolve()` reads: database or packaged),
-  `cli.py` (the group and `main`), `cliinput.py` (the input of `detect`
-  and `is-*`: one of a file, a value, `--text`, `--id`, `-`),
-  `clidetect.py` (`detect` and `is-*`), `cliupdate.py` (`update` and
-  `clear-cache`), `cliresolve.py` (the `licenseid resolve` command; what the
-  commands share is in `clicommon.py`), `exprflags.py` (the OSI, FSF and
-  List flags of an expression), `resolvereason.py` (the reason of a
-  refusal no reader explained), `identifiers.py`, `classify.py` (prose
-  "or later"; `grant_head` is the one helper for the ID-to-grant gap),
-  `normalize.py`, `textinput.py` (bytes to text), `manifest.py` (the
-  `license` field of package.json, pyproject.toml, Cargo.toml, setup.cfg),
-  `datadir.py` (the default database path), `dbconnection.py` (SQLite
-  connections), `dbcache.py` (whole-table reads kept per database),
-  `fingerprint.py` (the maths), `fingerprintstore.py` (its table),
-  `spdxdata.py` (an SPDX release as data: reads the upstream tarball and a
-  bundle, standard library only), `records.py` (the database rows built from it),
-  `releasesource.py` (where `update` gets a release: compact, upstream or
-  packaged, and the order between them),
-  `dbschema.py` (the tables and whether a file has them), `output.py` (the
-  CLI's standard output and what a
-  failed write means), `result.py` (the public result and its JSON and text
-  lines), `types.py`, `usage.py` (click's usage errors in the grammar).
-  Keep `detector.py` under the 800-line limit: put logic that needs no
-  detector state in one of the others.
-- Release sources of `update`, by where the data comes from: `compact`
-  (our 1 MB bundle on the `data` branch), `upstream` (SPDX's own tarball),
-  `packaged` (the bundle in the wheel). "Bundle" is only the file format
-  (`spdxdata`, `spdx-bundle*.json.gz`); say `compact` or `packaged` for a
-  source. Terms: `working-docs/implementation/data-fetching-and-caching.md`.
-- Releasing: `working-docs/implementation/release-process.md` (order, checks
-  before the tag, traps).
-- Build system: `hatchling` via PEP 621 `pyproject.toml`.
-- Design docs: `working-docs/design/` — future work, plans, roadmaps, sketches;
-  may be discarded, not yet built.
-- Implementation docs and progress reports: `working-docs/implementation/` —
-  record of what WAS built: decisions made, why things are the way they are,
-  paths considered and rejected. Not a user manual. Start at
-  `working-docs/implementation/README.md` for current state.
-- Paper notes: `working-docs/paper-notes/` — sourced raw material for an
-  academic write-up (system, results, history, human–AI sessions). Add to
-  it when a finding is worth publishing; start at its `README.md`.
-- Test fixtures: `tests/fixtures/README.md`
-- User docs: `README.md` (short overview and quick start; the PyPI long
-  description and the Citation block, so links in it are absolute) and
-  `docs/`: `installation.md`, `cli.md` (commands, options, exit codes,
-  predicates), `output.md` (text record, JSON, escaping, error lines),
-  `python-api.md`, `resolve.md` (every field of `resolve()`'s result, its
-  categories and trust, the reasons for a refusal, quote marks),
-  `how-it-works.md` and `development.md`. Put detail on a docs page, not in
-  the README. A change to any of those updates `docs/resolve.md`;
-  `tests/test_resolver_shapes.py` checks its category table.
-- Which licence values `resolve()` should read next: measure, do not guess.
-  `tools/pypi_licence_sample/README.md` samples real PyPI values and counts
-  what `resolve()` reads; findings in
-  `working-docs/design/resolver-0-7-evidence.md`.
-- Private alpha, one developer. No backward compat needed yet.
-- `working-docs/` is internal notes only — content can change without notice.
-  Any user-facing docs published outside this repo must not link into it;
-  reference a PR or issue number instead.
-- **Global file size**: soft limit ~400-500 lines, hard limit ~800 lines.
-  Applies to all files — source, tests, docs. Split before crossing it; see
-  `working-docs/design/complexity-and-file-size-roadmap.md` for the current
-  backlog of files over the limit.
-- **Doc file dating**: every `working-docs/` file's front matter carries
-  `Created`/`Last-Modified` (`YYYY-MM-DD`), alongside the SPDX tags below. No
-  date prefix on the filename — the front matter is authoritative.
+## Project
 
-## SPDX guidelines
+- `licenseid` detects licence IDs by hybrid search: Tier 0 short text (IDs,
+  names), Tier 1 recall (SQLite FTS5 trigram), Tier 2 precision (RapidFuzz).
+  `resolve()` reads a declared licence value as an SPDX expression.
+- Private alpha, one developer. No backward compatibility needed yet.
+- Build: `hatchling`, PEP 621 `pyproject.toml`.
+- `update` takes a release from one of three sources: `compact` (our 1 MB
+  bundle on the `data` branch), `upstream` (SPDX's tarball), `packaged` (the
+  bundle in the wheel). "Bundle" names only the file format (`spdxdata`,
+  `spdx-bundle*.json.gz`); say `compact` or `packaged` for a source. Terms:
+  `working-docs/implementation/data-fetching-and-caching.md`.
+- Which values `resolve()` should read next: measure, do not guess
+  (`tools/pypi_licence_sample/README.md`; findings in
+  `working-docs/design/resolver-0-7-evidence.md`).
 
-- When doing normalization and matching, consult the
-  SPDX License List matching guidelines and templates (Normative)
+### Where things are
+
+- `working-docs/design/`: plans and sketches, not built, may be discarded.
+  `working-docs/implementation/`: what was built, why, paths rejected; start
+  at its `README.md`. Releasing: `release-process.md` there.
+  `working-docs/paper-notes/`: sourced material for a paper; add publishable
+  findings; start at its `README.md`. Every `working-docs/` file has
+  `Created` and `Last-Modified` (`YYYY-MM-DD`) in its front matter, no date
+  in the file name.
+- User docs: `README.md` (short; the PyPI long description and the Citation
+  block, so its links are absolute) and `docs/`: `installation`, `cli`
+  (commands, options, exit codes, predicates), `output` (text record, JSON,
+  escaping, error lines), `python-api`, `resolve` (every field of
+  `resolve()`'s result, categories, trust, refusal reasons, quote marks),
+  `how-it-works`, `development`. Detail goes in `docs/`, not the README. A
+  change to any of `resolve()`'s fields, categories, trust, refusal reasons
+  or quote marks updates `docs/resolve.md`
+  (`tests/test_resolver_shapes.py` checks its category table).
+- Test fixtures: `tests/fixtures/README.md`.
+
+### Modules (`src/licenseid/`)
+
+Keep `detector.py` under 800 lines: logic that needs no detector state goes
+in another module.
+
+- Detection: `detector` (the pipeline), `keptdetector` (`licenseid.detect()`,
+  one detector per default database), `detectrequest` (checks of a call
+  needing no database), `resolvefirst` (input `resolve()` reads whole; the
+  cut of a short refused one), `shorttext` (Tier 0), `retrieval` (Tier 1),
+  `similarity`, `fingerprint` (maths) and `fingerprintstore` (its table),
+  `ranking` (sort order, `-only`/`-or-later` tie-breaker), `markers` and
+  `candidates` (its helpers), `classify` (prose "or later"), `identifiers`,
+  `normalize`, `result` (public result, JSON and text lines), `types`.
+- Reading an ID: `looseid` ("Apache2", "GPLv3"; `disambiguate_whole`),
+  `bsdclauses` (BSD-N-Clause by its conditions), `deprecatedids`,
+  `plusoperator`, `versionkey`, `quotes` (quote marks around a whole value,
+  `「」` too), `dropguard` (what a loose reading must not drop),
+  `hiddenchars` (control and format characters off the ends).
+- Resolver: `resolver` (value to expression and steps; types in
+  `resolvertypes`), `resolveleaf` (one licence), `resolvecompound`,
+  `resolvesemicolon` (`;`: listed, no operator), `resolveslash`,
+  `resolvetrove` with `trovenames` (data), `resolveprose` (`BSD 3-Clause
+  License`), `resolvetitle` and `resolvealias` (data, read through
+  `resolvetable`), `resolveurl` with `nugetpath` and `urlkey` (standard
+  library and `listlookup.fold_case` only),
+  `resolvereason` (refusal no reader explained), `resolverinfo` (resolver,
+  parser and list blocks; a detection's `lists`), `exprcanon`, `exprtokens`,
+  `exprflags` (OSI, FSF, List flags).
+- Lists: `listlookup` (a Protocol; `fold_case`), `listindex` (the shipped
+  bundle in memory), `listsource` (database or packaged), `listrules`
+  (entries kept, deprecated targets).
+- Data: `database`, `dbconnection`, `dbcache`, `dbschema`, `dbcheck`,
+  `datadir`, `records` (rows), `spdxdata` (a release as data, standard
+  library only), `releasesource`, `spdx_source`, `textinput` (bytes to
+  text), `manifest` (the `license` field of package.json, pyproject.toml,
+  Cargo.toml, setup.cfg).
+- CLI: `cli` (group, `main`), `cliinput` (one of file, value, `--text`,
+  `--id`, `-`), `clidetect` (`detect`, `is-*`), `cliupdate` (`update`,
+  `clear-cache`), `cliresolve`, `clicommon`, `output`, `console`, `usage`,
+  `errors`, `warning`.
+
+## SPDX matching
+
+- Follow the SPDX matching guidelines and templates (normative):
   <https://spdx.github.io/spdx-spec/v3.0/annexes/license-matching-guidelines-and-templates/>
-- Be careful about the order of text transformation. The order is sensitive as
-  text will be changed in each step.
-- Document the text transformation steps in the code, explain the rationale,
-  give references.
+- Text transformations are order-sensitive. Document each step in the code
+  with its rationale and reference.
 
 ## CLI output
 
-Unix philosophy. Consistent, predictable, parseable.
+Unix philosophy: consistent, predictable, parseable; works with `awk`, `wc`,
+`xargs`. `tests/test_output_pattern.py` runs every command (text with `-v`,
+and `--json`) against these rules and checks the default output against the
+`-v` record.
 
-- One pattern for every result line of every command (`detect`, `resolve`,
-  `update`, `clear-cache`, `is-*`), written through `output.echo`:
-  - `detect` and `resolve` print the expression alone by default: one line
-    per result (`detect --top N`: in rank order), an empty line for none,
-    exit 0 or 1 as before; `-v`/`--verbose` prints the record described
-    here. `--json` always prints the full object: `-v` is a no-op beside
-    it. The `is-*`, `update` and `clear-cache` commands take no `-v`, and
-    `--id-only` is gone (its output is the default). `-V` is `--version`.
-  - The record: line-delimited, one data point (one record) per line.
-  - A line's first key names its kind (`EXPRESSION` the answer, `STEP`,
-    `REASON`, `OPERAND`, `LIST`, `STATUS`); the answer is the first line.
-  - A command with no answer still prints its record, every field empty
-    (`detect -v` exit 1: `EXPRESSION=` and the rest; JSON every value
-    `null`).
-  - Fields are only ever appended, never removed, renamed or reordered: a
-    reader finds a field by its key. A new field goes at the end.
-  - Fields: `KEY=VALUE`, uppercase KEY, no spaces around `=`, one tab
-    between fields (`result.fields_line`). A key ends at the first `=`.
-  - Escaping: a value is written as it is, except a tab, CR, LF and
-    backslash (`\t`, `\r`, `\n`, `\\`), and a character the stream's
-    encoding cannot hold (`\xHH`, `\uHHHH`, `\UHHHHHHHH`, by
-    `output.echo`); `result.text_field` writes a value,
-    `result.read_text_field` reads it back.
-  - Nothing is an empty value (`SIMILARITY=`, `EXPRESSION=`); a flag is
-    `true`, `false`, or empty when there is nothing to judge (no licence
-    found, an operand not judged): never a false `false`.
-  - `--json`: the same result, one object per line. Every text key is
-    there in lower case (`EXPRESSION` is `expression`), a flag a boolean,
-    and `null` means nothing: a value empty in text is `null` in JSON, and
-    no other. JSON may hold more than the text line: `resolve --json` the
-    whole resolution, of which the text lines show a part, and `detect
-    --json` the flags and the `lists` of each result; a key it adds is
-    `null` when it holds nothing (`reason`, `detail`, the `lists` of the
-    no-answer record). The mapping of `resolve`'s text keys to JSON keys
-    (`STEP` to `steps[].kind` and `expansions[].kind`, `OPERAND` to
-    `operands[].text`) is in `docs/resolve.md`. In the API too, None means
-    nothing: never `""`.
-  - --json and any JSON output will always write with RFC 8785: JSON
-    Canonicalization Scheme (JCS). Every JSON the CLI writes goes through
-    the one writer, `result.json_line`, as UTF-8 bytes on every locale
-    (`output.echo_json`, one object per line): never `json.dumps` on an
-    output path.
-  - Exit codes: 0 an answer, yes or done; 1 no answer, no, or an action
-    that failed (`update`, a delete `clear-cache` could not make); 2 a
-    usage error (two inputs, `--json` with `--diff`),
-    unusable input, a database not ready, or a result that could not be
-    written. Exit 1 of `detect` and `resolve` prints no `ERROR` line: "no"
-    is an answer. `update` and `clear-cache` print no record on exit 1,
-    only their `ERROR` line. A `WARNING` about the input or the database
-    (`variant not stated`, `N days old`) can still come with it, as with
-    an answer.
-  - The only exceptions: the default output of `detect` and `resolve` (the
-    expression alone), `--version` (`licenseid <version>`) and `--help`.
-  - `tests/test_output_pattern.py` runs every command, text (with `-v`) and
-    `--json`, and holds each line to this pattern; it checks the default
-    output of `detect` and `resolve` against the `-v` record.
-- Standard output carries only a command's result. Progress, warnings and
-  errors go to standard error through `licenseid.console` (`status`, `warn`,
-  `error`); never `print` or `click.echo` them directly.
-- Library code never writes a warning itself: it gives a
-  `licenseid.LicenseIdWarning` through `licenseid.warning.warn` (Python's
-  `warnings`, attributed to the caller's line; `warning.once()` where a
-  warning is given once per process), and the caller records, silences or
-  raises it. The CLI prints each one as its `WARNING:` line through
-  `console.warn` (`clicommon.printed_warnings`, entered in
-  `DatabaseErrorGroup.main`, so `CliRunner` and `cli.main()` alike), in
-  order with its other lines and never deduplicated (filter `always`);
-  other warnings are left to Python. Only the CLI's own warnings (`N days
-  old`) call `console.warn`. A test of a library call asserts with the
-  `given` fixture or `pytest.warns`; a test of a step of `update` called
-  alone, whose standard error is the command's, uses the `printed` fixture.
-  pytest makes a `LicenseIdWarning` no test records an error
-  (`filterwarnings` in `pyproject.toml`): a test states what it gives.
-  The progress of `update` and `clear-cache` (`console.status`) still goes
-  to standard error from the library (`LicenseDatabase.update_from_remote`,
-  `clear_cache`).
-- Every line licenseid writes ends in `\n` on every platform, results and
-  diagnostics alike: `console.emit` is the one writer of both streams. It
-  writes bytes under the text stream, so Windows does not turn `\n` into
-  `\r\n` (which `awk` in Git Bash keeps in the last field), in the
-  stream's encoding with backslash escapes (UTF-8 for `--json`). Tests
-  simulate Windows with a `TextIOWrapper(..., newline="\r\n")`
-  (`tests/test_output_encoding.py`).
-- Errors and warnings follow one grammar, one event per line:
-  `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`.
-  - `LEVEL`: `ERROR` (the command fails, non-zero exit) or `WARNING` (a
+### Results (standard output)
+
+- Standard output carries only the result, written by `output.echo` or
+  `output.echo_json`; never `print`, `click.echo` or `json.dumps`.
+- `detect` and `resolve` print the expression alone: one line per result
+  (`--top N` in rank order), an empty line for none. `-v`/`--verbose` prints
+  the record. `--json` always prints the full object (`-v` beside it is a
+  no-op). `is-*`, `update`, `clear-cache` take no `-v`. `-V` is
+  `--version`. `--id-only` is gone.
+- The record: one record per line. The first key names its kind
+  (`EXPRESSION` the answer, first; `STEP`, `REASON`, `OPERAND`, `LIST`,
+  `STATUS`). No answer still prints the record, every field empty.
+- Fields: `KEY=VALUE`, upper-case key, no spaces round `=`, one tab between
+  fields (`result.fields_line`); a key ends at the first `=`. Fields are only
+  appended at the end: never removed, renamed or reordered.
+- Escaping (`result.text_field`, read back by `result.read_text_field`):
+  tab, CR, LF, backslash as `\t`, `\r`, `\n`, `\\`; a character the stream
+  cannot encode as `\xHH`, `\uHHHH`, `\UHHHHHHHH` (`output.echo`).
+- Nothing is an empty value. A flag is `true`, `false`, or empty when there
+  is nothing to judge: never a false `false`. In the API, None is nothing,
+  never `""`.
+- `--json` and every JSON the CLI writes: one RFC 8785 (JCS) object per
+  line, only through `result.json_line` (never `json.dumps` on an output
+  path), as UTF-8 bytes on every locale. Each text key appears
+  in lower case, a flag is a boolean, and `null` exactly where text is
+  empty. JSON may hold more (`resolve --json` the whole resolution, `detect
+  --json` the flags and `lists`); an added key is `null` when empty. The
+  text-to-JSON key map of `resolve` (`STEP` to `steps[].kind` and
+  `expansions[].kind`, `OPERAND` to `operands[].text`) is in
+  `docs/resolve.md`.
+- `detect`'s `lists` (`Detection.lists`) come from
+  `resolverinfo.list_info`, the builder of `resolve()`'s `lists`: never a
+  second copy. Its JSON (`json_line`) and text line (`result.text_line`)
+  print the public form `result.public_result` builds at the one exit of
+  `detect()`: tiers rank on the raw score (above 1 for a Tier 0 hit,
+  look-alikes too, and a close text with bonuses), never on the public
+  one, which is capped to 1. `exact` tells
+  results at 1 apart; set it where a result is made.
+- Only exceptions to the pattern: the default output of `detect` and
+  `resolve`, `--version` (`licenseid <version>`), `--help`.
+
+### Exit codes
+
+- 0: an answer, yes, done. 1: no answer, no, or a failed action (`update`,
+  a delete `clear-cache` could not make). 2: usage error (two inputs,
+  `--json` with `--diff`), unusable input, database not ready, or a result
+  that could not be written (`output: write failed: <reason>`). 141: the
+  reader closed the pipe. 130: Ctrl-C, also while options are parsed
+  (`cli.main()` runs click outside standalone mode). 141 and 130 print
+  nothing (`DatabaseErrorGroup`).
+- Exit 1 of `detect` and `resolve` prints no `ERROR` line: "no" is an
+  answer. `update` and `clear-cache` print no record on exit 1, only their
+  `ERROR` line. A `WARNING` about input or database (`variant not stated`,
+  `N days old`) may come with any outcome.
+- A closed standard input is no input. A failing standard error is pointed
+  at the null device (else the flush at exit turns every status into 120).
+
+### Diagnostics (standard error)
+
+- Through `licenseid.console` (`status`, `warn`, `error`), never `print` or
+  `click.echo`. `console.emit` is the one writer of both streams: bytes under
+  the text stream, so every line ends in `\n` on every platform (Windows `\r\n`
+  breaks `awk` in Git Bash), in the stream's encoding with backslash escapes
+  (UTF-8 for `--json`). Tests simulate Windows with `TextIOWrapper(...,
+  newline="\r\n")` (`tests/test_output_encoding.py`).
+- One event per line: `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]`. No
+  trailing period, no "Please", no sentences.
+  `tests/conftest.py::check_diagnostic_grammar` fails a test that prints a
+  line, or gives a `LicenseIdWarning`, off this grammar.
+  - `LEVEL`: `ERROR` (command fails, non-zero exit) or `WARNING` (a
     fallback lets it continue).
-  - `SUBJECT`: the thing affected, a lowercase word or cache file name:
-    `command`, `database`, `input`, `option`, `output`, `usage`,
-    `version`, `cache` (a cache file with no plain lowercase name),
-    `latest.json`, `licenses.json`, `popularity.csv`,
-    `spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz` (the packaged bundle in
-    the wheel), `spdx-data-v<ver>.tar.gz`.
-  - `CONDITION`: short lowercase fragment, reused across subjects. The
-    full current set (add new ones here): `not found`, `invalid`,
-    `missing`, `empty`, `unreadable`, `binary file`,
-    `not UTF-8, read as Latin-1`, `N days old`,
-    `normalization vN outdated`, `build vN outdated`, `build vN newer`,
-    `download failed`,
-    `cache read failed`,
+  - `SUBJECT`: lower-case word or cache file name: `command`, `database`,
+    `input`, `option`, `output`, `usage`, `version`, `cache` (a cache file
+    with no plain name), `latest.json`, `licenses.json`, `popularity.csv`,
+    `spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz` (packaged),
+    `spdx-data-v<ver>.tar.gz`.
+  - `CONDITION`: short lower-case fragment, reused across subjects. The full
+    set (add new ones here): `not found`, `invalid`, `missing`, `empty`,
+    `unreadable`, `binary file`, `not UTF-8, read as Latin-1`,
+    `N days old`, `normalization vN outdated`, `build vN outdated`,
+    `build vN newer`, `download failed`, `cache read failed`,
     `cache write failed`, `cache unusable`, `download unusable`,
     `stale cache unusable`, `parse failed`, `variant not stated`,
     `N rows with missing or non-numeric num_pushers`, `update failed`,
     `delete failed`, `write failed`, `compact failed`,
     `older than the database`, `too few words for text`.
-  - `DETAIL`: the variable part (exception text, value, path), on one
-    line: a path or file name through `errors.shown` (a control character
+  - `DETAIL`: one line. A path through `errors.shown` (control characters
     escaped, `;` as `,`), a value through `errors.one_line` (folded, cut to
-    60), an exception through `errors.typed`. Not the result escaping: a
+    60), an exception through `errors.typed`. Not result escaping: a
     backslash stays, so a Windows path reads as typed.
-  - `ACTION`: what happens next, after a semicolon: the fallback taken
-    (`using stale cache`, `using stale <file>`, `downloading`,
-    `downloading <file>`, `using cached <file>`, `using packaged data v<ver>`,
-    `counted as 0`) or the command for the user to run
-    (`run 'licenseid update'`). A fallback goes on the same line as its
-    cause, e.g.
-    `popularity.csv: download failed: <error>; using stale cache`.
-  - No trailing period, no "Please", no full sentences.
-  - A failure worded this way is raised as `licenseid.errors.LicenseIdError`
-    (`SUBJECT: CONDITION…`, no prefix); the CLI prints it after `ERROR:` and
-    exits 1, or 2 for its subclass `InvalidInputError` (a usage error). The
-    CLI also exits 2 for `DatabaseNotReadyError` (a database that is missing,
-    empty, invalid or unreadable) in `detect`, `resolve` and the `is-*`
-    commands, where exit 1 already means "no". `update` and `clear-cache`
-    write or delete, so they refuse only an `invalid` database — one
-    licenseid did not build — and accept every other condition, which is
-    what they exist to fix.
-  - Write a result line with `output.echo` (or `output.echo_json`), not
-    `click.echo` or `print`: a result
-    that cannot be written (standard output closed, a full disk) exits 2
-    with `output: write failed: <reason>`, never 0 or 1. A reader that
-    closes the pipe (`| head -1`) ends the run quietly with 141, and Ctrl-C
-    with 130, both without a message (`DatabaseErrorGroup`). `--help` and
-    `--version` go through `echo` too (`output.EchoHelpCommand`).
-    `cli.main()` runs click outside its standalone mode, so Ctrl-C while
-    options are parsed is 130 too. A closed
-    standard input is no input; a failing standard error is skipped and
-    pointed at the null device, or the flush at exit would turn every exit
-    status into 120.
-  - click's usage errors are worded in the grammar too
-    (`ERROR: option: not found: --jsn; did you mean --json`): `usage.py`
-    re-raises them as `UsageLineError` in `parse_args` (option callbacks
-    included) and in the group's `invoke` (an unknown command, and a
-    command's own `BadParameter`), so click's standalone mode (every
-    `CliRunner` test) and `cli.main()` print the same line. A command run
-    outside the group would show click's format: wrap it too. With no
-    subcommand, the help goes to standard error (exit 2), through
-    `console.write`.
-  - A step that prints partial progress (`status(..., end="")`) and can fail
-    must call `console.end_line()` in a `finally`, so the caller's next
-    stderr line starts at column 0.
-    Any other exception, including RuntimeError subclasses such as
-    RecursionError, is wrapped as `SUBJECT: update failed: <Type>: <text>`.
-  - `tests/conftest.py::check_diagnostic_grammar` fails any test that
-    prints a line, or gives a `LicenseIdWarning`, breaking this grammar.
-- Must work with `awk`, `wc`, `xargs`, similar Unix tools.
-- `detect --json` prints JSON Lines, one RFC 8785 (JCS) object per result,
-  through `licenseid.result.json_line`; the text line comes from `text_line`
-  beside it. Each result carries `lists` (`Detection.lists`), built by
-  `resolverinfo.list_info`, the builder of `resolve()`'s `lists`: never a second
-  copy. Both print the public form `result.public_result` builds at the one
-  exit of `detect()`: tiers rank on their raw score (above 1 for a Tier 0 ID
-  or name hit, look-alikes included, and for a close text with its bonuses),
-  never on the public one, capped to 1. `exact` is what tells results at 1
-  apart; set it where a result is made.
+  - `ACTION`: the fallback taken (`using stale cache`, `using stale <file>`,
+    `downloading`, `downloading <file>`, `using cached <file>`,
+    `using packaged data v<ver>`, `counted as 0`) or the command to run
+    (`run 'licenseid update'`), on the same line as its cause.
+- Raise a failure as `licenseid.errors.LicenseIdError`
+  (`SUBJECT: CONDITION…`, no prefix): the CLI prints it after `ERROR:` and
+  exits 1, or 2 for `InvalidInputError`. `DatabaseNotReadyError` (missing,
+  empty, invalid, unreadable) exits 2 in `detect`, `resolve`, `is-*`.
+  `update` and `clear-cache` refuse only an `invalid` database (not built by
+  licenseid): they exist to fix the rest. Any other exception in `update`,
+  RuntimeError subclasses such as RecursionError included, becomes
+  `SUBJECT: update failed: <Type>: <text>`.
+- A step printing partial progress (`status(..., end="")`) that can fail
+  calls `console.end_line()` in a `finally`.
+- click's usage errors use the grammar too
+  (`ERROR: option: not found: --jsn; did you mean --json`): `usage.py`
+  re-raises them as `UsageLineError` in `parse_args` (option callbacks
+  included) and in the group's `invoke` (unknown command, `BadParameter`).
+  Wrap a command run outside the group too. No subcommand: help to standard
+  error, exit 2, through `console.write`. `--help` and `--version` go
+  through `echo` (`output.EchoHelpCommand`).
+- Library code never writes a warning: it gives a `LicenseIdWarning`
+  through `warning.warn` (attributed to the caller; `warning.once()` for
+  once per process). The CLI prints each as a `WARNING:` line through
+  `console.warn` (`clicommon.printed_warnings`, entered in
+  `DatabaseErrorGroup.main`), in order, never deduplicated (filter
+  `always`); other warnings are left to Python. Only the CLI's own warnings
+  (`N days old`) call `console.warn` directly. Exception: the progress of
+  `update` and `clear-cache` (`console.status`) comes from the library.
+- Tests: a library call's warning is asserted with the `given` fixture or
+  `pytest.warns`; a step of `update` called alone uses the `printed`
+  fixture. An unrecorded `LicenseIdWarning` is a test error
+  (`filterwarnings` in `pyproject.toml`).
+
+## Reading input
+
+- One reader for user input: `textinput.read_text_file` / `decode_input`
+  (UTF-8, BOM dropped, else Latin-1 with a warning; NUL means binary,
+  `reject_binary`, which `--text` also calls). Never `open()` a user file
+  elsewhere (`tests/test_textinput.py` checks `cli*.py` and `detector.py`).
+  `--text` is taken as written: no escape decoded. SPDX data files stay
+  strict UTF-8 (a fallback would hide a corrupt download).
+- A lone surrogate (API string, invalid UTF-8 argument) cannot bind to
+  SQLite: `textinput.reject_lone_surrogate` raises `InvalidInputError` where
+  the detector takes a text; `clicommon.reject_unencodable` exits 2 first
+  for `--text` and the argument.
+- Input with no extension starting `[` or `{` is tried as JSON, then
+  TOML/INI. Every licence value (tag, JSON, TOML, INI, explicit
+  `license_id`) resolves through `MarkerDetector.resolve_license_value`, and
+  every expression through `_synthetic_candidate`: a candidate only for a
+  valid expression or `LicenseRef-*` with at least one recognised ID.
+  `is_*()` and `is-*` answer from `LicenseDetector._resolve_record`; never
+  look a record up on the side.
+- A whole input (argument, `--text`, stdin, file, `detect(text=...)`) is
+  read by `resolve()` first (`resolvefirst.as_resolved`): its expression,
+  compound too, is the answer. The rest goes through the tiers. One under
+  `resolvefirst.MIN_TEXT_WORDS` (10) words that the name tier does not
+  answer gets no text match and warns `too few words for text` (not after a
+  tag was taken out). Han and kana text is never cut by word count.
+- `--id` and `detect(license_id=...)` declare ONE licence, judged only by
+  `identifiers.is_simple_expression` (an ID, `+` unless `-only`/`-or-later`,
+  or `LicenseRef-*` without `+`; optionally `WITH` an exception, any
+  brackets). `cliinput.reject_compound_id` exits 2
+  (`errors.invalid_id_error`); `LicenseDetector._try_explicit_id_match`
+  raises, so ask the predicate first. Never widen `--id` to expressions.
+  The CLI makes no ID guess of its own.
+
+### Expression readers (one reader each; do not write another)
+
+- Tag value: the rest of its line up to the next tag (`[ \t]`, never `\s`).
+  `identifiers.leading_expression` decides where the expression ends: only
+  AND, OR, WITH join parts, only white space between them; a token none of
+  them bridges ends it; a dangling or unbalanced value is none. Never write
+  the SPDX grammar as a regex; comment closers need no case of their own.
+- "Or later" grant: `classify.OR_LATER_PHRASE` is the one phrase reader
+  (imported by `ranking`, `identifiers.disambiguate_deprecated_id`,
+  `markers`, `looseid`); `classify.grant_end` finds a grant and its end;
+  `classify.grant_head` is the one rule for the gap between ID and grant (a
+  dash between words there is a separator, D10), followed by `before_grant`
+  and the tag's `dash_gap`. The grant qualifies the licence beside it
+  (`identifiers.qualify_trailing_grant`): `MIT OR GPL-2.0 or later` is
+  `GPL-2.0-or-later OR MIT`; with WITH it belongs to the licence. A version
+  number between ID and phrase (a number the phrase starts with counts too,
+  unless it is the ID's own version) means another licence's grant. A grant
+  ends the expression: anything after it is refused.
+  `looseid.declared_grant_id_text` only finds where a grant starts (bare
+  "or later" read as after a number unless `classify.is_negated`). Add a
+  phrasing to `classify.OR_LATER_PHRASE` and to `PHRASES` in
+  `tests/ordering_helpers.py` (`test_match_ordering` and
+  `test_resolver_shapes` hold every reader to it).
+- Ranking and the tie-breaker sort with `ranking.ranking_key`; short-text
+  results sort by `(-score, license_id)`.
+- Tag and `license` field answer only with List operands or `LicenseRef-*` (`MIT
+  OR Apache 2.0`: no answer). `MIT or later` is `MIT+`. No licence for: a
+  detached "+", a mark `resolve()` drops before "or later" (`MIT; or later`), a
+  licence right after a mark (`MIT/Apache-2.0`; `looseid.lists_another`, whose
+  item rule `_lists_another` shares). Keywords match in ASCII case only
+  (`(?a:...)` or `re.ASCII`; `tests/test_readers_case.py`).
+- "+": `plusoperator.PLUS_OPERATOR` (`strip_plus_operator`,
+  `replace_plus_operator`, `plus_after_qualifier`; standard library only)
+  is the one reader: right after an ID, never after a space, a "+", an
+  exception or a `LicenseRef-*`. `versionkey.version_key`,
+  `is_simple_expression` and `classify`'s
+  shorthand ("GPLv2+") follow it; `tests/test_plus_readers.py` holds all
+  four to one table: change one, run it. `normalize_text` drops a "+" that
+  is no operator, so `detector._try_tier0_short_text` returns None for a
+  value under 30 words that `resolve()` refuses with a "+" reason
+  (`resolvereason.is_plus_refusal`; add new reasons to its constants).
+- Tier 0 asks `resolve()` first for a value under 30 words: what it reads
+  is the answer; what it refuses is matched as before, except after a
+  dropped mark or an unpaired bracket, or (under 10 words only) a "+" that
+  ends or starts a word or stands alone in marks (`MIT++`, `GPL-2.0 (+)`;
+  not `C++`): `resolvereason.refuses_text_match`.
+- "/" is OR only in a whole value (`resolveslash.slash_parts`): each piece
+  an exact-case List ID (a "+" read by `plusoperator`) or `LicenseRef-*`,
+  at least one List
+  ID; never a tag, never inside a `;` part. `MIT/X11` is in
+  `REFUSED_PAIRS`. `tests/slash_pins.py` pins 0.8.3's answers: moving one
+  is a loosening.
+- Licence URL: one key, `urlkey.url_key` (ASCII only; scheme, `www.`, fragment,
+  trailing `/`, one page suffix dropped; query kept; decodes nothing); key both
+  a declared URL and the List's with it. The List's pages (`seeAlso`) are the
+  `license_urls` table (`records.BUILD_VERSION` 4), indexed by
+  `resolveurl.list_url_key` (skips a URL with a fragment). A page naming several
+  unrelated licences or only an exception is refused. `URL_ALIASES` and
+  `SCANCODE_NOT_SPDX` grow only with a measured package count
+  (`working-docs/paper-notes/licence-urls.md`). Take an ID from a path only on a
+  host in `ID_PAGES`. `licenses.nuget.org` paths, for that host only, are
+  decoded (`nugetpath`) once, every `%XX` in one pass, and must fit
+  `[A-Za-z0-9.+()-]` with words one space apart, which refuses `%2F`, `%00`,
+  `%C2%A0`, `%2520` without a list of escapes. Operators upper case; a compound
+  is no operand of a compound (`operand names an expression`); `url_license_id`
+  brackets one (`(A OR B)`) so a tag keeps precedence.
+
+## Database
+
+- A lookup never creates or writes. `Connections.connect` opens read-only
+  (`dbcheck.open_uri`); the detector uses `LicenseDatabase(path,
+  create=False)`, whose writes open `mode=rw` and happen only for an older
+  schema of licenseid's own file (`dbschema.schema_state`).
+  `LicenseDatabase(path)` makes the file at the first write
+  (`_ensure_schema`) and refuses a file licenseid did not build, whatever
+  `create` is. A missing norm column is filled in memory
+  (`dbcache.TableCache.names_and_ids`), never written back.
+  No WAL mode: `update` leaves it (`Connections.leave_wal`).
+- Every `sqlite3.Error` of a read becomes `DatabaseNotReadyError` in
+  `Connections.connection` (`dbcheck.lookup_error`): never wrap per method or
+  swallow one. `run 'licenseid update'` only for a file update can rebuild
+  (`dbcheck._can_rebuild`).
+- One connection per `detect()` call via `LicenseDatabase.reading()`
+  (per thread, opened at the first query): query through `_connection()`,
+  never `sqlite3.connect`; wrap a new multi-lookup entry point. Only the
+  outermost query ends its transaction; each starts with the default
+  `row_factory`. Count connections with the `opened` fixture.
+- Lookups by ID never scan: `dbcache.TableCache` reads each table's IDs once
+  (folded by `listlookup.fold_case`; an unknown ID costs no query), drops
+  them when `last_update_datetime` changes (checked once per `reading()`
+  block and at every lookup outside one), and keeps no read made during a
+  clear (`_generation`). A new write to `licenses` or `license_index` calls
+  `self._tables.clear()`, as `_write_db_records` does.
+- Never build `LIKE` or `GLOB` patterns from input (over 50,000 bytes SQLite
+  refuses, read as a broken database); compare in memory.
+  `search_candidates` quotes its words.
+- A change to the rows `records` builds bumps `records.BUILD_VERSION`; to
+  `normalize_text`, `database.NORMALIZATION_VERSION`. Stamps compare as
+  numbers; older warns (`build vN outdated`) and `update` rebuilds; newer
+  warns `build vN newer`, never rebuilt; a non-number is older. Only a
+  database opened without `create` warns.
+- `--db` can block or lie: check `stat.S_ISREG`/`S_ISDIR` before opening (a
+  FIFO hangs a read-only open; test it in a child with a timeout,
+  `db_asserts.probe_check_does_not_hang`). `file::memory:NAME` is a file on
+  disk (only `mode=memory` and the exact base `file::memory:` are memory);
+  `file://localhost/p` and `?vfs=` are valid. Resolve a path spelling
+  once, in `dbcheck._os_file` (`x`, `x/`, `x/.` agree).
+- `dbcheck`: read is fail-open (`check_database_ready` ignores `unknown`),
+  write and delete fail-closed (`reject_foreign_database`). Keep the
+  `Refusal` tag on a new condition and decide both policies.
+- `Path.unlink(missing_ok=True)` swallows only `FileNotFoundError`: a parent
+  that is a file still raises `NotADirectoryError`.
+- `database.py` imports `spdx_source` lazily; `spdx_source.py` never
+  imports `licenseid.__version__` at module level.
+- `detect()` returns the public form (score capped to 1, 4 places). Code or
+  a test that ranks or asks "above 1" reads `_match_raw`. `exact` is set
+  where a result is made, never derived from the score: the whole non-empty
+  normalised input equals the licence's `search_text`. A deprecated name is
+  inexact only when a row in use has the same normalised name.
+- Packaged bundle: `hatch_build.py` (standard library only) puts it in the
+  wheel and sdist (`src/licenseid/data/`, gitignored), steered by
+  `LICENSEID_BUNDLE=skip|<path>` and `LICENSEID_REQUIRE_BUNDLE=1` (CI jobs
+  that only install the package set `skip`). An
+  editable install ships none; only an unpacked sdist (`PKG-INFO`) uses that
+  folder. The `offline` fixture hides it; `listindex.packaged_index()` keeps
+  one per process (`offline`, `release_fakes.ship` forget it). The hook
+  repeats URLs and names of `spdx_source`/`spdxdata`
+  (`tests/test_hatch_build.py`). Raise `BUNDLE_VERSION`/`BUNDLE_SHA256`
+  with the snapshots in `tests/fixtures/license-list/`
+  (`tests/test_releasebuild_pin.py`); `scripts/check_dist_bundle.py`
+  checks `dist/`.
+
+## Performance
+
+- RapidFuzz costs time in characters, not words. Guard by
+  `similarity.build_probe` and `similarity.alignment_affordable`, never by
+  characters per word (Japanese and Chinese have no spaces). Before changing
+  a limit, sweep real licence texts, Japanese included, at several offsets
+  and lengths, on the branch and on `main`, and compare the top answers
+  (item 16 in
+  `working-docs/implementation/tech-debt-resolved.md`). Tier 0 scorers take
+  `score_cutoff=threshold`.
+- `\s+` followed by a class that also matches white space (`\s+[\s/*#]*`)
+  is quadratic: write `\s[\s/*#]*`. Time every prose regex on
+  `"x" + " " * N` (see `test_the_phrase_regex_does_not_backtrack`).
+- A fix to input reading can add a quadratic loop (`s = s[1:-1]` per
+  bracket, rescanning a line per tag). Time against `main`, with distinct
+  values and balanced payloads. Keep deep nesting away from the parser.
+- Timing tests: 10x headroom; a bound is `slack(seconds)`
+  (`tests/timing.py`, scales for `coverage` and `-n`), never for a ratio of
+  sizes. A large input or tight bound is `@pytest.mark.benchmark`
+  (`--run-benchmark` before a release) with a small size in the normal run.
+  Rerun a timing failure alone before calling it a regression. Details:
+  `working-docs/implementation/spdx-expression-reading.md`.
 
 ## Python
 
-- Min version: Python 3.10.
-- Idiomatic Python. Prefer built-ins (`list`, `dict`, `set`, `tuple`) unless
-  `collections`/`collections.abc` clearly better.
-- Full type annotations on all functions, methods, classes, variables. Minimize
-  `Any`. Use `if TYPE_CHECKING:` for heavy type-only imports.
-- Verify types with mypy (strict=true). Use pyright/pytype for second opinions.
-  Recheck `# noqa:` and `# type: ignore`. Reset mypy cache on unexpected errors.
-- Type stubs: no official stubs → check <https://github.com/python/typeshed> for
-  stubs; unavailable → derive from source on GitHub/GitLab.
-- Fully qualified names in docstrings for non-stdlib types (e.g.,
-  `numpy.ndarray`, not `ndarray`).
-- No `assert` in production — tests only.
-- No mutable default arguments.
-- No wildcard imports (`from module import *`).
-- No `pickle` (CWE-502).
-- No `eval()` unless absolutely necessary and demonstrably safe.
-- No hardcoded secrets/credentials/tokens.
-- Defensive coding: check `None`/empty, handle exceptions for all external
-  inputs.
-- `time.monotonic()` for durations, not `time.time()`.
-- All config in `pyproject.toml` where possible.
-- `requires-python` must match actual min version.
-- Make packages zip-safe when possible.
-- Packaging metadata follows Core metadata spec: <https://packaging.python.org/en/latest/specifications/core-metadata/>
-- Be careful of regex flags, lookahead, lookbehind, greediness, multi-line
-  matching.
+- Python 3.10 minimum; `requires-python` matches. Idiomatic; built-in types
+  unless `collections` is clearly better.
+- Full annotations (mypy strict; pyright or pytype for a second opinion);
+  minimise `Any`; heavy type-only imports under `if TYPE_CHECKING:`.
+  Annotations may be omitted only for: simple literal constants (prefer
+  `Final`), enum values, type aliases, `self`/`cls`, `__init__`'s return,
+  module dunders. Generic bases take type arguments. Recheck every
+  `# noqa:` and `# type: ignore`; reset the mypy cache on odd errors.
+- Missing stubs: typeshed, else derive from the source.
+- Docstrings use fully qualified names for non-stdlib types
+  (`numpy.ndarray`).
+- Never: `assert` outside tests, mutable defaults, wildcard imports,
+  `pickle`, `eval()` (unless provably safe), hard-coded secrets.
+- Check `None`/empty and handle exceptions for all external input.
+  `time.monotonic()` for durations. Config in `pyproject.toml`. Zip-safe
+  where possible. Packaging metadata follows the Core metadata spec.
+- Regexes: mind flags, look-arounds, greediness, multi-line.
+- Imports: stdlib, third-party, local; alphabetical in each. Keep an order
+  a comment explains (cycles, init).
 
-### Import order
+## Code health
 
-Groups: stdlib → third-party → local, alphabetically within each. Don't reorder
-imports with comments explaining required order (circular import/init
-constraint).
+- Boy Scout Rule: leave the code cleaner; refactor during small changes.
+  Extract duplicated logic and cohesive pieces early; no dumping-ground
+  modules.
+- File size, all files (source, tests, docs): soft ~400-500 lines, hard
+  ~800. Split before the soft limit. Backlog:
+  `working-docs/design/complexity-and-file-size-roadmap.md`.
+- Complexity targets (pylint defaults): Args≤5, Locals≤15, Nesting≤5,
+  Branches≤12, Returns≤6, Statements≤50, McCabe≤10, Cognitive≤15. The
+  ceilings in `pyproject.toml` and `.flake8` are exact ratchets at the
+  current max: never raise one; refactor, and lower it when its last holder
+  is gone (re-measure across `src/` and `tests/`).
+- Refactor with characterization tests first: pin a bug (`# BUG:`),
+  refactor purely, fix in a separate step, flip the pin to a regression
+  test.
 
-### Type completeness
+## Lint and format
 
-- All visible class vars, instance vars, methods annotated.
-- All function/method params and return types annotated.
-- Generic base classes have type args specified.
-- Omit annotations only for:
-  - Simple literal constants (e.g., `MAX = 50`, `RED = '#F00'`), preferably
-    `Final`.
-  - Enum member values inside `Enum`.
-  - Module-level type aliases.
-  - `self` and `cls` params.
-  - `__init__` return type.
-  - `__all__`, `__author__`, `__version__`, similar dunder module attrs.
+Run and fix before committing, with CI's own commands: `ruff check`,
+`ruff check --select I` (CI's ruff is newer), `mypy`, `pylint`,
+`flake8 src/ tests/`, `ruff format`. Max line length 88.
 
-## Code health and continuous refactoring
-
-- **The Boy Scout Rule**: leave the codebase cleaner than you found it. Refactor
-  proactively during small changes.
-- **Prevent monoliths**: never let a single file (like `detector.py` or
-  `database.py`) become a dumping ground. Extract cohesive pieces into dedicated
-  modules early — see the file-size limit above.
-- **Consolidate patterns**: extract duplicated logic into shared helpers
-  immediately. Don't copy-paste code.
-- **Enforce file size limits**: split files *before* they cross the soft limit,
-  not after.
-
-## Linting and formatting
-
-Run and fix all errors before committing:
-
-```shell
-ruff check
-mypy
-pylint
-flake8
-ruff format
-```
-
-- Complexity targets (pylint's own built-in defaults, checked clean outside this
-  repo's config): Args≤5, Locals≤15, Nesting≤5, Branches≤12, Returns≤6,
-  Statements≤50, McCabe≤10, Cognitive≤15.
-  Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
-  ratchets set to the exact current repo max (`max-args=5`,
-  `max-branches=13`, `max-locals=22`, McCabe=12, Cognitive=29, module
-  lines=738, markers.py) — see
-  `working-docs/design/complexity-and-file-size-roadmap.md` for the
-  backlog that has to shrink before each ceiling can drop to its target.
-  These are maximally tight — any regression trips CI immediately. Don't
-  raise a ceiling to make a change pass; refactor instead, or lower the
-  ceiling back down after shrinking the offender.
+- Judge `pylint` by its exit code (`pylint src/ tests/ >/dev/null; echo
+  $?`): it can print `10.00/10` and exit 16.
+- R0801 flags similar inline scripts across test files: put probe scripts
+  in `tests/db_asserts.py`.
+- Check `ruff --version` before calling an error known.
 - Remove unused imports and trailing whitespace.
-- Max line length = 88 (matches `.flake8`, `ruff`, and `[tool.pylint.format]`).
 
 ## File headers
 
-All source files must have SPDX tags in this order (alphabetical):
+Every source file starts with SPDX tags, keys sorted:
 
 ```text
 SPDX-FileCopyrightText: <year> <name>
@@ -399,493 +469,150 @@ SPDX-FileType: SOURCE                # or DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0
 ```
 
-`working-docs/` standalone docs also carry `Created` and `Last-Modified`
-(`YYYY-MM-DD`) in the same front matter block, above the SPDX tags.
-
-Sort SPDX metadata keys alphabetically.
+A `working-docs/` file carries these tags in its YAML front matter, with
+`Created` and `Last-Modified` (`YYYY-MM-DD`) in the same block above them.
 
 ## Testing
 
-- Add tests for new behavior — cover success, failure, edge cases.
-- Use pytest patterns, not `unittest.TestCase`.
-- `spec`/`autospec` when mocking.
-- `time_machine` for time-dependent tests.
-- `@pytest.mark.parametrize` for multiple similar inputs.
-- A new CLI option or API parameter goes into `tests/test_option_matrix.py`
-  as an axis (or a value on one), so it is tested in combination with the
-  others, not only on its own.
+- New behaviour gets tests: success, failure, edge cases. pytest style, no
+  `unittest.TestCase`; `spec`/`autospec` mocks; `time_machine` for time;
+  `@pytest.mark.parametrize` for similar inputs.
+- A new CLI option or API parameter becomes an axis (or a value) in
+  `tests/test_option_matrix.py`.
+- Run plain `pytest tests/` (no `-m 'not benchmark'`), and the full suite
+  alone (beside mutants or `tools.golden`, 1 s bounds fail).
+- No `tests/__init__.py`: `from conftest import ...` (helpers
+  `make_memory_db_path`, `fake_requests_get`, `leftover_tmp_files`). A
+  shared fixture goes in `tests/conftest.py` (importing one trips
+  `F811`); plain helpers in a module (`ordering_helpers`, `db_asserts`).
+- The autouse `verbose_cli` fixture (`tests/cli_verbose.py`) adds `-v` to
+  `detect` and `resolve` under `CliRunner` (not a subprocess). A test of the
+  default output or the exact command line carries `@pytest.mark.terse_cli`. The
+  CLI golden and `tools/cli_matrix` name `--verbose` themselves.
+- No network: patch `requests.get` (autospec). Never modify or clear the
+  real cache `~/.local/share/licenseid/` (reading it is fine). Database
+  tests import the autouse `safe_home` from `tests/db_asserts.py`
+  (`# noqa: F401  # pylint: disable=unused-import`).
+- `make_memory_db_path` opens its keep-alive connection before building
+  `LicenseDatabase` (a shared-cache memory DB dies with its last
+  connection): keep that order.
+- A negative test on a seeded database passes trivially if its rows have no
+  `search_text`. Seed the real near neighbours with text
+  (`Lic(..., search_text=...)`, as `tests/test_qualified_plus.py`), mutate
+  the fix to see it fail, and probe a full database too.
+- Mutation-check new tests: break a line, rerun; clear `__pycache__`
+  between mutants; run a mutated copy with `PYTHONPATH=<copy>/src` (the
+  editable install imports this checkout otherwise). Never run a mutation
+  agent while another edits `src/`; diff any snapshot first.
+- Give a huge parameter a short `id` (Windows caps an environment variable,
+  and `PYTEST_CURRENT_TEST` holds the ID; `conftest.MAX_TEST_ID` is 300).
+  Keep long single words short: Tier 1 cost grows with length.
+- A SIGINT test restores the child's handler (`signal.default_int_handler`)
+  and signals at a point the child reports (`test_cli_streams._READY`).
+- `python -m tools.golden` lists golden answers that moved; a PR that moves
+  one lists it with the reason in `tests/harness_changes.py`. Regenerate
+  only when the release is frozen (`tools/golden/README.md`).
+- Before a PR touching the CLI, exit codes, streams, input handling or the
+  database path, run `python -m tools.cli_matrix --db <copy of a real
+  database> --check` (read `tools/cli_matrix/README.md`). A
+  `baseline.txt` flag that stops flagging may fail earlier instead: read
+  `.cli-matrix/results.json` before deleting it, and record why.
+- Accuracy: `test_accuracy.py::test_core_accuracy` every commit;
+  `accuracy.yml` on matching-code PRs and weekly. A new module on the
+  text-matching path goes into that workflow's `paths`.
 
-## Traps and test patterns
+## Environment and CI
 
-Things that cost time in earlier sessions; details in `working-docs/`.
-
-- Tests see `detect` and `resolve` with `-v` added (the autouse
-  `verbose_cli` fixture in `tests/conftest.py`, `tests/cli_verbose.py`; it
-  covers `CliRunner` only, not a subprocess): most read the record. A test
-  of the default output, or of the exact command line, carries
-  `@pytest.mark.terse_cli`. The CLI golden and `tools/cli_matrix` name
-  `--verbose` themselves.
-- `CLAUDE.md` is a symlink to this file. Edit `AGENTS.md`. `.claude/` is
-  gitignored.
-- `flake8 src/ tests/` lints tests too: a test helper can set a complexity
-  ceiling (the cognitive ceiling was `test_accuracy.py::run_accuracy_test`).
-  Ceilings are exact ratchets: after a refactor re-measure across `src/` and
-  `tests/`, and lower the ceiling if the last holder is gone.
-- Refactor with **characterization tests first**: they found a real bug in
-  every refactor so far. Pin the bug (`# BUG:`), refactor purely, then fix
-  it as a separate step and flip the pin to a regression test.
-- Tests have no `tests/__init__.py`: import shared helpers with
-  `from conftest import ...` (not `tests.conftest`). Helpers there:
-  `make_memory_db_path`, `fake_requests_get`, `leftover_tmp_files`.
-- A shared-cache in-memory SQLite DB vanishes when its last connection
-  closes, and CPython drops an unreferenced connection at once:
-  `make_memory_db_path` opens its keep-alive connection *before* building
-  `LicenseDatabase`. Keep that order.
-- No test may touch the network: patch `requests.get` (autospec). Never
-  modify or clear the real cache in `~/.local/share/licenseid/`; it is fine
-  to read it to validate a parser against real data.
-- Windows CI runs only `pytest -m platform` on a pull request: the files
-  listed in `tests/platform_files.py` (file system, streams, signals,
-  processes, encodings, packaging). It runs every test on a push to `main`
-  and on a pull request with the label `test-all-os` (the label must exist:
-  `gh label create test-all-os`). Linux runs every test. A file that uses
-  one of those goes in the list; `tests/test_platform_files.py` fails if not.
-- CI tests on Python 3.10 and 3.14 (Ubuntu) and 3.11 (Windows); it builds
-  on 3.10-3.14 (Ubuntu). The local environment is the pyenv virtualenv
-  named in `.python-version` (`licenseid310`, Python 3.10, an editable
-  install); there is no `.venv`. It can lag `pyproject.toml` (it lacked
-  `rfc8785` and `hatchling`): then build a scratch one,
-  `UV_PROJECT_ENVIRONMENT=<scratch> uv sync --python 3.10 --all-groups`.
-  For anything stdlib-sensitive, also run
-  `uv run --python 3.14 --group test pytest ...`. Always set
-  `UV_PROJECT_ENVIRONMENT` to a scratch dir for `uv run` and `uv sync`:
-  without it uv creates a `.venv` in the checkout. Simulate an older Python
-  with a module flag, never by deleting stdlib attributes
-  (`tarfile.data_filter` breaks `tarfile` itself on 3.12+).
-- Mutation-check new tests by breaking a line and rerunning; clear
-  `__pycache__` between mutants (a same-size mutant restored within the same
-  second leaves a stale `.pyc`). To mutate a copy of the tree, run it with
-  `PYTHONPATH=<copy>/src`: the environment is an editable install of this
-  checkout, so without it the tests import the unmutated `src/` and every
-  mutant seems to survive.
-- A negative test ("answers no licence", "ranks X below Y") on a seeded
-  database passes trivially when its rows have no `search_text`: Tiers 1
-  and 2 retrieve nothing. Seed the near neighbours the real list has, with
-  a text (`Lic(..., search_text=...)`, as `tests/test_qualified_plus.py`
-  does), mutate the fix to see the test fail, and probe the input on a full
-  database too. A four-row test hid a wrong answer that a reviewer found on
-  3.29.0 (PR #101).
-- Windows: before touching `dbcheck.py`, a database path or `file:` URI,
-  `Path.home()`, or a test that needs POSIX features (chmod, symlinks,
-  signals, `/bin/sh`), read `working-docs/implementation/cross-platform.md`.
-  Mark such a test `posix_only` (`tests/conftest.py`); build a `file://` URI
-  with `Path.as_posix()`, not `f"file://{path}"`. CI runs Windows on 3.11.
-- `python -m tools.golden` lists each golden `detect()` and CLI answer that
-  moved; a pull request that moves one lists it, with the reason, in
-  `tests/harness_changes.py` (regenerate only when the release is frozen;
-  `tools/golden/README.md`).
-- Pytest cannot see the shell, locale, stdio, `HOME`, signal and input-size
-  interactions between the OS and the CLI. Run the manual matrix,
-  `python -m tools.cli_matrix --db <copy of a real database> --check`, before
-  a PR that touches the CLI, exit codes, streams, input handling or the
-  database path. It reports flags that are not in `baseline.txt`; read
-  `tools/cli_matrix/README.md` first. Never run its cells by hand with
-  `HOME` unset: Python then resolves the real cache (an early version
-  deleted the developer's `licenses.db` that way).
-- One reader for user input: `textinput.read_text_file` / `decode_input`
-  (UTF-8 with BOM dropped, else Latin-1 with a warning, NUL means binary,
-  checked by `reject_binary`, which `--text` also calls). The CLI and
-  `detect(file_path=...)` both use it; do not `open()` a user file
-  anywhere else (`tests/test_textinput.py` fails if a `cli*.py` module or
-  `detector.py` does). `--text` is taken as written: no escape is
-  decoded. The SPDX data files stay strict UTF-8 on purpose: a fallback
-  there would hide a corrupt download. A text with a lone surrogate (an API
-  string, or a command-line argument of invalid UTF-8, which Python decodes
-  to `\udcXX`) cannot be encoded for SQLite's parameter binding:
-  `textinput.reject_lone_surrogate` raises `InvalidInputError` at the one
-  place the detector takes a text, and `clicommon.reject_unencodable`
-  exits 2 first for `--text` and the argument.
-- `hatch_build.py` (Hatch custom hook, standard library only: the build
-  environment has no `licenseid`) puts the packaged SPDX bundle in the wheel and
-  the sdist (`src/licenseid/data/`, gitignored). `LICENSEID_BUNDLE=skip|<path>`
-  and `LICENSEID_REQUIRE_BUNDLE=1` steer it; CI jobs that only install the
-  package set `skip`. An editable install ships nothing, so a local run never
-  sees a snapshot, and the `offline` fixture hides one from the tests;
-  `listindex.packaged_index()` keeps one per process, which `offline` and
-  `release_fakes.ship` forget. Only an
-  unpacked sdist (it has `PKG-INFO`) uses a file in `src/licenseid/data/`; a
-  checkout ignores one left there and downloads. The
-  hook repeats the URL and file names of `spdx_source` and `spdxdata`;
-  `tests/test_hatch_build.py` checks they agree. The list it ships is
-  pinned (`BUNDLE_VERSION`, `BUNDLE_SHA256`); raise the pin together with the
-  ID snapshots in `tests/fixtures/license-list/`
-  (`tests/test_releasebuild_pin.py` holds them to one version);
-  `scripts/check_dist_bundle.py` checks `dist/` after the build.
-- `database.py` imports `spdx_source` lazily (keeps `requests` off the match
-  path and avoids an import cycle). Do not import `licenseid.__version__`
-  at module level in `spdx_source.py`.
-- Text extracted from `[`/`{`-starting input with no extension is tried as
-  JSON first and falls through to TOML/INI. Every source of a license value
-  (SPDX tag, JSON, TOML, INI and an explicit `license_id`) resolves through
-  one function, `MarkerDetector.resolve_license_value`, and every expression
-  through `_synthetic_candidate`: a candidate only for a valid SPDX expression
-  or
-  `LicenseRef-*` with at least one recognised ID, never for free text or an
-  unknown ID. `is_*()` and the CLI's `is-*` commands answer from
-  `LicenseDetector._resolve_record`, so they agree with `detect`; do not look
-  a record up in the database on the side.
-- An `SPDX-License-Identifier` tag value is the rest of its line, up to the
-  next tag on it (`[ \t]`, never `\s`, so a tag cannot reach across a line
-  break), and
-  `identifiers.leading_expression` decides where the expression in it ends:
-  only AND, OR and WITH join two parts, so a token none of them bridges ends
-  it, and a dangling or unbalanced value is no expression at all. Do not
-  write the SPDX grammar into a regex again; comment closers need no case of
-  their own. Only white space joins the parts of an expression, and an
-  "or later" grant qualifies the license beside it (`identifiers`
-  `qualify_trailing_grant`, still through `classify.OR_LATER_PHRASE`), so
-  `MIT OR GPL-2.0 or later` is `GPL-2.0-or-later OR MIT` and the grant of a
-  WITH belongs to its license, not its exception. A version number between
-  the ID and the phrase means another license stands in between, so the grant
-  is that one's (the number the phrase itself starts with counts, unless it
-  is the ID's own version). A grant ends the expression, so a value that
-  goes on after one (`MIT AND GPL-2.0 or later AND Apache-2.0`) is refused
-  rather than answered without the operands that follow.
-- A tag and a `license` field hold whatever their author wrote, but `--id`
-  and `detect(license_id=...)` declare ONE license:
-  `identifiers.is_simple_expression` is the one judge of that (an ID,
-  optionally with `+` unless it ends in `-only` or `-or-later`, or a
-  `LicenseRef-*`, which takes no `+`; either
-  `WITH` an exception, in any brackets), and
-  both entry points read it — `cliinput.reject_compound_id` exits 2 through
-  `errors.invalid_id_error`, `LicenseDetector._try_explicit_id_match`
-  raises. A whole input, whatever brings it (argument, `--text`, stdin,
-  file, `detect(text=...)`), is read by `resolve()` first
-  (`resolvefirst.as_resolved`): its expression is the answer, a compound
-  too (`MIT OR ISC`). The rest goes through the tiers; one under
-  `resolvefirst.MIN_TEXT_WORDS` (10, measured on the goldens) that the name
-  tier does not answer gets no text match and warns `too few words for
-  text` (not after a tag was taken out). Han and kana text is not cut: a
-  word count is no measure without spaces (the CJK trap below). The CLI
-  makes no ID guess of its
-  own. Ask the predicate BEFORE calling
-  `detect(license_id=...)`, which raises rather than returning no match.
-  Do not widen `--id` to expressions
-  again: `MIT OR Apache-2.0` declares neither license, and the flags
-  (`is-osi`, `is-fsf`) have no answer for it.
-- A tag and a `license` field answer only with operands on the List or
-  `LicenseRef-*` (`MIT OR Apache 2.0`: no answer, as in `resolve()`), and read
-  a bare "or later" after an ID as the grant (`MIT or later` is `MIT+`). A
-  "+" apart from its ID, a mark `resolve()` drops before "or later"
-  (`MIT; or later`), or a licence right after a mark (`MIT/Apache-2.0`,
-  `looseid.lists_another`, whose item rule `_lists_another` shares) names no
-  licence. A dash between words beside a grant is a separator (D10):
-  `classify.grant_head` is the one rule of that gap, which `before_grant`
-  and the tag (`dash_gap`) follow. Keywords match in ASCII case only
-  (`(?a:...)` or `re.ASCII`; `tests/test_readers_case.py`).
-- The "+" operator has ONE reader, `plusoperator.PLUS_OPERATOR`
-  (`strip_plus_operator`, `replace_plus_operator`, `plus_after_qualifier`;
-  standard library only, so any module can import it): a "+" right after an
-  ID, never after a space, a "+", an exception or a `LicenseRef-*`. The
-  version key (`versionkey.version_key`) spells it out with it. The
-  tokenizer (`is_simple_expression`) and the prose shorthand of `classify`
-  ("GPLv2+", which also takes a comma or full stop after it) read the same
-  grammar their own way: `tests/test_plus_readers.py` holds all four to one
-  table. Change one, run it. `normalize_text` drops a "+" that is no operator,
-  so `detector._try_tier0_short_text` returns None for a value under 30 words
-  that `resolve()` refuses with a "+" reason (`resolvereason.is_plus_refusal`):
-  a new reason of that family goes into its constants. Tier 0 asks
-  `resolve()` first for a value under 30 words (a field the marker readers
-  did not take too): what it reads is the answer, and what it refuses is
-  matched as before, except after a dropped mark, an unpaired bracket or a
-  "+" that ends or starts a word or stands alone in marks (`MIT++`,
-  `GPL-2.0 (+)`; not `C++`; under 10 words only), which `normalize_text`
-  drops (`resolvereason.refuses_text_match`).
-- A "/" between IDs is OR only in a whole value (`resolveslash.slash_parts`,
-  the one gate): each piece an exact-case List ID (a "+" by `plusoperator`)
-  or `LicenseRef-*`, one of them a List ID, never a tag, never inside a `;`
-  part. Folding case reads `zlib/libpng` as `Libpng OR Zlib`; `MIT/X11` is in
-  `REFUSED_PAIRS`. `tests/slash_pins.py` holds 0.8.3's answer to each refused
-  value: a change that moves one is a loosening.
-- One probe finds a grant and where it ends, `classify.grant_end` (with
-  `grant_head` for the gap between ID and grant); `looseid` and `markers`
-  call it, so `detect()` and `resolve()` agree.
-- "or any later version" has ONE reader, `classify.OR_LATER_PHRASE`; the
-  tie-breaker (`ranking`), `identifiers.disambiguate_deprecated_id`,
-  `markers` and `looseid` import it. `looseid.declared_grant_id_text` only
-  finds where a declared value's grant starts and lets it judge, reading a
-  bare "or later" as after a number unless `classify.is_negated`. Add a
-  phrasing there and to `PHRASES` in `tests/ordering_helpers.py`, which
-  `test_match_ordering` and `test_resolver_shapes` hold every reader to; do
-  not write a regex of your own. The
-  ranking and the tie-breaker sort with `ranking.ranking_key`; short-text
-  results sort by `(-score, license_id)`.
-- A change to the rows `records` builds bumps `records.BUILD_VERSION`, as a
-  change to `normalize_text` bumps `database.NORMALIZATION_VERSION`: a
-  database stamped older warns (`build vN outdated`) and `update` rebuilds
-  it at the release it has. Without the bump, a user who upgrades keeps the
-  old rows and is told nothing. Stamps compare as numbers (`"10"` is newer
-  than `"2"`); a newer one warns `build vN newer` and is never rebuilt, and
-  one that is no number is older. Only a database opened without `create`
-  warns: `update`, which creates, is about to fix it.
-- A licence URL has ONE key, `urlkey.url_key` (a fixed point: ASCII only,
-  scheme, `www.`, fragment, trailing `/` and one page suffix dropped, query
-  kept): key a declared URL and the List's with it, nothing of your own.
-  The List's pages (`seeAlso`) are in the `license_urls` table
-  (`records.BUILD_VERSION` 4), indexed by `resolveurl.list_url_key`, which
-  skips a URL with a fragment (`gpl-faq.html#FontException` is no page of
-  a licence). A page that names several unrelated licences or only an
-  exception is refused, not guessed; a page of `URL_ALIASES` or an ID of
-  `SCANCODE_NOT_SPDX` is added only with a measured count of the packages
-  that declare it (`working-docs/paper-notes/licence-urls.md`). Never take
-  an ID from a URL's path on a host that is not in `ID_PAGES`:
-  `https://evil.com/licenses/MIT` names no licence.
-  The path of `licenses.nuget.org` is another licence expression,
-  URL-encoded (`nugetpath.py`): it is decoded for that host only, every
-  `%XX` once in one pass, and the decoded text must fit the expression
-  character set (`[A-Za-z0-9.+()-]`, words one space apart), which refuses
-  `%2F`, `%00`, `%C2%A0` and a doubled `%2520` without a list of escapes;
-  `url_key` still decodes nothing. Operators are upper case; a compound is
-  no operand of a compound (`operand names an expression`), and
-  `url_license_id` brackets one (`(A OR B)`) so a tag keeps precedence.
-- A regex with `\s+` directly followed by a class that also matches
-  whitespace (`\s+[\s/*#]*`) is quadratic on a long run of spaces (5 s at
-  32,000): write `\s[\s/*#]*`. Time every new prose regex on `"x" + " " * N`
-  payloads (see `test_the_phrase_regex_does_not_backtrack`).
-- A fixture imported into a test module and then used as its argument trips
-  ruff `F811`/flake8 (the argument redefines the import). Put a shared fixture
-  in `tests/conftest.py`; keep plain helpers in a module (`ordering_helpers`,
-  `db_asserts`).
-- Judge `pylint` by its exit code (`pylint src/ tests/ >/dev/null; echo $?`),
-  not the rating: one convention message still prints `10.00/10` and exits
-  16, and CI fails on the exit code. Run CI's own commands, and plain
-  `pytest tests/` (no `-m 'not benchmark'`). CI's ruff is newer than a local
-  one: also run `ruff check --select I` (import order failed CI once with a
-  clean local run). pylint's duplicate-code check (R0801) sees two similar
-  inline scripts in different test files: put a probe script in
-  `tests/db_asserts.py` and import it.
-- A flag in `tools/cli_matrix/baseline.txt` can stop flagging because the
-  command now fails *earlier*, not because the defect is gone. Read the
-  cell's recorded output in `.cli-matrix/results.json` before deleting the
-  line, and record why it went.
-- `--db` can name a thing that blocks or lies. Check the file type
-  (`stat.S_ISREG`/`S_ISDIR`) before opening: a named pipe makes a read-only
-  open hang for ever, with no exit code and no traceback, and a test for it
-  hangs too: run `check_database_ready` on a FIFO in a child process with a
-  timeout (`db_asserts.probe_check_does_not_hang`), so a broken guard fails
-  the test after 30 s instead of hanging the run. `file::memory:NAME` is a
-  file on disk (only `mode=memory` and
-  the exact base `file::memory:` are memory), and `file://localhost/p` and
-  `?vfs=` are valid spellings SQLite resolves.
-- Resolve a path spelling once, in `dbcheck._os_file`, not with an
-  `endswith` patch at the call site: `x`, `x/` and `x/.` must reach the same
-  verdict, on every command.
-- `dbcheck` answers read and write differently on purpose: read is
-  fail-open (`check_database_ready` ignores the `unknown` tag), write and
-  delete are fail-closed (`reject_foreign_database` refuses it). Keep the
-  `Refusal` tag when adding a condition, and decide both policies.
-- `Path.unlink(missing_ok=True)` swallows `FileNotFoundError` only — a
-  parent that is a file still raises `NotADirectoryError`.
-- `detect()` returns the public form: a score capped to 1 and rounded to 4
-  places, so an exact hit and a look-alike both show 1. Code or a test that
-  ranks, orders or asks "above 1" (Tier 0's early return, the tie-breaker)
-  reads the raw records of `_match_raw`, not `detect()`. `exact` is set
-  where a result is made, never derived from the score; an exact text is
-  the whole non-empty normalised input equal to the licence's
-  `search_text`. A deprecated name is not exact only when a row in use has
-  the same normalised name: making every deprecated row inexact lost
-  AGPL-3.0 and GFDL-1.x, which have names of their own.
-- A `detect()` call shares one SQLite connection among its lookups, through
-  `LicenseDatabase.reading()` (per thread, opened at the first query,
-  closed at the end): query through `_connection()`, never
-  `sqlite3.connect`, and wrap a new entry point that makes several lookups
-  (`MarkerDetector` or `identifiers` called on their own still open one per
-  query). Only the outermost query in a block ends its transaction, and
-  each query starts with the default `row_factory`. Tests count connections
-  with the `opened` fixture in `conftest.py`. Tier 0's RapidFuzz scorers
-  take `score_cutoff=threshold`, which changes no result and stops early on
-  a long word.
-- A lookup by licence ID never scans a table: `dbcache.TableCache` reads
-  each table's IDs once (ASCII case folded as SQLite's NOCASE folds it,
-  `listlookup.fold_case`), and an unknown ID costs no query. It drops its
-  reads when `last_update_datetime` changes, checked once per `reading()` block
-  and at every lookup outside one, so a long-lived detector sees another
-  process's `update`. A new write to `licenses` or `license_index` must
-  call `self._tables.clear()`, as `_write_db_records` does. A read made
-  while another thread cleared is not kept (`_generation`).
-- Never build a `LIKE` or `GLOB` pattern from input: SQLite refuses one
-  over 50,000 bytes, and `connection()` reports that as a broken database.
-  Compare in memory from `TableCache`.
-- Give a huge test parameter a short `id`: pytest puts the test ID in
-  `PYTEST_CURRENT_TEST`, and Windows refuses an environment variable over
-  32,767 characters (`conftest.MAX_TEST_ID` refuses IDs over 300). Keep a
-  single long word in a test short too: Tier 1's full-text query costs time
-  in its length, 312 s for 2 MB on Windows CI (roadmap item 42).
-- A lookup never creates or writes the database. `Connections.connect` opens
-  read-only (`dbcheck.open_uri`); the detector makes `LicenseDatabase(path,
-  create=False)`, whose writes open `mode=rw` (a missing file fails, not
-  created) and happen only for an older schema (`dbschema.schema_state`)
-  of licenseid's own file. `LicenseDatabase(path)` makes no file on opening:
-  `_ensure_schema` creates it at the first write, and it refuses a file
-  licenseid did not build whatever `create` is. A missing norm column is
-  filled in memory (`dbcache.TableCache.names_and_ids`), never written back.
-  Any `sqlite3.Error` of a read becomes `DatabaseNotReadyError` in `Connections.connection`
-  (`dbcheck.lookup_error`): do not wrap per method, and do not swallow a
-  `sqlite3.Error` in a query (`search_candidates` quotes its words so its text
-  cannot fail). The action `run 'licenseid update'` is only for a file update
-  can rebuild (`dbcheck._can_rebuild`). A database must not be in WAL mode:
-  `update` leaves it (`Connections.leave_wal`), since a read-only connection
-  cannot remove `-wal` and `-shm`.
-- A test that sends SIGINT to a child must restore the child's handler
-  (`signal.default_int_handler`): a shell starts a background job, a CI step
-  maybe too, with SIGINT ignored, and Python keeps it ignored. Signal at a
-  point the child reports (`test_cli_streams._READY`), not after a sleep.
-- Database tests must import the autouse `safe_home` fixture from
-  `tests/db_asserts.py` (it patches `Path.home` as well as `HOME`) with
-  `# noqa: F401  # pylint: disable=unused-import`.
-- Do not run a mutation-testing agent while another agent edits `src/`: a
-  snapshot taken then can capture a live mutant and produce phantom
-  findings. Diff any snapshot against the working tree first.
-- RapidFuzz costs time in the query's CHARACTERS, not its words, for the
-  alignment scan and for the probe alike: a blob of few words and many
-  characters used to take minutes. Guard by the probe
-  (`similarity.build_probe`) and by `similarity.alignment_affordable`, never
-  by characters per word: Japanese and Chinese have no spaces, so their words
-  are long, and a per-word limit lost CC-BY-SA-2.1-JP. A limit that clears
-  every fixture proves little: that one did, and the same licence sliced at
-  other offsets crossed it. Before changing a limit, sweep real licence texts
-  (Japanese included) at several offsets and lengths on the branch and on
-  `main`, and compare the top answers. Details from PR #62: item 16 in
-  `working-docs/implementation/tech-debt-resolved.md`.
-- Details and the rest of the findings from PR #55:
-  `working-docs/implementation/database-readiness-gate.md`.
-- A fix to input reading can add the next quadratic path: a loop that
-  re-slices or rescans its input once per item (`s = s[1:-1]` per bracket,
-  a whole line per tag). Time a change against `main`, not against the
-  branch, with distinct values (a dedupe hides the per-item cost) and
-  balanced payloads (unbalanced ones fail early). Give a timing test 10x
-  headroom for CI's Python 3.10, where a deep `py_spdx_license` parse
-  that fails is slowest; keep deep nesting away from the parser rather
-  than raising the limit. CI's 3.10 job runs under `coverage`, several
-  times slower than a laptop: a timing test that needs a large input or a
-  tight bound (a ratio of two sizes for linear time) is
-  `@pytest.mark.benchmark`, run with `--run-benchmark` before a release, and
-  keeps a small size in the every-commit run (PR #121). A time bound is
-  written `slack(seconds)` (`tests/timing.py`): it scales the bound for
-  `coverage` tracing and `pytest -n` workers, which CI's 3.10 job runs
-  together (two 1 s bounds failed there in PR #202); never use it for a ratio
-  of two sizes. Details from PR #61:
-  `working-docs/implementation/spdx-expression-reading.md`. Run the full
-  suite alone: beside mutants and `tools.golden`, a 1 s bound
-  (`test_leading_expression_does_not_backtrack`) failed at 2.5 s; rerun a
-  timing failure on its own before reading it as a regression.
-- Text-matching accuracy runs in layers: every commit checks the core set
-  (`test_accuracy.py::test_core_accuracy`, about 15 s); `accuracy.yml` runs
-  the must-have licences on a pull request that touches the matching code,
-  and every benchmark weekly. A new module on the text-matching path goes
-  into that workflow's `paths` list, or a change to it skips the check.
+- Local: the pyenv virtualenv in `.python-version` (`licenseid310`, Python
+  3.10, editable); no `.venv`. If it lags `pyproject.toml`, build a scratch
+  one: `UV_PROJECT_ENVIRONMENT=<scratch> uv sync --python 3.10
+  --all-groups`. Always set `UV_PROJECT_ENVIRONMENT` for `uv run`/`uv sync`
+  (else uv makes `.venv`). Stdlib-sensitive changes: also
+  `uv run --python 3.14 --group test pytest ...`. Simulate an older Python
+  with a module flag, never by deleting stdlib attributes.
+- Never run the CLI or `tools.cli_matrix` cells with `HOME` unset: Python
+  then resolves the real cache.
+- CI tests Python 3.10 and 3.14 (Ubuntu) and 3.11 (Windows); builds on
+  3.10-3.14 (Ubuntu). CI's 3.10 runs under `coverage`, several times slower.
+- Windows on a pull request runs only `pytest -m platform`: the files in
+  `tests/platform_files.py`. Every test runs on a push to `main` and on a
+  PR labelled `test-all-os` (create it once: `gh label create
+  test-all-os`). Linux runs everything.
+  - When you add or change a test file, decide on purpose whether it
+    belongs in `tests/platform_files.py`: add it if it touches the file
+    system, streams, signals, processes, encodings, packaging, or any
+    POSIX/Windows difference. `tests/test_platform_files.py` is only a
+    heuristic; a missed file fails late, on `main`. Say in the PR which you
+    chose.
+  - Before touching `dbcheck.py`, a database path or `file:` URI,
+    `Path.home()`, or a POSIX-only test (chmod, symlinks, signals,
+    `/bin/sh`), read `working-docs/implementation/cross-platform.md`. Mark
+    such a test `posix_only`; build a `file://` URI with `Path.as_posix()`.
 
 ## Git and pull requests
 
-- Commit messages: user impact, not implementation details.
-- Follow: <https://chris.beams.io/posts/git-commit/>
-- Every PR must address: **What changed?** / **Why?** / **Breaking changes?**
-- Asked for a PR title and summary, give each in its own fenced code block
-  (ready to copy): a title under 60 characters, and a summary under 280
-  characters, as Markdown bullets (code spans for flags and keys).
-- Update `CHANGELOG.md` for significant changes per Keep a Changelog
-  (<https://keepachangelog.com/>).
-  Mark breaking changes clearly with very concise migration instructions.
-- A release not yet tagged keeps its section in `CHANGELOG.md` open: a PR
-  merged before the tag goes into that section, not a new `[Unreleased]` one.
-  Link the PR once it has a number (never guess one).
-- **CHANGELOG entries**: concise, to the point. No background/rationale --
-  link the PR for that. Target ~160 chars per bullet; exception for a genuinely
-  complex PR. Merge related PRs into one entry (`[#1], [#2]`);
-  sort entries per section by lowest PR number;
-  skip docs/version-bump/CI-only noise.
+- **Green CI is not always full CI.** Asked "is it ready to merge?" or "is
+  CI green?", count a PR as passing on all platforms only after a full run:
+  check the labels (`gh pr view <n> --json labels`) and that the Windows job
+  ran the whole suite (`gh pr checks <n>`, the job log), or ask the user. A
+  PR without `test-all-os`, or with commits after its full run, has only
+  partial CI: say so and ask the user to add the label (never add it or
+  merge yourself). A failure on `main` after a merge points to a file
+  missing from `tests/platform_files.py`.
+- Commit messages: user impact, not implementation
+  (<https://chris.beams.io/posts/git-commit/>).
+- Every PR states **What changed?** / **Why?** / **Breaking changes?**
+- Asked for a PR title and summary: each in its own fenced block, title
+  under 60 characters, summary under 280 as Markdown bullets (code spans
+  for flags and keys).
+- `CHANGELOG.md` (Keep a Changelog) for significant changes; breaking
+  changes marked with short migration steps. An untagged release keeps its
+  section open: a PR merged before the tag goes there, not a new
+  `[Unreleased]`. Link the PR once it has a number (never guess). Bullets
+  ~160 characters, no rationale (link the PR); merge related PRs
+  (`[#1], [#2]`); sort by lowest PR number; skip docs, version-bump and
+  CI-only noise.
 
-## Project metadata consistency
+## Metadata
 
-Keep in sync: `pyproject.toml`, `codemeta.json`, other metadata files.
+- Keep in sync across `pyproject.toml`, `codemeta.json` and other metadata:
+  name, version, authors and contributors, licence, description,
+  repository URL, keywords (same order).
+- `CITATION.cff` is generated from `codemeta.json`
+  (`.github/workflows/codemeta2cff.yml`): never edit it. On a release
+  update `version`, `dateModified` (becomes `date-released`) and
+  `datePublished` in `codemeta.json`.
 
-`CITATION.cff` is generated from `codemeta.json` by
-`.github/workflows/codemeta2cff.yml`; do not edit it by hand. On a release,
-update `version`, `dateModified` and `datePublished` in `codemeta.json`
-(`dateModified` becomes `date-released` in `CITATION.cff`).
+## Dependencies and security
 
-Consistent fields: project name, version, author/contributor names, license,
-description, repository URL, keywords/tags (same order).
+- Dependencies sorted in `pyproject.toml` (no `requirements.txt` or legacy
+  setup files); most current compatible version; verify names
+  (typosquatting); remove unused ones; flag abandoned packages with a
+  maintained replacement; update regularly to the latest secure versions.
+  Verify a version exists and is compatible before suggesting it; prefer
+  SemVer.
+- No deprecated or insecure libraries or APIs. Validate all input (SQL
+  injection, XSS, overflows, path traversal CWE-22). No secrets in code:
+  environment or secret manager. Strong, established crypto. OAuth2/OIDC
+  for auth.
 
-## Dependencies
+## Style
 
-- Sort in `pyproject.toml`. (Do not use `requirements.txt` or legacy setup
-  files).
-- Use most current compatible version.
-- Verify package names — guard against typosquatting/slopsquatting.
-- Remove unused imports and dependencies.
-- Warn about abandoned packages; suggest maintained replacements.
-
-## Security
-
-- No deprecated/obsolete/insecure libraries/APIs.
-- Validate/sanitize all user inputs (SQL injection, XSS, buffer overflows, path
-  traversal CWE-22).
-- No hardcoded secrets. Use env vars or secret managers.
-- Strong, well-established crypto algorithms and key sizes.
-- OAuth2/OpenID Connect for auth.
-- Regularly update dependencies to latest secure versions.
-
-## Shell scripts
-
-- Account for GNU/BSD/macOS/Unix tool differences.
-- Defensive variable expansion; quote paths and variables.
-- Mind single-quote vs double-quote semantics.
-
-## Naming
-
-- ASCII letters, digits, hyphens (`-`), underscores (`_`) only.
-- Standard naming conventions for the language/framework.
-- Noun number: singular for single-entity classes, plural only for
-  collections/utility modules/aggregates.
-
-## Markdown
-
-- Metadata as YAML front matter between triple-dashed lines (Hugo/Jekyll style).
-- Standard Markdown; avoid GitHub-specific extensions.
-- `sentence case` for headings/titles.
-- Max line length = 80
-- Run Markdownlint.
-
-## Writing style
-
-- British English for docs, comments, text. American English for code only.
-- Active voice; concise sentences; no jargon/idioms.
-- Short comments — don't restate the obvious.
-- Consistent terminology throughout.
-- Define acronyms on first use.
-- Parallel structure in lists.
-- Citations: Chicago style unless specified.
-
-## Diagrams (ASCII/text)
-
-Count characters, align carefully. Misaligned ASCII = bug.
-
-## Versions
-
-Verify version exists and is compatible before suggesting. Prefer Semantic
-Versioning.
+- Writing: British English in docs, comments, text; American English in
+  code. Active voice, concise, no jargon or idioms, consistent terms,
+  acronyms defined on first use, parallel lists, Chicago citations. Short
+  comments; do not restate the obvious.
+- Markdown: YAML front matter; standard Markdown, no GitHub extensions;
+  sentence-case headings; lines ≤80; run markdownlint.
+- Names: ASCII letters, digits, `-`, `_`; language conventions; singular
+  for one entity, plural for collections and utility modules.
+- Shell: mind GNU/BSD/macOS differences; quote variables and paths; mind
+  single versus double quotes.
+- ASCII diagrams: count characters; misalignment is a bug.
 
 ## Boundaries
 
-**Ask before doing:**
-
-- Large cross-package refactors.
-- New dependencies with broad impact.
-- Destructive data or migration changes.
-
-**Never:**
-
-- Commit secrets, credentials, or tokens.
-- Edit generated files by hand when generation workflow exists.
-- Use destructive git operations unless explicitly requested.
+- Ask first: large cross-package refactors, new dependencies with broad
+  impact, destructive data or migration changes.
+- Never: commit secrets, hand-edit generated files, destructive git
+  operations unless asked.
