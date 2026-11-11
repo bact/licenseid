@@ -5,5 +5,5 @@
 # Pitloom and licenseid are raised together.
 licenseid==0.8.4
 magika==1.0.3
-pitloom==0.23.3
+pitloom==0.24.0
 spdx3-validate==0.0.7
