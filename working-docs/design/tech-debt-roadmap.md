@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-14
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -29,8 +29,9 @@ after it, item 37 from the work on item 29, item 38 from the
 review of PR #80, items 39 to 42 from the review of PR #82, and items 43
 to 45 from the reviews of PR #99 (items 43 to 45 resolved 2026-11-09,
 2026-11-09 and 2026-11-08), item 46 from the 0.7.0 whole-release review,
-item 47 from PR #168, item 50 from the work on item 44, and item 51
-from the work on item 43.
+item 47 from PR #168, item 50 from the work on item 44, item 51
+from the work on item 43, and item 52 from the work on the upgrade of
+deprecated IDs in `py-spdx-license` (2026-11-14).
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -583,6 +584,42 @@ whether a lone mark of this kind is read, which marks, and with what category
 and step; measure it on the PyPI sample and the manifests before choosing.
 
 - Impact 2, Risk 2, Effort 2.
+
+## 52. A bare deprecated ID is read as `-only` by `detect()` — Priority 12
+
+`resolve()` keeps a bare split ID (`GPL-2.0`: `assumed_only`, trust `none`)
+and a `-with-` ID (`deprecated_ambiguous`) as written: a file that says
+`GPL-2.0` may mean "only" or "or later", and only its own words say which.
+`detect()`, `--id` and a tag value still apply the last-resort fallback
+(`DEPRECATED_BARE_LICENSE_IDS`, `DEPRECATED_WITH_IDS`): `GPL-2.0` gives
+`GPL-2.0-only`, `GPL-2.0-with-classpath-exception` gives `GPL-2.0-only WITH
+Classpath-exception-2.0`, each with `WARNING: input: variant not stated`. The
+two paths disagree, and `detect()` guesses. The upstream upgrade of
+`py-spdx-license` (`JPEWdev/py-spdx-license#13`) makes the same choice as
+`resolve()`: it replaces only `GPL-2.0+`-like IDs and `StandardML-NJ`, never a
+bare ID.
+
+Proposal, not built (decided 2026-11-14 to record only):
+
+- A choice `--bare-id keep|only|or-later` (API `bare_id=`) on `detect`. The
+  default is `keep`: the ID as written, no warning. `only` and `or-later`
+  pick the variant and keep the warning; a `-with-` ID follows the choice.
+- Words that state the variant ("GPL-2.0 or later version") still win, as in
+  `disambiguate_deprecated_id`.
+- The OSI and FSF flags of `GPL-2.0-only` and `GPL-2.0-or-later` are equal, so
+  `is-osi` and `is-fsf` do not move.
+- Cost: `detect`, markers, tags, `docs/cli.md`, `docs/output.md`,
+  `docs/resolve.md`, `docs/python-api.md`, an axis in
+  `tests/test_option_matrix.py`, and the golden answers it moves
+  (`tests/harness_changes.py`). A default of `keep` changes the visible
+  answer of `detect GPL-2.0`: decide whether that is a breaking change for
+  0.x.
+- After a `py-spdx-license` release with `upgrade()`, raise the floor in
+  `pyproject.toml` and let it replace the `+` and rename code
+  (`DEPRECATED_SPDX_LICENSE_IDS`, the rename rule of `listrules`); the bare
+  and `-with-` tables stay with this item.
+
+- Impact 2, Risk 2, Effort 3.
 
 ## Already resolved
 
