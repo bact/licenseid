@@ -83,6 +83,14 @@ def test_a_declaration_is_never_filtered_or_hinted(
     assert given.take() == []  # nothing acted on, nothing upgraded
 
 
+def test_a_name_hit_beside_a_tag_of_no_id_is_a_declaration(
+    detector: LicenseDetector,
+) -> None:
+    """``resolve()`` read "MIT" (no similarity): exclude never drops it."""
+    text = "MIT\nSPDX-License-Identifier: NotAnId"
+    assert answers(detector, text=text, exclude=["MIT"]) == ["MIT"]
+
+
 def test_a_declared_deprecated_id_is_no_guess_of_exclude(
     detector: LicenseDetector,
 ) -> None:
@@ -116,7 +124,9 @@ def test_a_bare_deprecated_id_becomes_its_twins(
     [
         DetectOptions(),
         DetectOptions(exclude=[], hint=["GPL-2.0-with-classpath-exception"]),
-        DetectOptions(exclude=["GPL-2.0-only", "GPL-2.0+", "MIT", "GPL-2.0-"]),
+        DetectOptions(
+            exclude=["GPL-2.0-only", "MIT", "GPL-2.0-", "GPL-2.0-only+", "MIT+"]
+        ),
         DetectOptions(only_common=True, enable_popularity=True),
     ],
     ids=["none", "with_id", "not_bare", "flags"],
@@ -230,3 +240,65 @@ def test_a_name_read_as_a_declaration_is_never_excluded(
     """``resolve()`` reads "GPL-2.0+," whole: a declaration, so exclude is
     not read."""
     assert answers(detector, text="GPL-2.0+,", exclude=[LATER]) == [LATER]
+
+
+SHORT_NAME = "This is licensed under GNU General Public License v2.0 only"
+TITLE_22 = (
+    "This software is licensed under the GNU General Public License v2.0 only, "
+    "and you may use it as that licence says."
+)
+
+
+@pytest.mark.parametrize("text", [SHORT_NAME, TITLE_22], ids=["short", "22_words"])
+def test_a_short_text_warns_of_the_deprecated_id_too(
+    detector: LicenseDetector, given: GivenWarnings, text: str
+) -> None:
+    """Tier 0 reads the options too: the twins are excluded, and said so."""
+    got = answers(detector, text=text, exclude=["GPL-2.0"])
+    assert {ONLY, LATER, "GPL-2.0"}.isdisjoint(got)
+    assert given.lines() == (
+        f"WARNING: option: deprecated ID: exclude GPL-2.0; using {ONLY}, {LATER}\n"
+    )
+
+
+# --- "GPL-2.0+" is GPL-2.0-or-later, as the List reads a "+" ---
+
+
+@pytest.mark.parametrize("option", ["exclude", "hint"])
+@pytest.mark.parametrize("written", ["GPL-2.0+", "gpl-2.0+"])
+def test_a_deprecated_plus_id_becomes_its_or_later_twin(
+    given: GivenWarnings, option: str, written: str
+) -> None:
+    got = upgraded_options({option: [written, "MIT"]})  # type: ignore[misc]
+    assert got[option] == [LATER, "MIT"]  # type: ignore[literal-required]
+    assert given.lines() == (
+        f"WARNING: option: deprecated ID: {option} GPL-2.0+; using {LATER}\n"
+    )
+
+
+def test_a_deprecated_plus_id_is_warned_of_once(given: GivenWarnings) -> None:
+    upgraded_options({"exclude": ["GPL-2.0+", "gpl-2.0+", "GPL-2.0+"]})
+    assert len(given.take()) == 1
+
+
+def test_a_deprecated_plus_id_is_excluded_with_its_or_later_twin(
+    detector: LicenseDetector, given: GivenWarnings
+) -> None:
+    assert LATER in answers(detector, text=GPL_BODY)
+    got = answers(detector, text=GPL_BODY, exclude=["GPL-2.0+"])
+    assert {LATER, "GPL-2.0+"}.isdisjoint(got)
+    assert ONLY in got  # the "-only" twin stays
+    assert given.conditions() == {"deprecated ID"}
+    assert {"gpl-2.0+", "gpl-2.0-or-later"} <= excluded_ids(["GPL-2.0-or-later"])
+
+
+def test_a_hint_without_the_text_adds_the_twins_not_the_bare_row(
+    detector: LicenseDetector, given: GivenWarnings
+) -> None:
+    """Text of no licence words: only what the hint adds is left."""
+    text = PROSE * 3
+    got = answers(detector, text=text, hint=["GPL-2.0"])
+    assert set(got) == set(answers(detector, text=text, hint=[ONLY, LATER]))
+    assert {ONLY, LATER} <= set(got)
+    assert "GPL-2.0" not in got
+    given.take()

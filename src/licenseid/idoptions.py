@@ -9,7 +9,8 @@ Both act on free text only (a declaration is never filtered or hinted). An ID
 in either compares case-folded (``listlookup.fold_case``: IDs are case
 insensitive, as the database looks them up). A bare deprecated ID
 (``GPL-2.0``) is ambiguous between its two twins, so it stands for both, and
-a warning says so. A deprecated ``-with-`` ID has no twin to stand for (its
+a warning says so; ``GPL-2.0+`` stands for ``GPL-2.0-or-later``, as the List
+reads a "+". A deprecated ``-with-`` ID has no twin to stand for (its
 successor is an expression) and is taken as written.
 """
 
@@ -17,6 +18,7 @@ from collections.abc import Iterable
 
 from licenseid.deprecatedids import BARE_TO_OR_LATER, DEPRECATED_BARE_LICENSE_IDS
 from licenseid.listlookup import fold_case
+from licenseid.plusoperator import strip_plus_operator
 from licenseid.types import DetectOptions, RawMatch
 from licenseid.warning import warn
 
@@ -67,16 +69,22 @@ def _upgraded(option: str, ids: Iterable[str]) -> list[str]:
     out: list[str] = []
     warned: set[str] = set()
     for given in ids:
-        twins = _TWINS.get(fold_case(given))
+        stem = strip_plus_operator(given)  # "GPL-2.0+": the "+" operator
+        twins = _TWINS.get(fold_case(stem))
         if twins is None:
             out.append(given)
             continue
         bare, only, or_later = twins
-        out.extend((only, or_later))
-        if fold_case(bare) in warned:
+        # The List reads "X+" as X-or-later; a bare ID stands for both twins.
+        used = (or_later,) if stem != given else (only, or_later)
+        out.extend(used)
+        written = bare + "+" if stem != given else bare
+        if fold_case(written) in warned:
             continue
-        warned.add(fold_case(bare))
-        warn("option", "deprecated ID", f"{option} {bare}", f"using {only}, {or_later}")
+        warned.add(fold_case(written))
+        warn(
+            "option", "deprecated ID", f"{option} {written}", f"using {', '.join(used)}"
+        )
     return out
 
 

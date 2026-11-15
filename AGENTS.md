@@ -182,8 +182,7 @@ and `--json`) against these rules and checks the default output against the
     `cache write failed`, `cache unusable`, `download unusable`,
     `stale cache unusable`, `parse failed`, `variant not stated`,
     `deprecated ID`, `N rows with missing or non-numeric num_pushers`,
-    `update failed`,
-    `delete failed`, `write failed`, `compact failed`,
+    `update failed`, `delete failed`, `write failed`, `compact failed`,
     `older than the database`, `too few words for text`.
   - `DETAIL`: one line. A path through `errors.shown` (control characters
     escaped, `;` as `,`), a value through `errors.one_line` (folded, cut to
@@ -191,8 +190,8 @@ and `--json`) against these rules and checks the default output against the
     backslash stays, so a Windows path reads as typed.
   - `ACTION`: the fallback taken (`using stale cache`, `using stale <file>`,
     `downloading`, `downloading <file>`, `using cached <file>`,
-    `using packaged data v<ver>`, `counted as 0`) or the command to run
-    (`run 'licenseid update'`), on the same line as its cause.
+    `using packaged data v<ver>`, `counted as 0`, `using A, B`) or the command
+    to run (`run 'licenseid update'`), on the same line as its cause.
 - Raise a failure as `licenseid.errors.LicenseIdError`
   (`SUBJECT: CONDITION…`, no prefix): the CLI prints it after `ERROR:` and
   exits 1, or 2 for `InvalidInputError`. `DatabaseNotReadyError` (missing,

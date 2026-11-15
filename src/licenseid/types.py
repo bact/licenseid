@@ -129,9 +129,10 @@ IdCollection = list[str] | tuple[str, ...] | set[str] | frozenset[str]
 class DetectOptions(TypedDict, total=False):
     """The keyword options of LicenseDetector.detect() and
     licenseid.detect(), checked for every input. They act only where
-    licence text is matched: exclude, hint, only_spdx and only_common on
-    Tier 1's candidates (licenseid.retrieval), enable_popularity on the
-    Tier 2 ranking and its tie-breaker."""
+    licence text is matched: exclude, hint, only_spdx and only_common on the
+    candidates of free text (Tier 1, markers, mixed-content windows, and for
+    exclude a short text's name hit), enable_popularity on the Tier 2
+    ranking and its tie-breaker."""
 
     only_spdx: bool
     only_common: bool

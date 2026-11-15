@@ -349,14 +349,12 @@ class LicenseDetector:
     ) -> list[InternalMatch]:
         """Tier 1 (Broad Recall) retrieval + augmentation, then Tier 2
         (Precision Ranking). Never short-circuits detect()."""
-        request = upgraded_options(ctx.request)  # bare deprecated IDs, once
-        excluded = excluded_ids(request.get("exclude", []))
-        candidates = self._get_candidates(request, ctx.target_text)
+        excluded = excluded_ids(ctx.request.get("exclude", []))
+        candidates = self._get_candidates(ctx.request, ctx.target_text)
 
         # For mixed content or thin FTS5 results, augment via windowed search.
         if not candidates or (not ctx.is_pure and len(candidates) < 5):
-            # A window's name match is free text, as Tier 1's candidates are.
-            mixed = self._match_mixed_content(request, ctx.target_text)
+            mixed = self._match_mixed_content(ctx.request, ctx.target_text)
             add_unseen(candidates, drop_excluded(mixed, excluded))
 
         # Merge marker candidates not already surfaced by FTS5.
@@ -391,9 +389,10 @@ class LicenseDetector:
         Give exactly one of text, license_id or file_path. The *options*
         (licenseid.types.DetectOptions) are checked for every input but act
         only where licence text is matched, so an input answered whole
-        ignores them: exclude, hint, only_spdx and only_common on Tier 1's
-        candidates (licenseid.retrieval), enable_popularity on the Tier 2
-        ranking and its tie-breaker. Raises
+        ignores them: exclude, hint, only_spdx and only_common on the
+        candidates of free text (Tier 1, markers, mixed-content windows;
+        exclude also a short text's name hit), enable_popularity on the
+        Tier 2 ranking and its tie-breaker. Raises
         :class:`TypeError` for a text or license_id that is no str, a
         file_path that is neither a str nor an os.PathLike of one, or an
         option of the wrong type (a flag that is no bool, an exclude or hint
@@ -488,6 +487,8 @@ class LicenseDetector:
         # A short input is matched without its tags, read above: one left
         # named no license, and is no text to match.
         ctx = self._without_tags(ctx)
+        # Free text from here: upgrade the options' deprecated IDs, once.
+        ctx = replace(ctx, request=upgraded_options(ctx.request))
         short_text_result = self._try_tier0_short_text(ctx)
         if short_text_result:  # a name hit is free text: exclude drops it
             excluded = excluded_ids(ctx.request.get("exclude", []))

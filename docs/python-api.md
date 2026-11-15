@@ -87,14 +87,16 @@ its title.
 deprecated ID, such as `GPL-2.0` or `AGPL-1.0`, is ambiguous: it stands for
 both of its twins (`GPL-2.0-only` and `GPL-2.0-or-later`), and the call warns
 `option: deprecated ID: exclude GPL-2.0; using GPL-2.0-only,
-GPL-2.0-or-later` (`hint` likewise; once for each ID). `hint` adds the twins
-only. `exclude` also drops the deprecated forms a title can still name: the
-bare ID, and `GPL-2.0+` for `-or-later`, when named or when both twins are
-excluded (excluding only `GPL-2.0-only` leaves the ambiguous bare ID). A
-deprecated `-with-` ID (`GPL-2.0-with-classpath-exception`) has no twin, since
-its successor is an expression: it is taken as written. `exclude` compares
-the whole ID, so `exclude=["GPL-2.0-only"]` does not drop the font-exception
-candidate `GPL-2.0-only WITH Font-exception-2.0`; name it too.
+GPL-2.0-or-later` (`hint` likewise; once for each ID). A deprecated ID with a
+"+", such as `GPL-2.0+`, is its `-or-later` twin, as the List reads a "+": it
+warns `option: deprecated ID: exclude GPL-2.0+; using GPL-2.0-or-later`. `hint`
+adds the twins only. `exclude` also drops the deprecated forms a title can
+still name: the bare ID, and `GPL-2.0+` for `-or-later`, when named or when
+both twins are excluded (excluding only `GPL-2.0-only` leaves the ambiguous
+bare ID). A deprecated `-with-` ID (`GPL-2.0-with-classpath-exception`) has no
+twin, since its successor is an expression: it is taken as written. `exclude`
+compares the whole ID, so `exclude=["GPL-2.0-only"]` does not drop the
+font-exception candidate `GPL-2.0-only WITH Font-exception-2.0`; name it too.
 
 A text under 30 words that is no declaration, but names a licence ("released
 under the terms of the MIT License"), is free text: `exclude` drops that
@@ -103,12 +105,20 @@ value, and a name hit that `resolve()` read is never dropped. `exclude` and
 `hint` are `detect()` options that `resolve()` has not, so `detect()` may then
 answer differently from `resolve()` on purpose.
 
+After an `exclude`, short prose may still answer a near or a deprecated name:
+`exclude=["GPL-2.0-only"]` on "licensed under the GNU General Public License
+v2.0 only" answers the deprecated `GPL-2.0` (0.98), and with both twins
+excluded it answers the nearest other licence. A text under 10 words with
+nothing left answers `[]` and warns `too few words for text`. A short text
+never uses `hint`: Tier 0 adds no candidates.
+
 `hint` adds each ID it finds in the database, after the filters, as a
 candidate with no text, so it scores near 0. It takes the place of the
 candidate a name or heading would add for the same licence:
 `only_common=True` with `hint=["JSON"]` answers the JSON License text with
 JSON last, not first. An ID given twice, or in another case, is added once.
-A hint for an ID that `exclude` names wins: the licence is added back. A
+Where full text is matched, a hint for an ID that `exclude` names wins: the
+licence is added back (a short text never uses `hint`). A
 hinted candidate also counts towards the five below which `detect()`
 searches the sections of mixed content too, so a hint can stop that search.
 `only_spdx` (on by default) drops licences not on the SPDX License List; a
