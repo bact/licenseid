@@ -777,7 +777,7 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   - Still open: SQLite maps the `-shm` file of a WAL database whatever
     `mmap_size` says; a cut `-shm` of a database left in WAL by an old version
     still kills the process (item 53). Not measured: a cold page cache, Linux.
-  - Tests: `test_file_cut_inside_a_block_is_not_a_crash` (child process; cut to
+  - Tests: `test_file_cut_between_queries_of_a_block` (child process; cut to
     0, 1 byte, a page, mid-page, cut and extended, half rewritten, replaced)
-    and `test_file_cut_while_a_statement_runs_is_not_a_crash`, in
+    and `test_file_cut_while_a_statement_runs`, in
     `tests/test_lookup_database_errors.py` (already in `platform_files.py`).
