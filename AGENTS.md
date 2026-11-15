@@ -68,7 +68,8 @@ in another module.
   License`), `resolvetitle` and `resolvealias` (data, read through
   `resolvetable`), `resolveurl` with `nugetpath` and `urlkey` (standard
   library and `listlookup.fold_case` only),
-  `resolvereason` (refusal no reader explained), `resolverinfo` (resolver,
+  `ruleread` (whether a rewrite rule read a value, for the `EXACT` of a tag or
+  field), `resolvereason` (refusal no reader explained), `resolverinfo` (resolver,
   parser and list blocks; a detection's `lists`), `exprcanon`, `exprtokens`,
   `exprflags` (OSI, FSF, List flags).
 - Lists: `listlookup` (a Protocol; `fold_case`), `listindex` (the shipped

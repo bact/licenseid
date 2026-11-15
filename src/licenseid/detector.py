@@ -335,7 +335,12 @@ class LicenseDetector:
                 # resolved); a look-alike name after it was only found by
                 # name.
                 for match in result:
-                    if match["exact"] or match["method"] == "id":
+                    # (a reading by a rule is no exact one, but is the field's)
+                    if (
+                        match["exact"]
+                        or match["method"] == "id"
+                        or match["similarity"] is None
+                    ):
                         match["method"] = "field"
                         match["similarity"] = None
                 return result
@@ -389,7 +394,8 @@ class LicenseDetector:
         Give exactly one of text, license_id or file_path. The *options*
         (licenseid.types.DetectOptions) are checked for every input but act
         only where licence text is matched, so an input answered whole
-        ignores them: exclude, hint, only_spdx and only_common on the
+        ignores them (except ``variant``, which reads every input):
+        exclude, hint, only_spdx and only_common on the
         candidates of free text (Tier 1, markers, mixed-content windows;
         exclude also a short text's name hit), enable_popularity on the
         Tier 2 ranking and its tie-breaker. Raises

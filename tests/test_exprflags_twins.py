@@ -8,7 +8,7 @@ judged by their ``-only`` twin, not by their own List rows
 (``licenseid.exprflags.judged_id``, roadmap item 52)."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
-import sqlite3
+import json
 from collections.abc import Generator
 from pathlib import Path
 
@@ -21,8 +21,7 @@ from licenseid.deprecatedids import BARE_TO_OR_LATER, DEPRECATED_BARE_LICENSE_ID
 from licenseid.exprflags import judged_flags, judged_id, with_judged_flags
 from licenseid.retrieval import _inject_hinted_candidates
 
-# The developer's cache, read only; the fixture of the home folder moves HOME.
-_CACHE = Path.home() / ".local" / "share" / "licenseid" / "licenses.db"
+_TEXTS = Path(__file__).parent / "fixtures" / "license-text-long"
 
 ROWS = (
     # The bare rows say what the twins do not (as List 3.29.0 AGPL-1.0, and
@@ -96,22 +95,13 @@ def test_the_judged_id(ident: str, twin: str) -> None:
     assert judged_id(ident) == twin
 
 
-def test_the_twins_of_the_real_list_have_equal_flags() -> None:
-    """The reason to judge by one twin: every ``-only``/``-or-later`` pair of
-    a bare deprecated ID has the same OSI and FSF flags (read-only on the
-    developer's cache; skipped when there is none)."""
-    path = _CACHE
-    if not path.is_file():
-        pytest.skip("no database in the cache")
-    with sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True) as conn:
-        for bare, only in DEPRECATED_BARE_LICENSE_IDS.items():
-            later = BARE_TO_OR_LATER[bare]
-            rows = {
-                i: conn.execute(
-                    "SELECT is_osi_approved, is_fsf_libre FROM licenses"
-                    " WHERE license_id = ?",
-                    (i,),
-                ).fetchone()
-                for i in (only, later)
-            }
-            assert rows[only] == rows[later], bare
+@pytest.mark.parametrize("bare", sorted(DEPRECATED_BARE_LICENSE_IDS))
+def test_the_twins_of_the_real_list_have_equal_flags(bare: str) -> None:
+    """The reason to judge by one twin: the ``-only`` and ``-or-later`` rows
+    of a bare deprecated ID have the same OSI and FSF flags (the committed
+    texts of the List, ``tests/fixtures/license-text-long``)."""
+    flags = []
+    for ident in (DEPRECATED_BARE_LICENSE_IDS[bare], BARE_TO_OR_LATER[bare]):
+        row = json.loads((_TEXTS / f"{ident}.json").read_text(encoding="utf-8"))
+        flags.append((row["is_osi_approved"], row["is_fsf_libre"]))
+    assert flags[0] == flags[1]

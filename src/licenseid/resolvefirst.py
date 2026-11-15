@@ -103,7 +103,7 @@ EXACT_CATEGORIES: Final[frozenset[Category]] = frozenset(
 _RULES: Final = frozenset(("separator", "prose_form", "version_spelling"))
 
 
-def _is_exact(resolution: Resolution) -> bool:
+def is_exact(resolution: Resolution) -> bool:
     """Whether a list defines the reading of *resolution*: every operand of
     a compound (else the value) is in :data:`EXACT_CATEGORIES`. A bare ID
     kept (``assumed_only``) is the declaration itself if the operand was
@@ -131,7 +131,7 @@ def as_resolved(resolution: Resolution, matches: list[RawMatch]) -> list[RawMatc
     result not narrowed is written as resolve() writes it (``MirOS OR
     MIT``, the order of ``exprcanon``)."""
     expression = resolution["expression"] or ""
-    exact = _is_exact(resolution)
+    exact = is_exact(resolution)
     kinds = {entry["kind"] for entry in resolution["steps"]}
     by_name = resolution["category"] in _BY_NAME or not kinds.isdisjoint(_BY_NAME)
     method: Method = "name" if by_name else "id"

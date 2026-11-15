@@ -171,10 +171,13 @@ Common options:
   GPL-2.0` is `GPL-2.0-only`, with the warning. The option is a preference,
   not a fact: words that state the variant (`GPL-2.0 or later`, `GPL-2.0+`,
   `-only`, `-or-later`) win, with `WARNING: option: overridden by input:
-  --variant only; using GPL-2.0-or-later`, said of the first result only. An
-  unknown value exits 2. `is-osi` and `is-fsf` take no `--variant`: they
-  judge a bare deprecated ID by its
-  `-only` twin. `resolve` has none.
+  --variant only; using GPL-2.0-or-later`. A variant warning is said only for a
+  result that is printed (`--threshold`, `--exact`, `--top` apply first). The
+  words "or later" and "only" are read in the whole input, not beside the
+  licence: a text with `Python 3 only` somewhere states `-only` for its
+  licences. A heading or a declared `GPL-2.0+` is a statement of its own and
+  stays. An unknown value exits 2. `is-osi` and `is-fsf` take no `--variant`:
+  they judge a bare deprecated ID by its `-only` twin. `resolve` has none.
 
 The system uses a **composite score** (similarity + coverage bonus/penalty +
 optional popularity weight + marker confidence boost) to prefer the tightest
@@ -345,8 +348,8 @@ making it suitable for use in scripts and CI/CD pipelines.
 
 Exit 1 of `detect`, `resolve` and the `is-*` commands prints no `ERROR` line.
 A `WARNING` about the input or the database can still come with it, as with
-an answer: `detect --variant only --exact GPL-2.0` says `variant not
-stated` and finds no exact match.
+an answer: `detect "Not a licence at all"` says `too few words for text`
+and finds no match.
 
 A database is not ready when it is missing, empty (no licences yet), invalid
 (another program's file) or unreadable (a symlink loop included). `detect` and

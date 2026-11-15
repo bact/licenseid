@@ -17,6 +17,7 @@ from click.testing import CliRunner
 from conftest import NO_DETECTION, make_mit_db_path
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import MIT_TEXT
+from matcher_db import GPL2_ROWS, seeded_db
 
 from licenseid.cli import cli
 
@@ -74,3 +75,54 @@ def test_variant_matrix(
         first = result.stdout.splitlines()[0]
         assert first.startswith("EXPRESSION=MIT\t")
         assert first.endswith("VARIANT_STATED=")
+
+
+@pytest.fixture(scope="module")
+def gpl_db() -> Generator[str, None, None]:
+    yield from seeded_db("test_matrix_variant_gpl", GPL2_ROWS, [])
+
+
+# (variant, value) -> (expression, VARIANT_STATED, a warning is said)
+GPL = {
+    ("auto", "GPL-2.0"): ("GPL-2.0", "false", False),
+    ("as-written", "GPL-2.0"): ("GPL-2.0", "false", False),
+    ("only", "GPL-2.0"): ("GPL-2.0-only", "false", True),
+    ("or-later", "GPL-2.0"): ("GPL-2.0-or-later", "false", True),
+    ("auto", "GPL-2.0 or later"): ("GPL-2.0-or-later", "true", False),
+    ("as-written", "GPL-2.0 or later"): ("GPL-2.0-or-later", "true", False),
+    ("only", "GPL-2.0 or later"): ("GPL-2.0-or-later", "true", True),  # overridden
+    ("or-later", "GPL-2.0 or later"): ("GPL-2.0-or-later", "true", False),
+    ("auto", "GPL-2.0-only"): ("GPL-2.0-only", "true", False),
+    ("as-written", "GPL-2.0-only"): ("GPL-2.0-only", "true", False),
+    ("only", "GPL-2.0-only"): ("GPL-2.0-only", "true", False),
+    ("or-later", "GPL-2.0-only"): ("GPL-2.0-only", "true", True),  # overridden
+}
+
+
+@pytest.mark.parametrize("source", ["arg_id", "arg_file", "text", "stdin"])
+@pytest.mark.parametrize(("variant", "value"), list(GPL))
+def test_variant_matrix_gpl_family(
+    gpl_db: str, tmp_path: Path, source: str, variant: str, value: str
+) -> None:
+    """Every ``--variant`` x a GPL-family value x input source: the answer,
+    ``VARIANT_STATED`` and whether a warning is said."""
+    path = tmp_path / "LICENSE"
+    path.write_text(value + "\n", encoding="utf-8")
+    args, stdin = {
+        "arg_id": ([value], ""),
+        "arg_file": ([str(path)], ""),
+        "text": (["--text", value], ""),
+        "stdin": ([], value),
+    }[source]
+    result = CliRunner().invoke(
+        cli,
+        ["--db", gpl_db, "detect", "--verbose", "--variant", variant, *args],
+        input=stdin,
+    )
+    expression, stated, said = GPL[variant, value]
+    assert result.exit_code == 0, result.stderr
+    first = result.stdout.splitlines()[0]
+    assert first.startswith(f"EXPRESSION={expression}\t")
+    assert first.endswith(f"VARIANT_STATED={stated}")
+    warned = [x for x in result.stderr.splitlines() if "days old" not in x]
+    assert bool(warned) is said, warned

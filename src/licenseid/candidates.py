@@ -22,11 +22,15 @@ FIELD_LICENSES_KEPT: Final = 48
 
 
 def first_per_license(*groups: list[CandidateMatch]) -> list[CandidateMatch]:
-    """The candidates of *groups* in order, the first of each license only."""
+    """The candidates of *groups* in order, the first of each license only,
+    or a later one that states what the first only guessed (two tags of one
+    licence under ``--variant only``: ``GPL-2.0``, then ``GPL-2.0-only``)."""
     found: dict[str, CandidateMatch] = {}
     for group in groups:
         for candidate in group:
-            found.setdefault(candidate["license_id"], candidate)
+            kept = found.setdefault(candidate["license_id"], candidate)
+            if kept.get("variant_guessed") and not candidate.get("variant_guessed"):
+                found[candidate["license_id"]] = candidate
     return list(found.values())
 
 

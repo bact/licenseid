@@ -34,6 +34,7 @@ from licenseid.looseid import drops_words, mark_guessed, read_inexactly
 from licenseid.manifest import extension, license_value_groups
 from licenseid.resolveslash import slash_expression
 from licenseid.resolveurl import url_license_id
+from licenseid.ruleread import rule_read
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags
 from licenseid.variants import only_by_name, qualify_trailing_only
 from licenseid.warning import warn
@@ -232,7 +233,8 @@ class MarkerDetector:
         # the prose. The name lookup still sees the whole value ("BSD 3-Clause"
         # is a name, not an expression).
         leading = leading_expression(val)
-        expression = qualify_trailing_only(qualify_trailing_grant(leading, val), val)
+        granted = qualify_trailing_grant(leading, val)
+        expression = qualify_trailing_only(granted, val)
         # Words the reading would drop: refused in a field, which holds
         # nothing else, and after a "+" they contradict (looseid).
         refused = drops_words(leading, expression, val, whole=whole, db=self.db)
@@ -265,6 +267,8 @@ class MarkerDetector:
             if inexact == "narrowed":
                 mark_guessed(found[0], expression)
             found[0]["narrowed"] = True
+        elif found and granted == leading:  # a grant is kept exact
+            found[0]["narrowed"] = rule_read(self.db, val.strip())
         return found
 
     def _judged(self, lic_id: str) -> LicenseDetails | None:

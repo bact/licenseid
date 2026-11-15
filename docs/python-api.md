@@ -113,11 +113,13 @@ later versions (stated), else `-only` first and `-or-later` second, both
 `variant_stated` `False`, with one `variant not stated` warning. `-only`
 is the licensee's careful reading: it understates a licensor's "or later"
 grant. `"as-written"` never decides: a bare deprecated ID stays, in a text
-match too. `"only"` and `"or-later"` always decide, declared values too, with
+match too when the bare row is among its candidates (else as under
+`auto`). `"only"` and `"or-later"` always decide, declared values too, with
 the warning. The option is a preference, never a fact: words that state the
 variant (`GPL-2.0 or later`, `GPL-2.0+`, `-only`, `-or-later`) win over
 `"only"` and `"or-later"`, with `option: overridden by input: --variant only;
-using GPL-2.0-or-later`. `variant_stated` of a result is `True` when the input
+using GPL-2.0-or-later`. The API warns for results scoring 0.85 or more
+(the CLI: those it prints). `variant_stated` of a result is `True` when the input
 states the variant, `False` for a guess or a bare ID kept, `None` where no
 licence of the answer has a variant (`MIT`); of a compound `None` when none
 has one, `False` when any is `False`, else `True`. `resolve()` takes no

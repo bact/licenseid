@@ -84,7 +84,7 @@ PINS: list[tuple[str, str, Answer]] = [
     ("AGPLv3+", "ini", ("AGPL-3.0-or-later", "field", False)),
     ("GPL-2.0+", "ini file", ("GPL-2.0-or-later", "field", True)),
     ("MIT OR ISC", "ini", ("ISC OR MIT", "field", True)),  # was no answer
-    ("Apache 2.0 License", "ini", ("Apache-2.0", "name", False)),
+    ("Apache 2.0 License", "ini", ("Apache-2.0", "field", False)),
     ("MIT++", "ini", None),
     ("「MIT++」", "ini", None),
 ]

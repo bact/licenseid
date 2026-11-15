@@ -367,7 +367,7 @@ def test_r5_the_prose_reader_skips_what_an_id_states(
     [
         (
             ["detect", "--exact", "--variant", "only", "GPL-2.0"],
-            "WARNING: input: variant not stated: GPL-2.0; using GPL-2.0-only\n",
+            "",  # the guess is no exact result: nothing is printed, nothing said
         ),
         # A short value resolve() refuses is matched as no text, and says why.
         (["detect", "Not a licence at all"], NOT_A_LICENCE),
@@ -377,8 +377,8 @@ def test_r5_the_prose_reader_skips_what_an_id_states(
 )
 def test_r6_exit_1_carries_no_error_line(db: str, args: list[str], stderr: str) -> None:
     """R6: "no" is an answer, so exit 1 prints no ERROR line; the warning
-    of a guess (``GPL-2.0`` read as ``GPL-2.0-only``), or of a value too
-    short to match as text, is said as with an answer."""
+    of a value too short to match as text is said as with an answer; one of
+    a guess that ``--exact`` leaves out is not, as nothing printed has it."""
     result = run(db, *args)
     assert (result.exit_code, result.stderr) == (1, stderr)
 

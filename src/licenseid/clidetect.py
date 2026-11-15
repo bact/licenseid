@@ -45,7 +45,7 @@ from licenseid.result import (
     text_line,
 )
 from licenseid.types import Detection, Variant
-from licenseid.variants import VARIANTS
+from licenseid.variants import VARIANTS, output_bar
 
 
 def show_diff(norm_input: str, best_window: str) -> None:
@@ -124,8 +124,12 @@ def _checked_variant(ctx: click.Context, variant: str) -> Variant:
     if variant not in VARIANTS:
         exit_usage_error(
             ctx,
-            f"option: invalid: --variant: {one_line(variant)}"
-            f"; use one of {', '.join(VARIANTS)}",
+            (
+                f"option: invalid: --variant: {one_line(variant)}"
+                if variant
+                else "option: empty: --variant"
+            )
+            + f"; use one of {', '.join(VARIANTS)}",
         )
     return variant
 
@@ -172,8 +176,9 @@ def _checked_variant(ctx: click.Context, variant: str) -> Variant:
     default="auto",
     show_default=True,
     help="Where a licence has -only and -or-later forms and the input does "
-    "not say which: auto keeps a declared ID as written and guesses -only for "
-    "a text, as-written never decides, only and or-later always decide. "
+    "not say which: auto keeps a declared ID as written and, for a text, "
+    "answers -or-later where it grants later versions, else -only; "
+    "as-written never decides, only and or-later always decide. "
     "Words that state it win.",
 )
 @verbose_option
@@ -214,17 +219,20 @@ def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
     detector = LicenseDetector(db_path, enable_popularity=enable_popularity)
     check_db_staleness(detector.db)
 
-    if id_val:
-        results = detector.detect(license_id=id_val, variant=chosen)
-        license_text = ""
-    else:
-        content = get_input_content(ctx, input_val, text, detector.db)
-        if not content:
-            exit_no_input(ctx)
+    # A warning of the detector is for the result this command prints.
+    with output_bar(threshold, exact_only, top):
+        if id_val:
+            results = detector.detect(license_id=id_val, variant=chosen)
+            license_text = ""
+        else:
+            content = get_input_content(ctx, input_val, text, detector.db)
+            if not content:
+                exit_no_input(ctx)
 
-        license_text = content
-        # A lone expression is read as an ID by the detector, whatever brings it.
-        results = detector.detect(text=content, variant=chosen)
+            license_text = content
+            # A lone expression is read as an ID by the detector, whatever
+            # brings it.
+            results = detector.detect(text=content, variant=chosen)
 
     # Filter by threshold (and exactness), then limit to top N
     results = [
