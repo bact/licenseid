@@ -423,21 +423,27 @@ Deferred from PR #210 (2026-11-15), each with a recommendation. The
 options are pinned in `tests/test_detect_options_paths.py`; moving one
 flips a `# BUG:` or `# DECISION:` pin.
 
-- **`exclude` and `hint` gaps** (a decision each, answers change): markers
-  and mixed-content windows skip `exclude`: filter once, before Tier 2. A
-  hint undoes `exclude`, buries a marker candidate of the same licence
-  (JSON 1.0 to 0.025 with `hint=["JSON"]`) and counts towards the
-  fewer-than-5 test that gates the mixed-content search
-  (`detector.py`), so it can lose a licence that search found: let
-  `exclude` win, merge markers before hints, count only candidates with
-  text. Duplicate hints (`hint=["X","X"]`, `hint=["mit"]` beside MIT):
-  deduplicate on the canonical ID. `exclude` compares exact case, `hint`
-  folds it: fold both (`listlookup.fold_case`). Deprecated IDs are not
-  mapped in either. A hint has no text, so it scores 0: give it its text or
-  say it only lists.
+- **`exclude` and `hint` gaps** (a decision each, answers change).
+  Decided by the maintainer (2026-11-15), to build in one PR:
+  - `exclude` wins over `hint`.
+  - Deduplicate the `hint` list and the `exclude` list (on the canonical
+    ID).
+  - Fold case in both (`listlookup.fold_case`).
+  - Upgrade a deprecated ID first, then apply the option; never upgrade an
+    ambiguous one (a deprecated `GPL-2.0` could be `-only` or `-or-later`).
+    Same rule as py-spdx-license PR 13 (`project_py_spdx_license_prs`).
+  Still undecided, with a recommendation: markers and mixed-content windows
+  skip `exclude` (filter once, before Tier 2); a hint buries a marker
+  candidate of the same licence (JSON 1.0 to 0.025 with `hint=["JSON"]`):
+  merge markers before hints; a hint counts towards the fewer-than-5 test
+  that gates the mixed-content search (`detector.py`) and can lose a
+  licence that search found: count only candidates with text; a hint has no
+  text, so it scores 0: give it its text or say it only lists.
 - **`only_spdx` does nothing** on a database licenseid builds (every row
-  `is_spdx=1`): remove it (alpha, no compatibility), after deciding the
-  declared values it would drop (`LicenseRef-*`).
+  `is_spdx=1`). Keep or redesign, not remove: more lists will come
+  (AboutCode ScanCode, Blue Oak) and a source flag may be what it becomes.
+  Decide with the multi-list design; until then it stays documented as a
+  no-op on a built database.
 - **Declared values ignore the options** (`license_id`, a value `resolve()`
   reads, a tag, a manifest field, a name): keep, documented in
   `docs/python-api.md`.
