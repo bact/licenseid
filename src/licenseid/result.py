@@ -26,6 +26,7 @@ from typing import Any
 from licenseid.resolvertypes import ListInfo, Resolution, Step
 from licenseid.resolvesemicolon import REASON as NO_OPERATOR
 from licenseid.types import Detection, InternalMatch, RawMatch
+from licenseid.variants import stated_of
 
 # The value of one field: a text, a flag, or nothing (empty in a text line,
 # null in JSON).
@@ -56,6 +57,7 @@ def public_result(raw: RawMatch | InternalMatch, lists: list[ListInfo]) -> Detec
         is_osi_approved=_judged(raw.get("is_osi_approved", False)),
         is_fsf_libre=_judged(raw.get("is_fsf_libre", False)),
         lists=copy.deepcopy(lists),
+        variant_stated=stated_of(raw["license_id"], raw.get("variant_guessed", False)),
     )
 
 
@@ -98,6 +100,7 @@ def text_line(result: Detection) -> str:
         SCORE=number(result["score"]),
         SIMILARITY=number(result["similarity"]),
         COVERAGE=number(result["coverage"]),
+        VARIANT_STATED=result["variant_stated"],
     )
 
 
@@ -111,6 +114,7 @@ def no_detection_line() -> str:
         SCORE=None,
         SIMILARITY=None,
         COVERAGE=None,
+        VARIANT_STATED=None,
     )
 
 

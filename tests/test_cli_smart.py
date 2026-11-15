@@ -68,7 +68,8 @@ def test_cli_explicit_id(test_db: str, tmp_path: Any) -> None:
     assert result.exit_code == 0
     assert "EXPRESSION=MIT\t" in result.output
     assert (
-        "METHOD=id\tEXACT=true\tSCORE=1.0000\tSIMILARITY=\tCOVERAGE=\n" in result.output
+        "METHOD=id\tEXACT=true\tSCORE=1.0000\tSIMILARITY=\tCOVERAGE=\t"
+        "VARIANT_STATED=\n" in result.output
     )
 
 

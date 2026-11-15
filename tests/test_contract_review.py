@@ -200,28 +200,36 @@ def test_r2_a_with_id_is_a_narrowed_guess_on_every_path(
     a manifest field and ``is-*`` alike."""
     field = tmp_path / "package.json"
     field.write_text(f'{{"license": "{deprecated}"}}\n', encoding="utf-8")
-    warning = f"WARNING: input: variant not stated: {deprecated}; using {reading}\n"
+    family = reading.split("-only")[0]
+    warning = f"WARNING: input: variant not stated: {family}; using {reading}\n"
     for args in (
         [deprecated],
         ["--id", deprecated],
         ["--text", f"SPDX-License-Identifier: {deprecated}"],
         [str(field)],
     ):
-        result = run(db, "detect", "--json", *args)
+        result = run(db, "detect", "--json", "--variant", "only", *args)
         assert result.exit_code == 0, args
         assert f'"expression":"{reading}"' in result.stdout, args
         assert '"exact":false' in result.stdout, args
         assert result.stderr == warning, args
+        # Under auto it stays as written, exact and silent.
+        result = run(db, "detect", "--json", *args)
+        assert f'"expression":"{deprecated}"' in result.stdout, args
+        assert '"exact":true' in result.stdout, args
+        assert result.stderr == "", args
     result = run(db, "is-osi", "--id", deprecated)
     assert (result.stdout, result.stderr) == (
-        predicate_line("is-osi", reading, True),
-        warning,
+        predicate_line("is-osi", deprecated, True),
+        "",
     )
 
 
 def test_r2_the_api_reads_a_with_id_as_not_exact(db: str, given: GivenWarnings) -> None:
     """R2: ``detect(license_id=...)`` says the guess too."""
-    (top,) = LicenseDetector(db).detect(license_id="GPL-2.0-with-GCC-exception")
+    (top,) = LicenseDetector(db).detect(
+        license_id="GPL-2.0-with-GCC-exception", variant="only"
+    )
     assert (top["expression"], top["exact"]) == (
         "GPL-2.0-only WITH GCC-exception-2.0",
         False,
@@ -315,7 +323,8 @@ def test_r5_a_plus_keeps_its_operand(
     the prose reader taking ``GPL-2.0`` as bare and the ``-only`` of the
     next ID as its word, and warned that ``GPL-2.0`` was narrowed): every
     operand is kept, and only a bare ID warns."""
-    result = run(db, "detect", "--json", "--text", f"SPDX-License-Identifier: {value}")
+    tag = f"SPDX-License-Identifier: {value}"
+    result = run(db, "detect", "--json", "--variant", "only", "--text", tag)
     assert f'"expression":"{expression}"' in result.stdout
     assert f'"exact":{str(not warned).lower()}' in result.stdout
     assert ("variant not stated" in result.stderr) is warned
@@ -357,7 +366,7 @@ def test_r5_the_prose_reader_skips_what_an_id_states(
     ("args", "stderr"),
     [
         (
-            ["detect", "--exact", "GPL-2.0"],
+            ["detect", "--exact", "--variant", "only", "GPL-2.0"],
             "WARNING: input: variant not stated: GPL-2.0; using GPL-2.0-only\n",
         ),
         # A short value resolve() refuses is matched as no text, and says why.

@@ -332,7 +332,7 @@ def test_only_white_space_joins_the_parts_of_an_expression(
         ("GPL-2.0 or later", "GPL-2.0-or-later"),
         ("LGPL-2.1 or, at your option, any later version", "LGPL-2.1-or-later"),
         ("GPL-2.0 only", "GPL-2.0-only"),
-        ("GPL-2.0", "GPL-2.0-only"),  # no phrase: the conservative fallback
+        ("GPL-2.0", "GPL-2.0"),  # no phrase: kept as written
         # The ID the value starts with wins: prose further along must not
         # decide the answer.
         ("MIT; see COPYING for GPL-2.0 or later parts", "MIT"),
@@ -341,7 +341,7 @@ def test_only_white_space_joins_the_parts_of_an_expression(
         ("GPL-2.0 only (see GPL-3.0 or later for the tools)", "GPL-2.0-only"),
         ("MIT OR GPL only. See GPL-3.0 or later elsewhere", None),  # GPL: no ID
         # A grant qualifies the ID beside it, not another one on the line.
-        ("GPL-2.0 AND LGPL-2.1 or later", "GPL-2.0-only AND LGPL-2.1-or-later"),
+        ("GPL-2.0 AND LGPL-2.1 or later", "GPL-2.0 AND LGPL-2.1-or-later"),
         ("MIT OR GPL-2.0 or later", "GPL-2.0-or-later OR MIT"),
         # A closing bracket stands between the ID and its grant.
         ("(GPL-2.0) or later", "GPL-2.0-or-later"),
@@ -426,10 +426,10 @@ def test_a_deprecated_name_answers_as_its_id_does(
 ) -> None:
     """A deprecated ID replaced by an expression must not come back under
     its name: the name and the ID give one answer."""
-    expected = "GPL-2.0-only WITH GCC-exception-2.0"
+    expected = "GPL-2.0-with-GCC-exception"
     assert certain(db, source_with("GPL-2.0-with-GCC-exception")) == expected
     assert certain(db, source_with("GNU GPL v2.0 w/GCC exception")) == expected
-    assert given.conditions() == {"variant not stated"}
+    assert given.take() == []
 
 
 def test_a_plus_is_not_stripped_as_punctuation(db: str) -> None:

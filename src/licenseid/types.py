@@ -25,25 +25,37 @@ Method = Literal["tag", "field", "id", "name", "text"]
 UpdateSource = Literal["auto", "compact", "upstream", "packaged"]
 
 
+# What detect() does where a licence has an -only and an -or-later form and
+# the input does not say which: see licenseid.variants.
+Variant = Literal["auto", "as-written", "only", "or-later"]
+
+
 class Detection(TypedDict):
     """A match as detect() returns it: the same keys for every method.
 
     ``score`` is 0-1: each method's ranking key, capped to 1, so scores from
     different methods are not on one scale; the list is in ranking order,
     which also orders results that share a score of 1. ``exact`` says
-    the answer was found exactly: declared (a tag, a field, an ID), an exact
-    name, or an input equal to the license text after normalisation (a
-    filled-in copyright line is a difference); a look-alike name or a close
-    text is not. ``similarity`` and ``coverage`` are None where nothing was
-    measured (a tag, a field, an ID, a name ``resolve()`` reads; a name the
-    name tier matches has no coverage). ``coverage``
-    is the input's words over the license's, so it passes 1 when the input
+    the answer was found exactly: declared (a tag, a field, an ID; a whole
+    value is not exact when a rewrite rule read it, ``Apache License, Version
+    2.0``: ``resolve()`` category ``separator``, ``prose_form`` or
+    ``version_spelling``), an exact name, or an input equal to the license
+    text after normalisation (a filled-in copyright line is a difference); a
+    look-alike name or a close text is not. ``similarity`` and ``coverage`` are
+    None where nothing was measured (a tag, a field, an ID, a name
+    ``resolve()`` reads; a name the name tier matches has no coverage).
+    ``coverage`` is the input's words over the license's, so it passes 1 when the input
     is longer. ``expression`` is the answer: one licence ID, or an SPDX
     expression (a tag or a field may declare one), as ``resolve()`` names its
     answer; the detector's own records keep ``license_id``. ``lists`` are
     the lists the answer rests on, in the shape of ``resolve()``'s
     (:class:`licenseid.resolvertypes.ListInfo`): the SPDX License List of
-    the database read, its ``source`` ``database``.
+    the database read, its ``source`` ``database``. ``variant_stated`` says
+    whether the input states the licence's variant (``-only``, ``-or-later``):
+    True for its words or an ID that states it, False for a guess (an
+    ``-only`` chosen for a text, or by ``--variant``) or a bare ID kept
+    (``GPL-2.0``), None where no licence of the answer has a variant to judge
+    (``MIT``); for a compound, False if any operand is, else True.
     """
 
     expression: str
@@ -56,6 +68,7 @@ class Detection(TypedDict):
     is_osi_approved: bool | None
     is_fsf_libre: bool | None
     lists: list[ListInfo]
+    variant_stated: bool | None
 
 
 class RawMatch(TypedDict, total=False):
@@ -72,6 +85,9 @@ class RawMatch(TypedDict, total=False):
     is_spdx: bool
     is_osi_approved: bool | None
     is_fsf_libre: bool | None
+    # An -only or -or-later that licenseid chose, not the input: variant_stated
+    # is false.
+    variant_guessed: bool
 
 
 class LicenseFlags(TypedDict):
@@ -100,6 +116,7 @@ class CandidateMatch(TypedDict, total=False):
     # A reading resolve() does not make (a bare deprecated ID read as its
     # -only form, a "+" on a deprecated -with- ID): a guess, so not exact.
     narrowed: bool
+    variant_guessed: bool
 
 
 class InternalMatch(TypedDict, total=False):
@@ -119,6 +136,7 @@ class InternalMatch(TypedDict, total=False):
     is_spdx: bool
     is_osi_approved: bool | None
     is_fsf_libre: bool | None
+    variant_guessed: bool
 
 
 # The licence IDs of ``exclude`` and ``hint``: the kinds of collection
@@ -132,13 +150,16 @@ class DetectOptions(TypedDict, total=False):
     licence text is matched: exclude, hint, only_spdx and only_common on the
     candidates of free text (Tier 1, markers, mixed-content windows, and for
     exclude a short text's name hit), enable_popularity on the Tier 2
-    ranking and its tie-breaker."""
+    ranking and its tie-breaker. ``variant`` acts on every input: it says
+    what to answer where an ``-only`` and an ``-or-later`` form are
+    possible and the input does not state which (:data:`Variant`)."""
 
     only_spdx: bool
     only_common: bool
     exclude: IdCollection
     hint: IdCollection
     enable_popularity: bool
+    variant: Variant
 
 
 class LicenseNameId(TypedDict):

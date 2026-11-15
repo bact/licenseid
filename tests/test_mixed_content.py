@@ -103,6 +103,7 @@ def get_fixtures() -> list[tuple[Path, str]]:
     return sorted(fixtures, key=lambda x: str(x[0]))
 
 
+@pytest.mark.filterwarnings("ignore::licenseid.LicenseIdWarning")
 def test_marker_detection_fixtures(test_db: str) -> None:
     """Benchmark marker detection across multiple mixed-content fixtures.
     We aim for at least 60% accuracy on these real-world-style samples.

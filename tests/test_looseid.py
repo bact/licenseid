@@ -121,7 +121,7 @@ def test_every_path_narrows_alike(
     whatever the row order: -only, not exact, said."""
     [match] = match_short_text(db, "gpl 2 0", raw)
     assert (match["license_id"], match["exact"]) == (license_id, not warned)
-    expected = NARROWED.format(" ".join(raw.split()), license_id) if warned else ""
+    expected = NARROWED.format("GPL-2.0", license_id) if warned else ""
     assert given.lines() == expected
 
 
@@ -160,17 +160,17 @@ def test_the_warning_detail_is_one_printable_line(text: str, detail: str) -> Non
         ),
         (
             "Apache2 WITH LLVM-exception",
-            ("Apache-2.0 WITH LLVM-exception", True),
+            ("Apache-2.0 WITH LLVM-exception", False),
             False,
         ),
         (
             "apache 2 with LLVM-exception",
-            ("Apache-2.0 WITH LLVM-exception", True),
+            ("Apache-2.0 WITH LLVM-exception", False),
             False,
         ),
         (
             "GPLv2+ WITH Classpath-exception-2.0",
-            ("GPL-2.0-or-later WITH Classpath-exception-2.0", True),
+            ("GPL-2.0-or-later WITH Classpath-exception-2.0", False),
             False,
         ),
         # No answer, and no warning for it: an unknown exception, an
@@ -179,8 +179,8 @@ def test_the_warning_detail_is_one_printable_line(text: str, detail: str) -> Non
         ("Bogus2 WITH LLVM-exception", None, False),
         ("Apache2 WITH LLVM-exception WITH LLVM-exception", None, False),
         # A compound that is the whole text is resolve()'s (was: none).
-        ("Apache2 OR MIT", ("Apache-2.0 OR MIT", True), False),
-        ("Apache2 AND MIT", ("Apache-2.0 AND MIT", True), False),
+        ("Apache2 OR MIT", ("Apache-2.0 OR MIT", False), False),
+        ("Apache2 AND MIT", ("Apache-2.0 AND MIT", False), False),
         # Brackets around the whole are no part of it, at any depth.
         (
             "(GPL2 WITH Classpath-exception-2.0)",
@@ -189,12 +189,12 @@ def test_the_warning_detail_is_one_printable_line(text: str, detail: str) -> Non
         ),
         (
             "((Apache2 WITH LLVM-exception))",
-            ("Apache-2.0 WITH LLVM-exception", True),
+            ("Apache-2.0 WITH LLVM-exception", False),
             False,
         ),
         (
             "( Apache2 WITH LLVM-exception )",
-            ("Apache-2.0 WITH LLVM-exception", True),
+            ("Apache-2.0 WITH LLVM-exception", False),
             False,
         ),
     ],
@@ -206,13 +206,13 @@ def test_a_loose_license_with_an_exception(
     expected: tuple[str, bool] | None,
     warned: bool,
 ) -> None:
-    results = matcher.detect(text=text)
+    results = matcher.detect(text=text, variant="only")
     assert ((results[0]["expression"], results[0]["exact"]) if results else None) == (
         expected
     )
     err = given.lines()
-    # The value as written is named (resolve() reads the whole of it).
-    assert (f"WARNING: input: variant not stated: {text};" in err) is warned
+    # The licence family is named, not the value.
+    assert ("WARNING: input: variant not stated: GPL-2.0;" in err) is warned
 
 
 @pytest.mark.parametrize(
@@ -240,7 +240,7 @@ def test_a_manifest_value_read_as_a_guess_is_still_a_field(
     matcher: LicenseDetector,
     given: GivenWarnings,
 ) -> None:
-    [result] = matcher.detect(text='{"license": "GPLv2"}')
+    [result] = matcher.detect(text='{"license": "GPLv2"}', variant="only")
     assert (result["expression"], result["method"], result["exact"]) == (
         "GPL-2.0-only",
         "field",

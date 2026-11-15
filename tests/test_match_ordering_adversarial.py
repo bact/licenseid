@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from conftest import GivenWarnings
 from matcher_db import Lic, seeded_db
 from ordering_helpers import HEADER_OR_LATER, ids, im
 from timing import slack
@@ -460,10 +461,18 @@ def test_a_source_header_with_granting_language_resolves_to_or_later(
     ids=["version-2-only", "pure-license-text"],
 )
 def test_text_without_a_grant_resolves_to_only(
-    twin_gpl_db: str, tmp_path: Path, text: str, name: str | None
+    twin_gpl_db: str,
+    tmp_path: Path,
+    text: str,
+    name: str | None,
+    given: GivenWarnings,
 ) -> None:
     file_path = None if name is None else tmp_path / name
     assert top_id(twin_gpl_db, text, file_path) == ONLY
+    # A text that states "only" is no guess; one that says nothing is.
+    # The seeded text scores under 0.85 (variants.ANSWER_SCORE): no warning.
+    assert given.conditions() <= {"variant not stated"}
+    assert ("only" in text) <= (not given.conditions())
 
 
 def tier_text(padding: int) -> str:

@@ -295,6 +295,7 @@ RESULT_KEYS = frozenset(
         "score",
         "similarity",
         "coverage",
+        "variant_stated",
         "is_spdx",
         "is_osi_approved",
         "is_fsf_libre",
@@ -322,6 +323,7 @@ def public_match(  # pylint: disable=too-many-arguments
     score: float = 1.0,
     similarity: float | None = None,
     coverage: float | None = None,
+    variant_stated: bool | None = None,
 ) -> Detection:
     """A result as detect() returns it, for the code that prints one."""
     return Detection(
@@ -331,6 +333,7 @@ def public_match(  # pylint: disable=too-many-arguments
         score=score,
         similarity=similarity,
         coverage=coverage,
+        variant_stated=variant_stated,
         is_spdx=True,
         is_osi_approved=True,
         is_fsf_libre=False,
@@ -345,7 +348,9 @@ def invoke_match(db: str, *args: str, color: bool = False) -> Result:
 
 # What detect prints when it has no answer (exit 1): one record, every field
 # empty (C9 of the contract batch; it printed nothing).
-NO_DETECTION = "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"
+NO_DETECTION = (
+    "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\tVARIANT_STATED=\n"
+)
 
 # The flag each is-* command prints after EXPRESSION.
 PREDICATE_KEYS = {

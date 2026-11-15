@@ -222,15 +222,18 @@ def test_detect_narrows_the_gpl_title_line_aloud(
     corpus_db: LicenseDatabase, given: GivenWarnings
 ) -> None:
     text = "GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007"
-    (found,) = LicenseDetector(corpus_db.location).detect(text)
+    (found,) = LicenseDetector(corpus_db.location).detect(text, variant="only")
     assert (found["expression"], found["method"], found["exact"]) == (
         "GPL-3.0-only",
         "name",
         False,
     )
     assert given.lines() == (
-        f"WARNING: input: variant not stated: {text}; using GPL-3.0-only\n"
+        "WARNING: input: variant not stated: GPL-3.0; using GPL-3.0-only\n"
     )
+    (kept,) = LicenseDetector(corpus_db.location).detect(text)
+    assert (kept["expression"], kept["exact"]) == ("GPL-3.0", True)
+    assert given.take() == []
 
 
 @pytest.mark.parametrize("value", ["Mulan P\u017fl v2", "\u212a"])

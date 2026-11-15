@@ -116,7 +116,7 @@ def outdated_db(tmp_path: Path) -> Path:
 def test_cli_prints_two_tag_warnings_in_one_run(memory_db: str, tmp_path: Path) -> None:
     source = tmp_path / "two.c"
     source.write_text(TWO_TAGS, encoding="utf-8")
-    result = invoke_match(memory_db, str(source))
+    result = invoke_match(memory_db, "--variant", "only", str(source))
     assert result.exit_code == 0
     # The CLI's own warning first (the seeded database was checked long ago),
     # then the library's, in the order they were given.
@@ -200,11 +200,7 @@ def test_report_is_gone() -> None:
 
 
 def _detect_tags(db: str) -> object:
-    return LicenseDetector(db).detect(text=TWO_TAGS)
-
-
-def _is_osi_tags(db: str) -> object:
-    return LicenseDetector(db).is_osi(text=TWO_TAGS)
+    return LicenseDetector(db).detect(text=TWO_TAGS, variant="only")
 
 
 def _detect_function_tags(db: str) -> object:
@@ -212,10 +208,10 @@ def _detect_function_tags(db: str) -> object:
         "licenseid.keptdetector.get_default_db_path",
         mock.create_autospec(get_default_db_path, return_value=db),
     ):
-        return licenseid.detect(text=TWO_TAGS)
+        return licenseid.detect(text=TWO_TAGS, variant="only")
 
 
-@pytest.mark.parametrize("call", [_detect_tags, _is_osi_tags, _detect_function_tags])
+@pytest.mark.parametrize("call", [_detect_tags, _detect_function_tags])
 def test_a_narrowed_tag_is_a_warning(
     memory_db: str, capsys: pytest.CaptureFixture[str], call: Callable[[str], object]
 ) -> None:
@@ -231,6 +227,13 @@ def test_a_narrowed_tag_is_a_warning(
     # Python 3.13+, filed under whatever frame the collector ran in).
     assert {w.filename for w in ours(given.list)} == {__file__}
     assert capsys.readouterr() == ("", "")
+
+
+def test_a_tag_kept_as_written_is_no_warning(memory_db: str) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", LicenseIdWarning)
+        assert LicenseDetector(memory_db).is_osi(text=TWO_TAGS) is not None
+        LicenseDetector(memory_db).detect(text=TWO_TAGS)
 
 
 @pytest.mark.parametrize(
@@ -339,7 +342,7 @@ def test_an_error_filter_makes_the_api_raise(memory_db: str, outdated_db: Path) 
         with pytest.raises(LicenseIdWarning, match="^database: build v1 outdated"):
             LicenseDetector(str(outdated_db))
         with pytest.raises(LicenseIdWarning) as raised:
-            LicenseDetector(memory_db).detect(text=TWO_TAGS)
+            LicenseDetector(memory_db).detect(text=TWO_TAGS, variant="only")
     assert raised.value.condition == "variant not stated"
 
 

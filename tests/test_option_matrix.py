@@ -13,6 +13,7 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 |----------------------|----------------------------------------------|
 | CLI ``detect``       | SOURCES x OUTPUTS x found / not found        |
 |                      | (OUTPUTS: --json, --verbose, --diff, --exact) |
+| CLI ``detect``       | ``--variant``: ``test_option_matrix_variant`` |
 | CLI ``is-*``         | PREDICATES x SOURCES x --json x found / not  |
 | CLI blank input      | commands x blank arg / --text / --id / stdin |
 | API ``detect()``     | method / function x text / license_id / file |

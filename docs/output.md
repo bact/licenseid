@@ -24,10 +24,14 @@ Apache-2.0
 With `-v` (`--verbose`), one record per result per line, best first (the
 examples show the first two results):
 
+<!-- markdownlint-disable MD013 -->
+
 ```text
-EXPRESSION=Apache-2.0	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVERAGE=1.0000
-EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERAGE=0.9236
+EXPRESSION=Apache-2.0	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVERAGE=1.0000	VARIANT_STATED=
+EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERAGE=0.9236	VARIANT_STATED=
 ```
+
+<!-- markdownlint-enable MD013 -->
 
 - One tab separates the fields; a key ends at the first `=`. Read them with
   `cut -f` or `awk -F'\t'`. A value is written as it is, except a tab, a
@@ -42,14 +46,20 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   tag), `field` (a manifest's `license` field), `id` (a licence ID), `name`
   (a licence name) or `text` (the licence text).
 - `EXACT` is `true` when the answer was found exactly: declared (a tag, a
-  field or an ID), a whole input `resolve()` reads without a guess (a name,
-  `The MIT License`, a trove classifier, a loose ID, `Apache2`), a licence
+  field or an ID), a whole input `resolve()` reads where a list defines the
+  reading (a listed name, a trove classifier, a licence URL, a title or
+  alias of the lists licenseid keeps; the `EXACT` column of the category
+  table in [resolve](resolve.md)), a licence
   name spelt out in full (for a name a deprecated licence shares with its
   successor, only the successor), or the whole input equal to the licence
   text as the SPDX License List writes it, after case, punctuation and
-  white space are normalised. A guess (`GPL-2.0` read as `GPL-2.0-only`)
-  is not exact. A filled-in copyright line or an added title makes a text
-  not exact, as does a name that only shares the words of the input.
+  white space are normalised. A guess (`--variant only` reading `GPL-2.0`
+  as `GPL-2.0-only`) is not exact; a bare `GPL-2.0` kept as written is. A
+  filled-in copyright line or an added title makes a text not exact, as
+  does a name that only shares the words of the input. A value that a
+  rewrite rule read (`separator`, `prose_form`, `version_spelling`:
+  `Apache License, Version 2.0`, `Apache 2`) is not exact, except a slash
+  pair of IDs (`MIT/Apache-2.0`), which is.
   Licences with the same text (`GPL-2.0-only` and `GPL-2.0-or-later`) are
   all exact for it.
   `--exact` keeps only the exact results.
@@ -60,6 +70,17 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   a field, an ID or a name `resolve()` reads has neither, and a name the
   name tier matches has no coverage. `COVERAGE` is the
   input's words over the licence's, so it passes 1 when the input is longer.
+- `VARIANT_STATED` (JSON `variant_stated`, the last field) says whether the
+  input states which variant of a licence is meant, where it has an `-only`
+  and an `-or-later` form: `true` when words (`GPL-2.0 or later`), a "+" or
+  an `-only` / `-or-later` ID state it; `false` for a guess (an `-only`
+  chosen for a text, or by `--variant`) or a bare ID kept as written
+  (`GPL-2.0`, `GPL-2.0-with-classpath-exception`); empty (JSON `null`) when
+  no licence of the answer has a variant (`MIT`). Of a compound it is empty
+  when no operand has a variant, `false` when any operand is `false`
+  (`MIT OR GPL-2.0` is `GPL-2.0 OR MIT`, `false`), else `true`. A script
+  tells a guessed `-only` from a stated one without reading standard error.
+  The `is-*` commands have no such field: they answer a flag, not a variant.
 
 ## JSON
 
@@ -76,8 +97,8 @@ JSON Canonicalization Scheme (RFC 8785), so equal results print equal bytes
 <!-- markdownlint-disable MD013 -->
 
 ```json
-{"coverage":1,"exact":true,"expression":"Apache-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"lists":[{"id":"spdx-license-list","id_authority":true,"license":"CC0-1.0","name":"SPDX License List","provides":["deprecation","ids","names","texts"],"source":"database","url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0","version":"3.29.0"}],"method":"text","score":1,"similarity":1}
-{"coverage":0.9236,"exact":false,"expression":"ECL-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"lists":[{"id":"spdx-license-list","id_authority":true,"license":"CC0-1.0","name":"SPDX License List","provides":["deprecation","ids","names","texts"],"source":"database","url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0","version":"3.29.0"}],"method":"text","score":0.9584,"similarity":0.9584}
+{"coverage":1,"exact":true,"expression":"Apache-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"lists":[{"id":"spdx-license-list","id_authority":true,"license":"CC0-1.0","name":"SPDX License List","provides":["deprecation","ids","names","texts"],"source":"database","url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0","version":"3.29.0"}],"method":"text","score":1,"similarity":1,"variant_stated":null}
+{"coverage":0.9236,"exact":false,"expression":"ECL-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"lists":[{"id":"spdx-license-list","id_authority":true,"license":"CC0-1.0","name":"SPDX License List","provides":["deprecation","ids","names","texts"],"source":"database","url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0","version":"3.29.0"}],"method":"text","score":0.9584,"similarity":0.9584,"variant_stated":null}
 ```
 
 <!-- markdownlint-enable MD013 -->
@@ -96,8 +117,10 @@ text and is not exact, with or without `-v`, not with `--json`). The
 results go to standard output and the diff to standard error, so
 `2>/dev/null` keeps only the results. Here with `-v`:
 
+<!-- markdownlint-disable MD013 -->
+
 ```diff
-EXPRESSION=Apache-2.0	METHOD=text	EXACT=false	SCORE=1.0000	SIMILARITY=0.9978	COVERAGE=0.9987
+EXPRESSION=Apache-2.0	METHOD=text	EXACT=false	SCORE=1.0000	SIMILARITY=0.9978	COVERAGE=0.9987	VARIANT_STATED=
 
 WORD DIFF:
 --- DATABASE
@@ -118,6 +141,8 @@ WORD DIFF:
  under
  the
 ```
+
+<!-- markdownlint-enable MD013 -->
 
 ## Reading the output
 

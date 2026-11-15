@@ -148,6 +148,7 @@ def test_a_bare_deprecated_id_is_excluded_as_both_twins(
     detector: LicenseDetector, given: GivenWarnings
 ) -> None:
     assert {ONLY, LATER} <= set(answers(detector, text=GPL_BODY))
+    assert not given.take()  # the title says "only": no guess
     got = answers(detector, text=GPL_BODY, exclude=["gpl-2.0"])
     assert {ONLY, LATER, "GPL-2.0"}.isdisjoint(got)
     assert given.lines() == (
@@ -288,7 +289,7 @@ def test_a_deprecated_plus_id_is_excluded_with_its_or_later_twin(
     got = answers(detector, text=GPL_BODY, exclude=["GPL-2.0+"])
     assert {LATER, "GPL-2.0+"}.isdisjoint(got)
     assert ONLY in got  # the "-only" twin stays
-    assert given.conditions() == {"deprecated ID"}
+    assert given.conditions() == {"deprecated ID"}  # "only" is stated
     assert {"gpl-2.0+", "gpl-2.0-or-later"} <= excluded_ids(["GPL-2.0-or-later"])
 
 

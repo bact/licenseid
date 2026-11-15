@@ -6,6 +6,7 @@
 """Ordering of ranked candidates: the one sort key, and the -only / -or-later
 tie-breaker that runs after ranking."""
 
+import re
 from collections.abc import Callable
 
 from licenseid.classify import has_or_later_language
@@ -53,6 +54,29 @@ def ranking_key(
     return key
 
 
+def or_later_signal(raw_text: str, is_pure: bool) -> bool:
+    """Whether the input grants the licence's later versions: the one signal
+    that chooses ``-or-later`` over ``-only``, for a tie
+    (:func:`apply_version_suffix_tiebreaker`) and for ``variant_stated``
+    (licenseid.variants). A pure licence text has none (its body is
+    identical for both, and the GPL's "How to Apply" appendix holds the
+    phrase), so it is never read for one."""
+    return False if is_pure else has_or_later_language(raw_text)
+
+
+# "version 2 only", "v2.0 only": a number, then the word.
+_ONLY_AFTER_VERSION = re.compile(
+    r"\d{1,6}(?:\.\d{1,6}){0,3}\)?\s+only\b", re.IGNORECASE | re.ASCII
+)
+
+
+def only_signal(raw_text: str, is_pure: bool) -> bool:
+    """Whether the input states "only" after a version number
+    (``licenseid.variants``: that states ``-only``, no guess). A pure
+    licence text is never read for one."""
+    return not is_pure and bool(_ONLY_AFTER_VERSION.search(raw_text))
+
+
 def apply_version_suffix_tiebreaker(
     ranked: list[InternalMatch],
     raw_text: str,
@@ -77,10 +101,7 @@ def apply_version_suffix_tiebreaker(
       Granting language present → prefer -or-later.
       No granting language      → prefer -only.
     """
-    if is_pure:
-        or_later_signal = False  # body text indistinguishable; default -only
-    else:
-        or_later_signal = has_or_later_language(raw_text)
+    signal = or_later_signal(raw_text, is_pure)
 
     id_to_score = {r["license_id"]: r["score"] for r in ranked}
     adjustments: dict[str, float] = {}
@@ -100,7 +121,7 @@ def apply_version_suffix_tiebreaker(
             continue  # not a genuine tie — trust the similarity score
 
         delta = TIE_NUDGE
-        if or_later_signal:
+        if signal:
             adjustments[base + "-or-later"] = delta
             adjustments[base + "-only"] = -delta
         else:

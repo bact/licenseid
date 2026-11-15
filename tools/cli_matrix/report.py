@@ -47,6 +47,7 @@ UNIVERSE: dict[str, list[str]] = {
         "--pop",
         "--no-pop",
         "--diff",
+        "--variant",
         "--verbose",
         "--help",
     ],
@@ -67,6 +68,7 @@ MATCH_FLAGS = [
     "--pop",
     "--no-pop",
     "--diff",
+    "--variant",
     "--verbose",
 ]
 

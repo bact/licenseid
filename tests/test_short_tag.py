@@ -53,11 +53,11 @@ def db() -> Generator[str, None, None]:
             "GPL-2.0-or-later WITH Classpath-exception-2.0",
         ),
         (f"# {TAG} Apache-2.0\n", "Apache-2.0"),
-        (f"/* {TAG} GPL-2.0 */", "GPL-2.0-only"),
+        (f"/* {TAG} GPL-2.0 */", "GPL-2.0"),  # kept as written
         (f"{TAG} GPL-2.0+", "GPL-2.0-or-later"),
         (
             f"{TAG} GPL-2.0-with-classpath-exception",
-            "GPL-2.0-only WITH Classpath-exception-2.0",
+            "GPL-2.0-with-classpath-exception",
         ),
         # SPDX sets no length on a LicenseRef: none may be dropped (and an
         # expression this long keeps its order).
@@ -84,7 +84,10 @@ def test_a_tag_answers_at_any_length(
     results = LicenseDetector(db).detect(text=f"{FILLER}\n{text}" if large else text)
     assert [(r["expression"], r["score"]) for r in results] == [(expected, 1.0)]
     # A LicenseRef-* is valid SPDX but not on the List (F2).
-    assert results[0]["is_spdx"] is ("LicenseRef-" not in expected)
+    # (The seeded GPL-2.0 row, deprecated and kept as written, is no List row.)
+    assert results[0]["is_spdx"] is (
+        "LicenseRef-" not in expected and expected != "GPL-2.0"
+    )
     assert given.conditions() <= {"variant not stated"}
 
 

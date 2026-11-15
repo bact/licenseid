@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner, Result
-from conftest import clear_cache_line
+from conftest import NO_DETECTION, clear_cache_line
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db
 from matcher_db import GPL2_ROWS, Lic, seeded_db
@@ -156,21 +156,25 @@ def test_c9_detect_prints_an_empty_record_on_exit_1(db: str, flags: list[str]) -
     line = (
         '{"coverage":null,"exact":null,"expression":null,"is_fsf_libre":null,'
         '"is_osi_approved":null,"is_spdx":null,"lists":null,"method":null,'
-        '"score":null,"similarity":null}'
+        '"score":null,"similarity":null,"variant_stated":null}'
         if flags
-        else "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE="
+        else NO_DETECTION.rstrip("\n")
     )
     assert (result.exit_code, result.stdout) == (1, line + "\n")
 
 
-@pytest.mark.parametrize("command", ["is-osi", "detect"])
-def test_c11_the_subject_is_input(db: str, command: str) -> None:
+@pytest.mark.parametrize(
+    ("args", "warning"),
+    [
+        (["detect", "--variant", "only", "GPL2"], "variant not stated: GPL-2.0;"),
+        (["is-osi", "Foo"], "too few words for text: not found: Foo"),
+    ],
+)
+def test_c11_the_subject_is_input(db: str, args: list[str], warning: str) -> None:
     """C11 (was: ``detect:``, from ``is-osi`` too): the subject names the
     thing affected, the input, for every command (P146)."""
-    result = run(db, command, "GPL2")
-    assert result.stderr == (
-        "WARNING: input: variant not stated: GPL2; using GPL-2.0-only\n"
-    )
+    result = run(db, *args)
+    assert result.stderr.startswith(f"WARNING: input: {warning}")
 
 
 # --- F: flags and meanings -----------------------------------------------
@@ -234,7 +238,7 @@ def test_f2_a_reference_is_not_on_the_list(db: str) -> None:
 def test_f3_a_bare_deprecated_id_is_a_guess(db: str) -> None:
     """F3 (was: exact and silent): ``detect GPL-2.0`` answers GPL-2.0-only,
     not exact, with the warning ``GPL2`` gets."""
-    result = run(db, "detect", "GPL-2.0")
+    result = run(db, "detect", "--variant", "only", "GPL-2.0")
     assert result.stdout.startswith("EXPRESSION=GPL-2.0-only\tMETHOD=id\tEXACT=false\t")
     assert result.stderr == (
         "WARNING: input: variant not stated: GPL-2.0; using GPL-2.0-only\n"
@@ -247,7 +251,7 @@ def test_f3_id_and_argument_agree(db: str, args: list[str]) -> None:
     result = run(db, "is-osi", *args)
     assert (result.exit_code, result.stdout) == (
         0,
-        "EXPRESSION=GPL-2.0-only\tIS_OSI_APPROVED=true\n",
+        "EXPRESSION=GPL-2.0\tIS_OSI_APPROVED=true\n",  # as written
     )
 
 

@@ -33,7 +33,9 @@ CLEAN_MATCH = {"rc": 0, "out": "MIT\n", "err": "", "files": []}
 # --------------------------------------------------------------- judging
 
 #: What detect prints for no answer (C9), and the list update installs.
-NO_ANSWER = "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"
+NO_ANSWER = (
+    "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\tVARIANT_STATED=\n"
+)
 L = "spdx-license-list"
 
 FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [

@@ -88,6 +88,12 @@ SYNTAX: list[tuple[str, str, int | None]] = [
     ("--id and --text", "--id MIT --text MIT", 2),
     ("--text= empty form", "--text= MIT", None),
     ("--id= empty form", "--id= MIT", None),
+    ("--variant only", "--variant only GPL-2.0", 0),
+    ("--variant=or-later", "--variant=or-later GPL-2.0", 0),
+    ("--variant unknown", "--variant nope MIT", 2),
+    ("--variant missing value", "MIT --variant", 2),
+    ("--variant '' empty", "--variant '' MIT", 2),
+    ("repeat --variant (last wins?)", "--variant only --variant auto MIT", None),
 ]
 
 

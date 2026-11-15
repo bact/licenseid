@@ -12,15 +12,16 @@ declared values, SPDX expressions and the matching pipeline.
 - **Deprecated ID normalisation**:
   - `GPL-2.0+` → `GPL-2.0-or-later` (SPDX `+` operator, unambiguous).
   - `Apache-2+` → `Apache-2.0+` (abbreviated base canonicalised, `+` retained).
-  - Bare deprecated IDs (e.g. `GPL-2.0`) resolved conservatively to `-only`
-    by `detect()` when no surrounding context is available, as a guess said
-    aloud: not exact, with `WARNING: input: variant not stated: GPL-2.0;
-    using GPL-2.0-only`, whether the ID is an argument, `--id`, a tag or a
-    manifest field; `resolve()` keeps them as written
-    ([Resolve a declared value](cli.md#resolve-a-declared-value)). A List name
-    without its grant (`GNU General Public License v2.0`), as a whole input
-    but not yet a manifest field, is the same guess, said the same way; a
-    name with a "+" (`v2.0+`), or without its version too, is no answer.
+  - Bare deprecated IDs (e.g. `GPL-2.0`): `detect()` keeps a declared one as
+    written, as `resolve()` does ([Resolve a declared
+    value](cli.md#resolve-a-declared-value)), with `VARIANT_STATED=false`; a
+    text or a List name without its grant (`GNU General Public License
+    v2.0`) answers `-only` first, then `-or-later`, with `WARNING: input:
+    variant not stated: GPL-2.0; using GPL-2.0-only`, unless the input
+    grants later versions (then `-or-later` first, stated). `-only` is the
+    licensee's careful reading: it understates a licensor's "or later" grant.
+    `--variant` changes this ([Detect](cli.md#detect-a-licence-or-resolve-a-declared-value));
+    a name with a "+" (`v2.0+`), or without its version too, is no answer.
 - **Declared-value resolution** (`resolve()`, and `licenseid resolve` on the
   command line): turns one declared licence value (a `license` field, a
   model card, a trove classifier) into an SPDX expression and the steps

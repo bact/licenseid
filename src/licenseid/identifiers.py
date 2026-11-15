@@ -13,6 +13,7 @@ from typing import cast
 
 import py_spdx_license
 
+from licenseid import variants
 from licenseid.classify import (
     OR_LATER_PHRASE,
     another_version,
@@ -50,6 +51,7 @@ from licenseid.plusoperator import (
     states_qualifier,
     strip_plus_operator,
 )
+from licenseid.variants import ONLY_WORD
 from licenseid.versionkey import named_row
 
 # Defensive cap on the number of AND/OR/WITH operators an expression may
@@ -69,7 +71,6 @@ _MAX_CANONICALIZE_OPERATORS = 40
 # AFTER the ID to avoid false positives from unrelated uses. The "only" of
 # an ID ("GPL-2.0-only") is that ID's, not a word about the one before it.
 #: The prose word "only", never the end of an ID.
-ONLY_WORD = re.compile(r"(?<![\w-])only\b", re.IGNORECASE)
 
 
 def _lookup_case_insensitive(mapping: dict[str, str], key: str) -> str | None:
@@ -541,11 +542,10 @@ def _normalize_single_id(
     normalized = _lookup_case_insensitive(DEPRECATED_SPDX_LICENSE_IDS, lic_id)
 
     if not normalized:
-        normalized = _lookup_case_insensitive(DEPRECATED_WITH_IDS, lic_id)
-
-    if not normalized:
-        # Conservative last resort: bare deprecated IDs default to '-only'.
-        normalized = _lookup_case_insensitive(DEPRECATED_BARE_LICENSE_IDS, lic_id)
+        # Last resort, by the variant in force: a bare or "-with-" deprecated
+        # ID is kept as written (the default), or decided "-only" or
+        # "-or-later" (licenseid.variants).
+        normalized = variants.fallback(lic_id)
 
     if normalized:
         return normalized

@@ -22,6 +22,7 @@ from resolver_helpers import GPL2, summary
 from licenseid import LicenseDatabase
 from licenseid.classify import is_negated
 from licenseid.looseid import declared_grant_id_text, granted_id_text
+from licenseid.resolvefirst import EXACT_CATEGORIES
 from licenseid.resolver import resolve
 from licenseid.resolvertypes import CATEGORY_ORDER, TRUST
 
@@ -319,9 +320,17 @@ def test_a_name_held_by_a_deprecated_row_only_is_no_listed_name() -> None:
         assert resolve("Old License", db)["category"] == "unresolved"
 
 
-def test_the_docs_list_every_category_in_order_with_its_trust() -> None:
+def test_the_docs_list_every_category_in_order_with_its_trust_and_exact() -> None:
     doc = Path(__file__).parents[1] / "docs" / "resolve.md"
     rows = re.findall(
-        r"^\| `(\w+)` \| `(\w+)` \|", doc.read_text(encoding="utf-8"), re.MULTILINE
+        r"^\| `(\w+)` \| `(\w+)` \| (yes|no|—) \|",
+        doc.read_text(encoding="utf-8"),
+        re.MULTILINE,
     )
-    assert rows == [(c, TRUST[c]) for c in CATEGORY_ORDER]
+    want = [
+        (c, TRUST[c], ("yes" if c in EXACT_CATEGORIES else "no"))
+        for c in CATEGORY_ORDER
+    ]
+    # malformed and unresolved give no answer: nothing to judge.
+    want = [(c, t, "—" if c in ("malformed", "unresolved") else e) for c, t, e in want]
+    assert rows == want

@@ -98,7 +98,8 @@ def test_a_plus_that_touches_its_id_still_answers(
     expression = resolve(value, corpus_db)["expression"]
     assert expression is not None
     got = (_text(corpus_db, value), _field(corpus_db, tmp_path, value))
-    assert got == ((expression, True), (expression, True))
+    exact = value != "MIT+,"  # a separator rule reads the comma: not exact
+    assert got == ((expression, exact), (expression, exact))
 
 
 @pytest.mark.parametrize(
@@ -308,8 +309,8 @@ ORA = {
     # them, the field too, and the tag reads its leading ID and no grant.
     "MIT ora later": ("MIT", True),
     "MIT orany later": ("MIT", True),
-    "GPL-2.0 ora later": ("GPL-2.0-only", False),
-    "GPL-2.0 orany later version": ("GPL-2.0-only", False),
+    "GPL-2.0 ora later": ("GPL-2.0", True),
+    "GPL-2.0 orany later version": ("GPL-2.0", True),
 }
 
 

@@ -50,7 +50,8 @@ in another module.
   needing no database), `resolvefirst` (input `resolve()` reads whole; the
   cut of a short refused one), `shorttext` (Tier 0), `retrieval` (Tier 1),
   `idoptions` (`exclude`, `hint`: free text only, case-folded, a bare
-  deprecated ID stands for both twins),
+  deprecated ID stands for both twins, kept under `as-written`), `variants`
+  (the `variant` option: what a bare ID and a text answer, `variant_stated`),
   `similarity`, `fingerprint` (maths) and `fingerprintstore` (its table),
   `ranking` (sort order, `-only`/`-or-later` tie-breaker), `markers` and
   `candidates` (its helpers), `classify` (prose "or later"), `identifiers`,
@@ -183,7 +184,8 @@ and `--json`) against these rules and checks the default output against the
     `stale cache unusable`, `parse failed`, `variant not stated`,
     `deprecated ID`, `N rows with missing or non-numeric num_pushers`,
     `update failed`, `delete failed`, `write failed`, `compact failed`,
-    `older than the database`, `too few words for text`.
+    `older than the database`, `too few words for text`,
+    `overridden by input`.
   - `DETAIL`: one line. A path through `errors.shown` (control characters
     escaped, `;` as `,`), a value through `errors.one_line` (folded, cut to
     60), an exception through `errors.typed`. Not result escaping: a
@@ -255,6 +257,18 @@ and `--json`) against these rules and checks the default output against the
   (`errors.invalid_id_error`); `LicenseDetector._try_explicit_id_match`
   raises, so ask the predicate first. Never widen `--id` to expressions.
   The CLI makes no ID guess of its own.
+
+- `variant` (`--variant auto|as-written|only|or-later`, API `variant=`,
+  `licenseid.variants`; roadmap item 52): a declared value stays as written
+  under `auto` (bare `GPL-2.0`, `-with-` IDs); a text match never answers a
+  deprecated ID (`variants.settle_text`: `-or-later` first where
+  `ranking.or_later_signal` finds a grant, else `-only` first, a warning).
+  `only` and `or-later` decide (`variants.fallback`, a context variable
+  set in `LicenseDetector._match_raw`; outside `detect()` it reads `only`).
+  Stated words win, with `option: overridden by input`. `variant_guessed`
+  on a match and `variants.stated_of` give the last record field
+  `VARIANT_STATED`; `is-*` lines have none. `is-osi`/`is-fsf` judge a kept
+  deprecated ID by its `-only` twin (`exprflags.judged_id`).
 
 ### Expression readers (one reader each; do not write another)
 

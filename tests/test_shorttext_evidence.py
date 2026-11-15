@@ -24,6 +24,7 @@ a short input are of Han and kana, which the cut exempts.
 import json
 from collections.abc import Generator
 from pathlib import Path
+from typing import Any
 
 import pytest
 from click.testing import CliRunner
@@ -135,8 +136,8 @@ def db_path() -> Generator[str, None, None]:
     yield from seeded_db("test_shorttext_evidence", rows)
 
 
-def detect(db_path: str, text: str) -> list[Detection]:
-    return LicenseDetector(db_path).detect(text=text)
+def detect(db_path: str, text: str, **options: Any) -> list[Detection]:
+    return LicenseDetector(db_path).detect(text=text, **options)
 
 
 def answers(db_path: str, text: str) -> list[str]:
@@ -221,19 +222,18 @@ NAME_WORDS = [
 def test_a_deprecated_name_is_still_answered(
     db_path: str, given: GivenWarnings
 ) -> None:
-    """AGPL-3.0's name is held by the names that replaced it: they come
-    first, the narrower a guess said aloud, and the deprecated row is the
-    exact name."""
+    """AGPL-3.0's name is held by the names that replaced it: the narrower
+    a guess said aloud; the deprecated row is never answered."""
     text = "GNU Affero General Public License v3.0"
     results = detect(db_path, text)
-    assert [(r["expression"], r["exact"]) for r in results[:3]] == [
+    assert [(r["expression"], r["exact"]) for r in results[:2]] == [
         ("AGPL-3.0-only", False),
         ("AGPL-3.0-or-later", False),
-        ("AGPL-3.0", True),
     ]
+    assert "AGPL-3.0" not in [r["expression"] for r in results]
     assert results[0]["score"] == 1.0
     assert given.lines() == (
-        f"WARNING: input: variant not stated: {text}; using AGPL-3.0-only\n"
+        "WARNING: input: variant not stated: AGPL-3.0; using AGPL-3.0-only\n"
     )
 
 
@@ -262,7 +262,7 @@ def test_a_name_without_its_grant_is_the_narrower_guess(
     ]
     assert results[0]["score"] == results[1]["score"] == 1.0
     assert given.lines() == (
-        f"WARNING: input: variant not stated: {text}; using {stem}-only\n"
+        f"WARNING: input: variant not stated: {stem}; using {stem}-only\n"
     )
 
 
@@ -363,7 +363,8 @@ def test_a_short_licence_input_keeps_its_answer(
     results = detect(db_path, text)
     assert (results[0]["expression"], results[0]["method"]) == (top, method)
     assert results[0]["score"] >= 0.85
-    assert given.take() == []
+    # A text of a licence without its grant says its guess aloud.
+    assert given.conditions() <= {"variant not stated"}
 
 
 def test_the_two_title_lines_of_gpl_3_are_its_title(
@@ -371,11 +372,15 @@ def test_the_two_title_lines_of_gpl_3_are_its_title(
 ) -> None:
     """The two title lines of GPL-3.0 (under ten words) are left to
     resolve(), whose title table reads a run of white space as one space:
-    on two lines as on one, the -only guess, said aloud."""
+    on two lines as on one, kept as written; ``only`` is the -only guess,
+    said aloud."""
     text = head("GPL-3.0-only", 2)
     assert "\n" in text
     for value in (text, " ".join(text.split())):
-        assert detect(db_path, value)[0]["expression"] == "GPL-3.0-only"
+        assert detect(db_path, value)[0]["expression"] == "GPL-3.0"
+        assert given.take() == []
+        only = detect(db_path, value, variant="only")
+        assert only[0]["expression"] == "GPL-3.0-only"
         assert given.conditions() == {"variant not stated"}
 
 

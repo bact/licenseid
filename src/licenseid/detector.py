@@ -12,6 +12,7 @@ from dataclasses import dataclass, replace
 
 from typing_extensions import Unpack
 
+from licenseid.candidates import as_matches, license_sections
 from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
@@ -27,13 +28,16 @@ from licenseid.idoptions import excluded_ids, free_text_hits, upgraded_options
 from licenseid.looseid import (
     disambiguate_whole,
     loose_with,
+    mark_guessed,
     narrow_ids,
-    warn_narrowed,
 )
 from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
-from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
+from licenseid.ranking import (
+    apply_version_suffix_tiebreaker,
+    ranking_key,
+)
 from licenseid.resolvefirst import as_resolved, match_of, too_short, unread_url
 from licenseid.resolver import resolve_with
 from licenseid.resolvereason import is_plus_refusal, refuses_text_match
@@ -46,7 +50,6 @@ from licenseid.shorttext import (
     exact_id_match,
     match_short_text,
     match_version_key,
-    narrowed_name,
 )
 from licenseid.similarity import (
     build_probe,
@@ -61,9 +64,9 @@ from licenseid.types import (
     DetectOptions,
     InternalMatch,
     LicenseFlags,
-    Method,
     RawMatch,
 )
+from licenseid.variants import DEFAULT, read_as, settle_free_text
 
 # Maximum additive boost applied to a candidate whose highest-IDF fingerprint
 # n-gram has idf_norm == 1.0 (unique to that single license in the corpus).
@@ -153,12 +156,9 @@ class LicenseDetector:
                 _set_flags(match, self.markers.license_flags(match["license_id"]))
         return matches
 
-    def _resolve_declared(self, value: str, shown: str | None = None) -> list[RawMatch]:
-        """The answer to a declared license value: certain, or none. A
-        narrowed guess is said of *shown*, the value as written, if given."""
-        return self._finalize_exact_markers(
-            self.markers.resolve_license_value(value, 1.0, shown=shown), method="id"
-        )
+    def _resolve_declared(self, value: str) -> list[RawMatch]:
+        """The answer to a declared license value: certain, or none."""
+        return as_matches(self.markers.resolve_license_value(value, 1.0), method="id")
 
     def _resolve_loose_with(self, text: str) -> list[RawMatch]:
         """*text*, a license written loosely WITH an exception, answered as
@@ -170,9 +170,9 @@ class LicenseDetector:
         expression, loose = found
         declared = self._resolve_declared(expression)
         if declared and loose is not None:
-            warn_narrowed(loose, declared[0]["license_id"])
             for match in declared:
                 match["exact"] = False
+                mark_guessed(match, text)
         return declared
 
     def _resolve_target_text(self, text: str | None, file_path: str | None) -> str:
@@ -224,7 +224,7 @@ class LicenseDetector:
             )
         spdx_exact = [c for c in marker_candidates if c.get("score", 0) == 1.0]
         if spdx_exact:
-            return marker_candidates, {}, self._finalize_exact_markers(spdx_exact)
+            return marker_candidates, {}, as_matches(spdx_exact)
 
         # Build a marker-boost map: license_id -> marker confidence score.
         # Used later in ranking to signal which candidates are
@@ -255,7 +255,7 @@ class LicenseDetector:
         # a quoted field, a license written loosely WITH an exception).
         resolution = resolve_with(self.db, ctx.target_text)
         if resolution["expression"] is not None:
-            return self._answer_of(resolution, ctx.target_text)
+            return self._answer_of(resolution)
         return self._short_text_refused(ctx, resolution["reason"])
 
     def _short_text_refused(
@@ -426,6 +426,20 @@ class LicenseDetector:
     ) -> Sequence[RawMatch | InternalMatch]:
         """detect() before the public form: each tier's own records."""
         check_request(text, license_id, file_path, options)
+        return read_as(
+            options.get("variant", DEFAULT),
+            lambda: self._match_by(text, license_id, file_path, options),
+        )
+
+    def _match_by(
+        self,
+        text: str | None,
+        license_id: str | None,
+        file_path: str | None,
+        options: DetectOptions,
+    ) -> Sequence[RawMatch | InternalMatch]:
+        """:meth:`_match_raw` of an input already checked, read as the
+        variant in force says."""
         if license_id is not None:
             return self._try_explicit_id_match(license_id)
 
@@ -436,7 +450,7 @@ class LicenseDetector:
         # resolve() answer it alike (resolvefirst).
         whole = resolve_with(self.db, target_text)
         if whole["expression"] is not None:
-            return self._answer_of(whole, target_text)
+            return self._answer_of(whole)
         if unread_url(whole, target_text):  # a page is no text to match
             return []
         return self._match_text(
@@ -448,19 +462,19 @@ class LicenseDetector:
         resolution = resolve_with(self.db, value)
         if resolution["expression"] is None:
             return []
-        return self._answer_of(resolution, value)
+        return self._answer_of(resolution)
 
-    def _answer_of(self, resolution: Resolution, value: str) -> list[RawMatch]:
-        """The results of *resolution*'s expression, read from *value*, made
-        what the resolution says (resolvefirst)."""
+    def _answer_of(self, resolution: Resolution) -> list[RawMatch]:
+        """The results of *resolution*'s expression, made what the resolution
+        says (resolvefirst)."""
         expression = resolution["expression"] or ""
-        found = self._resolve_declared(expression, value)
+        found = self._resolve_declared(expression)
         if not found:  # no marker reader takes it: "MIT WITH AdditionRef-x"
             narrow = narrow_ids(self.db, expression)
             found = [match_of(narrow, self.markers.license_flags(narrow))]
             if narrow != expression:  # a guess, said and not exact
-                warn_narrowed(value, narrow)
                 found[0]["exact"] = False
+                mark_guessed(found[0], expression)
         return as_resolved(resolution, found)
 
     def _match_text(
@@ -494,10 +508,9 @@ class LicenseDetector:
             excluded = excluded_ids(ctx.request.get("exclude", []))
             short_text_result = free_text_hits(short_text_result, excluded) or None
         if short_text_result is not None:
-            guess = narrowed_name(short_text_result)
-            if guess is not None:  # "GNU General Public License v2.0"
-                warn_narrowed(ctx.target_text, guess)
-            return short_text_result
+            return settle_free_text(
+                short_text_result, ctx.target_text, ctx.is_pure, ctx.request
+            )
 
         # Tier 1: Broad Recall, then Tier 2: Precision Ranking; not for a
         # short input resolve() refused (resolvefirst).
@@ -507,9 +520,10 @@ class LicenseDetector:
 
         # Tiebreaker: -only vs -or-later when scores are identical
         pop = ctx.request.get("enable_popularity", self.enable_popularity)
-        return apply_version_suffix_tiebreaker(
+        ranked = apply_version_suffix_tiebreaker(
             ranked, ctx.target_text, ctx.is_pure, enable_pop=pop
         )
+        return settle_free_text(ranked, ctx.target_text, ctx.is_pure, ctx.request)
 
     def _resolve_record(
         self,
@@ -673,32 +687,11 @@ class LicenseDetector:
         ranked.sort(key=ranking_key(enable_popularity))
         return ranked
 
-    def _finalize_exact_markers(
-        self, exact: list[CandidateMatch], method: Method | None = None
-    ) -> list[RawMatch]:
-        """Convert certain candidates to results: each found by its own
-        method (a tag or a field), or by *method*. Nothing is measured."""
-        # The detector keeps one candidate per license_id (_first_per_license).
-        return [
-            RawMatch(
-                license_id=c["license_id"],
-                method=method or c["method"],
-                exact=not c.get("narrowed", False),
-                score=1.0,
-                similarity=None,
-                coverage=None,
-                is_spdx=c.get("is_spdx", False),
-                is_osi_approved=c.get("is_osi_approved", False),
-                is_fsf_libre=c.get("is_fsf_libre", False),
-            )
-            for c in exact
-        ]
-
     def _match_mixed_content(
         self, request: DetectOptions, target_text: str
     ) -> list[CandidateMatch]:
         """Extract sections from mixed content and search them for licenses."""
-        sections = self.markers.get_sections(target_text)
+        sections = license_sections(target_text)
         candidates: list[CandidateMatch] = []
         seen_ids = set()
 

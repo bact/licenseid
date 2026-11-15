@@ -9,7 +9,7 @@ license ID or name."""
 from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase
-from licenseid.looseid import loose_id, narrowed, resolved_id, warn_narrowed
+from licenseid.looseid import loose_id, mark_guessed, narrowed, resolved_id
 from licenseid.plusoperator import grant_stem, strip_plus_operator
 from licenseid.ranking import DEP_PENALTY
 from licenseid.types import LicenseNameId, RawMatch
@@ -281,7 +281,7 @@ def _id_hit(row: LicenseNameId, resolved: str, text: str) -> RawMatch:
     # row's: the caller works them out.
     if narrowed(row["license_id"], resolved):
         match["exact"] = False
-        warn_narrowed(text, resolved)
+        mark_guessed(match, text)
     return match
 
 

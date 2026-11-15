@@ -279,10 +279,10 @@ def test_a_grant_after_another_version_is_not_the_ids(
     corpus_db: LicenseDatabase, given: GivenWarnings, value: str
 ) -> None:
     """The grant is version 3's (the number between the ID and the phrase is
-    another licence's), not GPL-2.0's: GPL-2.0 alone is read, as the narrow
-    guess with a warning. It was GPL-2.0-or-later, exact."""
-    assert _tag(corpus_db, value) == ("GPL-2.0-only", False)
-    assert given.conditions() == {"variant not stated"}
+    another licence's), not GPL-2.0's: GPL-2.0 alone is read, kept as
+    written. It was GPL-2.0-or-later, exact."""
+    assert _tag(corpus_db, value) == ("GPL-2.0", True)
+    assert given.take() == []
 
 
 def test_a_licence_listed_after_a_comma_is_no_grant_of_the_first(

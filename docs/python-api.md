@@ -64,7 +64,7 @@ ranks (dozens for a LICENSE file), best first. Filter on `score` and
 `exact` yourself; the `is_*()` predicates use a bar of 0.85.
 
 `detect()` takes the keyword options `enable_popularity`, `exclude`, `hint`,
-`only_common` and `only_spdx`, and raises `licenseid.InvalidInputError`
+`only_common`, `only_spdx` and `variant`, and raises `licenseid.InvalidInputError`
 for any other, such as a mistyped name. A flag must be a `bool`, and
 `exclude` and `hint` a list, tuple, set or frozenset of `str`: any other
 value raises `TypeError` (a bare `"MIT"`, a dict, a generator). Every call
@@ -97,6 +97,31 @@ bare ID). A deprecated `-with-` ID (`GPL-2.0-with-classpath-exception`) has no
 twin, since its successor is an expression: it is taken as written. `exclude`
 compares the whole ID, so `exclude=["GPL-2.0-only"]` does not drop the
 font-exception candidate `GPL-2.0-only WITH Font-exception-2.0`; name it too.
+With `variant="as-written"` a bare ID in `exclude` or `hint` is kept as
+written, with no upgrade and no warning (a "+" still reads as `-or-later`);
+`exclude` still drops both twins of a bare ID.
+
+`variant` is a `str`, one of `"auto"` (the default), `"as-written"`,
+`"only"` and `"or-later"` (another `str` raises `InvalidInputError`, `option:
+invalid: variant: ...`; a value that is no `str` raises `TypeError`). Unlike
+the other options it acts on every input. It says what to answer for a
+licence with an `-only` and an `-or-later` form when the input does not
+state which. `"auto"` keeps a declared value as written (`detect(license_id=
+"GPL-2.0")` is `GPL-2.0`, `variant_stated` `False`, as `resolve()` gives it)
+and, for a licence text or name, answers `-or-later` where the input grants
+later versions (stated), else `-only` first and `-or-later` second, both
+`variant_stated` `False`, with one `variant not stated` warning. `-only`
+is the licensee's careful reading: it understates a licensor's "or later"
+grant. `"as-written"` never decides: a bare deprecated ID stays, in a text
+match too. `"only"` and `"or-later"` always decide, declared values too, with
+the warning. The option is a preference, never a fact: words that state the
+variant (`GPL-2.0 or later`, `GPL-2.0+`, `-only`, `-or-later`) win over
+`"only"` and `"or-later"`, with `option: overridden by input: --variant only;
+using GPL-2.0-or-later`. `variant_stated` of a result is `True` when the input
+states the variant, `False` for a guess or a bare ID kept, `None` where no
+licence of the answer has a variant (`MIT`); of a compound `None` when none
+has one, `False` when any is `False`, else `True`. `resolve()` takes no
+`variant`, and its answers do not change.
 
 A text under 30 words that is no declaration, but names a licence ("released
 under the terms of the MIT License"), is free text: `exclude` drops that
@@ -230,6 +255,7 @@ List, its `version`, `source` `"database"`. For `detect(text="MIT")`:
         "is_osi_approved": True,
         "is_fsf_libre": True,
         "lists": [...],  # one ListInfo: the database's SPDX License List
+        "variant_stated": None,  # True, False, or None: no variant to judge
     }
 ]
 ```
@@ -250,7 +276,7 @@ from licenseid import LicenseIdWarning, detect
 
 with warnings.catch_warnings(record=True) as given:
     warnings.simplefilter("always", LicenseIdWarning)
-    detect(text="SPDX-License-Identifier: GPL-2.0")
+    detect(text="SPDX-License-Identifier: GPL-2.0", variant="only")
 [(w.message.condition, w.message.action) for w in given]
 # [("variant not stated", "using GPL-2.0-only")]
 

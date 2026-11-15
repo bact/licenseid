@@ -15,10 +15,12 @@ reason)}`` for the ``detect()`` golden. ``CLI_CHANGES``:
 (``python -m tools.golden`` prints it)."""
 
 from harness_changes_aliases import ALIAS_CHANGES
+from harness_changes_exact import EXACT_CHANGES
 from harness_changes_nametier import NAME_TIER_CHANGES
 from harness_changes_resolvefirst import RESOLVE_FIRST_CHANGES
 from harness_changes_slash import SLASH_CHANGES
 from harness_changes_urls import URL_CHANGES
+from harness_changes_variant import VARIANT_CHANGES, VARIANT_CLI_CHANGES
 from harness_changes_versioned import VERSIONED_CHANGES
 from harness_changes_wrappers import WRAPPER_CHANGES
 
@@ -33,6 +35,10 @@ DETECT_CHANGES: dict[str, tuple[str, str]] = {
     **VERSIONED_CHANGES,
     **URL_CHANGES,  # last: a value it moves again has its answer now
     **SLASH_CHANGES,  # over the resolve-first row: `MIT/Apache-2.0` is read
+    **EXACT_CHANGES,  # only `exact` moves, on the answers above
+    **VARIANT_CHANGES,  # last: `variant` keeps a bare ID, over the rows above
+    **EXACT_CHANGES,  # only `exact` moves, on the answers above
+    **VARIANT_CHANGES,  # last: `variant` keeps a bare ID, over the rows above
 }
 CLI_CHANGES: dict[str, tuple[str, str]] = {
     "detect-name#text": ("bea927311e33", _FIRST),
@@ -41,4 +47,5 @@ CLI_CHANGES: dict[str, tuple[str, str]] = {
     "detect-text-no-answer#json": ("0f14c7433df9", _SHORT),
     "detect-unreadable-text#text": ("0df77ec6c59b", _SHORT),
     "detect-unreadable-text#json": ("13301d901e3b", _SHORT),
+    **VARIANT_CLI_CHANGES,  # last: every record has a new last field
 }

@@ -115,7 +115,7 @@ def test_s1_a_lone_qualified_id_still_reads(
     with no operator still answers."""
     assert disambiguate_deprecated_id(value) == answer
     if len(value.split()) < 6:
-        assert _top(corpus_db, value) == (answer, True)
+        assert _top(corpus_db, value) == (answer, value != "GPL-2.0 only")
 
 
 # --- S2: a "+" after a deprecated -with- ID is its licence's (P170) ------------
@@ -207,12 +207,12 @@ def test_s6_a_blank_database_path_is_refused(create: bool, blank: str) -> None:
 @pytest.mark.parametrize(
     ("value", "answer"),
     [
-        ("GPL-2.0+,", ("GPL-2.0-or-later", True)),
-        ("GPL-2.0+.", ("GPL-2.0-or-later", True)),
-        ("GPL-2.0+;", ("GPL-2.0-or-later", True)),
-        ("Apache-2.0+,", ("Apache-2.0+", True)),
-        ("MIT,", ("MIT", True)),
-        ("GPL-2.0,", ("GPL-2.0-only", False)),  # bare: the narrow guess
+        ("GPL-2.0+,", ("GPL-2.0-or-later", False)),
+        ("GPL-2.0+.", ("GPL-2.0-or-later", False)),
+        ("GPL-2.0+;", ("GPL-2.0-or-later", False)),
+        ("Apache-2.0+,", ("Apache-2.0+", False)),
+        ("MIT,", ("MIT", False)),  # a separator: no list,
+        ("GPL-2.0,", ("GPL-2.0", False)),  # bare: kept as written
     ],
 )
 def test_s7_one_end_mark_ends_a_lone_expression(

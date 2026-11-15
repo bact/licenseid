@@ -25,7 +25,6 @@ from licenseid.exprtokens import (
     token_kind,
 )
 from licenseid.identifiers import (
-    ONLY_WORD,
     bare_deprecated,
     disambiguate_deprecated_id,
     names_only_listed,
@@ -36,9 +35,9 @@ from licenseid.identifiers import (
 from licenseid.listlookup import ListedName, ListLookup
 from licenseid.normalize import DASHES
 from licenseid.plusoperator import PLUS_OPERATOR
-from licenseid.types import CandidateMatch
+from licenseid.types import CandidateMatch, RawMatch
+from licenseid.variants import ONLY_WORD, decided, family_of, warn_guess
 from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_key
-from licenseid.warning import warn
 
 # grant_end is classify's, the one probe of a grant after an ID; the
 # compound reader (exprcanon) imports it from here.
@@ -53,6 +52,7 @@ __all__ = [
     "lists_another",
     "loose_id",
     "loose_with",
+    "mark_guessed",
     "narrowed",
     "narrowed_ids",
     "resolved_id",
@@ -114,12 +114,12 @@ def resolved_id(db: ListLookup, row: ListedName) -> str:
 
 
 def narrowed(row_id: str, resolved: str) -> bool:
-    """Whether the deprecated *row_id* was redirected to an -only form that
-    was not stated. A deprecated ID written as is ("GPL-2.0") is narrowed
-    too: the List split it into -only and -or-later, and the -only guess is
-    the narrower grant, not the declared one (decision F3 of the contract
-    batch: guess narrow, mark not exact, warn)."""
-    return "-only" in resolved and "only" not in row_id.lower()
+    """Whether the deprecated *row_id* was decided as an -only or -or-later
+    form that was not stated (``variant`` ``only`` or ``or-later``; the
+    default keeps it as written, and says nothing). A bare ID is no
+    statement: the List split it into -only and -or-later (decision F3 of
+    the contract batch: a guess is not exact, and said)."""
+    return decided(row_id, resolved)
 
 
 def narrowed_ids(db: ListLookup, text: str, expression: str) -> bool:
@@ -370,9 +370,18 @@ def restates_qualifier(expression: str, value: str) -> bool:
     return declared_grant_id_text(value) == expression.rstrip()
 
 
-def warn_narrowed(text: str, resolved: str) -> None:
-    """Say that *text* was read as the narrower -only grant *resolved*."""
-    warn("input", "variant not stated", shown(text), f"using {resolved}")
+def mark_guessed(match: CandidateMatch | RawMatch, written: str) -> None:
+    """Say that the variant of *match*, read from *written*, was decided, not
+    stated, and mark it: ``variant_guessed``, and a warning."""
+    match["variant_guessed"] = True
+    warn_narrowed(match["license_id"], written)
+
+
+def warn_narrowed(resolved: str, written: str = "") -> None:
+    """Say that the variant of a licence was not stated and *resolved* was
+    decided (``-only``, or ``-or-later`` for ``--variant``): the DETAIL is
+    the licence (``GPL-2.0``), not the text."""
+    warn_guess(family_of(resolved, written), resolved)
 
 
 def shown(text: str) -> str:

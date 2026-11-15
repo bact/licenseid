@@ -15,6 +15,14 @@ and this project adheres to
 
 - `detect()` options are typed (`licenseid.types.DetectOptions`, was
   `DetectRequest`); a type checker now rejects an unknown option ([#210])
+- **Breaking:** `detect()` `exact` is false for a value a rewrite rule read
+  (`Apache License, Version 2.0`, `GPL-2.0 only`); true where a list defines it
+- **Breaking:** `detect GPL-2.0` keeps `GPL-2.0` and `-with-` IDs as written,
+  with new `VARIANT_STATED` (migrate: `--variant only`); a text warns once
+- `detect --variant auto|as-written|only|or-later` (API `variant=`), and the
+  last record field `VARIANT_STATED` (JSON `variant_stated`)
+- `is-osi` and `is-fsf` judge a bare deprecated ID by its `-only` twin, and
+  `GPL-2.0-with-classpath-exception` as `GPL-2.0-only WITH` its exception
 
 ### Fixed
 

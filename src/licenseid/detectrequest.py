@@ -10,8 +10,9 @@ from collections.abc import Mapping
 from typing import Final
 
 from licenseid.dbcheck import require_path
-from licenseid.errors import InvalidInputError
+from licenseid.errors import InvalidInputError, one_line
 from licenseid.types import DetectOptions
+from licenseid.variants import VARIANTS
 
 # The keyword options detect() accepts: the keys of DetectOptions.
 MATCH_OPTIONS: frozenset[str] = frozenset(DetectOptions.__annotations__)
@@ -71,6 +72,7 @@ def _check_option_values(options: Mapping[str, object]) -> None:
     for name in _FLAG_OPTIONS:
         if name in options and not isinstance(options[name], bool):
             raise TypeError(f"{name} must be bool, not {type(options[name]).__name__}")
+    _check_variant(options)
     for name in _LIST_OPTIONS:
         value = options.get(name)
         if name in options and (
@@ -78,6 +80,21 @@ def _check_option_values(options: Mapping[str, object]) -> None:
             or not all(isinstance(item, str) for item in value)
         ):
             raise TypeError(f"{name} must be a list of str")
+
+
+def _check_variant(options: Mapping[str, object]) -> None:
+    """:class:`TypeError` for a ``variant`` that is no str,
+    :class:`InvalidInputError` for one that is not a variant."""
+    if "variant" not in options:
+        return
+    value = options["variant"]
+    if not isinstance(value, str):
+        raise TypeError(f"variant must be str, not {type(value).__name__}")
+    if value not in VARIANTS:
+        raise InvalidInputError(
+            f"option: invalid: variant: {one_line(value)}"
+            f"; use one of {', '.join(VARIANTS)}"
+        )
 
 
 def check_request(

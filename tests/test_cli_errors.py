@@ -14,7 +14,12 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from conftest import clear_cache_line, make_memory_db_path, make_ready_db_path
+from conftest import (
+    NO_DETECTION,
+    clear_cache_line,
+    make_memory_db_path,
+    make_ready_db_path,
+)
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
@@ -154,7 +159,7 @@ def test_missing_input(ready_db: str, command: str) -> None:
 @pytest.mark.parametrize(
     ("extra", "line"),
     [
-        (["-v"], "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"),
+        (["-v"], NO_DETECTION),
         ([], "\n"),
     ],
     ids=["verbose", "terse"],

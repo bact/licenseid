@@ -9,6 +9,7 @@ then filter them and add the hinted ones."""
 from collections.abc import Collection, Iterable
 
 from licenseid.database import LicenseDatabase
+from licenseid.exprflags import with_judged_flags
 from licenseid.idoptions import excluded_ids, folded
 from licenseid.listlookup import fold_case
 from licenseid.normalize import normalize_text, strip_comment_prefixes
@@ -156,6 +157,7 @@ def _inject_hinted_candidates(
         if fold_case(h_id) not in present:
             details = db.get_license_details(h_id)
             if details:
+                details = with_judged_flags(details, db)
                 present |= {fold_case(details["license_id"]), fold_case(h_id)}
                 filtered.append(
                     CandidateMatch(

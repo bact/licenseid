@@ -62,16 +62,20 @@ def free_text_hits(matches: list[RawMatch], excluded: Iterable[str]) -> list[Raw
     ]
 
 
-def _upgraded(option: str, ids: Iterable[str]) -> list[str]:
+def _upgraded(option: str, ids: Iterable[str], *, keep_bare: bool) -> list[str]:
     """*ids* with each bare deprecated ID replaced by its two twins; one
     warning for each such ID, however often or in whatever case it is
-    given."""
+    given. With *keep_bare* (``variant="as-written"``) a bare ID stays as
+    written, silently; a "+" still states "or later"."""
     out: list[str] = []
     warned: set[str] = set()
     for given in ids:
         stem = strip_plus_operator(given)  # "GPL-2.0+": the "+" operator
         twins = _TWINS.get(fold_case(stem))
         if twins is None:
+            out.append(given)
+            continue
+        if keep_bare and stem == given:
             out.append(given)
             continue
         bare, only, or_later = twins
@@ -90,11 +94,12 @@ def _upgraded(option: str, ids: Iterable[str]) -> list[str]:
 
 def upgraded_options(options: DetectOptions) -> DetectOptions:
     """*options* with the bare deprecated IDs of ``exclude`` and ``hint``
-    upgraded (and warned of). Other keys, and an option not given, as they
-    are."""
+    upgraded (and warned of; kept for ``as-written``). Other keys, and an
+    option not given, as they are."""
     result = DetectOptions(**options)
+    keep = options.get("variant") == "as-written"
     if exclude := options.get("exclude"):
-        result["exclude"] = _upgraded("exclude", exclude)
+        result["exclude"] = _upgraded("exclude", exclude, keep_bare=keep)
     if hint := options.get("hint"):
-        result["hint"] = _upgraded("hint", hint)
+        result["hint"] = _upgraded("hint", hint, keep_bare=keep)
     return result

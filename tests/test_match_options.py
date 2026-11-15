@@ -27,6 +27,7 @@ VALID_OPTIONS: dict[str, Any] = {
     "hint": ["MIT"],
     "only_common": False,
     "only_spdx": False,
+    "variant": "auto",
 }
 
 
@@ -72,6 +73,7 @@ def test_an_unknown_option_is_rejected(matcher: LicenseDetector, name: str) -> N
     [
         ("only_spdx", "yes"),
         ("only_common", 1),
+        ("variant", 1),
         ("enable_popularity", None),
         ("exclude", "MIT"),  # a bare string was read as its characters
         ("hint", "MIT"),

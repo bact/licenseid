@@ -45,7 +45,7 @@ KNOWN = {
     "MIT": "MIT",
     "mit": "MIT",
     "GPL-2.0+": "GPL-2.0-or-later",
-    "GPL-2.0": "GPL-2.0-only",
+    "GPL-2.0": "GPL-2.0",  # kept as written
     "MIT AND Apache-2.0": "Apache-2.0 AND MIT",
     "Apache-2.0+": "Apache-2.0+",
     "GPL-2.0-only WITH Classpath-exception-2.0": (

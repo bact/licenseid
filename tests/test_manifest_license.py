@@ -166,14 +166,15 @@ def test_a_deprecated_id_takes_the_flags_of_its_replacement(
     expression: the flags are the replacement's, not the deprecated row's
     nor "unknown"."""
     matcher = LicenseDetector(db)
-    top = matcher.detect(text=deprecated)[0]
+    top = matcher.detect(text=deprecated, variant="only")[0]
     assert top["expression"] == replacement
     assert (top["is_spdx"], top["is_osi_approved"], top["is_fsf_libre"]) == (
         True,
         True,
         True,
     )
-    assert matcher.is_spdx(deprecated)
+    # Kept as written, a bare deprecated ID keeps its own row for is_spdx.
+    assert matcher.is_spdx(replacement)
     assert matcher.is_osi(deprecated)
     assert given.conditions() == {"variant not stated"}
 
@@ -466,7 +467,7 @@ def test_a_bare_deprecated_field_is_narrowed_aloud(
     warning every source of a declared value gives (F3 of the contract batch;
     it was exact and silent)."""
     path = manifest(tmp_path, kind, "GPL-2.0", large)
-    top = LicenseDetector(db).detect(file_path=path)[0]
+    top = LicenseDetector(db).detect(file_path=path, variant="only")[0]
     assert (top["expression"], top["exact"]) == ("GPL-2.0-only", False)
     assert given.lines() == (
         "WARNING: input: variant not stated: GPL-2.0; using GPL-2.0-only\n"

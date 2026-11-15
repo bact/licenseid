@@ -180,7 +180,8 @@ def test_a_plus_that_is_an_operator_still_answers(
     found = LicenseDetector(corpus_db.location).detect(text=value)
     assert found
     assert resolve(value, corpus_db)["expression"] == expression
-    assert _top(found) == (expression, True)
+    # "MIT+," is read through a separator rule: not exact.
+    assert _top(found) == (expression, value != "MIT+,")
     assert not given.take()
 
 
