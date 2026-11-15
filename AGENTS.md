@@ -345,6 +345,8 @@ and `--json`) against these rules and checks the default output against the
   block and at every lookup outside one), and keeps no read made during a
   clear (`_generation`). A new write to `licenses` or `license_index` calls
   `self._tables.clear()`, as `_write_db_records` does.
+- Never set `PRAGMA mmap_size`: a file cut by another program (`cp`,
+  `truncate`) under a mapped page kills the process with SIGBUS, no message.
 - Never build `LIKE` or `GLOB` patterns from input (over 50,000 bytes SQLite
   refuses, read as a broken database); compare in memory.
   `search_candidates` quotes its words.

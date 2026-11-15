@@ -602,30 +602,6 @@ def test_an_unsearchable_parent_directory_is_unreadable_not_a_traceback(
         sub.chmod(0o700)
 
 
-def test_connect_closes_the_connection_when_a_pragma_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    path = make_ready_file_db(tmp_path / "p.db")
-    closed: list[bool] = []
-
-    class Fake:
-        """A connection whose first statement fails."""
-
-        def execute(self, *_a: object) -> None:
-            raise sqlite3.OperationalError("boom")
-
-        def close(self) -> None:
-            closed.append(True)
-
-    monkeypatch.setattr(
-        "licenseid.dbconnection.sqlite3.connect", lambda *_a, **_k: Fake()
-    )
-    conns = Connections(str(path), False, create=False)
-    with pytest.raises(sqlite3.OperationalError):
-        conns.connect()
-    assert closed == [True]
-
-
 @posix_only  # a FIFO
 @pytest.mark.parametrize("suffix", ["-journal", "-wal"])
 def test_the_readiness_gate_does_not_hang_on_a_fifo_sidecar(

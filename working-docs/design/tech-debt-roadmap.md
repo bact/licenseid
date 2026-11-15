@@ -31,7 +31,8 @@ to 45 from the reviews of PR #99 (items 43 to 45 resolved 2026-11-09,
 2026-11-09 and 2026-11-08), item 46 from the 0.7.0 whole-release review,
 item 47 from PR #168, item 50 from the work on item 44, item 51
 from the work on item 43, and item 52 from the work on the upgrade of
-deprecated IDs in `py-spdx-license` (2026-11-14).
+deprecated IDs in `py-spdx-license` (2026-11-14), and item 53 from the work
+on item 40 (PR #207).
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -228,19 +229,6 @@ Found in review of item 22 (2026-10-02); `main` does the same:
   markers: the README of a GPL-2.0-only project answers the deprecated
   `GPL-2.0` at 0.855.
 - Impact 1, Risk 2, Effort 3.
-
-## 40. A database truncated during a block crashes with SIGBUS — Priority 20
-
-Found in review of PR #82, on `main` too. Truncating the file while a
-`reading()` block holds its connection, then querying in that block, kills
-the process with SIGBUS (exit 138) on macOS: no message, no exit code of
-licenseid's own. Likely cause: `PRAGMA mmap_size=268435456` in
-`dbconnection`, a mapped page past the new end of file.
-
-- **Fix**: a `posix_only` test in a child process first, then drop or shrink
-  the mapping, or another approach; time a match against `main`. The lookup
-  must raise `DatabaseNotReadyError`.
-- Impact 2, Risk 3, Effort 2.
 
 ## 42. A very long word costs seconds in the full-text search — Priority 16
 
@@ -601,6 +589,23 @@ Proposal, not built (decided 2026-11-14 to record only):
   and `-with-` tables stay with this item.
 
 - Impact 2, Risk 2, Effort 3.
+
+## 53. A cut `-shm` file of a legacy WAL database kills the reader — Priority 12
+
+Found in review of the item 40 fix. SQLite maps the `-shm` file of a WAL
+database whatever `mmap_size` says. A database left in WAL mode by a version
+before 0.4.2 (until `update` runs `Connections.leave_wal`), with its `-shm`
+cut to 0 by another program (a `cp db*` over it), kills the reader with
+SIGBUS, and the parent on `close()`. It needs one held connection, a
+`reading()` block or a single `detect()` call: two separate `detect()` calls
+open fresh connections and answer normally (reproduced in review: `-shm` cut
+to 0, inside a block SIGBUS, outside a block fine).
+
+- **Fix**: measure first (is the reader's `-shm` cut realistic?); then refuse
+  a WAL file with a `-shm` in the readiness check, or open it with
+  `PRAGMA locking_mode=exclusive`, or leave it as a known limit in
+  `cross-platform.md`.
+- Impact 1, Risk 2, Effort 2.
 
 ## Already resolved
 

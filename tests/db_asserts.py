@@ -10,6 +10,8 @@ like on the command line (exit 2, empty stdout, one grammar line)."""
 import os
 import subprocess
 import sys
+import threading
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -176,3 +178,70 @@ def _run_probe(script: str, path: Path | str) -> str:
     except subprocess.TimeoutExpired:
         pytest.fail(f"opening {path} hung")
     return done.stdout
+
+
+# Probes for a file cut under an open connection. Each prints READY, waits for
+# a line on standard input (the file is cut meanwhile), then queries again and
+# prints "answered" or the error's type and message.
+HOLD_PROBE = """
+import sys
+from licenseid import LicenseDetector
+TEXT = "Permission is hereby granted, free of charge, to any person obtaining a copy"
+matcher = LicenseDetector(db_path=sys.argv[1])
+with matcher.db.reading():
+    matcher.detect(TEXT)
+    print("READY", flush=True)
+    sys.stdin.readline()
+    try:
+        matcher.detect(TEXT)
+        print("answered")
+    except Exception as exc:
+        print(type(exc).__name__, exc)
+"""
+
+# A half-read cursor, in a ``reading()`` block or not (IN_BLOCK is replaced).
+SCAN_PROBE = """
+import contextlib, sys
+from licenseid.database import LicenseDatabase
+db = LicenseDatabase(sys.argv[1], create=False)
+block = db.reading() if IN_BLOCK else contextlib.nullcontext()
+try:
+    with block, db._connection() as conn:
+        cur = conn.execute("SELECT value FROM db_metadata WHERE key LIKE 'pad%'")
+        cur.fetchmany(5)
+        print("READY", flush=True)
+        sys.stdin.readline()
+        print(len(cur.fetchall()))
+except Exception as exc:
+    print(type(exc).__name__, exc)
+"""
+
+
+def run_after_cut(
+    script: str, path: Path, cut: Callable[[Path], None]
+) -> tuple[int, str, str]:
+    """Run *script* on *path* in a child, call *cut(path)* once it prints
+    READY, let it go on; return ``(return code, stdout, stderr)``. A child that
+    hangs is killed after 30 s (the return code then shows it)."""
+    with subprocess.Popen(
+        [sys.executable, "-c", script, str(path)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    ) as child:
+        assert child.stdout is not None and child.stdin is not None
+        watchdog = threading.Timer(30, child.kill)
+        watchdog.start()
+        try:
+            ready = child.stdout.readline().strip()
+            if ready == "READY":
+                cut(path)
+                child.stdin.write("go\n")
+                child.stdin.flush()
+            out, err = child.communicate()
+        finally:
+            watchdog.cancel()
+    assert ready == "READY", (ready, err)
+    return child.returncode, out, err

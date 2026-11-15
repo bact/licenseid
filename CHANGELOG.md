@@ -13,9 +13,16 @@ and this project adheres to
 
 ### Fixed
 
+- A database file cut short by another program (`cp`, `truncate`) while a
+  lookup runs, or inside a `reading()` block, raises `DatabaseNotReadyError`;
+  it killed the process with SIGBUS and no message (a database still in the
+  old WAL mode keeps that risk for its `-shm` file until `update`) ([#207])
 - `detect()` on a text of thousands of `License:` lines, or of INI-like lines
   that are not `key = value`, no longer takes seconds: the loose `License:`
-  reader reads the first 256 distinct values and keeps 32 licences
+  reader reads the first 256 distinct values and keeps 32 licences ([#208])
+
+[#207]: https://github.com/bact/licenseid/pull/207
+[#208]: https://github.com/bact/licenseid/pull/208
 
 ## [0.8.4] - 2026-11-09
 

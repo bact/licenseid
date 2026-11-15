@@ -79,7 +79,10 @@ class Connections:
         file, so a lookup after the database was deleted left an empty one
         behind. An in-memory database has no file and opens as it is. A write
         creates the file only when the database was made to *create* it;
-        otherwise the file must be there.
+        otherwise the file must be there. No ``PRAGMA mmap_size``: a mapped
+        page past the end of a file another program truncated kills the
+        process with SIGBUS (tech-debt item 40), and the mapping gains
+        nothing measurable.
         """
         if self._uris is None:
             conn = sqlite3.connect(self.path, uri=self.use_uri)
@@ -89,11 +92,6 @@ class Connections:
                 conn = sqlite3.connect(self.path, uri=self.use_uri)
             else:
                 conn = sqlite3.connect(self._uris[write], uri=True)
-        try:
-            conn.execute("PRAGMA mmap_size=268435456")
-        except BaseException:
-            conn.close()
-            raise
         return conn
 
     @contextlib.contextmanager
