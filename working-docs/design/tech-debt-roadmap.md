@@ -304,13 +304,6 @@ Each case is outside the message grammar or hides a failure. The stream
 and signal cases (closed streams, a closed pipe, an output write error,
 Ctrl-C) were fixed on 2026-10-02; see `tech-debt-resolved.md`.
 
-- **`update` when the default directory cannot be made** (unwritable
-  `HOME`): the `mkdir` error is worded `database: update failed:
-  PermissionError: ...`, with the wrong subject (the directory failed, not
-  the database) and no action. (`--clear-cache` no longer makes the
-  directory. A file licenseid did not build now exits 2 with
-  `database: invalid`, and a delete the system refuses with
-  `database: delete failed`.)
 - **A valid but read-only database** (a read-only mount, a root-owned
   install): every database licenseid writes is in WAL mode, and SQLite must
   create `-shm` beside it even to read. The readiness check gives no verdict
@@ -320,11 +313,6 @@ Ctrl-C) were fixed on 2026-10-02; see `tech-debt-resolved.md`.
   too, in `LicenseDatabase`. Fix options: copy the file, or open it with
   `immutable=1` when the directory is not writable (safe then, since no
   `update` can be running there).
-- **`--db file://localhost/abs.db`**: SQLite accepts the `localhost`
-  authority, so the readiness check passes, but `LicenseDatabase` turns the
-  URI into a `Path`, which collapses the `//`, and the command exits 2 with
-  `database: unreadable`. Pinned as an xfail in
-  `tests/test_db_ready_adversarial.py`.
 - **Lock contention** (`database is locked`, for example the first `update`
   that switches a database to WAL, during a `detect`): the readiness check
   cannot tell a busy database from a hot rollback journal it may not replay,
@@ -342,8 +330,14 @@ Ctrl-C) were fixed on 2026-10-02; see `tech-debt-resolved.md`.
 - **Ctrl-C during imports** (the first ~30 ms, before click runs): Python
   prints a `KeyboardInterrupt` traceback and dies by SIGINT, which the shell
   reports as 130. Found in review of PR #70; `main` is the same.
-- **Fix**: word `update`'s directory failure with its own subject; open a
-  read-only database with `immutable=1`; keep a `file:` URI a URI.
+- **Open**: `immutable=1` for a read-only valid database. Safe only when
+  all hold: a read (never `update`/`clear-cache`); the `mode=ro` open failed
+  on an existing regular file; the directory and the file are both not
+  writable by this user; no non-empty `-wal` or `-journal` beside it. Another
+  user (root, a package manager) updating it still gives torn reads, which
+  is why `database-readiness-gate.md` dropped it. Recommendation: keep it
+  dropped; only a legacy WAL database on read-only media is affected (since
+  0.4.2 `update` leaves WAL).
 - Impact 2, Risk 2, Effort 3.
 
 ## 20. A grant inside an expression loses the value — Priority 9
@@ -406,9 +400,6 @@ short-text leftovers are in `match-resolve-0-8.md`, section 7.
   `resolver-0-7-plan.md`; CI checks `src/ tests/` only.
 - `update --source packaged` sample outputs in the README are unverified
   against a built wheel: check them at the final release gate.
-- A database or cache path that is a symlink loop is refused only after the
-  download: `os.path.exists` is False on `ELOOP`, so it reads as missing
-  (R8 review of #151).
 - The lock-wait test of `LicenseDatabase` holds the lock 2 s and asserts the
   open waited at least 1 s: a thin margin on a slow CI runner (#151).
 - `tests/harness_db.py` repeats the database build of

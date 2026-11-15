@@ -21,6 +21,7 @@ from licenseid.dbcache import TableCache, cast_license_details
 from licenseid.dbcheck import (
     absolute_path,
     empty_error,
+    is_absent,
     is_memory_database,
     is_ready,
     named_file,
@@ -214,7 +215,7 @@ class LicenseDatabase:
             elif needs_writing(exc.__cause__):  # a hot journal, or a WAL's -shm
                 self._connections.recover()
                 state = schema_state(self._connections)
-            elif not os.path.lexists(self.db_path):
+            elif is_absent(str(self.db_path)):
                 raise not_found_error(str(self.db_path)) from exc
             else:
                 raise
@@ -334,7 +335,9 @@ class LicenseDatabase:
             self._schema_pending = False
             self._init_db()
         self._reject_foreign()
-        if self._schema_pending and not self.db_path.parent.is_dir():
+        if self._schema_pending and not (
+            Path(os.path.realpath(self.db_path)).parent.is_dir()
+        ):
             raise LicenseIdError(
                 "database: update failed: OperationalError: "
                 "unable to open database file"

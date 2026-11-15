@@ -316,7 +316,7 @@ making it suitable for use in scripts and CI/CD pipelines.
 | Exit Code | Meaning | Scenarios |
 | :--- | :--- | :--- |
 | **0** | Success | Confident match found; `resolve`: the value resolved to an expression; predicate is TRUE; database updated or already up-to-date; cache cleared or nothing to clear. |
-| **1** | Logic Failure | No matching licence found (an empty line; with `-v` one record, every field empty); `resolve`: no expression (an empty line; `-v` prints the resolution); predicate is FALSE, or cannot be judged (its record still printed); an update or a cache clear that failed (a network error, a delete the system refuses). |
+| **1** | Logic Failure | No matching licence found (an empty line; with `-v` one record, every field empty); `resolve`: no expression (an empty line; `-v` prints the resolution); predicate is FALSE, or cannot be judged (its record still printed); an update or a cache clear that failed (a network error, a data directory that cannot be made, a delete the system refuses). |
 | **2** | Usage or Setup Error | Missing subcommand (help on standard error); missing input text/file; two inputs; `--json` with `--diff`; invalid parameters; `resolve` given a text, `-`, or a path that resolves to nothing; database not ready (for `resolve`, no list to read); output that cannot be written. |
 | **130** | Interrupted | Ctrl-C (SIGINT); no message once started. |
 | **141** | Reader gone | The reader closed the pipe (`head -1`); no message. |
@@ -327,9 +327,9 @@ an answer: `detect --exact GPL-2.0` says `variant not stated` and finds no
 exact match.
 
 A database is not ready when it is missing, empty (no licences yet), invalid
-(another program's file) or unreadable. `detect` and the `is-*` commands refuse
-to answer from one, rather than exiting 1 for no licence or `false`;
-`resolve` reads the list shipped with licenseid instead, unless `--db` or
+(another program's file) or unreadable (a symlink loop included). `detect` and
+the `is-*` commands refuse to answer from one, rather than exiting 1 for no
+licence or `false`; `resolve` reads the list shipped with licenseid instead, unless `--db` or
 `--source database` asks for the database.
 
 `licenseid --version` prints `licenseid <version>`.
