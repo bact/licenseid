@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from licenseid.dbcheck import refused
+from licenseid.errors import LicenseIdError, fold, shown
 
 
 def get_default_db_path() -> str:
@@ -47,3 +48,20 @@ def _home_variable_is_blank() -> bool:
     name = "USERPROFILE" if sys.platform == "win32" else "HOME"
     value = os.environ.get(name)
     return value is not None and not value.strip()
+
+
+def make_default_dir(db_path: str) -> None:
+    """Create the directory of the default database *db_path*.
+
+    Raises :class:`licenseid.errors.LicenseIdError`
+    (``directory: write failed: <dir>: <reason>; pass --db``) when it cannot
+    be made: an unwritable home, or a file where a directory should be.
+    """
+    directory = Path(db_path).parent
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise LicenseIdError(
+            f"directory: write failed: {shown(str(directory))}: "
+            f"{fold(exc.strerror or type(exc).__name__)}; pass --db"
+        ) from exc

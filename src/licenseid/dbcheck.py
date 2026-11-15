@@ -17,6 +17,7 @@ Stdlib only, so importing it does not pull in ``requests``.
 """
 
 import contextlib
+import errno
 import os
 import sqlite3
 import stat
@@ -466,9 +467,7 @@ def _can_rebuild(db_path: str, exc: sqlite3.Error) -> bool:
         return not is_memory_database(db_path)
     path = _os_file(db_path)
     return (
-        "unable to open database file" in text
-        and path is not None
-        and not os.path.lexists(path)
+        "unable to open database file" in text and path is not None and is_absent(path)
     )
 
 
@@ -544,6 +543,38 @@ def _header_is_foreign(path: str) -> bool:
     return bool(head) and head != _SQLITE_HEADER
 
 
+def is_absent(path: str) -> bool:
+    """Whether nothing is at *path*: no file, no link, and every directory
+    above it is a directory or missing. A symlink loop on the way (ELOOP) is
+    not a missing file, which ``os.path.exists`` and ``lexists`` get wrong."""
+    try:
+        os.lstat(path)
+    except (FileNotFoundError, NotADirectoryError):
+        return True
+    except (OSError, ValueError):
+        return False
+    return False
+
+
+def _symlink_loop(db_path: str) -> DatabaseNotReadyError | None:
+    """The ``unreadable`` refusal for a name that loops through symlinks (at
+    the file or any directory above it), else None. ``update`` cannot replace
+    what it cannot reach, so no action is offered. A URI with its own VFS
+    names no file this can stat, and stays ``invalid``."""
+    path = named_file(db_path)
+    if path is None:
+        return None
+    try:
+        os.stat(path)
+    except OSError as exc:
+        # Windows says a loop is WinError 1921, which has no ELOOP errno.
+        if exc.errno == errno.ELOOP or getattr(exc, "winerror", None) == 1921:
+            return unreadable_error(db_path, os_reason(exc))
+    except ValueError:
+        pass
+    return None
+
+
 def _not_our_file(db_path: str) -> bool:
     """Whether *db_path* holds something licenseid cannot have built.
 
@@ -590,6 +621,9 @@ def reject_foreign_database(db_path: str | os.PathLike[str]) -> None:
     ahead on a guess; writing and deleting may not.
     """
     db_path = os.fspath(db_path)
+    loop = _symlink_loop(db_path)
+    if loop is not None:
+        raise loop
     if _not_our_file(db_path):
         raise invalid_error(db_path)
     refusal = _refusal(db_path)

@@ -70,6 +70,8 @@ declared values, SPDX expressions and the matching pipeline.
     `package.json` (with npm's old `license` object and `licenses` array),
     `pyproject.toml` (`license = "..."` or `license = {text = "..."}`, and
     Poetry's), `Cargo.toml` and `setup.cfg`.
+  - In other text, a `License:` line is read too: each distinct value once,
+    the first 256 of them, and the first 48 licences that resolve.
 - **Hybrid matching pipeline**:
   - **A whole value first**: an input that is, as a whole, one declared
     value (`MIT OR Apache-2.0`, `Apache License, Version 2.0`, `GPLv3+`) is

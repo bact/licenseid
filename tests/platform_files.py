@@ -38,6 +38,7 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_database_update.py",
         "test_db_connection.py",
         "test_db_lookup.py",
+        "test_db_path_loops.py",
         "test_db_ready.py",
         "test_db_ready_adversarial.py",
         "test_dbcheck_uri.py",
