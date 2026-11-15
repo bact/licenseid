@@ -31,8 +31,9 @@ to 45 from the reviews of PR #99 (items 43 to 45 resolved 2026-11-09,
 2026-11-09 and 2026-11-08), item 46 from the 0.7.0 whole-release review,
 item 47 from PR #168, item 50 from the work on item 44, item 51
 from the work on item 43, and item 52 from the work on the upgrade of
-deprecated IDs in `py-spdx-license` (2026-11-14), and item 53 from the work
-on item 40 (PR #207).
+deprecated IDs in `py-spdx-license` (2026-11-14), item 53 from the work
+on item 40 (PR #207), item 54 from the review of `EXACT`, and item 55 from
+the decision on `EXACT` and our own lists (2026-11-15).
 
 Next up: item 31, the revision of the license matching rules (decided
 2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
@@ -659,13 +660,32 @@ by licenseid never gives a deprecated ID.
   variant to judge (`MIT`). A script tells a guessed `-only` from a stated
   one without reading standard error. A compound: empty when no operand has
   a variant, `false` when any operand is guessed or kept, else `true`.
-- **`EXACT`**: the result says what the input says. Only form changes (case,
-  order, spacing, quotes); nothing is narrowed, widened, chosen or mapped.
-  The rules stay deterministic: the text rule (whole normalised input equals
-  the licence's `search_text`) and `as_resolved`'s trust table are kept, with
-  one exception: a kept bare `GPL-2.0` (`assumed_only`, trust `none`) and a
-  kept `-with-` ID are `true`, because the output means what the input
-  means. `VARIANT_STATED=false` carries the ambiguity.
+- **`EXACT`** (decided 2026-11-15, after measuring 2,516 inputs: exact
+  answers 98.9% right, inexact 78.9%): true when an authoritative list
+  defines the answer, false when a rewrite rule produced it. The lists are
+  the SPDX List and the lists we keep and publish (item 55): `alias_name`,
+  `trove_name`, `text_title`, `license_url` (the List's pages, `spdx:MIT`
+  and our `URL_ALIASES`), and any later ScanCode or Blue Oak list, each
+  with its source named. So for a declared value `as_resolved` sets `exact`
+  from the category, not from `trust != "none"`: true for `exact`,
+  `lexical`, `listed_name`, `deprecated_equal_successor`,
+  `plus_to_or_later`, `deprecated_ambiguous` and the four list categories
+  above; false for the three rules `separator`, `prose_form` and
+  `version_spelling`. The text rule is kept: the whole normalised input
+  equals the licence's `search_text`. One exception: a kept bare `GPL-2.0`
+  (`assumed_only`, trust `none`) is `true`, because the output is the
+  declaration; `VARIANT_STATED=false` carries the ambiguity. A trove name
+  that is ambiguous (a family or a name with no version, such as `GNU
+  General Public License (GPL)`) is already refused (`none`, no answer), so
+  it never reaches `EXACT`. Costs: 583 of 7,795 resolved PyPI-sample
+  projects (7.5%; `separator` 306, `prose_form` 207, `version_spelling` 70)
+  go from true to false, so `--exact` drops `Apache License, Version 2.0`;
+  the golden answers, `docs/output.md`, `docs/resolve.md` (an `EXACT` column
+  in the category table, which `tests/test_resolver_shapes.py` checks) and
+  the `types.py` docstring change. Revisit when `py-spdx-license#13`
+  (`upgrade()`) is released: its mapping of deprecated IDs settles which
+  renames are List data. Not decided here: three identical-text GFDL ties
+  stay exact and wrong (a tie problem, not an `EXACT` problem).
 - **`exclude` and `hint`** (options of `detect()` in the Python API only: no
   CLI flag, and `resolve()` has neither, so default `detect()` and default
   `resolve()` agree and only a caller who passes them can make `detect()`
@@ -726,6 +746,47 @@ to 0, inside a block SIGBUS, outside a block fine).
   `PRAGMA locking_mode=exclusive`, or leave it as a known limit in
   `cross-platform.md`.
 - Impact 1, Risk 2, Effort 2.
+
+## 54. A truncated ID is `EXACT` — Priority 12
+
+Found when measuring `EXACT` (2026-11-15; 2,516 inputs, SPDX List 3.29.0, a
+sample, not the whole fixture set). Seven inputs that cut an ID short are
+`EXACT=true` and wrong or doubtful: `Apache-1` gives `Apache-1.0` and `MIT-`
+gives `MIT`. `resolve()` reads them as `version_spelling` and `separator`
+(trust `resolver_rule`), and `resolvefirst.as_resolved` sets `exact = trust
+!= "none"`, so a rule counts as exact. A cut version is a choice, not a
+spelling: `Apache-1` may mean `Apache-1.0` or `Apache-1.1`.
+
+- **Measure first**: how many PyPI values and corpus entries end in a bare
+  major version or a lone separator, and what `resolve()` should answer for
+  them (an answer with trust, or none).
+- **Then decide**: refuse the cut version, or keep it with a lower trust so
+  `EXACT` is false. Read it against the definition of `EXACT` of item 52.
+- Impact 1, Risk 2, Effort 2.
+
+## 55. Publish the lists `resolve()` reads — Priority 12
+
+Decided 2026-11-15 with the `EXACT` rule of item 52: an answer from an
+authoritative list is exact, so a user must be able to read each list. Today
+they live in code: `resolvealias.ALIASES` (12), `resolvetitle.TITLES` (4),
+`trovenames.TROVE_NAMES` (89), and in `resolveurl` `URL_ALIASES` (11),
+`SCANCODE_NOT_SPDX` (13), `ID_PAGES` (4 hosts) and `REFUSED_PAIRS`. About
+130 rows in all; ScanCode and Blue Oak lists are planned.
+
+- **One public page**, `docs/lists.md` (or a folder if it passes the file
+  size limit): each list with its purpose, source, the `CATEGORY` and `EXACT`
+  value it gives, and its rows (input, answer, source URL). British English,
+  lines of 80 characters or less.
+- **Generated, not typed**: a script writes the tables from the code, and a
+  test fails when the page and the code differ (as `tests/test_resolver_
+  shapes.py` does for the category table). Never edit the page by hand.
+- **Growth rule kept**: a row is added only with a measured package count
+  (`working-docs/paper-notes/licence-urls.md`); the page shows that count.
+- **Maybe**: a command (`licenseid resolve --lists`) or a JSON file with the
+  same rows, so a script can read them; decide after the page exists.
+- A new list (ScanCode, Blue Oak) gets its page section, its `CATEGORY` and
+  its `EXACT` value when it is added.
+- Impact 2, Risk 1, Effort 2.
 
 ## Already resolved
 
