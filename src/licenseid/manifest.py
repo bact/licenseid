@@ -42,6 +42,9 @@ _RE_TOML_STRING = re.compile(
 # spaces after "license" took 9 s. Leading white space marks a continuation
 # line, so it stays.
 _RE_INNER_SPACE_RUN = re.compile(r"(?<=\S)[^\S\n]{2,}")
+# configparser's own patterns for a section header and an option line.
+_INI_SECTION = configparser.ConfigParser.SECTCRE
+_INI_OPTION = configparser.ConfigParser.OPTCRE
 # Cargo's tables: a crate's, and a workspace's, which its members inherit.
 # Their "MIT/Apache-2.0" is read as OR by licenseid.resolveslash.
 _CARGO_TABLES = ("package", "workspace.package")
@@ -181,13 +184,46 @@ def _license_string(line: str, table: str) -> str:
     return ""
 
 
+def _has_bad_ini_line(text: str) -> bool:
+    """Whether a line of *text* is one configparser surely refuses: a line
+    that is no header, no option and no continuation. configparser collects
+    every such line into one error message by appending to a string, which is
+    quadratic on Python 3.10 to 3.14.3 at least (100,000 bad lines took 2.8 s
+    on 3.10 and 3.3 s on 3.13; 3.14.10 joins the parts and takes 0.35 s), so
+    ini_license_values stops at the first. It follows the parser's default
+    rules (``_read``) and judges one way only: a line it calls bad raises in
+    configparser; a bad line it misses costs time, never an answer
+    (tests/test_ini_bad_lines.py checks it against configparser)."""
+    in_section = in_option = False
+    indent_level = 0
+    for line in text.split("\n"):  # as io.StringIO splits, not splitlines()
+        value = line.strip()
+        if not value or value[0] in "#;":
+            continue
+        indent = len(line) - len(line.lstrip())
+        if in_option and indent > indent_level:
+            continue  # a continuation line
+        indent_level = indent
+        if _INI_SECTION.match(value):
+            in_section, in_option = True, False
+            continue
+        option = _INI_OPTION.match(value)
+        if not in_section or not option or not option.group("option").strip():
+            return True
+        in_option = True
+    return False
+
+
 def ini_license_values(text: str) -> list[str] | None:
     """The license option of each INI section, in order. None for malformed
     INI (no section header, a duplicate option, a stray %) or INI with no
     option at all ("[MIT]" is no manifest)."""
+    text = _RE_INNER_SPACE_RUN.sub(" ", text)
+    if _has_bad_ini_line(text):
+        return None
     cfg = configparser.ConfigParser()
     try:
-        cfg.read_string(_RE_INNER_SPACE_RUN.sub(" ", text))
+        cfg.read_string(text)
     except configparser.Error:
         return None
     if not any(cfg.options(section) for section in cfg.sections()):
