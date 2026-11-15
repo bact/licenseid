@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-15
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -752,3 +752,37 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   scope and still wrong: `License: MIT/Apache-2.0` answers `Apache-2.0` by
   name, not exact; a tag `MIT/x` answers `MIT`. (`/MIT` answered `MIT` exact
   through Tier 0 while `resolve()` refused it; PR #195 made `detect()` agree.)
+
+- The loose `License:` field reader resolved every match (item 23, Priority
+  12; 2026-11-15). `MarkerDetector._detect_explicit_identifiers` looked up
+  each `license:`/`license =` match and made a candidate of each licence
+  that resolved. The lookups were not the main cost: 10,000 lines of
+  distinct real IDs took 0.47 s there but 14 s in `detect()`, because each
+  of the 715 candidates then cost a similarity score (about 18 ms). Now it
+  reads each distinct stripped value once, at most
+  `candidates.FIELD_VALUES_READ` (256) of them, lazily
+  (`candidates.first_distinct`), and keeps at most
+  `FIELD_LICENSES_KEPT` (32) licences. The first match does not stop the
+  read: `License: MIT` and `License: Apache-2.0` on two lines are two
+  candidates, as before.
+  - Measured on Python 3.10, `detect()` on the real database, 10,000
+    lines: cycled real IDs 13.5 s to 3.2 s (715 candidates to 32; the same
+    text with the reader off takes 2.7 s); `License: MIT` repeated 1.3 s to
+    0.9 s; distinct unresolved values 2.4 s to 2.2 s (the rest is the text
+    tiers, not this reader). The regex itself is linear (100,000 lines in
+    0.02 s). Of 6,455 texts (SPDX 3.29 and the fixtures) none held more than
+    one resolving value, and the most distinct values in one was 5. A notice
+    file lists one licence per package, so a first cap of 16 (reviewer's
+    finding: 20 licences lost 3) became the two bounds above.
+  - The INI cost was not Python 3.10 alone (the roadmap said 0.3 s on
+    3.14): configparser's `ParsingError.append` joins by `+=` on every
+    version, and `[a]` followed by 100,000 bad lines took 3.4 to 5.8 s from
+    3.10 to 3.14. `manifest._has_bad_ini_line` now finds the first line
+    that is no header, option or continuation, and `ini_license_values`
+    answers None there. It follows configparser's default rules and judges
+    one way only: a line it calls bad raises in configparser.
+  - Tests: `tests/test_license_field_reader.py` (answers pinned before the
+    change, the cap boundary, lookup counts, timing),
+    `tests/test_ini_bad_lines.py` (the one-way rule against every pair of
+    lines and 4,000 random files, timing). Neither file is in
+    `tests/platform_files.py`: no file system, stream or encoding.

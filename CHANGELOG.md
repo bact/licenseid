@@ -9,6 +9,14 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `detect()` on a text of thousands of `License:` lines, or of INI-like lines
+  that are not `key = value`, no longer takes seconds: the loose `License:`
+  reader reads the first 256 distinct values and keeps 32 licences
+
 ## [0.8.4] - 2026-11-09
 
 ### Added
