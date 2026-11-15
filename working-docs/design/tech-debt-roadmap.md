@@ -419,9 +419,6 @@ short-text leftovers are in `match-resolve-0-8.md`, section 7.
   `resolver-0-7-plan.md`; CI checks `src/ tests/` only.
 - `update --source packaged` sample outputs in the README are unverified
   against a built wheel: check them at the final release gate.
-- Cache files (`latest.json`, `licenses.json`, `popularity.csv`) that are
-  symlink loops are downloaded over, not refused: `os.replace` repairs them,
-  but `clear_cache_files` skips them (`path.exists()`). Open, low value.
 - The lock-wait test of `LicenseDatabase` holds the lock 2 s and asserts the
   open waited at least 1 s: a thin margin on a slow CI runner (#151).
 - `tests/harness_db.py` repeats the database build of

@@ -793,4 +793,6 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   (`dbcheck._symlink_loop`), and `dbcheck.is_absent` replaces `lexists` so a
   loop above the file no longer reads as missing with a `run 'licenseid
   update'` hint. A dangling link into a missing directory is refused before
-  the download too. Tests: `tests/test_db_path_loops.py`.
+  the download too. `clear-cache` removes a cache file that is a looped or
+  dangling symlink (`spdx_source.clear_cache_files`; `exists()` is False for
+  one). Tests: `tests/test_db_path_loops.py`.

@@ -16,13 +16,15 @@ and this project adheres to
 - `update` words a default data directory it cannot make as `directory: write
   failed: <dir>: <reason>; pass --db`, not `database: update failed`; a
   database path that loops through symlinks is `unreadable` (was `invalid`
-  for `update` and `clear-cache`) and no longer reads as missing
+  for `update` and `clear-cache`) and no longer reads as missing;
+  `clear-cache` removes a cache file that is a looped symlink ([#209])
 - A database file cut short by another program (`cp`, `truncate`) while a
   lookup runs, or inside a `reading()` block, raises `DatabaseNotReadyError`;
   it killed the process with SIGBUS and no message (a database still in the
   old WAL mode keeps that risk for its `-shm` file until `update`) ([#207])
 
 [#207]: https://github.com/bact/licenseid/pull/207
+[#209]: https://github.com/bact/licenseid/pull/209
 
 ## [0.8.4] - 2026-11-09
 
