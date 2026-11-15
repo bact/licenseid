@@ -167,8 +167,9 @@ and `--json`) against these rules and checks the default output against the
   - `LEVEL`: `ERROR` (command fails, non-zero exit) or `WARNING` (a
     fallback lets it continue).
   - `SUBJECT`: lower-case word or cache file name: `command`, `database`,
-    `input`, `option`, `output`, `usage`, `version`, `cache` (a cache file
-    with no plain name), `latest.json`, `licenses.json`, `popularity.csv`,
+    `directory` (the default data directory), `input`, `option`, `output`,
+    `usage`, `version`, `cache` (a cache file with no plain name),
+    `latest.json`, `licenses.json`, `popularity.csv`,
     `spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz` (packaged),
     `spdx-data-v<ver>.tar.gz`.
   - `CONDITION`: short lower-case fragment, reused across subjects. The full
@@ -194,9 +195,10 @@ and `--json`) against these rules and checks the default output against the
   exits 1, or 2 for `InvalidInputError`. `DatabaseNotReadyError` (missing,
   empty, invalid, unreadable) exits 2 in `detect`, `resolve`, `is-*`.
   `update` and `clear-cache` refuse only an `invalid` database (not built by
-  licenseid): they exist to fix the rest. Any other exception in `update`,
+  licenseid) or an `unreadable` symlink loop: they exist to fix the rest. Any other exception in `update`,
   RuntimeError subclasses such as RecursionError included, becomes
-  `SUBJECT: update failed: <Type>: <text>`.
+  `SUBJECT: update failed: <Type>: <text>`. A default directory `update`
+  cannot make is `directory: write failed: <dir>: <reason>; pass --db`.
 - A step printing partial progress (`status(..., end="")`) that can fail
   calls `console.end_line()` in a `finally`.
 - click's usage errors use the grammar too
@@ -360,7 +362,11 @@ and `--json`) against these rules and checks the default output against the
   `db_asserts.probe_check_does_not_hang`). `file::memory:NAME` is a file on
   disk (only `mode=memory` and the exact base `file::memory:` are memory);
   `file://localhost/p` and `?vfs=` are valid. Resolve a path spelling
-  once, in `dbcheck._os_file` (`x`, `x/`, `x/.` agree).
+  once, in `dbcheck._os_file` (`x`, `x/`, `x/.` agree). A symlink loop
+  (ELOOP) at the file or above it is `unreadable` for read and write alike,
+  before any download (`dbcheck._symlink_loop`); "missing" is
+  `dbcheck.is_absent`, never `os.path.exists`/`lexists`, which are False on
+  ELOOP.
 - `dbcheck`: read is fail-open (`check_database_ready` ignores `unknown`),
   write and delete fail-closed (`reject_foreign_database`). Keep the
   `Refusal` tag on a new condition and decide both policies.

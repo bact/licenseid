@@ -85,7 +85,9 @@ def clear_cache_files(directory: Path) -> bool:
     deleted = False
     for filename in (CACHE_LICENSES_JSON, CACHE_LATEST_JSON, CACHE_POPULARITY_CSV):
         path = directory / filename
-        if path.exists():  # a parent that is not a directory has none
+        # A link that loops or dangles is there too: exists() says no. A parent
+        # that is not a directory has none.
+        if path.is_symlink() or path.exists():
             path.unlink(missing_ok=True)
             deleted = True
     for pattern in (

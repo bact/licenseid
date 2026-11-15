@@ -781,3 +781,16 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
     0, 1 byte, a page, mid-page, cut and extended, half rewritten, replaced)
     and `test_file_cut_while_a_statement_runs`, in
     `tests/test_lookup_database_errors.py` (already in `platform_files.py`).
+
+- Environment failures in the database path (item 10 and a bullet of item 46;
+  2026-11-15). `update` with a default directory it cannot make said
+  `database: update failed: PermissionError: ...`; it is now `directory:
+  write failed: <dir>: <reason>; pass --db` (`datadir.make_default_dir`,
+  exit 1). `--db file://localhost/abs.db` was already fixed (commit 1cbc867;
+  `test_absolute_file_uri_spellings_are_ready`). A database path that loops
+  through symlinks was already refused before any download, but `update` and
+  `clear-cache` called it `invalid`: it is `unreadable` now
+  (`dbcheck._symlink_loop`), and `dbcheck.is_absent` replaces `lexists` so a
+  loop above the file no longer reads as missing with a `run 'licenseid
+  update'` hint. A dangling link into a missing directory is refused before
+  the download too. Tests: `tests/test_db_path_loops.py`.

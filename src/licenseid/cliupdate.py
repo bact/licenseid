@@ -27,6 +27,7 @@ from licenseid.clicommon import (
 )
 from licenseid.console import error
 from licenseid.database import LicenseDatabase
+from licenseid.datadir import make_default_dir
 from licenseid.dbcheck import delete_failed_error, named_file, reject_foreign_database
 from licenseid.errors import InvalidInputError, LicenseIdError, one_line
 from licenseid.resolvertypes import SPDX_LIST
@@ -77,7 +78,7 @@ def make_default_db_dir(ctx: click.Context) -> None:
     in use. Reading and clearing never create it; ``update`` does, because
     ``LicenseDatabase`` opens (and so creates) the file."""
     if ctx.obj["db_is_default"]:
-        Path(ctx.obj["db_path"]).parent.mkdir(parents=True, exist_ok=True)
+        make_default_dir(ctx.obj["db_path"])
 
 
 @click.command(name="update", cls=LicenseIdCommand)

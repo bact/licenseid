@@ -182,5 +182,5 @@ WARNING: popularity.csv: download failed: timed out; using stale cache
 ```
 
 `LEVEL` is `ERROR` (the command fails) or `WARNING` (it continues).
-`SUBJECT` is the thing affected, such as `database`, `input` or a cache file
-name, so `cut -d: -f1-3` gives the level, subject and condition.
+`SUBJECT` is the thing affected, such as `database`, `directory`, `input` or a cache
+file name, so `cut -d: -f1-3` gives the level, subject and condition.

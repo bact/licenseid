@@ -7,6 +7,7 @@
 
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
+import re
 from pathlib import Path
 from unittest import mock
 
@@ -135,8 +136,7 @@ def test_update_does_not_build_the_directory_of_an_explicit_path(
 ) -> None:
     """Only the default location is made for the user; a typo in --db is not.
 
-    Current behaviour, not a documented contract: the failure surfaces as the
-    generic ``update failed`` line (roadmap item 10 covers rewording it)."""
+    The failure surfaces as the generic ``update failed`` line."""
     missing = tmp_path / "typo" / "licenses.db"
     with mock.patch.object(
         LicenseDatabase,
@@ -171,3 +171,42 @@ def test_clear_cache_with_a_file_where_the_default_directory_would_be(
     assert result.exit_code == 0
     assert result.stdout == clear_cache_line("nothing", blocker / "licenses.db")
     assert blocker.read_text() == "not a directory"
+
+
+def _blocked_update(*extra: str) -> tuple[int, str, mock.Mock]:
+    with mock.patch("requests.get", autospec=True) as get:
+        result = CliRunner().invoke(cli, ["update", *extra])
+    return result.exit_code, result.stderr, get
+
+
+@pytest.mark.parametrize("extra", [(), ("--source", "packaged")], ids=["remote", "pkg"])
+def test_update_names_the_directory_it_cannot_make(
+    home: Path, extra: tuple[str, ...]
+) -> None:
+    """A file where ``.local`` should be: its own subject, an action, exit 1,
+    and nothing downloaded."""
+    (home / ".local").write_text("not a directory")
+    directory = home / ".local" / "share" / "licenseid"
+    code, err, get = _blocked_update(*extra)
+    assert code == 1
+    assert re.fullmatch(
+        rf"ERROR: directory: write failed: {re.escape(str(directory))}: "
+        r"[^;\n]+; pass --db\n",
+        err,
+    )
+    get.assert_not_called()
+
+
+def test_update_names_an_unwritable_home(
+    home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``mkdir`` refused (a read-only home): the OS reason, not the type."""
+    directory = home / ".local" / "share" / "licenseid"
+    refusal = PermissionError(13, "Permission denied", str(home / ".local"))
+    monkeypatch.setattr(Path, "mkdir", mock.Mock(side_effect=refusal))
+    code, err, get = _blocked_update()
+    assert code == 1
+    assert err == (
+        f"ERROR: directory: write failed: {directory}: Permission denied; pass --db\n"
+    )
+    get.assert_not_called()
