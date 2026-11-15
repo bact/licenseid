@@ -9,6 +9,17 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- A database file cut short by another program (`cp`, `truncate`) while a
+  lookup runs, or inside a `reading()` block, raises `DatabaseNotReadyError`;
+  it killed the process with SIGBUS and no message (a database still in the
+  old WAL mode keeps that risk for its `-shm` file until `update`) ([#207])
+
+[#207]: https://github.com/bact/licenseid/pull/207
+
 ## [0.8.4] - 2026-11-09
 
 ### Added

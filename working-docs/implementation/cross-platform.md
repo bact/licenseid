@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-06
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-15
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -123,5 +123,9 @@ shows them.
   (`file:////server/share/x.db`).
 - `reject_blocking_file` also looks at `-journal` and `-wal`: a named pipe
   there hangs the open.
+- No `PRAGMA mmap_size`: a mapped page past the end of a file another program
+  cut kills the process with SIGBUS (exit 138 on macOS, 135 on Linux;
+  Windows refuses to cut a mapped file). Without it the cut file is a SQLite
+  error, so `DatabaseNotReadyError`. The tests are `posix_only`.
 - Tests that need `chmod` skip as root (`IS_ROOT`) and on Windows
   (`posix_only`).
