@@ -9,6 +9,8 @@ then filter them and add the hinted ones."""
 from collections.abc import Collection, Iterable
 
 from licenseid.database import LicenseDatabase
+from licenseid.idoptions import excluded_ids, folded
+from licenseid.listlookup import fold_case
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.types import CandidateMatch, DetectOptions
 
@@ -94,14 +96,15 @@ def _filter_candidates(
     raw_candidates: list[CandidateMatch],
     only_spdx: bool,
     only_common: bool,
-    exclude_list: Collection[str],
+    excluded: Collection[str],
 ) -> list[CandidateMatch]:
-    """Drop candidates with no ID, an excluded ID (exact case), or failing
-    the only_spdx/only_common metadata filters."""
+    """Drop candidates with no ID, an excluded ID (*excluded* case-folded,
+    see licenseid.idoptions), or failing the only_spdx/only_common metadata
+    filters."""
     filtered: list[CandidateMatch] = []
     for cand in raw_candidates:
         license_id = cand.get("license_id")
-        if not license_id or license_id in exclude_list:
+        if not license_id or fold_case(license_id) in excluded:
             continue
 
         if only_spdx and not cand.get("is_spdx", False):
@@ -119,20 +122,41 @@ def _filter_candidates(
     return filtered
 
 
+def drop_excluded(
+    candidates: Iterable[CandidateMatch], excluded: Collection[str]
+) -> list[CandidateMatch]:
+    """*candidates* without an excluded ID (*excluded* case-folded). For the
+    marker candidates (titles, "version 2"), free text that joins the pool
+    after Tier 1's filter."""
+    return [c for c in candidates if fold_case(c["license_id"]) not in excluded]
+
+
+def add_unseen(
+    candidates: list[CandidateMatch], extra: Iterable[CandidateMatch]
+) -> None:
+    """Append to *candidates* each of *extra* whose ID is not there yet."""
+    seen = {c["license_id"] for c in candidates}
+    for cand in extra:
+        if cand["license_id"] not in seen:
+            candidates.append(cand)
+            seen.add(cand["license_id"])
+
+
 def _inject_hinted_candidates(
     db: LicenseDatabase, filtered: list[CandidateMatch], hint_list: Iterable[str]
 ) -> list[CandidateMatch]:
     """Force-include DB-backed hint_list IDs not already present, as
     synthetic candidates (no search_text, so they rank purely on
     marker/metadata signals rather than similarity). Added after the
-    filters, so neither exclude, only_spdx nor only_common drops one; the
-    check against the candidates is in exact case, the lookup case-folded,
-    so "mit" beside MIT, or an ID given twice, is added again."""
-    candidate_ids = {c.get("license_id") for c in filtered if c.get("license_id")}
+    filters, so neither exclude, only_spdx nor only_common drops one. IDs
+    compare case-folded: "mit" beside MIT, or an ID given twice, is added
+    once."""
+    present = folded(c["license_id"] for c in filtered if c.get("license_id"))
     for h_id in hint_list:
-        if h_id not in candidate_ids:
+        if fold_case(h_id) not in present:
             details = db.get_license_details(h_id)
             if details:
+                present |= {fold_case(details["license_id"]), fold_case(h_id)}
                 filtered.append(
                     CandidateMatch(
                         license_id=details["license_id"],
@@ -159,7 +183,7 @@ def get_candidates(
     options exclude, hint, only_spdx and only_common act."""
     only_spdx = data.get("only_spdx", True)
     only_common = data.get("only_common", False)
-    exclude_list: Collection[str] = data.get("exclude", [])
+    excluded = excluded_ids(data.get("exclude", []))
     hint_list: Collection[str] = data.get("hint", [])
 
     # Strip comment prefixes before FTS5: improves recall for Type 5
@@ -181,5 +205,5 @@ def get_candidates(
     norm_text = normalize_text(text)
 
     raw_candidates = _search_candidates_by_length(db, norm_text)
-    filtered = _filter_candidates(raw_candidates, only_spdx, only_common, exclude_list)
+    filtered = _filter_candidates(raw_candidates, only_spdx, only_common, excluded)
     return _inject_hinted_candidates(db, filtered, hint_list)

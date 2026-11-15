@@ -23,6 +23,7 @@ from licenseid.identifiers import (
     is_simple_expression,
     is_stray_plus,
 )
+from licenseid.idoptions import excluded_ids, free_text_hits, upgraded_options
 from licenseid.looseid import (
     disambiguate_whole,
     loose_with,
@@ -39,7 +40,7 @@ from licenseid.resolvereason import is_plus_refusal, refuses_text_match
 from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import Resolution
 from licenseid.result import public_result
-from licenseid.retrieval import get_candidates
+from licenseid.retrieval import add_unseen, drop_excluded, get_candidates
 from licenseid.shorttext import (
     EXACT_MATCH_SCORE,
     exact_id_match,
@@ -348,24 +349,19 @@ class LicenseDetector:
     ) -> list[InternalMatch]:
         """Tier 1 (Broad Recall) retrieval + augmentation, then Tier 2
         (Precision Ranking). Never short-circuits detect()."""
+        excluded = excluded_ids(ctx.request.get("exclude", []))
         candidates = self._get_candidates(ctx.request, ctx.target_text)
 
         # For mixed content or thin FTS5 results, augment via windowed search.
         if not candidates or (not ctx.is_pure and len(candidates) < 5):
-            mixed_candidates = self._match_mixed_content(ctx.request, ctx.target_text)
-            seen_ids = {c["license_id"] for c in candidates}
-            for mc in mixed_candidates:
-                if mc["license_id"] not in seen_ids:
-                    candidates.append(mc)
-                    seen_ids.add(mc["license_id"])
+            mixed = self._match_mixed_content(ctx.request, ctx.target_text)
+            add_unseen(candidates, drop_excluded(mixed, excluded))
 
         # Merge marker candidates not already surfaced by FTS5.
         # Markers now carry real search_text so they rank on true similarity.
-        seen_ids = {cand["license_id"] for cand in candidates}
-        for c in marker_candidates:
-            if c["license_id"] not in seen_ids:
-                candidates.append(c)
-                seen_ids.add(c["license_id"])
+        # A prose marker is free text: exclude drops it as it drops a Tier 1
+        # candidate (a declaration never gets here, detect() answered it).
+        add_unseen(candidates, drop_excluded(marker_candidates, excluded))
 
         # Pass marker boosts and purity context so ranking can weight signals
         # appropriately: small additive bonus for pure text (similarity leads),
@@ -393,9 +389,10 @@ class LicenseDetector:
         Give exactly one of text, license_id or file_path. The *options*
         (licenseid.types.DetectOptions) are checked for every input but act
         only where licence text is matched, so an input answered whole
-        ignores them: exclude, hint, only_spdx and only_common on Tier 1's
-        candidates (licenseid.retrieval), enable_popularity on the Tier 2
-        ranking and its tie-breaker. Raises
+        ignores them: exclude, hint, only_spdx and only_common on the
+        candidates of free text (Tier 1, markers, mixed-content windows;
+        exclude also a short text's name hit), enable_popularity on the
+        Tier 2 ranking and its tie-breaker. Raises
         :class:`TypeError` for a text or license_id that is no str, a
         file_path that is neither a str nor an os.PathLike of one, or an
         option of the wrong type (a flag that is no bool, an exclude or hint
@@ -490,7 +487,12 @@ class LicenseDetector:
         # A short input is matched without its tags, read above: one left
         # named no license, and is no text to match.
         ctx = self._without_tags(ctx)
+        # Free text from here: upgrade the options' deprecated IDs, once.
+        ctx = replace(ctx, request=upgraded_options(ctx.request))
         short_text_result = self._try_tier0_short_text(ctx)
+        if short_text_result:  # a name hit is free text: exclude drops it
+            excluded = excluded_ids(ctx.request.get("exclude", []))
+            short_text_result = free_text_hits(short_text_result, excluded) or None
         if short_text_result is not None:
             guess = narrowed_name(short_text_result)
             if guess is not None:  # "GNU General Public License v2.0"

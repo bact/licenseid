@@ -49,6 +49,8 @@ in another module.
   one detector per default database), `detectrequest` (checks of a call
   needing no database), `resolvefirst` (input `resolve()` reads whole; the
   cut of a short refused one), `shorttext` (Tier 0), `retrieval` (Tier 1),
+  `idoptions` (`exclude`, `hint`: free text only, case-folded, a bare
+  deprecated ID stands for both twins),
   `similarity`, `fingerprint` (maths) and `fingerprintstore` (its table),
   `ranking` (sort order, `-only`/`-or-later` tie-breaker), `markers` and
   `candidates` (its helpers), `classify` (prose "or later"), `identifiers`,
@@ -179,8 +181,8 @@ and `--json`) against these rules and checks the default output against the
     `build vN newer`, `download failed`, `cache read failed`,
     `cache write failed`, `cache unusable`, `download unusable`,
     `stale cache unusable`, `parse failed`, `variant not stated`,
-    `N rows with missing or non-numeric num_pushers`, `update failed`,
-    `delete failed`, `write failed`, `compact failed`,
+    `deprecated ID`, `N rows with missing or non-numeric num_pushers`,
+    `update failed`, `delete failed`, `write failed`, `compact failed`,
     `older than the database`, `too few words for text`.
   - `DETAIL`: one line. A path through `errors.shown` (control characters
     escaped, `;` as `,`), a value through `errors.one_line` (folded, cut to
@@ -188,8 +190,8 @@ and `--json`) against these rules and checks the default output against the
     backslash stays, so a Windows path reads as typed.
   - `ACTION`: the fallback taken (`using stale cache`, `using stale <file>`,
     `downloading`, `downloading <file>`, `using cached <file>`,
-    `using packaged data v<ver>`, `counted as 0`) or the command to run
-    (`run 'licenseid update'`), on the same line as its cause.
+    `using packaged data v<ver>`, `counted as 0`, `using A, B`) or the command
+    to run (`run 'licenseid update'`), on the same line as its cause.
 - Raise a failure as `licenseid.errors.LicenseIdError`
   (`SUBJECT: CONDITION…`, no prefix): the CLI prints it after `ERROR:` and
   exits 1, or 2 for `InvalidInputError`. `DatabaseNotReadyError` (missing,

@@ -119,22 +119,17 @@ GPL = "GPL-2.0-only"
     [
         ({}, NEAR),
         ({"exclude": ["MIT"]}, NEAR[1:]),
-        # DECISION: exclude compares in exact case; hint folds it.
-        ({"exclude": ["mit"]}, NEAR),
+        # DECISION: exclude and hint both fold case (IDs are case-insensitive).
+        ({"exclude": ["mit"]}, NEAR[1:]),
         ({"exclude": ["Nope-1.0"]}, NEAR),
         ({"exclude": NEAR}, []),
         ({"hint": ["MIT"]}, NEAR),  # already a candidate: nothing added
         ({"hint": ["Nope-1.0"]}, NEAR),  # no row: nothing added
         ({"hint": [GPL]}, [*NEAR, GPL]),  # added last, scored 0
         ({"hint": ["gpl-2.0-only"]}, [*NEAR, GPL]),
-        # BUG: a hint is compared in exact case with the candidates, then
-        # looked up case-folded: MIT twice.
-        ({"hint": ["mit"]}, [*NEAR, "MIT"]),
-        # BUG: a repeated hint is added each time.
-        ({"hint": [GPL, GPL]}, [*NEAR, GPL, GPL]),
-        ({"hint": [GPL, "gpl-2.0-only"]}, [*NEAR, GPL, GPL]),
-        # DECISION: a deprecated ID is hinted as written, not its successor.
-        ({"hint": ["GPL-2.0"]}, [*NEAR, "GPL-2.0"]),
+        ({"hint": ["mit"]}, NEAR),  # folded: already a candidate
+        ({"hint": [GPL, GPL]}, [*NEAR, GPL]),  # an ID given twice, once
+        ({"hint": [GPL, "gpl-2.0-only"]}, [*NEAR, GPL]),
         # BUG: hint is added after the filter, so it undoes exclude.
         ({"exclude": ["MIT"], "hint": ["MIT"]}, [*NEAR[1:], "MIT"]),
         ({"only_common": True}, ["MIT", "MIT-0", "X11"]),
@@ -161,15 +156,14 @@ def test_a_hinted_candidate_has_no_text_to_score(detector: LicenseDetector) -> N
     assert (hinted["expression"], hinted["score"], hinted["exact"]) == (GPL, 0, False)
 
 
-def test_a_hint_hides_the_marker_candidate_of_the_same_licence(
+def test_a_hint_undoes_exclude_for_a_marker_licence_too(
     detector: LicenseDetector,
 ) -> None:
-    """BUG: the marker candidates join after the hinted ones, skipping an ID
-    already there; the hinted MIT has no text, so the heading's MIT, exact
-    at 1.0, falls to the bottom."""
+    """BUG: exclude drops the heading's MIT (a prose marker is free text),
+    but the hint adds it back with no text, so it falls to the bottom."""
     plain = detector.detect(text=MIT, exclude=["MIT"])
     hinted = detector.detect(text=MIT, exclude=["MIT"], hint=["MIT"])
-    assert (plain[0]["expression"], plain[0]["score"]) == ("MIT", 1.0)
+    assert "MIT" not in [r["expression"] for r in plain]
     assert [r["expression"] for r in hinted][:3] == ["JSON", "X11", "MIT-0"]
     mit = next(r for r in hinted if r["expression"] == "MIT")
     assert mit["score"] < 0.1
@@ -207,23 +201,37 @@ def test_a_hint_can_skip_the_search_of_mixed_content(
 
 
 @pytest.mark.parametrize(
-    ("text", "top"),
-    [
-        # BUG: the heading's marker candidate joins after the filter.
-        (MIT, "MIT"),
-        ("MIT License\n\n" + PROSE * 3, "MIT"),
-        # BUG: a short-text window of mixed content is no Tier 1 candidate.
-        (MIXED, None),
-    ],
+    "text",
+    [MIT, "MIT License\n\n" + PROSE * 3, MIXED],
     ids=["heading_and_text", "heading_and_prose", "mixed_window"],
 )
-def test_exclude_misses_what_joins_after_the_filter(
-    detector: LicenseDetector, text: str, top: str | None
+def test_exclude_drops_what_free_text_names_outside_tier_1(
+    detector: LicenseDetector, text: str
 ) -> None:
-    excluded = answers(detector, text=text, exclude=["MIT"], only_common=True)
-    assert "MIT" in excluded
-    if top is not None:
-        assert excluded[0] == top
+    """A heading's marker candidate and a short-text window of mixed content
+    are free text, as Tier 1's candidates are: exclude drops them."""
+    assert "MIT" in answers(detector, text=text, only_common=True)
+    assert "MIT" not in answers(detector, text=text, exclude=["MIT"], only_common=True)
+
+
+GPL_BODY = GPL_ONLY + "\n" + PROSE * 2  # a title the prose markers read
+
+
+@pytest.mark.parametrize(
+    ("exclude", "gone"),
+    [
+        ([GPL], {GPL}),
+        ([GPL, "gpl-2.0-only"], {GPL}),
+    ],
+    ids=["twin", "folded"],
+)
+def test_exclude_drops_a_licence_named_by_a_title(
+    detector: LicenseDetector, exclude: list[str], gone: set[str]
+) -> None:
+    """The prose markers (a title, "version 2") are free text: excluded, the
+    licence is no answer (it stayed one, at 0.836)."""
+    assert GPL in answers(detector, text=GPL_BODY)
+    assert gone.isdisjoint(answers(detector, text=GPL_BODY, exclude=exclude))
 
 
 # Inputs answered before Tier 1: the options are checked, then not read.
@@ -287,9 +295,9 @@ def test_the_order_of_the_ids_does_not_change_the_answer(
     detector: LicenseDetector,
 ) -> None:
     """Hinted candidates all score 0 and sort by ID, as any tie does."""
-    forward = answers(detector, text=BODY, hint=[GPL, "GPL-2.0"], exclude=NEAR[:2])
-    backward = answers(detector, text=BODY, hint=["GPL-2.0", GPL], exclude=NEAR[1::-1])
-    assert forward == backward == [*NEAR[2:], GPL, "GPL-2.0"]
+    forward = answers(detector, text=BODY, hint=[GPL, "MIT"], exclude=NEAR[:2])
+    backward = answers(detector, text=BODY, hint=["MIT", GPL], exclude=NEAR[1::-1])
+    assert forward == backward == [*NEAR[2:], GPL, "MIT"]
 
 
 class _Id(str):
@@ -356,7 +364,7 @@ TIED = ["X11", "JSON", "MIT", "MIT-0"]
 OPTION_ANSWERS: dict[str, tuple[dict[str, Any], list[str]]] = {
     "none": ({}, TIED),
     "exclude": ({"exclude": ["MIT"]}, ["X11", "JSON", "MIT-0"]),
-    "exclude_case": ({"exclude": ("mit",)}, TIED),  # exact case only
+    "exclude_case": ({"exclude": ("mit",)}, ["X11", "JSON", "MIT-0"]),  # folded
     "hint": ({"hint": {GPL}}, [*TIED, GPL]),
     "exclude_hint": (
         {"exclude": ["MIT"], "hint": ["MIT"]},
