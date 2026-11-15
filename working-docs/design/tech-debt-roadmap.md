@@ -620,25 +620,54 @@ two paths disagree, and `detect()` guesses. The upstream upgrade of
 `resolve()`: it replaces only `GPL-2.0+`-like IDs and `StandardML-NJ`, never a
 bare ID.
 
-Proposal, not built (decided 2026-11-14 to record only):
+Design decided 2026-11-15, not built (recorded 2026-11-14, rules settled the
+day after). The principle: a **declaration** stays as written; a **decision**
+by licenseid never gives a deprecated ID.
 
-- A choice `--bare-id keep|only|or-later` (API `bare_id=`) on `detect`. The
-  default is `keep`: the ID as written, no warning. `only` and `or-later`
-  pick the variant and keep the warning; a `-with-` ID follows the choice.
-- Words that state the variant ("GPL-2.0 or later version") still win, as in
-  `disambiguate_deprecated_id`.
-- The OSI and FSF flags of `GPL-2.0-only` and `GPL-2.0-or-later` are equal, so
-  `is-osi` and `is-fsf` do not move.
+- **Declared value** (an argument, a tag, a field, `--id`, any whole input
+  `resolve()` reads): `detect()` gives what `resolve()` gives. A bare `GPL-2.0`
+  stays `GPL-2.0` (`assumed_only`, trust `none`), a `-with-` ID stays as
+  written, with no warning. Words that state the variant ("GPL-2.0 or later
+  version") still win, as in `disambiguate_deprecated_id`. Today `detect()`
+  narrows these to `-only` with `WARNING: input: variant not stated`.
+- **Text match** (licence text through Tier 1 and 2): `-only` or `-or-later`,
+  never a deprecated ID. The evidence is in the input: the grant words
+  (`classify.OR_LATER_PHRASE`). Without evidence, `-only` with the `variant
+  not stated` warning. `-only` is the licensee's careful reading; it
+  understates a licensor's "or later" grant, and `docs/` says so.
+- **One option**, `--variant auto|as-written|only|or-later` (API `variant=`),
+  on `detect`, `--id` and the `-with-` IDs, which follow it. `auto` is the
+  default and means the two rules above. `as-written` never decides: a bare
+  deprecated ID stays, text matches included (intentional ambiguity). `only`
+  and `or-later` always decide, declared values too, with the warning (a CI
+  that bans deprecated IDs). An unknown value is `option: invalid` (exit 2).
+  The name follows the existing warning (`variant not stated`).
+- **Output**: a field `VARIANT_STATED` at the end of the record (JSON
+  `variant_stated`, boolean): `true` when the words or an `-only`/`-or-later`
+  ID state it, `false` for a guess or a bare ID kept, empty when there is no
+  variant to judge (`MIT`). A script tells a guessed `-only` from a stated
+  one without reading standard error.
+- **Not in `detect()`**: evidence beyond the input (a `COPYING` file, the
+  repository, the package). `detect()` takes one input; a project-level
+  function is a separate item.
+- `is-osi` and `is-fsf` take no `--variant`: in the shipped List the OSI and
+  FSF flags of a bare ID and of its `-only` and `-or-later` successors are
+  equal (GPL, LGPL, AGPL: both true; GFDL: FSF only; the Classpath
+  exception forms: both true), so they answer from the ID as written. One
+  test over the List keeps that true: each family with a bare, an `-only`
+  and an `-or-later` entry has equal flags.
+- **Breaking**: `detect GPL-2.0` gives `GPL-2.0`, not `GPL-2.0-only`, and
+  `GPL-2.0-with-classpath-exception` stays as written. Accepted for 0.x. Mark
+  it in `CHANGELOG.md` with the migration `--variant only`.
 - Cost: `detect`, markers, tags, `docs/cli.md`, `docs/output.md`,
   `docs/resolve.md`, `docs/python-api.md`, an axis in
   `tests/test_option_matrix.py`, and the golden answers it moves
-  (`tests/harness_changes.py`). A default of `keep` changes the visible
-  answer of `detect GPL-2.0`: decide whether that is a breaking change for
-  0.x.
+  (`tests/harness_changes.py`).
 - After a `py-spdx-license` release with `upgrade()`, raise the floor in
   `pyproject.toml` and let it replace the `+` and rename code
   (`DEPRECATED_SPDX_LICENSE_IDS`, the rename rule of `listrules`); the bare
   and `-with-` tables stay with this item.
+- Open: the final name of the `VARIANT_STATED` field.
 
 - Impact 2, Risk 2, Effort 3.
 
