@@ -419,6 +419,47 @@ short-text leftovers are in `match-resolve-0-8.md`, section 7.
   `test_accuracy.matcher`: done in PR #210 (2026-11-15), one
   `tests/long_text_db.py` (same rows, same accuracy numbers).
 
+Deferred from PR #210 (2026-11-15), each with a recommendation. The
+options are pinned in `tests/test_detect_options_paths.py`; moving one
+flips a `# BUG:` or `# DECISION:` pin.
+
+- **`exclude` and `hint` gaps** (a decision each, answers change): markers
+  and mixed-content windows skip `exclude`: filter once, before Tier 2. A
+  hint undoes `exclude`, buries a marker candidate of the same licence
+  (JSON 1.0 to 0.025 with `hint=["JSON"]`) and counts towards the
+  fewer-than-5 test that gates the mixed-content search
+  (`detector.py`), so it can lose a licence that search found: let
+  `exclude` win, merge markers before hints, count only candidates with
+  text. Duplicate hints (`hint=["X","X"]`, `hint=["mit"]` beside MIT):
+  deduplicate on the canonical ID. `exclude` compares exact case, `hint`
+  folds it: fold both (`listlookup.fold_case`). Deprecated IDs are not
+  mapped in either. A hint has no text, so it scores 0: give it its text or
+  say it only lists.
+- **`only_spdx` does nothing** on a database licenseid builds (every row
+  `is_spdx=1`): remove it (alpha, no compatibility), after deciding the
+  declared values it would drop (`LicenseRef-*`).
+- **Declared values ignore the options** (`license_id`, a value `resolve()`
+  reads, a tag, a manifest field, a name): keep, documented in
+  `docs/python-api.md`.
+- `DetectOptions` is not in `licenseid.__all__`: export it with the
+  `Resolver`/`Component` decision (one API pass).
+- **A repeated-paragraph input ranks wrong** (not investigated): on the
+  real database, two copies of a prose paragraph, the full MIT text and
+  two more copies give TekHVC first (0.61) and MIT outside the top 4. Check
+  against `main` and the probe gate (`similarity.build_probe`).
+- **Worktree trap**: the editable install imports the main checkout, so a
+  mutation run in a worktree tests nothing; use
+  `PYTHONPATH=<worktree>/src` (add to the testing notes of `AGENTS.md` if
+  it bites again).
+- Not touched, as scoped (see the bullets above): readers seeing `database:
+  empty` during `update` (design in `concurrent-update.md`), the tag-lists-
+  a-licence-after-the-mark cases (belong to the matching-rules redesign),
+  `is-*` on a file with several tags, the garbage `--db` wording, the
+  condition words for empty input, the README `update --source packaged`
+  samples (need a built wheel), the Python 3.14 `wal_copy_without_wal`
+  failures (SQLite 3.43.2; 8 tests fail on `main` too) and the dev-build
+  METADATA.
+
 - Impact 2, Risk 2, Effort 3.
 
 ## 47. Leftovers of the name tier on a few words — Priority 16
