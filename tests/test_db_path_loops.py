@@ -11,13 +11,13 @@ read and write commands alike, before anything is downloaded."""
 import errno
 import os
 import sqlite3
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from conftest import posix_only
+from conftest import fake_requests_get, posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
 from licenseid.cli import cli
@@ -73,9 +73,9 @@ SPELLINGS = {
 
 
 @pytest.fixture
-def get() -> Iterator[mock.Mock]:
-    with mock.patch("requests.get", autospec=True) as patched:
-        yield patched
+def get(monkeypatch: pytest.MonkeyPatch) -> mock.Mock:
+    """The fake ``requests.get``: a test asserts it was never called."""
+    return fake_requests_get(monkeypatch)
 
 
 @pytest.mark.parametrize("command", ["update", "clear-cache", "is-osi"])

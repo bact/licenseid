@@ -13,7 +13,7 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from conftest import clear_cache_line, line_fields
+from conftest import clear_cache_line, fake_requests_get, line_fields
 from db_variants import creating_update
 
 from licenseid.cli import cli
@@ -173,21 +173,23 @@ def test_clear_cache_with_a_file_where_the_default_directory_would_be(
     assert blocker.read_text() == "not a directory"
 
 
-def _blocked_update(*extra: str) -> tuple[int, str, mock.Mock]:
-    with mock.patch("requests.get", autospec=True) as get:
-        result = CliRunner().invoke(cli, ["update", *extra])
+def _blocked_update(
+    monkeypatch: pytest.MonkeyPatch, *extra: str
+) -> tuple[int, str, mock.Mock]:
+    get = fake_requests_get(monkeypatch)
+    result = CliRunner().invoke(cli, ["update", *extra])
     return result.exit_code, result.stderr, get
 
 
 @pytest.mark.parametrize("extra", [(), ("--source", "packaged")], ids=["remote", "pkg"])
 def test_update_names_the_directory_it_cannot_make(
-    home: Path, extra: tuple[str, ...]
+    home: Path, extra: tuple[str, ...], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A file where ``.local`` should be: its own subject, an action, exit 1,
     and nothing downloaded."""
     (home / ".local").write_text("not a directory")
     directory = home / ".local" / "share" / "licenseid"
-    code, err, get = _blocked_update(*extra)
+    code, err, get = _blocked_update(monkeypatch, *extra)
     assert code == 1
     assert re.fullmatch(
         rf"ERROR: directory: write failed: {re.escape(str(directory))}: "
@@ -204,7 +206,7 @@ def test_update_names_an_unwritable_home(
     directory = home / ".local" / "share" / "licenseid"
     refusal = PermissionError(13, "Permission denied", str(home / ".local"))
     monkeypatch.setattr(Path, "mkdir", mock.Mock(side_effect=refusal))
-    code, err, get = _blocked_update()
+    code, err, get = _blocked_update(monkeypatch)
     assert code == 1
     assert err == (
         f"ERROR: directory: write failed: {directory}: Permission denied; pass --db\n"
