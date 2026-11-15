@@ -13,11 +13,6 @@ and this project adheres to
 
 ### Fixed
 
-- `update` words a default data directory it cannot make as `directory: write
-  failed: <dir>: <reason>; pass --db`, not `database: update failed`; a
-  database path that loops through symlinks is `unreadable` (was `invalid`
-  for `update` and `clear-cache`) and no longer reads as missing;
-  `clear-cache` removes a cache file that is a looped symlink ([#209])
 - A database file cut short by another program (`cp`, `truncate`) while a
   lookup runs, or inside a `reading()` block, raises `DatabaseNotReadyError`;
   it killed the process with SIGBUS and no message (a database still in the
@@ -25,6 +20,11 @@ and this project adheres to
 - `detect()` on thousands of `License:` or malformed INI lines is faster (10,000
   real IDs: reader 7.5 s to 0.05 s, `detect()` 13 s to 3.3 s); more than 48
   field licences keep the first 48 ([#208])
+- `update` words a default data directory it cannot make as `directory: write
+  failed: <dir>: <reason>; pass --db`, not `database: update failed`; a
+  database path that loops through symlinks is `unreadable` (was `invalid`
+  for `update` and `clear-cache`) and no longer reads as missing;
+  `clear-cache` removes a cache file that is a looped symlink ([#209])
 
 [#207]: https://github.com/bact/licenseid/pull/207
 [#208]: https://github.com/bact/licenseid/pull/208
