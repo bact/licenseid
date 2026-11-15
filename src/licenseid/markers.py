@@ -9,7 +9,13 @@ import re
 from typing import cast
 
 from licenseid.bsdclauses import bsd_clause_id
-from licenseid.candidates import first_per_license, found_by
+from licenseid.candidates import (
+    FIELD_LICENSES_KEPT,
+    FIELD_VALUES_READ,
+    first_distinct,
+    first_per_license,
+    found_by,
+)
 from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
 from licenseid.dropguard import without_name_tail
@@ -347,8 +353,10 @@ class MarkerDetector:
             candidates.extend(found_by("tag", self.resolve_license_value(value, 1.0)))
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)
-        for match in self._RE_LICENSE_FIELD.finditer(text) if read_fields else ():
-            val = normalize_identifier(match.group(1).strip(), self.db)
+        matches = self._RE_LICENSE_FIELD.finditer(text) if read_fields else ()
+        kept: set[str] = set()
+        for value in first_distinct(matches, FIELD_VALUES_READ):
+            val = normalize_identifier(value, self.db)
             if not val:
                 continue
             details = self.db.get_license_details(val) or self.db.get_license_by_name(
@@ -356,6 +364,9 @@ class MarkerDetector:
             )
             if details:
                 candidates.append(self.to_candidate(details, 0.95))
+                kept.add(details["license_id"])
+                if len(kept) >= FIELD_LICENSES_KEPT:
+                    break
             # No fallback when val doesn't resolve to a known license: a
             # "license:"/"license="-shaped substring can appear incidentally
             # (e.g. "ISC License: Copyright (c) ..." captures "Copyright" as

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-15
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -201,8 +201,9 @@ RapidFuzz cost data points:
   5,600-word text (`R2` L268-271); `py_spdx_license` tokenizer 0.11 s at
   100,000 chars, 0.35 s at 200,000, 6.8 s at 1,000,000; `create_ast`
   `pop(0)` 0.18 s at 10,000 operands, 1.05 s at 40,000 (`ROAD` item 26,
-  L96-101); loose `License:` reader 9 s on 10,000 lines; `configparser` 2 s
-  on 100,000 non-`key=value` lines on 3.10 vs 0.3 s on 3.14 (`ROAD` item 23).
+  L96-101); loose `License:` reader 9 s on 10,000 lines; `configparser` 2.8 s
+  on 100,000 non-`key=value` lines on 3.10 and 3.3 s on 3.13 vs 0.35 s on
+  3.14.10 (resolved item 23, `tech-debt-resolved.md`).
 - Parser cost budget `_MAX_PARSE_COST` = 10^9 (sum of squared token lengths,
   ≈8 ms, one token of 31,622 chars); a 256-char token cap refused real
   `LicenseRef-*` values (`ROAD` item 26, L84-92).

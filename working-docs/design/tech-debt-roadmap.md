@@ -346,25 +346,6 @@ Ctrl-C) were fixed on 2026-10-02; see `tech-debt-resolved.md`.
   read-only database with `immutable=1`; keep a `file:` URI a URI.
 - Impact 2, Risk 2, Effort 3.
 
-## 23. The loose `License:` field reader resolves every match — Priority 12
-
-`MarkerDetector._detect_explicit_identifiers` resolves each
-`license:`/`license =` match in the text, each with database lookups. A file
-of 10,000 such lines took 9 s on the real database. The manifest readers stop
-at one value per form and table (`manifest.toml_license_values`), and since
-item 18 this reader skips a manifest, but any other text still has no such
-bound. Found on 2026-09-30 while checking item 18.
-
-The INI reader has a cost of the same kind on Python 3.10: `configparser`
-builds its error message one bad line at a time, so text with no file name
-and 100,000 lines that are not `key = value` took 2 s (as on `main`; 0.3 s
-on 3.14). Found on 2026-10-01 while checking item 18.
-
-- **Fix**: resolve each distinct value once and stop at the first that
-  resolves, or cap the number read. Time distinct values, not repeats. For
-  INI, stop at the first bad line rather than collect them all.
-- Impact 1, Risk 2, Effort 2.
-
 ## 20. A grant inside an expression loses the value — Priority 9
 
 An "or later" grant ends the expression that `identifiers.leading_expression`
