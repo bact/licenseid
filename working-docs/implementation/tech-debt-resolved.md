@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-15
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -752,3 +752,32 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   scope and still wrong: `License: MIT/Apache-2.0` answers `Apache-2.0` by
   name, not exact; a tag `MIT/x` answers `MIT`. (`/MIT` answered `MIT` exact
   through Tier 0 while `resolve()` refused it; PR #195 made `detect()` agree.)
+
+- A database truncated during a block crashed with SIGBUS (item 40,
+  Priority 20; 2026-11-15). Cutting the file (`truncate`, `: >`, a `cp` in
+  progress) while a `reading()` block held its connection, or while a
+  statement ran, killed the process with SIGBUS (exit 138 on macOS, 135 on
+  Linux) and no message. Between two statements only a cut to 0 crashed;
+  during a statement every cut did. Cause:
+  `PRAGMA mmap_size=268435456` in `Connections.connect`, a mapped page past
+  the new end of file. Now the pragma is gone and the lookup raises
+  `DatabaseNotReadyError`.
+  - Measured on a copy of the real database (macOS arm64, Python 3.10, SQLite
+    3.50.4; English texts and 48 Japanese and Chinese slices; top answers
+    identical): English set 12.01 s with the pragma, 11.49 s without; CJK
+    set 9.22 s and 8.85 s; 1,800 `detect(license_id=...)` 0.371 s and
+    0.350 s; first match in a new process, ratio median 1.000. The 2026-07
+    gain of about 35% dates from when every query opened its own connection
+    (`speed-optimizations-round-2.md`, item 5); `reading()` replaced that.
+  - Rejected: a 4 MB map (still crashes on a cut to 0); no map on the shared
+    connection only (a cut during a statement outside a block still
+    crashes); a size check before each query (racy, misreads a replaced
+    file); a SIGBUS handler in Python (the faulting instruction re-runs, the
+    process hangs).
+  - Still open: SQLite maps the `-shm` file of a WAL database whatever
+    `mmap_size` says; a cut `-shm` of a database left in WAL by an old version
+    still kills the process (item 53). Not measured: a cold page cache, Linux.
+  - Tests: `test_file_cut_inside_a_block_is_not_a_crash` (child process; cut to
+    0, 1 byte, a page, mid-page, cut and extended, half rewritten, replaced)
+    and `test_file_cut_while_a_statement_runs_is_not_a_crash`, in
+    `tests/test_lookup_database_errors.py` (already in `platform_files.py`).

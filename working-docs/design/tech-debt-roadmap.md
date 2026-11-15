@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-15
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -228,19 +228,6 @@ Found in review of item 22 (2026-10-02); `main` does the same:
   markers: the README of a GPL-2.0-only project answers the deprecated
   `GPL-2.0` at 0.855.
 - Impact 1, Risk 2, Effort 3.
-
-## 40. A database truncated during a block crashes with SIGBUS — Priority 20
-
-Found in review of PR #82, on `main` too. Truncating the file while a
-`reading()` block holds its connection, then querying in that block, kills
-the process with SIGBUS (exit 138) on macOS: no message, no exit code of
-licenseid's own. Likely cause: `PRAGMA mmap_size=268435456` in
-`dbconnection`, a mapped page past the new end of file.
-
-- **Fix**: a `posix_only` test in a child process first, then drop or shrink
-  the mapping, or another approach; time a match against `main`. The lookup
-  must raise `DatabaseNotReadyError`.
-- Impact 2, Risk 3, Effort 2.
 
 ## 42. A very long word costs seconds in the full-text search — Priority 16
 
@@ -626,3 +613,17 @@ Proposal, not built (decided 2026-11-14 to record only):
 Moved to
 [`../implementation/tech-debt-resolved.md`](../implementation/tech-debt-resolved.md)
 (2026-10-02), to keep this file under the size limit.
+
+## 53. A cut `-shm` file of a legacy WAL database crashes with SIGBUS
+
+Found in review of the item 40 fix. SQLite maps the `-shm` file of a WAL
+database whatever `mmap_size` says. A database left in WAL mode by a version
+before 0.4.2 (until `update` runs `Connections.leave_wal`), with its `-shm`
+cut to 0 by another program (a `cp db*` over it), kills the reader, and the
+parent on `close()`, with SIGBUS.
+
+- **Fix**: measure first (is the reader's `-shm` cut realistic?); then refuse
+  a WAL file with a `-shm` in the readiness check, or open it with
+  `PRAGMA locking_mode=exclusive`, or leave it as a known limit in
+  `cross-platform.md`.
+- Impact 1, Risk 2, Effort 2.

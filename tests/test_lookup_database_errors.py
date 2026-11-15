@@ -12,6 +12,7 @@ file, and a SQLite failure surfaces as ``DatabaseNotReadyError``.
 # pylint: disable=missing-function-docstring,protected-access
 
 import contextlib
+import os
 import shutil
 import sqlite3
 from collections.abc import Callable
@@ -22,7 +23,12 @@ from unittest import mock
 
 import pytest
 from conftest import posix_only
-from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
+    HOLD_PROBE,
+    SCAN_PROBE,
+    run_after_cut,
+    safe_home,
+)
 from db_variants import (
     BREAKERS,
     IS_ROOT,
@@ -314,3 +320,80 @@ def test_get_default_db_path_is_public() -> None:
 
     assert "get_default_db_path" in licenseid.__all__
     assert get_default_db_path.__module__ == "licenseid.datadir"
+
+
+# A file cut by another program (``cp``, ``: >``, ``truncate``) while a block
+# or a statement holds its connection. With ``PRAGMA mmap_size`` set, a read of
+# a mapped page past the new end killed the process with SIGBUS (item 40).
+_POSIX_CUT = "a signal death and cutting a file in place are POSIX behaviour"
+
+
+def _cut_to(size: int) -> Callable[[Path], None]:
+    def cut(path: Path) -> None:
+        os.truncate(path, size)
+
+    return cut
+
+
+def _cut_and_extend(path: Path) -> None:
+    size = path.stat().st_size
+    os.truncate(path, 0)
+    os.truncate(path, size)
+
+
+def _rewrite_half(path: Path) -> None:
+    data = path.read_bytes()
+    path.write_bytes(data[: len(data) // 2])
+
+
+def _replace(path: Path) -> None:
+    other = path.with_name("other.db")
+    shutil.copy(path, other)
+    os.replace(other, path)
+
+
+@posix_only  # _POSIX_CUT; os.replace of an open file also fails on Windows
+@pytest.mark.parametrize(
+    ("cut", "answers"),
+    [
+        (_cut_to(0), False),
+        (_cut_to(1), False),
+        (_cut_to(4096), False),
+        (_cut_to(4096 + 1234), False),
+        (_cut_and_extend, False),
+        (_rewrite_half, False),
+        (_replace, True),
+    ],
+    ids=["zero", "one_byte", "page", "mid_page", "extended", "half", "replaced"],
+)
+def test_file_cut_between_queries_of_a_block(
+    tmp_path: Path, cut: Callable[[Path], None], answers: bool
+) -> None:
+    """Between two statements only a cut to 0 crashed (SQLite re-reads the
+    size); the others pin the error. A replaced file keeps its old inode."""
+    path = make_ready_file_db(tmp_path / "hold.db")
+    code, out, err = run_after_cut(HOLD_PROBE, path, cut)
+    assert code == 0, (code, err)
+    if answers:
+        assert out.strip() == "answered"
+    else:
+        assert out.startswith("DatabaseNotReadyError"), out
+
+
+@posix_only  # _POSIX_CUT
+@pytest.mark.parametrize("size", [0, 1, 4096, 5330, 20_000], ids=str)
+@pytest.mark.parametrize("in_block", [True, False], ids=["block", "no_block"])
+def test_file_cut_while_a_statement_runs(
+    tmp_path: Path, size: int, in_block: bool
+) -> None:
+    """Every size crashed here, in a block or not: the cursor is half read."""
+    path = make_ready_file_db(tmp_path / "scan.db")
+    with writer(path) as conn:
+        conn.executemany(
+            "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
+            [(f"pad{i:03}", "x" * 4096) for i in range(64)],
+        )
+    probe = SCAN_PROBE.replace("IN_BLOCK", str(in_block))
+    code, out, err = run_after_cut(probe, path, _cut_to(size))
+    assert code == 0, (code, err)
+    assert out.startswith("DatabaseNotReadyError"), out
