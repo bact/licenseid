@@ -11,6 +11,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- `detect()` options are typed (`licenseid.types.DetectOptions`, was
+  `DetectRequest`); a type checker now rejects an unknown option ([#210])
+
 ### Fixed
 
 - A database file cut short by another program (`cp`, `truncate`) while a
@@ -19,6 +24,7 @@ and this project adheres to
   old WAL mode keeps that risk for its `-shm` file until `update`) ([#207])
 
 [#207]: https://github.com/bact/licenseid/pull/207
+[#210]: https://github.com/bact/licenseid/pull/210
 
 ## [0.8.4] - 2026-11-09
 

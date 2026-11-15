@@ -25,7 +25,6 @@ import itertools
 import json
 import sqlite3
 from collections.abc import Generator
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from unittest import mock
