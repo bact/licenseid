@@ -9,7 +9,8 @@ Aggregated license matching logic using hybrid search.
 
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from typing import Any, cast
+
+from typing_extensions import Unpack
 
 from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase
@@ -56,7 +57,7 @@ from licenseid.textinput import read_text_file, reject_lone_surrogate
 from licenseid.types import (
     CandidateMatch,
     Detection,
-    DetectRequest,
+    DetectOptions,
     InternalMatch,
     LicenseFlags,
     Method,
@@ -81,7 +82,7 @@ class _MatchContext:
 
     target_text: str
     file_path: str | None
-    request: DetectRequest
+    request: DetectOptions
     is_pure: bool
     norm_input: str
     word_count: int
@@ -181,17 +182,15 @@ class LicenseDetector:
         return text or ""
 
     def _build_match_context(
-        self, target_text: str, file_path: str | None, options: DetectRequest
+        self, target_text: str, file_path: str | None, options: DetectOptions
     ) -> _MatchContext:
         """Phase 2 (cont.): classify content and build the immutable
         per-call state shared by the remaining tiers."""
-        request = options
-        request["text"] = target_text
         norm_input = normalize_text(target_text)
         return _MatchContext(
             target_text=target_text,
             file_path=file_path,
-            request=request,
+            request=options,
             is_pure=is_pure_license_text(file_path, target_text),
             norm_input=norm_input,
             word_count=len(norm_input.split()),
@@ -385,13 +384,18 @@ class LicenseDetector:
         *,
         license_id: str | None = None,
         file_path: str | None = None,
-        **options: Any,
+        **options: Unpack[DetectOptions],
     ) -> list[Detection]:
         """
         Identify license text and return ranked matches, each with the same
         keys (see licenseid.types.Detection).
 
-        Give exactly one of text, license_id or file_path. Raises
+        Give exactly one of text, license_id or file_path. The *options*
+        (licenseid.types.DetectOptions) are checked for every input but act
+        only where licence text is matched, so an input answered whole
+        ignores them: exclude, hint, only_spdx and only_common on Tier 1's
+        candidates (licenseid.retrieval), enable_popularity on the Tier 2
+        ranking and its tie-breaker. Raises
         :class:`TypeError` for a text or license_id that is no str, a
         file_path that is neither a str nor an os.PathLike of one, or an
         option of the wrong type (a flag that is no bool, an exclude or hint
@@ -421,7 +425,7 @@ class LicenseDetector:
         *,
         license_id: str | None = None,
         file_path: str | None = None,
-        **options: Any,
+        **options: Unpack[DetectOptions],
     ) -> Sequence[RawMatch | InternalMatch]:
         """detect() before the public form: each tier's own records."""
         check_request(text, license_id, file_path, options)
@@ -439,10 +443,7 @@ class LicenseDetector:
         if unread_url(whole, target_text):  # a page is no text to match
             return []
         return self._match_text(
-            self._build_match_context(
-                target_text, file_path, cast(DetectRequest, options)
-            ),
-            whole,
+            self._build_match_context(target_text, file_path, options), whole
         )
 
     def _as_resolve_reads(self, value: str) -> list[RawMatch]:
@@ -539,7 +540,7 @@ class LicenseDetector:
             ) or self.db.get_license_details(license_id.split(" WITH ")[0])
             if not details:
                 return "", ""
-            ctx = self._build_match_context(text, None, cast(DetectRequest, {}))
+            ctx = self._build_match_context(text, None, DetectOptions())
             candidate = self.markers.to_candidate(details, 0.0)
         norm_input = self._without_tags(ctx).norm_input
         words = norm_input.split()
@@ -588,7 +589,7 @@ class LicenseDetector:
         record = self._resolve_record(text, license_id=license_id, file_path=file_path)
         return None if record is None else record["is_fsf_libre"]
 
-    def _get_candidates(self, data: DetectRequest, text: str) -> list[CandidateMatch]:
+    def _get_candidates(self, data: DetectOptions, text: str) -> list[CandidateMatch]:
         """Tier 1 retrieval for *text* (see licenseid.retrieval)."""
         return get_candidates(self.db, data, text)
 
@@ -603,7 +604,7 @@ class LicenseDetector:
         self,
         candidates: list[CandidateMatch],
         norm_input: str,
-        data: DetectRequest,
+        data: DetectOptions,
         marker_boosts: dict[str, float] | None = None,
         is_pure: bool = True,
     ) -> list[InternalMatch]:
@@ -692,7 +693,7 @@ class LicenseDetector:
         ]
 
     def _match_mixed_content(
-        self, request: DetectRequest, target_text: str
+        self, request: DetectOptions, target_text: str
     ) -> list[CandidateMatch]:
         """Extract sections from mixed content and search them for licenses."""
         sections = self.markers.get_sections(target_text)

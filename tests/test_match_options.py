@@ -9,17 +9,17 @@ a mistyped or removed option must not pass with no effect."""
 
 from collections.abc import Generator
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, get_args, get_origin
 
 import pytest
 from conftest import MIT_SEARCH_TEXT, make_mit_db_path
 
 from licenseid.detector import LicenseDetector
-from licenseid.detectrequest import MATCH_OPTIONS
+from licenseid.detectrequest import ID_COLLECTIONS, MATCH_OPTIONS
 from licenseid.errors import InvalidInputError, LicenseIdError
-from licenseid.types import DetectRequest
+from licenseid.types import DetectOptions, IdCollection
 
-# One valid value per option. Kept beside DetectRequest by the test below, so
+# One valid value per option. Kept beside DetectOptions by the test below, so
 # a new option cannot be added without deciding whether detect() takes it.
 VALID_OPTIONS: dict[str, Any] = {
     "enable_popularity": True,
@@ -40,9 +40,15 @@ def matcher() -> Generator[LicenseDetector, None, None]:
 
 
 def test_every_match_request_option_is_covered() -> None:
-    named_parameters = {"text", "license_id", "file_path"}
-    assert set(VALID_OPTIONS) == set(DetectRequest.__annotations__) - named_parameters
-    assert set(VALID_OPTIONS) == MATCH_OPTIONS
+    assert set(VALID_OPTIONS) == set(DetectOptions.__annotations__) == MATCH_OPTIONS
+
+
+def test_the_typed_collections_are_the_ones_checked() -> None:
+    """``IdCollection`` (the type) and ``ID_COLLECTIONS`` (the check) agree."""
+    kinds = {get_origin(kind) for kind in get_args(IdCollection)}
+    assert kinds == set(ID_COLLECTIONS)
+    for name in ("exclude", "hint"):
+        assert DetectOptions.__annotations__[name] == IdCollection
 
 
 @pytest.mark.parametrize("name", sorted(VALID_OPTIONS))
@@ -75,7 +81,7 @@ def test_an_unknown_option_is_rejected(matcher: LicenseDetector, name: str) -> N
 )
 @pytest.mark.parametrize("kwargs", [{"text": MIT_SEARCH_TEXT}, {"license_id": "MIT"}])
 def test_an_option_of_the_wrong_type_is_rejected(
-    matcher: LicenseDetector, name: str, value: object, kwargs: dict[str, str]
+    matcher: LicenseDetector, name: str, value: object, kwargs: dict[str, Any]
 ) -> None:
     """Checked for an explicit ID too, which ignores the options: a wrong
     value is a mistake whether or not it has an effect."""
@@ -109,7 +115,7 @@ def test_the_option_is_checked_before_any_input(
     """The early returns (an explicit ID, empty text) and a file that cannot
     be read must not let a bad option through, or change the error."""
     with pytest.raises(InvalidInputError, match="option: invalid: 'bogus'"):
-        matcher.detect(bogus=1, **kwargs)
+        matcher.detect(bogus=1, **kwargs)  # type: ignore[call-arg]
 
 
 def test_every_unknown_option_is_named_once_in_order(
@@ -130,9 +136,9 @@ def test_the_error_is_a_licenseid_error_and_a_runtime_error(
     matcher: LicenseDetector,
 ) -> None:
     with pytest.raises(LicenseIdError):
-        matcher.detect(text=MIT_SEARCH_TEXT, bogus=1)
+        matcher.detect(text=MIT_SEARCH_TEXT, bogus=1)  # type: ignore[call-arg]
     with pytest.raises(RuntimeError):
-        matcher.detect(text=MIT_SEARCH_TEXT, bogus=1)
+        matcher.detect(text=MIT_SEARCH_TEXT, bogus=1)  # type: ignore[call-arg]
 
 
 def test_a_rejected_call_leaves_the_matcher_usable(
@@ -140,7 +146,7 @@ def test_a_rejected_call_leaves_the_matcher_usable(
 ) -> None:
     plain = matcher.detect(text=MIT_SEARCH_TEXT)
     with pytest.raises(InvalidInputError):
-        matcher.detect(text=MIT_SEARCH_TEXT, bogus=1)
+        matcher.detect(text=MIT_SEARCH_TEXT, bogus=1)  # type: ignore[call-arg]
     assert matcher.detect(text=MIT_SEARCH_TEXT) == plain
 
 

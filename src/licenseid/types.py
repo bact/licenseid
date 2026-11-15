@@ -121,16 +121,22 @@ class InternalMatch(TypedDict, total=False):
     is_fsf_libre: bool | None
 
 
-class DetectRequest(TypedDict, total=False):
-    """Input to LicenseDetector.detect()."""
+# The licence IDs of ``exclude`` and ``hint``: the kinds of collection
+# ``licenseid.detectrequest`` accepts (``ID_COLLECTIONS``), of str.
+IdCollection = list[str] | tuple[str, ...] | set[str] | frozenset[str]
 
-    text: str
-    license_id: str
-    file_path: str
+
+class DetectOptions(TypedDict, total=False):
+    """The keyword options of LicenseDetector.detect() and
+    licenseid.detect(), checked for every input. They act only where
+    licence text is matched: exclude, hint, only_spdx and only_common on
+    Tier 1's candidates (licenseid.retrieval), enable_popularity on the
+    Tier 2 ranking and its tie-breaker."""
+
     only_spdx: bool
     only_common: bool
-    exclude: list[str]
-    hint: list[str]
+    exclude: IdCollection
+    hint: IdCollection
     enable_popularity: bool
 
 

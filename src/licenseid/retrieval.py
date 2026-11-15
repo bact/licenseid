@@ -6,9 +6,11 @@
 """Tier 1 retrieval: fetch candidates from the FTS5 index for a query text,
 then filter them and add the hinted ones."""
 
+from collections.abc import Collection, Iterable
+
 from licenseid.database import LicenseDatabase
 from licenseid.normalize import normalize_text, strip_comment_prefixes
-from licenseid.types import CandidateMatch, DetectRequest
+from licenseid.types import CandidateMatch, DetectOptions
 
 # Tail-only additions (candidates found only via the tail query in
 # _search_candidates_by_length(), not its head query) are capped at this many,
@@ -92,10 +94,10 @@ def _filter_candidates(
     raw_candidates: list[CandidateMatch],
     only_spdx: bool,
     only_common: bool,
-    exclude_list: list[str],
+    exclude_list: Collection[str],
 ) -> list[CandidateMatch]:
-    """Drop candidates with no ID, an excluded ID, or failing the
-    only_spdx/only_common metadata filters."""
+    """Drop candidates with no ID, an excluded ID (exact case), or failing
+    the only_spdx/only_common metadata filters."""
     filtered: list[CandidateMatch] = []
     for cand in raw_candidates:
         license_id = cand.get("license_id")
@@ -118,11 +120,14 @@ def _filter_candidates(
 
 
 def _inject_hinted_candidates(
-    db: LicenseDatabase, filtered: list[CandidateMatch], hint_list: list[str]
+    db: LicenseDatabase, filtered: list[CandidateMatch], hint_list: Iterable[str]
 ) -> list[CandidateMatch]:
     """Force-include DB-backed hint_list IDs not already present, as
     synthetic candidates (no search_text, so they rank purely on
-    marker/metadata signals rather than similarity)."""
+    marker/metadata signals rather than similarity). Added after the
+    filters, so neither exclude, only_spdx nor only_common drops one; the
+    check against the candidates is in exact case, the lookup case-folded,
+    so "mit" beside MIT, or an ID given twice, is added again."""
     candidate_ids = {c.get("license_id") for c in filtered if c.get("license_id")}
     for h_id in hint_list:
         if h_id not in candidate_ids:
@@ -147,14 +152,15 @@ def _inject_hinted_candidates(
 
 def get_candidates(
     db: LicenseDatabase,
-    data: DetectRequest,
+    data: DetectOptions,
     text: str,
 ) -> list[CandidateMatch]:
-    """Fetch and filter candidates from the database."""
+    """Fetch and filter candidates from the database: the one place the
+    options exclude, hint, only_spdx and only_common act."""
     only_spdx = data.get("only_spdx", True)
     only_common = data.get("only_common", False)
-    exclude_list: list[str] = data.get("exclude", [])
-    hint_list: list[str] = data.get("hint", [])
+    exclude_list: Collection[str] = data.get("exclude", [])
+    hint_list: Collection[str] = data.get("hint", [])
 
     # Strip comment prefixes before FTS5: improves recall for Type 5
     # inputs where license text is wrapped in // / # / * comment markers.

@@ -19,7 +19,7 @@ from conftest import MIT_SEARCH_TEXT, make_mit_db_path
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
-from licenseid.types import Detection, DetectRequest, InternalMatch
+from licenseid.types import Detection, DetectOptions, InternalMatch
 
 
 @pytest.fixture
@@ -94,7 +94,7 @@ def test_enable_popularity_is_keyword_only(mit_db: str) -> None:
 def test_result_types_have_no_java_fields() -> None:
     assert "java_verified" not in Detection.__annotations__
     assert "java_verified" not in InternalMatch.__annotations__
-    assert "enable_java" not in DetectRequest.__annotations__
+    assert "enable_java" not in DetectOptions.__annotations__
 
 
 def test_match_result_has_no_java_key(mit_db: str) -> None:
@@ -108,4 +108,4 @@ def test_stale_enable_java_option_is_rejected(mit_db: str) -> None:
     no-op (roadmap item 1; see also tests/test_match_options.py)."""
     matcher = LicenseDetector(mit_db)
     with pytest.raises(InvalidInputError, match="option: invalid: 'enable_java'"):
-        matcher.detect(text=MIT_SEARCH_TEXT, enable_java=True)
+        matcher.detect(text=MIT_SEARCH_TEXT, enable_java=True)  # type: ignore[call-arg]

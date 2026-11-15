@@ -6,19 +6,18 @@
 """The checks of a ``detect()`` call that need no database: its options and
 its one input."""
 
-from typing import Any
+from collections.abc import Mapping
+from typing import Final
 
 from licenseid.dbcheck import require_path
 from licenseid.errors import InvalidInputError
-from licenseid.types import DetectRequest
+from licenseid.types import DetectOptions
 
-# The keyword options detect() accepts; `text`, `license_id` and `file_path`
-# are its named parameters, so a request can carry no other key.
-MATCH_OPTIONS: frozenset[str] = frozenset(DetectRequest.__annotations__) - {
-    "text",
-    "license_id",
-    "file_path",
-}
+# The keyword options detect() accepts: the keys of DetectOptions.
+MATCH_OPTIONS: frozenset[str] = frozenset(DetectOptions.__annotations__)
+
+# The collections ``exclude`` and ``hint`` take, as types.IdCollection.
+ID_COLLECTIONS: Final = (list, tuple, set, frozenset)
 
 
 def _check_inputs(text: object, license_id: object, file_path: object) -> None:
@@ -49,7 +48,7 @@ def _check_inputs(text: object, license_id: object, file_path: object) -> None:
         )
 
 
-def _reject_unknown_options(options: dict[str, Any]) -> None:
+def _reject_unknown_options(options: Mapping[str, object]) -> None:
     """Raise InvalidInputError for an option detect() does not know, so a typo
     or a removed option (`enable_java`) cannot pass with no effect."""
     unknown = sorted(options.keys() - MATCH_OPTIONS)
@@ -64,7 +63,7 @@ _FLAG_OPTIONS: tuple[str, ...] = ("enable_popularity", "only_common", "only_spdx
 _LIST_OPTIONS: tuple[str, ...] = ("exclude", "hint")
 
 
-def _check_option_values(options: dict[str, Any]) -> None:
+def _check_option_values(options: Mapping[str, object]) -> None:
     """:class:`TypeError` for an option of the wrong type: a flag that is no
     :class:`bool`, or an ``exclude``/``hint`` that is no list of IDs. A bare
     string was read as a list of its characters (``exclude="MIT"`` kept
@@ -75,14 +74,14 @@ def _check_option_values(options: dict[str, Any]) -> None:
     for name in _LIST_OPTIONS:
         value = options.get(name)
         if name in options and (
-            not isinstance(value, (list, tuple, set, frozenset))
+            not isinstance(value, ID_COLLECTIONS)
             or not all(isinstance(item, str) for item in value)
         ):
             raise TypeError(f"{name} must be a list of str")
 
 
 def check_request(
-    text: object, license_id: object, file_path: object, options: dict[str, Any]
+    text: object, license_id: object, file_path: object, options: Mapping[str, object]
 ) -> None:
     """The checks of a detect() call that need no database: an unknown option
     first (no input hides a typo), then the inputs. ``licenseid.detect()``

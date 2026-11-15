@@ -66,11 +66,32 @@ ranks (dozens for a LICENSE file), best first. Filter on `score` and
 `detect()` takes the keyword options `enable_popularity`, `exclude`, `hint`,
 `only_common` and `only_spdx`, and raises `licenseid.InvalidInputError`
 for any other, such as a mistyped name. A flag must be a `bool`, and
-`exclude` and `hint` a list (or tuple or set) of `str`: any other value
-raises `TypeError` (a bare `"MIT"` is no list of IDs). The options shape the
-ranking of licence text; an explicit `license_id`, a bare ID or name and an
-`SPDX-License-Identifier` tag are answered before they are read, so the
-options have no effect on them (they are still checked).
+`exclude` and `hint` a list, tuple, set or frozenset of `str`: any other
+value raises `TypeError` (a bare `"MIT"`, a dict, a generator). Every call
+checks them, but they act only where licence text is matched (Tiers 1 and
+2): `exclude`, `only_common` and `only_spdx` drop candidates that full-text
+search found, `hint` adds candidates, and `enable_popularity` lets
+popularity nudge the ranking of every candidate and break its ties.
+
+So they have no effect on an input answered whole: an explicit
+`license_id`, a value `resolve()` reads (an ID, a name, an expression, a
+licence URL), an `SPDX-License-Identifier` tag, a manifest's `license`
+field, or a text under 10 words with no answer. Nor do `exclude`,
+`only_common` and `only_spdx` drop a licence found in a text by its name or
+heading, or by name in a section of mixed content: `exclude=["MIT"]` still
+answers MIT for the MIT License text with its title.
+
+`exclude` compares IDs in exact case (`"mit"` excludes nothing). `hint`
+looks each ID up in any case and adds it, after the filters, as a candidate
+with no text, so it scores near 0. It takes the place of the candidate a
+name or heading would add for the same licence: `only_common=True` with
+`hint=["JSON"]` answers the JSON License text with JSON last, not first.
+An ID given twice, or in another case beside the same candidate, is added
+twice. A hinted candidate also counts towards the five below which
+`detect()` searches the sections of mixed content too, so a hint can stop
+that search. `only_spdx` (on by default) drops licences not on the SPDX
+License List; a database built by `licenseid update` holds none, so there it
+has no effect.
 
 To record a licence a package *declares* (a `license` field, a model card),
 use `licenseid.resolve()`. It returns the SPDX expression and each step taken,

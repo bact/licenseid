@@ -16,6 +16,8 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | CLI ``is-*``         | PREDICATES x SOURCES x --json x found / not  |
 | CLI blank input      | commands x blank arg / --text / --id / stdin |
 | API ``detect()``     | method / function x text / license_id / file |
+| API ``detect()``     | ``test_detect_options_paths.py``: options x  |
+| options              | method / function x text / license_id / file |
 | API ``is_*()``       | PREDICATES x text / license_id / file        |
 | API ``resolve()``      | source x default database (STATES) x bundle  |
 | CLI ``resolve``        | --source x default database x --db x --json  |
@@ -39,6 +41,7 @@ import shutil
 from collections.abc import Callable, Generator
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import pytest
 from click.testing import CliRunner, Result
@@ -348,10 +351,10 @@ _API_INPUTS = ("text", "license_id", "file_path")
 
 def _api_kwargs(
     names: tuple[str, ...], winner: str | None, tmp_path: Path
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Only the *winner* input names MIT; every other given input names
     something that does not match, so the result shows which one was used."""
-    kwargs: dict[str, str] = {}
+    kwargs: dict[str, Any] = {}
     for name in names:
         good = name == winner
         if name == "text":

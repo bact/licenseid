@@ -15,7 +15,7 @@ read-only ``vfs=`` URI), because it judged the file at every open; a failed
 import sqlite3
 import subprocess
 import sys
-import time
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -27,46 +27,79 @@ from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
 )
 from db_variants import create_database, make_ready_file_db
 from release_fakes import VERSION, release_bundle, ship
+from timing import slack
 
 from licenseid import DatabaseNotReadyError, LicenseDatabase
 
-HOLD = 2.0  # seconds the child holds the lock: longer than the 1 s probe wait
+_PROBE_WAIT = 1.0  # dbcheck._BUSY_WAIT: the old refusal came after this
 
 _HOLDER = """
-import sqlite3, sys, time
+import sqlite3, sys
 conn = sqlite3.connect(sys.argv[1], isolation_level=None)
 conn.execute("BEGIN EXCLUSIVE")
 print("locked", flush=True)
-time.sleep(float(sys.argv[2]))
+sys.stdin.readline()
 """
 
 
 @pytest.fixture
-def locked_db(tmp_path: Path) -> Iterator[Path]:
-    """A ready database that another process holds locked for ``HOLD`` s."""
+def locked_db(tmp_path: Path) -> Iterator[tuple[Path, subprocess.Popen[str]]]:
+    """A ready database that another process holds locked until it is told
+    (a line on its standard input) to let go."""
     path = make_ready_file_db(tmp_path / "licenses.db")
     with subprocess.Popen(
-        [sys.executable, "-c", _HOLDER, str(path), str(HOLD)],
+        [sys.executable, "-c", _HOLDER, str(path)],
+        stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         text=True,
     ) as proc:
         try:
             assert proc.stdout is not None
             assert proc.stdout.readline().strip() == "locked"
-            yield path
+            yield path, proc
         finally:
             proc.kill()
 
 
 def test_a_handle_on_a_locked_ready_database_waits_for_the_lock(
-    locked_db: Path,
+    locked_db: tuple[Path, subprocess.Popen[str]],
 ) -> None:
     """R2-1 (was: refused after the 1 s probe with ``database is locked``): a
     current schema needs no write, so opening is as fail-open as a read, and
-    SQLite's own wait applies."""
-    started = time.monotonic()
-    handle = LicenseDatabase(str(locked_db))
-    assert time.monotonic() - started >= HOLD / 2  # it did wait
+    SQLite's own wait applies. Event-driven: no wall-clock bound."""
+    path, proc = locked_db
+    started = threading.Event()
+    released = threading.Event()
+    outcome: dict[str, object] = {}
+
+    def open_it() -> None:
+        started.set()
+        try:
+            outcome["handle"] = LicenseDatabase(str(path))
+            outcome["after_release"] = released.is_set()
+        except Exception as error:  # pylint: disable=broad-exception-caught
+            outcome["error"] = error
+
+    worker = threading.Thread(target=open_it)
+    worker.start()
+    try:
+        assert started.wait(slack(10))
+        worker.join(timeout=_PROBE_WAIT + 0.5)
+        # still waiting for the lock after the probe's own 1 s wait ran out
+        assert worker.is_alive()
+        released.set()
+        assert proc.stdin is not None
+        proc.stdin.write("\n")
+        proc.stdin.flush()
+        worker.join(slack(10))
+        assert not worker.is_alive()
+    finally:
+        proc.kill()
+        worker.join(slack(10))
+    assert "error" not in outcome
+    assert outcome["after_release"] is True
+    handle = outcome["handle"]
+    assert isinstance(handle, LicenseDatabase)
     assert handle.get_metadata()["license_list_version"]
 
 

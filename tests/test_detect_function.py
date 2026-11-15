@@ -81,7 +81,7 @@ def test_detect_answers_as_the_detector_does(
     ids=["text", "license_id", "file_path"],
 )
 def test_every_argument_is_forwarded(
-    default_db: str, args: tuple[str | None], inputs: dict[str, str | None]
+    default_db: str, args: tuple[str | None], inputs: dict[str, Any]
 ) -> None:
     """A spy on the method sees each input and a non-default option, as
     given (one input per call: two are refused before the method, P165)."""
@@ -111,7 +111,7 @@ def test_an_unknown_option_is_refused(default_db: str) -> None:
     """A keyword option the method does not know is refused."""
     assert default_db
     with pytest.raises(InvalidInputError):
-        licenseid.detect("MIT", bogus=True)
+        licenseid.detect("MIT", bogus=True)  # type: ignore[call-arg]
 
 
 def test_no_input_is_invalid_input(default_db: str) -> None:

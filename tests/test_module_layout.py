@@ -19,7 +19,7 @@ import licenseid
 from licenseid.detector import LicenseDetector
 from licenseid.retrieval import get_candidates
 from licenseid.shorttext import match_short_text
-from licenseid.types import DetectRequest
+from licenseid.types import DetectOptions
 
 SPLIT = ["ranking", "retrieval", "shorttext"]
 MATCH_PATH = [
@@ -116,7 +116,7 @@ def test_the_matcher_methods_are_thin_wrappers(ordering_matcher: object) -> None
     benchmarks use; they must give the module functions' answers."""
     assert isinstance(ordering_matcher, LicenseDetector)
     text = "permission is hereby granted free of charge to any person"
-    request = DetectRequest()
+    request = DetectOptions()
     assert ordering_matcher._get_candidates(  # pylint: disable=protected-access
         request, text
     ) == get_candidates(ordering_matcher.db, request, text)
