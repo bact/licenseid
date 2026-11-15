@@ -491,6 +491,13 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   `tests/test_option_matrix.py`.
 - Run plain `pytest tests/` (no `-m 'not benchmark'`), and the full suite
   alone (beside mutants or `tools.golden`, 1 s bounds fail).
+- In a fix-and-review loop, run the full suite, the full `tools.golden` and
+  `tools.cli_matrix` once, before a push, after the last clean review round,
+  not after every fix. Each round runs the linters, the new tests, the tests
+  of the changed modules, a mutation check of the new fix, and these always:
+  `test_option_matrix`, `test_output_pattern`, `test_resolver_shapes`,
+  the contract tests. A change in a shared module (`detector`, `result`,
+  `types`, `exprflags`) adds a wider `pytest -n 8` run.
 - No `tests/__init__.py`: `from conftest import ...` (helpers
   `make_memory_db_path`, `fake_requests_get`, `leftover_tmp_files`). A
   shared fixture goes in `tests/conftest.py` (importing one trips
