@@ -17,6 +17,7 @@ import sqlite3
 import warnings
 from collections.abc import Callable, Generator
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -65,7 +66,7 @@ def matcher(db_path: str) -> LicenseDetector:
     return LicenseDetector(db_path)
 
 
-def match_ids(matcher: LicenseDetector, **kwargs: str) -> list[str]:
+def match_ids(matcher: LicenseDetector, **kwargs: Any) -> list[str]:
     return [r["expression"] for r in matcher.detect(**kwargs)]
 
 

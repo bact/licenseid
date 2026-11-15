@@ -9,16 +9,12 @@ Accuracy and performance benchmark tests for license identification.
 # pylint: disable=duplicate-code
 
 import json
-import sqlite3
 from pathlib import Path
 
 import pytest
-from conftest import seed_ready_metadata
+from long_text_db import long_text_detector
 
-from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
-from licenseid.fingerprintstore import store_fingerprints
-from licenseid.normalize import normalize_text
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "license-text-long"
 
@@ -29,82 +25,11 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures" / "license-text-long"
 @pytest.fixture(scope="module")
 def matcher() -> LicenseDetector:
     """Fixture to provide a module-scoped, prepopulated in-memory matcher."""
-    # Use a shared in-memory database for performance and isolation
-    db_path = "file:test_benchmark?mode=memory&cache=shared"
-
-    # Keep a reference to the manager to ensure the in-memory DB is kept alive
-    db_manager = LicenseDatabase(db_path)  # pylint: disable=unused-variable
-
-    # Populate the database with our fixtures
-    fixtures = list(FIXTURES_DIR.glob("*.json"))
-    if not fixtures:
+    if not list(FIXTURES_DIR.glob("*.json")):
         pytest.skip(
             "No fixtures found. Run 'python scripts/generate_dataset.py' first."
         )
-
-    print(f"\nPopulating test database with {len(fixtures)} fixtures...")
-
-    # Pre-calculate data to avoid overhead inside transaction
-    to_insert_licenses = []
-    to_insert_index = []
-    for i, filepath in enumerate(fixtures):
-        if i % 100 == 0:
-            print(f"  Processing fixture {i}/{len(fixtures)}...")
-        with open(filepath, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        normalized = normalize_text(data["license_text"])
-        word_count = len(normalized.split())
-
-        to_insert_licenses.append(
-            (
-                data["license_id"],
-                data.get("name", data["license_id"]),
-                data.get("is_spdx", True),
-                data.get("is_osi_approved", False),
-                data.get("is_fsf_libre", False),
-                data.get("is_high_usage", False),
-                data.get("is_deprecated", False),
-                data.get("superseded_by"),
-                data.get("pop_score", 1),
-                word_count,
-            )
-        )
-        to_insert_index.append((data["license_id"], normalized))
-
-    print(f"  Inserting {len(fixtures)} records into database...")
-    with sqlite3.connect(db_path, uri=True) as conn:
-        conn.execute("PRAGMA journal_mode = OFF")
-        conn.execute("PRAGMA synchronous = OFF")
-        conn.execute("BEGIN TRANSACTION")
-        try:
-            conn.executemany(
-                "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved, "
-                "is_fsf_libre, is_high_usage, is_deprecated, superseded_by, "
-                "pop_score, word_count) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                to_insert_licenses,
-            )
-            conn.executemany(
-                "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
-                to_insert_index,
-            )
-            conn.execute("COMMIT")
-        except Exception:
-            conn.execute("ROLLBACK")
-            raise
-
-    # Mirror production DB builds (LicenseDatabase._update_db_records), which
-    # always compute fingerprints after the index is populated.  Without
-    # this, near-duplicate license bodies (e.g. ISC vs Python-2.0, BSD
-    # variants) lose their only disambiguating signal once copyright-notice
-    # text is normalized away, since that's the discriminative content the
-    # fingerprint mechanism exists to replace.
-    store_fingerprints(db_manager._connections)  # pylint: disable=protected-access
-
-    seed_ready_metadata(db_path)
-    print("  Population complete.")
-    return LicenseDetector(db_path)
+    return long_text_detector()
 
 
 MUST_HAVE_LICENSES = [

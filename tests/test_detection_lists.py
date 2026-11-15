@@ -12,6 +12,7 @@ License List, described by the builder ``resolve()`` uses
 import json
 from collections.abc import Generator
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -76,7 +77,7 @@ def test_a_detection_rests_on_the_database_list(file_db: Path) -> None:
     ids=["id", "tag", "name", "text"],
 )
 def test_every_method_and_result_has_its_lists(
-    memory_db: str, kwargs: dict[str, str]
+    memory_db: str, kwargs: dict[str, Any]
 ) -> None:
     results = LicenseDetector(memory_db).detect(**kwargs)
     assert results

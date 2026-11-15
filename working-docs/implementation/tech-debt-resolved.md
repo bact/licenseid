@@ -837,3 +837,17 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   the download too. `clear-cache` removes a cache file that is a looped or
   dangling symlink (`spdx_source.clear_cache_files`; `exists()` is False for
   one). Tests: `tests/test_db_path_loops.py`.
+
+## Item 46, part (PR #210, 2026-11-15)
+
+- `detect()` options typed as `DetectOptions` (`Unpack`), `ID_COLLECTIONS`
+  from one alias; `docs/python-api.md` says where `exclude`, `hint`,
+  `only_spdx`, `only_common` act. No answer moved. The gaps stay open in
+  item 46 as decisions (pinned `# BUG:`/`# DECISION:` in
+  `tests/test_detect_options_paths.py`, an axis set of its own).
+- Lock-wait test of `LicenseDatabase` made event-driven. Mutation check:
+  `timeout=0` on the connects fails it. The editable install imports the
+  main checkout: run mutants with `PYTHONPATH=<worktree>/src`.
+- One long-text database build (`tests/long_text_db.py`), shared by the
+  harness and `test_accuracy`: sorted-row hashes of `licenses`,
+  `license_index` and fingerprints identical before and after.

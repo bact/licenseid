@@ -26,7 +26,7 @@ from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
 from licenseid.normalize import normalize_text
 from licenseid.ranking import DEP_PENALTY
-from licenseid.types import CandidateMatch, DetectRequest
+from licenseid.types import CandidateMatch, DetectOptions
 
 _MIT_TEXT = "permission is hereby granted free of charge to any person obtaining a copy"
 _APACHE_TEXT = "apache license version 2.0 terms and conditions for use reproduction"
@@ -356,7 +356,7 @@ def test_mixed_content_keyword_sections(mixed_db: str) -> None:
     # Asserted on the section search itself: a duplicate candidate would be
     # swallowed by the merge in _run_tier1_and_tier2(), which deduplicates
     # again, so the public result alone cannot show that this step is clean.
-    sectioned = matcher._match_mixed_content(DetectRequest(), text)
+    sectioned = matcher._match_mixed_content(DetectOptions(), text)
     assert [c["license_id"] for c in sectioned] == ["Acme-1.0", "Beta-2.0"]
 
 
@@ -390,7 +390,7 @@ def test_mixed_content_skips_id_without_a_row(broken_successor_db: str) -> None:
     """
     matcher = LicenseDetector(broken_successor_db)
 
-    assert not matcher._match_mixed_content(DetectRequest(), "Unlicense")
+    assert not matcher._match_mixed_content(DetectOptions(), "Unlicense")
     assert [r["expression"] for r in matcher.detect("Unlicense")] == ["Unlicense-2.0"]
 
 

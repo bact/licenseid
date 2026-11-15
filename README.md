@@ -87,7 +87,7 @@ licenseid is-osi MIT >/dev/null && echo "OSI-approved"
 from licenseid import detect, resolve
 
 detect(file_path="LICENSE")[0]["expression"]  # "Apache-2.0"
-resolve("GPLv2 or later")["expression"]       # "GPL-2.0-or-later"
+resolve("GPLv2 or later")["expression"]  # "GPL-2.0-or-later"
 ```
 
 Use `detect()` to scan files and `resolve()` to record what a package

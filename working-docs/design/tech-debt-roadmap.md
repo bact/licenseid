@@ -381,6 +381,14 @@ short-text leftovers are in `match-resolve-0-8.md`, section 7.
   [`concurrent-update.md`](concurrent-update.md).
 - `exclude`, `hint` and `only_spdx` of `detect()` are applied in part, are
   untyped and are not axes of `tests/test_option_matrix.py` (review A-F5).
+  Typed (`DetectOptions`), documented and pinned in PR #210 (2026-11-15):
+  `tests/test_detect_options_paths.py` (an options matrix, `# BUG:` and
+  `# DECISION:` pins). **Open, a decision each**: markers and mixed-content
+  windows skip `exclude`; a hint undoes `exclude`, buries a marker candidate
+  and can skip the mixed-content search (count of 5); duplicate hints;
+  `exclude` exact case against `hint` folded; deprecated IDs not mapped; a
+  hint never scores; `only_spdx` is a no-op on a built database (every row
+  `is_spdx=1`; remove it?). Answers unchanged: see `tech-debt-resolved.md`.
 - A tag that lists a licence elsewhere than right after the mark is still
   the first licence, exact: after a grant (`GPL-2.0 or later, ISC`), with
   "or"/"and" (`MIT, or ISC`), in brackets or quotes (`MIT, (ISC)`), after a
@@ -390,20 +398,73 @@ short-text leftovers are in `match-resolve-0-8.md`, section 7.
   others`, as the field reader does (the item ends at "and").
 - `is-*` on a file with several tags judges the top one only; the condition
   words for empty input; a garbage `--db` is `unreadable` or `invalid`
-  depending on the path; `Resolver` and `Component` are not exported (A-F7).
+  depending on the path; `Resolver` and `Component` are not exported (A-F7:
+  open, the names need a decision: `licenseid.Resolver` reads as a class and
+  both are the same shape).
 - The publish workflow checks the tag against the built version since 0.7.0
   (C3); the METADATA of a dev build keeps `0.7.0-dev.0` as written (C4).
 - `test_db_ready.py` (`wal_copy_without_wal`) fails 6 cases under uv's
   Python 3.14 (SQLite 3.43.2) on macOS, on `main` too (`unreadable` against
   `empty`); CI's 3.14 passes. It depends on the SQLite version.
 - Plain `ruff format --check` with no path flags `docs/python-api.md` and
-  `resolver-0-7-plan.md`; CI checks `src/ tests/` only.
+  `resolver-0-7-plan.md`: done in PR #210 (2026-11-15). Those two pass with
+  ruff 0.17.4; it flagged one comment alignment in a Python block of
+  `README.md`, now fixed. CI checks `src/ tests/` only and stays so.
 - `update --source packaged` sample outputs in the README are unverified
   against a built wheel: check them at the final release gate.
-- The lock-wait test of `LicenseDatabase` holds the lock 2 s and asserts the
-  open waited at least 1 s: a thin margin on a slow CI runner (#151).
+- The lock-wait test of `LicenseDatabase`: done in PR #210 (2026-11-15),
+  event-driven (the holder waits on its standard input; no wall-clock lower
+  bound).
 - `tests/harness_db.py` repeats the database build of
-  `test_accuracy.matcher`; fold the two into one helper (#150).
+  `test_accuracy.matcher`: done in PR #210 (2026-11-15), one
+  `tests/long_text_db.py` (same rows, same accuracy numbers).
+
+Deferred from PR #210 (2026-11-15), each with a recommendation. The
+options are pinned in `tests/test_detect_options_paths.py`; moving one
+flips a `# BUG:` or `# DECISION:` pin.
+
+- **`exclude` and `hint` gaps** (a decision each, answers change).
+  Decided by the maintainer (2026-11-15), to build in one PR:
+  - `exclude` wins over `hint`.
+  - Deduplicate the `hint` list and the `exclude` list (on the canonical
+    ID).
+  - Fold case in both (`listlookup.fold_case`).
+  - Upgrade a deprecated ID first, then apply the option; never upgrade an
+    ambiguous one (a deprecated `GPL-2.0` could be `-only` or `-or-later`).
+    Same rule as py-spdx-license PR 13 (`project_py_spdx_license_prs`).
+  Still undecided, with a recommendation: markers and mixed-content windows
+  skip `exclude` (filter once, before Tier 2); a hint buries a marker
+  candidate of the same licence (JSON 1.0 to 0.025 with `hint=["JSON"]`):
+  merge markers before hints; a hint counts towards the fewer-than-5 test
+  that gates the mixed-content search (`detector.py`) and can lose a
+  licence that search found: count only candidates with text; a hint has no
+  text, so it scores 0: give it its text or say it only lists.
+- **`only_spdx` does nothing** on a database licenseid builds (every row
+  `is_spdx=1`). Keep or redesign, not remove: more lists will come
+  (AboutCode ScanCode, Blue Oak) and a source flag may be what it becomes.
+  Decide with the multi-list design; until then it stays documented as a
+  no-op on a built database.
+- **Declared values ignore the options** (`license_id`, a value `resolve()`
+  reads, a tag, a manifest field, a name): keep, documented in
+  `docs/python-api.md`.
+- `DetectOptions` is not in `licenseid.__all__`: export it with the
+  `Resolver`/`Component` decision (one API pass).
+- **A repeated-paragraph input ranks wrong** (not investigated): on the
+  real database, two copies of a prose paragraph, the full MIT text and
+  two more copies give TekHVC first (0.61) and MIT outside the top 4. Check
+  against `main` and the probe gate (`similarity.build_probe`).
+- **Worktree trap**: the editable install imports the main checkout, so a
+  mutation run in a worktree tests nothing; use
+  `PYTHONPATH=<worktree>/src` (add to the testing notes of `AGENTS.md` if
+  it bites again).
+- Not touched, as scoped (see the bullets above): readers seeing `database:
+  empty` during `update` (design in `concurrent-update.md`), the tag-lists-
+  a-licence-after-the-mark cases (belong to the matching-rules redesign),
+  `is-*` on a file with several tags, the garbage `--db` wording, the
+  condition words for empty input, the README `update --source packaged`
+  samples (need a built wheel), the Python 3.14 `wal_copy_without_wal`
+  failures (SQLite 3.43.2; 8 tests fail on `main` too) and the dev-build
+  METADATA.
 
 - Impact 2, Risk 2, Effort 3.
 

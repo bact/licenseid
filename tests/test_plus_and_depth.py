@@ -10,6 +10,7 @@ given (item 19): the same answer from every entry point and every Python."""
 
 import sys
 from collections.abc import Generator
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -44,7 +45,7 @@ def _matcher() -> Generator[LicenseDetector, None, None]:
         yield LicenseDetector(path)
 
 
-def ids(matcher: LicenseDetector, **kwargs: str) -> list[str]:
+def ids(matcher: LicenseDetector, **kwargs: Any) -> list[str]:
     return [r["expression"] for r in matcher.detect(**kwargs)]
 
 
