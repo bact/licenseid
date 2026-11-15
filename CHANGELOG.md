@@ -18,6 +18,12 @@ and this project adheres to
 
 ### Fixed
 
+- `detect()` `exclude` now also drops a licence a title, a version phrase or a
+  section of mixed content names (`exclude=["GPL-2.0-only"]` still answered it);
+  `exclude` and `hint` compare IDs in any case; a bare deprecated ID in either
+  stands for both twins, with `WARNING: option: deprecated ID`; a declaration
+  (tag, field, `license_id`) is never filtered or hinted; a short
+  prose name hit is free text, so `detect()` may differ from `resolve()`
 - A database file cut short by another program (`cp`, `truncate`) while a
   lookup runs, or inside a `reading()` block, raises `DatabaseNotReadyError`;
   it killed the process with SIGBUS and no message (a database still in the
