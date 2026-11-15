@@ -631,31 +631,68 @@ by licenseid never gives a deprecated ID.
   version") still win, as in `disambiguate_deprecated_id`. Today `detect()`
   narrows these to `-only` with `WARNING: input: variant not stated`.
 - **Text match** (licence text through Tier 1 and 2): `-only` or `-or-later`,
-  never a deprecated ID. The evidence is in the input: the grant words
-  (`classify.OR_LATER_PHRASE`). Without evidence, `-only` with the `variant
-  not stated` warning. `-only` is the licensee's careful reading; it
-  understates a licensor's "or later" grant, and `docs/` says so.
+  never a deprecated ID. The evidence is in the input: grant words of the
+  same licence family (`classify.OR_LATER_PHRASE`, read through the signal
+  `ranking.apply_version_suffix_tiebreaker` uses; never a raw scan of the
+  text, which the GPL "How to Apply" appendix would always satisfy). With
+  evidence: `-or-later` first, `VARIANT_STATED` true, no warning; the `-only`
+  runner-up is false. Without: `-only` first, then `-or-later`, both false,
+  one `variant not stated` warning (DETAIL the family ID, not the text).
+  `-only` is the licensee's careful reading; it understates a licensor's "or
+  later" grant, and `docs/` says so. Families with no bare ID (`GFDL-1.3-
+  invariants-*`) follow the same rule; their invariants ambiguity is another
+  axis that `VARIANT_STATED` does not cover.
 - **One option**, `--variant auto|as-written|only|or-later` (API `variant=`),
   on `detect`, `--id` and the `-with-` IDs, which follow it. `auto` is the
   default and means the two rules above. `as-written` never decides: a bare
   deprecated ID stays, text matches included (intentional ambiguity). `only`
   and `or-later` always decide, declared values too, with the warning (a CI
   that bans deprecated IDs). An unknown value is `option: invalid` (exit 2).
-  The name follows the existing warning (`variant not stated`).
+  The name follows the existing warning (`variant not stated`). The option is
+  a preference, never a fact: words that state the variant (`GPL-2.0 or
+  later`, `GPL-2.0+`, `-or-later`, `-only`) win over `only` and `or-later`,
+  with `WARNING: option: overridden by input: --variant only; using
+  GPL-2.0-or-later`.
 - **Output**: a field `VARIANT_STATED` at the end of the record (JSON
   `variant_stated`, boolean): `true` when the words or an `-only`/`-or-later`
   ID state it, `false` for a guess or a bare ID kept, empty when there is no
   variant to judge (`MIT`). A script tells a guessed `-only` from a stated
-  one without reading standard error.
+  one without reading standard error. A compound: empty when no operand has
+  a variant, `false` when any operand is guessed or kept, else `true`.
+- **`EXACT`**: the result says what the input says. Only form changes (case,
+  order, spacing, quotes); nothing is narrowed, widened, chosen or mapped.
+  The rules stay deterministic: the text rule (whole normalised input equals
+  the licence's `search_text`) and `as_resolved`'s trust table are kept, with
+  one exception: a kept bare `GPL-2.0` (`assumed_only`, trust `none`) and a
+  kept `-with-` ID are `true`, because the output means what the input
+  means. `VARIANT_STATED=false` carries the ambiguity.
+- **`exclude` and `hint`** (options of `detect()` in the Python API only: no
+  CLI flag, and `resolve()` has neither, so default `detect()` and default
+  `resolve()` agree and only a caller who passes them can make `detect()`
+  answer differently) act on free text only. A declaration (an SPDX tag,
+  a field, `--id`, a whole input `resolve()` reads) is never filtered and
+  never hinted. Prose markers (titles, "version 2") are free text: today they
+  join the pool after the `exclude` filter (`exclude=["GPL-2.0-only"]` still
+  answers `GPL-2.0-only` at 0.9955); fixed in this work, in its own commit. A
+  bare deprecated ID in either is upgraded to both its twins under `auto`,
+  `only` and `or-later`, kept under `as-written`, with `WARNING: option:
+  deprecated ID: exclude GPL-2.0; using GPL-2.0-only, GPL-2.0-or-later`
+  (the case rule of `exclude` and `hint` is settled first; a `-with-` ID has
+  no candidate twin and is refused or documented). No `INFO` level: both
+  lines are fallbacks, so `WARNING`. Deferred, pinned `# BUG:`: `exclude`
+  plus `hint` of one ID (the hint wins); hint rows count toward "fewer than 5
+  candidates".
 - **Not in `detect()`**: evidence beyond the input (a `COPYING` file, the
   repository, the package). `detect()` takes one input; a project-level
   function is a separate item.
-- `is-osi` and `is-fsf` take no `--variant`: in the shipped List the OSI and
-  FSF flags of a bare ID and of its `-only` and `-or-later` successors are
-  equal (GPL, LGPL, AGPL: both true; GFDL: FSF only; the Classpath
-  exception forms: both true), so they answer from the ID as written. One
-  test over the List keeps that true: each family with a bare, an `-only`
-  and an `-or-later` entry has equal flags.
+- `is-osi` and `is-fsf` take no `--variant`, and judge a kept bare ID by its
+  `-only` and `-or-later` twins, not by the bare List row. The flags are not
+  all equal (List 3.29.0): `AGPL-1.0` has FSF true, its twins none; the
+  `GPL-2.0-with-*` rows are 0/0 though `GPL-2.0-only WITH Classpath-
+  exception-2.0` is judged yes today. A `-with-` ID is judged as `<bare>-only
+  WITH <exception>`. Build it in `exprflags._flags` and
+  `retrieval._inject_hinted_candidates`; a List test pins the twin mapping
+  (each `-only`/`-or-later` pair has equal flags).
 - **Breaking**: `detect GPL-2.0` gives `GPL-2.0`, not `GPL-2.0-only`, and
   `GPL-2.0-with-classpath-exception` stays as written. Accepted for 0.x. Mark
   it in `CHANGELOG.md` with the migration `--variant only`.
@@ -667,7 +704,9 @@ by licenseid never gives a deprecated ID.
   `pyproject.toml` and let it replace the `+` and rename code
   (`DEPRECATED_SPDX_LICENSE_IDS`, the rename rule of `listrules`); the bare
   and `-with-` tables stay with this item.
-- Open: the final name of the `VARIANT_STATED` field.
+- Open: the final name of the `VARIANT_STATED` field. Also found, not caused
+  by this item: the text of `deprecated_GPL-2.0-with-classpath-exception`
+  gets no result.
 
 - Impact 2, Risk 2, Effort 3.
 
