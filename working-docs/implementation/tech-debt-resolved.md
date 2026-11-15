@@ -762,25 +762,32 @@ roadmap's. Moved out of the roadmap on 2026-10-02.
   reads each distinct stripped value once, at most
   `candidates.FIELD_VALUES_READ` (256) of them, lazily
   (`candidates.first_distinct`), and keeps at most
-  `FIELD_LICENSES_KEPT` (32) licences. The first match does not stop the
+  `FIELD_LICENSES_KEPT` (48) licences. The first match does not stop the
   read: `License: MIT` and `License: Apache-2.0` on two lines are two
   candidates, as before.
-  - Measured on Python 3.10, `detect()` on the real database, 10,000
-    lines: cycled real IDs 13.5 s to 3.2 s (715 candidates to 32; the same
-    text with the reader off takes 2.7 s); `License: MIT` repeated 1.3 s to
+  - Measured on Python 3.10, the real database, 10,000 lines: cycled real
+    IDs, the reader alone 7.55 s to 0.05 s, `detect()` 13.2 s to 3.3 s (715
+    candidates to 105 results; the same text with the reader off takes 2.7
+    s); `License: MIT` repeated 1.3 s to
     0.9 s; distinct unresolved values 2.4 s to 2.2 s (the rest is the text
     tiers, not this reader). The regex itself is linear (100,000 lines in
     0.02 s). Of 6,455 texts (SPDX 3.29 and the fixtures) none held more than
     one resolving value, and the most distinct values in one was 5. A notice
     file lists one licence per package, so a first cap of 16 (reviewer's
-    finding: 20 licences lost 3) became the two bounds above.
+    finding: 20 licences lost 3) became the two bounds above; a second review
+    found a DEP-5-style notice of 40 licences ending in the MIT text, which
+    a cap of 32 answered MIT-0, so the second bound went to 48).
   - The INI cost was not Python 3.10 alone (the roadmap said 0.3 s on
-    3.14): configparser's `ParsingError.append` joins by `+=` on every
-    version, and `[a]` followed by 100,000 bad lines took 3.4 to 5.8 s from
-    3.10 to 3.14. `manifest._has_bad_ini_line` now finds the first line
-    that is no header, option or continuation, and `ini_license_values`
-    answers None there. It follows configparser's default rules and judges
-    one way only: a line it calls bad raises in configparser.
+    3.14): `[a]` followed by 100,000 bad lines took 2.8 s on 3.10 and 3.3 s
+    on 3.13, because `ParsingError.append` joins by `+=`; a later 3.14
+    patch release (3.14.10) joins the parts (`ParsingError.combine`) and
+    takes 0.35 s. `manifest._has_bad_ini_line`
+    now finds the first line that is no header, option or continuation, and
+    `ini_license_values` answers None there. It follows configparser's
+    default rules and judges one way only: a line it calls bad raises in
+    configparser. `test_many_bad_lines_read_in_linear_time` therefore guards
+    only the Pythons that still append (3.10 to 3.14.3 at least; CI's 3.10
+    runs it).
   - Tests: `tests/test_license_field_reader.py` (answers pinned before the
     change, the cap boundary, lookup counts, timing),
     `tests/test_ini_bad_lines.py` (the one-way rule against every pair of

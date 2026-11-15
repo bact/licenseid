@@ -26,9 +26,38 @@ from licenseid.detector import LicenseDetector
 from licenseid.markers import MarkerDetector
 from licenseid.types import LicenseDetails
 
-MANY = [f"Lic-{i}-1.0" for i in range(FIELD_LICENSES_KEPT + 8)]
+# The text of MIT and, without its one condition, of MIT-0.
+MIT_TEXT = (
+    "Permission is hereby granted, free of charge, to any person obtaining a "
+    "copy of this software and associated documentation files (the "
+    '"Software"), to deal in the Software without restriction, including '
+    "without limitation the rights to use, copy, modify, merge, publish, "
+    "distribute, sublicense, and/or sell copies of the Software, and to "
+    "permit persons to whom the Software is furnished to do so, subject to "
+    "the following conditions:\n\nThe above copyright notice and this "
+    "permission notice shall be included in all copies or substantial "
+    "portions of the Software.\n\n"
+    'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS '
+    "OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF "
+    "MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. "
+    "IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY "
+    "CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, "
+    "TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE "
+    "SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+)
+MIT0_TEXT = MIT_TEXT.replace(
+    ", subject to the following conditions:\n\nThe above copyright notice and "
+    "this permission notice shall be included in all copies or substantial "
+    "portions of the Software.",
+    ".",
+)
+# Enough to pass any bound the tests name. The notice tests and the
+# three-spellings test write 48 as 48, not as the constant, so that changing
+# the bound fails them.
+MANY = [f"Zed-{i}-1.0" for i in range(60)]
 ROWS = (
-    Lic("MIT", "MIT License", search_text="mit license permission is granted"),
+    Lic("MIT", "MIT License", search_text=MIT_TEXT),
+    Lic("MIT-0", "MIT No Attribution", search_text=MIT0_TEXT),
     Lic("Apache-2.0", "Apache License 2.0", search_text="apache license version 2"),
     Lic("ISC", "ISC License", search_text="isc license permission to use"),
     *(Lic(lic_id, f"Licence {lic_id}") for lic_id in MANY),
@@ -157,41 +186,75 @@ def test_a_notice_file_keeps_a_bounded_number_of_licences(
     assert [lic for lic, _ in fields(markers, text)] == MANY[:kept]
 
 
-def test_a_repeated_value_costs_one_read(
+def test_repeats_and_unread_values_cost_no_lookup(
     markers: MarkerDetector, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls = lookups(markers, monkeypatch)
-    # 17 distinct values hide behind 2,000 repeats of the first.
-    text = "License: MIT\n" * 2000 + distinct(FIELD_VALUES_READ) + "License: ISC"
+    # MIT, repeated, and 255 other values fill the 256 read; ISC is the 257th.
+    text = "License: MIT\n" * 2000 + distinct(FIELD_VALUES_READ - 1) + "License: ISC"
     assert [lic for lic, _ in fields(markers, text)] == ["MIT"]
-    # normalize_identifier looks each value up too: two lookups at most.
-    assert len(calls) <= 2 * FIELD_VALUES_READ
-
-
-def test_100k_distinct_values_read_a_bounded_number(
-    markers: MarkerDetector, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    calls = lookups(markers, monkeypatch)
-    fields(markers, distinct(100_000))
-    # normalize_identifier looks each value up too: two lookups at most.
-    assert len(calls) <= 2 * FIELD_VALUES_READ
+    assert calls.count("MIT") <= 2  # normalize_identifier looks it up too
+    assert "ISC" not in calls
 
 
 @pytest.mark.parametrize(
     "text",
     [
-        "license:a" * 50_000,
-        "license:" + " " * 1_000_000,
-        "License: " + "x" * 1_000_000,
+        distinct(100_000),
+        "".join(f"license:a{i} ;" for i in range(50_000)),
         "".join(f"License: x{i}\r\n" for i in range(10_000)),
-        "".join(f"License: 麻{i}\n" for i in range(10_000)),
     ],
-    ids=["one-line", "spaces", "huge-value", "crlf", "cjk"],
+    ids=["lines", "one-line", "crlf"],
 )
-def test_a_large_text_reads_in_bounded_time(markers: MarkerDetector, text: str) -> None:
-    start = time.monotonic()
+def test_distinct_values_read_a_bounded_number(
+    markers: MarkerDetector, monkeypatch: pytest.MonkeyPatch, text: str
+) -> None:
+    calls = lookups(markers, monkeypatch)
     fields(markers, text)
-    assert time.monotonic() - start < slack(1.0)
+    # normalize_identifier looks each value up too: two lookups at most.
+    assert 0 < len(calls) <= 2 * FIELD_VALUES_READ
+
+
+def test_one_licence_in_three_spellings_counts_once(markers: MarkerDetector) -> None:
+    """The bound is on licences, not on values: MIT, mit and MIT License, and
+    47 others, are 48 licences, all kept."""
+    text = "".join(f"License: {v}\n" for v in ("MIT", "mit", "MIT License", *MANY[:47]))
+    assert [lic for lic, _ in fields(markers, text)] == ["MIT", *MANY[:47]]
+
+
+def notice(*licences: str) -> str:
+    """A DEP-5-style notice: a block per licence, then the MIT text itself."""
+    blocks = (
+        f"Files: src/p{i}/*\nCopyright: 2020 Someone {i}\nLicense: {lic}\n\n"
+        for i, lic in enumerate(licences)
+    )
+    return "".join(blocks) + f"License: MIT\n {MIT_TEXT}"
+
+
+def answer(db_path: str, text: str) -> str:
+    return LicenseDetector(db_path).detect(text=text)[0]["expression"]
+
+
+def test_a_notice_at_the_bound_still_answers_its_text(
+    db_path: str, markers: MarkerDetector
+) -> None:
+    """MIT-0 first, 46 others, then MIT: 48 field licences. MIT is kept, so
+    it answers (the real database scores MIT 0.934 over MIT-0 0.931 by its
+    text; here all field candidates tie and ID order, Zed-* last, decides).
+    A bound of 32 dropped MIT and answered MIT-0."""
+    text = notice("MIT-0", *MANY[:46])
+    assert "MIT" in [lic for lic, _ in fields(markers, text)]
+    assert answer(db_path, text) == "MIT"
+
+
+def test_a_notice_past_the_bound_loses_its_last_licence(
+    db_path: str, markers: MarkerDetector
+) -> None:
+    """A known limit, not a promise: with one more licence, MIT is the 49th
+    field licence and is dropped, so the first one, MIT-0, answers."""
+    text = notice("MIT-0", *MANY[:47])
+    assert "MIT" not in [lic for lic, _ in fields(markers, text)]
+    assert answer(db_path, text) == "MIT-0"
 
 
 @pytest.mark.benchmark

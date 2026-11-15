@@ -16,9 +16,9 @@ from licenseid.types import CandidateMatch, Method
 # (about 25 us), so 256 are read: 5 was the most in any of 6,455 licence
 # texts, and a notice file lists one per package. Each licence that resolves
 # is a candidate that Tier 1 and 2 then score at about 18 ms (10,000 lines of
-# real IDs took 14 s), so at most 32 licences are kept.
+# real IDs took 14 s), so at most 48 licences are kept: about 0.9 s at worst.
 FIELD_VALUES_READ: Final = 256
-FIELD_LICENSES_KEPT: Final = 32
+FIELD_LICENSES_KEPT: Final = 48
 
 
 def first_per_license(*groups: list[CandidateMatch]) -> list[CandidateMatch]:

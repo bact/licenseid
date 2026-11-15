@@ -188,8 +188,9 @@ def _has_bad_ini_line(text: str) -> bool:
     """Whether a line of *text* is one configparser surely refuses: a line
     that is no header, no option and no continuation. configparser collects
     every such line into one error message by appending to a string, which is
-    quadratic (100,000 bad lines took 4 s on every Python from 3.10 to 3.14),
-    so ini_license_values stops at the first. It follows the parser's default
+    quadratic on Python 3.10 to 3.14.3 at least (100,000 bad lines took 2.8 s
+    on 3.10 and 3.3 s on 3.13; 3.14.10 joins the parts and takes 0.35 s), so
+    ini_license_values stops at the first. It follows the parser's default
     rules (``_read``) and judges one way only: a line it calls bad raises in
     configparser; a bad line it misses costs time, never an answer
     (tests/test_ini_bad_lines.py checks it against configparser)."""
