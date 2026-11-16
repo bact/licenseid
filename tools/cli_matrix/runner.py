@@ -19,6 +19,7 @@ import errno
 import os
 import pty
 import select
+import signal
 import subprocess
 import termios
 import time
@@ -116,25 +117,52 @@ def run_cell(
 
 
 def _run_plain(argv: list[str], env: dict[str, str], cwd: str) -> tuple[int, str, str]:
-    """Run with pipes on all three streams."""
-    try:
-        proc = subprocess.run(
-            argv,
-            env=env,
-            capture_output=True,
-            timeout=TIMEOUT,
-            stdin=subprocess.DEVNULL,
-            cwd=cwd,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
-        partial = exc.stdout or b""
-        return TIMEOUT_RC, partial.decode("utf-8", "replace"), "TIMEOUT"
+    """Run with pipes on all three streams, in a group of its own.
+
+    The group lets a timeout, or Ctrl-C, end everything the cell started: a
+    job that kept the pipes open would otherwise outlive the cell.
+    """
+    with subprocess.Popen(
+        argv,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=cwd,
+        start_new_session=True,
+    ) as proc:
+        try:
+            out, err = proc.communicate(timeout=TIMEOUT)
+        except subprocess.TimeoutExpired:
+            _kill_group(proc)
+            partial, _ = _collect(proc)
+            return TIMEOUT_RC, partial.decode("utf-8", "replace"), "TIMEOUT"
+        except BaseException:  # Ctrl-C included: leave nothing running
+            _kill_group(proc)
+            _collect(proc)
+            raise
     return (
         proc.returncode,
-        proc.stdout.decode("utf-8", "replace"),
-        proc.stderr.decode("utf-8", "replace"),
+        out.decode("utf-8", "replace"),
+        err.decode("utf-8", "replace"),
     )
+
+
+def _kill_group(proc: subprocess.Popen[bytes]) -> None:
+    """Kill the cell's whole process group (the cell is its leader)."""
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except OSError:  # the group is already gone
+        pass
+
+
+def _collect(proc: subprocess.Popen[bytes]) -> tuple[bytes, bytes]:
+    """Read what is left after a kill, bounded: a job that escaped the group
+    and still holds a pipe cannot make the run wait for ever."""
+    try:
+        return proc.communicate(timeout=5)
+    except subprocess.TimeoutExpired as exc:
+        return exc.stdout or b"", exc.stderr or b""
 
 
 def _run_on_pty(argv: list[str], env: dict[str, str], cwd: str) -> tuple[int, str, str]:
@@ -165,7 +193,11 @@ def _run_on_pty(argv: list[str], env: dict[str, str], cwd: str) -> tuple[int, st
             # End-of-file for anything that reads the terminal, so a command
             # waiting on stdin finishes instead of hitting the timeout.
             _write_eof(controller)
-            output, timed_out = _drain(controller, proc)
+            try:
+                output, timed_out = _drain(controller, proc)
+            except BaseException:  # Ctrl-C included: leave nothing running
+                _kill_group(proc)
+                raise
             rc = TIMEOUT_RC if timed_out else proc.returncode
             return rc, output, "TIMEOUT" if timed_out else ""
     finally:
@@ -204,7 +236,7 @@ def _drain(controller: int, proc: subprocess.Popen[bytes]) -> tuple[str, bool]:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             timed_out = True
-            proc.kill()
+            _kill_group(proc)
             break
         ready, _, _ = select.select([controller], [], [], min(remaining, 1.0))
         if ready:
@@ -223,7 +255,7 @@ def _drain(controller: int, proc: subprocess.Popen[bytes]) -> tuple[str, bool]:
     try:
         proc.wait(timeout=5)
     except subprocess.TimeoutExpired:
-        proc.kill()
+        _kill_group(proc)
     return b"".join(chunks).decode("utf-8", "replace"), timed_out
 
 

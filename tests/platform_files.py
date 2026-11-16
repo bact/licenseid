@@ -22,6 +22,7 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_cli_errors.py",
         "test_cli_input.py",
         "test_cli_matrix.py",
+        "test_cli_matrix_fifo.py",
         "test_cli_matrix_judge.py",
         "test_cli_output.py",
         "test_cli_resolve.py",

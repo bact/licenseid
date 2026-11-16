@@ -17,6 +17,9 @@ from __future__ import annotations
 
 from tools.cli_matrix.model import RESET_SIGINT, CellSet, licenseid
 
+FIFO_CELL = "file is a FIFO with writer"
+FIFO_REFUSAL = r"input: unreadable: .*not a regular file"
+
 #: to the password database, which resolves to the real user cache. A cell
 #: that did that once deleted the developer's own licenses.db.
 HOME_KINDS: list[tuple[str, str, str | None]] = [
@@ -137,10 +140,10 @@ def _add_input_size(cells: CellSet) -> None:
             None,
         ),
         (
-            "file is a FIFO with writer",
-            "mkfifo $W/ff; (printf 'MIT' > $W/ff &) ; ",
-            licenseid("detect $W/ff"),
-            None,
+            FIFO_CELL,
+            "mkfifo $W/ff; (exec >/dev/null 2>&1; printf 'MIT' > $W/ff) & ",
+            licenseid("detect $W/ff") + "; rc=$?; : <>$W/ff; exit $rc",
+            2,
         ),
         (
             "file is /etc/passwd (unrelated text)",
@@ -162,6 +165,9 @@ def _add_input_size(cells: CellSet) -> None:
             f"{prep}{cmd}",
             kind="detect",
             exp_exit=exit_code,
+            # The FIFO is refused, not opened (PR #184): the exact refusal.
+            exp_out="" if desc == FIFO_CELL else None,
+            exp_err=FIFO_REFUSAL if desc == FIFO_CELL else None,
             xenv=desc == "text of only newlines/tabs (blank)",
         )
 

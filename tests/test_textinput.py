@@ -9,6 +9,7 @@
 import ast
 import os
 import re
+import threading
 import unicodedata
 from pathlib import Path
 
@@ -117,6 +118,30 @@ def test_a_named_pipe_is_refused_not_opened(tmp_path: Path) -> None:
     assert probe_read_does_not_hang(fifo) == (
         f"InvalidInputError input: unreadable: {fifo}: not a regular file\n"
     )
+
+
+@posix_only
+def test_a_named_pipe_with_a_writer_is_refused_not_opened(tmp_path: Path) -> None:
+    fifo = tmp_path / "pipe"
+    os.mkfifo(fifo)
+
+    def write() -> None:  # blocks in open() until a reader comes
+        with open(fifo, "wb"):
+            pass
+
+    writer = threading.Thread(target=write, daemon=True)
+    writer.start()
+    try:
+        assert probe_read_does_not_hang(fifo) == (
+            f"InvalidInputError input: unreadable: {fifo}: not a regular file\n"
+        )
+        assert writer.is_alive()  # nobody opened it for reading
+    finally:
+        # A read-write open frees the writer (as the matrix cell does)
+        reader = os.open(fifo, os.O_RDWR)
+        writer.join(timeout=10)
+        os.close(reader)
+    assert not writer.is_alive()
 
 
 @pytest.mark.parametrize(
