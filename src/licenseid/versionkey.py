@@ -8,9 +8,14 @@
 
 Apart from looseid, so identifiers can read an ID before a "+" by it
 without importing looseid, which imports identifiers.
+
+The key folds ``N.0`` to ``N``, so a bare major (``Apache-1``) shares its key
+with ``Apache-1.0``. Where the List has another minor of the same ID
+(``Apache-1.1``) the cut value names none of them: :func:`ambiguous_ids`.
 """
 
 import re
+from collections.abc import Iterable
 
 from licenseid.listlookup import ListedName, ListLookup
 from licenseid.normalize import normalize_text
@@ -70,3 +75,64 @@ def named_row(db: ListLookup, text: str) -> ListedName | None:
     if len(text) > MAX_KEY_INPUT:
         return None
     return keyed_row(db, version_key(text))
+
+
+# The last number a text writes: digits with the parts joined by full stops
+# ("1.0.6"); a full stop with no digit after it ends a sentence ("Apache-1.").
+_RE_NUMBER = re.compile(r"[0-9]+(?:\.[0-9]+)*")
+_RE_DIGITS = re.compile(r"[0-9]+")
+
+
+def writes_bare_major(text: str) -> bool:
+    """Whether the last number *text* writes is all digits, with no full stop
+    and digit after it: ``Apache-1``, ``Apache 1.``, ``LGPLv2``, ``CC-BY-3-DE``
+    are, ``Apache-1.0``, ``Python-2.0.1``, ``OLDAP-2.2`` and ``MIT`` are not.
+    ASCII digits only: a text in other digits keeps the reading it has."""
+    numbers = _RE_NUMBER.findall(text)
+    return bool(numbers) and _RE_DIGITS.fullmatch(numbers[-1]) is not None
+
+
+def sibling_keys(keys: Iterable[str], key: str) -> list[str]:
+    """The keys of *keys* that are *key* with one or more numbers inserted
+    right after its last number: ``apache 1 1`` and ``lgpl 2 1 only`` for
+    ``apache 1`` and ``lgpl 2 only``, ``python 2 0 1`` for ``python 2``. A
+    different word is no sibling (``cc by 3 de`` for ``cc by 3``), and no key
+    is its own."""
+    tokens = key.split()
+    last = max((i for i, t in enumerate(tokens) if _RE_DIGITS.fullmatch(t)), default=-1)
+    if last < 0:
+        return []
+    head, tail = " ".join(tokens[: last + 1]) + " ", tokens[last + 1 :]
+    found = []
+    for other in keys:
+        if other == key or not other.startswith(head):
+            continue
+        rest = other[len(head) :].split()
+        added = 0
+        while added < len(rest) and _RE_DIGITS.fullmatch(rest[added]):
+            added += 1
+        if added and rest[added:] == tail:
+            found.append(other)
+    return found
+
+
+def ambiguous_ids(db: ListLookup, text: str) -> list[str]:
+    """The IDs a bare major *text* may mean, sorted: its own row and the
+    rows of the other minors of the List (deprecated ones too), or an empty
+    list if *text* is no bare major, names no row, or the row is an
+    ``-or-later`` form or ends in "+": a grant covers every later version,
+    so the lowest is what was written (``LGPL-2-or-later``). The caller
+    exempts a grant it has read off the text (``LGPLv2+``)."""
+    text = text.strip()
+    if len(text) > MAX_KEY_INPUT or not writes_bare_major(text):
+        return []
+    key = version_key(text)
+    row = keyed_row(db, key)
+    if row is None or row["license_id"].endswith(("-or-later", "+")):
+        return []
+    by_key = db.get_names_by_key(version_key)
+    siblings = sibling_keys(by_key, key)
+    if not siblings:
+        return []
+    rows = [*by_key[key], *(r for other in siblings for r in by_key[other])]
+    return sorted({r["license_id"] for r in rows})

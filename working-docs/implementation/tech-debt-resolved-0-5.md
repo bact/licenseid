@@ -415,3 +415,68 @@ with writer") as a hang: a 120 s timeout.
   is bounded.
 - Tests: `tests/test_cli_matrix_fifo.py`; a FIFO with a blocked writer is
   refused, not opened, in `tests/test_textinput.py`.
+
+## Item 54 (PR #217, 2026-11-16)
+
+- A truncated ID got an answer (item 54, Priority 12). `Apache-1` was read
+  as `Apache-1.0` because `versionkey.version_key` folds `N.0` to `N`, and
+  `MIT-` as `MIT` because a loose reading drops a joiner. Both are refused
+  now.
+  - **Bare major with a sibling minor.** `versionkey.writes_bare_major`: the
+    last `[0-9]+(\.[0-9]+)*` of the text is all digits (a trailing `.` is no
+    part of it). `sibling_keys`: a key that is the text's key with one or more
+    numbers inserted right after its last number (`apache 1 1`, `lgpl 2 1
+    only`, `python 2 0 1`; `cc by 3 de` is no sibling of `cc by 3`).
+    `ambiguous_ids(db, text)` gives the sorted IDs of the row and its
+    siblings, deprecated rows included, or nothing for a row that is an
+    `-or-later` form or ends in "+". `looseid.loose_id` gives None for it
+    unless `granted=True`; `resolveleaf._base` raises `_Ambiguous`, which
+    `_read` turns into `unresolved`, reason `version ambiguous: <IDs>` (cut at
+    60 characters), no step. `_plus`, `_single`'s grant branch, `_grant` and
+    the two "does it name a licence" checks pass `granted=True`: a grant
+    covers every later minor (`LGPLv2+`, `Apache-1+`, `LGPLv2 or later`).
+    The reason is in `resolvereason._NO_TEXT_CONDITIONS`, so Tier 0 gives no
+    fuzzy answer; `loose_with`, `shorttext` and `--id` get None from
+    `loose_id`. The List has 35 such keys (the sweep is in the shared notes of
+    the session): the `-2.0` of `AFL`, `CC-BY*`, `CECILL`, `LGPL` (and `-only`,
+    `-or-later`), `OLDAP`, `OSL`, `ZPL` and the `-1.0` of `Apache`, `CDDL`,
+    `EUPL`, `LPPL`, `MPL`, `OFL` and more. A patch-only sibling counts
+    (`Python-2` for `Python-2.0.1`).
+  - **Trailing joiner.** `dropguard.trailing_joiners`: a run of `-`, `_` or
+    any dash of `normalize.RE_DASHES` after a letter or digit at the end of
+    the text, one `.` or `,` after it left out; not on a `LicenseRef-*` or
+    `AdditionRef-*`. `_base` joins it to `dropped` (reason `character dropped:
+    U+002D`, a `drop` step) except for a head before a grant
+    (`GPL-2.0-or later`, whose gap `classify.grant_head` judges). `dropped`
+    itself is unchanged, so `classify._kept` reads as before. `MIT--` (pinned
+    as staying), `Apache 2.0-`, `GPL-2.0 or later-`, `BSD 3-Clause-`,
+    `GPL-2.0-only-` and `MIT_` flip; `MIT.-` and `MIT -` do not.
+  - **Moved**: `LGPLv2` in the PyPI sample (`resolver_changes_cutversion.py`);
+    11 golden answers (`harness_changes_cutversion.py`), each a wrong or
+    doubtful answer (`id/Apache-1.1/id_distorted` read `Apache-1.0`,
+    `id/AFL-2.1/id_distorted` read `AFL-2.0`).
+  - **Tags** (owner decision, 2026-11-16, after the first build kept them):
+    `identifiers.read_leading` ends a tag expression at the first token no
+    operator bridges, so `SPDX-License-Identifier: MIT-` was `MIT`,
+    `EXACT=true`. `dropguard.cut_by_joiners(text, end)`: a run of `-`, `_` or
+    a dash of `RE_DASHES` touches the expression's end and the value ends, or
+    white space or one of `.,;:!?+"')` follows; then it is no expression, as
+    the argument is. Any other character after the run (`MIT-->`, `MIT-*/`,
+    `MIT-}`, `MIT--]]`) is left alone: the reader knows no comment closers,
+    and `-->` must read. A
+    dash apart (`MIT - text`) is the author's. Perf: linear in the run (50,000
+    dashes 51 ms against 43 ms on `main`); a refused line falls to the text
+    tiers as any unreadable line does. Two readers changed with it: a tag
+    reference takes the dashes at its end (`exprtokens.ref_end`), so
+    `LicenseRef-a-` is `LicenseRef-a-` as `resolve()` reads it (it was
+    `LicenseRef-a`), and `classify.dash_gap` takes `_` as it takes a dash
+    before a grant (`GPL-2.0_ or later` still reads).
+  - Left as they were, on purpose: the trove classifier `(LGPLv2)` is
+    `LGPL-2.0` from `trovenames`; `--variant or-later LGPLv2` is refused, not
+    widened. Measured cost: 115 distinct bare majors
+    in one compound take 16 ms against 10 ms on `main`, linear in the operands.
+  - Tests: `tests/test_cut_versions.py` (pins written on `main` first, flipped
+    here), the rows of `test_resolver_small_refusals.py`,
+    `test_resolver_lists_and_reasons.py`, `test_resolver_dropped_words.py` and
+    `test_version_key.py`; for tags `tests/test_cut_tags.py` and
+    `test_tag_edge_values.py`.

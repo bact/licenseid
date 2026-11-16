@@ -71,7 +71,9 @@ in another module.
   `normalize`, `result` (public result, JSON and text lines), `types`.
 - Reading an ID: `looseid` ("Apache2", "GPLv3"; `disambiguate_whole`),
   `bsdclauses` (BSD-N-Clause by its conditions), `deprecatedids`,
-  `plusoperator`, `versionkey`, `quotes` (quote marks around a whole value,
+  `plusoperator`, `versionkey` (a bare major the List has another minor of
+  names no row, `ambiguous_ids`; an "or later" grant exempts it),
+  `quotes` (quote marks around a whole value,
   `「」` too), `dropguard` (what a loose reading must not drop),
   `hiddenchars` (control and format characters off the ends).
 - Resolver: `resolver` (value to expression and steps; types in
@@ -310,6 +312,8 @@ and `--json`) against these rules and checks the default output against the
   AND, OR, WITH join parts, only white space between them; a token none of
   them bridges ends it; a dangling or unbalanced value is none. Never write
   the SPDX grammar as a regex; comment closers need no case of their own.
+  A dash or `_` run touching its end, then the end of the value, white
+  space, `.`, `,` or `+`, cuts it: no expression (`dropguard.cut_by_joiners`).
 - "Or later" grant: `classify.OR_LATER_PHRASE` is the one phrase reader
   (imported by `ranking`, `identifiers.disambiguate_deprecated_id`,
   `markers`, `looseid`); `classify.grant_end` finds a grant and its end;
@@ -344,6 +348,13 @@ and `--json`) against these rules and checks the default output against the
   is no operator, so `detector._try_tier0_short_text` returns None for a
   value under 30 words that `resolve()` refuses with a "+" reason
   (`resolvereason.is_plus_refusal`; add new reasons to its constants).
+- Cut ID: a bare major (the last number all digits) whose key has a sibling
+  minor on the List names no row (`versionkey.ambiguous_ids`: `loose_id`
+  gives None, `resolveleaf._base` raises `_Ambiguous`, reason `version
+  ambiguous: <IDs>`, in `resolvereason._NO_TEXT_CONDITIONS`). Where a
+  grant was read off the text (`_plus`, `_single`) `_base(granted=True)`
+  exempts it. A run of `-`/`_` joined to the end of a loose ID is a dropped
+  character (`dropguard.trailing_joiners`; not on a head before a grant).
 - Tier 0 asks `resolve()` first for a value under 30 words: what it reads
   is the answer; what it refuses is matched as before, except after a
   dropped mark or an unpaired bracket, or (under 10 words only) a "+" that

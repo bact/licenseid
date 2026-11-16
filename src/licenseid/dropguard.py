@@ -47,6 +47,7 @@ from typing import Final
 
 from licenseid.exprtokens import (
     WHITE_SPACE,
+    cut_inside_word,
     is_addition_ref,
     is_license_ref,
     is_white_space,
@@ -63,6 +64,9 @@ _ELLIPSIS: Final = "\u2026"
 _AROUND: Final = ")]}"
 # Where the marks at the end stop: a word, a "+" or an opening bracket.
 _BEFORE_MARKS: Final = "+([{"
+# What may follow the dashes that cut a tag's expression: an end mark, a "+", a
+# quote mark or a closing bracket, never the start of a comment closer.
+_AFTER_CUT: Final = ".,;:!?+\"')"
 
 
 def _is_separator(char: str) -> bool:
@@ -121,6 +125,55 @@ def joined_marks(text: str) -> str:
     return "".join(
         dict.fromkeys(c for c in text if c == "_" or RE_DASHES.match(c) is not None)
     )
+
+
+def trailing_joiners(text: str) -> str:
+    """The dashes and underscores joined to the end of *text*, each once, in
+    order (``MIT-``, ``MIT_``, ``GPL-2.0-``, ``MIT--``, ``MIT-.``), or empty.
+    One ``.`` or ``,`` after them is an ending and left out. They must follow
+    a letter or digit: a run after a dot, a space or a mark has another
+    reader (``MIT -``, :func:`_dangling`). A loose ID drops them as it drops
+    any joiner, but a cut value (``MIT-`` is the start of ``MIT-0``) is no
+    value written whole: a ``LicenseRef-*`` or ``AdditionRef-*`` takes them
+    as its own characters and is left alone. Only the end of the text is
+    read: one pass back from it."""
+    body = text.rstrip(WHITE_SPACE)
+    if body[-1:] in (".", ","):
+        body = body[:-1]
+    stop = len(body)
+    while stop and (body[stop - 1] == "_" or RE_DASHES.match(body[stop - 1])):
+        stop -= 1
+    if stop == len(body) or not stop or not body[stop - 1].isalnum():
+        return ""
+    if ends_in_ref(body):
+        return ""
+    return "".join(dict.fromkeys(body[stop:]))
+
+
+def cut_by_joiners(text: str, end: int) -> bool:
+    """Whether the expression of a tag value *text* that ends at *end* is cut
+    by dashes or underscores: a run of them touches it (``MIT-``, ``MIT_``,
+    ``GPL-2.0-``, ``MIT- OR ISC``) and the value ends there, or white space or
+    a character of :data:`_AFTER_CUT` follows the run. The same value as
+    an argument is refused (:func:`trailing_joiners`). Another character
+    after the run may start a comment closer (``MIT-->``, ``MIT-*/``) and is
+    left to the tag reader, which knows no closers: the run is not judged.
+    Where white space separates the dash from the ID (``MIT - some text``)
+    the dash is the author's. A ``LicenseRef-*`` keeps its own dashes: the
+    reader takes them into its token (:func:`licenseid.exprtokens.ref_end`)."""
+    stop = end
+    while stop < len(text) and (text[stop] == "_" or RE_DASHES.match(text[stop])):
+        stop += 1
+    if stop == end or not end:
+        return False
+    return stop == len(text) or is_white_space(text[stop]) or text[stop] in _AFTER_CUT
+
+
+def cut_off(text: str, end: int) -> bool:
+    """Whether the expression of a tag value *text* that ends at *end* is cut:
+    inside a word (``LicenseRef-café``, :func:`licenseid.exprtokens.cut_inside_word`)
+    or by dashes or underscores (:func:`cut_by_joiners`)."""
+    return cut_inside_word(text, end) or cut_by_joiners(text, end)
 
 
 def ends_in_ref(text: str) -> bool:

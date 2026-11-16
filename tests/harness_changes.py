@@ -15,6 +15,7 @@ reason)}`` for the ``detect()`` golden. ``CLI_CHANGES``:
 (``python -m tools.golden`` prints it)."""
 
 from harness_changes_aliases import ALIAS_CHANGES
+from harness_changes_cutversion import CUTVERSION_CHANGES
 from harness_changes_exact import EXACT_CHANGES
 from harness_changes_nametier import NAME_TIER_CHANGES
 from harness_changes_resolvefirst import RESOLVE_FIRST_CHANGES
@@ -37,6 +38,7 @@ DETECT_CHANGES: dict[str, tuple[str, str]] = {
     **SLASH_CHANGES,  # over the resolve-first row: `MIT/Apache-2.0` is read
     **EXACT_CHANGES,  # only `exact` moves, on the answers above
     **VARIANT_CHANGES,  # last: `variant` keeps a bare ID, over the rows above
+    **CUTVERSION_CHANGES,  # last: over the `exact` rows, which were an answer
 }
 CLI_CHANGES: dict[str, tuple[str, str]] = {
     "detect-name#text": ("bea927311e33", _FIRST),

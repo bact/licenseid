@@ -22,6 +22,7 @@ from pathlib import Path
 
 from resolver_changes_aliases import ALIASES_CHANGES
 from resolver_changes_compounds import COMPOUNDS_CHANGES, answer
+from resolver_changes_cutversion import CUTVERSION_CHANGES
 from resolver_changes_edges import EDGES_CHANGES
 from resolver_changes_hidden import HIDDEN_CHANGES
 from resolver_changes_prose import PROSE_CHANGES
@@ -174,6 +175,7 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
     **ALIASES_CHANGES,  # last, for the same reason
     **HIDDEN_CHANGES,  # last: `MIT\u200b` was refused, now read
     **SLASH_CHANGES,  # over the compound-expression row: `MIT/Apache-2.0` was refused
+    **CUTVERSION_CHANGES,  # last: `LGPLv2` was read
 }
 
 

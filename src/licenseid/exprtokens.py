@@ -192,6 +192,19 @@ def ref_end(text: str, start: int) -> int:
     return start if found is None else found.end()
 
 
+def token_end(text: str, token: re.Match[str], kind: str) -> int:
+    """Where *token* of *text* ends: a reference takes the dashes and dots at
+    its end (``LicenseRef-a-``, :func:`ref_end`), unless a letter or digit
+    follows: the ID is cut inside a word (``LicenseRef-a-ä``), which
+    :func:`cut_inside_word` judges from the token."""
+    if kind != "ID":
+        return token.end()
+    stop = ref_end(text, token.start())
+    if stop > token.end() and not text[stop : stop + 1].isalnum():
+        return stop
+    return token.end()
+
+
 def is_license_ref(text: str) -> bool:
     """Whether *text* is one ``LicenseRef-*``, with its ``DocumentRef-*:`` if
     any, and nothing else."""

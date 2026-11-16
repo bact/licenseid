@@ -31,6 +31,7 @@ from licenseid.dropguard import (
     dropped_words,
     ends_in_ref,
     joined_marks,
+    trailing_joiners,
     trim_end_mark,
 )
 from licenseid.errors import reason_detail
@@ -47,6 +48,7 @@ from licenseid.looseid import (
 )
 from licenseid.plusoperator import plus_apart
 from licenseid.resolvereason import (
+    VERSION_AMBIGUOUS,
     after_bracket,
     after_exception,
     after_space,
@@ -60,7 +62,7 @@ from licenseid.resolvertypes import (
     Step,
     step,
 )
-from licenseid.versionkey import MAX_KEY_INPUT
+from licenseid.versionkey import MAX_KEY_INPUT, ambiguous_ids
 
 _RE_NUMBERS = re.compile(r"\d+(?:\.\d+)*")
 _RE_VERSION = re.compile(r"[vV]?\d+(?:\.\d+)*")
@@ -127,6 +129,25 @@ class _Dropped(Exception):
         found.steps = [step("drop", False, self.text, self.license_id, detail)]
         found.expansions = []
         found.candidates = []
+
+
+class _Ambiguous(Exception):
+    """A cut ID that the List gives more than one row (``Apache-1``, see
+    :func:`licenseid.versionkey.ambiguous_ids`): the whole value is refused,
+    naming the IDs it may mean."""
+
+    def __init__(self, ids: list[str]) -> None:
+        super().__init__(ids)
+        self.ids = ids
+
+    def record(self, found: Found) -> None:
+        """Make *found* the refusal: ``unresolved`` and the reason."""
+        refuse(found, "unresolved", f"{VERSION_AMBIGUOUS}: {_listed(self.ids)}")
+
+
+def _listed(ids: list[str]) -> str:
+    """*ids*, as the detail of a reason (one line, cut)."""
+    return reason_detail(", ".join(ids))
 
 
 def refuse(found: Found, category: Category, reason: str) -> None:
@@ -237,7 +258,7 @@ def _read(db: ListLookup, text: str, found: Found) -> bool:
     """:func:`read_leaf` without the cap and the ending of the value."""
     try:
         return _with(db, text, found) or _one(db, text, found)
-    except _Dropped as refusal:
+    except (_Dropped, _Ambiguous) as refusal:
         refusal.record(found)
         return True
 
@@ -370,7 +391,7 @@ def _plus(db: ListLookup, text: str, found: Found) -> bool:
         return _malformed_if_named(db, inner, found, after_bracket(text))
     if apart and text[len(core) :].count("+") == 1:  # after a space
         return _malformed_if_named(db, stripped, found, after_space(text))
-    base = _base(db, stripped)
+    base = _base(db, stripped, granted=True)
     if base is None:
         doubled = text[len(core) :].count("+") > 1
         return doubled and _malformed_if_named(db, core, found, stated_twice(text))
@@ -396,7 +417,7 @@ def _plus(db: ListLookup, text: str, found: Found) -> bool:
 def _malformed_if_named(db: ListLookup, text: str, found: Found, reason: str) -> bool:
     """Mark *found* malformed, for *reason*, if *text* names a licence, whose
     qualifier the caller found broken; False if it names none."""
-    if _base(db, text) is None:
+    if _base(db, text, granted=True, head=True) is None:
         return False
     found.category, found.reason = "malformed", reason
     return True
@@ -415,7 +436,9 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
         if _qualified(db, named):
             found.category, found.reason = "malformed", stated_twice(text)
             return True
-        base = _base(db, named.strip()) or _reference_before_mark(named.strip())
+        base = _base(
+            db, named.strip(), granted=True, head=True
+        ) or _reference_before_mark(named.strip())
         if base is not None:
             return _grant(db, text, base, found)
     base = _base(db, text)
@@ -444,9 +467,9 @@ def _qualified(db: ListLookup, named: str) -> bool:
     later"). A stated "-only" or "-or-later" is _grant's to refuse."""
     twice = declared_grant_id_text(named) or granted_id_text(named)
     if twice is not None:
-        return _base(db, before_grant(twice)) is not None
+        return _base(db, before_grant(twice), granted=True, head=True) is not None
     core = _RE_TRAILING.sub("", named)
-    return core != named and _base(db, core) is not None
+    return core != named and _base(db, core, granted=True, head=True) is not None
 
 
 def _grant(
@@ -462,7 +485,7 @@ def _grant(
     SPDX) and is malformed, as ``LicenseRef-x+`` is, not read without the
     grant."""
     license_id, steps = base
-    granted = loose_id(db, text)
+    granted = loose_id(db, text, granted=True)
     # A reference first: it takes no grant, whatever it ends in
     # (``LicenseRef-x-only or later``), as ``LicenseRef-x-only+`` reads.
     if granted is None and is_license_ref(license_id):
@@ -486,12 +509,18 @@ def _grant(
     return True
 
 
-def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
+def _base(
+    db: ListLookup, text: str, *, granted: bool = False, head: bool = False
+) -> tuple[str, list[Step]] | None:
     """The listed ID *text* names, and the steps from *text* to it: its own
     ID in other case, a listed name, or a loosely written ID. A
     ``LicenseRef-*`` names itself, its prefix in SPDX's case. Raises
     :class:`_Dropped` where the loose reading would drop a character that
-    says something."""
+    says something, and :class:`_Ambiguous` for a cut ID that the List gives
+    several rows, unless *granted*: the caller has read an "or later" grant
+    off the text, which covers every later minor (``LGPLv2+``). *head*: *text*
+    is the head before a word grant, whose dash gap ``classify.grant_head``
+    judges (``GPL-2.0-or later``), so no joiner at its end is refused."""
     if is_license_ref(text):
         steps: list[Step] = []
         return _reference(text, steps), steps
@@ -505,11 +534,14 @@ def _base(db: ListLookup, text: str) -> tuple[str, list[Step]] | None:
         return names[0], [step("listed_name", True, text, names[0])]
     if "+" in text or _RE_BRACKET.search(text):
         return None  # "+" and brackets are read by the caller, not folded away
-    loose = loose_id(db, text)
+    loose = loose_id(db, text, granted=granted)
     if loose is None:
+        ids = ambiguous_ids(db, text)  # none when *granted*: the row was found
+        if ids:
+            raise _Ambiguous(ids)
         return None
     license_id = loose[0]["license_id"]
-    lost = dropped(text)
+    lost = dropped(text) or ("" if head else trailing_joiners(text))
     if lost:
         raise _Dropped(text, lost, license_id)
     lost = dropped_words(text)

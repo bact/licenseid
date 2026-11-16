@@ -232,7 +232,7 @@ operand for the case nothing else reads it.
 | Gate ([`resolver.py:349`][resolver-l349]) | any text | lone surrogate; control or format character (`U+0000`, `U+200B`) |
 | Quotes ([`quotes.py`](../src/licenseid/quotes.py)) | marks that delimit the whole value, one or more layers, one stray end | a mark inside (`Apache "2.0"`); marks of two kinds at the two ends |
 | Brackets ([`exprcanon.py:72`][exprcanon-l72]) | `()`, `[]`, `{}` round the whole value | a pair of two kinds (`[MIT)`) |
-| Leaf ([`resolveleaf.py`](../src/licenseid/resolveleaf.py)) | ID in any case, listed name, loose ID, `X+`, "or later", `X WITH Y` | `X +`, `X++`, `X-only+`, a reference with `+`, a dropped mark or word (`Apache 2.0?`, `REM MIT`), a half over the key cap |
+| Leaf ([`resolveleaf.py`](../src/licenseid/resolveleaf.py)) | ID in any case, listed name, loose ID, `X+`, "or later", `X WITH Y` | `X +`, `X++`, `X-only+`, a reference with `+`, a dropped mark or word (`Apache 2.0?`, `REM MIT`), a cut ID (`Apache-1`, `MIT-`), a half over the key cap |
 | Compound ([`resolvecompound.py`](../src/licenseid/resolvecompound.py)) | operands of one word (with `WITH`, `+`, grant), `AND`, `OR`, any bracket kind | an operand of several words (left to name readers); one unnamed operand; `NONE`; grammar errors |
 | URL ([`resolveurl.py`](../src/licenseid/resolveurl.py), key by [`urlkey.py`](../src/licenseid/urlkey.py)) | an `http(s)` URL, a host and path without a scheme, or `spdx:ID`, keyed alike; an ID page, the expression in the path of a `licenses.nuget.org` URL, a page the List gives one licence (or a GNU family, or a rename), a table of aliases | a page of several licences; a page of exceptions; a List URL with a fragment; a non-ASCII host, other scheme, user information, IP address; a URL inside prose |
 | Trove ([`resolvetrove.py`](../src/licenseid/resolvetrove.py)) | `License :: OSI Approved :: X`, a table name, `head (short form)` when both agree | names the table reads as `none` (`BSD License`); disagreeing short forms |
@@ -245,7 +245,11 @@ The drop guard ([`dropguard.py`](../src/licenseid/dropguard.py)) is not a
 reader but a rule every loose reading follows: a character or a word that
 says something may not be dropped to make a match (`Apache 2.0?`,
 `MIT*`, `REM MIT`). The value is refused with a `drop` step that did not
-apply, and a reason `character dropped: U+003F` or `word dropped: rem`.
+apply, and a reason `character dropped: U+003F` or `word dropped: rem`. A dash
+or `_` joined to the end of an ID (`MIT-`) is such a character: a cut value.
+A bare major the List has another minor of (`Apache-1`: `Apache-1.0` and
+`Apache-1.1`) names none, and gets the reason `version ambiguous: <IDs>`
+(`versionkey.ambiguous_ids`), unless an "or later" grant follows (`Apache-1+`).
 
 The "+" operator has one reader
 ([`plusoperator.py`](../src/licenseid/plusoperator.py)): a `+` that touches
@@ -266,7 +270,7 @@ stronger). Ten step kinds change only form and count as `lexical`.
 | `plus_to_or_later` | list_data | `X+` read as `X-or-later` |
 | `stated_qualifier` | author_words | the author wrote "or later" |
 | `separator` | resolver_rule | a loose ID, an end mark, an unbalanced quote, a hidden character at an end |
-| `version_spelling` | resolver_rule | `Apache2`, `GPLv3` |
+| `version_spelling` | resolver_rule | `Apache2`, `GPLv3` (not a bare major with another minor, `Apache-1`: refused) |
 | `prose_form` | resolver_rule | `BSD 3-Clause License` |
 | `text_title` | resolver_rule | `CC0 1.0 Universal` |
 | `alias_name` | resolver_rule | `New BSD` |
@@ -297,6 +301,7 @@ step kinds in order, `expansions` after them.
 | `"MIT".` | `MIT` | separator | `separator`, `unquote` | prepare, leaf |
 | `Apache2` | `Apache-2.0` | version_spelling | `separator`, `version_spelling` | leaf |
 | `Apache 2.0?` | none | unresolved | `drop` (not applied); reason `character dropped: U+003F` | leaf, drop guard |
+| `Apache-1` | none | unresolved | reason `version ambiguous: Apache-1.0, Apache-1.1` | leaf |
 | `GPL-2.0+` | `GPL-2.0-or-later` | plus_to_or_later | `plus_to_or_later` | leaf |
 | `MIT or later` | `MIT+` | stated_qualifier | `stated_qualifier` | leaf |
 | `GPL-3.0` | `GPL-3.0` | assumed_only | `assumed_only` (not applied); candidates `GPL-3.0-only`, `GPL-3.0-or-later` | leaf |

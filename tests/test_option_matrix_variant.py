@@ -17,7 +17,7 @@ from click.testing import CliRunner
 from conftest import NO_DETECTION, make_mit_db_path
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import MIT_TEXT
-from matcher_db import GPL2_ROWS, seeded_db
+from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 from licenseid.cli import cli
 
@@ -126,3 +126,57 @@ def test_variant_matrix_gpl_family(
     assert first.endswith(f"VARIANT_STATED={stated}")
     warned = [x for x in result.stderr.splitlines() if "days old" not in x]
     assert bool(warned) is said, warned
+
+
+LGPL_ROWS = (
+    Lic("LGPL-2.0-only", "GNU Library General Public License v2 only", True, True),
+    Lic("LGPL-2.0-or-later", "GNU Library General Public License v2 or later"),
+    Lic("LGPL-2.0", "GNU Library General Public License v2", False, is_deprecated=True),
+    Lic("LGPL-2.1-only", "GNU Lesser General Public License v2.1 only", True, True),
+    Lic("LGPL-2.1-or-later", "GNU Lesser General Public License v2.1 or later"),
+    Lic(
+        "LGPL-2.1", "GNU Lesser General Public License v2.1", False, is_deprecated=True
+    ),
+)
+
+
+@pytest.fixture(scope="module")
+def lgpl_db() -> Generator[str, None, None]:
+    yield from seeded_db("test_matrix_variant_lgpl", LGPL_ROWS, [])
+
+
+# (variant, value) -> expression, or None for no answer (item 54): `LGPLv2`
+# writes only the major, and the List has 2.0 and 2.1, whatever the variant
+# says; a grant covers every later minor, so `LGPLv2+` is answered.
+LGPL: dict[tuple[str, str], str | None] = {
+    **{(v, "LGPLv2"): None for v in VARIANTS},
+    ("as-written", "LGPL-2.1"): "LGPL-2.1",
+    ("auto", "LGPLv2+"): "LGPL-2.0-or-later",
+    ("or-later", "LGPLv2+"): "LGPL-2.0-or-later",
+    ("only", "LGPLv2 or later"): "LGPL-2.0-or-later",  # overridden by the input
+}
+
+
+@pytest.mark.parametrize("source", ["arg_id", "text", "stdin"])
+@pytest.mark.parametrize(("variant", "value"), list(LGPL))
+def test_variant_matrix_cut_major(
+    lgpl_db: str, source: str, variant: str, value: str
+) -> None:
+    """A bare major with another minor on the List gets no answer under every
+    ``--variant`` and input source; a grant on it is answered."""
+    args, stdin = {
+        "arg_id": ([value], ""),
+        "text": (["--text", value], ""),
+        "stdin": ([], value),
+    }[source]
+    result = CliRunner().invoke(
+        cli,
+        ["--db", lgpl_db, "detect", "--verbose", "--variant", variant, *args],
+        input=stdin,
+    )
+    expression = LGPL[variant, value]
+    if expression is None:
+        assert (result.exit_code, result.stdout) == (1, NO_DETECTION)
+    else:
+        assert result.exit_code == 0, result.stderr
+        assert result.stdout.splitlines()[0].startswith(f"EXPRESSION={expression}\t")

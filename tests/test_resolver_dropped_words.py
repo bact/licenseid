@@ -65,7 +65,6 @@ READ = [
     ("Apache - 2.0", "Apache-2.0"),
     ("BSD - 3 - Clause", "BSD-3-Clause"),
     ("Apache2", "Apache-2.0"),
-    ("MIT– ", "MIT"),
 ]
 #: A negation or a qualifier is no marker: not read, and not a refusal.
 STAYS = [
