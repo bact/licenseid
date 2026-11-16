@@ -18,7 +18,8 @@ and this project adheres to
 - **Breaking:** `detect()` `exact` is false for a value a rewrite rule read
   (`Apache License, Version 2.0`, `GPL-2.0 only`); true where a list defines it
 - **Breaking:** `detect GPL-2.0` keeps `GPL-2.0` and `-with-` IDs as written,
-  with new `VARIANT_STATED` (migrate: `--variant only`); a text warns once
+  with new `VARIANT_STATED` (migrate: `--variant only`); a text warns once;
+  `--exact` on a GPL licence text has no answer (its variant is a guess)
 - `detect --variant auto|as-written|only|or-later` (API `variant=`), and the
   last record field `VARIANT_STATED` (JSON `variant_stated`)
 - `is-osi` and `is-fsf` judge a bare deprecated ID by its `-only` twin, and

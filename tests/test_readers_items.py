@@ -310,7 +310,6 @@ def test_a_licence_listed_after_a_comma_is_no_grant_of_the_first(
         # Unchanged: the -or-later form where the List has one.
         ("GPL-2.0, or any later version", "GPL-2.0-or-later"),
         ("GPL-2.0 or later", "GPL-2.0-or-later"),
-        ("GPL-2 or later", "GPL-2.0-or-later"),
         ("(GPL-2.0) or later", "GPL-2.0-or-later"),
     ],
 )
@@ -318,6 +317,14 @@ def test_a_grant_is_kept_in_a_tag(
     corpus_db: LicenseDatabase, value: str, answer: str
 ) -> None:
     assert _tag(corpus_db, value) == (answer, True)
+
+
+def test_a_grant_after_a_re_spelt_id_is_kept_not_exact(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """``GPL-2`` is a rewrite rule's reading (``version_spelling``), as the
+    argument says: the grant is kept, the answer is not exact (rule I1)."""
+    assert _tag(corpus_db, "GPL-2 or later") == ("GPL-2.0-or-later", False)
 
 
 @pytest.mark.parametrize(

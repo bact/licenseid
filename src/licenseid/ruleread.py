@@ -16,3 +16,12 @@ def rule_read(db: ListLookup, value: str) -> bool:
     a field of it is not exact, as the argument is not (``resolvefirst``)."""
     resolution = resolve_with(db, value)
     return resolution["expression"] is not None and not is_exact(resolution)
+
+
+def tag_inexact(db: ListLookup, leading: str, granted: str, expression: str) -> bool:
+    """Whether a tag is not exact. A tag is judged by the expression it
+    answers, *leading*, not by the words after it on its line (a comment
+    closer, another tag, prose): "only" before an operator (*expression*
+    differs from *granted*) drops a licence, else a rule read the expression
+    (``GPL2+``, ``GPLv2 or later``: the ID before a grant, judged alone)."""
+    return expression != granted or rule_read(db, leading)

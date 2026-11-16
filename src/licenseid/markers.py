@@ -20,7 +20,12 @@ from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
 from licenseid.dropguard import without_name_tail
 from licenseid.errors import one_line
-from licenseid.exprflags import declared_flags, judged_flags, with_judged_flags
+from licenseid.exprflags import (
+    declared_flags,
+    judged_details,
+    judged_flags,
+    with_judged_flags,
+)
 from licenseid.exprtokens import cut_inside_word
 from licenseid.hiddenchars import space_out_hidden, strip_hidden
 from licenseid.identifiers import (
@@ -34,9 +39,9 @@ from licenseid.looseid import drops_words, mark_guessed, read_inexactly
 from licenseid.manifest import extension, license_value_groups
 from licenseid.resolveslash import slash_expression
 from licenseid.resolveurl import url_license_id
-from licenseid.ruleread import rule_read
+from licenseid.ruleread import tag_inexact
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags
-from licenseid.variants import only_by_name, qualify_trailing_only
+from licenseid.variants import only_by_name, qualify_trailing_only, read_from
 from licenseid.warning import warn
 
 
@@ -242,18 +247,17 @@ class MarkerDetector:
         # The name comes first: the expression can be a prefix of the value,
         # and "MIT No Attribution" is MIT-0, not MIT.
         named = self.db.get_license_by_name(without_name_tail(val))
+        guessed = False
         if named and not named["is_deprecated"]:
-            return [self._candidate_without_text(named, score)]
+            return read_from([self._candidate_without_text(named, score)], val)
         if named:
-            # A deprecated ID keeps the name of the ID that replaced it, so
-            # the name answers as that ID does: the name of
-            # GPL-2.0-with-GCC-exception is GPL-2.0-only WITH GCC-exception-2.0.
-            lic_id = only_by_name(
-                named["name"], normalize_identifier(named["license_id"], self.db)
+            # A deprecated ID keeps the name of the ID that replaced it.
+            lic_id, guessed = only_by_name(
+                named, normalize_identifier(named["license_id"], self.db)
             )
         elif refused:
             return []
-        details = self._judged(lic_id) if lic_id else None
+        details = judged_details(self.db, lic_id) if lic_id else None
         if details:
             found = [self._candidate_without_text(details, score)]
         elif lic_id and names_only_listed(lic_id, self.db):
@@ -262,26 +266,22 @@ class MarkerDetector:
             found = self._synthetic_candidate(lic_id, score)
         else:
             found = []
-        inexact = read_inexactly(self.db, expression, found)
+        inexact = read_inexactly(self.db, expression, found, guessed)
         if inexact:  # "GPL-2.0" read as GPL-2.0-only: said, and not exact
             if inexact == "narrowed":
                 mark_guessed(found[0], expression)
             found[0]["narrowed"] = True
-        elif found and granted == leading:  # a grant is kept exact
-            found[0]["narrowed"] = rule_read(self.db, val.strip())
-        return found
-
-    def _judged(self, lic_id: str) -> LicenseDetails | None:
-        """The row of *lic_id*, flagged as :func:`exprflags.with_judged_flags`."""
-        details = self.db.get_license_details(lic_id)
-        return with_judged_flags(details, self.db) if details else None
+        elif found and tag_inexact(self.db, leading, granted, expression):
+            found[0]["narrowed"] = True
+        # Only words the readers took are stated, as for the argument
+        return read_from(found, val if named or expression != leading else leading)
 
     def license_flags(self, lic_id: str) -> LicenseFlags:
         """The SPDX, OSI and FSF flags of a license ID or expression: a
         database row's own, else those of the expression
         (``exprflags.judged_flags``); for anything else, not on the List and not
         judged (None), never a false "no"."""
-        details = self._judged(lic_id)
+        details = judged_details(self.db, lic_id)
         if details:
             return {
                 "is_spdx": bool(details["is_spdx"]),

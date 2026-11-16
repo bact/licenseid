@@ -130,6 +130,12 @@ def judged_id(ident: str) -> str:
     return _TWIN_OF.get(fold_case(ident), ident)
 
 
+def judged_details(db: "LicenseDatabase", lic_id: str) -> LicenseDetails | None:
+    """The row of *lic_id*, flagged as :func:`with_judged_flags`, or None."""
+    details = db.get_license_details(lic_id)
+    return with_judged_flags(details, db) if details else None
+
+
 def with_judged_flags(details: LicenseDetails, db: "LicenseDatabase") -> LicenseDetails:
     """*details* with the OSI and FSF flags of :func:`judged_id`; the row
     itself when its ID has no twin or the twin has no row."""

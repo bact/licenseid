@@ -11,6 +11,7 @@ from collections.abc import Iterable, Iterator
 from typing import Final
 
 from licenseid.types import CandidateMatch, Method, RawMatch
+from licenseid.variants import guessed_of
 
 # Bounds of the loose License: reader. Each distinct value costs a lookup
 # (about 25 us), so 256 are read: 5 was the most in any of 6,455 licence
@@ -29,7 +30,9 @@ def first_per_license(*groups: list[CandidateMatch]) -> list[CandidateMatch]:
     for group in groups:
         for candidate in group:
             kept = found.setdefault(candidate["license_id"], candidate)
-            if kept.get("variant_guessed") and not candidate.get("variant_guessed"):
+            if guessed_of(kept["license_id"], kept.get("evidence")) and not (
+                guessed_of(candidate["license_id"], candidate.get("evidence"))
+            ):
                 found[candidate["license_id"]] = candidate
     return list(found.values())
 
@@ -73,12 +76,11 @@ def as_matches(
     """Convert certain candidates to results: each found by its own method (a
     tag or a field), or by *method*. Nothing is measured."""
     # The detector keeps one candidate per license_id (first_per_license).
-    return [
+    matches = [
         RawMatch(
             license_id=c["license_id"],
             method=method or c["method"],
             exact=not c.get("narrowed", False),
-            variant_guessed=c.get("variant_guessed", False),
             score=1.0,
             similarity=None,
             coverage=None,
@@ -88,3 +90,7 @@ def as_matches(
         )
         for c in exact
     ]
+    for match, c in zip(matches, exact):
+        if "evidence" in c:
+            match["evidence"] = c["evidence"]
+    return matches

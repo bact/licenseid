@@ -120,6 +120,14 @@ def is_exact(resolution: Resolution) -> bool:
             or not ruled
             or fold_case(o["text"].strip()) == fold_case(o["expression"] or "")
         )
+        # A deprecated ID with an exception, re-spelt by a rule, is no list's
+        # reading ("GPL v2 with classpath exception").
+        and not (
+            o["category"] == "deprecated_ambiguous"
+            and ruled
+            and "-with-" in (o["expression"] or "").lower()
+            and fold_case(o["text"].strip()) != fold_case(o["expression"] or "")
+        )
         for o in operands
     )
 

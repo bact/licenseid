@@ -266,9 +266,16 @@ and `--json`) against these rules and checks the default output against the
   `ranking.or_later_signal` finds a grant, else `-only` first, a warning).
   `only` and `or-later` decide (`variants.fallback`, a context variable
   set in `LicenseDetector._match_raw`; outside `detect()` it reads `only`).
-  Stated words win, with `option: overridden by input`. `variant_guessed`
-  on a match and `variants.stated_of` give the last record field
-  `VARIANT_STATED`; `is-*` lines have none. `is-osi`/`is-fsf` judge a kept
+  Stated words win, with `option: overridden by input`. Every result carries
+  `evidence` (the value as written, or a text's signals): set where a result
+  is made (`variants.read_from`, `settle_text`), never a flag. A reader that
+  decides a form (`looseid.read_inexactly`, `mark_guessed`) marks it in
+  `evidence.decided`: a decided form is never stated, whatever another
+  operand says (`identifiers` merges equal operands, so no count can). The one reader
+  `variants.stated_of` gives the last record field `VARIANT_STATED`, fail
+  closed (no evidence, no word: false), and `result.public_result` applies
+  the one rule that a variant licenseid chose (`guessed_of`) is not exact;
+  `is-*` lines have none. `is-osi`/`is-fsf` judge a kept
   deprecated ID by its `-only` twin (`exprflags.judged_id`).
 
 ### Expression readers (one reader each; do not write another)

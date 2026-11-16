@@ -66,7 +66,7 @@ from licenseid.types import (
     LicenseFlags,
     RawMatch,
 )
-from licenseid.variants import DEFAULT, read_as, settle_free_text
+from licenseid.variants import DEFAULT, read_as, read_from, settle_free_text
 
 # Maximum additive boost applied to a candidate whose highest-IDF fingerprint
 # n-gram has idf_norm == 1.0 (unique to that single license in the corpus).
@@ -168,7 +168,7 @@ class LicenseDetector:
         if found is None:
             return []
         expression, loose = found
-        declared = self._resolve_declared(expression)
+        declared = read_from(self._resolve_declared(expression), text)
         if declared and loose is not None:
             for match in declared:
                 match["exact"] = False
@@ -275,7 +275,7 @@ class LicenseDetector:
         if disambiguated == "":
             return []  # resolve() refuses it ("GPL-2.0; or later"): no reading
         if disambiguated:
-            match = exact_id_match(disambiguated)
+            match = read_from([exact_id_match(disambiguated)], ctx.target_text)[0]
             _set_flags(match, self.markers.license_flags(disambiguated))
             return [match]
         if refuses_text_match(reason, ctx.target_text):
@@ -341,8 +341,8 @@ class LicenseDetector:
                         or match["method"] == "id"
                         or match["similarity"] is None
                     ):
-                        match["method"] = "field"
-                        match["similarity"] = None
+                        match.update({"method": "field", "similarity": None})
+                        read_from([match], value)  # a declared value
                 return result
         return [] if ctx.word_count < 30 else None
 
@@ -474,10 +474,11 @@ class LicenseDetector:
         """The results of *resolution*'s expression, made what the resolution
         says (resolvefirst)."""
         expression = resolution["expression"] or ""
-        found = self._resolve_declared(expression)
+        found = read_from(self._resolve_declared(expression), resolution["input"])
         if not found:  # no marker reader takes it: "MIT WITH AdditionRef-x"
             narrow = narrow_ids(self.db, expression)
             found = [match_of(narrow, self.markers.license_flags(narrow))]
+            read_from(found, resolution["input"])
             if narrow != expression:  # a guess, said and not exact
                 found[0]["exact"] = False
                 mark_guessed(found[0], expression)

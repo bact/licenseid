@@ -24,15 +24,14 @@ from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
 from licenseid.ranking import only_signal, or_later_signal
-from licenseid.types import InternalMatch, Method, RawMatch, Variant
+from licenseid.types import Evidence, InternalMatch, Method, RawMatch, Variant
 from licenseid.variants import (
+    _states,
     family_of,
     qualify_trailing_only,
     read_as,
     settle_text,
-    stated_of,
     warn_guess,
-    warn_overridden,
 )
 
 GPL_TEXT = (
@@ -224,6 +223,14 @@ def _hit(license_id: str, score: float, method: Method = "text") -> RawMatch:
     )
 
 
+def _flag(r: RawMatch | InternalMatch) -> bool | None:
+    """True for a variant licenseid chose, False for one the input states,
+    None for a result with no variant to judge or a bare ID kept."""
+    states = _states(r["license_id"], r.get("evidence"))
+    judged = [stated for kind, stated in states if kind != "bare"]
+    return None if not judged else not all(judged)
+
+
 def _settle(
     hits: list[RawMatch | InternalMatch],
     signal: bool,
@@ -232,7 +239,7 @@ def _settle(
 ) -> tuple[list[tuple[str, bool | None]], list[str]]:
     out = settle_text(hits, signal, variant)
     return (
-        [(r["license_id"], r.get("variant_guessed")) for r in out],
+        [(r["license_id"], _flag(r)) for r in out],
         [str(w) for w in given.take()],
     )
 
@@ -363,8 +370,9 @@ def test_a_name_hit_is_settled_like_a_text_and_a_declaration_is_not(
     named = _hit(GPL[0], 1.0, "name")
     declared = _hit(GPL[0], 1.0, "id")
     declared["exact"] = True
+    declared["evidence"] = Evidence(value=GPL[0])  # the ID is in the value
     assert _settle([named], False, "auto", given)[0] == [(GPL[0], True)]
-    assert _settle([declared], False, "auto", given) == ([(GPL[0], None)], [])
+    assert _settle([declared], False, "auto", given) == ([(GPL[0], False)], [])
 
 
 @pytest.mark.parametrize("pure", [True, False])
@@ -460,8 +468,8 @@ def test_the_warning_names_the_licence_that_was_decided(
         ("GPL-2.0 only", "GPL-2.0-only"),
         ("GPL-2.0 only if you agree", "GPL-2.0"),  # a condition, no statement
         ("gpl-2.0 only", "GPL-2.0-only"),  # the ID in any case
-        ("GPL-2.0 only OR MIT", "GPL-2.0-only"),  # still stated
-        ("GPL-2.0 only and MIT", "GPL-2.0-only"),
+        ("GPL-2.0 only OR MIT", ""),  # an operator ends no expression: refused
+        ("GPL-2.0 only and MIT", ""),
     ],
 )
 def test_a_stated_only_after_an_id(value: str, expression: str) -> None:
@@ -475,25 +483,6 @@ def test_the_only_reader_does_not_backtrack() -> None:
     assert only_signal(text, False) is False
     assert only_signal(text + " 2 only", False) is True
     assert time.monotonic() - start < slack(1.0)
-
-
-@pytest.mark.parametrize(
-    ("expression", "guessed", "stated"),
-    [
-        ("MIT", False, None),
-        ("GPL-2.0", False, False),
-        ("GPL-2.0-only", False, True),
-        ("GPL-2.0-only", True, False),  # licenseid chose it
-        ("GPL-2.0+", False, True),  # the "+" states "or later"
-        ("GPL-2.0+", True, False),
-        ("GPL-2.0-with-classpath-exception", False, False),
-        ("GPL-2.0-only WITH Classpath-exception-2.0", False, True),
-    ],
-)
-def test_stated_of_judges_the_variant_of_an_expression(
-    expression: str, guessed: bool, stated: bool | None
-) -> None:
-    assert stated_of(expression, guessed) is stated
 
 
 @pytest.mark.parametrize(
@@ -511,7 +500,7 @@ def test_as_written_keeps_a_stated_variant_of_a_text(
         _hit("GPL-2.0", 0.96),
     ]
     out = settle_text(hits, signal, "as-written", only=only)
-    assert (out[0]["license_id"], out[0].get("variant_guessed")) == (first, False)
+    assert (out[0]["license_id"], _flag(out[0])) == (first, False)
     assert not given.take()
 
 
@@ -542,7 +531,7 @@ def test_an_id_a_marker_found_is_stated_or_decided(
 ) -> None:
     text = f"## License\n\n{hit}\n"
     out = settle_text([_hit(hit, 0.92)], False, variant, written=text)
-    assert (out[0]["license_id"], out[0].get("variant_guessed")) == expected
+    assert (out[0]["license_id"], _flag(out[0])) == expected
     assert len(given.take()) == len(warned)
 
 
@@ -554,6 +543,7 @@ def test_an_id_a_marker_found_is_stated_or_decided(
         (["--variant", "only", "--top", "1", "GPL-2.0 OR MIT"], True),
         (["--variant", "only", "--threshold", "1", "GPL-2.0"], True),
         (["--variant", "only", "--exact", "GPL-2.0-or-later"], True),  # printed
+        (["--exact", "--text", GPL_TEXT], False),  # a text: guessed, not printed
         (["--variant", "or-later", "--threshold", "1", "GPL-2.0-only"], True),
     ],
 )
@@ -574,13 +564,12 @@ def test_a_variant_warning_is_for_a_printed_result(
         "GPL-2.0+",
         "GPL-2.0",
         "MIT",
-        "MIT License",
-        "MIT Licence",
     ],
 )
 def test_one_value_is_exact_alike_in_every_channel(db: str, value: str) -> None:
     """``resolve()`` says whether a rewrite rule read the value; the argument,
-    a tag, a field and ``--id`` all follow it."""
+    a tag (of its expression, not the words after it), a field and ``--id``
+    all follow it."""
     detector = LicenseDetector(db)
     seen = {
         "argument": detector.detect(text=value),
@@ -625,7 +614,7 @@ def test_a_guess_is_said_for_the_printed_id_not_a_substring_of_it(
 ) -> None:
     """``gpl-2.0-only`` is inside ``lgpl-2.0-only``: only the printed one."""
     shown = _hit("LGPL-2.0-only", 1.0, "id")
-    shown["variant_guessed"] = True
+    shown["evidence"] = Evidence(value="LGPL-2.0")
     hidden = _hit("GPL-2.0-only", 0.5, "id")  # below the bar: not printed
 
     def produce() -> list[RawMatch | InternalMatch]:
@@ -637,22 +626,6 @@ def test_a_guess_is_said_for_the_printed_id_not_a_substring_of_it(
     assert [str(w) for w in given.take()] == [
         "input: variant not stated: LGPL-2.0; using LGPL-2.0-only"
     ]
-
-
-@pytest.mark.parametrize(
-    ("variant", "expression", "guessed", "said"),
-    [
-        ("only", "GPL-2.0-or-later OR GPL-3.0-only", True, True),  # a stated operand
-        ("or-later", "GPL-2.0-only OR GPL-3.0-or-later", True, True),
-        ("only", "GPL-2.0+", True, False),  # the List's own name: no statement
-        ("only", "GPL-2.0-or-later", False, True),
-    ],
-)
-def test_a_stated_operand_of_a_guessed_compound_overrides(
-    given: GivenWarnings, variant: Variant, expression: str, guessed: bool, said: bool
-) -> None:
-    warn_overridden(variant, expression, guessed)
-    assert bool(given.take()) is said
 
 
 def test_a_manifest_field_read_by_a_name_is_found_by_field(db: str) -> None:
@@ -671,37 +644,40 @@ def test_an_empty_variant_is_a_usage_error_with_its_own_condition(db: str) -> No
     assert result.stderr.startswith("ERROR: option: empty: --variant; use one of")
 
 
+def test_a_tag_with_only_before_an_operator_is_refused(db: str) -> None:
+    """It would answer ``GPL-2.0-only`` and drop MIT, which the argument and a
+    field refuse too (as after a grant): no answer, whatever the variant."""
+    text = "# SPDX-License-Identifier: GPL-2.0 only OR MIT\n"
+    for variant in ("auto", "only", "or-later"):
+        assert not LicenseDetector(db).detect(text=text, variant=variant)
+
+
 @pytest.mark.parametrize(
-    ("expression", "variant", "stated", "said"),
+    ("tag", "expected"),
     [
-        ("LicenseRef-acme-only", "or-later", None, False),
-        ("DocumentRef-x-1.2:LicenseRef-acme-only", "or-later", None, False),
-        ("MIT+", "only", None, False),  # a "+" on a licence with no variants
-        ("LicenseRef-x-or-later", "only", None, False),
-        ("MIT AND LicenseRef-x-or-later", "auto", None, False),
-        ("GPL-2.0-only AND LicenseRef-x-or-later", "auto", True, False),
+        ("GPL2+", ("GPL-2.0-or-later", False)),  # the expression is re-spelt
+        ("MIT;", ("MIT", True)),  # the words after it are not judged
+        ("MIT License", ("MIT", True)),
     ],
 )
-def test_a_reference_that_ends_in_a_variant_word_states_none(
-    given: GivenWarnings,
-    expression: str,
-    variant: Variant,
-    stated: bool | None,
-    said: bool,
+@pytest.mark.parametrize(
+    "line",
+    [
+        "// SPDX-License-Identifier: {}",
+        "/* SPDX-License-Identifier: {} */",
+        "<!-- SPDX-License-Identifier: {} -->",
+        "SPDX-License-Identifier: {} SPDX-FileCopyrightText: 2020 x",
+    ],
+)
+def test_what_follows_a_tag_on_its_line_does_not_change_its_exactness(
+    db: str, line: str, tag: str, expected: tuple[str, bool]
 ) -> None:
-    assert stated_of(expression, False) is stated
-    warn_overridden(variant, expression, False)
-    assert bool(given.take()) is said
+    found = LicenseDetector(db).detect(text=line.format(tag) + "\n")
+    assert [(r["expression"], r["exact"]) for r in found[:1]] == [expected]
 
 
-def test_a_stated_only_before_an_operator_is_still_only(
-    db: str, given: GivenWarnings
-) -> None:
-    """The word wins over ``--variant or-later``, and the answer is not exact:
-    the licence after the operator is not in it."""
-    text = "# SPDX-License-Identifier: GPL-2.0 only OR MIT\n"
-    (found,) = LicenseDetector(db).detect(text=text, variant="or-later")
-    assert (found["expression"], found["variant_stated"]) == ("GPL-2.0-only", True)
-    assert [str(w) for w in given.take()] == [
-        "option: overridden by input: --variant or-later; using GPL-2.0-only"
-    ]
+def test_as_written_keeps_the_exact_name_of_a_deprecated_id(db: str) -> None:
+    found = LicenseDetector(db).detect(
+        text="GNU General Public License v2.0", variant="as-written"
+    )
+    assert [(r["expression"], r["exact"]) for r in found[:1]] == [("GPL-2.0", True)]

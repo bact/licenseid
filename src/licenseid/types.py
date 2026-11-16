@@ -71,6 +71,21 @@ class Detection(TypedDict):
     variant_stated: bool | None
 
 
+class Evidence(TypedDict, total=False):
+    """Where the variant of an answer is read from: the *value* as written (a
+    declared value: its own words state it) and, for a text or name match,
+    whether the input's grant of later versions chose ``-or-later`` (*later*)
+    or its "only" chose ``-only`` (*only*). *decided* lists the folded
+    ``-only``/``-or-later`` forms licenseid chose for a declared value, which
+    the value does not state, whatever else it says. No evidence states
+    nothing."""
+
+    value: str
+    later: bool
+    only: bool
+    decided: list[str]
+
+
 class RawMatch(TypedDict, total=False):
     """A match as a tier builds it, with its raw ranking score (above 1 for
     a name or ID hit, or a close text with its bonuses). Not part of the
@@ -85,9 +100,8 @@ class RawMatch(TypedDict, total=False):
     is_spdx: bool
     is_osi_approved: bool | None
     is_fsf_libre: bool | None
-    # An -only or -or-later that licenseid chose, not the input: variant_stated
-    # is false.
-    variant_guessed: bool
+    # The words the variant of the answer is read from (``variants.stated_of``).
+    evidence: Evidence
 
 
 class LicenseFlags(TypedDict):
@@ -116,7 +130,7 @@ class CandidateMatch(TypedDict, total=False):
     # A reading resolve() does not make (a bare deprecated ID read as its
     # -only form, a "+" on a deprecated -with- ID): a guess, so not exact.
     narrowed: bool
-    variant_guessed: bool
+    evidence: Evidence
 
 
 class InternalMatch(TypedDict, total=False):
@@ -136,7 +150,7 @@ class InternalMatch(TypedDict, total=False):
     is_spdx: bool
     is_osi_approved: bool | None
     is_fsf_libre: bool | None
-    variant_guessed: bool
+    evidence: Evidence
 
 
 # The licence IDs of ``exclude`` and ``hint``: the kinds of collection

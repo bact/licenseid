@@ -35,7 +35,7 @@ from licenseid.identifiers import (
 from licenseid.listlookup import ListedName, ListLookup
 from licenseid.normalize import DASHES
 from licenseid.plusoperator import PLUS_OPERATOR
-from licenseid.types import CandidateMatch, RawMatch
+from licenseid.types import CandidateMatch, Evidence, RawMatch
 from licenseid.variants import ONLY_WORD, decided, family_of, warn_guess
 from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_key
 
@@ -122,9 +122,9 @@ def narrowed(row_id: str, resolved: str) -> bool:
     return decided(row_id, resolved)
 
 
-def narrowed_ids(db: ListLookup, text: str, expression: str) -> bool:
-    """Whether *expression*, the reading of the declared *text*, narrowed a
-    deprecated ID of *text* to an -only form it does not state ("MIT OR
+def narrowed_forms(db: ListLookup, text: str, expression: str) -> list[str]:
+    """The forms (folded) that *expression*, the reading of the declared
+    *text*, narrowed a deprecated ID of *text* to, not stated ("MIT OR
     GPL-2.0" read as "GPL-2.0-only OR MIT", "GPL-2.0-with-classpath-exception"
     as "GPL-2.0-only WITH Classpath-exception-2.0"). Each ID word is read
     alone, as normalize_identifier() reads it, and judged by :func:`narrowed`,
@@ -132,6 +132,7 @@ def narrowed_ids(db: ListLookup, text: str, expression: str) -> bool:
     ignored. An ID with the "+" operator after it states its grant, as the
     one reader of that operator (plusoperator.PLUS_OPERATOR) says: a "+"
     after a space or before a comma is none."""
+    forms: list[str] = []
     words = {word.casefold() for word in RE_TOKEN.findall(expression)}
     granted = {
         plus.end("id") for plus in PLUS_OPERATOR.finditer(text) if not plus["with"]
@@ -142,11 +143,15 @@ def narrowed_ids(db: ListLookup, text: str, expression: str) -> bool:
         if token.end() in granted or not token.group(0)[0].isalnum():
             continue
         reading = normalize_identifier(token.group(0), db)
-        if narrowed(token.group(0), reading) and (
-            RE_TOKEN.findall(reading)[0].casefold() in words
-        ):
-            return True
-    return False
+        head = RE_TOKEN.findall(reading)[0].casefold()
+        if narrowed(token.group(0), reading) and head in words:
+            forms.append(head)
+    return forms
+
+
+def narrowed_ids(db: ListLookup, text: str, expression: str) -> bool:
+    """Whether :func:`narrowed_forms` finds a form."""
+    return bool(narrowed_forms(db, text, expression))
 
 
 def narrow_ids(db: ListLookup, expression: str) -> str:
@@ -175,7 +180,7 @@ _WITH_IDS = frozenset(deprecated.casefold() for deprecated in DEPRECATED_WITH_ID
 
 
 def read_inexactly(
-    db: ListLookup, text: str, found: list[CandidateMatch]
+    db: ListLookup, text: str, found: list[CandidateMatch], guessed: bool = False
 ) -> str | None:
     """How the first of *found*, the reading of the declared *text*, is not
     what *text* states, so is not exact, or None: ``"narrowed"`` for a
@@ -183,10 +188,16 @@ def read_inexactly(
     ``"ambiguous"`` for a "+" given to the licence of a deprecated ID with
     an exception in it ("GPL-2.0-with-classpath-exception+" read as
     GPL-2.0-or-later WITH Classpath-exception-2.0), which ``resolve()`` calls
-    ambiguous (``deprecated_ambiguous``)."""
+    ambiguous (``deprecated_ambiguous``). *guessed*: a deprecated name was
+    answered by the option (``variants.only_by_name``): narrowed."""
     if not found:
         return None
-    if narrowed_ids(db, text, found[0]["license_id"]):
+    forms = [] if guessed else narrowed_forms(db, text, found[0]["license_id"])
+    if guessed or forms:
+        # The forms the option chose: no word of the value states them.
+        found[0].setdefault("evidence", Evidence())["decided"] = forms or variant_forms(
+            found[0]["license_id"]
+        )
         return "narrowed"
     for plus in PLUS_OPERATOR.finditer(text):
         if not plus["with"] and plus["id"].casefold() in _WITH_IDS:
@@ -370,10 +381,23 @@ def restates_qualifier(expression: str, value: str) -> bool:
     return declared_grant_id_text(value) == expression.rstrip()
 
 
+def variant_forms(expression: str) -> list[str]:
+    """Every ``-only`` or ``-or-later`` ID of *expression*, folded."""
+    return [
+        word.casefold()
+        for word in RE_TOKEN.findall(expression)
+        if word.lower().endswith(("-only", "-or-later"))
+    ]
+
+
 def mark_guessed(match: CandidateMatch | RawMatch, written: str) -> None:
     """Say that the variant of *match*, read from *written*, was decided, not
-    stated, and mark it: ``variant_guessed``, and a warning."""
-    match["variant_guessed"] = True
+    stated, and say so (its evidence marks the forms *decided*, so
+    ``variant_stated`` is false, and it is not exact): every variant of the
+    match where no reader marked the forms."""
+    evidence = match.setdefault("evidence", Evidence())
+    if "decided" not in evidence:
+        evidence["decided"] = variant_forms(match["license_id"])
     warn_narrowed(match["license_id"], written)
 
 

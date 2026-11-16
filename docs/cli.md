@@ -168,16 +168,19 @@ Common options:
   a text match too when the bare row is among its candidates (else the text
   is settled as under `auto`). `only` and `or-later` always decide, a
   declared value too (a CI that bans deprecated IDs): `--variant only
-  GPL-2.0` is `GPL-2.0-only`, with the warning. The option is a preference,
+  GPL-2.0` is `GPL-2.0-only`, with the warning. The List name of a
+  deprecated ID in a field or tag is such a declared value. The option is a preference,
   not a fact: words that state the variant (`GPL-2.0 or later`, `GPL-2.0+`,
   `-only`, `-or-later`) win, with `WARNING: option: overridden by input:
   --variant only; using GPL-2.0-or-later`. A variant warning is said only for a
   result that is printed (`--threshold`, `--exact`, `--top` apply first). The
-  words "or later" and "only" are read in the whole input, not beside the
-  licence: a text with `Python 3 only` somewhere states `-only` for its
-  licences. A heading or a declared `GPL-2.0+` is a statement of its own and
-  stays. An unknown value exits 2. `is-osi` and `is-fsf` take no `--variant`:
-  they judge a bare deprecated ID by its `-only` twin. `resolve` has none.
+  words "or later" and "only" of a licence text or a name are read in the
+  whole input, not beside the licence: a text with `Python 3 only` somewhere
+  states `-only` for its licences. A declared value states only the words
+  beside its own licence (`GPL-2.0 AND MIT only` states nothing for GPL-2.0).
+  A heading or a declared `GPL-2.0+` is a statement of its own and stays. An
+  unknown value exits 2. `is-osi` and `is-fsf` take no `--variant`: they judge
+  a bare deprecated ID by its `-only` twin. `resolve` has none.
 
 The system uses a **composite score** (similarity + coverage bonus/penalty +
 optional popularity weight + marker confidence boost) to prefer the tightest

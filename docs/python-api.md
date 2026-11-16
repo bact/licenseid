@@ -195,7 +195,8 @@ reading it: `resolve(value, handle)` on a missing file raises `not found`.
 `detect()`'s `exact` is per result, true when that answer was found
 exactly (declared, a name in full, or the whole text); `resolve()`'s `exact`
 is a category, the value written as the ID itself, with no step at all.
-`detect GPL-2.0` is `GPL-2.0-only`, not exact (a guess); `resolve("GPL-2.0")`
+`detect GPL-2.0` is `GPL-2.0` as written, exact (`--variant only` reads
+it as `GPL-2.0-only`, a guess, not exact); `resolve("GPL-2.0")`
 is `GPL-2.0`, `assumed_only`. `detect()` reads a whole input with
 `resolve()` first and answers its expression (exact unless it is a guess);
 `license_id` reads its one ID as `resolve()` does too (`CC0` is

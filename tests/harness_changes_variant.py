@@ -14,9 +14,33 @@ _KEPT = (
     "a declared bare deprecated ID stays as written, as resolve() gives it"
     " (was the -only guess, with a warning)"
 )
+_TEXT = (
+    "a licence text that its -only and -or-later forms share is a guess of the"
+    " variant, so it is not exact (the variant is not stated, VARIANT_STATED)"
+)
 _FIELD = "the record has a last field VARIANT_STATED (JSON variant_stated)"
 
 VARIANT_CHANGES: dict[str, tuple[str, str]] = {
+    "long/AGPL-1.0-or-later": ("AGPL-1.0-only\ttext\tno\t1.0000", _TEXT),
+    "long/GFDL-1.1-no-invariants-only": (
+        "GFDL-1.1-invariants-only\ttext\tno\t1.0000",
+        _TEXT,
+    ),
+    "long/GFDL-1.1-or-later": ("GFDL-1.1-invariants-only\ttext\tno\t1.0000", _TEXT),
+    "long/GFDL-1.2-no-invariants-only": (
+        "GFDL-1.2-invariants-only\ttext\tno\t1.0000",
+        _TEXT,
+    ),
+    "long/GFDL-1.2-or-later": ("GFDL-1.2-invariants-only\ttext\tno\t1.0000", _TEXT),
+    "long/GFDL-1.3-no-invariants-only": (
+        "GFDL-1.3-invariants-only\ttext\tno\t1.0000",
+        _TEXT,
+    ),
+    "long/GFDL-1.3-or-later": ("GFDL-1.3-invariants-only\ttext\tno\t1.0000", _TEXT),
+    "long/GPL-1.0-or-later": ("GPL-1.0-only\ttext\tno\t1.0000", _TEXT),
+    "long/GPL-3.0-only": ("GPL-3.0-only\ttext\tno\t1.0000", _TEXT),
+    "long/LGPL-2.0-or-later": ("LGPL-2.0-only\ttext\tno\t1.0000", _TEXT),
+    "long/LGPL-3.0-only": ("LGPL-3.0-only\ttext\tno\t1.0000", _TEXT),
     "value/AGPL-3": ("AGPL-3.0\tid\tno\t1.0000", _KEPT),
     "value/AGPL-3.0": ("AGPL-3.0\tid\tyes\t1.0000", _KEPT),
     "value/AGPLv3": ("AGPL-3.0\tid\tno\t1.0000", _KEPT),

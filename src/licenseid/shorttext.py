@@ -13,6 +13,7 @@ from licenseid.looseid import loose_id, mark_guessed, narrowed, resolved_id
 from licenseid.plusoperator import grant_stem, strip_plus_operator
 from licenseid.ranking import DEP_PENALTY
 from licenseid.types import LicenseNameId, RawMatch
+from licenseid.variants import read_from
 from licenseid.versionkey import version_key
 
 # The score of an exact ID or name match; a fuzzy one scores less.
@@ -274,7 +275,7 @@ def _id_hit(row: LicenseNameId, resolved: str, text: str) -> RawMatch:
     """An ID match on *row*, answering *resolved*. A deprecated ID narrowed
     to -only ("GPL3", "GPL 2 0", "GPL-2.0" itself) is a guess: the narrower
     grant is the safer one, and a guess is not exact, nor silent."""
-    match = exact_id_match(resolved)
+    match = read_from([exact_id_match(resolved)], text)[0]
     if resolved == row["license_id"]:
         _copy_flags(row, match)
     # A deprecated ID can resolve to an expression, whose flags are not this

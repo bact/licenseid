@@ -61,7 +61,7 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   `Apache License, Version 2.0`, `Apache 2`) is not exact, except a slash
   pair of IDs (`MIT/Apache-2.0`), which is.
   Licences with the same text (`GPL-2.0-only` and `GPL-2.0-or-later`) are
-  all exact for it.
+  not exact for a text: its variant is a guess, so `--exact` gives none.
   `--exact` keeps only the exact results.
 - `SCORE` is 0 to 1; `--threshold` reads it. Several results can score 1:
   the order tells them apart, and `EXACT` tells an exact one from a close
