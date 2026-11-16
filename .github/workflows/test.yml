@@ -18,6 +18,7 @@ on:
       - "!docs/**"
       - "!working-docs/**"
       - "docs/resolve.md"
+      - "docs/lists.md"
   pull_request:
     # "labeled": the label `test-all-os` starts a run with every test on
     # Windows. Any other label starts no tests (see "if" and "concurrency").
@@ -33,6 +34,7 @@ on:
       - "!docs/**"
       - "!working-docs/**"
       - "docs/resolve.md"
+      - "docs/lists.md"
 
 # A label other than `test-all-os` runs in a group of its own, so it neither
 # cancels a run in progress nor replaces its result with a skipped one.

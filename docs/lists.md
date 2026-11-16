@@ -1,0 +1,313 @@
+---
+# Generated from the code by `python -m tools.lists_page`: never edit by hand.
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: Apache-2.0
+---
+
+# The lists that `resolve()` reads
+
+This page is generated from the code by `python -m tools.lists_page`. Do not
+edit it by hand: `tests/test_lists_page.py` fails when the page and the code
+differ. To change a row, change the list in `src/licenseid/` and run the
+command again.
+
+`resolve()` reads a declared licence value (a `License` field, a classifier,
+a URL) as an SPDX expression. Besides the SPDX License List it reads the
+lists on this page, which licenseid keeps. Each is decided once, as data: a
+value is read only if a list holds it, never by a looser match. A table names
+the object it comes from by its import path, and each row by its key in that
+object.
+
+Each list gives one `category` (see [the table of
+categories](resolve.md#steps-and-categories)) and so one `EXACT` value.
+`EXACT` is yes when an authoritative list defines the reading, which is the
+SPDX License List and the lists below, and no when a rewrite rule made it
+(`separator`, `prose_form`, `version_spelling`). A compound is exact when
+every operand is.
+
+A row is added only with a measured count of the packages that declare it.
+The counts of the PyPI tables are projects of a sample of the 10,000 most
+downloaded PyPI projects of October 2026
+(`tests/fixtures/pypi_values_2026-10.tsv`), counted by the generator. The
+counts of the URL table are packages of a survey of 2026-11-07 (issue #14:
+the 1,000 Maven Central packages with most dependants and the 300 most
+downloaded NuGet, npm, PyPI and crates.io packages). A dash is no count
+recorded.
+
+## The lists at a glance
+
+| Object | Category | `EXACT` | Rows | Holds |
+| --- | --- | --- | --- | --- |
+| `licenseid.resolvealias.ALIASES` | `alias_name` | yes | 12 | BSD names |
+| `licenseid.resolvetitle.TITLES` | `text_title` | yes | 4 | titles of licence texts |
+| `licenseid.trovenames.TROVE_NAMES` | `trove_name` | yes | 89 | classifier names |
+| `licenseid.resolveurl.URL_ALIASES` | `license_url` | yes | 11 | pages read as a licence |
+| `licenseid.resolveurl.ID_PAGES` | `license_url` | yes | 4 | hosts with an ID in the path |
+| `licenseid.resolveurl.DUAL_PAGES` | `unresolved` | — | 2 | pages refused: a choice |
+| `licenseid.resolveurl.SCANCODE_NOT_SPDX` | `unresolved` | — | 13 | ScanCode keys not read |
+| `licenseid.resolveslash.REFUSED_PAIRS` | `unresolved` | — | 2 | pairs refused in a slash |
+| `licenseid.resolveprose.VERSIONED_NAMES` | `prose_form` | no | 2 | names with a version |
+
+## Named rules
+
+Some rules are named in the code and the tests: T1 to T3 read a trove
+classifier or a name with its abbreviation (`licenseid.resolvetrove`), and P1
+to P3 read the prose form of an ID (`licenseid.resolveprose`). Each row names
+the function that is the rule. The answer, the category and `EXACT` are what
+`resolve()` gives for the example.
+
+A rule that hands a value to a list or to the SPDX List reads as that list
+does, so it is exact when the list is. A rule that rewrites a value is no
+list: `prose_form` and `version_spelling` are not exact. When a prose form
+reduces to a name of a table below, the category is the table's, as the
+weakest of the steps (`New BSD License` is `alias_name`).
+
+| Rule | Function | Reads | Example | Answer | Category | `EXACT` | Decided by |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| T1 | `licenseid.trovenames.strip_trove_path` | a trove classifier in its real form, read as the name in it is read alone, with a `trove_path` step | `License :: OSI Approved :: MIT License` | `MIT` | `listed_name` | yes | the category of the name alone |
+| T1 | `licenseid.trovenames.strip_trove_path` | the same, for a name only the trove table knows | `License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication` | `CC0-1.0` | `trove_name` | yes | a name of the trove table |
+| T2 | `licenseid.resolvetrove._name` | a name of the trove table that states one licence | `GNU General Public License v3 or later (GPLv3+)` | `GPL-3.0-or-later` | `trove_name` | yes | a bare deprecated ID stays `assumed_only`, also exact |
+| T3 | `licenseid.resolvetrove._trailing` | `head (inside)` where head and inside each read alone as one expression, the same | `MIT License (MIT)` | `MIT` | `listed_name` | yes | exact when both parts are names of the List |
+| T3 | `licenseid.resolvetrove._trailing` | the same, where the head needed a rewrite rule | `Apache2 (Apache-2.0)` | `Apache-2.0` | `version_spelling` | no | a rewrite rule is no list |
+| P1 | `licenseid.resolveprose._licence_word` | a final `license` or `licence` after a value that reads alone | `BSD 3-Clause License` | `BSD-3-Clause` | `prose_form` | no | a rewrite rule is no list |
+| P2 | `licenseid.resolveprose._reductions` | `<name> License[,] (Version\|v) N` as `<name> N`, also with no `License` or with the version in brackets | `Apache License, Version 2.0` | `Apache-2.0` | `prose_form` | no | a rewrite rule is no list |
+| P3 | `licenseid.resolveprose._after_article` | a leading `The`, with P1, P2 or a List name | `The MIT License` | `MIT` | `prose_form` | no | a rewrite rule is no list |
+| P1 | `licenseid.resolveprose._read_reduction` | a prose form that reduces to a name of one of the tables of this page | `New BSD License` | `BSD-3-Clause` | `alias_name` | yes | the category of the table, the weakest of the steps |
+
+## BSD names
+
+Other names of the two BSD licences. `licenseid.resolvealias.ALIASES`, category
+`alias_name`, `EXACT` yes. A name is read in ASCII case folded, with a run of
+white space as one space. A final `License` is read first (rule P1).
+
+| Name (folded) | ID | Source | Projects |
+| --- | --- | --- | --- |
+| `2-clause bsd` | `BSD-2-Clause` | OSI title, [BSD-2-Clause](https://opensource.org/license/bsd-2-clause) | 4 |
+| `3-clause bsd` | `BSD-3-Clause` | OSI title, [BSD-3-Clause](https://opensource.org/license/bsd-3-clause) | 3 |
+| `bsd (3 clause)` | `BSD-3-Clause` | the clause count of the ID, in brackets | 1 |
+| `bsd (3-clause)` | `BSD-3-Clause` | the clause count of the ID, in brackets | 1 |
+| `bsd 3` | `BSD-3-Clause` | the ID, `Clause` left out | 3 |
+| `bsd-3` | `BSD-3-Clause` | the ID, `Clause` left out | 9 |
+| `bsd3` | `BSD-3-Clause` | the ID, `Clause` left out | 2 |
+| `modified bsd` | `BSD-3-Clause` | OSI, [BSD-3-Clause](https://opensource.org/license/bsd-3-clause) (not the List) | 3 |
+| `new bsd` | `BSD-3-Clause` | the [List](https://spdx.org/licenses/BSD-3-Clause.html) and the [OSI](https://opensource.org/license/bsd-3-clause) | 11 |
+| `revised bsd` | `BSD-3-Clause` | the [List](https://spdx.org/licenses/BSD-3-Clause.html) | 1 |
+| `simplified bsd` | `BSD-2-Clause` | the [List](https://spdx.org/licenses/BSD-2-Clause.html) and the [OSI](https://opensource.org/license/bsd-2-clause) | 2 |
+| `two-clause bsd` | `BSD-2-Clause` | OSI title, the number spelt out | 1 |
+
+## Titles of licence texts
+
+The title a licence's own text gives itself. `licenseid.resolvetitle.TITLES`,
+category `text_title`, `EXACT` yes. A title that writes a version but no grant
+is the bare deprecated ID, `assumed_only`.
+
+| Name (folded) | ID | Source | Projects |
+| --- | --- | --- | --- |
+| `cc0` | `CC0-1.0` | text of [CC0-1.0](https://spdx.org/licenses/CC0-1.0.html), which calls itself `CC0` apart from its version | 3 |
+| `cc0 1.0 universal` | `CC0-1.0` | text of [CC0-1.0](https://spdx.org/licenses/CC0-1.0.html) | 8 |
+| `gnu general public license version 3, 29 june 2007` | `GPL-3.0` | title line of the text of [GPL-3.0-only](https://spdx.org/licenses/GPL-3.0-only.html) | 1 |
+| `mulan psl v2` | `MulanPSL-2.0` | short name in the text of [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html) | 3 |
+
+## Trove classifier names
+
+The `License ::` classifiers of PyPA's `trove-classifiers`,
+`licenseid.trovenames.TROVE_NAMES`, category `trove_name`, `EXACT` yes. A name
+that is also an ID or a List name is read as that first, so its category is
+`listed_name`; a name that states a bare deprecated ID is `assumed_only`. Rule
+T1 reads the whole classifier and rule T2 the name alone. The table shows the
+classifier as PyPI writes it and what `resolve()` gives for it.
+
+| Classifier | Answer | Category | `EXACT` | Projects |
+| --- | --- | --- | --- | --- |
+| `License :: Aladdin Free Public License (AFPL)` | `Aladdin` | `trove_name` | yes | — |
+| `License :: OSI Approved :: Attribution Assurance License` | `AAL` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Blue Oak Model License (BlueOak-1.0.0)` | `BlueOak-1.0.0` | `trove_name` | yes | — |
+| `License :: OSI Approved :: Boost Software License 1.0 (BSL-1.0)` | `BSL-1.0` | `listed_name` | yes | — |
+| `License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication` | `CC0-1.0` | `trove_name` | yes | 3 |
+| `License :: OSI Approved :: CEA CNRS Inria Logiciel Libre License, version 2.1 (CeCILL-2.1)` | `CECILL-2.1` | `trove_name` | yes | — |
+| `License :: CeCILL-B Free Software License Agreement (CECILL-B)` | `CECILL-B` | `listed_name` | yes | — |
+| `License :: CeCILL-C Free Software License Agreement (CECILL-C)` | `CECILL-C` | `listed_name` | yes | — |
+| `License :: OSI Approved :: CMU License (MIT-CMU)` | `MIT-CMU` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Common Development and Distribution License 1.0 (CDDL-1.0)` | `CDDL-1.0` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Eclipse Public License 1.0 (EPL-1.0)` | `EPL-1.0` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)` | `EPL-2.0` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Educational Community License, Version 2.0 (ECL-2.0)` | `ECL-2.0` | `trove_name` | yes | — |
+| `License :: OSI Approved :: European Union Public Licence 1.0 (EUPL 1.0)` | `EUPL-1.0` | `trove_name` | yes | — |
+| `License :: OSI Approved :: European Union Public Licence 1.1 (EUPL 1.1)` | `EUPL-1.1` | `trove_name` | yes | — |
+| `License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)` | `EUPL-1.2` | `trove_name` | yes | — |
+| `License :: OSI Approved :: GNU Affero General Public License v3` | `AGPL-3.0` | `assumed_only` | yes | 10 |
+| `License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)` | `AGPL-3.0-or-later` | `trove_name` | yes | 1 |
+| `License :: OSI Approved :: GNU General Public License v2 (GPLv2)` | `GPL-2.0` | `assumed_only` | yes | 5 |
+| `License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)` | `GPL-2.0-or-later` | `trove_name` | yes | 3 |
+| `License :: OSI Approved :: GNU General Public License v3 (GPLv3)` | `GPL-3.0` | `assumed_only` | yes | 20 |
+| `License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)` | `GPL-3.0-or-later` | `trove_name` | yes | 15 |
+| `License :: OSI Approved :: GNU Lesser General Public License v2 (LGPLv2)` | `LGPL-2.0` | `assumed_only` | yes | 1 |
+| `License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)` | `LGPL-2.0-or-later` | `trove_name` | yes | 2 |
+| `License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)` | `LGPL-3.0` | `assumed_only` | yes | 6 |
+| `License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)` | `LGPL-3.0-or-later` | `trove_name` | yes | 9 |
+| `License :: OSI Approved :: Historical Permission Notice and Disclaimer (HPND)` | `HPND` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Intel Open Source License` | `Intel` | `listed_name` | yes | — |
+| `License :: OSI Approved :: ISC License (ISCL)` | `ISC` | `trove_name` | yes | 8 |
+| `License :: OSI Approved :: MirOS License (MirOS)` | `MirOS` | `trove_name` | yes | — |
+| `License :: OSI Approved :: MIT License` | `MIT` | `listed_name` | yes | — |
+| `License :: OSI Approved :: MIT No Attribution License (MIT-0)` | `MIT-0` | `trove_name` | yes | — |
+| `License :: OSI Approved :: Motosoto License` | `Motosoto` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Mozilla Public License 1.0 (MPL)` | `MPL-1.0` | `trove_name` | yes | — |
+| `License :: OSI Approved :: Mozilla Public License 1.1 (MPL 1.1)` | `MPL-1.1` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)` | `MPL-2.0` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Mulan Permissive Software License v2 (MulanPSL-2.0)` | `MulanPSL-2.0` | `trove_name` | yes | — |
+| `License :: OSI Approved :: NASA Open Source Agreement v1.3 (NASA-1.3)` | `NASA-1.3` | `trove_name` | yes | — |
+| `License :: OSI Approved :: Nethack General Public License` | `NGPL` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Nokia Open Source License` | `Nokia` | `listed_name` | yes | — |
+| `License :: Nokia Open Source License (NOKOS)` | `Nokia` | `trove_name` | yes | — |
+| `License :: OSI Approved :: Open Group Test Suite License` | `OGTSL` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Open Software License 3.0 (OSL-3.0)` | `OSL-3.0` | `listed_name` | yes | — |
+| `License :: OSI Approved :: PostgreSQL License` | `PostgreSQL` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Ricoh Source Code Public License` | `RSCPL` | `listed_name` | yes | — |
+| `License :: OSI Approved :: SIL Open Font License 1.1 (OFL-1.1)` | `OFL-1.1` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Sleepycat License` | `Sleepycat` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Sun Industry Standards Source License (SISSL)` | `SISSL` | `trove_name` | yes | — |
+| `License :: OSI Approved :: The Unlicense (Unlicense)` | `Unlicense` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Universal Permissive License (UPL)` | `UPL-1.0` | `trove_name` | yes | 1 |
+| `License :: OSI Approved :: University of Illinois/NCSA Open Source License` | `NCSA` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Vovida Software License 1.0` | `VSL-1.0` | `trove_name` | yes | — |
+| `License :: OSI Approved :: X.Net License` | `Xnet` | `listed_name` | yes | — |
+| `License :: OSI Approved :: Zero-Clause BSD (0BSD)` | `0BSD` | `trove_name` | yes | — |
+
+These names state no one licence (a category, a family, a name with no version,
+or no SPDX ID), and no rule guesses at them:
+
+| Classifier |
+| --- |
+| `License :: OSI Approved :: Academic Free License (AFL)` |
+| `License :: OSI Approved :: Apache Software License` |
+| `License :: OSI Approved :: Apple Public Source License` |
+| `License :: OSI Approved :: Artistic License` |
+| `License :: OSI Approved :: BSD License` |
+| `License :: OSI Approved :: Common Public License` |
+| `License :: DFSG approved` |
+| `License :: OSI Approved :: Eiffel Forum License` |
+| `License :: Eiffel Forum License (EFL)` |
+| `License :: Free For Educational Use` |
+| `License :: Free For Home Use` |
+| `License :: Free for non-commercial use` |
+| `License :: Free To Use But Restricted` |
+| `License :: Freely Distributable` |
+| `License :: Freeware` |
+| `License :: OSI Approved :: GNU Free Documentation License (FDL)` |
+| `License :: OSI Approved :: GNU General Public License (GPL)` |
+| `License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)` |
+| `License :: GUST Font License 1.0` |
+| `License :: GUST Font License 2006-09-30` |
+| `License :: OSI Approved :: IBM Public License` |
+| `License :: OSI Approved :: Jabber Open Source License` |
+| `License :: OSI Approved :: MITRE Collaborative Virtual Workspace License (CVW)` |
+| `License :: Netscape Public License (NPL)` |
+| `License :: OSI Approved` |
+| `License :: Other/Proprietary License` |
+| `License :: Public Domain` |
+| `License :: OSI Approved :: Python License (CNRI Python License)` |
+| `License :: OSI Approved :: Python Software Foundation License` |
+| `License :: OSI Approved :: Qt Public License (QPL)` |
+| `License :: Repoze Public License` |
+| `License :: OSI Approved :: Sun Public License` |
+| `License :: OSI Approved :: W3C License` |
+| `License :: OSI Approved :: zlib/libpng License` |
+| `License :: OSI Approved :: Zope Public License` |
+
+## Licence URLs
+
+A URL is read as the licence it names through the step `license_url`, category
+`license_url`, `EXACT` yes. It is compared by its key
+(`licenseid.urlkey.url_key`): the scheme, `www.`, a fragment and a trailing `/`
+are dropped. The reader tries four things in this order; a refusal claims the
+value, so no later reader guesses at it.
+
+### Pages whose path holds an ID
+
+`licenseid.resolveurl.ID_PAGES`. The last segment of a path that starts with the
+key is read as an ID. A page of an exception is refused, and a ScanCode key
+listed below is not read.
+
+| Key starts with | Detail of the step |
+| --- | --- |
+| `spdx.org/licenses/` | `list page` |
+| `licenses.nuget.org/` | `id in path` |
+| `choosealicense.com/licenses/` | `id in path` |
+| `scancode-licensedb.aboutcode.org/` | `id in path` |
+
+### Pages refused, for a choice of licences
+
+`licenseid.resolveurl.DUAL_PAGES`. The List gives each page one licence, but the
+page offers a choice: the value is refused with `url names several licences`.
+
+| Key | Offers | Source |
+| --- | --- | --- |
+| `glassfish.java.net/public/cddl+gpl_1_1` | `CDDL-1.1, GPL-2.0-with-classpath-exception` | the GlassFish licence page `CDDL+GPL_1_1`; the List gives it to CDDL-1.1 |
+| `javaee.github.io/glassfish/license` | `CDDL-1.1, GPL-2.0-with-classpath-exception` | the GlassFish `LICENSE` on javaee.github.io; the List gives it to CDDL-1.1 |
+
+### ScanCode keys that are the SPDX ID of another licence
+
+`licenseid.resolveurl.SCANCODE_NOT_SPDX`. The ScanCode LicenseDB page with one
+of these keys is not read as the SPDX ID of the same spelling, as ScanCode means
+another licence by it. No package of the survey declares a ScanCode URL, so the
+rule rests on the format.
+
+| Key |
+| --- |
+| `brian-gladman-3-clause` |
+| `bsd-2-clause-freebsd` |
+| `bsd-2-clause-netbsd` |
+| `bsl-1.0` |
+| `intel` |
+| `libtool-exception` |
+| `mvt-1.1` |
+| `net-snmp` |
+| `nokia-qt-exception-1.1` |
+| `openssl` |
+| `opl-1.0` |
+| `tpl-1.0` |
+| `x11` |
+
+### Pages read as one licence
+
+`licenseid.resolveurl.URL_ALIASES`, detail `alias`. A page the List lacks, or
+gives a licence and its variants, reviewed by hand. The source is the page that
+shows the licence.
+
+| Key | ID | Source | Packages |
+| --- | --- | --- | --- |
+| `aws.amazon.com/apache2.0` | `Apache-2.0` | <https://aws.amazon.com/apache-2-0/> | 5 |
+| `eclipse.org/org/documents/epl-2.0/epl-2.0` | `EPL-2.0` | <https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.txt> | 5 |
+| `eclipse.org/org/documents/epl-v10` | `EPL-1.0` | <https://www.eclipse.org/org/documents/epl-1.0/> | 5 |
+| `mozilla.org/mpl/2.0` | `MPL-2.0` | <https://www.mozilla.org/MPL/2.0/> | — |
+| `openjdk.java.net/legal/gplv2+ce` | `GPL-2.0-with-classpath-exception` | <https://openjdk.org/legal/gplv2+ce.html> | 6 |
+| `opensource.org/license/cpl1-0` | `CPL-1.0` | <https://opensource.org/license/cpl-1-0> | 3 |
+| `opensource.org/license/mit-license` | `MIT` | <https://opensource.org/license/mit> | 17 |
+| `opensource.org/license/mpl-2-0` | `MPL-2.0` | <https://opensource.org/license/MPL-2.0> | — |
+| `opensource.org/license/ofl-1-1` | `OFL-1.1` | <https://opensource.org/license/OFL-1.1> | — |
+| `repository.jboss.org/licenses/apache-2.0` | `Apache-2.0` | <https://repository.jboss.org/licenses/apache-2.0.txt> | 9 |
+| `scripts.sil.org/cms/scripts/page?item_id=ofl_web` | `OFL-1.1` | <https://scripts.sil.org/cms/scripts/page.php?item_id=OFL_web> | — |
+
+## IDs joined by a slash
+
+`licenseid.resolveslash.REFUSED_PAIRS`. A value with both IDs of a pair, in any
+order and place, is refused: the pair is one licence under a name with a slash.
+Another pair needs a measured count.
+
+| Pair | Why |
+| --- | --- |
+| `libpng`, `zlib` | OSI's name of Zlib is "the zlib/libpng license" |
+| `mit`, `x11` | Debian's name of the one X11 licence, not two |
+
+## Names with a version in prose
+
+`licenseid.resolveprose.VERSIONED_NAMES`, read by rule P2. A name that states no
+version is read with the version after it, as the ID of its prefix; the ID must
+be listed.
+
+| Name (folded) | ID prefix |
+| --- | --- |
+| `academic free` | `AFL` |
+| `apache software` | `Apache` |

@@ -11,6 +11,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- `docs/lists.md`: the lists `resolve()` reads (BSD names, titles, classifier
+  names, licence URLs) and its named rules, generated from the code
+  (`python -m tools.lists_page`)
+
 ### Changed
 
 - `detect()` options are typed (`licenseid.types.DetectOptions`, was

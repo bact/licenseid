@@ -32,7 +32,10 @@ few words for text: not found: GNU GPL v2`).
 ## What `resolve()` reads
 
 `resolve()` turns one declared licence value into an SPDX expression and the
-steps taken, without fuzzy matching:
+steps taken, without fuzzy matching. The lists it reads besides the SPDX
+License List (BSD names, titles, classifier names, licence URLs) and its named
+rules (T1 to T3, P1 to P3) are published, row by row, in [the lists
+page](lists.md):
 
 - with no database it reads the SPDX License List shipped in the wheel, in
   memory, and gives the answer a database built from that list gives;
@@ -530,13 +533,10 @@ declares one licence.
 
 A value with both IDs of a pair that is one licence under a name with a `/`
 is refused, in any order and place (`MIT/X11/ISC`, `X11/MIT`), by a table
-(`resolveslash.REFUSED_PAIRS`); another pair needs a measured count. The
-value is also refused when its `OR` form is over 2,000 characters.
-
-| Pair | Why |
-| --- | --- |
-| `MIT`, `X11` | Debian's name of the one X11 licence, not two |
-| `Libpng`, `Zlib` | OSI's name of Zlib is "the zlib/libpng license" |
+(`resolveslash.REFUSED_PAIRS`, with its reasons in
+[the lists page](lists.md#ids-joined-by-a-slash)); another pair needs a
+measured count. The value is also refused when its `OR` form is over 2,000
+characters.
 
 ## Steps and categories
 

@@ -38,6 +38,17 @@ Each rule is binding. Rationale and history live in `working-docs/`
   change to any of `resolve()`'s fields, categories, trust, refusal reasons
   or quote marks updates `docs/resolve.md`
   (`tests/test_resolver_shapes.py` checks its category table).
+- `docs/lists.md` is GENERATED, never edited by hand: the lists `resolve()`
+  reads (`ALIASES`, `TITLES`, `TROVE_NAMES`, the `resolveurl` and
+  `resolveslash` tables, `VERSIONED_NAMES`) and the named rules (T1 to T3, P1
+  to P3), each table read from its code object and each rule linked to its
+  function. `python -m tools.lists_page` writes it (`--check` tests it);
+  `tests/test_lists_page.py` fails when the page and the code differ. A new
+  or changed row, list or named rule: change the code, add its source to
+  `tools/lists_page/evidence.py` (a rule: `rules.py`), run the command. What
+  can be measured (the PyPI counts, the answer and `EXACT` of an example) is
+  computed, never typed. A new list gets its section in
+  `tools/lists_page/render.py`, its `CATEGORY` and `EXACT` value.
 - Test fixtures: `tests/fixtures/README.md`.
 
 ### Modules (`src/licenseid/`)
@@ -350,13 +361,14 @@ and `--json`) against these rules and checks the default output against the
   `resolveurl.list_url_key` (skips a URL with a fragment). A page naming several
   unrelated licences or only an exception is refused. `URL_ALIASES` and
   `SCANCODE_NOT_SPDX` grow only with a measured package count
-  (`working-docs/paper-notes/licence-urls.md`). Take an ID from a path only on a
-  host in `ID_PAGES`. `licenses.nuget.org` paths, for that host only, are
-  decoded (`nugetpath`) once, every `%XX` in one pass, and must fit
-  `[A-Za-z0-9.+()-]` with words one space apart, which refuses `%2F`, `%00`,
-  `%C2%A0`, `%2520` without a list of escapes. Operators upper case; a compound
-  is no operand of a compound (`operand names an expression`); `url_license_id`
-  brackets one (`(A OR B)`) so a tag keeps precedence.
+  (`working-docs/paper-notes/licence-urls.md`; `docs/lists.md` shows it).
+  Take an ID from a path only on a host in `ID_PAGES`. `licenses.nuget.org`
+  paths, for that host only, are decoded (`nugetpath`) once, every `%XX` in
+  one pass, and must fit `[A-Za-z0-9.+()-]` with words one space apart, which
+  refuses `%2F`, `%00`, `%C2%A0`, `%2520` without a list of escapes.
+  Operators upper case; a compound is no operand of a compound (`operand
+  names an expression`); `url_license_id` brackets one (`(A OR B)`) so a tag
+  keeps precedence.
 
 ## Database
 
