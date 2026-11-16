@@ -32,16 +32,16 @@ to 45 from the reviews of PR #99 (items 43 to 45 resolved 2026-11-09,
 item 47 from PR #168, item 50 from the work on item 44, item 51
 from the work on item 43, and item 52 from the work on the upgrade of
 deprecated IDs in `py-spdx-license` (2026-11-14), item 53 from the work
-on item 40 (PR #207), item 54 from the review of `EXACT`, and item 55 from
-the decision on `EXACT` and our own lists (2026-11-15).
+on item 40 (PR #207), item 54 from the review of `EXACT`, item 55 from
+the decision on `EXACT` and our own lists (2026-11-15), and item 56 from the
+CLI matrix check of PR #212 (2026-11-16).
 
-Next up: item 31, the revision of the license matching rules (decided
-2026-10-01) and of the ranking (added 2026-10-02). Items 24, 25, 21 and 22,
-in the order chosen on 2026-10-01, are done, and so are items 12, 27,
-29, 36 and 37 (2026-10-02), and items 19, 32 and 39 (2026-10-27, for
-0.6.0). Item 2 waits on an upstream release. The open items that need a
-rule or a decision before a fix are grouped in
-[`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02).
+Open: the list below, in the order of its headings. Decided and ready: item
+55, in a pull request of its own (2026-11-16). Item 2 waits on an upstream
+release. The open items that need a rule or a decision before a fix are
+grouped in [`matching-rules-redesign.md`](matching-rules-redesign.md)
+(2026-10-02); item 31 is that revision. Resolved items are in the two files
+under "Already resolved" at the end.
 
 ## 2. `py-spdx-license` reads its data with the locale encoding — Priority 20
 
@@ -561,19 +561,17 @@ and step; measure it on the PyPI sample and the manifests before choosing.
 
 - Impact 2, Risk 2, Effort 2.
 
-## 52. A bare deprecated ID is read as `-only` by `detect()` — Priority 12
+## 52. Leftovers of `detect --variant` — Priority 12
 
-`detect()` read a bare `GPL-2.0` as `GPL-2.0-only` with `WARNING: input:
-variant not stated`, where `resolve()` keeps it as written, and only the
-input's own words say which variant it means. Design decided 2026-11-15.
-
-Built: PR #211 (merged 2026-11-16; `exclude` and `hint` act on free text
-only) and PR #212 (open; `--variant auto|as-written|only|or-later`, the last
-record field `VARIANT_STATED`, `EXACT` by list not by trust, the twin flags
-of `is-osi` and `is-fsf`). The design as built, the paths rejected, the
-pinned cases and the measures are in
-[`../implementation/item-52-variant-and-exact.md`](../implementation/item-52-variant-and-exact.md).
-Move this item to `tech-debt-resolved-0-5.md` when PR #212 merges. Left,
+`detect()` once read a bare `GPL-2.0` as `GPL-2.0-only`, where `resolve()`
+keeps it as written. Built and merged 2026-11-16 (PR #211: `exclude` and
+`hint` act on free text only; PR #212: `--variant`, the last record field
+`VARIANT_STATED`, `EXACT` by list, the twin flags of `is-osi` and `is-fsf`),
+recorded in
+[`tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md)
+and written up in
+[`../implementation/item-52-variant-and-exact.md`](../implementation/item-52-variant-and-exact.md)
+(design as built, paths rejected, pinned cases, measures). What is left,
 each a decision:
 
 - **For the maintainer to revise**: the warning bar
@@ -672,6 +670,27 @@ they live in code: `resolvealias.ALIASES` (12), `resolvetitle.TITLES` (4),
   its `EXACT` value when it is added. The Blue Oak idea:
   [`blue-oak-ratings.md`](blue-oak-ratings.md).
 - Impact 2, Risk 1, Effort 2.
+
+## 56. `detect` on a FIFO with a writer hangs in the CLI matrix — Priority 16
+
+`python -m tools.cli_matrix --check` flags cell `E8-011` ("file is a FIFO
+with writer": `mkfifo ff; (printf 'MIT' > ff &); licenseid detect ff`) as a
+hang: a 120 s timeout, on `main` too (seen 2026-11-16, bash, while checking
+PR #212). It is not in `tools/cli_matrix/baseline.txt`, so `--check` reports
+it as new on every run.
+
+- **Find out first**: whether `licenseid detect <fifo>` really blocks when a
+  writer is attached (a bug in `textinput.read_text_file`, which opens the
+  path), or the cell's writer is gone before the read (a harness artefact:
+  the writer runs in a background subshell). Reproduce outside the matrix with
+  a writer that stays open.
+- **If it is real**: refuse a non-regular input file as `--db` does
+  (`stat.S_ISREG`, `input: invalid`, exit 2), or read it with a timeout; test
+  it in a child process with a timeout
+  (`db_asserts.probe_check_does_not_hang`).
+- **If it is the cell**: fix the cell, or add `E8-011 bash` to
+  `baseline.txt` with the reason.
+- Impact 2, Risk 2, Effort 2.
 
 ## Already resolved
 
