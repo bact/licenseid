@@ -31,9 +31,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# Pitloom is a release-only dependency (requirements-release.txt), not in the
+# lint group, so pylint cannot resolve it.
+# pylint: disable=import-error,no-name-in-module
 from pitloom.core.license_individuals import INDIVIDUAL_BY_REFERENCE
 from pitloom.core.wheel_dist_info import looks_like_wheel_path
 from pitloom.embed import find_embedded_sbom
+
+# pylint: enable=import-error,no-name-in-module
 
 _LICENSE_TEXT_KEYS = (
     "simplelicensing_licenseExpression",
@@ -140,6 +145,7 @@ def check_sbom_license(sbom: Any, expected: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Check the SBOM named on the command line; return the exit status."""
     parser = argparse.ArgumentParser(
         description="Check an SBOM's root package declares and concludes a licence."
     )

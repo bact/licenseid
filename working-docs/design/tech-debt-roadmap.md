@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -16,7 +16,7 @@ for code-health/complexity debt specifically. This doc tracks the rest.
 Priority = (Impact + Risk) × (6 − Effort), each scored 1-5; same scale as
 the complexity roadmap, so the two lists can be read together.
 
-Item 9 (and the resolved items 3 and 8) come from a tech-debt audit on
+Items 3, 8 and 9 (all resolved) come from a tech-debt audit on
 2026-09-19; items 5 and 12 (and the resolved items 1, 4 and 6) from code
 reviews of the diagnostics change and the Java removal; items 2 and 10 from
 manual CLI testing under other locales and environments; items 15 to 18 from the
@@ -36,8 +36,8 @@ on item 40 (PR #207), item 54 from the review of `EXACT`, item 55 from
 the decision on `EXACT` and our own lists (2026-11-15). Item 56 (a hang in
 the CLI matrix, found 2026-11-16) is resolved.
 
-Open: the list below, in the order of its headings. Decided and ready: item
-55, in a pull request of its own (2026-11-16). Item 2 waits on an upstream
+Open: the list below, in the order of its headings. Item 55 is built
+(PR #214, 2026-11-16); its leftovers stay open. Item 2 waits on an upstream
 release. The open items that need a rule or a decision before a fix are
 grouped in [`matching-rules-redesign.md`](matching-rules-redesign.md)
 (2026-10-02); item 31 is that revision. Resolved items are in the two files
@@ -272,18 +272,6 @@ alone.
   ("Remaining open issues", item 5) for the original benchmark analysis
   this is based on — note that document predates the deprecated-ID fixes
   described in its own status note and has not been re-benchmarked since.
-
-## 9. `scripts/` and `benchmarks/` are not linted in CI — Priority 12
-
-`bench_single.py` (770 lines) and `generate_fixtures.py` (755) are near
-the 800-line hard limit. Pylint rates the two directories 9.48/10;
-`flake8` reports 11 findings. CI checks only `src/` and `tests/`.
-
-- **Fix**: fix the findings, then add both directories to `lint.yml`.
-  `tools/` (the CLI matrix) is in the same position: CI runs only `mypy`
-  on it. `ruff` can join `lint.yml` at once (it is clean); `pylint` and
-  `flake8` cannot until the judging code fits the complexity ceilings.
-- Impact 1, Risk 2, Effort 2.
 
 ## 10. Environment failures in the database and the API — Priority 12
 

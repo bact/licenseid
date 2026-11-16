@@ -147,18 +147,26 @@ def _source_expected_stderr(name: str, out: tuple[str, ...]) -> str | None:
 
 def _add_top_threshold(cells: CellSet) -> None:
     """A2: ``--top`` x ``--threshold`` x output, then x popularity."""
+    _add_top_threshold_output(cells)
+    _add_top_threshold_popularity(cells)
+    _add_exact(cells)
+
+
+def _joined(*words: str) -> str:
+    """The non-empty *words*, one space apart."""
+    return " ".join(w for w in words if w)
+
+
+def _add_top_threshold_output(cells: CellSet) -> None:
+    """A2: ``--top`` x ``--threshold`` x plain or JSON output."""
     for top in TOPS:
         for thr in THRS:
             for mode in ("", "--json"):
-                args = " ".join(
-                    x
-                    for x in (
-                        f"--text {shlex.quote(FRAG)}",
-                        f"--top {top}" if top else "",
-                        f"--threshold {thr}" if thr else "",
-                        mode,
-                    )
-                    if x
+                args = _joined(
+                    f"--text {shlex.quote(FRAG)}",
+                    f"--top {top}" if top else "",
+                    f"--threshold {thr}" if thr else "",
+                    mode,
                 )
                 bad = top in BAD_TOPS or thr in BAD_THRS
                 cells.add(
@@ -171,19 +179,19 @@ def _add_top_threshold(cells: CellSet) -> None:
                     exp_exit=2 if bad else None,
                     top=_top_bound(top),
                 )
+
+
+def _add_top_threshold_popularity(cells: CellSet) -> None:
+    """A2: ``--top`` x ``--threshold`` x popularity, JSON output."""
     for top, thr, pop in itertools.product(
         ["", "1", "5"], ["", "0"], ["--pop", "--no-pop"]
     ):
-        args = " ".join(
-            x
-            for x in (
-                f"--text {shlex.quote(FRAG)}",
-                f"--top {top}" if top else "",
-                f"--threshold {thr}" if thr else "",
-                pop,
-                "--json",
-            )
-            if x
+        args = _joined(
+            f"--text {shlex.quote(FRAG)}",
+            f"--top {top}" if top else "",
+            f"--threshold {thr}" if thr else "",
+            pop,
+            "--json",
         )
         cells.add(
             "A2",
@@ -194,8 +202,11 @@ def _add_top_threshold(cells: CellSet) -> None:
             outflags=frozenset({"json"}),
             top=int(top) if top else None,
         )
-    # --exact keeps an exact answer (an ID) and drops a close one (a piece
-    # of a licence text).
+
+
+def _add_exact(cells: CellSet) -> None:
+    """A2: ``--exact`` keeps an exact answer (an ID) and drops a close one
+    (a piece of a licence text)."""
     for args, exit_code in (
         ("--exact MIT", 0),
         ("--exact --json --top 1 --id MIT", 0),
@@ -206,7 +217,7 @@ def _add_top_threshold(cells: CellSet) -> None:
     ):
         cells.add(
             "A2",
-            f"detect {args.split(' --text')[0]}",
+            f"detect {args.split(' --text', maxsplit=1)[0]}",
             licenseid(f"detect {args}"),
             kind="detect",
             outflags=frozenset(

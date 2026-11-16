@@ -14,61 +14,54 @@ import json
 import subprocess
 import sys
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any
+
+from bench_report import generate_markdown_report
 
 SCRIPT = Path(__file__).parent / "bench_single.py"
 CURRENT_REPO = Path(__file__).parent.parent
 BENCHMARK_NAME = "perf_eval"
 
 
+def _stream_stderr(pipe: Any) -> None:
+    """Echo the child's progress lines as they arrive."""
+    for line in pipe:
+        print(f"  {line.strip()}", flush=True)
+
+
 def run_branch(
-    src_path: str,
-    label: str,
-    timestamp: str,
-    verify: bool,
-    subset: int | None = None,
-    fast: bool = False,
+    src_path: str, label: str, timestamp: str, options: list[str]
 ) -> dict[str, Any]:
+    """Run ``bench_single.py`` on one source tree and return its JSON result."""
     print(f"\nRunning: {label} \u2026", flush=True)
     cmd = [sys.executable, str(SCRIPT), src_path, label, BENCHMARK_NAME, timestamp]
-    if verify:
-        cmd.append("--verify")
-    if subset is not None:
-        cmd.extend(["--subset", str(subset)])
-    if fast:
-        cmd.append("--fast")
+    cmd.extend(options)
 
-    # Use Popen to stream stderr in real-time while capturing stdout for the final result
-    proc = subprocess.Popen(
+    # Stream stderr in real time while capturing stdout for the final result.
+    with subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         bufsize=1,
-    )
+    ) as proc:
+        stderr_thread = threading.Thread(target=_stream_stderr, args=(proc.stderr,))
+        stderr_thread.start()
 
-    import threading
+        # Read stdout in the main thread
+        if proc.stdout is None:
+            print("  ERROR: No stdout pipe", file=sys.stderr)
+            sys.exit(1)
+        stdout_lines = list(proc.stdout)
 
-    def stream_stderr(pipe: Any) -> None:
-        for line in pipe:
-            print(f"  {line.strip()}", flush=True)
-
-    stderr_thread = threading.Thread(target=stream_stderr, args=(proc.stderr,))
-    stderr_thread.start()
-
-    # Read stdout in the main thread
-    if proc.stdout is None:
-        print("  ERROR: No stdout pipe", file=sys.stderr)
-        sys.exit(1)
-    stdout_lines = list(proc.stdout)
-
-    proc.wait()
-    stderr_thread.join()
+        proc.wait()
+        stderr_thread.join()
 
     if proc.returncode != 0:
         print(f"  ERROR (exit {proc.returncode}):", file=sys.stderr)
-        # We don't have the full stderr captured anymore, but it was streamed to terminal.
+        # The full stderr is not captured; it was streamed to the terminal.
         sys.exit(1)
 
     if not stdout_lines:
@@ -77,139 +70,6 @@ def run_branch(
 
     result: dict[str, Any] = json.loads(stdout_lines[-1].strip())
     return result
-
-
-def generate_markdown_report(
-    a: dict[str, Any], b: dict[str, Any], timestamp: str
-) -> str:
-    la, lb = a["label"], b["label"]
-    lines = []
-    lines.append(f"# Benchmark Comparison: `{la}` vs `{lb}`")
-    lines.append(f"**Date:** {timestamp}")
-    lines.append("")
-    lines.append("## Metrics")
-    lines.append("")
-
-    for t_idx in range(1, 6):
-        t_key = f"type_{t_idx}"
-        lines.append(f"### Input Type {t_idx}")
-        lines.append(f"| Category | {la} | {lb} | Δ |")
-        lines.append("| :--- | ---: | ---: | ---: |")
-
-        all_subcats = sorted(
-            set(a["stats"].get(t_key, {}).keys())
-            | set(b["stats"].get(t_key, {}).keys())
-        )
-
-        _empty_stat: dict[str, int] = {
-            "total": 0,
-            "top1": 0,
-            "top3": 0,
-            "top5": 0,
-            "top10": 0,
-            "top20": 0,
-            "top30": 0,
-            "top40": 0,
-            "top50": 0,
-        }
-        for subcat in all_subcats:
-            for k, col in [
-                ("top1", "Recall@1"),
-                ("top3", "Recall@3"),
-                ("top5", "Recall@5"),
-                ("top10", "Recall@10"),
-                ("top20", "Recall@20"),
-                ("top30", "Recall@30"),
-                ("top40", "Recall@40"),
-                ("top50", "Recall@50"),
-            ]:
-                ta = a["stats"].get(t_key, {}).get(subcat, _empty_stat)
-                tb = b["stats"].get(t_key, {}).get(subcat, _empty_stat)
-
-                if ta["total"] == 0 or tb["total"] == 0:
-                    continue
-                if k not in ta or k not in tb:
-                    continue
-                va = ta[k] / ta["total"] * 100
-                vb = tb[k] / tb["total"] * 100
-                mark = " 🟢" if vb > va + 0.005 else (" 🔴" if vb < va - 0.005 else " ")
-                lines.append(
-                    f"| {subcat} {col} | {va:.2f}% | {vb:.2f}% |"
-                    f" {vb - va:+.2f}%{mark} |"
-                )
-        lines.append("")
-
-    # Per-tier recall section
-    lines.append("## Tier Recall")
-    lines.append("")
-    _tier_keys = [
-        ("tier0", "Tier 0 (short-text)"),
-        ("tier05", "Tier 0.5 (marker)"),
-        ("tier1", "Tier 1 (FTS5 pool)"),
-        ("tier2", "Tier 2 (ranked)"),
-        ("missed", "Missed"),
-    ]
-    for t_idx in range(1, 6):
-        t_key = f"type_{t_idx}"
-
-        # Aggregate across all subcats for this type
-        def _sum_tier(data: dict[str, Any], tkey: str, field: str) -> int:
-            return sum(
-                v.get(field, 0)
-                for v in data.get("tier_stats", {}).get(tkey, {}).values()
-            )
-
-        total_a = _sum_tier(a, t_key, "total")
-        total_b = _sum_tier(b, t_key, "total")
-        if total_a == 0 and total_b == 0:
-            continue
-
-        lines.append(f"### Input Type {t_idx} tier recall")
-        lines.append(
-            f"| Tier | main (n={total_a}) | license-marker (n={total_b}) | Δ |"
-        )
-        lines.append("| :--- | ---: | ---: | ---: |")
-        for tier_key, tier_label in _tier_keys:
-            ca = _sum_tier(a, t_key, tier_key)
-            cb = _sum_tier(b, t_key, tier_key)
-            ra = ca / total_a * 100 if total_a else 0
-            rb = cb / total_b * 100 if total_b else 0
-            mark = " 🟢" if rb > ra + 0.005 else (" 🔴" if rb < ra - 0.005 else " ")
-            lines.append(
-                f"| {tier_label} | {ra:.2f}% ({ca}) |"
-                f" {rb:.2f}% ({cb}) | {rb - ra:+.2f}%{mark} |"
-            )
-        lines.append("")
-
-    lines.append("### Global Summary")
-    lines.append(f"| Metric | {la} | {lb} | Δ |")
-    lines.append("| :--- | ---: | ---: | ---: |")
-
-    ar = a["correct_returned"] / a["total_q"] * 100 if a["total_q"] else 0
-    br = b["correct_returned"] / b["total_q"] * 100 if b["total_q"] else 0
-    lines.append(f"| Recall | {ar:.2f}% | {br:.2f}% | {br - ar:+.2f}% |")
-
-    ap = a["correct_returned"] / a["total_returned"] * 100 if a["total_returned"] else 0
-    bp = b["correct_returned"] / b["total_returned"] * 100 if b["total_returned"] else 0
-    lines.append(f"| Precision | {ap:.2f}% | {bp:.2f}% | {bp - ap:+.2f}% |")
-
-    at, bt = a["wall_time"], b["wall_time"]
-    lines.append(f"| Wall time (s) | {at:.1f} | {bt:.1f} | {bt - at:+.1f}s |")
-
-    aq = a["total_q"] / at if at > 0 else 0
-    bq = b["total_q"] / bt if bt > 0 else 0
-    lines.append(f"| Throughput (q/s) | {aq:.1f} | {bq:.1f} | {bq - aq:+.1f} |")
-
-    am, bm = a["peak_mem_mb"], b["peak_mem_mb"]
-    lines.append(f"| Peak memory (MB) | {am:.1f} | {bm:.1f} | {bm - am:+.1f} |")
-
-    avg_a, avg_b = a.get("avg_mem_mb", 0), b.get("avg_mem_mb", 0)
-    lines.append(
-        f"| End memory (MB) | {avg_a:.1f} | {avg_b:.1f} | {avg_b - avg_a:+.1f} |"
-    )
-
-    lines.append("")
-    return "\n".join(lines)
 
 
 def _current_branch() -> str:
@@ -224,15 +84,50 @@ def _current_branch() -> str:
     return result.stdout.strip()
 
 
-def main() -> None:
-    is_verify = "--verify" in sys.argv
-    is_fast = "--fast" in sys.argv
-    _subset_idx = next((i for i, a in enumerate(sys.argv) if a == "--subset"), None)
-    subset_n: int | None = (
-        int(sys.argv[_subset_idx + 1]) if _subset_idx is not None else None
-    )
-    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+def _options() -> list[str]:
+    """Return the ``bench_single.py`` flags given on this command line."""
+    options: list[str] = []
+    if "--verify" in sys.argv:
+        options.append("--verify")
+    subset_idx = next((i for i, a in enumerate(sys.argv) if a == "--subset"), None)
+    if subset_idx is not None:
+        options.extend(["--subset", str(int(sys.argv[subset_idx + 1]))])
+    if "--fast" in sys.argv:
+        options.append("--fast")
+    return options
 
+
+def _evaluate(
+    src_path: Path, label: str, timestamp: str, options: list[str]
+) -> dict[str, Any]:
+    """Run one branch, announcing its start and end."""
+    print(f"Starting evaluation of branch '{label}'...", flush=True)
+    result = run_branch(str(src_path), label, timestamp, options)
+    print(f"Finished evaluation of branch '{label}'.", flush=True)
+    return result
+
+
+def _compare(
+    tmp_path: Path, labels: tuple[str, str], timestamp: str, options: list[str]
+) -> None:
+    """Evaluate the baseline and the current branch, then write the report."""
+    baseline_label, current_label = labels
+    res_main = _evaluate(tmp_path / "src", baseline_label, timestamp, options)
+    res_marker = _evaluate(CURRENT_REPO / "src", current_label, timestamp, options)
+
+    print("Generating Markdown report...", flush=True)
+    report = generate_markdown_report(res_main, res_marker, timestamp)
+    out_file = CURRENT_REPO / "benchmarks" / "summary.md"
+    with open(out_file, "w", encoding="utf-8") as f:
+        f.write(report)
+
+    print(f"\nReport written to {out_file}")
+
+
+def main() -> None:
+    """Compare the current branch with ``main`` and write ``summary.md``."""
+    options = _options()
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     current_label = _current_branch()
     baseline_label = "main"
 
@@ -251,36 +146,7 @@ def main() -> None:
         )
 
         try:
-            print(f"Starting evaluation of branch '{baseline_label}'...", flush=True)
-            res_main = run_branch(
-                src_path=str(tmp_path / "src"),
-                label=baseline_label,
-                timestamp=timestamp,
-                verify=is_verify,
-                subset=subset_n,
-                fast=is_fast,
-            )
-            print(f"Finished evaluation of branch '{baseline_label}'.", flush=True)
-
-            print(f"Starting evaluation of branch '{current_label}'...", flush=True)
-            res_marker = run_branch(
-                src_path=str(CURRENT_REPO / "src"),
-                label=current_label,
-                timestamp=timestamp,
-                verify=is_verify,
-                subset=subset_n,
-                fast=is_fast,
-            )
-            print(f"Finished evaluation of branch '{current_label}'.", flush=True)
-
-            print("Generating Markdown report...", flush=True)
-            report = generate_markdown_report(res_main, res_marker, timestamp)
-            out_file = CURRENT_REPO / "benchmarks" / "summary.md"
-            with open(out_file, "w", encoding="utf-8") as f:
-                f.write(report)
-
-            print(f"\nReport written to {out_file}")
-
+            _compare(tmp_path, (baseline_label, current_label), timestamp, options)
         finally:
             print(f"Cleaning up worktree {tmp_path} ...", flush=True)
             subprocess.run(

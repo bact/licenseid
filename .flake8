@@ -6,8 +6,7 @@ exclude =
     __pycache__,
     build,
     dist,
-    tests/fixtures/,
-    benchmarks/
+    tests/fixtures/
 # Written by a script: its case names are the golden's, whole.
 per-file-ignores =
     tests/harness_changes_resolvefirst.py: E501

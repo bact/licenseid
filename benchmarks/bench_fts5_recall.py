@@ -39,6 +39,7 @@ Output JSON is written to ``benchmarks/outputs/`` and also echoed to
 stdout.
 """
 
+import importlib
 import json
 import sqlite3
 import sys
@@ -50,7 +51,7 @@ from statistics import mean, median, quantiles
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from licenseid.types import CandidateMatch
+    from licenseid.database import LicenseDatabase
 
 # ---------------------------------------------------------------------------
 # CLI arguments (parsed before imports so errors are reported clearly)
@@ -74,10 +75,13 @@ FIXTURES_DIR: Path = (
     Path(__file__).parent.parent / "tests" / "fixtures" / "license-text-short"
 )
 
+# The branch under test is chosen by argument, so its modules load after the
+# path is set (a plain import would be an E402).
 sys.path.insert(0, SRC_PATH)
-# pylint: disable=wrong-import-position
-from licenseid.database import LicenseDatabase
-from licenseid.normalize import normalize_text
+_database = importlib.import_module("licenseid.database")
+_normalize = importlib.import_module("licenseid.normalize")
+# The column order is shared with bench_single (needs licenseid on sys.path).
+_single_db = importlib.import_module("bench_single_db")
 
 # ---------------------------------------------------------------------------
 # DB helpers
@@ -97,7 +101,7 @@ def _build_db(
     """
     db_name: str = f"fts5bench_{uuid.uuid4().hex}"
     db_path: str = f"file:{db_name}?mode=memory&cache=shared"
-    db = LicenseDatabase(db_path)
+    db = _database.LicenseDatabase(db_path)
 
     to_insert_licenses: list[tuple[Any, ...]] = []
     to_insert_index: list[tuple[str, str]] = []
@@ -107,7 +111,7 @@ def _build_db(
             data: dict[str, Any] = json.load(fh)
         c_id: str = data["license_id"]
         full_text: str = data.get("license_text", "")
-        normalized: str = normalize_text(full_text)
+        normalized: str = _normalize.normalize_text(full_text)
         word_count: int = len(normalized.split())
         to_insert_licenses.append(
             (
@@ -132,18 +136,7 @@ def _build_db(
         try:
             cursor = conn.execute("PRAGMA table_info(licenses)")
             columns: list[str] = [row[1] for row in cursor.fetchall()]
-            all_cols: list[str] = [
-                "license_id",
-                "name",
-                "is_spdx",
-                "is_osi_approved",
-                "is_fsf_libre",
-                "is_high_usage",
-                "is_deprecated",
-                "superseded_by",
-                "pop_score",
-                "word_count",
-            ]
+            all_cols = list(_single_db.ALL_COLUMNS)
             insert_cols = [c for c in all_cols if c in columns]
             col_indices = [all_cols.index(c) for c in insert_cols]
             filtered_rows = [
@@ -236,7 +229,89 @@ def _fmt_latency(values: list[float]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def main() -> None:  # pylint: disable=too-many-locals,too-many-statements
+def _candidate_ids(
+    db: "LicenseDatabase", text: str, latencies: list[float]
+) -> list[str]:
+    """Return the ranked candidate IDs of one query; add its time in ms."""
+    t0: float = time.perf_counter()
+    results = db.search_candidates(text, limit=50)
+    latencies.append((time.perf_counter() - t0) * 1000)
+    return [str(c["license_id"]) for c in results if c.get("license_id")]
+
+
+def _tally(stat: dict[str, int], ids: list[str], true_id: str) -> None:
+    """Count one query in a recall accumulator."""
+    stat["total"] += 1
+    if ids and ids[0] == true_id:
+        stat["top1"] += 1
+    for cutoff in (5, 10, 50):
+        if true_id in ids[:cutoff]:
+            stat[f"top{cutoff}"] += 1
+
+
+class _Accumulators:
+    """Recall, union and latency counters of one run."""
+
+    def __init__(self) -> None:
+        self.head: dict[int, dict[str, int]] = {n: _init_recall_stat() for n in SIZES}
+        self.tail: dict[int, dict[str, int]] = {n: _init_recall_stat() for n in SIZES}
+        # union[(head_size, tail_size)]
+        self.union: dict[tuple[int, int], dict[str, int]] = {
+            (h, t): _init_union_stat() for h in SIZES for t in SIZES
+        }
+        self.latencies_ms: dict[str, list[float]] = {
+            **{f"head_{n}": [] for n in SIZES},
+            **{f"tail_{n}": [] for n in SIZES},
+        }
+
+    def add_fixture(self, db: "LicenseDatabase", data: dict[str, Any]) -> None:
+        """Query one fixture's head and tail slices and count the results."""
+        true_id: str = data["license_id"]
+        # Ordered candidate lists, so the union below needs no extra DB calls.
+        cands: dict[str, dict[int, list[str]]] = {"head": {}, "tail": {}}
+        stats = {"head": self.head, "tail": self.tail}
+        for n in SIZES:
+            for side in ("head", "tail"):
+                text: str = data.get(f"license_text_short_{side}_{n}", "")
+                if not text:
+                    continue
+                ids = _candidate_ids(db, text, self.latencies_ms[f"{side}_{n}"])
+                cands[side][n] = ids
+                _tally(stats[side][n], ids, true_id)
+
+        # 4×4 union matrix; re-uses the cached candidate lists
+        for h_size, t_size in self.union:
+            if h_size not in cands["head"] or t_size not in cands["tail"]:
+                continue
+            us = self.union[(h_size, t_size)]
+            us["total"] += 1
+            if true_id in set(cands["head"][h_size]) | set(cands["tail"][t_size]):
+                us["in_union"] += 1
+
+
+def _result(
+    acc: _Accumulators, n_fixtures: int, wall_time: float, peak_mem: int
+) -> dict[str, Any]:
+    """Build the output record."""
+    return {
+        "label": LABEL,
+        "timestamp": TIMESTAMP,
+        "fixture_count": n_fixtures,
+        "sizes": SIZES,
+        "head": {str(n): _fmt_recall(acc.head[n]) for n in SIZES},
+        "tail": {str(n): _fmt_recall(acc.tail[n]) for n in SIZES},
+        # Keys: "h{head_size}_t{tail_size}" — 16 entries total
+        "union": {
+            f"h{h}_t{t}": _fmt_union(acc.union[(h, t)]) for h in SIZES for t in SIZES
+        },
+        "latency_ms": {k: _fmt_latency(v) for k, v in acc.latencies_ms.items()},
+        "wall_time_s": round(wall_time, 2),
+        "peak_mem_mb": round(peak_mem / 1024 / 1024, 2),
+    }
+
+
+def main() -> None:
+    """Run the benchmark and write and echo its JSON record."""
     fixtures: list[Path] = sorted(FIXTURES_DIR.glob("*.json"))
     if not fixtures:
         print(json.dumps({"error": f"No fixtures in {FIXTURES_DIR}"}))
@@ -254,113 +329,20 @@ def main() -> None:  # pylint: disable=too-many-locals,too-many-statements
     # Warm-up: first query has cold SQLite caches
     db.search_candidates("MIT License", limit=1)
 
-    # -------------------------------------------------------------------
-    # Accumulators
-    # -------------------------------------------------------------------
-    head_stats: dict[int, dict[str, int]] = {n: _init_recall_stat() for n in SIZES}
-    tail_stats: dict[int, dict[str, int]] = {n: _init_recall_stat() for n in SIZES}
-    # union_stats[(head_size, tail_size)]
-    union_stats: dict[tuple[int, int], dict[str, int]] = {
-        (h, t): _init_union_stat() for h in SIZES for t in SIZES
-    }
-    latencies_ms: dict[str, list[float]] = {
-        **{f"head_{n}": [] for n in SIZES},
-        **{f"tail_{n}": [] for n in SIZES},
-    }
-
+    acc = _Accumulators()
     tracemalloc.start()
     tracemalloc.clear_traces()
     t_wall_start: float = time.perf_counter()
 
     for fp in fixtures:
         with open(fp, encoding="utf-8") as fh:
-            data = json.load(fh)
-        true_id: str = data["license_id"]
-
-        # Query head and tail at each size; store ordered candidate ID lists
-        # so union computation below needs no extra DB calls.
-        head_cands: dict[int, list[str]] = {}
-        tail_cands: dict[int, list[str]] = {}
-
-        for n in SIZES:
-            head_text: str = data.get(f"license_text_short_head_{n}", "")
-            tail_text: str = data.get(f"license_text_short_tail_{n}", "")
-
-            if head_text:
-                t0: float = time.perf_counter()
-                h_results: list[CandidateMatch] = db.search_candidates(
-                    head_text, limit=50
-                )
-                latencies_ms[f"head_{n}"].append((time.perf_counter() - t0) * 1000)
-                h_ids: list[str] = [
-                    str(c["license_id"]) for c in h_results if c.get("license_id")
-                ]
-                head_cands[n] = h_ids
-                hs = head_stats[n]
-                hs["total"] += 1
-                if h_ids and h_ids[0] == true_id:
-                    hs["top1"] += 1
-                if true_id in h_ids[:5]:
-                    hs["top5"] += 1
-                if true_id in h_ids[:10]:
-                    hs["top10"] += 1
-                if true_id in h_ids[:50]:
-                    hs["top50"] += 1
-
-            if tail_text:
-                t0 = time.perf_counter()
-                t_results: list[CandidateMatch] = db.search_candidates(
-                    tail_text, limit=50
-                )
-                latencies_ms[f"tail_{n}"].append((time.perf_counter() - t0) * 1000)
-                t_ids: list[str] = [
-                    str(c["license_id"]) for c in t_results if c.get("license_id")
-                ]
-                tail_cands[n] = t_ids
-                ts = tail_stats[n]
-                ts["total"] += 1
-                if t_ids and t_ids[0] == true_id:
-                    ts["top1"] += 1
-                if true_id in t_ids[:5]:
-                    ts["top5"] += 1
-                if true_id in t_ids[:10]:
-                    ts["top10"] += 1
-                if true_id in t_ids[:50]:
-                    ts["top50"] += 1
-
-        # 4×4 union matrix — no extra DB queries; re-uses cached candidate lists
-        for h_size in SIZES:
-            for t_size in SIZES:
-                if h_size not in head_cands or t_size not in tail_cands:
-                    continue
-                us = union_stats[(h_size, t_size)]
-                us["total"] += 1
-                union_set: set[str] = set(head_cands[h_size]) | set(tail_cands[t_size])
-                if true_id in union_set:
-                    us["in_union"] += 1
+            acc.add_fixture(db, json.load(fh))
 
     wall_time: float = time.perf_counter() - t_wall_start
     _current_mem, peak_mem = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
-    # -------------------------------------------------------------------
-    # Build output
-    # -------------------------------------------------------------------
-    result: dict[str, Any] = {
-        "label": LABEL,
-        "timestamp": TIMESTAMP,
-        "fixture_count": len(fixtures),
-        "sizes": SIZES,
-        "head": {str(n): _fmt_recall(head_stats[n]) for n in SIZES},
-        "tail": {str(n): _fmt_recall(tail_stats[n]) for n in SIZES},
-        # Keys: "h{head_size}_t{tail_size}" — 16 entries total
-        "union": {
-            f"h{h}_t{t}": _fmt_union(union_stats[(h, t)]) for h in SIZES for t in SIZES
-        },
-        "latency_ms": {k: _fmt_latency(v) for k, v in latencies_ms.items()},
-        "wall_time_s": round(wall_time, 2),
-        "peak_mem_mb": round(peak_mem / 1024 / 1024, 2),
-    }
+    result = _result(acc, len(fixtures), wall_time, peak_mem)
 
     output_dir: Path = Path(__file__).parent / "outputs"
     output_dir.mkdir(parents=True, exist_ok=True)

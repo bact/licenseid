@@ -12,7 +12,9 @@ import tempfile
 from pathlib import Path
 
 # isort: off
-# pylint: disable=wrong-import-order
+# tests/ is on sys.path only at run time (tools.golden.paths): pylint cannot
+# resolve these imports.
+# pylint: disable=wrong-import-order,import-error
 from tools.golden import paths  # first: it puts tests/ on sys.path
 
 import harness_changes

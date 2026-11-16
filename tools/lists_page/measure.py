@@ -21,7 +21,9 @@ from licenseid.listlookup import fold_case
 from licenseid.resolvefirst import is_exact
 
 # isort: off
-# pylint: disable=wrong-import-order,unused-import,ungrouped-imports
+# tests/ is on sys.path only at run time (tools.golden.paths): pylint cannot
+# resolve conftest and resolver_corpus.
+# pylint: disable=wrong-import-order,unused-import,ungrouped-imports,import-error
 from tools.golden import paths  # noqa: F401  # first: puts tests/ on sys.path
 
 from conftest import make_memory_db_path

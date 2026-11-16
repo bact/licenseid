@@ -50,16 +50,20 @@ jobs:
 
       - name: Ruff linter
         run: |
-          ruff check src/ tests/
+          ruff check src/ tests/ scripts/ benchmarks/ tools/
+          ruff check --select I src/ tests/ scripts/ benchmarks/ tools/
 
       - name: Pylint
         run: |
           pylint src/ tests/
+          # Apart: duplicate-code (R0801) compares files in one run, and the
+          # developer scripts repeat table shapes of src/ and tests/ on purpose.
+          pylint scripts/ benchmarks/ tools/
 
       - name: Flake8 (includes McCabe and cognitive complexity ceilings)
         run: |
-          flake8 src/ tests/
+          flake8 src/ tests/ scripts/ benchmarks/ tools/
 
       - name: Ruff formatter check
         run: |
-          ruff format --check src/ tests/
+          ruff format --check src/ tests/ scripts/ benchmarks/ tools/
