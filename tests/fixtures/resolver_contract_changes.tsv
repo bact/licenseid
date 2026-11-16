@@ -1,4 +1,4 @@
-# The answers the pre-freeze contract batch (P5: a reason for every
+# The answers the pre-freeze changes (a reason for every
 # refusal) moved in the parity corpus and the PyPI sample: each gains a
 # reason and nothing else. value: Python unicode_escape; group: the
 # reason's condition (its why is in tests/resolver_changes_contract.py);

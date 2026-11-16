@@ -1,7 +1,7 @@
 # The answer resolve() gives each generated compound (tests/compound_cases.py),
-# as task T7 reads it. value, expression and reason: Python unicode_escape,
-# - for none; steps: the step kinds, comma-joined. Every refusal has a reason
-# since the contract batch (P5).
+# as the compound-expression rules read it. value, expression and reason:
+# Python unicode_escape, - for none; steps: the step kinds, comma-joined.
+# Every refusal has a reason since the pre-freeze changes.
 value	expression	category	steps	reason
 MIT OR isc	ISC OR MIT	lexical	id_case,reorder	-
 MIT OR "BSD-3-Clause"	BSD-3-Clause OR MIT	lexical	unquote,reorder	-

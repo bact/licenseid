@@ -78,7 +78,7 @@ REFUSED: list[tuple[str, str, str, str]] = [
     ),
     ("two values", "resolve MIT ISC", "", r"input: invalid: extra argument: ISC"),
     (
-        "- (standard input, C5)",
+        "- (standard input)",
         "resolve -",
         "printf MIT | ",
         r"input: invalid: standard input" + _DETECT,

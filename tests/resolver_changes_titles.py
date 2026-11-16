@@ -31,11 +31,11 @@ REASONS: dict[str, str] = {
     "bare": (
         "the GPL v3 title line writes a version and no grant: the bare"
         " deprecated ID, `assumed_only` with both candidates, never narrowed"
-        f" (P49), after a `text_title` step; {_WAS}"
+        f", after a `text_title` step; {_WAS}"
     ),
     "upl": (
         "the UPL trove name writes no version, but UPL-1.0 is the only UPL:"
-        " read as it (`trove_name`), an exception to P47 the maintainer made"
+        " read as it (`trove_name`), an exception the maintainer made"
         f" on 2026-11-05; {_WAS}"
     ),
 }

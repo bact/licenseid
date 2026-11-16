@@ -168,7 +168,7 @@ CLEAR_CACHE: list[tuple[str, str, int | None]] = [
         0,
     ),
     (
-        "the old global flag --clear-cache (C3)",
+        "the old global flag --clear-cache",
         "prep && $L --db $W/x/licenses.db --clear-cache",
         2,
     ),

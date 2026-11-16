@@ -70,7 +70,7 @@ FLAG_CASES: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
         "detect exit 1 without its empty record, or an ERROR line",
     ),
     (
-        "detect exit 1 with nothing on stdout (C9: an empty record)",
+        "detect exit 1 with nothing on stdout (no empty record)",
         {"kind": "detect"},
         {"rc": 1, "out": ""},
         "detect exit 1 without its empty record, or an ERROR line",

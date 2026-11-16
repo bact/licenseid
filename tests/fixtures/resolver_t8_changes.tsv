@@ -1,4 +1,4 @@
-# The answers task T8 (prose forms of one ID: a trailing licence word, a
+# The answers the prose forms of one ID (a trailing licence word, a
 # version in words, a leading article) moved in the parity corpus and the PyPI
 # sample. value: Python unicode_escape; group: the rule that moved it (its
 # reason is in tests/resolver_changes_t8.py); then the answer, its fields

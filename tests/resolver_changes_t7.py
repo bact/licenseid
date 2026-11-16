@@ -53,40 +53,39 @@ _WAS = "0.6.0 answered `expression` with no expression"
 
 #: Why each group of the changes file moved.
 REASONS: dict[str, str] = {
-    "canonical": (f"T7 (D1): a compound already in canonical order is read; {_WAS}"),
+    "canonical": (f"a compound already in canonical order is read; {_WAS}"),
     "canonicalised": (
-        "T7 (D1, Q19, Q24): a compound is read and written in canonical"
+        "a compound is read and written in canonical"
         f" order, operators upper case, duplicates dropped (`lexical`); {_WAS}"
     ),
     "weakest": (
-        "T7 (D1): a compound takes the category of its weakest operand, each"
+        "a compound takes the category of its weakest operand, each"
         f" operand read as it is alone; {_WAS}"
     ),
     "operand": (
-        "T7 (D1): all or nothing, an operand that names no licence leaves the"
+        "all or nothing, an operand that names no licence leaves the"
         " compound unresolved (named in the reason when the operators are in"
         f" upper case); {_WAS}"
     ),
     "reason": (
-        "T7 (D1, P13, Q15): refused as before; with the operators in upper"
+        "refused as before; with the operators in upper"
         " case the reason names the first operand that resolves to nothing,"
-        " or is no operand (a leaf of several words that resolves alone: R7, S1)"
+        " or is no operand (a leaf of several words that resolves alone)"
     ),
     "grammar": (
-        "T7 (Q4): every part names a licence but the expression does not"
+        "every part names a licence but the expression does not"
         " parse: `malformed`, the parser's message the reason; 0.6.0 said"
         " `expression`"
     ),
     "mark": (
-        "T7: unresolved as before; the reason names the mark used where an"
+        "unresolved as before; the reason names the mark used where an"
         " SPDX operator belongs (IDs joined by / | & ; or ,)"
     ),
     "brackets": (
-        "T7 (Q21): square and curly brackets read as round ones; 0.6.0 left"
-        " the value unresolved"
+        "square and curly brackets read as round ones; 0.6.0 left the value unresolved"
     ),
     "addition_ref": (
-        "T7 (Q20): an AdditionRef- exception is accepted as a LicenseRef- is,"
+        "an AdditionRef- exception is accepted as a LicenseRef- is,"
         " unchecked against the list; 0.6.0 refused it"
     ),
 }

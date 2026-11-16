@@ -189,8 +189,8 @@ OUT.write_text(text, encoding="utf-8")
   `candidates_0_6_0`, `steps_0_6_0` and `expansions_0_6_0` (a `!` marks one
   that did not apply), `step_targets_0_6_0` and `expansion_targets_0_6_0` (the
   `to` of each; a comma is written `\x2c`), `trust_0_6_0`, `input_same_0_6_0`
-  (`yes` when `input` is the raw value) and `reason_0_6_0` (`-` until T6), then
-  `expected_0_7_0` and `why`. The header
+  (`yes` when `input` is the raw value) and `reason_0_6_0` (`-`: 0.6.0 gave
+  none), then `expected_0_7_0` and `why`. The header
   records the row count and the SHA-256 of the rows. `expected_0_7_0` is `=`
   (as in 0.6.0), `EXPR [category]`, `- [category]` (no expression) or `?`
   (the plan does not decide). The compounds' expected values were predicted
@@ -224,9 +224,9 @@ OUT.write_text(text, encoding="utf-8")
 ### 9. `resolver_t7_changes.tsv` and `resolver_compounds_generated.tsv`
 
 - **Data Source:** `licenseid.resolve()` on the corpus database of section 7,
-  once task T7 (compound expressions) was built.
+  once the compound-expression rules were built.
 - **Description:** `resolver_t7_changes.tsv` lists every answer of the parity
-  corpus and the PyPI sample that T7 moved, each with its group;
+  corpus and the PyPI sample that those rules moved, each with its group;
   `tests/resolver_changes_t7.py` gives each group its reason and adds the rows
   to `EXPECTED_CHANGES`. `resolver_compounds_generated.tsv` pins the answer to
   each compound `tests/compound_cases.py` generates
@@ -238,9 +238,10 @@ OUT.write_text(text, encoding="utf-8")
 ### 10. `resolver_t9_changes.tsv`
 
 - **Data Source:** `licenseid.resolve()` on the corpus database of section 7,
-  once task T9 (trove names and paths, an agreeing trailing name) was built.
+  once the trove rules (trove names and paths, an agreeing trailing name)
+  were built.
 - **Description:** every answer of the parity corpus and the PyPI sample that
-  T9 moved, each with its group; `tests/resolver_changes_t9.py` gives each
+  those rules moved, each with its group; `tests/resolver_changes_t9.py` gives each
   group its reason and adds the rows to `EXPECTED_CHANGES`.
 - **Characteristics:** As section 9.
 
@@ -313,7 +314,7 @@ OUT.write_text(text, encoding="utf-8")
 - **Description:** every answer of the parity corpus and the PyPI sample
   that the change moved, each with its group; the module named gives each
   group its reason and adds the rows to `EXPECTED_CHANGES`:
-  `resolver_t8_changes.tsv` (task T8, prose forms of one ID;
+  `resolver_t8_changes.tsv` (the prose forms of one ID;
   `tests/resolver_changes_t8.py`), `resolver_contract_changes.tsv` (a reason
   for every refusal; `resolver_changes_contract.py`),
   `resolver_hidden_changes.tsv` (`licenseid.hiddenchars`;

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Characterisation pins for the review of the contract batch of 0.7.0
+"""Characterisation pins for the review of the pre-freeze changes of 0.7.0
 (2026-11-02).
 
 Each pin records what the branch did when the review found it. A later

@@ -23,10 +23,10 @@ CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_readers_changes.ts
 #: Why each group of the changes file moved.
 REASONS: dict[str, str] = {
     "spaced-plus": (
-        'readers item 2: a "+" after a space is no operator'
+        'a "+" after a space is no operator'
         ' (plusoperator.PLUS_OPERATOR) and may say "and": malformed,'
         " `plus after a space`; it was read as the operator with a"
-        " `whitespace` step (P34). No PyPI sample value has one"
+        " `whitespace` step. No PyPI sample value has one"
     ),
 }
 

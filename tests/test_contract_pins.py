@@ -3,11 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Characterisation pins for the pre-freeze contract batch of 0.7.0
+"""Characterisation pins for the pre-freeze changes of 0.7.0
 (the maintainer's list, 2026-10-30).
 
-Each pin records what the CLI or the API does before the batch. A later
-commit of the batch flips the pin to the new answer and names the change, so
+Each pin records what the CLI or the API does before the changes. A later
+commit of them flips the pin to the new answer and names the change, so
 this file is the before-and-after record of every changed behaviour.
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring

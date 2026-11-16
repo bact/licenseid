@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The second review of the contract batch of 0.7.0 (2026-11-02), on the
+"""The second review of the pre-freeze changes of 0.7.0 (2026-11-02), on the
 whole 3.29.0 List.
 
 Each test was first a pin of what the branch did when the review found it

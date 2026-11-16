@@ -11,7 +11,7 @@ under ten words and refused by ``resolve()``, it now has no answer."""
 
 _NONE = "-\t-\t-\t-"
 _WRONG = "name tier: words a longer name only holds (was a wrong licence)"
-_UNSTATED = "name tier: words a longer name only holds (was a version not stated, P47)"
+_UNSTATED = "name tier: words a longer name only holds (was a version not stated)"
 _LOST = "name tier: words a longer name only holds (right answer lost, for resolve())"
 
 _CASES: dict[str, str] = {

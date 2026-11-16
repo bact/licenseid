@@ -102,11 +102,11 @@ def refused(reason: str, stopped: str | None = None) -> Answer:
 
 
 _DROP = (
-    "T6 (dropguard, F6): the {char} is the author's doubt or a corruption;"
+    "drop guard: the {char} is the author's doubt or a corruption;"
     " 0.6.0 dropped it and answered {licence} (`separator`)"
 )
 _CONTROL = (
-    "T6: refused as before (a control or format character is no separator);"
+    "refused as before (a control or format character is no separator);"
     " the answer now says why"
 )
 
@@ -120,8 +120,8 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
     "MIT\udcff": (
         refused("lone surrogate"),
         (
-            "G1 (T4b): a lone surrogate is refused before any rule reads the"
-            " value; 0.6.0 dropped it as a separator. T6 gives the reason"
+            "a lone surrogate is refused before any rule reads the"
+            " value; 0.6.0 dropped it as a separator. The refusal gives the reason"
         ),
     ),
     "MIT\x00": (refused("control or format character: U+0000"), _CONTROL),
@@ -155,10 +155,11 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
             trust="identity",
         ),
         (
-            "T6b (Q12): a pair of quotes around the whole value delimits it and"
+            "a pair of quotes around the whole value delimits it and"
             " says nothing; 0.6.0 dropped them as a separator (`separator`, the"
-            " rule of the resolver), T6 refused them, now the `unquote` step"
-            " takes them off: a change of form only (`lexical`, `identity`)"
+            " rule of the resolver), the drop guard refused them, now the"
+            " `unquote` step takes them off: a change of form only (`lexical`,"
+            " `identity`)"
         ),
     ),
     **T7_CHANGES,
