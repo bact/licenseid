@@ -42,6 +42,8 @@ and this project adheres to
   lookup runs, or inside a `reading()` block, raises `DatabaseNotReadyError`;
   it killed the process with SIGBUS and no message (a database still in the
   old WAL mode keeps that risk for its `-shm` file until `update`) ([#207])
+- `detect()` on a text with one very long word is fast (60,000 characters of
+  `the`: 20 s to 0.2 s)
 - `detect()` on thousands of `License:` or malformed INI lines is faster (10,000
   real IDs: reader 7.5 s to 0.05 s, `detect()` 13 s to 3.3 s); more than 48
   field licences keep the first 48 ([#208])

@@ -231,19 +231,6 @@ Found in review of item 22 (2026-10-02); `main` does the same:
   `GPL-2.0` at 0.855.
 - Impact 1, Risk 2, Effort 3.
 
-## 42. A very long word costs seconds in the full-text search — Priority 16
-
-Found by PR #82's Windows CI, on `main` too. One word of 2,000,000
-characters takes 83 s cold and 27 s warm on a real database, nearly all in
-the FTS5 trigram query of `search_candidates` (about 11 µs per character;
-500,000 characters: 5.6 s). The probe gate guards RapidFuzz, not this
-query. A seeded test database took 312 s on Windows.
-
-- **Fix**: cap what one word contributes to the Tier 1 query (its trigrams
-  or its characters), as the probe caps RapidFuzz; sweep real licence texts
-  (CJK included) on the branch and on `main` before choosing the cap.
-- Impact 2, Risk 2, Effort 2.
-
 ## 11. Probe-anchored windowing — Priority 15
 
 The one large remaining lever on `fragment_similarity`'s dominant cost:
