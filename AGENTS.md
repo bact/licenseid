@@ -60,6 +60,7 @@ in another module.
   one detector per default database), `detectrequest` (checks of a call
   needing no database), `resolvefirst` (input `resolve()` reads whole; the
   cut of a short refused one), `shorttext` (Tier 0), `retrieval` (Tier 1),
+  `ftsquery` (its `MATCH` string: 20 words, each cut to 128 characters),
   `idoptions` (`exclude`, `hint`: API only, free text only, case-folded, a
   bare deprecated ID stands for both twins, kept under `as-written`),
   `variants` (the `variant` option: what a bare ID and a text answer,
@@ -466,6 +467,11 @@ and `--json`) against these rules and checks the default output against the
   (item 16 in
   `working-docs/implementation/tech-debt-resolved.md`). Tier 0 scorers take
   `score_cutoff=threshold`.
+- Tier 1 cost is in trigrams, not words: `ftsquery` cuts a query word to
+  `MAX_TERM_CHARS`, above the longest word of any indexed text (70 in List
+  3.29.0; `tests/test_ftsquery.py` holds the long-text fixtures to it), before
+  `"` is doubled. Time a long word against the real-sized fixture database
+  (`tests/long_text_db.py`); a 5-row one cannot fail.
 - `\s+` followed by a class that also matches white space (`\s+[\s/*#]*`)
   is quadratic: write `\s[\s/*#]*`. Time every prose regex on
   `"x" + " " * N` (see `test_the_phrase_regex_does_not_backtrack`).

@@ -33,8 +33,8 @@ item 47 from PR #168, item 50 from the work on item 44, item 51
 from the work on item 43, and item 52 from the work on the upgrade of
 deprecated IDs in `py-spdx-license` (2026-11-14), item 53 from the work
 on item 40 (PR #207), item 54 from the review of `EXACT`, item 55 from
-the decision on `EXACT` and our own lists (2026-11-15), and item 56 from the
-CLI matrix check of PR #212 (2026-11-16).
+the decision on `EXACT` and our own lists (2026-11-15). Item 56 (a hang in
+the CLI matrix, found 2026-11-16) is resolved.
 
 Open: the list below, in the order of its headings. Decided and ready: item
 55, in a pull request of its own (2026-11-16). Item 2 waits on an upstream
@@ -230,19 +230,6 @@ Found in review of item 22 (2026-10-02); `main` does the same:
   markers: the README of a GPL-2.0-only project answers the deprecated
   `GPL-2.0` at 0.855.
 - Impact 1, Risk 2, Effort 3.
-
-## 42. A very long word costs seconds in the full-text search — Priority 16
-
-Found by PR #82's Windows CI, on `main` too. One word of 2,000,000
-characters takes 83 s cold and 27 s warm on a real database, nearly all in
-the FTS5 trigram query of `search_candidates` (about 11 µs per character;
-500,000 characters: 5.6 s). The probe gate guards RapidFuzz, not this
-query. A seeded test database took 312 s on Windows.
-
-- **Fix**: cap what one word contributes to the Tier 1 query (its trigrams
-  or its characters), as the probe caps RapidFuzz; sweep real licence texts
-  (CJK included) on the branch and on `main` before choosing the cap.
-- Impact 2, Risk 2, Effort 2.
 
 ## 11. Probe-anchored windowing — Priority 15
 
@@ -640,8 +627,7 @@ cut version is a choice, not a spelling: `Apache-1` may mean `Apache-1.0` or
   their reading (`SPDX-License-Identifier: MIT-` is `MIT`); **changed by the
   owner the same day** ("fix the tag"): a tag cut by a dash or `_` that
   touches the expression is refused too (`dropguard.cut_by_joiners`).
-- **Built** (branch `auto/jovial-thompson-efd6f5`, 2026-11-16; open until
-  merged): see [`tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md).
+- **Built** (PR #217, 2026-11-16; open until merged): see [`tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md).
 - **Open leftovers**: a dash glued to a comment closer in a tag (`MIT-*/`,
   `MIT-#}`, `MIT-}`) is still read as `MIT`; the free-text line `License:
   MIT-` gives `MIT` by the name tier; a tag compound ending in a reference
@@ -661,8 +647,7 @@ cut version is a choice, not a spelling: `Apache-1` may mean `Apache-1.0` or
 ## 55. Publish the lists `resolve()` reads — Priority 12
 
 Its own pull request, after PR #212 (decided 2026-11-16): the page is not
-part of the `EXACT` change. **Built** (branch `auto/lists-page-9a864e`,
-2026-11-16; open until merged).
+part of the `EXACT` change. **Built** (PR #214, 2026-11-16).
 
 Decided 2026-11-15 with the `EXACT` rule of item 52: an answer from an
 authoritative list is exact, so a user must be able to read each list. They
@@ -711,27 +696,6 @@ About 140 rows in all; ScanCode and Blue Oak lists are planned.
   its `EXACT` value when it is added (`render.py`). The Blue Oak idea:
   [`blue-oak-ratings.md`](blue-oak-ratings.md).
 - Impact 2, Risk 1, Effort 2.
-
-## 56. `detect` on a FIFO with a writer hangs in the CLI matrix — Priority 16
-
-`python -m tools.cli_matrix --check` flags cell `E8-011` ("file is a FIFO
-with writer": `mkfifo ff; (printf 'MIT' > ff &); licenseid detect ff`) as a
-hang: a 120 s timeout, on `main` too (seen 2026-11-16, bash, while checking
-PR #212). It is not in `tools/cli_matrix/baseline.txt`, so `--check` reports
-it as new on every run.
-
-- **Find out first**: whether `licenseid detect <fifo>` really blocks when a
-  writer is attached (a bug in `textinput.read_text_file`, which opens the
-  path), or the cell's writer is gone before the read (a harness artefact:
-  the writer runs in a background subshell). Reproduce outside the matrix with
-  a writer that stays open.
-- **If it is real**: refuse a non-regular input file as `--db` does
-  (`stat.S_ISREG`, `input: invalid`, exit 2), or read it with a timeout; test
-  it in a child process with a timeout
-  (`db_asserts.probe_check_does_not_hang`).
-- **If it is the cell**: fix the cell, or add `E8-011 bash` to
-  `baseline.txt` with the reason.
-- Impact 2, Risk 2, Effort 2.
 
 ## Already resolved
 

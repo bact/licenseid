@@ -37,7 +37,7 @@ and this project adheres to
   (a bare major the List has another minor of) are `version ambiguous`, and
   `MIT-`, `Zlib-`, `GPL-2.0-` (a dash or `_` at the end) `character dropped`,
   and `SPDX-License-Identifier: MIT-` has no answer; `LGPLv2+`, `Apache-1+` stay
-  (migrate: write the minor version, `Apache-1.0`, and `MIT`)
+  (migrate: write the minor version, `Apache-1.0`, and `MIT`) ([#217])
 
 ### Fixed
 
@@ -53,6 +53,8 @@ and this project adheres to
 - `update` words an unmakeable data directory `directory: write failed: ...`; a
   symlink loop in a database path is `unreadable`; `clear-cache` removes a
   looped cache link ([#209])
+- `detect()` on a text with one very long word is fast (60,000 characters of
+  `the`: 20 s to 0.2 s) ([#216])
 
 [#207]: https://github.com/bact/licenseid/pull/207
 [#208]: https://github.com/bact/licenseid/pull/208
@@ -61,6 +63,8 @@ and this project adheres to
 [#211]: https://github.com/bact/licenseid/pull/211
 [#212]: https://github.com/bact/licenseid/pull/212
 [#214]: https://github.com/bact/licenseid/pull/214
+[#216]: https://github.com/bact/licenseid/pull/216
+[#217]: https://github.com/bact/licenseid/pull/217
 
 ## [0.8.4] - 2026-11-09
 

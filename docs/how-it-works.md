@@ -104,6 +104,8 @@ declared values, SPDX expressions and the matching pipeline.
   - **Tier 1 (Recall)**: Candidate retrieval using SQLite FTS5 trigram index,
     queried with the input's first 20 words, plus its last 20 for an input
     over 200 words (at most 25 more candidates), for consistent performance.
+    A word is cut to its first 128 characters (the longest word of the List
+    is 70), so one very long word stays fast.
     Comment prefixes (`//`, `#`, `*`, `;`) are stripped before querying.
   - **Tier 2 (Precision)**: Adaptive ranking with RapidFuzz. Sliding-window
     alignment for fragments; coverage-aware scoring to prefer the tightest

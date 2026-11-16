@@ -10,6 +10,7 @@ from collections.abc import Collection, Iterable
 
 from licenseid.database import LicenseDatabase
 from licenseid.exprflags import with_judged_flags
+from licenseid.ftsquery import MAX_TERMS
 from licenseid.idoptions import excluded_ids, folded
 from licenseid.listlookup import fold_case
 from licenseid.normalize import normalize_text, strip_comment_prefixes
@@ -37,7 +38,7 @@ def _search_candidates_by_length(
         The 100-word buffer leaves room if the OR-term limit is raised
         again later.
 
-      Tail query: pass norm_words[-20:] -- exactly the last 20 words --
+      Tail query: pass norm_words[-MAX_TERMS:] -- exactly the last 20 words --
         so search_candidates uses words -20 to -1 (the true end of the
         document: warranty disclaimer, governing-law clause, etc.).
         Benchmarks showed that passing words[-120:] was wrong: FTS5 only
@@ -77,7 +78,7 @@ def _search_candidates_by_length(
     if len(norm_words) <= 200:
         return raw_candidates
 
-    tail_query = " ".join(norm_words[-20:])
+    tail_query = " ".join(norm_words[-MAX_TERMS:])
     seen_ids = {c["license_id"] for c in raw_candidates if c.get("license_id")}
     tail_only_added = 0
     tail_candidates = db.search_candidates(
