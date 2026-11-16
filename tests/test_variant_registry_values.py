@@ -19,6 +19,7 @@ from test_variant_operands import EXCEPTIONS, ROWS
 
 from licenseid.detector import LicenseDetector
 from licenseid.types import Variant
+from licenseid.warning import LicenseIdWarning
 
 CHANNELS: dict[str, Callable[[str], str]] = {
     "argument": lambda v: v,
@@ -39,6 +40,9 @@ def first(detector: LicenseDetector, text: str, variant: Variant) -> dict[str, o
     with warnings.catch_warnings(record=True) as given:
         warnings.simplefilter("always")
         found = detector.detect(text=text, variant=variant)
+    # Only licenseid's own warnings: a collection in this block can close an
+    # earlier test's database (a ResourceWarning, Python 3.13+).
+    given = [w for w in given if isinstance(w.message, LicenseIdWarning)]
     top = found[0]
     return {
         "expression": top["expression"],
