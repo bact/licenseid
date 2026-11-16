@@ -392,11 +392,28 @@ Item numbers are the roadmap's.
     11 golden answers (`harness_changes_cutversion.py`), each a wrong or
     doubtful answer (`id/Apache-1.1/id_distorted` read `Apache-1.0`,
     `id/AFL-2.1/id_distorted` read `AFL-2.0`).
+  - **Tags** (owner decision, 2026-11-16, after the first build kept them):
+    `identifiers.read_leading` ends a tag expression at the first token no
+    operator bridges, so `SPDX-License-Identifier: MIT-` was `MIT`,
+    `EXACT=true`. `dropguard.cut_by_joiners(text, end)`: a run of `-`, `_` or
+    a dash of `RE_DASHES` touches the expression's end and the value ends, or
+    white space or one of `.,;:!?+"')` follows; then it is no expression, as
+    the argument is. Any other character after the run (`MIT-->`, `MIT-*/`,
+    `MIT-}`, `MIT--]]`) is left alone: the reader knows no comment closers,
+    and `-->` must read. A
+    dash apart (`MIT - text`) is the author's. Perf: linear in the run (50,000
+    dashes 51 ms against 43 ms on `main`); a refused line falls to the text
+    tiers as any unreadable line does. Two readers changed with it: a tag
+    reference takes the dashes at its end (`exprtokens.ref_end`), so
+    `LicenseRef-a-` is `LicenseRef-a-` as `resolve()` reads it (it was
+    `LicenseRef-a`), and `classify.dash_gap` takes `_` as it takes a dash
+    before a grant (`GPL-2.0_ or later` still reads).
   - Left as they were, on purpose: the trove classifier `(LGPLv2)` is
     `LGPL-2.0` from `trovenames`; `--variant or-later LGPLv2` is refused, not
-    widened; a tag `MIT-` gives `MIT`. Measured cost: 115 distinct bare majors
+    widened. Measured cost: 115 distinct bare majors
     in one compound take 16 ms against 10 ms on `main`, linear in the operands.
   - Tests: `tests/test_cut_versions.py` (pins written on `main` first, flipped
     here), the rows of `test_resolver_small_refusals.py`,
     `test_resolver_lists_and_reasons.py`, `test_resolver_dropped_words.py` and
-    `test_version_key.py`.
+    `test_version_key.py`; for tags `tests/test_cut_tags.py` and
+    `test_tag_edge_values.py`.

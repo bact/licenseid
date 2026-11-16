@@ -74,8 +74,8 @@ page](lists.md):
   `reason` and a `drop` step that was not applied; white space, `-`, `_`,
   `.`, a dash and one trailing comma are still dropped, but not a dash or
   `_` joined to the end of the ID (`MIT-`, `GPL-2.0-`: a cut value, as at
-  the start; an SPDX tag still reads `MIT-` as `MIT`, as its value ends at
-  the dash). So is no word:
+  the start; a tag too: `SPDX-License-Identifier: MIT-` has no answer). So is
+  no word:
   a list or comment marker (`REM MIT`, `1. MIT`, `iv. MIT`) is refused
   with `word dropped: rem`. At the end of a value one `.`, `,`, `;` or
   `:`, with white space around it, is an ending and is left off (`MIT;`,

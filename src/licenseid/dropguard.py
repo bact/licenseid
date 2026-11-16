@@ -47,6 +47,7 @@ from typing import Final
 
 from licenseid.exprtokens import (
     WHITE_SPACE,
+    cut_inside_word,
     is_addition_ref,
     is_license_ref,
     is_white_space,
@@ -63,6 +64,9 @@ _ELLIPSIS: Final = "\u2026"
 _AROUND: Final = ")]}"
 # Where the marks at the end stop: a word, a "+" or an opening bracket.
 _BEFORE_MARKS: Final = "+([{"
+# What may follow the dashes that cut a tag's expression: an end mark, a "+", a
+# quote mark or a closing bracket, never the start of a comment closer.
+_AFTER_CUT: Final = ".,;:!?+\"')"
 
 
 def _is_separator(char: str) -> bool:
@@ -144,6 +148,32 @@ def trailing_joiners(text: str) -> str:
     if ends_in_ref(body):
         return ""
     return "".join(dict.fromkeys(body[stop:]))
+
+
+def cut_by_joiners(text: str, end: int) -> bool:
+    """Whether the expression of a tag value *text* that ends at *end* is cut
+    by dashes or underscores: a run of them touches it (``MIT-``, ``MIT_``,
+    ``GPL-2.0-``, ``MIT- OR ISC``) and the value ends there, or white space or
+    a character of :data:`_AFTER_CUT` follows the run. The same value as
+    an argument is refused (:func:`trailing_joiners`). Another character
+    after the run may start a comment closer (``MIT-->``, ``MIT-*/``) and is
+    left to the tag reader, which knows no closers: the run is not judged.
+    Where white space separates the dash from the ID (``MIT - some text``)
+    the dash is the author's. A ``LicenseRef-*`` keeps its own dashes: the
+    reader takes them into its token (:func:`licenseid.exprtokens.ref_end`)."""
+    stop = end
+    while stop < len(text) and (text[stop] == "_" or RE_DASHES.match(text[stop])):
+        stop += 1
+    if stop == end or not end:
+        return False
+    return stop == len(text) or is_white_space(text[stop]) or text[stop] in _AFTER_CUT
+
+
+def cut_off(text: str, end: int) -> bool:
+    """Whether the expression of a tag value *text* that ends at *end* is cut:
+    inside a word (``LicenseRef-café``, :func:`licenseid.exprtokens.cut_inside_word`)
+    or by dashes or underscores (:func:`cut_by_joiners`)."""
+    return cut_inside_word(text, end) or cut_by_joiners(text, end)
 
 
 def ends_in_ref(text: str) -> bool:

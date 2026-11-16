@@ -311,6 +311,8 @@ and `--json`) against these rules and checks the default output against the
   AND, OR, WITH join parts, only white space between them; a token none of
   them bridges ends it; a dangling or unbalanced value is none. Never write
   the SPDX grammar as a regex; comment closers need no case of their own.
+  A dash or `_` run touching its end, then the end of the value, white
+  space, `.`, `,` or `+`, cuts it: no expression (`dropguard.cut_by_joiners`).
 - "Or later" grant: `classify.OR_LATER_PHRASE` is the one phrase reader
   (imported by `ranking`, `identifiers.disambiguate_deprecated_id`,
   `markers`, `looseid`); `classify.grant_end` finds a grant and its end;

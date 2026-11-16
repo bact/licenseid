@@ -637,11 +637,17 @@ cut version is a choice, not a spelling: `Apache-1` may mean `Apache-1.0` or
   read); an "or later" grant exempts it (`LGPLv2+`, `Apache-1+`,
   `LGPLv2 or later`, `--variant or-later` does not widen it); a run of `-`/`_`
   joined to the end of a loose ID is a dropped character (`MIT-`); tags keep
-  their reading (`SPDX-License-Identifier: MIT-` is `MIT`).
+  their reading (`SPDX-License-Identifier: MIT-` is `MIT`); **changed by the
+  owner the same day** ("fix the tag"): a tag cut by a dash or `_` that
+  touches the expression is refused too (`dropguard.cut_by_joiners`).
 - **Built** (branch `auto/jovial-thompson-efd6f5`, 2026-11-16; open until
   merged): see [`tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md).
-- **Open leftovers**: a tag `MIT-` still gives `MIT`, `EXACT=true`
-  (`leading_expression` ends at the dash); prose `Licensed under the Apache-1
+- **Open leftovers**: a dash glued to a comment closer in a tag (`MIT-*/`,
+  `MIT-#}`, `MIT-}`) is still read as `MIT`; the free-text line `License:
+  MIT-` gives `MIT` by the name tier; a tag compound ending in a reference
+  that ends in a dash (`MIT OR LicenseRef-a-`) loses the dash downstream;
+  a refused tag above a licence fragment can fall to the text tier (`MIT-0`
+  at 0.914); prose `Licensed under the Apache-1
   license` still gives `Apache-1.1` from the name tier; `detect` of
   `GPL-2.0 or later-` still answers through `disambiguate_whole`, as for
   `GPL-2.0 or later?` (also `LGPL-2.1 or later-`, `GPL-2.0 or later--`);

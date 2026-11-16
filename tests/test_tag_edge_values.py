@@ -71,6 +71,11 @@ CUT = [
     "MIT\u0661",  # a digit of another script
 ]
 
+#: (c) A dash or ``_`` joined to the end of the expression (item 54): a cut
+#: value, as an argument is. ``MIT_`` was read as ``MIT`` (a mark that is no
+#: letter ended the expression).
+JOINED = ["MIT_", "MIT-", "MIT--", "GPL-2.0-", "MIT- OR ISC", "MIT OR ISC_"]
+
 #: Tag answers that stay as they are.
 STAYS: dict[str, Answers] = {
     "GPL-2.0 or later": named("GPL-2.0-or-later"),
@@ -85,7 +90,6 @@ STAYS: dict[str, Answers] = {
     "LicenseRef-a b": reference("LicenseRef-a"),
     "LicenseRef-caf \u00e9": reference("LicenseRef-caf"),
     "MIT\u20ac": named("MIT"),
-    "MIT_": named("MIT"),
     "MIT*": named("MIT"),
     "(MIT)\u00e9": named("MIT"),
     "MIT+\u00e9": named("MIT+"),
@@ -100,6 +104,14 @@ def test_tag_names_nothing(
     assert answers(db, tag, tmp_path) == NOTHING
     # A cut ID is said to be invalid (item 33); a grant twice is not.
     assert given.conditions() == ({"invalid"} if tag in CUT else set())
+
+
+@pytest.mark.parametrize("tag", JOINED, ids=ascii)
+def test_tag_cut_by_joiners_names_nothing(
+    db: str, tag: str, tmp_path: Path, given: GivenWarnings
+) -> None:
+    assert answers(db, tag, tmp_path) == NOTHING
+    assert given.conditions() == set()
 
 
 @pytest.mark.parametrize("tag", list(STAYS), ids=ascii)

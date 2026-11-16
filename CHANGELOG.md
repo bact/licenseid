@@ -35,8 +35,9 @@ and this project adheres to
   ([#212])
 - **Breaking:** a cut ID gets no answer: `Apache-1`, `MPL-1`, `OFL-1`, `LGPLv2`
   (a bare major the List has another minor of) are `version ambiguous`, and
-  `MIT-`, `Zlib-`, `GPL-2.0-` (a dash or `_` at the end) `character dropped`;
-  `LGPLv2+`, `Apache-1+` stay (migrate: write the minor version, `Apache-1.0`)
+  `MIT-`, `Zlib-`, `GPL-2.0-` (a dash or `_` at the end) `character dropped`,
+  and `SPDX-License-Identifier: MIT-` has no answer; `LGPLv2+`, `Apache-1+` stay
+  (migrate: write the minor version, `Apache-1.0`, and `MIT`)
 
 ### Fixed
 

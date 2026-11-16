@@ -28,7 +28,7 @@ from licenseid.deprecatedids import (
     DEPRECATED_SPDX_LICENSE_IDS,
     DEPRECATED_WITH_IDS,
 )
-from licenseid.dropguard import trim_end_mark
+from licenseid.dropguard import cut_off, trim_end_mark
 from licenseid.exprtokens import (
     OPERAND_START,
     OPERATORS,
@@ -38,9 +38,9 @@ from licenseid.exprtokens import (
     closing_brackets_end,
     continues_after,
     continues_word,
-    cut_inside_word,
     is_license_ref,
     licence_after,
+    token_end,
     token_kind,
 )
 from licenseid.listlookup import ListLookup
@@ -327,7 +327,7 @@ def read_leading(value: str) -> tuple[str, int]:
             return _ended_by_grant(value, (end, grant_end), depth, licence), 0
         licence = licence_after(licence, before, token)
         before = token[0]
-        end = token.end()
+        end = token_end(value, token, kind)
         if kind == "(":
             depth += 1
         elif kind == ")":
@@ -337,8 +337,8 @@ def read_leading(value: str) -> tuple[str, int]:
         if kind in ("ID", "OP"):
             expect_operand = kind == "OP"
         if not depth and not expect_operand:
-            complete = token.end()
-    if expect_operand or depth or complete is None or cut_inside_word(value, complete):
+            complete = end
+    if expect_operand or depth or complete is None or cut_off(value, complete):
         return "", end
     twice = _granted_twice(value[:complete], value, licence)
     return ("", 0) if twice else (value[:complete], 0)
