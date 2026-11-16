@@ -40,7 +40,7 @@ def _tag(corpus_db: LicenseDatabase, value: str) -> tuple[str, bool] | None:
     [
         # "later" was an ID ("MIT OR later", exact), or the grant dropped
         # ("MIT or-later" was MIT): the "or" is read as after a number, by
-        # the one probe (classify.grant_end), as resolve() reads it (P35).
+        # the one probe (classify.grant_end), as resolve() reads it.
         ("MIT or later", "MIT+"),
         ("MIT OR LATER", "MIT+"),
         ("MIT, or later", "MIT+"),

@@ -33,7 +33,7 @@ The one exception is ``Universal Permissive License (UPL)``, which reads as
 
 ``Apache Software License`` and ``Python Software Foundation License`` are
 ``none`` here: they imply ``Apache-2.0`` and ``PSF-2.0`` by usage, not by
-what they write (rule T4, deferred: Q3).
+what they write (reading by usage is deferred).
 """
 
 from typing import Final, Literal, NamedTuple
@@ -110,7 +110,7 @@ TROVE_NAMES: Final[dict[str, TroveEntry]] = {
     "OSI Approved": _none(osi=False),  # a category, not a licence (rule T1)
     # License :: OSI Approved :: ...
     "Academic Free License (AFL)": _none(),  # no version; AFL-1.1 to AFL-3.0
-    "Apache Software License": _none(),  # by usage only (T4, Q3)
+    "Apache Software License": _none(),  # by usage only
     "Apple Public Source License": _none(),  # no version; APSL-1.0 to APSL-2.0
     "Artistic License": _none(),  # no version; Artistic-1.0 and Artistic-2.0
     "Attribution Assurance License": _stated("AAL"),  # the List's name
@@ -140,15 +140,15 @@ TROVE_NAMES: Final[dict[str, TroveEntry]] = {
     "GNU General Public License v2 or later (GPLv2+)": _stated("GPL-2.0-or-later"),
     "GNU General Public License v3 (GPLv3)": _assumed("GPL-3.0"),  # bare, deprecated
     "GNU General Public License v3 or later (GPLv3+)": _stated("GPL-3.0-or-later"),
-    # Q23: the maintainer's special case, because LGPL is widespread. "Lesser
+    # The maintainer's special case, because LGPL is widespread. "Lesser
     # v2" contradicts itself (LGPL-2.0 is the "Library" GPL, the "Lesser" one
     # is 2.1), but the version is plainly 2, so it is read as written: the
     # bare deprecated ID. The "v2 or later" name below writes its grant, so
-    # it is stated (P45, decided by the maintainer on 2026-10-29).
+    # it is stated (decided by the maintainer on 2026-10-29).
     "GNU Lesser General Public License v2 (LGPLv2)": _assumed("LGPL-2.0"),
     "GNU Lesser General Public License v2 or later (LGPLv2+)": _stated(
         "LGPL-2.0-or-later"
-    ),  # P45
+    ),
     "GNU Lesser General Public License v3 (LGPLv3)": _assumed("LGPL-3.0"),
     "GNU Lesser General Public License v3 or later (LGPLv3+)": _stated(
         "LGPL-3.0-or-later"
@@ -172,21 +172,22 @@ TROVE_NAMES: Final[dict[str, TroveEntry]] = {
     "Open Software License 3.0 (OSL-3.0)": _stated("OSL-3.0"),
     "PostgreSQL License": _stated("PostgreSQL"),  # the List's name
     # The head "Python License" points to Python-2.0, the bracket to
-    # CNRI-Python: choosing the bracket alone is what rule T3 refuses (P48).
+    # CNRI-Python: choosing the bracket alone is what rule T3 refuses.
     "Python License (CNRI Python License)": _none(),
-    "Python Software Foundation License": _none(),  # by usage only (T4, Q3)
+    "Python Software Foundation License": _none(),  # by usage only
     "Qt Public License (QPL)": _none(),  # no version; the List has "Q Public"
     "Ricoh Source Code Public License": _stated("RSCPL"),  # the List's name
     "SIL Open Font License 1.1 (OFL-1.1)": _stated("OFL-1.1"),
     "Sleepycat License": _stated("Sleepycat"),  # the List's name
     "Sun Public License": _none(),  # no version, though only SPL-1.0 exists
     "The Unlicense (Unlicense)": _stated("Unlicense"),
-    # No version, but UPL-1.0 is the only UPL: read as it, an exception to P47
-    # (decided by the maintainer on 2026-11-05).
+    # No version, but UPL-1.0 is the only UPL: read as it, an exception to the
+    # rule that a name with no version is not read (decided by the maintainer
+    # on 2026-11-05).
     "Universal Permissive License (UPL)": _stated("UPL-1.0"),
     "University of Illinois/NCSA Open Source License": _stated("NCSA"),
     "Vovida Software License 1.0": _stated("VSL-1.0"),
-    "W3C License": _none(),  # no version; W3C, W3C-19980720, W3C-20150513 (Q22)
+    "W3C License": _none(),  # no version; W3C, W3C-19980720, W3C-20150513
     "Zero-Clause BSD (0BSD)": _stated("0BSD"),
     "Zope Public License": _none(),  # no version; ZPL-1.1 to ZPL-2.1
     # Two readings: Zlib (OSI titles it "The zlib/libpng License") and
@@ -196,7 +197,7 @@ TROVE_NAMES: Final[dict[str, TroveEntry]] = {
     "Intel Open Source License": _stated("Intel"),  # the List's name
     "Jabber Open Source License": _none(),  # not in the List
     "MITRE Collaborative Virtual Workspace License (CVW)": _none(),  # not in the List
-    # The ID is written in the name (P52, decided by the maintainer on 2026-10-29).
+    # The ID is written in the name (decided by the maintainer on 2026-10-29).
     "Sun Industry Standards Source License (SISSL)": _stated("SISSL"),
     "X.Net License": _stated("Xnet"),  # the List's name
     # License :: ... again

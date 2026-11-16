@@ -234,7 +234,7 @@ AFTER_QUALIFIER = [
     "or sooner",
     "or",
     # Past the window: the white space after "or" is read whole, as
-    # resolve() reads it (review item 8).
+    # resolve() reads it.
     "or" + " " * 195 + "later",
     "or" + " " * 400 + "later",
     "or" + "\n" * 300 + "later",

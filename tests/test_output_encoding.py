@@ -10,7 +10,7 @@ encode as ``\\xHH``, ``\\uHHHH`` or ``\\UHHHHHHHH`` (``output.echo``), which
 ``result.read_text_field`` reads back; a ``--json`` line is UTF-8 bytes on
 every locale (``output.echo_json``, RFC 8785). Every line ends in ``\\n``,
 on Windows too: the streams here translate a line feed to ``\\r\\n`` as
-Windows' text streams do, on every OS (P123).
+Windows' text streams do, on every OS.
 """
 # pylint: disable=missing-function-docstring
 

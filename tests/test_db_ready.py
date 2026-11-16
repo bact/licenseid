@@ -249,7 +249,7 @@ def test_api_constructor_raises(variant: Variant) -> None:
     message = str(excinfo.value)
     assert "\n" not in message
     assert not message.startswith("ERROR: ")
-    # The condition and the detail are the message's own (G5).
+    # The condition and the detail are the message's own.
     error = excinfo.value
     said = f"database: {error.condition}: {error.detail}"
     assert error.condition and error.detail
@@ -305,7 +305,7 @@ def test_api_refuses_before_any_query(variant: Variant) -> None:
 @pytest.mark.parametrize("variant", NOT_READY_NAMES, indirect=True)
 def test_license_database_stays_permissive(variant: Variant) -> None:
     """LicenseDatabase stays permissive about a file that is empty or damaged,
-    and refuses what is not licenseid's to write to (P1 of fix batch D):
+    and refuses what is not licenseid's to write to:
     only the matcher and the CLI gate a read."""
     if variant.kind in (UNREADABLE, REFUSED):
         pytest.skip("not a database SQLite can open, so nothing to build on")

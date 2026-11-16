@@ -145,7 +145,7 @@ def test_a_tag_reads_an_only_after_an_operand_of_a_list(
     detector: LicenseDetector, value: str, expression: str
 ) -> None:
     """BUG: the argument and a field refuse these (a word of several words in
-    one operand), a tag answers them as main does (decision 39, rule I1)."""
+    one operand), a tag answers them as main does; the channels must agree."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         found = detector.detect(text=CHANNELS["tag"](value), variant="auto")

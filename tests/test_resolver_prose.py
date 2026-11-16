@@ -3,8 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve()`` reads the prose form of one licence ID (task T8, rules P1 to
-P3; decisions Q3, Q18, Q22, P64 to P70)."""
+"""``resolve()`` reads the prose form of one licence ID (rules P1 to P3)."""
 # pylint: disable=missing-function-docstring
 
 import time
@@ -112,8 +111,8 @@ READ = [
         ["trailing_name", "prose_form", "separator"],
         None,
     ),
-    # P64: the end marks the drop guard lets pass, each an ending with a
-    # separator step first (resolverfix item 3; there was none)
+    # The end marks the drop guard lets pass, each an ending with a
+    # separator step first (there was none)
     ("MIT License.", "MIT", ["separator", "prose_form"], None),
     ("MIT Licence,", "MIT", ["separator", "prose_form"], None),
     (
@@ -140,7 +139,7 @@ READ = [
 ]
 #: Values that stay unresolved, with the reason for each.
 STAYS = [
-    "BSD License",  # a trove name that states no licence (Q3)
+    "BSD License",  # a trove name that states no licence
     "bsd license",
     "Apache Software License",
     "Apache Software License, Version 2.0.1",
@@ -149,7 +148,7 @@ STAYS = [
     "Apache License (2.0) (MIT)",
     "ASL 2.0",  # an abbreviation no table holds
     "Python Software Foundation License",
-    "W3C license",  # Q22
+    "W3C license",
     "W3C License.",
     "The W3C License",
     "W3C License (W3C)",
@@ -162,12 +161,12 @@ STAYS = [
     "The License",
     "The",
     "TheMIT License",  # the article stands alone
-    "The The Unlicense",  # P75: no second article
+    "The The Unlicense",  # No second article
     "The The MIT License",
-    "MIT License License",  # P75: no second licence word
+    "MIT License License",  # No second licence word
     "BSD 3-Clause License License",
     "Apache License, Version 2.0 License",
-    "GNU General Public License, Version 3",  # P68: no name is reached
+    "GNU General Public License, Version 3",  # No name is reached
     "Apache-2.0 License+",  # a mark after the word helps no reading
     "BSD 3-Clause License+",
     "Apache License, Version 2.0+",
@@ -192,7 +191,7 @@ STAYS = [
     "MIT OR Apache-2.0 License",  # P1 reads a licence, never an expression
     "MIT License, Apache License, Version 2.0",
 ]
-#: Value, expression, category: the weakest of the parts wins (P1, P2).
+#: Value, expression, category: the weakest of the parts wins.
 WEAKER = [
     ("GPL-3.0 License", "GPL-3.0", "assumed_only"),
     ("GPL-3.0 license.", "GPL-3.0", "assumed_only"),
@@ -215,7 +214,7 @@ WEAKER = [
 def test_a_deprecated_id_is_reached_as_a_separator_spelling_is(
     corpus_db: LicenseDatabase, value: str, expression: str
 ) -> None:
-    """P74: the loose key names the right licence; the deprecation policy
+    """The loose key names the right licence; the deprecation policy
     keeps it as written, with no successor (`deprecated_ambiguous`)."""
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"], got["trust"]) == (
@@ -227,7 +226,7 @@ def test_a_deprecated_id_is_reached_as_a_separator_spelling_is(
 
 
 def test_two_readings_of_a_version_form_must_agree() -> None:
-    """P68: ``<name> N`` (loose) and ``<name> License N`` (an exact List name)
+    """``<name> N`` (loose) and ``<name> License N`` (an exact List name)
     that name two licences leave the value unresolved."""
     rows = (
         Lic("Foo-2.0", "Foo Public 2.0", search_text="foo public"),
@@ -324,7 +323,7 @@ def test_no_trove_name_is_read_by_a_prose_rule(
 ) -> None:
     """A name of the trove table keeps the answer the table gives, with or
     without a leading article or an end mark; one that states no licence is
-    unresolved in every spelling (Q22)."""
+    unresolved in every spelling."""
     entry = TROVE_NAMES[name]
     for value in (name, f"The {name}", f"{name}.", f"the {name.upper()}"):
         got = resolve(value, corpus_db)
@@ -384,7 +383,7 @@ def test_the_packaged_list_gives_the_same_answer(
         assert from_bundle[key] == from_db[key], key
 
 
-# --- P62, P43: a prose form is no operand, but it reads alone ---
+# --- a prose form is no operand, but it reads alone ---
 
 
 @pytest.mark.parametrize(
@@ -485,7 +484,7 @@ def test_a_reduction_that_would_drop_something_is_refused_with_a_reason(
     corpus_db: LicenseDatabase, value: str, reason: str
 ) -> None:
     """The head of a prose form is read as it is alone, so the drop guard
-    judges it (T6, R7 item 3)."""
+    judges it."""
     got = resolve(value, corpus_db)
     assert (got["expression"], got["reason"]) == (None, reason)
     assert [s["kind"] for s in got["steps"]] == ["drop"]

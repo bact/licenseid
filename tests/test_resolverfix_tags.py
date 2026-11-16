@@ -3,9 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Two readings of an ``SPDX-License-Identifier`` tag (task ``resolverfix``,
-item 8): an "or later" grant after an ID that states its qualifier already,
-and an ID cut at a character the SPDX idstring has not (``LicenseRef-café``).
+"""Two readings of an ``SPDX-License-Identifier`` tag
+(task ``resolverfix``): an "or later" grant after an ID that states its
+qualifier already, and an ID cut at a character the SPDX idstring has not
+(``LicenseRef-café``).
 
 Every entry point's answer (API, ``is_spdx``, CLI ``detect`` and
 ``is-spdx``): no licence for (a), as the maintainer decided on 2026-11-02,

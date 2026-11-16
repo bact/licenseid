@@ -188,7 +188,7 @@ def test_match_version_key(
         (" gpl  2\n", "GPL-2.0-only"),
     ],
 )
-def test_a_family_alone_is_narrowed_to_only_with_a_warning(
+def test_a_family_alone_is_decided_to_only_with_a_warning(
     db: LicenseDatabase,
     given: GivenWarnings,
     text: str,
@@ -267,12 +267,12 @@ def test_a_long_input_is_no_loose_id(
 
 
 @pytest.mark.parametrize("text", ["GPL-2.0", "gpl-2.0"])
-def test_a_deprecated_id_as_is_is_narrowed_aloud(
+def test_a_deprecated_id_as_is_is_decided_aloud(
     db: LicenseDatabase, given: GivenWarnings, text: str
 ) -> None:
     """A deprecated ID written as is: -only is the narrower guess, not what
-    was declared, so it is not exact, and said (F3 of the contract batch;
-    it was exact and silent)."""
+    was declared, so it is not exact, and said (it was
+    exact and silent)."""
     results = match_version_key(db, text)
     assert [(m["license_id"], m["method"], m["exact"]) for m in results] == [
         ("GPL-2.0-only", "id", False)
@@ -289,7 +289,7 @@ def test_a_deprecated_id_as_is_is_narrowed_aloud(
         ("GPL 2.0+", ("GPL-2.0-or-later", "id", False)),
         ("GPL2", ("GPL-2.0-only", "id", False)),
         # A declared ID keeps its own path, not the key's; bare, it is
-        # narrowed aloud (F3).
+        # narrowed aloud.
         ("GPL-2.0", ("GPL-2.0-only", "id", False)),
         ("GPL-2.0+", ("GPL-2.0-or-later", "id", True)),
         # resolve() reads the whole value, its "+" kept (was: the fuzzy name

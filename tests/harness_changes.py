@@ -37,8 +37,6 @@ DETECT_CHANGES: dict[str, tuple[str, str]] = {
     **SLASH_CHANGES,  # over the resolve-first row: `MIT/Apache-2.0` is read
     **EXACT_CHANGES,  # only `exact` moves, on the answers above
     **VARIANT_CHANGES,  # last: `variant` keeps a bare ID, over the rows above
-    **EXACT_CHANGES,  # only `exact` moves, on the answers above
-    **VARIANT_CHANGES,  # last: `variant` keeps a bare ID, over the rows above
 }
 CLI_CHANGES: dict[str, tuple[str, str]] = {
     "detect-name#text": ("bea927311e33", _FIRST),

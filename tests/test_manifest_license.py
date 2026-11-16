@@ -100,7 +100,7 @@ def test_a_manifest_expression_is_certain(
     matcher = LicenseDetector(db)
     top = matcher.detect(file_path=path)[0]
     assert (top["expression"], top["score"]) == ("Apache-2.0 OR MIT", 1.0)
-    # An OR holds when any operand does (licenseid.exprflags, F1).
+    # An OR holds when any operand does (licenseid.exprflags).
     assert (top["is_spdx"], top["is_osi_approved"], top["is_fsf_libre"]) == (
         True,
         True,
@@ -186,7 +186,7 @@ def test_match_json_shows_the_flags_of_a_manifest(db: str, tmp_path: Path) -> No
     top = json_lines(result.stdout)[0]
     assert {flag: top[flag] for flag in FLAGS} == {
         "is_spdx": True,
-        "is_osi_approved": True,  # an OR: any operand (F1)
+        "is_osi_approved": True,  # an OR: any operand
         "is_fsf_libre": True,
     }
 
@@ -456,7 +456,7 @@ def test_a_long_run_reads_in_linear_time(text: str) -> None:
 
 @pytest.mark.parametrize("large", [False, True], ids=["small", "large"])
 @pytest.mark.parametrize("kind", list(MANIFESTS))
-def test_a_bare_deprecated_field_is_narrowed_aloud(
+def test_a_bare_deprecated_field_is_decided_aloud(
     db: str,
     tmp_path: Path,
     given: GivenWarnings,
@@ -464,8 +464,8 @@ def test_a_bare_deprecated_field_is_narrowed_aloud(
     large: bool,
 ) -> None:
     """A field of ``GPL-2.0`` answers GPL-2.0-only, not exact, with the one
-    warning every source of a declared value gives (F3 of the contract batch;
-    it was exact and silent)."""
+    warning every source of a declared value gives (it was exact and
+    silent)."""
     path = manifest(tmp_path, kind, "GPL-2.0", large)
     top = LicenseDetector(db).detect(file_path=path, variant="only")[0]
     assert (top["expression"], top["exact"]) == ("GPL-2.0-only", False)

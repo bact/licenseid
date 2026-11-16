@@ -115,7 +115,7 @@ _CONTROL = (
 #: adds every value it changes here, and no other; the guard fails on a value
 #: that moves without being listed, on a listed value that does not move, and
 #: on a listed value that answers anything but the listed answer. Before
-#: T4b it was empty: 0.6.0's answers are the fixtures'.
+#: the lone-surrogate rule it was empty: 0.6.0's answers are the fixtures'.
 EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
     "MIT\udcff": (
         refused("lone surrogate"),
@@ -172,7 +172,7 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
     **URLS_CHANGES,  # last: a value it moves again has its answer now
     **ALIASES_CHANGES,  # last, for the same reason
     **HIDDEN_CHANGES,  # last: `MIT\u200b` was refused, now read
-    **SLASH_CHANGES,  # over the T7 row: `MIT/Apache-2.0` was refused
+    **SLASH_CHANGES,  # over the compound-expression row: `MIT/Apache-2.0` was refused
 }
 
 

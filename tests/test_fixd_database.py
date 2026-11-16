@@ -103,8 +103,8 @@ FOREIGN: dict[str, Callable[[Path], None]] = {
 def test_a_foreign_file_is_refused_and_left_as_it_was(
     tmp_path: Path, kind: str, create: bool
 ) -> None:
-    """P1 (was: ``LicenseDatabase('f.db')`` added licenseid's tables to a
-    foreign file, and left a WAL one in WAL mode): the CLI refuses such a
+    """Was: ``LicenseDatabase('f.db')`` added licenseid's tables to a
+    foreign file, and left a WAL one in WAL mode; now the CLI refuses such a
     file on every command, and so does the handle, with or without create."""
     path = tmp_path / "f.db"
     FOREIGN[kind](path)
@@ -167,7 +167,7 @@ def spellings(path: Path) -> dict[str, object]:
 def test_a_handle_on_a_missing_file_makes_no_file(
     tmp_path: Path, spelling: str
 ) -> None:
-    """P1 (was: opening the handle made ``typo.db``)."""
+    """Was: opening the handle made ``typo.db``."""
     path = tmp_path / "typo.db"
     LicenseDatabase(spellings(path)[spelling])  # type: ignore[arg-type]
     assert not path.exists()
@@ -178,7 +178,7 @@ def test_a_handle_on_a_missing_file_makes_no_file(
 def test_resolve_on_a_handle_on_a_missing_file_says_not_found_as_a_path_does(
     tmp_path: Path, spelling: str
 ) -> None:
-    """P1 (was: ``database: empty``, after making the file)."""
+    """Was: ``database: empty``, after making the file."""
     path = tmp_path / "typo.db"
     handle = LicenseDatabase(spellings(path)[spelling])  # type: ignore[arg-type]
     with pytest.raises(DatabaseNotReadyError) as by_handle:
@@ -278,8 +278,8 @@ def test_detect_refuses_a_file_path_that_is_no_path(
     bad: object,
     entry: str,
 ) -> None:
-    """P2 (was: an ``int`` was opened as a descriptor, read and closed, and
-    bytes failed late with a ``FileNotFoundError``)."""
+    """Was: an ``int`` was opened as a descriptor, read and closed, and
+    bytes failed late with a ``FileNotFoundError``."""
     db_path = ready_db()
     monkeypatch.setattr("licenseid.keptdetector.get_default_db_path", lambda: db_path)
     call = LicenseDetector(db_path).detect if entry == "method" else detect
@@ -325,8 +325,8 @@ def test_a_str_or_a_path_is_still_a_file_path(
     [pytest.param(5, id="int"), *BAD_PATHS, pytest.param(BytesPath(), id="bytes-path")],
 )
 def test_the_detector_refuses_a_db_path_that_is_no_path(bad: object) -> None:
-    """P2 (was: ``TypeError: expected str, bytes or os.PathLike object, not
-    int``, or ``startswith first arg must be bytes``)."""
+    """Was: ``TypeError: expected str, bytes or os.PathLike object, not
+    int``, or ``startswith first arg must be bytes``."""
     with pytest.raises(TypeError, match="^db_path must be str or os.PathLike"):
         LicenseDetector(bad)  # type: ignore[arg-type]
 
@@ -396,7 +396,7 @@ def test_a_refusal_that_kept_no_condition_is_read_from_its_message(
 def test_clear_cache_names_the_cache_file_that_would_not_go(
     tmp_path: Path, name: str
 ) -> None:
-    """P4 (was: ``ERROR: database: delete failed: .../licenses.json: ...``)."""
+    """Was: ``ERROR: database: delete failed: .../licenses.json: ...``."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
     (tmp_path / name).mkdir()
     result = run("--db", str(db_path), "clear-cache")

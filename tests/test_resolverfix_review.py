@@ -141,19 +141,19 @@ MATCHED: dict[str, Answer] = {
     # 9: a reference takes no grant, whatever it ends in
     "LicenseRef-x-only or later": (
         None,
-        "malformed",  # fixr item 5
+        "malformed",
         [],
         "qualifier on a reference: LicenseRef-x-only or later",
     ),
     "LicenseRef-x-or-later or any later version": (
         None,
-        "malformed",  # fixr item 5
+        "malformed",
         [],
         "qualifier on a reference: LicenseRef-x-or-later or any later version",
     ),
     "LicenseRef-a or later": (
         None,
-        "malformed",  # fixr item 5
+        "malformed",
         [],
         "qualifier on a reference: LicenseRef-a or later",
     ),
@@ -165,7 +165,7 @@ MATCHED: dict[str, Answer] = {
     # reference's (was the general reason, "not found")
     "LicenseRef-a, or any later version": (
         None,
-        "malformed",  # fixr item 5
+        "malformed",
         [],
         "qualifier on a reference: LicenseRef-a, or any later version",
     ),
@@ -200,7 +200,7 @@ TAGS: dict[str, Answers] = {
     "GPL-2.0-only WITH Classpath-exception-2.0, or any later version": NOTHING,
     "GPL-2.0, see COPYING for any later version": named("GPL-2.0-or-later"),
     "GPL-2.0-only, see COPYING": named("GPL-2.0-only"),
-    # Task readers: the grant is MIT's, its "+" (P35), as resolve() reads it;
+    # Task readers: the grant is MIT's, its "+", as resolve() reads it;
     # it was dropped in silence
     "GPL-2.0-only OR MIT, or any later version": named("GPL-2.0-only OR MIT+"),
     # 3: a script written without spaces after the ID starts a word

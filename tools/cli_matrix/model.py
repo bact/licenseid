@@ -45,11 +45,11 @@ OTHER = "The quick brown fox jumps over the lazy dog near the river bank"
 #: The diagnostic a command must print when no input reaches it at all.
 MISSING = r"ERROR: input: missing; pass a file, an ID, --text, --id or stdin"
 
-#: Input sources a command can be fed from (``dash``: ``-``, C5).
+#: Input sources a command can be fed from (``dash``: ``-``).
 SRC = ["arg_id", "arg_file", "text", "id", "stdin", "none", "dash"]
 
 #: Every combination of the three output-shaping flags; ``--json`` refuses
-#: ``--diff`` (exit 2, C7). Without ``--verbose`` or ``--json``: the
+#: ``--diff`` (exit 2). Without ``--verbose`` or ``--json``: the
 #: expression alone.
 OUTS: list[tuple[str, ...]] = [
     (),

@@ -80,7 +80,7 @@ def as_matches(
         RawMatch(
             license_id=c["license_id"],
             method=method or c["method"],
-            exact=not c.get("narrowed", False),
+            exact=not c.get("decided", False),
             score=1.0,
             similarity=None,
             coverage=None,

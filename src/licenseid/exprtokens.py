@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The words of an SPDX licence expression: its operators, its IDs and its
-references, the one definition of each (review gap G11).
+references, the one definition of each.
 
 ``licenseid.identifiers`` tokenises tags and declared expressions with
 :data:`RE_TOKEN` (the kind of each token: :func:`token_kind`); the compound

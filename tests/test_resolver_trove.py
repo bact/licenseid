@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """``resolve()`` reads trove classifier names and paths and an agreeing
-trailing name (task T9, rules T1 to T3; decisions Q3, Q18, Q22, Q23,
-P45 to P52)."""
+trailing name (rules: a table name, a path, a trailing name)."""
 # pylint: disable=missing-function-docstring
 
 import time
@@ -39,8 +38,8 @@ LISTED = {
     "University of Illinois/NCSA Open Source License",
     "X.Net License",
 }
-#: Names whose bracket the List backs too (T3): `listed_name`, read before the
-#: table (P63).
+#: Names whose bracket the List backs too: `listed_name`, read before the
+#: table.
 TRAILING = {
     "CMU License (MIT-CMU)",
     "CeCILL-B Free Software License Agreement (CECILL-B)",
@@ -81,7 +80,7 @@ def shown(name: str) -> str:
     return name[:24]
 
 
-# --- T2: a name of the table ---
+# --- A name of the table ---
 
 
 @pytest.mark.parametrize("name", STATED, ids=shown)
@@ -171,7 +170,7 @@ def test_no_trove_list_when_no_step_rests_on_it(corpus_db: LicenseDatabase) -> N
 def test_the_exact_name_reads_as_strong_as_its_lower_case_form(
     corpus_db: LicenseDatabase, value: str, expression: str
 ) -> None:
-    """P63: the List backs the head and the bracket, so the answer is
+    """The List backs the head and the bracket, so the answer is
     `listed_name` however the case is written, and no trove list is named."""
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"]) == (expression, "listed_name")
@@ -197,7 +196,7 @@ def test_the_exact_name_reads_as_strong_as_its_lower_case_form(
 def test_a_name_that_states_no_licence_is_claimed_however_it_is_written(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    """P60 as amended: no later rule may read a `none` name (Q22)."""
+    """No later rule may read a `none` name."""
     found = Found()
     assert read_named(corpus_db, value, found) is True
     assert (found.expression, found.category) == (None, "unresolved")
@@ -247,7 +246,7 @@ def test_a_head_that_holds_a_bracket_is_not_dropped(
     corpus_db: LicenseDatabase,
 ) -> None:
     """The leaf reads `GPL-3.0 (or later)`, but a bracket in the head is
-    refused here (P58): the parenthesis dropped is the last one only."""
+    refused here: the parenthesis dropped is the last one only."""
     got = resolve("GPL-3.0 (or later) (GPL-3.0+)", corpus_db)
     assert "trailing_name" not in kinds(got)
     assert got["expression"] is None
@@ -260,10 +259,10 @@ def test_a_head_that_holds_a_bracket_is_not_dropped(
         " ISC License (ISCL) x",
         "ISC License(ISCL)",
         "ISC License  (ISCL)",
-        "Apache Software License",  # Q3: by usage only
+        "Apache Software License",  # By usage only
         "Python Software Foundation License",
         "PSF License",
-        "W3C License",  # Q22
+        "W3C License",
         "GNU Library or Lesser General Public License (LGPL)",
         "BSD License",
         "OSI Approved",
@@ -292,7 +291,7 @@ def test_a_trove_name_is_read_as_it_is_alone_inside_quotes_and_brackets(
     assert len(kinds(got)) == 2
 
 
-# --- T1: a path ---
+# --- A path ---
 
 
 @pytest.mark.parametrize("name", sorted(TROVE_NAMES), ids=shown)
@@ -321,7 +320,7 @@ def test_a_path_is_read_as_its_name_is_alone(
     [
         "License :: OSI Approved",  # a category
         "License :: OSI Approved :: ",
-        "License :: OSI Approved :: Apache Software License",  # Q3
+        "License :: OSI Approved :: Apache Software License",
         "License :: OSI Approved :: BSD License",
         "License :: MIT License",  # the real classifier is under OSI Approved
         "License :: OSI Approved :: Aladdin Free Public License (AFPL)",
@@ -352,7 +351,7 @@ def test_a_path_with_free_spaces_round_the_colons_is_read(
     assert (got["expression"], got["category"]) == ("ISC", "trove_name")
 
 
-# --- T3: an agreeing trailing name ---
+# --- An agreeing trailing name ---
 
 
 @pytest.mark.parametrize(
@@ -427,7 +426,7 @@ def test_a_parenthesis_that_does_not_agree_is_not_dropped(
     ],
 )
 def test_a_trove_name_is_no_operand(corpus_db: LicenseDatabase, value: str) -> None:
-    """An operand is one word (Q15, P43): the later rules read the whole
+    """An operand is one word: the later rules read the whole
     value, which no table row is."""
     got = resolve(value, corpus_db)
     assert got["expression"] is None
@@ -499,7 +498,7 @@ def test_the_trove_rules_are_linear_on_a_long_value(size: int) -> None:
 
 
 def test_a_name_whose_id_the_list_lacks_names_nothing() -> None:
-    """The table states ISC; a list without it reads nothing (P54)."""
+    """The table states ISC; a list without it reads nothing."""
     for path in seeded_db("trove_lacks", [Lic("MIT", "MIT License")]):
         db = LicenseDatabase(path, create=False)
         assert resolve("ISC License (ISCL)", db)["expression"] is None
@@ -540,7 +539,7 @@ def test_read_named_says_whether_a_rule_claims_the_value(
         assert found.reason is None
 
 
-# --- a trove name in a compound (P43, P62) ---
+# --- a trove name in a compound ---
 
 
 @pytest.mark.parametrize(
@@ -566,7 +565,7 @@ def test_read_named_says_whether_a_rule_claims_the_value(
 def test_a_several_word_trove_name_in_a_compound_is_refused_by_its_shape(
     corpus_db: LicenseDatabase, value: str, reason: str
 ) -> None:
-    """The value stays unresolved (an operand is one word, P43); the reason
+    """The value stays unresolved (an operand is one word); the reason
     says whether the leaf reads alone, trove names and paths included."""
     got = resolve(value, corpus_db)
     assert got["expression"] is None

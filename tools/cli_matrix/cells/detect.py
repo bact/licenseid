@@ -31,7 +31,7 @@ from tools.cli_matrix.pairwise import pairwise
 
 TOPS = ["", "1", "2", "3", "5", "0", "-1", "abc", "1.5"]
 THRS = ["", "0", "0.5", "0.85", "0.99", "1", "1.5", "-1", "abc", "nan"]
-#: Tops refused with exit 2: not a whole number, or below 1 (C7).
+#: Tops refused with exit 2: not a whole number, or below 1.
 BAD_TOPS = ("abc", "1.5", "0", "-1")
 #: Thresholds refused with exit 2: not a number, or outside the 0-1 score.
 BAD_THRS = ("1.5", "-1", "abc", "nan")

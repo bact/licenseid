@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Which list ``resolve()`` reads when it has both a database at the
-default path and a bundle in the wheel: the newer List wins (Q4); a tie goes
-to the database only when this licenseid's rules built its rows (Q10).
+default path and a bundle in the wheel: the newer List wins; a tie goes
+to the database only when this licenseid's rules built its rows.
 ``tests/test_option_matrix.py`` holds the axes; this file the edges."""
 # pylint: disable=missing-function-docstring
 
@@ -210,7 +210,7 @@ def _read_source(source: str) -> tuple[str, str | None]:
 
 
 def test_a_database_with_no_rows_is_refused_by_source_database() -> None:
-    """P8: what auto calls empty, source="database" refuses, rather than
+    """What auto calls empty, source="database" refuses, rather than
     answering unresolved for every value as 0.6.0 did."""
     path = Path(get_default_db_path())
     path.parent.mkdir(parents=True)
@@ -221,7 +221,7 @@ def test_a_database_with_no_rows_is_refused_by_source_database() -> None:
 
 
 def test_a_database_given_is_checked_ready() -> None:
-    """P3 of the contract batch: a database the caller opened is checked as
+    """A database the caller opened is checked as
     one ``resolve()`` opens is (it was read unchecked, so an empty one
     answered ``unresolved`` for MIT)."""
     path = Path(get_default_db_path())
@@ -236,7 +236,7 @@ def test_a_database_given_is_checked_ready() -> None:
 def test_a_database_given_is_checked_once_while_its_file_stays(
     tmp_path: Path, form: str
 ) -> None:
-    """P3: the readiness check costs more than a lookup, so a database given
+    """The readiness check costs more than a lookup, so a database given
     is checked once while its file keeps its stamp, and again when it
     changes: an emptied file is refused, not read."""
     path = make_ready_file_db(tmp_path / "given.db")

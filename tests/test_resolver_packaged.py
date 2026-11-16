@@ -85,7 +85,7 @@ def test_the_guard_gives_the_same_answers_on_the_packaged_list(
     assert not changes_report(on_packaged), changes_report(on_packaged)
 
 
-# --- the kept rows (review gap G8) ---
+# --- the kept rows ---
 
 # An ID in use with no text is not kept, though it is the successor of the
 # deprecated rename that has the same name. 3.29.0 has no such ID.

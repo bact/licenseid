@@ -3,9 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""What task T7 changed in the reading of one licence: the key cap per WITH
-half (Q16), ``AdditionRef-`` exceptions (Q20) and the "or later" grant
-(Q14)."""
+"""What changed in the reading of one licence: the key cap per WITH
+half, ``AdditionRef-`` exceptions and the "or later" grant."""
 # pylint: disable=missing-function-docstring
 
 import time
@@ -26,7 +25,7 @@ def _answer(value: str, db: LicenseDatabase) -> tuple[object, ...]:
     return got["expression"], got["category"], [s["kind"] for s in got["steps"]]
 
 
-# -- Q16: the key cap per WITH half -----------------------------------------
+# -- The key cap per WITH half ----------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -101,7 +100,7 @@ def test_a_long_run_of_white_space_around_with_is_fast(
     assert time.monotonic() - start < slack(1.0)
 
 
-# -- Q20: AdditionRef- --------------------------------------------------------
+# -- AdditionRef- -------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -126,7 +125,7 @@ def test_a_long_run_of_white_space_around_with_is_fast(
         ),
         ("MIT WITH AdditionRef-", (None, "unresolved", [])),
         ("MIT WITH AdditionRef-x_y", (None, "unresolved", [])),
-        ("MIT WITH AdditionRef-x+", (None, "malformed", [])),  # fixr item 2
+        ("MIT WITH AdditionRef-x+", (None, "malformed", [])),
         ("AdditionRef-x", (None, "unresolved", [])),  # an exception, no licence
         ("Foo WITH AdditionRef-x", (None, "unresolved", [])),
     ],
@@ -138,7 +137,7 @@ def test_an_addition_ref_is_read_as_written(
     assert _answer(value, corpus_db) == expected
 
 
-# -- Q14: the "or later" grant ------------------------------------------------
+# -- The "or later" grant -----------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -165,7 +164,7 @@ def test_the_hyphenated_grant_is_a_grant(
         ("Apache 2.0 or later", ("Apache-2.0+", "separator", ["separator"])),
         ("Apache-2.0 or any later version", ("Apache-2.0+", "stated_qualifier", [])),
         ("MPL-1.1 or later", ("MPL-1.1+", "stated_qualifier", [])),
-        # P35 decided by the maintainer: any ID with no -or-later form
+        # Decided by the maintainer: any ID with no -or-later form
         ("MIT (or later)", ("MIT+", "stated_qualifier", [])),
         ("MIT or later", ("MIT+", "stated_qualifier", [])),
         ("BSD-3-Clause or later", ("BSD-3-Clause+", "stated_qualifier", [])),
@@ -175,7 +174,7 @@ def test_the_hyphenated_grant_is_a_grant(
         ),
         ("eCos-2.0 or later", ("eCos-2.0+", "deprecated_ambiguous", [])),
         ("GPL-2.0 or later", ("GPL-2.0-or-later", "stated_qualifier", [])),
-        # fixr item 5: a grant on a reference is malformed, as its "+" is
+        # A grant on a reference is malformed, as its "+" is
         ("LicenseRef-x or later", (None, "malformed", [])),
         ("DocumentRef-d:LicenseRef-x or later", (None, "malformed", [])),
         ("MIT-only or later", (None, "unresolved", [])),
@@ -218,7 +217,7 @@ _CP = "Classpath-exception-2.0"
                 ["operator_case", "separator", "version_spelling"],
             ),
         ),
-        ("MIT WITH LLVM-exception or later", ("MIT+ WITH LLVM-exception", [])),  # P35
+        ("MIT WITH LLVM-exception or later", ("MIT+ WITH LLVM-exception", [])),
         (f"GPL-2.0-only WITH {_CP} or later", (None, [])),  # malformed
         (f"GPL-2.0 or later WITH {_CP} or later", (None, [])),  # twice
         ("LicenseRef-x WITH LLVM-exception or later", (None, [])),

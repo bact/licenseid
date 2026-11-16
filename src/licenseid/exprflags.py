@@ -12,11 +12,10 @@ neither). An operand that cannot be judged (an ID not on the list, a
 ``LicenseRef-*``) is None, and the logic has three values: an ``OR`` with a
 true operand is true and an ``AND`` with a false one is false, whatever the
 others are; otherwise one None makes the whole None. So a compound is never
-answered "no" for a licence nobody judged (decision F1 of the contract
-batch), and one judged operand that decides it is enough (D8 of
-``match-resolve-0-8.md``). ``is_spdx`` holds only when every licence and
+answered "no" for a licence nobody judged, and one judged operand that
+decides it is enough. ``is_spdx`` holds only when every licence and
 exception ID is on the SPDX License List: a ``LicenseRef-*`` is a valid
-SPDX expression, but not on the List (F2).
+SPDX expression, but not on the List.
 
 A bare deprecated ID that is kept as written (``GPL-2.0``) and a deprecated
 ``-with-`` ID (``GPL-2.0-with-classpath-exception``) are judged by the ``-only``

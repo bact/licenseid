@@ -77,7 +77,7 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
                 [],
             ),
         ),
-        # Q17: the case and the spacing of WITH are steps; exact is as written
+        # The case and the spacing of WITH are steps; exact is as written
         (
             f"GPL-2.0-only With {CP}",
             (f"GPL-2.0-only WITH {CP}", "lexical", ["operator_case"], [], []),
@@ -167,9 +167,9 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         # WITH: a part that is broken or names nothing gives no answer
         (f"GPL-2.0-only+ WITH {CP}", MALFORMED),
         ("LicenseRef-foo+ WITH LLVM-exception", MALFORMED),
-        # Q14: MIT has no -or-later ID, so the grant is "+" (was unresolved)
+        # MIT has no -or-later ID, so the grant is "+" (was unresolved)
         (
-            "MIT or later WITH LLVM-exception",  # P35
+            "MIT or later WITH LLVM-exception",
             (
                 "MIT+ WITH LLVM-exception",
                 "stated_qualifier",
@@ -190,7 +190,7 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
             ("Apache-2.0 OR MIT WITH LLVM-exception", "lexical", ["reorder"], [], []),
         ),
         # a LicenseRef names itself, as written but its prefix in SPDX's case
-        # (resolverfix item 4; was licenseref-Foo.2, exact); it takes no "+"
+        # (was licenseref-Foo.2, exact); it takes no "+"
         # and no grant
         ("LicenseRef-foo", ("LicenseRef-foo", "exact", [], [], [])),
         ("licenseref-Foo.2", ("LicenseRef-Foo.2", "lexical", ["id_case"], [], [])),
@@ -204,7 +204,7 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         ),
         ("LicenseRef-foo+", MALFORMED),
         ("LicenseRef-foo +", MALFORMED),
-        ("LicenseRef-foo or later", MALFORMED),  # fixr item 5
+        ("LicenseRef-foo or later", MALFORMED),
         ("LicenseRef-", NONE),
         ("LicenseRef-foo_bar", NONE),  # "_" is no idstring character
         ("LicenseRef-foo bar", NONE),
@@ -221,7 +221,7 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         ("((GPL-2.0))+", MALFORMED),
         ("(GPL-2.0) +", MALFORMED),
         ("(Foo)+", NONE),
-        ("(MIT OR Apache-2.0)+", MALFORMED),  # fixr item 3
+        ("(MIT OR Apache-2.0)+", MALFORMED),
         # a character that hides or reorders text is no part of a value:
         # left off at an end (`hiddenchars`), a refusal anywhere else
         ("MIT\u200b", ("MIT", "separator", ["trim"], [], [])),

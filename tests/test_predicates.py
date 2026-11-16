@@ -88,7 +88,7 @@ def test_is_fsf(test_db: str) -> None:
 
 
 def test_the_union_is_osi_or_fsf(test_db: str) -> None:
-    """C1: no ``is_open``; OSI-or-FSF is the two predicates joined."""
+    """No ``is_open``; OSI-or-FSF is the two predicates joined."""
     matcher = LicenseDetector(test_db)
     assert not hasattr(matcher, "is_open")
     for license_id, union in [("MIT", True), ("0BSD", True), ("Proprietary", False)]:

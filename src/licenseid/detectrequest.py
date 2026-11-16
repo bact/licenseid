@@ -22,9 +22,9 @@ ID_COLLECTIONS: Final = (list, tuple, set, frozenset)
 
 
 def _check_inputs(text: object, license_id: object, file_path: object) -> None:
-    """The input rules of :meth:`LicenseDetector.detect` (P6 of the contract
-    batch): :class:`TypeError` for a *text* or *license_id* that is no
-    :class:`str` (it failed deep inside), or a *file_path* that is no path;
+    """The input rules of :meth:`LicenseDetector.detect`: :class:`TypeError`
+    for a *text* or *license_id* that is no :class:`str` (it failed deep
+    inside), or a *file_path* that is no path;
     :class:`licenseid.errors.InvalidInputError` unless exactly one of the
     three is given (none answered nothing; of two, one won unsaid)."""
     for name, value in (("text", text), ("license_id", license_id)):

@@ -5,8 +5,8 @@
 
 """Family B: the predicate subcommands (``is-osi`` and friends).
 
-``B1`` every input source, ``B2`` several inputs at once (two are refused,
-C7 of the contract batch), ``B3`` flags that belong to ``detect`` only,
+``B1`` every input source, ``B2`` several inputs at once (two are refused),
+``B3`` flags that belong to ``detect`` only,
 ``B4`` argument syntax, ``B5`` one identifier asked of every predicate and of
 ``detect --json``, so their answers can be checked against each other,
 ``B6`` the same record as JSON (``--json``).
@@ -80,7 +80,7 @@ def add_cells(cells: CellSet) -> None:
 
 #: The one object of ``is-* --json`` for a licence found.
 _PREDICATE_JSON = r'\{"expression":"[^"]+","is_[a-z_]+":(true|false)\}\n'
-#: ... and for none: no licence, so no flag (P159), never a false "no".
+#: ... and for none: no licence, so no flag, never a false "no".
 _PREDICATE_NONE = r'\{"expression":null,"is_[a-z_]+":null\}\n'
 
 
@@ -171,7 +171,7 @@ def _add_identifier_consistency(cells: CellSet) -> None:
 
     Judged relationally: each predicate says yes exactly when the flag of
     ``detect``'s top result is true (``is-open`` and ``is-free``, the union,
-    were checked against ``is-osi`` and ``is-fsf`` until C1 removed them).
+    were checked against ``is-osi`` and ``is-fsf`` until they were removed).
     """
     for ident in IDS:
         for cmd in PREDS:

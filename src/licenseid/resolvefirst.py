@@ -12,9 +12,9 @@ The adapter of ``working-docs/design/match-resolve-0-8.md`` section 3: the
 expression is the result's; a declared value is exact when a list defines
 the reading (:data:`EXACT_CATEGORIES`) and inexact when a rewrite rule
 produced it (``separator``, ``prose_form``, ``version_spelling``), or when
-the result is a guess (a narrowed ``-only``), so every channel gives one
-answer (rule D2, decided); a reading by name (a step of one) is found by
-``name``, any other by ``id``.
+the result is a guess (a variant licenseid decided), so every channel gives
+one answer; a reading by name (a step of one) is found by ``name``, any
+other by ``id``.
 
 An input ``resolve()`` refuses that is shorter than :data:`MIN_TEXT_WORDS`
 gets no text match either: on the fixtures and the PyPI sample, Tiers 1 and
@@ -134,10 +134,10 @@ def is_exact(resolution: Resolution) -> bool:
 
 def as_resolved(resolution: Resolution, matches: list[RawMatch]) -> list[RawMatch]:
     """*matches*, the results of the expression of *resolution*, made what
-    the resolution says: inexact for a rewrite rule or a guess (a narrowed
-    ``-only`` already is), found by ``name`` when a step read a name, else by ``id``. A
-    result not narrowed is written as resolve() writes it (``MirOS OR
-    MIT``, the order of ``exprcanon``)."""
+    the resolution says: inexact for a rewrite rule or a guess (a decided
+    variant already is), found by ``name`` when a step read a name, else by
+    ``id``. A result its reader found exact is written as resolve() writes
+    it (``MirOS OR MIT``, the order of ``exprcanon``)."""
     expression = resolution["expression"] or ""
     exact = is_exact(resolution)
     kinds = {entry["kind"] for entry in resolution["steps"]}

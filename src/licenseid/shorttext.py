@@ -9,11 +9,11 @@ license ID or name."""
 from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase
-from licenseid.looseid import loose_id, mark_guessed, narrowed, resolved_id
+from licenseid.looseid import loose_id, mark_guessed, resolved_id
 from licenseid.plusoperator import grant_stem, strip_plus_operator
 from licenseid.ranking import DEP_PENALTY
 from licenseid.types import LicenseNameId, RawMatch
-from licenseid.variants import read_from
+from licenseid.variants import decided, read_from
 from licenseid.versionkey import version_key
 
 # The score of an exact ID or name match; a fuzzy one scores less.
@@ -116,7 +116,7 @@ def match_short_text(
     # The deprecated penalty is already in each score, and these results
     # carry no is_deprecated or pop_score.
     ranked.sort(key=lambda x: (-x["score"], x["license_id"]))
-    if narrowed_name(ranked) is not None and not _grant_left_out_alone(
+    if decided_name(ranked) is not None and not _grant_left_out_alone(
         ranked, stems, raw
     ):
         return []  # both grants tie, and the input is no name without its grant
@@ -208,7 +208,7 @@ def _grant_left_out(rows: list[LicenseNameId], query: set[str]) -> set[str]:
     "GNU General Public License v2.0" is GPL-2.0-only's name without
     "only", and GPL-2.0-or-later's without "or later". Every other word
     must be there ("GNU Affero General Public License" states no version),
-    and both grants, or the guess could not be the narrower."""
+    and both grants, or the guess could not be the one decided."""
     grants: dict[str, set[str]] = {}
     for row in rows:
         name = row["norm_name"]
@@ -232,11 +232,11 @@ def _grant_left_out_alone(ranked: list[RawMatch], stems: set[str], text: str) ->
     return len(stems) == 1 and "+" not in text and alone
 
 
-def narrowed_name(found: list[RawMatch]) -> str | None:
+def decided_name(found: list[RawMatch]) -> str | None:
     """The -only ID *found* answers for a name that states no grant: its
     first two results tie, found by name and neither exact, and are one
     licence's -only and -or-later ("GNU General Public License v2.0").
-    Sorted by ID, the narrower comes first. None for any other *found*."""
+    Sorted by ID, the -only one comes first. None for any other *found*."""
     if len(found) < 2:
         return None
     first, second = found[0], found[1]
@@ -272,15 +272,15 @@ def _exact_id_row(
 
 
 def _id_hit(row: LicenseNameId, resolved: str, text: str) -> RawMatch:
-    """An ID match on *row*, answering *resolved*. A deprecated ID narrowed
-    to -only ("GPL3", "GPL 2 0", "GPL-2.0" itself) is a guess: the narrower
-    grant is the safer one, and a guess is not exact, nor silent."""
+    """An ID match on *row*, answering *resolved*. A deprecated ID whose
+    variant the option decided ("GPL3", "GPL 2 0", "GPL-2.0" itself read
+    ``-only`` or ``-or-later``) is a guess: not exact, nor silent."""
     match = read_from([exact_id_match(resolved)], text)[0]
     if resolved == row["license_id"]:
         _copy_flags(row, match)
     # A deprecated ID can resolve to an expression, whose flags are not this
     # row's: the caller works them out.
-    if narrowed(row["license_id"], resolved):
+    if decided(row["license_id"], resolved):
         match["exact"] = False
         mark_guessed(match, text)
     return match

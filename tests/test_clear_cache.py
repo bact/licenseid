@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``clear-cache`` from the path alone (C3 of the contract batch: it was
-the global flag ``--clear-cache``, which printed nothing).
+"""``clear-cache`` from the path alone (it was the global flag
+``--clear-cache``, which printed nothing).
 
 Written from the contract, not the code: clearing never opens the database,
 so it still removes one SQLite cannot read; it refuses a file licenseid did
@@ -130,11 +130,11 @@ def test_clear_cache_removes_a_ready_db_and_its_cache_but_no_foreign_file(
 def test_clear_cache_keeps_a_cache_it_cannot_show_is_its_own(
     tmp_path: Path, database: bytes | None
 ) -> None:
-    """R4 of the contract review (P163; was: ``--db proj/typo.db
-    clear-cache`` deleted ``proj/licenses.json`` and ``popularity.csv`` and
-    said ``cleared``): beside a database that is not ready, outside the
-    default directory, nothing shows the cache files are licenseid's. The
-    database named is still deleted; the files are kept and not counted."""
+    """Was: ``--db proj/typo.db clear-cache`` deleted ``proj/licenses.json``
+    and ``popularity.csv`` and said ``cleared``; now, beside a database that
+    is not ready, outside the default directory, nothing shows the cache
+    files are licenseid's. The database named is still deleted; the files
+    are kept and not counted."""
     proj = tmp_path / "proj"
     proj.mkdir()
     for name in CACHE_NAMES:
@@ -188,7 +188,7 @@ def _default_cache() -> Path:
 
 
 def test_clear_cache_knows_the_default_directory_by_another_spelling() -> None:
-    """P175: the directory is compared as a file (``os.path.samefile``), not
+    """The directory is compared as a file (``os.path.samefile``), not
     as a spelling: ``<default>/../licenseid`` is the default directory."""
     directory = _default_cache()
     spelled = directory / ".." / directory.name / "other.db"
@@ -201,7 +201,7 @@ def test_clear_cache_knows_the_default_directory_by_another_spelling() -> None:
 def test_clear_cache_knows_the_default_directory_through_a_link(
     tmp_path: Path,
 ) -> None:
-    """P175: a link to the default directory reaches it too."""
+    """A link to the default directory reaches it too."""
     directory = _default_cache()
     link = tmp_path / "link"
     link.symlink_to(directory, target_is_directory=True)
@@ -211,7 +211,7 @@ def test_clear_cache_knows_the_default_directory_through_a_link(
 
 
 def test_a_locked_database_is_not_ready_to_delete_beside(tmp_path: Path) -> None:
-    """P175: ``dbcheck.is_ready`` is fail-closed: a database another process
+    """``dbcheck.is_ready`` is fail-closed: a database another process
     holds locked (``unknown`` to the readiness check) does not show that the
     cache beside it is licenseid's. ``clear-cache`` refuses such a database
     before it asks (``reject_foreign_database``), so this is the judge alone."""
@@ -294,7 +294,7 @@ def test_clear_cache_writes_a_backslash_in_its_path_doubled(
         (("licenses.db", "licenses.json"), "cleared"),
         (("licenses.db", "popularity.csv.99.tmp"), "cleared"),
         # Beside no database, outside the default directory, a cache file
-        # is not shown to be licenseid's: kept, and not counted (P163).
+        # is not shown to be licenseid's: kept, and not counted.
         (("licenses.json",), "nothing"),
         (("popularity.csv.99.tmp",), "nothing"),
         (("keep.txt",), "nothing"),  # not licenseid's: kept, and not counted

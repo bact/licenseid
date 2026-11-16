@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The answers task T7 (compound expressions) moved in the parity corpus
-and the PyPI sample, grouped by the decision that moved them.
+"""The answers the compound expressions moved in the parity corpus
+and the PyPI sample, grouped by the rule that moved them.
 
 The answers are in ``fixtures/resolver_t7_changes.tsv``, one row a value
 with its group; :data:`REASONS` says why each group moved.
@@ -92,5 +92,5 @@ REASONS: dict[str, str] = {
 }
 
 
-#: ``{value: (answer, reason)}``, every value T7 moves.
+#: ``{value: (answer, reason)}``, every value the compound rules move.
 T7_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)

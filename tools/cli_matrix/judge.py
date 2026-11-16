@@ -158,7 +158,7 @@ def _stream_flags(cell: Cell, result: Result) -> list[str]:
     if result["rc"] == 2 and not result["out"] and HELP.match(result["err"]):
         return flags  # the help for a missing subcommand
     err = result["err"]
-    if "--diff" in cell.cmd:  # detect's word diff goes to stderr (P116)
+    if "--diff" in cell.cmd:  # detect's word diff goes to stderr
         err = WORD_DIFF.sub("", err)
     for line in err.splitlines():
         if cell.progress:

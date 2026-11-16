@@ -26,18 +26,15 @@ from licenseid.identifiers import (
 )
 from licenseid.idoptions import excluded_ids, free_text_hits, upgraded_options
 from licenseid.looseid import (
+    decide_ids,
     disambiguate_whole,
     loose_with,
     mark_guessed,
-    narrow_ids,
 )
 from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text, strip_comment_prefixes
-from licenseid.ranking import (
-    apply_version_suffix_tiebreaker,
-    ranking_key,
-)
+from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
 from licenseid.resolvefirst import as_resolved, match_of, too_short, unread_url
 from licenseid.resolver import resolve_with
 from licenseid.resolvereason import is_plus_refusal, refuses_text_match
@@ -138,7 +135,7 @@ class LicenseDetector:
         if not is_simple_expression(license_id):
             raise invalid_id_error("license_id", license_id)
         # An ID written loosely ("GPL2") reads as it does in a text, so
-        # `--id GPL2` and the argument GPL2 answer alike (F3).
+        # `--id GPL2` and the argument GPL2 answer alike.
         # Then what resolve() reads that they do not (the title ``CC0``), so
         # `--id CC0` and the argument CC0 answer alike.
         declared = (
@@ -162,8 +159,8 @@ class LicenseDetector:
 
     def _resolve_loose_with(self, text: str) -> list[RawMatch]:
         """*text*, a license written loosely WITH an exception, answered as
-        the expression of its ID (see looseid.loose_with); a narrowed -only
-        guess is not exact, and is said once the expression resolves."""
+        the expression of its ID (see looseid.loose_with); a decided variant
+        is not exact, and is said once the expression resolves."""
         found = loose_with(self.db, text)
         if found is None:
             return []
@@ -476,10 +473,10 @@ class LicenseDetector:
         expression = resolution["expression"] or ""
         found = read_from(self._resolve_declared(expression), resolution["input"])
         if not found:  # no marker reader takes it: "MIT WITH AdditionRef-x"
-            narrow = narrow_ids(self.db, expression)
-            found = [match_of(narrow, self.markers.license_flags(narrow))]
+            decided = decide_ids(self.db, expression)
+            found = [match_of(decided, self.markers.license_flags(decided))]
             read_from(found, resolution["input"])
-            if narrow != expression:  # a guess, said and not exact
+            if decided != expression:  # a guess, said and not exact
                 found[0]["exact"] = False
                 mark_guessed(found[0], expression)
         return as_resolved(resolution, found)

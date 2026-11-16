@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """``resolve()`` and a mark after a ``+``, an exception or a ``LicenseRef-``,
-and a lone dash after a prose form (task T8b; decision P80). The readers of
+and a lone dash after a prose form. The readers of
 those shapes returned before the drop guard, so a mark that says something
 (``GPL-2.0+?``) was unresolved with no reason, and one end mark (``MIT+;``)
 was not an ending as it is after an ID."""
@@ -55,7 +55,7 @@ REFUSED = {
     "Apache License, Version 2.0 &": "U+0026",
     "Apache License, Version 2.0 -": "U+002D",
     "MIT+ License -": "U+002D",
-    "Apache-2.0 License+?": "U+003F",  # the prose form P1 reads, then the mark
+    "Apache-2.0 License+?": "U+003F",  # the prose form, then the mark
 }
 #: Not of the shape, or its core names nothing: as before, no reason.
 SILENT = [

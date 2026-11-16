@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The answers task T9 (trove names and paths, an agreeing trailing name)
-moved in the parity corpus and the PyPI sample, grouped by the rule.
+"""The answers the trove rules (trove names and paths, an agreeing trailing
+name) moved in the parity corpus and the PyPI sample, grouped by the rule.
 
 The answers are in ``fixtures/resolver_t9_changes.tsv``;
 :data:`REASONS` says why each group moved. ``resolver_corpus`` merges
@@ -45,5 +45,5 @@ REASONS: dict[str, str] = {
     ),
 }
 
-#: ``{value: (answer, reason)}``, every value T9 moves.
+#: ``{value: (answer, reason)}``, every value the trove rules move.
 T9_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)

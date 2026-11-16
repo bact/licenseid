@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The rules around a loose ID (licenseid.looseid): a grant after it, a WITH
-after it, the -only guess on every path, the warning's DETAIL, the key index,
-and the key over a whole License List."""
+after it, the -only guess on every path, the key index, and the key over a
+whole License List."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
 import sqlite3
@@ -24,7 +24,7 @@ from licenseid.database import LicenseDatabase
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
 from licenseid.detector import LicenseDetector
 from licenseid.identifiers import normalize_identifier
-from licenseid.looseid import loose_id, loose_with, narrow_ids, narrowed_ids, shown
+from licenseid.looseid import decide_ids, decided_forms, loose_id, loose_with
 from licenseid.shorttext import match_short_text
 from licenseid.versionkey import MAX_KEY_INPUT, version_key
 
@@ -104,13 +104,13 @@ def test_a_grant_after_a_loose_id(
         ("gpl  2 0", "GPL-2.0-only", True),
         ("GPL 2 0 +", "GPL-2.0-only", True),  # a "+" apart is no operator
         ("GPL 2.0", "GPL-2.0-only", True),  # the key's path
-        # The deprecated ID as is: a guess too (F3 of the contract batch).
+        # The deprecated ID as is: a guess too.
         ("GPL-2.0", "GPL-2.0-only", True),
         ("gpl-2.0", "GPL-2.0-only", True),
         (" GPL-2.0 \n", "GPL-2.0-only", True),
     ],
 )
-def test_every_path_narrows_alike(
+def test_every_path_decides_alike(
     db: LicenseDatabase,
     given: GivenWarnings,
     raw: str,
@@ -129,25 +129,6 @@ def test_the_exact_id_match_keeps_a_plus_operator(db: LicenseDatabase) -> None:
     """With the operator, the normalised ID of GPL-2.0+ answers or-later."""
     [match] = match_short_text(db, "gpl 2 0", "GPL-2-0+")
     assert match["license_id"] == "GPL-2.0-or-later"
-
-
-@pytest.mark.parametrize(
-    ("text", "detail"),
-    [
-        ("GPL;2", "GPL?2"),  # ";" starts the ACTION
-        ("GPL2\x1b[2J", "GPL2?[2J"),  # no terminal control
-        ("GPL2\x07\x9b", "GPL2??"),
-        ("\u200bGPL2", "?GPL2"),  # nor an invisible format character
-        (" GPL\t 2\n", "GPL 2"),  # one line
-        ("GPL: 2", "GPL: 2"),  # a DETAIL may hold a ":"
-        ("G" * 60, "G" * 60),  # 60 characters are kept whole
-        ("G" * 61, "G" * 60 + "..."),  # a longer one is cut
-        ("GPL-2.0 OR " * 40, ("GPL-2.0 OR " * 6)[:60] + "..."),
-    ],
-    ids=["semicolon", "escape", "bell", "zwsp", "lines", "colon", "60", "61", "or"],
-)
-def test_the_warning_detail_is_one_printable_line(text: str, detail: str) -> None:
-    assert shown(text) == detail
 
 
 @pytest.mark.parametrize(
@@ -344,7 +325,7 @@ def test_deep_brackets_are_read_in_one_pass(
 
 
 @pytest.mark.parametrize(
-    ("text", "expression", "narrowed"),
+    ("text", "expression", "decided"),
     [
         ("GPL-2.0", "GPL-2.0-only", True),
         ("gpl-2.0", "GPL-2.0-only", True),
@@ -361,8 +342,8 @@ def test_deep_brackets_are_read_in_one_pass(
         ("MIT", "MIT", False),
         ("MIT OR GPL-2.0-only", "GPL-2.0-only OR MIT", False),
         ("", "", False),
-        # R2 of the contract review: the deprecated -with- IDs, judged as
-        # narrowed() judges them on every other path.
+        # The deprecated -with- IDs, judged as variants.decided() judges them on
+        # every other path.
         *(
             (deprecated, reading, True)
             for deprecated, reading in sorted(DEPRECATED_WITH_IDS.items())
@@ -377,43 +358,43 @@ def test_deep_brackets_are_read_in_one_pass(
             "GPL-3.0-only WITH GCC-exception-3.1 OR MIT",
             True,
         ),
-        # R5: a "+" states the grant, so "GPL-2.0" of "GPL-2.0+" is not bare.
+        # A "+" states the grant, so "GPL-2.0" of "GPL-2.0+" is not bare.
         ("GPL-2.0+ OR GPL-2.0-only", "GPL-2.0-only OR GPL-2.0-or-later", False),
         ("GPL-2.0-only OR GPL-2.0+", "GPL-2.0-only OR GPL-2.0-or-later", False),
-        # A "+" after a space is no operator (plusoperator.PLUS_OPERATOR, P171):
-        # GPL-2.0 is bare, narrowed where the reading has its -only form.
+        # A "+" after a space is no operator (plusoperator.PLUS_OPERATOR):
+        # GPL-2.0 is bare, decided where the reading has its -only form.
         ("GPL-2.0 + OR MIT", "GPL-2.0-or-later OR MIT", False),
         ("GPL-2.0 +", "GPL-2.0-only", True),
         ("GPL-2.0+,", "GPL-2.0-only", True),  # "+," is prose, no operator
         ("(GPL-2.0+)", "GPL-2.0-or-later", False),
         ("GPL-2.0+ OR GPL-2.0", "GPL-2.0-only OR GPL-2.0-or-later", True),
         ("(GPL-2.0)", "GPL-2.0-only", True),
-        # The narrowed licence must be in the reading.
+        # The decided licence must be in the reading.
         ("GPL-2.0", "MIT", False),
-        # An exception word is no licence to narrow.
+        # An exception word is no licence to decide.
         ("MIT WITH GPL-2.0", "MIT WITH GPL-2.0", False),
     ],
 )
-def test_a_narrowed_id_is_found_in_an_expression(
-    corpus_db: LicenseDatabase, text: str, expression: str, narrowed: bool
+def test_a_decided_id_is_found_in_an_expression(
+    corpus_db: LicenseDatabase, text: str, expression: str, decided: bool
 ) -> None:
-    """F3: a deprecated ID read as an -only form, alone or in a compound,
+    """A deprecated ID read as an -only form, alone or in a compound,
     from the words of the value and of its reading."""
-    assert narrowed_ids(corpus_db, text, expression) is narrowed
+    assert bool(decided_forms(corpus_db, text, expression)) is decided
 
 
 @pytest.mark.parametrize(
-    ("expression", "narrow"),
+    ("expression", "decided"),
     [
         ("GPL-3.0 WITH AdditionRef-x", "GPL-3.0-only WITH AdditionRef-x"),
         ("(GPL-2.0 OR MIT)", "(GPL-2.0-only OR MIT)"),  # brackets kept
         ("GPL-2.0+ WITH AdditionRef-x", "GPL-2.0+ WITH AdditionRef-x"),  # "+"
         ("GPL-2.0-only OR LGPL-2.1", "GPL-2.0-only OR LGPL-2.1-only"),
         ("MIT WITH AdditionRef-x", "MIT WITH AdditionRef-x"),
-        ("mit WITH AdditionRef-x", "mit WITH AdditionRef-x"),  # no narrowing
+        ("mit WITH AdditionRef-x", "mit WITH AdditionRef-x"),  # nothing to decide
     ],
 )
-def test_narrow_ids_narrows_each_bare_split_id(
-    db: LicenseDatabase, expression: str, narrow: str
+def test_decide_ids_decides_each_bare_split_id(
+    db: LicenseDatabase, expression: str, decided: str
 ) -> None:
-    assert narrow_ids(db, expression) == narrow
+    assert decide_ids(db, expression) == decided

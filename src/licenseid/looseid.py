@@ -15,7 +15,6 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, grant_end, grant_follows, grant_head
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
-from licenseid.errors import one_line
 from licenseid.exprtokens import (
     ID_WORD,
     LIST_MARK,
@@ -53,13 +52,9 @@ __all__ = [
     "loose_id",
     "loose_with",
     "mark_guessed",
-    "narrowed",
-    "narrowed_ids",
     "resolved_id",
     "restates_qualifier",
-    "shown",
     "undashed_grant",
-    "warn_narrowed",
 ]
 
 # The word a grant starts with, where OR_LATER_PHRASE starts at the version
@@ -113,52 +108,40 @@ def resolved_id(db: ListLookup, row: ListedName) -> str:
     return normalize_identifier(lid, db) if row["is_deprecated"] else lid
 
 
-def narrowed(row_id: str, resolved: str) -> bool:
-    """Whether the deprecated *row_id* was decided as an -only or -or-later
-    form that was not stated (``variant`` ``only`` or ``or-later``; the
-    default keeps it as written, and says nothing). A bare ID is no
-    statement: the List split it into -only and -or-later (decision F3 of
-    the contract batch: a guess is not exact, and said)."""
-    return decided(row_id, resolved)
-
-
-def narrowed_forms(db: ListLookup, text: str, expression: str) -> list[str]:
+def decided_forms(db: ListLookup, text: str, expression: str) -> list[str]:
     """The forms (folded) that *expression*, the reading of the declared
-    *text*, narrowed a deprecated ID of *text* to, not stated ("MIT OR
+    *text*, decided a deprecated ID of *text* as, not stated ("MIT OR
     GPL-2.0" read as "GPL-2.0-only OR MIT", "GPL-2.0-with-classpath-exception"
     as "GPL-2.0-only WITH Classpath-exception-2.0"). Each ID word is read
-    alone, as normalize_identifier() reads it, and judged by :func:`narrowed`,
-    the judge of every other path; its licence must be in *expression*, case
-    ignored. An ID with the "+" operator after it states its grant, as the
-    one reader of that operator (plusoperator.PLUS_OPERATOR) says: a "+"
-    after a space or before a comma is none."""
+    alone, as normalize_identifier() reads it, and judged by
+    :func:`licenseid.variants.decided`, the judge of every other path; its
+    licence must be in *expression*, case ignored. An ID with the "+"
+    operator after it states its grant, as the one reader of that operator
+    (plusoperator.PLUS_OPERATOR) says: a "+" after a space or before a comma
+    is none."""
     forms: list[str] = []
     words = {word.casefold() for word in RE_TOKEN.findall(expression)}
     granted = {
         plus.end("id") for plus in PLUS_OPERATOR.finditer(text) if not plus["with"]
     }
     for token in RE_TOKEN.finditer(text):
-        # A bracket, a "+" or an operator is never narrowed; reading each
+        # A bracket, a "+" or an operator is never decided; reading each
         # alone cost seconds on 40,000 brackets around one ID.
         if token.end() in granted or not token.group(0)[0].isalnum():
             continue
         reading = normalize_identifier(token.group(0), db)
         head = RE_TOKEN.findall(reading)[0].casefold()
-        if narrowed(token.group(0), reading) and head in words:
+        if decided(token.group(0), reading) and head in words:
             forms.append(head)
     return forms
 
 
-def narrowed_ids(db: ListLookup, text: str, expression: str) -> bool:
-    """Whether :func:`narrowed_forms` finds a form."""
-    return bool(narrowed_forms(db, text, expression))
-
-
-def narrow_ids(db: ListLookup, expression: str) -> str:
-    """*expression* with each deprecated ID it states with no grant narrowed
-    to its -only form, as :func:`narrowed_ids` judges one: for an expression
-    no marker reader takes ("GPL-3.0 WITH AdditionRef-x" is GPL-3.0-only
-    WITH AdditionRef-x). An ID with the "+" operator after it is kept."""
+def decide_ids(db: ListLookup, expression: str) -> str:
+    """*expression* with each deprecated ID it states with no grant decided
+    as the variant says, as :func:`licenseid.variants.decided` judges one: for
+    an expression no marker reader takes ("GPL-3.0 WITH AdditionRef-x" is
+    GPL-3.0-only WITH AdditionRef-x). An ID with the "+" operator after it is
+    kept."""
     granted = {
         plus.end("id")
         for plus in PLUS_OPERATOR.finditer(expression)
@@ -170,7 +153,7 @@ def narrow_ids(db: ListLookup, expression: str) -> str:
         if token.end() in granted or not word[0].isalnum():
             return word
         reading = normalize_identifier(word, db)
-        return reading if narrowed(word, reading) else word
+        return reading if decided(word, reading) else word
 
     return RE_TOKEN.sub(one, expression)
 
@@ -183,22 +166,23 @@ def read_inexactly(
     db: ListLookup, text: str, found: list[CandidateMatch], guessed: bool = False
 ) -> str | None:
     """How the first of *found*, the reading of the declared *text*, is not
-    what *text* states, so is not exact, or None: ``"narrowed"`` for a
-    deprecated ID narrowed to -only (:func:`narrowed_ids`, a guess to say),
+    what *text* states, so is not exact, or None: ``"decided"`` for a
+    deprecated ID decided as a form it does not state (:func:`decided_forms`,
+    a guess to say),
     ``"ambiguous"`` for a "+" given to the licence of a deprecated ID with
     an exception in it ("GPL-2.0-with-classpath-exception+" read as
     GPL-2.0-or-later WITH Classpath-exception-2.0), which ``resolve()`` calls
     ambiguous (``deprecated_ambiguous``). *guessed*: a deprecated name was
-    answered by the option (``variants.only_by_name``): narrowed."""
+    answered by the option (``variants.only_by_name``): decided."""
     if not found:
         return None
-    forms = [] if guessed else narrowed_forms(db, text, found[0]["license_id"])
+    forms = [] if guessed else decided_forms(db, text, found[0]["license_id"])
     if guessed or forms:
         # The forms the option chose: no word of the value states them.
         found[0].setdefault("evidence", Evidence())["decided"] = forms or variant_forms(
             found[0]["license_id"]
         )
-        return "narrowed"
+        return "decided"
     for plus in PLUS_OPERATOR.finditer(text):
         if not plus["with"] and plus["id"].casefold() in _WITH_IDS:
             return "ambiguous"
@@ -294,7 +278,7 @@ def undashed_grant(value: str, head: str) -> str | None:
     """*value* without the dashes between words around the "or" of its
     grant, after *head* (:func:`before_grant`): "GPL-2.0 - or - later" is
     "GPL-2.0 or later". None if no dash stands there. A separator, which
-    the reading records as a step (D10); "or-later" is a word of its own."""
+    the reading records as a step; "or-later" is a word of its own."""
     gaps = _RE_GRANT_GAPS.match(value, len(head))
     if gaps is None:
         return None
@@ -391,41 +375,29 @@ def variant_forms(expression: str) -> list[str]:
 
 
 def mark_guessed(match: CandidateMatch | RawMatch, written: str) -> None:
-    """Say that the variant of *match*, read from *written*, was decided, not
-    stated, and say so (its evidence marks the forms *decided*, so
-    ``variant_stated`` is false, and it is not exact): every variant of the
-    match where no reader marked the forms."""
+    """Mark the variant of *match*, read from *written*, as decided, not
+    stated (its evidence lists the forms *decided*, so ``variant_stated`` is
+    false and it is not exact), and say so: the DETAIL is the licence
+    (``GPL-2.0``), not the text. Every variant of the match is decided where
+    no reader listed the forms."""
     evidence = match.setdefault("evidence", Evidence())
     if "decided" not in evidence:
         evidence["decided"] = variant_forms(match["license_id"])
-    warn_narrowed(match["license_id"], written)
-
-
-def warn_narrowed(resolved: str, written: str = "") -> None:
-    """Say that the variant of a licence was not stated and *resolved* was
-    decided (``-only``, or ``-or-later`` for ``--variant``): the DETAIL is
-    the licence (``GPL-2.0``), not the text."""
+    resolved = match["license_id"]
     warn_guess(family_of(resolved, written), resolved)
-
-
-def shown(text: str) -> str:
-    """*text* fit for a diagnostic's DETAIL: one line, printable, and no ";"
-    (which starts the ACTION), each other character as "?", and cut to 60
-    characters as :func:`licenseid.errors.one_line` cuts a value."""
-    line = " ".join(text.split())
-    return one_line("".join(c if c.isprintable() and c != ";" else "?" for c in line))
 
 
 def loose_with(db: ListLookup, text: str) -> tuple[str, str | None] | None:
     """*text*, a license written loosely WITH an exception, as an expression
     of the ID ("GPL2 WITH Classpath-exception-2.0" is GPL-2.0-only WITH
-    Classpath-exception-2.0), and the loose license text if it was narrowed
-    to -only (the caller warns once the expression resolves). None if *text*
-    is no such expression. The exception is the caller's to check. Brackets
-    around the whole are no part of it ("(GPL2 WITH Classpath-exception-2.0)"),
-    as for a declared expression. Any other bracket is none of this shape:
-    WITH takes a license ID, not a bracketed one ("(GPL2) WITH x"), and an
-    unbalanced one ("(GPL2 WITH x") is no expression.
+    Classpath-exception-2.0), and the loose license text if the variant of
+    its licence was decided (the caller warns once the expression resolves).
+    None if *text* is no such expression. The exception is the caller's to
+    check. Brackets around the whole are no part of it ("(GPL2 WITH
+    Classpath-exception-2.0)"), as for a declared expression. Any other
+    bracket is none of this shape: WITH takes a license ID, not a bracketed
+    one ("(GPL2) WITH x"), and an unbalanced one ("(GPL2 WITH x") is no
+    expression.
     """
     inner = without_outer_brackets(text.strip())
     parts = WITH_OPERATOR.split(inner)
@@ -435,7 +407,7 @@ def loose_with(db: ListLookup, text: str) -> tuple[str, str | None] | None:
     if found is None or " WITH " in found[1]:
         return None  # no license, or one that carries an exception already
     row, resolved = found
-    loose = parts[0] if narrowed(row["license_id"], resolved) else None
+    loose = parts[0] if decided(row["license_id"], resolved) else None
     return f"{resolved} WITH {parts[1].strip()}", loose
 
 

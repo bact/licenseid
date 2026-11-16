@@ -4,10 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Characterisation pins for the review of the contract batch of 0.7.0
-(findings R1 to R10, 2026-11-02).
+(2026-11-02).
 
 Each pin records what the branch did when the review found it. A later
-commit flips the pin to the new answer and names the decision (P159 on), so
+commit flips the pin to the new answer and names the decision, so
 this file is the before-and-after record of every changed behaviour.
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
@@ -77,7 +77,7 @@ def run(db: str, *args: str, stdin: str | None = None) -> Result:
     return CliRunner().invoke(cli, ["--db", db, *args], input=stdin)
 
 
-# --- R1: no record is no answer (P159) ---------------------------------------
+# --- No record is no answer ---------------------------------------
 
 
 def _inputs(tmp_path: Path, value: str) -> list[tuple[list[str], str | None]]:
@@ -97,10 +97,10 @@ def _inputs(tmp_path: Path, value: str) -> list[tuple[list[str], str | None]]:
         "Not a licence at all",
     ],
 )
-def test_r1_no_record_is_no_answer(
+def test_no_record_is_no_answer(
     db: str, tmp_path: Path, command: str, value: str
 ) -> None:
-    """R1 (was: ``EXPRESSION=\tIS_OSI_APPROVED=false``, a false "no"): no
+    """Was: ``EXPRESSION=\tIS_OSI_APPROVED=false``, a false "no"; now no
     licence found leaves the flag empty, ``null`` in JSON, exit 1. A short
     value resolve() refuses says why; a tag was judged by its reader."""
     stderr = "" if value.startswith("SPDX-") else NOT_A_LICENCE
@@ -116,12 +116,12 @@ def test_r1_no_record_is_no_answer(
 
 
 @pytest.mark.parametrize("command", COMMANDS)
-def test_r1_a_bare_compound_answers_as_its_tag(
+def test_a_bare_compound_answers_as_its_tag(
     db: str, tmp_path: Path, command: str
 ) -> None:
     """A compound that is the whole input (was: matched as text, no licence)
     is read by resolve() first, so it answers as its tag does: an OR of two
-    approved licences is approved (D8)."""
+    approved licences is approved."""
     tag = run(db, command, "--text", "SPDX-License-Identifier: MIT OR ISC")
     assert (tag.exit_code, tag.stdout) == (
         0,
@@ -137,8 +137,8 @@ def test_r1_a_bare_compound_answers_as_its_tag(
 
 
 @pytest.mark.parametrize("command", COMMANDS)
-def test_r1_an_unknown_id_is_no_answer(db: str, command: str) -> None:
-    """R1 (was: ``--id Zzz-Unknown-1.0`` said ``false``)."""
+def test_an_unknown_id_is_no_answer(db: str, command: str) -> None:
+    """Was: ``--id Zzz-Unknown-1.0`` said ``false``."""
     result = run(db, command, "--id", "Zzz-Unknown-1.0")
     assert (result.exit_code, result.stdout) == (1, predicate_line(command, "", None))
 
@@ -162,10 +162,10 @@ def test_r1_an_unknown_id_is_no_answer(db: str, command: str) -> None:
         ),
     ],
 )
-def test_r1_a_licence_found_keeps_its_answer(
+def test_a_licence_found_keeps_its_answer(
     db: str, command: str, args: list[str], line: tuple[str, bool | None]
 ) -> None:
-    """R1, adversarial: only "not found" moved; a found licence says ``false``
+    """Only "not found" moved; a found licence says ``false``
     where the List says no."""
     result = run(db, command, *args)
     assert result.stdout == predicate_line(command, *line)
@@ -173,10 +173,10 @@ def test_r1_a_licence_found_keeps_its_answer(
 
 
 @pytest.mark.parametrize("method", ["is_osi", "is_fsf", "is_spdx"])
-def test_r1_the_api_says_none_for_no_licence(
+def test_the_api_says_none_for_no_licence(
     db: str, tmp_path: Path, method: str, given: GivenWarnings
 ) -> None:
-    """R1 (was: False for no record): None, as the CLI's empty flag."""
+    """Was: False for no record; now None, as the CLI's empty flag."""
     path = tmp_path / "LICENSE"
     path.write_text("Not a licence at all\n", encoding="utf-8")
     detector = LicenseDetector(db)
@@ -187,15 +187,15 @@ def test_r1_the_api_says_none_for_no_licence(
     assert getattr(detector, method)(license_id="MIT") is True
 
 
-# --- R2: the deprecated -with- IDs are a guess too (P160) --------------------
+# --- The deprecated -with- IDs are a guess too --------------------
 
 
 @pytest.mark.parametrize(("deprecated", "reading"), sorted(WITH_IDS.items()))
-def test_r2_a_with_id_is_a_narrowed_guess_on_every_path(
+def test_a_with_id_is_a_decided_guess_on_every_path(
     db: str, tmp_path: Path, deprecated: str, reading: str
 ) -> None:
-    """R2 (was: ``GPL-2.0-with-classpath-exception`` read as ``GPL-2.0-only
-    WITH Classpath-exception-2.0``, exact and with no warning): not exact,
+    """Was: ``GPL-2.0-with-classpath-exception`` read as ``GPL-2.0-only
+    WITH Classpath-exception-2.0``, exact and with no warning; now not exact,
     and the warning of every narrowed ID, from an argument, ``--id``, a tag,
     a manifest field and ``is-*`` alike."""
     field = tmp_path / "package.json"
@@ -225,8 +225,8 @@ def test_r2_a_with_id_is_a_narrowed_guess_on_every_path(
     )
 
 
-def test_r2_the_api_reads_a_with_id_as_not_exact(db: str, given: GivenWarnings) -> None:
-    """R2: ``detect(license_id=...)`` says the guess too."""
+def test_the_api_reads_a_with_id_as_not_exact(db: str, given: GivenWarnings) -> None:
+    """``detect(license_id=...)`` says the guess too."""
     (top,) = LicenseDetector(db).detect(
         license_id="GPL-2.0-with-GCC-exception", variant="only"
     )
@@ -237,7 +237,7 @@ def test_r2_the_api_reads_a_with_id_as_not_exact(db: str, given: GivenWarnings) 
     assert given.conditions() == {"variant not stated"}
 
 
-# --- R3: a deprecated row without text keeps its flags (P162) -----------------
+# --- A deprecated row without text keeps its flags -----------------
 # The rows themselves: tests/test_records_rules.py.
 
 
@@ -261,11 +261,11 @@ def _entry(license_id: str, deprecated: bool, osi: bool, fsf: bool) -> SpdxLicen
         ("is-osi", "Nunit", False),
     ],
 )
-def test_r3_a_deprecated_id_without_text_has_its_flags(
+def test_a_deprecated_id_without_text_has_its_flags(
     tmp_path: Path, command: str, license_id: str, answer: bool
 ) -> None:
-    """R3 (was: ``is-osi --id wxWindows`` false, ``is-fsf --id eCos-2.0``
-    false, though the List says true): a database built by ``update``
+    """Was: ``is-osi --id wxWindows`` false, ``is-fsf --id eCos-2.0``
+    false, though the List says true; now a database built by ``update``
     answers with the List's flags."""
     entries = [
         _entry("MIT", False, True, True),
@@ -279,16 +279,16 @@ def test_r3_a_deprecated_id_without_text_has_its_flags(
     assert result.stdout == predicate_line(command, license_id, answer)
 
 
-# --- R4: clear-cache deletes only its own cache (P163) -------------------------
+# --- clear-cache deletes only its own cache -------------------------
 # Every shape: tests/test_clear_cache.py.
 
 
-def test_r4_clear_cache_keeps_the_files_beside_a_missing_database(
+def test_clear_cache_keeps_the_files_beside_a_missing_database(
     tmp_path: Path,
 ) -> None:
-    """R4 (was: ``--db proj/typo.db clear-cache`` deleted the user's own
+    """Was: ``--db proj/typo.db clear-cache`` deleted the user's own
     ``licenses.json`` and ``popularity.csv`` in ``proj`` and said
-    ``STATUS=cleared``): the reviewer's reproducer."""
+    ``STATUS=cleared``; now the reviewer's reproducer."""
     proj = tmp_path / "proj"
     proj.mkdir()
     for name in ("licenses.json", "popularity.csv", "notes.txt"):
@@ -303,7 +303,7 @@ def test_r4_clear_cache_keeps_the_files_beside_a_missing_database(
     ]
 
 
-# --- R5: a "+" is no bare ID (P161) --------------------------------------------
+# --- A "+" is no bare ID --------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -316,12 +316,12 @@ def test_r4_clear_cache_keeps_the_files_beside_a_missing_database(
         ("GPL-2.0+ OR GPL-2.0", "GPL-2.0-only OR GPL-2.0-or-later", True),
     ],
 )
-def test_r5_a_plus_keeps_its_operand(
+def test_a_plus_keeps_its_operand(
     db: str, value: str, expression: str, warned: bool
 ) -> None:
-    """R5 (was: the tag ``GPL-2.0+ OR GPL-2.0-only`` answered ``GPL-2.0-only``,
+    """Was: the tag ``GPL-2.0+ OR GPL-2.0-only`` answered ``GPL-2.0-only``,
     the prose reader taking ``GPL-2.0`` as bare and the ``-only`` of the
-    next ID as its word, and warned that ``GPL-2.0`` was narrowed): every
+    next ID as its word, and warned that ``GPL-2.0`` was narrowed; now every
     operand is kept, and only a bare ID warns."""
     tag = f"SPDX-License-Identifier: {value}"
     result = run(db, "detect", "--json", "--variant", "only", "--text", tag)
@@ -330,9 +330,9 @@ def test_r5_a_plus_keeps_its_operand(
     assert ("variant not stated" in result.stderr) is warned
 
 
-def test_r5_a_bare_compound_argument_keeps_every_operand(db: str) -> None:
-    """R5 (was: the argument ``GPL-2.0+ OR GPL-2.0-only`` answered
-    ``GPL-2.0-only``, METHOD=id, exact; then no licence, P141): resolve()
+def test_a_bare_compound_argument_keeps_every_operand(db: str) -> None:
+    """Was: the argument ``GPL-2.0+ OR GPL-2.0-only`` answered
+    ``GPL-2.0-only``, METHOD=id, exact, then no licence; now resolve()
     reads a whole input first, so the compound is its expression."""
     result = run(db, "detect", "GPL-2.0+ OR GPL-2.0-only")
     assert result.exit_code == 0
@@ -351,15 +351,15 @@ def test_r5_a_bare_compound_argument_keeps_every_operand(db: str) -> None:
         ("GPL-2.0 OR GPL-2.0-only", None),
     ],
 )
-def test_r5_the_prose_reader_skips_what_an_id_states(
+def test_the_prose_reader_skips_what_an_id_states(
     text: str, answer: str | None
 ) -> None:
-    """R5: ``disambiguate_deprecated_id`` reads a bare ID and a phrase; the
+    """``disambiguate_deprecated_id`` reads a bare ID and a phrase; the
     "+" and the "-only" of an ID are not prose."""
     assert disambiguate_deprecated_id(text) == answer
 
 
-# --- R6: exit 1 prints no ERROR line, and may warn (P164) ----------------------
+# --- Exit 1 prints no ERROR line, and may warn ----------------------
 
 
 @pytest.mark.parametrize(
@@ -375,15 +375,15 @@ def test_r5_the_prose_reader_skips_what_an_id_states(
         (["resolve", "Foo"], ""),
     ],
 )
-def test_r6_exit_1_carries_no_error_line(db: str, args: list[str], stderr: str) -> None:
-    """R6: "no" is an answer, so exit 1 prints no ERROR line; the warning
+def test_exit_1_carries_no_error_line(db: str, args: list[str], stderr: str) -> None:
+    """Exit 1 is an answer ("no"), so it prints no ERROR line; the warning
     of a value too short to match as text is said as with an answer; one of
     a guess that ``--exact`` leaves out is not, as nothing printed has it."""
     result = run(db, *args)
     assert (result.exit_code, result.stderr) == (1, stderr)
 
 
-# --- R7: licenseid.detect() checks the call before the database (P165) --------
+# --- licenseid.detect() checks the call before the database --------
 
 
 @pytest.mark.parametrize(
@@ -399,14 +399,14 @@ def test_r6_exit_1_carries_no_error_line(db: str, args: list[str], stderr: str) 
     ids=["not-str", "bytes-id", "none", "two", "option", "option-first"],
 )
 @pytest.mark.parametrize("database", [False, True], ids=["no-db", "db"])
-def test_r7_detect_checks_the_call_first(
+def test_detect_checks_the_call_first(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     case: tuple[dict[str, object], type[Exception], str],
     database: bool,
 ) -> None:
-    """R7 (was: with no default database, a wrong call raised
-    DatabaseNotReadyError, not its own error): the call is checked as
+    """Was: with no default database, a wrong call raised
+    DatabaseNotReadyError, not its own error; now the call is checked as
     ``resolve()`` checks its value, before any database is opened."""
     path = tmp_path / "licenses.db"
     if database:
@@ -418,10 +418,10 @@ def test_r7_detect_checks_the_call_first(
         licenseid.detect(**kwargs)  # type: ignore[arg-type]
 
 
-def test_r7_a_good_call_still_needs_the_database(
+def test_a_good_call_still_needs_the_database(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """R7, adversarial: the check moved, the database is still asked for."""
+    """The check moved, the database is still asked for."""
     monkeypatch.setattr(
         "licenseid.keptdetector.get_default_db_path", lambda: str(tmp_path / "x.db")
     )
@@ -430,23 +430,23 @@ def test_r7_a_good_call_still_needs_the_database(
         licenseid.detect("MIT")
 
 
-# --- R9: a blank db is refused (P166) -------------------------------------------
+# --- A blank db is refused -------------------------------------------
 
 
 @pytest.mark.parametrize("blank", ["", "  ", "\t\n"], ids=["empty", "spaces", "ws"])
-def test_r9_resolve_refuses_a_blank_db(blank: str) -> None:
-    """R9 (was: ``resolve(value, db="")`` said ``database: unreadable: :
-    disk I/O error``): a usage error, worded as the CLI's ``--db ""``."""
+def test_resolve_refuses_a_blank_db(blank: str) -> None:
+    """Was: ``resolve(value, db="")`` said ``database: unreadable: :
+    disk I/O error``; now a usage error, worded as the CLI's ``--db ""``."""
     with pytest.raises(
         InvalidInputError, match="^database: missing: db; pass a path or drop db$"
     ):
         resolve("MIT", db=blank)
 
 
-def test_r9_the_detector_refuses_a_blank_path(
+def test_the_detector_refuses_a_blank_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """R9: ``LicenseDetector("")`` read the default database, a file the
+    """``LicenseDetector("")`` read the default database, a file the
     caller did not name; None still means the default."""
     with pytest.raises(InvalidInputError, match="^database: missing: db_path;"):
         LicenseDetector("")
@@ -455,7 +455,7 @@ def test_r9_the_detector_refuses_a_blank_path(
     assert LicenseDetector(None).db.db_path == path
 
 
-def test_r9_the_cli_refuses_a_blank_db_as_before() -> None:
+def test_the_cli_refuses_a_blank_db_as_before() -> None:
     result = CliRunner().invoke(cli, ["--db", "", "resolve", "MIT"])
     assert (result.exit_code, result.stderr) == (
         2,
@@ -463,7 +463,7 @@ def test_r9_the_cli_refuses_a_blank_db_as_before() -> None:
     )
 
 
-# --- R10: the Font-exception candidate of an unknown GPL version ------------
+# --- The Font-exception candidate of an unknown GPL version ------------
 
 FONT_TEXT = (
     "This font is free software; you can redistribute it under the terms of"
@@ -475,10 +475,10 @@ FONT_TEXT = (
 )
 
 
-def test_r10_an_unknown_gpl_version_gets_no_font_candidate(db: str) -> None:
-    """R10 (P167; was: "version 4" with the font exception gave
+def test_an_unknown_gpl_version_gets_no_font_candidate(db: str) -> None:
+    """Was: "version 4" with the font exception gave
     ``GPL-4.0-only WITH Font-exception-2.0``, an ID the List does not have,
-    at the top of ``detect()``): no licence, as without the exception."""
+    at the top of ``detect()``; now no licence, as without the exception."""
     found = LicenseDetector(db).detect(FONT_TEXT)
     assert all("GPL-4.0" not in r["expression"] for r in found)
     markers = MarkerDetector(LicenseDatabase(db, create=False))
@@ -493,10 +493,10 @@ def test_r10_an_unknown_gpl_version_gets_no_font_candidate(db: str) -> None:
     ],
     ids=["listed", "unlisted"],
 )
-def test_r10_a_font_candidate_takes_the_flags_of_its_expression(
+def test_a_font_candidate_takes_the_flags_of_its_expression(
     exceptions: list[str], flags: tuple[bool, bool, bool]
 ) -> None:
-    """R10: the candidate's flags are those ``license_flags`` gives the
+    """The candidate's flags are those ``license_flags`` gives the
     expression (``exprflags``): the licence's, on the List only when the
     exception is too."""
     text = FONT_TEXT.replace("version 4", "version 2")

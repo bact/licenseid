@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The frozen PyPI sample and the guard over both fixtures (0.7.0 plan, T0).
+"""The frozen PyPI sample and the guard over both fixtures (0.7.0 plan).
 
 ``tests/fixtures/pypi_values_2026-10*.tsv`` holds the distinct short licence
 values of the most downloaded PyPI projects and the answers of

@@ -43,7 +43,7 @@ class Answer(NamedTuple):
     ``steps`` and ``expansions`` are the kinds in order, a ``!`` after one
     that did not apply; ``step_targets`` and ``expansion_targets`` the
     ``to`` of each. ``reason`` is ``None`` for every 0.6.0 answer (the field
-    came with T6). ``input_same`` says whether ``input`` is the raw value.
+    is newer). ``input_same`` says whether ``input`` is the raw value.
     """
 
     expression: str | None

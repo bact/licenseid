@@ -3,13 +3,13 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""What ``resolve()`` does with a quoted value (task T6b, decision Q12).
+"""What ``resolve()`` does with a quoted value.
 
 Quote marks around the whole value are taken off by the ``unquote`` step
 (:mod:`licenseid.quotes`) and the inside is read as it would be alone. A mark
 on one end only is read too, as a weaker answer. Marks inside the value, a
 mark of the wrong kind and a value that is only quotes are not read. Before
-T6b every one of these was refused by the drop guard (T6).
+this reading every one of these was refused by the drop guard.
 """
 
 # pylint: disable=missing-function-docstring
@@ -106,13 +106,13 @@ INSIDE = [
     ('"GPL" 2.0', "U+0022"),
     ('"MIT?"', "U+003F"),  # unquoted, then refused for the mark
     ('"MIT*"', "U+002A"),
-    ('"MIT"?', "U+0022 U+003F"),  # one end mark is read (P133); this is not one
+    ('"MIT"?', "U+0022 U+003F"),  # one end mark is read; this is not one
     ('"MIT" ?', "U+0022 U+003F"),
 ]
 
 #: Not read, no reason: nothing the guard saw (nothing to unquote or an
 #: unquoted value that names nothing).
-#: Quote marks around nothing: an empty value (resolverfix item 1; the
+#: Quote marks around nothing: an empty value (the
 #: reason was ``not found: ""``).
 EMPTY = ['""', "' '", '" "', "''", "\u201c\u201d"]
 
@@ -246,7 +246,7 @@ def test_a_dropped_mark_after_unquoting_names_only_that_mark(
     corpus_db: LicenseDatabase,
 ) -> None:
     """``"MIT?"`` is refused for the question mark, not for the quotes; the
-    step is the guard's, the unquote step is not kept (P11)."""
+    step is the guard's, the unquote step is not kept."""
     got = resolve('"MIT?"', corpus_db)
     assert got["steps"][0]["from"] == "MIT?"
     assert got["steps"][0]["detail"] == "U+003F"
@@ -267,7 +267,7 @@ def test_a_value_with_nothing_to_read_has_no_reason(
 ) -> None:
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"]) == (None, "unresolved")
-    assert no_reader_reason(got["reason"])  # none of a reader's own (P5)
+    assert no_reader_reason(got["reason"])  # none of a reader's own
     assert got["steps"] == []
 
 
@@ -327,7 +327,7 @@ def test_quotes_and_brackets_come_off_in_either_order(
 def test_the_quotes_around_each_operand_come_off(
     corpus_db: LicenseDatabase, value: str, kinds: list[str]
 ) -> None:
-    """Fixed by T7 (was labelled ``expression``): each operand is read as it
+    """Was labelled ``expression``; now each operand is read as it
     would be alone, so its quotes come off, one ``unquote`` step each."""
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"]) == ("Apache-2.0 OR MIT", "lexical")

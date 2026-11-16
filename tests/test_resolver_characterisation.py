@@ -16,17 +16,17 @@ synthetic, seeded to reach a deprecated exception that has a successor. The
 ``resolver`` block moves with a release: the test builds it from
 ``licenseid.__version__``. A case may carry a ``note``.
 
-The fixture holds the keys of the first result shape; schema 2 (task T7)
+The fixture holds the keys of the first result shape; schema 2
 added ``schema``, ``components`` and ``operands``, which the test checks
 apart: each operand is read as its text would be alone, and the parser is a
 component of a compound.
 
-The contract batch gave every refusal a reason (P5): a case refused with
+Version 0.7.0 gave every refusal a reason: a case refused with
 none in the first shape carries the one ``resolve()`` gives it now, and
 ``MIT OR GPL-2.0-only+`` its operand's own (``qualifier stated twice``).
-It made None mean nothing (P4): a step's empty ``list`` and ``detail`` are
-``null`` in the fixture (they were ``""``), and the ``by`` that T7 added to
-every step is gone.
+It made None mean nothing: a step's empty ``list`` and ``detail`` are
+``null`` in the fixture (they were ``""``), and the ``by`` that schema 2 added
+to every step is gone.
 
 Two cases moved with `hiddenchars` (0.8.1): ``MIT\\u200b`` and
 ``MIT\\x07`` read as ``MIT`` (a control or format character at an end is
@@ -104,7 +104,7 @@ def test_resolve_result_is_unchanged(
     version = licenseid.__version__
     pinned = case["result"]
     expected: dict[str, Any] = {
-        "reason": None,  # added in T6; a case that is refused names its own
+        "reason": None,  # added later; a case that is refused names its own
         **pinned,
         "resolver": {
             "name": "licenseid",

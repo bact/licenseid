@@ -3,11 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The rules that read a value by the name it carries (task T9; 0.7.0 plan,
-rules T1 to T3): a trove classifier, and a name with its abbreviation.
+"""The rules that read a value by the name it carries (rules T1 to T3): a
+trove classifier, and a name with its abbreviation.
 
 ``resolver`` calls :func:`read_named` after a value is read as one licence
-and as a compound, and before any rule of prose (decisions Q18, Q22), so a
+and as a compound, and before any rule of prose, so a
 trove name the table reads as ``none`` is not read by the rules after it.
 
 T1, a path ``License :: OSI Approved :: X``, in its real form
@@ -64,7 +64,7 @@ def read_named(db: ListLookup, text: str, found: Found) -> bool:
 
 def _by_name(db: ListLookup, text: str, found: Found) -> bool:
     """The rules of a name, in order: a name that states no licence is
-    claimed first (Q22), however it is written; then a name and a parenthesis
+    claimed first, however it is written; then a name and a parenthesis
     that agree (T3), since a reading the List backs is stronger than the
     table's; then the table (T2)."""
     if is_no_licence(text):
@@ -74,7 +74,7 @@ def _by_name(db: ListLookup, text: str, found: Found) -> bool:
 
 
 def is_no_licence(text: str) -> bool:
-    """Whether *text* is a name that states no licence (Q22), however it is
+    """Whether *text* is a name that states no licence, however it is
     cased or spaced: no rule may read it, the prose forms included."""
     return _folded(text) in _NO_LICENCE
 
@@ -121,7 +121,7 @@ def _trailing(db: ListLookup, text: str, found: Found) -> bool:
 
 def trailing_parts(text: str) -> tuple[str, str] | None:
     """``(head, inside)`` for ``head (inside)``: white space, then one
-    bracket pair at the end and no other bracket (P58); else None. Read by
+    bracket pair at the end and no other bracket; else None. Read by
     T3 here and by the prose forms of :mod:`licenseid.resolveprose`, which
     read the head their way."""
     if not text.endswith(")"):

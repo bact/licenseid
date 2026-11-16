@@ -84,7 +84,7 @@ def test_every_argument_is_forwarded(
     default_db: str, args: tuple[str | None], inputs: dict[str, Any]
 ) -> None:
     """A spy on the method sees each input and a non-default option, as
-    given (one input per call: two are refused before the method, P165)."""
+    given (one input per call: two are refused before the method)."""
     assert default_db
     with mock.patch.object(
         detector.LicenseDetector, "detect", autospec=True, return_value=[]
@@ -115,8 +115,8 @@ def test_an_unknown_option_is_refused(default_db: str) -> None:
 
 
 def test_no_input_is_invalid_input(default_db: str) -> None:
-    """P6 of the contract batch (was: no result, ``[]``): called with
-    nothing, the method raises, and so does the function."""
+    """Was: no result, ``[]``; now, called with nothing, the method raises,
+    and so does the function."""
     message = "^input: missing; pass text, license_id or file_path$"
     with pytest.raises(InvalidInputError, match=message):
         detector.LicenseDetector(default_db).detect()

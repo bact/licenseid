@@ -126,8 +126,8 @@ def joined_marks(text: str) -> str:
 def ends_in_ref(text: str) -> bool:
     """Whether the last word of *text* is a ``LicenseRef-*`` or an
     ``AdditionRef-*``, whose characters include ``.``, ``-`` and ``_``
-    (``LicenseRef-a.``, ``AdditionRef-x-``): those are no marks there
-    (P80). Words are split at :data:`licenseid.exprtokens.WHITE_SPACE`: a
+    (``LicenseRef-a.``, ``AdditionRef-x-``): those are no marks there.
+    Words are split at :data:`licenseid.exprtokens.WHITE_SPACE`: a
     reader before ``resolve()``'s gate calls this, and an information separator
     (U+001C) is no white space to it."""
     word = _last_word(text.rstrip(WHITE_SPACE))

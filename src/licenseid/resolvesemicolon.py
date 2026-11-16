@@ -3,8 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A ``;`` between licences, an operator the author did not state (task T8b;
-0.7.0 plan, decisions P81 to P86).
+"""A ``;`` between licences, an operator the author did not state.
 
 ``MIT ; Apache 2`` names two licences and does not say how they combine:
 ``Apache-2.0 AND MIT`` and ``Apache-2.0 OR MIT`` are both fair readings. It
@@ -19,21 +18,21 @@ alone, through the reader its caller passes in, and makes the value
 whatever its own category.
 
 - A ``;`` at the very end is an ending, not an operator (``MIT; ISC;``
-  is two parts, P77); a ``;`` inside brackets belongs to the bracket's
+  is two parts); a ``;`` inside brackets belongs to the bracket's
   content (``(MIT; ISC) OR GPL-2.0`` is the compound reader's).
 - An empty part (``MIT;;ISC``, ``; MIT``) is no list: the value stays as
-  it was refused (P82).
+  it was refused.
 - A ``;`` beside an operator word (``MIT; OR ISC``) ends an operand, and the
-  compound reader reads it before this module is asked (P79, P84); a part
+  compound reader reads it before this module is asked; a part
   that starts with an operator word names no licence besides.
 - Fewer than two parts that name a licence, or would but for a mark they
   drop (``Apache 2.0?``), is no list of licences (``MIT; Copyright (c)
   2016``), and neither is one where no part resolves (``-MIT ; -MIT``): the
-  value stays as it was (P83, P88).
+  value stays as it was.
 - A part that starts or ends with an operator word in any case (``MIT; OR
-  ISC; Apache-2.0``) means an operator was stated: no list (P84).
+  ISC; Apache-2.0``) means an operator was stated: no list.
 - Quote marks are not tracked: a ``;`` inside quotes splits. ``,`` and ``/``
-  are never a separator here (P84).
+  are never a separator here.
 
 Standard library and ``licenseid`` types only; no state, no lookup of its
 own.
@@ -108,7 +107,7 @@ def _operator_beside(part: str) -> bool:
     """Whether *part* starts or ends with an operator word in any case, so
     that the ``;`` next to it is not the only operator stated (``MIT; OR
     ISC; Apache-2.0``). Prose such as ``and others`` blocks a list too: the
-    narrow side (P84)."""
+    narrow side."""
     words = part.split()
     return words[0].casefold() in _OPERATOR_WORDS or (
         words[-1].casefold() in _OPERATOR_WORDS
@@ -140,7 +139,7 @@ def read_semicolon_list(
     readings = [cache[part.text][0] for part in parts]
     named = sum(_names_a_licence(found) for found in readings)
     if named < 2 or all(found.expression is None for found in readings):
-        return None  # fewer than two licences, or none that resolves (P88)
+        return None  # fewer than two licences, or none that resolves
     operands = [
         operand_of(part.text, start + part.start, cache[part.text][0]) for part in parts
     ]

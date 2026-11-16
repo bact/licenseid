@@ -5,7 +5,7 @@
 
 """A file name in a diagnostic stays on its one line: a line break, a tab
 or a control character in it is written as an escape, and a ";" as ",", as
-the database's path already was (P125). A backslash stays as it is: a
+the database's path already was. A backslash stays as it is: a
 diagnostic is read by a person, and a Windows path reads as typed."""
 # pylint: disable=missing-function-docstring
 

@@ -88,7 +88,7 @@ def test_default_db_path_used_when_no_path_given(
     marker_db: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """No db_path falls back to get_default_db_path(), and the returned path
-    is what the matcher actually opens. A blank one is refused (P166)."""
+    is what the matcher actually opens. A blank one is refused."""
     fake = mock.create_autospec(get_default_db_path, return_value=marker_db)
     monkeypatch.setattr("licenseid.detector.get_default_db_path", fake)
 
@@ -202,8 +202,8 @@ def test_disambiguated_id_missing_from_database(gpl_db: str) -> None:
     """The disambiguated ID is returned even when this database has no row
     for it. Current behaviour, not a documented contract: it comes from a
     fixed table of canonical SPDX IDs. The database is the List, so it is
-    not on it (F2), and nobody judged it: the flags are None, not a false
-    "no" (F1)."""
+    not on it, and nobody judged it: the flags are None, not a false
+    "no"."""
     results = LicenseDetector(gpl_db).detect("Licensed under GPL-3.0 or later")
 
     assert [r["expression"] for r in results] == ["GPL-3.0-or-later"]
@@ -246,8 +246,8 @@ def test_with_expression_both_halves_known(with_db: str) -> None:
     ["MIT WITH GCC-exception-2.0", "Apache-2.0 WITH Font-exception-2.0"],
 )
 def test_with_expression_half_missing_from_db(with_db: str, expression: str) -> None:
-    """One half has no row in this database. It was a match not on this List
-    (F2); an ID the List does not have is no operand, as resolve() reads it,
+    """One half has no row in this database. It was a match not on this List;
+    an ID the List does not have is no operand, as resolve() reads it,
     so the declared ID matches nothing."""
     assert not LicenseDetector(with_db).detect(license_id=expression)
 

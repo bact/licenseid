@@ -55,7 +55,7 @@ KNOWN = {
 # A valid expression with one part nobody knows: still a match, but not SPDX.
 # A LicenseRef-* is a valid SPDX ID, so it matches as a known one does (as it
 # does for the `license` field of JSON, TOML and INI), but it is not on the
-# List (F2 of the contract batch).
+# List.
 PARTLY_KNOWN = {
     "LicenseRef-Foo": "LicenseRef-Foo",
     "LicenseRef-Foo WITH Classpath-exception-2.0": (

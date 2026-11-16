@@ -8,8 +8,8 @@
 :class:`licenseid.detector.LicenseDetector`.
 
 ``detect --verbose`` prints one record per line, the answer first: a line per
-result, or one line with every field empty when there is none (exit 1, C9
-of the contract batch); a predicate the licence it judged and the flag.
+result, or one line with every field empty when there is none (exit 1);
+a predicate the licence it judged and the flag.
 Without ``--verbose`` ``detect`` prints the expression alone, a line per
 result (an empty line for none).
 """

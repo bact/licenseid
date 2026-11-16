@@ -3,11 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Edge values of ``resolve()`` the 0.7.0 review found (task ``resolverfix``,
-items 1 to 7): quote marks around nothing, a ``;`` in a reason, an end mark
-after a prose form, the case of a ``LicenseRef-`` prefix, the information
-separators U+001C to U+001F, a lone surrogate in the result, and marks after
-a bracket or a name.
+"""Edge values of ``resolve()`` the 0.7.0 review found (task ``resolverfix``):
+quote marks around nothing, a ``;`` in a reason, an end mark after a prose
+form, the case of a ``LicenseRef-`` prefix, the information separators U+001C
+to U+001F, a lone surrogate in the result, and marks after a bracket or a
+name.
 
 Each table holds the answer as ``(expression, category, steps, reason)``, a
 step not applied marked ``!``; an entry marked ``was:`` gave that answer
@@ -58,7 +58,7 @@ SEMICOLON_REASONS: dict[str, Answer] = {
         "operand not resolved: Foo;Bar baz",
     ),
     "GPL-2.0-only+ ;x": (None, "unresolved", [], "not found: GPL-2.0-only+ ;x"),
-    # An end mark after brackets is an ending (review item 6).
+    # An end mark after brackets is an ending.
     "(MIT);": ("MIT", "separator", ["separator", "brackets"], None),
     # Still one line: white space folded.
     "Foo;\nBar baz": (None, "unresolved", [], "not found: Foo; Bar baz"),
@@ -212,7 +212,7 @@ MARKS_AFTER: dict[str, Answer] = {
     '"LicenseRef-a-"-': (None, "unresolved", ["drop!"], DASH),
     "MIT++-": (None, "malformed", [], "qualifier stated twice: MIT++"),
     "GPL-2.0-only+;": (None, "malformed", [], "qualifier stated twice: GPL-2.0-only+"),
-    # One end mark after a bracket is an ending (review item 6); a value
+    # One end mark after a bracket is an ending; a value
     # whose marks off name nothing still names nothing.
     "(MIT).": ("MIT", "separator", ["separator", "brackets"], None),
     "(Foo)-": (None, "unresolved", [], "not found: (Foo)-"),

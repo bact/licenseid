@@ -26,7 +26,7 @@ def _answer(db: LicenseDatabase, value: str) -> tuple[str | None, str, str | Non
     return got["expression"], got["category"], got["reason"]
 
 
-# --- item 1: a list an operand's step cites is in ``lists`` -------------------
+# --- A list an operand's step cites is in ``lists`` -------------------
 
 
 @pytest.mark.parametrize(
@@ -82,7 +82,7 @@ def test_every_list_a_step_cites_is_in_lists(corpus_db: LicenseDatabase) -> None
     assert not missing
 
 
-# --- item 2: the reason of a refused WITH -------------------------------------
+# --- The reason of a refused WITH -------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -207,7 +207,7 @@ def test_a_with_around_the_plus(
     assert _answer(corpus_db, value) == expected
 
 
-# --- item 3: a compound with a misplaced "+" or quoted brackets ---------------
+# --- A compound with a misplaced "+" or quoted brackets ---------------
 
 
 @pytest.mark.parametrize(
@@ -295,7 +295,7 @@ def test_a_compound_beside_the_misplaced_marks(
     assert _answer(corpus_db, value) == expected
 
 
-# --- item 4: "or later" (withdrawn in review round 3; records for 0.8) ------
+# --- "or later" (withdrawn in review; records for 0.8) ----------------------
 
 
 @pytest.mark.parametrize(
@@ -396,7 +396,7 @@ def test_beside_a_spaced_or_later(
     assert _answer(corpus_db, value) == expected
 
 
-# --- item 5: a qualifier on a reference is malformed --------------------------
+# --- A qualifier on a reference is malformed --------------------------
 
 
 @pytest.mark.parametrize(

@@ -425,7 +425,7 @@ def twin_gpl_db() -> Generator[str, None, None]:
 def top_id(db_path: str, text: str, file_path: Path | None = None) -> str:
     """The top answer for *text*, or, with *file_path*, for *text* written
     there (detect() reads one input: it took the file and dropped the text
-    unsaid, here the checkout's own LICENSE, before P6 refused two)."""
+    unsaid, here the checkout's own LICENSE, before two inputs were refused)."""
     if file_path is None:
         results = LicenseDetector(db_path).detect(text=text)
     else:

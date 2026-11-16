@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Read a declared value that is written in quotes: ``"MIT"``, ``'MIT'``,
-``“MIT”``, ``"MIT`` (task T6b, decision Q12).
+``“MIT”``, ``"MIT``.
 
 The rule: quote marks that delimit the whole value are removed, and the
 value is read as what they enclose. The marks are those of

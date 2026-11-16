@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The answers task T8 (the prose forms of one ID, rules P1 to P3) moved in
-the parity corpus and the PyPI sample, grouped by the rule.
+"""The answers the prose forms of one ID (rules P1 to P3) moved in the parity
+corpus and the PyPI sample, grouped by the rule.
 
 The answers are in ``fixtures/resolver_t8_changes.tsv``;
 :data:`REASONS` says why each group moved. ``resolver_corpus`` merges
@@ -43,5 +43,5 @@ REASONS: dict[str, str] = {
     ),
 }
 
-#: ``{value: (answer, reason)}``, every value T8 moves.
+#: ``{value: (answer, reason)}``, every value the prose rules move.
 T8_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)

@@ -52,7 +52,7 @@ REFUSED: list[tuple[str, str, str, str]] = [
     ("a file", "resolve $F/mit.txt", "", r"input: invalid: path: .*" + _DETECT),
     ("a directory", "resolve $F/adir", "", r"input: invalid: path: .*" + _DETECT),
     ("the current directory", "resolve .", "", r"input: invalid: path: \." + _DETECT),
-    # C8 of the contract batch: no value is missing, whatever is piped (it
+    # No value is missing, whatever is piped (it
     # read the pipe to say "for detect"); "-" names standard input (below)
     ("a pipe and no value", "resolve", "printf MIT | ", r"input: missing; pass one "),
     # nothing piped: no value, not one for detect

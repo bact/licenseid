@@ -219,7 +219,7 @@ def test_a_matcher_never_makes_a_database_of_a_file_that_went_missing(
 
 def test_create_false_does_not_create_and_create_true_does(tmp_path: Path) -> None:
     """Neither makes the file on opening; create=True makes it at its first
-    write (a mistyped name leaves nothing behind, P1 of fix batch D)."""
+    write (a mistyped name leaves nothing behind)."""
     path = tmp_path / "n.db"
     with pytest.raises(DatabaseNotReadyError):
         LicenseDatabase(str(path), create=False)
@@ -536,7 +536,7 @@ def test_a_relative_file_uri_with_a_non_utf8_byte_names_that_byte(
     assert pin_relative_uri("file:a%20b.db?mode=ro").endswith("/a%20b.db?mode=ro")
 
 
-# ---- round 3: races and limits ----------------------------------------------
+# ---- races and limits -------------------------------------------------------
 
 _OPEN_OLDER = """
 import sys, time

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Four small refusals of ``resolve()`` (0.8 list; decisions P130 to P133).
+"""Four small refusals of ``resolve()`` (0.8 list).
 Characterisation first: today's answers, so that each fix shows as a flip of
 the values marked ``MOVES``."""
 # pylint: disable=missing-function-docstring
@@ -53,7 +53,7 @@ STAYS: dict[str, tuple[str | None, str | None]] = {
     '"MIT;"': ("MIT", None),
 }
 
-#: Item 2 (P131): a dash joined to the end of a reading no loose ID made is a
+#: A dash joined to the end of a reading no loose ID made is a
 #: dropped character, as a lone dash is (``MIT -``).
 DASHED: dict[str, tuple[str | None, str | None]] = {
     "MIT+-": (None, DASH),
@@ -68,8 +68,8 @@ DASHED: dict[str, tuple[str | None, str | None]] = {
     "GPL-2.0+ -": (None, DASH),
 }
 
-#: Item 3 (P132): one end mark after a ``LicenseRef-*`` that ends in a dot is an
-#: ending, as after any ID; the dot is a character of the ID (P80).
+#: One end mark after a ``LicenseRef-*`` that ends in a dot is an
+#: ending, as after any ID; the dot is a character of the ID.
 REF_ENDED: dict[str, str] = {
     "LicenseRef-a.;": "LicenseRef-a.",
     "LicenseRef-a.,": "LicenseRef-a.",
@@ -87,7 +87,7 @@ REF_REFUSED: dict[str, str] = {
     "LicenseRef-a;,": "character dropped: U+003B U+002C",
 }
 
-#: Item 4 (P133): quote marks, then one end mark, read as the end mark then the
+#: Quote marks, then one end mark, read as the end mark then the
 #: marks come off (the order they stand in); both orders read the same.
 QUOTED_ENDED: dict[str, str] = {
     '"MIT".': "MIT",
@@ -114,7 +114,7 @@ QUOTED_REFUSED: dict[str, str] = {
     '"MIT"...': "character dropped: U+0022 U+002E",
     '"MIT.".': "character dropped: U+0022",  # a mark inside and one outside
     '"MIT;".': "character dropped: U+0022 U+003B",
-    "\"MIT'.": "character dropped: U+0022 U+0027",  # two kinds (P16)
+    "\"MIT'.": "character dropped: U+0022 U+0027",  # two kinds
     '"MIT"+': "character dropped: U+0022",
     '"MIT"."': "character dropped: U+0022",
 }
@@ -375,10 +375,10 @@ def test_packaged_and_database_answers_agree(
     assert not differences, differences
 
 
-#: Review fixes (P134 to P137): ``(expression, reason)``.
+#: Review fixes: ``(expression, reason)``.
 REVIEW_NOW: dict[str, tuple[str | None, str | None]] = {
     # a mark inside the quote marks, behind a bracket, is seen: two marks,
-    # named, each once (resolverfix item 7; the reason was "not found")
+    # named, each once (the reason was "not found")
     '"(MIT;)".': (None, "character dropped: U+003B U+002E"),
     '"(MIT.)".': (None, "character dropped: U+002E"),
     '"[MIT,]";': (None, "character dropped: U+002C U+003B"),
@@ -407,14 +407,14 @@ REVIEW_NOW: dict[str, tuple[str | None, str | None]] = {
     "MIT+_": (None, "character dropped: U+005F"),
     "MIT License-.": (None, DASH),
     "MIT License_": (None, "character dropped: U+005F"),
-    # unbalanced marks plus an end mark read (maintainer, P133)
+    # unbalanced marks plus an end mark read (maintainer)
     "MIT'.": ("MIT", None),
     "Apache-2.0'.": ("Apache-2.0", None),
     'GPL-2.0".': ("GPL-2.0", None),
     'MIT+".': ("MIT+", None),
     'MIT".': ("MIT", None),
     # the marks at the end left off, the value names a licence: the dash is
-    # dropped (resolverfix item 7, P137; the reason was "not found"); a
+    # dropped (the reason was "not found"); a
     # malformed core gives its own reason
     "LicenseRef-a+-": (None, "qualifier on a reference: LicenseRef-a+"),
     "(MIT)-": (None, DASH),
@@ -449,7 +449,7 @@ def test_review_answers(corpus_db: LicenseDatabase, value: str) -> None:
 
 def assert_answer(got: Resolution, expected: tuple[str | None, str | None]) -> None:
     """*got* has the expression and reason *expected*; a refusal listed with
-    no reason has the one no reader gives (P5), never none."""
+    no reason has the one no reader gives, never none."""
     expression, reason = expected
     assert got["expression"] == expression
     if expression is None and reason is None:

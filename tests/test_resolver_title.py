@@ -77,7 +77,7 @@ def test_the_v2_title_is_not_in_the_v1_text() -> None:
     [
         ("CC0 1.0 Universal", "CC0-1.0"),
         ("cc0 1.0 universal", "CC0-1.0"),
-        ("CC0", "CC0-1.0"),  # no version: an exception to P47
+        ("CC0", "CC0-1.0"),  # no version: an exception to the version rule
         ("cc0", "CC0-1.0"),
         ("Mulan PSL v2", "MulanPSL-2.0"),
         ("MULAN PSL V2", "MulanPSL-2.0"),
@@ -114,8 +114,8 @@ def test_a_title_is_read_as_its_licence(
 def test_the_gpl_title_line_is_the_bare_id(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    """The title writes version 3 and no grant: ``GPL-3.0``, never narrowed
-    (P49), as a trove name that writes no grant."""
+    """The title writes version 3 and no grant: ``GPL-3.0``, never narrowed,
+    as a trove name that writes no grant."""
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"], got["trust"]) == (
         "GPL-3.0",
@@ -218,7 +218,7 @@ def test_detect_answers_a_title_through_resolve(
     )
 
 
-def test_detect_narrows_the_gpl_title_line_aloud(
+def test_detect_decides_the_gpl_title_line_aloud(
     corpus_db: LicenseDatabase, given: GivenWarnings
 ) -> None:
     text = "GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007"
@@ -260,7 +260,7 @@ def test_an_explicit_id_reads_the_one_word_title(
     assert detector.is_fsf(license_id=value) is by_id["is_fsf_libre"]
 
 
-def test_a_tag_does_not_read_a_title_until_0_8(corpus_db: LicenseDatabase) -> None:
+def test_a_tag_does_not_read_a_title(corpus_db: LicenseDatabase) -> None:
     """A tag keeps its own reader, which reads no title: documented in
     docs/python-api.md, to change when it goes through resolve()."""
     text = "SPDX-License-Identifier: CC0\nint main(void);\n"

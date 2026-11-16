@@ -51,7 +51,6 @@ from licenseid.plusoperator import (
     states_qualifier,
     strip_plus_operator,
 )
-from licenseid.variants import ONLY_WORD
 from licenseid.versionkey import named_row
 
 # Defensive cap on the number of AND/OR/WITH operators an expression may
@@ -64,13 +63,12 @@ from licenseid.versionkey import named_row
 # on a pathological or adversarial one.
 _MAX_CANONICALIZE_OPERATORS = 40
 
-# Compiled regexes for prose disambiguation of bare deprecated IDs.
-# The or-later phrases are read by classify.OR_LATER_PHRASE, shared with the
-# -only / -or-later tie-breaker.
-# "only" is a common English word; it is checked in a narrow 50-char window
-# AFTER the ID to avoid false positives from unrelated uses. The "only" of
-# an ID ("GPL-2.0-only") is that ID's, not a word about the one before it.
-#: The prose word "only", never the end of an ID.
+# Prose disambiguation of bare deprecated IDs: the or-later phrases are read
+# by classify.OR_LATER_PHRASE, shared with the -only / -or-later
+# tie-breaker. "only" (variants.ONLY_WORD) is a common English word; it is
+# checked in a narrow 50-char window AFTER the ID to avoid false positives
+# from unrelated uses. The "only" of an ID ("GPL-2.0-only") is that ID's,
+# not a word about the one before it.
 
 
 def _lookup_case_insensitive(mapping: dict[str, str], key: str) -> str | None:
@@ -205,7 +203,7 @@ def qualify_trailing_grant(expression: str, value: str) -> str:
     """*expression* with the ID it ends in qualified "or later", when the
     prose right after it in *value* grants it: a bare deprecated ID by its
     ``-or-later`` form, any other by the "+" operator ("MIT or later" is
-    MIT+, as ``resolve()`` reads it, P35). One that takes no grant (``-only``,
+    MIT+, as ``resolve()`` reads it). One that takes no grant (``-only``,
     a reference) is left as it is; a tag refused it (leading_expression).
 
     "or later" is a grant, not the OR operator, and it qualifies the ID
@@ -318,7 +316,7 @@ def read_leading(value: str) -> tuple[str, int]:
         gap = value[end : token.start()]
         if gap.strip() and (grant_end is None or not dash_gap(gap)):
             # Only white space separates the parts of an expression; before
-            # a grant, a dash between words too (D10).
+            # a grant, a dash between words too.
             break
         if kind == "+" and plus_apart(value, token.start()):
             # A "+" touches the ID it follows (plusoperator.PLUS_OPERATOR);
@@ -398,17 +396,6 @@ def is_simple_expression(value: str) -> bool:
     return shape in _SIMPLE_SHAPES
 
 
-def simple_value(text: str) -> str | None:
-    """*text* as one simple expression, or without the one end mark after it
-    ("GPL-2.0+," is GPL-2.0+, as a tag and ``resolve()`` read it), or None.
-    The mark goes, not the "+" before it: the version key would read
-    "GPL-2.0+," as GPL-2.0."""
-    if is_simple_expression(text):
-        return text
-    trimmed = trim_end_mark(text)
-    return trimmed if trimmed is not None and is_simple_expression(trimmed) else None
-
-
 def disambiguate_deprecated_id(text: str) -> str | None:
     """
     Scan *text* for a bare deprecated SPDX ID and a surrounding prose phrase
@@ -445,7 +432,7 @@ def disambiguate_deprecated_id(text: str) -> str | None:
 
     # Narrow window (50 chars after the ID) for "only" to reduce false
     # positives from common uses like "only if", "not only", etc.
-    only = ONLY_WORD.search(text, m.end(), m.end() + 50)
+    only = variants.ONLY_WORD.search(text, m.end(), m.end() + 50)
     if only:
         if _joins_another(text, only.span()):
             return None

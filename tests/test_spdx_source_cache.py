@@ -69,7 +69,7 @@ def test_valid_cache_used_without_network(
 def test_an_explicit_version_reads_no_version_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, use_cache: bool, cached: bool
 ) -> None:
-    """C2 of the contract batch: a version given is the answer. It read the
+    """A version given is the answer. It read the
     latest's version file all the same (and took the latest's release date
     for the version given); it now reads and fetches nothing."""
     if cached:

@@ -183,7 +183,7 @@ def test_match_diff_prints_no_diff_without_one(
 
 
 def test_diff_with_json_is_refused(mit_db: str) -> None:
-    """C7: --diff with --json was dropped without a word; now exit 2."""
+    """--diff with --json was dropped without a word; now exit 2."""
     result = invoke_match(
         mit_db, "--diff", "--json", "--text", MIT_SEARCH_TEXT + " and more words"
     )

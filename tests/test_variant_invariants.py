@@ -6,14 +6,14 @@
 """Invariants of ``EXACT`` and ``VARIANT_STATED`` over value x channel x
 variant (roadmap item 52), so no new site that makes a result can break them:
 
-- I1: a value answers alike through every channel that answers (a tag takes
+- A value answers alike through every channel that answers (a tag takes
   only List IDs: it is silent for a re-spelling or a name, the listed
   exceptions);
-- I3: a variant is stated only by the words of the input: the ID itself, "only",
+- A variant is stated only by the words of the input: the ID itself, "only",
   "or later", "or any later version", a "+";
-- I4: an answer licenseid chose (an -only or -or-later ID the input does not
+- An answer licenseid chose (an -only or -or-later ID the input does not
   state) is never exact;
-- I5: under ``auto`` a declared bare ID is kept, stated false, exact.
+- Under ``auto`` a declared bare ID is kept, stated false, exact.
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
@@ -124,7 +124,7 @@ CASES = list(itertools.product(VALUES, VARIANTS))
 
 
 @pytest.mark.parametrize(("value", "variant"), CASES)
-def test_i1_a_value_answers_alike_in_every_channel(
+def test_a_value_answers_alike_in_every_channel(
     db: str, value: str, variant: Variant
 ) -> None:
     got = answers(db, value, variant)
@@ -139,7 +139,7 @@ def test_i1_a_value_answers_alike_in_every_channel(
 
 
 @pytest.mark.parametrize(("value", "variant"), CASES)
-def test_i3_a_variant_is_stated_only_by_words_of_the_input(
+def test_a_variant_is_stated_only_by_words_of_the_input(
     db: str, value: str, variant: Variant
 ) -> None:
     for how, (expression, _, stated) in answers(db, value, variant).items():
@@ -149,7 +149,7 @@ def test_i3_a_variant_is_stated_only_by_words_of_the_input(
 
 
 @pytest.mark.parametrize(("value", "variant"), CASES)
-def test_i4_an_answer_licenseid_chose_is_not_exact(
+def test_an_answer_licenseid_chose_is_not_exact(
     db: str, value: str, variant: Variant
 ) -> None:
     for how, (expression, exact, stated) in answers(db, value, variant).items():
@@ -159,17 +159,17 @@ def test_i4_an_answer_licenseid_chose_is_not_exact(
 
 
 @pytest.mark.parametrize("how", ["argument", "tag", "tag/*", "json", "id"])
-def test_i5_auto_keeps_a_declared_bare_id(db: str, how: str) -> None:
+def test_auto_keeps_a_declared_bare_id(db: str, how: str) -> None:
     got = answers(db, "GPL-2.0", "auto")
     assert got[how] == ("GPL-2.0", True, False)
 
 
 @pytest.mark.parametrize("variant", VARIANTS)
 @pytest.mark.parametrize("value", ["GPL-2.0 OR MIT+", "LGPL-2.0 AND GPL-2.0 only"])
-def test_i3_the_words_of_another_licence_state_nothing(
+def test_the_words_of_another_licence_state_nothing(
     db: str, value: str, variant: Variant
 ) -> None:
-    """I3 per licence: ``MIT+`` and ``GPL-2.0 only`` do not state the variant
+    """Per licence: ``MIT+`` and ``GPL-2.0 only`` do not state the variant
     of the *other* bare ID in the value."""
     got = answers(db, value, variant)
     assert got

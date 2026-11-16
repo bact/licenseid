@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Unit tests for the CLI's --text handling: taken as written (C6 of the
-contract batch: escapes were decoded), with file and stdin line ends."""
+"""Unit tests for the CLI's --text handling: taken as written (escapes were
+decoded), with file and stdin line ends."""
 # pylint: disable=missing-function-docstring
 
 import click

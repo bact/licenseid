@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The ``reason`` of a refused compound (R7 review, S1 and S2): a leaf of
+"""The ``reason`` of a refused compound: a leaf of
 several words that resolves alone is not "not resolved", and a reason holds
 one short line whatever the input held.
 """
@@ -15,7 +15,7 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 
 from licenseid import LicenseDatabase, exprcanon, resolve
 
-#: A leaf of several words that ``resolve`` reads alone (S1).
+#: A leaf of several words that ``resolve`` reads alone.
 SEVERAL_WORDS = [
     ("BSD 3-Clause OR Apache-2.0", "BSD 3-Clause"),
     ("MIT OR Apache 2.0", "Apache 2.0"),
@@ -83,8 +83,8 @@ def test_a_leaf_of_sixty_characters_is_not_cut(corpus_db: LicenseDatabase) -> No
 
 def test_a_semicolon_in_a_reason_is_kept(corpus_db: LicenseDatabase) -> None:
     """A reason is a field of the result, never a diagnostic line, where a
-    ``;`` would start the ACTION: it keeps the value's ``;`` (resolverfix
-    item 2; it was made ``,``)."""
+    ``;`` would start the ACTION: it keeps the value's ``;`` (it was made
+    ``,``)."""
     reason = resolve("Foo bar;baz OR MIT", corpus_db)["reason"]
     assert reason == "operand not resolved: Foo bar;baz"
 

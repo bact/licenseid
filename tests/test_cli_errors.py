@@ -166,7 +166,7 @@ def test_missing_input(ready_db: str, command: str) -> None:
 )
 @pytest.mark.terse_cli
 def test_no_match_in_ready_database(ready_db: str, extra: list[str], line: str) -> None:
-    """No answer is an answer (C9): an empty record, or an empty line."""
+    """No answer is an answer: an empty record, or an empty line."""
     result = CliRunner().invoke(
         cli, ["--db", ready_db, "detect", "--id", "No-Such-License", *extra]
     )

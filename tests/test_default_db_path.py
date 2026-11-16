@@ -108,7 +108,7 @@ def test_an_empty_home_is_no_home(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Path, "home", staticmethod(Path))
     with pytest.raises(DatabaseNotReadyError, match="no home directory") as raised:
         get_default_db_path()
-    # No home is no database file: not found, as a missing file is (G5).
+    # No home is no database file: not found, as a missing file is.
     assert (raised.value.condition, raised.value.detail) == (
         "not found",
         "no home directory",

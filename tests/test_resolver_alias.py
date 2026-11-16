@@ -176,7 +176,8 @@ def test_a_prose_form_of_an_alias_takes_an_agreeing_short_form(
     corpus_db: LicenseDatabase, value: str, expression: str
 ) -> None:
     """A prose form and its short form in brackets read as one licence (as
-    ``The MIT License (MIT)``); the bare alias does not (T3 reads a leaf)."""
+    ``The MIT License (MIT)``); the bare alias does not (a trailing name is read
+    as a leaf)."""
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"]) == (expression, "alias_name")
     assert [s["kind"] for s in got["steps"]] == [
@@ -225,13 +226,13 @@ def test_an_alias_takes_an_article_and_an_end_mark(corpus_db: LicenseDatabase) -
         "BSD-3+",  # no grant on an alias
         "New BSD+",
         "New BSD or later",
-        "New BSD (BSD-3-Clause)",  # T3 reads its head as a leaf only
+        "New BSD (BSD-3-Clause)",  # the head is read as a leaf only
         "New BSD License (BSD-2-Clause)",  # the parts differ
         "BSD-3 (BSD-3-Clause)",
         "Revised BSD License (LICENSE.txt)",
         "Néw BSD",
         "BSD-3 Clause Licence Foo",
-        "BSD License v3",  # P2: a version, not a clause count
+        "BSD License v3",  # A version, not a clause count
         "BSD License, Version 3",
         "BSD Licence 3",
     ],
@@ -263,7 +264,7 @@ def test_an_alias_does_not_drop_a_mark(
 
 def test_an_alias_of_one_word_is_an_operand(corpus_db: LicenseDatabase) -> None:
     """An operand reads as it would alone: ``BSD-3`` is one word; ``New
-    BSD`` is two, and no operand (P43)."""
+    BSD`` is two, and no operand."""
     got = resolve("BSD-3 OR MIT", corpus_db)
     assert (got["expression"], got["category"]) == ("BSD-3-Clause OR MIT", "alias_name")
     refused = resolve("MIT OR New BSD", corpus_db)

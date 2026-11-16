@@ -384,7 +384,7 @@ def test_a_grant_the_marker_did_not_read_leaves_the_only_form() -> None:
     text matches far worse is no peer to swap with (``_chosen_by``), so the
     answer stays ``-only`` with a "not stated" warning. Main gave the same
     expression; a rule of the signal that finds the marker's own grant
-    would end it (decision 48)."""
+    would end it."""
     found: list[RawMatch | InternalMatch] = [
         _hit("GPL-2.0-only", 0.855),
         _hit("GPL-2.0-or-later", 0.3),

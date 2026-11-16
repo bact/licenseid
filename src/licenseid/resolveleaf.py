@@ -16,7 +16,7 @@ character or an over-long value: the caller refuses those first, as
 ``resolve`` does. It reads the list through
 :class:`licenseid.listlookup.ListLookup` alone and knows nothing of the
 database, of brackets around the whole value, or of an expression of several
-licences. The gate covers each half of a WITH (decision Q16), so a long
+licences. The gate covers each half of a WITH, so a long
 licence name with an exception (``Creative Commons Attribution Non
 Commercial No Derivatives 2.5 Generic WITH RRDtool-FLOSS-exception-2.0``) is
 read.
@@ -152,10 +152,10 @@ def read_leaf(db: ListLookup, text: str, found: Found) -> bool:
 
     One ``;`` or ``:`` at the end (``MIT;``) is an ending, not a mark that
     says something: when the value is refused for it, it is read again
-    without it, with a ``separator`` step (P77). So is any one end mark
+    without it, with a ``separator`` step. So is any one end mark
     after a ``+``, an exception or a ``LicenseRef-*``, where no loose
     reading ran to refuse it, and any other mark there is refused as after
-    an ID (P80)."""
+    an ID."""
     if over_key_cap(text):
         return False
     read = _read(db, text, found)
@@ -185,7 +185,7 @@ def _read_without_end(
 
 def _after_core(db: ListLookup, text: str, found: Found) -> bool:
     """A value no reader read, that ends in marks after a ``+``, an exception
-    or a ``LicenseRef-*`` (P80): those readers return before the drop guard.
+    or a ``LicenseRef-*``: those readers return before the drop guard.
     One end mark is an ending, read without it; marks that say something
     (``GPL-2.0+?``, ``MIT+;;``) refuse the value, as they do after an ID,
     and a malformed core is the value's reason, after one end mark too
@@ -244,8 +244,8 @@ def _read(db: ListLookup, text: str, found: Found) -> bool:
 
 def over_key_cap(text: str) -> bool:
     """Whether the licence or the exception of *text* (each half of a WITH,
-    else the whole) is longer than MAX_KEY_INPUT, so names no ID (decision
-    Q16). A ``LicenseRef-*`` or ``AdditionRef-*`` is exempt: SPDX sets no
+    else the whole) is longer than MAX_KEY_INPUT, so names no ID. A
+    ``LicenseRef-*`` or ``AdditionRef-*`` is exempt: SPDX sets no
     length on one, and it is read as written, never through a key."""
     halves = WITH_OPERATOR.split(text)
     return any(
@@ -315,7 +315,7 @@ def _with_form(text: str, operator: re.Match[str]) -> list[Step]:
     """The steps that give the WITH of *text* its form: an ``operator_case``
     step for ``with`` in other case, a ``whitespace`` step for other spacing
     around it (a tab, two spaces), so that ``exact`` means the input is the
-    expression (decision Q17)."""
+    expression."""
     steps = []
     before, after = text[: operator.start()], text[operator.end() :]
     cased = before + operator.group(0).upper() + after
@@ -330,7 +330,7 @@ def _with_form(text: str, operator: re.Match[str]) -> list[Step]:
 def _exception(db: ListLookup, text: str, found: Found) -> str | None:
     """The listed exception *text* names, its case and its deprecation read
     as for a licence (_deprecation), or None. An ``AdditionRef-*`` names
-    itself, as written and unchecked, as a ``LicenseRef-*`` does (Q20), its
+    itself, as written and unchecked, as a ``LicenseRef-*`` does, its
     prefix in SPDX's case (an ``id_case`` step)."""
     if is_addition_ref(text):
         return _reference(text, found.steps)
@@ -408,7 +408,7 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
     named = granted_id_text(text) or declared_grant_id_text(text)
     if named is not None:
         head = before_grant(named)  # "GPL-3.0 (or later)": the "(" is the grant's
-        undashed = undashed_grant(text, head)  # "GPL-2.0 - or later" (D10)
+        undashed = undashed_grant(text, head)  # "GPL-2.0 - or later"
         if undashed is not None:
             found.steps.append(step("separator", True, text, undashed))
         named = head
@@ -455,10 +455,10 @@ def _grant(
     """An ID followed by an "or later" grant. The grant is applied where the
     List has the ``-or-later`` ID; a qualifier already stated (``X-only or
     later``) is malformed. An ID with no ``-or-later`` form takes the grant
-    as the SPDX "+" operator (``Apache 2.0 or later`` is ``Apache-2.0+``,
-    decision Q14), after its deprecation, as ``X+`` is read, whether or not
-    its ID has a version (``MIT or later`` is ``MIT+``; P35, decided by the
-    maintainer on 2026-10-29). A ``LicenseRef-*`` takes no "+" (invalid
+    as the SPDX "+" operator (``Apache 2.0 or later`` is ``Apache-2.0+``),
+    after its deprecation, as ``X+`` is read, whether or not its ID has a
+    version (``MIT or later`` is ``MIT+``, decided by the maintainer on
+    2026-10-29). A ``LicenseRef-*`` takes no "+" (invalid
     SPDX) and is malformed, as ``LicenseRef-x+`` is, not read without the
     grant."""
     license_id, steps = base
@@ -544,7 +544,7 @@ def _spelling(text: str, license_id: str) -> list[Step]:
 
 def _deprecation(db: ListLookup, license_id: str, found: Found) -> None:
     """Set the expression for the listed *license_id*, following a rename and
-    declining to narrow a split ID."""
+    declining to decide a split ID."""
     details = db.get_license_details(license_id)
     if details is None or not details.get("is_deprecated"):
         found.expression = license_id

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Fix batch D, round 3: every write of the handle is judged at write time.
+"""Every write of the handle is judged at write time.
 
 ``update_from_remote`` wrote into a file that ``reject_foreign_database``
 calls ``invalid`` once the schema looked current, made a download before it
@@ -52,8 +52,8 @@ def snapshot(path: Path) -> list[tuple[object, ...]]:
 def test_update_refuses_a_foreign_file_with_a_current_schema(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """R3-1 (was: ``license_index`` emptied; the constructor, which returns on
-    a current schema, did not judge the file, and nothing else did)."""
+    """Was: ``license_index`` emptied; the constructor, which returns on
+    a current schema, did not judge the file, and nothing else did."""
     ship(monkeypatch, release_bundle(VERSION))
     path = tmp_path / "f.db"
     foreign_license_index(path)
@@ -80,7 +80,7 @@ def test_a_write_to_a_ready_database_is_refused_while_it_is_locked(
     tmp_path: Path,
 ) -> None:
     """A write cannot judge a file somebody holds locked, so it is refused,
-    as the CLI refuses; reads stay fail-open (see round 2)."""
+    as the CLI refuses; reads stay fail-open."""
     path = make_ready_file_db(tmp_path / "licenses.db")
     handle = LicenseDatabase(str(path))
     write = handle._write_db_records  # pylint: disable=protected-access
@@ -97,7 +97,7 @@ def test_a_write_to_a_ready_database_is_refused_while_it_is_locked(
 def test_update_through_a_vfs_uri_is_refused(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """R3-1 (was: the 740 licences of a real copy became the bundle's one)."""
+    """Was: the 740 licences of a real copy became the bundle's one."""
     ship(monkeypatch, release_bundle(VERSION))
     path = make_ready_file_db(tmp_path / "licenses.db")
     before = path.read_bytes()
@@ -111,8 +111,8 @@ def test_update_through_a_vfs_uri_is_refused(
 def test_update_into_a_missing_directory_fails_at_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: UpdateSource
 ) -> None:
-    """R3-2 (was: a download first, and for ``upstream`` the cache file
-    blamed): main's line, no request, no file."""
+    """Was: a download first, and for ``upstream`` the cache file
+    blamed; now main's line, no request, no file."""
     fake = serve(monkeypatch, online())
     path = tmp_path / "no" / "such" / "x.db"
     handle = LicenseDatabase(str(path))
@@ -128,7 +128,7 @@ def test_update_into_a_missing_directory_fails_at_once(
 def test_a_file_made_meanwhile_is_judged_before_the_update(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """R3-3 (was: rebuilt over a newer build, which must never be rebuilt)."""
+    """Was: rebuilt over a newer build, which must never be rebuilt."""
     ship(monkeypatch, release_bundle(VERSION))
     path = tmp_path / "licenses.db"
     handle = LicenseDatabase(str(path))  # no file yet

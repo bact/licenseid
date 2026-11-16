@@ -127,9 +127,9 @@ class CandidateMatch(TypedDict, total=False):
     pop_score: int
     score: float
     method: Method
-    # A reading resolve() does not make (a bare deprecated ID read as its
-    # -only form, a "+" on a deprecated -with- ID): a guess, so not exact.
-    narrowed: bool
+    # Not exact: a variant licenseid decided, a "+" on a deprecated -with-
+    # ID, or a tag a rewrite rule read (ruleread).
+    decided: bool
     evidence: Evidence
 
 

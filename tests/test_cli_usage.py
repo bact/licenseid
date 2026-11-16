@@ -34,9 +34,9 @@ CASES = [
     (["detect", "--bogus"], "option: not found: --bogus; did you mean --verbose"),
     (["detect", "--id-only", "MIT"], "option: not found: --id-only; did you mean --id"),
     (["is-osi", "-v", "MIT"], "option: not found: -v; run 'cli is-osi --help'"),
-    (["detect", "--bold"], "option: not found: --bold; did you mean --id"),  # C4
-    (["--clear-cache"], "option: not found: --clear-cache; run 'cli --help'"),  # C3
-    (  # C2
+    (["detect", "--bold"], "option: not found: --bold; did you mean --id"),
+    (["--clear-cache"], "option: not found: --clear-cache; run 'cli --help'"),
+    (
         ["update", "--version", "3.29.0"],
         "option: not found: --version; did you mean --json",
     ),

@@ -27,10 +27,9 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | CLI ``clear-cache``  | ``test_clear_cache.py``: state x --json      |
 
 Two inputs (``--id`` or ``--text`` with another input), and ``--json`` with
-``--diff``, are a usage error (C7 of the contract batch;
-they were resolved without a word). A piped standard input beside one input
-is not refused: a script's standard input is seldom a terminal. The API
-takes one of ``text``, ``license_id`` and ``file_path`` exactly (P6).
+``--diff``, are a usage error (they were resolved without a word). A piped standard
+input beside one input is not refused: a script's standard input is seldom a
+terminal. The API takes one of ``text``, ``license_id`` and ``file_path`` exactly.
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
@@ -136,7 +135,7 @@ def _source_args(source: str, found: bool, tmp_path: Path) -> tuple[list[str], s
         "text": (["--text", text], ""),
         "id": (["--id", license_id], ""),
         "stdin": ([], text),
-        "dash": (["-"], text),  # C5: "-" names standard input
+        "dash": (["-"], text),  # "-" names standard input
         "none": ([], ""),
     }
     return sources[source]
@@ -231,7 +230,7 @@ def test_predicate_matrix(
         yes = record("MIT", True)
         assert (result.exit_code, result.stdout, result.stderr) == (0, yes, "")
     else:
-        no = record(None, None)  # not found is no answer (P159)
+        no = record(None, None)  # not found is no answer
         assert (result.exit_code, result.stdout, result.stderr) == (
             1,
             no,
@@ -278,7 +277,7 @@ def test_each_predicate_reads_its_own_flag(command: str) -> None:
         (["--id", ""], "", "--id"),
         (["--id", "  "], "", "--id"),
         ([], " \r\n\t\n", "stdin"),
-        (["-"], " \n\t", "stdin"),  # "-" reads standard input (C5)
+        (["-"], " \n\t", "stdin"),  # "-" reads standard input
         ([], "\ufeff  \n", "stdin"),
         ([], "\ufeff", "stdin"),  # bytes were piped, so not "missing"
     ],
@@ -304,7 +303,7 @@ def test_blank_input(
     assert (result.exit_code, result.stdout, result.stderr) == (2, "", expected)
 
 
-# --- CLI: two inputs are a usage error (C7) ---
+# --- CLI: two inputs are a usage error ---
 
 
 @pytest.mark.parametrize(
@@ -370,7 +369,7 @@ def _api_kwargs(
 
 
 def _winner(names: tuple[str, ...]) -> str | None:
-    """The one input given, or None for none or several (P6)."""
+    """The one input given, or None for none or several."""
     return names[0] if len(names) == 1 else None
 
 
@@ -392,7 +391,7 @@ def test_api_match_matrix(
 ) -> None:
     """``LicenseDetector.detect`` and ``licenseid.detect`` (the database at
     the default path) take the same inputs and give the same answers. One
-    input exactly: none or two raise (P6 of the contract batch; none answered
+    input exactly: none or two raise (none answered
     ``[]``, and of two ``license_id`` > ``file_path`` > ``text`` won)."""
     winner = _winner(names)
     kwargs = _api_kwargs(names, winner, tmp_path)
@@ -430,7 +429,7 @@ def test_api_predicate_matrix(
 ) -> None:
     kwargs = _api_kwargs((name,), name if found else None, tmp_path)
     check = _API_PREDICATES[predicate](LicenseDetector(mit_db))
-    assert check(**kwargs) is (True if found else None)  # P159: never a false no
+    assert check(**kwargs) is (True if found else None)  # Never a false no
 
 
 @pytest.mark.parametrize("payload", PAYLOADS, ids=lambda p: p.name)
@@ -479,7 +478,7 @@ def test_api_file_path_must_be_a_path(
     entry: str,
     value: object,
 ) -> None:
-    """P2 of fix batch D: ``TypeError`` before any file is opened, as for a
+    """``TypeError`` before any file is opened, as for a
     ``text`` or ``license_id`` that is no ``str``."""
     monkeypatch.setattr("licenseid.keptdetector.get_default_db_path", lambda: mit_db)
     call = LicenseDetector(mit_db).detect if entry == "method" else licenseid.detect
@@ -535,7 +534,7 @@ def _resolve_outcome(source: str, state: str, bundle: str) -> tuple[str, str, st
     """What resolve("MIT", source=source) does, as ``(list source or
     "raise", what it raises, what it prints)``, the last two as regular
     expressions. The bundle holds the database's version, so a usable
-    database wins the tie (Q4), an outdated one loses it (Q10). Only
+    database wins the tie, an outdated one loses it. Only
     ``database`` leaves the bundle unread."""
     refused = refusal(state)
     loaded = "" if source == "database" else _LOADED[bundle]
@@ -560,7 +559,7 @@ def _auto_with_a_bundle(
         return "packaged", "", re.escape(OUTDATED_WARNING)
     if refused is None:
         return "database", "", ""
-    if state in (NO_DATABASE, NO_HOME):  # no database file: silent (Q11)
+    if state in (NO_DATABASE, NO_HOME):  # no database file: silent
         return "packaged", "", ""
     fallback = re.escape(f"; using packaged data v{VERSION}\n")
     return "packaged", "", f"WARNING: {refused[0]}{fallback}"
@@ -600,7 +599,7 @@ def test_resolve_matrix(
     assert given.lines() == ""
 
 
-#: How a database is given to resolve(db=...) (P3 of the contract batch).
+#: How a database is given to resolve(db=...).
 _DB_FORMS: dict[str, Callable[[Path], object]] = {
     "handle": lambda p: LicenseDatabase(str(p), create=False),
     "new-handle": lambda p: LicenseDatabase(str(p)),  # create: the default
@@ -633,7 +632,7 @@ def test_resolve_matrix_with_a_database_given(
         return  # no handle to give: LicenseDatabase() itself fails on the file
     if form == "new-handle" and state == "foreign":
         # Neither is a handle to give: it refuses another program's file, and
-        # leaves it as it was (P1 of fix batch D).
+        # leaves it as it was.
         with pytest.raises(
             DatabaseNotReadyError, match="^database: (invalid|unreadable)"
         ):
@@ -659,7 +658,7 @@ def test_resolve_matrix_with_a_database_given(
     "db", [b"licenses.db", 3, object()], ids=["bytes", "int", "object"]
 )
 def test_resolve_refuses_a_db_that_is_no_database(db: object) -> None:
-    """P3: neither a database nor a path is a mistake of the caller."""
+    """Neither a database nor a path is a mistake of the caller."""
     with pytest.raises(TypeError, match="^db must be a LicenseDatabase, str or "):
         resolve("MIT", db)  # type: ignore[arg-type]
 
@@ -672,7 +671,7 @@ DEFAULT_DATABASES = ["usable", "missing"]
 def _cli_match_outcome(source: str, default: str, given: bool) -> str | None:
     """Where ``licenseid resolve`` reads the list, or None for exit 2. The
     database and the bundle hold one List, built by this licenseid: a tie,
-    which the database wins (Q10)."""
+    which the database wins."""
     if given:
         return None if source == "packaged" else "database"
     if source == "packaged":

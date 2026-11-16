@@ -388,7 +388,7 @@ def test_the_two_title_lines_of_gpl_3_are_its_title(
 def test_the_chinese_title_line_of_mulan_psl_is_lost(
     db_path: str, license_id: str
 ) -> None:
-    """A known loss, open for 0.8 (roadmap item 47): the title line
+    """A known loss, open (roadmap item 47): the title line
     (``木兰宽松许可证, 第2版``, 21 columns) answered its licence at 1.0;
     under 40 columns it counts less, and is ranked first at 0.5, below the
     CLI's 0.85. ``resolve()``'s title table does not hold it: no value of

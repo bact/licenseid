@@ -67,7 +67,7 @@ def test_a_compound_is_exact_when_every_operand_is(
     assert match["exact"] is exact
 
 
-def test_a_narrowed_match_stays_inexact(corpus_db: LicenseDatabase) -> None:
+def test_a_decided_match_stays_inexact(corpus_db: LicenseDatabase) -> None:
     (match,) = as_resolved(resolve("MIT", corpus_db), [_match(exact=False)])
     assert match["exact"] is False
 
@@ -196,7 +196,7 @@ def test_a_semicolon_in_the_reason_starts_no_action(
         ),
     ],
 )
-def test_a_split_id_before_an_addition_ref_is_narrowed(
+def test_a_split_id_before_an_addition_ref_is_decided(
     corpus_db: LicenseDatabase, given: GivenWarnings, text: str, expression: str
 ) -> None:
     """No marker reader takes a ``WITH AdditionRef-*``: the -only guess is
@@ -221,7 +221,7 @@ def test_a_stated_grant_before_an_addition_ref_is_kept(
     assert given.lines() == ""
 
 
-def test_the_narrowed_warning_of_a_long_value_names_the_family(
+def test_the_decided_warning_of_a_long_value_names_the_family(
     corpus_db: LicenseDatabase, given: GivenWarnings
 ) -> None:
     """The DETAIL is the licence family, not the long value."""

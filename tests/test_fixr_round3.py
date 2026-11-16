@@ -3,10 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Task ``fixr``, review round 3: the loose "or later" grant of item 4 is
-withdrawn (it read values past the drop guard), and a misplaced mark no
-longer hides mismatched brackets. Every value here gives the answer of
-``main`` before the task, but the mixed quote marks of item 3.
+"""Task ``fixr``, review: the loose "or later" grant is withdrawn (it read
+values past the drop guard), and a misplaced mark no longer hides mismatched
+brackets. Every value here gives the answer of ``main`` before the task, but
+the mixed quote marks.
 
 Each test was first a pin of what the branch did (``# BUG:``); it now holds
 the answer of ``main``.

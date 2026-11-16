@@ -109,7 +109,7 @@ def test_prose_after_the_expression(
     assert given.conditions() <= {"variant not stated"}
 
 
-#: Licences joined by a mark SPDX does not have (roadmap item 46, A-F6):
+#: Licences joined by a mark SPDX does not have (roadmap item 46):
 #: the tag names each, so an answer of the first alone drops the rest.
 LISTED = [
     "MIT/Apache-2.0",

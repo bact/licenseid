@@ -341,7 +341,7 @@ GPL = ("GPL-2.0-only", "GPL-2.0-or-later")
                 )
             ],
         ),
-        # # BUG: the signal is the input's, not the licence's: a grant for
+        # BUG: the signal is the input's, not the licence's: a grant for
         # the LGPL beside it chooses -or-later for this licence too.
         (
             [("LGPL-2.1-or-later", 1.0), ("LGPL-2.1-only", 1.0)],

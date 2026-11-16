@@ -56,7 +56,7 @@ def _answer(corpus_db: LicenseDatabase, value: str) -> tuple[str | None, str | N
     return got["expression"], got["reason"]
 
 
-# --- item 1: the trove list we ship has a version -----------------------------
+# --- The trove list we ship has a version -----------------------------
 
 
 def test_the_trove_list_has_a_version() -> None:
@@ -77,7 +77,7 @@ def test_a_trove_answer_names_the_version(corpus_db: LicenseDatabase) -> None:
     ]
 
 
-# --- item 2: a "+" after a space ----------------------------------------------
+# --- A "+" after a space ----------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -103,7 +103,7 @@ def test_a_spaced_plus_in_resolve(
 ) -> None:
     """A "+" after a space is no operator (plusoperator.PLUS_OPERATOR; it
     may say "and" too): refused where it qualifies a licence. It was read
-    as the operator, with a ``whitespace`` step (P34)."""
+    as the operator, with a ``whitespace`` step."""
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"], got["reason"]) == (
         None,
@@ -144,14 +144,14 @@ def test_a_spaced_plus_in_a_tag(corpus_db: LicenseDatabase, value: str) -> None:
 def test_a_spaced_plus_as_an_argument(
     corpus_db: LicenseDatabase, given: GivenWarnings
 ) -> None:
-    """It was GPL-2.0-only, not exact, with a warning (F3): the loose reading
+    """It was GPL-2.0-only, not exact, with a warning: the loose reading
     of Tier 0 dropped the "+" apart from its ID. It names no licence, as
-    resolve() and the tag read it (readers, round 3)."""
+    resolve() and the tag read it."""
     assert not LicenseDetector(corpus_db.location).detect("GPL-2.0 +")
     assert not given.conditions()
 
 
-# --- item 3: a keyword ignores case in ASCII only -----------------------------
+# --- A keyword ignores case in ASCII only -----------------------------
 
 
 def test_a_dotted_capital_i_in_with(corpus_db: LicenseDatabase) -> None:
@@ -163,7 +163,7 @@ def test_a_dotted_capital_i_in_with(corpus_db: LicenseDatabase) -> None:
     )
 
 
-# --- item 4: one probe of "or later" ------------------------------------------
+# --- One probe of "or later" ------------------------------------------
 
 
 def test_one_probe_reads_a_grant_after_an_id() -> None:
@@ -189,7 +189,7 @@ def test_the_tag_and_resolve_agree_on_a_negated_grant(text: str, grant: bool) ->
     assert tag == (len(text) if grant else None)
 
 
-# --- item 5: numbered sections after blank lines ------------------------------
+# --- Numbered sections after blank lines ------------------------------
 
 _WORDS = " ".join(f"word{n}" for n in range(40))
 
@@ -223,7 +223,7 @@ def test_detect_reads_a_run_of_blank_lines_quickly(corpus_db: LicenseDatabase) -
     assert elapsed < slack(2), f"took {elapsed:.3f}s"  # 7 s before
 
 
-# --- item 6: a reference in another case --------------------------------------
+# --- A reference in another case --------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -262,7 +262,7 @@ def test_a_reference_in_another_case_in_a_field(
     )
 
 
-# --- item 7: whose grant ------------------------------------------------------
+# --- Whose grant ------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -297,7 +297,7 @@ def test_a_licence_listed_after_a_comma_is_no_grant_of_the_first(
     ("value", "answer"),
     [
         # The grant was dropped in silence: MIT, exact. resolve() reads it as
-        # the "+" of an ID with no -or-later form (P35).
+        # the "+" of an ID with no -or-later form.
         ("MIT, or any later version", "MIT+"),
         ("MIT or any later version", "MIT+"),
         ("Apache-2.0 or later", "Apache-2.0+"),
@@ -323,7 +323,7 @@ def test_a_grant_after_a_re_spelt_id_is_kept_not_exact(
     corpus_db: LicenseDatabase,
 ) -> None:
     """``GPL-2`` is a rewrite rule's reading (``version_spelling``), as the
-    argument says: the grant is kept, the answer is not exact (rule I1)."""
+    argument says: the grant is kept, the answer is not exact, as for every channel."""
     assert _tag(corpus_db, "GPL-2 or later") == ("GPL-2.0-or-later", False)
 
 
@@ -394,7 +394,7 @@ def test_a_grant_is_kept_in_a_field(corpus_db: LicenseDatabase, tmp_path: Path) 
     assert _field(corpus_db, tmp_path, "GPL-2.0, version 3 or later") is None
 
 
-# --- item 8: an information separator on the command line ---------------------
+# --- An information separator on the command line ---------------------
 
 
 @pytest.mark.parametrize(
@@ -464,7 +464,7 @@ def test_a_unit_separator_as_the_argument_of_detect(corpus_db: LicenseDatabase) 
     assert (result.exit_code, result.stderr) == (1, "")
 
 
-# --- item 9: quote marks around nothing, a reference before a comma -----------
+# --- Quote marks around nothing, a reference before a comma -----------
 
 
 @pytest.mark.parametrize(
@@ -504,6 +504,6 @@ def test_a_reference_and_an_end_mark_before_a_grant(
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"], got["reason"]) == (
         None,
-        "malformed",  # fixr item 5: as ``LicenseRef-a+`` (was unresolved)
+        "malformed",  # as ``LicenseRef-a+`` (was unresolved)
         f"qualifier on a reference: {value}",
     )

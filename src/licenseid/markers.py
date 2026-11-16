@@ -197,12 +197,6 @@ class MarkerDetector:
             self._detect_explicit_identifiers(text, read_fields=False),
         )
 
-    def _detect_structured_format(
-        self, text: str, ext: str = ""
-    ) -> list[CandidateMatch]:
-        """Parse structured file formats (JSON, TOML, INI) for license fields."""
-        return self._structured_candidates(license_value_groups(text, ext))
-
     def _structured_candidates(self, groups: list[list[str]]) -> list[CandidateMatch]:
         """The first value of each format that resolves, one candidate per
         license."""
@@ -267,12 +261,12 @@ class MarkerDetector:
         else:
             found = []
         inexact = read_inexactly(self.db, expression, found, guessed)
-        if inexact:  # "GPL-2.0" read as GPL-2.0-only: said, and not exact
-            if inexact == "narrowed":
+        if inexact:  # a decided variant or an ambiguous "+": not exact
+            if inexact == "decided":
                 mark_guessed(found[0], expression)
-            found[0]["narrowed"] = True
+            found[0]["decided"] = True
         elif found and tag_inexact(self.db, leading, granted, expression):
-            found[0]["narrowed"] = True
+            found[0]["decided"] = True
         # Only words the readers took are stated, as for the argument
         return read_from(found, val if named or expression != leading else leading)
 

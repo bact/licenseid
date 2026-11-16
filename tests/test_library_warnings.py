@@ -80,7 +80,7 @@ def parts_of(given: list[warnings.WarningMessage]) -> list[Parts]:
     ]
 
 
-def narrowed(value: str, resolved: str) -> Parts:
+def decided(value: str, resolved: str) -> Parts:
     return ("input", "variant not stated", value, f"using {resolved}")
 
 
@@ -212,14 +212,14 @@ def _detect_function_tags(db: str) -> object:
 
 
 @pytest.mark.parametrize("call", [_detect_tags, _detect_function_tags])
-def test_a_narrowed_tag_is_a_warning(
+def test_a_decided_tag_is_a_warning(
     memory_db: str, capsys: pytest.CaptureFixture[str], call: Callable[[str], object]
 ) -> None:
     with pytest.warns(LicenseIdWarning) as given:
         call(memory_db)
     assert parts_of(given.list) == [
-        narrowed("GPL-2.0", "GPL-2.0-only"),
-        narrowed("LGPL-2.1", "LGPL-2.1-only"),
+        decided("GPL-2.0", "GPL-2.0-only"),
+        decided("LGPL-2.1", "LGPL-2.1-only"),
     ]
     # Attributed to the caller's line, not to licenseid's. Only licenseid's
     # own warnings: pytest.warns records every class, and a collection here
@@ -408,7 +408,7 @@ def test_a_raised_or_ignored_warning_is_not_counted_as_given(
     monkeypatch: pytest.MonkeyPatch,
     path: Callable[[Path, pytest.MonkeyPatch], Callable[[], object]],
 ) -> None:
-    """P188: within once(), only a warning given counts. One a filter raised
+    """Within once(), only a warning given counts. One a filter raised
     raises again at the next call; one a filter ignored is given at the next
     call that is not ignored, and then no more."""
     call = path(outdated_db, monkeypatch)
@@ -460,7 +460,7 @@ def test_resolve_with_a_path_warns_once_when_it_opens_again(outdated_db: Path) -
 def test_a_warning_behind_a_cached_property_names_the_caller(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """P177: an unusable snapshot is said in ReleaseChain._fallback, a
+    """An unusable snapshot is said in ReleaseChain._fallback, a
     functools.cached_property, whose frame stands between licenseid's: the
     warning still names this file, not functools."""
     serve(monkeypatch, without(online(), bundle_url(), tarball_url()))

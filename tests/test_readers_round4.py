@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Task ``readers``, fourth round: what round 3 refused that it must not,
+"""Task ``readers``: what an earlier version refused that it must not,
 on the whole 3.29.0 List (every ID a row, Intel, Nokia and Ruby too).
 
 Each test was first a pin of what the branch did (``# BUG:``); it now holds
@@ -131,7 +131,7 @@ WRAPPED = [
     "# This file is GPL-2.0\n# or any later version\n",
     "// GPL-2.0\n// or later\n",
     "/* GPL-2.0\r\n * or later */\r\n",
-    "# GPL-2.0\n# - or later\n",  # a dash between words (D10); it was none
+    "# GPL-2.0\n# - or later\n",  # a dash between words; it was none
 ]
 
 
@@ -223,7 +223,7 @@ def test_grant_head_is_one_rule(before: str, head: str | None) -> None:
         ("\r * or later", True),  # a carriage return alone breaks a line too
         (";\n * or later", True),  # only the last line is judged
         ("\n * ; or later", None),
-        ("\n# - or later", True),  # a dash between words (D10)
+        ("\n# - or later", True),  # a dash between words
         ("\n# ? or later", None),
         ("\n *or later", None),  # no word "or"
     ],

@@ -420,7 +420,7 @@ LIST_HINT = "; pass spdx-license-list or spdx-license-list@<version>\n"
 def test_cli_update_rejects_a_bad_list(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
-    """C2: a list update does not install, or a version that is no release,
+    """A list update does not install, or a version that is no release,
     is a usage error before anything is fetched or written."""
     fake = _serve(monkeypatch, release_tarball())
     result = CliRunner().invoke(
@@ -452,7 +452,7 @@ def test_cli_update_refuses_a_list_given_twice(
 def test_cli_update_with_a_version_never_asks_for_the_latest(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, version: str, source: str
 ) -> None:
-    """C2: ``--list spdx-license-list@V`` fetches release V and nothing that
+    """``--list spdx-license-list@V`` fetches release V and nothing that
     says which release is the latest (latest.json, licenses.json)."""
     fake = _serve(monkeypatch, release_tarball())
     listed = f"spdx-license-list@{version}"

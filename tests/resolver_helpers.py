@@ -25,7 +25,7 @@ GPL2_PLUS = Lic(
 
 
 #: The start of the reason a refusal gets when no reader gave it one
-#: (``licenseid.resolvereason.no_reading``, P5 of the contract batch).
+#: (``licenseid.resolvereason.no_reading``).
 NOT_FOUND = "not found: "
 
 

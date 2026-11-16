@@ -83,7 +83,7 @@ def test_a_tag_answers_at_any_length(
 ) -> None:
     results = LicenseDetector(db).detect(text=f"{FILLER}\n{text}" if large else text)
     assert [(r["expression"], r["score"]) for r in results] == [(expected, 1.0)]
-    # A LicenseRef-* is valid SPDX but not on the List (F2).
+    # A LicenseRef-* is valid SPDX but not on the List.
     # (The seeded GPL-2.0 row, deprecated and kept as written, is no List row.)
     assert results[0]["is_spdx"] is (
         "LicenseRef-" not in expected and expected != "GPL-2.0"

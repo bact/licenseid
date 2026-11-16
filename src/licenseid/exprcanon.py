@@ -4,12 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """A compound expression: its leaves, its parse, and licenseid's own
-canonical order of it (0.7.0 plan, D1).
+canonical order of it.
 
 1. :func:`split` cuts the value into tokens in one pass: brackets of any
    kind, the ``AND`` and ``OR`` operators, and the leaves between them. A
    leaf is ``X``, ``X+``, ``X WITH Y``, with an "or later" grant if it has
-   one (decision Q14: an ``or`` that starts a grant, read by
+   one (an ``or`` that starts a grant, read by
    ``classify.OR_LATER_PHRASE`` through ``looseid.grant_end``, is no
    operator).
 2. The caller reads each leaf as a value of its own.
@@ -17,13 +17,13 @@ canonical order of it (0.7.0 plan, D1).
    placeholder ``LicenseRef-licenseid-leaf-N``: ``py-spdx-license`` then
    sees only ``AND``, ``OR``, brackets and references, so neither its
    snapshot of the List, nor its want of ``+`` and ``AdditionRef-``, nor its
-   sort (findings F1 to F3) can change the answer.
+   sort can change the answer.
 4. :func:`canonical` flattens chains of one operator, sorts, removes
    repeats and renders with the brackets precedence needs, and names each
    change as a step: ``operator_case``, ``whitespace``, ``brackets``,
    ``reorder``, ``dedupe``.
 
-The order (decisions Q19, Q24): every leaf before every bracketed group; a
+The order: every leaf before every bracketed group; a
 leaf by its rank (a listed ID 0, a ``LicenseRef-``/``DocumentRef-`` 1, a
 ``WITH`` 2), then its text case-folded, then as is; a group by its rendered
 text, the same way. Commutativity, idempotence and associativity of AND and
@@ -71,7 +71,7 @@ Node = int | Group
 
 def unbracketed(text: str) -> str:
     """*text* without the brackets around the whole of it, of any kind
-    (``(MIT)``, ``[MIT]``, ``{[MIT]}``; decision Q21), as
+    (``(MIT)``, ``[MIT]``, ``{[MIT]}``), as
     ``identifiers.without_outer_brackets`` takes round ones: one pass, the
     shallowest depth between the leading and trailing runs is how many pairs
     go (``[A] OR [B]``: none). A pair of two kinds (``[MIT)``) stays, for the
@@ -131,7 +131,7 @@ def _grant(text: str, part: re.Match[str]) -> int | None:
     (``or later,``, ``or later!``: the leaf's reading judges them, as it
     would alone); then white space, a closing bracket or the end. A grant
     in curly brackets (``{or later}``) is not one here, as it is not alone
-    (decision Q21 makes them brackets of an expression only)."""
+    (curly brackets are brackets of an expression only)."""
     start, close = part.start(), ""
     if part.group(0) in "([":
         close = _OPENS[part.group(0)]
@@ -406,8 +406,7 @@ def _render(node: Node, texts: list[str]) -> str:
 
 
 def _text_key(text: str) -> tuple[str, str]:
-    """Case-folded, then as is: the SPDX License List's order, made total
-    (decision Q24)."""
+    """Case-folded, then as is: the SPDX License List's order, made total."""
     return text.casefold(), text
 
 

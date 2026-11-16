@@ -4,11 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Generated compounds (``compound_cases``), each with the answer
-``resolve()`` gives, and the shapes task T7 decided (review decisions Q14 to
-Q21).
+``resolve()`` gives, and the shapes decided in review.
 
-Before T7 a compound was only labelled ``expression``, with no expression;
-the pins of ``fixtures/resolver_compounds_generated.tsv`` are what T7 reads.
+Before, a compound was only labelled ``expression``, with no expression;
+the pins of ``fixtures/resolver_compounds_generated.tsv`` are what is read.
 """
 
 from pathlib import Path
@@ -65,20 +64,20 @@ def test_a_generated_compound_keeps_its_answer(
 
 _WITH = "GPL-2.0-only WITH Classpath-exception-2.0"
 
-#: Shapes task T7 decides (review decisions Q14 to Q21), with the answer:
+#: Shapes decided in review, with the answer:
 #: ``(expression, category, step kinds)``. A comment names what it was before.
 SHAPES: list[tuple[str, tuple[str | None, str, list[str]]]] = [
-    # Q17: the case and spacing of a single WITH are steps (were none, exact)
+    # The case and spacing of a single WITH are steps (were none, exact)
     (
         "GPL-2.0-only with Classpath-exception-2.0",
         (_WITH, "lexical", ["operator_case"]),
     ),
     ("GPL-2.0-only  WITH Classpath-exception-2.0", (_WITH, "lexical", ["whitespace"])),
     ("GPL-2.0-only\tWITH\tClasspath-exception-2.0", (_WITH, "lexical", ["whitespace"])),
-    # Q14, P35: a grant on an ID with no -or-later form is "+"
+    # A grant on an ID with no -or-later form is "+"
     ("Apache 2.0 or later", ("Apache-2.0+", "separator", ["separator"])),
-    ("MIT or later", ("MIT+", "stated_qualifier", [])),  # P35
-    # Q14: the hyphenated grant is a grant (was separator, by the version
+    ("MIT or later", ("MIT+", "stated_qualifier", [])),
+    # The hyphenated grant is a grant (was separator, by the version
     # key) and a qualifier stated twice is malformed (was unresolved)
     ("GPL-2.0 or-later", ("GPL-2.0-or-later", "stated_qualifier", [])),
     ("GPL-2.0-only or-later", (None, "malformed", [])),
@@ -87,14 +86,14 @@ SHAPES: list[tuple[str, tuple[str | None, str, list[str]]]] = [
         "GPL-2.0 WITH Classpath-exception-2.0 or later",
         ("GPL-2.0-or-later WITH Classpath-exception-2.0", "stated_qualifier", []),
     ),
-    # Q20: an AdditionRef names itself, as a LicenseRef does (was unresolved)
+    # An AdditionRef names itself, as a LicenseRef does (was unresolved)
     ("MIT WITH AdditionRef-x", ("MIT WITH AdditionRef-x", "exact", [])),
-    # Q16: a LicenseRef is exempt from the key cap (was unresolved)
+    # A LicenseRef is exempt from the key cap (was unresolved)
     ("LicenseRef-" + "a" * 120, ("LicenseRef-" + "a" * 120, "exact", [])),
-    # Q21: square and curly brackets are brackets (were unresolved)
+    # Square and curly brackets are brackets (were unresolved)
     ("[MIT]", ("MIT", "lexical", ["brackets"])),
     ("{MIT OR ISC}", ("ISC OR MIT", "lexical", ["brackets", "reorder"])),
-    # Q14: a grant inside a compound is read (was unresolved)
+    # A grant inside a compound is read (was unresolved)
     (
         "MIT OR GPL-2.0 or later",
         ("GPL-2.0-or-later OR MIT", "stated_qualifier", ["reorder"]),
@@ -110,30 +109,30 @@ SHAPES: list[tuple[str, tuple[str | None, str, list[str]]]] = [
 
 
 @pytest.mark.parametrize(("value", "expected"), SHAPES, ids=[v[:40] for v, _ in SHAPES])
-def test_a_shape_t7_decides_keeps_its_answer(
+def test_a_compound_shape_decided_keeps_its_answer(
     corpus_db: LicenseDatabase, value: str, expected: tuple[object, ...]
 ) -> None:
     """The expression, the category and the step kinds as pinned."""
     got = resolve(value, corpus_db)
     kinds = [s["kind"] for s in got["steps"]]
     assert (got["expression"], got["category"], kinds) == expected
-    # An answer has no reason; a refusal always has one (P5).
+    # An answer has no reason; a refusal always has one.
     assert (got["reason"] is None) is (got["expression"] is not None)
 
 
-#: Shapes task T7 refuses, with the answer: ``(category, reason)``. Before
-#: T7 each had no reason; ``MIT)`` was unresolved.
+#: Shapes refused, with the answer: ``(category, reason)``. Before, each had
+#: no reason; ``MIT)`` was unresolved.
 REFUSED: list[tuple[str, tuple[str, str]]] = [
     ("MIT)", ("malformed", "parse failed: Missing matching '('")),
     ("(MIT", ("malformed", "parse failed: Unexpected '('")),
     ("MIT AND", ("malformed", "parse failed: Unexpected 'AND'")),
-    # The operand's own reason (P5, as P29 has it): it said "operand not
+    # The operand's own reason: it said "operand not
     # resolved" while that operand had none.
     ("MIT OR GPL-2.0-only+", ("malformed", "qualifier stated twice: GPL-2.0-only+")),
     ("MIT/Apache", ("unresolved", "not an SPDX operator: /")),
     ("MIT | ISC", ("unresolved", "not an SPDX operator: |")),
     ("MIT & ISC", ("unresolved", "not an SPDX operator: &")),
-    ("MIT; ISC", ("unresolved", "operator not stated: ;")),  # T8b: listed
+    ("MIT; ISC", ("unresolved", "operator not stated: ;")),  # a list, no operator
     ("MIT, ISC", ("unresolved", "not an SPDX operator: ,")),
     ("MIT OR ISC]", ("malformed", "parse failed: Missing matching '('")),
     ("(MIT OR ISC]", ("malformed", "mismatched brackets")),
@@ -142,7 +141,7 @@ REFUSED: list[tuple[str, tuple[str, str]]] = [
 
 
 @pytest.mark.parametrize(("value", "expected"), REFUSED, ids=[v for v, _ in REFUSED])
-def test_a_shape_t7_refuses_says_why(
+def test_a_compound_shape_refused_says_why(
     corpus_db: LicenseDatabase, value: str, expected: tuple[str, str]
 ) -> None:
     """No expression and no operand taken; the category and the reason."""
@@ -151,10 +150,10 @@ def test_a_shape_t7_refuses_says_why(
     assert (got["category"], got["reason"]) == expected
 
 
-#: Values with an operator word that T7 does not read as a compound: a leaf
+#: Values with an operator word that is not read as a compound: a leaf
 #: of several words with a lower-case operator, or a lower-case operator and
-#: an operand that names nothing. Before T7 they were unresolved, with no
-#: reason; since the contract batch (P5) the reason is ``not found``, for the
+#: an operand that names nothing. Before, they were unresolved, with no
+#: reason; now the reason is ``not found``, for the
 #: whole value, not one that splits it.
 PROSE = [
     "Proprietary or custom",
@@ -185,9 +184,9 @@ def test_prose_with_an_operator_word_is_no_compound(
     assert not got["components"]
 
 
-#: Values in compound form with a leaf of several words: no compound (Q18),
+#: Values in compound form with a leaf of several words: no compound,
 #: but with the operators in upper case the reason is the first refused
-#: operand's (Q15, P43 amended after review); a dropped mark in any case.
+#: operand's (amended after review); a dropped mark in any case.
 FALLBACK = [
     ("Apache License 2.0 OR MIT", "operand of several words: Apache License 2.0", []),
     ("BSD 3-Clause OR Apache-2.0", "operand of several words: BSD 3-Clause", []),

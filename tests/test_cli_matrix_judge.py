@@ -32,7 +32,7 @@ CLEAN_MATCH = {"rc": 0, "out": "MIT\n", "err": "", "files": []}
 
 # --------------------------------------------------------------- judging
 
-#: What detect prints for no answer (C9), and the list update installs.
+#: What detect prints for no answer, and the list update installs.
 NO_ANSWER = (
     "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\tVARIANT_STATED=\n"
 )
@@ -330,7 +330,7 @@ def test_bold_text_groups_are_not_exempt_from_the_group_check() -> None:
 def test_relational_flags_predicates_that_contradict_detect(
     codes: dict[str, int], flags: tuple[bool | None, ...]
 ) -> None:
-    """Each predicate exits 0 exactly when detect's flag is true (C1: the
+    """Each predicate exits 0 exactly when detect's flag is true (the
     union commands it checked are gone)."""
     cells, rows = _relational_fixture(codes, flags)
     judge_mod.relational(rows, cells)
@@ -565,8 +565,8 @@ def test_the_predicate_contract(rc: int, out: str, ok: bool) -> None:
         (f"LIST={L}\tVERSION=\tSTATUS=unchanged\tPATH=x\n", True),
         (f'{{"list":"{L}","path":"x","status":"updated","version":"9.99"}}\n', True),
         (f'{{"list":"{L}","path":"x","status":"unchanged","version":null}}\n', True),
-        ("STATUS=updated\tVERSION=9.99\tPATH=/x/licenses.db\n", False),  # pre-C2
-        ('{"path":"x","status":"updated","version":"9.99"}\n', False),  # pre-C2
+        ("STATUS=updated\tVERSION=9.99\tPATH=/x/licenses.db\n", False),  # old form
+        ('{"path":"x","status":"updated","version":"9.99"}\n', False),  # old form
         ("Database updated at x\n", False),  # the old shape
         ("STATUS=done\tVERSION=9.99\tPATH=x\n", False),
         ('{"path":"x","status":"done","version":"9.99"}\n', False),
@@ -605,7 +605,7 @@ DIFF_ERR = (
 def test_the_word_diff_on_stderr_is_no_stray_line(
     cmd: str, err: str, flagged: bool
 ) -> None:
-    """``detect --diff`` writes its diff to stderr (P116); the judge lets
+    """``detect --diff`` writes its diff to stderr; the judge lets
     that block through, and nothing else."""
     verdict, notes = judge_mod.judge(
         make_cell(kind="detect", cmd=cmd),
@@ -632,7 +632,7 @@ def test_the_word_diff_on_stderr_is_no_stray_line(
 )
 def test_the_shells_own_lines_are_not_the_clis(err: str, flagged: bool) -> None:
     """bash 5 says ``shell-init:`` when it starts in a deleted working
-    directory (E6): the shell's line, not one licenseid broke the grammar
+    directory: the shell's line, not one licenseid broke the grammar
     with."""
     verdict, notes = judge_mod.judge(
         make_cell(kind="other"), make_result(rc=0, out="", err=err)

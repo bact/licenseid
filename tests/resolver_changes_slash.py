@@ -5,8 +5,8 @@
 
 """The one answer the "/" rule (``licenseid.resolveslash``, roadmap item 43)
 moved in the parity corpus and the PyPI sample. ``resolver_corpus`` merges
-:data:`SLASH_CHANGES` into ``EXPECTED_CHANGES`` last, over the T7 row that
-recorded ``MIT/Apache-2.0`` as refused."""
+:data:`SLASH_CHANGES` into ``EXPECTED_CHANGES`` last, over the
+compound-expression row that recorded ``MIT/Apache-2.0`` as refused."""
 
 from tools.pypi_licence_sample.answer import Answer
 

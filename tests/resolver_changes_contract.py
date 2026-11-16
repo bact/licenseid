@@ -4,13 +4,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The answers the pre-freeze contract batch moved in the parity corpus and
-the PyPI sample: item P5, a reason for every refusal. Each value gains a
+the PyPI sample: a reason for every refusal. Each value gains a
 ``reason`` and nothing else: no expression, category, step or trust moved.
 
 The answers are in ``fixtures/resolver_contract_changes.tsv``;
 :data:`REASONS` says why each group moved. ``resolver_corpus`` merges
 :data:`CONTRACT_CHANGES` into ``EXPECTED_CHANGES`` last, so a value an
-earlier task moved (``BSD-3-Clause and Public-Domain``, T7) is listed here
+earlier change moved (``BSD-3-Clause and Public-Domain``) is listed here
 with its answer now.
 """
 
