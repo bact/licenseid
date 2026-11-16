@@ -324,8 +324,6 @@ def test_a_spaced_or_later_is_a_stated_qualifier(
         "GPL-2.0 or_later",
         "GPL-2.0 or.later",
         "GPL-2.0 or _later",
-        "GPL-2.0 or later-",
-        "GPL-2.0 or later_",
     ],
 )
 def test_an_or_later_in_other_separators_is_a_separator_spelling(
@@ -335,6 +333,20 @@ def test_an_or_later_in_other_separators_is_a_separator_spelling(
     # ``GPL-2.0 or later`` is a stated qualifier; one reader of the grant
     # would make them agree (a loose grant past the drop guard was withdrawn)
     assert _answer(corpus_db, value) == ("GPL-2.0-or-later", "separator", None)
+
+
+@pytest.mark.parametrize(
+    ("value", "reason"),
+    [
+        ("GPL-2.0 or later-", "character dropped: U+002D"),
+        ("GPL-2.0 or later_", "character dropped: U+005F"),
+    ],
+)
+def test_a_joiner_after_the_grant_is_a_dropped_character(
+    corpus_db: LicenseDatabase, value: str, reason: str
+) -> None:
+    # item 54: a dash or underscore joined to the end is a cut value
+    assert _answer(corpus_db, value) == (None, "unresolved", reason)
 
 
 @pytest.mark.parametrize("base", ["1.1", "1.2", "1.3"])

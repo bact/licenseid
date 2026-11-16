@@ -54,6 +54,8 @@ ROWS = [
     Lic("Dup-1.0", "Dup Old", is_deprecated=True),
 ]
 SYNTHETIC = ("Twin-", "Dup-")
+# Rows whose bare major (``OLDAP-2``) is ambiguous: ROWS holds a sibling minor.
+CUT_MAJOR = {"OLDAP-2.0", "Python-2.0"}
 # Where a deprecated ID is redirected, as on the license_id= path.
 SUCCESSOR = {"GPL-2.0": "GPL-2.0-only", "GPL-2.0+": "GPL-2.0-or-later"}
 NARROWED = "WARNING: input: variant not stated: {}; using {}\n"
@@ -136,7 +138,7 @@ def test_version_key(text: str, key: str) -> None:
         ("CC BY 3", "CC-BY-3.0"),
         ("GPL2+", "GPL-2.0-or-later"),
         ("GPLv2-only", "GPL-2.0-only"),
-        ("OLDAP 2", "OLDAP-2.0"),
+        ("OLDAP 2", None),  # item 54: OLDAP-2.0.1 is a sibling, no row is named
         ("OLDAP 2.0.1", "OLDAP-2.0.1"),
         ("Python 2.0.1", "Python-2.0.1"),
         ("LPPL 1.3c", "LPPL-1.3c"),
@@ -224,7 +226,9 @@ def test_every_id_is_found_by_its_own_spelling(
     )
     for spelling in spellings:
         found = match_version_key(db, spelling)
-        assert [m["license_id"] for m in found] == [expected], spelling
+        # item 54: a bare major the List has another minor of names no row
+        cut = lid in CUT_MAJOR and spelling == lid.removesuffix(".0")
+        assert [m["license_id"] for m in found] == ([] if cut else [expected]), spelling
     assert given.conditions() <= {"variant not stated"}
 
 

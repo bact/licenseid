@@ -36,7 +36,13 @@ from licenseid.normalize import DASHES
 from licenseid.plusoperator import PLUS_OPERATOR
 from licenseid.types import CandidateMatch, Evidence, RawMatch
 from licenseid.variants import ONLY_WORD, decided, family_of, warn_guess
-from licenseid.versionkey import MAX_KEY_INPUT, keyed_row, named_row, version_key
+from licenseid.versionkey import (
+    MAX_KEY_INPUT,
+    ambiguous_ids,
+    keyed_row,
+    named_row,
+    version_key,
+)
 
 # grant_end is classify's, the one probe of a grant after an ID; the
 # compound reader (exprcanon) imports it from here.
@@ -86,16 +92,24 @@ _RE_GRANT_TAIL = re.compile(_GRANT_WORDS + r"[\s.,;:)\]]*", re.IGNORECASE)
 WITH_OPERATOR = re.compile(r"(?<!\s)\s+(?a:WITH)\s+", re.IGNORECASE)
 
 
-def loose_id(db: ListLookup, text: str) -> tuple[ListedName, str] | None:
+def loose_id(
+    db: ListLookup, text: str, *, granted: bool = False
+) -> tuple[ListedName, str] | None:
     """The row *text* names loosely, and the ID it answers: the row's own,
     its successor if deprecated, or its -or-later form for a grant after it
-    ("GPLv2 or any later version"). None for no row, or for two rows in use.
-    """
+    ("GPLv2 or any later version"). None for no row, for two rows in use, or
+    for a cut ID that names no one of several: ``Apache-1`` writes only the
+    major, and the List has ``Apache-1.0`` and ``Apache-1.1``
+    (:func:`licenseid.versionkey.ambiguous_ids`). *granted*: the caller has
+    read a grant off the text (``LGPLv2+``), which covers every later minor,
+    so the lowest is what was written and nothing is ambiguous."""
     text = text.strip()
     if len(text) > MAX_KEY_INPUT:
         return None
     row = named_row(db, text)
     if row is not None:
+        if not granted and ambiguous_ids(db, text):
+            return None
         return row, resolved_id(db, row)
     return _granted(db, text)
 

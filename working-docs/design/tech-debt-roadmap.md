@@ -626,11 +626,30 @@ not exact, so these are `EXACT=false` now, but they are still answered. A
 cut version is a choice, not a spelling: `Apache-1` may mean `Apache-1.0` or
 `Apache-1.1`.
 
-- **Measure first**: how many PyPI values and corpus entries end in a bare
-  major version or a lone separator, and what `resolve()` should answer for
-  them (an answer with trust, or none).
-- **Then decide**: refuse the cut version, or keep it as a rule's reading
-  (not exact, as now).
+- **Measured** (2026-11-16, `main` cbbf3e9): PyPI sample, 463 values: only
+  `LGPLv2` (3 projects) is a bare major with a sibling minor; no value ends
+  in a dash. sbomminbench (172 distinct inputs) and the parity corpus: none.
+  The golden run feeds the loose reader 6 bare majors (`AFL-2`, `Apache-1`,
+  `CDDL-1`, `EUPL-1`, `LGPLv2`, `OSL-2`) and 3 trailing dashes. A sweep of
+  the List: 35 keys (36 rows, deprecated included) have a sibling.
+- **Decided** (owner, 2026-11-16): a bare major the List has another minor of
+  is refused (`version ambiguous: <IDs>`, no `detect` answer; `Apache 2` is
+  read); an "or later" grant exempts it (`LGPLv2+`, `Apache-1+`,
+  `LGPLv2 or later`, `--variant or-later` does not widen it); a run of `-`/`_`
+  joined to the end of a loose ID is a dropped character (`MIT-`); tags keep
+  their reading (`SPDX-License-Identifier: MIT-` is `MIT`).
+- **Built** (branch `auto/jovial-thompson-efd6f5`, 2026-11-16; open until
+  merged): see [`tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md).
+- **Open leftovers**: a tag `MIT-` still gives `MIT`, `EXACT=true`
+  (`leading_expression` ends at the dash); prose `Licensed under the Apache-1
+  license` still gives `Apache-1.1` from the name tier; `detect` of
+  `GPL-2.0 or later-` still answers through `disambiguate_whole`, as for
+  `GPL-2.0 or later?` (also `LGPL-2.1 or later-`, `GPL-2.0 or later--`);
+  a joiner run before a word grant (`GPL-2.0-- or later`, `MIT__ or later`)
+  is still read; a bare major with no `.0` row (`MVT-1`, `Sendmail-8`,
+  `Apache License 1`) is still answered as the nearest minor by the name
+  tier; `LGPLv2 or above` and `LGPL-2 WITH Classpath-exception-2.0+` give
+  `version ambiguous`, not the reason of their own fault (no answer changes).
 - Impact 1, Risk 2, Effort 2.
 
 ## 55. Publish the lists `resolve()` reads — Priority 12

@@ -123,6 +123,29 @@ def joined_marks(text: str) -> str:
     )
 
 
+def trailing_joiners(text: str) -> str:
+    """The dashes and underscores joined to the end of *text*, each once, in
+    order (``MIT-``, ``MIT_``, ``GPL-2.0-``, ``MIT--``, ``MIT-.``), or empty.
+    One ``.`` or ``,`` after them is an ending and left out. They must follow
+    a letter or digit: a run after a dot, a space or a mark has another
+    reader (``MIT -``, :func:`_dangling`). A loose ID drops them as it drops
+    any joiner, but a cut value (``MIT-`` is the start of ``MIT-0``) is no
+    value written whole: a ``LicenseRef-*`` or ``AdditionRef-*`` takes them
+    as its own characters and is left alone. Only the end of the text is
+    read: one pass back from it."""
+    body = text.rstrip(WHITE_SPACE)
+    if body[-1:] in (".", ","):
+        body = body[:-1]
+    stop = len(body)
+    while stop and (body[stop - 1] == "_" or RE_DASHES.match(body[stop - 1])):
+        stop -= 1
+    if stop == len(body) or not stop or not body[stop - 1].isalnum():
+        return ""
+    if ends_in_ref(body):
+        return ""
+    return "".join(dict.fromkeys(body[stop:]))
+
+
 def ends_in_ref(text: str) -> bool:
     """Whether the last word of *text* is a ``LicenseRef-*`` or an
     ``AdditionRef-*``, whose characters include ``.``, ``-`` and ``_``

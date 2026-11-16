@@ -42,7 +42,12 @@ page](lists.md):
   with both, the newer List wins, and a tie goes to the database only if
   this licenseid's build rules made its rows (`source=` picks one);
 - exact and case-folded IDs; loosely written IDs (`Apache2`, `GPLv3`,
-  `GPLv2 or any later version`); the List's own licence names; "or later"
+  `GPLv2 or any later version`); a bare major the List has another minor
+  of names none of them and is refused, `version ambiguous` (`Apache-1`,
+  `LGPLv2`; `Apache 2` and `Apache-1.1` are read, and so are `Apache-1+`,
+  `LGPLv2+` and `LGPLv2 or later`, as a grant covers every later minor; the
+  trove classifier `(LGPLv2)` stays `LGPL-2.0`, from its table); the
+  List's own licence names; "or later"
   on an ID with no `-or-later` form is the `+` operator (`MIT or later` is
   `MIT+`, `Apache 2.0 or later` is `Apache-2.0+`). "or" in a grant is a word
   of its own (`MIT ora later` is not found). Between an ID and its grant
@@ -67,7 +72,10 @@ page](lists.md):
 - a loose reading never drops a character that says something:
   `Apache 2.0?`, `MIT*` and `"MIT?"` are `unresolved`, with a
   `reason` and a `drop` step that was not applied; white space, `-`, `_`,
-  `.`, a dash and one trailing comma are still dropped. So is no word:
+  `.`, a dash and one trailing comma are still dropped, but not a dash or
+  `_` joined to the end of the ID (`MIT-`, `GPL-2.0-`: a cut value, as at
+  the start; an SPDX tag still reads `MIT-` as `MIT`, as its value ends at
+  the dash). So is no word:
   a list or comment marker (`REM MIT`, `1. MIT`, `iv. MIT`) is refused
   with `word dropped: rem`. At the end of a value one `.`, `,`, `;` or
   `:`, with white space around it, is an ending and is left off (`MIT;`,
@@ -622,7 +630,8 @@ reasons, the detail of a mark in code points: `character dropped: U+003F` (the
 value would be read as a licence only by dropping a mark that is not a
 separator, such as `?`, `!`, `*` or a quote inside the value, a mark at the
 start, two or more at the end, or a lone dash, or a dash or underscore joined to
-the end of a `+`, an exception, a `LicenseRef-*` or a prose form: `MIT+-`,
+the end of an ID (`MIT-`, `GPL-2.0 or later-`), a `+`, an exception or a prose
+form: `MIT+-`,
 `MIT+-?`, `MIT License--`, `MIT License_`; several are space separated, in the
 order they stand, `U+002D U+003F`), `word dropped: rem 1` (a comment or list
 marker that the reading would drop, in lower case), `lone surrogate`, `control
@@ -637,7 +646,9 @@ two parts name a licence: `MIT; Foo`), `operator not stated: ;` (above), `url
 names several licences: <IDs>` (sorted; a page the List gives to unrelated
 licences, or one that offers a choice), `url names an exception: <IDs>` (a page
 of exceptions only), `url names a licence with an exception: <licence IDs>,
-<exception IDs>` (each sorted; a page of both), `parse failed: <the parser's
+<exception IDs>` (each sorted; a page of both), `version ambiguous: <IDs>`
+(sorted: the IDs a cut ID may mean, `Apache-1` giving `Apache-1.0,
+Apache-1.1`; cut at 60 characters), `parse failed: <the parser's
 message>`, `mismatched brackets` (a bracket pairs only with the same kind:
 `(MIT]`), `too many operators` (over 150) and `too deeply nested` (over 150). A
 value with a part of several words (`Apache License 2.0 OR MIT`) is no compound,

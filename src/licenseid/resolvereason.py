@@ -47,10 +47,16 @@ _PLUS_CONDITIONS: Final = (
 )
 
 
+#: The reason of a cut ID the List gives more than one row (``Apache-1``,
+#: ``LGPLv2``), with the IDs it may mean after it.
+VERSION_AMBIGUOUS: Final = "version ambiguous"
+
 #: The conditions of a refusal for a character or a word a loose reading
 #: would drop, or a bracket that does not pair: a text match would drop or
-#: ignore it in silence too.
+#: ignore it in silence too. So is a cut ID: a text match would pick the
+#: nearest of its rows.
 _NO_TEXT_CONDITIONS: Final = (
+    VERSION_AMBIGUOUS,
     "character dropped",
     "word dropped",
     "control or format character",

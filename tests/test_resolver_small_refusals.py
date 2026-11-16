@@ -37,10 +37,6 @@ STAYS: dict[str, tuple[str | None, str | None]] = {
     "LicenseRef-a;": ("LicenseRef-a", None),
     "LicenseRef-a;;": (None, "character dropped: U+003B"),
     "LicenseRef-a?": (None, "character dropped: U+003F"),
-    "MIT-": ("MIT", None),  # a loose ID reads a dash as a separator
-    "MIT--": ("MIT", None),
-    "Apache 2.0-": ("Apache-2.0", None),
-    "GPL-2.0 or later-": ("GPL-2.0-or-later", None),
     "LicenseRef-a-": ("LicenseRef-a-", None),
     "MIT License.": ("MIT", None),
     "MIT License;;": (None, "character dropped: U+003B"),
@@ -56,6 +52,12 @@ STAYS: dict[str, tuple[str | None, str | None]] = {
 #: A dash joined to the end of a reading no loose ID made is a
 #: dropped character, as a lone dash is (``MIT -``).
 DASHED: dict[str, tuple[str | None, str | None]] = {
+    # item 54: a dash joined to the end of a loose ID is a cut value, as a
+    # lone one is; these were read (``MIT-`` as ``MIT``) until then
+    "MIT-": (None, DASH),
+    "MIT--": (None, DASH),
+    "Apache 2.0-": (None, DASH),
+    "GPL-2.0 or later-": (None, DASH),
     "MIT+-": (None, DASH),
     "MIT+--": (None, DASH),
     "MIT License--": (None, DASH),
@@ -120,6 +122,14 @@ QUOTED_REFUSED: dict[str, str] = {
 }
 
 
+PROSE_REDUCED = {
+    "MIT License-": "MIT-",
+    "MIT License--": "MIT--",
+    "The MIT License--": "MIT--",
+    "Apache License, Version 2.0--": "Apache 2.0--",
+}
+
+
 @pytest.mark.parametrize("value", sorted(DASHED), ids=lambda v: v[:20])
 def test_a_dash_after_a_plus_or_a_prose_form_is_a_dropped_character(
     corpus_db: LicenseDatabase, value: str
@@ -128,7 +138,9 @@ def test_a_dash_after_a_plus_or_a_prose_form_is_a_dropped_character(
     assert (got["expression"], got["reason"]) == DASHED[value]
     assert got["category"] == "unresolved"
     assert [(s["kind"], s["applied"]) for s in got["steps"]] == [("drop", False)]
-    assert got["steps"][0]["from"] in value
+    # the reduction read, as for ``MIT License?`` (from ``MIT?``); before item
+    # 54 the leaf read the dash and the prose reader refused with the value
+    assert got["steps"][0]["from"] in (value, PROSE_REDUCED.get(value))
 
 
 @pytest.mark.parametrize(
@@ -432,12 +444,13 @@ REVIEW_NOW: dict[str, tuple[str | None, str | None]] = {
         None,
         "operand not resolved: Apache License, Version 2.0+",
     ),
-    # a loose ID reads a dash or underscore as a separator: nothing refused
-    "GPL-2.0-only-": ("GPL-2.0-only", None),
-    "Apache-2.0--": ("Apache-2.0", None),
-    "BSD-2-Clause-": ("BSD-2-Clause", None),
-    "BSD 3-Clause-": ("BSD-3-Clause", None),
-    "MIT_": ("MIT", None),
+    # item 54: a dash or underscore joined to the end of a loose ID is a
+    # cut value (they were read as separators)
+    "GPL-2.0-only-": (None, DASH),
+    "Apache-2.0--": (None, DASH),
+    "BSD-2-Clause-": (None, DASH),
+    "BSD 3-Clause-": (None, DASH),
+    "MIT_": (None, "character dropped: U+005F"),
 }
 
 
