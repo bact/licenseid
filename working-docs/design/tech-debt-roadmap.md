@@ -651,6 +651,13 @@ they live in code: `resolvealias.ALIASES` (12), `resolvetitle.TITLES` (4),
 - **Generated, not typed**: a script writes the tables from the code, and a
   test fails when the page and the code differ (as `tests/test_resolver_
   shapes.py` does for the category table). Never edit the page by hand.
+- **The named rules too** (decided 2026-11-16): the trove rules T1 to T3
+  (`resolvetrove`) and the prose rules P1 to P3 (`resolveprose`) stay named
+  in code and tests, and the page lists them beside the tables, each with
+  the `CATEGORY` and `EXACT` it gives. T2 gives `trove_name`, and T1 and T3
+  take the category of what they read; all are exact unless that reading
+  itself used a rewrite rule. P1 to P3 rewrite a value (`prose_form`), so
+  they are not exact (rule (c) of item 52).
 - **Growth rule kept**: a row is added only with a measured package count
   (`working-docs/paper-notes/licence-urls.md`); the page shows that count.
 - **Maybe**: a command (`licenseid resolve --lists`) or a JSON file with the
