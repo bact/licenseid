@@ -637,6 +637,9 @@ cut version is a choice, not a spelling: `Apache-1` may mean `Apache-1.0` or
 
 ## 55. Publish the lists `resolve()` reads — Priority 12
 
+Its own pull request, after PR #212 (decided 2026-11-16): the page is not
+part of the `EXACT` change.
+
 Decided 2026-11-15 with the `EXACT` rule of item 52: an answer from an
 authoritative list is exact, so a user must be able to read each list. Today
 they live in code: `resolvealias.ALIASES` (12), `resolvetitle.TITLES` (4),
@@ -654,10 +657,13 @@ they live in code: `resolvealias.ALIASES` (12), `resolvetitle.TITLES` (4),
 - **The named rules too** (decided 2026-11-16): the trove rules T1 to T3
   (`resolvetrove`) and the prose rules P1 to P3 (`resolveprose`) stay named
   in code and tests, and the page lists them beside the tables, each with
-  the `CATEGORY` and `EXACT` it gives. T2 gives `trove_name`, and T1 and T3
-  take the category of what they read; all are exact unless that reading
-  itself used a rewrite rule. P1 to P3 rewrite a value (`prose_form`), so
-  they are not exact (rule (c) of item 52).
+  the `CATEGORY` and `EXACT` it gives. T1 and T2 map a trove
+  classifier or name straight to an ID through the trove table and the List,
+  so they are exact (`trove_name`, or the List's own category). T3 (`MIT
+  License (MIT)`) is exact when both parts are List names, and not when its
+  head needed a rewrite rule (`Apache2 (Apache-2.0)` is `version_spelling`).
+  P1 to P3 rewrite a value (`prose_form`), so they are not exact (rule (c)
+  of item 52; confirmed 2026-11-16).
 - **Growth rule kept**: a row is added only with a measured package count
   (`working-docs/paper-notes/licence-urls.md`); the page shows that count.
 - **Maybe**: a command (`licenseid resolve --lists`) or a JSON file with the
