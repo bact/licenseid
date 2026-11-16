@@ -10,7 +10,7 @@ SPDX-License-Identifier: Apache-2.0
 How licenseid puts an SPDX licence expression in canonical form, rule by
 rule, in the order the rules apply. Written for a reviewer and as source
 material for a paper. It describes the code at release 0.7.2 plus PR #172
-(`main` at commit `7276ee4`).
+(`main` at commit `7276ee4`); its links to a line point at that commit.
 
 Every example was run against that code with `licenseid.resolve()` on
 2026-11-07. The steps named in each example are the `kind` of the steps in
@@ -31,9 +31,9 @@ below is therefore licenseid's own convention (decisions D1, Q19, Q21 and
 Q24 of the 0.7.0 plan), chosen so that two spellings with the same meaning
 give one string. Two properties are tested over a corpus of generated
 values: the answer does not depend on the order written
-([`test_the_order_written_does_not_change_the_answer`](../tests/test_resolver_compounds.py#L144)),
+([`test_the_order_written_does_not_change_the_answer`][test-resolver-compounds-l144]),
 and canonical form is a fixed point, so resolving an answer gives the same
-answer ([`test_every_answer_is_a_fixed_point`](../tests/test_resolver_compounds.py#L121)).
+answer ([`test_every_answer_is_a_fixed_point`][test-resolver-compounds-l121]).
 
 ## Two canonical orders in one package
 
@@ -41,8 +41,8 @@ The package holds two canonicalisers, and they do not always agree.
 
 | Used by | Code | Sorts |
 | --- | --- | --- |
-| `resolve()`, and `detect()` on a whole input | [`exprcanon.canonical`](../src/licenseid/exprcanon.py#L282) | leaves before groups; by rank, then case-folded text |
-| A tag or field found inside a file or manifest | [`identifiers._canonicalize_expression`](../src/licenseid/identifiers.py#L680), which calls `py_spdx_license` `sort()` | by that library's own order |
+| `resolve()`, and `detect()` on a whole input | [`exprcanon.canonical`][exprcanon-l282] | leaves before groups; by rank, then case-folded text |
+| A tag or field found inside a file or manifest | [`identifiers._canonicalize_expression`][identifiers-l680], which calls `py_spdx_license` `sort()` | by that library's own order |
 
 On the same expression they can differ. Run on 2026-11-07:
 
@@ -51,10 +51,11 @@ On the same expression they can differ. Run on 2026-11-07:
 | `Zlib OR MirOS OR MIT` | `MirOS OR MIT OR Zlib` | `MIT OR MirOS OR Zlib` |
 | `(MIT AND ISC) OR 0BSD` | `0BSD OR ISC AND MIT` | `ISC AND MIT OR 0BSD` |
 
-Both are valid and equivalent expressions. `docs/resolve.md` states the
-difference for guessed `-only` narrowing; this page is about `resolve()`,
-which is the order the rest describes. The tag path is in
-[`identifiers.py:618`](../src/licenseid/identifiers.py#L618)
+Both are valid and equivalent expressions. [The result of
+`resolve()`](resolve.md) states the difference for a variant that `detect()`
+chooses (`variant="only"`); this page is about `resolve()`, which is the
+order the rest describes. The tag path is in
+[`identifiers.py:618`][identifiers-l618]
 (`_normalize_expression`) and is not followed further here.
 
 ## The rules, in the order they apply
@@ -87,12 +88,12 @@ reversed) are refused by rule A4.
 
 **A1. Trim white space.** White space at both ends comes off (step `trim`).
 White space is Unicode's `White_Space` property, less U+001C to U+001F
-([`WHITE_SPACE`](../src/licenseid/exprtokens.py#L50)).
+([`WHITE_SPACE`][exprtokens-l50]).
 *Reason:* those four are control characters that `str.isspace()` accepts;
 the gate in rule A4 refuses them instead of dropping them. *Source:*
-[`resolver.py:306`](../src/licenseid/resolver.py#L306).
+[`resolver.py:306`][resolver-l306].
 *Example:* `' MIT '` gives `MIT`, category `lexical`, steps `trim`.
-*Test:* [`test_resolver_end_marks.py:72`](../tests/test_resolver_end_marks.py#L72).
+*Test:* [`test_resolver_end_marks.py:72`][test-resolver-end-marks-l72].
 *Spec:* Annex D says "white space" without defining it; no difference found.
 
 **A2. Take off quote marks round the whole value.** `"MIT"` gives `MIT`
@@ -101,8 +102,8 @@ first (step `separator`). *Reason:* a quote delimits a text and qualifies
 nothing, so removing the pair that encloses the whole value drops no word;
 marks inside the value are kept for the drop guard to refuse. *Source:*
 [`quotes.py`](../src/licenseid/quotes.py),
-[`resolver.py:317`](../src/licenseid/resolver.py#L317).
-*Test:* [`test_resolver_quotes.py:137`](../tests/test_resolver_quotes.py#L137).
+[`resolver.py:317`][resolver-l317].
+*Test:* [`test_resolver_quotes.py:137`][test-resolver-quotes-l137].
 *Spec:* quote marks are not part of the grammar; this is licenseid's rule for
 declared values, not for expressions.
 
@@ -110,9 +111,9 @@ declared values, not for expressions.
 `[MIT]` and `{[MIT]}` give `MIT` (step `brackets`). One pass: the shallowest
 depth between the leading and trailing runs says how many pairs go, so
 `[A] OR [B]` loses none. A pair of two kinds (`[MIT)`) stays. *Source:*
-[`exprcanon.unbracketed`](../src/licenseid/exprcanon.py#L72).
+[`exprcanon.unbracketed`][exprcanon-l72].
 *Example:* `("MIT")` gives `MIT`, steps `brackets`, `unquote`.
-*Test:* [`test_exprcanon.py:75`](../tests/test_exprcanon.py#L75).
+*Test:* [`test_exprcanon.py:75`][test-exprcanon-l75].
 *Spec:* **differs.** Annex D has parentheses only; the code also reads `[]`
 and `{}` (decision Q21).
 
@@ -122,7 +123,7 @@ a NUL, a bidi control at the start, and a zero-width space or another such
 character anywhere inside, or a value of nothing else. *Reason:* dropping such
 a character as a separator would resolve text that shows other than it
 reads. *Source:*
-[`resolver.py:349`](../src/licenseid/resolver.py#L349).
+[`resolver.py:349`][resolver-l349].
 *Test:* [`test_hiddenchars.py`](../tests/test_hiddenchars.py) (`REFUSED`).
 *Spec:* not addressed.
 
@@ -133,12 +134,12 @@ space or a bracket on both sides, in any ASCII case; `WITH` stays inside its
 leaf. An `or` that starts an "or later" grant is no operator
 (`GPL-2.0 or later OR MIT` has one: the second). Anything else is part of a
 leaf, so `and_mask` and `MIT"OR"ISC` hold no operator. One pass. *Source:*
-[`exprcanon.split`](../src/licenseid/exprcanon.py#L96),
-[`_delimited`](../src/licenseid/exprcanon.py#L119),
-[`_grant`](../src/licenseid/exprcanon.py#L127).
+[`exprcanon.split`][exprcanon-l96],
+[`_delimited`][exprcanon-l119],
+[`_grant`][exprcanon-l127].
 *Example:* `(MIT)OR(ISC)` reads as `ISC OR MIT`, steps `whitespace`,
 `brackets`, `reorder`.
-*Test:* [`test_exprcanon.py:51`](../tests/test_exprcanon.py#L51).
+*Test:* [`test_exprcanon.py:51`][test-exprcanon-l51].
 *Spec:* Annex D: "white space and/or parentheses" on either side of `AND` and
 `OR`, and white space on either side of `WITH`. **Differs** in two ways: the
 code accepts `[]` and `{}` as the bracket, and any Unicode white space,
@@ -150,8 +151,8 @@ not a clash.
 `WITH` and exception, a `+`, or an "or later" grant. A leaf of several words
 (`Apache License 2.0 OR MIT`) makes the value no compound; the name readers
 take it ([flow](resolve-flow.md)). *Source:*
-[`resolvecompound.py:398`](../src/licenseid/resolvecompound.py#L398).
-*Test:* [`test_resolver_compounds_generated.py:192`](../tests/test_resolver_compounds_generated.py#L192).
+[`resolvecompound.py:398`][resolvecompound-l398].
+*Test:* [`test_resolver_compounds_generated.py:192`][test-resolver-compounds-generated-l192].
 *Spec:* licenseid's rule; the Annex has no notion of a prose operand.
 
 **B3. Refuse oversize and mismatched brackets.** More than 150 operators or
@@ -160,9 +161,9 @@ refused before the parser runs (`too many operators`, `too deeply nested`,
 `mismatched brackets`). *Reason:* the parser recurses without a guard, so
 where it gave up depended on the interpreter; one limit makes every supported
 Python answer alike. *Source:*
-[`exprcanon.oversize`](../src/licenseid/exprcanon.py#L185),
-[`identifiers.py:115`](../src/licenseid/identifiers.py#L115).
-*Test:* [`test_exprcanon.py:81`](../tests/test_exprcanon.py#L81).
+[`exprcanon.oversize`][exprcanon-l185],
+[`identifiers.py:115`][identifiers-l115].
+*Test:* [`test_exprcanon.py:81`][test-exprcanon-l81].
 *Spec:* **differs.** The Annex sets no limit.
 
 **B4. Read each leaf as it would be read alone.** The reading gives the
@@ -174,9 +175,9 @@ written in SPDX's case; the idstring after it is kept as written. A balanced
 pair of quotes round one operand comes off first. *Example:*
 `mit WITH llvm-exception AND isc` gives `ISC AND MIT WITH LLVM-exception`
 (steps `id_case` three times, `reorder`). *Source:*
-[`resolveleaf.py:139`](../src/licenseid/resolveleaf.py#L139),
-[`exprtokens.canonical_ref`](../src/licenseid/exprtokens.py#L166).
-*Test:* [`test_readers_items.py:234`](../tests/test_readers_items.py#L234)
+[`resolveleaf.py:139`][resolveleaf-l139],
+[`exprtokens.canonical_ref`][exprtokens-l166].
+*Test:* [`test_readers_items.py:234`][test-readers-items-l234]
 (reference prefixes); leaf rules in `tests/test_resolver_leaf_rules.py`.
 *Spec:* Annex D, case sensitivity: identifiers "should be matched in a
 case-insensitive manner"; operators are case-sensitive, "all upper case or
@@ -191,8 +192,8 @@ neither is dropped as a duplicate).
 **B5. Refuse the value if any operand names nothing.** All or nothing:
 `MIT OR Foo` is `unresolved`, `operand not resolved: Foo`. `NONE` and
 `NOASSERTION` are not operands (the Annex does not mention them). *Source:*
-[`resolvecompound.py:317`](../src/licenseid/resolvecompound.py#L317).
-*Test:* [`test_cli_resolve.py:105`](../tests/test_cli_resolve.py#L105).
+[`resolvecompound.py:317`][resolvecompound-l317].
+*Test:* [`test_cli_resolve.py:105`][test-cli-resolve-l105].
 
 ### Stage C: parse the shape
 
@@ -202,8 +203,8 @@ parser then sees only `AND`, `OR`, brackets and references, so neither its
 snapshot of the List, nor its want of `+` and `AdditionRef-`, nor its sort
 can change the answer. A refusal is `malformed` with `parse failed: ...`
 (`MIT AND`: `parse failed: Unexpected 'AND'`). *Source:*
-[`exprcanon.parse`](../src/licenseid/exprcanon.py#L225).
-*Test:* [`test_exprcanon.py:126`](../tests/test_exprcanon.py#L126).
+[`exprcanon.parse`][exprcanon-l225].
+*Test:* [`test_exprcanon.py:126`][test-exprcanon-l126].
 
 **C2. Precedence: `AND` binds tighter than `OR`.** Taken from the parser,
 and so the tree of `MIT OR ISC AND 0BSD` is `MIT OR (ISC AND 0BSD)`. *Spec:*
@@ -211,12 +212,12 @@ agrees (Annex D, order of precedence: "the AND operator takes precedence
 over ... the OR operator"). `WITH` binds tighter still, and is inside the
 leaf here, so `(MIT OR ISC) WITH LLVM-exception` is not read at all (the
 Annex also requires a simple expression on the left of `WITH`).
-*Test:* [`test_exprcanon.py:179`](../tests/test_exprcanon.py#L179), row
+*Test:* [`test_exprcanon.py:179`][test-exprcanon-l179], row
 `MIT AND (ISC OR 0BSD)`.
 
 ### Stage D: the canonical form, five passes
 
-[`canonical`](../src/licenseid/exprcanon.py#L282) builds six texts and
+[`canonical`][exprcanon-l282] builds six texts and
 compares them in pairs. A pair that differs gives a step of the matching
 kind. A single input can give several steps, always in this order.
 
@@ -229,12 +230,12 @@ kind. A single input can give several steps, always in this order.
 | D5 | with repeats | each operand once | `dedupe` |
 
 **D1. Operators in upper case.** `and`, `or`, and any mixed case (`Or`)
-become `AND`, `OR`. *Source:* [`_written`](../src/licenseid/exprcanon.py#L304).
+become `AND`, `OR`. *Source:* [`_written`][exprcanon-l304].
 *Example:* `MIT or ISC` gives `ISC OR MIT`, steps `operator_case`,
 `reorder`.
-*Test:* [`test_exprcanon.py:157`](../tests/test_exprcanon.py#L157); the
+*Test:* [`test_exprcanon.py:157`][test-exprcanon-l157]; the
 check "written in upper case" is
-[`test_exprcanon.py:112`](../tests/test_exprcanon.py#L112).
+[`test_exprcanon.py:112`][test-exprcanon-l112].
 *Spec:* **differs.** Annex D has the letters of an operator "all upper case
 or all lower case". The code accepts `MIT Or ISC` and a value that mixes
 `AND` with `or` (`MIT AND ISC or 0BSD`), and records an `operator_case` step.
@@ -245,10 +246,10 @@ read as prose, not as a compound (`GPL-3.0 or higher`).
 
 **D2. One space, none inside brackets.** Any run of white space between
 tokens becomes one space; none after an opening or before a closing bracket.
-*Source:* [`_spaced`](../src/licenseid/exprcanon.py#L320).
+*Source:* [`_spaced`][exprcanon-l320].
 *Example:* `MIT  OR ISC` and `MIT\tOR\tISC` give `ISC OR MIT`, steps
 `whitespace`, `reorder`.
-*Test:* [`test_exprcanon.py:158`](../tests/test_exprcanon.py#L158).
+*Test:* [`test_exprcanon.py:158`][test-exprcanon-l158].
 *Spec:* Annex D requires white space (or a bracket) around `AND`/`OR`; one
 space satisfies it. `MIT OR(ISC)` becomes `ISC OR MIT`, which is valid.
 
@@ -258,12 +259,12 @@ rendered again from the tree. A bracket stays only round an `OR` inside an
 other kind, redundant pairs and the pair round the whole value go. A chain
 of one operator becomes one group (`A OR (B OR C)` is `A OR B OR C`). The
 step is `brackets` for all of these. *Source:*
-[`_flat`](../src/licenseid/exprcanon.py#L333),
-[`_render`](../src/licenseid/exprcanon.py#L352).
+[`_flat`][exprcanon-l333],
+[`_render`][exprcanon-l352].
 *Examples:* `MIT AND (ISC OR 0BSD)` keeps its bracket (no `brackets` step);
 `(MIT AND ISC) OR 0BSD` loses it (`0BSD OR ISC AND MIT`); `[MIT OR ISC] AND
 0BSD` becomes `0BSD AND (ISC OR MIT)`.
-*Test:* [`test_exprcanon.py:159-162`](../tests/test_exprcanon.py#L159).
+*Test:* [`test_exprcanon.py:159-162`][test-exprcanon-l159].
 *Spec:* Annex D: parentheses "override" precedence; removing those that do
 not is meaning-preserving. Flattening uses associativity, which the Annex
 does not state (it names commutativity only). **Reading of the step:**
@@ -278,9 +279,9 @@ group sorts by its rendered text, case-folded, then as is.
 order, made total" (decision Q24, which adds the third key); the ranks and
 "leaves before groups" are decision Q19, whose reason the code does not
 record. *Source:*
-[`leaf_key`](../src/licenseid/exprcanon.py#L271),
-[`_text_key`](../src/licenseid/exprcanon.py#L369),
-[`_ordered`](../src/licenseid/exprcanon.py#L375).
+[`leaf_key`][exprcanon-l271],
+[`_text_key`][exprcanon-l369],
+[`_ordered`][exprcanon-l375].
 *Examples:* `Zlib OR MirOS OR MIT` gives `MirOS OR MIT OR Zlib` (`mirOS`
 before `mit` when folded: `m-i-r` before `m-i-t`);
 `LicenseRef-b OR MIT OR LicenseRef-a` gives `MIT OR LicenseRef-a OR
@@ -289,10 +290,10 @@ gives `ISC OR MIT OR GPL-2.0-only WITH Classpath-exception-2.0`;
 `(MIT OR Zlib) AND (MirOS OR Zlib)` gives `(MirOS OR Zlib) AND (MIT OR
 Zlib)`.
 *Test:* leaf order
-[`test_exprcanon.py:134`](../tests/test_exprcanon.py#L134); group order
-[`test_exprcanon.py:173`](../tests/test_exprcanon.py#L173); independence of
+[`test_exprcanon.py:134`][test-exprcanon-l134]; group order
+[`test_exprcanon.py:173`][test-exprcanon-l173]; independence of
 the hash seed
-[`test_resolver_compounds.py:156`](../tests/test_resolver_compounds.py#L156).
+[`test_resolver_compounds.py:156`][test-resolver-compounds-l156].
 *Spec:* the Annex fixes no order and states that `AND` and `OR` are
 commutative, so any order is equivalent. Nothing differs; the order is a
 licenseid choice, and it is **not** the order of the tag path (see
@@ -302,10 +303,10 @@ licenseid choice, and it is **not** the order of the tag path (see
 rendered text; a group left with one operand is that operand, and joins its
 parent's operator. Done on the resolved leaf text, so `MIT OR mit` is `MIT`
 and `GPL-2.0+ AND GPL-2.0-or-later` is `GPL-2.0-or-later`. *Source:*
-[`_ordered`](../src/licenseid/exprcanon.py#L375), `dedupe` branch.
+[`_ordered`][exprcanon-l375], `dedupe` branch.
 *Examples:* `(MIT OR ISC) AND (ISC OR MIT)` gives `ISC OR MIT`;
 `Zlib AND ((MIT AND ISC) OR (ISC AND MIT))` gives `ISC AND MIT AND Zlib`.
-*Test:* [`test_exprcanon.py:163-172`](../tests/test_exprcanon.py#L163).
+*Test:* [`test_exprcanon.py:163-172`][test-exprcanon-l163].
 *Spec:* the Annex does not mention duplicates or idempotence. This rule
 uses `A OR A = A` and `A AND A = A`, which hold in logic and which the
 Annex neither states nor contradicts.
@@ -367,4 +368,52 @@ or an editable install, the newer List of the two. The outputs above do not
 depend on the List version, except that `plus_to_or_later` needs the
 `-or-later` ID to be listed.
 
-[mixed-case]: ../tests/test_resolver_compound_limits.py#L25
+[mixed-case]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_resolver_compound_limits.py#L25
+
+<!-- Line links at the commit this page describes -->
+
+[exprcanon-l119]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L119
+[exprcanon-l127]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L127
+[exprcanon-l185]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L185
+[exprcanon-l225]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L225
+[exprcanon-l271]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L271
+[exprcanon-l282]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L282
+[exprcanon-l304]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L304
+[exprcanon-l320]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L320
+[exprcanon-l333]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L333
+[exprcanon-l352]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L352
+[exprcanon-l369]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L369
+[exprcanon-l375]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L375
+[exprcanon-l72]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L72
+[exprcanon-l96]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprcanon.py#L96
+[exprtokens-l166]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprtokens.py#L166
+[exprtokens-l50]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/exprtokens.py#L50
+[identifiers-l115]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/identifiers.py#L115
+[identifiers-l618]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/identifiers.py#L618
+[identifiers-l680]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/identifiers.py#L680
+[resolvecompound-l317]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/resolvecompound.py#L317
+[resolvecompound-l398]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/resolvecompound.py#L398
+[resolveleaf-l139]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/resolveleaf.py#L139
+[resolver-l306]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/resolver.py#L306
+[resolver-l317]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/resolver.py#L317
+[resolver-l349]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/src/licenseid/resolver.py#L349
+[test-cli-resolve-l105]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_cli_resolve.py#L105
+[test-exprcanon-l112]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_exprcanon.py#L112
+[test-exprcanon-l126]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_exprcanon.py#L126
+[test-exprcanon-l134]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_exprcanon.py#L134
+[test-exprcanon-l157]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_exprcanon.py#L157
+[test-exprcanon-l158]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_exprcanon.py#L158
+[test-exprcanon-l159]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_exprcanon.py#L159
+[test-exprcanon-l163]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_exprcanon.py#L163
+[test-exprcanon-l173]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_exprcanon.py#L173
+[test-exprcanon-l179]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_exprcanon.py#L179
+[test-exprcanon-l51]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_exprcanon.py#L51
+[test-exprcanon-l75]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_exprcanon.py#L75
+[test-exprcanon-l81]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_exprcanon.py#L81
+[test-readers-items-l234]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_readers_items.py#L234
+[test-resolver-compounds-generated-l192]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_resolver_compounds_generated.py#L192
+[test-resolver-compounds-l121]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_resolver_compounds.py#L121
+[test-resolver-compounds-l144]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_resolver_compounds.py#L144
+[test-resolver-compounds-l156]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_resolver_compounds.py#L156
+[test-resolver-end-marks-l72]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_resolver_end_marks.py#L72
+[test-resolver-quotes-l137]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_resolver_quotes.py#L137

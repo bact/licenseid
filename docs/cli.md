@@ -158,29 +158,35 @@ Common options:
 - `--pop/--no-pop`: Weigh results by popularity, or not (default off).
 - `--variant auto|as-written|only|or-later`: What to answer for a licence
   that has an `-only` and an `-or-later` form when the input does not say
-  which (`GPL-2.0`, the text of the GPL). `auto` (default) keeps a declared
-  value as written (`GPL-2.0` stays `GPL-2.0`, as `resolve` gives it, with
-  `VARIANT_STATED=false`) and, for a licence text or name, answers `-or-later`
-  first where the input grants later versions, else `-only` first with
-  `WARNING: input: variant not stated: GPL-2.0; using GPL-2.0-only`.
-  `-only` understates a licensor's "or later" grant: it is the licensee's
-  careful reading. `as-written` never decides: a bare deprecated ID stays,
-  a text match too when the bare row is among its candidates (else the text
-  is settled as under `auto`). `only` and `or-later` always decide, a
-  declared value too (a CI that bans deprecated IDs): `--variant only
-  GPL-2.0` is `GPL-2.0-only`, with the warning. The List name of a
-  deprecated ID in a field or tag is such a declared value. The option is a preference,
-  not a fact: words that state the variant (`GPL-2.0 or later`, `GPL-2.0+`,
-  `-only`, `-or-later`) win, with `WARNING: option: overridden by input:
-  --variant only; using GPL-2.0-or-later`. A variant warning is said only for a
-  result that is printed (`--threshold`, `--exact`, `--top` apply first). The
-  words "or later" and "only" of a licence text or a name are read in the
-  whole input, not beside the licence: a text with `Python 3 only` somewhere
+  which (`GPL-2.0`, the text of the GPL). `VARIANT_STATED`
+  ([output.md](output.md)) says whether the input said it.
+  - `auto` (default) keeps a declared value as written (`GPL-2.0` stays
+    `GPL-2.0`, as `resolve` gives it, with `VARIANT_STATED=false`). For a
+    licence text or name it answers `-or-later` first where the input
+    grants later versions, else `-only` first with `WARNING: input: variant
+    not stated: GPL-2.0; using GPL-2.0-only`. `-only` understates a
+    licensor's "or later" grant: it is the licensee's careful reading.
+  - `as-written` never decides: a bare deprecated ID stays, a text match
+    too when the bare row is among its candidates (else the text is
+    settled as under `auto`).
+  - `only` and `or-later` always decide, a declared value too (for a CI
+    that bans deprecated IDs): `--variant only GPL-2.0` is `GPL-2.0-only`,
+    with the warning. The List name of a deprecated ID in a field or tag is
+    such a declared value.
+
+  The option is a preference, not a fact: words that state the variant
+  (`GPL-2.0 or later`, `GPL-2.0+`, `-only`, `-or-later`) win, with
+  `WARNING: option: overridden by input: --variant only; using
+  GPL-2.0-or-later`. A variant warning is said only for a result that is
+  printed (`--threshold`, `--exact`, `--top` apply first). The words "or
+  later" and "only" of a licence text or a name are read in the whole
+  input, not beside the licence: a text with `Python 3 only` somewhere
   states `-only` for its licences. A declared value states only the words
-  beside its own licence (`GPL-2.0 AND MIT only` states nothing for GPL-2.0).
-  A heading or a declared `GPL-2.0+` is a statement of its own and stays. An
-  unknown value exits 2. `is-osi` and `is-fsf` take no `--variant`: they judge
-  a bare deprecated ID by its `-only` twin. `resolve` has none.
+  beside its own licence (the tag `GPL-2.0 AND MIT only` states nothing for
+  GPL-2.0). A heading or a declared `GPL-2.0+` is a statement of its own
+  and stays. An unknown or empty value exits 2. `is-osi` and `is-fsf` take
+  no `--variant`: they judge a bare deprecated ID by its `-only` twin.
+  `resolve` has none.
 
 The system uses a **composite score** (similarity + coverage bonus/penalty +
 optional popularity weight + marker confidence boost) to prefer the tightest
@@ -357,7 +363,7 @@ and finds no match.
 A database is not ready when it is missing, empty (no licences yet), invalid
 (another program's file) or unreadable (a symlink loop included). `detect` and
 the `is-*` commands refuse to answer from one, rather than exiting 1 for no
-licence or `false`; `resolve` reads the list shipped with licenseid instead, unless `--db` or
-`--source database` asks for the database.
+licence or `false`; `resolve` reads the list shipped with licenseid instead,
+unless `--db` or `--source database` asks for the database.
 
 `licenseid --version` prints `licenseid <version>`.

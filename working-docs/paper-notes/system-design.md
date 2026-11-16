@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-05
+Last-Modified: 2026-11-16
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -197,7 +197,10 @@ generator (`README.md` L14).
   Bare `GPL-2.0` is ambiguous (identical texts); resolution order: (1) DB
   lookup, (2) prose context in a ±150-character window for or-later phrases
   or a narrow post-ID window for "only", (3) conservative fallback to `-only`
-  (L20-45).
+  (L20-45). Since 2026-11-16 (roadmap item 52, PR #212) `detect()` keeps a
+  declared bare ID as written and decides only for a text or name match or
+  under
+  `--variant` (`IMPL/item-52-variant-and-exact.md`).
 - Non-mapped `+` IDs keep `+` after canonicalising the base:
   `Apache-2+` → `Apache-2.0+`, via shortest unambiguous prefix (L47-64).
 - Coverage tests: `tests/test_deprecated_ids.py` checks every deprecated ID

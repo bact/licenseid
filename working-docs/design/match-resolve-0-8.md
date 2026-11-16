@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-16
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -189,6 +189,9 @@ field keep their readers, so the rest of this section is still to do.
   narrowed `-only`), so a whole input, a tag and a field agree. D2's
   stricter rule moved 71 ID answers and split the channels (`MIT,` exact
   as a field, not as text): it stays open, for every channel at once.
+  Settled by roadmap item 52 (PR #212): every channel is exact where a list
+  defines the reading and not where a rewrite rule made it
+  (`../implementation/item-52-variant-and-exact.md`).
 - `method` is `name` when a step read a name, else `id`.
 - A refused input under 10 normalised words gets no text match and warns
   `input: too few words for text: <reason>` (D3, for a whole input). Under
@@ -223,7 +226,8 @@ field keep their readers, so the rest of this section is still to do.
 - **D2 `exact` of a re-spelt value.** Is `Apache2` in a `license` field an
   exact detection? Proposed: no. `exact` is true only for category `exact`,
   so `--exact` keeps only values read as written. Today every declared value
-  answers `EXACT=true`.
+  answers `EXACT=true`. Settled otherwise by item 52: exact by list, so
+  `Apache2` (a rule) is not exact and a listed name is.
 - **D3 a refused declared value.** `resolve` refuses `Apache 2.0?`. Proposed:
   `detect` answers nothing for that value, with the reason on a
   `WARNING: resolve: no license found: <reason>` line, rather than turning the

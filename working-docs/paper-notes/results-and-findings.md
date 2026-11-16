@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -203,7 +203,7 @@ RapidFuzz cost data points:
   `pop(0)` 0.18 s at 10,000 operands, 1.05 s at 40,000 (`ROAD` item 26,
   L96-101); loose `License:` reader 9 s on 10,000 lines; `configparser` 2.8 s
   on 100,000 non-`key=value` lines on 3.10 and 3.3 s on 3.13 vs 0.35 s on
-  3.14.10 (resolved item 23, `tech-debt-resolved.md`).
+  3.14.10 (resolved item 23, `tech-debt-resolved-0-5.md`).
 - Parser cost budget `_MAX_PARSE_COST` = 10^9 (sum of squared token lengths,
   ≈8 ms, one token of 31,622 chars); a 256-char token cap refused real
   `LicenseRef-*` values (`ROAD` item 26, L84-92).
@@ -583,3 +583,27 @@ A pilot of the licence-value sample (PR #160, top 50 per channel, frame of
 `licenses.nuget.org/<expression>`), absent from PyPI and crates.io; 22 of
 Maven's 50 URLs are `apache.org/licenses/LICENSE-2.0.txt`, which the List's
 `seeAlso` has only without `.txt`.
+
+### 3.9 Which variant a bare ID means, and what is exact (2026-11-16)
+
+Roadmap item 52 (`ROAD` item 52; `IMPL/item-52-variant-and-exact.md`; pull
+requests #211 and #212, the second open on this date).
+
+- How often the variant is unstated: in the PyPI sample, 30 distinct
+  values (166 projects, 0.28 billion downloads) declare a bare deprecated
+  ID such as `GPL-2.0` (`assumed_only`; `DES/resolver-0-7-evidence.md`,
+  the first table "Result by category", columns "main"). The `-only` and
+  `-or-later` texts are the same, so only the author's words decide.
+- A licence text alone never states its variant: every pure GPL, AGPL,
+  LGPL and GFDL text of the long golden set (11 cases) went from exact to
+  not exact once a chosen variant counts as a guess
+  (`tests/harness_changes_variant.py`).
+- Exact by list, not by trust: on 2,516 inputs (List 3.29.0) exact answers
+  were 98.9% right and inexact ones 78.9%. Making a rewrite rule's reading
+  not exact moves 583 of 7,795 resolved PyPI-sample projects (7.5%:
+  `separator` 306, `prose_form` 207, `version_spelling` 70) from exact to
+  not exact (`ROAD` item 52, decided 2026-11-15).
+- One reader, fail closed: a flag set at each reader that guessed kept
+  missing a reader over three review rounds; one reader of the input's
+  words with a default of "not stated" took a probe's invariant breaks from
+  14 to 0 (`IMPL/item-52-variant-and-exact.md`, "Paths rejected").

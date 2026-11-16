@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-16
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -389,6 +389,10 @@ review. What changed, and what was rejected:
   input: variant not stated` in an argument, `--id`, a tag and a field alike,
   one check (`looseid.narrowed_ids`) in the one reader of a declared value
   (`markers.resolve_license_value`). Rejected: a second guess in the CLI.
+  Superseded by roadmap item 52 (PR #212): under the default `--variant
+  auto` such an ID stays as written, exact, `VARIANT_STATED=false`; the
+  check is now `looseid.narrowed_forms`
+  ([item-52-variant-and-exact.md](item-52-variant-and-exact.md)).
 - **Every refusal has a reason (P147).** `resolvereason.no_reading` is called
   once every reader has declined: `empty`, `too long: N characters`,
   `special value: NONE` (case-sensitive, as SPDX writes it), `not found:

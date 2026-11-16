@@ -41,28 +41,27 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   locale.
 - `EXPRESSION` is the answer: a licence ID or an expression for `detect`
   (a tag, a field, or a whole input `resolve()` reads, in its order; a
-  narrowed guess in the detector's).
+  variant `--variant` chose, in the detector's).
 - `METHOD` is how the answer was found: `tag` (an `SPDX-License-Identifier`
   tag), `field` (a manifest's `license` field), `id` (a licence ID), `name`
   (a licence name) or `text` (the licence text).
 - `EXACT` is `true` when the answer was found exactly: declared (a tag, a
   field or an ID), a whole input `resolve()` reads where a list defines the
   reading (a listed name, a trove classifier, a licence URL, a title or
-  alias of the lists licenseid keeps; the `EXACT` column of the category
-  table in [resolve](resolve.md)), a licence
-  name spelt out in full (for a name a deprecated licence shares with its
-  successor, only the successor), or the whole input equal to the licence
-  text as the SPDX License List writes it, after case, punctuation and
-  white space are normalised. A guess (`--variant only` reading `GPL-2.0`
-  as `GPL-2.0-only`) is not exact; a bare `GPL-2.0` kept as written is. A
-  filled-in copyright line or an added title makes a text not exact, as
-  does a name that only shares the words of the input. A value that a
-  rewrite rule read (`separator`, `prose_form`, `version_spelling`:
-  `Apache License, Version 2.0`, `Apache 2`) is not exact, except a slash
-  pair of IDs (`MIT/Apache-2.0`), which is.
-  Licences with the same text (`GPL-2.0-only` and `GPL-2.0-or-later`) are
-  not exact for a text: its variant is a guess, so `--exact` gives none.
-  `--exact` keeps only the exact results.
+  alias of the lists licenseid keeps), a licence name spelt out in full
+  (for a name a deprecated licence shares with its successor, only the
+  successor), or the whole input equal to the licence text as the SPDX
+  License List writes it, after case, punctuation and white space are
+  normalised. A bare `GPL-2.0` kept as written is exact. A variant
+  licenseid chose is not: the `-only` or `-or-later` of a text or a name,
+  as the two have the same text (so `--exact` gives none for the GPL), and
+  `GPL-2.0` read as `GPL-2.0-only` by `--variant only`. A filled-in
+  copyright line or an added title makes a text not exact, as does a name
+  that only shares the words of the input. A value that a rewrite rule read
+  (`Apache License, Version 2.0`, `Apache 2`, `GPL2` as `GPL-2.0`) is not
+  exact, except IDs joined by a slash (`MIT/Apache-2.0`): the `EXACT`
+  column of [the category table](resolve.md#steps-and-categories) has the
+  details. `--exact` keeps only the exact results.
 - `SCORE` is 0 to 1; `--threshold` reads it. Several results can score 1:
   the order tells them apart, and `EXACT` tells an exact one from a close
   one.

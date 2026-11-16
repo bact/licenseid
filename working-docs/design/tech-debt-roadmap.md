@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -303,7 +303,10 @@ the 800-line hard limit. Pylint rates the two directories 9.48/10;
 Found by running the CLI under odd environments (manual matrix, 2026-09-19).
 Each case is outside the message grammar or hides a failure. The stream
 and signal cases (closed streams, a closed pipe, an output write error,
-Ctrl-C) were fixed on 2026-10-02; see `tech-debt-resolved.md`.
+Ctrl-C) were fixed on 2026-10-02 (`tech-debt-resolved.md`); a replaced
+database in 0.4.2 (`database-readiness-gate.md`); a data directory `update`
+cannot make, a `file://localhost/` path and symlink loops in PR #209
+(2026-11-15, `tech-debt-resolved-0-5.md`). Open: the three cases below.
 
 - **A valid but read-only database** (a read-only mount, a root-owned
   install): every database licenseid writes is in WAL mode, and SQLite must
@@ -323,11 +326,6 @@ Ctrl-C) were fixed on 2026-10-02; see `tech-debt-resolved.md`.
   may be anybody's and deleting one needs no lock at all. The probe waits
   `_BUSY_WAIT` (1 s), not SQLite's default 5 s, since the command that
   follows waits again.
-- **DB replaced during a run** (resolved in 0.4.2): a lookup opens its
-  connection read-only, so a deleted file is not re-created empty, and the
-  matcher words every `sqlite3.Error` of a lookup as `DatabaseNotReadyError`
-  (`database: unreadable: ...; run 'licenseid update'`; no action for a lock
-  or a read-only WAL database). See `database-readiness-gate.md`.
 - **Ctrl-C during imports** (the first ~30 ms, before click runs): Python
   prints a `KeyboardInterrupt` traceback and dies by SIGINT, which the shell
   reports as 130. Found in review of PR #70; `main` is the same.
@@ -373,99 +371,55 @@ statistics; no fix has been designed yet, only the problem is documented.
 ## 46. Leftovers of the 0.7.0 whole-release review — Priority 12
 
 Found in the review of 2026-11-02 to 11-03. The resolver, readers, BSD and
-short-text leftovers are in `match-resolve-0-8.md`, section 7.
+short-text leftovers are in `match-resolve-0-8.md`, section 7. Done: the
+typed options, the lock-wait test, one long-text database and the `ruff
+format` check (PR #210), and the free-text rules of `exclude` and `hint`
+(PR #211); see `tech-debt-resolved-0-5.md`. Open:
 
 - **Readers see `database: empty` during `update`** (1,074 errors over a
   13 s update with four reader threads; 0.6.0 does the same): the plan is a
   single transaction, a busy timeout and an OS lock; the atomic swap needs
   Windows care (`os.replace` fails on an open file). Design:
   [`concurrent-update.md`](concurrent-update.md).
-- `exclude`, `hint` and `only_spdx` of `detect()` are applied in part, are
-  untyped and are not axes of `tests/test_option_matrix.py` (review A-F5).
-  Typed (`DetectOptions`), documented and pinned in PR #210 (2026-11-15):
-  `tests/test_detect_options_paths.py` (an options matrix, `# BUG:` and
-  `# DECISION:` pins). **Open, a decision each**: markers and mixed-content
-  windows skip `exclude`; a hint undoes `exclude`, buries a marker candidate
-  and can skip the mixed-content search (count of 5); duplicate hints;
-  `exclude` exact case against `hint` folded; deprecated IDs not mapped; a
-  hint never scores; `only_spdx` is a no-op on a built database (every row
-  `is_spdx=1`; remove it?). Answers unchanged: see `tech-debt-resolved.md`.
-- A tag that lists a licence elsewhere than right after the mark is still
-  the first licence, exact: after a grant (`GPL-2.0 or later, ISC`), with
-  "or"/"and" (`MIT, or ISC`), in brackets or quotes (`MIT, (ISC)`), after a
-  full-width comma or a dash (`MIT - ISC`), or later in prose (`MIT, and
-  also Apache-2.0`), or before an operator (`MIT - OR ISC`). #158 refuses a
-  licence right after a mark (A-F6); it also refuses `MIT, Intel and
-  others`, as the field reader does (the item ends at "and").
-- `is-*` on a file with several tags judges the top one only; the condition
-  words for empty input; a garbage `--db` is `unreadable` or `invalid`
-  depending on the path; `Resolver` and `Component` are not exported (A-F7:
-  open, the names need a decision: `licenseid.Resolver` reads as a class and
-  both are the same shape).
-- The publish workflow checks the tag against the built version since 0.7.0
-  (C3); the METADATA of a dev build keeps `0.7.0-dev.0` as written (C4).
-- `test_db_ready.py` (`wal_copy_without_wal`) fails 6 cases under uv's
-  Python 3.14 (SQLite 3.43.2) on macOS, on `main` too (`unreadable` against
-  `empty`); CI's 3.14 passes. It depends on the SQLite version.
-- Plain `ruff format --check` with no path flags `docs/python-api.md` and
-  `resolver-0-7-plan.md`: done in PR #210 (2026-11-15). Those two pass with
-  ruff 0.17.4; it flagged one comment alignment in a Python block of
-  `README.md`, now fixed. CI checks `src/ tests/` only and stays so.
-- `update --source packaged` sample outputs in the README are unverified
-  against a built wheel: check them at the final release gate.
-- The lock-wait test of `LicenseDatabase`: done in PR #210 (2026-11-15),
-  event-driven (the holder waits on its standard input; no wall-clock lower
-  bound).
-- `tests/harness_db.py` repeats the database build of
-  `test_accuracy.matcher`: done in PR #210 (2026-11-15), one
-  `tests/long_text_db.py` (same rows, same accuracy numbers).
-
-Deferred from PR #210 (2026-11-15), each with a recommendation. The
-options are pinned in `tests/test_detect_options_paths.py`; moving one
-flips a `# BUG:` or `# DECISION:` pin.
-
-- **`exclude` and `hint` gaps** (a decision each, answers change).
-  Decided by the maintainer (2026-11-15), to build in one PR:
-  - `exclude` wins over `hint`.
-  - Deduplicate the `hint` list and the `exclude` list (on the canonical
-    ID).
-  - Fold case in both (`listlookup.fold_case`).
-  - Upgrade a deprecated ID first, then apply the option; never upgrade an
-    ambiguous one (a deprecated `GPL-2.0` could be `-only` or `-or-later`).
-    Same rule as py-spdx-license PR 13 (`project_py_spdx_license_prs`).
-  Still undecided, with a recommendation: markers and mixed-content windows
-  skip `exclude` (filter once, before Tier 2); a hint buries a marker
-  candidate of the same licence (JSON 1.0 to 0.025 with `hint=["JSON"]`):
-  merge markers before hints; a hint counts towards the fewer-than-5 test
-  that gates the mixed-content search (`detector.py`) and can lose a
-  licence that search found: count only candidates with text; a hint has no
+- **`hint` against the filters**, pinned `# BUG:` in
+  `tests/test_detect_options_paths.py`. Decided 2026-11-15, not built:
+  `exclude` wins over `hint`; today a hint is added after the filters, so it
+  undoes `exclude` and passes `only_common` and `only_spdx`. Undecided, with
+  a recommendation: a hint counts towards the fewer-than-5 test that gates
+  the mixed-content search (`detector.py`) and can lose a licence that
+  search found: count only candidates with text; a hint buries a marker
+  candidate of the same licence (JSON 1.0 to 0.025 with `hint=["JSON"]`;
+  not rechecked after PR #211): merge markers before hints; a hint has no
   text, so it scores 0: give it its text or say it only lists.
 - **`only_spdx` does nothing** on a database licenseid builds (every row
   `is_spdx=1`). Keep or redesign, not remove: more lists will come
   (AboutCode ScanCode, Blue Oak) and a source flag may be what it becomes.
   Decide with the multi-list design; until then it stays documented as a
   no-op on a built database.
-- **Declared values ignore the options** (`license_id`, a value `resolve()`
-  reads, a tag, a manifest field, a name): keep, documented in
-  `docs/python-api.md`.
-- `DetectOptions` is not in `licenseid.__all__`: export it with the
-  `Resolver`/`Component` decision (one API pass).
+- A tag that lists a licence elsewhere than right after the mark is still
+  the first licence, exact: after a grant (`GPL-2.0 or later, ISC`), with
+  "or"/"and" (`MIT, or ISC`), in brackets or quotes (`MIT, (ISC)`), after a
+  full-width comma or a dash (`MIT - ISC`), or later in prose (`MIT, and
+  also Apache-2.0`), or before an operator (`MIT - OR ISC`). #158 refuses a
+  licence right after a mark (A-F6); it also refuses `MIT, Intel and
+  others`, as the field reader does (the item ends at "and"). Belongs to
+  the matching-rules redesign.
+- `is-*` on a file with several tags judges the top one only; the condition
+  words for empty input; a garbage `--db` is `unreadable` or `invalid`
+  depending on the path.
+- One API pass: `Resolver`, `Component` and `DetectOptions` are not in
+  `licenseid.__all__` (A-F7: the names need a decision; `licenseid.Resolver`
+  reads as a class and both are the same shape).
+- The METADATA of a dev build keeps `0.7.0-dev.0` as written (C4).
+- `test_db_ready.py` (`wal_copy_without_wal`) fails 6 cases under uv's
+  Python 3.14 (SQLite 3.43.2) on macOS, on `main` too (`unreadable` against
+  `empty`); CI's 3.14 passes. It depends on the SQLite version.
+- `update --source packaged` sample outputs in the README are unverified
+  against a built wheel: check them at the final release gate.
 - **A repeated-paragraph input ranks wrong** (not investigated): on the
   real database, two copies of a prose paragraph, the full MIT text and
   two more copies give TekHVC first (0.61) and MIT outside the top 4. Check
   against `main` and the probe gate (`similarity.build_probe`).
-- **Worktree trap**: the editable install imports the main checkout, so a
-  mutation run in a worktree tests nothing; use
-  `PYTHONPATH=<worktree>/src` (add to the testing notes of `AGENTS.md` if
-  it bites again).
-- Not touched, as scoped (see the bullets above): readers seeing `database:
-  empty` during `update` (design in `concurrent-update.md`), the tag-lists-
-  a-licence-after-the-mark cases (belong to the matching-rules redesign),
-  `is-*` on a file with several tags, the garbage `--db` wording, the
-  condition words for empty input, the README `update --source packaged`
-  samples (need a built wheel), the Python 3.14 `wal_copy_without_wal`
-  failures (SQLite 3.43.2; 8 tests fail on `main` too) and the dev-build
-  METADATA.
 
 - Impact 2, Risk 2, Effort 3.
 
@@ -609,125 +563,41 @@ and step; measure it on the PyPI sample and the manifests before choosing.
 
 ## 52. A bare deprecated ID is read as `-only` by `detect()` — Priority 12
 
-`resolve()` keeps a bare split ID (`GPL-2.0`: `assumed_only`, trust `none`)
-and a `-with-` ID (`deprecated_ambiguous`) as written: a file that says
-`GPL-2.0` may mean "only" or "or later", and only its own words say which.
-`detect()`, `--id` and a tag value still apply the last-resort fallback
-(`DEPRECATED_BARE_LICENSE_IDS`, `DEPRECATED_WITH_IDS`): `GPL-2.0` gives
-`GPL-2.0-only`, `GPL-2.0-with-classpath-exception` gives `GPL-2.0-only WITH
-Classpath-exception-2.0`, each with `WARNING: input: variant not stated`. The
-two paths disagree, and `detect()` guesses. The upstream upgrade of
-`py-spdx-license` (`JPEWdev/py-spdx-license#13`) makes the same choice as
-`resolve()`: it replaces only `GPL-2.0+`-like IDs and `StandardML-NJ`, never a
-bare ID.
+`detect()` read a bare `GPL-2.0` as `GPL-2.0-only` with `WARNING: input:
+variant not stated`, where `resolve()` keeps it as written, and only the
+input's own words say which variant it means. Design decided 2026-11-15.
 
-Design decided 2026-11-15, not built (recorded 2026-11-14, rules settled the
-day after). The principle: a **declaration** stays as written; a **decision**
-by licenseid never gives a deprecated ID.
+Built: PR #211 (merged 2026-11-16; `exclude` and `hint` act on free text
+only) and PR #212 (open; `--variant auto|as-written|only|or-later`, the last
+record field `VARIANT_STATED`, `EXACT` by list not by trust, the twin flags
+of `is-osi` and `is-fsf`). The design as built, the paths rejected, the
+pinned cases and the measures are in
+[`../implementation/item-52-variant-and-exact.md`](../implementation/item-52-variant-and-exact.md).
+Move this item to `tech-debt-resolved-0-5.md` when PR #212 merges. Left,
+each a decision:
 
-- **Declared value** (an argument, a tag, a field, `--id`, any whole input
-  `resolve()` reads): `detect()` gives what `resolve()` gives. A bare `GPL-2.0`
-  stays `GPL-2.0` (`assumed_only`, trust `none`), a `-with-` ID stays as
-  written, with no warning. Words that state the variant ("GPL-2.0 or later
-  version") still win, as in `disambiguate_deprecated_id`. Today `detect()`
-  narrows these to `-only` with `WARNING: input: variant not stated`.
-- **Text match** (licence text through Tier 1 and 2): `-only` or `-or-later`,
-  never a deprecated ID. The evidence is in the input: grant words of the
-  same licence family (`classify.OR_LATER_PHRASE`, read through the signal
-  `ranking.apply_version_suffix_tiebreaker` uses; never a raw scan of the
-  text, which the GPL "How to Apply" appendix would always satisfy). With
-  evidence: `-or-later` first, `VARIANT_STATED` true, no warning; the `-only`
-  runner-up is false. Without: `-only` first, then `-or-later`, both false,
-  one `variant not stated` warning (DETAIL the family ID, not the text).
-  `-only` is the licensee's careful reading; it understates a licensor's "or
-  later" grant, and `docs/` says so. Families with no bare ID (`GFDL-1.3-
-  invariants-*`) follow the same rule; their invariants ambiguity is another
-  axis that `VARIANT_STATED` does not cover.
-- **One option**, `--variant auto|as-written|only|or-later` (API `variant=`),
-  on `detect`, `--id` and the `-with-` IDs, which follow it. `auto` is the
-  default and means the two rules above. `as-written` never decides: a bare
-  deprecated ID stays, text matches included (intentional ambiguity). `only`
-  and `or-later` always decide, declared values too, with the warning (a CI
-  that bans deprecated IDs). An unknown value is `option: invalid` (exit 2).
-  The name follows the existing warning (`variant not stated`). The option is
-  a preference, never a fact: words that state the variant (`GPL-2.0 or
-  later`, `GPL-2.0+`, `-or-later`, `-only`) win over `only` and `or-later`,
-  with `WARNING: option: overridden by input: --variant only; using
-  GPL-2.0-or-later`.
-- **Output**: a field `VARIANT_STATED` at the end of the record (JSON
-  `variant_stated`, boolean): `true` when the words or an `-only`/`-or-later`
-  ID state it, `false` for a guess or a bare ID kept, empty when there is no
-  variant to judge (`MIT`). A script tells a guessed `-only` from a stated
-  one without reading standard error. A compound: empty when no operand has
-  a variant, `false` when any operand is guessed or kept, else `true`.
-- **`EXACT`** (decided 2026-11-15, after measuring 2,516 inputs: exact
-  answers 98.9% right, inexact 78.9%): true when an authoritative list
-  defines the answer, false when a rewrite rule produced it. The lists are
-  the SPDX List and the lists we keep and publish (item 55): `alias_name`,
-  `trove_name`, `text_title`, `license_url` (the List's pages, `spdx:MIT`
-  and our `URL_ALIASES`), and any later ScanCode or Blue Oak list, each
-  with its source named. So for a declared value `as_resolved` sets `exact`
-  from the category, not from `trust != "none"`: true for `exact`,
-  `lexical`, `listed_name`, `deprecated_equal_successor`,
-  `plus_to_or_later`, `deprecated_ambiguous` and the four list categories
-  above; false for the three rules `separator`, `prose_form` and
-  `version_spelling`. The text rule is kept: the whole normalised input
-  equals the licence's `search_text`. One exception: a kept bare `GPL-2.0`
-  (`assumed_only`, trust `none`) is `true`, because the output is the
-  declaration; `VARIANT_STATED=false` carries the ambiguity. A trove name
-  that is ambiguous (a family or a name with no version, such as `GNU
-  General Public License (GPL)`) is already refused (`none`, no answer), so
-  it never reaches `EXACT`. Costs: 583 of 7,795 resolved PyPI-sample
-  projects (7.5%; `separator` 306, `prose_form` 207, `version_spelling` 70)
-  go from true to false, so `--exact` drops `Apache License, Version 2.0`;
-  the golden answers, `docs/output.md`, `docs/resolve.md` (an `EXACT` column
-  in the category table, which `tests/test_resolver_shapes.py` checks) and
-  the `types.py` docstring change. Revisit when `py-spdx-license#13`
-  (`upgrade()`) is released: its mapping of deprecated IDs settles which
-  renames are List data. Not decided here: three identical-text GFDL ties
-  stay exact and wrong (a tie problem, not an `EXACT` problem).
-- **`exclude` and `hint`** (options of `detect()` in the Python API only: no
-  CLI flag, and `resolve()` has neither, so default `detect()` and default
-  `resolve()` agree and only a caller who passes them can make `detect()`
-  answer differently) act on free text only. A declaration (an SPDX tag,
-  a field, `--id`, a whole input `resolve()` reads) is never filtered and
-  never hinted. Prose markers (titles, "version 2") are free text: today they
-  join the pool after the `exclude` filter (`exclude=["GPL-2.0-only"]` still
-  answers `GPL-2.0-only` at 0.9955); fixed in this work, in its own commit. A
-  bare deprecated ID in either is upgraded to both its twins under `auto`,
-  `only` and `or-later`, kept under `as-written`, with `WARNING: option:
-  deprecated ID: exclude GPL-2.0; using GPL-2.0-only, GPL-2.0-or-later`
-  (the case rule of `exclude` and `hint` is settled first; a `-with-` ID has
-  no candidate twin and is refused or documented). No `INFO` level: both
-  lines are fallbacks, so `WARNING`. Deferred, pinned `# BUG:`: `exclude`
-  plus `hint` of one ID (the hint wins); hint rows count toward "fewer than 5
-  candidates".
-- **Not in `detect()`**: evidence beyond the input (a `COPYING` file, the
-  repository, the package). `detect()` takes one input; a project-level
-  function is a separate item.
-- `is-osi` and `is-fsf` take no `--variant`, and judge a kept bare ID by its
-  `-only` and `-or-later` twins, not by the bare List row. The flags are not
-  all equal (List 3.29.0): `AGPL-1.0` has FSF true, its twins none; the
-  `GPL-2.0-with-*` rows are 0/0 though `GPL-2.0-only WITH Classpath-
-  exception-2.0` is judged yes today. A `-with-` ID is judged as `<bare>-only
-  WITH <exception>`. Build it in `exprflags._flags` and
-  `retrieval._inject_hinted_candidates`; a List test pins the twin mapping
-  (each `-only`/`-or-later` pair has equal flags).
-- **Breaking**: `detect GPL-2.0` gives `GPL-2.0`, not `GPL-2.0-only`, and
-  `GPL-2.0-with-classpath-exception` stays as written. Accepted for 0.x. Mark
-  it in `CHANGELOG.md` with the migration `--variant only`.
-- Cost: `detect`, markers, tags, `docs/cli.md`, `docs/output.md`,
-  `docs/resolve.md`, `docs/python-api.md`, an axis in
-  `tests/test_option_matrix.py`, and the golden answers it moves
-  (`tests/harness_changes.py`).
+- **For the maintainer to revise**: the warning bar
+  `variants.ANSWER_SCORE` (0.85); the grant signal reads the whole input,
+  not the licence's own words (a README's "Python 3.8 or later" counts;
+  pinned `# BUG:` in `tests/test_variant.py`), and misses a grant only the
+  heading marker read (pinned
+  `test_a_grant_the_marker_did_not_read_leaves_the_only_form`); whether the
+  `-with-` rule of `EXACT` applies to every `deprecated_ambiguous` operand
+  (`eCos 2.0` stays exact, as on `main`).
+- **Channels that still differ** (rule I1): a deprecated List name (AGPL)
+  answers `-only` as the argument under `auto` but the bare ID in a tag or
+  a field (pinned `# BUG:` in `tests/test_variant_invariants.py`); a tag
+  answers `MIT OR GPL-2.0 only` that the argument and a field refuse
+  (pinned `test_a_tag_reads_an_only_after_an_operand_of_a_list`); a tag
+  refuses `GPL-2.0 or later OR MIT` that the argument answers.
 - After a `py-spdx-license` release with `upgrade()`, raise the floor in
   `pyproject.toml` and let it replace the `+` and rename code
   (`DEPRECATED_SPDX_LICENSE_IDS`, the rename rule of `listrules`); the bare
-  and `-with-` tables stay with this item.
-- Open: the final name of the `VARIANT_STATED` field. Also found, not caused
-  by this item: the text of `deprecated_GPL-2.0-with-classpath-exception`
-  gets no result.
-
+  and `-with-` tables stay with this item. Revisit `EXACT` then: its
+  mapping of deprecated IDs settles which renames are List data.
+- Found, not caused by this item: the text of
+  `deprecated_GPL-2.0-with-classpath-exception` gets no result; three
+  identical-text GFDL ties stay exact and wrong (a tie problem).
 - Impact 2, Risk 2, Effort 3.
 
 ## 53. A cut `-shm` file of a legacy WAL database kills the reader — Priority 12
@@ -747,21 +617,22 @@ to 0, inside a block SIGBUS, outside a block fine).
   `cross-platform.md`.
 - Impact 1, Risk 2, Effort 2.
 
-## 54. A truncated ID is `EXACT` — Priority 12
+## 54. A truncated ID gets an answer — Priority 12
 
 Found when measuring `EXACT` (2026-11-15; 2,516 inputs, SPDX List 3.29.0, a
-sample, not the whole fixture set). Seven inputs that cut an ID short are
+sample, not the whole fixture set). Seven inputs that cut an ID short were
 `EXACT=true` and wrong or doubtful: `Apache-1` gives `Apache-1.0` and `MIT-`
 gives `MIT`. `resolve()` reads them as `version_spelling` and `separator`
-(trust `resolver_rule`), and `resolvefirst.as_resolved` sets `exact = trust
-!= "none"`, so a rule counts as exact. A cut version is a choice, not a
-spelling: `Apache-1` may mean `Apache-1.0` or `Apache-1.1`.
+(trust `resolver_rule`). Since item 52 (PR #212) a rewrite rule's reading is
+not exact, so these are `EXACT=false` now, but they are still answered. A
+cut version is a choice, not a spelling: `Apache-1` may mean `Apache-1.0` or
+`Apache-1.1`.
 
 - **Measure first**: how many PyPI values and corpus entries end in a bare
   major version or a lone separator, and what `resolve()` should answer for
   them (an answer with trust, or none).
-- **Then decide**: refuse the cut version, or keep it with a lower trust so
-  `EXACT` is false. Read it against the definition of `EXACT` of item 52.
+- **Then decide**: refuse the cut version, or keep it as a rule's reading
+  (not exact, as now).
 - Impact 1, Risk 2, Effort 2.
 
 ## 55. Publish the lists `resolve()` reads — Priority 12
@@ -785,11 +656,14 @@ they live in code: `resolvealias.ALIASES` (12), `resolvetitle.TITLES` (4),
 - **Maybe**: a command (`licenseid resolve --lists`) or a JSON file with the
   same rows, so a script can read them; decide after the page exists.
 - A new list (ScanCode, Blue Oak) gets its page section, its `CATEGORY` and
-  its `EXACT` value when it is added.
+  its `EXACT` value when it is added. The Blue Oak idea:
+  [`blue-oak-ratings.md`](blue-oak-ratings.md).
 - Impact 2, Risk 1, Effort 2.
 
 ## Already resolved
 
 Moved to
 [`../implementation/tech-debt-resolved.md`](../implementation/tech-debt-resolved.md)
-(2026-10-02), to keep this file under the size limit.
+(2026-10-02), to keep this file under the size limit; those resolved from
+0.5.0 on are in
+[`../implementation/tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md).

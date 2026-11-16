@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -165,7 +165,7 @@ unaffected.
 
 Reverted 2026-11-15: a file cut by another program killed the process with
 SIGBUS, and without the pragma no match was measurably slower (see
-`tech-debt-resolved.md`, item 40).
+`tech-debt-resolved-0-5.md`, item 40).
 
 **File:** `database.py`
 

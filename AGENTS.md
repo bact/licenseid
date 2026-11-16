@@ -49,9 +49,10 @@ in another module.
   one detector per default database), `detectrequest` (checks of a call
   needing no database), `resolvefirst` (input `resolve()` reads whole; the
   cut of a short refused one), `shorttext` (Tier 0), `retrieval` (Tier 1),
-  `idoptions` (`exclude`, `hint`: free text only, case-folded, a bare
-  deprecated ID stands for both twins, kept under `as-written`), `variants`
-  (the `variant` option: what a bare ID and a text answer, `variant_stated`),
+  `idoptions` (`exclude`, `hint`: API only, free text only, case-folded, a
+  bare deprecated ID stands for both twins, kept under `as-written`),
+  `variants` (the `variant` option: what a bare ID and a text answer,
+  `variant_stated`, a trailing "only"),
   `similarity`, `fingerprint` (maths) and `fingerprintstore` (its table),
   `ranking` (sort order, `-only`/`-or-later` tie-breaker), `markers` and
   `candidates` (its helpers), `classify` (prose "or later"), `identifiers`,
@@ -68,10 +69,10 @@ in another module.
   License`), `resolvetitle` and `resolvealias` (data, read through
   `resolvetable`), `resolveurl` with `nugetpath` and `urlkey` (standard
   library and `listlookup.fold_case` only),
-  `ruleread` (whether a rewrite rule read a value, for the `EXACT` of a tag or
-  field), `resolvereason` (refusal no reader explained), `resolverinfo` (resolver,
-  parser and list blocks; a detection's `lists`), `exprcanon`, `exprtokens`,
-  `exprflags` (OSI, FSF, List flags).
+  `ruleread` (whether a rewrite rule read a value, for the `EXACT` of a tag
+  or field), `resolvereason` (refusal no reader explained), `resolverinfo`
+  (resolver, parser and list blocks; a detection's `lists`), `exprcanon`,
+  `exprtokens`, `exprflags` (OSI, FSF, List flags; `judged_id`).
 - Lists: `listlookup` (a Protocol; `fold_case`), `listindex` (the shipped
   bundle in memory), `listsource` (database or packaged), `listrules`
   (entries kept, deprecated targets).
@@ -193,15 +194,17 @@ and `--json`) against these rules and checks the default output against the
     backslash stays, so a Windows path reads as typed.
   - `ACTION`: the fallback taken (`using stale cache`, `using stale <file>`,
     `downloading`, `downloading <file>`, `using cached <file>`,
-    `using packaged data v<ver>`, `counted as 0`, `using A, B`) or the command
-    to run (`run 'licenseid update'`), on the same line as its cause.
+    `using packaged data v<ver>`, `counted as 0`, `using A, B`,
+    `using <answer>`) or the command to run (`run 'licenseid update'`), on
+    the same line as its cause.
 - Raise a failure as `licenseid.errors.LicenseIdError`
   (`SUBJECT: CONDITION…`, no prefix): the CLI prints it after `ERROR:` and
   exits 1, or 2 for `InvalidInputError`. `DatabaseNotReadyError` (missing,
   empty, invalid, unreadable) exits 2 in `detect`, `resolve`, `is-*`.
   `update` and `clear-cache` refuse only an `invalid` database (not built by
-  licenseid) or an `unreadable` symlink loop: they exist to fix the rest. Any other exception in `update`,
-  RuntimeError subclasses such as RecursionError included, becomes
+  licenseid) or an `unreadable` symlink loop: they exist to fix the rest.
+  Any other exception in `update`, RuntimeError subclasses such as
+  RecursionError included, becomes
   `SUBJECT: update failed: <Type>: <text>`. A default directory `update`
   cannot make is `directory: write failed: <dir>: <reason>; pass --db`.
 - A step printing partial progress (`status(..., end="")`) that can fail
@@ -258,25 +261,35 @@ and `--json`) against these rules and checks the default output against the
   (`errors.invalid_id_error`); `LicenseDetector._try_explicit_id_match`
   raises, so ask the predicate first. Never widen `--id` to expressions.
   The CLI makes no ID guess of its own.
-
+- `exclude` and `hint` are `detect()` API options only (no CLI flag;
+  `resolve()` has neither) and act on free text only: a declaration (tag,
+  field, `license_id`, a whole input `resolve()` reads) is never filtered or
+  hinted. Upgrade their bare deprecated IDs once per call
+  (`idoptions.upgraded_options`, warning `deprecated ID`).
 - `variant` (`--variant auto|as-written|only|or-later`, API `variant=`,
-  `licenseid.variants`; roadmap item 52): a declared value stays as written
-  under `auto` (bare `GPL-2.0`, `-with-` IDs); a text match never answers a
-  deprecated ID (`variants.settle_text`: `-or-later` first where
-  `ranking.or_later_signal` finds a grant, else `-only` first, a warning).
-  `only` and `or-later` decide (`variants.fallback`, a context variable
-  set in `LicenseDetector._match_raw`; outside `detect()` it reads `only`).
-  Stated words win, with `option: overridden by input`. Every result carries
-  `evidence` (the value as written, or a text's signals): set where a result
-  is made (`variants.read_from`, `settle_text`), never a flag. A reader that
-  decides a form (`looseid.read_inexactly`, `mark_guessed`) marks it in
+  `licenseid.variants`): under `auto` a declared value stays as written
+  (bare `GPL-2.0`, `-with-` IDs); under `auto`, `only` and `or-later` a text
+  or name match never answers a deprecated ID (`variants.settle_text`:
+  `-or-later` first where `ranking.or_later_signal` finds a grant, else
+  `-only` first); `as-written` leaves a text's twins as the bare ID. `only`
+  and `or-later` decide declared values too (`variants.fallback`, a context
+  variable `variants.read_as` sets in `LicenseDetector._match_raw`; outside
+  `detect()` it reads `only`). Stated words win, with `option: overridden by
+  input`. Both warnings are only for a printed result
+  (`variants.output_bar`: `--threshold`, `--exact`, `--top`; 0.85 in the
+  API); a text's guess only at `variants.ANSWER_SCORE` or more.
+- Every result carries `evidence` (the value as written, or a text's
+  signals), set where a result is made (`variants.read_from`,
+  `settle_text`), never a flag. A reader that decides a form
+  (`looseid.read_inexactly`, `mark_guessed`) marks it in
   `evidence.decided`: a decided form is never stated, whatever another
-  operand says (`identifiers` merges equal operands, so no count can). The one reader
-  `variants.stated_of` gives the last record field `VARIANT_STATED`, fail
-  closed (no evidence, no word: false), and `result.public_result` applies
-  the one rule that a variant licenseid chose (`guessed_of`) is not exact;
-  `is-*` lines have none. `is-osi`/`is-fsf` judge a kept
-  deprecated ID by its `-only` twin (`exprflags.judged_id`).
+  operand says (`identifiers` merges equal operands, so no count can).
+  The one reader `variants.stated_of` gives the last record field
+  `VARIANT_STATED`, fail closed (no evidence, no word: false);
+  `result.public_result` applies the one rule that a variant licenseid
+  chose (`guessed_of`) is not exact. `is-*` lines have no `VARIANT_STATED`;
+  `is-osi`/`is-fsf` judge a kept deprecated ID by its `-only` twin
+  (`exprflags.judged_id`).
 
 ### Expression readers (one reader each; do not write another)
 
@@ -289,7 +302,7 @@ and `--json`) against these rules and checks the default output against the
   (imported by `ranking`, `identifiers.disambiguate_deprecated_id`,
   `markers`, `looseid`); `classify.grant_end` finds a grant and its end;
   `classify.grant_head` is the one rule for the gap between ID and grant (a
-  dash between words there is a separator, D10), followed by `before_grant`
+  dash between words there is a separator), followed by `before_grant`
   and the tag's `dash_gap`. The grant qualifies the licence beside it
   (`identifiers.qualify_trailing_grant`): `MIT OR GPL-2.0 or later` is
   `GPL-2.0-or-later OR MIT`; with WITH it belongs to the licence. A version
@@ -400,9 +413,13 @@ and `--json`) against these rules and checks the default output against the
   imports `licenseid.__version__` at module level.
 - `detect()` returns the public form (score capped to 1, 4 places). Code or
   a test that ranks or asks "above 1" reads `_match_raw`. `exact` is set
-  where a result is made, never derived from the score: the whole non-empty
-  normalised input equals the licence's `search_text`. A deprecated name is
-  inexact only when a row in use has the same normalised name.
+  where a result is made, never derived from the score or the trust: a text
+  is exact when the whole non-empty normalised input equals the licence's
+  `search_text`; a declared value when a list defines its reading
+  (`resolvefirst.is_exact`: `EXACT_CATEGORIES`, not a rewrite rule; a tag
+  or field through `ruleread`). A deprecated name is inexact only when a
+  row in use has the same normalised name. The one later change: a variant
+  licenseid chose is never exact (`public_result`).
 - Packaged bundle: `hatch_build.py` (standard library only) puts it in the
   wheel and sdist (`src/licenseid/data/`, gitignored), steered by
   `LICENSEID_BUNDLE=skip|<path>` and `LICENSEID_REQUIRE_BUNDLE=1` (CI jobs
@@ -510,7 +527,8 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   `unittest.TestCase`; `spec`/`autospec` mocks; `time_machine` for time;
   `@pytest.mark.parametrize` for similar inputs.
 - A new CLI option or API parameter becomes an axis (or a value) in
-  `tests/test_option_matrix.py`.
+  `tests/test_option_matrix.py` (a large axis in a file it names, as
+  `test_option_matrix_variant.py`).
 - Run plain `pytest tests/` (no `-m 'not benchmark'`), and the full suite
   alone (beside mutants or `tools.golden`, 1 s bounds fail).
 - No `tests/__init__.py`: `from conftest import ...` (helpers
@@ -533,8 +551,9 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   (`Lic(..., search_text=...)`, as `tests/test_qualified_plus.py`), mutate
   the fix to see it fail, and probe a full database too.
 - Mutation-check new tests: break a line, rerun; clear `__pycache__`
-  between mutants; run a mutated copy with `PYTHONPATH=<copy>/src` (the
-  editable install imports this checkout otherwise). Never run a mutation
+  between mutants; run a mutated copy or a git worktree with
+  `PYTHONPATH=<copy>/src`, tests and golden runs included (the editable
+  install imports the main checkout otherwise). Never run a mutation
   agent while another edits `src/`; diff any snapshot first.
 - Give a huge parameter a short `id` (Windows caps an environment variable,
   and `PYTEST_CURRENT_TEST` holds the ID; `conftest.MAX_TEST_ID` is 300).
@@ -542,8 +561,9 @@ A `working-docs/` file carries these tags in its YAML front matter, with
 - A SIGINT test restores the child's handler (`signal.default_int_handler`)
   and signals at a point the child reports (`test_cli_streams._READY`).
 - `python -m tools.golden` lists golden answers that moved; a PR that moves
-  one lists it with the reason in `tests/harness_changes.py`. Regenerate
-  only when the release is frozen (`tools/golden/README.md`).
+  one lists it with the reason in `tests/harness_changes.py` (a large change
+  in a module of its own, `harness_changes_<topic>.py`, merged there).
+  Regenerate only when the release is frozen (`tools/golden/README.md`).
 - Before a PR touching the CLI, exit codes, streams, input handling or the
   database path, run `python -m tools.cli_matrix --db <copy of a real
   database> --check` (read `tools/cli_matrix/README.md`). A

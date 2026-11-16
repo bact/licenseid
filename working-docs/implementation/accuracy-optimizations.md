@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-07
-Last-Modified: 2026-10-27
+Last-Modified: 2026-11-16
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -43,6 +43,11 @@ Examples:
 | `"GPL-2.0 or later version"` | `"GPL-2.0-or-later"` |
 | `"GPL-2.0 only"` | `"GPL-2.0-only"` |
 | `"GPL-2.0"` (no context) | `"GPL-2.0-only"` (conservative) |
+
+Superseded for `detect()` by roadmap item 52 (PR #212, 2026-11-16): a bare
+`GPL-2.0` declared as written stays `GPL-2.0`, and the fallback applies only
+under `--variant only` and outside `detect()`; see
+[item-52-variant-and-exact.md](item-52-variant-and-exact.md).
 
 #### `+`-suffix retention for non-mapped IDs
 

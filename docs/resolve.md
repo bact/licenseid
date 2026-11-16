@@ -19,10 +19,12 @@ is checked ready before it is read: a missing file raises
 
 `detect()` asks `resolve()` first for the whole input: when it names an
 expression, that is `detect()`'s answer, in the same order (method `name`
-when a step read a name, else `id`; exact unless the reading is a guess).
-A guess is `detect()`'s narrower one (`GPL-2.0` is `GPL-2.0-only`, not
-exact), as for a tag, in the detector's order (`MirOS OR MIT OR GPL-2.0`
-is `GPL-2.0-only OR MIT OR MirOS`). A refused input under 10 words is not
+when a step read a name, else `id`; exact as the `EXACT` column of
+[the category table](#steps-and-categories) says). A bare deprecated ID
+stays as written, as here; only `variant="only"` or `"or-later"` narrows
+it, a choice that is not exact, in the detector's order, as for a tag
+(`MirOS OR MIT OR GPL-2.0` is `GPL-2.0-only OR MIT OR MirOS`). A refused
+input under 10 words is not
 matched as text (Chinese and Japanese, written without spaces, are at any
 length); its `reason` is the detail of `detect()`'s warning (`input: too
 few words for text: not found: GNU GPL v2`).
@@ -308,9 +310,9 @@ For `resolve("Apache2")`, as JSON:
   ],
   "resolver": {
     "name": "licenseid",
-    "version": "0.7.3",
-    "url": "https://github.com/bact/licenseid/releases/tag/v0.7.3",
-    "purl": "pkg:pypi/licenseid@0.7.3"
+    "version": "0.8.4",
+    "url": "https://github.com/bact/licenseid/releases/tag/v0.8.4",
+    "purl": "pkg:pypi/licenseid@0.8.4"
   },
   "components": [],
   "lists": [
@@ -582,7 +584,11 @@ whole licence text). The `EXACT` column says which categories
 it is exact, where a rewrite rule (`separator`, `prose_form`,
 `version_spelling`) made it, it is not; a compound is exact when every operand
 is. A bare `GPL-2.0` kept as written is exact (the answer is the declaration;
-`variant_stated` says it is ambiguous), `GPL2` read through a rule is not. So
+`variant_stated` says it is ambiguous). Three exceptions to the column: an ID
+that a rule re-spelt is not exact although it is kept (`GPL2`,
+`assumed_only`), nor is a deprecated `-with-` ID a rule re-spelt (`GPL v2
+with classpath exception`, `deprecated_ambiguous`), while IDs joined by a
+slash (`MIT/Apache-2.0`, `separator`) are exact. So
 `detect("GPL-2.0")` and `resolve("GPL-2.0")` agree: `GPL-2.0`, `assumed_only`;
 only `detect(..., variant="only")` narrows it to `GPL-2.0-only`, not exact,
 with a warning. A whole input is
@@ -594,7 +600,7 @@ drop the "+" and answer the licence, exact. A tag and a manifest field read a
 licence URL with the same reader, in any word of the value
 (`SPDX-License-Identifier: https://spdx.org/licenses/MIT` is `MIT`), but
 the rest of their value still goes through the marker readers, not
-`resolve()` (planned for 0.8). Not read yet: a URL inside prose.
+`resolve()` (planned). Not read yet: a URL inside prose.
 
 ## Reasons for a refusal
 

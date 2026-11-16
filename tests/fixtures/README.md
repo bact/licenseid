@@ -1,3 +1,9 @@
+---
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: Apache-2.0
+---
+
 # License ID Test Fixtures
 
 This directory contains test fixtures used to evaluate and benchmark the
@@ -290,6 +296,46 @@ OUT.write_text(text, encoding="utf-8")
   `tests/harness_changes.py` does not list.
 - **Characteristics:** each file is under 800 lines. `tools/golden/README.md`
   says how to read a difference and how to regenerate.
+
+### 16. `mixed-content-curated`
+
+- **Data Source:** hand-written project files (restored 2026-05-07), not
+  generated.
+- **Description:** type 5 again, with real-looking files (`setup.py`,
+  `CITATION.cff`, `README.md`) in a folder per expected expression
+  (`GPL-2.0-only_WITH_Linux-syscall-note` for `GPL-2.0-only WITH
+  Linux-syscall-note`). Read by the golden harness
+  (`tests/harness_golden.py`) and the benchmarks (type 5.1).
+
+### 17. The other `resolver_*_changes.tsv` files
+
+- **Data Source:** as section 9, each recorded once a change was built.
+- **Description:** every answer of the parity corpus and the PyPI sample
+  that the change moved, each with its group; the module named gives each
+  group its reason and adds the rows to `EXPECTED_CHANGES`:
+  `resolver_t8_changes.tsv` (task T8, prose forms of one ID;
+  `tests/resolver_changes_t8.py`), `resolver_contract_changes.tsv` (a reason
+  for every refusal; `resolver_changes_contract.py`),
+  `resolver_hidden_changes.tsv` (`licenseid.hiddenchars`;
+  `resolver_changes_hidden.py`), `resolver_urls_changes.tsv`
+  (`licenseid.resolveurl`; `resolver_changes_urls.py`) and
+  `resolver_versioned_changes.tsv` (a versioned name,
+  `licenseid.resolveprose`; `resolver_changes_versioned.py`).
+- **Characteristics:** As section 9.
+
+### 18. `slash_detect_main.json`
+
+- **Data Source:** `detect()` on `main` at 0.8.3, before "/" was read as OR
+  (roadmap item 43).
+- **Description:** the answers `tests/test_slash_detect.py` pins for every
+  value that does not read as `OR`, on two databases.
+- **Characteristics:** JSON, one object per database; never regenerated.
+
+### Notes
+
+`generation-plan.md` is the plan `scripts/generate_fixtures.py` followed for
+types 1, 2, 3 and 5, and `mixed-content-analysis.md` the analysis behind
+type 5.
 
 ## Generating Fixtures
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-16
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,16 +13,21 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-11-09)
+## Current state (as of 2026-11-16)
 
-- **0.8.4** (prepared 2026-11-09): "/" between List IDs reads as OR
+- **Unreleased** (after 0.8.4): `update` names a data directory it cannot
+  make and refuses symlink loops as `unreadable`, PR #209; `detect()`
+  options typed, PR #210; `exclude` and `hint` act on free text only, PR
+  #211; `detect --variant`, the field `VARIANT_STATED` and `EXACT` by list,
+  PR #212 (open): [item-52-variant-and-exact.md](item-52-variant-and-exact.md).
+- **0.8.4** (released 2026-11-09): "/" between List IDs reads as OR
   (`MIT/Apache-2.0`), `resolve()` reads corner brackets and two BSD aliases,
   and Tier 0 asks `resolve()` first, PRs #194, #195, #197.
-- **0.8.3** (prepared 2026-11-09): `resolve()` reads a `licenses.nuget.org`
+- **0.8.3** (released 2026-11-09): `resolve()` reads a `licenses.nuget.org`
   expression URL, PR #188; `detect()` raises `TypeError` for an option of the
   wrong type, PR #190; a tag ID with a non-ASCII letter warns
   `input: invalid`, PR #191.
-- **0.8.2** (prepared 2026-11-09): `detect` and `resolve` print the expression
+- **0.8.2** (released 2026-11-09): `detect` and `resolve` print the expression
   alone, `-v` for the record, `-V` for the version (breaking), PR #183;
   `detect(file_path=...)` words a missing file, PR #184; no exact answer for a
   "+" that is no operator in short texts, PR #186.
@@ -70,11 +75,12 @@ yet started, see [`../design/`](../design/).
   the tie-breaker is in
   [accuracy-optimizations.md](accuracy-optimizations.md) section 10.
 - **Deprecated ID handling**: DB-backed `superseded_by` redirect for
-  unambiguous cases (e.g. `GPL-2.0+` → `GPL-2.0-or-later`); conservative
-  `-only` fallback for bare ambiguous IDs (e.g. `GPL-2.0`) with no
-  granting-context phrase in the input. Applied consistently across the
-  explicit `license_id=` path, prose-disambiguated free text, and bare
-  free-text Tier 0 lookups.
+  unambiguous cases (e.g. `GPL-2.0+` → `GPL-2.0-or-later`). A bare
+  ambiguous ID (`GPL-2.0`) declared as written stays so; a text match never
+  answers one, but `-or-later` where the input grants later versions, else
+  `-only` with a warning; `--variant` decides (item 52, PR #212; the
+  `-only` fallback for every path is the older record of
+  [accuracy-optimizations.md](accuracy-optimizations.md)).
 - **Discriminative n-gram fingerprints**: precomputed at DB-build time,
   used as an additive tie-breaker in Tier 2 ranking.
 - **Update path** (`spdx_source.py`): three cached third-party sources with
@@ -143,11 +149,14 @@ yet started, see [`../design/`](../design/).
 | 2026-09-28 | [spdx-expression-reading.md](spdx-expression-reading.md) | implemented (PR #61) | A tag's whole expression, `--id` narrowed to one license, "or later" as a grant; quadratic paths each fix added, timing against `main`, the slow deep parse on Python 3.10. |
 | 2026-10-06 | [cross-platform.md](cross-platform.md) | record | The Windows work of PR #77: the 0.4.0 URI bug, the path and URI rules, how tests handle Windows, and what a real Windows run has and has not confirmed. |
 | 2026-10-02 | [tech-debt-resolved.md](tech-debt-resolved.md) | record | The tech-debt roadmap's resolved items: what each was and what was done, moved out of the roadmap to keep it under the size limit. |
+| 2026-11-16 | [tech-debt-resolved-0-5.md](tech-debt-resolved-0-5.md) | record | The roadmap items resolved from 0.5.0 (2026-10-22) on, split from `tech-debt-resolved.md` at the size limit. |
 | 2026-10-22 | [release-process.md](release-process.md) | implemented (0.5.0) | How a release is cut: order, checks before the tag, traps seen in 0.5.0 |
 | 2026-10-30 | [pre-release-review.md](pre-release-review.md) | adopted (0.7.0) | Whole-release review before the tag: freeze, harness, read-only review, batched fixes, two gates |
 | 2026-10-27 | [declared-value-resolver.md](declared-value-resolver.md) | implemented (PR #97, 0.6.0 review) | `resolve()`: WITH, `LicenseRef-*`, malformed qualifiers, hidden characters, the declared "or later" reader on `OR_LATER_PHRASE`, and the build stamp that makes `update` rebuild an older database. |
 | 2026-10-30 | [declared-value-resolver-0-7.md](declared-value-resolver-0-7.md) | implemented (0.7.0, PRs #106 to #152) | Compounds, quotes, drop guard, end marks, trove and prose forms, `;` lists, the packaged list and its cached choice, schema 2, the matcher to `detect` rename, sdist allowlist, Pitloom pin. The command is `licenseid resolve` (T10c). |
-| 2026-11-09 | [terse-cli-output.md](terse-cli-output.md) | implemented (unreleased) | `detect` and `resolve` print the expression alone, `-v` the record, `-V` the version; `--id-only` removed; `--json` unchanged; how goldens, the option matrix, the CLI matrix and the tests kept the record. |
+| 2026-11-09 | [terse-cli-output.md](terse-cli-output.md) | implemented (0.8.2, PR #183) | `detect` and `resolve` print the expression alone, `-v` the record, `-V` the version; `--id-only` removed; `--json` unchanged; how goldens, the option matrix, the CLI matrix and the tests kept the record. |
+| 2026-11-08 | [licence-urls.md](licence-urls.md) | implemented (0.8.0, PR #177) | A licence URL read as its licence: one key (`urlkey`), the List's pages, `URL_ALIASES`, the NuGet expression path. |
+| 2026-11-16 | [item-52-variant-and-exact.md](item-52-variant-and-exact.md) | implemented (PRs #211, #212) | `--variant`, `VARIANT_STATED`, `EXACT` by list not by trust, evidence and operand marks, `exclude`/`hint` on free text only; paths rejected, pinned cases, measures. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only
