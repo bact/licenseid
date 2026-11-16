@@ -3,21 +3,20 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Generates test fixtures for licenseid benchmarks (Input Types 1, 2, 3, 4, and 5).
-"""
+"""Generates test fixtures for licenseid benchmarks (Input Types 1 to 5)."""
 
 import argparse
 import io
 import json
 import random
-import re
-import shutil
-import string
 import tarfile
 import urllib.request
 from pathlib import Path
 from typing import Any
+
+from fixture_dirs import check_dir
+from fixture_distort import apply_casing, distort_name, distort_text, drop_punct
+from fixture_mixed import generate_type_5
 
 # Define paths
 REPO_ROOT = Path(__file__).parent.parent
@@ -51,65 +50,8 @@ TARGET_FAMILIES = [
 ]
 
 
-def generate_foreign_texts() -> list[str]:
-    base_templates = [
-        "Esta licencia aplica a este software.",
-        "Ce logiciel est sous licence libre.",
-        "Diese Lizenz gilt für diese Software.",
-        "Questo software è fornito così com'è.",
-        "このソフトウェアはオープンソースです。",
-        "Este software é fornecido sem qualquer garantia explícita ou implícita.",
-        "Данная программа является свободным программным обеспечением.",
-        "本软件按“原样”提供，不带有任何明示或暗示的担保。",
-        "Derechos de autor reservados. Consulte el archivo LICENSE para más detalles.",
-        "Copyright (c) Tous droits réservés. Voir le fichier de licence.",
-        "本プログラムは、現状のまま提供され、いかなる保証もありません。",
-        "Program ten jest wolnym oprogramowaniem; możesz go rozprowadzać dalej.",
-        "Tämä ohjelmisto toimitetaan sellaisenaan ilman takuuta.",
-        "Denna programvara tillhandahålls i befintligt skick.",
-        "Dit is vrije software, en je bent vrij om het te verspreiden.",
-        "Bu yazılım, hiçbir garanti olmaksızın 'olduğu gibi' sağlanır.",
-        "Tento software je poskytován tak, jak je.",
-        "Ez a szoftver nyílt forráskódú.",
-        "Acest software este furnizat ca atare.",
-        "Цей продукт є відкритим програмним забезпеченням.",
-        "이 소프트웨어는 오픈 소스입니다.",
-    ]
-    years = ["2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]
-    authors = [
-        "The Project Authors",
-        "Contributors",
-        "Open Source Initiative",
-        "Free Software Foundation",
-        "Acme Corp",
-        "John Doe",
-        "Jane Smith",
-    ]
-
-    texts = set(base_templates)
-    while len(texts) < 200:
-        year = random.choice(years)
-        author = random.choice(authors)
-        t_type = random.choice(
-            [
-                f"Copyright (c) {year} {author}. All rights reserved.",
-                f"Copyright {year} {author}. " + random.choice(base_templates),
-                f"Derechos de autor (c) {year} {author}.",
-                f"Droits d'auteur {year} {author}.",
-                f"Urheberrecht (c) {year} {author}.",
-                f"저작권 (c) {year} {author}.",
-                f"版权所有 (c) {year} {author}.",
-            ]
-        )
-        texts.add(t_type)
-
-    return list(texts)[:200]
-
-
-FOREIGN_TEXTS = generate_foreign_texts()
-
-
 def get_family(license_id: str) -> str:
+    """Return the target family of a licence ID, else Other."""
     for f in TARGET_FAMILIES:
         if license_id.startswith(f):
             return f
@@ -117,6 +59,7 @@ def get_family(license_id: str) -> str:
 
 
 def fetch_spdx_data() -> tuple[str, dict[str, Any], dict[str, str]]:
+    """Download licenses.json; return (version, canonical by ID, deprecated map)."""
     print("Fetching SPDX licenses.json...")
     req = urllib.request.Request(
         SPDX_LICENSES_URL, headers={"User-Agent": "licenseid-test-gen"}
@@ -160,6 +103,7 @@ def fetch_spdx_data() -> tuple[str, dict[str, Any], dict[str, str]]:
 def fetch_license_texts_from_tarball(
     version: str, selected_ids: set[str]
 ) -> dict[str, str]:
+    """Download the SPDX data tarball; return the texts of selected_ids."""
     url = (
         f"https://github.com/spdx/license-list-data/archive/refs/tags/v{version}.tar.gz"
     )
@@ -191,6 +135,7 @@ def fetch_license_texts_from_tarball(
 def select_target_licenses(
     licenses_dict: dict[str, Any], full_coverage: bool = False
 ) -> list[dict[str, Any]]:
+    """Pick the licences to use and add their metadata keys."""
     all_lids = list(licenses_dict.keys())
 
     if full_coverage:
@@ -231,44 +176,10 @@ def select_target_licenses(
     return selected
 
 
-def apply_casing(text: str) -> str:
-    choice = random.choice(["upper", "lower", "camel", "random"])
-    if choice == "upper":
-        return text.upper()
-    if choice == "lower":
-        return text.lower()
-    if choice == "camel":
-        return re.sub(r"[^a-zA-Z0-9]+(.)", lambda m: m.group(1).upper(), text.lower())
-    # random case
-    return "".join(c.upper() if random.random() > 0.5 else c.lower() for c in text)
-
-
-def drop_punct(text: str) -> str:
-    res = text
-    puncts = ["-", ".", ",", "(", ")", ":"]
-    for _ in range(random.randint(1, 2)):
-        p = random.choice(puncts)
-        res = res.replace(p, random.choice(["", " "]), 1)
-    return res
-
-
-def check_dir(dir_path: Path, force: bool) -> bool:
-    if dir_path.exists():
-        if force:
-            print(f"Removing existing directory {dir_path}")
-            shutil.rmtree(dir_path)
-        else:
-            print(
-                f"Directory {dir_path} already exists. Skipping. Use --force to overwrite."
-            )
-            return False
-    dir_path.mkdir(parents=True, exist_ok=True)
-    return True
-
-
 def generate_type_1(
     licenses: list[dict[str, Any]], dep_map: dict[str, str], out_dir: Path
 ) -> None:
+    """Write the license-id fixtures (Type 1)."""
     print("Generating Type 1: license-id...")
     results = []
     for lic in licenses:
@@ -297,48 +208,8 @@ def generate_type_1(
         json.dump(results, f, indent=4)
 
 
-def distort_name(name: str) -> str:
-    n = name.lower()
-    if "public" in n and "general" in n:
-        n = n.replace(random.choice(["public", "general"]), "").strip()
-    if "variant" in n:
-        n = n.replace("variant", "").strip()
-    if "license" in n:
-        n = n.replace("license", "").strip()
-    if n.endswith("generic"):
-        n = n[:-7].strip()
-    if "project" in n:
-        n = n.replace("project", "").strip()
-
-    if "licence" in name.lower():
-        n = re.sub(r"(?i)licence", "license", n)
-    elif "license" in name.lower():
-        n = re.sub(r"(?i)license", "licence", n)
-
-    if "non" in name.lower():
-        n = re.sub(r"(?i)\bnon\b", "no", n)
-    elif "no" in name.lower():
-        n = re.sub(r"(?i)\bno\b", "non", n)
-
-    n = re.sub(r"(?i)\bversion\b", random.choice(["ver", "v", "v.", ""]), n)
-
-    # Insert version before standalone float
-    n = re.sub(r"\b(\d+\.\d+)\b", r"v \1", n)
-    n = re.sub(r"(?i)\b(v|ver|version)\s+v\b", r"\1", n)
-
-    def alter_prec(m: re.Match[str]) -> str:
-        val = m.group(1)
-        if len(val.split(".")) == 2:
-            return val + ".0"
-        if len(val.split(".")) == 3 and val.endswith(".0"):
-            return val[:-2]
-        return val
-
-    n = re.sub(r"\b(\d+\.\d+(?:\.\d+)?)\b", alter_prec, n)
-    return re.sub(r"\s+", " ", n).strip()
-
-
 def generate_type_2(licenses: list[dict[str, Any]], out_dir: Path) -> None:
+    """Write the license-name fixtures (Type 2)."""
     print("Generating Type 2: license-name...")
 
     results = []
@@ -386,6 +257,7 @@ _T3_METADATA_KEYS: frozenset[str] = frozenset(
 
 
 def generate_type_3(licenses: list[dict[str, Any]], out_dir: Path) -> None:
+    """Write the license-text-short fixtures (Type 3)."""
     print("Generating Type 3: license-text-short...")
     for lic in licenses:
         c_id = lic["license_id"]
@@ -412,65 +284,8 @@ def generate_type_3(licenses: list[dict[str, Any]], out_dir: Path) -> None:
             json.dump(result, f, indent=4)
 
 
-def distort_text(text: str, rate_percent: int) -> str:
-    if rate_percent == 0:
-        return text
-
-    words = text.split()
-    if not words:
-        return text
-
-    num_words = len(words)
-    num_ops = max(1, int(num_words * (rate_percent / 100.0)))
-    paragraphs = text.split("\n\n")
-
-    for _ in range(num_ops):
-        if not words:
-            break
-
-        op = random.random()
-
-        if op < 0.6:
-            idx = random.randint(0, len(words) - 1)
-            word_op = random.random()
-            if word_op < 0.4:
-                words.pop(idx)
-            elif word_op < 0.7:
-                w = list(words[idx])
-                if len(w) > 2:
-                    i = random.randint(0, len(w) - 2)
-                    w[i], w[i + 1] = w[i + 1], w[i]
-                    words[idx] = "".join(w)
-            elif word_op < 0.8:
-                punct = random.choice(string.punctuation)
-                words[idx] += punct
-            elif word_op < 0.9:
-                word = words[idx]
-                if len(word) > 3:
-                    split_idx = random.randint(1, len(word) - 1)
-                    char = random.choice([" ", "-"])
-                    words[idx] = word[:split_idx] + char + word[split_idx:]
-            else:
-                words[idx] = re.sub(r"[^\w\s]", "", words[idx])
-
-        elif op < 0.9 and rate_percent >= 5:
-            struct_op = random.random()
-            if struct_op < 0.5 and len(paragraphs) > 2:
-                idx = random.randint(0, len(paragraphs) - 1)
-                paragraphs.pop(idx)
-                words = ("\n\n".join(paragraphs)).split()
-            else:
-                idx = random.randint(0, max(0, len(words) - 1))
-                foreign = random.choice(FOREIGN_TEXTS)
-                words.insert(idx, foreign)
-        else:
-            idx = random.randint(0, max(0, len(words) - 1))
-            words.insert(idx, "\n")
-
-    return " ".join(words)
-
-
 def generate_type_4(licenses: list[dict[str, Any]], out_dir: Path) -> None:
+    """Write the license-text-long fixtures (Type 4)."""
     print("Generating Type 4: license-text-long...")
     for lic in licenses:
         c_id = lic["license_id"]
@@ -494,157 +309,8 @@ def generate_type_4(licenses: list[dict[str, Any]], out_dir: Path) -> None:
             json.dump(result, f, indent=4)
 
 
-def generate_type_5(
-    licenses: list[dict[str, Any]], out_dir: Path, force: bool = False
-) -> None:
-    print("Generating Type 5: mixed-content...")
-    readme_template = """# {project_name}
-
-A fantastic open-source library that helps you do amazing things.
-
-## Installation
-`pip install {project_name}`
-
-## Usage
-Import the module and start using it immediately:
-```python
-import {project_name}
-{project_name}.run()
-```
-
-## Contributing
-Pull requests are welcome!
-
-## License
-{license_info}
-"""
-
-    py_header_template = """# {project_name} module
-# Copyright (c) 2026 The {project_name} Authors
-{license_info}
-
-def run():
-    print("Running!")
-"""
-
-    package_json_template = """{{
-  "name": "{project_name}",
-  "version": "1.0.0",
-  "description": "An awesome library.",
-  "main": "index.js",
-  "license": "{license_info}"
-}}
-"""
-
-    html_template = """<!DOCTYPE html>
-<html>
-<head><title>{project_name} Documentation</title></head>
-<body>
-<h1>{project_name}</h1>
-<p>Welcome to the official docs.</p>
-<footer>
-  <p>Copyright 2026. {license_info}</p>
-</footer>
-</body>
-</html>
-"""
-
-    yaml_template = """name: {project_name}
-version: 1.0.0
-description: A mock project.
-license: {license_info}
-dependencies:
-  - flask
-"""
-
-    total_files = 0
-    exact_id_count = 0
-
-    for lic in licenses:
-        c_id = lic["license_id"]
-        c_name = lic.get("name", c_id)
-
-        safe_id = c_id.replace(" ", "_").replace("/", "_")
-        target_dir = out_dir / safe_id
-        if not check_dir(target_dir, force):
-            continue
-
-        grant = f"Licensed under the {c_name}."
-        if "GPL" in c_id:
-            if "or-later" in c_id:
-                grant = f"This program is free software: you can redistribute it and/or modify it under the terms of the {c_name}, either version of the License, or (at your option) any later version."
-            elif "only" in c_id:
-                grant = f"This program is free software: you can redistribute it and/or modify it under the terms of the {c_name}, version only."
-
-        num_files = random.randint(2, 4)
-
-        for i in range(num_files):
-            project_name = f"lib_mock_{safe_id.lower()}_{i}"
-
-            info_choice = random.choice(["name", "grant", "url", "exact_id"])
-            if info_choice == "exact_id":
-                if exact_id_count < 20:
-                    lic_info = c_id
-                    exact_id_count += 1
-                else:
-                    lic_info = c_name
-            elif info_choice == "name":
-                lic_info = c_name
-            elif info_choice == "grant":
-                lic_info = grant
-            else:
-                lic_info = f"See https://spdx.org/licenses/{c_id}.html for details."
-
-            file_type = random.choices(
-                ["readme", "py", "json", "html", "yaml"],
-                weights=[0.3, 0.4, 0.1, 0.1, 0.1],
-                k=1,
-            )[0]
-
-            if file_type == "readme":
-                content = readme_template.format(
-                    project_name=project_name, license_info=lic_info
-                )
-                filename = "README.md"
-            elif file_type == "py":
-                formatted_info = "\n# ".join(lic_info.split("\n"))
-                content = py_header_template.format(
-                    project_name=project_name, license_info=f"# {formatted_info}"
-                )
-                filename = f"{project_name}.py"
-            elif file_type == "json":
-                content = package_json_template.format(
-                    project_name=project_name,
-                    license_info=c_id if info_choice == "exact_id" else c_name,
-                )
-                filename = "package.json"
-            elif file_type == "html":
-                content = html_template.format(
-                    project_name=project_name, license_info=lic_info
-                )
-                filename = "index.html"
-            else:
-                content = yaml_template.format(
-                    project_name=project_name,
-                    license_info=c_id if info_choice == "exact_id" else c_name,
-                )
-                filename = "pubspec.yaml"
-
-            filepath = target_dir / filename
-            if filepath.exists():
-                filepath = target_dir / f"{i}_{filename}"
-
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(content)
-
-            total_files += 1
-
-    print(
-        f"Generated {total_files} mixed-content files (Exact IDs used: {exact_id_count}/20)."
-    )
-
-
-def main() -> None:
+def _parse_args() -> argparse.Namespace:
+    """Read the command line."""
     parser = argparse.ArgumentParser(description="Generate License ID Text Fixtures")
     parser.add_argument(
         "--types",
@@ -659,7 +325,10 @@ def main() -> None:
         "--verify-dir",
         type=str,
         default="",
-        help="If provided, outputs to this directory instead of the real fixtures dir and restricts to 5 licenses",
+        help=(
+            "If provided, outputs to this directory instead of the real "
+            "fixtures dir and restricts to 5 licenses"
+        ),
     )
     parser.add_argument(
         "--full-coverage",
@@ -670,12 +339,59 @@ def main() -> None:
             "Required for the FTS5 dual-query recall benchmark."
         ),
     )
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def _add_texts(licenses: list[dict[str, Any]], texts: dict[str, str]) -> None:
+    """Set license_text of each licence, a mock text when none was found."""
+    for lic in licenses:
+        lic["license_text"] = texts.get(
+            lic["license_id"], f"Mock text for {lic['license_id']}"
+        )
+
+
+def _run_types(
+    args: argparse.Namespace,
+    types_to_run: list[str],
+    licenses: list[dict[str, Any]],
+    dep_map: dict[str, str],
+    t3_licenses: list[dict[str, Any]],
+) -> None:
+    """Write the fixtures of each requested type."""
+    base_out_dir = Path(args.verify_dir) if args.verify_dir else FIXTURES_DIR
+
+    if "1" in types_to_run:
+        out = base_out_dir / "license-id"
+        if check_dir(out, args.force):
+            generate_type_1(licenses, dep_map, out)
+
+    if "2" in types_to_run:
+        out = base_out_dir / "license-name"
+        if check_dir(out, args.force):
+            generate_type_2(licenses, out)
+
+    if "3" in types_to_run:
+        out = base_out_dir / "license-text-short"
+        if check_dir(out, args.force):
+            generate_type_3(t3_licenses, out)
+
+    if "4" in types_to_run:
+        out = base_out_dir / "license-text-long"
+        if check_dir(out, args.force):
+            generate_type_4(licenses, out)
+
+    if "5" in types_to_run:
+        out = base_out_dir / "mixed-content"
+        out.mkdir(parents=True, exist_ok=True)
+        generate_type_5(licenses, out, args.force)
+
+
+def main() -> None:
+    """Fetch the SPDX data and generate the requested fixtures."""
+    args = _parse_args()
 
     random.seed(42)  # Deterministic generation
     types_to_run = [t.strip() for t in args.types.split(",")]
-
-    base_out_dir = Path(args.verify_dir) if args.verify_dir else FIXTURES_DIR
 
     version, licenses_dict, dep_map = fetch_spdx_data()
     if not licenses_dict:
@@ -707,46 +423,15 @@ def main() -> None:
     t3_ids = {lic["license_id"] for lic in t3_licenses}
     texts = fetch_license_texts_from_tarball(version, selected_ids | t3_ids)
 
-    for lic in selected_licenses:
-        lic["license_text"] = texts.get(
-            lic["license_id"], f"Mock text for {lic['license_id']}"
-        )
-    for lic in t3_licenses:
-        lic["license_text"] = texts.get(
-            lic["license_id"], f"Mock text for {lic['license_id']}"
-        )
+    _add_texts(selected_licenses, texts)
+    _add_texts(t3_licenses, texts)
 
-    print(
-        f"Selected {len(selected_licenses)} licenses from "
-        f"{len({get_family(lic_['license_id']) for lic_ in selected_licenses})} families."
-    )
+    families = {get_family(lic_["license_id"]) for lic_ in selected_licenses}
+    print(f"Selected {len(selected_licenses)} licenses from {len(families)} families.")
     if t3_licenses:
         print(f"Type 3: using all {len(t3_licenses)} non-deprecated SPDX licenses.")
 
-    if "1" in types_to_run:
-        out = base_out_dir / "license-id"
-        if check_dir(out, args.force):
-            generate_type_1(selected_licenses, dep_map, out)
-
-    if "2" in types_to_run:
-        out = base_out_dir / "license-name"
-        if check_dir(out, args.force):
-            generate_type_2(selected_licenses, out)
-
-    if "3" in types_to_run:
-        out = base_out_dir / "license-text-short"
-        if check_dir(out, args.force):
-            generate_type_3(t3_licenses, out)
-
-    if "4" in types_to_run:
-        out = base_out_dir / "license-text-long"
-        if check_dir(out, args.force):
-            generate_type_4(selected_licenses, out)
-
-    if "5" in types_to_run:
-        out = base_out_dir / "mixed-content"
-        out.mkdir(parents=True, exist_ok=True)
-        generate_type_5(selected_licenses, out, args.force)
+    _run_types(args, types_to_run, selected_licenses, dep_map, t3_licenses)
 
     print("Done! Fixtures generated successfully.")
 

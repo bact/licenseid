@@ -71,9 +71,9 @@ def add_cells(cells: CellSet) -> None:
     """Add families D1 to D7 to *cells*."""
     for net in NETS:
         for state in STATES:
-            _add_update(cells, "D1", net, state, "", "", "")
+            _add_update(cells, "D1", net, state)
     for version, force, cache in itertools.product(VERSIONS, FORCES, CACHES):
-        _add_update(cells, "D2", "ok", "fresh", version, force, cache)
+        _add_update(cells, "D2", "ok", "fresh", (version, force, cache))
     factors = {
         "net": NETS,
         "state": list(STATES),
@@ -87,9 +87,7 @@ def add_cells(cells: CellSet) -> None:
             "D3",
             row["net"],
             row["state"],
-            row["ver"],
-            row["force"],
-            row["cache"],
+            (row["ver"], row["force"], row["cache"]),
         )
     _add_real_stack(cells)
     _add_signals(cells)
@@ -128,15 +126,16 @@ def _add_update(
     fam: str,
     net: str,
     state: str,
-    version: str,
-    force: str,
-    cache: str,
+    options: tuple[str, str, str] = ("", "", ""),
 ) -> None:
     """One ``update`` cell: put the cache in *state*, then update under *net*.
+
+    *options* are the version, force and cache values of the axes.
 
     The trailing marker lists what the cache directory holds afterwards, so
     the judge can see leftover temporary files.
     """
+    version, force, cache = options
     args = " ".join(x for x in (_list_option(version), force, cache) if x)
     cmd = (
         f"mkdir -p $W/x && {STATES[state]}FAKE_NET={net}"

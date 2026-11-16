@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-16
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -480,3 +480,40 @@ with writer") as a hang: a 120 s timeout.
     `test_resolver_lists_and_reasons.py`, `test_resolver_dropped_words.py` and
     `test_version_key.py`; for tags `tests/test_cut_tags.py` and
     `test_tag_edge_values.py`.
+
+## Item 9 (2026-11-17)
+
+`scripts/`, `benchmarks/` and `tools/` were not linted in CI (it checked
+`src/` and `tests/`, and `mypy` on `tools/`). Measured on `main`: ruff clean
+in all three; flake8 11 findings in `scripts/`, 14 in `benchmarks/` (which
+`.flake8` excluded), 5 in `tools/`; pylint 8.89, 9.59 and 9.83 out of 10.
+
+- **Fixed**, no behaviour change: `generate_fixtures.py` (755 lines) is split
+  with `fixture_distort`, `fixture_mixed` and `fixture_dirs`; `bench_single.py`
+  (774 lines) is an argument parser over `bench_single_matcher`, `_board`,
+  `_db`, `_fixtures` and `_run`; `bench_compare.py` keeps its flow and
+  `bench_report.py` renders the summary; `bench_fts5_recall.py` and the long
+  functions of `tools/cli_matrix` (`judge`, `launcher`, `cells/detect`,
+  `cells/update`) are split. No ceiling in `pyproject.toml` or `.flake8` was
+  raised.
+- **Equal output checked**: `generate_fixtures.py` on synthetic licences
+  (57 files, byte-equal); `bench_single.py` (`--subset 3 --fast`, `--verify
+  --fast`) and `bench_fts5_recall.py` (695 fixtures) equal but for timing and
+  memory; the summary of `bench_compare.py` byte-equal on three real result
+  pairs; `build_cells()` (1,256 cells) equal. Not run: the 2-hour
+  `bench_compare.py`, the real SPDX download of `generate_fixtures.py`, a full
+  `bench_single.py`, `python -m tools.cli_matrix`.
+- **A bug found**: `bench_single.py` crashed on the current `src` (`detect()`
+  returns `expression`, no `license_id`) and named a type that does not exist
+  (`DetectRequest`, now `DetectOptions`). `id_of()` reads `license_id` first,
+  then `expression`, so older trees still run.
+- **Justified disables**: `pitloom` imports in two scripts (a release-only
+  dependency, not in the lint group); `import-error` for `tests/` modules put
+  on `sys.path` at run time (`tools/golden`, `tools/lists_page/measure.py`);
+  `too-many-instance-attributes` on `cli_matrix.model.Cell`, a flat record
+  with one field per property the judge reads.
+- **CI** (`lint.yml`): `ruff check`, `ruff check --select I`,
+  `ruff format --check`, `flake8` over the three directories; `pylint` runs
+  apart for them, since `R0801` compares files within one run and the scripts
+  repeat table shapes of `src/` and `tests/`. No ceiling could be lowered:
+  `tests/test_accuracy.py` still holds the cognitive maximum.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -135,4 +135,4 @@ Decide:
 ## Not part of this redesign
 
 Fixes that need no new rule: speed (items 27, 29, 23, and 11 with its
-own plan), lint coverage (item 9), and upstream waits (items 2 and 26).
+own plan), upstream waits (items 2 and 26).

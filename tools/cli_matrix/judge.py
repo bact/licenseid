@@ -192,16 +192,26 @@ def _contract_flags(cell: Cell, result: Result) -> list[str]:
     """The per-subcommand output contract."""
     if cell.tty or cell.merged or has_pipe_tail(cell):
         return []
-    rc, out, err = result["rc"], result["out"], result["err"]
+    rc, out = result["rc"], result["out"]
     if cell.kind == "predicate":
-        answer = predicate_answer(out)
-        if (rc, out) == (2, "") or (rc, answer) in ((0, True), (1, False), (1, None)):
-            return []
-        return [f"predicate contract: exit={rc} stdout={out[:40]!r}"]
+        return _predicate_flags(rc, out)
     if cell.kind == "resolve":
         return check_resolve_value(cell, rc, out)
-    if cell.kind != "detect":
+    if cell.kind == "detect":
+        return _detect_flags(cell, rc, out, result["err"])
+    return []
+
+
+def _predicate_flags(rc: int, out: str) -> list[str]:
+    """``is-*``: exit 0 yes, 1 no, 2 usage error with nothing on stdout."""
+    answer = predicate_answer(out)
+    if (rc, out) == (2, "") or (rc, answer) in ((0, True), (1, False), (1, None)):
         return []
+    return [f"predicate contract: exit={rc} stdout={out[:40]!r}"]
+
+
+def _detect_flags(cell: Cell, rc: int, out: str, err: str) -> list[str]:
+    """``detect``: a record on 0, the empty record and no ERROR on 1."""
     if rc == 0:
         return check_match_format(cell, out)
     if rc == 1:  # "no": the empty record, no ERROR line (a WARNING may be)
@@ -221,27 +231,43 @@ def check_resolve_value(cell: Cell, rc: int, out: str) -> list[str]:
     if rc not in (0, 1) or "--help" in cell.cmd:
         return []
     if "json" in cell.outflags or "--json" in cell.cmd:
-        parsed = _json_results(out)
-        if not (parsed and len(parsed) == 1 and isinstance(parsed[0], dict)):
-            return [f"resolve --json not one object: {out[:40]!r}"]
-        if "schema" not in parsed[0]:  # a detection, not a resolution
-            return [f"resolve --json not one object: {out[:40]!r}"]
-        resolved = parsed[0].get("expression") is not None
+        problem, resolved = _resolve_json(out)
     elif "verbose" not in cell.outflags:
-        # The expression alone, or an empty line for none.
-        lines = out.splitlines()
-        if len(lines) != 1 or ID_ONLY.fullmatch(lines[0] or "x") is None:
-            return [f"resolve output not one expression: {out[:60]!r}"]
-        resolved = lines[0] != ""
+        problem, resolved = _resolve_terse(out)
     else:
-        lines = out.splitlines()
-        head = RESOLVE_HEAD.fullmatch(lines[0]) if lines else None
-        if head is None or not all(RESOLVE_LINE.fullmatch(x) for x in lines[1:]):
-            return [f"resolve output malformed: {out[:60]!r}"]
-        resolved = head.group(1) != ""
+        problem, resolved = _resolve_record(out)
+    if problem:
+        return [problem]
     if resolved != (rc == 0):
         return [f"resolve exit {rc} but expression {'set' if resolved else 'empty'}"]
     return []
+
+
+def _resolve_json(out: str) -> tuple[str | None, bool]:
+    """A problem with ``resolve --json`` output, and whether it resolved."""
+    parsed = _json_results(out)
+    if not (parsed and len(parsed) == 1 and isinstance(parsed[0], dict)):
+        return f"resolve --json not one object: {out[:40]!r}", False
+    if "schema" not in parsed[0]:  # a detection, not a resolution
+        return f"resolve --json not one object: {out[:40]!r}", False
+    return None, parsed[0].get("expression") is not None
+
+
+def _resolve_terse(out: str) -> tuple[str | None, bool]:
+    """The expression alone, or an empty line for none."""
+    lines = out.splitlines()
+    if len(lines) != 1 or ID_ONLY.fullmatch(lines[0] or "x") is None:
+        return f"resolve output not one expression: {out[:60]!r}", False
+    return None, lines[0] != ""
+
+
+def _resolve_record(out: str) -> tuple[str | None, bool]:
+    """A problem with the ``-v`` record, and whether it resolved."""
+    lines = out.splitlines()
+    head = RESOLVE_HEAD.fullmatch(lines[0]) if lines else None
+    if head is None or not all(RESOLVE_LINE.fullmatch(x) for x in lines[1:]):
+        return f"resolve output malformed: {out[:60]!r}", False
+    return None, head.group(1) != ""
 
 
 def check_match_format(cell: Cell, out: str) -> list[str]:
@@ -468,27 +494,37 @@ def _groups(
         if name and result["py"] == first_py:
             groups.setdefault(name, []).append(result)
     for name, runs in groups.items():
-        signatures: dict[tuple[int, str], list[str]] = {}
-        for run in runs:
-            # Plain output may differ after its first line (ties, order);
-            # JSON Lines are compared whole, every line, not by the top one.
-            whole = "json" in cells[run["id"]].outflags or "A1" not in name
-            head = run["out"] if whole else run["out"].split("\n", 1)[0]
-            signatures.setdefault((run["rc"], head), []).append(run["id"])
-        if len(signatures) <= 1:
+        _group_outliers(cells, name, runs, bad)
+
+
+def _group_outliers(
+    cells: dict[str, Cell],
+    name: str,
+    runs: list[Result],
+    bad: dict[tuple[str, str, str], list[str]],
+) -> None:
+    """Flag the runs of group *name* that differ from its majority."""
+    signatures: dict[tuple[int, str], list[str]] = {}
+    for run in runs:
+        # Plain output may differ after its first line (ties, order);
+        # JSON Lines are compared whole, every line, not by the top one.
+        whole = "json" in cells[run["id"]].outflags or "A1" not in name
+        head = run["out"] if whole else run["out"].split("\n", 1)[0]
+        signatures.setdefault((run["rc"], head), []).append(run["id"])
+    if len(signatures) <= 1:
+        return
+    majority = max(signatures.values(), key=len)
+    for key, ids in signatures.items():
+        if ids is majority:
             continue
-        majority = max(signatures.values(), key=len)
-        for key, ids in signatures.items():
-            if ids is majority:
-                continue
-            for cell_id in ids:
-                for run in runs:
-                    if run["id"] != cell_id:
-                        continue
-                    bad.setdefault((cell_id, run["shell"], run["py"]), []).append(
-                        f"group {name}: differs from {majority[0]}"
-                        f" (exit,stdout): {key[0]} {str(key[1])[:40]!r}"
-                    )
+        for cell_id in ids:
+            for run in runs:
+                if run["id"] != cell_id:
+                    continue
+                bad.setdefault((cell_id, run["shell"], run["py"]), []).append(
+                    f"group {name}: differs from {majority[0]}"
+                    f" (exit,stdout): {key[0]} {str(key[1])[:40]!r}"
+                )
 
 
 _B5_ID = re.compile(r"--id '(.*)' \(")

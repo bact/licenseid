@@ -79,7 +79,6 @@ class RunConfig:
     families: list[str] = field(default_factory=list)
     locales: frozenset[str] = frozenset()
     missing_shells: list[str] = field(default_factory=list)
-    list_only: bool = False
     compare: bool = False
     check: bool = False
     update_baseline: bool = False
@@ -177,7 +176,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         default=[],
         metavar="NAME",
-        help=f"a shell to test, repeatable (default: those of {' '.join(KNOWN_SHELLS)})",
+        help=f"a shell to test, repeatable (default: {' '.join(KNOWN_SHELLS)})",
     )
     parser.add_argument(
         "--out",
@@ -233,7 +232,6 @@ def configure_args(args: argparse.Namespace) -> RunConfig:
         families=list(args.family),
         locales=available_locales(),
         missing_shells=_missing_shells(args.shell),
-        list_only=args.list,
         compare=args.compare or args.check,
         check=args.check,
         update_baseline=args.update_baseline,

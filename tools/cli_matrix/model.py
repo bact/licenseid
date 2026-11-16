@@ -86,8 +86,10 @@ _SUBCOMMAND_RE = re.compile(
 _FLAG_RE = re.compile(r"(?<![\w-])(--[a-z][a-z-]*)")
 
 
+# A cell is a flat record: one field per property the judge reads, so the
+# attribute count is the data, not a design smell.
 @dataclass
-class Cell:
+class Cell:  # pylint: disable=too-many-instance-attributes
     """One command line and everything the matrix knows about it.
 
     ``cmd`` is a shell fragment. It may use the environment the runner

@@ -118,6 +118,36 @@ class Resp:
             yield self._data[start : start + chunk_size]
 
 
+def _licenses_json() -> Resp:
+    """The ``licenses.json`` of the scripted release, or its broken form."""
+    if MODE == "garbage_json":
+        return Resp(text="<html>oops</html>")
+    if MODE == "bad_version":
+        return Resp(text=json.dumps({**LICENSES, "licenseListVersion": "../x"}))
+    return Resp(text=json.dumps(LICENSES))
+
+
+def _tarball() -> Resp:
+    """The release tarball, or its failing or damaged form."""
+    if MODE == "tar_down":
+        raise requests.ConnectionError("fake: tarball connection refused")
+    data = tarball()
+    if MODE == "tar_corrupt":
+        data = b"this is not a gzip file" * 10
+    if MODE == "tar_truncated":
+        data = data[: len(data) // 2]
+    return Resp(data=data)
+
+
+def _popularity() -> Resp:
+    """The popularity CSV, or its failing or garbled form."""
+    if MODE == "pop_down":
+        raise requests.ConnectionError("fake: popularity connection refused")
+    if MODE == "pop_garbage":
+        return Resp(text="<html>oops</html>")
+    return Resp(text="spdx_license,num_pushers\nMIT,100\nApache-2.0,50\n")
+
+
 def fake_get(
     url: str,
     headers: dict[str, str] | None = None,
@@ -133,26 +163,11 @@ def fake_get(
     if MODE == "http503":
         return Resp(fail="503 Service Unavailable")
     if url.endswith("licenses.json") and "spdx.org" in url:
-        if MODE == "garbage_json":
-            return Resp(text="<html>oops</html>")
-        if MODE == "bad_version":
-            return Resp(text=json.dumps({**LICENSES, "licenseListVersion": "../x"}))
-        return Resp(text=json.dumps(LICENSES))
+        return _licenses_json()
     if url.endswith(".tar.gz"):
-        if MODE == "tar_down":
-            raise requests.ConnectionError("fake: tarball connection refused")
-        data = tarball()
-        if MODE == "tar_corrupt":
-            data = b"this is not a gzip file" * 10
-        if MODE == "tar_truncated":
-            data = data[: len(data) // 2]
-        return Resp(data=data)
+        return _tarball()
     if url.endswith("licenses.csv"):
-        if MODE == "pop_down":
-            raise requests.ConnectionError("fake: popularity connection refused")
-        if MODE == "pop_garbage":
-            return Resp(text="<html>oops</html>")
-        return Resp(text="spdx_license,num_pushers\nMIT,100\nApache-2.0,50\n")
+        return _popularity()
     # The compact bundle is not published.
     if url.endswith(("latest.json", ".json.gz")):
         return Resp(fail="404 Not Found")
