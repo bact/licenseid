@@ -124,7 +124,7 @@ def test_the_reason_of_a_result_is_pinned() -> None:
 
 
 def test_a_step_that_did_not_apply_is_pinned_with_a_bang() -> None:
-    """The first such step comes with T6's ``drop`` (``applied: false``)."""
+    """The first such step comes with the ``drop`` (``applied: false``)."""
     step = {"kind": "drop", "applied": False, "from": "MIT?", "to": "MIT"}
     result = cast(Resolution, {**RESULT, "steps": [step], "expansions": [step]})
     answer = answer_of("MIT?", result)

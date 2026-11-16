@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve()`` and a ``;`` between licences (task T8b; decisions P81 to
-P86): ``MIT ; Apache 2`` names two licences and states no operator, so it
+"""``resolve()`` and a ``;`` between licences:
+``MIT ; Apache 2`` names two licences and states no operator, so it
 resolves to no expression and lists each part as an operand, read as the
 same text would be read alone. The values that were refused for ``;`` before
 keep a refusal; the ones the ``;`` ends (``MIT; OR ISC``) are the compound
@@ -169,31 +169,31 @@ def test_a_refused_part_keeps_its_own_reason_and_steps(
     assert named["expression"] == "MIT"
 
 
-# Not a list: the value is refused as it was before T8b, or read by another rule.
+# Not a list: the value is refused as it was before, or read by another rule.
 NOT_A_LIST = {
-    "MIT;;Apache-2.0": "not an SPDX operator: ;;",  # an empty part (P82)
+    "MIT;;Apache-2.0": "not an SPDX operator: ;;",  # an empty part
     "MIT;;": "character dropped: U+003B",
     "; MIT": "character dropped: U+003B",
     ";MIT;ISC": None,
     "MIT; ;ISC": None,
     ";": None,
     ";;;": None,
-    "MIT; foo": "not an SPDX operator: ;",  # one licence only (P83)
+    "MIT; foo": "not an SPDX operator: ;",  # one licence only
     "foo; bar": "not an SPDX operator: ;",
     "MIT; Copyright (c) 2016": None,
     "(MIT; ISC": None,  # a bracket that does not close
     "MIT; ISC)": None,
     ")MIT; ISC(": None,
-    "(MIT; ISC) OR GPL-2.0": "not an SPDX operator: ;",  # a ; in brackets (P85)
-    "(MIT; ISC); Apache-2.0": None,  # a list is not split twice (P85)
-    "MIT OR; ISC": None,  # an operator beside the ; (P79)
+    "(MIT; ISC) OR GPL-2.0": "not an SPDX operator: ;",  # a ; in brackets
+    "(MIT; ISC); Apache-2.0": None,  # a list is not split twice
+    "MIT OR; ISC": None,  # an operator beside the ;
     "MIT; OR": "parse failed: Unexpected 'OR'",
     "Apache 2; OR MIT": "operand of several words: Apache 2;",  # (; kept)
-    "(MIT; ISC; Apache-2.0": None,  # a bracket that does not close (P85)
+    "(MIT; ISC; Apache-2.0": None,  # a bracket that does not close
     "MIT; ISC; Apache-2.0)": None,
     "MIT; ISC; (Apache-2.0": None,  # opens after the last ;
     "MIT); (ISC; Zlib; Apache-2.0": None,  # closes before it opens
-    # an operator word on a part means one was stated (P84), in any case
+    # an operator word on a part means one was stated, in any case
     "MIT; OR ISC; Apache-2.0": "not an SPDX operator: ;",
     "MIT; AND; ISC": "not an SPDX operator: ;",
     "MIT;OR;ISC": "not an SPDX operator: ;",
@@ -204,7 +204,7 @@ NOT_A_LIST = {
     "MIT; ISC; and others": None,
     "MIT; ISC OR; Zlib": None,  # at the end of a part
     "MIT; ISC; Zlib AND": "not an SPDX operator: ;",
-    # no part resolves (P88)
+    # no part resolves
     "-MIT ; -MIT": None,
     "MIT...; MIT -": None,
     "MIT, ISC; Apache-2.0": "not an SPDX operator: ,",  # a comma is no separator
@@ -220,7 +220,7 @@ def test_a_value_that_is_no_list_keeps_its_refusal(
     got = resolve(value, corpus_db)
     assert got["reason"] != REASON
     assert got["expression"] is None
-    if NOT_A_LIST[value] is None:  # no reader's own: the default (P5)
+    if NOT_A_LIST[value] is None:  # no reader's own: the default
         assert no_reader_reason(got["reason"])
     else:
         assert got["reason"] == NOT_A_LIST[value]
@@ -229,7 +229,7 @@ def test_a_value_that_is_no_list_keeps_its_refusal(
 @pytest.mark.parametrize(
     ("value", "expression"),
     [
-        ("MIT; OR ISC", "ISC OR MIT"),  # the ; ends an operand (P79)
+        ("MIT; OR ISC", "ISC OR MIT"),  # the ; ends an operand
         ("MIT; and ISC", "ISC AND MIT"),
         ("MIT AND; ISC", None),
         ("MIT;", "MIT"),
@@ -273,7 +273,7 @@ def test_a_semicolon_in_brackets_does_not_cut_a_part(
     inside = got["operands"][0]
     assert (inside["expression"], inside["reason"]) == (
         None,
-        "not an SPDX operator: ;",  # a part is not split again (P85)
+        "not an SPDX operator: ;",  # a part is not split again
     )
 
 
@@ -290,7 +290,7 @@ def test_square_brackets_count_as_brackets(corpus_db: LicenseDatabase) -> None:
 @pytest.mark.parametrize(
     ("value", "expression", "category"),
     [
-        ("MIT; (MIT)", "MIT", "separator"),  # a name and its short form (P87)
+        ("MIT; (MIT)", "MIT", "separator"),  # a name and its short form
         ("MIT ;  (MIT)", "MIT", "separator"),
         ('"MIT; (MIT)', "MIT", "separator"),
         ("MIT License;\t(MIT)", "MIT", "prose_form"),

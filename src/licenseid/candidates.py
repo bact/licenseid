@@ -10,7 +10,8 @@ import re
 from collections.abc import Iterable, Iterator
 from typing import Final
 
-from licenseid.types import CandidateMatch, Method
+from licenseid.types import CandidateMatch, Method, RawMatch
+from licenseid.variants import guessed_of
 
 # Bounds of the loose License: reader. Each distinct value costs a lookup
 # (about 25 us), so 256 are read: 5 was the most in any of 6,455 licence
@@ -22,11 +23,17 @@ FIELD_LICENSES_KEPT: Final = 48
 
 
 def first_per_license(*groups: list[CandidateMatch]) -> list[CandidateMatch]:
-    """The candidates of *groups* in order, the first of each license only."""
+    """The candidates of *groups* in order, the first of each license only,
+    or a later one that states what the first only guessed (two tags of one
+    licence under ``--variant only``: ``GPL-2.0``, then ``GPL-2.0-only``)."""
     found: dict[str, CandidateMatch] = {}
     for group in groups:
         for candidate in group:
-            found.setdefault(candidate["license_id"], candidate)
+            kept = found.setdefault(candidate["license_id"], candidate)
+            if guessed_of(kept["license_id"], kept.get("evidence")) and not (
+                guessed_of(candidate["license_id"], candidate.get("evidence"))
+            ):
+                found[candidate["license_id"]] = candidate
     return list(found.values())
 
 
@@ -48,3 +55,42 @@ def first_distinct(matches: Iterable[re.Match[str]], limit: int) -> Iterator[str
             yield value
             if len(seen) >= limit:
                 return
+
+
+def license_sections(text: str) -> list[str]:
+    """The sections of *text* that likely contain license information: the
+    120 words round each word with "licens" in it."""
+    sections: list[str] = []
+    words = text.split()
+    for i, word in enumerate(words):
+        if "licens" in word.lower():
+            start = max(0, i - 20)
+            end = min(len(words), i + 100)
+            sections.append(" ".join(words[start:end]))
+    return sections
+
+
+def as_matches(
+    exact: list[CandidateMatch], method: Method | None = None
+) -> list[RawMatch]:
+    """Convert certain candidates to results: each found by its own method (a
+    tag or a field), or by *method*. Nothing is measured."""
+    # The detector keeps one candidate per license_id (first_per_license).
+    matches = [
+        RawMatch(
+            license_id=c["license_id"],
+            method=method or c["method"],
+            exact=not c.get("decided", False),
+            score=1.0,
+            similarity=None,
+            coverage=None,
+            is_spdx=c.get("is_spdx", False),
+            is_osi_approved=c.get("is_osi_approved", False),
+            is_fsf_libre=c.get("is_fsf_libre", False),
+        )
+        for c in exact
+    ]
+    for match, c in zip(matches, exact):
+        if "evidence" in c:
+            match["evidence"] = c["evidence"]
+    return matches

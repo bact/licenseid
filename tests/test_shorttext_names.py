@@ -5,7 +5,7 @@
 
 """The name tier on a few words: which names a short input holds as a name
 of its own (``shorttext._partial_names``), and when its answer is the
-narrower grant of a name that states none (``shorttext.narrowed_name``).
+narrower grant of a name that states none (``shorttext.decided_name``).
 The rows are made up, each shaped as a case of the List;
 ``test_shorttext_evidence`` has the real ones."""
 # pylint: disable=missing-function-docstring,redefined-outer-name
@@ -18,7 +18,7 @@ from matcher_db import Lic, seeded_db
 from licenseid.database import LicenseDatabase
 from licenseid.normalize import normalize_text
 from licenseid.plusoperator import grant_stem, states_qualifier, strip_plus_operator
-from licenseid.shorttext import match_short_text, narrowed_name
+from licenseid.shorttext import decided_name, match_short_text
 from licenseid.types import RawMatch
 
 
@@ -199,8 +199,8 @@ def _hit(license_id: str, score: float = 1.01, **fields: object) -> RawMatch:
     ],
     ids=lambda v: ascii(v)[:40],
 )
-def test_narrowed_name(found: list[RawMatch], expected: str | None) -> None:
-    assert narrowed_name(found) == expected
+def test_decided_name(found: list[RawMatch], expected: str | None) -> None:
+    assert decided_name(found) == expected
 
 
 @pytest.mark.parametrize(
@@ -249,7 +249,7 @@ def test_a_stated_grant_is_never_guessed_away(
     """normalize_text() drops the "+", and a text that holds both names
     ties them as a name without its grant does: no answer, not -only."""
     found = match_short_text(names_db, normalize_text(text), text)
-    assert narrowed_name(found) is None
+    assert decided_name(found) is None
     assert all(m["score"] <= 1.0 for m in found)
 
 

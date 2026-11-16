@@ -3,11 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The flags of an expression (``licenseid.exprflags``, F1 and F2 of the
-contract batch): AND every operand, OR any, WITH the licence's, in
-three-valued logic (D8): an operand that cannot be judged is None, an OR with
-a true operand is true and an AND with a false one false; on the List only
-when every ID is."""
+"""The flags of an expression (``licenseid.exprflags``): AND every operand,
+OR any, WITH the licence's, in three-valued logic: an operand that cannot be
+judged is None, an OR with a true operand is true and an AND with a false
+one false; on the List only when every ID is."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 
 from collections.abc import Generator
@@ -57,7 +56,7 @@ def db(db_path: str) -> LicenseDatabase:
         # flags still
         ("MIT WITH Font-exception-2.0", False, True, True),
         # an operand that cannot be judged: None, unless a judged operand
-        # decides it (a true one for OR, a false one for AND: D8)
+        # decides it (a true one for OR, a false one for AND)
         ("LicenseRef-x", False, None, None),
         ("MIT OR LicenseRef-x", False, True, True),
         ("Proprietary-1.0 AND LicenseRef-x", False, False, False),
@@ -118,7 +117,7 @@ def test_the_predicate_commands_follow_the_operand_that_decides(
     fsf: tuple[str, int],
     as_json: bool,
 ) -> None:
-    """D8: ``is-osi`` and ``is-fsf`` answer, and exit 0 for true, when one
+    """``is-osi`` and ``is-fsf`` answer, and exit 0 for true, when one
     judged operand decides the compound; empty, exit 1, when it does not."""
     for command, key, (flag, code) in (
         ("is-osi", "is_osi_approved", osi),

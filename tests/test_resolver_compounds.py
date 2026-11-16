@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Properties of the compounds ``resolve()`` reads (task T7), over the parity
+"""Properties of the compounds ``resolve()`` reads over the parity
 corpus, the PyPI sample and the generated compounds: an operand reads as the
 same text alone, the answer is the same from the database and the packaged
 list, the order is deterministic, every answer parses and is a fixed point.

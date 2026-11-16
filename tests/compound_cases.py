@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Generated compound values for the resolver tests (task T7).
+"""Generated compound values for the resolver tests.
 
 Import as ``from compound_cases import ...`` (tests have no
 ``__init__.py``). Every value is built from :data:`OPERANDS` and

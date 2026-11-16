@@ -12,23 +12,40 @@ neither). An operand that cannot be judged (an ID not on the list, a
 ``LicenseRef-*``) is None, and the logic has three values: an ``OR`` with a
 true operand is true and an ``AND`` with a false one is false, whatever the
 others are; otherwise one None makes the whole None. So a compound is never
-answered "no" for a licence nobody judged (decision F1 of the contract
-batch), and one judged operand that decides it is enough (D8 of
-``match-resolve-0-8.md``). ``is_spdx`` holds only when every licence and
+answered "no" for a licence nobody judged, and one judged operand that
+decides it is enough. ``is_spdx`` holds only when every licence and
 exception ID is on the SPDX License List: a ``LicenseRef-*`` is a valid
-SPDX expression, but not on the List (F2).
+SPDX expression, but not on the List.
+
+A bare deprecated ID that is kept as written (``GPL-2.0``) and a deprecated
+``-with-`` ID (``GPL-2.0-with-classpath-exception``) are judged by the ``-only``
+twin (the ``-with-`` ID by ``<bare>-only``, as ``<bare>-only WITH <exception>``
+is), not by their own List rows: the two twins have equal flags (a test pins
+it), and a bare row can differ (``AGPL-1.0`` is FSF-libre; its twins are not;
+the ``GPL-2.0-with-*`` rows are neither OSI nor FSF).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 import py_spdx_license
 
+from licenseid.deprecatedids import DEPRECATED_BARE_LICENSE_IDS, DEPRECATED_WITH_IDS
 from licenseid.exprtokens import without_addition_refs
 from licenseid.identifiers import parse_declared
-from licenseid.types import LicenseFlags
+from licenseid.listlookup import fold_case
+from licenseid.types import LicenseDetails, LicenseFlags
 
 if TYPE_CHECKING:
     from licenseid.database import LicenseDatabase
+
+#: A kept deprecated ID (case-folded) to the ``-only`` ID that is judged for it.
+_TWIN_OF: Final[dict[str, str]] = {
+    **{fold_case(k): v for k, v in DEPRECATED_BARE_LICENSE_IDS.items()},
+    **{
+        fold_case(k): v.split(" WITH ", maxsplit=1)[0]
+        for k, v in DEPRECATED_WITH_IDS.items()
+    },
+}
 
 # The two flags an operand carries, (OSI, FSF); None: cannot be judged.
 Flags = tuple[bool | None, bool | None]
@@ -99,11 +116,37 @@ def _flags(node: py_spdx_license.Node, db: "LicenseDatabase") -> Flags:
     if isinstance(node, py_spdx_license.LicenseRef):
         return _UNJUDGED
     if isinstance(node, py_spdx_license.Identifier):
-        row = db.get_license_details(node.ident)
+        row = db.get_license_details(judged_id(node.ident))
         if row is None:
             return _UNJUDGED
         return bool(row["is_osi_approved"]), bool(row["is_fsf_libre"])
     return _UNJUDGED
+
+
+def judged_id(ident: str) -> str:
+    """The ID whose row says what the OSI and FSF think of *ident*: the
+    ``-only`` twin of a bare or ``-with-`` deprecated ID, else *ident*."""
+    return _TWIN_OF.get(fold_case(ident), ident)
+
+
+def judged_details(db: "LicenseDatabase", lic_id: str) -> LicenseDetails | None:
+    """The row of *lic_id*, flagged as :func:`with_judged_flags`, or None."""
+    details = db.get_license_details(lic_id)
+    return with_judged_flags(details, db) if details else None
+
+
+def with_judged_flags(details: LicenseDetails, db: "LicenseDatabase") -> LicenseDetails:
+    """*details* with the OSI and FSF flags of :func:`judged_id`; the row
+    itself when its ID has no twin or the twin has no row."""
+    twin = judged_id(details["license_id"])
+    row = db.get_license_details(twin) if twin != details["license_id"] else None
+    if row is None:
+        return details
+    return {
+        **details,
+        "is_osi_approved": row["is_osi_approved"],
+        "is_fsf_libre": row["is_fsf_libre"],
+    }
 
 
 def _combined(values: list[bool | None], decisive: bool) -> bool | None:

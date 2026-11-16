@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``licenseid.quotes.unquote`` and ``normalize.QUOTE_KIND`` (task T6b)."""
+"""``licenseid.quotes.unquote`` and ``normalize.QUOTE_KIND``."""
 
 # pylint: disable=missing-function-docstring
 

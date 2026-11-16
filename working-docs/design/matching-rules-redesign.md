@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-16
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -112,8 +112,8 @@ Decide:
   (item 32, done: it does, `input: not found: <path>; pass --text`);
 - for each conflicting pair, reject (exit 2) or document which wins:
   `--id` with `--text`, `--bold` with `--json`, `--diff` with `--exact`,
-  and the options the declared paths ignore (`exclude`, `only_spdx`,
-  `hint`);
+  and the options the declared paths ignore (`exclude` and `hint`: decided,
+  free text only, PR #211; `only_spdx`: roadmap item 46);
 - whether `--top` must be at least 1.
 
 ## 6. Exit codes and error taxonomy

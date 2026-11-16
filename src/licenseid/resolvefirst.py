@@ -9,10 +9,12 @@
 guessed a licence that shares words with it (``ECL-2.0``).
 
 The adapter of ``working-docs/design/match-resolve-0-8.md`` section 3: the
-expression is the result's; a result is exact as a tag or a field is, unless
-the reading is a guess (trust ``none``, a narrowed ``-only``), so every
-channel gives one answer (D2, a stricter ``exact``, is still open); a reading
-by name (a step of one) is found by ``name``, any other by ``id``.
+expression is the result's; a declared value is exact when a list defines
+the reading (:data:`EXACT_CATEGORIES`) and inexact when a rewrite rule
+produced it (``separator``, ``prose_form``, ``version_spelling``), or when
+the result is a guess (a variant licenseid decided), so every channel gives
+one answer; a reading by name (a step of one) is found by ``name``, any
+other by ``id``.
 
 An input ``resolve()`` refuses that is shorter than :data:`MIN_TEXT_WORDS`
 gets no text match either: on the fixtures and the PyPI sample, Tiers 1 and
@@ -41,6 +43,7 @@ import re
 from typing import Final
 
 from licenseid.errors import shown
+from licenseid.listlookup import fold_case
 from licenseid.resolvertypes import Category, Resolution
 from licenseid.types import LicenseFlags, Method, RawMatch
 from licenseid.urlkey import is_url
@@ -73,14 +76,70 @@ _BY_NAME: Final[frozenset[Category]] = frozenset(
 )
 
 
+#: The categories of a declared value that an authoritative list defines
+#: (the SPDX List, or a list licenseid keeps), so the answer is exact. The
+#: rewrite rules ``separator``, ``prose_form`` and ``version_spelling`` are
+#: not here. ``assumed_only`` is the exception: a bare ID kept as written is
+#: the declaration itself (``variant_stated`` carries the ambiguity).
+EXACT_CATEGORIES: Final[frozenset[Category]] = frozenset(
+    (
+        "alias_name",
+        "assumed_only",
+        "deprecated_ambiguous",
+        "deprecated_equal_successor",
+        "exact",
+        "lexical",
+        "license_url",
+        "listed_name",
+        "plus_to_or_later",
+        "stated_qualifier",
+        "text_title",
+        "trove_name",
+    )
+)
+
+
+#: The step kinds of a rewrite rule: no list defines what they give.
+_RULES: Final = frozenset(("separator", "prose_form", "version_spelling"))
+
+
+def is_exact(resolution: Resolution) -> bool:
+    """Whether a list defines the reading of *resolution*: every operand of
+    a compound (else the value) is in :data:`EXACT_CATEGORIES`. A bare ID
+    kept (``assumed_only``) is the declaration itself if the operand was
+    written so, in any case, or was read by a list (a title, a classifier); not
+    if a rule re-spelt it: ``GPL2`` read as ``GPL-2.0``."""
+    operands = resolution["operands"]
+    if not operands:
+        return resolution["category"] in EXACT_CATEGORIES
+    ruled = any(s["applied"] and s["kind"] in _RULES for s in resolution["steps"])
+    return all(
+        o["category"] in EXACT_CATEGORIES
+        and (
+            o["category"] != "assumed_only"
+            or not ruled
+            or fold_case(o["text"].strip()) == fold_case(o["expression"] or "")
+        )
+        # A deprecated ID with an exception, re-spelt by a rule, is no list's
+        # reading ("GPL v2 with classpath exception").
+        and not (
+            o["category"] == "deprecated_ambiguous"
+            and ruled
+            and "-with-" in (o["expression"] or "").lower()
+            and fold_case(o["text"].strip()) != fold_case(o["expression"] or "")
+        )
+        for o in operands
+    )
+
+
 def as_resolved(resolution: Resolution, matches: list[RawMatch]) -> list[RawMatch]:
     """*matches*, the results of the expression of *resolution*, made what
-    the resolution says: inexact for a guess (a narrowed ``-only`` already
-    is), found by ``name`` when a step read a name, else by ``id``. A
-    result not narrowed is written as resolve() writes it (``MirOS OR
-    MIT``, the order of ``exprcanon``)."""
+    the resolution says: inexact for a rewrite rule or a guess (a decided
+    variant already is), found by ``name`` when a step read a name, else by
+    ``id``. A result its reader found exact is written as resolve() writes
+    it (``MirOS OR MIT``, the order of ``exprcanon``)."""
     expression = resolution["expression"] or ""
-    exact = resolution["trust"] != "none"
+    exact = is_exact(resolution)
     kinds = {entry["kind"] for entry in resolution["steps"]}
     by_name = resolution["category"] in _BY_NAME or not kinds.isdisjoint(_BY_NAME)
     method: Method = "name" if by_name else "id"

@@ -3,11 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The rules that read the prose form of one licence ID (task T8; 0.7.0 plan,
-rules P1 to P3).
+"""The rules that read the prose form of one licence ID (rules P1 to P3).
 
 ``resolver`` calls :func:`read_prose` last, after the one-licence, compound
-and trove readers (decisions Q18, Q22): a name the trove table reads as
+and trove readers: a name the trove table reads as
 ``none`` (``BSD License``, ``W3C license``) was claimed before, so no rule
 here guesses at it. Each rule reduces the text and hands the reduction to
 :func:`licenseid.resolveleaf.read_leaf`, which proves it as it proves any
@@ -43,7 +42,7 @@ The reading is a ``prose_form`` step from the value to the reduction, then
 the steps of the reduction; the category is the weakest of them
 (``prose_form`` at the least).
 
-A prose form is several words, so it is no operand of a compound (P43).
+A prose form is several words, so it is no operand of a compound.
 :func:`read_alone` tells the compound reader whether a leaf of several words
 reads alone, for its reason.
 """
@@ -141,7 +140,7 @@ def _bracketed_version(
 
 def _prose(db: ListLookup, text: str, found: Found) -> bool:
     """P1 to P3 on *text* with no bracket at its end. One mark at the end is
-    an ending, as for a leaf (P77): it comes off first, as a ``separator``
+    an ending, as for a leaf: it comes off first, as a ``separator``
     step before the reading (``MIT License :``); other marks stay on the
     reduction, which the drop guard refuses."""
     ended = trim_end_mark(text)
@@ -156,10 +155,10 @@ def _prose(db: ListLookup, text: str, found: Found) -> bool:
 
 def _prose_body(db: ListLookup, text: str, body: str, found: Found) -> bool:
     """P1 to P3 on *body*, which is *text* with its ending off."""
-    if is_no_licence(body):  # a name that states no licence stays so (Q22)
+    if is_no_licence(body):  # a name that states no licence stays so
         return False
     rest = _after_article(body)
-    # A second article (``The The MIT License``) is no prose form (P75)
+    # A second article (``The The MIT License``) is no prose form
     if rest is not None and _after_article(rest) is None and not is_no_licence(rest):
         lead = step(_KIND, True, text, rest, "leading article")
         if _by_name(db, rest, lead, found) or _by_rule(db, rest, rest, [lead], found):
@@ -175,7 +174,7 @@ def read_by_name(db: ListLookup, text: str, found: Found) -> bool:
     (:func:`licenseid.resolvetitle.read_title`), another name of a licence
     (:func:`licenseid.resolvealias.read_alias`), else as a prose form
     (:func:`read_prose`). A name that states no licence is claimed first, so
-    no later rule reads it (Q22)."""
+    no later rule reads it."""
     return (
         read_url(db, text, found)
         or read_named(db, text, found)
@@ -189,7 +188,7 @@ def read_alone(db: ListLookup, text: str, found: Found) -> bool:
     """Read *text* as ``resolve`` reads a value of no operator: one licence
     (:func:`licenseid.resolveleaf.read_leaf`), else by a name
     (:func:`read_by_name`). The compound reader asks it whether a leaf of
-    several words reads alone (P43, P62), so it never judges by the leaf
+    several words reads alone, so it never judges by the leaf
     reader only."""
     return read_leaf(db, text, found) or read_by_name(db, text, found)
 
@@ -200,8 +199,8 @@ def _by_rule(
     """P1 or P2 on *body* (*source* with its end marks off): its reductions
     read as they are alone, after the steps *before*. Marks after the last
     word (``MIT License;``) stay on the reduction, so that the drop guard
-    refuses it with its reason (P64); they never help a reading. P2 has two
-    reductions, which must agree (P68)."""
+    refuses it with its reason; they never help a reading. P2 has two
+    reductions, which must agree."""
     core = body[: _word_end(body)].rstrip()
     marks = _marks_after(body[len(core) :])
     readings = []
@@ -215,7 +214,7 @@ def _by_rule(
             readings.append((word, detail, reading))
     if len({r.expression for _, _, r in readings}) != 1:
         return False
-    if marks:  # marks never help a reading; a dash it would drop is said (P131)
+    if marks:  # marks never help a reading; a dash it would drop is said
         lost = joined_marks(marks)
         if lost:
             refuse_dropped(found, source, lost, str(readings[0][2].expression))
@@ -324,8 +323,7 @@ def _fill(found: Found, steps: list[Step], reading: Found) -> None:
 
 def _licence_word(body: str) -> str | None:
     """*body* without a final ``license`` or ``licence`` (P1), or None. A
-    head that ends in one itself (``MIT License License``) is no prose form
-    (P75)."""
+    head that ends in one itself (``MIT License License``) is no prose form."""
     head = _without_word(body)
     if head is None or _without_word(head) is not None:
         return None

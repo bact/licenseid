@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The operands of a declared value, each read as it would be alone, and a
-compound of them (task T7; 0.7.0 plan, R0 and D1).
+compound of them.
 
 A value that names one licence is one operand; :func:`operand_of` puts the
 reading of a leaf (:mod:`licenseid.resolveleaf`) in the public shape.
@@ -14,7 +14,7 @@ alone (quotes around it come off first, :mod:`licenseid.quotes`), and
 accepts all or nothing.
 
 - An operand is one word, with ``WITH`` and its exception, a ``+`` or an "or
-  later" grant (decision Q15). A value with a leaf of several words is no
+  later" grant. A value with a leaf of several words is no
   compound at all, whatever its operators: ``Apache License 2.0 OR MIT``
   and ``W3C Software and Document Notice License`` are left to the rules
   that read prose, with no reason that would split them.
@@ -34,11 +34,11 @@ accepts all or nothing.
   upper case and one leaf names a licence (``(MIT``, ``MIT AND``), else
   ``unresolved``; with an operator in lower case it is no compound. One with two
   operands and no operator between them (``MIT License (MIT)``,
-  ``BSD (3-clause)``) is no compound at all: the later rules read it
-  (decision Q18). A mark beside a bracketed group that reads as such two
-  operands is the group's refusal (task fixr): a "+" after it (``(MIT)+ OR
-  ISC``, ``plus after a bracket``), quote marks around it (``"(MIT)" OR
-  Zlib``, ``character dropped``).
+  ``BSD (3-clause)``) is no compound at all: the later rules read it.
+  A mark beside a bracketed group that reads as such two operands is the
+  group's refusal: a "+" after it (``(MIT)+ OR ISC``, ``plus after a
+  bracket``), quote marks around it (``"(MIT)" OR Zlib``, ``character
+  dropped``).
 """
 
 import re
@@ -348,7 +348,7 @@ def _fallback(
     db: ListLookup, text: str, tokens: list[Token], parts: list[str]
 ) -> Found | None:
     """The refusal a value of compound form with a leaf of several words
-    gives when no later rule reads it (Q15, P43): the first refused leaf's
+    gives when no later rule reads it: the first refused leaf's
     own reason (a dropped mark), else, with the operators in upper case,
     ``operand of several words: <leaf>`` for a leaf that reads alone, or
     ``operand not resolved: <leaf>`` for one that does not; None for a value
@@ -368,7 +368,7 @@ def _fallback(
                 reason=leaf.found.reason,
                 steps=list(leaf.found.steps),
             )
-        if upper:  # a leaf that reads alone is refused for its shape (P43)
+        if upper:  # a leaf that reads alone is refused for its shape
             what = "operand of several words" if named else "operand not resolved"
             return Found(category="unresolved", reason=f"{what}: {reason_detail(part)}")
     return None
@@ -385,7 +385,7 @@ def _unquoted(text: str) -> tuple[str, list[Step]]:
 
 def _read_operand(db: ListLookup, text: str) -> _Leaf:
     """*text*, one leaf, read as the same text alone would be, after the
-    quotes around it, and whether it is shaped as an operand (Q15). A leaf
+    quotes around it, and whether it is shaped as an operand. A leaf
     of another shape is read too, for the reason it may give (a dropped
     mark), never for its licence."""
     inner, steps = _unquoted(text)

@@ -8,8 +8,8 @@ value, ``--text``, ``--id`` or standard input (``-``, or no argument and a
 pipe).
 
 Two inputs are a usage error (exit 2), not a choice of one: the input that
-lost was ignored without a word before (C7 of the contract batch). ``--text``
-is taken as written: a backslash is a backslash (C6).
+lost was ignored without a word before. ``--text`` is taken as written: a
+backslash is a backslash.
 """
 
 import os
@@ -38,7 +38,7 @@ from licenseid.textinput import (
     read_text_file,
 )
 
-#: The argument that names standard input, as ``cat -`` reads it (C5).
+#: The argument that names standard input, as ``cat -`` reads it.
 STDIN_ARGUMENT = "-"
 
 
@@ -130,7 +130,7 @@ def reject_compound_id(ctx: click.Context, id_val: str | None) -> None:
 def read_text_option(ctx: click.Context, text: str) -> str:
     """--text as written, treated as file or stdin text is treated: LF line
     ends; exit 2 if binary (a NUL), blank or not encodable. A backslash is a
-    backslash: ``\\n`` is two characters, not a line break (C6)."""
+    backslash: ``\\n`` is two characters, not a line break."""
     content = normalize_newlines(text)
     reject_unencodable(ctx, content, binary_source="--text")
     if not content.strip(WHITE_SPACE):  # U+001C to U+001F are text, as for resolve

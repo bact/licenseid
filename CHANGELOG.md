@@ -15,6 +15,18 @@ and this project adheres to
 
 - `detect()` options are typed (`licenseid.types.DetectOptions`, was
   `DetectRequest`); a type checker now rejects an unknown option ([#210])
+- **Breaking:** `detect()` `exact` is false for a value a rewrite rule read
+  (`Apache License, Version 2.0`, `GPL-2.0 only`); true where a list defines
+  it ([#212])
+- **Breaking:** `detect GPL-2.0` keeps `GPL-2.0` and `-with-` IDs as written,
+  with new `VARIANT_STATED` (migrate: `--variant only`); a text warns once;
+  `--exact` on a GPL licence text has no answer (its variant is a guess)
+  ([#212])
+- `detect --variant auto|as-written|only|or-later` (API `variant=`), and the
+  last record field `VARIANT_STATED` (JSON `variant_stated`) ([#212])
+- `is-osi` and `is-fsf` judge a bare deprecated ID by its `-only` twin, and
+  `GPL-2.0-with-classpath-exception` as `GPL-2.0-only WITH` its exception
+  ([#212])
 
 ### Fixed
 
@@ -36,6 +48,7 @@ and this project adheres to
 [#209]: https://github.com/bact/licenseid/pull/209
 [#210]: https://github.com/bact/licenseid/pull/210
 [#211]: https://github.com/bact/licenseid/pull/211
+[#212]: https://github.com/bact/licenseid/pull/212
 
 ## [0.8.4] - 2026-11-09
 

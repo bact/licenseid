@@ -34,7 +34,7 @@ from licenseid.types import Detection, Method
 from licenseid.warning import LicenseIdWarning
 
 # LicenseDatabase is exported as an opaque handle: open one to pass to
-# resolve(db=...) or LicenseDetector, never to query (P2 of the contract batch).
+# resolve(db=...) or LicenseDetector, never to query.
 __all__ = [
     "Category",
     "DatabaseNotReadyError",

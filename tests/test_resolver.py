@@ -178,14 +178,14 @@ def _db() -> Generator[LicenseDatabase, None, None]:
                 [],
             ),
         ),
-        # A "+" after a space is no operator (task readers; was MIT+)
+        # A "+" after a space is no operator (was MIT+)
         ("MIT +", (None, "malformed", [], [], [])),
         ("(GPL-2.0)+", (None, "malformed", [], [], [])),  # "+" follows an ID only
         # a qualifier twice is malformed; a grant that cannot apply is not dropped
         ("GPL-2.0++", (None, "malformed", [], [], [])),
         ("GPL-2.0-only or later", (None, "malformed", [], [], [])),
         ("GPL-2.0+ or later", (None, "malformed", [], [], [])),
-        # Q14, P35 (decided by the maintainer): no -or-later ID, so the grant
+        # Decided by the maintainer: no -or-later ID, so the grant
         # is the "+" operator, whether or not the ID has a version
         (
             "MIT or later",
@@ -203,7 +203,7 @@ def _db() -> Generator[LicenseDatabase, None, None]:
         # a "+" inside a loose spelling is not dropped
         ("GPL-2.0+-only", (None, "unresolved", [], [], [])),
         ("GPL-2.0++-only", (None, "unresolved", [], [], [])),
-        # one end mark after a "+" is an ending (P80)
+        # one end mark after a "+" is an ending
         (
             "GPL-2.0+.",
             (
@@ -216,7 +216,7 @@ def _db() -> Generator[LicenseDatabase, None, None]:
         ),
         # a bracketed grant is a grant
         ("GPL-2.0-only (or later)", (None, "malformed", [], [], [])),
-        # Q14: no -or-later ID, so the grant is the "+" operator (was unresolved)
+        # No -or-later ID, so the grant is the "+" operator (was unresolved)
         (
             "MIT (or later)",
             ("MIT+", "stated_qualifier", [], [("stated_qualifier", True)], []),
@@ -258,7 +258,7 @@ def _db() -> Generator[LicenseDatabase, None, None]:
         # a step is not kept for a value that resolved to nothing
         ("Foo +", (None, "unresolved", [], [], [])),
         ("()", (None, "unresolved", [], [], [])),
-        # Q21: square brackets are brackets; an unbalanced one is malformed
+        # Square brackets are brackets; an unbalanced one is malformed
         ("[MIT]", ("MIT", "lexical", ["brackets"], [], [])),
         ("MIT)", (None, "malformed", [], [], [])),
         (
@@ -373,7 +373,7 @@ def test_every_step_cites_a_list_that_provides_its_kind(db: LicenseDatabase) -> 
                 assert step["list"] is not None
                 assert LIST_PROVIDES[step["kind"]] in lists[step["list"]]["provides"]
             else:
-                assert step["list"] is None  # P4: None means nothing
+                assert step["list"] is None  # None means nothing
     # every kind the table lists is exercised, and so are the ones without a list
     assert seen == set(LIST_PROVIDES) | {
         "trim",

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve()`` keeps its choice of list per file stamp (R7): a repeat on an
+"""``resolve()`` keeps its choice of list per file stamp: a repeat on an
 unchanged file opens no connection to choose, and every change of the file,
 the path or the packaged index is seen at the next call."""
 # pylint: disable=missing-function-docstring
@@ -303,7 +303,7 @@ def test_threads_settle_on_one_choice(monkeypatch: pytest.MonkeyPatch) -> None:
     assert all(_choose() is settled for _ in range(6))
 
 
-# --- review of T5b: what must not be kept, what must be seen ---
+# --- review: what must not be kept, what must be seen ---
 
 
 def test_a_lock_held_during_the_first_call_is_not_kept(

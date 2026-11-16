@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Task ``readers``, second round: a tag answers exact only what it read
+"""A tag answers exact only what it read
 whole, and the command line names what it refuses, on the whole 3.29.0
 List.
 
@@ -40,7 +40,7 @@ def _tag(corpus_db: LicenseDatabase, value: str) -> tuple[str, bool] | None:
     [
         # "later" was an ID ("MIT OR later", exact), or the grant dropped
         # ("MIT or-later" was MIT): the "or" is read as after a number, by
-        # the one probe (classify.grant_end), as resolve() reads it (P35).
+        # the one probe (classify.grant_end), as resolve() reads it.
         ("MIT or later", "MIT+"),
         ("MIT OR LATER", "MIT+"),
         ("MIT, or later", "MIT+"),

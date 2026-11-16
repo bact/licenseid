@@ -14,7 +14,12 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from conftest import clear_cache_line, make_memory_db_path, make_ready_db_path
+from conftest import (
+    NO_DETECTION,
+    clear_cache_line,
+    make_memory_db_path,
+    make_ready_db_path,
+)
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
@@ -154,14 +159,14 @@ def test_missing_input(ready_db: str, command: str) -> None:
 @pytest.mark.parametrize(
     ("extra", "line"),
     [
-        (["-v"], "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"),
+        (["-v"], NO_DETECTION),
         ([], "\n"),
     ],
     ids=["verbose", "terse"],
 )
 @pytest.mark.terse_cli
 def test_no_match_in_ready_database(ready_db: str, extra: list[str], line: str) -> None:
-    """No answer is an answer (C9): an empty record, or an empty line."""
+    """No answer is an answer: an empty record, or an empty line."""
     result = CliRunner().invoke(
         cli, ["--db", ready_db, "detect", "--id", "No-Such-License", *extra]
     )

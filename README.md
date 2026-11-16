@@ -26,6 +26,8 @@ generator.*
   expression, with each step taken, or refuses: it never guesses.
 - Normalises expressions: `(MIT OR MIT) and Apache-2.0` ->
   `Apache-2.0 AND MIT`; deprecated IDs: `GPL-2.0+` -> `GPL-2.0-or-later`.
+- Says when the input does not state a licence's variant (`GPL-2.0`:
+  `-only` or `-or-later`?), and lets you choose one with `--variant`.
 - Reads a licence URL (`https://www.apache.org/licenses/LICENSE-2.0` ->
   `Apache-2.0`), loose IDs (`Apache2`, `GPLv3`), a licence's own title
   (`CC0 1.0 Universal`), the BSD aliases (`New BSD`, `BSD-3`), prose forms

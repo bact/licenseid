@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The answers task ``readers`` (the readers ``detect()`` and ``resolve()``
-share, 0.7.0 review) moved in the parity corpus and the PyPI sample, grouped
+"""The answers the readers ``detect()`` and ``resolve()`` share (0.7.0
+review) moved in the parity corpus and the PyPI sample, grouped
 by the rule.
 
 The answers are in ``fixtures/resolver_readers_changes.tsv``;
@@ -23,12 +23,12 @@ CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_readers_changes.ts
 #: Why each group of the changes file moved.
 REASONS: dict[str, str] = {
     "spaced-plus": (
-        'readers item 2: a "+" after a space is no operator'
+        'a "+" after a space is no operator'
         ' (plusoperator.PLUS_OPERATOR) and may say "and": malformed,'
         " `plus after a space`; it was read as the operator with a"
-        " `whitespace` step (P34). No PyPI sample value has one"
+        " `whitespace` step. No PyPI sample value has one"
     ),
 }
 
-#: ``{value: (answer, reason)}``, every value the task moves.
+#: ``{value: (answer, reason)}``, every value the shared readers move.
 READERS_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)

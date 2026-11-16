@@ -7,8 +7,8 @@
 
 ``C1`` the group-level options, above all the many shapes ``--db`` can take,
 ``C2`` ``--help`` wherever it can appear, ``C3`` ``clear-cache`` against a
-cache directory the launcher has just filled (a global flag before C3 of the
-contract batch).
+cache directory the launcher has just filled (formerly a global
+flag).
 """
 
 from __future__ import annotations
@@ -168,7 +168,7 @@ CLEAR_CACHE: list[tuple[str, str, int | None]] = [
         0,
     ),
     (
-        "the old global flag --clear-cache (C3)",
+        "the old global flag --clear-cache",
         "prep && $L --db $W/x/licenses.db --clear-cache",
         2,
     ),

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """``licenseid.dropguard.dropped``: which characters a loose reading may not
-drop (task T6)."""
+drop."""
 
 # pylint: disable=missing-function-docstring
 

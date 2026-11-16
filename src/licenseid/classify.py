@@ -36,16 +36,16 @@ from licenseid.normalize import DASHES, strip_comment_prefixes
 #     later", "version 2 (or later)", "GPL-2.0+ or later"), or "sooner or
 #     later" would count.
 #   - "any later version" on its own, unless negated ("not any later version").
-#   - "or-later" as a word of its own after a number ("GPL-2.0 or-later",
-#     decision Q14), a dash with white space before it too ("GPL-2.0
-#     -or-later", D10); "or-later" inside an ID such as GPL-2.0-or-later is
-#     not a phrase, as a hyphen or a letter stands right before it there.
+#   - "or-later" as a word of its own after a number ("GPL-2.0 or-later"),
+#     a dash with white space before it too ("GPL-2.0 -or-later");
+#     "or-later" inside an ID such as GPL-2.0-or-later is not a phrase, as
+#     a hyphen or a letter stands right before it there.
 # A word with an "i", "s" or "k" ignores case in ASCII only ("(?a:"):
 # Python's IGNORECASE alone folds "\u0130", "\u0131", "\u017f" and the
 # Kelvin sign into them (tests/test_readers_case.py). White space stays
 # Unicode's.
 _GAP = r"[\s/*#;,-]*"
-# White space between "or" and "later", with dashes too ("or - later", D10);
+# White space between "or" and "later", with dashes too ("or - later");
 # at least one white space, as "or-later" is a word of its own (below).
 _SPACED = rf"(?=[\s{DASHES}]*\s)[\s{DASHES}]+"
 # The words that take back a phrase right after them.
@@ -106,7 +106,7 @@ def grant_end(text: str, start: int) -> int | None:
     OR_LATER_PHRASE wants a number before a bare "or later", as prose also
     says "sooner or later"), unless a negation right before it takes it
     back ("not or later"). The compound reader of ``resolve()`` asks it at
-    each "or" (decision Q14, through ``looseid``), the tag at an "or" after
+    each "or" (through ``looseid``), the tag at an "or" after
     a licence that states its qualifier (:func:`grant_at`).
 
     The probe reads the white space after the "or" and a window past it,
@@ -138,7 +138,7 @@ def grant_follows(tail: str, rest: str) -> bool | None:
     phrase with no "or" where it stands ("MIT, any later version"), and what
     stands between is judged as ``resolve()`` judges it: white space,
     one "." or ",", a "(" or "[" before the "or" and a dash between words
-    (``MIT - or later``, D10) pass, and a mark it would drop (``MIT; or
+    (``MIT - or later``) pass, and a mark it would drop (``MIT; or
     later``, ``MIT,or later``)
     makes the value no reading at all: None. Elsewhere a number the phrase
     starts with must be the ID's version (:func:`another_version`): in
@@ -168,7 +168,7 @@ def grant_head(before: str) -> str | None:
     """*before*, the text before the "or" of a declared grant, without the
     white space, "(" or "[" and dashes right before the "or"; None if none
     stands there ("MIT,or later") or a dash joins two words ("GPL-2.0-or
-    later"). A dash between words is a separator (D10). The one rule of
+    later"). A dash between words is a separator. The one rule of
     this gap: ``looseid.declared_grant_id_text``, ``looseid.before_grant``
     and a tag's grant (:func:`grant_follows`, :func:`dash_gap`)."""
     if not before or not (before[-1].isspace() or before[-1] in "([" + DASHES):
@@ -182,7 +182,7 @@ def grant_head(before: str) -> str | None:
 def dash_gap(gap: str) -> bool:
     """Whether *gap*, between an ID and its grant, is one run of dashes and
     any white space ("GPL-2.0 - or later"): the tag reads on to the grant,
-    and :func:`grant_head` judges the gap (D10), refusing a joined dash."""
+    and :func:`grant_head` judges the gap, refusing a joined dash."""
     core = gap.strip()
     return bool(core) and not core.strip(DASHES)
 

@@ -13,10 +13,11 @@ import contextlib
 import json
 import time
 from collections.abc import Callable, Generator
+from typing import Any
 
 import pytest
 from click.testing import CliRunner
-from conftest import GivenWarnings
+from conftest import NO_DETECTION, GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from matcher_db import Lic, seeded_db
 from timing import slack
@@ -214,8 +215,8 @@ def test_a_refusal_clears_what_was_found_before(corpus_db: LicenseDatabase) -> N
 # --- detect() ---
 
 
-def _detect(db: LicenseDatabase, text: str) -> list[dict[str, object]]:
-    return [dict(m) for m in LicenseDetector(db.location).detect(text)]
+def _detect(db: LicenseDatabase, text: str, **options: Any) -> list[dict[str, object]]:
+    return [dict(m) for m in LicenseDetector(db.location).detect(text, **options)]
 
 
 @pytest.mark.parametrize(
@@ -246,15 +247,15 @@ def test_a_gnu_url_is_detected_as_the_bare_id_is(
     corpus_db: LicenseDatabase, given: GivenWarnings
 ) -> None:
     url = "https://www.gnu.org/licenses/gpl-3.0.html"
-    (by_url,) = _detect(corpus_db, url)
+    (by_url,) = _detect(corpus_db, url, variant="only")
     warned = given.lines()
-    (by_id,) = _detect(corpus_db, "GPL-3.0")
+    (by_id,) = _detect(corpus_db, "GPL-3.0", variant="only")
     assert (by_url["expression"], by_url["exact"]) == ("GPL-3.0-only", False)
     assert {k: v for k, v in by_url.items() if k != "method"} == {
         k: v for k, v in by_id.items() if k != "method"
     }
     assert warned == (
-        f"WARNING: input: variant not stated: {url}; using GPL-3.0-only\n"
+        "WARNING: input: variant not stated: GPL-3.0; using GPL-3.0-only\n"
     )
     assert (
         given.lines()
@@ -327,7 +328,7 @@ def test_the_cli_detects_no_licence_for_a_url_not_read(
     code, out, err = _cli(corpus_db, "detect", text)
     assert (code, out) == (
         1,
-        "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n",
+        NO_DETECTION,
     )
     reason = resolve(text, corpus_db)["reason"]
     assert err == f"WARNING: input: too few words for text: {reason}\n"
@@ -393,7 +394,7 @@ def test_detect_and_the_flags_read_a_url(corpus_db: LicenseDatabase) -> None:
     assert (code, err) == (0, "")
     assert out == (
         "EXPRESSION=Apache-2.0\tMETHOD=name\tEXACT=true\tSCORE=1.0000\t"
-        "SIMILARITY=\tCOVERAGE=\n"
+        "SIMILARITY=\tCOVERAGE=\tVARIANT_STATED=\n"
     )
     code, out, _ = _cli(corpus_db, "detect", "--json", APACHE_URL)
     assert (code, json.loads(out)["method"]) == (0, "name")
@@ -403,7 +404,7 @@ def test_detect_and_the_flags_read_a_url(corpus_db: LicenseDatabase) -> None:
     code, out, err = _cli(corpus_db, "detect", "https://www.example.com/a/b")
     assert (code, out) == (
         1,
-        "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n",
+        NO_DETECTION,
     )
     assert err == (
         "WARNING: input: too few words for text: "

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The parity corpus pins what ``resolve()`` 0.6.0 (now ``resolve()``) answers (the
-0.7.0 plan, finding F9, task T0): ``tests/fixtures/resolver_parity.tsv`` holds real and
+0.7.0 plan): ``tests/fixtures/resolver_parity.tsv`` holds real and
 synthetic declared values with their 0.6.0 answers, the answer of Pitloom
 0.21.1 and the answer the plan expects of 0.7.0.
 
@@ -128,10 +128,10 @@ def test_the_corpus_has_the_shapes_the_plan_names() -> None:
     assert len(kinds) >= 2
 
 
-# F6, fixed by T6 (dropguard): the dropped character is the author's doubt or
+# Fixed by the drop guard: the dropped character is the author's doubt or
 # a corruption, and 0.6.0 turned it into a claim (category `separator`).
 # 0.7.0 answers `unresolved`, with the reading it stopped. (A lone surrogate
-# was a sixth; G1, T4b, refuses it early: tests/test_resolver_surrogate.py.)
+# was a sixth; it is refused early: tests/test_resolver_surrogate.py.)
 @pytest.mark.parametrize(
     ("value", "stopped", "lost"),
     [
@@ -152,7 +152,8 @@ def test_the_corpus_has_the_shapes_the_plan_names() -> None:
 def test_a_dropped_character_is_no_longer_read_as_a_licence(
     corpus_db: LicenseDatabase, value: str, stopped: str, lost: str
 ) -> None:
-    """Fixed by T6: unresolved, a ``drop`` step that did not apply, a reason."""
+    """Fixed by the drop guard: unresolved, a ``drop`` step that did not
+    apply, a reason."""
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"]) == (None, "unresolved")
     assert got["reason"] == "character dropped: " + " ".join(
@@ -163,7 +164,7 @@ def test_a_dropped_character_is_no_longer_read_as_a_licence(
     ]
 
 
-# Controls: what the drop guard of T6 must keep (the plan allows white space,
+# Controls: what the drop guard must keep (the plan allows white space,
 # "-", "_", ".", a Unicode dash and one trailing ","), so a fix that refuses
 # too much fails here.
 @pytest.mark.parametrize(

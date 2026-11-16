@@ -147,8 +147,8 @@ def _explain(
 ) -> None:
     """Give a reason to the refusal of *value* and to each refused operand
     that no reader gave one (:func:`licenseid.resolvereason.no_reading`), so
-    an answer with no expression always says why (P5). The steps of such a
-    refusal are not kept: no step led anywhere (P11)."""
+    an answer with no expression always says why. The steps of such a
+    refusal are not kept: no step led anywhere."""
 
     def names(text: str) -> bool:
         return read_leaf(lookup, text, leaf := Found()) and leaf.expression is not None
@@ -171,7 +171,7 @@ def _marks_refusal(lookup: ListLookup, text: str, found: Found) -> bool:
     """Make *found* the refusal of *text*, a value no reader read, that names
     a licence once the marks at its end are left off, inside closing
     brackets and quote marks too (``(MIT)-``, ``"(MIT;)".``): a ``drop`` and
-    ``character dropped: U+...``, as for a mark after an ID (P137). Where
+    ``character dropped: U+...``, as for a mark after an ID. Where
     what is left is malformed (``LicenseRef-a+-``), its reason is the
     value's. One end mark alone (``(MIT).``) is an ending, not a dropped
     mark: no reason here. False when nothing is made."""
@@ -192,7 +192,7 @@ def _marks_refusal(lookup: ListLookup, text: str, found: Found) -> bool:
 
 
 def _require_text(value: object) -> None:
-    """Raise :class:`TypeError` unless *value* is a :class:`str` (P130): a
+    """Raise :class:`TypeError` unless *value* is a :class:`str`: a
     call that cannot be a declared value is not an unresolved one."""
     if not isinstance(value, str):
         raise TypeError(f"value must be str, not {type(value).__name__}")
@@ -253,12 +253,12 @@ def _read_text(
         return found, compound.operands, compound.parsed
     named = Found()
     # A trove name or path, a name and its short form, then the prose form of
-    # one ID (T8: P1 to P3). A name that reads is read before a list
-    # (``MIT; (MIT)`` is the name and its short form, P87).
+    # one ID (the prose rules P1 to P3). A name that reads is read before a list
+    # (``MIT; (MIT)`` is the name and its short form).
     by_name = not compound.claimed and read_by_name(db, text, named)
     resolved = by_name and named.expression is not None
     listed = _read_joined(db, text, start, prepared) if lists and not resolved else None
-    if listed is not None:  # IDs joined by "/" (item 43), or no operator stated (T8b)
+    if listed is not None:  # IDs joined by "/" (item 43), or no operator stated
         return prepared, listed[0], listed[1]
     if compound.claimed:
         return found, compound.operands, compound.parsed

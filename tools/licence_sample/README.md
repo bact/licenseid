@@ -1,3 +1,9 @@
+---
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: Apache-2.0
+---
+
 # Licence sample of six package channels
 
 Takes a sampling frame of the top packages of PyPI, npm, crates.io, Maven

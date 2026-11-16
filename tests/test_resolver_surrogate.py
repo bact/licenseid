@@ -3,12 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A lone surrogate in a declared value (review item G1, task T4b).
+"""A lone surrogate in a declared value.
 
 A lone surrogate (Unicode category Cs: a command-line argument of invalid
 UTF-8, or a string from an API) cannot be encoded for SQLite. The resolver
 refuses it among its early refusals, with the reason ``lone surrogate``
-(``Resolution.reason``, T6).
+(``Resolution.reason``).
 """
 
 import re
@@ -70,8 +70,8 @@ def _ids(values: list[str]) -> list[str]:
 @pytest.mark.parametrize("value", REFUSED, ids=_ids(REFUSED))
 def test_a_lone_surrogate_is_unresolved(corpus_db: LicenseDatabase, value: str) -> None:
     """No raise, no expression, no step and no candidate; the input is kept,
-    each surrogate made U+FFFD, so that JCS can write the result (task
-    resolverfix item 6; it was the raw value)."""
+    each surrogate made U+FFFD, so that JCS can write the result (it was the raw
+    value)."""
     result = resolve(value, corpus_db)
     assert result["expression"] is None
     assert result["category"] == "unresolved"
@@ -88,7 +88,7 @@ def test_a_valid_astral_character_is_no_surrogate(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     """Not refused for being a surrogate: it encodes. ``MIT`` plus an emoji
-    would drop the emoji, which the drop guard (T6) refuses, with its own
+    would drop the emoji, which the drop guard refuses, with its own
     reason; the others name no licence."""
     result = resolve(value, corpus_db)
     assert (result["expression"], result["category"]) == (None, "unresolved")

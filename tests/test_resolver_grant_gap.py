@@ -62,7 +62,7 @@ def test_a_dash_between_words_reads_as_a_space(
 def test_a_dash_elsewhere_in_the_grant_is_no_separator(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    """Only a dash around the "or" is D10's; one in an aside, or in the
+    """Only a dash around the "or" is a separator; one in an aside, or in the
     word "or-later", is the grant's own."""
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"]) == (

@@ -22,6 +22,7 @@ from resolver_helpers import GPL2, summary
 from licenseid import LicenseDatabase
 from licenseid.classify import is_negated
 from licenseid.looseid import declared_grant_id_text, granted_id_text
+from licenseid.resolvefirst import EXACT_CATEGORIES
 from licenseid.resolver import resolve
 from licenseid.resolvertypes import CATEGORY_ORDER, TRUST
 
@@ -76,7 +77,7 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
                 [],
             ),
         ),
-        # Q17: the case and the spacing of WITH are steps; exact is as written
+        # The case and the spacing of WITH are steps; exact is as written
         (
             f"GPL-2.0-only With {CP}",
             (f"GPL-2.0-only WITH {CP}", "lexical", ["operator_case"], [], []),
@@ -166,9 +167,9 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         # WITH: a part that is broken or names nothing gives no answer
         (f"GPL-2.0-only+ WITH {CP}", MALFORMED),
         ("LicenseRef-foo+ WITH LLVM-exception", MALFORMED),
-        # Q14: MIT has no -or-later ID, so the grant is "+" (was unresolved)
+        # MIT has no -or-later ID, so the grant is "+" (was unresolved)
         (
-            "MIT or later WITH LLVM-exception",  # P35
+            "MIT or later WITH LLVM-exception",
             (
                 "MIT+ WITH LLVM-exception",
                 "stated_qualifier",
@@ -189,7 +190,7 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
             ("Apache-2.0 OR MIT WITH LLVM-exception", "lexical", ["reorder"], [], []),
         ),
         # a LicenseRef names itself, as written but its prefix in SPDX's case
-        # (resolverfix item 4; was licenseref-Foo.2, exact); it takes no "+"
+        # (was licenseref-Foo.2, exact); it takes no "+"
         # and no grant
         ("LicenseRef-foo", ("LicenseRef-foo", "exact", [], [], [])),
         ("licenseref-Foo.2", ("LicenseRef-Foo.2", "lexical", ["id_case"], [], [])),
@@ -203,7 +204,7 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         ),
         ("LicenseRef-foo+", MALFORMED),
         ("LicenseRef-foo +", MALFORMED),
-        ("LicenseRef-foo or later", MALFORMED),  # fixr item 5
+        ("LicenseRef-foo or later", MALFORMED),
         ("LicenseRef-", NONE),
         ("LicenseRef-foo_bar", NONE),  # "_" is no idstring character
         ("LicenseRef-foo bar", NONE),
@@ -220,7 +221,7 @@ MALFORMED: tuple[object, ...] = (None, "malformed", [], [], [])
         ("((GPL-2.0))+", MALFORMED),
         ("(GPL-2.0) +", MALFORMED),
         ("(Foo)+", NONE),
-        ("(MIT OR Apache-2.0)+", MALFORMED),  # fixr item 3
+        ("(MIT OR Apache-2.0)+", MALFORMED),
         # a character that hides or reorders text is no part of a value:
         # left off at an end (`hiddenchars`), a refusal anywhere else
         ("MIT\u200b", ("MIT", "separator", ["trim"], [], [])),
@@ -319,9 +320,17 @@ def test_a_name_held_by_a_deprecated_row_only_is_no_listed_name() -> None:
         assert resolve("Old License", db)["category"] == "unresolved"
 
 
-def test_the_docs_list_every_category_in_order_with_its_trust() -> None:
+def test_the_docs_list_every_category_in_order_with_its_trust_and_exact() -> None:
     doc = Path(__file__).parents[1] / "docs" / "resolve.md"
     rows = re.findall(
-        r"^\| `(\w+)` \| `(\w+)` \|", doc.read_text(encoding="utf-8"), re.MULTILINE
+        r"^\| `(\w+)` \| `(\w+)` \| (yes|no|—) \|",
+        doc.read_text(encoding="utf-8"),
+        re.MULTILINE,
     )
-    assert rows == [(c, TRUST[c]) for c in CATEGORY_ORDER]
+    want = [
+        (c, TRUST[c], ("yes" if c in EXACT_CATEGORIES else "no"))
+        for c in CATEGORY_ORDER
+    ]
+    # malformed and unresolved give no answer: nothing to judge.
+    want = [(c, t, "—" if c in ("malformed", "unresolved") else e) for c, t, e in want]
+    assert rows == want

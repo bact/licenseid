@@ -153,10 +153,9 @@ def test_the_exception_flag_is_stored_as_it_was_read() -> None:
 
 @pytest.mark.parametrize(("osi", "fsf"), [(True, True), (False, True), (True, False)])
 def test_a_metadata_row_keeps_the_flags_of_its_entry(osi: bool, fsf: bool) -> None:
-    """R3 of the contract review (P162; was: a deprecated licence without a
-    text, wxWindows or eCos-2.0, got ``is_osi_approved`` and
-    ``is_fsf_libre`` False whatever the List said): the row keeps the
-    flags of its entry, as a row with a text does."""
+    """Was: a deprecated licence without a text, wxWindows or eCos-2.0, got
+    ``is_osi_approved`` and ``is_fsf_libre`` False whatever the List said;
+    now the row keeps the flags of its entry, as a row with a text does."""
     entry = lic_entry("wxWindows", "wxWindows Library License", True)
     entry["isOsiApproved"] = osi
     entry["isFsfLibre"] = fsf

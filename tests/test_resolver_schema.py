@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The schema-2 result of ``resolve()`` (task T7): ``schema``, ``operands``,
+"""The schema-2 result of ``resolve()``: ``schema``, ``operands``,
 ``components`` and ``Step.by``, for a value that names one licence."""
 
 import json
@@ -110,7 +110,7 @@ def test_a_value_refused_before_it_is_read_has_no_operand(
     ["mit", "Apache2", "GPL-2.0+", "GPL-3.0", "Apache 2.0?", "(MIT) OR apache2"],
 )
 def test_a_step_has_no_empty_string(corpus_db: LicenseDatabase, value: str) -> None:
-    """P4 of the contract batch: no step has ``by`` (every step of 0.7.0 is
+    """No step has ``by`` (every step of 0.7.0 is
     licenseid's own), and a ``list`` or ``detail`` that says nothing is
     None, never ``""``; of the whole and of each operand."""
     got = resolve(value, corpus_db)

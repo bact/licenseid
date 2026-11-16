@@ -35,7 +35,7 @@ HELP = re.compile(r"Usage: .*\n(.*\n)*Commands:\n")
 PLAIN = re.compile(
     r"EXPRESSION=\S+( (AND|OR|WITH) \S+)*\tMETHOD=[a-z]+\tEXACT=(true|false)"
     r"\tSCORE=(0\.\d{4}|1\.0000)\tSIMILARITY=(\d\.\d{4})?"
-    r"\tCOVERAGE=(\d+\.\d{4})?"
+    r"\tCOVERAGE=(\d+\.\d{4})?\tVARIANT_STATED=(true|false)?"
 )
 
 #: The lines of ``licenseid resolve``: fields joined by one tab, no value
@@ -65,7 +65,8 @@ ID_ONLY = re.compile(r"\S+( (WITH|AND|OR) \S+)*")
 #: What ``detect`` prints for no answer (exit 1): one record, every field
 #: empty; with ``--json`` every value null; without ``--verbose`` an empty line.
 NO_ANSWER = re.compile(
-    r"EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"
+    r"EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE="
+    r"\tVARIANT_STATED=\n"
 )
 
 #: What :func:`predicate_answer` gives for an output that is not one record.
@@ -157,7 +158,7 @@ def _stream_flags(cell: Cell, result: Result) -> list[str]:
     if result["rc"] == 2 and not result["out"] and HELP.match(result["err"]):
         return flags  # the help for a missing subcommand
     err = result["err"]
-    if "--diff" in cell.cmd:  # detect's word diff goes to stderr (P116)
+    if "--diff" in cell.cmd:  # detect's word diff goes to stderr
         err = WORD_DIFF.sub("", err)
     for line in err.splitlines():
         if cell.progress:

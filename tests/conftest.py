@@ -150,7 +150,7 @@ def offline(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
     ``release_fakes.serve``) and ships a snapshot of its own
     (``release_fakes.ship``). The packaged index ``resolve()`` keeps, and
     the fallback warnings it said, are forgotten before and after: a test
-    sees only its own snapshot (review gap G7)."""
+    sees only its own snapshot."""
     monkeypatch.setattr(
         requests,
         "get",
@@ -295,6 +295,7 @@ RESULT_KEYS = frozenset(
         "score",
         "similarity",
         "coverage",
+        "variant_stated",
         "is_spdx",
         "is_osi_approved",
         "is_fsf_libre",
@@ -322,6 +323,7 @@ def public_match(  # pylint: disable=too-many-arguments
     score: float = 1.0,
     similarity: float | None = None,
     coverage: float | None = None,
+    variant_stated: bool | None = None,
 ) -> Detection:
     """A result as detect() returns it, for the code that prints one."""
     return Detection(
@@ -331,6 +333,7 @@ def public_match(  # pylint: disable=too-many-arguments
         score=score,
         similarity=similarity,
         coverage=coverage,
+        variant_stated=variant_stated,
         is_spdx=True,
         is_osi_approved=True,
         is_fsf_libre=False,
@@ -344,8 +347,10 @@ def invoke_match(db: str, *args: str, color: bool = False) -> Result:
 
 
 # What detect prints when it has no answer (exit 1): one record, every field
-# empty (C9 of the contract batch; it printed nothing).
-NO_DETECTION = "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\n"
+# empty (it printed nothing before).
+NO_DETECTION = (
+    "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\tVARIANT_STATED=\n"
+)
 
 # The flag each is-* command prints after EXPRESSION.
 PREDICATE_KEYS = {
@@ -386,7 +391,7 @@ def update_line(
     status: str, version: str, path: object, *, as_json: bool = False
 ) -> str:
     """The line ``licenseid update`` prints for the SPDX License List, or
-    with *as_json* its object (C2: the record names the list)."""
+    with *as_json* its object: the record names the list."""
     write = record_json if as_json else fields_line
     return (
         write(LIST="spdx-license-list", VERSION=version, STATUS=status, PATH=str(path))

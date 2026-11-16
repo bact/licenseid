@@ -1,0 +1,95 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""The answers the compound expressions moved in the parity corpus
+and the PyPI sample, grouped by the rule that moved them.
+
+The answers are in ``fixtures/resolver_compounds_changes.tsv``, one row a value
+with its group; :data:`REASONS` says why each group moved.
+``resolver_corpus.EXPECTED_CHANGES`` merges :data:`COMPOUNDS_CHANGES`.
+:func:`answer` builds an answer by keyword, its defaults the answer that
+resolves nothing.
+"""
+
+from pathlib import Path
+
+from changes_file import load_changes
+
+from tools.pypi_licence_sample.answer import Answer
+
+CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_compounds_changes.tsv"
+
+
+def answer(  # pylint: disable=too-many-arguments
+    expression: str | None = None,
+    category: str = "unresolved",
+    *,
+    trust: str = "none",
+    steps: tuple[str, ...] = (),
+    step_targets: tuple[str, ...] = (),
+    expansions: tuple[str, ...] = (),
+    expansion_targets: tuple[str, ...] = (),
+    candidates: tuple[str, ...] = (),
+    reason: str | None = None,
+) -> Answer:
+    """An answer by keyword; the defaults are "nothing resolved"."""
+    return Answer(
+        expression=expression,
+        category=category,
+        candidates=candidates,
+        steps=steps,
+        step_targets=step_targets,
+        expansions=expansions,
+        expansion_targets=expansion_targets,
+        trust=trust,
+        input_same=True,
+        reason=reason,
+    )
+
+
+_WAS = "0.6.0 answered `expression` with no expression"
+
+#: Why each group of the changes file moved.
+REASONS: dict[str, str] = {
+    "canonical": (f"a compound already in canonical order is read; {_WAS}"),
+    "canonicalised": (
+        "a compound is read and written in canonical"
+        f" order, operators upper case, duplicates dropped (`lexical`); {_WAS}"
+    ),
+    "weakest": (
+        "a compound takes the category of its weakest operand, each"
+        f" operand read as it is alone; {_WAS}"
+    ),
+    "operand": (
+        "all or nothing, an operand that names no licence leaves the"
+        " compound unresolved (named in the reason when the operators are in"
+        f" upper case); {_WAS}"
+    ),
+    "reason": (
+        "refused as before; with the operators in upper"
+        " case the reason names the first operand that resolves to nothing,"
+        " or is no operand (a leaf of several words that resolves alone)"
+    ),
+    "grammar": (
+        "every part names a licence but the expression does not"
+        " parse: `malformed`, the parser's message the reason; 0.6.0 said"
+        " `expression`"
+    ),
+    "mark": (
+        "unresolved as before; the reason names the mark used where an"
+        " SPDX operator belongs (IDs joined by / | & ; or ,)"
+    ),
+    "brackets": (
+        "square and curly brackets read as round ones; 0.6.0 left the value unresolved"
+    ),
+    "addition_ref": (
+        "an AdditionRef- exception is accepted as a LicenseRef- is,"
+        " unchecked against the list; 0.6.0 refused it"
+    ),
+}
+
+
+#: ``{value: (answer, reason)}``, every value the compound rules move.
+COMPOUNDS_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)

@@ -21,15 +21,15 @@ from collections.abc import Callable, Generator, Iterable
 from pathlib import Path
 
 from resolver_changes_aliases import ALIASES_CHANGES
-from resolver_changes_contract import CONTRACT_CHANGES
+from resolver_changes_compounds import COMPOUNDS_CHANGES, answer
+from resolver_changes_edges import EDGES_CHANGES
 from resolver_changes_hidden import HIDDEN_CHANGES
+from resolver_changes_prose import PROSE_CHANGES
 from resolver_changes_readers import READERS_CHANGES
-from resolver_changes_resolverfix import RESOLVERFIX_CHANGES
+from resolver_changes_refusals import REFUSALS_CHANGES
 from resolver_changes_slash import SLASH_CHANGES
-from resolver_changes_t7 import T7_CHANGES, answer
-from resolver_changes_t8 import T8_CHANGES
-from resolver_changes_t9 import T9_CHANGES
 from resolver_changes_titles import TITLES_CHANGES
+from resolver_changes_trove import TROVE_CHANGES
 from resolver_changes_urls import URLS_CHANGES
 from resolver_changes_versioned import VERSIONED_CHANGES
 from seed_sql import (
@@ -102,11 +102,11 @@ def refused(reason: str, stopped: str | None = None) -> Answer:
 
 
 _DROP = (
-    "T6 (dropguard, F6): the {char} is the author's doubt or a corruption;"
+    "drop guard: the {char} is the author's doubt or a corruption;"
     " 0.6.0 dropped it and answered {licence} (`separator`)"
 )
 _CONTROL = (
-    "T6: refused as before (a control or format character is no separator);"
+    "refused as before (a control or format character is no separator);"
     " the answer now says why"
 )
 
@@ -115,13 +115,13 @@ _CONTROL = (
 #: adds every value it changes here, and no other; the guard fails on a value
 #: that moves without being listed, on a listed value that does not move, and
 #: on a listed value that answers anything but the listed answer. Before
-#: T4b it was empty: 0.6.0's answers are the fixtures'.
+#: the lone-surrogate rule it was empty: 0.6.0's answers are the fixtures'.
 EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
     "MIT\udcff": (
         refused("lone surrogate"),
         (
-            "G1 (T4b): a lone surrogate is refused before any rule reads the"
-            " value; 0.6.0 dropped it as a separator. T6 gives the reason"
+            "a lone surrogate is refused before any rule reads the"
+            " value; 0.6.0 dropped it as a separator. The refusal gives the reason"
         ),
     ),
     "MIT\x00": (refused("control or format character: U+0000"), _CONTROL),
@@ -155,24 +155,25 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
             trust="identity",
         ),
         (
-            "T6b (Q12): a pair of quotes around the whole value delimits it and"
+            "a pair of quotes around the whole value delimits it and"
             " says nothing; 0.6.0 dropped them as a separator (`separator`, the"
-            " rule of the resolver), T6 refused them, now the `unquote` step"
-            " takes them off: a change of form only (`lexical`, `identity`)"
+            " rule of the resolver), the drop guard refused them, now the"
+            " `unquote` step takes them off: a change of form only (`lexical`,"
+            " `identity`)"
         ),
     ),
-    **T7_CHANGES,
-    **T8_CHANGES,
-    **T9_CHANGES,
-    **CONTRACT_CHANGES,  # a value it moves again has its answer now
-    **RESOLVERFIX_CHANGES,  # after the contract, for the same reason
-    **READERS_CHANGES,  # after the fix, for the same reason
+    **COMPOUNDS_CHANGES,
+    **PROSE_CHANGES,
+    **TROVE_CHANGES,
+    **REFUSALS_CHANGES,  # a value it moves again has its answer now
+    **EDGES_CHANGES,  # after the refusal reasons, for the same reason
+    **READERS_CHANGES,  # after the edge values, for the same reason
     **TITLES_CHANGES,  # after the readers, for the same reason
     **VERSIONED_CHANGES,
     **URLS_CHANGES,  # last: a value it moves again has its answer now
     **ALIASES_CHANGES,  # last, for the same reason
     **HIDDEN_CHANGES,  # last: `MIT\u200b` was refused, now read
-    **SLASH_CHANGES,  # over the T7 row: `MIT/Apache-2.0` was refused
+    **SLASH_CHANGES,  # over the compound-expression row: `MIT/Apache-2.0` was refused
 }
 
 

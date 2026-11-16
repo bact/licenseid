@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Read a file of answers a task moved (``fixtures/resolver_t*_changes.tsv``):
+"""Read a file of answers a change moved (``fixtures/resolver_*_changes.tsv``):
 one row a value, with the group whose reason says why it moved."""
 
 from pathlib import Path

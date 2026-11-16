@@ -26,6 +26,7 @@ from typing import Any
 from licenseid.resolvertypes import ListInfo, Resolution, Step
 from licenseid.resolvesemicolon import REASON as NO_OPERATOR
 from licenseid.types import Detection, InternalMatch, RawMatch
+from licenseid.variants import guessed_of, stated_of
 
 # The value of one field: a text, a flag, or nothing (empty in a text line,
 # null in JSON).
@@ -45,10 +46,12 @@ def public_result(raw: RawMatch | InternalMatch, lists: list[ListInfo]) -> Detec
     """*raw* as detect() returns it, resting on *lists* (each result its own
     copy). The ranking key is capped to 0-1: above 1 it only orders a tier's
     own results, and the order is in the list."""
+    evidence = raw.get("evidence")
     return Detection(
         expression=raw["license_id"],
         method=raw["method"],
-        exact=bool(raw["exact"]),
+        # A variant licenseid chose is a guess, so not exact (the one rule).
+        exact=bool(raw["exact"]) and not guessed_of(raw["license_id"], evidence),
         score=round(max(0.0, min(raw["score"], 1.0)), _DIGITS),
         similarity=_rounded(raw["similarity"]),
         coverage=_rounded(raw["coverage"]),
@@ -56,6 +59,7 @@ def public_result(raw: RawMatch | InternalMatch, lists: list[ListInfo]) -> Detec
         is_osi_approved=_judged(raw.get("is_osi_approved", False)),
         is_fsf_libre=_judged(raw.get("is_fsf_libre", False)),
         lists=copy.deepcopy(lists),
+        variant_stated=stated_of(raw["license_id"], evidence),
     )
 
 
@@ -98,6 +102,7 @@ def text_line(result: Detection) -> str:
         SCORE=number(result["score"]),
         SIMILARITY=number(result["similarity"]),
         COVERAGE=number(result["coverage"]),
+        VARIANT_STATED=result["variant_stated"],
     )
 
 
@@ -111,6 +116,7 @@ def no_detection_line() -> str:
         SCORE=None,
         SIMILARITY=None,
         COVERAGE=None,
+        VARIANT_STATED=None,
     )
 
 

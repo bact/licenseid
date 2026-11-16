@@ -188,7 +188,7 @@ def test_match_version_key(
         (" gpl  2\n", "GPL-2.0-only"),
     ],
 )
-def test_a_family_alone_is_narrowed_to_only_with_a_warning(
+def test_a_family_alone_is_decided_to_only_with_a_warning(
     db: LicenseDatabase,
     given: GivenWarnings,
     text: str,
@@ -202,8 +202,7 @@ def test_a_family_alone_is_narrowed_to_only_with_a_warning(
         False,
         1.02,
     )
-    detail = " ".join(text.split())
-    assert given.lines() == NARROWED.format(detail, license_id)
+    assert given.lines() == NARROWED.format("GPL-2.0", license_id)
 
 
 @pytest.mark.parametrize(
@@ -268,12 +267,12 @@ def test_a_long_input_is_no_loose_id(
 
 
 @pytest.mark.parametrize("text", ["GPL-2.0", "gpl-2.0"])
-def test_a_deprecated_id_as_is_is_narrowed_aloud(
+def test_a_deprecated_id_as_is_is_decided_aloud(
     db: LicenseDatabase, given: GivenWarnings, text: str
 ) -> None:
     """A deprecated ID written as is: -only is the narrower guess, not what
-    was declared, so it is not exact, and said (F3 of the contract batch;
-    it was exact and silent)."""
+    was declared, so it is not exact, and said (it was
+    exact and silent)."""
     results = match_version_key(db, text)
     assert [(m["license_id"], m["method"], m["exact"]) for m in results] == [
         ("GPL-2.0-only", "id", False)
@@ -284,18 +283,18 @@ def test_a_deprecated_id_as_is_is_narrowed_aloud(
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
-        ("Apache2", ("Apache-2.0", "id", True)),
-        ('{"license": "Apache_2.0"}', ("Apache-2.0", "field", True)),
+        ("Apache2", ("Apache-2.0", "id", False)),
+        ('{"license": "Apache_2.0"}', ("Apache-2.0", "field", False)),
         ('{"license": "GPLv2"}', ("GPL-2.0-only", "field", False)),
-        ("GPL 2.0+", ("GPL-2.0-or-later", "id", True)),
+        ("GPL 2.0+", ("GPL-2.0-or-later", "id", False)),
         ("GPL2", ("GPL-2.0-only", "id", False)),
         # A declared ID keeps its own path, not the key's; bare, it is
-        # narrowed aloud (F3).
+        # narrowed aloud.
         ("GPL-2.0", ("GPL-2.0-only", "id", False)),
         ("GPL-2.0+", ("GPL-2.0-or-later", "id", True)),
         # resolve() reads the whole value, its "+" kept (was: the fuzzy name
         # match, Apache-2.0, the "+" lost).
-        ("Apache 2+", ("Apache-2.0+", "id", True)),
+        ("Apache 2+", ("Apache-2.0+", "id", False)),
     ],
 )
 def test_match_answers_with_the_id(
@@ -306,10 +305,11 @@ def test_match_answers_with_the_id(
 ) -> None:
     """Through detect(), with the flags of the answer, from text and from a
     manifest's license field."""
-    top = matcher.detect(text=text)[0]
+    top = matcher.detect(text=text, variant="only")[0]
     assert (top["expression"], top["method"], top["exact"]) == expected
     assert top["is_spdx"] is True
-    assert given.conditions() <= {"variant not stated"}
+    # "only" asks for -only: a "+" in the input wins, said aloud.
+    assert given.conditions() <= {"variant not stated", "overridden by input"}
 
 
 def test_a_plus_without_a_key_is_no_exact_answer(

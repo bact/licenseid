@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Adversarial compounds for ``resolve()`` (task T7): operator case and
+"""Adversarial compounds for ``resolve()``: operator case and
 spacing, unbalanced and mixed brackets, grants and quotes per operand,
 references, duplicates, controls, and the limits that keep deep nesting and
 long chains away from the parser, each timed with distinct payloads.
@@ -62,7 +62,7 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
         "GPL-2.0 (or later) OR MIT",
         ("GPL-2.0-or-later OR MIT", "stated_qualifier", None),
     ),
-    # Task readers: a "+" after a space is no operator (was GPL-2.0-or-later).
+    # A "+" after a space is no operator (was GPL-2.0-or-later).
     ("GPL-2.0 + OR MIT", (None, "malformed", "plus after a space: GPL-2.0 +")),
     ("GPL-2.0 or later OR GPL-2.0+", ("GPL-2.0-or-later", "stated_qualifier", None)),
     (
@@ -75,7 +75,7 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     ),
     ("MIT OR +", (None, "unresolved", "operand not resolved: +")),
     ("(or later) OR MIT", (None, "unresolved", "not found: (or later) OR MIT")),
-    # P35 (decided by the maintainer): an ID with no -or-later form takes "+"
+    # Decided by the maintainer: an ID with no -or-later form takes "+"
     ("GPL-2.0 or MIT or later", ("GPL-2.0 OR MIT+", "assumed_only", None)),
     ("MIT OR later OR ISC", ("ISC OR MIT+", "stated_qualifier", None)),
     ("Apache-2.0 OR later OR ISC", ("Apache-2.0+ OR ISC", "stated_qualifier", None)),
@@ -101,7 +101,7 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     ('"MIT" AND "ISC', (None, "unresolved", "character dropped: U+0022")),
     # references
     ("LicenseRef-a OR LicenseRef-a", ("LicenseRef-a", "lexical", None)),
-    # the prefix in SPDX's case, so one ID (resolverfix item 4; was both, exact)
+    # the prefix in SPDX's case, so one ID (was both, exact)
     ("LicenseRef-a OR licenseref-a", ("LicenseRef-a", "lexical", None)),
     (
         "LicenseRef-a OR DocumentRef-x:LicenseRef-a",
@@ -183,7 +183,7 @@ def test_prose_over_the_operator_cap_is_still_prose(
     for count in (10, 160):
         got = resolve(f" {operator} ".join(["foo bar"] * count), corpus_db)
         assert got["category"] == "unresolved"
-        assert str(got["reason"]).startswith(reason)  # cut at 60 (P61)
+        assert str(got["reason"]).startswith(reason)  # cut at 60
 
 
 @pytest.mark.parametrize(

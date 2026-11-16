@@ -250,7 +250,7 @@ def test_an_empty_text_option_is_refused_too() -> None:
 
 @pytest.mark.parametrize("stdin", ["", None, "MIT"], ids=["empty", "none", "piped"])
 def test_no_value_is_missing_whatever_is_piped(stdin: str | None) -> None:
-    """C8 of the contract batch: ``resolve`` never reads standard input (it
+    """``resolve`` never reads standard input (it
     read a byte to tell a pipe from nothing, which waits for ever on a pipe
     that stays open)."""
     result = run(stdin=stdin)
@@ -266,7 +266,7 @@ _MAIN = "import sys; from licenseid.cli import main; sys.argv[0] = 'licenseid'; 
 
 @posix_only
 def test_no_value_does_not_wait_on_a_pipe_that_never_ends() -> None:
-    """C8: standard input an open pipe that brings nothing and never closes
+    """Standard input an open pipe that brings nothing and never closes
     (``sleep 1000 | licenseid resolve``, a CI step). It used to block in
     read(1); now it exits 2 at once. A child process, with a timeout, so a
     regression fails the test instead of hanging the run."""
@@ -382,7 +382,7 @@ def test_a_path_is_judged_after_the_list(
 
 
 def test_a_dash_is_refused_for_detect() -> None:
-    """C5: ``-`` names standard input for detect and is-*; resolve takes one
+    """``-`` names standard input for detect and is-*; resolve takes one
     declared value, so ``resolve -`` points there, and reads nothing."""
     result = run("-", stdin="MIT")
     assert (result.exit_code, result.stdout, result.stderr) == (

@@ -129,9 +129,9 @@ def choose_list(
 
 
 def given_database(db: GivenDatabase) -> LicenseDatabase:
-    """The database *db* is or names, ready to read (P3 of the contract
-    batch: a path raised ``AttributeError``, and a database was read
-    unchecked). A path opens without ``create``, after the check, so a
+    """The database *db* is or names, ready to read (a path
+    raised ``AttributeError``, and a database was read unchecked). A path
+    opens without ``create``, after the check, so a
     missing file is ``not found`` and none is made; every database, given
     or opened, passes :func:`licenseid.dbcheck.check_database_ready`.
 

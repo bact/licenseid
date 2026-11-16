@@ -116,7 +116,8 @@ def test_the_table_is_the_golden_answer() -> None:
     assert actual == GOLDEN
 
 
-#: The stated names that write no version: an exception to P47.
+#: The stated names that write no version: an exception to the rule that a
+#: stated name writes its version.
 NO_VERSION = {"Universal Permissive License (UPL)"}
 
 
@@ -132,7 +133,7 @@ def test_stated_names_say_their_licence(name: str) -> None:
 
 
 def test_only_the_upl_name_is_stated_without_its_version() -> None:
-    """P47 holds for every other name with no version (the maintainer,
+    """Every other stated name writes its version (the maintainer,
     2026-11-05)."""
     unwritten = {n for n, e in STATED.items() if not version_in_name(e.ids[0], n)}
     assert unwritten == NO_VERSION
@@ -160,13 +161,13 @@ def test_every_reading_is_known() -> None:
 
 
 def test_lgplv2_special_case_is_read_as_written() -> None:
-    """Q23: the Lesser v2 name is the bare deprecated LGPL-2.0."""
+    """The Lesser v2 name is the bare deprecated LGPL-2.0."""
     entry = TROVE_NAMES["GNU Lesser General Public License v2 (LGPLv2)"]
     assert entry == (("LGPL-2.0",), "assumed", True)
 
 
 def test_the_lesser_v2_or_later_name_states_its_grant() -> None:
-    """P45 (maintainer, 2026-10-29): the grant is written in the name."""
+    """The grant is written in the name (maintainer, 2026-10-29)."""
     entry = TROVE_NAMES["GNU Lesser General Public License v2 or later (LGPLv2+)"]
     assert entry == (("LGPL-2.0-or-later",), "stated", True)
 
@@ -176,8 +177,8 @@ def test_the_lesser_v2_or_later_name_states_its_grant() -> None:
     ["Apache Software License", "Python Software Foundation License", "W3C License"],
     ids=lambda name: name[:20],
 )
-def test_names_read_by_usage_or_by_q22_are_not_read(name: str) -> None:
-    """T4 (Q3, deferred) and Q22: no ID, though one is often meant."""
+def test_names_read_by_usage_or_with_no_licence_are_not_read(name: str) -> None:
+    """No ID, though one is often meant (a reading deferred by the maintainer)."""
     assert TROVE_NAMES[name].ids == ()
 
 

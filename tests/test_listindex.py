@@ -213,7 +213,7 @@ def test_the_whole_tables_are_the_databases(index: ListIndex, db: ListLookup) ->
 
 def test_an_id_with_no_text_is_not_kept(index: ListIndex) -> None:
     """Not kept, unless deprecated (listrules.kept); not in the names in use
-    either (review gap G8)."""
+    either."""
     assert index.get_license_details("NoText-1.0") is None
     assert "no text license" not in index.get_active_ids_by_name()
     assert index.get_license_details("Gone-1.0") == {
@@ -323,7 +323,7 @@ def test_reading_is_a_block_that_opens_nothing(index: ListIndex) -> None:
 
 
 def test_the_texts_are_not_kept(index: ListIndex) -> None:
-    """IDs and names only (F11): no text survives the build."""
+    """IDs and names only: no text survives the build."""
     held = repr(vars(index))
     assert "Text of MIT." not in held
 

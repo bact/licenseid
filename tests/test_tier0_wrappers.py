@@ -80,11 +80,11 @@ PINS: list[tuple[str, str, Answer]] = [
     ("『MIT OR ISC』", "whole", ("ISC OR MIT", "id", True)),
     ("BSD (3 clause)", "whole", ("BSD-3-Clause", "name", True)),
     ("GPL-2.0+", "ini", ("GPL-2.0-or-later", "field", True)),  # was -only
-    ("GPL-2+", "ini", ("GPL-2.0-or-later", "field", True)),
-    ("AGPLv3+", "ini", ("AGPL-3.0-or-later", "field", True)),
+    ("GPL-2+", "ini", ("GPL-2.0-or-later", "field", False)),
+    ("AGPLv3+", "ini", ("AGPL-3.0-or-later", "field", False)),
     ("GPL-2.0+", "ini file", ("GPL-2.0-or-later", "field", True)),
     ("MIT OR ISC", "ini", ("ISC OR MIT", "field", True)),  # was no answer
-    ("Apache 2.0 License", "ini", ("Apache-2.0", "field", True)),
+    ("Apache 2.0 License", "ini", ("Apache-2.0", "field", False)),
     ("MIT++", "ini", None),
     ("「MIT++」", "ini", None),
 ]
@@ -262,7 +262,7 @@ def test_a_sentence_of_ten_words_is_not_refused_for_a_plus() -> None:
 @pytest.mark.parametrize(
     ("value", "answer"),
     [
-        ("GNU General Public License v3 (GPLv3)", ("GPL-3.0-only", "name", False)),
+        ("GNU General Public License v3 (GPLv3)", ("GPL-3.0", "name", True)),
         ("OSL-3 0", ("OSL-3.0", "id", True)),  # the version key is still read
     ],
 )

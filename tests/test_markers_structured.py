@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Direct unit tests for MarkerDetector._detect_structured_format().
+"""Direct unit tests for the license fields of JSON, TOML and INI: the
+reading of ``manifest.license_value_groups`` by MarkerDetector.
 
 Characterization tests written before the complexity refactor (see
 working-docs/design/complexity-and-file-size-roadmap.md) to pin down JSON,
@@ -22,6 +23,7 @@ import pytest
 from conftest import GivenWarnings, make_memory_db_path
 
 from licenseid.database import LicenseDatabase
+from licenseid.manifest import license_value_groups
 from licenseid.markers import MarkerDetector
 from licenseid.types import CandidateMatch
 
@@ -41,6 +43,13 @@ def detector() -> Generator[MarkerDetector, None, None]:
     keep_alive.close()
 
 
+def _structured(
+    detector: MarkerDetector, text: str, ext: str = ""
+) -> list[CandidateMatch]:
+    """The candidates of the license fields of *text*, a file of *ext*."""
+    return detector._structured_candidates(license_value_groups(text, ext))
+
+
 def _summary(candidates: list[CandidateMatch]) -> list[tuple[str, float]]:
     return [(c["license_id"], c.get("score", 0.0)) for c in candidates]
 
@@ -58,19 +67,17 @@ def _summary(candidates: list[CandidateMatch]) -> list[tuple[str, float]]:
     ],
 )
 def test_json_ext_resolves_license_key(detector: MarkerDetector, text: str) -> None:
-    result = detector._detect_structured_format(text, ".json")
+    result = _structured(detector, text, ".json")
     assert _summary(result) == [("MIT", 1.0)]
 
 
 def test_json_license_resolved_by_name(detector: MarkerDetector) -> None:
-    result = detector._detect_structured_format(
-        '{"license": "Apache License 2.0"}', ".json"
-    )
+    result = _structured(detector, '{"license": "Apache License 2.0"}', ".json")
     assert _summary(result) == [("Apache-2.0", 1.0)]
 
 
 def test_json_without_ext_routes_object_to_json(detector: MarkerDetector) -> None:
-    result = detector._detect_structured_format('{"license": "MIT"}')
+    result = _structured(detector, '{"license": "MIT"}')
     assert _summary(result) == [("MIT", 1.0)]
 
 
@@ -87,7 +94,7 @@ def test_json_without_ext_routes_object_to_json(detector: MarkerDetector) -> Non
 def test_json_non_object_or_invalid_returns_nothing(
     detector: MarkerDetector, text: str
 ) -> None:
-    assert not detector._detect_structured_format(text, ".json")
+    assert not _structured(detector, text, ".json")
 
 
 def test_json_parse_failure_does_not_fall_through(detector: MarkerDetector) -> None:
@@ -95,8 +102,8 @@ def test_json_parse_failure_does_not_fall_through(detector: MarkerDetector) -> N
     .json extension is never re-parsed by the other branches."""
     ini_like = "[metadata]\nlicense = MIT\n"
     toml_like = 'license = {text = "MIT"}'
-    assert not detector._detect_structured_format(ini_like, ".json")
-    assert not detector._detect_structured_format(toml_like, ".json")
+    assert not _structured(detector, ini_like, ".json")
+    assert not _structured(detector, toml_like, ".json")
 
 
 @pytest.mark.parametrize(
@@ -108,7 +115,7 @@ def test_json_non_string_or_empty_value_returns_nothing(
 ) -> None:
     """An object without a string "type", lists, numbers, booleans, null,
     and the empty string are not resolved."""
-    assert not detector._detect_structured_format('{"license": ' + value + "}", ".json")
+    assert not _structured(detector, '{"license": ' + value + "}", ".json")
 
 
 def test_json_truthy_non_string_license_shadows_valid_key(
@@ -117,7 +124,7 @@ def test_json_truthy_non_string_license_shadows_valid_key(
     """Quirk: the key fallback is `license or License or LICENSE`, so a
     truthy non-string "license" hides a valid "License"."""
     text = '{"license": ["MIT"], "License": "MIT"}'
-    assert not detector._detect_structured_format(text, ".json")
+    assert not _structured(detector, text, ".json")
 
 
 @pytest.mark.parametrize(
@@ -146,9 +153,7 @@ def test_json_truthy_non_string_license_shadows_valid_key(
 def test_json_npm_legacy_forms_resolve(
     detector: MarkerDetector, text: str, expected: str
 ) -> None:
-    assert _summary(detector._detect_structured_format(text, ".json")) == [
-        (expected, 1.0)
-    ]
+    assert _summary(_structured(detector, text, ".json")) == [(expected, 1.0)]
 
 
 @pytest.mark.parametrize(
@@ -165,7 +170,7 @@ def test_json_npm_array_with_a_gap_is_not_read(
 ) -> None:
     """Every entry must name its license: an OR that leaves one out would
     answer for fewer licenses than the file offers."""
-    assert not detector._detect_structured_format(text, ".json")
+    assert not _structured(detector, text, ".json")
 
 
 # --- TOML ---
@@ -182,13 +187,13 @@ def test_json_npm_array_with_a_gap_is_not_read(
     ],
 )
 def test_toml_table_form_resolves(detector: MarkerDetector, text: str) -> None:
-    result = detector._detect_structured_format(text, ".toml")
+    result = _structured(detector, text, ".toml")
     assert _summary(result) == [("MIT", 1.0)]
 
 
 def test_toml_commented_out_line_not_matched(detector: MarkerDetector) -> None:
     text = '# license = {text = "MIT"}\n'
-    assert not detector._detect_structured_format(text, ".toml")
+    assert not _structured(detector, text, ".toml")
 
 
 @pytest.mark.parametrize(
@@ -288,7 +293,7 @@ def test_toml_commented_out_line_not_matched(detector: MarkerDetector) -> None:
 def test_toml_string_form_resolves(
     detector: MarkerDetector, text: str, expected: str
 ) -> None:
-    result = detector._detect_structured_format(text, ".toml")
+    result = _structured(detector, text, ".toml")
     assert _summary(result) == [(expected, 1.0)]
 
 
@@ -308,7 +313,7 @@ def test_toml_pep621_table_written_out(
 ) -> None:
     """PEP 621's license table as a table of its own or a dotted key; an
     array of tables ([[bin]]) is not the table above it."""
-    result = _summary(detector._detect_structured_format(text, ".toml"))
+    result = _summary(_structured(detector, text, ".toml"))
     assert result == ([(expected, 1.0)] if expected else [])
 
 
@@ -341,7 +346,7 @@ def test_toml_pep621_table_written_out(
 def test_toml_string_form_elsewhere_is_not_read(
     detector: MarkerDetector, text: str
 ) -> None:
-    assert not detector._detect_structured_format(text, ".toml")
+    assert not _structured(detector, text, ".toml")
 
 
 @pytest.mark.parametrize(
@@ -367,7 +372,7 @@ def test_toml_string_form_elsewhere_is_not_read(
     ],
 )
 def test_no_ext_manifest_resolves(detector: MarkerDetector, text: str) -> None:
-    assert _summary(detector._detect_structured_format(text)) == [("MIT", 1.0)]
+    assert _summary(_structured(detector, text)) == [("MIT", 1.0)]
 
 
 # --- INI ---
@@ -409,7 +414,7 @@ def test_no_ext_manifest_resolves(detector: MarkerDetector, text: str) -> None:
 def test_ini_license_resolves(
     detector: MarkerDetector, text: str, ext: str, expected: str
 ) -> None:
-    result = detector._detect_structured_format(text, ext)
+    result = _structured(detector, text, ext)
     assert _summary(result) == [(expected, 1.0)]
 
 
@@ -438,7 +443,7 @@ def test_ini_license_resolves(
 def test_ini_without_a_license_returns_nothing(
     detector: MarkerDetector, text: str, ext: str
 ) -> None:
-    assert not detector._detect_structured_format(text, ext)
+    assert not _structured(detector, text, ext)
 
 
 # --- extension gating ---
@@ -447,7 +452,7 @@ def test_ini_without_a_license_returns_nothing(
 @pytest.mark.parametrize("ext", [".yaml", ".txt", ".md"])
 def test_unknown_extension_returns_nothing(detector: MarkerDetector, ext: str) -> None:
     for text in ('license = {text = "MIT"}', "[a]\nlicense = MIT\n"):
-        assert not detector._detect_structured_format(text, ext)
+        assert not _structured(detector, text, ext)
 
 
 # --- no extension: TOML then INI both run ---
@@ -476,14 +481,14 @@ def test_no_ext_text_not_starting_as_toml_is_not_read_as_toml(
     """A README piped in (a badge first, a [project] example inside) is not
     a manifest, in either form; since the field scores 1.0, the example
     would be a certain answer."""
-    assert not detector._detect_structured_format(text)
+    assert not _structured(detector, text)
 
 
 def test_no_ext_toml_and_ini_both_run_toml_first(detector: MarkerDetector) -> None:
     text = (
         '# metadata\n[a]\nlicense = Apache-2.0\n[project]\nlicense = {text = "MIT"}\n'
     )
-    result = detector._detect_structured_format(text)
+    result = _structured(detector, text)
     assert _summary(result) == [("MIT", 1.0), ("Apache-2.0", 1.0)]
 
 
@@ -494,7 +499,7 @@ def test_no_ext_toml_table_not_reparsed_as_ini_phantom_candidate(
     table's raw value '{text = "MIT"}' under [project]; it must not become a
     phantom candidate alongside the real MIT one."""
     text = '# pyproject\n[project]\nlicense = {text = "MIT"}\n'
-    result = detector._detect_structured_format(text)
+    result = _structured(detector, text)
     assert _summary(result) == [("MIT", 1.0)]
 
 
@@ -515,14 +520,14 @@ def test_no_ext_section_header_first_falls_through_from_json(
     """Regression: extensionless text starting with '[' is tried as JSON
     first; when that fails it must fall through to TOML/INI (as .cfg/.toml
     files already do) instead of being swallowed by the JSON branch."""
-    assert _summary(detector._detect_structured_format(text)) == expected
+    assert _summary(_structured(detector, text)) == expected
 
 
 def test_no_ext_valid_json_still_does_not_fall_through(
     detector: MarkerDetector,
 ) -> None:
-    assert not detector._detect_structured_format('{"name": "x"}')
-    assert not detector._detect_structured_format('["MIT"]')
+    assert not _structured(detector, '{"name": "x"}')
+    assert not _structured(detector, '["MIT"]')
 
 
 _NESTING_DEPTH = sys.getrecursionlimit() + 1000
@@ -538,7 +543,7 @@ def test_json_deep_nesting_does_not_crash(
     """Regression: json.loads raises RecursionError (not a ValueError) on
     nesting deeper than the recursion limit; it must degrade to "no match",
     not crash detect()."""
-    assert not detector._detect_structured_format(text, ext)
+    assert not _structured(detector, text, ext)
 
 
 # --- resolve_license_value (callee) ---
@@ -557,7 +562,7 @@ def test_resolve_spdx_url(detector: MarkerDetector) -> None:
         '{text = "MIT"}',
         "(MIT",
         "Dual OR Commercial",
-        # An ID with no row is no operand (they were candidates, F2): this
+        # An ID with no row is no operand (they were candidates): this
         # database has no exception rows, and Commercial is on no List.
         "MIT WITH Font-exception-2.0",
         "GPL-3.0 or Commercial",
@@ -579,7 +584,7 @@ def test_resolve_unrecognised_value_returns_nothing(
     ("value", "expected_id", "is_spdx"),
     [
         ("MIT OR Apache-2.0", "Apache-2.0 OR MIT", True),
-        # A LicenseRef-* is valid SPDX, but not on the List (F2).
+        # A LicenseRef-* is valid SPDX, but not on the List.
         ("LicenseRef-foo", "LicenseRef-foo", False),
         ("LicenseRef-foo AND MIT", "MIT AND LicenseRef-foo", False),
     ],

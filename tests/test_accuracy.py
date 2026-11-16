@@ -18,6 +18,9 @@ from licenseid.detector import LicenseDetector
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "license-text-long"
 
+# Verbatim GPL-family texts state no variant: each says so, once.
+pytestmark = pytest.mark.filterwarnings("ignore::licenseid.LicenseIdWarning")
+
 
 # pylint: disable=redefined-outer-name
 

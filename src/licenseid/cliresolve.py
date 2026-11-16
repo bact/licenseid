@@ -65,9 +65,9 @@ def declared_value(ctx: click.Context, value: str | None, text: str | None) -> s
     """The one value to resolve: the argument, checked. Exit 2 for no value,
     a blank one, one the command line could not encode (a lone surrogate),
     and for what only ``detect`` answers. Standard input is never read, not
-    even to see whether it brings anything (C8 of the contract batch: an
-    open pipe that never ends would hang the command); ``-``, which names
-    it, is refused as ``detect``'s (C5)."""
+    even to see whether it brings anything (an open pipe
+    that never ends would hang the command); ``-``, which names it, is
+    refused as ``detect``'s."""
     if text is not None:
         exit_usage_error(ctx, f"option: invalid: --text: a licence text{TO_DETECT}")
     if value is None:

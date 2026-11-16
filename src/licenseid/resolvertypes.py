@@ -244,8 +244,8 @@ def step(
     kind: str, applied: bool, source: str, target: str, detail: str | None = None
 ) -> Step:
     """One step of the public shape, citing the list if its kind rests on
-    one. None means nothing, in ``list`` and ``detail`` alike (P4 of the
-    contract batch: they were ``""``); the step is licenseid's own, so it
+    one. None means nothing, in ``list`` and ``detail`` alike (they were
+    ``""``); the step is licenseid's own, so it
     names no tool (``by`` is gone)."""
     return {
         "kind": kind,

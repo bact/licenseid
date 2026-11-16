@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The reason of a refusal no reader gave one (P5 of the contract batch).
+"""The reason of a refusal no reader gave one.
 
 Every ``unresolved`` or ``malformed`` answer of ``resolve()`` carries a
 ``reason``, one line, ``CONDITION[: DETAIL]``. A reader that knows why it
@@ -11,7 +11,7 @@ refused says so (``character dropped``, ``operand not resolved``); for the
 rest, :func:`no_reading` says what is left to say once every reader has
 declined the value. The wording is the CONDITION style of the diagnostics
 (AGENTS.md "CLI output"), and a detail from the input is folded to one line
-and cut, its ";" kept (:func:`licenseid.errors.reason_detail`, P61).
+and cut, its ";" kept (:func:`licenseid.errors.reason_detail`).
 """
 
 from collections.abc import Callable

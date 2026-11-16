@@ -40,7 +40,7 @@ PHRASES: dict[str, tuple[bool, bool]] = {
     "not or newer": (False, False),
     "not or later": (False, False),
     "not or-later": (False, False),
-    "-or-later": (True, True),  # a dash between words (D10); it was neither
+    "-or-later": (True, True),  # a dash between words; it was neither
 }
 
 

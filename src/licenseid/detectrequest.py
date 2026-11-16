@@ -10,8 +10,9 @@ from collections.abc import Mapping
 from typing import Final
 
 from licenseid.dbcheck import require_path
-from licenseid.errors import InvalidInputError
+from licenseid.errors import InvalidInputError, one_line
 from licenseid.types import DetectOptions
+from licenseid.variants import VARIANTS
 
 # The keyword options detect() accepts: the keys of DetectOptions.
 MATCH_OPTIONS: frozenset[str] = frozenset(DetectOptions.__annotations__)
@@ -21,9 +22,9 @@ ID_COLLECTIONS: Final = (list, tuple, set, frozenset)
 
 
 def _check_inputs(text: object, license_id: object, file_path: object) -> None:
-    """The input rules of :meth:`LicenseDetector.detect` (P6 of the contract
-    batch): :class:`TypeError` for a *text* or *license_id* that is no
-    :class:`str` (it failed deep inside), or a *file_path* that is no path;
+    """The input rules of :meth:`LicenseDetector.detect`: :class:`TypeError`
+    for a *text* or *license_id* that is no :class:`str` (it failed deep
+    inside), or a *file_path* that is no path;
     :class:`licenseid.errors.InvalidInputError` unless exactly one of the
     three is given (none answered nothing; of two, one won unsaid)."""
     for name, value in (("text", text), ("license_id", license_id)):
@@ -71,6 +72,7 @@ def _check_option_values(options: Mapping[str, object]) -> None:
     for name in _FLAG_OPTIONS:
         if name in options and not isinstance(options[name], bool):
             raise TypeError(f"{name} must be bool, not {type(options[name]).__name__}")
+    _check_variant(options)
     for name in _LIST_OPTIONS:
         value = options.get(name)
         if name in options and (
@@ -78,6 +80,21 @@ def _check_option_values(options: Mapping[str, object]) -> None:
             or not all(isinstance(item, str) for item in value)
         ):
             raise TypeError(f"{name} must be a list of str")
+
+
+def _check_variant(options: Mapping[str, object]) -> None:
+    """:class:`TypeError` for a ``variant`` that is no str,
+    :class:`InvalidInputError` for one that is not a variant."""
+    if "variant" not in options:
+        return
+    value = options["variant"]
+    if not isinstance(value, str):
+        raise TypeError(f"variant must be str, not {type(value).__name__}")
+    if value not in VARIANTS:
+        raise InvalidInputError(
+            f"option: invalid: variant: {one_line(value)}"
+            f"; use one of {', '.join(VARIANTS)}"
+        )
 
 
 def check_request(

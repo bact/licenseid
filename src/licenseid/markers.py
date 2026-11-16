@@ -20,7 +20,12 @@ from licenseid.classify import OR_LATER_PHRASE
 from licenseid.database import LicenseDatabase
 from licenseid.dropguard import without_name_tail
 from licenseid.errors import one_line
-from licenseid.exprflags import declared_flags, judged_flags
+from licenseid.exprflags import (
+    declared_flags,
+    judged_details,
+    judged_flags,
+    with_judged_flags,
+)
 from licenseid.exprtokens import cut_inside_word
 from licenseid.hiddenchars import space_out_hidden, strip_hidden
 from licenseid.identifiers import (
@@ -30,11 +35,13 @@ from licenseid.identifiers import (
     qualify_trailing_grant,
     read_leading,
 )
-from licenseid.looseid import drops_words, read_inexactly, warn_narrowed
+from licenseid.looseid import drops_words, mark_guessed, read_inexactly
 from licenseid.manifest import extension, license_value_groups
 from licenseid.resolveslash import slash_expression
 from licenseid.resolveurl import url_license_id
+from licenseid.ruleread import tag_inexact
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags
+from licenseid.variants import only_by_name, qualify_trailing_only, read_from
 from licenseid.warning import warn
 
 
@@ -190,12 +197,6 @@ class MarkerDetector:
             self._detect_explicit_identifiers(text, read_fields=False),
         )
 
-    def _detect_structured_format(
-        self, text: str, ext: str = ""
-    ) -> list[CandidateMatch]:
-        """Parse structured file formats (JSON, TOML, INI) for license fields."""
-        return self._structured_candidates(license_value_groups(text, ext))
-
     def _structured_candidates(self, groups: list[list[str]]) -> list[CandidateMatch]:
         """The first value of each format that resolves, one candidate per
         license."""
@@ -212,14 +213,13 @@ class MarkerDetector:
         return []
 
     def resolve_license_value(
-        self, val: str, score: float, *, whole: bool = False, shown: str | None = None
+        self, val: str, score: float, *, whole: bool = False
     ) -> list[CandidateMatch]:
         """Resolve a license string (ID, name, or SPDX URL) to candidates.
 
         With *whole*, the expression must be the entire value, as in a
         manifest field, which holds nothing else: "MIT/Apache-2.0" there is
-        not MIT with trailing prose, and answering MIT would drop a license.
-        A narrowed guess is said of *shown*, the value as written, if given."""
+        not MIT with trailing prose, and answering MIT would drop a license."""
         # Each word that is a licence URL becomes the ID it names.
         val = space_out_hidden(strip_hidden(val)[0])  # as resolve() does
         if whole:  # "MIT/Apache-2.0" is "MIT OR Apache-2.0" (resolveslash)
@@ -232,7 +232,8 @@ class MarkerDetector:
         # the prose. The name lookup still sees the whole value ("BSD 3-Clause"
         # is a name, not an expression).
         leading = leading_expression(val)
-        expression = qualify_trailing_grant(leading, val)
+        granted = qualify_trailing_grant(leading, val)
+        expression = qualify_trailing_only(granted, val)
         # Words the reading would drop: refused in a field, which holds
         # nothing else, and after a "+" they contradict (looseid).
         refused = drops_words(leading, expression, val, whole=whole, db=self.db)
@@ -240,16 +241,17 @@ class MarkerDetector:
         # The name comes first: the expression can be a prefix of the value,
         # and "MIT No Attribution" is MIT-0, not MIT.
         named = self.db.get_license_by_name(without_name_tail(val))
+        guessed = False
         if named and not named["is_deprecated"]:
-            return [self._candidate_without_text(named, score)]
+            return read_from([self._candidate_without_text(named, score)], val)
         if named:
-            # A deprecated ID keeps the name of the ID that replaced it, so
-            # the name answers as that ID does: the name of
-            # GPL-2.0-with-GCC-exception is GPL-2.0-only WITH GCC-exception-2.0.
-            lic_id = normalize_identifier(named["license_id"], self.db)
+            # A deprecated ID keeps the name of the ID that replaced it.
+            lic_id, guessed = only_by_name(
+                named, normalize_identifier(named["license_id"], self.db)
+            )
         elif refused:
             return []
-        details = self.db.get_license_details(lic_id) if lic_id else None
+        details = judged_details(self.db, lic_id) if lic_id else None
         if details:
             found = [self._candidate_without_text(details, score)]
         elif lic_id and names_only_listed(lic_id, self.db):
@@ -258,19 +260,22 @@ class MarkerDetector:
             found = self._synthetic_candidate(lic_id, score)
         else:
             found = []
-        inexact = read_inexactly(self.db, expression, found)
-        if inexact:  # "GPL-2.0" read as GPL-2.0-only: said, and not exact
-            if inexact == "narrowed":
-                warn_narrowed(shown or expression, found[0]["license_id"])
-            found[0]["narrowed"] = True
-        return found
+        inexact = read_inexactly(self.db, expression, found, guessed)
+        if inexact:  # a decided variant or an ambiguous "+": not exact
+            if inexact == "decided":
+                mark_guessed(found[0], expression)
+            found[0]["decided"] = True
+        elif found and tag_inexact(self.db, leading, granted, expression):
+            found[0]["decided"] = True
+        # Only words the readers took are stated, as for the argument
+        return read_from(found, val if named or expression != leading else leading)
 
     def license_flags(self, lic_id: str) -> LicenseFlags:
         """The SPDX, OSI and FSF flags of a license ID or expression: a
         database row's own, else those of the expression
         (``exprflags.judged_flags``); for anything else, not on the List and not
         judged (None), never a false "no"."""
-        details = self.db.get_license_details(lic_id)
+        details = judged_details(self.db, lic_id)
         if details:
             return {
                 "is_spdx": bool(details["is_spdx"]),
@@ -700,21 +705,11 @@ class MarkerDetector:
             break
         return []
 
-    def get_sections(self, text: str) -> list[str]:
-        """Find sections of the text that likely contain license information."""
-        sections: list[str] = []
-        words = text.split()
-        for i, word in enumerate(words):
-            if "licens" in word.lower():
-                start = max(0, i - 20)
-                end = min(len(words), i + 100)
-                sections.append(" ".join(words[start:end]))
-        return sections
-
     def to_candidate(
         self, details: LicenseDetails, base_score: float
     ) -> CandidateMatch:
         """Convert LicenseDetails to CandidateMatch with search text from index."""
+        details = with_judged_flags(details, self.db)
         candidate = self._candidate_without_text(details, base_score)
         candidate["search_text"] = self.db.get_search_text(details["license_id"])
         return candidate

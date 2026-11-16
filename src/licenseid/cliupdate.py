@@ -10,7 +10,7 @@ write or delete the database.
 ``lists[*].id``; with none, every list licenseid installs, at its latest
 version. Each list prints one record, ``LIST``, ``VERSION``, ``STATUS`` and
 ``PATH``. ``clear-cache`` prints one, ``STATUS=cleared`` or ``nothing`` and
-``PATH`` (C2 and C3 of the contract batch).
+``PATH``.
 """
 
 import re

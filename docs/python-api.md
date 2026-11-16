@@ -63,17 +63,19 @@ expression cannot be judged and the others do not decide it
 ranks (dozens for a LICENSE file), best first. Filter on `score` and
 `exact` yourself; the `is_*()` predicates use a bar of 0.85.
 
-`detect()` takes the keyword options `enable_popularity`, `exclude`, `hint`,
-`only_common` and `only_spdx`, and raises `licenseid.InvalidInputError`
-for any other, such as a mistyped name. A flag must be a `bool`, and
-`exclude` and `hint` a list, tuple, set or frozenset of `str`: any other
-value raises `TypeError` (a bare `"MIT"`, a dict, a generator). Every call
-checks them, but they act only where licence text is matched (Tiers 1 and
-2): `exclude`, `only_common` and `only_spdx` drop candidates that full-text
-search found, `hint` adds candidates, and `enable_popularity` lets
-popularity nudge the ranking of every candidate and break its ties.
+`detect()` takes the keyword options `enable_popularity`, `exclude`,
+`hint`, `only_common`, `only_spdx` and `variant`, and raises
+`licenseid.InvalidInputError` for any other, such as a mistyped name. A
+flag must be a `bool`, and `exclude` and `hint` a list, tuple, set or
+frozenset of `str`: any other value raises `TypeError` (a bare `"MIT"`, a
+dict, a generator). Every call checks them. All but `variant` (below) act
+only where licence text is matched (Tiers 1 and 2): `exclude`,
+`only_common` and `only_spdx` drop candidates that full-text search found,
+`hint` adds candidates, and `enable_popularity` lets popularity nudge the
+ranking of every candidate and break its ties. The CLI has no option for
+`exclude`, `hint`, `only_common` or `only_spdx`.
 
-So they have no effect on a declaration, an input answered whole: an
+So these have no effect on a declaration, an input answered whole: an
 explicit `license_id`, a value `resolve()` reads (an ID, a name, an
 expression, a licence URL), an `SPDX-License-Identifier` tag, a manifest's
 `license` field, or a text under 10 words with no answer. A text with an
@@ -97,6 +99,33 @@ bare ID). A deprecated `-with-` ID (`GPL-2.0-with-classpath-exception`) has no
 twin, since its successor is an expression: it is taken as written. `exclude`
 compares the whole ID, so `exclude=["GPL-2.0-only"]` does not drop the
 font-exception candidate `GPL-2.0-only WITH Font-exception-2.0`; name it too.
+With `variant="as-written"` a bare ID in `exclude` or `hint` is kept as
+written, with no upgrade and no warning (a "+" still reads as `-or-later`);
+`exclude` still drops both twins of a bare ID.
+
+`variant` is a `str`, one of `"auto"` (the default), `"as-written"`, `"only"`
+and `"or-later"` (another `str` raises `InvalidInputError`, `option: invalid:
+variant: ...`; a value that is no `str` raises `TypeError`). Unlike the other
+options it acts on every input, as `--variant` does on the command line
+([cli.md](cli.md)). It says what to answer for a licence with an `-only` and an
+`-or-later` form when the input does not state which. `"auto"` keeps a declared
+value as written (`detect(license_id="GPL-2.0")` is `GPL-2.0`, `variant_stated`
+`False`, as `resolve()` gives it) and, for a licence text or name, answers
+`-or-later` where the input grants later versions (stated), else `-only` first
+and `-or-later` second, both `variant_stated` `False`, with one `variant not
+stated` warning. `-only` is the licensee's careful reading: it understates a
+licensor's "or later" grant. `"as-written"` never decides: a bare deprecated ID
+stays, in a text match too when the bare row is among its candidates (else as
+under `auto`). `"only"` and `"or-later"` always decide, declared values too,
+with the warning. The option is a preference, never a fact: words that state the
+variant (`GPL-2.0 or later`, `GPL-2.0+`, `-only`, `-or-later`) win over `"only"`
+and `"or-later"`, with `option: overridden by input: --variant only; using
+GPL-2.0-or-later` (the API names the CLI option too). The API warns for results
+scoring 0.85 or more (the CLI: those it prints). `variant_stated` of a result is
+`True` when the input states the variant, `False` for a guess or a bare ID kept,
+`None` where no licence of the answer has a variant (`MIT`); of a compound
+`None` when none has one, `False` when any is `False`, else `True`. `resolve()`
+takes no `variant`, and its answers do not change.
 
 A text under 30 words that is no declaration, but names a licence ("released
 under the terms of the MIT License"), is free text: `exclude` drops that
@@ -165,31 +194,30 @@ missing file is made by the first write (`update`), not by opening or
 reading it: `resolve(value, handle)` on a missing file raises `not found`.
 
 `detect()` and `resolve()` both say `exact`, and the two can differ:
-`detect()`'s `exact` is per result, true when that answer was found
-exactly (declared, a name in full, or the whole text); `resolve()`'s `exact`
-is a category, the value written as the ID itself, with no step at all.
-`detect GPL-2.0` is `GPL-2.0-only`, not exact (a guess); `resolve("GPL-2.0")`
-is `GPL-2.0`, `assumed_only`. `detect()` reads a whole input with
-`resolve()` first and answers its expression (exact unless it is a guess);
-`license_id` reads its one ID as `resolve()` does too (`CC0` is
-`CC0-1.0`). A tag still has its own reader, until 0.8,
-which reads no title and no BSD alias (`SPDX-License-Identifier: CC0` and
-`SPDX-License-Identifier: BSD-3` have no answer); a manifest field it does
-not take (a quoted INI value, a title, a name) is read by `resolve()`. Both
-read a licence URL with the reader of `resolve()`
-(`SPDX-License-Identifier: https://spdx.org/licenses/MIT` is `MIT`). An input
-under 10 words that `resolve()` refuses is not matched as text. A name or an ID
-can still match it, except after a dropped mark, an unpaired bracket or a "+"
-that is no operator (`MIT++`, `GPL-2.0 (+)`, not `C++`), which `normalize_text`
-would drop. With no match it has no result, with the warning `input: too few
-words for text: <reason>` (none for an input with no word).
-Chinese and Japanese, written without spaces, are
-matched at any length. A compound (`MIT OR Apache-2.0`)
-has empty top-level `candidates`; IDs joined by `/` (`MIT/Apache-2.0`) are
-read as `OR`, as `resolve()` does; each operand's are in
-`operands[*].candidates`.
+`detect()`'s `exact` is per result, true when that answer was found exactly
+(declared, a name in full, or the whole text); `resolve()`'s `exact` is a
+category, the value written as the ID itself, with no step at all. `detect
+GPL-2.0` is `GPL-2.0` as written, exact (`--variant only` reads it as
+`GPL-2.0-only`, a guess, not exact); `resolve("GPL-2.0")` is `GPL-2.0`,
+`assumed_only`. `detect()` reads a whole input with `resolve()` first and
+answers its expression (exact as the `EXACT` column of [the category
+table](resolve.md#steps-and-categories) says); `license_id` reads its one ID as
+`resolve()` does too (`CC0` is `CC0-1.0`). A tag still has its own reader for
+now, which reads no title and no BSD alias (`SPDX-License-Identifier: CC0` and
+`SPDX-License-Identifier: BSD-3` have no answer); a manifest field it does not
+take (a quoted INI value, a title, a name) is read by `resolve()`. Both read a
+licence URL with the reader of `resolve()` (`SPDX-License-Identifier:
+https://spdx.org/licenses/MIT` is `MIT`). An input under 10 words that
+`resolve()` refuses is not matched as text. A name or an ID can still match it,
+except after a dropped mark, an unpaired bracket or a "+" that is no operator
+(`MIT++`, `GPL-2.0 (+)`, not `C++`), which `normalize_text` would drop. With no
+match it has no result, with the warning `input: too few words for text:
+<reason>` (none for an input with no word). Chinese and Japanese, written
+without spaces, are matched at any length. A compound (`MIT OR Apache-2.0`) has
+empty top-level `candidates`; IDs joined by `/` (`MIT/Apache-2.0`) are read as
+`OR`, as `resolve()` does; each operand's are in `operands[*].candidates`.
 
-[resolve-doc-list]: https://github.com/bact/licenseid/blob/main/docs/resolve.md#which-list-and-its-warnings
+[resolve-doc-list]: resolve.md#which-list-and-its-warnings
 
 `licenseid.LicenseIdError` (a `RuntimeError`) is the base of
 `licenseid.InvalidInputError` and `licenseid.DatabaseNotReadyError`. The
@@ -211,11 +239,12 @@ database that an earlier version built is in WAL mode, and SQLite then leaves
 
 Each result is a `licenseid.Detection` with the same keys, `expression`,
 `method` (a `licenseid.Method`), `exact`, `score`, `similarity`, `coverage`,
-`is_spdx`, `is_osi_approved`, `is_fsf_libre` and `lists`, as in the CLI's
-output above; `similarity` and `coverage` are `None` where nothing was
-measured. `lists` names the list the answer rests on, in the shape of
-`resolve()`'s `lists` (a `licenseid.ListInfo`): the database's SPDX License
-List, its `version`, `source` `"database"`. For `detect(text="MIT")`:
+`is_spdx`, `is_osi_approved`, `is_fsf_libre`, `lists` and `variant_stated`, as
+in the CLI's JSON ([output.md](output.md#json)); `similarity` and `coverage` are
+`None` where nothing was measured. `lists` names the list the answer rests on,
+in the shape of `resolve()`'s `lists` (a `licenseid.ListInfo`): the database's
+SPDX License List, its `version`, `source` `"database"`. For
+`detect(text="MIT")`:
 
 ```python
 [
@@ -230,6 +259,7 @@ List, its `version`, `source` `"database"`. For `detect(text="MIT")`:
         "is_osi_approved": True,
         "is_fsf_libre": True,
         "lists": [...],  # one ListInfo: the database's SPDX License List
+        "variant_stated": None,  # True, False, or None: no variant to judge
     }
 ]
 ```
@@ -250,7 +280,7 @@ from licenseid import LicenseIdWarning, detect
 
 with warnings.catch_warnings(record=True) as given:
     warnings.simplefilter("always", LicenseIdWarning)
-    detect(text="SPDX-License-Identifier: GPL-2.0")
+    detect(text="SPDX-License-Identifier: GPL-2.0", variant="only")
 [(w.message.condition, w.message.action) for w in given]
 # [("variant not stated", "using GPL-2.0-only")]
 

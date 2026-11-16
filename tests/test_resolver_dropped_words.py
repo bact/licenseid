@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """``resolve()`` refuses a value whose reading needs a word or a mark to be
-dropped (task T8, R7 item 3; decisions P71 to P73)."""
+dropped."""
 # pylint: disable=missing-function-docstring
 
 import json

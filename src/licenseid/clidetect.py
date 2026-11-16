@@ -8,8 +8,8 @@
 :class:`licenseid.detector.LicenseDetector`.
 
 ``detect --verbose`` prints one record per line, the answer first: a line per
-result, or one line with every field empty when there is none (exit 1, C9
-of the contract batch); a predicate the licence it judged and the flag.
+result, or one line with every field empty when there is none (exit 1);
+a predicate the licence it judged and the flag.
 Without ``--verbose`` ``detect`` prints the expression alone, a line per
 result (an empty line for none).
 """
@@ -36,6 +36,7 @@ from licenseid.cliinput import (
 )
 from licenseid.dbcheck import check_database_ready
 from licenseid.detector import LicenseDetector
+from licenseid.errors import one_line
 from licenseid.output import echo, echo_json
 from licenseid.result import (
     json_line,
@@ -43,7 +44,8 @@ from licenseid.result import (
     no_detection_line,
     text_line,
 )
-from licenseid.types import Detection
+from licenseid.types import Detection, Variant
+from licenseid.variants import VARIANTS, output_bar
 
 
 def show_diff(norm_input: str, best_window: str) -> None:
@@ -117,6 +119,21 @@ def _reject_conflicts(
         exit_usage_error(ctx, "option: invalid: --diff: with --json; pass one of them")
 
 
+def _checked_variant(ctx: click.Context, variant: str) -> Variant:
+    """*variant* as a :data:`licenseid.types.Variant`, or exit 2."""
+    if variant not in VARIANTS:
+        exit_usage_error(
+            ctx,
+            (
+                f"option: invalid: --variant: {one_line(variant)}"
+                if variant
+                else "option: empty: --variant"
+            )
+            + f"; use one of {', '.join(VARIANTS)}",
+        )
+    return variant
+
+
 @click.command(name="detect", cls=LicenseIdCommand)
 @click.argument("input_val", required=False)
 @click.option("--text", help="License text to match, taken as written.")
@@ -154,6 +171,16 @@ def _reject_conflicts(
     help="Show a word diff for the top match when it is a close text match, "
     "on standard error.",
 )
+@click.option(
+    "--variant",
+    default="auto",
+    show_default=True,
+    help="Where a licence has -only and -or-later forms and the input does "
+    "not say which: auto keeps a declared ID as written and, for a text, "
+    "answers -or-later where it grants later versions, else -only; "
+    "as-written never decides, only and or-later always decide. "
+    "Words that state it win.",
+)
 @verbose_option
 @click.pass_context
 def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -167,6 +194,7 @@ def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
     top: int,
     enable_popularity: bool,
     diff: bool,
+    variant: str,
     verbose: bool,
 ) -> None:
     """Identify license text and return the closest matched SPDX License ID.
@@ -187,20 +215,24 @@ def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
         {"--json": json_output, "--diff": diff},
     )
 
+    chosen = _checked_variant(ctx, variant)
     detector = LicenseDetector(db_path, enable_popularity=enable_popularity)
     check_db_staleness(detector.db)
 
-    if id_val:
-        results = detector.detect(license_id=id_val)
-        license_text = ""
-    else:
-        content = get_input_content(ctx, input_val, text, detector.db)
-        if not content:
-            exit_no_input(ctx)
+    # A warning of the detector is for the result this command prints.
+    with output_bar(threshold, exact_only, top):
+        if id_val:
+            results = detector.detect(license_id=id_val, variant=chosen)
+            license_text = ""
+        else:
+            content = get_input_content(ctx, input_val, text, detector.db)
+            if not content:
+                exit_no_input(ctx)
 
-        license_text = content
-        # A lone expression is read as an ID by the detector, whatever brings it.
-        results = detector.detect(text=content)
+            license_text = content
+            # A lone expression is read as an ID by the detector, whatever
+            # brings it.
+            results = detector.detect(text=content, variant=chosen)
 
     # Filter by threshold (and exactness), then limit to top N
     results = [

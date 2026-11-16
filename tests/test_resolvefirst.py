@@ -35,10 +35,10 @@ def _match(exact: bool = True) -> RawMatch:
     ("value", "method", "exact"),
     [
         ("MIT", "id", True),
-        ("Apache2", "id", True),  # re-spelt by a rule: exact as a field is
-        ("Apache License, Version 2.0", "name", True),
+        ("Apache2", "id", False),  # re-spelt by a rule, no list
+        ("Apache License, Version 2.0", "name", False),  # prose_form,
         ("Apache License 2.0.", "name", True),  # a name step before the ending
-        ("GPL-2.0", "id", False),  # assumed_only: a guess
+        ("GPL-2.0", "id", True),  # assumed_only: kept, the declaration
     ],
 )
 def test_the_resolution_decides_method_and_exact(
@@ -48,7 +48,26 @@ def test_the_resolution_decides_method_and_exact(
     assert (match["method"], match["exact"]) == (method, exact)
 
 
-def test_a_narrowed_match_stays_inexact(corpus_db: LicenseDatabase) -> None:
+@pytest.mark.parametrize(
+    ("value", "exact"),
+    [
+        ("MIT OR Apache-2.0", True),
+        ("GPL-2.0 AND MIT", True),  # a kept bare ID is the declaration
+        ("MIT AND Apache License, Version 2.0", False),  # one operand by a rule
+        ("GPL-2.0 AND Apache License, Version 2.0", False),  # not the weakest
+        ("GPL2", False),  # a bare ID by a re-spelling rule
+        ("gpl-2.0", True),  # only the case differs
+        ("GPL-2.0/MIT", True),  # a slash pair of IDs
+    ],
+)
+def test_a_compound_is_exact_when_every_operand_is(
+    corpus_db: LicenseDatabase, value: str, exact: bool
+) -> None:
+    (match,) = as_resolved(resolve(value, corpus_db), [_match()])
+    assert match["exact"] is exact
+
+
+def test_a_decided_match_stays_inexact(corpus_db: LicenseDatabase) -> None:
     (match,) = as_resolved(resolve("MIT", corpus_db), [_match(exact=False)])
     assert match["exact"] is False
 
@@ -177,16 +196,17 @@ def test_a_semicolon_in_the_reason_starts_no_action(
         ),
     ],
 )
-def test_a_split_id_before_an_addition_ref_is_narrowed(
+def test_a_split_id_before_an_addition_ref_is_decided(
     corpus_db: LicenseDatabase, given: GivenWarnings, text: str, expression: str
 ) -> None:
     """No marker reader takes a ``WITH AdditionRef-*``: the -only guess is
     still made, said and not exact, as for a tag (was the ID as written,
     exact=false and no warning)."""
-    (found,) = LicenseDetector(corpus_db.location).detect(text)
+    (found,) = LicenseDetector(corpus_db.location).detect(text, variant="only")
     assert (found["expression"], found["exact"]) == (expression, False)
+    family = text.split("-")[0] + "-" + text.split("-")[1].split()[0]
     assert given.lines() == (
-        f"WARNING: input: variant not stated: {text}; using {expression}\n"
+        f"WARNING: input: variant not stated: {family}; using {expression}\n"
     )
 
 
@@ -201,14 +221,13 @@ def test_a_stated_grant_before_an_addition_ref_is_kept(
     assert given.lines() == ""
 
 
-def test_the_narrowed_warning_of_a_long_value_is_cut(
+def test_the_decided_warning_of_a_long_value_names_the_family(
     corpus_db: LicenseDatabase, given: GivenWarnings
 ) -> None:
-    """The DETAIL is the value as written, cut to 60 as every DETAIL is."""
+    """The DETAIL is the licence family, not the long value."""
     text = "GPL-2.0 OR " + " OR ".join(["MIT"] * 40)
-    (found,) = LicenseDetector(corpus_db.location).detect(text)
+    (found,) = LicenseDetector(corpus_db.location).detect(text, variant="only")
     assert found["expression"] == "GPL-2.0-only OR MIT"
     assert given.lines() == (
-        f"WARNING: input: variant not stated: {text[:60]}...; "
-        "using GPL-2.0-only OR MIT\n"
+        "WARNING: input: variant not stated: GPL-2.0; using GPL-2.0-only OR MIT\n"
     )

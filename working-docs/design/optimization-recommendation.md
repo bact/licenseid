@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-06
-Last-Modified: 2026-10-07
+Last-Modified: 2026-11-16
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -20,6 +20,11 @@ SPDX-License-Identifier: Apache-2.0
 > through the same `normalize_identifier()` call. The rest of this
 > document, including the R@1 figures, predates this work and has not
 > been re-benchmarked.
+>
+> **Status note (2026-11-16):** since roadmap item 52 (PR #212) a bare
+> `GPL-2.0` declared as written stays `GPL-2.0`; only `--variant only`
+> reads it as `GPL-2.0-only`
+> (`../implementation/item-52-variant-and-exact.md`).
 
 ## Full pipeline analysis — `20260507T120849Z`
 

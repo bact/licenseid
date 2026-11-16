@@ -88,7 +88,7 @@ def test_a_dashed_grant_ends_the_expression_of_a_tag(
 def test_a_dash_before_an_operator_is_no_gap_of_the_expression(
     corpus_db: LicenseDatabase, tmp_path: Path, value: str
 ) -> None:
-    """A dash is crossed only before a grant (D10), never before AND or OR."""
+    """A dash is crossed only before a grant, never before AND or OR."""
     # BUG: the tag drops the operator and what follows (tech-debt-roadmap.md
     # item 46); it must not read them as an expression either.
     assert _tag(corpus_db, value) == ("MIT", True)

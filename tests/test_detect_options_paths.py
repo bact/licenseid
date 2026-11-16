@@ -193,11 +193,13 @@ def test_a_hint_can_skip_the_search_of_mixed_content(
     """BUG: mixed content with under 5 full-text candidates is searched by
     section too (detector._run_tier1_and_tier2); a hinted candidate counts
     towards the 5, so a hint stops that search, and what it found goes."""
-    plain = answers(detector, text=MIXED)
-    hinted = answers(detector, text=MIXED, hint=[GPL])
+    # as-written keeps the deprecated twin the section search found.
+    keep: dict[str, Any] = {"variant": "as-written"}
+    plain = answers(detector, text=MIXED, **keep)
+    hinted = answers(detector, text=MIXED, hint=[GPL], **keep)
     assert plain[-2:] == [GPL, "GPL-2.0"]
     assert hinted[-1] == GPL and "GPL-2.0" not in hinted
-    assert detector.detect(text=MIXED, hint=[GPL])[-1]["score"] == 0
+    assert detector.detect(text=MIXED, hint=[GPL], **keep)[-1]["score"] == 0
 
 
 @pytest.mark.parametrize(
@@ -225,6 +227,7 @@ GPL_BODY = GPL_ONLY + "\n" + PROSE * 2  # a title the prose markers read
     ],
     ids=["twin", "folded"],
 )
+@pytest.mark.filterwarnings("ignore::licenseid.LicenseIdWarning")
 def test_exclude_drops_a_licence_named_by_a_title(
     detector: LicenseDetector, exclude: list[str], gone: set[str]
 ) -> None:

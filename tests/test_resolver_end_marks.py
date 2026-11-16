@@ -3,9 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``resolve()`` and the marks at the two ends of a value (task T8; decisions
-P77 to P79). Characterisation first: the answers before the rule, so that
-the change shows as a flip of the values marked ``MOVES``."""
+"""``resolve()`` and the marks at the two ends of a value.
+Characterisation first: the answers before the rule, so that the change
+shows as a flip of the values marked ``MOVES``."""
 # pylint: disable=missing-function-docstring
 
 import pytest
@@ -15,7 +15,7 @@ from licenseid import LicenseDatabase, resolve
 
 #: Refused: a mark at the start, two or more marks or an ellipsis at the end.
 REFUSED = {
-    ".GPL-3.0-only": "character dropped: U+002E",  # a cut value (P78)
+    ".GPL-3.0-only": "character dropped: U+002E",  # a cut value
     "...GPL-3.0-only": "character dropped: U+002E",
     "-MIT": "character dropped: U+002D",
     "-- MIT": "character dropped: U+002D",
@@ -29,7 +29,7 @@ REFUSED = {
     "MIT\u2026": "character dropped: U+2026",
     "MIT -": "character dropped: U+002D",
 }
-#: Read: one single mark at the end, white space around it allowed (P77).
+#: Read: one single mark at the end, white space around it allowed.
 READ = {
     "MIT;": "MIT",
     "MIT :": "MIT",
@@ -41,7 +41,7 @@ READ = {
     "MIT,": "MIT",
     "MIT ,": "MIT",
     "GPLv2 or later;": "GPL-2.0-or-later",
-    "MIT; OR ISC": "ISC OR MIT",  # an operand follows the rule alone (P79)
+    "MIT; OR ISC": "ISC OR MIT",  # an operand follows the rule alone
     "MIT OR ISC;": "ISC OR MIT",
 }
 

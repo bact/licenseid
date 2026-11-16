@@ -156,6 +156,37 @@ Common options:
 - `--top <n>`: Keep at most this many results (default 3); below 1 exits 2.
 - `--exact`: Keep only exact results (`EXACT=true`, see [output.md](output.md)).
 - `--pop/--no-pop`: Weigh results by popularity, or not (default off).
+- `--variant auto|as-written|only|or-later`: What to answer for a licence
+  that has an `-only` and an `-or-later` form when the input does not say
+  which (`GPL-2.0`, the text of the GPL). `VARIANT_STATED`
+  ([output.md](output.md)) says whether the input said it.
+  - `auto` (default) keeps a declared value as written (`GPL-2.0` stays
+    `GPL-2.0`, as `resolve` gives it, with `VARIANT_STATED=false`). For a
+    licence text or name it answers `-or-later` first where the input
+    grants later versions, else `-only` first with `WARNING: input: variant
+    not stated: GPL-2.0; using GPL-2.0-only`. `-only` understates a
+    licensor's "or later" grant: it is the licensee's careful reading.
+  - `as-written` never decides: a bare deprecated ID stays, a text match
+    too when the bare row is among its candidates (else the text is
+    settled as under `auto`).
+  - `only` and `or-later` always decide, a declared value too (for a CI
+    that bans deprecated IDs): `--variant only GPL-2.0` is `GPL-2.0-only`,
+    with the warning. The List name of a deprecated ID in a field or tag is
+    such a declared value.
+
+  The option is a preference, not a fact: words that state the variant
+  (`GPL-2.0 or later`, `GPL-2.0+`, `-only`, `-or-later`) win, with
+  `WARNING: option: overridden by input: --variant only; using
+  GPL-2.0-or-later`. A variant warning is said only for a result that is
+  printed (`--threshold`, `--exact`, `--top` apply first). The words "or
+  later" and "only" of a licence text or a name are read in the whole
+  input, not beside the licence: a text with `Python 3 only` somewhere
+  states `-only` for its licences. A declared value states only the words
+  beside its own licence (the tag `GPL-2.0 AND MIT only` states nothing for
+  GPL-2.0). A heading or a declared `GPL-2.0+` is a statement of its own
+  and stays. An unknown or empty value exits 2. `is-osi` and `is-fsf` take
+  no `--variant`: they judge a bare deprecated ID by its `-only` twin.
+  `resolve` has none.
 
 The system uses a **composite score** (similarity + coverage bonus/penalty +
 optional popularity weight + marker confidence boost) to prefer the tightest
@@ -224,8 +255,11 @@ value can differ:
 
 | Command | Prints | Means |
 | :--- | :--- | :--- |
-| `detect -v GPL2` | `EXPRESSION=GPL-2.0-only`, `EXACT=false`, with `WARNING: input: variant not stated` | the closest licence on the list, a guess said aloud |
+| `detect -v GPL2` | `EXPRESSION=GPL-2.0`, `EXACT=false`, `VARIANT_STATED=false` | the licence on the list, its variant not stated: kept as written, no guess |
 | `resolve -v GPL2` | `EXPRESSION=GPL-2.0`, `CATEGORY=assumed_only` | what was declared, kept as written: no guess |
+
+`detect --variant only GPL2` gives `GPL-2.0-only`, with `WARNING: input:
+variant not stated: GPL-2.0; using GPL-2.0-only`.
 
 ## Cache management
 
@@ -323,13 +357,13 @@ making it suitable for use in scripts and CI/CD pipelines.
 
 Exit 1 of `detect`, `resolve` and the `is-*` commands prints no `ERROR` line.
 A `WARNING` about the input or the database can still come with it, as with
-an answer: `detect --exact GPL-2.0` says `variant not stated` and finds no
-exact match.
+an answer: `detect "Not a licence at all"` says `too few words for text`
+and finds no match.
 
 A database is not ready when it is missing, empty (no licences yet), invalid
 (another program's file) or unreadable (a symlink loop included). `detect` and
 the `is-*` commands refuse to answer from one, rather than exiting 1 for no
-licence or `false`; `resolve` reads the list shipped with licenseid instead, unless `--db` or
-`--source database` asks for the database.
+licence or `false`; `resolve` reads the list shipped with licenseid instead,
+unless `--db` or `--source database` asks for the database.
 
 `licenseid --version` prints `licenseid <version>`.

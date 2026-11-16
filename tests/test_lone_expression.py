@@ -107,10 +107,10 @@ CHANNELS = [
             "LicenseRef-x WITH Classpath-exception-2.0",
             "LicenseRef-x WITH Classpath-exception-2.0",
         ),
-        ("GPL-2.0", "GPL-2.0-only"),
+        ("GPL-2.0", "GPL-2.0"),  # as written
         # GFDL had no redirect: GFDL-1.3+ answered itself.
         ("GFDL-1.3+", "GFDL-1.3-or-later"),
-        ("GFDL-1.3", "GFDL-1.3-only"),
+        ("GFDL-1.3", "GFDL-1.3"),
     ],
 )
 @pytest.mark.parametrize("channel", CHANNELS)
@@ -164,7 +164,8 @@ def test_any_other_value_is_read_as_text(
     assert [
         (r["expression"], r["method"], r["score"], r["similarity"]) for r in results
     ] == expected
-    assert all(r["exact"] for r in results)
+    # "GPL 2.0+" is a re-spelt ID (a rule, no list): not exact.
+    assert all(r["exact"] == (value == "Fair.Play") for r in results)
 
 
 def test_a_deprecated_gfdl_id_has_the_flags_of_its_successor(db: str) -> None:
@@ -172,7 +173,7 @@ def test_a_deprecated_gfdl_id_has_the_flags_of_its_successor(db: str) -> None:
     result = CliRunner().invoke(cli, ["--db", db, "is-fsf", "--text", "GFDL-1.3"])
     assert (result.exit_code, result.stdout) == (
         0,
-        predicate_line("is-fsf", "GFDL-1.3-only", True),  # the ID judged
+        predicate_line("is-fsf", "GFDL-1.3", True),  # the ID judged, kept
     )
 
 

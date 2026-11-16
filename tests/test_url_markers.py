@@ -70,10 +70,8 @@ def test_a_gnu_url_is_the_bare_id(
 ) -> None:
     by_url = tag_answer(corpus_db, GNU)
     conditions_url = given.conditions()
-    assert by_url == tag_answer(corpus_db, "GPL-3.0")
-    assert conditions_url == given.conditions()
-    assert by_url is not None
-    assert "variant not stated" in conditions_url
+    assert by_url == tag_answer(corpus_db, "GPL-3.0") == "GPL-3.0"  # as written
+    assert conditions_url == given.conditions() == set()
 
 
 @pytest.mark.parametrize(

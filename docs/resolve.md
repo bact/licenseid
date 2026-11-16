@@ -19,10 +19,12 @@ is checked ready before it is read: a missing file raises
 
 `detect()` asks `resolve()` first for the whole input: when it names an
 expression, that is `detect()`'s answer, in the same order (method `name`
-when a step read a name, else `id`; exact unless the reading is a guess).
-A guess is `detect()`'s narrower one (`GPL-2.0` is `GPL-2.0-only`, not
-exact), as for a tag, in the detector's order (`MirOS OR MIT OR GPL-2.0`
-is `GPL-2.0-only OR MIT OR MirOS`). A refused input under 10 words is not
+when a step read a name, else `id`; exact as the `EXACT` column of
+[the category table](#steps-and-categories) says). A bare deprecated ID
+stays as written, as here; only `variant="only"` or `"or-later"` narrows
+it, a choice that is not exact, in the detector's order, as for a tag
+(`MirOS OR MIT OR GPL-2.0` is `GPL-2.0-only OR MIT OR MirOS`). A refused
+input under 10 words is not
 matched as text (Chinese and Japanese, written without spaces, are at any
 length); its `reason` is the detail of `detect()`'s warning (`input: too
 few words for text: not found: GNU GPL v2`).
@@ -308,9 +310,9 @@ For `resolve("Apache2")`, as JSON:
   ],
   "resolver": {
     "name": "licenseid",
-    "version": "0.7.3",
-    "url": "https://github.com/bact/licenseid/releases/tag/v0.7.3",
-    "purl": "pkg:pypi/licenseid@0.7.3"
+    "version": "0.8.4",
+    "url": "https://github.com/bact/licenseid/releases/tag/v0.8.4",
+    "purl": "pkg:pypi/licenseid@0.8.4"
   },
   "components": [],
   "lists": [
@@ -551,25 +553,25 @@ find the SPDX list by its `id`, not by position). The
 `category` of a result is the weakest of its steps, and of a compound the
 weakest of its operands, in this order (strongest first):
 
-| Category | Trust | The value |
-| --- | --- | --- |
-| `exact` | `identity` | is a listed ID as written |
-| `lexical` | `identity` | differs in case, spacing, brackets, quotes, order, a classifier prefix or an agreeing parenthesis |
-| `listed_name` | `list_data` | is the List's name of a licence |
-| `deprecated_equal_successor` | `list_data` | is a renamed deprecated ID |
-| `plus_to_or_later` | `list_data` | is `X+`, read as `X-or-later` |
-| `stated_qualifier` | `author_words` | states "or later" in words |
-| `separator` | `resolver_rule` | is an ID with other separators |
-| `version_spelling` | `resolver_rule` | is an ID with its version re-spelt |
-| `prose_form` | `resolver_rule` | is an ID in a prose form (`BSD 3-Clause License`, `Apache License, Version 2.0`) |
-| `text_title` | `resolver_rule` | is the title a licence's text gives itself (`CC0 1.0 Universal`) |
-| `alias_name` | `resolver_rule` | is another name of a BSD licence (`New BSD`, `BSD-3`) |
-| `license_url` | `resolver_rule` | is the URL of a licence (`https://spdx.org/licenses/MIT`, `spdx:MIT`, a page the List gives it) |
-| `trove_name` | `resolver_rule` | is a PyPI trove classifier name that states one licence |
-| `deprecated_ambiguous` | `list_data` | is deprecated, with no successor |
-| `assumed_only` | `none` | is a bare split ID (`GPL-3.0`), kept |
-| `malformed` | `none` | states a qualifier twice, or breaks the grammar |
-| `unresolved` | `none` | names no licence |
+| Category | Trust | `EXACT` | The value |
+| --- | --- | --- | --- |
+| `exact` | `identity` | yes | is a listed ID as written |
+| `lexical` | `identity` | yes | differs in case, spacing, brackets, quotes, order, a classifier prefix or an agreeing parenthesis |
+| `listed_name` | `list_data` | yes | is the List's name of a licence |
+| `deprecated_equal_successor` | `list_data` | yes | is a renamed deprecated ID |
+| `plus_to_or_later` | `list_data` | yes | is `X+`, read as `X-or-later` |
+| `stated_qualifier` | `author_words` | yes | states "or later" in words |
+| `separator` | `resolver_rule` | no | is an ID with other separators |
+| `version_spelling` | `resolver_rule` | no | is an ID with its version re-spelt |
+| `prose_form` | `resolver_rule` | no | is an ID in a prose form (`BSD 3-Clause License`, `Apache License, Version 2.0`) |
+| `text_title` | `resolver_rule` | yes | is the title a licence's text gives itself (`CC0 1.0 Universal`) |
+| `alias_name` | `resolver_rule` | yes | is another name of a BSD licence (`New BSD`, `BSD-3`) |
+| `license_url` | `resolver_rule` | yes | is the URL of a licence (`https://spdx.org/licenses/MIT`, `spdx:MIT`, a page the List gives it) |
+| `trove_name` | `resolver_rule` | yes | is a PyPI trove classifier name that states one licence |
+| `deprecated_ambiguous` | `list_data` | yes | is deprecated, with no successor |
+| `assumed_only` | `none` | yes | is a bare split ID (`GPL-3.0`), kept |
+| `malformed` | `none` | — | states a qualifier twice, or breaks the grammar |
+| `unresolved` | `none` | — | names no licence |
 
 A consumer ignores a step kind it does not know. Before 0.7.0 a compound
 was category `expression`, with no expression; that category is gone.
@@ -577,9 +579,19 @@ was category `expression`, with no expression; that category is gone.
 The category `exact` is not the `exact` of `detect()`. Here it says the
 value was the listed ID as written, with no step; `detect()`'s `exact` says
 of one result that it was found exactly (declared, a name in full, or the
-whole licence text). The two can differ for one value: `detect("GPL-2.0")`
-answers `GPL-2.0-only`, not exact, a guess said aloud with a warning, where
-`resolve("GPL-2.0")` keeps `GPL-2.0` as `assumed_only`. A whole input is
+whole licence text). The `EXACT` column says which categories
+`detect()` calls exact for a declared value: where a list defines the reading
+it is exact, where a rewrite rule (`separator`, `prose_form`,
+`version_spelling`) made it, it is not; a compound is exact when every operand
+is. A bare `GPL-2.0` kept as written is exact (the answer is the declaration;
+`variant_stated` says it is ambiguous). Three exceptions to the column: an ID
+that a rule re-spelt is not exact although it is kept (`GPL2`,
+`assumed_only`), nor is a deprecated `-with-` ID a rule re-spelt (`GPL v2
+with classpath exception`, `deprecated_ambiguous`), while IDs joined by a
+slash (`MIT/Apache-2.0`, `separator`) are exact. So
+`detect("GPL-2.0")` and `resolve("GPL-2.0")` agree: `GPL-2.0`, `assumed_only`;
+only `detect(..., variant="only")` narrows it to `GPL-2.0-only`, not exact,
+with a warning. A whole input is
 already read through `resolve()` (above); a whole input that is a URL
 `resolve()` does not read is no text to match: `detect()` answers nothing
 and warns `too few words for text`. So is a text of under 30 words that
@@ -588,7 +600,7 @@ drop the "+" and answer the licence, exact. A tag and a manifest field read a
 licence URL with the same reader, in any word of the value
 (`SPDX-License-Identifier: https://spdx.org/licenses/MIT` is `MIT`), but
 the rest of their value still goes through the marker readers, not
-`resolve()` (planned for 0.8). Not read yet: a URL inside prose.
+`resolve()` (planned). Not read yet: a URL inside prose.
 
 ## Reasons for a refusal
 

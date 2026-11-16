@@ -16,6 +16,7 @@ import pytest
 from conftest import (
     MIT_SEARCH_TEXT,
     RESULT_KEYS,
+    GivenWarnings,
     invoke_match,
     json_lines,
     public_match,
@@ -62,6 +63,11 @@ def _match(db: str, **kwargs: Any) -> list[Detection]:
     return LicenseDetector(db).detect(**kwargs)
 
 
+#: Values a rewrite rule reads (a space for a dash, a loose ID): no list, so
+#: not exact.
+_RESPELT = ('{"license": "Apache 2.0"}', "GPL-2.0 or later", "GPL-2.0 only")
+
+
 @pytest.mark.parametrize(
     ("kwargs", "license_id", "method", "measured"),
     [
@@ -105,7 +111,7 @@ def test_every_method_gives_the_same_keys(
     assert (top["expression"], top["method"], top["exact"], top["score"]) == (
         license_id,
         method,
-        True,
+        kwargs.get("text") not in _RESPELT,
         1.0,
     )
     # None where nothing was measured: a tag, a field and an ID compare no
@@ -139,14 +145,15 @@ def test_only_the_exact_hit_is_exact_and_found_by_field(
     assert [r["score"] for r in results][:2] == [1.0, 1.0]
 
 
-def test_a_deprecated_name_of_its_own_is_exact(db: str) -> None:
+def test_a_deprecated_name_of_its_own_is_exact(db: str, given: GivenWarnings) -> None:
     """Only a deprecated row that shares its name with a row in use gives
     way: --exact found nothing for "GNU Affero General Public License v3.0"."""
-    results = _match(db, text="Old Unique License")
+    results = _match(db, text="Old Unique License", variant="as-written")
     assert [(r["expression"], r["exact"]) for r in results] == [
         ("Old-1.0-only", False),
         ("Old-1.0", True),
     ]
+    assert given.conditions() == {"variant not stated"}
 
 
 def test_the_cap_keeps_the_ranking_order(db: str) -> None:
@@ -230,7 +237,7 @@ def test_a_json_line_is_canonical() -> None:
         '"provides":["deprecation","ids","names","texts"],"source":"database",'
         '"url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0",'
         '"version":"3.29.0"}],'
-        '"method":"tag","score":1,"similarity":null}'
+        '"method":"tag","score":1,"similarity":null,"variant_stated":null}'
     )
 
 
@@ -238,7 +245,7 @@ def test_a_json_line_is_canonical() -> None:
     ("raw", "fields"),
     [
         (_raw(0.9876543), '"coverage":1.2346,'),
-        (_raw(0.00004, similarity=0.0), '"score":0,"similarity":0}'),
+        (_raw(0.00004, similarity=0.0), '"score":0,"similarity":0,'),
         (_raw(0.5, coverage=13.0), '"coverage":13,'),
     ],
     ids=["rounded", "zero", "integral"],
@@ -260,7 +267,9 @@ def test_a_text_line_has_every_field_and_empty_for_none(
     similarity: float | None, coverage: float | None, tail: str
 ) -> None:
     line = text_line(public_match(similarity=similarity, coverage=coverage))
-    assert line == f"EXPRESSION=MIT\tMETHOD=tag\tEXACT=true\tSCORE=1.0000\t{tail}"
+    assert line == (
+        f"EXPRESSION=MIT\tMETHOD=tag\tEXACT=true\tSCORE=1.0000\t{tail}\tVARIANT_STATED="
+    )
 
 
 def test_json_prints_one_line_per_result(db: str) -> None:

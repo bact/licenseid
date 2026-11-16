@@ -90,7 +90,7 @@ def test_update_matrix(
     installed, detail = _expected(source, version)
 
     first = _run(db, args)
-    if version:  # C2: a version given is never looked up, even on a failure
+    if version:  # A version given is never looked up, even on a failure
         assert not [u for u in urls(fake) if u.endswith("latest.json")]
     if installed is None:
         assert first.exit_code == 1, first.output

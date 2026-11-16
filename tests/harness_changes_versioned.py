@@ -15,9 +15,7 @@ _GUESS = f"{_READ} (was a name guess)"
 _CASES: dict[str, tuple[str, str]] = {
     "name/Apache-2.0/name_distored": (_APACHE, _READ),  # no answer since #161
     "name/Artistic-2.0/name_distored": (_ARTISTIC, _READ),
-    "value/Apache Software License 2.0": (_APACHE, _GUESS),
     "value/Apache Software License v2": (_APACHE, _READ),
-    "value/Apache Software License, Version 2.0": (_APACHE, _GUESS),
     "value/Apache Version 2.0": (_APACHE, _READ),
 }
 

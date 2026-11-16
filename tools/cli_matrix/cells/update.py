@@ -59,7 +59,7 @@ STATES = {
 }
 
 #: The ``--list spdx-license-list@<version>`` axis: "" is no ``--list``,
-#: "latest" the list named with no version (``update --version`` before C2).
+#: "latest" the list named with no version (formerly ``update --version``).
 VERSIONS = ["", "9.99", "9.98", "''", "../x", "abc", "3.28.0", "9.99 ", "1", "latest"]
 FORCES = ["", "--force"]
 CACHES = ["", "--cache", "--no-cache"]

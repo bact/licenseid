@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""What ``resolve()`` does with a character the loose reading drops (task T6).
+"""What ``resolve()`` does with a character the loose reading drops.
 
 A loose ID ("Apache 2.0", "Apache_2.0") is read by dropping the characters
 that are neither letters nor digits. Some of those carry the author's doubt
@@ -57,7 +57,7 @@ UNTOUCHED = [
 
 #: Characters that are dropped today and carry no separator. One per class:
 #: punctuation, symbols, a second comma, the replacement character. Quotes
-#: that delimit the whole value are read before the guard (T6b,
+#: that delimit the whole value are read before the guard (see
 #: ``test_resolver_quotes.py``); the ones inside a value are refused there.
 DROPPED = [
     ("Apache 2.0?", "Apache-2.0", "?"),
@@ -116,7 +116,7 @@ def test_a_name_and_a_grant_are_not_read_by_dropping(
     assert (got["expression"], got["category"]) == (expression, category)
 
 
-# Fixed by T6 (dropguard): 0.6.0 read the licence past the dropped character
+# Fixed by the drop guard: 0.6.0 read the licence past the dropped character
 # (category `separator` or `version_spelling`); 0.7.0 refuses the value.
 @pytest.mark.parametrize(("value", "stopped", "lost"), DROPPED, ids=_ids(DROPPED))
 def test_a_dropped_character_refuses_the_value(
@@ -165,7 +165,7 @@ def test_a_comma_in_the_middle_is_refused(corpus_db: LicenseDatabase) -> None:
     assert got["reason"] == "character dropped: U+002C"
 
 
-# P13: a mark before a qualifier or an exception refuses the whole value; the
+# A mark before a qualifier or an exception refuses the whole value; the
 # `drop` step is the one of the leaf the mark is in.
 @pytest.mark.parametrize(
     ("value", "seen", "stopped"),
