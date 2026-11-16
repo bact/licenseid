@@ -42,7 +42,9 @@ from licenseid.types import Detection, Method
 
 # tools/cli_matrix drives real shells and terminals (pwd, pty, termios): POSIX
 # only, so its tests are not collected on Windows.
-collect_ignore: list[str] = ["test_cli_matrix.py"] if sys.platform == "win32" else []
+collect_ignore: list[str] = (
+    ["test_cli_matrix.py", "test_cli_matrix_fifo.py"] if sys.platform == "win32" else []
+)
 
 # Tests that need POSIX permission bits, symlinks, signals or /bin/sh. On
 # Windows chmod only sets a read-only flag and symlinks need a privilege.

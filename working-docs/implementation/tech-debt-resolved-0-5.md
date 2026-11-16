@@ -353,6 +353,8 @@ Item numbers are the roadmap's.
   paths rejected and the pinned cases are in
   [`item-52-variant-and-exact.md`](item-52-variant-and-exact.md).
 
+## Item 42 (PR #216, 2026-11-16)
+
 - A very long word cost seconds in the full-text search (item 42, Priority
   16; 2026-11-16). Found by PR #82's Windows CI. A quoted query word is a
   phrase of its trigrams, so the `MATCH` of `search_candidates` cost time
@@ -391,3 +393,25 @@ Item numbers are the roadmap's.
     fails it: re-decide), and times a 60,000-character word on the
     real-sized fixture database (`tests/long_text_db.py`): a 5-row index ran
     the same query in 0.04 s on `main`, so it cannot fail there.
+
+## Item 56 (2026-11-16)
+
+`python -m tools.cli_matrix --check` flagged cell `E8-011` ("file is a FIFO
+with writer") as a hang: a 120 s timeout.
+
+- Cause: a harness artefact, not a `licenseid` hang. Since PR #184 `detect`
+  refuses a non-regular file without opening it (exit 2, `input:
+  unreadable: ... not a regular file`), so the cell's background `printf >
+  $W/ff` never found a reader. It blocked in `open()`, held the cell's pipes,
+  and the runner waited for them until the timeout. The writer also outlived
+  the run.
+- Cell: the writer drops its standard streams (`exec >/dev/null 2>&1`), and
+  the cell frees it after `detect` with a read-write open (`: <>$W/ff`). It
+  has no `wait` or `kill`, which would switch off the judge's exit and output
+  checks (`judge.has_pipe_tail`); it now expects exit 2, empty standard
+  output and the refusal line.
+- Runner: a plain cell runs in its own process group; a timeout or Ctrl-C
+  kills the group (also on the terminal runner), and the read after the kill
+  is bounded.
+- Tests: `tests/test_cli_matrix_fifo.py`; a FIFO with a blocked writer is
+  refused, not opened, in `tests/test_textinput.py`.

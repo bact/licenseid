@@ -192,6 +192,13 @@ It may use `$L` (the `licenseid` script under test), `$LU` (its offline
 launcher), `$DB` (the database copy), `$F` (the fixtures), `$W` (this
 cell's own work directory) and `$HOME` (a home inside `$W`).
 
+A background job in a cell must not hold the cell's standard streams, and
+must end with the cell: the run waits for the pipes to close, so a job left
+blocked counts as a hang (`TIMEOUT`). Without `wait` or `kill`, which switch
+off the exit and output checks, free it instead (the FIFO cell opens the
+FIFO read-write). The runner kills the cell's whole process group on a
+timeout and on Ctrl-C.
+
 Give `exp_exit`, `exp_out` or `exp_err` only where the behaviour really is
 documented. Without them the cell is an `OBSERVE`, which is the honest
 verdict for anything unspecified. Set `xenv=False` when an answer is
