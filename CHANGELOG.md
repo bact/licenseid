@@ -11,6 +11,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- `docs/lists.md`: the lists `resolve()` reads (BSD names, titles, classifier
+  names, licence URLs) and its named rules, generated from the code
+  (`python -m tools.lists_page`) ([#214])
+
 ### Changed
 
 - `detect()` options are typed (`licenseid.types.DetectOptions`, was
@@ -49,6 +55,7 @@ and this project adheres to
 [#210]: https://github.com/bact/licenseid/pull/210
 [#211]: https://github.com/bact/licenseid/pull/211
 [#212]: https://github.com/bact/licenseid/pull/212
+[#214]: https://github.com/bact/licenseid/pull/214
 
 ## [0.8.4] - 2026-11-09
 

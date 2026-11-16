@@ -106,6 +106,8 @@ declares, as an SBOM tool does.
   predicates, results, errors and warnings.
 - [Declared values][doc-resolve]: what `resolve()` reads and returns, its
   categories, trust and reasons for a refusal.
+- [Lists][doc-lists]: the lists `resolve()` reads (BSD names, titles,
+  classifier names, licence URLs) and its named rules, with their sources.
 - [How it works][doc-how-it-works]: ID normalisation, expressions and the
   matching tiers.
 - [Development][doc-development]: running the tests.
@@ -115,6 +117,7 @@ declares, as an SBOM tool does.
 [doc-output]: https://github.com/bact/licenseid/blob/main/docs/output.md
 [doc-python-api]: https://github.com/bact/licenseid/blob/main/docs/python-api.md
 [doc-resolve]: https://github.com/bact/licenseid/blob/main/docs/resolve.md
+[doc-lists]: https://github.com/bact/licenseid/blob/main/docs/lists.md
 [doc-how-it-works]: https://github.com/bact/licenseid/blob/main/docs/how-it-works.md
 [doc-development]: https://github.com/bact/licenseid/blob/main/docs/development.md
 
