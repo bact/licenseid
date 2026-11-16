@@ -34,6 +34,7 @@ from licenseid.dbconnection import Connections, QueryConnection
 from licenseid.dbschema import create_schema, create_url_table, schema_state
 from licenseid.errors import DatabaseNotReadyError, LicenseIdError, fold, typed
 from licenseid.fingerprintstore import fingerprint_hits, store_fingerprints
+from licenseid.ftsquery import match_query
 from licenseid.listlookup import ListedUrl
 from licenseid.normalize import normalize_text
 from licenseid.records import BUILD_VERSION, Records, build_records
@@ -513,22 +514,9 @@ class LicenseDatabase:
         longer has).
         """
         norm_text = text if already_normalized else normalize_text(text)
-        # Build an OR query from the first 20 normalised words.  Using OR
-        # maximises recall: a candidate matches if it contains any of the
-        # terms, not all of them.  FTS5 BM25 ranking still promotes documents
-        # that contain more terms.  20 words (up from 10) gives enough
-        # discriminating signal for licences whose preamble shares the first
-        # 10 words with many other licences (e.g. HPND family: "permission to
-        # use copy modify and distribute this software ...").
-        words = norm_text.split()[:20]
-        if not words:
+        search_terms = match_query(norm_text)
+        if not search_terms:
             return []
-        # Each word is quoted: a word is a phrase to FTS5, never an operator,
-        # so a query cannot fail for its own text and every error is the
-        # database's.
-        search_terms = " OR ".join(
-            '"' + word.replace('"', '""') + '"' for word in words
-        )
 
         with self._connection() as conn:
             conn.row_factory = sqlite3.Row

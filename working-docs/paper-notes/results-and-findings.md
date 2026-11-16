@@ -358,7 +358,10 @@ RapidFuzz cost data points:
   word of 2,000,000 characters takes 83 s cold and 27 s warm on a real
   database, about 11 µs per character (500,000: 5.6 s). A seeded test
   database hides it on Linux (1.2 s) but not on Windows' SQLite, where the
-  same test took 312 s in CI (PR #82; `ROAD` item 42).
+  same test took 312 s in CI (PR #82). Fixed by cutting each query word to
+  128 characters, above the longest word of any indexed text (70): such a cut
+  changes no Tier 1 result, and 60,000 characters of one word went from 20 s
+  to 0.2 s (`IMPL/tech-debt-resolved-0-5.md`, item 42).
 
 ### 3.3 SPDX semantics findings
 

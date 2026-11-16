@@ -353,6 +353,47 @@ Item numbers are the roadmap's.
   paths rejected and the pinned cases are in
   [`item-52-variant-and-exact.md`](item-52-variant-and-exact.md).
 
+## Item 42 (PR #216, 2026-11-16)
+
+- A very long word cost seconds in the full-text search (item 42, Priority
+  16; 2026-11-16). Found by PR #82's Windows CI. A quoted query word is a
+  phrase of its trigrams, so the `MATCH` of `search_candidates` cost time
+  in the word's characters, and the probe gate guards only RapidFuzz. On the
+  real database one query on 10,000 characters of `the` took 1.22 s (50,000:
+  7.9 s; 200,000: 34.8 s); `x` repeated cost a twentieth of that; random
+  letters and Japanese under 0.01 s (an absent trigram ends the phrase). The
+  new `ftsquery.match_query` (standard library only) builds the string: the
+  first `MAX_TERMS = 20` words, each cut to `MAX_TERM_CHARS = 128`
+  characters before `"` is doubled (a cut after quoting can leave a lone
+  `"`, an FTS5 syntax error). Why 128: the longest word of any indexed text
+  of List 3.29.0 is 70 characters (CAL-1.0; CC-BY-SA-2.1-JP 62), and a query
+  word has no space, so a word cut to N of at least 70 matches what it
+  matched before (nothing, if it was longer; itself, if not): the cut changes
+  no Tier 1 result. This answers the CJK lesson of item 16: a Japanese run
+  over 70 characters matches nothing today either. It is a cut, not a drop,
+  so a future List with a longer word still finds it by its prefix.
+  - Measured against `main` on the real database, `detect()` on ten words
+    plus one long word of 60,000 characters: `the` 20.2 s to 0.20 s, `x`
+    1.13 s to 0.18 s, five distinct words of 12,000 characters 11.0 s to
+    0.23 s, three `license` keywords each followed by a 20,000-character
+    word 9.9 s to 0.21 s; Japanese and random letters were already 0.2 s.
+    2,000,000 characters of `the`: 5.6 s after, of which Tier 2 takes
+    about 6 of 9 s under a profiler (RapidFuzz, 0.12 s per candidate:
+    the cost of item 16 and 11, not of this query); Tier 1 alone is
+    0.02 s.
+  - Sweep: 1,668 slices of every fourth long-text fixture (offsets 0, 25,
+    50, 75 per cent; 50, 200, 1,000 words, Han and kana 100, 500, 2,000
+    characters) on `main` and the branch: top three answers and scores
+    identical. `benchmarks/bench_fts5_recall.py` on 695 fixtures: head,
+    tail and union recall identical. `python -m tools.golden`: no answer
+    moved.
+  - `tests/test_ftsquery.py` pins the query of every long-text fixture
+    (head and tail windows) to the old builder, holds the longest word of
+    those fixtures below the cut (555 files; a new List with a longer word
+    fails it: re-decide), and times a 60,000-character word on the
+    real-sized fixture database (`tests/long_text_db.py`): a 5-row index ran
+    the same query in 0.04 s on `main`, so it cannot fail there.
+
 ## Item 56 (2026-11-16)
 
 `python -m tools.cli_matrix --check` flagged cell `E8-011` ("file is a FIFO
