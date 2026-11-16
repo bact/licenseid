@@ -328,3 +328,27 @@ Item numbers are the roadmap's.
   `tests/test_detect_options_paths.py`. Still pinned `# BUG:` and open in
   item 46: a hint undoes `exclude` and passes `only_common`/`only_spdx`; a
   hint counts towards the fewer-than-5 test of the mixed-content search.
+
+## Item 52 (PRs #211 and #212, 2026-11-16)
+
+- A bare deprecated ID such as `GPL-2.0` stays as written in `detect()`, as
+  in `resolve()`; a text match never gives a deprecated ID (an "or later"
+  grant of the same family in the text gives `-or-later`, else `-only` with
+  `WARNING: input: variant not stated`). `--variant
+  auto|as-written|only|or-later` (API `variant=`) is a preference that never
+  overrides stated words (`WARNING: option: overridden by input`). The last
+  record field is `VARIANT_STATED` (JSON `variant_stated`). `exclude` and
+  `hint` stay `detect()` options and act on free text only (PR #211, listed
+  above under item 46).
+- `EXACT` follows how the answer was reached: true when a list defines it or
+  the text is identical, false for a rewrite rule (`separator`,
+  `prose_form`, `version_spelling`) and for a variant licenseid chose.
+  About 7.5% of resolved values of the PyPI sample flip to false; 11 long
+  golden answers moved (`tests/harness_changes_exact.py`).
+- `is-osi` and `is-fsf` judge a kept bare ID by its `-only` and
+  `-or-later` twins, and a `-with-` ID as `<bare>-only WITH <exception>`.
+- Results carry `types.Evidence`; `variants.stated_of` is the one reader of
+  `VARIANT_STATED` (fail closed), `Evidence.decided` marks the forms licenseid
+  chose. The leftovers stay open as item 52 of the roadmap; the design, the
+  paths rejected and the pinned cases are in
+  [`item-52-variant-and-exact.md`](item-52-variant-and-exact.md).
