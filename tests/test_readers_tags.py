@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Task ``readers``, second round: a tag answers exact only what it read
+"""A tag answers exact only what it read
 whole, and the command line names what it refuses, on the whole 3.29.0
 List.
 

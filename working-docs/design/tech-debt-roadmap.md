@@ -525,7 +525,7 @@ and the parity corpus: the whole input moved 6 times, a quoted INI field
   removing them adds a `too few words for text` warning. Decide, then drop.
 - **`looseid.disambiguate_whole`** reads a bare deprecated ID and its prose
   in the raw text for a value `resolve()` refuses (comment-wrapped grants,
-  `tests/test_readers_round4.py`); no corpus value needs it otherwise.
+  `tests/test_readers_grants.py`); no corpus value needs it otherwise.
   Measure it on fields, then fold it into `resolve()`.
 - **A wrapped name answers exact**: `*Apache License 2.0*` is `not found`
   for `resolve()` and still `Apache-2.0` by name; apply `dropguard.dropped`

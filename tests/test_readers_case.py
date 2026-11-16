@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Task ``readers``: a keyword of a reader ignores case in ASCII
+"""A keyword of a reader ignores case in ASCII
 only. Python's ``re.IGNORECASE`` alone folds U+0130 (dotted capital I),
 U+0131 (dotless small i), U+017F (long s) and U+212A (Kelvin sign) into
 "i", "s" and "k", so ``WITH`` spelt with a dotted capital I was a WITH.

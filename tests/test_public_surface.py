@@ -3,8 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Characterisation pins for the pre-freeze changes of 0.7.0
-(the maintainer's list, 2026-10-30).
+"""The public surface of the CLI and the API after the pre-freeze changes
+of 0.7.0 (the maintainer's list, 2026-10-30): commands, options, inputs,
+exports and refusal reasons.
 
 Each pin records what the CLI or the API does before the changes. A later
 commit of them flips the pin to the new answer and names the change, so
@@ -43,7 +44,7 @@ ROWS = (
 
 @pytest.fixture
 def db() -> Generator[str, None, None]:
-    for path in seeded_db("contract_pins", ROWS, ["Classpath-exception-2.0"]):
+    for path in seeded_db("public_surface", ROWS, ["Classpath-exception-2.0"]):
         with sqlite3.connect(path, uri=True) as conn:  # no staleness warning
             conn.execute(FRESH, (datetime.now(timezone.utc).isoformat(),))
         yield path

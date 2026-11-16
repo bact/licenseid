@@ -3,15 +3,14 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The answers task ``resolverfix`` (edge values of ``resolve()`` found in the
-0.7.0 review) moved in the parity corpus and the PyPI sample, grouped by
-the rule.
+"""The answers the edge values of ``resolve()`` found in the 0.7.0 review
+moved in the parity corpus and the PyPI sample, grouped by the rule.
 
-The answers are in ``fixtures/resolver_resolverfix_changes.tsv``;
+The answers are in ``fixtures/resolver_edges_changes.tsv``;
 :data:`REASONS` says why each group moved. ``resolver_corpus`` merges
-:data:`RESOLVERFIX_CHANGES` into ``EXPECTED_CHANGES`` after
-``CONTRACT_CHANGES``: each value here was listed by an earlier task, with
-the answer it gave then.
+:data:`EDGES_CHANGES` into ``EXPECTED_CHANGES`` after
+``REFUSALS_CHANGES``: each value here was listed by an earlier change,
+with the answer it gave then.
 """
 
 from pathlib import Path
@@ -20,7 +19,7 @@ from changes_file import load_changes
 
 from tools.pypi_licence_sample.answer import Answer
 
-CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_resolverfix_changes.tsv"
+CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_edges_changes.tsv"
 
 #: Why each group of the changes file moved.
 REASONS: dict[str, str] = {
@@ -41,5 +40,5 @@ REASONS: dict[str, str] = {
     ),
 }
 
-#: ``{value: (answer, reason)}``, every value the task moves.
-RESOLVERFIX_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)
+#: ``{value: (answer, reason)}``, every value the edge values move.
+EDGES_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)

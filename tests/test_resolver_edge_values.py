@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Edge values of ``resolve()`` the 0.7.0 review found (task ``resolverfix``):
+"""Edge values of ``resolve()`` the 0.7.0 review found:
 quote marks around nothing, a ``;`` in a reason, an end mark after a prose
 form, the case of a ``LicenseRef-`` prefix, the information separators U+001C
 to U+001F, a lone surrogate in the result, and marks after a bracket or a

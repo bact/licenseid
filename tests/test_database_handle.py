@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Fix batch D of the 0.7.0 review: the database handle and its inputs.
+"""The database handle and its inputs (0.7.0 review).
 
 ``LicenseDatabase(path)`` wrote licenseid's tables into another program's
 SQLite file and made a file out of a mistyped name; ``detect()`` took any
@@ -232,7 +232,7 @@ def test_a_missing_directory_is_no_file_to_make(tmp_path: Path) -> None:
 
 
 def test_a_shared_in_memory_database_still_has_its_tables_at_once() -> None:
-    handle = LicenseDatabase("file:fixd_memory?mode=memory&cache=shared")
+    handle = LicenseDatabase("file:handle_memory?mode=memory&cache=shared")
     assert handle.get_metadata() == {}
 
 
@@ -259,7 +259,7 @@ def ready_db() -> Generator[Callable[[], str], None, None]:
     keep: list[sqlite3.Connection] = []
 
     def make() -> str:
-        db_path, keep_alive = make_ready_db_path("fixd_types")
+        db_path, keep_alive = make_ready_db_path("handle_types")
         keep.append(keep_alive)
         return db_path
 

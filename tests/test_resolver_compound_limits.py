@@ -62,7 +62,7 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
         "GPL-2.0 (or later) OR MIT",
         ("GPL-2.0-or-later OR MIT", "stated_qualifier", None),
     ),
-    # Task readers: a "+" after a space is no operator (was GPL-2.0-or-later).
+    # A "+" after a space is no operator (was GPL-2.0-or-later).
     ("GPL-2.0 + OR MIT", (None, "malformed", "plus after a space: GPL-2.0 +")),
     ("GPL-2.0 or later OR GPL-2.0+", ("GPL-2.0-or-later", "stated_qualifier", None)),
     (

@@ -112,7 +112,7 @@ def test_a_long_run_of_white_space_around_with_is_fast(
             ("LicenseRef-a WITH DocumentRef-d:AdditionRef-b.1", "exact", []),
         ),
         (
-            "mit with additionref-X",  # the prefix in SPDX's case (resolverfix)
+            "mit with additionref-X",  # the prefix in SPDX's case
             (
                 "MIT WITH AdditionRef-X",
                 "lexical",

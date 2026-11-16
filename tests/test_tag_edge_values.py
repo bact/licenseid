@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Two readings of an ``SPDX-License-Identifier`` tag
-(task ``resolverfix``): an "or later" grant after an ID that states its
+at the edge: an "or later" grant after an ID that states its
 qualifier already, and an ID cut at a character the SPDX idstring has not
 (``LicenseRef-café``).
 
@@ -24,7 +24,7 @@ from spdx_tag_helpers import Answers, answers, tag_db
 
 @pytest.fixture
 def db() -> Generator[str, None, None]:
-    yield from tag_db("test_resolverfix_tags")
+    yield from tag_db("test_tag_edge_values")
 
 
 def named(expression: str) -> Answers:

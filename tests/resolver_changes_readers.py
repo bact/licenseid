@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The answers task ``readers`` (the readers ``detect()`` and ``resolve()``
-share, 0.7.0 review) moved in the parity corpus and the PyPI sample, grouped
+"""The answers the readers ``detect()`` and ``resolve()`` share (0.7.0
+review) moved in the parity corpus and the PyPI sample, grouped
 by the rule.
 
 The answers are in ``fixtures/resolver_readers_changes.tsv``;
@@ -30,5 +30,5 @@ REASONS: dict[str, str] = {
     ),
 }
 
-#: ``{value: (answer, reason)}``, every value the task moves.
+#: ``{value: (answer, reason)}``, every value the shared readers move.
 READERS_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)

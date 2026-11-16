@@ -6,9 +6,9 @@
 """The answers the prose forms of one ID (rules P1 to P3) moved in the parity
 corpus and the PyPI sample, grouped by the rule.
 
-The answers are in ``fixtures/resolver_t8_changes.tsv``;
+The answers are in ``fixtures/resolver_prose_changes.tsv``;
 :data:`REASONS` says why each group moved. ``resolver_corpus`` merges
-:data:`T8_CHANGES` into ``EXPECTED_CHANGES``.
+:data:`PROSE_CHANGES` into ``EXPECTED_CHANGES``.
 """
 
 from pathlib import Path
@@ -17,7 +17,7 @@ from changes_file import load_changes
 
 from tools.pypi_licence_sample.answer import Answer
 
-CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_t8_changes.tsv"
+CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_prose_changes.tsv"
 
 _WAS = "it was `unresolved`"
 
@@ -42,4 +42,4 @@ REASONS: dict[str, str] = {
 }
 
 #: ``{value: (answer, reason)}``, every value the prose rules move.
-T8_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)
+PROSE_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)

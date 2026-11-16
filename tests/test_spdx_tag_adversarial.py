@@ -299,7 +299,7 @@ def test_a_detached_plus_is_not_the_or_later_operator(
     db: str, tag: str, certain_id: str | None
 ) -> None:
     """SPDX allows no space before `+`, so `A + B` must not widen the grant
-    to `A+`; nor is it read as `A` without the rest (task readers): no
+    to `A+`; nor is it read as `A` without the rest: no
     expression, as resolve() refuses it."""
     assert certain(db, source_with(tag)) == certain_id
 

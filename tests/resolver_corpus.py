@@ -21,15 +21,15 @@ from collections.abc import Callable, Generator, Iterable
 from pathlib import Path
 
 from resolver_changes_aliases import ALIASES_CHANGES
-from resolver_changes_contract import CONTRACT_CHANGES
+from resolver_changes_compounds import COMPOUNDS_CHANGES, answer
+from resolver_changes_edges import EDGES_CHANGES
 from resolver_changes_hidden import HIDDEN_CHANGES
+from resolver_changes_prose import PROSE_CHANGES
 from resolver_changes_readers import READERS_CHANGES
-from resolver_changes_resolverfix import RESOLVERFIX_CHANGES
+from resolver_changes_refusals import REFUSALS_CHANGES
 from resolver_changes_slash import SLASH_CHANGES
-from resolver_changes_t7 import T7_CHANGES, answer
-from resolver_changes_t8 import T8_CHANGES
-from resolver_changes_t9 import T9_CHANGES
 from resolver_changes_titles import TITLES_CHANGES
+from resolver_changes_trove import TROVE_CHANGES
 from resolver_changes_urls import URLS_CHANGES
 from resolver_changes_versioned import VERSIONED_CHANGES
 from seed_sql import (
@@ -162,12 +162,12 @@ EXPECTED_CHANGES: dict[str, tuple[Answer, str]] = {
             " `identity`)"
         ),
     ),
-    **T7_CHANGES,
-    **T8_CHANGES,
-    **T9_CHANGES,
-    **CONTRACT_CHANGES,  # a value it moves again has its answer now
-    **RESOLVERFIX_CHANGES,  # after the contract, for the same reason
-    **READERS_CHANGES,  # after the fix, for the same reason
+    **COMPOUNDS_CHANGES,
+    **PROSE_CHANGES,
+    **TROVE_CHANGES,
+    **REFUSALS_CHANGES,  # a value it moves again has its answer now
+    **EDGES_CHANGES,  # after the refusal reasons, for the same reason
+    **READERS_CHANGES,  # after the edge values, for the same reason
     **TITLES_CHANGES,  # after the readers, for the same reason
     **VERSIONED_CHANGES,
     **URLS_CHANGES,  # last: a value it moves again has its answer now

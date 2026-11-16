@@ -1,7 +1,7 @@
 # The answers the trove rules (trove names and paths, trailing names) moved
 # in the parity corpus and the PyPI sample. value: Python unicode_escape;
 # group: the rule that moved it (its reason is in
-# tests/resolver_changes_t9.py); then the answer, its fields written as in
+# tests/resolver_changes_trove.py); then the answer, its fields written as in
 # the other answer fixtures.
 value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
 Boost Software License 1.0 (BSL-1.0)	trailing	BSL-1.0	listed_name	-	trailing_name,listed_name	Boost Software License 1.0,BSL-1.0	-	-	list_data	yes	-

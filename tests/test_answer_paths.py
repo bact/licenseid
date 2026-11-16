@@ -3,8 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Characterisation pins for the review of the pre-freeze changes of 0.7.0
-(2026-11-02).
+"""One answer on every path (CLI, API, tag, predicate) for no licence, a
+bare compound, an unknown or deprecated ID and a blank database: findings
+of a review of the pre-freeze changes of 0.7.0 (2026-11-02).
 
 Each pin records what the branch did when the review found it. A later
 commit flips the pin to the new answer and names the decision, so
@@ -67,7 +68,7 @@ NOT_A_LICENCE = (
 
 @pytest.fixture
 def db() -> Generator[str, None, None]:
-    for path in seeded_db("contract_review", ROWS, EXCEPTIONS):
+    for path in seeded_db("answer_paths", ROWS, EXCEPTIONS):
         with sqlite3.connect(path, uri=True) as conn:  # no staleness warning
             conn.execute(FRESH, (datetime.now(timezone.utc).isoformat(),))
         yield path
@@ -500,7 +501,7 @@ def test_a_font_candidate_takes_the_flags_of_its_expression(
     expression (``exprflags``): the licence's, on the List only when the
     exception is too."""
     text = FONT_TEXT.replace("version 4", "version 2")
-    for path in seeded_db("contract_review_font", ROWS, exceptions):
+    for path in seeded_db("answer_paths_font", ROWS, exceptions):
         markers = MarkerDetector(LicenseDatabase(path, create=False))
         (found,) = [c for c in markers.detect(text) if "Font" in c["license_id"]]
         assert found["license_id"] == "GPL-2.0-only WITH Font-exception-2.0"

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Task ``readers``, second round: the helpers behind the tag answers of
+"""The helpers behind the tag answers of
 ``tests/test_readers_tags.py``, one by one."""
 # pylint: disable=missing-function-docstring
 

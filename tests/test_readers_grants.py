@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Task ``readers``: what an earlier version refused that it must not,
+"""An ID word in prose and a grant beside a licence: what an earlier
+version refused that it must not,
 on the whole 3.29.0 List (every ID a row, Intel, Nokia and Ruby too).
 
 Each test was first a pin of what the branch did (``# BUG:``); it now holds

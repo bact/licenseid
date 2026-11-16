@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Task ``readers``, third round: the judges behind
-``tests/test_readers_round3.py``, one by one, and the readers they must
+"""The judges behind
+``tests/test_readers_entry_points.py``, one by one, and the readers they must
 agree with."""
 # pylint: disable=missing-function-docstring
 

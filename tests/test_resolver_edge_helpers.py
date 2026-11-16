@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The helpers task ``resolverfix`` added, each on its own: white space as
+"""The helpers behind the edge values of ``resolve()``, each on its own: white space as
 Unicode has it, quote marks around nothing, the marks at the end of a value,
 the case of a reference prefix, an ID cut inside a word, a stated qualifier
 and the detail of a reason."""

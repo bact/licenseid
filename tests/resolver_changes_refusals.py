@@ -7,9 +7,9 @@
 the PyPI sample: a reason for every refusal. Each value gains a
 ``reason`` and nothing else: no expression, category, step or trust moved.
 
-The answers are in ``fixtures/resolver_contract_changes.tsv``;
+The answers are in ``fixtures/resolver_refusals_changes.tsv``;
 :data:`REASONS` says why each group moved. ``resolver_corpus`` merges
-:data:`CONTRACT_CHANGES` into ``EXPECTED_CHANGES`` last, so a value an
+:data:`REFUSALS_CHANGES` into ``EXPECTED_CHANGES`` last, so a value an
 earlier change moved (``BSD-3-Clause and Public-Domain``) is listed here
 with its answer now.
 """
@@ -20,7 +20,7 @@ from changes_file import load_changes
 
 from tools.pypi_licence_sample.answer import Answer
 
-CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_contract_changes.tsv"
+CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_refusals_changes.tsv"
 
 _WAS = "the refusal had no reason"
 
@@ -43,4 +43,4 @@ REASONS: dict[str, str] = {
 }
 
 #: ``{value: (answer, reason)}``, every value the changes move.
-CONTRACT_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)
+REFUSALS_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)

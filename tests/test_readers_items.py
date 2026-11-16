@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Task ``readers`` of the 0.7.0 review: the readers of a declared value
+"""From the 0.7.0 review: the readers of a declared value
 that ``detect()`` and ``resolve()`` share, held to one answer, on the whole
 3.29.0 List.
 

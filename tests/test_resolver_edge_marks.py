@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The review of task ``resolverfix``: what its first fix left (the
+"""Edge values of ``resolve()`` the first fix of them left (the
 information separators before an end mark, a grant after a qualifier that
 does not start at an operator, an ID cut before a script written without
 spaces, case folding outside ASCII, operand and value reasons, one end mark
@@ -53,7 +53,7 @@ def named(expression: str, spdx: bool = True) -> Answers:
 
 @pytest.fixture
 def db() -> Generator[str, None, None]:
-    yield from tag_db("test_resolverfix_review")
+    yield from tag_db("test_resolver_edge_marks")
 
 
 def ref(text: str, reason: str) -> Answer:
@@ -161,7 +161,7 @@ MATCHED: dict[str, Answer] = {
     # is not (the "-" would go unnamed): the general reason
     "MIT;;+-": (None, "unresolved", [], "not found: MIT;;+-"),
     "MIT++-": ref("MIT++", "qualifier stated twice"),
-    # Task readers: the comma is an ending, so the grant is the
+    # The comma is an ending, so the grant is the
     # reference's (was the general reason, "not found")
     "LicenseRef-a, or any later version": (
         None,
@@ -177,7 +177,7 @@ MATCHED: dict[str, Answer] = {
     '"".;': (None, "unresolved", [], 'not found: "".;'),
     '""++': (None, "unresolved", [], 'not found: ""++'),
     '"+"': (None, "unresolved", [], "not found: +"),
-    # Task readers: the marks around an operator alone are the operands'
+    # The marks around an operator alone are the operands'
     # (they paired as two layers around "OR": "not found: OR")
     '"" OR ""': (None, "unresolved", [], 'operand not resolved: ""'),
 }
@@ -200,7 +200,7 @@ TAGS: dict[str, Answers] = {
     "GPL-2.0-only WITH Classpath-exception-2.0, or any later version": NOTHING,
     "GPL-2.0, see COPYING for any later version": named("GPL-2.0-or-later"),
     "GPL-2.0-only, see COPYING": named("GPL-2.0-only"),
-    # Task readers: the grant is MIT's, its "+", as resolve() reads it;
+    # The grant is MIT's, its "+", as resolve() reads it;
     # it was dropped in silence
     "GPL-2.0-only OR MIT, or any later version": named("GPL-2.0-only OR MIT+"),
     # 3: a script written without spaces after the ID starts a word

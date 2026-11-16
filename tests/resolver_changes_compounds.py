@@ -6,9 +6,9 @@
 """The answers the compound expressions moved in the parity corpus
 and the PyPI sample, grouped by the rule that moved them.
 
-The answers are in ``fixtures/resolver_t7_changes.tsv``, one row a value
+The answers are in ``fixtures/resolver_compounds_changes.tsv``, one row a value
 with its group; :data:`REASONS` says why each group moved.
-``resolver_corpus.EXPECTED_CHANGES`` merges :data:`T7_CHANGES`.
+``resolver_corpus.EXPECTED_CHANGES`` merges :data:`COMPOUNDS_CHANGES`.
 :func:`answer` builds an answer by keyword, its defaults the answer that
 resolves nothing.
 """
@@ -19,7 +19,7 @@ from changes_file import load_changes
 
 from tools.pypi_licence_sample.answer import Answer
 
-CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_t7_changes.tsv"
+CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_compounds_changes.tsv"
 
 
 def answer(  # pylint: disable=too-many-arguments
@@ -92,4 +92,4 @@ REASONS: dict[str, str] = {
 
 
 #: ``{value: (answer, reason)}``, every value the compound rules move.
-T7_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)
+COMPOUNDS_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)

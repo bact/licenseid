@@ -3,8 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The second review of the pre-freeze changes of 0.7.0 (2026-11-02), on the
-whole 3.29.0 List.
+"""A stated qualifier, a doubled one, a "+" beside a WITH, a blank
+database path and one end mark after a lone expression: findings of a
+review of the pre-freeze changes of 0.7.0 (2026-11-02), on the whole
+3.29.0 List.
 
 Each test was first a pin of what the branch did when the review found it
 (the commit before the fix); it now holds the new answer and names the

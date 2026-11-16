@@ -1,7 +1,7 @@
 # The answers the prose forms of one ID (a trailing licence word, a
 # version in words, a leading article) moved in the parity corpus and the PyPI
 # sample. value: Python unicode_escape; group: the rule that moved it (its
-# reason is in tests/resolver_changes_t8.py); then the answer, its fields
+# reason is in tests/resolver_changes_prose.py); then the answer, its fields
 # written as in the other answer fixtures.
 value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
 Apache 2 License	word	Apache-2.0	prose_form	-	prose_form,separator,version_spelling	Apache 2,Apache-2.0,Apache-2.0	-	-	resolver_rule	yes	-

@@ -451,7 +451,7 @@ def test_canonicalize_reads_operators_in_any_case() -> None:
         ("MIT++", "MIT++"),  # left to the parser to reject
         # SPDX allows no space before "+", so a detached one is not the
         # operator: no expression, as resolve() refuses it, rather than one
-        # without it (task readers; it ended the expression).
+        # without it (it used to end the expression).
         ("LGPL-2.1 + MIT", ""),
         ("MIT +", ""),
         ("MIT+ +", ""),

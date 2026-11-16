@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Task ``fixr`` of the 0.7.0 review: the ``lists`` of a refused list of
+"""From the 0.7.0 review: the ``lists`` of a refused list of
 licences, the reason of a refused WITH, of a misplaced "+" in a compound and
 of a qualifier on a reference, and one reading of "or later", on the whole
 3.29.0 List.

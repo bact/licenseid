@@ -34,7 +34,7 @@ left off) and were refused before.
 
 Lone surrogates survive the JSON file as ``\\udXXX`` escapes
 (``ensure_ascii=True``), and ``json.loads`` gives them back.
-The result's ``input`` shows each as U+FFFD (task resolverfix), so that
+The result's ``input`` shows each as U+FFFD, so that
 ``json_line`` can write it.
 """
 

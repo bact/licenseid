@@ -139,7 +139,7 @@ Item numbers are the roadmap's.
   on `identifiers.read_leading`), once per distinct tag value; a valid ID with
   no match, prose after an expression (`MIT ü`) and a mark that is no
   letter (`MIT€`) stay quiet. Test: `tests/test_tag_invalid_warning.py`,
-  `tests/test_resolverfix_tags.py`.
+  `tests/test_tag_edge_values.py`.
 - Expressions and references carried the wrong flags (item 34, Priority 12;
   found done 2026-11-09). `exprflags.py` judges them: a `LicenseRef-*` is
   `is_spdx` false with both approval flags null; for an expression `OR` is
@@ -160,7 +160,7 @@ Item numbers are the roadmap's.
   detectrequest._check_option_values`), as it does for a `text` that is no
   `str`: `exclude="MIT"` was read as a string and kept every ID that is a
   substring of it. Tests: `tests/test_match_options.py`,
-  `tests/test_contract_pins.py`.
+  `tests/test_public_surface.py`.
 - Tier 0 and wrappers `resolve()` does not read (item 48, Priority 12;
   2026-11-09). Tier 0 read the normalised text of a short value that
   `resolve()` refuses, so the wrapper and the "+" were gone: `「MIT++」` was

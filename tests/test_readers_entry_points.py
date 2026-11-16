@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Task ``readers``, third round: a declared value read the same way by the
+"""A declared value read the same way by the
 tag, a manifest field, a short text, the ``is-*`` answers and ``resolve()``,
 on the whole 3.29.0 List.
 

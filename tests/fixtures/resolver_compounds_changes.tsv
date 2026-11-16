@@ -1,6 +1,6 @@
 # The answers the compound-expression rules moved in the parity corpus
 # and the PyPI sample. value: Python unicode_escape; group: the rule
-# that moved it (its reason is in tests/resolver_changes_t7.py); then the
+# that moved it (its reason is in tests/resolver_changes_compounds.py); then the
 # answer, its fields written as in the other answer fixtures.
 value	group	expression	category	candidates	steps	step_targets	expansions	expansion_targets	trust	input_same	reason
 MIT WITH AdditionRef-x	addition_ref	MIT WITH AdditionRef-x	exact	-	-	-	-	-	identity	yes	-

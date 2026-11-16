@@ -178,7 +178,7 @@ def _db() -> Generator[LicenseDatabase, None, None]:
                 [],
             ),
         ),
-        # A "+" after a space is no operator (task readers; was MIT+)
+        # A "+" after a space is no operator (was MIT+)
         ("MIT +", (None, "malformed", [], [], [])),
         ("(GPL-2.0)+", (None, "malformed", [], [], [])),  # "+" follows an ID only
         # a qualifier twice is malformed; a grant that cannot apply is not dropped

@@ -6,9 +6,9 @@
 """The answers the trove rules (trove names and paths, an agreeing trailing
 name) moved in the parity corpus and the PyPI sample, grouped by the rule.
 
-The answers are in ``fixtures/resolver_t9_changes.tsv``;
+The answers are in ``fixtures/resolver_trove_changes.tsv``;
 :data:`REASONS` says why each group moved. ``resolver_corpus`` merges
-:data:`T9_CHANGES` into ``EXPECTED_CHANGES``.
+:data:`TROVE_CHANGES` into ``EXPECTED_CHANGES``.
 """
 
 from pathlib import Path
@@ -17,7 +17,7 @@ from changes_file import load_changes
 
 from tools.pypi_licence_sample.answer import Answer
 
-CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_t9_changes.tsv"
+CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_trove_changes.tsv"
 
 _WAS = "0.6.0 answered `unresolved`"
 
@@ -46,4 +46,4 @@ REASONS: dict[str, str] = {
 }
 
 #: ``{value: (answer, reason)}``, every value the trove rules move.
-T9_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)
+TROVE_CHANGES: dict[str, tuple[Answer, str]] = load_changes(CHANGES_FILE, REASONS)

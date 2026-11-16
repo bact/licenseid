@@ -178,7 +178,7 @@ OUT.write_text(text, encoding="utf-8")
   `python -m tools.pypi_licence_sample export`.
 - **Description:** Frozen answers of `resolve()` 0.6.0 (now
   `licenseid.resolve()`) on SPDX 3.29.0,
-  so that each 0.7.0 task proves what it changed
+  so that each 0.7.0 change proves what it moved
   (`tests/test_resolver_parity.py`, `tests/test_resolver_sample.py`).
 - **Characteristics:** Tab-separated, one header row, `#` comment lines at the
   top. The `value` column is Python `unicode_escape` (a tab, newline,
@@ -221,37 +221,37 @@ OUT.write_text(text, encoding="utf-8")
   escapes. The `resolver` block of a result is built from
   `licenseid.__version__`, so it moves with a release.
 
-### 9. `resolver_t7_changes.tsv` and `resolver_compounds_generated.tsv`
+### 9. `resolver_compounds_changes.tsv` and `resolver_compounds_generated.tsv`
 
 - **Data Source:** `licenseid.resolve()` on the corpus database of section 7,
   once the compound-expression rules were built.
-- **Description:** `resolver_t7_changes.tsv` lists every answer of the parity
-  corpus and the PyPI sample that those rules moved, each with its group;
-  `tests/resolver_changes_t7.py` gives each group its reason and adds the rows
-  to `EXPECTED_CHANGES`. `resolver_compounds_generated.tsv` pins the answer to
-  each compound `tests/compound_cases.py` generates
+- **Description:** `resolver_compounds_changes.tsv` lists every answer of
+  the parity corpus and the PyPI sample that those rules moved, each with its
+  group; `tests/resolver_changes_compounds.py` gives each group its reason and
+  adds the rows to `EXPECTED_CHANGES`. `resolver_compounds_generated.tsv` pins
+  the answer to each compound `tests/compound_cases.py` generates
   (`tests/test_resolver_compounds_generated.py`).
 - **Characteristics:** Tab-separated, `#` comment lines first, the value as
   Python `unicode_escape`, `-` for none; the answer fields are written as in
   section 7.
 
-### 10. `resolver_t9_changes.tsv`
+### 10. `resolver_trove_changes.tsv`
 
 - **Data Source:** `licenseid.resolve()` on the corpus database of section 7,
   once the trove rules (trove names and paths, an agreeing trailing name)
   were built.
 - **Description:** every answer of the parity corpus and the PyPI sample that
-  those rules moved, each with its group; `tests/resolver_changes_t9.py` gives each
-  group its reason and adds the rows to `EXPECTED_CHANGES`.
+  those rules moved, each with its group; `tests/resolver_changes_trove.py`
+  gives each group its reason and adds the rows to `EXPECTED_CHANGES`.
 - **Characteristics:** As section 9.
 
-### 11. `resolver_resolverfix_changes.tsv`
+### 11. `resolver_edges_changes.tsv`
 
 - **Data Source:** `licenseid.resolve()` on the corpus database of section 7,
   once the edge values of the 0.7.0 review (quote marks around nothing, end
   marks after brackets, control characters, lone surrogates) were fixed.
 - **Description:** every answer of the parity corpus and the PyPI sample that
-  the fix moved, each with its group; `tests/resolver_changes_resolverfix.py`
+  the fix moved, each with its group; `tests/resolver_changes_edges.py`
   gives each group its reason and adds the rows to `EXPECTED_CHANGES`.
 - **Characteristics:** As section 9.
 
@@ -314,9 +314,9 @@ OUT.write_text(text, encoding="utf-8")
 - **Description:** every answer of the parity corpus and the PyPI sample
   that the change moved, each with its group; the module named gives each
   group its reason and adds the rows to `EXPECTED_CHANGES`:
-  `resolver_t8_changes.tsv` (the prose forms of one ID;
-  `tests/resolver_changes_t8.py`), `resolver_contract_changes.tsv` (a reason
-  for every refusal; `resolver_changes_contract.py`),
+  `resolver_prose_changes.tsv` (the prose forms of one ID;
+  `tests/resolver_changes_prose.py`), `resolver_refusals_changes.tsv` (a reason
+  for every refusal; `resolver_changes_refusals.py`),
   `resolver_hidden_changes.tsv` (`licenseid.hiddenchars`;
   `resolver_changes_hidden.py`), `resolver_urls_changes.tsv`
   (`licenseid.resolveurl`; `resolver_changes_urls.py`) and
