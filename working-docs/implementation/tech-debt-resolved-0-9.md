@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-17
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -426,3 +426,52 @@ beside `GNU General Public License v2.0` turned `GPL-2.0-only` into
   grant; "or any version later" is no phrase (the exemption above only keeps
   the answer); `variants._supports` still reads any grant phrase in a
   declared value (`has_or_later_language`).
+
+## Small leftovers of items 35, 46, 50, 53 and 55 (2026-11-18)
+
+Planned and measured on `main` da544cb with a copy of the real database
+(SPDX List 3.29.0). No answer of the library moves: tools, tests and notes.
+PR #223.
+
+- **Item 35, `exclude` read only by Tier 1** (PR #211): verbatim MIT,
+  Apache-2.0, BSD-2-Clause and 0BSD texts with `exclude=[ID]` no longer list
+  the ID. **A deprecated row with no text answering a GPL README** (PR #212):
+  the README "GNU General Public License version 2" gives `GPL-2.0-only`
+  0.915 under `auto` and `as-written`, warning `variant not stated`. The
+  repeated-text bullet stays open.
+- **Item 46, condition words for empty input**: right already. `--text ""`,
+  `--text "   "`, an empty file and `resolve ""` print `ERROR: input: empty:
+  <where>`, exit 2. **The METADATA of a dev build**: a dev version is written
+  in PEP 440 normal form (`0.9.0.dev0`) at the version bump, a line in
+  `release-process.md`. Open still, among others (roadmap item 46): `hint`
+  against the filters, the API names, `is-*` on several tags, a garbage
+  `--db`, `update --source packaged` samples, and the `wal_copy_without_wal`
+  and `damaged_fts_shadow_table` failures (8 on `licenseid310` with SQLite
+  3.51.0, on `main` too).
+- **Item 50, no-section `license = "MIT OR ISC"`** (PR #219): no answer, with
+  `too few words for text: operand not resolved` (the line is a `key = value`
+  line, and no measured value has that shape). **`disambiguate_whole`**
+  (decided 2026-11-17, PR #221): it stays. **The harness database**: the
+  `value`, `id` and `name` golden kinds run on the full List
+  (`tests/harness_db.py`, `DECLARED_KINDS`); `long`, `short` and `mixed` stay
+  on the long-text fixtures, because the full List moves 10 of their rows,
+  two of them losses (`libpng-1.6.35` in mixed content, a name hit lost to a
+  text match under 0.5: a finding for the name tier). On the full List 3 of
+  the 6 `id_deprecated` rows equal the golden and 3 answer the bare ID
+  (`GPL-2.0`, `LGPL-3.0`, `AGPL-1.0`: `yes`, as a bare deprecated ID stays as
+  written, #212), listed in `tests/harness_changes_variant.py`. The golden
+  headers still say "long-text fixtures" until the release regeneration.
+- **Item 53, a cut `-shm` of a legacy WAL database**: closed as a known
+  limit (`cross-platform.md`). It needs a database built before 0.4.2 and
+  never `update`d since, a connection held open, and a `-shm` cut by another
+  program; private alpha, one user. Rejected: refusing a WAL file with a
+  `-shm` in the readiness check, and `locking_mode=exclusive`.
+- **Item 55, the four URL pages without a count** (`mozilla.org/mpl/2.0`,
+  `opensource.org/license/mpl-2-0`, `opensource.org/license/ofl-1-1`, the SIL
+  `ofl_web` page): kept. The List gives each to the licence and its variants
+  (`MPL-2.0` and `MPL-2.0-no-copyleft-exception`; `OFL-1.1`, `OFL-1.1-RFN`,
+  `OFL-1.1-no-RFN`), which is the evidence, so the page computes it (column
+  "The List gives the page to", `measure.list_owners`) and the test checks
+  the four of `evidence.LIST_PAGES` against the List. A fifth row still needs
+  a survey count. **A trove name with no count shows a dash**: correct, as the
+  page says "A dash is no count recorded".

@@ -18,9 +18,17 @@ _TEXT = (
     "a licence text that its -only and -or-later forms share is a guess of the"
     " variant, so it is not exact (the variant is not stated, VARIANT_STATED)"
 )
+_BARE = (
+    "a bare deprecated ID stays as written (#212), as for a declared value; the"
+    " full List has its row, so the id kind answers it (the long-text fixtures"
+    " had none); exact moves no to yes, as the ID is written whole"
+)
 _FIELD = "the record has a last field VARIANT_STATED (JSON variant_stated)"
 
 VARIANT_CHANGES: dict[str, tuple[str, str]] = {
+    "id/AGPL-1.0-only/id_deprecated": ("AGPL-1.0\tid\tyes\t1.0000", _BARE),
+    "id/GPL-2.0-only/id_deprecated": ("GPL-2.0\tid\tyes\t1.0000", _BARE),
+    "id/LGPL-3.0-only/id_deprecated": ("LGPL-3.0\tid\tyes\t1.0000", _BARE),
     "long/AGPL-1.0-or-later": ("AGPL-1.0-only\ttext\tno\t1.0000", _TEXT),
     "long/GFDL-1.1-no-invariants-only": (
         "GFDL-1.1-invariants-only\ttext\tno\t1.0000",
