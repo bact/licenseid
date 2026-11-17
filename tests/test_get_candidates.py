@@ -11,7 +11,7 @@ Characterization tests written before the detector.py complexity refactor
 `detector.py::detect()` and `_get_candidates()`") to
 pin down behaviour that was previously only reachable incidentally
 through detect()'s public surface: the head/tail retrieval-window word
-thresholds, the tail-only candidate cap, hint injection, and the
+thresholds, the tail-only candidate cap, hinted candidates, and the
 only_spdx/only_common/exclude filters.
 """
 # pylint: disable=redefined-outer-name,duplicate-code,missing-function-docstring
@@ -349,51 +349,57 @@ def test_get_candidates_exclude_list_filters_named_id(
     assert all(c["license_id"] != "EXCLUDE-ME" for c in result)
 
 
-# --- hint injection ---
+# --- hints (added after the filters by retrieval.hinted_candidates) ---
 
 
-def test_get_candidates_hint_injects_missing_id(
-    db_path: str, matcher: LicenseDetector
-) -> None:
-    """A hinted ID that's in the DB but wasn't returned by search is
-    force-included as a synthetic candidate."""
-    text = _words(30)
+def test_get_candidates_adds_no_hint(db_path: str, matcher: LicenseDetector) -> None:
+    """A hint is no part of Tier 1: detector._run_tier1_and_tier2 adds it
+    last, so the mixed-content gate counts only what search found."""
     _seed(db_path, "HINTED", "totally unrelated other text")
 
     result = matcher._get_candidates(
-        DetectOptions(only_spdx=False, hint=["HINTED"]), text
+        DetectOptions(only_spdx=False, hint=["HINTED"]), _words(30)
     )
 
-    hinted = [c for c in result if c["license_id"] == "HINTED"]
-    assert len(hinted) == 1
-    assert hinted[0]["search_text"] == ""
+    assert all(c["license_id"] != "HINTED" for c in result)
 
 
-def test_get_candidates_hint_skips_id_already_in_filtered(
+def test_hinted_candidates_has_the_text_of_a_missing_id(
     db_path: str, matcher: LicenseDetector
 ) -> None:
-    """A hinted ID that's already present from real search results is not
-    duplicated."""
-    text = _words(30)
-    _seed(db_path, "ALREADY-THERE", text)
+    """A hinted ID that's in the DB but wasn't returned by search is a
+    candidate with its own text, so it ranks on its similarity."""
+    _seed(db_path, "HINTED", "totally unrelated other text")
 
-    result = matcher._get_candidates(
-        DetectOptions(only_spdx=False, hint=["ALREADY-THERE"]), text
+    result = retrieval.hinted_candidates(
+        matcher.db, DetectOptions(only_spdx=False, hint=["HINTED"]), []
     )
 
-    matches = [c for c in result if c["license_id"] == "ALREADY-THERE"]
-    assert len(matches) == 1
+    assert [c["license_id"] for c in result] == ["HINTED"]
+    assert result[0]["search_text"] == "totally unrelated other text"
 
 
-def test_get_candidates_hint_skips_unknown_id(
-    matcher: LicenseDetector,
+def test_hinted_candidates_skips_an_id_already_present(
+    db_path: str, matcher: LicenseDetector
 ) -> None:
+    """A hinted ID that's already a candidate is not added twice (case
+    folded)."""
+    _seed(db_path, "ALREADY-THERE", _words(30))
+
+    result = retrieval.hinted_candidates(
+        matcher.db,
+        DetectOptions(only_spdx=False, hint=["already-there"]),
+        ["ALREADY-THERE"],
+    )
+
+    assert not result
+
+
+def test_hinted_candidates_skips_an_unknown_id(matcher: LicenseDetector) -> None:
     """A hinted ID that isn't in the DB at all is silently skipped, not an
     error."""
-    text = _words(30)
-
-    result = matcher._get_candidates(
-        DetectOptions(only_spdx=False, hint=["NO-SUCH-LICENSE"]), text
+    result = retrieval.hinted_candidates(
+        matcher.db, DetectOptions(only_spdx=False, hint=["NO-SUCH-LICENSE"]), []
     )
 
-    assert all(c["license_id"] != "NO-SUCH-LICENSE" for c in result)
+    assert not result

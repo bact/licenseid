@@ -18,6 +18,7 @@ import sqlite3
 from collections.abc import Callable, Generator
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import get_type_hints
 
 import pytest
 from click.testing import CliRunner, Result
@@ -27,7 +28,13 @@ from db_variants import make_ready_file_db
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 import licenseid
-from licenseid import DatabaseNotReadyError, InvalidInputError, LicenseDatabase, resolve
+from licenseid import (
+    DatabaseNotReadyError,
+    InvalidInputError,
+    LicenseDatabase,
+    resolve,
+    resolvertypes,
+)
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.result import fields_line, record_json
@@ -272,13 +279,32 @@ def test_id_and_argument_agree(db: str, args: list[str]) -> None:
         "Source",
         "Detection",
         "Method",
+        "ToolInfo",
+        "DetectOptions",
+        "Variant",
         "json_line",
     ],
 )
 def test_result_types_are_exported(name: str) -> None:
     """Was: only ``Detection`` and ``Method``; now the types of a result,
-    and ``json_line``, are exported from ``licenseid``."""
+    the options of ``detect()`` (``DetectOptions``, whose ``variant`` is a
+    ``Variant``) and ``json_line`` are exported from ``licenseid``."""
     assert hasattr(licenseid, name) and name in licenseid.__all__
+
+
+def test_the_exports_are_sorted() -> None:
+    assert licenseid.__all__ == sorted(licenseid.__all__)
+
+
+def test_resolver_and_component_are_one_type() -> None:
+    """Was: ``Resolver`` and ``Component``, two classes of the same four keys;
+    now ``ToolInfo`` is both, and they are gone."""
+    hints = get_type_hints(licenseid.Resolution)
+    assert hints["resolver"] is licenseid.ToolInfo
+    assert hints["components"] == list[licenseid.ToolInfo]
+    assert set(get_type_hints(licenseid.ToolInfo)) == {"name", "version", "url", "purl"}
+    assert not hasattr(resolvertypes, "Resolver")
+    assert not hasattr(resolvertypes, "Component")
 
 
 def test_the_cli_helpers_are_private() -> None:

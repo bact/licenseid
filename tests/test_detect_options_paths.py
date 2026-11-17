@@ -10,9 +10,10 @@ Characterization tests: they pin today's answers, right or wrong. A pin
 marked ``# BUG:`` is a suspected bug, ``# DECISION:`` a behaviour to keep or
 change on purpose; fixing either moves the pin. ``exclude``, ``only_common``
 and ``only_spdx`` filter the full-text candidates of Tier 1
-(``licenseid.retrieval.get_candidates``), and ``hint`` adds its IDs after
-the filter. ``enable_popularity`` acts in the Tier 2 ranking and its
-tie-breaker, on every candidate (more in ``tests/test_match_ordering.py``).
+(``licenseid.retrieval.get_candidates``); ``hint`` adds its IDs last, with
+their text, through the same filters (``retrieval.hinted_candidates``).
+``enable_popularity`` acts in the Tier 2 ranking and its tie-breaker, on every
+candidate (more in ``tests/test_match_ordering.py``).
 
 MIT, MIT-0, JSON, X11 and Acme-MIT carry their real text, as AGENTS.md asks:
 a row with no ``search_text`` never reaches Tiers 1 and 2, so a filter test
@@ -125,18 +126,21 @@ GPL = "GPL-2.0-only"
         ({"exclude": NEAR}, []),
         ({"hint": ["MIT"]}, NEAR),  # already a candidate: nothing added
         ({"hint": ["Nope-1.0"]}, NEAR),  # no row: nothing added
-        ({"hint": [GPL]}, [*NEAR, GPL]),  # added last, scored 0
+        ({"hint": [GPL]}, [*NEAR, GPL]),  # added last, scored on its text
         ({"hint": ["gpl-2.0-only"]}, [*NEAR, GPL]),
         ({"hint": ["mit"]}, NEAR),  # folded: already a candidate
         ({"hint": [GPL, GPL]}, [*NEAR, GPL]),  # an ID given twice, once
         ({"hint": [GPL, "gpl-2.0-only"]}, [*NEAR, GPL]),
-        # BUG: hint is added after the filter, so it undoes exclude.
-        ({"exclude": ["MIT"], "hint": ["MIT"]}, [*NEAR[1:], "MIT"]),
+        # DECISION: every filter wins: a hint is a candidate that passes
+        # them, so it never undoes exclude.
+        ({"exclude": ["MIT"], "hint": ["MIT"]}, NEAR[1:]),
         ({"only_common": True}, ["MIT", "MIT-0", "X11"]),
-        # BUG: nor does a hint pass the only_common or only_spdx filter.
-        ({"only_common": True, "hint": ["JSON"]}, ["MIT", "MIT-0", "X11", "JSON"]),
+        # Nor does a hint pass only_common or only_spdx (on by default).
+        ({"only_common": True, "hint": ["JSON"]}, ["MIT", "MIT-0", "X11"]),
         ({"only_spdx": False}, ["MIT", "Acme-MIT", *NEAR[1:]]),
-        ({"only_spdx": True, "hint": ["Acme-MIT"]}, [*NEAR, "Acme-MIT"]),
+        ({"only_spdx": True, "hint": ["Acme-MIT"]}, NEAR),
+        ({"hint": ["Acme-MIT"]}, NEAR),  # only_spdx is on by default
+        ({"only_spdx": False, "hint": ["Acme-MIT"]}, ["MIT", "Acme-MIT", *NEAR[1:]]),
         ({"only_common": True, "exclude": ["MIT"]}, ["MIT-0", "X11"]),
         # No tie here, so popularity (a nudge of 1e-4 at most) moves nothing.
         ({"enable_popularity": True}, NEAR),
@@ -149,57 +153,57 @@ def test_the_options_shape_the_text_candidates(
     assert answers(detector, text=BODY, **options) == expected
 
 
-def test_a_hinted_candidate_has_no_text_to_score(detector: LicenseDetector) -> None:
-    """DECISION: a hint adds a candidate with no ``search_text``, so it is
-    scored 0 on its own: it never lifts a licence above the text's own."""
-    hinted = detector.detect(text=BODY, hint=[GPL])[-1]
-    assert (hinted["expression"], hinted["score"], hinted["exact"]) == (GPL, 0, False)
-
-
-def test_a_hint_undoes_exclude_for_a_marker_licence_too(
+def test_a_hinted_candidate_scores_on_its_own_text(
     detector: LicenseDetector,
 ) -> None:
-    """BUG: exclude drops the heading's MIT (a prose marker is free text),
-    but the hint adds it back with no text, so it falls to the bottom."""
+    """DECISION: a hint is added with its ``search_text``, so it ranks on its
+    own similarity, not at 0: it never lifts a licence above the text's own."""
+    hinted = detector.detect(text=BODY, hint=[GPL])[-1]
+    assert (hinted["expression"], hinted["exact"]) == (GPL, False)
+    assert 0 < hinted["score"] < 0.5
+
+
+def test_exclude_wins_over_a_hint_for_a_marker_licence_too(
+    detector: LicenseDetector,
+) -> None:
+    """exclude drops the heading's MIT (a prose marker is free text), and a
+    hint for it adds nothing back."""
     plain = detector.detect(text=MIT, exclude=["MIT"])
     hinted = detector.detect(text=MIT, exclude=["MIT"], hint=["MIT"])
     assert "MIT" not in [r["expression"] for r in plain]
-    assert [r["expression"] for r in hinted][:3] == ["JSON", "X11", "MIT-0"]
-    mit = next(r for r in hinted if r["expression"] == "MIT")
-    assert mit["score"] < 0.1
+    assert hinted == plain
 
 
-def test_a_hint_buries_a_licence_its_heading_names(
+def test_a_hint_keeps_the_licence_its_heading_names(
     detector: LicenseDetector,
 ) -> None:
-    """BUG: with no exclude too. only_common drops JSON from the full-text
-    candidates; its heading brings it back, exact; a hint for it replaces
-    that candidate with one that has no text, so JSON falls to the bottom."""
+    """only_common drops JSON from the full-text candidates; its heading
+    brings it back, exact; a hint for it is dropped by only_common as well,
+    so the heading's candidate (with its text) stays first."""
     text = _fixture_text("JSON")  # starts "JSON License"
     assert answers(detector, text=text)[0] == "JSON"
-    assert answers(detector, text=text, only_common=True)[0] == "JSON"
+    plain = detector.detect(text=text, only_common=True)
     hinted = detector.detect(text=text, only_common=True, hint=["JSON"])
-    assert [r["expression"] for r in hinted].count("JSON") == 1
-    assert hinted[-1]["expression"] == "JSON"
-    assert hinted[-1]["score"] < 0.1
+    assert plain[0]["expression"] == "JSON"
+    assert hinted == plain
+    assert (hinted[0]["score"], hinted[0]["exact"]) == (1.0, True)
 
 
 MIXED = PROSE * 2 + "Licensed under the MIT License, see below.\n" + PROSE
 
 
-def test_a_hint_can_skip_the_search_of_mixed_content(
+def test_a_hint_does_not_skip_the_search_of_mixed_content(
     detector: LicenseDetector,
 ) -> None:
-    """BUG: mixed content with under 5 full-text candidates is searched by
-    section too (detector._run_tier1_and_tier2); a hinted candidate counts
-    towards the 5, so a hint stops that search, and what it found goes."""
+    """Mixed content with under 5 full-text candidates is searched by section
+    too (detector._run_tier1_and_tier2). A hint is added after that gate, so
+    it no longer counts towards the 5: what the search found stays."""
     # as-written keeps the deprecated twin the section search found.
     keep: dict[str, Any] = {"variant": "as-written"}
     plain = answers(detector, text=MIXED, **keep)
     hinted = answers(detector, text=MIXED, hint=[GPL], **keep)
     assert plain[-2:] == [GPL, "GPL-2.0"]
-    assert hinted[-1] == GPL and "GPL-2.0" not in hinted
-    assert detector.detect(text=MIXED, hint=[GPL], **keep)[-1]["score"] == 0
+    assert hinted == plain
 
 
 @pytest.mark.parametrize(
@@ -297,10 +301,10 @@ def test_every_collection_kind_answers_alike(
 def test_the_order_of_the_ids_does_not_change_the_answer(
     detector: LicenseDetector,
 ) -> None:
-    """Hinted candidates all score 0 and sort by ID, as any tie does."""
+    """Hinted candidates are added last, in no order that ranks them."""
     forward = answers(detector, text=BODY, hint=[GPL, "MIT"], exclude=NEAR[:2])
     backward = answers(detector, text=BODY, hint=["MIT", GPL], exclude=NEAR[1::-1])
-    assert forward == backward == [*NEAR[2:], GPL, "MIT"]
+    assert forward == backward == [*NEAR[2:], GPL]
 
 
 class _Id(str):
@@ -369,10 +373,7 @@ OPTION_ANSWERS: dict[str, tuple[dict[str, Any], list[str]]] = {
     "exclude": ({"exclude": ["MIT"]}, ["X11", "JSON", "MIT-0"]),
     "exclude_case": ({"exclude": ("mit",)}, ["X11", "JSON", "MIT-0"]),  # folded
     "hint": ({"hint": {GPL}}, [*TIED, GPL]),
-    "exclude_hint": (
-        {"exclude": ["MIT"], "hint": ["MIT"]},
-        [*TIED[:2], "MIT-0", "MIT"],
-    ),
+    "exclude_hint": ({"exclude": ["MIT"], "hint": ["MIT"]}, [*TIED[:2], "MIT-0"]),
     "only_common": ({"only_common": True}, ["X11", "MIT", "MIT-0"]),
     "only_spdx": ({"only_spdx": False}, ["X11", "Acme-MIT", *TIED[1:]]),
     "enable_popularity": ({"enable_popularity": True}, ["X11", "MIT-0", "MIT", "JSON"]),
