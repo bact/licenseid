@@ -328,8 +328,9 @@ under "refuse unless the loss is measured":
   `GPL-2.0 or later, see COPYING`); a field `GPL-2.0 or later-2.1` is read;
   a tag still answers `GPL-2.0 only, ISC` and `(MIT OR GPL-2.0) only`
   (`lists_after_grant` reads an "or" grant only); the argument
-  `GPL-2.0 or later, GPL-3.0 or later` answers `MPL-1.1` by name (name
-  tier); `GPL-2.0 WITH Classpath-exception-2.0-- or later` is refused and
+  `GPL-2.0 or later, GPL-3.0 or later` has no answer at the bar (a text
+  match, 0.45 `MPL-1.1` on the fixture database only; PR B1c checked it);
+  `GPL-2.0 WITH Classpath-exception-2.0-- or later` is refused and
   the argument falls to the text tier (0.58, another licence);
   `markers._resolve_gpl_or_later` and `_detect_license_mentions` read a
   grant of any subject (item 52).
@@ -414,18 +415,12 @@ beside `GNU General Public License v2.0` turned `GPL-2.0-only` into
   phrase now counts as a grant there too, as on `main`
   (`test_the_tie_breaker_keeps_an_unowned_phrase_as_granting`). Rerun the
   full golden after every change on the answer path, not only at the end.
-- **Left** (for B1c and later): `namerules._granted_numbers` of the name tier
-  takes the number before any grant (`Apache License 1. Requires Java 1 or
-  later` answers `Apache-1.1`): it should ask `grants()` and then
-  `grants_licence` for the named licence; `Apache License 1 or later` and
-  `GNU Lesser General Public License v2.0 or later` (the name tier answers
-  `GPL-2.0-or-later`, now `GPL-2.0-only`) belong to the name tier;
-  `markers`' two grant readers; a tool's `version N` is still a grant of
-  `(N, None)` where no word names it (`Compatible with version 3.0 or later`:
-  grants every GNU licence of version 3); `GFDL-1.3+` is no shorthand
-  grant; "or any version later" is no phrase (the exemption above only keeps
-  the answer); `variants._supports` still reads any grant phrase in a
-  declared value (`has_or_later_language`).
+- **Left** (the name tier's part is the next section): `markers`' two grant
+  readers; a tool's `version N` is still a grant of `(N, None)` where no word
+  names it (`Compatible with version 3.0 or later`: grants every GNU licence of
+  version 3); `GFDL-1.3+` is no shorthand grant; "or any version later" is no
+  phrase (the exemption above only keeps the answer); `variants._supports`
+  still reads any grant phrase in a declared value (`has_or_later_language`).
 
 ## Small leftovers of items 35, 46, 50, 53 and 55 (2026-11-18)
 
@@ -520,3 +515,57 @@ below) and D4 a.
   and `["components"]`. `licenseid` exports `ToolInfo`, `DetectOptions` and
   `Variant` (the type of `DetectOptions.variant`). JSON keys and values do not
   change.
+
+## Grant subject in the name tier (B1c, PR 225, 2026-11-18)
+
+Tier 0's `namerules.cut_version` took the number before any "or later" or
+"+" as the licence's grant: `Apache License 1. Requires Java 1 or later`
+answered `Apache-1.1`. It reads grants through `grantsubject` now, and the
+name tier doubts a GPL hit for a Lesser, Library or Affero name.
+
+- **Cut rule** (`namerules.cut_version`): only a grant of the hit's own
+  licence (`grants_licence`) exempts a cut number, and only where the hit's ID
+  carries a grant (`-or-later`, `+`): `GNU Lesser General Public License v2 or
+  later` stays LGPL-2.1-or-later, `Apache License 1 or later` names no row
+  of the List and gets no answer (`resolve()` refuses it too). A grant
+  exempts one written number, compared with `classify.same_version` (`GNU Free
+  Documentation License v1 or later. Requires Java 1 or later` is none: the
+  tool's `1` was the minor that tied GFDL-1.1-or-later above its twins).
+  `namerules` reads no `OR_LATER_PHRASE` and no `PLUS_OPERATOR` any more.
+- **Whole version** (decided D-6): the version written in full exempts the
+  cut only where the name has it: a run that follows, within three words,
+  the word the name's run follows (`license` of `Apache License 1.1`;
+  `through` of `PNG Reference Library License v1 (for libpng 0.5 through
+  1.6.35)`; `AGREEMENT Version 1.1.0` of the eGenix title). `Requires Java
+  1.1`, `built with Ant 1.1`, `Python 2.1` (AFL-2.1 for `Academic Free
+  License v2. Requires Python 2.1`) no longer count. The first form, "right
+  after the name's last word", lost `libpng-1.6.35` for eight sentence
+  templates and one `eGenix` text window in the sweeps: the rule is per run
+  of the name, with a reach of three words (`_NAME_REACH`).
+- **Family rule** (D-2 c, `namerules.names_other_gnu_licence`): a `GPL-*` hit
+  is doubted where every "General Public" of the input has Lesser, Library or
+  Affero before it, a `GNU` between aside (`grantsubject.MODIFIERS`, now
+  exported). It needs no grant: `GNU Lesser General Public License v2.0 only`
+  was `GPL-2.0-only`. An input that writes the plain GPL's name too (`GNU
+  General Public License v3.0 or later. Not the GNU Affero General Public
+  License`) keeps its answer: the first form of the rule scanned the whole
+  input and lost seven such right answers (found in review). The first design
+  (`grant_of_another`, a grant of another family on the hit's number) needed a
+  second number reader and missed the `only` form.
+- **Not changed**: D-3 (`with` over three words) and D-4 (`Modified
+  <name>`), recorded in roadmap item 47 with the wrong answers found on the
+  way; `General Public License (Lesser) v2.0 or later` and `General Public
+  License, Lesser, v2.0 or later` (the modifier not before "General Public")
+  still answer `GPL-2.0-only`.
+- **Measured** (the real 3.29.0 List, `main` against the branch, top at
+  0.85): raw licence texts and headers, 19,723 windows: 0; phrase
+  windows 1,548: 0; the name in 14 templates, 10,360: 0; PyPI sample 463: 0;
+  the 12-template cut and full-name probe, 5,619: 407 to none, every one a
+  cut version that #219 decided gets no answer; `tools.golden`, every part:
+  as the golden.
+- **Tests**: `tests/test_name_tier_grants.py` (the List's names), made-up
+  rows in `tests/test_namehits.py` (`Cutg`, `Plusg`, `Rng`, `Egx`,
+  `GPL-9.0-*`); two rows of `test_a_cut_version` flipped (`Cut Name 1 or
+  later`); two rows left `BUGS` of the leftovers for `DECIDED`, with five
+  new ones. Mutants of the cut rule, the reach and the family rule are all
+  killed.

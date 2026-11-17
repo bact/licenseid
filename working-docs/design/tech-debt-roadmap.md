@@ -412,9 +412,26 @@ use):
 - **Wrong answers no rule touches**: `Licensed under the GNU Lesser General
   Public License v2.1` (and `v3.0`) gives BSD-Protection by text (0.867),
   `Licensed under the GNU Affero General Public License v3.0` gives MPL-2.0
-  (0.86): name hits under 1, so Tier 1 answers. `GNU Lesser General Public
-  License v2.0 or later` gives GPL-2.0-or-later; `Apache License 1 or later`
-  gives Apache-1.1 (a grant exempts the cut).
+  (0.86): name hits under 1, so Tier 1 answers. Text tier, found while
+  building B1c (not a grant rule): `GNU Lesser General Public License
+  version 2.0 or later` gives LGPL-3.0, `GNU Lesser General Public License,
+  version 2, or any later version` gives GPL-3.0 and `GNU General Public
+  License, either version 2.0 or later` gives LGPL-3.0. Name tier, found the
+  same way: `Licensed under the GNU General Public License v2. Requires
+  Python 2.0 or later to build` gives Python-2.0, `Functional Source License,
+  Version 1.1, Apache 2.0 Future License` gives Apache-2.0 (the name has
+  `ALv2`), `Sendmail License 8 or later` and `Sax Public Domain Notice 2 or
+  later` give the ID whose name lacks the version (the `MIT License 2`
+  leftover), `GNU General Public License (Lesser) v2.0 or later` and `General
+  Public License, Lesser, v2.0 or later` give GPL-2.0-only (the modifier is
+  not before "General Public"), `Apache License 2. Requires Java 1.8 or
+  later` gives Apache-1.1
+  (token set finds `1`; 1.8 is no cut of 1.1), and
+  `with` more than three words after the name (`Apache License 2.0 as
+  amended by us with the LLVM exception`) and `Modified Apache 2.0 License`
+  still answer Apache-2.0. `GNU Lesser General Public License v2 or later`
+  stays LGPL-2.1-or-later (the name `Lesser` is 2.1's), where `resolve()`
+  reads `LGPL-2 or later` as LGPL-2.0-or-later.
 - **`<name> Plus`** still answers the name (706 of 708 probes).
 - **A name with "+"**: `GNU Lesser General Public License v3+` (1 project)
   gets no answer (`normalize_text` drops the "+"). It could be `-or-later`.
@@ -516,9 +533,7 @@ each a decision:
 - **Grant subject, left** (resolved 2026-11-17: a grant counts for the
   licence it names, `licenseid.grantsubject`; see
   [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md)):
-  `namerules._granted_numbers` of the name tier should ask `grants()` and
-  `grants_licence` (`Apache License 1. Requires Java 1 or later` answers
-  `Apache-1.1`); `markers._resolve_gpl_or_later` and
+  `markers._resolve_gpl_or_later` and
   `_detect_license_mentions` read a grant of any subject (a bias, settled by
   `variants.settle_text`); `or any version later` is no phrase of
   `OR_LATER_PHRASE` (`has_unowned_phrase` keeps an `-or-later` answer);

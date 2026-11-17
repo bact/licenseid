@@ -44,6 +44,7 @@ from licenseid.namerules import (
     glued_dash,
     names_an_exception,
     names_another_id,
+    names_other_gnu_licence,
 )
 from licenseid.plusoperator import grant_stem
 from licenseid.resolvefirst import MIN_TEXT_WORDS
@@ -127,6 +128,7 @@ def _doubted(
         )
         or names_an_exception(given.words, held, exception_words)
         or names_another_id(given.raw, given.rows, hit["license_id"], held)
+        or names_other_gnu_licence(given.words, hit["license_id"])
     )
 
 
