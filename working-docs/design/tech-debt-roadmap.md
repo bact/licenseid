@@ -491,7 +491,7 @@ and the parity corpus: the whole input moved 6 times, a quoted INI field
 Closed: the no-section `license = "MIT OR ISC"` (PR #219: no answer, `too few
 words for text`), `looseid.disambiguate_whole` (decided 2026-11-17: it stays,
 PR #221 restricted it), and the partial harness database (2026-11-18; PR
-number to add); see
+#223); see
 [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
 
 - Impact 2, Risk 2, Effort 3.
@@ -623,7 +623,7 @@ About 140 rows in all; ScanCode and Blue Oak lists are planned.
   (`working-docs/paper-notes/licence-urls.md`); the page shows that count,
   and the test requires one for each alias and title and each URL page. Four
   URL pages the List gives a licence and its variants are the exception
-  (closed 2026-11-18; PR number to add); the dash of a trove name with no
+  (closed 2026-11-18; PR #223); the dash of a trove name with no
   count is correct: see
   [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
 - **Left open**: a command (`licenseid resolve --lists`) or a JSON file with
