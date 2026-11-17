@@ -490,8 +490,8 @@ and the parity corpus: the whole input moved 6 times, a quoted INI field
 
 Closed: the no-section `license = "MIT OR ISC"` (PR #219: no answer, `too few
 words for text`), `looseid.disambiguate_whole` (decided 2026-11-17: it stays,
-PR #221 restricted it), and the partial harness database (2026-11-18; PR
-#223); see
+PR #221 restricted it), and the partial harness database (2026-11-18;
+PR #223); see
 [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
 
 - Impact 2, Risk 2, Effort 3.
