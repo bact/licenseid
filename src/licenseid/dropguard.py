@@ -67,6 +67,8 @@ _BEFORE_MARKS: Final = "+([{"
 # What may follow the dashes that cut a tag's expression: an end mark, a "+", a
 # quote mark or a closing bracket, never the start of a comment closer.
 _AFTER_CUT: Final = ".,;:!?+\"')"
+# The first character of a comment closer (``-->``, ``-}``, ``--]]``, ``-#}``, ``*/``).
+_CLOSER_STARTS: Final = ">}]/*#"
 
 
 def _is_separator(char: str) -> bool:
@@ -169,11 +171,37 @@ def cut_by_joiners(text: str, end: int) -> bool:
     return stop == len(text) or is_white_space(text[stop]) or text[stop] in _AFTER_CUT
 
 
+def cut_reference(text: str, end: int) -> bool:
+    """Whether the expression of a tag value *text* that ends at *end* has a
+    last operand that is a ``LicenseRef-*`` (or ``AdditionRef-*``) with
+    dashes or underscores directly before a comment closer
+    (``MIT OR LicenseRef-a-->``, ``-}``, ``--]]``, ``-#}``, ``-*/``). The
+    reference may own those dashes or the closer may: a tag reader that
+    knows no closers cannot tell, and either reading is another reference
+    than the author's, so the value is refused, as the same value is as an
+    argument. A lone reference (``LicenseRef-a-->``) is refused too. A run apart
+    by white space (``LicenseRef-a- -->``) is the author's."""
+    body = text[:end]
+    word = _last_word(body)
+    if not (is_license_ref(word) or is_addition_ref(word)):
+        return False
+    stop = end
+    while stop < len(text) and (text[stop] == "_" or RE_DASHES.match(text[stop])):
+        stop += 1
+    run = len(word) - len(word.rstrip("-")) + stop - end
+    return bool(run) and stop < len(text) and text[stop] in _CLOSER_STARTS
+
+
 def cut_off(text: str, end: int) -> bool:
     """Whether the expression of a tag value *text* that ends at *end* is cut:
-    inside a word (``LicenseRef-café``, :func:`licenseid.exprtokens.cut_inside_word`)
-    or by dashes or underscores (:func:`cut_by_joiners`)."""
-    return cut_inside_word(text, end) or cut_by_joiners(text, end)
+    inside a word (``LicenseRef-café``, :func:`licenseid.exprtokens.cut_inside_word`),
+    by dashes or underscores (:func:`cut_by_joiners`) or by a closer beside a
+    reference's dashes (:func:`cut_reference`)."""
+    return (
+        cut_inside_word(text, end)
+        or cut_by_joiners(text, end)
+        or cut_reference(text, end)
+    )
 
 
 def ends_in_ref(text: str) -> bool:

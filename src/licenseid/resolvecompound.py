@@ -65,10 +65,11 @@ from licenseid.looseid import (
     declared_grant_id_text,
     granted_id_text,
 )
+from licenseid.normalize import normalize_text
 from licenseid.quotes import unquote
 from licenseid.resolveleaf import Found, category_of, refuse, refuse_dropped
 from licenseid.resolveprose import read_alone
-from licenseid.resolvereason import after_bracket, names_expression
+from licenseid.resolvereason import VERSION_AMBIGUOUS, after_bracket, names_expression
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
     TRUST,
@@ -327,7 +328,13 @@ def _combine(found: Found, reading: _Reading, tree: Node) -> Compound:
     if None in expressions:
         refused = [i for i, e in enumerate(expressions) if e is None]
         if not written_upper(text, reading.tokens):  # only an operand's own
-            refused = [i for i in refused if not _is_nothing(operands[i])]
+            nothing = [i for i in refused if _is_nothing(operands[i])]
+            refused = [i for i in refused if i not in nothing]
+            # A cut ID is the reason only when it is the value's one fault:
+            # "LGPLv2 or above" is prose, as "LGPLv2.1 or above" is. Not
+            # beside a grant a text match reads ("LGPLv2 or (later)").
+            if nothing and declared_grant_id_text(normalize_text(text)) is None:
+                refused = [i for i in refused if not _is_cut(operands[i])]
             if not refused:  # reason: "GPL-3.0 or higher" is prose
                 return Compound([], True, False)
         _refuse_operands(found, operands, read, refused[0])
@@ -422,6 +429,11 @@ def _is_nothing(operand: Operand) -> bool:
     """Whether *operand* names nothing and says nothing: unresolved, with no
     reason (not a dropped mark, not a misplaced qualifier)."""
     return operand["category"] == "unresolved" and operand["reason"] is None
+
+
+def _is_cut(operand: Operand) -> bool:
+    """Whether *operand* is refused as a cut ID (``version ambiguous``)."""
+    return str(operand["reason"]).partition(":")[0] == VERSION_AMBIGUOUS
 
 
 def _refuse_operands(

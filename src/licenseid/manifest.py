@@ -17,10 +17,12 @@ import os
 import re
 from collections.abc import Iterator
 
-# PEP 621 table form, in any table: license = {text = "MIT"}. The key ignores
-# case in ASCII only: "lİcense" (U+0130) is no "license".
+# PEP 621 table form, in any table: license = {text = "MIT"}, the text a basic
+# string (group 1, escapes undone by _toml_unescape) or a literal one (group
+# 2). The key ignores case in ASCII only: "lİcense" (U+0130) is no "license".
 _RE_TOML_LICENSE_TABLE = re.compile(
-    r'(?a:license)\s*=\s*\{[^}]*\btext\s*=\s*["\']([^"\']+)["\']', re.IGNORECASE
+    r"""(?a:license)\s*=\s*\{[^}]*\btext\s*=\s*(?:"((?:[^"\\]|\\.)*)"|'([^']*)')""",
+    re.IGNORECASE,
 )
 # Any key, bare or quoted: a TOML file has at least one.
 _RE_TOML_KEY = re.compile(r"""[ \t]*[\w."'-]+[ \t]*=""")
@@ -32,11 +34,28 @@ _RE_TOML_QUOTE_OR_COMMENT = re.compile(r"\"\"\"|'''|[\"'#]")
 # so a long line cannot make either pattern backtrack.
 _RE_TOML_HEADER = re.compile(r"[ \t]*\[([^\[\]]*)\][ \t]*(?:#.*)?")
 _RE_TOML_ARRAY_HEADER = re.compile(r"[ \t]*\[\[[^\[\]]*\]\][ \t]*(?:#.*)?")
-# A string value, as TOML writes it: a case-sensitive key and a basic or a
-# literal string, with an optional trailing comment.
+# A string value, as TOML writes it: a case-sensitive key and a basic string
+# (group 2, with backslash escapes: a pair is one unit, so no two
+# alternatives match the same run) or a literal one (group 3), with an
+# optional trailing comment.
 _RE_TOML_STRING = re.compile(
-    r"""[ \t]*([\w.-]+)[ \t]*=[ \t]*(?:"([^"\\]*)"|'([^']*)')[ \t]*(?:#.*)?"""
+    r"""[ \t]*([\w.-]+)[ \t]*=[ \t]*"""
+    r"""(?:"((?:[^"\\]|\\.)*)"|'([^']*)')[ \t]*(?:#.*)?"""
 )
+# One backslash escape of a TOML 1.0 basic string: \uXXXX, \UXXXXXXXX, or one
+# character (the empty alternative is a backslash with nothing after it).
+_RE_TOML_ESCAPE = re.compile(r"\\(u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|.?)", re.DOTALL)
+# The one-character escapes of TOML 1.0. TOML 1.1 adds \e and \xHH: a file
+# that uses them is no TOML 1.0, and is read as no value (fail closed).
+_TOML_SIMPLE_ESCAPES = {
+    "b": "\b",
+    "t": "\t",
+    "n": "\n",
+    "f": "\f",
+    "r": "\r",
+    '"': '"',
+    "\\": "\\",
+}
 # A run of white space inside or at the end of a line. Older configparser
 # (Python 3.10) scans it once per character of the key before it, so 50,000
 # spaces after "license" took 9 s. Leading white space marks a continuation
@@ -115,7 +134,7 @@ def toml_license_values(text: str) -> list[str] | None:
             continue
         has_key = has_key or bool(_RE_TOML_KEY.match(line))
         inline = None if table_form else _RE_TOML_LICENSE_TABLE.match(line)
-        table_form = inline.group(1) if inline else table_form
+        table_form = _decoded(inline) if inline else table_form
         value = "" if table in by_table else _license_string(line, table)
         if value:
             by_table[table] = value
@@ -180,8 +199,45 @@ def _license_string(line: str, table: str) -> str:
     """The value of *line* if it is a license string of *table*, else ""."""
     field = _RE_TOML_STRING.fullmatch(line)
     if field and field.group(1) in _TOML_LICENSE_KEYS.get(table, ()):
-        return field.group(2) or field.group(3) or ""
+        return _decoded(field, 2)
     return ""
+
+
+def _decoded(match: re.Match[str], first: int = 1) -> str:
+    """The string a match of :data:`_RE_TOML_STRING` or
+    :data:`_RE_TOML_LICENSE_TABLE` read: its basic string (group *first*)
+    with the escapes undone, or its literal string (the group after) as
+    written; "" for none or for an escape TOML 1.0 does not have."""
+    basic, literal = match.group(first), match.group(first + 1)
+    if basic is None:
+        return literal or ""
+    return _toml_unescape(basic) or ""
+
+
+def _toml_unescape(raw: str) -> str | None:
+    """*raw*, the inside of a TOML basic string, with its escapes undone:
+    ``\\b \\t \\n \\f \\r \\" \\\\ \\uXXXX \\UXXXXXXXX``. None for any
+    other escape (``\\x41``, ``\\e``, a short ``\\u12``) and for a code point
+    that is no Unicode scalar value (a surrogate, past U+10FFFF), as a TOML
+    parser refuses the file. A literal string is never passed here."""
+    if "\\" not in raw:
+        return raw
+
+    def one(escape: re.Match[str]) -> str:
+        code = escape.group(1)
+        if code[:1] in ("u", "U"):
+            point = int(code[1:], 16)
+            if 0xD800 <= point <= 0xDFFF or point > 0x10FFFF:
+                raise ValueError(code)
+            return chr(point)
+        if code not in _TOML_SIMPLE_ESCAPES:
+            raise ValueError(code)
+        return _TOML_SIMPLE_ESCAPES[code]
+
+    try:
+        return _RE_TOML_ESCAPE.sub(one, raw)
+    except ValueError:
+        return None
 
 
 def _has_bad_ini_line(text: str) -> bool:

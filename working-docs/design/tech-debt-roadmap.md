@@ -33,8 +33,9 @@ item 47 from PR #168, item 50 from the work on item 44, item 51
 from the work on item 43, and item 52 from the work on the upgrade of
 deprecated IDs in `py-spdx-license` (2026-11-14), item 53 from the work
 on item 40 (PR #207), item 54 from the review of `EXACT`, item 55 from
-the decision on `EXACT` and our own lists (2026-11-15). Item 56 (a hang in
-the CLI matrix, found 2026-11-16) is resolved.
+the decision on `EXACT` and our own lists (2026-11-15). Items 51 (decided and
+pinned, 2026-11-17) and 56 (a hang in the CLI matrix, found 2026-11-16) are
+resolved.
 
 Open: the list below, in the order of its headings. Item 55 is built
 (PR #214, 2026-11-16); its leftovers stay open. Item 2 waits on an upstream
@@ -509,32 +510,12 @@ and the parity corpus: the whole input moved 6 times, a quoted INI field
   (`MIT`, inexact; under 10 words it has no answer): only a word ending in
   "+" under 10 words is refused, so a README line with `C++` keeps its
   answer.
-- **Hidden characters and escapes inside a quoted field**: a quoted INI
-  `"MIT\u200b"` and a TOML `"\"MIT\""` (backslashes kept by the manifest
-  reader) answered `MIT` by name before item 48 and have no answer now,
-  because `resolve()` refuses them (`control or format character`, dropped
-  backslash). Trim a hidden character inside quotes in `resolve()`, and
-  unescape the TOML string in `manifest`.
 - **The harness database is partial**: the long-text fixtures hold no
   deprecated rows, so `GPL-2.0` (`id_deprecated`) has no answer there
   (`tests/harness_changes_wrappers.py`); build the golden database from the
   full List.
 
 - Impact 2, Risk 2, Effort 3.
-
-## 51. A lone ID with a stray slash or bracket gives no answer — Priority 10
-
-Before PRs #195 and #197 (item 48), `detect(text=...)` answered an ID with
-one stray mark through Tier 0: `/MIT`, `MIT/`, `(MIT` and `MIT)` gave `MIT`,
-and `GPL-2.0+)` gave `GPL-2.0-or-later`, all exact. Now `resolve()` refuses
-each (`character dropped: U+002F`, `parse failed: Unexpected '('`, `Missing
-matching '('`) and `detect()` follows it with no answer. The refusals are
-deliberate (a dropped mark may be the author's doubt, `dropguard`), and the
-"/" rule of item 43 keeps `/MIT` and `MIT/` refused (an empty piece). Decide
-whether a lone mark of this kind is read, which marks, and with what category
-and step; measure it on the PyPI sample and the manifests before choosing.
-
-- Impact 2, Risk 2, Effort 2.
 
 ## 52. Leftovers of `detect --variant` — Priority 12
 
@@ -616,18 +597,30 @@ cut version is a choice, not a spelling: `Apache-1` may mean `Apache-1.0` or
   owner the same day** ("fix the tag"): a tag cut by a dash or `_` that
   touches the expression is refused too (`dropguard.cut_by_joiners`).
 - **Built** (PR #217, 2026-11-16; open until merged): see [`tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md).
-- **Open leftovers**: a dash glued to a comment closer in a tag (`MIT-*/`,
-  `MIT-#}`, `MIT-}`) is still read as `MIT`; a tag compound ending in a
-  reference that ends in a dash (`MIT OR LicenseRef-a-`) loses the dash
-  downstream; a refused tag above a licence fragment can fall to the text
-  tier (`MIT-0` at 0.914); `detect` of `GPL-2.0 or later-` still answers
-  through `disambiguate_whole`, as for `GPL-2.0 or later?` (also
+- **Kept on purpose** (decided 2026-11-17): a dash glued to a comment closer
+  in a tag (`MIT-*/`, `MIT-#}`, `MIT-}`, `MIT--]]`) is read as `MIT`. The
+  tag reader knows no closers (Haskell `-}`, Lua `--]]`, Jinja `-#}`), the
+  rows are pinned in `tests/test_cut_tags.py` (`STAYS`), and 0 of 14,743 tag
+  lines under `~/projects` glue a dash to a closer.
+- **Decided: refused** (2026-11-17, owner): a comment closer glued to a
+  reference's trailing `-`/`_` run in a tag (`MIT OR LicenseRef-a-->`, `-}`,
+  `--]]`, `-#}`, `-*/`, and a lone `LicenseRef-a-->`) gives no answer
+  (`dropguard.cut_reference`). Reading it as `LicenseRef-a--` or `LicenseRef-a`
+  is another reference than the author's. "Strip the characters a LicenseRef
+  lacks, then the trailing dashes" was weighed (Opus review) and rejected: it
+  gives a wrong identity for `*/`, `#}`, `-}`, turns today's refusals
+  (`LicenseRef-a_b`, `LicenseRef-a-ä`) into new references, and the data has no
+  such line. Kept: a space or the end of the value after the dash, `MIT-->`;
+  pinned in `tests/test_reference_dash.py`.
+- **Open leftovers**: a non-ID character inside a reference cuts it in a tag
+  (`MIT OR LicenseRef-a>b` reads `LicenseRef-a`; `resolve()` refuses it), not
+  checked against `cut_inside_word`; a refused tag above a licence fragment can
+  fall to the text tier (`MIT-0` at 0.914); `detect` of `GPL-2.0 or later-`
+  still answers through `disambiguate_whole`, as for `GPL-2.0 or later?` (also
   `LGPL-2.1 or later-`, `GPL-2.0 or later--`); a joiner run before a word
-  grant (`GPL-2.0-- or later`, `MIT__ or later`) is still read; `LGPLv2 or
-  above` and `LGPL-2 WITH Classpath-exception-2.0+` give `version
-  ambiguous`, not the reason of their own fault (no answer changes). Fixed
-  by item 47: `License: MIT-`, `Licensed under the Apache-1 license`,
-  `MVT-1`, `Sendmail-8`, `Apache License 1`.
+  grant (`GPL-2.0-- or later`, `MIT__ or later`) is still read. Fixed by item
+  47: `License: MIT-`, `Licensed under the Apache-1 license`, `MVT-1`,
+  `Sendmail-8`, `Apache License 1`.
 - Impact 1, Risk 2, Effort 2.
 
 ## 55. Publish the lists `resolve()` reads — Priority 12
