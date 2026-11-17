@@ -38,6 +38,11 @@ and this project adheres to
   `MIT-`, `Zlib-`, `GPL-2.0-` (a dash or `_` at the end) `character dropped`,
   and `SPDX-License-Identifier: MIT-` has no answer; `LGPLv2+`, `Apache-1+` stay
   (migrate: write the minor version, `Apache-1.0`, and `MIT`) ([#217])
+- **Breaking:** `detect` gives no name answer for two licences, a cut version,
+  `with <exception>`, a fragment of a longer name, another ID or a glued dash
+  (migrate: declare an SPDX expression or the full version)
+- Tied names answer the most specific (`CC-BY-4.0` becomes `CC-BY-NC-4.0`); a
+  name `vN` for `vN.0` answers `-only` (`GNU General Public License v1`, `v2`)
 
 ### Fixed
 
@@ -57,7 +62,7 @@ and this project adheres to
   `the`: 20 s to 0.2 s) ([#216])
 - `"MIT\u200b"` and a TOML `"\"MIT\""` are read; a tag or field keeps
   `LicenseRef-a-` in `MIT OR LicenseRef-a-` (refused before a `-->`); `LGPL-2
-  WITH ...+` and `LGPLv2 or above` give a clearer reason
+  WITH ...+` and `LGPLv2 or above` give a clearer reason ([#220])
 
 [#207]: https://github.com/bact/licenseid/pull/207
 [#208]: https://github.com/bact/licenseid/pull/208
@@ -68,6 +73,7 @@ and this project adheres to
 [#214]: https://github.com/bact/licenseid/pull/214
 [#216]: https://github.com/bact/licenseid/pull/216
 [#217]: https://github.com/bact/licenseid/pull/217
+[#220]: https://github.com/bact/licenseid/pull/220
 
 ## [0.8.4] - 2026-11-09
 

@@ -33,6 +33,7 @@ from licenseid.looseid import (
 )
 from licenseid.manifest import extension, license_value_groups
 from licenseid.markers import MarkerDetector
+from licenseid.namehits import refusal_answer
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
 from licenseid.resolvefirst import as_resolved, match_of, too_short, unread_url
@@ -45,6 +46,7 @@ from licenseid.retrieval import add_unseen, drop_excluded, get_candidates
 from licenseid.shorttext import (
     EXACT_MATCH_SCORE,
     exact_id_match,
+    match_name_tier,
     match_short_text,
     match_version_key,
 )
@@ -234,15 +236,13 @@ class LicenseDetector:
     def _try_tier0_short_text(self, ctx: _MatchContext) -> list[RawMatch] | None:
         """Tier 0: Short-Text Shortcut (Names/IDs).
 
-        Threshold: inputs under 30 words (~200 chars) are likely bare IDs
-        or short names and can be resolved via exact/fuzzy name matching
-        without entering the FTS5 pipeline. Keeping this threshold low
-        avoids routing ~50-word licence preambles (head_300 inputs)
-        through the name matcher, which degrades recall for variant
-        licences (e.g. MIT-STK, MIT-enna) where it returns the generic
-        parent. A lone SPDX expression answers as license_id would.
-        Returns None (fall through to Tier 1) for inputs at or above the
-        threshold, or below it with no confident match.
+        Inputs under 30 words (~200 chars) are likely bare IDs or short names:
+        exact/fuzzy name matching answers them without the FTS5 pipeline. A
+        low threshold keeps ~50-word licence preambles (head_300 inputs)
+        away from the name matcher, which returns the generic parent of
+        variant licences (MIT-STK, MIT-enna). A lone SPDX expression
+        answers as license_id would. None (fall through to Tier 1) for
+        inputs at or above the threshold, or below it with no confident match.
         """
         if is_qualified_plus(ctx.target_text) or is_stray_plus(ctx.target_text):
             return []  # "GPL-2.0-only+", "MIT +": no license, nor a near one
@@ -265,7 +265,8 @@ class LicenseDetector:
         prose ("GPL-2.0 or later version") is read in the raw text, whose
         marks the readers judge. The rest is matched as ID or name unless
         normalize_text() would drop what it was refused for: a mark, an
-        unpaired bracket, or a "+" ending a word (item 48)."""
+        unpaired bracket, or a "+" ending a word (item 48), or a name hit
+        that :mod:`licenseid.namehits` doubts (item 47)."""
         if is_plus_refusal(reason):
             return None
         disambiguated = disambiguate_whole(ctx.target_text, self.db)
@@ -277,7 +278,9 @@ class LicenseDetector:
             return [match]
         if refuses_text_match(reason, ctx.target_text):
             return None
-        found = self._match_short_text(ctx.norm_input, ctx.target_text)
+        found, refused = match_name_tier(self.db, ctx.norm_input, ctx.target_text)
+        if refused:  # a rule doubted a name hit that would have answered
+            return refusal_answer(ctx.word_count)
         # A confident ID or name hit scores above 1; an expression has no flags.
         return self._with_flags(found) if found and found[0]["score"] > 1.0 else None
 

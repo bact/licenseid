@@ -8,10 +8,12 @@ license ID or name."""
 
 from rapidfuzz import fuzz
 
-from licenseid.database import LicenseDatabase
+from licenseid.database import LicenseDatabase, exception_words
 from licenseid.looseid import loose_id, mark_guessed, resolved_id
+from licenseid.namehits import NameHits, settle
 from licenseid.plusoperator import grant_stem, strip_plus_operator
 from licenseid.ranking import DEP_PENALTY
+from licenseid.resolvereason import ends_a_word_with_plus
 from licenseid.types import LicenseNameId, RawMatch
 from licenseid.variants import decided, read_from
 from licenseid.versionkey import version_key
@@ -58,21 +60,45 @@ def _full_row(db: LicenseDatabase, license_id: str) -> LicenseNameId | None:
 def match_short_text(
     db: LicenseDatabase, norm_input: str, text: str | None = None
 ) -> list[RawMatch]:
+    """The hits of :func:`match_name_tier`: for a caller that has no use for
+    its refusal (the sections of a mixed text, which Tier 1 reads next)."""
+    return match_name_tier(db, norm_input, text).found
+
+
+def match_name_tier(
+    db: LicenseDatabase, norm_input: str, text: str | None = None
+) -> NameHits:
     """Tier 0 for very short inputs: the ID of the version key of *text* (the
     raw input; *norm_input* when not given, which has lost its full stops),
-    else an exact or fuzzy ID or name match on *norm_input*."""
+    else an exact or fuzzy ID or name match on *norm_input*. A name hit that
+    a rule of :mod:`licenseid.namehits` doubts is dropped; ``refused`` says
+    that the hit would have answered."""
     raw = norm_input if text is None else text
     loose = match_version_key(db, raw)
     if loose:
-        return loose
+        return NameHits(loose, False)
     all_metadata = db.get_all_names_and_ids()
     # Case-fold exact ID match: a score > 1.0, so the Tier 0 caller
     # recognises it as a definitive hit.
     exact = _exact_id_row(all_metadata, norm_input, raw)
     if exact is not None:
-        return [_id_hit(exact, resolved_id(db, exact), raw)]
-    ranked: list[RawMatch] = []
+        return NameHits([_id_hit(exact, resolved_id(db, exact), raw)], False)
     words = norm_input.split()
+    ranked, stems = _ranked_names(all_metadata, norm_input, words)
+    if decided_name(ranked) is not None and not _grant_left_out_alone(
+        ranked, stems, raw
+    ):
+        return NameHits([], False)  # both grants tie, the input has no grant
+    return settle(ranked, all_metadata, words, raw, lambda: exception_words(db))
+
+
+def _ranked_names(
+    all_metadata: list[LicenseNameId], norm_input: str, words: list[str]
+) -> tuple[list[RawMatch], set[str]]:
+    """The name and ID hits of *norm_input* (its *words*) at or above the
+    threshold, best first, and the licences whose name it is without their
+    grant (:func:`_grant_left_out`)."""
+    ranked: list[RawMatch] = []
     threshold = 90.0 if len(words) <= 2 else 85.0
     # The names of rows in use: a deprecated row that shares one is not the
     # exact answer, the row that replaced it is.
@@ -116,11 +142,7 @@ def match_short_text(
     # The deprecated penalty is already in each score, and these results
     # carry no is_deprecated or pop_score.
     ranked.sort(key=lambda x: (-x["score"], x["license_id"]))
-    if decided_name(ranked) is not None and not _grant_left_out_alone(
-        ranked, stems, raw
-    ):
-        return []  # both grants tie, and the input is no name without its grant
-    return ranked
+    return ranked, stems
 
 
 def _name_scores(
@@ -216,20 +238,39 @@ def _grant_left_out(rows: list[LicenseNameId], query: set[str]) -> set[str]:
         if row["is_deprecated"] or stem == row["license_id"]:
             continue
         for grant in _GRANT_WORDS:
-            if name.endswith(grant) and set(name[: -len(grant)].split()) == query:
+            if name.endswith(grant) and query in _spellings(name[: -len(grant)]):
                 grants.setdefault(stem, set()).add(grant)
     return {stem for stem, found in grants.items() if len(found) == len(_GRANT_WORDS)}
+
+
+def _spellings(name: str) -> list[set[str]]:
+    """The word sets that state *name* (a List name without its grant): its
+    words, and without a last "0" after "vN", where "GNU General Public
+    License v3" is "v3.0" (the rule PR #168 set for "v2.0")."""
+    words = name.split()
+    spelled = [set(words)]
+    if len(words) > 1 and words[-1] == "0" and _is_v_number(words[-2]):
+        spelled.append(set(words[:-1]))
+    return spelled
+
+
+def _is_v_number(word: str) -> bool:
+    """Whether *word* is "v" and digits (``v3``)."""
+    return word.startswith("v") and word[1:].isdigit()
 
 
 def _grant_left_out_alone(ranked: list[RawMatch], stems: set[str], text: str) -> bool:
     """Whether *ranked*, whose first two results are one licence's -only and
     -or-later tied, may stand: *text* is the name of the one licence of
     *stems* without its grant, it has no "+" (normalize_text dropped it,
-    and "v2.0+" states the wider grant), and no third result ties. An
+    and "v2.0+" states the wider grant) nor a stray one ("v2.0 ＋",
+    ``resolvereason.ends_a_word_with_plus``: the sections of a mixed text
+    reach here without ``refuses_text_match``), and no third result ties. An
     input that holds both names ("v2.0 or later only") is none."""
     first, third = ranked[0], ranked[2] if len(ranked) > 2 else None
     alone = third is None or third["score"] < first["score"]
-    return len(stems) == 1 and "+" not in text and alone
+    plus = "+" in text or ends_a_word_with_plus(text)
+    return len(stems) == 1 and not plus and alone
 
 
 def decided_name(found: list[RawMatch]) -> str | None:

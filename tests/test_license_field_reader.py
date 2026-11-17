@@ -116,9 +116,9 @@ def test_an_ordinary_text_answers_as_before(
 
 def test_the_order_of_the_fields_ranks_the_answers(db_path: str) -> None:
     detector = LicenseDetector(db_path)
-    ranked = [
-        r["expression"] for r in detector.detect(text="License: ISC\nLicense: MIT")
-    ]
+    # Under 30 words only the name tier reads it: two licences named, none.
+    text = "License: ISC\nLicense: MIT\n" + "filler words for the length " * 6
+    ranked = [r["expression"] for r in detector.detect(text=text)]
     assert ranked[:2] == ["ISC", "MIT"]
 
 

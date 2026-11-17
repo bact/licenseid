@@ -46,14 +46,16 @@ class _Keyed:
     """The reads a caller keys its own way, for one generation of the
     tables: names_and_ids() by a key of each ID, and the rows of
     ``license_urls`` with their index by a key of each URL. One key of each
-    is kept; a call with another builds its index again."""
+    is kept; a call with another builds its index again. The words of the
+    exceptions are here too: they are read for one generation as well."""
 
-    __slots__ = ("names", "url_rows", "urls")
+    __slots__ = ("exception_words", "names", "url_rows", "urls")
 
     def __init__(self) -> None:
         self.names: tuple[Callable[[str], str], dict[str, list[LicenseNameId]]] | None
         self.names = None
         self.url_rows: list[UrlRow] | None = None
+        self.exception_words: list[frozenset[str]] | None = None
         self.urls: (
             tuple[Callable[[str], str | None], dict[str, list[ListedUrl]]] | None
         ) = None
@@ -265,4 +267,26 @@ class TableCache:
             )
             if generation == self._generation:
                 self._deprecated = found
+        return found
+
+    def exception_words(self) -> list[frozenset[str]]:
+        """The normalised words of each exception's name and of its ID, built
+        once: ``licenseid.namehits`` asks whether the words after a "with"
+        name an exception."""
+        self._check_stamp()
+        generation, holder = self._generation, self._keyed
+        found = holder.exception_words
+        if found is None:
+            with self._connections.connection() as conn:
+                rows: list[tuple[str | None, str | None]] = conn.execute(
+                    "SELECT exception_id, name FROM exceptions"
+                ).fetchall()
+            found = [
+                frozenset(normalize_text(text).split())
+                for row in rows
+                for text in row
+                if isinstance(text, str)
+            ]
+            if generation == self._generation:
+                holder.exception_words = found
         return found

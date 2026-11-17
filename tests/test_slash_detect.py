@@ -74,10 +74,17 @@ def test_the_golden_row_is_read_not_guessed(detector: LicenseDetector) -> None:
     ]
 
 
+# Two licences named after a label: 0.8.3 answered both by name, in ID order,
+# as a tie of two names (roadmap item 47 reads a tie of two licences as none).
+NO_LONGER_ANSWERED = {"License: MIT/Apache-2.0", "License: MIT/ISC"}
+
+
 def test_every_other_value_answers_as_on_0_8_3(
     detector: LicenseDetector, kind: str
 ) -> None:
     for value, expected in PINNED[kind].items():
+        if value in NO_LONGER_ANSWERED:
+            expected = []
         assert answers(detector, value) == expected, value
 
 

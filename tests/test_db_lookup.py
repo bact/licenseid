@@ -17,7 +17,7 @@ import pytest
 from db_variants import stamp_rebuild
 from matcher_db import Lic, seeded_db
 
-from licenseid.database import LicenseDatabase
+from licenseid.database import LicenseDatabase, exception_words
 from licenseid.dbcache import TableCache
 from licenseid.dbconnection import Connections
 from licenseid.records import Records
@@ -232,3 +232,22 @@ def test_a_read_made_during_a_clear_is_not_kept(
     assert kept(tables) is None
     read(tables)
     assert kept(tables) is not None
+
+
+def test_the_words_of_the_exceptions_are_read_once_per_rebuild(
+    statements: list[str],
+) -> None:
+    """``namehits`` asks for them at each "with": one scan, dropped by a
+    rebuild, the words of the name and of the ID each."""
+    for path in seeded_db("test_db_exception_words", ROWS, ("Linux-note",)):
+        db = LicenseDatabase(path)
+        for _ in range(20):
+            assert exception_words(db) == [frozenset({"linux", "note"})] * 2
+        assert len(_selects(statements, "exceptions")) == 1
+        db._write_db_records(
+            Records([], [], [("Qux-ex", "Qux Exception", False, None)], []), None
+        )
+        assert exception_words(db) == [
+            frozenset({"qux", "ex"}),
+            frozenset({"qux", "exception"}),
+        ]
