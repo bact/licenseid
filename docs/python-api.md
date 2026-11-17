@@ -111,7 +111,8 @@ options it acts on every input, as `--variant` does on the command line
 `-or-later` form when the input does not state which. `"auto"` keeps a declared
 value as written (`detect(license_id="GPL-2.0")` is `GPL-2.0`, `variant_stated`
 `False`, as `resolve()` gives it) and, for a licence text or name, answers
-`-or-later` where the input grants later versions (stated), else `-only` first
+`-or-later` where the input grants later versions of that licence (stated; a
+tool's `Python 3.8 or later` grants nothing), else `-only` first
 and `-or-later` second, both `variant_stated` `False`, with one `variant not
 stated` warning. `-only` is the licensee's careful reading: it understates a
 licensor's "or later" grant. `"as-written"` never decides: a bare deprecated ID

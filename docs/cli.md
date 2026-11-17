@@ -163,7 +163,8 @@ Common options:
   - `auto` (default) keeps a declared value as written (`GPL-2.0` stays
     `GPL-2.0`, as `resolve` gives it, with `VARIANT_STATED=false`). For a
     licence text or name it answers `-or-later` first where the input
-    grants later versions, else `-only` first with `WARNING: input: variant
+    grants later versions of that licence (`Python 3.8 or later` grants
+    nothing), else `-only` first with `WARNING: input: variant
     not stated: GPL-2.0; using GPL-2.0-only`. `-only` understates a
     licensor's "or later" grant: it is the licensee's careful reading.
   - `as-written` never decides: a bare deprecated ID stays, a text match

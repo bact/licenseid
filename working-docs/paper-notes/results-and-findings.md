@@ -655,3 +655,22 @@ projects), 172 inputs of the `sbomminbench` registry corpus and the 520
   escapes is a parser correctness fix, with 0 real values.
 - No tag line under `~/projects` (14,743 lines) glues a dash to a comment
   closer; 2 glue a `)` (a Markdown comment idiom).
+
+### 3.12 Version phrases in READMEs: whose "or later" is it (2026-11-17)
+
+- A grant such as "or later" qualifies what stands before it. Of 19 grants
+  (an "or later" or "or newer" phrase, or a `GPLv2+` shorthand) in 211
+  distinct README files under `~/projects` (worktree copies and
+  duplicates dropped; the repository's own fixtures left out), 11 qualify a
+  tool (`Python 3.10 or newer`, `rustc 1.88.0 or newer`, `clang-3.3 or
+  newer`) and 8 a licence. Counted in 5 projects: fastText, nlpo3,
+  ntia-conformance-checker, sbomminbench, dep-logic.
+- Read without a subject, a README's `Requires Python 3.8 or later` beside a
+  GNU licence name turned the answer from `GPL-2.0-only` into
+  `GPL-2.0-or-later` and `VARIANT_STATED` to true, over a user's
+  `--variant only`. Reading the subject (a version after a licence's name,
+  `version`, `v` or `the License`) keeps all 18 `-or-later` answers of the
+  mixed-content fixtures and all 28 standard headers of SPDX List 3.29.0 that
+  grant later versions.
+- "version N" after a tool's name (`Python version 3 or later`): 0 in the
+  sweep; the family compare (`python` is no `gpl`) covers it.

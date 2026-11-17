@@ -169,10 +169,11 @@ BUGS = [
         Top("MPL-2.0-no-copyleft-exception", "text", False),
     ),
     # The input holds "Lesser" that GPL's name lacks, and the name lacks the
-    # "0" of "v2.0"... BUG: (item 47)
+    # "0" of "v2.0"... BUG: (item 47). The grant is the LGPL's, not the
+    # GPL's: the wrong licence is now answered `-only`, guessed, with a warning.
     (
         "GNU Lesser General Public License v2.0 or later",
-        Top("GPL-2.0-or-later", NAME, False),
+        Top("GPL-2.0-only", NAME, False),
     ),
     # A one-word ID that is an ordinary word is no second licence.
     # BUG: (item 47)
@@ -192,9 +193,10 @@ BUGS = [
     [pytest.param(text, top_, id=text[:40]) for text, top_ in BUGS],
 )
 def test_leftovers_answer_as_before(
-    detector: LicenseDetector, text: str, expected: Top
+    detector: LicenseDetector, given: GivenWarnings, text: str, expected: Top
 ) -> None:
     assert top(detector, text) == expected
+    given.take()
 
 
 def test_a_short_refusal_with_a_variant_warning(
