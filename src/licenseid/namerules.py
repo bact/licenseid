@@ -12,8 +12,9 @@ authors`` or a ``with GCC`` in a sentence about a build says nothing about
 the licence that the name states.
 
 Standard library, ``types``, ``normalize`` and the readers of a version
-(``versionkey``), a grant (``classify``, ``plusoperator``), a joiner
-(``dropguard``) and a licence ID (``plusoperator``, ``listlookup``) only.
+(``versionkey``), a grant (``grantsubject``, the one reader of whose grant a
+phrase is; ``classify.same_version``), a joiner (``dropguard``) and a licence
+ID (``plusoperator``, ``listlookup``) only.
 """
 
 import itertools
@@ -21,11 +22,12 @@ import re
 from collections.abc import Callable, Collection, Iterable
 from typing import Final, NamedTuple
 
-from licenseid.classify import OR_LATER_PHRASE
+from licenseid.classify import same_version
 from licenseid.dropguard import trailing_joiners
+from licenseid.grantsubject import MODIFIERS, Grant, grants, grants_licence
 from licenseid.listlookup import fold_case
 from licenseid.normalize import normalize_text
-from licenseid.plusoperator import PLUS_OPERATOR, grant_stem
+from licenseid.plusoperator import grant_stem
 from licenseid.types import LicenseNameId
 from licenseid.versionkey import sibling_keys, version_key
 
@@ -59,8 +61,11 @@ _EXCEPTION_REACH: Final = 5
 #: The most words that tell one exception from the rest (the List's longest).
 _MOST_TOLD: Final = 8
 _NAME_REACH: Final = 3
-#: The number a grant follows (``2`` of ``v2 or later``).
-_NUMBER_BEFORE: Final = re.compile(r"(\d+(?:\.\d+)*)[\s,()\[\]*/#;-]*\Z")
+#: The IDs that carry a grant: only these have a version that "or later"
+#: leaves open, as a cut number does.
+_CARRIES_GRANT: Final = ("-or-later", "+")
+#: A family reader's grant of the GPL, for asking whether an ID is its own.
+_GPL: Final = Grant(0, 0, None, "gpl")
 
 
 def core(name: Iterable[str]) -> frozenset[str]:
@@ -77,63 +82,125 @@ def cut_version(raw: str, rows: list[LicenseNameId], license_id: str) -> bool:
     (:func:`licenseid.versionkey.version_key`, so ``4.3TAHOE`` has its
     ``3``), and the cut is :func:`licenseid.versionkey.sibling_keys`: the
     licence's number is the input's with numbers after it, not all
-    zeros. Not where *raw* states the version in full as well, nor where a
-    grant ("or later", ``+``) stands right after the cut number:
-    ``GNU Lesser General Public License v2 or later`` is LGPL-2.1-or-later,
-    as a cut ID with a grant is, and ``Requires Java 8 or later`` grants
-    nothing of ``Apache License 1``."""
+    zeros. Not where *raw* writes the licence's number in full as well, at
+    the place the name has it (``Apache License 1.1`` and ``Requires Java
+    1``; a number that follows other words, ``Requires Java 1.1``, is not
+    the licence's), nor for a number that a grant of the licence qualifies,
+    where the hit carries the grant: ``GNU Lesser General Public License v2
+    or later`` is the one LGPL-2.1-or-later of the List, while ``Requires
+    Java 1 or later`` grants nothing of ``Apache License 1``, and ``Apache
+    License 1 or later`` names no row (Apache has no ``-or-later`` ID). A
+    grant exempts one written number (:func:`_without_grants`)."""
     if len(raw) > _MAX_KEY_TEXT:
         return False
     name = next((r["name"] for r in rows if r["license_id"] == license_id), None)
     if name is None:
         return False
-    stated = _number_runs(version_key(raw))
-    listed = _number_runs(version_key(name))
-    granted = _granted_numbers(raw)
+    stated = _runs_before(version_key(raw))
+    listed = _runs_before(version_key(name))
     return any(
-        _is_cut(run, whole, stated)
-        for run in stated
-        if run not in granted
-        for whole in listed
+        _is_cut(run, whole, _runs_after(stated, words))
+        for run in _without_grants([run for run, _ in stated], raw, license_id)
+        for whole, words in listed
     )
 
 
-def _number_runs(key: str) -> list[list[str]]:
-    """The runs of numbers in a version key, in order."""
-    runs: list[list[str]] = []
+def _runs_before(key: str) -> list[tuple[list[str], list[str]]]:
+    """The runs of numbers in a version key, in order, each with the words
+    before it (since the run before)."""
+    runs: list[tuple[list[str], list[str]]] = []
+    words: list[str] = []
     run: list[str] = []
     for token in key.split():
         if token.isascii() and token.isdigit():
             run.append(token)
-        elif run:
-            runs.append(run)
-            run = []
+        else:
+            if run:
+                runs.append((run, words))
+                run, words = [], []
+            words.append(token)
     if run:
-        runs.append(run)
+        runs.append((run, words))
     return runs
 
 
-def _granted_numbers(raw: str) -> list[list[str]]:
-    """The numbers (as runs of digits) that a grant stands right after in
-    *raw*: the ``2`` of ``v2 or later`` and of ``v2+``."""
-    numbers: list[str] = []
-    for phrase in OR_LATER_PHRASE.finditer(raw):
-        # The phrase after a number starts with its last digit.
-        end = phrase.start() + (1 if phrase.group()[:1].isdigit() else 0)
-        numbers.append(raw[:end])
-    numbers.extend(plus.group("id") for plus in PLUS_OPERATOR.finditer(raw))
-    found = (_NUMBER_BEFORE.search(text) for text in numbers)
-    return [match.group(1).split(".") for match in found if match]
+def _runs_after(
+    stated: list[tuple[list[str], list[str]]], listed_words: list[str]
+) -> list[list[str]]:
+    """The runs of *stated* that follow the word that a run of the name
+    follows (the last of *listed_words*, the words before it in the name),
+    within :data:`_NAME_REACH` words: ``license`` of ``Apache License 1.1``,
+    and ``EGENIX.COM PUBLIC LICENSE AGREEMENT Version 1.1.0``. A name's run
+    with no word before it (``3D Slicer License``) is any run."""
+    word = listed_words[-1] if listed_words else None
+    return [
+        run for run, words in stated if word is None or word in words[-_NAME_REACH:]
+    ]
 
 
-def _is_cut(run: list[str], whole: list[str], stated: list[list[str]]) -> bool:
+def _without_grants(
+    runs: list[list[str]], raw: str, license_id: str
+) -> list[list[str]]:
+    """The *runs* of numbers that no grant of the licence qualifies: each
+    grant of *license_id* in *raw* (``v2`` of ``GNU Lesser General Public
+    License v2 or later``; not the ``1`` of ``Requires Java 1 or later``)
+    takes out one written run, where the hit carries a grant. An ID with
+    none (``Apache-1.1``) leaves them all: ``Apache License 1 or later``
+    names another licence than the hit."""
+    left = list(runs)
+    if license_id.endswith(_CARRIES_GRANT):
+        for grant in grants(raw):
+            if grant.version and grants_licence(grant, license_id):
+                at = next(
+                    (
+                        i
+                        for i, run in enumerate(left)
+                        if same_version(".".join(run), grant.version)
+                    ),
+                    None,
+                )
+                if at is not None:
+                    del left[at]
+    return left
+
+
+def _is_cut(run: list[str], whole: list[str], written: list[list[str]]) -> bool:
     """Whether *run* is *whole* cut short (not all zeros left), and *whole*
-    is not among the *stated* runs."""
-    if whole in stated or len(run) >= len(whole):
+    is not among the runs *written* right after the name."""
+    if whole in written or len(run) >= len(whole):
         return False
     key, other = "v " + " ".join(run), "v " + " ".join(whole)
     extra = whole[len(run) :]
     return bool(sibling_keys([other], key)) and any(part.strip("0") for part in extra)
+
+
+def names_other_gnu_licence(words: list[str], license_id: str) -> bool:
+    """Whether a GPL hit stands for an input whose ``General Public`` is the
+    LGPL's or the AGPL's: ``Lesser``, ``Library`` or ``Affero``
+    (:data:`licenseid.grantsubject.MODIFIERS`) stands right before it, a
+    ``GNU`` between aside, and no ``General Public`` is the plain GPL's. The
+    name of the GPL holds those words, so token set scoring gives it 100,
+    the modifier being a word more. No grant is read: ``GNU Lesser General
+    Public License v2.0 only`` names the LGPL as much as ``... v2.0 or
+    later``. An input that writes both (``GNU General Public License v3.0.
+    Not the GNU Lesser General Public License``) names the GPL too. The ID's
+    family is read by :func:`licenseid.grantsubject.grants_licence`."""
+    if not grants_licence(_GPL, license_id):
+        return False
+    named = [
+        _before(words, at) in MODIFIERS
+        for at in range(len(words) - 1)
+        if words[at : at + 2] == ["general", "public"]
+    ]
+    return bool(named) and all(named)
+
+
+def _before(words: list[str], at: int) -> str:
+    """The word before the one at *at* ("" at the start), a ``gnu`` skipped."""
+    before = words[:at][-2:]
+    if before[-1:] == ["gnu"]:
+        before = before[:-1]
+    return before[-1] if before else ""
 
 
 def glued_dash(raw: str, name: Collection[str]) -> bool:

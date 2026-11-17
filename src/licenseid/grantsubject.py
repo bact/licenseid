@@ -182,7 +182,9 @@ _NAME_WORDS: Final = 4
 # How far back a WITH may stand from the end of its exception's name.
 _EXCEPTION_WORDS: Final = 8
 _ALIASES: Final = {"fdl": "gfdl"}
-_MODIFIERS: Final = {"lesser": "lgpl", "library": "lgpl", "affero": "agpl"}
+#: The word before "General Public" that makes it another licence's name: the
+#: family it gives ``GPL``.
+MODIFIERS: Final = {"lesser": "lgpl", "library": "lgpl", "affero": "agpl"}
 
 _Token = tuple[int, str]
 
@@ -279,7 +281,7 @@ def _family_word(word: str, tokens: list[_Token], i: int) -> str:
     if word == "gpl":
         before = _skip(tokens, i - 1)
         if _is_word(tokens, before):
-            return _MODIFIERS.get(tokens[before][1].lower(), "gpl")
+            return MODIFIERS.get(tokens[before][1].lower(), "gpl")
     return _ALIASES.get(word, word)
 
 
@@ -302,7 +304,7 @@ def _name_family(words: list[str]) -> str | None:
     Public" is ``gpl`` (``lgpl`` with "Lesser" or "Library", ``agpl`` with
     "Affero"), "Documentation" ``gfdl``, "<Name> Public" or any other word that
     word, "the" or "GNU" none."""
-    modifier = next((_MODIFIERS[w] for w in words if w in _MODIFIERS), None)
+    modifier = next((MODIFIERS[w] for w in words if w in MODIFIERS), None)
     if "documentation" in words:
         return "gfdl"
     if modifier or "general" in words:

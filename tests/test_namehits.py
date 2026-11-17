@@ -42,6 +42,18 @@ ROWS = [
     Lic("Cut-2.0", "Cut Name 2.0"),
     Lic("Dot-3.0.1", "Dot Name 3.0.1"),
     Lic("Zero-1.2.0", "Zero Name 1.2.0"),
+    # An -or-later ID names a cut version that a grant of its own qualifies
+    # ("Cutg License 1 or later"); its family is the letters of the ID.
+    Lic("Egx-1.1.0", "Egx Public License 1.1.0"),
+    Lic("Rng-1.6.35", "Rng Reference License v1 (for rng 0.5 through 1.6.35)"),
+    Lic("Cutg-1.1-only", "Cutg License 1.1 only"),
+    Lic("Cutg-1.1-or-later", "Cutg License 1.1 or later"),
+    # A deprecated "+" ID carries the grant as well.
+    Lic("Plusg-1.1+", "Plusg License 1.1 or later"),
+    # GPL IDs of a made-up name: "General Public" after a word more is
+    # another licence's name (Lesser, Library, Affero).
+    Lic("GPL-9.0-only", "Zed General Public License v9.0 only"),
+    Lic("GPL-9.0-or-later", "Zed General Public License v9.0 or later"),
     # A name, and two longer ones that hold the input's words and are named
     # by neither (two holders: no tie): a fragment.
     Lic("Frag-1.0", "Frag Name License"),
@@ -199,15 +211,110 @@ def test_ties_of_whole_names(db: LicenseDatabase, text: str, stands: list[str]) 
         ("Dot Name 3.0.1", ["Dot-3.0.1"]),
         # "1.2" is "1.2.0": the rest is all zeros, no cut.
         ("Zero Name 1.2", ["Zero-1.2.0"]),
-        # A grant read off the text exempts the cut (#217).
-        ("Cut Name 1 or later", ["Cut-1.1"]),
-        ("Cut Name 1+", ["Cut-1.1"]),
+        # A grant of the licence exempts the cut only where the hit carries
+        # it: Cut-1.1 has no -or-later ID, so "Cut Name 1 or later" names
+        # another licence (``resolve()`` reads Cut-1+), and no answer is
+        # given (decided in the PR that read grants by their subject).
+        ("Cut Name 1 or later", []),
+        ("Cut Name 1+", []),
         # A grant of another number is no grant of the cut one.
         ("Cut Name 1. Requires Java 8 or later", []),
         ("Cut Name 1. Needs Firefox 3+ to run it", []),
     ],
 )
 def test_a_cut_version(db: LicenseDatabase, text: str, stands: list[str]) -> None:
+    assert hits(db, text) == stands
+
+
+@pytest.mark.parametrize(
+    ("text", "stands"),
+    [
+        # A grant of the licence itself qualifies the cut number of an
+        # -or-later hit: it is that ID.
+        ("Cutg License 1 or later", ["Cutg-1.1-or-later"]),
+        # The grant of the licence is read for the number it qualifies, not
+        # the first number written.
+        ("Requires Java 8. Cutg License 1 or later", ["Cutg-1.1-or-later"]),
+        ("Plusg License 1 or later", ["Plusg-1.1+"]),
+        # The same number written twice, one grant: one is not the licence's.
+        ("Requires Java 1. Plusg License 1 or later", []),
+        # "+" is dropped before scoring: no -or-later name is its top hit, and
+        # the -only twin it scores for carries no grant.
+        ("Cutg License 1+, see the file COPYING", []),
+        # A grant of a tool's is not (the family is "java", not "cutg").
+        ("Cutg License 1. Requires Java 1 or later", []),
+        ("Cutg License 1. Needs Firefox 1+ to run it", []),
+        # One own grant takes out one written number, not every equal one.
+        ("Cutg License 1 or later. Requires Java 1 or later", []),
+        # The version written in full beats the cut, a tool's number does not
+        # count: only a number that touches the name does.
+        ("Cutg License 1.1. Requires Java 1 or later", ["Cutg-1.1-or-later"]),
+        ("Cutg License 1. Requires Java 1.1", []),
+        ("Cut Name 1. Requires Java 1.1 or later", []),
+        ("Cut Name 1.1. Requires Java 1", ["Cut-1.1"]),
+        ("Cut Name 1.1 and Java 1.1", ["Cut-1.1"]),
+        ("Cut Name version 1.1; Java 1", ["Cut-1.1"]),
+        # The place is the name's: its second number follows "through".
+        (
+            "Licensed under the Rng Reference License v1 (for rng 0.5 through 1.6.35)",
+            ["Rng-1.6.35"],
+        ),
+        ("Rng Reference License v1. Needs Java 1.6.35 or later", []),
+        # ... a few: a number far from the name's word is a tool's.
+        ("Cut Name is required by the Java 1.1 runtime, see Cut Name 1", []),
+        ("Cut Name is required by the Java 1.1 runtime, see Cut Name 1.1", ["Cut-1.1"]),
+        # Words of the licence's title may stand between name and number.
+        (
+            (
+                "EGX PUBLIC LICENSE AGREEMENT\nVersion 1.1.0\n\nThis agreement is "
+                "based on a widely accepted open source license.\n\n1."
+            ),
+            ["Egx-1.1.0"],
+        ),
+    ],
+)
+def test_a_grant_exempts_a_cut_by_its_subject(
+    db: LicenseDatabase, text: str, stands: list[str]
+) -> None:
+    assert hits(db, text) == stands
+
+
+@pytest.mark.parametrize(
+    ("text", "stands"),
+    [
+        ("Zed Lesser General Public License v9.0 or later", []),
+        ("Zed Library General Public License v9.0 only", []),
+        ("Used under the Zed Affero General Public License v9.0 or later", []),
+        ("Zed lesser general public license v9.0 only", []),
+        # A GNU between is no word: the modifier stands before it.
+        ("Zed Lesser GNU General Public License v9.0 only", []),
+        # Both written: the GPL's name is in the input too (and no modifier
+        # that is not before "General Public" counts).
+        (
+            (
+                "Zed General Public License v9.0 only. Not the Zed Lesser General "
+                "Public License"
+            ),
+            ["GPL-9.0-only"],
+        ),
+        (
+            "General Public License v9.0 only. See Zed Affero General Public License",
+            ["GPL-9.0-only"],
+        ),
+        ("Zed Lesser General Notes. Public License v9.0 only", ["GPL-9.0-only"]),
+        # The modifier must stand right before "General Public".
+        ("Zed General Public License v9.0 only, a Lesser one", ["GPL-9.0-only"]),
+        ("Used under Zed General Public License v9.0 or later", ["GPL-9.0-or-later"]),
+        # A grant elsewhere is the variant's business, not the family's.
+        (
+            "Zed General Public License v9.0\nRequires Python 9.0 or later",
+            ["GPL-9.0-or-later"],
+        ),
+    ],
+)
+def test_another_gnu_licence_by_its_modifier(
+    db: LicenseDatabase, text: str, stands: list[str]
+) -> None:
     assert hits(db, text) == stands
 
 
