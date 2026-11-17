@@ -48,6 +48,9 @@ and this project adheres to
   is not exact ([#221])
 - **Breaking:** a grant counts for the licence it names: `Requires Python 3.8 or
   later` beside a GPL name gives `-only` with a warning, not `-or-later`
+- **Breaking:** a List name in marks (`*Apache License 2.0*`, `# Apache License
+  2.0`) gets no answer, as `*MIT License*` had none (migrate: drop the marks)
+  ([#N])
 
 ### Fixed
 

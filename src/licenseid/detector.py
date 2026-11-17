@@ -37,6 +37,7 @@ from licenseid.namehits import refusal_answer
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
 from licenseid.resolvefirst import as_resolved, match_of, too_short, unread_url
+from licenseid.resolveleaf import wrapped_name
 from licenseid.resolver import resolve_with
 from licenseid.resolvereason import is_plus_refusal, refuses_text_match
 from licenseid.resolverinfo import list_info
@@ -266,7 +267,8 @@ class LicenseDetector:
         marks the readers judge. The rest is matched as ID or name unless
         normalize_text() would drop what it was refused for: a mark, an
         unpaired bracket, or a "+" ending a word (item 48), or a name hit
-        that :mod:`licenseid.namehits` doubts (item 47)."""
+        that :mod:`licenseid.namehits` doubts (item 47). A listed name in marks
+        (``*Apache License 2.0*``) gets no text match at any length."""
         if is_plus_refusal(reason):
             return None
         disambiguated = disambiguate_whole(ctx.target_text, self.db)
@@ -277,7 +279,9 @@ class LicenseDetector:
             _set_flags(match, self.markers.license_flags(disambiguated))
             return [match]
         if refuses_text_match(reason, ctx.target_text):
-            return None
+            # A listed name in marks has no text to match at any length.
+            wrapped = wrapped_name(self.db, ctx.target_text)
+            return refusal_answer(ctx.word_count) if wrapped else None
         found, refused = match_name_tier(self.db, ctx.norm_input, ctx.target_text)
         if refused:  # a rule doubted a name hit that would have answered
             return refusal_answer(ctx.word_count)
