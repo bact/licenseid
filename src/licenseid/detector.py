@@ -42,7 +42,7 @@ from licenseid.resolvereason import is_plus_refusal, no_text_answer, refuses_tex
 from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import Resolution
 from licenseid.result import public_result
-from licenseid.retrieval import add_unseen, drop_excluded, get_candidates
+from licenseid.retrieval import add_free_text, add_unseen, drop_excluded, get_candidates
 from licenseid.shorttext import (
     EXACT_MATCH_SCORE,
     exact_id_match,
@@ -362,11 +362,11 @@ class LicenseDetector:
             mixed = self._match_mixed_content(ctx.request, ctx.target_text)
             add_unseen(candidates, drop_excluded(mixed, excluded))
 
-        # Merge marker candidates not already surfaced by FTS5.
-        # Markers now carry real search_text so they rank on true similarity.
-        # A prose marker is free text: exclude drops it as it drops a Tier 1
-        # candidate (a declaration never gets here, detect() answered it).
-        add_unseen(candidates, drop_excluded(marker_candidates, excluded))
+        # Merge the marker candidates, then the hinted ones, not already
+        # surfaced by FTS5. A prose marker is free text: exclude drops it as
+        # it drops a Tier 1 candidate (a declaration never gets here). A hint
+        # is last, so it never counts towards the gate above.
+        add_free_text(self.db, ctx.request, candidates, marker_candidates)
 
         # Pass marker boosts and purity context so ranking can weight signals
         # appropriately: small additive bonus for pure text (similarity leads),
@@ -395,10 +395,10 @@ class LicenseDetector:
         (licenseid.types.DetectOptions) are checked for every input but act
         only where licence text is matched, so an input answered whole
         ignores them (except ``variant``, which reads every input):
-        exclude, hint, only_spdx and only_common on the
-        candidates of free text (Tier 1, markers, mixed-content windows;
-        exclude also a short text's name hit), enable_popularity on the
-        Tier 2 ranking and its tie-breaker. Raises
+        exclude, hint, only_spdx and only_common on the candidates of
+        Tier 1, and on the hinted ones (exclude alone also on markers,
+        mixed-content section names and a short text's name hit),
+        enable_popularity on the Tier 2 ranking and its tie-breaker. Raises
         :class:`TypeError` for a text or license_id that is no str, a
         file_path that is neither a str nor an os.PathLike of one, or an
         option of the wrong type (a flag that is no bool, an exclude or hint

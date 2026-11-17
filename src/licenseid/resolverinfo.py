@@ -16,10 +16,9 @@ from licenseid.listlookup import ListLookup
 from licenseid.resolvertypes import (
     SPDX_LIST,
     TROVE_LIST,
-    Component,
     ListInfo,
     ListSource,
-    Resolver,
+    ToolInfo,
 )
 from licenseid.trovenames import TROVE_CLASSIFIERS_VERSION
 
@@ -66,7 +65,7 @@ def trove_list_info() -> ListInfo:
     }
 
 
-def resolver_info() -> Resolver:
+def resolver_info() -> ToolInfo:
     """Who resolved. The version is read at call time, as
     ``spdx_source`` reads it (``importlib``, not an import statement): the
     package exports ``licenseid.resolver``, so a static import of the package
@@ -80,7 +79,7 @@ def resolver_info() -> Resolver:
     }
 
 
-def parser_info() -> Component:
+def parser_info() -> ToolInfo:
     """The expression parser, ``py-spdx-license``, as a component: named in an
     answer whose expression it parsed. Its version is the installed one."""
     version = importlib.metadata.version(_PARSER)

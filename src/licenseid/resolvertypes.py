@@ -141,17 +141,9 @@ Step = TypedDict(
 )
 
 
-class Resolver(TypedDict):
-    """Who resolved."""
-
-    name: str
-    version: str
-    url: str
-    purl: str
-
-
-class Component(TypedDict):
-    """A tool that took part beside the resolver (the expression parser)."""
+class ToolInfo(TypedDict):
+    """A tool that took part in an answer: who resolved (``resolver``), or a
+    tool beside it (``components``: the expression parser)."""
 
     name: str
     version: str
@@ -227,8 +219,8 @@ class Resolution(TypedDict):
     expansions: list[Step]
     candidates: list[str]
     operands: list[Operand]
-    resolver: Resolver
-    components: list[Component]
+    resolver: ToolInfo
+    components: list[ToolInfo]
     lists: list[ListInfo]
     reason: str | None
 

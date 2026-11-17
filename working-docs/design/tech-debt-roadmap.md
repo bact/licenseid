@@ -331,25 +331,17 @@ Found in the review of 2026-11-02 to 11-03. The resolver, readers, BSD and
 short-text leftovers are in `match-resolve-0-8.md`, section 7. Done: the
 typed options, the lock-wait test, one long-text database and the `ruff
 format` check (PR #210), and the free-text rules of `exclude` and `hint`
-(PR #211); see `tech-debt-resolved-0-5.md`. Also done (2026-11-18): the
-condition words for empty input (right already) and the dev METADATA version
-(a line in `release-process.md`); see `tech-debt-resolved-0-9.md`. Open:
+(PR #211); see `tech-debt-resolved-0-5.md`. Also done: `hint` against the
+filters and the API names (`ToolInfo`, `DetectOptions`, `Variant`; PR #224),
+the condition words for empty input (right already) and the dev METADATA
+version (a line in `release-process.md`, 2026-11-18); see
+`tech-debt-resolved-0-9.md`. Open:
 
 - **Readers see `database: empty` during `update`** (1,074 errors over a
   13 s update with four reader threads; 0.6.0 does the same): the plan is a
   single transaction, a busy timeout and an OS lock; the atomic swap needs
   Windows care (`os.replace` fails on an open file). Design:
   [`concurrent-update.md`](concurrent-update.md).
-- **`hint` against the filters**, pinned `# BUG:` in
-  `tests/test_detect_options_paths.py`. Decided 2026-11-15, not built:
-  `exclude` wins over `hint`; today a hint is added after the filters, so it
-  undoes `exclude` and passes `only_common` and `only_spdx`. Undecided, with
-  a recommendation: a hint counts towards the fewer-than-5 test that gates
-  the mixed-content search (`detector.py`) and can lose a licence that
-  search found: count only candidates with text; a hint buries a marker
-  candidate of the same licence (JSON 1.0 to 0.025 with `hint=["JSON"]`;
-  not rechecked after PR #211): merge markers before hints; a hint has no
-  text, so it scores 0: give it its text or say it only lists.
 - **`only_spdx` does nothing** on a database licenseid builds (every row
   `is_spdx=1`). Keep or redesign, not remove: more lists will come
   (AboutCode ScanCode, Blue Oak) and a source flag may be what it becomes.
@@ -365,9 +357,6 @@ condition words for empty input (right already) and the dev METADATA version
   the matching-rules redesign.
 - `is-*` on a file with several tags judges the top one only; a garbage
   `--db` is `unreadable` or `invalid` depending on the path.
-- One API pass: `Resolver`, `Component` and `DetectOptions` are not in
-  `licenseid.__all__` (A-F7: the names need a decision; `licenseid.Resolver`
-  reads as a class and both are the same shape).
 - `test_db_ready.py` (`wal_copy_without_wal`, 6 cases: `unreadable` against
   `empty`) and `test_db_ready_adversarial.py` (`damaged_fts_shadow_table`, 2
   cases: `table license_index_data may not be dropped`) fail on `main` on

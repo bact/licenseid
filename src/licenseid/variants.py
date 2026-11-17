@@ -366,8 +366,8 @@ def settle_free_text(
         written=text,
     )
     # A form the option chose comes after ``exclude`` ran: it may not be an
-    # excluded one (a hint, added after that filter, stays). A bare ID it
-    # decided is dropped, an ``-only`` it moved to ``-or-later`` stays.
+    # excluded one. A bare ID it decided is dropped, an ``-only`` it moved to
+    # ``-or-later`` stays.
     excluded = excluded_ids(options.get("exclude") or [])
     kept = []
     for r in out:

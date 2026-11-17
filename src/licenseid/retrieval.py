@@ -3,10 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tier 1 retrieval: fetch candidates from the FTS5 index for a query text,
-then filter them and add the hinted ones."""
+"""Tier 1 retrieval: fetch candidates from the FTS5 index for a query text
+and filter them; the hinted candidates, filtered the same way."""
 
 from collections.abc import Collection, Iterable
+from typing import Final
 
 from licenseid.database import LicenseDatabase
 from licenseid.exprflags import with_judged_flags
@@ -21,6 +22,12 @@ from licenseid.types import CandidateMatch, DetectOptions
 # bounding the head+tail union at 75 candidates and Tier 2 (RapidFuzz) work
 # accordingly. See _search_candidates_by_length() for the full rationale.
 TAIL_ONLY_CAP: int = 25
+
+# The first hints given are added with their text (they rank on their
+# similarity); a later one has none and scores 0. Each costs a Tier 2 pass
+# (MIT text on the real List: 0.8 s with no hint, 1.6-2.0 s with 50, 3.4-3.8 s
+# with 200, about 10 s with all 740 IDs), so the text stops at 50.
+MAX_HINTS_WITH_TEXT: Final = 50
 
 
 def _search_candidates_by_length(
@@ -144,37 +151,73 @@ def add_unseen(
             seen.add(cand["license_id"])
 
 
-def _inject_hinted_candidates(
-    db: LicenseDatabase, filtered: list[CandidateMatch], hint_list: Iterable[str]
+def hinted_candidates(
+    db: LicenseDatabase, options: DetectOptions, present: Iterable[str]
 ) -> list[CandidateMatch]:
-    """Force-include DB-backed hint_list IDs not already present, as
-    synthetic candidates (no search_text, so they rank purely on
-    marker/metadata signals rather than similarity). Added after the
-    filters, so neither exclude, only_spdx nor only_common drops one. IDs
-    compare case-folded: "mit" beside MIT, or an ID given twice, is added
-    once."""
-    present = folded(c["license_id"] for c in filtered if c.get("license_id"))
-    for h_id in hint_list:
-        if fold_case(h_id) not in present:
-            details = db.get_license_details(h_id)
-            if details:
-                details = with_judged_flags(details, db)
-                present |= {fold_case(details["license_id"]), fold_case(h_id)}
-                filtered.append(
-                    CandidateMatch(
-                        license_id=details["license_id"],
-                        search_text="",
-                        word_count=details["word_count"],
-                        is_spdx=details["is_spdx"],
-                        is_high_usage=details["is_high_usage"],
-                        is_osi_approved=details["is_osi_approved"],
-                        is_fsf_libre=details["is_fsf_libre"],
-                        pop_score=details.get("pop_score", 0),
-                        is_deprecated=details.get("is_deprecated", False),
-                        superseded_by=details.get("superseded_by", ""),
-                    )
-                )
-    return filtered
+    """The ``hint`` IDs of *options* that are no candidate yet (*present*
+    lists the IDs that are, any case), as candidates that passed the filters
+    full-text search passes: ``exclude``, ``only_spdx`` (on by default) and
+    ``only_common`` drop one, as they drop a Tier 1 candidate. An ID with no
+    row is skipped. IDs compare case-folded: "mit" beside MIT, or an ID
+    given twice, is added once.
+
+    Each carries its own text, so it ranks on its similarity, for the first
+    :data:`MAX_HINTS_WITH_TEXT` hints given (a set in sorted order); a later
+    one, and a row with no text (a deprecated ID kept as written), has none
+    and scores 0. The detector adds them after the markers and the
+    mixed-content search, so a hint never counts towards that search's gate
+    and never replaces a marker candidate."""
+    seen = folded(present)
+    hinted: list[CandidateMatch] = []
+    for position, h_id in enumerate(options.get("hint", ())):
+        if fold_case(h_id) in seen:
+            continue
+        details = db.get_license_details(h_id)
+        if not details:
+            continue
+        details = with_judged_flags(details, db)
+        seen |= {fold_case(details["license_id"]), fold_case(h_id)}
+        text = (
+            db.get_search_text(details["license_id"])
+            if position < MAX_HINTS_WITH_TEXT
+            else ""
+        )
+        hinted.append(
+            CandidateMatch(
+                license_id=details["license_id"],
+                search_text=text,
+                word_count=details["word_count"],
+                is_spdx=details["is_spdx"],
+                is_high_usage=details["is_high_usage"],
+                is_osi_approved=details["is_osi_approved"],
+                is_fsf_libre=details["is_fsf_libre"],
+                pop_score=details.get("pop_score", 0),
+                is_deprecated=details.get("is_deprecated", False),
+                superseded_by=details.get("superseded_by", ""),
+            )
+        )
+    return _filter_candidates(
+        hinted,
+        options.get("only_spdx", True),
+        options.get("only_common", False),
+        excluded_ids(options.get("exclude", [])),
+    )
+
+
+def add_free_text(
+    db: LicenseDatabase,
+    options: DetectOptions,
+    candidates: list[CandidateMatch],
+    markers: Iterable[CandidateMatch],
+) -> None:
+    """Add to *candidates*, which Tier 1 and the mixed-content search
+    filled, the *markers* (without an excluded ID), then the hinted
+    candidates. Last, so a hint never counts towards the mixed-content gate
+    and never replaces a marker's candidate (the same text and flags)."""
+    excluded = excluded_ids(options.get("exclude", []))
+    add_unseen(candidates, drop_excluded(markers, excluded))
+    present = [c["license_id"] for c in candidates]
+    add_unseen(candidates, hinted_candidates(db, options, present))
 
 
 def get_candidates(
@@ -182,12 +225,12 @@ def get_candidates(
     data: DetectOptions,
     text: str,
 ) -> list[CandidateMatch]:
-    """Fetch and filter candidates from the database: the one place the
-    options exclude, hint, only_spdx and only_common act."""
+    """Fetch and filter candidates from the database: where the options
+    exclude, only_spdx and only_common act on Tier 1 (``hint`` acts in
+    :func:`hinted_candidates`, through the same filters)."""
     only_spdx = data.get("only_spdx", True)
     only_common = data.get("only_common", False)
     excluded = excluded_ids(data.get("exclude", []))
-    hint_list: Collection[str] = data.get("hint", [])
 
     # Strip comment prefixes before FTS5: improves recall for Type 5
     # inputs where license text is wrapped in // / # / * comment markers.
@@ -208,5 +251,4 @@ def get_candidates(
     norm_text = normalize_text(text)
 
     raw_candidates = _search_candidates_by_length(db, norm_text)
-    filtered = _filter_candidates(raw_candidates, only_spdx, only_common, excluded)
-    return _inject_hinted_candidates(db, filtered, hint_list)
+    return _filter_candidates(raw_candidates, only_spdx, only_common, excluded)
