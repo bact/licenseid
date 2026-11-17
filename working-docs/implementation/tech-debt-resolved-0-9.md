@@ -429,7 +429,7 @@ beside `GNU General Public License v2.0` turned `GPL-2.0-only` into
 
 ## `hint` obeys the filters; the API names (item 46, 2026-11-18)
 
-Built in PR number to add (branch `hint-obeys-filters`). Planned and measured
+Built in PR 224 (branch `hint-obeys-filters`). Planned and measured
 on `main` f28fa39 against a copy of the real database (List 3.29.0, 740
 rows), then reviewed twice (Opus). The owner decided D1 a, D2 a (with the cap
 below) and D4 a.
