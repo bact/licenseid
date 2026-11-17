@@ -60,7 +60,8 @@ in another module.
   one detector per default database), `detectrequest` (checks of a call
   needing no database), `resolvefirst` (input `resolve()` reads whole; the
   cut of a short refused one), `shorttext` (Tier 0), `namehits` (which name
-  hits of Tier 0 stand), `retrieval` (Tier 1),
+  hits of Tier 0 stand: tied names) and `namerules` (what beside one name
+  doubts it), `retrieval` (Tier 1),
   `ftsquery` (its `MATCH` string: 20 words, each cut to 128 characters),
   `idoptions` (`exclude`, `hint`: API only, free text only, case-folded, a
   bare deprecated ID stands for both twins, kept under `as-written`),
@@ -364,14 +365,22 @@ and `--json`) against these rules and checks the default output against the
   not `C++`): `resolvereason.refuses_text_match`.
 - Token set reads a name held whole in an input as the input's name:
   `namehits.settle` drops that hit where the rest of the input names
-  something else (the longest of tied nested names wins, two licences give
-  none; a cut version; `with` an exception of the List or the word; a
-  fragment of a longer name; another ID written whole; a dash glued to a
-  word end). Generic words (`namehits.GENERIC`) are no evidence. A dropped
-  hit that scored above 1 is final from 10 words on (no Tier 1; under 10
-  words `too_short` warns); below 1, Tier 1 runs. Mixed-content sections
-  (`match_short_text`) only lose the hit. Add a rule there, with a made-up
-  row in `tests/test_namehits.py`.
+  something else. Of tied names (`namehits`) the one written whole (its
+  words in order, one word between at most) beats one made of scattered
+  words; of those the longest of nested names wins, two licences give none.
+  `namerules` judges the words that touch the name, never the whole input:
+  a cut version (a grant counts only right after the cut number); `with`
+  within three words after the name, then an exception of the List of two
+  words or more, or "exception" within five words (one word such as `GCC` is
+  no exception); a fragment of a longer name; another ID written whole
+  (joined to the name by a comma, slash, "and" or "or"; an acronym only so);
+  a dash glued to a word of the name. A second licence whose name lacks the
+  `v` of its version is another name too. Generic words
+  (`namerules.GENERIC`) are no evidence. A dropped hit that scored above 1
+  is final from 10 words on (no Tier 1; under 10 words `too_short` warns);
+  below 1, Tier 1 runs. Mixed-content sections (`match_short_text`) only
+  lose the hit. Add a rule there, with a made-up row in
+  `tests/test_namehits.py`.
 - "/" is OR only in a whole value (`resolveslash.slash_parts`): each piece
   an exact-case List ID (a "+" read by `plusoperator`) or `LicenseRef-*`,
   at least one List

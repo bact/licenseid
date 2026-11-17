@@ -94,6 +94,10 @@ DECIDED = [
     ("Universal Permissive License 1.0 or Apache License 2.0", None),
     ("MIT -or- Apache License 2.0", None),
     ("MIT, The Unlicense", None),  # "MIT" is an upper-case ID, written whole
+    (  # the name of the other licence lacks the hit's "v" only: two licences
+        "Licensed under the GNU Affero General Public License v3.0 or the MIT License",
+        None,
+    ),
     ("zlib/libpng License", None),
     # D47-4: a fragment of a longer name, a dash glued to a word end.
     ("MIT Future License", None),
@@ -111,6 +115,27 @@ DECIDED = [
         Top("LGPL-3.0-only", NAME, False),
     ),
     ("GNU General Public License v2", Top("GPL-2.0-only", NAME, False)),
+    # Review round 2b: two versions written apart are two licences.
+    (
+        (
+            "Licensed under the Apache License, Version 2.0; earlier releases "
+            "used the Apache License 1.1"
+        ),
+        None,
+    ),
+    ("Eclipse Public License, Version 2.0, replaces Eclipse Public License 1.0", None),
+    ("Licensed under the MIT License (ISC)", None),
+    # Review round 2: a cut version with a grant of another number, a second
+    # licence by its ID, an exception by its words, still no answer.
+    ("Apache License 1. Requires Java 8 or later", None),
+    ("Licensed under the Mozilla Public License 1. Needs Firefox 3+ to run it", None),
+    ("BSD-3-Clause, Apache License 2.0", None),
+    ("ISC License and Apache-2.0 apply to this package", None),
+    ("GNU General Public License v2.0 only with Classpath exception", None),
+    (
+        "Licensed under the Apache License 2.0 with the LLVM exception for everyone",
+        None,
+    ),
 ]
 
 
@@ -156,10 +181,6 @@ BUGS = [
     # only tied names are weighed against each other. BUG: (item 47)
     ("GNU General Public License v2.0 or MIT License", Top("MIT", NAME, False)),
     ("MIT License or BSD 3-Clause", Top("MIT", NAME, False)),
-    (
-        "Licensed under the GNU Affero General Public License v3.0 or the MIT License",
-        Top("MIT", NAME, False),
-    ),
     # A cut version with a grant is exempt (#217), and Apache has no
     # -or-later ID to name it. BUG: (item 47)
     ("Apache License 1 or later", Top("Apache-1.1", NAME, False)),
@@ -223,6 +244,125 @@ KEEPERS = [
     ("Released under the MIT License, works with Linux", Top("MIT", NAME, False)),
     # A letter glued to a version: read through versionkey.
     ("BSD 4.3 TAHOE License", Top("BSD-4.3TAHOE", NAME, True)),
+    # Review round 2: the rules read what touches the name, not the whole input.
+    ("Licensed under the MIT License. TCL scripts included.", Top("MIT", NAME, False)),
+    ("Apache License 2.0 (JSON module)", Top("Apache-2.0", NAME, False)),
+    ("Licensed under the MIT License. Uses X11 for display.", Top("MIT", NAME, False)),
+    ("License: MIT. NCSA Mosaic heritage", Top("MIT", NAME, False)),
+    ("Licensed under the MIT License. Follows the W3C spec.", Top("MIT", NAME, False)),
+    # "ICU License", "NTP License" and "DOC License" are no names written
+    # whole where the acronym and "License" stand apart.
+    (
+        "MIT License. Synchronises the clock with NTP servers on the local network",
+        Top("MIT", NAME, False),
+    ),
+    (
+        (
+            "Apache License 2.0. Uses ICU for Unicode normalisation and collation "
+            "in every locale"
+        ),
+        Top("Apache-2.0", NAME, False),
+    ),
+    (
+        "MIT License. See DOC for the user guide and examples of use",
+        Top("MIT", NAME, False),
+    ),
+    (
+        "Licensed under copyleft-next 0.3.0, see section 1 for the grants",
+        Top("copyleft-next-0.3.0", NAME, False),
+    ),
+    (
+        "Licensed under the Reciprocal Public License 1.1, see section 5 for the terms",
+        Top("RPL-1.1", NAME, False),
+    ),
+    (
+        (
+            "Licensed under the European Union Public Licence 1.1; see "
+            "clause 2 for details"
+        ),
+        Top("EUPL-1.1", NAME, False),
+    ),
+    (
+        "Licensed under the Apple Public Source License 1.1, chapter 2 has details",
+        Top("APSL-1.1", NAME, False),
+    ),
+    (
+        "Licensed under the Apache License 1.1, release 1.0 of the Jakarta project",
+        Top("Apache-1.1", NAME, False),
+    ),
+    (
+        (
+            "Licensed under the Mozilla Public License 1.1 since release "
+            "0.9 of this package"
+        ),
+        Top("MPL-1.1", NAME, False),
+    ),
+    (
+        "Released under the MIT License. Copyright 2015- present the authors",
+        Top("MIT", NAME, False),
+    ),
+    (
+        "Copyright (C) 2010- Foo Ltd. Licensed under the Apache License, Version 2.0",
+        Top("Apache-2.0", NAME, False),
+    ),
+    (
+        "MIT License; covers the pre- and post-processing scripts in this repository",
+        Top("MIT", NAME, False),
+    ),
+    (
+        (
+            "MIT License, see the __version__ attribute for the release "
+            "number of this package"
+        ),
+        Top("MIT", NAME, False),
+    ),
+    (
+        (
+            "The MIT License (MIT) Copyright (c) 2014- Foo Bar "
+            "Permission is hereby granted"
+        ),
+        Top("MIT", NAME, False),
+    ),
+    (
+        "Apache License 2.0. Built with GCC and CMake on every supported platform",
+        Top("Apache-2.0", NAME, False),
+    ),
+    ("Apache License 2.0; tested with GCC 12 on Linux", Top("Apache-2.0", NAME, False)),
+    (
+        "MIT License. This package is compatible with Swift 5 and iOS 13 and newer",
+        Top("MIT", NAME, False),
+    ),
+    (
+        "MIT License, use it with the font of your choice in every document",
+        Top("MIT", NAME, False),
+    ),
+    (
+        "MIT License, use it with no exceptions and no warranty of any kind at all",
+        Top("MIT", NAME, False),
+    ),
+    (
+        "This Font Software is licensed under the SIL Open Font License, Version 1.1.",
+        Top("OFL-1.1", NAME, False),
+    ),
+    (
+        (
+            "This library is free software licensed under the GNU "
+            "General Public License v2.0 only"
+        ),
+        Top("GPL-2.0-only", NAME, False),
+    ),
+    (
+        "MIT License, copyright (c) 2020 The IPA Group, all rights reserved",
+        Top("MIT", NAME, False),
+    ),
+    (
+        "MIT License. The scripting layer is written in TCL for the old tools",
+        Top("MIT", NAME, False),
+    ),
+    (
+        "MIT License, (c) 2020 NCSA team at the University of Illinois at Urbana",
+        Top("MIT", NAME, False),
+    ),
     # "with" alone names no exception: "with or without modification".
     (
         "SIL Open Font License 1.1 with Reserved Font",
@@ -259,6 +399,37 @@ GUARDS = [
     (window("BSD-2-Clause", 24), Top("BSD-2-Clause", "text", False)),  # "with or"
     (window("MIT", 14, tail=True), Top("MIT", "text", False)),
     (window("0BSD", 24), Top("0BSD", "text", False)),
+    # Two versions written whole ("2.1 1)" holds 1.1 as words): the nearer.
+    (
+        "under the Open Software License version 2.1 1) Grant of",
+        Top("OSL-2.1", NAME, False),
+    ),
+    # "Licensev." is one word of the text, no "License" and a "v.".
+    (
+        "The Open Software Licensev. 2.1 This Open Software License (the",
+        Top("OSL-2.1", NAME, False),
+    ),
+    # A title, an acronym and "Version" before the number: 1.0 is not 1.1.
+    (
+        (
+            "COMMON DEVELOPMENT AND DISTRIBUTION LICENSE (CDDL) Version "
+            "1.0 1. Definitions."
+        ),
+        Top("CDDL-1.0", NAME, False),
+    ),
+    # "Motosoto License" is written "Motosoto Open Source License".
+    (
+        (
+            "MOTOSOTO OPEN SOURCE LICENSE - Version 0.9.1 This Motosoto Open Source "
+            'License (the "License") applies to "Community Portal Server" and '
+            "related software products as"
+        ),
+        Top("Motosoto", NAME, False),
+    ),
+    # The head of the copyleft-next-0.3.0 text holds the words of 0.3.1.
+    (window("copyleft-next-0.3.0", 14), Top("copyleft-next-0.3.0", NAME, False)),
+    (window("copyleft-next-0.3.0", 20), Top("copyleft-next-0.3.0", NAME, False)),
+    (window("copyleft-next-0.3.0", 29), Top("copyleft-next-0.3.0", NAME, False)),
 ]
 
 

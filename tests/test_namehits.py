@@ -19,7 +19,9 @@ from matcher_db import Lic, seeded_db
 
 from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
+from licenseid.namehits import refusal_answer
 from licenseid.normalize import normalize_text
+from licenseid.resolvefirst import MIN_TEXT_WORDS
 from licenseid.shorttext import match_name_tier, match_short_text
 
 ROWS = [
@@ -45,6 +47,45 @@ ROWS = [
     Lic("Frag-1.0", "Frag Name License"),
     Lic("Frag-A-1.0", "Frag Name Future Alpha Edition Of The Thing"),
     Lic("Frag-B-1.0", "Frag Name Future Beta Edition Of The Thing"),
+    # Generic words ("see", "file") in a longer name: no evidence of it.
+    Lic("Frag-D-1.0", "Frag Name See File Notice"),
+    # Two licences of one name: no nesting, nothing to tell them by.
+    Lic("Twin-1.0", "Twin Name"),
+    Lic("Twin-2.0", "Twin Name"),
+    # A name ending in a dash: the name itself (exact), whatever it says.
+    Lic("Dsh-1.0", "Dsh Name-"),
+    # Names whose words another name has from here and there.
+    Lic("Fnt-1.1", "Fnt Open License 1.1"),
+    Lic("Sft-1.1", "Open Software License 1.1"),
+    Lic("Gen-2.0-only", "Gnu Gen License v2.0 only"),
+    Lic("Lib-2.0-only", "Gnu Library Gen License v2.0 only"),
+    # Versions that nest only by their digits: 1.1 holds the word "1".
+    Lic("Num-1.0", "Num Name 1.0"),
+    Lic("Num-1.1", "Num Name 1.1"),
+    Lic("Ntp-1.0", "Ntp License"),
+    Lic("Mot-1.0", "Mot License"),
+    Lic("Dg-1.1", "Dg Name 1.1"),
+    Lic("Dg-1.0.2", "Dg Name 1.0.2"),
+    Lic("Sc-1.0", "Zeta Eta"),
+    Lic("Sc-2.0", "Zeta Theta Iota Eta"),
+    Lic("Wide-1.0", "Wide Big Name"),
+    Lic("Pv-1.0", "Plain Name v2.0"),
+    Lic("Fn-1.0", "Fn Name of Things"),
+    Lic("Rch-1.0", "Rch Name"),
+    Lic("Gl-1.0", "Gl Name License"),
+    Lic("Sh-1.0", "Sh Alpha 1"),
+    Lic("Sh-2.0", "Sh Beta 2"),
+    Lic("Yak-1.0", "Yak Name"),
+    Lic("Ver-1.1", "Ver Name 1.1"),
+    Lic("Ver-2.1", "Ver Name 2.1"),
+    Lic("Gap-1.0", "Gap Name 1.0"),
+    Lic("Gap-1.1", "Gap Name 1.1"),
+    Lic("Tri-0.3.0", "Tri Name 0.3.0"),
+    Lic("Tri-0.3.1", "Tri Name 0.3.1"),
+    # Another licence whose name lacks the "v" the input has not: two names.
+    Lic("Univ-1.0", "Univ Name v1.0"),
+    Lic("Plain-1.0", "Plain Name 1.0"),
+    Lic("Plain-2.0", "Plain Name 2.0"),
     # A name that no rule touches.
     Lic("Glue-1.0", "Glue Name"),
     Lic("Exc-1.0", "Exc Name"),
@@ -58,7 +99,7 @@ ROWS = [
 ]
 # Exceptions whose words are common ones: "or" (the name of PS-or-PDF-font-
 # exception), and "the" with "license".
-EXCEPTIONS = ("Linux-note", "PS-or-PDF-note", "The-License-note")
+EXCEPTIONS = ("Linux-note", "PS-or-PDF-note", "The-License-note", "Gcc-exception")
 
 
 @pytest.fixture(scope="module")
@@ -90,6 +131,56 @@ def refused(db: LicenseDatabase, text: str) -> bool:
         ("Gen Name (see LICENSE file)", ["Gen-1.0"]),
         # Another word ties with a name the input holds in part: none.
         ("Pad Name Plus", []),
+        # One name of two licences: not one nested in the other (a strict
+        # "nested" test).
+        ("Used under Twin Name", []),
+        # A name written whole beats one put together from scattered words.
+        (
+            "This Font Software is licensed under the Fnt Open License, Version 1.1",
+            ["Fnt-1.1"],
+        ),
+        (
+            "This library is free software under the Gnu Gen License v2.0 only",
+            ["Gen-2.0-only"],
+        ),
+        # Versions that differ by a digit: the one written whole.
+        ("Num Name 1.1, release 1.0 of the project", ["Num-1.1"]),
+        ("Num Name 1 and 0", []),  # the digits of a version are adjacent
+        # Both versions are written whole ("1) Grant"): the nearer number wins.
+        ("Ver Name Version 2.1 1) Grant", ["Ver-2.1"]),
+        # The number of a version may follow the name after two words.
+        ("Gap Name (GN) Version 1.0 1. Definitions", ["Gap-1.0"]),
+        ("Tri Name 0.3.0, see section 1 for the grants", ["Tri-0.3.0"]),
+        # Where no name is written whole, a name nests in a longer one that
+        # adds a word, not a digit.
+        ("Name Nest Inner", ["Nest-Inner-1.0"]),
+        ("1.1 1.0 Num Name", []),
+        # "Ntp License" is no name written whole where "Ntp" and "License"
+        # stand apart.
+        ("Base Name License, synchronises with Ntp servers here", ["Base-1.0"]),
+        # "License" may stand a few words after the name's word ("Mot Open
+        # Source License"), where "Ntp" ends the text and has none after it.
+        ("Mot Open Source License applies to Ntp products", ["Mot-1.0"]),
+        # An ordinary word is at most one word after the last of its name.
+        ("Rch Foo Bar Name and Yak Name", ["Yak-1.0"]),
+        # Two titles from one word, tighter or not: two licences.
+        ("Sh Alpha Beta 1 2", []),
+        # Two versions written whole, apart: two licences, not the tighter.
+        ("Ver Name Version 2.1 and later Ver Name 1.1", []),
+        # Names that differ by digits only nest in no longer name.
+        ("1.1 1.0.2 Dg Name", []),
+        # Scattered names nest by their words, in any order.
+        ("Eta Iota Theta Zeta", ["Sc-2.0"]),
+        # Two whole names of other words: two licences, whatever their length.
+        ("Left Name or Wide Big Name", []),
+        # A word between two words of a name (and the Library GPL's).
+        (
+            "This library is free software under the Gnu Super Gen License v2.0 only",
+            ["Gen-2.0-only"],
+        ),
+        # Two names, the other's lacks the "v" of its version only.
+        ("Univ Name 1.0 or Plain Name 2.0", []),
+        ("Plain Name 2.0, see the terms", ["Plain-2.0"]),
     ],
 )
 def test_ties_of_whole_names(db: LicenseDatabase, text: str, stands: list[str]) -> None:
@@ -111,6 +202,9 @@ def test_ties_of_whole_names(db: LicenseDatabase, text: str, stands: list[str]) 
         # A grant read off the text exempts the cut (#217).
         ("Cut Name 1 or later", ["Cut-1.1"]),
         ("Cut Name 1+", ["Cut-1.1"]),
+        # A grant of another number is no grant of the cut one.
+        ("Cut Name 1. Requires Java 8 or later", []),
+        ("Cut Name 1. Needs Firefox 3+ to run it", []),
     ],
 )
 def test_a_cut_version(db: LicenseDatabase, text: str, stands: list[str]) -> None:
@@ -125,6 +219,14 @@ def test_a_cut_version(db: LicenseDatabase, text: str, stands: list[str]) -> Non
         ("Glue -or- Name", []),
         ("Glue Name terms", ["Glue-1.0"]),
         ("Glue Name - terms", ["Glue-1.0"]),  # a spaced dash is the author's
+        # A dash that touches no word of the name is about something else.
+        ("Glue Name terms. Copyright 2015- present the authors", ["Glue-1.0"]),
+        ("Glue Name, covers the pre- and post-processing scripts", ["Glue-1.0"]),
+        ("Glue Name, see the __version__ attribute of this package", ["Glue-1.0"]),
+        # One that stands beside a word of it is not.
+        ("Glue Name 2014- Foo Bar", []),
+        # An exact name is the input, whatever dash ends it.
+        ("Dsh Name-", ["Dsh-1.0"]),
     ],
 )
 def test_a_dash_glued_to_a_word_end(
@@ -152,6 +254,37 @@ def test_a_dash_glued_to_a_word_end(
         ("Exc Name in compliance with the License", ["Exc-1.0"]),
         # "or" lies in the name of one exception: a function word, no name.
         ("Exc Name with or", ["Exc-1.0"]),
+        ("Exc Name with PS pdf note", []),
+        # Words that tell the exception come right after the "with".
+        ("Exc Name with other thing and Linux note", ["Exc-1.0"]),
+        # One word of an exception's name is no exception by itself.
+        ("Exc Name. Built with GCC and CMake on every platform", ["Exc-1.0"]),
+        ("Exc Name with GCC", ["Exc-1.0"]),
+        ("Exc Name with the GCC exception", []),
+        # "exception" must be near: five words after the "with", not "no
+        # exceptions", and the "with" must follow the name.
+        ("Exc Name with one two three four exception", []),
+        ("Exc Name with one two three four five exception", ["Exc-1.0"]),
+        ("Exc Name with no exceptions", ["Exc-1.0"]),
+        # "with the exception of" four words after the name's sentence.
+        (
+            "Exc Name. Please use it with the exception of the logo",
+            ["Exc-1.0"],
+        ),
+        # "License" ends a name and is no evidence that a "with" follows it.
+        ("Gl Name License. Use it with the exception of the logo", ["Gl-1.0"]),
+        # A function word of the name ("of") is no name word before a "with".
+        (
+            (
+                "Fn Name of Things, we ship it, see notes of the build "
+                "with the other exception"
+            ),
+            ["Fn-1.0"],
+        ),
+        (
+            "Exc Name is fine, it ships all over the world with the other exception",
+            ["Exc-1.0"],
+        ),
     ],
 )
 def test_an_exception(db: LicenseDatabase, text: str, stands: list[str]) -> None:
@@ -167,6 +300,30 @@ def test_an_exception(db: LicenseDatabase, text: str, stands: list[str]) -> None
         # An upper-case ID, written so.
         ("Base Name, ZZ", []),
         ("Base Name, zz", ["Base-1.0"]),
+        ("Base Name and ZZ", []),
+        ("ZZ, the Base Name", []),
+        # An upper-case ID that is an acronym in prose, no list of IDs.
+        (
+            "Base Name, copyright (c) 2020 The ZZ Group, all rights reserved",
+            ["Base-1.0"],
+        ),
+        (
+            "Base Name. The scripting layer is written in ZZ for the old tools",
+            ["Base-1.0"],
+        ),
+        # The "The" before an acronym is no name word; a name's own "of" is no
+        # name word either.
+        ("Base Name. The ZZ Group holds the copyright", ["Base-1.0"]),
+        ("Fn Name of Things, written by the Team of ZZ", ["Fn-1.0"]),
+        # An ID of another sentence, or in the name's own sentence but not
+        # joined to it, is no second licence; a list of IDs is.
+        ("Base Name. Depends on Digit-2.0 for the display", ["Base-1.0"]),
+        ("Base Name. ZZ scripts are included", ["Base-1.0"]),
+        ("Base Name (ZZ module)", ["Base-1.0"]),
+        ("Base Name (ZZ)", []),
+        ("Base Name, the ZZ", ["Base-1.0"]),
+        ("Fn Name of Things is fine for the rest of, ZZ people", ["Fn-1.0"]),
+        ("Base Name (Digit-2.0)", []),
         # An ID that is an ordinary word.
         ("Base Name, Word", ["Base-1.0"]),
         # The hit's own ID is no other licence.
@@ -194,6 +351,13 @@ def test_a_fragment_of_a_longer_name(
     db: LicenseDatabase, text: str, stands: list[str]
 ) -> None:
     assert hits(db, text) == stands
+
+
+def test_a_refusal_is_no_answer_from_ten_words_exactly() -> None:
+    at_ten = refusal_answer(MIN_TEXT_WORDS)
+    assert at_ten is not None
+    assert not at_ten
+    assert refusal_answer(MIN_TEXT_WORDS - 1) is None
 
 
 def test_a_stray_plus_in_a_section_is_no_guess() -> None:

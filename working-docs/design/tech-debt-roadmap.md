@@ -408,8 +408,9 @@ the BSD aliases through `resolvealias.ALIASES`.
 **Built** (2026-11-17; open until merged): `namehits.settle()` drops a name
 hit that the rest of the input doubts: tied names that are two licences,
 a cut version, a fragment of a longer name, `with <exception>`, another ID
-written whole, a dash glued to a word end. A dropped hit above 1 stops
-Tier 1 too. Also `vN` for `vN.0` as the `-only` guess and a fullwidth "+"
+written whole, a dash glued to a word end (`namehits` weighs tied names,
+`namerules` reads the words that touch one name). A dropped hit above 1
+stops Tier 1 too. Also `vN` for `vN.0` as the `-only` guess and a fullwidth "+"
 in a mixed-content section. See
 [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
 This fixed the cut IDs of item 54 and the sentences with a second name.
@@ -424,6 +425,11 @@ use):
   MIT License`, `MIT License or BSD 3-Clause` answer MIT (a grant-less GPL
   name or a short BSD form is not held whole, so no tie); needs a rule that
   weighs every name the input holds, not only the tied ones.
+- **A list of two licences that names one whole**: `Eclipse Public License
+  v. 1.0 - Cecill v. 2.0` answers EPL-1.0 (as `main` did; round 1 of the
+  fix refused it): 4 of 12,723 windows. `with <one-word exception>` without
+  the word "exception" (`Apache License 2.0 with LLVM`) answers Apache-2.0:
+  30 of the 86 exceptions of the List.
 - **One-word ID that is an ordinary word**: no second licence
   (`Unlicense, ISC License` gives ISC): 7 of 134.
 - **A version the name lacks**: `MIT License 2` still answers. Refusing it
