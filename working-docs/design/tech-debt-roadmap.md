@@ -510,9 +510,7 @@ and written up in
 each a decision:
 
 - **For the maintainer to revise**: the warning bar
-  `variants.ANSWER_SCORE` (0.85); the grant signal reads the whole input,
-  not the licence's own words (a README's "Python 3.8 or later" counts;
-  pinned `# BUG:` in `tests/test_variant.py`), and misses a grant only the
+  `variants.ANSWER_SCORE` (0.85); the grant signal misses a grant only the
   heading marker read (pinned
   `test_a_grant_the_marker_did_not_read_leaves_the_only_form`); whether the
   `-with-` rule of `EXACT` applies to every `deprecated_ambiguous` operand
@@ -524,6 +522,18 @@ each a decision:
   2026-11-17: it stays, a tag refuses what it cannot read whole; 0 of 642
   values). A tag refuses `MIT OR GPL-2.0 only` now, as the argument and a
   field do.
+- **Grant subject, left** (resolved 2026-11-17: a grant counts for the
+  licence it names, `licenseid.grantsubject`; see
+  [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md)):
+  `namerules._granted_numbers` of the name tier should ask `grants()` and
+  `grants_licence` (`Apache License 1. Requires Java 1 or later` answers
+  `Apache-1.1`); `markers._resolve_gpl_or_later` and
+  `_detect_license_mentions` read a grant of any subject (a bias, settled by
+  `variants.settle_text`); `or any version later` is no phrase of
+  `OR_LATER_PHRASE` (`has_unowned_phrase` keeps an `-or-later` answer);
+  `GFDL-1.3+` is no shorthand grant; a tool's `version N` with no word naming
+  it is `(N, None)`; `variants._supports` reads any phrase in a declared
+  value.
 - After a `py-spdx-license` release with `upgrade()`, raise the floor in
   `pyproject.toml` and let it replace the `+` and rename code
   (`DEPRECATED_SPDX_LICENSE_IDS`, the rename rule of `listrules`); the bare

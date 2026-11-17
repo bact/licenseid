@@ -213,7 +213,7 @@ def test_version_suffix_tiebreaker(case: _TiebreakCase) -> None:
     ranked = _tied_gpl_matches(case.only_score, case.or_later_score)
 
     result = apply_version_suffix_tiebreaker(
-        ranked, "or (at your option) any later version", is_pure=case.is_pure
+        ranked, "version 2 of the License, or any later version", is_pure=case.is_pure
     )
 
     assert result[0]["license_id"] == case.expected_winner

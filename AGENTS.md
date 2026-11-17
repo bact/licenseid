@@ -65,12 +65,13 @@ in another module.
   `ftsquery` (its `MATCH` string: 20 words, each cut to 128 characters),
   `idoptions` (`exclude`, `hint`: API only, free text only, case-folded, a
   bare deprecated ID stands for both twins, kept under `as-written`),
-  `variants` (the `variant` option: what a bare ID and a text answer,
-  `variant_stated`, a trailing "only"),
+  `variants` and `variantstated` (the `variant` option: what a bare ID and a
+  text answer, `variant_stated`, a trailing "only"),
   `similarity`, `fingerprint` (maths) and `fingerprintstore` (its table),
   `ranking` (sort order, `-only`/`-or-later` tie-breaker), `markers` and
-  `candidates` (its helpers), `classify` (prose "or later"), `identifiers`,
-  `normalize`, `result` (public result, JSON and text lines), `types`.
+  `candidates` (its helpers), `classify` (prose "or later"), `grantsubject`
+  (whose grant), `identifiers`, `normalize`, `result` (public result, JSON
+  and text lines), `types`.
 - Reading an ID: `looseid` ("Apache2", "GPLv3"; `disambiguate_whole`),
   `bsdclauses` (BSD-N-Clause by its conditions), `deprecatedids`,
   `plusoperator`, `versionkey` (a bare major the List has another minor of
@@ -287,12 +288,13 @@ and `--json`) against these rules and checks the default output against the
   `licenseid.variants`): under `auto` a declared value stays as written
   (bare `GPL-2.0`, `-with-` IDs); under `auto`, `only` and `or-later` a text
   or name match never answers a deprecated ID (`variants.settle_text`:
-  `-or-later` first where `ranking.or_later_signal` finds a grant, else
-  `-only` first); `as-written` leaves a text's twins as the bare ID. `only`
-  and `or-later` decide declared values too (`variants.fallback`, a context
-  variable `variants.read_as` sets in `LicenseDetector._match_raw`; outside
-  `detect()` it reads `only`). Stated words win, with `option: overridden by
-  input`. Both warnings are only for a printed result
+  `-or-later` first where `ranking.or_later_signal` finds a grant of that
+  licence, else `-only` first, also for an `-or-later` top no grant chose
+  whose ID is unwritten); `as-written` leaves a text's twins as the bare ID.
+  `only` and `or-later` decide declared values too (`variants.fallback`, a
+  context variable `variants.read_as` sets in `LicenseDetector._match_raw`;
+  outside `detect()` it reads `only`). Stated words win, with `option:
+  overridden by input`. Both warnings are only for a printed result
   (`variants.output_bar`: `--threshold`, `--exact`, `--top`; 0.85 in the
   API); a text's guess only at `variants.ANSWER_SCORE` or more.
 - Every result carries `evidence` (the value as written, or a text's
@@ -328,7 +330,13 @@ and `--json`) against these rules and checks the default output against the
   `GPL-2.0-or-later OR MIT`; with WITH it belongs to the licence. A version
   number between ID and phrase (a number the phrase starts with counts too,
   unless it is the ID's own version) means another licence's grant. A grant
-  ends the expression: anything after it is refused.
+  ends the expression: anything after it is refused. `grantsubject.grants`
+  is the one reader of whose grant a phrase is (a version after a licence's
+  name, `version`, `v` or `the License`; `Python 3.8 or later` is a tool's):
+  `ranking.or_later_signal` and `only_signal` ask it per licence; a phrase it
+  cannot own (`has_unowned_phrase`) counts as a grant for the tie-breaker and
+  leaves `settle_text`'s `-only` alone (`ranking.leave_signal`, as does a pure
+  licence text).
   `looseid.declared_grant_id_text` only finds where a grant starts (bare
   "or later" read as after a number unless `classify.is_negated`). Add a
   phrasing to `classify.OR_LATER_PHRASE` and to `PHRASES` in

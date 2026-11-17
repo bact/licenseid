@@ -334,6 +334,99 @@ under "refuse unless the loss is measured":
   `markers._resolve_gpl_or_later` and `_detect_license_mentions` read a
   grant of any subject (item 52).
 
+## A grant counts for its own licence (items 46, 50, 52, 54; 2026-11-17)
+
+`has_or_later_language` read the whole input: `Requires Python 3.8 or later`
+beside `GNU General Public License v2.0` turned `GPL-2.0-only` into
+`GPL-2.0-or-later` with `VARIANT_STATED=true`, and overrode `--variant only`
+(eight override warnings, one per GNU family). The same for "N only"
+(`Supports Python 3 only`). Built (`licenseid.grantsubject`):
+
+- **The subject rule.** `grants(text)` reads a bounded stretch before each
+  `OR_LATER_PHRASE` match (120 characters, 24 tokens, never a rescan: 20,000
+  phrases 0.2 s, long runs of digits, dots, dashes, brackets, words as on
+  `main`): a version number and the word before it (a licence name, `version`,
+  `v`; "General Public License", "Lesser", "Library", "Affero", "FDL" give the
+  family), or `the License`, with "as published by the Free Software
+  Foundation", an escaped `\n`, a version split by white space (`v2 0`),
+  a name cut short (`gnu public v2.0`) and `WITH <exception>` read through.
+  A `Grant` keeps the family as the letters of the word: `python 3.8`
+  grants no licence of the List (`grants_licence`: the family and the version
+  of the ID, `2` is `2.0`). `version N` after a tool (`Python version 3 or
+  later`) is covered by the same compare: 0 such phrases in the sweep.
+  `ranking.or_later_signal` and `only_signal` are per licence, read at the
+  first question, once per input (`lru_cache`), one question per kind of grant.
+- **The settle rule** (D-B8, option a). The name tier matches the words "or
+  later" of the Python line against the List name, and `markers` read any
+  phrase in 1000 characters, so a signal alone would only turn a wrong but
+  stated `-or-later` into one guessed under `auto`. `variants.settle_text`
+  settles an `-or-later` top of a text or name match to its `-only` twin where
+  the input grants none of that licence and the ID is not written in it (not
+  under `or-later`; `as-written` too, where the twins did not collapse).
+  Only the top result is settled: pure texts keep their lists (golden `long`,
+  `short`: no move). `markers._resolve_gpl_or_later` and
+  `_detect_license_mentions` stay a bias of the score.
+- **Measures.** 19 grants in 211 distinct READMEs: 11 a tool's, 8 a licence's
+  (`working-docs/paper-notes/results-and-findings.md` 3.12). The 28 standard
+  headers of List 3.29.0 that grant later versions all still grant their
+  licence; the 18 `-or-later` answers of the sweep stay. Timing: `detect()` on
+  a 200 KB README with 6,500 "or later" lines 2.45 s to 2.75 s (noise).
+- **The exemption** (decided by the maintainer, 2026-11-17, "C"). With the
+  settle rule alone one golden answer moved:
+  `mixed-content-curated/GPL-3.0-or-later/README.md` ("GPL License version 3.0
+  or any version later") went to `GPL-3.0-only`. `OR_LATER_PHRASE` does not
+  read "or any version later", so `main`'s `-or-later` was a guess from the
+  marker's own regex, but `-only` would be a wrong claim. The settle rule now
+  stays off where the input holds a later-version phrase no subject owns
+  (`grantsubject.has_unowned_phrase`: `any later version`, `any version later`,
+  `or later version`, not negated, not starting inside a grant that `grants`
+  read, a tool's included: `Python 3.8 or any later version` is the tool's and
+  still settles). `OR_LATER_PHRASE` is not widened (that would move `resolve()`
+  and the tag and field readers). Measured on the 250 distinct files of the
+  sweep: one holds such a phrase (that README), 12 grants of a tool all still
+  settle; golden: unchanged. Limit: an unowned phrase of a tool elsewhere in
+  the text (`Needs Python 3.8 or later. Plugins may use any later version.`)
+  also keeps an `-or-later` answer, as `main` did.
+- **Moved with it**: `variants.py` shrank by moving the reader of a declared
+  value's stated words to `variantstated.py` (no change); `classify` exports
+  `RE_OR_LATER_SHORTHAND` with groups and a text-based `same_version` (an
+  `int()` of 5,000 digits raised).
+- **Review** (independent, Opus, read-only): the owner of a number after "the
+  Free Software Foundation" was `foundation`; an escaped line break (JSON)
+  lost a GPL notice; `WITH Classpath-exception-2.0 or later` took the
+  exception's name; a superscript digit and a 5,000-digit number raised
+  `ValueError`; 100,000 `GPLv2+` made each question O(grants). All fixed with
+  rows in `tests/test_grant_subject.py`.
+- **Second review** (independent, Opus): a wrapped notice under the comment
+  leaders of autoconf (`dnl`), TeX (`%`), Texinfo (`@c`), man pages, batch
+  files and mail quotes lost its owner (`_LEADER` drops them); `and` and `at
+  your discretion` before "any later version" were no preamble; the written
+  check ignored an ID with a `WITH` exception (it reads the head only); the
+  `as-written` collapse kept the GPL twins because an LGPL grant stood
+  somewhere (now per licence); a pure licence text (COPYING, LICENSE) with a
+  notice and a tool's grant was flipped to `-only` (`ranking.leave_signal`
+  is true for a pure text: its answer is left). Rows in
+  `tests/test_grant_subject.py` and `tests/test_grant_signal.py`, each
+  mutation-checked.
+  The full golden then moved one answer: `short/LGPL-2.0-only/tail_1000` (a
+  text cut at "or (at your option) any later version", no subject) went to
+  `-only`, as the tie-breaker read only a phrase a grant owned; an unowned
+  phrase now counts as a grant there too, as on `main`
+  (`test_the_tie_breaker_keeps_an_unowned_phrase_as_granting`). Rerun the
+  full golden after every change on the answer path, not only at the end.
+- **Left** (for B1c and later): `namerules._granted_numbers` of the name tier
+  takes the number before any grant (`Apache License 1. Requires Java 1 or
+  later` answers `Apache-1.1`): it should ask `grants()` and then
+  `grants_licence` for the named licence; `Apache License 1 or later` and
+  `GNU Lesser General Public License v2.0 or later` (the name tier answers
+  `GPL-2.0-or-later`, now `GPL-2.0-only`) belong to the name tier;
+  `markers`' two grant readers; a tool's `version N` is still a grant of
+  `(N, None)` where no word names it (`Compatible with version 3.0 or later`:
+  grants every GNU licence of version 3); `GFDL-1.3+` is no shorthand
+  grant; "or any version later" is no phrase (the exemption above only keeps
+  the answer); `variants._supports` still reads any grant phrase in a
+  declared value (`has_or_later_language`).
+
 ## Small leftovers of items 35, 46, 50, 53 and 55 (2026-11-18)
 
 Planned and measured on `main` da544cb with a copy of the real database

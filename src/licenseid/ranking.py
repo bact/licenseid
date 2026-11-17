@@ -6,10 +6,18 @@
 """Ordering of ranked candidates: the one sort key, and the -only / -or-later
 tie-breaker that runs after ranking."""
 
-import re
+import functools
 from collections.abc import Callable
 
-from licenseid.classify import has_or_later_language
+from licenseid.grantsubject import (
+    NO_GRANT,
+    Grant,
+    GrantSignal,
+    grants,
+    has_unowned_phrase,
+    lazy_signal,
+    onlys,
+)
 from licenseid.plusoperator import grant_stem
 from licenseid.types import InternalMatch
 
@@ -54,27 +62,56 @@ def ranking_key(
     return key
 
 
-def or_later_signal(raw_text: str, is_pure: bool) -> bool:
-    """Whether the input grants the licence's later versions: the one signal
+@functools.lru_cache(maxsize=2)
+def _grants_of(text: str) -> tuple[Grant, ...]:
+    """:func:`licenseid.grantsubject.grants` of *text*, kept for the second
+    reader of the same input (the tie-breaker, then the variant settling)."""
+    return tuple(grants(text))
+
+
+@functools.lru_cache(maxsize=2)
+def _unowned_in(text: str) -> bool:
+    return has_unowned_phrase(text)
+
+
+@functools.lru_cache(maxsize=2)
+def _onlys_of(text: str) -> tuple[Grant, ...]:
+    return tuple(onlys(text))
+
+
+def or_later_signal(raw_text: str, is_pure: bool) -> GrantSignal:
+    """Whether the input grants the later versions of a licence: the one signal
     that chooses ``-or-later`` over ``-only``, for a tie
     (:func:`apply_version_suffix_tiebreaker`) and for ``variant_stated``
-    (licenseid.variants). A pure licence text has none (its body is
-    identical for both, and the GPL's "How to Apply" appendix holds the
-    phrase), so it is never read for one."""
-    return False if is_pure else has_or_later_language(raw_text)
+    (licenseid.variants). Asked per licence ID, as a grant is the licence's
+    it names (:mod:`licenseid.grantsubject`: ``Python 3.8 or later`` grants
+    none), and read at the first question. A pure licence text has none (its
+    body is identical for both, and the GPL's "How to Apply" appendix holds
+    the phrase), so it is never read for one."""
+    if is_pure:
+        return NO_GRANT
+    return lazy_signal(lambda: _grants_of(raw_text))
 
 
-# "version 2 only", "v2.0 only": a number, then the word.
-_ONLY_AFTER_VERSION = re.compile(
-    r"\d{1,6}(?:\.\d{1,6}){0,3}\)?\s+only\b", re.IGNORECASE | re.ASCII
-)
+def leave_signal(raw_text: str, is_pure: bool) -> Callable[[], bool]:
+    """Whether ``licenseid.variants`` leaves an ``-or-later`` answer alone: the
+    input holds a later-version phrase no subject owns
+    (:func:`licenseid.grantsubject.has_unowned_phrase`), so the licence's own
+    grant may be one the subject rule cannot read, read at the first question;
+    or it is a pure licence text, never read for a grant."""
+    if is_pure:
+        return lambda: True
+    return lambda: _unowned_in(raw_text)
 
 
-def only_signal(raw_text: str, is_pure: bool) -> bool:
-    """Whether the input states "only" after a version number
-    (``licenseid.variants``: that states ``-only``, no guess). A pure
-    licence text is never read for one."""
-    return not is_pure and bool(_ONLY_AFTER_VERSION.search(raw_text))
+def only_signal(raw_text: str, is_pure: bool) -> GrantSignal:
+    """Whether the input states "only" after a version number of a licence
+    (``licenseid.variants``: that states ``-only``, no guess), asked per
+    licence ID like :func:`or_later_signal`. A pure licence text is never read
+    for one."""
+    if is_pure:
+        return NO_GRANT
+    return lazy_signal(lambda: _onlys_of(raw_text))
 
 
 def apply_version_suffix_tiebreaker(
@@ -100,8 +137,10 @@ def apply_version_suffix_tiebreaker(
     - Mixed / source-file text: check for explicit granting language.
       Granting language present → prefer -or-later.
       No granting language      → prefer -only.
+      A later-version phrase no subject owns (a cut text, ``or any version
+      later``) counts as granting language, as it always did.
     """
-    signal = or_later_signal(raw_text, is_pure)
+    signal = or_later_signal(raw_text, is_pure)  # asked per pair, read once
 
     id_to_score = {r["license_id"]: r["score"] for r in ranked}
     adjustments: dict[str, float] = {}
@@ -121,7 +160,7 @@ def apply_version_suffix_tiebreaker(
             continue  # not a genuine tie — trust the similarity score
 
         delta = TIE_NUDGE
-        if signal:
+        if signal(peer) or (not is_pure and _unowned_in(raw_text)):
             adjustments[base + "-or-later"] = delta
             adjustments[base + "-only"] = -delta
         else:

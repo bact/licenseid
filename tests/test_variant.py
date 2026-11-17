@@ -23,6 +23,7 @@ from timing import slack
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
+from licenseid.grantsubject import Signals, constant
 from licenseid.ranking import only_signal, or_later_signal
 from licenseid.types import Evidence, InternalMatch, Method, RawMatch, Variant
 from licenseid.variants import (
@@ -237,7 +238,7 @@ def _settle(
     variant: Variant,
     given: GivenWarnings,
 ) -> tuple[list[tuple[str, bool | None]], list[str]]:
-    out = settle_text(hits, signal, variant)
+    out = settle_text(hits, Signals(constant(signal)), variant)
     return (
         [(r["license_id"], _flag(r)) for r in out],
         [str(w) for w in given.take()],
@@ -341,15 +342,6 @@ GPL = ("GPL-2.0-only", "GPL-2.0-or-later")
                 )
             ],
         ),
-        # BUG: the signal is the input's, not the licence's: a grant for
-        # the LGPL beside it chooses -or-later for this licence too.
-        (
-            [("LGPL-2.1-or-later", 1.0), ("LGPL-2.1-only", 1.0)],
-            True,
-            "auto",
-            [("LGPL-2.1-or-later", False), ("LGPL-2.1-only", True)],
-            [],
-        ),
     ],
 )
 def test_a_text_is_settled_by_its_grant_and_the_variant(  # pylint: disable=R0913,R0917
@@ -380,7 +372,7 @@ def test_the_appendix_of_a_pure_text_is_no_grant(pure: bool) -> None:
     """The GPL's "How to Apply" appendix holds the phrase: a pure licence
     text is never read for a grant."""
     appendix = "either version 2 of the License, or (at your option) any later version"
-    assert or_later_signal(GPL_TEXT + appendix, pure) is (not pure)
+    assert or_later_signal(f"{GPL_TEXT} {appendix}", pure)("GPL-2.0-only") is (not pure)
 
 
 def test_a_name_without_its_grant_answers_only_first(
@@ -443,7 +435,9 @@ def test_as_written_keeps_the_better_score_and_exactness_of_the_twins(
     twins = [_hit(GPL[0], 1.0), _hit(GPL[1], 1.0)]
     for twin in twins:
         twin["exact"] = True
-    (bare,) = settle_text([*twins, _hit("GPL-2.0", 0.97)], False, "as-written")
+    (bare,) = settle_text(
+        [*twins, _hit("GPL-2.0", 0.97)], Signals(constant(False)), "as-written"
+    )
     assert (bare["license_id"], bare["score"], bare["exact"]) == ("GPL-2.0", 1.0, True)
     assert not given.take()
 
@@ -480,8 +474,8 @@ def test_the_only_reader_does_not_backtrack() -> None:
     """A long run of version numbers is read in one pass."""
     text = "Table of versions: " + "1." * 40_000
     start = time.monotonic()
-    assert only_signal(text, False) is False
-    assert only_signal(text + " 2 only", False) is True
+    assert only_signal(text, False)("GPL-2.0-only") is False
+    assert only_signal(text + " version 2 only", False)("GPL-2.0-only") is True
     assert time.monotonic() - start < slack(1.0)
 
 
@@ -499,7 +493,7 @@ def test_as_written_keeps_a_stated_variant_of_a_text(
         _hit(other, 0.96),
         _hit("GPL-2.0", 0.96),
     ]
-    out = settle_text(hits, signal, "as-written", only=only)
+    out = settle_text(hits, Signals(constant(signal), constant(only)), "as-written")
     assert (out[0]["license_id"], _flag(out[0])) == (first, False)
     assert not given.take()
 
@@ -530,7 +524,9 @@ def test_an_id_a_marker_found_is_stated_or_decided(
     warned: list[str],
 ) -> None:
     text = f"## License\n\n{hit}\n"
-    out = settle_text([_hit(hit, 0.92)], False, variant, written=text)
+    out = settle_text(
+        [_hit(hit, 0.92)], Signals(constant(False)), variant, written=text
+    )
     assert (out[0]["license_id"], _flag(out[0])) == expected
     assert len(given.take()) == len(warned)
 

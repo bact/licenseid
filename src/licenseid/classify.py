@@ -255,6 +255,20 @@ def _version(number: str) -> tuple[int, ...]:
     return tuple(parts)
 
 
+def same_version(first: str, second: str) -> bool:
+    """Whether the version numbers *first* and *second* are one ("2" and
+    "2.0" are). Read as text, not as numbers: a run of digits has no size
+    limit here."""
+
+    def parts(number: str) -> list[str]:
+        found = [part.lstrip("0") or "0" for part in number.split(".") if part]
+        while len(found) > 1 and found[-1] == "0":
+            found.pop()
+        return found
+
+    return parts(first) == parts(second)
+
+
 def is_negated(before: str) -> bool:
     """Whether a phrase right after *before* is taken back, as
     OR_LATER_PHRASE reads "not any later version"."""
@@ -267,8 +281,9 @@ def is_negated(before: str) -> bool:
 # spellings Tier 0's version key accepts ("GPL 2+", "GPL-v2+", "GPL_2.0+"):
 # a "+" touches its version and ends the word ("GPLv2++", "GPL-2.0+foo" are
 # no grant). tests/test_plus_readers.py holds the two together.
-_RE_OR_LATER_SHORTHAND = re.compile(
-    r"(?:lgpl|gpl|agpl)(?:[-_ ]?v)?[-_ ]?\d+(?:\.\d+){0,2}\+(?![\w+])",
+RE_OR_LATER_SHORTHAND = re.compile(
+    r"(?P<family>lgpl|gpl|agpl)(?:[-_ ]?v)?[-_ ]?(?P<version>\d+(?:\.\d+){0,2})"
+    r"\+(?![\w+])",
     re.IGNORECASE,
 )
 
@@ -319,7 +334,7 @@ def has_or_later_language(text: str) -> bool:
     license body itself contains the same phrase in its 'How to Apply'
     appendix, so this must NOT be called on pure license text.
     """
-    return bool(OR_LATER_PHRASE.search(text) or _RE_OR_LATER_SHORTHAND.search(text))
+    return bool(OR_LATER_PHRASE.search(text) or RE_OR_LATER_SHORTHAND.search(text))
 
 
 def is_pure_license_text(file_path: str | None, text: str) -> bool:
