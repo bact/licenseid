@@ -18,7 +18,9 @@ declared values, SPDX expressions and the matching pipeline.
     text or a List name without its grant (`GNU General Public License
     v2.0`) answers `-only` first, then `-or-later`, with `WARNING: input:
     variant not stated: GPL-2.0; using GPL-2.0-only`, unless the input
-    grants later versions (then `-or-later` first, stated). `-only` is the
+    grants later versions of that licence (then `-or-later` first, stated). A
+    grant is the licence's it names: `GPL-2.0 or later` is, `Requires Python
+    3.8 or later` grants nothing. `-only` is the
     licensee's careful reading: it understates a licensor's "or later" grant.
     `VARIANT_STATED` says whether the input stated the variant, and
     `--variant` changes the choice

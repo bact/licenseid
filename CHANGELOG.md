@@ -46,6 +46,8 @@ and this project adheres to
 - **Breaking:** no answer for `GPL-2.0-- or later`, `GPL-2.0 or later-` and the
   tags `GPL-2.0 or later, ISC`, `MIT OR GPL-2.0 only`; a tag's `LGPLv2 or later`
   is not exact ([#221])
+- **Breaking:** a grant counts for the licence it names: `Requires Python 3.8 or
+  later` beside a GPL name gives `-only` with a warning, not `-or-later`
 
 ### Fixed
 

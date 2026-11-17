@@ -25,7 +25,6 @@ from collections.abc import Callable, Iterator, MutableSequence, Sequence
 from contextlib import contextmanager
 from typing import Any, Final, TypeVar, cast
 
-from licenseid.classify import grant_end, has_or_later_language
 from licenseid.deprecatedids import (
     BARE_TO_OR_LATER,
     DEPRECATED_BARE_LICENSE_IDS,
@@ -33,11 +32,16 @@ from licenseid.deprecatedids import (
     DEPRECATED_WITH_IDS,
 )
 from licenseid.exprtokens import RE_TOKEN
+from licenseid.grantsubject import GrantSignal, Signals
 from licenseid.idoptions import excluded_ids
 from licenseid.listlookup import fold_case
-from licenseid.normalize import strip_comment_prefixes
-from licenseid.plusoperator import PLUS_OPERATOR, grant_stem
-from licenseid.ranking import TIE_WINDOW, only_signal, or_later_signal
+from licenseid.plusoperator import grant_stem
+from licenseid.ranking import (
+    TIE_WINDOW,
+    only_signal,
+    or_later_signal,
+    leave_signal,
+)
 from licenseid.types import (
     CandidateMatch,
     DetectOptions,
@@ -47,6 +51,7 @@ from licenseid.types import (
     RawMatch,
     Variant,
 )
+from licenseid.variantstated import supports, times_written
 from licenseid.warning import warn
 
 _Match = TypeVar("_Match", RawMatch, CandidateMatch)
@@ -237,10 +242,6 @@ def read_from(found: list[_Match], value: str) -> list[_Match]:
     return found
 
 
-#: An "or" that may start a grant ("GPL-2.0. or later"): :func:`grant_end` reads it.
-_OR_WORD: Final = re.compile(r"(?<![\w-])or\b", re.IGNORECASE | re.ASCII)
-
-
 def _within(part: list[str], whole: list[str]) -> bool:
     """Whether the tokens *part* stand together in the tokens *whole*."""
     n = len(part)
@@ -252,118 +253,6 @@ def _has_variant(token: str) -> bool:
     such as ``LicenseRef-acme-only``)."""
     key = token.lower()
     return key.endswith((_ONLY, _OR_LATER)) and "licenseref-" not in key
-
-
-def _family_pattern(family: str) -> re.Pattern[str]:
-    """Where a value names *family* (``GPL-2.0``), in any spelling of its
-    name: ``GPLv2``, ``GPL-2``, ``GPL 2.0`` (the ``LGPL`` of ``LGPLv2`` is no
-    ``GPL``)."""
-    parts = re.fullmatch(r"([A-Za-z]+)-(\d+(?:\.\d+)*)(-.+)?", family)
-    if parts is None:
-        return re.compile(rf"(?<![\w.:-]){re.escape(family)}(?!\w)", re.IGNORECASE)
-    name, version, rest = parts.groups()
-    loose = rf"[-\s]?v?{re.escape(_plain_version(version))}(?:\.0)*"
-    return re.compile(
-        rf"(?<![A-Za-z0-9.:-]){name}{loose}{re.escape(rest or '')}(?!\w|\.\d)",
-        re.IGNORECASE,
-    )
-
-
-def _supports(
-    item: tuple[str, str, str], evidence: Evidence | None, many: bool
-) -> bool:
-    """Whether the *evidence* says the licence *family* is ``-only`` or
-    ``-or-later`` (*item*: its kind, "only" or "later", the family and the form,
-    the ID or ID with "+" as the expression writes it). The ID itself in the
-    value states it; so do the signals a text match chose; else the words right
-    after the licence in the value (``GPL-2.0 only``, ``GPL-2.0+``, ``GPL-2.0 or
-    later``), and where the value does not name the licence (a name,
-    ``GPLv3-or-later``) the words of the value, if it has one licence (*many*
-    false). Another licence's words are never read. A form licenseid *decided*
-    (``GPL-2.0-only AND GPL-2.0``: the second, read ``-only``) is never stated,
-    even where another operand of the value is. No evidence, none."""
-    kind, family, form = item
-    if not evidence:
-        return False
-    value = evidence.get("value", "")
-    if fold_case(form) in {fold_case(d) for d in evidence.get("decided", [])}:
-        return False
-    if _written(form, value):  # the ID itself is in the input
-        return True
-    if "later" in evidence or "only" in evidence:  # a text match
-        return bool(evidence.get(kind))
-    if "\n" in value or "\r" in value:  # a grant wrapped onto a comment line
-        value = " ".join(strip_comment_prefixes(v) for v in _LINES.split(value))
-    named = list(_family_pattern(family).finditer(value))
-    if named:  # the licence may stand twice: ``GPL-2.0-only OR GPL-2.0+``
-        own = re.search(r"\d[\d.]*$", family)
-        return any(
-            _words(kind, value, found.end(), own=own.group() if own else "")
-            for found in named
-        )
-    return not many and _words(kind, value, 0, whole=True)
-
-
-#: What may stand between a licence and the words that state its variant: an
-#: exception, marks, the licence's own version ("GPL-2.0, version 2 or later").
-_LEAD: Final = re.compile(
-    r"(?:(?:-with-|\s+with\s+)[\w.-]+)?[\s,.()\[\]-]*",
-    re.IGNORECASE,
-)
-_LINES: Final = re.compile(r"\r\n?|\n")
-_VERSION: Final = re.compile(r"version\s+(\d[\d.]*)[\s,)\]]*", re.IGNORECASE)
-_ONLY_SUFFIX: Final = re.compile(r"(?<![A-Za-z0-9])only\b", re.IGNORECASE)
-_LATER_SUFFIX: Final = re.compile(r"(?<![A-Za-z0-9])or[\s-]+later\b", re.IGNORECASE)
-
-
-def _words(
-    kind: str, value: str, at: int, *, whole: bool = False, own: str = ""
-) -> bool:
-    """Whether the words of *value* say *kind* ("only" or "later"): right
-    after *at*, the end of a licence, or (*whole*) anywhere in it, where a
-    dash may join them to a re-spelt ID (``GPLv3-or-later``)."""
-    if whole:
-        if kind == "only":
-            return _ONLY_SUFFIX.search(value) is not None
-        return bool(
-            _LATER_SUFFIX.search(value)
-            or PLUS_OPERATOR.search(value)
-            or has_or_later_language(value)
-            or any(
-                grant_end(value, m.start()) is not None
-                for m in _OR_WORD.finditer(value)
-            )
-        )
-    lead = _LEAD.match(value, at)
-    head = lead.end() if lead else at
-    version = _VERSION.match(value, head)
-    if version and _same_version(version.group(1), own):
-        head = version.end()  # the licence's own version, not another's
-    tail = value[head:]
-    if kind == "only":
-        return re.match(r"only\b", tail, re.IGNORECASE) is not None
-    return bool(
-        tail.startswith("+")
-        or (
-            re.match(r"or\b", tail, re.IGNORECASE)
-            and grant_end(value, head) is not None
-        )
-        or (
-            re.match(r"any\b", tail, re.IGNORECASE) and has_or_later_language(tail[:40])
-        )
-    )
-
-
-def _plain_version(version: str) -> str:
-    parts = version.rstrip(".").split(".")
-    while len(parts) > 1 and parts[-1] == "0":
-        parts.pop()
-    return ".".join(parts)
-
-
-def _same_version(said: str, own: str) -> bool:
-    """Whether the version *said* is the licence's *own* (``2`` is ``2.0``)."""
-    return bool(own) and _plain_version(said) == _plain_version(own)
 
 
 def _states(expression: str, evidence: Evidence | None) -> list[tuple[str, bool]]:
@@ -389,7 +278,7 @@ def _states(expression: str, evidence: Evidence | None) -> list[tuple[str, bool]
     return [
         (
             kind,
-            kind != "bare" and _supports((kind, family, form), evidence, many),
+            kind != "bare" and supports((kind, family, form), evidence, many),
         )
         for kind, family, form in found
     ]
@@ -468,9 +357,12 @@ def settle_free_text(
     written = {id(r): r["license_id"] for r in results}
     out = settle_text(
         list(results),
-        or_later_signal(text, is_pure),
+        Signals(
+            or_later_signal(text, is_pure),
+            only_signal(text, is_pure),
+            leave_signal(text, is_pure),
+        ),
         options.get("variant", DEFAULT),
-        only=only_signal(text, is_pure),
         written=text,
     )
     # A form the option chose comes after ``exclude`` ran: it may not be an
@@ -492,33 +384,39 @@ def settle_free_text(
 
 def settle_text(
     results: MutableSequence[RawMatch | InternalMatch],
-    signal: bool,
+    signals: Signals,
     variant: Variant,
     *,
-    only: bool = False,
     written: str = "",
 ) -> list[RawMatch | InternalMatch]:
     """The results of a text or name match, settled for *variant*:
     never a deprecated ID unless ``as-written``; a ``-only``/``-or-later``
-    result carries the evidence of its variant: *signal*, the input's grant of
+    result carries the evidence of its variant: *signals*, the input's grant of
     the licence's later versions, chose ``-or-later``, the input states
-    *only*, or *written* (the input) holds the ID itself (a marker found it);
-    the ``or-later`` option puts that form first where nothing is stated; the
-    answer that is a guess is said once, if it is an answer
-    (:data:`ANSWER_SCORE`)."""
+    *only* of it, or *written* (the input) holds the ID itself (a marker found
+    it); an ``-or-later`` answer no grant of the input chose, none written, is
+    settled to its ``-only`` twin (not for ``or-later``); the ``or-later``
+    option puts that form first where nothing is stated; the answer that is a
+    guess is said once, if it is an answer (:data:`ANSWER_SCORE`)."""
+    signal, only, leave = signals
     out = _replaced(list(results), variant, written)
-    if variant == "as-written" and not (signal or only):
-        out = _collapsed(out)  # nothing stated: the bare ID says no more
+    if variant == "as-written":  # a licence with nothing stated: the bare ID
+        out = _collapsed(out, lambda lid: signal(lid) or only(lid))
+    if variant != "or-later":
+        _ungranted_to_only(out, signal, written, leave)
     scores = {fold_case(r["license_id"]): r["score"] for r in out}
     for r in out:
         if r["method"] in _TEXT_METHODS:
+            lid = r["license_id"]
             r["evidence"] = Evidence(
                 value=written,
-                later=signal and _chosen_by(r, scores),
-                only=not signal and only and _is_only(r),
+                later=_chosen_by(r, scores) and signal(lid),
+                only=_is_only(r) and not signal(lid) and only(lid),
             )
-    if variant == "or-later" and not (signal or only):
-        _prefer_or_later(out)
+    if variant == "or-later" and out:
+        first = out[0]["license_id"]
+        if not (signal(first) or only(first)):
+            _prefer_or_later(out)  # nothing stated of the licence
     top = out[0] if out else None
     if (
         top
@@ -530,12 +428,37 @@ def settle_text(
     return out
 
 
-def _written(license_id: str, text: str) -> int:
-    """How often *license_id* stands in *text* as a word of its own."""
-    if not text:
-        return 0
-    pattern = rf"(?<![\w.+-]){re.escape(license_id)}(?![\w-])"
-    return len(re.findall(pattern, text, re.IGNORECASE | re.ASCII))
+def _ungranted_to_only(
+    results: list[RawMatch | InternalMatch],
+    signal: GrantSignal,
+    written: str,
+    leave: Callable[[], bool],
+) -> None:
+    """Settle an ``-or-later`` top of a text or name match to its ``-only``
+    twin where the input grants none of that licence and the ID is not written
+    in it: the match took "or later" from words that are not the licence's
+    (``Requires Python 3.8 or later``). Left alone where *leave* says so: a
+    later-version phrase with no subject (``or any version later``), or a pure
+    licence text."""
+    top = results[0] if results else None
+    if top is None or top["method"] not in _TEXT_METHODS:
+        return
+    lid = top["license_id"]
+    head = _head(lid)
+    if (
+        not head.lower().endswith(_OR_LATER)
+        or signal(lid)
+        or times_written(head, written)
+        or leave()
+    ):
+        return
+    twin = f"{grant_stem(head)}{_ONLY}{lid[len(head) :]}"
+    for j, other in enumerate(results[1:], 1):
+        if fold_case(other["license_id"]) == fold_case(twin):
+            top["score"], other["score"] = other["score"], top["score"]
+            results[0], results[j] = other, top
+            return
+    top["license_id"] = twin
 
 
 def _is_only(r: RawMatch | InternalMatch) -> bool:
@@ -572,7 +495,7 @@ def _replaced(
         # the option decides alone, whatever a retrieved twin scored.
         twin = _REPLACED_BY.get(fold_case(r["license_id"]))
         kept = by_id.get(fold_case(twin)) if twin else None
-        if r["method"] in _TEXT_METHODS and _written(r["license_id"], written):
+        if r["method"] in _TEXT_METHODS and times_written(r["license_id"], written):
             kept = None
         if kept is None and r["method"] in _TEXT_METHODS:
             # No replacement beside it (a marker found the ID): the option
@@ -604,7 +527,12 @@ def _collapsed(
     for key, bare in _BARE.items():
         row = ids.get(key)
         twins = (ids.get(fold_case(bare)), ids.get(fold_case(_OR_LATER_OF[key])))
-        if row is None or None in twins or row["method"] not in _TEXT_METHODS:
+        if (
+            row is None
+            or None in twins
+            or row["method"] not in _TEXT_METHODS
+            or stated(row["license_id"])
+        ):
             continue
         first = next(t for t in twins if t)
         row["score"] = max(row["score"], *(t["score"] for t in twins if t))

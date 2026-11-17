@@ -12,6 +12,7 @@ import warnings
 import pytest
 from conftest import GivenWarnings
 
+from licenseid.grantsubject import Signals, constant
 from licenseid.result import public_result
 from licenseid.types import Evidence, InternalMatch, RawMatch, Variant
 from licenseid.variants import (
@@ -204,9 +205,8 @@ def test_a_grant_beside_an_only_elsewhere_chooses_only_the_grant() -> None:
     grant chose its ``-or-later`` result, and states no ``-only`` one."""
     out = settle_text(
         [_hit("GPL-2.0-or-later", 0.95), _hit("LGPL-3.0-only", 0.9)],
-        True,
+        Signals(constant(True), constant(True)),
         "only",
-        only=True,
     )
     states = {r["license_id"]: r["evidence"] for r in out}
     assert states["GPL-2.0-or-later"].get("later") is True
@@ -218,9 +218,8 @@ def test_a_stated_only_is_not_swapped_for_or_later() -> None:
     stated: "version 2 only" stays first."""
     out = settle_text(
         [_hit("GPL-2.0-only", 0.95), _hit("GPL-2.0-or-later", 0.94)],
-        False,
+        Signals(constant(False), constant(True)),
         "or-later",
-        only=True,
     )
     assert out[0]["license_id"] == "GPL-2.0-only"
 
@@ -306,7 +305,9 @@ def test_a_heading_id_is_decided_whatever_a_retrieved_twin_scored(
     ]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # the guess is said, tested elsewhere
-        out = settle_text(found, False, variant, written="## License\n\nGPL-3.0\n")
+        out = settle_text(
+            found, Signals(constant(False)), variant, written="## License\n\nGPL-3.0\n"
+        )
     assert out[0]["license_id"] == first
 
 
@@ -326,7 +327,12 @@ def test_the_option_decides_an_only_form_with_no_peer_retrieved(
     found: list[RawMatch | InternalMatch] = [_hit("GPL-2.0-only", 0.855)]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        out = settle_text(found, False, variant, written="## License\\n\\nGPL v2\\n")
+        out = settle_text(
+            found,
+            Signals(constant(False)),
+            variant,
+            written="## License\\n\\nGPL v2\\n",
+        )
     assert out[0]["license_id"] == first
 
 
@@ -337,10 +343,20 @@ def test_an_only_the_input_writes_out_is_not_moved_by_the_option() -> None:
         _hit("GPL-2.0-only", 0.855),
         _hit("GPL-2.0-or-later", 0.85),
     ]
-    out = settle_text(found, False, "or-later", written="## License\n\nGPL-2.0-only\n")
+    out = settle_text(
+        found,
+        Signals(constant(False)),
+        "or-later",
+        written="## License\n\nGPL-2.0-only\n",
+    )
     assert out[0]["license_id"] == "GPL-2.0-only"
     lone: list[RawMatch | InternalMatch] = [_hit("GPL-2.0-only", 0.855)]
-    out = settle_text(lone, False, "or-later", written="## License\n\nGPL-2.0-only\n")
+    out = settle_text(
+        lone,
+        Signals(constant(False)),
+        "or-later",
+        written="## License\n\nGPL-2.0-only\n",
+    )
     assert out[0]["license_id"] == "GPL-2.0-only"
 
 
@@ -391,5 +407,7 @@ def test_a_grant_the_marker_did_not_read_leaves_the_only_form() -> None:
     ]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        out = settle_text(found, True, "auto", written="GPL v2 or later")
+        out = settle_text(
+            found, Signals(constant(True)), "auto", written="GPL v2 or later"
+        )
     assert out[0]["license_id"] == "GPL-2.0-only"
