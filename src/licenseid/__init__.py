@@ -27,10 +27,11 @@ from licenseid.resolvertypes import (
     Resolution,
     Source,
     Step,
+    ToolInfo,
     Trust,
 )
 from licenseid.result import json_line
-from licenseid.types import Detection, Method
+from licenseid.types import Detection, DetectOptions, Method, Variant
 from licenseid.warning import LicenseIdWarning
 
 # LicenseDatabase is exported as an opaque handle: open one to pass to
@@ -38,6 +39,7 @@ from licenseid.warning import LicenseIdWarning
 __all__ = [
     "Category",
     "DatabaseNotReadyError",
+    "DetectOptions",
     "Detection",
     "InvalidInputError",
     "LicenseDatabase",
@@ -51,7 +53,9 @@ __all__ = [
     "Resolution",
     "Source",
     "Step",
+    "ToolInfo",
     "Trust",
+    "Variant",
     "detect",
     "get_default_db_path",
     "json_line",

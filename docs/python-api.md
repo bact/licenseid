@@ -70,8 +70,8 @@ flag must be a `bool`, and `exclude` and `hint` a list, tuple, set or
 frozenset of `str`: any other value raises `TypeError` (a bare `"MIT"`, a
 dict, a generator). Every call checks them. All but `variant` (below) act
 only where licence text is matched (Tiers 1 and 2): `exclude`,
-`only_common` and `only_spdx` drop candidates that full-text search found,
-`hint` adds candidates, and `enable_popularity` lets popularity nudge the
+`only_common` and `only_spdx` drop candidates, `hint` adds candidates (and
+those three drop them too), and `enable_popularity` lets popularity nudge the
 ranking of every candidate and break its ties. The CLI has no option for
 `exclude`, `hint`, `only_common` or `only_spdx`.
 
@@ -142,17 +142,37 @@ excluded it answers the nearest other licence. A text under 10 words with
 nothing left answers `[]` and warns `too few words for text`. A short text
 never uses `hint`: Tier 0 adds no candidates.
 
-`hint` adds each ID it finds in the database, after the filters, as a
-candidate with no text, so it scores near 0. It takes the place of the
-candidate a name or heading would add for the same licence:
-`only_common=True` with `hint=["JSON"]` answers the JSON License text with
-JSON last, not first. An ID given twice, or in another case, is added once.
-Where full text is matched, a hint for an ID that `exclude` names wins: the
-licence is added back (a short text never uses `hint`). A
-hinted candidate also counts towards the five below which `detect()`
-searches the sections of mixed content too, so a hint can stop that search.
-`only_spdx` (on by default) drops licences not on the SPDX License List; a
-database built by `licenseid update` holds none, so there it has no effect.
+`hint` adds each ID it finds in the database as a candidate, after the
+others (full-text search, a heading or title, the sections of mixed content),
+so a hint never takes the place of the candidate a name or heading added for
+the same licence, and never counts towards the five below which `detect()`
+searches the sections of mixed content too. An ID given twice, or in another
+case, is added once. Every filter wins over a hint: `exclude` drops a hinted
+ID, `only_common=True` drops one that is not OSI-approved, FSF-libre or high
+usage, and `only_spdx` (on by default) drops one not on the SPDX License List,
+so a hint for such a row adds nothing unless `only_spdx=False` is given. A
+database built by `licenseid update` holds only List rows, so there
+`only_spdx` drops nothing.
+
+The filters do not drop the same candidates. All of them drop a candidate of
+full-text search and a hint. `exclude` also drops the candidates a heading,
+title or version reading adds and the names found in the sections of mixed
+content; `only_common` and `only_spdx` do not: a heading that names a licence
+that `only_common` drops from full-text search still answers (the JSON License
+text, with `only_common=True`, answers `JSON` first, exact, with or without
+`hint=["JSON"]`).
+
+A hinted candidate has its own text, so it ranks on its similarity to the
+input, as any candidate does, for the first 50 entries of `hint` (a set in
+sorted order; a bare deprecated ID counts as its two twins, and an ID given
+twice, or with no row, still uses up a place). Each costs a pass of the
+second tier: on the full List the MIT text takes 0.8 s with no hint, 1.6 to
+2.0 s with 50 and 3.4 to 3.8 s with 200, and would take about 10 s if all 740
+IDs had their text. That is why an entry beyond the fiftieth is added with no
+text and scores 0, last. A deprecated row that has no text does too: a bare
+`GPL-2.0` (kept as written under `variant="as-written"`), or a `-with-` ID
+such as `GPL-2.0-with-classpath-exception`. Under the other variants a bare
+deprecated ID stands for its two twins, which have text.
 
 To record a licence a package *declares* (a `license` field, a model card),
 use `licenseid.resolve()`. It returns the SPDX expression and each step taken,
@@ -187,7 +207,10 @@ without `-v` only `r["expression"]`), and
 `licenseid resolve --json VALUE` prints the line that
 `licenseid.json_line(resolve(VALUE))` returns. The types of a result are
 exported too: `licenseid.Resolution`, `Category`, `Trust`, `Step`,
-`Operand`, `ListInfo`, `ListSource`, `Source`, `Detection` and `Method`.
+`Operand`, `ListInfo`, `ListSource`, `Source`, `ToolInfo` (a tool of an
+answer: its `resolver` and `components`, each with `name`, `version`, `url` and
+`purl`), `Detection` and `Method`, and the types of the options of `detect()`:
+`DetectOptions` and `Variant` (the values of `variant`).
 `licenseid.LicenseDatabase(path)` is an opaque handle, to open once and pass
 to `resolve(db=...)` or `LicenseDetector`. It refuses a file licenseid did not
 build (`DatabaseNotReadyError`, condition `invalid`), whatever `create` is. A

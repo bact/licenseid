@@ -19,7 +19,7 @@ from matcher_db import Lic, seeded_db
 from licenseid.database import LicenseDatabase
 from licenseid.deprecatedids import BARE_TO_OR_LATER, DEPRECATED_BARE_LICENSE_IDS
 from licenseid.exprflags import judged_flags, judged_id, with_judged_flags
-from licenseid.retrieval import _inject_hinted_candidates
+from licenseid.retrieval import hinted_candidates
 
 _TEXTS = Path(__file__).parent / "fixtures" / "license-text-long"
 
@@ -74,7 +74,7 @@ def test_a_row_of_a_deprecated_id_takes_the_flags_of_its_twin(
 def test_a_hinted_bare_id_keeps_its_name_and_the_flags_of_its_twin(
     db: LicenseDatabase,
 ) -> None:
-    cand = _inject_hinted_candidates(db, [], ["GPL-2.0"])[0]
+    cand = hinted_candidates(db, {"hint": ["GPL-2.0"]}, [])[0]
     assert (cand["license_id"], cand["is_osi_approved"], cand["is_fsf_libre"]) == (
         "GPL-2.0",
         True,

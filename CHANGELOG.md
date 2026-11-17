@@ -48,6 +48,9 @@ and this project adheres to
   is not exact ([#221])
 - **Breaking:** a grant counts for the licence it names: `Requires Python 3.8 or
   later` beside a GPL name gives `-only` with a warning, not `-or-later`
+- **Breaking:** `licenseid.ToolInfo` replaces `Resolver` and `Component` of
+  `licenseid.resolvertypes`; `ToolInfo`, `DetectOptions`, `Variant` are
+  exported ([#224])
 
 ### Fixed
 
@@ -68,6 +71,8 @@ and this project adheres to
 - `"MIT\u200b"` and a TOML `"\"MIT\""` are read; a tag or field keeps
   `LicenseRef-a-` in `MIT OR LicenseRef-a-` (refused before a `-->`); `LGPL-2
   WITH ...+` and `LGPLv2 or above` give a clearer reason ([#220])
+- `detect()` `hint` no longer undoes `exclude`, `only_common` or `only_spdx`;
+  it is scored on its text (first 50) and keeps the mixed-content search ([#224])
 
 [#207]: https://github.com/bact/licenseid/pull/207
 [#208]: https://github.com/bact/licenseid/pull/208
@@ -80,6 +85,7 @@ and this project adheres to
 [#217]: https://github.com/bact/licenseid/pull/217
 [#220]: https://github.com/bact/licenseid/pull/220
 [#221]: https://github.com/bact/licenseid/pull/221
+[#224]: https://github.com/bact/licenseid/pull/224
 
 ## [0.8.4] - 2026-11-09
 

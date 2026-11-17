@@ -101,5 +101,7 @@ def upgraded_options(options: DetectOptions) -> DetectOptions:
     if exclude := options.get("exclude"):
         result["exclude"] = _upgraded("exclude", exclude, keep_bare=keep)
     if hint := options.get("hint"):
-        result["hint"] = _upgraded("hint", hint, keep_bare=keep)
+        # A set has no order, and the first hints carry their text (retrieval).
+        ordered = sorted(hint) if isinstance(hint, (set, frozenset)) else hint
+        result["hint"] = _upgraded("hint", ordered, keep_bare=keep)
     return result
