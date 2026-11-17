@@ -471,6 +471,51 @@ PR #223.
   a survey count. **A trove name with no count shows a dash**: correct, as the
   page says "A dash is no count recorded".
 
+## `hint` obeys the filters; the API names (item 46, 2026-11-18)
+
+Built in PR 224 (branch `hint-obeys-filters`). Planned and measured
+on `main` f28fa39 against a copy of the real database (List 3.29.0, 740
+rows), then reviewed twice (Opus). The owner decided D1 a, D2 a (with the cap
+below) and D4 a.
+
+- **H1 to H5, built.** `retrieval.get_candidates` no longer adds a hint;
+  `retrieval.hinted_candidates` builds the hint candidates and passes them
+  through `_filter_candidates`, and `detector._run_tier1_and_tier2` adds them
+  last (`add_unseen`), after the markers and the mixed-content search. So
+  `exclude`, `only_common` and `only_spdx` drop a hint (H1, H2); a marker's
+  candidate with text is kept (H3); a hint no longer counts towards the
+  fewer-than-5 gate of the mixed-content search (H4); a hint ranks on its
+  text (H5).
+- **Measured, before and after** (real database): MIT text with `exclude`
+  and `hint` of MIT: MIT at rank 49 of 50 (0.0805) to no MIT. JSON text,
+  `only_common` and `hint=["JSON"]`: JSON at rank 17 of 18 (0.0805) to JSON
+  first, 1.0, exact (its heading's candidate; the hint adds nothing).
+  `GPL-3.0-only` hinted on the MIT text: rank 50 (0.0) to rank 46 (0.5256).
+  A bare `GPL-2.0` hint under `auto`: its twins from rank 50 and 51 (0.005
+  and 0.0) to 41 and 46 (0.548 and 0.538). The top 4 of the GPL-2.0, MIT,
+  BSD-3-Clause and Apache-2.0 texts, under `auto`, `as-written`, `only` and
+  `or-later`, with and without a bare `GPL-2.0` hint, keep their order. No
+  golden answer uses `hint`: 0 moves.
+- **Cost, and the cap.** A hint's text costs a Tier 2 pass. `detect()` of
+  the MIT text on the real database: 0.8 s with no hint (the same with a
+  hint of no text), 1.6 to 2.0 s with 50 hints with text, 3.4 to 3.8 s with
+  200, about 10 s with all 740. So `retrieval.MAX_HINTS_WITH_TEXT` is 50: the
+  first 50 IDs of `hint` (after the deprecated-ID upgrade, in the order
+  given) carry their text, the rest are added with none and score 0, as
+  before. A deprecated row has no text (`GPL-2.0` kept as written under
+  `as-written`, the `-with-` IDs): it scores 0 too. Documented in
+  `docs/python-api.md`.
+- **Which candidates each filter drops** (documented): a hint passes the
+  filter function of full-text search, but marker candidates and the names of
+  mixed-content sections pass `exclude` only. So `only_common` drops a hint
+  and keeps a heading's answer.
+- **A1, built.** `ToolInfo` (one `TypedDict`: `name`, `version`, `url`,
+  `purl`) replaces `Resolver` and `Component` (the same four keys; no user
+  outside the package, grepped over `~/projects`), for `Resolution["resolver"]`
+  and `["components"]`. `licenseid` exports `ToolInfo`, `DetectOptions` and
+  `Variant` (the type of `DetectOptions.variant`). JSON keys and values do not
+  change.
+
 ## Grant subject in the name tier (B1c, PR 225, 2026-11-18)
 
 Tier 0's `namerules.cut_version` took the number before any "or later" or

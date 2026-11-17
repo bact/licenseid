@@ -162,7 +162,8 @@ def test_a_bare_deprecated_id_is_hinted_as_both_twins(
     assert answers(detector, text=BODY) == ["MIT"]
     got = detector.detect(text=BODY, hint=["GPL-2.0"])
     assert {r["expression"] for r in got[1:]} == {ONLY, LATER}  # not GPL-2.0
-    assert all(r["score"] < 0.01 for r in got[1:])  # no text of their own
+    # Both twins have a text of their own, and rank on it (a bare row has none).
+    assert all(r["score"] > 0 for r in got[1:])
     assert given.lines() == (
         f"WARNING: option: deprecated ID: hint GPL-2.0; using {ONLY}, {LATER}\n"
     )

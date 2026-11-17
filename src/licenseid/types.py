@@ -162,11 +162,16 @@ class DetectOptions(TypedDict, total=False):
     """The keyword options of LicenseDetector.detect() and
     licenseid.detect(), checked for every input. They act only where
     licence text is matched: exclude, hint, only_spdx and only_common on the
-    candidates of free text (Tier 1, markers, mixed-content windows, and for
-    exclude a short text's name hit), enable_popularity on the Tier 2
-    ranking and its tie-breaker. ``variant`` acts on every input: it says
-    what to answer where an ``-only`` and an ``-or-later`` form are
-    possible and the input does not state which (:data:`Variant`)."""
+    candidates of Tier 1 and the hinted ones (exclude alone also on markers,
+    the section names of mixed content and a short text's name hit),
+    enable_popularity on the Tier 2 ranking and its tie-breaker. ``hint``
+    adds its licences as candidates after the rest (see
+    ``licenseid.retrieval.hinted_candidates``): the first 50 with their
+    text, and the three filters drop one as they drop a Tier 1 candidate.
+    ``variant``
+    acts on every input: it says what to answer where an ``-only`` and an
+    ``-or-later`` form are possible and the input does not state which
+    (:data:`Variant`)."""
 
     only_spdx: bool
     only_common: bool
