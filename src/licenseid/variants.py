@@ -647,8 +647,6 @@ def _move_to_later(results: list[RawMatch | InternalMatch]) -> None:
 
 
 _ONLY_NEXT = re.compile(r"\s+only\b(?!\s+if\b)", re.IGNORECASE | re.ASCII)
-
-
 _ONLY_THEN_OPERATOR = re.compile(
     r"\s+only\s+(?:and|or|with)\b", re.IGNORECASE | re.ASCII
 )
@@ -657,14 +655,15 @@ _ONLY_THEN_OPERATOR = re.compile(
 def qualify_trailing_only(expression: str, value: str) -> str:
     """*expression* with the bare deprecated ID it ends in read ``-only``,
     when the word right after it in *value* says so ("GPL-2.0 only"): the
-    variant is stated, so it is no guess and ``variant`` leaves it. An
-    operator after the "only" ends no expression (as after a grant): ``""``,
-    no reading, for what it would drop."""
+    variant is stated, so it is no guess and ``variant`` leaves it. ``""``, no
+    reading, for what it would drop: an operator after the "only", or an AND
+    or OR before the ID (the "only" would say it of one operand)."""
     tokens = RE_TOKEN.findall(expression)
     only = _BARE.get(fold_case(tokens[-1])) if tokens else None
     rest = value[len(expression) :] if value.startswith(expression) else ""
     if only and expression.endswith(tokens[-1]) and _ONLY_NEXT.match(rest):
-        if _ONLY_THEN_OPERATOR.match(rest):
+        listed = any(token.upper() in ("AND", "OR") for token in tokens)
+        if listed or _ONLY_THEN_OPERATOR.match(rest):
             return ""
         return expression[: -len(tokens[-1])] + only
     return expression

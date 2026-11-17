@@ -60,7 +60,6 @@ VALUES = [
     "MIT OR GPL-2.0",
     "GPL-2.0 OR MIT+",
     "GPL-2.0-only OR GPL-2.0+",
-    "LGPL-2.0 AND GPL-2.0 only",
     "GPLv3-or-later",
     "GPLv2 or later",
     "GPLv2-only",
@@ -165,12 +164,13 @@ def test_auto_keeps_a_declared_bare_id(db: str, how: str) -> None:
 
 
 @pytest.mark.parametrize("variant", VARIANTS)
-@pytest.mark.parametrize("value", ["GPL-2.0 OR MIT+", "LGPL-2.0 AND GPL-2.0 only"])
+@pytest.mark.parametrize("value", ["GPL-2.0 OR MIT+"])
 def test_the_words_of_another_licence_state_nothing(
     db: str, value: str, variant: Variant
 ) -> None:
-    """Per licence: ``MIT+`` and ``GPL-2.0 only`` do not state the variant
-    of the *other* bare ID in the value."""
+    """Per licence: ``MIT+`` does not state the variant of the *other* bare
+    ID in the value (``LGPL-2.0 AND GPL-2.0 only`` is refused in every
+    channel since a tag refuses an "only" after an operand of a list)."""
     got = answers(db, value, variant)
     assert got
     for how, (expression, _, stated) in got.items():

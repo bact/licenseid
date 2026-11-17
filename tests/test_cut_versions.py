@@ -83,11 +83,6 @@ MALFORMED: dict[str, str] = {
     "(LGPLv2)+": "plus after a bracket: (LGPLv2)+",
 }
 
-#: ``detect()`` answers these through a reader of its own (the whole value
-#: read as an ID with a grant, ``looseid.disambiguate_whole``), as it does
-#: for ``GPL-2.0 or later?`` which ``resolve()`` refuses too.
-DETECT_LEFTOVER = {"GPL-2.0 or later-": "GPL-2.0-or-later"}
-
 #: ``value: expression``, answered before and after: a bare major no other
 #: minor of the List shares, a stated grant, an ending, a reference.
 STAYS: dict[str, str] = {
@@ -140,7 +135,7 @@ def test_a_cut_value_is_refused(
     assert got["candidates"] == []
     assert got["expansions"] == []
     detector = LicenseDetector(corpus_db.location)
-    assert _top(detector, value) == DETECT_LEFTOVER.get(value)
+    assert _top(detector, value) is None
     # a refused short value says it is too short for a text match
     assert given.conditions() <= {"too few words for text"}
 

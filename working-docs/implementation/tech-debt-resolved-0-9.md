@@ -192,3 +192,65 @@ Tier 0 (`shorttext.match_name_tier`) that the rest of the input doubts.
   `<name> Plus` (706 of 708 probes); name + "+" (1 project); a manifest
   field with a name less its grant (1 project); `with <one-word exception
   without the word>` (30 of 86 exceptions).
+
+## Grant reader refusals (items 20, 46, 50, 52, 54; 2026-11-17)
+
+A value that goes on after an "or later" grant, or a mark glued to one, was read
+as the licence with its grant and the rest dropped. Measured on 642
+distinct real values (the PyPI sample of 462, sbomminbench 172, the golden
+`detect_value` keys, on `main` 50017cb): none holds a joiner run before a
+grant, a licence after one, or an `only` after an operand of a list; none
+reaches `disambiguate_whole` with a reading `resolve()` refused. Built
+under "refuse unless the loss is measured":
+
+- **A run of two or more dashes or `_` glued before a word grant**
+  (`GPL-2.0-- or later`, `MIT__ or later`, `GPL-2.0-_ or later`) is
+  `character dropped` in every channel; one stays a separator
+  (`GPL-2.0- or later`, `GPL-2.0_ or later`: the maintainer's 2026-11-04
+  rule and the `STAYS` pins of item 54). `classify.grant_head` keeps the
+  run with the head, `dropguard.trailing_joiners(least=2)` refuses it on a
+  head (`resolveleaf._base`), and `classify._kept` judges the gap a tag
+  sees apart from its ID. A reason of a value already refused moved once:
+  `GPL-2.0-only-- or later` was `qualifier stated twice`, now `character
+  dropped: U+002D`.
+- **A mark glued to the end of a grant** (`GPL-2.0 or later-`, `?`, `!`,
+  `*/`, `version-`): `looseid.disambiguate_whole` answered what
+  `resolve()` refuses (`GPL-2.0-or-later`, exact, in the argument and a
+  field); `dropguard.glued_marks` refuses it. One ending (`.`, `,`, `;`,
+  `:`) and a closing bracket pass; the `PROSE` and `WRAPPED` tables stand.
+- **A tag refuses `MIT OR GPL-2.0 only`** (`variants.qualify_trailing_only`)
+  and **a licence listed after a grant** (`GPL-2.0 or later, ISC`, `;
+  MIT`, `/ Apache-2.0`, `, Zlib`: `looseid.lists_after_grant`, from the
+  grant's end); `, see COPYING`, `, the same as Ruby`, `, 2009` and `,
+  Intel Corporation` keep their answer.
+- **`EXACT` of a cut version with a grant in a tag or a field**
+  (`LGPLv2 or later`, `Apache-1 or later`, `CDDL-1 or later`, after a WITH,
+  in a compound): true since PR #217 (`ruleread.tag_inexact` judged the ID
+  before the grant, which `resolve()` refuses), false as the argument now.
+  The rule judges the expression with its grant, not `leading + "+"`
+  (which is malformed after a WITH).
+- **Decisions** (maintainer, 2026-11-17): item 20 is not built (the
+  argument and a field read a grant inside an expression since the
+  compound reader; a tag refuses it: `MIT AND GPL-2.0 or later AND
+  Apache-2.0`, `GPL-2.0 or later OR MIT`; 0 of 642 values); item 50's
+  `disambiguate_whole` stays (it reads no corpus value; `resolve()` reads
+  no prose).
+- **Cost**: a refused value pays the usual no-answer path. `"GPL-2.0" +
+  "-_" * 25,000 + " or later"` as a tag took 0.09 s on `main` (answered at
+  the grant) and 0.77 s now, the time `main` takes for the same run with no
+  grant; it is linear (5,000 to 40,000 pairs: 0.17 to 1.2 s).
+- **Review** (independent, Opus, read-only): `dropguard.glued_marks`
+  judges the run by `dropped()` (not a list of marks: `>`, `#`, `}`, `\\`
+  and `...` were answered), and a licence listed after a grant is refused
+  also when another grant ends the value (`GPL-2.0 or later, ISC or
+  later`); a refusal warns `too few words for text` as `MIT or later?` does.
+- **Left**: `disambiguate_whole` still answers a mark after white space or
+  prose after a grant where `resolve()` refuses (`GPL-2.0 or later -`,
+  `GPL-2.0 or later, see COPYING`); a field `GPL-2.0 or later-2.1` is read;
+  a tag still answers `GPL-2.0 only, ISC` and `(MIT OR GPL-2.0) only`
+  (`lists_after_grant` reads an "or" grant only); the argument
+  `GPL-2.0 or later, GPL-3.0 or later` answers `MPL-1.1` by name (name
+  tier); `GPL-2.0 WITH Classpath-exception-2.0-- or later` is refused and
+  the argument falls to the text tier (0.58, another licence);
+  `markers._resolve_gpl_or_later` and `_detect_license_mentions` read a
+  grant of any subject (item 52).

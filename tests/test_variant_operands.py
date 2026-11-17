@@ -138,18 +138,24 @@ def test_every_form_the_option_decided_is_marked(
 @pytest.mark.parametrize(
     ("value", "expression"),
     [
-        ("MIT OR GPL-2.0 only", "GPL-2.0-only OR MIT"),
+        ("MIT OR GPL-2.0 only", None),
+        ("MIT AND GPL-2.0 only", None),
+        ("LGPL-2.0 AND GPL-2.0 only", None),
+        ("GPL-2.0 only OR MIT", None),
+        ("GPL-2.0 only", "GPL-2.0-only"),  # one licence: its "only" is stated
     ],
 )
-def test_a_tag_reads_an_only_after_an_operand_of_a_list(
-    detector: LicenseDetector, value: str, expression: str
+def test_a_tag_refuses_an_only_after_an_operand_of_a_list(
+    detector: LicenseDetector, value: str, expression: str | None
 ) -> None:
-    """BUG: the argument and a field refuse these (a word of several words in
-    one operand), a tag answers them as main does; the channels must agree."""
+    """The argument and a field refuse these (a word of several words in one
+    operand), and a tag does now: the "only" of one operand is no reading of
+    the list, and an answer would state a variant the other operand did not
+    (roadmap item 52, flipped from a pin of main)."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         found = detector.detect(text=CHANNELS["tag"](value), variant="auto")
-    assert [r["expression"] for r in found[:1]] == [expression]
+    assert [r["expression"] for r in found[:1]] == ([expression] if expression else [])
 
 
 @pytest.mark.parametrize(

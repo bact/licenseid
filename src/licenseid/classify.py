@@ -21,7 +21,7 @@ import bisect
 import os
 import re
 
-from licenseid.dropguard import dropped
+from licenseid.dropguard import dropped, trailing_joiners
 from licenseid.normalize import DASHES, strip_comment_prefixes
 
 # The phrases that grant "or any later version", the one detector for prose:
@@ -168,15 +168,28 @@ def grant_head(before: str) -> str | None:
     """*before*, the text before the "or" of a declared grant, without the
     white space, "(" or "[" and dashes right before the "or"; None if none
     stands there ("MIT,or later") or a dash joins two words ("GPL-2.0-or
-    later"). A dash between words is a separator. The one rule of
+    later"). A dash between words is a separator, and so is one dash or
+    underscore glued to the head ("GPL-2.0- or later"); a run of two or more
+    stays with the head ("GPL-2.0-- or later"), for the loose reading to
+    refuse as dropped characters. The one rule of
     this gap: ``looseid.declared_grant_id_text``, ``looseid.before_grant``
     and a tag's grant (:func:`grant_follows`, :func:`dash_gap`)."""
     if not before or not (before[-1].isspace() or before[-1] in "([" + DASHES):
         return None
+    if _glued_run(before):
+        return before.rstrip().rstrip("([").rstrip()
     word = before.rstrip(DASHES)
     if word != before and not word[-1:].isspace():
         return None  # "GPL-2.0-or later": a dash inside a word
     return before.rstrip().rstrip("([").rstrip().rstrip(DASHES).rstrip()
+
+
+def _glued_run(before: str) -> bool:
+    """Whether *before*, the text before the "or" of a grant, ends in a run of
+    two or more dashes and underscores glued to a letter or digit, white space
+    and "(" or "[" aside: a character dropped, not a separator."""
+    core = before.rstrip().rstrip("([").rstrip()
+    return bool(trailing_joiners(core, least=2))
 
 
 def dash_gap(gap: str) -> bool:
@@ -199,6 +212,8 @@ def _kept(gap: str) -> bool | None:
     comment prefix taken off: ``resolve()`` never sees a line break."""
     marks = grant_head(gap)
     lines = _RE_LINE_BREAK.split(gap)
+    if _glued_run(f"x{lines[0]}"):  # "x": the ID's last character
+        return None
     if marks is not None and len(lines) > 1:
         marks = grant_head(f" {strip_comment_prefixes(lines[-1])} ")  # a break
     return None if marks is None or dropped(f"x{marks}") else True

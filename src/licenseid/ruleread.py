@@ -18,10 +18,14 @@ def rule_read(db: ListLookup, value: str) -> bool:
     return resolution["expression"] is not None and not is_exact(resolution)
 
 
-def tag_inexact(db: ListLookup, leading: str, granted: str, expression: str) -> bool:
+def tag_inexact(db: ListLookup, granted: str, expression: str) -> bool:
     """Whether a tag is not exact. A tag is judged by the expression it
-    answers, *leading*, not by the words after it on its line (a comment
-    closer, another tag, prose): "only" before an operator (*expression*
-    differs from *granted*) drops a licence, else a rule read the expression
-    (``GPL2+``, ``GPLv2 or later``: the ID before a grant, judged alone)."""
-    return expression != granted or rule_read(db, leading)
+    answers, *granted* (the leading expression with the grant after it
+    applied: ``LGPLv2+`` for ``LGPLv2 or later``), not by the words after it
+    on its line (a comment closer, another tag, prose): "only" before an
+    operator (*expression* differs from *granted*) drops a licence, else a
+    rule read the expression (``GPL2+``, ``GPLv2 or later``). The grant is
+    judged with its ID: a cut version is read only as granted
+    (``resolve()``: ``version_spelling``), so a value written ``LGPLv2 or
+    later`` is no ``LGPL-2.0-or-later`` as written."""
+    return expression != granted or rule_read(db, granted)
