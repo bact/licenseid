@@ -281,16 +281,16 @@ IDs it gives the page to. Any other row needs a count of packages.
 
 | Key | ID | Source | Packages | The List gives the page to |
 | --- | --- | --- | --- | --- |
-| `aws.amazon.com/apache2.0` | `Apache-2.0` | <https://aws.amazon.com/apache-2-0/> | 5 | — |
-| `eclipse.org/org/documents/epl-2.0/epl-2.0` | `EPL-2.0` | <https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.txt> | 5 | — |
-| `eclipse.org/org/documents/epl-v10` | `EPL-1.0` | <https://www.eclipse.org/org/documents/epl-1.0/> | 5 | — |
+| `aws.amazon.com/apache2.0` | `Apache-2.0` | <https://aws.amazon.com/apache-2-0/> | 5 | none |
+| `eclipse.org/org/documents/epl-2.0/epl-2.0` | `EPL-2.0` | <https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.txt> | 5 | none |
+| `eclipse.org/org/documents/epl-v10` | `EPL-1.0` | <https://www.eclipse.org/org/documents/epl-1.0/> | 5 | none |
 | `mozilla.org/mpl/2.0` | `MPL-2.0` | <https://www.mozilla.org/MPL/2.0/> | — | `MPL-2.0`, `MPL-2.0-no-copyleft-exception` |
-| `openjdk.java.net/legal/gplv2+ce` | `GPL-2.0-with-classpath-exception` | <https://openjdk.org/legal/gplv2+ce.html> | 6 | — |
-| `opensource.org/license/cpl1-0` | `CPL-1.0` | <https://opensource.org/license/cpl-1-0> | 3 | — |
-| `opensource.org/license/mit-license` | `MIT` | <https://opensource.org/license/mit> | 17 | — |
+| `openjdk.java.net/legal/gplv2+ce` | `GPL-2.0-with-classpath-exception` | <https://openjdk.org/legal/gplv2+ce.html> | 6 | none |
+| `opensource.org/license/cpl1-0` | `CPL-1.0` | <https://opensource.org/license/cpl-1-0> | 3 | none |
+| `opensource.org/license/mit-license` | `MIT` | <https://opensource.org/license/mit> | 17 | none |
 | `opensource.org/license/mpl-2-0` | `MPL-2.0` | <https://opensource.org/license/MPL-2.0> | — | `MPL-2.0`, `MPL-2.0-no-copyleft-exception` |
 | `opensource.org/license/ofl-1-1` | `OFL-1.1` | <https://opensource.org/license/OFL-1.1> | — | `OFL-1.1`, `OFL-1.1-no-RFN`, `OFL-1.1-RFN` |
-| `repository.jboss.org/licenses/apache-2.0` | `Apache-2.0` | <https://repository.jboss.org/licenses/apache-2.0.txt> | 9 | — |
+| `repository.jboss.org/licenses/apache-2.0` | `Apache-2.0` | <https://repository.jboss.org/licenses/apache-2.0.txt> | 9 | none |
 | `scripts.sil.org/cms/scripts/page?item_id=ofl_web` | `OFL-1.1` | <https://scripts.sil.org/cms/scripts/page.php?item_id=OFL_web> | — | `OFL-1.1`, `OFL-1.1-no-RFN`, `OFL-1.1-RFN` |
 
 ## IDs joined by a slash

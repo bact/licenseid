@@ -431,7 +431,7 @@ beside `GNU General Public License v2.0` turned `GPL-2.0-only` into
 
 Planned and measured on `main` da544cb with a copy of the real database
 (SPDX List 3.29.0). No answer of the library moves: tools, tests and notes.
-This PR has no number yet: add it when it is opened.
+PR #223.
 
 - **Item 35, `exclude` read only by Tier 1** (PR #211): verbatim MIT,
   Apache-2.0, BSD-2-Clause and 0BSD texts with `exclude=[ID]` no longer list

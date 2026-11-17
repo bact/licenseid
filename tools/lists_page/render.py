@@ -14,6 +14,7 @@ from collections import Counter
 from collections.abc import Iterable, Sequence
 from typing import Any, Final
 
+from licenseid import LicenseDatabase
 from licenseid.resolvefirst import EXACT_CATEGORIES
 from licenseid.resolvertypes import Category
 from licenseid.trovenames import TROVE_NAMES, TroveEntry
@@ -258,12 +259,12 @@ def _trove_row(
     )
 
 
-def _owners(db: Any, key: str) -> str:
+def _owners(db: LicenseDatabase, key: str) -> str:
     owners = list_owners(db, key)
-    return ", ".join(_code(owner) for owner in owners) if owners else "—"
+    return ", ".join(_code(owner) for owner in owners) if owners else "none"
 
 
-def _urls(db: Any) -> str:
+def _urls(db: LicenseDatabase) -> str:
     pages = _object("licenseid.resolveurl.ID_PAGES")
     aliases = _object("licenseid.resolveurl.URL_ALIASES")
     parts = [

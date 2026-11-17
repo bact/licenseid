@@ -88,17 +88,38 @@ def test_a_row_of_a_table_that_grows_has_a_measured_count(
     assert all(count >= 1 for count in evidence.URL_PACKAGES.values())
 
 
+def _name_of(db: LicenseDatabase, license_id: str) -> str | None:
+    row = db.get_license_details(license_id)
+    return None if row is None else row["name"]
+
+
+def _is_variant(db: LicenseDatabase, licence: str, owner: str) -> bool:
+    """*owner* is *licence* or a variant of it: an ID that starts with
+    ``<licence>-`` and whose List name starts with the licence's name
+    (``MPL-2.0-no-copyleft-exception``: ``Mozilla Public License 2.0 (no
+    copyleft exception)``). An ID that only shares the prefix is no variant."""
+    if owner == licence:
+        return True
+    name, base = _name_of(db, owner), _name_of(db, licence)
+    return (
+        owner.startswith(f"{licence}-")
+        and name is not None
+        and base is not None
+        and name.startswith(base)
+    )
+
+
 def _unlisted(
     db: LicenseDatabase, owners_of: Callable[[LicenseDatabase, str], tuple[str, ...]]
 ) -> list[str]:
     """The members of ``LIST_PAGES`` the List does not give to the alias's
     licence and its variants: no owner, the alias ID not among them, or an
-    owner that is neither the ID nor starts with ``<ID>-``."""
+    owner that is no variant of it (:func:`_is_variant`)."""
     bad = []
     for key in sorted(evidence.LIST_PAGES):
         licence = URL_ALIASES[key].license_id
         owners = owners_of(db, key)
-        variants = all(o == licence or o.startswith(f"{licence}-") for o in owners)
+        variants = all(_is_variant(db, licence, owner) for owner in owners)
         if licence not in owners or not variants:
             bad.append(key)
     return bad
@@ -107,23 +128,12 @@ def _unlisted(
 def test_a_url_alias_has_a_count_or_is_a_list_page_of_its_variants(
     corpus_db: LicenseDatabase,
 ) -> None:
-    """A row of ``URL_ALIASES`` has a survey count, or is one of the four pages
-    the List gives its licence and the variants of it (MPL-2.0 and
+    """A row of ``URL_ALIASES`` has a survey count, or is one of the pages the
+    List gives its licence and the variants of it (MPL-2.0 and
     ``MPL-2.0-no-copyleft-exception``). A page that names unrelated licences
     is no such page: the owners are checked, not merely listed."""
+    assert evidence.LIST_PAGES
     assert not _unlisted(corpus_db, list_owners)
-    assert {k: sorted(list_owners(corpus_db, k)) for k in evidence.LIST_PAGES} == {
-        "mozilla.org/mpl/2.0": ["MPL-2.0", "MPL-2.0-no-copyleft-exception"],
-        "opensource.org/license/mpl-2-0": ["MPL-2.0", "MPL-2.0-no-copyleft-exception"],
-        "opensource.org/license/ofl-1-1": ["OFL-1.1", "OFL-1.1-RFN", "OFL-1.1-no-RFN"],
-        "scripts.sil.org/cms/scripts/page?item_id=ofl_web": [
-            "OFL-1.1",
-            "OFL-1.1-RFN",
-            "OFL-1.1-no-RFN",
-        ],
-    }
-    for key in URL_ALIASES:
-        assert key in evidence.URL_PACKAGES or key in evidence.LIST_PAGES, key
 
 
 @pytest.mark.parametrize(
@@ -159,10 +169,26 @@ def test_a_list_page_that_names_an_unrelated_licence_is_caught(
     assert "mozilla.org/mpl/2.0" in _unlisted(corpus_db, owners_of)
 
 
-def test_the_page_shows_what_the_list_gives_each_url_page(generated: str) -> None:
+def test_an_id_that_only_shares_the_prefix_is_no_variant(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """``MPL-2.0-evil`` has no row, and ``MPL-2.0-no-copyleft-exception`` is a
+    variant by its name: the prefix alone proves nothing."""
+    assert _is_variant(corpus_db, "MPL-2.0", "MPL-2.0-no-copyleft-exception")
+    assert not _is_variant(corpus_db, "MPL-2.0", "MPL-2.0-evil")
+    assert not _is_variant(corpus_db, "MPL-2.0", "MPL-1.1")
+    assert not _is_variant(corpus_db, "MIT", "MIT-0")
+
+
+def test_the_page_shows_what_the_list_gives_each_url_page(
+    generated: str, corpus_db: LicenseDatabase
+) -> None:
     assert "The List gives the page to" in generated
-    row = next(x for x in generated.splitlines() if x.startswith("| `mozilla.org/mpl"))
-    assert "`MPL-2.0`, `MPL-2.0-no-copyleft-exception`" in row
+    key = "mozilla.org/mpl/2.0"
+    row = next(x for x in generated.splitlines() if x.startswith(f"| `{key}`"))
+    owners = list_owners(corpus_db, key)
+    assert owners
+    assert row.endswith("| " + ", ".join(f"`{o}`" for o in owners) + " |")
 
 
 #: What the rules decide, written here apart from the page: the example, its

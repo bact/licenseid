@@ -472,6 +472,14 @@ Left over from the fix of item 48 (2026-11-09, resolved: Tier 0 asks
 and the parity corpus: the whole input moved 6 times, a quoted INI field
 190 times (all but 7 gained an answer).
 
+Closed, so not listed below: the no-section `license = "MIT OR ISC"`
+(PR #219: no answer, `too few words for text`), `looseid.disambiguate_whole`
+(decided 2026-11-17: it stays, PR #221 restricted it), and the partial
+harness database (2026-11-18; PR #223); see
+[`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
+
+Open:
+
 - **`markers.resolve_license_value` and `_first_resolved`** still hold a
   reader of their own for a tag and a field (`MIT OR MirOS` order, a title
   and an alias are not read by a tag); route them through `resolve()` once
@@ -487,12 +495,6 @@ and the parity corpus: the whole input moved 6 times, a quoted INI field
   (`MIT`, inexact; under 10 words it has no answer): only a word ending in
   "+" under 10 words is refused, so a README line with `C++` keeps its
   answer.
-
-Closed: the no-section `license = "MIT OR ISC"` (PR #219: no answer, `too few
-words for text`), `looseid.disambiguate_whole` (decided 2026-11-17: it stays,
-PR #221 restricted it), and the partial harness database (2026-11-18;
-PR #223); see
-[`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
 
 - Impact 2, Risk 2, Effort 3.
 
