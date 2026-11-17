@@ -35,7 +35,7 @@ from typing import Final
 from licenseid.dropguard import marks_at_end, trim_end_mark
 from licenseid.exprcanon import unbracketed
 from licenseid.exprtokens import RE_OPERATOR, WHITE_SPACE, is_white_space
-from licenseid.hiddenchars import space_out_hidden, strip_hidden
+from licenseid.hiddenchars import space_out_hidden, strip_hidden, strip_plain_format
 from licenseid.listlookup import ListLookup
 from licenseid.listsource import GivenDatabase, choose_list
 from licenseid.quotes import ended_quote, unquote
@@ -222,12 +222,13 @@ def _read(
         found.floor = "separator"
         shown = spaced
     text, start = _prepared(shown, found)
+    text, start, judged = _trimmed_inside(shown, text, start, found)
     start += lead
     if not text or len(text) > MAX_EXPRESSION_CHARS:
         found.category, found.steps = "unresolved", []  # nothing was read
         found.reason = too_long(len(text)) if text else EMPTY
         return found, [], False
-    found.reason = _refusal(shown)  # before any reader drops a character
+    found.reason = _refusal(judged)  # before any reader drops a character
     if found.reason is not None:
         found.category, found.steps = "unresolved", []  # no step was taken
         return found, [], False
@@ -236,6 +237,31 @@ def _read(
     if read[0].expression is None and read[0].reason is None:
         return _ended(db, text, start, ending, lists) or read
     return read
+
+
+def _trimmed_inside(
+    shown: str, text: str, start: int, found: Found
+) -> tuple[str, int, str]:
+    """*text*, which starts at *start* in *shown* and was unquoted, without
+    the plain format characters at its ends (``"MIT\u200b"``), as a ``trim``
+    step after the ``unquote`` step, and where it starts; and *shown* as
+    :func:`_refusal` is to judge it, without them. The closing mark stands
+    beyond such a character, as the end of the value does beyond one outside
+    the marks, so it hides nothing; a bidi control or a control character
+    there stays refused. All three are given back as they were when no
+    quote marks were taken off or no character is left off."""
+    if not any(s["kind"] == "unquote" for s in found.steps):
+        return text, start, shown
+    inner, offset = strip_plain_format(text)
+    if inner == text or (
+        any(s["kind"] == "separator" for s in found.steps)
+        and marks_at_end(inner) is not None
+    ):  # an end mark after the quotes and one inside: two marks, refused
+        return text, start, shown
+    found.steps.append(step("trim", True, text, inner, "invisible characters"))
+    found.floor = "separator"  # characters were dropped: a rule of the resolver
+    judged = shown[:start] + inner + shown[start + len(text) :]
+    return inner, start + offset, judged
 
 
 def _read_text(

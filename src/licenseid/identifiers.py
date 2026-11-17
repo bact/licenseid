@@ -38,6 +38,7 @@ from licenseid.exprtokens import (
     closing_brackets_end,
     continues_after,
     continues_word,
+    expression_tokens,
     is_license_ref,
     licence_after,
     token_end,
@@ -627,9 +628,8 @@ def _is_expression(identifier: str) -> bool:
 
 def _normalize_expression(expression: str, db: ListLookup | None = None) -> str:
     """Parses and normalises an SPDX License Expression."""
-    # RE_TOKEN takes an ID whole, so "or" inside GPL-2.0-or-later or a
-    # LicenseRef-* name is never an operator.
-    tokens = RE_TOKEN.findall(expression)
+    # An ID is taken whole, "or" in GPL-2.0-or-later or LicenseRef-* is no operator.
+    tokens = expression_tokens(expression)
 
     # 1. Pre-process to attach "+" to identifiers
     # This ensures "GPL-2.0" "+" becomes "GPL-2.0+" before normalization

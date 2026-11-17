@@ -227,7 +227,7 @@ REFUSED = [
     (f" {RLI}MIT", "U+2067"),
     (f"M{ZWSP}IT", "U+200B"),
     (f"MIT{ZWSP}x", "U+200B"),
-    (f'"MIT{ZWSP}"', "U+200B"),
+    # ``"MIT\u200b"`` was refused here; read now (tests/test_hidden_in_quotes.py)
     (f"MIT OR{RLO} Apache-2.0", "U+202E"),
     (f"MIT{ZWSP}{ZWSP}OR ISC", "U+200B"),  # touches no white space
     (f"MIT OR{RLO} ISC", "U+202E"),  # a bidi control is no space

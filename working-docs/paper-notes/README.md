@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -26,7 +26,7 @@ the older files stop at 2026-10-07 (v0.4.3), and `ai-sessions-0-5-0.md` at
 | File | Content |
 | --- | --- |
 | [system-design.md](system-design.md) | Tiers, scoring, normalisation order, database gate, caches; rejected paths |
-| [results-and-findings.md](results-and-findings.md) | Datasets, accuracy, speed, technical findings (RapidFuzz, SQLite, SPDX, streams); what real PyPI values look like and what the 0.7.0 rules read (3.5 to 3.7); one answer for a whole input, and where text matching stops, CJK included (3.8); the unstated variant of a bare ID and `EXACT` by list (3.9) |
+| [results-and-findings.md](results-and-findings.md) | Datasets, accuracy, speed, technical findings (RapidFuzz, SQLite, SPDX, streams); what real PyPI values look like and what the 0.7.0 rules read (3.5 to 3.7); one answer for a whole input, and where text matching stops, CJK included (3.8); the unstated variant of a bare ID and `EXACT` by list (3.9); stray marks, hidden characters and escapes around a declared value (3.10) |
 | [process-and-validity.md](process-and-validity.md) | Process lessons in the repo; threats to validity; open questions; future work |
 | [history.md](history.md) | Timeline, releases, metrics, complexity ratchets, SBOM chronology |
 | [ai-sessions-early.md](ai-sessions-early.md) | Human–AI sessions, July to mid-September: decisions, mistakes, patterns |

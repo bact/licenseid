@@ -199,3 +199,19 @@ def test_a_compound_names_the_parser_as_a_component(
     """The parser that read the expression is listed; a single value, none."""
     assert resolve("MIT OR ISC", corpus_db)["components"] == [parser_info()]
     assert not resolve("MIT", corpus_db)["components"]
+
+
+@pytest.mark.parametrize("operator", ["OR", "AND"])
+def test_a_refused_compound_still_lists_the_operands_it_read(
+    corpus_db: LicenseDatabase, operator: str
+) -> None:
+    """No answer for the whole, an answer for each operand: a consumer may
+    apply its own policy (``GPL-2.0-only OR Commercial``). The tool does not,
+    for OR no more than for AND (``docs/resolve.md``)."""
+    got = resolve(f"GPL-2.0-only {operator} Commercial", corpus_db)
+    assert got["expression"] is None
+    assert got["reason"] == "operand not resolved: Commercial"
+    assert [(o["text"], o["expression"], o["category"]) for o in got["operands"]] == [
+        ("GPL-2.0-only", "GPL-2.0-only", "exact"),
+        ("Commercial", None, "unresolved"),
+    ]
