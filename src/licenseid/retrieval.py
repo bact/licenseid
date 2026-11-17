@@ -162,14 +162,16 @@ def hinted_candidates(
     given twice, is added once.
 
     Each carries its own text, so it ranks on its similarity, for the first
-    :data:`MAX_HINTS_WITH_TEXT` hints given (a set in sorted order); a later
-    one, and a row with no text (a deprecated ID kept as written), has none
-    and scores 0. The detector adds them after the markers and the
-    mixed-content search, so a hint never counts towards that search's gate
-    and never replaces a marker candidate."""
+    :data:`MAX_HINTS_WITH_TEXT` hints that name a row (a set in sorted order;
+    a duplicate or an ID with no row uses no place); a later one, and a row
+    with no text (a deprecated ID kept as written), has none and scores 0.
+    A later hint still costs its row and judged-flags lookups, as it must be
+    a candidate with its flags to rank last. The detector adds them after the
+    markers and the mixed-content search, so a hint never counts towards that
+    search's gate and never replaces a marker candidate."""
     seen = folded(present)
     hinted: list[CandidateMatch] = []
-    for position, h_id in enumerate(options.get("hint", ())):
+    for h_id in options.get("hint", ()):
         if fold_case(h_id) in seen:
             continue
         details = db.get_license_details(h_id)
@@ -179,7 +181,7 @@ def hinted_candidates(
         seen |= {fold_case(details["license_id"]), fold_case(h_id)}
         text = (
             db.get_search_text(details["license_id"])
-            if position < MAX_HINTS_WITH_TEXT
+            if len(hinted) < MAX_HINTS_WITH_TEXT
             else ""
         )
         hinted.append(
