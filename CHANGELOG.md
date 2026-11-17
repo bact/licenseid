@@ -50,7 +50,7 @@ and this project adheres to
   later` beside a GPL name gives `-only` with a warning, not `-or-later`
 - **Breaking:** a List name in marks (`*Apache License 2.0*`, `# Apache License
   2.0`) gets no answer, as `*MIT License*` had none (migrate: drop the marks)
-  ([#N])
+  ([#226])
 
 ### Fixed
 
@@ -83,6 +83,7 @@ and this project adheres to
 [#217]: https://github.com/bact/licenseid/pull/217
 [#220]: https://github.com/bact/licenseid/pull/220
 [#221]: https://github.com/bact/licenseid/pull/221
+[#226]: https://github.com/bact/licenseid/pull/226
 
 ## [0.8.4] - 2026-11-09
 

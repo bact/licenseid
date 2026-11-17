@@ -434,13 +434,14 @@ beside `GNU General Public License v2.0` turned `GPL-2.0-only` into
 The same marks round `MIT License` were already refused
 (`character dropped: U+002A`): a name a loose ID reads met the guard against
 dropped marks, a name of the List-name table did not. Decided (D5 a): refuse,
-precision over recall. PR number to add.
+precision over recall. PR 226.
 
-- **Built**: `dropguard.edge_marks` and `resolveleaf._refuse_wrapped_name`,
-  called in `_base` after the List-name lookup fails and before the
-  `+`/bracket early return. One guard in the resolver; no change to the name
-  tier: `detect` refuses through `resolvereason.refuses_text_match` (no
-  answer, warning `too few words for text` under 10 words).
+- **Built**: `dropguard.edge_marks`, `resolvereason.wrapped_name` and
+  `resolveleaf._refuse_wrapped_name`, called in `_base` after the List-name
+  lookup fails and before the `+`/bracket early return. One guard in the
+  resolver; no change to the name tier: `detect` refuses through
+  `resolvereason.refuses_text_match` (no answer, warning `too few words for
+  text` under 10 words; from 10 words on, see the review finding below).
 - **The rule** (the first plan, "strip everything that is no letter,
   separator, bracket or quote", was wrong: it refused `Apache License 2.0,`,
   `MIT License:` and `MIT License++`, and missed `- Apache License 2.0`):
@@ -477,9 +478,9 @@ precision over recall. PR number to add.
   (35 of them 10 words or more), 7 went to another licence (all the ESA-PL
   name), 2115 stayed; with no bar (the top of the API list) 84 went to
   another licence. `main` answered another licence for 1 (`N*`). Now
-  `detector._short_text_refused` returns `namehits.refusal_answer` for a
-  refused value that is a listed name in marks
-  (`resolveleaf.wrapped_name`): no answer from 10 words on, and under 10 the
+  `detector._short_text_refused` asks `resolvereason.no_text_answer`: a
+  refused value that is a listed name in marks (`resolvereason.wrapped_name`,
+  the guard's own test) has no answer from 10 words on, and under 10 the
   `too few words for text` warning as before. All 5664 values have no answer,
   with or without the bar; 0 another licence; the 35 inexact right answers
   are lost (precision over recall, as under 10 words). Any other refused

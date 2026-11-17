@@ -29,7 +29,6 @@ from licenseid.dropguard import (
     code_points,
     dropped,
     dropped_words,
-    edge_marks,
     ends_in_ref,
     joined_marks,
     trailing_joiners,
@@ -55,6 +54,7 @@ from licenseid.resolvereason import (
     after_space,
     on_reference,
     stated_twice,
+    wrapped_name,
 )
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
@@ -569,20 +569,6 @@ def _base(
     if lost:
         raise _Dropped(text, lost, license_id, words=True)
     return license_id, _spelling(text, license_id)
-
-
-def wrapped_name(db: ListLookup, text: str) -> tuple[str, str] | None:
-    """The listed ID and the marks (each once) of *text* when it is a listed
-    name of one ID with marks round it (``*Apache License 2.0*``,
-    ``# Apache License 2.0``), else None. The marks say something the name
-    does not (see :func:`licenseid.dropguard.edge_marks`); a text match would
-    drop them in silence, so ``detect`` leaves such a value without one."""
-    cut = edge_marks(text)
-    if cut is None:
-        return None
-    core, marks = cut
-    ids = db.get_active_ids_by_name().get(core.casefold(), [])
-    return (ids[0], "".join(dict.fromkeys(marks))) if len(ids) == 1 else None
 
 
 def _refuse_wrapped_name(db: ListLookup, text: str) -> None:
