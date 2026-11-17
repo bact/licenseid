@@ -94,11 +94,14 @@ page](lists.md):
   a bidirectional control to reorder. A bidi control at the *start*
   (`\u202eMIT`, which shows as `TIM`), a hidden character anywhere inside
   (`M\u200bIT`, `MIT\u200bOR ISC`), a NUL (a sign of binary data) and a value
-  of nothing else are still refused (`control or format character`). Inside,
-  a format character that is no bidi control and touches white space is that
-  white space (`MIT OR\u200b ISC`, `MIT\u200b OR ISC`): a second `trim` step
-  makes it a space, one code point for one, so the spans still index the raw
-  value;
+  of nothing else are still refused (`control or format character`). Inside
+  the quote marks around the whole value, a format character that is no bidi
+  control is left off the same way (`"MIT\u200b"`: `unquote`, then `trim`); a
+  bidi control, a control character or a NUL there stays refused. Inside the
+  value, a format character that is no bidi control and touches white space is
+  that white space (`MIT OR\u200b ISC`, `MIT\u200b OR ISC`): a second `trim`
+  step makes it a space, one code point for one, so the spans still index the
+  raw value;
   `operands[].span` indexes the raw value, so it counts the characters left
   off at the start. The 2,000 character limit counts the value after that;
 - licences joined by a `;` (`MIT ; Apache 2`) name two licences and not how
@@ -247,8 +250,11 @@ page](lists.md):
   compound (`BSD 3-Clause License OR MIT`: `operand of several words`);
 - a compound is all or nothing: its category is the weakest operand's,
   and one operand that names nothing leaves the whole unresolved, with a
-  `reason` naming it; a mark used as an operator (`MIT | ISC`) is
-  refused, with a `reason`;
+  `reason` naming it, for `OR` as for `AND`: dropping an alternative would
+  hand over an expression the author did not write (`GPL-3.0-only OR
+  Apache 2.0` would read as `GPL-3.0-only`, and a policy would deny a package
+  it should accept). The operands it did read stay in `operands` (see below);
+  a mark used as an operator (`MIT | ISC`) is refused, with a `reason`;
 - `detect()` holds a tag or a `license` field to the same List: it names only
   IDs on the List or `LicenseRef-*`, so `MIT OR Apache 2.0` gives no answer
   there, as here, nor does a tag with a licence right after a mark
@@ -417,6 +423,9 @@ indexes the raw `input` (`[start, end)` in code points; the trim and the
 quotes and brackets around the whole fall outside it), and the answer the
 same text would get alone (an operand is one word, so a loose ID with a space
 is no operand; a part of a value joined by `;`, below, is the exception). A
+refused compound keeps them: `GPL-2.0-only OR Commercial` has no `expression`,
+and `operands` holds `GPL-2.0-only` (`exact`) and `Commercial` (`unresolved`),
+so a consumer can apply its own rule; licenseid gives no partial answer. A
 compound adds the steps of the whole after those of its operands, in this
 order: `operator_case`, `whitespace`,
 `brackets`, `reorder` and `dedupe`, each with the expression before and
@@ -648,7 +657,9 @@ licences, or one that offers a choice), `url names an exception: <IDs>` (a page
 of exceptions only), `url names a licence with an exception: <licence IDs>,
 <exception IDs>` (each sorted; a page of both), `version ambiguous: <IDs>`
 (sorted: the IDs a cut ID may mean, `Apache-1` giving `Apache-1.0,
-Apache-1.1`; cut at 60 characters), `parse failed: <the parser's
+Apache-1.1`; cut at 60 characters; given only when the cut is the value's first
+fault: `LGPL-2 WITH Classpath-exception-2.0+` is `plus after an exception`, and
+`LGPLv2 or above`, prose, is `not found`), `parse failed: <the parser's
 message>`, `mismatched brackets` (a bracket pairs only with the same kind:
 `(MIT]`), `too many operators` (over 150) and `too deeply nested` (over 150). A
 value with a part of several words (`Apache License 2.0 OR MIT`) is no compound,
@@ -678,7 +689,9 @@ and `MIT License (MIT)-` are `character dropped: U+002D`, `"(MIT;)".` is
 (`"(MIT)" OR Zlib`) are `character dropped: U+0022`. One end mark after
 brackets, a trove name or path or a listed name is an ending (`(MIT).`, `Apache
 License 2.0.`). A `reason` keeps the `;` of the value it names (`not found:
-Foo;Bar baz`); only the diagnostic lines of the CLI turn it into `,`. A value
+Foo;Bar baz`); only the diagnostic lines of the CLI turn it into `,`. A lone
+bracket or slash at an end (`(MIT`, `MIT)`, `/MIT`, `MIT/`) is refused: it is a
+piece of a cut compound or list. A lone quote mark is read (`"MIT`). A value
 that is only quote marks, with or without an ending or a `+` (`"".`, `""+`), is
 `empty`.
 
@@ -702,5 +715,9 @@ marks (`"MIT".`, `'MIT';`) is an ending: a `separator` step comes first, then
 `unquote`. The marks may be on one end only (`MIT".`, `Apache-2.0'.`). Two
 marks (`"MIT"..`), or a mark inside the quote marks as well, even behind a
 bracket (`"MIT.".`, `"(MIT;)".`), are refused.
+A format character inside the marks, at an end of the value they quote, is left
+off after `unquote`, as it is outside them (`"MIT\u200b"`: a `trim` step, see
+the characters at the ends above); with a mark inside as well as one after the
+quotes (`"MIT.\u200b".`) the value is still refused.
 An apostrophe inside a word (`AMD's`) is not a
 mark.

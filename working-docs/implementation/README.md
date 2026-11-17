@@ -150,6 +150,7 @@ yet started, see [`../design/`](../design/).
 | 2026-10-06 | [cross-platform.md](cross-platform.md) | record | The Windows work of PR #77: the 0.4.0 URI bug, the path and URI rules, how tests handle Windows, and what a real Windows run has and has not confirmed. |
 | 2026-10-02 | [tech-debt-resolved.md](tech-debt-resolved.md) | record | The tech-debt roadmap's resolved items: what each was and what was done, moved out of the roadmap to keep it under the size limit. |
 | 2026-11-16 | [tech-debt-resolved-0-5.md](tech-debt-resolved-0-5.md) | record | The roadmap items resolved from 0.5.0 (2026-10-22) on, split from `tech-debt-resolved.md` at the size limit. |
+| 2026-11-17 | [tech-debt-resolved-0-9.md](tech-debt-resolved-0-9.md) | record | The roadmap items resolved from 2026-11-17 on, split from `tech-debt-resolved-0-5.md` at the size limit. |
 | 2026-10-22 | [release-process.md](release-process.md) | implemented (0.5.0) | How a release is cut: order, checks before the tag, traps seen in 0.5.0 |
 | 2026-10-30 | [pre-release-review.md](pre-release-review.md) | adopted (0.7.0) | Whole-release review before the tag: freeze, harness, read-only review, batched fixes, two gates |
 | 2026-10-27 | [declared-value-resolver.md](declared-value-resolver.md) | implemented (PR #97, 0.6.0 review) | `resolve()`: WITH, `LicenseRef-*`, malformed qualifiers, hidden characters, the declared "or later" reader on `OR_LATER_PHRASE`, and the build stamp that makes `update` rebuild an older database. |

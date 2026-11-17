@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -610,3 +610,29 @@ requests #211 and #212, the second open on this date).
   missing a reader over three review rounds; one reader of the input's
   words with a default of "not stated" took a probe's invariant breaks from
   14 to 0 (`IMPL/item-52-variant-and-exact.md`, "Paths rejected").
+
+### 3.10 Stray marks and escapes around a declared value (2026-11-17)
+
+Roadmap items 50, 51 and 54 (`ROAD` items 50, 51, 54;
+`IMPL/tech-debt-resolved-0-9.md`, "Items 50, 51, 54"). Measured on
+`main` 50017cb (SPDX List 3.29.0) with `tools/` probes over 642 distinct
+declared values on four channels: the PyPI sample (462 values, 10,000
+projects), 172 inputs of the `sbomminbench` registry corpus and the 520
+`value` keys of the golden set.
+
+- A lone bracket or slash at an end of a value (`(MIT`, `MIT)`, `/MIT`,
+  `MIT/`, `GPL-2.0+)`) occurs in 0 of the 10,000 PyPI projects and in none
+  of the 172 registry values; only the golden parity corpus holds such
+  values (`(MIT`, `MIT*`, `#MIT`, `Apache 2.0?`, `Apache 2.0!`). A lone quote
+  mark (`"MIT`) is read; a bracket or a slash is a piece of a structure
+  (`(MIT OR Apache-2.0)`, `MIT/Apache-2.0`), so such a value stays refused
+  (`tests/test_stray_marks.py`).
+- A hidden character anywhere in a value: 3 values, all golden parity
+  (`MIT\x00`, `MIT\u200b`, `\u202eMIT`); none inside quote marks. A backslash in
+  a value: 0. Reading a plain format character inside the quotes
+  (`"MIT\u200b"`) is a symmetry with the value's ends, not a measured gain.
+- Reading TOML: the line-based reader skipped every basic string with a
+  backslash, so `license = "\"MIT\""` gave no value; decoding the TOML 1.0
+  escapes is a parser correctness fix, with 0 real values.
+- No tag line under `~/projects` (14,743 lines) glues a dash to a comment
+  closer; 2 glue a `)` (a Markdown comment idiom).

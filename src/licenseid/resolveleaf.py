@@ -294,7 +294,9 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
     licence, tail = Found(), Found()
     exception = _exception(db, exception_text, tail)
     plus = exception is None and _plus_on_exception(db, exception_text)
-    if (exception is None and not plus) or not _one(db, licence_text, licence):
+    if exception is None and not plus:
+        return False
+    if not _licence_of_with(db, licence_text, licence, text if plus else None):
         return False
     if plus and licence.expression is not None:
         found.category, found.reason = "malformed", after_exception(text)
@@ -307,6 +309,22 @@ def _with(db: ListLookup, text: str, found: Found) -> bool:
     found.expression = f"{licence.expression} WITH {exception}"
     found.candidates = [f"{c} WITH {exception}" for c in licence.candidates]
     return True
+
+
+def _licence_of_with(
+    db: ListLookup, text: str, licence: Found, plus_value: str | None
+) -> bool:
+    """:func:`_one` for the licence of a WITH. A cut version (``LGPL-2``) is
+    refused as ``version ambiguous`` only when it is the value's only fault:
+    with a "+" on the exception (*plus_value*, the whole value, else None) the
+    value is ``malformed`` for that, which comes first."""
+    try:
+        return _one(db, text, licence)
+    except _Ambiguous:
+        if plus_value is None:
+            raise
+        licence.category, licence.reason = "malformed", after_exception(plus_value)
+        return True
 
 
 def _plus_on_exception(db: ListLookup, text: str) -> bool:

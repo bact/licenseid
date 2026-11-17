@@ -205,6 +205,19 @@ def token_end(text: str, token: re.Match[str], kind: str) -> int:
     return token.end()
 
 
+def expression_tokens(expression: str) -> list[str]:
+    """The tokens of *expression* in order, as :data:`RE_TOKEN` reads them,
+    but a reference keeps the dashes and dots at its end
+    (:func:`token_end`): ``MIT OR LicenseRef-a-`` ends in ``LicenseRef-a-``,
+    not ``LicenseRef-a``, which is another reference."""
+    tokens = []
+    pos = 0
+    while (token := RE_TOKEN.search(expression, pos)) is not None:
+        pos = token_end(expression, token, token_kind(token[0]))
+        tokens.append(expression[token.start() : pos])
+    return tokens
+
+
 def is_license_ref(text: str) -> bool:
     """Whether *text* is one ``LicenseRef-*``, with its ``DocumentRef-*:`` if
     any, and nothing else."""

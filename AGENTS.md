@@ -75,7 +75,7 @@ in another module.
   names no row, `ambiguous_ids`; an "or later" grant exempts it),
   `quotes` (quote marks around a whole value,
   `「」` too), `dropguard` (what a loose reading must not drop),
-  `hiddenchars` (control and format characters off the ends).
+  `hiddenchars` (control and format characters off the ends, inside quotes too).
 - Resolver: `resolver` (value to expression and steps; types in
   `resolvertypes`), `resolveleaf` (one licence), `resolvecompound`,
   `resolvesemicolon` (`;`: listed, no operator), `resolveslash`,
@@ -94,7 +94,7 @@ in another module.
   `datadir`, `records` (rows), `spdxdata` (a release as data, standard
   library only), `releasesource`, `spdx_source`, `textinput` (bytes to
   text), `manifest` (the `license` field of package.json, pyproject.toml,
-  Cargo.toml, setup.cfg).
+  Cargo.toml, setup.cfg; a TOML basic string decoded, a literal one not).
 - CLI: `cli` (group, `main`), `cliinput` (one of file, value, `--text`,
   `--id`, `-`), `clidetect` (`detect`, `is-*`), `cliupdate` (`update`,
   `clear-cache`), `cliresolve`, `clicommon`, `output`, `console`, `usage`,
@@ -348,6 +348,9 @@ and `--json`) against these rules and checks the default output against the
   is no operator, so `detector._try_tier0_short_text` returns None for a
   value under 30 words that `resolve()` refuses with a "+" reason
   (`resolvereason.is_plus_refusal`; add new reasons to its constants).
+- Marks: a lone bracket or slash at an end (`(MIT`, `MIT)`, `/MIT`, `MIT/`) is
+  refused, a lone quote read (`tests/test_stray_marks.py`); a reference keeps
+  its trailing `-`/`.` in every channel (`exprtokens.expression_tokens`).
 - Cut ID: a bare major (the last number all digits) whose key has a sibling
   minor on the List names no row (`versionkey.ambiguous_ids`: `loose_id`
   gives None, `resolveleaf._base` raises `_Ambiguous`, reason `version

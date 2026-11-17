@@ -55,6 +55,9 @@ and this project adheres to
   looped cache link ([#209])
 - `detect()` on a text with one very long word is fast (60,000 characters of
   `the`: 20 s to 0.2 s) ([#216])
+- `"MIT\u200b"` and a TOML `"\"MIT\""` are read; a tag or field keeps
+  `LicenseRef-a-` in `MIT OR LicenseRef-a-` (refused before a `-->`); `LGPL-2
+  WITH ...+` and `LGPLv2 or above` give a clearer reason
 
 [#207]: https://github.com/bact/licenseid/pull/207
 [#208]: https://github.com/bact/licenseid/pull/208

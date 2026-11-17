@@ -77,7 +77,8 @@ declared values, SPDX expressions and the matching pipeline.
   - Package manifests are read for their `license` field, however small:
     `package.json` (with npm's old `license` object and `licenses` array),
     `pyproject.toml` (`license = "..."` or `license = {text = "..."}`, and
-    Poetry's), `Cargo.toml` and `setup.cfg`.
+    Poetry's; a TOML basic string is read with its escapes undone,
+    `"\"MIT\""`, a literal one as written), `Cargo.toml` and `setup.cfg`.
   - In other text, a `License:` line is read too: each distinct value once,
     the first 256 of them, and the first 48 licences that resolve.
 - **Hybrid matching pipeline**:
