@@ -22,6 +22,7 @@ from licenseid.errors import reason_detail
 from licenseid.exprtokens import RE_OPERATOR, WHITE_SPACE
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import WITH_OPERATOR
+from licenseid.namehits import refusal_answer
 from licenseid.quotes import encloses_nothing
 from licenseid.resolvefirst import MIN_TEXT_WORDS
 
@@ -106,9 +107,7 @@ def no_text_answer(db: ListLookup, text: str, words: int) -> "list[RawMatch] | N
     drop the marks in silence and could answer another licence of the same
     family (``*European Space Agency Public License ... (Type 1)*``). Else
     None: under that, ``too_short`` says why, and a longer value is text."""
-    if words >= MIN_TEXT_WORDS and wrapped_name(db, text) is not None:
-        return []
-    return None
+    return refusal_answer(words) if wrapped_name(db, text) is not None else None
 
 
 def ends_a_word_with_plus(text: str) -> bool:

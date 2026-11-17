@@ -29,6 +29,7 @@ from licenseid import LicenseDatabase, resolve
 from licenseid.detector import LicenseDetector
 from licenseid.dropguard import edge_marks
 from licenseid.listlookup import ListLookup
+from licenseid.quotes import CORNER_PAIRS
 from licenseid.resolveleaf import _Dropped, _refuse_wrapped_name
 
 #: ``value: reason`` of ``resolve()``, refused on every channel.
@@ -329,3 +330,11 @@ def test_the_edge_strip_is_linear_at_a_large_size(size: int) -> None:
     start = time.monotonic()
     edge_marks("*" * size + "Apache License 2.0" + "*" * size)
     assert time.monotonic() - start < slack(2.0)
+
+
+@pytest.mark.parametrize("mark", sorted(set(CORNER_PAIRS) | set(CORNER_PAIRS.values())))
+def test_every_corner_bracket_of_the_quote_reader_is_no_edge_mark(mark: str) -> None:
+    """``dropguard`` keeps the corner brackets by hand (``quotes`` imports it):
+    a pair added to ``quotes.CORNER_PAIRS`` must be kept at the edge too, or a
+    quoted name would be refused as a name in marks."""
+    assert edge_marks(f"{mark}Apache License 2.0") is None

@@ -148,20 +148,21 @@ def _without_grants(
     none (``Apache-1.1``) leaves them all: ``Apache License 1 or later``
     names another licence than the hit."""
     left = list(runs)
-    if license_id.endswith(_CARRIES_GRANT):
-        for grant in grants(raw):
-            if grant.version and grants_licence(grant, license_id):
-                at = next(
-                    (
-                        i
-                        for i, run in enumerate(left)
-                        if same_version(".".join(run), grant.version)
-                    ),
-                    None,
-                )
-                if at is not None:
-                    del left[at]
+    if not license_id.endswith(_CARRIES_GRANT):
+        return left
+    for grant in grants(raw):
+        if grant.version and grants_licence(grant, license_id):
+            _drop_first(left, grant.version)
     return left
+
+
+def _drop_first(runs: list[list[str]], version: str) -> None:
+    """Remove from *runs* the first run that is *version* (one written number
+    per grant)."""
+    for at, run in enumerate(runs):
+        if same_version(".".join(run), version):
+            del runs[at]
+            return
 
 
 def _is_cut(run: list[str], whole: list[str], written: list[list[str]]) -> bool:

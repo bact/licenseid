@@ -168,10 +168,9 @@ class DetectOptions(TypedDict, total=False):
     adds its licences as candidates after the rest (see
     ``licenseid.retrieval.hinted_candidates``): the first 50 with their
     text, and the three filters drop one as they drop a Tier 1 candidate.
-    ``variant``
-    acts on every input: it says what to answer where an ``-only`` and an
-    ``-or-later`` form are possible and the input does not state which
-    (:data:`Variant`)."""
+    ``variant`` acts on every input: it says what to answer where an
+    ``-only`` and an ``-or-later`` form are possible and the input does not
+    state which (:data:`Variant`)."""
 
     only_spdx: bool
     only_common: bool

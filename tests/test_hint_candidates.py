@@ -159,13 +159,16 @@ def test_only_the_first_hints_carry_their_text(db: LicenseDatabase) -> None:
     assert with_text == [True] * MAX_HINTS_WITH_TEXT + [False]
 
 
-def test_the_cap_counts_the_hints_given_not_the_ones_added(
+def test_the_cap_counts_the_hints_added_not_the_ones_given(
     db: LicenseDatabase,
 ) -> None:
-    """Unknown IDs use up places: it bounds the work by the list's head."""
-    hints = ["Nope-1.0"] * MAX_HINTS_WITH_TEXT + ["Rare-1.0"]
+    """An unknown ID or a duplicate uses no place: the real licences after
+    them still carry their text."""
+    hints = ["Nope-1.0"] * MAX_HINTS_WITH_TEXT + ["Rare-1.0", "rare-1.0"]
     got = hinted_candidates(db, DetectOptions(hint=hints), [])
-    assert [(c["license_id"], c["search_text"]) for c in got] == [("Rare-1.0", "")]
+    assert [(c["license_id"], c["search_text"]) for c in got] == [
+        ("Rare-1.0", "rare text")
+    ]
 
 
 # --- Cost: the text of a hint costs a Tier 2 pass ---
