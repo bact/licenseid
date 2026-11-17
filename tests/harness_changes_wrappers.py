@@ -15,11 +15,6 @@ _DROPPED = (
     "so too few words for text"
 )
 
-_PARTIAL = (
-    "the long-text fixture database holds no row for the deprecated ID, which "
-    "resolve() needs and the full List has (a harness artefact, not a loss)"
-)
-
 WRAPPER_CHANGES: dict[str, tuple[str, str]] = {
     "value/#MIT": (_NONE, _DROPPED),
     "value/Apache 2.0?": (_NONE, _DROPPED),
@@ -29,10 +24,4 @@ WRAPPER_CHANGES: dict[str, tuple[str, str]] = {
     "value/MIT*": (_NONE, _DROPPED),
     "value/MIT\x00": (_NONE, _DROPPED),
     "value/\u202eMIT": (_NONE, _DROPPED),
-    "id/GPL-2.0-only/id_deprecated": (_NONE, _PARTIAL),
-    "id/GPL-2.0-or-later/id_deprecated": (_NONE, _PARTIAL),
-    "id/LGPL-2.0-or-later/id_deprecated": (_NONE, _PARTIAL),
-    "id/LGPL-3.0-only/id_deprecated": (_NONE, _PARTIAL),
-    "id/AGPL-1.0-only/id_deprecated": (_NONE, _PARTIAL),
-    "id/GPL-3.0-or-later/id_deprecated": (_NONE, _PARTIAL),
 }

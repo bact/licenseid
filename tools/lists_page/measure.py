@@ -4,9 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """What the page measures instead of typing it: the PyPI projects that each
-row of a table reads, and the answer of ``resolve()`` to an example.
+row of a table reads, the answer of ``resolve()`` to an example and the IDs
+the List gives a URL page to.
 
-Both run on the corpus the tests use (the SPDX 3.29.0 List of
+Each runs on the corpus the tests use (the SPDX 3.29.0 List of
 ``tests/fixtures/license-list/`` and the sample of
 ``tests/fixtures/pypi_values_2026-10.tsv``), so the numbers are the same on
 every machine and never read the real cache."""
@@ -19,6 +20,7 @@ from typing import NamedTuple
 from licenseid import LicenseDatabase, resolve
 from licenseid.listlookup import fold_case
 from licenseid.resolvefirst import is_exact
+from licenseid.resolveurl import page_index_key
 
 # isort: off
 # tests/ is on sys.path only at run time (tools.golden.paths): pylint cannot
@@ -59,6 +61,14 @@ def answer_of(db: LicenseDatabase, value: str) -> Answer:
         resolution["expression"],
         resolution["category"],
         resolution["expression"] is not None and is_exact(resolution),
+    )
+
+
+def list_owners(db: LicenseDatabase, key: str) -> tuple[str, ...]:
+    """The IDs the List gives the page *key* to (a ``url_key``), the licences
+    then the exceptions, each in List order; empty for a page the List lacks."""
+    return tuple(
+        owner["id"] for owner in db.get_ids_by_url(page_index_key).get(key, ())
     )
 
 

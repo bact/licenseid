@@ -8,8 +8,9 @@ the packages that declare it.
 
 Every key is a key of the list it sits beside; ``tests/test_lists_page.py``
 fails on a key the list lacks. A row of ``ALIASES``, ``TITLES`` and
-``URL_ALIASES`` is added only with a count (the growth rule; the four URL
-pages in :data:`UNMEASURED_URLS` predate it).
+``URL_ALIASES`` is added only with a count (the growth rule). The four URL
+pages of :data:`LIST_PAGES` predate it: their evidence is the List, which
+the test reads (``measure.list_owners``), not a count typed here.
 
 ``*_SOURCES`` are Markdown. What can be measured is not typed here:
 ``measure`` counts the PyPI projects that each row of ``ALIASES``,
@@ -68,8 +69,12 @@ URL_PACKAGES: Final[dict[str, int]] = {
 }
 
 #: The pages of ``URL_ALIASES`` with no recorded count: pages the List gives
-#: a licence and its variants, kept before the growth rule.
-UNMEASURED_URLS: Final = frozenset(
+#: a licence and its variants (the alias ID and the IDs that start with
+#: ``<ID>-``), kept before the growth rule. A fifth row needs a count in
+#: :data:`URL_PACKAGES`: ``tests/test_lists_page.py`` checks each member
+#: against the List's owners, so this set cannot name a page the List does not
+#: give to the alias's licence and its variants.
+LIST_PAGES: Final = frozenset(
     {
         "mozilla.org/mpl/2.0",
         "opensource.org/license/mpl-2-0",

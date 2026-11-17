@@ -16,7 +16,7 @@ import harness_golden as hg
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from harness_changes import DETECT_CHANGES
-from harness_db import detector_for
+from harness_db import detector_for, harness_detector, value_detector
 
 
 def expected_for(kind: str) -> dict[str, tuple[str, str]]:
@@ -30,6 +30,25 @@ def test_the_slice_of_detect_is_the_golden(kind: str) -> None:
     assert current, kind
     report = hg.diff_report(golden, current, expected_for(kind))
     assert not report, "\n" + report
+
+
+@pytest.mark.parametrize(
+    ("kind", "full_list"),
+    [
+        ("value", True),
+        ("id", True),
+        ("name", True),
+        ("long", False),
+        ("short", False),
+        ("mixed", False),
+    ],
+)
+def test_the_declared_kinds_run_on_the_full_list(kind: str, full_list: bool) -> None:
+    """A deprecated ID has its row on the full List only: the ID and name kinds
+    ran on the long-text fixtures, which hold no row for it (roadmap item 50)."""
+    assert set(hg.KINDS) == {"value", "id", "name", "long", "short", "mixed"}
+    expected = value_detector() if full_list else harness_detector()
+    assert detector_for(kind) is expected
 
 
 @pytest.mark.benchmark

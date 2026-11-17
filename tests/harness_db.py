@@ -21,6 +21,9 @@ from licenseid.detector import LicenseDetector
 from licenseid.fingerprintstore import store_fingerprints
 from licenseid.normalize import normalize_text
 
+#: The golden kinds whose input is a declared value, an ID or a name.
+DECLARED_KINDS = ("value", "id", "name")
+
 _KEEP_ALIVE: list[object] = []
 
 
@@ -52,5 +55,8 @@ def value_detector() -> LicenseDetector:
 
 
 def detector_for(kind: str) -> LicenseDetector:
-    """The detector a golden *kind* runs on."""
-    return value_detector() if kind == "value" else harness_detector()
+    """The detector a golden *kind* runs on: the declared kinds (``value``,
+    ``id``, ``name``) on the full List, the text kinds (``long``, ``short``,
+    ``mixed``) on the long-text fixtures, where the other rows of the List
+    would add look-alikes the texts never had."""
+    return value_detector() if kind in DECLARED_KINDS else harness_detector()
