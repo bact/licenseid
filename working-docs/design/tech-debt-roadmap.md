@@ -34,8 +34,8 @@ from the work on item 43, and item 52 from the work on the upgrade of
 deprecated IDs in `py-spdx-license` (2026-11-14), item 53 from the work
 on item 40 (PR #207), item 54 from the review of `EXACT`, item 55 from
 the decision on `EXACT` and our own lists (2026-11-15). Items 51 (decided and
-pinned, 2026-11-17) and 56 (a hang in the CLI matrix, found 2026-11-16) are
-resolved.
+pinned, 2026-11-17), 53 (a known limit, 2026-11-18) and 56 (a hang in the CLI
+matrix, found 2026-11-16) are resolved.
 
 Open: the list below, in the order of its headings. Item 55 is built
 (PR #214, 2026-11-16); its leftovers stay open. Item 2 waits on an upstream
@@ -218,18 +218,17 @@ is not exact, though the same file is.
 
 ## 35. Small gaps in the API and in Tier 2 — Priority 9
 
-Found in review of item 22 (2026-10-02); `main` does the same:
+Found in review of item 22 (2026-10-02). Closed: `exclude` read only by
+Tier 1 (PR #211) and a deprecated row with no text answering a GPL README
+(PR #212); see
+[`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
+Open, `main` does the same:
 
-- `exclude` is read only by Tier 1 retrieval, so a verbatim licence text
-  still answers an excluded licence (the other options are documented as
-  read by ranking only).
 - A licence text repeated three times answers a licence it barely
   resembles: `LICENSE` (Apache-2.0) three times over gives `BSD-4-Clause`
   at 0.9025, with similarity 0.0968 and coverage 20.08 (review of PR #68).
-- A deprecated row the License List gives no text is still a Tier 2
-  candidate, matched with similarity and coverage 0 but ranked by its
-  markers: the README of a GPL-2.0-only project answers the deprecated
-  `GPL-2.0` at 0.855.
+  Measured again 2026-11-17: still so; the score is the marker floor
+  (`0.95 * 0.95`), so a BSD clause marker misfires.
 - Impact 1, Risk 2, Effort 3.
 
 ## 11. Probe-anchored windowing — Priority 15
@@ -332,7 +331,9 @@ Found in the review of 2026-11-02 to 11-03. The resolver, readers, BSD and
 short-text leftovers are in `match-resolve-0-8.md`, section 7. Done: the
 typed options, the lock-wait test, one long-text database and the `ruff
 format` check (PR #210), and the free-text rules of `exclude` and `hint`
-(PR #211); see `tech-debt-resolved-0-5.md`. Open:
+(PR #211); see `tech-debt-resolved-0-5.md`. Also done (2026-11-18): the
+condition words for empty input (right already) and the dev METADATA version
+(a line in `release-process.md`); see `tech-debt-resolved-0-9.md`. Open:
 
 - **Readers see `database: empty` during `update`** (1,074 errors over a
   13 s update with four reader threads; 0.6.0 does the same): the plan is a
@@ -362,16 +363,18 @@ format` check (PR #210), and the free-text rules of `exclude` and `hint`
   licence right after a mark (A-F6); it also refuses `MIT, Intel and
   others`, as the field reader does (the item ends at "and"). Belongs to
   the matching-rules redesign.
-- `is-*` on a file with several tags judges the top one only; the condition
-  words for empty input; a garbage `--db` is `unreadable` or `invalid`
-  depending on the path.
+- `is-*` on a file with several tags judges the top one only; a garbage
+  `--db` is `unreadable` or `invalid` depending on the path.
 - One API pass: `Resolver`, `Component` and `DetectOptions` are not in
   `licenseid.__all__` (A-F7: the names need a decision; `licenseid.Resolver`
   reads as a class and both are the same shape).
-- The METADATA of a dev build keeps `0.7.0-dev.0` as written (C4).
-- `test_db_ready.py` (`wal_copy_without_wal`) fails 6 cases under uv's
-  Python 3.14 (SQLite 3.43.2) on macOS, on `main` too (`unreadable` against
-  `empty`); CI's 3.14 passes. It depends on the SQLite version.
+- `test_db_ready.py` (`wal_copy_without_wal`, 6 cases: `unreadable` against
+  `empty`) and `test_db_ready_adversarial.py` (`damaged_fts_shadow_table`, 2
+  cases: `table license_index_data may not be dropped`) fail on `main` on
+  the local `licenseid310` (Python 3.10.18, SQLite 3.51.0), and the first
+  also under uv's Python 3.14 (SQLite 3.43.2) on macOS; CI passes. They
+  depend on the SQLite version, so every full local run shows these 8.
+  Open (2026-11-18).
 - `update --source packaged` sample outputs in the README are unverified
   against a built wheel: check them at the final release gate.
 - **A repeated-paragraph input ranks wrong** (not investigated): on the
@@ -469,10 +472,15 @@ Left over from the fix of item 48 (2026-11-09, resolved: Tier 0 asks
 and the parity corpus: the whole input moved 6 times, a quoted INI field
 190 times (all but 7 gained an answer).
 
-- **A file with no section** (`license = "MIT OR ISC"`, no `[metadata]`)
-  is no manifest, so the whole text goes to the name tier, which answers
-  `ISC`, inexact. `resolve()` refuses it (an `=`); a text that is a
-  `key = value` line could be read as that value.
+Closed, so not listed below: the no-section `license = "MIT OR ISC"`
+(PR #219: no answer, `too few words for text`), `looseid.disambiguate_whole`
+(decided 2026-11-17: it stays, PR #221 restricted it), the partial
+harness database (2026-11-18; PR #223), and a List name wrapped in
+marks answering exact (PR #226); see
+[`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
+
+Open:
+
 - **`markers.resolve_license_value` and `_first_resolved`** still hold a
   reader of their own for a tag and a field (`MIT OR MirOS` order, a title
   and an alias are not read by a tag); route them through `resolve()` once
@@ -481,15 +489,6 @@ and the parity corpus: the whole input moved 6 times, a quoted INI field
   `_try_tier0_short_text`) repeat the "+" refusals of `resolve()`; they
   return no result where the `resolve()` guard returns None (a warning), so
   removing them adds a `too few words for text` warning. Decide, then drop.
-- **`looseid.disambiguate_whole`** reads a bare deprecated ID and its prose
-  in the raw text for a value `resolve()` refuses (comment-wrapped grants,
-  `tests/test_readers_grants.py`). Measured 2026-11-17 on 642 distinct real
-  values (PyPI sample, sbomminbench, golden keys): none reaches it with a
-  reading `resolve()` refused, so it stays, not folded into `resolve()`
-  (which reads no prose); it refuses a mark glued to a grant's end. It still
-  answers where `resolve()` refuses a spaced mark or prose after a grant
-  (`GPL-2.0 or later -`, `GPL-2.0 or later, see COPYING`, a field's
-  `GPL-2.0 or later-2.1`).
 - **Two shapes of a wrapped name still answer** (known gaps of the fix of
   2026-11-18, recorded in
   [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md)):
@@ -502,10 +501,6 @@ and the parity corpus: the whole input moved 6 times, a quoted INI field
   (`MIT`, inexact; under 10 words it has no answer): only a word ending in
   "+" under 10 words is refused, so a README line with `C++` keeps its
   answer.
-- **The harness database is partial**: the long-text fixtures hold no
-  deprecated rows, so `GPL-2.0` (`id_deprecated`) has no answer there
-  (`tests/harness_changes_wrappers.py`); build the golden database from the
-  full List.
 
 - Impact 2, Risk 2, Effort 3.
 
@@ -556,23 +551,6 @@ each a decision:
   `deprecated_GPL-2.0-with-classpath-exception` gets no result; three
   identical-text GFDL ties stay exact and wrong (a tie problem).
 - Impact 2, Risk 2, Effort 3.
-
-## 53. A cut `-shm` file of a legacy WAL database kills the reader — Priority 12
-
-Found in review of the item 40 fix. SQLite maps the `-shm` file of a WAL
-database whatever `mmap_size` says. A database left in WAL mode by a version
-before 0.4.2 (until `update` runs `Connections.leave_wal`), with its `-shm`
-cut to 0 by another program (a `cp db*` over it), kills the reader with
-SIGBUS, and the parent on `close()`. It needs one held connection, a
-`reading()` block or a single `detect()` call: two separate `detect()` calls
-open fresh connections and answer normally (reproduced in review: `-shm` cut
-to 0, inside a block SIGBUS, outside a block fine).
-
-- **Fix**: measure first (is the reader's `-shm` cut realistic?); then refuse
-  a WAL file with a `-shm` in the readiness check, or open it with
-  `PRAGMA locking_mode=exclusive`, or leave it as a known limit in
-  `cross-platform.md`.
-- Impact 1, Risk 2, Effort 2.
 
 ## 54. A truncated ID gets an answer — Priority 12
 
@@ -661,16 +639,15 @@ About 140 rows in all; ScanCode and Blue Oak lists are planned.
   exact), as the page says.
 - **Growth rule kept**: a row is added only with a measured package count
   (`working-docs/paper-notes/licence-urls.md`); the page shows that count,
-  and the test requires one for each alias and title. The four URL pages of
-  variants (`mozilla.org/mpl/2.0`, `opensource.org/license/mpl-2-0`,
-  `opensource.org/license/ofl-1-1`, the SIL `ofl_web` page) have no recorded
-  count and are named in `evidence.UNMEASURED_URLS`: measure them or drop them.
+  and the test requires one for each alias and title and each URL page. Four
+  URL pages the List gives a licence and its variants are the exception
+  (closed 2026-11-18; PR #223); the dash of a trove name with no
+  count is correct: see
+  [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
 - **Left open**: a command (`licenseid resolve --lists`) or a JSON file with
   the same rows, so a script can read them. Not added: it would be a new CLI
   option (an axis of `tests/test_option_matrix.py`) and the page now exists
-  to be read; decide when a script needs it. A trove classifier with no
-  recorded count shows a dash: the count of the survey is the PyPI sample
-  only.
+  to be read; decide when a script needs it.
 - A new list (ScanCode, Blue Oak) gets its page section, its `CATEGORY` and
   its `EXACT` value when it is added (`render.py`). The Blue Oak idea:
   [`blue-oak-ratings.md`](blue-oak-ratings.md).

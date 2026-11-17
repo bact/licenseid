@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-22
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -26,7 +26,9 @@ A release with many merged changes is reviewed as a whole first:
    `version`, `dateModified` and `datePublished` in `codemeta.json`; the
    section heading and date in `CHANGELOG.md`; the version in the Citation
    block and the BibTeX of `README.md` (they are not generated).
-   `CITATION.cff` follows from `codemeta.json` by workflow.
+   `CITATION.cff` follows from `codemeta.json` by workflow. A dev version is
+   written in PEP 440 normal form (`0.9.0.dev0`), as METADATA keeps the
+   version as written (`0.9.0-dev.0` would show there).
 3. Wait for CI on the merge commit on `main` (unit tests, build wheels, lint,
    type checking). Tag `v<version>` on that commit and publish the GitHub
    release; publishing starts `pypi-publish.yml`, which builds with
