@@ -18,6 +18,7 @@ from harness_changes_aliases import ALIAS_CHANGES
 from harness_changes_cutversion import CUTVERSION_CHANGES
 from harness_changes_exact import EXACT_CHANGES
 from harness_changes_nametier import NAME_TIER_CHANGES
+from harness_changes_nametier2 import NAME_TIER2_CHANGES
 from harness_changes_resolvefirst import RESOLVE_FIRST_CHANGES
 from harness_changes_slash import SLASH_CHANGES
 from harness_changes_urls import URL_CHANGES
@@ -39,6 +40,7 @@ DETECT_CHANGES: dict[str, tuple[str, str]] = {
     **EXACT_CHANGES,  # only `exact` moves, on the answers above
     **VARIANT_CHANGES,  # last: `variant` keeps a bare ID, over the rows above
     **CUTVERSION_CHANGES,  # last: over the `exact` rows, which were an answer
+    **NAME_TIER2_CHANGES,  # last: moves `GNU ... v3` of NAME_TIER_CHANGES again
 }
 CLI_CHANGES: dict[str, tuple[str, str]] = {
     "detect-name#text": ("bea927311e33", _FIRST),

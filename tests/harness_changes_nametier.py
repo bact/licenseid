@@ -39,7 +39,6 @@ _CASES: dict[str, str] = {
     "value/GNU Affero General Public License": _UNSTATED,  # AGPL-3.0-only
     "value/GNU GENERAL PUBLIC LICENSE": _WRONG,  # AGPL-3.0-only
     "value/GNU General Public License v3": _WRONG,  # AGPL-3.0-only
-    "value/GNU Lesser General Public License v3": _LOST,  # LGPL-3.0-only
     "value/GNU Lesser General Public License v3+": _WRONG,  # -only, "+" dropped
     "value/GPL": _WRONG,  # BSD-Source-alt-GPL
     "value/LICENSE": _WRONG,  # 0BSD

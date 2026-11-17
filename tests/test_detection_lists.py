@@ -86,12 +86,12 @@ def test_every_method_and_result_has_its_lists(
 
 def test_each_result_has_a_list_of_its_own(memory_db: str) -> None:
     matcher = LicenseDetector(memory_db)
-    first, second = matcher.detect(text="MIT License or Apache License 2.0")[:2]
+    first, second = matcher.detect(text="Apache License MIT License")[:2]
     first["lists"][0]["provides"].append("x")
     first["lists"].append(SPDX_LIST)
     assert second["lists"][0]["provides"][-1] == "texts"
     assert len(second["lists"]) == 1
-    again = matcher.detect(text="MIT License or Apache License 2.0")
+    again = matcher.detect(text="Apache License MIT License")
     assert again[0]["lists"][0]["provides"][-1] == "texts"
 
 
@@ -102,7 +102,7 @@ def test_detect_builds_with_the_builder_of_match(memory_db: str) -> None:
         resolverinfo.list_info, side_effect=resolverinfo.list_info
     )
     with mock.patch.object(detector, "list_info", spy):
-        results = matcher.detect(text="MIT License or Apache License 2.0")
+        results = matcher.detect(text="Apache License MIT License")
     assert len(results) == 2
     spy.assert_called_once_with(matcher.db, "database")
 

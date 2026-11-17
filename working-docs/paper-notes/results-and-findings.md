@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -610,3 +610,22 @@ requests #211 and #212, the second open on this date).
   missing a reader over three review rounds; one reader of the input's
   words with a default of "not stated" took a probe's invariant breaks from
   14 to 0 (`IMPL/item-52-variant-and-exact.md`, "Paths rejected").
+
+### 3.10 Token set scoring and duplicate versions (2026-11-17)
+
+Roadmap item 47 (`ROAD` item 47; `IMPL/tech-debt-resolved-0-9.md`, "Item
+47"; the pull request has no number yet).
+
+- Token set scoring reads `1.1` as the words `1` and `1`, the set `{1}`.
+  An input that says `Apache License 1` therefore holds every word of
+  `Apache License 1.1`, and a sentence that holds the names of two versions
+  whole ties them, so the order of IDs decided.
+- Measured on `Licensed under the <List name>` for the 708 names in use
+  (SPDX List 3.29.0): 118 probes answered a wrong licence on `main`; with
+  the name hit settled against the rest of the input, 704 are right and 4
+  give no answer (`IMPL/tech-debt-resolved-0-9.md`, "Measured").
+- The cost of the fix, over 10,570 windows of 10 to 29 words from every
+  List text: 4 right answers lost, 55 wrong answers made right, 44 made no
+  answer, 25 still wrong. A refusal that stops text matching whatever the
+  name hit scored lost 313 right answers, which is why the refusal is final
+  only above a score of 1.

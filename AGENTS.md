@@ -59,7 +59,8 @@ in another module.
 - Detection: `detector` (the pipeline), `keptdetector` (`licenseid.detect()`,
   one detector per default database), `detectrequest` (checks of a call
   needing no database), `resolvefirst` (input `resolve()` reads whole; the
-  cut of a short refused one), `shorttext` (Tier 0), `retrieval` (Tier 1),
+  cut of a short refused one), `shorttext` (Tier 0), `namehits` (which name
+  hits of Tier 0 stand), `retrieval` (Tier 1),
   `ftsquery` (its `MATCH` string: 20 words, each cut to 128 characters),
   `idoptions` (`exclude`, `hint`: API only, free text only, case-folded, a
   bare deprecated ID stands for both twins, kept under `as-written`),
@@ -267,7 +268,8 @@ and `--json`) against these rules and checks the default output against the
   compound too, is the answer. The rest goes through the tiers. One under
   `resolvefirst.MIN_TEXT_WORDS` (10) words that the name tier does not
   answer gets no text match and warns `too few words for text` (not after a
-  tag was taken out). Han and kana text is never cut by word count.
+  tag was taken out; also where `namehits` dropped the hit). Han and kana
+  text is never cut by word count.
 - `--id` and `detect(license_id=...)` declare ONE licence, judged only by
   `identifiers.is_simple_expression` (an ID, `+` unless `-only`/`-or-later`,
   or `LicenseRef-*` without `+`; optionally `WITH` an exception, any
@@ -360,6 +362,16 @@ and `--json`) against these rules and checks the default output against the
   dropped mark or an unpaired bracket, or (under 10 words only) a "+" that
   ends or starts a word or stands alone in marks (`MIT++`, `GPL-2.0 (+)`;
   not `C++`): `resolvereason.refuses_text_match`.
+- Token set reads a name held whole in an input as the input's name:
+  `namehits.settle` drops that hit where the rest of the input names
+  something else (the longest of tied nested names wins, two licences give
+  none; a cut version; `with` an exception of the List or the word; a
+  fragment of a longer name; another ID written whole; a dash glued to a
+  word end). Generic words (`namehits.GENERIC`) are no evidence. A dropped
+  hit that scored above 1 is final from 10 words on (no Tier 1; under 10
+  words `too_short` warns); below 1, Tier 1 runs. Mixed-content sections
+  (`match_short_text`) only lose the hit. Add a rule there, with a made-up
+  row in `tests/test_namehits.py`.
 - "/" is OR only in a whole value (`resolveslash.slash_parts`): each piece
   an exact-case List ID (a "+" read by `plusoperator`) or `LicenseRef-*`,
   at least one List

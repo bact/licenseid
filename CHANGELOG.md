@@ -38,6 +38,10 @@ and this project adheres to
   `MIT-`, `Zlib-`, `GPL-2.0-` (a dash or `_` at the end) `character dropped`,
   and `SPDX-License-Identifier: MIT-` has no answer; `LGPLv2+`, `Apache-1+` stay
   (migrate: write the minor version, `Apache-1.0`, and `MIT`) ([#217])
+- **Breaking:** `detect` gives no name answer for tied names of two licences, a
+  cut version, `with <exception>`, a fragment of a longer name, another ID or a
+  glued dash; `GNU General Public License v3` answers `-only` (migrate: declare
+  an SPDX expression or the full version)
 
 ### Fixed
 

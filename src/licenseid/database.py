@@ -647,3 +647,10 @@ def _skip(version: str) -> bool:
     """Report that the database already has *version*; False: not updated."""
     status(f"Database is already at version {version}. Skipping update.")
     return False
+
+
+def exception_words(db: LicenseDatabase) -> list[frozenset[str]]:
+    """The normalised words of each exception's name and ID of *db* (see
+    dbcache.TableCache.exception_words): a function, not a method, so the
+    class keeps its public methods."""
+    return db._tables.exception_words()  # pylint: disable=protected-access
