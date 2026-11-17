@@ -397,6 +397,23 @@ beside `GNU General Public License v2.0` turned `GPL-2.0-only` into
   exception's name; a superscript digit and a 5,000-digit number raised
   `ValueError`; 100,000 `GPLv2+` made each question O(grants). All fixed with
   rows in `tests/test_grant_subject.py`.
+- **Second review** (independent, Opus): a wrapped notice under the comment
+  leaders of autoconf (`dnl`), TeX (`%`), Texinfo (`@c`), man pages, batch
+  files and mail quotes lost its owner (`_LEADER` drops them); `and` and `at
+  your discretion` before "any later version" were no preamble; the written
+  check ignored an ID with a `WITH` exception (it reads the head only); the
+  `as-written` collapse kept the GPL twins because an LGPL grant stood
+  somewhere (now per licence); a pure licence text (COPYING, LICENSE) with a
+  notice and a tool's grant was flipped to `-only` (`ranking.leave_signal`
+  is true for a pure text: its answer is left). Rows in
+  `tests/test_grant_subject.py` and `tests/test_grant_signal.py`, each
+  mutation-checked.
+  The full golden then moved one answer: `short/LGPL-2.0-only/tail_1000` (a
+  text cut at "or (at your option) any later version", no subject) went to
+  `-only`, as the tie-breaker read only a phrase a grant owned; an unowned
+  phrase now counts as a grant there too, as on `main`
+  (`test_the_tie_breaker_keeps_an_unowned_phrase_as_granting`). Rerun the
+  full golden after every change on the answer path, not only at the end.
 - **Left** (for B1c and later): `namerules._granted_numbers` of the name tier
   takes the number before any grant (`Apache License 1. Requires Java 1 or
   later` answers `Apache-1.1`): it should ask `grants()` and then

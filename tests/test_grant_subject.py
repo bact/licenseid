@@ -39,6 +39,23 @@ GRANTED = [
     ("GPL-2.0 or-later", [("2.0", "gpl")]),
     ("GPL-2.0- or later", [("2.0", "gpl")]),
     ("GPL or any later version", [(None, "gpl")]),
+    ("GNU GPL 2 and any later version", [("2", "gpl")]),
+    ("GPL v2, or, at your discretion, any later version", [("2", "gpl")]),
+    # A wrapped notice under the comment leaders of other formats.
+    (
+        (
+            "dnl either version 2 of the License, or\n"
+            "dnl (at your option) any later version"
+        ),
+        [("2", None)],
+    ),
+    (
+        "% either version 2 of the License, or\n% (at your option) any later version",
+        [("2", None)],
+    ),
+    ("@c version 2 of the License, or\n@c any later version", [("2", None)]),
+    ("REM GPL v2 or\nREM any later version", [("2", "gpl")]),
+    ("> GPL-2.0 or\n> any later version", [("2.0", "gpl")]),
     (
         "GNU General Public License, or (at your option) any later version",
         [(None, "gpl")],

@@ -334,7 +334,9 @@ and `--json`) against these rules and checks the default output against the
   is the one reader of whose grant a phrase is (a version after a licence's
   name, `version`, `v` or `the License`; `Python 3.8 or later` is a tool's):
   `ranking.or_later_signal` and `only_signal` ask it per licence; a phrase it
-  cannot own (`has_unowned_phrase`) leaves `settle_text`'s `-only` alone.
+  cannot own (`has_unowned_phrase`) counts as a grant for the tie-breaker and
+  leaves `settle_text`'s `-only` alone (`ranking.leave_signal`, as does a pure
+  licence text).
   `looseid.declared_grant_id_text` only finds where a grant starts (bare
   "or later" read as after a number unless `classify.is_negated`). Add a
   phrasing to `classify.OR_LATER_PHRASE` and to `PHRASES` in

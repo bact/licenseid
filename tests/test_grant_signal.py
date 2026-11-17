@@ -180,9 +180,9 @@ def _settle(
     given: GivenWarnings,
     **kw: Any,
 ) -> tuple[list[tuple[str, float]], list[str]]:
-    unowned = kw.pop("unowned", lambda: False)
+    leave = kw.pop("leave", lambda: False)
     out: list[RawMatch | InternalMatch] = settle_text(
-        hits, Signals(signal, unowned=unowned), variant, **kw
+        hits, Signals(signal, leave=leave), variant, **kw
     )
     return [(r["license_id"], r["score"]) for r in out], [str(w) for w in given.take()]
 
@@ -264,7 +264,10 @@ def test_as_written_collapses_twins_only_where_nothing_is_granted(
     out, _ = _settle(list(twins), constant(False), "as-written", given)
     assert [i for i, _ in out] == ["GPL-2.0"]
     out, _ = _settle(
-        [dict(t) for t in twins], _granted("GPL-2.0-or-later"), "as-written", given
+        [dict(t) for t in twins],
+        _granted("GPL-2.0", "GPL-2.0-or-later"),
+        "as-written",
+        given,
     )
     assert len(out) == 3
 
@@ -282,6 +285,26 @@ def test_the_tie_breaker_asks_for_each_pair_of_twins() -> None:
     assert out.index("LGPL-2.1-only") < out.index("LGPL-2.1-or-later")
 
 
+@pytest.mark.parametrize(
+    ("text", "is_pure", "chosen"),
+    [
+        # A cut text starts at its phrase: no subject owns it, as on main.
+        (", or (at your option) any later version.", False, "GPL-2.0-or-later"),
+        ("GPL v2 or any version later", False, "GPL-2.0-or-later"),
+        # A tool's grant is owned (by the tool): the tie goes to ``-only``.
+        ("Needs Python 3.8 or later.", False, "GPL-2.0-only"),
+        # A pure licence text is never read.
+        (", or (at your option) any later version.", True, "GPL-2.0-only"),
+    ],
+)
+def test_the_tie_breaker_keeps_an_unowned_phrase_as_granting(
+    text: str, is_pure: bool, chosen: str
+) -> None:
+    ranked = [im("GPL-2.0-only", 0.9), im("GPL-2.0-or-later", 0.9)]
+    out = ids(apply_version_suffix_tiebreaker(ranked, text, is_pure))
+    assert out[0] == chosen
+
+
 @pytest.mark.parametrize("unowned", [True, False])
 def test_a_phrase_no_subject_owns_leaves_the_or_later_answer(
     given: GivenWarnings, unowned: bool
@@ -294,7 +317,7 @@ def test_a_phrase_no_subject_owns_leaves_the_or_later_answer(
         constant(False),
         "auto",
         given,
-        unowned=lambda: unowned,
+        leave=lambda: unowned,
     )
     assert out == [("GPL-3.0-or-later" if unowned else "GPL-3.0-only", 1.0)]
 
@@ -314,11 +337,11 @@ def test_a_phrase_no_subject_owns_leaves_the_or_later_answer(
             "only",
         ),
         ("version 3.0. Needs Python 3.8 or any later version.", False, "only"),
-        # A pure licence text is never read for a phrase.
+        # A pure licence text is never read for a grant: its answer is left.
         (
-            "licensed under the GPL License version 3.0 or any version later.",
+            "licensed under the GPL License version 3.0. Needs Python 3.8 or later.",
             True,
-            "only",
+            "or-later",
         ),
     ],
 )
@@ -328,3 +351,31 @@ def test_the_free_text_settling_reads_the_unowned_phrase(
     out = settle_free_text([_hit("GPL-3.0-or-later", 1.0)], text, is_pure, {})
     assert out[0]["license_id"] == f"GPL-3.0-{expected}"
     given.take()
+
+
+def test_an_id_written_in_prose_without_its_exception_is_not_settled(
+    given: GivenWarnings,
+) -> None:
+    hit = _hit("GPL-2.0-or-later WITH Classpath-exception-2.0", 1.0, "text")
+    out, _ = _settle(
+        [hit],
+        constant(False),
+        "auto",
+        given,
+        written="This library is GPL-2.0-or-later with the Classpath exception",
+    )
+    assert out[0][0] == "GPL-2.0-or-later WITH Classpath-exception-2.0"
+
+
+def test_as_written_collapses_the_twins_of_a_licence_nobody_grants(
+    given: GivenWarnings,
+) -> None:
+    """Another licence's grant (the LGPL's) does not keep the GPL's twins."""
+    hits = [
+        _hit("GPL-2.0-or-later", 0.96, "text"),
+        _hit("GPL-2.0-only", 0.96, "text"),
+        _hit("GPL-2.0", 0.96, "text"),
+        _hit("LGPL-2.1-or-later", 0.9, "text"),
+    ]
+    out, _ = _settle(hits, _granted("LGPL-2.1-or-later"), "as-written", given)
+    assert [i for i, _ in out] == ["GPL-2.0", "LGPL-2.1-or-later"]

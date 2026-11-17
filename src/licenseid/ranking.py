@@ -137,6 +137,8 @@ def apply_version_suffix_tiebreaker(
     - Mixed / source-file text: check for explicit granting language.
       Granting language present → prefer -or-later.
       No granting language      → prefer -only.
+      A later-version phrase no subject owns (a cut text, ``or any version
+      later``) counts as granting language, as it always did.
     """
     signal = or_later_signal(raw_text, is_pure)  # asked per pair, read once
 
@@ -158,7 +160,7 @@ def apply_version_suffix_tiebreaker(
             continue  # not a genuine tie — trust the similarity score
 
         delta = TIE_NUDGE
-        if signal(peer):
+        if signal(peer) or (not is_pure and _unowned_in(raw_text)):
             adjustments[base + "-or-later"] = delta
             adjustments[base + "-only"] = -delta
         else:

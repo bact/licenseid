@@ -38,9 +38,9 @@ from licenseid.listlookup import fold_case
 from licenseid.plusoperator import grant_stem
 from licenseid.ranking import (
     TIE_WINDOW,
+    leave_signal,
     only_signal,
     or_later_signal,
-    leave_signal,
 )
 from licenseid.types import (
     CandidateMatch,
@@ -517,11 +517,11 @@ def _replaced(
 
 
 def _collapsed(
-    results: list[RawMatch | InternalMatch],
+    results: list[RawMatch | InternalMatch], stated: GrantSignal
 ) -> list[RawMatch | InternalMatch]:
     """*results*, the two twins of a licence beside its bare ID (a tie, as
     they share one text) left as the bare ID, which says no more than the
-    input does."""
+    input does; a licence the input states a variant of (*stated*) keeps them."""
     ids = {fold_case(r["license_id"]): r for r in results}
     drop: set[str] = set()
     for key, bare in _BARE.items():
