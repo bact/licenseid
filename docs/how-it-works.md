@@ -73,7 +73,9 @@ declared values, SPDX expressions and the matching pipeline.
     (`MIT OR Apache 2.0`) gives no answer, as `resolve()` refuses it. A
     bare "or later" after an ID is the grant (`MIT or later`, `MIT, or
     any later version` are `MIT+`); a "+" apart from its ID (`MIT +`) names no
-    licence.
+    licence. A tag gives no answer, as `resolve()` does, for a licence listed
+    after a grant (`GPL-2.0 or later, ISC`) or an "only" after an operand of a
+    list (`MIT OR GPL-2.0 only`).
   - Package manifests are read for their `license` field, however small:
     `package.json` (with npm's old `license` object and `licenses` array),
     `pyproject.toml` (`license = "..."` or `license = {text = "..."}`, and

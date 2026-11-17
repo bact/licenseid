@@ -129,10 +129,13 @@ def joined_marks(text: str) -> str:
     )
 
 
-def trailing_joiners(text: str) -> str:
+def trailing_joiners(text: str, *, least: int = 1) -> str:
     """The dashes and underscores joined to the end of *text*, each once, in
-    order (``MIT-``, ``MIT_``, ``GPL-2.0-``, ``MIT--``, ``MIT-.``), or empty.
-    One ``.`` or ``,`` after them is an ending and left out. They must follow
+    order (``MIT-``, ``MIT_``, ``GPL-2.0-``, ``MIT--``, ``MIT-.``), or empty;
+    empty too for a run of fewer than *least* (``least=2``: ``GPL-2.0-`` gives
+    none, ``GPL-2.0--`` and ``GPL-2.0-_`` give their marks; the head before a
+    word grant keeps one, ``GPL-2.0- or later``). One ``.`` or ``,`` after them is an
+    ending and left out. They must follow
     a letter or digit: a run after a dot, a space or a mark has another
     reader (``MIT -``, :func:`_dangling`). A loose ID drops them as it drops
     any joiner, but a cut value (``MIT-`` is the start of ``MIT-0``) is no
@@ -145,11 +148,39 @@ def trailing_joiners(text: str) -> str:
     stop = len(body)
     while stop and (body[stop - 1] == "_" or RE_DASHES.match(body[stop - 1])):
         stop -= 1
-    if stop == len(body) or not stop or not body[stop - 1].isalnum():
+    if len(body) - stop < least or not stop or not body[stop - 1].isalnum():
         return ""
     if ends_in_ref(body):
         return ""
     return "".join(dict.fromkeys(body[stop:]))
+
+
+# What may stand glued to the end of a grant, beside one ending: a closing
+# bracket or a quote mark, which ``resolve()`` reads (``or later)``, ``"``).
+_GLUED_PASS: Final = frozenset(")]")
+
+
+def glued_marks(text: str, end: int) -> str:
+    """The marks glued to *end* of *text*, the end of a grant, that
+    ``resolve()`` refuses (``GPL-2.0 or later-``, ``?``, ``>``, ``*/``, two or
+    more end marks), each once, in order; empty if none: what :func:`dropped`
+    names in the run, and the dashes and underscores it allows elsewhere (here
+    they join the grant to what follows). One ``.``, ``,``, ``;`` or ``:``, a
+    closing bracket and a quote mark pass (``or later.)``). The run is what
+    touches *end* up to white space: one pass, linear."""
+    stop = end
+    while stop < len(text) and not text[stop].isspace():
+        stop += 1
+    run = text[end:stop]
+    joined = (c for c in run if c == "_" or RE_DASHES.match(c))
+    judged = trim_end_mark(f"x{run}") or f"x{run}"  # one ";" or ":" is an ending
+    lost = (c for c in dropped(judged) if c not in _GLUED_PASS and not _quote(c))
+    return "".join(dict.fromkeys((*joined, *lost)))
+
+
+def _quote(char: str) -> bool:
+    """Whether *char* is a quote mark ``resolve()`` takes off a value."""
+    return RE_QUOTES.match(char) is not None
 
 
 def cut_by_joiners(text: str, end: int) -> bool:

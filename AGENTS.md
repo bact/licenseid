@@ -321,7 +321,8 @@ and `--json`) against these rules and checks the default output against the
   (imported by `ranking`, `identifiers.disambiguate_deprecated_id`,
   `markers`, `looseid`); `classify.grant_end` finds a grant and its end;
   `classify.grant_head` is the one rule for the gap between ID and grant (a
-  dash between words there is a separator), followed by `before_grant`
+  dash between words, or ONE dash or `_` glued to the ID, is a separator; a
+  glued run of two or more is dropped characters), followed by `before_grant`
   and the tag's `dash_gap`. The grant qualifies the licence beside it
   (`identifiers.qualify_trailing_grant`): `MIT OR GPL-2.0 or later` is
   `GPL-2.0-or-later OR MIT`; with WITH it belongs to the licence. A version
@@ -338,8 +339,12 @@ and `--json`) against these rules and checks the default output against the
 - Tag and `license` field answer only with List operands or `LicenseRef-*` (`MIT
   OR Apache 2.0`: no answer). `MIT or later` is `MIT+`. No licence for: a
   detached "+", a mark `resolve()` drops before "or later" (`MIT; or later`), a
-  licence right after a mark (`MIT/Apache-2.0`; `looseid.lists_another`, whose
-  item rule `_lists_another` shares). Keywords match in ASCII case only
+  licence right after a mark (`MIT/Apache-2.0`) or after a grant (`GPL-2.0 or
+  later, ISC`; `looseid.lists_another`, `lists_after_grant`, whose item rule
+  `_lists_another` shares), an "only" after an operand of a list (`MIT OR
+  GPL-2.0 only`: `variants.qualify_trailing_only`). A mark glued to a grant's
+  end (`or later-`, `?`) is refused by `looseid.disambiguate_whole`
+  (`dropguard.glued_marks`) as by `resolve()`. Keywords match in ASCII case only
   (`(?a:...)` or `re.ASCII`; `tests/test_readers_case.py`).
 - "+": `plusoperator.PLUS_OPERATOR` (`strip_plus_operator`,
   `replace_plus_operator`, `plus_after_qualifier`; standard library only)
@@ -360,7 +365,8 @@ and `--json`) against these rules and checks the default output against the
   ambiguous: <IDs>`, in `resolvereason._NO_TEXT_CONDITIONS`). Where a
   grant was read off the text (`_plus`, `_single`) `_base(granted=True)`
   exempts it. A run of `-`/`_` joined to the end of a loose ID is a dropped
-  character (`dropguard.trailing_joiners`; not on a head before a grant).
+  character (`dropguard.trailing_joiners`; on a head before a grant only a run
+  of two or more: `least=2`).
 - Tier 0 asks `resolve()` first for a value under 30 words: what it reads
   is the answer; what it refuses is matched as before, except after a
   dropped mark or an unpaired bracket, or (under 10 words only) a "+" that

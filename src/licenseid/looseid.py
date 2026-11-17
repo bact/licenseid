@@ -15,6 +15,7 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, grant_end, grant_follows, grant_head
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
+from licenseid.dropguard import glued_marks
 from licenseid.exprtokens import (
     ID_WORD,
     LIST_MARK,
@@ -221,12 +222,25 @@ def disambiguate_whole(text: str, db: ListLookup) -> str | None:
     base, bare = first
     if grant_follows(base, text[bare.end() :]) is None:
         return ""  # "GPL-2.0: or later", which no phrase reads but the ID
+    if _mark_glued_to_grant(text, bare.start()):
+        return None  # "GPL-2.0 or later?": the author's doubt; resolve() says so
     found = disambiguate_deprecated_id(text)
     if found is None:
         return None
     return (
         "" if _lists_another(text, {base.casefold(), found.casefold()}, db) else found
     )
+
+
+def _mark_glued_to_grant(text: str, start: int) -> bool:
+    """Whether the first "or later" grant from *start* of *text* has a mark
+    glued to its end that ``resolve()`` refuses (``dropguard.glued_marks``),
+    after the words that may follow it ("version", "of the License")."""
+    grant = OR_LATER_PHRASE.search(text, start)
+    if grant is None:
+        return False
+    words = RE_GRANT_WORDS.match(text, grant.end())
+    return bool(glued_marks(text, words.end() if words else grant.end()))
 
 
 def _lists_another(text: str, own: set[str], db: ListLookup) -> bool:
@@ -333,12 +347,37 @@ def drops_words(
     or :func:`declared_grant_id_text` for a bare "MIT or later")."""
     if leading == value:
         return False
+    if lists_after_grant(db, leading, expression, value):
+        return True  # a grant ending the value is no excuse: it is another's
     left = expression == leading or (
         granted_id_text(value) is None and declared_grant_id_text(value) is None
     )
     return left and (
         whole or restates_qualifier(leading, value) or lists_another(db, leading, value)
     )
+
+
+def lists_after_grant(
+    db: ListLookup, leading: str, expression: str, value: str
+) -> bool:
+    """Whether *value*, read as *expression* for its *leading* expression,
+    lists another licence of *db* after the "or later" grant that follows
+    *leading* (:func:`lists_another`, from the grant's end): in ``GPL-2.0 or
+    later, ISC`` the grant ends the licence it qualifies, not the value, and
+    an answer would drop ISC, also when another grant ends the value
+    (``GPL-2.0 or later, ISC or later``). ``GPL-2.0 or later, see COPYING``
+    keeps its reading."""
+    if expression == leading:
+        return False  # no grant was applied (or only an "only")
+    word = _RE_OR_WORD.search(value, len(leading.rstrip(")")))
+    end = grant_end(value, word.start()) if word else None
+    if end is None:
+        return False
+    words = RE_GRANT_WORDS.match(value, end)
+    end = words.end() if words else end
+    while end < len(value) and (value[end].isspace() or value[end] in ")]"):
+        end += 1
+    return lists_another(db, value[:end], value)
 
 
 def lists_another(db: ListLookup, leading: str, value: str) -> bool:

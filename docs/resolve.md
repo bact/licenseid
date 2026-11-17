@@ -52,9 +52,10 @@ page](lists.md):
   `MIT+`, `Apache 2.0 or later` is `Apache-2.0+`). "or" in a grant is a word
   of its own (`MIT ora later` is not found). Between an ID and its grant
   only white space (any, a no-break space too), one `.` or `,`, a `(` or
-  `[` before the "or", and a dash between words may stand (`GPL-2.0 - or -
-  later` is `GPL-2.0-or-later`, category `separator`); any other mark is
-  refused (`MIT; or later`: `character dropped`).
+  `[` before the "or", a dash between words, and one dash or `_` glued to the
+  ID may stand (`GPL-2.0 - or - later`, `GPL-2.0- or later` are
+  `GPL-2.0-or-later`, category `separator`); any other mark is refused
+  (`MIT; or later`, `GPL-2.0-- or later`: `character dropped`).
   A "+" after a space is no operator (`GPL-2.0 +`: `plus after a space`).
   Keywords ignore case in ASCII only (`MIT WİTH X` is not found). A
   `LicenseRef-`, `DocumentRef-` or `AdditionRef-` prefix is written in SPDX's
@@ -639,8 +640,8 @@ reasons, the detail of a mark in code points: `character dropped: U+003F` (the
 value would be read as a licence only by dropping a mark that is not a
 separator, such as `?`, `!`, `*` or a quote inside the value, a mark at the
 start, two or more at the end, or a lone dash, or a dash or underscore joined to
-the end of an ID (`MIT-`, `GPL-2.0 or later-`), a `+`, an exception or a prose
-form: `MIT+-`,
+the end of an ID (`MIT-`, `GPL-2.0 or later-`; two or more before a grant,
+`GPL-2.0-- or later`), a `+`, an exception or a prose form: `MIT+-`,
 `MIT+-?`, `MIT License--`, `MIT License_`; several are space separated, in the
 order they stand, `U+002D U+003F`), `word dropped: rem 1` (a comment or list
 marker that the reading would drop, in lower case), `lone surrogate`, `control

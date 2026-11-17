@@ -43,6 +43,9 @@ and this project adheres to
   (migrate: declare an SPDX expression or the full version)
 - Tied names answer the most specific (`CC-BY-4.0` becomes `CC-BY-NC-4.0`); a
   name `vN` for `vN.0` answers `-only` (`GNU General Public License v1`, `v2`)
+- **Breaking:** no answer for `GPL-2.0-- or later`, `GPL-2.0 or later-` and the
+  tags `GPL-2.0 or later, ISC`, `MIT OR GPL-2.0 only`; a tag's `LGPLv2 or later`
+  is not exact ([#221])
 
 ### Fixed
 
@@ -74,6 +77,7 @@ and this project adheres to
 [#216]: https://github.com/bact/licenseid/pull/216
 [#217]: https://github.com/bact/licenseid/pull/217
 [#220]: https://github.com/bact/licenseid/pull/220
+[#221]: https://github.com/bact/licenseid/pull/221
 
 ## [0.8.4] - 2026-11-09
 

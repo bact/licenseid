@@ -315,24 +315,6 @@ cannot make, a `file://localhost/` path and symlink loops in PR #209
   0.4.2 `update` leaves WAL).
 - Impact 2, Risk 2, Effort 3.
 
-## 20. A grant inside an expression loses the value — Priority 9
-
-An "or later" grant ends the expression that `identifiers.leading_expression`
-reads, because the phrase sits where an operator would (`classify`
-`OR_LATER_PHRASE` is the one reader of it). A tag whose value goes on after
-the grant, such as `MIT AND GPL-2.0 or later AND Apache-2.0`, is therefore
-refused outright: answering `MIT AND GPL-2.0-or-later` would drop an operand
-and understate the obligations, so no answer is the safe reading, but the
-value does name three licenses a reader could resolve.
-
-- **Fix**: let the walk carry the grant instead of stopping at it — rewrite
-  the ID it qualifies to its `-or-later` form and go on scanning — so
-  `leading_expression` returns the expression the value means rather than a
-  prefix of it. That makes `qualify_trailing_grant` part of the walk;
-  `is_simple_expression` then needs the end offset of what was read, not a
-  string comparison, to tell a whole value from a cut one.
-- Impact 2, Risk 2, Effort 3.
-
 ## 13. Apache-2.0 vs Pixar near-duplicate confusion — Priority 6
 
 Licenses that are near-identical modifications of another license (e.g.
@@ -373,10 +355,10 @@ format` check (PR #210), and the free-text rules of `exclude` and `hint`
   Decide with the multi-list design; until then it stays documented as a
   no-op on a built database.
 - A tag that lists a licence elsewhere than right after the mark is still
-  the first licence, exact: after a grant (`GPL-2.0 or later, ISC`), with
-  "or"/"and" (`MIT, or ISC`), in brackets or quotes (`MIT, (ISC)`), after a
-  full-width comma or a dash (`MIT - ISC`), or later in prose (`MIT, and
-  also Apache-2.0`), or before an operator (`MIT - OR ISC`). #158 refuses a
+  the first licence, exact: with "or"/"and" (`MIT, or ISC`), in brackets or
+  quotes (`MIT, (ISC)`), after a full-width comma or a dash (`MIT - ISC`),
+  or later in prose (`MIT, and also Apache-2.0`), or before an operator
+  (`MIT - OR ISC`). #158 refuses a
   licence right after a mark (A-F6); it also refuses `MIT, Intel and
   others`, as the field reader does (the item ends at "and"). Belongs to
   the matching-rules redesign.
@@ -501,8 +483,13 @@ and the parity corpus: the whole input moved 6 times, a quoted INI field
   removing them adds a `too few words for text` warning. Decide, then drop.
 - **`looseid.disambiguate_whole`** reads a bare deprecated ID and its prose
   in the raw text for a value `resolve()` refuses (comment-wrapped grants,
-  `tests/test_readers_grants.py`); no corpus value needs it otherwise.
-  Measure it on fields, then fold it into `resolve()`.
+  `tests/test_readers_grants.py`). Measured 2026-11-17 on 642 distinct real
+  values (PyPI sample, sbomminbench, golden keys): none reaches it with a
+  reading `resolve()` refused, so it stays, not folded into `resolve()`
+  (which reads no prose); it refuses a mark glued to a grant's end. It still
+  answers where `resolve()` refuses a spaced mark or prose after a grant
+  (`GPL-2.0 or later -`, `GPL-2.0 or later, see COPYING`, a field's
+  `GPL-2.0 or later-2.1`).
 - **A wrapped name answers exact**: `*Apache License 2.0*` is `not found`
   for `resolve()` and still `Apache-2.0` by name; apply `dropguard.dropped`
   to name hits.
@@ -541,9 +528,10 @@ each a decision:
 - **Channels that still differ** (rule I1): a deprecated List name (AGPL)
   answers `-only` as the argument under `auto` but the bare ID in a tag or
   a field (pinned `# BUG:` in `tests/test_variant_invariants.py`); a tag
-  answers `MIT OR GPL-2.0 only` that the argument and a field refuse
-  (pinned `test_a_tag_reads_an_only_after_an_operand_of_a_list`); a tag
-  refuses `GPL-2.0 or later OR MIT` that the argument answers.
+  refuses `GPL-2.0 or later OR MIT` that the argument answers (decided
+  2026-11-17: it stays, a tag refuses what it cannot read whole; 0 of 642
+  values). A tag refuses `MIT OR GPL-2.0 only` now, as the argument and a
+  field do.
 - After a `py-spdx-license` release with `upgrade()`, raise the floor in
   `pyproject.toml` and let it replace the `+` and rename code
   (`DEPRECATED_SPDX_LICENSE_IDS`, the rename rule of `listrules`); the bare
@@ -615,12 +603,9 @@ cut version is a choice, not a spelling: `Apache-1` may mean `Apache-1.0` or
 - **Open leftovers**: a non-ID character inside a reference cuts it in a tag
   (`MIT OR LicenseRef-a>b` reads `LicenseRef-a`; `resolve()` refuses it), not
   checked against `cut_inside_word`; a refused tag above a licence fragment can
-  fall to the text tier (`MIT-0` at 0.914); `detect` of `GPL-2.0 or later-`
-  still answers through `disambiguate_whole`, as for `GPL-2.0 or later?` (also
-  `LGPL-2.1 or later-`, `GPL-2.0 or later--`); a joiner run before a word
-  grant (`GPL-2.0-- or later`, `MIT__ or later`) is still read. Fixed by item
-  47: `License: MIT-`, `Licensed under the Apache-1 license`, `MVT-1`,
-  `Sendmail-8`, `Apache License 1`.
+  fall to the text tier (`MIT-0` at 0.914). Fixed by item 47: `License:
+  MIT-`, `Licensed under the Apache-1 license`, `MVT-1`, `Sendmail-8`,
+  `Apache License 1`.
 - Impact 1, Risk 2, Effort 2.
 
 ## 55. Publish the lists `resolve()` reads — Priority 12

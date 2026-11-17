@@ -538,7 +538,8 @@ def _base(
     several rows, unless *granted*: the caller has read an "or later" grant
     off the text, which covers every later minor (``LGPLv2+``). *head*: *text*
     is the head before a word grant, whose dash gap ``classify.grant_head``
-    judges (``GPL-2.0-or later``), so no joiner at its end is refused."""
+    judges (``GPL-2.0-or later``), so a joiner at its end is refused only in a
+    run of two or more (``GPL-2.0- or later`` stays, ``GPL-2.0-- or later``)."""
     if is_license_ref(text):
         steps: list[Step] = []
         return _reference(text, steps), steps
@@ -559,7 +560,7 @@ def _base(
             raise _Ambiguous(ids)
         return None
     license_id = loose[0]["license_id"]
-    lost = dropped(text) or ("" if head else trailing_joiners(text))
+    lost = dropped(text) or trailing_joiners(text, least=2 if head else 1)
     if lost:
         raise _Dropped(text, lost, license_id)
     lost = dropped_words(text)
