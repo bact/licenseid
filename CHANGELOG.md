@@ -48,6 +48,9 @@ and this project adheres to
   is not exact ([#221])
 - **Breaking:** a grant counts for the licence it names: `Requires Python 3.8 or
   later` beside a GPL name gives `-only` with a warning, not `-or-later`
+- **Breaking:** no name answer for a cut version with a tool's grant or number
+  (`Apache License 1. Requires Java 1 or later`), or for an LGPL or AGPL name
+  read as GPL ([#225])
 
 ### Fixed
 
@@ -80,6 +83,7 @@ and this project adheres to
 [#217]: https://github.com/bact/licenseid/pull/217
 [#220]: https://github.com/bact/licenseid/pull/220
 [#221]: https://github.com/bact/licenseid/pull/221
+[#225]: https://github.com/bact/licenseid/pull/225
 
 ## [0.8.4] - 2026-11-09
 

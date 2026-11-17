@@ -422,7 +422,7 @@ beside `GNU General Public License v2.0` turned `GPL-2.0-only` into
   phrase (the exemption above only keeps the answer); `variants._supports`
   still reads any grant phrase in a declared value (`has_or_later_language`).
 
-## Grant subject in the name tier (B1c, 2026-11-18)
+## Grant subject in the name tier (B1c, PR 225, 2026-11-18)
 
 Tier 0's `namerules.cut_version` took the number before any "or later" or
 "+" as the licence's grant: `Apache License 1. Requires Java 1 or later`
