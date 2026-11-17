@@ -7,6 +7,7 @@
 equal what ``python -m tools.lists_page`` writes (roadmap item 55)."""
 # pylint: disable=missing-function-docstring
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -16,10 +17,10 @@ from licenseid import LicenseDatabase
 from licenseid.resolvealias import ALIASES
 from licenseid.resolveslash import REFUSED_PAIRS
 from licenseid.resolvetitle import TITLES
-from licenseid.resolveurl import DUAL_PAGES, URL_ALIASES
+from licenseid.resolveurl import DUAL_PAGES, URL_ALIASES, UrlAlias
 from tools.lists_page import __main__ as generator
 from tools.lists_page import evidence
-from tools.lists_page.measure import answer_of, project_counts
+from tools.lists_page.measure import answer_of, list_owners, project_counts
 from tools.lists_page.render import render
 from tools.lists_page.rules import RULES
 
@@ -71,19 +72,97 @@ def test_the_evidence_covers_each_row_and_nothing_else() -> None:
     assert set(evidence.TITLE_SOURCES) == set(TITLES)
     assert set(evidence.DUAL_SOURCES) == set(DUAL_PAGES)
     assert set(evidence.PAIR_NOTES) == set(REFUSED_PAIRS)
-    assert set(evidence.URL_PACKAGES) | evidence.UNMEASURED_URLS == set(URL_ALIASES)
-    assert not set(evidence.URL_PACKAGES) & evidence.UNMEASURED_URLS
+    assert set(evidence.URL_PACKAGES) | evidence.LIST_PAGES == set(URL_ALIASES)
+    assert not set(evidence.URL_PACKAGES) & evidence.LIST_PAGES
 
 
 def test_a_row_of_a_table_that_grows_has_a_measured_count(
     corpus_db: LicenseDatabase,
 ) -> None:
     """The growth rule: an alias or a title is in the sample, a URL has a
-    survey count (the four pages that predate the rule are named)."""
+    survey count (the four pages that predate the rule are checked against the
+    List in the test below)."""
     counts = project_counts(corpus_db)
     assert set(counts["alias"]) == set(ALIASES)
     assert set(counts["title"]) == set(TITLES)
     assert all(count >= 1 for count in evidence.URL_PACKAGES.values())
+
+
+def _unlisted(
+    db: LicenseDatabase, owners_of: Callable[[LicenseDatabase, str], tuple[str, ...]]
+) -> list[str]:
+    """The members of ``LIST_PAGES`` the List does not give to the alias's
+    licence and its variants: no owner, the alias ID not among them, or an
+    owner that is neither the ID nor starts with ``<ID>-``."""
+    bad = []
+    for key in sorted(evidence.LIST_PAGES):
+        licence = URL_ALIASES[key].license_id
+        owners = owners_of(db, key)
+        variants = all(o == licence or o.startswith(f"{licence}-") for o in owners)
+        if licence not in owners or not variants:
+            bad.append(key)
+    return bad
+
+
+def test_a_url_alias_has_a_count_or_is_a_list_page_of_its_variants(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """A row of ``URL_ALIASES`` has a survey count, or is one of the four pages
+    the List gives its licence and the variants of it (MPL-2.0 and
+    ``MPL-2.0-no-copyleft-exception``). A page that names unrelated licences
+    is no such page: the owners are checked, not merely listed."""
+    assert not _unlisted(corpus_db, list_owners)
+    assert {k: sorted(list_owners(corpus_db, k)) for k in evidence.LIST_PAGES} == {
+        "mozilla.org/mpl/2.0": ["MPL-2.0", "MPL-2.0-no-copyleft-exception"],
+        "opensource.org/license/mpl-2-0": ["MPL-2.0", "MPL-2.0-no-copyleft-exception"],
+        "opensource.org/license/ofl-1-1": ["OFL-1.1", "OFL-1.1-RFN", "OFL-1.1-no-RFN"],
+        "scripts.sil.org/cms/scripts/page?item_id=ofl_web": [
+            "OFL-1.1",
+            "OFL-1.1-RFN",
+            "OFL-1.1-no-RFN",
+        ],
+    }
+    for key in URL_ALIASES:
+        assert key in evidence.URL_PACKAGES or key in evidence.LIST_PAGES, key
+
+
+@pytest.mark.parametrize(
+    ("key", "wrong"),
+    [
+        ("mozilla.org/mpl/2.0", "MPL-1.1"),
+        ("mozilla.org/mpl/2.0", "MIT"),
+        ("opensource.org/license/ofl-1-1", "OFL-1.1-RFN"),
+    ],
+    ids=["no-owner", "not-an-owner", "variant-not-licence"],
+)
+def test_a_list_page_naming_another_licence_is_caught(
+    corpus_db: LicenseDatabase,
+    monkeypatch: pytest.MonkeyPatch,
+    key: str,
+    wrong: str,
+) -> None:
+    """Mutation check of the test above: an alias ID that the List does not
+    give the page to, or one that is only a variant of the page's licence."""
+    monkeypatch.setitem(URL_ALIASES, key, UrlAlias(wrong, "https://example.org/x"))
+    assert _unlisted(corpus_db, list_owners) == [key]
+
+
+def test_a_list_page_that_names_an_unrelated_licence_is_caught(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """A page the List gives to the licence and an unrelated one is no page of
+    its variants: the evidence would not be the licence's."""
+
+    def owners_of(_db: LicenseDatabase, key: str) -> tuple[str, ...]:
+        return ("MPL-2.0", "MIT") if key == "mozilla.org/mpl/2.0" else ("OFL-1.1",)
+
+    assert "mozilla.org/mpl/2.0" in _unlisted(corpus_db, owners_of)
+
+
+def test_the_page_shows_what_the_list_gives_each_url_page(generated: str) -> None:
+    assert "The List gives the page to" in generated
+    row = next(x for x in generated.splitlines() if x.startswith("| `mozilla.org/mpl"))
+    assert "`MPL-2.0`, `MPL-2.0-no-copyleft-exception`" in row
 
 
 #: What the rules decide, written here apart from the page: the example, its

@@ -32,8 +32,9 @@ downloaded PyPI projects of October 2026
 (`tests/fixtures/pypi_values_2026-10.tsv`), counted by the generator. The
 counts of the URL table are packages of a survey of 2026-11-07 (issue #14:
 the 1,000 Maven Central packages with most dependants and the 300 most
-downloaded NuGet, npm, PyPI and crates.io packages). A dash is no count
-recorded.
+downloaded NuGet, npm, PyPI and crates.io packages). A URL page with no count
+is one the List gives to a licence and its variants, and that is its
+evidence. A dash is no count recorded.
 
 ## The lists at a glance
 
@@ -274,21 +275,23 @@ rule rests on the format.
 
 `licenseid.resolveurl.URL_ALIASES`, detail `alias`. A page the List lacks, or
 gives a licence and its variants, reviewed by hand. The source is the page that
-shows the licence.
+shows the licence. A page the List gives to the licence and its variants is read
+as the licence, and its evidence is the List: the column of the List names the
+IDs it gives the page to. Any other row needs a count of packages.
 
-| Key | ID | Source | Packages |
-| --- | --- | --- | --- |
-| `aws.amazon.com/apache2.0` | `Apache-2.0` | <https://aws.amazon.com/apache-2-0/> | 5 |
-| `eclipse.org/org/documents/epl-2.0/epl-2.0` | `EPL-2.0` | <https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.txt> | 5 |
-| `eclipse.org/org/documents/epl-v10` | `EPL-1.0` | <https://www.eclipse.org/org/documents/epl-1.0/> | 5 |
-| `mozilla.org/mpl/2.0` | `MPL-2.0` | <https://www.mozilla.org/MPL/2.0/> | — |
-| `openjdk.java.net/legal/gplv2+ce` | `GPL-2.0-with-classpath-exception` | <https://openjdk.org/legal/gplv2+ce.html> | 6 |
-| `opensource.org/license/cpl1-0` | `CPL-1.0` | <https://opensource.org/license/cpl-1-0> | 3 |
-| `opensource.org/license/mit-license` | `MIT` | <https://opensource.org/license/mit> | 17 |
-| `opensource.org/license/mpl-2-0` | `MPL-2.0` | <https://opensource.org/license/MPL-2.0> | — |
-| `opensource.org/license/ofl-1-1` | `OFL-1.1` | <https://opensource.org/license/OFL-1.1> | — |
-| `repository.jboss.org/licenses/apache-2.0` | `Apache-2.0` | <https://repository.jboss.org/licenses/apache-2.0.txt> | 9 |
-| `scripts.sil.org/cms/scripts/page?item_id=ofl_web` | `OFL-1.1` | <https://scripts.sil.org/cms/scripts/page.php?item_id=OFL_web> | — |
+| Key | ID | Source | Packages | The List gives the page to |
+| --- | --- | --- | --- | --- |
+| `aws.amazon.com/apache2.0` | `Apache-2.0` | <https://aws.amazon.com/apache-2-0/> | 5 | — |
+| `eclipse.org/org/documents/epl-2.0/epl-2.0` | `EPL-2.0` | <https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.txt> | 5 | — |
+| `eclipse.org/org/documents/epl-v10` | `EPL-1.0` | <https://www.eclipse.org/org/documents/epl-1.0/> | 5 | — |
+| `mozilla.org/mpl/2.0` | `MPL-2.0` | <https://www.mozilla.org/MPL/2.0/> | — | `MPL-2.0`, `MPL-2.0-no-copyleft-exception` |
+| `openjdk.java.net/legal/gplv2+ce` | `GPL-2.0-with-classpath-exception` | <https://openjdk.org/legal/gplv2+ce.html> | 6 | — |
+| `opensource.org/license/cpl1-0` | `CPL-1.0` | <https://opensource.org/license/cpl-1-0> | 3 | — |
+| `opensource.org/license/mit-license` | `MIT` | <https://opensource.org/license/mit> | 17 | — |
+| `opensource.org/license/mpl-2-0` | `MPL-2.0` | <https://opensource.org/license/MPL-2.0> | — | `MPL-2.0`, `MPL-2.0-no-copyleft-exception` |
+| `opensource.org/license/ofl-1-1` | `OFL-1.1` | <https://opensource.org/license/OFL-1.1> | — | `OFL-1.1`, `OFL-1.1-no-RFN`, `OFL-1.1-RFN` |
+| `repository.jboss.org/licenses/apache-2.0` | `Apache-2.0` | <https://repository.jboss.org/licenses/apache-2.0.txt> | 9 | — |
+| `scripts.sil.org/cms/scripts/page?item_id=ofl_web` | `OFL-1.1` | <https://scripts.sil.org/cms/scripts/page.php?item_id=OFL_web> | — | `OFL-1.1`, `OFL-1.1-no-RFN`, `OFL-1.1-RFN` |
 
 ## IDs joined by a slash
 
