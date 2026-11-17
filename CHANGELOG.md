@@ -51,6 +51,9 @@ and this project adheres to
 - **Breaking:** `licenseid.ToolInfo` replaces `Resolver` and `Component` of
   `licenseid.resolvertypes`; `ToolInfo`, `DetectOptions`, `Variant` are
   exported ([#224])
+- **Breaking:** no name answer for a cut version with a tool's grant or number
+  (`Apache License 1. Requires Java 1 or later`), or for an LGPL or AGPL name
+  read as GPL ([#225])
 - **Breaking:** a List name in marks (`*Apache License 2.0*`, `# Apache License
   2.0`) gets no answer, as `*MIT License*` had none (migrate: drop the marks)
   ([#226])
@@ -89,6 +92,7 @@ and this project adheres to
 [#220]: https://github.com/bact/licenseid/pull/220
 [#221]: https://github.com/bact/licenseid/pull/221
 [#224]: https://github.com/bact/licenseid/pull/224
+[#225]: https://github.com/bact/licenseid/pull/225
 [#226]: https://github.com/bact/licenseid/pull/226
 
 ## [0.8.4] - 2026-11-09

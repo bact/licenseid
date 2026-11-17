@@ -86,8 +86,9 @@ def test_every_channel_refuses_a_licence_listed_after_a_grant(
 def test_a_field_refuses_a_grant_listed_after_a_grant(
     corpus_db: LicenseDatabase,
 ) -> None:
-    """The name tier still guesses for the argument (``MPL-1.1``, not exact);
-    ``resolve()`` refuses it."""
+    """The argument has no name hit: its best match is a text match under the
+    bar of 0.85 (``MPL-1.1`` at 0.45 on this fixture database, ``BUSL-1.1`` at
+    0.475 on the full List), so no answer; ``resolve()`` refuses it."""
     got = answers(corpus_db, "GPL-2.0 or later, GPL-3.0 or later")
     assert got["tag"] is None
     assert got["field"] is None

@@ -381,23 +381,23 @@ and `--json`) against these rules and checks the default output against the
   ends or starts a word or stands alone in marks (`MIT++`, `GPL-2.0 (+)`;
   not `C++`): `resolvereason.refuses_text_match`.
 - Token set reads a name held whole in an input as the input's name:
-  `namehits.settle` drops that hit where the rest of the input names
-  something else. Of tied names (`namehits`) the one written whole (its
-  words in order, one word between at most) beats one made of scattered
-  words; of those the longest of nested names wins, two licences give none.
-  `namerules` judges the words that touch the name, never the whole input:
-  a cut version (a grant counts only right after the cut number); `with`
-  within three words after the name, then an exception of the List of two
-  words or more, or "exception" within five words (one word such as `GCC` is
-  no exception); a fragment of a longer name; another ID written whole
-  (joined to the name by a comma, slash, "and" or "or"; an acronym only so);
-  a dash glued to a word of the name. A second licence whose name lacks the
-  `v` of its version is another name too. Generic words
-  (`namerules.GENERIC`) are no evidence. A dropped hit that scored above 1
-  is final from 10 words on (no Tier 1; under 10 words `too_short` warns);
-  below 1, Tier 1 runs. Mixed-content sections (`match_short_text`) only
-  lose the hit. Add a rule there, with a made-up row in
-  `tests/test_namehits.py`.
+  `namehits.settle` drops that hit where the rest of the input names something
+  else. Of tied names (`namehits`) the one written whole (its words in order,
+  one word between at most) beats one made of scattered words; of those the
+  longest of nested names wins, two licences give none. `namerules` judges the
+  words that touch the name, never the whole input: a cut version (own grants,
+  `grantsubject`, on an `-or-later` or `+` ID exempt one number; a whole version
+  counts near the name only); a GPL hit if every "General Public" follows
+  `Lesser`, `Library` or `Affero`; `with` within three words after the name,
+  then an exception of the List of two words or more, or "exception" within five
+  words (one word such as `GCC` is no exception); a fragment of a longer name;
+  another ID written whole (joined to the name by a comma, slash, "and" or "or";
+  an acronym only so); a dash glued to a word of the name. A second licence
+  whose name lacks the `v` of its version is another name too. Generic words
+  (`namerules.GENERIC`) are no evidence. A dropped hit that scored above 1 is
+  final from 10 words on (no Tier 1; under 10 words `too_short` warns); below 1,
+  Tier 1 runs. Mixed-content sections (`match_short_text`) only lose the hit.
+  Add a rule there, with a made-up row in `tests/test_namehits.py`.
 - "/" is OR only in a whole value (`resolveslash.slash_parts`): each piece
   an exact-case List ID (a "+" read by `plusoperator`) or `LicenseRef-*`,
   at least one List

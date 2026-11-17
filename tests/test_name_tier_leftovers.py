@@ -129,6 +129,14 @@ DECIDED = [
     # licence by its ID, an exception by its words, still no answer.
     ("Apache License 1. Requires Java 8 or later", None),
     ("Licensed under the Mozilla Public License 1. Needs Firefox 3+ to run it", None),
+    # A grant of a tool's is no grant of the cut version, nor is a grant of
+    # a licence that has no -or-later ID (Apache), nor one that names the
+    # LGPL or the AGPL by words that hold the GPL's name.
+    ("Apache License 1. Requires Java 1 or later", None),
+    ("Mozilla Public License 1. Needs Firefox 1+ to run it", None),
+    ("Apache License 1 or later", None),
+    ("GNU Lesser General Public License v2.0 or later", None),
+    ("GNU Affero General Public License v2.0 only", None),
     ("BSD-3-Clause, Apache License 2.0", None),
     ("ISC License and Apache-2.0 apply to this package", None),
     ("GNU General Public License v2.0 only with Classpath exception", None),
@@ -168,13 +176,6 @@ BUGS = [
         "Licensed under the GNU Affero General Public License v3.0",
         Top("MPL-2.0-no-copyleft-exception", "text", False),
     ),
-    # The input holds "Lesser" that GPL's name lacks, and the name lacks the
-    # "0" of "v2.0"... BUG: (item 47). The grant is the LGPL's, not the
-    # GPL's: the wrong licence is now answered `-only`, guessed, with a warning.
-    (
-        "GNU Lesser General Public License v2.0 or later",
-        Top("GPL-2.0-only", NAME, False),
-    ),
     # A one-word ID that is an ordinary word is no second licence.
     # BUG: (item 47)
     ("Unlicense, ISC License", Top("ISC", NAME, False)),
@@ -182,9 +183,6 @@ BUGS = [
     # only tied names are weighed against each other. BUG: (item 47)
     ("GNU General Public License v2.0 or MIT License", Top("MIT", NAME, False)),
     ("MIT License or BSD 3-Clause", Top("MIT", NAME, False)),
-    # A cut version with a grant is exempt (#217), and Apache has no
-    # -or-later ID to name it. BUG: (item 47)
-    ("Apache License 1 or later", Top("Apache-1.1", NAME, False)),
 ]
 
 
