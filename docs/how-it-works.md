@@ -98,6 +98,14 @@ declared values, SPDX expressions and the matching pipeline.
       `"GPL-2.0 or later version"` → `GPL-2.0-or-later`).
     - For a licence name with no grant, `-only` first, said with a warning
       (see the deprecated ID item above).
+    - A name the input holds whole is dropped when the words beside it name
+      something else: a tie of two licences, a cut version, an exception, a
+      fragment of a longer name, another ID, a dash glued to a word end. Of
+      tied names the one written whole (its words in order) beats one put
+      together from scattered words, and the most specific of nested names
+      wins. A dropped name that scored above 1 gives no text answer from 10
+      words on; under 10 words the input still gets the `too few words for
+      text` warning.
   - **Tier 0.5 (Marker detection)**: Detects `SPDX-License-Identifier` tags and
     structured markers (name fields, headings). An exact SPDX tag returns
     immediately with full confidence.

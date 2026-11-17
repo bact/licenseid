@@ -402,56 +402,56 @@ format` check (PR #210), and the free-text rules of `exclude` and `hint`
 
 PR #168 (2026-11-06) stopped the name tier (`shorttext._partial_names`)
 from reading words a longer licence name only holds as that name, and reads
-a List name without its grant as the `-only` guess, said aloud. Measured on
-the PyPI sample (9,353 projects): 15 values (642 projects) lost a wrong
-answer, 8 (48) a guessed version, and 13 (34) a right answer. Its golden
-moves are in `tests/harness_changes_nametier.py`.
+a List name without its grant as the `-only` guess, said aloud. PR #170 read
+the BSD aliases through `resolvealias.ALIASES`.
 
-- **BSD aliases, lost**: done in PR #170 (2026-11-06): `resolve()`
-  reads them from a table, `resolvealias.ALIASES` (category `alias_name`),
-  each word the List's (`"New" or "Revised"`, `"Simplified"`), the OSI's
-  (`Modified`, `3-clause`) or the ID's clause count (`BSD-3`); `detect`
-  answers them by name, exact. Bare `BSD`, `BSD License` and `FreeBSD`
-  stay refused. `Open Database License` (`ODbL-1.0`), lost the same way,
-  is not read yet.
-- **A grant left out, another version spelling**: `GNU General Public
-  License v2`, `GNU General Public License v3` and `GNU Lesser General
-  Public License v3` (2 projects) get no answer: only the List name less
-  `only` or `or later`, word for word, is the `-only` guess, and `v3` is not
-  `v3.0`.
-- **A name with "+"**: `GNU General Public License v2.0+` gets no answer
-  (`normalize_text` drops the "+"). It could be `GPL-2.0-or-later`, as
-  `resolve()` reads `Apache License 2.0+` as `Apache-2.0+`.
-- **A manifest field**: `license = "GNU General Public License v2.0"`
-  gets no answer and no warning (`_try_manifest_value` takes a name hit of
-  1.02 only; the guess is 1.01), while the same text answers `GPL-2.0-only`
-  with `variant not stated`. Tags and fields through `resolve()` (0.8)
-  would settle it.
-- **The other direction**: an input that holds a whole name and more words
-  answers that name (token set scores 100): `MIT Future License` answers
-  `MIT`. `Licensed under the MIT License` relies on it. Measured 2026-11-06
-  (0.7.1 against `main` 253690f, `detect()` and `resolve()` on 520 corpus
-  values, the golden changes, 50 probes and every List name with a word
-  added or dropped, 2,220): the only wrong answer `main` gives that 0.7.1
-  did not. 0.7.1 was wrong too (`FSL-1.1-MIT`, whose name ends `MIT Future
-  License`).
-- **MulanPSL's Chinese title line** (`木兰宽松许可证, 第2版`, 21 columns)
-  scores 0.5 by text, under the 40-column scale; it was 1.0. No PyPI value
-  declares it, so `resolvetitle.TITLES` lacks it
-  (`test_the_chinese_title_line_of_mulan_psl_is_lost`).
-- **A whole name and more, wrong**: `SIL Open Font License 1.1 with
-  Reserved Font` answers `OFL-1.1` by name (was `OFL-1.0-RFN`, also
-  wrong); `Apache License 2.0 with LLVM exception` answers `Apache-2.0`.
-- **A "+" in a sentence**: `Licensed under the MIT++ license` answers `MIT`
-  by name, inexact (pinned as `# BUG:` in `tests/test_stray_plus_paths.py`).
-  `resolve()` reads no prose, so nothing refuses it; the fix of item 44 asks
-  `resolve()` about a value of under 30 words only.
-- **A refused "+" at 10 to 29 words**: `MIT OR Apache-2.0 OR … +` (a compound
-  of ten licences) is refused by `resolve()` for its "+" and still gets a
-  Tier 1 text match (`LPPL-1.3a`, inexact), as before the fix of item 44.
-- **A fullwidth "+"**: `GNU General Public License v2.0 ＋` is the `-only`
-  guess: `shorttext` tests for an ASCII "+" of its own, apart from
-  `plusoperator`, the one reader.
+**Built** (2026-11-17; open until merged): `namehits.settle()` drops a name
+hit that the rest of the input doubts: tied names that are two licences,
+a cut version, a fragment of a longer name, `with <exception>`, another ID
+written whole, a dash glued to a word end (`namehits` weighs tied names,
+`namerules` reads the words that touch one name). A dropped hit above 1
+stops Tier 1 too. Also `vN` for `vN.0` as the `-only` guess and a fullwidth "+"
+in a mixed-content section. See
+[`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
+This fixed the cut IDs of item 54 and the sentences with a second name.
+
+**Open leftovers** (counts: 134 pair probes of two List names; 708 names in
+use):
+
+- **Nested pair**: two names where one nests in the other answer the longer
+  (`Creative Commons Attribution 4.0 International or Creative Commons
+  Attribution Share Alike 4.0 International` gives CC-BY-SA-4.0): 1 of 134.
+- **Two licences in prose, not tied**: `GNU General Public License v2.0 or
+  MIT License`, `MIT License or BSD 3-Clause` answer MIT (a grant-less GPL
+  name or a short BSD form is not held whole, so no tie); needs a rule that
+  weighs every name the input holds, not only the tied ones.
+- **A list of two licences that names one whole**: `Eclipse Public License
+  v. 1.0 - Cecill v. 2.0` answers EPL-1.0 (as `main` did; round 1 of the
+  fix refused it): 4 of 12,723 windows. `with <one-word exception>` without
+  the word "exception" (`Apache License 2.0 with LLVM`) answers Apache-2.0:
+  30 of the 86 exceptions of the List.
+- **One-word ID that is an ordinary word**: no second licence
+  (`Unlicense, ISC License` gives ISC): 7 of 134.
+- **A version the name lacks**: `MIT License 2` still answers. Refusing it
+  lost 10 right `mixed` golden answers for 0 PyPI gain.
+- **Wrong answers no rule touches**: `Licensed under the GNU Lesser General
+  Public License v2.1` (and `v3.0`) gives BSD-Protection by text (0.867),
+  `Licensed under the GNU Affero General Public License v3.0` gives MPL-2.0
+  (0.86): name hits under 1, so Tier 1 answers. `GNU Lesser General Public
+  License v2.0 or later` gives GPL-2.0-or-later; `Apache License 1 or later`
+  gives Apache-1.1 (a grant exempts the cut).
+- **`<name> Plus`** still answers the name (706 of 708 probes).
+- **A name with "+"**: `GNU Lesser General Public License v3+` (1 project)
+  gets no answer (`normalize_text` drops the "+"). It could be `-or-later`.
+- **A manifest field** with a name less its grant (1 project):
+  `license = "GNU General Public License v2.0"` gets no answer and no
+  warning (`_try_manifest_value` takes a name hit of 1.02 only).
+- **Not read, no measured count**: `Open Database License` (`ODbL-1.0`) and
+  MulanPSL's Chinese title line (`木兰宽松许可证, 第2版`, 0.5 by text, was
+  1.0): 0 values in any corpus.
+- **A "+" in a sentence** (`Licensed under the MIT++ license`) and **a
+  refused "+" at 10 to 29 words** (a compound of ten licences): as before
+  the fix of item 44.
 
 - Impact 2, Risk 2, Effort 2.
 
@@ -617,19 +617,17 @@ cut version is a choice, not a spelling: `Apache-1` may mean `Apache-1.0` or
   touches the expression is refused too (`dropguard.cut_by_joiners`).
 - **Built** (PR #217, 2026-11-16; open until merged): see [`tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md).
 - **Open leftovers**: a dash glued to a comment closer in a tag (`MIT-*/`,
-  `MIT-#}`, `MIT-}`) is still read as `MIT`; the free-text line `License:
-  MIT-` gives `MIT` by the name tier; a tag compound ending in a reference
-  that ends in a dash (`MIT OR LicenseRef-a-`) loses the dash downstream;
-  a refused tag above a licence fragment can fall to the text tier (`MIT-0`
-  at 0.914); prose `Licensed under the Apache-1
-  license` still gives `Apache-1.1` from the name tier; `detect` of
-  `GPL-2.0 or later-` still answers through `disambiguate_whole`, as for
-  `GPL-2.0 or later?` (also `LGPL-2.1 or later-`, `GPL-2.0 or later--`);
-  a joiner run before a word grant (`GPL-2.0-- or later`, `MIT__ or later`)
-  is still read; a bare major with no `.0` row (`MVT-1`, `Sendmail-8`,
-  `Apache License 1`) is still answered as the nearest minor by the name
-  tier; `LGPLv2 or above` and `LGPL-2 WITH Classpath-exception-2.0+` give
-  `version ambiguous`, not the reason of their own fault (no answer changes).
+  `MIT-#}`, `MIT-}`) is still read as `MIT`; a tag compound ending in a
+  reference that ends in a dash (`MIT OR LicenseRef-a-`) loses the dash
+  downstream; a refused tag above a licence fragment can fall to the text
+  tier (`MIT-0` at 0.914); `detect` of `GPL-2.0 or later-` still answers
+  through `disambiguate_whole`, as for `GPL-2.0 or later?` (also
+  `LGPL-2.1 or later-`, `GPL-2.0 or later--`); a joiner run before a word
+  grant (`GPL-2.0-- or later`, `MIT__ or later`) is still read; `LGPLv2 or
+  above` and `LGPL-2 WITH Classpath-exception-2.0+` give `version
+  ambiguous`, not the reason of their own fault (no answer changes). Fixed
+  by item 47: `License: MIT-`, `Licensed under the Apache-1 license`,
+  `MVT-1`, `Sendmail-8`, `Apache License 1`.
 - Impact 1, Risk 2, Effort 2.
 
 ## 55. Publish the lists `resolve()` reads — Priority 12
@@ -691,4 +689,6 @@ Moved to
 [`../implementation/tech-debt-resolved.md`](../implementation/tech-debt-resolved.md)
 (2026-10-02), to keep this file under the size limit; those resolved from
 0.5.0 on are in
-[`../implementation/tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md).
+[`../implementation/tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md)
+and, from 2026-11-17,
+[`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
