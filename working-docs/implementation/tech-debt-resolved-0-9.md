@@ -569,3 +569,65 @@ name tier doubts a GPL hit for a Lesser, Library or Affero name.
   later`); two rows left `BUGS` of the leftovers for `DECIDED`, with five
   new ones. Mutants of the cut rule, the reach and the family rule are all
   killed.
+
+## A List name wrapped in marks (item 50, 2026-11-18)
+
+`*Apache License 2.0*`, `# Apache License 2.0` and `*Mozilla Public License
+2.0*` answered exact by name in `detect` while `resolve()` said `not found`.
+The same marks round `MIT License` were already refused
+(`character dropped: U+002A`): a name a loose ID reads met the guard against
+dropped marks, a name of the List-name table did not. Decided (D5 a): refuse,
+precision over recall. PR 226.
+
+- **Built**: `dropguard.edge_marks`, `resolvereason.wrapped_name` and
+  `resolveleaf._refuse_wrapped_name`, called in `_base` after the List-name
+  lookup fails and before the `+`/bracket early return. One guard in the
+  resolver; no change to the name tier: `detect` refuses through
+  `resolvereason.refuses_text_match` (no answer, warning `too few words for
+  text` under 10 words; from 10 words on, see the review finding below).
+- **The rule** (the first plan, "strip everything that is no letter,
+  separator, bracket or quote", was wrong: it refused `Apache License 2.0,`,
+  `MIT License:` and `MIT License++`, and missed `- Apache License 2.0`):
+  from the start every character that is no letter, digit, bracket or quote
+  mark (white space, dashes and dots too: it subsumes `lead_marks`); from the
+  end the same, but a `+`, a dash, `_` or `.` stays. Quote marks (`'` and
+  the grave accent too) and corner brackets stay at both ends: a name with
+  quote marks inside (`BSD 3-Clause "New" or "Revised" License`) is not
+  unwrapped by the quotes step and stays read. The reason names the cut
+  marks only (`*Sun PPP License (2000)*` is `U+002A`). The core must be a List
+  name of exactly one ID, and what was cut more than one end mark of `.,;:`
+  at the end, or anything at the start.
+- **Measured** on `main` f28fa39 and the branch (SPDX List 3.29.0): 0 of 520
+  golden and PyPI values move; the full golden moves 0 answers; the
+  linear-time check on `"*" + "x " * N + "*"` and `"*" * N + "Apache License
+  2.0"` is the same as `main`.
+- **Moves**, besides `resolve()` and the `detect` text channel: a `license`
+  field `*Apache License 2.0*` or `# Apache License 2.0` goes from
+  `Apache-2.0` exact to no answer; `MIT OR *Apache License 2.0*` has the
+  reason `character dropped: U+002A` (was `operand not resolved`);
+  `*Apache License 2.0*; MIT` has `operator not stated: ;` (was `not found`).
+- **Left** (known gaps; roadmap item 50): `*Apache License 2.0*.` (marks
+  after an end mark) and `1. Apache License 2.0` (a list number) still answer
+  `Apache-2.0`, exact, by name.
+- **Review finding, fixed** (long names): from 10 words on, a refused
+  wrapped name went on to the text tiers, as `Name*` did on `main`, and the
+  text could answer another licence (`*European Space Agency Public License
+  (ESA-PL) - V2.4 - Strong Copyleft (Type 1)*`: `ESA-PL-strong-copyleft-2.4`
+  exact on `main`, `ESA-PL-weak-copyleft-2.4` at 0.8722 on the first branch).
+  Measured on the 708 List names of one ID, each in 8 wraps (`*N*`, `# N`,
+  `- N`, `~N~`, `|N|`, `<N>`, `*N`, `N*`; 5664 values; 128 of them names of
+  10 words or more), `detect()` top answer, `main` against the first branch:
+  at the 0.85 bar 3486 went to none, 56 kept the ID but turned inexact
+  (35 of them 10 words or more), 7 went to another licence (all the ESA-PL
+  name), 2115 stayed; with no bar (the top of the API list) 84 went to
+  another licence. `main` answered another licence for 1 (`N*`). Now
+  `detector._short_text_refused` asks `resolvereason.no_text_answer`: a
+  refused value that is a listed name in marks (`resolvereason.wrapped_name`,
+  the guard's own test) has no answer from 10 words on, and under 10 the
+  `too few words for text` warning as before. All 5664 values have no answer,
+  with or without the bar; 0 another licence; the 35 inexact right answers
+  are lost (precision over recall, as under 10 words). Any other refused
+  value of 10 words or more is matched as before.
+- **Left**: `_Sun PPP License (2000)_` is `not found` (was `character
+  dropped: U+005F`; refused either way), and a `license` field with a mark
+  only at the end (`Apache License 2.0*`) still answers.

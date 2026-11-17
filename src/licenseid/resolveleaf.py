@@ -54,6 +54,7 @@ from licenseid.resolvereason import (
     after_space,
     on_reference,
     stated_twice,
+    wrapped_name,
 )
 from licenseid.resolvertypes import (
     CATEGORY_ORDER,
@@ -551,6 +552,7 @@ def _base(
     names = db.get_active_ids_by_name().get(text.casefold(), [])
     if len(names) == 1:
         return names[0], [step("listed_name", True, text, names[0])]
+    _refuse_wrapped_name(db, text)
     if "+" in text or _RE_BRACKET.search(text):
         return None  # "+" and brackets are read by the caller, not folded away
     loose = loose_id(db, text, granted=granted)
@@ -567,6 +569,15 @@ def _base(
     if lost:
         raise _Dropped(text, lost, license_id, words=True)
     return license_id, _spelling(text, license_id)
+
+
+def _refuse_wrapped_name(db: ListLookup, text: str) -> None:
+    """Raise :class:`_Dropped` where *text* is a name in marks, as it is for
+    ``*MIT License*``, whose name a loose ID reads; the refusal names the
+    marks, not characters of the name."""
+    found = wrapped_name(db, text)
+    if found is not None:
+        raise _Dropped(text, found[1], found[0])
 
 
 def _reference(text: str, steps: list[Step]) -> str:

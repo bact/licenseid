@@ -69,6 +69,10 @@ _BEFORE_MARKS: Final = "+([{"
 _AFTER_CUT: Final = ".,;:!?+\"')"
 # The first character of a comment closer (``-->``, ``-}``, ``--]]``, ``-#}``, ``*/``).
 _CLOSER_STARTS: Final = ">}]/*#"
+# What a mark round a whole name never is: a bracket, a "+" (the plus reader's)
+# and a quote mark are read by their own steps. The corner brackets quote too
+# (``licenseid.quotes.CORNER_PAIRS``, which imports this module).
+_KEPT_AT_EDGE: Final = "()[]{}+「」『』"
 
 
 def _is_separator(char: str) -> bool:
@@ -102,6 +106,39 @@ def lead_marks(text: str) -> str:
     while stop < len(text) and (text[stop] == "." or RE_DASHES.match(text[stop])):
         stop += 1
     return text[:stop]
+
+
+def _is_edge_mark(char: str, *, trailing: bool) -> bool:
+    """Whether *char* is a mark round a name: not a letter, a digit, a bracket,
+    a quote mark (``'`` and the grave accent too) or a "+". At the end a dash,
+    ``_`` or ``.`` is not one: it is :func:`trailing_joiners`' or the reader's
+    of one end mark."""
+    if char.isalnum() or char in _KEPT_AT_EDGE or char in QUOTE_KIND:
+        return False
+    return not trailing or char.isspace() or not _is_separator(char)
+
+
+def edge_marks(text: str) -> tuple[str, str] | None:
+    """*text* without the marks at both ends, and those marks (white space
+    left out): ``*Apache License 2.0*`` gives ``("Apache License 2.0", "**")``,
+    ``# Apache License 2.0`` gives ``#``. None where the cut is no reason to
+    refuse: nothing, white space alone, or one ``.``, ``,``, ``;`` or ``:`` at
+    the end with none at the start (:func:`trim_end_mark` reads it).
+
+    At the start every mark counts, dashes and dots too (:func:`lead_marks`).
+    At the end a dash, ``_``, ``.``, a "+", a bracket and a quote mark stay,
+    each with a reader of its own, and so does a quote or a bracket at the
+    start. One pass from each end, linear in *text*."""
+    start, stop = 0, len(text)
+    while start < stop and _is_edge_mark(text[start], trailing=False):
+        start += 1
+    while stop > start and _is_edge_mark(text[stop - 1], trailing=True):
+        stop -= 1
+    lead = "".join(text[:start].split())
+    trail = "".join(text[stop:].split())
+    if not lead and (not trail or (len(trail) == 1 and trail in _END_MARKS)):
+        return None
+    return text[start:stop].strip(), lead + trail
 
 
 def end_marks(text: str) -> str:

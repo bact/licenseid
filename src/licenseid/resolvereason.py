@@ -15,15 +15,18 @@ and cut, its ";" kept (:func:`licenseid.errors.reason_detail`).
 """
 
 from collections.abc import Callable
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
-from licenseid.dropguard import trim_end_mark
+from licenseid.dropguard import edge_marks, trim_end_mark
 from licenseid.errors import reason_detail
 from licenseid.exprtokens import RE_OPERATOR, WHITE_SPACE
 from licenseid.listlookup import ListLookup
 from licenseid.looseid import WITH_OPERATOR
 from licenseid.quotes import encloses_nothing
 from licenseid.resolvefirst import MIN_TEXT_WORDS
+
+if TYPE_CHECKING:
+    from licenseid.types import RawMatch
 
 #: SPDX's own values for "no licence" and "not stated", which name no
 #: licence; case-sensitive, as the SPDX specification writes them.
@@ -80,6 +83,32 @@ def refuses_text_match(reason: str | None, text: str) -> bool:
         # as before (``This library is licensed under the MIT++ license, see ...``).
         or (len(text.split()) < MIN_TEXT_WORDS and ends_a_word_with_plus(text))
     )
+
+
+def wrapped_name(db: ListLookup, text: str) -> tuple[str, str] | None:
+    """The listed ID and the marks (each once) of *text* when it is a listed
+    name of one ID with marks round it (``*Apache License 2.0*``,
+    ``# Apache License 2.0``), else None. The marks say something the name
+    does not (see :func:`licenseid.dropguard.edge_marks`)."""
+    cut = edge_marks(text)
+    if cut is None:
+        return None
+    core, marks = cut
+    ids = db.get_active_ids_by_name().get(core.casefold(), [])
+    return (ids[0], "".join(dict.fromkeys(marks))) if len(ids) == 1 else None
+
+
+def no_text_answer(db: ListLookup, text: str, words: int) -> "list[RawMatch] | None":
+    """What a refusal for a dropped mark (:func:`refuses_text_match`) leaves
+    of Tier 0 for *text* of *words* words: no answer at any length from
+    :data:`~licenseid.resolvefirst.MIN_TEXT_WORDS` words on when *text* is a
+    listed name in marks (:func:`wrapped_name`), where a text match would
+    drop the marks in silence and could answer another licence of the same
+    family (``*European Space Agency Public License ... (Type 1)*``). Else
+    None: under that, ``too_short`` says why, and a longer value is text."""
+    if words >= MIN_TEXT_WORDS and wrapped_name(db, text) is not None:
+        return []
+    return None
 
 
 def ends_a_word_with_plus(text: str) -> bool:

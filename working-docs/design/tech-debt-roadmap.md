@@ -480,8 +480,9 @@ and the parity corpus: the whole input moved 6 times, a quoted INI field
 
 Closed, so not listed below: the no-section `license = "MIT OR ISC"`
 (PR #219: no answer, `too few words for text`), `looseid.disambiguate_whole`
-(decided 2026-11-17: it stays, PR #221 restricted it), and the partial
-harness database (2026-11-18; PR #223); see
+(decided 2026-11-17: it stays, PR #221 restricted it), the partial
+harness database (2026-11-18; PR #223), and a List name wrapped in
+marks answering exact (PR #226); see
 [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
 
 Open:
@@ -494,9 +495,14 @@ Open:
   `_try_tier0_short_text`) repeat the "+" refusals of `resolve()`; they
   return no result where the `resolve()` guard returns None (a warning), so
   removing them adds a `too few words for text` warning. Decide, then drop.
-- **A wrapped name answers exact**: `*Apache License 2.0*` is `not found`
-  for `resolve()` and still `Apache-2.0` by name; apply `dropguard.dropped`
-  to name hits.
+- **Two shapes of a wrapped name still answer** (known gaps of the fix of
+  2026-11-18, recorded in
+  [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md)):
+  `*Apache License 2.0*.` (marks after an end mark) and `1. Apache License
+  2.0` (a list number): `Apache-2.0`, exact, by name.
+- **A `license` field with a mark only at the end** (`Apache License 2.0*`)
+  still answers `Apache-2.0`, exact, where `resolve()` and `detect` on a text
+  refuse it.
 - **A sentence of 10 to 29 words with `MIT++`** is matched by name still
   (`MIT`, inexact; under 10 words it has no answer): only a word ending in
   "+" under 10 words is refused, so a README line with `C++` keeps its

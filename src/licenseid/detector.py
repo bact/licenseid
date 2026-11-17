@@ -38,7 +38,7 @@ from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
 from licenseid.resolvefirst import as_resolved, match_of, too_short, unread_url
 from licenseid.resolver import resolve_with
-from licenseid.resolvereason import is_plus_refusal, refuses_text_match
+from licenseid.resolvereason import is_plus_refusal, no_text_answer, refuses_text_match
 from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import Resolution
 from licenseid.result import public_result
@@ -277,7 +277,7 @@ class LicenseDetector:
             _set_flags(match, self.markers.license_flags(disambiguated))
             return [match]
         if refuses_text_match(reason, ctx.target_text):
-            return None
+            return no_text_answer(self.db, ctx.target_text, ctx.word_count)
         found, refused = match_name_tier(self.db, ctx.norm_input, ctx.target_text)
         if refused:  # a rule doubted a name hit that would have answered
             return refusal_answer(ctx.word_count)
