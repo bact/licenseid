@@ -14,11 +14,12 @@ from collections import Counter
 from collections.abc import Iterable, Sequence
 from typing import Any, Final
 
+from licenseid import LicenseDatabase
 from licenseid.resolvefirst import EXACT_CATEGORIES
 from licenseid.resolvertypes import Category
 from licenseid.trovenames import TROVE_NAMES, TroveEntry
 from tools.lists_page import evidence
-from tools.lists_page.measure import Answer, answer_of
+from tools.lists_page.measure import Answer, answer_of, list_owners
 from tools.lists_page.rules import RULES
 
 INTRO: Final = """\
@@ -56,8 +57,9 @@ downloaded PyPI projects of October 2026
 (`tests/fixtures/pypi_values_2026-10.tsv`), counted by the generator. The
 counts of the URL table are packages of a survey of 2026-11-07 (issue #14:
 the 1,000 Maven Central packages with most dependants and the 300 most
-downloaded NuGet, npm, PyPI and crates.io packages). A dash is no count
-recorded.
+downloaded NuGet, npm, PyPI and crates.io packages). A URL page with no count
+is one the List gives to a licence and its variants, and that is its
+evidence. A dash is no count recorded.
 """
 
 RULES_INTRO: Final = """\
@@ -257,7 +259,12 @@ def _trove_row(
     )
 
 
-def _urls() -> str:
+def _owners(db: LicenseDatabase, key: str) -> str:
+    owners = list_owners(db, key)
+    return ", ".join(_code(owner) for owner in owners) if owners else "none"
+
+
+def _urls(db: LicenseDatabase) -> str:
     pages = _object("licenseid.resolveurl.ID_PAGES")
     aliases = _object("licenseid.resolveurl.URL_ALIASES")
     parts = [
@@ -312,16 +319,20 @@ def _urls() -> str:
             "### Pages read as one licence\n\n"
             "`licenseid.resolveurl.URL_ALIASES`, detail `alias`. A page the List "
             "lacks, or gives a licence and its variants, reviewed by hand. The "
-            "source is the page that shows the licence.\n"
+            "source is the page that shows the licence. A page the List gives "
+            "to the licence and its variants is read as the licence, and its "
+            "evidence is the List: the column of the List names the IDs it "
+            "gives the page to. Any other row needs a count of packages.\n"
         ),
         table(
-            ["Key", "ID", "Source", "Packages"],
+            ["Key", "ID", "Source", "Packages", "The List gives the page to"],
             [
                 (
                     _code(key),
                     _code(alias.license_id),
                     f"<{alias.source}>",
                     str(evidence.URL_PACKAGES.get(key, "—")),
+                    _owners(db, key),
                 )
                 for key, alias in sorted(aliases.items())
             ],
@@ -383,7 +394,7 @@ def render(db: Any, projects: dict[str, Counter[str]]) -> str:
             projects["title"],
         ),
         _trove(db, projects["trove"]),
-        _urls(),
+        _urls(db),
         _slash(),
         _versioned(),
     ]

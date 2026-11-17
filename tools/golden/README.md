@@ -52,8 +52,11 @@ Never edit a golden file by hand.
 | `cli.jsonl` | one per case and mode | exit status, standard output and standard error of a command, as text and with `--json` |
 
 The detect rows hold the expression, the method, `exact` and the score to four
-places. The `detect()` database is the one of the long-text fixtures; for
-`value`, the whole List with those texts (`tests/harness_db.py`). The CLI
+places. The `detect()` database (`tests/harness_db.py`, `detector_for`) is the
+whole List with the long-text fixtures' texts for the declared kinds `value`,
+`id` and `name`, and the long-text fixtures alone for `long`, `short` and
+`mixed`. The headers of `detect_id.tsv` and `detect_name.tsv` still say
+"long-text fixtures" until the release regeneration. The CLI
 cases are in `tests/harness_cli.py`; they run on a database and a shipped
 list built from the fixtures, a network that is down and a scratch home, and
 name the scratch paths `<DB>` and `<TMP>`.
