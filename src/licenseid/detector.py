@@ -100,10 +100,9 @@ def _set_flags(match: RawMatch, flags: LicenseFlags) -> None:
 
 
 class LicenseDetector:
-    """
-    Main detector class that implements Tier 1 (FTS5) and Tier 2 (RapidFuzz)
-    matching.
-    """
+    """The detection pipeline: the whole input through ``resolve()``, then
+    markers (Tier 0.5), IDs and names (Tier 0), FTS5 recall (Tier 1) and
+    RapidFuzz ranking (Tier 2)."""
 
     def __init__(
         self,
@@ -308,7 +307,7 @@ class LicenseDetector:
         A small manifest is not license text, so it is never matched by name
         as a whole (that answered Apache-1.0 for "Apache 2.0"): if it has no
         value, or its value names no license, there is no answer. A larger
-        one goes on to Tiers 1 and 2 as before.
+        one goes on to Tiers 1 and 2.
         """
         if not ctx.manifest:
             return None  # no manifest
@@ -718,9 +717,7 @@ class LicenseDetector:
                         )
                         seen_ids.add(m["license_id"])
 
-            # 2. Try Tier 1 (Recall) on a targeted window starting at the
-            # keyword
-            # We find the keyword in the section and start there for FTS5
+            # 2. Tier 1 (Recall) on a window starting at the keyword
             words = section.split()
             for i, word in enumerate(words):
                 if "licens" in word.lower():

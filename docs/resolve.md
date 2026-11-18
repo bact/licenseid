@@ -94,8 +94,7 @@ page](lists.md):
   and U+00AD soft hyphen (`MIT\u200b`, `\ufeffMIT`, `"MIT"\u200b`,
   `MIT OR ISC\u200b`). They carry no text and reorder nothing, so they are
   left off as a trimmed space is: one `trim` step with the detail
-  `zero-width characters`, the category of the value without them, and
-  `EXACT` yes;
+  `zero-width characters`, category `lexical` at best, `EXACT` yes;
 - any other control or format character at either end of the value is left
   off as a cut (`MIT\u202e`, `MIT\x07`, `MIT\x1f`, a run of Unicode tag
   characters, or one of them beside a zero-width one): one `trim` step with
@@ -276,7 +275,8 @@ page](lists.md):
   (`MIT/Apache-2.0`, `MIT, ISC`; a `license` field reads the `/` of IDs, as
   `resolve()` does, and a tag never does; prose such as `MIT, see LICENSE` keeps
   `MIT`), and a bare "or later" after an ID is the grant (`MIT or later` is
-  `MIT+`);
+  `MIT+`); a tag whose grant an operator follows reads as here
+  (`MIT (or later) AND Apache-2.0` is `Apache-2.0 AND MIT+`);
 - every result names its category and trust level, each step, the list
   it rests on with its version and where it was read (`database` or
   `packaged`), and the resolver's version (see
@@ -412,23 +412,10 @@ An empty text value is `null` in JSON. A later release only appends fields
 to a line, so read a field by its key; an `EXPRESSION` that is not the first
 key of its line is an operand's.
 
-The exit status is 0 when `expression` is not `None`, 1 when it is `None`
-(the lines are still printed, with no `ERROR` line; a `WARNING` about the
-database can still come with it), and 2 for a
-usage error, a list that cannot be read or a result that cannot be written.
-`--source` and `--db` choose the list as `resolve(value, source=...)` and
-`resolve(value, db)` do; `--db` with `--source packaged` exits 2. A licence
-text, `-` (standard input), a value with a line break and one
-over 2,000 characters (counted as `resolve()` counts them, after the
-surrounding white space is trimmed) are refused with exit 2, nothing on
-standard output and `; run 'licenseid detect'`: `detect` answers those.
-The value is read first: one that resolves is answered even when a file or
-directory of that name exists, and one that resolves to nothing and names
-one is refused the same way (`input: invalid: path: LICENSE`). An empty
-argument is `input: empty: argument` and no argument `input: missing; pass
-one declared licence value`: `resolve` never reads standard input. An argument
-with U+001C to U+001F is refused as a line break and names it (`invalid:
-line break U+001C: MIT`; `--text` of `detect` reads them as white space).
+The exit status (0 when `expression` is not `None`, else 1, with no `ERROR`
+line), `--source`, `--db` and the values `resolve` leaves to `detect` (a
+licence text, `-`, a line break, over 2,000 characters, the name of a file)
+are in [the command line reference](cli.md#resolve-a-declared-value).
 
 ## Operands and components
 
@@ -632,7 +619,8 @@ drop the "+" and answer the licence, exact. A tag and a manifest field read a
 licence URL with the same reader, in any word of the value
 (`SPDX-License-Identifier: https://spdx.org/licenses/MIT` is `MIT`), but
 the rest of their value still goes through the marker readers, not
-`resolve()` (planned). Not read yet: a URL inside prose.
+`resolve()`, except a tag's grant followed by an operator (above). Not read
+yet: a URL inside prose.
 
 ## Reasons for a refusal
 

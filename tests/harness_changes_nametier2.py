@@ -20,7 +20,6 @@ _DROPPED = (
     "the full List gives none in 0.8.4 and now)"
 )
 _SPECIFIC = "name tier: the most specific of tied names (was a less specific one)"
-_STILL_WRONG = "name tier: the most specific of tied names (was another wrong one)"
 _WRITTEN = "name tier: the name written whole beats scattered words (was wrong)"
 _V3 = "name tier: v3 is v3.0, the -only guess, variant not stated"
 

@@ -50,7 +50,7 @@ class DatabaseNotReadyError(LicenseIdError):
 
 
 class InvalidInputError(LicenseIdError):
-    """An invalid option or input (e.g. a malformed ``--version`` or binary
+    """An invalid option or input (e.g. a malformed list version or binary
     input): a usage error, so the CLI exits with code 2 rather than 1."""
 
 

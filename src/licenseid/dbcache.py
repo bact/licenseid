@@ -105,9 +105,9 @@ class TableCache:
         self._checked.block = block
 
     def _first_rows(self, query: str, kind: type[_V]) -> dict[str, _V]:
-        """Key to value for each row of *query*; the first row wins, as the
-        scan it replaces returned the first match in rowid order. A NULL key
-        matches nothing, as in SQL."""
+        """Key to value for each row of *query*; the first row wins, as a
+        scan in rowid order would find it first. A NULL key matches nothing,
+        as in SQL."""
         with self._connections.connection() as conn:
             rows: list[tuple[str | None, _V]] = conn.execute(query).fetchall()
         found: dict[str, _V] = {}

@@ -76,8 +76,8 @@ class Connections:
         """Open a new connection.
 
         Read-only unless *write*: a plain read-write open creates a missing
-        file, so a lookup after the database was deleted left an empty one
-        behind. An in-memory database has no file and opens as it is. A write
+        file, so a lookup after the database was deleted would leave an
+        empty one behind. An in-memory database has no file and opens as it is. A write
         creates the file only when the database was made to *create* it;
         otherwise the file must be there. No ``PRAGMA mmap_size``: a mapped
         page past the end of a file another program truncated kills the

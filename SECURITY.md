@@ -21,8 +21,8 @@ Do not describe how it can be reached through licenseid there.
 
 Releases after 0.4.0 attach these files to each
 [GitHub release](https://github.com/bact/licenseid/releases) (0.4.0 has the
-wheel and the sdist with their bundles and attestations, but its SBOM is
-unsigned):
+wheel and the sdist with their Sigstore bundles and attestations, but its
+SBOM is unsigned):
 
 - the wheel and the source distribution (sdist), as published on PyPI;
 - the software bill of materials (SBOM),

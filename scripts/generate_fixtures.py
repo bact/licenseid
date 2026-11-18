@@ -18,11 +18,9 @@ from fixture_dirs import check_dir
 from fixture_distort import apply_casing, distort_name, distort_text, drop_punct
 from fixture_mixed import generate_type_5
 
-# Define paths
 REPO_ROOT = Path(__file__).parent.parent
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 
-# SPDX Data Source
 SPDX_LICENSES_URL = "https://spdx.org/licenses/licenses.json"
 
 TARGET_FAMILIES = [

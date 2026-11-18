@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-28
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -17,7 +17,8 @@ Source abbreviations (all paths relative to the repo root):
 
 - `IMPL/` = `working-docs/implementation/`; `DES/` = `working-docs/design/`
 - `TDR` = `IMPL/tech-debt-resolved.md`; `ROAD` = `DES/tech-debt-roadmap.md`;
-  `CPLX` = `DES/complexity-and-file-size-roadmap.md`
+  `CPLX` = `DES/complexity-and-file-size-roadmap.md` (its "Done" sections are
+  now in `IMPL/complexity-refactors.md`)
 - `R2` = `IMPL/speed-optimizations-round-2.md`; `R1` =
   `IMPL/speed-optimizations.md`
 - `OPT` = `DES/optimization-recommendation.md`; `THR` =
@@ -29,7 +30,9 @@ Source abbreviations (all paths relative to the repo root):
 - `BENCH` = `benchmarks/summary.md`; `BREADME` = `benchmarks/README.md`
 - `FIX` = `tests/fixtures/README.md`; `AGENTS` = `AGENTS.md` (`CLAUDE.md` is a
   symlink to it)
-- `L<n>` = line number in that file.
+- `L<n>` = line number in that file as it was when the note was written
+  (2026-10-05 to 2026-10-28); the files have been edited since, so find the
+  passage by its words.
 
 A few facts are taken from source code comments (marked `src/...`) where the
 docs refer to them but do not quote the constant. Remarks marked
@@ -216,8 +219,8 @@ SPDX grammar (`DES/matching-rules-redesign.md` L28-49).
 - Benchmarks do not check `best_window`/`--diff` quality at all
   (`DES/probe-anchored-windowing-plan.md` L132-134).
 - Fixture limits calibrated to fixtures prove little (`AGENTS` L383-391).
-- Python-version dependence of expression results (3.10 vs 3.14,
-  `ROAD` item 19).
+- Python-version dependence of expression results (3.10 vs 3.14, `ROAD` item
+  19; fixed since: one depth cap on every version).
 - Wall-time comparisons confounded by query-count changes (`OPT` L52-54).
 - Platform coverage: the 2,500-odd tests ran on Linux (and macOS locally)
   only. A Windows job (3.11) was added on 2026-10-06 (commit 427dfd6) after
@@ -229,52 +232,56 @@ SPDX grammar (`DES/matching-rules-redesign.md` L28-49).
 
 ### 5.2 Known limitations (open roadmap items, `ROAD`)
 
+State of 2026-11-18. The list of 2026-10-28 held items 32, 5, 33, 34, 19, 30,
+23, 9 and 20; all are resolved or closed (item 20 by a decision not to build
+it, 2026-11-17).
+
 <!-- markdownlint-capture -->
 <!-- markdownlint-disable MD013 -->
 
 | Item | Priority | Issue |
 | --- | --- | --- |
-| 32 | 24 | Missing file argument matched as text (`LICENSE.txt` → `APL-1.0`, exit 0) |
-| 2 | 20 | `py-spdx-license` locale-encoding crash; waits on upstream release |
-| 5 | 15 | Conflicting options/inputs resolved silently; `--top -1`/`0` unchecked |
+| 2 | 20 | `py-spdx-license` locale-encoding crash; the fix is merged upstream (2026-11-10), not released |
+| 47 | 16 | Name tier on a few words: leftovers (two licences in prose, a version the name lacks, a name with "+") |
 | 11 | 15 | Probe-anchored windowing; 9 s and 134 s slow cases |
 | 7 | 12 | GPL/LGPL/AGPL tail recall floor: `tail_300`-`tail_500` lose 28-35 fixtures from top-50 |
-| 9 | 12 | `scripts/`, `benchmarks/` unlinted; `bench_single.py` 770, `generate_fixtures.py` 755 lines; pylint 9.48/10, 11 flake8 findings |
-| 10 | 12 | Environment failures: read-only WAL DB, `file://localhost`, lock contention, raw `sqlite3` errors in API, Ctrl-C during imports |
-| 23 | 12 | Loose `License:` reader unbounded (9 s / 10,000 lines) |
+| 10 | 12 | Environment failures: read-only WAL DB, lock contention, Ctrl-C during imports |
 | 31 | 12 | Matching-rules revision: grammar, certainty, ranking |
-| 33, 34 | 12 | Non-ASCII tag values cut; expression flags wrong |
+| 46 | 12 | Leftovers of the 0.7.0 review: readers see `database: empty` during `update` (1,074 errors in 13 s), `only_spdx` does nothing |
+| 49 | 12 | A non-standard value (`license = "non-standard"`) should hand over to `detect()` |
+| 52 | 12 | Leftovers of `detect --variant` |
 | 26, 28 | 10 | Parser guard; short phrases score 1.0 |
-| 19, 20 | 9 | Depth by Python version; grant inside expression refused |
-| 35 | 9 | `exclude` ignored by declared paths; repeated text misranked; textless deprecated rows still candidates |
-| 13 | 6 | Apache-2.0 vs Pixar near-duplicate confusion — no fix designed |
-| 30 | 6 | `GPL 2.0+` in prose |
+| 50 | 10 | Leftovers of Tier 0 through `resolve()` |
+| 35 | 9 | A text repeated three times misranks |
+| 13 | 6 | Apache-2.0 vs Pixar near-duplicate confusion, no fix designed |
 
 <!-- markdownlint-restore -->
 
-Also: `database.py` 864 lines, over the 800 hard limit (`CPLX` L383-397);
-fingerprints committed after metadata (kill-window changes answers,
-`TDR` L512-518); `licenseId` from tarball JSON used in paths unvalidated;
+Also: fingerprints were committed after the metadata, so a kill in between
+changed answers (`MIT` became `Xnet`); fixed, the stamp is written last
+(`TDR`, readiness gate). `licenseId` from tarball JSON used in paths unvalidated;
 per-read not total timeouts (`FETCH` L113-118); `NONE`/`NOASSERTION` tags
 read as unknown (`TDR` L389-391); tie-breaker not idempotent; nudge moves
-reported scores by up to 0.005 (`TDR` L442-449); `match(text=...)` does not
-check NUL or normalise line ends as `--text` does (`TDR` L404-406).
+reported scores by up to 0.005 (`TDR` L442-449). These were not re-checked
+on 2026-11-18, and `database.py` (864 lines on 2026-10-05) is now 656.
 
 ### 5.3 Open research/design questions (`DES/matching-rules-redesign.md`)
 
+Areas 1 to 3 are open (roadmap item 31); areas 4 to 6 (flags of expressions,
+input and option precedence, exit codes and the API error layer) are decided
+and built.
+
 1. **SPDX grammar**: one reader returning a typed tree, other judges derived;
    conformance table "written from the grammar (SPDX Annex D), not from the
-   bugs"; one depth cap; delegate to `py_spdx_license` once linear (L28-49).
+   bugs"; one depth cap (done, item 19); delegate to `py_spdx_license` once
+   linear.
 2. **Certainty taxonomy**: evidence kinds (declaration, exact ID/name,
    look-alike name, phrase, whole text, close text) and the strongest answer
    each may give; is a short phrase hit evidence or an answer; what is an
-   exact text under SPDX replaceable/omittable rules (L51-68).
+   exact text under SPDX replaceable/omittable rules (settled for a declared
+   value by item 52: exact where a list defines the reading).
 3. **Ranking**: two keys, certainty then closeness, so no cap needed; family
-   disambiguation as ranking rule or separate step; is `score` one number
-   (L70-82; `ROAD` item 31 L186-199).
-4. Flags for expressions (all/any/null) and references (L84-94).
-5. Input and option precedence taxonomy (L96-111).
-6. API error wrapping layer (L113-127).
+   disambiguation as ranking rule or separate step; is `score` one number.
 
 ### 5.4 Future work (accuracy and speed)
 

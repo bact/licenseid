@@ -30,7 +30,7 @@ def matcher() -> LicenseDetector:
     """Fixture to provide a module-scoped, prepopulated in-memory matcher."""
     if not list(FIXTURES_DIR.glob("*.json")):
         pytest.skip(
-            "No fixtures found. Run 'python scripts/generate_dataset.py' first."
+            "No fixtures found. Run 'python scripts/generate_fixtures.py' first."
         )
     return long_text_detector()
 
@@ -70,7 +70,7 @@ def run_accuracy_test(
     fixtures = list(FIXTURES_DIR.glob("*.json"))
     if not fixtures:
         pytest.skip(
-            "No fixtures found. Run 'python scripts/generate_dataset.py' first."
+            "No fixtures found. Run 'python scripts/generate_fixtures.py' first."
         )
 
     # Filter by specific IDs if provided
@@ -168,7 +168,6 @@ def assert_accuracy(matcher: LicenseDetector, license_ids: list[str]) -> None:
 @pytest.mark.benchmark
 def test_full_accuracy(matcher: LicenseDetector) -> None:
     """Run full accuracy benchmark across all distortion rates for all licenses."""
-    # rates = ["00", "01", "02", "05", "10", "20"]
     rates = ["00", "02", "05"]
     results = run_accuracy_test(matcher, rates)
 

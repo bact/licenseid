@@ -107,26 +107,17 @@ written, with no upgrade and no warning (a "+" still reads as `-or-later`);
 and `"or-later"` (another `str` raises `InvalidInputError`, `option: invalid:
 variant: ...`; a value that is no `str` raises `TypeError`). Unlike the other
 options it acts on every input, as `--variant` does on the command line
-([cli.md](cli.md)). It says what to answer for a licence with an `-only` and an
-`-or-later` form when the input does not state which. `"auto"` keeps a declared
-value as written (`detect(license_id="GPL-2.0")` is `GPL-2.0`, `variant_stated`
-`False`, as `resolve()` gives it) and, for a licence text or name, answers
-`-or-later` where the input grants later versions of that licence (stated; a
-tool's `Python 3.8 or later` grants nothing), else `-only` first
-and `-or-later` second, both `variant_stated` `False`, with one `variant not
-stated` warning. `-only` is the licensee's careful reading: it understates a
-licensor's "or later" grant. `"as-written"` never decides: a bare deprecated ID
-stays, in a text match too when the bare row is among its candidates (else as
-under `auto`). `"only"` and `"or-later"` always decide, declared values too,
-with the warning. The option is a preference, never a fact: words that state the
-variant (`GPL-2.0 or later`, `GPL-2.0+`, `-only`, `-or-later`) win over `"only"`
-and `"or-later"`, with `option: overridden by input: --variant only; using
+([cli.md](cli.md), which describes each value): `"auto"` keeps a declared value
+as written (`detect(license_id="GPL-2.0")` is `GPL-2.0`, `variant_stated`
+`False`, as `resolve()` gives it) and answers a licence text or name
+`-or-later` first where the input grants later versions of that licence, else
+`-only` first, with one `variant not stated` warning. Words that state the
+variant win, with `option: overridden by input: --variant only; using
 GPL-2.0-or-later` (the API names the CLI option too). The API warns for results
-scoring 0.85 or more (the CLI: those it prints). `variant_stated` of a result is
-`True` when the input states the variant, `False` for a guess or a bare ID kept,
-`None` where no licence of the answer has a variant (`MIT`); of a compound
-`None` when none has one, `False` when any is `False`, else `True`. `resolve()`
-takes no `variant`, and its answers do not change.
+scoring 0.85 or more (the CLI: those it prints). `variant_stated` reads as
+`VARIANT_STATED` does ([output.md](output.md)): `True` when the input states
+the variant, `False` for a guess or a bare ID kept, `None` where no licence of
+the answer has a variant (`MIT`). `resolve()` takes no `variant`.
 
 A text under 30 words that is no declaration, but names a licence ("released
 under the terms of the MIT License"), is free text: `exclude` drops that

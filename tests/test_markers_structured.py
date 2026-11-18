@@ -7,7 +7,7 @@
 reading of ``manifest.license_value_groups`` by MarkerDetector.
 
 Characterization tests written before the complexity refactor (see
-working-docs/design/complexity-and-file-size-roadmap.md) to pin down JSON,
+working-docs/implementation/complexity-refactors.md) to pin down JSON,
 TOML, and INI license-field detection, which had no direct tests: the
 extension gating, the JSON early return, per-format scores, and how
 malformed input degrades.

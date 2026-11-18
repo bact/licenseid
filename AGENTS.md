@@ -2,7 +2,8 @@
 
 Each rule is binding. Rationale and history live in `working-docs/`
 (internal notes; user-facing docs never link into it: cite a PR or issue).
-`CLAUDE.md` is a symlink to this file: edit `AGENTS.md`.
+`CLAUDE.md`, `GEMINI.md` and `.github/copilot-instructions.md` are symlinks
+to this file: edit `AGENTS.md`.
 
 ## Project
 
@@ -78,7 +79,8 @@ in another module.
   names no row, `ambiguous_ids`; an "or later" grant exempts it),
   `quotes` (quote marks around a whole value,
   `「」` too), `dropguard` (what a loose reading must not drop),
-  `hiddenchars` (control and format characters off the ends, inside quotes too),
+  `hiddenchars` (control and format characters off the ends and beside white
+  space, inside quotes too),
   `grantchain` (a tag whose grant an operator follows, read by `resolve()`).
 - Resolver: `resolver` (value to expression and steps; types in
   `resolvertypes`), `resolveleaf` (one licence), `resolvecompound`,
@@ -95,10 +97,11 @@ in another module.
   bundle in memory), `listsource` (database or packaged), `listrules`
   (entries kept, deprecated targets).
 - Data: `database`, `dbconnection`, `dbcache`, `dbschema`, `dbcheck`,
-  `datadir`, `records` (rows), `spdxdata` (a release as data, standard
-  library only), `releasesource`, `spdx_source`, `textinput` (bytes to
-  text), `manifest` (the `license` field of package.json, pyproject.toml,
-  Cargo.toml, setup.cfg; a TOML basic string decoded, a literal one not).
+  `datadir`, `records` (rows), `spdxdata` (a release as data; no
+  `requests`, `click` or `rapidfuzz`), `releasesource`, `spdx_source`,
+  `textinput` (bytes to text), `manifest` (the `license` field of
+  package.json, pyproject.toml, Cargo.toml, setup.cfg; a TOML basic string
+  decoded, a literal one not).
 - CLI: `cli` (group, `main`), `cliinput` (one of file, value, `--text`,
   `--id`, `-`), `clidetect` (`detect`, `is-*`), `cliupdate` (`update`,
   `clear-cache`), `cliresolve`, `clicommon`, `output`, `console`, `usage`,
@@ -321,7 +324,7 @@ and `--json`) against these rules and checks the default output against the
   A dash or `_` run touching its end, then the end of the value, white
   space, `.`, `,` or `+`, cuts it: no expression (`dropguard.cut_by_joiners`).
 - "Or later" grant: `classify.OR_LATER_PHRASE` is the one phrase reader
-  (imported by `ranking`, `identifiers.disambiguate_deprecated_id`,
+  (imported by `grantsubject`, `identifiers.disambiguate_deprecated_id`,
   `markers`, `looseid`); `classify.grant_end` finds a grant and its end;
   `classify.grant_head` is the one rule for the gap between ID and grant (a
   dash between words, or ONE dash or `_` glued to the ID, is a separator; a
@@ -481,8 +484,11 @@ and `--json`) against these rules and checks the default output against the
   where a result is made, never derived from the score or the trust: a text
   is exact when the whole non-empty normalised input equals the licence's
   `search_text`; a declared value when a list defines its reading
-  (`resolvefirst.is_exact`: `EXACT_CATEGORIES`, not a rewrite rule; a tag
-  or field through `ruleread`). A deprecated name is inexact only when a
+  (`resolvefirst.is_exact`: `EXACT_CATEGORIES`, not a rewrite rule, not a
+  cut value; a tag or field through `ruleread`). White space left off or
+  inside a List name (a run, a tab) and a zero-width character
+  (`hiddenchars.ZERO_WIDTH`) cut nothing; any other hidden character left
+  off does (`hiddenchars.cuts_hidden`). A deprecated name is inexact only when a
   row in use has the same normalised name. The one later change: a variant
   licenseid chose is never exact (`public_result`).
 - Packaged bundle: `hatch_build.py` (standard library only) puts it in the
@@ -612,7 +618,8 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   `make_memory_db_path`, `fake_requests_get`, `leftover_tmp_files`). A
   shared fixture goes in `tests/conftest.py` (importing one trips
   `F811`); plain helpers in a module (`ordering_helpers`, `db_asserts`).
-- The autouse `verbose_cli` fixture (`tests/cli_verbose.py`) adds `-v` to
+- The autouse `verbose_cli` fixture (`tests/conftest.py`, helpers in
+  `tests/cli_verbose.py`) adds `-v` to
   `detect` and `resolve` under `CliRunner` (not a subprocess). A test of the
   default output or the exact command line carries `@pytest.mark.terse_cli`. The
   CLI golden and `tools/cli_matrix` name `--verbose` themselves.

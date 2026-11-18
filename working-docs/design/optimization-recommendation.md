@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-06
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -9,22 +9,21 @@ SPDX-License-Identifier: Apache-2.0
 
 # Benchmark analysis and optimisation recommendation
 
-> **Status note (2026-08-19):** items 1 and 2 of "Remaining open issues"
-> below have since been implemented. Item 1 (Tier 0 case-fold exact ID
-> match) landed earlier. Item 2 (deprecated→canonical redirect) was only
-> half-done: `normalize_identifier()` already applied the conservative
-> `-only` fallback for the explicit `license_id=` path, but free-text
-> queries through `_match_short_text`'s case-fold branch returned the
-> bare deprecated ID unchanged — e.g. `match(text="GPL-2.0")` gave
-> `"GPL-2.0"` instead of `"GPL-2.0-only"`. Fixed by routing that branch
-> through the same `normalize_identifier()` call. The rest of this
-> document, including the R@1 figures, predates this work and has not
-> been re-benchmarked.
->
-> **Status note (2026-11-16):** since roadmap item 52 (PR #212) a bare
-> `GPL-2.0` declared as written stays `GPL-2.0`; only `--variant only`
-> reads it as `GPL-2.0-only`
-> (`../implementation/item-52-variant-and-exact.md`).
+> **Status note (2026-11-18):** the figures and function names (`matcher.py`,
+> `_match_short_text`, `_calculate_final_score`) are those of May 2026 and
+> were not re-benchmarked. Built, as recorded in
+> [`../implementation/accuracy-optimizations.md`](../implementation/accuracy-optimizations.md)
+> (sections 2, 3, 5, 6, 8): items 1 and 2 of "Remaining open issues" (the
+> case-fold exact ID, 2026-08-19; the deprecated-ID redirect, first through
+> `normalize_identifier()`), the marker boost guard of 0.85 (item 4), the word
+> cap back to 100, the comment-prefix stripper and the dual head and tail
+> query. Not built as proposed: head and tail scored apart (Tier 2 aligns a
+> fragment to the best window of a licence, `similarity.py`) and the
+> head-and-tail re-ranking (item 6). The tail recall floor is roadmap item 7;
+> item 3 (type 4 at 5% distortion) was not re-measured. Since roadmap item 52
+> (PR #212) a bare `GPL-2.0` declared as written stays `GPL-2.0`; only
+> `--variant only` reads it as `GPL-2.0-only`
+> ([`../implementation/item-52-variant-and-exact.md`](../implementation/item-52-variant-and-exact.md)).
 
 ## Full pipeline analysis — `20260507T120849Z`
 

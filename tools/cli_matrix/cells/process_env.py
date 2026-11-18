@@ -20,6 +20,8 @@ from tools.cli_matrix.model import RESET_SIGINT, CellSet, licenseid
 FIFO_CELL = "file is a FIFO with writer"
 FIFO_REFUSAL = r"input: unreadable: .*not a regular file"
 
+#: HOME shapes the default database path has to cope with. ``env -u HOME``
+#: is present but permanently skipped: with HOME unset, Python falls back
 #: to the password database, which resolves to the real user cache. A cell
 #: that did that once deleted the developer's own licenses.db.
 HOME_KINDS: list[tuple[str, str, str | None]] = [

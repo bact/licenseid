@@ -67,8 +67,7 @@ LABEL: str = sys.argv[2]
 TIMESTAMP: str = sys.argv[3]
 IS_VERIFY: bool = "--verify" in sys.argv
 
-# Character sizes to benchmark.  700 and 1000 exist in the current type-3
-# fixtures; 800 and 900 require regenerating with the updated script.
+# Character sizes to benchmark; all four exist in the type-3 fixtures.
 SIZES: list[int] = [700, 800, 900, 1000]
 
 FIXTURES_DIR: Path = (

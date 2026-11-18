@@ -22,11 +22,11 @@ ID_COLLECTIONS: Final = (list, tuple, set, frozenset)
 
 
 def _check_inputs(text: object, license_id: object, file_path: object) -> None:
-    """The input rules of :meth:`LicenseDetector.detect`: :class:`TypeError`
-    for a *text* or *license_id* that is no :class:`str` (it failed deep
-    inside), or a *file_path* that is no path;
+    """The input rules of :meth:`licenseid.detector.LicenseDetector.detect`:
+    :class:`TypeError` for a *text* or *license_id* that is no :class:`str`,
+    or a *file_path* that is no path;
     :class:`licenseid.errors.InvalidInputError` unless exactly one of the
-    three is given (none answered nothing; of two, one won unsaid)."""
+    three is given."""
     for name, value in (("text", text), ("license_id", license_id)):
         if value is not None and not isinstance(value, str):
             raise TypeError(f"{name} must be str, not {type(value).__name__}")
@@ -66,9 +66,8 @@ _LIST_OPTIONS: tuple[str, ...] = ("exclude", "hint")
 
 def _check_option_values(options: Mapping[str, object]) -> None:
     """:class:`TypeError` for an option of the wrong type: a flag that is no
-    :class:`bool`, or an ``exclude``/``hint`` that is no list of IDs. A bare
-    string was read as a list of its characters (``exclude="MIT"`` kept
-    every ID that is a substring of it), so the call failed unsaid."""
+    :class:`bool`, or an ``exclude``/``hint`` that is no list of IDs (a bare
+    string would be read as a list of its characters)."""
     for name in _FLAG_OPTIONS:
         if name in options and not isinstance(options[name], bool):
             raise TypeError(f"{name} must be bool, not {type(options[name]).__name__}")
@@ -84,7 +83,8 @@ def _check_option_values(options: Mapping[str, object]) -> None:
 
 def _check_variant(options: Mapping[str, object]) -> None:
     """:class:`TypeError` for a ``variant`` that is no str,
-    :class:`InvalidInputError` for one that is not a variant."""
+    :class:`licenseid.errors.InvalidInputError` for one that is not a
+    variant."""
     if "variant" not in options:
         return
     value = options["variant"]

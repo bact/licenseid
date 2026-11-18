@@ -27,12 +27,12 @@ _RE_WHITESPACE: Final = re.compile(r"\s+")
 _RE_NON_WORD: Final = re.compile(r"[^\w\s]")
 
 # Guideline 4 (hyphens): any hyphen, dash, en dash, em dash, or similar
-# variant is considered equivalent.  The final punctuation sweep (step 12)
+# variant is considered equivalent.  The final punctuation sweep (step 13)
 # strips hyphens entirely regardless, so there is no information kept by
 # preserving "-" as a distinct character — fold straight to a space here.
 # This must include the plain ASCII hyphen-minus itself (not just the
 # fancy Unicode variants), otherwise a hyphenated spelling such as
-# "copyright-owner" survives varietal-word matching (step 11, which only
+# "copyright-owner" survives varietal-word matching (step 12, which only
 # matches space-separated phrases) on this pass, and only gets split into
 # "copyright owner" by the final punctuation strip afterwards — causing a
 # second call to normalize_text() to behave differently from the first
@@ -80,7 +80,7 @@ _RE_COMMENT_PREFIX: Final = re.compile(
 
 # A second, narrower comment-prefix stripper for a different call site:
 # retrieval.py and detector.py run strip_comment_prefixes() on raw (not yet
-# normalized) text before FTS5 indexing/querying, to improve recall on Type 5 (comment-
+# normalized) text before an FTS5 query, to improve recall on Type 5 (comment-
 # wrapped) license notices — separately from _RE_COMMENT_PREFIX above, which
 # only runs inside normalize_text() itself as one step of the guideline
 # pipeline.  They are intentionally not merged into one regex: this one

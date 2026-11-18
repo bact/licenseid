@@ -20,14 +20,13 @@ bundle shipped in the wheel (:func:`licenseid.listindex.packaged_index`).
   the warning ``database: <condition>: <detail>; using packaged data
   v<ver>`` (a :class:`licenseid.LicenseIdWarning`), given once per process
   (not once per value);
-- no bundle either: the database's own error, as 0.6.0 raised it.
+- no bundle either: the database's own error.
 
 ``source="database"`` reads the database at the default path, and raises
 for one that is missing or that ``auto`` would call unusable (a file with
-the tables and no rows is ``empty``, where 0.6.0 answered ``unresolved``
-from it); ``source="packaged"`` reads the bundle, or raises when there is
-none. A database given as ``db=`` is read as ``source="database"``, as the
-caller built it.
+the tables and no rows is ``empty``); ``source="packaged"`` reads the
+bundle, or raises when there is none. A database given as ``db=`` is read
+as ``source="database"``, as the caller built it.
 
 The choice is kept per process, for the default path, the file's stamp
 (``os.stat``: modification, change and size, inode, device) and the packaged
@@ -129,11 +128,10 @@ def choose_list(
 
 
 def given_database(db: GivenDatabase) -> LicenseDatabase:
-    """The database *db* is or names, ready to read (a path
-    raised ``AttributeError``, and a database was read unchecked). A path
-    opens without ``create``, after the check, so a
-    missing file is ``not found`` and none is made; every database, given
-    or opened, passes :func:`licenseid.dbcheck.check_database_ready`.
+    """The database *db* is or names, ready to read. A path opens without
+    ``create``, after the check, so a missing file is ``not found`` and none
+    is made; every database, given or opened, passes
+    :func:`licenseid.dbcheck.check_database_ready`.
 
     The check costs more than a lookup, so a verdict is kept while the file
     keeps its stamp (:func:`file_stamp`), per handle and per path, as the
@@ -228,7 +226,7 @@ def _kept_choice(mode: Source) -> tuple[ListLookup, ListSource]:
     lookup, source, keep = _choose(mode, path)  # a raise keeps nothing
     if keep:
         # Read after the choice, so a warning about the bundle comes after the
-        # ones of the database, as before the choice was kept.
+        # ones of the database.
         entry = _Kept(path, stamp, _packaged_for(mode), lookup, source)
         with _CHOICE_LOCK:
             _kept[mode] = entry

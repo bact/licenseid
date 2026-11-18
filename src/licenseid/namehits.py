@@ -266,18 +266,17 @@ def _settle_ties(
     -or-later of one are one licence). The input holds each name as words
     (``Licensed under the Apple Public Source License 1.2`` holds APSL-1.1's
     and APSL-1.2's names: token set reads ``1.1`` as the word 1). A name the
-    input writes whole, its words in order and close, is the one
-    named; a name made of words from here and there is not (``This library
-    is free software under the GNU General Public License v2.0 only`` holds
-    the Library GPL's words too). Of the names written whole the longest
-    licence wins where they nest, the others tied with
-    it are dropped; None where the tie is no answer: two licences not nested
-    (``Apache License 2.0 or Zlib``), or another tied name that also
-    stands apart from the winner's (:func:`_stands_apart`). Where no name is
-    written whole,
-    names nest by their words, a longer name that adds more than a number.
-    A name that the input only lies in (token set scores it 100 too) is left
-    to ``fragment_of_longer``; names that all hold the input in part (a
+    input writes whole, its words in order and close, is the one named; a
+    name made of words from here and there is not (``This library is free
+    software under the GNU General Public License v2.0 only`` holds the
+    Library GPL's words too). Of the names written whole the longest licence
+    wins where they nest, the others tied with it are dropped; None where
+    the tie is no answer: two licences not nested (``Apache License 2.0 or
+    Zlib``), or another tied name that also stands apart from the winner's
+    (:func:`_stands_apart`). Where no name is written whole, names nest by
+    their words, a longer name that adds more than a number. A name that the
+    input only lies in (token set scores it 100 too) is left to
+    ``fragment_of_longer``; names that all hold the input in part (a
     deprecated name of its own, held by the names that replaced it) are left
     as ``shorttext._partial_names`` kept them."""
     top = ranked[0]["score"]

@@ -236,18 +236,11 @@ def get_candidates(
     # inputs where license text is wrapped in // / # / * comment markers.
     text = strip_comment_prefixes(text)
 
-    # Normalize the full text once, up front, before any word-count
-    # slicing.  normalize_text() applies several line-anchored rules
-    # (copyright-notice removal, bullets, comment prefixes, separator
-    # runs) that only fire correctly with real line breaks intact.
-    # Slicing raw words first and rejoining them with spaces (the
-    # previous approach) destroyed that line structure before
-    # normalization ever ran, so the query-side text silently skipped
-    # rules that index-side normalization (run on the untouched
-    # original text in database.py) had already applied — producing
-    # FTS5 OR-terms for words that no longer exist in the indexed
-    # document.  Normalizing here keeps query-side and index-side
-    # normalization consistent.
+    # Normalise the whole text once, before any word slicing: the
+    # line-anchored rules of normalize_text() (copyright notices, bullets,
+    # comment prefixes, separator runs) need the real line breaks, as on the
+    # index side (database.py). Slicing raw words first skipped them and gave
+    # FTS5 terms for words the index no longer holds.
     norm_text = normalize_text(text)
 
     raw_candidates = _search_candidates_by_length(db, norm_text)

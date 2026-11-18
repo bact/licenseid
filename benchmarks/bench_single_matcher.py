@@ -55,12 +55,12 @@ class InstrumentedMatcher(LicenseDetector):
         """Name the first tier that would have surfaced *true_id*.
 
         Reconstructs the tier decisions of detect() in read-only order.
-        Guards use hasattr so this works on branches that lack certain
-        attributes (e.g. 'main' does not have self.markers).
+        Guards use hasattr so this works on older source trees that lack
+        certain attributes (e.g. ``markers``, which early releases lack).
         """
         norm_input = normalize_text(text)
 
-        # Tier 0.5: marker detection (license-marker branch only)
+        # Tier 0.5: marker detection
         marker_candidates: list[Any] = []
         if hasattr(self, "markers"):
             marker_candidates = self.markers.detect(text)

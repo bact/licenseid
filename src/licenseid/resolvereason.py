@@ -81,7 +81,7 @@ def refuses_text_match(reason: str | None, text: str) -> bool:
         is_plus_refusal(reason)
         or condition in _NO_TEXT_CONDITIONS
         # From 10 words on a sentence is text, not a value: its name is matched
-        # as before (``This library is licensed under the MIT++ license, see ...``).
+        # (``This library is licensed under the MIT++ license, see ...``).
         or (len(text.split()) < MIN_TEXT_WORDS and ends_a_word_with_plus(text))
     )
 

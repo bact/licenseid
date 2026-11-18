@@ -38,8 +38,8 @@ list and comment markers of the SPDX matching guidelines (5 and 6: ``REM``,
 declared value: ``REM MIT`` is not ``MIT``. :func:`dropped_words` finds them by
 reading the value twice, with and without those rules, so there is no list of
 markers here to keep in step. Case, ``v`` before a number and the separators
-above are spelling and drop nothing. Standard library, ``licenseid.normalize``
-and ``licenseid.versionkey`` only.
+above are spelling and drop nothing. Standard library, ``licenseid.exprtokens``,
+``licenseid.normalize`` and ``licenseid.versionkey`` only.
 """
 
 from collections import Counter

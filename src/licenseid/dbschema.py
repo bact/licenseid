@@ -111,7 +111,6 @@ def _create_objects(conn: sqlite3.Connection) -> None:
         )
     """)
 
-    # Create FTS5 virtual table for trigram search
     conn.execute("""
         CREATE VIRTUAL TABLE IF NOT EXISTS license_index USING fts5(
             license_id UNINDEXED,
@@ -142,21 +141,17 @@ def _create_objects(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_fp_ngram
         ON license_fingerprints(ngram)
     """)
-    # get_license_by_name() and every case-insensitive name lookup
-    # in markers.py's _try_license_lookup() (tried for ~10 name
-    # variants per marker candidate) query "name COLLATE NOCASE"
-    # with no index otherwise available, forcing SQLite to do a
-    # full table scan every time.  This index lets it seek instead.
+    # get_license_by_name(), and through it markers' _try_license_lookup()
+    # (about 10 name variants per marker candidate), query
+    # "name COLLATE NOCASE": this index lets SQLite seek, not scan.
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_licenses_name
         ON licenses(name COLLATE NOCASE)
     """)
     create_url_table(conn)
 
-    # Migration: databases created before norm_license_id/norm_name
-    # existed have a "licenses" table without them (CREATE TABLE IF
-    # NOT EXISTS above only creates the table when missing entirely,
-    # it doesn't add columns to one that already exists).
+    # A database built before norm_license_id/norm_name lacks them, and
+    # CREATE TABLE IF NOT EXISTS adds no column to a table that exists.
     existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(licenses)")}
     if "norm_license_id" not in existing_cols:
         conn.execute("ALTER TABLE licenses ADD COLUMN norm_license_id TEXT")

@@ -13,6 +13,10 @@ Status: decisions taken by the maintainer on 2026-10-28; the task changes
 below are folded into [`resolver-0-7-plan.md`](resolver-0-7-plan.md)
 (sections 3, 8, 10 and 11).
 
+Names are those of 0.7.0: `match()` was renamed `resolve()` before the tag
+(T10c), the matcher is `detector.py`, and `docs/match.md` is
+`docs/resolve.md`.
+
 T0 (#110), T2 (#108), T3 (#107) and T4 (#112) were each reviewed on their
 own. This round reviewed them together, at `main` f514ca1, against what T5,
 T6 and T7 need. Two independent Opus reviews: one of the seams (with a
@@ -538,6 +542,10 @@ small defects (S1 to S3) and a list for 0.8. The S fixes are made on
   wording made to match the code.
 
 ### For 0.8
+
+Checked 2026-11-18: 1 is done (T5b, #132), 3 is done (T8, #128), 5 is done,
+10 is done (a tag `MIT or later` is `MIT+`), and 2 is open (roadmap item 50);
+the others are not re-checked.
 
 1. Cache the `auto` choice per file stamp (`listsource.py:93-121`; 6
    connections per value).

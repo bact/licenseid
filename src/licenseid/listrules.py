@@ -7,8 +7,9 @@
 which are kept, and what a deprecated ID points to.
 
 This is the one place of these rules. The database build
-(:mod:`licenseid.records`) and, later, the in-memory index apply them
-through these functions, so the two cannot drift apart.
+(:mod:`licenseid.records`) and the in-memory index
+(:mod:`licenseid.listindex`) apply them through these functions, so the two
+cannot drift apart.
 
 Pure: standard library and :mod:`licenseid.types` only. No console, no
 normalisation, no database.

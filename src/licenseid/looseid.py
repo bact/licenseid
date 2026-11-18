@@ -9,6 +9,12 @@
 A short input and every ID get one version key (version_key); the input names
 the one ID with its key. Tier 0 (licenseid.shorttext) asks this before its
 exact and fuzzy matches.
+
+Also the judges of a declared value's reading: where its "or later" grant
+starts and ends (:func:`granted_id_text`, :func:`declared_grant_id_text`,
+:func:`grant_stop`), what a reading must not drop (:func:`drops_words`,
+:func:`lists_after_grant`, :func:`lists_another`) and which deprecated IDs it
+decided (:func:`decided_forms`, :func:`read_inexactly`).
 """
 
 import re

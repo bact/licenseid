@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Control and format characters at the ends of a declared value.
+"""Control and format characters at the ends of a declared value, and
+beside its white space.
 
 ``MIT\\u202e`` or ``\\ufeffMIT`` is the value ``MIT`` with a character that
 shows nothing. Such a character at an *end* changes nothing that is shown:
@@ -11,8 +12,9 @@ no text stands beyond it for a bidirectional (bidi) control to reorder. So
 :func:`strip_hidden` leaves it off, as white space is left off.
 
 Not at the start, for a bidi control: ``\\u202eMIT`` shows as ``TIM``, text
-that reads other than it shows. Nor inside the value, nor NUL (a sign of
-binary data): ``resolve()`` refuses those (``resolver._refusal``).
+that reads other than it shows. Nor inside a word (:func:`space_out_hidden`
+makes only a format character beside white space a space), nor NUL (a sign
+of binary data): ``resolve()`` refuses those (``resolver._refusal``).
 
 Inside the quote marks around the whole value (``"MIT\\u200b"``) the same
 reading holds for a *plain* format character (:func:`strip_plain_format`): the
@@ -135,8 +137,8 @@ def _is_trimmed(char: str) -> bool:
 def space_out_hidden(value: str) -> str:
     """*value* with each format character (``Cf``, not a bidi control) of a
     run that touches white space made a space, one code point for one, so a
-    span still indexes it: ``MIT OR\u200b ISC`` reads as ``MIT OR  ISC``.
-    A run between two other characters (``M\u200bIT``) says something, as a
+    span still indexes it: ``MIT OR\\u200b ISC`` reads as ``MIT OR  ISC``.
+    A run between two other characters (``M\\u200bIT``) says something, as a
     control character or a bidi control anywhere does, and is left; so is a
     value of nothing else."""
     if all(is_white_space(char) or _is_plain_format(char) for char in value):

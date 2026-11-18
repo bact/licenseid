@@ -256,21 +256,8 @@ Tier 0 (`shorttext.match_name_tier`) that the rest of the input doubts.
   `namerules`, among them the six that survived round 1.
 - **Not verified**: Windows and Python 3.14 (no run in this session; CI
   decides).
-- **Open leftovers** (roadmap item 47): a pair where one name nests in the
-  other (1 of 134 probes); a one-word ID that is an ordinary word is no
-  second licence (7 of 134); a version the name lacks (`MIT License 2`;
-  refusing it lost 10 right `mixed` golden answers for 0 PyPI gain); wrong
-  answers no rule touches (`Licensed under the GNU Lesser General Public
-  License v2.1` gives BSD-Protection at 0.867, `... Affero ... v3.0` gives
-  MPL-2.0 at 0.86, `GNU Lesser General Public License v2.0 or later`,
-  `Apache License 1 or later`); two licences in prose that are not tied
-  (`GNU General Public License v2.0 or MIT License`, `MIT License or BSD
-  3-Clause` answer MIT; pinned `# BUG: (item 47)`); a list of two licences
-  that names one whole (`Eclipse Public License v. 1.0 - Cecill v. 2.0`
-  answers EPL-1.0 as `main` did; round 1 refused it, 4 windows);
-  `<name> Plus` (706 of 708 probes); name + "+" (1 project); a manifest
-  field with a name less its grant (1 project); `with <one-word exception
-  without the word>` (30 of 86 exceptions).
+- **Open leftovers**: listed once, with their counts, under item 47 of
+  [`../design/tech-debt-roadmap.md`](../design/tech-debt-roadmap.md).
 
 ## Grant reader refusals (items 20, 46, 50, 52, 54; PR #221, 2026-11-17)
 

@@ -3,11 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The golden detect() answers that moved in the 0.9.0 review: an exact that
-went from yes to no because the value was cut (a dropped end mark: category
-``separator``; ``licenseid.resolvefirst.is_exact``), and a
-List name with a run of white space now read as the name, for
-harness_changes.DETECT_CHANGES: {case: (new value, reason)}."""
+"""The golden detect() answers that moved in the 0.9.0 review, as
+harness_changes.DETECT_CHANGES: {case: (new value, reason)}: an exact that went
+from yes to no because the value was cut (a dropped end mark: category
+``separator``; ``licenseid.resolvefirst.is_exact``), and a List name with a run
+of white space, now read as the name."""
 
 _CUT = "resolver-docs-1: a `separator` reading (a character was dropped) is not exact"
 _RUN = (

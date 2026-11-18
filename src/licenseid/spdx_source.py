@@ -109,9 +109,9 @@ def user_agent() -> str:
     """User-Agent that identifies this client to third-party servers, so they
     can contact or rate-limit us instead of an anonymous python-requests.
 
-    Resolved at call time: importing licenseid.__version__ at module level
-    would make a cycle (the package __init__ imports database, which imports
-    this module).
+    Resolved at call time: the package __init__ imports database, so a
+    module it reaches must not import the package back at module level (an
+    import cycle).
     """
     version = importlib.import_module("licenseid").__version__
     return f"licenseid/{version} (+https://github.com/bact/licenseid)"

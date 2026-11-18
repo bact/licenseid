@@ -227,10 +227,10 @@ class MarkerDetector:
         rewrite rule is asked again whether it read it (``tag_inexact``)."""
         if has_lone_surrogate(val):  # SQLite cannot bind it; resolve() refuses it
             return []
-        # Each word that is a licence URL becomes the ID it names.
         val = space_out_hidden(strip_hidden(val)[0])  # as resolve() does
         if whole:  # "MIT/Apache-2.0" is "MIT OR Apache-2.0" (resolveslash)
             val = slash_expression(val.strip(), self.db) or val
+        # Each word that is a licence URL becomes the ID it names.
         words = [url_license_id(self.db, word) or word for word in val.split()]
         val = " ".join(words) if words != val.split() else val.strip()
         # A value runs to the end of its line and can trail off into prose, so
@@ -457,7 +457,7 @@ class MarkerDetector:
             return self.to_candidate(font_details, score)
 
         # WITH expression not in DB — synthetic candidate; the marker floor in
-        # _calculate_final_score ranks it above plain GPL (no marker boost).
+        # similarity.calculate_final_score ranks it above plain GPL (no marker boost).
         # A version the List does not have ("version 4") is no licence.
         base_details = self.db.get_license_details(license_id)
         if base_details is None:
@@ -574,11 +574,8 @@ class MarkerDetector:
             # Skip decorative separator lines (all "=", "-", "*", "#", or space)
             if not text or re.match(r"^[=\-*#\s]+$", text):
                 return None
-            # 1. Direct lookup + name variants (ID normalisation, suffix
-            # stripping).  _try_license_lookup's first variant is the exact
-            # input text, so it already covers the plain direct lookup --
-            # no need to query get_license_details/get_license_by_name
-            # separately first.
+            # 1. Direct lookup + name variants (the first variant is the
+            # text as it is).
             details = self._try_license_lookup(text)
             if details:
                 return details
@@ -702,9 +699,7 @@ class MarkerDetector:
             clean_line = line.strip()
             if not clean_line:
                 continue
-            # _try_license_lookup's first variant is the exact input text,
-            # so it already covers a plain direct lookup -- no need to query
-            # get_license_details/get_license_by_name separately first.
+            # Its first variant is the line as it is: a direct lookup too.
             details = self._try_license_lookup(clean_line)
             if details:
                 return [self.to_candidate(details, 0.85)]

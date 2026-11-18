@@ -42,8 +42,7 @@ declared values, SPDX expressions and the matching pipeline.
   row, in [lists.md](lists.md); the order the readers run in
   is traced in [resolve-flow.md](resolve-flow.md), and the canonical form
   of an expression in
-  [expression-canonicalisation.md](expression-canonicalisation.md) (both
-  describe release 0.7.2).
+  [expression-canonicalisation.md](expression-canonicalisation.md).
 - **SPDX License Expression support** (via
   [`py-spdx-license`][py-spdx-license]):
   - Structural normalisation of `AND`/`OR` expressions, in a tag or a

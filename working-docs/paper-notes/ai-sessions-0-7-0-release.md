@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,8 +13,8 @@ The work of 2026-10-29 and 2026-10-30 after `ai-sessions-0-7-0.md`: the
 `detect`/`match` rename, the `licenseid match` command, one output pattern
 for every command, an interim Pitloom release forced by a circular
 dependency, small resolver fixes, and the move from per-change review to a
-whole-release review with an API freeze. Sources: licenseid PRs #133 to
-#139, Pitloom PRs #400 and the 0.21.2 release, `../design/resolver-0-7-review.md`
+whole-release review with an API freeze. Sources: licenseid PRs #133 to #139,
+Pitloom PRs #400 and the 0.21.2 release, `../design/resolver-0-7-review.md`
 (decisions P91 to P137), `../implementation/pre-release-review.md`,
 `../implementation/release-process.md`, and the lead agent's session
 record. Labels as in the other notes: **[observation]** is checkable in the

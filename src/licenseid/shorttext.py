@@ -199,7 +199,7 @@ def _partial_names(
     GPL (22 names), and "MIT License" in six besides MIT's own. The
     words of a deprecated name of its own ("GNU Affero General Public
     License v3.0") are held by the names that replaced it (its -only and
-    -or-later): those are kept, as before. So are the names of the
+    -or-later): those are kept. So are the names of the
     licences of *stems* (_grant_left_out), whose name the words are without
     its grant, and only those: GPL-2.0-with-GCC-exception also holds "GNU
     General Public License v2.0", and the GFDL-1.3 names with invariants

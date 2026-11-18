@@ -13,13 +13,12 @@ steps taken, the expansions it declined to apply and the candidates.
 compound reader calls it once for each operand. It refuses a licence or an
 exception longer than ``MAX_KEY_INPUT`` (no ID is longer), but not a control
 character or an over-long value: the caller refuses those first, as
-``resolve`` does. It reads the list through
-:class:`licenseid.listlookup.ListLookup` alone and knows nothing of the
-database, of brackets around the whole value, or of an expression of several
-licences. The gate covers each half of a WITH, so a long
+``resolve`` does. The length gate covers each half of a WITH, so a long
 licence name with an exception (``Creative Commons Attribution Non
 Commercial No Derivatives 2.5 Generic WITH RRDtool-FLOSS-exception-2.0``) is
-read.
+read. It reads the list through :class:`licenseid.listlookup.ListLookup`
+alone and knows nothing of the database, of brackets around the whole value,
+or of an expression of several licences.
 """
 
 import re

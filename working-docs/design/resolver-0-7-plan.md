@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -9,10 +9,13 @@ SPDX-License-Identifier: Apache-2.0
 
 # Plan for the 0.7.0 resolver
 
-Status (2026-10-29): T0 to T9 built and merged (T0 to T4 #106 to #112,
-T4b #117, T5 #119, T6 #120, T6b #121, T7 #122, T9a #123, R7 fixes #125,
-T9 #126, T8 #128, T8b #131, T5b #132); T10a, T10b, T11 and T12 to T14 open;
-T10 is deferred to 0.8 (Q3).
+Status (2026-11-18): built and released as 0.7.0 (2026-11-03), PRs #106
+to #154, except T10 (deferred to 0.8, Q3) and the Pitloom tasks T13 and T14 (see
+their rows). The record is
+[`../implementation/declared-value-resolver-0-7.md`](../implementation/declared-value-resolver-0-7.md);
+this plan is kept for the tasks, decisions and traps. Names are those of the
+time: `matcher.py` is `detector.py`, `match()` is `resolve()` (T10c), and
+`docs/match.md` is `docs/resolve.md`.
 Drafted on 2026-10-28 by an Opus planning agent from the code of both
 repositories, then edited. The maintainer confirmed every answer of section
 8 on 2026-10-28. A review of T0 to T4 against T5 to T7, and decisions Q10 to
@@ -157,7 +160,7 @@ list of values whose answer changed from 0.6.0.
 | R0b | Drop guard | takes some of today's 136 `separator` back to unresolved (expect under 5) | A discarded `?`, `!`, `*` or U+FFFD carries the author's doubt or corruption. Refusing asserts nothing. | `unresolved` |
 | P1 | Trailing word `license`/`licence` after a value that resolves (`Apache-2.0 license`, `BSD 3-Clause License`) | prose 140, about 40 | The word names the kind of document, not the licence. The rest must still resolve uniquely through the existing path. `BSD License` reduces to `BSD`, which does not resolve, so it stays unresolved. | `prose_form` |
 | P2 | `<name> License[,] (Version\|v) N` becomes `<name> N` (`Apache License, Version 2.0`) | prose, about 43 | How the licence text titles itself. "Version" and the comma are syntax. The result must resolve through the loose key to the one id with that number. | `prose_form` |
-| P3 | A leading `The ` | about 5 | An article; allowed only with P1, P2 or a listed name. | `prose_form` |
+| P3 | A leading `The` | about 5 | An article; allowed only with P1, P2 or a listed name. | `prose_form` |
 | T1 | Full trove path `License :: OSI Approved :: X`: strip the prefix, read `X` | 8 | The path is the classifier's syntax. `X` must resolve by its own rule. `OSI Approved` alone stays unresolved (a category). | `X`'s, plus a `trove_path` step |
 | T2 | Trove names that state one licence (`ISC License (ISCL)`, `Mozilla Public License 2.0 (MPL 2.0)` (built as `listed_name`, P63), `GNU General Public License v3 or later (GPLv3+)`, `Eclipse Public License 2.0 (EPL-2.0)`, ...) | trove 224, about 35 | A closed vocabulary; each entry names its version (and grant), checked against `trove-classifiers`. A deprecated bare id follows the existing policy (`assumed_only`). | `trove_name` |
 | T3 | An agreeing trailing parenthesis: drop `(...)` only if the head and the inside resolve to the same expression (`MIT License (MIT)`) | 16 | Two independent readings agree, so nothing is chosen. If they differ, or only one resolves, refuse. | head's, plus `trailing_name` |
@@ -294,13 +297,13 @@ API section; its reviewer checks that they match the behaviour.
 | T10 | Deferred to 0.8 (Q3): offer assumed trove readings as candidates | `assumed_usage`; Pitloom keeps them as text | **Opus** | **high** | Deferred to 0.8 |
 | T10a | Rename: `resolve()` to `match()`, the matcher's `match()` to `detect()`, CLI `match` to `detect` (`match-resolve-0-8.md` section 2) | Pure rename after T8 and T8b; every answer unchanged (T0 pins, characterisation, sample guard); no alias; README, AGENTS.md, CHANGELOG migration line | Sonnet | medium (Opus reviews) | Merged (#134) |
 | T10b | A `licenseid match VALUE` command for one declared value (`match-resolve-0-8.md` D6) | `KEY=VALUE` lines and `--json`; exit 0, 1, 2; refuses a file or a text (`run 'licenseid detect'`); no database needed; option matrix; `cli_matrix` run | Sonnet | medium (Opus reviews) | Merged (#135) |
-| T10c | Rename back: `match()` to `resolve()`, CLI `match` to `resolve` (maintainer, 2026-11-03; `match-resolve-0-8.md` section 2) | Pure rename before the tag, as T10a; every answer unchanged (goldens identical but for the command name); no alias | Sonnet | medium | Open |
+| T10c | Rename back: `match()` to `resolve()`, CLI `match` to `resolve` (maintainer, 2026-11-03; `match-resolve-0-8.md` section 2) | Pure rename before the tag, as T10a; every answer unchanged (goldens identical but for the command name); no alias | Sonnet | medium | Built, with the CLI command: `licenseid resolve`, no `match` command (0.7.0) |
 | T11 | Docs: implementation note, evidence update, CHANGELOG 0.7.0, a final pass on the README Features section | Front-matter dates; a migration line for the breaking bullets; Features describes the 0.7.0 matching strategy (compounds in licenseid's own canonical order, not `py-spdx-license`'s sort; no database needed for `resolve()`) | Haiku or Sonnet | low | Done (#153) |
 | T11b | Close the 0.7.0 records before the tag (maintainer, 2026-11-03) | Evidence: `match()` on the committed PyPI sample, 0.6.0 against 0.7.0 counts per category, in `resolver-0-7-evidence.md`; `declared-value-resolver-0-7.md` brought up to #141 to #152; the `pre-release-review.md` record after C1 | Sonnet; the lead for the record | low to medium | Done (#153) |
 | R8 | Review the last fixes again before the tag (maintainer, 2026-11-03) | One Opus pass each on the round-2 diff of #151 (database handle, lazy creation) and on #152 (refusal reasons and categories); a Sonnet check that every README, `docs/match.md` and `docs/python-api.md` example matches the final behaviour | **Opus**; Sonnet for the docs | **high**; low | Done (#151, #152; examples run in T11c) |
 | T11c | Make every doc and comment current before the tag (maintainer, 2026-11-03) | After R8: code comments and docstrings in `src/` and `tests/`, the user docs, `working-docs/` (index, dates, links) checked against the final code; then this table updated with every final state | Sonnet | medium | Done (#153) |
-| T12 | Release licenseid 0.7.0 | `release-process.md`; the wheel ships the bundle; `resolve()` checked in a fresh venv with no database (the maintainer tags and publishes) | Sonnet | low | Prepared (#154); tag after #152 to #154 merge |
-| T13 | Pitloom: read every declared value through `resolve()` (0.22.0) | Floor bump; about 250 lines deleted; drift guard; before and after sweep reviewed | Sonnet | high (Opus reviews) | Open (Pitloom) |
+| T12 | Release licenseid 0.7.0 | `release-process.md`; the wheel ships the bundle; `resolve()` checked in a fresh venv with no database (the maintainer tags and publishes) | Sonnet | low | Released 2026-11-03 (#154) |
+| T13 | Pitloom: read every declared value through `resolve()` (0.22.0) | Floor bump; about 250 lines deleted; drift guard; before and after sweep reviewed | Sonnet | high (Opus reviews) | Pitloom PRs #437 and #440 merged 2026-11-03 and 2026-11-04 (not checked against the exit criteria here) |
 | T14 | Pitloom: per-operand provenance and list version | `Resolution-n` per operand; no `py_spdx_license` in `src/` | Sonnet | medium | Open (Pitloom) |
 
 Pull requests outside the task list that landed in the same period: the
@@ -483,10 +486,12 @@ def test_the_answer_is_the_same_with_and_without_a_database(value, memory_db):
 
 ```shell
 # Acceptance: the same sample before and after a change
-python -m tools.pypi_licence_sample analyze sample.jsonl --json before.json   # on main
-python -m tools.pypi_licence_sample analyze sample.jsonl --json after.json    # on the branch
-python -m tools.pypi_licence_sample analyze after.json --compare before.json  # explain every change
+SAMPLE="python -m tools.pypi_licence_sample analyze"
+$SAMPLE sample.jsonl --json before.json    # on main
+$SAMPLE sample.jsonl --json after.json     # on the branch
+$SAMPLE after.json --compare before.json   # explain every change
 # Mutation check on a copy
-rsync -a --exclude .git ./ /tmp/mut/ && sed -i 's/<guard>/False/' /tmp/mut/src/licenseid/<file>.py
-PYTHONPATH=/tmp/mut/src pytest -o pythonpath=. tests/<file> -q                 # must FAIL
+rsync -a --exclude .git ./ /tmp/mut/
+sed -i 's/<guard>/False/' /tmp/mut/src/licenseid/<file>.py
+PYTHONPATH=/tmp/mut/src pytest -o pythonpath=. tests/<file> -q   # must FAIL
 ```

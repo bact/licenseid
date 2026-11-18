@@ -13,9 +13,10 @@ per-file-ignores =
 
 # Interim ratchets set to the exact current repo max (tightest ceiling
 # that still passes) — see working-docs/design/complexity-and-file-size-roadmap.md
-# for the backlog. Re-measure across all of src/, not just the file you
-# touched, before raising either value.
-# target: 10 (currently 12, identifiers.leading_expression)
+# for the backlog. Never raise either value; re-measure across src/, tests/,
+# scripts/, benchmarks/ and tools/ before lowering one.
+# target: 10 (currently 12, identifiers.read_leading)
 max-complexity = 12
-# target: 15 (currently 29, tests/test_accuracy.py::run_accuracy_test)
+# target: 15 (currently 29: identifiers.read_leading,
+# tests/test_accuracy.py::run_accuracy_test, tools/licence_sample/__main__.py)
 max-cognitive-complexity = 29

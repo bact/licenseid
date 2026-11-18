@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-10-28
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,8 +13,8 @@ One Claude Code session (transcript `4cf4bfd0-ee44-5d9b-b623-9693743bbc4e`,
 working in the `pitloom`, `lumina`, `ntia-conformance-checker` and `licenseid`
 repositories, 2026-10-27 to 2026-10-28; resumed after context compaction)
 integrated `licenseid.resolve()` into Pitloom, released Pitloom 0.21.0, and
-started the plan for the next `resolve()`. Sources: the transcript, Pitloom PRs
-#359 to #362, licenseid PRs #102 and #103, `working-docs/design/`. Labels as
+started the plan for the next `resolve()`. Sources: the transcript, Pitloom
+PRs #359 to #362, licenseid PRs #102 and #103, `working-docs/design/`. Labels as
 in the other notes: **[observation]** is checkable in the sources; the rest is
 the author's reading.
 
@@ -84,4 +84,3 @@ the author's reading.
   failed job passed. Pitloom
   `working-docs/implementation/recurring-bug-patterns-review-rounds.md` ("From
   PR #364, #365 and the 0.21.1 release") has the detail.
-

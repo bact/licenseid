@@ -91,22 +91,24 @@ and this project adheres to
   `LicenseRef-a-` in `MIT OR LicenseRef-a-` (refused before a `-->`); `LGPL-2
   WITH ...+` and `LGPLv2 or above` give a clearer reason ([#220])
 - `detect` and `resolve` no longer call a value exact when it needed an
-  unquote or a dropped end mark (`"MIT`, `(MIT).`)
+  unquote or a dropped end mark (`"MIT`, `(MIT).`) ([#228])
 - A List name with a run of white space inside (`MIT  License`, a tab, a
   no-break space) reads as that name: `listed_name`, exact, in `detect()` as in
-  0.8.4 and now in `resolve()` too
+  0.8.4 and now in `resolve()` too ([#228])
 - A control or bidi character at an end (`MIT\x07`, `MIT\u200e`) is a cut, not
   exact, in tags and fields too; a zero-width one (`MIT\u200b`, a BOM) is white
-  space, exact, with the new `trim` detail `zero-width characters`
+  space, exact, with the new `trim` detail `zero-width characters` ([#228])
 - A TOML comment or string holding `license =` after U+2028, U+0085 or a form
   feed is no field; a JSON `\udXXX` escape in a manifest gives no answer, not a
-  traceback
+  traceback ([#228])
 - A tag reads `MIT (or later) AND Apache-2.0` as `resolve()` does,
   `Apache-2.0 AND MIT+` (was `MIT+`, dropping Apache-2.0); `GPL-2.0 or
   later?`, a mark glued to the grant, still gives no answer, as in `resolve()`
+  ([#228])
 - A short text naming two licences (`Apache License 2.0 or Zlib`) gives no
   answer from the name tier; no deprecated ID is listed after its replacement
   was excluded or dropped; the `variant not stated` warning names the licence
+  ([#228])
 
 [#207]: https://github.com/bact/licenseid/pull/207
 [#208]: https://github.com/bact/licenseid/pull/208
@@ -125,6 +127,7 @@ and this project adheres to
 [#225]: https://github.com/bact/licenseid/pull/225
 [#226]: https://github.com/bact/licenseid/pull/226
 [#227]: https://github.com/bact/licenseid/pull/227
+[#228]: https://github.com/bact/licenseid/pull/228
 
 ## [0.8.4] - 2026-11-09
 

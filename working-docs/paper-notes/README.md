@@ -15,18 +15,23 @@ coding agents. These are notes, not a draft. Every claim cites a source
 (repository file and line, pull request, commit, or session transcript and
 timestamp) so that it can be checked before it is cited.
 
-Covers 2026-04-27 (first commit) to 2026-11-06 (the start of 0.8, pull
-requests #160 to #164; the 0.7.0 work is PRs #106 to #139, v0.6.0 PRs #96
-to #101);
-the older files stop at 2026-10-07 (v0.4.3), and `ai-sessions-0-5-0.md` at
-2026-10-22 (v0.5.0).
+Covers 2026-04-27 (first commit) to 2026-11-18 (0.9.0 prepared; its release
+PR is #228 and it holds PRs #201 to #227). Coverage is uneven: the older
+files stop at 2026-10-07 (v0.4.3), `ai-sessions-0-5-0.md` at 2026-10-22
+(v0.5.0), the 0.7.0 work (PRs #106 to #139, v0.6.0 PRs #96 to #101) at
+2026-11-03, the start of 0.8 (PRs #160 to #164) at 2026-11-06, and the 0.9.0
+gates and session (`results-0-9.md`, `ai-sessions-0-9.md`) cover 2026-11-17
+and 2026-11-18. The sessions between 2026-11-06 and 2026-11-16 (0.8.0 to
+0.8.4, PRs #165 to #200) have no session file; their findings are in
+`results-and-findings.md` 3.8 and 3.9 and in the PR records of
+`working-docs/implementation/`.
 
 ## Files
 
 | File | Content |
 | --- | --- |
 | [system-design.md](system-design.md) | Tiers, scoring, normalisation order, database gate, caches; rejected paths |
-| [results-and-findings.md](results-and-findings.md) | Datasets, accuracy, speed, technical findings (RapidFuzz, SQLite, SPDX, streams); what real PyPI values look like and what the 0.7.0 rules read (3.5 to 3.7); one answer for a whole input, and where text matching stops, CJK included (3.8); the unstated variant of a bare ID and `EXACT` by list (3.9); stray marks, hidden characters and escapes around a declared value (3.10) |
+| [results-and-findings.md](results-and-findings.md) | Datasets, accuracy, speed, technical findings (RapidFuzz, SQLite, SPDX, streams); what real PyPI values look like and what the 0.7.0 rules read (3.5 to 3.7); one answer for a whole input, and where text matching stops, CJK included (3.8); the unstated variant of a bare ID and `EXACT` by list (3.9); token set scoring and duplicate versions (3.10); stray marks, hidden characters and escapes around a declared value (3.11); whose "or later" a version phrase in a README is (3.12) |
 | [process-and-validity.md](process-and-validity.md) | Process lessons in the repo; threats to validity; open questions; future work |
 | [history.md](history.md) | Timeline, releases, metrics, complexity ratchets, SBOM chronology |
 | [ai-sessions-early.md](ai-sessions-early.md) | Human–AI sessions, July to mid-September: decisions, mistakes, patterns |
@@ -71,9 +76,12 @@ inference, not a claim made in the repository.
   (SPDX `tools-java`) was removed on 2026-09-19.
 - Python ≥3.10, Apache-2.0, 25 modules and 6,845 lines in `src/`; 14,738
   lines of tests, 2,514 collected test cases (2026-10-05).
-- 15 releases in 161 days; 35 of the 62 merged pull requests landed in the
-  last 19 days, mostly hardening and testing: between v0.3.7 and v0.4.0
-  test code grew 8.8x and source 1.6x.
+- On 2026-11-18 (0.9.0 candidate): 82 modules and about 20,900 lines in
+  `src/licenseid/`, about 64,700 lines of tests, 17,277 collected test cases,
+  29 release tags (to v0.8.4).
+- By 2026-10-05: 15 releases in 161 days; 35 of the 62 merged pull requests
+  landed in the last 19 days, mostly hardening and testing: between v0.3.7 and
+  v0.4.0 test code grew 8.8x and source 1.6x.
 - One developer, who makes every commit, push and merge; AI agents work
   locally. Explicit AI attribution in git is sparse (10 commits).
 - licenseid is the licence engine of the Pitloom SBOM generator, by the same
@@ -120,8 +128,8 @@ inference, not a claim made in the repository.
 - A 2,000-character token 5.0 s → 0.04 s once guards counted characters.
 - The real-shell CLI matrix (about 1,200 cells, five shells): every flag it
   raised was a defect the test suite could not reach, including a locale
-  crash in a dependency (`py-spdx-license` under eucJP); a fix is proposed
-  upstream, not yet released (2026-10-30).
+  crash in a dependency (`py-spdx-license` under eucJP); the fix was merged
+  upstream on 2026-11-10 and is not in a release (2026-11-18).
 - Characterisation tests found pre-existing bugs in 3 of 5 refactors.
 - Agent incidents worth reporting honestly: a CLI-matrix cell with `HOME`
   unset deleted the developer's real licence database (2026-09-19); in July

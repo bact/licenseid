@@ -5,8 +5,8 @@
 
 """The fingerprint table: what ``update`` stores and what a match reads.
 
-The scoring is in ``fingerprint.py`` (no SQLite there); this module is the
-SQL side: the fingerprints ``update`` stores and the hits a match reads.
+The scoring is in ``fingerprint.py``, with no SQLite; this module is the
+SQL side.
 """
 
 from licenseid.console import status

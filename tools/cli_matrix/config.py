@@ -206,11 +206,6 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def configure(argv: list[str] | None = None) -> RunConfig:
-    """Parse *argv*, check everything, and prepare the workspace."""
-    return configure_args(build_parser().parse_args(argv))
-
-
 def configure_args(args: argparse.Namespace) -> RunConfig:
     """Check already-parsed options, and prepare the workspace."""
     if os.name == "nt":

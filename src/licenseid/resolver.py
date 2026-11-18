@@ -18,7 +18,8 @@ and written in canonical order (``licenseid.exprcanon``); a trove classifier
 (``License :: OSI Approved :: MIT License``) or a name with its short form
 (``MIT License (MIT)``) by ``licenseid.resolvetrove``; the prose form of one
 ID (``BSD 3-Clause License``, ``Apache License, Version 2.0``) by
-``licenseid.resolveprose``; licences joined by ``;``, which states no
+``licenseid.resolveprose``; IDs joined by ``/`` as ``OR``
+(``licenseid.resolveslash``); licences joined by ``;``, which states no
 operator, are listed as operands and no expression
 (``licenseid.resolvesemicolon``). A step that rests on a list cites it.
 
@@ -248,7 +249,7 @@ def _trimmed_inside(
     shown: str, text: str, start: int, found: Found
 ) -> tuple[str, int, str]:
     """*text*, which starts at *start* in *shown* and was unquoted, without
-    the plain format characters at its ends (``"MIT\u200b"``), as a ``trim``
+    the plain format characters at its ends (``"MIT\\u200b"``), as a ``trim``
     step after the ``unquote`` step, and where it starts; and *shown* as
     :func:`_refusal` is to judge it, without them. The closing mark stands
     beyond such a character, as the end of the value does beyond one outside

@@ -13,7 +13,8 @@ it were complete. The check here opens the file read-only and never writes to
 it. Another program's file is refused by :func:`reject_foreign_database`,
 which the handle itself calls before it writes.
 
-Stdlib only, so importing it does not pull in ``requests``.
+Standard library, ``dbschema`` and ``errors`` only, so importing it does
+not pull in ``requests``.
 """
 
 import contextlib
@@ -672,8 +673,8 @@ def check_database_ready(db_path: str | os.PathLike[str]) -> None:
     each have a row, and every ``license_id`` is text (a NULL or blob key
     counts as not ready, because normalising one raises). ``update`` clears
     the version with the old rows and stamps it after the fingerprints, so a
-    version marks a finished update. The fingerprints themselves are not
-    checked (an open item in the tech-debt roadmap).
+    version marks a finished update, and the fingerprints themselves are
+    not checked.
 
     The file is opened read-only and is never created or written. A
     write-ahead-log file may get -shm and -wal files beside it, which stay

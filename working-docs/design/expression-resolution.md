@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -11,9 +11,11 @@ SPDX-License-Identifier: Apache-2.0
 
 Status: built in 0.7.0 (`resolve()`; the record is
 [`../implementation/declared-value-resolver-0-7.md`](../implementation/declared-value-resolver-0-7.md)).
-Kept as the proposal. Proposed by the maintainer on 2026-10-28; input to a
-0.7.0 release and to Pitloom's adoption of it (Pitloom #359 is the interim
-state).
+Kept as the proposal: the decisions that changed it are in
+[`resolver-0-7-review.md`](resolver-0-7-review.md), and `components` became
+`licenseid.ToolInfo` in 0.9.0 (#224, the JSON keys stay). Proposed by the
+maintainer on 2026-10-28; input to a 0.7.0 release and to Pitloom's adoption
+of it (Pitloom #359 is the interim state).
 
 See also:
 [`../implementation/declared-value-resolver.md`](../implementation/declared-value-resolver.md)

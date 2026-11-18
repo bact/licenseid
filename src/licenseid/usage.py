@@ -158,7 +158,8 @@ class UsageLineCommand(click.Command):
 
 class UsageLineGroup(UsageLineCommand, click.Group):
     """A group whose usage errors are worded as licenseid's, including those
-    raised while it runs a command: an unknown command (``resolve_command``)
+    raised while it runs a command: an unknown command
+    (``click.Group.resolve_command``)
     and one a command's body raises."""
 
     def invoke(self, ctx: click.Context) -> Any:

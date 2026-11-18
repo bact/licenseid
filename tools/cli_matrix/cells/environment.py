@@ -72,9 +72,6 @@ CWD_KINDS = {
     "very deep": f"mkdir -p $W/{_DEEP} && cd $W/{_DEEP} && ",
 }
 
-#: HOME shapes the default database path has to cope with. ``env -u HOME``
-#: is present but permanently skipped: with HOME unset, Python falls back
-
 _COLOUR_ENVS = (
     "TERM=dumb",
     "TERM=xterm-256color",

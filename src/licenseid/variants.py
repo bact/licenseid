@@ -59,15 +59,16 @@ _Match = TypeVar("_Match", RawMatch, CandidateMatch)
 VARIANTS: Final[tuple[Variant, ...]] = ("auto", "as-written", "only", "or-later")
 DEFAULT: Final[Variant] = "auto"
 
-#: What a reader outside ``detect()`` (the library functions, the tests of a
-#: reader) does as it always did: a bare ID is read as ``-only``.
+#: Outside ``detect()`` (the library functions, the tests of a reader) a bare
+#: ID is read as ``-only``.
 _CURRENT: contextvars.ContextVar[Variant] = contextvars.ContextVar(
     "licenseid_variant", default="only"
 )
 
 #: The warnings of a ``detect()`` call, held until its first output result is
 #: known (None outside a call: a warning is given at once), and the bar a
-#: result must pass to be output (the CLI's ``--threshold`` and ``--exact``).
+#: result must pass to be output (the CLI's ``--threshold``, ``--exact`` and
+#: ``--top``).
 _PENDING: contextvars.ContextVar[list[tuple[str, str]] | None] = contextvars.ContextVar(
     "licenseid_variant_pending", default=None
 )

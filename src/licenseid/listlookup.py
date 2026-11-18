@@ -11,8 +11,8 @@ The resolver chain (``resolver``, ``looseid``, ``versionkey`` and
 unchanged, and so does the in-memory ``licenseid.listindex.ListIndex``, so
 the resolver needs no database file.
 
-Standard library and ``licenseid.exprtokens`` only: no import of the
-database, so no import cycle.
+Standard library, ``typing_extensions`` and ``licenseid.exprtokens`` only:
+no import of the database, so no import cycle.
 """
 
 import contextlib

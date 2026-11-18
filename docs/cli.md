@@ -243,16 +243,19 @@ Options:
 `resolve` reads a declared value, not a licence text, so it refuses what only
 `detect` answers, with exit 2, nothing on standard output and
 `; run 'licenseid detect'`: `--text`, `-` (standard input), a
-value with a line break, and one over 2,000 characters once its surrounding
-white space is trimmed. A value that resolves is answered even when a file
-of that name exists (`resolve MIT` beside a file `MIT`); one that resolves to
-nothing and names an existing file or directory (`resolve LICENSE`) is
-refused. An empty argument is a usage error too (`input: empty: argument`),
-as is no argument (`input: missing; pass one declared licence value`):
-`resolve` never reads standard input, so a pipe that stays open cannot hold
-it. Exit 0 means the value resolved to an expression (`GPL-3.0`, kept as
-`assumed_only`, included), 1 that it did not (a list joined by `;` included),
-with no `ERROR` line.
+value with a line break (U+001C to U+001F count as one:
+`input: invalid: line break U+001C: MIT`), and one over 2,000 characters once
+its surrounding white space is trimmed (counted as `resolve()` counts them).
+A value that resolves is answered even when a file of that name exists
+(`resolve MIT` beside a file `MIT`); one that resolves to nothing and names
+an existing file or directory is refused (`resolve LICENSE`:
+`input: invalid: path: LICENSE`). An empty argument is a usage error too
+(`input: empty: argument`), as is no argument
+(`input: missing; pass one declared licence value`): `resolve` never reads
+standard input, so a pipe that stays open cannot hold it. Exit 0 means the
+value resolved to an expression (`GPL-3.0`, kept as `assumed_only`,
+included), 1 that it did not (a list joined by `;` included), with no
+`ERROR` line.
 
 `detect` and `resolve` answer different questions, so their answers to one
 value can differ:
