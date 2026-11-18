@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Final
 from licenseid.dropguard import edge_marks, trim_end_mark
 from licenseid.errors import reason_detail
 from licenseid.exprtokens import RE_OPERATOR, WHITE_SPACE
-from licenseid.listlookup import ListLookup
+from licenseid.listlookup import ListLookup, ids_named
 from licenseid.looseid import WITH_OPERATOR
 from licenseid.namehits import refusal_answer
 from licenseid.quotes import encloses_nothing
@@ -95,7 +95,7 @@ def wrapped_name(db: ListLookup, text: str) -> tuple[str, str] | None:
     if cut is None:
         return None
     core, marks = cut
-    ids = db.get_active_ids_by_name().get(core.casefold(), [])
+    ids = ids_named(db, core)
     return (ids[0], "".join(dict.fromkeys(marks))) if len(ids) == 1 else None
 
 

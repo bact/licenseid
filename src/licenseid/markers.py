@@ -6,6 +6,7 @@
 """Logic for detecting explicit license markers and headings in text."""
 
 import re
+from functools import partial
 from typing import cast
 
 from licenseid.bsdclauses import bsd_clause_id
@@ -27,6 +28,7 @@ from licenseid.exprflags import (
     with_judged_flags,
 )
 from licenseid.exprtokens import cut_inside_word
+from licenseid.grantchain import chain_read
 from licenseid.hiddenchars import space_out_hidden, strip_hidden
 from licenseid.identifiers import (
     leading_expression,
@@ -39,7 +41,8 @@ from licenseid.looseid import drops_words, mark_guessed, read_inexactly
 from licenseid.manifest import extension, license_value_groups
 from licenseid.resolveslash import slash_expression
 from licenseid.resolveurl import url_license_id
-from licenseid.ruleread import tag_inexact
+from licenseid.ruleread import hidden_cut, tag_inexact
+from licenseid.textinput import has_lone_surrogate
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags
 from licenseid.variants import only_by_name, qualify_trailing_only, read_from
 from licenseid.warning import warn
@@ -209,17 +212,21 @@ class MarkerDetector:
         for value in values:
             resolved = self.resolve_license_value(value, 1.0, whole=True)
             if resolved:
-                return found_by("field", resolved)
+                return found_by("field", hidden_cut(value, resolved))
         return []
 
     def resolve_license_value(
-        self, val: str, score: float, *, whole: bool = False
+        self, val: str, score: float, *, whole: bool = False, resolved: bool = False
     ) -> list[CandidateMatch]:
         """Resolve a license string (ID, name, or SPDX URL) to candidates.
 
         With *whole*, the expression must be the entire value, as in a
         manifest field, which holds nothing else: "MIT/Apache-2.0" there is
-        not MIT with trailing prose, and answering MIT would drop a license."""
+        not MIT with trailing prose, and answering MIT would drop a license.
+        With *resolved*, *val* is an expression ``resolve()`` gave, so no
+        rewrite rule is asked again whether it read it (``tag_inexact``)."""
+        if has_lone_surrogate(val):  # SQLite cannot bind it; resolve() refuses it
+            return []
         # Each word that is a licence URL becomes the ID it names.
         val = space_out_hidden(strip_hidden(val)[0])  # as resolve() does
         if whole:  # "MIT/Apache-2.0" is "MIT OR Apache-2.0" (resolveslash)
@@ -249,8 +256,9 @@ class MarkerDetector:
             lic_id, guessed = only_by_name(
                 named, normalize_identifier(named["license_id"], self.db)
             )
-        elif refused:
-            return []
+        elif refused or not leading:  # what follows a grant (grantchain)
+            read = partial(self.resolve_license_value, score=score, resolved=True)
+            return [] if whole else chain_read(self.db, leading, granted, val, read)
         details = judged_details(self.db, lic_id) if lic_id else None
         if details:
             found = [self._candidate_without_text(details, score)]
@@ -265,7 +273,7 @@ class MarkerDetector:
             if inexact == "decided":
                 mark_guessed(found[0], expression)
             found[0]["decided"] = True
-        elif found and tag_inexact(self.db, granted, expression):
+        elif found and tag_inexact(self.db, granted, expression, resolved=resolved):
             found[0]["decided"] = True
         # Only words the readers took are stated, as for the argument
         return read_from(found, val if named or expression != leading else leading)
@@ -355,7 +363,8 @@ class MarkerDetector:
             if _cut_by_non_ascii(value):
                 # Refused whole (no guess), but said: no match is not silence.
                 warn("input", "invalid", one_line(value))
-            candidates.extend(found_by("tag", self.resolve_license_value(value, 1.0)))
+            found = hidden_cut(value, self.resolve_license_value(value, 1.0))
+            candidates.extend(found_by("tag", found))
 
         # 2. License metadata field (e.g. in package.json / pyproject.toml)
         matches = self._RE_LICENSE_FIELD.finditer(text) if read_fields else ()
@@ -372,12 +381,9 @@ class MarkerDetector:
                 kept.add(details["license_id"])
                 if len(kept) >= FIELD_LICENSES_KEPT:
                     break
-            # No fallback when val doesn't resolve to a known license: a
-            # "license:"/"license="-shaped substring can appear incidentally
-            # (e.g. "ISC License: Copyright (c) ..." captures "Copyright" as
-            # the field value) — fabricating a candidate from an unresolved
-            # value produces a phantom license_id that isn't in the database
-            # at all, ranked at a fixed high confidence.
+            # No fallback for a value that names no license: such a field can
+            # be incidental ("ISC License: Copyright" captures "Copyright"),
+            # and a candidate of it would be a phantom ID at a high score.
 
         return candidates
 

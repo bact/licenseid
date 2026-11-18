@@ -81,6 +81,7 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_resolver_compounds.py",
         "test_resolver_packaged.py",
         "test_resolver_source.py",
+        "test_sdist_contents.py",
         "test_shown_path.py",
         "test_slash_cli.py",
         "test_spdx_source.py",
@@ -93,5 +94,6 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_update_matrix.py",
         "test_update_sources.py",
         "test_warning_filters.py",
+        "test_zero_width.py",
     }
 )

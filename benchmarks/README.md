@@ -2,7 +2,9 @@
 
 Recall/precision/speed/memory comparison between the current working tree
 and `main`, across all input types the matcher handles. Implementation
-notes for the actual scripts.
+notes for the actual scripts. The baseline of `bench_compare.py` is fixed in
+the script to `main` (`baseline_label`); to compare with a release tag, change
+that label.
 
 ## Running it
 
@@ -62,7 +64,7 @@ Markdown tables in `summary.md`.
 ## Other paths worth knowing
 
 - Real (non-benchmark) on-disk DB: `~/.local/share/licenseid/licenses.db`,
-  built from `spdx-data-v3.28.0.tar.gz` in the same directory.
+  built from `spdx-data-v3.29.0.tar.gz` in the same directory.
 - Failure diffing: compare the `failures` arrays between the two branches'
   JSON files in `benchmarks/outputs/`.
 

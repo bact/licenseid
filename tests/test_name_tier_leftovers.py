@@ -99,6 +99,40 @@ DECIDED = [
         None,
     ),
     ("zlib/libpng License", None),
+    # Review of 0.9.0: a tied name written apart from the winner's is a
+    # second licence, a one-word one where it is joined to the name.
+    ("Apache License 2.0 or Zlib", None),
+    ("Apache License 2.0 and Beerware", None),
+    ("Apache License 2.0, curl", None),
+    ("apache license 2.0 or mit", None),
+    # "see" and "file" stand beside a one-word name that a joiner joins.
+    ("MIT License or see Zlib", None),
+    ("MIT License and see Zlib", None),
+    ("MIT License, or see Zlib", None),
+    ("MIT License or file Zlib", None),
+    ("Apache License 2.0 or see ISC", None),
+    ("Mozilla Public License 2.0 or see Ntp", None),
+    ("Apache License, Version 2.0 or see JSON", None),
+    ("MIT License or Zlib (see file)", None),
+    ("Apache License 2.0 or Zlib (see file)", None),
+    ("Apache License 2.0 and Zlib (see file)", None),
+    ("Apache License 2.0 or Zlib see file", None),
+    ("Apache License 2.0 or Zlib (file)", None),
+    ("Apache License 2.0 (see file) or Zlib", None),
+    (
+        (
+            "Creative Commons Attribution 4.0 International or Creative Commons "
+            "Attribution Non Commercial 4.0 International"
+        ),
+        None,
+    ),
+    (
+        (
+            "GNU Lesser General Public License v2.1 or later, GNU General Public "
+            "License v2.0"
+        ),
+        None,
+    ),
     # D47-4: a fragment of a longer name, a dash glued to a word end.
     ("MIT Future License", None),
     ("License: MIT-", None),
@@ -247,6 +281,25 @@ KEEPERS = [
     # Review round 2: the rules read what touches the name, not the whole input.
     ("Licensed under the MIT License. TCL scripts included.", Top("MIT", NAME, False)),
     ("Apache License 2.0 (JSON module)", Top("Apache-2.0", NAME, False)),
+    # Review of 0.9.0: "see" and "file" stand between the name and a one-word
+    # ID, which is then no second licence listed beside it.
+    (
+        "Licensed under the Apache License 2.0 (see zlib)",
+        Top("Apache-2.0", NAME, False),
+    ),
+    (
+        "Licensed under the Apache License 2.0, see JSON",
+        Top("Apache-2.0", NAME, False),
+    ),
+    ("Apache License 2.0, see ICU", Top("Apache-2.0", NAME, False)),
+    ("Mozilla Public License 2.0 (see Ntp)", Top("MPL-2.0", NAME, False)),
+    (
+        "Licensed under the Apache License 2.0 (see file Zlib)",
+        Top("Apache-2.0", NAME, False),
+    ),
+    ("MIT License; see curl", Top("MIT", NAME, False)),
+    ("Apache License 2.0 see zlib", Top("Apache-2.0", NAME, False)),
+    ("Apache License 2.0 (see file) Zlib", Top("Apache-2.0", NAME, False)),
     ("Licensed under the MIT License. Uses X11 for display.", Top("MIT", NAME, False)),
     ("License: MIT. NCSA Mosaic heritage", Top("MIT", NAME, False)),
     ("Licensed under the MIT License. Follows the W3C spec.", Top("MIT", NAME, False)),

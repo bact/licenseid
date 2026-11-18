@@ -37,7 +37,7 @@ def _match(exact: bool = True) -> RawMatch:
         ("MIT", "id", True),
         ("Apache2", "id", False),  # re-spelt by a rule, no list
         ("Apache License, Version 2.0", "name", False),  # prose_form,
-        ("Apache License 2.0.", "name", True),  # a name step before the ending
+        ("Apache License 2.0.", "name", False),  # the ending was dropped
         ("GPL-2.0", "id", True),  # assumed_only: kept, the declaration
     ],
 )
@@ -65,6 +65,105 @@ def test_a_compound_is_exact_when_every_operand_is(
 ) -> None:
     (match,) = as_resolved(resolve(value, corpus_db), [_match()])
     assert match["exact"] is exact
+
+
+@pytest.mark.parametrize(
+    ("value", "exact"),
+    [
+        ('"MIT', False),  # an unbalanced quote taken off
+        ("(MIT).", False),  # an end mark dropped
+        ('"MIT".', False),
+        ("MIT\u200e", False),  # an invisible character trimmed
+        ("MIT\u200b", True),  # a zero-width one is white space
+        ("MIT/Apache-2.0.", False),  # the slash is exact, the end mark is not
+        ("(MIT OR Apache-2.0).", False),
+        ("MIT  OR  Apache-2.0", True),  # lexical: only white space differs
+        ("MIT/Apache-2.0", True),  # the slash exception
+        (" MIT/Apache-2.0 ", True),  # a trimmed space is no dropped mark
+        ('"MIT/Apache-2.0"', True),  # balanced quotes are lexical
+        ("(MIT OR Apache-2.0)", True),
+        ("MIT", True),
+    ],
+)
+def test_a_value_that_needed_a_dropped_character_is_not_exact(
+    corpus_db: LicenseDatabase, value: str, exact: bool
+) -> None:
+    """The category ``separator`` is a rewrite rule (docs/resolve.md): the
+    operands are List IDs as written, but the value was cut."""
+    resolution = resolve(value, corpus_db)
+    assert resolution["category"] in {"exact", "lexical", "separator"}
+    (match,) = as_resolved(resolution, [_match()])
+    assert match["exact"] is exact
+
+
+@pytest.mark.parametrize(
+    ("text", "exact"),
+    [
+        ('{"license": "(MIT)."}', False),
+        ('{"license": "\\"MIT"}', False),
+        ('{"license": "\\"MIT\\udb40\\udc41\\""}', False),  # a tag character
+        ('{"license": "MIT\\u200e"}', False),
+        ("# SPDX-License-Identifier: MIT\u200e", False),
+        # a zero-width character is white space, in a field or a tag too
+        ('{"license": "\\"MIT\\u200b\\""}', True),
+        ('{"license": "MIT\\u200b"}', True),
+        ('{"license": "MIT OR ISC\\u200b"}', True),
+        ("# SPDX-License-Identifier: MIT\u200b", True),
+        ('{"license": "MIT"}', True),
+        ("# SPDX-License-Identifier: MIT", True),
+    ],
+)
+def test_a_field_that_resolve_reads_by_a_rule_is_not_exact(
+    corpus_db: LicenseDatabase, text: str, exact: bool
+) -> None:
+    (found,) = LicenseDetector(corpus_db.location).detect(text=text)
+    assert found["exact"] is exact
+
+
+@pytest.mark.parametrize(
+    ("value", "exact"),
+    [
+        # A cut value of a weaker category than ``separator`` (a bare ID kept,
+        # a licence URL, a name, a title) or a compound of exact operands.
+        ('"GPL-2.0 OR MIT', False),
+        ('"GPL-2.0', False),
+        ('"GPL-3.0', False),
+        ("GPL-2.0\u200e", False),
+        ("GPL-2.0\u200b", True),  # a zero-width character is white space
+        ('"https://opensource.org/licenses/MIT', False),
+        ("https://opensource.org/licenses/MIT\x07", False),
+        ("https://opensource.org/licenses/MIT\u200b", True),
+        ("https://opensource.org/licenses/MIT.", False),
+        ('"New BSD', False),
+        ("New BSD.", False),
+        ("New BSD\u200f", False),
+        ("New BSD\u200b", True),
+        ("CC0 1.0 Universal.", False),
+        # Not cut: white space, the slash, balanced quotes, a name, a grant.
+        ("MIT  OR  Apache-2.0", True),
+        ("MIT/Apache-2.0", True),
+        ('"MIT"', True),
+        ("\u201cMIT\u201d", True),
+        ("MIT License", True),
+        ("GPL-2.0 or later.", True),
+        ("BSD 2-Clause FreeBSD License", True),  # a re-spelling step, no cut
+    ],
+)
+def test_a_cut_value_is_not_exact_in_any_category(
+    corpus_db: LicenseDatabase, value: str, exact: bool
+) -> None:
+    """A value cut by a trimmed invisible character, an unpaired quote or a
+    dropped end mark is no list's reading, whatever its category."""
+    (found,) = LicenseDetector(corpus_db.location).detect(text=value)
+    assert found["exact"] is exact
+
+
+@pytest.mark.parametrize("text", ['"MIT', "(MIT).", "MIT\u200e", '"MIT".'])
+def test_the_argument_is_not_exact_when_it_was_cut(
+    corpus_db: LicenseDatabase, text: str
+) -> None:
+    (found,) = LicenseDetector(corpus_db.location).detect(text=text)
+    assert (found["expression"], found["exact"]) == ("MIT", False)
 
 
 def test_a_decided_match_stays_inexact(corpus_db: LicenseDatabase) -> None:

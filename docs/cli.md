@@ -50,7 +50,7 @@ Advanced update options:
     host is reachable.
   - `upstream`: SPDX's own release tarball on GitHub (about 49 MB).
   - `packaged`: the bundle shipped in the package: the SPDX License List
-    pinned for that release (3.29.0 for 0.8.4). `licenseid update` still
+    pinned for that release (3.29.0 for 0.9.0). `licenseid update` still
     works with no network, with data that may be older.
 
 ## Detect a licence, or resolve a declared value
@@ -86,8 +86,8 @@ licenseid detect LICENSE.txt
 licenseid detect MIT
 
 # From a string (smart detection / piped); "-" names standard input
-echo "MIT License..." | licenseid detect
-echo "MIT License..." | licenseid detect -
+echo "Licensed under the MIT License" | licenseid detect
+echo "Licensed under the MIT License" | licenseid detect -
 
 # Explicit ID lookup (fastest, skips similarity check)
 licenseid detect --id MIT
@@ -181,8 +181,11 @@ Common options:
   GPL-2.0-or-later`. A variant warning is said only for a result that is
   printed (`--threshold`, `--exact`, `--top` apply first). The words "or
   later" and "only" of a licence text or a name are read in the whole
-  input, not beside the licence: a text with `Python 3 only` somewhere
-  states `-only` for its licences. A declared value states only the words
+  input, but per licence: a phrase states a variant for a licence only
+  when the version number before it is that licence's (`version 2 only`
+  beside the GPL's name). A text with `Python 3 only` or `Python 3.8 or
+  later` somewhere states nothing for the GPL: `VARIANT_STATED=false`,
+  with the warning. A declared value states only the words
   beside its own licence (the tag `GPL-2.0 AND MIT only` states nothing for
   GPL-2.0). A heading or a declared `GPL-2.0+` is a statement of its own
   and stays. An unknown or empty value exits 2. `is-osi` and `is-fsf` take
@@ -340,7 +343,8 @@ licenseid is-osi LICENSE.txt >/dev/null ||
   echo "Neither OSI-approved nor FSF-libre"
 
 # Check by Text (via stdin)
-echo "MIT License..." | licenseid is-fsf >/dev/null && echo "FSF Libre!"
+echo "Licensed under the MIT License" | licenseid is-fsf >/dev/null &&
+  echo "FSF Libre!"
 ```
 
 ## Exit codes

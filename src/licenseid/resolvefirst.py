@@ -44,7 +44,7 @@ from typing import Final
 
 from licenseid.errors import shown
 from licenseid.listlookup import fold_case
-from licenseid.resolvertypes import Category, Resolution
+from licenseid.resolvertypes import Category, Resolution, Step
 from licenseid.types import LicenseFlags, Method, RawMatch
 from licenseid.urlkey import is_url
 from licenseid.warning import warn
@@ -103,12 +103,30 @@ EXACT_CATEGORIES: Final[frozenset[Category]] = frozenset(
 _RULES: Final = frozenset(("separator", "prose_form", "version_spelling"))
 
 
+def _cuts_value(step: Step) -> bool:
+    """Whether *step* took characters off the value: invisible ones, an end
+    mark, a quote mark with no pair. Not zero-width characters (white space,
+    ``hiddenchars.ZERO_WIDTH``), the slash that reads as OR, nor a separator
+    step that only re-spells (no detail)."""
+    detail = step["detail"] or ""
+    return (
+        (step["kind"] == "trim" and detail == "invisible characters")
+        or (step["kind"] == "unquote" and detail.startswith("unbalanced"))
+        or (step["kind"] == "separator" and detail == "end mark")
+    )
+
+
 def is_exact(resolution: Resolution) -> bool:
     """Whether a list defines the reading of *resolution*: every operand of
     a compound (else the value) is in :data:`EXACT_CATEGORIES`. A bare ID
     kept (``assumed_only``) is the declaration itself if the operand was
     written so, in any case, or was read by a list (a title, a classifier); not
-    if a rule re-spelt it: ``GPL2`` read as ``GPL-2.0``."""
+    if a rule re-spelt it: ``GPL2`` read as ``GPL-2.0``. A value of any
+    category is not, though its operands are as listed, if it was cut
+    (``"MIT``, ``(MIT).``, ``New BSD.``, ``"GPL-2.0 OR MIT``); IDs joined by a
+    slash are (``MIT/Apache-2.0``)."""
+    if any(_cuts_value(s) for s in resolution["steps"]):
+        return False
     operands = resolution["operands"]
     if not operands:
         return resolution["category"] in EXACT_CATEGORIES

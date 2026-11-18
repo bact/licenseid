@@ -18,6 +18,9 @@ from typing import Final, Literal, TypedDict
 #: and no ``expression`` category.
 SCHEMA: Final = 2
 
+#: The ``detail`` of the ``separator`` step that reads ``/`` as ``OR``.
+SLASH_DETAIL: Final = "slash as OR"
+
 # The steps that change only the form of the text and decide nothing; the
 # others are the resolver's decisions or an expansion of a qualifier.
 LEXICAL_KINDS: Final = frozenset(

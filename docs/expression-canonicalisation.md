@@ -69,21 +69,28 @@ five passes; each pass that changes the text records one step, in this order:
 
 **A0. Leave off hidden characters at the ends.** A control or format character
 (categories `Cc` and `Cf`, not white space, not NUL) at the start or end of
-the value comes off, with the white space beside it (step `trim`, detail
-`invisible characters`; the answer is `separator`, `resolver_rule`). *Reason:*
-nothing that shows is lost at an end, since no text stands beyond it for a bidi
-control to reorder. A bidi control at the start (`U+202E`, which shows as
-`TIM`) is not left off but refused by rule A4. *Source:*
+the value comes off, with the white space beside it (step `trim`). A
+zero-width character (U+200B, U+200C, U+200D, U+2060, U+FEFF, U+00AD) is white
+space: detail `zero-width characters`, the category of the value without it.
+Any other is a cut: detail `invisible characters`, the answer `separator`,
+`resolver_rule`. *Reason:* nothing that shows is lost at an end, since no text
+stands beyond it for a bidi control to reorder; but only a zero-width
+character says nothing at all: a bidi control can reorder what is shown after
+the value, and a run of Unicode tag characters is text no one sees. A bidi
+control at the start (`U+202E`, which shows as `TIM`) is not left off but
+refused by rule A4. *Source:*
 [`hiddenchars.strip_hidden`](../src/licenseid/hiddenchars.py).
-*Example:* `MIT\u200b` and `\ufeffMIT` give `MIT`.
+*Example:* `MIT\u200b` and `\ufeffMIT` give `MIT`, `lexical`; `MIT\x07` gives
+`MIT`, `separator`.
 Inside the value, a format character (`Cf`, not a bidi control) in a run that
 touches white space is made a space, one code point for one
 ([`hiddenchars.space_out_hidden`](../src/licenseid/hiddenchars.py)): `MIT
-OR\u200b ISC` gives `ISC OR MIT`. *Reason:* the run joins no words, since a
-space stands beside it. A run between two other characters (`M\u200bIT`), a
-control character and a bidi control (`MIT OR\u202e ISC` shows the rest
-reversed) are refused by rule A4.
-*Test:* [`test_hiddenchars.py`](../tests/test_hiddenchars.py).
+OR\u200b ISC` gives `ISC OR MIT` (white space or a cut, as at the ends).
+*Reason:* the run joins no words, since a space stands beside it. A run
+between two other characters (`M\u200bIT`), a control character and a bidi
+control (`MIT OR\u202e ISC` shows the rest reversed) are refused by rule A4.
+*Test:* [`test_hiddenchars.py`](../tests/test_hiddenchars.py),
+[`test_zero_width.py`](../tests/test_zero_width.py).
 *Spec:* not addressed.
 
 **A1. Trim white space.** White space at both ends comes off (step `trim`).

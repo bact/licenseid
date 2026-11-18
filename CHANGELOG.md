@@ -11,6 +11,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-18
+
 ### Added
 
 - `docs/lists.md`: the lists `resolve()` reads (BSD names, titles, classifier
@@ -21,39 +23,50 @@ and this project adheres to
 
 - `detect()` options are typed (`licenseid.types.DetectOptions`, was
   `DetectRequest`); a type checker now rejects an unknown option ([#210])
-- **Breaking:** `detect()` `exact` is false for a value a rewrite rule read
-  (`Apache License, Version 2.0`, `GPL-2.0 only`); true where a list defines
-  it ([#212])
-- **Breaking:** `detect GPL-2.0` keeps `GPL-2.0` and `-with-` IDs as written,
-  with new `VARIANT_STATED` (migrate: `--variant only`); a text warns once;
-  `--exact` on a GPL licence text has no answer (its variant is a guess)
+- **Breaking:** `exact` is false for a value a rewrite rule read, such as
+  `Apache License, Version 2.0` (migrate: `exact` means a list defines the
+  reading; for confidence read `trust` and `category`) ([#212])
+- **Breaking:** `detect GPL-2.0` keeps `GPL-2.0` as written, with new last
+  field `VARIANT_STATED`; a GPL text warns once; `--exact` on one has no answer
+  (migrate: `--variant only` for `-only`; read fields by key; drop `--exact`)
   ([#212])
 - `detect --variant auto|as-written|only|or-later` (API `variant=`), and the
   last record field `VARIANT_STATED` (JSON `variant_stated`) ([#212])
 - `is-osi` and `is-fsf` judge a bare deprecated ID by its `-only` twin, and
   `GPL-2.0-with-classpath-exception` as `GPL-2.0-only WITH` its exception
   ([#212])
-- **Breaking:** a cut ID gets no answer: `Apache-1`, `MPL-1`, `OFL-1`, `LGPLv2`
-  (a bare major the List has another minor of) are `version ambiguous`, and
-  `MIT-`, `Zlib-`, `GPL-2.0-` (a dash or `_` at the end) `character dropped`,
-  and `SPDX-License-Identifier: MIT-` has no answer; `LGPLv2+`, `Apache-1+` stay
-  (migrate: write the minor version, `Apache-1.0`, and `MIT`) ([#217])
+- **Breaking:** `is-osi` and `is-fsf` print `GPL-2.0`, was `GPL-2.0-only`;
+  they take no `--variant` (migrate: `detect --variant only` gives the `-only`
+  form) ([#212])
+- **Breaking:** a cut ID gets no answer: `Apache-1`, `LGPLv2` (a bare major
+  the List has another minor of), `MIT-`, `GPL-2.0-` (a dash at the end);
+  `LGPLv2+` stays (migrate: write the minor version, `Apache-1.0`, and no
+  trailing dash) ([#217])
 - **Breaking:** `detect` gives no name answer for two licences, a cut version,
-  `with <exception>`, a fragment of a longer name, another ID or a glued dash
-  (migrate: declare an SPDX expression or the full version)
-- Tied names answer the most specific (`CC-BY-4.0` becomes `CC-BY-NC-4.0`); a
-  name `vN` for `vN.0` answers `-only` (`GNU General Public License v1`, `v2`)
+  `with <exception>`, a fragment, another ID or a glued dash (migrate: declare
+  an expression, `GPL-2.0-only WITH Classpath-exception-2.0`, or the full
+  version) ([#219])
+- **Breaking:** tied names answer the most specific (`CC-BY-4.0` becomes
+  `CC-BY-NC-4.0`); a name written whole beats a name of scattered words; a name
+  `v3` for `v3.0` answers `-only` (migrate: declare the SPDX ID) ([#219])
 - **Breaking:** no answer for `GPL-2.0-- or later`, `GPL-2.0 or later-` and the
-  tags `GPL-2.0 or later, ISC`, `MIT OR GPL-2.0 only`; a tag's `LGPLv2 or later`
-  is not exact ([#221])
+  tags `GPL-2.0 or later, ISC`, `MIT OR GPL-2.0 only`; a tag's `LGPLv2 or
+  later` is not exact (migrate: write `GPL-2.0-or-later`; join operands with
+  `OR` or `AND`) ([#221])
 - **Breaking:** a grant counts for the licence it names: `Requires Python 3.8 or
   later` beside a GPL name gives `-only` with a warning, not `-or-later`
+  (migrate: state the grant beside the licence, or pass `--variant or-later`)
+  ([#222])
 - **Breaking:** `licenseid.ToolInfo` replaces `Resolver` and `Component` of
   `licenseid.resolvertypes`; `ToolInfo`, `DetectOptions`, `Variant` are
-  exported ([#224])
+  exported (migrate: `from licenseid import ToolInfo`; the JSON keys stay)
+  ([#224])
+- **Breaking:** `detect()` `hint` no longer undoes `exclude`, `only_common` or
+  `only_spdx`; it is scored on its text (first 50) (migrate: take the ID out of
+  `exclude`, or drop the `only_*` filter) ([#224], [#227])
 - **Breaking:** no name answer for a cut version with a tool's grant or number
   (`Apache License 1. Requires Java 1 or later`), or for an LGPL or AGPL name
-  read as GPL ([#225])
+  read as GPL (migrate: declare the SPDX ID or the full version) ([#225])
 - **Breaking:** a List name in marks (`*Apache License 2.0*`, `# Apache License
   2.0`) gets no answer, as `*MIT License*` had none (migrate: drop the marks)
   ([#226])
@@ -77,8 +90,23 @@ and this project adheres to
 - `"MIT\u200b"` and a TOML `"\"MIT\""` are read; a tag or field keeps
   `LicenseRef-a-` in `MIT OR LicenseRef-a-` (refused before a `-->`); `LGPL-2
   WITH ...+` and `LGPLv2 or above` give a clearer reason ([#220])
-- `detect()` `hint` no longer undoes `exclude`, `only_common` or `only_spdx`;
-  it is scored on its text (first 50) and keeps the mixed-content search ([#224])
+- `detect` and `resolve` no longer call a value exact when it needed an
+  unquote or a dropped end mark (`"MIT`, `(MIT).`)
+- A List name with a run of white space inside (`MIT  License`, a tab, a
+  no-break space) reads as that name: `listed_name`, exact, in `detect()` as in
+  0.8.4 and now in `resolve()` too
+- A control or bidi character at an end (`MIT\x07`, `MIT\u200e`) is a cut, not
+  exact, in tags and fields too; a zero-width one (`MIT\u200b`, a BOM) is white
+  space, exact, with the new `trim` detail `zero-width characters`
+- A TOML comment or string holding `license =` after U+2028, U+0085 or a form
+  feed is no field; a JSON `\udXXX` escape in a manifest gives no answer, not a
+  traceback
+- A tag reads `MIT (or later) AND Apache-2.0` as `resolve()` does,
+  `Apache-2.0 AND MIT+` (was `MIT+`, dropping Apache-2.0); `GPL-2.0 or
+  later?`, a mark glued to the grant, still gives no answer, as in `resolve()`
+- A short text naming two licences (`Apache License 2.0 or Zlib`) gives no
+  answer from the name tier; no deprecated ID is listed after its replacement
+  was excluded or dropped; the `variant not stated` warning names the licence
 
 [#207]: https://github.com/bact/licenseid/pull/207
 [#208]: https://github.com/bact/licenseid/pull/208
@@ -89,11 +117,14 @@ and this project adheres to
 [#214]: https://github.com/bact/licenseid/pull/214
 [#216]: https://github.com/bact/licenseid/pull/216
 [#217]: https://github.com/bact/licenseid/pull/217
+[#219]: https://github.com/bact/licenseid/pull/219
 [#220]: https://github.com/bact/licenseid/pull/220
 [#221]: https://github.com/bact/licenseid/pull/221
+[#222]: https://github.com/bact/licenseid/pull/222
 [#224]: https://github.com/bact/licenseid/pull/224
 [#225]: https://github.com/bact/licenseid/pull/225
 [#226]: https://github.com/bact/licenseid/pull/226
+[#227]: https://github.com/bact/licenseid/pull/227
 
 ## [0.8.4] - 2026-11-09
 
@@ -1008,6 +1039,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[0.9.0]: https://github.com/bact/licenseid/compare/v0.8.4...v0.9.0
 [0.8.4]: https://github.com/bact/licenseid/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/bact/licenseid/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/bact/licenseid/compare/v0.8.1...v0.8.2

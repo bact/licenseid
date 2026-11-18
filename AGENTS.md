@@ -78,7 +78,8 @@ in another module.
   names no row, `ambiguous_ids`; an "or later" grant exempts it),
   `quotes` (quote marks around a whole value,
   `「」` too), `dropguard` (what a loose reading must not drop),
-  `hiddenchars` (control and format characters off the ends, inside quotes too).
+  `hiddenchars` (control and format characters off the ends, inside quotes too),
+  `grantchain` (a tag whose grant an operator follows, read by `resolve()`).
 - Resolver: `resolver` (value to expression and steps; types in
   `resolvertypes`), `resolveleaf` (one licence), `resolvecompound`,
   `resolvesemicolon` (`;`: listed, no operator), `resolveslash`,
@@ -330,7 +331,9 @@ and `--json`) against these rules and checks the default output against the
   `GPL-2.0-or-later OR MIT`; with WITH it belongs to the licence. A version
   number between ID and phrase (a number the phrase starts with counts too,
   unless it is the ID's own version) means another licence's grant. A grant
-  ends the expression: anything after it is refused. `grantsubject.grants`
+  ends the expression: `resolve()` refuses anything after it but an operator
+  chain (`MIT or later AND ISC`), which a tag hands to it
+  (`grantchain.chain_read`). `grantsubject.grants`
   is the one reader of whose grant a phrase is (a version after a licence's
   name, `version`, `v` or `the License`; `Python 3.8 or later` is a tool's):
   `ranking.or_later_signal` and `only_signal` ask it per licence; a phrase it

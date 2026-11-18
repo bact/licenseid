@@ -37,12 +37,13 @@ the decision on `EXACT` and our own lists (2026-11-15). Items 51 (decided and
 pinned, 2026-11-17), 53 (a known limit, 2026-11-18) and 56 (a hang in the CLI
 matrix, found 2026-11-16) are resolved.
 
-Open: the list below, in the order of its headings. Item 55 is built
-(PR #214, 2026-11-16); its leftovers stay open. Item 2 waits on an upstream
-release. The open items that need a rule or a decision before a fix are
-grouped in [`matching-rules-redesign.md`](matching-rules-redesign.md)
-(2026-10-02); item 31 is that revision. Resolved items are in the two files
-under "Already resolved" at the end.
+Open: the list below, in the order of its headings. Items 55 (PR #214,
+2026-11-16), 54 (PR #217, 2026-11-16) and 47 (PR #219, 2026-11-17) are built;
+their leftovers stay open. Item 2 waits on an upstream release. The open
+items that need a rule or a decision before a fix are grouped in
+[`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02);
+item 31 is that revision. Resolved items are in the two files under "Already
+resolved" at the end.
 
 ## 2. `py-spdx-license` reads its data with the locale encoding — Priority 20
 
@@ -380,7 +381,7 @@ from reading words a longer licence name only holds as that name, and reads
 a List name without its grant as the `-only` guess, said aloud. PR #170 read
 the BSD aliases through `resolvealias.ALIASES`.
 
-**Built** (2026-11-17; open until merged): `namehits.settle()` drops a name
+**Built** (PR #219, 2026-11-17): `namehits.settle()` drops a name
 hit that the rest of the input doubts: tied names that are two licences,
 a cut version, a fragment of a longer name, `with <exception>`, another ID
 written whole, a dash glued to a word end (`namehits` weighs tied names,
@@ -581,7 +582,8 @@ cut version is a choice, not a spelling: `Apache-1` may mean `Apache-1.0` or
   their reading (`SPDX-License-Identifier: MIT-` is `MIT`); **changed by the
   owner the same day** ("fix the tag"): a tag cut by a dash or `_` that
   touches the expression is refused too (`dropguard.cut_by_joiners`).
-- **Built** (PR #217, 2026-11-16; open until merged): see [`tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md).
+- **Built** (PR #217, 2026-11-16): see
+  [`tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md).
 - **Kept on purpose** (decided 2026-11-17): a dash glued to a comment closer
   in a tag (`MIT-*/`, `MIT-#}`, `MIT-}`, `MIT--]]`) is read as `MIT`. The
   tag reader knows no closers (Haskell `-}`, Lua `--]]`, Jinja `-#}`), the

@@ -221,7 +221,7 @@ def test_end_marks_of_a_list_name_stay_read(
 ) -> None:
     assert resolve(value, corpus_db)["expression"] == "Apache-2.0"
     assert _top(corpus_db, value) == "Apache-2.0"
-    assert _exact(corpus_db, value) is True
+    assert _exact(corpus_db, value) is False  # `separator`: an end mark dropped
 
 
 @pytest.mark.parametrize("value", INNER_QUOTES, ids=lambda v: ascii(v)[:12])

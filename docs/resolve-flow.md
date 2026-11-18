@@ -130,7 +130,9 @@ reads the value, or when it refuses it with a reason.
    with one step for each change:
    1. control and format characters at either end come off with the white
       space beside them ([`strip_hidden`](../src/licenseid/hiddenchars.py);
-      `trim`, detail `invisible characters`; sets the `separator` floor);
+      `trim`): zero-width ones (`ZERO_WIDTH`) as white space, detail
+      `zero-width characters`; any other as a cut, detail `invisible
+      characters`, which sets the `separator` floor;
       a bidi control at the start, a NUL or a value of nothing else is left
       for the refusal in step 5;
    2. trim white space (`trim`);
@@ -269,7 +271,7 @@ stronger). Ten step kinds change only form and count as `lexical`.
 | `deprecated_equal_successor` | list_data | the List says what replaced a deprecated ID |
 | `plus_to_or_later` | list_data | `X+` read as `X-or-later` |
 | `stated_qualifier` | author_words | the author wrote "or later" |
-| `separator` | resolver_rule | a loose ID, an end mark, an unbalanced quote, a hidden character at an end |
+| `separator` | resolver_rule | a loose ID, an end mark, an unbalanced quote, a hidden character at an end that is not zero-width |
 | `version_spelling` | resolver_rule | `Apache2`, `GPLv3` (not a bare major with another minor, `Apache-1`: refused) |
 | `prose_form` | resolver_rule | `BSD 3-Clause License` |
 | `text_title` | resolver_rule | `CC0 1.0 Universal` |

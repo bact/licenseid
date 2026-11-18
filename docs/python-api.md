@@ -135,10 +135,11 @@ value, and a name hit that `resolve()` read is never dropped. `exclude` and
 `hint` are `detect()` options that `resolve()` has not, so `detect()` may then
 answer differently from `resolve()` on purpose.
 
-After an `exclude`, short prose may still answer a near or a deprecated name:
-`exclude=["GPL-2.0-only"]` on "licensed under the GNU General Public License
-v2.0 only" answers the deprecated `GPL-2.0` (0.98), and with both twins
-excluded it answers the nearest other licence. A text under 10 words with
+After an `exclude`, short prose may still answer a near name, but not a
+deprecated ID whose replacement was excluded (except under
+`variant="as-written"`): `exclude=["GPL-2.0-only"]` on "licensed under the GNU
+General Public License v2.0 only" answers the nearest other licence
+(`GPL-1.0-only`), as with both twins excluded. A text under 10 words with
 nothing left answers `[]` and warns `too few words for text`. A short text
 never uses `hint`: Tier 0 adds no candidates.
 
@@ -164,8 +165,9 @@ text, with `only_common=True`, answers `JSON` first, exact, with or without
 
 A hinted candidate has its own text, so it ranks on its similarity to the
 input, as any candidate does, for the first 50 entries of `hint` (a set in
-sorted order; a bare deprecated ID counts as its two twins, and an ID given
-twice, or with no row, still uses up a place). Each costs a pass of the
+sorted order; a bare deprecated ID counts as its two twins; an ID given
+twice, with no row, or dropped by `exclude`, `only_spdx` or `only_common`
+uses no place). Each costs a pass of the
 second tier: on the full List the MIT text takes 0.8 s with no hint, 1.6 to
 2.0 s with 50 and 3.4 to 3.8 s with 200, and would take about 10 s if all 740
 IDs had their text. That is why an entry beyond the fiftieth is added with no

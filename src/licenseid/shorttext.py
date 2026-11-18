@@ -9,6 +9,7 @@ license ID or name."""
 from rapidfuzz import fuzz
 
 from licenseid.database import LicenseDatabase, exception_words
+from licenseid.exprflags import judged_id
 from licenseid.looseid import loose_id, mark_guessed, resolved_id
 from licenseid.namehits import NameHits, settle
 from licenseid.plusoperator import grant_stem, strip_plus_operator
@@ -46,7 +47,7 @@ def match_version_key(db: LicenseDatabase, text: str) -> list[RawMatch]:
         return []
     # loose_id reads the narrow row of ListLookup; the flags are in the full one.
     row = _full_row(db, found[0]["license_id"])
-    return [] if row is None else [_id_hit(row, found[1], text)]
+    return [] if row is None else [_id_hit(db, row, found[1], text)]
 
 
 def _full_row(db: LicenseDatabase, license_id: str) -> LicenseNameId | None:
@@ -82,9 +83,9 @@ def match_name_tier(
     # recognises it as a definitive hit.
     exact = _exact_id_row(all_metadata, norm_input, raw)
     if exact is not None:
-        return NameHits([_id_hit(exact, resolved_id(db, exact), raw)], False)
+        return NameHits([_id_hit(db, exact, resolved_id(db, exact), raw)], False)
     words = norm_input.split()
-    ranked, stems = _ranked_names(all_metadata, norm_input, words)
+    ranked, stems = _ranked_names(db, all_metadata, norm_input, words)
     if decided_name(ranked) is not None and not _grant_left_out_alone(
         ranked, stems, raw
     ):
@@ -93,7 +94,10 @@ def match_name_tier(
 
 
 def _ranked_names(
-    all_metadata: list[LicenseNameId], norm_input: str, words: list[str]
+    db: LicenseDatabase,
+    all_metadata: list[LicenseNameId],
+    norm_input: str,
+    words: list[str],
 ) -> tuple[list[RawMatch], set[str]]:
     """The name and ID hits of *norm_input* (its *words*) at or above the
     threshold, best first, and the licences whose name it is without their
@@ -136,7 +140,7 @@ def _ranked_names(
                 similarity=best_raw / 100.0,
                 coverage=None,
             )
-            _copy_flags(meta, match)
+            _copy_flags(db, meta, match)
             ranked.append(match)
 
     # The deprecated penalty is already in each score, and these results
@@ -312,13 +316,15 @@ def _exact_id_row(
     return found[0] if found else None
 
 
-def _id_hit(row: LicenseNameId, resolved: str, text: str) -> RawMatch:
+def _id_hit(
+    db: LicenseDatabase, row: LicenseNameId, resolved: str, text: str
+) -> RawMatch:
     """An ID match on *row*, answering *resolved*. A deprecated ID whose
     variant the option decided ("GPL3", "GPL 2 0", "GPL-2.0" itself read
     ``-only`` or ``-or-later``) is a guess: not exact, nor silent."""
     match = read_from([exact_id_match(resolved)], text)[0]
     if resolved == row["license_id"]:
-        _copy_flags(row, match)
+        _copy_flags(db, row, match)
     # A deprecated ID can resolve to an expression, whose flags are not this
     # row's: the caller works them out.
     if decided(row["license_id"], resolved):
@@ -327,8 +333,14 @@ def _id_hit(row: LicenseNameId, resolved: str, text: str) -> RawMatch:
     return match
 
 
-def _copy_flags(meta: LicenseNameId, match: RawMatch) -> None:
-    """Give *match* the SPDX, OSI and FSF flags of its license row."""
+def _copy_flags(db: LicenseDatabase, meta: LicenseNameId, match: RawMatch) -> None:
+    """Give *match* the SPDX flag of its license row, and the OSI and FSF
+    flags of its judged row: a kept deprecated ID is judged by its ``-only``
+    twin, as in every other channel (:func:`licenseid.exprflags.judged_id`;
+    ``AGPL-1.0`` is FSF-libre, its twins are not)."""
+    twin = judged_id(meta["license_id"])
+    judged = _full_row(db, twin) if twin != meta["license_id"] else None
+    flags = judged or meta
     match["is_spdx"] = meta["is_spdx"]
-    match["is_osi_approved"] = meta["is_osi_approved"]
-    match["is_fsf_libre"] = meta["is_fsf_libre"]
+    match["is_osi_approved"] = flags["is_osi_approved"]
+    match["is_fsf_libre"] = flags["is_fsf_libre"]

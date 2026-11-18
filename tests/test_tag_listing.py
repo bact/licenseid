@@ -73,13 +73,17 @@ def test_a_plain_word_id_in_prose_lists_no_licence(
         "MIT - or later OR ISC",
     ],
 )
-def test_a_dashed_grant_ends_the_expression_of_a_tag(
+def test_a_dashed_grant_before_an_operator_gives_a_tag_no_answer(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    """As the plain grant does: operands after it would be lost (it was
-    GPL-2.0-or-later, exact, with MIT or Apache-2.0 dropped)."""
+    """Operands after it would be lost (it was GPL-2.0-or-later, exact, with
+    MIT or Apache-2.0 dropped). The plain grant is read as ``resolve()`` reads
+    it (``grantchain.operator_chain``); the tag reader does not follow a dashed
+    one, which ``resolve()`` reads: no answer, nothing dropped."""
     plain = value.replace(" - ", " ")
-    assert _tag(corpus_db, plain) is None
+    tag = _tag(corpus_db, plain)
+    assert tag is not None
+    assert tag[0] == resolve(plain, corpus_db)["expression"]
     assert _tag(corpus_db, value) is None
     assert resolve(value, corpus_db)["expression"] is not None
 

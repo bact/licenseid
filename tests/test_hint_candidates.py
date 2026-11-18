@@ -38,7 +38,11 @@ CAPPED = [
     Lic(f"Cap-{i:02d}", "Cap", True, search_text=f"cap term{i}")
     for i in range(MAX_HINTS_WITH_TEXT + 1)
 ]
-ROWS = (COMMON, RARE, OFF_LIST, BARE, *CAPPED)
+NOT_ON_LIST = [
+    Lic(f"Off-{i:02d}", "Off", False, search_text=f"off term{i}")
+    for i in range(MAX_HINTS_WITH_TEXT)
+]
+ROWS = (COMMON, RARE, OFF_LIST, BARE, *CAPPED, *NOT_ON_LIST)
 ALL = ["Common-1.0", "Rare-1.0", "Off-List-1.0"]
 
 
@@ -169,6 +173,41 @@ def test_the_cap_counts_the_hints_added_not_the_ones_given(
     assert [(c["license_id"], c["search_text"]) for c in got] == [
         ("Rare-1.0", "rare text")
     ]
+
+
+def _cap_ids(rows: list[Lic]) -> list[str]:
+    return [row.license_id for row in rows]
+
+
+@pytest.mark.parametrize(
+    ("hints", "options", "carried"),
+    [
+        (
+            _cap_ids(CAPPED) + ["Rare-1.0"],
+            {"exclude": _cap_ids(CAPPED)},
+            "Rare-1.0",
+        ),
+        (
+            [i.lower() for i in _cap_ids(CAPPED)] + ["Rare-1.0"],
+            {"exclude": _cap_ids(CAPPED)},  # folded
+            "Rare-1.0",
+        ),
+        (_cap_ids(NOT_ON_LIST) + ["Rare-1.0"], {}, "Rare-1.0"),  # only_spdx
+        (_cap_ids(CAPPED) + ["Common-1.0"], {"only_common": True}, "Common-1.0"),
+    ],
+    ids=["exclude", "exclude-folded", "only_spdx", "only_common"],
+)
+def test_a_hint_a_filter_drops_uses_no_place(
+    db: LicenseDatabase,
+    hints: list[str],
+    options: dict[str, Any],
+    carried: str,
+) -> None:
+    """An ID that ``exclude``, ``only_spdx`` or ``only_common`` drops is no
+    candidate: the licence after MAX_HINTS_WITH_TEXT of them still carries
+    its text."""
+    got = hinted_candidates(db, cast(DetectOptions, {"hint": hints, **options}), [])
+    assert [(c["license_id"], bool(c["search_text"])) for c in got] == [(carried, True)]
 
 
 # --- Cost: the text of a hint costs a Tier 2 pass ---

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,13 +13,46 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-11-16)
+## Current state (as of 2026-11-18)
 
-- **Unreleased** (after 0.8.4): `update` names a data directory it cannot
-  make and refuses symlink loops as `unreadable`, PR #209; `detect()`
+- **0.9.0** (prepared 2026-11-18): PRs #201 to #227, reviewed whole before
+  the tag ([pre-release-review.md](pre-release-review.md)): a docs sweep,
+  `detect()` reading a whole value once, three rounds of read-only review with
+  batched fixes, then the results and lessons recorded and this preparation.
+  PRs #201 to #206 are platform, CRLF and timing tests, CI and dependency
+  updates; a database cut short by another program is
+  `DatabaseNotReadyError`, PR #207; `detect()` on thousands of `License:`
+  lines is faster, PR #208; `update` names a data directory it cannot make
+  and refuses symlink loops as `unreadable`, PR #209; `detect()`
   options typed, PR #210; `exclude` and `hint` act on free text only, PR
   #211; `detect --variant`, the field `VARIANT_STATED` and `EXACT` by list,
-  PR #212 (open): [item-52-variant-and-exact.md](item-52-variant-and-exact.md).
+  PR #212: [item-52-variant-and-exact.md](item-52-variant-and-exact.md).
+  Then, one line each:
+  - PR #213: roadmap cleanup (working-docs only).
+  - PR #214: `docs/lists.md`, generated from the code
+    (`tools/lists_page`); the `license_urls` evidence (item 55).
+  - PR #215: the CLI matrix FIFO cell no longer hangs (item 56).
+  - PR #216: `detect()` on a text with one very long word is fast (the
+    full-text query cuts a word, `ftsquery`).
+  - PR #217: a cut ID (`Apache-1`, `MIT-`) gets no answer (item 54).
+  - PR #218: scripts, benchmarks and tools are linted in CI (item 9).
+  - PR #219: the name tier refuses a doubtful name: two licences, a cut
+    version, `with <exception>`, a fragment, another ID, a glued dash
+    (item 47).
+  - PR #220: hidden characters inside quotes and TOML escapes are read; a
+    reference's trailing dash (items 50, 51, 54).
+  - PR #221: a grant followed by a dropped mark gets no answer.
+  - PR #222: an "or later" grant counts for the licence it names.
+  - PR #223: URL alias evidence is computed; the ID golden runs on the full
+    List (leftovers of items 35, 46, 50, 53, 55).
+  - PR #224: `hint` obeys `exclude`, `only_common`, `only_spdx`;
+    `ToolInfo`, `DetectOptions` and `Variant` are exported (item 46).
+  - PR #225: a tool's version grant is no grant for a name (B1c).
+  - PR #226: a List name wrapped in marks, or a long wrapped name, gets no
+    answer (item 50).
+  - PR #227: review cleanups for hints and wrapped names.
+  The record of #219 to #227 is
+  [tech-debt-resolved-0-9.md](tech-debt-resolved-0-9.md).
 - **0.8.4** (released 2026-11-09): "/" between List IDs reads as OR
   (`MIT/Apache-2.0`), `resolve()` reads corner brackets and two BSD aliases,
   and Tier 0 asks `resolve()` first, PRs #194, #195, #197.

@@ -22,9 +22,9 @@ CHANGES_FILE = Path(__file__).parent / "fixtures" / "resolver_hidden_changes.tsv
 #: Why each group of the changes file moved.
 REASONS: dict[str, str] = {
     "hidden": (
-        "a control or format character at an end of the value is left off"
-        " (`trim`, detail `invisible characters`, `separator`,"
-        " `resolver_rule`); it was refused (`control or format character`)"
+        "a zero-width character at an end of the value is left off as white"
+        " space (`trim`, detail `zero-width characters`, `lexical`,"
+        " `identity`); it was refused (`control or format character`)"
     ),
 }
 

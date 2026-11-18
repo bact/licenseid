@@ -8,7 +8,8 @@
 ``MIT\\u200b`` was read as ``MIT`` (the character stands at the end, nothing
 beyond it to reorder); ``"MIT\\u200b"`` was refused, though the closing mark
 stands beyond it no further than the end did. Now both read, with a ``trim``
-step after ``unquote``. A bidi control, a control character (``Cc``), a NUL, a
+step after ``unquote``; a zero-width character there is white space, as
+outside the marks. A bidi control, a control character (``Cc``), a NUL, a
 character inside a word and a value of nothing else stay refused.
 """
 # pylint: disable=missing-function-docstring
@@ -25,6 +26,7 @@ from licenseid.hiddenchars import strip_plain_format
 
 ZWSP, ZWJ, BOM = "\u200b", "\u200d", "\ufeff"
 RLO, LRM, NUL, BEL = "\u202e", "\u200e", "\x00", "\x07"
+TAG_A = "\U000e0041"  # a Unicode tag character: invisible ASCII
 
 #: ``(value, reading)``: read as ``MIT``, steps ``unquote`` then ``trim``.
 READ = [
@@ -37,8 +39,9 @@ READ = [
     f'"MIT{ZWJ}"',
     f'"{ZWSP}MIT{ZWSP}"',
     f'("MIT{ZWSP}")',
-    f'"MIT{ZWSP}".',
+    f'"MIT{ZWSP}".',  # an end mark: a cut
     f'  "MIT{ZWSP}"  ',
+    f'"MIT{TAG_A}"',  # no zero-width character: a cut
 ]
 
 #: Still refused, with the first character it names.
@@ -80,13 +83,17 @@ def test_a_plain_format_character_inside_quotes_is_left_off(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     got = resolve(value, corpus_db)
-    assert (got["expression"], got["category"]) == ("MIT", "separator")
-    assert got["trust"] == "resolver_rule"
+    cut = value.endswith(".") or TAG_A in value
+    assert (got["expression"], got["category"]) == (
+        "MIT",
+        "separator" if cut else "lexical",
+    )
     assert _steps(value, corpus_db)[-2:] == ["unquote", "trim"]
-    assert _top(corpus_db, value) == ("MIT", True)
+    # `separator` is a rule's reading, not exact, in every channel
+    assert _top(corpus_db, value) == ("MIT", not cut)
     assert _top(corpus_db, json.dumps({"name": "x", "license": value})) == (
         "MIT",
-        True,
+        not cut,
     )
 
 
@@ -94,8 +101,10 @@ def test_the_trim_step_says_what_it_left_off(corpus_db: LicenseDatabase) -> None
     steps = resolve(f'"MIT{ZWSP}"', corpus_db)["steps"]
     assert [(s["kind"], s["from"], s["to"], s["detail"]) for s in steps] == [
         ("unquote", f'"MIT{ZWSP}"', f"MIT{ZWSP}", "balanced"),
-        ("trim", f"MIT{ZWSP}", "MIT", "invisible characters"),
+        ("trim", f"MIT{ZWSP}", "MIT", "zero-width characters"),
     ]
+    steps = resolve(f'"MIT{TAG_A}"', corpus_db)["steps"]
+    assert steps[-1]["detail"] == "invisible characters"
 
 
 @pytest.mark.parametrize("value", sorted(REFUSED), ids=lambda v: ascii(v)[:24])
@@ -128,17 +137,21 @@ def test_a_value_read_before_reads_as_before(
 
 
 @pytest.mark.parametrize(
-    ("text", "template"),
+    ("text", "template", "exact"),
     [
-        (f"MIT{ZWSP}", '[metadata]\nname = x\nlicense = "{}"\n'),
-        (f"MIT{ZWSP}", "[metadata]\nname = x\nlicense = {}\n"),
-        ("MIT", '[metadata]\nname = x\nlicense = "{}"\n'),
+        # a zero-width character is white space, quoted or not
+        (f"MIT{ZWSP}", '[metadata]\nname = x\nlicense = "{}"\n', True),
+        (f"MIT{ZWSP}", "[metadata]\nname = x\nlicense = {}\n", True),
+        ("MIT", '[metadata]\nname = x\nlicense = "{}"\n', True),
+        # any other hidden character is a cut, quoted or not
+        (f"MIT{TAG_A}", '[metadata]\nname = x\nlicense = "{}"\n', False),
+        (f"MIT{TAG_A}", "[metadata]\nname = x\nlicense = {}\n", False),
     ],
 )
 def test_an_ini_field_reads_a_quoted_hidden_character(
-    corpus_db: LicenseDatabase, text: str, template: str
+    corpus_db: LicenseDatabase, text: str, template: str, exact: bool
 ) -> None:
-    assert _top(corpus_db, template.format(text)) == ("MIT", True)
+    assert _top(corpus_db, template.format(text)) == ("MIT", exact)
 
 
 @pytest.mark.parametrize(

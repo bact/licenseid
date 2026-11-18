@@ -30,7 +30,8 @@ to every step is gone.
 
 Two cases moved with `hiddenchars` (0.8.1): ``MIT\\u200b`` and
 ``MIT\\x07`` read as ``MIT`` (a control or format character at an end is
-left off) and were refused before.
+left off) and were refused before. In 0.9.0 ``MIT\\u200b`` became
+``lexical``: a zero-width character left off is white space, not a cut.
 
 Lone surrogates survive the JSON file as ``\\udXXX`` escapes
 (``ensure_ascii=True``), and ``json.loads`` gives them back.

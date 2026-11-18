@@ -5,8 +5,9 @@
 
 """A control or format character at an end of a declared value is left off
 (``licenseid.hiddenchars``, 0.8.1); inside the value, first as a bidi
-control, or alone, it is still refused. Unit table of ``strip_hidden``, the
-``resolve()`` table, the length gate, and the CLI.
+control, or alone, it is still refused. A zero-width one left off is white
+space (``lexical``); any other is a cut (``separator``). Unit table of
+``strip_hidden``, the ``resolve()`` table, the length gate, and the CLI.
 """
 # pylint: disable=missing-function-docstring
 
@@ -122,8 +123,9 @@ def test_the_bidi_controls_are_format_characters() -> None:
 
 # --- resolve() -----------------------------------------------------------------
 
-#: A value that reads as MIT with its hidden characters left off.
-READ = [
+#: A value that reads as MIT with its zero-width characters left off, as
+#: white space: ``lexical``.
+ZERO_READ = [
     f"MIT{ZWSP}",
     f"{ZWSP}MIT",
     f"{ZWSP}MIT{ZWSP}",
@@ -134,28 +136,36 @@ READ = [
     f"MIT{SHY}",
     f"{SHY}MIT",
     f"MIT{WJ}",
+    f"{ZWSP}{BOM}MIT",
+    f"  {ZWSP}  MIT  {ZWSP}  ",
+]
+#: A value that reads as MIT with other hidden characters left off: a cut.
+CUT_READ = [
     f"MIT{LRM}",
     f"MIT{RLM}",
     f"MIT{RLO}",
     f"MIT{RLI}",
     f"MIT{LRM}{RLO}",
-    f"{ZWSP}{BOM}MIT",
+    f"MIT{ZWSP}{RLO}",
+    f"{ZWSP}MIT{LRM}",
     "MIT\x07",
     "\x07MIT",
     "MIT\x1f",
-    f"  {ZWSP}  MIT  {ZWSP}  ",
+]
+READ = [(v, "lexical", "identity", "zero-width characters") for v in ZERO_READ] + [
+    (v, "separator", "resolver_rule", "invisible characters") for v in CUT_READ
 ]
 
 
-@pytest.mark.parametrize("value", READ, ids=_id)
+@pytest.mark.parametrize(("value", "category", "trust", "detail"), READ, ids=_id)
 def test_a_value_with_hidden_characters_at_its_ends_reads(
-    corpus_db: LicenseDatabase, value: str
+    corpus_db: LicenseDatabase, value: str, category: str, trust: str, detail: str
 ) -> None:
     got = resolve(value, corpus_db)
     assert (got["expression"], got["category"], got["trust"]) == (
         "MIT",
-        "separator",
-        "resolver_rule",
+        category,
+        trust,
     )
     assert got["reason"] is None
     assert got["input"] == value
@@ -165,7 +175,7 @@ def test_a_value_with_hidden_characters_at_its_ends_reads(
             "applied": True,
             "from": value,
             "to": "MIT",
-            "detail": "invisible characters",
+            "detail": detail,
             "list": None,
         }
     ]
@@ -174,7 +184,8 @@ def test_a_value_with_hidden_characters_at_its_ends_reads(
     assert value[start:end] == "MIT"
 
 
-#: ``{value: (expression, step kinds, spans)}``
+#: ``{value: (expression, step kinds, spans)}``: zero-width characters but
+#: the last's bidi control.
 BESIDE = {
     f'"MIT"{ZWSP}': ("MIT", ["trim", "unquote"], [[1, 4]]),
     f'{BOM}"MIT"': ("MIT", ["trim", "unquote"], [[2, 5]]),
@@ -203,9 +214,14 @@ def test_quotes_brackets_operators_and_urls_read_beside_them(
     got = resolve(value, corpus_db)
     assert got["expression"] == expression
     assert [s["kind"] for s in got["steps"]] == kinds
-    assert got["steps"][0]["detail"] == "invisible characters"
     assert got["steps"][0]["from"] == value
-    assert got["trust"] == "resolver_rule"
+    if RLO in value:  # a cut: a rule of the resolver
+        assert got["steps"][0]["detail"] == "invisible characters"
+        assert (got["category"], got["trust"]) == ("separator", "resolver_rule")
+    else:  # white space: read as the value without it
+        assert got["steps"][0]["detail"] == "zero-width characters"
+        clean = resolve(value.strip(ZWSP + BOM), corpus_db)
+        assert (got["category"], got["trust"]) == (clean["category"], clean["trust"])
     assert [o["span"] for o in got["operands"]] == spans
     for operand in got["operands"]:  # the span indexes the raw value
         start, end = operand["span"]
@@ -310,14 +326,22 @@ def _run(db: LicenseDatabase, *args: str) -> tuple[int, str, str]:
     return result.exit_code, result.stdout, result.stderr
 
 
-@pytest.mark.parametrize("value", [f"MIT{RLO}", f"{BOM}MIT", f"MIT{ZWSP}"], ids=_id)
+@pytest.mark.parametrize(
+    ("value", "category", "trust", "detail"),
+    [
+        (f"MIT{RLO}", "separator", "resolver_rule", "invisible characters"),
+        (f"{BOM}MIT", "lexical", "identity", "zero-width characters"),
+        (f"MIT{ZWSP}", "lexical", "identity", "zero-width characters"),
+    ],
+    ids=_id,
+)
 def test_resolve_reads_a_value_with_a_hidden_character_at_an_end(
-    corpus_db: LicenseDatabase, value: str
+    corpus_db: LicenseDatabase, value: str, category: str, trust: str, detail: str
 ) -> None:
     code, out, err = _run(corpus_db, "resolve", value)
     assert (code, err) == (0, "")
-    assert (
-        out.splitlines()[0] == "EXPRESSION=MIT\tCATEGORY=separator\tTRUST=resolver_rule"
+    assert out.splitlines()[0] == (
+        f"EXPRESSION=MIT\tCATEGORY={category}\tTRUST={trust}"
     )
     assert out.splitlines()[1] == f"STEP=trim\tFROM={value}\tTO=MIT"
 
@@ -327,10 +351,10 @@ def test_resolve_reads_a_value_with_a_hidden_character_at_an_end(
     record = json.loads(out)
     assert (record["expression"], record["category"], record["input"]) == (
         "MIT",
-        "separator",
+        category,
         value,
     )
-    assert record["steps"][0]["detail"] == "invisible characters"
+    assert record["steps"][0]["detail"] == detail
     assert out == f"{json_line(record)}\n"  # RFC 8785, as written
 
 
@@ -416,13 +440,14 @@ def test_a_compound_with_a_hidden_character_beside_a_space_reads(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     got = resolve(value, corpus_db)
+    clean = resolve("MIT OR ISC", corpus_db)
     assert (got["expression"], got["category"], got["trust"]) == (
         "ISC OR MIT",
-        "separator",
-        "resolver_rule",
+        clean["category"],
+        clean["trust"],
     )
     assert got["steps"][0]["kind"] == "trim"
-    assert got["steps"][0]["detail"] == "invisible characters"
+    assert got["steps"][0]["detail"] == "zero-width characters"
     assert [(o["text"], o["span"]) for o in got["operands"]] == [
         ("MIT", [value.index("MIT"), value.index("MIT") + 3]),
         ("ISC", [value.index("ISC"), value.index("ISC") + 3]),

@@ -15,10 +15,11 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, grant_end, grant_follows, grant_head
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
-from licenseid.dropguard import glued_marks
+from licenseid.dropguard import glued_marks, glued_tag_marks
 from licenseid.exprtokens import (
     ID_WORD,
     LIST_MARK,
+    RE_OPERATOR,
     RE_TOKEN,
     WHITE_SPACE,
     is_license_ref,
@@ -54,11 +55,13 @@ __all__ = [
     "declared_grant_id_text",
     "drops_words",
     "grant_end",
+    "grant_stop",
     "granted_id_text",
     "lists_another",
     "loose_id",
     "loose_with",
     "mark_guessed",
+    "operator_at",
     "resolved_id",
     "restates_qualifier",
     "undashed_grant",
@@ -141,8 +144,15 @@ def decided_forms(db: ListLookup, text: str, expression: str) -> list[str]:
     }
     for token in RE_TOKEN.finditer(text):
         # A bracket, a "+" or an operator is never decided; reading each
-        # alone cost seconds on 40,000 brackets around one ID.
-        if token.end() in granted or not token.group(0)[0].isalnum():
+        # alone cost seconds on 40,000 brackets around one ID. Nor is a word
+        # that is no bare or -with- deprecated ID: decided() is False for it
+        # whatever its reading (decided(word, "") asks only that), so it is
+        # not read again.
+        if (
+            token.end() in granted
+            or not token.group(0)[0].isalnum()
+            or not decided(token.group(0), "")
+        ):
             continue
         reading = normalize_identifier(token.group(0), db)
         head = RE_TOKEN.findall(reading)[0].casefold()
@@ -365,19 +375,49 @@ def lists_after_grant(
     *leading* (:func:`lists_another`, from the grant's end): in ``GPL-2.0 or
     later, ISC`` the grant ends the licence it qualifies, not the value, and
     an answer would drop ISC, also when another grant ends the value
-    (``GPL-2.0 or later, ISC or later``). ``GPL-2.0 or later, see COPYING``
-    keeps its reading."""
+    (``GPL-2.0 or later, ISC or later``). An operator after the grant
+    (``MIT (or later) AND Apache-2.0``) or a mark glued to its end (``or
+    later?``, as ``resolve()`` refuses; a comment closer is no mark) goes the
+    same way, also an operator in brackets (``(AND MIT)``) and after end marks
+    (``or later.; ISC``, ``or later., AND MIT``). ``GPL-2.0 or later,
+    see COPYING`` and ``(see COPYING)`` keep their reading."""
     if expression == leading:
         return False  # no grant was applied (or only an "only")
+    end = grant_stop(value, leading)
+    if end is None:
+        return False
+    if glued_tag_marks(value, end):
+        return True
+    while end < len(value) and (value[end].isspace() or value[end] in ".:)]"):
+        end += 1  # end marks and brackets hide neither an operator nor a listing
+    if operator_at(value, end) is not None:
+        return True
+    return lists_another(db, value[:end], value)
+
+
+def grant_stop(value: str, leading: str) -> int | None:
+    """Where the grant after *leading*, the leading expression of *value*,
+    ends with the words that may follow it ("version"), or None."""
     word = _RE_OR_WORD.search(value, len(leading.rstrip(")")))
     end = grant_end(value, word.start()) if word else None
     if end is None:
-        return False
+        return None
     words = RE_GRANT_WORDS.match(value, end)
-    end = words.end() if words else end
-    while end < len(value) and (value[end].isspace() or value[end] in ")]"):
-        end += 1
-    return lists_another(db, value[:end], value)
+    return words.end() if words else end
+
+
+def operator_at(value: str, end: int) -> int | None:
+    """Where an operator starts after *end* in *value*, past white space and
+    an opening bracket (``(AND MIT)``) or a mark after an end mark (``., AND
+    MIT``), or None."""
+    peek = end
+    while peek < len(value) and (
+        value[peek].isspace()
+        or value[peek] in "(["
+        or (value[peek] in ",;" and value[peek - 1] in ".:")
+    ):
+        peek += 1
+    return peek if RE_OPERATOR.match(value, peek) else None
 
 
 def lists_another(db: ListLookup, leading: str, value: str) -> bool:

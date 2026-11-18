@@ -121,8 +121,9 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     ("(MIT AND ISC) OR (ISC AND MIT)", ("ISC AND MIT", "lexical", None)),
     # a control at an end is left off (`hiddenchars`); inside, and a
     # surrogate, they refuse the whole
-    ("MIT OR ISC\u200b", ("ISC OR MIT", "separator", None)),
-    ("MIT OR\u200b ISC", ("ISC OR MIT", "separator", None)),
+    ("MIT OR ISC\u200b", ("ISC OR MIT", "lexical", None)),  # white space
+    ("MIT OR\u200b ISC", ("ISC OR MIT", "lexical", None)),
+    ("MIT OR ISC\u200e", ("ISC OR MIT", "separator", None)),  # a cut
     (
         "MIT OR\u200bISC",
         (None, "unresolved", "control or format character: U+200B"),

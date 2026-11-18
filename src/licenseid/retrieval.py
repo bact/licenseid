@@ -162,14 +162,18 @@ def hinted_candidates(
     given twice, is added once.
 
     Each carries its own text, so it ranks on its similarity, for the first
-    :data:`MAX_HINTS_WITH_TEXT` hints that name a row (a set in sorted order;
-    a duplicate or an ID with no row uses no place); a later one, and a row
-    with no text (a deprecated ID kept as written), has none and scores 0.
+    :data:`MAX_HINTS_WITH_TEXT` hints that are added (a set in sorted order;
+    a duplicate, an ID with no row and one a filter drops use no place); a
+    later one, and a row with no text (a deprecated ID kept as written), has
+    none and scores 0.
     A later hint still costs its row and judged-flags lookups, as it must be
     a candidate with its flags to rank last. The detector adds them after the
     markers and the mixed-content search, so a hint never counts towards that
     search's gate and never replaces a marker candidate."""
     seen = folded(present)
+    only_spdx = options.get("only_spdx", True)
+    only_common = options.get("only_common", False)
+    excluded = excluded_ids(options.get("exclude", []))
     hinted: list[CandidateMatch] = []
     for h_id in options.get("hint", ()):
         if fold_case(h_id) in seen:
@@ -179,31 +183,25 @@ def hinted_candidates(
             continue
         details = with_judged_flags(details, db)
         seen |= {fold_case(details["license_id"]), fold_case(h_id)}
-        text = (
-            db.get_search_text(details["license_id"])
-            if len(hinted) < MAX_HINTS_WITH_TEXT
-            else ""
+        cand = CandidateMatch(
+            license_id=details["license_id"],
+            search_text="",
+            word_count=details["word_count"],
+            is_spdx=details["is_spdx"],
+            is_high_usage=details["is_high_usage"],
+            is_osi_approved=details["is_osi_approved"],
+            is_fsf_libre=details["is_fsf_libre"],
+            pop_score=details.get("pop_score", 0),
+            is_deprecated=details.get("is_deprecated", False),
+            superseded_by=details.get("superseded_by", ""),
         )
-        hinted.append(
-            CandidateMatch(
-                license_id=details["license_id"],
-                search_text=text,
-                word_count=details["word_count"],
-                is_spdx=details["is_spdx"],
-                is_high_usage=details["is_high_usage"],
-                is_osi_approved=details["is_osi_approved"],
-                is_fsf_libre=details["is_fsf_libre"],
-                pop_score=details.get("pop_score", 0),
-                is_deprecated=details.get("is_deprecated", False),
-                superseded_by=details.get("superseded_by", ""),
-            )
-        )
-    return _filter_candidates(
-        hinted,
-        options.get("only_spdx", True),
-        options.get("only_common", False),
-        excluded_ids(options.get("exclude", [])),
-    )
+        # A hint a filter drops is no candidate and takes no place.
+        if not _filter_candidates([cand], only_spdx, only_common, excluded):
+            continue
+        if len(hinted) < MAX_HINTS_WITH_TEXT:
+            cand["search_text"] = db.get_search_text(details["license_id"])
+        hinted.append(cand)
+    return hinted
 
 
 def add_free_text(

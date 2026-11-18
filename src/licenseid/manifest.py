@@ -24,6 +24,9 @@ _RE_TOML_LICENSE_TABLE = re.compile(
     r"""(?a:license)\s*=\s*\{[^}]*\btext\s*=\s*(?:"((?:[^"\\]|\\.)*)"|'([^']*)')""",
     re.IGNORECASE,
 )
+# The line ends of a TOML file: CRLF and LF, and a lone CR as the command line
+# reads it (not U+2028, U+0085, a form feed: ``str.splitlines()`` breaks there).
+_RE_TOML_LINE_END = re.compile(r"\r\n|\r|\n")
 # Any key, bare or quoted: a TOML file has at least one.
 _RE_TOML_KEY = re.compile(r"""[ \t]*[\w."'-]+[ \t]*=""")
 # The next string delimiter or comment on a line, a multi-line string's
@@ -142,11 +145,20 @@ def toml_license_values(text: str) -> list[str] | None:
     return [value for value in values if value.strip()] if has_key else None
 
 
+def _toml_text_lines(text: str) -> Iterator[str]:
+    """The lines of TOML *text*. TOML ends a line at LF or CRLF (TOML 1.0,
+    "Spec"); a lone CR ends one too, as the command line reads it
+    (``textinput.normalize_newlines``), so the API and the command line agree.
+    str.splitlines() also breaks at U+2028, U+0085, a form feed and more,
+    which would cut a comment or a string in two."""
+    yield from _RE_TOML_LINE_END.split(text)
+
+
 def _toml_lines(text: str) -> Iterator[str]:
     """The lines of *text* outside multi-line strings, whose lines are
     text, not TOML: a header or a field there is none."""
     open_quote = ""
-    for line in text.splitlines():
+    for line in _toml_text_lines(text):
         if not open_quote:
             yield line
         open_quote = _open_string(line, open_quote)
@@ -326,7 +338,7 @@ def extension(file_path: str | None) -> str:
 def _starts_with_table(text: str) -> bool:
     """Whether the first line that is not blank or a # comment is a whole
     TOML table header."""
-    for line in text.splitlines():
+    for line in _toml_text_lines(text):
         if line.strip() and not line.lstrip().startswith("#"):
             return bool(
                 _RE_TOML_HEADER.fullmatch(line) or _RE_TOML_ARRAY_HEADER.fullmatch(line)

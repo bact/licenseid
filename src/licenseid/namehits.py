@@ -55,6 +55,22 @@ __all__ = ["GENERIC", "NameHits", "refusal_answer", "settle"]
 #: A version written as a letter and a number (``v1`` of ``v1.0``).
 _V_NUMBER: Final = re.compile(r"v(\d+)\Z")
 
+#: The words of a grant that end a name (``or later``, ``only``): another
+#: licence's grant may stand elsewhere in the input.
+_GRANT_WORDS: Final = frozenset({"or", "later", "only"})
+
+#: The generic word a name holds (``Zlib License``; ``licence`` is read as
+#: ``license``): ``see`` and ``file`` are none, so they stand between a name and
+#: a word that follows it.
+_NAME_WORDS: Final = frozenset({"license"})
+
+#: The words that join two names of a list (a comma is no word).
+_JOINERS: Final = frozenset({"or", "and"})
+
+#: The words that point at a name (``or see Zlib``, ``Zlib (see file)``): they
+#: stand beside a one-word name that a joining word joins, and are no part of it.
+_REFERENCE_WORDS: Final = frozenset({"see", "file"})
+
 
 class NameHits(NamedTuple):
     """The name hits that stand, and whether a rule dropped a hit that would
@@ -256,7 +272,9 @@ def _settle_ties(
     the Library GPL's words too). Of the names written whole the longest
     licence wins where they nest, the others tied with
     it are dropped; None where the tie is no answer: two licences not nested
-    (``UPL 1.0 or Apache License 2.0``). Where no name is written whole,
+    (``Apache License 2.0 or Zlib``), or another tied name that also
+    stands apart from the winner's (:func:`_stands_apart`). Where no name is
+    written whole,
     names nest by their words, a longer name that adds more than a number.
     A name that the input only lies in (token set scores it 100 too) is left
     to ``fragment_of_longer``; names that all hold the input in part (a
@@ -289,8 +307,8 @@ def _settle_ties(
     # Names written whole beat names put together from scattered words.
     held, nested = (whole, _runs_in) if whole else (scattered, _nested_by_words)
     best = _most_specific(held, nested, spoken)
-    if best is None:
-        return None  # not nested: two licences are named
+    if best is None or (whole and _stands_apart(best, whole, scattered, words)):
+        return None  # not nested, or nested but written apart: two licences
     # The names tied with the winner are not the answer either: with the
     # winner excluded, no tied hit is left to answer.
     return [
@@ -318,3 +336,79 @@ def _most_specific(
     ):
         return best
     return _tightest(held, spoken)
+
+
+def _stands_apart(
+    best: str,
+    whole: dict[str, tuple[str, ...]],
+    scattered: dict[str, tuple[str, ...]],
+    words: list[str],
+) -> bool:
+    """Whether another tied name stands in *words* apart from the places of
+    the winner *best*'s name: CC-BY-4.0's name nests in CC-BY-NC-4.0's, but
+    ``... 4.0 International or ... Non Commercial 4.0 International`` names
+    both. A grant at the end of a name is left out, so that one licence's
+    ``or later`` is no part of the other's (``GNU Lesser General Public
+    License v2.1 or later, GNU General Public License v2.0``). A name of one
+    word counts only where it is listed beside the winner's (``Apache License
+    2.0 or Zlib``): elsewhere a word such as ``Ntp`` or ``JSON`` says no name
+    (``Apache License 2.0 (JSON module)``). Only ``license`` is left out of
+    *words*: ``see`` and ``file`` stand between the name and the word
+    (``Apache License 2.0 (see zlib)``)."""
+    spoken = [word for word in words if word not in _NAME_WORDS]
+    spans = _places(whole[best], spoken)
+    for stem, said in (scattered | whole).items():
+        if stem == best:
+            continue
+        part = list(said)
+        while len(part) > 1 and part[-1] in _GRANT_WORDS:
+            part.pop()
+        apart = [
+            at
+            for at in _places(part, spoken)
+            if not any(start <= at <= start + n for start, n in spans.items())
+        ]
+        if len(part) == 1:
+            apart = [at for at in apart if _listed_beside(at, spans, spoken)]
+        if apart:
+            return True
+    return False
+
+
+def _listed_beside(at: int, spans: dict[int, int], spoken: list[str]) -> bool:
+    """Whether the word at *at* of *spoken* is an item of a list with one of
+    the *spans* (``{start: words spanned}``): right before or after it, or
+    one joining word away, with the end of the input or a joining word on
+    its other side (``Apache License 2.0 or Zlib``, not ``... 2.0 (JSON
+    module)``). Where a joining word joins it, ``see`` and ``file`` stand
+    beside it (``... 2.0 or see Zlib``, ``... or Zlib (see file)``)."""
+    for start, n in spans.items():
+        for edge, step in ((start + n, 1), (start, -1)):
+            if _reached(edge, step, at, spoken) and _list_ends(at, step, spoken):
+                return True
+    return False
+
+
+def _reached(edge: int, step: int, at: int, spoken: list[str]) -> bool:
+    """Whether the word at *at* is the next one after *edge* in direction
+    *step*, or the next after a joining word, which a reference may follow
+    (``or see Zlib``) or precede (``2.0 (see file) or Zlib``): a reference
+    with no joining word beside it joins nothing (``2.0 (see Zlib)``)."""
+    near = _past_references(edge + step, step, spoken)
+    if 0 <= near < len(spoken) and spoken[near] in _JOINERS:
+        return _past_references(near + step, step, spoken) == at
+    return edge + step == at
+
+
+def _list_ends(at: int, step: int, spoken: list[str]) -> bool:
+    """Whether the end of the input or a joining word follows the word at
+    *at* in direction *step*, but for a reference (``Zlib (see file)``)."""
+    far = _past_references(at + step, step, spoken)
+    return not 0 <= far < len(spoken) or spoken[far] in _JOINERS
+
+
+def _past_references(pos: int, step: int, spoken: list[str]) -> int:
+    """*pos*, moved in direction *step* past the reference words."""
+    while 0 <= pos < len(spoken) and spoken[pos] in _REFERENCE_WORDS:
+        pos += step
+    return pos

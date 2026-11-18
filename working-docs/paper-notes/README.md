@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -37,6 +37,8 @@ the older files stop at 2026-10-07 (v0.4.3), and `ai-sessions-0-5-0.md` at
 | [ai-sessions-0-7-0.md](ai-sessions-0-7-0.md) | Human–AI work, 0.7.0 resolver (28 to 29 October): lead, authors and reviewers, review yield with numbers, maintainer decisions, incidents |
 | [ai-sessions-0-7-0-release.md](ai-sessions-0-7-0-release.md) | Human–AI work, 0.7.0 release run-up (29 to 30 October): rename, CLI output for people and agents, a circular dependency, Windows bug class, whole-release review and API freeze; state and plan |
 | [ai-sessions-0-8-start.md](ai-sessions-0-8-start.md) | Human–AI work, start of 0.8 (5 to 6 November): `detect()` asks `resolve()` first, the sampler, side sessions, review yield, a failure recorded as an absence, a lost push |
+| [results-0-9.md](results-0-9.md) | Release 0.9.0 gates: accuracy against v0.8.4 (no right answer turned wrong), speed with an A/A twin (slower overall, accepted), review yield |
+| [ai-sessions-0-9.md](ai-sessions-0-9.md) | Human–AI work, release 0.9.0 (17 to 18 November): layers, decisions, mistakes |
 | [dataset-licence-values.md](dataset-licence-values.md) | A dataset of declared licence values (PyPI top 10,000, parity corpus): content, uses, what publication needs; plan for a question, answer and reason corpus across package managers (MSR 2027 Data and Tool Showcase) |
 | [licence-aliases.md](licence-aliases.md) | The other names of licences `resolve()` reads, from its three tables: BSD aliases (#170), titles of a licence text, trove classifier names; the source of each, the PyPI projects that declare it (by name), what is refused and why; references |
 | [licence-urls.md](licence-urls.md) | How real package metadata writes a licence as a URL (Maven, NuGet, npm, PyPI, crates.io), what the List's `seeAlso` reads of it, the unread keys, ScanCode key collisions, and the alias candidates with evidence and decisions (#14) |

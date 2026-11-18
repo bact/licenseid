@@ -37,7 +37,7 @@ from licenseid.dropguard import (
 from licenseid.errors import reason_detail
 from licenseid.exprtokens import canonical_ref, is_addition_ref, is_license_ref
 from licenseid.identifiers import without_outer_brackets
-from licenseid.listlookup import ListLookup
+from licenseid.listlookup import ListLookup, ids_named
 from licenseid.looseid import (
     WITH_OPERATOR,
     before_grant,
@@ -549,7 +549,7 @@ def _base(
         license_id = details["license_id"]
         same = license_id == text
         return license_id, [] if same else [step("id_case", True, text, license_id)]
-    names = db.get_active_ids_by_name().get(text.casefold(), [])
+    names = ids_named(db, text)
     if len(names) == 1:
         return names[0], [step("listed_name", True, text, names[0])]
     _refuse_wrapped_name(db, text)
