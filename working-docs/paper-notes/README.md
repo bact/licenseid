@@ -143,7 +143,8 @@ inference, not a claim made in the repository.
 
 - **Run a fresh full benchmark** (`bench_compare.py`, about 2 h). The
   latest recorded run is from 2026-07-20, before PRs #53 to #76.
-- `benchmarks/summary.md` labels both columns `main` while its tier tables
+- `benchmarks/summary.md` (removed in 0.9.0; `git show
+  v0.8.4:benchmarks/summary.md`) labels both columns `main` while its tier tables
   say `license-marker`; its "precision 1.85%" is not defined anywhere; it
   still shows `id_casing` 80% and `id_deprecated` 0% after the case-fold
   fix landed. Fix or explain these.

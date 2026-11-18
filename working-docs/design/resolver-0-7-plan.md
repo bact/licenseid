@@ -22,11 +22,12 @@ repositories, then edited. The maintainer confirmed every answer of section
 Q23, are in [`resolver-0-7-review.md`](resolver-0-7-review.md); this plan is
 updated to match.
 
-See also: [`expression-resolution.md`](expression-resolution.md) (the design
-this executes), [`resolver-0-7-evidence.md`](resolver-0-7-evidence.md) (the
-data), `../../tools/pypi_licence_sample/README.md` (the measuring tool),
+See also: [`resolver-0-7-evidence.md`](resolver-0-7-evidence.md) (the data),
+`../../tools/pypi_licence_sample/README.md` (the measuring tool),
 [`../implementation/declared-value-resolver.md`](../implementation/declared-value-resolver.md)
-(what 0.6.0 built).
+(what 0.6.0 built). The design it executes, the proposal of 2026-10-28, was
+removed in 0.9.0:
+`git show v0.8.4:working-docs/design/expression-resolution.md`.
 
 Goal: `licenseid.resolve()` answers for any single-line declared licence value,
 compound or not, with `py-spdx-license` for the grammar, so a consumer such as

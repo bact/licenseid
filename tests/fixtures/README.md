@@ -166,8 +166,10 @@ OUT.write_text(text, encoding="utf-8")
   `License-Expression`, `License` and `License ::` classifier fields of
   installed distributions and of the sdists and test projects of Pitloom,
   collected 2026-10-28) and 58 synthetic ones (the gaps in
-  `working-docs/design/expression-resolution.md`, the dropped-character and
-  control-character cases of the 0.7.0 plan, and compound shapes). The PyPI
+  `working-docs/implementation/declared-value-resolver-0-7.md` ("Origin"; the
+  `source` and `why` cells name `expression-resolution.md`, the design removed
+  in 0.9.0), the dropped-character and control-character cases of the 0.7.0
+  plan, and compound shapes). The PyPI
   sample: the 462 distinct short licence values of the 10,000 most downloaded
   PyPI projects, fetched 2026-10-28 and exported by
   `python -m tools.pypi_licence_sample export`.

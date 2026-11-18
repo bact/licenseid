@@ -20,12 +20,15 @@ to this file: edit `AGENTS.md`.
 - Which values `resolve()` should read next: measure, do not guess
   (`tools/pypi_licence_sample/README.md`; findings in
   `working-docs/design/resolver-0-7-evidence.md`).
+- Precision over recall: no answer beats a doubtful guess. Before a refusal,
+  measure what it loses (real values or List windows, base against branch).
 
 ### Where things are
 
 - `working-docs/design/`: plans and sketches, not built, may be discarded.
   `working-docs/implementation/`: what was built, why, paths rejected; start
-  at its `README.md`. Releasing: `release-process.md` there.
+  at its `README.md`. Releasing: `release-process.md` there (gates compare
+  with the last tag, not only `main`).
   `working-docs/paper-notes/`: sourced material for a paper; add publishable
   findings; start at its `README.md`. Every `working-docs/` file has
   `Created` and `Last-Modified` (`YYYY-MM-DD`) in its front matter, no date
@@ -511,9 +514,8 @@ and `--json`) against these rules and checks the default output against the
   characters per word (Japanese and Chinese have no spaces). Before changing
   a limit, sweep real licence texts, Japanese included, at several offsets
   and lengths, on the branch and on `main`, and compare the top answers
-  (item 16 in
-  `working-docs/implementation/tech-debt-resolved.md`). Tier 0 scorers take
-  `score_cutoff=threshold`.
+  (item 16 in `working-docs/implementation/tech-debt-resolved.md`). Tier 0
+  scorers take `score_cutoff=threshold`.
 - Tier 1 cost is in trigrams, not words: `ftsquery` cuts a query word to
   `MAX_TERM_CHARS`, above the longest word of any indexed text (70 in List
   3.29.0; `tests/test_ftsquery.py` holds the long-text fixtures to it), before
@@ -523,8 +525,10 @@ and `--json`) against these rules and checks the default output against the
   is quadratic: write `\s[\s/*#]*`. Time every prose regex on
   `"x" + " " * N` (see `test_the_phrase_regex_does_not_backtrack`).
 - A fix to input reading can add a quadratic loop (`s = s[1:-1]` per
-  bracket, rescanning a line per tag). Time against `main`, with distinct
-  values and balanced payloads. Keep deep nesting away from the parser.
+  bracket, rescanning a line per tag). Time `detect()` end to end (each kept
+  candidate costs a Tier 1/2 score) against `main`, with distinct values and
+  balanced payloads; report a case over 2x `main`, do not judge it fine. Keep
+  deep nesting away from the parser.
 - Timing tests: 10x headroom; a bound is `slack(seconds)`
   (`tests/timing.py`, scales for `coverage` and `-n`), never for a ratio of
   sizes. A large input or tight bound is `@pytest.mark.benchmark`
@@ -574,8 +578,10 @@ and `--json`) against these rules and checks the default output against the
 ## Lint and format
 
 Run and fix before committing, with CI's own commands: `ruff check`,
-`ruff check --select I` (CI's ruff is newer), `mypy`, `pylint`,
-`flake8 src/ tests/`, `ruff format`. Max line length 88.
+`ruff check --select I` (CI's ruff is newer), `mypy`, `pylint`, `flake8`,
+`ruff format`. Ruff, flake8 and pylint cover `src/ tests/ scripts/
+benchmarks/ tools/`; pylint runs twice (`src/ tests/`, then the rest: R0801
+compares files within one run). Max line length 88.
 
 - Judge `pylint` by its exit code (`pylint src/ tests/ >/dev/null; echo
   $?`): it can print `10.00/10` and exit 16.
@@ -611,20 +617,22 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   `tools.cli_matrix` once, before a push, after the last clean review round,
   not after every fix. Each round runs the linters, the new tests, the tests
   of the changed modules, a mutation check of the new fix, and these always:
-  `test_option_matrix`, `test_output_pattern`, `test_resolver_shapes`,
-  the contract tests. A change in a shared module (`detector`, `result`,
+  `test_option_matrix`, `test_output_pattern`, `test_resolver_shapes`.
+  A change in a shared module (`detector`, `result`,
   `types`, `exprflags`) adds a wider `pytest -n 8` run.
 - No `tests/__init__.py`: `from conftest import ...` (helpers
   `make_memory_db_path`, `fake_requests_get`, `leftover_tmp_files`). A
   shared fixture goes in `tests/conftest.py` (importing one trips
   `F811`); plain helpers in a module (`ordering_helpers`, `db_asserts`).
 - The autouse `verbose_cli` fixture (`tests/conftest.py`, helpers in
-  `tests/cli_verbose.py`) adds `-v` to
-  `detect` and `resolve` under `CliRunner` (not a subprocess). A test of the
-  default output or the exact command line carries `@pytest.mark.terse_cli`. The
-  CLI golden and `tools/cli_matrix` name `--verbose` themselves.
-- No network: patch `requests.get` (autospec). Never modify or clear the
-  real cache `~/.local/share/licenseid/` (reading it is fine). Database
+  `tests/cli_verbose.py`) adds `-v` to `detect` and `resolve` under
+  `CliRunner` (not a subprocess). A test of the default output or the exact
+  command line carries `@pytest.mark.terse_cli`. The CLI golden and
+  `tools/cli_matrix` name `--verbose` themselves.
+- No network: the autouse `offline` fixture mocks `requests.get`; use
+  `conftest.fake_requests_get` and `assert_not_called()` (a second
+  `autospec=True` patch over that mock fails on 3.14). Never modify or clear
+  the real cache `~/.local/share/licenseid/` (reading it is fine). Database
   tests import the autouse `safe_home` from `tests/db_asserts.py`
   (`# noqa: F401  # pylint: disable=unused-import`).
 - `make_memory_db_path` opens its keep-alive connection before building
@@ -635,10 +643,24 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   (`Lic(..., search_text=...)`, as `tests/test_qualified_plus.py`), mutate
   the fix to see it fail, and probe a full database too.
 - Mutation-check new tests: break a line, rerun; clear `__pycache__`
-  between mutants; run a mutated copy or a git worktree with
-  `PYTHONPATH=<copy>/src`, tests and golden runs included (the editable
-  install imports the main checkout otherwise). Never run a mutation
-  agent while another edits `src/`; diff any snapshot first.
+  between mutants; run a mutated copy (`src`, `tests`, `tools`,
+  `pyproject.toml`) or a git worktree with `PYTHONPATH` set as in
+  "Environment and CI", tests and golden runs included. Mutate with a Python
+  script that asserts the old text is there (BSD `sed -i` fails and the
+  mutant stays unapplied); "no tests ran" is no kill. A survivor in a helper
+  that tests reach only through `resolve()` needs a unit row on the helper.
+  Never run a mutation agent while another edits `src/`; diff any snapshot
+  first.
+- A boundary test writes the number literally (48), not the constant; a
+  timing test the old code also passes is inert (assert lookup counts).
+  Heuristic code (name rules, readers) gets one independent adversarial
+  review of the finished diff: green tests pin the author's reading. A change
+  to a signal several readers share (`ranking`, `grantsubject`): grep every
+  caller, rerun the full golden.
+- Eight tests fail on a clean `main` on the developer's machine (SQLite
+  3.51.0): six `wal_copy_without_wal` cases of `test_db_ready.py`, two
+  damaged-FTS cases of `test_db_ready_adversarial.py`. Compare with `main`
+  before blaming a change.
 - Give a huge parameter a short `id` (Windows caps an environment variable,
   and `PYTEST_CURRENT_TEST` holds the ID; `conftest.MAX_TEST_ID` is 300).
   Keep long single words short: Tier 1 cost grows with length.
@@ -666,6 +688,11 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   (else uv makes `.venv`). Stdlib-sensitive changes: also
   `uv run --python 3.14 --group test pytest ...`. Simulate an older Python
   with a module flag, never by deleting stdlib attributes.
+- In a git worktree the editable install imports the main checkout: set
+  `PYTHONPATH=<worktree>/src:<worktree>/tests:<worktree>` in the same command
+  (shell state does not persist; never after a `&&` that can fail), or use a
+  scratch `uv` environment (`tools.cli_matrix` needs one). Print
+  `licenseid.__file__` when a result looks old.
 - Never run the CLI or `tools.cli_matrix` cells with `HOME` unset: Python
   then resolves the real cache.
 - CI tests Python 3.10 and 3.14 (Ubuntu) and 3.11 (Windows); builds on
@@ -696,7 +723,8 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   merge yourself). A failure on `main` after a merge points to a file
   missing from `tests/platform_files.py`.
 - Commit messages: user impact, not implementation
-  (<https://chris.beams.io/posts/git-commit/>).
+  (<https://chris.beams.io/posts/git-commit/>). Every commit carries
+  `Signed-off-by` (DCO check; `git commit -s`).
 - Every PR states **What changed?** / **Why?** / **Breaking changes?**
 - Asked for a PR title and summary: each in its own fenced block, title
   under 60 characters, summary under 280 as Markdown bullets (code spans
@@ -707,7 +735,7 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   `[Unreleased]`. Link the PR once it has a number (never guess). Bullets
   ~160 characters, no rationale (link the PR); merge related PRs
   (`[#1], [#2]`); sort by lowest PR number; skip docs, version-bump and
-  CI-only noise.
+  CI-only noise. In a merge conflict keep every link line, sorted.
 
 ## Metadata
 
@@ -743,7 +771,8 @@ A `working-docs/` file carries these tags in its YAML front matter, with
 - Names: ASCII letters, digits, `-`, `_`; language conventions; singular
   for one entity, plural for collections and utility modules.
 - Shell: mind GNU/BSD/macOS differences; quote variables and paths; mind
-  single versus double quotes.
+  single versus double quotes. zsh (the macOS default) does not word-split
+  `$VAR`: use an array or a bash script. `awk length` counts bytes.
 - ASCII diagrams: count characters; misalignment is a bug.
 
 ## Boundaries

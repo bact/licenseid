@@ -27,7 +27,8 @@ Source abbreviations (all paths relative to the repo root):
   `IMPL/database-readiness-gate.md`
 - `EXPR` = `IMPL/spdx-expression-reading.md`; `FETCH` =
   `IMPL/data-fetching-and-caching.md`
-- `BENCH` = `benchmarks/summary.md`; `BREADME` = `benchmarks/README.md`
+- `BENCH` = `benchmarks/summary.md` at `v0.8.4` (removed in 0.9.0: `git show
+  v0.8.4:benchmarks/summary.md`); `BREADME` = `benchmarks/README.md`
 - `FIX` = `tests/fixtures/README.md`; `AGENTS` = `AGENTS.md` (`CLAUDE.md` is a
   symlink to it)
 - `L<n>` = line number in that file as it was when the note was written

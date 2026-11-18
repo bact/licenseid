@@ -30,7 +30,20 @@ to 2026-11-03).
   with a short value unresolved, and 63 more were compounds with no
   expression (`paper-notes/results-and-findings.md`, section 3.5). The main
   consumer, Pitloom, kept its own parser for what `resolve()` would not read
-  (`../design/expression-resolution.md`, #102).
+  (#102).
+- **Origin.** The maintainer's proposal of 2026-10-28 (removed in 0.9.0:
+  `git show v0.8.4:working-docs/design/expression-resolution.md`) probed 42
+  values of Pitloom 0.21.0 against `normalize_identifier()`: 29 agreed, 13
+  differed. The gaps: `sort()` raised on repeated terms; a bare deprecated ID
+  was narrowed (`GPL-3.0` to `GPL-3.0-only`); `StandardML-NJ` kept its
+  deprecated ID; a respelt operand (`Apache2 OR MIT`) stayed text; `MIT OR
+  Foo`, `MIT AND`, `(MIT` and `MIT/Apache-2.0` had no category and no reason.
+  They are the synthetic rows of `tests/fixtures/resolver_parity.tsv`.
+- **`resolver` stays `licenseid`.** Other tools go in `components`, and a step
+  names its tool in `by`. Setting `resolver` to `py-spdx-license` when only
+  canonicalisation ran was rejected: a value such as `mit or apache2` mixes
+  both tools' decisions, and a consumer keying on `resolver.name` would see it
+  change from value to value.
 - **What.** Compounds, quoted values, trove classifier names, prose forms of
   one ID, `;` lists, a guard against dropped characters and words, and a
   list that needs no database. The result shape changed (schema 2), and the

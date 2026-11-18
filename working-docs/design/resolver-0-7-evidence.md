@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -9,8 +9,8 @@ SPDX-License-Identifier: Apache-2.0
 
 # Evidence for the 0.7.0 resolver
 
-See also: [`expression-resolution.md`](expression-resolution.md) (the design
-this feeds).
+The design it feeds, the proposal of 2026-10-28, was removed in 0.9.0:
+`git show v0.8.4:working-docs/design/expression-resolution.md`.
 
 What `resolve()` 0.6.0 does on licence values that real packages declare,
 beside what Pitloom 0.21.0 does with them itself. Input to the 0.7.0 plan; no
