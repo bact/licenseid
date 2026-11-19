@@ -51,10 +51,10 @@ from licenseid.shorttext import (
     match_version_key,
 )
 from licenseid.similarity import (
+    boost_by_fingerprint,
     build_probe,
     calculate_base_similarity,
-    calculate_final_score,
-    text_evidence,
+    score_candidates,
 )
 from licenseid.textinput import read_text_file, reject_lone_surrogate
 from licenseid.types import (
@@ -66,13 +66,6 @@ from licenseid.types import (
     RawMatch,
 )
 from licenseid.variants import DEFAULT, read_as, read_from, settle_free_text
-
-# Maximum additive boost applied to a candidate whose highest-IDF fingerprint
-# n-gram has idf_norm == 1.0 (unique to that single license in the corpus).
-# Calibrated to be in the same range as the marker boost (~0.05) so that
-# fingerprint matches can break ties between near-equal similarity scores
-# without overriding genuine similarity differences.
-_FP_BOOST: float = 0.05
 
 
 @dataclass(frozen=True)
@@ -633,63 +626,10 @@ class LicenseDetector:
         """Rank candidates using dynamic sliding window and
         marker-boosted scoring."""
         enable_popularity = data.get("enable_popularity", self.enable_popularity)
-        query_words = norm_input.split()
-        q_len = len(query_words)
-        q_tokens = set(query_words)
-        boosts = marker_boosts or {}
-        ranked: list[InternalMatch] = []
-
-        # Once per query: the probe sample (see similarity.PROBE_WORDS), and how
-        # far a short query's similarity counts in the score (text_evidence).
-        probe, evidence = build_probe(query_words), text_evidence(norm_input)
-
-        for cand in candidates:
-            sim, coverage, best_window = calculate_base_similarity(
-                norm_input, q_len, q_tokens, cand, probe
-            )
-            ranked.append(
-                InternalMatch(
-                    license_id=cand["license_id"],
-                    method="text",
-                    # The whole input is the License List's text, both
-                    # normalised. Stricter than SPDX matching, which lets a
-                    # copyright line differ (roadmap item 31). An input that
-                    # normalises to nothing equals no text: a hinted
-                    # candidate has none.
-                    exact=bool(norm_input) and norm_input == cand.get("search_text"),
-                    base_score=sim * evidence,
-                    similarity=sim,
-                    coverage=coverage,
-                    pop_score=cand.get("pop_score", 0),
-                    is_deprecated=cand.get("is_deprecated", False),
-                    superseded_by=cand.get("superseded_by", ""),
-                    best_window=best_window,
-                    score=0.0,
-                    is_spdx=bool(cand.get("is_spdx", False)),
-                    # None (not judged) kept: a synthetic marker candidate.
-                    is_osi_approved=cand.get("is_osi_approved", False),
-                    is_fsf_libre=cand.get("is_fsf_libre", False),
-                )
-            )
-
-        for r in ranked:
-            r["score"] = calculate_final_score(
-                r, boosts, is_pure, enable_popularity, q_len
-            )
-
-        # Fingerprint boost: add a small bonus to candidates that share at
-        # least one discriminative n-gram with the query.  The bonus is
-        # proportional to idf_norm (the uniqueness of the matching n-gram
-        # within the corpus), capped at _FP_BOOST.  This breaks ties between
-        # high-similarity variants (e.g. MIT vs MIT-0, GPL-2.0 vs GPL-3.0)
-        # without distorting the overall similarity ranking.
-        fp_hits = self.db.find_fingerprint_hits(norm_input)
-        if fp_hits:
-            for r in ranked:
-                idf_norm = fp_hits.get(r["license_id"], 0.0)
-                if idf_norm > 0.0:
-                    r["score"] += _FP_BOOST * idf_norm
-
+        ranked = score_candidates(
+            candidates, norm_input, marker_boosts or {}, is_pure, enable_popularity
+        )
+        boost_by_fingerprint(ranked, self.db.find_fingerprint_hits(norm_input))
         ranked.sort(key=ranking_key(enable_popularity))
         return ranked
 

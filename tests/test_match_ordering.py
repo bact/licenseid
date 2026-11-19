@@ -18,6 +18,7 @@ from matcher_db import Lic, seeded_db
 from ordering_helpers import HEADER_OR_LATER, PHRASES, ids, im
 
 from licenseid import detector as detector_module
+from licenseid import similarity
 from licenseid.classify import has_or_later_language
 from licenseid.detector import LicenseDetector
 from licenseid.identifiers import disambiguate_deprecated_id
@@ -38,12 +39,12 @@ def rank(
     only the ordering rule is under test."""
     pops = pop or {}
     monkeypatch.setattr(
-        detector_module,
+        similarity,
         "calculate_base_similarity",
         lambda *_args: (0.0, 0.0, ""),
     )
     monkeypatch.setattr(
-        detector_module,
+        similarity,
         "calculate_final_score",
         lambda match, *_args: scores[match["license_id"]],
     )
