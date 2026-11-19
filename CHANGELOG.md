@@ -15,7 +15,7 @@ and this project adheres to
 
 - `detect` on a bare `MIT++`, `MIT +`, `GPL-2.0-only+`, `(MIT)+` or `C++` warns
   `too few words for text: <reason>`, as its quoted form did; it gave no
-  answer and no warning
+  answer and no warning ([#232])
 
 ## [0.9.0] - 2026-11-19
 
@@ -140,6 +140,7 @@ and this project adheres to
 [#227]: https://github.com/bact/licenseid/pull/227
 [#228]: https://github.com/bact/licenseid/pull/228
 [#229]: https://github.com/bact/licenseid/pull/229
+[#232]: https://github.com/bact/licenseid/pull/232
 
 ## [0.8.4] - 2026-11-09
 
