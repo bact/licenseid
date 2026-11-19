@@ -709,7 +709,7 @@ files):
    no `separator` step and were exact; `MIT;` is inexact. Built smaller than
    planned: `resolveleaf._single` adds the `end mark` step after the grant
    is read (reusing `trim_end_mark`), and a field is judged by
-   `resolvefirst.was_cut` (`ruleread.tag_inexact(field=)`). No regex change
+   `resolvefirst.was_cut` (`ruleread.tag_inexact(raw=)`). No regex change
    (tried: it refuses answers). The category becomes `separator`; the #221
    pin flips on purpose. Known gaps left, in `docs/resolve.md`: a run of
    marks after a grant (`MIT or later..`, `.)`) is still `MIT+`, exact; an
