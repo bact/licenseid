@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-19
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -630,6 +630,49 @@ only: `resolvealias.ALIASES` (12), `resolvetitle.TITLES` (4),
   its `EXACT` value when it is added (`render.py`). The Blue Oak idea:
   [`blue-oak-ratings.md`](blue-oak-ratings.md).
 - Impact 2, Risk 1, Effort 2.
+
+## 57. Keep the user docs true to the code — Priority 15
+
+Found by five verifiers that ran every example and table row of the user
+docs before 0.9.0 (2026-11-19). No example was wrong, but the text drifted: a
+sample warning no code prints (`download failed: timed out`), `--no-cache`
+for `--cache/--no-cache`, "fix waiting upstream" after the merge, two pages
+missing from the README, a `—` count column in `docs/lists.md` for rows read
+as `listed_name`, a reason in a generated table false for 7 of 13 rows,
+promises the code did not keep (`InvalidInputError` for a `Path`, `MIT++`
+warns), line numbers of an old commit. Why it slips: a PR that changes only
+docs runs no test (`test.yml` skips `docs/**`, `README.md`, `CHANGELOG.md`
+but `resolve.md` and `lists.md`; `lint.yml` skips `**.md`), and markdownlint
+runs in no workflow. The plan, in build order (an Opus proposal of
+2026-11-19):
+
+- **`docs.yml`**: a workflow on Markdown paths that runs the doc tests below
+  and markdownlint, so the PR that breaks a doc fails.
+- **`tests/test_docs_vocabulary.py`** (~150 lines): every click option form
+  and choice is in its section of `docs/cli.md`; every result key and step
+  `detail` is in `docs/resolve.md`; every `docs/*.md` is linked from the
+  README; the category table check also covers `resolve-flow.md`.
+- **`tests/test_docs_status.py`** (~120 lines): refuse `file.py:NNN` line
+  numbers and "Before 0.x"; list time-bound words ("for now", "waiting",
+  "yet", an upstream PR link) with the version last checked, so a version bump
+  fails until each is reread; `__version__`, codemeta, the CHANGELOG heading
+  and the README citation agree (`CITATION.cff` is written by a workflow).
+- **Self-checks in `tests/test_lists_page.py`**: count projects by value, not
+  by step; check a section's stated category and `EXACT` on every row; give
+  each named rule an example that is not exact.
+- **`tests/test_docs_examples.py`** (~200 lines, last): run the fenced
+  examples on the `bundle_db` fixture (the 3.29.0 List, offline); a block it
+  cannot run carries a skip marker with a reason.
+- **Review habits, not tests**: a row's reason names its source and is
+  checked against it; a sentence that promises behaviour (`always`, `any`, an
+  error type, a warning) names an example a test runs; each rule has one home
+  in `docs/` and other pages link to it; before a tag, rerun every prose
+  example and check each claim that depends on the install kind (wheel or
+  editable) against a built wheel. Add them to AGENTS.md and
+  `release-process.md` when the tests exist.
+- Check each new test against `tests/platform_files.py` (no file system or
+  stream use: not needed) and keep it free of timing and network.
+- Impact 2, Risk 3, Effort 3.
 
 ## Already resolved
 

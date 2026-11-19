@@ -17,17 +17,9 @@ one (a `str` or `os.PathLike`); a blank path raises `InvalidInputError`
 is checked ready before it is read: a missing file raises
 `DatabaseNotReadyError` (`not found`) and is never created.
 
-`detect()` asks `resolve()` first for the whole input: when it names an
-expression, that is `detect()`'s answer, in the same order (method `name`
-when a step read a name, else `id`; exact as the `EXACT` column of
-[the category table](#steps-and-categories) says). A bare deprecated ID
-stays as written, as here; only `variant="only"` or `"or-later"` narrows
-it, a choice that is not exact, in the detector's order, as for a tag
-(`MirOS OR MIT OR GPL-2.0` is `GPL-2.0-only OR MIT OR MirOS`). A refused
-input under 10 words is not
-matched as text (Chinese and Japanese, written without spaces, are at any
-length); its `reason` is the detail of `detect()`'s warning (`input: too
-few words for text: not found: GNU GPL v2`).
+`detect()` reads a whole input with `resolve()` first:
+[how `detect()` uses `resolve()`](#how-detect-uses-resolve) says what it
+answers, and what it does with a value `resolve()` refuses.
 
 ## What `resolve()` reads
 
@@ -81,8 +73,11 @@ page](lists.md):
   a list or comment marker (`REM MIT`, `1. MIT`, `iv. MIT`) is refused
   with `word dropped: rem`. At the end of a value one `.`, `,`, `;` or
   `:`, with white space around it, is an ending and is left off (`MIT;`,
-  `(MIT).`, `The Unlicense.`, `MIT License :`; a `separator` step before the
-  reading, as after an ID); two or more marks, an ellipsis
+  `(MIT).`, `The Unlicense.`, `MIT License :`; a `separator` step, detail
+  `end mark`, before the reading). After an "or later" grant the grant
+  reader takes the mark off itself and records no step (`MIT or later;` is
+  `MIT+`, `stated_qualifier`), so `detect()` calls that answer exact, unlike
+  `MIT;`: a known gap. Two or more marks, an ellipsis
   and a lone dash (`MIT;;`, `MIT...`, `MIT…`, `MIT -`) are refused, also
   after a `+`, an exception, a `LicenseRef-*` or a prose form (`MIT+;` is
   `MIT+`; `GPL-2.0+?`, `MIT License -` are refused). At
@@ -98,8 +93,8 @@ page](lists.md):
 - any other control or format character at either end of the value is left
   off as a cut (`MIT\u202e`, `MIT\x07`, `MIT\x1f`, a run of Unicode tag
   characters, or one of them beside a zero-width one): one `trim` step with
-  the detail `invisible characters`, and the answer is `separator`
-  (`resolver_rule`, `EXACT` no), since a character was dropped that may say
+  the detail `invisible characters`, and the answer is `separator` at best
+  (`resolver_rule`) and never exact, since a character was dropped that may say
   something: a bidi control can reorder what is shown after the value, a
   separator control may stand for a field that was lost, and tag characters
   are text no one sees. An SPDX tag and a manifest field agree with the
@@ -317,7 +312,8 @@ nothing.
 
 ## The whole result
 
-For `resolve("Apache2")`, as JSON:
+For `resolve("Apache2")` with no database file, as JSON (the versions are
+those of one run):
 
 ```json
 {
@@ -362,6 +358,34 @@ For `resolve("Apache2")`, as JSON:
   "reason": null
 }
 ```
+
+| Field | What it holds | Example |
+| --- | --- | --- |
+| `schema` | the version of this shape | `2` |
+| `input` | the value as given | `"Apache2"` |
+| `expression` | the answer, or `null` | `"Apache-2.0"` |
+| `category`, `trust` | how the answer was read ([steps and categories](#steps-and-categories)) | `"version_spelling"`, `"resolver_rule"` |
+| `steps`, `expansions` | each change made, and each qualifier added or declined (below) | `{"kind": "separator", ...}` |
+| `candidates` | the IDs a bare deprecated ID may mean, sorted | `["GPL-3.0-only", "GPL-3.0-or-later"]` for `GPL-3.0` |
+| `operands` | each licence the value names ([operands](#operands-and-components)) | `{"text": "Apache2", ...}` |
+| `resolver` | licenseid: `name`, `version`, `url` of its release, `purl` | `"pkg:pypi/licenseid@0.9.0"` |
+| `components` | the other tools that took part, with the keys of `resolver` | the parser `py-spdx-license` |
+| `lists` | each list the answer rests on: `id`, `name`, `version`, `source` (`database` or `packaged`), `url` of its release, `license` of its data, `provides` (what it gives: `ids`, `names`, `texts`, `deprecation`), `id_authority` (whether it defines IDs) | `"source": "database"` |
+| `reason` | why there is no answer ([reasons](#reasons-for-a-refusal)), or `null` | `null` |
+
+A step holds its `kind`, `applied` (false for a step declined or a reading
+refused), `from` and `to`, the `id` of the list it rests on in `list`, and
+a `detail`, `null` when it has nothing to add:
+
+| Step kind | `detail` | Example value |
+| --- | --- | --- |
+| `separator` | `end mark`, `slash as OR`, `version brackets` | `MIT;`, `MIT/ISC`, `Apache License (2.0)` |
+| `unquote` | `balanced`, `balanced, 2 layers`, `unbalanced, start`, `unbalanced, end` | `"MIT"`, `'"MIT"'`, `"MIT` |
+| `trim` | `zero-width characters`, `invisible characters` | `MIT​`, `MIT‮` |
+| `prose_form` | `licence word`, `version`, `leading article` | `BSD 3-Clause License`, `Apache License, Version 2.0`, `The MIT License` |
+| `stated_qualifier` | `or later stated` | `MIT or later` |
+| `license_url` | `list page`, `id in path`, `expression in path`, `see also`, `alias` | `spdx:MIT`, `https://licenses.nuget.org/MIT`, `https://www.apache.org/licenses/LICENSE-2.0` |
+| `drop` | the code points of the marks | `Apache 2.0?`: `U+003F` |
 
 `detect()` gives each of its results `lists` in this same shape, built the
 same way: the SPDX License List of the database it read, `source`
@@ -419,7 +443,7 @@ are in [the command line reference](cli.md#resolve-a-declared-value).
 
 ## Operands and components
 
-`schema` is the version of this shape (2 since 0.7.0). `operands` holds each
+`operands` holds each
 licence the value names, in the order written: its `text`, its `span`, which
 indexes the raw `input` (`[start, end)` in code points; the trim and the
 quotes and brackets around the whole fall outside it), and the answer the
@@ -592,8 +616,7 @@ weakest of its operands, in this order (strongest first):
 | `malformed` | `none` | — | states a qualifier twice, or breaks the grammar |
 | `unresolved` | `none` | — | names no licence |
 
-A consumer ignores a step kind it does not know. Before 0.7.0 a compound
-was category `expression`, with no expression; that category is gone.
+A consumer ignores a step kind it does not know.
 
 The category `exact` is not the `exact` of `detect()`. Here it says the
 value was the listed ID as written, with no step; `detect()`'s `exact` says
@@ -603,24 +626,51 @@ whole licence text). The `EXACT` column says which categories
 it is exact, where a rewrite rule (`separator`, `prose_form`,
 `version_spelling`) made it, it is not; a compound is exact when every operand
 is. A bare `GPL-2.0` kept as written is exact (the answer is the declaration;
-`variant_stated` says it is ambiguous). Three exceptions to the column: an ID
-that a rule re-spelt is not exact although it is kept (`GPL2`,
-`assumed_only`), nor is a deprecated `-with-` ID a rule re-spelt (`GPL v2
-with classpath exception`, `deprecated_ambiguous`), while IDs joined by a
-slash (`MIT/Apache-2.0`, `separator`) are exact. So
-`detect("GPL-2.0")` and `resolve("GPL-2.0")` agree: `GPL-2.0`, `assumed_only`;
-only `detect(..., variant="only")` narrows it to `GPL-2.0-only`, not exact,
-with a warning. A whole input is
-already read through `resolve()` (above); a whole input that is a URL
-`resolve()` does not read is no text to match: `detect()` answers nothing
-and warns `too few words for text`. So is a text of under 30 words that
-`resolve()` refuses for a "+" (`"MIT++"`, `MIT License++`): the match would
-drop the "+" and answer the licence, exact. A tag and a manifest field read a
-licence URL with the same reader, in any word of the value
-(`SPDX-License-Identifier: https://spdx.org/licenses/MIT` is `MIT`), but
-the rest of their value still goes through the marker readers, not
-`resolve()`, except a tag's grant followed by an operator (above). Not read
-yet: a URL inside prose.
+`variant_stated` says it is ambiguous). Four exceptions to the column. A
+value that was cut is not exact, whatever its category: an end mark left
+off (a `separator` step, detail `end mark`: `New BSD.`, `GPL-3.0;`,
+`spdx:MIT.`), a quote mark with no pair (`unquote`, detail `unbalanced`:
+`"GPL-2.0 OR MIT`) or a hidden character that is not zero-width (`trim`,
+detail `invisible characters`: `CC0 1.0 Universal\u202e`). An ID that a rule
+re-spelt is not exact although it is kept (`GPL2`, `assumed_only`), nor is a
+deprecated `-with-` ID a rule re-spelt (`GPL v2 with classpath exception`,
+`deprecated_ambiguous`). IDs joined by a slash (`MIT/Apache-2.0`,
+`separator`) are exact. So `detect("GPL-2.0")` and `resolve("GPL-2.0")`
+agree: `GPL-2.0`, `assumed_only`; only `detect(..., variant="only")` narrows
+it to `GPL-2.0-only`, not exact, with a warning.
+
+## How `detect()` uses `resolve()`
+
+`detect()` asks `resolve()` first for the whole input (an argument, `--text`,
+standard input, a file, `detect(text=...)`): when it names an expression,
+that is `detect()`'s answer, in the same order (method `name` when a step
+read a name, else `id`; exact as [the `EXACT` column](#steps-and-categories)
+says). A bare deprecated ID stays as written, as here; only `variant="only"`
+or `"or-later"` narrows it, a choice that is not exact, in the detector's
+order, as for a tag (`MirOS OR MIT OR GPL-2.0` is `GPL-2.0-only OR MIT OR
+MirOS`). A value `resolve()` refuses goes on as follows:
+
+- a value that is an expression but for a "+" after `-only` or `-or-later`
+  (`GPL-2.0-only+`) or "+" signs at its end that are no operator (`MIT +`,
+  `MIT++`, `(MIT)+`) gets no answer, and no warning;
+- a URL is no text to match: no answer, with the warning `input: too few
+  words for text: <reason>`;
+- any other value under 10 words is not matched as text (Chinese and
+  Japanese, written without spaces, are matched at any length). A licence
+  name or ID in it can still answer, except where `normalize_text` would
+  drop what it was refused for: a mark or a word (`Apache 2.0?`), an
+  unpaired bracket (`(MIT`) or a "+" that is no operator (`"MIT++"`,
+  `MIT License++`, `Apache 2.0 +`, `GPL-2.0 (+)`; not `C++`). With no
+  answer it warns `input: too few words for text: <reason>` (`not found: GNU
+  GPL v2`), unless the input has no word.
+
+A tag and a manifest field have readers of their own, which put a compound
+in the detector's order (`MIT OR MirOS`) and read no title and no BSD alias
+(`SPDX-License-Identifier: CC0` has no answer); a field they do not take (a
+quoted INI value, a title, a name) is read by `resolve()`. Both read a
+licence URL with the reader of `resolve()`, in any word of the value
+(`SPDX-License-Identifier: https://spdx.org/licenses/MIT` is `MIT`), and a
+tag's grant followed by an operator as `resolve()` does (above).
 
 ## Reasons for a refusal
 
@@ -707,8 +757,8 @@ only as a pair, opener first) or single (`'`, `‘ ’`, `‹ ›`, the grave ac
 and the other quotes `normalize_text` folds), delimit it, whichever
 opens; nested pairs (`'"MIT"'`) all come off, with `detail` `balanced, 2
 layers`. A quotation mark on one end only is taken off too, with `detail`
-`unbalanced, start` or `unbalanced, end`, and the answer counts as
-`separator` (`resolver_rule`), not `lexical`, because the value may be cut:
+`unbalanced, start` or `unbalanced, end`; the answer is `separator` at best
+(`resolver_rule`) and not exact, because the value may be cut:
 `"MIT'"` is read, `"MIT'` (two kinds) is not. A prime or a modifier letter
 (`GPL-2.0′`) is never taken off alone. The marks around each operand of a
 compound come off too (`"MIT" or "Apache-2.0"`), a balanced pair only. The
@@ -720,8 +770,8 @@ marks (`"MIT"..`), or a mark inside the quote marks as well, even behind a
 bracket (`"MIT.".`, `"(MIT;)".`), are refused.
 A format character inside the marks, at an end of the value they quote, is left
 off after `unquote`, as it is outside them (`"MIT\u200b"`: a `trim` step, see
-the characters at the ends above): white space if it is zero-width (`lexical`,
-`EXACT` yes), else a cut (`separator`, `EXACT` no). With a mark inside as well
+the characters at the ends above): white space if it is zero-width (`lexical`
+at best), else a cut (`separator` at best, not exact). With a mark inside as well
 as one after the quotes (`"MIT.\u200b".`) the value is still refused.
 An apostrophe inside a word (`AMD's`) is not a
 mark.

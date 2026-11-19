@@ -202,7 +202,7 @@ For example:
 ```text
 ERROR: database: not found: /tmp/x.db; run 'licenseid update'
 ERROR: option: not found: --jsn; did you mean --json
-WARNING: popularity.csv: download failed: timed out; using stale cache
+WARNING: popularity.csv: download failed: ConnectionError: x; using stale cache
 ```
 
 `LEVEL` is `ERROR` (the command fails) or `WARNING` (it continues).

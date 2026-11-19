@@ -23,7 +23,7 @@ from typing_extensions import Unpack
 
 from licenseid.datadir import get_default_db_path
 from licenseid.detector import LicenseDetector
-from licenseid.detectrequest import check_request
+from licenseid.detectrequest import PathInput, check_request
 from licenseid.listsource import file_stamp
 from licenseid.types import Detection, DetectOptions
 from licenseid.warning import once
@@ -39,7 +39,7 @@ def detect(
     text: str | None = None,
     *,
     license_id: str | None = None,
-    file_path: str | None = None,
+    file_path: PathInput | None = None,
     **options: Unpack[DetectOptions],
 ) -> list[Detection]:
     """Detect the licence of a *text*, a file or a declared *license_id*.

@@ -11,7 +11,7 @@ and this project adheres to
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-11-18
+## [0.9.0] - 2026-11-19
 
 ### Added
 
@@ -109,6 +109,8 @@ and this project adheres to
   answer from the name tier; no deprecated ID is listed after its replacement
   was excluded or dropped; the `variant not stated` warning names the licence
   ([#228])
+- `detect(file_path=Path(...))` and the `is_*()` predicates read an `os.PathLike`
+  as documented; they raised `AttributeError` or `TypeError` before
 
 [#207]: https://github.com/bact/licenseid/pull/207
 [#208]: https://github.com/bact/licenseid/pull/208

@@ -41,7 +41,8 @@ Advanced update options:
   named twice exit 2.
 - `--force`: Force update even if the local database is already at
   the target version.
-- `--no-cache`: Bypass the local cache for downloads.
+- `--cache/--no-cache`: Use (default) or bypass the local cache for
+  downloads.
 - `--source auto|compact|upstream|packaged`: Where the licence data comes
   from. `auto` (default) tries `compact`, then `upstream`, then `packaged`;
   the other values use that one source only.
@@ -115,8 +116,9 @@ with a warning on standard error; binary data is rejected (exit code 2).
 Common options:
 
 - `--db <path>`: Use a custom database path (global option).
-  Supports SQLite URIs for in-memory databases
-  (e.g., `file:test?mode=memory&cache=shared`).
+  Supports SQLite `file:` URIs. An in-memory URI
+  (`file:test?mode=memory&cache=shared`) names an empty database: a
+  command that reads it exits 2 with `database: empty`.
 - `--id <id>`: Explicitly treat input as one SPDX License ID (bypasses
   file/text matching). It declares a single licence, so it takes an ID, a
   `LicenseRef-*`, an ID with `+` (a `LicenseRef-*` takes none, nor does an
@@ -131,8 +133,9 @@ Common options:
   may still hold any expression. Input that is, as a whole, one declared
   value, whether an argument, `--text`, standard input or a file, is read
   by `resolve()` (`--text GPL-2.0+` is `GPL-2.0-or-later`, `MIT OR ISC` is
-  `ISC OR MIT`); anything else is matched as text from 10 words on
-  (Chinese and Japanese at any length), unless a licence name matches it:
+  `ISC OR MIT`); anything else is matched as text from 10 words on (any
+  length when nine in ten letters are Han or kana), unless a licence name
+  matches it:
   `MIT but modified heavily by us` has no answer, not MIT.
   An argument that names no file is first checked for the shape of a path
   (see above). A value that is no licence, such as `GPL-2.0-only+` (a "+"

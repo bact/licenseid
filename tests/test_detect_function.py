@@ -107,6 +107,20 @@ def test_a_file_is_read(default_db: str, tmp_path: Path) -> None:
     assert [r["expression"] for r in licenseid.detect(file_path=str(path))] == ["MIT"]
 
 
+def test_a_path_object_is_read_like_its_string(default_db: str, tmp_path: Path) -> None:
+    """``file_path`` takes an ``os.PathLike`` of a str, as the docstring says:
+    the file is read, and a missing file or a directory is an
+    InvalidInputError, not an AttributeError."""
+    assert default_db
+    path = tmp_path / "LICENSE"
+    path.write_text("MIT", encoding="utf-8")
+    assert [r["expression"] for r in licenseid.detect(file_path=path)] == ["MIT"]
+    assert licenseid.detector.LicenseDetector(default_db).is_spdx(file_path=path)
+    for bad in (tmp_path / "missing", tmp_path):
+        with pytest.raises(InvalidInputError):
+            licenseid.detect(file_path=bad)
+
+
 def test_an_unknown_option_is_refused(default_db: str) -> None:
     """A keyword option the method does not know is refused."""
     assert default_db
