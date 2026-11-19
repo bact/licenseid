@@ -146,9 +146,11 @@ def test_a_spaced_plus_as_an_argument(
 ) -> None:
     """It was GPL-2.0-only, not exact, with a warning: the loose reading
     of Tier 0 dropped the "+" apart from its ID. It names no licence, as
-    resolve() and the tag read it."""
+    resolve() and the tag read it, and says why (``plus after a space``)."""
     assert not LicenseDetector(corpus_db.location).detect("GPL-2.0 +")
-    assert not given.conditions()
+    assert given.lines() == (
+        "WARNING: input: too few words for text: plus after a space: GPL-2.0 +\n"
+    )
 
 
 # --- A keyword ignores case in ASCII only -----------------------------

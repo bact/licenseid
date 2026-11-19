@@ -653,7 +653,9 @@ MirOS`). A value `resolve()` refuses goes on as follows:
 
 - a value that is an expression but for a "+" after `-only` or `-or-later`
   (`GPL-2.0-only+`) or "+" signs at its end that are no operator (`MIT +`,
-  `MIT++`, `(MIT)+`) gets no answer, and no warning;
+  `MIT++`, `(MIT)+`) is not matched as text. Under 10 words it warns `input:
+  too few words for text: <reason>` (`qualifier stated twice: MIT++`; `C++`,
+  `g++` and `Notepad++` are such values too); a longer one has no warning;
 - a URL is no text to match: no answer, with the warning `input: too few
   words for text: <reason>`;
 - any other value under 10 words is not matched as text (Chinese and

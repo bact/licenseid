@@ -61,7 +61,8 @@ def _pyproject(corpus_db: LicenseDatabase, tmp_path: Path, value: str) -> Answer
 # Each was read without its "+" (MIT, exact; GPL-2.0 +: GPL-2.0-only with
 # "variant not stated") by the text, a package.json and a pyproject.toml
 # field, and is-spdx said yes. resolve() and the tag refuse them (malformed):
-# so does every path now (identifiers.is_stray_plus, plusoperator.plus_apart).
+# so does every path now (plusoperator.plus_apart),
+# the text with the warning that says why (tests/test_bare_plus_warning.py).
 # A quoted or named one too: detector._try_tier0_short_text asks resolve()
 # (tests/test_stray_plus_paths.py).
 SPACED_PLUS = [
@@ -79,15 +80,18 @@ SPACED_PLUS = [
 
 @pytest.mark.parametrize("value", SPACED_PLUS)
 def test_a_spaced_plus_on_every_path(
-    corpus_db: LicenseDatabase, tmp_path: Path, value: str
+    corpus_db: LicenseDatabase, tmp_path: Path, given: GivenWarnings, value: str
 ) -> None:
+    text = _text(corpus_db, value)
+    assert given.conditions() == {"too few words for text"}  # the whole input
     got = (
-        _text(corpus_db, value),
+        text,
         _field(corpus_db, tmp_path, value),
         _pyproject(corpus_db, tmp_path, value),
         _tag(corpus_db, value),
     )
     assert got == (None, None, None, None)
+    assert not given.conditions()  # a field or a tag was read by its reader
     assert resolve(value, corpus_db)["category"] == "malformed"
 
 
@@ -112,7 +116,12 @@ def test_a_spaced_plus_is_no_spdx_licence(
     result = CliRunner().invoke(
         cli, ["--db", corpus_db.location, "is-spdx", "--text", value]
     )
-    assert (result.exit_code, result.stderr) == (code, "")
+    assert result.exit_code == code
+    # the answer "no" says why; a "yes" has nothing to say
+    if code:
+        assert result.stderr.startswith("WARNING: input: too few words")
+    else:
+        assert result.stderr == ""
 
 
 # --- 2: what stands between an ID and its "or later" --------------------------

@@ -8,12 +8,10 @@
 agree with."""
 # pylint: disable=missing-function-docstring
 
-import time
 from collections.abc import Callable
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
-from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.classify import (
@@ -24,7 +22,6 @@ from licenseid.classify import (
 )
 from licenseid.identifiers import (
     disambiguate_deprecated_id,
-    is_stray_plus,
     leading_expression,
     normalize_identifier,
 )
@@ -62,7 +59,7 @@ def test_plus_apart(text: str, apart: str | None) -> None:
     assert plus_apart(text, len(text) - 1) == apart
 
 
-# One judge, three readers: the leaf of resolve(), the tag and the whole value.
+# One judge, two readers: the leaf of resolve() and the tag.
 @pytest.mark.parametrize(
     ("value", "reason"),
     [
@@ -81,36 +78,6 @@ def test_the_plus_readers_agree(
     got = resolve(value, corpus_db)
     assert got["reason"] == reason
     assert (leading_expression(value) == "") is (reason is not None)
-    assert is_stray_plus(value) is (reason is not None)
-
-
-@pytest.mark.parametrize(
-    ("value", "stray"),
-    [
-        ("MIT +,", True),  # one end mark after it aside
-        (" MIT + ", True),
-        ("MIT WITH Classpath-exception-2.0 +", True),
-        ("LicenseRef-a +", True),
-        ("MIT", False),
-        ("MIT+", False),
-        ("MIT+,", False),
-        ("MIT OR Apache-2.0 +", False),  # no simple expression
-        ("MIT +, see LICENSE", False),  # prose: matched as text
-        ("+", False),
-        ("", False),
-    ],
-)
-def test_is_stray_plus(value: str, stray: bool) -> None:
-    assert is_stray_plus(value) is stray
-
-
-def test_is_stray_plus_is_linear() -> None:
-    """The tail is scanned once: ``[\\s+]+\\Z`` searched every offset of a
-    run of spaces (10 s at 40,000 in a padded first line)."""
-    start = time.monotonic()
-    assert not is_stray_plus("x" + " " * 40_000 + "x")
-    assert not is_stray_plus("x" + " +" * 20_000 + " x")
-    assert time.monotonic() - start < slack(1.0)
 
 
 @pytest.mark.parametrize(

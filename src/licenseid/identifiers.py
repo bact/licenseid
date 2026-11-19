@@ -163,25 +163,6 @@ def is_qualified_plus(value: str) -> bool:
     return plus_after_qualifier(value) and leading_expression(value) == value
 
 
-def is_stray_plus(value: str) -> bool:
-    """Whether *value*, whole (one end mark after it aside: ``MIT +,``), is
-    one simple expression but for the "+" signs that end it, none of which
-    is the operator: one apart from its ID (plusoperator.plus_apart:
-    ``MIT +``, ``(MIT)+``) or more than one (``MIT++``, ``MIT + +``). It
-    names no license, as ``resolve()`` refuses it (``malformed``): read
-    without them, it would drop them in silence."""
-    value = value.strip()
-    value = trim_end_mark(value) or value
-    end = len(value)  # past the "+" and white space at the end: no regex,
-    while end and (value[end - 1].isspace() or value[end - 1] == "+"):
-        end -= 1  # which a long run of spaces would make quadratic
-    core = value[:end]
-    if core == value:
-        return False
-    stray = plus_apart(value, len(value) - 1) or value[len(core) :].count("+") > 1
-    return stray and is_simple_expression(core)
-
-
 def _too_large_to_parse(expression: str) -> bool:
     """Whether *expression* holds more operators or deeper brackets than the
     parser is given (MAX_PARSE_OPERATORS, MAX_PARSE_DEPTH). One pass, which
