@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -30,7 +30,20 @@ to 2026-11-03).
   with a short value unresolved, and 63 more were compounds with no
   expression (`paper-notes/results-and-findings.md`, section 3.5). The main
   consumer, Pitloom, kept its own parser for what `resolve()` would not read
-  (`../design/expression-resolution.md`, #102).
+  (#102).
+- **Origin.** The maintainer's proposal of 2026-10-28 (removed in 0.9.0:
+  `git show v0.8.4:working-docs/design/expression-resolution.md`) probed 42
+  values of Pitloom 0.21.0 against `normalize_identifier()`: 29 agreed, 13
+  differed. The gaps: `sort()` raised on repeated terms; a bare deprecated ID
+  was narrowed (`GPL-3.0` to `GPL-3.0-only`); `StandardML-NJ` kept its
+  deprecated ID; a respelt operand (`Apache2 OR MIT`) stayed text; `MIT OR
+  Foo`, `MIT AND`, `(MIT` and `MIT/Apache-2.0` had no category and no reason.
+  They are the synthetic rows of `tests/fixtures/resolver_parity.tsv`.
+- **`resolver` stays `licenseid`.** Other tools go in `components`, and a step
+  names its tool in `by`. Setting `resolver` to `py-spdx-license` when only
+  canonicalisation ran was rejected: a value such as `mit or apache2` mixes
+  both tools' decisions, and a consumer keying on `resolver.name` would see it
+  change from value to value.
 - **What.** Compounds, quoted values, trove classifier names, prose forms of
   one ID, `;` lists, a guard against dropped characters and words, and a
   list that needs no database. The result shape changed (schema 2), and the
@@ -481,7 +494,8 @@ surrogate, marks after a bracket) turned into fixes that move no PyPI value:
   prose form is an ending, with its `separator` step; marks that would be
   dropped after them are named `character dropped`, and a malformed core
   (`LicenseRef-a+-`) gives its own reason (P131 to P137). P137 lists the dash
-  endings left silent (`(MIT)-`), each needing a path of its own, for 0.8.
+  endings left silent (`(MIT)-`), each needing a path of its own, for 0.8
+(checked 2026-11-18: `(MIT)-` now says `character dropped: U+002D`).
 - **Letters that cut an ID (P194).** An ID followed by a letter of a script
   written without spaces (CJK, Hiragana, Katakana, Hangul, Thai, Lao, Khmer,
   Myanmar, Tibetan, Yi) is read again, as the letter cannot be a word
@@ -593,8 +607,9 @@ it was given and made a missing file from a mistyped name.
   licenseid did not build, a locked one included).
 - **The publish workflow** checks that the tag equals the built version.
 
-Left for 0.8: readers see `database: empty` while `update` rebuilds the file
-(1,074 errors over a 13 s update with four reader threads; since 0.6.0). The
+Left for 0.8, still open at 0.9.0 (roadmap item 46): readers see `database:
+empty` while `update` rebuilds the file (1,074 errors over a 13 s update with
+four reader threads; since 0.6.0). The
 fix is to build beside the file and swap it in, which needs care on Windows,
 where `os.replace` fails on an open file. The sketch is
 [`../design/concurrent-update.md`](../design/concurrent-update.md).
@@ -615,7 +630,8 @@ or the golden files; edge inputs got the right words.
   `stated_qualifier`; reverted in round 3).
   `GFDL-1.3-invariants or later` keeps its reading as the listed ID; only a
   base that spells no listed ID is refused (`... or any later version` and
-  `MIT or_later` wait for 0.8).
+  `MIT or_later` wait for 0.8; checked 2026-11-18: `MIT or any later version`
+  is read as `MIT+`, `MIT or_later` is still unresolved).
 - `exception not found` is kept for the words after `WITH`
   (`Apache-2.0 with LLVM exception` keeps its informative reason). It is
   `not found: <value>` only when the words hold AND/OR in capitals or a

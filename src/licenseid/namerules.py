@@ -38,7 +38,8 @@ GENERIC: Final = frozenset({"license", "licence", "see", "file"})
 #: The longest input whose version is read: its key costs a second
 #: ``normalize_text``, and no name is that long.
 _MAX_KEY_TEXT: Final = 500
-#: The marks that separate the words of a list of IDs (``MIT, ISC``).
+#: A word of a list of IDs: what stands between white space and the marks
+#: that separate the words (``MIT, ISC``).
 _WORD: Final = re.compile(r"[^\s,;/()\[\]]+")
 #: The marks that join two IDs of a list, and those that bracket one.
 _LIST_MARKS: Final = frozenset(",;/")
@@ -55,11 +56,12 @@ _FUNCTION_WORDS: Final = frozenset(
     {"a", "an", "and", "any", "in", "is", "of", "or", "that", "the", "this", "to"}
 )
 #: The words after a "with" in which "exception" is the licence's
-#: (``with the Universal FOSS exception``), and how far before it the name
-#: of the licence may end (``Apache License 2.0 or later with ...``).
+#: (``with the Universal FOSS exception``).
 _EXCEPTION_REACH: Final = 5
 #: The most words that tell one exception from the rest (the List's longest).
 _MOST_TOLD: Final = 8
+#: How many words before a "with" (or before a version) the name of the
+#: licence may end (``Apache License 2.0 or later with ...``).
 _NAME_REACH: Final = 3
 #: The IDs that carry a grant: only these have a version that "or later"
 #: leaves open, as a cut number does.

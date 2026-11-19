@@ -62,9 +62,13 @@ def test_an_id_pair_is_answered_as_its_or_form(
     operands: list[tuple[str, object]],
 ) -> None:
     got = answers(detector, value)
-    assert got == answers(detector, " OR ".join(text for text, _ in operands))
+    want = answers(detector, " OR ".join(text for text, _ in operands))
+    cut = value.endswith(".")  # a dropped end mark is a rule's reading: inexact
+    if cut:
+        want = [[*w[:2], False, w[3]] for w in want]
+    assert got == want
     if "GPL" not in value:  # `detect` narrows GPL-2.0, which is not exact
-        assert got == [[expression, "id", True, 1.0]]
+        assert got == [[expression, "id", not cut, 1.0]]
 
 
 def test_the_golden_row_is_read_not_guessed(detector: LicenseDetector) -> None:

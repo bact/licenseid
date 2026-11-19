@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-28
-Last-Modified: 2026-10-27
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -9,7 +9,14 @@ SPDX-License-Identifier: Apache-2.0
 
 # New matcher design
 
-There is an an issue with licenses that slightly modified from another license.
+Status: sketch of 2026-04-28, mostly built (checked 2026-11-18). Built: the
+pipeline of section 1 (SQLite FTS5 recall in `retrieval.py`, RapidFuzz
+ranking in `similarity.py`) and the coverage metric. Not built: the "Base +
+Delta" variant analysis (critical legal tokens, paragraph-level comparison);
+`--diff` shows a word diff of the best match only. The `Apache-2.0` and
+`Pixar` confusion is roadmap item 13. Statistics are those of List 3.28.0.
+
+There is an issue with licenses that slightly modified from another license.
 Like small revision in one section or an additional of only one clause.
 
 For example, `Apache-2.0` vs `Pixar` confusion.
@@ -185,10 +192,6 @@ For each of the 20 candidates:
 This approach gives you the speed of a database search with the surgical
 precision of a manual legal comparison.
 
-Since you are working with 1,000 licenses, have you considered how you will
-handle "nested" licenses (where one license text actually contains two or three
-different licenses, like a header and a body)?
-
 ## Dealing with cases like `Apache-2.0` vs `Pixar`
 
 Dealing with "shadow licenses" or slightly modified variants is the most
@@ -287,13 +290,9 @@ To handle your ~1,000 licenses and their modified versions:
 This approach ensures that you don't just "match" the text, but you actually
 **analyze** the legal deviation.
 
-Would you like a code snippet showing how to implement the "Redline" diffing
-between two license texts?
-
---
-
 ## Database schema revision
 
 If there are license information that can be useful for the matcher, can be
 heuristics, and having them in database may help, we can revise the database
-schema. For example, the word count (length) of the license text.
+schema. For example, the word count (length) of the license text (built:
+`licenses.word_count`, and the n-gram fingerprints).

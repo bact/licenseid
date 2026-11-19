@@ -203,7 +203,7 @@ class LicenseDatabase:
 
     def _init_db(self) -> None:
         """Create the tables with FTS5 (and add what an older version lacked).
-        A database made without *create* is only checked: it is written to
+        A database opened without *create* is only checked: it is written to
         for an older schema, and only if it is licenseid's own file."""
         try:
             state = schema_state(self._connections)
@@ -403,7 +403,8 @@ class LicenseDatabase:
         popularity_map: dict[str, int],
         release_date: str | None,
     ) -> None:
-        """Execute database delete and insert operations."""
+        """Write the rows of *data*, then its fingerprints and version stamp,
+        and compact the file."""
         self._write_db_records(build_records(data, popularity_map), release_date)
 
         # Compute fingerprints in a separate transaction so that the FTS5
@@ -584,7 +585,7 @@ class LicenseDatabase:
             return self._cast_exception_details(row)
 
     def _cast_exception_details(self, row: sqlite3.Row) -> ExceptionDetails:
-        """Helper to cast sqlite Row to ExceptionDetails with proper boolean types."""
+        """An ``exceptions`` row as ExceptionDetails, its flag made bool."""
         d = dict(row)
         if "is_deprecated" in d:
             d["is_deprecated"] = bool(d["is_deprecated"])
@@ -607,8 +608,8 @@ class LicenseDatabase:
     def get_all_names_and_ids(self) -> list[LicenseNameId]:
         """Retrieve all license IDs and names for short-text matching.
 
-        Read once per instance (see dbcache.TableCache): this is queried on
-        every Tier-0 short-text match.
+        Read once per rebuild of the tables (see dbcache.TableCache): this
+        is queried on every Tier-0 short-text match.
         """
         return self._tables.names_and_ids()
 

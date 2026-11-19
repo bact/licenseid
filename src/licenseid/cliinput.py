@@ -7,9 +7,8 @@
 value, ``--text``, ``--id`` or standard input (``-``, or no argument and a
 pipe).
 
-Two inputs are a usage error (exit 2), not a choice of one: the input that
-lost was ignored without a word before. ``--text`` is taken as written: a
-backslash is a backslash.
+Two inputs are a usage error (exit 2), not a choice of one. ``--text`` is
+taken as written: a backslash is a backslash.
 """
 
 import os
@@ -63,21 +62,20 @@ def reject_two_inputs(
 
 
 def check_db_staleness(database: LicenseDatabase) -> None:
-    """Check if the database is older than 6 months and warn the user."""
+    """Warn ``database: N days old`` when the database was last checked more
+    than 182 days (about 6 months) ago."""
     metadata = database.get_metadata()
     last_check = metadata.get("last_check_datetime")
     if last_check:
         try:
             last_check_dt = datetime.fromisoformat(last_check)
             if last_check_dt.tzinfo is None:
-                # Databases written before this timestamp became
-                # tz-aware stored a naive local-time value; treat it as
-                # UTC rather than crashing on the subtraction below (this
-                # is only a rough 6-month staleness check, not something
-                # that needs to account for the original local offset).
+                # An older database stored a naive local time: read it as
+                # UTC, not a crash on the subtraction below (a rough check
+                # needs no local offset).
                 last_check_dt = last_check_dt.replace(tzinfo=timezone.utc)
             days_old = (datetime.now(timezone.utc) - last_check_dt).days
-            if days_old > 182:  # Approx 6 months
+            if days_old > 182:
                 warn(f"database: {days_old} days old; run 'licenseid update'")
         except (TypeError, ValueError):
             pass

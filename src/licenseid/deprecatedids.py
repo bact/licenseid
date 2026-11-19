@@ -6,8 +6,9 @@
 """The deprecated SPDX IDs licenseid reads by a table of its own: a "+"
 form, a bare ID and a "-with-" ID, each with what it reads it as.
 
-Data only (no import): :mod:`licenseid.identifiers` reads them. The List's
-own renames come from the database (``get_deprecated_mappings``).
+Data only (no import): :mod:`licenseid.identifiers` and the variant
+readers read them. The List's own renames come from the database
+(``get_deprecated_mappings``).
 """
 
 __all__ = [
@@ -38,16 +39,11 @@ DEPRECATED_SPDX_LICENSE_IDS: dict[str, str] = {
     "GFDL-1.3+": "GFDL-1.3-or-later",
 }
 
-# Conservative last-resort fallback for bare deprecated IDs (no '+' suffix).
-# These IDs are technically ambiguous: GPL-2.0 could be either GPL-2.0-only
-# or GPL-2.0-or-later, as both share the same license text.  Strict resolution
-# requires the granting declaration in the source file (e.g. "version 2 only"
-# or "any later version").
-#
-# When no granting context is available this tool maps bare IDs to '-only'
-# as the conservative interpretation, consistent with common practice in the
-# FOSS ecosystem where an unqualified GPL-2.0 reference is usually treated as
-# version-only.  This fallback is applied last, after DB and '+'-form checks.
+# The -only twin of each bare deprecated ID (no '+'). A bare ID is ambiguous:
+# GPL-2.0-only and GPL-2.0-or-later share one text, and only the grant ("version
+# 2 only", "any later version") tells them apart. The -only twin is what the
+# ``only`` variant reads it as, and a reader outside ``detect()``; ``auto``
+# keeps a declared bare ID as written (licenseid.variants).
 DEPRECATED_BARE_LICENSE_IDS: dict[str, str] = {
     "GPL-1.0": "GPL-1.0-only",
     "GPL-2.0": "GPL-2.0-only",

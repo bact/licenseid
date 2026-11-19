@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-22
-Last-Modified: 2026-10-27
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -11,8 +11,8 @@ SPDX-License-Identifier: Apache-2.0
 
 One Claude Code session (transcript `e712561b-8fdd-4066-b0a4-a4ad42306dbd`,
 repository `licenseid`, ending 2026-10-22; resumed after context
-compaction) took 0.5.0 from the plan to PyPI. Sources: the transcript, PRs
-#85, #86, #90 to #95, commit `9e789d1`, `CHANGELOG.md`. Labels as in the
+compaction) took 0.5.0 from the plan to PyPI. Sources: the transcript, the PRs
+85, 86 and 90 to 95, commit `9e789d1`, `CHANGELOG.md`. Labels as in the
 other notes: **[observation]** is checkable in the sources; the rest is the
 author's reading.
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -18,30 +18,33 @@ decision before any fix. Once an area has its rule, its items become test
 cases for it, not separate fixes. Written from a roadmap review on
 2026-10-02, after PR #68 (item 22).
 
+Status (2026-11-18): areas 1 to 3 are open (roadmap item 31); areas 4 to 6
+are decided and built (items 34, 32, 5, 10, 12). They stay below for the
+decision they record.
+
 ## Order
 
 Areas 1 → 2 → 3 are item 31 and go together, the grammar first, as
-certainty and ranking build on it. Item 32 of area 5 is done (0.6.0).
-Areas 4 and 6 are small
-decisions that can be made at any time.
+certainty and ranking build on it.
 
 ## 1. SPDX grammar: one reader
 
-Items 31, 33, 20, 26 (19 and 30 are done).
+Items 31, 33, 20, 26 (19, 30, 33 and 43 are done; item 20 is not built).
 
 Six places each hold part of the grammar: `leading_expression`,
 `is_simple_expression`, the "+" operator regex, `parse_expression`,
-`markers._expression_flags`, and `qualify_trailing_grant` with the
+`exprflags.expression_flags`, and `qualify_trailing_grant` with the
 deprecated-ID tables.
 
 Decide:
 
 - one reader that returns a typed tree, with the other judges derived
   from it;
-- what it does with a non-ASCII letter (refuse the value, not cut it: item
-  33), a grant inside an expression (carry it or refuse: item 20),
-  `NONE` and `NOASSERTION`, and a "+" in prose (item 30, now read by
-  `versionkey.version_key`);
+- what it does with a grant inside an expression (carry it or refuse: item
+  20; decided 2026-11-17 not to build it, a tag refuses it), `NONE` and
+  `NOASSERTION`, and a "+" in prose (item 30, read by
+  `versionkey.version_key`); a non-ASCII letter refuses the value (item 33,
+  done);
 - one depth cap on every Python version (item 19, done: 150 operators
   and 150 brackets, `identifiers.parse_expression`);
 - whether to delegate to `py_spdx_license` once it parses "+" in linear
@@ -56,7 +59,7 @@ from the bugs.
 
 ## 2. Certainty: who may answer, and how sure
 
-Items 31, 28, 30, 35.
+Items 31, 28, 35.
 
 Missing taxonomy: the kinds of evidence (declaration, exact ID or name,
 look-alike name, phrase, whole text, close text) and the strongest answer
@@ -64,14 +67,17 @@ each may give.
 
 Decide:
 
-- whether a short phrase hit is evidence or an answer: `BSD` answers
-  `0BSD` at 1, and `is-osi` then says yes (item 28);
-- what an exact text is: today the whole normalised input equal to the
-  licence's text, while the SPDX guidelines let replaceable and omittable
-  text differ (a filled-in copyright line, a title);
+- whether a short phrase hit is evidence or an answer: `BSD` answered `0BSD`
+  at 1 (a single word of a longer name no longer does, PR #168), but a
+  phrase of ten words or more that several licences share still does (item
+  28);
+- what an exact text is: the whole normalised input equal to the licence's
+  text, while the SPDX guidelines let replaceable and omittable text differ
+  (a filled-in copyright line, a title); for a declared value item 52
+  settled it (exact where a list defines the reading);
 - whether a byte order mark given through `--text` changes the answer;
-- whether a deprecated row with no text stays a Tier 2 candidate
-  (item 35).
+- whether a deprecated row with no text stays a Tier 2 candidate (item 35;
+  one case closed by PR #212).
 
 ## 3. Ranking: certainty apart from closeness
 
@@ -87,50 +93,31 @@ Decide:
   item 13) is a ranking rule or a step of its own;
 - whether the public `score` stays one number.
 
-## 4. Flags for expressions and references
+## 4. Flags for expressions and references (decided, item 34)
 
-Item 34.
+`exprflags.py` judges them: a `LicenseRef-*` is `is_spdx` false with both
+approval flags empty; for a compound, `OR` is true if any operand is, `AND`
+only if all are, `WITH` takes its licence (D8 of `match-resolve-0-8.md`);
+the text line keeps a value's spaces in `EXPRESSION=`, with tab-separated
+fields.
 
-Decide:
+## 5. Input and option precedence (decided, items 32, 5)
 
-- `is_osi_approved` and `is_fsf_libre` for `MIT OR Apache-2.0`: all of its
-  licences, any of them, or null;
-- `is_spdx` for a `LicenseRef-*` (false);
-- how the text line writes an ID with spaces (quoted, or the spaces
-  replaced), since `awk` splits it now.
+A missing file named as an argument exits 2 (`input: not found: <path>; pass
+--text`); two inputs exit 2; `--json` with `--diff` exits 2; `--top` and
+`--threshold` out of range exit 2. An option with no effect on an exact
+answer is documented, not rejected (`--diff` with `--exact`; `exclude`,
+`only_spdx`, `only_common`, `hint`, `enable_popularity` with a declaration).
+`exclude` and `hint` act on free text only (PR #211); `only_spdx` is roadmap
+item 46.
 
-## 5. Input and option precedence
+## 6. Exit codes and error taxonomy (decided, items 10, 12)
 
-Items 32, 5, 35 (`exclude`).
-
-Missing taxonomy: whether a bare argument is a file, an ID or text, and
-what decides.
-
-Decide:
-
-- whether an argument shaped like a path that names no file exits 2
-  (item 32, done: it does, `input: not found: <path>; pass --text`);
-- for each conflicting pair, reject (exit 2) or document which wins:
-  `--id` with `--text`, `--bold` with `--json`, `--diff` with `--exact`,
-  and the options the declared paths ignore (`exclude` and `hint`: decided,
-  free text only, PR #211; `only_spdx`: roadmap item 46);
-- whether `--top` must be at least 1.
-
-## 6. Exit codes and error taxonomy
-
-Items 10, 35.
-
-Decided on 2026-10-02:
-
-- Ctrl-C exits 130 and a closed pipe 141, both quietly; any other failed
-  write to standard output exits 2 (PR #70);
-- click's usage errors are worded in the grammar, and the help for a
-  missing subcommand goes to standard error (item 12, PR #73).
-
-Decide:
-
-- whether the API wraps `sqlite3` errors and `FileNotFoundError` in
-  `LicenseIdError`, and in which layer.
+Decided on 2026-10-02: Ctrl-C exits 130 and a closed pipe 141, both quietly;
+any other failed write to standard output exits 2 (PR #70); click's usage
+errors are worded in the grammar, and the help for a missing subcommand goes
+to standard error (item 12, PR #73). Every `sqlite3.Error` of a read becomes
+`DatabaseNotReadyError` (`Connections.connection`).
 
 ## Not part of this redesign
 

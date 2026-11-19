@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,13 +13,47 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-11-16)
+## Current state (as of 2026-11-18)
 
-- **Unreleased** (after 0.8.4): `update` names a data directory it cannot
-  make and refuses symlink loops as `unreadable`, PR #209; `detect()`
+- **0.9.0** (prepared 2026-11-18, release PR #228): PRs #201 to #227, reviewed
+  whole before the tag ([pre-release-review.md](pre-release-review.md)): a
+  docs sweep, `detect()` reading a whole value once, three rounds of read-only
+  review with batched fixes, then the results and lessons recorded and this
+  preparation.
+  PRs #201 to #206 are platform, CRLF and timing tests, CI and dependency
+  updates; a database cut short by another program is
+  `DatabaseNotReadyError`, PR #207; `detect()` on thousands of `License:`
+  lines is faster, PR #208; `update` names a data directory it cannot make
+  and refuses symlink loops as `unreadable`, PR #209; `detect()`
   options typed, PR #210; `exclude` and `hint` act on free text only, PR
   #211; `detect --variant`, the field `VARIANT_STATED` and `EXACT` by list,
-  PR #212 (open): [item-52-variant-and-exact.md](item-52-variant-and-exact.md).
+  PR #212: [item-52-variant-and-exact.md](item-52-variant-and-exact.md).
+  Then, one line each:
+  - PR #213: roadmap cleanup (working-docs only).
+  - PR #214: `docs/lists.md`, generated from the code
+    (`tools/lists_page`); the `license_urls` evidence (item 55).
+  - PR #215: the CLI matrix FIFO cell no longer hangs (item 56).
+  - PR #216: `detect()` on a text with one very long word is fast (the
+    full-text query cuts a word, `ftsquery`).
+  - PR #217: a cut ID (`Apache-1`, `MIT-`) gets no answer (item 54).
+  - PR #218: scripts, benchmarks and tools are linted in CI (item 9).
+  - PR #219: the name tier refuses a doubtful name: two licences, a cut
+    version, `with <exception>`, a fragment, another ID, a glued dash
+    (item 47).
+  - PR #220: hidden characters inside quotes and TOML escapes are read; a
+    reference's trailing dash (items 50, 51, 54).
+  - PR #221: a grant followed by a dropped mark gets no answer.
+  - PR #222: an "or later" grant counts for the licence it names.
+  - PR #223: URL alias evidence is computed; the ID golden runs on the full
+    List (leftovers of items 35, 46, 50, 53, 55).
+  - PR #224: `hint` obeys `exclude`, `only_common`, `only_spdx`;
+    `ToolInfo`, `DetectOptions` and `Variant` are exported (item 46).
+  - PR #225: a tool's version grant is no grant for a name (B1c).
+  - PR #226: a List name wrapped in marks, or a long wrapped name, gets no
+    answer (item 50).
+  - PR #227: review cleanups for hints and wrapped names.
+  The record of #219 to #227 is
+  [tech-debt-resolved-0-9.md](tech-debt-resolved-0-9.md).
 - **0.8.4** (released 2026-11-09): "/" between List IDs reads as OR
   (`MIT/Apache-2.0`), `resolve()` reads corner brackets and two BSD aliases,
   and Tier 0 asks `resolve()` first, PRs #194, #195, #197.
@@ -69,10 +103,8 @@ yet started, see [`../design/`](../design/).
   The optional Tier 3 (Java `tools-java` validation) was removed on
   2026-09-19. `detector.py` holds the pipeline; Tier 1 is `retrieval.py`,
   Tier 0 is `shorttext.py`, and the sort order with the `-only` /
-  `-or-later` tie-breaker is `ranking.py`. The split (2026-09-21) is
-  in
-  [`../design/complexity-and-file-size-roadmap.md`](../design/complexity-and-file-size-roadmap.md);
-  the tie-breaker is in
+  `-or-later` tie-breaker is `ranking.py`. The split (2026-09-21) is in
+  [complexity-refactors.md](complexity-refactors.md); the tie-breaker is in
   [accuracy-optimizations.md](accuracy-optimizations.md) section 10.
 - **Deprecated ID handling**: DB-backed `superseded_by` redirect for
   unambiguous cases (e.g. `GPL-2.0+` → `GPL-2.0-or-later`). A bare
@@ -103,9 +135,8 @@ yet started, see [`../design/`](../design/).
   compares against a known-flags baseline. Run it before CLI, stream or
   database-path changes; usage in its README. It found the locale crash in
   `py-spdx-license` and the environment failures in the tech-debt roadmap.
-  Not run in CI (it needs a real database). CI type-checks it with `mypy`;
-  `ruff`, `pylint` and `flake8` cover only `src/` and `tests/` there, and
-  `ruff` is kept clean on it by hand.
+  Not run in CI (it needs a real database). CI lints it with the rest of
+  `tools/` (`ruff`, `pylint`, `flake8`, PR #218) and type-checks it.
 - **Database readiness gate** (`dbcheck.py`, added 2026-09-20, PR #55):
   read commands refuse a database that is not ready with exit 2, and
   `update` and `clear-cache` refuse one LicenseID did not build. The traps
@@ -122,11 +153,11 @@ yet started, see [`../design/`](../design/).
   licence ID reads each table's IDs once (`dbcache.py`), dropped when a
   rebuild changes `last_update_datetime`; see items 29 and 37 in
   [tech-debt-resolved.md](tech-debt-resolved.md).
-- **Public result** (PR #68, 2026-10-02): every match has the same ten
-  keys (`lists` since 0.7.0), built once by `result.public_result` at the
-  exit of `detect()`; the score is capped to 0-1 and `exact` tells results
-  at 1 apart. Ranking reads the raw records. `--json` prints RFC 8785 JSON
-  Lines; see item 22 in [tech-debt-resolved.md](tech-debt-resolved.md).
+- **Public result** (PR #68, 2026-10-02): every match has the same eleven
+  keys (`lists` since 0.7.0, `variant_stated` since 0.9.0), built once by
+  `result.public_result` at the exit of `detect()`; the score is capped to 0-1
+  and `exact` tells results at 1 apart. Ranking reads the raw records. `--json`
+  prints RFC 8785 JSON Lines; see item 22 in [tech-debt-resolved.md](tech-debt-resolved.md).
 - **Known deferred work**: probe-anchored windowing (reusing the existing
   probe's match location instead of a full realignment scan) — flagged
   but deliberately not attempted; see
@@ -140,24 +171,25 @@ yet started, see [`../design/`](../design/).
 | Date | Doc | Status | Summary |
 | --- | --- | --- | --- |
 | 2026-04-28 | [performance-optimization.md](performance-optimization.md) | implemented | Initial matching-pipeline tuning: FTS5 query truncation, Tier 1 candidate limit 20→50, adaptive RapidFuzz rule selection, coverage-aware composite scoring. |
-| 2026-05-06 | [accuracy-optimizations.md](accuracy-optimizations.md) | implemented | Deprecated-ID normalisation semantics: DB-lookup-first, `-only` conservative fallback for ambiguous bare IDs. |
+| 2026-05-07 | [accuracy-optimizations.md](accuracy-optimizations.md) | implemented | Deprecated-ID normalisation semantics: DB-lookup-first, `-only` conservative fallback for ambiguous bare IDs. |
 | 2026-05-07 | [threshold-optimizations.md](threshold-optimizations.md) | implemented | Diagnosed and fixed the `head_300` Tier 0/0.5 regression from the full-coverage benchmark: lowered Tier 0 threshold to 30 words, suppressed marker detection below that. |
-| 2026-05-07 | [speed-optimizations.md](speed-optimizations.md) | implemented (as PR #19, PR #21) | Original plan for discriminative n-gram fingerprints and pre-computed-normalization/RapidFuzz acceleration; superseded in narrative detail by the round-2 doc's results. |
+| 2026-05-08 | [speed-optimizations.md](speed-optimizations.md) | implemented (as PR #19, PR #21) | Original plan for discriminative n-gram fingerprints and pre-computed-normalization/RapidFuzz acceleration; superseded in narrative detail by the round-2 doc's results. |
 | 2026-07-20 | [speed-optimizations-round-2.md](speed-optimizations-round-2.md) | implemented | Profile-driven sweep: DB index on `licenses.name`, removed redundant lookups, lazy imports, instance-level metadata caching, `mmap_size` pragma. One change (`score_cutoff` on `partial_ratio_alignment`) was tried and reverted — see its "Rejected" section. CLI cold start ~125ms → ~31ms. |
 | 2026-09-18 | [data-fetching-and-caching.md](data-fetching-and-caching.md) | implemented (PR #51, #85, #90) | Third-party fetching in `spdx_source.py`, the `SpdxData` / `records.py` store path, the bundle source chain, its publishing workflow and the build hook for the snapshot: gentle requests, fallback order (`--no-cache` never uses stale data), atomic caches, version validation, safe tarball reading, self-healing corrupt caches, non-silent fallbacks; test patterns and traps. |
 | 2026-09-20 | [database-readiness-gate.md](database-readiness-gate.md) | implemented (PR #55) | The readiness gate and the write/delete guard: fail-open on read, fail-closed on write, the `unknown` condition between them; SQLite URI, path-spelling and file-type traps; test and process anti-patterns found over four review rounds. |
 | 2026-09-28 | [spdx-expression-reading.md](spdx-expression-reading.md) | implemented (PR #61) | A tag's whole expression, `--id` narrowed to one license, "or later" as a grant; quadratic paths each fix added, timing against `main`, the slow deep parse on Python 3.10. |
+| 2026-10-02 | [tech-debt-resolved.md](tech-debt-resolved.md) | record | The tech-debt roadmap's items resolved before 0.5.0: what each was and what was done, moved out of the roadmap to keep it under the size limit. |
 | 2026-10-06 | [cross-platform.md](cross-platform.md) | record | The Windows work of PR #77: the 0.4.0 URI bug, the path and URI rules, how tests handle Windows, and what a real Windows run has and has not confirmed. |
-| 2026-10-02 | [tech-debt-resolved.md](tech-debt-resolved.md) | record | The tech-debt roadmap's resolved items: what each was and what was done, moved out of the roadmap to keep it under the size limit. |
-| 2026-11-16 | [tech-debt-resolved-0-5.md](tech-debt-resolved-0-5.md) | record | The roadmap items resolved from 0.5.0 (2026-10-22) on, split from `tech-debt-resolved.md` at the size limit. |
-| 2026-11-17 | [tech-debt-resolved-0-9.md](tech-debt-resolved-0-9.md) | record | The roadmap items resolved from 2026-11-17 on, split from `tech-debt-resolved-0-5.md` at the size limit. |
 | 2026-10-22 | [release-process.md](release-process.md) | implemented (0.5.0) | How a release is cut: order, checks before the tag, traps seen in 0.5.0 |
-| 2026-10-30 | [pre-release-review.md](pre-release-review.md) | adopted (0.7.0) | Whole-release review before the tag: freeze, harness, read-only review, batched fixes, two gates |
 | 2026-10-27 | [declared-value-resolver.md](declared-value-resolver.md) | implemented (PR #97, 0.6.0 review) | `resolve()`: WITH, `LicenseRef-*`, malformed qualifiers, hidden characters, the declared "or later" reader on `OR_LATER_PHRASE`, and the build stamp that makes `update` rebuild an older database. |
+| 2026-10-30 | [pre-release-review.md](pre-release-review.md) | adopted (0.7.0) | Whole-release review before the tag: freeze, harness, read-only review, batched fixes, two gates |
 | 2026-10-30 | [declared-value-resolver-0-7.md](declared-value-resolver-0-7.md) | implemented (0.7.0, PRs #106 to #152) | Compounds, quotes, drop guard, end marks, trove and prose forms, `;` lists, the packaged list and its cached choice, schema 2, the matcher to `detect` rename, sdist allowlist, Pitloom pin. The command is `licenseid resolve` (T10c). |
-| 2026-11-09 | [terse-cli-output.md](terse-cli-output.md) | implemented (0.8.2, PR #183) | `detect` and `resolve` print the expression alone, `-v` the record, `-V` the version; `--id-only` removed; `--json` unchanged; how goldens, the option matrix, the CLI matrix and the tests kept the record. |
 | 2026-11-08 | [licence-urls.md](licence-urls.md) | implemented (0.8.0, PR #177) | A licence URL read as its licence: one key (`urlkey`), the List's pages, `URL_ALIASES`, the NuGet expression path. |
+| 2026-11-09 | [terse-cli-output.md](terse-cli-output.md) | implemented (0.8.2, PR #183) | `detect` and `resolve` print the expression alone, `-v` the record, `-V` the version; `--id-only` removed; `--json` unchanged; how goldens, the option matrix, the CLI matrix and the tests kept the record. |
+| 2026-11-16 | [tech-debt-resolved-0-5.md](tech-debt-resolved-0-5.md) | record | The roadmap items resolved from 0.5.0 (2026-10-22) on, split from `tech-debt-resolved.md` at the size limit. |
 | 2026-11-16 | [item-52-variant-and-exact.md](item-52-variant-and-exact.md) | implemented (PRs #211, #212) | `--variant`, `VARIANT_STATED`, `EXACT` by list not by trust, evidence and operand marks, `exclude`/`hint` on free text only; paths rejected, pinned cases, measures. |
+| 2026-11-17 | [tech-debt-resolved-0-9.md](tech-debt-resolved-0-9.md) | record | The roadmap items resolved from 2026-11-17 on, split from `tech-debt-resolved-0-5.md` at the size limit. |
+| 2026-11-18 | [complexity-refactors.md](complexity-refactors.md) | record | The complexity refactors done between 2026-08-19 and 2026-11-03 (`identifiers`, `markers`, `matcher` splits, `spdx_source` tests and fixes) and how the lint ceilings were measured and moved; moved from the complexity roadmap. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

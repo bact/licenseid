@@ -7,9 +7,8 @@
 error, the checks of a value given on the command line, the writer of a
 one-record result, and the printer of the library's warnings.
 
-``cli`` holds the group and the commands that read the database;
-``cliresolve`` the ``resolve`` command. Both import from here, so neither
-imports the other's module back.
+``cli`` holds the group; ``clidetect``, ``cliresolve`` and ``cliupdate`` the
+commands. Each imports from here, so none imports another's module back.
 """
 
 import contextlib
@@ -35,7 +34,8 @@ class LicenseIdCommand(UsageLineCommand, EchoHelpCommand):
     rules (``output.EchoHelpCommand``, ``usage.UsageLineCommand``)."""
 
 
-# The --json flag of every command that prints a result.
+# The --json flag of the commands that print one record: ``is-*``, ``update``
+# and ``clear-cache`` (``detect`` and ``resolve`` word their own).
 json_option = click.option(
     "--json",
     "json_output",
@@ -114,7 +114,7 @@ def printed_warnings() -> Iterator[None]:
     in order with the other lines on standard error. Every one is printed:
     the filter is "always", as each is an event of this run (two values, two
     lines), not a place in the code to warn about once. Any other warning
-    is left to Python, as it was."""
+    is left to Python."""
     with warnings.catch_warnings():
         warnings.simplefilter("always", LicenseIdWarning)
         shown = warnings.showwarning

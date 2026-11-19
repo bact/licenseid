@@ -42,8 +42,7 @@ declared values, SPDX expressions and the matching pipeline.
   row, in [lists.md](lists.md); the order the readers run in
   is traced in [resolve-flow.md](resolve-flow.md), and the canonical form
   of an expression in
-  [expression-canonicalisation.md](expression-canonicalisation.md) (both
-  describe release 0.7.2).
+  [expression-canonicalisation.md](expression-canonicalisation.md).
 - **SPDX License Expression support** (via
   [`py-spdx-license`][py-spdx-license]):
   - Structural normalisation of `AND`/`OR` expressions, in a tag or a
@@ -77,7 +76,8 @@ declared values, SPDX expressions and the matching pipeline.
     any later version` are `MIT+`); a "+" apart from its ID (`MIT +`) names no
     licence. A tag gives no answer, as `resolve()` does, for a licence listed
     after a grant (`GPL-2.0 or later, ISC`) or an "only" after an operand of a
-    list (`MIT OR GPL-2.0 only`).
+    list (`MIT OR GPL-2.0 only`); a tag that goes on with an operator after a
+    grant (`MIT (or later) AND Apache-2.0`) reads as `resolve()` does.
   - Package manifests are read for their `license` field, however small:
     `package.json` (with npm's old `license` object and `licenses` array),
     `pyproject.toml` (`license = "..."` or `license = {text = "..."}`, and

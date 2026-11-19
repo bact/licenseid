@@ -16,33 +16,16 @@ for code-health/complexity debt specifically. This doc tracks the rest.
 Priority = (Impact + Risk) × (6 − Effort), each scored 1-5; same scale as
 the complexity roadmap, so the two lists can be read together.
 
-Items 3, 8 and 9 (all resolved) come from a tech-debt audit on
-2026-09-19; items 5 and 12 (and the resolved items 1, 4 and 6) from code
-reviews of the diagnostics change and the Java removal; items 2 and 10 from
-manual CLI testing under other locales and environments; items 15 to 18 from the
-work on item 6, and item 19 from the work on items 15 and 17. Item 11 was
-re-scored from the work on item 16, and items 21 to 25 come from the work on
-item 18, items 26 and 27 from the work on item 24, items 28 and 29 from
-the review of PR #66, items 30 and 31 from the work on item 21, and items
-32 to 35 from the review of item 22, item 36 from the docs audit
-after it, item 37 from the work on item 29, item 38 from the
-review of PR #80, items 39 to 42 from the review of PR #82, and items 43
-to 45 from the reviews of PR #99 (items 43 to 45 resolved 2026-11-09,
-2026-11-09 and 2026-11-08), item 46 from the 0.7.0 whole-release review,
-item 47 from PR #168, item 50 from the work on item 44, item 51
-from the work on item 43, and item 52 from the work on the upgrade of
-deprecated IDs in `py-spdx-license` (2026-11-14), item 53 from the work
-on item 40 (PR #207), item 54 from the review of `EXACT`, item 55 from
-the decision on `EXACT` and our own lists (2026-11-15). Items 51 (decided and
-pinned, 2026-11-17), 53 (a known limit, 2026-11-18) and 56 (a hang in the CLI
-matrix, found 2026-11-16) are resolved.
-
-Open: the list below, in the order of its headings. Item 55 is built
-(PR #214, 2026-11-16); its leftovers stay open. Item 2 waits on an upstream
-release. The open items that need a rule or a decision before a fix are
-grouped in [`matching-rules-redesign.md`](matching-rules-redesign.md)
-(2026-10-02); item 31 is that revision. Resolved items are in the two files
-under "Already resolved" at the end.
+Item numbers are the roadmap's own and never reused: a gap is a resolved
+item, kept in the three files under "Already resolved" at the end. Each open
+item says where it came from. Item 51 (decided and pinned, 2026-11-17), 53 (a
+known limit, 2026-11-18) and 56 (a hang in the CLI matrix, found 2026-11-16)
+are resolved. Items 55 (PR #214, 2026-11-16), 54 (PR #217,
+2026-11-16) and 47 (PR #219, 2026-11-17) are built; their leftovers stay
+open. Item 2 waits on an upstream release. The open items that need a rule
+or a decision before a fix are grouped in
+[`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02);
+item 31 is that revision.
 
 ## 2. `py-spdx-license` reads its data with the locale encoding — Priority 20
 
@@ -86,11 +69,14 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
   -W error::EncodingWarning`). With it, licenseid runs under `ja_JP.eucJP`.
   After a release, raise the minimum `py-spdx-license` version, drop the
   README section and close this item.
-- **Status (2026-10-30)**: the pull request is still open and only 0.0.1 is
+- **Status (2026-10-30)**: the pull request was still open and only 0.0.1 was
   on PyPI. 0.7.0 ships with the README workaround (the maintainer chose docs
   only over an import shim that would patch `Path.open` during the import,
   or a parser of our own); `licenseid detect` and `--version` fail the same
   way, at import.
+- **Status (2026-11-18)**: the pull request was merged upstream on
+  2026-11-10, and only 0.0.1 is on PyPI, so the floor stays and the README
+  workaround stays (`docs/installation.md`).
 - The CLI matrix flags of this item are `E2-082` to `E2-090` (bash) in
   `tools/cli_matrix/baseline.txt`.
 - Impact 2, Risk 3, Effort 2.
@@ -171,7 +157,8 @@ partial grammar:
   the operator, since `py_spdx_license` cannot parse it);
 - `identifiers.parse_expression` (`py_spdx_license` with unknown IDs
   allowed, behind the cost budget of item 26);
-- `markers._expression_flags` and `_synthetic_candidate` (a recognised ID);
+- `exprflags.expression_flags` and `markers._synthetic_candidate` (a
+  recognised ID);
 - `identifiers.qualify_trailing_grant` and the deprecated-ID tables.
 
 Cases found one at a time: a "+" after an exception (PR #61), a dangling
@@ -364,8 +351,6 @@ version (a line in `release-process.md`, 2026-11-18); see
   also under uv's Python 3.14 (SQLite 3.43.2) on macOS; CI passes. They
   depend on the SQLite version, so every full local run shows these 8.
   Open (2026-11-18).
-- `update --source packaged` sample outputs in the README are unverified
-  against a built wheel: check them at the final release gate.
 - **A repeated-paragraph input ranks wrong** (not investigated): on the
   real database, two copies of a prose paragraph, the full MIT text and
   two more copies give TekHVC first (0.61) and MIT outside the top 4. Check
@@ -380,7 +365,7 @@ from reading words a longer licence name only holds as that name, and reads
 a List name without its grant as the `-only` guess, said aloud. PR #170 read
 the BSD aliases through `resolvealias.ALIASES`.
 
-**Built** (2026-11-17; open until merged): `namehits.settle()` drops a name
+**Built** (PR #219, 2026-11-17): `namehits.settle()` drops a name
 hit that the rest of the input doubts: tied names that are two licences,
 a cut version, a fragment of a longer name, `with <exception>`, another ID
 written whole, a dash glued to a word end (`namehits` weighs tied names,
@@ -397,7 +382,8 @@ use):
   (`Creative Commons Attribution 4.0 International or Creative Commons
   Attribution Share Alike 4.0 International` gives CC-BY-SA-4.0): 1 of 134.
 - **Two licences in prose, not tied**: `GNU General Public License v2.0 or
-  MIT License`, `MIT License or BSD 3-Clause` answer MIT (a grant-less GPL
+  MIT License`, `MIT License or BSD 3-Clause` answer MIT (pinned `# BUG: (item
+  47)`; a grant-less GPL
   name or a short BSD form is not held whole, so no tie); needs a rule that
   weighs every name the input holds, not only the tied ones.
 - **A list of two licences that names one whole**: `Eclipse Public License
@@ -544,7 +530,7 @@ each a decision:
   `variants.settle_text`); `or any version later` is no phrase of
   `OR_LATER_PHRASE` (`has_unowned_phrase` keeps an `-or-later` answer);
   `GFDL-1.3+` is no shorthand grant; a tool's `version N` with no word naming
-  it is `(N, None)`; `variants._supports` reads any phrase in a declared
+  it is `(N, None)`; `variantstated.supports` reads any phrase in a declared
   value.
 - After a `py-spdx-license` release with `upgrade()`, raise the floor in
   `pyproject.toml` and let it replace the `+` and rename code
@@ -581,22 +567,19 @@ cut version is a choice, not a spelling: `Apache-1` may mean `Apache-1.0` or
   their reading (`SPDX-License-Identifier: MIT-` is `MIT`); **changed by the
   owner the same day** ("fix the tag"): a tag cut by a dash or `_` that
   touches the expression is refused too (`dropguard.cut_by_joiners`).
-- **Built** (PR #217, 2026-11-16; open until merged): see [`tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md).
-- **Kept on purpose** (decided 2026-11-17): a dash glued to a comment closer
-  in a tag (`MIT-*/`, `MIT-#}`, `MIT-}`, `MIT--]]`) is read as `MIT`. The
-  tag reader knows no closers (Haskell `-}`, Lua `--]]`, Jinja `-#}`), the
-  rows are pinned in `tests/test_cut_tags.py` (`STAYS`), and 0 of 14,743 tag
-  lines under `~/projects` glue a dash to a closer.
-- **Decided: refused** (2026-11-17, owner): a comment closer glued to a
-  reference's trailing `-`/`_` run in a tag (`MIT OR LicenseRef-a-->`, `-}`,
-  `--]]`, `-#}`, `-*/`, and a lone `LicenseRef-a-->`) gives no answer
-  (`dropguard.cut_reference`). Reading it as `LicenseRef-a--` or `LicenseRef-a`
-  is another reference than the author's. "Strip the characters a LicenseRef
-  lacks, then the trailing dashes" was weighed (Opus review) and rejected: it
-  gives a wrong identity for `*/`, `#}`, `-}`, turns today's refusals
-  (`LicenseRef-a_b`, `LicenseRef-a-ä`) into new references, and the data has no
-  such line. Kept: a space or the end of the value after the dash, `MIT-->`;
-  pinned in `tests/test_reference_dash.py`.
+- **Built** (PR #217, 2026-11-16): see
+  [`tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md).
+- **Decided 2026-11-17** (owner; record in
+  [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md)):
+  a dash glued to a comment closer in a tag (`MIT-*/`, `MIT-#}`, `MIT-}`,
+  `MIT--]]`) is read as `MIT` on purpose (pinned in `tests/test_cut_tags.py`
+  `STAYS`; 0 of 14,743 tag lines under `~/projects` do it); a closer glued to
+  a reference's trailing `-`/`_` run (`MIT OR LicenseRef-a-->`, `-}`, `--]]`,
+  `-#}`, `-*/`) gives no answer (`dropguard.cut_reference`, pinned in
+  `tests/test_reference_dash.py`). "Strip the characters a LicenseRef lacks,
+  then the trailing dashes" was weighed (Opus review) and rejected: it gives a
+  wrong identity for `*/`, `#}`, `-}`, and turns today's refusals
+  (`LicenseRef-a_b`, `LicenseRef-a-ä`) into new references.
 - **Open leftovers**: a non-ID character inside a reference cuts it in a tag
   (`MIT OR LicenseRef-a>b` reads `LicenseRef-a`; `resolve()` refuses it), not
   checked against `cut_inside_word`; a refused tag above a licence fragment can
@@ -607,47 +590,38 @@ cut version is a choice, not a spelling: `Apache-1` may mean `Apache-1.0` or
 
 ## 55. Publish the lists `resolve()` reads — Priority 12
 
-Its own pull request, after PR #212 (decided 2026-11-16): the page is not
-part of the `EXACT` change. **Built** (PR #214, 2026-11-16).
-
-Decided 2026-11-15 with the `EXACT` rule of item 52: an answer from an
-authoritative list is exact, so a user must be able to read each list. They
-lived in code only: `resolvealias.ALIASES` (12), `resolvetitle.TITLES` (4),
+**Built** (PR #214, 2026-11-16, its own pull request after #212). Decided
+2026-11-15 with the `EXACT` rule of item 52: an answer from an authoritative
+list is exact, so a user must be able to read each list. They lived in code
+only: `resolvealias.ALIASES` (12), `resolvetitle.TITLES` (4),
 `trovenames.TROVE_NAMES` (89), and in `resolveurl` `URL_ALIASES` (11),
 `SCANCODE_NOT_SPDX` (13), `ID_PAGES` (4 hosts) and `DUAL_PAGES` (2), with
-`resolveslash.REFUSED_PAIRS` (2) and `resolveprose.VERSIONED_NAMES` (2).
-About 140 rows in all; ScanCode and Blue Oak lists are planned.
+`resolveslash.REFUSED_PAIRS` (2) and `resolveprose.VERSIONED_NAMES` (2): about
+140 rows.
 
 - **Built**: `docs/lists.md`, generated by `python -m tools.lists_page`
-  (`--check` tests it). `render.py` reads each table from its code object, so
-  there is no second copy; `measure.py` computes what can be measured on the
-  test corpus (the 3.29.0 List fixtures and the PyPI sample of 2026-10): the
-  projects that declare each alias, title and classifier name, and the
-  answer, category and `EXACT` of each rule example; `evidence.py` holds what
-  only a person knows (the source of a row; the survey count of a URL page,
-  whose raw data is not committed); `rules.py` the named rules, each linked
-  to its function by import, so a rename fails. `tests/test_lists_page.py`
-  fails when the page and the code differ, pins what the rules decide, and
-  checks that every row has its evidence. `docs/resolve.md` lost its
-  `REFUSED_PAIRS` table for a link; `docs/lists.md` is in the path filters
-  of `test.yml` so a hand edit of it runs the test.
+  (`--check` tests it). `render.py` reads each table from its code object;
+  `measure.py` computes what can be measured on the test corpus (the 3.29.0
+  List fixtures and the PyPI sample of 2026-10); `evidence.py` holds what only
+  a person knows (the source of a row; the survey count of a URL page, whose
+  raw data is not committed); `rules.py` the named rules, each linked to its
+  function by import, so a rename fails. `tests/test_lists_page.py` fails when
+  the page and the code differ and checks that every row has its evidence.
+  `docs/lists.md` is in the path filters of `test.yml`.
 - **The named rules** (decided 2026-11-16): T1 to T3 (`resolvetrove`) and P1
-  to P3 (`resolveprose`) stay named in code and tests; the page lists each
-  with its function, `CATEGORY` and `EXACT`. T1 and T2 are exact
+  to P3 (`resolveprose`) stay named in code and tests. T1 and T2 are exact
   (`trove_name`, or the List's own category); T3 is exact when both parts are
   List names and not when its head needed a rewrite rule (`Apache2
   (Apache-2.0)` is `version_spelling`); P1 to P3 rewrite a value
-  (`prose_form`), so they are not exact (rule (c) of item 52). Found while
-  building: a prose form that reduces to a name of a table takes the table's
-  category, the weakest of the steps (`New BSD License` is `alias_name`,
-  exact), as the page says.
+  (`prose_form`), so they are not exact (rule (c) of item 52). A prose form
+  that reduces to a name of a table takes the table's category, the weakest
+  of the steps (`New BSD License` is `alias_name`, exact).
 - **Growth rule kept**: a row is added only with a measured package count
-  (`working-docs/paper-notes/licence-urls.md`); the page shows that count,
-  and the test requires one for each alias and title and each URL page. Four
-  URL pages the List gives a licence and its variants are the exception
-  (closed 2026-11-18; PR #223); the dash of a trove name with no
-  count is correct: see
-  [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
+  (`working-docs/paper-notes/licence-urls.md`); the test requires one for each
+  alias and title and each URL page. Four URL pages the List gives a licence
+  and its variants are the exception (closed 2026-11-18, PR #223); the dash of
+  a trove name with no count is correct (see
+  [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md)).
 - **Left open**: a command (`licenseid resolve --lists`) or a JSON file with
   the same rows, so a script can read them. Not added: it would be a new CLI
   option (an axis of `tests/test_option_matrix.py`) and the page now exists
@@ -659,10 +633,9 @@ About 140 rows in all; ScanCode and Blue Oak lists are planned.
 
 ## Already resolved
 
-Moved to
-[`../implementation/tech-debt-resolved.md`](../implementation/tech-debt-resolved.md)
-(2026-10-02), to keep this file under the size limit; those resolved from
-0.5.0 on are in
-[`../implementation/tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md)
-and, from 2026-11-17,
+Kept out of this file to stay under the size limit: resolved before 0.5.0 in
+[`../implementation/tech-debt-resolved.md`](../implementation/tech-debt-resolved.md);
+from 0.5.0 on in
+[`../implementation/tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md);
+from 2026-11-17 in
 [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).

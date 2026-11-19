@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -9,18 +9,21 @@ SPDX-License-Identifier: Apache-2.0
 
 # Detection and declared values
 
-Status: draft, 2026-10-29. Nothing here is built. It answers "do we need
-both `match()` and `resolve()`?", proposes how they fit together, and
-renames them. The names (section 2, D1) and the `match` command (D6) are
-decided and land in 0.7.0 as tasks T10a and T10b; the delegation (section
-3) is for 0.8.
+Status: draft of 2026-10-29, partly built (checked 2026-11-18). It answers
+"do we need both `match()` and `resolve()`?", proposes how they fit
+together, and renames them. Built in 0.7.0 (T10a, T10b): the names (section
+2, D1, D6), D8 (0.7.1) and D10 (#158). Built for a whole input only: the
+delegation of section 3 (`resolvefirst.py`, 0.7.2; Tier 0 through
+`resolve()`, 0.8.4). Not built: the delegation of a tag and a field
+(roadmap item 50), D4 and D5. In this note `matcher.py` is now
+`detector.py`, and `docs/match.md` is `docs/resolve.md`.
 
 ## 1. Two questions
 
 licenseid answers two different questions. They take different inputs, need
 different data and give different kinds of answer.
 
-Today's `match()` asks: what licence is in this thing?
+`match()` (now `detect()`) asks: what licence is in this thing?
 
 - Input: a file, a licence text, a tag in a source file, a manifest, or a
   short value.
@@ -32,7 +35,7 @@ Today's `match()` asks: what licence is in this thing?
 - Needs the database: licence texts and the full-text index.
 - Typical user: a scanner of a source tree or a file.
 
-Today's `resolve()` asks: what does this declared value mean?
+`resolve()` asks: what does this declared value mean?
 
 - Input: one value someone wrote to declare a licence: a `license` field, a
   trove classifier, a model card entry.
@@ -62,59 +65,30 @@ Tier 0, the manifest path). That is the duplication to remove.
 
 ## 2. Names
 
-Revised 2026-11-03, before the 0.7.0 tag (maintainer): the declared-value
-call and command are `resolve()` and `licenseid resolve`, not `match`. The
-result is a `Resolution` whose category can be `unresolved`, the modules are
+Decided 2026-10-29 (maintainer): `resolve` is hard to type and remember, and
+`match` says how, not what; the old matcher becomes `detect` (ScanCode calls
+the same job "licence detection") and the declared-value call becomes
+`match`. No alias, no deprecation period (private alpha). **Revised
+2026-11-03, before the 0.7.0 tag (maintainer):** the declared-value call and
+command stay `resolve()` and `licenseid resolve`, not `match`: the result is
+a `Resolution` whose category can be `unresolved`, the modules are
 `resolve*.py`, and the SPDX matching guidelines use "matching" for licence
-texts, which is `detect`'s job. `detect` stays. The rest of this section is
-the 2026-10-29 decision as it was taken; read `match` as `resolve`.
+texts, which is `detect`'s job. `detect` stays. Built in 0.7.0 (T10a), so
+only `detect` was renamed:
 
-The names below are the maintainer's (decided 2026-10-29): `resolve` is
-hard to type and remember, and `match` says how, not what. They land in
-0.7.0, before the tag. No backward compatibility is owed (private alpha):
-no alias, no deprecation period, no release without a `match` command.
-
-- `licenseid detect`: today's `licenseid match`. It finds the licence in a
-  file, a text or a tag.
-- `licenseid match`: today's `resolve()`. It matches one declared value to
-  an SPDX expression (D6).
-
-This works: each command answers one of the two questions, both names are
-short, and `detect` is the field's own word (ScanCode calls the same job
-"licence detection"). Two things to handle:
-
-- **A file or a text given to `match`.** `licenseid match LICENSE` reads
-  the string `LICENSE` as a declared value: `unresolved`, exit 1, which
-  says "no licence" when the user meant "detect this file". The new
-  `match` refuses what only `detect` can answer, with exit 2 and a line
-  such as `ERROR: input: invalid: a file or a licence text; run 'licenseid
-  detect'` (wording to fit the grammar): `--text`, a file argument,
-  standard input, a value with a line break or one over the length cap.
-  This is input validation, not a compatibility shim.
-- **SPDX's own use of "match".** The SPDX License List matching guidelines
-  use "match" for comparing a licence *text* with a template: that is
-  `detect`'s job, not the new `match`'s. Code comments and docs that cite
-  the guidelines then say "text matching (the guidelines)" inside
-  `detect`, and "match a declared value" for the command. A cost in wording
-  only.
-
-The Python names follow the CLI, so one question has one name everywhere:
-
-- `licenseid.detect(...)`: a module-level function, opening the default
-  database as `match` opens its list. `AggregatedLicenseMatcher` becomes
-  `LicenseDetector`, its method `detect()`; `LicenseMatch` becomes
-  `Detection`, `MatchRequest` `DetectRequest`; `matcher.py` becomes
-  `detector.py`. `Method` stays. Callers that hold a database keep a
-  class; the function is for the rest.
-- `licenseid.match(...)`: today's `resolve()`, same signature and result.
-  `Resolution` stays (D1); `resolver.py`,
-  `resolveleaf.py`, `resolvecompound.py` and `resolvetrove.py` keep their
-  file names, which say how, not what the call is named.
+- `licenseid detect` (was `licenseid match`) finds the licence in a file, a
+  text or a tag; `licenseid.detect(...)` is a module-level function that
+  opens the default database. `AggregatedLicenseMatcher` became
+  `LicenseDetector` (method `detect()`), `LicenseMatch` `Detection`,
+  `MatchRequest` `DetectRequest`, `matcher.py` `detector.py`; `Method` stays.
+  Callers that hold a database keep a class.
+- `resolve()`, `Resolution` and `resolver.py`, `resolveleaf.py`,
+  `resolvecompound.py`, `resolvetrove.py` keep their names, which say how,
+  not what the call is named.
 - The `is-*` commands and `is_*()` methods keep their names. They take a
-  declared value or a text, as now.
-
-Neither old name is kept as an alias: two names for one call is what this
-note removes.
+  declared value or a text.
+- Code comments and docs that cite the SPDX guidelines say "text matching"
+  inside `detect`, and "read a declared value" for `resolve`.
 
 ## 3. Detection delegates declared values
 
@@ -160,7 +134,7 @@ and 10 of the 0.8 list in `resolver-0-7-review.md`):
   (P35).
 - `markers.py` reads quotes its own way.
 
-It also removes code from `matcher.py` (680 lines) and `markers.py`.
+It also removes code from `matcher.py` (680 lines then) and `markers.py`.
 
 ### The adapter
 
@@ -180,7 +154,8 @@ How a resolution becomes a `detect` result. Each point is a decision
 ### Built: the whole input first
 
 Built 2026-11-05 (`resolvefirst.py`), for a whole input only; a tag and a
-field keep their readers, so the rest of this section is still to do.
+field keep their readers, so the rest of this section is still to do
+(roadmap item 50).
 
 - `detect` asks `resolve()` for the whole input first and answers its
   expression. On the goldens this fixed 107 text guesses (`MIT OR
@@ -216,66 +191,52 @@ field keep their readers, so the rest of this section is still to do.
   open for URLs: one inside prose (NuGet's expression paths are read since
   issue #187).
 
-## 4. Decisions needed
+## 4. Decisions
 
-- **D1 names.** Decided 2026-10-29: CLI `detect` and `match`, Python
-  `detect()` and `match()`, as in section 2, renamed in 0.7.0 (T10a).
-  Proposed for T10a: `Resolution` stays the result type's name (it says
-  what the result is: a resolution of a value), and so do the
-  `resolve*.py` module names.
-- **D2 `exact` of a re-spelt value.** Is `Apache2` in a `license` field an
-  exact detection? Proposed: no. `exact` is true only for category `exact`,
-  so `--exact` keeps only values read as written. Today every declared value
-  answers `EXACT=true`. Settled otherwise by item 52: exact by list, so
-  `Apache2` (a rule) is not exact and a listed name is.
-- **D3 a refused declared value.** `resolve` refuses `Apache 2.0?`. Proposed:
-  `detect` answers nothing for that value, with the reason on a
-  `WARNING: resolve: no license found: <reason>` line, rather than turning the
-  refusal into a text guess. A file with no declared value at all still goes
-  to Tiers 1 and 2.
-- **D4 the `resolution` key.** Add it to every `detect` result that came
-  from a declared value (null for a text match), in `--json`? Proposed: yes;
-  the text line gains `CATEGORY=<category>` only.
-- **D5 flags of a compound.** `MIT OR GPL-2.0-only` is neither one licence
-  nor the other. Proposed: the flags are false and the `is-*` commands exit
-  2 for a compound, as `--id` refuses one now.
-- **D6 the `licenseid resolve` command.** Decided for 0.7.0 (T10b, as
-  `match`), output proposed: one line
-  `EXPRESSION=<expr> CATEGORY=<category> TRUST=<trust>`, then one
-  `STEP=<kind> FROM=<from> TO=<to>` line per applied step; `REASON=` for a
-  refusal; one `OPERAND=<text> EXPRESSION=<expr> CATEGORY=<category>`
-  line per operand when a value names licences without stating how they
-  combine (`MIT ; Apache 2`, T8b: unresolved, but every operand read, so a
-  caller can still ask whether each is OSI approved); exit 0 when resolved,
-  1 when not, 2 for a usage error. `--json`
-  prints the resolution as one RFC 8785 object. It needs no database: the
-  CLI for SBOM tools.
-- **D7 order of work.** In 0.7.0: T10a, the rename alone (pure, one PR,
-  tests renamed, every answer unchanged); then T10b, the `licenseid match`
-  command. In 0.8: the delegation, which changes answers: a
-  characterisation corpus of `detect` on every declared form first, as T0
-  did for `resolve()`, with an `EXPECTED_CHANGES` guard.
-- **D8 flags of a compound with an unjudged operand.** 0.7.0 gives no flag
-  (empty, `null`, exit 1) for `MIT OR LicenseRef-x` whenever an operand
-  cannot be judged (review P140). Decided 2026-11-03 (maintainer): normal
-  logic, "`OR` requires only one operand to be true". `MIT OR LicenseRef-x`
-  is OSI approved; an `OR` is false only when every operand is false; an
-  `AND` is true only when every operand is true and false when one is false
-  (`CC-BY-4.0 AND LicenseRef-x` is not OSI approved). Anything else stays
-  empty (`0BSD AND LicenseRef-x`). Built for 0.7.1 (`exprflags._combined`).
-- **D9 the word "matcher".** After the rename to `detect` and `resolve`, the
-  README title, `licenseid --help` ("SPDX License ID matcher tool"),
-  `codemeta.json`, the keywords and the `tests/test_matcher*.py` names
-  still say "matcher". Decided 2026-11-03 (maintainer): reword the
+- **D1 names.** Built in 0.7.0 (T10a): CLI `detect`, Python `detect()`,
+  `LicenseDetector`, `Detection`, `DetectRequest` (now `DetectOptions`),
+  `detector.py`. `resolve()`, `Resolution` and the `resolve*.py` modules
+  keep their names.
+- **D2 `exact` of a re-spelt value.** Proposed: true only for category
+  `exact`. Settled otherwise by item 52 (PR #212): exact by list, so `Apache2`
+  (a rule) is not exact and a listed name is.
+- **D3 a refused declared value.** Proposed: `detect` answers nothing for it,
+  with the reason in a `WARNING`, rather than turning the refusal into a text
+  guess; a file with no declared value still goes to Tiers 1 and 2. Built for
+  a whole input (`input: too few words for text: <reason>`).
+- **D4 the `resolution` key.** Proposed: a `resolution` key in every `detect`
+  result that came from a declared value (`--json` only). Not built.
+- **D5 flags of a compound.** Proposed: false, and `is-*` exit 2 for a
+  compound. Not built: D8 gave a rule instead.
+- **D6 the `licenseid resolve` command.** Built in 0.7.0 (T10b). Output
+  (`docs/output.md`): one `EXPRESSION=<expr> CATEGORY=<category>
+  TRUST=<trust>` line, one `STEP=` line per applied step, `REASON=` for a
+  refusal, one `OPERAND=` line per operand when a value names licences
+  without stating how they combine (`MIT ; Apache 2`, T8b); exit 0 when
+  resolved, 1 when not, 2 for a usage error; `--json` prints the resolution
+  as one RFC 8785 object. It needs no database.
+- **D7 order of work.** In 0.7.0: T10a, the rename alone, then T10b. The
+  delegation, which changes answers, needs a characterisation corpus of
+  `detect` on every declared form first, as T0 did for `resolve()`, with an
+  `EXPECTED_CHANGES` guard.
+- **D8 flags of a compound with an unjudged operand.** Decided 2026-11-03
+  (maintainer): "`OR` requires only one operand to be true". `MIT OR
+  LicenseRef-x` is OSI approved; an `OR` is false only when every operand is
+  false; an `AND` is true only when every operand is true and false when one
+  is false (`CC-BY-4.0 AND LicenseRef-x` is not OSI approved); anything else
+  stays empty (`0BSD AND LicenseRef-x`). Built for 0.7.1
+  (`exprflags._combined`).
+- **D9 the word "matcher".** Decided 2026-11-03 (maintainer): reword the
   user-facing text to "A portable SPDX licence identification tool"; the
-  keywords may keep "license matcher" for search.
+  keywords may keep "license matcher" for search. Built (the README, `--help`
+  and `codemeta.json` no longer say "matcher"; the keyword stays).
 - **D10 a dash beside a grant.** `GPL-2.0 - or - later` was
   `GPL-2.0-or-later` in `resolve()` and `GPL-2.0-only` in a tag, and
   `GPL-2.0 - or later` was refused in both. Decided 2026-11-04
-  (maintainer): a dash between words is a separator, and every channel
-  gives the same form (`GPL-2.0-or-later`; `MIT - or later` is `MIT+`),
-  category `separator`. Built for 0.7.1 (#158): `classify.grant_head` is
-  the one rule of the gap.
+  (maintainer): a dash between words is a separator, and every channel gives
+  the same form (`GPL-2.0-or-later`; `MIT - or later` is `MIT+`), category
+  `separator`. Built for 0.7.1 (#158): `classify.grant_head` is the one rule
+  of the gap.
 
 ## 5. Documentation
 
@@ -294,7 +255,13 @@ names.
 ## 7. Leftovers of the 0.7.0 resolver and readers reviews
 
 Seen in the whole-release review (2026-11-02 to 11-03), not fixed in 0.7.0.
-One line each, with the pull request that found it. Gone since: `MIT WİTH`,
+One line each, with the pull request that found it. Checked again on the
+0.9.0 candidate (2026-11-18), five of them: `GPL-2.0 or-later OR MIT` in a tag
+now keeps MIT; `Intel, GPL-2.0 or later` gives no answer (#221); a field
+`Apache 2.0 or later` is `Apache-2.0+`; but a tag `(MIT) or later` is still
+`MIT+` (`resolve()` refuses it) and a tag `GPL-2.0 or later ISC` still answers
+`GPL-2.0-or-later`. The rest are not re-checked: read each against the code
+before acting on it. Gone since: `MIT WİTH`,
 the quadratic `classify._RE_NUMBERED_SECTION` and the lone tag
 `licenseref-foo` (fixed by 0.7.0); a no-break space or a dash before a
 grant (D10) and `++` after an exception (0.7.1).

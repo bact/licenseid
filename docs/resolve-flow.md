@@ -10,13 +10,12 @@ SPDX-License-Identifier: Apache-2.0
 This page traces what `licenseid.resolve()` does to one declared licence
 value, reader by reader, in the order the readers run. It is written for a
 reviewer who wants to check the design, and as source material for a paper.
-It describes the code at release 0.7.2 plus PR #172 (`main` at commit
-`7276ee4`), and the licence URL reader (issue #14), which came after it.
-A link to a line points at that commit; a link to a whole file, at the
-current code.
+It describes release 0.9.0. A link to a line points at commit `7276ee4`
+(release 0.7.2 plus PR #172), where the flow was first traced; a link to a
+whole file, at the current code.
 
-Every example below was run against that code (`resolve(value)`, with the
-SPDX License List in the shipped bundle or the database). The result fields
+Every example below was run against release 0.9.0 (`resolve(value)`, with
+the SPDX License List 3.29.0 in the database). The result fields
 (`expression`, `category`, `trust`, `steps`, `reason`) are those of
 [the result of `resolve()`](resolve.md); this page does not repeat their
 full description. How the expression part is put in order is in
@@ -130,7 +129,9 @@ reads the value, or when it refuses it with a reason.
    with one step for each change:
    1. control and format characters at either end come off with the white
       space beside them ([`strip_hidden`](../src/licenseid/hiddenchars.py);
-      `trim`, detail `invisible characters`; sets the `separator` floor);
+      `trim`): zero-width ones (`ZERO_WIDTH`) as white space, detail
+      `zero-width characters`; any other as a cut, detail `invisible
+      characters`, which sets the `separator` floor;
       a bidi control at the start, a NUL or a value of nothing else is left
       for the refusal in step 5;
    2. trim white space (`trim`);
@@ -269,7 +270,7 @@ stronger). Ten step kinds change only form and count as `lexical`.
 | `deprecated_equal_successor` | list_data | the List says what replaced a deprecated ID |
 | `plus_to_or_later` | list_data | `X+` read as `X-or-later` |
 | `stated_qualifier` | author_words | the author wrote "or later" |
-| `separator` | resolver_rule | a loose ID, an end mark, an unbalanced quote, a hidden character at an end |
+| `separator` | resolver_rule | a loose ID, an end mark, an unbalanced quote, a hidden character at an end that is not zero-width |
 | `version_spelling` | resolver_rule | `Apache2`, `GPLv3` (not a bare major with another minor, `Apache-1`: refused) |
 | `prose_form` | resolver_rule | `BSD 3-Clause License` |
 | `text_title` | resolver_rule | `CC0 1.0 Universal` |
@@ -290,8 +291,8 @@ a list only if its kind rests on one (`LIST_PROVIDES`); `trove_name` and
 
 ## Worked examples
 
-All run on 2026-11-07 against the code named at the top. `steps` lists the
-step kinds in order, `expansions` after them.
+All run on 2026-11-18 against release 0.9.0. `steps` lists the step kinds
+in order, `expansions` after them.
 
 | Value | Expression | Category | Steps | Reader |
 | --- | --- | --- | --- | --- |
@@ -324,7 +325,7 @@ step kinds in order, `expansions` after them.
 | `Apache License, Version 2.0` | `Apache-2.0` | prose_form | `prose_form`, `separator` | prose (P2) |
 | `The MIT License` | `MIT` | prose_form | `prose_form`, `listed_name` | prose (P3) |
 | `MIT; Apache 2` | none | unresolved | reason `operator not stated: ;`; two operands | semicolon |
-| `MIT/Apache-2.0` | `Apache-2.0 OR MIT` | separator | `separator` (detail `slash as OR`), `reorder` | slash list (item 43) |
+| `MIT/Apache-2.0` | `Apache-2.0 OR MIT` | separator | `separator` (detail `slash as OR`), `reorder` | slash list (#194) |
 | `MIT/Apache` | none | unresolved | reason `not an SPDX operator: /` | none read |
 | `BSD License` | none | unresolved | reason `not found: BSD License` | trove claims, no reading |
 | `NONE` | none | unresolved | reason `special value: NONE` | explain |

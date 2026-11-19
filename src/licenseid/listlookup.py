@@ -11,18 +11,26 @@ The resolver chain (``resolver``, ``looseid``, ``versionkey`` and
 unchanged, and so does the in-memory ``licenseid.listindex.ListIndex``, so
 the resolver needs no database file.
 
-Standard library and ``licenseid.types`` only: no import of the database, so
-no import cycle.
+Standard library, ``typing_extensions`` and ``licenseid.exprtokens`` only:
+no import of the database, so no import cycle.
 """
 
 import contextlib
+import re
 import string
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import Protocol, TypedDict
+from typing import Final, Protocol, TypedDict
 
 from typing_extensions import Required
 
+from licenseid.exprtokens import WHITE_SPACE
+
 _ASCII_LOWER = str.maketrans(string.ascii_uppercase, string.ascii_lowercase)
+
+# A run of white space, U+001C to U+001F not included (``str.split()`` takes
+# them): a reader that gets one (the reason of a refused value) must not read
+# past it.
+_RE_WHITE_RUN: Final = re.compile(f"[{re.escape(WHITE_SPACE)}]+")
 
 
 def fold_case(value: str) -> str:
@@ -124,7 +132,7 @@ class ListLookup(Protocol):
       (the resolver does not read it).
     - The return types hold the fields the resolver chain reads, no more, so
       an index need not invent a popularity or a word count. A caller that
-      needs the flags (``identifiers.flag_source``) takes a ``LicenseDatabase``.
+      needs the flags (``exprflags.declared_flags``) takes a ``LicenseDatabase``.
     - ``get_active_ids_by_name`` is keyed by ``str.casefold()`` of the name.
     - ``get_ids_by_url`` holds the ``seeAlso`` pages of the kept licences,
       then of every exception, in List order, grouped by *key* of each URL
@@ -161,3 +169,15 @@ class ListLookup(Protocol):
 
     def get_metadata(self) -> ListedMetadata:
         """The list's metadata (``license_list_version``)."""
+
+
+def ids_named(lookup: ListLookup, name: str) -> list[str]:
+    """The IDs in use that *lookup* names *name* (``str.casefold()``). A run of
+    white space in *name* reads as one space, as the SPDX matching guidelines
+    read white space (``MIT  License``); a name the List itself writes with a
+    run (``Creative    Commons ...``) still reads as written."""
+    by_name = lookup.get_active_ids_by_name()
+    found = by_name.get(name.casefold())
+    if found is not None:
+        return found
+    return by_name.get(_RE_WHITE_RUN.sub(" ", name).casefold(), [])

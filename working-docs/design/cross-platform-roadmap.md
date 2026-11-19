@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-06
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -12,9 +12,11 @@ SPDX-License-Identifier: Apache-2.0
 What was built is in
 [`../implementation/cross-platform.md`](../implementation/cross-platform.md).
 This lists the findings from the review rounds on PR #77 and the Windows
-review after it that no PR has fixed yet. Each item says how sure we are:
-*confirmed* (shown by a run or a simulation) or *plausible* (read from code
-or documentation, not run on Windows). Nothing here is a decision; items may be
+review after it that no PR has fixed yet (read again 2026-11-18; an invalid
+UTF-8 argument was in this list and is fixed, PR #94: `input: invalid`, exit
+2). Each item says how sure we are: *confirmed* (shown by a run or a
+simulation) or *plausible* (read from code or documentation, not run on
+Windows). Nothing here is a decision; items may be
 dropped.
 
 Order within a section is by value, highest first.
@@ -73,12 +75,6 @@ Order within a section is by value, highest first.
 
 ## Wording and small inconsistencies
 
-- **Invalid UTF-8 in the text argument** (confirmed, found on POSIX, older
-  than #77). `licenseid detect $'…\xff…'` exits 1 with a traceback: a lone
-  surrogate reaches `database.get_license_by_name`, and `sqlite3` raises
-  `UnicodeEncodeError`. Exit 1 reads as "no". Decode or refuse the argument
-  at the CLI input boundary.
-
 - **`%FF` in a `file:` URI on Windows.** The write guard says
   `database: invalid` (a file licenseid did not build) and the read check
   says `unreadable`, for a name that cannot be decoded. Safe, but `not found`
@@ -87,16 +83,14 @@ Order within a section is by value, highest first.
   `popularity.csv` are deleted, then the tarball delete fails, reported as
   `database: delete failed: …` where the grammar wants the cache file name
   as the subject (`spdx-data-v<ver>.tar.gz`). Recoverable.
-- **`file:` URI databases keep a connection open** (`_keep_alive`): resolved
-  in 0.4.2. It is kept for in-memory URIs only.
 - **`update` for a URI that names no file** (a `vfs=` URI, another host, an
   undecodable name, `mode=memory`) still takes the cache directory from
   `Path(<URI>)`. The CLI's write guard refuses these; direct API callers do
   not get that.
-- **Newlines.** The positional argument (`cli.py`) and `match(text=…)` skip
-  `normalize_newlines`, which `--text` applies. CRLF changed no result over
-  359 fixtures, but `normalize.strip_comment_prefixes` leaves the comment
-  closer `*/`, with the space before it, on CRLF input.
+- **Newlines** (not re-checked 2026-11-18). The positional argument (`cli.py`)
+  and `detect(text=…)` skip `normalize_newlines`, which `--text` applies. CRLF
+  changed no result over 359 fixtures, but `normalize.strip_comment_prefixes`
+  leaves the comment closer `*/`, with the space before it, on CRLF input.
 
 ## CI and tests
 

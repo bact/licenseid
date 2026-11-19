@@ -100,10 +100,9 @@ def _set_flags(match: RawMatch, flags: LicenseFlags) -> None:
 
 
 class LicenseDetector:
-    """
-    Main detector class that implements Tier 1 (FTS5) and Tier 2 (RapidFuzz)
-    matching.
-    """
+    """The detection pipeline: the whole input through ``resolve()``, then
+    markers (Tier 0.5), IDs and names (Tier 0), FTS5 recall (Tier 1) and
+    RapidFuzz ranking (Tier 2)."""
 
     def __init__(
         self,
@@ -136,10 +135,8 @@ class LicenseDetector:
             return []  # as for an empty license_id: nothing is declared
         if not is_simple_expression(license_id):
             raise invalid_id_error("license_id", license_id)
-        # An ID written loosely ("GPL2") reads as it does in a text, so
-        # `--id GPL2` and the argument GPL2 answer alike.
-        # Then what resolve() reads that they do not (the title ``CC0``), so
-        # `--id CC0` and the argument CC0 answer alike.
+        # `--id` answers as the same argument does: an ID written loosely
+        # ("GPL2"), then what only resolve() reads (the title ``CC0``).
         declared = (
             self._resolve_declared(license_id)
             or self._resolve_loose_with(license_id)
@@ -155,9 +152,10 @@ class LicenseDetector:
                 _set_flags(match, self.markers.license_flags(match["license_id"]))
         return matches
 
-    def _resolve_declared(self, value: str) -> list[RawMatch]:
+    def _resolve_declared(self, val: str, *, resolved: bool = False) -> list[RawMatch]:
         """The answer to a declared license value: certain, or none."""
-        return as_matches(self.markers.resolve_license_value(value, 1.0), method="id")
+        found = self.markers.resolve_license_value(val, 1.0, resolved=resolved)
+        return as_matches(found, method="id")
 
     def _resolve_loose_with(self, text: str) -> list[RawMatch]:
         """*text*, a license written loosely WITH an exception, answered as
@@ -309,7 +307,7 @@ class LicenseDetector:
         A small manifest is not license text, so it is never matched by name
         as a whole (that answered Apache-1.0 for "Apache 2.0"): if it has no
         value, or its value names no license, there is no answer. A larger
-        one goes on to Tiers 1 and 2 as before.
+        one goes on to Tiers 1 and 2.
         """
         if not ctx.manifest:
             return None  # no manifest
@@ -474,7 +472,8 @@ class LicenseDetector:
         """The results of *resolution*'s expression, made what the resolution
         says (resolvefirst)."""
         expression = resolution["expression"] or ""
-        found = read_from(self._resolve_declared(expression), resolution["input"])
+        text = resolution["input"]
+        found = read_from(self._resolve_declared(expression, resolved=True), text)
         if not found:  # no marker reader takes it: "MIT WITH AdditionRef-x"
             decided = decide_ids(self.db, expression)
             found = [match_of(decided, self.markers.license_flags(decided))]
@@ -718,9 +717,7 @@ class LicenseDetector:
                         )
                         seen_ids.add(m["license_id"])
 
-            # 2. Try Tier 1 (Recall) on a targeted window starting at the
-            # keyword
-            # We find the keyword in the section and start there for FTS5
+            # 2. Tier 1 (Recall) on a window starting at the keyword
             words = section.split()
             for i, word in enumerate(words):
                 if "licens" in word.lower():

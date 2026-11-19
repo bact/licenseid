@@ -38,8 +38,8 @@ list and comment markers of the SPDX matching guidelines (5 and 6: ``REM``,
 declared value: ``REM MIT`` is not ``MIT``. :func:`dropped_words` finds them by
 reading the value twice, with and without those rules, so there is no list of
 markers here to keep in step. Case, ``v`` before a number and the separators
-above are spelling and drop nothing. Standard library, ``licenseid.normalize``
-and ``licenseid.versionkey`` only.
+above are spelling and drop nothing. Standard library, ``licenseid.exprtokens``,
+``licenseid.normalize`` and ``licenseid.versionkey`` only.
 """
 
 from collections import Counter
@@ -69,6 +69,9 @@ _BEFORE_MARKS: Final = "+([{"
 _AFTER_CUT: Final = ".,;:!?+\"')"
 # The first character of a comment closer (``-->``, ``-}``, ``--]]``, ``-#}``, ``*/``).
 _CLOSER_STARTS: Final = ">}]/*#"
+# The closers of two characters whose first is no closer start (``?>`` of PHP,
+# ``%>`` of ERB).
+_CLOSER_PAIRS: Final = ("?>", "%>")
 # What a mark round a whole name never is: a bracket, a "+" (the plus reader's)
 # and a quote mark are read by their own steps. The corner brackets quote too
 # (``licenseid.quotes.CORNER_PAIRS``, which imports this module).
@@ -213,6 +216,28 @@ def glued_marks(text: str, end: int) -> str:
     judged = trim_end_mark(f"x{run}") or f"x{run}"  # one ";" or ":" is an ending
     lost = (c for c in dropped(judged) if c not in _GLUED_PASS and not _quote(c))
     return "".join(dict.fromkeys((*joined, *lost)))
+
+
+def glued_tag_marks(text: str, end: int) -> str:
+    """:func:`glued_marks` for a tag value *text*, which knows no comment
+    closers: a run that reaches one is left to the tag reader, as
+    :func:`cut_by_joiners` leaves it. The closer may follow end marks and
+    dashes (``or later*/``, ``.*/``, ``.-->``, ``#}``, ``}``) or be ``?>`` or
+    ``%>`` (a bare ``?`` or ``%`` is a mark). A closing bracket before it
+    passes (``(or later)*/``, ``(or later)?`` is a mark). End marks alone
+    (``...``, ``.,``) end the run too: ``resolve()`` reads them."""
+    stop = end
+    while stop < len(text) and text[stop] in _END_MARKS + ")]":
+        stop += 1
+    marks = stop
+    while stop < len(text) and (text[stop] == "_" or RE_DASHES.match(text[stop])):
+        stop += 1
+    after = text[stop : stop + 2]
+    if after[:1] in tuple(_CLOSER_STARTS) or after in _CLOSER_PAIRS:
+        return ""
+    if marks == stop and (stop == len(text) or is_white_space(text[stop])):
+        return ""
+    return glued_marks(text, end)
 
 
 def _quote(char: str) -> bool:

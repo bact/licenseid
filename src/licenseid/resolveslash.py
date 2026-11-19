@@ -42,12 +42,10 @@ from licenseid.listlookup import ListLookup
 from licenseid.plusoperator import strip_plus_operator
 from licenseid.resolvecompound import read_compound
 from licenseid.resolveleaf import Found
-from licenseid.resolvertypes import Operand, step
+from licenseid.resolvertypes import SLASH_DETAIL, Operand, step
 from licenseid.resolvesemicolon import Part
 from licenseid.urlkey import is_url
 
-#: The step ``detail`` of the reading.
-DETAIL: Final = "slash as OR"
 #: The most operands read (the compound reader's limit on operators).
 MAX_OPERANDS: Final = 150
 #: The longest value read, once the "/" are ``" OR "`` (the resolver's
@@ -140,7 +138,9 @@ def read_slash_list(
             return None
         operand["span"] = [start + part.start, start + part.start + len(part.text)]
         operands.append(operand)
-    read.steps.insert(len(found.steps), step("separator", True, text, joined, DETAIL))
+    read.steps.insert(
+        len(found.steps), step("separator", True, text, joined, SLASH_DETAIL)
+    )
     found.expression, found.category = read.expression, read.category
     found.steps, found.expansions = read.steps, read.expansions
     found.candidates = read.candidates

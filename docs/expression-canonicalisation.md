@@ -9,14 +9,14 @@ SPDX-License-Identifier: Apache-2.0
 
 How licenseid puts an SPDX licence expression in canonical form, rule by
 rule, in the order the rules apply. Written for a reviewer and as source
-material for a paper. It describes the code at release 0.7.2 plus PR #172
-(`main` at commit `7276ee4`); its links to a line point at that commit.
+material for a paper. It describes release 0.9.0; its links to a line point
+at commit `7276ee4` (release 0.7.2 plus PR #172).
 
-Every example was run against that code with `licenseid.resolve()` on
-2026-11-07. The steps named in each example are the `kind` of the steps in
+Every example was run against release 0.9.0 with `licenseid.resolve()` on
+2026-11-18. The steps named in each example are the `kind` of the steps in
 the result. The reference is the SPDX Specification 3.0.1, Annex D
 ([SPDX license expressions](https://spdx.github.io/spdx-spec/v3.0.1/annexes/spdx-license-expressions/)),
-read the same day; the version 3.0 address redirects to it. Where the code
+read on 2026-11-07; the version 3.0 address redirects to it. Where the code
 differs from the Annex, the rule says so, and
 [the last section](#differences-from-the-spdx-specification) collects the
 differences.
@@ -44,7 +44,7 @@ The package holds two canonicalisers, and they do not always agree.
 | `resolve()`, and `detect()` on a whole input | [`exprcanon.canonical`][exprcanon-l282] | leaves before groups; by rank, then case-folded text |
 | A tag or field found inside a file or manifest | [`identifiers._canonicalize_expression`][identifiers-l680], which calls `py_spdx_license` `sort()` | by that library's own order |
 
-On the same expression they can differ. Run on 2026-11-07:
+On the same expression they can differ:
 
 | Expression | `resolve()` | tag `SPDX-License-Identifier:` |
 | --- | --- | --- |
@@ -69,21 +69,28 @@ five passes; each pass that changes the text records one step, in this order:
 
 **A0. Leave off hidden characters at the ends.** A control or format character
 (categories `Cc` and `Cf`, not white space, not NUL) at the start or end of
-the value comes off, with the white space beside it (step `trim`, detail
-`invisible characters`; the answer is `separator`, `resolver_rule`). *Reason:*
-nothing that shows is lost at an end, since no text stands beyond it for a bidi
-control to reorder. A bidi control at the start (`U+202E`, which shows as
-`TIM`) is not left off but refused by rule A4. *Source:*
+the value comes off, with the white space beside it (step `trim`). A
+zero-width character (U+200B, U+200C, U+200D, U+2060, U+FEFF, U+00AD) is white
+space: detail `zero-width characters`, category `lexical` at best.
+Any other is a cut: detail `invisible characters`, the answer `separator`,
+`resolver_rule`. *Reason:* nothing that shows is lost at an end, since no text
+stands beyond it for a bidi control to reorder; but only a zero-width
+character says nothing at all: a bidi control can reorder what is shown after
+the value, and a run of Unicode tag characters is text no one sees. A bidi
+control at the start (`U+202E`, which shows as `TIM`) is not left off but
+refused by rule A4. *Source:*
 [`hiddenchars.strip_hidden`](../src/licenseid/hiddenchars.py).
-*Example:* `MIT\u200b` and `\ufeffMIT` give `MIT`.
+*Example:* `MIT\u200b` and `\ufeffMIT` give `MIT`, `lexical`; `MIT\x07` gives
+`MIT`, `separator`.
 Inside the value, a format character (`Cf`, not a bidi control) in a run that
 touches white space is made a space, one code point for one
 ([`hiddenchars.space_out_hidden`](../src/licenseid/hiddenchars.py)): `MIT
-OR\u200b ISC` gives `ISC OR MIT`. *Reason:* the run joins no words, since a
-space stands beside it. A run between two other characters (`M\u200bIT`), a
-control character and a bidi control (`MIT OR\u202e ISC` shows the rest
-reversed) are refused by rule A4.
-*Test:* [`test_hiddenchars.py`](../tests/test_hiddenchars.py).
+OR\u200b ISC` gives `ISC OR MIT` (white space or a cut, as at the ends).
+*Reason:* the run joins no words, since a space stands beside it. A run
+between two other characters (`M\u200bIT`), a control character and a bidi
+control (`MIT OR\u202e ISC` shows the rest reversed) are refused by rule A4.
+*Test:* [`test_hiddenchars.py`](../tests/test_hiddenchars.py),
+[`test_zero_width.py`](../tests/test_zero_width.py).
 *Spec:* not addressed.
 
 **A1. Trim white space.** White space at both ends comes off (step `trim`).
@@ -313,7 +320,7 @@ Annex neither states nor contradicts.
 
 ### What the canonical form does not do
 
-Run on 2026-11-07, these are left as they are:
+These are left as they are:
 
 - No absorption: `MIT OR (MIT AND ISC)` gives `MIT OR ISC AND MIT`, not
   `MIT`.
@@ -363,9 +370,9 @@ r["expression"], [s["kind"] for s in r["steps"]]
 # ('ISC OR MIT', ['id_case', 'id_case', 'operator_case', 'reorder'])
 ```
 
-With no database, `resolve()` reads the List in the wheel; with a database
-or an editable install, the newer List of the two. The outputs above do not
-depend on the List version, except that `plus_to_or_later` needs the
+With no database, `resolve()` reads the List in the wheel; with a database,
+the newer List of the two (an editable install ships none). The outputs
+above do not depend on the List version, except that `plus_to_or_later` needs the
 `-or-later` ID to be listed.
 
 [mixed-case]: https://github.com/bact/licenseid/blob/7276ee46d286ff979edbd6902cd76b92d4cc2656/tests/test_resolver_compound_limits.py#L25

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -129,3 +129,17 @@ project reads is flagged to its session.
   package version or a platform-dependent order; a plain word that is also
   an SPDX ID (`Intel`) is not another licence in prose; build an
   environment by install for Python 3.14 tests, not by `PYTHONPATH`.
+- 0.9.0 (2026-11-18): PRs #223 to #227 reviewed whole in three rounds
+  (`code-review` at high effort plus Opus reviewers per area, a diff-only
+  check after each fix batch). Maintainer decisions: whitespace runs in
+  List names are exact; the `exclude` option stays explicit (by design);
+  trimming zero-width characters is a mechanical trim and exact, other
+  hidden characters are not exact; a tag and `resolve()` agree on a grant
+  followed by an operator (`grantchain`). Gates against v0.8.4: lint and
+  full suite (only the 8 known environment failures), golden and character
+  snapshots, accuracy (no right answer turned wrong; right-to-none cost:
+  OSL-2, EUPL-1, CDDL-1, LGPLv2), speed (FAIL, accepted: slower overall
+  except FTS). Not run: `cli_matrix`, Python 3.14 full suite, `--run-benchmark`
+  (listed in the hand-off). Lessons: run the speed gate alone; a charsnap
+  diff needs the version string stripped; a parked item list with a
+  severity for the next release beats fixing in the last round.

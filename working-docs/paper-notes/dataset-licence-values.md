@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -59,9 +59,9 @@ Parity corpus:
   Python environments) and of Pitloom's test projects and sdists, collected
   on 2026-10-28; 30 multi-line or over-long values left out.
 - Synthetic values: the gaps named in the 0.7.0 design
-  (`../design/expression-resolution.md`), dropped characters (`Apache
-  2.0?`, a lone surrogate, U+FFFD), control and format characters, `WITH`
-  and `+` shapes, brackets, repeated terms.
+  (`../implementation/declared-value-resolver-0-7.md`, "Origin"), dropped
+  characters (`Apache 2.0?`, a lone surrogate, U+FFFD), control and format
+  characters, `WITH` and `+` shapes, brackets, repeated terms.
 - `expected_0_7_0` is a prediction from the plan, not a measured answer;
   `?` marks the rows the plan does not decide.
 - Pitloom 0.21.1's answers equal those recorded for 0.21.0 in the evidence

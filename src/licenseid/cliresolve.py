@@ -17,7 +17,8 @@ value would otherwise come back ``unresolved``, exit 1, which says "no
 licence" where the user meant "detect this".
 
 It needs no database: with no ``--db`` it reads the list ``--source`` names,
-as ``resolve()`` does (``auto`` falls back to the list shipped in the wheel).
+as ``resolve()`` does (``auto``: the newer of the database at the default
+path and the list shipped in the wheel, see ``licenseid.listsource``).
 Exit 0 when the value resolves to an expression, 1 when it does not (a list
 joined by ``;`` included), 2 for a usage error, a list that cannot be read
 (``DatabaseNotReadyError``, through the group) or a result that cannot be

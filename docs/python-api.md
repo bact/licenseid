@@ -107,26 +107,17 @@ written, with no upgrade and no warning (a "+" still reads as `-or-later`);
 and `"or-later"` (another `str` raises `InvalidInputError`, `option: invalid:
 variant: ...`; a value that is no `str` raises `TypeError`). Unlike the other
 options it acts on every input, as `--variant` does on the command line
-([cli.md](cli.md)). It says what to answer for a licence with an `-only` and an
-`-or-later` form when the input does not state which. `"auto"` keeps a declared
-value as written (`detect(license_id="GPL-2.0")` is `GPL-2.0`, `variant_stated`
-`False`, as `resolve()` gives it) and, for a licence text or name, answers
-`-or-later` where the input grants later versions of that licence (stated; a
-tool's `Python 3.8 or later` grants nothing), else `-only` first
-and `-or-later` second, both `variant_stated` `False`, with one `variant not
-stated` warning. `-only` is the licensee's careful reading: it understates a
-licensor's "or later" grant. `"as-written"` never decides: a bare deprecated ID
-stays, in a text match too when the bare row is among its candidates (else as
-under `auto`). `"only"` and `"or-later"` always decide, declared values too,
-with the warning. The option is a preference, never a fact: words that state the
-variant (`GPL-2.0 or later`, `GPL-2.0+`, `-only`, `-or-later`) win over `"only"`
-and `"or-later"`, with `option: overridden by input: --variant only; using
+([cli.md](cli.md), which describes each value): `"auto"` keeps a declared value
+as written (`detect(license_id="GPL-2.0")` is `GPL-2.0`, `variant_stated`
+`False`, as `resolve()` gives it) and answers a licence text or name
+`-or-later` first where the input grants later versions of that licence, else
+`-only` first, with one `variant not stated` warning. Words that state the
+variant win, with `option: overridden by input: --variant only; using
 GPL-2.0-or-later` (the API names the CLI option too). The API warns for results
-scoring 0.85 or more (the CLI: those it prints). `variant_stated` of a result is
-`True` when the input states the variant, `False` for a guess or a bare ID kept,
-`None` where no licence of the answer has a variant (`MIT`); of a compound
-`None` when none has one, `False` when any is `False`, else `True`. `resolve()`
-takes no `variant`, and its answers do not change.
+scoring 0.85 or more (the CLI: those it prints). `variant_stated` reads as
+`VARIANT_STATED` does ([output.md](output.md)): `True` when the input states
+the variant, `False` for a guess or a bare ID kept, `None` where no licence of
+the answer has a variant (`MIT`). `resolve()` takes no `variant`.
 
 A text under 30 words that is no declaration, but names a licence ("released
 under the terms of the MIT License"), is free text: `exclude` drops that
@@ -135,10 +126,11 @@ value, and a name hit that `resolve()` read is never dropped. `exclude` and
 `hint` are `detect()` options that `resolve()` has not, so `detect()` may then
 answer differently from `resolve()` on purpose.
 
-After an `exclude`, short prose may still answer a near or a deprecated name:
-`exclude=["GPL-2.0-only"]` on "licensed under the GNU General Public License
-v2.0 only" answers the deprecated `GPL-2.0` (0.98), and with both twins
-excluded it answers the nearest other licence. A text under 10 words with
+After an `exclude`, short prose may still answer a near name, but not a
+deprecated ID whose replacement was excluded (except under
+`variant="as-written"`): `exclude=["GPL-2.0-only"]` on "licensed under the GNU
+General Public License v2.0 only" answers the nearest other licence
+(`GPL-1.0-only`), as with both twins excluded. A text under 10 words with
 nothing left answers `[]` and warns `too few words for text`. A short text
 never uses `hint`: Tier 0 adds no candidates.
 
@@ -164,8 +156,9 @@ text, with `only_common=True`, answers `JSON` first, exact, with or without
 
 A hinted candidate has its own text, so it ranks on its similarity to the
 input, as any candidate does, for the first 50 entries of `hint` (a set in
-sorted order; a bare deprecated ID counts as its two twins, and an ID given
-twice, or with no row, still uses up a place). Each costs a pass of the
+sorted order; a bare deprecated ID counts as its two twins; an ID given
+twice, with no row, or dropped by `exclude`, `only_spdx` or `only_common`
+uses no place). Each costs a pass of the
 second tier: on the full List the MIT text takes 0.8 s with no hint, 1.6 to
 2.0 s with 50 and 3.4 to 3.8 s with 200, and would take about 10 s if all 740
 IDs had their text. That is why an entry beyond the fiftieth is added with no

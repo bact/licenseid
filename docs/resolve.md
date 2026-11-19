@@ -47,7 +47,8 @@ page](lists.md):
   `LGPLv2`; `Apache 2` and `Apache-1.1` are read, and so are `Apache-1+`,
   `LGPLv2+` and `LGPLv2 or later`, as a grant covers every later minor; the
   trove classifier `(LGPLv2)` stays `LGPL-2.0`, from its table); the
-  List's own licence names; "or later"
+  List's own licence names, where a run of white space reads as one space
+  (`MIT  License` is `MIT`, `listed_name`); "or later"
   on an ID with no `-or-later` form is the `+` operator (`MIT or later` is
   `MIT+`, `Apache 2.0 or later` is `Apache-2.0+`). "or" in a grant is a word
   of its own (`MIT ora later` is not found). Between an ID and its grant
@@ -87,11 +88,22 @@ page](lists.md):
   `MIT+`; `GPL-2.0+?`, `MIT License -` are refused). At
   the start nothing is left off: `-- MIT`, `; MIT`, `... MIT`, and an ID
   cut from a longer one (`.GPL-3.0-only`, `-MIT`) are refused;
-- a control or format character at either end of the value is left off, as
-  white space is (`MIT\u200b`, `\ufeffMIT`, `MIT\u202e`, `MIT\x07`, `"MIT"\u200b`,
-  `MIT OR ISC\u200b`): one `trim` step with the detail `invisible characters`,
-  and the answer is `separator` (`resolver_rule`), since a character was
-  dropped. Nothing that shows is lost at an end: no text stands beyond it for
+- a zero-width character at either end of the value is white space: U+200B
+  zero width space, U+200C zero width non-joiner, U+200D zero width joiner,
+  U+2060 word joiner, U+FEFF zero width no-break space (a byte order mark)
+  and U+00AD soft hyphen (`MIT\u200b`, `\ufeffMIT`, `"MIT"\u200b`,
+  `MIT OR ISC\u200b`). They carry no text and reorder nothing, so they are
+  left off as a trimmed space is: one `trim` step with the detail
+  `zero-width characters`, category `lexical` at best, `EXACT` yes;
+- any other control or format character at either end of the value is left
+  off as a cut (`MIT\u202e`, `MIT\x07`, `MIT\x1f`, a run of Unicode tag
+  characters, or one of them beside a zero-width one): one `trim` step with
+  the detail `invisible characters`, and the answer is `separator`
+  (`resolver_rule`, `EXACT` no), since a character was dropped that may say
+  something: a bidi control can reorder what is shown after the value, a
+  separator control may stand for a field that was lost, and tag characters
+  are text no one sees. An SPDX tag and a manifest field agree with the
+  argument. Nothing that shows is lost at an end: no text stands beyond it for
   a bidirectional control to reorder. A bidi control at the *start*
   (`\u202eMIT`, which shows as `TIM`), a hidden character anywhere inside
   (`M\u200bIT`, `MIT\u200bOR ISC`), a NUL (a sign of binary data) and a value
@@ -102,7 +114,8 @@ page](lists.md):
   value, a format character that is no bidi control and touches white space is
   that white space (`MIT OR\u200b ISC`, `MIT\u200b OR ISC`): a second `trim`
   step makes it a space, one code point for one, so the spans still index the
-  raw value;
+  raw value; the step is a cut, as above, unless every character it made a
+  space is zero-width;
   `operands[].span` indexes the raw value, so it counts the characters left
   off at the start. The 2,000 character limit counts the value after that;
 - licences joined by a `;` (`MIT ; Apache 2`) name two licences and not how
@@ -262,7 +275,8 @@ page](lists.md):
   (`MIT/Apache-2.0`, `MIT, ISC`; a `license` field reads the `/` of IDs, as
   `resolve()` does, and a tag never does; prose such as `MIT, see LICENSE` keeps
   `MIT`), and a bare "or later" after an ID is the grant (`MIT or later` is
-  `MIT+`);
+  `MIT+`); a tag whose grant an operator follows reads as here
+  (`MIT (or later) AND Apache-2.0` is `Apache-2.0 AND MIT+`);
 - every result names its category and trust level, each step, the list
   it rests on with its version and where it was read (`database` or
   `packaged`), and the resolver's version (see
@@ -328,9 +342,9 @@ For `resolve("Apache2")`, as JSON:
   ],
   "resolver": {
     "name": "licenseid",
-    "version": "0.8.4",
-    "url": "https://github.com/bact/licenseid/releases/tag/v0.8.4",
-    "purl": "pkg:pypi/licenseid@0.8.4"
+    "version": "0.9.0",
+    "url": "https://github.com/bact/licenseid/releases/tag/v0.9.0",
+    "purl": "pkg:pypi/licenseid@0.9.0"
   },
   "components": [],
   "lists": [
@@ -398,23 +412,10 @@ An empty text value is `null` in JSON. A later release only appends fields
 to a line, so read a field by its key; an `EXPRESSION` that is not the first
 key of its line is an operand's.
 
-The exit status is 0 when `expression` is not `None`, 1 when it is `None`
-(the lines are still printed, with no `ERROR` line; a `WARNING` about the
-database can still come with it), and 2 for a
-usage error, a list that cannot be read or a result that cannot be written.
-`--source` and `--db` choose the list as `resolve(value, source=...)` and
-`resolve(value, db)` do; `--db` with `--source packaged` exits 2. A licence
-text, `-` (standard input), a value with a line break and one
-over 2,000 characters (counted as `resolve()` counts them, after the
-surrounding white space is trimmed) are refused with exit 2, nothing on
-standard output and `; run 'licenseid detect'`: `detect` answers those.
-The value is read first: one that resolves is answered even when a file or
-directory of that name exists, and one that resolves to nothing and names
-one is refused the same way (`input: invalid: path: LICENSE`). An empty
-argument is `input: empty: argument` and no argument `input: missing; pass
-one declared licence value`: `resolve` never reads standard input. An argument
-with U+001C to U+001F is refused as a line break and names it (`invalid:
-line break U+001C: MIT`; `--text` of `detect` reads them as white space).
+The exit status (0 when `expression` is not `None`, else 1, with no `ERROR`
+line), `--source`, `--db` and the values `resolve` leaves to `detect` (a
+licence text, `-`, a line break, over 2,000 characters, the name of a file)
+are in [the command line reference](cli.md#resolve-a-declared-value).
 
 ## Operands and components
 
@@ -574,12 +575,12 @@ weakest of its operands, in this order (strongest first):
 | Category | Trust | `EXACT` | The value |
 | --- | --- | --- | --- |
 | `exact` | `identity` | yes | is a listed ID as written |
-| `lexical` | `identity` | yes | differs in case, spacing, brackets, quotes, order, a classifier prefix or an agreeing parenthesis |
+| `lexical` | `identity` | yes | differs in case, spacing, brackets, quotes, order, a classifier prefix, an agreeing parenthesis or a zero-width character at an end |
 | `listed_name` | `list_data` | yes | is the List's name of a licence |
 | `deprecated_equal_successor` | `list_data` | yes | is a renamed deprecated ID |
 | `plus_to_or_later` | `list_data` | yes | is `X+`, read as `X-or-later` |
 | `stated_qualifier` | `author_words` | yes | states "or later" in words |
-| `separator` | `resolver_rule` | no | is an ID with other separators |
+| `separator` | `resolver_rule` | no | is an ID with other separators, or with another hidden character at an end |
 | `version_spelling` | `resolver_rule` | no | is an ID with its version re-spelt |
 | `prose_form` | `resolver_rule` | no | is an ID in a prose form (`BSD 3-Clause License`, `Apache License, Version 2.0`) |
 | `text_title` | `resolver_rule` | yes | is the title a licence's text gives itself (`CC0 1.0 Universal`) |
@@ -618,7 +619,8 @@ drop the "+" and answer the licence, exact. A tag and a manifest field read a
 licence URL with the same reader, in any word of the value
 (`SPDX-License-Identifier: https://spdx.org/licenses/MIT` is `MIT`), but
 the rest of their value still goes through the marker readers, not
-`resolve()` (planned). Not read yet: a URL inside prose.
+`resolve()`, except a tag's grant followed by an operator (above). Not read
+yet: a URL inside prose.
 
 ## Reasons for a refusal
 
@@ -718,7 +720,8 @@ marks (`"MIT"..`), or a mark inside the quote marks as well, even behind a
 bracket (`"MIT.".`, `"(MIT;)".`), are refused.
 A format character inside the marks, at an end of the value they quote, is left
 off after `unquote`, as it is outside them (`"MIT\u200b"`: a `trim` step, see
-the characters at the ends above); with a mark inside as well as one after the
-quotes (`"MIT.\u200b".`) the value is still refused.
+the characters at the ends above): white space if it is zero-width (`lexical`,
+`EXACT` yes), else a cut (`separator`, `EXACT` no). With a mark inside as well
+as one after the quotes (`"MIT.\u200b".`) the value is still refused.
 An apostrophe inside a word (`AMD's`) is not a
 mark.

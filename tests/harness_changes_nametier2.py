@@ -15,9 +15,11 @@ there, and Tier 1 runs on the section as before; a name written whole beats
 names made of scattered words (``_WRITTEN``)."""
 
 _NONE = "-\t-\t-\t-"
-_DROPPED = "name tier: a hit the rest of the input doubts (was a wrong licence)"
+_DROPPED = (
+    "name tier: a hit the rest of the input doubts (the golden ID was right; "
+    "the full List gives none in 0.8.4 and now)"
+)
 _SPECIFIC = "name tier: the most specific of tied names (was a less specific one)"
-_STILL_WRONG = "name tier: the most specific of tied names (was another wrong one)"
 _WRITTEN = "name tier: the name written whole beats scattered words (was wrong)"
 _V3 = "name tier: v3 is v3.0, the -only guess, variant not stated"
 

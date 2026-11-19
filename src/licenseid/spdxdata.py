@@ -7,8 +7,9 @@
 The SPDX License List as data, whatever its source: a bundle (gzipped JSON,
 ``format`` 1) or a release tarball.
 
-Standard library only (no ``requests``, ``click`` or ``rapidfuzz``), so the
-match path stays light. It reads bytes and files; it never touches the network
+No ``requests``, ``click`` or ``rapidfuzz`` (the standard library,
+``licenseid.errors`` and ``licenseid.types`` only), so the match path stays
+light. It reads bytes and files; it never touches the network
 or the database.
 """
 

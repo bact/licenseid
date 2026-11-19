@@ -131,8 +131,8 @@ def main() -> None:
 
     Click's own handling (standalone mode) would exit 1 on Ctrl-C, the code
     for "no", and print a ClickException with no regard for a failing
-    standard error, which then turned the exit status into 120 at the flush
-    on exit.
+    standard error, which turns the exit status into 120 at the flush on
+    exit.
     """
     try:
         status = cli.main(standalone_mode=False)

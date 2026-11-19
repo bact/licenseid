@@ -34,7 +34,7 @@ whatever its own category.
 - Quote marks are not tracked: a ``;`` inside quotes splits. ``,`` and ``/``
   are never a separator here.
 
-Standard library and ``licenseid`` types only; no state, no lookup of its
+Standard library and ``licenseid`` modules only; no state, no lookup of its
 own.
 """
 

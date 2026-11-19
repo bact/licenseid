@@ -8,7 +8,7 @@ How input bytes become match text.
 
 The one place a user's file, standard input or ``file_path`` is decoded, so the
 CLI and the Python API read the same bytes the same way. Other files this
-package opens (SPDX release data in ``database.py`` and ``spdx_source.py``)
+package opens (SPDX release data in ``spdxdata.py`` and ``spdx_source.py``)
 are trusted and stay strict UTF-8: a Latin-1 fallback there would hide a
 corrupt download.
 
@@ -92,8 +92,8 @@ def decode_input(data: bytes, source: str) -> str:
     Bytes with a NUL are binary (reject_binary; UTF-16 text is binary here
     too). Otherwise UTF-8 first, with a leading BOM dropped, then Latin-1
     (older license files use it; every byte decodes) with a warning.
-    CRLF and CR then become LF, as text-mode reading did before, so matching
-    sees the same text whichever way the input arrived.
+    CRLF and CR then become LF, as text-mode reading does, so matching sees
+    the same text whichever way the input arrived.
     """
     reject_binary(data, source)
     try:

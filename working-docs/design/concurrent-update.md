@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-03
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -9,7 +9,8 @@ SPDX-License-Identifier: Apache-2.0
 
 # Reading the database while `update` rebuilds it
 
-Status: design, for 0.8. Not built.
+Status: design. Not built: planned for 0.8, not done by 0.9.0 (`database.py`
+still commits the three steps apart; roadmap item 46). Checked 2026-11-18.
 
 ## The problem
 
@@ -69,8 +70,9 @@ the new one is complete, and then the new one:
    last. FTS5 reads its own uncommitted rows on the same connection, so
    the fingerprints can be computed inside it; this removes the reason the
    steps were split. A failure rolls everything back: the old database
-   stays, stamped and usable, which is better than today's "a failed run
-   leaves a database it does not skip".
+   stays, stamped and usable, which is better than today's failed run,
+   which leaves an unstamped database that reads as `empty` until the next
+   `update`.
 2. The database stays in rollback-journal mode (not WAL, see AGENTS.md).
    Readers keep reading the old pages while the writer holds its RESERVED
    lock; they wait only during the commit itself (PENDING then EXCLUSIVE,

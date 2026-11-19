@@ -15,7 +15,7 @@ ones are in [`tech-debt-resolved-0-5.md`](tech-debt-resolved-0-5.md); this
 part was split from it when it passed the file size limit. Item numbers are
 the roadmap's.
 
-## Items 50, 51, 54 (marks on a value, 2026-11-17)
+## Items 50, 51, 54 (marks on a value, PR #220, 2026-11-17)
 
 Marks and invisible characters around a declared value. Planned and measured
 on `main` 50017cb (SPDX List 3.29.0), with the owner's decisions of
@@ -94,7 +94,7 @@ the reading is safe".
   escape scanner in `manifest` (`_RE_TOML_STRING` takes an escaped pair as one
   unit).
 
-## Item 47 (2026-11-17)
+## Item 47 (PR #219, 2026-11-17)
 
 Leftovers of the name tier on a few words. Token set scoring reads an input
 as a set of words, so an input that holds a whole List name answers it
@@ -256,23 +256,10 @@ Tier 0 (`shorttext.match_name_tier`) that the rest of the input doubts.
   `namerules`, among them the six that survived round 1.
 - **Not verified**: Windows and Python 3.14 (no run in this session; CI
   decides).
-- **Open leftovers** (roadmap item 47): a pair where one name nests in the
-  other (1 of 134 probes); a one-word ID that is an ordinary word is no
-  second licence (7 of 134); a version the name lacks (`MIT License 2`;
-  refusing it lost 10 right `mixed` golden answers for 0 PyPI gain); wrong
-  answers no rule touches (`Licensed under the GNU Lesser General Public
-  License v2.1` gives BSD-Protection at 0.867, `... Affero ... v3.0` gives
-  MPL-2.0 at 0.86, `GNU Lesser General Public License v2.0 or later`,
-  `Apache License 1 or later`); two licences in prose that are not tied
-  (`GNU General Public License v2.0 or MIT License`, `MIT License or BSD
-  3-Clause` answer MIT; pinned `# BUG: (item 47)`); a list of two licences
-  that names one whole (`Eclipse Public License v. 1.0 - Cecill v. 2.0`
-  answers EPL-1.0 as `main` did; round 1 refused it, 4 windows);
-  `<name> Plus` (706 of 708 probes); name + "+" (1 project); a manifest
-  field with a name less its grant (1 project); `with <one-word exception
-  without the word>` (30 of 86 exceptions).
+- **Open leftovers**: listed once, with their counts, under item 47 of
+  [`../design/tech-debt-roadmap.md`](../design/tech-debt-roadmap.md).
 
-## Grant reader refusals (items 20, 46, 50, 52, 54; 2026-11-17)
+## Grant reader refusals (items 20, 46, 50, 52, 54; PR #221, 2026-11-17)
 
 A value that goes on after an "or later" grant, or a mark glued to one, was read
 as the licence with its grant and the rest dropped. Measured on 642
@@ -335,7 +322,9 @@ under "refuse unless the loss is measured":
   `markers._resolve_gpl_or_later` and `_detect_license_mentions` read a
   grant of any subject (item 52).
 
-## A grant counts for its own licence (items 46, 50, 52, 54; 2026-11-17)
+## A grant counts for its own licence (PR #222, 2026-11-17)
+
+Items 46, 50, 52 and 54.
 
 `has_or_later_language` read the whole input: `Requires Python 3.8 or later`
 beside `GNU General Public License v2.0` turned `GPL-2.0-only` into
@@ -422,7 +411,7 @@ beside `GNU General Public License v2.0` turned `GPL-2.0-only` into
   phrase (the exemption above only keeps the answer); `variants._supports`
   still reads any grant phrase in a declared value (`has_or_later_language`).
 
-## Small leftovers of items 35, 46, 50, 53 and 55 (2026-11-18)
+## Small leftovers of items 35, 46, 50, 53 and 55 (PR #223, 2026-11-18)
 
 Planned and measured on `main` da544cb with a copy of the real database
 (SPDX List 3.29.0). No answer of the library moves: tools, tests and notes.
@@ -471,9 +460,11 @@ PR #223.
   a survey count. **A trove name with no count shows a dash**: correct, as the
   page says "A dash is no count recorded".
 
-## `hint` obeys the filters; the API names (item 46, 2026-11-18)
+## `hint` obeys the filters; the API names (PRs #224, #227, 2026-11-18)
 
-Built in PR 224 (branch `hint-obeys-filters`). Planned and measured
+Item 46.
+
+Built in PR #224 (branch `hint-obeys-filters`). Planned and measured
 on `main` f28fa39 against a copy of the real database (List 3.29.0, 740
 rows), then reviewed twice (Opus). The owner decided D1 a, D2 a (with the cap
 below) and D4 a.
@@ -516,7 +507,7 @@ below) and D4 a.
   `Variant` (the type of `DetectOptions.variant`). JSON keys and values do not
   change.
 
-## Grant subject in the name tier (B1c, PR 225, 2026-11-18)
+## Grant subject in the name tier (B1c, PR #225, 2026-11-18)
 
 Tier 0's `namerules.cut_version` took the number before any "or later" or
 "+" as the licence's grant: `Apache License 1. Requires Java 1 or later`
@@ -570,14 +561,14 @@ name tier doubts a GPL hit for a Lesser, Library or Affero name.
   new ones. Mutants of the cut rule, the reach and the family rule are all
   killed.
 
-## A List name wrapped in marks (item 50, 2026-11-18)
+## A List name wrapped in marks (item 50, PR #226, 2026-11-18)
 
 `*Apache License 2.0*`, `# Apache License 2.0` and `*Mozilla Public License
 2.0*` answered exact by name in `detect` while `resolve()` said `not found`.
 The same marks round `MIT License` were already refused
 (`character dropped: U+002A`): a name a loose ID reads met the guard against
 dropped marks, a name of the List-name table did not. Decided (D5 a): refuse,
-precision over recall. PR 226.
+precision over recall. PR #226.
 
 - **Built**: `dropguard.edge_marks`, `resolvereason.wrapped_name` and
   `resolveleaf._refuse_wrapped_name`, called in `_base` after the List-name

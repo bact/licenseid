@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Small operations on the candidates a marker reader gives (moved out
-of :mod:`licenseid.markers`, which is at its line ceiling)."""
+"""Small operations on the candidates a marker reader gives
+(:mod:`licenseid.markers`)."""
 
 import re
 from collections.abc import Iterable, Iterator

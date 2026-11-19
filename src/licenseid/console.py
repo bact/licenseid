@@ -23,7 +23,7 @@ _state: dict[str, bool] = {"line_open": False}
 
 def emit(stream: TextIO, text: str, encoding: str | None = None) -> None:
     """Write *text* to *stream* as it is and flush: each line ends in a line
-    feed on every platform, as Windows' text streams would write ``\\r\\n``.
+    feed on every platform, where Windows' text streams would write ``\\r\\n``.
     It goes to the bytes under the stream, in *encoding* (the
     stream's own when None), a character the encoding cannot hold as a
     backslash escape (``\\xHH``, ``\\uHHHH``, ``\\UHHHHHHHH``) whatever the

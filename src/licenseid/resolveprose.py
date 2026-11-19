@@ -5,10 +5,11 @@
 
 """The rules that read the prose form of one licence ID (rules P1 to P3).
 
-``resolver`` calls :func:`read_prose` last, after the one-licence, compound
-and trove readers: a name the trove table reads as
-``none`` (``BSD License``, ``W3C license``) was claimed before, so no rule
-here guesses at it. Each rule reduces the text and hands the reduction to
+:func:`read_by_name` calls :func:`read_prose` last, after the URL, trove,
+title and alias readers (and ``resolver`` after the one-licence and compound
+readers): a name the trove table reads as ``none`` (``BSD License``, ``W3C
+license``) was claimed before, so no rule here guesses at it. Each rule
+reduces the text and hands the reduction to
 :func:`licenseid.resolveleaf.read_leaf`, which proves it as it proves any
 value, so there is no second reader of IDs, names, ``+`` or grants.
 
@@ -51,7 +52,7 @@ import re
 from typing import Final
 
 from licenseid.dropguard import joined_marks, trim_end_mark
-from licenseid.listlookup import ListLookup, fold_case
+from licenseid.listlookup import ListLookup, fold_case, ids_named
 from licenseid.normalize import RE_DASHES
 from licenseid.resolvealias import read_alias
 from licenseid.resolveleaf import Found, read_leaf, refuse_dropped
@@ -110,9 +111,8 @@ def read_prose(db: ListLookup, text: str, found: Found) -> bool:
         return _prose(db, text, found)
     head, inside = parts
     version = _RE_BRACKET_VERSION.fullmatch(inside)
-    if (
-        version is not None
-    ):  # ``Apache License (2.0)`` is ``Apache License, Version 2.0``
+    # ``Apache License (2.0)`` is ``Apache License, Version 2.0``
+    if version is not None:
         return _bracketed_version(db, text, head, version["number"], found)
     named, alone = Found(), Found()
     if not _prose(db, head, named) or not read_leaf(db, inside, alone):
@@ -278,9 +278,7 @@ def _reductions(db: ListLookup, core: str) -> list[tuple[str, str]]:
     named = f"{name} License {tail['number']}"
     # The List name is for a value that writes the word itself: "Mozilla Public
     # Version 2.0" is no title of anything, so it is not read as that name
-    if "licen" in tail[0].casefold() and (
-        len(db.get_active_ids_by_name().get(named.casefold(), [])) == 1
-    ):
+    if "licen" in tail[0].casefold() and len(ids_named(db, named)) == 1:
         reductions.append((named, "version"))
     return reductions
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-08
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -9,9 +9,9 @@ SPDX-License-Identifier: Apache-2.0
 
 # Licence URLs read as their licence
 
-Record of the reader built for issue #14 (PR for #14, number not yet
-given): `resolve()`, `detect()`, a tag and a manifest field read a licence
-URL as the licence it names. The survey that fed it is
+Record of the reader built for issue #14 (PR #177, 0.8.0): `resolve()`,
+`detect()`, a tag and a manifest field read a licence URL as the licence it
+names. The survey that fed it is
 [`../paper-notes/licence-urls.md`](../paper-notes/licence-urls.md); the
 user-facing rules are in `docs/resolve.md`.
 
@@ -45,7 +45,7 @@ on any host could be read as that ID.
 - **Decided by the user (2026-11-08).** A GNU family page answers the bare
   deprecated ID, `assumed_only` with both candidates; MPL-2.0 and OFL-1.1
   pages that also list variants get an alias, and every other shared URL is
-  refused; the database build goes from 3 to 4; planned for 0.8.0. Deferred:
+  refused; the database build goes from 3 to 4 (built in 0.8.0). Deferred:
   a URL inside prose. NuGet's compound paths came later (issue #187, below).
 - **Not a regex of URLs found in prose.** A URL inside a sentence is out of
   scope here; the reader takes a whole value or one operand.

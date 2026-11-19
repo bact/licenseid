@@ -298,13 +298,10 @@ _RE_NON_LICENSE_SECTION = re.compile(
     r"table\s+of\s+(?a:contents))",
     re.IGNORECASE,
 )
-# Openers that appear at the START of a full license document
-# (not inside source files).
-# "apache license" removed — too broad; it appears in license
-# notice headers too.
-# "mozilla public license" removed for the same reason.
-# These files are caught by filename (LICENSE, COPYING) or by
-# high FTS5 similarity.
+# Openers that appear at the START of a full license document (not inside
+# source files). Not "apache license" or "mozilla public license": notice
+# headers hold them too; such files are caught by filename (LICENSE, COPYING)
+# or by high FTS5 similarity.
 _RE_LICENSE_OPENER = re.compile(
     r"(permission is hereby granted|permission to use, copy|"
     r"common development and distribution license|"

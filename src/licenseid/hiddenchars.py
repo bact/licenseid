@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Control and format characters at the ends of a declared value.
+"""Control and format characters at the ends of a declared value, and
+beside its white space.
 
 ``MIT\\u202e`` or ``\\ufeffMIT`` is the value ``MIT`` with a character that
 shows nothing. Such a character at an *end* changes nothing that is shown:
@@ -11,13 +12,20 @@ no text stands beyond it for a bidirectional (bidi) control to reorder. So
 :func:`strip_hidden` leaves it off, as white space is left off.
 
 Not at the start, for a bidi control: ``\\u202eMIT`` shows as ``TIM``, text
-that reads other than it shows. Nor inside the value, nor NUL (a sign of
-binary data): ``resolve()`` refuses those (``resolver._refusal``).
+that reads other than it shows. Nor inside a word (:func:`space_out_hidden`
+makes only a format character beside white space a space), nor NUL (a sign
+of binary data): ``resolve()`` refuses those (``resolver._refusal``).
 
 Inside the quote marks around the whole value (``"MIT\\u200b"``) the same
 reading holds for a *plain* format character (:func:`strip_plain_format`): the
 closing mark stands beyond it, so a bidi control there could still reorder
 what follows, and a control character (``Cc``) there is no format.
+
+A *zero-width* character (:data:`ZERO_WIDTH`) left off is white space: the
+value is the one written. Any other is a cut, as a dropped mark is: a bidi
+control can still reorder what a reader shows after the value, a control
+character may stand for a lost field, and a run of Unicode tag characters is
+text no one sees (``MIT`` with "GPL-3.0" after it in tag characters).
 
 Standard library only.
 """
@@ -33,6 +41,40 @@ from licenseid.exprtokens import is_white_space
 BIDI_CONTROLS: Final = frozenset(
     "\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
 )
+
+#: The zero-width characters a paste, an editor or a byte order mark leaves:
+#: zero width space, zero width non-joiner and joiner, word joiner, the byte
+#: order mark (zero width no-break space) and the soft hyphen. Each is
+#: Default_Ignorable (Unicode Standard Annex 44), carries no text and reorders
+#: nothing.
+ZERO_WIDTH: Final[frozenset[str]] = frozenset("\u200b\u200c\u200d\u2060\ufeff\u00ad")
+
+
+def only_zero_width(removed: str) -> bool:
+    """Whether every character of *removed*, what was left off a value, is
+    white space or in :data:`ZERO_WIDTH` (True for nothing)."""
+    return all(char in ZERO_WIDTH or is_white_space(char) for char in removed)
+
+
+def left_off(value: str, kept: str, start: int) -> str:
+    """What :func:`strip_hidden` or :func:`strip_plain_format` left off the
+    ends of *value* to keep *kept*, which starts at *start* in it."""
+    return value[:start] + value[start + len(kept) :]
+
+
+def spaced_out(value: str, spaced: str) -> str:
+    """The characters :func:`space_out_hidden` made spaces in *value* to give
+    *spaced*."""
+    return "".join(old for old, new in zip(value, spaced) if old != new)
+
+
+def cuts_hidden(value: str) -> bool:
+    """Whether reading *value* as ``resolve()`` does, without the hidden
+    characters at its ends and beside white space, leaves off one that is not
+    zero-width: the value read is then a cut, not the one written."""
+    shown, start = strip_hidden(value)
+    removed = left_off(value, shown, start) + spaced_out(shown, space_out_hidden(shown))
+    return not only_zero_width(removed)
 
 
 def is_hidden(char: str) -> bool:
@@ -95,8 +137,8 @@ def _is_trimmed(char: str) -> bool:
 def space_out_hidden(value: str) -> str:
     """*value* with each format character (``Cf``, not a bidi control) of a
     run that touches white space made a space, one code point for one, so a
-    span still indexes it: ``MIT OR\u200b ISC`` reads as ``MIT OR  ISC``.
-    A run between two other characters (``M\u200bIT``) says something, as a
+    span still indexes it: ``MIT OR\\u200b ISC`` reads as ``MIT OR  ISC``.
+    A run between two other characters (``M\\u200bIT``) says something, as a
     control character or a bidi control anywhere does, and is left; so is a
     value of nothing else."""
     if all(is_white_space(char) or _is_plain_format(char) for char in value):

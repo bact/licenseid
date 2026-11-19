@@ -175,3 +175,16 @@ latest SPDX list, and `licenseid update` fetches a newer one.
   notes ("bundle" meant both the download and the file in the wheel). Write the
   release notes before the tag, and rename while nothing is released: it was
   one PR (#95) because no old name was public yet.
+- Speed gate against the last release (0.9.0): run `speed.py` alone, with an
+  A/A twin of the old release (noise floor), and nothing else on the
+  machine. macOS background tasks (Shortcuts, Siri actions) lifted the load
+  to 18 mid-run, and one case never ran (load over 4 for 15 minutes): read
+  the A/A column before any ratio, and rerun a missing case alone. 0.9.0
+  shipped slower than 0.8.4 on most cases (hints +36 to 45%, tags +57%,
+  FTS +12%), a maintainer decision (2026-11-18): precision and rules first,
+  speed later.
+- A charsnap diff of two trees shows the version string on every row: strip
+  it before counting moved answers (19,457 false differences).
+- Worktree layers: snapshot each layer with `git add -A; git write-tree`;
+  a writer works in a plain `git archive` copy with `PYTHONPATH` set to that
+  copy (`src`, `tests`, copy root) and hands back a `diff -ruN` patch.

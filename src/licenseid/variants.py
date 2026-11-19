@@ -59,15 +59,16 @@ _Match = TypeVar("_Match", RawMatch, CandidateMatch)
 VARIANTS: Final[tuple[Variant, ...]] = ("auto", "as-written", "only", "or-later")
 DEFAULT: Final[Variant] = "auto"
 
-#: What a reader outside ``detect()`` (the library functions, the tests of a
-#: reader) does as it always did: a bare ID is read as ``-only``.
+#: Outside ``detect()`` (the library functions, the tests of a reader) a bare
+#: ID is read as ``-only``.
 _CURRENT: contextvars.ContextVar[Variant] = contextvars.ContextVar(
     "licenseid_variant", default="only"
 )
 
 #: The warnings of a ``detect()`` call, held until its first output result is
 #: known (None outside a call: a warning is given at once), and the bar a
-#: result must pass to be output (the CLI's ``--threshold`` and ``--exact``).
+#: result must pass to be output (the CLI's ``--threshold``, ``--exact`` and
+#: ``--top``).
 _PENDING: contextvars.ContextVar[list[tuple[str, str]] | None] = contextvars.ContextVar(
     "licenseid_variant_pending", default=None
 )
@@ -212,7 +213,8 @@ def family_of(resolved: str, written: str = "") -> str:
     """The licence of the first ``-only`` or ``-or-later`` ID of *resolved*
     that *written*, the value as it was, does not state (``LGPL-2.1`` of
     ``GPL-2.0-only OR LGPL-2.1-only`` read from ``GPL-2.0-only OR LGPL-2.1``),
-    for a warning; *resolved* when it has none."""
+    for a warning; that of its first such ID when *written* states each (it
+    merged ``GPL-2.0-only OR GPL-2.0``); *resolved* when it has none."""
     written_tokens = RE_TOKEN.findall(written)
     stated = {fold_case(t) for t in written_tokens}
     # "GPL-2.0+" states GPL-2.0-or-later
@@ -221,13 +223,11 @@ def family_of(resolved: str, written: str = "") -> str:
         for t, after in itertools.pairwise(written_tokens)
         if after == "+"
     }
-    for token in RE_TOKEN.findall(resolved):
-        if (
-            token.lower().endswith((_ONLY, _OR_LATER))
-            and fold_case(token) not in stated
-        ):
-            return grant_stem(token)
-    return resolved
+    forms = [
+        t for t in RE_TOKEN.findall(resolved) if t.lower().endswith((_ONLY, _OR_LATER))
+    ]
+    unstated = [t for t in forms if fold_case(t) not in stated]
+    return grant_stem((unstated or forms)[0]) if forms else resolved
 
 
 def read_from(found: list[_Match], value: str) -> list[_Match]:
@@ -497,6 +497,10 @@ def _replaced(
         kept = by_id.get(fold_case(twin)) if twin else None
         if r["method"] in _TEXT_METHODS and times_written(r["license_id"], written):
             kept = None
+        elif twin and kept is None and r["method"] in _TEXT_METHODS:
+            # Its replacement was dropped (``exclude``, or a name rule):
+            # the deprecated ID goes with it, never answered in its place.
+            continue
         if kept is None and r["method"] in _TEXT_METHODS:
             # No replacement beside it (a marker found the ID): the option
             # decides it, as for a declared value.

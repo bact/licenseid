@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-18
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -513,14 +513,13 @@ roadmap's. Moved out of the roadmap on 2026-10-02. Items resolved from
   Reading is the opposite way round: an `unknown` database
   is not refused, because a wrong refusal costs the user an answer they could
   have had.
-  Left open: the metadata is committed before the fingerprints are computed,
-  so a kill in between leaves a "ready" database without fingerprints. That
-  is not merely a degraded answer — measured on a real database, the top
-  match changes (`MIT` becomes `Xnet` for MIT text), so the command reports a
-  different license with no warning. Fix by writing the metadata in the
-  fingerprint transaction, or by adding a fingerprint row to the readiness
-  check. A `sqlite3` failure after the check exits 2 on the CLI
-  (`database: unreadable`); the API keeps raising the raw error (item 10).
+  Resolved since (checked 2026-11-18): `update` stamps `license_list_version`
+  after the fingerprints (`database._update_db_records`), so a run killed in
+  between leaves an unstamped database that the next `update` rebuilds. The
+  reason: without fingerprints the top match changes (`MIT` became `Xnet` for
+  MIT text), a different licence with no warning. A `sqlite3` failure after
+  the check exits 2 on the CLI (`database: unreadable`); the API keeps raising
+  the raw error (item 10).
 
 - `cli.py` test coverage (2026-09-19 audit, Priority 18): was 66-75%. Now
   100% of lines and branches, from `tests/test_cli_errors.py`,

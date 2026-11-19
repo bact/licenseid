@@ -18,7 +18,8 @@ and written in canonical order (``licenseid.exprcanon``); a trove classifier
 (``License :: OSI Approved :: MIT License``) or a name with its short form
 (``MIT License (MIT)``) by ``licenseid.resolvetrove``; the prose form of one
 ID (``BSD 3-Clause License``, ``Apache License, Version 2.0``) by
-``licenseid.resolveprose``; licences joined by ``;``, which states no
+``licenseid.resolveprose``; IDs joined by ``/`` as ``OR``
+(``licenseid.resolveslash``); licences joined by ``;``, which states no
 operator, are listed as operands and no expression
 (``licenseid.resolvesemicolon``). A step that rests on a list cites it.
 
@@ -35,7 +36,14 @@ from typing import Final
 from licenseid.dropguard import marks_at_end, trim_end_mark
 from licenseid.exprcanon import unbracketed
 from licenseid.exprtokens import RE_OPERATOR, WHITE_SPACE, is_white_space
-from licenseid.hiddenchars import space_out_hidden, strip_hidden, strip_plain_format
+from licenseid.hiddenchars import (
+    left_off,
+    only_zero_width,
+    space_out_hidden,
+    spaced_out,
+    strip_hidden,
+    strip_plain_format,
+)
 from licenseid.listlookup import ListLookup
 from licenseid.listsource import GivenDatabase, choose_list
 from licenseid.quotes import ended_quote, unquote
@@ -214,12 +222,10 @@ def _read(
     found = Found()
     shown, lead = strip_hidden(value)
     if shown is not value:
-        found.steps.append(step("trim", True, value, shown, "invisible characters"))
-        found.floor = "separator"  # characters were dropped: a rule of the resolver
+        _trim_hidden(found, value, shown, left_off(value, shown, lead))
     spaced = space_out_hidden(shown)
     if spaced != shown:
-        found.steps.append(step("trim", True, shown, spaced, "invisible characters"))
-        found.floor = "separator"
+        _trim_hidden(found, shown, spaced, spaced_out(shown, spaced))
         shown = spaced
     text, start = _prepared(shown, found)
     text, start, judged = _trimmed_inside(shown, text, start, found)
@@ -243,7 +249,7 @@ def _trimmed_inside(
     shown: str, text: str, start: int, found: Found
 ) -> tuple[str, int, str]:
     """*text*, which starts at *start* in *shown* and was unquoted, without
-    the plain format characters at its ends (``"MIT\u200b"``), as a ``trim``
+    the plain format characters at its ends (``"MIT\\u200b"``), as a ``trim``
     step after the ``unquote`` step, and where it starts; and *shown* as
     :func:`_refusal` is to judge it, without them. The closing mark stands
     beyond such a character, as the end of the value does beyond one outside
@@ -258,10 +264,21 @@ def _trimmed_inside(
         and marks_at_end(inner) is not None
     ):  # an end mark after the quotes and one inside: two marks, refused
         return text, start, shown
-    found.steps.append(step("trim", True, text, inner, "invisible characters"))
-    found.floor = "separator"  # characters were dropped: a rule of the resolver
+    _trim_hidden(found, text, inner, left_off(text, inner, offset))
     judged = shown[:start] + inner + shown[start + len(text) :]
     return inner, start + offset, judged
+
+
+def _trim_hidden(found: Found, before: str, after: str, removed: str) -> None:
+    """Record in *found* the ``trim`` step from *before* to *after*, which
+    left off the hidden characters *removed*. Zero-width ones are white space
+    (``hiddenchars.ZERO_WIDTH``); any other is a cut, a rule of the resolver
+    (``separator``) and not exact (``resolvefirst``)."""
+    if only_zero_width(removed):
+        found.steps.append(step("trim", True, before, after, "zero-width characters"))
+        return
+    found.steps.append(step("trim", True, before, after, "invisible characters"))
+    found.floor = "separator"
 
 
 def _read_text(

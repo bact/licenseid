@@ -8,7 +8,7 @@
 
 No database access and no network: whatever the source of the data (an
 upstream tarball, a bundle), the same input gives the same rows. The text of
-every licence is normalised once, here, into the fingerprint that is indexed.
+every licence is normalised once, here, into the search text that is indexed.
 """
 
 from typing import NamedTuple
@@ -195,7 +195,6 @@ def _prepare_license_record(
     pop_count = popularity_map.get(license_id, 0)
     pop_score = max(baseline, pop_count)
 
-    # High usage: OSI, FSF, or significant popularity
     is_high_usage = is_osi or is_fsf or pop_score > 500
 
     name = lic.get("name", "")

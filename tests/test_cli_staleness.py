@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for cli.check_db_staleness()."""
+"""Tests for cliinput.check_db_staleness()."""
 # pylint: disable=redefined-outer-name
 
 import re

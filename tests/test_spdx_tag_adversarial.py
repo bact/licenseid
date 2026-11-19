@@ -380,13 +380,35 @@ def test_or_later_prose_is_read_before_the_expression(
 
 
 @pytest.mark.parametrize(
+    ("tag", "expression"),
+    [
+        (
+            "MIT AND GPL-2.0 or later AND Apache-2.0",
+            "Apache-2.0 AND GPL-2.0-or-later AND MIT",
+        ),
+        ("GPL-2.0 or later OR MIT", "GPL-2.0-or-later OR MIT"),
+        (
+            "MPL-1.1 OR GPL-2.0 or later OR LGPL-2.1 or later",
+            "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
+        ),
+        ("(GPL-2.0 or later) AND MIT", "GPL-2.0-or-later AND MIT"),
+    ],
+)
+def test_a_grant_inside_an_expression_is_read_as_resolve_reads_it(
+    db: str, tag: str, expression: str
+) -> None:
+    """A grant ended the expression, so operands after it were dropped
+    (``MIT AND GPL-2.0-or-later`` for a value that also names Apache-2.0),
+    then refused; the tag now reads the operator chain as ``resolve()`` does
+    (``grantchain.operator_chain``)."""
+    assert certain(db, source_with(tag)) == expression
+
+
+@pytest.mark.parametrize(
     "tag",
     [
-        "MIT AND GPL-2.0 or later AND Apache-2.0",
-        "GPL-2.0 or later OR MIT",
-        "MPL-1.1 OR GPL-2.0 or later OR LGPL-2.1 or later",
+        # A grant in the brackets of a chain: the tag reader does not follow it.
         "(GPL-2.0 or later AND MIT)",
-        "(GPL-2.0 or later) AND MIT",
         # A grant after an explicit -only or -or-later ID states the qualifier
         # twice, as resolve() says (maintainer, 2026-11-02; was GPL-2.0-only).
         "GPL-2.0-only or (at your option) any later version",
@@ -394,10 +416,9 @@ def test_or_later_prose_is_read_before_the_expression(
     ],
 )
 def test_a_grant_inside_an_expression_is_no_evidence(db: str, tag: str) -> None:
-    """A grant ends the expression, so operands after it would be dropped:
-    answering "MIT AND GPL-2.0-or-later" for a value that also names
-    Apache-2.0 understates the obligations. The value is refused instead, as
-    is a grant that states a qualifier the ID states already."""
+    """A grant in the brackets of a chain is refused (answering the licence
+    before it would drop the rest), as is a grant that states a qualifier the
+    ID states already."""
     assert certain(db, source_with(tag)) is None
 
 

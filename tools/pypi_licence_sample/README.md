@@ -18,7 +18,7 @@ names, aliases) is a question of how often each occurs and how many downloads
 it carries. This tool answers it with data, so a rule is chosen by its share
 and not by memory. The findings are in
 `working-docs/design/resolver-0-7-evidence.md`; the plan they feed is
-`working-docs/design/expression-resolution.md`.
+`working-docs/design/resolver-0-7-plan.md`.
 
 ## When to run it
 

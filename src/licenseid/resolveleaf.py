@@ -13,13 +13,12 @@ steps taken, the expansions it declined to apply and the candidates.
 compound reader calls it once for each operand. It refuses a licence or an
 exception longer than ``MAX_KEY_INPUT`` (no ID is longer), but not a control
 character or an over-long value: the caller refuses those first, as
-``resolve`` does. It reads the list through
-:class:`licenseid.listlookup.ListLookup` alone and knows nothing of the
-database, of brackets around the whole value, or of an expression of several
-licences. The gate covers each half of a WITH, so a long
+``resolve`` does. The length gate covers each half of a WITH, so a long
 licence name with an exception (``Creative Commons Attribution Non
 Commercial No Derivatives 2.5 Generic WITH RRDtool-FLOSS-exception-2.0``) is
-read.
+read. It reads the list through :class:`licenseid.listlookup.ListLookup`
+alone and knows nothing of the database, of brackets around the whole value,
+or of an expression of several licences.
 """
 
 import re
@@ -37,7 +36,7 @@ from licenseid.dropguard import (
 from licenseid.errors import reason_detail
 from licenseid.exprtokens import canonical_ref, is_addition_ref, is_license_ref
 from licenseid.identifiers import without_outer_brackets
-from licenseid.listlookup import ListLookup
+from licenseid.listlookup import ListLookup, ids_named
 from licenseid.looseid import (
     WITH_OPERATOR,
     before_grant,
@@ -549,7 +548,7 @@ def _base(
         license_id = details["license_id"]
         same = license_id == text
         return license_id, [] if same else [step("id_case", True, text, license_id)]
-    names = db.get_active_ids_by_name().get(text.casefold(), [])
+    names = ids_named(db, text)
     if len(names) == 1:
         return names[0], [step("listed_name", True, text, names[0])]
     _refuse_wrapped_name(db, text)

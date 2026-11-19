@@ -237,7 +237,7 @@ def test_tag(db: str, tag: str, tmp_path: Path, given: GivenWarnings) -> None:
 
 
 def test_a_plus_after_a_qualifier_then_a_grant_names_nothing(db: str) -> None:
-    """The "+" is read before the grant (``identifiers._qualified``): the
+    """The "+" is read before the grant (``identifiers.is_qualified_plus``): the
     value is one qualified "+", refused whole, never a candidate."""
     value = "GPL-2.0-only+ or later"
     assert leading_expression(value) == value

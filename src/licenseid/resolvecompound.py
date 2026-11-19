@@ -14,31 +14,30 @@ alone (quotes around it come off first, :mod:`licenseid.quotes`), and
 accepts all or nothing.
 
 - An operand is one word, with ``WITH`` and its exception, a ``+`` or an "or
-  later" grant. A value with a leaf of several words is no
-  compound at all, whatever its operators: ``Apache License 2.0 OR MIT``
-  and ``W3C Software and Document Notice License`` are left to the rules
-  that read prose, with no reason that would split them.
+  later" grant. A value with a leaf of several words is no compound at all,
+  whatever its operators: ``Apache License 2.0 OR MIT`` and ``W3C Software
+  and Document Notice License`` are left to the rules that read prose, with
+  no reason that would split them.
 - One operand that names nothing makes the value name nothing; its reason
   (a dropped mark: ``character dropped: U+003F``) is the value's, else
   ``operand not resolved: <operand>``, the operand on one line and cut to 60
-  characters (``errors.reason_detail``). A leaf of several words that reads alone
-  (``BSD 3-Clause``) is refused for its shape: ``operand of several words:
-  <leaf>``. The operands still come back. With
-  an operator in lower case, a value refused for an operand that names
-  nothing and says nothing (no dropped mark, no misplaced qualifier) is no
-  compound: ``GPL-3.0 or higher`` and ``proprietary and
-  confidential`` are prose, and no reason splits them.
+  characters (``errors.reason_detail``). A leaf of several words that reads
+  alone (``BSD 3-Clause``) is refused for its shape: ``operand of several
+  words: <leaf>``. The operands still come back. With an operator in lower
+  case, a value refused for an operand that names nothing and says nothing
+  (no dropped mark, no misplaced qualifier) is no compound: ``GPL-3.0 or
+  higher`` and ``proprietary and confidential`` are prose, and no reason
+  splits them.
 - The category is the weakest operand's (``resolvertypes.CATEGORY_ORDER``),
   or ``lexical`` when only the form changed: the steps say which.
 - A value the grammar refuses is ``malformed`` when its operators are in
   upper case and one leaf names a licence (``(MIT``, ``MIT AND``), else
-  ``unresolved``; with an operator in lower case it is no compound. One with two
-  operands and no operator between them (``MIT License (MIT)``,
-  ``BSD (3-clause)``) is no compound at all: the later rules read it.
-  A mark beside a bracketed group that reads as such two operands is the
-  group's refusal: a "+" after it (``(MIT)+ OR ISC``, ``plus after a
-  bracket``), quote marks around it (``"(MIT)" OR Zlib``, ``character
-  dropped``).
+  ``unresolved``; with an operator in lower case it is no compound. One with
+  two operands and no operator between them (``MIT License (MIT)``, ``BSD
+  (3-clause)``) is no compound at all: the later rules read it. A mark
+  beside a bracketed group that reads as such two operands is the group's
+  refusal: a "+" after it (``(MIT)+ OR ISC``, ``plus after a bracket``),
+  quote marks around it (``"(MIT)" OR Zlib``, ``character dropped``).
 """
 
 import re

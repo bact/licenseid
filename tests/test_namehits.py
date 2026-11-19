@@ -202,6 +202,104 @@ def test_ties_of_whole_names(db: LicenseDatabase, text: str, stands: list[str]) 
 @pytest.mark.parametrize(
     ("text", "stands"),
     [
+        # A one-word name ("Ntp License" as "Ntp") joined to the winner's
+        # name: two licences, though its words are scattered.
+        ("Glue Name License or Ntp", []),
+        ("Glue Name License and Ntp", []),
+        ("Glue Name License, Ntp", []),
+        ("Glue Name Licence or Ntp", []),
+        ("Ntp or Glue Name, under this License", []),
+        ("Glue Name License or Ntp and others", []),
+        # Not joined to the name: no name of its own.
+        ("Glue Name License, mirrored by Ntp servers", ["Glue-1.0"]),
+        ("Glue Name License (Ntp module)", ["Glue-1.0"]),
+        ("Glue Name License or Ntp servers", ["Glue-1.0"]),
+        # "see" and "file" stand between the name and the word: not listed.
+        ("Glue Name License, see Ntp", ["Glue-1.0"]),
+        ("Glue Name License (see Ntp)", ["Glue-1.0"]),
+        ("Glue Name License; see file Ntp", ["Glue-1.0"]),
+        ("Glue Name License, file Ntp", ["Glue-1.0"]),
+        ("Glue Name License (see file Ntp)", ["Glue-1.0"]),
+        # Where a joiner joins the one-word name to the winner, "see" and
+        # "file" stand beside it: still two licences.
+        ("Glue Name License and see Ntp", []),
+        ("Glue Name License or see Ntp", []),
+        ("Glue Name License, or see Ntp", []),
+        ("Glue Name License or file Ntp", []),
+        ("Glue Name License or Ntp (see file)", []),
+        ("Glue Name License and Ntp (see file)", []),
+        ("Glue Name License or Ntp see file", []),
+        ("Glue Name License or Ntp (file)", []),
+        ("Glue Name License (see file) or Ntp", []),
+        ("Glue Name License see file or Ntp", []),
+        ("see Ntp or Glue Name License", []),
+        ("Ntp see file or Glue Name License", []),
+        ("Ntp or see Glue Name License", []),
+        # ... but a reference with no joiner, or a word after the name, stays.
+        ("Glue Name License see Ntp", ["Glue-1.0"]),
+        ("Glue Name License or see Ntp servers", ["Glue-1.0"]),
+        ("Glue Name License (see file) Ntp", ["Glue-1.0"]),
+        # A name nested in the winner's, but also written apart from it.
+        ("Used under Pad Name or Pad Name Plus Edition", []),
+        ("Used under Pad Name Plus Edition or Pad Name", []),
+        ("Used under Pad Name Plus Edition terms", ["Pad-Plus-1.0"]),
+    ],
+)
+def test_a_tied_name_written_apart(
+    db: LicenseDatabase, text: str, stands: list[str]
+) -> None:
+    assert hits(db, text) == stands
+
+
+#: Both GNU families of one made-up version, each with its grants.
+GNU_ROWS = [
+    Lic("GPL-9.0-only", "Zed General Public License v9.0 only"),
+    Lic("GPL-9.0-or-later", "Zed General Public License v9.0 or later"),
+    Lic("LGPL-9.0-only", "Zed Lesser General Public License v9.0 only"),
+    Lic("LGPL-9.0-or-later", "Zed Lesser General Public License v9.0 or later"),
+]
+
+
+@pytest.fixture(scope="module")
+def gnu_db() -> Generator[LicenseDatabase, None, None]:
+    for path in seeded_db("test_namehits_gnu", GNU_ROWS):
+        yield LicenseDatabase(path)
+
+
+@pytest.mark.parametrize(
+    ("text", "stands"),
+    [
+        # The grant of one family is no part of the other's name: two
+        # licences, whichever comes first.
+        (
+            (
+                "Zed Lesser General Public License v9.0 or later, Zed General "
+                "Public License v9.0"
+            ),
+            [],
+        ),
+        (
+            (
+                "Zed General Public License v9.0 or later, Zed Lesser General "
+                "Public License v9.0"
+            ),
+            [],
+        ),
+        (
+            "Used under the Zed Lesser General Public License v9.0 or later",
+            ["LGPL-9.0-or-later"],
+        ),
+    ],
+)
+def test_two_gnu_families_named(
+    gnu_db: LicenseDatabase, text: str, stands: list[str]
+) -> None:
+    assert hits(gnu_db, text) == stands
+
+
+@pytest.mark.parametrize(
+    ("text", "stands"),
+    [
         ("Cut Name 1", []),  # 1.1 cut short
         ("Cut Name 1.1", ["Cut-1.1"]),  # whole
         ("Cut Name 2", ["Cut-2.0"]),  # "2" is "2.0"

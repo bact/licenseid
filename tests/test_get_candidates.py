@@ -6,13 +6,12 @@
 """Direct unit tests for LicenseDetector._get_candidates() (the
 retrieval in licenseid.retrieval).
 
-Characterization tests written before the detector.py complexity refactor
-(see working-docs/design/complexity-and-file-size-roadmap.md, "Done:
-`detector.py::detect()` and `_get_candidates()`") to
-pin down behaviour that was previously only reachable incidentally
-through detect()'s public surface: the head/tail retrieval-window word
-thresholds, the tail-only candidate cap, hinted candidates, and the
-only_spdx/only_common/exclude filters.
+Characterization tests written before the complexity refactor (see
+working-docs/implementation/complexity-refactors.md, "Done:
+`matcher.py::match()` and `_get_candidates()`") to pin down behaviour that was
+previously only reachable incidentally through detect()'s public surface: the
+head/tail retrieval-window word thresholds, the tail-only candidate cap, hinted
+candidates, and the only_spdx/only_common/exclude filters.
 """
 # pylint: disable=redefined-outer-name,duplicate-code,missing-function-docstring
 # pylint: disable=protected-access

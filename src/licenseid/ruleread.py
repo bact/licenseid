@@ -6,9 +6,11 @@
 """Whether ``resolve()`` read a value by a rewrite rule, for the ``EXACT`` of a
 tag or a field (roadmap item 52)."""
 
+from licenseid.hiddenchars import cuts_hidden
 from licenseid.listlookup import ListLookup
 from licenseid.resolvefirst import is_exact
 from licenseid.resolver import resolve_with
+from licenseid.types import CandidateMatch
 
 
 def rule_read(db: ListLookup, value: str) -> bool:
@@ -18,7 +20,9 @@ def rule_read(db: ListLookup, value: str) -> bool:
     return resolution["expression"] is not None and not is_exact(resolution)
 
 
-def tag_inexact(db: ListLookup, granted: str, expression: str) -> bool:
+def tag_inexact(
+    db: ListLookup, granted: str, expression: str, *, resolved: bool = False
+) -> bool:
     """Whether a tag is not exact. A tag is judged by the expression it
     answers, *granted* (the leading expression with the grant after it
     applied: ``LGPLv2+`` for ``LGPLv2 or later``), not by the words after it
@@ -27,5 +31,17 @@ def tag_inexact(db: ListLookup, granted: str, expression: str) -> bool:
     rule read the expression (``GPL2+``, ``GPLv2 or later``). The grant is
     judged with its ID: a cut version is read only as granted
     (``resolve()``: ``version_spelling``), so a value written ``LGPLv2 or
-    later`` is no ``LGPL-2.0-or-later`` as written."""
-    return expression != granted or rule_read(db, granted)
+    later`` is no ``LGPL-2.0-or-later`` as written. With *resolved*, the value
+    is an expression ``resolve()`` gave, which no rule reads
+    (``tests/test_resolve_first_once.py``): it is not read again."""
+    return expression != granted or (not resolved and rule_read(db, granted))
+
+
+def hidden_cut(value: str, found: list[CandidateMatch]) -> list[CandidateMatch]:
+    """*found*, the candidates of a tag or field *value*, none exact if the
+    reader left off a hidden character of *value* that is not zero-width, as
+    ``resolve()`` judges the argument (``invisible characters``)."""
+    if cuts_hidden(value):
+        for match in found:
+            match["decided"] = True
+    return found
