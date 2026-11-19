@@ -41,6 +41,7 @@ from licenseid.resolver import resolve_with
 from licenseid.resolvereason import is_plus_refusal, no_text_answer, refuses_text_match
 from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import Resolution
+from licenseid.resolveurl import urls_as_ids
 from licenseid.result import public_result
 from licenseid.retrieval import add_free_text, add_unseen, drop_excluded, get_candidates
 from licenseid.shorttext import (
@@ -465,12 +466,12 @@ class LicenseDetector:
         """The results of *resolution*'s expression, made what the resolution
         says (resolvefirst)."""
         expression = resolution["expression"] or ""
-        text = resolution["input"]
+        text = urls_as_ids(self.db, resolution["input"])  # as a tag's value is
         found = read_from(self._resolve_declared(expression, resolved=True), text)
         if not found:  # no marker reader takes it: "MIT WITH AdditionRef-x"
             decided = decide_ids(self.db, expression)
             found = [match_of(decided, self.markers.license_flags(decided))]
-            read_from(found, resolution["input"])
+            read_from(found, text)
             if decided != expression:  # a guess, said and not exact
                 found[0]["exact"] = False
                 mark_guessed(found[0], expression)

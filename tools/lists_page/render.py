@@ -320,8 +320,9 @@ alone (`assumed_only`, `deprecated_ambiguous`). It is compared by its key
 fragment, a trailing `/` and one page suffix such as `.html` are dropped. A
 key can so name a page that does not exist (`licenses.nuget.org/mit`). The
 reader tries four things in this order; a refusal claims the value, so no
-later reader guesses at it. `EXACT` is `detect()`'s: a variant the value as
-written does not state is not exact, and `%2B` is no "+" as written.
+later reader guesses at it. `EXACT` is `detect()`'s: a variant the value does
+not state is not exact (`https://licenses.nuget.org/GPL-2.0%2B` states
+`GPL-2.0+`, as the URL with a literal "+" does).
 """
 
 ID_PAGE_TEXT: Final = """\

@@ -40,7 +40,7 @@ from licenseid.identifiers import (
 from licenseid.looseid import drops_words, mark_guessed, read_inexactly
 from licenseid.manifest import extension, license_value_groups
 from licenseid.resolveslash import slash_expression
-from licenseid.resolveurl import url_license_id
+from licenseid.resolveurl import urls_as_ids
 from licenseid.ruleread import hidden_cut, tag_inexact
 from licenseid.textinput import has_lone_surrogate
 from licenseid.types import CandidateMatch, LicenseDetails, LicenseFlags
@@ -231,8 +231,7 @@ class MarkerDetector:
         if whole:  # "MIT/Apache-2.0" is "MIT OR Apache-2.0" (resolveslash)
             val = slash_expression(val.strip(), self.db) or val
         # Each word that is a licence URL becomes the ID it names.
-        words = [url_license_id(self.db, word) or word for word in val.split()]
-        val = " ".join(words) if words != val.split() else val.strip()
+        val = urls_as_ids(self.db, val)
         # A value runs to the end of its line and can trail off into prose, so
         # only the expression it starts with is normalised: normalising the
         # whole line would let disambiguate_deprecated_id read an ID out of
