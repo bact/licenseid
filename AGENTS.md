@@ -71,7 +71,8 @@ in another module.
   bare deprecated ID stands for both twins, kept under `as-written`),
   `variants` and `variantstated` (the `variant` option: what a bare ID and a
   text answer, `variant_stated`, a trailing "only"),
-  `similarity`, `fingerprint` (maths) and `fingerprintstore` (its table),
+  `similarity` (Tier 2 scores of the candidates, the fingerprint bonus),
+  `fingerprint` (maths) and `fingerprintstore` (its table),
   `ranking` (sort order, `-only`/`-or-later` tie-breaker), `markers` and
   `candidates` (its helpers), `classify` (prose "or later"), `grantsubject`
   (whose grant), `identifiers`, `normalize`, `result` (public result, JSON

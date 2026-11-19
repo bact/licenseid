@@ -232,3 +232,77 @@ def calculate_final_score(
             score = max(score + marker_conf * 0.05, marker_conf * 0.95)
 
     return score
+
+
+# Maximum additive boost applied to a candidate whose highest-IDF fingerprint
+# n-gram has idf_norm == 1.0 (unique to that single license in the corpus).
+# Calibrated to be in the same range as the marker boost (~0.05) so that
+# fingerprint matches can break ties between near-equal similarity scores
+# without overriding genuine similarity differences.
+FP_BOOST: float = 0.05
+
+
+def score_candidates(
+    candidates: list[CandidateMatch],
+    norm_input: str,
+    boosts: dict[str, float],
+    is_pure: bool,
+    enable_popularity: bool,
+) -> list[InternalMatch]:
+    """Tier 2: each of *candidates* scored against *norm_input* (with the
+    marker *boosts*), unsorted."""
+    query_words = norm_input.split()
+    q_len = len(query_words)
+    q_tokens = set(query_words)
+    ranked: list[InternalMatch] = []
+
+    # Once per query: the probe sample (see PROBE_WORDS), and how far a short
+    # query's similarity counts in the score (text_evidence).
+    probe, evidence = build_probe(query_words), text_evidence(norm_input)
+
+    for cand in candidates:
+        sim, coverage, best_window = calculate_base_similarity(
+            norm_input, q_len, q_tokens, cand, probe
+        )
+        ranked.append(
+            InternalMatch(
+                license_id=cand["license_id"],
+                method="text",
+                # The whole input is the License List's text, both
+                # normalised. Stricter than SPDX matching, which lets a
+                # copyright line differ (roadmap item 31). An input that
+                # normalises to nothing equals no text: a hinted
+                # candidate has none.
+                exact=bool(norm_input) and norm_input == cand.get("search_text"),
+                base_score=sim * evidence,
+                similarity=sim,
+                coverage=coverage,
+                pop_score=cand.get("pop_score", 0),
+                is_deprecated=cand.get("is_deprecated", False),
+                superseded_by=cand.get("superseded_by", ""),
+                best_window=best_window,
+                score=0.0,
+                is_spdx=bool(cand.get("is_spdx", False)),
+                # None (not judged) kept: a synthetic marker candidate.
+                is_osi_approved=cand.get("is_osi_approved", False),
+                is_fsf_libre=cand.get("is_fsf_libre", False),
+            )
+        )
+
+    for r in ranked:
+        r["score"] = calculate_final_score(r, boosts, is_pure, enable_popularity, q_len)
+    return ranked
+
+
+def boost_by_fingerprint(
+    ranked: list[InternalMatch], fp_hits: dict[str, float]
+) -> None:
+    """Add to each of *ranked* that shares at least one discriminative n-gram
+    with the query (*fp_hits*: licence ID to idf_norm) a bonus proportional to
+    the n-gram's uniqueness in the corpus, at most FP_BOOST. This breaks ties
+    between high-similarity variants (MIT vs MIT-0, GPL-2.0 vs GPL-3.0)
+    without distorting the overall similarity ranking."""
+    for r in ranked:
+        idf_norm = fp_hits.get(r["license_id"], 0.0)
+        if idf_norm > 0.0:
+            r["score"] += FP_BOOST * idf_norm
