@@ -15,7 +15,7 @@ and this project adheres to
 
 - `detect https://licenses.nuget.org/GPL-2.0%2B` (an encoded "+") is `exact`
   and has `VARIANT_STATED` true, as the URL with a literal "+" has; it was
-  false for both
+  false for both ([#231])
 
 ## [0.9.0] - 2026-11-19
 
@@ -140,6 +140,7 @@ and this project adheres to
 [#227]: https://github.com/bact/licenseid/pull/227
 [#228]: https://github.com/bact/licenseid/pull/228
 [#229]: https://github.com/bact/licenseid/pull/229
+[#231]: https://github.com/bact/licenseid/pull/231
 
 ## [0.8.4] - 2026-11-09
 
