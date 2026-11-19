@@ -106,7 +106,7 @@ class LicenseDetector:
 
     def __init__(
         self,
-        db_path: str | None = None,
+        db_path: PathInput | None = None,
         *,
         enable_popularity: bool = False,
     ):
@@ -114,7 +114,7 @@ class LicenseDetector:
             require_path(db_path, "db_path")
         else:
             db_path = get_default_db_path()
-        reject_blank_path(str(db_path), "db_path")
+        reject_blank_path(db_path, "db_path")
         # Before LicenseDatabase, which opens the file (create=False below: it
         # must be there, and a lookup never makes one).
         check_database_ready(db_path)

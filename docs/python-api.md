@@ -159,9 +159,9 @@ input, as any candidate does, for the first 50 entries of `hint` (a set in
 sorted order; a bare deprecated ID counts as its two twins; an ID given
 twice, with no row, or dropped by `exclude`, `only_spdx` or `only_common`
 uses no place). Each costs a pass of the
-second tier: on the full List the MIT text takes 0.8 s with no hint, 1.6 to
-2.0 s with 50 and 3.4 to 3.8 s with 200, and would take about 10 s if all 740
-IDs had their text. That is why an entry beyond the fiftieth is added with no
+second tier: on the full List the MIT text takes about twice as long with 50
+hints as with none (1 s and 0.4 s on one laptop), and each further text
+adds to it. That is why an entry beyond the fiftieth is added with no
 text and scores 0, last. A deprecated row that has no text does too: a bare
 `GPL-2.0` (kept as written under `variant="as-written"`), or a `-with-` ID
 such as `GPL-2.0-with-classpath-exception`. Under the other variants a bare
@@ -213,26 +213,12 @@ reading it: `resolve(value, handle)` on a missing file raises `not found`.
 `detect()` and `resolve()` both say `exact`, and the two can differ:
 `detect()`'s `exact` is per result, true when that answer was found exactly
 (declared, a name in full, or the whole text); `resolve()`'s `exact` is a
-category, the value written as the ID itself, with no step at all. `detect
-GPL-2.0` is `GPL-2.0` as written, exact (`--variant only` reads it as
-`GPL-2.0-only`, a guess, not exact); `resolve("GPL-2.0")` is `GPL-2.0`,
-`assumed_only`. `detect()` reads a whole input with `resolve()` first and
-answers its expression (exact as the `EXACT` column of [the category
-table](resolve.md#steps-and-categories) says); `license_id` reads its one ID as
-`resolve()` does too (`CC0` is `CC0-1.0`). A tag still has its own reader for
-now, which reads no title and no BSD alias (`SPDX-License-Identifier: CC0` and
-`SPDX-License-Identifier: BSD-3` have no answer); a manifest field it does not
-take (a quoted INI value, a title, a name) is read by `resolve()`. Both read a
-licence URL with the reader of `resolve()` (`SPDX-License-Identifier:
-https://spdx.org/licenses/MIT` is `MIT`). An input under 10 words that
-`resolve()` refuses is not matched as text. A name or an ID can still match it,
-except after a dropped mark, an unpaired bracket or a "+" that is no operator
-(`MIT++`, `GPL-2.0 (+)`, not `C++`), which `normalize_text` would drop. With no
-match it has no result, with the warning `input: too few words for text:
-<reason>` (none for an input with no word). Chinese and Japanese, written
-without spaces, are matched at any length. A compound (`MIT OR Apache-2.0`) has
-empty top-level `candidates`; IDs joined by `/` (`MIT/Apache-2.0`) are read as
-`OR`, as `resolve()` does; each operand's are in `operands[*].candidates`.
+category, the value written as the ID itself, with no step at all
+([the `EXACT` column](resolve.md#steps-and-categories) links the two).
+`license_id` reads its one ID as `resolve()` does (`CC0` is `CC0-1.0`).
+[How `detect()` uses `resolve()`](resolve.md#how-detect-uses-resolve) says
+what `detect()` answers for a whole input, for a short value `resolve()`
+refuses, and for a tag or a manifest field.
 
 [resolve-doc-list]: resolve.md#which-list-and-its-warnings
 

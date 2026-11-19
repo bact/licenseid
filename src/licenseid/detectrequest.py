@@ -108,7 +108,7 @@ def check_request(
     first (no input hides a typo), then the inputs. ``licenseid.detect()``
     makes them before it opens the default database, so a wrong call is told
     so whether a database is there or not. Returns *file_path* as a str (an
-    os.PathLike is read once here), or None."""
+    os.PathLike is converted here), or None."""
     _reject_unknown_options(options)
     _check_option_values(options)
     _check_inputs(text, license_id, file_path)

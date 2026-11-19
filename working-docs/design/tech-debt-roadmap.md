@@ -674,6 +674,36 @@ runs in no workflow. The plan, in build order (an Opus proposal of
   stream use: not needed) and keep it free of timing and network.
 - Impact 2, Risk 3, Effort 3.
 
+## 58. Honest `EXACT` and warnings: the 0.9.1 scope — Priority 16
+
+Decided 2026-11-19 (maintainer): found by the 0.9.0 doc and API review, each
+one a result that claims more than the code knows. Target release 0.9.1.
+
+- **`EXACT` after a cut mark.** `MIT or later.`, `MIT or later;` and
+  `MIT or later:` give no `separator` step and `detect()` says `exact: true`;
+  `MIT;` and `Apache 2.0 or later.` get the step and are inexact. The mark
+  after an "or later" grant is taken off with no step. Add the step (or the
+  `resolvefirst._cuts_value` cut) there, so a value with a dropped mark is
+  inexact in every channel; `docs/resolve.md` names the gap until then.
+- **No warning for a bare `MIT++`, `MIT +`, `GPL-2.0-only+`, `(MIT)+`.**
+  `detect()` returns `[]` with no `too few words for text` warning (the
+  early return of `detector._try_tier0_short_text` for a "+" refusal); the
+  quoted forms (`"MIT++"`, `Apache 2.0 +`) and `MIT License++` warn. Docs
+  said they warn (fixed in #229). Decide: warn, or say why not.
+- **The encoded "+" in a NuGet URL.** `resolvefirst.is_exact()` says yes for
+  `https://licenses.nuget.org/GPL-2.0%2B`, `detect()` says no (the page shows
+  `detect()`'s answer). One reader of `EXACT` for a URL, not two.
+- **Found with them:** `detect "GNU General Public License version 2.0,
+  requires Python 3.8 or later"` answers `Python-2.0` at 1.0 (a name hit of
+  scattered words, as in v0.8.4); decide with the name-tier rules of item 47.
+- Each gets the tests of its channel (`tests/test_option_matrix.py` axes
+  where an option is involved), a line in `tests/harness_changes.py` for any
+  golden answer that moves, and a line in `docs/resolve.md`.
+- Other leftovers of the review are in the maintainer's `later.md` of the
+  0.9.0 release folder (CLI argument and `ELOOP`, `LicenseDatabase` path
+  types, `SISSL`, three ScanCode keys that could be read).
+- Impact 3, Risk 3, Effort 2.
+
 ## Already resolved
 
 Kept out of this file to stay under the size limit: resolved before 0.5.0 in

@@ -50,6 +50,32 @@ CACHE_NAMES = (
 # --------------------------------------------------------------------------
 
 
+class _TextPath:
+    """A path-like that is not a ``pathlib.Path``: only ``__fspath__``."""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    def __fspath__(self) -> str:
+        return self.text
+
+
+def test_clear_cache_takes_a_path_like(tmp_path: Path) -> None:
+    """Was: ``str(path_like)``, its repr, named no file, so nothing was
+    deleted and the call said False without a word."""
+    db = make_ready_file_db(tmp_path / "licenses.db")
+    assert LicenseDatabase.clear_cache(_TextPath(str(db)))
+    assert not db.exists()
+
+
+def test_clear_cache_refuses_a_path_of_bytes(tmp_path: Path) -> None:
+    """Was: ``str(b"...")`` named no file, so False and nothing deleted."""
+    db = make_ready_file_db(tmp_path / "licenses.db")
+    with pytest.raises(TypeError, match="^db_path must be str or os.PathLike"):
+        LicenseDatabase.clear_cache(os.fsencode(db))  # type: ignore[arg-type]
+    assert db.exists()
+
+
 def test_clear_cache_on_a_directory_gives_no_traceback(tmp_path: Path) -> None:
     """--db names a directory: unlink() on it fails, and the user must get a
     grammar line, not an IsADirectoryError traceback."""

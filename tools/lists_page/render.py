@@ -14,12 +14,14 @@ from collections import Counter
 from collections.abc import Iterable, Sequence
 from typing import Any, Final
 
+from trove_classifiers import deprecated_classifiers
+
 from licenseid import LicenseDatabase
 from licenseid.resolvefirst import EXACT_CATEGORIES
 from licenseid.resolvertypes import Category
 from licenseid.trovenames import TROVE_NAMES, TroveEntry
 from tools.lists_page import evidence
-from tools.lists_page.measure import Answer, answer_of, list_owners
+from tools.lists_page.measure import Answer, answer_of, list_owners, sample_size
 from tools.lists_page.rules import RULES
 
 INTRO: Final = """\
@@ -46,21 +48,28 @@ object.
 
 Each list gives one `category` (see [the table of
 categories](resolve.md#steps-and-categories)) and so one `EXACT` value.
-`EXACT` is yes when an authoritative list defines the reading, which is the
-SPDX License List and the lists below, and no when a rewrite rule made it
-(`separator`, `prose_form`, `version_spelling`). A compound is exact when
-every operand is.
+`EXACT` is yes when an authoritative list defines the reading: the SPDX
+License List or a list below, also through a change of case alone (`zlib` is
+`Zlib`, `lexical`). These are the categories of
+`licenseid.resolvefirst.EXACT_CATEGORIES`: {exact}. Any other is no: a
+rewrite rule made the reading (`prose_form`, `version_spelling`, a
+`separator` that re-spells, as `BSD 3 Clause`). A compound is exact when
+every operand is, so IDs joined by a slash are (`MIT/Apache-2.0`, category
+`separator`). A value cut to be read (`"MIT`) is not.
 
 A row is added only with a measured count of the packages that declare it.
-The counts of the PyPI tables are projects of a sample of the 10,000 most
-downloaded PyPI projects of October 2026
-(`tests/fixtures/pypi_values_2026-10.tsv`), counted by the generator. The
-counts of the URL table are packages of a survey of 2026-11-07 (issue #14:
-the 1,000 Maven Central packages with most dependants and the 300 most
-downloaded NuGet, npm, PyPI and crates.io packages). A URL page with no count
+The counts of the PyPI tables are projects of a sample of October 2026
+(`tests/fixtures/pypi_values_2026-10.tsv`), counted by the generator: the
+{counted:,} of the {sampled:,} most downloaded PyPI projects that declare
+one short value. The rest declare none, only a licence text or several
+classifiers, so a count understates use. The counts of the URL table are
+packages of a survey of 2026-11-07 (issue #14: the 1,000 Maven Central
+packages with most dependants and the 300 most downloaded NuGet, npm, PyPI and
+crates.io packages). A URL page with no count
 is one the List gives to a licence and its variants, and that is its
 evidence. A dash is no count recorded.
 """
+
 
 RULES_INTRO: Final = """\
 ## Named rules
@@ -73,9 +82,10 @@ the function that is the rule. The answer, the category and `EXACT` are what
 
 A rule that hands a value to a list or to the SPDX List reads as that list
 does, so it is exact when the list is. A rule that rewrites a value is no
-list: `prose_form` and `version_spelling` are not exact. When a prose form
-reduces to a name of a table below, the category is the table's, as the
-weakest of the steps (`New BSD License` is `alias_name`).
+list: `prose_form` and `version_spelling` are not exact. Besides the SPDX
+List, P1 asks `ALIASES` only (`CC0 License` and `Mulan PSL v2 License` are
+not read), so a BSD name with `License` is exact where `The MIT License` and
+`BSD 3-Clause License` are not.
 """
 
 
@@ -110,11 +120,14 @@ def _code(text: object) -> str:
 
 
 def table(headers: Sequence[str], rows: Iterable[Sequence[object]]) -> str:
-    """A Markdown table, ending in a blank line."""
-    lines = ["| " + " | ".join(headers) + " |"]
-    lines.append("| " + " | ".join("---" for _ in headers) + " |")
-    lines += ["| " + " | ".join(str(c) for c in row) + " |" for row in rows]
+    """A Markdown table, ending in a blank line; an empty cell is one space."""
+    lines = [_row(headers), _row(["---" for _ in headers])]
+    lines += [_row(row) for row in rows]
     return "\n".join(lines) + "\n"
+
+
+def _row(cells: Iterable[object]) -> str:
+    return "|" + "|".join(f" {c} " if str(c) else " " for c in cells) + "|"
 
 
 def _exact(category: Category | str) -> str:
@@ -123,7 +136,7 @@ def _exact(category: Category | str) -> str:
 
 
 def _count(counts: Counter[str] | dict[str, int], key: str) -> str:
-    return str(counts[key]) if counts.get(key) else "—"
+    return f"{counts[key]:,}" if counts.get(key) else "—"
 
 
 def _id(function: Any) -> str:
@@ -145,8 +158,8 @@ def _glance() -> str:
     out = [
         (
             _code("licenseid." + path),
-            _code(category),
-            _exact(category) if category != "unresolved" else "—",
+            _code(category) + (", or the ID's" if path in _BY_ID else ""),
+            _glance_exact(path, category),
             len(_object("licenseid." + path)),
             what,
         )
@@ -155,6 +168,17 @@ def _glance() -> str:
     return "## The lists at a glance\n\n" + table(
         ["Object", "Category", "`EXACT`", "Rows", "Holds"], out
     )
+
+
+#: The lists whose category is that of the ID they read (a bare deprecated
+#: ID is ``assumed_only``), and whose ``EXACT`` the examples show.
+_BY_ID: Final = frozenset({"resolveurl.URL_ALIASES", "resolveurl.ID_PAGES"})
+
+
+def _glance_exact(path: str, category: str) -> str:
+    if category == "unresolved":
+        return "—"
+    return "see the examples" if path in _BY_ID else _exact(category)
 
 
 def _rules(db: Any) -> str:
@@ -220,7 +244,8 @@ def _trove(db: Any, counts: Counter[str]) -> str:
         path = _classifier(name, entry)
         answer = answer_of(db, path)
         if answer.expression is None:
-            none.append((_code(path),))
+            why = _noted(evidence.TROVE_REFUSALS[name], path)
+            none.append((_code(path), why, _count(counts, name)))
             continue
         read.append(_trove_row(path, name, answer, counts))
     text = (
@@ -231,16 +256,24 @@ def _trove(db: Any, counts: Counter[str]) -> str:
         "first, so its category is `listed_name`; a name that states a bare "
         "deprecated ID is `assumed_only`. Rule T1 reads the whole classifier "
         "and rule T2 the name alone. The table shows the classifier as "
-        "PyPI writes it and what `resolve()` gives for it.\n\n"
+        "PyPI writes it and what `resolve()` gives for it. Projects counts "
+        "the values that are the classifier or its name alone, whatever "
+        "reads them. A classifier PyPI has deprecated is marked so.\n\n"
     )
     out = text + table(
-        ["Classifier", "Answer", "Category", "`EXACT`", "Projects"], read
+        ["Classifier", "Answer", "Category", "`EXACT`", "Projects", "Note"], read
     )
     return (
-        out + "\nThese names state no one licence (a category, a family, a name "
-        "with no version, or no SPDX ID), and no rule guesses at them:\n\n"
-        + table(["Classifier"], none)
+        out + "\nThese names state no one licence, and no rule guesses at "
+        "them:\n\n" + table(["Classifier", "Why", "Projects"], none)
     )
+
+
+def _noted(note: str, path: str) -> str:
+    """*note*, with a word for a classifier PyPI has deprecated."""
+    if path not in deprecated_classifiers:
+        return note
+    return f"{note}; deprecated by PyPI" if note else "deprecated by PyPI"
 
 
 def _classifier(name: str, entry: TroveEntry) -> str:
@@ -256,6 +289,7 @@ def _trove_row(
         _code(answer.category),
         "yes" if answer.exact else "no",
         _count(counts, name),
+        _noted(evidence.TROVE_NOTES.get(name, ""), path),
     )
 
 
@@ -264,25 +298,90 @@ def _owners(db: LicenseDatabase, key: str) -> str:
     return ", ".join(_code(owner) for owner in owners) if owners else "none"
 
 
+#: URLs that show how each reader of a URL answers.
+URL_EXAMPLES: Final = (
+    "https://spdx.org/licenses/MIT.html",
+    "https://spdx.org/licenses/GPL-2.0.html",
+    "https://spdx.org/licenses/MIT+",
+    "https://spdx.org/licenses/preview/MIT",
+    "https://licenses.nuget.org/mit",
+    "https://licenses.nuget.org/MS-PL%20OR%20Apache-2.0",
+    "https://licenses.nuget.org/GPL-2.0%2B",
+    "https://openjdk.java.net/legal/gplv2+ce",
+)
+
+URL_TEXT: Final = """\
+## Licence URLs
+
+A URL is read as the licence it names through the step `license_url`. Its
+category is `license_url`, or that of a deprecated ID it reads, as for the ID
+alone (`assumed_only`, `deprecated_ambiguous`). It is compared by its key
+(`licenseid.urlkey.url_key`): ASCII case is folded, and the scheme, `www.`, a
+fragment, a trailing `/` and one page suffix such as `.html` are dropped. A
+key can so name a page that does not exist (`licenses.nuget.org/mit`). The
+reader tries four things in this order; a refusal claims the value, so no
+later reader guesses at it. `EXACT` is `detect()`'s: a variant the value as
+written does not state is not exact, and `%2B` is no "+" as written.
+"""
+
+ID_PAGE_TEXT: Final = """\
+### Pages whose path holds an ID
+
+`licenseid.resolveurl.ID_PAGES`. The rest of the key after one of these must
+be one segment (no `/` or `?`), read as an ID. On the List's own pages `<ID>+`
+is read too; on NuGet's the segment may be a whole expression, URL-encoded,
+with the detail `expression in path`. A page of an exception is refused, and a
+ScanCode key listed below is not read.
+"""
+
+SCANCODE_TEXT: Final = """\
+### ScanCode keys not read as the ID they spell
+
+`licenseid.resolveurl.SCANCODE_NOT_SPDX`. Each key folds to an SPDX ID, but
+ScanCode's own SPDX key for it differs: it names another licence, gives the
+same licence only a `LicenseRef-scancode-` key, or is deprecated with none.
+The page does not state the ID its key spells, so it is not read. No package
+of the survey declares a ScanCode URL, so the rule rests on the format.
+"""
+
+
+def _url_examples(db: LicenseDatabase) -> str:
+    rows = []
+    for url in URL_EXAMPLES:
+        answer = answer_of(db, url)
+        found = answer.expression is not None
+        rows.append(
+            (
+                _code(url),
+                _code(answer.expression) if found else "none",
+                _code(answer.category),
+                _code(answer.detail) if found else "—",
+                ("yes" if answer.exact else "no") if found else "—",
+            )
+        )
+    return table(["URL", "Answer", "Category", "Detail", "`EXACT`"], rows)
+
+
+def _scancode() -> str:
+    rows = []
+    for key in sorted(_object("licenseid.resolveurl.SCANCODE_NOT_SPDX")):
+        spdx_key, group = evidence.SCANCODE_KEYS[key]
+        rows.append((_code(key), _code(spdx_key) if spdx_key else "none", group))
+    return table(["Key", "ScanCode's SPDX key", "Group"], rows)
+
+
+def _alias_source(key: str, source: str) -> str:
+    note = evidence.URL_SOURCE_NOTES.get(key)
+    return f"<{source}>" + (f"; {note}" if note else "")
+
+
 def _urls(db: LicenseDatabase) -> str:
     pages = _object("licenseid.resolveurl.ID_PAGES")
     aliases = _object("licenseid.resolveurl.URL_ALIASES")
     parts = [
-        (
-            "## Licence URLs\n\n"
-            "A URL is read as the licence it names through the step "
-            "`license_url`, category `license_url`, `EXACT` yes. It is compared "
-            "by its key (`licenseid.urlkey.url_key`): the scheme, `www.`, a "
-            "fragment and a trailing `/` are dropped. The reader tries four "
-            "things in this order; a refusal claims the value, so no later "
-            "reader guesses at it.\n"
-        ),
-        (
-            "### Pages whose path holds an ID\n\n"
-            "`licenseid.resolveurl.ID_PAGES`. The last segment of a path that "
-            "starts with the key is read as an ID. A page of an exception is "
-            "refused, and a ScanCode key listed below is not read.\n"
-        ),
+        URL_TEXT,
+        _url_examples(db),
+        ID_PAGE_TEXT,
         table(
             ["Key starts with", "Detail of the step"],
             [(_code(k), _code(v)) for k, v in pages.items()],
@@ -300,21 +399,8 @@ def _urls(db: LicenseDatabase) -> str:
                 for k, v in sorted(_object("licenseid.resolveurl.DUAL_PAGES").items())
             ],
         ),
-        (
-            "### ScanCode keys that are the SPDX ID of another licence\n\n"
-            "`licenseid.resolveurl.SCANCODE_NOT_SPDX`. The ScanCode LicenseDB "
-            "page with one of these keys is not read as the SPDX ID of the same "
-            "spelling, as ScanCode means another licence by it. No package of "
-            "the survey declares a ScanCode URL, so the rule rests on the "
-            "format.\n"
-        ),
-        table(
-            ["Key"],
-            [
-                (_code(k),)
-                for k in sorted(_object("licenseid.resolveurl.SCANCODE_NOT_SPDX"))
-            ],
-        ),
+        SCANCODE_TEXT,
+        _scancode(),
         (
             "### Pages read as one licence\n\n"
             "`licenseid.resolveurl.URL_ALIASES`, detail `alias`. A page the List "
@@ -330,7 +416,7 @@ def _urls(db: LicenseDatabase) -> str:
                 (
                     _code(key),
                     _code(alias.license_id),
-                    f"<{alias.source}>",
+                    _alias_source(key, alias.source),
                     str(evidence.URL_PACKAGES.get(key, "—")),
                     _owners(db, key),
                 )
@@ -375,8 +461,10 @@ def _versioned() -> str:
 def render(db: Any, projects: dict[str, Counter[str]]) -> str:
     """The whole page, for the database *db* of the corpus and the counts of
     :func:`tools.lists_page.measure.project_counts`."""
+    sampled, counted = sample_size()
+    exact = ", ".join(f"`{c}`" for c in sorted(EXACT_CATEGORIES))
     sections = [
-        INTRO,
+        INTRO.format(exact=exact, sampled=sampled, counted=counted),
         _glance(),
         _rules(db),
         _sourced_table(

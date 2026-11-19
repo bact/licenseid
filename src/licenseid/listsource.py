@@ -194,7 +194,7 @@ def file_stamp(path: str) -> tuple[int, ...] | None | Exception:
         found = os.stat(path)
     except FileNotFoundError:
         return None
-    except OSError as exc:
+    except (OSError, ValueError) as exc:  # ValueError: an embedded NUL
         return exc
     return (
         found.st_mtime_ns,

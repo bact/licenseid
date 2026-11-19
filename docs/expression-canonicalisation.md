@@ -9,8 +9,9 @@ SPDX-License-Identifier: Apache-2.0
 
 How licenseid puts an SPDX licence expression in canonical form, rule by
 rule, in the order the rules apply. Written for a reviewer and as source
-material for a paper. It describes release 0.9.0; its links to a line point
-at commit `7276ee4` (release 0.7.2 plus PR #172).
+material for a paper. It describes release 0.9.0. A link to a line, and a
+`file.py:N` label, point at commit `7276ee4` (release 0.7.2 plus PR #172):
+the code and test each names are in 0.9.0 too, perhaps at another line.
 
 Every example was run against release 0.9.0 with `licenseid.resolve()` on
 2026-11-18. The steps named in each example are the `kind` of the steps in
@@ -27,10 +28,9 @@ The Annex defines no canonical form. It says that `AND` and `OR` are
 commutative ("should be considered equivalent"), that precedence is `+`,
 `WITH`, `AND`, `OR`, and that brackets override it. It says nothing about
 operand order, duplicates, spacing or bracket redundancy. The canonical form
-below is therefore licenseid's own convention (decisions D1, Q19, Q21 and
-Q24 of the 0.7.0 plan), chosen so that two spellings with the same meaning
-give one string. Two properties are tested over a corpus of generated
-values: the answer does not depend on the order written
+below is therefore licenseid's own convention, chosen so that two spellings
+with the same meaning give one string. Two properties are tested over a
+corpus of generated values: the answer does not depend on the order written
 ([`test_the_order_written_does_not_change_the_answer`][test-resolver-compounds-l144]),
 and canonical form is a fixed point, so resolving an answer gives the same
 answer ([`test_every_answer_is_a_fixed_point`][test-resolver-compounds-l121]).
@@ -122,7 +122,7 @@ depth between the leading and trailing runs says how many pairs go, so
 *Example:* `("MIT")` gives `MIT`, steps `brackets`, `unquote`.
 *Test:* [`test_exprcanon.py:75`][test-exprcanon-l75].
 *Spec:* **differs.** Annex D has parentheses only; the code also reads `[]`
-and `{}` (decision Q21).
+and `{}`.
 
 **A4. Refuse control and format characters.** What rule A0 left in the value
 refuses it, with no step (`unresolved`, `control or format character: U+200B`):
@@ -283,9 +283,8 @@ group. A leaf sorts by rank (a listed ID 0, a `LicenseRef-` or
 `DocumentRef-` 1, a `WITH` 2), then by its text case-folded, then as is. A
 group sorts by its rendered text, case-folded, then as is.
 *Reason:* the code calls the case-folded key "the SPDX License List's
-order, made total" (decision Q24, which adds the third key); the ranks and
-"leaves before groups" are decision Q19, whose reason the code does not
-record. *Source:*
+order, made total"; the ranks and "leaves before groups" are licenseid's
+own choice. *Source:*
 [`leaf_key`][exprcanon-l271],
 [`_text_key`][exprcanon-l369],
 [`_ordered`][exprcanon-l375].

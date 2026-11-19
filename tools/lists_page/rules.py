@@ -43,6 +43,8 @@ class Rule(NamedTuple):
 
 _PATH = "License :: OSI Approved :: "
 _REWRITE = "a rewrite rule is no list"
+_HEAD = "the head's; the inside need only give the same expression"
+_ALIASES = "the category of `ALIASES`"
 
 RULES: Final[tuple[Rule, ...]] = (
     Rule(
@@ -72,14 +74,21 @@ RULES: Final[tuple[Rule, ...]] = (
         "`head (inside)` where head and inside each read alone as one "
         "expression, the same",
         "MIT License (MIT)",
-        "exact when both parts are names of the List",
+        _HEAD,
+        _trailing,
+    ),
+    Rule(
+        "T3",
+        "the same, where only the inside needed a rewrite rule",
+        "Apache-2.0 (Apache2)",
+        _HEAD,
         _trailing,
     ),
     Rule(
         "T3",
         "the same, where the head needed a rewrite rule",
         "Apache2 (Apache-2.0)",
-        _REWRITE,
+        f"the head's: {_REWRITE}",
         _trailing,
     ),
     Rule(
@@ -106,9 +115,17 @@ RULES: Final[tuple[Rule, ...]] = (
     ),
     Rule(
         "P1",
-        "a prose form that reduces to a name of one of the tables of this page",
+        "a prose form whose reduction is a name of `ALIASES`, the one table "
+        "P1 asks besides the List",
         "New BSD License",
-        "the category of the table, the weakest of the steps",
+        _ALIASES,
         _read_reduction,
+    ),
+    Rule(
+        "P3",
+        "a leading `The` before such a prose form",
+        "The New BSD License",
+        _ALIASES,
+        _after_article,
     ),
 )

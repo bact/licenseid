@@ -42,6 +42,7 @@ from licenseid import (
     resolve,
 )
 from licenseid.dbcheck import check_database_ready, is_ready
+from licenseid.errors import InvalidInputError
 
 # --- 1. LicenseDatabase(path): another program's file, and a missing one ---
 
@@ -333,7 +334,26 @@ def test_the_detector_refuses_a_db_path_that_is_no_path(bad: object) -> None:
 
 def test_the_detector_still_takes_a_path_object(tmp_path: Path) -> None:
     path = make_ready_file_db(tmp_path / "licenses.db")
-    assert LicenseDetector(path).db.db_path == path  # type: ignore[arg-type]
+    assert LicenseDetector(path).db.db_path == path
+
+
+class _TextPath:
+    """A path-like that is not a ``pathlib.Path``: only ``__fspath__``."""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    def __fspath__(self) -> str:
+        return self.text
+
+
+def test_a_blank_path_like_is_missing_like_a_blank_string() -> None:
+    """Was: ``str(path_like)`` (its repr) was checked, so a blank path-like
+    reached the database as ``not found: <_TextPath object ...>``."""
+    with pytest.raises(InvalidInputError, match="^database: missing: db_path;"):
+        LicenseDetector("   ")
+    with pytest.raises(InvalidInputError, match="^database: missing: db_path;"):
+        LicenseDetector(_TextPath("   "))
 
 
 # --- 3. DatabaseNotReadyError.condition and .detail: None for nothing ---

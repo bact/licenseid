@@ -51,7 +51,7 @@ declared values, SPDX expressions and the matching pipeline.
     and operands are put in a consistent order, making equivalent expressions
     compare equal. A whole input takes `resolve()`'s canonical order
     (`MirOS OR MIT`); a tag, a field and a variant `--variant` chose keep
-    the detector's own for now (`MIT OR MirOS`; `--variant only` reads
+    the detector's own (`MIT OR MirOS`; `--variant only` reads
     `MirOS OR GPL-2.0` as `GPL-2.0-only OR MirOS`).
   - The flags of an expression are judged operand by operand: `AND` is
     OSI-approved (or FSF-libre) when every operand is, `OR` when any is,
@@ -89,13 +89,10 @@ declared values, SPDX expressions and the matching pipeline.
   - **A whole value first**: an input that is, as a whole, one declared
     value (`MIT OR Apache-2.0`, `Apache License, Version 2.0`, `GPLv3+`) is
     read by `resolve()`, so `detect` answers its expression, a bare split
-    ID as written (see the deprecated ID item above). An
-    input under 10 words that `resolve()` refuses and no licence name
-    matches is not matched as text: no answer, with `WARNING: input: too
-    few words for text: <reason>` (`not found: GNU GPL v2`). So is a text
-    of under 30 words that `resolve()` refuses for a "+" that is no operator
-    (`"MIT++"`, `MIT License++`, `Apache 2.0 +`), with the "+" reason: Tier 0
-    would drop the "+" and answer the licence, exact.
+    ID as written (see the deprecated ID item above). What a value
+    `resolve()` refuses gets (under 10 words, often no text match and
+    `WARNING: input: too few words for text: <reason>`) is in
+    [how `detect()` uses `resolve()`](resolve.md#how-detect-uses-resolve).
   - **Tier 0 (Shortcut)**: Fast path for short inputs (names, IDs, brief
     expressions). Includes:
     - Case-insensitive exact ID match.

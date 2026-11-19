@@ -461,7 +461,8 @@ compound, read or refused); every step is licenseid's own. A compound's
 top-level `candidates` is empty: the candidates of a bare deprecated ID
 inside it are its operand's, in `operands[*].candidates` (`GPL-2.0 OR MIT`:
 `GPL-2.0-only` and `GPL-2.0-or-later` on its first operand). For
-`resolve("GPLv2+ or MIT")`, shortened:
+`resolve("GPLv2+ or MIT")`, shortened (the parser's version is that of one
+run):
 
 ```json
 {
