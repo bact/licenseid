@@ -73,7 +73,19 @@ def test_an_encoded_plus_is_exact_and_stated(
         "(MIT%20OR%20GPL-2.0%2B)",
     ],
 )
-@pytest.mark.parametrize("wrap", ["{}", "<{}>", "MIT OR {}", "{} AND MIT"])
+@pytest.mark.parametrize(
+    "wrap",
+    [
+        "{}",
+        "<{}>",
+        "MIT OR {}",
+        "{} AND MIT",
+        # no marker reader takes a WITH of an AdditionRef: the fallback of
+        # detector._answer_of reads the value
+        "MIT WITH AdditionRef-x AND {}",
+        "{} AND MIT WITH AdditionRef-x",
+    ],
+)
 def test_an_encoded_plus_answers_as_the_literal_one(
     corpus_db: LicenseDatabase, given: GivenWarnings, path: str, wrap: str
 ) -> None:

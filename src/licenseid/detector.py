@@ -471,7 +471,7 @@ class LicenseDetector:
         if not found:  # no marker reader takes it: "MIT WITH AdditionRef-x"
             decided = decide_ids(self.db, expression)
             found = [match_of(decided, self.markers.license_flags(decided))]
-            read_from(found, resolution["input"])
+            read_from(found, text)
             if decided != expression:  # a guess, said and not exact
                 found[0]["exact"] = False
                 mark_guessed(found[0], expression)

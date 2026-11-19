@@ -14,8 +14,8 @@ and this project adheres to
 ### Fixed
 
 - `detect https://licenses.nuget.org/GPL-2.0%2B` (an encoded "+") is `exact`
-  and has `VARIANT_STATED` true, as the URL with a literal "+" has; it was
-  false for both ([#231])
+  and has `VARIANT_STATED` true, as the URL with a literal "+" has; both
+  flags were false ([#231])
 
 ## [0.9.0] - 2026-11-19
 
