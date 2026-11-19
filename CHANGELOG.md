@@ -11,6 +11,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- `detect https://licenses.nuget.org/GPL-2.0%2B` (an encoded "+") is `exact`
+  and has `VARIANT_STATED` true, as the URL with a literal "+" has; it was
+  false for both
+
 ## [0.9.0] - 2026-11-19
 
 ### Added

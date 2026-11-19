@@ -77,8 +77,7 @@ def answer_of(db: LicenseDatabase, value: str) -> Answer:
 
 def _detected_exact(db: LicenseDatabase, value: str, expression: str) -> bool:
     """Whether ``detect()`` gives *expression* for *value* and calls it
-    exact: its one later rule makes a variant licenseid chose inexact (an
-    encoded "+": ``licenses.nuget.org/GPL-2.0%2B``)."""
+    exact: its one later rule makes a variant licenseid chose inexact."""
     results = LicenseDetector(db_path=str(db.db_path)).detect(text=value)
     return bool(results) and (
         results[0]["expression"] == expression and results[0]["exact"]
