@@ -17,7 +17,13 @@ from licenseid import LicenseDatabase
 from licenseid.resolvealias import ALIASES
 from licenseid.resolveslash import REFUSED_PAIRS
 from licenseid.resolvetitle import TITLES
-from licenseid.resolveurl import DUAL_PAGES, URL_ALIASES, UrlAlias
+from licenseid.resolveurl import (
+    DUAL_PAGES,
+    SCANCODE_NOT_SPDX,
+    URL_ALIASES,
+    UrlAlias,
+)
+from licenseid.trovenames import TROVE_NAMES
 from tools.lists_page import __main__ as generator
 from tools.lists_page import evidence
 from tools.lists_page.measure import answer_of, list_owners, project_counts
@@ -72,6 +78,12 @@ def test_the_evidence_covers_each_row_and_nothing_else() -> None:
     assert set(evidence.TITLE_SOURCES) == set(TITLES)
     assert set(evidence.DUAL_SOURCES) == set(DUAL_PAGES)
     assert set(evidence.PAIR_NOTES) == set(REFUSED_PAIRS)
+    assert set(evidence.SCANCODE_KEYS) == SCANCODE_NOT_SPDX
+    assert set(evidence.URL_SOURCE_NOTES) <= set(URL_ALIASES)
+    unread = {name for name, entry in TROVE_NAMES.items() if not entry.ids}
+    assert set(evidence.TROVE_REFUSALS) == unread
+    assert not set(evidence.TROVE_NOTES) & unread
+    assert set(evidence.TROVE_NOTES) <= set(TROVE_NAMES)
     assert set(evidence.URL_PACKAGES) | evidence.LIST_PAGES == set(URL_ALIASES)
     assert not set(evidence.URL_PACKAGES) & evidence.LIST_PAGES
 
@@ -201,11 +213,13 @@ DECIDED = {
     ),
     "GNU General Public License v3 or later (GPLv3+)": ("trove_name", True),
     "MIT License (MIT)": ("listed_name", True),
+    "Apache-2.0 (Apache2)": ("lexical", True),
     "Apache2 (Apache-2.0)": ("version_spelling", False),
     "BSD 3-Clause License": ("prose_form", False),
     "Apache License, Version 2.0": ("prose_form", False),
     "The MIT License": ("prose_form", False),
     "New BSD License": ("alias_name", True),
+    "The New BSD License": ("alias_name", True),
 }
 
 

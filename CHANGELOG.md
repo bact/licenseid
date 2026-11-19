@@ -11,7 +11,7 @@ and this project adheres to
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-11-18
+## [0.9.0] - 2026-11-19
 
 ### Added
 
@@ -109,6 +109,11 @@ and this project adheres to
   answer from the name tier; no deprecated ID is listed after its replacement
   was excluded or dropped; the `variant not stated` warning names the licence
   ([#228])
+- `detect(file_path=Path(...))`, the `is_*()` predicates, a blank path-like
+  `db_path` and `clear_cache(<os.PathLike>)` take an `os.PathLike` as
+  documented (were `AttributeError`, `TypeError` or no delete); a NUL in the
+  database path of `resolve()` is `database: not found`, not `ValueError`
+  ([#229])
 
 [#207]: https://github.com/bact/licenseid/pull/207
 [#208]: https://github.com/bact/licenseid/pull/208
@@ -128,6 +133,7 @@ and this project adheres to
 [#226]: https://github.com/bact/licenseid/pull/226
 [#227]: https://github.com/bact/licenseid/pull/227
 [#228]: https://github.com/bact/licenseid/pull/228
+[#229]: https://github.com/bact/licenseid/pull/229
 
 ## [0.8.4] - 2026-11-09
 

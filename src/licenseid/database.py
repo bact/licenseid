@@ -29,6 +29,7 @@ from licenseid.dbcheck import (
     not_found_error,
     reject_blank_path,
     reject_foreign_database,
+    require_path,
 )
 from licenseid.dbconnection import Connections, QueryConnection
 from licenseid.dbschema import create_schema, create_url_table, schema_state
@@ -259,7 +260,7 @@ class LicenseDatabase:
         self._schema_pending = False
 
     @staticmethod
-    def clear_cache(db_path: str | Path) -> bool:
+    def clear_cache(db_path: str | os.PathLike[str]) -> bool:
         """Delete the database (unopened) at *db_path* and, where they are
         licenseid's (:func:`_holds_own_cache`), the cache files beside it;
         True if there was any of them to delete. Raises
@@ -269,9 +270,11 @@ class LicenseDatabase:
         # unused on the match path; update_from_remote() defers it too.
         from licenseid import spdx_source
 
-        reject_foreign_database(str(db_path))
+        require_path(db_path, "db_path")
+        db_path = os.fspath(db_path)
+        reject_foreign_database(db_path)
         status("Clearing cache...")
-        named = named_file(str(db_path))
+        named = named_file(db_path)
         if named is None:
             return False  # in-memory: no directory to clear
         db_path = Path(named)

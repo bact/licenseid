@@ -10,9 +10,11 @@ SPDX-License-Identifier: Apache-2.0
 This page traces what `licenseid.resolve()` does to one declared licence
 value, reader by reader, in the order the readers run. It is written for a
 reviewer who wants to check the design, and as source material for a paper.
-It describes release 0.9.0. A link to a line points at commit `7276ee4`
-(release 0.7.2 plus PR #172), where the flow was first traced; a link to a
-whole file, at the current code.
+It describes release 0.9.0. A link to a line, and a `file.py:N` label,
+point at commit `7276ee4` (release 0.7.2 plus PR #172), where the flow was
+first traced: the function each names is in 0.9.0 too, perhaps at another
+line, and what this page says of it is 0.9.0's. A link to a whole file
+points at the current code.
 
 Every example below was run against release 0.9.0 (`resolve(value)`, with
 the SPDX License List 3.29.0 in the database). The result fields
@@ -41,7 +43,7 @@ flowchart TD
   IN([value: str]) --> TYPE{is a str?}
   TYPE -- no --> TERR[/raise TypeError/]
   TYPE -- yes --> LIST[choose_list: database or<br/>packaged bundle]
-  LIST --> PREP[prepare: trim, quotes, brackets,<br/>quotes again]
+  LIST --> PREP[prepare: hidden chars, trim,<br/>quotes, brackets, quotes]
   PREP --> EMPTY{empty or over<br/>2000 characters?}
   EMPTY -- yes --> R0[unresolved: empty or too long]
   EMPTY -- no --> GATE{control, format or<br/>lone surrogate char?}
@@ -51,7 +53,7 @@ flowchart TD
   LEAF -- no --> COMP[2 read_compound:<br/>AND, OR, brackets]
   COMP -- claimed and named --> CANON[canonical order<br/>exprcanon]
   COMP -- not claimed --> NAME[3 read_by_name]
-  COMP -- claimed, refused --> SEMI
+  COMP -- claimed, refused --> SLASH
   NAME --> URL[licence URL<br/>resolveurl]
   URL -- no --> TROVE[trove path, name,<br/>head and short form]
   URL -- reads or refuses --> NAMED
@@ -62,8 +64,10 @@ flowchart TD
   TITLE -- reads --> NAMED
   ALIAS -- reads --> NAMED
   PROSE -- reads --> NAMED
-  PROSE -- no --> SEMI{4 licences joined<br/>by a semicolon?}
+  PROSE -- no --> SLASH{4 read_joined: IDs<br/>joined by a slash?}
   NAMED --> OPS
+  SLASH -- yes --> CANON
+  SLASH -- no --> SEMI{licences joined<br/>by a semicolon?}
   SEMI -- yes --> R2[unresolved: operator not<br/>stated, one operand a part]
   SEMI -- no --> ENDQ{refused with no reason<br/>and an end mark?}
   ENDQ -- yes --> AGAIN[read once more without<br/>the mark: separator step]
@@ -78,11 +82,12 @@ flowchart TD
   CAT --> OUT([Resolution])
 ```
 
-The diagram folds three details to stay readable. The list reader (step 4)
-runs before a compound's refusal is returned, not after (see
-[the order inside `_read_text`](#the-order-inside-_read_text)). The
-"read once more" box also covers a mark inside brackets and quotes. And the
-leaf reader has inner rules of its own, drawn in the next diagram.
+Boxes 1 to 4 are steps 6.1 to 6.4 of the list below; the list readers run
+before a compound's refusal is returned (see
+[the order inside `_read_text`](#the-order-inside-_read_text)). The diagram
+folds two details to stay readable: the "read once more" box also covers a
+mark inside brackets and quotes, and the leaf reader has inner rules of its
+own, drawn in the next diagram.
 
 ### The leaf reader
 
@@ -134,14 +139,23 @@ reads the value, or when it refuses it with a reason.
       characters`, which sets the `separator` floor;
       a bidi control at the start, a NUL or a value of nothing else is left
       for the refusal in step 5;
-   2. trim white space (`trim`);
-   3. one end mark after closing quotes (`"MIT".`) comes off (`separator`),
+   2. inside the value, a format character that is no bidi control and
+      touches white space becomes a space, one code point for one
+      (`space_out_hidden`; a second `trim` step, a cut unless every such
+      character is zero-width): `MIT OR\u200b ISC` is `ISC OR MIT`, steps
+      `trim`, `whitespace`, `reorder`;
+   3. trim white space (`trim`);
+   4. one end mark after closing quotes (`"MIT".`) comes off (`separator`),
       then quote marks round the whole value
       ([`quotes.unquote`][quotes-l82], `unquote`; an
       unbalanced pair sets the `separator` floor);
-   4. brackets round the whole value (`brackets`,
+   5. brackets round the whole value (`brackets`,
       [`exprcanon.unbracketed`][exprcanon-l72]);
-   5. quotes again, if brackets came off (`("MIT")`).
+   6. quotes again, if brackets came off (`("MIT")`);
+   7. after an `unquote`, a format character that is no bidi control at an
+      end of the quoted text comes off as in step 3.1 (`_trimmed_inside`):
+      `"MIT\u2063"` is `MIT`, steps `unquote`, `trim` (detail `invisible
+      characters`), category `separator`.
 4. **Empty or too long.** Nothing left is `unresolved` with reason `empty`;
    more than 2,000 characters
    ([`MAX_EXPRESSION_CHARS`][resolver-l73]) is
@@ -150,8 +164,8 @@ reads the value, or when it refuses it with a reason.
    lone surrogate, or a control or format character that is not white space
    (NUL, a zero-width space, a bidi override), refuses the whole value
    before any reader runs, with no step. The check runs on the value with
-   the hidden characters at its ends left off (step 3.1), before any other
-   reader, so no reader can drop such a character as a separator.
+   the hidden characters left off in steps 3.1, 3.2 and 3.7, before any
+   other reader, so no reader can drop such a character as a separator.
 6. **The readers**
    ([`_read_text`][resolver-l241]), first match wins:
    1. *One licence*
@@ -181,7 +195,7 @@ reads the value, or when it refuses it with a reason.
    6. *The name*, if a name read.
    7. *Nothing read*: `unresolved`, with the reason of the first refused
       operand of a compound-shaped value, else `not an SPDX operator: /`
-      for IDs joined by `/ | & , ;` (a `/` is read at step 4 when every piece
+      for IDs joined by `/ | & , ;` (a `/` is read at step 6.4 when every piece
       is an exact ID).
 7. **One more try without an end mark**
    ([`_ended`][resolver-l277]). If no reader read the
@@ -286,8 +300,9 @@ The `drop` kind is a step that did not apply (`applied` false). A step cites
 a list only if its kind rests on one (`LIST_PROVIDES`); `trove_name` and
 `trove_path` cite the trove list, never an authority on IDs.
 
-`tests/test_resolver_shapes.py` holds this table to
-[the result of `resolve()`](resolve.md).
+`tests/test_resolver_shapes.py` checks the category table of
+[the result of `resolve()`](resolve.md#steps-and-categories) against the
+code; nothing checks this one.
 
 ## Worked examples
 
@@ -361,15 +376,13 @@ is a property a reviewer should know.
   upper or all lower case only. See
   [the canonicalisation page](expression-canonicalisation.md#differences-from-the-spdx-specification).
 - **`detect()` asks `resolve()` first** for the whole input
-  ([`resolvefirst.py`](../src/licenseid/resolvefirst.py)): the expression of
-  the resolution is `detect()`'s answer. A tag in a file goes the other way,
-  through the marker readers, which put a compound in another order. A short
-  value, a field the marker readers did not take included (a quoted INI
-  `GPL-2.0+`), goes through `resolve()` in Tier 0 too; one it refuses
-  gets no text match after a dropped mark, an unpaired bracket or a "+"
-  that ends a word.
-  [The canonicalisation page](expression-canonicalisation.md#two-canonical-orders-in-one-package)
-  shows the two.
+  ([`resolvefirst.py`](../src/licenseid/resolvefirst.py)), but a tag in a
+  file goes through the marker readers, which put a compound in another
+  order ([the two orders][two-orders]). What `detect()` does with a value
+  `resolve()` refuses is in
+  [the result of `resolve()`](resolve.md#how-detect-uses-resolve).
+
+[two-orders]: expression-canonicalisation.md#two-canonical-orders-in-one-package
 
 ## Pins in the test suite
 

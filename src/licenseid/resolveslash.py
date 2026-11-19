@@ -51,9 +51,10 @@ MAX_OPERANDS: Final = 150
 #: The longest value read, once the "/" are ``" OR "`` (the resolver's
 #: ``MAX_EXPRESSION_CHARS``; a test holds them equal).
 MAX_JOINED: Final = 2000
-#: Pairs of IDs that are one licence's name (case folded): ``MIT/X11`` is the
-#: Debian name of X11, and OSI calls Zlib "the zlib/libpng license". A value
-#: with both IDs of a pair, anywhere, is refused (``docs/resolve.md``).
+#: Pairs of IDs that are one licence's name (case folded): SPDX ``X11`` is
+#: MIT plus a clause on the X Consortium's name, so ``MIT/X11`` may not mean
+#: an OR, and OSI calls Zlib "the zlib/libpng license". A value with both IDs
+#: of a pair, anywhere, is refused (``docs/resolve.md``).
 REFUSED_PAIRS: Final = frozenset({("mit", "x11"), ("libpng", "zlib")})
 _RE_REF: Final = re.compile(r"LicenseRef-[A-Za-z0-9.-]+")
 _TRIM: Final = " \t"

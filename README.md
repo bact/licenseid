@@ -52,9 +52,9 @@ licenseid update
 ```
 
 Then ask a question. `detect` finds the licence in a file, an ID or a text;
-`resolve` reads a declared value and needs no database. Each prints the SPDX
-expression alone, best first (`--top 1` keeps one), or an empty line and
-exit code 1 when there is no answer:
+`resolve` reads a declared value and, from a wheel, needs no database. Each
+prints the SPDX expression alone, best first (`--top 1` keeps one), or an
+empty line and exit code 1 when there is no answer:
 
 ```bash
 licenseid detect --top 1 LICENSE.txt        # Apache-2.0
@@ -106,6 +106,10 @@ declares, as an SBOM tool does.
   predicates, results, errors and warnings.
 - [Declared values][doc-resolve]: what `resolve()` reads and returns, its
   categories, trust and reasons for a refusal.
+- [Resolve flow][doc-resolve-flow]: the readers `resolve()` applies to a
+  value, in order.
+- [Canonical form][doc-canonical]: how an expression is put in canonical
+  form, rule by rule.
 - [Lists][doc-lists]: the lists `resolve()` reads (BSD names, titles,
   classifier names, licence URLs) and its named rules, with their sources.
 - [How it works][doc-how-it-works]: ID normalisation, expressions and the
@@ -118,6 +122,8 @@ declares, as an SBOM tool does.
 [doc-python-api]: https://github.com/bact/licenseid/blob/main/docs/python-api.md
 [doc-resolve]: https://github.com/bact/licenseid/blob/main/docs/resolve.md
 [doc-lists]: https://github.com/bact/licenseid/blob/main/docs/lists.md
+[doc-resolve-flow]: https://github.com/bact/licenseid/blob/main/docs/resolve-flow.md
+[doc-canonical]: https://github.com/bact/licenseid/blob/main/docs/expression-canonicalisation.md
 [doc-how-it-works]: https://github.com/bact/licenseid/blob/main/docs/how-it-works.md
 [doc-development]: https://github.com/bact/licenseid/blob/main/docs/development.md
 

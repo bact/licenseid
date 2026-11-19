@@ -6,13 +6,17 @@
 """The checks of a ``detect()`` call that need no database: its options and
 its one input."""
 
+import os
 from collections.abc import Mapping
-from typing import Final
+from typing import Final, TypeAlias, cast
 
 from licenseid.dbcheck import require_path
 from licenseid.errors import InvalidInputError, one_line
 from licenseid.types import DetectOptions
 from licenseid.variants import VARIANTS
+
+# A file path as detect() takes it: a str or an os.PathLike of one.
+PathInput: TypeAlias = str | os.PathLike[str]
 
 # The keyword options detect() accepts: the keys of DetectOptions.
 MATCH_OPTIONS: frozenset[str] = frozenset(DetectOptions.__annotations__)
@@ -99,11 +103,13 @@ def _check_variant(options: Mapping[str, object]) -> None:
 
 def check_request(
     text: object, license_id: object, file_path: object, options: Mapping[str, object]
-) -> None:
+) -> str | None:
     """The checks of a detect() call that need no database: an unknown option
     first (no input hides a typo), then the inputs. ``licenseid.detect()``
     makes them before it opens the default database, so a wrong call is told
-    so whether a database is there or not."""
+    so whether a database is there or not. Returns *file_path* as a str (an
+    os.PathLike is converted here), or None."""
     _reject_unknown_options(options)
     _check_option_values(options)
     _check_inputs(text, license_id, file_path)
+    return None if file_path is None else os.fspath(cast(PathInput, file_path))

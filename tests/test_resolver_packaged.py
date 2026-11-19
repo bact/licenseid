@@ -28,6 +28,7 @@ from release_fakes import ship
 from resolver_corpus import changed_answers, changes_report, corpus_rows
 
 from licenseid import LicenseDatabase, resolve
+from licenseid.errors import DatabaseNotReadyError
 from licenseid.types import SpdxLicenseEntry
 from tools.pypi_licence_sample.answer import unescape_field
 
@@ -124,3 +125,11 @@ def test_the_rename_is_followed_but_its_name_is_not_read(
     )
     named = resolve("Foo License 1.0", source="packaged")
     assert (named["expression"], named["category"]) == (None, "unresolved")
+
+
+def test_a_database_path_with_a_nul_is_not_found_not_a_value_error(
+    tmp_path: Path,
+) -> None:
+    """Was: ``ValueError: embedded null byte`` from the stamp of the file."""
+    with pytest.raises(DatabaseNotReadyError, match="^database: not found:"):
+        resolve("MIT", str(tmp_path / "x\0y"))

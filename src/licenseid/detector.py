@@ -17,7 +17,7 @@ from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path, require_path
-from licenseid.detectrequest import check_request
+from licenseid.detectrequest import PathInput, check_request
 from licenseid.errors import invalid_id_error
 from licenseid.identifiers import (
     is_qualified_plus,
@@ -106,7 +106,7 @@ class LicenseDetector:
 
     def __init__(
         self,
-        db_path: str | None = None,
+        db_path: PathInput | None = None,
         *,
         enable_popularity: bool = False,
     ):
@@ -114,7 +114,7 @@ class LicenseDetector:
             require_path(db_path, "db_path")
         else:
             db_path = get_default_db_path()
-        reject_blank_path(str(db_path), "db_path")
+        reject_blank_path(db_path, "db_path")
         # Before LicenseDatabase, which opens the file (create=False below: it
         # must be there, and a lookup never makes one).
         check_database_ready(db_path)
@@ -382,7 +382,7 @@ class LicenseDetector:
         text: str | None = None,
         *,
         license_id: str | None = None,
-        file_path: str | None = None,
+        file_path: PathInput | None = None,
         **options: Unpack[DetectOptions],
     ) -> list[Detection]:
         """
@@ -425,11 +425,11 @@ class LicenseDetector:
         text: str | None = None,
         *,
         license_id: str | None = None,
-        file_path: str | None = None,
+        file_path: PathInput | None = None,
         **options: Unpack[DetectOptions],
     ) -> Sequence[RawMatch | InternalMatch]:
         """detect() before the public form: each tier's own records."""
-        check_request(text, license_id, file_path, options)
+        file_path = check_request(text, license_id, file_path, options)
         return read_as(
             options.get("variant", DEFAULT),
             lambda: self._match_by(text, license_id, file_path, options),
@@ -536,7 +536,7 @@ class LicenseDetector:
         text: str | None = None,
         *,
         license_id: str | None = None,
-        file_path: str | None = None,
+        file_path: PathInput | None = None,
     ) -> Detection | None:
         """The top match of the input (score 0.85 or more), or None. The
         is_*() predicates and the CLI's is-* commands both answer from this,
@@ -576,7 +576,7 @@ class LicenseDetector:
         text: str | None = None,
         *,
         license_id: str | None = None,
-        file_path: str | None = None,
+        file_path: PathInput | None = None,
     ) -> bool | None:
         """True if every licence and exception of the license is on the SPDX
         License List (a ``LicenseRef-*`` is not); None when no license is
@@ -590,7 +590,7 @@ class LicenseDetector:
         text: str | None = None,
         *,
         license_id: str | None = None,
-        file_path: str | None = None,
+        file_path: PathInput | None = None,
     ) -> bool | None:
         """True if the license is OSI-approved; for an expression, every
         operand of an AND, any of an OR. None for no license, or when an
@@ -604,7 +604,7 @@ class LicenseDetector:
         text: str | None = None,
         *,
         license_id: str | None = None,
-        file_path: str | None = None,
+        file_path: PathInput | None = None,
     ) -> bool | None:
         """True if the license is FSF-libre, judged as :meth:`is_osi` is.
         Takes and raises what :meth:`is_spdx` does."""
