@@ -18,7 +18,7 @@ and this project adheres to
   flags were false ([#231])
 - `detect` on a bare `MIT++`, `MIT +`, `GPL-2.0-only+` or `(MIT)+` warns
   `too few words for text: <reason>`; it gave no answer and no warning
-  ([#232])
+  ([#232], [#234])
 - `MIT or later.` (one end mark after an "or later" grant) is a `separator`
   with an `end mark` step and is not `exact`, as `MIT.` is; it was exact
   ([#233])
@@ -149,6 +149,7 @@ and this project adheres to
 [#231]: https://github.com/bact/licenseid/pull/231
 [#232]: https://github.com/bact/licenseid/pull/232
 [#233]: https://github.com/bact/licenseid/pull/233
+[#234]: https://github.com/bact/licenseid/pull/234
 
 ## [0.8.4] - 2026-11-09
 

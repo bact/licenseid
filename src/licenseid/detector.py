@@ -500,8 +500,9 @@ class LicenseDetector:
         ctx = self._without_tags(ctx)
         # Free text from here: upgrade the options' deprecated IDs, once.
         ctx = replace(ctx, request=upgraded_options(ctx.request))
-        if is_qualified_plus(ctx.target_text):
-            # "GPL-2.0-only+": no license, nor a near one; say why
+        if is_qualified_plus(ctx.target_text) or is_plus_refusal(whole["reason"]):
+            # "GPL-2.0-only+", "MIT +": no license, nor a near one, whatever
+            # the length once normalised; say why
             too_short(whole, ctx.norm_input, whole=ctx.target_text == target_text)
             return []
         short_text_result = self._try_tier0_short_text(ctx)

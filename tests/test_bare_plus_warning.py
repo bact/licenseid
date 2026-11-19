@@ -60,6 +60,40 @@ def test_a_value_of_ten_words_or_more_gets_no_answer_and_no_warning(
     assert not given.conditions()
 
 
+# A "+" that is no operator after a long dashed reference: ten words or more
+# once normalised, so too_short() lets it through; Tier 1 answered Apache-2.0
+# (0.80), TTYP0 and AGPL-1.0-only for them, where resolve() refuses.
+LONG_DASHED = [
+    "LicenseRef-apache-license-version-2-0-january-2004-http-www-apache-org-licenses +",
+    "LicenseRef-the-mit-license-permission-is-hereby-granted-free-of-charge++",
+    "MIT WITH AdditionRef-the-gnu-general-public-license-version-two-or-later +",
+]
+
+
+@pytest.mark.parametrize("value", LONG_DASHED, ids=lambda v: v[:30])
+def test_a_long_value_with_a_stray_plus_is_no_text_to_match(
+    corpus_db: LicenseDatabase, given: GivenWarnings, value: str
+) -> None:
+    assert len(value.replace("-", " ").split()) >= 10
+    assert resolve(value, corpus_db)["expression"] is None
+    detector = LicenseDetector(corpus_db.location)
+    assert detector.detect(text=value) == []
+    assert not given.conditions()  # ten words or more: no warning, as before
+
+
+def test_the_cli_says_no_to_a_long_value_with_a_stray_plus(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """``--threshold 0.5`` let the 0.80 answer through, exit 0."""
+    result = CliRunner().invoke(
+        cli,
+        ["--db", corpus_db.location, "detect", "--threshold", "0.5", "--text"]
+        + [LONG_DASHED[0]],
+    )
+    assert result.exit_code == 1
+    assert result.stdout.split("\t")[0] == "EXPRESSION="
+
+
 @pytest.mark.parametrize("value", ["MIT", "GPL-2.0-only", "MIT OR ISC", "(MIT)"])
 def test_a_value_with_no_stray_plus_is_unchanged(
     corpus_db: LicenseDatabase, given: GivenWarnings, value: str
