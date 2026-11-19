@@ -102,8 +102,9 @@ declared values, SPDX expressions and the matching pipeline.
       (see the deprecated ID item above).
     - A name the input holds whole is dropped when the words beside it name
       something else: a tie of two licences, a cut version, an exception, a
-      fragment of a longer name, another ID, a dash glued to a word end, the
-      LGPL's or AGPL's name for the GPL's. Of tied names the one written
+      fragment of a longer name, another ID or another licence's name written
+      whole (its grant aside), a dash glued to a word end, the LGPL's or
+      AGPL's name for the GPL's. Of tied names the one written
       whole (its words in order) beats one put together from scattered words,
       and the most specific of nested names wins. A dropped name that scored
       above 1 gives no text answer from 10 words on; under 10 words the input

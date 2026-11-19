@@ -19,7 +19,7 @@ from matcher_db import Lic, seeded_db
 
 from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
-from licenseid.namehits import refusal_answer
+from licenseid.namehits import _without_grant, refusal_answer
 from licenseid.normalize import normalize_text
 from licenseid.resolvefirst import MIN_TEXT_WORDS
 from licenseid.shorttext import match_name_tier, match_short_text
@@ -70,6 +70,7 @@ ROWS = [
     Lic("Fnt-1.1", "Fnt Open License 1.1"),
     Lic("Sft-1.1", "Open Software License 1.1"),
     Lic("Gen-2.0-only", "Gnu Gen License v2.0 only"),
+    Lic("Gen-2.0-or-later", "Gnu Gen License v2.0 or later"),
     Lic("Lib-2.0-only", "Gnu Library Gen License v2.0 only"),
     # Versions that nest only by their digits: 1.1 holds the word "1".
     Lic("Num-1.0", "Num Name 1.0"),
@@ -108,6 +109,8 @@ ROWS = [
     Lic("ZZ", "Zed Name"),
     Lic("Word", "Wordy Thing"),
     Lic("Base-1.0", "Base Name"),
+    # A short name beside a licence whose grant-less name the input writes.
+    Lic("Pyx-2.0", "Pyx License 2.0"),
 ]
 # Exceptions whose words are common ones: "or" (the name of PS-or-PDF-font-
 # exception), and "the" with "license".
@@ -193,6 +196,12 @@ def refused(db: LicenseDatabase, text: str) -> bool:
         # Two names, the other's lacks the "v" of its version only.
         ("Univ Name 1.0 or Plain Name 2.0", []),
         ("Plain Name 2.0, see the terms", ["Plain-2.0"]),
+        # Another licence written whole, less its "v" and its grant, is named
+        # too, though its row has the grant ("Gnu Gen License v2.0 only") and
+        # the words after the name are not the grant's: no answer for "Pyx".
+        ("Gnu Gen License version 2.0, requires Pyx 3.8 or later", []),
+        ("Pyx License 2.0, see the terms", ["Pyx-2.0"]),
+        ("Pyx License 2.0 or later, see the terms", ["Pyx-2.0"]),
     ],
 )
 def test_ties_of_whole_names(db: LicenseDatabase, text: str, stands: list[str]) -> None:
@@ -581,11 +590,29 @@ def test_a_stray_plus_in_a_section_is_no_guess() -> None:
             assert [m["license_id"] for m in found if m["score"] > 1.0] == stands
 
 
+@pytest.mark.parametrize(
+    ("name", "kept"),
+    [
+        (("gnu", "general", "public", "license", "2", "0", "or", "later"), 6),
+        (("cutg", "license", "1", "1", "only"), 4),
+        (("name", "or"), 1),
+        (("only",), 1),  # a name of nothing else keeps its word
+        (("or", "later"), 1),
+        ((), 0),
+    ],
+)
+def test_the_grant_at_the_end_of_a_name_is_left_out(
+    name: tuple[str, ...], kept: int
+) -> None:
+    assert _without_grant(name) == name[:kept]
+
+
 def test_a_refusal_is_final_only_above_one(db: LicenseDatabase) -> None:
     """A dropped hit that would have answered says so; a fuzzy one (below
     1.0) leaves the text tiers to run."""
     assert refused(db, "Left Name or Right Name")
     assert refused(db, "Cut Name 1")
+    assert refused(db, "Gnu Gen License version 2.0, requires Pyx 3.8 or later")
     # A fuzzy hit of "Cut Name 1.1" (below 1.0) is dropped, and not final.
     assert hits(db, "Cut Nam 1") == []
     assert not refused(db, "Cut Nam 1")

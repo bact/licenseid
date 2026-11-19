@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-17
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-20
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -622,3 +622,36 @@ precision over recall. PR #226.
 - **Left**: `_Sun PPP License (2000)_` is `not found` (was `character
   dropped: U+005F`; refused either way), and a `license` field with a mark
   only at the end (`Apache License 2.0*`) still answers.
+
+## 0.9.1 (PRs #230 to #235, 2026-11-19 to 2026-11-20)
+
+Small fixes, each with its tests, mutation check, golden and a `probe_real`
+run against the last tag (0 moves of a right answer). Plan: roadmap item 58.
+
+- **#230**: Tier 2 candidate scoring moved to `similarity.py`; `detector.py`
+  735 to 675 lines. No change in answers.
+- **#231**: `urls_as_ids` reads an encoded "+" (`GPL-2.0%2B`) as the literal
+  one: `exact` and `VARIANT_STATED` true.
+- **#232, #234**: a bare `MIT++`, `MIT +`, `GPL-2.0-only+`, `(MIT)+` warns
+  `too few words for text`. The predicate of a stray "+" lives in
+  `detector._match_text`. Review finding fixed in #234: a stray-plus value of
+  10 words or more reached Tiers 1 and 2 and could answer; now none.
+- **#233**: `MIT or later.` is `separator` with an `end mark` step, not
+  exact (`resolveleaf._single`, `resolvefirst.was_cut`). Known gaps are in
+  `docs/resolve.md`.
+- **#235**: bug 4. `GNU General Public License version 2.0, requires Python
+  3.8 or later` answered `Python-2.0`: `token_set_ratio` ignores order and
+  gaps, and "written whole" was checked only for tied names. A class: 133 of
+  672 probes of `... version 2.0, requires <word> 3.8 or later` answered a
+  wrong name, 0 now. Fix: `namehits._names_another` reads the other name
+  without its grant (`_without_grant`, shared with `_stands_apart`); no new
+  rule. Rejected: a gap or order measure on one hit (22 right scattered hits
+  are out of order), a coverage share (right and wrong answers overlap), a
+  scorer change (changes Tier 0 for every input). Moves on the 34 grant-row
+  names: 30 of 121 inputs, all answer to none, each naming two licences
+  (`MIT License, GNU General Public License v2.0` gave `MIT`). Review: no
+  right answer moved over about 10,000 inputs; stripping the hit's own name
+  too changed nothing and was dropped. Time: 3.4 ms per call, as `main`.
+  Left: no "GNU" in the text; `GNU General Public License v2. Requires
+  Python 2.0 or later to build`; `PSF License version 2.0 requires Python
+  3.8`.
