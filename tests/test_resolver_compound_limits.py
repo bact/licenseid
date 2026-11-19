@@ -79,8 +79,8 @@ ANSWERS: list[tuple[str, tuple[str | None, str, str | None]]] = [
     ("GPL-2.0 or MIT or later", ("GPL-2.0 OR MIT+", "assumed_only", None)),
     ("MIT OR later OR ISC", ("ISC OR MIT+", "stated_qualifier", None)),
     ("Apache-2.0 OR later OR ISC", ("Apache-2.0+ OR ISC", "stated_qualifier", None)),
-    # a mark after a grant stays in its leaf, judged as alone
-    ("GPL-2.0 or later, OR MIT", ("GPL-2.0-or-later OR MIT", "stated_qualifier", None)),
+    # a mark after a grant stays in its leaf, judged as alone: an end mark cut
+    ("GPL-2.0 or later, OR MIT", ("GPL-2.0-or-later OR MIT", "separator", None)),
     (
         "GPL-2.0 or later-ish OR MIT",
         (None, "unresolved", "not found: GPL-2.0 or later-ish OR MIT"),

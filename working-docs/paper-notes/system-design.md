@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-20
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -170,9 +170,9 @@ generator (`README.md` L14).
 - **Discriminative n-gram fingerprints** (planned `R1` §1, implemented): word
   5-grams with IDF = log(k / df), top 20 per licence stored at build time
   (`FINGERPRINT_N`=5, `FINGERPRINT_TOP_N`=20, `src/licenseid/fingerprint.py`
-  L22-23); used as an additive tie-breaker capped at `_FP_BOOST` = 0.05,
+  L22-23); used as an additive tie-breaker capped at `FP_BOOST` = 0.05,
   "calibrated to be in the same range as the marker boost"
-  (`src/licenseid/matcher.py` L42-47; `IMPL/README.md` L33-34). Planned
+  (`src/licenseid/similarity.py`, `FP_BOOST`; `IMPL/README.md` L33-34). Planned
   storage estimate: 20 × 695 × ~30 bytes ≈ 400 KB (`R1` L170-171).
 - Importance of fingerprints: a kill between metadata commit and fingerprint
   computation leaves a "ready" DB without fingerprints, and on a real database
