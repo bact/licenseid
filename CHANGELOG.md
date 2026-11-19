@@ -22,6 +22,9 @@ and this project adheres to
 - `MIT or later.` (one end mark after an "or later" grant) is a `separator`
   with an `end mark` step and is not `exact`, as `MIT.` is; it was exact
   ([#233])
+- `GNU General Public License version 2.0, requires Python 3.8 or later` and
+  `GNU General Public License v2.0 or MIT License` give no answer; they
+  gave `Python-2.0` and `MIT`
 
 ## [0.9.0] - 2026-11-19
 

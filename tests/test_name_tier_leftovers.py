@@ -93,6 +93,10 @@ DECIDED = [
     # D47-1: two names not nested are two licences: no answer.
     ("Universal Permissive License 1.0 or Apache License 2.0", None),
     ("MIT -or- Apache License 2.0", None),
+    # A grant-less GPL name is another licence too (bug 4 of item 58).
+    ("GNU General Public License v2.0 or MIT License", None),
+    ("GNU General Public License version 2.0, requires Python 3.8 or later", None),
+    ("GNU General Public License version 2.0, requires Ruby 3.0", None),
     ("MIT, The Unlicense", None),  # "MIT" is an upper-case ID, written whole
     (  # the name of the other licence lacks the hit's "v" only: two licences
         "Licensed under the GNU Affero General Public License v3.0 or the MIT License",
@@ -213,9 +217,8 @@ BUGS = [
     # A one-word ID that is an ordinary word is no second licence.
     # BUG: (item 47)
     ("Unlicense, ISC License", Top("ISC", NAME, False)),
-    # Two licences named, one by a grant-less GPL name or a short BSD form:
-    # only tied names are weighed against each other. BUG: (item 47)
-    ("GNU General Public License v2.0 or MIT License", Top("MIT", NAME, False)),
+    # Two licences named by a short BSD form: only tied names are weighed
+    # against each other. BUG: (item 47)
     ("MIT License or BSD 3-Clause", Top("MIT", NAME, False)),
 ]
 

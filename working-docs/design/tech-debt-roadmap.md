@@ -381,11 +381,13 @@ use):
 - **Nested pair**: two names where one nests in the other answer the longer
   (`Creative Commons Attribution 4.0 International or Creative Commons
   Attribution Share Alike 4.0 International` gives CC-BY-SA-4.0): 1 of 134.
-- **Two licences in prose, not tied**: `GNU General Public License v2.0 or
-  MIT License`, `MIT License or BSD 3-Clause` answer MIT (pinned `# BUG: (item
-  47)`; a grant-less GPL
-  name or a short BSD form is not held whole, so no tie); needs a rule that
-  weighs every name the input holds, not only the tied ones.
+- **Two licences in prose, not tied**: `MIT License or BSD 3-Clause` answers
+  MIT (pinned `# BUG: (item 47)`; a short BSD form is not held whole, so no
+  tie); needs a rule that weighs every name the input holds, not only the tied
+  ones. A grant-less GPL name beside a short name (`GNU General Public License
+  v2.0 or MIT License`, bug 4 of item 58) is built: `namehits._names_another`
+  reads the other name without its grant (`namehits._without_grant`); 133 of 672 probes of
+  `... version 2.0, requires <word> 3.8 or later` answered a wrong name, 0 now.
 - **A list of two licences that names one whole**: `Eclipse Public License
   v. 1.0 - Cecill v. 2.0` answers EPL-1.0 (as `main` did; round 1 of the
   fix refused it): 4 of 12,723 windows. `with <one-word exception>` without
@@ -718,10 +720,14 @@ files):
    while `MIT. AND ISC` stays exact; the steps after the end-mark step of
    `GPL-2.0 - or later.` still read the mark (no chain check).
 
-Not fixed, by decision (2026-11-19): `Python-2.0` for `GNU General Public
-License version 2.0, requires Python 3.8 or later` (a name hit of scattered
-words, as in v0.8.4; a rule for one sentence shape is the fragile kind: with
-item 47, 0.9.2 at the earliest); `GPL-2.0 or later MIT` (a licence after a
+Bug 4, `Python-2.0` for `GNU General Public License version 2.0, requires
+Python 3.8 or later`: a class (a short name whose words are scattered beside
+a licence named whole without its grant), fixed after 0.9.1 by widening
+`namehits._names_another`, not by a rule for one sentence. Left: `General Public License
+version 2.0, requires Python ...` (no "GNU") and `GNU General Public License
+v2. Requires Python 2.0 or later to build`.
+
+Not fixed, by decision (2026-11-19): `GPL-2.0 or later MIT` (a licence after a
 grant without an operator), `MIT only AND Apache-2.0` and `GPL-2.0 only,
 never any later version` (contrived, not seen in real text).
 

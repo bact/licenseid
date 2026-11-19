@@ -403,7 +403,8 @@ and `--json`) against these rules and checks the default output against the
   words (one word such as `GCC` is no exception); a fragment of a longer name;
   another ID written whole (joined to the name by a comma, slash, "and" or "or";
   an acronym only so); a dash glued to a word of the name. A second licence
-  whose name lacks the `v` of its version is another name too. Generic words
+  whose name lacks the `v` of its version, or its grant, is another name too
+  (`namehits._without_grant`). Generic words
   (`namerules.GENERIC`) are no evidence. A dropped hit that scored above 1 is
   final from 10 words on (no Tier 1; under 10 words `too_short` warns); below 1,
   Tier 1 runs. Mixed-content sections (`match_short_text`) only lose the hit.

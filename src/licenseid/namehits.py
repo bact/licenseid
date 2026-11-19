@@ -19,9 +19,9 @@ the top score (:func:`settle`); ``namerules`` has the rules that read what
 stands beside one name.
 
 Limits, measured and kept open (roadmap item 47): only names that tie at the
-top score are weighed against each other, so a grant-less GPL name next to
-``MIT License`` (``GNU General Public License v2.0 or MIT License``) still
-answers MIT.
+top score are weighed against each other, and a lower-scoring licence named
+whole is another name only with its ``v`` and its grant left out
+(:func:`_names_another`), so ``MIT License or BSD 3-Clause`` is still open.
 
 The precision principle of the project: a doubtful answer is no answer.
 :func:`settle` returns the hits that stand and, when it dropped a hit that
@@ -161,8 +161,9 @@ def _names_another(
     words: list[str],
 ) -> bool:
     """Whether the input writes the name of another licence whole as well,
-    one that scores below the hit only for its ``v`` of a version
-    (``Universal Permissive License 1.0 or Apache License 2.0``): two
+    one that scores below the hit only for its ``v`` of a version or its
+    grant (``Universal Permissive License 1.0 or Apache License 2.0``,
+    ``GNU General Public License version 2.0, requires Python 3.8``): two
     licences are named, whichever the names nest in. A name that holds, or
     lies in, the hit's is the hit's own."""
     best = names[found["license_id"]]
@@ -172,7 +173,7 @@ def _names_another(
         name = names.get(hit["license_id"])
         if hit["score"] >= ranked[0]["score"] or name is None:
             continue
-        said, own = tuple(_plain(name)), tuple(_plain(best))
+        said, own = _without_grant(_plain(name)), tuple(_plain(best))
         if (
             grant_stem(hit["license_id"]) != mine
             and _runs_in(said, spoken)
@@ -180,6 +181,15 @@ def _names_another(
         ):
             return True
     return False
+
+
+def _without_grant(name: Sequence[str]) -> tuple[str, ...]:
+    """*name* without the grant at its end (``or later``, ``only``): one
+    licence's grant is no part of the other's."""
+    end = len(name)
+    while end > 1 and name[end - 1] in _GRANT_WORDS:
+        end -= 1
+    return tuple(name[:end])
 
 
 def _said(name: Sequence[str]) -> tuple[str, ...]:
@@ -359,9 +369,7 @@ def _stands_apart(
     for stem, said in (scattered | whole).items():
         if stem == best:
             continue
-        part = list(said)
-        while len(part) > 1 and part[-1] in _GRANT_WORDS:
-            part.pop()
+        part = list(_without_grant(said))
         apart = [
             at
             for at in _places(part, spoken)
