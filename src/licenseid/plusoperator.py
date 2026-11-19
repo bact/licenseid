@@ -70,8 +70,7 @@ def plus_apart(text: str, at: int) -> str | None:
     bracket (``(MIT)+``, ``(MIT) +``), ``"space"`` after white space
     (``MIT +``), or None (``MIT+``, and ``MIT++``, whose second "+" states
     the qualifier twice). The one judge of the tag (``leading_expression``),
-    the leaf of ``resolve()`` and the text, field and ``is-*`` paths
-    (``identifiers.is_stray_plus``)."""
+    the leaf of ``resolve()`` and the text, field and ``is-*`` paths."""
     before = at
     while before and text[before - 1].isspace():
         before -= 1

@@ -317,10 +317,11 @@ def test_match_answers_with_the_id(
 
 
 def test_a_plus_without_a_key_is_no_exact_answer(
-    matcher: LicenseDetector,
+    matcher: LicenseDetector, given: GivenWarnings
 ) -> None:
     results = matcher.detect(text="C++")
     assert not [r for r in results if r["exact"] or r["method"] == "id"]
+    assert given.conditions() == {"too few words for text"}  # "C++" is no licence
 
 
 @pytest.mark.parametrize(

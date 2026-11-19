@@ -147,9 +147,12 @@ def test_a_with_id_and_a_plus_reads_as_or_later(
     assert (found["expression"], found["exact"]) == (reading, False)
 
 
-def test_a_doubled_qualifier_is_still_refused(corpus_db: LicenseDatabase) -> None:
-    """``-only+`` stays no licence."""
+def test_a_doubled_qualifier_is_still_refused(
+    corpus_db: LicenseDatabase, given: GivenWarnings
+) -> None:
+    """``-only+`` stays no licence, and says why."""
     assert _top(corpus_db, "GPL-2.0-only+") is None
+    assert given.conditions() == {"too few words for text"}
 
 
 # --- A tag that states the "+" again ---------------------------------

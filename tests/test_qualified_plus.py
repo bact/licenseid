@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
-from conftest import NO_DETECTION, predicate_line
+from conftest import NO_DETECTION, GivenWarnings, predicate_line
 from matcher_db import Lic, seeded_db
 
 from licenseid import resolve
@@ -43,6 +43,7 @@ ROWS = tuple(
     for lic_id, name in NAMES.items()
 )
 CP = "Classpath-exception-2.0"
+TOO_FEW = "too few words for text"  # said for a value under 10 words
 
 
 @pytest.fixture(name="db_path")
@@ -79,9 +80,12 @@ QUALIFIED_PLUS = [
 
 
 @pytest.mark.parametrize("text", QUALIFIED_PLUS, ids=lambda v: ascii(v)[:40])
-def test_a_plus_after_a_qualifier_answers_no_licence(db_path: str, text: str) -> None:
+def test_a_plus_after_a_qualifier_answers_no_licence(
+    db_path: str, given: GivenWarnings, text: str
+) -> None:
     assert is_qualified_plus(text)
     assert ids(db_path, text) == []
+    assert given.conditions() == ({TOO_FEW} if len(text.split()) < 10 else set())
 
 
 @pytest.mark.parametrize(
@@ -102,21 +106,26 @@ def test_a_plus_after_a_qualifier_answers_no_licence(db_path: str, text: str) ->
     ],
 )
 def test_what_is_not_a_qualified_plus_is_matched(
-    db_path: str, text: str, answer: list[str] | None
+    db_path: str, given: GivenWarnings, text: str, answer: list[str] | None
 ) -> None:
     assert not is_qualified_plus(text)
     if answer is not None:
         assert ids(db_path, text)[:1] == answer
+    assert given.conditions() == ({TOO_FEW} if answer == [] else set())
 
 
-def test_no_entry_point_answers_a_near_name(db_path: str, tmp_path: Path) -> None:
+def test_no_entry_point_answers_a_near_name(
+    db_path: str, tmp_path: Path, given: GivenWarnings
+) -> None:
     """Text, a tag, a manifest field and a file agree: no licence."""
     matcher = LicenseDetector(db_path)
     assert matcher.detect(text="SPDX-License-Identifier: GPL-2.0-only+") == []
     assert matcher.detect(text='{"license": "GPL-2.0-only+"}') == []
+    assert not given.conditions()  # a tag or a field was read by its reader
     path = tmp_path / "LICENSE"
     path.write_text("LGPL-2.1-only+\n", encoding="utf-8")
     assert matcher.detect(file_path=str(path)) == []
+    assert given.conditions() == {TOO_FEW}  # the file is a whole input
     assert resolve("GPL-2.0-only+", matcher.db)["category"] == "malformed"
 
 

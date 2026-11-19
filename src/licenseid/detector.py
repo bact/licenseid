@@ -22,7 +22,6 @@ from licenseid.errors import invalid_id_error
 from licenseid.identifiers import (
     is_qualified_plus,
     is_simple_expression,
-    is_stray_plus,
 )
 from licenseid.idoptions import excluded_ids, free_text_hits, upgraded_options
 from licenseid.looseid import (
@@ -235,8 +234,6 @@ class LicenseDetector:
         answers as license_id would. None (fall through to Tier 1) for
         inputs at or above the threshold, or below it with no confident match.
         """
-        if is_qualified_plus(ctx.target_text) or is_stray_plus(ctx.target_text):
-            return []  # "GPL-2.0-only+", "MIT +": no license, nor a near one
         if ctx.word_count >= 30:  # a long text is matched whatever its "+" (C++)
             return None
         # What resolve() reads is the answer, whatever wraps it ("GPL-2.0+,",
@@ -502,6 +499,10 @@ class LicenseDetector:
         ctx = self._without_tags(ctx)
         # Free text from here: upgrade the options' deprecated IDs, once.
         ctx = replace(ctx, request=upgraded_options(ctx.request))
+        if is_qualified_plus(ctx.target_text):
+            # "GPL-2.0-only+": no license, nor a near one; say why
+            too_short(whole, ctx.norm_input, whole=ctx.target_text == target_text)
+            return []
         short_text_result = self._try_tier0_short_text(ctx)
         if short_text_result:  # a name hit is free text: exclude drops it
             excluded = excluded_ids(ctx.request.get("exclude", []))
