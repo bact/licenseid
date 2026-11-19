@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-19
+Last-Modified: 2026-11-20
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -477,10 +477,9 @@ Open:
   reader of their own for a tag and a field (`MIT OR MirOS` order, a title
   and an alias are not read by a tag); route them through `resolve()` once
   item 43 has landed in `markers.py`.
-- **`identifiers.is_qualified_plus` / `is_stray_plus`** (the first guard of
-  `_try_tier0_short_text`) repeat the "+" refusals of `resolve()`; they
-  return no result where the `resolve()` guard returns None (a warning), so
-  removing them adds a `too few words for text` warning. Decide, then drop.
+- **`identifiers.is_qualified_plus`** (the guard of `_match_text`) repeats a
+  "+" refusal of `resolve()` for a value too large to parse; `is_stray_plus`
+  is gone (#232, item 58).
 - **Two shapes of a wrapped name still answer** (known gaps of the fix of
   2026-11-18, recorded in
   [`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md)):
@@ -682,30 +681,42 @@ Rule for every PR: the narrowest fix, no right answer moves on any corpus,
 net rules added at most zero (no new regex, list or special case; reuse or
 delete), a time check against `main`.
 
-One PR each, in this order (they share files):
+Built as #230 to #233 (2026-11-19); the combined review of the four found
+two things to fix after (below). One PR each, in this order (they shared
+files):
 
-0. **Free lines in `detector.py`**, no behaviour change: `_rank_candidates`
+0. **Free lines in `detector.py`** (#230), no behaviour change: `_rank_candidates`
    scoring moves to `similarity.score_candidates` and
    `similarity.boost_by_fingerprint` (735 to 675 lines). The pylint ceiling
    `max-module-lines` stays 735: `tests/test_option_matrix.py` is 735 too and
    `markers.py` 733; lowering it needs those split.
-1. **The encoded "+" in a NuGet URL.** `resolvefirst.is_exact()` says yes for
+1. **The encoded "+" in a NuGet URL** (#231). `resolvefirst.is_exact()` says yes for
    `https://licenses.nuget.org/GPL-2.0%2B`, `detect()` says no: the variant
    evidence is the raw URL. Take it from the `license_url` step, through the
    one URL-to-ID reader of `markers.py` (moved to `resolveurl`), not a
    string replace. Regenerate `docs/lists.md`.
-2. **No warning for a bare `MIT++`, `MIT +`, `GPL-2.0-only+`, `(MIT)+`.**
-   `detector._try_tier0_short_text` returns `[]` for a "+" refusal before
-   `too_short` can warn; the quoted forms warn. Apply the predicate in
-   `_match_text`, then `too_short`, and delete the early return. `C++` and
-   `g++` warn too (true: no licence). Update AGENTS.md ("Tier 0 asks
-   `resolve()` first") and `docs/resolve.md`.
-3. **`EXACT` after a cut mark.** `MIT or later.`, `;`, `:`, `..`, `)` give no
-   `separator` step and are exact; `MIT;` is inexact. One tail-class
-   constant shared with `looseid._RE_GRANT_TAIL`; add the `end mark` step
-   only where the grant is read; the field also judges "was cut". The
-   category becomes `separator` (as `MIT;`); 14 pins flip, among them the
-   #221 one, on purpose. The `docs/resolve.md` "known gap" goes.
+2. **No warning for a bare `MIT++`, `MIT +`, `GPL-2.0-only+`, `(MIT)+`**
+   (#232). `detector._try_tier0_short_text` returned `[]` for a "+" refusal
+   before `too_short` could warn; the quoted forms warn. Built: the
+   predicate of a qualified "+" moved to `_match_text`, then `too_short`;
+   `is_stray_plus` was redundant and is deleted. `C++` and `g++` warn too
+   (true: no licence). **Regression to fix:** a stray-plus value of 10
+   words or more once normalised (a long dashed `LicenseRef-*` and a
+   trailing ` +`) now reaches Tiers 1 and 2 and can answer (Apache-2.0
+   0.80); main gave `[]`. Fix: `_match_text` returns `[]` for any "+"
+   refusal of `resolve()` on the whole input, whatever the length.
+3. **`EXACT` after a cut mark** (#233). `MIT or later.`, `;`, `:`, `,` gave
+   no `separator` step and were exact; `MIT;` is inexact. Built smaller than
+   planned: `resolveleaf._single` adds the `end mark` step after the grant
+   is read (reusing `trim_end_mark`), and a field is judged by
+   `resolvefirst.was_cut` (`ruleread.tag_inexact(raw=)`). No regex change
+   (tried: it refuses answers). The category becomes `separator`; the #221
+   pin flips on purpose. Known gaps left, in `docs/resolve.md`: a run of
+   marks after a grant (`MIT or later..`, `.)`) is still `MIT+`, exact; an
+   operand with an end mark (`MIT. AND ISC`) is exact (its `separator` step
+   has no detail); a tag compound (`MIT or later. AND ISC`) is inexact
+   while `MIT. AND ISC` stays exact; the steps after the end-mark step of
+   `GPL-2.0 - or later.` still read the mark (no chain check).
 
 Not fixed, by decision (2026-11-19): `Python-2.0` for `GNU General Public
 License version 2.0, requires Python 3.8 or later` (a name hit of scattered

@@ -12,6 +12,7 @@ LicenseDetector.
 """
 
 import math
+from typing import Final
 from unicodedata import east_asian_width
 
 from rapidfuzz import fuzz
@@ -239,7 +240,7 @@ def calculate_final_score(
 # Calibrated to be in the same range as the marker boost (~0.05) so that
 # fingerprint matches can break ties between near-equal similarity scores
 # without overriding genuine similarity differences.
-FP_BOOST: float = 0.05
+FP_BOOST: Final = 0.05
 
 
 def score_candidates(

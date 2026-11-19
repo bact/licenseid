@@ -16,9 +16,12 @@ and this project adheres to
 - `detect https://licenses.nuget.org/GPL-2.0%2B` (an encoded "+") is `exact`
   and has `VARIANT_STATED` true, as the URL with a literal "+" has; both
   flags were false ([#231])
-- `detect` on a bare `MIT++`, `MIT +`, `GPL-2.0-only+`, `(MIT)+` or `C++` warns
-  `too few words for text: <reason>`, as its quoted form did; it gave no
-  answer and no warning ([#232])
+- `detect` on a bare `MIT++`, `MIT +`, `GPL-2.0-only+` or `(MIT)+` warns
+  `too few words for text: <reason>`; it gave no answer and no warning
+  ([#232])
+- `MIT or later.` (one end mark after an "or later" grant) is a `separator`
+  with an `end mark` step and is not `exact`, as `MIT.` is; it was exact
+  ([#233])
 
 ## [0.9.0] - 2026-11-19
 
@@ -145,6 +148,7 @@ and this project adheres to
 [#229]: https://github.com/bact/licenseid/pull/229
 [#231]: https://github.com/bact/licenseid/pull/231
 [#232]: https://github.com/bact/licenseid/pull/232
+[#233]: https://github.com/bact/licenseid/pull/233
 
 ## [0.8.4] - 2026-11-09
 

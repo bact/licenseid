@@ -74,10 +74,10 @@ page](lists.md):
   with `word dropped: rem`. At the end of a value one `.`, `,`, `;` or
   `:`, with white space around it, is an ending and is left off (`MIT;`,
   `(MIT).`, `The Unlicense.`, `MIT License :`; a `separator` step, detail
-  `end mark`, before the reading). After an "or later" grant the grant
-  reader takes the mark off itself and records no step (`MIT or later;` is
-  `MIT+`, `stated_qualifier`), so `detect()` calls that answer exact, unlike
-  `MIT;`: a known gap. Two or more marks, an ellipsis
+  `end mark`, before the reading), also after an "or later" grant (`MIT or
+  later;` is `MIT+`, `separator`, not exact). A run of marks after a grant
+  (`MIT or later..`, `MIT or later.)`) is still read as `MIT+`, with no step
+  and exact: a known gap. Two or more marks otherwise, an ellipsis
   and a lone dash (`MIT;;`, `MIT...`, `MIT…`, `MIT -`) are refused, also
   after a `+`, an exception, a `LicenseRef-*` or a prose form (`MIT+;` is
   `MIT+`; `GPL-2.0+?`, `MIT License -` are refused). At

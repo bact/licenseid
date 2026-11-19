@@ -139,13 +139,14 @@ def test_a_field_that_resolve_reads_by_a_rule_is_not_exact(
         ("New BSD\u200f", False),
         ("New BSD\u200b", True),
         ("CC0 1.0 Universal.", False),
+        ("GPL-2.0 or later.", False),  # an end mark after a grant is cut too
         # Not cut: white space, the slash, balanced quotes, a name, a grant.
         ("MIT  OR  Apache-2.0", True),
         ("MIT/Apache-2.0", True),
         ('"MIT"', True),
         ("\u201cMIT\u201d", True),
         ("MIT License", True),
-        ("GPL-2.0 or later.", True),
+        ("GPL-2.0 or later", True),
         ("BSD 2-Clause FreeBSD License", True),  # a re-spelling step, no cut
     ],
 )
