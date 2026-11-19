@@ -21,6 +21,7 @@ and this project adheres to
   answer and no warning ([#232])
 - `MIT or later.` (one end mark after an "or later" grant) is a `separator`
   with an `end mark` step and is not `exact`, as `MIT.` is; it was exact
+  ([#233])
 
 ## [0.9.0] - 2026-11-19
 
@@ -147,6 +148,7 @@ and this project adheres to
 [#229]: https://github.com/bact/licenseid/pull/229
 [#231]: https://github.com/bact/licenseid/pull/231
 [#232]: https://github.com/bact/licenseid/pull/232
+[#233]: https://github.com/bact/licenseid/pull/233
 
 ## [0.8.4] - 2026-11-09
 
