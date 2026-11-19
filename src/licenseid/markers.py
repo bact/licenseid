@@ -272,7 +272,13 @@ class MarkerDetector:
             if inexact == "decided":
                 mark_guessed(found[0], expression)
             found[0]["decided"] = True
-        elif found and tag_inexact(self.db, granted, expression, resolved=resolved):
+        elif found and tag_inexact(
+            self.db,
+            granted,
+            expression,
+            resolved=resolved,
+            field=val if whole else None,
+        ):
             found[0]["decided"] = True
         # Only words the readers took are stated, as for the argument
         return read_from(found, val if named or expression != leading else leading)

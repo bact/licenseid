@@ -21,7 +21,7 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, grant_end, grant_follows, grant_head
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
-from licenseid.dropguard import glued_marks, glued_tag_marks, trim_end_mark
+from licenseid.dropguard import glued_marks, glued_tag_marks
 from licenseid.exprtokens import (
     ID_WORD,
     LIST_MARK,
@@ -365,10 +365,8 @@ def drops_words(
         return False
     if lists_after_grant(db, leading, expression, value):
         return True  # a grant ending the value is no excuse: it is another's
-    left = (
-        expression == leading
-        or (whole and trim_end_mark(value) is not None)  # a field's end mark is cut
-        or (granted_id_text(value) is None and declared_grant_id_text(value) is None)
+    left = expression == leading or (
+        granted_id_text(value) is None and declared_grant_id_text(value) is None
     )
     return left and (
         whole or restates_qualifier(leading, value) or lists_another(db, leading, value)

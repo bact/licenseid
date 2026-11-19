@@ -11,8 +11,8 @@
 ``license`` field and a compound operand dropped the mark in silence, where
 ``MIT.`` and ``MIT;`` took a ``separator`` step, "end mark", and were not
 exact. The grant reader (``resolveleaf._single``) now takes one end mark off
-as they do, and a field that ends so is read by ``resolve()`` too
-(``looseid.drops_words``). A tag keeps its answer: it runs on into prose.
+as they do, and a field is judged by it too (``ruleread.tag_inexact``,
+``resolvefirst.was_cut``). A tag keeps its answer: it runs on into prose.
 
 A database of the whole List (``corpus_db``)."""
 # pylint: disable=missing-function-docstring
@@ -59,7 +59,7 @@ def test_one_end_mark_after_a_grant_is_a_cut_ending(
 
 
 def test_the_end_mark_step_comes_first(corpus_db: LicenseDatabase) -> None:
-    """The steps after it read the value without the mark."""
+    """The end mark is the first step, before the readings of the grant."""
     assert _steps(corpus_db, "MIT or later.") == [("separator", "end mark")]
     assert _steps(corpus_db, "GPL-2.0 - or later.") == [
         ("separator", "end mark"),
@@ -125,8 +125,25 @@ def test_an_operand_with_an_end_mark_is_not_exact(
 
 
 @pytest.mark.parametrize("value", ["MIT or later..", "MIT or later;;"])
-def test_two_marks_are_as_refused_as_after_an_id(
+def test_two_marks_after_a_grant_are_still_read(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    """Not this fix's to move: ``MIT;;`` is refused, and these answered MIT+."""
+    """Not this fix's to move: ``MIT;;`` is refused, but these answer MIT+."""
     assert resolve(value, corpus_db)["expression"] == "MIT+"  # BUG: stays
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "(GPL-2.0) or later.",
+        "(GPL-2.0 WITH Classpath-exception-2.0) or later;",
+        "GPLv2 version 2 or later.",
+    ],
+)
+def test_a_field_resolve_refuses_keeps_its_answer(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """A field is only judged by what ``resolve()`` cut: one it refuses
+    answers as before (a right answer is never lost for the mark)."""
+    assert answers(corpus_db, value)["field"] is not None
+    assert answers(corpus_db, value)["field"] == answers(corpus_db, value)["tag"]

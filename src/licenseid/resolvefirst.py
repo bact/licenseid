@@ -116,6 +116,13 @@ def _cuts_value(step: Step) -> bool:
     )
 
 
+def was_cut(resolution: Resolution) -> bool:
+    """Whether a step of *resolution* took characters off the value (an end
+    mark, a quote mark with no pair, a hidden character): no list's reading,
+    whatever the category."""
+    return any(_cuts_value(s) for s in resolution["steps"])
+
+
 def is_exact(resolution: Resolution) -> bool:
     """Whether a list defines the reading of *resolution*: every operand of
     a compound (else the value) is in :data:`EXACT_CATEGORIES`. A bare ID
@@ -125,7 +132,7 @@ def is_exact(resolution: Resolution) -> bool:
     category is not, though its operands are as listed, if it was cut
     (``"MIT``, ``(MIT).``, ``New BSD.``, ``"GPL-2.0 OR MIT``); IDs joined by a
     slash are (``MIT/Apache-2.0``)."""
-    if any(_cuts_value(s) for s in resolution["steps"]):
+    if was_cut(resolution):
         return False
     operands = resolution["operands"]
     if not operands:
