@@ -19,6 +19,8 @@ and this project adheres to
 - `detect` on a bare `MIT++`, `MIT +`, `GPL-2.0-only+`, `(MIT)+` or `C++` warns
   `too few words for text: <reason>`, as its quoted form did; it gave no
   answer and no warning ([#232])
+- `MIT or later.` (one end mark after an "or later" grant) is a `separator`
+  with an `end mark` step and is not `exact`, as `MIT.` is; it was exact
 
 ## [0.9.0] - 2026-11-19
 

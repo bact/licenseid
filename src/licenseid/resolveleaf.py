@@ -447,6 +447,7 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
     named = granted_id_text(text) or declared_grant_id_text(text)
     if named is not None:
         head = before_grant(named)  # "GPL-3.0 (or later)": the "(" is the grant's
+        starts = len(found.steps)
         undashed = undashed_grant(text, head)  # "GPL-2.0 - or later"
         if undashed is not None:
             found.steps.append(step("separator", True, text, undashed))
@@ -458,7 +459,13 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
             db, named.strip(), granted=True, head=True
         ) or _reference_before_mark(named.strip())
         if base is not None:
-            return _grant(db, text, base, found)
+            read = _grant(db, text, base, found)
+            ended = trim_end_mark(text)  # "MIT or later.": an ending, as "MIT;" is
+            if ended is not None and found.expression is not None:
+                found.steps.insert(
+                    starts, step("separator", True, text, ended, "end mark")
+                )
+            return read
     base = _base(db, text)
     if base is None:
         return False

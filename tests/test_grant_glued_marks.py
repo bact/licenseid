@@ -58,7 +58,7 @@ OTHER_MARKS = [
     ".>",
 ]
 
-#: Read as before: one ending, a closing bracket, or a mark after white space.
+#: Read, one ending or a closing bracket: ``True`` for exact, an ending is cut.
 KEPT = {
     "GPL-2.0 or later.": "GPL-2.0-or-later",
     "GPL-2.0 or later,": "GPL-2.0-or-later",
@@ -70,6 +70,8 @@ KEPT = {
     "GPL-2.0 or later": "GPL-2.0-or-later",
     "GPL-2.0 or later version.": "GPL-2.0-or-later",
 }
+#: Of those, the ones that end in an end mark: it is cut, so not exact.
+CUT = {v for v in KEPT if v.endswith((".", ",", ";", ":"))}
 
 
 @pytest.mark.parametrize("value", sorted(REFUSED), ids=lambda v: repr(v)[:34])
@@ -110,8 +112,8 @@ def test_an_ending_after_a_grant_is_read(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     got = answers(corpus_db, value)
-    assert got["argument"] == (KEPT[value], True)
-    assert got["field"] == (KEPT[value], True)
+    assert got["argument"] == (KEPT[value], value not in CUT)
+    assert got["field"] == (KEPT[value], value not in CUT)
 
 
 @pytest.mark.parametrize(
@@ -296,12 +298,15 @@ def test_end_marks_after_a_grant_do_not_hide_a_listed_licence_in_a_tag(
 
 #: ``value: expression`` of tags whose grant ends in end marks and then an
 #: operator: read as ``resolve()`` reads them, as without the end marks.
+#: One end mark is cut, so not exact; several before the operator are dropped
+#: by the compound reader, as in ``MIT., AND ISC`` (a gap of its own).
 OPERATOR_AFTER_MARKS = {
     "GPL-2.0 or later., AND MIT": "GPL-2.0-or-later AND MIT",
     "GPL-2.0 or later.; OR ISC": "GPL-2.0-or-later OR ISC",
     "GPL-2.0 or later.:, AND MIT": "GPL-2.0-or-later AND MIT",
     "GPL-2.0 or later. AND MIT": "GPL-2.0-or-later AND MIT",
 }
+CUT_OPERATOR = {"GPL-2.0 or later. AND MIT"}
 
 
 @pytest.mark.parametrize("value", sorted(OPERATOR_AFTER_MARKS), ids=lambda v: v[:34])
@@ -309,7 +314,7 @@ def test_end_marks_then_an_operator_after_a_grant_read_as_resolve_does(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
     got = answers(corpus_db, value)
-    assert got["tag"] == (OPERATOR_AFTER_MARKS[value], True)
+    assert got["tag"] == (OPERATOR_AFTER_MARKS[value], value not in CUT_OPERATOR)
     assert got["argument"] == got["tag"]
     assert got["field"] == got["tag"]
 
