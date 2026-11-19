@@ -234,6 +234,16 @@ def url_license_id(db: ListLookup, text: str) -> str | None:
     return None
 
 
+def urls_as_ids(db: ListLookup, text: str) -> str:
+    """*text* with each word that is a licence URL replaced by the expression
+    it names (:func:`url_license_id`): the words that state a licence's
+    variant (``licenses.nuget.org/GPL-2.0%2B`` states ``GPL-2.0-or-later``).
+    With no such word, *text* without its outer white space."""
+    words = text.split()
+    ids = [url_license_id(db, word) or word for word in words]
+    return " ".join(ids) if ids != words else text.strip()
+
+
 def _bracketed(expression: str | None) -> str | None:
     """*expression* in brackets if it joins licences, else as it is."""
     if expression is not None and is_compound(expression):

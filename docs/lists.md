@@ -238,8 +238,9 @@ alone (`assumed_only`, `deprecated_ambiguous`). It is compared by its key
 fragment, a trailing `/` and one page suffix such as `.html` are dropped. A
 key can so name a page that does not exist (`licenses.nuget.org/mit`). The
 reader tries four things in this order; a refusal claims the value, so no
-later reader guesses at it. `EXACT` is `detect()`'s: a variant the value as
-written does not state is not exact, and `%2B` is no "+" as written.
+later reader guesses at it. `EXACT` is `detect()`'s: a variant the value does
+not state is not exact (`https://licenses.nuget.org/GPL-2.0%2B` states
+`GPL-2.0+`, as the URL with a literal "+" does).
 
 | URL | Answer | Category | Detail | `EXACT` |
 | --- | --- | --- | --- | --- |
@@ -249,7 +250,7 @@ written does not state is not exact, and `%2B` is no "+" as written.
 | `https://spdx.org/licenses/preview/MIT` | none | `unresolved` | — | — |
 | `https://licenses.nuget.org/mit` | `MIT` | `license_url` | `id in path` | yes |
 | `https://licenses.nuget.org/MS-PL%20OR%20Apache-2.0` | `Apache-2.0 OR MS-PL` | `license_url` | `expression in path` | yes |
-| `https://licenses.nuget.org/GPL-2.0%2B` | `GPL-2.0-or-later` | `license_url` | `expression in path` | no |
+| `https://licenses.nuget.org/GPL-2.0%2B` | `GPL-2.0-or-later` | `license_url` | `expression in path` | yes |
 | `https://openjdk.java.net/legal/gplv2+ce` | `GPL-2.0-with-classpath-exception` | `deprecated_ambiguous` | `alias` | yes |
 
 ### Pages whose path holds an ID
