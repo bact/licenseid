@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-20
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -13,9 +13,16 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-11-18)
+## Current state (as of 2026-11-20)
 
-- **0.9.0** (prepared 2026-11-18, release PR #228): PRs #201 to #227, reviewed
+- **0.9.1** (not released; in `[Unreleased]`): PRs #230 to #235, small
+  fixes to what 0.9.0 left open: `detect` of an encoded "+" in a NuGet URL
+  (#231); a bare `MIT++` warns, also at 10 words or more (#232, #234);
+  `MIT or later.` is inexact (#233); the name tier refuses a hit beside a
+  licence named whole without its grant (#235). PR #230 moved Tier 2
+  scoring out of `detector.py` (no change in answers). The record is
+  [tech-debt-resolved-0-9.md](tech-debt-resolved-0-9.md), section "0.9.1".
+- **0.9.0** (released 2026-11-19, release PR #228): PRs #201 to #227, reviewed
   whole before the tag ([pre-release-review.md](pre-release-review.md)): a
   docs sweep, `detect()` reading a whole value once, three rounds of read-only
   review with batched fixes, then the results and lessons recorded and this

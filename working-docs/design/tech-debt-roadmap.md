@@ -386,8 +386,9 @@ use):
   tie); needs a rule that weighs every name the input holds, not only the tied
   ones. A grant-less GPL name beside a short name (`GNU General Public License
   v2.0 or MIT License`, bug 4 of item 58) is built: `namehits._names_another`
-  reads the other name without its grant (`namehits._without_grant`); 133 of 672 probes of
-  `... version 2.0, requires <word> 3.8 or later` answered a wrong name, 0 now.
+  reads the other name without its grant (`namehits._without_grant`); 133 of
+  672 probes of `... version 2.0, requires <word> 3.8 or later` answered a
+  wrong name, 0 now.
 - **A list of two licences that names one whole**: `Eclipse Public License
   v. 1.0 - Cecill v. 2.0` answers EPL-1.0 (as `main` did; round 1 of the
   fix refused it): 4 of 12,723 windows. `with <one-word exception>` without
@@ -723,9 +724,9 @@ files):
 Bug 4, `Python-2.0` for `GNU General Public License version 2.0, requires
 Python 3.8 or later`: a class (a short name whose words are scattered beside
 a licence named whole without its grant), fixed after 0.9.1 by widening
-`namehits._names_another`, not by a rule for one sentence. Left: `General Public License
-version 2.0, requires Python ...` (no "GNU") and `GNU General Public License
-v2. Requires Python 2.0 or later to build`.
+`namehits._names_another`, not by a rule for one sentence (PR #235). Left:
+`General Public License version 2.0, requires Python ...` (no "GNU") and
+`GNU General Public License v2. Requires Python 2.0 or later to build`.
 
 Not fixed, by decision (2026-11-19): `GPL-2.0 or later MIT` (a licence after a
 grant without an operator), `MIT only AND Apache-2.0` and `GPL-2.0 only,

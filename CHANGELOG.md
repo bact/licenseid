@@ -24,7 +24,7 @@ and this project adheres to
   ([#233])
 - `GNU General Public License version 2.0, requires Python 3.8 or later` and
   `GNU General Public License v2.0 or MIT License` give no answer; they
-  gave `Python-2.0` and `MIT`
+  gave `Python-2.0` and `MIT` ([#235])
 
 ## [0.9.0] - 2026-11-19
 
@@ -153,6 +153,7 @@ and this project adheres to
 [#232]: https://github.com/bact/licenseid/pull/232
 [#233]: https://github.com/bact/licenseid/pull/233
 [#234]: https://github.com/bact/licenseid/pull/234
+[#235]: https://github.com/bact/licenseid/pull/235
 
 ## [0.8.4] - 2026-11-09
 
