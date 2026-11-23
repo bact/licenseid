@@ -67,6 +67,7 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_matcher_coverage.py",
         "test_module_layout.py",
         "test_option_matrix.py",
+        "test_option_matrix_resolve.py",
         "test_option_matrix_variant.py",
         "test_output_encoding.py",
         "test_output_pattern.py",

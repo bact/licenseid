@@ -612,7 +612,7 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   `@pytest.mark.parametrize` for similar inputs.
 - A new CLI option or API parameter becomes an axis (or a value) in
   `tests/test_option_matrix.py` (a large axis in a file it names, as
-  `test_option_matrix_variant.py`).
+  `test_option_matrix_variant.py` and `test_option_matrix_resolve.py`).
 - Run plain `pytest tests/` (no `-m 'not benchmark'`), and the full suite
   alone (beside mutants or `tools.golden`, 1 s bounds fail).
 - In a fix-and-review loop, run the full suite, the full `tools.golden` and

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-23
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -47,13 +47,13 @@ file.
 | Statements | ≤50 | 37 (config) | 35 (`markers._detect_gpl_headers`, `tests/test_update_matrix.py::test_update_matrix`) |
 | McCabe | ≤10 | 12 | 12 (`identifiers.read_leading`, alone); next 11 (four holders) |
 | Cognitive | ≤15 | 29 | 29 (`identifiers.read_leading` and `tests/test_accuracy.py::run_accuracy_test`); next 25 (`detector._match_mixed_content`) |
-| Module lines | soft 400-500 / hard 800 | 738 (config) | 735 (`detector.py`, `tests/test_option_matrix.py`); next `markers.py` 733, `identifiers.py` 722 |
+| Module lines | soft 400-500 / hard 800 | 734 (config) | 734 (`markers.py`; re-measured 2026-11-23); next `identifiers.py` 703, `dbcheck.py` 689 |
 
-The Statements and module-lines ceilings in `pyproject.toml` are above the
-measured worst (37 against 35, 738 against 735): they are no longer exact
-ratchets, and can drop to 35 and 735. Nothing else can drop without a
-refactor: Branches to 12 needs `identifiers._normalize_expression` (13); McCabe
-to 11 needs `identifiers.read_leading`; Cognitive to 28 needs two functions
+The module-lines ceiling in `pyproject.toml` is an exact ratchet again (734,
+after the split of `tests/test_option_matrix.py`, 2026-11-23); the Statements
+ceiling is 35, also exact. Nothing else can drop without a refactor:
+Branches to 12 needs `identifiers._normalize_expression` (13); McCabe to 11
+needs `identifiers.read_leading`; Cognitive to 28 needs two functions
 (`read_leading`, `run_accuracy_test`; then 25); Locals to 21 needs
 `markers._detect_gpl_headers`. `identifiers.read_leading` holds McCabe and
 (with a test helper) Cognitive: refactoring it moves one ceiling and halves
@@ -66,10 +66,9 @@ are one file; generated outputs left out):
 | --- | --- |
 | 747 | `AGENTS.md` (also `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`) |
 | 741 | `docs/resolve.md` |
-| 735 | `src/licenseid/detector.py`, `tests/test_option_matrix.py` |
-| 733 | `src/licenseid/markers.py` |
-| 722 | `src/licenseid/identifiers.py` |
-| 686 | `src/licenseid/dbcheck.py` |
+| 734 | `src/licenseid/markers.py` |
+| 703 | `src/licenseid/identifiers.py` |
+| 689 | `src/licenseid/dbcheck.py` |
 | 684 | `working-docs/implementation/declared-value-resolver-0-7.md` |
 | 679 | `tests/test_variant.py` |
 | 678 | `working-docs/paper-notes/ai-sessions-recent.md` |
@@ -84,9 +83,9 @@ are one file; generated outputs left out):
 
 `CHANGELOG.md` (1,071 lines) is over the hard limit: it is one file by
 design. No other file is over 800. Within 100 lines of the hard limit:
-`AGENTS.md`, `docs/resolve.md`, `detector.py`, `tests/test_option_matrix.py`,
-`markers.py`, `identifiers.py`. The next change to `detector.py`,
-`markers.py` or `identifiers.py` should split first (the `AGENTS.md` rule).
+`AGENTS.md`, `docs/resolve.md`, `markers.py`, `identifiers.py`. The next
+change to `markers.py` or `identifiers.py` should split first (the `AGENTS.md`
+rule).
 
 ## Backlog, priority order
 

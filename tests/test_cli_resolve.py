@@ -8,7 +8,7 @@
 The list is the 3.29.0 List of the fixtures, shipped as the packaged bundle
 (``release_fakes.ship``); no database is at the default path unless a test
 puts one there. The combinations of ``--source``, ``--db`` and ``--json``
-are in ``test_option_matrix``; the field escape in ``test_text_field``.
+are in ``test_option_matrix_resolve``; the field escape in ``test_text_field``.
 """
 # pylint: disable=redefined-outer-name,missing-function-docstring
 

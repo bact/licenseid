@@ -6,7 +6,7 @@
 """Which list ``resolve()`` reads when it has both a database at the
 default path and a bundle in the wheel: the newer List wins; a tie goes
 to the database only when this licenseid's rules built its rows.
-``tests/test_option_matrix.py`` holds the axes; this file the edges."""
+``tests/test_option_matrix_resolve.py`` holds the axes; this file the edges."""
 # pylint: disable=missing-function-docstring
 
 import re
