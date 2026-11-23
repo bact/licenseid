@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-23
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -714,12 +714,17 @@ files):
    is read (reusing `trim_end_mark`), and a field is judged by
    `resolvefirst.was_cut` (`ruleread.tag_inexact(raw=)`). No regex change
    (tried: it refuses answers). The category becomes `separator`; the #221
-   pin flips on purpose. Known gaps left, in `docs/resolve.md`: a run of
-   marks after a grant (`MIT or later..`, `.)`) is still `MIT+`, exact; an
-   operand with an end mark (`MIT. AND ISC`) is exact (its `separator` step
-   has no detail); a tag compound (`MIT or later. AND ISC`) is inexact
-   while `MIT. AND ISC` stays exact; the steps after the end-mark step of
-   `GPL-2.0 - or later.` still read the mark (no chain check).
+   pin flips on purpose. Built 0.9.2 (`dropguard.grant_end_marks`): a run of
+   end marks after a grant (`MIT or later..`) is refused as `MIT;;` is; a
+   tag still reads it, and a licence name in a field (`GNU General Public
+   License v2.0 or later..`). Known gaps left, in `docs/resolve.md`: a closing
+   bracket after one end mark (`MIT or later.)`) is `MIT+`, exact; a wrapped
+   value with a stray mark (`(GPL-2.0 or later).)`) answers exact in `detect`
+   where `resolve()` refuses it; a tag `MIT. AND ISC` answers `MIT`, exact,
+   and drops ISC (item 46; the argument and a field give `ISC AND MIT`,
+   inexact, as `MIT or later. AND ISC` does in all three); the steps after
+   the end-mark step of `GPL-2.0 - or later.` still read the mark (no chain
+   check).
 
 Bug 4, `Python-2.0` for `GNU General Public License version 2.0, requires
 Python 3.8 or later`: a class (a short name whose words are scattered beside

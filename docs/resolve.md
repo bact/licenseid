@@ -75,14 +75,19 @@ page](lists.md):
   `:`, with white space around it, is an ending and is left off (`MIT;`,
   `(MIT).`, `The Unlicense.`, `MIT License :`; a `separator` step, detail
   `end mark`, before the reading), also after an "or later" grant (`MIT or
-  later;` is `MIT+`, `separator`, not exact). A run of marks after a grant
-  (`MIT or later..`, `MIT or later.)`) is still read as `MIT+`, with no step
-  and exact: a known gap. Two or more marks otherwise, an ellipsis
-  and a lone dash (`MIT;;`, `MIT...`, `MIT…`, `MIT -`) are refused, also
-  after a `+`, an exception, a `LicenseRef-*` or a prose form (`MIT+;` is
-  `MIT+`; `GPL-2.0+?`, `MIT License -` are refused). At
-  the start nothing is left off: `-- MIT`, `; MIT`, `... MIT`, and an ID
-  cut from a longer one (`.GPL-3.0-only`, `-MIT`) are refused;
+  later;` is `MIT+`, `separator`, not exact). A run of end marks after a
+  grant (`MIT or later..`, `MIT or later.;`) is refused as `MIT;;` is,
+  `character dropped: U+002E`, in the argument and a JSON field too (a
+  licence name in a field, `GNU General Public License v2.0 or later..`, is
+  still read: a known gap); a tag still reads it (it runs on into prose).
+  A closing bracket after a grant passes (`MIT or later.)` is `MIT+`, with
+  no step and exact: a known gap).
+  Two or more marks otherwise, an ellipsis and a lone dash (`MIT;;`, `MIT...`,
+  `MIT…`, `MIT -`) are refused, also after a `+`, an exception, a
+  `LicenseRef-*` or a prose form (`MIT+;` is `MIT+`; `GPL-2.0+?`,
+  `MIT License -` are refused). At the start nothing is left off: `-- MIT`,
+  `; MIT`, `... MIT`, and an ID cut from a longer one (`.GPL-3.0-only`,
+  `-MIT`) are refused;
 - a zero-width character at either end of the value is white space: U+200B
   zero width space, U+200C zero width non-joiner, U+200D zero width joiner,
   U+2060 word joiner, U+FEFF zero width no-break space (a byte order mark)

@@ -21,7 +21,7 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, grant_end, grant_follows, grant_head
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
-from licenseid.dropguard import glued_marks, glued_tag_marks
+from licenseid.dropguard import glued_marks, glued_tag_marks, grant_end_marks
 from licenseid.exprtokens import (
     ID_WORD,
     LIST_MARK,
@@ -251,12 +251,14 @@ def disambiguate_whole(text: str, db: ListLookup) -> str | None:
 def _mark_glued_to_grant(text: str, start: int) -> bool:
     """Whether the first "or later" grant from *start* of *text* has a mark
     glued to its end that ``resolve()`` refuses (``dropguard.glued_marks``),
-    after the words that may follow it ("version", "of the License")."""
+    after the words that may follow it ("version", "of the License"), or ends
+    in a run of end marks (``dropguard.grant_end_marks``)."""
     grant = OR_LATER_PHRASE.search(text, start)
     if grant is None:
         return False
     words = RE_GRANT_WORDS.match(text, grant.end())
-    return bool(glued_marks(text, words.end() if words else grant.end()))
+    end = words.end() if words else grant.end()
+    return bool(glued_marks(text, end) or grant_end_marks(text, end))
 
 
 def _lists_another(text: str, own: set[str], db: ListLookup) -> bool:
@@ -363,6 +365,9 @@ def drops_words(
     or :func:`declared_grant_id_text` for a bare "MIT or later")."""
     if leading == value:
         return False
+    stop = grant_stop(value, leading) if whole and expression != leading else None
+    if stop is not None and grant_end_marks(value, stop):
+        return True  # "MIT or later..": a field is refused as resolve() refuses it
     if lists_after_grant(db, leading, expression, value):
         return True  # a grant ending the value is no excuse: it is another's
     left = expression == leading or (

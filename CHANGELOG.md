@@ -9,6 +9,14 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- A run of end marks after an "or later" grant (`MIT or later..`) gives no
+  answer in `resolve()`, the argument and a JSON field, as `MIT;;` does; it
+  was `MIT+`, exact
+
 ## [0.9.1] - 2026-11-21
 
 ### Fixed

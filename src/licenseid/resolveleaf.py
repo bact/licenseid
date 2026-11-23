@@ -29,6 +29,7 @@ from licenseid.dropguard import (
     dropped,
     dropped_words,
     ends_in_ref,
+    grant_end_marks,
     joined_marks,
     trailing_joiners,
     trim_end_mark,
@@ -451,6 +452,7 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
         undashed = undashed_grant(text, head)  # "GPL-2.0 - or later"
         if undashed is not None:
             found.steps.append(step("separator", True, text, undashed))
+        marks = grant_end_marks(text)
         named = head
         if _qualified(db, named):
             found.category, found.reason = "malformed", stated_twice(text)
@@ -460,6 +462,8 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
         ) or _reference_before_mark(named.strip())
         if base is not None:
             read = _grant(db, text, base, found)
+            if marks and found.expression is not None:  # "MIT or later..": one
+                raise _Dropped(text, marks, base[0])  # end mark at most follows
             ended = trim_end_mark(text)  # "MIT or later.": an ending, as "MIT;" is
             if ended is not None and found.expression is not None:
                 found.steps.insert(
