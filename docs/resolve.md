@@ -80,8 +80,8 @@ page](lists.md):
   `character dropped: U+002E`, in the argument and a JSON field too (a
   licence name in a field, `GNU General Public License v2.0 or later..`, is
   still read: a known gap); a tag still reads it (it runs on into prose).
-  A closing bracket after a grant passes (`MIT or later.)` is `MIT+`, with
-  no step and exact: a known gap).
+  A closing bracket after a grant passes and ends a run (`MIT or later.)` is
+  `MIT+`, with no step and exact: a known gap; `MIT or later.).` is read).
   Two or more marks otherwise, an ellipsis and a lone dash (`MIT;;`, `MIT...`,
   `MIT…`, `MIT -`) are refused, also after a `+`, an exception, a
   `LicenseRef-*` or a prose form (`MIT+;` is `MIT+`; `GPL-2.0+?`,

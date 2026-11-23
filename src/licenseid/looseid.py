@@ -365,10 +365,7 @@ def drops_words(
     or :func:`declared_grant_id_text` for a bare "MIT or later")."""
     if leading == value:
         return False
-    stop = grant_stop(value, leading) if whole and expression != leading else None
-    if stop is not None and grant_end_marks(value, stop):
-        return True  # "MIT or later..": a field is refused as resolve() refuses it
-    if lists_after_grant(db, leading, expression, value):
+    if lists_after_grant(db, leading, expression, value, whole=whole):
         return True  # a grant ending the value is no excuse: it is another's
     left = expression == leading or (
         granted_id_text(value) is None and declared_grant_id_text(value) is None
@@ -379,7 +376,7 @@ def drops_words(
 
 
 def lists_after_grant(
-    db: ListLookup, leading: str, expression: str, value: str
+    db: ListLookup, leading: str, expression: str, value: str, *, whole: bool = False
 ) -> bool:
     """Whether *value*, read as *expression* for its *leading* expression,
     lists another licence of *db* after the "or later" grant that follows
@@ -391,13 +388,15 @@ def lists_after_grant(
     later?``, as ``resolve()`` refuses; a comment closer is no mark) goes the
     same way, also an operator in brackets (``(AND MIT)``) and after end marks
     (``or later.; ISC``, ``or later., AND MIT``). ``GPL-2.0 or later,
-    see COPYING`` and ``(see COPYING)`` keep their reading."""
+    see COPYING`` and ``(see COPYING)`` keep their reading. A *whole* value,
+    a field, also refuses a run of end marks that ends it (``or later..``),
+    as ``resolve()`` does; a tag reads it."""
     if expression == leading:
         return False  # no grant was applied (or only an "only")
     end = grant_stop(value, leading)
     if end is None:
         return False
-    if glued_tag_marks(value, end):
+    if glued_tag_marks(value, end) or (whole and grant_end_marks(value, end)):
         return True
     while end < len(value) and (value[end].isspace() or value[end] in ".:)]"):
         end += 1  # end marks and brackets hide neither an operator nor a listing

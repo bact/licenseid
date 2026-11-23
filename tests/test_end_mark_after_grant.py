@@ -150,6 +150,28 @@ def test_a_run_of_marks_after_a_grant_is_refused(
     assert resolve(name + grant, corpus_db)["expression"] == expression  # a guard
 
 
+@pytest.mark.parametrize("value", ["GPL-2.0 or later.).", "MIT or later.)."])
+def test_a_closing_bracket_between_two_end_marks_ends_the_run(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """One mark each side of the bracket is two endings, not a run: the value
+    is read, as one mark is, and is not exact."""
+    got = answers(corpus_db, value)
+    assert got["argument"] is not None
+    assert got["argument"][1] is False
+    assert got["field"] == got["argument"]
+
+
+def test_a_licence_name_in_a_field_still_reads_a_run_of_marks(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """A known gap: the name reader of a field does not judge the end of the
+    grant, so ``resolve()`` refuses what the field answers."""
+    value = "GNU General Public License v2.0 or later.."
+    assert resolve(value, corpus_db)["expression"] is None
+    assert answers(corpus_db, value)["field"] is not None  # BUG: stays
+
+
 def test_a_grant_that_states_the_qualifier_twice_keeps_its_reason(
     corpus_db: LicenseDatabase,
 ) -> None:
@@ -170,6 +192,8 @@ def test_a_grant_that_states_the_qualifier_twice_keeps_its_reason(
         "(MIT or later.)",
         "MIT or later.)",
         "MIT or later)",
+        "GPL-2.0 or later.).",
+        "MIT or later.).",
         "GPL-2.0, or (at your option) any later version.",
     ],
 )
