@@ -219,7 +219,7 @@ max-statements = 35            # target: 50 (below target; currently 35, markers
 
 [tool.pylint.format]
 max-line-length = 88
-max-module-lines = 735 # target: 800 (hard limit); soft limit 400-500; currently tests/test_option_matrix.py
+max-module-lines = 734 # target: 800 (hard limit); soft limit 400-500; currently src/licenseid/markers.py
 
 [tool.pytest.ini_options]
 # The repository root, so tests can import the developer tools in tools/.
