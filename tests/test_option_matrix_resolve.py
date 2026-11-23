@@ -186,7 +186,7 @@ def test_resolve_refuses_a_db_that_is_no_database(db: object) -> None:
         resolve("MIT", db)  # type: ignore[arg-type]
 
 
-# --- CLI match: --source x the database at the default path x --db x --json ---
+# --- CLI resolve: --source x the database at the default path x --db x --json ---
 
 DEFAULT_DATABASES = ["usable", "missing"]
 

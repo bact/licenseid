@@ -619,7 +619,8 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   `tools.cli_matrix` once, before a push, after the last clean review round,
   not after every fix. Each round runs the linters, the new tests, the tests
   of the changed modules, a mutation check of the new fix, and these always:
-  `test_option_matrix`, `test_output_pattern`, `test_resolver_shapes`.
+  `test_option_matrix` (and `test_option_matrix_resolve` for `resolve()`),
+  `test_output_pattern`, `test_resolver_shapes`.
   A change in a shared module (`detector`, `result`,
   `types`, `exprflags`) adds a wider `pytest -n 8` run.
 - No `tests/__init__.py`: `from conftest import ...` (helpers

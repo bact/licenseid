@@ -44,7 +44,7 @@ file.
 | Nesting | ≤5 | 5 (at target) | 5 (`detector._match_mixed_content`) |
 | Branches | ≤12 | 13 | 13 (`identifiers._normalize_expression`, alone); next 12 (`tests/test_accuracy.py::run_accuracy_test`), 11 in `src/` |
 | Returns | ≤6 | 6 (at target) | 6 (16 functions in `src/`) |
-| Statements | ≤50 | 37 (config) | 35 (`markers._detect_gpl_headers`, `tests/test_update_matrix.py::test_update_matrix`) |
+| Statements | ≤50 | 35 (config) | 35 (`markers._detect_gpl_headers`, `tests/test_update_matrix.py::test_update_matrix`) |
 | McCabe | ≤10 | 12 | 12 (`identifiers.read_leading`, alone); next 11 (four holders) |
 | Cognitive | ≤15 | 29 | 29 (`identifiers.read_leading` and `tests/test_accuracy.py::run_accuracy_test`); next 25 (`detector._match_mixed_content`) |
 | Module lines | soft 400-500 / hard 800 | 734 (config) | 734 (`markers.py`; re-measured 2026-11-23); next `identifiers.py` 703, `dbcheck.py` 689 |

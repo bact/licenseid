@@ -21,7 +21,9 @@ as an axis (or a value on an axis) here; see AGENTS.md "Testing".
 | options              | method / function x text / license_id / file |
 | API ``is_*()``       | PREDICATES x text / license_id / file        |
 | API ``resolve()``    | ``test_option_matrix_resolve``: source x     |
-| CLI ``resolve``      | default database x bundle x --db x --json   |
+|                      | default database x bundle                    |
+| CLI ``resolve``      | same file: --source x default database x     |
+|                      | --db x --json                                |
 | CLI ``update``       | ``test_update_matrix.py``: --source x --cache |
 |                      | x --list x --force x --json                  |
 | CLI ``clear-cache``  | ``test_clear_cache.py``: state x --json      |
