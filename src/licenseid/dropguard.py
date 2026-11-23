@@ -218,6 +218,43 @@ def glued_marks(text: str, end: int) -> str:
     return "".join(dict.fromkeys((*joined, *lost)))
 
 
+# What closes a grant's own bracket or a quote round the value: it ends a run
+# of end marks, so one mark either side of it (``or later.).``) is two endings.
+_CLOSERS: Final = ")]" + "".join(QUOTE_KIND)
+# What may stand after the "or later" grant that ends a value.
+_AFTER_GRANT: Final = WHITE_SPACE + _END_MARKS + _CLOSERS
+
+
+def grant_end_marks(text: str, end: int | None = None) -> str:
+    """The end marks a reading of *text*, a licence and the "or later" grant
+    that ends it, drops at its end, each once; empty if none. One ``.``,
+    ``,``, ``;`` or ``:`` is an ending (``or later.``, ``or later ;``); a run
+    of them says something (``or later..``, ``or later.;``, ``or later. .``).
+    A closing bracket or quote mark ends a run and is no mark itself, as in
+    :func:`glued_marks` (``or later.)``, ``or later.).``).
+
+    *end* is where the grant ends, if *text* may go on after it: only marks
+    after it are judged, and prose that follows (``or later, see COPYING..``)
+    is not this reader's. Without *end* the grant ends *text*'s licence, so
+    the marks that end *text* are judged. Linear."""
+    if end is None:
+        end = len(text)
+        while end and text[end - 1] in _AFTER_GRANT:
+            end -= 1
+    elif text[end:].strip(_AFTER_GRANT):
+        return ""
+    lost = ""
+    run = ""
+    for char in f"{text[end:]})":  # the extra closer ends the last run
+        if char in _END_MARKS:
+            run += char
+        elif char in _CLOSERS and run:
+            judged = f"x{run}"
+            lost += dropped(trim_end_mark(judged) or judged)
+            run = ""
+    return "".join(dict.fromkeys(lost))
+
+
 def glued_tag_marks(text: str, end: int) -> str:
     """:func:`glued_marks` for a tag value *text*, which knows no comment
     closers: a run that reaches one is left to the tag reader, as

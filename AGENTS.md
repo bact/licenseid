@@ -362,7 +362,11 @@ and `--json`) against these rules and checks the default output against the
   `_lists_another` shares), an "only" after an operand of a list (`MIT OR
   GPL-2.0 only`: `variants.qualify_trailing_only`). A mark glued to a grant's
   end (`or later-`, `?`) is refused by `looseid.disambiguate_whole`
-  (`dropguard.glued_marks`) as by `resolve()`. Keywords match in ASCII case only
+  (`dropguard.glued_marks`) as by `resolve()`. So is a run of end marks
+  (`or later..`, `or later.;`; `dropguard.grant_end_marks`, one reader for
+  `resolveleaf._single`, `disambiguate_whole` and a whole field in
+  `looseid.drops_words`); a tag still reads it
+  (`tests/test_grant_glued_marks.py`). Keywords match in ASCII case only
   (`(?a:...)` or `re.ASCII`; `tests/test_readers_case.py`).
 - "+": `plusoperator.PLUS_OPERATOR` (`strip_plus_operator`,
   `replace_plus_operator`, `plus_after_qualifier`; standard library only)

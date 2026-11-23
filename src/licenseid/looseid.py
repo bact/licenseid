@@ -21,7 +21,7 @@ import re
 
 from licenseid.classify import OR_LATER_PHRASE, grant_end, grant_follows, grant_head
 from licenseid.deprecatedids import DEPRECATED_WITH_IDS
-from licenseid.dropguard import glued_marks, glued_tag_marks
+from licenseid.dropguard import glued_marks, glued_tag_marks, grant_end_marks
 from licenseid.exprtokens import (
     ID_WORD,
     LIST_MARK,
@@ -251,12 +251,14 @@ def disambiguate_whole(text: str, db: ListLookup) -> str | None:
 def _mark_glued_to_grant(text: str, start: int) -> bool:
     """Whether the first "or later" grant from *start* of *text* has a mark
     glued to its end that ``resolve()`` refuses (``dropguard.glued_marks``),
-    after the words that may follow it ("version", "of the License")."""
+    after the words that may follow it ("version", "of the License"), or ends
+    in a run of end marks (``dropguard.grant_end_marks``)."""
     grant = OR_LATER_PHRASE.search(text, start)
     if grant is None:
         return False
     words = RE_GRANT_WORDS.match(text, grant.end())
-    return bool(glued_marks(text, words.end() if words else grant.end()))
+    end = words.end() if words else grant.end()
+    return bool(glued_marks(text, end) or grant_end_marks(text, end))
 
 
 def _lists_another(text: str, own: set[str], db: ListLookup) -> bool:
@@ -363,7 +365,7 @@ def drops_words(
     or :func:`declared_grant_id_text` for a bare "MIT or later")."""
     if leading == value:
         return False
-    if lists_after_grant(db, leading, expression, value):
+    if lists_after_grant(db, leading, expression, value, whole=whole):
         return True  # a grant ending the value is no excuse: it is another's
     left = expression == leading or (
         granted_id_text(value) is None and declared_grant_id_text(value) is None
@@ -374,7 +376,7 @@ def drops_words(
 
 
 def lists_after_grant(
-    db: ListLookup, leading: str, expression: str, value: str
+    db: ListLookup, leading: str, expression: str, value: str, *, whole: bool = False
 ) -> bool:
     """Whether *value*, read as *expression* for its *leading* expression,
     lists another licence of *db* after the "or later" grant that follows
@@ -386,13 +388,15 @@ def lists_after_grant(
     later?``, as ``resolve()`` refuses; a comment closer is no mark) goes the
     same way, also an operator in brackets (``(AND MIT)``) and after end marks
     (``or later.; ISC``, ``or later., AND MIT``). ``GPL-2.0 or later,
-    see COPYING`` and ``(see COPYING)`` keep their reading."""
+    see COPYING`` and ``(see COPYING)`` keep their reading. A *whole* value,
+    a field, also refuses a run of end marks that ends it (``or later..``),
+    as ``resolve()`` does; a tag reads it."""
     if expression == leading:
         return False  # no grant was applied (or only an "only")
     end = grant_stop(value, leading)
     if end is None:
         return False
-    if glued_tag_marks(value, end):
+    if glued_tag_marks(value, end) or (whole and grant_end_marks(value, end)):
         return True
     while end < len(value) and (value[end].isspace() or value[end] in ".:)]"):
         end += 1  # end marks and brackets hide neither an operator nor a listing

@@ -9,6 +9,14 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- A run of end marks after an "or later" grant (`MIT or later..`) gives no
+  answer in `resolve()`, the argument and a JSON field, as `MIT;;` does; it
+  was `MIT+`, exact ([#238])
+
 ## [0.9.1] - 2026-11-21
 
 ### Fixed
@@ -154,6 +162,7 @@ and this project adheres to
 [#233]: https://github.com/bact/licenseid/pull/233
 [#234]: https://github.com/bact/licenseid/pull/234
 [#235]: https://github.com/bact/licenseid/pull/235
+[#238]: https://github.com/bact/licenseid/pull/238
 
 ## [0.8.4] - 2026-11-09
 

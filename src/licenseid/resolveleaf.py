@@ -29,6 +29,7 @@ from licenseid.dropguard import (
     dropped,
     dropped_words,
     ends_in_ref,
+    grant_end_marks,
     joined_marks,
     trailing_joiners,
     trim_end_mark,
@@ -460,6 +461,10 @@ def _single(db: ListLookup, text: str, found: Found) -> bool:
         ) or _reference_before_mark(named.strip())
         if base is not None:
             read = _grant(db, text, base, found)
+            # "MIT or later..": no more than one end mark may follow a grant
+            marks = grant_end_marks(text) if found.expression is not None else ""
+            if marks:
+                raise _Dropped(text, marks, base[0])
             ended = trim_end_mark(text)  # "MIT or later.": an ending, as "MIT;" is
             if ended is not None and found.expression is not None:
                 found.steps.insert(

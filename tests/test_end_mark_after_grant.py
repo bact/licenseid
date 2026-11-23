@@ -17,11 +17,14 @@ as they do, and a field is judged by it too (``ruleread.tag_inexact``,
 A database of the whole List (``corpus_db``)."""
 # pylint: disable=missing-function-docstring
 
+import time
+
 import pytest
 from click.testing import CliRunner
 from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from grant_channels import answers
+from timing import slack
 
 from licenseid import LicenseDatabase, resolve
 from licenseid.cli import cli
@@ -124,12 +127,129 @@ def test_an_operand_with_an_end_mark_is_not_exact(
     assert not given.conditions()
 
 
-@pytest.mark.parametrize("value", ["MIT or later..", "MIT or later;;"])
-def test_two_marks_after_a_grant_are_still_read(
+RUNS = ["..", ";;", ",,", "...", " . .", ".;", ";.", ".,", ".:"]
+
+
+@pytest.mark.parametrize("run", RUNS, ids=repr)
+@pytest.mark.parametrize("grant", GRANTS)
+@pytest.mark.parametrize(("name", "expression"), LICENCES)
+def test_a_run_of_marks_after_a_grant_is_refused(
+    corpus_db: LicenseDatabase, name: str, expression: str, grant: str, run: str
+) -> None:
+    """As ``MIT;;`` and ``MIT...`` are: the marks say something, and the
+    argument and a JSON field refuse them (a tag reads on into prose, as
+    test_grant_glued_marks pins)."""
+    value = name + grant + run
+    found = resolve(value, corpus_db)
+    assert found["expression"] is None
+    assert str(found["reason"]).startswith("character dropped: U+00")
+    assert [step["kind"] for step in found["steps"]] == ["drop"]
+    got = answers(corpus_db, value)
+    assert got["argument"] is None
+    assert got["field"] is None
+    assert resolve(name + grant, corpus_db)["expression"] == expression  # a guard
+
+
+@pytest.mark.parametrize("value", ["GPL-2.0 or later.).", "MIT or later.)."])
+def test_a_closing_bracket_between_two_end_marks_ends_the_run(
     corpus_db: LicenseDatabase, value: str
 ) -> None:
-    """Not this fix's to move: ``MIT;;`` is refused, but these answer MIT+."""
-    assert resolve(value, corpus_db)["expression"] == "MIT+"  # BUG: stays
+    """One mark each side of the bracket is two endings, not a run: the value
+    is read, as one mark is, and is not exact."""
+    got = answers(corpus_db, value)
+    assert got["argument"] is not None
+    assert got["argument"][1] is False
+    assert got["field"] == got["argument"]
+
+
+def test_a_licence_name_in_a_field_still_reads_a_run_of_marks(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """A known gap: the name reader of a field does not judge the end of the
+    grant, so ``resolve()`` refuses what the field answers."""
+    value = "GNU General Public License v2.0 or later.."
+    assert resolve(value, corpus_db)["expression"] is None
+    assert answers(corpus_db, value)["field"] is not None  # BUG: stays
+
+
+def test_a_grant_that_states_the_qualifier_twice_keeps_its_reason(
+    corpus_db: LicenseDatabase,
+) -> None:
+    found = resolve("GPL-3.0-only or later..", corpus_db)
+    assert (found["category"], found["reason"]) == (
+        "malformed",
+        "qualifier stated twice: GPL-3.0-only or later..",
+    )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "MIT or later;",
+        "MIT or later :",
+        "GPL-2.0 (or later).",
+        "GPL-3.0 [or later].",
+        "(MIT or later.)",
+        "MIT or later.)",
+        "MIT or later)",
+        "GPL-2.0 or later.).",
+        "MIT or later.).",
+        "GPL-2.0, or (at your option) any later version.",
+    ],
+)
+def test_one_end_mark_or_a_closing_bracket_after_a_grant_is_read(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """The refusal is for a run of end marks only: one mark, and the bracket
+    that closes the grant's own, keep their answer (a closing bracket passes,
+    as in ``dropguard.glued_marks``)."""
+    assert resolve(value, corpus_db)["expression"] is not None
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        '"MIT or later.."',
+        "'MIT or later;;'",
+        '"GPL-2.0 or later . ."',
+        "'GPL-2.0 or later;;'",
+    ],
+)
+def test_a_quoted_run_of_marks_after_a_grant_is_refused(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """The quote marks are no mark: ``detect()`` reads a bare deprecated ID
+    in the raw text, quote marks included."""
+    assert resolve(value, corpus_db)["expression"] is None
+    assert answers(corpus_db, value)["argument"] is None
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Licensed under GPL-2.0 or later. Contributions welcome...",
+        "GPL-2.0 or later (see LICENSE...)",
+        "GPL-2.0 or later, see COPYING..",
+        "LGPL-2.1 or later (see COPYING.LIB for the full text)...",
+    ],
+)
+def test_prose_after_a_grant_that_trails_off_keeps_its_answer(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    """Only the marks that end the grant are judged: an ellipsis ending prose
+    that follows it is no run of marks after the grant."""
+    got = answers(corpus_db, value)
+    assert got["argument"] is not None
+    assert got["field"] == got["argument"]
+
+
+def test_a_long_run_of_marks_after_a_grant_is_refused_in_linear_time(
+    corpus_db: LicenseDatabase,
+) -> None:
+    value = "MIT or later" + "." * 20_000
+    start = time.monotonic()
+    assert resolve(value, corpus_db)["expression"] is None
+    assert time.monotonic() - start < slack(2.0)
 
 
 @pytest.mark.parametrize(

@@ -300,13 +300,15 @@ def test_end_marks_after_a_grant_do_not_hide_a_listed_licence_in_a_tag(
 #: operator: read as ``resolve()`` reads them, as without the end marks.
 #: One end mark is cut, so not exact; several before the operator are dropped
 #: by the compound reader, as in ``MIT., AND ISC`` (a gap of its own).
-OPERATOR_AFTER_MARKS = {
-    "GPL-2.0 or later., AND MIT": "GPL-2.0-or-later AND MIT",
-    "GPL-2.0 or later.; OR ISC": "GPL-2.0-or-later OR ISC",
-    "GPL-2.0 or later.:, AND MIT": "GPL-2.0-or-later AND MIT",
-    "GPL-2.0 or later. AND MIT": "GPL-2.0-or-later AND MIT",
-}
+OPERATOR_AFTER_MARKS = {"GPL-2.0 or later. AND MIT": "GPL-2.0-or-later AND MIT"}
 CUT_OPERATOR = {"GPL-2.0 or later. AND MIT"}
+#: Several marks before the operator are a run of marks after the grant, which
+#: ``resolve()`` refuses (``dropguard.grant_end_marks``): no answer in any channel.
+REFUSED_BEFORE_OPERATOR = [
+    "GPL-2.0 or later., AND MIT",
+    "GPL-2.0 or later.; OR ISC",
+    "GPL-2.0 or later.:, AND MIT",
+]
 
 
 @pytest.mark.parametrize("value", sorted(OPERATOR_AFTER_MARKS), ids=lambda v: v[:34])
@@ -317,6 +319,14 @@ def test_end_marks_then_an_operator_after_a_grant_read_as_resolve_does(
     assert got["tag"] == (OPERATOR_AFTER_MARKS[value], value not in CUT_OPERATOR)
     assert got["argument"] == got["tag"]
     assert got["field"] == got["tag"]
+
+
+@pytest.mark.parametrize("value", REFUSED_BEFORE_OPERATOR, ids=lambda v: v[:34])
+def test_a_run_of_end_marks_before_an_operator_is_refused(
+    corpus_db: LicenseDatabase, value: str
+) -> None:
+    assert not any(answers(corpus_db, value).values())
+    assert refused(corpus_db, value) is not None
 
 
 @pytest.mark.parametrize(
