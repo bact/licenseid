@@ -73,7 +73,8 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
   build: `build.yml` also requires the bundle, and failed with a 404 until
   the branch was pushed.
 - `update --source compact` from a clean throwaway `HOME` builds a database
-  (about 17 MB; 24.6 MB before XML was dropped).
+  (21.4 MB with the core texts of 0.9.2; about 17 MB before them, 24.6 MB
+  before XML was dropped).
 - Build the wheel and sdist as the release does, with a local copy of the
   pinned bundle (any other is refused):
   `LICENSEID_BUNDLE=<bundle> LICENSEID_REQUIRE_BUNDLE=1 uv build`. Both must

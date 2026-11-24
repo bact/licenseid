@@ -435,3 +435,14 @@ Other leftovers of the review are in the maintainer's `later.md` of the
 0.9.0 release folder (CLI argument and `ELOOP`, `LicenseDatabase` path
 types, `SISSL`, three ScanCode keys that could be read).
 Impact 3, Risk 3, Effort 2.
+
+## 63. `HPND/DOC` is refused where `DOC/HPND` reads — Priority 12
+
+Found by `--run-benchmark` before 0.9.2 (2026-11-24),
+`test_resolver_slash_props.py::test_all_pairs_read_as_or`; v0.9.1 gives the
+same. `resolve("HPND/DOC")` refuses with `character dropped: U+002F`, while
+`DOC/HPND` and `HPND OR DOC` give `DOC OR HPND`. A refusal, so no wrong
+answer, but the slash reader should read both orders alike. Find the reader
+that claims `HPND/...` before `resolveslash`.
+
+Impact 2, Risk 2, Effort 3.
