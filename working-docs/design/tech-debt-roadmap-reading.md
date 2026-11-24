@@ -382,8 +382,8 @@ Built as #230 to #233 (2026-11-19); the combined review of the four found
 two things to fix after (below). One PR each, in this order (they shared
 files):
 
-0. **Free lines in `detector.py`** (#230), no behaviour change: `_rank_candidates`
-   scoring moves to `similarity.score_candidates` and
+0. **Free lines in `detector.py`** (#230), no behaviour change:
+   `_rank_candidates` scoring moves to `similarity.score_candidates` and
    `similarity.boost_by_fingerprint` (735 to 675 lines). The pylint ceiling
    `max-module-lines` stays 735: `tests/test_option_matrix.py` is 735 too and
    `markers.py` 733; lowering it needs those split.

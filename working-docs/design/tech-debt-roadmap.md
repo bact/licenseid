@@ -280,8 +280,8 @@ Licenses that are near-identical modifications of another license (e.g.
 `Pixar` is `Apache-2.0` with a modified section 6) can be misidentified
 as the parent license. See
 [`new-matcher.md`](new-matcher.md) for the background analysis and word-count
-statistics; no fix has been designed yet, only the problem is documented.
-The other way round, Apache-2.0 without its appendix answered Pixar: the core
+statistics; for this direction no fix has been designed yet. The other way
+round, Apache-2.0 without its appendix answered Pixar: the core
 text fixed that (PR #239), and a verbatim Pixar text still answers Pixar.
 
 - Impact 2, Risk 2, Effort 4 (needs a design pass before an effort

@@ -62,28 +62,26 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   exact, except IDs joined by a slash (`MIT/Apache-2.0`): the `EXACT`
   column of [the category table](resolve.md#steps-and-categories) has the
   details. `--exact` keeps only the exact results.
-- `SCORE` is 0 to 1, capped in the output, and `--threshold` reads it. It
-  ranks the results; it is not a measure of how well the input fits the
-  licence. For a text it starts from `SIMILARITY`, scaled down for a short
-  input (a Latin text under 40 characters; a Han or kana character counts
-  two). It then takes a penalty of up to 0.01 for a `COVERAGE` from 0.5 to
-  0.8, a bonus of 0.005 for one from 0.95 to 1.05, a bonus of up to 0.05
-  for a phrase that few licences share, and a tie-breaking term of 0.0001
-  for each power of ten of the licence's popularity. A marker of confidence
-  0.85 or more adds to the score, and a short, mixed or structural one (a
-  notice, a heading) sets it to at least 0.95 of its confidence. So a
-  short notice or a pointer can score 1 with a `SIMILARITY` well below 1.
-  Several results can score 1: the order tells them apart, and `EXACT`
-  tells an exact one from a close one.
-- `SIMILARITY` is 0 to 1: how alike the input and the text it was compared
-  with are, by RapidFuzz. That text is the whole licence text, or its core
-  (the text without its optional parts, such as an appendix) when the core
-  is the closer one. For a fragment (a `COVERAGE` under 0.8) it is the
-  best-aligned part of the text; a very long fragment is compared with the
-  whole text. A `not`, `except`, `unless` or `irrevocable` that only one
-  side holds costs a text 5% when its similarity is above 0.9. A name's
-  `SIMILARITY` is how alike the names are; it is not scaled for a short
-  input.
+- `SCORE` is 0 to 1, capped in the output, and `--threshold` reads it. It ranks
+  the results; it is not a measure of how well the input fits the licence. For a
+  text it starts from `SIMILARITY`, scaled down for a short input (a Latin text
+  under 40 characters; a Han or kana character counts two). It then takes a
+  penalty of up to 0.01 for a `COVERAGE` from 0.5 to 0.8, a bonus of 0.005 for
+  one from 0.95 to 1.05, a bonus of up to 0.05 for a phrase that few licences
+  share, and, with `--pop`, a tie-breaking term of 0.0001 for each power of ten
+  of the licence's popularity. A marker of confidence 0.85 or more adds to the
+  score, and a short, mixed or structural one (a notice, a heading) sets it to
+  at least 0.95 of its confidence. So a short notice or a pointer can score 1
+  with a `SIMILARITY` well below 1. Several results can score 1: the order tells
+  them apart, and `EXACT` tells an exact one from a close one.
+- `SIMILARITY` is 0 to 1: how alike the input and the text it was compared with
+  are, by RapidFuzz. That text is the whole licence text, or its core (the text
+  without its optional parts, such as an appendix) when the core is the closer
+  one. For a fragment (a `COVERAGE` under 0.8) it is the best-aligned part of
+  the text; a very long fragment is compared with the whole text. A `not`,
+  `except`, `unless` or `irrevocable` that only one side holds costs a text 5%
+  when its similarity is above 0.9 and below 1. A name's `SIMILARITY` is how
+  alike the names are; it is not scaled for a short input.
 - `COVERAGE` is the input's words over the words of the text it was compared
   with: the whole text, or the core when the core won. It has no upper
   limit. Below 0.8 the input is a fragment, such as a copyright notice, a
