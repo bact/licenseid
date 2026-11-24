@@ -17,7 +17,7 @@ from unicodedata import east_asian_width
 
 from rapidfuzz import fuzz
 
-from licenseid.types import CandidateMatch, InternalMatch
+from licenseid.types import CandidateMatch, InternalMatch, TextParts
 
 # Probe-gate settings for fragment ranking (query shorter than candidate).
 # A full partial_ratio scan of a weak candidate hits RapidFuzz's worst case
@@ -64,6 +64,22 @@ PROBE_MAX_CHARS: int = 500
 # resolve() reads it (licenseid.resolvefirst), so for one this scale only
 # touches ten words or more in under 40 columns; Han and kana are not cut.
 EVIDENCE_COLUMNS: int = 40
+
+
+# A licence text of the List may hold parts a copy leaves out (Apache-2.0's
+# appendix, the whole GPL-3.0 inside LGPL-3.0): its core is the text without
+# them (licenseid.coretext). An input of about the core's length is scored
+# against the core as well, by token_sort_ratio alone (no alignment), and the
+# higher similarity counts. About: each has at least this share of the other's
+# words. The share is the one of the near-full-text rule below (``q_len >=
+# c_len * 0.8``): shorter, an input is a fragment of the core; longer, it holds
+# more than the core (the optional parts, which the whole text has), and
+# scoring it twice would double the cost of a long input for nothing.
+CORE_MIN_SHARE: float = 0.8
+
+# Words whose presence on one side only turns a grant around: a similarity
+# above 0.9 loses 5 % for each (calculate_base_similarity).
+CRITICAL_TOKENS: Final = frozenset({"not", "except", "unless", "irrevocable"})
 
 
 def _center(text: str, size: int) -> str:
@@ -151,6 +167,37 @@ def fragment_similarity(
     return fast_score, search_text
 
 
+def _safeguarded(similarity: float, q_tokens: set[str], text: str) -> float:
+    """*similarity* less 5 % for each of CRITICAL_TOKENS that only one of
+    the query (*q_tokens*) and *text* holds, when it is above 0.9 and
+    below 1: a near copy that drops a "not" says the opposite."""
+    if 0.90 < similarity < 1.0:
+        c_tokens = set(text.split())
+        for token in CRITICAL_TOKENS:
+            if (token in q_tokens) != (token in c_tokens):
+                similarity *= 0.95
+    return similarity
+
+
+def core_similarity(
+    norm_input: str, q_len: int, core: str, core_words: int, floor: float
+) -> float:
+    """The similarity of *norm_input* (*q_len* words) to a licence's *core*
+    (*core_words* words), or 0 when it is below *floor* (the whole text's)
+    or either has fewer than CORE_MIN_SHARE of the other's words.
+
+    A core that cannot reach *floor* costs nothing: token_sort_ratio compares
+    the two texts with their words sorted, of the same lengths as the
+    normalised texts (one space between words), and the Indel similarity of
+    two strings is at most twice the shorter length over the sum of both."""
+    if q_len < core_words * CORE_MIN_SHARE or core_words < q_len * CORE_MIN_SHARE:
+        return 0.0
+    shorter = min(len(norm_input), len(core))
+    if 2 * shorter <= floor * (len(norm_input) + len(core)):
+        return 0.0
+    return fuzz.token_sort_ratio(norm_input, core, score_cutoff=floor * 100.0) / 100.0
+
+
 def calculate_base_similarity(
     norm_input: str,
     q_len: int,
@@ -158,7 +205,16 @@ def calculate_base_similarity(
     cand: CandidateMatch,
     probe: str | None = None,
 ) -> tuple[float, float, str]:
-    """Calculate base similarity and coverage for a candidate."""
+    """The similarity of *norm_input* to *cand*, its coverage (the input's
+    words over the words of the text compared) and the text it was compared
+    with (an aligned window of a fragment).
+
+    The whole text first; then, when *cand* has a core (``core_text``), the
+    core, whose similarity counts if it is higher: then the coverage is
+    counted over the core's words and the core is the window. A copy that
+    leaves out the optional parts (an appendix) thus has a similarity no
+    lower than another licence that has none; a bonus can still rank that one
+    first (AFL-2.1's core answers AFL-2.0, as on ``main``)."""
     search_text = cand.get("search_text") or ""
     c_len = cand.get("word_count") or 0
     if c_len == 0:
@@ -173,17 +229,32 @@ def calculate_base_similarity(
         similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
     else:
         similarity, best_window = fragment_similarity(norm_input, search_text, probe)
+    similarity = _safeguarded(similarity, q_tokens, search_text)
 
-    # Semantic Safeguards
-    if 0.90 < similarity < 1.0:
-        critical_tokens = {"not", "except", "unless", "irrevocable"}
-        c_tokens = set(search_text.split())
-        for token in critical_tokens:
-            if (token in q_tokens) != (token in c_tokens):
-                similarity *= 0.95
+    core, core_words = cand.get("core_text"), cand.get("core_word_count") or 0
+    if core and core_words and similarity < 1.0:
+        from_core = _safeguarded(
+            core_similarity(norm_input, q_len, core, core_words, similarity),
+            q_tokens,
+            core,
+        )
+        if from_core > similarity:
+            similarity, best_window, c_len = from_core, core, core_words
 
     coverage = (q_len / c_len) if c_len > 0 else 0.0
     return similarity, coverage, best_window
+
+
+def with_core(cand: CandidateMatch, parts: TextParts | None) -> CandidateMatch:
+    """*cand* with the core of its licence (``core_text`` and
+    ``core_word_count``, from *parts*, ``database.text_parts``), when it has
+    one and *cand* has a text: a candidate without its text (a hinted one
+    beyond the first) is scored against nothing, its core included."""
+    if parts is None or not parts.core or not parts.core_word_count:
+        return cand
+    if not cand.get("search_text"):
+        return cand
+    return {**cand, "core_text": parts.core, "core_word_count": parts.core_word_count}
 
 
 def calculate_final_score(

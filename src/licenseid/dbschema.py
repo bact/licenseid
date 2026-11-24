@@ -36,16 +36,30 @@ SCHEMA_OBJECTS = (
 OPTIONAL_OBJECTS = frozenset({"license_urls"})
 _REQUIRED_OBJECTS = frozenset(SCHEMA_OBJECTS) - OPTIONAL_OBJECTS
 
-# Columns that databases of an earlier version lack; ``create_schema`` adds
-# them.
-_ADDED_COLUMNS = ("norm_license_id", "norm_name")
+# Columns that databases of an earlier version lack, with their types;
+# ``create_schema`` adds them, and a database without one is not current.
+_ADDED_COLUMNS = {
+    "norm_license_id": "TEXT",
+    "norm_name": "TEXT",
+}
+
+# Columns of build 5 that a lookup does without: a build-4 database is still
+# current, so opening it writes nothing, even read-only. A lookup reads a
+# database without them as no core and no twin (dbcache.TableCache.text_parts);
+# ``update`` adds them (``add_build_columns``) inside the transaction that
+# fills them.
+_BUILD_COLUMNS = {
+    "core_text": "TEXT",
+    "core_word_count": "INTEGER",
+    "same_text": "TEXT",
+}
 
 SchemaState = Literal["current", "older", "none"]
 
 
 def schema_state(connections: "Connections") -> SchemaState:
     """``current`` when every object of ``SCHEMA_OBJECTS`` but the
-    ``OPTIONAL_OBJECTS`` and every added column is there (opening the
+    ``OPTIONAL_OBJECTS`` and every ``_ADDED_COLUMNS`` column is there (opening the
     database needs no write), ``older`` when the
     ``licenses`` table is there but something is missing, ``none`` when it is
     not. Read-only: it raises ``DatabaseNotReadyError`` for a file it cannot
@@ -60,7 +74,7 @@ def schema_state(connections: "Connections") -> SchemaState:
             )
         }
         columns = {row[1] for row in conn.execute("PRAGMA table_info(licenses)")}
-    if _REQUIRED_OBJECTS <= found and set(_ADDED_COLUMNS) <= columns:
+    if _REQUIRED_OBJECTS <= found and _ADDED_COLUMNS.keys() <= columns:
         return "current"
     return "older" if "licenses" in found else "none"
 
@@ -99,7 +113,10 @@ def _create_objects(conn: sqlite3.Connection) -> None:
             pop_score INTEGER DEFAULT 1,
             word_count INTEGER,
             norm_license_id TEXT,
-            norm_name TEXT
+            norm_name TEXT,
+            core_text TEXT,
+            core_word_count INTEGER,
+            same_text TEXT
         )
     """)
     conn.execute("""
@@ -150,13 +167,22 @@ def _create_objects(conn: sqlite3.Connection) -> None:
     """)
     create_url_table(conn)
 
-    # A database built before norm_license_id/norm_name lacks them, and
-    # CREATE TABLE IF NOT EXISTS adds no column to a table that exists.
+    # A database built before an added column lacks it, and CREATE TABLE IF
+    # NOT EXISTS adds no column to a table that exists.
     existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(licenses)")}
-    if "norm_license_id" not in existing_cols:
-        conn.execute("ALTER TABLE licenses ADD COLUMN norm_license_id TEXT")
-    if "norm_name" not in existing_cols:
-        conn.execute("ALTER TABLE licenses ADD COLUMN norm_name TEXT")
+    for column, kind in {**_ADDED_COLUMNS, **_BUILD_COLUMNS}.items():
+        if column not in existing_cols:
+            conn.execute(f"ALTER TABLE licenses ADD COLUMN {column} {kind}")
+
+
+def add_build_columns(conn: sqlite3.Connection) -> None:
+    """Add the columns of ``_BUILD_COLUMNS`` a database of an earlier build
+    lacks. For the write that rebuilds the rows, which holds the write lock
+    already."""
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(licenses)")}
+    for column, kind in _BUILD_COLUMNS.items():
+        if column not in existing:
+            conn.execute(f"ALTER TABLE licenses ADD COLUMN {column} {kind}")
 
 
 def create_url_table(conn: sqlite3.Connection) -> None:

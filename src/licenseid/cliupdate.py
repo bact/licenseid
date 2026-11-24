@@ -102,7 +102,7 @@ def make_default_db_dir(ctx: click.Context) -> None:
     type=click.Choice(get_args(UpdateSource)),
     default="auto",
     show_default=True,
-    help="Where to get the license list: compact (our 1 MB bundle), upstream "
+    help="Where to get the license list: compact (our 1.3 MB bundle), upstream "
     "(SPDX's tarball), packaged (the copy shipped with licenseid), or each in "
     "turn (auto).",
 )

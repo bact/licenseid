@@ -69,7 +69,7 @@ TIMEOUT: Final = 30
 # tests, which move with it.
 BUNDLE_VERSION: Final = "3.29.0"
 BUNDLE_SHA256: Final = (
-    "c73987375509b961bf68aac1db8ec609db5bf548eaae8aa7ee3ef514012466e7"
+    "e081c34add9e956357bd71cd2094a4110815a603234ef017775d6307ea271876"
 )
 
 

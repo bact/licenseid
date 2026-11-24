@@ -100,8 +100,9 @@ def fetch_spdx_data() -> tuple[str, dict[str, Any], dict[str, str]]:
 
 def fetch_license_texts_from_tarball(
     version: str, selected_ids: set[str]
-) -> dict[str, str]:
-    """Download the SPDX data tarball; return the texts of selected_ids."""
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Download the SPDX data tarball; return the texts and the templates
+    (``template/<id>.template.txt``) of selected_ids."""
     url = (
         f"https://github.com/spdx/license-list-data/archive/refs/tags/v{version}.tar.gz"
     )
@@ -112,22 +113,23 @@ def fetch_license_texts_from_tarball(
             tar_bytes = response.read()
     except Exception as e:
         print(f"Failed to download tarball: {e}")
-        return {}
+        return {}, {}
 
-    print("Extracting texts from tarball...")
-    texts = {}
+    print("Extracting texts and templates from tarball...")
+    found: dict[str, dict[str, str]] = {"text": {}, "template": {}}
+    suffixes = {"text": ".txt", "template": ".template.txt"}
     with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:gz") as tar:
         for member in tar.getmembers():
-            if not member.isfile():
-                continue
             parts = member.name.split("/")
-            if len(parts) >= 3 and parts[-2] == "text" and parts[-1].endswith(".txt"):
-                lic_id = parts[-1][:-4]
-                if lic_id in selected_ids:
-                    f = tar.extractfile(member)
-                    if f:
-                        texts[lic_id] = f.read().decode("utf-8")
-    return texts
+            if not member.isfile() or len(parts) < 3 or parts[-2] not in found:
+                continue
+            suffix = suffixes[parts[-2]]
+            lic_id = parts[-1].removesuffix(suffix)
+            if parts[-1].endswith(suffix) and lic_id in selected_ids:
+                f = tar.extractfile(member)
+                if f:
+                    found[parts[-2]][lic_id] = f.read().decode("utf-8")
+    return found["text"], found["template"]
 
 
 def select_target_licenses(
@@ -340,12 +342,18 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _add_texts(licenses: list[dict[str, Any]], texts: dict[str, str]) -> None:
-    """Set license_text of each licence, a mock text when none was found."""
+def _add_texts(
+    licenses: list[dict[str, Any]], texts: dict[str, str], templates: dict[str, str]
+) -> None:
+    """Set license_text of each licence, a mock text when none was found, and
+    license_template when the tarball has one: Type 4 writes it, and
+    tests/long_text_db.py builds the core of the licence from it."""
     for lic in licenses:
         lic["license_text"] = texts.get(
             lic["license_id"], f"Mock text for {lic['license_id']}"
         )
+        if lic["license_id"] in templates:
+            lic["license_template"] = templates[lic["license_id"]]
 
 
 def _run_types(
@@ -419,10 +427,10 @@ def main() -> None:
     # Fetch texts for all IDs needed across types in a single download.
     selected_ids = {lic["license_id"] for lic in selected_licenses}
     t3_ids = {lic["license_id"] for lic in t3_licenses}
-    texts = fetch_license_texts_from_tarball(version, selected_ids | t3_ids)
+    texts, templates = fetch_license_texts_from_tarball(version, selected_ids | t3_ids)
 
-    _add_texts(selected_licenses, texts)
-    _add_texts(t3_licenses, texts)
+    _add_texts(selected_licenses, texts, templates)
+    _add_texts(t3_licenses, texts, templates)
 
     families = {get_family(lic_["license_id"]) for lic_ in selected_licenses}
     print(f"Selected {len(selected_licenses)} licenses from {len(families)} families.")

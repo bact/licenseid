@@ -14,7 +14,7 @@ from licenseid.exprflags import with_judged_flags
 from licenseid.ftsquery import MAX_TERMS
 from licenseid.idoptions import excluded_ids, folded
 from licenseid.listlookup import fold_case
-from licenseid.normalize import normalize_text, strip_comment_prefixes
+from licenseid.normalize import normalize_text, notice_free_head, strip_comment_prefixes
 from licenseid.types import CandidateMatch, DetectOptions
 
 # Tail-only additions (candidates found only via the tail query in
@@ -22,6 +22,28 @@ from licenseid.types import CandidateMatch, DetectOptions
 # bounding the head+tail union at 75 candidates and Tier 2 (RapidFuzz) work
 # accordingly. See _search_candidates_by_length() for the full rationale.
 TAIL_ONLY_CAP: int = 25
+
+# The notice-free head query (see _notice_free_candidates()) adds all of its
+# 50 results the first query lacks, with no cap of 25 as for the tail: with
+# two copyright lines above a licence, that licence ranks 26 to 50 in it, and
+# the neighbours the first query found do not make up for it (cap 25: ISC,
+# 0BSD, NTP, MIT-testregex, RHeCos-1.1 lost, with a wrong answer of 0.8 to 0.9
+# for RHeCos-1.1, BSD-ask-to-endorse and others; ranking the notice-free
+# results first and capping the first query's instead lost 13 right answers).
+# Only a text whose notices change the first 20 words, and the query's top
+# 10 with them (NOTICE_NEW_TOP), pays: at most 50 more Tier 2 passes (the
+# union holds up to 125).
+NOTICE_QUERY_LIMIT: Final = 50
+
+# The notice-free results count only when the first NOTICE_NEW_TOP of them
+# hold a licence the first query did not find: else the notices did not change
+# what the query finds (a template's "Copyright <year> <copyright holder>"
+# line), and the rest would only add Tier 2 passes (HPND's whole text: 2.05x
+# main). Of 1,519 List texts (whole, core, no title, under two copyright
+# lines) whose notice-free query runs, 289 skip it; each whose licence only
+# that query found had 2 or more new licences in its top 10 (top 5: HPND-SMC
+# lost).
+NOTICE_NEW_TOP: Final = 10
 
 # The first hints given are added with their text (they rank on their
 # similarity); a later one has none and scores 0. Each costs a Tier 2 pass
@@ -98,6 +120,41 @@ def _search_candidates_by_length(
             raw_candidates.append(c)
             seen_ids.add(c["license_id"])
             tail_only_added += 1
+    return raw_candidates
+
+
+def _notice_free_candidates(
+    db: LicenseDatabase,
+    text: str,
+    norm_text: str,
+    raw_candidates: list[CandidateMatch],
+) -> list[CandidateMatch]:
+    """Add to *raw_candidates* what a head query on *text* without its
+    copyright notices finds that they lack.
+
+    The Tier 1 query holds the first :data:`licenseid.ftsquery.MAX_TERMS`
+    normalised words. A title and a long copyright line can fill them, and
+    the licence's own words then never reach the query (MIT with
+    "Copyright (c) 2025 <long holder>" lost MIT to MIT-advertising, Xnet,
+    FSL-1.1-MIT). The notices stay in the index and in Tier 2: only this
+    query reads the text without them (``normalize.notice_free_head``, from
+    a prefix of the text). No second query where the first words are the
+    same (a text with no notice, or one past its first words), and none of
+    its results where its first :data:`NOTICE_NEW_TOP` add no licence.
+    """
+    head = norm_text.split()[:MAX_TERMS]
+    stripped = notice_free_head(text, MAX_TERMS)
+    if stripped == head:
+        return raw_candidates
+    seen_ids = {c["license_id"] for c in raw_candidates if c.get("license_id")}
+    found = db.search_candidates(
+        " ".join(stripped), limit=NOTICE_QUERY_LIMIT, already_normalized=True
+    )
+    if all(c.get("license_id") in seen_ids for c in found[:NOTICE_NEW_TOP]):
+        return raw_candidates
+    for cand in found:
+        if cand.get("license_id") not in seen_ids:
+            raw_candidates.append(cand)
     return raw_candidates
 
 
@@ -244,4 +301,5 @@ def get_candidates(
     norm_text = normalize_text(text)
 
     raw_candidates = _search_candidates_by_length(db, norm_text)
+    raw_candidates = _notice_free_candidates(db, text, norm_text, raw_candidates)
     return _filter_candidates(raw_candidates, only_spdx, only_common, excluded)

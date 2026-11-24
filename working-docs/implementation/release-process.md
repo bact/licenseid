@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-22
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-23
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -65,6 +65,9 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
   (`githubv4.Query: Something went wrong`) while the code is fine: re-run it.
 - `data` branch: the pinned bundle answers at
   `https://raw.githubusercontent.com/bact/licenseid/refs/heads/data/spdx/format-1/v<BUNDLE_VERSION>.json.gz`.
+  Since 0.9.2 it holds the licence templates (an additive key, same
+  format); after a change of the build, run `spdx-bundle.yml` once with
+  `rebuild` ticked, and check that the file's SHA-256 is `BUNDLE_SHA256`.
   The release build downloads it (never `latest.json`) and fails without it
   (`LICENSEID_REQUIRE_BUNDLE=1`). The branch must exist before the first
   build: `build.yml` also requires the bundle, and failed with a 404 until

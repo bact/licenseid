@@ -62,6 +62,14 @@ are snapshots, pinned answers and corpora of the resolver and the harness.
   (`license_text_long_distorted_xx`) generated at varying error rates (1, 2, 5,
   10, 20 percent). Distortions include foreign text injections, typos, dropped
   paragraphs, and whitespace anomalies.
+- **Templates:** the script also writes `license_template`, the licence's
+  `template/<id>.template.txt` of the same tarball; `tests/long_text_db.py`
+  builds the core text of the licence from it, as a database build does. The
+  files were generated before the script wrote it, so they have none, and
+  `tests/long_text_db.py` reads the template of a licence from
+  `license-template` (section 19) instead. Add the key only by running the
+  script, never by hand: it regenerates the texts and their distortions from
+  the release it fetches.
 
 ### 5. `mixed-content`
 
@@ -330,6 +338,23 @@ OUT.write_text(text, encoding="utf-8")
 - **Description:** the answers `tests/test_slash_detect.py` pins for every
   value that does not read as `OR`, on two databases.
 - **Characteristics:** JSON, one object per database; never regenerated.
+
+### 19. `license-template`
+
+- **Data Source:** `template/<id>.template.txt` of the SPDX License List
+  release 3.29.0 (`Apache-2.0`, `HPND`, `LGPL-3.0-only`,
+  `LGPL-3.0-or-later`, `OFL-1.1`, `OFL-1.1-RFN`, `OFL-1.1-no-RFN`), copied
+  unchanged.
+- **Description:** real templates (SPDX matching guidelines, annex B.3) for
+  `tests/test_coretext.py` and the database tests of the core text, and the
+  cores of `tests/long_text_db.py` (the long-text fixtures have no
+  `license_template` yet, section 4). The whole text of the same licence is
+  `license_text` in `license-text-long`.
+- **Characteristics:** UTF-8 text with `<<beginOptional>>`, `<<endOptional>>`
+  and `<<var;...>>` marks; `Apache-2.0` has an optional appendix,
+  `LGPL-3.0-only` an optional copy of the GPL-3.0, `HPND` mostly variable
+  parts; the three `OFL-1.1` IDs share one text, but only the core of
+  `OFL-1.1-no-RFN` is shorter than it (`records.uneven_cores`).
 
 ### Notes
 

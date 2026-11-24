@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-16
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-24
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -10,8 +10,8 @@ SPDX-License-Identifier: Apache-2.0
 # Item 52: the variant option and `EXACT`
 
 Roadmap item 52 of
-[`../design/tech-debt-roadmap.md`](../design/tech-debt-roadmap.md). Built in
-two pull requests: PR #211 (merged 2026-11-16) makes `exclude` and
+[`../design/tech-debt-roadmap-reading.md`](../design/tech-debt-roadmap-reading.md).
+Built in two pull requests: PR #211 (merged 2026-11-16) makes `exclude` and
 `hint` act on free text only; PR #212 (merged 2026-11-16) adds `detect
 --variant`, the record field `VARIANT_STATED` and the `EXACT` rule below.
 User docs: `docs/cli.md`, `docs/output.md`, `docs/python-api.md`,

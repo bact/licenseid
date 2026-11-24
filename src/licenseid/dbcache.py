@@ -21,7 +21,7 @@ from typing import TypeVar, cast
 from licenseid.dbconnection import Connections
 from licenseid.listlookup import ListedUrl, UrlRow, fold_case, index_urls
 from licenseid.normalize import normalize_text
-from licenseid.types import LicenseDetails, LicenseNameId
+from licenseid.types import LicenseDetails, LicenseNameId, TextParts
 
 __all__ = ["TableCache", "cast_license_details"]
 _V = TypeVar("_V", str, int)
@@ -47,15 +47,17 @@ class _Keyed:
     tables: names_and_ids() by a key of each ID, and the rows of
     ``license_urls`` with their index by a key of each URL. One key of each
     is kept; a call with another builds its index again. The words of the
-    exceptions are here too: they are read for one generation as well."""
+    exceptions and the text parts are here too: they are read for one
+    generation as well."""
 
-    __slots__ = ("exception_words", "names", "url_rows", "urls")
+    __slots__ = ("exception_words", "names", "text_parts", "url_rows", "urls")
 
     def __init__(self) -> None:
         self.names: tuple[Callable[[str], str], dict[str, list[LicenseNameId]]] | None
         self.names = None
         self.url_rows: list[UrlRow] | None = None
         self.exception_words: list[frozenset[str]] | None = None
+        self.text_parts: dict[str, TextParts] | None = None
         self.urls: (
             tuple[Callable[[str], str | None], dict[str, list[ListedUrl]]] | None
         ) = None
@@ -175,6 +177,46 @@ class TableCache:
             if generation == self._generation:
                 self._names_and_ids = names
         return names
+
+    def text_parts(self) -> dict[str, TextParts]:
+        """The core and the twins of each licence's text, by ID (exact
+        case), read once per rebuild: only the licences with a core or a
+        twin are in it, so a licence that is not has no entry. A database
+        built before build 5 has none of the columns, or NULL in them, and
+        gives an empty map: it is read as it is, never written (a lookup
+        never writes; ``update`` fills them)."""
+        self._check_stamp()
+        generation, holder = self._generation, self._keyed
+        parts = holder.text_parts
+        if parts is None:
+            parts = self._read_text_parts()
+            if generation == self._generation:
+                holder.text_parts = parts
+        return parts
+
+    def _read_text_parts(self) -> dict[str, TextParts]:
+        """The rows of ``licenses`` that have a core or a twin."""
+        with self._connections.connection() as conn:
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(licenses)")}
+            if not {"core_text", "core_word_count", "same_text"} <= columns:
+                return {}
+            rows: list[tuple[str, str | None, int | None, str | None]] = conn.execute(
+                "SELECT license_id, core_text, core_word_count, same_text"
+                " FROM licenses ORDER BY rowid"
+            ).fetchall()
+        found: dict[str, TextParts] = {}
+        for license_id, core, words, same in rows:
+            if core is None and not same:
+                continue
+            found.setdefault(
+                license_id,
+                TextParts(
+                    core if core is not None and words else None,
+                    words if core is not None and words else None,
+                    tuple(same.split()) if same else (),
+                ),
+            )
+        return found
 
     def names_by_key(self, key: Callable[[str], str]) -> dict[str, list[LicenseNameId]]:
         """names_and_ids() by *key* of each ID, in table order: built once,

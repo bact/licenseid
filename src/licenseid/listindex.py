@@ -219,7 +219,8 @@ def _load_packaged() -> ListIndex | str:
     if raw is None:
         return "not found"
     try:
-        data = SpdxData.from_bundle(raw, None)
+        # The list reads no templates: only a database build needs them.
+        data = SpdxData.from_bundle(raw, None, require_templates=False)
     except spdxdata.BundleError as exc:
         problem = f"invalid: {exc}"
         warn(spdxdata.PACKAGED_NAME, "invalid", str(exc))

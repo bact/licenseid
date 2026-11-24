@@ -426,7 +426,9 @@ def test_the_cli_takes_variant(
 def test_the_variant_stated_field_prints_last() -> None:
     from licenseid.result import no_detection_line
 
-    assert no_detection_line().endswith("\tCOVERAGE=\tVARIANT_STATED=")
+    assert no_detection_line("no match").endswith(
+        "\tVARIANT_STATED=\tSAME_TEXT=\tREASON=no match"
+    )
 
 
 def test_as_written_keeps_the_better_score_and_exactness_of_the_twins(

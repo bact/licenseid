@@ -115,11 +115,25 @@ declared values, SPDX expressions and the matching pipeline.
   - **Tier 1 (Recall)**: Candidate retrieval using SQLite FTS5 trigram index,
     queried with the input's first 20 words, plus its last 20 for an input
     over 200 words (at most 25 more candidates), for consistent performance.
+    When removing the copyright notices changes those first 20 words (a
+    title and a long copyright line can fill them), a second head query
+    runs without the notices. When its first 10 results hold a licence the
+    first query did not find, it adds all of its 50 results the first query
+    lacks; otherwise it adds none.
     A word is cut to its first 128 characters (the longest word of the List
     is 70), so one very long word stays fast.
     Comment prefixes (`//`, `#`, `*`, `;`) are stripped before querying.
-  - **Tier 2 (Precision)**: Adaptive ranking with RapidFuzz. Sliding-window
-    alignment for fragments; coverage-aware scoring to prefer the tightest
-    match. Marker confidence boosts applied only when confidence ≥ 0.85.
+  - **Tier 2 (Precision)**: Adaptive ranking with RapidFuzz. An input of at
+    least 80% of a text's words (or a very long one) is compared with the
+    whole text by sorted words; a shorter one is aligned with the best part
+    of the text, a fragment. An input of about a licence's core length is
+    compared with its core as well: the text without its optional parts (an
+    appendix, or the GPL-3.0 text quoted in the LGPL-3.0), which the SPDX
+    matching guidelines allow for optional text. The higher similarity
+    counts, and coverage is counted over the words of the text that won;
+    `EXACT` is still a whole-text match. The score then adds small terms for
+    coverage, for marker confidence (applied only from 0.85) and for a
+    fingerprint. What `SCORE`, `SIMILARITY` and `COVERAGE` measure, and
+    their ranges, is in [output.md](output.md#default-and-verbose-text).
 
 [py-spdx-license]: https://github.com/JPEWdev/py-spdx-license

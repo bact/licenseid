@@ -49,7 +49,7 @@ BUNDLE_BASE_URL = (
 )
 LATEST_JSON_URL = f"{BUNDLE_BASE_URL}latest.json"
 BUNDLE_URL_TEMPLATE = f"{BUNDLE_BASE_URL}v{{version}}.json.gz"
-# Compressed size cap of a downloaded bundle: 3.29.0 is about 1 MiB.
+# Compressed size cap of a downloaded bundle: 3.29.0, with templates, is about 1.3 MiB.
 MAX_BUNDLE_BYTES: Final = 16 * 2**20
 # (connect, read) in seconds: a host that a sandbox blocks fails in seconds,
 # not minutes; a small file needs less time to arrive than a release.

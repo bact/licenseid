@@ -44,7 +44,9 @@ def good_doc() -> dict[str, Any]:
         "format": 1,
         "licenseListVersion": "3.99",
         "releaseDate": "2099-01-01T00:00:00Z",
-        "licenses": [{"licenseId": "MIT", "name": "MIT License", "text": "t"}],
+        "licenses": [
+            {"licenseId": "MIT", "name": "MIT License", "text": "t", "template": "t"}
+        ],
         "exceptions": [],
     }
 
@@ -193,7 +195,9 @@ def test_a_text_that_is_not_a_string_is_refused(text: object) -> None:
 
 def test_a_null_text_is_no_text() -> None:
     doc = good_doc()
-    doc["licenses"] = [{"licenseId": "MIT", "name": "MIT", "text": None}]
+    doc["licenses"] = [
+        {"licenseId": "MIT", "name": "MIT", "text": None, "template": None}
+    ]
     assert SpdxData.from_bundle(bundle_of(doc), None).texts == {}
 
 

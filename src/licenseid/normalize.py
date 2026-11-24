@@ -249,6 +249,76 @@ _RE_HTTPS: Final = re.compile(r"https://")
 _STRIP_COPYRIGHT_NOTICE: Final[bool] = False
 
 
+def strip_copyright_notices(text: str) -> str:
+    """Return *text* with its copyright notices cut out (guideline 9).
+
+    The public form of ``_RE_COPYRIGHT_NOTICE``, for the Tier 1 query only
+    (``licenseid.retrieval``): scoring and the index still keep the notices
+    (see ``_STRIP_COPYRIGHT_NOTICE``). Call it on the raw text, before
+    :func:`normalize_text`: the notice stops at a real line break.
+    """
+    return _RE_COPYRIGHT_NOTICE.sub("", text)
+
+
+# Whether a notice starts at a token is decided by that token and the 11 after
+# it (the lookahead of "copyright" for a year or "(c)"); 24 is twice that.
+# A match never crosses a line break: only blanks join its tokens.
+_NOTICE_REACH: Final = 24
+_HEAD_CHARS: Final = 4096
+_RE_TOKEN: Final = re.compile(r"\S+")
+
+
+def _settled_head(text: str, end: int) -> str:
+    """Return the start of ``strip_copyright_notices(text)`` that *text*
+    cut at *end* already fixes: the same characters as the whole text gives,
+    and no more.
+
+    A match starting before the last :data:`_NOTICE_REACH` tokens of the
+    last line is decided as in the whole text (and so is every stretch
+    between matches); one that reaches past the cut takes what is left of
+    the line, and what follows is none of the settled part. A later match
+    may lack tokens the cut took, and the last token may be cut short: all
+    of that is left out.
+    """
+    cut = text[:end]
+    line_start = cut.rfind("\n") + 1
+    starts = [m.start() for m in _RE_TOKEN.finditer(cut, line_start)]
+    unsettled = starts[-_NOTICE_REACH] if len(starts) > _NOTICE_REACH else line_start
+    parts: list[str] = []
+    position = 0
+    for match in _RE_COPYRIGHT_NOTICE.finditer(cut):
+        if match.start() >= unsettled:
+            break
+        parts.append(cut[position : match.start()])
+        position = match.end()
+    if position < unsettled:
+        parts.append(cut[position:unsettled])
+    return "".join(parts)
+
+
+def notice_free_head(text: str, words: int) -> list[str]:
+    """Return the first *words* normalised words of *text* without its
+    copyright notices: ``normalize_text(strip_copyright_notices(text))
+    .split()[:words]``, read from a prefix of *text*.
+
+    Only the first words matter, and stripping all of a long input costs
+    time (``"copyright " * 100000``: 1.4 s). The prefix starts at
+    ``_HEAD_CHARS`` characters and grows four-fold until its settled part
+    (:func:`_settled_head`) holds more than *words* words (its last word
+    may change with what follows: "per cent" is one word, "percent") or it
+    is the whole text. A text with HTML markup is
+    read whole: turning it into plain text is a decision about all of it.
+    """
+    end = _HEAD_CHARS
+    if not _RE_HTML_TAG.search(text):
+        while end < len(text):
+            head = normalize_text(_settled_head(text, end)).split()
+            if len(head) > words:
+                return head[:words]
+            end *= 4
+    return normalize_text(strip_copyright_notices(text)).split()[:words]
+
+
 def normalize_text(text: str, *, line_rules: bool = True) -> str:
     """Normalise license text per SPDX License List Matching Guidelines.
 

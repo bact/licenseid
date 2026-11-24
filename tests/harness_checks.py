@@ -21,7 +21,13 @@ from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
 from licenseid.resolvefirst import MIN_TEXT_WORDS
 from licenseid.resolvereason import is_plus_refusal
-from licenseid.result import json_line, read_text_field, resolution_lines, text_line
+from licenseid.result import (
+    detect_json,
+    json_line,
+    read_text_field,
+    resolution_lines,
+    text_line,
+)
 from licenseid.types import Detection
 from tools.pypi_licence_sample.answer import unescape_field
 
@@ -82,9 +88,12 @@ def detect_never_raises(outcome: list[Detection] | Exception) -> str | None:
 
 
 def as_text(value: object) -> str:
-    """A JSON value as the text line writes it."""
+    """A JSON value as the text line writes it (a list of IDs, ``same_text``,
+    space-separated)."""
     if isinstance(value, bool):
         return "true" if value else "false"
+    if isinstance(value, list):
+        return " ".join(map(str, value))
     return "" if value is None else str(value)
 
 
@@ -163,8 +172,8 @@ def match_output_agrees(value: str) -> str | None:
 
 
 def detection_output_agrees(result: Detection) -> str | None:
-    """The same for one ``detect()`` result."""
-    line = json_line(result)
+    """The same for one ``detect()`` result, as the CLI prints it."""
+    line = detect_json(result)
     return canonical(line) or line_matches_json(text_line(result), json.loads(line))
 
 

@@ -12,7 +12,7 @@ to this file: edit `AGENTS.md`.
   `resolve()` reads a declared licence value as an SPDX expression.
 - Private alpha, one developer. No backward compatibility needed yet.
 - Build: `hatchling`, PEP 621 `pyproject.toml`.
-- `update` takes a release from one of three sources: `compact` (our 1 MB
+- `update` takes a release from one of three sources: `compact` (our 1.3 MB
   bundle on the `data` branch), `upstream` (SPDX's tarball), `packaged` (the
   bundle in the wheel). "Bundle" names only the file format (`spdxdata`,
   `spdx-bundle*.json.gz`); say `compact` or `packaged` for a source. Terms:
@@ -71,7 +71,9 @@ in another module.
   bare deprecated ID stands for both twins, kept under `as-written`),
   `variants` and `variantstated` (the `variant` option: what a bare ID and a
   text answer, `variant_stated`, a trailing "only"),
-  `similarity` (Tier 2 scores of the candidates, the fingerprint bonus),
+  `similarity` (Tier 2 scores of the candidates, the fingerprint bonus;
+  a long input against a licence's core too, the higher kept, coverage over
+  the text that won) with `coretext` (a template without its optional parts),
   `fingerprint` (maths) and `fingerprintstore` (its table),
   `ranking` (sort order, `-only`/`-or-later` tie-breaker), `markers` and
   `candidates` (its helpers), `classify` (prose "or later"), `grantsubject`
@@ -136,7 +138,15 @@ and `--json`) against these rules and checks the default output against the
   `--version`. `--id-only` is gone.
 - The record: one record per line. The first key names its kind
   (`EXPRESSION` the answer, first; `STEP`, `REASON`, `OPERAND`, `LIST`,
-  `STATUS`). No answer still prints the record, every field empty.
+  `STATUS`). No answer still prints the record, every field empty but
+  `REASON`. `detect`'s last fields: `SAME_TEXT` (after `VARIANT_STATED`) is
+  empty unless a text answer shares its normalised text with other List IDs
+  (`detector` passes `result.public_result` the `twins` it builds from
+  `database.text_parts`, minus the
+  final expression); `REASON` (CLI only, not in `types.Detection`) is empty
+  on an answer, else `below threshold`, `not exact` or `no match`
+  (`clidetect._no_answer_reason`). It is a field, never a record kind: the
+  first key of a `detect` line is `EXPRESSION`.
 - Fields: `KEY=VALUE`, upper-case key, no spaces round `=`, one tab between
   fields (`result.fields_line`); a key ends at the first `=`. Fields are only
   appended at the end: never removed, renamed or reordered.

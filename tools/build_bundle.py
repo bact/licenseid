@@ -6,9 +6,10 @@
 """Build the published SPDX bundle of one license list release.
 
 Run as ``python -m tools.build_bundle --out DIR (--tarball PATH | --version V)``.
-It writes ``DIR/v<version>.json.gz`` and moves ``DIR/latest.json`` forward
-only when the version is greater than the one it names. Standard library and
-``licenseid`` only, so a CI job needs nothing else.
+It writes ``DIR/v<version>.json.gz`` (texts and templates) and moves
+``DIR/latest.json`` forward only when the version is greater than the one it
+names. Standard library and ``licenseid`` only, so a CI job needs nothing
+else.
 """
 
 import argparse

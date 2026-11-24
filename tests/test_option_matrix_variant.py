@@ -74,7 +74,7 @@ def test_variant_matrix(
         assert (result.exit_code, result.stderr) == (0, "")
         first = result.stdout.splitlines()[0]
         assert first.startswith("EXPRESSION=MIT\t")
-        assert first.endswith("VARIANT_STATED=")
+        assert first.endswith("VARIANT_STATED=\tSAME_TEXT=\tREASON=")
 
 
 @pytest.fixture(scope="module")
@@ -123,7 +123,7 @@ def test_variant_matrix_gpl_family(
     assert result.exit_code == 0, result.stderr
     first = result.stdout.splitlines()[0]
     assert first.startswith(f"EXPRESSION={expression}\t")
-    assert first.endswith(f"VARIANT_STATED={stated}")
+    assert first.endswith(f"VARIANT_STATED={stated}\tSAME_TEXT=\tREASON=")
     warned = [x for x in result.stderr.splitlines() if "days old" not in x]
     assert bool(warned) is said, warned
 

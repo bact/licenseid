@@ -394,7 +394,7 @@ def test_detect_and_the_flags_read_a_url(corpus_db: LicenseDatabase) -> None:
     assert (code, err) == (0, "")
     assert out == (
         "EXPRESSION=Apache-2.0\tMETHOD=name\tEXACT=true\tSCORE=1.0000\t"
-        "SIMILARITY=\tCOVERAGE=\tVARIANT_STATED=\n"
+        "SIMILARITY=\tCOVERAGE=\tVARIANT_STATED=\tSAME_TEXT=\tREASON=\n"
     )
     code, out, _ = _cli(corpus_db, "detect", "--json", APACHE_URL)
     assert (code, json.loads(out)["method"]) == (0, "name")

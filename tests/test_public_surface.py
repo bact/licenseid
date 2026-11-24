@@ -164,7 +164,8 @@ def test_detect_prints_an_empty_record_on_exit_1(db: str, flags: list[str]) -> N
     line = (
         '{"coverage":null,"exact":null,"expression":null,"is_fsf_libre":null,'
         '"is_osi_approved":null,"is_spdx":null,"lists":null,"method":null,'
-        '"score":null,"similarity":null,"variant_stated":null}'
+        '"reason":"no match","same_text":null,"score":null,"similarity":null,'
+        '"variant_stated":null}'
         if flags
         else NO_DETECTION.rstrip("\n")
     )

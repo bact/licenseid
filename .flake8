@@ -9,6 +9,7 @@ exclude =
     tests/fixtures/
 # Written by a script: its case names are the golden's, whole.
 per-file-ignores =
+    tests/harness_changes_notice_query.py: E501
     tests/harness_changes_resolvefirst.py: E501
 
 # Interim ratchets set to the exact current repo max (tightest ceiling

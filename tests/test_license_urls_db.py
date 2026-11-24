@@ -77,8 +77,8 @@ def _db(tmp_path: Path) -> LicenseDatabase:
 
 def test_the_build_and_the_schema_carry_the_pages() -> None:
     """Build 4 adds the table: a database of build 3 is rebuilt by update
-    (``tests/test_license_urls_build3.py``)."""
-    assert BUILD_VERSION == "4"
+    (``tests/test_license_urls_build3.py``); the build is 5 since."""
+    assert int(BUILD_VERSION) >= 4
     assert "license_urls" in SCHEMA_OBJECTS
 
 

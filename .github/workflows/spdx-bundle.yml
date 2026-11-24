@@ -5,6 +5,10 @@
 # raw.githubusercontent.com: `spdx/format-1/v<version>.json.gz` and
 # `spdx/format-1/latest.json` on the orphan `data` branch.
 #
+# A release is built once. After a change of the build (a new key in the
+# bundle), run it by hand with `rebuild` ticked: the build runs although the
+# file exists, writes only the bytes that changed, and publishes them.
+#
 # One-time set-up, by hand: create the orphan `data` branch and protect it
 # from force-push and deletion. A scheduled workflow stops after 60 days
 # without repository activity; run it by hand to wake it.
@@ -20,6 +24,11 @@ on:
         description: "SPDX license list release, e.g. 3.29.0 (default: latest)"
         required: false
         type: string
+      rebuild:
+        description: "Build even if the release is already published (a changed build)"
+        required: false
+        default: false
+        type: boolean
 
 # One publisher at a time, so two pushes to `data` never race.
 concurrency:
@@ -58,6 +67,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           INPUT_VERSION: ${{ inputs.version }}
+          INPUT_REBUILD: ${{ inputs.rebuild }}
         run: |
           set -euo pipefail
           version="${INPUT_VERSION#v}"
@@ -70,7 +80,8 @@ jobs:
             echo "::error::invalid release: ${version}"
             exit 1
           fi
-          if [[ -f "data/spdx/format-1/v${version}.json.gz" ]]; then
+          if [[ "${INPUT_REBUILD}" != "true" \
+            && -f "data/spdx/format-1/v${version}.json.gz" ]]; then
             echo "v${version} is already published"
             echo "build=false" >> "${GITHUB_OUTPUT}"
           else
