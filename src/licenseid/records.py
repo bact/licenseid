@@ -45,7 +45,7 @@ BUILD_VERSION = "5"
 # neighbour scored on its core: over the List's 708 texts, the core of
 # CC-BY-SA-4.0 (0.92 of its words) became CC-BY-NC-SA-4.0 and that of
 # CC-BY-SA-2.5 (0.9004) CC-BY-SA-2.0; with every shorter core kept (442, not
-# 77) neither moves and no top answer is lost but among licences whose cores
+# 78) neither moves and no top answer is lost but among licences whose cores
 # are the same text. Tier 2 scores a core only for an input of about its
 # length (``similarity.CORE_MIN_SHARE``), so the cost does not grow with it.
 

@@ -51,7 +51,7 @@ Advanced update options:
     update` works where only that host is reachable.
   - `upstream`: SPDX's own release tarball on GitHub (about 49 MB).
   - `packaged`: the bundle shipped in the package: the SPDX License List
-    pinned for that release (3.29.0 for 0.9.0). `licenseid update` still
+    pinned for that release (3.29.0 for 0.9.x). `licenseid update` still
     works with no network, with data that may be older.
 
 ## Detect a licence, or resolve a declared value

@@ -280,8 +280,8 @@ Licenses that are near-identical modifications of another license (e.g.
 `Pixar` is `Apache-2.0` with a modified section 6) can be misidentified
 as the parent license. See
 [`new-matcher.md`](new-matcher.md) for the background analysis and word-count
-statistics; no fix has been designed yet, only the problem is documented.
-The other way round, Apache-2.0 without its appendix answered Pixar: the core
+statistics; for this direction no fix has been designed yet. The other way
+round, Apache-2.0 without its appendix answered Pixar: the core
 text fixed that (PR #239), and a verbatim Pixar text still answers Pixar.
 
 - Impact 2, Risk 2, Effort 4 (needs a design pass before an effort
@@ -374,6 +374,19 @@ From the review of PR #239 (2026-11-24); none answers worse than `main`.
   HPND among 96 candidates and answers HPND-Pbmplus (`main`: HPND-SMC).
 
 Details: `../implementation/accuracy-optimizations.md` sections 12 and 13.
+Impact 2, Risk 2, Effort 3.
+
+## 62. 100,000 `License:` lines on the test database take 25 min — Priority 12
+
+Found by `--run-benchmark` before 0.9.2 (2026-11-24); it fails on v0.9.0 and
+v0.9.1 too. `test_100k_distinct_lines_detect_in_bounded_time` (bound 30 s)
+takes about 14 ms a line on its seeded in-memory database: 2,000 lines run
+about 60 SQL queries a line (119,000 in all), on v0.9.0 (22 s), v0.9.1 (28 s)
+and 0.9.2 (35 s; the notice-free head normalises the text again, 1.3x). On a
+database `update` built, 8,000 such lines take 1.4 s on 0.9.1 and 0.9.2
+alike. Trace the queries per line first (the shared-cache memory database,
+`dbcache` checks), then decide whether the test or the code is wrong.
+
 Impact 2, Risk 2, Effort 3.
 
 ## Already resolved

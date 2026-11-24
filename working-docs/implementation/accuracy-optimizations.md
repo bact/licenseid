@@ -338,12 +338,12 @@ Against the core the two scored 0.9911 and 0.996.
   match, so a copy without the optional parts is never exact.
 - **The cut rejected.** A cut that kept a core only when it had nine tenths of
   the words or fewer was measured and rejected: it kept 77 cores where 440 have
-  fewer words than the whole text. A licence whose core was cut then competed
-  on its whole text with a neighbour scored on its core, and lost:
-  CC-BY-SA-4.0 (core 0.92 of its words) lost its answer to
-  CC-BY-NC-SA-4.0, and CC-BY-SA-2.5 (0.9004) to CC-BY-SA-2.0. All 440 shorter
-  cores are stored instead, for +3.4 MB in the database; neither answer moves.
-  With the word boundary and twin rules above, 442 are stored.
+  fewer words (78 of 442 with the word boundary rule) than the whole text. A
+  licence whose core was cut then competed on its whole text with a neighbour
+  scored on its core, and lost: CC-BY-SA-4.0 (core 0.92 of its words) lost its
+  answer to CC-BY-NC-SA-4.0, and CC-BY-SA-2.5 (0.9004) to CC-BY-SA-2.0. All 440
+  shorter cores are stored instead, for +3.4 MB in the database; neither answer
+  moves. With the word boundary and twin rules above, 442 are stored.
 - **Cores alike, licences not.** OLDAP-1.1 and OLDAP-1.2, and OLDAP-2.2.2
   and OLDAP-2.3, differ only in an optional version line, so their cores are
   one text. A copy of the core scores 1 for both, and the tie-breaker answers

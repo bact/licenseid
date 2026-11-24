@@ -321,7 +321,7 @@ and `--json`) against these rules and checks the default output against the
   (`looseid.read_inexactly`, `mark_guessed`) marks it in
   `evidence.decided`: a decided form is never stated, whatever another
   operand says (`identifiers` merges equal operands, so no count can).
-  The one reader `variants.stated_of` gives the last record field
+  The one reader `variants.stated_of` gives the record field
   `VARIANT_STATED`, fail closed (no evidence, no word: false);
   `result.public_result` applies the one rule that a variant licenseid
   chose (`guessed_of`) is not exact. `is-*` lines have no `VARIANT_STATED`;
