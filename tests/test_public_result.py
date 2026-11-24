@@ -25,7 +25,7 @@ from matcher_db import GPL2_ROWS, Lic, seeded_db
 
 import licenseid
 from licenseid.detector import LicenseDetector
-from licenseid.result import json_line, public_result, text_line
+from licenseid.result import detect_json, json_line, public_result, text_line
 from licenseid.types import Detection, RawMatch
 
 # Long enough that a fragment of it is aligned to a window of its own.
@@ -237,7 +237,8 @@ def test_a_json_line_is_canonical() -> None:
         '"provides":["deprecation","ids","names","texts"],"source":"database",'
         '"url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0",'
         '"version":"3.29.0"}],'
-        '"method":"tag","score":1,"similarity":null,"variant_stated":null}'
+        '"method":"tag","same_text":null,"score":1,"similarity":null,'
+        '"variant_stated":null}'
     )
 
 
@@ -268,7 +269,8 @@ def test_a_text_line_has_every_field_and_empty_for_none(
 ) -> None:
     line = text_line(public_match(similarity=similarity, coverage=coverage))
     assert line == (
-        f"EXPRESSION=MIT\tMETHOD=tag\tEXACT=true\tSCORE=1.0000\t{tail}\tVARIANT_STATED="
+        f"EXPRESSION=MIT\tMETHOD=tag\tEXACT=true\tSCORE=1.0000\t{tail}"
+        "\tVARIANT_STATED=\tSAME_TEXT=\tREASON="
     )
 
 
@@ -283,7 +285,9 @@ def test_json_prints_one_line_per_result(db: str) -> None:
         ("MIT", "tag"),
         ("Apache-2.0", "tag"),
     ]
-    assert result.stdout == "".join(json_line(r) + "\n" for r in _match(db, text=text))
+    assert result.stdout == "".join(
+        detect_json(r) + "\n" for r in _match(db, text=text)
+    )
 
 
 @pytest.mark.parametrize(

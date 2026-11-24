@@ -14,7 +14,7 @@ from typing_extensions import Unpack
 
 from licenseid.candidates import as_matches, license_sections
 from licenseid.classify import is_pure_license_text
-from licenseid.database import LicenseDatabase
+from licenseid.database import LicenseDatabase, text_parts
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path, require_path
 from licenseid.detectrequest import PathInput, check_request
@@ -55,6 +55,7 @@ from licenseid.similarity import (
     build_probe,
     calculate_base_similarity,
     score_candidates,
+    with_core,
 )
 from licenseid.textinput import read_text_file, reject_lone_surrogate
 from licenseid.types import (
@@ -409,7 +410,8 @@ class LicenseDetector:
                 text, license_id=license_id, file_path=file_path, **options
             )
             lists = [list_info(self.db, "database")]  # resolve()'s builder
-        return [public_result(r, lists) for r in raw]
+            twins = {i: p.same_text for i, p in text_parts(self.db).items()}
+        return [public_result(r, lists, twins) for r in raw]
 
     def _match_raw(
         self,
@@ -559,7 +561,10 @@ class LicenseDetector:
             if not details:
                 return "", ""
             ctx = self._build_match_context(text, None, DetectOptions())
-            candidate = self.markers.to_candidate(details, 0.0)
+            candidate = with_core(
+                self.markers.to_candidate(details, 0.0),
+                text_parts(self.db).get(details["license_id"]),
+            )
         norm_input = self._without_tags(ctx).norm_input
         words = norm_input.split()
         _, _, window = calculate_base_similarity(
@@ -629,8 +634,13 @@ class LicenseDetector:
         """Rank candidates using dynamic sliding window and
         marker-boosted scoring."""
         enable_popularity = data.get("enable_popularity", self.enable_popularity)
+        parts = text_parts(self.db)
         ranked = score_candidates(
-            candidates, norm_input, marker_boosts or {}, is_pure, enable_popularity
+            [with_core(c, parts.get(c["license_id"])) for c in candidates],
+            norm_input,
+            marker_boosts or {},
+            is_pure,
+            enable_popularity,
         )
         boost_by_fingerprint(ranked, self.db.find_fingerprint_hits(norm_input))
         ranked.sort(key=ranking_key(enable_popularity))

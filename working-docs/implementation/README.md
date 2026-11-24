@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-24
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -129,7 +129,7 @@ yet started, see [`../design/`](../design/).
   or bundle) into `SpdxData`, `records.py` builds the database rows from it.
   No XML is stored. Same document.
 - **Release sources** (`releasesource.py`, PR #90): `update --source` picks
-  `compact` (our bundle, about 1 MB, from `raw.githubusercontent.com`),
+  `compact` (our bundle, about 1.3 MB, from `raw.githubusercontent.com`),
   `upstream` (SPDX's tarball) or `packaged` (the bundle shipped in the wheel);
   `auto` falls back in that order. The terms are defined in
   `data-fetching-and-caching.md`.
@@ -197,6 +197,8 @@ yet started, see [`../design/`](../design/).
 | 2026-11-16 | [item-52-variant-and-exact.md](item-52-variant-and-exact.md) | implemented (PRs #211, #212) | `--variant`, `VARIANT_STATED`, `EXACT` by list not by trust, evidence and operand marks, `exclude`/`hint` on free text only; paths rejected, pinned cases, measures. |
 | 2026-11-17 | [tech-debt-resolved-0-9.md](tech-debt-resolved-0-9.md) | record | The roadmap items resolved from 2026-11-17 on, split from `tech-debt-resolved-0-5.md` at the size limit. |
 | 2026-11-18 | [complexity-refactors.md](complexity-refactors.md) | record | The complexity refactors done between 2026-08-19 and 2026-11-03 (`identifiers`, `markers`, `matcher` splits, `spdx_source` tests and fixes) and how the lint ceilings were measured and moved; moved from the complexity roadmap. |
+| 2026-11-23 | [accuracy-optimizations.md](accuracy-optimizations.md) section 12 | implemented (not released) | The core text of a licence for long inputs (Tier 2): the SPDX optional-text rule, the cut at nine tenths rejected, all 440 cores stored (build 5). |
+| 2026-11-24 | [accuracy-optimizations.md](accuracy-optimizations.md) section 13 | implemented (not released) | A second Tier 1 head query without copyright notices (MIT under a long holder), with no cap of 25 and a top 10 gate. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

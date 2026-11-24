@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-23
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -19,6 +19,7 @@ the traps found on the way.
 - The order of sources (PR #90): `releasesource.py`; section "Source chain"
 - Publishing the bundle: `spdx-bundle.yml`, `tools/build_bundle.py`
 - The snapshot in the wheel: `hatch_build.py`
+- The licence templates in the bundle: section "Templates in the bundle"
 
 The caller is `LicenseDatabase.update_from_remote` in `database.py`.
 
@@ -30,8 +31,8 @@ Three sources, named by where the data comes from (`update --source`, the
 wheel, which are the same format and the same bytes, so the name did not say
 which was meant.
 
-- **compact**: our bundle of about 1 MB (JSON and licence texts, no XML), from
-  the `data` branch via `raw.githubusercontent.com`.
+- **compact**: our bundle of about 1.3 MB (JSON, licence texts and templates,
+  no XML), from the `data` branch via `raw.githubusercontent.com`.
 - **upstream**: SPDX's own release tarball from `license-list-data` (about 49
   MB).
 - **packaged**: the bundle shipped in the wheel and the sdist (also called
@@ -39,7 +40,8 @@ which was meant.
 
 "Bundle" stays the name of the file format (`spdxdata.SpdxData.from_bundle`,
 `spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz`, `tools/build_bundle.py`),
-so file names, diagnostic SUBJECTs and the `data` branch layout did not change.
+so file names, diagnostic SUBJECTs and the `data` branch layout did not
+change.
 
 ## What it does
 
@@ -87,8 +89,9 @@ under `Data sources:` (the data line reads `compact (remote)`, `compact
 - **Untrusted input**: a version (from `--version` or a downloaded
   `licenses.json`) must match `[A-Za-z0-9][A-Za-z0-9._-]*` before it reaches a
   file name or URL. `SpdxData.from_tarball` does not extract: it reads only
-  `<root>/json/*.json` and `<root>/text/*.txt`, so a member with an absolute
-  or `..` name is never read. The tarball and the bundle share one check of
+  `<root>/json/*.json`, `<root>/text/*.txt` and
+  `<root>/template/*.template.txt`, so a member with an absolute or `..` name
+  is never read. The tarball and the bundle share one check of
   the version, the release date and every licence and exception ID
   (`[A-Za-z0-9][A-Za-z0-9.+-]{0,99}`, no duplicates).
 - **Self-healing**: a cached bundle (`spdx_source.get_bundle`) or tarball
@@ -101,8 +104,9 @@ under `Data sources:` (the data line reads `compact (remote)`, `compact
 ## Store path (PR #85)
 
 - One object feeds the store: `SpdxData` (version, release date, licence and
-  exception entries, `texts` by licence ID). `ReleaseChain` builds it from
-  the bundle, the tarball or the snapshot; `database._store` stores it.
+  exception entries, `texts` and `templates` by licence ID). `ReleaseChain`
+  builds it from the bundle, the tarball or the snapshot; `database._store`
+  stores it.
 - `records.build_records` is pure: no file or database access. A licence
   with no text is dropped, unless deprecated; then it keeps a row without an
   index entry (pinned by `tests/test_update_characterization.py`, with a
@@ -183,7 +187,9 @@ download failed: ...; using packaged data v3.28.0`.
   the database`.
 - **Timings** (cached 3.29.0, best of three, read-only): tarball 49,400,135
   bytes, read 1.2 s, store 3.8 s; bundle 980,375 bytes (4,954,511 unzipped),
-  read 0.04 s, store 2.7 s. The two databases match row for row.
+  read 0.04 s, store 2.7 s. The two databases match row for row. With the
+  templates added: bundle 1,327,781 bytes (10,215,156 unzipped), read 0.04 s;
+  tarball read 1.8 s; the two `SpdxData` are equal.
 - **Tests**: `tests/release_fakes.py` serves a synthetic release (404 for any
   other URL); an autouse `offline` fixture makes `requests.get` fail and
   `packaged_bundle()` return `None`, so a test opts in. A tarball is valid
@@ -193,16 +199,19 @@ download failed: ...; using packaged data v3.28.0`.
 
 ## Publishing the bundle (`.github/workflows/spdx-bundle.yml`)
 
-- Weekly cron (Tuesdays, 22:19 UTC) and manual run (`version` input). A
-  bundle lags SPDX by up to a week; `--source upstream` goes straight to SPDX.
+- Weekly cron (Tuesdays, 22:19 UTC) and manual run (`version` and `rebuild`
+  inputs). A bundle lags SPDX by up to a week; `--source upstream` goes
+  straight to SPDX.
 - It reads SPDX's latest release, skips when
-  `data/spdx/format-1/v<ver>.json.gz` exists, else runs `tools.build_bundle`
-  and pushes one commit to the orphan `data` branch.
+  `data/spdx/format-1/v<ver>.json.gz` exists (unless `rebuild` is ticked),
+  else runs `tools.build_bundle` and pushes one commit to the orphan `data`
+  branch. `tools.build_bundle` writes only the bytes that changed, and the
+  publish step stops when nothing changed.
 - The decision reads a checkout of `data`, never the raw URL (cached 5 min).
 - The build installs the runtime dependencies listed in `pyproject.toml`, not
   a wheel (no Pitloom, Magika or onnxruntime), and runs with
-  `PYTHONPATH=src`. A rebuild of 3.29.0 is byte-identical to the published
-  bundle.
+  `PYTHONPATH=src`. A rebuild of a release is byte-identical to the one the
+  same tree published.
 - The push token reaches git only in the last step, never the build. Actions
   are pinned by SHA. The job runs only in `bact/licenseid`.
 - Set up by hand: the orphan `data` branch, seeded with the 3.29.0 bundle by
@@ -259,6 +268,60 @@ download failed: ...; using packaged data v3.28.0`.
   the same bytes; the wheel in a clean venv ran `update --source packaged`
   and matched MIT with no network; `skip` ships nothing; an unreachable host
   warns, or fails with the require flag.
+
+## Templates in the bundle
+
+The text matcher needs each licence's core text (the text without its
+optional parts), which only the template has (`template/<id>.template.txt`
+in the tarball, with the `<<beginOptional>>` and `<<var>>` marks of the SPDX
+matching guidelines). The bundle carries every licence template.
+
+- **Additive key, no format bump**: each licence entry has a `template` key,
+  a string or null (no template file). The format stays 1 and the URL stays
+  `spdx/format-1/`: licenseid 0.9.1's reader ignores a key it does not know
+  (tested: all 740 licences and their texts read from the templated 3.29.0
+  bundle), so it keeps working, and one bundle serves every client. A format
+  2 with its own URL and cache name was built first and dropped: two
+  publishing paths (the old tools checked out beside this tree's) for no
+  reader that needs the split. Exceptions carry no template.
+  `SpdxData.templates` maps licence ID to template, as `texts` does; a
+  licence with no template is absent. 3.29.0: 708 licences, 708 templates
+  (the 32 without a text have none either).
+- **Fail closed, by key presence**: `SpdxData.from_bundle` refuses a bundle
+  with licences where no entry has a `template` key (`BundleError: no
+  templates`), not by the format number, which cannot tell a bundle built
+  before templates. An entry whose key is null is fine, as is one without
+  the key beside entries that have it. The diagnostics:
+  - downloaded: `spdx-bundle-v<ver>.json.gz: download unusable: no
+    templates`, not cached; `auto` adds `; downloading spdx-data-v<ver>.tar.gz`
+    and takes the upstream tarball, `--source compact` fails (exit 1).
+  - cached (by 0.9.1, or before the rebuild): `cache unusable: no templates;
+    downloading`, the file is removed and downloaded again.
+  - shipped (`--source packaged`): `spdx-bundle.json.gz: invalid: no
+    templates`; `auto` does not fall back to it; `resolve()`'s packaged list
+    warns the same and has none. `hatch_build.py` ships only the pinned
+    file, which has templates.
+  A fallback to upstream for every pre-templates bundle was kept for `auto`:
+  a wrong file at our URL is our publishing error, and the warning makes it
+  visible while `auto` still gets the same data from SPDX.
+- **Size**: 3.29.0 is 1,327,781 bytes gzipped (without templates: 980,375)
+  and 10,215,156 bytes unzipped, under `MAX_UNZIPPED` (32 MiB) and
+  `MAX_BUNDLE_BYTES` (16 MiB). Reading it takes 0.04 s, as before. SHA-256
+  `e081c34add9e956357bd71cd2094a4110815a603234ef017775d6307ea271876`, built
+  by `tools.build_bundle --tarball` from the cached 3.29.0 tarball.
+- **One-time rebuild**: the published `format-1/v3.29.0.json.gz` has no
+  templates, and the weekly run skips a release that exists. After the change
+  is merged, run `spdx-bundle.yml` by hand with `version` 3.29.0 and
+  `rebuild` ticked: it replaces the file and `latest.json` (new `sha256` and
+  `size`). Until then `auto` warns and falls back to upstream, and the
+  release build (`hatch_build.py`) fails on the old file. Later releases are
+  built with templates by the weekly run.
+- **Accepted**: the pin of the `v0.9.1` tag (`c739873755...`) no longer
+  matches the published file, so a build from that tag fails; its published
+  wheel is unaffected.
+- **A database built before** has no templates in it: the change that stores
+  what the matcher takes from them raises `records.BUILD_VERSION`, so
+  `update` rebuilds it.
 
 ## Traps and surprises
 

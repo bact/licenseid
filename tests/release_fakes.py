@@ -38,6 +38,8 @@ MIT_TEXT = (
     "Permission is hereby granted, free of charge, to any person obtaining a "
     "copy of this software and associated documentation files."
 )
+# Its template (SPDX matching guidelines): the text with an optional title.
+MIT_TEMPLATE = f"<<beginOptional>>MIT License<<endOptional>>\n{MIT_TEXT}"
 POPULARITY_CSV = "spdx_license,num_pushers\nMIT,1000\n"
 # The real ones: conftest's autouse fixture replaces them before each test.
 _PACKAGED_BUNDLE = spdxdata.packaged_bundle
@@ -100,6 +102,7 @@ def release_tarball(version: str = VERSION) -> bytes:
             f"{root}/json/licenses.json": json.dumps(listing(version)).encode(),
             f"{root}/json/exceptions.json": json.dumps({"exceptions": []}).encode(),
             f"{root}/text/MIT.txt": MIT_TEXT.encode(),
+            f"{root}/template/MIT.template.txt": MIT_TEMPLATE.encode(),
         }
     )
 
@@ -113,6 +116,7 @@ def release_data(version: str = VERSION) -> SpdxData:
         licenses=tuple(licenses),
         exceptions=(),
         texts=MappingProxyType({"MIT": MIT_TEXT}),
+        templates=MappingProxyType({"MIT": MIT_TEMPLATE}),
     )
 
 

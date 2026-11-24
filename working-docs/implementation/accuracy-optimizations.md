@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-07
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-24
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -281,3 +281,104 @@ the sections of mixed content all get it. A section always holds its
 - **Not done.** Names get no key: `Apache License 2` is still a fuzzy name
   match. `BSD3` is not `BSD-3-Clause`. A prefix (`License: Apache2`) adds a
   word to the key, so it finds no ID.
+
+### 12. Core text of a licence for long inputs (`coretext.py`, 2026-11-23)
+
+The SPDX matching guidelines let a copy of a licence leave out its optional
+text, which a template marks `<<beginOptional>>` (annex B.3,
+<https://spdx.github.io/spdx-spec/v3.0/annexes/license-matching-guidelines-and-templates/>).
+A licence text of the List holds such parts: the "How to apply" appendix of
+Apache-2.0, and the whole GPL-3.0 text inside LGPL-3.0. A copy without them is
+the same licence, but a whole-text comparison scores it low. Against the whole
+text, Apache-2.0 without its appendix scored 0.9437 and Pixar (0.9897)
+answered; LGPL-3.0 without the GPL-3.0 text scored 0.299 and gave no answer.
+Against the core the two scored 0.9911 and 0.996.
+
+- **The core.** `coretext.core_text` drops every optional part (nested ones
+  with it) and keeps each variable part at its `original` wording. A
+  malformed template has no core. The core is stored (`core_text`,
+  `core_word_count`) when it has fewer words than the whole text.
+- **A mark is a word boundary.** A template may have no white space beside a
+  mark: HPND has `modify<<beginOptional>>,<<endOptional>>and`. Joined as
+  written, the core held `modifyand`, a word no copy has (HPND,
+  HPND-sell-variant, NTP-0). A var and the place of a dropped part now stand
+  apart from the text beside them (white space is insignificant, B.2). Of the
+  440 licence cores of List 3.29.0, 36 held a word their List text lacks; of
+  442 now, 25 do, from `original` wordings the List's text does not hold (a
+  bullet, a URL, a holder's name). RSCPL has
+  `attorney<<beginOptional>>'<<endOptional>>s`: its core now reads
+  "attorney s", as a copy with the apostrophe normalises.
+- **Placeholders kept.** A var `original` that is a placeholder (MIT's
+  `<year> <copyright holders>`) stays in the core: the List's whole text holds
+  it too, so the core and the text read alike there. Dropping placeholders
+  (`<...>` without `@` or `:`) was measured and rejected: 14 more templates
+  then have a core shorter than their text, by nothing but the placeholder
+  words of a copyright line.
+- **Twins share a core or none.** Licences of one text (`same_text`) are told
+  apart by the tie-breaker of equal scores (`ranking`). Uneven cores scored
+  them apart on what their templates add to the text: the copyright line of
+  OFL-1.1 and OFL-1.1-RFN names a Reserved Font Name, so their cores are not
+  shorter than the text, while OFL-1.1-no-RFN's is; an OFL-1.1 copy without
+  its title, whose copyright line names a Reserved Font Name, answered
+  OFL-1.1-no-RFN (0.986; `main`: OFL-1.1). `records.uneven_cores` drops the
+  cores of a group whose members' cores are not all one text (where some
+  have a core and some none, none keeps one), so each twin scores on the text
+  they share. In List 3.29.0 this drops only the OFL-1.1 group's core;
+  GPL-1.0-only and GPL-1.0-or-later, one word apart before, have one core
+  since the word boundary rule.
+- **Measured** on the 708 texts of List 3.29.0, each whole, as its raw core,
+  without its first line, and with two copyright lines for its title: the
+  right answers (705, 693, 653, 679) do not move; the three OFL-1.1 IDs now
+  answer OFL-1.1, as `main` does, where they answered OFL-1.1-no-RFN. No
+  golden answer moves, and `detect()` takes the same time as before.
+- **Tier 2.** `similarity.core_similarity` compares a long input with the core
+  as well, when each has at least 0.8 of the other's words
+  (`CORE_MIN_SHARE`), by sorted words. The higher similarity counts, and
+  coverage is counted over the text that won. `EXACT` stays a whole-text
+  match, so a copy without the optional parts is never exact.
+- **The cut rejected.** A cut that kept a core only when it had nine tenths of
+  the words or fewer was measured and rejected: it kept 77 cores where 440 have
+  fewer words than the whole text. A licence whose core was cut then competed
+  on its whole text with a neighbour scored on its core, and lost:
+  CC-BY-SA-4.0 (core 0.92 of its words) lost its answer to
+  CC-BY-NC-SA-4.0, and CC-BY-SA-2.5 (0.9004) to CC-BY-SA-2.0. All 440 shorter
+  cores are stored instead, for +3.4 MB in the database; neither answer moves.
+  With the word boundary and twin rules above, 442 are stored.
+- **Cost.** A core is scored only for an input of about its length, so the
+  cost does not grow with the number of cores. Pinned by
+  `tests/test_coretext.py` and `tests/test_core_similarity.py`. Build 5 of the
+  database stores the cores: `licenseid update` rebuilds an older one.
+
+### 13. A head query without copyright notices (`retrieval.py`, 2026-11-24)
+
+Tier 1 queries the first 20 normalised words (`ftsquery.MAX_TERMS`). A title
+and a long copyright line can fill them: MIT under "The MIT License (MIT)"
+and a holder of a dozen words left the query no word of the licence, MIT was
+no candidate, and MIT-advertising, FSL-1.1-MIT, Xnet or nothing answered
+(attrs, pytest, pydantic and PyYAML wheels). Copyright notices stay in the
+index and in Tier 2 (stripping them there cost 0.72% on the benchmark): only
+this one query reads the text without them.
+
+- **The query.** `retrieval._notice_free_candidates` runs a second head query
+  when `normalize.notice_free_head` (the first 20 words without the notices,
+  read from a prefix of the text: `"copyright " * 100000` took 1.4 s
+  stripped whole) differs from the first head.
+- **No cap of 25.** Under two copyright lines the right licence ranks 26 to
+  50 in that query. A cap of 25 new candidates, as for the tail query, lost
+  ISC, 0BSD, NTP, MIT-testregex and RHeCos-1.1 while their neighbours got
+  in: RHeCos-1.1 answered MPL-1.0 at 0.935 where `main` gave none. Of 708
+  List texts under two copyright lines, cap 25 gave 679 right answers, cap
+  35 gave 687, all 50 gave 694, none lost. Ranking the notice-free results
+  first and capping the first query's lost 13 right answers.
+- **Top 10 gate.** A template's copyright line (HPND's `Copyright <year>
+  <copyright holder>`) changes the first words but not what the query finds; all
+  50 results then added only Tier 2 passes (HPND's whole text: 78
+  candidates, 2.05x `main`). The results count only when the first 10
+  (`NOTICE_NEW_TOP`) hold a licence the first query lacks. Of 1,519 List
+  texts (whole, core, no title, under two copyright lines) whose second
+  query runs, 289 skip it; every one whose licence only that query found had
+  2 or more new licences in its first 10 (a top 5 lost HPND-SMC). No top
+  answer of the 289 moves, only runners-up (33 texts). HPND's whole text
+  now takes 1.07x `main`; MIT under two copyright lines 1.82x, the cost of
+  the candidates that find MIT.
+- Pinned by `tests/test_notice_query.py`.

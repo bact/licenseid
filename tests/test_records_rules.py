@@ -32,13 +32,13 @@ def test_licence_rows_and_index_in_input_order() -> None:
     recs = build_records(data, {"Act-1.0": 7})
     assert recs.licenses == [
         ("Act-1.0", "Active One", None, True, False, False, False, False, None,
-         7, 2, "act 1 0", "active one"),
+         7, 2, "act 1 0", "active one", None, None, None),
         ("Dep-1.0", "Dep Text", None, True, False, False, False, True, None,
-         1, 2, "dep 1 0", "dep text"),
+         1, 2, "dep 1 0", "dep text", None, None, None),
         ("DepNo-1.0", "Dep No Text", None, True, False, False, False, True,
-         None, 1, 0, "depno 1 0", "dep no text"),
+         None, 1, 0, "depno 1 0", "dep no text", None, None, None),
         ("Act-2.0", "Active Two", None, True, False, False, False, False, None,
-         1, 0, "act 2 0", "active two"),
+         1, 0, "act 2 0", "active two", None, None, None),
     ]  # fmt: skip
     assert recs.index_entries == [
         ("Act-1.0", "hello world"),

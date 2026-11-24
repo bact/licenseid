@@ -7,6 +7,13 @@
 The SPDX License List as data, whatever its source: a bundle (gzipped JSON,
 ``format`` 1) or a release tarball.
 
+A licence entry of a bundle may carry a ``template`` key: the licence template
+(``template/<id>.template.txt`` of the release, with the ``<<beginOptional>>``
+and ``<<var>>`` marks of the SPDX matching guidelines), a string or null. The
+key is additive, so the format stays 1 and licenseid 0.9.1 reads these bundles
+too. A bundle where no entry has the key, built before templates, is refused:
+no source can build a database without them.
+
 No ``requests``, ``click`` or ``rapidfuzz`` (the standard library,
 ``licenseid.errors`` and ``licenseid.types`` only), so the match path stays
 light. It reads bytes and files; it never touches the network
@@ -20,7 +27,7 @@ import re
 import tarfile
 import zlib
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 from typing import Any, Final
@@ -29,8 +36,8 @@ from licenseid.errors import typed
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 
 BUNDLE_FORMAT: Final = 1
-# Decompressed size cap: the bundle of 3.29.0 is about 5 MiB, so this leaves
-# room and stops a gzip bomb.
+# Decompressed size cap: the bundle of 3.29.0 is about 12 MiB with its
+# templates, so this leaves room and stops a gzip bomb.
 MAX_UNZIPPED: Final = 32 * 2**20
 PACKAGED_NAME: Final = "spdx-bundle.json.gz"
 
@@ -57,9 +64,14 @@ class SpdxData:
     exceptions: tuple[SpdxExceptionEntry, ...]
     # licenseId -> text; an ID that is absent has no text file.
     texts: Mapping[str, str]
+    # licenseId -> template (SPDX matching guidelines, B.3); an ID that is
+    # absent has no template file.
+    templates: Mapping[str, str] = field(default_factory=dict)
 
     @classmethod
-    def from_bundle(cls, raw: bytes, expected: str | None) -> "SpdxData":
+    def from_bundle(
+        cls, raw: bytes, expected: str | None, require_templates: bool = True
+    ) -> "SpdxData":
         """Parse and validate a bundle.
 
         *expected* is the version the caller asked for (``None``: any).
@@ -67,14 +79,17 @@ class SpdxData:
         """
         doc = _load_document(raw)
         version, release_date = _release(doc, expected)
-        licenses, texts = _entries(doc, "licenses", "licenseId", with_text=True)
+        licenses, texts = _entries(doc, "licenses", "licenseId", _LICENSE_PARTS)
+        if require_templates:
+            _require_templates(doc)
         exceptions, _ = _entries(doc, "exceptions", "licenseExceptionId")
         return cls(
             version=version,
             release_date=release_date,
             licenses=tuple(licenses),  # type: ignore[arg-type]
             exceptions=tuple(exceptions),  # type: ignore[arg-type]
-            texts=texts,
+            texts=texts["text"],
+            templates=texts["template"],
         )
 
     @classmethod
@@ -84,13 +99,14 @@ class SpdxData:
         *expected* is the version the caller asked for (``None``: any); a
         tarball of another version is a ``tarfile.ReadError``.
 
-        Only ``<root>/json/*.json`` and ``<root>/text/*.txt`` are read, so a
-        member with an absolute or ``..`` name is never followed.
+        Only ``<root>/json/*.json``, ``<root>/text/*.txt`` and
+        ``<root>/template/*.template.txt`` are read, so a member with an
+        absolute or ``..`` name is never followed.
         ``tarfile.TarError``, ``EOFError``, ``zlib.error`` and ``OSError``
         propagate to the caller.
         """
         with tarfile.open(path, "r:gz") as tar:
-            documents, texts_by_root = _scan_tarball(tar)
+            documents, files = _scan_tarball(tar)
         root = _tarball_root(documents)
         lic_doc = _json_object(documents[f"{root}/json/licenses.json"], "licenses.json")
         exc_text = documents.get(f"{root}/json/exceptions.json")
@@ -102,18 +118,14 @@ class SpdxData:
             exceptions, _ = _entries(exc_doc, "exceptions", "licenseExceptionId")
         except BundleError as exc:
             raise tarfile.ReadError(str(exc)) from exc
-        found = texts_by_root.get(root, {})
-        texts = {
-            lic["licenseId"]: found[lic["licenseId"]]
-            for lic in licenses
-            if lic["licenseId"] in found
-        }
+        ids = [lic["licenseId"] for lic in licenses]
         return cls(
             version=version,
             release_date=release_date,
             licenses=tuple(licenses),  # type: ignore[arg-type]
             exceptions=tuple(exceptions),  # type: ignore[arg-type]
-            texts=texts,
+            texts=_of_licenses(files.get((root, "text"), {}), ids),
+            templates=_of_licenses(files.get((root, "template"), {}), ids),
         )
 
 
@@ -151,15 +163,25 @@ def _release(doc: dict[str, Any], expected: str | None) -> tuple[str, str | None
     return version, release_date
 
 
+# The text parts of a licence entry in a bundle: each may be null or left out.
+_LICENSE_PARTS: Final = ("text", "template")
+# Never kept in an entry: they are in ``texts`` and ``templates``.
+_PART_KEYS: Final = frozenset(("text", "template"))
+
+
 def _entries(
-    doc: dict[str, Any], key: str, id_key: str, with_text: bool = False
-) -> tuple[list[dict[str, Any]], dict[str, str]]:
-    """Validated entries of *key* (``text`` removed) and their texts."""
+    doc: dict[str, Any],
+    key: str,
+    id_key: str,
+    wanted: tuple[str, ...] = (),
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, str]]]:
+    """Validated entries of *key* (text parts removed) and, for each part in
+    *wanted*, the non-null strings by ID."""
     items = doc.get(key)
     if not isinstance(items, list):
         raise BundleError(f"{key} is not a list")
     entries: list[dict[str, Any]] = []
-    texts: dict[str, str] = {}
+    found: dict[str, dict[str, str]] = {part: {} for part in wanted}
     seen: set[str] = set()
     for item in items:
         if not isinstance(item, dict):
@@ -170,16 +192,32 @@ def _entries(
         if ident in seen:
             raise BundleError(f"{key} has a duplicate {id_key}")
         seen.add(ident)
-        entry = {k: v for k, v in item.items() if k != "text"}
-        text = item.get("text")
-        if text is not None and not isinstance(text, str):
-            raise BundleError(f"{key} has a text that is not a string")
         if not isinstance(item.get("name"), str):
             raise BundleError(f"{key} has an invalid name")
-        if with_text and text is not None:
-            texts[ident] = text
-        entries.append(entry)
-    return entries, texts
+        for part in wanted:
+            value = _part(item, key, part)
+            if value is not None:
+                found[part][ident] = value
+        entries.append({k: v for k, v in item.items() if k not in _PART_KEYS})
+    return entries, found
+
+
+def _part(item: dict[str, Any], key: str, part: str) -> str | None:
+    """The *part* (``text``, ``template``) of a bundle entry of *key*: a
+    string, or None for null or no key."""
+    value = item.get(part)
+    if value is not None and not isinstance(value, str):
+        raise BundleError(f"{key} has a {part} that is not a string")
+    return value
+
+
+def _require_templates(doc: dict[str, Any]) -> None:
+    """Refuse a bundle with licences where no entry has a ``template`` key (a
+    null one is a licence with no template). Fail closed: by the key, so a
+    bundle built before templates cannot become a database with no cores."""
+    licenses = doc["licenses"]
+    if licenses and not any("template" in item for item in licenses):
+        raise BundleError("no templates")
 
 
 def _numbers(version: str) -> tuple[int, ...] | None:
@@ -204,7 +242,12 @@ def to_bundle(data: SpdxData) -> bytes:
     """*data* as a deterministic bundle: sorted keys, compact JSON, gzip with
     ``mtime`` 0, so a rebuild is byte-identical."""
     licenses = [
-        {**lic, "text": data.texts.get(lic["licenseId"])} for lic in data.licenses
+        {
+            **lic,
+            "template": data.templates.get(lic["licenseId"]),
+            "text": data.texts.get(lic["licenseId"]),
+        }
+        for lic in data.licenses
     ]
     doc = {
         "format": BUNDLE_FORMAT,
@@ -232,26 +275,37 @@ def packaged_bundle() -> bytes | None:
 
 
 _JSON_FILES: Final = ("licenses.json", "exceptions.json")
+# The folders of text files a tarball has, and the suffix of each file name
+# after its ID.
+_TEXT_SUFFIXES: Final = {"text": ".txt", "template": ".template.txt"}
 
 
 def _scan_tarball(
     tar: tarfile.TarFile,
-) -> tuple[dict[str, str], dict[str, dict[str, str]]]:
-    """The ``<root>/json`` files by member name and the ``<root>/text`` files
-    by root and licence ID, read in one pass in archive order: a gzip stream
-    cannot seek back, and every jump back decompresses from the start."""
+) -> tuple[dict[str, str], dict[tuple[str, str], dict[str, str]]]:
+    """The ``<root>/json`` files by member name, and the ``<root>/text`` and
+    ``<root>/template`` files by ``(root, folder)`` and ID, read in one pass in
+    archive order: a gzip stream cannot seek back, and every jump back
+    decompresses from the start."""
     documents: dict[str, str] = {}
-    texts: dict[str, dict[str, str]] = {}
+    files: dict[tuple[str, str], dict[str, str]] = {}
     for member in tar:
         parts = member.name.split("/")
         if not member.isfile() or len(parts) != 3 or parts[0] in ("", ".", ".."):
             continue
         root, folder, base = parts
+        suffix = _TEXT_SUFFIXES.get(folder)
         if folder == "json" and base in _JSON_FILES:
             documents[member.name] = _tar_text(tar, member)
-        elif folder == "text" and base.endswith(".txt"):
-            texts.setdefault(root, {})[base[: -len(".txt")]] = _tar_text(tar, member)
-    return documents, texts
+        elif suffix is not None and base.endswith(suffix):
+            ident = base[: -len(suffix)]
+            files.setdefault((root, folder), {})[ident] = _tar_text(tar, member)
+    return documents, files
+
+
+def _of_licenses(found: Mapping[str, str], ids: list[str]) -> dict[str, str]:
+    """The files in *found* whose ID is a licence of *ids*, in list order."""
+    return {ident: found[ident] for ident in ids if ident in found}
 
 
 def _tarball_root(documents: Mapping[str, str]) -> str:

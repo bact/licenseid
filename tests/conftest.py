@@ -298,12 +298,16 @@ RESULT_KEYS = frozenset(
         "similarity",
         "coverage",
         "variant_stated",
+        "same_text",
         "is_spdx",
         "is_osi_approved",
         "is_fsf_libre",
         "lists",
     }
 )
+
+# The keys of a `detect --json` line: those, and the reason of no answer.
+CLI_JSON_KEYS = RESULT_KEYS | {"reason"}
 
 
 def _database_list() -> ListInfo:
@@ -326,6 +330,7 @@ def public_match(  # pylint: disable=too-many-arguments
     similarity: float | None = None,
     coverage: float | None = None,
     variant_stated: bool | None = None,
+    same_text: list[str] | None = None,
 ) -> Detection:
     """A result as detect() returns it, for the code that prints one."""
     return Detection(
@@ -336,6 +341,7 @@ def public_match(  # pylint: disable=too-many-arguments
         similarity=similarity,
         coverage=coverage,
         variant_stated=variant_stated,
+        same_text=same_text,
         is_spdx=True,
         is_osi_approved=True,
         is_fsf_libre=False,
@@ -349,9 +355,10 @@ def invoke_match(db: str, *args: str, color: bool = False) -> Result:
 
 
 # What detect prints when it has no answer (exit 1): one record, every field
-# empty (it printed nothing before).
+# empty but REASON, here "no match" (nothing was a candidate).
 NO_DETECTION = (
-    "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\tVARIANT_STATED=\n"
+    "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\t"
+    "VARIANT_STATED=\tSAME_TEXT=\tREASON=no match\n"
 )
 
 # The flag each is-* command prints after EXPRESSION.

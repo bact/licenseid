@@ -32,7 +32,12 @@ from licenseid.dbcheck import (
     require_path,
 )
 from licenseid.dbconnection import Connections, QueryConnection
-from licenseid.dbschema import create_schema, create_url_table, schema_state
+from licenseid.dbschema import (
+    add_build_columns,
+    create_schema,
+    create_url_table,
+    schema_state,
+)
 from licenseid.errors import DatabaseNotReadyError, LicenseIdError, fold, typed
 from licenseid.fingerprintstore import fingerprint_hits, store_fingerprints
 from licenseid.ftsquery import match_query
@@ -46,6 +51,7 @@ from licenseid.types import (
     ExceptionDetails,
     LicenseDetails,
     LicenseNameId,
+    TextParts,
     UpdateSource,
 )
 from licenseid.warning import warn
@@ -442,6 +448,7 @@ class LicenseDatabase:
             conn.execute("BEGIN TRANSACTION")
             try:
                 create_url_table(conn)  # a database of build 3 lacks it
+                add_build_columns(conn)  # a database of build 4 lacks them
                 conn.execute("DELETE FROM license_index")
                 conn.execute("DELETE FROM licenses")
                 conn.execute("DELETE FROM exceptions")
@@ -469,8 +476,9 @@ class LicenseDatabase:
                         is_osi_approved, is_fsf_libre, is_high_usage,
                         is_deprecated, superseded_by,
                         pop_score, word_count,
-                        norm_license_id, norm_name
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        norm_license_id, norm_name,
+                        core_text, core_word_count, same_text
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     records.licenses,
                 )
@@ -658,3 +666,10 @@ def exception_words(db: LicenseDatabase) -> list[frozenset[str]]:
     dbcache.TableCache.exception_words): a function, not a method, so the
     class keeps its public methods."""
     return db._tables.exception_words()  # pylint: disable=protected-access
+
+
+def text_parts(db: LicenseDatabase) -> dict[str, TextParts]:
+    """The core and the same-text group of each licence that has one (see
+    ``dbcache.TableCache.text_parts``): a function, not a method, as the
+    class has as many public ones as the linter allows."""
+    return db._tables.text_parts()  # pylint: disable=protected-access

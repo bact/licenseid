@@ -82,6 +82,10 @@ def _update(
         f"{_ROOT}/json/licenses.json": json.dumps(listing).encode(),
         f"{_ROOT}/json/exceptions.json": b'{"exceptions": []}',
     }
+    # An upstream release has templates: a tarball with none is refused.
+    members.update(
+        {f"{_ROOT}/template/{lic['licenseId']}.template.txt": b"t" for lic in licenses}
+    )
     members.update({f"{_ROOT}/{k}": v for k, v in (files or {}).items()})
     _serve(monkeypatch, tarball(members))
     path = tmp_path / "licenses.db"
@@ -224,6 +228,7 @@ def test_update_vacuums_the_xml_of_an_older_database_away(
                     {"licenseListVersion": "9.99", "licenses": [_lic("A-1")]}
                 ).encode(),
                 f"{_ROOT}/text/A-1.txt": _TEXT.encode(),
+                f"{_ROOT}/template/A-1.template.txt": b"t",
             }
         ),
     )

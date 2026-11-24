@@ -36,6 +36,7 @@ PLAIN = re.compile(
     r"EXPRESSION=\S+( (AND|OR|WITH) \S+)*\tMETHOD=[a-z]+\tEXACT=(true|false)"
     r"\tSCORE=(0\.\d{4}|1\.0000)\tSIMILARITY=(\d\.\d{4})?"
     r"\tCOVERAGE=(\d+\.\d{4})?\tVARIANT_STATED=(true|false)?"
+    r"\tSAME_TEXT=([A-Za-z0-9.+-]+( [A-Za-z0-9.+-]+)*)?\tREASON="
 )
 
 #: The lines of ``licenseid resolve``: fields joined by one tab, no value
@@ -62,11 +63,14 @@ UPDATE_LINE = re.compile(
 
 #: The whole result of ``detect`` without ``--verbose``: an expression per line.
 ID_ONLY = re.compile(r"\S+( (WITH|AND|OR) \S+)*")
+#: The REASON of a no-answer record.
+NO_ANSWER_REASONS = ("below threshold", "not exact", "no match")
 #: What ``detect`` prints for no answer (exit 1): one record, every field
-#: empty; with ``--json`` every value null; without ``--verbose`` an empty line.
+#: empty but REASON; with ``--json`` every value null but ``reason``; without
+#: ``--verbose`` an empty line.
 NO_ANSWER = re.compile(
     r"EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE="
-    r"\tVARIANT_STATED=\n"
+    r"\tVARIANT_STATED=\tSAME_TEXT=\tREASON=(below threshold|not exact|no match)\n"
 )
 
 #: What :func:`predicate_answer` gives for an output that is not one record.
@@ -300,7 +304,8 @@ def is_no_answer(cell: Cell, out: str) -> bool:
         and len(as_json) == 1
         and isinstance(as_json[0], dict)
         and as_json[0]
-        and set(as_json[0].values()) == {None}
+        and as_json[0].get("reason") in NO_ANSWER_REASONS
+        and {v for k, v in as_json[0].items() if k != "reason"} == {None}
     )
     if "json" in flags:
         return json_ok

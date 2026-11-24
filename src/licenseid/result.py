@@ -20,8 +20,8 @@ by :func:`text_field`. Every other command's result is one record
 
 import copy
 import re
-from collections.abc import Mapping
-from typing import Any
+from collections.abc import Mapping, Sequence
+from typing import Any, Final
 
 from licenseid.resolvertypes import ListInfo, Resolution, Step
 from licenseid.resolvesemicolon import REASON as NO_OPERATOR
@@ -42,10 +42,15 @@ def _rounded(value: float | None) -> float | None:
     return None if value is None else round(value, _DIGITS) + 0.0
 
 
-def public_result(raw: RawMatch | InternalMatch, lists: list[ListInfo]) -> Detection:
+def public_result(
+    raw: RawMatch | InternalMatch,
+    lists: list[ListInfo],
+    twins: Mapping[str, Sequence[str]] | None = None,
+) -> Detection:
     """*raw* as detect() returns it, resting on *lists* (each result its own
     copy). The ranking key is capped to 0-1: above 1 it only orders a tier's
-    own results, and the order is in the list."""
+    own results, and the order is in the list. *twins* holds, by ID, the IDs
+    of the same normalised text, the licence itself included."""
     evidence = raw.get("evidence")
     return Detection(
         expression=raw["license_id"],
@@ -60,7 +65,22 @@ def public_result(raw: RawMatch | InternalMatch, lists: list[ListInfo]) -> Detec
         is_fsf_libre=_judged(raw.get("is_fsf_libre", False)),
         lists=copy.deepcopy(lists),
         variant_stated=stated_of(raw["license_id"], evidence),
+        same_text=_same_text(raw["license_id"], raw["method"], twins),
     )
+
+
+def _same_text(
+    expression: str, method: str, twins: Mapping[str, Sequence[str]] | None
+) -> list[str] | None:
+    """The IDs of the same text as *expression*, itself left out (taken from
+    the final expression, so right after ``variants.settle_text`` switched
+    ``-only`` or ``-or-later``). Only a text match names them: a declared
+    value or a name says nothing of the text. None when there are none, and
+    for a compound, which is in no table."""
+    if method != "text" or not twins:
+        return None
+    others = sorted(i for i in twins.get(expression, ()) if i != expression)
+    return others or None
 
 
 def _judged(flag: bool | None) -> bool | None:
@@ -87,6 +107,15 @@ def json_line(result: Detection | Resolution | Mapping[str, object]) -> str:
     return rfc8785.dumps(fields).decode("utf-8")
 
 
+NO_ANSWER_REASONS: Final = ("below threshold", "not exact", "no match")
+
+
+def detect_json(result: Detection) -> str:
+    """The object ``detect --json`` prints for an answer: *result* and a
+    ``reason`` that is ``null``, as in the record of no answer."""
+    return json_line({**result, "reason": None})
+
+
 def text_line(result: Detection) -> str:
     """*result* as one line of ``KEY=VALUE`` fields (:func:`fields_line`); a
     value nothing measured is empty (``SIMILARITY=``), so every line has the
@@ -103,12 +132,15 @@ def text_line(result: Detection) -> str:
         SIMILARITY=number(result["similarity"]),
         COVERAGE=number(result["coverage"]),
         VARIANT_STATED=result["variant_stated"],
+        SAME_TEXT=" ".join(same) if (same := result["same_text"]) else None,
+        REASON=None,
     )
 
 
-def no_detection_line() -> str:
+def no_detection_line(reason: str) -> str:
     """The line ``detect`` prints when nothing matches (exit 1): every field
-    of :func:`text_line`, each empty, so a reader finds the same keys."""
+    of :func:`text_line` empty but ``REASON``, one of
+    :data:`NO_ANSWER_REASONS`, so a reader finds the same keys."""
     return fields_line(
         EXPRESSION=None,
         METHOD=None,
@@ -117,14 +149,17 @@ def no_detection_line() -> str:
         SIMILARITY=None,
         COVERAGE=None,
         VARIANT_STATED=None,
+        SAME_TEXT=None,
+        REASON=reason,
     )
 
 
-def no_detection_json() -> str:
+def no_detection_json(reason: str) -> str:
     """The object ``detect --json`` prints when nothing matches: every key of
-    a :class:`licenseid.types.Detection`, each ``null``, ``lists`` too: no
-    answer rests on a list."""
-    return json_line(dict.fromkeys(Detection.__annotations__))
+    a :class:`licenseid.types.Detection`, each ``null``, ``lists`` too (no
+    answer rests on a list), and a ``reason``, one of
+    :data:`NO_ANSWER_REASONS`."""
+    return json_line({**dict.fromkeys(Detection.__annotations__), "reason": reason})
 
 
 # What a value holds that would end its field or its line, or be read as an

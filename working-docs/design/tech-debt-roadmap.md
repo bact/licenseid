@@ -693,11 +693,11 @@ files):
    `similarity.boost_by_fingerprint` (735 to 675 lines). The pylint ceiling
    `max-module-lines` stays 735: `tests/test_option_matrix.py` is 735 too and
    `markers.py` 733; lowering it needs those split.
-1. **The encoded "+" in a NuGet URL** (#231). `resolvefirst.is_exact()` says yes for
-   `https://licenses.nuget.org/GPL-2.0%2B`, `detect()` says no: the variant
-   evidence is the raw URL. Take it from the `license_url` step, through the
-   one URL-to-ID reader of `markers.py` (moved to `resolveurl`), not a
-   string replace. Regenerate `docs/lists.md`.
+1. **The encoded "+" in a NuGet URL** (#231). `resolvefirst.is_exact()`
+   says yes for `https://licenses.nuget.org/GPL-2.0%2B`, `detect()` says
+   no: the variant evidence is the raw URL. Take it from the `license_url`
+   step, through the one URL-to-ID reader of `markers.py` (moved to
+   `resolveurl`), not a string replace. Regenerate `docs/lists.md`.
 2. **No warning for a bare `MIT++`, `MIT +`, `GPL-2.0-only+`, `(MIT)+`**
    (#232). `detector._try_tier0_short_text` returned `[]` for a "+" refusal
    before `too_short` could warn; the quoted forms warn. Built: the
@@ -705,7 +705,7 @@ files):
    `is_stray_plus` was redundant and is deleted. `C++` and `g++` warn too
    (true: no licence). **Regression to fix:** a stray-plus value of 10
    words or more once normalised (a long dashed `LicenseRef-*` and a
-   trailing ` +`) now reaches Tiers 1 and 2 and can answer (Apache-2.0
+   trailing plus sign) now reaches Tiers 1 and 2 and can answer (Apache-2.0
    0.80); main gave `[]`. Fix: `_match_text` returns `[]` for any "+"
    refusal of `resolve()` on the whole input, whatever the length.
 3. **`EXACT` after a cut mark** (#233). `MIT or later.`, `;`, `:`, `,` gave
@@ -741,6 +741,35 @@ Other leftovers of the review are in the maintainer's `later.md` of the
 0.9.0 release folder (CLI argument and `ELOOP`, `LicenseDatabase` path
 types, `SISSL`, three ScanCode keys that could be read).
 Impact 3, Risk 3, Effort 2.
+
+## 59. Several licence texts in one input (B2) — Priority 8
+
+Refused for 0.9.2 (2026-11-23): one licence per input stays. An input that
+holds two licence texts (the LGPL-2.1 text under a NumPy notice, say) gets one
+ranking and no note that the file holds another text. Splitting the file needs
+the boundary of each text, which is a guess (a title line, a copyright line, a
+blank line), and a wrong guess gives a wrong licence: precision over recall.
+
+Idea for later: report a flag when `COVERAGE` is well above 1, since the input
+then holds more than the answer's text. Not settled by the sample to hand: the
+4,598-word file of the LGPL-2.1 text under a NumPy notice had `COVERAGE` 1.05
+on build 4, so the threshold needs measuring on real multi-licence files, on
+main and on the branch.
+
+Impact 2, Risk 2, Effort 4.
+
+## 60. Twenty copies of the Apache-2.0 text answer BSD-4-Clause — Priority 15
+
+Found 2026-11-23 on main and on the branch alike, so the core-text work did not
+cause it. An input of 20 copies of the Apache-2.0 text, one after another,
+gets BSD-4-Clause. On the 0.9.1 database (build 4) the branch gives SCORE
+0.9025, SIMILARITY 0.0153 and COVERAGE 134. The score is a marker's floor
+(0.95 times a marker confidence of 0.95), not the text: the sorted-word
+similarity of 20 copies is bounded near 0.1 by the length ratio. So the marker
+reader is what to trace before a fix. The flag of item 59 would catch it: its
+`COVERAGE` is far above 1.
+
+Impact 3, Risk 2, Effort 3.
 
 ## Already resolved
 

@@ -127,6 +127,8 @@ def test_every_line_follows_the_pattern(
     assert as_json.stdout_bytes.endswith(b"\n")
     if args[0] == "detect" and status == 1:  # no answer: one empty record
         assert len(lines) == len(records) == 1
+        assert lines[0].pop("REASON") == "no match"
+        assert records[0].pop("reason") == "no match"
         assert set(lines[0].values()) == {""}
         assert set(records[0].values()) == {None}
     if args[0] == "resolve":  # the whole resolution; the head line is part of it

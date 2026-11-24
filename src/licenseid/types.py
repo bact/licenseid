@@ -7,7 +7,7 @@
 Type definitions for licenseid.
 """
 
-from typing import Literal, TypedDict
+from typing import Literal, NamedTuple, TypedDict
 
 from typing_extensions import Required
 
@@ -19,7 +19,7 @@ from licenseid.resolvertypes import ListInfo
 Method = Literal["tag", "field", "id", "name", "text"]
 
 # Where `licenseid update` gets the SPDX License List (see
-# licenseid.releasesource): "compact" (our bundle, about 1 MB), "upstream"
+# licenseid.releasesource): "compact" (our bundle, about 1.3 MB), "upstream"
 # (SPDX's release tarball), "packaged" (the snapshot shipped in the wheel), or
 # each in turn.
 UpdateSource = Literal["auto", "compact", "upstream", "packaged"]
@@ -35,19 +35,25 @@ class Detection(TypedDict):
 
     ``score`` is 0-1: each method's ranking key, capped to 1, so scores from
     different methods are not on one scale; the list is in ranking order,
-    which also orders results that share a score of 1. ``exact`` says
-    the answer was found exactly: declared (a tag, a field, an ID; a whole
+    which also orders results that share a score of 1. For a text it starts
+    from ``similarity`` and adds small terms (coverage, marker, fingerprint):
+    it ranks, and is no measure of fit. ``exact`` says the answer was found
+    exactly: declared (a tag, a field, an ID; a whole
     value is not exact when a rewrite rule read it, ``Apache License, Version
     2.0``: ``resolve()`` category ``separator``, ``prose_form`` or
     ``version_spelling``), an exact name, or an input equal to the license
     text after normalisation (a filled-in copyright line is a difference); a
-    look-alike name or a close text is not. ``similarity`` and ``coverage`` are
-    None where nothing was measured (a tag, a field, an ID, a name
-    ``resolve()`` reads; a name the name tier matches has no coverage).
-    ``coverage`` is the input's words over the license's, so it passes 1 when the input
-    is longer. ``expression`` is the answer: one licence ID, or an SPDX
-    expression (a tag or a field may declare one), as ``resolve()`` names its
-    answer; the detector's own records keep ``license_id``. ``lists`` are
+    look-alike name or a close text is not. ``similarity`` is 0-1: how alike
+    the input and the text it was compared with are (the whole text, or the
+    license's core when that is closer; for a fragment, its best-aligned
+    part). ``coverage`` is the input's words over the words of that text, with
+    no upper limit: below 0.8 the input is a fragment, above 1 it holds more
+    than the license's text. Both are None where nothing was measured (a tag,
+    a field, an ID, a name ``resolve()`` reads); a name the name tier matches
+    has a similarity but no coverage. ``expression`` is the answer: one licence
+    ID, or an SPDX expression (a tag or a field may declare one), as
+    ``resolve()`` names its answer; the detector's own records keep
+    ``license_id``. ``lists`` are
     the lists the answer rests on, in the shape of ``resolve()``'s
     (:class:`licenseid.resolvertypes.ListInfo`): the SPDX License List of
     the database read, its ``source`` ``database``. ``variant_stated`` says
@@ -56,6 +62,11 @@ class Detection(TypedDict):
     ``-only`` chosen for a text, or by ``--variant``) or a bare ID kept
     (``GPL-2.0``), None where no licence of the answer has a variant to judge
     (``MIT``); for a compound, False if any operand is, else True.
+    ``same_text`` lists the other List IDs whose text is identical to the
+    answer's after normalisation (``MPL-2.0`` and
+    ``MPL-2.0-no-copyleft-exception``), sorted, for a text match of one
+    licence; None for any other answer, and when no other licence has the
+    same text.
     """
 
     expression: str
@@ -69,6 +80,7 @@ class Detection(TypedDict):
     is_fsf_libre: bool | None
     lists: list[ListInfo]
     variant_stated: bool | None
+    same_text: list[str] | None
 
 
 class Evidence(TypedDict, total=False):
@@ -131,6 +143,10 @@ class CandidateMatch(TypedDict, total=False):
     # ID, or a tag a rewrite rule read (ruleread).
     decided: bool
     evidence: Evidence
+    # The licence's text without its optional parts and its word count
+    # (TextParts), set by Tier 2 (similarity.with_core) where it has one.
+    core_text: str
+    core_word_count: int
 
 
 class InternalMatch(TypedDict, total=False):
@@ -178,6 +194,19 @@ class DetectOptions(TypedDict, total=False):
     hint: IdCollection
     enable_popularity: bool
     variant: Variant
+
+
+class TextParts(NamedTuple):
+    """What a licence row keeps of its text beside the whole text
+    (``licenseid.records``): the normalised ``core`` of its template (the
+    text without its optional parts) and its word count, both ``None`` when
+    the core is not kept (none, or no shorter than the whole text),
+    and ``same_text``, the sorted IDs of the licences with the same
+    normalised text, itself included, empty when it is alone."""
+
+    core: str | None
+    core_word_count: int | None
+    same_text: tuple[str, ...]
 
 
 class LicenseNameId(TypedDict):

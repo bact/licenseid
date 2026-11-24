@@ -17,6 +17,7 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
     {
         "test_answer_paths.py",
         "test_build_bundle.py",
+        "test_build4_database.py",
         "test_bundle_source.py",
         "test_clear_cache.py",
         "test_cli_errors.py",
@@ -88,7 +89,9 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_spdx_source.py",
         "test_spdx_source_cache.py",
         "test_spdxdata.py",
+        "test_spdxdata_templates.py",
         "test_stray_plus_paths.py",
+        "test_text_parts.py",
         "test_textinput.py",
         "test_update_characterization.py",
         "test_update_fallbacks.py",

@@ -138,7 +138,7 @@ def test_a_rebuild_clears_what_was_read(db: LicenseDatabase) -> None:
     db._write_db_records(
         Records(
             [("Zlib", "zlib License", None, True, True, True, True, False, None, 1,
-              3, "zlib", "zlib license")],
+              3, "zlib", "zlib license", None, None, None)],
             [("Zlib", "the origin of this software")],
             [],
             [],

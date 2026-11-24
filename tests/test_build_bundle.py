@@ -35,6 +35,7 @@ def make_tarball(path: Path, version: str = "3.99") -> Path:
         "json/licenses.json": json.dumps(doc).encode(),
         "json/exceptions.json": json.dumps({"exceptions": []}).encode(),
         "text/MIT.txt": b"mit text\n",
+        "template/MIT.template.txt": b"<<beginOptional>>MIT<<endOptional>>\n",
     }
     with tarfile.open(path, "w:gz") as tar:
         for name, content in members.items():
@@ -67,7 +68,9 @@ def test_build_writes_bundle_and_latest(tmp_path: Path) -> None:
     written = build(tarball_of(tmp_path, "3.99"), out)
     assert written == [out / "v3.99.json.gz", out / "latest.json"]
     raw = (out / "v3.99.json.gz").read_bytes()
-    assert SpdxData.from_bundle(raw, "3.99").texts == {"MIT": "mit text\n"}
+    back = SpdxData.from_bundle(raw, "3.99")
+    assert back.texts == {"MIT": "mit text\n"}
+    assert back.templates == {"MIT": "<<beginOptional>>MIT<<endOptional>>\n"}
     assert latest_of(out) == {
         "file": "v3.99.json.gz",
         "licenseListVersion": "3.99",

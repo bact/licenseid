@@ -39,13 +39,23 @@ from licenseid.detector import LicenseDetector
 from licenseid.errors import one_line
 from licenseid.output import echo, echo_json
 from licenseid.result import (
-    json_line,
+    detect_json,
     no_detection_json,
     no_detection_line,
     text_line,
 )
 from licenseid.types import Detection, Variant
 from licenseid.variants import VARIANTS, output_bar
+
+
+def _no_answer_reason(candidates: list[Detection], threshold: float) -> str:
+    """Why *candidates* gave no answer: none at all, none at *threshold*, or
+    (so ``--exact`` removed them) none exact."""
+    if not candidates:
+        return "no match"
+    if all(r["score"] < threshold for r in candidates):
+        return "below threshold"
+    return "not exact"
 
 
 def show_diff(norm_input: str, best_window: str) -> None:
@@ -235,18 +245,20 @@ def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
             results = detector.detect(text=content, variant=chosen)
 
     # Filter by threshold (and exactness), then limit to top N
+    candidates = results
     results = [
         r for r in results if r["score"] >= threshold and (r["exact"] or not exact_only)
     ][:top]
+    reason = _no_answer_reason(candidates, threshold)
 
     if not results and json_output:  # "no" is an answer: an empty record
-        echo_json(no_detection_json())
+        echo_json(no_detection_json(reason))
     elif json_output:
         # JSON Lines: one canonical (RFC 8785) object per result.
         for r in results:
-            echo_json(json_line(r))
+            echo_json(detect_json(r))
     elif not results:  # the expression alone: an empty line for none
-        echo(no_detection_line() if verbose else "")
+        echo(no_detection_line(reason) if verbose else "")
     else:
         # Standard output: the expression of each result, or with --verbose
         # the line-delimited KEY=VALUE record.

@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import pytest
 from click.testing import CliRunner
 from conftest import NO_DETECTION, make_mit_db_path
+from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from packaged_list import fixture_bundle
 from release_fakes import ship
 

@@ -82,6 +82,8 @@ def tarball() -> bytes:
         f"{root}/json/exceptions.json": json.dumps({"exceptions": []}).encode(),
         f"{root}/text/MIT.txt": MIT.encode(),
         f"{root}/text/Apache-2.0.txt": APACHE,
+        # A release with no template/ folder is refused (``no templates``).
+        f"{root}/template/MIT.template.txt": MIT.encode(),
     }
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:

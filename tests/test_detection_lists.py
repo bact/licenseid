@@ -16,7 +16,7 @@ from typing import Any
 from unittest import mock
 
 import pytest
-from conftest import MIT_SEARCH_TEXT, RESULT_KEYS, invoke_match
+from conftest import CLI_JSON_KEYS, MIT_SEARCH_TEXT, RESULT_KEYS, invoke_match
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import LICENSE_LIST_VERSION, make_ready_file_db
 from matcher_db import Lic, seeded_db
@@ -122,18 +122,22 @@ def test_detect_json_carries_the_lists_and_the_text_line_does_not(
     record = json.loads(result.stdout)
     assert (result.exit_code, frozenset(record), record["lists"]) == (
         0,
-        RESULT_KEYS,
+        CLI_JSON_KEYS,
         [SPDX_LIST],
     )
     result = invoke_match(str(file_db), "--id", "MIT")
     assert result.stdout == (
         "EXPRESSION=MIT\tMETHOD=id\tEXACT=true\tSCORE=1.0000\tSIMILARITY=\t"
-        "COVERAGE=\tVARIANT_STATED=\n"
+        "COVERAGE=\tVARIANT_STATED=\tSAME_TEXT=\tREASON=\n"
     )
 
 
 def test_no_answer_rests_on_no_list(file_db: Path) -> None:
-    """The no-answer record of detect --json: every key null, lists too."""
+    """The no-answer record of detect --json: every key null, lists too,
+    but the reason."""
     result = invoke_match(str(file_db), "--json", "--id", "No-Such-1.0")
     assert result.exit_code == 1
-    assert json.loads(result.stdout) == dict.fromkeys(RESULT_KEYS)
+    assert json.loads(result.stdout) == {
+        **dict.fromkeys(RESULT_KEYS),
+        "reason": "no match",
+    }

@@ -304,7 +304,12 @@ def test_cli_update_unexpected_error_keeps_message_grammar(
     KeyError from the record builder) still prints one grammar line, not the
     bare exception text."""
     root = "license-list-data-9.99"
-    archive = tarball({f"{root}/json/licenses.json": json.dumps(_LICENSES).encode()})
+    archive = tarball(
+        {
+            f"{root}/json/licenses.json": json.dumps(_LICENSES).encode(),
+            f"{root}/template/MIT.template.txt": b"template",
+        }
+    )
     _serve(monkeypatch, archive)
 
     def broken(*_args: object) -> object:

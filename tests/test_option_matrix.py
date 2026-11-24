@@ -46,6 +46,7 @@ from typing import Any
 import pytest
 from click.testing import CliRunner, Result
 from conftest import (
+    CLI_JSON_KEYS,
     NO_DETECTION,
     RESULT_KEYS,
     GivenWarnings,
@@ -162,7 +163,12 @@ def _no_record(output: tuple[str, ...]) -> str:
     """What detect prints for no answer, by output option."""
     if "--json" in output:
         return (
-            json.dumps(dict.fromkeys(sorted(RESULT_KEYS)), separators=(",", ":")) + "\n"
+            json.dumps(
+                {**dict.fromkeys(sorted(RESULT_KEYS)), "reason": "no match"},
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            + "\n"
         )
     return NO_DETECTION if "--verbose" in output else "\n"
 
@@ -174,7 +180,7 @@ def _assert_match_stdout(stdout: str, output: tuple[str, ...]) -> None:
     if "--json" in output:
         results = json_lines(stdout)
         assert [r["expression"] for r in results] == ["MIT"]
-        assert all(set(r) == RESULT_KEYS for r in results)
+        assert all(set(r) == CLI_JSON_KEYS for r in results)
     elif "--verbose" not in output:
         assert stdout == "MIT\n"
     else:

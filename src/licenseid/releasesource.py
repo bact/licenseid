@@ -10,9 +10,10 @@ License List and its data come from.
 Sources (``update --source``):
 
 - ``compact``: our compact bundle, ``v<version>.json.gz`` under
-  ``spdx_source.BUNDLE_BASE_URL`` (raw.githubusercontent.com, about 1 MB),
+  ``spdx_source.BUNDLE_BASE_URL`` (raw.githubusercontent.com, about 1.3 MB),
   cached as ``spdx-bundle-v<version>.json.gz``. Version from our
-  ``latest.json``.
+  ``latest.json``. A bundle with no templates (built before 0.9.2) is
+  ``download unusable`` (``no templates``): ``auto`` falls back to upstream.
 - ``upstream``: SPDX's own release tarball from GitHub (about 49 MB), cached as
   ``spdx-data-v<version>.tar.gz``. Version from spdx.org's ``licenses.json``.
 - ``packaged``: the bundle shipped in the wheel, called the snapshot
@@ -284,14 +285,19 @@ def _cache_name(kind: UpdateSource, version: str) -> str:
 
 def _read_tarball(path: Path, condition: str, version: str) -> SpdxData:
     """The data in the tarball at *path*, which must hold *version*. One that
-    cannot be read is removed, best effort, and LicenseIdError
+    cannot be read, or has no ``template/`` files (a database built from it would
+    have no cores), is removed, best effort, and LicenseIdError
     ``<name>: <condition>: <detail>`` raised."""
     try:
-        return SpdxData.from_tarball(path, version)
+        data = SpdxData.from_tarball(path, version)
+        detail = "" if not data.licenses or data.templates else "no templates"
     except (*_BAD_TARBALL, OSError) as exc:
+        detail = typed(exc)
+    if detail:
         with contextlib.suppress(OSError):
             path.unlink(missing_ok=True)
-        raise LicenseIdError(f"{path.name}: {condition}: {typed(exc)}") from exc
+        raise LicenseIdError(f"{path.name}: {condition}: {detail}")
+    return data
 
 
 def fetch_popularity(
