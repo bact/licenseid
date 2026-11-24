@@ -212,8 +212,9 @@ def calculate_base_similarity(
     The whole text first; then, when *cand* has a core (``core_text``), the
     core, whose similarity counts if it is higher: then the coverage is
     counted over the core's words and the core is the window. A copy that
-    leaves out the optional parts (an appendix) is thus no worse a match than
-    another licence that has none."""
+    leaves out the optional parts (an appendix) thus has a similarity no
+    lower than another licence that has none; a bonus can still rank that one
+    first (AFL-2.1's core answers AFL-2.0, as on ``main``)."""
     search_text = cand.get("search_text") or ""
     c_len = cand.get("word_count") or 0
     if c_len == 0:

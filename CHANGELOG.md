@@ -15,19 +15,19 @@ and this project adheres to
 
 - `detect` gives `SAME_TEXT` (JSON `same_text`): the other List IDs whose
   text is the same as the answer's, such as `MPL-2.0-no-copyleft-exception`
-  for `MPL-2.0`
+  for `MPL-2.0` ([#239])
 - `detect` gives `REASON` (JSON `reason`) on no answer: `below threshold`,
-  `not exact` or `no match`
+  `not exact` or `no match` ([#239])
 
 ### Changed
 
 - `COVERAGE` is counted over the words of the text the match rests on: the
   whole text, or the licence's core when that is the closer one, so a copy
   without an optional part (Apache-2.0's appendix) is measured against its
-  core
+  core ([#239])
 - The data bundle carries each licence's template, and a bundle without them
   is refused. Database build 5 stores the core texts: `licenseid update`
-  rebuilds an older database
+  rebuilds an older database ([#239])
 
 ### Fixed
 
@@ -35,11 +35,11 @@ and this project adheres to
   answer in `resolve()`, the argument and a JSON field, as `MIT;;` does; it
   was `MIT+`, exact ([#238])
 - `detect` on a plain MIT text with a title and a long copyright line gives
-  MIT; it gave MIT-advertising, FSL-1.1-MIT, Xnet or no answer
+  MIT; it gave MIT-advertising, FSL-1.1-MIT, Xnet or no answer ([#239])
 - `detect` on Apache-2.0 text without its appendix gives Apache-2.0; it gave
-  Pixar
+  Pixar ([#239])
 - `detect` on a copy of the LGPL-3.0 text without the GPL-3.0 text it quotes
-  gives LGPL-3.0-only; it gave no answer
+  gives LGPL-3.0-only; it gave no answer ([#239])
 
 ## [0.9.1] - 2026-11-21
 
@@ -187,6 +187,7 @@ and this project adheres to
 [#234]: https://github.com/bact/licenseid/pull/234
 [#235]: https://github.com/bact/licenseid/pull/235
 [#238]: https://github.com/bact/licenseid/pull/238
+[#239]: https://github.com/bact/licenseid/pull/239
 
 ## [0.8.4] - 2026-11-09
 

@@ -344,6 +344,18 @@ Against the core the two scored 0.9911 and 0.996.
   CC-BY-NC-SA-4.0, and CC-BY-SA-2.5 (0.9004) to CC-BY-SA-2.0. All 440 shorter
   cores are stored instead, for +3.4 MB in the database; neither answer moves.
   With the word boundary and twin rules above, 442 are stored.
+- **Cores alike, licences not.** OLDAP-1.1 and OLDAP-1.2, and OLDAP-2.2.2
+  and OLDAP-2.3, differ only in an optional version line, so their cores are
+  one text. A copy of the core scores 1 for both, and the tie-breaker answers
+  OLDAP-1.1 (`main`: OLDAP-1.1 at 0.98) or OLDAP-2.3 (`main` the same).
+  Dropping every core another licence shares was measured and rejected: a
+  core copy of OLDAP-1.1 or OLDAP-1.2 then answered NBPL-1.0 at 0.994, a
+  confident wrong answer. No core equals another licence's whole text.
+- **Word order.** `token_sort_ratio` ignores word order, so HPND's grant
+  sentence reversed scores 0.936 against HPND's core (`main`: no answer).
+  `main` already answers a reversed whole text (reversed MIT: MIT at 1);
+  the core carries that to inputs of a core's length. Left as found:
+  contrived input.
 - **Cost.** A core is scored only for an input of about its length, so the
   cost does not grow with the number of cores. Pinned by
   `tests/test_coretext.py` and `tests/test_core_similarity.py`. Build 5 of the
@@ -381,4 +393,12 @@ this one query reads the text without them.
   answer of the 289 moves, only runners-up (33 texts). HPND's whole text
   now takes 1.07x `main`; MIT under two copyright lines 1.82x, the cost of
   the candidates that find MIT.
+- **Cost left.** The extra candidates are long texts a short input is
+  aligned with as a fragment (`similarity.fragment_similarity`), so a text
+  whose notices change its top 10 scores about 100 candidates where `main`
+  scores 50. Review of PR #239: MIT under two copyright lines, one with an
+  e-mail address, 4.8x `main` (which answers curl); HPND under two lines
+  3.4x (both answer Python-2.0.1); where `main` is right, MIT under a title
+  and one long line 1.98x, under two short lines 1.56x; source files under a
+  copyright header 1.24x to 1.9x. Roadmap item 61.
 - Pinned by `tests/test_notice_query.py`.

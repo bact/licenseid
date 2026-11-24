@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -308,6 +308,8 @@ Licenses that are near-identical modifications of another license (e.g.
 as the parent license. See
 [`new-matcher.md`](new-matcher.md) for the background analysis and word-count
 statistics; no fix has been designed yet, only the problem is documented.
+The other way round, Apache-2.0 without its appendix answered Pixar: the core
+text fixed that (PR #239), and a verbatim Pixar text still answers Pixar.
 
 - Impact 2, Risk 2, Effort 4 (needs a design pass before an effort
   estimate is meaningful — treat this as provisional).
@@ -770,6 +772,23 @@ reader is what to trace before a fix. The flag of item 59 would catch it: its
 `COVERAGE` is far above 1.
 
 Impact 3, Risk 2, Effort 3.
+
+## 61. Leftovers of the core text and the notice-free query — Priority 12
+
+From the review of PR #239 (2026-11-24); none answers worse than `main`.
+
+- **Cost.** A text whose copyright notices change Tier 1's top 10 scores
+  about 100 candidates where `main` scores 50, each long one aligned as a
+  fragment: 1.24x to 1.98x `main` where `main` is right, 4.8x for MIT under
+  two copyright lines, which `main` gets wrong. Idea: a cheaper first pass
+  on the added candidates only, measured as in AGENTS.md "Performance".
+- **Cores alike.** OLDAP-1.1/1.2 and OLDAP-2.2.2/2.3 have one core: a core
+  copy scores 1 for both. Dropping shared cores answered NBPL-1.0 instead.
+- **Not retrieved.** HPND's core under "Copyright 1995 Acme Inc." finds no
+  HPND among 96 candidates and answers HPND-Pbmplus (`main`: HPND-SMC).
+
+Details: `../implementation/accuracy-optimizations.md` sections 12 and 13.
+Impact 2, Risk 2, Effort 3.
 
 ## Already resolved
 
