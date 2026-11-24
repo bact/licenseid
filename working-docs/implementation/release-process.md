@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-22
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -77,7 +77,8 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
 - Build the wheel and sdist as the release does, with a local copy of the
   pinned bundle (any other is refused):
   `LICENSEID_BUNDLE=<bundle> LICENSEID_REQUIRE_BUNDLE=1 uv build`. Both must
-  hold `spdx-bundle.json.gz` (980,375 bytes for 3.29.0). The sdist holds
+  hold `spdx-bundle.json.gz` (1,327,781 bytes for 3.29.0 since 0.9.2;
+  980,375 before the templates). The sdist holds
   only its allowlist (`only-include` in `pyproject.toml`, pinned by
   `tests/test_sdist_contents.py`): list it with `tar -tzf` and look for
   anything new. Build with `--python 3.10`: a local 3.14 could not resolve

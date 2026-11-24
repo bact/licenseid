@@ -13,9 +13,18 @@ This directory is a chronological record of what was built, decided, and
 why — not a user manual and not a roadmap. For planned/deferred work not
 yet started, see [`../design/`](../design/).
 
-## Current state (as of 2026-11-20)
+## Current state (as of 2026-11-24)
 
-- **0.9.1** (not released; in `[Unreleased]`): PRs #230 to #235, small
+- **0.9.2** (release prepared 2026-11-24): PRs #237 to #239. `detect` on a
+  licence text without its optional parts (Apache-2.0 without its appendix,
+  LGPL-3.0 without the GPL-3.0 text) compares it with the licence's core
+  text, and a second Tier 1 query reads past copyright lines (MIT under a
+  long holder), PR #239: [accuracy-optimizations.md](accuracy-optimizations.md)
+  sections 12 and 13. The same PR adds `SAME_TEXT` and `REASON`, the
+  templates in the compact bundle and database build 5. A run of end marks
+  after an "or later" grant gives no answer, PR #238; the option matrix
+  tests split in two, PR #237.
+- **0.9.1** (released 2026-11-23, release PR #236): PRs #230 to #235, small
   fixes to what 0.9.0 left open: `detect` of an encoded "+" in a NuGet URL
   (#231); a bare `MIT++` warns, also at 10 words or more (#232, #234);
   `MIT or later.` is inexact (#233); the name tier refuses a hit beside a
@@ -197,8 +206,8 @@ yet started, see [`../design/`](../design/).
 | 2026-11-16 | [item-52-variant-and-exact.md](item-52-variant-and-exact.md) | implemented (PRs #211, #212) | `--variant`, `VARIANT_STATED`, `EXACT` by list not by trust, evidence and operand marks, `exclude`/`hint` on free text only; paths rejected, pinned cases, measures. |
 | 2026-11-17 | [tech-debt-resolved-0-9.md](tech-debt-resolved-0-9.md) | record | The roadmap items resolved from 2026-11-17 on, split from `tech-debt-resolved-0-5.md` at the size limit. |
 | 2026-11-18 | [complexity-refactors.md](complexity-refactors.md) | record | The complexity refactors done between 2026-08-19 and 2026-11-03 (`identifiers`, `markers`, `matcher` splits, `spdx_source` tests and fixes) and how the lint ceilings were measured and moved; moved from the complexity roadmap. |
-| 2026-11-23 | [accuracy-optimizations.md](accuracy-optimizations.md) section 12 | implemented (not released) | The core text of a licence for long inputs (Tier 2): the SPDX optional-text rule, the cut at nine tenths rejected, all 440 cores stored (build 5). |
-| 2026-11-24 | [accuracy-optimizations.md](accuracy-optimizations.md) section 13 | implemented (not released) | A second Tier 1 head query without copyright notices (MIT under a long holder), with no cap of 25 and a top 10 gate. |
+| 2026-11-23 | [accuracy-optimizations.md](accuracy-optimizations.md) section 12 | implemented (0.9.2, PR #239) | The core text of a licence for long inputs (Tier 2): the SPDX optional-text rule, the cut at nine tenths rejected, all 440 cores stored (build 5). |
+| 2026-11-24 | [accuracy-optimizations.md](accuracy-optimizations.md) section 13 | implemented (0.9.2, PR #239) | A second Tier 1 head query without copyright notices (MIT under a long holder), with no cap of 25 and a top 10 gate. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

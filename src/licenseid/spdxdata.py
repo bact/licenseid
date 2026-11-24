@@ -36,7 +36,7 @@ from licenseid.errors import typed
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 
 BUNDLE_FORMAT: Final = 1
-# Decompressed size cap: the bundle of 3.29.0 is about 12 MiB with its
+# Decompressed size cap: the bundle of 3.29.0 is about 10 MiB with its
 # templates, so this leaves room and stops a gzip bomb.
 MAX_UNZIPPED: Final = 32 * 2**20
 PACKAGED_NAME: Final = "spdx-bundle.json.gz"
