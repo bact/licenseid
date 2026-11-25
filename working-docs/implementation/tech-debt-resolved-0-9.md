@@ -29,7 +29,7 @@ the reading is safe".
   parity corpus alone has `#MIT`, `(MIT`, `MIT*`, `Apache 2.0?`,
   `Apache 2.0!`, `GPLv3 +`, `MIT OR GPL-2.0-only+`, all refused since item 48).
   A hidden character anywhere: 3 values, all parity corpus (`MIT\x00`,
-  `MIT​`, `‮MIT`), none inside quote marks. A backslash in a value:
+  `MIT\u200b`, `\u202eMIT`), none inside quote marks. A backslash in a value:
   0. Tag lines under `~/projects` (14,743): a dash glued to a comment closer
   0; `?`, `!` or `*` glued 0; `)` glued 2 (the Markdown comment
   `[//]: # (SPDX-License-Identifier: EPL-2.0)`). No answer of the 642 values

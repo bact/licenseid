@@ -108,6 +108,34 @@ def _changelog_release() -> tuple[str, str]:
     return found.group(1), found.group(2)
 
 
+#: Bidirectional controls: GitHub warns on a page that holds one, since it
+#: can show text in another order than it is stored.
+BIDI = re.compile("[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+
+
+def _markdown_files() -> list[Path]:
+    """Every Markdown file of the repository but the test fixtures and
+    hidden folders (worktrees, caches)."""
+    found = []
+    for path in sorted(ROOT.rglob("*.md")):
+        parts = path.relative_to(ROOT).parts
+        if parts[:2] == ("tests", "fixtures") or any(
+            part.startswith(".") for part in parts[:-1]
+        ):
+            continue
+        found.append(path)
+    return found
+
+
+@pytest.mark.parametrize("page", _markdown_files(), ids=name_of)
+def test_a_page_holds_no_bidi_control(page: Path) -> None:
+    """Write an invisible character as ``\\uXXXX`` instead (AGENTS.md,
+    Style)."""
+    lines = page.read_text(encoding="utf-8").splitlines()
+    hits = [n for n, line in enumerate(lines, 1) if BIDI.search(line)]
+    assert not hits, f"{name_of(page)}: bidi control on lines {hits}"
+
+
 def test_the_version_is_the_same_everywhere() -> None:
     version = licenseid.__version__
     meta = json.loads(text_of(ROOT / "codemeta.json"))

@@ -43,6 +43,7 @@ from licenseid.variants import VARIANTS
 from tools.pypi_licence_sample.answer import unescape_field
 
 CLI = DOCS / "cli.md"
+_UNICODE_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})")
 RESOLVE = DOCS / "resolve.md"
 #: The section of docs/cli.md that documents each command. "Common options"
 #: (under detect's heading) serve detect and the is-* commands too.
@@ -146,12 +147,17 @@ def test_each_step_kind_is_documented(corpus: list[resolvertypes.Resolution]) ->
 
 def _detail_rows() -> dict[str, list[tuple[str, str]]]:
     """``kind: [(detail, example)]`` of the step-detail table of resolve.md:
-    the n-th detail of a row is given by its n-th example."""
+    the n-th detail of a row is given by its n-th example. An invisible
+    character is written as ``\\uXXXX`` (a bidi control turns the page
+    around), decoded here."""
     rows = table(section(RESOLVE, "## The whole result"), "Step kind")
     out = {}
     for row in rows:
         details = re.findall(r"`([^`]*)`", row["`detail`"])
-        examples = re.findall(r"`([^`]*)`", row["Example value"])
+        examples = [
+            _UNICODE_ESCAPE.sub(lambda m: chr(int(m[1], 16)), e)
+            for e in re.findall(r"`([^`]*)`", row["Example value"])
+        ]
         out[row["Step kind"].strip("`")] = list(zip(details, examples))
     return out
 

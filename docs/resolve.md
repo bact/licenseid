@@ -387,7 +387,7 @@ detail in its place):
 | --- | --- | --- |
 | `separator` | `end mark`, `slash as OR`, `version brackets` | `MIT;`, `MIT/ISC`, `Apache License (2.0)` |
 | `unquote` | `balanced`, `balanced, 2 layers`, `unbalanced, start`, `unbalanced, end` | `"MIT"`, `'"MIT"'`, `"MIT`, `MIT"` |
-| `trim` | `zero-width characters`, `invisible characters` | `MIT​`, `MIT‮` |
+| `trim` | `zero-width characters`, `invisible characters` | `MIT\u200b`, `MIT\u202e` |
 | `prose_form` | `licence word`, `version`, `leading article` | `BSD 3-Clause License`, `Apache License, Version 2.0`, `The MIT License` |
 | `stated_qualifier` | `or later stated` | `MIT or later` |
 | `license_url` | `list page`, `id in path`, `expression in path`, `see also`, `alias` | `spdx:MIT`, `https://licenses.nuget.org/MIT`, `https://licenses.nuget.org/(MIT)%20OR%20ISC`, `https://www.apache.org/licenses/LICENSE-2.0`, `https://opensource.org/license/mit-license` |

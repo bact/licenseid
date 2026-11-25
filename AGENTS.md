@@ -577,8 +577,7 @@ and `--json`) against these rules and checks the default output against the
 ## Code health
 
 - Boy Scout Rule: leave the code cleaner; refactor during small changes.
-  Extract duplicated logic and cohesive pieces early; no dumping-ground
-  modules.
+  Extract duplicated logic and cohesive pieces early; no dumping-ground modules.
 - File size, all files (source, tests, docs): soft ~400-500 lines, hard
   ~800. Split before the soft limit. Backlog:
   `working-docs/design/complexity-and-file-size-roadmap.md`.
@@ -784,7 +783,8 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   acronyms defined on first use, parallel lists, Chicago citations. Short
   comments; do not restate the obvious.
 - Markdown: YAML front matter; standard Markdown, no GitHub extensions;
-  sentence-case headings; lines ≤80; run `markdownlint-cli2 "**/*.md"`.
+  sentence-case headings; lines ≤80; no bidi control character (GitHub warns;
+  write it `\u202e`, `test_docs_status`); run `markdownlint-cli2 "**/*.md"`.
 - Names: ASCII letters, digits, `-`, `_`; language conventions; singular
   for one entity, plural for collections and utility modules.
 - Shell: mind GNU/BSD/macOS differences; quote variables and paths; mind
