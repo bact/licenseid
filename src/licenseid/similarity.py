@@ -257,14 +257,8 @@ def with_core(cand: CandidateMatch, parts: TextParts | None) -> CandidateMatch:
     return {**cand, "core_text": parts.core, "core_word_count": parts.core_word_count}
 
 
-def calculate_final_score(
-    match: InternalMatch,
-    boosts: dict[str, float],
-    is_pure: bool,
-    enable_popularity: bool,
-    q_len: int = 0,
-) -> float:
-    """Calculate the final adjusted score for a match."""
+def _unboosted_score(match: InternalMatch, enable_popularity: bool) -> float:
+    """The score of *match* before its marker boost."""
     similarity = match["base_score"]
     coverage = match["coverage"]
 
@@ -286,24 +280,62 @@ def calculate_final_score(
 
     if enable_popularity:
         score += math.log10(max(1, match["pop_score"])) * 0.0001
+    return score
 
-    marker_conf = boosts.get(match["license_id"], 0.0)
-    if marker_conf >= 0.85:
+
+def _marker_boosted(
+    score: float, marker_conf: float, is_pure: bool, q_len: int
+) -> tuple[float, float]:
+    """*score* with the boost of a marker of confidence *marker_conf*, and
+    the part of it the confidence floor added (0 when the floor is not
+    above the additive boost)."""
+    if marker_conf < 0.85:
         # Require confidence >= 0.85 before applying any marker boost.
         # Low-confidence markers (< 0.85) on e.g. partial / noisy inputs
         # caused score distortion on Type 4 inputs in benchmarks.
+        return score, 0.0
+    if is_pure and q_len >= 50 and marker_conf < 0.94:
         # For long pure license text with moderate-confidence markers,
         # similarity dominates; use a small additive boost only.
-        # For mixed content, short text, OR high-confidence structural
-        # detection (>= 0.94, e.g. BSD/GPL header analysis), the marker
-        # is authoritative — apply an additive boost plus a confidence
-        # floor.
-        if is_pure and q_len >= 50 and marker_conf < 0.94:
-            score += marker_conf * 0.03
-        else:
-            score = max(score + marker_conf * 0.05, marker_conf * 0.95)
+        return score + marker_conf * 0.03, 0.0
+    # For mixed content, short text, OR high-confidence structural
+    # detection (>= 0.94, e.g. BSD/GPL header analysis), the marker is
+    # authoritative: an additive boost plus a confidence floor. The floor
+    # speaks for the whole input; licenseid.markerfloor takes it back where
+    # the input holds other licence texts.
+    added = score + marker_conf * 0.05
+    floor = marker_conf * 0.95
+    if floor > added:
+        return floor, floor - added
+    return added, 0.0
 
-    return score
+
+def calculate_final_score(
+    match: InternalMatch,
+    boosts: dict[str, float],
+    is_pure: bool,
+    enable_popularity: bool,
+    q_len: int = 0,
+) -> float:
+    """Calculate the final adjusted score for a match."""
+    score = _unboosted_score(match, enable_popularity)
+    marker_conf = boosts.get(match["license_id"], 0.0)
+    return _marker_boosted(score, marker_conf, is_pure, q_len)[0]
+
+
+def floor_lift(
+    match: InternalMatch,
+    boosts: dict[str, float],
+    is_pure: bool,
+    enable_popularity: bool,
+    q_len: int = 0,
+) -> float:
+    """What the marker's confidence floor adds to the score
+    :func:`calculate_final_score` gives *match* above its additive boost:
+    0 where no floor binds."""
+    score = _unboosted_score(match, enable_popularity)
+    marker_conf = boosts.get(match["license_id"], 0.0)
+    return _marker_boosted(score, marker_conf, is_pure, q_len)[1]
 
 
 # Maximum additive boost applied to a candidate whose highest-IDF fingerprint
@@ -363,6 +395,9 @@ def score_candidates(
 
     for r in ranked:
         r["score"] = calculate_final_score(r, boosts, is_pure, enable_popularity, q_len)
+        lift = floor_lift(r, boosts, is_pure, enable_popularity, q_len)
+        if lift > 0.0:
+            r["floor_lift"] = lift
     return ranked
 
 

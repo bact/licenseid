@@ -178,6 +178,9 @@ class InternalMatch(TypedDict, total=False):
     is_fsf_libre: bool | None
     evidence: Evidence
     texts: list[str]
+    # What a marker's confidence floor added to the score above its additive
+    # boost (``licenseid.similarity.floor_lift``); absent when none.
+    floor_lift: float
 
 
 # The licence IDs of ``exclude`` and ``hint``: the kinds of collection
