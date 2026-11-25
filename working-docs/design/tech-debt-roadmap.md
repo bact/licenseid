@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -21,9 +21,9 @@ reading file below or a resolved item, kept in the three files under "Already
 resolved" at the end. Each open item says where it came from. Item 51 (decided
 and pinned, 2026-11-17), 53 (a known limit, 2026-11-18), 56 (a hang in the
 CLI matrix, found 2026-11-16), 35 and 67 (the marker floor, 2026-11-25) are
-resolved. Items 55 (PR #214, 2026-11-16), 54
-(PR #217, 2026-11-16) and 47 (PR #219, 2026-11-17) are built; their leftovers
-stay open. Item 2 waits on an upstream release. The open items that need a rule
+resolved. Items 55 (PR #214, 2026-11-16), 54 (PR #217, 2026-11-16), 47
+(PR #219, 2026-11-17) and 57 (2026-11-26) are built; their leftovers stay open.
+Item 2 waits on an upstream release. The open items that need a rule
 or a decision before a fix are grouped in
 [`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02); item 31
 is that revision.
@@ -295,35 +295,50 @@ promises the code did not keep (`InvalidInputError` for a `Path`, `MIT++`
 warns), line numbers of an old commit. Why it slips: a PR that changes only
 docs runs no test (`test.yml` skips `docs/**`, `README.md`, `CHANGELOG.md`
 but `resolve.md` and `lists.md`; `lint.yml` skips `**.md`), and markdownlint
-runs in no workflow. The plan, in build order (an Opus proposal of
-2026-11-19):
+runs in no workflow.
 
-- **`docs.yml`**: a workflow on Markdown paths that runs the doc tests below
-  and markdownlint, so the PR that breaks a doc fails.
-- **`tests/test_docs_vocabulary.py`** (~150 lines): every click option form
-  and choice is in its section of `docs/cli.md`; every result key and step
-  `detail` is in `docs/resolve.md`; every `docs/*.md` is linked from the
-  README; the category table check also covers `resolve-flow.md`.
-- **`tests/test_docs_status.py`** (~120 lines): refuse `file.py:NNN` line
-  numbers and "Before 0.x"; list time-bound words ("for now", "waiting",
-  "yet", an upstream PR link) with the version last checked, so a version bump
-  fails until each is reread; `__version__`, codemeta, the CHANGELOG heading
-  and the README citation agree (`CITATION.cff` is written by a workflow).
-- **Self-checks in `tests/test_lists_page.py`**: count projects by value, not
-  by step; check a section's stated category and `EXACT` on every row; give
-  each named rule an example that is not exact.
-- **`tests/test_docs_examples.py`** (~200 lines, last): run the fenced
-  examples on the `bundle_db` fixture (the 3.29.0 List, offline); a block it
-  cannot run carries a skip marker with a reason.
-- **Review habits, not tests**: a row's reason names its source and is
-  checked against it; a sentence that promises behaviour (`always`, `any`, an
-  error type, a warning) names an example a test runs; each rule has one home
-  in `docs/` and other pages link to it; before a tag, rerun every prose
-  example and check each claim that depends on the install kind (wheel or
-  editable) against a built wheel. Add them to AGENTS.md and
-  `release-process.md` when the tests exist.
-- Check each new test against `tests/platform_files.py` (no file system or
-  stream use: not needed) and keep it free of timing and network.
+Built 2026-11-26 (one PR, from a plan of 2026-11-26 that measured each check
+on the docs first):
+
+- `.github/workflows/docs.yml` runs on any Markdown change: markdownlint-cli2
+  over `**/*.md` (`.markdownlint-cli2.jsonc` leaves out `tests/fixtures/`) and
+  the doc tests below with `test_lists_page.py` and `test_resolver_shapes.py`.
+- `tests/test_docs_vocabulary.py`: each click option and choice in its
+  section of `docs/cli.md`; each step kind, step detail (one example per
+  detail, run) and reason condition that `resolve()` gives on the 627 values
+  of the resolver fixtures and the worked examples in `docs/resolve.md`, and
+  each documented reason given by `resolve()` (`tests/docs_reasons.py` holds
+  a value for each the corpus lacks); the keys of the result types and of the
+  `detect` record; the category table of `resolve-flow.md`; README links each
+  page; relative links and anchors resolve.
+- `tests/test_docs_numbers.py`: a table of numbers the prose states
+  (`NUMBERS`) against their constants.
+- `tests/test_docs_status.py`: line numbers and releases only on the two
+  pages pinned to 0.9.0; `TIME_BOUND` (a sentence and the version it was last
+  read for); one version in `__init__`, codemeta, CHANGELOG and README; the
+  licenseid version the docs show.
+- `tests/test_lists_page.py`: each row of `ALIASES` and `TITLES` reads with
+  the category and `EXACT` its section states; a key a sample value equals is
+  counted. Counting by step stays: it is what a row reads (`New BSD License`
+  reaches `new bsd` through P1). The named-rule check was dropped: T1 and T2
+  read only tables, and the page computes `EXACT`.
+- `tests/test_docs_examples.py` with `tests/docs_blocks.py`: each fenced
+  block that shows a result runs (22 blocks: console, `# result` lines,
+  Python, `resolve()` JSON, an output block under a `run:` marker), and the 33
+  worked examples of `resolve-flow.md`; a block it cannot run carries a
+  `skip:` marker; `COUNTS` pins the blocks of each page. In
+  `tests/platform_files.py`: it drives the CLI and the default database path.
+- Drift fixed: `cli.md` predicates named no input, "no licences yet";
+  `resolve-flow.md` missed `assumed_only` on the GNU URL row; the step-detail
+  table of `resolve.md` had no example for four details.
+- The review habits are in `release-process.md` ("Checks before the tag").
+
+Leftovers: numbers written inline and not in `NUMBERS` (Tier 1's 200 words,
+Tier 0's 30) are not checked; the MPL-2.0 `SAME_TEXT` example of `output.md`
+is skipped until a long-text fixture holds the MPL-2.0 text; the `bash`
+instructions (install, update from the network) are checked by hand before a
+tag.
+
 - Impact 2, Risk 3, Effort 3.
 
 ## 59. Several licence texts in one input (B2) — Priority 8

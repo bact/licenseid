@@ -24,6 +24,8 @@ Apache-2.0
 With `-v` (`--verbose`), one record per result per line, best first (the
 examples show the first two results):
 
+<!-- docs-example: run: licenseid detect -v LICENSE; head -->
+
 <!-- markdownlint-disable MD013 -->
 
 ```text
@@ -173,6 +175,8 @@ EXPRESSION=	METHOD=	EXACT=	SCORE=	SIMILARITY=	COVERAGE=	VARIANT_STATED=	SAME_TEX
 
 <!-- markdownlint-enable MD013 -->
 
+<!-- docs-example: skip: the long-text fixtures hold no MPL-2.0 text -->
+
 <!-- markdownlint-disable MD013 -->
 
 ```text
@@ -220,6 +224,8 @@ Example output, in JSON Lines: one object per result per line, in the
 JSON Canonicalization Scheme (RFC 8785), so equal results print equal bytes
 (`jq -s .` makes an array of them):
 
+<!-- docs-example: run: licenseid detect --json LICENSE.txt; head -->
+
 <!-- markdownlint-disable MD013 -->
 
 ```json
@@ -242,6 +248,9 @@ Example output (a diff is shown for the top result when it was matched as
 text and is not exact, with or without `-v`, not with `--json`). The
 results go to standard output and the diff to standard error, so
 `2>/dev/null` keeps only the results. Here with `-v`:
+
+<!-- docs-example: run: licenseid detect -v LICENSE --diff --top 1; head;
+filled: 2024 Jane Doe -->
 
 <!-- markdownlint-disable MD013 -->
 
@@ -321,11 +330,16 @@ licenseid update --json | jq -r '"\(.status) \(.version)"'
 
 Errors and warnings go to standard error, one per line, in a fixed format:
 
+<!-- docs-example: skip: the grammar of a line, not a line -->
+
 ```text
 LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]
 ```
 
 For example:
+
+<!-- docs-example: skip: failures, pinned by tests/test_cli_errors.py,
+tests/test_cli_usage.py and tests/test_spdx_source.py -->
 
 ```text
 ERROR: database: not found: /tmp/x.db; run 'licenseid update'

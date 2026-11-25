@@ -1,0 +1,12 @@
+// SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+// SPDX-License-Identifier: Apache-2.0
+//
+// The files markdownlint-cli2 lints, here and in CI (.github/workflows/docs.yml):
+// `markdownlint-cli2 "**/*.md"`. The rules are in .markdownlint.jsonc.
+{
+  // Skip what git ignores (.cli-matrix, .claude/worktrees, caches).
+  "gitignore": true,
+  // Test inputs: READMEs and licence files of other projects, kept as they
+  // were written.
+  "ignores": ["tests/fixtures/**"]
+}

@@ -16,8 +16,9 @@ first traced: the function each names is in 0.9.0 too, perhaps at another
 line, and what this page says of it is 0.9.0's. A link to a whole file
 points at the current code.
 
-Every example below was run against release 0.9.0 (`resolve(value)`, with
-the SPDX License List 3.29.0 in the database). The result fields
+Every worked example below is checked against the current code by
+`tests/test_docs_examples.py` (`resolve(value)`, with the SPDX License List
+3.29.0 in the database). The result fields
 (`expression`, `category`, `trust`, `steps`, `reason`) are those of
 [the result of `resolve()`](resolve.md); this page does not repeat their
 full description. How the expression part is put in order is in
@@ -221,6 +222,8 @@ code ([`resolver.py:241`][resolver-l241]) runs the
 list reader *before* it returns a compound's refusal, but only when no name
 read:
 
+<!-- docs-example: skip: pseudo-code of resolver._read_text -->
+
 ```python
 if read_leaf(...): one operand
 compound = read_compound(...)
@@ -302,11 +305,13 @@ a list only if its kind rests on one (`LIST_PROVIDES`); `trove_name` and
 
 `tests/test_resolver_shapes.py` checks the category table of
 [the result of `resolve()`](resolve.md#steps-and-categories) against the
-code; nothing checks this one.
+code; `tests/test_docs_vocabulary.py` checks this one, and
+`tests/test_docs_examples.py` runs the worked examples below.
 
 ## Worked examples
 
-All run on 2026-11-18 against release 0.9.0. `steps` lists the step kinds
+First run on 2026-11-18 against release 0.9.0, and checked against the current
+code since. `steps` lists the step kinds
 in order, `expansions` after them.
 
 | Value | Expression | Category | Steps | Reader |
@@ -334,7 +339,7 @@ in order, `expansions` after them.
 | `spdx:MIT` | `MIT` | license_url | `license_url` (detail `list page`) | URL |
 | `https://licenses.nuget.org/(MIT)%20OR%20ISC` | `ISC OR MIT` | license_url | `license_url` (detail `expression in path`), `brackets`, `reorder` | URL |
 | `Zlib AND https://licenses.nuget.org/MIT%20OR%20ISC` | none | unresolved | reason `operand names an expression: https://licenses.nuget.org/MIT%20OR%20ISC` (a tag reads it as `Zlib AND (ISC OR MIT)`) | compound |
-| `https://www.gnu.org/licenses/gpl-3.0.html` | `GPL-3.0` | assumed_only | `license_url` (detail `see also`); candidates `GPL-3.0-only`, `GPL-3.0-or-later` | URL |
+| `https://www.gnu.org/licenses/gpl-3.0.html` | `GPL-3.0` | assumed_only | `license_url` (detail `see also`), `assumed_only` (not applied); candidates `GPL-3.0-only`, `GPL-3.0-or-later` | URL |
 | `https://www.unicode.org/license.txt` | none | unresolved | reason `url names several licences: Unicode-3.0, Unicode-DFS-2016` | URL |
 | `https://exämple.com/MIT` | none | unresolved | reason `not found: https://exämple.com/MIT` (a non-ASCII host is no URL) | URL fails, none read |
 | `Apache License, Version 2.0` | `Apache-2.0` | prose_form | `prose_form`, `separator` | prose (P2) |

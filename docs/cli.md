@@ -22,6 +22,8 @@ licenseid update
 Progress and warnings go to standard error; standard output carries only the
 result, one line per list (`--json`: one JSON object per list):
 
+<!-- docs-example: run: licenseid update --source packaged -->
+
 ```text
 LIST=spdx-license-list	VERSION=3.29.0	STATUS=updated	PATH=/home/me/.local/share/licenseid/licenses.db
 ```
@@ -305,7 +307,9 @@ cannot read is still cleared: that is what the command is for.
 
 ## Licence predicates
 
-Predicate commands are designed for shell scripting.
+Predicate commands are designed for shell scripting. They take one input as
+`detect` does (a file or a value, `-`, `--text` or `--id`) and `--json`, as
+the [common options](#detect-a-licence-or-resolve-a-declared-value) describe.
 They exit with `0` (for true) or `1` (for false, or no answer), and print
 one line: the licence judged and the answer (`--json`: one JSON object):
 
@@ -376,7 +380,7 @@ A `WARNING` about the input or the database can still come with it, as with
 an answer: `detect "Not a licence at all"` says `too few words for text`
 and finds no match.
 
-A database is not ready when it is missing, empty (no licences yet), invalid
+A database is not ready when it is missing, empty (no licences), invalid
 (another program's file) or unreadable (a symlink loop included). `detect` and
 the `is-*` commands refuse to answer from one, rather than exiting 1 for no
 licence or `false`; `resolve` reads the list shipped with licenseid instead,
