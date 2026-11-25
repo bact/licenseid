@@ -18,11 +18,13 @@ from typing import Final
 
 # A numbered condition of a BSD licence: "2. Redistributions in binary
 # form...", "3. Neither the name...", "3. All advertising materials...".
+# "Redistribution" counts only before "of" or "in": the Apache-2.0 section
+# "4. Redistribution. You may reproduce..." is no BSD condition.
 # The indent is white space other than a line break: `\s*` after `^` reaches
 # across line breaks, so a run of blank lines was scanned once per line.
 _RE_CONDITION: Final = re.compile(
-    r"^[^\S\r\n]*(\d+)\.\s+(?:(?a:Redistribution)|(?a:Neither)\b|"
-    r"All\s+(?a:advertising)|The\s+(?:name|author))",
+    r"^[^\S\r\n]*(\d+)\.\s+(?:(?a:Redistributions?)\s+(?a:of|in)\b|"
+    r"(?a:Neither)\b|All\s+(?a:advertising)|The\s+(?:name|author))",
     re.MULTILINE | re.IGNORECASE,
 )
 
@@ -72,14 +74,20 @@ def _is_one_clause(text: str) -> bool:
 def bsd_clause_id(text: str) -> str | None:
     """The BSD-N-Clause ID the numbered conditions of a text point to.
 
-    The highest condition number gives N (2, 3 or 4). Condition 1 alone is
-    BSD-1-Clause only when `_is_one_clause` holds; any other count is no
-    answer.
+    The conditions found must be numbered 1 to N with no gap (a text may
+    repeat them, as two copies of a licence do). The highest number then
+    gives N (2, 3 or 4). Condition 1 alone is BSD-1-Clause only when
+    `_is_one_clause` holds; any other count is no answer. A gap means the
+    lines are not the conditions of a BSD text. `_RE_CONDITION` skips the
+    Apache-2.0 section "4. Redistribution." by its words; the gap rule
+    covers a numbered line of another text that it reads as a condition.
     """
-    numbers = [int(number) for number in _RE_CONDITION.findall(text)]
+    numbers = {int(number) for number in _RE_CONDITION.findall(text)}
     if not numbers:
         return None
     highest = max(numbers)
+    if numbers != set(range(1, highest + 1)):
+        return None
     if highest == 1:
         return "BSD-1-Clause" if _is_one_clause(text) else None
     return _BY_COUNT.get(highest)

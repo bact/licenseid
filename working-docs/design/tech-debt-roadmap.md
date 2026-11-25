@@ -349,19 +349,6 @@ main and on the branch.
 
 Impact 2, Risk 2, Effort 4.
 
-## 60. Twenty copies of the Apache-2.0 text answer BSD-4-Clause — Priority 15
-
-Found 2026-11-23 on main and on the branch alike, so the core-text work did not
-cause it. An input of 20 copies of the Apache-2.0 text, one after another,
-gets BSD-4-Clause. On the 0.9.1 database (build 4) the branch gives SCORE
-0.9025, SIMILARITY 0.0153 and COVERAGE 134. The score is a marker's floor
-(0.95 times a marker confidence of 0.95), not the text: the sorted-word
-similarity of 20 copies is bounded near 0.1 by the length ratio. So the marker
-reader is what to trace before a fix. The flag of item 59 would catch it: its
-`COVERAGE` is far above 1.
-
-Impact 3, Risk 2, Effort 3.
-
 ## 61. Leftovers of the core text and the notice-free query — Priority 12
 
 From the review of PR #239 (2026-11-24); none answers worse than `main`.
@@ -429,6 +416,25 @@ named kind`). Found in review of PR #241; `license_urls` is the same on
 table, or view, whose columns differ, before it is written again.
 
 Impact 1, Risk 1, Effort 2.
+
+## 67. A marker floor answers a file of several licence texts — Priority 12
+
+Found in the fix of item 60 (2026-11-25). The marker floor
+(`similarity.calculate_final_score`: score at least 0.95 times the marker's
+confidence) lifts a candidate a marker names to an answer whatever its text
+similarity. On a file of several licence texts the marker reads one of them
+and answers for the file: Pillow 11.2.1's `LICENSE` (6,258 words, `TEXTS`
+lists 10 texts and no GPL) answers `GPL-2.0-or-later` at 0.874 (0.92 x
+0.95) with SIMILARITY 0.53; scikit-learn's `COPYING` (`TEXTS` Apache-2.0
+BSD-3-Clause) answers `Apache-2.0` at 0.884; pandas 3.0.6's `LICENSE` (its
+own BSD-3 text in bullets, bundled texts numbered) answers `BSD-2-Clause` at
+0.9377. Before the item 60 fix all three answered `BSD-4-Clause`. Idea: no
+floor when the similarity is low or when `TEXTS` does not hold the marker's
+licence. Measure on the 493 real files
+and the golden, on main and on the branch, before taking it; tied to the
+ranking question of item 59.
+
+Impact 3, Risk 3, Effort 4.
 
 ## Already resolved
 

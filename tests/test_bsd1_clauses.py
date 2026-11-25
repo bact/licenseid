@@ -41,6 +41,19 @@ PREAMBLE = (
     " are met:\n\n"
 )
 
+# The section headings of the Apache-2.0 text are not BSD conditions: its
+# "4. Redistribution." stands without conditions 1 to 3.
+APACHE_SECTION = (
+    "4. Redistribution. You may reproduce and distribute copies of the Work"
+    " or Derivative Works thereof in any medium, with or without"
+    " modifications, and in Source or Object form, provided that You meet"
+    " the following conditions:\n\n"
+)
+APACHE_SECTIONS = (
+    "1. Definitions.\n\n2. Grant of Copyright License.\n\n"
+    "3. Grant of Patent License.\n\n" + APACHE_SECTION
+)
+
 
 @pytest.mark.parametrize(
     ("body", "expected"),
@@ -48,8 +61,16 @@ PREAMBLE = (
         (SOURCE + BINARY, "BSD-2-Clause"),
         (SOURCE + BINARY + ENDORSE, "BSD-3-Clause"),
         (SOURCE + BINARY + ADVERTISING + ENDORSE_4, "BSD-4-Clause"),
-        # The highest number counts, not how many conditions there are.
-        (SOURCE + ENDORSE, "BSD-3-Clause"),
+        # The numbers must run 1 to N with no gap: a lone 3 is no BSD-3.
+        (SOURCE + ENDORSE, None),
+        (SOURCE + BINARY + ENDORSE_4, None),
+        (BINARY + ENDORSE, None),
+        # The conditions may be repeated, as in two copies of a text.
+        (2 * (SOURCE + BINARY + ENDORSE), "BSD-3-Clause"),
+        (2 * (SOURCE + BINARY), "BSD-2-Clause"),
+        # Apache-2.0's "4. Redistribution." beside a BSD-3 text is no fourth.
+        (SOURCE + BINARY + ENDORSE + APACHE_SECTION, "BSD-3-Clause"),
+        (APACHE_SECTIONS + SOURCE + BINARY + ENDORSE, "BSD-3-Clause"),
         # Indented, as in a comment block.
         ("   " + SOURCE + "\t" + BINARY, "BSD-2-Clause"),
         # Case does not matter.
@@ -124,3 +145,18 @@ NOT_ONE_CLAUSE = {
 @pytest.mark.parametrize("body", NOT_ONE_CLAUSE.values(), ids=NOT_ONE_CLAUSE.keys())
 def test_condition_1_alone_without_the_rest_is_not_bsd_1(body: str) -> None:
     assert bsd_clause_id(PREAMBLE + body) != "BSD-1-Clause"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        APACHE_SECTION,
+        2 * APACHE_SECTION,
+        APACHE_SECTIONS,
+        20 * APACHE_SECTIONS,
+        APACHE_SECTION + DISCLAIMER,
+    ],
+    ids=["one", "two", "sections", "twenty sections", "disclaimer"],
+)
+def test_a_section_called_redistribution_is_no_bsd_condition(body: str) -> None:
+    assert bsd_clause_id(PREAMBLE + body) is None
