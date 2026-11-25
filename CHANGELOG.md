@@ -26,6 +26,10 @@ and this project adheres to
 - Copies of the Apache-2.0 text, or Apache-2.0 beside a BSD text, no longer
   answer `BSD-4-Clause`: its "4. Redistribution." is no BSD condition
   ([#242])
+- A file of several licence texts no longer answers the one licence a notice
+  in it names (Pillow's `LICENSE` answered `GPL-2.0-or-later`, pandas'
+  `BSD-2-Clause`); a look-alike it does not hold no longer takes its place
+  (a BSD-3-Clause and a BSD-2-Clause text answered `Sleepycat`) ([#243])
 
 ## [0.9.2] - 2026-11-24
 
@@ -208,6 +212,7 @@ and this project adheres to
 [#239]: https://github.com/bact/licenseid/pull/239
 [#241]: https://github.com/bact/licenseid/pull/241
 [#242]: https://github.com/bact/licenseid/pull/242
+[#243]: https://github.com/bact/licenseid/pull/243
 
 ## [0.8.4] - 2026-11-09
 

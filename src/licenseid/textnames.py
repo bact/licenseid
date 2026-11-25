@@ -41,6 +41,7 @@ __all__ = [
     "held_texts",
     "named_texts",
     "skipped",
+    "without_exception",
 ]
 
 #: The fewest tokens an input has to hold any text whole by a search. Most
@@ -78,7 +79,7 @@ def has_tokens(norm_input: str, least: int = MIN_TOKENS) -> bool:
     return len(input_tokens(norm_input, least)[0]) >= least
 
 
-def _head(expression: str) -> str:
+def without_exception(expression: str) -> str:
     """*expression* without its exception: ``GPL-2.0-only`` for
     ``GPL-2.0-only WITH Classpath-exception-2.0``."""
     return _WITH.split(expression, maxsplit=1)[0]
@@ -110,12 +111,13 @@ def named_texts(
     duplicates, sorted. *answer* is the ID of the answer as it is shown;
     *groups* has the licences with one text of each ID that shares it (an ID
     that is not in it is alone)."""
-    answer_row = _head(replacement_of(_head(answer)) or _head(answer)).lower()
+    head = without_exception(answer)
+    answer_row = without_exception(replacement_of(head) or head).lower()
     named: set[str] = set()
     for row in rows:
         group = groups.get(row) or (row,)
         if any(member.lower() == answer_row for member in group):
-            named.add(_head(answer))
+            named.add(head)
         else:
             named.add(_group_name(group, variant))
     return sorted(named)
@@ -136,7 +138,7 @@ def held_texts(
     top = results[0] if results else None
     if _SKIPPED.get() or top is None or top["method"] != "text":
         return None
-    answer = _head(top["license_id"])
+    answer = without_exception(top["license_id"])
     if top["exact"]:
         return [answer]
     if not has_tokens(norm_input):

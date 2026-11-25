@@ -19,8 +19,9 @@ the complexity roadmap, so the two lists can be read together.
 Item numbers are the roadmap's own and never reused: a gap is an item in the
 reading file below or a resolved item, kept in the three files under "Already
 resolved" at the end. Each open item says where it came from. Item 51 (decided
-and pinned, 2026-11-17), 53 (a known limit, 2026-11-18) and 56 (a hang in the
-CLI matrix, found 2026-11-16) are resolved. Items 55 (PR #214, 2026-11-16), 54
+and pinned, 2026-11-17), 53 (a known limit, 2026-11-18), 56 (a hang in the
+CLI matrix, found 2026-11-16), 35 and 67 (the marker floor, 2026-11-25) are
+resolved. Items 55 (PR #214, 2026-11-16), 54
 (PR #217, 2026-11-16) and 47 (PR #219, 2026-11-17) are built; their leftovers
 stay open. Item 2 waits on an upstream release. The open items that need a rule
 or a decision before a fix are grouped in
@@ -111,6 +112,16 @@ phrase of ten words or more that several licences share
 modification, are permitted` answers BSD-2-Clause at 1.0). The leftovers of
 PR #168 are item 47.
 
+- **Measured 2026-11-25** (plan of item 67): this is not the marker floor. The
+  phrase scores 1.0 in Tier 2 (fragment similarity 1.0, `text_evidence` 1
+  from 40 characters, coverage 0.07), and several licences tie at 1.0 (the
+  BSD phrase: BSD-2-Clause and BSD-2-Clause-Darwin; the MIT grant phrase and
+  the warranty line: Clips). The rule "a fragment that several unrelated
+  texts hold at 1.0 gives no answer", on the short fixtures: 569 answers tie
+  at public score 1.0 with another text group; it would remove 327 wrong
+  answers and lose 242 right ones, and move hundreds of `detect_short.tsv`
+  rows. Its own PR under item 31 (certainty of a fragment), with a rule that
+  keeps a fragment's unique words as evidence: Effort 4, Risk 3.
 - **Direction**: a verbatim hit on a few words is evidence, not an answer.
   Cap the score of a Tier 0 text hit below 1.0 when the phrase is shorter
   than some minimum, or require it to cover a share of the licence's
@@ -175,21 +186,6 @@ is not exact, though the same file is.
   `NOASSERTION` there too. Weigh delegating to `py_spdx_license` once it
   parses "+" (upstream issue #1) in linear time (item 26).
 - Impact 2, Risk 2, Effort 3.
-
-## 35. Small gaps in the API and in Tier 2 — Priority 9
-
-Found in review of item 22 (2026-10-02). Closed: `exclude` read only by
-Tier 1 (PR #211) and a deprecated row with no text answering a GPL README
-(PR #212); see
-[`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
-Open, `main` does the same:
-
-- A licence text repeated three times answers a licence it barely
-  resembles: `LICENSE` (Apache-2.0) three times over gives `BSD-4-Clause`
-  at 0.9025, with similarity 0.0968 and coverage 20.08 (review of PR #68).
-  Measured again 2026-11-17: still so; the score is the marker floor
-  (`0.95 * 0.95`), so a BSD clause marker misfires.
-- Impact 1, Risk 2, Effort 3.
 
 ## 11. Probe-anchored windowing — Priority 15
 
@@ -347,6 +343,15 @@ then holds more than the answer's text. Not settled by the sample to hand: the
 on build 4, so the threshold needs measuring on real multi-licence files, on
 main and on the branch.
 
+Left by item 67 (2026-11-25), similarity and not the marker floor:
+scikit-learn 1.6.1 and 1.9.1 `COPYING` answer `Apache-2.0` 0.884 (similarity
+0.81 on the additive path); numpy and scipy `LICENSE.txt` now answer
+`GPL-3.0-only` 0.92 to 0.93 (the GPL-3.0 text with the GCC exception is most
+of the file; before, the floor gave `LGPL-2.1-or-later` or
+`BSD-3-Clause-Open-MPI`). A file the floor no longer answers prints a record of
+no answer, whose `TEXTS` is empty: keeping `TEXTS` there is a format decision
+for this item.
+
 Impact 2, Risk 2, Effort 4.
 
 ## 61. Leftovers of the core text and the notice-free query — Priority 12
@@ -393,6 +398,12 @@ kept in the database (`xml_template` is empty), so a `records.BUILD_VERSION`
 bump and a larger file. Measure on the 493 files and the synthetic set, on
 main and on the branch, before taking it.
 
+Item 67 (2026-11-25) would gain too: its marker-floor rule acts only on texts
+`TEXTS` finds, so a text it cannot confirm (PyTorch's BSD-3-Clause with a
+copyright block inside) keeps the floor. A template-aware search would let the
+stricter rule "the texts found must hold the marker's licence" work; measured
+on the old search, that rule loses 1 right fixture and 1 partial real answer.
+
 Impact 3, Risk 2, Effort 4.
 
 ## 65. Concurrent first calls each load the text corpus — Priority 8
@@ -415,26 +426,12 @@ named kind`). Found in review of PR #241; `license_urls` is the same on
 0.9.2. Only a hand-edited file gets here. Fix: in `update`, drop an optional
 table, or view, whose columns differ, before it is written again.
 
+Since item 67 (2026-11-25) terse `detect`, `is-*` and `is_*()` also read
+`text_codes` where a marker's floor binds above coverage 1.05 (the
+`markerfloor` check), so a misshaped table fails them on such an input as it
+fails `-v`.
+
 Impact 1, Risk 1, Effort 2.
-
-## 67. A marker floor answers a file of several licence texts — Priority 12
-
-Found in the fix of item 60 (2026-11-25). The marker floor
-(`similarity.calculate_final_score`: score at least 0.95 times the marker's
-confidence) lifts a candidate a marker names to an answer whatever its text
-similarity. On a file of several licence texts the marker reads one of them
-and answers for the file: Pillow 11.2.1's `LICENSE` (6,258 words, `TEXTS`
-lists 10 texts and no GPL) answers `GPL-2.0-or-later` at 0.874 (0.92 x
-0.95) with SIMILARITY 0.53; scikit-learn's `COPYING` (`TEXTS` Apache-2.0
-BSD-3-Clause) answers `Apache-2.0` at 0.884; pandas 3.0.6's `LICENSE` (its
-own BSD-3 text in bullets, bundled texts numbered) answers `BSD-2-Clause` at
-0.9377. Before the item 60 fix all three answered `BSD-4-Clause`. Idea: no
-floor when the similarity is low or when `TEXTS` does not hold the marker's
-licence. Measure on the 493 real files
-and the golden, on main and on the branch, before taking it; tied to the
-ranking question of item 59.
-
-Impact 3, Risk 3, Effort 4.
 
 ## Already resolved
 

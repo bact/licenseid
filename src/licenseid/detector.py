@@ -31,6 +31,7 @@ from licenseid.looseid import (
     mark_guessed,
 )
 from licenseid.manifest import extension, license_value_groups
+from licenseid.markerfloor import doubt_floors
 from licenseid.markers import MarkerDetector
 from licenseid.namehits import refusal_answer
 from licenseid.normalize import normalize_text, strip_comment_prefixes
@@ -658,6 +659,7 @@ class LicenseDetector:
             is_pure,
             enable_popularity,
         )
+        ranked = doubt_floors(ranked, norm_input, self.db)
         boost_by_fingerprint(ranked, self.db.find_fingerprint_hits(norm_input))
         ranked.sort(key=ranking_key(enable_popularity))
         return ranked
