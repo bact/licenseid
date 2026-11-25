@@ -128,7 +128,7 @@ def test_detect_json_carries_the_lists_and_the_text_line_does_not(
     result = invoke_match(str(file_db), "--id", "MIT")
     assert result.stdout == (
         "EXPRESSION=MIT\tMETHOD=id\tEXACT=true\tSCORE=1.0000\tSIMILARITY=\t"
-        "COVERAGE=\tVARIANT_STATED=\tSAME_TEXT=\tREASON=\n"
+        "COVERAGE=\tVARIANT_STATED=\tSAME_TEXT=\tREASON=\tTEXTS=\n"
     )
 
 

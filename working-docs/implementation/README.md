@@ -208,6 +208,7 @@ yet started, see [`../design/`](../design/).
 | 2026-11-18 | [complexity-refactors.md](complexity-refactors.md) | record | The complexity refactors done between 2026-08-19 and 2026-11-03 (`identifiers`, `markers`, `matcher` splits, `spdx_source` tests and fixes) and how the lint ceilings were measured and moved; moved from the complexity roadmap. |
 | 2026-11-23 | [accuracy-optimizations.md](accuracy-optimizations.md) section 12 | implemented (0.9.2, PR #239) | The core text of a licence for long inputs (Tier 2): the SPDX optional-text rule, the cut at nine tenths rejected, all 440 cores stored (build 5). |
 | 2026-11-24 | [accuracy-optimizations.md](accuracy-optimizations.md) section 13 | implemented (0.9.2, PR #239) | A second Tier 1 head query without copyright notices (MIT under a long holder), with no cap of 25 and a top 10 gate. |
+| 2026-11-24 | [whole-texts.md](whole-texts.md) | implemented (after 0.9.2) | The `TEXTS` field: the List texts an input holds whole, found by word-coded 5-gram anchors and one character ratio on the trimmed span; limits by counts, null past them. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

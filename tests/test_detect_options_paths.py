@@ -31,7 +31,7 @@ from typing import Any
 from unittest import mock
 
 import pytest
-from conftest import GivenWarnings
+from conftest import FoundRows, GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from matcher_db import PROSE, Lic, seeded_db
 
@@ -418,3 +418,31 @@ def test_the_function_hands_every_option_to_the_method(
     spy.assert_called_once_with(
         mock.ANY, TIE, license_id=None, file_path=None, **EVERY_OPTION
     )
+
+
+@pytest.mark.parametrize("name", [*EVERY_OPTION, "all"])
+def test_texts_ignores_every_option_that_filters_candidates(
+    db_path: str, found_rows: FoundRows, name: str
+) -> None:
+    """TEXTS is a fact about the input: the corpus holds every row, the
+    search is the same, and each result has the same list, whatever the
+    options leave of the candidates (the answer may change, not the texts)."""
+    found_rows.rows = ["MIT", "X11"]
+    options = EVERY_OPTION if name == "all" else {name: EVERY_OPTION[name]}
+    detector = LicenseDetector(db_path)  # not the module's: it keeps a corpus
+    results = detector.detect(text=MIT + " Acme words", **options)
+    assert results, name
+    assert {tuple(r["texts"] or ()) for r in results} == {("MIT", "X11")}
+    (rows,) = found_rows.built
+    assert {row.license_id for row in rows} == {
+        "MIT",
+        "MIT-0",
+        "JSON",
+        "X11",
+        "Acme-MIT",
+        "GPL-2.0-only",
+        "GPL-2.0",
+    }  # the deprecated one too: here it has a text
+    assert [norm for norm, _ in found_rows.calls] == [
+        normalize_text(MIT + " Acme words")
+    ]

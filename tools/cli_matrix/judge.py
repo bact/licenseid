@@ -37,6 +37,7 @@ PLAIN = re.compile(
     r"\tSCORE=(0\.\d{4}|1\.0000)\tSIMILARITY=(\d\.\d{4})?"
     r"\tCOVERAGE=(\d+\.\d{4})?\tVARIANT_STATED=(true|false)?"
     r"\tSAME_TEXT=([A-Za-z0-9.+-]+( [A-Za-z0-9.+-]+)*)?\tREASON="
+    r"\tTEXTS=([A-Za-z0-9.+-]+( [A-Za-z0-9.+-]+)*)?"
 )
 
 #: The lines of ``licenseid resolve``: fields joined by one tab, no value
@@ -70,7 +71,8 @@ NO_ANSWER_REASONS = ("below threshold", "not exact", "no match")
 #: ``--verbose`` an empty line.
 NO_ANSWER = re.compile(
     r"EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE="
-    r"\tVARIANT_STATED=\tSAME_TEXT=\tREASON=(below threshold|not exact|no match)\n"
+    r"\tVARIANT_STATED=\tSAME_TEXT=\tREASON=(below threshold|not exact|no match)"
+    r"\tTEXTS=\n"
 )
 
 #: What :func:`predicate_answer` gives for an output that is not one record.

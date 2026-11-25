@@ -13,7 +13,8 @@ import sqlite3
 import sys
 import uuid
 import warnings
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -27,7 +28,15 @@ from packaged_list import database_of, fixture_bundle
 from platform_files import PLATFORM_FILES
 from resolver_corpus import corpus_db_path
 
-from licenseid import console, keptdetector, listindex, listsource, spdxdata, warning
+from licenseid import (
+    console,
+    keptdetector,
+    listindex,
+    listsource,
+    spdxdata,
+    textnames,
+    warning,
+)
 from licenseid.cli import cli
 from licenseid.clicommon import printed_warnings
 from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
@@ -38,6 +47,7 @@ from licenseid.records import BUILD_VERSION
 from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import ListInfo
 from licenseid.result import FieldValue, fields_line, read_text_field, record_json
+from licenseid.textcorpus import TextCorpus
 from licenseid.types import Detection, Method
 
 # tools/cli_matrix drives real shells and terminals (pwd, pty, termios): POSIX
@@ -93,6 +103,40 @@ def given() -> Generator[GivenWarnings, None, None]:
     with warnings.catch_warnings(record=True) as record:
         warnings.simplefilter("always", warning.LicenseIdWarning)
         yield GivenWarnings(record)
+
+
+@dataclass
+class FoundRows:
+    """What ``textnames`` asks of the search of the texts an input holds: the
+    row IDs it finds (*rows*, None for none), the calls it gets (the
+    normalised input and the answer's row ID), and the rows of each corpus
+    built (the real search is the work of ``wholetexts``, tested there)."""
+
+    rows: list[str] | None = None
+    calls: list[tuple[str, str]] = field(default_factory=list)
+    built: list[list[Any]] = field(default_factory=list)
+
+
+@pytest.fixture
+def found_rows(monkeypatch: pytest.MonkeyPatch) -> FoundRows:
+    """Stand in for ``wholetexts.found_rows`` and for the corpus the database
+    builds: the test sets ``rows``, and reads ``calls`` and ``built``. A
+    detector made before the test would keep a corpus of its own: use a new
+    one."""
+    fake = FoundRows()
+
+    def build(rows: Iterable[Any]) -> object:
+        fake.built.append(list(rows))
+        return object()
+
+    def search(norm_input: str, corpus: object, answer_id: str) -> list[str] | None:
+        assert corpus is not None
+        fake.calls.append((norm_input, answer_id))
+        return None if fake.rows is None else list(fake.rows)
+
+    monkeypatch.setattr(textnames, "found_rows", search)
+    monkeypatch.setattr(TextCorpus, "build", staticmethod(build))
+    return fake
 
 
 @pytest.fixture
@@ -299,6 +343,7 @@ RESULT_KEYS = frozenset(
         "coverage",
         "variant_stated",
         "same_text",
+        "texts",
         "is_spdx",
         "is_osi_approved",
         "is_fsf_libre",
@@ -331,6 +376,7 @@ def public_match(  # pylint: disable=too-many-arguments
     coverage: float | None = None,
     variant_stated: bool | None = None,
     same_text: list[str] | None = None,
+    texts: list[str] | None = None,
 ) -> Detection:
     """A result as detect() returns it, for the code that prints one."""
     return Detection(
@@ -342,6 +388,7 @@ def public_match(  # pylint: disable=too-many-arguments
         coverage=coverage,
         variant_stated=variant_stated,
         same_text=same_text,
+        texts=texts,
         is_spdx=True,
         is_osi_approved=True,
         is_fsf_libre=False,
@@ -358,7 +405,7 @@ def invoke_match(db: str, *args: str, color: bool = False) -> Result:
 # empty but REASON, here "no match" (nothing was a candidate).
 NO_DETECTION = (
     "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\t"
-    "VARIANT_STATED=\tSAME_TEXT=\tREASON=no match\n"
+    "VARIANT_STATED=\tSAME_TEXT=\tREASON=no match\tTEXTS=\n"
 )
 
 # The flag each is-* command prints after EXPRESSION.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-25
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -388,6 +388,32 @@ alike. Trace the queries per line first (the shared-cache memory database,
 `dbcache` checks), then decide whether the test or the code is wrong.
 
 Impact 2, Risk 2, Effort 3.
+
+## 64. Template-aware scoring for TEXTS — Priority 12
+
+From the look-alike rule of `TEXTS` (2026-11-25;
+`../implementation/whole-texts.md`). `TEXTS` scores a found text against the
+List text by character fit, so a copy that fills a placeholder differently
+(BSD-3-Clause with REGENTS or COPYRIGHT OWNER) looks as close to a near twin
+as to its own text. The rule refuses 7 such right names of 493 real files.
+Idea: score against the SPDX template with the `<<var>>` regions exempt (the
+normative matching guideline). That recovers the 7 names and could let the
+0.98 and 0.93 rule go. Needs the variable regions stored: templates are not
+kept in the database (`xml_template` is empty), so a `records.BUILD_VERSION`
+bump and a larger file. Measure on the 493 files and the synthetic set, on
+main and on the branch, before taking it.
+
+Impact 3, Risk 2, Effort 4.
+
+## 65. Concurrent first calls each load the text corpus — Priority 8
+
+The text corpus is built or read once per database generation in
+`dbcache.TableCache`, with no lock: threads that make their first `detect()`
+call together each load it (0.016 s from `text_codes`, 0.16 s coded). Wasted
+work only; the result is the same and the corpus is immutable. Fix with a
+lock around the first load if a measurement shows a cost.
+
+Impact 1, Risk 1, Effort 2.
 
 ## Already resolved
 

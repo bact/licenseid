@@ -61,24 +61,24 @@ Keep `detector.py` under 800 lines: logic that needs no detector state goes
 in another module.
 
 - Detection: `detector` (the pipeline), `keptdetector` (`licenseid.detect()`,
-  one detector per default database), `detectrequest` (checks of a call
-  needing no database), `resolvefirst` (input `resolve()` reads whole; the
-  cut of a short refused one), `shorttext` (Tier 0), `namehits` (which name
-  hits of Tier 0 stand: tied names) and `namerules` (what beside one name
-  doubts it), `retrieval` (Tier 1),
-  `ftsquery` (its `MATCH` string: 20 words, each cut to 128 characters),
-  `idoptions` (`exclude`, `hint`: API only, free text only, case-folded, a
-  bare deprecated ID stands for both twins, kept under `as-written`),
-  `variants` and `variantstated` (the `variant` option: what a bare ID and a
-  text answer, `variant_stated`, a trailing "only"),
-  `similarity` (Tier 2 scores of the candidates, the fingerprint bonus;
-  a long input against a licence's core too, the higher kept, coverage over
-  the text that won) with `coretext` (a template without its optional parts),
-  `fingerprint` (maths) and `fingerprintstore` (its table),
-  `ranking` (sort order, `-only`/`-or-later` tie-breaker), `markers` and
-  `candidates` (its helpers), `classify` (prose "or later"), `grantsubject`
-  (whose grant), `identifiers`, `normalize`, `result` (public result, JSON
-  and text lines), `types`.
+  one detector per default database), `detectrequest` (checks of a call needing
+  no database), `resolvefirst` (input `resolve()` reads whole; the cut of a
+  short refused one), `shorttext` (Tier 0), `namehits` (which name hits of Tier
+  0 stand: tied names) and `namerules` (what beside one name doubts it),
+  `retrieval` (Tier 1), `textcorpus` (word codes), `textlocate` (5-gram votes,
+  windows, count limits), `wholetexts` (key, overlap, look-alike doubt),
+  `textnames`, `ftsquery` (its `MATCH` string: 20 words, each cut to 128
+  characters), `idoptions` (`exclude`, `hint`: API only, free text only,
+  case-folded, a bare deprecated ID stands for both twins, kept under
+  `as-written`), `variants` and `variantstated` (the `variant` option: what a
+  bare ID and a text answer, `variant_stated`, a trailing "only"), `similarity`
+  (Tier 2 scores of the candidates, the fingerprint bonus; a long input against
+  a licence's core too, the higher kept, coverage over the text that won) with
+  `coretext` (a template without its optional parts), `fingerprint` (maths) and
+  `fingerprintstore` (its table), `ranking` (sort order, `-only`/`-or-later`
+  tie-breaker), `markers` and `candidates` (its helpers), `classify` (prose "or
+  later"), `grantsubject` (whose grant), `identifiers`, `normalize`, `result`
+  (public result, JSON and text lines), `types`.
 - Reading an ID: `looseid` ("Apache2", "GPLv3"; `disambiguate_whole`),
   `bsdclauses` (BSD-N-Clause by its conditions), `deprecatedids`,
   `plusoperator`, `versionkey` (a bare major the List has another minor of
@@ -136,17 +136,17 @@ and `--json`) against these rules and checks the default output against the
   the record. `--json` always prints the full object (`-v` beside it is a
   no-op). `is-*`, `update`, `clear-cache` take no `-v`. `-V` is
   `--version`. `--id-only` is gone.
-- The record: one record per line. The first key names its kind
-  (`EXPRESSION` the answer, first; `STEP`, `REASON`, `OPERAND`, `LIST`,
-  `STATUS`). No answer still prints the record, every field empty but
-  `REASON`. `detect`'s last fields: `SAME_TEXT` (after `VARIANT_STATED`) is
-  empty unless a text answer shares its normalised text with other List IDs
-  (`detector` passes `result.public_result` the `twins` it builds from
-  `database.text_parts`, minus the
-  final expression); `REASON` (CLI only, not in `types.Detection`) is empty
+- The record: one record per line. The first key names its kind (`EXPRESSION`
+  the answer, first; `STEP`, `REASON`, `OPERAND`, `LIST`, `STATUS`). No answer
+  still prints the record, every field empty but `REASON`. `detect`'s last
+  fields: `SAME_TEXT` (after `VARIANT_STATED`) is empty unless a text answer
+  shares its normalised text with other List IDs (`detector` passes
+  `result.public_result` the `twins` it builds from `database.text_parts`, minus
+  the final expression); `REASON` (CLI only, not in `types.Detection`) is empty
   on an answer, else `below threshold`, `not exact` or `no match`
-  (`clidetect._no_answer_reason`). It is a field, never a record kind: the
-  first key of a `detect` line is `EXPRESSION`.
+  (`clidetect._no_answer_reason`); `TEXTS` last (`textnames.held_texts`;
+  `skipped` where never printed). It is a field, never a record kind: the first
+  key of a `detect` line is `EXPRESSION`.
 - Fields: `KEY=VALUE`, upper-case key, no spaces round `=`, one tab between
   fields (`result.fields_line`); a key ends at the first `=`. Fields are only
   appended at the end: never removed, renamed or reordered.
@@ -156,23 +156,21 @@ and `--json`) against these rules and checks the default output against the
 - Nothing is an empty value. A flag is `true`, `false`, or empty when there
   is nothing to judge: never a false `false`. In the API, None is nothing,
   never `""`.
-- `--json` and every JSON the CLI writes: one RFC 8785 (JCS) object per
-  line, only through `result.json_line` (never `json.dumps` on an output
-  path), as UTF-8 bytes on every locale. Each text key appears
-  in lower case, a flag is a boolean, and `null` exactly where text is
-  empty. JSON may hold more (`resolve --json` the whole resolution, `detect
-  --json` the flags and `lists`); an added key is `null` when empty. The
-  text-to-JSON key map of `resolve` (`STEP` to `steps[].kind` and
-  `expansions[].kind`, `OPERAND` to `operands[].text`) is in
+- `--json` and every JSON the CLI writes: one RFC 8785 (JCS) object per line,
+  only through `result.json_line` (never `json.dumps` on an output path), as
+  UTF-8 bytes on every locale. Each text key appears in lower case, a flag is a
+  boolean, and `null` exactly where text is empty. JSON may hold more (`resolve
+  --json` the whole resolution, `detect --json` the flags and `lists`); an added
+  key is `null` when empty. The text-to-JSON key map of `resolve` (`STEP` to
+  `steps[].kind` and `expansions[].kind`, `OPERAND` to `operands[].text`) is in
   `docs/resolve.md`.
-- `detect`'s `lists` (`Detection.lists`) come from
-  `resolverinfo.list_info`, the builder of `resolve()`'s `lists`: never a
-  second copy. Its JSON (`json_line`) and text line (`result.text_line`)
-  print the public form `result.public_result` builds at the one exit of
-  `detect()`: tiers rank on the raw score (above 1 for a Tier 0 hit,
-  look-alikes too, and a close text with bonuses), never on the public
-  one, which is capped to 1. `exact` tells
-  results at 1 apart; set it where a result is made.
+- `detect`'s `lists` (`Detection.lists`) come from `resolverinfo.list_info`, the
+  builder of `resolve()`'s `lists`: never a second copy. Its JSON (`json_line`)
+  and text line (`result.text_line`) print the public form
+  `result.public_result` builds at the one exit of `detect()`: tiers rank on the
+  raw score (above 1 for a Tier 0 hit, look-alikes too, and a close text with
+  bonuses), never on the public one, which is capped to 1. `exact` tells results
+  at 1 apart; set it where a result is made.
 - Only exceptions to the pattern: the default output of `detect` and
   `resolve`, `--version` (`licenseid <version>`), `--help`.
 
@@ -315,18 +313,16 @@ and `--json`) against these rules and checks the default output against the
   overridden by input`. Both warnings are only for a printed result
   (`variants.output_bar`: `--threshold`, `--exact`, `--top`; 0.85 in the
   API); a text's guess only at `variants.ANSWER_SCORE` or more.
-- Every result carries `evidence` (the value as written, or a text's
-  signals), set where a result is made (`variants.read_from`,
-  `settle_text`), never a flag. A reader that decides a form
-  (`looseid.read_inexactly`, `mark_guessed`) marks it in
-  `evidence.decided`: a decided form is never stated, whatever another
-  operand says (`identifiers` merges equal operands, so no count can).
-  The one reader `variants.stated_of` gives the record field
-  `VARIANT_STATED`, fail closed (no evidence, no word: false);
-  `result.public_result` applies the one rule that a variant licenseid
-  chose (`guessed_of`) is not exact. `is-*` lines have no `VARIANT_STATED`;
-  `is-osi`/`is-fsf` judge a kept deprecated ID by its `-only` twin
-  (`exprflags.judged_id`).
+- Every result carries `evidence` (the value as written, or a text's signals),
+  set where a result is made (`variants.read_from`, `settle_text`), never a
+  flag. A reader that decides a form (`looseid.read_inexactly`, `mark_guessed`)
+  marks it in `evidence.decided`: a decided form is never stated, whatever
+  another operand says (`identifiers` merges equal operands, so no count can).
+  The one reader `variants.stated_of` gives the record field `VARIANT_STATED`,
+  fail closed (no evidence, no word: false); `result.public_result` applies the
+  one rule that a variant licenseid chose (`guessed_of`) is not exact. `is-*`
+  lines have no `VARIANT_STATED`; `is-osi`/`is-fsf` judge a kept deprecated ID
+  by its `-only` twin (`exprflags.judged_id`).
 
 ### Expression readers (one reader each; do not write another)
 
@@ -340,27 +336,25 @@ and `--json`) against these rules and checks the default output against the
 - "Or later" grant: `classify.OR_LATER_PHRASE` is the one phrase reader
   (imported by `grantsubject`, `identifiers.disambiguate_deprecated_id`,
   `markers`, `looseid`); `classify.grant_end` finds a grant and its end;
-  `classify.grant_head` is the one rule for the gap between ID and grant (a
-  dash between words, or ONE dash or `_` glued to the ID, is a separator; a
-  glued run of two or more is dropped characters), followed by `before_grant`
-  and the tag's `dash_gap`. The grant qualifies the licence beside it
+  `classify.grant_head` is the one rule for the gap between ID and grant (a dash
+  between words, or ONE dash or `_` glued to the ID, is a separator; a glued run
+  of two or more is dropped characters), followed by `before_grant` and the
+  tag's `dash_gap`. The grant qualifies the licence beside it
   (`identifiers.qualify_trailing_grant`): `MIT OR GPL-2.0 or later` is
   `GPL-2.0-or-later OR MIT`; with WITH it belongs to the licence. A version
   number between ID and phrase (a number the phrase starts with counts too,
-  unless it is the ID's own version) means another licence's grant. A grant
-  ends the expression: `resolve()` refuses anything after it but an operator
-  chain (`MIT or later AND ISC`), which a tag hands to it
-  (`grantchain.chain_read`). `grantsubject.grants`
-  is the one reader of whose grant a phrase is (a version after a licence's
-  name, `version`, `v` or `the License`; `Python 3.8 or later` is a tool's):
-  `ranking.or_later_signal` and `only_signal` ask it per licence; a phrase it
-  cannot own (`has_unowned_phrase`) counts as a grant for the tie-breaker and
-  leaves `settle_text`'s `-only` alone (`ranking.leave_signal`, as does a pure
-  licence text).
-  `looseid.declared_grant_id_text` only finds where a grant starts (bare
-  "or later" read as after a number unless `classify.is_negated`). Add a
-  phrasing to `classify.OR_LATER_PHRASE` and to `PHRASES` in
-  `tests/ordering_helpers.py` (`test_match_ordering` and
+  unless it is the ID's own version) means another licence's grant. A grant ends
+  the expression: `resolve()` refuses anything after it but an operator chain
+  (`MIT or later AND ISC`), which a tag hands to it (`grantchain.chain_read`).
+  `grantsubject.grants` is the one reader of whose grant a phrase is (a version
+  after a licence's name, `version`, `v` or `the License`; `Python 3.8 or later`
+  is a tool's): `ranking.or_later_signal` and `only_signal` ask it per licence;
+  a phrase it cannot own (`has_unowned_phrase`) counts as a grant for the
+  tie-breaker and leaves `settle_text`'s `-only` alone (`ranking.leave_signal`,
+  as does a pure licence text). `looseid.declared_grant_id_text` only finds
+  where a grant starts (bare "or later" read as after a number unless
+  `classify.is_negated`). Add a phrasing to `classify.OR_LATER_PHRASE` and to
+  `PHRASES` in `tests/ordering_helpers.py` (`test_match_ordering` and
   `test_resolver_shapes` hold every reader to it).
 - Ranking and the tie-breaker sort with `ranking.ranking_key`; short-text
   results sort by `(-score, license_id)`.
@@ -471,6 +465,10 @@ and `--json`) against these rules and checks the default output against the
   block and at every lookup outside one), and keeps no read made during a
   clear (`_generation`). A new write to `licenses` or `license_index` calls
   `self._tables.clear()`, as `_write_db_records` does.
+- `text_codes` (optional): the coded texts and a `check` (SHA-256, with
+  `textcorpus.CODING_VERSION`). `TextCorpus.restore` gives the corpus `build`
+  gives or None, then built in memory, never written back (a BLOB body too);
+  a row SQLite cannot decode is `unreadable`. A coding change bumps both.
 - Never set `PRAGMA mmap_size`: a file cut by another program (`cp`,
   `truncate`) under a mapped page kills the process with SIGBUS, no message.
 - Never build `LIKE` or `GLOB` patterns from input (over 50,000 bytes SQLite
@@ -525,6 +523,8 @@ and `--json`) against these rules and checks the default output against the
 
 ## Performance
 
+- `textlocate` bounds the `TEXTS` search by counts, never a clock: past a
+  limit, None, never a partial list.
 - RapidFuzz costs time in characters, not words. Guard by
   `similarity.build_probe` and `similarity.alignment_affordable`, never by
   characters per word (Japanese and Chinese have no spaces). Before changing

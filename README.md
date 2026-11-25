@@ -75,6 +75,9 @@ STEP=operator_case	FROM=GPL-2.0-or-later or MIT	TO=GPL-2.0-or-later OR MIT
 STEP=plus_to_or_later	FROM=GPLv2+	TO=GPL-2.0-or-later
 ```
 
+Which field to read for an answer, its fit, a fragment or the licence texts a
+file holds: [output](https://github.com/bact/licenseid/blob/main/docs/output.md#which-field-to-read).
+
 ### Licence checks in scripts
 
 `is-spdx`, `is-osi` and `is-fsf` exit 0 for true and 1 for false:

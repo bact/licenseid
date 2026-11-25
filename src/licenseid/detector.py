@@ -58,6 +58,7 @@ from licenseid.similarity import (
     with_core,
 )
 from licenseid.textinput import read_text_file, reject_lone_surrogate
+from licenseid.textnames import held_texts, skipped
 from licenseid.types import (
     CandidateMatch,
     Detection,
@@ -527,7 +528,21 @@ class LicenseDetector:
         ranked = apply_version_suffix_tiebreaker(
             ranked, ctx.target_text, ctx.is_pure, enable_pop=pop
         )
-        return settle_free_text(ranked, ctx.target_text, ctx.is_pure, ctx.request)
+        settled = settle_free_text(ranked, ctx.target_text, ctx.is_pure, ctx.request)
+        return self._with_texts(settled, ctx)
+
+    def _with_texts(
+        self, settled: list[RawMatch | InternalMatch], ctx: _MatchContext
+    ) -> list[RawMatch | InternalMatch]:
+        """*settled*, each result given the List texts the input holds whole
+        (``textnames``): a fact about the input, so every result has it."""
+        texts = held_texts(
+            self.db, ctx.norm_input, settled, ctx.request.get("variant", DEFAULT)
+        )
+        if texts is not None:
+            for match in settled:
+                match["texts"] = texts
+        return settled
 
     def _resolve_record(
         self,
@@ -541,7 +556,8 @@ class LicenseDetector:
         so they cannot disagree with detect(), and raise what it raises. The
         bar reads the public score, as --threshold does: rounded to 4 places,
         so a raw 0.84995 passes."""
-        results = self.detect(text, license_id=license_id, file_path=file_path)
+        with skipped():  # is-* never prints TEXTS
+            results = self.detect(text, license_id=license_id, file_path=file_path)
         if not results or results[0]["score"] < 0.85:
             return None
         return results[0]

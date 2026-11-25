@@ -35,6 +35,7 @@ from licenseid.dbconnection import Connections, QueryConnection
 from licenseid.dbschema import (
     add_build_columns,
     create_schema,
+    create_text_table,
     create_url_table,
     schema_state,
 )
@@ -58,6 +59,7 @@ from licenseid.warning import warn
 
 if TYPE_CHECKING:
     from licenseid.releasesource import UpdateRequest
+    from licenseid.textcorpus import TextCorpus
 
 # Version of the normalize_text() rule set used to build the stored
 # search_text and fingerprints.  Bump whenever normalization rules change so
@@ -448,6 +450,7 @@ class LicenseDatabase:
             conn.execute("BEGIN TRANSACTION")
             try:
                 create_url_table(conn)  # a database of build 3 lacks it
+                create_text_table(conn)  # a database of build 5 lacks it
                 add_build_columns(conn)  # a database of build 4 lacks them
                 conn.execute("DELETE FROM license_index")
                 conn.execute("DELETE FROM licenses")
@@ -455,6 +458,7 @@ class LicenseDatabase:
                 conn.execute("DELETE FROM db_metadata")
                 conn.execute("DELETE FROM license_fingerprints")
                 conn.execute("DELETE FROM license_urls")
+                conn.execute("DELETE FROM text_codes")
 
                 now = datetime.now(timezone.utc).isoformat()
                 metadata_items: list[tuple[str, str]] = [
@@ -496,6 +500,10 @@ class LicenseDatabase:
                     "INSERT INTO license_urls (owner_id, is_exception, url)"
                     " VALUES (?, ?, ?)",
                     records.urls,
+                )
+                conn.executemany(
+                    "INSERT INTO text_codes (kind, owner_id, body) VALUES (?, ?, ?)",
+                    records.texts,
                 )
                 conn.execute("COMMIT")
             except Exception:
@@ -673,3 +681,10 @@ def text_parts(db: LicenseDatabase) -> dict[str, TextParts]:
     ``dbcache.TableCache.text_parts``): a function, not a method, as the
     class has as many public ones as the linter allows."""
     return db._tables.text_parts()  # pylint: disable=protected-access
+
+
+def text_corpus(db: LicenseDatabase) -> "TextCorpus":
+    """The texts of the List, coded for the search of the texts an input
+    holds whole (see ``dbcache.TableCache.text_corpus``): built at its first
+    use, once per rebuild of the tables."""
+    return db._tables.text_corpus()  # pylint: disable=protected-access

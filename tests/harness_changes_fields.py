@@ -21,41 +21,46 @@ _REASON = (
     " answer, on no answer one of below threshold, not exact, no match"
 )
 
+_TEXTS = (
+    "the record has a field TEXTS after REASON (JSON texts): empty unless a text"
+    " answer of an input of 40 tokens or more holds List texts whole"
+)
+
 # The digests, in the order of the sorted case keys (the cases of
 # ``harness_changes_variant`` too: the same ones are moved).
 _DIGESTS = (
-    "089c2b40a243",
-    "bd8a47474e1e",
-    "6abc32df49a0",
-    "1b547e0fd720",
-    "6ce529873530",
-    "77abec61824f",
-    "c41e526704e2",
-    "03b16afb761b",
-    "5b8553a4a998",
-    "36bc12aea406",
-    "b3300b30613a",
-    "5f22a20e8e73",
-    "16f36d760d4d",
-    "1cc3d3e3ee30",
-    "1748cf8140ca",
-    "b4e7237bef22",
-    "2e2e4248c0d9",
-    "c4fbc53b578d",
-    "3db9dbe0559a",
-    "4ab2807d83cb",
-    "5774caf1d8a6",
-    "cb8fe0e05046",
-    "333b84c24589",
-    "e30d5dd0db5b",
-    "86121a646f82",
-    "7cb9bdffaab0",
-    "d40aad1859b2",
-    "02ea381cb037",
-    "540dd8d39848",
+    "5439c27e0089",
+    "7d5765ca6d65",
+    "3fb691dfad69",
+    "7fa149ed6f04",
+    "f62a8eed978a",
+    "b460cc6af2ac",
+    "94218943a255",
+    "c79d328bc9b2",
+    "5334b8784e2b",
+    "581f712a2bdc",
+    "2ae4640c06f1",
+    "ce328645b4f8",
+    "cf9f68f0c7f4",
+    "67a7c8b39d0e",
+    "700597c646e0",
+    "2e32aaf7e09f",
+    "11a44367610c",
+    "a4fd938d753b",
+    "9df6458baafb",
+    "eca0e679d092",
+    "ba682c07b2e1",
+    "2b14e93c140a",
+    "1f210eca7d4a",
+    "fc5e9b27016b",
+    "0e3356427d0b",
+    "a466d101cb63",
+    "1f7d24fc2e13",
+    "3ddc84309b2a",
+    "1dcd852431ec",
 )
 
 FIELDS_CHANGES: dict[str, tuple[str, str]] = {
-    key: (digest, _SAME_TEXT + "; " + _REASON)
+    key: (digest, _SAME_TEXT + "; " + _REASON + "; " + _TEXTS)
     for key, digest in zip(sorted(VARIANT_CLI_CHANGES), _DIGESTS)
 }

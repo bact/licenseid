@@ -11,7 +11,7 @@ upstream tarball, a bundle), the same input gives the same rows. The text of
 every licence is normalised once, here, into the search text that is indexed.
 """
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from typing import NamedTuple
 
 from licenseid.console import status
@@ -25,6 +25,7 @@ from licenseid.listrules import (
 )
 from licenseid.normalize import normalize_text
 from licenseid.spdxdata import SpdxData
+from licenseid.textcorpus import StoredRow, TextCorpus, TextRow
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 
 # Version of the rules that turn a release into rows. A database stores the
@@ -37,7 +38,10 @@ from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 # Version 5: ``core_text``, ``core_word_count`` (the template without its
 # optional parts, when that is shorter) and ``same_text`` (the licences whose
 # text is the same) are stored.
-BUILD_VERSION = "5"
+# Version 6: ``text_codes`` holds the List texts as word codes
+# (``textcorpus.TextCorpus.stored_rows``), so the search of whole texts reads
+# them instead of coding every text again at its first use.
+BUILD_VERSION = "6"
 
 # A core is kept whenever it has fewer words than the whole text, however few
 # it drops (a title alone). Kept only at nine tenths of the words or less, a
@@ -87,12 +91,14 @@ _Kept = list[tuple[SpdxLicenseEntry, str | None]]
 
 
 class Records(NamedTuple):
-    """The four record lists of one release, ready to insert."""
+    """The record lists of one release, ready to insert. *texts* are the
+    rows of ``text_codes`` (``textcorpus.StoredRow``)."""
 
     licenses: list[LicenseInsertRecord]
     index_entries: list[IndexInsertRecord]
     exceptions: list[ExceptionInsertRecord]
     urls: list[UrlInsertRecord]
+    texts: Sequence[StoredRow] = ()
 
 
 def build_records(data: SpdxData, popularity_map: dict[str, int]) -> Records:
@@ -110,7 +116,28 @@ def build_records(data: SpdxData, popularity_map: dict[str, int]) -> Records:
         index,
         _exception_records(data.exceptions),
         _url_records(kept, data.exceptions),
+        text_rows(licenses, index),
     )
+
+
+def text_rows(
+    licenses: Iterable[LicenseInsertRecord], index: Iterable[IndexInsertRecord]
+) -> list[StoredRow]:
+    """The rows of ``text_codes`` of the licence rows *licenses* with their
+    *index* entries: the corpus the search of whole texts reads, built from
+    the same rows it would read back (``dbcache.TableCache.text_corpus``)."""
+    parts = {record[0]: record for record in licenses}
+    rows = []
+    for license_id, text in index:
+        record = parts[license_id]
+        same = record[15]
+        core = record[13] if record[14] else None
+        rows.append(
+            TextRow(
+                license_id, text, core, tuple(same.split()) if same else (license_id,)
+            )
+        )
+    return TextCorpus.build(rows).stored_rows()
 
 
 def _url_records(

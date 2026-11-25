@@ -9,6 +9,20 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `detect` gives `TEXTS` (JSON `texts`): the List IDs whose whole licence
+  text the input holds, one per text, sorted (`BSD-2-Clause MIT Python-2.0.1`
+  for mypy's LICENSE); empty for a notice
+
+### Changed
+
+- Database build 6 stores the coded licence texts, so the first `detect` of
+  a long text no longer codes them (about 0.14 s less); `licenseid update`
+  rebuilds an older database, which still answers, and adds 3 MB to the file
+
 ## [0.9.2] - 2026-11-24
 
 ### Added

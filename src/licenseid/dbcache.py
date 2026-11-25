@@ -16,12 +16,15 @@ turns every later lookup into a seek, and an unknown ID into no query.
 import sqlite3
 import threading
 from collections.abc import Callable
-from typing import TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 
 from licenseid.dbconnection import Connections
 from licenseid.listlookup import ListedUrl, UrlRow, fold_case, index_urls
 from licenseid.normalize import normalize_text
 from licenseid.types import LicenseDetails, LicenseNameId, TextParts
+
+if TYPE_CHECKING:
+    from licenseid.textcorpus import StoredRow, TextCorpus
 
 __all__ = ["TableCache", "cast_license_details"]
 _V = TypeVar("_V", str, int)
@@ -47,10 +50,17 @@ class _Keyed:
     tables: names_and_ids() by a key of each ID, and the rows of
     ``license_urls`` with their index by a key of each URL. One key of each
     is kept; a call with another builds its index again. The words of the
-    exceptions and the text parts are here too: they are read for one
-    generation as well."""
+    exceptions, the text parts and the corpus of texts are here too: they
+    are read for one generation as well."""
 
-    __slots__ = ("exception_words", "names", "text_parts", "url_rows", "urls")
+    __slots__ = (
+        "exception_words",
+        "names",
+        "text_corpus",
+        "text_parts",
+        "url_rows",
+        "urls",
+    )
 
     def __init__(self) -> None:
         self.names: tuple[Callable[[str], str], dict[str, list[LicenseNameId]]] | None
@@ -58,6 +68,7 @@ class _Keyed:
         self.url_rows: list[UrlRow] | None = None
         self.exception_words: list[frozenset[str]] | None = None
         self.text_parts: dict[str, TextParts] | None = None
+        self.text_corpus: TextCorpus | None = None
         self.urls: (
             tuple[Callable[[str], str | None], dict[str, list[ListedUrl]]] | None
         ) = None
@@ -217,6 +228,66 @@ class TableCache:
                 ),
             )
         return found
+
+    def text_corpus(self) -> "TextCorpus":
+        """The texts of the List, coded for the search of the texts an input
+        holds whole (:mod:`licenseid.textcorpus`): each licence that has a
+        text in the index, with its core and its twins, built at the first
+        call and kept until the tables are rebuilt. It is immutable, so a
+        caller may share it between threads. Not built for a call that asks
+        no text search."""
+        self._check_stamp()
+        generation, holder = self._generation, self._keyed
+        corpus = holder.text_corpus
+        if corpus is None:
+            corpus = self._build_text_corpus()
+            if generation == self._generation:
+                holder.text_corpus = corpus
+        return corpus
+
+    def _build_text_corpus(self) -> "TextCorpus":
+        """The corpus of ``license_index``'s texts, in table order (the
+        first row of an ID wins, as a scan would find it)."""
+        # Lazy: the search code is loaded for a call that searches only.
+        from licenseid.textcorpus import (  # pylint: disable=import-outside-toplevel
+            TextCorpus,
+            TextRow,
+        )
+
+        parts = self.text_parts()
+        with self._connections.connection() as conn:
+            rows: list[tuple[str | None, str | None]] = conn.execute(
+                "SELECT license_id, search_text FROM license_index ORDER BY rowid"
+            ).fetchall()
+        texts: dict[str, str] = {}
+        for license_id, text in rows:
+            if license_id is not None and text:
+                texts.setdefault(license_id, text)
+        built = []
+        for license_id, text in texts.items():
+            part = parts.get(license_id)
+            core = part.core if part else None
+            group = (part.same_text if part else ()) or (license_id,)
+            built.append(TextRow(license_id, text, core, group))
+        # The codes the build stored, when they are those of these rows: a
+        # database of build 5 has none, and one damaged or edited since has
+        # others; both are coded here and not written back (a lookup never
+        # writes; ``update`` stores them).
+        stored = TextCorpus.restore(built, self._stored_texts())
+        return TextCorpus.build(built) if stored is None else stored
+
+    def _stored_texts(self) -> "list[StoredRow]":
+        """The rows of ``text_codes``, or none when the table is missing."""
+        with self._connections.connection() as conn:
+            if not conn.execute(
+                "SELECT 1 FROM sqlite_master"
+                " WHERE type = 'table' AND name = 'text_codes'"
+            ).fetchone():
+                return []
+            rows: list[StoredRow] = conn.execute(
+                "SELECT kind, owner_id, body FROM text_codes"
+            ).fetchall()
+        return rows
 
     def names_by_key(self, key: Callable[[str], str]) -> dict[str, list[LicenseNameId]]:
         """names_and_ids() by *key* of each ID, in table order: built once,
