@@ -31,8 +31,8 @@ from licenseid.looseid import (
     mark_guessed,
 )
 from licenseid.manifest import extension, license_value_groups
-from licenseid.markers import MarkerDetector
 from licenseid.markerfloor import doubt_floors
+from licenseid.markers import MarkerDetector
 from licenseid.namehits import refusal_answer
 from licenseid.normalize import normalize_text, strip_comment_prefixes
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
