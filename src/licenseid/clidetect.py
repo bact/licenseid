@@ -14,6 +14,7 @@ Without ``--verbose`` ``detect`` prints the expression alone, a line per
 result (an empty line for none).
 """
 
+import contextlib
 import sys
 from collections.abc import Callable
 from typing import Any
@@ -44,6 +45,7 @@ from licenseid.result import (
     no_detection_line,
     text_line,
 )
+from licenseid.textnames import skipped
 from licenseid.types import Detection, Variant
 from licenseid.variants import VARIANTS, output_bar
 
@@ -230,7 +232,9 @@ def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
     check_db_staleness(detector.db)
 
     # A warning of the detector is for the result this command prints.
-    with output_bar(threshold, exact_only, top):
+    # TEXTS is printed by --verbose and --json only: no search for the rest.
+    no_texts = contextlib.nullcontext() if verbose or json_output else skipped()
+    with output_bar(threshold, exact_only, top), no_texts:
         if id_val:
             results = detector.detect(license_id=id_val, variant=chosen)
             license_text = ""

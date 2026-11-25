@@ -43,9 +43,9 @@ def record(db_path: str, *args: str) -> tuple[int, dict[str, str]]:
     return result.exit_code, dict(f.split("=", 1) for f in line.split("\t"))
 
 
-def test_the_last_field_is_the_reason(db: str) -> None:
+def test_the_reason_is_the_last_field_but_one(db: str) -> None:
     result = CliRunner().invoke(cli, ["--db", db, "detect", "-v", "--id", "MIT"])
-    assert result.stdout.rstrip("\n").split("\t")[-1] == "REASON="
+    assert result.stdout.rstrip("\n").split("\t")[-2:] == ["REASON=", "TEXTS="]
 
 
 def test_an_answer_has_no_reason(db: str) -> None:

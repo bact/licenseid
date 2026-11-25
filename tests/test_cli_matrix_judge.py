@@ -35,7 +35,7 @@ CLEAN_MATCH = {"rc": 0, "out": "MIT\n", "err": "", "files": []}
 #: What detect prints for no answer, and the list update installs.
 NO_ANSWER = (
     "EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE=\t"
-    "VARIANT_STATED=\tSAME_TEXT=\tREASON=no match\n"
+    "VARIANT_STATED=\tSAME_TEXT=\tREASON=no match\tTEXTS=\n"
 )
 L = "spdx-license-list"
 

@@ -187,6 +187,13 @@ def _decide(lic_id: str, variant: Variant) -> str | None:
     return bare if variant == "only" else _OR_LATER_OF.get(key)
 
 
+def replacement_of(deprecated_id: str) -> str | None:
+    """The ID that replaces the bare or "+" deprecated *deprecated_id*
+    (``GPL-3.0``: ``GPL-3.0-only``), whose row a text match reads; None for
+    any other ID."""
+    return _REPLACED_BY.get(fold_case(deprecated_id))
+
+
 def decided(row_id: str, resolved: str) -> bool:
     """Whether *resolved* is the variant licenseid chose for *row_id*, a bare
     or ``-with-`` deprecated ID: it was changed, which only :func:`fallback`

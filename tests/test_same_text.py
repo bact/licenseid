@@ -175,10 +175,10 @@ def test_only_a_text_of_one_licence_has_a_group(raw: dict[str, object]) -> None:
 def test_the_text_line_and_the_json_carry_the_field() -> None:
     result = public_match("MPL-2.0", method="text", same_text=["A-1.0", "B-2.0+"])
     assert text_line(result).endswith(
-        "\tVARIANT_STATED=\tSAME_TEXT=A-1.0 B-2.0+\tREASON="
+        "\tVARIANT_STATED=\tSAME_TEXT=A-1.0 B-2.0+\tREASON=\tTEXTS="
     )
     assert json.loads(json_line(result))["same_text"] == ["A-1.0", "B-2.0+"]
-    assert text_line(public_match()).endswith("\tSAME_TEXT=\tREASON=")
+    assert text_line(public_match()).endswith("\tSAME_TEXT=\tREASON=\tTEXTS=")
     assert json.loads(json_line(public_match()))["same_text"] is None
 
 
@@ -192,7 +192,7 @@ def test_the_cli_prints_it(mpl_db: str) -> None:
         if flag == "--json":
             assert json.loads(line)["same_text"] in (["MPL-2.0"], [MPL_IDS[1]])
         else:
-            assert line.rsplit("\t", 2)[1] in {
+            assert line.rsplit("\t", 3)[1] in {
                 "SAME_TEXT=MPL-2.0",
                 f"SAME_TEXT={MPL_IDS[1]}",
             }

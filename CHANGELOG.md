@@ -9,6 +9,18 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `detect` gives `TEXTS` (JSON `texts`): the List texts the input holds
+  whole (`BSD-2-Clause MIT Python-2.0.1` for mypy's LICENSE) ([#241])
+
+### Changed
+
+- Database build 6 (3 MB more) stores coded licence texts for `TEXTS`;
+  `licenseid update` rebuilds an older database, which still answers ([#241])
+
 ## [0.9.2] - 2026-11-24
 
 ### Added
@@ -188,6 +200,7 @@ and this project adheres to
 [#235]: https://github.com/bact/licenseid/pull/235
 [#238]: https://github.com/bact/licenseid/pull/238
 [#239]: https://github.com/bact/licenseid/pull/239
+[#241]: https://github.com/bact/licenseid/pull/241
 
 ## [0.8.4] - 2026-11-09
 

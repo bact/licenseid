@@ -66,7 +66,13 @@ class Detection(TypedDict):
     answer's after normalisation (``MPL-2.0`` and
     ``MPL-2.0-no-copyleft-exception``), sorted, for a text match of one
     licence; None for any other answer, and when no other licence has the
-    same text.
+    same text. ``texts`` lists the List licences whose whole text the input
+    holds, one ID for each (the text of a licence that has an ``-only`` and
+    an ``-or-later`` form is named as the answer is: by the answer's
+    own ID, else as ``variant`` says), sorted; the same list on every result
+    of one call, None for an answer that is not a text match, an input of
+    fewer than 40 tokens without an exact answer, and when no text is found
+    or the input is too long to search.
     """
 
     expression: str
@@ -81,6 +87,7 @@ class Detection(TypedDict):
     lists: list[ListInfo]
     variant_stated: bool | None
     same_text: list[str] | None
+    texts: list[str] | None
 
 
 class Evidence(TypedDict, total=False):
@@ -114,6 +121,9 @@ class RawMatch(TypedDict, total=False):
     is_fsf_libre: bool | None
     # The words the variant of the answer is read from (``variants.stated_of``).
     evidence: Evidence
+    # The List texts the input holds whole (``textnames.held_texts``), the
+    # same list on each result of a call; absent when none was searched.
+    texts: list[str]
 
 
 class LicenseFlags(TypedDict):
@@ -167,6 +177,7 @@ class InternalMatch(TypedDict, total=False):
     is_osi_approved: bool | None
     is_fsf_libre: bool | None
     evidence: Evidence
+    texts: list[str]
 
 
 # The licence IDs of ``exclude`` and ``hint``: the kinds of collection

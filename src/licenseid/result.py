@@ -50,7 +50,8 @@ def public_result(
     """*raw* as detect() returns it, resting on *lists* (each result its own
     copy). The ranking key is capped to 0-1: above 1 it only orders a tier's
     own results, and the order is in the list. *twins* holds, by ID, the IDs
-    of the same normalised text, the licence itself included."""
+    of the same normalised text, the licence itself included. The ``texts`` of
+    *raw*, the same list on each result of a call, is copied for each."""
     evidence = raw.get("evidence")
     return Detection(
         expression=raw["license_id"],
@@ -66,6 +67,8 @@ def public_result(
         lists=copy.deepcopy(lists),
         variant_stated=stated_of(raw["license_id"], evidence),
         same_text=_same_text(raw["license_id"], raw["method"], twins),
+        # Each result its own list, as it has its own ``lists``.
+        texts=list(texts) if (texts := raw.get("texts")) else None,
     )
 
 
@@ -134,12 +137,13 @@ def text_line(result: Detection) -> str:
         VARIANT_STATED=result["variant_stated"],
         SAME_TEXT=" ".join(same) if (same := result["same_text"]) else None,
         REASON=None,
+        TEXTS=" ".join(held) if (held := result["texts"]) else None,
     )
 
 
 def no_detection_line(reason: str) -> str:
     """The line ``detect`` prints when nothing matches (exit 1): every field
-    of :func:`text_line` empty but ``REASON``, one of
+    of :func:`text_line` empty (``TEXTS`` too) but ``REASON``, one of
     :data:`NO_ANSWER_REASONS`, so a reader finds the same keys."""
     return fields_line(
         EXPRESSION=None,
@@ -151,6 +155,7 @@ def no_detection_line(reason: str) -> str:
         VARIANT_STATED=None,
         SAME_TEXT=None,
         REASON=reason,
+        TEXTS=None,
     )
 
 

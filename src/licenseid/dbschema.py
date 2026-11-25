@@ -27,13 +27,15 @@ SCHEMA_OBJECTS = (
     "idx_fp_ngram",
     "idx_licenses_name",
     "license_urls",
+    "text_codes",
 )
 
 # The objects a read does without: a database built before one (build 3 has
-# no ``license_urls``) is still current, so opening it writes nothing, even
-# read-only. A lookup reads no rows from a missing one (dbcache), and
-# ``update`` makes it (create_url_table) when it rebuilds the database.
-OPTIONAL_OBJECTS = frozenset({"license_urls"})
+# no ``license_urls``, build 5 no ``text_codes``) is still current, so opening
+# it writes nothing, even read-only. A lookup reads no rows from a missing
+# one (dbcache), and ``update`` makes it (create_url_table,
+# create_text_table) when it rebuilds the database.
+OPTIONAL_OBJECTS = frozenset({"license_urls", "text_codes"})
 _REQUIRED_OBJECTS = frozenset(SCHEMA_OBJECTS) - OPTIONAL_OBJECTS
 
 # Columns that databases of an earlier version lack, with their types;
@@ -166,6 +168,7 @@ def _create_objects(conn: sqlite3.Connection) -> None:
         ON licenses(name COLLATE NOCASE)
     """)
     create_url_table(conn)
+    create_text_table(conn)
 
     # A database built before an added column lacks it, and CREATE TABLE IF
     # NOT EXISTS adds no column to a table that exists.
@@ -199,4 +202,21 @@ def create_url_table(conn: sqlite3.Connection) -> None:
             is_exception BOOLEAN NOT NULL,
             url          TEXT NOT NULL
         )
+    """)
+
+
+def create_text_table(conn: sqlite3.Connection) -> None:
+    """Make ``text_codes`` if it is missing: the List texts as word codes
+    (``textcorpus.TextCorpus.stored_rows``), one row for the vocabulary and
+    one for each text and core. Read whole, once per rebuild
+    (dbcache.TableCache.text_corpus); a database built before it (build 5) is
+    read without it, which codes the texts in memory, and gets it from
+    ``update``, inside the transaction that fills it."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS text_codes (
+            kind     TEXT NOT NULL,
+            owner_id TEXT NOT NULL,
+            body     TEXT NOT NULL,
+            PRIMARY KEY (kind, owner_id)
+        ) WITHOUT ROWID
     """)

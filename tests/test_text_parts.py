@@ -76,7 +76,7 @@ def with_optional(kept: int, optional: int) -> SpdxData:
 
 
 def test_the_build_carries_the_parts() -> None:
-    assert BUILD_VERSION == "5"
+    assert BUILD_VERSION == "6"
 
 
 @pytest.mark.parametrize(
@@ -281,7 +281,7 @@ def test_the_database_holds_the_core_of_a_real_licence(tmp_path: Path) -> None:
     assert core is not None
     assert len(core.split()) == 1393
     assert parts["Apache-2.0"].same_text == ()
-    assert db.get_metadata()["build_version"] == "5"
+    assert db.get_metadata()["build_version"] == BUILD_VERSION
 
 
 def test_the_database_holds_the_group_of_a_text(tmp_path: Path) -> None:

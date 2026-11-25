@@ -135,5 +135,22 @@ declared values, SPDX expressions and the matching pipeline.
     coverage, for marker confidence (applied only from 0.85) and for a
     fingerprint. What `SCORE`, `SIMILARITY` and `COVERAGE` measure, and
     their ranges, is in [output.md](output.md#default-and-verbose-text).
+  - **Whole texts (`TEXTS`)**: After the ranking, the input is searched for
+    every whole text of the List, without a database query per text. Words
+    become one code each; a text is first sampled by its word 5-grams, and
+    one that the input holds has most of them. The word 5-grams of such a
+    text vote for an offset, and neighbouring offsets with enough votes make a
+    window (each copy of a repeated text gets one). The words are aligned in
+    the window and the ends trimmed while that raises the fit; the character
+    similarity of the text and its trimmed span must be 0.95 or more. A copy
+    that drops a critical word such as "not", or misses 150 characters or
+    more of the text in one run (a clause), is not counted. Hits are kept
+    best first, and one that overlaps a kept hit by more than a tenth of the
+    shorter span is dropped; copies of one text are then named once. Every
+    cost is bounded by a count (characters, tokens, votes, windows, cells):
+    past one the field is empty, never a partial list. A text that a close
+    look-alike (character fit 0.93 or more) fits about as well is named only
+    at a fit of 0.98 or more; else its part names nothing. A text refused
+    only for a critical word still counts as that look-alike's rival.
 
 [py-spdx-license]: https://github.com/JPEWdev/py-spdx-license

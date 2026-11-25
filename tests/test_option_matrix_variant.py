@@ -13,11 +13,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
-from conftest import NO_DETECTION, make_mit_db_path
+from click.testing import CliRunner, Result
+from conftest import NO_DETECTION, FoundRows, make_mit_db_path
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import MIT_TEXT
 from matcher_db import GPL2_ROWS, Lic, seeded_db
+from texts_db import GPL as GPL_TEXT
+from texts_db import A, texts_database
 
 from licenseid.cli import cli
 
@@ -74,7 +76,9 @@ def test_variant_matrix(
         assert (result.exit_code, result.stderr) == (0, "")
         first = result.stdout.splitlines()[0]
         assert first.startswith("EXPRESSION=MIT\t")
-        assert first.endswith("VARIANT_STATED=\tSAME_TEXT=\tREASON=")
+        # An exact text holds its own text, short as it is; a value, none.
+        texts = "MIT" if "\tMETHOD=text\t" in first else ""
+        assert first.endswith(f"VARIANT_STATED=\tSAME_TEXT=\tREASON=\tTEXTS={texts}")
 
 
 @pytest.fixture(scope="module")
@@ -123,7 +127,7 @@ def test_variant_matrix_gpl_family(
     assert result.exit_code == 0, result.stderr
     first = result.stdout.splitlines()[0]
     assert first.startswith(f"EXPRESSION={expression}\t")
-    assert first.endswith(f"VARIANT_STATED={stated}\tSAME_TEXT=\tREASON=")
+    assert first.endswith(f"VARIANT_STATED={stated}\tSAME_TEXT=\tREASON=\tTEXTS=")
     warned = [x for x in result.stderr.splitlines() if "days old" not in x]
     assert bool(warned) is said, warned
 
@@ -180,3 +184,78 @@ def test_variant_matrix_cut_major(
     else:
         assert result.exit_code == 0, result.stderr
         assert result.stdout.splitlines()[0].startswith(f"EXPRESSION={expression}\t")
+
+
+# TEXTS names the texts an input holds by the variant in force (made-up texts:
+# the answer's own is A-1.0's, and the GPL-3.0 pair shares one).
+@pytest.fixture
+def texts_db() -> Generator[str, None, None]:
+    yield from texts_database("test_matrix_variant_texts")
+
+
+def _fields(result: Result) -> dict[str, str]:
+    line = result.stdout.splitlines()[0]
+    return dict(f.partition("=")[::2] for f in line.split("\t"))
+
+
+# variant -> how a group other than the answer's is named
+OTHER_FAMILY = {
+    "auto": "GPL-3.0-only",
+    "only": "GPL-3.0-only",
+    "or-later": "GPL-3.0-or-later",
+    "as-written": "GPL-3.0-only",
+}
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_texts_names_another_family_as_the_variant_names_it(
+    texts_db: str, found_rows: FoundRows, variant: str
+) -> None:
+    found_rows.rows = ["A-1.0", "GPL-3.0-only"]
+    result = CliRunner().invoke(
+        cli,
+        ["--db", texts_db, "detect", "-v", "--variant", variant, "--text", A + " x"],
+    )
+    assert result.exit_code == 0, result.stderr
+    fields = _fields(result)
+    assert fields["EXPRESSION"] == "A-1.0"
+    assert fields["TEXTS"] == f"A-1.0 {OTHER_FAMILY[variant]}"
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_texts_names_the_answers_family_as_the_answer(
+    texts_db: str, found_rows: FoundRows, variant: str
+) -> None:
+    found_rows.rows = ["GPL-3.0-only"]
+    result = CliRunner().invoke(
+        cli,
+        [
+            "--db",
+            texts_db,
+            "detect",
+            "-v",
+            "--variant",
+            variant,
+            "--text",
+            GPL_TEXT + " x",
+        ],
+    )
+    fields = _fields(result)
+    assert fields["EXPRESSION"] == (
+        "GPL-3.0-or-later" if variant == "or-later" else "GPL-3.0-only"
+    )
+    assert fields["TEXTS"] == fields["EXPRESSION"]
+    assert found_rows.calls[0][1] == fields["EXPRESSION"]
+
+
+def test_texts_of_a_declared_value_is_empty_under_every_variant(
+    texts_db: str, found_rows: FoundRows
+) -> None:
+    found_rows.rows = ["A-1.0"]
+    for variant in VARIANTS:
+        result = CliRunner().invoke(
+            cli,
+            ["--db", texts_db, "detect", "-v", "--variant", variant, "GPL-3.0"],
+        )
+        assert _fields(result)["TEXTS"] == ""
+    assert not found_rows.calls

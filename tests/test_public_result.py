@@ -238,7 +238,7 @@ def test_a_json_line_is_canonical() -> None:
         '"url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0",'
         '"version":"3.29.0"}],'
         '"method":"tag","same_text":null,"score":1,"similarity":null,'
-        '"variant_stated":null}'
+        '"texts":null,"variant_stated":null}'
     )
 
 
@@ -270,7 +270,7 @@ def test_a_text_line_has_every_field_and_empty_for_none(
     line = text_line(public_match(similarity=similarity, coverage=coverage))
     assert line == (
         f"EXPRESSION=MIT\tMETHOD=tag\tEXACT=true\tSCORE=1.0000\t{tail}"
-        "\tVARIANT_STATED=\tSAME_TEXT=\tREASON="
+        "\tVARIANT_STATED=\tSAME_TEXT=\tREASON=\tTEXTS="
     )
 
 

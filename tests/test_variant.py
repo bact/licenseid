@@ -427,7 +427,7 @@ def test_the_variant_stated_field_prints_last() -> None:
     from licenseid.result import no_detection_line
 
     assert no_detection_line("no match").endswith(
-        "\tVARIANT_STATED=\tSAME_TEXT=\tREASON=no match"
+        "\tVARIANT_STATED=\tSAME_TEXT=\tREASON=no match\tTEXTS="
     )
 
 

@@ -104,7 +104,7 @@ def _read_only(path: Path, how: str, made: list[Path]) -> str:
 
 
 def test_the_table_is_licenseids_but_no_read_needs_it() -> None:
-    assert OPTIONAL_OBJECTS == {"license_urls"}
+    assert OPTIONAL_OBJECTS == {"license_urls", "text_codes"}
     assert OPTIONAL_OBJECTS <= set(SCHEMA_OBJECTS)  # never foreign
 
 

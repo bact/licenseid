@@ -27,8 +27,8 @@ examples show the first two results):
 <!-- markdownlint-disable MD013 -->
 
 ```text
-EXPRESSION=Apache-2.0	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVERAGE=1.0000	VARIANT_STATED=	SAME_TEXT=	REASON=
-EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERAGE=0.9236	VARIANT_STATED=	SAME_TEXT=	REASON=
+EXPRESSION=Apache-2.0	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVERAGE=1.0000	VARIANT_STATED=	SAME_TEXT=	REASON=	TEXTS=Apache-2.0
+EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERAGE=0.9236	VARIANT_STATED=	SAME_TEXT=	REASON=	TEXTS=Apache-2.0
 ```
 
 <!-- markdownlint-enable MD013 -->
@@ -87,9 +87,8 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   limit. Below 0.8 the input is a fragment, such as a copyright notice, a
   header or a cut file. From 0.95 to 1.05 it is about the whole licence
   text. Well above 1 the input holds more than that licence's text, as a
-  file that holds two licence texts does. `licenseid` does not split a file
-  into the licence texts it holds, so such a file gets the ranking of one
-  licence.
+  file that holds two licence texts does. `TEXTS` names the licence texts
+  such a file holds; the ranking is still that of one licence.
 - `SIMILARITY` and `COVERAGE` are empty (JSON `null`) where nothing was
   measured: a tag, a field, an ID or a name `resolve()` reads has neither,
   and a name the name tier matches has no coverage.
@@ -115,8 +114,8 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   any `METHOD` but `text` (a tag, a field, an ID and a name say nothing of a
   text), for a compound answer, and for a database built before
   `licenseid update` kept the groups. The `is-*` commands have no such field.
-- `REASON` (JSON `reason`, the last field) is empty (JSON `null`) on an
-  answer. On the record of no answer it is the one field that is not empty:
+- `REASON` (JSON `reason`) is empty (JSON `null`) on an answer. On the
+  record of no answer it is the one field that is not empty:
   `below threshold` (a candidate was found, but none scored `--threshold`),
   `not exact` (`--exact` removed every result; the threshold is read first)
   or `no match` (nothing was a candidate; a `WARNING` on standard error may
@@ -125,12 +124,42 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   `licenseid detect --threshold 0 --top 1 -v`. The API `detect()` returns an
   empty list and has no such field. The key is a field of a `detect` line,
   never its kind: a line starting with `REASON=` is a refusal of `resolve`.
+- `TEXTS` (JSON `texts`, a list of strings; the last field) lists the List IDs
+  whose whole licence text, or its core (the text without its optional parts),
+  the input holds, one per text, sorted, separated by one space in the record. A
+  List text under 40 words is listed only when it is the whole input (an exact
+  answer, whatever its length). A file with several licence texts names each:
+  `BSD-2-Clause MIT Python-2.0.1` for mypy's `LICENSE`. An exact answer gives
+  the answer alone. The same list is on every `--top` line. It is filled for
+  `-v`, `--json` and the API; the search is skipped where it is never printed
+  (the `is-*` commands, the `is_*()` functions, and `detect` without `-v` or
+  `--json`). It is empty (JSON `null`) when no text was found, when the top
+  result is not a text match, when the input has under 40 words (a Han or kana
+  character counts as one word) and its answer is not exact, and when the input
+  is too large to search (the search is bounded by counts, and past one it gives
+  no list, never a partial one). `exclude` and `hint` leave the search and
+  the texts it finds as they are, but they change the answer: its own name
+  follows it, its group wins a tie between two groups of equal fit (so, rarely,
+  another answer gives another tie), and they can make the top result not a
+  text match, so that `TEXTS` is empty.
+  `only_spdx` and `only_common` do not touch it. The answer's own text shows as
+  the ID of `EXPRESSION`; any other text is named as `detect` names a text whose
+  variant is not stated under `--variant`: `-or-later` under `or-later`, else
+  `-only`; a group of licences with the same text and neither form shows its
+  shortest ID. A text of an exception (the GCC exception) is not in the
+  database, so it is never listed. A notice or a pointer, such as Apache's
+  "Licensed under the Apache License" header, is not a whole text: `TEXTS` does
+  not hold the answer and `COVERAGE` is under 0.8. A text that is a close
+  look-alike of another (two BSD-3-Clause variants that differ in a few words)
+  is named only when no other text fits the same part about as well; else the
+  part names nothing. A record of no answer has `TEXTS` empty; to see the record
+  of a candidate use `--threshold 0 -v`.
 
 <!-- markdownlint-disable MD013 -->
 
 ```text
 $ licenseid detect -v --text "lorem ipsum dolor sit amet consectetur elit"
-EXPRESSION=	METHOD=	EXACT=	SCORE=	SIMILARITY=	COVERAGE=	VARIANT_STATED=	SAME_TEXT=	REASON=no match
+EXPRESSION=	METHOD=	EXACT=	SCORE=	SIMILARITY=	COVERAGE=	VARIANT_STATED=	SAME_TEXT=	REASON=no match	TEXTS=
 ```
 
 <!-- markdownlint-enable MD013 -->
@@ -139,11 +168,36 @@ EXPRESSION=	METHOD=	EXACT=	SCORE=	SIMILARITY=	COVERAGE=	VARIANT_STATED=	SAME_TEX
 
 ```text
 $ licenseid detect -v --top 2 LICENSE
-EXPRESSION=MPL-2.0	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVERAGE=1.0000	VARIANT_STATED=	SAME_TEXT=MPL-2.0-no-copyleft-exception	REASON=
-EXPRESSION=MPL-2.0-no-copyleft-exception	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVERAGE=1.0000	VARIANT_STATED=	SAME_TEXT=MPL-2.0	REASON=
+EXPRESSION=MPL-2.0	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVERAGE=1.0000	VARIANT_STATED=	SAME_TEXT=MPL-2.0-no-copyleft-exception	REASON=	TEXTS=MPL-2.0
+EXPRESSION=MPL-2.0-no-copyleft-exception	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVERAGE=1.0000	VARIANT_STATED=	SAME_TEXT=MPL-2.0	REASON=	TEXTS=MPL-2.0
 ```
 
 <!-- markdownlint-enable MD013 -->
+
+## Which field to read
+
+- Is there an answer? The exit code (0, or 1 for none). `--threshold` is read
+  on `SCORE`, which only ranks the results.
+- How well does it fit? `SIMILARITY`, from 0 to 1.
+- Whole text or fragment? `COVERAGE`: under 0.8 a fragment, such as a notice
+  or a pointer; from 0.95 to 1.05 about the whole text; well above 1 the
+  input holds more than that text.
+- Which whole texts does the file hold? `TEXTS`.
+
+A caller that declares one licence for a file can use this rule: declare
+`EXPRESSION` when `METHOD` is not `text`, or when `TEXTS` is exactly
+`EXPRESSION`. Otherwise read `TEXTS`:
+
+- empty, with `COVERAGE` under 0.8: a notice or a pointer, not a text;
+- empty, with `COVERAGE` about 1 or more: a whole text that `TEXTS` could
+  not confirm (a look-alike was too close, or the wording differs from the
+  List's);
+- one ID other than `EXPRESSION`: the answer is in doubt;
+- several IDs: the file holds several texts.
+
+Under `below threshold` the nearest candidate is not named on
+purpose: no answer beats a doubtful guess. `licenseid detect --threshold 0
+--top 1 -v` shows it.
 
 ## JSON
 
@@ -160,8 +214,8 @@ JSON Canonicalization Scheme (RFC 8785), so equal results print equal bytes
 <!-- markdownlint-disable MD013 -->
 
 ```json
-{"coverage":1,"exact":true,"expression":"Apache-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"lists":[{"id":"spdx-license-list","id_authority":true,"license":"CC0-1.0","name":"SPDX License List","provides":["deprecation","ids","names","texts"],"source":"database","url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0","version":"3.29.0"}],"method":"text","reason":null,"same_text":null,"score":1,"similarity":1,"variant_stated":null}
-{"coverage":0.9236,"exact":false,"expression":"ECL-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"lists":[{"id":"spdx-license-list","id_authority":true,"license":"CC0-1.0","name":"SPDX License List","provides":["deprecation","ids","names","texts"],"source":"database","url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0","version":"3.29.0"}],"method":"text","reason":null,"same_text":null,"score":0.9584,"similarity":0.9584,"variant_stated":null}
+{"coverage":1,"exact":true,"expression":"Apache-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"lists":[{"id":"spdx-license-list","id_authority":true,"license":"CC0-1.0","name":"SPDX License List","provides":["deprecation","ids","names","texts"],"source":"database","url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0","version":"3.29.0"}],"method":"text","reason":null,"same_text":null,"score":1,"similarity":1,"texts":["Apache-2.0"],"variant_stated":null}
+{"coverage":0.9236,"exact":false,"expression":"ECL-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"lists":[{"id":"spdx-license-list","id_authority":true,"license":"CC0-1.0","name":"SPDX License List","provides":["deprecation","ids","names","texts"],"source":"database","url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0","version":"3.29.0"}],"method":"text","reason":null,"same_text":null,"score":0.9584,"similarity":0.9584,"texts":["Apache-2.0"],"variant_stated":null}
 ```
 
 <!-- markdownlint-enable MD013 -->
@@ -183,7 +237,7 @@ results go to standard output and the diff to standard error, so
 <!-- markdownlint-disable MD013 -->
 
 ```diff
-EXPRESSION=Apache-2.0	METHOD=text	EXACT=false	SCORE=1.0000	SIMILARITY=0.9978	COVERAGE=0.9987	VARIANT_STATED=	SAME_TEXT=	REASON=
+EXPRESSION=Apache-2.0	METHOD=text	EXACT=false	SCORE=1.0000	SIMILARITY=0.9978	COVERAGE=0.9987	VARIANT_STATED=	SAME_TEXT=	REASON=	TEXTS=Apache-2.0
 
 WORD DIFF:
 --- DATABASE
