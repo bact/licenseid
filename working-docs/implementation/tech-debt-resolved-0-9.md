@@ -693,3 +693,67 @@ Redistribution. You may reproduce..." alone read as BSD-4-Clause. The marker
   whatever its similarity; on a multi-licence file another marker now
   answers (Pillow `GPL-2.0-or-later` 0.874, scikit-learn `Apache-2.0`
   0.884): item 67.
+
+## Item 67: a marker floor answered a file of several licence texts (2026-11-25)
+
+Found in the fix of item 60. Cause: a marker of confidence `c` (0.85 or
+more) sets a candidate's score to at least `0.95c`
+(`similarity.calculate_final_score`), whatever its similarity, on every input
+but a pure long text with `c` under 0.94. In a file of several licence texts
+the marker reads one of them and answers for the file: Pillow 11.2.1's
+`LICENSE` (11 texts, none GPL) `GPL-2.0-or-later` 0.874; pandas 3.0.6
+`BSD-2-Clause` 0.9377; grpcio 1.65.5 `BSD-3-Clause` 0.9402.
+
+- **Rule** (owner's choice of five measured, 2026-11-25): the floor stays
+  unless the input is longer than the marker's licence text (`COVERAGE` above
+  1.05, the top of the "whole text" band) and the whole-text search of
+  `TEXTS` finds texts that are not all the marker's licence's (its same-text
+  group, an `-only`/`-or-later` twin, a deprecated ID's replacement, an
+  exception dropped). Then the candidate keeps the additive `0.05c` only. It
+  acts on positive evidence alone: a search that finds nothing keeps the
+  floor, so a text the search cannot confirm (PyTorch's BSD-3-Clause with a
+  copyright block inside, item 64) answers as before.
+- **Code**: `similarity.floor_lift` (what the floor added; the score keeps its
+  five arguments) is stored as the internal `floor_lift`; `markerfloor`
+  takes it back in `LicenseDetector._rank_candidates`, before the
+  fingerprint bonus and the sort. The search runs once per input, only where
+  a floor binds above coverage 1.05, and calls `wholetexts.found_rows`
+  directly, not `textnames.held_texts`: terse `detect`, `is-*` and `is_*()`
+  give the same answer as `-v`.
+- **Rules rejected** (measured on the plan's probe): no floor at all loses 55
+  right fixtures and 4 right real files (sphinx's `LICENSE.rst` would answer
+  Sleepycat); a similarity bar (0.5 to 0.8) loses 40 to 55 right notices,
+  whose similarity (0.22 to 0.6) is that of Pillow's misfire (0.53); coverage
+  alone (1.05 to 2.0) loses pytorch.txt and sphinx; "the texts found must
+  hold the marker's licence" loses pytorch.txt, whose text the search misses.
+  Any bound from 1.05 to 1.3 gives the same answers.
+- **Measured, the plan** (`main` 4c5d13e with the rule patched in; build 6,
+  List 3.29.0): of 6,543 inputs (499 real licence files, 6,044 fixtures), 94
+  have their top on the floor; every misfire of the item is above coverage
+  1.05, and under 0.8 the floor lifts 60 right notices and pointers. 16 answers
+  at 0.85 move, golden none: Pillow, pandas, grpcio and the Saxpath
+  `tail_2000` fixture lose a wrong answer; numpy 1.26.4 to 2.2.6 and scipy
+  1.13.1, 1.15.2 (`LGPL-2.1-or-later` 0.9472), numpy 2.4.6 and scipy 1.17.1
+  (`BSD-3-Clause-Open-MPI` 0.9525) now answer `GPL-3.0-only` 0.92 to 0.93
+  (bundled, wrong either way: item 59); four files lose a partial answer
+  (numpy MT19937 and highway `BSD-3-Clause`, tensorboard `Apache-2.0`, the
+  torch 2.6.0 `NOTICE` `BSD-3-Clause`: each names one licence of a file that
+  holds several). Right answers lost: none. Cost: the search on 25 of 499
+  real files, +23 ms each (+4.5 percent) on terse `detect`.
+- **Measured, the build** (b98707d against 4c5d13e, a build-6 database of
+  List 3.29.0): the 6,044 fixtures (1,665 long, 4,170 short, 183
+  mixed-content, 26 curated) move one top answer, the Saxpath `tail_2000`
+  (`BSD-3-Clause` 0.9025 to `OpenSSL` 0.8376, `TEXTS` `Saxpath`), as the plan
+  says; `python -m tools.golden`: no row moves. The 499 real files were not
+  run again: their scratch copy was lost; the plan's 15 real changes stand
+  from the patched probe.
+- **Left**: floor misfires under coverage 0.8 (docutils `COPYING`
+  `GPL-3.0-or-later`, a GPL "Secondary Licenses" clause in a distorted EPL-2.0
+  copy); scikit-learn `COPYING` `Apache-2.0` 0.884 is similarity, not the
+  floor (item 59). A record of no answer has `TEXTS` empty (item 59).
+
+Item 35's last open bullet (`LICENSE`, Apache-2.0, three times over answered
+`BSD-4-Clause` 0.9025 through the floor) was fixed by PR #242: on 4c5d13e and
+on this branch it answers `RPSL-1.0` 0.7267, no answer at 0.85 (`TEXTS`
+`Apache-2.0`); twice, `Apache-2.0` 0.7444. No marker floor binds. Item 35 is
+closed.

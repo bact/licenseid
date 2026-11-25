@@ -26,6 +26,9 @@ and this project adheres to
 - Copies of the Apache-2.0 text, or Apache-2.0 beside a BSD text, no longer
   answer `BSD-4-Clause`: its "4. Redistribution." is no BSD condition
   ([#242])
+- A file of several licence texts no longer answers the one licence a notice
+  in it names (Pillow's `LICENSE` answered `GPL-2.0-or-later`, pandas'
+  `BSD-2-Clause`)
 
 ## [0.9.2] - 2026-11-24
 

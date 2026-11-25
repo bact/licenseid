@@ -24,7 +24,7 @@ LONG_TEXTS = Path(__file__).parent / "fixtures" / "license-text-long"
 # Real templates of a few licences, for the fixtures generated before
 # scripts/generate_fixtures.py wrote ``license_template`` (tests/fixtures/README.md).
 TEMPLATES = Path(__file__).parent / "fixtures" / "license-template"
-_DB_PATH = "file:long_text_detector?mode=memory&cache=shared"
+DB_PATH = "file:long_text_detector?mode=memory&cache=shared"
 _KEEP_ALIVE: list[object] = []
 
 _LICENSE_SQL = (
@@ -107,12 +107,12 @@ def long_text_detector() -> LicenseDetector:
     (``LicenseDatabase._update_db_records``): without them near-duplicate
     texts (ISC and Python-2.0, the BSD variants) lose their only signal once
     copyright-notice text is normalised away."""
-    manager = LicenseDatabase(_DB_PATH)  # opened first: it keeps the DB alive
+    manager = LicenseDatabase(DB_PATH)  # opened first: it keeps the DB alive
     _KEEP_ALIVE.append(manager)
     licenses, index = long_text_rows()
-    with sqlite3.connect(_DB_PATH, uri=True) as conn:
+    with sqlite3.connect(DB_PATH, uri=True) as conn:
         conn.executemany(_LICENSE_SQL, licenses)
         conn.executemany(INSERT_INDEX, index)
     store_fingerprints(manager._connections)  # pylint: disable=protected-access
-    seed_ready_metadata(_DB_PATH)
-    return LicenseDetector(_DB_PATH)
+    seed_ready_metadata(DB_PATH)
+    return LicenseDetector(DB_PATH)

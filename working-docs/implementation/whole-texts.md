@@ -428,3 +428,32 @@ then JSON.
 - Not measured: Linux, Windows, coverage runs, Python 3.14; filled-in
   placeholders and re-wrapped clauses; input built to defeat the vote
   windows.
+
+### 8. Used by the marker floor (item 67, 2026-11-25)
+
+`markerfloor` asks the same search whether a marker's confidence floor speaks
+for the whole input. A marker (a GPL notice, the BSD clauses, a `License:`
+field) lifts a candidate to at least 0.95 times its confidence; in a file of
+several licence texts that lifted one of them over the file (Pillow's
+`LICENSE` answered `GPL-2.0-or-later`). Now, where the input's `COVERAGE` of
+the marker's licence is above 1.05 and the search finds texts that are not all
+of that licence's same-text group, the candidate keeps its additive boost only.
+No text found keeps the floor: the rule acts on positive evidence alone.
+
+- **Direct call.** The check calls `wholetexts.found_rows`, not
+  `textnames.held_texts`, which `textnames.skipped()` turns off for terse
+  `detect`, `is-*` and `is_*()`: a check that depended on printing `TEXTS`
+  would give those another answer than `-v`. `TEXTS` then searches again with
+  the final answer; its tie preference for the answer's group can name a tie
+  differently, never find other rows.
+- **Once per input.** The search runs at the first candidate whose floor binds
+  above coverage 1.05, with that marker's licence as the tie preference, and
+  is reused for the rest (the same answers as one search per marker, on the
+  plan's 233 inputs where a floor bound).
+- **Changes**: 16 answers at 0.85 of 6,543 inputs, no golden row; the list
+  and the rules rejected are in
+  [`tech-debt-resolved-0-9.md`](tech-debt-resolved-0-9.md) (item 67).
+- **Cost**: the search runs on 25 of 499 real files (45 of 4,170 short and 22
+  of 1,665 long fixtures, 3 of 209 mixed), +23 ms a file on terse `detect`
+  (+4.5 percent), nothing elsewhere. A first use in a process reads the corpus
+  (20 ms from `text_codes`, 160 ms coded for a build-5 database).

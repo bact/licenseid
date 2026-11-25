@@ -33,6 +33,7 @@ from licenseid import (
     keptdetector,
     listindex,
     listsource,
+    markerfloor,
     spdxdata,
     textnames,
     warning,
@@ -119,8 +120,9 @@ class FoundRows:
 
 @pytest.fixture
 def found_rows(monkeypatch: pytest.MonkeyPatch) -> FoundRows:
-    """Stand in for ``wholetexts.found_rows`` and for the corpus the database
-    builds: the test sets ``rows``, and reads ``calls`` and ``built``. A
+    """Stand in for ``wholetexts.found_rows`` (as ``textnames`` and
+    ``markerfloor`` call it) and for the corpus the database builds: the test
+    sets ``rows``, and reads ``calls`` and ``built``. A
     detector made before the test would keep a corpus of its own: use a new
     one."""
     fake = FoundRows()
@@ -135,6 +137,7 @@ def found_rows(monkeypatch: pytest.MonkeyPatch) -> FoundRows:
         return None if fake.rows is None else list(fake.rows)
 
     monkeypatch.setattr(textnames, "found_rows", search)
+    monkeypatch.setattr(markerfloor, "found_rows", search)
     monkeypatch.setattr(TextCorpus, "build", staticmethod(build))
     return fake
 

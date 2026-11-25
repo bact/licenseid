@@ -72,7 +72,10 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   of the licence's popularity. A marker of confidence 0.85 or more adds to the
   score, and a short, mixed or structural one (a notice, a heading) sets it to
   at least 0.95 of its confidence. So a short notice or a pointer can score 1
-  with a `SIMILARITY` well below 1. Several results can score 1: the order tells
+  with a `SIMILARITY` well below 1. That floor does not hold where the input is
+  longer than that licence's text (`COVERAGE` above 1.05) and holds whole
+  licence texts other than it: a notice in a file of several licence texts
+  does not answer for the file. Several results can score 1: the order tells
   them apart, and `EXACT` tells an exact one from a close one.
 - `SIMILARITY` is 0 to 1: how alike the input and the text it was compared with
   are, by RapidFuzz. That text is the whole licence text, or its core (the text
@@ -133,11 +136,13 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   the answer alone. The same list is on every `--top` line. It is filled for
   `-v`, `--json` and the API; the search is skipped where it is never printed
   (the `is-*` commands, the `is_*()` functions, and `detect` without `-v` or
-  `--json`). It is empty (JSON `null`) when no text was found, when the top
-  result is not a text match, when the input has under 40 words (a Han or kana
-  character counts as one word) and its answer is not exact, and when the input
-  is too large to search (the search is bounded by counts, and past one it gives
-  no list, never a partial one). `exclude` and `hint` leave the search and
+  `--json`), except that it runs, unprinted, where a marker's floor needs it
+  (`SCORE`), so every output gives the same answer. It is empty (JSON `null`)
+  when no text was found, when the top result is not a text match, when the
+  input has under 40 words (a Han or kana character counts as one word) and its
+  answer is not exact, and when the input is too large to search (the search is
+  bounded by counts, and past one it gives no list, never a partial one).
+  `exclude` and `hint` leave the search and
   the texts it finds as they are, but they change the answer: its own name
   follows it, its group wins a tie between two groups of equal fit (so, rarely,
   another answer gives another tie), and they can make the top result not a
