@@ -258,6 +258,8 @@ answer rests on, in the shape of `resolve()`'s `lists` (a `licenseid.ListInfo`):
 the database's SPDX License List, its `version`, `source` `"database"`. For
 `detect(text="MIT")`:
 
+<!-- docs-example: shape: licenseid.detect(text="MIT") -->
+
 ```python
 [
     {

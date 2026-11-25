@@ -26,13 +26,12 @@ to this file: edit `AGENTS.md`.
 ### Where things are
 
 - `working-docs/design/`: plans and sketches, not built, may be discarded.
-  `working-docs/implementation/`: what was built, why, paths rejected; start
-  at its `README.md`. Releasing: `release-process.md` there (gates compare
-  with the last tag, not only `main`).
-  `working-docs/paper-notes/`: sourced material for a paper; add publishable
-  findings; start at its `README.md`. Every `working-docs/` file has
-  `Created` and `Last-Modified` (`YYYY-MM-DD`) in its front matter, no date
-  in the file name.
+  `working-docs/implementation/`: what was built, why, paths rejected; start at
+  its `README.md`. Releasing: `release-process.md` there (gates compare with the
+  last tag, not only `main`). `working-docs/paper-notes/`: sourced material for
+  a paper; add publishable findings; start at its `README.md`. Every
+  `working-docs/` file has `Created` and `Last-Modified` (`YYYY-MM-DD`) in its
+  front matter, no date in the file name.
 - User docs: `README.md` (short; the PyPI long description and the Citation
   block, so its links are absolute) and `docs/`: `installation`, `cli`
   (commands, options, exit codes, predicates), `output` (text record, JSON,
@@ -53,6 +52,18 @@ to this file: edit `AGENTS.md`.
   can be measured (the PyPI counts, the answer and `EXACT` of an example) is
   computed, never typed. A new list gets its section in
   `tools/lists_page/render.py`, its `CATEGORY` and `EXACT` value.
+- User docs are tested: `docs.yml` runs these tests and `markdownlint-cli2
+  "**/*.md"` on a Markdown change, which the other workflows skip.
+  `test_docs_vocabulary`: each option, step kind, detail, reason, result key
+  (`test_docs_numbers`: number) is in its page; links and anchors resolve.
+  `test_docs_status`: line numbers and releases only on `PINNED` pages; a
+  time-bound sentence (`yet`, an upstream link) is in `TIME_BOUND`, reread
+  for each version; one version everywhere. `test_docs_examples`: a block
+  that shows a result runs (`$ licenseid`, `licenseid ...  # result`, Python,
+  `resolve()` JSON, resolve-flow's worked examples), else is marked
+  `<!-- docs-example: skip: <why> -->`, or `run: <command>; head` for an
+  output block; `COUNTS` holds the blocks of each page. Review habits:
+  `working-docs/implementation/release-process.md`.
 - Test fixtures: `tests/fixtures/README.md`.
 
 ### Modules (`src/licenseid/`)
@@ -81,13 +92,12 @@ in another module.
   (public result, JSON and text lines), `types`.
 - Reading an ID: `looseid` ("Apache2", "GPLv3"; `disambiguate_whole`),
   `bsdclauses` (BSD-N-Clause by its conditions), `deprecatedids`,
-  `plusoperator`, `versionkey` (a bare major the List has another minor of
-  names no row, `ambiguous_ids`; an "or later" grant exempts it),
-  `quotes` (quote marks around a whole value,
-  `「」` too), `dropguard` (what a loose reading must not drop),
-  `hiddenchars` (control and format characters off the ends and beside white
-  space, inside quotes too),
-  `grantchain` (a tag whose grant an operator follows, read by `resolve()`).
+  `plusoperator`, `versionkey` (a bare major the List has another minor of names
+  no row, `ambiguous_ids`; an "or later" grant exempts it), `quotes` (quote
+  marks around a whole value, `「」` too), `dropguard` (what a loose reading must
+  not drop), `hiddenchars` (control and format characters off the ends and
+  beside white space, inside quotes too), `grantchain` (a tag whose grant an
+  operator follows, read by `resolve()`).
 - Resolver: `resolver` (value to expression and steps; types in
   `resolvertypes`), `resolveleaf` (one licence), `resolvecompound`,
   `resolvesemicolon` (`;`: listed, no operator), `resolveslash`,
@@ -102,16 +112,14 @@ in another module.
 - Lists: `listlookup` (a Protocol; `fold_case`), `listindex` (the shipped
   bundle in memory), `listsource` (database or packaged), `listrules`
   (entries kept, deprecated targets).
-- Data: `database`, `dbconnection`, `dbcache`, `dbschema`, `dbcheck`,
-  `datadir`, `records` (rows), `spdxdata` (a release as data; no
-  `requests`, `click` or `rapidfuzz`), `releasesource`, `spdx_source`,
-  `textinput` (bytes to text), `manifest` (the `license` field of
-  package.json, pyproject.toml, Cargo.toml, setup.cfg; a TOML basic string
-  decoded, a literal one not).
-- CLI: `cli` (group, `main`), `cliinput` (one of file, value, `--text`,
-  `--id`, `-`), `clidetect` (`detect`, `is-*`), `cliupdate` (`update`,
-  `clear-cache`), `cliresolve`, `clicommon`, `output`, `console`, `usage`,
-  `errors`, `warning`.
+- Data: `database`, `dbconnection`, `dbcache`, `dbschema`, `dbcheck`, `datadir`,
+  `records` (rows), `spdxdata` (a release as data; no `requests`, `click` or
+  `rapidfuzz`), `releasesource`, `spdx_source`, `textinput` (bytes to text),
+  `manifest` (the `license` field of package.json, pyproject.toml, Cargo.toml,
+  setup.cfg; a TOML basic string decoded, a literal one not).
+- CLI: `cli` (group, `main`), `cliinput` (one of file, value, `--text`, `--id`,
+  `-`), `clidetect` (`detect`, `is-*`), `cliupdate` (`update`, `clear-cache`),
+  `cliresolve`, `clicommon`, `output`, `console`, `usage`, `errors`, `warning`.
 
 ## SPDX matching
 
@@ -176,13 +184,12 @@ and `--json`) against these rules and checks the default output against the
 
 ### Exit codes
 
-- 0: an answer, yes, done. 1: no answer, no, or a failed action (`update`,
-  a delete `clear-cache` could not make). 2: usage error (two inputs,
-  `--json` with `--diff`), unusable input, database not ready, or a result
-  that could not be written (`output: write failed: <reason>`). 141: the
-  reader closed the pipe. 130: Ctrl-C, also while options are parsed
-  (`cli.main()` runs click outside standalone mode). 141 and 130 print
-  nothing (`DatabaseErrorGroup`).
+- 0: an answer, yes, done. 1: no answer, no, or a failed action (`update`, a
+  delete `clear-cache` could not make). 2: usage error (two inputs, `--json`
+  with `--diff`), unusable input, database not ready, or a result that could not
+  be written (`output: write failed: <reason>`). 141: the reader closed the
+  pipe. 130: Ctrl-C, also while options are parsed (`cli.main()` runs click
+  outside standalone mode). 141 and 130 print nothing (`DatabaseErrorGroup`).
 - Exit 1 of `detect` and `resolve` prints no `ERROR` line: "no" is an
   answer. `update` and `clear-cache` print no record on exit 1, only their
   `ERROR` line. A `WARNING` about input or database (`variant not stated`,
@@ -210,17 +217,16 @@ and `--json`) against these rules and checks the default output against the
     `latest.json`, `licenses.json`, `popularity.csv`,
     `spdx-bundle-v<ver>.json.gz`, `spdx-bundle.json.gz` (packaged),
     `spdx-data-v<ver>.tar.gz`.
-  - `CONDITION`: short lower-case fragment, reused across subjects. The full
-    set (add new ones here): `not found`, `invalid`, `missing`, `empty`,
-    `unreadable`, `binary file`, `not UTF-8, read as Latin-1`,
-    `N days old`, `normalization vN outdated`, `build vN outdated`,
-    `build vN newer`, `download failed`, `cache read failed`,
-    `cache write failed`, `cache unusable`, `download unusable`,
-    `stale cache unusable`, `parse failed`, `variant not stated`,
-    `deprecated ID`, `N rows with missing or non-numeric num_pushers`,
-    `update failed`, `delete failed`, `write failed`, `compact failed`,
-    `older than the database`, `too few words for text`,
-    `overridden by input`.
+  - `CONDITION`: short lower-case fragment, reused across subjects. The full set
+    (add new ones here): `not found`, `invalid`, `missing`, `empty`,
+    `unreadable`, `binary file`, `not UTF-8, read as Latin-1`, `N days old`,
+    `normalization vN outdated`, `build vN outdated`, `build vN newer`,
+    `download failed`, `cache read failed`, `cache write failed`,
+    `cache unusable`, `download unusable`, `stale cache unusable`,
+    `parse failed`, `variant not stated`, `deprecated ID`,
+    `N rows with missing or non-numeric num_pushers`, `update failed`,
+    `delete failed`, `write failed`, `compact failed`,
+    `older than the database`, `too few words for text`, `overridden by input`.
   - `DETAIL`: one line. A path through `errors.shown` (control characters
     escaped, `;` as `,`), a value through `errors.one_line` (folded, cut to
     60), an exception through `errors.typed`. Not result escaping: a
@@ -230,16 +236,15 @@ and `--json`) against these rules and checks the default output against the
     `using packaged data v<ver>`, `counted as 0`, `using A, B`,
     `using <answer>`) or the command to run (`run 'licenseid update'`), on
     the same line as its cause.
-- Raise a failure as `licenseid.errors.LicenseIdError`
-  (`SUBJECT: CONDITION…`, no prefix): the CLI prints it after `ERROR:` and
-  exits 1, or 2 for `InvalidInputError`. `DatabaseNotReadyError` (missing,
-  empty, invalid, unreadable) exits 2 in `detect`, `resolve`, `is-*`.
-  `update` and `clear-cache` refuse only an `invalid` database (not built by
-  licenseid) or an `unreadable` symlink loop: they exist to fix the rest.
-  Any other exception in `update`, RuntimeError subclasses such as
-  RecursionError included, becomes
-  `SUBJECT: update failed: <Type>: <text>`. A default directory `update`
-  cannot make is `directory: write failed: <dir>: <reason>; pass --db`.
+- Raise a failure as `licenseid.errors.LicenseIdError` (`SUBJECT: CONDITION…`,
+  no prefix): the CLI prints it after `ERROR:` and exits 1, or 2 for
+  `InvalidInputError`. `DatabaseNotReadyError` (missing, empty, invalid,
+  unreadable) exits 2 in `detect`, `resolve`, `is-*`. `update` and `clear-cache`
+  refuse only an `invalid` database (not built by licenseid) or an `unreadable`
+  symlink loop: they exist to fix the rest. Any other exception in `update`,
+  RuntimeError subclasses such as RecursionError included, becomes
+  `SUBJECT: update failed: <Type>: <text>`. A default directory `update` cannot
+  make is `directory: write failed: <dir>: <reason>; pass --db`.
 - A step printing partial progress (`status(..., end="")`) that can fail
   calls `console.end_line()` in a `finally`.
 - click's usage errors use the grammar too
@@ -274,13 +279,12 @@ and `--json`) against these rules and checks the default output against the
   SQLite: `textinput.reject_lone_surrogate` raises `InvalidInputError` where
   the detector takes a text; `clicommon.reject_unencodable` exits 2 first
   for `--text` and the argument.
-- Input with no extension starting `[` or `{` is tried as JSON, then
-  TOML/INI. Every licence value (tag, JSON, TOML, INI, explicit
-  `license_id`) resolves through `MarkerDetector.resolve_license_value`, and
-  every expression through `_synthetic_candidate`: a candidate only for a
-  valid expression or `LicenseRef-*` with at least one recognised ID.
-  `is_*()` and `is-*` answer from `LicenseDetector._resolve_record`; never
-  look a record up on the side.
+- Input with no extension starting `[` or `{` is tried as JSON, then TOML/INI.
+  Every licence value (tag, JSON, TOML, INI, explicit `license_id`) resolves
+  through `MarkerDetector.resolve_license_value`, and every expression through
+  `_synthetic_candidate`: a candidate only for a valid expression or
+  `LicenseRef-*` with at least one recognised ID. `is_*()` and `is-*` answer
+  from `LicenseDetector._resolve_record`; never look a record up on the side.
 - A whole input (argument, `--text`, stdin, file, `detect(text=...)`) is
   read by `resolve()` first (`resolvefirst.as_resolved`): its expression,
   compound too, is the answer. The rest goes through the tiers. One under
@@ -289,12 +293,11 @@ and `--json`) against these rules and checks the default output against the
   tag was taken out; also where `namehits` dropped the hit). Han and kana
   text is never cut by word count.
 - `--id` and `detect(license_id=...)` declare ONE licence, judged only by
-  `identifiers.is_simple_expression` (an ID, `+` unless `-only`/`-or-later`,
-  or `LicenseRef-*` without `+`; optionally `WITH` an exception, any
-  brackets). `cliinput.reject_compound_id` exits 2
-  (`errors.invalid_id_error`); `LicenseDetector._try_explicit_id_match`
-  raises, so ask the predicate first. Never widen `--id` to expressions.
-  The CLI makes no ID guess of its own.
+  `identifiers.is_simple_expression` (an ID, `+` unless `-only`/`-or-later`, or
+  `LicenseRef-*` without `+`; optionally `WITH` an exception, any brackets).
+  `cliinput.reject_compound_id` exits 2 (`errors.invalid_id_error`);
+  `LicenseDetector._try_explicit_id_match` raises, so ask the predicate first.
+  Never widen `--id` to expressions. The CLI makes no ID guess of its own.
 - `exclude` and `hint` are `detect()` API options only (no CLI flag;
   `resolve()` has neither) and act on free text only: a declaration (tag,
   field, `license_id`, a whole input `resolve()` reads) is never filtered or
@@ -373,13 +376,12 @@ and `--json`) against these rules and checks the default output against the
   (`tests/test_grant_glued_marks.py`). Keywords match in ASCII case only
   (`(?a:...)` or `re.ASCII`; `tests/test_readers_case.py`).
 - "+": `plusoperator.PLUS_OPERATOR` (`strip_plus_operator`,
-  `replace_plus_operator`, `plus_after_qualifier`; standard library only)
-  is the one reader: right after an ID, never after a space, a "+", an
-  exception or a `LicenseRef-*`. `versionkey.version_key`,
-  `is_simple_expression` and `classify`'s
-  shorthand ("GPLv2+") follow it; `tests/test_plus_readers.py` holds all
-  four to one table: change one, run it. `normalize_text` drops a "+" that
-  is no operator, so `detector._try_tier0_short_text` returns None for a
+  `replace_plus_operator`, `plus_after_qualifier`; standard library only) is the
+  one reader: right after an ID, never after a space, a "+", an exception or a
+  `LicenseRef-*`. `versionkey.version_key`, `is_simple_expression` and
+  `classify`'s shorthand ("GPLv2+") follow it; `tests/test_plus_readers.py`
+  holds all four to one table: change one, run it. `normalize_text` drops a "+"
+  that is no operator, so `detector._try_tier0_short_text` returns None for a
   value under 30 words that `resolve()` refuses with a "+" reason
   (`resolvereason.is_plus_refusal`; add new reasons to its constants).
 - Marks: a lone bracket or slash at an end (`(MIT`, `MIT)`, `/MIT`, `MIT/`) is
@@ -417,12 +419,11 @@ and `--json`) against these rules and checks the default output against the
   final from 10 words on (no Tier 1; under 10 words `too_short` warns); below 1,
   Tier 1 runs. Mixed-content sections (`match_short_text`) only lose the hit.
   Add a rule there, with a made-up row in `tests/test_namehits.py`.
-- "/" is OR only in a whole value (`resolveslash.slash_parts`): each piece
-  an exact-case List ID (a "+" read by `plusoperator`) or `LicenseRef-*`,
-  at least one List
-  ID; never a tag, never inside a `;` part. `MIT/X11` is in
-  `REFUSED_PAIRS`. `tests/slash_pins.py` pins 0.8.3's answers: moving one
-  is a loosening.
+- "/" is OR only in a whole value (`resolveslash.slash_parts`): each piece an
+  exact-case List ID (a "+" read by `plusoperator`) or `LicenseRef-*`, at least
+  one List ID; never a tag, never inside a `;` part. `MIT/X11` is in
+  `REFUSED_PAIRS`. `tests/slash_pins.py` pins 0.8.3's answers: moving one is a
+  loosening.
 - Licence URL: one key, `urlkey.url_key` (ASCII only; scheme, `www.`, fragment,
   trailing `/`, one page suffix dropped; query kept; decodes nothing); key both
   a declared URL and the List's with it. The List's pages (`seeAlso`) are the
@@ -430,14 +431,13 @@ and `--json`) against these rules and checks the default output against the
   `resolveurl.list_url_key` (skips a URL with a fragment). A page naming several
   unrelated licences or only an exception is refused. `URL_ALIASES` and
   `SCANCODE_NOT_SPDX` grow only with a measured package count
-  (`working-docs/paper-notes/licence-urls.md`; `docs/lists.md` shows it).
-  Take an ID from a path only on a host in `ID_PAGES`. `licenses.nuget.org`
-  paths, for that host only, are decoded (`nugetpath`) once, every `%XX` in
-  one pass, and must fit `[A-Za-z0-9.+()-]` with words one space apart, which
-  refuses `%2F`, `%00`, `%C2%A0`, `%2520` without a list of escapes.
-  Operators upper case; a compound is no operand of a compound (`operand
-  names an expression`); `url_license_id` brackets one (`(A OR B)`) so a tag
-  keeps precedence.
+  (`working-docs/paper-notes/licence-urls.md`; `docs/lists.md` shows it). Take
+  an ID from a path only on a host in `ID_PAGES`. `licenses.nuget.org` paths,
+  for that host only, are decoded (`nugetpath`) once, every `%XX` in one pass,
+  and must fit `[A-Za-z0-9.+()-]` with words one space apart, which refuses
+  `%2F`, `%00`, `%C2%A0`, `%2520` without a list of escapes. Operators upper
+  case; a compound is no operand of a compound (`operand names an expression`);
+  `url_license_id` brackets one (`(A OR B)`) so a tag keeps precedence.
 
 ## Database
 
@@ -784,7 +784,7 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   acronyms defined on first use, parallel lists, Chicago citations. Short
   comments; do not restate the obvious.
 - Markdown: YAML front matter; standard Markdown, no GitHub extensions;
-  sentence-case headings; lines ≤80; run markdownlint.
+  sentence-case headings; lines ≤80; run `markdownlint-cli2 "**/*.md"`.
 - Names: ASCII letters, digits, `-`, `_`; language conventions; singular
   for one entity, plural for collections and utility modules.
 - Shell: mind GNU/BSD/macOS differences; quote variables and paths; mind

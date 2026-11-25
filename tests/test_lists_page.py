@@ -7,13 +7,16 @@
 equal what ``python -m tools.lists_page`` writes (roadmap item 55)."""
 # pylint: disable=missing-function-docstring
 
+import re
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from resolver_corpus import sample_rows
 
 from licenseid import LicenseDatabase
+from licenseid.listlookup import fold_case
 from licenseid.resolvealias import ALIASES
 from licenseid.resolveslash import REFUSED_PAIRS
 from licenseid.resolvetitle import TITLES
@@ -27,8 +30,9 @@ from licenseid.trovenames import TROVE_NAMES
 from tools.lists_page import __main__ as generator
 from tools.lists_page import evidence
 from tools.lists_page.measure import answer_of, list_owners, project_counts
-from tools.lists_page.render import render
+from tools.lists_page.render import ALIAS_TEXT, TITLE_TEXT, render
 from tools.lists_page.rules import RULES
+from tools.pypi_licence_sample.answer import unescape_field
 
 PAGE = Path(__file__).parents[1] / "docs" / "lists.md"
 
@@ -244,3 +248,46 @@ def test_the_page_is_plain_markdown_within_80_columns() -> None:
     for number, line in enumerate(text.splitlines(), 1):
         assert line == line.rstrip(), number
         assert len(line) <= 80 or line.startswith("|"), number
+
+
+def _stated_category(text: str) -> str:
+    """The category the intro of a section states for its rows."""
+    found = re.search(r"category\s+`(\w+)`,\s+`EXACT` yes", text)
+    assert found, text
+    return found.group(1)
+
+
+@pytest.mark.parametrize(
+    ("rows", "text"),
+    [(ALIASES, ALIAS_TEXT), (TITLES, TITLE_TEXT)],
+    ids=["ALIASES", "TITLES"],
+)
+def test_each_row_reads_as_its_section_says(
+    corpus_db: LicenseDatabase, rows: dict[str, str], text: str
+) -> None:
+    """The page says each row answers its ID with the section's category,
+    exact. The one exception is the one the title section names: a title with
+    a version and no grant is the bare deprecated ID, ``assumed_only``."""
+    stated = _stated_category(text)
+    for key, license_id in rows.items():
+        got = answer_of(corpus_db, key)
+        assert (got.expression, got.exact) == (license_id, True), key
+        words = key.split()
+        named = "`assumed_only`" in text and "version" in words and "later" not in words
+        assert got.category == stated or (named and got.category == "assumed_only"), (
+            f"{key!r} reads as {got.category}, the page says {stated}"
+        )
+
+
+def test_a_row_a_sample_value_equals_is_counted(corpus_db: LicenseDatabase) -> None:
+    """A guard for a row shown with no count although a sample value is its
+    key (fixed in bcb744d): counted by step, such a value counts."""
+    counts = project_counts(corpus_db)
+    written = {
+        fold_case(" ".join(unescape_field(row["value"]).split()))
+        for row in sample_rows()
+    }
+    for name, rows in (("alias", ALIASES), ("title", TITLES)):
+        keys = {fold_case(" ".join(key.split())) for key in rows}
+        uncounted = sorted(k for k in keys & written if counts[name][k] < 1)
+        assert keys & written and not uncounted, f"{name}: {uncounted}"

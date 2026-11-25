@@ -51,6 +51,7 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_detect_function.py",
         "test_detect_options_paths.py",
         "test_detection_lists.py",
+        "test_docs_examples.py",
         "test_fingerprint.py",
         "test_harness_golden_cli.py",
         "test_hatch_build.py",

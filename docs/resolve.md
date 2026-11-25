@@ -380,16 +380,17 @@ those of one run):
 
 A step holds its `kind`, `applied` (false for a step declined or a reading
 refused), `from` and `to`, the `id` of the list it rests on in `list`, and
-a `detail`, `null` when it has nothing to add:
+a `detail`, `null` when it has nothing to add (each example gives the
+detail in its place):
 
 | Step kind | `detail` | Example value |
 | --- | --- | --- |
 | `separator` | `end mark`, `slash as OR`, `version brackets` | `MIT;`, `MIT/ISC`, `Apache License (2.0)` |
-| `unquote` | `balanced`, `balanced, 2 layers`, `unbalanced, start`, `unbalanced, end` | `"MIT"`, `'"MIT"'`, `"MIT` |
+| `unquote` | `balanced`, `balanced, 2 layers`, `unbalanced, start`, `unbalanced, end` | `"MIT"`, `'"MIT"'`, `"MIT`, `MIT"` |
 | `trim` | `zero-width characters`, `invisible characters` | `MIT​`, `MIT‮` |
 | `prose_form` | `licence word`, `version`, `leading article` | `BSD 3-Clause License`, `Apache License, Version 2.0`, `The MIT License` |
 | `stated_qualifier` | `or later stated` | `MIT or later` |
-| `license_url` | `list page`, `id in path`, `expression in path`, `see also`, `alias` | `spdx:MIT`, `https://licenses.nuget.org/MIT`, `https://www.apache.org/licenses/LICENSE-2.0` |
+| `license_url` | `list page`, `id in path`, `expression in path`, `see also`, `alias` | `spdx:MIT`, `https://licenses.nuget.org/MIT`, `https://licenses.nuget.org/(MIT)%20OR%20ISC`, `https://www.apache.org/licenses/LICENSE-2.0`, `https://opensource.org/license/mit-license` |
 | `drop` | the code points of the marks | `Apache 2.0?`: `U+003F` |
 
 `detect()` gives each of its results `lists` in this same shape, built the
@@ -405,6 +406,8 @@ on one line (the bytes `licenseid.json_line(resolve(value))` gives), with or
 without `-v`. With `-v` (`--verbose`), the result is a few `KEY=VALUE` lines,
 one data point each, with one tab between the fields (shown here as
 `<TAB>`):
+
+<!-- docs-example: skip: a template of the lines -->
 
 ```text
 EXPRESSION=<expression><TAB>CATEGORY=<category><TAB>TRUST=<trust>
@@ -498,7 +501,8 @@ run):
      "url": "https://pypi.org/project/py-spdx-license/0.0.1/",
      "purl": "pkg:pypi/py-spdx-license@0.0.1"}
   ],
-  "reason": null
+  "reason": null,
+  "...": "..."
 }
 ```
 
@@ -526,7 +530,8 @@ For `resolve("MIT ; Apache 2")`, shortened:
     {"text": "Apache 2", "span": [6, 14], "expression": "Apache-2.0",
      "category": "version_spelling", "...": "..."}
   ],
-  "reason": "operator not stated: ;"
+  "reason": "operator not stated: ;",
+  "...": "..."
 }
 ```
 

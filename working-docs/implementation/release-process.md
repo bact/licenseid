@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-22
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -28,7 +28,12 @@ A release with many merged changes is reviewed as a whole first:
    block and the BibTeX of `README.md` (they are not generated).
    `CITATION.cff` follows from `codemeta.json` by workflow. A dev version is
    written in PEP 440 normal form (`0.9.0.dev0`), as METADATA keeps the
-   version as written (`0.9.0-dev.0` would show there).
+   version as written (`0.9.0-dev.0` would show there). The same PR bumps
+   the licenseid version the docs show (the JSON and the field table of
+   `docs/resolve.md`), and rereads each entry of `TIME_BOUND` in
+   `tests/test_docs_status.py`: still true, raise its version; else reword
+   the sentence and drop the entry. `test_docs_status.py` and
+   `test_docs_examples.py` fail until both are done.
 3. Wait for CI on the merge commit on `main` (unit tests, build wheels, lint,
    type checking). Tag `v<version>` on that commit and publish the GitHub
    release; publishing starts `pypi-publish.yml`, which builds with
@@ -121,6 +126,18 @@ the dates in `codemeta.json` and `CHANGELOG.md` before tagging.
   running the command, not by reading the text. One claim was caught that
   way (the roadmap said the CLI could not send a lone surrogate; an
   argument of invalid UTF-8 can).
+- The doc tests (`tests/test_docs_*.py`, item 57) run what can run on the
+  fixture databases. By hand, on a wheel built for the release and installed
+  with `env -i HOME=<scratch>`: each block marked `docs-example: skip` (the
+  MPL-2.0 `SAME_TEXT` example of `output.md`), and each `bash` instruction
+  the tests ignore (`pipx install`, `licenseid update` from the network, the
+  scripts of `cli.md`). A claim that depends on the install (a packaged
+  bundle in a wheel, none in an editable install) is checked on that wheel.
+- Review habits for the docs, which no test holds: a sentence that promises
+  behaviour (`always`, an error type, a warning) names an example a test
+  runs; a reason in a table row names its source and was checked against it;
+  each rule has one home in `docs/`, and other pages link to it rather than
+  restate it.
 
 ## The SPDX list a release ships
 
@@ -176,6 +193,10 @@ latest SPDX list, and `licenseid update` fetches a newer one.
   its anchor, or it matches an earlier copy; flake8 `F811` (redefinition)
   showed the damage. Restore with `git checkout` and redo.
 - Never type a PR number before the PR exists; add the `[#N]` link after.
+- Before 0.9.0 five verifiers found drift between the docs and the code that
+  no test saw: a docs-only PR ran no test (`lint.yml` and `test.yml` skip
+  Markdown). `docs.yml` now lints every Markdown file and runs the doc tests
+  on such a PR (item 57).
 - Names for sources were decided late, after the confusion showed in release
   notes ("bundle" meant both the download and the file in the wheel). Write the
   release notes before the tag, and rename while nothing is released: it was
