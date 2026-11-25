@@ -87,9 +87,10 @@ carries its own copy of the same list.
   decode as UTF-8 is `database: unreadable`, as any other read. Tokens: ASCII
   `split()`; non-ASCII input has one Han or kana character per token (no
   spaces in those scripts; a word-count cut would miss them, AGENTS.md).
-- `textlocate.py`: indexes the input's word 5-grams. Per text (no longer
-  than the input): a sample check of 48 evenly spaced 5-grams (under 30
-  percent found: next text, which stops most of the 708); votes from up to
+- `textlocate.py`: indexes the input's word 5-grams. Per text short enough
+  to fit the input (`can_reach`, below): a sample check of 48 evenly
+  spaced 5-grams (under 30 percent found: next text, which stops most of
+  the 708); votes from up to
   200 anchors give offset buckets; two neighbouring buckets with 30 percent
   of the anchors make a window, one per copy. Best first, a word-level LCS
   gate (0.80), then the matching blocks trimmed at both ends, then one
@@ -97,8 +98,9 @@ carries its own copy of the same list.
   when the ratio is at least `MIN_SIMILARITY` (0.95) and the span holds the
   same count of each `similarity.CRITICAL_TOKENS` word as the text
   (`textcorpus.COUNTED_WITH`: "neither" counts as "not", so a copy that
-  swaps one for the other is not the same text). A core
-  is tried too, under the same rule.
+  swaps one for the other is not the same text), and the span misses no
+  run of `MAX_GAP_CHARS` (150) characters of the text (section 4, "Gap
+  guard"). A core is tried too, under the same rule.
 - `wholetexts.py`: selection. Key `2 x matched - len(text)` (found less
   missing), then the answer's group, then ID. A hit overlapping a kept one
   by more than a tenth of the shorter span is dropped. Look-alike rule: a
@@ -163,13 +165,57 @@ claim (the 8-positions cap did exactly this in the study).
 | `MAX_VOTES` | 3,000,000 |
 | `MAX_WINDOWS` | 15,000 |
 | `MAX_WORD_CELLS` | 5 x 10^9 |
-| `MAX_CHAR_CELLS` | 20 x 10^9 |
+| `MAX_CHAR_CELLS` | 50 x 10^9 |
 
 Gates: vote share 0.30 (a word ratio of 0.8 spread evenly leaves 0.8^5 =
 0.33 of the 5-grams; a sweep of 366 inputs lost nothing at 0.3, two hits at
 0.4); word gate 0.80 (lowest word ratio of a hit 0.835; 0.85 lost three).
 Worst input built under the limits: about 0.4 s and 45 MB (RapidFuzz's bit
 matrix, bounded by the largest List text, not the input).
+
+Character cells (2026-11-25): a fit charges `length x size`, but
+RapidFuzz's Indel with a cut-off is bit-parallel and banded: 3 to 6 ns per
+1,000 cells on texts of 2,000 characters or more (up to 12 ns on 500, where
+the window limit bounds the count), whatever the similarity. The old limit,
+2 x 10^10 cells, was about 0.1 s of work and left long bundles unsearched:
+12 common licences charge 1.2 x 10^10, the 11 GPL-family texts 1.4 x 10^10,
+long licences with many look-alikes up to 2.8 x 10^10 (CPAL, NPL, CC 3.0)
+and 30 copies of CC-BY-3.0 4.3 x 10^10 (0.12 s of fits, 0.32 s in all). At
+5 x 10^10 the character stage costs at most about 0.3 s. Every built input
+that spent more time (0.5 s at most) stopped at the word cells first; the
+process peaked at 122 MB, corpus included (Indel's distance keeps one bit
+row, not a matrix). A 20-text GPL-family bundle does not fit the token
+limit: the 11 family texts and 2 repeats make 49,000 tokens (1.3 x 10^10
+cells, listed under either limit).
+
+Length bound: a text of `length` characters fits a span of `size` at most
+at `2 x size / (length + size)`, so a text is tried while it can reach
+NEAR_SIMILARITY against the whole input (a text up to 1.150 times the
+input's length; a look-alike) and scored as a hit while it can reach
+MIN_SIMILARITY (up to 1.105 times): `textlocate.can_reach`, in whole
+percent as `Fit.reaches`. A fixed bound of 1.05 left a copy that lost a
+clause to a shorter neighbour (ISC named 0BSD, MIT-open-group named
+HPND-sell-variant, MIT-advertising named MIT-feh), and padding the input
+changed the answer.
+
+Gap guard (2026-11-25): a hit's span may not miss a run of
+`MAX_GAP_CHARS` (150) characters of the text or more, about 25 words: the
+input lacks a clause, so it holds another licence. Spread edits (OCR, a
+changed word, reflow) leave short runs. The runs come from `align`'s kept
+blocks (`Alignment.missing`, text word positions), measured in characters
+(`textlocate.longest_gap`): a word count would make the guard 5 to 6 times
+stricter on Han and kana, a token per character. A text refused by the
+guard still casts doubt as a look-alike, as one refused by a critical
+word: a damaged copy of it must not name a shorter neighbour. A long run at
+an end of the text is looked for once more on the span widened by that run
+(`wholetexts._Search._hit_span`): the alignment can tie the text's end to
+a later copy of the same words (Python-2.0.1's closing disclaimer, repeated
+by the 0BSD text after it in Python's `LICENSE`) and trimming then drops
+that block. The second look is for a hit only (a look-alike keeps its first
+span) and only where the blocks trimmed off that end matched half the run
+or more (a few stray words are no copy), charged to the word cells; fits
+are cached by span. Without those two conditions the step cost 5 to 12
+percent more on the longest real files.
 
 ### 5. Measurements
 
@@ -241,6 +287,62 @@ were scratch data and are not kept):
   whose wording differs from the List text by a few words and sits as close
   to a near twin.
 
+#### Gap guard (2026-11-25)
+
+Probes on the List's own texts (the run files were scratch data and are
+not kept): leave-one-out (each text as input, its own group removed from
+the corpus: a licence not on the List; any name is a look-alike), the same
+inputs followed by the MIT text (a bundle), `fuzz5` (2 to 20 words dropped
+in one place, maybe 1 to 4 words changed; 4 per text), a drop probe (one
+run of 8 to 40 words dropped; 7 per text), and the 493 real files plus the
+user's six, before and after:
+
+| Probe | Before | 120 | 150 | 180 | 1.05 bound |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Leave-one-out, names | 115 | 99 | 99 | 101 | 112 |
+| Same, in a bundle, names removed | | 16 | 16 | 14 | 0 |
+| `fuzz5` right names lost (of 1,880) | | 101 | 6 | 1 | 263 |
+| Drop probe right names lost (of 2,414) | | 844 | 534 | 291 | 423 |
+| Real files changed | | 0 | 0 | 0 | |
+
+"1.05 bound" is the alternative: a hit at most 1.05 times the input's
+length, look-alikes up to 1.150 times. It removes only the three new names
+(CC-SA-1.0 named CC-BY-SA-1.0, MS-PL named MS-LPL, CDDL-1.0 named
+CDDL-1.1) and none in a bundle, where the input is longer than the text,
+and refuses short texts that lost a few words. At 150 the guard removes
+16 names, the three and 13 older ones (CC 2.0 named 2.5, CC 3.0 DE and
+IGO variants, EPL-1.0 named CPL-1.0, SPL-1.0 named CUA-OPL-1.0,
+LiLiQ-Rplus-1.1 named LiLiQ-R-1.1, TCL named SWL: runs of 159 to 904
+characters), adds no wrong name in any probe (wrong names: `fuzz5` 5, drop
+probe 26, critical-word drops 0 of 1,971, before and after; in a bundle,
+LGPL-3.0-only with its own row removed gains GPL-3.0-only, which its text
+holds whole), and changes no real
+file: the longest run a right name misses there is 104 characters
+(Python-2.0.1 in django's `LICENSE.python`), after the second look at its
+end (without it, 248 in four files). 120 loses 17 times as many `fuzz5`
+names for no more removed; 180 keeps TCL and LiLiQ.
+
+Known limit, a chosen trade (precision over recall): 20 to 60 foreign
+words inserted near an end of a licence text (within about one run of it)
+make the alignment trim that end block, the second look widens into the
+insertion, and the hit is refused as a missing clause, though every text
+word is in the input in order. A long inserted paragraph near an end may
+be an added clause, so the name is not given. Measured on all List texts:
+40 words inserted 30 words from the end named 279 texts at the base, 97
+now; 60 words at 45 from the end, 211 to 75; 60 words after the first 45
+words, 238 to 84. The 493 real files are unchanged and no wrong name is
+added. An insertion in the middle is still named.
+
+Search time on the 493 real files (467 searches, two runs each, same
+machine): median 3.13 to 3.16 ms before, 3.24 to 3.28 ms after; p95 10.2 to
+10.7 before, 10.7 to 11.0 after; max 51 ms before, 54 ms after (pandas, 7,779
+words). The adversarial inputs (48,000 to 49,000 tokens: the BSD family, 40
+families, mutated or exact) cost the same, 0.14 to 0.32 s, within 0.02 s.
+
+A text the guard refuses keeps casting doubt: when it does not, the
+leave-one-out names 8 more look-alikes (Apache-2.0 as Pixar, CC-BY-SA-4.0
+as CC-BY-4.0) and the drop probe 40 more.
+
 #### Synthetic
 
 List texts behind a copyright line, joined by a "this product bundles"
@@ -284,6 +386,12 @@ then JSON.
   Apache copies (Pixar's key is 0.7 percent below Apache-2.0's) and missed
   PySocks and jsonpointer. The reach 0.90 and near fit 0.93 give the same
   answers on the real files from 0.80 to 0.93.
+- A length bound of 1.05 times the input for a hit, look-alikes at 1.150
+  (against the gap guard): it depends on what else the input holds, so it
+  misses a look-alike in a bundle, and on the text's length, so it refuses
+  a short text that lost a few words (section 5, "Gap guard").
+- The gap in words: 5 to 6 times stricter on Han and kana (a token per
+  character) than on Latin script.
 - Storing the coded texts in the database was first rejected (9 ms instead
   of 72 ms, 5.6 MB estimated, a `BUILD_VERSION` bump, "not worth it at
   0.15 s once"), then done in build 6: 3.0 MB more (21.4 to 24.4 MB), a
@@ -310,7 +418,7 @@ then JSON.
   listed.
 - MIT x 280 (47,600 tokens) is under the token limit and answers; the
   adversarial inputs past a limit (same family at 49k tokens: windows;
-  GPL-3.0 x 8 with 7 percent noise: character cells) give null, not
+  long licences with 1 to 4 percent noise: word cells) give null, not
   partial.
 - About 12 files (2 percent) show a look-alike disagreement: `detect()`
   answers one List text and TEXTS names the right one (for example

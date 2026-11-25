@@ -13,6 +13,8 @@ keeps the hits that do not overlap, best first:
   longer of two nested texts wins when the input holds it whole, the exact
   text wins over a longer look-alike;
 * on equal keys the answer's group first, then the ID;
+* a text whose span misses a run of MAX_GAP_CHARS of it is no hit (it
+  lacks a clause), but still a look-alike;
 * a hit overlapping a kept one by more than a tenth of the shorter span is
   dropped;
 * a kept span names nothing when a look-alike, a text of another same-text
@@ -41,20 +43,26 @@ from licenseid import textlocate
 from licenseid.textcorpus import (
     CodedText,
     CorpusEntry,
+    RunChars,
     Span,
     TextCorpus,
     input_tokens,
 )
 from licenseid.textlocate import (
+    MAX_GAP_CHARS,
     MIN_SIMILARITY,
     MIN_VOTE_SHARE,
+    NEAR_SIMILARITY,
     SURE_SIMILARITY,
+    Alignment,
     Budget,
     Fit,
     LimitReached,
     Window,
     align,
     build_index,
+    can_reach,
+    longest_gap,
     same_critical,
     sample_share,
     span_fit,
@@ -66,8 +74,6 @@ from licenseid.textlocate import (
 MIN_WORDS: Final = 40
 #: An input of fewer tokens is not searched.
 MIN_INPUT_WORDS: Final = 40
-#: A text longer than this times the input (characters) cannot be in it.
-MAX_TEXT_SHARE: Final = 1.05
 #: The core is the text less its optional parts: of the text's samples it
 #: holds about its share of the characters. Half that share lets it be tried.
 CORE_SAMPLE_FACTOR: Final = 0.5
@@ -170,10 +176,13 @@ def _read_input(norm_input: str, corpus: TextCorpus) -> _Input | None:
 
 
 def _fits(coded: CodedText, source: _Input) -> bool:
-    """Whether *coded* is long enough to list and short enough to be in the
-    input."""
-    longest = MAX_TEXT_SHARE * len(source.text)
-    return len(coded.codes) >= MIN_WORDS and len(coded.text) <= longest
+    """Whether *coded* is long enough to list and short enough to fit the
+    input at NEAR_SIMILARITY: a look-alike (``_Search.doubted``) as well as
+    a hit. A text longer than the input is still tried: a copy that lost a
+    clause can fit it at MIN_SIMILARITY."""
+    return len(coded.codes) >= MIN_WORDS and can_reach(
+        len(coded.text), len(source.text), NEAR_SIMILARITY
+    )
 
 
 def _entry_windows(
@@ -239,33 +248,85 @@ class _Search:
             (item.window.pad_end - item.window.pad_start for item in items), default=0
         )
         self._spans: dict[int, Span | None] = {}
-        self._fits: dict[int, Fit | None] = {}
+        self._found: dict[int, Alignment] = {}
+        self._chars: dict[int, RunChars] = {}
+        self._fits: dict[tuple[int, Span], Fit | None] = {}
 
     def _span(self, item: _Item) -> Span | None:
         """Where *item*'s text sits in its window (input tokens), or None."""
         if item.serial not in self._spans:
-            window, coded = item.window, item.coded
-            self.budget.charge_word_cells(
-                len(coded.codes) * (window.pad_end - window.pad_start)
-            )
-            span = align(
-                coded.codes, self.source.codes[window.pad_start : window.pad_end]
-            )
-            self._spans[item.serial] = (
-                None
-                if span is None
-                else (window.pad_start + span[0], window.pad_start + span[1])
+            window = item.window
+            self._spans[item.serial] = self._aligned(
+                item, window.pad_start, window.pad_end
             )
         return self._spans[item.serial]
+
+    def _hit_span(self, item: _Item) -> Span | None:
+        """``_span``, looked for once more, the span widened by a run of
+        MAX_GAP_CHARS or more that it misses at an end of the text: the
+        text's end may match a later copy of the same words as well
+        (Python-2.0.1's closing disclaimer, repeated by the 0BSD text after
+        it), and trimming drops that far block, though the words sit right
+        after the span. Only for a hit: a look-alike keeps ``_span``.
+
+        Known limit, chosen (precision over recall): 20 to 60 foreign words
+        inserted within about one run of an end of the text get that end
+        block trimmed; the look then widens into the insertion and the hit
+        is refused as a missing clause (``working-docs/implementation/
+        whole-texts.md``, gap guard)."""
+        span = self._span(item)
+        widened = None if span is None else self._widened(item, span)
+        if widened is not None and self._gap(item) >= MAX_GAP_CHARS:
+            return self._aligned(item, *widened)
+        return span
+
+    def _aligned(self, item: _Item, start: int, end: int) -> Span | None:
+        """Where *item*'s text sits in input tokens *start* to *end*, or
+        None; keeps the runs of the text it misses."""
+        codes = item.coded.codes
+        self.budget.charge_word_cells(len(codes) * (end - start))
+        found = align(codes, self.source.codes[start:end])
+        if found is None:
+            return None
+        self._found[item.serial] = found
+        return start + found.start, start + found.end
+
+    def _widened(self, item: _Item, span: Span) -> Span | None:
+        """*span* widened by the runs of *item*'s text it misses at the
+        text's ends where trimmed blocks matched half that run or more, or
+        None when there is no such run."""
+        found, length = self._found[item.serial], len(item.coded.codes)
+        missing, (dropped_front, dropped_back) = found.missing, found.trimmed
+        if not missing:
+            return None
+        front = missing[0][1] if missing[0][0] == 0 else 0
+        back = length - missing[-1][0] if missing[-1][1] == length else 0
+        front = front if 2 * dropped_front >= front else 0
+        back = back if 2 * dropped_back >= back else 0
+        if not front and not back:
+            return None
+        return max(0, span[0] - front), min(len(self.source.codes), span[1] + back)
+
+    def _gap(self, item: _Item) -> int:
+        """The characters of the longest run of *item*'s text that its last
+        alignment (``_aligned`` found one) misses."""
+        missing = self._found[item.serial].missing
+        if not missing:
+            return 0
+        coded = item.coded
+        if id(coded) not in self._chars:
+            self._chars[id(coded)] = RunChars(coded.text)
+        return longest_gap(self._chars[id(coded)], missing)
 
     def _fit(self, item: _Item, span: Span) -> Fit | None:
         """How well *item*'s text fits *span*, critical words aside, or None
         under the look-alike floor."""
-        if item.serial not in self._fits:
-            self._fits[item.serial] = span_fit(
+        key = (item.serial, span)
+        if key not in self._fits:
+            self._fits[key] = span_fit(
                 item.coded, self.source.span_text(*span), self.budget
             )
-        return self._fits[item.serial]
+        return self._fits[key]
 
     def _same_critical(self, item: _Item, span: Span) -> bool:
         """Whether *span* holds *item*'s critical words as often as its
@@ -282,11 +343,15 @@ class _Search:
         shortcut."""
         if self.taken.covers_half(item.window.start, item.window.end):
             return None
-        span = self._span(item)
+        # A text that only a look-alike's fit can reach is no hit.
+        if not can_reach(len(item.coded.text), len(self.source.text), MIN_SIMILARITY):
+            return None
+        span = self._hit_span(item)
         if (
             span is None
             or self.taken.overlaps(*span)
             or not self._same_critical(item, span)
+            or self._gap(item) >= MAX_GAP_CHARS
         ):
             return None
         fit = self._fit(item, span)

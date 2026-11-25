@@ -18,7 +18,7 @@ from timing import slack
 
 from licenseid import textlocate, wholetexts
 from licenseid.textcorpus import TextCorpus, TextRow
-from licenseid.textlocate import align
+from licenseid.textlocate import Alignment, align
 from licenseid.wholetexts import found_rows
 
 _SYLLABLES = ("ka", "lo", "mi", "ra", "tu", "ne", "po", "si", "va", "de", "fo", "gu")
@@ -104,8 +104,10 @@ def test_input_floor(words: int, expected: list[str] | None) -> None:
     assert found_rows(" ".join(held), corpus_of({"T": text}), "T") == expected
 
 
-@pytest.mark.parametrize(("last", "expected"), [(9, ["T"]), (10, None)])
+@pytest.mark.parametrize(("last", "expected"), [(20, ["T"]), (21, None)])
 def test_text_longer_than_the_input(last: int, expected: list[str] | None) -> None:
+    # 221 characters in 200 fit at 1 - 21 / 421 = 0.9501, 222 at 0.9479: a
+    # text that lost a clause is tried while its fit can reach the floor.
     held = _numbered(40)
     held[0] = "q0000"
     source = " ".join(held)
@@ -138,7 +140,7 @@ def test_a_window_a_kept_span_half_covers_is_not_aligned(
     assert len(shorter) < len(A)
     calls: list[str] = []
 
-    def counted(text: str, window: str) -> tuple[int, int] | None:
+    def counted(text: str, window: str) -> Alignment | None:
         calls.append(text)
         return align(text, window)
 
@@ -293,7 +295,7 @@ def test_a_text_too_short_to_be_a_look_alike_is_not_aligned(
     # A key is at most its text's length: 224 cannot reach 0.9 of 294.
     calls: list[str] = []
 
-    def counted(text: str, window: str) -> tuple[int, int] | None:
+    def counted(text: str, window: str) -> Alignment | None:
         calls.append(text)
         return align(text, window)
 
@@ -435,9 +437,8 @@ def test_past_a_limit_nothing_is_found(
     assert _two_texts_limit(monkeypatch, limit, fails) is None
 
 
-def test_floors_and_share_are_the_documented_ones() -> None:
+def test_floors_are_the_documented_ones() -> None:
     assert (wholetexts.MIN_WORDS, wholetexts.MIN_INPUT_WORDS) == (40, 40)
-    assert wholetexts.MAX_TEXT_SHARE == 1.05
     assert (textlocate.MIN_SIMILARITY, textlocate.WORD_GATE) == (0.95, 0.80)
 
 

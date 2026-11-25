@@ -31,6 +31,7 @@ import json
 import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from itertools import accumulate
 from types import MappingProxyType
 from typing import Final, NamedTuple
 
@@ -102,6 +103,35 @@ def input_tokens(text: str, limit: int) -> tuple[list[str], list[Span] | None]:
         if len(words) > limit:
             break
     return words, spans
+
+
+def token_spans(text: str) -> list[Span]:
+    """Where each token of *text* (as ``split_words``) starts and ends."""
+    return [match.span() for match in _TOKEN.finditer(text)]
+
+
+class RunChars:
+    """The characters of a run of tokens of one text, from the start of its
+    first token to the end of its last."""
+
+    def __init__(self, text: str) -> None:
+        self._sums: list[int] | None = None
+        self._spans: list[Span] = []
+        if text.isascii():
+            words = text.split()
+            sums = list(accumulate(map(len, words), initial=0))
+            # One space between words and none at the ends (every ASCII text
+            # of the List is so normalised): no position of each token needed.
+            if sums[-1] + len(words) - 1 == len(text):
+                self._sums = sums
+                return
+        self._spans = token_spans(text)
+
+    def of(self, start: int, end: int) -> int:
+        """The characters of tokens *start* to *end* (end > start)."""
+        if self._sums is not None:
+            return self._sums[end] - self._sums[start] + end - start - 1
+        return self._spans[end - 1][1] - self._spans[start][0]
 
 
 def critical_counts(words: Sequence[str]) -> tuple[int, ...]:

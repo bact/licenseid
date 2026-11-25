@@ -13,15 +13,13 @@ and this project adheres to
 
 ### Added
 
-- `detect` gives `TEXTS` (JSON `texts`): the List IDs whose whole licence
-  text the input holds, one per text, sorted (`BSD-2-Clause MIT Python-2.0.1`
-  for mypy's LICENSE); empty for a notice
+- `detect` gives `TEXTS` (JSON `texts`): the List texts the input holds
+  whole (`BSD-2-Clause MIT Python-2.0.1` for mypy's LICENSE) ([#241])
 
 ### Changed
 
-- Database build 6 stores the coded licence texts, so the first `detect` of
-  a long text no longer codes them (about 0.14 s less); `licenseid update`
-  rebuilds an older database, which still answers, and adds 3 MB to the file
+- Database build 6 (3 MB more) stores coded licence texts for `TEXTS`;
+  `licenseid update` rebuilds an older database, which still answers ([#241])
 
 ## [0.9.2] - 2026-11-24
 
@@ -202,6 +200,7 @@ and this project adheres to
 [#235]: https://github.com/bact/licenseid/pull/235
 [#238]: https://github.com/bact/licenseid/pull/238
 [#239]: https://github.com/bact/licenseid/pull/239
+[#241]: https://github.com/bact/licenseid/pull/241
 
 ## [0.8.4] - 2026-11-09
 

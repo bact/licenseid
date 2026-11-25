@@ -15,6 +15,7 @@ from licenseid.textlocate import (
     MIN_SIMILARITY,
     NEAR_SIMILARITY,
     SURE_SIMILARITY,
+    Alignment,
     Budget,
     Fit,
     LimitReached,
@@ -88,24 +89,26 @@ def test_a_window_for_a_word_changed_every_eight() -> None:
 
 def test_align_trims_the_padding() -> None:
     window = _FILLER[:10] + _TEXT + _FILLER[10:20]
-    assert align(_TEXT, window) == (10, 70)
+    assert align(_TEXT, window) == Alignment(10, 70, ())
 
 
 def test_align_keeps_a_changed_word_inside() -> None:
     changed = _TEXT[:30] + "x" + _TEXT[31:]
-    assert align(_TEXT, _FILLER[:10] + changed + _FILLER[10:20]) == (10, 70)
+    assert align(_TEXT, _FILLER[:10] + changed + _FILLER[10:20]) == Alignment(
+        10, 70, ((30, 31),)
+    )
 
 
 def test_align_drops_a_stray_match_at_the_edge() -> None:
     window = _TEXT[59] + _FILLER[:20] + _TEXT + _FILLER[20:25]
-    assert align(_TEXT, window) == (21, 81)
+    assert align(_TEXT, window) == Alignment(21, 81, ())
 
 
 def test_align_trims_a_block_far_from_the_rest() -> None:
     # The first word 20 words before the others: dropping it raises the
     # ratio from 120 / 140 to 118 / 119.
     window = _TEXT[0] + _FILLER[:20] + _TEXT[1:]
-    assert align(_TEXT, window) == (21, 80)
+    assert align(_TEXT, window) == Alignment(21, 80, ((0, 1),), (1, 0))
 
 
 def test_align_refuses_words_spread_thin() -> None:
@@ -116,9 +119,13 @@ def test_align_refuses_words_spread_thin() -> None:
 
 @pytest.mark.parametrize(
     ("present", "expected"),
-    [(54, (0, 54)), (40, (0, 40)), (39, None)],
+    [
+        (54, Alignment(0, 54, ((54, 60),))),
+        (40, Alignment(0, 40, ((40, 60),))),
+        (39, None),
+    ],
 )
-def test_align_word_gate(present: int, expected: tuple[int, int] | None) -> None:
+def test_align_word_gate(present: int, expected: Alignment | None) -> None:
     assert align(_TEXT, _TEXT[:present] + _FILLER[:6]) == expected
 
 

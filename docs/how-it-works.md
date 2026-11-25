@@ -143,7 +143,8 @@ declared values, SPDX expressions and the matching pipeline.
     window (each copy of a repeated text gets one). The words are aligned in
     the window and the ends trimmed while that raises the fit; the character
     similarity of the text and its trimmed span must be 0.95 or more. A copy
-    that drops a critical word such as "not" is not counted. Hits are kept
+    that drops a critical word such as "not", or misses 150 characters or
+    more of the text in one run (a clause), is not counted. Hits are kept
     best first, and one that overlaps a kept hit by more than a tenth of the
     shorter span is dropped; copies of one text are then named once. Every
     cost is bounded by a count (characters, tokens, votes, windows, cells):

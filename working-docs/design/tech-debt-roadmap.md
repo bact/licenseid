@@ -332,6 +332,9 @@ runs in no workflow. The plan, in build order (an Opus proposal of
 
 ## 59. Several licence texts in one input (B2) — Priority 8
 
+Answered by `TEXTS` (PR #241): the List texts an input holds whole, with no
+change to the ranking. Kept for the ranking itself.
+
 Refused for 0.9.2 (2026-11-23): one licence per input stays. An input that
 holds two licence texts (the LGPL-2.1 text under a NumPy notice, say) gets one
 ranking and no note that the file holds another text. Splitting the file needs
@@ -412,6 +415,18 @@ The text corpus is built or read once per database generation in
 call together each load it (0.016 s from `text_codes`, 0.16 s coded). Wasted
 work only; the result is the same and the corpus is immutable. Fix with a
 lock around the first load if a measurement shows a cost.
+
+Impact 1, Risk 1, Effort 2.
+
+## 66. A misshaped optional table breaks `-v` and `update` — Priority 8
+
+A `text_codes` (or `license_urls`) table that licenseid did not make, with
+other columns or as a view, fails the read of `detect -v` and `--json` as
+`database: unreadable: no such column` (terse `detect` and `is-*` still
+answer), and `update` cannot repair it (`table text_codes has no column
+named kind`). Found in review of PR #241; `license_urls` is the same on
+0.9.2. Only a hand-edited file gets here. Fix: in `update`, drop an optional
+table, or view, whose columns differ, before it is written again.
 
 Impact 1, Risk 1, Effort 2.
 

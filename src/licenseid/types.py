@@ -71,8 +71,8 @@ class Detection(TypedDict):
     an ``-or-later`` form is named as the answer is: by the answer's
     own ID, else as ``variant`` says), sorted; the same list on every result
     of one call, None for an answer that is not a text match, an input of
-    fewer than 40 words, and when no text is found or the input is too long
-    to search.
+    fewer than 40 tokens without an exact answer, and when no text is found
+    or the input is too long to search.
     """
 
     expression: str

@@ -23,7 +23,7 @@ _REASON = (
 
 _TEXTS = (
     "the record has a field TEXTS after REASON (JSON texts): empty unless a text"
-    " answer of an input of 40 tokens or more holds List texts whole"
+    " answer is exact or its input of 40 tokens or more holds List texts whole"
 )
 
 # The digests, in the order of the sorted case keys (the cases of

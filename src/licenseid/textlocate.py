@@ -18,13 +18,15 @@ token. Steps, cheapest first:
 4. ``align``: the word-level matching blocks of the text in a window, end
    blocks trimmed while that raises ``2M / (L + span)``: the span the text
    covers, never the padded window (a perfect copy between two other texts
-   would score low on the window).
+   would score low on the window). The runs of text words the span misses
+   come with it: ``longest_gap`` measures them in characters.
 5. ``span_fit``: the character-level Indel similarity of the text and its
    span (``fuzz.ratio``'s metric) and the key ``2 x matched - len(text)``;
    ``same_critical``: the same count of each critical word. A fit of
-   MIN_SIMILARITY or more with the same critical words is a hit; one of
-   NEAR_SIMILARITY or more is a look-alike that can cast doubt on another
-   text's hit (``licenseid.wholetexts``).
+   MIN_SIMILARITY or more with the same critical words and no run of
+   MAX_GAP_CHARS missed is a hit; one of NEAR_SIMILARITY or more is a
+   look-alike that can cast doubt on another text's hit
+   (``licenseid.wholetexts``).
 
 Every cost is bounded by a count, never a clock (``Budget``): past one the
 search raises ``LimitReached`` and its caller answers nothing, never a
@@ -41,7 +43,7 @@ from typing import Final
 
 from rapidfuzz.distance import Indel, LCSseq
 
-from licenseid.textcorpus import CodedText, Span, critical_counts
+from licenseid.textcorpus import CodedText, RunChars, Span, critical_counts
 
 #: Words per anchor n-gram.
 N_GRAM: Final = 5
@@ -67,13 +69,28 @@ NEAR_SIMILARITY: Final = 0.93
 #: or more (TEXTS measurements, PR to be linked).
 SURE_SIMILARITY: Final = 0.98
 
+#: A text whose span misses a run of this many characters of it (about 25
+#: words; counted in characters, as Han and kana have a token per
+#: character) is no hit: the input lacks a clause, so it holds another
+#: licence. Spread edits leave short runs. Left out of the List, texts named
+#: a look-alike missing 159 to 904 characters (CC-SA-1.0 as CC-BY-SA-1.0, 904;
+#: MS-PL as MS-LPL, 185; TCL as SWL, 159); right names in real files miss at
+#: most 104 (TEXTS measurements, PR to be linked).
+MAX_GAP_CHARS: Final = 150
+
 #: Limits of one search; past one the step answers nothing.
 MAX_INPUT_CHARS: Final = 400_000
 MAX_INPUT_TOKENS: Final = 50_000
 MAX_VOTES: Final = 3_000_000
 MAX_WINDOWS: Final = 15_000
 MAX_WORD_CELLS: Final = 5_000_000_000
-MAX_CHAR_CELLS: Final = 20_000_000_000
+#: Charged at length x size per fit, though RapidFuzz's cut-off Indel runs
+#: about 3 to 6 ns per 1,000 such cells on texts of 2,000 characters or
+#: more: at most about 0.3 s. Inputs built of long licences under the token
+#: limit charge up to 4.3 x 10^10 (30 exact copies of CC-BY-3.0); a fixed
+#: limit of 2 x 10^10 left them unsearched. Copies with 3 to 5 percent of
+#: their words changed stop at MAX_WORD_CELLS instead.
+MAX_CHAR_CELLS: Final = 50_000_000_000
 
 # Blocks looked at from each end per trimming pass.
 _TRIM_REACH: Final = 50
@@ -228,11 +245,20 @@ def windows(
 @dataclass(frozen=True)
 class _Blocks:
     """Matching blocks of a text of *length* words in a window: where each
-    starts in the window and its size."""
+    starts in the text and in the window, and its size."""
 
+    text_starts: list[int]
     starts: list[int]
     sizes: list[int]
     length: int
+
+    def missing(self, first: int, last: int) -> tuple[Span, ...]:
+        """The runs of text words (start, end) that blocks *first* to *last*
+        leave unmatched, before the first and after the last included."""
+        starts = self.text_starts[first : last + 1]
+        ends = [a + size for a, size in zip(starts, self.sizes[first : last + 1])]
+        runs = zip([0, *ends], [*starts, self.length])
+        return tuple((start, end) for start, end in runs if end > start)
 
     def ratio(self, first: int, last: int, matched: int) -> float:
         """``2M / (L + span)`` of blocks *first* to *last*."""
@@ -269,13 +295,30 @@ def _blocks(text: str, window: str) -> _Blocks | None:
     blocks = [b for b in Indel.editops(text, window).as_matching_blocks() if b.size]
     if not blocks:
         return None
-    return _Blocks([b.b for b in blocks], [b.size for b in blocks], len(text))
+    return _Blocks(
+        [b.a for b in blocks],
+        [b.b for b in blocks],
+        [b.size for b in blocks],
+        len(text),
+    )
 
 
-def align(text: str, window: str) -> Span | None:
-    """The span of *window* (start, end; word codes) that the text *text*
-    covers, its ends trimmed, or None when its word-level ratio cannot reach
-    WORD_GATE."""
+@dataclass(frozen=True)
+class Alignment:
+    """Where a text sits in a window: the span *start* to *end* (word codes),
+    the runs of text words (start, end) it leaves unmatched, and how many
+    text words the blocks trimmed off its front and back matched."""
+
+    start: int
+    end: int
+    missing: tuple[Span, ...]
+    trimmed: tuple[int, int] = (0, 0)
+
+
+def align(text: str, window: str) -> Alignment | None:
+    """The span of *window* that the text *text* covers, its ends trimmed,
+    and the words of the text it misses, or None when its word-level ratio
+    cannot reach WORD_GATE."""
     length = len(text)
     gate = round(WORD_GATE * 100)
     # 2M / (L + span) <= 2M / (L + M): M must reach g L / (2 - g).
@@ -295,7 +338,8 @@ def align(text: str, window: str) -> Span | None:
     start, end = blocks.starts[first], blocks.starts[last] + blocks.sizes[last]
     if 200 * matched < gate * (length + end - start):
         return None
-    return start, end
+    trimmed = (sum(blocks.sizes[:first]), sum(blocks.sizes[last + 1 :]))
+    return Alignment(start, end, blocks.missing(first, last), trimmed)
 
 
 @dataclass(frozen=True)
@@ -319,6 +363,23 @@ def _allowed(total: int, similarity: float) -> int:
     similarity is *similarity* or more."""
     percent = round(similarity * 100)
     return total - (percent * total + 99) // 100
+
+
+def can_reach(length: int, size: int, similarity: float) -> bool:
+    """Whether a text of *length* characters can fit a span of *size*
+    characters or fewer at *similarity* (to a whole percent, as
+    ``Fit.reaches``). A longer text loses ``length - size`` characters at
+    least, so its best fit is ``2 x size / (length + size)``: at 0.95 a text
+    up to 1.105 times the span, at 0.93 up to 1.150 times."""
+    percent = round(similarity * 100)
+    return percent * length <= (200 - percent) * size
+
+
+def longest_gap(chars: RunChars, missing: Sequence[Span]) -> int:
+    """The characters of the longest run of *missing* words of a text
+    (*chars* of its runs): a word count would make a phrase of Han or kana,
+    one token per character, short."""
+    return max((chars.of(start, end) for start, end in missing), default=0)
 
 
 def same_critical(coded: CodedText, span_words: Sequence[str]) -> bool:
