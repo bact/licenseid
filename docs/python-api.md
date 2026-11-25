@@ -71,8 +71,10 @@ frozenset of `str`: any other value raises `TypeError` (a bare `"MIT"`, a
 dict, a generator). Every call checks them. All but `variant` (below) act
 only where licence text is matched (Tiers 1 and 2): `exclude`,
 `only_common` and `only_spdx` drop candidates, `hint` adds candidates (and
-those three drop them too), and `enable_popularity` lets popularity nudge the
-ranking of every candidate and break its ties. The CLI has no option for
+those three drop them too; a hinted licence not among the texts of a file of
+several licences is dropped where a marker's floor is taken back), and
+`enable_popularity` lets popularity nudge the ranking of every candidate and
+break its ties. The CLI has no option for
 `exclude`, `hint`, `only_common` or `only_spdx`.
 
 So these have no effect on a declaration, an input answered whole: an

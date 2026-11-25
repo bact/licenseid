@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-24
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -439,6 +439,12 @@ several licence texts that lifted one of them over the file (Pillow's
 the marker's licence is above 1.05 and the search finds texts that are not all
 of that licence's same-text group, the candidate keeps its additive boost only.
 No text found keeps the floor: the rule acts on positive evidence alone.
+Where a floor is taken back, every candidate whose licence is none of the
+texts found (same-text group, replacement ID, exception dropped, as for the
+floor) is dropped from the ranking; one of the texts found stays as scored.
+Without that, a look-alike the file does not hold answered once the floor
+was gone: a BSD-3-Clause text and a BSD-2-Clause text gave `Sleepycat`
+0.9103, BSD-3 and BSD-4 `Sleepycat` 0.9264 (review of PR #243).
 
 - **Direct call.** The check calls `wholetexts.found_rows`, not
   `textnames.held_texts`, which `textnames.skipped()` turns off for terse

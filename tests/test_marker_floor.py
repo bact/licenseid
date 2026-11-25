@@ -5,9 +5,10 @@
 
 """The marker floor (``similarity.floor_lift``) and where it is taken back
 (``markerfloor``): an input longer than the marker's licence text that holds
-whole texts of other licences keeps the additive boost only (roadmap item
-67). The detector rows run on the real-sized fixture database, so the near
-neighbours have their texts."""
+whole texts of other licences keeps the additive boost only, and a licence
+none of those texts is gives no answer (roadmap item 67). The detector rows
+run on the real-sized fixture database, so the near neighbours have their
+texts."""
 # pylint: disable=missing-function-docstring
 
 import json
@@ -21,7 +22,7 @@ from long_text_db import DB_PATH, LONG_TEXTS, long_text_detector
 
 from licenseid import markerfloor
 from licenseid.cli import cli
-from licenseid.markerfloor import doubt_floors, floor_doubted
+from licenseid.markerfloor import doubt_floors, floor_doubted, found_in
 from licenseid.similarity import calculate_final_score, floor_lift
 from licenseid.textnames import skipped
 from licenseid.types import InternalMatch
@@ -113,6 +114,51 @@ def test_floor_doubted(
     assert floor_doubted(rows, marker, groups) is doubted
 
 
+@pytest.mark.parametrize(
+    ("rows", "license_id", "groups", "found"),
+    [
+        (["MIT"], "MIT", {}, True),
+        (["MIT"], "mit", {}, True),
+        (["BSD-3-Clause", "MIT"], "MIT", {}, True),
+        (["BSD-3-Clause", "BSD-2-Clause"], "Sleepycat", {}, False),
+        (None, "MIT", {}, False),
+        ([], "MIT", {}, False),
+        (["GPL-2.0-only"], "GPL-2.0-or-later", {"GPL-2.0-only": GPL2_GROUP}, True),
+        (["GPL-2.0-only"], "GPL-2.0-or-later", {}, False),
+        (
+            ["MIT", "GPL-2.0-only"],
+            "GPL-2.0-or-later WITH Font-exception-2.0",
+            {"GPL-2.0-only": GPL2_GROUP},
+            True,
+        ),
+        (["GPL-2.0-only"], "GPL-2.0+", {"GPL-2.0-only": GPL2_GROUP}, True),
+        (["MIT", "GPL-2.0-only"], "GPL-2.0", {}, True),
+        (["GPL-2.0-only"], "GPL-3.0", {}, False),
+    ],
+    ids=[
+        "own",
+        "own-case",
+        "own-and-other",
+        "look-alike",
+        "none",
+        "empty",
+        "twin",
+        "no-group",
+        "exception",
+        "deprecated-plus",
+        "deprecated-bare",
+        "other-version",
+    ],
+)
+def test_found_in(
+    rows: list[str] | None,
+    license_id: str,
+    groups: dict[str, Sequence[str]],
+    found: bool,
+) -> None:
+    assert found_in(rows, license_id, groups) is found
+
+
 # -- What the floor adds (similarity.floor_lift) ----------------------------
 
 
@@ -168,12 +214,15 @@ def _lifted(license_id: str, coverage: float, lift: float = 0.3) -> InternalMatc
 
 
 def _doubt(
-    monkeypatch: pytest.MonkeyPatch, ranked: list[InternalMatch], rows: list[str]
-) -> _Search:
+    monkeypatch: pytest.MonkeyPatch,
+    ranked: list[InternalMatch],
+    rows: list[str] | None,
+) -> tuple[_Search, list[str]]:
+    """The search stand-in after :func:`doubt_floors`, and the IDs it kept."""
     search = _Search(rows)
     monkeypatch.setattr(markerfloor, "_search", search)
-    doubt_floors(ranked, "input", cast("LicenseDatabase", None))
-    return search
+    kept = doubt_floors(ranked, "input", cast("LicenseDatabase", None))
+    return search, [m["license_id"] for m in kept]
 
 
 @pytest.mark.parametrize(
@@ -185,7 +234,7 @@ def test_only_coverage_above_1_05_asks_the_search(
     monkeypatch: pytest.MonkeyPatch, coverage: float, score: float, searches: int
 ) -> None:
     ranked = [_lifted("MIT", coverage)]
-    search = _doubt(monkeypatch, ranked, ["Apache-2.0"])
+    search, _kept = _doubt(monkeypatch, ranked, ["Apache-2.0"])
     assert ranked[0]["score"] == pytest.approx(score)
     assert len(search.calls) == searches
 
@@ -197,17 +246,43 @@ def test_the_search_runs_once_per_input(monkeypatch: pytest.MonkeyPatch) -> None
         _lifted("BSD-3-Clause", 3.0),
         _lifted("ISC", 3.0, lift=0.0),
     ]
-    search = _doubt(monkeypatch, ranked, ["MIT"])
+    search, kept = _doubt(monkeypatch, ranked, ["MIT"])
     assert search.calls == ["MIT"]
     assert [m["score"] for m in ranked] == pytest.approx([0.9, 0.9, 0.6, 0.9])
     assert "floor_lift" in ranked[0]
     assert "floor_lift" not in ranked[2]
+    assert kept == ["MIT"]
 
 
 def test_no_floor_no_search(monkeypatch: pytest.MonkeyPatch) -> None:
     ranked = [_lifted("MIT", 3.0, lift=0.0), _lifted("ISC", 3.0, lift=-0.1)]
-    assert not _doubt(monkeypatch, ranked, ["Apache-2.0"]).calls
+    search, kept = _doubt(monkeypatch, ranked, ["Apache-2.0"])
+    assert not search.calls
     assert [m["score"] for m in ranked] == [0.9, 0.9]
+    assert kept == ["MIT", "ISC"]
+
+
+@pytest.mark.parametrize(
+    ("rows", "kept"),
+    [
+        (["BSD-3-Clause", "BSD-2-Clause"], ["BSD-3-Clause", "BSD-2-Clause"]),
+        (["BSD-3-Clause"], ["BSD-3-Clause", "Sleepycat", "BSD-2-Clause"]),
+        (None, ["BSD-3-Clause", "Sleepycat", "BSD-2-Clause"]),
+        (["MIT"], []),
+    ],
+    ids=["doubted", "own-text-only", "nothing-found", "none-held"],
+)
+def test_a_doubted_floor_holds_back_what_no_text_found_is(
+    monkeypatch: pytest.MonkeyPatch, rows: list[str] | None, kept: list[str]
+) -> None:
+    """Only where a floor is taken back: a look-alike none of the texts
+    found is gives no answer; a licence of one of them stays as scored."""
+    ranked = [
+        _lifted("BSD-3-Clause", 2.0),
+        _lifted("Sleepycat", 0.9, lift=0.0),
+        _lifted("BSD-2-Clause", 2.5, lift=0.0),
+    ]
+    assert _doubt(monkeypatch, ranked, rows)[1] == kept
 
 
 # -- On real texts ----------------------------------------------------------
@@ -224,11 +299,16 @@ def _top(text: str) -> tuple[str, float]:
 
 def test_a_marker_does_not_answer_for_several_texts() -> None:
     """The BSD clauses of one of three texts (grpcio's and pandas' shape):
-    0.947 on the floor before, now no answer at 0.85."""
+    0.947 on the floor before, now no answer at 0.85, and only the texts
+    found are listed."""
     results = long_text_detector().detect(text=SEVERAL)
     assert results[0]["texts"] == ["BSD-2-Clause", "BSD-3-Clause", "MIT"]
     assert results[0]["score"] < 0.85
-    assert all(r["expression"] != "BSD-3-Clause" for r in results[:3])
+    assert {r["expression"] for r in results} <= {
+        "BSD-2-Clause",
+        "BSD-3-Clause",
+        "MIT",
+    }
 
 
 @pytest.mark.parametrize(
@@ -260,6 +340,25 @@ def test_the_floor_stays(text: str, answer: str) -> None:
     expression, score = _top(text)
     assert expression == answer
     assert score >= 0.85
+
+
+BSD_TEXTS = ["BSD-2-Clause", "BSD-3-Clause", "BSD-4-Clause"]
+
+
+@pytest.mark.parametrize(
+    "pair",
+    [(a, b) for a in BSD_TEXTS for b in BSD_TEXTS if a != b],
+    ids="+".join,
+)
+def test_no_look_alike_answers_for_two_texts(pair: tuple[str, str]) -> None:
+    """With the BSD clauses' floor gone, Sleepycat (a look-alike neither text
+    is) scored 0.91 to 0.93 and answered; now only the two texts are
+    listed, below 0.85."""
+    text = "\n\n".join(_text(license_id) for license_id in pair)
+    results = long_text_detector().detect(text=text)
+    assert {r["expression"] for r in results} <= set(pair)
+    assert results[0]["score"] < 0.85
+    assert results[0]["texts"] == sorted(pair)
 
 
 def test_terse_and_verbose_agree() -> None:

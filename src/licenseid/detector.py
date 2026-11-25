@@ -659,7 +659,7 @@ class LicenseDetector:
             is_pure,
             enable_popularity,
         )
-        doubt_floors(ranked, norm_input, self.db)
+        ranked = doubt_floors(ranked, norm_input, self.db)
         boost_by_fingerprint(ranked, self.db.find_fingerprint_hits(norm_input))
         ranked.sort(key=ranking_key(enable_popularity))
         return ranked

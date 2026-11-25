@@ -75,8 +75,9 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   with a `SIMILARITY` well below 1. That floor does not hold where the input is
   longer than that licence's text (`COVERAGE` above 1.05) and holds whole
   licence texts other than it: a notice in a file of several licence texts
-  does not answer for the file. Several results can score 1: the order tells
-  them apart, and `EXACT` tells an exact one from a close one.
+  does not answer for the file, and a licence whose text is not among those
+  found gets no result. Several results can score 1: the order tells them
+  apart, and `EXACT` tells an exact one from a close one.
 - `SIMILARITY` is 0 to 1: how alike the input and the text it was compared with
   are, by RapidFuzz. That text is the whole licence text, or its core (the text
   without its optional parts, such as an appendix) when the core is the closer
@@ -117,16 +118,18 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   any `METHOD` but `text` (a tag, a field, an ID and a name say nothing of a
   text), for a compound answer, and for a database built before
   `licenseid update` kept the groups. The `is-*` commands have no such field.
-- `REASON` (JSON `reason`) is empty (JSON `null`) on an answer. On the
-  record of no answer it is the one field that is not empty:
-  `below threshold` (a candidate was found, but none scored `--threshold`),
-  `not exact` (`--exact` removed every result; the threshold is read first)
-  or `no match` (nothing was a candidate; a `WARNING` on standard error may
-  say why, such as `too few words for text`). It names no licence, as an ID
-  in a record of no answer invites a guess; to see the nearest candidate run
-  `licenseid detect --threshold 0 --top 1 -v`. The API `detect()` returns an
-  empty list and has no such field. The key is a field of a `detect` line,
-  never its kind: a line starting with `REASON=` is a refusal of `resolve`.
+- `REASON` (JSON `reason`) is empty (JSON `null`) on an answer. On the record of
+  no answer it is the one field that is not empty: `below threshold` (a
+  candidate was found, but none scored `--threshold`), `not exact` (`--exact`
+  removed every result; the threshold is read first) or `no match` (nothing was
+  a candidate; a `WARNING` on standard error may say why, such as `too few words
+  for text`; also every candidate held back because the file holds several
+  licence texts and none of them was a candidate, where `--threshold 0` shows
+  nothing either). It names no licence, as an ID in a record of no answer
+  invites a guess; to see the nearest candidate run `licenseid detect
+  --threshold 0 --top 1 -v`. The API `detect()` returns an empty list and has no
+  such field. The key is a field of a `detect` line, never its kind: a line
+  starting with `REASON=` is a refusal of `resolve`.
 - `TEXTS` (JSON `texts`, a list of strings; the last field) lists the List IDs
   whose whole licence text, or its core (the text without its optional parts),
   the input holds, one per text, sorted, separated by one space in the record. A
@@ -138,27 +141,28 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   (the `is-*` commands, the `is_*()` functions, and `detect` without `-v` or
   `--json`), except that it runs, unprinted, where a marker's floor needs it
   (`SCORE`), so every output gives the same answer. It is empty (JSON `null`)
-  when no text was found, when the top result is not a text match, when the
-  input has under 40 words (a Han or kana character counts as one word) and its
-  answer is not exact, and when the input is too large to search (the search is
-  bounded by counts, and past one it gives no list, never a partial one).
-  `exclude` and `hint` leave the search and
-  the texts it finds as they are, but they change the answer: its own name
-  follows it, its group wins a tie between two groups of equal fit (so, rarely,
-  another answer gives another tie), and they can make the top result not a
-  text match, so that `TEXTS` is empty.
-  `only_spdx` and `only_common` do not touch it. The answer's own text shows as
-  the ID of `EXPRESSION`; any other text is named as `detect` names a text whose
-  variant is not stated under `--variant`: `-or-later` under `or-later`, else
-  `-only`; a group of licences with the same text and neither form shows its
-  shortest ID. A text of an exception (the GCC exception) is not in the
-  database, so it is never listed. A notice or a pointer, such as Apache's
-  "Licensed under the Apache License" header, is not a whole text: `TEXTS` does
-  not hold the answer and `COVERAGE` is under 0.8. A text that is a close
-  look-alike of another (two BSD-3-Clause variants that differ in a few words)
-  is named only when no other text fits the same part about as well; else the
-  part names nothing. A record of no answer has `TEXTS` empty; to see the record
-  of a candidate use `--threshold 0 -v`.
+  when no text was found, when the top result is not a text match, in a record
+  of no answer (also where the one text found was no candidate: the Saxpath
+  fixture `license_text_short_tail_2000` gives `REASON=no match`, empty `TEXTS`,
+  exit 1), when the input has under 40 words (a Han or kana character counts as
+  one word) and its answer is not exact, and when the input is too large to
+  search (the search is bounded by counts, and past one it gives no list, never
+  a partial one). `exclude` and `hint` leave the search and the texts it finds
+  as they are, but they change the answer: its own name follows it, its group
+  wins a tie between two groups of equal fit (so, rarely, another answer gives
+  another tie), and they can make the top result not a text match, so that
+  `TEXTS` is empty. `only_spdx` and `only_common` do not touch it. The answer's
+  own text shows as the ID of `EXPRESSION`; any other text is named as `detect`
+  names a text whose variant is not stated under `--variant`: `-or-later` under
+  `or-later`, else `-only`; a group of licences with the same text and neither
+  form shows its shortest ID. A text of an exception (the GCC exception) is not
+  in the database, so it is never listed. A notice or a pointer, such as
+  Apache's "Licensed under the Apache License" header, is not a whole text:
+  `TEXTS` does not hold the answer and `COVERAGE` is under 0.8. A text that is a
+  close look-alike of another (two BSD-3-Clause variants that differ in a few
+  words) is named only when no other text fits the same part about as well; else
+  the part names nothing. A record of no answer has `TEXTS` empty; to see the
+  record of a candidate use `--threshold 0 -v`.
 
 <!-- markdownlint-disable MD013 -->
 

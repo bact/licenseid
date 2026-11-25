@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-17
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -747,10 +747,38 @@ the marker reads one of them and answers for the file: Pillow 11.2.1's
   says; `python -m tools.golden`: no row moves. The 499 real files were not
   run again: their scratch copy was lost; the plan's 15 real changes stand
   from the patched probe.
+- **Review fix: look-alikes held back** (2026-11-26). With the floor gone a
+  look-alike the file does not hold could win: a BSD-3-Clause and a
+  BSD-2-Clause text answered `Sleepycat` 0.9103 (on 4c5d13e `BSD-3-Clause`
+  0.9472), BSD-3 and BSD-4 `Sleepycat` 0.9264, BSD-4 and BSD-2 `Sleepycat`
+  0.9149. Now, where `doubt_floors` takes a floor back, it drops from the
+  ranking every candidate whose licence is none of the texts found
+  (`markerfloor.found_in`: same-text group, replacement ID, exception
+  dropped); one of them stays as scored (numpy `GPL-3.0-only`, item 59). The
+  same search, no second one; text candidates only (Tier 0 and declared
+  values never reach `_rank_candidates`). Measured against 4e11b37 (build 6,
+  List 3.29.0): 596 real files, no answer at 0.85 moves; seven tops under
+  0.85 change, six from a look-alike (`APL-1.0`, `CATOSL-1.1`, `NPL-1.1`,
+  `RPSL-1.0`, `LGPL-3.0-or-later`, `GPL-3.0-only`) to one of the texts
+  found, and a numpy 2.4.6 `LICENSE.md` from `BSD-3-Clause` 0.7375 (its text
+  not found) to `MIT` 0.5688. 6,044 fixtures: one moves, the Saxpath `tail_2000`
+  (`OpenSSL` 0.8376 to no result: its one text found, `Saxpath`, is no
+  candidate, so `TEXTS` is empty too). The reviewer's 31 synthetic files:
+  every look-alike top (`Sleepycat`, `FSL-1.1-MIT`, `XFree86-1.1`) is gone,
+  none answers at 0.85. `python -m tools.golden`: no row moves. Time
+  (100 real files, base, 4e11b37 and the fix interleaved, best of 3): median
+  ratio to base 1.00 for both; the 1.15 of the earlier run came from running
+  base and branch one after the other. The search runs on 27 of 596 files.
 - **Left**: floor misfires under coverage 0.8 (docutils `COPYING`
   `GPL-3.0-or-later`, a GPL "Secondary Licenses" clause in a distorted EPL-2.0
   copy); scikit-learn `COPYING` `Apache-2.0` 0.884 is similarity, not the
   floor (item 59). A record of no answer has `TEXTS` empty (item 59).
+- **Left, no-answer record**: the Saxpath `tail_2000` fixture now gives
+  `REASON=no match` and empty `TEXTS`, though the search found `Saxpath` (not
+  a candidate); tied to item 59.
+- **Left, old database**: a database older than build 5 has no `same_text`
+  groups, so `--top` drops the other `-only`/`-or-later` twin of a text found
+  (the printed answer is unchanged; the database warns `build vN outdated`).
 
 Item 35's last open bullet (`LICENSE`, Apache-2.0, three times over answered
 `BSD-4-Clause` 0.9025 through the floor) was fixed by PR #242: on 4c5d13e and

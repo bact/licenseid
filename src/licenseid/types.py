@@ -197,7 +197,9 @@ class DetectOptions(TypedDict, total=False):
     enable_popularity on the Tier 2 ranking and its tie-breaker. ``hint``
     adds its licences as candidates after the rest (see
     ``licenseid.retrieval.hinted_candidates``): the first 50 with their
-    text, and the three filters drop one as they drop a Tier 1 candidate.
+    text, and the three filters drop one as they drop a Tier 1 candidate. A
+    hinted licence that is none of the texts of a file of several licences
+    is dropped where a marker's floor is taken back.
     ``variant`` acts on every input: it says what to answer where an
     ``-only`` and an ``-or-later`` form are possible and the input does not
     state which (:data:`Variant`)."""

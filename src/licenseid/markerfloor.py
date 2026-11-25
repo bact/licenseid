@@ -17,7 +17,10 @@ So the floor stays unless the input is longer than the marker's licence text
 (``licenseid.wholetexts.found_rows``, the search of ``TEXTS``) finds texts
 that are not all the marker's (its same-text group, an ``-only`` or
 ``-or-later`` twin or a deprecated ID's replacement included, an exception
-dropped). Then the candidate keeps the additive boost only.
+dropped). Then the candidate keeps the additive boost only, and every
+candidate whose licence is in none of the texts found is held back (dropped
+from the ranking): with the floor gone, a look-alike the file does not hold
+(Sleepycat for a BSD-3-Clause text and a BSD-2-Clause text) would answer.
 
 The rule acts only on positive evidence: a search that finds nothing (a text
 it cannot confirm, such as a BSD-3-Clause text with a copyright block inside)
@@ -38,7 +41,7 @@ from licenseid.types import InternalMatch
 from licenseid.variants import replacement_of
 from licenseid.wholetexts import found_rows
 
-__all__ = ["MAX_WHOLE_COVERAGE", "doubt_floors", "floor_doubted"]
+__all__ = ["MAX_WHOLE_COVERAGE", "doubt_floors", "floor_doubted", "found_in"]
 
 #: The top of the band in which an input is about the whole licence text
 #: (the coverage bonus of ``licenseid.similarity``): above it, the input is
@@ -53,6 +56,11 @@ def _row_key(marker_id: str) -> str:
     return fold_case(replacement_of(head) or head)
 
 
+def _is_text_of(row: str, key: str, groups: Mapping[str, Sequence[str]]) -> bool:
+    """Whether the text of *row* is that of the licence row *key* names."""
+    return any(fold_case(member) == key for member in groups.get(row) or (row,))
+
+
 def floor_doubted(
     rows: Sequence[str] | None,
     marker_id: str,
@@ -65,10 +73,18 @@ def floor_doubted(
     if not rows:
         return False
     key = _row_key(marker_id)
-    return any(
-        all(fold_case(member) != key for member in groups.get(row) or (row,))
-        for row in rows
-    )
+    return not all(_is_text_of(row, key, groups) for row in rows)
+
+
+def found_in(
+    rows: Sequence[str] | None,
+    license_id: str,
+    groups: Mapping[str, Sequence[str]],
+) -> bool:
+    """Whether one of the whole texts found, *rows* and *groups* as for
+    :func:`floor_doubted`, is the text of *license_id*."""
+    key = _row_key(license_id)
+    return any(_is_text_of(row, key, groups) for row in rows or ())
 
 
 def _search(
@@ -89,13 +105,14 @@ def _search(
 
 def doubt_floors(
     ranked: Sequence[InternalMatch], norm_input: str, db: LicenseDatabase
-) -> None:
-    """Take back from each of *ranked* (scored, not yet sorted) the floor
-    lift its marker gave it where :func:`floor_doubted` says the input holds
-    other licence texts and its coverage is above
-    :data:`MAX_WHOLE_COVERAGE`. The search of *norm_input* runs once, at the
-    first such match."""
+) -> list[InternalMatch]:
+    """*ranked* (scored, not yet sorted), each match's floor lift taken back
+    where :func:`floor_doubted` says the input holds other licence texts and
+    its coverage is above :data:`MAX_WHOLE_COVERAGE`. Where one is taken
+    back, only the matches :func:`found_in` the texts found are kept. The
+    search of *norm_input* runs once, at the first such match."""
     found: tuple[list[str] | None, dict[str, tuple[str, ...]]] | None = None
+    doubted = False
     for match in ranked:
         lift = match.get("floor_lift", 0.0)
         if lift <= 0.0 or match["coverage"] <= MAX_WHOLE_COVERAGE:
@@ -105,3 +122,8 @@ def doubt_floors(
         if floor_doubted(found[0], match["license_id"], found[1]):
             match["score"] -= lift
             del match["floor_lift"]
+            doubted = True
+    if found is None or not doubted:
+        return list(ranked)
+    rows, groups = found
+    return [m for m in ranked if found_in(rows, m["license_id"], groups)]

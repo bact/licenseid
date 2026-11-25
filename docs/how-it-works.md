@@ -135,9 +135,10 @@ declared values, SPDX expressions and the matching pipeline.
     coverage, for marker confidence (applied only from 0.85) and for a
     fingerprint. A marker's confidence floor stays only where the input is
     no longer than the marker's licence text (coverage up to 1.05) or the
-    search of whole texts (`TEXTS`, below) finds no text but that licence's.
-    What `SCORE`, `SIMILARITY` and `COVERAGE` measure, and
-    their ranges, is in [output.md](output.md#default-and-verbose-text).
+    search of whole texts (`TEXTS`, below) finds no text but that licence's;
+    where it does not stay, a candidate whose text is not among those found
+    is dropped. What `SCORE`, `SIMILARITY` and `COVERAGE` measure, and their
+    ranges, is in [output.md](output.md#default-and-verbose-text).
   - **Whole texts (`TEXTS`)**: After the ranking, the input is searched for
     every whole text of the List, without a database query per text. Words
     become one code each; a text is first sampled by its word 5-grams, and
