@@ -21,6 +21,11 @@ and this project adheres to
 - Database build 6 (3 MB more) stores coded licence texts for `TEXTS`;
   `licenseid update` rebuilds an older database, which still answers ([#241])
 
+### Fixed
+
+- Copies of the Apache-2.0 text, or Apache-2.0 beside a BSD text, no longer
+  answer `BSD-4-Clause`: its "4. Redistribution." is no BSD condition
+
 ## [0.9.2] - 2026-11-24
 
 ### Added

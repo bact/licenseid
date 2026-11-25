@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-17
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-25
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -655,3 +655,41 @@ run against the last tag (0 moves of a right answer). Plan: roadmap item 58.
   Left: no "GNU" in the text; `GNU General Public License v2. Requires
   Python 2.0 or later to build`; `PSF License version 2.0 requires Python
   3.8`.
+
+## Item 60: copies of the Apache-2.0 text answered BSD-4-Clause (2026-11-25)
+
+Found 2026-11-23. Cause: `bsdclauses.bsd_clause_id` took the highest number
+of the lines `N. Redistribution|Neither|...`, and the Apache-2.0 section "4.
+Redistribution. You may reproduce..." alone read as BSD-4-Clause. The marker
+(0.95, floor 0.9025) beat the text score of two or more copies (SIMILARITY
+0.155 at two, 0.017 at twenty). Fix, two rules:
+
+- The keyword is `Redistributions?` followed by `of` or `in` (`_RE_CONDITION`):
+  the BSD conditions read "Redistributions of source code", "Redistributions
+  in binary form"; the Apache heading "Redistribution." matches neither.
+- The numbers found must be exactly 1 to N with no gap (a repeated text keeps
+  its answer); otherwise no reading. Review found the case the gap rule alone
+  misses: an Apache-2.0 text and a BSD-3 text in one file (grpcio, torch,
+  numpy) give 1, 2, 3 and the Apache "4.", so 1 to 4 and BSD-4-Clause at
+  0.9402. The keyword rule leaves 1 to 3, BSD-3-Clause.
+
+- **Measured** (build 6 database; base is `main`; 16,803 texts: the 826 List
+  texts of the 3.29.0 tarball as written, not `search_text`, which is
+  normalised and has no "N." lines; `license-text-long` and `-short` with
+  their distortions; mixed-content fixtures; 499 real LICENSE files):
+  `bsd_clause_id` moved on 371 texts against base, 289 for the gap rule
+  alone. `detect()` moved the top answer of 16 against base (7 long, 2
+  short, 7 real) and 4 against the gap rule alone (real files: grpcio, torch
+  and numpy BSD-4-Clause to BSD-3-Clause; pandas `CATOSL-1.1` to
+  BSD-2-Clause, 0.9377, still not BSD-3-Clause).
+  Of the 16, 3 are now right (`BSD-2-Clause-Views`, `BSD-3-Clause-Tso`,
+  `xinetd`), 13 another wrong or below-threshold answer; 0 right answers
+  lost. 38 List texts lost their marker (Apache-2.0, Apache-1.1, OLDAP-2.2.2
+  to 2.6, Sendmail, ...; OLDAP-2.7 and 2.8 BSD-3 to BSD-2) with the top
+  answer unchanged. Two are BSD-named: BSD-Inferno-Nettverk (numbers 2, 3)
+  and BSD-Mark-Modifications (1, 2, 4); their top answer is unchanged. No
+  plain BSD-N-Clause text moved; no mixed-content fixture moved.
+- **Left**: a marker floors a text's score at 0.95 times its confidence
+  whatever its similarity; on a multi-licence file another marker now
+  answers (Pillow `GPL-2.0-or-later` 0.874, scikit-learn `Apache-2.0`
+  0.884): item 67.
