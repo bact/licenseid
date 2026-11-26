@@ -30,8 +30,8 @@ PINNED = {
 #: fails until each is reread (still true: raise its version; else reword).
 TIME_BOUND = {
     # py-spdx-license 0.0.1 is the only release on PyPI (2026-11-26).
-    ("docs/installation.md", "py-spdx-license/pull/5"): "0.9.2",
-    ("docs/installation.md", "but no release holds it yet"): "0.9.2",
+    ("docs/installation.md", "py-spdx-license/pull/5"): "0.9.3",
+    ("docs/installation.md", "but no release holds it yet"): "0.9.3",
 }
 _LINE_NUMBER = re.compile(r"\b\w+\.py:\d+|#L\d+\b")
 _PINNED_LINK = re.compile(r"/blob/[0-9a-f]{40}/[^)\s]*#L\d+")
