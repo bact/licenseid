@@ -11,8 +11,9 @@ accuracy, precision, and recall of the `licenseid` pipeline.
 
 Types 1 to 5 are the input types of real-world license matching queries. The
 script `scripts/generate_fixtures.py` generates them, with the official SPDX
-License List as its data source. Types 6 to 18
-are snapshots, pinned answers and corpora of the resolver and the harness.
+License List as its data source. Types 6 to 20
+are snapshots, pinned answers, corpora and recipes of the resolver and the
+harness.
 
 ## Input Types
 
@@ -298,8 +299,8 @@ OUT.write_text(text, encoding="utf-8")
   `detect()` result of the cases of types 1 to 5 and of each declared value
   of the resolver corpus (`detect_*.tsv`), and the exit
   status and both streams of every CLI command, as text and with `--json`
-  (`cli.jsonl`). A test fails when a value moves that
-  `tests/harness_changes.py` does not list.
+  (`cli.jsonl`). `detect_several.tsv` holds the cases of section 20. A test
+  fails when a value moves that `tests/harness_changes.py` does not list.
 - **Characteristics:** each file is under 800 lines. `tools/golden/README.md`
   says how to read a difference and how to regenerate.
 
@@ -355,6 +356,34 @@ OUT.write_text(text, encoding="utf-8")
   `LGPL-3.0-only` an optional copy of the GPL-3.0, `HPND` mostly variable
   parts; the three `OFL-1.1` IDs share one text, but only the core of
   `OFL-1.1-no-RFN` is shorter than it (`records.uneven_cores`).
+
+### 20. `several-texts`
+
+- **Data Source:** made up. `cases.json` holds recipes, not files: a part
+  `@ID` is `license_text` of `license-text-long/ID.json` (section 4, from the
+  SPDX release), any other part is a literal line written for the case
+  ("Example Project contributors"). `tests/several_texts.py` joins the parts
+  with a `----` line.
+- **Description:** files of several texts and licence notices Pitloom
+  reported, for the first-text rule (`licenseid.firsttext`) and `TEXTS` in
+  file order (`tests/test_several_texts.py`, the golden part `several`). Each
+  case is shaped like a real package's licence file, named in its `like` key
+  only: numpy and scipy (own text, then bundled runtime texts), pytype (a
+  vendored text first), CPython (its licence, then 0BSD), roman_numerals
+  (either of two texts), Pillow (own terms that are no List text), certifi (an
+  MPL-2.0 header notice, no whole text: it pins today's `below threshold`,
+  which Pitloom's item C6, a header notice answered as the notice it is, will
+  move; the long-text database holds no MPL-2.0 text, so that change needs it
+  added there too). A real licence file is
+  not copied: it belongs to its project, with copyright lines and notices of
+  named people and parts under their own terms, and cannot carry this
+  repository's licence. The real files stay outside the repository, as the
+  probe corpus of the pull request.
+- **Characteristics:** a JSON list of objects: `case` (20 characters at
+  most), `like`, `parts`, and what `detect` gives: `answer` (`null`:
+  none), `reason` (`REASON` of the record of no answer) and `texts`
+  (`TEXTS`, in file order). Recipes keep no second copy of a List text and
+  no line ending Git could change.
 
 ### Notes
 

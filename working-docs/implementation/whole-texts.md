@@ -31,7 +31,8 @@ cases where one answer misleads a caller:
 
 `TEXTS` is a new last field of the `detect` record (after `REASON`), JSON
 key `texts`, API `Detection.texts: list[str] | None`. It lists the IDs of the
-List texts the input holds whole: sorted, space-separated as `SAME_TEXT` is,
+List texts the input holds whole: sorted (in file order since item 59,
+section 9), space-separated as `SAME_TEXT` is,
 or `null`. It is a fact about the input; it does not change the answer, the
 ranking or `resolve()`.
 
@@ -450,8 +451,9 @@ was gone: a BSD-3-Clause text and a BSD-2-Clause text gave `Sleepycat`
   `textnames.held_texts`, which `textnames.skipped()` turns off for terse
   `detect`, `is-*` and `is_*()`: a check that depended on printing `TEXTS`
   would give those another answer than `-v`. `TEXTS` then searches again with
-  the final answer; its tie preference for the answer's group can name a tie
-  differently, never find other rows.
+  the final answer (since item 59 that search is `firsttext`'s, section 9);
+  its tie preference for the answer's group can name a tie differently, never
+  find other rows.
 - **Once per input.** The search runs at the first candidate whose floor binds
   above coverage 1.05, with that marker's licence as the tie preference, and
   is reused for the rest (the same answers as one search per marker, on the
@@ -463,3 +465,57 @@ was gone: a BSD-3-Clause text and a BSD-2-Clause text gave `Sleepycat`
   of 1,665 long fixtures, 3 of 209 mixed), +23 ms a file on terse `detect`
   (+4.5 percent), nothing elsewhere. A first use in a process reads the corpus
   (20 ms from `text_codes`, 160 ms coded for a build-5 database).
+
+### 9. A file of several texts: the first text (item 59, 2026-11-26)
+
+`detect()` ranks one licence per input, so in a file of several List texts the
+longest won on similarity: numpy and scipy `LICENSE.txt` answered
+`GPL-3.0-only`, scikit-learn `COPYING` `Apache-2.0`, mypy `LICENSE`
+`Python-2.0.1`. The maintainer chose "E + D" of the plan (options A to E
+measured on 596 real files, 4,654 fixtures and 144 synthetic bundles):
+
+- **E** (`firsttext`): when the top result is a text match, not exact, of 40
+  tokens or more, the search runs once, with the answer's group as the tie
+  preference, and where it finds two or more same-text groups the results
+  stand only when the first text found (`Found.first`, the earliest kept
+  span) is the answer's (`markerfloor.found_in`: same-text group, a deprecated
+  ID's replacement, the exception dropped); else `detect()` returns `[]`. It
+  only refuses. No coverage gate: MIT then the GPL-3.0 gives the top a
+  coverage of about 1.03, and a gate at 1.05 missed 30 of the 144 synthetic
+  bundles. The search runs whatever `skipped()` says (terse `detect`, `is-*`,
+  `is_*()`), and `held_texts` names its result: one search per call.
+- **D**: every record of no answer carries `TEXTS` (the top candidate's, else
+  `LicenseDetector.texts`, a search of its own made only for a printed
+  record); `REASON=several texts` where there is no result and two or more
+  IDs. API: `LicenseDetector.texts()`, `licenseid.texts()`.
+- **File order** (Pitloom C4): `Found.rows` and `TEXTS` follow the input (the
+  start of each group's first kept span), no longer the IDs; `found_rows`
+  stays sorted. A caller reads the first ID as the text the file gives first.
+
+Not as planned: the rule has no score gate, so it also empties a top under
+0.85 whose text is not first. On the fixtures that moves `own-not-found`
+(`BSD-2-Clause` 0.6435, its MIT text first) to no result, `several texts`;
+on the real files 14 tops under 0.85 go, no answer at 0.85 among them.
+
+Measured on the build (worktree `several-texts` against 96fbf2f, the build-6
+database of List 3.29.0, 596 real files):
+
+- Answers at 0.85: exactly the 14 moves of the plan, each to no answer with
+  `REASON=several texts`: numpy 1.26.4, 2.0.2, 2.2.5, 2.4.6, 2.5.5 and scipy
+  1.13.1, 1.15.2, 1.17.1 (`GPL-3.0-only`; `TEXTS=BSD-3-Clause
+  BSD-3-Clause-Open-MPI GPL-3.0-only`), scikit-learn 1.6.1 and 1.9.1
+  (`Apache-2.0`; `BSD-3-Clause Apache-2.0`), mypy 1.15.0 and 2.1.0
+  (`Python-2.0.1`; `MIT Python-2.0.1`, `MIT Python-2.0.1 BSD-2-Clause`),
+  roman_numerals (`CC0-1.0`; `0BSD CC0-1.0`) and the one right answer lost,
+  pytype (`Apache-2.0`; `MIT Apache-2.0`).
+- Terse `detect` and `-v` agree on every file (answer and exit code).
+- 140 records of no answer; 55 now carry `TEXTS` (28 `several texts`, 27
+  `below threshold`, such as mypy_extensions, ruff, mdurl, tqdm and sympy
+  `TEXTS=MIT` under a look-alike top: roadmap item 68).
+- Four `TEXTS` lists change order, none its set.
+- Fixtures: the golden part `several` (made-up recipes, `tests/fixtures/
+  several-texts/`) moves five rows (`harness_changes_firsttext.py`); no other
+  golden row moves.
+- Time: terse `detect()` (TEXTS skipped) on the 587 files with a text top,
+  base and branch interleaved, best of 3: total 247.4 s to 251.4 s (1.016),
+  median ratio 1.013, p95 1.094, max 1.40; no file over 1.5x.

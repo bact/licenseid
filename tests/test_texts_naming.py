@@ -95,22 +95,23 @@ def test_a_group_with_no_variant_shows_its_shortest_id(
     assert _names([row], "A-1.0", variant) == [expected]
 
 
-def test_the_ids_are_sorted_and_named_once() -> None:
+def test_the_ids_keep_the_order_of_the_rows_and_are_named_once() -> None:
+    """The rows come in the order the input holds them: TEXTS keeps it."""
     rows = ["MPL-2.0", "GPL-3.0-only", "GPL-3.0-or-later", "Apache-2.0", "MPL-2.0"]
-    assert _names(rows, "Zlib", "auto") == ["Apache-2.0", "GPL-3.0-only", "MPL-2.0"]
+    assert _names(rows, "Zlib", "auto") == ["MPL-2.0", "GPL-3.0-only", "Apache-2.0"]
 
 
 def test_the_answers_group_and_another_family_are_named_apart() -> None:
     rows = ["GPL-3.0-only", "GFDL-1.1-only"]
     assert _names(rows, "GPL-3.0-or-later", "auto") == [
-        "GFDL-1.1-only",
         "GPL-3.0-or-later",
+        "GFDL-1.1-only",
     ]
     assert _names(rows, "GPL-3.0-or-later", "as-written") == [
-        "GFDL-1.1-only",
         "GPL-3.0-or-later",
+        "GFDL-1.1-only",
     ]
 
 
 def test_no_row_is_no_ids() -> None:
-    assert _names([], "MIT", "auto") == []
+    assert not _names([], "MIT", "auto")

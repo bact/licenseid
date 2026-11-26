@@ -299,16 +299,13 @@ def _top(text: str) -> tuple[str, float]:
 
 def test_a_marker_does_not_answer_for_several_texts() -> None:
     """The BSD clauses of one of three texts (grpcio's and pandas' shape):
-    0.947 on the floor before, now no answer at 0.85, and only the texts
-    found are listed."""
-    results = long_text_detector().detect(text=SEVERAL)
-    assert results[0]["texts"] == ["BSD-2-Clause", "BSD-3-Clause", "MIT"]
-    assert results[0]["score"] < 0.85
-    assert {r["expression"] for r in results} <= {
-        "BSD-2-Clause",
-        "BSD-3-Clause",
-        "MIT",
-    }
+    0.947 on the floor before, now no answer at 0.85; MIT's text comes
+    first, so the first-text rule (``firsttext``) leaves no result at all,
+    and the texts found are listed."""
+    detector = long_text_detector()
+    results = detector.detect(text=SEVERAL)
+    assert detector.texts(SEVERAL) == ["MIT", "BSD-3-Clause", "BSD-2-Clause"]
+    assert not results
 
 
 @pytest.mark.parametrize(
@@ -345,6 +342,18 @@ def test_the_floor_stays(text: str, answer: str) -> None:
 BSD_TEXTS = ["BSD-2-Clause", "BSD-3-Clause", "BSD-4-Clause"]
 
 
+#: The top of each pair once the first-text rule has run: the first text
+#: where it ranks first (below 0.85), else no result at all.
+_PAIR_TOPS = {
+    ("BSD-2-Clause", "BSD-3-Clause"): None,
+    ("BSD-2-Clause", "BSD-4-Clause"): None,
+    ("BSD-3-Clause", "BSD-2-Clause"): "BSD-3-Clause",
+    ("BSD-3-Clause", "BSD-4-Clause"): None,
+    ("BSD-4-Clause", "BSD-2-Clause"): "BSD-4-Clause",
+    ("BSD-4-Clause", "BSD-3-Clause"): "BSD-4-Clause",
+}
+
+
 @pytest.mark.parametrize(
     "pair",
     [(a, b) for a in BSD_TEXTS for b in BSD_TEXTS if a != b],
@@ -353,25 +362,29 @@ BSD_TEXTS = ["BSD-2-Clause", "BSD-3-Clause", "BSD-4-Clause"]
 def test_no_look_alike_answers_for_two_texts(pair: tuple[str, str]) -> None:
     """With the BSD clauses' floor gone, Sleepycat (a look-alike neither text
     is) scored 0.91 to 0.93 and answered; now only the two texts are
-    listed, below 0.85."""
+    listed, below 0.85, or none where the first-text rule refuses the top."""
     text = "\n\n".join(_text(license_id) for license_id in pair)
-    results = long_text_detector().detect(text=text)
+    detector = long_text_detector()
+    results = detector.detect(text=text)
+    top = _PAIR_TOPS[pair]
+    assert (results[0]["expression"] if results else None) == top
     assert {r["expression"] for r in results} <= set(pair)
-    assert results[0]["score"] < 0.85
-    assert results[0]["texts"] == sorted(pair)
+    assert not results or results[0]["score"] < 0.85
+    assert detector.texts(text) == list(pair)  # in file order
 
 
 def test_terse_and_verbose_agree() -> None:
     """The search of the gate runs where ``TEXTS`` is skipped too."""
     detector = long_text_detector()
-    shown = detector.detect(text=SEVERAL)[0]
+    text = "\n\n".join([GPL_NOTICE, _text("BSD-3-Clause"), _text("BSD-2-Clause")])
+    shown = detector.detect(text=text)
     with skipped():
-        terse = detector.detect(text=SEVERAL)[0]
-    assert (terse["expression"], terse["score"]) == (
-        shown["expression"],
-        shown["score"],
-    )
-    assert terse["texts"] is None
+        terse = detector.detect(text=text)
+    assert shown  # BSD-3-Clause's text is first: results, under 0.85
+    assert [(r["expression"], r["score"]) for r in terse] == [
+        (r["expression"], r["score"]) for r in shown
+    ]
+    assert terse[0]["texts"] is None and shown[0]["texts"]
     with skipped():
         assert detector.is_osi(text=SEVERAL) is None
 

@@ -69,7 +69,8 @@ class Detection(TypedDict):
     same text. ``texts`` lists the List licences whose whole text the input
     holds, one ID for each (the text of a licence that has an ``-only`` and
     an ``-or-later`` form is named as the answer is: by the answer's
-    own ID, else as ``variant`` says), sorted; the same list on every result
+    own ID, else as ``variant`` says), in the order the input holds them
+    (the first is the text it gives first); the same list on every result
     of one call, None for an answer that is not a text match, an input of
     fewer than 40 tokens without an exact answer, and when no text is found
     or the input is too long to search.

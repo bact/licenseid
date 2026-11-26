@@ -1,0 +1,14 @@
+# Golden snapshot of detect(): the top result of each case, on the database
+# of tests/harness_db.py (detector_for). Regenerate with
+# python -m tools.golden --write several; never edit by hand.
+case	expression	method	exact	score
+several/apache-then-mit	Apache-2.0	text	no	1.0000
+several/cpython-like	Python-2.0	text	no	1.0000
+several/gpl3-then-mit	GPL-3.0-only	text	no	1.0000
+several/mit-then-apache	Apache-2.0	text	no	1.0000
+several/mit-then-gpl3	GPL-3.0-only	text	no	1.0000
+several/mpl-header-notice	Catharon	text	no	0.4961
+several/numpy-like	GPL-3.0-only	text	no	0.9196
+several/one-text	MIT	text	no	1.0000
+several/or-file	CC0-1.0	text	no	1.0000
+several/own-not-found	BSD-2-Clause	text	no	0.6435

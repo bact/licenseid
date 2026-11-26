@@ -19,6 +19,7 @@ from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path, require_path
 from licenseid.detectrequest import PathInput, check_request
 from licenseid.errors import invalid_id_error
+from licenseid.firsttext import settle_texts
 from licenseid.identifiers import (
     is_qualified_plus,
     is_simple_expression,
@@ -59,7 +60,7 @@ from licenseid.similarity import (
     with_core,
 )
 from licenseid.textinput import read_text_file, reject_lone_surrogate
-from licenseid.textnames import held_texts, skipped
+from licenseid.textnames import held_texts, input_texts, skipped
 from licenseid.types import (
     CandidateMatch,
     Detection,
@@ -67,8 +68,10 @@ from licenseid.types import (
     InternalMatch,
     LicenseFlags,
     RawMatch,
+    Variant,
 )
 from licenseid.variants import DEFAULT, read_as, read_from, settle_free_text
+from licenseid.wholetexts import Found
 
 
 @dataclass(frozen=True)
@@ -530,20 +533,44 @@ class LicenseDetector:
             ranked, ctx.target_text, ctx.is_pure, enable_pop=pop
         )
         settled = settle_free_text(ranked, ctx.target_text, ctx.is_pure, ctx.request)
-        return self._with_texts(settled, ctx)
+        # In a file of several licence texts, a text answer stands only when
+        # its text comes first (firsttext); its one search gives TEXTS too.
+        settled, found = settle_texts(settled, ctx.norm_input, self.db)
+        return self._with_texts(settled, ctx, found)
 
     def _with_texts(
-        self, settled: list[RawMatch | InternalMatch], ctx: _MatchContext
+        self,
+        settled: list[RawMatch | InternalMatch],
+        ctx: _MatchContext,
+        found: Found | None,
     ) -> list[RawMatch | InternalMatch]:
         """*settled*, each result given the List texts the input holds whole
-        (``textnames``): a fact about the input, so every result has it."""
-        texts = held_texts(
-            self.db, ctx.norm_input, settled, ctx.request.get("variant", DEFAULT)
-        )
+        (``textnames``, from the search *found*): a fact about the input, so
+        every result has it."""
+        texts = held_texts(self.db, settled, ctx.request.get("variant", DEFAULT), found)
         if texts is not None:
             for match in settled:
                 match["texts"] = texts
         return settled
+
+    def texts(
+        self,
+        text: str | None = None,
+        *,
+        file_path: PathInput | None = None,
+        variant: Variant = DEFAULT,
+    ) -> list[str] | None:
+        """The List IDs whose whole text (or core) the input holds, one per
+        text, in the order the input gives them: ``TEXTS`` of a record of no
+        answer. A group of licences
+        with one text is named as ``detect()`` names a text whose variant is
+        not stated under *variant*. None when no text is found, the input has
+        under 40 tokens, or it is too large to search. Give one of *text* and
+        *file_path*; raises what :meth:`detect` raises for them."""
+        file_path = check_request(text, None, file_path, {"variant": variant})
+        target_text = self._resolve_target_text(text, file_path)
+        with self.db.reading():
+            return input_texts(self.db, normalize_text(target_text), variant)
 
     def _resolve_record(
         self,

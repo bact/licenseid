@@ -14,7 +14,7 @@ GPL-2.0-or-later.
 
 So the floor stays unless the input is longer than the marker's licence text
 (coverage above :data:`MAX_WHOLE_COVERAGE`) and the whole-text search
-(``licenseid.wholetexts.found_rows``, the search of ``TEXTS``) finds texts
+(``licenseid.wholetexts.found_texts``, the search of ``TEXTS``) finds texts
 that are not all the marker's (its same-text group, an ``-only`` or
 ``-or-later`` twin or a deprecated ID's replacement included, an exception
 dropped). Then the candidate keeps the additive boost only, and every
@@ -25,21 +25,19 @@ from the ranking): with the floor gone, a look-alike the file does not hold
 The rule acts only on positive evidence: a search that finds nothing (a text
 it cannot confirm, such as a BSD-3-Clause text with a copyright block inside)
 keeps the floor, as before. The search runs at most once per input, only
-where a floor binds above that coverage, and directly, never through
-``licenseid.textnames.held_texts``: an output that does not print ``TEXTS``
-(terse ``detect``, ``is-*``, ``is_*()``) gives the same answer as ``-v``.
+where a floor binds above that coverage, in every output (terse ``detect``,
+``is-*``, ``is_*()`` too), so each gives the same answer as ``-v``.
 Measured in ``working-docs/implementation/whole-texts.md``.
 """
 
 from collections.abc import Mapping, Sequence
 from typing import Final
 
-from licenseid.database import LicenseDatabase, text_corpus, text_parts
+from licenseid.database import LicenseDatabase, text_corpus
 from licenseid.listlookup import fold_case
-from licenseid.textnames import has_tokens, without_exception
+from licenseid.textnames import has_tokens, search_id, text_groups
 from licenseid.types import InternalMatch
-from licenseid.variants import replacement_of
-from licenseid.wholetexts import found_rows
+from licenseid.wholetexts import found_texts
 
 __all__ = ["MAX_WHOLE_COVERAGE", "doubt_floors", "floor_doubted", "found_in"]
 
@@ -52,8 +50,7 @@ MAX_WHOLE_COVERAGE: Final = 1.05
 def _row_key(marker_id: str) -> str:
     """The folded ID of the licence row *marker_id* names: without its
     exception, a deprecated ID as its replacement."""
-    head = without_exception(marker_id)
-    return fold_case(replacement_of(head) or head)
+    return fold_case(search_id(marker_id))
 
 
 def _is_text_of(row: str, key: str, groups: Mapping[str, Sequence[str]]) -> bool:
@@ -95,12 +92,10 @@ def _search(
     *marker_id* wins a tie, as an answer does in ``TEXTS``."""
     if not has_tokens(norm_input):
         return None, {}
-    head = without_exception(marker_id)
-    rows = found_rows(norm_input, text_corpus(db), replacement_of(head) or head)
-    if not rows:
+    found = found_texts(norm_input, text_corpus(db), search_id(marker_id))
+    if found is None:
         return None, {}
-    parts = text_parts(db)
-    return rows, {row: parts[row].same_text for row in rows if row in parts}
+    return found.rows, text_groups(db, found.rows)
 
 
 def doubt_floors(

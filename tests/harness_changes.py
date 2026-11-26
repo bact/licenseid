@@ -18,6 +18,7 @@ from harness_changes_aliases import ALIAS_CHANGES
 from harness_changes_cutversion import CUTVERSION_CHANGES
 from harness_changes_exact import EXACT_CHANGES
 from harness_changes_fields import FIELDS_CHANGES
+from harness_changes_firsttext import FIRSTTEXT_CHANGES, FIRSTTEXT_CLI_CHANGES
 from harness_changes_nametier import NAME_TIER_CHANGES
 from harness_changes_nametier2 import NAME_TIER2_CHANGES
 from harness_changes_notice_query import NOTICE_QUERY_CHANGES
@@ -46,6 +47,7 @@ DETECT_CHANGES: dict[str, tuple[str, str]] = {
     **NAME_TIER2_CHANGES,  # last: moves `GNU ... v3` of NAME_TIER_CHANGES again
     **REVIEW090_CHANGES,  # only `exact` moves, on the answers above
     **NOTICE_QUERY_CHANGES,  # slices that held a notice: a neighbour ranks first
+    **FIRSTTEXT_CHANGES,  # last: several texts, the answer's not first
 }
 CLI_CHANGES: dict[str, tuple[str, str]] = {
     "detect-name#text": ("bea927311e33", _FIRST),
@@ -55,5 +57,6 @@ CLI_CHANGES: dict[str, tuple[str, str]] = {
     "detect-unreadable-text#text": ("0df77ec6c59b", _SHORT),
     "detect-unreadable-text#json": ("13301d901e3b", _SHORT),
     **VARIANT_CLI_CHANGES,  # every record has a new last field
-    **FIELDS_CHANGES,  # last: and another after it
+    **FIELDS_CHANGES,  # and another after it
+    **FIRSTTEXT_CLI_CHANGES,  # last: several texts, no answer
 }

@@ -785,3 +785,13 @@ Item 35's last open bullet (`LICENSE`, Apache-2.0, three times over answered
 on this branch it answers `RPSL-1.0` 0.7267, no answer at 0.85 (`TEXTS`
 `Apache-2.0`); twice, `Apache-2.0` 0.7444. No marker floor binds. Item 35 is
 closed.
+
+## Item 59: a file of several licence texts (2026-11-26)
+
+A text answer stands only when its text is the first whole text found
+(`firsttext`); a record of no answer carries `TEXTS`, with `REASON=several
+texts`; `TEXTS` is in file order; `texts()` in the API. On 596 real files the
+14 answers of the plan move to none (13 wrong: numpy, scipy, scikit-learn,
+mypy, roman_numerals; 1 right lost: pytype), terse and `-v` agree. Details,
+the options rejected and the numbers:
+[`whole-texts.md`](whole-texts.md), section 9.

@@ -303,7 +303,7 @@ COUNTS = {
         "output": 3,
         "skipped": 3,
     },
-    "docs/python-api.md": {"python": 3, "shape": 1},
+    "docs/python-api.md": {"python": 3, "skipped": 1, "shape": 1},
     "docs/resolve-flow.md": {"ignored": 2, "skipped": 1},
     "docs/resolve.md": {"json": 3, "skipped": 1},
 }

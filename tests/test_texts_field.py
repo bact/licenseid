@@ -24,7 +24,7 @@ from conftest import NO_DETECTION, FoundRows
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from texts_db import GPL, A, texts_database
 
-from licenseid import textnames
+from licenseid import firsttext, textnames
 from licenseid.cli import cli
 from licenseid.database import text_corpus
 from licenseid.detector import LicenseDetector
@@ -230,12 +230,13 @@ def _invoke(db_path: str, *args: str) -> Any:
 def test_the_text_line_ends_with_the_texts_after_the_reason(
     db_path: str, found_rows: FoundRows
 ) -> None:
-    found_rows.rows = ["B-1.0", "A-1.0"]
+    found_rows.rows, found_rows.first = ["B-1.0", "A-1.0"], "A-1.0"
     result = _invoke(db_path, "-v", "--top", "2", "--text", MORE)
     assert result.exit_code == 0, result.output
     lines = result.stdout.splitlines()
     assert len(lines) == 2
-    assert all(x.endswith("\tREASON=\tTEXTS=A-1.0 B-1.0") for x in lines)
+    # In the order of the rows the search gives (the file's), not by ID.
+    assert all(x.endswith("\tREASON=\tTEXTS=B-1.0 A-1.0") for x in lines)
 
 
 def test_the_json_has_a_list_and_null_for_none(
@@ -250,8 +251,11 @@ def test_the_json_has_a_list_and_null_for_none(
     assert result.stdout.endswith("\tREASON=\tTEXTS=\n")
 
 
-def test_a_record_of_no_answer_has_no_texts(db_path: str) -> None:
+def test_a_record_of_no_answer_has_texts_only_when_found(db_path: str) -> None:
     assert no_detection_line("no match").endswith("\tREASON=no match\tTEXTS=")
+    assert no_detection_line("several texts", ["A-1.0", "MIT"]).endswith(
+        "\tREASON=several texts\tTEXTS=A-1.0 MIT"
+    )
     assert NO_DETECTION.endswith("\tREASON=no match\tTEXTS=\n")
     result = _invoke(db_path, "--json", "--id", "No-Such-1.0")
     assert json.loads(result.stdout)["texts"] is None
@@ -302,9 +306,12 @@ def _text_result(license_id: str, *, exact: bool = False, method: str = "text") 
 
 
 def _held(db_path: str, result: Any, variant: Variant = "auto") -> list[str] | None:
+    """``TEXTS`` of *result* as ``detect()`` makes it: the search of
+    ``firsttext``, then the names of ``textnames``."""
     db = LicenseDetector(db_path).db
     with db.reading():
-        return textnames.held_texts(db, normalize_text(MORE), [result], variant)
+        settled, found = firsttext.settle_texts([result], normalize_text(MORE), db)
+        return textnames.held_texts(db, settled, variant, found)
 
 
 def test_only_a_text_match_is_searched(db_path: str, found_rows: FoundRows) -> None:
@@ -318,7 +325,8 @@ def test_only_a_text_match_is_searched(db_path: str, found_rows: FoundRows) -> N
 
 def test_no_result_is_no_texts(db_path: str, found_rows: FoundRows) -> None:
     db = LicenseDetector(db_path).db
-    assert textnames.held_texts(db, normalize_text(MORE), [], "auto") is None
+    assert firsttext.settle_texts([], normalize_text(MORE), db) == ([], None)
+    assert textnames.held_texts(db, [], "auto", None) is None
     assert not found_rows.calls
 
 

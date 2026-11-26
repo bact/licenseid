@@ -121,50 +121,58 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   text), for a compound answer, and for a database built before
   `licenseid update` kept the groups. The `is-*` commands have no such field.
 - `REASON` (JSON `reason`) is empty (JSON `null`) on an answer. On the record of
-  no answer it is the one field that is not empty: `below threshold` (a
-  candidate was found, but none scored `--threshold`), `not exact` (`--exact`
-  removed every result; the threshold is read first) or `no match` (nothing was
-  a candidate; a `WARNING` on standard error may say why, such as `too few words
-  for text`; also every candidate held back because the file holds several
-  licence texts and none of them was a candidate, where `--threshold 0` shows
-  nothing either). It names no licence, as an ID in a record of no answer
-  invites a guess; to see the nearest candidate run `licenseid detect
-  --threshold 0 --top 1 -v`. The API `detect()` returns an empty list and has no
-  such field. The key is a field of a `detect` line, never its kind: a line
-  starting with `REASON=` is a refusal of `resolve`.
+  no answer it is never empty, and `TEXTS` is the only other field that may
+  hold a value: `below threshold` (a candidate was found, but none scored
+  `--threshold`), `not exact` (`--exact` removed every result; the threshold is
+  read first), `several texts` (no result at all, and the input holds the texts
+  of two licences or more: the top result was a text match whose text is not
+  the first text in the file, or every candidate was held back because none of
+  the texts found was a candidate) or `no match` (nothing was a candidate; a
+  `WARNING` on standard error may say why, such as `too few words for text`).
+  It names no licence, as an ID in a record of no answer invites a guess; to
+  see the nearest candidate run `licenseid detect --threshold 0 --top 1 -v`
+  (under `several texts` there is none: read `TEXTS`). The API `detect()`
+  returns an empty list and has no such field. The key is a field of a
+  `detect` line, never its kind: a line starting with `REASON=` is a refusal of
+  `resolve`.
 - `TEXTS` (JSON `texts`, a list of strings; the last field) lists the List IDs
   whose whole licence text, or its core (the text without its optional parts),
-  the input holds, one per text, sorted, separated by one space in the record. A
-  List text under 40 words is listed only when it is the whole input (an exact
-  answer, whatever its length). A file with several licence texts names each:
-  `BSD-2-Clause MIT Python-2.0.1` for mypy's `LICENSE`. An exact answer gives
-  the answer alone. The same list is on every `--top` line. It is filled for
-  `-v`, `--json` and the API; the search is skipped where it is never printed
-  (the `is-*` commands, the `is_*()` functions, and `detect` without `-v` or
-  `--json`), except that it runs, unprinted, where a marker's floor needs it
-  (`SCORE`), so every output gives the same answer. It is empty (JSON `null`)
-  when no text was found, when the top result is not a text match, in a record
-  of no answer (also where the one text found was no candidate: the Saxpath
-  fixture `license_text_short_tail_2000` gives `REASON=no match`, empty `TEXTS`,
-  exit 1), when the input has under 40 words (a Han or kana character counts as
-  one word) and its answer is not exact, and when the input is too large to
-  search (the search is bounded by counts, and past one it gives no list, never
-  a partial one). `exclude` and `hint` leave the search and the texts it finds
-  as they are, but they change the answer: its own name follows it, its group
-  wins a tie between two groups of equal fit (so, rarely, another answer gives
-  another tie), and they can make the top result not a text match, so that
-  `TEXTS` is empty. `only_spdx` and `only_common` do not touch it. The answer's
-  own text shows as the ID of `EXPRESSION`; any other text is named as `detect`
-  names a text whose variant is not stated under `--variant`: `-or-later` under
-  `or-later`, else `-only`; a group of licences with the same text and neither
-  form shows its shortest ID. A text of an exception (the GCC exception) is not
-  in the database, so it is never listed. A notice or a pointer, such as
-  Apache's "Licensed under the Apache License" header, is not a whole text:
-  `TEXTS` does not hold the answer and `COVERAGE` is under 0.8. A text that is a
-  close look-alike of another (two BSD-3-Clause variants that differ in a few
-  words) is named only when no other text fits the same part about as well; else
-  the part names nothing. A record of no answer has `TEXTS` empty; to see the
-  record of a candidate use `--threshold 0 -v`.
+  the input holds, one per text, in the order the input first gives each,
+  separated by one space in the record. A List text under 40 words is listed
+  only when it is the whole input (an exact answer, whatever its length). A file
+  with several licence texts names each: `MIT Python-2.0.1 BSD-2-Clause` for
+  mypy's `LICENSE`, whose own MIT text comes first. An exact answer gives the
+  answer alone. The same list is on every `--top` line. In a file of the texts
+  of two licences or more, a text answer stands only when its text is the first
+  one found (by habit a licence file gives the project's own text first, then
+  the bundled ones); otherwise there is no answer (`REASON=several texts`):
+  numpy's `LICENSE.txt`, its BSD-3-Clause text and then the texts of bundled
+  runtime libraries, answered `GPL-3.0-only` before. The search runs for every
+  output, so every output gives the same answer; the IDs are printed by `-v`,
+  `--json` and the API (not by the `is-*` commands, the `is_*()` functions, or
+  `detect` without `-v` or `--json`). A record of no answer lists the texts the
+  input holds too: those of the top candidate (`below threshold`), else of the
+  whole input, each group by the name `--variant` gives it (the Saxpath fixture
+  `license_text_short_tail_2000` gives `REASON=no match`, `TEXTS=Saxpath`, exit
+  1). It is empty (JSON `null`) when no text was found, when the top result is
+  not a text match, when the input has under 40 words (a Han or kana character
+  counts as one word) and its answer is not exact, and when the input is too
+  large to search (the search is bounded by counts, and past one it gives no
+  list, never a partial one). `exclude` and `hint` leave the search and the
+  texts it finds as they are, but they change the answer: its own name follows
+  it, its group wins a tie between two groups of equal fit (so, rarely, another
+  answer gives another tie), and they can make the top result not a text match,
+  so that `TEXTS` is empty. `only_spdx` and `only_common` do not touch it. The
+  answer's own text shows as the ID of `EXPRESSION`; any other text is named as
+  `detect` names a text whose variant is not stated under `--variant`:
+  `-or-later` under `or-later`, else `-only`; a group of licences with the same
+  text and neither form shows its shortest ID. A text of an exception (the GCC
+  exception) is not in the database, so it is never listed. A notice or a
+  pointer, such as Apache's "Licensed under the Apache License" header, is not a
+  whole text: `TEXTS` does not hold the answer and `COVERAGE` is under 0.8. A
+  text that is a close look-alike of another (two BSD-3-Clause variants that
+  differ in a few words) is named only when no other text fits the same part
+  about as well; else the part names nothing.
 
 <!-- markdownlint-disable MD013 -->
 
@@ -206,7 +214,17 @@ A caller that declares one licence for a file can use this rule: declare
   not confirm (a look-alike was too close, or the wording differs from the
   List's);
 - one ID other than `EXPRESSION`: the answer is in doubt;
-- several IDs: the file holds several texts.
+- several IDs: the file holds several texts. With an answer, its text is the
+  first ID, the text the file gives first, by habit the project's own; the
+  others are bundled. Without one (`REASON=several texts`), the first ID is
+  still the text the file gives first, but not always the project's: a file
+  may start with a vendored licence, or with terms that are no List text.
+
+Record `TEXTS` as the licences found in the file, each on its own (SPDX 2.3
+"License information in file", section 8.6; in SPDX 3 one
+`hasDeclaredLicense` relationship to each), never joined with `AND`: an `AND`
+of them is a concluded licence, which needs what licenseid cannot see (texts
+that are alternatives, exceptions, licences that are no whole text).
 
 Under `below threshold` the nearest candidate is not named on
 purpose: no answer beats a doubtful guess. `licenseid detect --threshold 0

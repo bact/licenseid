@@ -156,5 +156,19 @@ declared values, SPDX expressions and the matching pipeline.
     look-alike (character fit 0.93 or more) fits about as well is named only
     at a fit of 0.98 or more; else its part names nothing. A text refused
     only for a critical word still counts as that look-alike's rival.
+    The texts are named in the order the input first gives each.
+  - **First text**: When the top result is a text match, not exact, of an
+    input of 40 words or more, that search runs for every output (the `is-*`
+    commands and the terse `detect` too). Where it finds the texts of two
+    licences or more (licences of one text count as one), the results stand
+    only when the first text found is the answer's; otherwise there is no
+    answer (`REASON=several texts`). In a file of several texts the longest
+    tends to rank first, though a licence file gives, by habit, the
+    project's own text first and the bundled ones after it. The rule only
+    takes an answer away, never gives one, and only on texts found: a file
+    that holds one text whole besides an own text not found keeps its
+    answer; with two or more found, the first decides. It has no coverage
+    gate: a short text before a long one (MIT, then the GPL-3.0) gives the
+    long one a coverage of about 1.03.
 
 [py-spdx-license]: https://github.com/JPEWdev/py-spdx-license

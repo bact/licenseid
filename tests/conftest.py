@@ -30,6 +30,7 @@ from resolver_corpus import corpus_db_path
 
 from licenseid import (
     console,
+    firsttext,
     keptdetector,
     listindex,
     listsource,
@@ -50,6 +51,7 @@ from licenseid.resolvertypes import ListInfo
 from licenseid.result import FieldValue, fields_line, read_text_field, record_json
 from licenseid.textcorpus import TextCorpus
 from licenseid.types import Detection, Method
+from licenseid.wholetexts import Found
 
 # tools/cli_matrix drives real shells and terminals (pwd, pty, termios): POSIX
 # only, so its tests are not collected on Windows.
@@ -109,35 +111,42 @@ def given() -> Generator[GivenWarnings, None, None]:
 @dataclass
 class FoundRows:
     """What ``textnames`` asks of the search of the texts an input holds: the
-    row IDs it finds (*rows*, None for none), the calls it gets (the
-    normalised input and the answer's row ID), and the rows of each corpus
-    built (the real search is the work of ``wholetexts``, tested there)."""
+    row IDs it finds (*rows*, in file order, None for none), the one whose
+    text comes first (*first*; unset: the row the search prefers, the
+    answer's, so a test about something else keeps its answer), the calls it
+    gets (the normalised input and the answer's row ID), and the rows of each
+    corpus built (the real search is the work of ``wholetexts``, tested
+    there)."""
 
     rows: list[str] | None = None
+    first: str | None = None
     calls: list[tuple[str, str]] = field(default_factory=list)
     built: list[list[Any]] = field(default_factory=list)
 
 
 @pytest.fixture
 def found_rows(monkeypatch: pytest.MonkeyPatch) -> FoundRows:
-    """Stand in for ``wholetexts.found_rows`` (as ``textnames`` and
-    ``markerfloor`` call it) and for the corpus the database builds: the test
-    sets ``rows``, and reads ``calls`` and ``built``. A
-    detector made before the test would keep a corpus of its own: use a new
-    one."""
+    """Stand in for ``wholetexts.found_texts`` (as ``textnames``,
+    ``markerfloor`` and ``firsttext`` call it) and for the corpus the
+    database builds: the test sets ``rows`` (and ``first``), and reads
+    ``calls`` and ``built``. A detector made before the test would keep a
+    corpus of its own: use a new one."""
     fake = FoundRows()
 
     def build(rows: Iterable[Any]) -> object:
         fake.built.append(list(rows))
         return object()
 
-    def search(norm_input: str, corpus: object, answer_id: str) -> list[str] | None:
+    def search(norm_input: str, corpus: object, answer_id: str) -> Found | None:
         assert corpus is not None
         fake.calls.append((norm_input, answer_id))
-        return None if fake.rows is None else list(fake.rows)
+        if not fake.rows:
+            return None
+        return Found(list(fake.rows), fake.first or answer_id)
 
-    monkeypatch.setattr(textnames, "found_rows", search)
-    monkeypatch.setattr(markerfloor, "found_rows", search)
+    monkeypatch.setattr(textnames, "found_texts", search)
+    monkeypatch.setattr(markerfloor, "found_texts", search)
+    monkeypatch.setattr(firsttext, "found_texts", search)
     monkeypatch.setattr(TextCorpus, "build", staticmethod(build))
     return fake
 

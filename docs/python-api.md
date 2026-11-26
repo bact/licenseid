@@ -61,7 +61,27 @@ expression cannot be judged and the others do not decide it
 
 `detect()` applies no threshold and no top: it returns every candidate it
 ranks (dozens for a LICENSE file), best first. Filter on `score` and
-`exact` yourself; the `is_*()` predicates use a bar of 0.85.
+`exact` yourself; the `is_*()` predicates use a bar of 0.85. A file of the
+texts of several licences whose first text is not the top result's returns
+`[]` ([output.md](output.md), `TEXTS`).
+
+`texts()` (`licenseid.texts()`, or `LicenseDetector.texts()`) lists the
+List texts an input holds whole, with no answer to name first, as the
+record of no answer prints them (`TEXTS`): in the order the input gives
+them, a licence of an `-only` and an `-or-later` form named as `variant`
+says (`"auto"` and `"as-written"`: `-only`), or `None`. It takes one `text`
+or `file_path`, and `variant`:
+
+<!-- docs-example: skip: needs a database holding the whole List texts -->
+
+```python
+from licenseid import LicenseDetector
+
+detector = LicenseDetector()
+detector.detect(file_path="LICENSE.txt")  # numpy's: [], several texts
+detector.texts(file_path="LICENSE.txt")
+# ["BSD-3-Clause", "BSD-3-Clause-Open-MPI", "GPL-3.0-only"]
+```
 
 `detect()` takes the keyword options `enable_popularity`, `exclude`,
 `hint`, `only_common`, `only_spdx` and `variant`, and raises

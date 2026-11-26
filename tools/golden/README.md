@@ -18,7 +18,7 @@ listed. The files are in `tests/fixtures/golden/` (see the section
 python -m tools.golden
 # Rewrite the files from the tree you are on:
 python -m tools.golden --write
-# One part only: id, name, value, short, long, mixed, cli
+# One part only: id, name, value, short, long, mixed, several, cli
 python -m tools.golden --write cli
 ```
 
@@ -49,17 +49,18 @@ Never edit a golden file by hand.
 | `detect_short.tsv` | one per licence | a head or tail slice of its text (300 to 2,000 characters) |
 | `detect_long.tsv` | every third licence | its verbatim text |
 | `detect_mixed.tsv` | one per file | a file of `mixed-content` or `mixed-content-curated` |
+| `detect_several.tsv` | one per recipe | a made-up file of several licence texts (`several-texts`, run whole on every commit) |
 | `cli.jsonl` | one per case and mode | exit status, standard output and standard error of a command, as text and with `--json` |
 
 The detect rows hold the expression, the method, `exact` and the score to four
 places. The `detect()` database (`tests/harness_db.py`, `detector_for`) is the
 whole List with the long-text fixtures' texts for the declared kinds `value`,
-`id` and `name`, and the long-text fixtures alone for `long`, `short` and
-`mixed`. The headers of `detect_id.tsv` and `detect_name.tsv` still say
-"long-text fixtures" until the release regeneration. The CLI
-cases are in `tests/harness_cli.py`; they run on a database and a shipped
-list built from the fixtures, a network that is down and a scratch home, and
-name the scratch paths `<DB>` and `<TMP>`.
+`id` and `name`, and the long-text fixtures alone for `long`, `short`, `mixed`
+and `several`. The headers of `detect_id.tsv` and `detect_name.tsv` still say
+"long-text fixtures" until the release regeneration. The CLI cases are in
+`tests/harness_cli.py`; they run on a database and a shipped list built from the
+fixtures, a network that is down and a scratch home, and name the scratch paths
+`<DB>` and `<TMP>`.
 
 Every commit runs a slice (`SLICE_STRIDE` in `tests/harness_golden.py`) and
 every CLI case; `pytest --run-benchmark` runs every case.
