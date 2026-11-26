@@ -65,14 +65,16 @@ UPDATE_LINE = re.compile(
 #: The whole result of ``detect`` without ``--verbose``: an expression per line.
 ID_ONLY = re.compile(r"\S+( (WITH|AND|OR) \S+)*")
 #: The REASON of a no-answer record.
-NO_ANSWER_REASONS = ("below threshold", "not exact", "no match")
+NO_ANSWER_REASONS = ("below threshold", "not exact", "no match", "several texts")
 #: What ``detect`` prints for no answer (exit 1): one record, every field
-#: empty but REASON; with ``--json`` every value null but ``reason``; without
+#: empty but REASON and TEXTS (the texts the input holds, if any); with
+#: ``--json`` every value null but ``reason`` and ``texts``; without
 #: ``--verbose`` an empty line.
 NO_ANSWER = re.compile(
     r"EXPRESSION=\tMETHOD=\tEXACT=\tSCORE=\tSIMILARITY=\tCOVERAGE="
-    r"\tVARIANT_STATED=\tSAME_TEXT=\tREASON=(below threshold|not exact|no match)"
-    r"\tTEXTS=\n"
+    r"\tVARIANT_STATED=\tSAME_TEXT=\tREASON=("
+    + "|".join(NO_ANSWER_REASONS)
+    + r")\tTEXTS=[^\t\n]*\n"
 )
 
 #: What :func:`predicate_answer` gives for an output that is not one record.
@@ -307,7 +309,7 @@ def is_no_answer(cell: Cell, out: str) -> bool:
         and isinstance(as_json[0], dict)
         and as_json[0]
         and as_json[0].get("reason") in NO_ANSWER_REASONS
-        and {v for k, v in as_json[0].items() if k != "reason"} == {None}
+        and {v for k, v in as_json[0].items() if k not in ("reason", "texts")} == {None}
     )
     if "json" in flags:
         return json_ok

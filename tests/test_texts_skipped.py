@@ -3,11 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Where ``TEXTS`` is never printed it is never searched: the ``is-*``
-commands, the ``is_*()`` predicates and the terse ``detect``. The Python
-API's ``detect()``, ``--verbose`` and ``--json`` search. The search is
-counted through the ``found_rows`` fixture (calls, not time); the answers of
-the other fields do not change."""
+"""Where ``TEXTS`` is never printed it is never named: the ``is-*``
+commands, the ``is_*()`` predicates and the terse ``detect``. The search
+itself runs once per call everywhere, for the first-text rule
+(``licenseid.firsttext``), so every output gives one answer; ``TEXTS`` reuses
+it. The search is counted through the ``found_rows`` fixture (calls, not
+time); the answers of the other fields do not change."""
 # pylint: disable=missing-function-docstring,redefined-outer-name
 
 from collections.abc import Generator
@@ -19,7 +20,7 @@ from conftest import FoundRows
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from texts_db import A, texts_database
 
-from licenseid import textnames
+from licenseid import firsttext, textnames
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
@@ -41,17 +42,17 @@ def _run(db_path: str, *args: str) -> Any:
 @pytest.mark.parametrize(
     ("args", "searches"),
     [
-        (["detect"], 0),
-        (["detect", "--top", "2"], 0),
+        (["detect"], 1),
+        (["detect", "--top", "2"], 1),
         (["detect", "-v"], 1),
         (["detect", "--json"], 1),
-        (["is-osi"], 0),
-        (["is-fsf"], 0),
-        (["is-spdx"], 0),
+        (["is-osi"], 1),
+        (["is-fsf"], 1),
+        (["is-spdx"], 1),
     ],
     ids=["terse", "terse-top", "verbose", "json", "is-osi", "is-fsf", "is-spdx"],
 )
-def test_the_cli_searches_only_where_it_prints_the_texts(
+def test_the_cli_searches_once_everywhere(
     db_path: str, found_rows: FoundRows, args: list[str], searches: int
 ) -> None:
     found_rows.rows = ["A-1.0"]
@@ -71,12 +72,15 @@ def test_the_terse_answer_is_what_the_verbose_answer_starts_with(
 
 
 @pytest.mark.parametrize("predicate", ["is_osi", "is_fsf", "is_spdx"])
-def test_a_predicate_does_not_search(
+def test_a_predicate_searches_once_and_follows_the_rule(
     db_path: str, found_rows: FoundRows, predicate: str
 ) -> None:
-    found_rows.rows = ["A-1.0"]
-    getattr(LicenseDetector(db_path), predicate)(text=MORE)
-    assert not found_rows.calls
+    found_rows.rows = ["A-1.0", "B-1.0"]
+    detector = LicenseDetector(db_path)
+    assert getattr(detector, predicate)(text=MORE) is not None
+    assert len(found_rows.calls) == 1
+    found_rows.first = "B-1.0"  # A-1.0's text is not first: no answer
+    assert getattr(detector, predicate)(text=MORE) is None
 
 
 def test_the_api_detect_searches(db_path: str, found_rows: FoundRows) -> None:
@@ -89,8 +93,8 @@ def test_the_api_detect_searches(db_path: str, found_rows: FoundRows) -> None:
 def test_the_skip_ends_with_its_block(db_path: str, found_rows: FoundRows) -> None:
     found_rows.rows = ["A-1.0"]
     detector = LicenseDetector(db_path)
-    detector.is_osi(text=MORE)
-    assert not found_rows.calls
+    with textnames.skipped():
+        assert detector.detect(text=MORE)[0]["texts"] is None
     assert detector.detect(text=MORE)[0]["texts"] == ["A-1.0"]
 
 
@@ -104,7 +108,9 @@ def test_an_exact_short_text_is_its_own_text(
     result: Any = {"exact": True, "method": "text", "license_id": "A-1.0"}
     variant: Variant = "auto"
     with db.reading():
-        assert textnames.held_texts(db, short, [result], variant) == ["A-1.0"]
+        settled, found = firsttext.settle_texts([result], short, db)
+        assert textnames.held_texts(db, settled, variant, found) == ["A-1.0"]
         result["exact"] = False  # not exact: still the gate
-        assert textnames.held_texts(db, short, [result], variant) is None
+        settled, found = firsttext.settle_texts([result], short, db)
+        assert textnames.held_texts(db, settled, variant, found) is None
     assert not found_rows.calls

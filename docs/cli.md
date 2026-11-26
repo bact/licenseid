@@ -159,8 +159,9 @@ Common options:
 - `--threshold <score>`: Keep results that score at least this, from 0 to
   1 (default 0.85). A value outside 0 to 1 exits 2. `licenseid detect
   --threshold 0 --top 1 -v` shows the nearest result when there is no
-  answer; the `REASON` of the record says why there was none
-  ([output.md](output.md)).
+  answer; the `REASON` of the record says why there was none, and `TEXTS`
+  the licence texts the input holds ([output.md](output.md)). Under
+  `REASON=several texts` there is no result to show at any threshold.
 - `--top <n>`: Keep at most this many results (default 3); below 1 exits 2.
 - `--exact`: Keep only exact results (`EXACT=true`, see [output.md](output.md)).
 - `--pop/--no-pop`: Weigh results by popularity, or not (default off).
@@ -370,7 +371,7 @@ making it suitable for use in scripts and CI/CD pipelines.
 | Exit Code | Meaning | Scenarios |
 | :--- | :--- | :--- |
 | **0** | Success | Confident match found; `resolve`: the value resolved to an expression; predicate is TRUE; database updated or already up-to-date; cache cleared or nothing to clear. |
-| **1** | Logic Failure | No matching licence found (an empty line; with `-v` one record, every field empty but `REASON`); `resolve`: no expression (an empty line; `-v` prints the resolution); predicate is FALSE, or cannot be judged (its record still printed); an update or a cache clear that failed (a network error, a data directory that cannot be made, a delete the system refuses). |
+| **1** | Logic Failure | No matching licence found (an empty line; with `-v` one record, every field empty but `REASON` and `TEXTS`); `resolve`: no expression (an empty line; `-v` prints the resolution); predicate is FALSE, or cannot be judged (its record still printed); an update or a cache clear that failed (a network error, a data directory that cannot be made, a delete the system refuses). |
 | **2** | Usage or Setup Error | Missing subcommand (help on standard error); missing input text/file; two inputs; `--json` with `--diff`; invalid parameters; `resolve` given a text, `-`, or a path that resolves to nothing; database not ready (for `resolve`, no list to read); output that cannot be written. |
 | **130** | Interrupted | Ctrl-C (SIGINT); no message once started. |
 | **141** | Reader gone | The reader closed the pipe (`head -1`); no message. |

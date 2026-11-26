@@ -17,6 +17,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from resolver_corpus import corpus_rows
+from several_texts import several_text_cases
 
 from licenseid.detector import LicenseDetector
 from licenseid.textinput import has_lone_surrogate
@@ -29,7 +30,15 @@ NONE = "-"
 #: Every n-th long text and the variant of each short text, see :func:`detect_cases`.
 LONG_STRIDE = 3
 #: The every-commit slice of each kind: every n-th case of its golden file.
-SLICE_STRIDE = {"long": 90, "short": 80, "mixed": 8, "id": 2, "name": 2, "value": 4}
+SLICE_STRIDE = {
+    "long": 90,
+    "short": 80,
+    "mixed": 8,
+    "id": 2,
+    "name": 2,
+    "value": 4,
+    "several": 1,  # ten cases: every one, every commit
+}
 KINDS = tuple(SLICE_STRIDE)
 FILES = {
     "long": "detect_long.tsv",
@@ -38,6 +47,7 @@ FILES = {
     "id": "detect_id.tsv",
     "name": "detect_name.tsv",
     "value": "detect_value.tsv",
+    "several": "detect_several.tsv",
 }
 
 
@@ -51,7 +61,11 @@ def detect_cases(kind: str) -> list[tuple[str, str]]:
     of 300 to 2,000 characters, by the licence's place in the list; ``mixed``:
     every file of ``mixed-content`` and ``mixed-content-curated``; ``id`` and
     ``name``: every spelling of the ID and name fixtures; ``value``: every
-    distinct declared value of the resolver corpus (parity and PyPI sample)."""
+    distinct declared value of the resolver corpus (parity and PyPI sample);
+    ``several``: every made-up file of several licence texts
+    (``several_texts``)."""
+    if kind == "several":
+        return [(f"several/{case}", text) for case, text, _ in several_text_cases()]
     if kind == "value":
         values = dict.fromkeys(unescape_field(row["value"]) for row in corpus_rows())
         # detect() refuses a lone surrogate (InvalidInputError): no answer.

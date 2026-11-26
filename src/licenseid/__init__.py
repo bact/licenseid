@@ -17,7 +17,7 @@ from licenseid.errors import (
     InvalidInputError,
     LicenseIdError,
 )
-from licenseid.keptdetector import detect
+from licenseid.keptdetector import detect, texts
 from licenseid.resolver import resolve
 from licenseid.resolvertypes import (
     Category,
@@ -60,4 +60,5 @@ __all__ = [
     "get_default_db_path",
     "json_line",
     "resolve",
+    "texts",
 ]

@@ -41,12 +41,21 @@ def test_the_slice_of_detect_is_the_golden(kind: str) -> None:
         ("long", False),
         ("short", False),
         ("mixed", False),
+        ("several", False),
     ],
 )
 def test_the_declared_kinds_run_on_the_full_list(kind: str, full_list: bool) -> None:
     """A deprecated ID has its row on the full List only: the ID and name kinds
     ran on the long-text fixtures, which hold no row for it (roadmap item 50)."""
-    assert set(hg.KINDS) == {"value", "id", "name", "long", "short", "mixed"}
+    assert set(hg.KINDS) == {
+        "value",
+        "id",
+        "name",
+        "long",
+        "short",
+        "mixed",
+        "several",
+    }
     expected = value_detector() if full_list else harness_detector()
     assert detector_for(kind) is expected
 
@@ -76,7 +85,7 @@ def test_a_golden_file_is_in_order_and_short(kind: str) -> None:
 def test_the_slice_is_a_part_of_the_golden(kind: str) -> None:
     cases = hg.detect_cases(kind)
     part = [case for case, _ in hg.take_slice(kind, cases)]
-    assert 0 < len(part) < len(cases) or kind in ("id", "name")
+    assert 0 < len(part) < len(cases) or kind in ("id", "name", "several")
     assert set(part) <= set(hg.read_golden(hg.GOLDEN / hg.FILES[kind]))
 
 

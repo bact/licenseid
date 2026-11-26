@@ -72,4 +72,6 @@ def test_apache_2_0_beside_a_bsd_3_text_does_not_answer_bsd_4_clause(
     db_path: str, order: tuple[str, str]
 ) -> None:
     value = "\n\n".join(text(lic_id) for lic_id in order)
-    assert answers(db_path, value)[0] != "BSD-4-Clause"
+    # The top, if any: where the Apache-2.0 text ranks first but comes second,
+    # the first-text rule (firsttext) leaves no result.
+    assert answers(db_path, value)[:1] != ["BSD-4-Clause"]

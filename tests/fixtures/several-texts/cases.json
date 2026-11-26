@@ -1,0 +1,157 @@
+[
+  {
+    "case": "apache-then-mit",
+    "like": "a project's own text first, then a bundled one",
+    "parts": [
+      "Copyright 2026 Example Project contributors.",
+      "@Apache-2.0",
+      "This package bundles third-party code under the following licence:",
+      "@MIT"
+    ],
+    "answer": "Apache-2.0",
+    "reason": null,
+    "texts": [
+      "Apache-2.0",
+      "MIT"
+    ]
+  },
+  {
+    "case": "gpl3-then-mit",
+    "like": "a project's own text first, then a bundled one",
+    "parts": [
+      "Copyright (C) 2026 Example Project contributors.",
+      "@GPL-3.0-only",
+      "This package bundles third-party code under the following licence:",
+      "@MIT"
+    ],
+    "answer": "GPL-3.0-only",
+    "reason": null,
+    "texts": [
+      "GPL-3.0-only",
+      "MIT"
+    ]
+  },
+  {
+    "case": "mit-then-gpl3",
+    "like": "a short own text, then a long bundled one that ranks first",
+    "parts": [
+      "Copyright (c) 2026 Example Project contributors.",
+      "@MIT",
+      "This package bundles third-party code under the following licence:",
+      "@GPL-3.0-only"
+    ],
+    "answer": null,
+    "reason": "several texts",
+    "texts": [
+      "MIT",
+      "GPL-3.0-only"
+    ]
+  },
+  {
+    "case": "mit-then-apache",
+    "like": "pytype: a vendored text first, then the project's own",
+    "parts": [
+      "Parts of this package come from another project, under this licence:",
+      "@MIT",
+      "The rest of the package is under the following licence:",
+      "@Apache-2.0"
+    ],
+    "answer": null,
+    "reason": "several texts",
+    "texts": [
+      "MIT",
+      "Apache-2.0"
+    ]
+  },
+  {
+    "case": "numpy-like",
+    "like": "numpy and scipy: the own text, then bundled runtime texts",
+    "parts": [
+      "Copyright (c) 2026 Example Project contributors.",
+      "@BSD-3-Clause",
+      "The binary wheels bundle runtime libraries under these licences:",
+      "@Apache-2.0",
+      "@GPL-3.0-only"
+    ],
+    "answer": null,
+    "reason": "several texts",
+    "texts": [
+      "BSD-3-Clause",
+      "Apache-2.0",
+      "GPL-3.0-only"
+    ]
+  },
+  {
+    "case": "cpython-like",
+    "like": "CPython's licence: the project's licence, then 0BSD for examples",
+    "parts": [
+      "@Python-2.0",
+      "The code examples in the documentation are under this licence:",
+      "@0BSD"
+    ],
+    "answer": "Python-2.0",
+    "reason": null,
+    "texts": [
+      "Python-2.0",
+      "0BSD"
+    ]
+  },
+  {
+    "case": "or-file",
+    "like": "roman_numerals: either of two texts, at the user's option",
+    "parts": [
+      "This project may be used under either of the two texts below, at your option.",
+      "@0BSD",
+      "@CC0-1.0"
+    ],
+    "answer": null,
+    "reason": "several texts",
+    "texts": [
+      "0BSD",
+      "CC0-1.0"
+    ]
+  },
+  {
+    "case": "own-not-found",
+    "like": "Pillow: the own terms are no List text, then bundled texts",
+    "parts": [
+      "Example Project is free for anyone to use, copy and change, with or without a fee, provided this notice stays with every copy. It comes with no warranty.",
+      "@MIT",
+      "@Zlib",
+      "@BSD-2-Clause"
+    ],
+    "answer": null,
+    "reason": "several texts",
+    "texts": [
+      "MIT",
+      "Zlib",
+      "BSD-2-Clause"
+    ]
+  },
+  {
+    "case": "one-text",
+    "like": "a control: one text",
+    "parts": [
+      "Copyright (c) 2026 Example Project contributors.",
+      "@MIT"
+    ],
+    "answer": "MIT",
+    "reason": null,
+    "texts": [
+      "MIT"
+    ]
+  },
+  {
+    "case": "mpl-header-notice",
+    "like": "certifi; a notice, no whole text: roadmap item C6 (an MPL-2.0 header notice should answer MPL-2.0, as an Apache header does) will move it",
+    "parts": [
+      "This file holds a bundle of root certificates for checking the identity of servers. Example Project builds it from a public list of trusted certificate authorities.",
+      "BEGIN LICENSE BLOCK",
+      "This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.",
+      "END LICENSE BLOCK"
+    ],
+    "answer": null,
+    "reason": "below threshold",
+    "texts": []
+  }
+]

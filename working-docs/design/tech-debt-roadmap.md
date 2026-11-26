@@ -341,34 +341,6 @@ tag.
 
 - Impact 2, Risk 3, Effort 3.
 
-## 59. Several licence texts in one input (B2) — Priority 8
-
-Answered by `TEXTS` (PR #241): the List texts an input holds whole, with no
-change to the ranking. Kept for the ranking itself.
-
-Refused for 0.9.2 (2026-11-23): one licence per input stays. An input that
-holds two licence texts (the LGPL-2.1 text under a NumPy notice, say) gets one
-ranking and no note that the file holds another text. Splitting the file needs
-the boundary of each text, which is a guess (a title line, a copyright line, a
-blank line), and a wrong guess gives a wrong licence: precision over recall.
-
-Idea for later: report a flag when `COVERAGE` is well above 1, since the input
-then holds more than the answer's text. Not settled by the sample to hand: the
-4,598-word file of the LGPL-2.1 text under a NumPy notice had `COVERAGE` 1.05
-on build 4, so the threshold needs measuring on real multi-licence files, on
-main and on the branch.
-
-Left by item 67 (2026-11-25), similarity and not the marker floor:
-scikit-learn 1.6.1 and 1.9.1 `COPYING` answer `Apache-2.0` 0.884 (similarity
-0.81 on the additive path); numpy and scipy `LICENSE.txt` now answer
-`GPL-3.0-only` 0.92 to 0.93 (the GPL-3.0 text with the GCC exception is most
-of the file; before, the floor gave `LGPL-2.1-or-later` or
-`BSD-3-Clause-Open-MPI`). A file the floor no longer answers prints a record of
-no answer, whose `TEXTS` is empty: keeping `TEXTS` there is a format decision
-for this item.
-
-Impact 2, Risk 2, Effort 4.
-
 ## 61. Leftovers of the core text and the notice-free query — Priority 12
 
 From the review of PR #239 (2026-11-24); none answers worse than `main`.
@@ -419,6 +391,13 @@ copyright block inside) keeps the floor. A template-aware search would let the
 stricter rule "the texts found must hold the marker's licence" work; measured
 on the old search, that rule loses 1 right fixture and 1 partial real answer.
 
+Pitloom (handoff of 2026-11-26, item C3): sympy's `LICENSE` opens with its
+own BSD-3-Clause text ("THE REGENTS"; conditions lettered `a.` to `c.`, which
+`normalize` already drops), yet `TEXTS` gives `MIT` alone. Pitloom also lists
+three BSD-3-Clause answers that `TEXTS` cannot confirm (nodeenv, prettytable,
+isodate; similarity 0.93 to 0.95, coverage 1.04 to 1.07). Do this item before
+item 68: a project's own text that is not found makes a bundled text "first".
+
 Impact 3, Risk 2, Effort 4.
 
 ## 65. Concurrent first calls each load the text corpus — Priority 8
@@ -443,10 +422,54 @@ table, or view, whose columns differ, before it is written again.
 
 Since item 67 (2026-11-25) terse `detect`, `is-*` and `is_*()` also read
 `text_codes` where a marker's floor binds above coverage 1.05 (the
-`markerfloor` check), so a misshaped table fails them on such an input as it
-fails `-v`.
+`markerfloor` check), and since item 59 (2026-11-26) wherever the top result
+is a text match of 40 tokens or more (`firsttext`), so a misshaped table fails
+them on such an input as it fails `-v`.
 
 Impact 1, Risk 1, Effort 2.
+
+## 68. `TEXTS` as ranking evidence — Priority 18
+
+Left by item 59 (2026-11-26; `../implementation/whole-texts.md`, section 9).
+On 25 of 596 real files `TEXTS` names one text and the top is a look-alike of
+it under 0.85 (MIT under DocBook-XML, JSON, ICU, curl, Unicode-DFS-2015), so
+there is no answer though the file holds a whole List text; the record of no
+answer now shows it (`REASON=below threshold`, `TEXTS=MIT`). Idea: where the
+search finds one text whole and the top is a look-alike, rank the text found
+first. It makes answers, so measure what it adds wrong (real files, the
+synthetic bundles, every fixture) before taking it: precision over recall.
+
+Pitloom (handoff of 2026-11-26, items C1 and C2): wcwidth's `LICENSE` (the MIT
+text, then a three-line grant) answers `JSON` 0.9238 above `MIT` 0.9197, with
+`TEXTS=MIT` on both: a wrong answer above the threshold, not only a missing
+one. mypy_extensions (one line, then the MIT text) gets no answer. The 0.9.3
+records of no answer hid `TEXTS`; item 59 shows it. Needs item 64 first: on
+sympy the own BSD text is not found, so `MIT` would be named.
+
+Impact 3, Risk 3, Effort 3.
+
+## 69. A Mozilla Public License header as a notice — Priority 16
+
+Pitloom (handoff of 2026-11-26, item C6): certifi's `LICENSE` holds the
+standard MPL-2.0 header ("This Source Code Form is subject to the terms of the
+Mozilla Public License, v. 2.0 ...") between `BEGIN LICENSE BLOCK` and `END
+LICENSE BLOCK`, and gets no answer (top `EFL-2.0` 0.51); an Apache-2.0 header
+answers as a notice. The made-up case `mpl-header-notice` in
+`tests/fixtures/several-texts/cases.json` pins today's no answer; the
+long-text fixture database holds no MPL-2.0 text, so add it there first.
+
+Impact 2, Risk 2, Effort 2.
+
+## 70. Exception texts in a file — Priority 12
+
+Pitloom (handoff of 2026-11-26, item C5): numpy's `LICENSE.txt` holds the
+whole GCC Runtime Library Exception 3.1 after the GPL-3.0 text; `TEXTS` names
+`GPL-3.0-only` and no exception (documented in `docs/output.md`). Pitloom asks
+whether exception texts can be found and named, or at least flagged. Design
+first: `TEXTS` holds licences only, and a `WITH` expression would be a
+conclusion, not a finding.
+
+Impact 2, Risk 2, Effort 3.
 
 ## Already resolved
 

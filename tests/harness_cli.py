@@ -12,6 +12,7 @@ fails."""
 import json
 import re
 import shutil
+import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -20,8 +21,10 @@ from typing import NamedTuple
 import pytest
 import requests
 from click.testing import CliRunner
+from long_text_db import DB_PATH, long_text_detector
 from packaged_list import database_of, fixture_bundle
 from release_fakes import release_bundle, ship
+from several_texts import several_text
 
 from licenseid import __version__
 from licenseid.cli import cli
@@ -32,7 +35,8 @@ class Case(NamedTuple):
     """One command line. ``db`` is ``list`` (a ready database of the fixtures'
     List), ``release`` (a ready database of the one-licence release), ``fresh``
     (a path with no file), ``cache`` (a ``list`` database with a cache file
-    beside it) or ``none`` (no ``--db``: ``resolve`` reads the
+    beside it), ``texts`` (a copy of the long-text fixtures' database, whose
+    licences have their whole texts) or ``none`` (no ``--db``: ``resolve`` reads the
     shipped List). ``wheel`` is the bundle the wheel ships: ``list``,
     ``release`` (one licence) or ``none``."""
 
@@ -78,6 +82,14 @@ DETECT = [
     _c("detect-missing-file", "list", "detect", "no-such-file.txt"),
     _c("detect-missing-db", "fresh", "detect", "MIT"),
     _c("detect-unreadable-text", "list", "detect", "--text", "café \U0001f600"),
+    # MIT, then GPL-3.0-only: the answer's text is not first (firsttext).
+    _c(
+        "detect-several-texts",
+        "texts",
+        "detect",
+        "-",
+        stdin=several_text("mit-then-gpl3"),
+    ),
 ]
 MATCH = [
     _c("resolve-id", "none", "resolve", "MIT"),
@@ -167,6 +179,16 @@ class CliEnv:
         self._count = 0
 
     def _template(self, kind: str) -> Path:
+        if kind == "texts" and kind not in self._made:
+            self._made[kind] = self.base / "template-texts.db"
+            long_text_detector()  # builds the shared in-memory database
+            source = sqlite3.connect(DB_PATH, uri=True)
+            target = sqlite3.connect(self._made[kind])
+            try:
+                source.backup(target)
+            finally:
+                target.close()
+                source.close()
         if kind not in self._made:
             raw = release_bundle() if kind == "release" else fixture_bundle()
             self._made[kind] = self.base / f"template-{kind}.db"
@@ -176,8 +198,8 @@ class CliEnv:
     def _database(self, kind: str) -> str:
         """The ``--db`` path of a case: a copy of a template where the
         command writes (``release``, ``cache``), the ``list`` one itself."""
-        if kind == "list":
-            return str(self._template("list"))
+        if kind in ("list", "texts"):
+            return str(self._template(kind))
         self._count += 1
         folder = self.base / f"case-{self._count}"
         folder.mkdir()

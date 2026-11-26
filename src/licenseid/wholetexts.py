@@ -5,7 +5,7 @@
 
 """The List texts an input holds whole (the ``TEXTS`` field).
 
-``found_rows`` scans every text of a ``licenseid.textcorpus.TextCorpus`` (and
+``found_texts`` scans every text of a ``licenseid.textcorpus.TextCorpus`` (and
 its core) against a normalised input with ``licenseid.textlocate``, then
 keeps the hits that do not overlap, best first:
 
@@ -28,6 +28,10 @@ keeps the hits that do not overlap, best first:
 
 Each copy of a text is a hit of its own; only then are the names deduped,
 never before: a text kept once would leave its other copies to a look-alike.
+``found_texts`` gives the names in the order the input holds them (by the
+start of each one's first kept span), so ``Found.first`` is the text the input
+gives first: ``licenseid.firsttext`` keeps a text answer only when it is that
+one.
 
 No database access and no detector state: the corpus is immutable and
 every search keeps its state in local objects, so threads may share a
@@ -399,10 +403,19 @@ class _Search:
         )
 
 
-def _kept(heap: list[_Item], search: _Search) -> list[str]:
-    """The row IDs of the hits kept, greedy by key, one per copy; a doubted
-    hit claims its span and names nothing."""
-    kept: list[str] = []
+class Found(NamedTuple):
+    """The whole texts an input holds: *rows*, the representative row IDs,
+    deduped, in the order of the first kept span of each in the input, and
+    *first*, that of the named span that starts first (``rows[0]``)."""
+
+    rows: list[str]
+    first: str
+
+
+def _kept(heap: list[_Item], search: _Search) -> list[tuple[int, str]]:
+    """``(start, row ID)`` of the hits kept, greedy by key, one per copy; a
+    doubted hit claims its span and names nothing."""
+    kept: list[tuple[int, str]] = []
     while heap:
         item = heapq.heappop(heap)
         if not item.scored:
@@ -412,14 +425,13 @@ def _kept(heap: list[_Item], search: _Search) -> list[str]:
         elif not search.taken.overlaps(item.start, item.end):
             search.taken.add(item.start, item.end)
             if not search.doubted(item):
-                kept.append(item.row_id)
+                kept.append((item.start, item.row_id))
     return kept
 
 
-def found_rows(norm_input: str, corpus: TextCorpus, answer_id: str) -> list[str] | None:
-    """Representative row IDs (one per kept copy, deduped, sorted) of the
-    List texts the input holds whole; None when nothing found or past a
-    limit.
+def found_texts(norm_input: str, corpus: TextCorpus, answer_id: str) -> Found | None:
+    """The List texts the input holds whole (:class:`Found`); None when
+    nothing found or past a limit.
 
     *norm_input* is the normalised input. A representative is the least ID
     of a same-text group (``TextCorpus.representative``); *answer_id*'s group
@@ -433,4 +445,14 @@ def found_rows(norm_input: str, corpus: TextCorpus, answer_id: str) -> list[str]
         kept = _kept(heap, _Search(source, heap, budget))
     except LimitReached:
         return None
-    return sorted(set(kept)) or None
+    if not kept:
+        return None
+    rows = list(dict.fromkeys(row for _, row in sorted(kept)))
+    return Found(rows, rows[0])
+
+
+def found_rows(norm_input: str, corpus: TextCorpus, answer_id: str) -> list[str] | None:
+    """The rows of :func:`found_texts` (representative row IDs, one per
+    kept copy, deduped), sorted, or None: for tests of the search alone."""
+    found = found_texts(norm_input, corpus, answer_id)
+    return None if found is None else sorted(found.rows)

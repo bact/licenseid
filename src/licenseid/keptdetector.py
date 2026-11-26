@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``licenseid.detect()``: one call on the database at the default path.
+"""``licenseid.detect()`` and ``licenseid.texts()``: one call on the
+database at the default path.
 
 A :class:`licenseid.detector.LicenseDetector` costs a handful of connections
 to build, and an outdated database warns when it is opened. So the function
@@ -25,7 +26,8 @@ from licenseid.datadir import get_default_db_path
 from licenseid.detector import LicenseDetector
 from licenseid.detectrequest import PathInput, check_request
 from licenseid.listsource import file_stamp
-from licenseid.types import Detection, DetectOptions
+from licenseid.types import Detection, DetectOptions, Variant
+from licenseid.variants import DEFAULT
 from licenseid.warning import once
 
 # Held to look the detector up and to store it, never while building one: a
@@ -56,6 +58,20 @@ def detect(
     return _detector().detect(
         text, license_id=license_id, file_path=file_path, **options
     )
+
+
+def texts(
+    text: str | None = None,
+    *,
+    file_path: PathInput | None = None,
+    variant: Variant = DEFAULT,
+) -> list[str] | None:
+    """The List texts the input holds whole, with no answer to name first:
+    ``LicenseDetector(...).texts(...)`` on the database at the default path,
+    with the detector :func:`detect` keeps. Raises what :func:`detect`
+    raises."""
+    check_request(text, None, file_path, {"variant": variant})
+    return _detector().texts(text, file_path=file_path, variant=variant)
 
 
 def _detector() -> LicenseDetector:

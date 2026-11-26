@@ -110,7 +110,12 @@ def json_line(result: Detection | Resolution | Mapping[str, object]) -> str:
     return rfc8785.dumps(fields).decode("utf-8")
 
 
-NO_ANSWER_REASONS: Final = ("below threshold", "not exact", "no match")
+NO_ANSWER_REASONS: Final = (
+    "below threshold",
+    "not exact",
+    "no match",
+    "several texts",
+)
 
 
 def detect_json(result: Detection) -> str:
@@ -141,10 +146,11 @@ def text_line(result: Detection) -> str:
     )
 
 
-def no_detection_line(reason: str) -> str:
+def no_detection_line(reason: str, texts: Sequence[str] | None = None) -> str:
     """The line ``detect`` prints when nothing matches (exit 1): every field
-    of :func:`text_line` empty (``TEXTS`` too) but ``REASON``, one of
-    :data:`NO_ANSWER_REASONS`, so a reader finds the same keys."""
+    of :func:`text_line` empty but ``REASON``, one of
+    :data:`NO_ANSWER_REASONS`, and ``TEXTS``, the List texts the input holds
+    (empty for none), so a reader finds the same keys."""
     return fields_line(
         EXPRESSION=None,
         METHOD=None,
@@ -155,16 +161,22 @@ def no_detection_line(reason: str) -> str:
         VARIANT_STATED=None,
         SAME_TEXT=None,
         REASON=reason,
-        TEXTS=None,
+        TEXTS=" ".join(texts) if texts else None,
     )
 
 
-def no_detection_json(reason: str) -> str:
+def no_detection_json(reason: str, texts: Sequence[str] | None = None) -> str:
     """The object ``detect --json`` prints when nothing matches: every key of
     a :class:`licenseid.types.Detection`, each ``null``, ``lists`` too (no
-    answer rests on a list), and a ``reason``, one of
-    :data:`NO_ANSWER_REASONS`."""
-    return json_line({**dict.fromkeys(Detection.__annotations__), "reason": reason})
+    answer rests on a list), but ``texts`` (the List texts the input holds,
+    ``null`` for none), and a ``reason``, one of :data:`NO_ANSWER_REASONS`."""
+    return json_line(
+        {
+            **dict.fromkeys(Detection.__annotations__),
+            "texts": list(texts) if texts else None,
+            "reason": reason,
+        }
+    )
 
 
 # What a value holds that would end its field or its line, or be read as an

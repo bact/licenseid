@@ -9,6 +9,24 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- A record of no answer gives `TEXTS`; `REASON` `several texts`; `texts()`
+  in the API lists the texts an input holds ([#N])
+
+### Changed
+
+- `TEXTS` lists the texts in the order the file gives them, no longer by ID:
+  the first is the file's first text ([#N])
+
+### Fixed
+
+- A file of several licence texts no longer answers a bundled licence
+  (numpy's `LICENSE.txt` answered `GPL-3.0-only`): a text answer stands only
+  when its text comes first ([#N])
+
 ## [0.9.3] - 2026-11-26
 
 ### Added

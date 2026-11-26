@@ -639,3 +639,32 @@ def test_the_shells_own_lines_are_not_the_clis(err: str, flagged: bool) -> None:
         make_cell(kind="other"), make_result(rc=0, out="", err=err)
     )
     assert any("outside grammar" in note for note in notes) is flagged, (verdict, notes)
+
+
+@pytest.mark.parametrize(
+    ("flag", "out", "expected"),
+    [
+        ("verbose", NO_ANSWER, True),
+        (
+            "verbose",
+            NO_ANSWER.replace("no match\tTEXTS=", "several texts\tTEXTS=A B"),
+            True,
+        ),
+        ("verbose", NO_ANSWER.replace("no match", "no reason"), False),
+        ("verbose", NO_ANSWER.replace("METHOD=", "METHOD=text"), False),
+        (
+            "json",
+            '{"expression":null,"reason":"several texts","texts":["A","B"]}\n',
+            True,
+        ),
+        ("json", '{"expression":"A","reason":"several texts","texts":["A"]}\n', False),
+    ],
+    ids=["empty", "several", "unknown-reason", "a-field", "json-texts", "json-answer"],
+)
+def test_a_record_of_no_answer_may_name_texts(
+    flag: str, out: str, expected: bool
+) -> None:
+    """Item 59: ``TEXTS`` (JSON ``texts``) and ``REASON=several texts`` on the
+    record of no answer; every other field stays empty."""
+    cell = make_cell(outflags=frozenset({flag}))
+    assert judge_mod.is_no_answer(cell, out) is expected

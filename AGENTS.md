@@ -78,9 +78,9 @@ in another module.
   0 stand: tied names) and `namerules` (what beside one name doubts it),
   `retrieval` (Tier 1), `textcorpus` (word codes), `textlocate` (5-gram votes,
   windows, count limits), `wholetexts` (key, overlap, look-alike doubt),
-  `textnames`, `ftsquery` (its `MATCH` string: 20 words, each cut to 128
-  characters), `idoptions` (`exclude`, `hint`: API only, free text only,
-  case-folded, a bare deprecated ID stands for both twins, kept under
+  `firsttext` (1st text), `textnames`, `ftsquery` (its `MATCH` string: 20 words,
+  each cut to 128 characters), `idoptions` (`exclude`, `hint`: API only, free
+  text only, case-folded, a bare deprecated ID stands for both twins, kept under
   `as-written`), `variants` and `variantstated` (the `variant` option: what a
   bare ID and a text answer, `variant_stated`, a trailing "only"), `similarity`
   (Tier 2 scores of the candidates, the fingerprint bonus; a long input against
@@ -146,15 +146,15 @@ and `--json`) against these rules and checks the default output against the
   `--version`. `--id-only` is gone.
 - The record: one record per line. The first key names its kind (`EXPRESSION`
   the answer, first; `STEP`, `REASON`, `OPERAND`, `LIST`, `STATUS`). No answer
-  still prints the record, every field empty but `REASON`. `detect`'s last
-  fields: `SAME_TEXT` (after `VARIANT_STATED`) is empty unless a text answer
-  shares its normalised text with other List IDs (`detector` passes
+  still prints the record, every field empty but `REASON` and `TEXTS`.
+  `detect`'s last fields: `SAME_TEXT` (after `VARIANT_STATED`) is empty unless a
+  text answer shares its normalised text with other List IDs (`detector` passes
   `result.public_result` the `twins` it builds from `database.text_parts`, minus
   the final expression); `REASON` (CLI only, not in `types.Detection`) is empty
-  on an answer, else `below threshold`, `not exact` or `no match`
-  (`clidetect._no_answer_reason`); `TEXTS` last (`textnames.held_texts`;
-  `skipped` where never printed). It is a field, never a record kind: the first
-  key of a `detect` line is `EXPRESSION`.
+  on an answer, else `below threshold`, `not exact`, `several texts` or `no
+  match` (`clidetect._no_answer_reason`); `TEXTS` last, in file order
+  (`firsttext`'s search; no answer: the top candidate's, else `texts()`), a
+  field, not a kind.
 - Fields: `KEY=VALUE`, upper-case key, no spaces round `=`, one tab between
   fields (`result.fields_line`); a key ends at the first `=`. Fields are only
   appended at the end: never removed, renamed or reordered.

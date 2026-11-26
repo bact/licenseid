@@ -5,11 +5,12 @@
 
 """``TEXTS`` of a ``detect()`` result: the List texts the input holds whole.
 
-The search itself is :func:`licenseid.wholetexts.found_rows`, which gives
+The search itself is :func:`licenseid.wholetexts.found_texts`, which gives
 one row ID for each text it finds (the smallest of the licences that share
-it). This module asks it, when the top result is a text match of an input of
-:data:`MIN_TOKENS` tokens or more, and names each found text as ``detect()``
-would name an unstated text of it under the ``variant`` in force:
+it). ``licenseid.firsttext`` asks it once, when the top result is a text match
+of an input of :data:`MIN_TOKENS` tokens or more, and hands the result here;
+:func:`held_texts` names each found text as ``detect()`` would name an
+unstated text of it under the ``variant`` in force:
 
 - the text of the answer's own group (the licences with its text, the answer
   among them) is the answer's ID;
@@ -19,7 +20,9 @@ would name an unstated text of it under the ``variant`` in force:
   ``MPL-2.0-no-copyleft-exception``).
 
 ``TEXTS`` is a fact about the input: ``exclude``, ``hint``, ``only_spdx`` and
-``only_common`` do not touch it.
+``only_common`` do not touch it. :func:`input_texts` gives it with no answer
+(the record of no answer, ``LicenseDetector.texts``): every group by its
+variant's name.
 """
 
 import contextlib
@@ -32,15 +35,17 @@ from licenseid.database import LicenseDatabase, text_corpus, text_parts
 from licenseid.textcorpus import input_tokens
 from licenseid.types import InternalMatch, RawMatch, Variant
 from licenseid.variants import replacement_of
-from licenseid.wholetexts import found_rows
+from licenseid.wholetexts import Found, found_texts
 
 __all__ = [
     "MIN_TOKENS",
-    "found_rows",
     "has_tokens",
     "held_texts",
+    "input_texts",
     "named_texts",
+    "search_id",
     "skipped",
+    "text_groups",
     "without_exception",
 ]
 
@@ -50,7 +55,8 @@ __all__ = [
 MIN_TOKENS: Final = 40
 
 #: Set while the caller never prints ``TEXTS`` (``is-*``, ``is_*()``, the
-#: terse ``detect``): the search is then skipped.
+#: terse ``detect``): the texts are then not named. The search still runs,
+#: for ``licenseid.firsttext``.
 _SKIPPED: contextvars.ContextVar[bool] = contextvars.ContextVar(
     "licenseid_texts_skipped", default=False
 )
@@ -62,7 +68,7 @@ _OR_LATER: Final = "-or-later"
 
 @contextlib.contextmanager
 def skipped() -> Iterator[None]:
-    """Within the block, :func:`held_texts` searches nothing: the caller does
+    """Within the block, :func:`held_texts` names nothing: the caller does
     not print ``TEXTS``."""
     token = _SKIPPED.set(True)
     try:
@@ -83,6 +89,19 @@ def without_exception(expression: str) -> str:
     """*expression* without its exception: ``GPL-2.0-only`` for
     ``GPL-2.0-only WITH Classpath-exception-2.0``."""
     return _WITH.split(expression, maxsplit=1)[0]
+
+
+def search_id(answer: str) -> str:
+    """The row whose group wins a tie in the search for *answer*: its ID
+    without the exception, a deprecated ID as its replacement."""
+    head = without_exception(answer)
+    return replacement_of(head) or head
+
+
+def text_groups(db: LicenseDatabase, rows: Iterable[str]) -> dict[str, tuple[str, ...]]:
+    """The same-text group of each of *rows* that has one in *db*."""
+    parts = text_parts(db)
+    return {row: parts[row].same_text for row in rows if row in parts}
 
 
 def _shortest(ids: Iterable[str]) -> str:
@@ -108,44 +127,56 @@ def named_texts(
     groups: Mapping[str, Sequence[str]],
 ) -> list[str]:
     """The IDs of the row IDs *rows*, each named as the module says, without
-    duplicates, sorted. *answer* is the ID of the answer as it is shown;
-    *groups* has the licences with one text of each ID that shares it (an ID
-    that is not in it is alone)."""
+    duplicates, in the order of *rows* (the order the input holds them, so
+    the first is the text it gives first). *answer* is the ID of the answer
+    as it is shown; *groups* has the licences with one text of each ID that
+    shares it (an ID that is not in it is alone)."""
     head = without_exception(answer)
-    answer_row = without_exception(replacement_of(head) or head).lower()
-    named: set[str] = set()
+    answer_row = search_id(answer).lower()
+    named: dict[str, None] = {}
     for row in rows:
         group = groups.get(row) or (row,)
         if any(member.lower() == answer_row for member in group):
-            named.add(head)
+            named[head] = None
         else:
-            named.add(_group_name(group, variant))
-    return sorted(named)
+            named[_group_name(group, variant)] = None
+    return list(named)
 
 
 def held_texts(
     db: LicenseDatabase,
-    norm_input: str,
     results: Sequence[RawMatch | InternalMatch],
     variant: Variant,
+    found: Found | None,
 ) -> list[str] | None:
     """The List texts the input holds whole, as :func:`named_texts` names
-    them, or None: *results* has no text match first, the input is under
-    :data:`MIN_TOKENS` tokens, nothing is found, or the input is too long
-    to search. An answer that is exact holds its own text and no search is
-    made, whatever its length (a List text may be under 40 words). The caller
-    gives the list to every result. Within :func:`skipped` it is None."""
+    them, or None: *results* has no text match first, or *found*, the search
+    ``licenseid.firsttext.settle_texts`` made for that top, is None (the
+    input is under :data:`MIN_TOKENS` tokens, nothing is found, or the input
+    is too long to search). An answer that is exact holds its own text, whatever
+    its length (a List text may be under 40 words). The caller gives the list
+    to every result. Within :func:`skipped` it is None."""
     top = results[0] if results else None
     if _SKIPPED.get() or top is None or top["method"] != "text":
         return None
     answer = without_exception(top["license_id"])
     if top["exact"]:
         return [answer]
+    if found is None:
+        return None
+    return named_texts(found.rows, answer, variant, text_groups(db, found.rows))
+
+
+def input_texts(
+    db: LicenseDatabase, norm_input: str, variant: Variant
+) -> list[str] | None:
+    """The List texts *norm_input* holds whole with no answer to name first:
+    each group as :func:`named_texts` names a group not the answer's under
+    *variant*. None as for :func:`held_texts`: under :data:`MIN_TOKENS`
+    tokens, nothing found, or too long to search."""
     if not has_tokens(norm_input):
         return None
-    found = found_rows(norm_input, text_corpus(db), replacement_of(answer) or answer)
-    if not found:
+    found = found_texts(norm_input, text_corpus(db), "")
+    if found is None:
         return None
-    parts = text_parts(db)
-    groups = {i: parts[i].same_text for i in found if i in parts}
-    return named_texts(found, answer, variant, groups)
+    return named_texts(found.rows, "", variant, text_groups(db, found.rows))

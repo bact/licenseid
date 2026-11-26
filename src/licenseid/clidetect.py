@@ -50,14 +50,40 @@ from licenseid.types import Detection, Variant
 from licenseid.variants import VARIANTS, output_bar
 
 
-def _no_answer_reason(candidates: list[Detection], threshold: float) -> str:
-    """Why *candidates* gave no answer: none at all, none at *threshold*, or
-    (so ``--exact`` removed them) none exact."""
+def _no_answer_reason(
+    candidates: list[Detection], threshold: float, texts: list[str] | None
+) -> str:
+    """Why *candidates* gave no answer: none, where the input holds *texts*
+    of several licences (``licenseid.firsttext``, or every candidate held back,
+    ``licenseid.markerfloor``); none at all; none at *threshold*; or (so
+    ``--exact`` removed them) none exact."""
     if not candidates:
-        return "no match"
+        return "several texts" if texts and len(texts) > 1 else "no match"
     if all(r["score"] < threshold for r in candidates):
         return "below threshold"
     return "not exact"
+
+
+def _echo_no_answer(
+    candidates: list[Detection],
+    threshold: float,
+    input_texts: Callable[[], list[str] | None],
+    verbose: bool,
+    json_output: bool,
+) -> None:
+    """Print what ``detect`` prints for no answer: an empty line, or with
+    ``--verbose`` or ``--json`` the record, whose ``TEXTS`` are the first
+    candidate's, else the input's (*input_texts*, a search of its own, made
+    only for a record: ``LicenseDetector.texts``)."""
+    if not (verbose or json_output):
+        echo("")  # the expression alone: an empty line for none
+        return
+    texts = candidates[0]["texts"] if candidates else input_texts()
+    reason = _no_answer_reason(candidates, threshold, texts)
+    if json_output:
+        echo_json(no_detection_json(reason, texts))
+    else:
+        echo(no_detection_line(reason, texts))
 
 
 def show_diff(norm_input: str, best_window: str) -> None:
@@ -253,16 +279,20 @@ def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
     results = [
         r for r in results if r["score"] >= threshold and (r["exact"] or not exact_only)
     ][:top]
-    reason = _no_answer_reason(candidates, threshold)
-
-    if not results and json_output:  # "no" is an answer: an empty record
-        echo_json(no_detection_json(reason))
+    if not results:  # "no" is an answer: a record, or an empty line
+        _echo_no_answer(
+            candidates,
+            threshold,
+            lambda: (
+                detector.texts(license_text, variant=chosen) if license_text else None
+            ),
+            verbose,
+            json_output,
+        )
     elif json_output:
         # JSON Lines: one canonical (RFC 8785) object per result.
         for r in results:
             echo_json(detect_json(r))
-    elif not results:  # the expression alone: an empty line for none
-        echo(no_detection_line(reason) if verbose else "")
     else:
         # Standard output: the expression of each result, or with --verbose
         # the line-delimited KEY=VALUE record.
