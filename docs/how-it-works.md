@@ -146,8 +146,26 @@ declared values, SPDX expressions and the matching pipeline.
     text vote for an offset, and neighbouring offsets with enough votes make a
     window (each copy of a repeated text gets one). The words are aligned in
     the window and the ends trimmed while that raises the fit; the character
-    similarity of the text and its trimmed span must be 0.95 or more. A copy
-    that drops a critical word such as "not", or misses 150 characters or
+    similarity of the text and its trimmed span must be 0.95 or more. The parts
+    of a text that its template lets vary (SPDX matching guidelines B.3.3: the
+    copyright line, the holder named in a disclaimer, a project's name in clause
+    3 of BSD-3-Clause) are left out of that similarity, on both sides, wherever
+    the words the input holds there match the part's pattern, are at most 150
+    characters longer than the List's words and sit between words that match
+    the text; a part whose words do not is compared as written. So a clause
+    of fewer than 150 characters written into such a part (a restriction in
+    the disclaimer's holder of BSD-3-Clause) is left out with it, and the
+    text is named: a known limit. The key that
+    ranks hits is found less missing, the words of a part found up to the length
+    of the List's: an exact copy keys the text's length whatever its parts hold.
+    Two texts that differ only in such parts, both fitting as closely with keys
+    within 2 percent, name neither, unless the input holds one's own words there
+    and not the other's. A longer text around such a hit doubts it with its
+    own parts left out whatever their length: a long clause in a part of X11
+    names neither X11 nor the MIT text inside it. A database built before
+    `licenseid update` stored
+    those parts (build 7) compares them as written. A
+    copy that drops a critical word such as "not", or misses 150 characters or
     more of the text in one run (a clause), is not counted. Hits are kept
     best first, and one that overlaps a kept hit by more than a tenth of the
     shorter span is dropped; copies of one text are then named once. Every

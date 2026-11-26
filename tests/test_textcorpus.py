@@ -15,6 +15,7 @@ from licenseid.textcorpus import (
     UNKNOWN,
     TextCorpus,
     TextRow,
+    VarRegion,
     critical_counts,
     input_tokens,
     split_words,
@@ -153,12 +154,12 @@ def test_text_carries_its_critical_counts() -> None:
     [(1, 0x1), (0xD7FF, 0xD7FF), (0xD800, 0xE000), (0x10F7FF, 0x10FFFF)],
 )
 def test_word_numbers_skip_the_surrogates(number: int, code: int) -> None:
-    assert textcorpus._code(number) == chr(code)  # pylint: disable=protected-access
+    assert textcorpus.word_code(number) == chr(code)
 
 
 def test_numbers_past_the_last_share_the_last_code() -> None:
-    last = textcorpus._code(0x10F7FF)  # pylint: disable=protected-access
-    assert textcorpus._code(0x10F800) == last  # pylint: disable=protected-access
+    last = textcorpus.word_code(0x10F7FF)
+    assert textcorpus.word_code(0x10F800) == last
 
 
 def test_the_corpus_cannot_change() -> None:
@@ -171,3 +172,26 @@ def test_the_corpus_cannot_change() -> None:
         corpus.representatives["new"] = "x"  # type: ignore[index]
     with pytest.raises(dataclasses.FrozenInstanceError):
         corpus.entries[0].text.codes = ""  # type: ignore[misc]
+
+
+@pytest.mark.parametrize(
+    ("regions", "least"),
+    [
+        ((), 23),
+        ((VarRegion(1, 2, ".+"),), 21),
+        ((VarRegion(1, 3, ".+"), VarRegion(2, 4, ".+")), 11),
+        ((VarRegion(0, 5, ".*"),), 0),
+        ((VarRegion(2, 2, ".*"),), 23),
+        ((VarRegion(0, 4, ".*"), VarRegion(1, 2, ".+"), VarRegion(3, 5, ".+")), 1),
+    ],
+    ids=["none", "one", "overlapping", "every-token", "point", "nested"],
+)
+def test_least_is_the_text_less_its_variable_parts(
+    regions: tuple[VarRegion, ...], least: int
+) -> None:
+    """Characters of "aa bb cccc ddddd eeeeee" (23) less the tokens of its
+    regions, each token once."""
+    corpus = TextCorpus.build(
+        [TextRow("A", "aa bb cccc ddddd eeeeee", None, ("A",), regions)]
+    )
+    assert corpus.entries[0].text.least == least

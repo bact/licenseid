@@ -25,7 +25,9 @@ from licenseid.listrules import (
 )
 from licenseid.normalize import normalize_text
 from licenseid.spdxdata import SpdxData
-from licenseid.textcorpus import StoredRow, TextCorpus, TextRow
+from licenseid.templatevars import row_regions
+from licenseid.textcorpus import TextCorpus, TextRow, VarRegion
+from licenseid.textstore import StoredRow, stored_rows
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 
 # Version of the rules that turn a release into rows. A database stores the
@@ -39,9 +41,15 @@ from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 # optional parts, when that is shorter) and ``same_text`` (the licences whose
 # text is the same) are stored.
 # Version 6: ``text_codes`` holds the List texts as word codes
-# (``textcorpus.TextCorpus.stored_rows``), so the search of whole texts reads
+# (``textstore.stored_rows``), so the search of whole texts reads
 # them instead of coding every text again at its first use.
-BUILD_VERSION = "6"
+# Version 7: ``text_codes`` holds the regions of each text's variable parts
+# (``templatevars``) and their patterns, so the search of whole texts leaves
+# a copy's own copyright holder or project name out of its fit.
+BUILD_VERSION = "7"
+
+# The regions of a text and of its core.
+_Regions = tuple[tuple[VarRegion, ...], tuple[VarRegion, ...]]
 
 # A core is kept whenever it has fewer words than the whole text, however few
 # it drops (a title alone). Kept only at nine tenths of the words or less, a
@@ -92,7 +100,7 @@ _Kept = list[tuple[SpdxLicenseEntry, str | None]]
 
 class Records(NamedTuple):
     """The record lists of one release, ready to insert. *texts* are the
-    rows of ``text_codes`` (``textcorpus.StoredRow``)."""
+    rows of ``text_codes`` (``textstore.StoredRow``)."""
 
     licenses: list[LicenseInsertRecord]
     index_entries: list[IndexInsertRecord]
@@ -116,28 +124,35 @@ def build_records(data: SpdxData, popularity_map: dict[str, int]) -> Records:
         index,
         _exception_records(data.exceptions),
         _url_records(kept, data.exceptions),
-        text_rows(licenses, index),
+        text_rows(licenses, index, data.templates),
     )
 
 
 def text_rows(
-    licenses: Iterable[LicenseInsertRecord], index: Iterable[IndexInsertRecord]
+    licenses: Iterable[LicenseInsertRecord],
+    index: Iterable[IndexInsertRecord],
+    templates: Mapping[str, str],
 ) -> list[StoredRow]:
     """The rows of ``text_codes`` of the licence rows *licenses* with their
     *index* entries: the corpus the search of whole texts reads, built from
-    the same rows it would read back (``dbcache.TableCache.text_corpus``)."""
+    the same rows it would read back (``dbcache.TableCache.text_corpus``),
+    with the regions of the variable parts that the *templates* of each
+    same-text group share (``templatevars.row_regions``). A member without a
+    template is left out of the sharing: it has no regions to vote with."""
     parts = {record[0]: record for record in licenses}
     rows = []
+    regions: dict[tuple[tuple[str, ...], str, str | None], _Regions] = {}
     for license_id, text in index:
         record = parts[license_id]
         same = record[15]
         core = record[13] if record[14] else None
-        rows.append(
-            TextRow(
-                license_id, text, core, tuple(same.split()) if same else (license_id,)
-            )
-        )
-    return TextCorpus.build(rows).stored_rows()
+        group = tuple(same.split()) if same else (license_id,)
+        key = (group, text, core)
+        if key not in regions:
+            found = [templates[m] for m in group if templates.get(m)]
+            regions[key] = row_regions(text, core, found)
+        rows.append(TextRow(license_id, text, core, group, *regions[key]))
+    return stored_rows(TextCorpus.build(rows))
 
 
 def _url_records(

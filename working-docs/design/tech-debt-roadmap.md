@@ -17,7 +17,7 @@ Priority = (Impact + Risk) × (6 − Effort), each scored 1-5; same scale as
 the complexity roadmap, so the two lists can be read together.
 
 Item numbers are the roadmap's own and never reused: a gap is an item in the
-reading file below or a resolved item, kept in the three files under "Already
+reading file below or a resolved item, kept in the four files under "Already
 resolved" at the end. Each open item says where it came from. Item 51 (decided
 and pinned, 2026-11-17), 53 (a known limit, 2026-11-18), 56 (a hang in the
 CLI matrix, found 2026-11-16), 35 and 67 (the marker floor, 2026-11-25) are
@@ -371,40 +371,12 @@ alike. Trace the queries per line first (the shared-cache memory database,
 
 Impact 2, Risk 2, Effort 3.
 
-## 64. Template-aware scoring for TEXTS — Priority 12
-
-From the look-alike rule of `TEXTS` (2026-11-25;
-`../implementation/whole-texts.md`). `TEXTS` scores a found text against the
-List text by character fit, so a copy that fills a placeholder differently
-(BSD-3-Clause with REGENTS or COPYRIGHT OWNER) looks as close to a near twin
-as to its own text. The rule refuses 7 such right names of 493 real files.
-Idea: score against the SPDX template with the `<<var>>` regions exempt (the
-normative matching guideline). That recovers the 7 names and could let the
-0.98 and 0.93 rule go. Needs the variable regions stored: templates are not
-kept in the database (`xml_template` is empty), so a `records.BUILD_VERSION`
-bump and a larger file. Measure on the 493 files and the synthetic set, on
-main and on the branch, before taking it.
-
-Item 67 (2026-11-25) would gain too: its marker-floor rule acts only on texts
-`TEXTS` finds, so a text it cannot confirm (PyTorch's BSD-3-Clause with a
-copyright block inside) keeps the floor. A template-aware search would let the
-stricter rule "the texts found must hold the marker's licence" work; measured
-on the old search, that rule loses 1 right fixture and 1 partial real answer.
-
-Pitloom (handoff of 2026-11-26, item C3): sympy's `LICENSE` opens with its
-own BSD-3-Clause text ("THE REGENTS"; conditions lettered `a.` to `c.`, which
-`normalize` already drops), yet `TEXTS` gives `MIT` alone. Pitloom also lists
-three BSD-3-Clause answers that `TEXTS` cannot confirm (nodeenv, prettytable,
-isodate; similarity 0.93 to 0.95, coverage 1.04 to 1.07). Do this item before
-item 68: a project's own text that is not found makes a bundled text "first".
-
-Impact 3, Risk 2, Effort 4.
-
 ## 65. Concurrent first calls each load the text corpus — Priority 8
 
 The text corpus is built or read once per database generation in
 `dbcache.TableCache`, with no lock: threads that make their first `detect()`
-call together each load it (0.016 s from `text_codes`, 0.16 s coded). Wasted
+call together each load it (0.016 s from `text_codes`, about 0.05 s since
+build 7 stores the regions of item 64; 0.16 s coded). Wasted
 work only; the result is the same and the corpus is immutable. Fix with a
 lock around the first load if a measurement shows a cost.
 
@@ -443,8 +415,13 @@ Pitloom (handoff of 2026-11-26, items C1 and C2): wcwidth's `LICENSE` (the MIT
 text, then a three-line grant) answers `JSON` 0.9238 above `MIT` 0.9197, with
 `TEXTS=MIT` on both: a wrong answer above the threshold, not only a missing
 one. mypy_extensions (one line, then the MIT text) gets no answer. The 0.9.3
-records of no answer hid `TEXTS`; item 59 shows it. Needs item 64 first: on
-sympy the own BSD text is not found, so `MIT` would be named.
+records of no answer hid `TEXTS`; item 59 shows it. Item 64 (2026-11-26,
+built) finds a project's own text where it fills the template's variable
+parts: the first ID of `TEXTS` is now `BSD-3-Clause` in sympy 1.13.1 and in
+numpy 2.4.6 `LICENSE.md` (both `MIT` before), `MIT-CMU` in Pillow 11.2.1
+(`MIT`) and 11.3.0 (`BSD-2-Clause`). Measure this item on top of it: the
+fragments of the HPND family that name a neighbour once the variable parts
+cost nothing (item 64's fixture numbers) must not become answers.
 
 Impact 3, Risk 3, Effort 3.
 
@@ -478,4 +455,6 @@ Kept out of this file to stay under the size limit: resolved before 0.5.0 in
 from 0.5.0 on in
 [`../implementation/tech-debt-resolved-0-5.md`](../implementation/tech-debt-resolved-0-5.md);
 from 2026-11-17 in
-[`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md).
+[`tech-debt-resolved-0-9.md`](../implementation/tech-debt-resolved-0-9.md);
+from item 64 (2026-11-26) on in
+[`tech-debt-resolved-0-10.md`](../implementation/tech-debt-resolved-0-10.md).

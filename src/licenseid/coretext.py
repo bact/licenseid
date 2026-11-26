@@ -27,7 +27,7 @@ counter, never a regular expression over the whole text: the time is linear
 whatever the input, and a ``<<`` that begins no mark costs one step.
 """
 
-from typing import Final, Literal
+from typing import Final, Literal, NamedTuple
 
 _BEGIN: Final = "<<beginOptional>>"
 _END: Final = "<<endOptional>>"
@@ -41,9 +41,22 @@ _ORIGINAL: Final = 'original="'
 # is a pattern that may hold a quote.
 _ORIGINAL_END: Final = '";match="'
 
-# What the scanner found at a ``<<``: the kind, where the next scan starts
-# and the text the mark stands for.
-_Token = tuple[Literal["begin", "end", "var", "text", "bad"], int, str]
+# What the scanner found at a ``<<``: the kind, where the next scan starts,
+# the text the mark stands for and, for a var, its ``match`` pattern.
+_Kind = Literal["begin", "end", "var", "text", "bad"]
+_Token = tuple[_Kind, int, str, str]
+
+
+class Piece(NamedTuple):
+    """A piece of a template (``pieces``): text between marks (*kind*
+    ``plain``) or a mark, the *text* it stands for (a var's ``original``, a
+    ``<`` that is text), the optional *depth* after it (0: outside every
+    optional part) and a var's ``match`` *pattern*."""
+
+    kind: Literal["plain", "begin", "end", "var", "text"]
+    text: str
+    depth: int
+    pattern: str = ""
 
 
 def core_text(template: str) -> str | None:
@@ -81,41 +94,58 @@ def core_text(template: str) -> str | None:
     function as for the whole text, so both sides of a comparison read
     alike (the guidelines' text transformations, B.2).
     """
+    walked = pieces(template)
+    if walked is None:
+        return None
     parts: list[str] = []
+    for piece in walked:
+        if piece.depth:  # inside an optional part, or where one opens
+            continue
+        # A mark is a word boundary (step 4); a "<" that is text is not.
+        if piece.kind in ("plain", "text"):
+            parts.append(piece.text)
+        else:  # a var, or where an optional part closes
+            parts.append(f" {piece.text} ")
+    return "".join(parts)
+
+
+def pieces(template: str) -> list[Piece] | None:
+    """*template* as text and marks in order, or ``None`` when it is
+    malformed (see ``core_text``). The one reading of a template:
+    ``core_text`` and ``licenseid.templatevars`` both walk it."""
+    found: list[Piece] = []
     depth = 0
     pos = 0
     while (mark := template.find("<<", pos)) >= 0:
-        if depth == 0:
-            parts.append(template[pos:mark])
-        kind, pos, text = _token(template, mark)
+        found.append(Piece("plain", template[pos:mark], depth))
+        kind, pos, text, pattern = _token(template, mark)
         if kind == "bad" or (kind == "end" and depth == 0):
             return None
         if kind == "begin":
             depth += 1
         elif kind == "end":
             depth -= 1
-        if depth == 0:  # at a var, or where an optional part closes
-            # A mark is a word boundary (step 4); a "<" that is text is not.
-            parts.append(text if kind == "text" else f" {text} ")
-    parts.append(template[pos:])  # at depth 0, else there is no core
-    return None if depth else "".join(parts)
+        found.append(Piece(kind, text, depth, pattern))
+    found.append(Piece("plain", template[pos:], depth))
+    return None if depth else found
 
 
 def _token(template: str, mark: int) -> _Token:
     """What *template* has at *mark*, where a ``<<`` is."""
     if template.startswith(_BEGIN, mark):
-        return "begin", mark + len(_BEGIN), ""
+        return "begin", mark + len(_BEGIN), "", ""
     if template.startswith(_END, mark):
-        return "end", mark + len(_END), ""
+        return "end", mark + len(_END), "", ""
     if template.startswith(_VAR, mark):
         end = template.find(_VAR_END, mark)
-        original = _original(template[mark + len(_VAR) : end]) if end >= 0 else None
+        body = template[mark + len(_VAR) : end] if end >= 0 else ""
+        original = _original(body) if end >= 0 else None
         if original is None:
-            return "bad", mark, ""
-        return "var", end + len(_VAR_END), original
+            return "bad", mark, "", ""
+        return "var", end + len(_VAR_END), original, _match(body)
     # Not a mark: the first ``<`` is text, and a mark may start at the next
     # character.
-    return "text", mark + 1, "<"
+    return "text", mark + 1, "<", ""
 
 
 def _original(body: str) -> str | None:
@@ -126,3 +156,9 @@ def _original(body: str) -> str | None:
     if start < 0 or stop < start + len(_ORIGINAL):
         return None
     return body[start + len(_ORIGINAL) : stop]
+
+
+def _match(body: str) -> str:
+    """The ``match`` pattern of a var whose ``original`` ``_original``
+    found in *body*: what follows the last ``";match="``."""
+    return body[body.rfind(_ORIGINAL_END) + len(_ORIGINAL_END) :]

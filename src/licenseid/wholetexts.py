@@ -23,8 +23,14 @@ keeps the hits that do not overlap, best first:
   dropped from the true text must not name a look-alike) or, for a span
   under SURE_SIMILARITY, keys at LOOKALIKE_REACH of it or more at
   NEAR_SIMILARITY or more with the same critical words (the input is about
-  as close to either text). A doubtful name is worse than none. The span
-  stays claimed, so no third look-alike takes it.
+  as close to either text), or, both fits with their variable parts left out
+  (``licenseid.textmask``), ties it: keys at TIE_REACH of it or more as
+  closely (two texts that differ only in their variable parts). Against a
+  span fitted with its variable parts left out, the look-alike's parts are
+  left out with no bound on their fills (``textmask.exempt_runs``): a
+  clause too long for FILL_SLACK in a longer text must not name a shorter
+  text inside it. A doubtful name is worse than none. The span stays
+  claimed, so no third look-alike takes it.
 
 Each copy of a text is a hit of its own; only then are the names deduped,
 never before: a text kept once would leave its other copies to a look-alike.
@@ -72,6 +78,7 @@ from licenseid.textlocate import (
     span_fit,
     windows,
 )
+from licenseid.textmask import exempt_runs, masked_fit
 
 #: A List text (or core) of fewer tokens is never listed: too short to tell
 #: a copy from a look-alike.
@@ -86,6 +93,11 @@ CORE_SAMPLE_FACTOR: Final = 0.5
 #: a key of a quarter) is no look-alike. On the real licence files any share
 #: from 0.80 to 0.93 gives the same answers (TEXTS measurements).
 LOOKALIKE_REACH: Final = 0.90
+#: Two masked fits whose keys are this close tie (``_outkeys``): the cores
+#: of OLDAP-1.1 and NBPL-1.0 key 4,537 and 4,591 (0.988). At 0.90 a nested
+#: text that fits its shorter span more closely (SMLNJ's core in Pillow's
+#: MIT-CMU, 0.954) doubts the true one.
+TIE_REACH: Final = 0.98
 
 
 @dataclass(frozen=True)
@@ -183,9 +195,12 @@ def _fits(coded: CodedText, source: _Input) -> bool:
     """Whether *coded* is long enough to list and short enough to fit the
     input at NEAR_SIMILARITY: a look-alike (``_Search.doubted``) as well as
     a hit. A text longer than the input is still tried: a copy that lost a
-    clause can fit it at MIN_SIMILARITY."""
+    clause can fit it at MIN_SIMILARITY. The length is the text's less its
+    variable parts (``CodedText.least``): a copy with short fills and no
+    copyright line (PostgreSQL's) must not leave a shorter look-alike
+    alone."""
     return len(coded.codes) >= MIN_WORDS and can_reach(
-        len(coded.text), len(source.text), NEAR_SIMILARITY
+        coded.least, len(source.text), NEAR_SIMILARITY
     )
 
 
@@ -237,6 +252,16 @@ def _items(
     return items
 
 
+class _Found(dict[int, Alignment]):
+    """The last alignment of each window (by its item's serial), and every
+    alignment by ``(serial, span)``: a fit reads the blocks of the very
+    alignment that gave its span."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.by_span: dict[tuple[int, Span], Alignment] = {}
+
+
 class _Search:
     """One search: the input, its budget, the spans kept, and every window
     by where it starts. A window is aligned and its span compared once,
@@ -252,9 +277,9 @@ class _Search:
             (item.window.pad_end - item.window.pad_start for item in items), default=0
         )
         self._spans: dict[int, Span | None] = {}
-        self._found: dict[int, Alignment] = {}
+        self._found = _Found()
         self._chars: dict[int, RunChars] = {}
-        self._fits: dict[tuple[int, Span], Fit | None] = {}
+        self._fits: dict[tuple[int, Span, bool], Fit | None] = {}
 
     def _span(self, item: _Item) -> Span | None:
         """Where *item*'s text sits in its window (input tokens), or None."""
@@ -292,8 +317,10 @@ class _Search:
         found = align(codes, self.source.codes[start:end])
         if found is None:
             return None
+        span = start + found.start, start + found.end
         self._found[item.serial] = found
-        return start + found.start, start + found.end
+        self._found.by_span[(item.serial, span)] = found
+        return span
 
     def _widened(self, item: _Item, span: Span) -> Span | None:
         """*span* widened by the runs of *item*'s text it misses at the
@@ -317,19 +344,31 @@ class _Search:
         missing = self._found[item.serial].missing
         if not missing:
             return 0
-        coded = item.coded
+        return longest_gap(self._run_chars(item.coded), missing)
+
+    def _run_chars(self, coded: CodedText) -> RunChars:
+        """The token positions of *coded*'s text, worked out once."""
         if id(coded) not in self._chars:
             self._chars[id(coded)] = RunChars(coded.text)
-        return longest_gap(self._chars[id(coded)], missing)
+        return self._chars[id(coded)]
 
-    def _fit(self, item: _Item, span: Span) -> Fit | None:
+    def _fit(self, item: _Item, span: Span, unbounded: bool = False) -> Fit | None:
         """How well *item*'s text fits *span*, critical words aside, or None
-        under the look-alike floor."""
-        key = (item.serial, span)
+        under the look-alike floor: with its variable parts left out where
+        the template has some (``licenseid.textmask``), for a hit and a
+        look-alike alike."""
+        key = (item.serial, span, unbounded)
         if key not in self._fits:
-            self._fits[key] = span_fit(
-                item.coded, self.source.span_text(*span), self.budget
-            )
+            coded, span_text = item.coded, self.source.span_text(*span)
+            found = self._found.by_span.get((item.serial, span))
+            if coded.regions and found is not None:
+                exempt = exempt_runs(
+                    coded, found.blocks, self._run_chars(coded), span_text, unbounded
+                )
+                fit = masked_fit(coded, exempt, self.budget)
+            else:
+                fit = span_fit(coded, span_text, self.budget)
+            self._fits[key] = fit
         return self._fits[key]
 
     def _same_critical(self, item: _Item, span: Span) -> bool:
@@ -348,7 +387,7 @@ class _Search:
         if self.taken.covers_half(item.window.start, item.window.end):
             return None
         # A text that only a look-alike's fit can reach is no hit.
-        if not can_reach(len(item.coded.text), len(self.source.text), MIN_SIMILARITY):
+        if not can_reach(item.coded.least, len(self.source.text), MIN_SIMILARITY):
             return None
         span = self._hit_span(item)
         if (
@@ -372,14 +411,18 @@ class _Search:
         them) or, when the hit is under SURE_SIMILARITY, keys at
         LOOKALIKE_REACH of it or more at NEAR_SIMILARITY or more with the
         same critical words. Look-alikes are scored whatever a
-        kept span claims."""
+        kept span claims; against a masked hit, one also keys above or ties
+        it with its fills unbounded (``textmask.exempt_runs``)."""
         if hit.fit is None:
             return False
         key = hit.fit.key
         # None: a sure hit, doubted only by a hit but for its critical words.
         floor = None if hit.fit.reaches(SURE_SIMILARITY) else LOOKALIKE_REACH * key
-        # A key is at most the text's length.
-        least = key + 1 if floor is None else floor
+        # A key is at most the text's length; a tie reaches down to TIE_REACH
+        # of the hit's (``_outkeys``).
+        least = key + 1 if not hit.fit.masked else TIE_REACH * key
+        if floor is not None:
+            least = min(least, floor)
         first = bisect_left(self.starts, hit.start - self.widest)
         for other in self.items[first : bisect_left(self.starts, hit.end)]:
             if other.row_id == hit.row_id or len(other.coded.text) < least:
@@ -393,14 +436,46 @@ class _Search:
         span = self._span(other)
         if span is None or not _meet(span, (hit.start, hit.end)):
             return False
-        fit = self._fit(other, span)
-        if fit is None or hit.fit is None:
+        if hit.fit is None:
             return False
-        if fit.key > hit.fit.key and fit.reaches(MIN_SIMILARITY):
+        if hit.fit.masked:
+            # The bounds that pick a name hold back no doubt: a longer text
+            # whose clause no bound accepts (or whose title word is unmatched)
+            # still outkeys a shorter one inside it (X11 around MIT).
+            unbounded = self._fit(other, span, unbounded=True)
+            if (
+                unbounded is not None
+                and _outkeys(unbounded, hit.fit)
+                and unbounded.reaches(MIN_SIMILARITY)
+            ):
+                return True
+        fit = self._fit(other, span)
+        if fit is None:
+            return False
+        if _outkeys(fit, hit.fit) and fit.reaches(MIN_SIMILARITY):
             return True
         return (
             floor is not None and fit.key >= floor and self._same_critical(other, span)
         )
+
+
+def _outkeys(fit: Fit, hit: Fit) -> bool:
+    """Whether a look-alike's *fit* keys above the *hit*'s or, both with
+    their variable parts left out, ties it: fits as closely (similarity)
+    with a key at TIE_REACH of the hit's or more, unless only the hit's
+    parts hold its own words. Two texts that differ only in their variable
+    parts (the cores of OLDAP-1.1 and NBPL-1.0: name, version, holder) both
+    fit a copy of either with its own name exactly; the length of the words
+    each var holds must not pick one."""
+    if fit.key > hit.key:
+        return True
+    return (
+        fit.masked
+        and hit.masked
+        and not (hit.own and not fit.own)
+        and fit.key >= TIE_REACH * hit.key
+        and fit.distance * hit.total <= hit.distance * fit.total
+    )
 
 
 class Found(NamedTuple):

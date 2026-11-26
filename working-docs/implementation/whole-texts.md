@@ -405,8 +405,8 @@ then JSON.
   (appnope, PySocks, sphinx 7.4.7, sympy); the rule removes PySocks, sphinx
   and sympy (and torch's NOTICE). appnope (2-clause BSD named BSD-1-Clause)
   is unchanged by the rule: still named.
-- The look-alike rule loses 7 right names (section 5); template-aware
-  scoring would recover them (roadmap item 64).
+- The look-alike rule loses 7 right names (section 5); the variable parts
+  left out of the fit (item 64, section 10) recover them.
 - Concurrent first calls each load the text corpus (no lock): wasted work
   only (roadmap item 65).
 - Six BSD-3-Clause files with "MAY NOT" wording are empty: the span ratio is
@@ -519,3 +519,232 @@ database of List 3.29.0, 596 real files):
 - Time: terse `detect()` (TEXTS skipped) on the 587 files with a text top,
   base and branch interleaved, best of 3: total 247.4 s to 251.4 s (1.016),
   median ratio 1.013, p95 1.094, max 1.40; no file over 1.5x.
+
+### 10. Template variables left out of the fit (item 64, 2026-11-26)
+
+A copy that writes its own copyright holder or project name where the
+template lets the text vary (`<<var>>`, SPDX matching guidelines B.3.3) lost
+2 to 5 points of character fit on words the guidelines let vary. In the ten
+known cases (sympy, numpy, lxml, prettytable, nodeenv, isodate, dill,
+json_flattener: BSD-3-Clause; Pillow: MIT-CMU, X11) every difference but two
+typos and one "names" sits in a var: the look-alike rule refused 8 (the hit
+under 0.98, BSD-3-Clause-HP, whose fixed text says "the author", at 0.93 or
+more in 7), the 0.95 floor 2. Never the gap guard or a critical word. Plan,
+options and their measurements: the plan of item 64 (scratch, 2026-11-26);
+the paper note `results-0-9-3.md`.
+
+Decisions (maintainer, 2026-11-26), option AKG of the plan:
+
+- The vars are left out of the fit of a hit and of a look-alike alike
+  (`textmask.masked_fit`), on both sides; the similarity is that of the
+  fixed text. The key is found less missing with each fill found up to the
+  length of its var's List words: `fixed span length + len(text) - fixed
+  text length - distance - short`, where `short` sums what each fill lacks
+  of its List words. An exact copy keys the text's length whatever its
+  fills. The first build keyed `min(len(text), span length - distance)`,
+  which a review (2026-11-26) broke: with a long holder line both a text
+  and its longer twin key their own length, so the twin won (OLDAP-2.2
+  answered OLDAP-2.2.1 through `markerfloor.doubt_floors`, OLDAP-2.8
+  OLDAP-2.7, LPPL-1.1 named LPPL-1.2). The review's fix, the span with the
+  fills put back to the List's words, credits a twin with List words the
+  input lacks: Cornell-Lossless-JPEG's own text lost to PostgreSQL's core,
+  BSD-3-Clause-HP's to BSD-3-Clause, MIT-feh's to MIT-advertising, 14 long
+  and 13 short fixtures in all. Counting a short fill's lack once keeps
+  them, and names jsonpointer 3.1.1 (whose "The name of the author may" is
+  shorter than BSD-3-Clause's clause 3); counting it twice lost that and
+  two distorted copies less, at the cost of 4 more wrong names on Python-2.0
+  tails.
+- Two masked fits tie (`wholetexts._outkeys`, `TIE_REACH` 0.98): a
+  look-alike that fits as closely (similarity) with a key at 0.98 of the
+  hit's doubts it, unless only the hit's fills are its own words (`Fit.own`).
+  The cores of OLDAP-1.1 and NBPL-1.0 differ only in their vars; a core copy
+  with a third holder named whichever the corpus order or the answer gave.
+  At 0.90 the rule doubted Pillow's MIT-CMU (SMLNJ's core fits its shorter
+  span more closely, key 0.954 of the hit's). Measured: it removes 4 wrong
+  MIT-CMU names (Python-2.0 and 2.0.1 tails) and loses an OLDAP-1.1 core
+  copy, which OLDAP-1.2's identical core makes ambiguous anyway.
+- A var is left out only where the text tokens on both sides of it are
+  matched (`_Fills.touches`); else a word replaced beside it costs only half
+  (the old word compared, the new one inside the fill). Vars side by side
+  ("THE COPYRIGHT HOLDER" then "DISCLAIM" in MIT-CMU) are one, their fill
+  fitting their patterns in turn (`textmask.chain_pattern`; a run of vars of
+  any characters is one: `(.+) (.+) (.+) (DISCLAIMS?)` read as four took
+  0.19 s to refuse 252 characters, merged the worst chain takes 4 ms on
+  3,000). Without chains the touch rule loses BSD-Attribution-HPND-disclaimer
+  and JPNIC filled copies.
+- A fill is left out only when at most `FILL_SLACK` (150) characters longer
+  than its var's List words: an open var (`.*`, `.+`, `.{0,5000}`) took a
+  whole clause (the review: a clause 4 written into BSD-3-Clause's empty
+  `contact` var, 300 characters of "EVALUATION USE ONLY" in its disclaimer
+  var, both named BSD-3-Clause). Measured: 100 loses 13 of the review's
+  147-character holder lines and 39 filled copies; 150 keeps them and
+  refuses, in 37 templates, the review's 170-character restrictive clause
+  that 175 lets through; 300 names the disclaimer clause again. No real file
+  and no fixture moves between 100 and 1,000. Known limit, kept (precision
+  bought elsewhere costs more recall): a clause under the bound written into
+  an open var is left out with it, and the text is named (the second
+  review's BSD-3-Clause copies with a contact or disclaimer clause under 150
+  characters).
+- The length pre-filters (`wholetexts._fits` for a look-alike,
+  `_Search.scored` for a hit) compare the text's characters less those of
+  its vars (`CodedText.least`, a pattern's least taken as 0), not its whole
+  length. The second review (2026-11-26) found a PostgreSQL copy with no
+  copyright line and a short holder ("ACME") dropped by length, so
+  Cornell-Lossless-JPEG, shorter and inside it, was masked and named
+  (base: none).
+- Against a masked hit a look-alike is also fitted with no touch and no
+  FILL_SLACK bound (`exempt_runs(unbounded=True)`), and doubts it when that
+  fit outkeys or ties it at MIN_SIMILARITY; the near-look-alike branch
+  (LOOKALIKE_REACH, same critical words) keeps the bounded fit. The bounds
+  pick which text is named; they must not keep a longer text from doubting
+  a shorter one inside it: the review's clause of 160 characters written
+  into each var of X11 named MIT (also TU-Berlin-1.0 in TU-Berlin-2.0,
+  BSD-3-Clause in BSD-3-Clause-LBNL, HPND in HPND-export2-US), and an
+  NBPL-1.0 copy whose bullets hold a name (title word unmatched) named
+  OLDAP-1.1; base named none. The unbounded fit in both branches lost a
+  right HPND-sell-variant name (HPND's unbounded fit reached its
+  near-look-alike floor); the outkeys branch alone loses none.
+  `nb2.txt` of the review (an NBPL-1.0 copy named OLDAP-1.1) is named so by
+  base too: left as it is.
+- A fill counts only when its var's `match` pattern accepts it whole
+  (`templatevars.fill_matches`), read on normalised words: each white space,
+  mark or escaped mark outside a class, and a class of marks only, is one
+  optional space (`" ?"`); a fill the pattern refuses keeps its var
+  compared, as before. Read literally (`\s*`), one pattern (`Neither .+ make
+  any|.+ makes no`) took 0.15 s on 3,000 characters; as `" ?"` the worst of
+  the 142 patterns takes 0.07 ms. A fill over 3,000 characters is never
+  left out. A pattern Python cannot compile leaves its var compared (none in
+  3.29.0); 6 `original`s fail their own pattern (CeCILL's "CeCILL¹",
+  Blue Oak's `https` that normalisation makes `http`), harmless: an input
+  that holds the `original` matches the text there anyway. A known recall
+  loss: the patterns are read without normalisation's equivalences
+  (Parity-7.0.0's `https` against a fill normalised to `http`; 3 regions fail
+  their own words), so such a fill stays compared, as before.
+- The look-alike rule and its constants stay: with the rule dropped the
+  names of texts left out of the List rise by 13 (plan, option AKGD).
+- A same-text group whose templates differ (7: AGPL-3.0, GFDL-1.1-invariants,
+  GPL-1.0, GPL-2.0, GPL-3.0, LGPL-2.0, LGPL-2.1, the `-only` and `-or-later`
+  templates) leaves out only the regions every member's template has, same
+  tokens and same pattern (`templatevars.shared_regions`): the `-or-later`
+  grant is a var of one template and fixed text of the other. A member
+  without a template is left out of the sharing (`records.text_rows`).
+
+How the regions are found (`templatevars.var_regions`, at build time): the
+template is rendered with a sentinel word on each side of every var
+(`coretext.pieces`, the one reading of a template, shared with
+`core_text`), normalised and aligned to the stored tokens with
+`Indel.editops` on word codes. A var that starts a line keeps its line start
+(the sentinel goes on a line of its own before it): list numbers are vars
+(`.{0,20}`, 9,407 of the 10,384 vars of the List) that normalisation drops
+only at a line start; written inline, 5,949 of 9,611 vars failed to map.
+Fail closed: a var maps only when each of its words matches one run of the
+stored text; an empty var is a point between two matched, adjacent tokens.
+9,402 of the 9,611 vars of the 679 texts map (refused most in NASA-1.3, 24,
+EUPL-1.2, 15, Python-2.0.1, 10); after sharing, 9,399 regions, 6,289 of
+them points; 9,883 var words of 630,369 (1.6 percent). The CJK texts
+(CC-BY-SA-2.1-JP, MulanPSL-1.0 and 2.0, OGDL-Taiwan-1.0) have list numbers
+only ("第1条").
+
+At search time (`textmask`) a var's fill is the span's tokens between the
+matched tokens around it, read off the blocks `textlocate.align` kept
+(`Alignment.blocks`; no second alignment), and cut by token positions
+(`RunChars.bounds`), never by characters per word: Han and kana have a token
+per character and no space. The runs left out are joined by one space on
+each side; an empty var with an empty fill leaves nothing out (it would put
+a space between two Han tokens). A text without regions, or with no fill
+accepted, takes the plain fit. The masked fit is charged to the character
+cells as the plain one; the block walk to the word cells.
+
+Storage (`textstore`, split from `textcorpus`, which keeps the coding): one
+row of the distinct patterns (`patterns`) and one row per text or core with
+regions (`textvars`, `corevars`: `[start, end, pattern number]`), not the
+templates (5.1 MB). The check covers the regions, `CODING_VERSION` 2,
+`records.BUILD_VERSION` 7. A build-6 database fails the check: its corpus is
+coded in memory without regions, the search of before, with `build v6
+outdated`; `update` rebuilds. A damaged regions row gives the same, and a
+lookup never writes.
+
+Measured on the build (worktree `template-texts` against f050bd6: base the
+build-6 database of List 3.29.0, branch build 7 from the same bundle and
+popularity; after the second review, a fresh build-7 database):
+
+- Real files (596): `TEXTS` gains 22 names in 20 files and loses none; the
+  22 of the plan: BSD-3-Clause in sympy 1.13.1, numpy 2.4.6 `LICENSE` and
+  `LICENSE.md`, prettytable 3.14.0, nodeenv 1.10.0, lxml 5.4.0, alabaster
+  1.0.0, emoji 2.15.0 and 2.16.0, json_flattener 0.1.9, isodate 0.7.2,
+  jsonpointer 3.1.1, dill 0.3.1.1; MIT-CMU and X11 in Pillow 11.2.1 and
+  11.3.0; MIT-CMU in numba `LICENSES.third-party` and torch `NOTICE`; NCSA
+  in libclang 18.1.1 and scikit-learn 1.6.1 and 1.9.1 `COPYING`. No answer
+  at 0.85 moves; two tops under it do (rule E): sympy's `Sleepycat` 0.7593
+  goes (its first text is now its own BSD-3-Clause), numpy 2.4.6
+  `LICENSE.md` `MIT` 0.5688 becomes `BSD-3-Clause` 0.7375. The doubtful NTP
+  of pyarrow 16.1.0 and 25.0.1 `LICENSE.txt` (an M.I.T. notice whose fixed
+  text is not NTP's) is found by `texts()`, not printed (the answer is a
+  tag).
+- First text (item 68): sympy `MIT` to `BSD-3-Clause`, numpy `LICENSE.md`
+  `MIT` to `BSD-3-Clause`, Pillow 11.2.1 `MIT` and 11.3.0 `BSD-2-Clause` to
+  `MIT-CMU`.
+- Made-up sets: the 144 bundles of item 59, the 10 `several-texts` recipes and
+  the mixed fixtures do not move but `pytorch.txt` (gains `BSD-3-Clause`, its
+  answer). Holder-filled List texts (337): own name 211 to 284 (271 before the
+  second review), 1 lost (HPND-sell-variant, now doubted by a twin), no other
+  name gained, 2 lost. Every var filled (614): 414 to 534 (525), 1 lost, no
+  other name gained (before the second review Latex2e for
+  Latex2e-translated-notice, and OLDAP-1.1 for NBPL-1.0, whose List text is
+  further from its own template than OLDAP-1.1's is). Bundles of a filled text
+  and MIT (31): 4 own names gained, and 5 bundled texts named after MIT
+  (right).
+- List fixtures (`TEXTS` names, search with every answer): long (1,665) 7
+  right names gained, 5 other names gained, 8 right lost; short (2,780) 2, 13
+  and 3 (before the second review 6, 5, 8 and 0, 14, 3). The lost names are
+  refusals on 5-percent-distorted copies and 1,000-character heads (APAFML,
+  BSD-3-Clause-HP, HPND, MIT-CMU, MMIXware, OpenSSL-standalone, pnmstitch): a
+  twin's masked fit now comes within the look-alike reach. The other names are
+  fragments of the HPND family naming a neighbour (HPND, NTP,
+  HPND-sell-variant), X11's head as MIT, and texts that hold another whole
+  (BSD-3-Clause-LBNL, Sleepycat, Sendmail: BSD-3-Clause). No answer at 0.85
+  moves in any of these sets. Golden (`tools.golden`): no move; its database
+  has no `text_codes`, so no regions.
+- The review's sweep (every List template with its holder line made 147
+  characters long, 330; every template with its vars filled or a clause
+  injected, 1,223; `detect()` base against branch): own names 205 to 269 and
+  780 to 1,010 (1,003 before the second review); other names gained 0 and 0 (8
+  before: the Latex2e and NBPL-1.0 cases above, BSD-3-Clause in
+  BSD-3-Clause-LBNL, HPND in HPND-export2-US, TU-Berlin-1.0 in TU-Berlin-2.0,
+  MIT in X11, all with an injected clause). The second review's short copies
+  (692: List texts with fills at their shortest, holder only or all): own
+  names 409 to 559, no other name gained (before: Cornell-Lossless-JPEG for
+  PostgreSQL). One answer moves, BSD-2-Clause to BSD-2-Clause-Views for a
+  BSD-2-Clause-Views copy (right).
+- CJK and other non-ASCII: the 48 List texts that are not ASCII, own copy,
+  holder vars filled (Han and kana fills for the 4 CJK texts), distorted and
+  short fixtures, and each before MIT (1,486 inputs): `TEXTS` gains
+  BSD-3-Clause-No-Nuclear-License-2014 in 3 and Plexus in 3, and no longer
+  names Linux-man-pages-copyleft-2-para for 3 Latex2e-translated-notice copies
+  (none; Latex2e before the second review). Two answers at 0.85 move: a filled
+  Plexus copy answered `BSD-3-Clause` (0.9025) and now has none (rule E: its
+  first text is Plexus, top 0.8272). The first build's report said no answer
+  moved; it missed these two. Own copies fit 1.0 masked (MulanPSL-1.0's core
+  0.9880 to 0.9879: a var whose neighbour the input changes); filled copies
+  under 0.98 rise to 0.99 to 1.0 (DocBook-XML 0.9486 to 1.0, MTLL 0.9536 to
+  0.9956).
+- Cost: database 24.39 to 24.73 MB (+0.34 MB); `update`'s build step 2.4 to
+  2.9 s of CPU (4.6 under load; each member's template rendered and
+  normalised twice, text and core); the corpus read from `text_codes` 24 to
+  48 ms once per process (the regions parsed and checked). `detect()` with
+  `TEXTS` on the 596 real files and the 310 own and filled non-ASCII List texts,
+  three passes base, branch interleaved on a quiet machine (load about 3),
+  best of three per input: total 349.7 s base, 354.2 s branch (x1.013),
+  median per input x1.014, p95 x1.028, max x1.38, none over 1.5x; peak RSS
+  105 to 108 MB base, 109 to 116 MB branch.
+- Tests: made-up recipes in `tests/fixtures/template-texts/` (26: the ten
+  known cases, six of them named only with the regions, and the review's
+  cases), real templates of 22 licences copied unchanged, a database built
+  by `update` (`tests/template_texts.py`).
+
+Left open: the precision on fragments (short and distorted fixtures of the
+HPND family name a neighbour once the vars cost nothing; item 68 must not
+rank on a text found only through masking without measuring this); PySocks
+1.7.1 and Click 7.0 stay unnamed (their "this software and documentation"
+fails `software|work`: the normative reading); `update` could normalise each
+template once and derive the core from it.

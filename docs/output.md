@@ -138,7 +138,10 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
 - `TEXTS` (JSON `texts`, a list of strings; the last field) lists the List IDs
   whose whole licence text, or its core (the text without its optional parts),
   the input holds, one per text, in the order the input first gives each,
-  separated by one space in the record. A List text under 40 words is listed
+  separated by one space in the record. A copy that writes its own words where
+  the template lets the text vary (the copyright holder, a project's name) is
+  named: those parts are not compared (SPDX matching guidelines B.3.3), as long
+  as each matches the template's pattern. A List text under 40 words is listed
   only when it is the whole input (an exact answer, whatever its length). A file
   with several licence texts names each: `MIT Python-2.0.1 BSD-2-Clause` for
   mypy's `LICENSE`, whose own MIT text comes first. An exact answer gives the

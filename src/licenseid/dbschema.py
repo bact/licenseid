@@ -207,7 +207,7 @@ def create_url_table(conn: sqlite3.Connection) -> None:
 
 def create_text_table(conn: sqlite3.Connection) -> None:
     """Make ``text_codes`` if it is missing: the List texts as word codes
-    (``textcorpus.TextCorpus.stored_rows``), one row for the vocabulary and
+    (``textstore.stored_rows``), one row for the vocabulary and
     one for each text and core. Read whole, once per rebuild
     (dbcache.TableCache.text_corpus); a database built before it (build 5) is
     read without it, which codes the texts in memory, and gets it from

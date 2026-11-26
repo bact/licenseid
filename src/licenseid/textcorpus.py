@@ -12,25 +12,16 @@ dictionary key). The character texts are kept too: the last check of a hit
 compares characters (``licenseid.textlocate``).
 
 A corpus is built once (``TextCorpus.build``) and never changed after: a
-search reads it from any thread. Cores are coded at build time.
-
-The database stores the codes (``TextCorpus.stored_rows``), so that a process
-reads them (``TextCorpus.restore``) instead of coding every text again: 0.18 s
-once per process, against about 15 ms. A stored check value (a SHA-256 of the
-List texts, cores, codes and vocabulary, and of ``CODING_VERSION``) makes a
-restore give the corpus ``build`` gives or nothing: codes of other rows, or of
-another coding, are never taken. Both are pure functions of rows; the database
-is read and written elsewhere.
+search reads it from any thread. Cores are coded at build time. The database
+stores it (``licenseid.textstore``).
 
 Standard library only, apart from ``licenseid.similarity``'s list of
 critical words.
 """
 
-import hashlib
-import json
 import re
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import accumulate
 from types import MappingProxyType
 from typing import Final, NamedTuple
@@ -44,13 +35,13 @@ UNKNOWN: Final = "\0"
 # characters is a token of its own; a phrase of 60 characters as one "word"
 # would make a one-character change a whole-word miss.
 _CJK: Final = "぀-ヿ㐀-䶿一-鿿豈-﫿"
-_TOKEN: Final = re.compile(f"[{_CJK}]|[^\\s{_CJK}]+")
+TOKEN: Final = re.compile(f"[{_CJK}]|[^\\s{_CJK}]+")
 
 # Word numbers run from 1 (0 is UNKNOWN); a code point is never a surrogate,
 # which a str may hold but RapidFuzz and the encoders refuse.
 _SURROGATES: Final = 0xD800
 _SURROGATE_COUNT: Final = 0x800
-_LAST_NUMBER: Final = 0x10FFFF - _SURROGATE_COUNT
+LAST_NUMBER: Final = 0x10FFFF - _SURROGATE_COUNT
 
 #: The critical words in a fixed order, for the counts of a text and a span.
 CRITICAL_ORDER: Final = tuple(sorted(CRITICAL_TOKENS))
@@ -62,28 +53,13 @@ _CLASSES: Final = tuple(COUNTED_WITH.get(word, (word,)) for word in CRITICAL_ORD
 
 Span = tuple[int, int]
 
-#: Raised on a change to the coding (what a token is, which code point a word
-#: gets) that no change to the rows of a database shows: a corpus stored by an
-#: older coding then fails its check and is built, not read.
-CODING_VERSION: Final = 1
-
-#: One row of the stored corpus: ``(kind, owner_id, body)``. The vocabulary
-#: is one row (``WORDS``, no owner), its check value another (``CHECK``, no
-#: owner), each text and core one row of codes (``TEXT``, ``CORE``; the owner
-#: is the name of its same-text group).
-StoredRow = tuple[str, str, str]
-WORDS: Final = "words"
-CHECK: Final = "check"
-TEXT: Final = "text"
-CORE: Final = "core"
-
 
 def split_words(text: str) -> list[str]:
     """The tokens of *text*: its words, and each Han or kana character
     alone. ASCII text is split on white space only (the fast path)."""
     if text.isascii():
         return text.split()
-    return _TOKEN.findall(text)
+    return TOKEN.findall(text)
 
 
 def input_tokens(text: str, limit: int) -> tuple[list[str], list[Span] | None]:
@@ -97,7 +73,7 @@ def input_tokens(text: str, limit: int) -> tuple[list[str], list[Span] | None]:
         return text.split(), None
     words: list[str] = []
     spans: list[Span] = []
-    for match in _TOKEN.finditer(text):
+    for match in TOKEN.finditer(text):
         words.append(match.group())
         spans.append(match.span())
         if len(words) > limit:
@@ -107,7 +83,7 @@ def input_tokens(text: str, limit: int) -> tuple[list[str], list[Span] | None]:
 
 def token_spans(text: str) -> list[Span]:
     """Where each token of *text* (as ``split_words``) starts and ends."""
-    return [match.span() for match in _TOKEN.finditer(text)]
+    return [match.span() for match in TOKEN.finditer(text)]
 
 
 class RunChars:
@@ -124,14 +100,23 @@ class RunChars:
             # of the List is so normalised): no position of each token needed.
             if sums[-1] + len(words) - 1 == len(text):
                 self._sums = sums
+                self.count = len(words)
                 return
         self._spans = token_spans(text)
+        #: How many tokens the text has.
+        self.count = len(self._spans)
+
+    def bounds(self, start: int, end: int) -> Span:
+        """Where tokens *start* to *end* (end > start) start and end in the
+        text, in characters."""
+        if self._sums is not None:
+            return self._sums[start] + start, self._sums[end] + end - 1
+        return self._spans[start][0], self._spans[end - 1][1]
 
     def of(self, start: int, end: int) -> int:
         """The characters of tokens *start* to *end* (end > start)."""
-        if self._sums is not None:
-            return self._sums[end] - self._sums[start] + end - start - 1
-        return self._spans[end - 1][1] - self._spans[start][0]
+        first, last = self.bounds(start, end)
+        return last - first
 
 
 def critical_counts(words: Sequence[str]) -> tuple[int, ...]:
@@ -159,34 +144,64 @@ def critical_counts_of_codes(
     return tuple(sum(map(codes.count, classes)) for classes in counted)
 
 
-def _code(number: int) -> str:
+def word_code(number: int) -> str:
     """The code point of the word numbered *number* (from 1)."""
-    number = min(number, _LAST_NUMBER)
+    number = min(number, LAST_NUMBER)
     return chr(number if number < _SURROGATES else number + _SURROGATE_COUNT)
+
+
+class VarRegion(NamedTuple):
+    """A variable part of a text (``licenseid.templatevars``): its tokens
+    *start* to *end* (*start* == *end*: a point where the template has an
+    empty one) and the ``match`` *pattern* the List gives it."""
+
+    start: int
+    end: int
+    pattern: str
 
 
 @dataclass(frozen=True)
 class TextRow:
     """One licence of the List: its normalised text, its core (the text
-    without its optional parts, ``licenseid.coretext``) and the IDs whose
-    text is the very same (``same_text``, itself included)."""
+    without its optional parts, ``licenseid.coretext``), the IDs whose text
+    is the very same (``same_text``, itself included) and the variable parts
+    of the text and of the core (``licenseid.templatevars``; none unknown)."""
 
     license_id: str
     text: str
     core: str | None
     group: tuple[str, ...]
+    regions: tuple[VarRegion, ...] = ()
+    core_regions: tuple[VarRegion, ...] = ()
 
 
 @dataclass(frozen=True)
 class CodedText:
-    """A text (or core) of the List: its characters, its word codes and its
-    counts of critical words. *row_id* names its same-text group."""
+    """A text (or core) of the List: its characters, its word codes, its
+    counts of critical words and the *regions* of its template's variable
+    parts (none when unknown). *row_id* names its same-text group."""
 
     row_id: str
     is_core: bool
     text: str
     codes: str
     critical: tuple[int, ...]
+    regions: tuple[VarRegion, ...] = ()
+    #: The characters of the text less those of its variable parts: the
+    #: least a copy with every part left empty has to fit (``wholetexts``).
+    least: int = field(init=False, compare=False, repr=False)
+
+    def __post_init__(self) -> None:
+        least = len(self.text)
+        if self.regions:
+            chars = RunChars(self.text)
+            at = 0
+            for region in sorted(self.regions):
+                start = max(region.start, at)
+                if region.end > start:
+                    least -= chars.of(start, region.end)
+                at = max(at, region.end)
+        object.__setattr__(self, "least", least)
 
 
 @dataclass(frozen=True)
@@ -203,19 +218,26 @@ class _Vocabulary:
     def __init__(self) -> None:
         self.codes: dict[str, str] = {}
 
-    def code(self, text: str, row_id: str, is_core: bool) -> CodedText:
+    def code(
+        self,
+        text: str,
+        row_id: str,
+        is_core: bool,
+        regions: tuple[VarRegion, ...] = (),
+    ) -> CodedText:
         """*text* coded, new words numbered as they come."""
         words = split_words(text)
         codes = self.codes
         for word in words:
             if word not in codes:
-                codes[word] = _code(len(codes) + 1)
+                codes[word] = word_code(len(codes) + 1)
         return CodedText(
             row_id=row_id,
             is_core=is_core,
             text=text,
             codes="".join([codes[word] for word in words]),
             critical=critical_counts(words),
+            regions=regions,
         )
 
 
@@ -224,7 +246,7 @@ def _representative(row: TextRow) -> str:
     return min((row.license_id, *row.group))
 
 
-def _groups(rows: Iterable[TextRow]) -> tuple[dict[str, TextRow], dict[str, str]]:
+def group_rows(rows: Iterable[TextRow]) -> tuple[dict[str, TextRow], dict[str, str]]:
     """The first row of each same-text group by its name, and the name of the
     group of each ID. A row with no text has none."""
     first: dict[str, TextRow] = {}
@@ -239,121 +261,9 @@ def _groups(rows: Iterable[TextRow]) -> tuple[dict[str, TextRow], dict[str, str]
     return first, representatives
 
 
-def _core_of(row: TextRow) -> str | None:
+def core_of_row(row: TextRow) -> str | None:
     """*row*'s core, or None when it has none or it is the text."""
     return row.core if row.core and row.core != row.text else None
-
-
-class _Stored(NamedTuple):
-    """The stored rows read: the vocabulary, the check value and the codes
-    by ``(kind, owner)``."""
-
-    words: list[str]
-    check: str
-    codes: dict[tuple[str, str], str]
-
-
-def _parse_words(body: str) -> list[str] | None:
-    """The vocabulary in *body* (a JSON list of strings), or None."""
-    try:
-        loaded = json.loads(body)
-    except ValueError:
-        return None
-    if not isinstance(loaded, list) or not all(map(_is_str, loaded)):
-        return None
-    return loaded
-
-
-def _parse_stored(stored: Iterable[StoredRow]) -> _Stored | None:
-    """The vocabulary, the check value and the codes of *stored*, or None
-    when a row has a kind, owner or body that is not text (a BLOB read as
-    bytes), is of no kind, repeated, or empty, or the vocabulary is not a list
-    of strings or a row of the vocabulary or the check is missing."""
-    words: list[str] | None = None
-    check: str | None = None
-    codes: dict[tuple[str, str], str] = {}
-    for row in stored:
-        if not all(map(_is_str, row)):
-            return None
-        kind, owner, body = row
-        if kind == WORDS and words is None and not owner:
-            words = _parse_words(body)
-            if words is None:
-                return None
-        elif kind == CHECK and check is None and not owner:
-            check = body
-        elif kind in (TEXT, CORE) and body and (kind, owner) not in codes:
-            codes[(kind, owner)] = body
-        else:
-            return None
-    if words is None or check is None:
-        return None
-    return _Stored(words, check, codes)
-
-
-def _is_str(value: object) -> bool:
-    return isinstance(value, str)
-
-
-def _fingerprint(words: Sequence[str], entries: Iterable[CorpusEntry]) -> str:
-    """The SHA-256 (hex) of the coding, the vocabulary *words* and, per
-    entry, its group name, text, core and codes: equal for the corpus
-    ``build`` makes and the one ``restore`` reads from its rows only when
-    every stored code is the one ``build`` gives. Each part has its length
-    in front, so no two corpora join to the same bytes."""
-    digest = hashlib.sha256()
-
-    def add(part: str, encoding: str = "utf-8") -> None:
-        data = part.encode(encoding, "surrogatepass")
-        digest.update(len(data).to_bytes(8, "big"))
-        digest.update(data)
-
-    # Codes are Unicode beyond ASCII: UTF-32 is a copy, UTF-8 a conversion.
-    def add_codes(codes: str) -> None:
-        add(codes, "utf-32-le")
-
-    add(f"{CODING_VERSION}\n{_TOKEN.pattern}\n{len(words)}")
-    add("\n".join(words))  # a token holds no white space: no word has a "\n"
-    for entry in entries:
-        add(entry.text.row_id)
-        add(entry.text.text)
-        add_codes(entry.text.codes)
-        core = entry.core
-        add("" if core is None else core.text)  # a core is never empty
-        add_codes("" if core is None else core.codes)
-    return digest.hexdigest()
-
-
-def _stored_entry(
-    row: TextRow,
-    name: str,
-    codes: dict[tuple[str, str], str],
-    counted: tuple[tuple[str, ...], ...],
-) -> CorpusEntry | None:
-    """The entry of group *name* from the stored *codes* (taken out of it),
-    or None when its text, or a core it needs, has none, or a core is stored
-    that *row* does not have."""
-    core = _core_of(row)
-    text_codes = codes.pop((TEXT, name), None)
-    core_codes = codes.pop((CORE, name), None)
-    if text_codes is None or (core is None) != (core_codes is None):
-        return None
-
-    def coded(text: str, body: str, is_core: bool) -> CodedText:
-        return CodedText(
-            row_id=name,
-            is_core=is_core,
-            text=text,
-            codes=body,
-            critical=critical_counts_of_codes(body, counted),
-        )
-
-    return CorpusEntry(
-        text=coded(row.text, text_codes, False),
-        core=None
-        if core is None or core_codes is None
-        else coded(core, core_codes, True),
-    )
 
 
 @dataclass(frozen=True)
@@ -367,68 +277,24 @@ class TextCorpus:
 
     @classmethod
     def build(cls, rows: Iterable[TextRow]) -> "TextCorpus":
-        """The corpus of *rows*. A group is coded from the first of its rows;
-        a core equal to the text, or empty, is dropped."""
-        first, representatives = _groups(rows)
+        """The corpus of *rows*. A group is coded from the first of its rows,
+        with its regions; a core equal to the text, or empty, is dropped."""
+        first, representatives = group_rows(rows)
         vocabulary = _Vocabulary()
         entries = []
         for name in sorted(first):
             row = first[name]
-            core = _core_of(row)
+            core = core_of_row(row)
             entries.append(
                 CorpusEntry(
-                    text=vocabulary.code(row.text, name, False),
-                    core=None if core is None else vocabulary.code(core, name, True),
+                    text=vocabulary.code(row.text, name, False, row.regions),
+                    core=None
+                    if core is None
+                    else vocabulary.code(core, name, True, row.core_regions),
                 )
             )
         return cls(
             vocabulary=MappingProxyType(vocabulary.codes),
-            entries=tuple(entries),
-            representatives=MappingProxyType(representatives),
-        )
-
-    def stored_rows(self) -> list[StoredRow]:
-        """The codes of this corpus as rows to store: the vocabulary (its
-        words in code order, as JSON), its check value and the codes of each
-        text and core. ``restore`` reads them back."""
-        words = list(self.vocabulary)
-        rows = [
-            (WORDS, "", json.dumps(words, separators=(",", ":"))),
-            (CHECK, "", _fingerprint(words, self.entries)),
-        ]
-        for entry in self.entries:
-            rows.append((TEXT, entry.text.row_id, entry.text.codes))
-            if entry.core is not None:
-                rows.append((CORE, entry.core.row_id, entry.core.codes))
-        return rows
-
-    @classmethod
-    def restore(
-        cls, rows: Iterable[TextRow], stored: Iterable[StoredRow]
-    ) -> "TextCorpus | None":
-        """The corpus ``build(rows)`` gives, read from the *stored* rows of
-        that corpus instead of coded again; None when *stored* is not exactly
-        the codes of *rows* (empty, damaged, of other rows or of another
-        coding: its check value then differs): the caller then builds."""
-        parsed = _parse_stored(stored)
-        if parsed is None:
-            return None
-        words, check, codes = parsed
-        vocabulary = dict(zip(words, map(_code, range(1, len(words) + 1))))
-        if len(vocabulary) != len(words) or len(words) > _LAST_NUMBER:
-            return None
-        counted = critical_codes(vocabulary)
-        first, representatives = _groups(rows)
-        entries = []
-        for name in sorted(first):
-            entry = _stored_entry(first[name], name, codes, counted)
-            if entry is None:
-                return None
-            entries.append(entry)
-        if codes or check != _fingerprint(words, entries):
-            return None  # a text no row of *rows* holds, or other codes
-        return cls(
-            vocabulary=MappingProxyType(vocabulary),
             entries=tuple(entries),
             representatives=MappingProxyType(representatives),
         )

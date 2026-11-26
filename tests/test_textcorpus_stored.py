@@ -15,19 +15,24 @@ from dataclasses import replace
 
 import pytest
 
-from licenseid import textcorpus
+from licenseid import textstore
 from licenseid.textcorpus import (
-    CHECK,
-    CORE,
-    TEXT,
-    WORDS,
-    StoredRow,
     TextCorpus,
     TextRow,
     critical_codes,
     critical_counts,
     critical_counts_of_codes,
     split_words,
+)
+from licenseid.textstore import (
+    CHECK,
+    CORE,
+    PATTERNS,
+    TEXT,
+    WORDS,
+    StoredRow,
+    restore,
+    stored_rows,
 )
 
 ROWS = (
@@ -43,7 +48,7 @@ ROWS = (
 
 
 def _stored() -> list[StoredRow]:
-    return TextCorpus.build(ROWS).stored_rows()
+    return stored_rows(TextCorpus.build(ROWS))
 
 
 def _replaced(kind: str, owner: str, body: str) -> list[StoredRow]:
@@ -83,7 +88,7 @@ def _without(kind: str, owner: str | None = None) -> list[StoredRow]:
 
 def test_the_stored_rows_read_back_as_the_corpus() -> None:
     built = TextCorpus.build(ROWS)
-    restored = TextCorpus.restore(ROWS, built.stored_rows())
+    restored = restore(ROWS, stored_rows(built))
     assert restored is not None
     assert restored == built
     assert [e.text.row_id for e in restored.entries] == [
@@ -100,6 +105,7 @@ def test_the_stored_rows_name_each_text_and_core_once() -> None:
     assert kinds == [
         (WORDS, ""),
         (CHECK, ""),
+        (PATTERNS, ""),
         (TEXT, "A-1.0"),
         (CORE, "A-1.0"),
         (TEXT, "B-1.0"),
@@ -112,7 +118,7 @@ def test_the_stored_rows_name_each_text_and_core_once() -> None:
 
 def test_an_empty_corpus_reads_back() -> None:
     built = TextCorpus.build([])
-    assert TextCorpus.restore([], built.stored_rows()) == built
+    assert restore([], stored_rows(built)) == built
 
 
 def test_the_vocabulary_is_in_code_order() -> None:
@@ -203,16 +209,13 @@ def test_a_critical_word_no_text_holds_counts_nothing() -> None:
 def test_a_stored_form_that_is_not_the_rows_codes_gives_none(
     stored: list[StoredRow],
 ) -> None:
-    assert TextCorpus.restore(ROWS, stored) is None
+    assert restore(ROWS, stored) is None
 
 
 def test_the_stored_rows_of_other_rows_give_none() -> None:
-    assert TextCorpus.restore(ROWS[:1], _stored()) is None
+    assert restore(ROWS[:1], _stored()) is None
     assert (
-        TextCorpus.restore(
-            [*ROWS, TextRow("G-1.0", "new", None, ("G-1.0",))], _stored()
-        )
-        is None
+        restore([*ROWS, TextRow("G-1.0", "new", None, ("G-1.0",))], _stored()) is None
     )
 
 
@@ -240,39 +243,39 @@ def _rows_with(license_id: str, text: str) -> list[TextRow]:
 def test_the_codes_of_other_texts_give_none(rows: list[TextRow]) -> None:
     """The case of an older program that rewrote the rows and left the codes:
     the names, the vocabulary and the shape of the rows may all agree."""
-    assert TextCorpus.restore(rows, _stored()) is None
+    assert restore(rows, _stored()) is None
 
 
 def test_a_text_and_core_cut_at_another_place_give_none() -> None:
     """The same characters in the text and the core together, cut elsewhere."""
     built = [TextRow("A-1.0", "aa bb", "cc", ("A-1.0",))]
     cut = [TextRow("A-1.0", "aa bbc", "c", ("A-1.0",))]
-    stored = TextCorpus.build(built).stored_rows()
-    assert TextCorpus.restore(built, stored) is not None
-    assert TextCorpus.restore(cut, stored) is None
+    stored = stored_rows(TextCorpus.build(built))
+    assert restore(built, stored) is not None
+    assert restore(cut, stored) is None
 
 
 def test_a_coding_of_another_version_gives_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     stored = _stored()
-    assert TextCorpus.restore(ROWS, stored) is not None
-    monkeypatch.setattr(textcorpus, "CODING_VERSION", textcorpus.CODING_VERSION + 1)
-    assert TextCorpus.restore(ROWS, stored) is None
-    assert TextCorpus.restore(ROWS, TextCorpus.build(ROWS).stored_rows()) is not None
+    assert restore(ROWS, stored) is not None
+    monkeypatch.setattr(textstore, "CODING_VERSION", textstore.CODING_VERSION + 1)
+    assert restore(ROWS, stored) is None
+    assert restore(ROWS, stored_rows(TextCorpus.build(ROWS))) is not None
 
 
 def test_a_token_pattern_of_another_coding_gives_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     stored = _stored()
-    monkeypatch.setattr(textcorpus, "_TOKEN", re.compile(r"\S+"))
-    assert TextCorpus.restore(ROWS, stored) is None
+    monkeypatch.setattr(textstore, "TOKEN", re.compile(r"\S+"))
+    assert restore(ROWS, stored) is None
 
 
 def test_the_check_is_of_the_coding_not_of_the_run() -> None:
     assert _body(CHECK, "") == _body(CHECK, "")
-    other = TextCorpus.build(ROWS[:1]).stored_rows()
+    other = stored_rows(TextCorpus.build(ROWS[:1]))
     assert [b for k, _, b in other if k == CHECK] != [_body(CHECK, "")]
 
 
@@ -307,4 +310,4 @@ def test_a_row_that_is_not_text_gives_none_not_an_error(
     stored: list[tuple[object, ...]],
 ) -> None:
     """A BLOB column value comes back as bytes: no code to count."""
-    assert TextCorpus.restore(ROWS, stored) is None  # type: ignore[arg-type]
+    assert restore(ROWS, stored) is None  # type: ignore[arg-type]

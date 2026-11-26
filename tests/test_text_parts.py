@@ -76,7 +76,7 @@ def with_optional(kept: int, optional: int) -> SpdxData:
 
 
 def test_the_build_carries_the_parts() -> None:
-    assert BUILD_VERSION == "6"
+    assert BUILD_VERSION == "7"
 
 
 @pytest.mark.parametrize(

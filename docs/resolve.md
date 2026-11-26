@@ -307,7 +307,7 @@ one tick.
 A warning is a `licenseid.LicenseIdWarning` given through Python's
 `warnings` (see [the Python API](python-api.md#warnings)), never a line written
 to standard error: the fallback above, a database built by an older or a
-newer licenseid (`database: build v2 outdated: current v6; run 'licenseid
+newer licenseid (`database: build v2 outdated: current v7; run 'licenseid
 update'`) and an unusable shipped list (`spdx-bundle.json.gz: invalid:
 ...`). Each is given once per process, not once per value; `licenseid
 resolve` prints each as a `WARNING:` line. A database of build 3 or older

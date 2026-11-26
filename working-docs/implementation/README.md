@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -209,6 +209,8 @@ yet started, see [`../design/`](../design/).
 | 2026-11-23 | [accuracy-optimizations.md](accuracy-optimizations.md) section 12 | implemented (0.9.2, PR #239) | The core text of a licence for long inputs (Tier 2): the SPDX optional-text rule, the cut at nine tenths rejected, all 440 cores stored (build 5). |
 | 2026-11-24 | [accuracy-optimizations.md](accuracy-optimizations.md) section 13 | implemented (0.9.2, PR #239) | A second Tier 1 head query without copyright notices (MIT under a long holder), with no cap of 25 and a top 10 gate. |
 | 2026-11-24 | [whole-texts.md](whole-texts.md) | implemented (after 0.9.2) | The `TEXTS` field: the List texts an input holds whole, found by word-coded 5-gram anchors and one character ratio on the trimmed span; limits by counts, null past them. |
+| 2026-11-26 | [whole-texts.md](whole-texts.md) section 10 | implemented (after 0.9.3) | Item 64: the variable parts of a template (`<<var>>`) left out of the fit of a whole text where the input's words match their pattern; regions stored in build 7. |
+| 2026-11-26 | [tech-debt-resolved-0-10.md](tech-debt-resolved-0-10.md) | record | The roadmap items resolved from item 64 (2026-11-26) on, split from `tech-debt-resolved-0-9.md` at the size limit. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

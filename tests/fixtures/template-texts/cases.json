@@ -1,0 +1,450 @@
+[
+ {
+  "case": "bsd3-regents",
+  "like": "a project's BSD-3-Clause with its own holder in the copyright line, clause 3 and the disclaimer (sympy, numpy, lxml)",
+  "parts": [
+   {
+    "template": "BSD-3-Clause",
+    "fills": {
+     "copyright": "Copyright (c) 2006-2026 Example Project Developers. All rights reserved.",
+     "organizationClause3": "Neither the name of Example Project nor the names of its contributors may",
+     "copyrightHolderLiability": "THE REGENTS OR CONTRIBUTORS"
+    }
+   }
+  ],
+  "texts": [
+   "BSD-3-Clause"
+  ],
+  "before": []
+ },
+ {
+  "case": "bsd3-regents-mit",
+  "like": "the same, then a bundled MIT text: the own text first",
+  "parts": [
+   {
+    "template": "BSD-3-Clause",
+    "fills": {
+     "copyright": "Copyright (c) 2006-2026 Example Project Developers. All rights reserved.",
+     "organizationClause3": "Neither the name of Example Project nor the names of its contributors may",
+     "copyrightHolderLiability": "THE REGENTS OR CONTRIBUTORS"
+    }
+   },
+   "This package bundles third-party code under the following licence:",
+   "@MIT"
+  ],
+  "texts": [
+   "BSD-3-Clause",
+   "MIT"
+  ],
+  "before": [
+   "MIT"
+  ]
+ },
+ {
+  "case": "bsd3-author",
+  "like": "BSD-3-Clause whose clause 3 and disclaimers name the author, as BSD-3-Clause-HP's fixed text does (jsonpointer, dill)",
+  "parts": [
+   {
+    "template": "BSD-3-Clause",
+    "fills": {
+     "copyright": "Copyright (c) 2011 Example Author <author@example.org>",
+     "organizationClause3": "The name of the author may not",
+     "copyrightHolderAsIs": "BY THE AUTHOR",
+     "copyrightHolderLiability": "THE AUTHOR"
+    }
+   }
+  ],
+  "texts": [
+   "BSD-3-Clause"
+  ],
+  "before": []
+ },
+ {
+  "case": "bsd3-hp-exact",
+  "like": "BSD-3-Clause-HP as the List writes it: its own name, not BSD-3-Clause's",
+  "parts": [
+   "@BSD-3-Clause-HP"
+  ],
+  "texts": [
+   "BSD-3-Clause-HP"
+  ],
+  "before": [
+   "BSD-3-Clause-HP"
+  ]
+ },
+ {
+  "case": "bsd3-contact",
+  "like": "BSD-3-Clause with the optional contact line after clause 3",
+  "parts": [
+   {
+    "template": "BSD-3-Clause",
+    "fills": {
+     "copyright": "Copyright (c) 2015 Example Labs",
+     "contact": "To obtain permission, contact licensing@example.org.",
+     "copyrightHolderLiability": "EXAMPLE LABS OR CONTRIBUTORS"
+    }
+   }
+  ],
+  "texts": [
+   "BSD-3-Clause"
+  ],
+  "before": []
+ },
+ {
+  "case": "bsd3-attribution",
+  "like": "BSD-3-Clause-Attribution with its own holder: its clause 4 is no fill of BSD-3-Clause's contact line",
+  "parts": [
+   {
+    "template": "BSD-3-Clause-Attribution",
+    "fills": {
+     "organization": "\"Example University\" (https://example.org/)."
+    }
+   }
+  ],
+  "texts": [
+   "BSD-3-Clause-Attribution"
+  ],
+  "before": [
+   "BSD-3-Clause-Attribution"
+  ]
+ },
+ {
+  "case": "bsd2-holder",
+  "like": "BSD-2-Clause with its own holder in the disclaimer",
+  "parts": [
+   {
+    "template": "BSD-2-Clause",
+    "fills": {
+     "copyright": "Copyright (c) 2019 Example Software Foundation",
+     "copyrightHolderAsIs": "THE EXAMPLE SOFTWARE FOUNDATION AND CONTRIBUTORS",
+     "copyrightHolderLiability": "THE EXAMPLE SOFTWARE FOUNDATION OR CONTRIBUTORS"
+    }
+   }
+  ],
+  "texts": [
+   "BSD-2-Clause"
+  ],
+  "before": [
+   "BSD-2-Clause"
+  ]
+ },
+ {
+  "case": "x11-authors",
+  "like": "X11 naming its authors where the List names the X Consortium (Pillow)",
+  "parts": [
+   {
+    "template": "X11",
+    "fills": {
+     "copyright": "Copyright (c) 1997-2026 Example Authors",
+     "nameDisclaimer": "THE AUTHORS OR THEIR INSTITUTIONS",
+     "name2Disclaimer": "the authors or their institutions",
+     "name3Disclaimer": "the authors or their institutions."
+    }
+   }
+  ],
+  "texts": [
+   "X11"
+  ],
+  "before": [
+   "X11"
+  ]
+ },
+ {
+  "case": "mit-cmu-holder",
+  "like": "MIT-CMU with its own holder (Pillow's PIL text)",
+  "parts": [
+   {
+    "template": "MIT-CMU",
+    "fills": {
+     "copyright": "Copyright (c) 1995-2011 by Example Imaging and Example Lundh",
+     "copyrightHolder1": "Example Imaging or the author",
+     "copyrightHolder2": "EXAMPLE IMAGING AND THE AUTHOR",
+     "copyrightHolder3": "EXAMPLE IMAGING OR THE AUTHOR"
+    }
+   }
+  ],
+  "texts": [
+   "MIT-CMU"
+  ],
+  "before": []
+ },
+ {
+  "case": "ncsa-project",
+  "like": "NCSA with its development group and institution (the LLVM text)",
+  "parts": [
+   {
+    "template": "NCSA",
+    "fills": {
+     "copyright": "Copyright (c) 2003-2026 Example University. All rights reserved.",
+     "organization": "Example Team Example University https://example.org",
+     "organizationClause3": "Example Team, Example University"
+    }
+   }
+  ],
+  "texts": [
+   "NCSA"
+  ],
+  "before": []
+ },
+ {
+  "case": "oldap-2.2-holder",
+  "like": "OLDAP-2.2 with a long holder line: a near twin (OLDAP-2.2.1) must not key above it for the fill's length",
+  "parts": [
+   {
+    "template": "OLDAP-2.2",
+    "fills": {
+     "copyright": "Copyright (c) 1998-2024 The Example Directory Services Consortium of North America, Incorporated, and its many contributors. All rights reserved."
+    }
+   }
+  ],
+  "texts": [
+   "OLDAP-2.2"
+  ],
+  "before": []
+ },
+ {
+  "case": "oldap-2.8-holder",
+  "like": "OLDAP-2.8 with a long holder line, beside OLDAP-2.7",
+  "parts": [
+   {
+    "template": "OLDAP-2.8",
+    "fills": {
+     "copyright": "Copyright (c) 1998-2024 The Example Directory Services Consortium of North America, Incorporated, and its many contributors. All rights reserved."
+    }
+   }
+  ],
+  "texts": [
+   "OLDAP-2.8"
+  ],
+  "before": []
+ },
+ {
+  "case": "lppl-1.1-filled",
+  "like": "LPPL-1.1 with its holder and list numbers filled, beside LPPL-1.2",
+  "parts": [
+   {
+    "template": "LPPL-1.1",
+    "fills": {
+     "copyright": "THE REGENTS OF THE UNIVERSITY OF EXAMPLE",
+     "bullet": "Example Org"
+    }
+   }
+  ],
+  "texts": [
+   "LPPL-1.1"
+  ],
+  "before": [
+   "LPPL-1.1"
+  ]
+ },
+ {
+  "case": "oldap-1.1-holder",
+  "like": "OLDAP-1.1 with a long holder line; its copyright var glued to the next word, beside NBPL-1.0",
+  "parts": [
+   {
+    "template": "OLDAP-1.1",
+    "fills": {
+     "copyright": "Copyright (c) 1998-2024 The Example Directory Services Consortium of North America, Incorporated, and its many contributors. All rights reserved."
+    }
+   }
+  ],
+  "texts": [
+   "OLDAP-1.1"
+  ],
+  "before": [
+   "OLDAP-1.1"
+  ]
+ },
+ {
+  "case": "oldap-1.1-core-holder",
+  "like": "OLDAP-1.1 without its optional parts and with a third holder: the cores of OLDAP-1.1 and NBPL-1.0 differ only in their vars, so neither",
+  "parts": [
+   {
+    "template": "OLDAP-1.1",
+    "optional": false,
+    "fills": {
+     "copyright": "Copyright (c) 1998-2024 The Example Directory Services Consortium of North America, Incorporated, and its many contributors. All rights reserved."
+    }
+   }
+  ],
+  "texts": [],
+  "before": [
+   "OLDAP-1.1"
+  ]
+ },
+ {
+  "case": "cornell-exact",
+  "like": "Cornell-Lossless-JPEG as the List gives it: PostgreSQL's core, whose vars hold more words, must not key above it",
+  "parts": [
+   "@Cornell-Lossless-JPEG"
+  ],
+  "texts": [
+   "Cornell-Lossless-JPEG"
+  ],
+  "before": [
+   "Cornell-Lossless-JPEG"
+  ]
+ },
+ {
+  "case": "bsd3-contact-clause",
+  "like": "BSD-3-Clause with a new clause written into the empty contact var: no name",
+  "parts": [
+   {
+    "template": "BSD-3-Clause",
+    "fills": {
+     "copyright": "Copyright (c) 2020, Example Corp.",
+     "contact": "To obtain permission, contact Example Corp. 4. Redistributions of this software in any form, and any use of it by a commercial entity, require a paid commercial licence from Example Corp, which may charge a royalty on each copy sold or distributed; the source code shall be kept confidential and shall be used only for evaluation purposes by the licensee during a period of thirty days, after which all copies must be destroyed."
+    }
+   }
+  ],
+  "texts": [],
+  "before": []
+ },
+ {
+  "case": "bsd3-disclaimer-clause",
+  "like": "BSD-3-Clause with 300 characters of restriction written into the disclaimer var: no name",
+  "parts": [
+   {
+    "template": "BSD-3-Clause",
+    "fills": {
+     "copyright": "Copyright (c) 2020, Example Corp.",
+     "copyrightHolderAsIs": "BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS, FOR EVALUATION USE ONLY BY A SINGLE NAMED PERSON WHO HAS PAID THE FEE, AND ANY REDISTRIBUTION OR COMMERCIAL USE OF IT IS STRICTLY PROHIBITED AND WILL BE PROSECUTED TO THE FULLEST EXTENT OF THE LAW IN EVERY JURISDICTION WORLDWIDE, AND ALL COPIES MUST BE DESTROYED AFTER THIRTY DAYS,"
+    }
+   }
+  ],
+  "texts": [],
+  "before": []
+ },
+ {
+  "case": "mit-cmu-disclaims",
+  "like": "MIT-CMU with its holder and DISCLAIMS filled, two vars side by side",
+  "parts": [
+   {
+    "template": "MIT-CMU",
+    "fills": {
+     "copyright": "Copyright (c) 1995-2011 by Example Imaging and Example Lundh",
+     "copyrightHolder1": "Example Imaging or the author",
+     "copyrightHolder2": "EXAMPLE IMAGING AND THE AUTHOR",
+     "disclaim": "DISCLAIMS",
+     "copyrightHolder3": "EXAMPLE IMAGING OR THE AUTHOR"
+    }
+   }
+  ],
+  "texts": [
+   "MIT-CMU"
+  ],
+  "before": []
+ },
+ {
+  "case": "postgresql-exact",
+  "like": "PostgreSQL as the List gives it, beside Cornell-Lossless-JPEG",
+  "parts": [
+   "@PostgreSQL"
+  ],
+  "texts": [
+   "PostgreSQL"
+  ],
+  "before": [
+   "PostgreSQL"
+  ]
+ },
+ {
+  "case": "oldap-2.2.1-exact",
+  "like": "OLDAP-2.2.1 as the List gives it, beside OLDAP-2.2",
+  "parts": [
+   "@OLDAP-2.2.1"
+  ],
+  "texts": [
+   "OLDAP-2.2.1"
+  ],
+  "before": [
+   "OLDAP-2.2.1"
+  ]
+ },
+ {
+  "case": "lppl-1.2-exact",
+  "like": "LPPL-1.2 as the List gives it, beside LPPL-1.1",
+  "parts": [
+   "@LPPL-1.2"
+  ],
+  "texts": [
+   "LPPL-1.2"
+  ],
+  "before": [
+   "LPPL-1.2"
+  ]
+ },
+ {
+  "case": "postgresql-acme",
+  "like": "PostgreSQL with no copyright line and a short holder: no shorter look-alike masks it (Cornell-Lossless-JPEG)",
+  "parts": [
+   {
+    "template": "PostgreSQL",
+    "fills": {
+     "copyright": "",
+     "copyrightHolderLiability": "ACME",
+     "copyrightHolderAdvised": "ACME",
+     "copyrightHolderDisclaims": "ACME",
+     "copyrightHolderAsIs": "ACME"
+    }
+   }
+  ],
+  "texts": [
+   "PostgreSQL"
+  ],
+  "before": []
+ },
+ {
+  "case": "postgresql-shortest",
+  "like": "PostgreSQL without its title, each var at its pattern's shortest fill",
+  "parts": [
+   {
+    "template": "PostgreSQL",
+    "optional": false,
+    "fills": {
+     "copyright": "",
+     "copyrightHolderLiability": "A",
+     "copyrightHolderAdvised": "A",
+     "copyrightHolderDisclaims": "A",
+     "copyrightHolderAsIs": "A"
+    }
+   }
+  ],
+  "texts": [
+   "PostgreSQL"
+  ],
+  "before": []
+ },
+ {
+  "case": "nbpl-1.0-title-trim",
+  "like": "NBPL-1.0 with a holder where its version line was and a name for each bullet: OLDAP-1.1 inside it is no answer",
+  "parts": [
+   {
+    "template": "NBPL-1.0",
+    "fills": {
+     "copyright": "THE REGENTS OF THE UNIVERSITY OF EXAMPLE",
+     "bullet": "Example Org"
+    }
+   }
+  ],
+  "texts": [],
+  "before": []
+ },
+ {
+  "case": "x11-clause",
+  "like": "X11 with a clause of 160 characters written into each var: MIT inside it is no answer",
+  "parts": [
+   {
+    "template": "X11",
+    "fills": {
+     "copyright": "Copyright (C) 1996 X Consortium Example Org. Commercial use requires a paid licence from Example Org and every copy must carry a royalty statement and be registered with Example Org within thirty days",
+     "nameDisclaimer": "THE X CONSORTIUM Example Org. Commercial use requires a paid licence from Example Org and every copy must carry a royalty statement and be registered with Example Org within thirty days",
+     "name2Disclaimer": "the X Consortium Example Org. Commercial use requires a paid licence from Example Org and every copy must carry a royalty statement and be registered with Example Org within thirty days",
+     "name3Disclaimer": "the X Consortium. Example Org. Commercial use requires a paid licence from Example Org and every copy must carry a royalty statement and be registered with Example Org within thirty days"
+    }
+   }
+  ],
+  "texts": [],
+  "before": []
+ }
+]
