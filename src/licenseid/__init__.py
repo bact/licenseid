@@ -7,7 +7,7 @@
 SPDX License ID detection package.
 """
 
-__version__ = "0.9.2"
+__version__ = "0.9.3"
 
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path

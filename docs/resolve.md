@@ -343,9 +343,9 @@ those of one run):
   ],
   "resolver": {
     "name": "licenseid",
-    "version": "0.9.2",
-    "url": "https://github.com/bact/licenseid/releases/tag/v0.9.2",
-    "purl": "pkg:pypi/licenseid@0.9.2"
+    "version": "0.9.3",
+    "url": "https://github.com/bact/licenseid/releases/tag/v0.9.3",
+    "purl": "pkg:pypi/licenseid@0.9.3"
   },
   "components": [],
   "lists": [
@@ -373,7 +373,7 @@ those of one run):
 | `steps`, `expansions` | each change made, and each qualifier added or declined (below) | `{"kind": "separator", ...}` |
 | `candidates` | the IDs a bare deprecated ID may mean, sorted | `["GPL-3.0-only", "GPL-3.0-or-later"]` for `GPL-3.0` |
 | `operands` | each licence the value names ([operands](#operands-and-components)) | `{"text": "Apache2", ...}` |
-| `resolver` | licenseid: `name`, `version`, `url` of its release, `purl` | `"pkg:pypi/licenseid@0.9.2"` |
+| `resolver` | licenseid: `name`, `version`, `url` of its release, `purl` | `"pkg:pypi/licenseid@0.9.3"` |
 | `components` | the other tools that took part, with the keys of `resolver` | the parser `py-spdx-license` |
 | `lists` | each list the answer rests on: `id`, `name`, `version`, `source` (`database` or `packaged`), `url` of its release, `license` of its data, `provides` (what it gives: `ids`, `names`, `texts`, `deprecation`), `id_authority` (whether it defines IDs) | `"source": "database"` |
 | `reason` | why there is no answer ([reasons](#reasons-for-a-refusal)), or `null` | `null` |
