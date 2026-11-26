@@ -167,7 +167,7 @@ def test_a_fit_is_cached_by_span_not_by_text() -> None:
     search = wholetexts._Search(source, items, budget)
     item = items[0]
     narrow, wide = (0, 395), (0, 400)
-    fits = [search._fit(item, span) for span in (narrow, wide, narrow)]
+    fits = [search.fit(item, span) for span in (narrow, wide, narrow)]
     expected = [
         span_fit(item.coded, source.span_text(*span), Budget())
         for span in (narrow, wide, narrow)

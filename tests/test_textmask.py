@@ -16,7 +16,7 @@ import pytest
 from test_wholetexts import fake
 from timing import slack
 
-from licenseid import textmask, wholetexts
+from licenseid import textdoubt, textmask, wholetexts
 from licenseid.templatevars import fill_matches
 from licenseid.textcorpus import RunChars, TextCorpus, TextRow, VarRegion, split_words
 from licenseid.textlocate import Budget, Fit, align, span_fit
@@ -137,7 +137,7 @@ def test_a_fill_150_characters_longer_than_its_words_is_left_out_not_151(
     ids=["past-the-slack", "next-word-replaced"],
 )
 def test_unbounded_a_var_takes_any_fill_its_pattern_accepts(given: str) -> None:
-    """For a look-alike (``wholetexts._Search._doubts``) neither FILL_SLACK
+    """For a look-alike (``textdoubt._doubts``) neither FILL_SLACK
     nor the matched neighbours hold a fill back."""
     regions = (LINE, VarRegion(TAIL + 2, TAIL + 3, ".+"))
     bounded = _fit(TEXT, regions, given)
@@ -341,7 +341,7 @@ def _masked(key: int, distance: int, own: bool = False) -> Fit:
 def test_a_look_alike_outkeys_or_ties_a_hit(fit: Fit, hit: Fit, outkeys: bool) -> None:
     """Two masked fits tie within TIE_REACH (0.98) of the hit's key, as
     close or closer, unless only the hit's fills are its own words."""
-    assert wholetexts._outkeys(fit, hit) is outkeys
+    assert textdoubt.outkeys(fit, hit) is outkeys
 
 
 HEAD, TAIL_WORDS = fake(5, 80), fake(6, 80)

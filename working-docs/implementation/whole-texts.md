@@ -103,21 +103,21 @@ carries its own copy of the same list.
   run of `MAX_GAP_CHARS` (150) characters of the text (section 4, "Gap
   guard"). A core is tried too, under the same rule.
 - `wholetexts.py`: selection. Key `2 x matched - len(text)` (found less
-  missing), then the answer's group, then ID. A hit overlapping a kept one
-  by more than a tenth of the shorter span is dropped. Look-alike rule: a
-  kept span with a fit of `SURE_SIMILARITY` (0.98) or more is named. Between
+  missing), then the answer's group, then ID. A hit overlapping a kept one by
+  more than a tenth of the shorter span is dropped. Look-alike rule
+  (`textdoubt.py`, split out of `wholetexts.py` on 2026-11-26): a kept span
+  with a fit of `SURE_SIMILARITY` (0.98) or more is named. Between
   `MIN_SIMILARITY` (0.95) and 0.98 it is named only when no text of a
   different same-text group fits an overlapping span at `NEAR_SIMILARITY`
   (0.93) or more, with the same critical words and a key of at least
   `LOOKALIKE_REACH` (0.90) of its own; else the part names nothing, and the
   span stays claimed so no third text takes it. A text refused only for its
-  critical words still doubts any hit, a sure one too, when it fits at 0.95
-  or more with a higher key: else a copy that lost one "except" named a
-  look-alike (Apache-2.0 as ImageMagick; 92 of 1,971 such copies, now 0).
-  One entry per copy;
-  names are deduped after the overlap step, never before. One
-  representative per same-text group is scanned. `found_rows` returns row
-  IDs or None.
+  critical words still doubts any hit, a sure one too, when it fits at 0.95 or
+  more with a higher key: else a copy that lost one "except" named a
+  look-alike (Apache-2.0 as ImageMagick; 92 of 1,971 such copies, now 0). One
+  entry per copy; names are deduped after the overlap step, never before. One
+  representative per same-text group is scanned. `found_rows` returns row IDs
+  or None.
 - `textnames.py`: the gate and the naming (below).
 - Glue in `detector.py` (kept under 800 lines); `result.py` carries the
   field.
@@ -554,7 +554,7 @@ Decisions (maintainer, 2026-11-26), option AKG of the plan:
   shorter than BSD-3-Clause's clause 3); counting it twice lost that and
   two distorted copies less, at the cost of 4 more wrong names on Python-2.0
   tails.
-- Two masked fits tie (`wholetexts._outkeys`, `TIE_REACH` 0.98): a
+- Two masked fits tie (`textdoubt.outkeys`, `TIE_REACH` 0.98): a
   look-alike that fits as closely (similarity) with a key at 0.98 of the
   hit's doubts it, unless only the hit's fills are its own words (`Fit.own`).
   The cores of OLDAP-1.1 and NBPL-1.0 differ only in their vars; a core copy

@@ -78,8 +78,8 @@ in another module.
   0 stand: tied names) and `namerules` (what beside one name doubts it),
   `retrieval` (Tier 1), `textcorpus` (word codes) and `textstore` (stored),
   `textlocate` (5-gram votes, windows, count limits), `wholetexts` (key,
-  overlap, look-alike doubt) with `textmask` and `templatevars` (the fit without
-  template variables), `firsttext` (1st text), `textnames`, `ftsquery` (its
+  overlap), `textdoubt` (look-alike doubt), `textmask` and `templatevars` (fit
+  without template vars), `firsttext` (1st text), `textnames`, `ftsquery` (its
   `MATCH` string: 20 words), `idoptions` (`exclude`, `hint`: API only, free text
   only, case-folded, a bare deprecated ID stands for both twins, kept under
   `as-written`), `variants` and `variantstated` (the `variant` option: what a
