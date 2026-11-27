@@ -139,7 +139,7 @@ Apache-2.0
 If you use this software, please cite it as follows:
 
 > Suriyawongkul, A. (2026). LicenseID - A portable SPDX licence identification
-> tool (Version 0.9.3) [Computer software].
+> tool (Version 0.9.4) [Computer software].
 > <https://doi.org/10.5281/zenodo.19881009>
 
 BibTeX:
@@ -152,7 +152,7 @@ BibTeX:
     month = nov,
     title = {{LicenseID - A portable SPDX licence identification tool}},
     url = {https://github.com/bact/licenseid.git},
-    version = {0.9.3},
+    version = {0.9.4},
     year = {2026}
 }
 ```

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -23,8 +23,10 @@ and pinned, 2026-11-17), 53 (a known limit, 2026-11-18), 56 (a hang in the
 CLI matrix, found 2026-11-16), 35 and 67 (the marker floor, 2026-11-25) are
 resolved. Items 55 (PR #214, 2026-11-16), 54 (PR #217, 2026-11-16), 47
 (PR #219, 2026-11-17) and 57 (2026-11-26) are built; their leftovers stay open.
-Item 2 waits on an upstream release. The open items that need a rule
-or a decision before a fix are grouped in
+Item 2 waits on an upstream release. Next, after release 0.9.4 (PR #246,
+PR #247): the new detection engine of release 0.10.0, then item 68, then
+items 69 and 70 (decided 2026-11-27). The open items
+that need a rule or a decision before a fix are grouped in
 [`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02); item 31
 is that revision.
 
@@ -402,6 +404,10 @@ Impact 1, Risk 1, Effort 2.
 
 ## 68. `TEXTS` as ranking evidence — Priority 18
 
+Next: after the new detection engine of release 0.10.0, which changes the
+ranking and the whole-text search this item reads; measure the 25 files again
+on it first.
+
 Left by item 59 (2026-11-26; `../implementation/whole-texts.md`, section 9).
 On 25 of 596 real files `TEXTS` names one text and the top is a look-alike of
 it under 0.85 (MIT under DocBook-XML, JSON, ICU, curl, Unicode-DFS-2015), so
@@ -427,6 +433,8 @@ Impact 3, Risk 3, Effort 3.
 
 ## 69. A Mozilla Public License header as a notice — Priority 16
 
+Next: after item 68.
+
 Pitloom (handoff of 2026-11-26, item C6): certifi's `LICENSE` holds the
 standard MPL-2.0 header ("This Source Code Form is subject to the terms of the
 Mozilla Public License, v. 2.0 ...") between `BEGIN LICENSE BLOCK` and `END
@@ -438,6 +446,8 @@ long-text fixture database holds no MPL-2.0 text, so add it there first.
 Impact 2, Risk 2, Effort 2.
 
 ## 70. Exception texts in a file — Priority 12
+
+Next: after item 69; design first.
 
 Pitloom (handoff of 2026-11-26, item C5): numpy's `LICENSE.txt` holds the
 whole GCC Runtime Library Exception 3.1 after the GPL-3.0 text; `TEXTS` names
