@@ -12,19 +12,17 @@ keeps the hits that do not overlap, best first:
 * key ``2 x matched - len(text)`` in characters (found less missing): the
   longer of two nested texts wins when the input holds it whole, the exact
   text wins over a longer look-alike;
-* on equal keys the answer's group first, then the ID;
+* on equal keys the answer's group first, then the closer fit (fewer
+  characters differ), then the ID; a look-alike as high and closer doubts a
+  hit (``licenseid.textdoubt``);
 * a text whose span misses a run of MAX_GAP_CHARS of it is no hit (it
   lacks a clause), but still a look-alike;
 * a hit overlapping a kept one by more than a tenth of the shorter span is
   dropped;
 * a kept span names nothing when a look-alike, a text of another same-text
-  group, fits a span overlapping it and either keys above it at
-  MIN_SIMILARITY or more (a hit refused only by a critical word: a word
-  dropped from the true text must not name a look-alike) or, for a span
-  under SURE_SIMILARITY, keys at LOOKALIKE_REACH of it or more at
-  NEAR_SIMILARITY or more with the same critical words (the input is about
-  as close to either text). A doubtful name is worse than none. The span
-  stays claimed, so no third look-alike takes it.
+  group, fits a span overlapping it about as well (``licenseid.textdoubt``).
+  A doubtful name is worse than none. The span stays claimed, so no third
+  look-alike takes it.
 
 Each copy of a text is a hit of its own; only then are the names deduped,
 never before: a text kept once would leave its other copies to a look-alike.
@@ -52,12 +50,12 @@ from licenseid.textcorpus import (
     TextCorpus,
     input_tokens,
 )
+from licenseid.textdoubt import doubted, meet
 from licenseid.textlocate import (
     MAX_GAP_CHARS,
     MIN_SIMILARITY,
     MIN_VOTE_SHARE,
     NEAR_SIMILARITY,
-    SURE_SIMILARITY,
     Alignment,
     Budget,
     Fit,
@@ -72,6 +70,7 @@ from licenseid.textlocate import (
     span_fit,
     windows,
 )
+from licenseid.textmask import exempt_runs, masked_fit
 
 #: A List text (or core) of fewer tokens is never listed: too short to tell
 #: a copy from a look-alike.
@@ -81,11 +80,6 @@ MIN_INPUT_WORDS: Final = 40
 #: The core is the text less its optional parts: of the text's samples it
 #: holds about its share of the characters. Half that share lets it be tried.
 CORE_SAMPLE_FACTOR: Final = 0.5
-#: A look-alike's key is at least this share of the hit's: a text of about
-#: the same extent. A text the hit holds as a part (PSF-2.0 in Python-2.0.1,
-#: a key of a quarter) is no look-alike. On the real licence files any share
-#: from 0.80 to 0.93 gives the same answers (TEXTS measurements).
-LOOKALIKE_REACH: Final = 0.90
 
 
 @dataclass(frozen=True)
@@ -110,12 +104,16 @@ class _Item(NamedTuple):
 
     An unscored item's key is its bound, the text's length (2 x matched -
     len(text) <= len(text)); unscored before scored on equal keys keeps the
-    order exact. *serial* is unique, so *coded*, *window* and *fit* are
+    order exact. *distance* is a scored fit's distance (0 unscored): of two
+    equal keys outside the answer's group the closer fit is picked first,
+    an exact text before a twin that reaches the key only with its variable
+    parts left out. *serial* is unique, so *coded*, *window* and *fit* are
     never compared."""
 
     negative_key: int
     scored: int
     rank: int
+    distance: int
     row_id: str
     start: int
     end: int
@@ -123,12 +121,6 @@ class _Item(NamedTuple):
     coded: CodedText
     window: Window
     fit: Fit | None = None
-
-
-def _meet(first: Span, second: Span) -> bool:
-    """Whether two spans overlap by more than a tenth of the shorter."""
-    shared = min(first[1], second[1]) - max(first[0], second[0])
-    return 10 * shared > min(first[1] - first[0], second[1] - second[0])
 
 
 class _Taken:
@@ -156,7 +148,7 @@ class _Taken:
     def overlaps(self, start: int, end: int) -> bool:
         """Whether a kept span overlaps [start, end) by more than a tenth of
         the shorter of the two."""
-        return any(_meet(span, (start, end)) for span in self._near(start, end))
+        return any(meet(span, (start, end)) for span in self._near(start, end))
 
     def covers_half(self, start: int, end: int) -> bool:
         """Whether a kept span holds half of [start, end) or more: a window
@@ -181,11 +173,14 @@ def _read_input(norm_input: str, corpus: TextCorpus) -> _Input | None:
 
 def _fits(coded: CodedText, source: _Input) -> bool:
     """Whether *coded* is long enough to list and short enough to fit the
-    input at NEAR_SIMILARITY: a look-alike (``_Search.doubted``) as well as
+    input at NEAR_SIMILARITY: a look-alike (``textdoubt.doubted``) as well as
     a hit. A text longer than the input is still tried: a copy that lost a
-    clause can fit it at MIN_SIMILARITY."""
+    clause can fit it at MIN_SIMILARITY. The length is the text's less its
+    variable parts (``CodedText.least``): a copy with short fills and no
+    copyright line (PostgreSQL's) must not leave a shorter look-alike
+    alone."""
     return len(coded.codes) >= MIN_WORDS and can_reach(
-        len(coded.text), len(source.text), NEAR_SIMILARITY
+        coded.least, len(source.text), NEAR_SIMILARITY
     )
 
 
@@ -225,6 +220,7 @@ def _items(
                     negative_key=-len(coded.text),
                     scored=0,
                     rank=0 if coded.row_id == answer else 1,
+                    distance=0,
                     row_id=coded.row_id,
                     start=window.start,
                     end=window.end,
@@ -235,6 +231,16 @@ def _items(
             )
     heapq.heapify(items)
     return items
+
+
+class _Found(dict[int, Alignment]):
+    """The last alignment of each window (by its item's serial), and every
+    alignment by ``(serial, span)``: a fit reads the blocks of the very
+    alignment that gave its span."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.by_span: dict[tuple[int, Span], Alignment] = {}
 
 
 class _Search:
@@ -252,11 +258,11 @@ class _Search:
             (item.window.pad_end - item.window.pad_start for item in items), default=0
         )
         self._spans: dict[int, Span | None] = {}
-        self._found: dict[int, Alignment] = {}
+        self._found = _Found()
         self._chars: dict[int, RunChars] = {}
-        self._fits: dict[tuple[int, Span], Fit | None] = {}
+        self._fits: dict[tuple[int, Span, bool], Fit | None] = {}
 
-    def _span(self, item: _Item) -> Span | None:
+    def span(self, item: _Item) -> Span | None:
         """Where *item*'s text sits in its window (input tokens), or None."""
         if item.serial not in self._spans:
             window = item.window
@@ -266,19 +272,19 @@ class _Search:
         return self._spans[item.serial]
 
     def _hit_span(self, item: _Item) -> Span | None:
-        """``_span``, looked for once more, the span widened by a run of
+        """``span``, looked for once more, the span widened by a run of
         MAX_GAP_CHARS or more that it misses at an end of the text: the
         text's end may match a later copy of the same words as well
         (Python-2.0.1's closing disclaimer, repeated by the 0BSD text after
         it), and trimming drops that far block, though the words sit right
-        after the span. Only for a hit: a look-alike keeps ``_span``.
+        after the span. Only for a hit: a look-alike keeps ``span``.
 
         Known limit, chosen (precision over recall): 20 to 60 foreign words
         inserted within about one run of an end of the text get that end
         block trimmed; the look then widens into the insertion and the hit
         is refused as a missing clause (``working-docs/implementation/
         whole-texts.md``, gap guard)."""
-        span = self._span(item)
+        span = self.span(item)
         widened = None if span is None else self._widened(item, span)
         if widened is not None and self._gap(item) >= MAX_GAP_CHARS:
             return self._aligned(item, *widened)
@@ -292,8 +298,10 @@ class _Search:
         found = align(codes, self.source.codes[start:end])
         if found is None:
             return None
+        span = start + found.start, start + found.end
         self._found[item.serial] = found
-        return start + found.start, start + found.end
+        self._found.by_span[(item.serial, span)] = found
+        return span
 
     def _widened(self, item: _Item, span: Span) -> Span | None:
         """*span* widened by the runs of *item*'s text it misses at the
@@ -317,22 +325,34 @@ class _Search:
         missing = self._found[item.serial].missing
         if not missing:
             return 0
-        coded = item.coded
+        return longest_gap(self._run_chars(item.coded), missing)
+
+    def _run_chars(self, coded: CodedText) -> RunChars:
+        """The token positions of *coded*'s text, worked out once."""
         if id(coded) not in self._chars:
             self._chars[id(coded)] = RunChars(coded.text)
-        return longest_gap(self._chars[id(coded)], missing)
+        return self._chars[id(coded)]
 
-    def _fit(self, item: _Item, span: Span) -> Fit | None:
+    def fit(self, item: _Item, span: Span, unbounded: bool = False) -> Fit | None:
         """How well *item*'s text fits *span*, critical words aside, or None
-        under the look-alike floor."""
-        key = (item.serial, span)
+        under the look-alike floor: with its variable parts left out where
+        the template has some (``licenseid.textmask``), for a hit and a
+        look-alike alike."""
+        key = (item.serial, span, unbounded)
         if key not in self._fits:
-            self._fits[key] = span_fit(
-                item.coded, self.source.span_text(*span), self.budget
-            )
+            coded, span_text = item.coded, self.source.span_text(*span)
+            found = self._found.by_span.get((item.serial, span))
+            if coded.regions and found is not None:
+                exempt = exempt_runs(
+                    coded, found.blocks, self._run_chars(coded), span_text, unbounded
+                )
+                fit = masked_fit(coded, exempt, self.budget)
+            else:
+                fit = span_fit(coded, span_text, self.budget)
+            self._fits[key] = fit
         return self._fits[key]
 
-    def _same_critical(self, item: _Item, span: Span) -> bool:
+    def same_critical(self, item: _Item, span: Span) -> bool:
         """Whether *span* holds *item*'s critical words as often as its
         text."""
         return same_critical(item.coded, self.source.words[span[0] : span[1]])
@@ -348,58 +368,26 @@ class _Search:
         if self.taken.covers_half(item.window.start, item.window.end):
             return None
         # A text that only a look-alike's fit can reach is no hit.
-        if not can_reach(len(item.coded.text), len(self.source.text), MIN_SIMILARITY):
+        if not can_reach(item.coded.least, len(self.source.text), MIN_SIMILARITY):
             return None
         span = self._hit_span(item)
         if (
             span is None
             or self.taken.overlaps(*span)
-            or not self._same_critical(item, span)
+            or not self.same_critical(item, span)
             or self._gap(item) >= MAX_GAP_CHARS
         ):
             return None
-        fit = self._fit(item, span)
+        fit = self.fit(item, span)
         if fit is None or not fit.reaches(MIN_SIMILARITY):
             return None
         return item._replace(
-            negative_key=-fit.key, scored=1, start=span[0], end=span[1], fit=fit
-        )
-
-    def doubted(self, hit: _Item) -> bool:
-        """Whether a look-alike casts doubt on *hit*: a text of another
-        group whose span meets the hit's and that keys above the hit at
-        MIN_SIMILARITY or more, whatever its critical words (a hit but for
-        them) or, when the hit is under SURE_SIMILARITY, keys at
-        LOOKALIKE_REACH of it or more at NEAR_SIMILARITY or more with the
-        same critical words. Look-alikes are scored whatever a
-        kept span claims."""
-        if hit.fit is None:
-            return False
-        key = hit.fit.key
-        # None: a sure hit, doubted only by a hit but for its critical words.
-        floor = None if hit.fit.reaches(SURE_SIMILARITY) else LOOKALIKE_REACH * key
-        # A key is at most the text's length.
-        least = key + 1 if floor is None else floor
-        first = bisect_left(self.starts, hit.start - self.widest)
-        for other in self.items[first : bisect_left(self.starts, hit.end)]:
-            if other.row_id == hit.row_id or len(other.coded.text) < least:
-                continue
-            if self._doubts(other, hit, floor):
-                return True
-        return False
-
-    def _doubts(self, other: _Item, hit: _Item, floor: float | None) -> bool:
-        """Whether *other* doubts *hit*: see ``doubted``."""
-        span = self._span(other)
-        if span is None or not _meet(span, (hit.start, hit.end)):
-            return False
-        fit = self._fit(other, span)
-        if fit is None or hit.fit is None:
-            return False
-        if fit.key > hit.fit.key and fit.reaches(MIN_SIMILARITY):
-            return True
-        return (
-            floor is not None and fit.key >= floor and self._same_critical(other, span)
+            negative_key=-fit.key,
+            scored=1,
+            distance=fit.distance,
+            start=span[0],
+            end=span[1],
+            fit=fit,
         )
 
 
@@ -424,7 +412,7 @@ def _kept(heap: list[_Item], search: _Search) -> list[tuple[int, str]]:
                 heapq.heappush(heap, scored)
         elif not search.taken.overlaps(item.start, item.end):
             search.taken.add(item.start, item.end)
-            if not search.doubted(item):
+            if not doubted(search, item):
                 kept.append((item.start, item.row_id))
     return kept
 

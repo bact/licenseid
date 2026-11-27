@@ -20,12 +20,17 @@ and this project adheres to
 
 - `TEXTS` lists the texts in the order the file gives them, no longer by ID:
   the first is the file's first text ([#246])
+- Database build 7 (0.3 MB more) stores the variable parts of each licence
+  template; `licenseid update` rebuilds an older database, which still
+  answers ([#247])
 
 ### Fixed
 
 - A file of several licence texts no longer answers a bundled licence
   (numpy's `LICENSE.txt` answered `GPL-3.0-only`): a text answer stands only
   when its text comes first ([#246])
+- `TEXTS` names a licence text whose copyright holder or project name is not
+  the List's (sympy's BSD-3-Clause, Pillow's MIT-CMU) ([#247])
 
 ## [0.9.3] - 2026-11-26
 
@@ -232,6 +237,7 @@ and this project adheres to
 [#242]: https://github.com/bact/licenseid/pull/242
 [#243]: https://github.com/bact/licenseid/pull/243
 [#246]: https://github.com/bact/licenseid/pull/246
+[#247]: https://github.com/bact/licenseid/pull/247
 
 ## [0.8.4] - 2026-11-09
 

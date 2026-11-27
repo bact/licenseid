@@ -15,6 +15,7 @@ from licenseid.textcorpus import (
     UNKNOWN,
     TextCorpus,
     TextRow,
+    VarRegion,
     critical_counts,
     input_tokens,
     split_words,
@@ -153,12 +154,12 @@ def test_text_carries_its_critical_counts() -> None:
     [(1, 0x1), (0xD7FF, 0xD7FF), (0xD800, 0xE000), (0x10F7FF, 0x10FFFF)],
 )
 def test_word_numbers_skip_the_surrogates(number: int, code: int) -> None:
-    assert textcorpus._code(number) == chr(code)  # pylint: disable=protected-access
+    assert textcorpus.word_code(number) == chr(code)
 
 
 def test_numbers_past_the_last_share_the_last_code() -> None:
-    last = textcorpus._code(0x10F7FF)  # pylint: disable=protected-access
-    assert textcorpus._code(0x10F800) == last  # pylint: disable=protected-access
+    last = textcorpus.word_code(0x10F7FF)
+    assert textcorpus.word_code(0x10F800) == last
 
 
 def test_the_corpus_cannot_change() -> None:
@@ -171,3 +172,61 @@ def test_the_corpus_cannot_change() -> None:
         corpus.representatives["new"] = "x"  # type: ignore[index]
     with pytest.raises(dataclasses.FrozenInstanceError):
         corpus.entries[0].text.codes = ""  # type: ignore[misc]
+
+
+@pytest.mark.parametrize(
+    ("text", "regions", "least"),
+    [
+        ("aa bb cccc ddddd eeeeee", (), 23),
+        ("aa bb cccc ddddd eeeeee", (VarRegion(1, 2, ".+"),), 20),
+        ("aa bb cccc ddddd eeeeee", (VarRegion(0, 1, ".+"),), 20),
+        ("aa bb cccc ddddd eeeeee", (VarRegion(4, 5, ".+"),), 16),
+        (
+            "aa bb cccc ddddd eeeeee",
+            (VarRegion(1, 3, ".+"), VarRegion(2, 4, ".+")),
+            9,
+        ),
+        (
+            "aa bb cccc ddddd eeeeee",
+            (VarRegion(1, 2, ".+"), VarRegion(2, 3, ".+")),
+            15,
+        ),
+        ("aa bb cccc ddddd eeeeee", (VarRegion(0, 5, ".*"),), 0),
+        ("aa bb cccc ddddd eeeeee", (VarRegion(2, 2, ".*"),), 23),
+        (
+            "aa bb cccc ddddd eeeeee",
+            (VarRegion(0, 2, ".*"), VarRegion(1, 2, ".+"), VarRegion(3, 4, ".+")),
+            11,
+        ),
+        ("\u8a31\u53ef\u8b49\u66f8", (VarRegion(1, 2, ".+"),), 4),
+        (
+            "\u8a31\u53ef\u8b49\u66f8",
+            (VarRegion(1, 2, ".+"), VarRegion(2, 3, ".+")),
+            3,
+        ),
+        ("\u8a31\u53ef\u8b49\u66f8", (VarRegion(2, 2, ".*"),), 4),
+    ],
+    ids=[
+        "none",
+        "middle",
+        "start",
+        "end",
+        "overlapping",
+        "touching",
+        "every-token",
+        "point",
+        "nested",
+        "han",
+        "han-touching",
+        "han-point",
+    ],
+)
+def test_least_is_the_text_with_its_variable_parts_cut(
+    text: str, regions: tuple[VarRegion, ...], least: int
+) -> None:
+    """The characters ``textmask`` keeps of *text* with each run of
+    variable parts cut out and the pieces left joined by one space: a run
+    in the middle also takes one of its two spaces; between Han tokens the
+    joining space adds one (4 of 4)."""
+    corpus = TextCorpus.build([TextRow("A", text, None, ("A",), regions)])
+    assert corpus.entries[0].text.least == least

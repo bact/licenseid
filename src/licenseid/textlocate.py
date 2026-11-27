@@ -38,7 +38,7 @@ TEXTS step (PR to be linked).
 from bisect import bisect_left
 from collections import Counter
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Final
 
 from rapidfuzz.distance import Indel, LCSseq
@@ -303,16 +303,24 @@ def _blocks(text: str, window: str) -> _Blocks | None:
     )
 
 
+#: A matching block of an alignment: where it starts in the text and in the
+#: span (tokens), and its size.
+Block = tuple[int, int, int]
+
+
 @dataclass(frozen=True)
 class Alignment:
     """Where a text sits in a window: the span *start* to *end* (word codes),
-    the runs of text words (start, end) it leaves unmatched, and how many
-    text words the blocks trimmed off its front and back matched."""
+    the runs of text words (start, end) it leaves unmatched, how many text
+    words the blocks trimmed off its front and back matched, and the
+    matching *blocks* the span is made of (``licenseid.textmask`` reads a
+    variable part's fill between them)."""
 
     start: int
     end: int
     missing: tuple[Span, ...]
     trimmed: tuple[int, int] = (0, 0)
+    blocks: tuple[Block, ...] = field(default=(), compare=False)
 
 
 def align(text: str, window: str) -> Alignment | None:
@@ -339,26 +347,34 @@ def align(text: str, window: str) -> Alignment | None:
     if 200 * matched < gate * (length + end - start):
         return None
     trimmed = (sum(blocks.sizes[:first]), sum(blocks.sizes[last + 1 :]))
-    return Alignment(start, end, blocks.missing(first, last), trimmed)
+    kept = tuple(
+        (blocks.text_starts[k], blocks.starts[k] - start, blocks.sizes[k])
+        for k in range(first, last + 1)
+    )
+    return Alignment(start, end, blocks.missing(first, last), trimmed, kept)
 
 
 @dataclass(frozen=True)
 class Fit:
     """How well a text fits its span: the Indel *distance* of the two, their
     *total* length, and the key ``2 x matched - len(text)`` (found less
-    missing, ``span length - distance``)."""
+    missing, ``span length - distance``). *masked*: some variable part was
+    left out of the comparison (``licenseid.textmask``); *own*: each part
+    left out holds the text's own words."""
 
     key: int
     distance: int
     total: int
+    masked: bool = False
+    own: bool = False
 
     def reaches(self, similarity: float) -> bool:
         """Whether ``1 - distance / total`` is *similarity* or more, in whole
         numbers (*similarity* to a whole percent), so equal fits tie exactly."""
-        return self.distance <= _allowed(self.total, similarity)
+        return self.distance <= allowed_distance(self.total, similarity)
 
 
-def _allowed(total: int, similarity: float) -> int:
+def allowed_distance(total: int, similarity: float) -> int:
     """The largest distance of two strings of *total* characters whose
     similarity is *similarity* or more."""
     percent = round(similarity * 100)
@@ -397,7 +413,7 @@ def span_fit(coded: CodedText, span_text: str, budget: Budget) -> Fit | None:
     length, size = len(coded.text), len(span_text)
     budget.charge_char_cells(length * size)
     total = length + size
-    allowed = _allowed(total, NEAR_SIMILARITY)
+    allowed = allowed_distance(total, NEAR_SIMILARITY)
     distance = Indel.distance(coded.text, span_text, score_cutoff=allowed)
     if distance > allowed:
         return None

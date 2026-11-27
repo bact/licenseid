@@ -76,11 +76,12 @@ in another module.
   no database), `resolvefirst` (input `resolve()` reads whole; the cut of a
   short refused one), `shorttext` (Tier 0), `namehits` (which name hits of Tier
   0 stand: tied names) and `namerules` (what beside one name doubts it),
-  `retrieval` (Tier 1), `textcorpus` (word codes), `textlocate` (5-gram votes,
-  windows, count limits), `wholetexts` (key, overlap, look-alike doubt),
-  `firsttext` (1st text), `textnames`, `ftsquery` (its `MATCH` string: 20 words,
-  each cut to 128 characters), `idoptions` (`exclude`, `hint`: API only, free
-  text only, case-folded, a bare deprecated ID stands for both twins, kept under
+  `retrieval` (Tier 1), `textcorpus` (word codes) and `textstore` (stored),
+  `textlocate` (5-gram votes, windows, count limits), `wholetexts` (key,
+  overlap), `textdoubt` (look-alike doubt), `textmask` and `templatevars` (fit
+  without template vars), `firsttext` (1st text), `textnames`, `ftsquery` (its
+  `MATCH` string: 20 words), `idoptions` (`exclude`, `hint`: API only, free text
+  only, case-folded, a bare deprecated ID stands for both twins, kept under
   `as-written`), `variants` and `variantstated` (the `variant` option: what a
   bare ID and a text answer, `variant_stated`, a trailing "only"), `similarity`
   (Tier 2 scores of the candidates, the fingerprint bonus; a long input against
@@ -422,8 +423,7 @@ and `--json`) against these rules and checks the default output against the
 - "/" is OR only in a whole value (`resolveslash.slash_parts`): each piece an
   exact-case List ID (a "+" read by `plusoperator`) or `LicenseRef-*`, at least
   one List ID; never a tag, never inside a `;` part. `MIT/X11` is in
-  `REFUSED_PAIRS`. `tests/slash_pins.py` pins 0.8.3's answers: moving one is a
-  loosening.
+  `REFUSED_PAIRS`. `tests/slash_pins.py` pins 0.8.3's answers: a move loosens.
 - Licence URL: one key, `urlkey.url_key` (ASCII only; scheme, `www.`, fragment,
   trailing `/`, one page suffix dropped; query kept; decodes nothing); key both
   a declared URL and the List's with it. The List's pages (`seeAlso`) are the
@@ -466,9 +466,9 @@ and `--json`) against these rules and checks the default output against the
   clear (`_generation`). A new write to `licenses` or `license_index` calls
   `self._tables.clear()`, as `_write_db_records` does.
 - `text_codes` (optional): the coded texts and a `check` (SHA-256, with
-  `textcorpus.CODING_VERSION`). `TextCorpus.restore` gives the corpus `build`
-  gives or None, then built in memory, never written back (a BLOB body too);
-  a row SQLite cannot decode is `unreadable`. A coding change bumps both.
+  `textstore.CODING_VERSION`). `textstore.restore` gives the corpus `build`
+  gives or None, then built in memory, never written back (a BLOB body too); a
+  row SQLite cannot decode is `unreadable`. A coding change bumps both.
 - Never set `PRAGMA mmap_size`: a file cut by another program (`cp`,
   `truncate`) under a mapped page kills the process with SIGBUS, no message.
 - Never build `LIKE` or `GLOB` patterns from input (over 50,000 bytes SQLite

@@ -24,7 +24,8 @@ from licenseid.normalize import normalize_text
 from licenseid.types import LicenseDetails, LicenseNameId, TextParts
 
 if TYPE_CHECKING:
-    from licenseid.textcorpus import StoredRow, TextCorpus
+    from licenseid.textcorpus import TextCorpus
+    from licenseid.textstore import StoredRow
 
 __all__ = ["TableCache", "cast_license_details"]
 _V = TypeVar("_V", str, int)
@@ -249,10 +250,11 @@ class TableCache:
         """The corpus of ``license_index``'s texts, in table order (the
         first row of an ID wins, as a scan would find it)."""
         # Lazy: the search code is loaded for a call that searches only.
-        from licenseid.textcorpus import (  # pylint: disable=import-outside-toplevel
-            TextCorpus,
-            TextRow,
-        )
+        # pylint: disable-next=import-outside-toplevel
+        from licenseid.textcorpus import TextCorpus, TextRow
+
+        # pylint: disable-next=import-outside-toplevel
+        from licenseid.textstore import restore
 
         parts = self.text_parts()
         with self._connections.connection() as conn:
@@ -273,7 +275,7 @@ class TableCache:
         # database of build 5 has none, and one damaged or edited since has
         # others; both are coded here and not written back (a lookup never
         # writes; ``update`` stores them).
-        stored = TextCorpus.restore(built, self._stored_texts())
+        stored = restore(built, self._stored_texts())
         return TextCorpus.build(built) if stored is None else stored
 
     def _stored_texts(self) -> "list[StoredRow]":

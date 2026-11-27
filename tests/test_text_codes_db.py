@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The coded List texts of build 6 (``text_codes``): ``update`` stores them,
+"""The coded List texts of build 6 and later (``text_codes``): ``update`` stores them,
 a read restores the corpus from them instead of coding every text again, and
 a database without them, or with a damaged table, is coded in memory and never
 written (a lookup never writes). The corpus read from the table is the one
@@ -25,13 +25,15 @@ from list_entries import lic_entry
 from packaged_list import database_of
 from texts_db import texts_database
 
+from licenseid import textstore
 from licenseid.database import LicenseDatabase, text_corpus
 from licenseid.dbconnection import Connections
 from licenseid.dbschema import schema_state
 from licenseid.errors import DatabaseNotReadyError
 from licenseid.records import BUILD_VERSION, Records
 from licenseid.spdxdata import SpdxData, to_bundle
-from licenseid.textcorpus import CHECK, CORE, TEXT, WORDS, TextCorpus, TextRow
+from licenseid.textcorpus import TextCorpus, TextRow
+from licenseid.textstore import CHECK, CORE, PATTERNS, TEXT, WORDS, stored_rows
 
 BEGIN, END = "<<beginOptional>>", "<<endOptional>>"
 BODY = " ".join(f"clause{i} of the licence" for i in range(12))
@@ -93,30 +95,31 @@ def _builds(monkeypatch: pytest.MonkeyPatch) -> Builds:
     return seen
 
 
-@pytest.fixture(name="build_6")
-def _build_6(tmp_path: Path) -> Path:
+@pytest.fixture(name="build_now")
+def _build_now(tmp_path: Path) -> Path:
     path = tmp_path / "licenses.db"
     database_of(RAW, path)
     return path
 
 
 @pytest.fixture(name="build_5")
-def _build_5(build_6: Path) -> Path:
+def _build_5(build_now: Path) -> Path:
     """A database as build 5 left it: no ``text_codes``, stamped 5."""
-    with writer(build_6) as conn:
+    with writer(build_now) as conn:
         conn.execute("DROP TABLE text_codes")
         conn.execute("UPDATE db_metadata SET value = '5' WHERE key = 'build_version'")
-    return build_6
+    return build_now
 
 
-def test_the_build_is_6() -> None:
-    assert BUILD_VERSION == "6"
+def test_the_build_is_7() -> None:
+    assert BUILD_VERSION == "7"
 
 
-def test_update_stores_the_vocabulary_and_each_text_and_core(build_6: Path) -> None:
-    assert _kinds(build_6) == [
+def test_update_stores_the_vocabulary_and_each_text_and_core(build_now: Path) -> None:
+    assert _kinds(build_now) == [
         (CHECK, ""),
         (CORE, "A-1.0"),
+        (PATTERNS, ""),
         (TEXT, "A-1.0"),
         (TEXT, "B-1.0"),  # C-1.0 has the same text: one row for the group
         (TEXT, "J-1.0"),
@@ -125,9 +128,9 @@ def test_update_stores_the_vocabulary_and_each_text_and_core(build_6: Path) -> N
 
 
 def test_the_corpus_is_read_from_the_table_not_coded(
-    build_6: Path, builds: Builds
+    build_now: Path, builds: Builds
 ) -> None:
-    corpus = _corpus(build_6)
+    corpus = _corpus(build_now)
     assert builds.count == 0
     assert [e.text.row_id for e in corpus.entries] == ["A-1.0", "B-1.0", "J-1.0"]
     assert corpus.entries[0].core is not None
@@ -135,17 +138,17 @@ def test_the_corpus_is_read_from_the_table_not_coded(
 
 
 def test_the_corpus_read_is_the_corpus_built(
-    build_6: Path, monkeypatch: pytest.MonkeyPatch
+    build_now: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    read = _corpus(build_6)
-    monkeypatch.setattr(TextCorpus, "restore", classmethod(lambda *_: None))
-    assert _corpus(build_6) == read
+    read = _corpus(build_now)
+    monkeypatch.setattr(textstore, "restore", lambda *_: None)
+    assert _corpus(build_now) == read
 
 
-def test_the_rows_of_the_build_are_those_of_the_corpus(build_6: Path) -> None:
-    with writer(build_6) as conn:
+def test_the_rows_of_the_build_are_those_of_the_corpus(build_now: Path) -> None:
+    with writer(build_now) as conn:
         stored = conn.execute("SELECT kind, owner_id, body FROM text_codes").fetchall()
-    assert sorted(stored) == sorted(_corpus(build_6).stored_rows())
+    assert sorted(stored) == sorted(stored_rows(_corpus(build_now)))
 
 
 def test_a_database_of_build_5_is_current_and_codes_in_memory(
@@ -181,12 +184,12 @@ def test_a_read_only_database_of_build_5_gives_its_corpus(
         build_5.chmod(stat.S_IRUSR | stat.S_IWUSR)
 
 
-def test_a_database_of_build_5_corpus_is_the_one_of_build_6(
-    build_6: Path, tmp_path: Path
+def test_a_database_of_build_5_corpus_is_the_one_of_this_build(
+    build_now: Path, tmp_path: Path
 ) -> None:
-    stored = _corpus(build_6)
+    stored = _corpus(build_now)
     older = tmp_path / "older.db"
-    older.write_bytes(build_6.read_bytes())
+    older.write_bytes(build_now.read_bytes())
     with writer(older) as conn:
         conn.execute("DROP TABLE text_codes")
     assert _corpus(older) == stored
@@ -197,7 +200,7 @@ def test_update_gives_a_database_of_build_5_its_table(
 ) -> None:
     database = database_of(RAW, build_5)
     assert database.get_metadata()["build_version"] == BUILD_VERSION
-    assert len(_kinds(build_5)) == 6
+    assert len(_kinds(build_5)) == 7
     assert builds.count == 1  # the build of the rows to store
     builds.count = 0
     assert len(text_corpus(database).entries) == 3
@@ -267,25 +270,25 @@ def _delete(owner: str, kind: str) -> str:
     ],
 )
 def test_a_damaged_table_is_coded_in_memory_and_left_as_it_is(
-    build_6: Path, builds: Builds, statement: str
+    build_now: Path, builds: Builds, statement: str
 ) -> None:
-    expected = _corpus(build_6)
-    with writer(build_6) as conn:
+    expected = _corpus(build_now)
+    with writer(build_now) as conn:
         conn.execute(statement)
-    before = _digest(build_6)
+    before = _digest(build_now)
     builds.count = 0
-    assert _corpus(build_6) == expected
+    assert _corpus(build_now) == expected
     assert builds.count == 1
-    assert _digest(build_6) == before
+    assert _digest(build_now) == before
 
 
-def test_a_text_read_as_bytes_gives_no_error(build_6: Path, builds: Builds) -> None:
+def test_a_text_read_as_bytes_gives_no_error(build_now: Path, builds: Builds) -> None:
     """A BLOB in ``body`` comes back as bytes; the corpus is coded instead of
     ``detect()`` failing on a count of bytes."""
-    with writer(build_6) as conn:
+    with writer(build_now) as conn:
         conn.execute(f"UPDATE text_codes SET body = x'4142' WHERE kind = '{TEXT}'")
     builds.count = 0
-    assert len(_corpus(build_6).entries) == 3
+    assert len(_corpus(build_now).entries) == 3
     assert builds.count == 1
 
 
@@ -301,13 +304,13 @@ def test_a_text_read_as_bytes_gives_no_error(build_6: Path, builds: Builds) -> N
     ids=["codes", "words"],
 )
 def test_a_row_sqlite_cannot_read_as_text_is_an_unreadable_database(
-    build_6: Path, statement: str
+    build_now: Path, statement: str
 ) -> None:
     """Not swallowed per method (AGENTS.md): as any read SQLite fails."""
-    with writer(build_6) as conn:
+    with writer(build_now) as conn:
         conn.execute(statement)
     with pytest.raises(DatabaseNotReadyError, match="^database: unreadable"):
-        _corpus(build_6)
+        _corpus(build_now)
 
 
 def _stale_corpus(
@@ -318,7 +321,7 @@ def _stale_corpus(
     with writer(path) as conn:
         conn.execute(statement)
     read = _corpus(path)
-    monkeypatch.setattr(TextCorpus, "restore", classmethod(lambda *_: None))
+    monkeypatch.setattr(textstore, "restore", lambda *_: None)
     return read, _corpus(path)
 
 
@@ -339,22 +342,22 @@ def _stale_corpus(
     ids=["text", "other-text", "core", "no-core"],
 )
 def test_codes_left_by_a_program_that_rewrote_the_rows_are_not_read(
-    build_6: Path, statement: str, builds: Builds, monkeypatch: pytest.MonkeyPatch
+    build_now: Path, statement: str, builds: Builds, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The 0.9.2 case: ``update`` of a program that knows no ``text_codes``
     rewrites ``license_index`` and the cores, keeps the table and the names."""
-    old = _corpus(build_6)
+    old = _corpus(build_now)
     builds.count = 0
-    read, built = _stale_corpus(build_6, statement, monkeypatch)
+    read, built = _stale_corpus(build_now, statement, monkeypatch)
     assert read == built
     assert read != old
     assert builds.count == 2  # the read, then the build the test asks for
 
 
-def test_a_new_stamp_reads_the_table_again(build_6: Path, builds: Builds) -> None:
-    database = LicenseDatabase(str(build_6), create=False)
+def test_a_new_stamp_reads_the_table_again(build_now: Path, builds: Builds) -> None:
+    database = LicenseDatabase(str(build_now), create=False)
     assert text_corpus(database) is text_corpus(database)  # kept
-    with writer(build_6) as conn:
+    with writer(build_now) as conn:
         conn.execute("DELETE FROM text_codes")
         conn.execute(
             "UPDATE db_metadata SET value = 'later' WHERE key = 'last_update_datetime'"

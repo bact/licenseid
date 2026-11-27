@@ -385,6 +385,42 @@ OUT.write_text(text, encoding="utf-8")
   (`TEXTS`, in file order). Recipes keep no second copy of a List text and
   no line ending Git could change.
 
+### 21. `template-texts`
+
+- **Data Source:** `templates/<id>.template.txt` is `template/<id>.template.txt`
+  of the SPDX License List release 3.29.0, copied unchanged, for 22 licences
+  (`BSD-2-Clause`, `BSD-3-Clause` and four of its twins, `BSD-4-Clause`,
+  `Cornell-Lossless-JPEG`, `LPPL-1.1`, `LPPL-1.2`, `MIT`, `MIT-CMU`, `NBPL-1.0`,
+  `NCSA`, `OLDAP-1.1`, `OLDAP-2.2`, `OLDAP-2.2.1`, `OLDAP-2.2.2`, `OLDAP-2.7`,
+  `OLDAP-2.8`, `PostgreSQL`, `X11`, `X11-distribute-modifications-variant`);
+  `texts/LPPL-1.1.txt` is the `licenseText` of `LPPL-1.1` in that release,
+  which has no long-text fixture; `patterns.json` lists the 142 distinct
+  `match` patterns of the vars of every template of that release.
+  `cases.json` is made up: recipes, as in `several-texts` (section 20), where
+  a part may also be a template with some of its vars written with other
+  words (`{"template": ID, "fills": {name: words}}`, the other vars as their
+  `original`, optional parts kept unless `"optional": false`);
+  `tests/template_texts.py` renders them.
+- **Description:** copies that write their own holder or project name where
+  the template lets the text vary (SPDX matching guidelines B.3.3), shaped like
+  the real files that `TEXTS` did not name (sympy, numpy, lxml: BSD-3-Clause;
+  Pillow: MIT-CMU, X11; LLVM: NCSA), and the review's cases of item 64: a long
+  holder line beside a near twin (OpenLDAP, LPPL versions), two cores that
+  differ only in their vars (`OLDAP-1.1`, `NBPL-1.0`), a text beside one whose
+  vars hold more words (`Cornell-Lossless-JPEG`, `PostgreSQL`, also with
+  fills shorter than its List words), a clause written into an open var (no
+  name), a longer text whose fills no bound accepts around a shorter one
+  (`NBPL-1.0` around `OLDAP-1.1`, `X11` around `MIT`: no name); for
+  `licenseid.textmask` and the regions
+  a build stores (`tests/test_template_texts.py`). The database is built by
+  `update` from the texts of these licences and of `HPND` and `ISC`, with
+  these templates (and `HPND`'s of section 19). `patterns.json` is for the
+  timing test of every pattern (`tests/test_templatevars.py`).
+  The fills are made up ("Example Project"); no real licence file is copied.
+- **Characteristics:** `cases.json` is a JSON list of objects: `case`, `like`,
+  `parts`, `texts` (`TEXTS` with the regions) and `before` (`TEXTS` of a
+  database without them, as before build 7).
+
 ### Notes
 
 `generation-plan.md` is the plan `scripts/generate_fixtures.py` followed for
