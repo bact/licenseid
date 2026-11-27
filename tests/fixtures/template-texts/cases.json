@@ -446,5 +446,21 @@
   ],
   "texts": [],
   "before": []
+ },
+ {
+  "case": "epl-2.0-then-bsd3-hp",
+  "like": "EPL-2.0, then BSD-3-Clause-HP as the List gives it: the exact text, not BSD-3-Clause masked to the same key",
+  "parts": [
+   "@EPL-2.0",
+   "@BSD-3-Clause-HP"
+  ],
+  "texts": [
+   "EPL-2.0",
+   "BSD-3-Clause-HP"
+  ],
+  "before": [
+   "EPL-2.0",
+   "BSD-3-Clause-HP"
+  ]
  }
 ]

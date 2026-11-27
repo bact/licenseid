@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-24
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -741,6 +741,31 @@ popularity; after the second review, a fresh build-7 database):
   known cases, six of them named only with the regions, and the review's
   cases), real templates of 22 licences copied unchanged, a database built
   by `update` (`tests/template_texts.py`).
+
+Third review (2026-11-26):
+
+- An exact text lost to a masked twin of the same key: EPL-2.0, then
+  BSD-3-Clause-HP as the List gives it, named BSD-3-Clause (both keys
+  1,332; HP at distance 0, BSD-3-Clause masked at 20), as the heap broke the
+  tie by ID and the tie rule wanted both fits masked. On equal keys the
+  lower distance (fewer characters differ) now comes after the answer's
+  group and before the ID in the heap, and in outkeys (`textdoubt`), so a
+  closer fit of an equal key doubts a hit, masked or not. Distance, not
+  distance over total: an equal distance stays a true tie (maintainer,
+  2026-11-27), as `test_a_tie_waits_for_the_shorter_text` pins.
+- `CodedText.least` counted one character too many per run of vars cut out
+  (the space `_cut` drops with it); it is now the length `_cut` leaves,
+  checked on every text and core of the fixture templates.
+- The tie path of the unbounded look-alike fit is reached: of two texts
+  that differ only in a var, a fill over one var's FILL_SLACK and under the
+  other's ties the hit only unbounded (`test_a_twin_past_its_slack_still_ties`).
+- Known recall loss, kept (it fails safe; item 68): a licence whose
+  template has no copyright var (HPND-sell-variant, BSD-4-Clause-UC) is
+  doubted by a look-alike whose masked fit leaves the input's copyright line
+  out, so a copy with its own copyright line is named by base and not by
+  the branch. The review's inputs: `hsv2` (HPND-sell-variant with a new
+  copyright line; also `hsv1`), BSD-4-Clause-UC with a new copyright line,
+  and Apache-2.0 then HPND-sell-variant.
 
 Left open: the precision on fragments (short and distorted fixtures of the
 HPND family name a neighbour once the vars cost nothing; item 68 must not

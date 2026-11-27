@@ -187,7 +187,8 @@ class CodedText:
     codes: str
     critical: tuple[int, ...]
     regions: tuple[VarRegion, ...] = ()
-    #: The characters of the text less those of its variable parts: the
+    #: The characters of the text with its variable parts cut out as
+    #: ``textmask`` cuts them (the pieces left joined by one space): the
     #: least a copy with every part left empty has to fit (``wholetexts``).
     least: int = field(init=False, compare=False, repr=False)
 
@@ -195,13 +196,29 @@ class CodedText:
         least = len(self.text)
         if self.regions:
             chars = RunChars(self.text)
-            at = 0
-            for region in sorted(self.regions):
-                start = max(region.start, at)
-                if region.end > start:
-                    least -= chars.of(start, region.end)
-                at = max(at, region.end)
+            for start, end in _token_runs(self.regions):
+                # From the end of the token before to the start of the one
+                # after (or the text's end); one space joins what is left
+                # on both sides (none between Han tokens before the cut).
+                left = chars.bounds(start - 1, start)[1] if start else 0
+                inner = end < chars.count
+                right = chars.bounds(end, end + 1)[0] if inner else len(self.text)
+                least -= right - left - (1 if start and inner else 0)
         object.__setattr__(self, "least", least)
+
+
+def _token_runs(regions: Sequence[VarRegion]) -> list[Span]:
+    """The token runs of *regions* that hold a token, sorted, those that
+    touch or overlap made one."""
+    runs: list[Span] = []
+    for region in sorted(regions):
+        if region.end <= region.start:
+            continue
+        if runs and region.start <= runs[-1][1]:
+            runs[-1] = (runs[-1][0], max(runs[-1][1], region.end))
+        else:
+            runs.append((region.start, region.end))
+    return runs
 
 
 @dataclass(frozen=True)

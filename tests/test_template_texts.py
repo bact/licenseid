@@ -8,7 +8,7 @@ words (``licenseid.textmask``), on a database ``update`` builds with the
 templates (``template_texts``): the recipes name their own text, as they did
 not before; a near twin keeps its name; no answer at 0.85 moves; the build
 stores the regions and a lookup reads them back, or builds without them."""
-# pylint: disable=missing-function-docstring
+# pylint: disable=missing-function-docstring,protected-access
 
 import hashlib
 import sqlite3
@@ -21,11 +21,11 @@ from list_entries import lic_entry
 from packaged_list import database_of
 from template_texts import Case, template_cases, template_texts_db
 
-from licenseid import textstore
+from licenseid import textmask, textstore
 from licenseid.database import LicenseDatabase, text_corpus
 from licenseid.detector import LicenseDetector
 from licenseid.spdxdata import SpdxData, to_bundle
-from licenseid.textcorpus import TextCorpus, VarRegion
+from licenseid.textcorpus import RunChars, TextCorpus, VarRegion
 from licenseid.textstore import CORE_VARS, PATTERNS, TEXT_VARS
 
 CASES = template_cases()
@@ -56,9 +56,9 @@ def _corpus(path: Path) -> TextCorpus:
     return text_corpus(LicenseDatabase(str(path), create=False))
 
 
-def test_the_recipes_are_the_26_cases() -> None:
-    assert len(CASES) == 26
-    assert len({case.case for case in CASES}) == 26
+def test_the_recipes_are_the_27_cases() -> None:
+    assert len(CASES) == 27
+    assert len({case.case for case in CASES}) == 27
 
 
 @pytest.mark.parametrize("case", CASES, ids=[case.case for case in CASES])
@@ -132,6 +132,26 @@ def test_the_build_stores_the_regions(db_path: Path) -> None:
     assert not by_id["ISC"].text.regions  # no template
     core = by_id["MIT"].core
     assert core is not None and core.regions
+
+
+def test_least_is_each_text_with_its_variable_parts_cut(db_path: Path) -> None:
+    """``CodedText.least`` is the length ``textmask`` leaves of each text and
+    core of real templates with every run of non-empty parts cut out."""
+    by_id = {}
+    for entry in _corpus(db_path).entries:
+        for coded in (entry.text, entry.core):
+            if coded is None or not coded.regions:
+                continue
+            runs = textmask._merged(
+                [(r.start, r.end) for r in coded.regions if r.end > r.start]
+            )
+            kept = textmask._cut(coded.text, RunChars(coded.text), runs)
+            assert coded.least == len(kept), coded.row_id
+            by_id[coded.row_id, coded.is_core] = coded.least
+    assert by_id["BSD-3-Clause", False] == 1159
+    assert by_id["MIT", False] == 843
+    assert by_id["PostgreSQL", False] == 896
+    assert by_id["PostgreSQL", True] == 812
 
 
 def _digest(path: Path) -> str:

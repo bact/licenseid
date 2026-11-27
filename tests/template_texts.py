@@ -51,6 +51,7 @@ IDS = (
     "BSD-3-Clause-HP",
     "BSD-4-Clause",
     "Cornell-Lossless-JPEG",
+    "EPL-2.0",
     "HPND",
     "ISC",
     "LPPL-1.1",

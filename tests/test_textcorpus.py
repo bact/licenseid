@@ -175,23 +175,58 @@ def test_the_corpus_cannot_change() -> None:
 
 
 @pytest.mark.parametrize(
-    ("regions", "least"),
+    ("text", "regions", "least"),
     [
-        ((), 23),
-        ((VarRegion(1, 2, ".+"),), 21),
-        ((VarRegion(1, 3, ".+"), VarRegion(2, 4, ".+")), 11),
-        ((VarRegion(0, 5, ".*"),), 0),
-        ((VarRegion(2, 2, ".*"),), 23),
-        ((VarRegion(0, 4, ".*"), VarRegion(1, 2, ".+"), VarRegion(3, 5, ".+")), 1),
+        ("aa bb cccc ddddd eeeeee", (), 23),
+        ("aa bb cccc ddddd eeeeee", (VarRegion(1, 2, ".+"),), 20),
+        ("aa bb cccc ddddd eeeeee", (VarRegion(0, 1, ".+"),), 20),
+        ("aa bb cccc ddddd eeeeee", (VarRegion(4, 5, ".+"),), 16),
+        (
+            "aa bb cccc ddddd eeeeee",
+            (VarRegion(1, 3, ".+"), VarRegion(2, 4, ".+")),
+            9,
+        ),
+        (
+            "aa bb cccc ddddd eeeeee",
+            (VarRegion(1, 2, ".+"), VarRegion(2, 3, ".+")),
+            15,
+        ),
+        ("aa bb cccc ddddd eeeeee", (VarRegion(0, 5, ".*"),), 0),
+        ("aa bb cccc ddddd eeeeee", (VarRegion(2, 2, ".*"),), 23),
+        (
+            "aa bb cccc ddddd eeeeee",
+            (VarRegion(0, 2, ".*"), VarRegion(1, 2, ".+"), VarRegion(3, 4, ".+")),
+            11,
+        ),
+        ("\u8a31\u53ef\u8b49\u66f8", (VarRegion(1, 2, ".+"),), 4),
+        (
+            "\u8a31\u53ef\u8b49\u66f8",
+            (VarRegion(1, 2, ".+"), VarRegion(2, 3, ".+")),
+            3,
+        ),
+        ("\u8a31\u53ef\u8b49\u66f8", (VarRegion(2, 2, ".*"),), 4),
     ],
-    ids=["none", "one", "overlapping", "every-token", "point", "nested"],
+    ids=[
+        "none",
+        "middle",
+        "start",
+        "end",
+        "overlapping",
+        "touching",
+        "every-token",
+        "point",
+        "nested",
+        "han",
+        "han-touching",
+        "han-point",
+    ],
 )
-def test_least_is_the_text_less_its_variable_parts(
-    regions: tuple[VarRegion, ...], least: int
+def test_least_is_the_text_with_its_variable_parts_cut(
+    text: str, regions: tuple[VarRegion, ...], least: int
 ) -> None:
-    """Characters of "aa bb cccc ddddd eeeeee" (23) less the tokens of its
-    regions, each token once."""
-    corpus = TextCorpus.build(
-        [TextRow("A", "aa bb cccc ddddd eeeeee", None, ("A",), regions)]
-    )
+    """The characters ``textmask`` keeps of *text* with each run of
+    variable parts cut out and the pieces left joined by one space: a run
+    in the middle also takes one of its two spaces; between Han tokens the
+    joining space adds one (4 of 4)."""
+    corpus = TextCorpus.build([TextRow("A", text, None, ("A",), regions)])
     assert corpus.entries[0].text.least == least

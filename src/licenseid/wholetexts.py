@@ -12,7 +12,9 @@ keeps the hits that do not overlap, best first:
 * key ``2 x matched - len(text)`` in characters (found less missing): the
   longer of two nested texts wins when the input holds it whole, the exact
   text wins over a longer look-alike;
-* on equal keys the answer's group first, then the ID;
+* on equal keys the answer's group first, then the closer fit (fewer
+  characters differ), then the ID; a look-alike as high and closer doubts a
+  hit (``licenseid.textdoubt``);
 * a text whose span misses a run of MAX_GAP_CHARS of it is no hit (it
   lacks a clause), but still a look-alike;
 * a hit overlapping a kept one by more than a tenth of the shorter span is
@@ -102,12 +104,16 @@ class _Item(NamedTuple):
 
     An unscored item's key is its bound, the text's length (2 x matched -
     len(text) <= len(text)); unscored before scored on equal keys keeps the
-    order exact. *serial* is unique, so *coded*, *window* and *fit* are
+    order exact. *distance* is a scored fit's distance (0 unscored): of two
+    equal keys outside the answer's group the closer fit is picked first,
+    an exact text before a twin that reaches the key only with its variable
+    parts left out. *serial* is unique, so *coded*, *window* and *fit* are
     never compared."""
 
     negative_key: int
     scored: int
     rank: int
+    distance: int
     row_id: str
     start: int
     end: int
@@ -214,6 +220,7 @@ def _items(
                     negative_key=-len(coded.text),
                     scored=0,
                     rank=0 if coded.row_id == answer else 1,
+                    distance=0,
                     row_id=coded.row_id,
                     start=window.start,
                     end=window.end,
@@ -375,7 +382,12 @@ class _Search:
         if fit is None or not fit.reaches(MIN_SIMILARITY):
             return None
         return item._replace(
-            negative_key=-fit.key, scored=1, start=span[0], end=span[1], fit=fit
+            negative_key=-fit.key,
+            scored=1,
+            distance=fit.distance,
+            start=span[0],
+            end=span[1],
+            fit=fit,
         )
 
 

@@ -160,14 +160,18 @@ def _doubts(
 
 
 def outkeys(fit: Fit, hit: Fit) -> bool:
-    """Whether a look-alike's *fit* keys above the *hit*'s or, both with
-    their variable parts left out, ties it: fits as closely (similarity)
-    with a key at TIE_REACH of the hit's or more, unless only the hit's
-    parts hold its own words. Two texts that differ only in their variable
-    parts (the cores of OLDAP-1.1 and NBPL-1.0: name, version, holder) both
-    fit a copy of either with its own name exactly; the length of the words
-    each var holds must not pick one."""
+    """Whether a look-alike's *fit* keys above the *hit*'s, keys as high at
+    a lower distance (fewer characters differ: an exact text against a twin
+    that reaches its key only masked), or, both with their variable parts
+    left out, ties it: fits as closely (similarity) with a key at TIE_REACH
+    of the hit's or more, unless only the hit's parts hold its own words.
+    Two texts that differ only in their variable parts (the cores of
+    OLDAP-1.1 and NBPL-1.0: name, version, holder) both fit a copy of either
+    with its own name exactly; the length of the words each var holds must
+    not pick one."""
     if fit.key > hit.key:
+        return True
+    if fit.key == hit.key and fit.distance < hit.distance:
         return True
     return (
         fit.masked

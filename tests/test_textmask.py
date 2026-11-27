@@ -325,6 +325,8 @@ def _masked(key: int, distance: int, own: bool = False) -> Fit:
         (_masked(1000, 0), _masked(1000, 0, own=True), False),
         (_masked(1000, 0, own=True), _masked(1000, 0, own=True), True),
         (_masked(1000, 0, own=True), _masked(1000, 0), True),
+        (Fit(1332, 0, 2664), Fit(1332, 20, 2644, masked=True), True),
+        (Fit(900, 2, 1002), Fit(900, 2, 1000), False),
     ],
     ids=[
         "higher-key",
@@ -336,11 +338,16 @@ def _masked(key: int, distance: int, own: bool = False) -> Fit:
         "only-the-hit-own",
         "both-own",
         "only-the-look-alike-own",
+        "equal-key-closer",
+        "equal-key-same-distance",
     ],
 )
 def test_a_look_alike_outkeys_or_ties_a_hit(fit: Fit, hit: Fit, outkeys: bool) -> None:
     """Two masked fits tie within TIE_REACH (0.98) of the hit's key, as
-    close or closer, unless only the hit's fills are its own words."""
+    close or closer, unless only the hit's fills are its own words. On an
+    equal key a lower distance outkeys, masked or not (EPL-2.0 then
+    BSD-3-Clause-HP: HP exact, BSD-3-Clause masked at 20); an equal
+    distance is a tie whatever the totals."""
     assert textdoubt.outkeys(fit, hit) is outkeys
 
 
@@ -378,6 +385,15 @@ def test_texts_that_differ_only_in_a_var_tie(
     than P's key. A fill of one's own words names it."""
     assert len(TIED["Q"][0]) < len(TIED["P"][0]) <= len(TIED["Q"][0]) / 0.98
     assert _tied_rows(fill, answer) == rows
+
+
+def test_a_twin_past_its_slack_still_ties() -> None:
+    """A fill of 160 characters: P (var of 16) leaves it out, Q (var of 1)
+    only unbounded, 160 being over 1 + 150. Q's unbounded fit ties P's (key
+    0.987 of it, both exact): P is doubted, as with a fill both take."""
+    fill = " ".join(["holder"] * 23)[:160]
+    assert len(fill) == 160
+    assert _tied_rows(fill, "P") is None
 
 
 def test_vars_side_by_side_fall_back_to_each_alone() -> None:
