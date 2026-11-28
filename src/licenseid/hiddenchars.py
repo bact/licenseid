@@ -50,6 +50,21 @@ BIDI_CONTROLS: Final = frozenset(
 ZERO_WIDTH: Final[frozenset[str]] = frozenset("\u200b\u200c\u200d\u2060\ufeff\u00ad")
 
 
+#: Characters that are control characters (``Cc``) or separators (``Zs``,
+#: ``Zl``, ``Zp``), never a format character: left out of a value, what is
+#: left holds a format character if and only if the value does. The first
+#: test of :func:`space_out_hidden`, which is exact: ``str.isprintable`` is
+#: False for every format character (category ``Cf``) of the running Python.
+_NOT_FORMAT: Final = dict.fromkeys(
+    (
+        *range(0x20),
+        *range(0x7F, 0xA0),
+        *range(0x2000, 0x200B),
+        *map(ord, "\u00a0\u1680\u2028\u2029\u202f\u205f\u3000"),
+    )
+)
+
+
 def only_zero_width(removed: str) -> bool:
     """Whether every character of *removed*, what was left off a value, is
     white space or in :data:`ZERO_WIDTH` (True for nothing)."""
@@ -141,6 +156,13 @@ def space_out_hidden(value: str) -> str:
     A run between two other characters (``M\\u200bIT``) says something, as a
     control character or a bidi control anywhere does, and is left; so is a
     value of nothing else."""
+    if value.isascii() or value.translate(_NOT_FORMAT).isprintable():
+        return value  # no format character at all: nothing to space out
+    return _spaced_out_runs(value)
+
+
+def _spaced_out_runs(value: str) -> str:
+    """:func:`space_out_hidden`, the walk over every character."""
     if all(is_white_space(char) or _is_plain_format(char) for char in value):
         return value  # nothing to read: the caller refuses it
     chars = list(value)

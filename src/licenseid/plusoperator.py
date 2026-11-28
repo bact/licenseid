@@ -8,6 +8,7 @@
 Standard library only, so every module that reads an ID can import it.
 """
 
+import functools
 import re
 
 # The "+" ("or any later version") operator, which py_spdx_license cannot
@@ -42,10 +43,29 @@ def states_qualifier(license_id: str) -> bool:
     return license_id.lower().endswith(_QUALIFIERS)
 
 
+#: The longest *license_id* :func:`grant_stem` remembers: a List ID is far
+#: shorter, and the cache must not hold a huge token of an input.
+_MEMO_CHARS = 100
+
+
 def grant_stem(license_id: str) -> str:
     """*license_id* without the grant it ends in, in any case: GPL-2.0 for
     GPL-2.0-only, GPL-2.0-or-later and the deprecated GPL-2.0+, one licence
-    each way."""
+    each way. Pure, so the stem of a short ID is remembered: the name tier asks
+    it of every row of the List for each value."""
+    if len(license_id) > _MEMO_CHARS:
+        return _grant_stem(license_id)
+    return _remembered_stem(license_id)
+
+
+@functools.lru_cache(maxsize=2048)
+def _remembered_stem(license_id: str) -> str:
+    """:func:`grant_stem` of a short *license_id*, remembered."""
+    return _grant_stem(license_id)
+
+
+def _grant_stem(license_id: str) -> str:
+    """:func:`grant_stem`, worked out."""
     stem = strip_plus_operator(license_id)
     for suffix in _QUALIFIERS:
         if stem.lower().endswith(suffix):

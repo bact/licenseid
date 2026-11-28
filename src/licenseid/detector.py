@@ -17,7 +17,7 @@ from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase, text_parts
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path, require_path
-from licenseid.detectrequest import PathInput, check_request
+from licenseid.detectrequest import PathInput, check_request, target_text_of
 from licenseid.errors import invalid_id_error
 from licenseid.firsttext import settle_texts
 from licenseid.identifiers import (
@@ -59,7 +59,6 @@ from licenseid.similarity import (
     score_candidates,
     with_core,
 )
-from licenseid.textinput import read_text_file, reject_lone_surrogate
 from licenseid.textnames import held_texts, input_texts, skipped
 from licenseid.types import (
     CandidateMatch,
@@ -171,13 +170,6 @@ class LicenseDetector:
                 mark_guessed(match, text)
         return declared
 
-    def _resolve_target_text(self, text: str | None, file_path: str | None) -> str:
-        """Phase 2: read file_path as the CLI reads a file, or use the text."""
-        if file_path is not None:
-            return read_text_file(file_path)
-        reject_lone_surrogate(text or "")
-        return text or ""
-
     def _build_match_context(
         self, target_text: str, file_path: str | None, options: DetectOptions
     ) -> _MatchContext:
@@ -230,7 +222,9 @@ class LicenseDetector:
         }
         return marker_candidates, marker_boosts, None
 
-    def _try_tier0_short_text(self, ctx: _MatchContext) -> list[RawMatch] | None:
+    def _try_tier0_short_text(
+        self, ctx: _MatchContext, read: Resolution | None = None
+    ) -> list[RawMatch] | None:
         """Tier 0: Short-Text Shortcut (Names/IDs).
 
         Inputs under 30 words (~200 chars) are likely bare IDs or short names:
@@ -240,12 +234,14 @@ class LicenseDetector:
         variant licences (MIT-STK, MIT-enna). A lone SPDX expression
         answers as license_id would. None (fall through to Tier 1) for
         inputs at or above the threshold, or below it with no confident match.
+        *read* is what resolve() made of ``ctx.target_text`` in this call, if
+        the caller has it: the value is not resolved a second time.
         """
         if ctx.word_count >= 30:  # a long text is matched whatever its "+" (C++)
             return None
         # What resolve() reads is the answer, whatever wraps it ("GPL-2.0+,",
         # a quoted field, a license written loosely WITH an exception).
-        resolution = resolve_with(self.db, ctx.target_text)
+        resolution = resolve_with(self.db, ctx.target_text) if read is None else read
         if resolution["expression"] is not None:
             return self._answer_of(resolution)
         return self._short_text_refused(ctx, resolution["reason"])
@@ -445,7 +441,7 @@ class LicenseDetector:
         if license_id is not None:
             return self._try_explicit_id_match(license_id)
 
-        target_text = self._resolve_target_text(text, file_path)
+        target_text = target_text_of(text, file_path)
         if not target_text:
             return []
         # The whole input as one declared value first, so detect() and
@@ -512,7 +508,10 @@ class LicenseDetector:
             # the length once normalised; say why
             too_short(whole, ctx.norm_input, whole=ctx.target_text == target_text)
             return []
-        short_text_result = self._try_tier0_short_text(ctx)
+        # *whole* is the resolution of the input, unless a tag was taken out.
+        short_text_result = self._try_tier0_short_text(
+            ctx, whole if ctx.target_text == target_text else None
+        )
         if short_text_result:  # a name hit is free text: exclude drops it
             excluded = excluded_ids(ctx.request.get("exclude", []))
             short_text_result = free_text_hits(short_text_result, excluded) or None
@@ -568,7 +567,7 @@ class LicenseDetector:
         under 40 tokens, or it is too large to search. Give one of *text* and
         *file_path*; raises what :meth:`detect` raises for them."""
         file_path = check_request(text, None, file_path, {"variant": variant})
-        target_text = self._resolve_target_text(text, file_path)
+        target_text = target_text_of(text, file_path)
         with self.db.reading():
             return input_texts(self.db, normalize_text(target_text), variant)
 

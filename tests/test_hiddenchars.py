@@ -13,6 +13,7 @@ space (``lexical``); any other is a cut (``separator``). Unit table of
 
 import json
 import time
+import unicodedata
 
 import pytest
 from click.testing import CliRunner
@@ -22,7 +23,9 @@ from timing import slack
 from licenseid import LicenseDatabase, resolve
 from licenseid.cli import cli
 from licenseid.hiddenchars import (
+    _NOT_FORMAT,
     BIDI_CONTROLS,
+    _spaced_out_runs,
     is_hidden,
     space_out_hidden,
     strip_hidden,
@@ -452,3 +455,50 @@ def test_a_compound_with_a_hidden_character_beside_a_space_reads(
         ("MIT", [value.index("MIT"), value.index("MIT") + 3]),
         ("ISC", [value.index("ISC"), value.index("ISC") + 3]),
     ]
+
+
+def _known_characters() -> list[str]:
+    """Every character the module tells apart (``Cc``, ``Cf``, the
+    separators), the neighbours of each format character, ASCII, and one
+    code point in 61 of the rest."""
+    category = {cp: unicodedata.category(chr(cp)) for cp in range(0x110000)}
+    formats = {cp for cp, name in category.items() if name == "Cf"}
+    near = {cp + step for cp in formats for step in (-1, 1)} & category.keys()
+    sampled = {
+        cp
+        for cp, name in category.items()
+        if cp < 0x80 or cp % 61 == 0 or name in ("Cc", "Zs", "Zl", "Zp")
+    }
+    return [chr(cp) for cp in sorted(formats | near | sampled)]
+
+
+def test_the_first_test_of_space_out_hidden_is_exact() -> None:
+    """The fast return holds for every character the module knows: where it
+    is (start, middle, end, beside white space, inside quotes), the answer is
+    the one of the walk over every character."""
+    walked = 0
+    for char in _known_characters():
+        for form in (
+            "{}", "{}{}", "a{}b", "{} a", "a {}", "a{} b", "a {}b", "'{}MIT{}'",
+            "MIT OR{} ISC", "{}MIT", "MIT{}", " {} ",
+        ):  # fmt: skip
+            value = form.format(char, char)
+            assert space_out_hidden(value) == _spaced_out_runs(value), ascii(value)
+            walked += value != space_out_hidden(value)
+    assert walked > 100  # many a format character is spaced out
+
+
+def test_the_characters_left_out_of_the_first_test_are_none_a_format_one() -> None:
+    """Why the test is exact: what ``_NOT_FORMAT`` removes is ``Cc`` or a
+    separator, and ``str.isprintable`` is False for every ``Cf`` character."""
+    assert {unicodedata.category(chr(cp)) for cp in _NOT_FORMAT} == {
+        "Cc",
+        "Zs",
+        "Zl",
+        "Zp",
+    }
+    formats = [
+        chr(cp) for cp in range(0x110000) if unicodedata.category(chr(cp)) == "Cf"
+    ]
+    assert len(formats) > 100
+    assert not any(char.isprintable() for char in formats)

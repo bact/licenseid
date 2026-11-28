@@ -9,7 +9,7 @@ Written from a mutation audit of the detector.py split: coverage was 100%,
 but the thresholds, the definitive-hit triple and the one-word partial
 match could be changed without a test noticing.
 """
-# pylint: disable=redefined-outer-name,missing-function-docstring
+# pylint: disable=redefined-outer-name,missing-function-docstring,protected-access
 
 from collections.abc import Callable, Generator
 from typing import Any
@@ -17,7 +17,7 @@ from unittest import mock
 
 import pytest
 from matcher_db import Lic, seeded_db
-from rapidfuzz import fuzz
+from rapidfuzz import fuzz, process
 
 from licenseid import shorttext
 from licenseid.database import LicenseDatabase
@@ -143,7 +143,9 @@ def test_the_cutoff_changes_no_result(db: LicenseDatabase) -> None:
     assert sum(map(bool, expected)) >= 6
 
 
-@pytest.mark.parametrize(("text", "threshold"), [("acme", 90.0), ("a b c", 85.0)])
+@pytest.mark.parametrize(
+    ("text", "threshold"), [("acme", 90.0), ("ferret lynx ocelxx", 85.0)]
+)
 def test_every_scorer_stops_at_the_threshold(
     db: LicenseDatabase, text: str, threshold: float
 ) -> None:
@@ -158,3 +160,65 @@ def test_every_scorer_stops_at_the_threshold(
     ]
     assert calls
     assert {c.kwargs.get("score_cutoff") for c in calls} == {threshold}
+
+
+@pytest.mark.parametrize(("text", "threshold"), [("acme", 90.0), ("a b c", 85.0)])
+def test_the_prefilter_cuts_at_the_threshold(text: str, threshold: float) -> None:
+    """The rows are cut in C at the threshold itself, never lower or higher
+    (a bonus is added only to a score at or above it)."""
+    spy = mock.Mock(spec=process, wraps=process)
+    with mock.patch.object(shorttext, "process", spy):
+        shorttext._rows_at_threshold([], text, threshold, len(text.split()))
+    assert spy.extract.call_args_list
+    assert {c.kwargs["score_cutoff"] for c in spy.extract.call_args_list} == {threshold}
+
+
+# Names of 10 and 20 characters: one letter changed scores 90.0 against the
+# first, and three letters changed 85.0 against the second (a deprecated row,
+# 0.03 off its score): the two thresholds exactly. A fourth letter, or a
+# second against the first, is under them.
+EDGE_ROWS = [
+    Lic("Edge-1.0", "abcd efghi"),
+    Lic("Edge-2.0", "aaaa bbbbbb cccccccc", is_deprecated=True),
+    Lic("Abcdefghij-1", "Nothing alike here"),  # only its ID is near
+]
+EDGE_INPUTS = [
+    ("abcd efghx", [("Edge-1.0", 0.9, 0.9)]),  # 90.0 of 90: kept
+    ("abcd efgxx", []),  # 80.0 of 90
+    ("axaa bxbbbb xccccccc", [("Edge-2.0", 0.82, 0.85)]),  # 85.0 of 85: kept
+    ("axaa bxbxbb xccccccc", []),  # 80.0 of 85
+    ("abcdefghix 1", [("Abcdefghij-1", 0.916667, 0.916667)]),  # by its ID: 91.67
+]
+
+
+@pytest.mark.parametrize(("text", "found"), EDGE_INPUTS)
+def test_a_row_at_the_threshold_is_kept_and_one_under_it_is_not(
+    text: str, found: list[tuple[str, float, float | None]]
+) -> None:
+    for path in seeded_db("test_shorttext_edge", EDGE_ROWS):
+        assert summary(LicenseDatabase(path), text) == found
+
+
+def test_the_prefilter_keeps_every_row_the_loop_keeps(db: LicenseDatabase) -> None:
+    """The prefilter is a superset of the rows with a score at the threshold,
+    found the long way (every row, every scorer)."""
+    rows = db.get_all_names_and_ids()
+    kept = 0
+    for text in [*CUTOFF_INPUTS, *(text for text, _ in EDGE_INPUTS)]:
+        words = text.split()
+        threshold = 90.0 if len(words) <= 2 else 85.0
+        stems = shorttext._grant_left_out(rows, set(words))
+        partial = shorttext._partial_names(rows, words, stems)
+        scored = {
+            i
+            for i, row in enumerate(rows)
+            if max(
+                shorttext._name_scores(text, row, threshold, len(words) == 1, partial)
+            )
+            >= threshold
+        }
+        kept += len(scored)
+        assert scored <= set(
+            shorttext._rows_at_threshold(rows, text, threshold, len(words))
+        )
+    assert kept >= 6  # the comparison reaches rows

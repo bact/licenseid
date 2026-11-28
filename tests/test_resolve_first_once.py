@@ -178,3 +178,62 @@ def test_a_field_of_a_cut_version_with_a_grant_stays_inexact() -> None:
         "field",
         False,
     )
+
+
+#: Values resolve() refuses that Tier 0 then reads by name or ID: the second
+#: reading was reused. The tag is taken out first, so its text is read again.
+REFUSED = [
+    ("BSD", 1),
+    ("Foo License", 1),
+    ("GNU General Public License v2.0", 1),
+    ("GPL 2 or later version", 1),
+    ("MIT +", 1),
+    ("GPL-2.0; or later", 1),
+    ("SPDX-License-Identifier: LicenseRef-MIT+", 2),
+]
+
+
+@pytest.mark.parametrize(("value", "calls"), REFUSED, ids=[v for v, _ in REFUSED])
+def test_a_refused_value_is_not_read_again_by_tier_0(value: str, calls: int) -> None:
+    assert _detect(text=value)[0] == calls
+
+
+def _seen(
+    value: str, variant: str, *, reuse: bool
+) -> tuple[list[tuple[str, str]], list[Detection]]:
+    """The warnings (kind and text, in order) and results of ``detect()``,
+    with or without the reuse of the first reading."""
+    detector: LicenseDetector = value_detector()
+    real = LicenseDetector._try_tier0_short_text  # pylint: disable=W0212
+
+    def again(self: LicenseDetector, ctx: object, read: object = None) -> object:
+        return real(self, ctx, read if reuse else None)  # type: ignore[arg-type]
+
+    with (
+        mock.patch.object(LicenseDetector, "_try_tier0_short_text", again),
+        warnings.catch_warnings(record=True) as caught,
+    ):
+        warnings.simplefilter("always")
+        found = detector.detect(text=value, variant=variant)  # type: ignore[arg-type]
+    return [(w.category.__name__, str(w.message)) for w in caught], found
+
+
+@pytest.mark.parametrize("variant", ["auto", "as-written", "only", "or-later"])
+def test_the_reuse_changes_no_answer_and_no_warning_under_any_variant(
+    variant: str,
+) -> None:
+    """One process, each value read under every variant: what the reused
+    reading gives, warnings (count and order) included, is what a second
+    reading of the same value in the same variant gives."""
+    shown = 0
+    for value, _ in REFUSED + [("GPL-2.0", 1), ("GPL 2", 1), ("GPL-2.0 or later", 1)]:
+        with_reuse = _seen(value, variant, reuse=True)
+        assert with_reuse == _seen(value, variant, reuse=False), value
+        shown += len(with_reuse[0])
+    assert shown >= 3  # the refusals warn, and still once each
+
+
+def test_a_refusal_warns_once() -> None:
+    assert _seen("BSD", "auto", reuse=True)[0] == [
+        ("LicenseIdWarning", "input: too few words for text: not found: BSD")
+    ]

@@ -9,6 +9,13 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- `detect()` on a declared value is about a quarter faster (462 PyPI values:
+  1.39 s to 1.06 s); every answer, score and warning is unchanged
+
 ## [0.9.4] - 2026-11-27
 
 ### Added

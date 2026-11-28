@@ -6,7 +6,7 @@
 """Tier 0 for inputs of a few words: exact and fuzzy matching of a bare
 license ID or name."""
 
-from rapidfuzz import fuzz
+from rapidfuzz import fuzz, process
 
 from licenseid.database import LicenseDatabase, exception_words
 from licenseid.exprflags import judged_id
@@ -21,6 +21,10 @@ from licenseid.versionkey import version_key
 
 # The score of an exact ID or name match; a fuzzy one scores less.
 EXACT_MATCH_SCORE = 1.02
+
+# The native scorers of :func:`_rows_at_threshold`, kept as they are:
+# ``process.extract`` runs only a RapidFuzz scorer in C.
+_RATIO, _PARTIAL, _TOKEN_SET = fuzz.ratio, fuzz.partial_ratio, fuzz.token_set_ratio
 
 # The words that end a List name with its grant, normalised.
 _GRANT_WORDS = (" only", " or later")
@@ -110,7 +114,8 @@ def _ranked_names(
     stems = _grant_left_out(all_metadata, set(words))
     partial = _partial_names(all_metadata, words, stems)
 
-    for meta in all_metadata:
+    for index in _rows_at_threshold(all_metadata, norm_input, threshold, len(words)):
+        meta = all_metadata[index]
         name_norm = meta["norm_name"]
         score_id, score_id_partial, score_name_exact, score_name_flex = _name_scores(
             norm_input, meta, threshold, len(words) == 1, partial
@@ -147,6 +152,38 @@ def _ranked_names(
     # carry no is_deprecated or pop_score.
     ranked.sort(key=lambda x: (-x["score"], x["license_id"]))
     return ranked, stems
+
+
+def _rows_at_threshold(
+    rows: list[LicenseNameId], norm_input: str, threshold: float, word_count: int
+) -> list[int]:
+    """The positions in *rows*, in order, of every row that any score of
+    :func:`_name_scores` can lift to *threshold* or more: ID, name and token
+    set against the name, and for one word the partial ID. RapidFuzz drops
+    the rest in one native pass, so the Python loop of :func:`_ranked_names`
+    scores a handful of rows, not the List. Cut at the *threshold* itself, as
+    the loop is: a bonus is added only to a score at or above it, so a row
+    under it is never kept by one. A superset of the rows the loop keeps (the
+    token set of a name that :func:`_partial_names` set aside is 0 there)."""
+    ids = [row["norm_license_id"] for row in rows]
+    names = [row["norm_name"] for row in rows]
+    scored = [(_RATIO, ids), (_RATIO, names), (_TOKEN_SET, names)]
+    if word_count == 1:
+        scored.append((_PARTIAL, ids))
+    found: set[int] = set()
+    for scorer, choices in scored:
+        found.update(
+            index
+            for _, _, index in process.extract(
+                norm_input,
+                choices,
+                scorer=scorer,
+                processor=None,
+                score_cutoff=threshold,
+                limit=None,
+            )
+        )
+    return sorted(found)
 
 
 def _name_scores(
