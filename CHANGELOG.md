@@ -18,6 +18,9 @@ and this project adheres to
   under a verbatim Apache 2.0 file): the results are the licences of that
   text and any a marker or `hint` names; the first result is unchanged
   ([#256])
+- **Behaviour change:** `coverage` (`COVERAGE`) of a `detect` result is capped
+  at 1, as `score` is. Migration: drop a clamp of your own; to learn that a
+  file holds more than one text, read `texts`
 
 ## [0.10.0] - 2026-11-28
 

@@ -76,8 +76,9 @@ EXPRESSION=Apache-2.0	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVE
   score, and a short, mixed or structural one (a notice, a heading) sets it to
   at least 0.95 of its confidence. So a short notice or a pointer can score 1
   with a `SIMILARITY` well below 1. That floor does not hold where the input is
-  longer than that licence's text (`COVERAGE` above 1.05) and holds whole
-  licence texts other than it: a notice in a file of several licence texts
+  longer than that licence's text (a coverage above 1.05 before the cap) and
+  holds whole licence texts other than it: a notice in a file of several
+  licence texts
   does not answer for the file, and a licence whose text is not among those
   found gets no result. Several results can score 1: the order tells them
   apart, and `EXACT` tells an exact one from a close one.
@@ -89,13 +90,17 @@ EXPRESSION=Apache-2.0	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVE
   `except`, `unless` or `irrevocable` that only one side holds costs a text 5%
   when its similarity is above 0.9 and below 1. A name's `SIMILARITY` is how
   alike the names are; it is not scaled for a short input.
-- `COVERAGE` is the input's words over the words of the text it was compared
-  with: the whole text, or the core when the core won. It has no upper
-  limit. Below 0.8 the input is a fragment, such as a copyright notice, a
-  header or a cut file. From 0.95 to 1.05 it is about the whole licence
-  text. Well above 1 the input holds more than that licence's text, as a
-  file that holds two licence texts does. `TEXTS` names the licence texts
-  such a file holds; the ranking is still that of one licence.
+- `COVERAGE` is 0 to 1, capped in the output: the input's words over the
+  words of the text it was compared with (the whole text, or the core when
+  the core won). Below 0.8 the input is shorter than the text: a fragment,
+  such as a copyright notice, a header or a cut file. From 0.95 the input
+  is about as long as the whole licence text, or longer: an input longer
+  than the text reads 1, however long it is and whatever it holds (a
+  second licence text, or a notice in a long README). So a `COVERAGE` of 1
+  alone is no whole text: `TEXTS` names the licence texts a file holds, and
+  `EXACT` says that the input is one text and nothing more. The ranking
+  reads the value before the cap: the bonus and the limit of a marker's
+  floor, both up to 1.05, are counted there.
 - `SIMILARITY` and `COVERAGE` are empty (JSON `null`) where nothing was
   measured: a tag, a field, an ID or a name `resolve()` reads has neither,
   and a name the lookup of names matches has no coverage.
@@ -175,7 +180,8 @@ EXPRESSION=Apache-2.0	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVE
   text and neither form shows its shortest ID. A text of an exception (the GCC
   exception) is not in the database, so it is never listed. A notice or a
   pointer, such as Apache's "Licensed under the Apache License" header, is not a
-  whole text: `TEXTS` does not hold the answer and `COVERAGE` is under 0.8. A
+  whole text: `TEXTS` does not hold the answer, and `COVERAGE` is under 0.8
+  where the input is the notice alone. A
   text that is a close look-alike of another (two BSD-3-Clause variants that
   differ in a few words) is named only when no other text fits the same part
   about as well; else the part names nothing.
@@ -206,9 +212,9 @@ EXPRESSION=MPL-2.0-no-copyleft-exception	METHOD=text	EXACT=true	SCORE=1.0000	SIM
 - Is there an answer? The exit code (0, or 1 for none). `--threshold` is read
   on `SCORE`, which only ranks the results.
 - How well does it fit? `SIMILARITY`, from 0 to 1.
-- Whole text or fragment? `COVERAGE`: under 0.8 a fragment, such as a notice
-  or a pointer; from 0.95 to 1.05 about the whole text; well above 1 the
-  input holds more than that text.
+- Shorter than the text? `COVERAGE`: under 0.8 a fragment, such as a notice
+  or a pointer alone; from 0.95 an input about as long as the text, or
+  longer (the value is capped at 1). A long input need not hold the text.
 - Which whole texts does the file hold? `TEXTS`.
 
 A caller that declares one licence for a file can use this rule: declare
@@ -216,9 +222,9 @@ A caller that declares one licence for a file can use this rule: declare
 `EXPRESSION`. Otherwise read `TEXTS`:
 
 - empty, with `COVERAGE` under 0.8: a notice or a pointer, not a text;
-- empty, with `COVERAGE` about 1 or more: a whole text that `TEXTS` could
+- empty, with `COVERAGE` about 1: a whole text that `TEXTS` could
   not confirm (a look-alike was too close, or the wording differs from the
-  List's);
+  List's), or a notice or a pointer inside a longer file;
 - one ID other than `EXPRESSION`: the answer is in doubt;
 - several IDs: the file holds several texts. With an answer, its text is the
   first ID, the text the file gives first, by habit the project's own; the

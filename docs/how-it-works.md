@@ -259,7 +259,9 @@ fingerprint. A marker's confidence floor stays only where the input is
 no longer than the marker's licence text (coverage up to 1.05) or the
 search of whole texts finds no text but that licence's;
 where it does not stay, a candidate whose text is not among those found
-is dropped. What `SCORE`, `SIMILARITY` and `COVERAGE` measure, and their
+is dropped. The ranking reads the coverage as counted, above 1 for an
+input longer than the text; only the result caps it at 1. What `SCORE`,
+`SIMILARITY` and `COVERAGE` measure, and their
 ranges, is in [output.md](output.md#default-and-verbose-text).
 
 ### First text
@@ -277,6 +279,6 @@ takes an answer away, never gives one, and only on texts found: a file
 that holds one text whole besides an own text not found keeps its
 answer; with two or more found, the first decides. It has no coverage
 gate: a short text before a long one (MIT, then the GPL-3.0) gives the
-long one a coverage of about 1.03.
+long one a coverage of about 1.03 before the cap.
 
 [py-spdx-license]: https://github.com/JPEWdev/py-spdx-license

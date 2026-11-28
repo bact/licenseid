@@ -42,6 +42,13 @@ def _rounded(value: float | None) -> float | None:
     return None if value is None else round(value, _DIGITS) + 0.0
 
 
+def _capped(value: float | None) -> float | None:
+    """A coverage as the public form gives it: at most 1, then rounded, None
+    kept. Above 1 it grows with any prose around a text, so it says nothing
+    of the licence; ``texts`` and ``exact`` say what an input holds."""
+    return None if value is None else _rounded(min(value, 1.0))
+
+
 def public_result(
     raw: RawMatch | InternalMatch,
     lists: list[ListInfo],
@@ -49,9 +56,11 @@ def public_result(
 ) -> Detection:
     """*raw* as detect() returns it, resting on *lists* (each result its own
     copy). The ranking key is capped to 0-1: above 1 it only orders a tier's
-    own results, and the order is in the list. *twins* holds, by ID, the IDs
-    of the same normalised text, the licence itself included. The ``texts`` of
-    *raw*, the same list on each result of a call, is copied for each."""
+    own results, and the order is in the list. The coverage is capped at 1
+    too, here only: every reader that ranks has the raw value. *twins* holds,
+    by ID, the IDs of the same normalised text, the licence itself included.
+    The ``texts`` of *raw*, the same list on each result of a call, is copied
+    for each."""
     evidence = raw.get("evidence")
     return Detection(
         expression=raw["license_id"],
@@ -60,7 +69,7 @@ def public_result(
         exact=bool(raw["exact"]) and not guessed_of(raw["license_id"], evidence),
         score=round(max(0.0, min(raw["score"], 1.0)), _DIGITS),
         similarity=_rounded(raw["similarity"]),
-        coverage=_rounded(raw["coverage"]),
+        coverage=_capped(raw["coverage"]),
         is_spdx=bool(raw.get("is_spdx", False)),
         is_osi_approved=_judged(raw.get("is_osi_approved", False)),
         is_fsf_libre=_judged(raw.get("is_fsf_libre", False)),

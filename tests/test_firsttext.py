@@ -7,7 +7,7 @@
 only when its text is the first whole text found. The search is the
 ``found_rows`` fake here (its ``rows`` and ``first``); the real one runs in
 ``test_several_texts.py``."""
-# pylint: disable=missing-function-docstring,redefined-outer-name
+# pylint: disable=missing-function-docstring,redefined-outer-name,protected-access
 
 from collections.abc import Generator
 from typing import Any
@@ -162,16 +162,19 @@ def test_a_short_text_before_a_long_one_is_refused(
 ) -> None:
     """MIT, then the GPL-3.0: the top, GPL-3.0-only, covers about 1.03 of
     the input, under markerfloor's 1.05. A coverage gate would let it
-    stand; the rule has none."""
+    stand; the rule has none. The raw match has that value: the public one
+    is capped at 1."""
     detector = long_text_detector()
     text = several_text("mit-then-gpl3")
     assert not detector.detect(text=text)
+    assert not detector._match_raw(text=text)
     monkeypatch.setattr(firsttext, "first_stands", lambda *_: True)
-    top = detector.detect(text=text)[0]
-    assert top["expression"] == "GPL-3.0-only"
+    top = detector._match_raw(text=text)[0]
+    assert top["license_id"] == "GPL-3.0-only"
     coverage = top["coverage"]
     assert coverage is not None and 1.0 < coverage <= 1.05
-    assert top["texts"] == ["MIT", "GPL-3.0-only"]
+    assert top.get("texts") == ["MIT", "GPL-3.0-only"]
+    assert detector.detect(text=text)[0]["coverage"] == 1.0
     assert given.conditions() <= {"variant not stated"}
 
 
